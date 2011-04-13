@@ -4,8 +4,6 @@
 
 #include "net/base/net_util.h"
 
-#include <algorithm>
-
 #include "base/file_path.h"
 #include "base/format_macros.h"
 #include "base/string_number_conversions.h"
@@ -22,8 +20,6 @@
 namespace net {
 
 namespace {
-
-static const size_t kNpos = string16::npos;
 
 struct FileCase {
   const wchar_t* file;
@@ -992,20 +988,6 @@ TEST(NetUtilTest, IDNToUnicodeAdjustOffset) {
                       &offset);
     EXPECT_EQ(adjust_cases[i].output_offset, offset);
   }
-
-  std::vector<size_t> offsets;
-  for (size_t i = 0; i < 40; ++i)
-    offsets.push_back(i);
-  IDNToUnicodeWithOffsets("test.xn--cy2a840a.xn--1lq90ic7f1rc.test", 39,
-                          L"zh-CN", &offsets);
-  size_t expected[] = {0, 1, 2, 3, 4, 5, kNpos, kNpos, kNpos, kNpos, kNpos,
-                       kNpos, kNpos, kNpos, kNpos, kNpos, kNpos, 7, 8, kNpos,
-                       kNpos, kNpos, kNpos, kNpos, kNpos, kNpos, kNpos, kNpos,
-                       kNpos, kNpos, kNpos, kNpos, kNpos, kNpos, 12, 13, 14, 15,
-                       16, kNpos};
-  ASSERT_EQ(40U, arraysize(expected));
-  for (size_t i = 0; i < 40; ++i)
-    EXPECT_EQ(expected[i], offsets[i]);
 }
 
 TEST(NetUtilTest, CompliantHost) {
@@ -1817,24 +1799,13 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
     EXPECT_EQ(basic_cases[i].output_offset, offset);
   }
 
-  size_t url_size = 26;
-  std::vector<size_t> offsets;
-  for (size_t i = 0; i < url_size + 1; ++i)
-    offsets.push_back(i);
-  FormatUrlWithOffsets(GURL("http://www.google.com/foo/"), "en",
-                       kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL,
-                       NULL, NULL, &offsets);
-  for (size_t i = 0; i < url_size; ++i)
-    EXPECT_EQ(i, offsets[i]);
-  EXPECT_EQ(kNpos, offsets[url_size]);
-
   const struct {
     const char* input_url;
     size_t input_offset;
     size_t output_offset;
   } omit_auth_cases[] = {
     {"http://foo:bar@www.google.com/", 6, 6},
-    {"http://foo:bar@www.google.com/", 7, string16::npos},
+    {"http://foo:bar@www.google.com/", 7, 7},
     {"http://foo:bar@www.google.com/", 8, string16::npos},
     {"http://foo:bar@www.google.com/", 10, string16::npos},
     {"http://foo:bar@www.google.com/", 11, string16::npos},
@@ -1852,28 +1823,13 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
     EXPECT_EQ(omit_auth_cases[i].output_offset, offset);
   }
 
-  url_size = 30;
-  offsets.clear();
-  for (size_t i = 0; i < url_size; ++i)
-    offsets.push_back(i);
-  FormatUrlWithOffsets(GURL("http://foo:bar@www.google.com/"), "en",
-                       kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL,
-                       NULL, NULL, &offsets);
-  for (size_t i = 0; i < 7; ++i)
-    EXPECT_EQ(i, offsets[i]);
-  for (size_t i = 7; i < 15; ++i)
-    EXPECT_EQ(kNpos, offsets[i]);
-  for (size_t i = 16; i < url_size; ++i)
-    EXPECT_EQ(i - 8 , offsets[i]);
-
   const AdjustOffsetCase view_source_cases[] = {
     {0, 0},
     {3, 3},
     {11, 11},
     {12, 12},
     {13, 13},
-    {18, 18},
-    {19, string16::npos},
+    {19, 19},
     {20, string16::npos},
     {23, 19},
     {26, 22},
@@ -1886,20 +1842,6 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
                    NULL, NULL, &offset);
     EXPECT_EQ(view_source_cases[i].output_offset, offset);
   }
-
-  url_size = 38;
-  offsets.clear();
-  for (size_t i = 0; i < url_size; ++i)
-    offsets.push_back(i);
-  FormatUrlWithOffsets(GURL("view-source:http://foo@www.google.com/"), "en",
-                       kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL,
-                       NULL, NULL, &offsets);
-  size_t expected[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-                       17, 18, kNpos, kNpos, kNpos, kNpos, 19, 20, 21, 22, 23,
-                       24, 25, 26, 27, 28, 29, 30, 31, 32, 33};
-  ASSERT_EQ(url_size, arraysize(expected));
-  for (size_t i = 0; i < url_size; ++i)
-    EXPECT_EQ(expected[i], offsets[i]);
 
   const AdjustOffsetCase idn_hostname_cases[] = {
     {8, string16::npos},
@@ -1916,21 +1858,6 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
                    NULL, NULL, &offset);
     EXPECT_EQ(idn_hostname_cases[i].output_offset, offset);
   }
-
-  url_size = 33;
-  offsets.clear();
-  for (size_t i = 0; i < url_size; ++i)
-    offsets.push_back(i);
-  FormatUrlWithOffsets(GURL("http://xn--l8jvb1ey91xtjb.jp/foo/"), "ja",
-                       kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL,
-                       NULL, NULL, &offsets);
-  size_t expected_1[] = {0, 1, 2, 3, 4, 5, 6, 7, kNpos, kNpos, kNpos, kNpos,
-                         kNpos, kNpos, kNpos, kNpos, kNpos, kNpos, kNpos, kNpos,
-                         kNpos, kNpos, kNpos, kNpos, kNpos, 12, 13, 14, 15, 16,
-                         17, 18, 19};
-  ASSERT_EQ(url_size, arraysize(expected_1));
-  for (size_t i = 0; i < url_size; ++i)
-    EXPECT_EQ(expected_1[i], offsets[i]);
 
   const AdjustOffsetCase unescape_cases[] = {
     {25, 25},
@@ -1954,31 +1881,11 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
     EXPECT_EQ(unescape_cases[i].output_offset, offset);
   }
 
-  url_size = 68;
-  offsets.clear();
-  for (size_t i = 0; i < url_size; ++i)
-    offsets.push_back(i);
-  FormatUrlWithOffsets(GURL(
-      "http://www.google.com/foo%20bar/%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB"),
-      "en", kFormatUrlOmitUsernamePassword, UnescapeRule::SPACES, NULL, NULL,
-      &offsets);
-  size_t expected_2[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                         16, 17, 18, 19, 20, 21, 22, 23, 24, 25, kNpos, kNpos,
-                         26, 27, 28, 29, 30, kNpos, kNpos, kNpos, kNpos, kNpos,
-                         kNpos, kNpos, kNpos, 31, kNpos, kNpos, kNpos, kNpos,
-                         kNpos, kNpos, kNpos, kNpos, 32, kNpos, kNpos, kNpos,
-                         kNpos, kNpos, kNpos, kNpos, kNpos, 33, kNpos, kNpos,
-                         kNpos, kNpos, kNpos, kNpos, kNpos, kNpos};
-  ASSERT_EQ(url_size, arraysize(expected_2));
-  for (size_t i = 0; i < url_size; ++i)
-    EXPECT_EQ(expected_2[i], offsets[i]);
-
   const AdjustOffsetCase ref_cases[] = {
     {30, 30},
     {31, 31},
     {32, string16::npos},
     {34, 32},
-    {35, string16::npos},
     {37, 33},
     {38, string16::npos},
   };
@@ -1991,22 +1898,6 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
         &offset);
     EXPECT_EQ(ref_cases[i].output_offset, offset);
   }
-
-  url_size = 38;
-  offsets.clear();
-  for (size_t i = 0; i < url_size; ++i)
-    offsets.push_back(i);
-  // "http://www.google.com/foo.html#\x30B0\x30B0z"
-  FormatUrlWithOffsets(GURL(
-      "http://www.google.com/foo.html#\xE3\x82\xB0\xE3\x82\xB0z"), "en",
-      kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL, NULL, NULL,
-      &offsets);
-  size_t expected_3[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                         16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-                         30, 31, kNpos, kNpos, 32, kNpos, kNpos, 33};
-  ASSERT_EQ(url_size, arraysize(expected_3));
-  for (size_t i = 0; i < url_size; ++i)
-    EXPECT_EQ(expected_3[i], offsets[i]);
 
   const AdjustOffsetCase omit_http_cases[] = {
     {0, string16::npos},
@@ -2021,18 +1912,6 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
     EXPECT_EQ(omit_http_cases[i].output_offset, offset);
   }
 
-  url_size = 23;
-  offsets.clear();
-  for (size_t i = 0; i < url_size; ++i)
-    offsets.push_back(i);
-  FormatUrlWithOffsets(GURL("http://www.google.com"), "en",
-      kFormatUrlOmitHTTP, UnescapeRule::NORMAL, NULL, NULL, &offsets);
-  size_t expected_4[] = {kNpos, kNpos, kNpos, kNpos, kNpos, kNpos, kNpos, 0, 1,
-                         2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, kNpos};
-  ASSERT_EQ(url_size, arraysize(expected_4));
-  for (size_t i = 0; i < url_size; ++i)
-    EXPECT_EQ(expected_4[i], offsets[i]);
-
   const AdjustOffsetCase omit_http_start_with_ftp[] = {
     {0, 0},
     {3, 3},
@@ -2044,18 +1923,6 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
         kFormatUrlOmitHTTP, UnescapeRule::NORMAL, NULL, NULL, &offset);
     EXPECT_EQ(omit_http_start_with_ftp[i].output_offset, offset);
   }
-
-  url_size = 23;
-  offsets.clear();
-  for (size_t i = 0; i < url_size; ++i)
-    offsets.push_back(i);
-  FormatUrlWithOffsets(GURL("http://ftp.google.com"), "en",
-      kFormatUrlOmitHTTP, UnescapeRule::NORMAL, NULL, NULL, &offsets);
-  size_t expected_5[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                         16, 17, 18, 19, 20, 21, kNpos};
-  ASSERT_EQ(url_size, arraysize(expected_5));
-  for (size_t i = 0; i < url_size; ++i)
-    EXPECT_EQ(expected_5[i], offsets[i]);
 
   const AdjustOffsetCase omit_all_cases[] = {
     {12, 0},
@@ -2069,19 +1936,6 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
                    UnescapeRule::NORMAL, NULL, NULL, &offset);
     EXPECT_EQ(omit_all_cases[i].output_offset, offset);
   }
-
-  url_size = 21;
-  offsets.clear();
-  for (size_t i = 0; i < url_size; ++i)
-    offsets.push_back(i);
-  FormatUrlWithOffsets(GURL("http://user@foo.com/"), "en", kFormatUrlOmitAll,
-                       UnescapeRule::NORMAL, NULL, NULL, &offsets);
-  size_t expected_6[] = {kNpos, kNpos, kNpos, kNpos, kNpos, kNpos, kNpos, kNpos,
-                         kNpos, kNpos, kNpos, kNpos, 0, 1, 2, 3, 4, 5, 6, 7,
-                         kNpos};
-  ASSERT_EQ(url_size, arraysize(expected_6));
-  for (size_t i = 0; i < url_size; ++i)
-    EXPECT_EQ(expected_6[i], offsets[i]);
 }
 
 TEST(NetUtilTest, SimplifyUrlForRequest) {
@@ -2365,22 +2219,6 @@ TEST(NetUtilTest, GetNetworkList) {
     }
     EXPECT_FALSE(all_zeroes);
   }
-}
-
-TEST(NetUtilTest, AdjustComponentOffset) {
-  std::vector<size_t> old_offsets;
-  for (size_t i = 0; i < 10; ++i)
-    old_offsets.push_back(i);
-  std::vector<size_t> new_offsets;
-  std::transform(old_offsets.begin(),
-                 old_offsets.end(),
-                 std::back_inserter(new_offsets),
-                 ClampComponentOffset(5));
-  size_t expected_1[] = {kNpos, kNpos, kNpos, kNpos, kNpos, 5, 6, 7, 8, 9};
-  EXPECT_EQ(new_offsets.size(), arraysize(expected_1));
-  EXPECT_EQ(new_offsets.size(), old_offsets.size());
-  for (size_t i = 0; i < arraysize(expected_1); ++i)
-    EXPECT_EQ(expected_1[i], new_offsets[i]);
 }
 
 }  // namespace net
