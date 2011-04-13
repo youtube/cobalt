@@ -125,42 +125,24 @@ Index: main.mk
  
  objects: $(LIBOBJ_ORIG)
  
-@@ -484,6 +527,12 @@
+@@ -484,6 +527,9 @@
  test:	testfixture$(EXE) sqlite3$(EXE)
  	./testfixture$(EXE) $(TOP)/test/veryquick.test
  
-+ftstest:	testfixture$(EXE) sqlite3$(EXE)
-+	./testfixture$(EXE) $(TOP)/test/fts.test
-+
 +fts2test:	testfixture$(EXE) sqlite3$(EXE)
 +	./testfixture$(EXE) $(TOP)/test/fts2.test
 +
  sqlite3_analyzer$(EXE):	$(TOP)/src/tclsqlite.c sqlite3.c $(TESTSRC) \
  			$(TOP)/tool/spaceanal.tcl
  	sed \
-Index: src/test_autoext.c
-===================================================================
---- src/test_autoext.c	2009-09-03 13:32:06.000000000 -0700
-+++ src/test_autoext.c	2009-09-15 18:14:35.000000000 -0700
-@@ -17,7 +17,9 @@
- #include "sqlite3ext.h"
- 
- #ifndef SQLITE_OMIT_LOAD_EXTENSION
-+#ifndef SQLITE_CORE
- static SQLITE_EXTENSION_INIT1
-+#endif
- 
- /*
- ** The sqr() SQL function returns the square of its input value.
 Index: src/quick.test
 ===================================================================
 --- test/quick.test	2009-09-04 13:37:44.000000000 -0700
 +++ test/quick.test	2009-09-15 11:34:54.000000000 -0700
-@@ -58,6 +58,8 @@
+@@ -58,6 +58,7 @@
    crash7.test
    delete3.test
    fts3.test
-+  fts.test
 +  fts2.test
    fuzz.test
    fuzz3.test
