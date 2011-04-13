@@ -46,9 +46,15 @@ void CertDatabase::RemoveObserver(Observer* observer) {
   CertDatabaseNotifier::GetInstance()->observer_list_->RemoveObserver(observer);
 }
 
-void CertDatabase::NotifyObserversOfUserCertAdded(X509Certificate* cert) {
+void CertDatabase::NotifyObserversOfUserCertAdded(const X509Certificate* cert) {
   CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
       &CertDatabase::Observer::OnUserCertAdded, make_scoped_refptr(cert));
+}
+
+void CertDatabase::NotifyObserversOfCertTrustChanged(
+    const X509Certificate* cert) {
+  CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
+      &CertDatabase::Observer::OnCertTrustChanged, make_scoped_refptr(cert));
 }
 
 }  // namespace net

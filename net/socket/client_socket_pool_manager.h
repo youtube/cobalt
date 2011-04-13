@@ -150,7 +150,8 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   Value* SocketPoolInfoToValue() const;
 
   // CertDatabase::Observer methods:
-  virtual void OnUserCertAdded(X509Certificate* cert);
+  virtual void OnUserCertAdded(const X509Certificate* cert);
+  virtual void OnCertTrustChanged(const X509Certificate* cert);
 
  private:
   friend class HttpNetworkSessionPeer;
