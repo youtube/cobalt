@@ -248,20 +248,25 @@ void TestDelegate::OnResponseCompleted(net::URLRequest* request) {
 
 TestNetworkDelegate::TestNetworkDelegate()
   : last_os_error_(0),
-    error_count_(0) {
+    error_count_(0),
+    created_requests_(0),
+    destroyed_requests_(0) {
 }
 
 TestNetworkDelegate::~TestNetworkDelegate() {}
 
 int TestNetworkDelegate::OnBeforeURLRequest(
-    net::URLRequest* request, net::CompletionCallback* callback) {
+    net::URLRequest* request,
+    net::CompletionCallback* callback,
+    GURL* new_url) {
+  created_requests_++;
   return net::OK;
 }
 
 int TestNetworkDelegate::OnBeforeSendHeaders(
     uint64 request_id,
-    net::HttpRequestHeaders* headers,
-    net::CompletionCallback* callback) {
+    net::CompletionCallback* callback,
+    net::HttpRequestHeaders* headers) {
   return net::OK;
 }
 
@@ -281,6 +286,7 @@ void TestNetworkDelegate::OnReadCompleted(net::URLRequest* request,
 }
 
 void TestNetworkDelegate::OnURLRequestDestroyed(net::URLRequest* request) {
+  destroyed_requests_++;
 }
 
 net::URLRequestJob* TestNetworkDelegate::OnMaybeCreateURLRequestJob(

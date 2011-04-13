@@ -23,6 +23,7 @@
 #include "net/url_request/url_request_job.h"
 #include "net/url_request/url_request_job_manager.h"
 #include "net/url_request/url_request_netlog_params.h"
+#include "net/url_request/url_request_redirect_job.h"
 
 using base::Time;
 using std::string;
@@ -120,7 +121,9 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       redirect_limit_(kMaxRedirects),
       final_upload_progress_(0),
       priority_(LOWEST),
-      identifier_(GenerateURLRequestIdentifier()) {
+      identifier_(GenerateURLRequestIdentifier()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          before_request_callback_(this, &URLRequest::BeforeRequestComplete)) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
   // Sanity check out environment.
@@ -133,9 +136,6 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
 URLRequest::~URLRequest() {
   if (context_ && context_->network_delegate())
     context_->network_delegate()->NotifyURLRequestDestroyed(this);
-
-  if (before_request_callback_)
-    before_request_callback_->Cancel();
 
   Cancel();
 
@@ -362,21 +362,40 @@ GURL URLRequest::GetSanitizedReferrer() const {
 void URLRequest::Start() {
   response_info_.request_time = Time::Now();
 
+  // Only notify the delegate for the initial request.
   if (context_ && context_->network_delegate()) {
-    before_request_callback_ = new CancelableCompletionCallback<URLRequest>(
-        this, &URLRequest::BeforeRequestComplete);
     if (context_->network_delegate()->NotifyBeforeURLRequest(
-            this, before_request_callback_) == net::ERR_IO_PENDING) {
-      before_request_callback_->AddRef();  // balanced in BeforeRequestComplete
+            this, &before_request_callback_, &delegate_redirect_url_) ==
+            net::ERR_IO_PENDING) {
       net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_EXTENSION, NULL);
       return;  // paused
     }
   }
 
-  StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
+  StartInternal();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+void URLRequest::BeforeRequestComplete(int error) {
+  DCHECK(!job_);
+  DCHECK_NE(ERR_IO_PENDING, error);
+
+  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_EXTENSION, NULL);
+  if (error != OK) {
+    StartJob(new URLRequestErrorJob(this, error));
+  } else if (!delegate_redirect_url_.is_empty()) {
+    GURL new_url;
+    new_url.Swap(&delegate_redirect_url_);
+    StartJob(new URLRequestRedirectJob(this, new_url));
+  } else {
+    StartInternal();
+  }
+}
+
+void URLRequest::StartInternal() {
+  StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
+}
 
 void URLRequest::StartJob(URLRequestJob* job) {
   DCHECK(!is_pending_);
@@ -402,18 +421,6 @@ void URLRequest::StartJob(URLRequestJob* job) {
   // we probably don't want this: they should be sent asynchronously so
   // the caller does not get reentered.
   job_->Start();
-}
-
-void URLRequest::BeforeRequestComplete(int error) {
-  DCHECK(!job_);
-
-  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_EXTENSION, NULL);
-  before_request_callback_->Release();  // balanced in Start
-  if (error != OK) {
-    StartJob(new URLRequestErrorJob(this, error));
-  } else {
-    StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
-  }
 }
 
 void URLRequest::Restart() {
@@ -628,7 +635,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     final_upload_progress_ = job_->GetUploadProgress();
 
   PrepareToRestart();
-  Start();
+  StartInternal();
   return OK;
 }
 
