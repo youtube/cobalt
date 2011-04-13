@@ -521,6 +521,9 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   DCHECK(server_cert_ != NULL);
   ssl_info->cert = server_cert_;
   ssl_info->connection_status = ssl_connection_status_;
+  ssl_info->public_key_hashes = server_cert_verify_result_->public_key_hashes;
+  ssl_info->is_issued_by_known_root =
+      server_cert_verify_result_->is_issued_by_known_root;
 
   PRUint16 cipher_suite =
       SSLConnectionStatusToCipherSuite(ssl_connection_status_);
