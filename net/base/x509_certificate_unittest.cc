@@ -8,6 +8,7 @@
 #include "base/path_service.h"
 #include "base/pickle.h"
 #include "base/sha1.h"
+#include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
@@ -30,6 +31,8 @@
 #define TEST_EV 1  // Test CERT_STATUS_IS_EV
 #endif
 
+using base::HexEncode;
+using base::SHA1_LENGTH;
 using base::Time;
 
 namespace net {
@@ -566,12 +569,10 @@ TEST(X509CertificateTest, PublicKeyHashes) {
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0, verify_result.cert_status);
   ASSERT_LE(2u, verify_result.public_key_hashes.size());
-  EXPECT_TRUE(0 == memcmp(verify_result.public_key_hashes[0].data,
-                          nistSPKIHash, base::SHA1_LENGTH));
-  EXPECT_TRUE(0 == memcmp(verify_result.public_key_hashes[1].data,
-                          "\x83\x24\x42\x23\xd6\xcb\xf0\xa2\x6f\xc7"
-                          "\xde\x27\xce\xbc\xa4\xbd\xa3\x26\x12\xad",
-                          base::SHA1_LENGTH));
+  EXPECT_EQ(HexEncode(nistSPKIHash, base::SHA1_LENGTH),
+            HexEncode(verify_result.public_key_hashes[0].data, SHA1_LENGTH));
+  EXPECT_EQ("83244223D6CBF0A26FC7DE27CEBCA4BDA32612AD",
+            HexEncode(verify_result.public_key_hashes[1].data, SHA1_LENGTH));
 
   TestRootCerts::GetInstance()->Clear();
 }

@@ -16,7 +16,9 @@
 #include "base/memory/singleton.h"
 #include "base/openssl_util.h"
 #include "base/pickle.h"
+#include "base/sha1.h"
 #include "base/string_number_conversions.h"
+#include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
@@ -475,6 +477,25 @@ int X509Certificate::Verify(const std::string& hostname,
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
+  STACK_OF(X509)* chain = X509_STORE_CTX_get_chain(ctx.get());
+  for (int i = 0; i < sk_X509_num(chain); ++i) {
+    X509* cert = sk_X509_value(chain, i);
+    DERCache der_cache;
+    if (!GetDERAndCacheIfNeeded(cert, &der_cache))
+      continue;
+
+    base::StringPiece der_bytes(reinterpret_cast<const char*>(der_cache.data),
+                                der_cache.data_length);
+    base::StringPiece spki_bytes;
+    if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki_bytes))
+      continue;
+
+    SHA1Fingerprint hash;
+    base::SHA1HashBytes(reinterpret_cast<const uint8*>(spki_bytes.data()),
+                        spki_bytes.size(), hash.data);
+    verify_result->public_key_hashes.push_back(hash);
+  }
+
   // Currently we only ues OpenSSL's default root CA paths, so treat all
   // correctly verified certs as being from a known root. TODO(joth): if the
   // motivations described in http://src.chromium.org/viewvc/chrome?view=rev&revision=80778
@@ -486,8 +507,12 @@ int X509Certificate::Verify(const std::string& hostname,
 }
 
 bool X509Certificate::GetDEREncoded(std::string* encoded) {
-  // TODO(port): Implement.
-  return false;
+  DERCache der_cache;
+  if (!GetDERAndCacheIfNeeded(cert_handle_, &der_cache))
+      return false;
+  encoded->assign(reinterpret_cast<const char*>(der_cache.data),
+                  der_cache.data_length);
+  return true;
 }
 
 // static
