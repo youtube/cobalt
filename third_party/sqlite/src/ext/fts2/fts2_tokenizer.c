@@ -28,7 +28,9 @@
 
 #include "sqlite3.h"
 #include "sqlite3ext.h"
-SQLITE_EXTENSION_INIT1
+#ifndef SQLITE_CORE
+  SQLITE_EXTENSION_INIT1
+#endif
 
 #include "fts2_hash.h"
 #include "fts2_tokenizer.h"

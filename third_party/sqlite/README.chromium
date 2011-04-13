@@ -3,6 +3,7 @@ License File: src/LICENSE
 URL: http://sqlite.org/
 Version: 3.6.18
 Included In Release: Yes
+Security Critical: Yes
 
 Instructions for importing a new release of SQLite from sqlite.org.
 
@@ -64,6 +65,7 @@ icu-regexp.patch
 icu-shell.patch
 attach-integer.patch
 webdb.patch
+test.patch
 
 So, e.g. you could do this to apply all our patches to vanilla SQLite:
 
@@ -77,6 +79,7 @@ patch -p0 < ../sqlite/icu-regexp.patch
 patch -p0 < ../sqlite/icu-shell.patch
 patch -p0 < ../sqlite/attach-integer.patch
 patch -p0 < ../sqlite/webdb.patch
+patch -p0 < ../sqlite/test.patch
 
 This will only be the case if all changes we make also update the corresponding
 patch files. Therefore please remember to do that whenever you make a change!
@@ -91,7 +94,7 @@ Prerequisties: On my corp Ubuntu 8.04 workstation, I needed to install the
 following packages:
 sudo apt-get install tcl8.4-dev libicu-dev
 
-cd src/third_party/sqlite
+cd src/third_party/sqlite/src
 mkdir build
 cd build
 make -f ../Makefile.linux-gcc testfixture
