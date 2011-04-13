@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <string>
 
 #include "net/base/escape.h"
@@ -14,6 +15,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
+
+static const size_t kNpos = string16::npos;
 
 struct EscapeCase {
   const wchar_t* input;
@@ -395,4 +398,40 @@ TEST(EscapeTest, UnescapeForHTML) {
     string16 result = UnescapeForHTML(ASCIIToUTF16(tests[i].input));
     EXPECT_EQ(ASCIIToUTF16(tests[i].expected_output), result);
   }
+}
+
+TEST(EscapeTest, AdjustEncodingOffset) {
+  // Imagine we have strings as shown in the following cases where the
+  // %XX's represent encoded characters
+
+  // 1: abc%ECdef ==> abcXdef
+  std::vector<size_t> offsets;
+  for (size_t t = 0; t < 9; ++t)
+    offsets.push_back(t);
+  AdjustEncodingOffset::Adjustments adjustments;
+  adjustments.push_back(3);
+  std::for_each(offsets.begin(), offsets.end(),
+                AdjustEncodingOffset(adjustments));
+  size_t expected_1[] = {0, 1, 2, 3, kNpos, kNpos, 4, 5, 6};
+  EXPECT_EQ(offsets.size(), arraysize(expected_1));
+  for (size_t i = 0; i < arraysize(expected_1); ++i)
+    EXPECT_EQ(expected_1[i], offsets[i]);
+
+
+  // 2: %ECabc%EC%ECdef%EC ==> XabcXXdefX
+  offsets.clear();
+  for (size_t t = 0; t < 18; ++t)
+    offsets.push_back(t);
+  adjustments.clear();
+  adjustments.push_back(0);
+  adjustments.push_back(6);
+  adjustments.push_back(9);
+  adjustments.push_back(15);
+  std::for_each(offsets.begin(), offsets.end(),
+                AdjustEncodingOffset(adjustments));
+  size_t expected_2[] = {0, kNpos, kNpos, 1, 2, 3, 4, kNpos, kNpos, 5, kNpos,
+                         kNpos, 6, 7, 8, 9, kNpos, kNpos};
+  EXPECT_EQ(offsets.size(), arraysize(expected_2));
+  for (size_t i = 0; i < arraysize(expected_2); ++i)
+    EXPECT_EQ(expected_2[i], offsets[i]);
 }
