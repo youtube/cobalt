@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/base/escape.h"
-
 #include <algorithm>
 
+#include "net/base/escape.h"
+
 #include "base/logging.h"
-#include "base/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -99,14 +98,15 @@ const char kUrlUnescape[128] = {
 };
 
 template<typename STR>
-STR UnescapeURLWithOffsetsImpl(const STR& escaped_text,
-                               UnescapeRule::Type rules,
-                               std::vector<size_t>* offsets_for_adjustment) {
-  if (offsets_for_adjustment) {
-    std::for_each(offsets_for_adjustment->begin(),
-                  offsets_for_adjustment->end(),
-                  LimitOffset<std::wstring>(escaped_text.length()));
-  }
+STR UnescapeURLImpl(const STR& escaped_text,
+                    UnescapeRule::Type rules,
+                    size_t* offset_for_adjustment) {
+  size_t offset_temp = string16::npos;
+  if (!offset_for_adjustment)
+    offset_for_adjustment = &offset_temp;
+  else if (*offset_for_adjustment >= escaped_text.length())
+    *offset_for_adjustment = string16::npos;
+
   // Do not unescape anything, return the |escaped_text| text.
   if (rules == UnescapeRule::NONE)
     return escaped_text;
@@ -117,7 +117,6 @@ STR UnescapeURLWithOffsetsImpl(const STR& escaped_text,
   STR result;
   result.reserve(escaped_text.length());
 
-  AdjustEncodingOffset::Adjustments adjustments;  // Locations of adjusted text.
   for (size_t i = 0, max = escaped_text.size(); i < max; ++i) {
     if (static_cast<unsigned char>(escaped_text[i]) >= 128) {
       // Non ASCII character, append as is.
@@ -145,9 +144,17 @@ STR UnescapeURLWithOffsetsImpl(const STR& escaped_text,
              // Additionally allow control characters if requested.
              (value < ' ' && (rules & UnescapeRule::CONTROL_CHARS)))) {
           // Use the unescaped version of the character.
-          adjustments.push_back(i);
+          size_t length_before_append = result.length();
           result.push_back(value);
           i += 2;
+
+          // Adjust offset to match length change.
+          if (*offset_for_adjustment != std::string::npos) {
+            if (*offset_for_adjustment > (length_before_append + 2))
+              *offset_for_adjustment -= 2;
+            else if (*offset_for_adjustment > length_before_append)
+              *offset_for_adjustment = std::string::npos;
+          }
         } else {
           // Keep escaped. Append a percent and we'll get the following two
           // digits on the next loops through.
@@ -167,26 +174,6 @@ STR UnescapeURLWithOffsetsImpl(const STR& escaped_text,
     }
   }
 
-  // Make offset adjustment.
-  if (offsets_for_adjustment && !adjustments.empty()) {
-    std::for_each(offsets_for_adjustment->begin(),
-                   offsets_for_adjustment->end(),
-                   AdjustEncodingOffset(adjustments));
-  }
-
-  return result;
-}
-
-template<typename STR>
-STR UnescapeURLImpl(const STR& escaped_text,
-                    UnescapeRule::Type rules,
-                    size_t* offset_for_adjustment) {
-  std::vector<size_t> offsets;
-  if (offset_for_adjustment)
-    offsets.push_back(*offset_for_adjustment);
-  STR result = UnescapeURLWithOffsetsImpl(escaped_text, rules, &offsets);
-  if (offset_for_adjustment)
-    *offset_for_adjustment = offsets[0];
   return result;
 }
 
@@ -247,49 +234,33 @@ std::string EscapeExternalHandlerValue(const std::string& text) {
   return Escape(text, kExternalHandlerCharmap, false);
 }
 
-string16 UnescapeAndDecodeUTF8URLComponentWithOffsets(
-    const std::string& text,
-    UnescapeRule::Type rules,
-    std::vector<size_t>* offsets_for_adjustment) {
+string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
+                                           UnescapeRule::Type rules,
+                                           size_t* offset_for_adjustment) {
   std::wstring result;
-  std::vector<size_t> original_offsets;
-  if (offsets_for_adjustment)
-    original_offsets = *offsets_for_adjustment;
+  size_t original_offset = offset_for_adjustment ? *offset_for_adjustment : 0;
   std::string unescaped_url(
-      UnescapeURLWithOffsetsImpl(text, rules, offsets_for_adjustment));
-  if (UTF8ToWideAndAdjustOffsets(unescaped_url.data(), unescaped_url.length(),
-                                &result, offsets_for_adjustment))
+      UnescapeURLImpl(text, rules, offset_for_adjustment));
+  if (UTF8ToWideAndAdjustOffset(unescaped_url.data(), unescaped_url.length(),
+                                &result, offset_for_adjustment))
     return WideToUTF16Hack(result);      // Character set looks like it's valid.
 
   // Not valid.  Return the escaped version.  Undo our changes to
   // |offset_for_adjustment| since we haven't changed the string after all.
-  if (offsets_for_adjustment)
-    *offsets_for_adjustment = original_offsets;
-  return WideToUTF16Hack(UTF8ToWideAndAdjustOffsets(
-      text, offsets_for_adjustment));
-}
-
-string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
-                                           UnescapeRule::Type rules,
-                                           size_t* offset_for_adjustment) {
-  std::vector<size_t> offsets;
   if (offset_for_adjustment)
-    offsets.push_back(*offset_for_adjustment);
-  string16 result =
-      UnescapeAndDecodeUTF8URLComponentWithOffsets(text, rules, &offsets);
-  if (offset_for_adjustment)
-    *offset_for_adjustment = offsets[0];
-  return result;
+    *offset_for_adjustment = original_offset;
+  return WideToUTF16Hack(UTF8ToWideAndAdjustOffset(text,
+                                                   offset_for_adjustment));
 }
 
 std::string UnescapeURLComponent(const std::string& escaped_text,
                                  UnescapeRule::Type rules) {
-  return UnescapeURLWithOffsetsImpl<std::string>(escaped_text, rules, NULL);
+  return UnescapeURLImpl(escaped_text, rules, NULL);
 }
 
 string16 UnescapeURLComponent(const string16& escaped_text,
                               UnescapeRule::Type rules) {
-  return UnescapeURLWithOffsetsImpl<string16>(escaped_text, rules, NULL);
+  return UnescapeURLImpl(escaped_text, rules, NULL);
 }
 
 
@@ -378,28 +349,4 @@ string16 UnescapeForHTML(const string16& input) {
     }
   }
   return text;
-}
-
-AdjustEncodingOffset::AdjustEncodingOffset(const Adjustments& adjustments)
-  : adjustments(adjustments) {}
-
-void AdjustEncodingOffset::operator()(size_t& offset) {
-  // For each encoded character occurring before an offset subtract 2.
-  if (offset == string16::npos)
-    return;
-  size_t adjusted_offset = offset;
-  for (Adjustments::const_iterator i = adjustments.begin();
-       i != adjustments.end(); ++i) {
-    size_t location = *i;
-    if (offset <= location) {
-      offset = adjusted_offset;
-      return;
-    }
-    if (offset <= (location + 2)) {
-      offset = string16::npos;
-      return;
-    }
-    adjusted_offset -= 2;
-  }
-  offset = adjusted_offset;
 }

@@ -198,21 +198,15 @@ std::string GetFileNameFromCD(const std::string& header,
 // script-language pairs (currently Han, Kana and Hangul for zh,ja and ko).
 // When |languages| is empty, even that mixing is not allowed.
 //
-// (|offset[s]_for_adjustment|) specifies one or more offsets into the original
-// |url|'s spec(); each offset will be adjusted to point at the same logical
-// place in the result strings during decoding.  If this isn't possible because
-// an offset points past the end of |host| or into the middle of a punycode
-// sequence, the offending offset will be set to std::wstring::npos.
-// |offset[s]_for_adjustment| may be NULL.
+// |offset_for_adjustment| is an offset into |host|, which will be adjusted to
+// point at the same logical place in the output string. If this isn't possible
+// because it points past the end of |host| or into the middle of a punycode
+// sequence, it will be set to std::wstring::npos.  |offset_for_adjustment| may
+// be NULL.
 std::wstring IDNToUnicode(const char* host,
                           size_t host_len,
                           const std::wstring& languages,
                           size_t* offset_for_adjustment);
-std::wstring IDNToUnicodeWithOffsets(
-    const char* host,
-    size_t host_len,
-    const std::wstring& languages,
-    std::vector<size_t>* offsets_for_adjustment);
 
 // Canonicalizes |host| and returns it.  Also fills |host_info| with
 // IP address information.  |host_info| must not be NULL.
@@ -298,24 +292,11 @@ int SetNonBlocking(int fd);
 // the user. The given parsed structure will be updated. The host name formatter
 // also takes the same accept languages component as ElideURL. |new_parsed| may
 // be null.
-//
-// (|offset[s]_for_adjustment|) specifies one or more offsets into the original
-// |url|'s spec(); each offset will be adjusted to point at the same logical
-// place in the result strings after reformatting of the host.  If this isn't
-// possible because an offset points past the end of the host or into the middle
-// of a multi-character sequence, the offending offset will be set to
-// std::wstring::npos. |offset[s]_for_adjustment| may be NULL.
 void AppendFormattedHost(const GURL& url,
                          const std::wstring& languages,
                          std::wstring* output,
                          url_parse::Parsed* new_parsed,
                          size_t* offset_for_adjustment);
-void AppendFormattedHostWithOffsets(
-    const GURL& url,
-    const std::wstring& languages,
-    std::wstring* output,
-    url_parse::Parsed* new_parsed,
-    std::vector<size_t>* offsets_for_adjustment);
 
 // Creates a string representation of |url|. The IDN host name may be in Unicode
 // if |languages| accepts the Unicode representation. |format_type| is a bitmask
@@ -328,13 +309,12 @@ void AppendFormattedHostWithOffsets(
 // The last three parameters may be NULL.
 // |new_parsed| will be set to the parsing parameters of the resultant URL.
 // |prefix_end| will be the length before the hostname of the resultant URL.
-//
-// (|offset[s]_for_adjustment|) specifies one or more offsets into the original
-// |url|'s spec(); each offset will be modified to reflect changes this function
-// makes to the output string. For example, if |url| is "http://a:b@c.com/",
-// |omit_username_password| is true, and an offset is 12 (the offset of '.'),
-// then on return the output string will be "http://c.com/" and the offset will
-// be 8.  If an offset cannot be successfully adjusted (e.g. because it points
+// |offset_for_adjustment| is an offset into the original |url|'s spec(), which
+// will be modified to reflect changes this function makes to the output string;
+// for example, if |url| is "http://a:b@c.com/", |omit_username_password| is
+// true, and |offset_for_adjustment| is 12 (the offset of '.'), then on return
+// the output string will be "http://c.com/" and |offset_for_adjustment| will be
+// 8.  If the offset cannot be successfully adjusted (e.g. because it points
 // into the middle of a component that was entirely removed, past the end of the
 // string, or into the middle of an encoding sequence), it will be set to
 // string16::npos.
@@ -345,13 +325,6 @@ string16 FormatUrl(const GURL& url,
                    url_parse::Parsed* new_parsed,
                    size_t* prefix_end,
                    size_t* offset_for_adjustment);
-string16 FormatUrlWithOffsets(const GURL& url,
-                              const std::string& languages,
-                              FormatUrlTypes format_types,
-                              UnescapeRule::Type unescape_rules,
-                              url_parse::Parsed* new_parsed,
-                              size_t* prefix_end,
-                              std::vector<size_t>* offsets_for_adjustment);
 
 // This is a convenience function for FormatUrl() with
 // format_types = kFormatUrlOmitAll and unescape = SPACES.  This is the typical
@@ -480,16 +453,6 @@ typedef std::list<NetworkInterface> NetworkInterfaceList;
 // the list for each address.
 // Can be called only on a thread that allows IO.
 bool GetNetworkList(NetworkInterfaceList* networks);
-
-// Private adjustment function called by std::transform which sets the offset
-// to npos if the offset occurs at or before |component_start|, otherwise don't
-// alter the offset. Exposed here for unit testing.
-struct ClampComponentOffset {
-  explicit ClampComponentOffset(size_t component_start);
-  size_t operator()(size_t offset);
-
-  const size_t component_start;
-};
 
 }  // namespace net
 
