@@ -48,6 +48,11 @@ class HasRef : public NoRef {
   DISALLOW_COPY_AND_ASSIGN(HasRef);
 };
 
+class HasRefPrivateDtor : public HasRef {
+ private:
+  ~HasRefPrivateDtor() {}
+};
+
 static const int kParentValue = 1;
 static const int kChildValue = 2;
 
@@ -425,6 +430,11 @@ TEST_F(BindTest, ArrayArgumentBinding) {
 
 // Verify SupportsAddRefAndRelease correctly introspects the class type for
 // AddRef() and Release().
+//  - Class with AddRef() and Release()
+//  - Class without AddRef() and Release()
+//  - Derived Class with AddRef() and Release()
+//  - Derived Class without AddRef() and Release()
+//  - Derived Class with AddRef() and Release() and a private destructor.
 TEST_F(BindTest, SupportsAddRefAndRelease) {
   EXPECT_TRUE(internal::SupportsAddRefAndRelease<HasRef>::value);
   EXPECT_FALSE(internal::SupportsAddRefAndRelease<NoRef>::value);
@@ -434,6 +444,10 @@ TEST_F(BindTest, SupportsAddRefAndRelease) {
   // inheritance.
   EXPECT_TRUE(internal::SupportsAddRefAndRelease<StrictMock<HasRef> >::value);
   EXPECT_FALSE(internal::SupportsAddRefAndRelease<StrictMock<NoRef> >::value);
+
+  // This matters because the implementation creates a dummy class that
+  // inherits from the template type.
+  EXPECT_TRUE(internal::SupportsAddRefAndRelease<HasRefPrivateDtor>::value);
 }
 
 // Unretained() wrapper support.
