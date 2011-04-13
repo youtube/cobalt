@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -317,6 +317,11 @@ class HttpCache::Transaction : public HttpTransaction {
   // Performs the needed work after receiving data from the cache, when
   // working with range requests.
   int DoPartialCacheReadCompleted(int result);
+
+  // Returns true if we should bother attempting to resume this request if it
+  // is aborted while in progress. If |has_data| is true, the size of the stored
+  // data is considered for the result.
+  bool CanResume(bool has_data);
 
   // Called to signal completion of asynchronous IO.
   void OnIOComplete(int result);

@@ -2900,6 +2900,35 @@ TEST(HttpCache, GET_Crazy206) {
   RemoveMockTransaction(&transaction);
 }
 
+// Tests that we don't cache partial responses that can't be validated.
+TEST(HttpCache, RangeGET_NoStrongValidators) {
+  MockHttpCache cache;
+  std::string headers;
+
+  // Attempt to write to the cache (40-49).
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  AddMockTransaction(&transaction);
+  transaction.response_headers = "Content-Length: 10\n"
+                                 "ETag: w/\"foo\"\n";
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  Verify206Response(headers, 40, 49);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Now verify that there's no cached data.
+  RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
+                                 &headers);
+
+  Verify206Response(headers, 40, 49);
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&transaction);
+}
+
 // Tests that we can cache range requests and fetch random blocks from the
 // cache and the network.
 TEST(HttpCache, RangeGET_OK) {
@@ -3448,6 +3477,49 @@ TEST(HttpCache, RangeGET_Previous206_NotSparse_2) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
+// Tests that we can handle cached 206 responses that can't be validated.
+TEST(HttpCache, GET_Previous206_NotValidation) {
+  MockHttpCache cache;
+
+  // Create a disk cache entry that stores 206 headers.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.CreateBackendEntry(kSimpleGET_Transaction.url, &entry,
+                                       NULL));
+
+  // Make sure that the headers cannot be validated with the server.
+  std::string raw_headers(kRangeGET_TransactionOK.status);
+  raw_headers.append("\n");
+  raw_headers.append("Content-Length: 80\n");
+  raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
+                                                  raw_headers.size());
+
+  net::HttpResponseInfo response;
+  response.headers = new net::HttpResponseHeaders(raw_headers);
+  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, false));
+
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
+  int len = static_cast<int>(base::strlcpy(buf->data(),
+                                           kRangeGET_TransactionOK.data, 500));
+  TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  EXPECT_EQ(len, cb.GetResult(rv));
+  entry->Close();
+
+  // Now see that we don't use the stored entry.
+  std::string headers;
+  RunTransactionTestWithResponse(cache.http_cache(), kSimpleGET_Transaction,
+                                 &headers);
+
+  // We are expecting a 200.
+  std::string expected_headers(kSimpleGET_Transaction.status);
+  expected_headers.append("\n");
+  expected_headers.append(kSimpleGET_Transaction.response_headers);
+  EXPECT_EQ(expected_headers, headers);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
+}
+
 // Tests that we can handle range requests with cached 200 responses.
 TEST(HttpCache, RangeGET_Previous200) {
   MockHttpCache cache;
@@ -3846,6 +3918,7 @@ TEST(HttpCache, RangeGET_LargeValues) {
   transaction.request_headers = "Range: bytes = 4294967288-4294967297\r\n"
                                 EXTRA_HEADER;
   transaction.response_headers =
+      "ETag: \"foo\"\n"
       "Content-Range: bytes 4294967288-4294967297/4294967299\n"
       "Content-Length: 10\n";
   AddMockTransaction(&transaction);
