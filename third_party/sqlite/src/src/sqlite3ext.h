@@ -372,15 +372,9 @@ struct sqlite3_api_routines {
 #define sqlite3_next_stmt              sqlite3_api->next_stmt
 #define sqlite3_sql                    sqlite3_api->sql
 #define sqlite3_status                 sqlite3_api->status
+#endif /* SQLITE_CORE */
 
 #define SQLITE_EXTENSION_INIT1     const sqlite3_api_routines *sqlite3_api = 0;
 #define SQLITE_EXTENSION_INIT2(v)  sqlite3_api = v;
-
-#else
-
-#define SQLITE_EXTENSION_INIT1
-#define SQLITE_EXTENSION_INIT2(v)
-
-#endif /* SQLITE_CORE */
 
 #endif /* _SQLITE3EXT_H_ */

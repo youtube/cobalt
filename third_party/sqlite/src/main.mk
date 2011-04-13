@@ -501,9 +501,6 @@ soaktest:	testfixture$(EXE) sqlite3$(EXE)
 test:	testfixture$(EXE) sqlite3$(EXE)
 	./testfixture$(EXE) $(TOP)/test/veryquick.test
 
-ftstest:	testfixture$(EXE) sqlite3$(EXE)
-	./testfixture$(EXE) $(TOP)/test/fts.test
-
 fts2test:	testfixture$(EXE) sqlite3$(EXE)
 	./testfixture$(EXE) $(TOP)/test/fts2.test
 
