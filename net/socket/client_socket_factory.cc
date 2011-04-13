@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,7 +41,14 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
     CertDatabase::RemoveObserver(this);
   }
 
-  virtual void OnUserCertAdded(X509Certificate* cert) {
+  virtual void OnUserCertAdded(const X509Certificate* cert) {
+    ClearSSLSessionCache();
+  }
+
+  virtual void OnCertTrustChanged(const X509Certificate* cert) {
+    // Per wtc, we actually only need to flush when trust is reduced.
+    // Always flush now because OnCertTrustChanged does not tell us this.
+    // See comments in ClientSocketPoolManager::OnCertTrustChanged.
     ClearSSLSessionCache();
   }
 
