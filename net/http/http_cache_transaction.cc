@@ -181,19 +181,6 @@ int HttpCache::Transaction::WriteMetadata(IOBuffer* buf, int buf_len,
                                        callback, true);
 }
 
-// Histogram data from the end of 2010 show the following distribution of
-// response headers:
-//
-//   Content-Length............... 87%
-//   Date......................... 98%
-//   Last-Modified................ 49%
-//   Etag......................... 19%
-//   Accept-Ranges: bytes......... 25%
-//   Accept-Ranges: none.......... 0.4%
-//   Strong Validator............. 50%
-//   Strong Validator + ranges.... 24%
-//   Strong Validator + CL........ 49%
-//
 bool HttpCache::Transaction::AddTruncatedFlag() {
   DCHECK(mode_ & WRITE);
 
@@ -201,13 +188,7 @@ bool HttpCache::Transaction::AddTruncatedFlag() {
   if (partial_.get() && !truncated_)
     return true;
 
-  // Double check that there is something worth keeping.
-  if (!entry_->disk_entry->GetDataSize(kResponseContentIndex))
-    return false;
-
-  if (response_.headers->GetContentLength() <= 0 ||
-      response_.headers->HasHeaderValue("Accept-Ranges", "none") ||
-      !response_.headers->HasStrongValidators())
+  if (!CanResume(true))
     return false;
 
   truncated_ = true;
@@ -1073,6 +1054,16 @@ int HttpCache::Transaction::DoOverwriteCachedResponse() {
     partial_->FixContentLength(new_response_->headers);
 
   response_ = *new_response_;
+
+  if (server_responded_206_ && !CanResume(false)) {
+    // There is no point in storing this resource because it will never be used.
+    DoneWritingToEntry(false);
+    if (partial_.get())
+      partial_->FixResponseHeaders(response_.headers, true);
+    next_state_ = STATE_PARTIAL_HEADERS_RECEIVED;
+    return OK;
+  }
+
   target_state_ = STATE_TRUNCATE_CACHED_DATA;
   next_state_ = truncated_ ? STATE_CACHE_WRITE_TRUNCATED_RESPONSE :
                              STATE_CACHE_WRITE_RESPONSE;
@@ -1514,8 +1505,11 @@ int HttpCache::Transaction::BeginCacheValidation() {
     // response.  If we cannot do so, then we just resort to a normal fetch.
     // Our mode remains READ_WRITE for a conditional request.  We'll switch to
     // either READ or WRITE mode once we hear back from the server.
-    if (!ConditionalizeRequest())
+    if (!ConditionalizeRequest()) {
+      DCHECK(!partial_.get());
+      DCHECK_NE(206, response_.headers->response_code());
       mode_ = WRITE;
+    }
     next_state_ = STATE_SEND_REQUEST;
   }
   return OK;
@@ -1667,6 +1661,10 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
   if (response_.headers->response_code() != 200 &&
       response_.headers->response_code() != 206)
     return false;
+
+  // We should have handled this case before.
+  DCHECK(response_.headers->response_code() != 206 ||
+         response_.headers->HasStrongValidators());
 
   // Just use the first available ETag and/or Last-Modified header value.
   // TODO(darin): Or should we use the last?
@@ -1968,6 +1966,35 @@ int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
     next_state_ = STATE_START_PARTIAL_CACHE_VALIDATION;
   }
   return result;
+}
+
+// Histogram data from the end of 2010 show the following distribution of
+// response headers:
+//
+//   Content-Length............... 87%
+//   Date......................... 98%
+//   Last-Modified................ 49%
+//   Etag......................... 19%
+//   Accept-Ranges: bytes......... 25%
+//   Accept-Ranges: none.......... 0.4%
+//   Strong Validator............. 50%
+//   Strong Validator + ranges.... 24%
+//   Strong Validator + CL........ 49%
+//
+bool HttpCache::Transaction::CanResume(bool has_data) {
+  // Double check that there is something worth keeping.
+  if (has_data && !entry_->disk_entry->GetDataSize(kResponseContentIndex))
+    return false;
+
+  if (request_->method != "GET")
+    return false;
+
+  if (response_.headers->GetContentLength() <= 0 ||
+      response_.headers->HasHeaderValue("Accept-Ranges", "none") ||
+      !response_.headers->HasStrongValidators())
+    return false;
+
+  return true;
 }
 
 void HttpCache::Transaction::OnIOComplete(int result) {

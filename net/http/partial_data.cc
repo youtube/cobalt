@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -272,6 +272,9 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
     DVLOG(2) << "UpdateFromStoredHeaders size: " << resource_size_;
     return true;
   }
+
+  if (!headers->HasStrongValidators())
+    return false;
 
   int64 length_value = headers->GetContentLength();
   if (length_value <= 0)
