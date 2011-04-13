@@ -133,8 +133,17 @@ class SupportsAddRefAndRelease {
     void Release();
   };
 
+// MSVC warns when you try to use Base if T has a private destructor, the
+// common pattern for refcounted types. It does this even though no attempt to
+// instantiate Base is made.  We disable the warning for this definition.
+#if defined(OS_WIN)
+#pragma warning(disable:4624)
+#endif
   struct Base : public T, public BaseMixin {
   };
+#if defined(OS_WIN)
+#pragma warning(default:4624)
+#endif
 
   template <void(BaseMixin::*)(void)>  struct Helper {};
 
