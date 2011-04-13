@@ -53,6 +53,13 @@
 
 using base::Time;
 
+// We don't need a refcount because we are guaranteed the test will not proceed
+// until its task is run.
+namespace net {
+class BlockingNetworkDelegate;
+}  // namespace net
+DISABLE_RUNNABLE_METHOD_REFCOUNT(net::BlockingNetworkDelegate);
+
 namespace net {
 
 namespace {
@@ -117,6 +124,38 @@ void CheckSSLInfo(const SSLInfo& ssl_info) {
 }
 
 }  // namespace
+
+// A network delegate that blocks requests, optionally cancelling or redirecting
+// them.
+class BlockingNetworkDelegate : public TestNetworkDelegate {
+ public:
+  BlockingNetworkDelegate() : callback_retval_(net::OK) {}
+
+  void set_callback_retval(int retval) { callback_retval_ = retval; }
+  void set_redirect_url(const GURL& url) { redirect_url_ = url; }
+
+ private:
+  // TestNetworkDelegate:
+  virtual int OnBeforeURLRequest(net::URLRequest* request,
+                                 net::CompletionCallback* callback,
+                                 GURL* new_url) {
+    TestNetworkDelegate::OnBeforeURLRequest(request, callback, new_url);
+
+    if (!redirect_url_.is_empty())
+      *new_url = redirect_url_;
+    MessageLoop::current()->PostTask(FROM_HERE,
+        NewRunnableMethod(this, &BlockingNetworkDelegate::DoCallback,
+                          callback));
+    return net::ERR_IO_PENDING;
+  }
+
+  void DoCallback(net::CompletionCallback* callback) {
+    callback->Run(callback_retval_);
+  }
+
+  int callback_retval_;
+  GURL redirect_url_;
+};
 
 // Inherit PlatformTest since we require the autorelease pool on Mac OS X.f
 class URLRequestTest : public PlatformTest {
@@ -261,6 +300,61 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateTunnelConnectionFailed) {
     EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED,
               network_delegate.last_os_error());
   }
+}
+
+// Tests that the network delegate can block and cancel a request.
+TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequest) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  BlockingNetworkDelegate network_delegate;
+  network_delegate.set_callback_retval(ERR_EMPTY_RESPONSE);
+
+  {
+    TestURLRequest r(test_server_.GetURL(""), &d);
+    scoped_refptr<TestURLRequestContext> context(
+        new TestURLRequestContext(test_server_.host_port_pair().ToString()));
+    context->set_network_delegate(&network_delegate);
+    r.set_context(context);
+
+    r.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
+    EXPECT_EQ(ERR_EMPTY_RESPONSE, r.status().os_error());
+    EXPECT_EQ(1, network_delegate.created_requests());
+    EXPECT_EQ(0, network_delegate.destroyed_requests());
+  }
+  EXPECT_EQ(1, network_delegate.destroyed_requests());
+}
+
+// Tests that the network delegate can block and redirect a request to a new
+// URL.
+TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequest) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  BlockingNetworkDelegate network_delegate;
+  GURL redirect_url(test_server_.GetURL("simple.html"));
+  network_delegate.set_redirect_url(redirect_url);
+
+  {
+    TestURLRequest r(test_server_.GetURL("empty.html"), &d);
+    scoped_refptr<TestURLRequestContext> context(
+        new TestURLRequestContext(test_server_.host_port_pair().ToString()));
+    context->set_network_delegate(&network_delegate);
+    r.set_context(context);
+
+    r.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
+    EXPECT_EQ(0, r.status().os_error());
+    EXPECT_EQ(redirect_url, r.url());
+    EXPECT_EQ(1, network_delegate.created_requests());
+    EXPECT_EQ(0, network_delegate.destroyed_requests());
+  }
+  EXPECT_EQ(1, network_delegate.destroyed_requests());
 }
 
 // In this unit test, we're using the HTTPTestServer as a proxy server and
