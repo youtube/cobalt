@@ -249,7 +249,15 @@ scoped_refptr<SpdySession> SpdySessionPool::GetFromAlias(
   return NULL;
 }
 
-void SpdySessionPool::OnUserCertAdded(X509Certificate* cert) {
+void SpdySessionPool::OnUserCertAdded(const X509Certificate* cert) {
+  CloseCurrentSessions();
+}
+
+void SpdySessionPool::OnCertTrustChanged(const X509Certificate* cert) {
+  // Per wtc, we actually only need to CloseCurrentSessions when trust is
+  // reduced. CloseCurrentSessions now because OnCertTrustChanged does not
+  // tell us this.
+  // See comments in ClientSocketPoolManager::OnCertTrustChanged.
   CloseCurrentSessions();
 }
 

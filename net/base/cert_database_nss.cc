@@ -157,9 +157,13 @@ int CertDatabase::ImportFromPKCS12(
     CryptoModule* module,
     const std::string& data,
     const string16& password) {
-  return psm::nsPKCS12Blob_Import(module->os_module_handle(),
-                                  data.data(), data.size(),
-                                  password);
+  int result = psm::nsPKCS12Blob_Import(module->os_module_handle(),
+                                        data.data(), data.size(),
+                                        password);
+  if (result == net::OK)
+    CertDatabase::NotifyObserversOfUserCertAdded(NULL);
+
+  return result;
 }
 
 int CertDatabase::ExportToPKCS12(
@@ -196,7 +200,12 @@ bool CertDatabase::ImportCACerts(const CertificateList& certificates,
                                  unsigned int trust_bits,
                                  ImportCertFailureList* not_imported) {
   X509Certificate* root = FindRootInList(certificates);
-  return psm::ImportCACerts(certificates, root, trust_bits, not_imported);
+  bool success = psm::ImportCACerts(certificates, root, trust_bits,
+                                    not_imported);
+  if (success)
+    CertDatabase::NotifyObserversOfCertTrustChanged(NULL);
+
+  return success;
 }
 
 bool CertDatabase::ImportServerCert(const CertificateList& certificates,
@@ -230,9 +239,14 @@ unsigned int CertDatabase::GetCertTrust(
 bool CertDatabase::SetCertTrust(const X509Certificate* cert,
                                 CertType type,
                                 unsigned int trusted) {
-  return psm::SetCertTrust(cert, type, trusted);
+  bool success = psm::SetCertTrust(cert, type, trusted);
+  if (success)
+    CertDatabase::NotifyObserversOfCertTrustChanged(cert);
+
+  return success;
 }
 
+// TODO(xiyuan): Add an Observer method for this event.
 bool CertDatabase::DeleteCertAndKey(const X509Certificate* cert) {
   // For some reason, PK11_DeleteTokenCertAndKey only calls
   // SEC_DeletePermCertificate if the private key is found.  So, we check
