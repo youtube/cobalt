@@ -584,15 +584,6 @@ class URLRequest : public base::NonThreadSafe {
   friend class URLRequestJob;
   typedef std::map<const void*, linked_ptr<UserData> > UserDataMap;
 
-  void StartInternal();
-
-  // Resumes or blocks a request paused by the NetworkDelegate::OnBeforeRequest
-  // handler. If |blocked| is true, the request is blocked and an error page is
-  // returned indicating so. This should only be called after Start is called
-  // and OnBeforeRequest returns true (signalling that the request should be
-  // paused).
-  void BeforeRequestComplete(int error);
-
   void StartJob(URLRequestJob* job);
 
   // Restarting involves replacing the current job with a new one such as what
@@ -609,6 +600,13 @@ class URLRequest : public base::NonThreadSafe {
   // passed values.
   void DoCancel(int os_error, const SSLInfo& ssl_info);
 
+  // Resumes or blocks a request paused by the NetworkDelegate::OnBeforeRequest
+  // handler. If |blocked| is true, the request is blocked and an error page is
+  // returned indicating so. This should only be called after Start is called
+  // and OnBeforeRequest returns true (signalling that the request should be
+  // paused).
+  void BeforeRequestComplete(int error);
+
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
   // cookie store, socket pool, etc.)
@@ -622,7 +620,6 @@ class URLRequest : public base::NonThreadSafe {
   GURL url_;
   GURL original_url_;
   GURL first_party_for_cookies_;
-  GURL delegate_redirect_url_;
   std::string method_;  // "GET", "POST", etc. Should be all uppercase.
   std::string referrer_;
   HttpRequestHeaders extra_request_headers_;
@@ -666,7 +663,8 @@ class URLRequest : public base::NonThreadSafe {
 
   // Callback passed to the network delegate to notify us when a blocked request
   // is ready to be resumed or canceled.
-  CompletionCallbackImpl<URLRequest> before_request_callback_;
+  scoped_refptr< CancelableCompletionCallback<URLRequest> >
+      before_request_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };

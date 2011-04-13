@@ -9,21 +9,20 @@
 namespace net {
 
 int NetworkDelegate::NotifyBeforeURLRequest(URLRequest* request,
-                                            CompletionCallback* callback,
-                                            GURL* new_url) {
+                                            CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(request);
   DCHECK(callback);
-  return OnBeforeURLRequest(request, callback, new_url);
+  return OnBeforeURLRequest(request, callback);
 }
 
 int NetworkDelegate::NotifyBeforeSendHeaders(uint64 request_id,
-                                             CompletionCallback* callback,
-                                             HttpRequestHeaders* headers) {
+                                             HttpRequestHeaders* headers,
+                                             CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(headers);
   DCHECK(callback);
-  return OnBeforeSendHeaders(request_id, callback, headers);
+  return OnBeforeSendHeaders(request_id, headers, callback);
 }
 
 void NetworkDelegate::NotifyResponseStarted(URLRequest* request) {
