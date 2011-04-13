@@ -46,7 +46,7 @@ class SSLClientAuthCache : public CertDatabase::Observer {
   void Remove(const std::string& server);
 
   // CertDatabase::Observer methods:
-  virtual void OnUserCertAdded(X509Certificate* cert);
+  virtual void OnUserCertAdded(const X509Certificate* cert);
 
  private:
   typedef std::string AuthCacheKey;
