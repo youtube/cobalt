@@ -12,7 +12,7 @@
 #if defined(USE_SYSTEM_SQLITE)
 #include <sqlite3.h>
 #else
-#include "third_party/sqlite/preprocessed/sqlite3.h"
+#include "third_party/sqlite/amalgamation/sqlite3.h"
 #endif
 
 #endif  // THIRD_PARTY_SQLITE_SQLITE3_H_

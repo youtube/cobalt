@@ -326,8 +326,10 @@
 #include "fts2_hash.h"
 #include "fts2_tokenizer.h"
 #include "sqlite3.h"
-#include "sqlite3ext.h"
-SQLITE_EXTENSION_INIT1
+#ifndef SQLITE_CORE 
+# include "sqlite3ext.h"
+  SQLITE_EXTENSION_INIT1
+#endif
 
 
 /* TODO(shess) MAN, this thing needs some refactoring.  At minimum, it
