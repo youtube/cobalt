@@ -9,6 +9,8 @@
 #include "base/threading/non_thread_safe.h"
 #include "net/base/completion_callback.h"
 
+class GURL;
+
 namespace net {
 
 // NOTE: Layering violations!
@@ -34,10 +36,11 @@ class NetworkDelegate : public base::NonThreadSafe {
   // checking on parameters. See the corresponding virtuals for explanations of
   // the methods and their arguments.
   int NotifyBeforeURLRequest(URLRequest* request,
-                             CompletionCallback* callback);
+                             CompletionCallback* callback,
+                             GURL* new_url);
   int NotifyBeforeSendHeaders(uint64 request_id,
-                              HttpRequestHeaders* headers,
-                              CompletionCallback* callback);
+                              CompletionCallback* callback,
+                              HttpRequestHeaders* headers);
   void NotifyResponseStarted(URLRequest* request);
   void NotifyReadCompleted(URLRequest* request, int bytes_read);
   void NotifyURLRequestDestroyed(URLRequest* request);
@@ -55,20 +58,22 @@ class NetworkDelegate : public base::NonThreadSafe {
   // member functions will be called by the respective public notification
   // member function, which will perform basic sanity checking.
 
-  // Called before a request is sent. The callback can be called at any time,
-  // but will have no effect if the request has already been cancelled or
+  // Called before a request is sent. Allows the delegate to rewrite the URL
+  // being fetched by modifying |new_url|. The callback can be called at any
+  // time, but will have no effect if the request has already been cancelled or
   // deleted. Returns a net status code, generally either OK to continue with
   // the request or ERR_IO_PENDING if the result is not ready yet.
   virtual int OnBeforeURLRequest(URLRequest* request,
-                                 CompletionCallback* callback) = 0;
+                                 CompletionCallback* callback,
+                                 GURL* new_url) = 0;
 
   // Called right before the HTTP headers are sent. Allows the delegate to
   // read/write |headers| before they get sent out. The callback can be called
   // at any time, but will have no effect if the transaction handling this
   // request has been cancelled. Returns a net status code.
   virtual int OnBeforeSendHeaders(uint64 request_id,
-                                  HttpRequestHeaders* headers,
-                                  CompletionCallback* callback) = 0;
+                                  CompletionCallback* callback,
+                                  HttpRequestHeaders* headers) = 0;
 
   // This corresponds to URLRequestDelegate::OnResponseStarted.
   virtual void OnResponseStarted(URLRequest* request) = 0;

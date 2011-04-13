@@ -190,14 +190,17 @@ class TestNetworkDelegate : public net::NetworkDelegate {
 
   int last_os_error() const { return last_os_error_; }
   int error_count() const { return error_count_; }
+  int created_requests() const { return created_requests_; }
+  int destroyed_requests() const { return destroyed_requests_; }
 
- private:
+ protected:
   // net::NetworkDelegate:
   virtual int OnBeforeURLRequest(net::URLRequest* request,
-                                 net::CompletionCallback* callback);
+                                 net::CompletionCallback* callback,
+                                 GURL* new_url);
   virtual int OnBeforeSendHeaders(uint64 request_id,
-                                  net::HttpRequestHeaders* headers,
-                                  net::CompletionCallback* callback);
+                                  net::CompletionCallback* callback,
+                                  net::HttpRequestHeaders* headers);
   virtual void OnResponseStarted(net::URLRequest* request);
   virtual void OnReadCompleted(net::URLRequest* request, int bytes_read);
   virtual void OnURLRequestDestroyed(net::URLRequest* request);
@@ -206,6 +209,8 @@ class TestNetworkDelegate : public net::NetworkDelegate {
 
   int last_os_error_;
   int error_count_;
+  int created_requests_;
+  int destroyed_requests_;
 };
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_TEST_UTIL_H_
