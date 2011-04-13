@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/bitmap.h"
 #include "net/disk_cache/cache_util.h"
+#include "net/disk_cache/hash.h"
 #include "net/disk_cache/histogram_macros.h"
 #include "net/disk_cache/net_log_parameters.h"
 #include "net/disk_cache/sparse_control.h"
@@ -559,18 +560,55 @@ void EntryImpl::SetPointerForInvalidEntry(int32 new_id) {
 }
 
 bool EntryImpl::SanityCheck() {
-  if (!entry_.Data()->rankings_node || !entry_.Data()->key_len)
+  EntryStore* stored = entry_.Data();
+  if (!stored->rankings_node || stored->key_len <= 0)
     return false;
 
-  Addr rankings_addr(entry_.Data()->rankings_node);
+  if (stored->reuse_count < 0 || stored->refetch_count < 0)
+    return false;
+
+  Addr rankings_addr(stored->rankings_node);
   if (!rankings_addr.is_initialized() || rankings_addr.is_separate_file() ||
       rankings_addr.file_type() != RANKINGS)
     return false;
 
-  Addr next_addr(entry_.Data()->next);
+  Addr next_addr(stored->next);
   if (next_addr.is_initialized() &&
       (next_addr.is_separate_file() || next_addr.file_type() != BLOCK_256))
     return false;
+
+  if (!rankings_addr.SanityCheck() || !next_addr.SanityCheck())
+    return false;
+
+  if (stored->state > ENTRY_DOOMED || stored->state < ENTRY_NORMAL)
+    return false;
+
+  Addr key_addr(stored->long_key);
+  if (stored->key_len <= kMaxInternalKeyLength && key_addr.is_initialized())
+    return false;
+
+  if (!key_addr.SanityCheck())
+    return false;
+
+  if (stored->hash != Hash(GetKey()))
+    return false;
+
+  for (int i = 0; i < kNumStreams; i++) {
+    Addr data_addr(stored->data_addr[i]);
+    int data_size = stored->data_size[i];
+    if (data_size < 0)
+      return false;
+    if (!data_size && data_addr.is_initialized())
+      return false;
+    if (!data_addr.SanityCheck())
+      return false;
+    if (!data_size)
+      continue;
+    if (data_size <= kMaxBlockSize && data_addr.is_separate_file())
+      return false;
+    if (data_size > kMaxBlockSize && data_addr.is_block_file())
+      return false;
+  }
 
   return true;
 }
