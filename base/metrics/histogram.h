@@ -229,6 +229,15 @@ class Lock;
 #define UMA_HISTOGRAM_PERCENTAGE(name, under_one_hundred) \
     UMA_HISTOGRAM_ENUMERATION(name, under_one_hundred, 101)
 
+#define UMA_HISTOGRAM_BOOLEAN(name, sample) do { \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::BooleanHistogram::FactoryGet(name, \
+          base::Histogram::kUmaTargetedHistogramFlag); \
+    DCHECK_EQ(name, counter->histogram_name()); \
+    counter->AddBoolean(sample); \
+  } while (0)
+
 #define UMA_HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
     static base::Histogram* counter(NULL); \
     if (!counter) \
