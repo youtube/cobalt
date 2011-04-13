@@ -580,7 +580,21 @@ Value* ClientSocketPoolManager::SocketPoolInfoToValue() const {
   return list;
 }
 
-void ClientSocketPoolManager::OnUserCertAdded(X509Certificate* cert) {
+void ClientSocketPoolManager::OnUserCertAdded(const X509Certificate* cert) {
+  FlushSocketPools();
+}
+
+void ClientSocketPoolManager::OnCertTrustChanged(const X509Certificate* cert) {
+  // We should flush the socket pools if we removed trust from a
+  // cert, because a previously trusted server may have become
+  // untrusted.
+  //
+  // We should not flush the socket pools if we added trust to a
+  // cert.
+  //
+  // Since the OnCertTrustChanged method doesn't tell us what
+  // kind of trust change it is, we have to flush the socket
+  // pools to be safe.
   FlushSocketPools();
 }
 

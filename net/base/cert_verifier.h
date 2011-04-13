@@ -13,6 +13,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"
+#include "net/base/cert_database.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
 #include "net/base/x509_cert_types.h"
@@ -46,7 +47,8 @@ struct CachedCertVerifyResult {
 // request at a time is to create a SingleRequestCertVerifier wrapper around
 // CertVerifier (which will automatically cancel the single request when it
 // goes out of scope).
-class CertVerifier : public base::NonThreadSafe {
+class CertVerifier : public base::NonThreadSafe,
+                     public CertDatabase::Observer {
  public:
   // Opaque type used to cancel a request.
   typedef void* RequestHandle;
@@ -153,6 +155,9 @@ class CertVerifier : public base::NonThreadSafe {
                     int flags,
                     int error,
                     const CertVerifyResult& verify_result);
+
+  // CertDatabase::Observer methods:
+  virtual void OnCertTrustChanged(const X509Certificate* cert);
 
   // cache_ maps from a request to a cached result. The cached result may
   // have expired and the size of |cache_| must be <= kMaxCacheEntries.

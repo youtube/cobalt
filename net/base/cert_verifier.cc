@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -286,6 +286,7 @@ CertVerifier::CertVerifier()
       requests_(0),
       cache_hits_(0),
       inflight_joins_(0) {
+  CertDatabase::AddObserver(this);
 }
 
 CertVerifier::CertVerifier(TimeService* time_service)
@@ -293,10 +294,13 @@ CertVerifier::CertVerifier(TimeService* time_service)
       requests_(0),
       cache_hits_(0),
       inflight_joins_(0) {
+  CertDatabase::AddObserver(this);
 }
 
 CertVerifier::~CertVerifier() {
   STLDeleteValues(&inflight_);
+
+  CertDatabase::RemoveObserver(this);
 }
 
 int CertVerifier::Verify(X509Certificate* cert,
@@ -431,6 +435,12 @@ void CertVerifier::HandleResult(X509Certificate* cert,
   delete job;
 }
 
+void CertVerifier::OnCertTrustChanged(const X509Certificate* cert) {
+  DCHECK(CalledOnValidThread());
+
+  ClearCache();
+}
+
 /////////////////////////////////////////////////////////////////////
 
 SingleRequestCertVerifier::SingleRequestCertVerifier(
@@ -494,4 +504,3 @@ void SingleRequestCertVerifier::OnVerifyCompletion(int result) {
 }  // namespace net
 
 DISABLE_RUNNABLE_METHOD_REFCOUNT(net::CertVerifierWorker);
-

@@ -115,7 +115,8 @@ class SpdySessionPool
   static void enable_ip_pooling(bool value) { g_enable_ip_pooling = value; }
 
   // CertDatabase::Observer methods:
-  virtual void OnUserCertAdded(X509Certificate* cert);
+  virtual void OnUserCertAdded(const X509Certificate* cert);
+  virtual void OnCertTrustChanged(const X509Certificate* cert);
 
  private:
   friend class SpdySessionPoolPeer;  // For testing.
