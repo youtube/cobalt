@@ -22,6 +22,7 @@
 #define MEDIA_AUDIO_AUDIO_OUTPUT_DISPATCHER_H_
 
 #include <vector>
+#include <list>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
@@ -43,19 +44,20 @@ class AudioOutputDispatcher
   ~AudioOutputDispatcher();
 
   // Called by AudioOutputProxy when the stream is closed. Opens a new
-  // physical stream if there are no pending streams in |streams_|.
+  // physical stream if there are no pending streams in |idle_streams_|.
   // Returns false, if it fails to open it.
   bool StreamOpened();
 
   // Called by AudioOutputProxy when the stream is started. If there
-  // are pending streams in |streams_| then it returns one of them,
+  // are pending streams in |idle_streams_| then it returns one of them,
   // otherwise creates a new one. Returns a physical stream that must
   // be used, or NULL if it fails to open audio device. Ownership of
   // the result is passed to the caller.
   AudioOutputStream* StreamStarted();
 
-  // Called by AudioOutputProxy when the stream is stopped. Returns
-  // |stream| to the pool of pending streams (i.e. |streams_|).
+  // Called by AudioOutputProxy when the stream is stopped.  Holds the
+  // stream temporarily in |pausing_streams_| and then |stream| is
+  // added to the pool of pending streams (i.e. |idle_streams_|).
   // Ownership of the |stream| is passed to the dispatcher.
   void StreamStopped(AudioOutputStream* stream);
 
@@ -68,13 +70,17 @@ class AudioOutputDispatcher
   friend class AudioOutputProxyTest;
 
   // Creates a new physical output stream, opens it and pushes to
-  // |streams_|.  Returns false if the stream couldn't be created or
+  // |idle_streams_|.  Returns false if the stream couldn't be created or
   // opened.
   bool CreateAndOpenStream();
 
   // A task scheduled by StreamStarted(). Opens a new stream and puts
-  // it in |streams_|.
+  // it in |idle_streams_|.
   void OpenTask();
+
+  // Before a stream is reused, it should sit idle for a bit.  This task is
+  // called once that time has elapsed.
+  void StopStreamTask();
 
   // Called by |close_timer_|. Closes all pending stream.
   void ClosePendingStreams();
@@ -83,8 +89,10 @@ class AudioOutputDispatcher
   MessageLoop* message_loop_;
   AudioParameters params_;
 
+  int64 pause_delay_milliseconds_;
   size_t paused_proxies_;
-  std::vector<AudioOutputStream*> streams_;
+  std::vector<AudioOutputStream*> idle_streams_;
+  std::list<AudioOutputStream*> pausing_streams_;
   base::DelayTimer<AudioOutputDispatcher> close_timer_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioOutputDispatcher);

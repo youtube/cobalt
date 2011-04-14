@@ -358,6 +358,7 @@ void PipelineImpl::ResetState() {
   seek_pending_     = false;
   tearing_down_     = false;
   error_caused_teardown_ = false;
+  playback_rate_change_pending_ = false;
   duration_         = kZero;
   buffered_time_    = kZero;
   buffered_bytes_   = 0;
@@ -369,6 +370,7 @@ void PipelineImpl::ResetState() {
   volume_           = 1.0f;
   preload_          = AUTO;
   playback_rate_    = 0.0f;
+  pending_playback_rate_ = 0.0f;
   status_           = PIPELINE_OK;
   has_audio_        = false;
   has_video_        = false;
@@ -780,6 +782,14 @@ void PipelineImpl::ErrorChangedTask(PipelineStatus error) {
 
 void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  // Suppress rate change until after seeking.
+  if (IsPipelineSeeking()) {
+    pending_playback_rate_ = playback_rate;
+    playback_rate_change_pending_ = true;
+    return;
+  }
+
   {
     base::AutoLock auto_lock(lock_);
     clock_->SetPlaybackRate(playback_rate);
@@ -958,6 +968,13 @@ void PipelineImpl::FilterStateTransitionTask() {
     // Finally, reset our seeking timestamp back to zero.
     seek_timestamp_ = base::TimeDelta();
     seek_pending_ = false;
+
+    // If a playback rate change was requested during a seek, do it now that
+    // the seek has compelted.
+    if (playback_rate_change_pending_) {
+      playback_rate_change_pending_ = false;
+      PlaybackRateChangedTask(pending_playback_rate_);
+    }
 
     base::AutoLock auto_lock(lock_);
     // We use audio stream to update the clock. So if there is such a stream,

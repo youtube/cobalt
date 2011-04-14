@@ -330,6 +330,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Whether or not an error triggered the teardown.
   bool error_caused_teardown_;
 
+  // Whether or not a playback rate change should be done once seeking is done.
+  bool playback_rate_change_pending_;
+
   // Duration of the media in microseconds.  Set by filters.
   base::TimeDelta duration_;
 
@@ -371,6 +374,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // SetPlaybackRate() and a task is dispatched on the message loop to notify
   // the filters.
   float playback_rate_;
+
+  // Playback rate to set when the current seek has finished.
+  float pending_playback_rate_;
 
   // Reference clock.  Keeps track of current playback time.  Uses system
   // clock and linear interpolation, but can have its time manually set
