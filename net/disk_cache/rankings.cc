@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -506,6 +506,15 @@ bool Rankings::SanityCheck(CacheRankingsBlock* node, bool from_list) {
     return false;
 
   if ((node->address().value() == data->next) && !IsTail(data->next, &list))
+    return false;
+
+  if (!data->next && !data->prev)
+    return true;
+
+  Addr next_addr(data->next);
+  Addr prev_addr(data->prev);
+  if (!next_addr.SanityCheck() || next_addr.file_type() != RANKINGS ||
+      !prev_addr.SanityCheck() || prev_addr.file_type() != RANKINGS)
     return false;
 
   return true;
