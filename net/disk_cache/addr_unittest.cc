@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -32,6 +32,26 @@ TEST_F(DiskCacheTest, CacheAddr_InvalidValues) {
   EXPECT_EQ(8, addr3.FileNumber());
   EXPECT_EQ(0x2536, addr3.start_block());
   EXPECT_EQ(4096, addr3.BlockSize());
+}
+
+TEST_F(DiskCacheTest, CacheAddr_SanityCheck) {
+  // First a few valid values.
+  EXPECT_TRUE(Addr(0).SanityCheck());
+  EXPECT_TRUE(Addr(0x80001000).SanityCheck());
+  EXPECT_TRUE(Addr(0xC3FFFFFF).SanityCheck());
+  EXPECT_TRUE(Addr(0xC0FFFFFF).SanityCheck());
+
+  // Not initialized.
+  EXPECT_FALSE(Addr(0x20).SanityCheck());
+  EXPECT_FALSE(Addr(0x10001000).SanityCheck());
+
+  // Invalid file type.
+  EXPECT_FALSE(Addr(0xD0001000).SanityCheck());
+  EXPECT_FALSE(Addr(0xF0000000).SanityCheck());
+
+  // Reserved bits.
+  EXPECT_FALSE(Addr(0x14000000).SanityCheck());
+  EXPECT_FALSE(Addr(0x18000000).SanityCheck());
 }
 
 }  // namespace disk_cache
