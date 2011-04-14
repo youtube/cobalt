@@ -14,10 +14,10 @@
 #include <openssl/x509v3.h>
 
 #include "base/memory/singleton.h"
-#include "base/openssl_util.h"
 #include "base/pickle.h"
 #include "base/sha1.h"
 #include "base/string_number_conversions.h"
+#include "crypto/openssl_util.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
@@ -33,9 +33,9 @@ namespace {
 void CreateOSCertHandlesFromPKCS7Bytes(
     const char* data, int length,
     X509Certificate::OSCertHandles* handles) {
-  base::EnsureOpenSSLInit();
+  crypto::EnsureOpenSSLInit();
   const unsigned char* der_data = reinterpret_cast<const unsigned char*>(data);
-  base::ScopedOpenSSL<PKCS7, PKCS7_free> pkcs7_cert(
+  crypto::ScopedOpenSSL<PKCS7, PKCS7_free> pkcs7_cert(
       d2i_PKCS7(NULL, &der_data, length));
   if (!pkcs7_cert.get())
     return;
@@ -101,7 +101,7 @@ void ParseSubjectAltNames(X509Certificate::OSCertHandle cert,
   if (!alt_name_ext)
     return;
 
-  base::ScopedOpenSSL<GENERAL_NAMES, GENERAL_NAMES_free> alt_names(
+  crypto::ScopedOpenSSL<GENERAL_NAMES, GENERAL_NAMES_free> alt_names(
       reinterpret_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(alt_name_ext)));
   if (!alt_names.get())
     return;
@@ -228,14 +228,14 @@ class X509InitSingleton {
  private:
   friend struct DefaultSingletonTraits<X509InitSingleton>;
   X509InitSingleton() {
-    base::EnsureOpenSSLInit();
+    crypto::EnsureOpenSSLInit();
     der_cache_ex_index_ = X509_get_ex_new_index(0, 0, 0, 0, DERCache_free);
     DCHECK_NE(der_cache_ex_index_, -1);
     ResetCertStore();
   }
 
   int der_cache_ex_index_;
-  base::ScopedOpenSSL<X509_STORE, X509_STORE_free> store_;
+  crypto::ScopedOpenSSL<X509_STORE, X509_STORE_free> store_;
 
   DISALLOW_COPY_AND_ASSIGN(X509InitSingleton);
 };
@@ -310,7 +310,7 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 }
 
 void X509Certificate::Initialize() {
-  base::EnsureOpenSSLInit();
+  crypto::EnsureOpenSSLInit();
   fingerprint_ = CalculateFingerprint(cert_handle_);
 
   ASN1_INTEGER* num = X509_get_serialNumber(cert_handle_);
@@ -348,7 +348,7 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
   if (length < 0)
     return NULL;
-  base::EnsureOpenSSLInit();
+  crypto::EnsureOpenSSLInit();
   const unsigned char* d2i_data =
       reinterpret_cast<const unsigned char*>(data);
   // Don't cache this data via SetDERCache as this wire format may be not be
@@ -397,7 +397,7 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
 
 // static
 X509Certificate* X509Certificate::CreateSelfSigned(
-    base::RSAPrivateKey* key,
+    crypto::RSAPrivateKey* key,
     const std::string& subject,
     uint32 serial_number,
     base::TimeDelta valid_duration) {
@@ -446,10 +446,10 @@ int X509Certificate::Verify(const std::string& hostname,
   if (!VerifyHostname(hostname, cert_names))
     verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
-  base::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
+  crypto::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
       X509_STORE_CTX_new());
 
-  base::ScopedOpenSSL<STACK_OF(X509), sk_X509_free_fn> intermediates(
+  crypto::ScopedOpenSSL<STACK_OF(X509), sk_X509_free_fn> intermediates(
       sk_X509_new_null());
   if (!intermediates.get())
     return ERR_OUT_OF_MEMORY;

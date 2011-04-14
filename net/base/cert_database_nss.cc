@@ -12,8 +12,8 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/nss_util.h"
-#include "base/nss_util_internal.h"
+#include "crypto/nss_util.h"
+#include "crypto/nss_util_internal.h"
 #include "net/base/crypto_module.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
@@ -27,7 +27,7 @@ namespace psm = mozilla_security_manager;
 namespace net {
 
 CertDatabase::CertDatabase() {
-  base::EnsureNSSInit();
+  crypto::EnsureNSSInit();
   psm::EnsurePKCS12Init();
 }
 
@@ -78,7 +78,7 @@ int CertDatabase::AddUserCert(X509Certificate* cert_obj) {
   nickname = username + "'s " + ca_name + " ID";
 
   {
-    base::AutoNSSWriteLock lock;
+    crypto::AutoNSSWriteLock lock;
     slot = PK11_ImportCertForKey(cert,
                                  const_cast<char*>(nickname.c_str()),
                                  NULL);
@@ -111,7 +111,7 @@ void CertDatabase::ListCerts(CertificateList* certs) {
 
 CryptoModule* CertDatabase::GetPublicModule() const {
   CryptoModule* module =
-      CryptoModule::CreateFromHandle(base::GetPublicNSSKeySlot());
+      CryptoModule::CreateFromHandle(crypto::GetPublicNSSKeySlot());
   // The module is already referenced when returned from
   // GetPublicNSSKeySlot, so we need to deref it once.
   PK11_FreeSlot(module->os_module_handle());
@@ -121,7 +121,7 @@ CryptoModule* CertDatabase::GetPublicModule() const {
 
 CryptoModule* CertDatabase::GetPrivateModule() const {
   CryptoModule* module =
-      CryptoModule::CreateFromHandle(base::GetPrivateNSSKeySlot());
+      CryptoModule::CreateFromHandle(crypto::GetPrivateNSSKeySlot());
   // The module is already referenced when returned from
   // GetPrivateNSSKeySlot, so we need to deref it once.
   PK11_FreeSlot(module->os_module_handle());

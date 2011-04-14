@@ -10,16 +10,16 @@
 
 #include <vector>
 
-#include "base/crypto/cssm_init.h"
-#include "base/crypto/rsa_private_key.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/singleton.h"
-#include "base/nss_util.h"
 #include "base/pickle.h"
 #include "base/sha1.h"
 #include "base/sys_string_conversions.h"
+#include "crypto/cssm_init.h"
+#include "crypto/nss_util.h"
+#include "crypto/rsa_private_key.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
@@ -485,11 +485,11 @@ class ScopedEncodedCertResults {
       CSSM_ENCODED_CERT* encCert =
           reinterpret_cast<CSSM_ENCODED_CERT*>(results_->Results);
       for (uint32 i = 0; i < results_->NumberOfResults; i++) {
-        base::CSSMFree(encCert[i].CertBlob.Data);
+        crypto::CSSMFree(encCert[i].CertBlob.Data);
       }
     }
-    base::CSSMFree(results_->Results);
-    base::CSSMFree(results_);
+    crypto::CSSMFree(results_->Results);
+    crypto::CSSMFree(results_);
   }
 
 private:
@@ -566,7 +566,7 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
 
 // static
 X509Certificate* X509Certificate::CreateSelfSigned(
-    base::RSAPrivateKey* key,
+    crypto::RSAPrivateKey* key,
     const std::string& subject,
     uint32 serial_number,
     base::TimeDelta valid_duration) {
@@ -588,7 +588,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   // NSS is used to parse the subject string into a set of
   // CSSM_OID/string pairs. There doesn't appear to be a system routine for
   // parsing Distinguished Name strings.
-  base::EnsureNSSInit();
+  crypto::EnsureNSSInit();
 
   CSSMOIDStringVector subject_name_oids;
   ScopedCertName subject_name(
@@ -617,8 +617,8 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   // Set up a certificate request.
   CSSM_APPLE_TP_CERT_REQUEST certReq;
   memset(&certReq, 0, sizeof(certReq));
-  certReq.cspHand = base::GetSharedCSPHandle();
-  certReq.clHand = base::GetSharedCLHandle();
+  certReq.cspHand = crypto::GetSharedCSPHandle();
+  certReq.clHand = crypto::GetSharedCLHandle();
     // See comment about serial numbers above.
   certReq.serialNumber = serial_number & 0x7fffffff;
   certReq.numSubjectNames = cssm_subject_names.size();
@@ -650,7 +650,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   callerAuthContext.Policy.NumberOfPolicyIds = 1;
   callerAuthContext.Policy.PolicyIds = &policyId;
 
-  CSSM_TP_HANDLE tp_handle = base::GetSharedTPHandle();
+  CSSM_TP_HANDLE tp_handle = crypto::GetSharedTPHandle();
   CSSM_DATA refId;
   memset(&refId, 0, sizeof(refId));
   sint32 estTime;
@@ -667,7 +667,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   crtn = CSSM_TP_RetrieveCredResult(tp_handle, &refId, NULL, &estTime,
                                     &confirmRequired, &resultSet);
   ScopedEncodedCertResults scopedResults(resultSet);
-  base::CSSMFree(refId.Data);
+  crypto::CSSMFree(refId.Data);
   if (crtn) {
     DLOG(ERROR) << "CSSM_TP_RetrieveCredResult failed " << crtn;
     return NULL;

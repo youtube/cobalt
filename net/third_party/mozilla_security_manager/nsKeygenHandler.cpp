@@ -49,7 +49,7 @@
 
 #include "base/base64.h"
 #include "base/logging.h"
-#include "base/nss_util.h"
+#include "crypto/nss_util.h"
 #include "googleurl/src/gurl.h"
 
 namespace {
@@ -136,7 +136,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
 
   VLOG(1) << "Creating key pair...";
   {
-    base::AutoNSSWriteLock lock;
+    crypto::AutoNSSWriteLock lock;
     privateKey = PK11_GenerateKeyPair(slot,
                                       keyGenMechanism,
                                       keyGenParams,
@@ -159,7 +159,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
     // example.com", but localize it.
     const std::string& label = url.host();
     {
-      base::AutoNSSWriteLock lock;
+      crypto::AutoNSSWriteLock lock;
       PK11_SetPublicKeyNickname(publicKey, label.c_str());
       PK11_SetPrivateKeyNickname(privateKey, label.c_str());
     }
@@ -235,7 +235,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
     // On successful keygen we need to keep the private key, of course,
     // or we won't be able to use the client certificate.
     if (!isSuccess || !stores_key) {
-      base::AutoNSSWriteLock lock;
+      crypto::AutoNSSWriteLock lock;
       PK11_DestroyTokenObject(privateKey->pkcs11Slot, privateKey->pkcs11ID);
     }
     SECKEY_DestroyPrivateKey(privateKey);
@@ -243,7 +243,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
 
   if (publicKey) {
     if (!isSuccess || !stores_key) {
-      base::AutoNSSWriteLock lock;
+      crypto::AutoNSSWriteLock lock;
       PK11_DestroyTokenObject(publicKey->pkcs11Slot, publicKey->pkcs11ID);
     }
     SECKEY_DestroyPublicKey(publicKey);

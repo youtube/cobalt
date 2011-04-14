@@ -29,9 +29,9 @@
 
 #include <limits>
 
-#include "base/crypto/rsa_private_key.h"
 #include "base/memory/ref_counted.h"
-#include "base/nss_util_internal.h"
+#include "crypto/rsa_private_key.h"
+#include "crypto/nss_util_internal.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -46,7 +46,7 @@ static const int kRecvBufferSize = 4096;
 namespace net {
 
 SSLServerSocket* CreateSSLServerSocket(
-    Socket* socket, X509Certificate* cert, base::RSAPrivateKey* key,
+    Socket* socket, X509Certificate* cert, crypto::RSAPrivateKey* key,
     const SSLConfig& ssl_config) {
   return new SSLServerSocketNSS(socket, cert, key, ssl_config);
 }
@@ -54,7 +54,7 @@ SSLServerSocket* CreateSSLServerSocket(
 SSLServerSocketNSS::SSLServerSocketNSS(
     Socket* transport_socket,
     scoped_refptr<X509Certificate> cert,
-    base::RSAPrivateKey* key,
+    crypto::RSAPrivateKey* key,
     const SSLConfig& ssl_config)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLServerSocketNSS::BufferSendComplete)),
@@ -79,7 +79,7 @@ SSLServerSocketNSS::SSLServerSocketNSS(
   // TODO(hclam): Need a better way to clone a key.
   std::vector<uint8> key_bytes;
   CHECK(key->ExportPrivateKey(&key_bytes));
-  key_.reset(base::RSAPrivateKey::CreateFromPrivateKeyInfo(key_bytes));
+  key_.reset(crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(key_bytes));
   CHECK(key_.get());
 }
 
@@ -302,7 +302,7 @@ int SSLServerSocketNSS::InitializeSSLOptions() {
   }
 
   SECKEYPrivateKeyStr* private_key = NULL;
-  PK11SlotInfo *slot = base::GetPrivateNSSKeySlot();
+  PK11SlotInfo* slot = crypto::GetPrivateNSSKeySlot();
   if (!slot) {
     CERT_DestroyCertificate(cert);
     return ERR_UNEXPECTED;

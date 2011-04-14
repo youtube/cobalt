@@ -4,8 +4,6 @@
 
 #include "net/base/x509_certificate.h"
 
-#include "base/crypto/rsa_private_key.h"
-#include "base/crypto/scoped_capi_types.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/pickle.h"
@@ -13,6 +11,8 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "crypto/rsa_private_key.h"
+#include "crypto/scoped_capi_types.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
@@ -30,10 +30,10 @@ namespace net {
 
 namespace {
 
-typedef base::ScopedCAPIHandle<
+typedef crypto::ScopedCAPIHandle<
     HCERTSTORE,
-    base::CAPIDestroyerWithFlags<HCERTSTORE,
-                                 CertCloseStore, 0> > ScopedHCERTSTORE;
+    crypto::CAPIDestroyerWithFlags<HCERTSTORE,
+                                   CertCloseStore, 0> > ScopedHCERTSTORE;
 
 struct FreeChainEngineFunctor {
   void operator()(HCERTCHAINENGINE engine) const {
@@ -42,7 +42,7 @@ struct FreeChainEngineFunctor {
   }
 };
 
-typedef base::ScopedCAPIHandle<HCERTCHAINENGINE, FreeChainEngineFunctor>
+typedef crypto::ScopedCAPIHandle<HCERTCHAINENGINE, FreeChainEngineFunctor>
     ScopedHCERTCHAINENGINE;
 
 //-----------------------------------------------------------------------------
@@ -574,7 +574,7 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
 
 // static
 X509Certificate* X509Certificate::CreateSelfSigned(
-    base::RSAPrivateKey* key,
+    crypto::RSAPrivateKey* key,
     const std::string& subject,
     uint32 serial_number,
     base::TimeDelta valid_duration) {
