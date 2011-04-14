@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,13 +9,13 @@
 #include <Security/Security.h>
 
 #include "base/base64.h"
-#include "base/crypto/cssm_init.h"
-#include "base/crypto/mac_security_services_lock.h"
 #include "base/logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
 #include "base/synchronization/lock.h"
 #include "base/sys_string_conversions.h"
+#include "crypto/cssm_init.h"
+#include "crypto/mac_security_services_lock.h"
 
 // These are in Security.framework but not declared in a public header.
 extern const SecAsn1Template kSecAsn1AlgorithmIDTemplate[];
@@ -121,7 +121,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
       err = SecAccessCreate(label, NULL, &initial_access);
       // If we fail, just continue without a label.
       if (err)
-        base::LogCSSMError("SecAccessCreate", err);
+        crypto::LogCSSMError("SecAccessCreate", err);
     }
 
     // Create the key-pair.
@@ -135,7 +135,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     err = SecKeychainItemExport(public_key, kSecFormatBSAFE, 0, NULL,
                                 &key_data);
     if (err) {
-      base::LogCSSMError("SecKeychainItemExpor", err);
+      crypto::LogCSSMError("SecKeychainItemExpor", err);
       goto failure;
     }
     base::mac::ScopedCFTypeRef<CFDataRef> scoped_key_data(key_data);
@@ -143,7 +143,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     // Create an ASN.1 encoder.
     err = SecAsn1CoderCreate(&coder);
     if (err) {
-      base::LogCSSMError("SecAsn1CoderCreate", err);
+      crypto::LogCSSMError("SecAsn1CoderCreate", err);
       goto failure;
     }
 
@@ -163,7 +163,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     err = SecAsn1EncodeItem(coder, &spkac.pkac,
                             kPublicKeyAndChallengeTemplate, &encoded);
     if (err) {
-      base::LogCSSMError("SecAsn1EncodeItem", err);
+      crypto::LogCSSMError("SecAsn1EncodeItem", err);
       goto failure;
     }
 
@@ -181,7 +181,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     err = SecAsn1EncodeItem(coder, &spkac,
                             kSignedPublicKeyAndChallengeTemplate, &encoded);
     if (err) {
-      base::LogCSSMError("SecAsn1EncodeItem", err);
+      crypto::LogCSSMError("SecAsn1EncodeItem", err);
       goto failure;
     }
 
@@ -230,12 +230,12 @@ static OSStatus CreateRSAKeyPair(int size_in_bits,
   SecKeychainRef keychain;
   err = SecKeychainCopyDefault(&keychain);
   if (err) {
-    base::LogCSSMError("SecKeychainCopyDefault", err);
+    crypto::LogCSSMError("SecKeychainCopyDefault", err);
     return err;
   }
   base::mac::ScopedCFTypeRef<SecKeychainRef> scoped_keychain(keychain);
   {
-    base::AutoLock locked(base::GetMacSecurityServicesLock());
+    base::AutoLock locked(crypto::GetMacSecurityServicesLock());
     err = SecKeyCreatePair(
         keychain,
         CSSM_ALGID_RSA,
@@ -252,7 +252,7 @@ static OSStatus CreateRSAKeyPair(int size_in_bits,
         out_pub_key, out_priv_key);
   }
   if (err)
-    base::LogCSSMError("SecKeyCreatePair", err);
+    crypto::LogCSSMError("SecKeyCreatePair", err);
   return err;
 }
 
@@ -262,34 +262,34 @@ static OSStatus CreateSignatureContext(SecKeyRef key,
   OSStatus err;
   const CSSM_ACCESS_CREDENTIALS* credentials = NULL;
   {
-    base::AutoLock locked(base::GetMacSecurityServicesLock());
+    base::AutoLock locked(crypto::GetMacSecurityServicesLock());
     err = SecKeyGetCredentials(key,
                                CSSM_ACL_AUTHORIZATION_SIGN,
                                kSecCredentialTypeDefault,
                                &credentials);
   }
   if (err) {
-    base::LogCSSMError("SecKeyGetCredentials", err);
+    crypto::LogCSSMError("SecKeyGetCredentials", err);
     return err;
   }
 
   CSSM_CSP_HANDLE csp_handle = 0;
   {
-    base::AutoLock locked(base::GetMacSecurityServicesLock());
+    base::AutoLock locked(crypto::GetMacSecurityServicesLock());
     err = SecKeyGetCSPHandle(key, &csp_handle);
   }
   if (err) {
-    base::LogCSSMError("SecKeyGetCSPHandle", err);
+    crypto::LogCSSMError("SecKeyGetCSPHandle", err);
     return err;
   }
 
   const CSSM_KEY* cssm_key = NULL;
   {
-    base::AutoLock locked(base::GetMacSecurityServicesLock());
+    base::AutoLock locked(crypto::GetMacSecurityServicesLock());
     err = SecKeyGetCSSMKey(key, &cssm_key);
   }
   if (err) {
-    base::LogCSSMError("SecKeyGetCSSMKey", err);
+    crypto::LogCSSMError("SecKeyGetCSSMKey", err);
     return err;
   }
 
@@ -299,7 +299,7 @@ static OSStatus CreateSignatureContext(SecKeyRef key,
                                         cssm_key,
                                         out_cc_handle);
   if (err)
-    base::LogCSSMError("CSSM_CSP_CreateSignatureContext", err);
+    crypto::LogCSSMError("CSSM_CSP_CreateSignatureContext", err);
   return err;
 }
 
@@ -311,12 +311,12 @@ static OSStatus SignData(CSSM_DATA data,
                                         CSSM_ALGID_MD5WithRSA,
                                         &cc_handle);
   if (err) {
-    base::LogCSSMError("CreateSignatureContext", err);
+    crypto::LogCSSMError("CreateSignatureContext", err);
     return err;
   }
   err = CSSM_SignData(cc_handle, &data, 1, CSSM_ALGID_NONE, signature);
   if (err)
-    base::LogCSSMError("CSSM_SignData", err);
+    crypto::LogCSSMError("CSSM_SignData", err);
   CSSM_DeleteContext(cc_handle);
   return err;
 }

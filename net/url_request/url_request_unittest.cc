@@ -7,8 +7,6 @@
 #if defined(OS_WIN)
 #include <shlobj.h>
 #include <windows.h>
-#elif defined(USE_NSS)
-#include "base/nss_util.h"
 #endif
 
 #include <algorithm>

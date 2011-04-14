@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,11 @@
 #include "build/build_config.h"
 #include "base/base64.h"
 #include "base/logging.h"
-#include "base/nss_util.h"
 #include "base/task.h"
 #include "base/threading/worker_pool.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/synchronization/waitable_event.h"
+#include "crypto/nss_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(USE_NSS)
@@ -31,7 +31,7 @@ class KeygenHandlerTest : public ::testing::Test {
 
   virtual void SetUp() {
 #if defined(OS_CHROMEOS)
-  base::OpenPersistentNSSDB();
+  crypto::OpenPersistentNSSDB();
 #endif
   }
 };

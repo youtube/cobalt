@@ -4,11 +4,11 @@
 
 #include "net/base/keygen_handler.h"
 
-#include "base/crypto/crypto_module_blocking_password_delegate.h"
-#include "base/crypto/scoped_nss_types.h"
 #include "base/logging.h"
-#include "base/nss_util.h"
-#include "base/nss_util_internal.h"
+#include "crypto/crypto_module_blocking_password_delegate.h"
+#include "crypto/nss_util.h"
+#include "crypto/nss_util_internal.h"
+#include "crypto/scoped_nss_types.h"
 #include "net/third_party/mozilla_security_manager/nsKeygenHandler.h"
 
 // PSM = Mozilla's Personal Security Manager.
@@ -18,10 +18,10 @@ namespace net {
 
 std::string KeygenHandler::GenKeyAndSignChallenge() {
   // Ensure NSS is initialized.
-  base::EnsureNSSInit();
+  crypto::EnsureNSSInit();
 
   // TODO(mattm): allow choosing which slot to generate and store the key.
-  base::ScopedPK11Slot slot(base::GetPrivateNSSKeySlot());
+  crypto::ScopedPK11Slot slot(crypto::GetPrivateNSSKeySlot());
   if (!slot.get()) {
     LOG(ERROR) << "Couldn't get private key slot from NSS!";
     return std::string();
@@ -39,7 +39,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
 }
 
 void KeygenHandler::set_crypto_module_password_delegate(
-    base::CryptoModuleBlockingPasswordDelegate* delegate) {
+    crypto::CryptoModuleBlockingPasswordDelegate* delegate) {
   crypto_module_password_delegate_.reset(delegate);
 }
 

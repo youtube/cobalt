@@ -4,7 +4,7 @@
 
 #include "build/build_config.h"
 #include "base/metrics/histogram.h"
-#include "base/nss_util.h"
+#include "crypto/nss_util.h"
 #include "net/base/net_test_suite.h"
 #include "net/socket/client_socket_pool_base.h"
 
@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
 
 #if defined(OS_WIN)
   // We want to be sure to init NSPR on the main thread.
-  base::EnsureNSPRInit();
+  crypto::EnsureNSPRInit();
 #endif
 
   return test_suite.Run();

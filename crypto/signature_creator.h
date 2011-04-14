@@ -1,0 +1,69 @@
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CRYPTO_SIGNATURE_CREATOR_H_
+#define CRYPTO_SIGNATURE_CREATOR_H_
+#pragma once
+
+#include "build/build_config.h"
+
+#if defined(USE_OPENSSL)
+// Forward declaration for openssl/*.h
+typedef struct env_md_ctx_st EVP_MD_CTX;
+#elif defined(USE_NSS)
+// Forward declaration.
+struct SGNContextStr;
+#elif defined(OS_MACOSX)
+#include <Security/cssm.h>
+#endif
+
+#include <vector>
+
+#include "base/basictypes.h"
+#include "crypto/rsa_private_key.h"
+
+#if defined(OS_WIN)
+#include "crypto/scoped_capi_types.h"
+#endif
+
+namespace crypto {
+
+// Signs data using a bare private key (as opposed to a full certificate).
+// Currently can only sign data using SHA-1 with RSA encryption.
+class SignatureCreator {
+ public:
+  ~SignatureCreator();
+
+  // Create an instance. The caller must ensure that the provided PrivateKey
+  // instance outlives the created SignatureCreator.
+  static SignatureCreator* Create(RSAPrivateKey* key);
+
+  // Update the signature with more data.
+  bool Update(const uint8* data_part, int data_part_len);
+
+  // Finalize the signature.
+  bool Final(std::vector<uint8>* signature);
+
+ private:
+  // Private constructor. Use the Create() method instead.
+  SignatureCreator();
+
+  RSAPrivateKey* key_;
+
+#if defined(USE_OPENSSL)
+  EVP_MD_CTX* sign_context_;
+#elif defined(USE_NSS)
+  SGNContextStr* sign_context_;
+#elif defined(OS_MACOSX)
+  CSSM_CC_HANDLE sig_handle_;
+#elif defined(OS_WIN)
+  ScopedHCRYPTHASH hash_object_;
+#endif
+
+  DISALLOW_COPY_AND_ASSIGN(SignatureCreator);
+};
+
+}  // namespace crypto
+
+#endif  // CRYPTO_SIGNATURE_CREATOR_H_

@@ -42,11 +42,10 @@
 #include <p12plcy.h>
 #include <secerr.h>
 
-#include "base/crypto/scoped_nss_types.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/nss_util_internal.h"
 #include "base/string_util.h"
+#include "crypto/nss_util_internal.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 
