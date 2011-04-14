@@ -45,8 +45,8 @@
 //
 // /* Binding a normal function. */
 // int Return5() { return 5; }
-// base::Callback<int(int)> func_cb = base::Bind(&Return5);
-// LOG(INFO) << func_cb.Run(5);  // Prints 5.
+// base::Callback<int(void)> func_cb = base::Bind(&Return5);
+// LOG(INFO) << func_cb.Run();  // Prints 5.
 //
 // void PrintHi() { LOG(INFO) << "hi."; }
 // base::Closure void_func_cb = base::Bind(&PrintHi);
