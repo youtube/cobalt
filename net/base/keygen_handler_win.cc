@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,12 +16,13 @@
 
 #include "base/base64.h"
 #include "base/basictypes.h"
-#include "base/crypto/capi_util.h"
-#include "base/crypto/scoped_capi_types.h"
 #include "base/logging.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "crypto/capi_util.h"
+#include "crypto/scoped_capi_types.h"
+
 
 namespace net {
 
@@ -143,13 +144,13 @@ struct KeyContainer {
       provider_.reset();
       if (delete_keyset_ && !key_id_.empty()) {
         HCRYPTPROV provider;
-        base::CryptAcquireContextLocked(&provider, key_id_.c_str(), NULL,
+        crypto::CryptAcquireContextLocked(&provider, key_id_.c_str(), NULL,
             PROV_RSA_FULL, CRYPT_SILENT | CRYPT_DELETEKEYSET);
       }
     }
   }
 
-  base::ScopedHCRYPTPROV provider_;
+  crypto::ScopedHCRYPTPROV provider_;
   std::wstring key_id_;
 
  private:
@@ -176,9 +177,9 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
 
     // Only create new key containers, so that existing key containers are not
     // overwritten.
-    if (base::CryptAcquireContextLocked(key_container.provider_.receive(),
-        key_container.key_id_.c_str(), NULL, PROV_RSA_FULL,
-        CRYPT_SILENT | CRYPT_NEWKEYSET))
+    if (crypto::CryptAcquireContextLocked(key_container.provider_.receive(),
+            key_container.key_id_.c_str(), NULL, PROV_RSA_FULL,
+            CRYPT_SILENT | CRYPT_NEWKEYSET))
       break;
 
     if (GetLastError() != NTE_BAD_KEYSET) {
@@ -194,7 +195,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
   }
 
   {
-    base::ScopedHCRYPTKEY key;
+    crypto::ScopedHCRYPTKEY key;
     if (!CryptGenKey(key_container.provider_, CALG_RSA_KEYX,
         (key_size_in_bits_ << 16) | CRYPT_EXPORTABLE, key.receive())) {
       LOG(ERROR) << "Keygen failed: Couldn't generate an RSA key";

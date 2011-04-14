@@ -36,10 +36,10 @@ struct CERTCertificateStr;
 
 class Pickle;
 
-namespace base {
+namespace crypto {
 class StringPiece;
 class RSAPrivateKey;
-}  // namespace base
+}  // namespace crypto
 
 namespace net {
 
@@ -176,7 +176,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // 2. Self-signed certificates cannot be revoked.
   //
   // Use this certificate only after the above risks are acknowledged.
-  static X509Certificate* CreateSelfSigned(base::RSAPrivateKey* key,
+  static X509Certificate* CreateSelfSigned(crypto::RSAPrivateKey* key,
                                            const std::string& subject,
                                            uint32 serial_number,
                                            base::TimeDelta valid_duration);

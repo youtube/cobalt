@@ -1,4 +1,5 @@
 include_rules = [
+  "+crypto",
   "+third_party/libevent",
   "+third_party/nss",
   "+third_party/zlib",

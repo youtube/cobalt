@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,11 +17,11 @@
 
 #include <queue>
 
-#include "base/crypto/rsa_private_key.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/nss_util.h"
 #include "base/path_service.h"
+#include "crypto/nss_util.h"
+#include "crypto/rsa_private_key.h"
 #include "net/base/address_list.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verifier.h"
@@ -234,8 +234,8 @@ class SSLServerSocketTest : public PlatformTest {
         reinterpret_cast<const uint8*>(key_string.data() +
                                        key_string.length()));
 
-    scoped_ptr<base::RSAPrivateKey> private_key(
-        base::RSAPrivateKey::CreateFromPrivateKeyInfo(key_vector));
+    scoped_ptr<crypto::RSAPrivateKey> private_key(
+        crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(key_vector));
 
     net::SSLConfig ssl_config;
     ssl_config.false_start_enabled = false;

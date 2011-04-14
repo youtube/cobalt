@@ -12,8 +12,8 @@
 
 #include "base/memory/singleton.h"
 #include "base/metrics/histogram.h"
-#include "base/openssl_util.h"
 #include "base/synchronization/lock.h"
+#include "crypto/openssl_util.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/net_errors.h"
 #include "net/base/openssl_private_key_store.h"
@@ -172,7 +172,7 @@ int MapOpenSSLErrorSSL() {
 // error stack if needed. Note that |tracer| is not currently used in the
 // implementation, but is passed in anyway as this ensures the caller will clear
 // any residual codes left on the error stack.
-int MapOpenSSLError(int err, const base::OpenSSLErrStackTracer& tracer) {
+int MapOpenSSLError(int err, const crypto::OpenSSLErrStackTracer& tracer) {
   switch (err) {
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
@@ -206,7 +206,7 @@ class SSLSessionCache {
   void OnSessionAdded(const HostPortPair& host_and_port, SSL_SESSION* session) {
     // Declare the session cleaner-upper before the lock, so any call into
     // OpenSSL to free the session will happen after the lock is released.
-    base::ScopedOpenSSL<SSL_SESSION, SSL_SESSION_free> session_to_free;
+    crypto::ScopedOpenSSL<SSL_SESSION, SSL_SESSION_free> session_to_free;
     base::AutoLock lock(lock_);
 
     DCHECK_EQ(0U, session_map_.count(session));
@@ -228,7 +228,7 @@ class SSLSessionCache {
   void OnSessionRemoved(SSL_SESSION* session) {
     // Declare the session cleaner-upper before the lock, so any call into
     // OpenSSL to free the session will happen after the lock is released.
-    base::ScopedOpenSSL<SSL_SESSION, SSL_SESSION_free> session_to_free;
+    crypto::ScopedOpenSSL<SSL_SESSION, SSL_SESSION_free> session_to_free;
     base::AutoLock lock(lock_);
 
     SessionMap::iterator it = session_map_.find(session);
@@ -301,7 +301,7 @@ class SSLContext {
   friend struct DefaultSingletonTraits<SSLContext>;
 
   SSLContext() {
-    base::EnsureOpenSSLInit();
+    crypto::EnsureOpenSSLInit();
     ssl_socket_data_index_ = SSL_get_ex_new_index(0, 0, 0, 0, 0);
     DCHECK_NE(ssl_socket_data_index_, -1);
     ssl_ctx_.reset(SSL_CTX_new(SSLv23_client_method()));
@@ -358,7 +358,7 @@ class SSLContext {
   // SSLClientSocketOpenSSL object from an SSL instance.
   int ssl_socket_data_index_;
 
-  base::ScopedOpenSSL<SSL_CTX, SSL_CTX_free> ssl_ctx_;
+  crypto::ScopedOpenSSL<SSL_CTX, SSL_CTX_free> ssl_ctx_;
   SSLSessionCache session_cache_;
 };
 
@@ -415,7 +415,7 @@ bool SSLClientSocketOpenSSL::Init() {
   DCHECK(!transport_bio_);
 
   SSLContext* context = SSLContext::GetInstance();
-  base::OpenSSLErrStackTracer err_tracer(FROM_HERE);
+  crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
   ssl_ = SSL_new(context->ssl_ctx());
   if (!ssl_ || !context->SetClientSocketForSSL(ssl_, this))
@@ -727,7 +727,7 @@ int SSLClientSocketOpenSSL::DoHandshakeLoop(int last_io_result) {
 }
 
 int SSLClientSocketOpenSSL::DoHandshake() {
-  base::OpenSSLErrStackTracer err_tracer(FROM_HERE);
+  crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
   int net_error = net::OK;
   int rv = SSL_do_handshake(ssl_);
 
@@ -859,7 +859,7 @@ X509Certificate* SSLClientSocketOpenSSL::UpdateServerCert() {
   if (server_cert_)
     return server_cert_;
 
-  base::ScopedOpenSSL<X509, X509_free> cert(SSL_get_peer_certificate(ssl_));
+  crypto::ScopedOpenSSL<X509, X509_free> cert(SSL_get_peer_certificate(ssl_));
   if (!cert.get()) {
     LOG(WARNING) << "SSL_get_peer_certificate returned NULL";
     return NULL;
@@ -1169,7 +1169,7 @@ bool SSLClientSocketOpenSSL::SetSendBufferSize(int32 size) {
 }
 
 int SSLClientSocketOpenSSL::DoPayloadRead() {
-  base::OpenSSLErrStackTracer err_tracer(FROM_HERE);
+  crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
   int rv = SSL_read(ssl_, user_read_buf_->data(), user_read_buf_len_);
   // We don't need to invalidate the non-client-authenticated SSL session
   // because the server will renegotiate anyway.
@@ -1184,7 +1184,7 @@ int SSLClientSocketOpenSSL::DoPayloadRead() {
 }
 
 int SSLClientSocketOpenSSL::DoPayloadWrite() {
-  base::OpenSSLErrStackTracer err_tracer(FROM_HERE);
+  crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
   int rv = SSL_write(ssl_, user_write_buf_->data(), user_write_buf_len_);
 
   if (rv >= 0)
