@@ -105,7 +105,7 @@ void DemangleSymbols(std::string* text) {
 // names and attach these. Otherwise just use raw addresses. Returns true
 // if any symbol name is resolved.  Returns false on error and *may* fill
 // in |error_message| if an error message is available.
-bool GetBacktraceStrings(void **trace, int size,
+bool GetBacktraceStrings(void *const *trace, int size,
                          std::vector<std::string>* trace_strings,
                          std::string* error_message) {
   bool symbolized = false;
@@ -161,7 +161,7 @@ StackTrace::StackTrace() {
   count_ = std::max(backtrace(trace_, arraysize(trace_)), 0);
 }
 
-void StackTrace::PrintBacktrace() {
+void StackTrace::PrintBacktrace() const {
 #if defined(OS_MACOSX) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
   if (backtrace_symbols_fd == NULL)
     return;
@@ -174,7 +174,7 @@ void StackTrace::PrintBacktrace() {
   }
 }
 
-void StackTrace::OutputToStream(std::ostream* os) {
+void StackTrace::OutputToStream(std::ostream* os) const {
 #if defined(OS_MACOSX) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
   if (backtrace_symbols == NULL)
     return;
