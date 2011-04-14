@@ -15,7 +15,6 @@
 #include "base/logging.h"
 #include "base/mac/scoped_nsautorelease_pool.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/nss_util.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/test/multiprocess_test.h"
@@ -213,14 +212,6 @@ void TestSuite::Initialize() {
   }
 
   icu_util::Initialize();
-
-#if defined(USE_NSS)
-  // Trying to repeatedly initialize and cleanup NSS and NSPR may result in
-  // a deadlock. Such repeated initialization will happen when using test
-  // isolation. Prevent problems by initializing NSS here, so that the cleanup
-  // will be done only on process exit.
-  base::EnsureNSSInit();
-#endif  // defined(USE_NSS)
 
   CatchMaybeTests();
 

@@ -42,9 +42,9 @@
 #include <pk11pub.h>
 #include <secerr.h>
 
-#include "base/crypto/scoped_nss_types.h"
 #include "base/logging.h"
-#include "base/nss_util_internal.h"
+#include "crypto/nss_util_internal.h"
+#include "crypto/scoped_nss_types.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 #include "net/third_party/mozilla_security_manager/nsNSSCertTrust.h"
@@ -56,7 +56,7 @@ bool ImportCACerts(const net::CertificateList& certificates,
                    net::X509Certificate* root,
                    unsigned int trustBits,
                    net::CertDatabase::ImportCertFailureList* not_imported) {
-  base::ScopedPK11Slot slot(base::GetPublicNSSKeySlot());
+  crypto::ScopedPK11Slot slot(crypto::GetPublicNSSKeySlot());
   if (!slot.get()) {
     LOG(ERROR) << "Couldn't get internal key slot!";
     return false;
@@ -163,7 +163,7 @@ bool ImportCACerts(const net::CertificateList& certificates,
 // Based on nsNSSCertificateDB::ImportServerCertificate.
 bool ImportServerCert(const net::CertificateList& certificates,
                       net::CertDatabase::ImportCertFailureList* not_imported) {
-  base::ScopedPK11Slot slot(base::GetPublicNSSKeySlot());
+  crypto::ScopedPK11Slot slot(crypto::GetPublicNSSKeySlot());
   if (!slot.get()) {
     LOG(ERROR) << "Couldn't get internal key slot!";
     return false;

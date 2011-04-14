@@ -10,12 +10,12 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/sha1.h"
-#include "base/sha2.h"
 #include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "base/values.h"
+#include "crypto/sha2.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/dns_util.h"
 
@@ -40,8 +40,8 @@ void TransportSecurityState::EnableHost(const std::string& host,
   if (IsPreloadedSTS(canonicalized_host, true, &temp))
     return;
 
-  char hashed[base::SHA256_LENGTH];
-  base::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
+  char hashed[crypto::SHA256_LENGTH];
+  crypto::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
 
   // Use the original creation date if we already have this host.
   DomainState state_copy(state);
@@ -62,8 +62,8 @@ bool TransportSecurityState::DeleteHost(const std::string& host) {
   if (canonicalized_host.empty())
     return false;
 
-  char hashed[base::SHA256_LENGTH];
-  base::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
+  char hashed[crypto::SHA256_LENGTH];
+  crypto::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
 
   std::map<std::string, DomainState>::iterator i = enabled_hosts_.find(
       std::string(hashed, sizeof(hashed)));
@@ -103,10 +103,10 @@ bool TransportSecurityState::IsEnabledForHost(DomainState* result,
   base::Time current_time(base::Time::Now());
 
   for (size_t i = 0; canonicalized_host[i]; i += canonicalized_host[i] + 1) {
-    char hashed_domain[base::SHA256_LENGTH];
+    char hashed_domain[crypto::SHA256_LENGTH];
 
-    base::SHA256HashString(IncludeNUL(&canonicalized_host[i]), &hashed_domain,
-                           sizeof(hashed_domain));
+    crypto::SHA256HashString(IncludeNUL(&canonicalized_host[i]), &hashed_domain,
+                             sizeof(hashed_domain));
     std::map<std::string, DomainState>::iterator j =
         enabled_hosts_.find(std::string(hashed_domain, sizeof(hashed_domain)));
     if (j == enabled_hosts_.end())
@@ -285,7 +285,7 @@ static std::string HashedDomainToExternalString(const std::string& hashed) {
 static std::string ExternalStringToHashedDomain(const std::string& external) {
   std::string out;
   if (!base::Base64Decode(external, &out) ||
-      out.size() != base::SHA256_LENGTH) {
+      out.size() != crypto::SHA256_LENGTH) {
     return std::string();
   }
 

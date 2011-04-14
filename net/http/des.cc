@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,17 +8,17 @@
 
 #if defined(USE_OPENSSL)
 #include <openssl/des.h>
-#include "base/openssl_util.h"
+#include "crypto/openssl_util.h"
 #elif defined(USE_NSS)
 #include <nss.h>
 #include <pk11pub.h>
-#include "base/nss_util.h"
+#include "crypto/nss_util.h"
 #elif defined(OS_MACOSX)
 #include <CommonCrypto/CommonCryptor.h>
 #elif defined(OS_WIN)
 #include <windows.h>
 #include <wincrypt.h>
-#include "base/crypto/scoped_capi_types.h"
+#include "crypto/scoped_capi_types.h"
 #endif
 
 // The Mac and Windows (CryptoAPI) versions of DESEncrypt are our own code.
@@ -90,7 +90,7 @@ void DESMakeKey(const uint8* raw, uint8* key) {
 #if defined(USE_OPENSSL)
 
 void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
-  base::EnsureOpenSSLInit();
+  crypto::EnsureOpenSSLInit();
 
   DES_key_schedule ks;
   DES_set_key_unchecked(
@@ -112,7 +112,7 @@ void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
   SECStatus rv;
   unsigned int n;
 
-  base::EnsureNSSInit();
+  crypto::EnsureNSSInit();
 
   slot = PK11_GetBestSlot(cipher_mech, NULL);
   if (!slot)
@@ -171,7 +171,7 @@ void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
 #elif defined(OS_WIN)
 
 void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
-  base::ScopedHCRYPTPROV provider;
+  crypto::ScopedHCRYPTPROV provider;
   if (!CryptAcquireContext(provider.receive(), NULL, NULL, PROV_RSA_FULL,
                            CRYPT_VERIFYCONTEXT))
     return;
@@ -191,7 +191,7 @@ void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
     key_blob.key_size = 8;  // 64 bits
     memcpy(key_blob.key_data, key, 8);
 
-    base::ScopedHCRYPTKEY key;
+    crypto::ScopedHCRYPTKEY key;
     BOOL import_ok = CryptImportKey(provider,
                                     reinterpret_cast<BYTE*>(&key_blob),
                                     sizeof key_blob, 0, 0, key.receive());
