@@ -16,12 +16,12 @@
 #include <sechash.h>
 #include <sslerr.h>
 
-#include "base/crypto/rsa_private_key.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/pickle.h"
 #include "base/time.h"
-#include "base/nss_util.h"
+#include "crypto/nss_util.h"
+#include "crypto/rsa_private_key.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/ev_root_ca_metadata.h"
@@ -278,7 +278,7 @@ void ParseDate(SECItem* der_date, base::Time* result) {
   PRTime prtime;
   SECStatus rv = DER_DecodeTimeChoice(&prtime, der_date);
   DCHECK(rv == SECSuccess);
-  *result = base::PRTimeToBaseTime(prtime);
+  *result = crypto::PRTimeToBaseTime(prtime);
 }
 
 void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
@@ -662,7 +662,7 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
 
 // static
 X509Certificate* X509Certificate::CreateSelfSigned(
-    base::RSAPrivateKey* key,
+    crypto::RSAPrivateKey* key,
     const std::string& subject,
     uint32 serial_number,
     base::TimeDelta valid_duration) {
@@ -926,7 +926,7 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
   if (length < 0)
     return NULL;
 
-  base::EnsureNSSInit();
+  crypto::EnsureNSSInit();
 
   if (!NSS_IsInitialized())
     return NULL;
@@ -948,7 +948,7 @@ X509Certificate::OSCertHandles X509Certificate::CreateOSCertHandlesFromBytes(
   if (length < 0)
     return results;
 
-  base::EnsureNSSInit();
+  crypto::EnsureNSSInit();
 
   if (!NSS_IsInitialized())
     return results;

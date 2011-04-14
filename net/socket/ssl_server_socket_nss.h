@@ -32,7 +32,7 @@ class SSLServerSocketNSS : public SSLServerSocket {
   // |key| - The private key used by the server.
   SSLServerSocketNSS(Socket* transport_socket,
                      scoped_refptr<X509Certificate> cert,
-                     base::RSAPrivateKey* key,
+                     crypto::RSAPrivateKey* key,
                      const SSLConfig& ssl_config);
   virtual ~SSLServerSocketNSS();
 
@@ -121,7 +121,7 @@ class SSLServerSocketNSS : public SSLServerSocket {
   scoped_refptr<X509Certificate> cert_;
 
   // Private key used by the server.
-  scoped_ptr<base::RSAPrivateKey> key_;
+  scoped_ptr<crypto::RSAPrivateKey> key_;
 
   State next_handshake_state_;
   bool completed_handshake_;

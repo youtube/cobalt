@@ -112,13 +112,6 @@
         'callback_unittest.cc',
         'command_line_unittest.cc',
         'cpu_unittest.cc',
-        'crypto/encryptor_unittest.cc',
-        'crypto/rsa_private_key_unittest.cc',
-        'crypto/rsa_private_key_nss_unittest.cc',
-        'crypto/secure_hash_unittest.cc',
-        'crypto/signature_creator_unittest.cc',
-        'crypto/signature_verifier_unittest.cc',
-        'crypto/symmetric_key_unittest.cc',
         'debug/leak_tracker_unittest.cc',
         'debug/stack_trace_unittest.cc',
         'debug/trace_event_win_unittest.cc',
@@ -129,7 +122,6 @@
         'file_util_unittest.cc',
         'file_version_info_unittest.cc',
         'gmock_unittest.cc',
-        'hmac_unittest.cc',
         'id_map_unittest.cc',
         'i18n/break_iterator_unittest.cc',
         'i18n/char_iterator_unittest.cc',
@@ -167,7 +159,6 @@
         'process_util_unittest_mac.mm',
         'rand_util_unittest.cc',
         'sha1_unittest.cc',
-        'sha2_unittest.cc',
         'shared_memory_unittest.cc',
         'stack_container_unittest.cc',
         'string16_unittest.cc',
@@ -256,7 +247,6 @@
         }, {  # OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"
           'sources!': [
             'message_pump_glib_unittest.cc',
-            'crypto/rsa_private_key_nss_unittest.cc',
           ]
         }],
         # This is needed to trigger the dll copy step on windows.
@@ -279,11 +269,6 @@
             'time_win_unittest.cc',
             'trace_event_win_unittest.cc',
             'win_util_unittest.cc',
-          ],
-        }],
-        [ 'use_openssl==1', {
-          'sources!': [
-            'crypto/rsa_private_key_nss_unittest.cc',
           ],
         }],
       ],

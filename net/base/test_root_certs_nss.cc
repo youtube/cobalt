@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,8 @@
 #include <cert.h>
 
 #include "base/logging.h"
-#include "base/nss_util.h"
 #include "base/stl_util-inl.h"
+#include "crypto/nss_util.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
@@ -113,7 +113,7 @@ TestRootCerts::~TestRootCerts() {
 }
 
 void TestRootCerts::Init() {
-  base::EnsureNSSInit();
+  crypto::EnsureNSSInit();
 }
 
 }  // namespace net

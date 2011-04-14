@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/crypto/rsa_private_key.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
@@ -10,6 +9,7 @@
 #include "base/sha1.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
+#include "crypto/rsa_private_key.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_test_util.h"
@@ -831,8 +831,8 @@ TEST(X509CertificateTest, IsIssuedBy) {
 // This test creates a self-signed cert from a private key and then verify the
 // content of the certificate.
 TEST(X509CertificateTest, CreateSelfSigned) {
-  scoped_ptr<base::RSAPrivateKey> private_key(
-      base::RSAPrivateKey::Create(1024));
+  scoped_ptr<crypto::RSAPrivateKey> private_key(
+      crypto::RSAPrivateKey::Create(1024));
   scoped_refptr<X509Certificate> cert =
       X509Certificate::CreateSelfSigned(
           private_key.get(), "CN=subject", 1, base::TimeDelta::FromDays(1));
@@ -927,7 +927,7 @@ TEST(X509CertificateTest, CreateSelfSigned) {
   input.resize(sizeof(private_key_info));
   memcpy(&input.front(), private_key_info, sizeof(private_key_info));
 
-  private_key.reset(base::RSAPrivateKey::CreateFromPrivateKeyInfo(input));
+  private_key.reset(crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(input));
   ASSERT_TRUE(private_key.get());
 
   cert = X509Certificate::CreateSelfSigned(
@@ -938,8 +938,8 @@ TEST(X509CertificateTest, CreateSelfSigned) {
 }
 
 TEST(X509CertificateTest, GetDEREncoded) {
-  scoped_ptr<base::RSAPrivateKey> private_key(
-      base::RSAPrivateKey::Create(1024));
+  scoped_ptr<crypto::RSAPrivateKey> private_key(
+      crypto::RSAPrivateKey::Create(1024));
   scoped_refptr<X509Certificate> cert =
       X509Certificate::CreateSelfSigned(
           private_key.get(), "CN=subject", 0, base::TimeDelta::FromDays(1));

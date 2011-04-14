@@ -13,9 +13,7 @@
 #include "googleurl/src/gurl.h"
 
 #if defined(USE_NSS)
-namespace base {
-class CryptoModuleBlockingPasswordDelegate;
-};
+#include "crypto/crypto_module_blocking_password_delegate.h"
 #endif  // defined(USE_NSS)
 
 namespace net {
@@ -48,7 +46,7 @@ class KeygenHandler {
   // password callback is okay here.
   // Takes ownership of the delegate.
   void set_crypto_module_password_delegate(
-      base::CryptoModuleBlockingPasswordDelegate* delegate);
+      crypto::CryptoModuleBlockingPasswordDelegate* delegate);
 #endif  // defined(USE_NSS)
 
  private:
@@ -58,7 +56,7 @@ class KeygenHandler {
   bool stores_key_;  // should the generated key-pair be stored persistently?
 #if defined(USE_NSS)
   // The callback for requesting a password to the PKCS#11 token.
-  scoped_ptr<base::CryptoModuleBlockingPasswordDelegate>
+  scoped_ptr<crypto::CryptoModuleBlockingPasswordDelegate>
       crypto_module_password_delegate_;
 #endif  // defined(USE_NSS)
 };

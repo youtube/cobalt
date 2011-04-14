@@ -7,9 +7,9 @@
 #include "base/base64.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
-#include "base/sha2.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "crypto/sha2.h"
 #include "net/base/registry_controlled_domain.h"
 #include "net/url_request/url_request_http_job.h"
 
@@ -496,7 +496,7 @@ void SdchManager::GetAvailDictionaryList(const GURL& target_url,
 void SdchManager::GenerateHash(const std::string& dictionary_text,
     std::string* client_hash, std::string* server_hash) {
   char binary_hash[32];
-  base::SHA256HashString(dictionary_text, binary_hash, sizeof(binary_hash));
+  crypto::SHA256HashString(dictionary_text, binary_hash, sizeof(binary_hash));
 
   std::string first_48_bits(&binary_hash[0], 6);
   std::string second_48_bits(&binary_hash[6], 6);

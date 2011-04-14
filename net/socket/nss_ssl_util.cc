@@ -14,9 +14,9 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
-#include "base/nss_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
+#include "crypto/nss_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 
@@ -25,7 +25,7 @@ namespace net {
 class NSSSSLInitSingleton {
  public:
   NSSSSLInitSingleton() {
-    base::EnsureNSSInit();
+    crypto::EnsureNSSInit();
 
     NSS_SetDomesticPolicy();
 

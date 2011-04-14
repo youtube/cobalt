@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,9 @@
 #include <windows.h>
 #include <wincrypt.h>
 
-#include "base/crypto/scoped_capi_types.h"
+// This file is not being compiled at the moment (see bug 47218). If we keep
+// sha1 inside base, we cannot depend on src/crypto.
+// #include "crypto/scoped_capi_types.h"
 #include "base/logging.h"
 
 namespace base {

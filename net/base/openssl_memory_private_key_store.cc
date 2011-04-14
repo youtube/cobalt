@@ -10,7 +10,6 @@
 
 #include "base/logging.h"
 #include "base/memory/singleton.h"
-#include "base/openssl_util.h"
 #include "base/synchronization/lock.h"
 #include "net/base/x509_certificate.h"
 

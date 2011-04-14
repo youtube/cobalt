@@ -6,23 +6,23 @@
 
 #include <openssl/ssl.h>
 
-#include "base/crypto/rsa_private_key.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/openssl_util.h"
+#include "crypto/openssl_util.h"
+#include "crypto/rsa_private_key.h"
 #include "net/base/openssl_private_key_store.h"
 
 namespace net {
 
 std::string KeygenHandler::GenKeyAndSignChallenge() {
-  scoped_ptr<base::RSAPrivateKey> key(
-      base::RSAPrivateKey::Create(key_size_in_bits_));
+  scoped_ptr<crypto::RSAPrivateKey> key(
+      crypto::RSAPrivateKey::Create(key_size_in_bits_));
   EVP_PKEY* pkey = key->key();
 
   if (stores_key_)
     OpenSSLPrivateKeyStore::GetInstance()->StorePrivateKey(url_, pkey);
 
-  base::ScopedOpenSSL<NETSCAPE_SPKI, NETSCAPE_SPKI_free> spki(
+  crypto::ScopedOpenSSL<NETSCAPE_SPKI, NETSCAPE_SPKI_free> spki(
        NETSCAPE_SPKI_new());
   ASN1_STRING_set(spki.get()->spkac->challenge,
                   challenge_.data(), challenge_.size());
