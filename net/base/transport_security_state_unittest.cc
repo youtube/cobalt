@@ -428,6 +428,12 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "chrome.google.com",
                                       true));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "foo.latest.chrome.google.com",
+                                       true));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "latest.chrome.google.com",
+                                      true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "checkout.google.com",
                                       true));

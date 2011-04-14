@@ -509,6 +509,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {19, true, "\006health\006google\003com"},
     {21, true, "\010checkout\006google\003com"},
     {19, true, "\006chrome\006google\003com"},
+    {26, false, "\006latest\006chrome\006google\003com"},
     {28, false, "\016aladdinschools\007appspot\003com"},
     {14, true, "\011ottospora\002nl"},
     {17, true, "\004docs\006google\003com"},
@@ -540,9 +541,10 @@ bool TransportSecurityState::IsPreloadedSTS(
   for (size_t i = 0; canonicalized_host[i]; i += canonicalized_host[i] + 1) {
     for (size_t j = 0; j < kNumPreloadedSTS; j++) {
       if (kPreloadedSTS[j].length == canonicalized_host.size() - i &&
-          (kPreloadedSTS[j].include_subdomains || i == 0) &&
           memcmp(kPreloadedSTS[j].dns_name, &canonicalized_host[i],
                  kPreloadedSTS[j].length) == 0) {
+        if (!kPreloadedSTS[j].include_subdomains && i != 0)
+          return false;
         *include_subdomains = kPreloadedSTS[j].include_subdomains;
         return true;
       }
@@ -550,9 +552,10 @@ bool TransportSecurityState::IsPreloadedSTS(
     if (sni_available) {
       for (size_t j = 0; j < kNumPreloadedSNISTS; j++) {
         if (kPreloadedSNISTS[j].length == canonicalized_host.size() - i &&
-            (kPreloadedSNISTS[j].include_subdomains || i == 0) &&
             memcmp(kPreloadedSNISTS[j].dns_name, &canonicalized_host[i],
                    kPreloadedSNISTS[j].length) == 0) {
+          if (!kPreloadedSNISTS[j].include_subdomains && i != 0)
+            return false;
           *include_subdomains = kPreloadedSNISTS[j].include_subdomains;
           return true;
         }
