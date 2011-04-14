@@ -46,11 +46,8 @@ class TransportSecurityState :
       MODE_SPDY_ONLY = 2,
     };
 
-    DomainState()
-        : mode(MODE_STRICT),
-          created(base::Time::Now()),
-          include_subdomains(false),
-          preloaded(false) { }
+    DomainState();
+    ~DomainState();
 
     // IsChainOfPublicKeysPermitted takes a set of public key hashes and
     // returns true if:
