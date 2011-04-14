@@ -578,6 +578,16 @@ static std::string HashesToBase64String(
   return JoinString(hashes_strs, ',');
 }
 
+TransportSecurityState::DomainState::DomainState()
+    : mode(MODE_STRICT),
+      created(base::Time::Now()),
+      include_subdomains(false),
+      preloaded(false) {
+}
+
+TransportSecurityState::DomainState::~DomainState() {
+}
+
 bool TransportSecurityState::DomainState::IsChainOfPublicKeysPermitted(
     const std::vector<net::SHA1Fingerprint>& hashes) {
   if (public_key_hashes.empty())
