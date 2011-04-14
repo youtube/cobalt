@@ -88,6 +88,11 @@
           'file_version_info_mac.mm',
           'file_version_info_win.cc',
           'file_version_info_win.h',
+          'files/file_path_watcher.cc',
+          'files/file_path_watcher.h',
+          'files/file_path_watcher_linux.cc',
+          'files/file_path_watcher_mac.cc',
+          'files/file_path_watcher_win.cc',
           'fix_wp64.h',
           'float_util.h',
           'foundation_utils_mac.h',
@@ -401,6 +406,14 @@
               'debug/trace_event.cc',
             ],
           },],
+          ['OS=="freebsd" or OS=="openbsd"', {
+            'sources!': [
+              'base/files/file_path_watcher_linux.cc',
+            ],
+            'sources': [
+              'base/files/file_path_watcher_stub.cc',
+            ],
+          }],
         ],
       }],
     ],
