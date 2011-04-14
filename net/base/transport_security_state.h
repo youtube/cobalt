@@ -8,11 +8,13 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
+#include "net/base/x509_cert_types.h"
 
 namespace net {
 
@@ -50,10 +52,18 @@ class TransportSecurityState :
           include_subdomains(false),
           preloaded(false) { }
 
+    // IsChainOfPublicKeysPermitted takes a set of public key hashes and
+    // returns true if:
+    //   1) |public_key_hashes| is empty, i.e. no public keys have been pinned.
+    //   2) |hashes| and |public_key_hashes| are not disjoint.
+    bool IsChainOfPublicKeysPermitted(
+        const std::vector<SHA1Fingerprint>& hashes);
+
     Mode mode;
     base::Time created;  // when this host entry was first created
     base::Time expiry;  // the absolute time (UTC) when this record expires
     bool include_subdomains;  // subdomains included?
+    std::vector<SHA1Fingerprint> public_key_hashes;  // optional; permitted keys
 
     // The follow members are not valid when stored in |enabled_hosts_|.
     bool preloaded;  // is this a preloaded entry?
