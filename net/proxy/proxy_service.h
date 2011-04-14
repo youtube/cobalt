@@ -12,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/non_thread_safe.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
@@ -33,9 +34,10 @@ class URLRequestContext;
 // This class can be used to resolve the proxy server to use when loading a
 // HTTP(S) URL.  It uses the given ProxyResolver to handle the actual proxy
 // resolution.  See ProxyResolverV8 for example.
-class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
+class ProxyService : public base::RefCounted<ProxyService>,
                      public NetworkChangeNotifier::IPAddressObserver,
-                     public ProxyConfigService::Observer {
+                     public ProxyConfigService::Observer,
+                     public base::NonThreadSafe {
  public:
   // The instance takes ownership of |config_service| and |resolver|.
   // |net_log| is a possibly NULL destination to send log events to. It must
@@ -215,7 +217,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 #endif
 
  private:
-  friend class base::RefCountedThreadSafe<ProxyService>;
+  friend class base::RefCounted<ProxyService>;
   FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);
   FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigFromPACToDirect);
   friend class PacRequest;

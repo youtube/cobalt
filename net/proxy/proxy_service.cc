@@ -500,6 +500,7 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
                                CompletionCallback* callback,
                                PacRequest** pac_request,
                                const BoundNetLog& net_log) {
+  DCHECK(CalledOnValidThread());
   DCHECK(callback);
 
   net_log.BeginEvent(NetLog::TYPE_PROXY_SERVICE, NULL);
@@ -659,6 +660,8 @@ int ProxyService::ReconsiderProxyAfterError(const GURL& url,
                                             CompletionCallback* callback,
                                             PacRequest** pac_request,
                                             const BoundNetLog& net_log) {
+  DCHECK(CalledOnValidThread());
+
   // Check to see if we have a new config since ResolveProxy was called.  We
   // want to re-run ResolveProxy in two cases: 1) we have a new config, or 2) a
   // direct connection failed and we never tried the current config.
@@ -682,6 +685,7 @@ int ProxyService::ReconsiderProxyAfterError(const GURL& url,
 }
 
 void ProxyService::CancelPacRequest(PacRequest* req) {
+  DCHECK(CalledOnValidThread());
   DCHECK(req);
   req->Cancel();
   RemovePendingRequest(req);
@@ -736,6 +740,7 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
 
 void ProxyService::SetProxyScriptFetcher(
     ProxyScriptFetcher* proxy_script_fetcher) {
+  DCHECK(CalledOnValidThread());
   State previous_state = ResetProxyConfig(false);
   proxy_script_fetcher_.reset(proxy_script_fetcher);
   if (previous_state != STATE_NONE)
@@ -743,10 +748,12 @@ void ProxyService::SetProxyScriptFetcher(
 }
 
 ProxyScriptFetcher* ProxyService::GetProxyScriptFetcher() const {
+  DCHECK(CalledOnValidThread());
   return proxy_script_fetcher_.get();
 }
 
 ProxyService::State ProxyService::ResetProxyConfig(bool reset_fetched_config) {
+  DCHECK(CalledOnValidThread());
   State previous_state = current_state_;
 
   proxy_retry_info_.clear();
@@ -762,6 +769,7 @@ ProxyService::State ProxyService::ResetProxyConfig(bool reset_fetched_config) {
 
 void ProxyService::ResetConfigService(
     ProxyConfigService* new_proxy_config_service) {
+  DCHECK(CalledOnValidThread());
   State previous_state = ResetProxyConfig(true);
 
   // Release the old configuration service.
@@ -777,11 +785,13 @@ void ProxyService::ResetConfigService(
 }
 
 void ProxyService::PurgeMemory() {
+  DCHECK(CalledOnValidThread());
   if (resolver_.get())
     resolver_->PurgeMemory();
 }
 
 void ProxyService::ForceReloadProxyConfig() {
+  DCHECK(CalledOnValidThread());
   ResetProxyConfig(false);
   ApplyProxyConfigIfAvailable();
 }
