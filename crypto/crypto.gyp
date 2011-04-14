@@ -9,6 +9,7 @@
   'targets': [
     {
       'target_name': 'crypto',
+      'product_name': 'crcrypto',  # Avoid colliding with OpenSSL's libcrypto
       'type': '<(library)',
       'dependencies': [
         '../base/base.gyp:base',
