@@ -501,4 +501,37 @@ TEST_F(TransportSecurityStateTest, LongNames) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, kLongName, true));
 }
 
+TEST_F(TransportSecurityStateTest, PublicKeyHashes) {
+  scoped_refptr<TransportSecurityState> state(
+      new TransportSecurityState);
+
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "example.com", false));
+  std::vector<SHA1Fingerprint> hashes;
+  EXPECT_TRUE(domain_state.IsChainOfPublicKeysPermitted(hashes));
+
+  SHA1Fingerprint hash;
+  memset(hash.data, '1', sizeof(hash.data));
+  domain_state.public_key_hashes.push_back(hash);
+
+  EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(hashes));
+  hashes.push_back(hash);
+  EXPECT_TRUE(domain_state.IsChainOfPublicKeysPermitted(hashes));
+  hashes[0].data[0] = '2';
+  EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(hashes));
+
+  const base::Time current_time(base::Time::Now());
+  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
+  domain_state.expiry = expiry;
+  state->EnableHost("example.com", domain_state);
+  std::string ser;
+  EXPECT_TRUE(state->Serialise(&ser));
+  bool dirty;
+  EXPECT_TRUE(state->Deserialise(ser, &dirty));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "example.com", false));
+  EXPECT_EQ(1u, domain_state.public_key_hashes.size());
+  EXPECT_TRUE(0 == memcmp(domain_state.public_key_hashes[0].data, hash.data,
+                          sizeof(hash.data)));
+}
+
 }  // namespace net

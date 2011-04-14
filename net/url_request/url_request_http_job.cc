@@ -653,6 +653,25 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   // Clear the IO_PENDING status
   SetStatus(URLRequestStatus());
 
+  // Take care of any mandates for public key pinning.
+  // TODO(agl): we might have an issue here where a request for foo.example.com
+  // merges into a SPDY connection to www.example.com, and gets a different
+  // certificate.
+  const SSLInfo& ssl_info = transaction_->GetResponseInfo()->ssl_info;
+  if (result == OK &&
+      ssl_info.is_valid() &&
+      context_->transport_security_state()) {
+    TransportSecurityState::DomainState domain_state;
+    if (context_->transport_security_state()->IsEnabledForHost(
+            &domain_state,
+            request_->url().host(),
+            IsSNIAvailable(context_)) &&
+        ssl_info.is_issued_by_known_root &&
+        !domain_state.IsChainOfPublicKeysPermitted(ssl_info.public_key_hashes)){
+      result = ERR_CERT_INVALID;
+    }
+  }
+
   if (result == OK) {
     SaveCookiesAndNotifyHeadersComplete();
   } else if (ShouldTreatAsCertificateError(result)) {

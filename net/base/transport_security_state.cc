@@ -9,6 +9,7 @@
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/sha1.h"
 #include "base/sha2.h"
 #include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
@@ -32,6 +33,9 @@ void TransportSecurityState::EnableHost(const std::string& host,
   if (canonicalized_host.empty())
     return;
 
+  // TODO(cevans) -- we likely want to permit a host to override a built-in,
+  // for at least the case where the override is stricter (i.e. includes
+  // subdomains, or includes certificate pinning).
   bool temp;
   if (IsPreloadedSTS(canonicalized_host, true, &temp))
     return;
@@ -313,6 +317,18 @@ bool TransportSecurityState::Serialise(std::string* output) {
         continue;
     }
 
+    ListValue* pins = new ListValue;
+    for (std::vector<SHA1Fingerprint>::const_iterator
+         j = i->second.public_key_hashes.begin();
+         j != i->second.public_key_hashes.end(); ++j) {
+      std::string hash_str(reinterpret_cast<const char*>(j->data),
+                           sizeof(j->data));
+      std::string b64;
+      base::Base64Encode(hash_str, &b64);
+      pins->Append(new StringValue("sha1/" + b64));
+    }
+    state->Set("public_key_hashes", pins);
+
     toplevel.Set(HashedDomainToExternalString(i->first), state);
   }
 
@@ -350,6 +366,26 @@ bool TransportSecurityState::Deserialise(const std::string& input,
       continue;
     }
 
+    ListValue* pins_list = NULL;
+    std::vector<SHA1Fingerprint> public_key_hashes;
+    if (state->GetList("public_key_hashes", &pins_list)) {
+      size_t num_pins = pins_list->GetSize();
+      for (size_t i = 0; i < num_pins; ++i) {
+        std::string type_and_base64;
+        std::string hash_str;
+        SHA1Fingerprint hash;
+        if (pins_list->GetString(i, &type_and_base64) &&
+            type_and_base64.find("sha1/") == 0 &&
+            base::Base64Decode(
+                type_and_base64.substr(5, type_and_base64.size() - 5),
+                &hash_str) &&
+            hash_str.size() == base::SHA1_LENGTH) {
+          memcpy(hash.data, hash_str.data(), sizeof(hash.data));
+          public_key_hashes.push_back(hash);
+        }
+      }
+    }
+
     DomainState::Mode mode;
     if (mode_string == "strict") {
       mode = DomainState::MODE_STRICT;
@@ -381,14 +417,17 @@ bool TransportSecurityState::Deserialise(const std::string& input,
     }
 
     std::string hashed = ExternalStringToHashedDomain(*i);
-    if (hashed.empty())
+    if (hashed.empty()) {
+      dirtied = true;
       continue;
+    }
 
     DomainState new_state;
     new_state.mode = mode;
     new_state.created = created_time;
     new_state.expiry = expiry_time;
     new_state.include_subdomains = include_subdomains;
+    new_state.public_key_hashes = public_key_hashes;
     enabled_hosts_[hashed] = new_state;
   }
 
@@ -520,6 +559,43 @@ bool TransportSecurityState::IsPreloadedSTS(
       }
     }
   }
+
+  return false;
+}
+
+static std::string HashesToBase64String(
+    const std::vector<net::SHA1Fingerprint>& hashes) {
+  std::vector<std::string> hashes_strs;
+  for (std::vector<net::SHA1Fingerprint>::const_iterator
+       i = hashes.begin(); i != hashes.end(); i++) {
+    std::string s;
+    const std::string hash_str(reinterpret_cast<const char*>(i->data),
+                               sizeof(i->data));
+    base::Base64Encode(hash_str, &s);
+    hashes_strs.push_back(s);
+  }
+
+  return JoinString(hashes_strs, ',');
+}
+
+bool TransportSecurityState::DomainState::IsChainOfPublicKeysPermitted(
+    const std::vector<net::SHA1Fingerprint>& hashes) {
+  if (public_key_hashes.empty())
+    return true;
+
+  for (std::vector<net::SHA1Fingerprint>::const_iterator
+       i = hashes.begin(); i != hashes.end(); ++i) {
+    for (std::vector<net::SHA1Fingerprint>::const_iterator
+         j = public_key_hashes.begin(); j != public_key_hashes.end(); ++j) {
+      if (i->Equals(*j))
+        return true;
+    }
+  }
+
+
+  LOG(ERROR) << "Rejecting public key chain for domain " << domain
+             << ". Validated chain: " << HashesToBase64String(hashes)
+             << ", expected: " << HashesToBase64String(public_key_hashes);
 
   return false;
 }
