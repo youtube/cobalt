@@ -39,13 +39,13 @@ class BASE_API StackTrace {
 
   // Gets an array of instruction pointer values. |*count| will be set to the
   // number of elements in the returned array.
-  const void* const* Addresses(size_t* count);
+  const void* const* Addresses(size_t* count) const;
 
   // Prints a backtrace to stderr
-  void PrintBacktrace();
+  void PrintBacktrace() const;
 
   // Resolves backtrace to symbols and write to stream.
-  void OutputToStream(std::ostream* os);
+  void OutputToStream(std::ostream* os) const;
 
  private:
   // From http://msdn.microsoft.com/en-us/library/bb204633.aspx,
