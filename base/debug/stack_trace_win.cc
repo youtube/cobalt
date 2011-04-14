@@ -174,11 +174,11 @@ StackTrace::StackTrace(EXCEPTION_POINTERS* exception_pointers) {
   }
 }
 
-void StackTrace::PrintBacktrace() {
+void StackTrace::PrintBacktrace() const {
   OutputToStream(&std::cerr);
 }
 
-void StackTrace::OutputToStream(std::ostream* os) {
+void StackTrace::OutputToStream(std::ostream* os) const {
   SymbolContext* context = SymbolContext::GetInstance();
   DWORD error = context->init_error();
   if (error != ERROR_SUCCESS) {
