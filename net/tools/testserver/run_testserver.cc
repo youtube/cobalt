@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/utf_string_conversions.h"
 #include "net/test/test_server.h"
 
 static void PrintUsage() {
@@ -59,6 +60,12 @@ int main(int argc, const char* argv[]) {
   net::TestServer test_server(server_type, doc_root);
   if (!test_server.Start()) {
     printf("Error: failed to start test server. Exiting.\n");
+    return -1;
+  }
+
+  if (!file_util::DirectoryExists(test_server.document_root())) {
+    printf("Error: invalid doc root: \"%s\" does not exist!\n",
+        UTF16ToUTF8(test_server.document_root().LossyDisplayName()).c_str());
     return -1;
   }
 
