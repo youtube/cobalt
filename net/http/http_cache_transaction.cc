@@ -908,7 +908,7 @@ int HttpCache::Transaction::DoNotifyBeforeSendHeaders() {
     // TODO(mpcomplete): need to be able to modify these headers.
     HttpRequestHeaders headers = request_->extra_headers;
     return cache_->GetSession()->network_delegate()->NotifyBeforeSendHeaders(
-        request_->request_id, &headers, cache_callback_);
+        request_->request_id, cache_callback_, &headers);
   }
 
   return OK;
