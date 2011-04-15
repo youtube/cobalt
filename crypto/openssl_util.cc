@@ -34,8 +34,8 @@ class OpenSSLInitSingleton {
     //      we can't control the order the AtExit handlers will run in so
     //      allowing the global environment to leak at least ensures it is
     //      available for those other singletons to reliably cleanup.
-    return base::Singleton<OpenSSLInitSingleton,
-               base::LeakySingletonTraits<OpenSSLInitSingleton> >::get();
+    return Singleton<OpenSSLInitSingleton,
+               LeakySingletonTraits<OpenSSLInitSingleton> >::get();
   }
  private:
   friend struct DefaultSingletonTraits<OpenSSLInitSingleton>;
@@ -85,7 +85,7 @@ class OpenSSLInitSingleton {
 // error queue and return, otherwise it will continue calling this function
 // until all errors have been removed from the queue.
 int OpenSSLErrorCallback(const char* str, size_t len, void* context) {
-  DVLOG(1) << "\t" << StringPiece(str, len);
+  DVLOG(1) << "\t" << base::StringPiece(str, len);
   return 1;
 }
 
