@@ -525,6 +525,14 @@ bool TransportSecurityState::IsPreloadedSTS(
     {13, false, "\010entropia\002de"},
     {17, false, "\003www\010entropia\002de"},
     {21, true, "\010accounts\006google\003com"},
+#if defined(OS_CHROMEOS)
+    {17, true, "\004mail\006google\003com"},
+    {13, false, "\007twitter\003com"},
+    {17, false, "\003www\007twitter\003com"},
+    {17, false, "\003api\007twitter\003com"},
+    {17, false, "\003dev\007twitter\003com"},
+    {22, false, "\010business\007twitter\003com"},
+#endif
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
