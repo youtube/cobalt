@@ -771,7 +771,7 @@ int HttpNetworkTransaction::DoBuildRequest() {
 
   if (session_->network_delegate()) {
     return session_->network_delegate()->NotifyBeforeSendHeaders(
-        request_->request_id, &request_headers_, delegate_callback_);
+        request_->request_id, delegate_callback_, &request_headers_);
   }
 
   return OK;
