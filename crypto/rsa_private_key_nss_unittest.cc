@@ -8,7 +8,7 @@
 #include <pk11pub.h>
 
 #include "base/memory/scoped_ptr.h"
-#include "base/nss_util.h"
+#include "crypto/nss_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace crypto {
