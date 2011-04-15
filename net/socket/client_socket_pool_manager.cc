@@ -65,6 +65,7 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
                          bool want_spdy_over_npn,
                          const SSLConfig& ssl_config_for_origin,
                          const SSLConfig& ssl_config_for_proxy,
+                         bool force_tunnel,
                          const BoundNetLog& net_log,
                          int num_preconnect_streams,
                          ClientSocketHandle* socket_handle,
@@ -141,7 +142,7 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
                                     session->http_auth_cache(),
                                     session->http_auth_handler_factory(),
                                     session->spdy_session_pool(),
-                                    using_ssl);
+                                    force_tunnel || using_ssl);
     } else {
       DCHECK(proxy_info.is_socks());
       char socks_version;
@@ -618,6 +619,7 @@ int ClientSocketPoolManager::InitSocketHandleForHttpRequest(
                               want_spdy_over_npn,
                               ssl_config_for_origin,
                               ssl_config_for_proxy,
+                              false,
                               net_log,
                               0,
                               socket_handle,
@@ -645,6 +647,7 @@ int ClientSocketPoolManager::InitSocketHandleForRawConnect(
                               false,
                               ssl_config_for_origin,
                               ssl_config_for_proxy,
+                              true,
                               net_log,
                               0,
                               socket_handle,
@@ -669,6 +672,7 @@ int ClientSocketPoolManager::PreconnectSocketsForHttpRequest(
                               want_spdy_over_npn,
                               ssl_config_for_origin,
                               ssl_config_for_proxy,
+                              false,
                               net_log,
                               num_preconnect_streams,
                               NULL,
