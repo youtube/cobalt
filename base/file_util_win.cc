@@ -503,6 +503,16 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
   }
 
   HRESULT result = i_persist_file->Save(destination, TRUE);
+
+  i_persist_file.Release();
+  i_shell_link.Release();
+
+  // If we successfully updated the icon, notify the shell that we have done so.
+  if (SUCCEEDED(result)) {
+    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST | SHCNF_FLUSHNOWAIT,
+                   NULL, NULL);
+  }
+
   return SUCCEEDED(result);
 }
 
