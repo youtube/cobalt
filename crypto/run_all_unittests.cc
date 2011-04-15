@@ -9,7 +9,7 @@ int main(int argc, char** argv) {
 #if defined(USE_NSS)
   // This is most likely not needed, but it basically replaces a similar call
   // that was performed on test_support_base.
-  TODO(rvargas) Bug 79359: remove this.
+  // TODO(rvargas) Bug 79359: remove this.
   crypto::EnsureNSSInit();
 #endif  // defined(USE_NSS)
 
