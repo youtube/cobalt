@@ -23,14 +23,10 @@
 
           # Disable touch support by default.
           'touchui%': 0,
-
-          # Disable file manager component extension by default.
-          'file_manager_extension%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
         'touchui%': '<(touchui)',
-        'file_manager_extension%': '<(file_manager_extension)',
 
         # To do a shared build on linux we need to be able to choose between
         # type static_library and shared_library. We default to doing a static
@@ -65,7 +61,6 @@
       # Copy conditionally-set variables out one scope.
       'chromeos%': '<(chromeos)',
       'touchui%': '<(touchui)',
-      'file_manager_extension%': '<(file_manager_extension)',
       'host_arch%': '<(host_arch)',
       'library%': '<(library)',
       'toolkit_views%': '<(toolkit_views)',
@@ -95,6 +90,9 @@
       # Set to 1 to enable fast builds. It disables debug info for fastest
       # compilation.
       'fastbuild%': 0,
+
+       # Disable file manager component extension by default.
+      'file_manager_extension%': 0,
 
       # Python version.
       'python_ver%': '2.5',
@@ -166,6 +164,13 @@
           'enable_flapper_hacks%': 1,
         }, {
           'enable_flapper_hacks%': 0,
+        }],
+
+        # Enable file manager extension by default on Chrome OS.
+        ['chromeos==1', {
+          'file_manager_extension%': 1,
+        }, {
+          'file_manager_extension%': 0,
         }],
       ],
     },
