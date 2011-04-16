@@ -247,8 +247,9 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
     shared_data_.TransitionTo(kInError);
   }
 
-  if (AudioParameters::AUDIO_PCM_LINEAR != params.format) {
-    LOG(WARNING) << "Only linear PCM supported.";
+  if (AudioParameters::AUDIO_PCM_LINEAR != params.format &&
+      AudioParameters::AUDIO_PCM_LOW_LATENCY != params.format) {
+    LOG(WARNING) << "Unsupported audio format";
     shared_data_.TransitionTo(kInError);
   }
 
