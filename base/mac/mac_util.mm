@@ -17,7 +17,7 @@ namespace mac {
 
 namespace {
 
-// a count of currently outstanding requests for full screen mode from browser
+// The current count of outstanding requests for full screen mode from browser
 // windows, plugins, etc.
 int g_full_screen_requests[kNumFullScreenModes] = { 0, 0, 0};
 
@@ -75,7 +75,7 @@ bool WasLaunchedAsLoginItem() {
 }
 
 // Looks into Shared File Lists corresponding to Login Items for the item
-// representing the current application. If such an item is found, returns
+// representing the current application. If such an item is found, returns a
 // retained reference to it. Caller is responsible for releasing the reference.
 LSSharedFileListItemRef GetLoginItemForApp() {
   ScopedCFTypeRef<LSSharedFileListRef> login_items(LSSharedFileListCreate(
@@ -276,7 +276,7 @@ bool SetFileBackupExclusion(const FilePath& file_path, bool exclude) {
   bool success =
       CSBackupSetItemExcluded((CFURLRef)url, exclude, true) == noErr;
   if (!success)
-    LOG(WARNING) << "Failed to set backup excluson for file '"
+    LOG(WARNING) << "Failed to set backup exclusion for file '"
                  << file_path.value().c_str() << "'.  Continuing.";
   return success;
 }
