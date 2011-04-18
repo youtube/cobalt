@@ -13,6 +13,8 @@
 #include "base/memory/ref_counted.h"
 #include "net/base/listen_socket.h"
 
+namespace net {
+
 class HttpServerRequestInfo;
 
 class HttpServer : public ListenSocket::ListenSocketDelegate,
@@ -98,5 +100,7 @@ private:
 
   DISALLOW_COPY_AND_ASSIGN(HttpServer);
 };
+
+}  // namespace net
 
 #endif // NET_SERVER_HTTP_SERVER_H_
