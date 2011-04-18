@@ -6,15 +6,10 @@
 #define NET_SPDY_SPDY_FRAME_BUILDER_H_
 #pragma once
 
-#ifdef WIN32
-#include <winsock2.h>  // for htonl() functions
-#else
-#include <arpa/inet.h>
-#endif
-
 #include <string>
 
 #include "base/basictypes.h"
+#include "net/base/sys_byteorder.h"
 #include "net/spdy/spdy_protocol.h"
 
 namespace spdy {

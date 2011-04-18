@@ -198,6 +198,7 @@
         'base/transport_security_state.cc',
         'base/transport_security_state.h',
         'base/sys_addrinfo.h',
+        'base/sys_byteorder.h',
         'base/upload_data.cc',
         'base/upload_data.h',
         'base/upload_data_stream.cc',
