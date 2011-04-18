@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,8 @@
 namespace base {
 
 // static
-NativeLibrary LoadNativeLibrary(const FilePath& library_path) {
+NativeLibrary LoadNativeLibrary(const FilePath& library_path,
+                                std::string* error) {
   // dlopen() etc. open the file off disk.
   if (library_path.Extension() == "dylib" ||
       !file_util::DirectoryExists(library_path)) {
