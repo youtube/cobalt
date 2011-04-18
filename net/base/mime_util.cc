@@ -385,8 +385,8 @@ bool MimeUtil::IsSupportedMimeType(const std::string& mime_type) const {
 bool MimeUtil::MatchesMimeType(const std::string &mime_type_pattern,
                                const std::string &mime_type) const {
   // verify caller is passing lowercase
-  DCHECK(mime_type_pattern == StringToLowerASCII(mime_type_pattern));
-  DCHECK(mime_type == StringToLowerASCII(mime_type));
+  DCHECK_EQ(StringToLowerASCII(mime_type_pattern), mime_type_pattern);
+  DCHECK_EQ(StringToLowerASCII(mime_type), mime_type);
 
   // This comparison handles absolute maching and also basic
   // wildcards.  The plugin mime types could be:

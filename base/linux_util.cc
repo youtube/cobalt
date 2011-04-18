@@ -62,7 +62,7 @@ class LinuxDistroHelper {
   // Indicate the check finished, move to STATE_CHECK_FINISHED.
   void CheckFinished() {
     base::AutoLock scoped_lock(lock_);
-    DCHECK(state_ == STATE_CHECK_STARTED);
+    DCHECK_EQ(STATE_CHECK_STARTED, state_);
     state_ = STATE_CHECK_FINISHED;
   }
 
