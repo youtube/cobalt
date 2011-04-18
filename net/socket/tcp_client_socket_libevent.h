@@ -36,7 +36,8 @@ class TCPClientSocketLibevent : public ClientSocket, base::NonThreadSafe {
   // AdoptSocket causes the given, connected socket to be adopted as a TCP
   // socket. This object must not be connected. This object takes ownership of
   // the given socket and then acts as if Connect() had been called. This
-  // function is intended for testing only.
+  // function is used by TCPServerSocket() to adopt accepted connections
+  // and for testing.
   void AdoptSocket(int socket);
 
   // ClientSocket methods:
