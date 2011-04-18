@@ -137,7 +137,8 @@ int TCPServerSocketWin::AcceptInternal(scoped_ptr<ClientSocket>* socket) {
   IPEndPoint address;
   if (!address.FromSockAddr(addr, addr_len)) {
     NOTREACHED();
-    closesocket(result);
+    if (closesocket(result) < 0)
+      PLOG(ERROR) << "closesocket";
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_TCP_ACCEPT, ERR_FAILED);
     return ERR_FAILED;
   }
@@ -154,7 +155,8 @@ int TCPServerSocketWin::AcceptInternal(scoped_ptr<ClientSocket>* socket) {
 
 void TCPServerSocketWin::Close() {
   if (socket_ != INVALID_SOCKET) {
-    closesocket(socket_);
+    if (closesocket(socket_) < 0)
+      PLOG(ERROR) << "closesocket";
     socket_ = INVALID_SOCKET;
   }
 
