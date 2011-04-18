@@ -1465,8 +1465,11 @@ if __name__ == '__main__':
                            help='Specify a path to a PEM-encoded private key '
                            'to use for policy signing. May be specified '
                            'multiple times in order to load multipe keys into '
-                           'the server. The server will generate a random key '
-                           'if none is specified on the command line')
+                           'the server. If ther server has multiple keys, it '
+                           'will rotate through them in at each request a '
+                           'round-robin fashion. The server will generate a '
+                           'random key if none is specified on the command '
+                           'line.')
   option_parser.add_option('', '--policy-user', default='user@example.com',
                            dest='policy_user',
                            help='Specify the user name the server should '
