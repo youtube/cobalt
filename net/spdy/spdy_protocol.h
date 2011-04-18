@@ -8,16 +8,11 @@
 #define NET_SPDY_SPDY_PROTOCOL_H_
 #pragma once
 
-#ifdef WIN32
-#include <winsock2.h>
-#else
-#include <arpa/inet.h>
-#endif
-
 #include <limits>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "net/base/sys_byteorder.h"
 #include "net/spdy/spdy_bitmasks.h"
 
 //  Data Frame Format
