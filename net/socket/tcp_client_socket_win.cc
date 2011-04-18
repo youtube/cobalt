@@ -239,6 +239,7 @@ void TCPClientSocketWin::AdoptSocket(SOCKET socket) {
   socket_ = socket;
   int error = SetupSocket();
   DCHECK_EQ(0, error);
+  core_ = new Core(this);
   current_ai_ = addresses_.head();
   use_history_.set_was_ever_connected();
 }
