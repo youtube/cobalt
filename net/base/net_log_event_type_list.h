@@ -262,6 +262,19 @@ EVENT_TYPE(TCP_CONNECT)
 //   }
 EVENT_TYPE(TCP_CONNECT_ATTEMPT)
 
+// The start/end of a TCP connect(). This corresponds with a call to
+// TCPServerSocket::Accept().
+//
+// The END event will contain the following parameters on success:
+//   {
+//     "address": <Remote address of the accepted connection>,
+//   }
+// On failure it contains the following parameters
+//   {
+//     "net_error": <Net integer error code>,
+//   }
+EVENT_TYPE(TCP_ACCEPT)
+
 // Marks the begin/end of a socket (TCP/SOCKS/SSL).
 EVENT_TYPE(SOCKET_ALIVE)
 
