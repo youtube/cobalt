@@ -435,7 +435,10 @@ FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
   if (fd < 0)
     return NULL;
 
-  return fdopen(fd, "a+");
+  FILE* file = fdopen(fd, "a+");
+  if (!file)
+    ignore_result(HANDLE_EINTR(close(fd)));
+  return file;
 }
 
 bool CreateTemporaryFileInDir(const FilePath& dir, FilePath* temp_file) {
