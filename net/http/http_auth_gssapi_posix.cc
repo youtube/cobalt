@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -452,7 +452,7 @@ base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
     // TODO(asanka): Move library loading to a separate thread.
     //               http://crbug.com/66702
     base::ThreadRestrictions::ScopedAllowIO allow_io_temporarily;
-    base::NativeLibrary lib = base::LoadNativeLibrary(file_path);
+    base::NativeLibrary lib = base::LoadNativeLibrary(file_path, NULL);
     if (lib) {
       // Only return this library if we can bind the functions we need.
       if (BindMethods(lib))

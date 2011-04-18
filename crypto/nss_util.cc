@@ -611,7 +611,7 @@ void LoadNSSLibraries() {
   for (size_t i = 0; i < libs.size(); ++i) {
     for (size_t j = 0; j < paths.size(); ++j) {
       FilePath path = paths[j].Append(libs[i]);
-      base::NativeLibrary lib = base::LoadNativeLibrary(path);
+      base::NativeLibrary lib = base::LoadNativeLibrary(path, NULL);
       if (lib) {
         ++loaded;
         break;
