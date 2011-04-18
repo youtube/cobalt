@@ -153,7 +153,8 @@ int TCPServerSocketLibevent::AcceptInternal(
   IPEndPoint address;
   if (!address.FromSockAddr(addr, addr_len)) {
     NOTREACHED();
-    HANDLE_EINTR(close(result));
+    if (HANDLE_EINTR(close(result)) < 0)
+      PLOG(ERROR) << "close";
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_TCP_ACCEPT, ERR_FAILED);
     return ERR_FAILED;
   }
@@ -170,7 +171,8 @@ int TCPServerSocketLibevent::AcceptInternal(
 
 void TCPServerSocketLibevent::Close() {
   if (socket_ != kInvalidSocket) {
-    HANDLE_EINTR(close(socket_));
+    if (HANDLE_EINTR(close(socket_)) < 0)
+      PLOG(ERROR) << "close";
     socket_ = kInvalidSocket;
   }
 }
