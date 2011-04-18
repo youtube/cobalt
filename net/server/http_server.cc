@@ -1,14 +1,8 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <map>
-
-#ifdef _WIN32
-#include <winsock2.h>
-#else
-#include <arpa/inet.h>
-#endif
+#include "net/server/http_server.h"
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
@@ -16,10 +10,19 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "net/server/http_server.h"
+#include "build/build_config.h"
 #include "net/server/http_server_request_info.h"
 
+#if defined(OS_WIN)
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
+
+namespace net {
+
 int HttpServer::Connection::lastId_ = 0;
+
 HttpServer::HttpServer(const std::string& host,
                        int port,
                        HttpServer::Delegate* del)
@@ -433,3 +436,5 @@ HttpServer::Connection* HttpServer::FindConnection(ListenSocket* socket) {
     return NULL;
   return it->second;
 }
+
+}  // namespace net
