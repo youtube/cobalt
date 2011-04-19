@@ -32,7 +32,9 @@ class SocketStreamJob : public base::RefCountedThreadSafe<SocketStreamJob> {
                                                   ProtocolFactory* factory);
 
   static SocketStreamJob* CreateSocketStreamJob(
-      const GURL& url, SocketStream::Delegate* delegate);
+      const GURL& url,
+      SocketStream::Delegate* delegate,
+      const URLRequestContext& context);
 
   SocketStreamJob();
   void InitSocketStream(SocketStream* socket) {
@@ -61,6 +63,7 @@ class SocketStreamJob : public base::RefCountedThreadSafe<SocketStreamJob> {
   virtual void DetachDelegate();
 
  protected:
+  friend class WebSocketJobTest;
   friend class base::RefCountedThreadSafe<SocketStreamJob>;
   virtual ~SocketStreamJob();
 
