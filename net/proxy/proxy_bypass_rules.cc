@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -217,6 +217,17 @@ bool ProxyBypassRules::AddRuleFromString(const std::string& raw) {
 bool ProxyBypassRules::AddRuleFromStringUsingSuffixMatching(
     const std::string& raw) {
   return AddRuleFromStringInternalWithLogging(raw, true);
+}
+
+std::string ProxyBypassRules::ToString() const {
+  std::string result;
+  for (RuleList::const_iterator rule(rules_.begin());
+       rule != rules_.end();
+       ++rule) {
+    result += (*rule)->ToString();
+    result += ";";
+  }
+  return result;
 }
 
 void ProxyBypassRules::Clear() {

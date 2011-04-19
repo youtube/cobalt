@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -152,6 +152,10 @@ class ProxyBypassRules {
   //
   // NOTE: Use AddRuleFromString() unless you truly need this behavior.
   bool AddRuleFromStringUsingSuffixMatching(const std::string& raw);
+
+  // Converts the rules to string representation. Inverse operation to
+  // ParseFromString().
+  std::string ToString() const;
 
   // Removes all the rules.
   void Clear();
