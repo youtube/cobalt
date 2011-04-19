@@ -1058,6 +1058,10 @@ int SSLClientSocketOpenSSL::GetPeerAddress(AddressList* addressList) const {
   return transport_->socket()->GetPeerAddress(addressList);
 }
 
+int SSLClientSocketOpenSSL::GetLocalAddress(IPEndPoint* addressList) const {
+  return transport_->socket()->GetLocalAddress(addressList);
+}
+
 const BoundNetLog& SSLClientSocketOpenSSL::NetLog() const {
   return net_log_;
 }

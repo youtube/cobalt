@@ -695,6 +695,10 @@ int SSLClientSocketWin::GetPeerAddress(AddressList* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 
+int SSLClientSocketWin::GetLocalAddress(IPEndPoint* address) const {
+  return transport_->socket()->GetLocalAddress(address);
+}
+
 void SSLClientSocketWin::SetSubresourceSpeculation() {
   if (transport_.get() && transport_->socket()) {
     transport_->socket()->SetSubresourceSpeculation();

@@ -899,6 +899,14 @@ Value* SpdySession::GetInfoAsValue() const {
   return dict;
 }
 
+int SpdySession::GetPeerAddress(AddressList* address) const {
+  return connection_->socket()->GetPeerAddress(address);
+}
+
+int SpdySession::GetLocalAddress(IPEndPoint* address) const {
+  return connection_->socket()->GetLocalAddress(address);
+}
+
 void SpdySession::ActivateStream(SpdyStream* stream) {
   const spdy::SpdyStreamId id = stream->stream_id();
   DCHECK(!IsStreamActive(id));

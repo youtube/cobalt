@@ -24,6 +24,7 @@
 namespace net {
 
 class AddressList;
+class IPEndPoint;
 class SpdySession;
 class SSLCertRequestInfo;
 class SSLInfo;
@@ -143,6 +144,7 @@ class SpdyStream
   void DecreaseSendWindowSize(int delta_window_size);
 
   int GetPeerAddress(AddressList* address) const;
+  int GetLocalAddress(IPEndPoint* address) const;
 
   // Returns true if the underlying transport socket ever had any reads or
   // writes.
