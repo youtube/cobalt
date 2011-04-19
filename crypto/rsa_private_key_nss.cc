@@ -75,7 +75,7 @@ RSAPrivateKey* RSAPrivateKey::CreateSensitiveFromPrivateKeyInfo(
     const std::vector<uint8>& input) {
   return CreateFromPrivateKeyInfoWithParams(input,
                                             PR_TRUE /* permanent */,
-                                            PR_TRUE /* seneitive */);
+                                            PR_TRUE /* sensitive */);
 }
 
 // static
@@ -105,8 +105,9 @@ RSAPrivateKey* RSAPrivateKey::FindFromPublicKeyInfo(
     return NULL;
   }
 
-  // Now, look for the associated private key in the user's NSS DB.  If it's
-  // not there, consider that an error.
+  // Now, look for the associated private key in the user's
+  // hardware-backed NSS DB.  If it's not there, consider that an
+  // error.
   PK11SlotInfo *slot = GetPrivateNSSKeySlot();
   if (!slot) {
     NOTREACHED();

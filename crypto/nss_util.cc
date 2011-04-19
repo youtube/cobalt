@@ -51,13 +51,6 @@ const char kNSSDatabaseName[] = "Real NSS database";
 const char kOpencryptokiModuleName[] = "opencryptoki";
 const char kOpencryptokiPath[] = "/usr/lib/opencryptoki/libopencryptoki.so";
 
-// TODO(gspencer): Get these values from cryptohomed's dbus API when
-// we ask if it has initialized the TPM yet.  These should not be
-// hard-coded here.
-const char kTPMTokenName[] = "Initialized by CrOS";
-const char kTPMUserPIN[] = "111111";
-const char kTPMSecurityOfficerPIN[] = "000000";
-
 // Fake certificate authority database used for testing.
 static const FilePath::CharType kReadOnlyCertDB[] =
     FILE_PATH_LITERAL("/etc/fake_root_ca/nssdb");
@@ -109,9 +102,15 @@ FilePath GetInitialConfigDirectory() {
 char* PKCS11PasswordFunc(PK11SlotInfo* slot, PRBool retry, void* arg) {
 #if defined(OS_CHROMEOS)
   // If we get asked for a password for the TPM, then return the
-  // static password we use.
-  if (PK11_GetTokenName(slot) == crypto::GetTPMTokenName())
-    return PORT_Strdup(GetTPMUserPIN().c_str());
+  // well known password we use, as long as the TPM slot has been
+  // initialized.
+  if (crypto::IsTPMTokenReady()) {
+    std::string token_name;
+    std::string user_pin;
+    crypto::GetTPMTokenInfo(&token_name, &user_pin);
+    if (PK11_GetTokenName(slot) == token_name)
+      return PORT_Strdup(user_pin.c_str());
+  }
 #endif
   crypto::CryptoModuleBlockingPasswordDelegate* delegate =
       reinterpret_cast<crypto::CryptoModuleBlockingPasswordDelegate*>(arg);
@@ -237,51 +236,26 @@ class NSSInitSingleton {
     }
   }
 
-  bool EnableTPMForNSS() {
-    if (!opencryptoki_module_) {
-      // This loads the opencryptoki module so we can talk to the
-      // hardware TPM.
-      opencryptoki_module_ = LoadModule(
-          kOpencryptokiModuleName,
-          kOpencryptokiPath,
-          // trustOrder=100 -- means it'll select this as the most
-          //   trusted slot for the mechanisms it provides.
-          // slotParams=... -- selects RSA as the only mechanism, and only
-          //   asks for the password when necessary (instead of every
-          //   time, or after a timeout).
-          "trustOrder=100 slotParams=(1={slotFlags=[RSA] askpw=only})");
-      if (opencryptoki_module_) {
-        // We shouldn't need to initialize the TPM PIN here because
-        // it'll be taken care of by cryptohomed, but we have to make
-        // sure that it is initialized.
-
-        // TODO(gspencer): replace this with a dbus call that will
-        // check to see that cryptohomed has initialized the PINs, and
-        // will fetch the token name and PINs for accessing the TPM.
-        EnsureTPMInit();
-
-        // If this is set, then we'll use the TPM by default.
-        tpm_slot_ = GetTPMSlot();
-        return true;
-      }
-    }
-    return false;
+  void EnableTPMTokenForNSS(TPMTokenInfoDelegate* info_delegate) {
+    CHECK(info_delegate);
+    tpm_token_info_delegate_.reset(info_delegate);
+    // Try to load once to avoid jank later.  Ignore the return value,
+    // because if it fails we will try again later.
+    EnsureTPMTokenReady();
   }
 
-  std::string GetTPMTokenName() {
-    // TODO(gspencer): This should come from the dbus interchange with
-    // cryptohomed instead of being hard-coded.
-    return std::string(kTPMTokenName);
+  void GetTPMTokenInfo(std::string* token_name, std::string* user_pin) {
+    tpm_token_info_delegate_->GetTokenInfo(token_name, user_pin);
   }
 
-  std::string GetTPMUserPIN() {
-    // TODO(gspencer): This should come from the dbus interchange with
-    // cryptohomed instead of being hard-coded.
-    return std::string(kTPMUserPIN);
+  bool IsTPMTokenReady() {
+    return tpm_slot_ != NULL;
   }
 
   PK11SlotInfo* GetTPMSlot() {
-    return FindSlotWithTokenName(GetTPMTokenName());
+    std::string token_name;
+    GetTPMTokenInfo(&token_name, NULL);
+    return FindSlotWithTokenName(token_name);
   }
 #endif  // defined(OS_CHROMEOS)
 
@@ -312,10 +286,22 @@ class NSSInitSingleton {
   PK11SlotInfo* GetPrivateNSSKeySlot() {
     if (test_slot_)
       return PK11_ReferenceSlot(test_slot_);
-    // If the TPM slot has been opened, then return that one.
-    if (tpm_slot_)
-      return PK11_ReferenceSlot(tpm_slot_);
-    // If it hasn't, then return the software slot.
+
+#if defined(OS_CHROMEOS)
+    // Make sure that if EnableTPMTokenForNSS has been called that we
+    // have successfully loaded opencryptoki.
+    if (tpm_token_info_delegate_.get() != NULL) {
+      if (EnsureTPMTokenReady()) {
+        return PK11_ReferenceSlot(tpm_slot_);
+      } else {
+        // If we were supposed to get the hardware token, but were
+        // unable to, return NULL rather than fall back to sofware.
+        return NULL;
+      }
+    }
+#endif
+    // If we weren't supposed to enable the TPM for NSS, then return
+    // the software slot.
     if (software_slot_)
       return PK11_ReferenceSlot(software_slot_);
     return PK11_GetInternalKeySlot();
@@ -502,21 +488,6 @@ class NSSInitSingleton {
   }
 #endif
 
-#if defined(OS_CHROMEOS)
-  void EnsureTPMInit() {
-    crypto::ScopedPK11Slot tpm_slot(GetTPMSlot());
-    if (tpm_slot.get()) {
-      // TODO(gspencer): Remove this in favor of the dbus API for
-      // cryptohomed when that is available.
-      if (PK11_NeedUserInit(tpm_slot.get())) {
-        PK11_InitPin(tpm_slot.get(),
-                     kTPMSecurityOfficerPIN,
-                     kTPMUserPIN);
-      }
-    }
-  }
-#endif
-
   static PK11SlotInfo* OpenUserDB(const FilePath& path,
                                   const char* description) {
     const std::string modspec =
@@ -534,8 +505,51 @@ class NSSInitSingleton {
     return db_slot;
   }
 
+#if defined(OS_CHROMEOS)
+  // This is called whenever we want to make sure opencryptoki is
+  // properly loaded, because it can fail shortly after the initial
+  // login while the PINs are being initialized, and we want to retry
+  // if this happens.
+  bool EnsureTPMTokenReady() {
+    // If EnableTPMTokenForNSS hasn't been called, or if everything is
+    // already initialized, then this call succeeds.
+    if (tpm_token_info_delegate_.get() == NULL ||
+        (opencryptoki_module_ && tpm_slot_)) {
+      return true;
+    }
+
+    if (tpm_token_info_delegate_->IsTokenReady()) {
+      // This tries to load the opencryptoki module so NSS can talk to
+      // the hardware TPM.
+      if (!opencryptoki_module_) {
+        opencryptoki_module_ = LoadModule(
+            kOpencryptokiModuleName,
+            kOpencryptokiPath,
+            // trustOrder=100 -- means it'll select this as the most
+            //   trusted slot for the mechanisms it provides.
+            // slotParams=... -- selects RSA as the only mechanism, and only
+            //   asks for the password when necessary (instead of every
+            //   time, or after a timeout).
+            "trustOrder=100 slotParams=(1={slotFlags=[RSA] askpw=only})");
+      }
+      if (opencryptoki_module_) {
+        // If this gets set, then we'll use the TPM for certs with
+        // private keys, otherwise we'll fall back to the software
+        // implementation.
+        tpm_slot_ = GetTPMSlot();
+        return tpm_slot_ != NULL;
+      }
+    }
+    return false;
+  }
+#endif
+
   // If this is set to true NSS is forced to be initialized without a DB.
   static bool force_nodb_init_;
+
+#if defined(OS_CHROMEOS)
+  scoped_ptr<TPMTokenInfoDelegate> tpm_token_info_delegate_;
+#endif
 
   SECMODModule* opencryptoki_module_;
   PK11SlotInfo* software_slot_;
@@ -663,17 +677,21 @@ void OpenPersistentNSSDB() {
   g_nss_singleton.Get().OpenPersistentNSSDB();
 }
 
-bool EnableTPMForNSS() {
-  return g_nss_singleton.Get().EnableTPMForNSS();
+TPMTokenInfoDelegate::TPMTokenInfoDelegate() {}
+TPMTokenInfoDelegate::~TPMTokenInfoDelegate() {}
+
+void EnableTPMTokenForNSS(TPMTokenInfoDelegate* info_delegate) {
+  g_nss_singleton.Get().EnableTPMTokenForNSS(info_delegate);
 }
 
-std::string GetTPMTokenName() {
-  return g_nss_singleton.Get().GetTPMTokenName();
+void GetTPMTokenInfo(std::string* token_name, std::string* user_pin) {
+  g_nss_singleton.Get().GetTPMTokenInfo(token_name, user_pin);
 }
 
-std::string GetTPMUserPIN() {
-  return g_nss_singleton.Get().GetTPMUserPIN();
+bool IsTPMTokenReady() {
+  return g_nss_singleton.Get().IsTPMTokenReady();
 }
+
 #endif  // defined(OS_CHROMEOS)
 
 // TODO(port): Implement this more simply.  We can convert by subtracting an
