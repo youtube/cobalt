@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -142,7 +142,7 @@ TEST(ProxyConfigServiceWinTest, SetFromIEConfig) {
       ProxyRulesExpectation::EmptyWithBypass("<local>"),
     },
 
-    // Bypass "google.com" and local names, using semicolon as delimeter
+    // Bypass "google.com" and local names, using semicolon as delimiter
     // (ignoring white space).
     {
       { // Input.
@@ -158,13 +158,28 @@ TEST(ProxyConfigServiceWinTest, SetFromIEConfig) {
       ProxyRulesExpectation::EmptyWithBypass("<local>,google.com"),
     },
 
-    // Bypass "foo.com" and "google.com", using lines as delimeter.
+    // Bypass "foo.com" and "google.com", using lines as delimiter.
     {
       { // Input.
         TRUE,                      // fAutoDetect
         NULL,                      // lpszAutoConfigUrl
         NULL,                      // lpszProxy
         L"foo.com\r\ngoogle.com",  // lpszProxy_bypass
+      },
+
+      // Expected result.
+      true,                       // auto_detect
+      GURL(),                     // pac_url
+      ProxyRulesExpectation::EmptyWithBypass("foo.com,google.com"),
+    },
+
+    // Bypass "foo.com" and "google.com", using commas as delimiter.
+    {
+      { // Input.
+        TRUE,                      // fAutoDetect
+        NULL,                      // lpszAutoConfigUrl
+        NULL,                      // lpszProxy
+        L"foo.com, google.com",    // lpszProxy_bypass
       },
 
       // Expected result.
