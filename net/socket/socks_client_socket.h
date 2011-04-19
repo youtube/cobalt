@@ -66,6 +66,7 @@ class SOCKSClientSocket : public ClientSocket {
   virtual bool SetSendBufferSize(int32 size);
 
   virtual int GetPeerAddress(AddressList* address) const;
+  virtual int GetLocalAddress(IPEndPoint* address) const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SOCKSClientSocketTest, CompleteHandshake);

@@ -27,6 +27,7 @@
 #include "net/base/cert_verifier.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
@@ -145,6 +146,12 @@ class FakeSocket : public ClientSocket {
   virtual int GetPeerAddress(AddressList* address) const {
     net::IPAddressNumber ip_address(4);
     *address = net::AddressList(ip_address, 0, false);
+    return net::OK;
+  }
+
+  virtual int GetLocalAddress(IPEndPoint* address) const {
+    net::IPAddressNumber ip_address(4);
+    *address = net::IPEndPoint(ip_address, 0);
     return net::OK;
   }
 

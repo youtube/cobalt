@@ -715,6 +715,10 @@ int SSLClientSocketNSS::GetPeerAddress(AddressList* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 
+int SSLClientSocketNSS::GetLocalAddress(IPEndPoint* address) const {
+  return transport_->socket()->GetLocalAddress(address);
+}
+
 const BoundNetLog& SSLClientSocketNSS::NetLog() const {
   return net_log_;
 }
