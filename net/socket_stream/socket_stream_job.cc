@@ -5,7 +5,9 @@
 #include "net/socket_stream/socket_stream_job.h"
 
 #include "base/memory/singleton.h"
+#include "net/base/transport_security_state.h"
 #include "net/socket_stream/socket_stream_job_manager.h"
+#include "net/url_request/url_request_context.h"
 
 namespace net {
 
@@ -18,8 +20,23 @@ SocketStreamJob::ProtocolFactory* SocketStreamJob::RegisterProtocolFactory(
 
 // static
 SocketStreamJob* SocketStreamJob::CreateSocketStreamJob(
-    const GURL& url, SocketStream::Delegate* delegate) {
-  return SocketStreamJobManager::GetInstance()->CreateJob(url, delegate);
+    const GURL& url,
+    SocketStream::Delegate* delegate,
+    const URLRequestContext& context) {
+  GURL socket_url(url);
+  TransportSecurityState::DomainState domain_state;
+  if (url.scheme() == "ws" &&
+      context.transport_security_state() &&
+      context.transport_security_state()->IsEnabledForHost(
+          &domain_state, url.host(), context.IsSNIAvailable()) &&
+      domain_state.mode == TransportSecurityState::DomainState::MODE_STRICT) {
+    url_canon::Replacements<char> replacements;
+    static const char kNewScheme[] = "wss";
+    replacements.SetScheme(kNewScheme,
+                           url_parse::Component(0, strlen(kNewScheme)));
+    socket_url = url.ReplaceComponents(replacements);
+  }
+  return SocketStreamJobManager::GetInstance()->CreateJob(socket_url, delegate);
 }
 
 SocketStreamJob::SocketStreamJob() {}

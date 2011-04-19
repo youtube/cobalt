@@ -58,6 +58,15 @@ const std::string& URLRequestContext::GetUserAgent(const GURL& url) const {
   return EmptyString();
 }
 
+bool URLRequestContext::IsSNIAvailable() const {
+  if (!ssl_config_service_)
+    return false;
+
+  SSLConfig ssl_config;
+  ssl_config_service_->GetSSLConfig(&ssl_config);
+  return ssl_config.tls1_enabled;
+}
+
 URLRequestContext::~URLRequestContext() {
 }
 
