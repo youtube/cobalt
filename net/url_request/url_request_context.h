@@ -180,6 +180,9 @@ class URLRequestContext
   bool is_main() const { return is_main_; }
   void set_is_main(bool is_main) { is_main_ = is_main; }
 
+  // Is SNI available in this request context?
+  bool IsSNIAvailable() const;
+
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContext>;
 

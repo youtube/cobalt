@@ -183,7 +183,7 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
       request->context()->transport_security_state()->IsEnabledForHost(
           &domain_state,
           request->url().host(),
-          IsSNIAvailable(request->context()))) {
+          request->context()->IsSNIAvailable())) {
     if (domain_state.mode ==
          TransportSecurityState::DomainState::MODE_STRICT) {
       DCHECK_EQ(request->url().scheme(), "http");
@@ -665,7 +665,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
     if (context_->transport_security_state()->IsEnabledForHost(
             &domain_state,
             request_->url().host(),
-            IsSNIAvailable(context_)) &&
+            context_->IsSNIAvailable()) &&
         ssl_info.is_issued_by_known_root &&
         !domain_state.IsChainOfPublicKeysPermitted(ssl_info.public_key_hashes)){
       result = ERR_CERT_INVALID;
@@ -720,7 +720,7 @@ bool URLRequestHttpJob::ShouldTreatAsCertificateError(int result) {
   TransportSecurityState::DomainState domain_state;
   // TODO(agl): don't ignore opportunistic mode.
   const bool r = context_->transport_security_state()->IsEnabledForHost(
-      &domain_state, request_info_.url.host(), IsSNIAvailable(context_));
+      &domain_state, request_info_.url.host(), context_->IsSNIAvailable());
 
   return !r || domain_state.mode ==
                TransportSecurityState::DomainState::MODE_OPPORTUNISTIC;
@@ -1368,16 +1368,6 @@ bool URLRequestHttpJob::IsCompressibleContent() const {
   return GetMimeType(&mime_type) &&
       (IsSupportedJavascriptMimeType(mime_type.c_str()) ||
        IsSupportedNonImageMimeType(mime_type.c_str()));
-}
-
-// static
-bool URLRequestHttpJob::IsSNIAvailable(URLRequestContext* context) {
-  if (!context->ssl_config_service())
-    return false;
-
-  SSLConfig ssl_config;
-  context->ssl_config_service()->GetSSLConfig(&ssl_config);
-  return ssl_config.tls1_enabled;
 }
 
 }  // namespace net
