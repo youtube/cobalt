@@ -179,7 +179,7 @@ void ProxyConfigServiceWin::SetFromIEConfig(
   if (ie_config.lpszProxyBypass) {
     std::string proxy_bypass = WideToASCII(ie_config.lpszProxyBypass);
 
-    StringTokenizer proxy_server_bypass_list(proxy_bypass, "; \t\n\r");
+    StringTokenizer proxy_server_bypass_list(proxy_bypass, ";, \t\n\r");
     while (proxy_server_bypass_list.GetNext()) {
       std::string bypass_url_domain = proxy_server_bypass_list.token();
       config->proxy_rules().bypass_rules.AddRuleFromString(bypass_url_domain);
