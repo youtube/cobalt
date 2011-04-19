@@ -86,17 +86,34 @@ bool CheckNSSVersion(const char* version);
 // GetPublicNSSKeySlot().
 void OpenPersistentNSSDB();
 
-// Load the opencryptoki library into NSS so that we can access the
-// TPM through NSS.  Once this is called, GetPrivateNSSKeySlot() will
-// return the TPM slot if one was found.  Returns false if it was
-// unable to load opencryptoki or open the TPM slot.
-bool EnableTPMForNSS();
+// A delegate class that we can use it to access the cros API for
+// communication with cryptohomed and the TPM.
+class TPMTokenInfoDelegate {
+ public:
+  TPMTokenInfoDelegate();
+  virtual ~TPMTokenInfoDelegate();
+  virtual bool IsTokenReady() const = 0;
+  virtual void GetTokenInfo(std::string* token_name,
+                            std::string* user_pin) const = 0;
+};
 
-// Get name for the built-in TPM token on ChromeOS.
-std::string GetTPMTokenName();
+// Indicates that NSS should load the opencryptoki library so that we
+// can access the TPM through NSS.  Once this is called,
+// GetPrivateNSSKeySlot() will return the TPM slot if one was found.
+// Takes ownership of the passed-in delegate object so it can access
+// the cros library to talk to cryptohomed.
+void EnableTPMTokenForNSS(TPMTokenInfoDelegate* delegate);
 
-// Get the user PIN for the built-in TPM token on ChromeOS.
-std::string GetTPMUserPIN();
+// Get name and user PIN for the built-in TPM token on ChromeOS.
+// Either one can safely be NULL.  Should only be called after
+// EnableTPMTokenForNSS has been called with a non-null delegate.
+void GetTPMTokenInfo(std::string* token_name, std::string* user_pin);
+
+// Returns true if the TPM is owned and PKCS#11 initialized with the
+// user and security officer PINs, and has been enabled in NSS by
+// calling EnableTPMForNSS, and opencryptoki has been successfully
+// loaded into NSS.
+bool IsTPMTokenReady();
 #endif
 
 // Convert a NSS PRTime value into a base::Time object.
