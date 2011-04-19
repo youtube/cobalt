@@ -189,7 +189,7 @@
 //
 // These are not features that are required in Chromium. Some of them, such as
 // allowing for reference parameters, and subtyping of functions, may actually
-// because a source of errors. Removing support for these features actually
+// become a source of errors. Removing support for these features actually
 // allows for a simpler implementation, and a terser Currying API.
 //
 //
