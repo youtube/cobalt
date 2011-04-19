@@ -272,8 +272,11 @@ class URLRequest : public base::NonThreadSafe {
 
   // The original url is the url used to initialize the request, and it may
   // differ from the url if the request was redirected.
-  const GURL& original_url() const { return original_url_; }
-  const GURL& url() const { return url_; }
+  const GURL& original_url() const { return url_chain_.front(); }
+  // The chain of urls traversed by this request.  If the request had no
+  // redirects, this vector will contain one element.
+  const std::vector<GURL>& url_chain() const { return url_chain_; }
+  const GURL& url() const { return url_chain_.back(); }
 
   // The URL that should be consulted for the third-party cookie blocking
   // policy.
@@ -619,8 +622,7 @@ class URLRequest : public base::NonThreadSafe {
 
   scoped_refptr<URLRequestJob> job_;
   scoped_refptr<UploadData> upload_;
-  GURL url_;
-  GURL original_url_;
+  std::vector<GURL> url_chain_;
   GURL first_party_for_cookies_;
   GURL delegate_redirect_url_;
   std::string method_;  // "GET", "POST", etc. Should be all uppercase.

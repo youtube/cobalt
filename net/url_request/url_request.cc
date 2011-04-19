@@ -112,8 +112,7 @@ void URLRequest::Delegate::OnSetCookie(URLRequest* request,
 // URLRequest
 
 URLRequest::URLRequest(const GURL& url, Delegate* delegate)
-    : url_(url),
-      original_url_(url),
+    : url_chain_(1, url),
       method_("GET"),
       load_flags_(LOAD_NORMAL),
       delegate_(delegate),
@@ -404,7 +403,7 @@ void URLRequest::StartJob(URLRequestJob* job) {
   net_log_.BeginEvent(
       NetLog::TYPE_URL_REQUEST_START_JOB,
       make_scoped_refptr(new URLRequestStartEventParameters(
-          url_, method_, load_flags_, priority_)));
+          url(), method_, load_flags_, priority_)));
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
@@ -619,7 +618,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
   if (GURL(referrer_).SchemeIsSecure() && !location.SchemeIsSecure())
     referrer_.clear();
 
-  url_ = location;
+  url_chain_.push_back(location);
   --redirect_limit_;
 
   if (strip_post_specific_headers) {
