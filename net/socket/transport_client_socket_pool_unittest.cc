@@ -50,6 +50,9 @@ class MockClientSocket : public ClientSocket {
   virtual int GetPeerAddress(AddressList* address) const {
     return ERR_UNEXPECTED;
   }
+  virtual int GetLocalAddress(IPEndPoint* address) const {
+    return ERR_UNEXPECTED;
+  }
   virtual const BoundNetLog& NetLog() const {
     return net_log_;
   }
@@ -94,6 +97,9 @@ class MockFailingClientSocket : public ClientSocket {
     return false;
   }
   virtual int GetPeerAddress(AddressList* address) const {
+    return ERR_UNEXPECTED;
+  }
+  virtual int GetLocalAddress(IPEndPoint* address) const {
     return ERR_UNEXPECTED;
   }
   virtual const BoundNetLog& NetLog() const {
@@ -153,6 +159,9 @@ class MockPendingClientSocket : public ClientSocket {
     return is_connected_;
   }
   virtual int GetPeerAddress(AddressList* address) const {
+    return ERR_UNEXPECTED;
+  }
+  virtual int GetLocalAddress(IPEndPoint* address) const {
     return ERR_UNEXPECTED;
   }
   virtual const BoundNetLog& NetLog() const {

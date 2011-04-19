@@ -648,6 +648,14 @@ int MockClientSocket::GetPeerAddress(AddressList* address) const {
                                      0, address, NULL);
 }
 
+int MockClientSocket::GetLocalAddress(IPEndPoint* address) const {
+  IPAddressNumber ip;
+  if (!ParseIPLiteralToNumber("192.0.2.33", &ip))
+    return ERR_FAILED;
+  *address = IPEndPoint(ip, 123);
+      return OK;
+}
+
 const BoundNetLog& MockClientSocket::NetLog() const {
   return net_log_;
 }
