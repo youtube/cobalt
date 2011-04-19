@@ -218,6 +218,10 @@ int SpdyStream::GetPeerAddress(AddressList* address) const {
   return session_->GetPeerAddress(address);
 }
 
+int SpdyStream::GetLocalAddress(IPEndPoint* address) const {
+  return session_->GetLocalAddress(address);
+}
+
 bool SpdyStream::WasEverUsed() const {
   return session_->WasEverUsed();
 }

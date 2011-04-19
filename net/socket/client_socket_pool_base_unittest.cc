@@ -76,6 +76,10 @@ class MockClientSocket : public ClientSocket {
     return ERR_UNEXPECTED;
   }
 
+  virtual int GetLocalAddress(IPEndPoint* /* address */) const {
+    return ERR_UNEXPECTED;
+  }
+
   virtual const BoundNetLog& NetLog() const {
     return net_log_;
   }

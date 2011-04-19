@@ -84,6 +84,7 @@ class SpdyProxyClientSocket : public ProxyClientSocket,
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
   virtual int GetPeerAddress(AddressList* address) const;
+  virtual int GetLocalAddress(IPEndPoint* address) const;
 
   // SpdyStream::Delegate methods:
   virtual bool OnSendHeadersComplete(int status);

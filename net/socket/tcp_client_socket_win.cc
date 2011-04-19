@@ -16,6 +16,7 @@
 #include "net/base/address_list_net_log_param.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
@@ -468,6 +469,22 @@ int TCPClientSocketWin::GetPeerAddress(AddressList* address) const {
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
   address->Copy(current_ai_, false);
+  return OK;
+}
+
+int TCPClientSocketWin::GetLocalAddress(IPEndPoint* address) const {
+  DCHECK(CalledOnValidThread());
+  DCHECK(address);
+  if (!IsConnected())
+    return ERR_SOCKET_NOT_CONNECTED;
+
+  struct sockaddr_storage addr_storage;
+  socklen_t addr_len = sizeof(addr_storage);
+  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+  if (getsockname(socket_, addr, &addr_len))
+    return MapSystemError(WSAGetLastError());
+  if (!address->FromSockAddr(addr, addr_len))
+    return ERR_FAILED;
   return OK;
 }
 
