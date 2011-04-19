@@ -147,8 +147,6 @@ class URLRequestHttpJob : public URLRequestJob {
   void RecordCompressionHistograms();
   bool IsCompressibleContent() const;
 
-  static bool IsSNIAvailable(URLRequestContext* context);
-
   base::Time request_creation_time_;
 
   // Data used for statistics gathering. This data is only used for histograms
