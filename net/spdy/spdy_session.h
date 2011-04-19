@@ -198,9 +198,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   const BoundNetLog& net_log() const { return net_log_; }
 
-  int GetPeerAddress(AddressList* address) const {
-    return connection_->socket()->GetPeerAddress(address);
-  }
+  int GetPeerAddress(AddressList* address) const;
+  int GetLocalAddress(IPEndPoint* address) const;
 
  private:
   friend class base::RefCounted<SpdySession>;

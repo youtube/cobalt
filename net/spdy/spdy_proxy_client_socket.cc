@@ -245,6 +245,12 @@ int SpdyProxyClientSocket::GetPeerAddress(AddressList* address) const {
   return spdy_stream_->GetPeerAddress(address);
 }
 
+int SpdyProxyClientSocket::GetLocalAddress(IPEndPoint* address) const {
+  if (!IsConnected())
+    return ERR_SOCKET_NOT_CONNECTED;
+  return spdy_stream_->GetLocalAddress(address);
+}
+
 void SpdyProxyClientSocket::OnIOComplete(int result) {
   DCHECK_NE(STATE_DISCONNECTED, next_state_);
   int rv = DoLoop(result);

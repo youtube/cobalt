@@ -618,6 +618,10 @@ int SSLClientSocketMac::GetPeerAddress(AddressList* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 
+int SSLClientSocketMac::GetLocalAddress(IPEndPoint* address) const {
+  return transport_->socket()->GetLocalAddress(address);
+}
+
 const BoundNetLog& SSLClientSocketMac::NetLog() const {
   return net_log_;
 }
