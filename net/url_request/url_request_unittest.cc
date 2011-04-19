@@ -337,7 +337,8 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequest) {
   network_delegate.set_redirect_url(redirect_url);
 
   {
-    TestURLRequest r(test_server_.GetURL("empty.html"), &d);
+    GURL original_url(test_server_.GetURL("empty.html"));
+    TestURLRequest r(original_url, &d);
     scoped_refptr<TestURLRequestContext> context(
         new TestURLRequestContext(test_server_.host_port_pair().ToString()));
     context->set_network_delegate(&network_delegate);
@@ -349,6 +350,8 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequest) {
     EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
     EXPECT_EQ(0, r.status().os_error());
     EXPECT_EQ(redirect_url, r.url());
+    EXPECT_EQ(original_url, r.original_url());
+    EXPECT_EQ(2U, r.url_chain().size());
     EXPECT_EQ(1, network_delegate.created_requests());
     EXPECT_EQ(0, network_delegate.destroyed_requests());
   }
@@ -445,6 +448,29 @@ TEST_F(URLRequestTestHTTP, HTTPSToHTTPRedirectNoRefererTest) {
   EXPECT_EQ(1, d.received_redirect_count());
   EXPECT_EQ(http_destination, req.url());
   EXPECT_EQ(std::string(), req.referrer());
+}
+
+TEST_F(URLRequestTestHTTP, MultipleRedirectTest) {
+  ASSERT_TRUE(test_server_.Start());
+
+  GURL destination_url = test_server_.GetURL("");
+  GURL middle_redirect_url = test_server_.GetURL(
+      "server-redirect?" + destination_url.spec());
+  GURL original_url = test_server_.GetURL(
+      "server-redirect?" + middle_redirect_url.spec());
+  TestDelegate d;
+  TestURLRequest req(original_url, &d);
+  req.Start();
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(1, d.response_started_count());
+  EXPECT_EQ(2, d.received_redirect_count());
+  EXPECT_EQ(destination_url, req.url());
+  EXPECT_EQ(original_url, req.original_url());
+  ASSERT_EQ(3U, req.url_chain().size());
+  EXPECT_EQ(original_url, req.url_chain()[0]);
+  EXPECT_EQ(middle_redirect_url, req.url_chain()[1]);
+  EXPECT_EQ(destination_url, req.url_chain()[2]);
 }
 
 class HTTPSRequestTest : public testing::Test {
