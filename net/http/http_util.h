@@ -132,6 +132,12 @@ class HttpUtil {
   // the end-of-headers marker as defined by LocateEndOfHeaders.
   static std::string AssembleRawHeaders(const char* buf, int buf_len);
 
+  // Converts assembled "raw headers" back to the HTTP response format. That is
+  // convert each \0 occurence to CRLF. This is used by DevTools.
+  // Since all line continuations info is already lost at this point, the result
+  // consists of status line and then one line for each header.
+  static std::string ConvertHeadersBackToHTTPResponse(const std::string& str);
+
   // Given a comma separated ordered list of language codes, return
   // the list with a qvalue appended to each language.
   // The way qvalues are assigned is rather simple. The qvalue
