@@ -634,17 +634,6 @@ bool X509Certificate::IsIssuedByKnownRoot(CFArrayRef chain) {
 }
 
 // static
-X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
-                                                   void** pickle_iter) {
-  const char* data;
-  int length;
-  if (!pickle.ReadData(pickle_iter, &data, &length))
-    return NULL;
-
-  return CreateFromBytes(data, length);
-}
-
-// static
 X509Certificate* X509Certificate::CreateSelfSigned(
     crypto::RSAPrivateKey* key,
     const std::string& subject,
@@ -782,17 +771,6 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   return CreateFromHandle(
      scoped_cert, X509Certificate::SOURCE_LONE_CERT_IMPORT,
      X509Certificate::OSCertHandles());
-}
-
-void X509Certificate::Persist(Pickle* pickle) {
-  CSSM_DATA cert_data;
-  OSStatus status = SecCertificateGetData(cert_handle_, &cert_data);
-  if (status) {
-    NOTREACHED();
-    return;
-  }
-
-  pickle->WriteData(reinterpret_cast<char*>(cert_data.Data), cert_data.Length);
 }
 
 void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
@@ -1338,6 +1316,30 @@ CFArrayRef X509Certificate::CreateClientCertificateChain() const {
   }
 
   return chain.release();
+}
+
+// static
+X509Certificate::OSCertHandle
+X509Certificate::ReadCertHandleFromPickle(const Pickle& pickle,
+                                          void** pickle_iter) {
+  const char* data;
+  int length;
+  if (!pickle.ReadData(pickle_iter, &data, &length))
+    return NULL;
+
+  return CreateOSCertHandleFromBytes(data, length);
+}
+
+// static
+bool X509Certificate::WriteCertHandleToPickle(OSCertHandle cert_handle,
+                                              Pickle* pickle) {
+  CSSM_DATA cert_data;
+  OSStatus status = SecCertificateGetData(cert_handle, &cert_data);
+  if (status)
+    return false;
+
+  return pickle->WriteData(reinterpret_cast<char*>(cert_data.Data),
+                           cert_data.Length);
 }
 
 }  // namespace net
