@@ -145,7 +145,7 @@ class SupportsAddRefAndRelease {
 #pragma warning(default:4624)
 #endif
 
-  template <void(BaseMixin::*)(void)>  struct Helper {};
+  template <void(BaseMixin::*)(void)> struct Helper {};
 
   template <typename C>
   static No& Check(Helper<&C::AddRef>*, Helper<&C::Release>*);
