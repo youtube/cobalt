@@ -23,6 +23,7 @@ namespace net {
 // NOTE: It is not okay to add any compile-time dependencies on symbols outside
 // of net/base here, because we have a net_base library. Forward declarations
 // are ok.
+class HostPortPair;
 class HttpRequestHeaders;
 class URLRequest;
 class URLRequestJob;
@@ -41,6 +42,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   int NotifyBeforeSendHeaders(uint64 request_id,
                               CompletionCallback* callback,
                               HttpRequestHeaders* headers);
+  void NotifyRequestSent(uint64 request_id, const HostPortPair& socket_address);
   void NotifyResponseStarted(URLRequest* request);
   void NotifyReadCompleted(URLRequest* request, int bytes_read);
   void NotifyURLRequestDestroyed(URLRequest* request);
@@ -74,6 +76,11 @@ class NetworkDelegate : public base::NonThreadSafe {
   virtual int OnBeforeSendHeaders(uint64 request_id,
                                   CompletionCallback* callback,
                                   HttpRequestHeaders* headers) = 0;
+
+  // Called right after the HTTP headers have been sent and notifies where
+  // the request has actually been sent to.
+  virtual void OnRequestSent(uint64 request_id,
+                             const HostPortPair& socket_address) = 0;
 
   // This corresponds to URLRequestDelegate::OnResponseStarted.
   virtual void OnResponseStarted(URLRequest* request) = 0;
