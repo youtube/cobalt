@@ -14,6 +14,7 @@
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/histogram.h"
+#include "base/pickle.h"
 #include "base/sha1.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
@@ -231,6 +232,52 @@ X509Certificate* X509Certificate::CreateFromBytes(const char* data,
   return cert;
 }
 
+// static
+X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
+                                                   void** pickle_iter,
+                                                   PickleType type) {
+  OSCertHandle cert_handle = ReadCertHandleFromPickle(pickle, pickle_iter);
+  OSCertHandles intermediates;
+
+  // Even if a certificate fails to parse, whether the server certificate in
+  // |cert_handle| or one of the optional intermediates, continue reading
+  // the data from |pickle| so that |pickle_iter| is kept in sync for any
+  // other reads the caller may perform after this method returns.
+  if (type == PICKLETYPE_CERTIFICATE_CHAIN) {
+    size_t num_intermediates;
+    if (!pickle.ReadSize(pickle_iter, &num_intermediates)) {
+      FreeOSCertHandle(cert_handle);
+      return NULL;
+    }
+
+    bool ok = !!cert_handle;
+    for (size_t i = 0; i < num_intermediates; ++i) {
+      OSCertHandle intermediate = ReadCertHandleFromPickle(pickle,
+                                                           pickle_iter);
+      // If an intermediate fails to load, it and any certificates after it
+      // will not be added. However, any intermediates that were successfully
+      // parsed before the failure can be safely returned.
+      ok &= !!intermediate;
+      if (ok) {
+        intermediates.push_back(intermediate);
+      } else if (intermediate) {
+        FreeOSCertHandle(intermediate);
+      }
+    }
+  }
+
+  if (!cert_handle)
+    return NULL;
+  X509Certificate* cert = CreateFromHandle(cert_handle, SOURCE_FROM_CACHE,
+                                           intermediates);
+  FreeOSCertHandle(cert_handle);
+  for (size_t i = 0; i < intermediates.size(); ++i)
+    FreeOSCertHandle(intermediates[i]);
+
+  return cert;
+}
+
+// static
 CertificateList X509Certificate::CreateCertificateListFromBytes(
     const char* data, int length, int format) {
   OSCertHandles certificates;
@@ -308,6 +355,26 @@ CertificateList X509Certificate::CreateCertificateListFromBytes(
   return results;
 }
 
+void X509Certificate::Persist(Pickle* pickle) {
+  DCHECK(cert_handle_);
+  if (!WriteCertHandleToPickle(cert_handle_, pickle)) {
+    NOTREACHED();
+    return;
+  }
+
+  if (!pickle->WriteSize(intermediate_ca_certs_.size())) {
+    NOTREACHED();
+    return;
+  }
+
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
+    if (!WriteCertHandleToPickle(intermediate_ca_certs_[i], pickle)) {
+      NOTREACHED();
+      return;
+    }
+  }
+}
+
 bool X509Certificate::HasExpired() const {
   return base::Time::Now() > valid_expiry();
 }
@@ -317,15 +384,11 @@ bool X509Certificate::Equals(const X509Certificate* other) const {
 }
 
 bool X509Certificate::HasIntermediateCertificate(OSCertHandle cert) {
-#if defined(OS_MACOSX) || defined(OS_WIN) || defined(USE_OPENSSL)
   for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
     if (IsSameOSCert(cert, intermediate_ca_certs_[i]))
       return true;
   }
   return false;
-#else
-  return true;
-#endif
 }
 
 bool X509Certificate::HasIntermediateCertificates(const OSCertHandles& certs) {

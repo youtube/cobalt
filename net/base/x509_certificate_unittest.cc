@@ -670,17 +670,40 @@ TEST(X509CertificateTest, Cache) {
 }
 
 TEST(X509CertificateTest, Pickle) {
-  scoped_refptr<X509Certificate> cert1(X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der)));
+  X509Certificate::OSCertHandle google_cert_handle =
+      X509Certificate::CreateOSCertHandleFromBytes(
+          reinterpret_cast<const char*>(google_der), sizeof(google_der));
+  X509Certificate::OSCertHandle thawte_cert_handle =
+      X509Certificate::CreateOSCertHandleFromBytes(
+          reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der));
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(thawte_cert_handle);
+  // Faking SOURCE_LONE_CERT_IMPORT so that when the pickled certificate is
+  // read, it successfully evicts |cert| from the X509Certificate::Cache.
+  // This will be fixed when http://crbug.com/49377 is fixed.
+  scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
+      google_cert_handle,
+      X509Certificate::SOURCE_LONE_CERT_IMPORT,
+      intermediates);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert.get());
+
+  X509Certificate::FreeOSCertHandle(google_cert_handle);
+  X509Certificate::FreeOSCertHandle(thawte_cert_handle);
 
   Pickle pickle;
-  cert1->Persist(&pickle);
+  cert->Persist(&pickle);
 
   void* iter = NULL;
-  scoped_refptr<X509Certificate> cert2(
-      X509Certificate::CreateFromPickle(pickle, &iter));
-
-  EXPECT_EQ(cert1, cert2);
+  scoped_refptr<X509Certificate> cert_from_pickle =
+      X509Certificate::CreateFromPickle(
+          pickle, &iter, X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert_from_pickle);
+  EXPECT_NE(cert.get(), cert_from_pickle.get());
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(
+      cert->os_cert_handle(), cert_from_pickle->os_cert_handle()));
+  EXPECT_TRUE(cert->HasIntermediateCertificates(
+      cert_from_pickle->GetIntermediateCertificates()));
 }
 
 TEST(X509CertificateTest, Policy) {

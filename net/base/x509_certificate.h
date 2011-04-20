@@ -79,8 +79,11 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   enum Source {
     SOURCE_UNUSED = 0,            // The source_ member is not used.
     SOURCE_LONE_CERT_IMPORT = 1,  // From importing a certificate without
-                                  // its intermediate CA certificates.
-    SOURCE_FROM_NETWORK = 2,      // From the network.
+                                  // any intermediate CA certificates.
+    SOURCE_FROM_CACHE = 2,        // From the disk cache - which contains
+                                  // intermediate CA certificates, but may be
+                                  // stale.
+    SOURCE_FROM_NETWORK = 3,      // From the network.
   };
 
   enum VerifyFlags {
@@ -110,6 +113,17 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
                   FORMAT_PKCS7,
   };
 
+  enum PickleType {
+    // When reading a certificate from a Pickle, the Pickle only contains a
+    // single certificate.
+    PICKLETYPE_SINGLE_CERTIFICATE,
+
+    // When reading a certificate from a Pickle, the Pickle contains the
+    // the certificate plus any certificates that were stored in
+    // |intermediate_ca_certificates_| at the time it was serialized.
+    PICKLETYPE_CERTIFICATE_CHAIN,
+  };
+
   // Creates a X509Certificate from the ground up.  Used by tests that simulate
   // SSL connections.
   X509Certificate(const std::string& subject, const std::string& issuer,
@@ -123,8 +137,8 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // (http://crbug.com/7065).
   // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromHandle(OSCertHandle cert_handle,
-      Source source,
-      const OSCertHandles& intermediates);
+                                           Source source,
+                                           const OSCertHandles& intermediates);
 
   // Create an X509Certificate from a chain of DER encoded certificates. The
   // first certificate in the chain is the end-entity certificate to which a
@@ -148,7 +162,8 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   //
   // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromPickle(const Pickle& pickle,
-                                           void** pickle_iter);
+                                           void** pickle_iter,
+                                           PickleType type);
 
   // Parses all of the certificates possible from |data|. |format| is a
   // bit-wise OR of Format, indicating the possible formats the
@@ -388,6 +403,17 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   static bool IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
                                       const uint8* array,
                                       size_t array_byte_len);
+
+  // Reads a single certificate from |pickle| and returns a platform-specific
+  // certificate handle. The format of the certificate stored in |pickle| is
+  // not guaranteed to be the same across different underlying cryptographic
+  // libraries, nor acceptable to CreateFromBytes(). Returns an invalid
+  // handle, NULL, on failure.
+  static OSCertHandle ReadCertHandleFromPickle(const Pickle& pickle,
+                                               void** pickle_iter);
+
+  // Writes a single certificate to |pickle|. Returns false on failure.
+  static bool WriteCertHandleToPickle(OSCertHandle handle, Pickle* pickle);
 
   // The subject of the certificate.
   CertPrincipal subject_;
