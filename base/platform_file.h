@@ -65,6 +65,7 @@ enum PlatformFileError {
   PLATFORM_FILE_ERROR_ABORT = -12,
   PLATFORM_FILE_ERROR_NOT_A_FILE = -13,
   PLATFORM_FILE_ERROR_NOT_EMPTY = -14,
+  PLATFORM_FILE_ERROR_INVALID_URL = -15,
 };
 
 // Used to hold information about a given file.
