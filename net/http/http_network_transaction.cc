@@ -793,6 +793,11 @@ int HttpNetworkTransaction::DoSendRequest() {
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
+  if (session_->network_delegate()) {
+    session_->network_delegate()->NotifyRequestSent(
+        request_->request_id, response_.socket_address);
+  }
+
   if (result < 0)
     return HandleIOError(result);
   next_state_ = STATE_READ_HEADERS;
