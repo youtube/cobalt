@@ -276,6 +276,10 @@ void TestNetworkDelegate::OnRequestSent(
     const net::HostPortPair& socket_address) {
 }
 
+void TestNetworkDelegate::OnBeforeRedirect(net::URLRequest* request,
+                                           const GURL& new_location) {
+}
+
 void TestNetworkDelegate::OnResponseStarted(net::URLRequest* request) {
   if (request->status().status() == net::URLRequestStatus::FAILED) {
     error_count_++;
