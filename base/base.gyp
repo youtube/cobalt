@@ -135,6 +135,7 @@
         'linked_list_unittest.cc',
         'logging_unittest.cc',
         'mac/mac_util_unittest.mm',
+        'mac/objc_property_releaser_unittest.mm',
         'memory/linked_ptr_unittest.cc',
         'memory/ref_counted_unittest.cc',
         'memory/scoped_native_library_unittest.cc',
