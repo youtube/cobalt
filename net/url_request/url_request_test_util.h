@@ -207,6 +207,8 @@ class TestNetworkDelegate : public net::NetworkDelegate {
                                   net::HttpRequestHeaders* headers);
   virtual void OnRequestSent(uint64 request_id,
                              const net::HostPortPair& socket_address);
+  virtual void OnBeforeRedirect(net::URLRequest* request,
+                                const GURL& new_location);
   virtual void OnResponseStarted(net::URLRequest* request);
   virtual void OnReadCompleted(net::URLRequest* request, int bytes_read);
   virtual void OnURLRequestDestroyed(net::URLRequest* request);

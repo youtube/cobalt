@@ -43,6 +43,8 @@ class NetworkDelegate : public base::NonThreadSafe {
                               CompletionCallback* callback,
                               HttpRequestHeaders* headers);
   void NotifyRequestSent(uint64 request_id, const HostPortPair& socket_address);
+  void NotifyBeforeRedirect(URLRequest* request,
+                            const GURL& new_location);
   void NotifyResponseStarted(URLRequest* request);
   void NotifyReadCompleted(URLRequest* request, int bytes_read);
   void NotifyURLRequestDestroyed(URLRequest* request);
@@ -81,6 +83,10 @@ class NetworkDelegate : public base::NonThreadSafe {
   // the request has actually been sent to.
   virtual void OnRequestSent(uint64 request_id,
                              const HostPortPair& socket_address) = 0;
+
+  // Called right after a redirect response code was received.
+  virtual void OnBeforeRedirect(URLRequest* request,
+                                const GURL& new_location) = 0;
 
   // This corresponds to URLRequestDelegate::OnResponseStarted.
   virtual void OnResponseStarted(URLRequest* request) = 0;
