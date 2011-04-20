@@ -119,6 +119,8 @@
           'mac/foundation_util.mm',
           'mac/mac_util.h',
           'mac/mac_util.mm',
+          'mac/objc_property_releaser.h',
+          'mac/objc_property_releaser.mm',
           'mac/os_crash_dumps.cc',
           'mac/os_crash_dumps.h',
           'mac/scoped_aedesc.h',
