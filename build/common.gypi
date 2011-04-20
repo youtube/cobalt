@@ -129,6 +129,10 @@
       # Remoting compilation is enabled by default. Set to 0 to disable.
       'remoting%': 1,
 
+      # P2P APIs are compiled in by default. Set to 0 to disable.
+      # Also note that this should be enabled for remoting to compile.
+      'p2p_apis%': 1,
+
       # If this is set, the clang plugins used on the buildbot will be used.
       # Run tools/clang/scripts/update.sh to make sure they are compiled.
       # This causes 'clang_chrome_plugins_flags' to be set.
@@ -199,6 +203,7 @@
     'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
     'use_third_party_translations%': '<(use_third_party_translations)',
     'remoting%': '<(remoting)',
+    'p2p_apis%': '<(p2p_apis)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
 
     # The release channel that this build targets. This is used to restrict
@@ -608,6 +613,9 @@
       }],
       ['remoting==1', {
         'defines': ['ENABLE_REMOTING=1'],
+      }],
+      ['p2p_apis==1', {
+        'defines': ['ENABLE_P2P_APIS=1'],
       }],
       ['proprietary_codecs==1', {
         'defines': ['USE_PROPRIETARY_CODECS'],
