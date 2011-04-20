@@ -189,7 +189,7 @@ TEST(ObjCPropertyReleaserTest, SesameStreet) {
     EXPECT_EQ(14, ah_ah_ah);
   }
 
-  // Now that the autorelease pool has been popped, there should be 12
+  // Now that the autorelease pool has been popped, there should be 11
   // CountVonCounts. The ones that were copied to place into the test objects
   // will now have been deallocated.
   EXPECT_EQ(11, ah_ah_ah);
