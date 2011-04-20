@@ -8,6 +8,7 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
+#include "net/base/host_port_pair.h"
 #include "net/http/http_network_session.h"
 
 TestCookiePolicy::TestCookiePolicy(int options_bit_mask)
@@ -268,6 +269,11 @@ int TestNetworkDelegate::OnBeforeSendHeaders(
     net::CompletionCallback* callback,
     net::HttpRequestHeaders* headers) {
   return net::OK;
+}
+
+void TestNetworkDelegate::OnRequestSent(
+    uint64 request_id,
+    const net::HostPortPair& socket_address) {
 }
 
 void TestNetworkDelegate::OnResponseStarted(net::URLRequest* request) {
