@@ -39,6 +39,14 @@ void NetworkDelegate::NotifyResponseStarted(URLRequest* request) {
   OnResponseStarted(request);
 }
 
+void NetworkDelegate::NotifyBeforeRedirect(URLRequest* request,
+                                           const GURL& new_location) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(request);
+  OnBeforeRedirect(request, new_location);
+}
+
+
 void NetworkDelegate::NotifyReadCompleted(URLRequest* request, int bytes_read) {
   DCHECK(CalledOnValidThread());
   DCHECK(request);

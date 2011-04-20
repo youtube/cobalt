@@ -588,6 +588,10 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
         make_scoped_refptr(new NetLogStringParameter(
             "location", location.possibly_invalid_spec())));
   }
+
+  if (context_ && context_->network_delegate())
+    context_->network_delegate()->NotifyBeforeRedirect(this, location);
+
   if (redirect_limit_ <= 0) {
     DVLOG(1) << "disallowing redirect: exceeds limit";
     return ERR_TOO_MANY_REDIRECTS;
