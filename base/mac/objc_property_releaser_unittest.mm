@@ -49,15 +49,11 @@ static int ah_ah_ah;
   CountVonCount* cvcBaseAssign_;
   CountVonCount* cvcBaseNotProperty_;
   base::mac::ObjCPropertyReleaser propertyReleaser_ObjCPropertyTestBase_;
-
-  // Note that a variable will be synthesized for the cvcBaseSynthetic
-  // property.
 }
 
 @property(retain, nonatomic) CountVonCount* cvcBaseRetain;
 @property(copy, nonatomic) CountVonCount* cvcBaseCopy;
 @property(assign, nonatomic) CountVonCount* cvcBaseAssign;
-@property(retain, nonatomic) CountVonCount* cvcBaseSynthetic;
 
 - (void)setCvcBaseNotProperty:(CountVonCount*)cvc;
 
@@ -68,7 +64,6 @@ static int ah_ah_ah;
 @synthesize cvcBaseRetain = cvcBaseRetain_;
 @synthesize cvcBaseCopy = cvcBaseCopy_;
 @synthesize cvcBaseAssign = cvcBaseAssign_;
-@synthesize cvcBaseSynthetic;
 
 - (id)init {
   if ((self = [super init])) {
@@ -97,7 +92,6 @@ static int ah_ah_ah;
 @property(retain, nonatomic) CountVonCount* cvcProtoRetain;
 @property(copy, nonatomic) CountVonCount* cvcProtoCopy;
 @property(assign, nonatomic) CountVonCount* cvcProtoAssign;
-@property(retain, nonatomic) CountVonCount* cvcProtoSynthetic;
 
 @end  // @protocol ObjCPropertyTestProtocol
 
@@ -112,15 +106,11 @@ static int ah_ah_ah;
   CountVonCount* cvcProtoCopy_;
   CountVonCount* cvcProtoAssign_;
   base::mac::ObjCPropertyReleaser propertyReleaser_ObjCPropertyTestDerived_;
-
-  // Note that variables will be synthesized for the cvcDerivedSynthetic
-  // and cvcProtoSynthetic properties.
 }
 
 @property(retain, nonatomic) CountVonCount* cvcDerivedRetain;
 @property(copy, nonatomic) CountVonCount* cvcDerivedCopy;
 @property(assign, nonatomic) CountVonCount* cvcDerivedAssign;
-@property(retain, nonatomic) CountVonCount* cvcDerivedSynthetic;
 
 - (void)setCvcDerivedNotProperty:(CountVonCount*)cvc;
 
@@ -131,11 +121,9 @@ static int ah_ah_ah;
 @synthesize cvcDerivedRetain = cvcDerivedRetain_;
 @synthesize cvcDerivedCopy = cvcDerivedCopy_;
 @synthesize cvcDerivedAssign = cvcDerivedAssign_;
-@synthesize cvcDerivedSynthetic;
 @synthesize cvcProtoRetain = cvcProtoRetain_;
 @synthesize cvcProtoCopy = cvcProtoCopy_;
 @synthesize cvcProtoAssign = cvcProtoAssign_;
-@synthesize cvcProtoSynthetic;
 
 - (id)init {
   if ((self = [super init])) {
@@ -181,33 +169,30 @@ TEST(ObjCPropertyReleaserTest, SesameStreet) {
     test_object.cvcBaseCopy = [CountVonCount countVonCount];
     test_object.cvcBaseAssign = baseAssign;
     [test_object setCvcBaseNotProperty:[CountVonCount countVonCount]];
-    test_object.cvcBaseSynthetic = [CountVonCount countVonCount];
 
-    // That added 4 objects, plus 1 more that was copied.
-    EXPECT_EQ(8, ah_ah_ah);
+    // That added 3 objects, plus 1 more that was copied.
+    EXPECT_EQ(7, ah_ah_ah);
 
     test_object.cvcDerivedRetain = [CountVonCount countVonCount];
     test_object.cvcDerivedCopy = [CountVonCount countVonCount];
     test_object.cvcDerivedAssign = derivedAssign;
     [test_object setCvcDerivedNotProperty:[CountVonCount countVonCount]];
-    test_object.cvcDerivedSynthetic = [CountVonCount countVonCount];
 
-    // That added 4 objects, plus 1 more that was copied.
-    EXPECT_EQ(13, ah_ah_ah);
+    // That added 3 objects, plus 1 more that was copied.
+    EXPECT_EQ(11, ah_ah_ah);
 
     test_object.cvcProtoRetain = [CountVonCount countVonCount];
     test_object.cvcProtoCopy = [CountVonCount countVonCount];
     test_object.cvcProtoAssign = protoAssign;
-    test_object.cvcProtoSynthetic = [CountVonCount countVonCount];
 
-    // That added 3 objects, plus 1 more that was copied.
-    EXPECT_EQ(17, ah_ah_ah);
+    // That added 2 objects, plus 1 more that was copied.
+    EXPECT_EQ(14, ah_ah_ah);
   }
 
-  // Now that the autorelease pool has been popped, there should be 14
+  // Now that the autorelease pool has been popped, there should be 12
   // CountVonCounts. The ones that were copied to place into the test objects
   // will now have been deallocated.
-  EXPECT_EQ(14, ah_ah_ah);
+  EXPECT_EQ(11, ah_ah_ah);
 
   [test_object release];
 
