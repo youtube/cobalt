@@ -385,17 +385,6 @@ X509Certificate::OSCertHandles X509Certificate::CreateOSCertHandlesFromBytes(
 }
 
 // static
-X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
-                                                   void** pickle_iter) {
-  const char* data;
-  int length;
-  if (!pickle.ReadData(pickle_iter, &data, &length))
-    return NULL;
-
-  return CreateFromBytes(data, length);
-}
-
-// static
 X509Certificate* X509Certificate::CreateSelfSigned(
     crypto::RSAPrivateKey* key,
     const std::string& subject,
@@ -403,15 +392,6 @@ X509Certificate* X509Certificate::CreateSelfSigned(
     base::TimeDelta valid_duration) {
   // TODO(port): Implement.
   return NULL;
-}
-
-void X509Certificate::Persist(Pickle* pickle) {
-  DERCache der_cache;
-  if (!GetDERAndCacheIfNeeded(cert_handle_, &der_cache))
-      return;
-
-  pickle->WriteData(reinterpret_cast<const char*>(der_cache.data),
-                    der_cache.data_length);
 }
 
 void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
@@ -531,6 +511,30 @@ bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
       GetDERAndCacheIfNeeded(b, &der_cache_b) &&
       der_cache_a.data_length == der_cache_b.data_length &&
       memcmp(der_cache_a.data, der_cache_b.data, der_cache_a.data_length) == 0;
+}
+
+// static
+X509Certificate::OSCertHandle
+X509Certificate::ReadCertHandleFromPickle(const Pickle& pickle,
+                                          void** pickle_iter) {
+  const char* data;
+  int length;
+  if (!pickle.ReadData(pickle_iter, &data, &length))
+    return NULL;
+
+  return CreateOSCertHandleFromBytes(data, length);
+}
+
+// static
+bool X509Certificate::WriteCertHandleToPickle(OSCertHandle cert_handle,
+                                              Pickle* pickle) {
+  DERCache der_cache;
+  if (!GetDERAndCacheIfNeeded(cert_handle, &der_cache))
+    return false;
+
+  return pickle->WriteData(
+      reinterpret_cast<const char*>(der_cache.data),
+      der_cache.data_length);
 }
 
 } // namespace net

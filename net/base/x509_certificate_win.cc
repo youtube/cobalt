@@ -550,29 +550,6 @@ bool X509Certificate::IsIssuedByKnownRoot(PCCERT_CHAIN_CONTEXT chain_context) {
 }
 
 // static
-X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
-                                                   void** pickle_iter) {
-  const char* data;
-  int length;
-  if (!pickle.ReadData(pickle_iter, &data, &length))
-    return NULL;
-
-  OSCertHandle cert_handle = NULL;
-  if (!CertAddSerializedElementToStore(
-      NULL,  // the cert won't be persisted in any cert store
-      reinterpret_cast<const BYTE*>(data), length,
-      CERT_STORE_ADD_USE_EXISTING, 0, CERT_STORE_CERTIFICATE_CONTEXT_FLAG,
-      NULL, reinterpret_cast<const void **>(&cert_handle)))
-    return NULL;
-
-  X509Certificate* cert = CreateFromHandle(cert_handle,
-                                           SOURCE_LONE_CERT_IMPORT,
-                                           OSCertHandles());
-  FreeOSCertHandle(cert_handle);
-  return cert;
-}
-
-// static
 X509Certificate* X509Certificate::CreateSelfSigned(
     crypto::RSAPrivateKey* key,
     const std::string& subject,
@@ -633,23 +610,6 @@ X509Certificate* X509Certificate::CreateSelfSigned(
                                            OSCertHandles());
   FreeOSCertHandle(cert_handle);
   return cert;
-}
-
-void X509Certificate::Persist(Pickle* pickle) {
-  DCHECK(cert_handle_);
-  DWORD length;
-  if (!CertSerializeCertificateStoreElement(cert_handle_, 0,
-      NULL, &length)) {
-    NOTREACHED();
-    return;
-  }
-  BYTE* data = reinterpret_cast<BYTE*>(pickle->BeginWriteData(length));
-  if (!CertSerializeCertificateStoreElement(cert_handle_, 0,
-      data, &length)) {
-    NOTREACHED();
-    length = 0;
-  }
-  pickle->TrimWriteData(length);
 }
 
 void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
@@ -1042,6 +1002,47 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
   if (!rv)
     memset(sha1.data, 0, sizeof(sha1.data));
   return sha1;
+}
+
+// static
+X509Certificate::OSCertHandle
+X509Certificate::ReadCertHandleFromPickle(const Pickle& pickle,
+                                          void** pickle_iter) {
+  const char* data;
+  int length;
+  if (!pickle.ReadData(pickle_iter, &data, &length))
+    return NULL;
+
+  OSCertHandle cert_handle = NULL;
+  if (!CertAddSerializedElementToStore(
+          NULL,  // the cert won't be persisted in any cert store
+          reinterpret_cast<const BYTE*>(data), length,
+          CERT_STORE_ADD_USE_EXISTING, 0, CERT_STORE_CERTIFICATE_CONTEXT_FLAG,
+          NULL, reinterpret_cast<const void **>(&cert_handle))) {
+    return NULL;
+  }
+
+  return cert_handle;
+}
+
+// static
+bool X509Certificate::WriteCertHandleToPickle(OSCertHandle cert_handle,
+                                              Pickle* pickle) {
+  DWORD length = 0;
+  if (!CertSerializeCertificateStoreElement(cert_handle, 0, NULL, &length))
+    return false;
+
+  std::vector<BYTE> buffer(length);
+  // Serialize |cert_handle| in a way that will preserve any extended
+  // attributes set on the handle, such as the location to the certificate's
+  // private key.
+  if (!CertSerializeCertificateStoreElement(cert_handle, 0, &buffer[0],
+                                            &length)) {
+    return false;
+  }
+
+  return pickle->WriteData(reinterpret_cast<const char*>(&buffer[0]),
+                           length);
 }
 
 }  // namespace net

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,7 +22,10 @@ namespace net {
 // serialized HttpResponseInfo.
 enum {
   // The version of the response info used when persisting response info.
-  RESPONSE_INFO_VERSION = 1,
+  RESPONSE_INFO_VERSION = 2,
+
+  // The minimum version supported for deserializing response info.
+  RESPONSE_INFO_MINIMUM_VERSION = 1,
 
   // We reserve up to 8 bits for the version number.
   RESPONSE_INFO_VERSION_MASK = 0xFF,
@@ -108,7 +111,8 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
   if (!pickle.ReadInt(&iter, &flags))
     return false;
   int version = flags & RESPONSE_INFO_VERSION_MASK;
-  if (version != RESPONSE_INFO_VERSION) {
+  if (version < RESPONSE_INFO_MINIMUM_VERSION ||
+      version > RESPONSE_INFO_VERSION) {
     DLOG(ERROR) << "unexpected response info version: " << version;
     return false;
   }
@@ -131,8 +135,12 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
 
   // read ssl-info
   if (flags & RESPONSE_INFO_HAS_CERT) {
-    ssl_info.cert =
-        X509Certificate::CreateFromPickle(pickle, &iter);
+    // Version 1 only serialized only the end-entity certificate,
+    // while subsequent versions include the entire chain.
+    X509Certificate::PickleType type = (version == 1) ?
+        X509Certificate::PICKLETYPE_SINGLE_CERTIFICATE :
+        X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN;
+    ssl_info.cert = X509Certificate::CreateFromPickle(pickle, &iter, type);
   }
   if (flags & RESPONSE_INFO_HAS_CERT_STATUS) {
     int cert_status;
