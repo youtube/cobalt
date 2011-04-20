@@ -11,11 +11,14 @@
 
 #include "base/base_api.h"
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
 #include "base/synchronization/lock.h"
 #include "base/task.h"
+#include "base/time.h"
+#include "base/tracked.h"
 
 #if defined(OS_WIN)
 // We need this to declare base::MessagePumpWin::Dispatcher, which we should
@@ -35,6 +38,12 @@ typedef struct _XDisplay Display;
 namespace base {
 class Histogram;
 }
+
+#if defined(TRACK_ALL_TASK_OBJECTS)
+namespace tracked_objects {
+class Births;
+}
+#endif  // defined(TRACK_ALL_TASK_OBJECTS)
 
 // A MessageLoop is used to process events for a particular thread.  There is
 // at most one MessageLoop instance per thread.
@@ -163,6 +172,29 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   void PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here, Task* task, int64 delay_ms);
 
+  // TODO(ajwong): Remove the functions above once the Task -> Closure migration
+  // is complete.
+  //
+  // There are 2 sets of Post*Task functions, one which takes the older Task*
+  // function object representation, and one that takes the newer base::Closure.
+  // We have this overload to allow a staged transition between the two systems.
+  // Once the transition is done, the functions above should be deleted.
+  void PostTask(
+      const tracked_objects::Location& from_here,
+      const base::Closure& task);
+
+  void PostDelayedTask(
+      const tracked_objects::Location& from_here,
+      const base::Closure& task, int64 delay_ms);
+
+  void PostNonNestableTask(
+      const tracked_objects::Location& from_here,
+      const base::Closure& task);
+
+  void PostNonNestableDelayedTask(
+      const tracked_objects::Location& from_here,
+      const base::Closure& task, int64 delay_ms);
+
   // A variant on PostTask that deletes the given object.  This is useful
   // if the object needs to live until the next run of the MessageLoop (for
   // example, deleting a RenderProcessHost from within an IPC callback is not
@@ -289,10 +321,10 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
     TaskObserver();
 
     // This method is called before processing a task.
-    virtual void WillProcessTask(const Task* task) = 0;
+    virtual void WillProcessTask(base::TimeTicks time_posted) = 0;
 
     // This method is called after processing a task.
-    virtual void DidProcessTask(const Task* task) = 0;
+    virtual void DidProcessTask(base::TimeTicks time_posted) = 0;
 
    protected:
     virtual ~TaskObserver();
@@ -356,17 +388,34 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 
   // This structure is copied around by value.
   struct PendingTask {
-    PendingTask(Task* task, bool nestable)
-        : task(task), sequence_num(0), nestable(nestable) {
-    }
+    PendingTask(const base::Closure& task,
+                const tracked_objects::Location& posted_from,
+                base::TimeTicks delayed_run_time,
+                bool nestable);
+    ~PendingTask();
 
     // Used to support sorting.
     bool operator<(const PendingTask& other) const;
 
-    Task* task;                        // The task to run.
-    base::TimeTicks delayed_run_time;  // The time when the task should be run.
-    int sequence_num;                  // Secondary sort key for run time.
-    bool nestable;                     // OK to dispatch from a nested loop.
+    // The task to run.
+    base::Closure task;
+
+#if defined(TRACK_ALL_TASK_OBJECTS)
+    // Counter for location where the Closure was posted from.
+    tracked_objects::Births* post_births;
+#endif  // defined(TRACK_ALL_TASK_OBJECTS)
+
+    // Time this PendingTask was posted.
+    base::TimeTicks time_posted;
+
+    // The time when the task should be run.
+    base::TimeTicks delayed_run_time;
+
+    // Secondary sort key for run time.
+    int sequence_num;
+
+    // OK to dispatch from a nested loop.
+    bool nestable;
   };
 
   class TaskQueue : public std::queue<PendingTask> {
@@ -406,8 +455,8 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   // Called to process any delayed non-nestable tasks.
   bool ProcessNextDelayedNonNestableTask();
 
-  // Runs the specified task and deletes it.
-  void RunTask(Task* task);
+  // Runs the specified PendingTask.
+  void RunTask(const PendingTask& pending_task);
 
   // Calls RunTask or queues the pending_task on the deferred task list if it
   // cannot be run right now.  Returns true if the task was run.
@@ -415,6 +464,14 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 
   // Adds the pending task to delayed_work_queue_.
   void AddToDelayedWorkQueue(const PendingTask& pending_task);
+
+  // Adds the pending task to our incoming_queue_.
+  //
+  // Caller retains ownership of |pending_task|, but this function will
+  // reset the value of pending_task->task.  This is needed to ensure
+  // that the posting call stack does not retain pending_task->task
+  // beyond this function call.
+  void AddToIncomingQueue(PendingTask* pending_task);
 
   // Load tasks from the incoming_queue_ into work_queue_ if the latter is
   // empty.  The former requires a lock to access, while the latter is directly
@@ -426,9 +483,8 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   // true if some work was done.
   bool DeletePendingTasks();
 
-  // Post a task to our incomming queue.
-  void PostTask_Helper(const tracked_objects::Location& from_here, Task* task,
-                       int64 delay_ms, bool nestable);
+  // Calcuates the time at which a PendingTask should run.
+  base::TimeTicks CalculateDelayedRuntime(int64 delay_ms);
 
   // Start recording histogram info about events and action IF it was enabled
   // and IF the statistics recorder can accept a registration of our histogram.
@@ -477,13 +533,17 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 
   // A null terminated list which creates an incoming_queue of tasks that are
   // acquired under a mutex for processing on this instance's thread. These
-  // tasks have not yet been sorted out into items for our work_queue_ vs
-  // items that will be handled by the TimerManager.
+  // tasks have not yet been sorted out into items for our work_queue_ vs items
+  // that will be handled by the TimerManager.
   TaskQueue incoming_queue_;
   // Protect access to incoming_queue_.
   mutable base::Lock incoming_queue_lock_;
 
   RunState* state_;
+
+  // The need for this variable is subtle. Please see implementation comments
+  // around where it is used.
+  bool should_leak_tasks_;
 
 #if defined(OS_WIN)
   base::TimeTicks high_resolution_timer_expiration_;

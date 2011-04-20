@@ -15,6 +15,11 @@
 #define BASE_BIND_INTERNAL_WIN_H_
 #pragma once
 
+// In the x64 architecture in Windows, __fastcall, __stdcall, etc, are all
+// the same as __cdecl which would turn the following specializations into
+// multiple definitions.
+#if !defined(ARCH_CPU_X86_64)
+
 namespace base {
 namespace internal {
 
@@ -179,5 +184,7 @@ struct FunctionTraits<R(__fastcall *)(X1, X2, X3, X4, X5, X6)> {
 
 }  // namespace internal
 }  // namespace base
+
+#endif  // !defined(ARCH_CPU_X86_64)
 
 #endif  // BASE_BIND_INTERNAL_WIN_H_
