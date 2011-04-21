@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,8 +17,7 @@ enum {
 
   DIR_WINDOWS,  // Windows directory, usually "c:\windows"
   DIR_SYSTEM,   // Usually c:\windows\system32"
-  DIR_PROGRAM_FILES,      // Usually c:\program files
-  DIR_PROGRAM_FILESX86,   // Usually c:\program files or c:\program files (x86)
+  DIR_PROGRAM_FILES, // Usually c:\program files
 
   DIR_IE_INTERNET_CACHE,  // Temporary Internet Files directory.
   DIR_COMMON_START_MENU,  // Usually "C:\Documents and Settings\All Users\
