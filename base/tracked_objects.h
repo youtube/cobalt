@@ -630,7 +630,7 @@ class BASE_API ThreadData {
 // only allow the tracking system to be started up at most once, and shutdown
 // at most once.  See bug 31344 for an example.
 
-class AutoTracking {
+class BASE_API AutoTracking {
  public:
   AutoTracking() {
     if (state_ != kNeverBeenRun)

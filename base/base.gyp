@@ -55,7 +55,8 @@
     },
     {
       # This is the subset of files from base that should not be used with a
-      # dynamic library.
+      # dynamic library. Note that this library cannot depend on base because
+      # base depends on base_static.
       'target_name': 'base_static',
       'type': '<(library)',
       'sources': [
@@ -221,6 +222,7 @@
         'base_i18n',
         'base_static',
         'test_support_base',
+        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
       ],
@@ -279,9 +281,13 @@
       'type': '<(library)',
       'dependencies': [
         'base',
+        'base_static',
         'base_i18n',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
+      ],
+      'export_dependent_settings': [
+        'base',
       ],
       'conditions': [
         ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {

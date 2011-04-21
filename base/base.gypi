@@ -40,7 +40,6 @@
           'bind_internal.h',
           'bind_internal_win.h',
           'bits.h',
-          'bzip2_error_handler.cc',
           'callback.h',
           'callback_internal.cc',
           'callback_internal.h',

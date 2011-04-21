@@ -377,7 +377,7 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 #endif
   };
 
-  class AutoRunState : RunState {
+  class BASE_API AutoRunState : RunState {
    public:
     explicit AutoRunState(MessageLoop* loop);
     ~AutoRunState();
