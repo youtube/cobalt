@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,10 +18,22 @@
 #define ANNOTATE_SCOPED_MEMORY_LEAK \
     HeapLeakChecker::Disabler heap_leak_checker_disabler
 
+// Annotate an object pointer as referencing a leaky object. This object and all
+// the heap objects referenced by it will be ignored by the heap checker.
+//
+// X should be referencing an active allocated object. If it is not, the
+// annotation will be ignored.
+// No object should be annotated with ANNOTATE_SCOPED_MEMORY_LEAK twice.
+// Once an object is annotated with ANNOTATE_SCOPED_MEMORY_LEAK, it cannot be
+// deleted.
+#define ANNOTATE_LEAKING_OBJECT_PTR(X) \
+    HeapLeakChecker::IgnoreObject(X)
+
 #else
 
 // If tcmalloc is not used, the annotations should be no-ops.
 #define ANNOTATE_SCOPED_MEMORY_LEAK
+#define ANNOTATE_LEAKING_OBJECT_PTR(X)
 
 #endif
 
