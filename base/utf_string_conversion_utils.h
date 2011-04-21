@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 // This should only be used by the various UTF string conversion files.
 
+#include "base/base_api.h"
 #include "base/string16.h"
 
 namespace base {
@@ -60,7 +61,8 @@ bool ReadUnicodeCharacter(const wchar_t* src,
 
 // Appends a UTF-8 character to the given 8-bit string.  Returns the number of
 // bytes written.
-size_t WriteUnicodeCharacter(uint32 code_point, std::string* output);
+// TODO(brettw) Bug 79631: This function should not be exposed.
+BASE_API size_t WriteUnicodeCharacter(uint32 code_point, std::string* output);
 
 // Appends the given code point as a UTF-16 character to the given 16-bit
 // string.  Returns the number of 16-bit values written.
