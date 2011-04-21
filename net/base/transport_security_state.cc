@@ -5,12 +5,14 @@
 #include "net/base/transport_security_state.h"
 
 #include "base/base64.h"
+#include "base/command_line.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/sha1.h"
 #include "base/string_number_conversions.h"
+#include "base/string_split.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -18,6 +20,7 @@
 #include "crypto/sha2.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/dns_util.h"
+#include "net/base/net_switches.h"
 
 namespace net {
 
@@ -25,6 +28,12 @@ const long int TransportSecurityState::kMaxHSTSAgeSecs = 86400 * 365;  // 1 year
 
 TransportSecurityState::TransportSecurityState()
     : delegate_(NULL) {
+}
+
+static std::string HashHost(const std::string& canonicalized_host) {
+  char hashed[crypto::SHA256_LENGTH];
+  crypto::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
+  return std::string(hashed, sizeof(hashed));
 }
 
 void TransportSecurityState::EnableHost(const std::string& host,
@@ -36,12 +45,9 @@ void TransportSecurityState::EnableHost(const std::string& host,
   // TODO(cevans) -- we likely want to permit a host to override a built-in,
   // for at least the case where the override is stricter (i.e. includes
   // subdomains, or includes certificate pinning).
-  bool temp;
+  DomainState temp;
   if (IsPreloadedSTS(canonicalized_host, true, &temp))
     return;
-
-  char hashed[crypto::SHA256_LENGTH];
-  crypto::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
 
   // Use the original creation date if we already have this host.
   DomainState state_copy(state);
@@ -53,7 +59,7 @@ void TransportSecurityState::EnableHost(const std::string& host,
   state_copy.preloaded = false;
   state_copy.domain.clear();
 
-  enabled_hosts_[std::string(hashed, sizeof(hashed))] = state_copy;
+  enabled_hosts_[HashHost(canonicalized_host)] = state_copy;
   DirtyNotify();
 }
 
@@ -62,11 +68,8 @@ bool TransportSecurityState::DeleteHost(const std::string& host) {
   if (canonicalized_host.empty())
     return false;
 
-  char hashed[crypto::SHA256_LENGTH];
-  crypto::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
-
   std::map<std::string, DomainState>::iterator i = enabled_hosts_.find(
-      std::string(hashed, sizeof(hashed)));
+      HashHost(canonicalized_host));
   if (i != enabled_hosts_.end()) {
     enabled_hosts_.erase(i);
     DirtyNotify();
@@ -84,31 +87,22 @@ static std::string IncludeNUL(const char* in) {
 bool TransportSecurityState::IsEnabledForHost(DomainState* result,
                                               const std::string& host,
                                               bool sni_available) {
-  *result = DomainState();
-
   const std::string canonicalized_host = CanonicalizeHost(host);
   if (canonicalized_host.empty())
     return false;
 
-  bool include_subdomains;
-  if (IsPreloadedSTS(canonicalized_host, sni_available, &include_subdomains)) {
-    result->created = result->expiry = base::Time::FromTimeT(0);
-    result->mode = DomainState::MODE_STRICT;
-    result->include_subdomains = include_subdomains;
-    result->preloaded = true;
-    return true;
-  }
+  if (IsPreloadedSTS(canonicalized_host, sni_available, result))
+    return result->mode != DomainState::MODE_NONE;
 
-  result->preloaded = false;
+  *result = DomainState();
+
   base::Time current_time(base::Time::Now());
 
   for (size_t i = 0; canonicalized_host[i]; i += canonicalized_host[i] + 1) {
-    char hashed_domain[crypto::SHA256_LENGTH];
+    std::string hashed_domain(HashHost(IncludeNUL(&canonicalized_host[i])));
 
-    crypto::SHA256HashString(IncludeNUL(&canonicalized_host[i]), &hashed_domain,
-                             sizeof(hashed_domain));
     std::map<std::string, DomainState>::iterator j =
-        enabled_hosts_.find(std::string(hashed_domain, sizeof(hashed_domain)));
+        enabled_hosts_.find(hashed_domain);
     if (j == enabled_hosts_.end())
       continue;
 
@@ -336,10 +330,17 @@ bool TransportSecurityState::Serialise(std::string* output) {
   return true;
 }
 
-bool TransportSecurityState::Deserialise(const std::string& input,
+bool TransportSecurityState::LoadEntries(const std::string& input,
                                          bool* dirty) {
   enabled_hosts_.clear();
+  return Deserialise(input, dirty, &enabled_hosts_);
+}
 
+// static
+bool TransportSecurityState::Deserialise(
+    const std::string& input,
+    bool* dirty,
+    std::map<std::string, DomainState>* out) {
   scoped_ptr<Value> value(
       base::JSONReader::Read(input, false /* do not allow trailing commas */));
   if (!value.get() || !value->IsType(Value::TYPE_DICTIONARY))
@@ -393,6 +394,8 @@ bool TransportSecurityState::Deserialise(const std::string& input,
       mode = DomainState::MODE_OPPORTUNISTIC;
     } else if (mode_string == "spdy-only") {
       mode = DomainState::MODE_SPDY_ONLY;
+    } else if (mode_string == "none") {
+      mode = DomainState::MODE_NONE;
     } else {
       LOG(WARNING) << "Unknown TransportSecurityState mode string found: "
                    << mode_string;
@@ -428,7 +431,7 @@ bool TransportSecurityState::Deserialise(const std::string& input,
     new_state.expiry = expiry_time;
     new_state.include_subdomains = include_subdomains;
     new_state.public_key_hashes = public_key_hashes;
-    enabled_hosts_[hashed] = new_state;
+    (*out)[hashed] = new_state;
   }
 
   *dirty = dirtied;
@@ -485,7 +488,22 @@ std::string TransportSecurityState::CanonicalizeHost(const std::string& host) {
 bool TransportSecurityState::IsPreloadedSTS(
     const std::string& canonicalized_host,
     bool sni_available,
-    bool *include_subdomains) {
+    DomainState* out) {
+  out->preloaded = true;
+  out->mode = DomainState::MODE_STRICT;
+  out->created = base::Time::FromTimeT(0);
+  out->expiry = out->created;
+  out->include_subdomains = false;
+
+  std::map<std::string, DomainState> hosts;
+  std::string cmd_line_hsts =
+      CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kHstsHosts);
+  if (!cmd_line_hsts.empty()) {
+    bool dirty;
+    Deserialise(cmd_line_hsts, &dirty, &hosts);
+  }
+
   // In the medium term this list is likely to just be hardcoded here. This,
   // slightly odd, form removes the need for additional relocations records.
   static const struct {
@@ -547,13 +565,23 @@ bool TransportSecurityState::IsPreloadedSTS(
   static const size_t kNumPreloadedSNISTS = ARRAYSIZE_UNSAFE(kPreloadedSNISTS);
 
   for (size_t i = 0; canonicalized_host[i]; i += canonicalized_host[i] + 1) {
+    std::string host_sub_chunk(&canonicalized_host[i],
+                               canonicalized_host.size() - i);
+    out->domain = DNSDomainToString(host_sub_chunk);
+    std::string hashed_host(HashHost(host_sub_chunk));
+    if (hosts.find(hashed_host) != hosts.end()) {
+      *out = hosts[hashed_host];
+      out->domain = DNSDomainToString(host_sub_chunk);
+      out->preloaded = true;
+      return true;
+    }
     for (size_t j = 0; j < kNumPreloadedSTS; j++) {
       if (kPreloadedSTS[j].length == canonicalized_host.size() - i &&
           memcmp(kPreloadedSTS[j].dns_name, &canonicalized_host[i],
                  kPreloadedSTS[j].length) == 0) {
         if (!kPreloadedSTS[j].include_subdomains && i != 0)
           return false;
-        *include_subdomains = kPreloadedSTS[j].include_subdomains;
+        out->include_subdomains = kPreloadedSTS[j].include_subdomains;
         return true;
       }
     }
@@ -564,7 +592,7 @@ bool TransportSecurityState::IsPreloadedSTS(
                    kPreloadedSNISTS[j].length) == 0) {
           if (!kPreloadedSNISTS[j].include_subdomains && i != 0)
             return false;
-          *include_subdomains = kPreloadedSNISTS[j].include_subdomains;
+          out->include_subdomains = kPreloadedSNISTS[j].include_subdomains;
           return true;
         }
       }
@@ -612,7 +640,6 @@ bool TransportSecurityState::DomainState::IsChainOfPublicKeysPermitted(
         return true;
     }
   }
-
 
   LOG(ERROR) << "Rejecting public key chain for domain " << domain
              << ". Validated chain: " << HashesToBase64String(hashes)

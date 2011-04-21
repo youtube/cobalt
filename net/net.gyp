@@ -138,6 +138,8 @@
         'base/net_log_source_type_list.h',
         'base/net_module.cc',
         'base/net_module.h',
+        'base/net_switches.cc',
+        'base/net_switches.h',
         'base/net_util.cc',
         'base/net_util.h',
         'base/net_util_posix.cc',
