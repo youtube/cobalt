@@ -473,7 +473,7 @@ struct NetworkInterface {
   IPAddressNumber address;
 };
 
-typedef std::list<NetworkInterface> NetworkInterfaceList;
+typedef std::vector<NetworkInterface> NetworkInterfaceList;
 
 // Returns list of network interfaces except loopback interface. If an
 // interface has more than one address, a separate entry is added to
