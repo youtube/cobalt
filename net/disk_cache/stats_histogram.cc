@@ -4,6 +4,7 @@
 
 #include "net/disk_cache/stats_histogram.h"
 
+#include "base/debug/leak_annotations.h"
 #include "base/logging.h"
 #include "net/disk_cache/stats.h"
 
@@ -21,8 +22,7 @@ StatsHistogram::~StatsHistogram() {
     stats_ = NULL;
 }
 
-StatsHistogram* StatsHistogram::StatsHistogramFactoryGet(
-    const std::string& name) {
+StatsHistogram* StatsHistogram::FactoryGet(const std::string& name) {
   Histogram* histogram(NULL);
 
   Sample minimum = 1;
@@ -49,6 +49,7 @@ StatsHistogram* StatsHistogram::StatsHistogramFactoryGet(
   // Validate upcast by seeing that we're probably providing the checksum.
   CHECK_EQ(return_histogram->StatsHistogram::CalculateRangeChecksum(),
            return_histogram->CalculateRangeChecksum());
+  ANNOTATE_LEAKING_OBJECT_PTR(return_histogram); // see crbug.com/79322
   return return_histogram;
 }
 
