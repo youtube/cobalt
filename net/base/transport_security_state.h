@@ -44,6 +44,8 @@ class TransportSecurityState :
       //   * We'll request HTTP URLs over HTTPS iff we have SPDY support.
       //   * Certificate issues are fatal.
       MODE_SPDY_ONLY = 2,
+      // None means there is no HSTS for this domain.
+      MODE_NONE = 3,
     };
 
     DomainState();
@@ -104,7 +106,9 @@ class TransportSecurityState :
   void SetDelegate(Delegate*);
 
   bool Serialise(std::string* output);
-  bool Deserialise(const std::string& state, bool* dirty);
+  // Existing non-preloaded entries are cleared and repopulated from the
+  // passed JSON string.
+  bool LoadEntries(const std::string& state, bool* dirty);
 
   // The maximum number of seconds for which we'll cache an HSTS request.
   static const long int kMaxHSTSAgeSecs;
@@ -122,7 +126,10 @@ class TransportSecurityState :
   static std::string CanonicalizeHost(const std::string& host);
   static bool IsPreloadedSTS(const std::string& canonicalized_host,
                              bool sni_available,
-                             bool* out_include_subdomains);
+                             DomainState* out);
+  static bool Deserialise(const std::string& state,
+                          bool* dirty,
+                          std::map<std::string, DomainState>* out);
 
   // The set of hosts that have enabled TransportSecurity. The keys here
   // are SHA256(DNSForm(domain)) where DNSForm converts from dotted form
