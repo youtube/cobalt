@@ -206,7 +206,7 @@ TEST_F(TransportSecurityStateTest, Serialise1) {
   std::string output;
   bool dirty;
   state->Serialise(&output);
-  EXPECT_TRUE(state->Deserialise(output, &dirty));
+  EXPECT_TRUE(state->LoadEntries(output, &dirty));
   EXPECT_FALSE(dirty);
 }
 
@@ -227,7 +227,7 @@ TEST_F(TransportSecurityStateTest, Serialise2) {
   std::string output;
   bool dirty;
   state->Serialise(&output);
-  EXPECT_TRUE(state->Deserialise(output, &dirty));
+  EXPECT_TRUE(state->LoadEntries(output, &dirty));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "google.com", true));
   EXPECT_EQ(domain_state.mode, TransportSecurityState::DomainState::MODE_STRICT);
@@ -260,7 +260,7 @@ TEST_F(TransportSecurityStateTest, Serialise3) {
   std::string output;
   bool dirty;
   state->Serialise(&output);
-  EXPECT_TRUE(state->Deserialise(output, &dirty));
+  EXPECT_TRUE(state->LoadEntries(output, &dirty));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "google.com", true));
   EXPECT_EQ(domain_state.mode,
@@ -318,7 +318,7 @@ TEST_F(TransportSecurityStateTest, SerialiseOld) {
         "}"
       "}";
   bool dirty;
-  EXPECT_TRUE(state->Deserialise(output, &dirty));
+  EXPECT_TRUE(state->LoadEntries(output, &dirty));
   EXPECT_TRUE(dirty);
 }
 
@@ -336,14 +336,20 @@ TEST_F(TransportSecurityStateTest, IsPreloaded) {
   const std::string aypal =
       TransportSecurityState::CanonicalizeHost("aypal.com");
 
-  bool b;
-  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(paypal, true, &b));
-  EXPECT_TRUE(TransportSecurityState::IsPreloadedSTS(www_paypal, true, &b));
-  EXPECT_FALSE(b);
-  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(a_www_paypal, true, &b));
-  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(abc_paypal, true, &b));
-  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(example, true, &b));
-  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(aypal, true, &b));
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(
+      paypal, true, &domain_state));
+  EXPECT_TRUE(TransportSecurityState::IsPreloadedSTS(
+      www_paypal, true, &domain_state));
+  EXPECT_FALSE(domain_state.include_subdomains);
+  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(
+      a_www_paypal, true, &domain_state));
+  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(
+      abc_paypal, true, &domain_state));
+  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(
+      example, true, &domain_state));
+  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(
+      aypal, true, &domain_state));
 }
 
 TEST_F(TransportSecurityStateTest, Preloaded) {
@@ -461,6 +467,13 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "market.android.com",
                                       true));
+  // The domain wasn't being set, leading to a blank string in the
+  // chrome://net-internals/#hsts UI. So test that.
+  EXPECT_EQ(domain_state.domain, "market.android.com");
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "sub.market.android.com",
+                                      true));
+  EXPECT_EQ(domain_state.domain, "market.android.com");
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "lastpass.com", true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.lastpass.com", true));
@@ -533,7 +546,7 @@ TEST_F(TransportSecurityStateTest, PublicKeyHashes) {
   std::string ser;
   EXPECT_TRUE(state->Serialise(&ser));
   bool dirty;
-  EXPECT_TRUE(state->Deserialise(ser, &dirty));
+  EXPECT_TRUE(state->LoadEntries(ser, &dirty));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "example.com", false));
   EXPECT_EQ(1u, domain_state.public_key_hashes.size());
   EXPECT_TRUE(0 == memcmp(domain_state.public_key_hashes[0].data, hash.data,
