@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,12 +51,6 @@ bool PathProviderWin(int key, FilePath* result) {
       break;
     case base::DIR_PROGRAM_FILES:
       if (FAILED(SHGetFolderPath(NULL, CSIDL_PROGRAM_FILES, NULL,
-                                 SHGFP_TYPE_CURRENT, system_buffer)))
-        return false;
-      cur = FilePath(system_buffer);
-      break;
-    case base::DIR_PROGRAM_FILESX86:
-      if (FAILED(SHGetFolderPath(NULL, CSIDL_PROGRAM_FILESX86, NULL,
                                  SHGFP_TYPE_CURRENT, system_buffer)))
         return false;
       cur = FilePath(system_buffer);
