@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,6 +29,23 @@ enum TextDirection {
   UNKNOWN_DIRECTION,
   RIGHT_TO_LEFT,
   LEFT_TO_RIGHT,
+};
+
+// A string along with the text direction it should be displayed in.
+// Conceptually this is a struct; we just use 'class' to make it easier for
+// others to forward-declare us with 'class String16WithDirection'.
+class String16WithDirection {
+ public:
+  String16WithDirection() : direction_(UNKNOWN_DIRECTION) { }
+  String16WithDirection(const string16& str, TextDirection dir)
+      : string_(str), direction_(dir) { }
+
+  const string16& string() const { return string_; }
+  TextDirection direction() const { return direction_; }
+
+ private:
+  string16 string_;
+  TextDirection direction_;
 };
 
 // Get the locale that the currently running process has been configured to use.
