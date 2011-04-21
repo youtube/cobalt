@@ -76,10 +76,10 @@ struct LimitOffset {
 // AdjustOffset(adjustments). Each Adjustment gives the original |location|
 // of the encoded section and the |old_length| and |new_length| of the section
 // before and after decoding.
-struct AdjustOffset {
+struct BASE_API AdjustOffset {
   // Helper structure which indicates where an encoded character occurred
   // and how long that encoding was.
-  struct Adjustment {
+  struct BASE_API Adjustment {
     Adjustment(size_t location, size_t old_length, size_t new_length);
 
     size_t location;

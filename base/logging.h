@@ -794,7 +794,7 @@ inline void LogAtLevel(int const log_level, std::string const &msg) {
 // This class is used to explicitly ignore values in the conditional
 // logging macros.  This avoids compiler warnings like "value computed
 // is not used" and "statement has no effect".
-class BASE_API LogMessageVoidify {
+class LogMessageVoidify {
  public:
   LogMessageVoidify() { }
   // This has to be an operator with a precedence lower than << but

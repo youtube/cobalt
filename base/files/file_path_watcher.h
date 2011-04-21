@@ -8,6 +8,7 @@
 #define BASE_FILES_FILE_PATH_WATCHER_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/memory/ref_counted.h"
@@ -25,7 +26,7 @@ namespace files {
 // detect the creation and deletion of files in a watched directory, but will
 // not detect modifications to those files. See file_path_watcher_mac.cc for
 // details.
-class FilePathWatcher {
+class BASE_API FilePathWatcher {
  public:
   // Declares the callback client code implements to receive notifications. Note
   // that implementations of this interface should not keep a reference to the
