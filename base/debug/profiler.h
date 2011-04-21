@@ -8,6 +8,8 @@
 
 #include <string>
 
+#include "base/base_api.h"
+
 // The Profiler functions allow usage of the underlying sampling based
 // profiler. If the application has not been built with the necessary
 // flags (-DENABLE_PROFILING and not -DNO_TCMALLOC) then these functions
@@ -18,16 +20,16 @@ namespace debug {
 // Start profiling with the supplied name.
 // {pid} will be replaced by the process' pid and {count} will be replaced
 // by the count of the profile run (starts at 1 with each process).
-void StartProfiling(const std::string& name);
+BASE_API void StartProfiling(const std::string& name);
 
 // Stop profiling and write out data.
-void StopProfiling();
+BASE_API void StopProfiling();
 
 // Force data to be written to file.
-void FlushProfiling();
+BASE_API void FlushProfiling();
 
 // Returns true if process is being profiled.
-bool BeingProfiled();
+BASE_API bool BeingProfiled();
 
 }  // namespace debug
 }  // namespace base

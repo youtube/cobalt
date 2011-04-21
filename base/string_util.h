@@ -36,29 +36,28 @@ namespace base {
 // Compares the two strings s1 and s2 without regard to case using
 // the current locale; returns 0 if they are equal, 1 if s1 > s2, and -1 if
 // s2 > s1 according to a lexicographic comparison.
-BASE_API int strcasecmp(const char* s1, const char* s2);
+int strcasecmp(const char* s1, const char* s2);
 
 // Compares up to count characters of s1 and s2 without regard to case using
 // the current locale; returns 0 if they are equal, 1 if s1 > s2, and -1 if
 // s2 > s1 according to a lexicographic comparison.
-BASE_API int strncasecmp(const char* s1, const char* s2, size_t count);
+int strncasecmp(const char* s1, const char* s2, size_t count);
 
 // Same as strncmp but for char16 strings.
-BASE_API int strncmp16(const char16* s1, const char16* s2, size_t count);
+int strncmp16(const char16* s1, const char16* s2, size_t count);
 
 // Wrapper for vsnprintf that always null-terminates and always returns the
 // number of characters that would be in an untruncated formatted
 // string, even when truncation occurs.
-BASE_API int vsnprintf(char* buffer, size_t size, const char* format,
-                       va_list arguments)
+int vsnprintf(char* buffer, size_t size, const char* format, va_list arguments)
     PRINTF_FORMAT(3, 0);
 
 // vswprintf always null-terminates, but when truncation occurs, it will either
 // return -1 or the number of characters that would be in an untruncated
 // formatted string.  The actual return value depends on the underlying
 // C library's vswprintf implementation.
-BASE_API int vswprintf(wchar_t* buffer, size_t size,
-                       const wchar_t* format, va_list arguments)
+int vswprintf(wchar_t* buffer, size_t size,
+              const wchar_t* format, va_list arguments)
     WPRINTF_FORMAT(3, 0);
 
 // Some of these implementations need to be inlined.
@@ -172,11 +171,11 @@ BASE_API const std::string& EmptyString();
 BASE_API const std::wstring& EmptyWString();
 BASE_API const string16& EmptyString16();
 
-extern const wchar_t kWhitespaceWide[];
-extern const char16 kWhitespaceUTF16[];
-extern const char kWhitespaceASCII[];
+BASE_API extern const wchar_t kWhitespaceWide[];
+BASE_API extern const char16 kWhitespaceUTF16[];
+BASE_API extern const char kWhitespaceASCII[];
 
-extern const char kUtf8ByteOrderMark[];
+BASE_API extern const char kUtf8ByteOrderMark[];
 
 // Removes characters in remove_chars from anywhere in input.  Returns true if
 // any characters were removed.
