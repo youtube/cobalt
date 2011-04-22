@@ -14,11 +14,13 @@ static AudioManager* g_audio_manager = NULL;
 void AudioManager::Destroy(void* not_used) {
   g_destroy_called = true;
 
-  g_audio_manager->Cleanup();
+  if (g_audio_manager) {
+    g_audio_manager->Cleanup();
 
-  AudioManager* audio_manager = g_audio_manager;
-  g_audio_manager = NULL;
-  delete audio_manager;
+    AudioManager* audio_manager = g_audio_manager;
+    g_audio_manager = NULL;
+    delete audio_manager;
+  }
 }
 
 // static
