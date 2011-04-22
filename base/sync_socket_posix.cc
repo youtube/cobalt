@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -88,14 +88,14 @@ bool SyncSocket::Close() {
 }
 
 size_t SyncSocket::Send(const void* buffer, size_t length) {
-  DCHECK(length <= kMaxMessageLength);
+  DCHECK_LE(length, kMaxMessageLength);
   const char* charbuffer = static_cast<const char*>(buffer);
   int len = file_util::WriteFileDescriptor(handle_, charbuffer, length);
   return static_cast<size_t>(len);
 }
 
 size_t SyncSocket::Receive(void* buffer, size_t length) {
-  DCHECK(length <= kMaxMessageLength);
+  DCHECK_LE(length, kMaxMessageLength);
   char* charbuffer = static_cast<char*>(buffer);
   if (file_util::ReadFromFD(handle_, charbuffer, length)) {
     return length;
