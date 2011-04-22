@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -108,7 +108,7 @@ bool SyncSocket::Close() {
 }
 
 size_t SyncSocket::Send(const void* buffer, size_t length) {
-  DCHECK(length <= kMaxMessageLength);
+  DCHECK_LE(length, kMaxMessageLength);
   size_t count = 0;
   while (count < length) {
     DWORD len;
@@ -125,7 +125,7 @@ size_t SyncSocket::Send(const void* buffer, size_t length) {
 }
 
 size_t SyncSocket::Receive(void* buffer, size_t length) {
-  DCHECK(length <= kMaxMessageLength);
+  DCHECK_LE(length, kMaxMessageLength);
   size_t count = 0;
   while (count < length) {
     DWORD len;
