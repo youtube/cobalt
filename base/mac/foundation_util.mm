@@ -4,6 +4,9 @@
 
 #include "base/mac/foundation_util.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/mac/scoped_cftyperef.h"
@@ -230,6 +233,27 @@ void NSObjectRetain(void* obj) {
 void NSObjectRelease(void* obj) {
   id<NSObject> nsobj = static_cast<id<NSObject> >(obj);
   [nsobj release];
+}
+
+static const char* base_bundle_id;
+
+const char* BaseBundleID() {
+  if (base_bundle_id) {
+    return base_bundle_id;
+  }
+
+#if defined(GOOGLE_CHROME_BUILD)
+  return "com.google.Chrome";
+#else
+  return "org.chromium.Chromium";
+#endif
+}
+
+void SetBaseBundleID(const char* new_base_bundle_id) {
+  if (new_base_bundle_id != base_bundle_id) {
+    free((void*)base_bundle_id);
+    base_bundle_id = new_base_bundle_id ? strdup(new_base_bundle_id) : NULL;
+  }
 }
 
 }  // namespace mac
