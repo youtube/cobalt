@@ -1006,8 +1006,8 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
 
 // static
 X509Certificate::OSCertHandle
-X509Certificate::ReadCertHandleFromPickle(const Pickle& pickle,
-                                          void** pickle_iter) {
+X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
+                                            void** pickle_iter) {
   const char* data;
   int length;
   if (!pickle.ReadData(pickle_iter, &data, &length))
@@ -1026,8 +1026,8 @@ X509Certificate::ReadCertHandleFromPickle(const Pickle& pickle,
 }
 
 // static
-bool X509Certificate::WriteCertHandleToPickle(OSCertHandle cert_handle,
-                                              Pickle* pickle) {
+bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
+                                                Pickle* pickle) {
   DWORD length = 0;
   if (!CertSerializeCertificateStoreElement(cert_handle, 0, NULL, &length))
     return false;

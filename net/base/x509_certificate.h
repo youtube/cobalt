@@ -113,6 +113,10 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
                   FORMAT_PKCS7,
   };
 
+  // PickleType is intended for deserializing certificates that were pickled
+  // by previous releases as part of a net::HttpResponseInfo, which in version
+  // 1 only contained a single certificate. When serializing certificates to a
+  // new Pickle, PICKLETYPE_CERTIFICATE_CHAIN is always used.
   enum PickleType {
     // When reading a certificate from a Pickle, the Pickle only contains a
     // single certificate.
@@ -409,11 +413,11 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // not guaranteed to be the same across different underlying cryptographic
   // libraries, nor acceptable to CreateFromBytes(). Returns an invalid
   // handle, NULL, on failure.
-  static OSCertHandle ReadCertHandleFromPickle(const Pickle& pickle,
-                                               void** pickle_iter);
+  static OSCertHandle ReadOSCertHandleFromPickle(const Pickle& pickle,
+                                                 void** pickle_iter);
 
   // Writes a single certificate to |pickle|. Returns false on failure.
-  static bool WriteCertHandleToPickle(OSCertHandle handle, Pickle* pickle);
+  static bool WriteOSCertHandleToPickle(OSCertHandle handle, Pickle* pickle);
 
   // The subject of the certificate.
   CertPrincipal subject_;
