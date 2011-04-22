@@ -82,7 +82,7 @@ SharedMemoryHandle SharedMemory::NULLHandle() {
 
 // static
 void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
-  DCHECK(handle.fd >= 0);
+  DCHECK_GE(handle.fd, 0);
   if (HANDLE_EINTR(close(handle.fd)) < 0)
     PLOG(ERROR) << "close";
 }
