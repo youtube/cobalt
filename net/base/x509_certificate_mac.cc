@@ -289,13 +289,18 @@ OSStatus CreatePolicy(const CSSM_OID* policy_OID,
 }
 
 // Creates a series of SecPolicyRefs to be added to a SecTrustRef used to
-// validate a certificate for an SSL peer. |hostname| contains the name of
-// the SSL peer that the certificate should be verified against. |flags| is
+// validate a certificate for an SSL server. |hostname| contains the name of
+// the SSL server that the certificate should be verified against. |flags| is
 // a bitwise-OR of VerifyFlags that can further alter how trust is
 // validated, such as how revocation is checked. If successful, returns
 // noErr, and stores the resultant array of SecPolicyRefs in |policies|.
 OSStatus CreateTrustPolicies(const std::string& hostname, int flags,
                              ScopedCFTypeRef<CFArrayRef>* policies) {
+  ScopedCFTypeRef<CFMutableArrayRef> local_policies(
+      CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
+  if (!local_policies)
+    return memFullErr;
+
   // Create an SSL SecPolicyRef, and configure it to perform hostname
   // validation. The hostname check does 99% of what we want, with the
   // exception of dotted IPv4 addreses, which we handle ourselves below.
@@ -310,35 +315,38 @@ OSStatus CreateTrustPolicies(const std::string& hostname, int flags,
                                  sizeof(tp_ssl_options), &ssl_policy);
   if (status)
     return status;
-  ScopedCFTypeRef<SecPolicyRef> scoped_ssl_policy(ssl_policy);
+  CFArrayAppendValue(local_policies, ssl_policy);
+  CFRelease(ssl_policy);
 
-  // Manually add OCSP and CRL policies. If neither an OCSP or CRL policy is
-  // specified, the Apple TP module will add whatever the system settings
-  // are, which is not desirable here.
-  //
-  // Note that this causes any locally configured OCSP responder URL to be
-  // ignored.
+  // Manually add revocation policies. In order to actually disable revocation
+  // checking, the SecTrustRef must have at least one revocation policy
+  // associated with it. If none are present, the Apple TP will add policies
+  // according to the system preferences, which will enable revocation
+  // checking even if the caller explicitly disabled it. An OCSP policy is
+  // used, rather than a CRL policy, because the Apple TP will force an OCSP
+  // policy to be present and enabled if it believes the certificate may chain
+  // to an EV root. By explicitly disabling network and OCSP cache access,
+  // then even if the Apple TP enables OCSP checking, no revocation checking
+  // will actually succeed.
   CSSM_APPLE_TP_OCSP_OPTIONS tp_ocsp_options;
   memset(&tp_ocsp_options, 0, sizeof(tp_ocsp_options));
   tp_ocsp_options.Version = CSSM_APPLE_TP_OCSP_OPTS_VERSION;
 
-  CSSM_APPLE_TP_CRL_OPTIONS tp_crl_options;
-  memset(&tp_crl_options, 0, sizeof(tp_crl_options));
-  tp_crl_options.Version = CSSM_APPLE_TP_CRL_OPTS_VERSION;
-
   if (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) {
-    // If an OCSP responder is available, use it, and avoid fetching any
-    // CRLs for that certificate if possible, as they may be much larger.
+    // The default for the OCSP policy is to fetch responses via the network,
+    // unlike the CRL policy default. The policy is further modified to
+    // prefer OCSP over CRLs, if both are specified on the certificate. This
+    // is because an OCSP response is both sufficient and typically
+    // significantly smaller than the CRL counterpart.
     tp_ocsp_options.Flags = CSSM_TP_ACTION_OCSP_SUFFICIENT;
-    // Ensure that CRLs can be fetched if a crlDistributionPoint extension
-    // is found. Otherwise, only the local CRL cache will be consulted.
-    tp_crl_options.CrlFlags |= CSSM_TP_ACTION_FETCH_CRL_FROM_NET;
   } else {
-    // Disable OCSP network fetching, but still permit cached OCSP responses
-    // to be used. This is equivalent to the Windows code's usage of
-    // CERT_CHAIN_REVOCATION_CHECK_CACHE_ONLY.
-    tp_ocsp_options.Flags = CSSM_TP_ACTION_OCSP_DISABLE_NET;
-    // The default CrlFlags will ensure only cached CRLs are used.
+    // Effectively disable OCSP checking by making it impossible to get an
+    // OCSP response. Even if the Apple TP forces OCSP, no checking will
+    // be able to succeed. If this happens, the Apple TP will report an error
+    // that OCSP was unavailable, but this will be handled and suppressed in
+    // X509Certificate::Verify().
+    tp_ocsp_options.Flags = CSSM_TP_ACTION_OCSP_DISABLE_NET |
+                            CSSM_TP_ACTION_OCSP_CACHE_READ_DISABLE;
   }
 
   SecPolicyRef ocsp_policy;
@@ -346,23 +354,25 @@ OSStatus CreateTrustPolicies(const std::string& hostname, int flags,
                         sizeof(tp_ocsp_options), &ocsp_policy);
   if (status)
     return status;
-  ScopedCFTypeRef<SecPolicyRef> scoped_ocsp_policy(ocsp_policy);
+  CFArrayAppendValue(local_policies, ocsp_policy);
+  CFRelease(ocsp_policy);
 
-  SecPolicyRef crl_policy;
-  status = CreatePolicy(&CSSMOID_APPLE_TP_REVOCATION_CRL, &tp_crl_options,
-                        sizeof(tp_crl_options), &crl_policy);
-  if (status)
-    return status;
-  ScopedCFTypeRef<SecPolicyRef> scoped_crl_policy(crl_policy);
+  if (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) {
+    CSSM_APPLE_TP_CRL_OPTIONS tp_crl_options;
+    memset(&tp_crl_options, 0, sizeof(tp_crl_options));
+    tp_crl_options.Version = CSSM_APPLE_TP_CRL_OPTS_VERSION;
+    tp_crl_options.CrlFlags = CSSM_TP_ACTION_FETCH_CRL_FROM_NET;
 
-  CFTypeRef local_policies[] = { ssl_policy, ocsp_policy, crl_policy };
-  CFArrayRef policy_array = CFArrayCreate(kCFAllocatorDefault, local_policies,
-                                          arraysize(local_policies),
-                                          &kCFTypeArrayCallBacks);
-  if (!policy_array)
-    return memFullErr;
+    SecPolicyRef crl_policy;
+    status = CreatePolicy(&CSSMOID_APPLE_TP_REVOCATION_CRL, &tp_crl_options,
+                          sizeof(tp_crl_options), &crl_policy);
+    if (status)
+      return status;
+    CFArrayAppendValue(local_policies, crl_policy);
+    CFRelease(crl_policy);
+  }
 
-  policies->reset(policy_array);
+  policies->reset(local_policies.release());
   return noErr;
 }
 
@@ -856,7 +866,7 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
   } else {
     // EV requires revocation checking.
     // Note, under the hood, SecTrustEvaluate() will modify the OCSP options
-    // so as to attempt OCSP fetching if it believes a certificate may chain
+    // so as to attempt OCSP checking if it believes a certificate may chain
     // to an EV root. However, because network fetches are disabled in
     // CreateTrustPolicies() when revocation checking is disabled, these
     // will only go against the local cache.
