@@ -133,7 +133,8 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
 
   // read response-headers
   headers = new HttpResponseHeaders(pickle, &iter);
-  DCHECK_NE(headers->response_code(), -1);
+  if (headers->response_code() == -1)
+    return false;
 
   // read ssl-info
   if (flags & RESPONSE_INFO_HAS_CERT) {
@@ -141,6 +142,8 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
         X509Certificate::PICKLETYPE_SINGLE_CERTIFICATE :
         X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN;
     ssl_info.cert = X509Certificate::CreateFromPickle(pickle, &iter, type);
+    if (!ssl_info.cert)
+      return false;
   }
   if (flags & RESPONSE_INFO_HAS_CERT_STATUS) {
     int cert_status;
@@ -161,9 +164,7 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
       return false;
   }
 
-  // Read socket_address.  This was not always present in the response info,
-  // so we don't fail if it can't be read.  If additional fields are added in
-  // a future version, then they must only be read if this operation succeeds.
+  // Read socket_address.
   std::string socket_address_host;
   if (pickle.ReadString(&iter, &socket_address_host)) {
     // If the host was written, we always expect the port to follow.
@@ -171,6 +172,10 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
     if (!pickle.ReadUInt16(&iter, &socket_address_port))
       return false;
     socket_address = HostPortPair(socket_address_host, socket_address_port);
+  } else if (version > 1) {
+    // socket_address was not always present in version 1 of the response
+    // info, so we don't fail if it can't be read.
+    return false;
   }
 
   was_fetched_via_spdy = (flags & RESPONSE_INFO_WAS_SPDY) != 0;
