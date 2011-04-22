@@ -17,6 +17,10 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 
+#if defined(OS_MACOSX)
+#include "base/mac/foundation_util.h"
+#endif  // OS_MACOSX
+
 namespace base {
 
 namespace {
@@ -287,7 +291,16 @@ bool SharedMemory::FilePathForMemoryName(const std::string& mem_name,
   if (!file_util::GetShmemTempDir(&temp_dir))
     return false;
 
-  *path = temp_dir.AppendASCII("com.google.chrome.shmem." + mem_name);
+#if !defined(OS_MACOSX)
+#if defined(GOOGLE_CHROME_BUILD)
+  std::string name_base = std::string("com.google.Chrome");
+#else
+  std::string name_base = std::string("org.chromium.Chromium");
+#endif
+#else  // OS_MACOSX
+  std::string name_base = std::string(base::mac::BaseBundleID());
+#endif  // OS_MACOSX
+  *path = temp_dir.AppendASCII(name_base + ".shmem." + mem_name);
   return true;
 }
 
