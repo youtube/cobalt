@@ -236,40 +236,30 @@ X509Certificate* X509Certificate::CreateFromBytes(const char* data,
 X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
                                                    void** pickle_iter,
                                                    PickleType type) {
-  OSCertHandle cert_handle = ReadCertHandleFromPickle(pickle, pickle_iter);
-  OSCertHandles intermediates;
+  OSCertHandle cert_handle = ReadOSCertHandleFromPickle(pickle, pickle_iter);
+  if (!cert_handle)
+    return NULL;
 
-  // Even if a certificate fails to parse, whether the server certificate in
-  // |cert_handle| or one of the optional intermediates, continue reading
-  // the data from |pickle| so that |pickle_iter| is kept in sync for any
-  // other reads the caller may perform after this method returns.
+  OSCertHandles intermediates;
+  size_t num_intermediates = 0;
   if (type == PICKLETYPE_CERTIFICATE_CHAIN) {
-    size_t num_intermediates;
     if (!pickle.ReadSize(pickle_iter, &num_intermediates)) {
       FreeOSCertHandle(cert_handle);
       return NULL;
     }
 
-    bool ok = !!cert_handle;
     for (size_t i = 0; i < num_intermediates; ++i) {
-      OSCertHandle intermediate = ReadCertHandleFromPickle(pickle,
-                                                           pickle_iter);
-      // If an intermediate fails to load, it and any certificates after it
-      // will not be added. However, any intermediates that were successfully
-      // parsed before the failure can be safely returned.
-      ok &= !!intermediate;
-      if (ok) {
-        intermediates.push_back(intermediate);
-      } else if (intermediate) {
-        FreeOSCertHandle(intermediate);
-      }
+      OSCertHandle intermediate = ReadOSCertHandleFromPickle(pickle,
+                                                             pickle_iter);
+      if (!intermediate)
+        break;
+      intermediates.push_back(intermediate);
     }
   }
 
-  if (!cert_handle)
-    return NULL;
-  X509Certificate* cert = CreateFromHandle(cert_handle, SOURCE_FROM_CACHE,
-                                           intermediates);
+  X509Certificate* cert = NULL;
+  if (intermediates.size() == num_intermediates)
+    cert = CreateFromHandle(cert_handle, SOURCE_FROM_CACHE, intermediates);
   FreeOSCertHandle(cert_handle);
   for (size_t i = 0; i < intermediates.size(); ++i)
     FreeOSCertHandle(intermediates[i]);
@@ -357,7 +347,7 @@ CertificateList X509Certificate::CreateCertificateListFromBytes(
 
 void X509Certificate::Persist(Pickle* pickle) {
   DCHECK(cert_handle_);
-  if (!WriteCertHandleToPickle(cert_handle_, pickle)) {
+  if (!WriteOSCertHandleToPickle(cert_handle_, pickle)) {
     NOTREACHED();
     return;
   }
@@ -368,7 +358,7 @@ void X509Certificate::Persist(Pickle* pickle) {
   }
 
   for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
-    if (!WriteCertHandleToPickle(intermediate_ca_certs_[i], pickle)) {
+    if (!WriteOSCertHandleToPickle(intermediate_ca_certs_[i], pickle)) {
       NOTREACHED();
       return;
     }

@@ -31,6 +31,8 @@ enum {
   RESPONSE_INFO_VERSION_MASK = 0xFF,
 
   // This bit is set if the response info has a cert at the end.
+  // Version 1 serialized only the end-entity certificate, while subsequent
+  // versions include the available certificate chain.
   RESPONSE_INFO_HAS_CERT = 1 << 8,
 
   // This bit is set if the response info has a security-bits field (security
@@ -135,8 +137,6 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
 
   // read ssl-info
   if (flags & RESPONSE_INFO_HAS_CERT) {
-    // Version 1 only serialized only the end-entity certificate,
-    // while subsequent versions include the entire chain.
     X509Certificate::PickleType type = (version == 1) ?
         X509Certificate::PICKLETYPE_SINGLE_CERTIFICATE :
         X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN;
