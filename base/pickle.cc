@@ -34,7 +34,7 @@ Pickle::Pickle(int header_size)
       capacity_(0),
       variable_buffer_offset_(0) {
   DCHECK_GE(static_cast<size_t>(header_size), sizeof(Header));
-  DCHECK(header_size <= kPayloadUnit);
+  DCHECK_LE(header_size, kPayloadUnit);
   Resize(kPayloadUnit);
   header_->payload_size = 0;
 }
@@ -417,8 +417,8 @@ bool Pickle::Resize(size_t new_capacity) {
 const char* Pickle::FindNext(size_t header_size,
                              const char* start,
                              const char* end) {
-  DCHECK(header_size == AlignInt(header_size, sizeof(uint32)));
-  DCHECK(header_size <= static_cast<size_t>(kPayloadUnit));
+  DCHECK_EQ(header_size, AlignInt(header_size, sizeof(uint32)));
+  DCHECK_LE(header_size, static_cast<size_t>(kPayloadUnit));
 
   if (static_cast<size_t>(end - start) < sizeof(Header))
     return NULL;
