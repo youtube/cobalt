@@ -515,8 +515,8 @@ bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
 
 // static
 X509Certificate::OSCertHandle
-X509Certificate::ReadCertHandleFromPickle(const Pickle& pickle,
-                                          void** pickle_iter) {
+X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
+                                            void** pickle_iter) {
   const char* data;
   int length;
   if (!pickle.ReadData(pickle_iter, &data, &length))
@@ -526,8 +526,8 @@ X509Certificate::ReadCertHandleFromPickle(const Pickle& pickle,
 }
 
 // static
-bool X509Certificate::WriteCertHandleToPickle(OSCertHandle cert_handle,
-                                              Pickle* pickle) {
+bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
+                                                Pickle* pickle) {
   DERCache der_cache;
   if (!GetDERAndCacheIfNeeded(cert_handle, &der_cache))
     return false;
