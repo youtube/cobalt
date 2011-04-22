@@ -24,6 +24,7 @@
 
 #if defined(OS_MACOSX)
 #include <AvailabilityMacros.h>
+#include "base/mac/foundation_util.h"
 #else
 #include <glib.h>
 #endif
@@ -37,6 +38,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/sys_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
@@ -75,12 +77,17 @@ static int CallStat(const char *path, stat_wrapper_t *sb) {
 }
 #endif
 
+static std::string TempFileName() {
+#if defined(OS_MACOSX)
+  return StringPrintf(".%s.XXXXXX", base::mac::BaseBundleID());
+#endif
 
 #if defined(GOOGLE_CHROME_BUILD)
-static const char* kTempFileName = ".com.google.chrome.XXXXXX";
+  return std::string(".com.google.Chrome.XXXXXX");
 #else
-static const char* kTempFileName = ".org.chromium.XXXXXX";
+  return std::string(".org.chromium.Chromium.XXXXXX");
 #endif
+}
 
 bool AbsolutePath(FilePath* path) {
   base::ThreadRestrictions::AssertIOAllowed();  // For realpath().
@@ -402,7 +409,7 @@ bool ReadSymbolicLink(const FilePath& symlink_path,
 // This function does NOT unlink() the file.
 int CreateAndOpenFdForTemporaryFile(FilePath directory, FilePath* path) {
   base::ThreadRestrictions::AssertIOAllowed();  // For call to mkstemp().
-  *path = directory.Append(kTempFileName);
+  *path = directory.Append(TempFileName());
   const std::string& tmpdir_string = path->value();
   // this should be OK since mkstemp just replaces characters in place
   char* buffer = const_cast<char*>(tmpdir_string.c_str());
@@ -482,7 +489,7 @@ bool CreateNewTempDirectory(const FilePath::StringType& prefix,
   if (!GetTempDir(&tmpdir))
     return false;
 
-  return CreateTemporaryDirInDirImpl(tmpdir, kTempFileName, new_temp_path);
+  return CreateTemporaryDirInDirImpl(tmpdir, TempFileName(), new_temp_path);
 }
 
 bool CreateDirectory(const FilePath& full_path) {

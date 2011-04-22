@@ -6,6 +6,8 @@
 #define BASE_MAC_FOUNDATION_UTIL_H_
 #pragma once
 
+#include <CoreFoundation/CoreFoundation.h>
+
 #include <string>
 #include <vector>
 
@@ -13,9 +15,9 @@
 
 #if defined(__OBJC__)
 #import <Foundation/Foundation.h>
-@class NSBundle;
 #else  // __OBJC__
 class NSBundle;
+class NSString;
 #endif  // __OBJC__
 
 class FilePath;
@@ -100,6 +102,15 @@ CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
 // Retain/release calls for memory management in C++.
 void NSObjectRetain(void* obj);
 void NSObjectRelease(void* obj);
+
+// Returns the base bundle ID, which can be set by SetBaseBundleID but
+// defaults to a reasonable string. This never returns NULL. BaseBundleID
+// returns a pointer to static storage that must not be freed.
+const char* BaseBundleID();
+
+// Sets the base bundle ID to override the default. The implementation will
+// make its own copy of new_base_bundle_id.
+void SetBaseBundleID(const char* new_base_bundle_id);
 
 }  // namespace mac
 }  // namespace base
