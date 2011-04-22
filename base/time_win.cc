@@ -62,7 +62,7 @@ int64 FileTimeToMicroseconds(const FILETIME& ft) {
 }
 
 void MicrosecondsToFileTime(int64 us, FILETIME* ft) {
-  DCHECK(us >= 0) << "Time is less than 0, negative values are not "
+  DCHECK_GE(us, 0ULL) << "Time is less than 0, negative values are not "
       "representable in FILETIME";
 
   // Multiply by 10 to convert milliseconds to 100-nanoseconds. Bit_cast will
