@@ -46,7 +46,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   void NotifyBeforeRedirect(URLRequest* request,
                             const GURL& new_location);
   void NotifyResponseStarted(URLRequest* request);
-  void NotifyReadCompleted(URLRequest* request, int bytes_read);
+  void NotifyCompleted(URLRequest* request);
   void NotifyURLRequestDestroyed(URLRequest* request);
 
   // Returns a URLRequestJob that will be used to handle the request if
@@ -91,8 +91,8 @@ class NetworkDelegate : public base::NonThreadSafe {
   // This corresponds to URLRequestDelegate::OnResponseStarted.
   virtual void OnResponseStarted(URLRequest* request) = 0;
 
-  // This corresponds to URLRequestDelegate::OnReadCompleted.
-  virtual void OnReadCompleted(URLRequest* request, int bytes_read) = 0;
+  // Indicates that the URL request has been completed or failed.
+  virtual void OnCompleted(URLRequest* request) = 0;
 
   // Called when an URLRequest is being destroyed. Note that the request is
   // being deleted, so it's not safe to call any methods that may result in

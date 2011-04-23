@@ -46,11 +46,10 @@ void NetworkDelegate::NotifyBeforeRedirect(URLRequest* request,
   OnBeforeRedirect(request, new_location);
 }
 
-
-void NetworkDelegate::NotifyReadCompleted(URLRequest* request, int bytes_read) {
+void NetworkDelegate::NotifyCompleted(URLRequest* request) {
   DCHECK(CalledOnValidThread());
   DCHECK(request);
-  OnReadCompleted(request, bytes_read);
+  OnCompleted(request);
 }
 
 void NetworkDelegate::NotifyURLRequestDestroyed(URLRequest* request) {
