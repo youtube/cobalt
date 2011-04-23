@@ -31,11 +31,16 @@ typedef struct {
 } LanguageAndCodePage;
 
 // static
-FileVersionInfo* FileVersionInfo::CreateFileVersionInfoForCurrentModule() {
-  FilePath app_path;
-  if (!PathService::Get(base::FILE_MODULE, &app_path))
+FileVersionInfo* FileVersionInfo::CreateFileVersionInfoForModule(
+    HMODULE module) {
+  // Note that the use of MAX_PATH is basically in line with what we do for
+  // all registered paths (PathProviderWin).
+  wchar_t system_buffer[MAX_PATH];
+  system_buffer[0] = 0;
+  if (!GetModuleFileName(module, system_buffer, MAX_PATH))
     return NULL;
 
+  FilePath app_path(system_buffer);
   return CreateFileVersionInfo(app_path);
 }
 

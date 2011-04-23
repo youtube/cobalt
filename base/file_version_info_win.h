@@ -16,10 +16,10 @@
 struct tagVS_FIXEDFILEINFO;
 typedef tagVS_FIXEDFILEINFO VS_FIXEDFILEINFO;
 
-class BASE_API FileVersionInfoWin : public FileVersionInfo {
+class FileVersionInfoWin : public FileVersionInfo {
  public:
-  FileVersionInfoWin(void* data, int language, int code_page);
-  ~FileVersionInfoWin();
+  BASE_API FileVersionInfoWin(void* data, int language, int code_page);
+  BASE_API ~FileVersionInfoWin();
 
   // Accessors to the different version properties.
   // Returns an empty string if the property is not found.
@@ -41,11 +41,11 @@ class BASE_API FileVersionInfoWin : public FileVersionInfo {
   virtual bool is_official_build();
 
   // Lets you access other properties not covered above.
-  bool GetValue(const wchar_t* name, std::wstring* value);
+  BASE_API bool GetValue(const wchar_t* name, std::wstring* value);
 
   // Similar to GetValue but returns a wstring (empty string if the property
   // does not exist).
-  std::wstring GetStringValue(const wchar_t* name);
+  BASE_API std::wstring GetStringValue(const wchar_t* name);
 
   // Get the fixed file info if it exists. Otherwise NULL
   VS_FIXEDFILEINFO* fixed_file_info() { return fixed_file_info_; }

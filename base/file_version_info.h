@@ -6,11 +6,18 @@
 #define BASE_FILE_VERSION_INFO_H__
 #pragma once
 
+#include "build/build_config.h"
+
+#if defined(OS_WIN)
+#include <windows.h>
+// http://blogs.msdn.com/oldnewthing/archive/2004/10/25/247180.aspx
+extern "C" IMAGE_DOS_HEADER __ImageBase;
+#endif  // OS_WIN
+
 #include <string>
 
 #include "base/base_api.h"
 #include "base/string16.h"
-#include "build/build_config.h"
 
 class FilePath;
 
@@ -24,19 +31,37 @@ class FilePath;
 // version returns values from the Info.plist as appropriate. TODO(avi): make
 // this a less-obvious Windows-ism.
 
-class BASE_API FileVersionInfo {
+class FileVersionInfo {
  public:
   virtual ~FileVersionInfo() {}
 #if defined(OS_WIN) || defined(OS_MACOSX)
   // Creates a FileVersionInfo for the specified path. Returns NULL if something
   // goes wrong (typically the file does not exit or cannot be opened). The
   // returned object should be deleted when you are done with it.
-  static FileVersionInfo* CreateFileVersionInfo(const FilePath& file_path);
+  BASE_API static FileVersionInfo* CreateFileVersionInfo(
+      const FilePath& file_path);
 #endif  // OS_WIN || OS_MACOSX
+
+#if defined(OS_WIN)
+  // Creates a FileVersionInfo for the specified module. Returns NULL in case
+  // of error. The returned object should be deleted when you are done with it.
+  BASE_API static FileVersionInfo* CreateFileVersionInfoForModule(
+      HMODULE module);
 
   // Creates a FileVersionInfo for the current module. Returns NULL in case
   // of error. The returned object should be deleted when you are done with it.
+  // This function should be inlined so that the "current module" is evaluated
+  // correctly, instead of being the module that contains base.
+  __forceinline static FileVersionInfo*
+  CreateFileVersionInfoForCurrentModule() {
+    HMODULE module = reinterpret_cast<HMODULE>(&__ImageBase);
+    return CreateFileVersionInfoForModule(module);
+  }
+#else
+  // Creates a FileVersionInfo for the current module. Returns NULL in case
+  // of error. The returned object should be deleted when you are done with it.
   static FileVersionInfo* CreateFileVersionInfoForCurrentModule();
+#endif  // OS_WIN
 
   // Accessors to the different version properties.
   // Returns an empty string if the property is not found.
