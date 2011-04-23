@@ -43,6 +43,11 @@ class String16WithDirection {
   const string16& string() const { return string_; }
   TextDirection direction() const { return direction_; }
 
+  bool is_empty() const { return string_.empty(); }
+  bool operator==(const String16WithDirection& other) const {
+    return string_ == other.string_ && direction_ == other.direction_;
+  }
+
  private:
   string16 string_;
   TextDirection direction_;
