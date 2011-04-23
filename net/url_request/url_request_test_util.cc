@@ -287,8 +287,7 @@ void TestNetworkDelegate::OnResponseStarted(net::URLRequest* request) {
   }
 }
 
-void TestNetworkDelegate::OnReadCompleted(net::URLRequest* request,
-                                              int bytes_read) {
+void TestNetworkDelegate::OnCompleted(net::URLRequest* request) {
   if (request->status().status() == net::URLRequestStatus::FAILED) {
     error_count_++;
     last_os_error_ = request->status().os_error();
