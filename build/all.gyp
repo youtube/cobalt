@@ -257,6 +257,7 @@
       'target_name': 'chromium_builder_perf',
       'type': 'none',
       'dependencies': [
+        'chromium_builder_qa', # needed for pyauto
         '../chrome/chrome.gyp:memory_test',
         '../chrome/chrome.gyp:page_cycler_tests',
         '../chrome/chrome.gyp:plugin_tests',
