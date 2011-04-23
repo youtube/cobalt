@@ -210,7 +210,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   virtual void OnBeforeRedirect(net::URLRequest* request,
                                 const GURL& new_location);
   virtual void OnResponseStarted(net::URLRequest* request);
-  virtual void OnReadCompleted(net::URLRequest* request, int bytes_read);
+  virtual void OnCompleted(net::URLRequest* request);
   virtual void OnURLRequestDestroyed(net::URLRequest* request);
   virtual net::URLRequestJob* OnMaybeCreateURLRequestJob(
       net::URLRequest* request);
