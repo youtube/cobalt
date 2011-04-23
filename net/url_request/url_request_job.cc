@@ -321,18 +321,10 @@ void URLRequestJob::NotifyReadComplete(int bytes_read) {
     int filter_bytes_read = 0;
     if (ReadFilteredData(&filter_bytes_read)) {
       postfilter_bytes_read_ += filter_bytes_read;
-      if (request_->context() && request_->context()->network_delegate()) {
-        request_->context()->network_delegate()->NotifyReadCompleted(
-            request_, filter_bytes_read);
-      }
       request_->delegate()->OnReadCompleted(request_, filter_bytes_read);
     }
   } else {
     postfilter_bytes_read_ += bytes_read;
-    if (request_->context() && request_->context()->network_delegate()) {
-      request_->context()->network_delegate()->NotifyReadCompleted(
-          request_, bytes_read);
-    }
     request_->delegate()->OnReadCompleted(request_, bytes_read);
   }
 }
@@ -372,6 +364,11 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
 
   g_url_request_job_tracker.OnJobDone(this, status);
 
+  if (request_ && request_->context() &&
+      request_->context()->network_delegate()) {
+    request_->context()->network_delegate()->NotifyCompleted(request_);
+  }
+
   // Complete this notification later.  This prevents us from re-entering the
   // delegate if we're done because of a synchronous call.
   MessageLoop::current()->PostTask(
@@ -388,9 +385,6 @@ void URLRequestJob::CompleteNotifyDone() {
     // OnResponseStarted yet.
     if (has_handled_response_) {
       // We signal the error by calling OnReadComplete with a bytes_read of -1.
-      if (request_->context() && request_->context()->network_delegate())
-        request_->context()->network_delegate()->NotifyReadCompleted(
-            request_, -1);
       request_->delegate()->OnReadCompleted(request_, -1);
     } else {
       has_handled_response_ = true;
