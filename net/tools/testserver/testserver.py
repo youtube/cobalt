@@ -1242,8 +1242,10 @@ class SyncPageHandler(BasePageHandler):
   """Handler for the main HTTP sync server."""
 
   def __init__(self, request, client_address, sync_http_server):
-    get_handlers = [self.ChromiumSyncTimeHandler]
-    post_handlers = [self.ChromiumSyncCommandHandler]
+    get_handlers = [self.ChromiumSyncMigrationOpHandler,
+                    self.ChromiumSyncTimeHandler]
+    post_handlers = [self.ChromiumSyncCommandHandler,
+                     self.ChromiumSyncTimeHandler]
     BasePageHandler.__init__(self, request, client_address,
                              sync_http_server, [], get_handlers,
                              post_handlers, [])
@@ -1257,9 +1259,15 @@ class SyncPageHandler(BasePageHandler):
     if not self._ShouldHandleRequest(test_name):
       return False
 
+    # Chrome hates it if we send a response before reading the request.
+    if self.headers.getheader('content-length'):
+      length = int(self.headers.getheader('content-length'))
+      raw_request = self.rfile.read(length)
+
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/plain')
     self.end_headers()
+    self.wfile.write('0123456789')
     return True
 
   def ChromiumSyncCommandHandler(self):
@@ -1278,6 +1286,22 @@ class SyncPageHandler(BasePageHandler):
     http_response, raw_reply = self.server.HandleCommand(
         self.path, raw_request)
     self.send_response(http_response)
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True
+
+  def ChromiumSyncMigrationOpHandler(self):
+    """Handle a chromiumsync test-op command arriving via http.
+    """
+    test_name = "/chromiumsync/migrate"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+
+    http_response, raw_reply = self.server._sync_handler.HandleMigrate(
+        self.path)
+    self.send_response(http_response)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
     self.end_headers()
     self.wfile.write(raw_reply)
     return True
