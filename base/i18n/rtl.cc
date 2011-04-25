@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -157,12 +157,6 @@ TextDirection GetFirstStrongCharacterDirection(const string16& text) {
   return LEFT_TO_RIGHT;
 }
 
-#if defined(WCHAR_T_IS_UTF32)
-TextDirection GetFirstStrongCharacterDirection(const std::wstring& text) {
-  return GetFirstStrongCharacterDirection(WideToUTF16(text));
-}
-#endif
-
 #if defined(OS_WIN)
 bool AdjustStringForLocaleDirection(string16* text) {
   if (!IsRTL() || text->empty())
@@ -230,18 +224,6 @@ bool AdjustStringForLocaleDirection(string16* text) {
 
 #endif  // !OS_WIN
 
-#if defined(WCHAR_T_IS_UTF32)
-bool AdjustStringForLocaleDirection(std::wstring* text) {
-  string16 temp = WideToUTF16(*text);
-  if (AdjustStringForLocaleDirection(&temp)) {
-    // We should only touch the output on success.
-    *text = UTF16ToWide(temp);
-    return true;
-  }
-  return false;
-}
-#endif
-
 bool StringContainsStrongRTLChars(const string16& text) {
   const UChar* string = text.c_str();
   size_t length = text.length();
@@ -263,12 +245,6 @@ bool StringContainsStrongRTLChars(const string16& text) {
   return false;
 }
 
-#if defined(WCHAR_T_IS_UTF32)
-bool StringContainsStrongRTLChars(const std::wstring& text) {
-  return StringContainsStrongRTLChars(WideToUTF16(text));
-}
-#endif
-
 void WrapStringWithLTRFormatting(string16* text) {
   if (text->empty())
     return;
@@ -280,19 +256,6 @@ void WrapStringWithLTRFormatting(string16* text) {
   text->push_back(kPopDirectionalFormatting);
 }
 
-#if defined(WCHAR_T_IS_UTF32)
-void WrapStringWithLTRFormatting(std::wstring* text) {
-  if (text->empty())
-    return;
-
-  // Inserting an LRE (Left-To-Right Embedding) mark as the first character.
-  text->insert(0, 1, static_cast<wchar_t>(kLeftToRightEmbeddingMark));
-
-  // Inserting a PDF (Pop Directional Formatting) mark as the last character.
-  text->push_back(static_cast<wchar_t>(kPopDirectionalFormatting));
-}
-#endif
-
 void WrapStringWithRTLFormatting(string16* text) {
   if (text->empty())
     return;
@@ -303,19 +266,6 @@ void WrapStringWithRTLFormatting(string16* text) {
   // Inserting a PDF (Pop Directional Formatting) mark as the last character.
   text->push_back(kPopDirectionalFormatting);
 }
-
-#if defined(WCHAR_T_IS_UTF32)
-void WrapStringWithRTLFormatting(std::wstring* text) {
-  if (text->empty())
-    return;
-
-  // Inserting an RLE (Right-To-Left Embedding) mark as the first character.
-  text->insert(0, 1, static_cast<wchar_t>(kRightToLeftEmbeddingMark));
-
-  // Inserting a PDF (Pop Directional Formatting) mark as the last character.
-  text->push_back(static_cast<wchar_t>(kPopDirectionalFormatting));
-}
-#endif
 
 void WrapPathWithLTRFormatting(const FilePath& path,
                                string16* rtl_safe_path) {
