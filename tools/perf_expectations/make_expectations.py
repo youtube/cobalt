@@ -8,11 +8,16 @@ import hashlib
 import math
 import optparse
 import re
-import simplejson
 import subprocess
 import sys
 import time
 import urllib2
+
+
+try:
+  import json
+except ImportError:
+  import simplejson as json
 
 
 __version__ = '1.0'
@@ -40,11 +45,11 @@ def ConvertJsonIntoDict(string):
     raise Exception('JSON data missing')
 
   try:
-    json = simplejson.loads(string)
+    jsondata = json.loads(string)
   except ValueError, e:
     print >> sys.stderr, ('Error parsing string: "%s"' % string)
     raise e
-  return json
+  return jsondata
 
 
 # Floating point representation of last time we fetched a URL.
@@ -97,13 +102,15 @@ def WriteJson(filename, data, keys):
 
     # Include an updated checksum.
     sha1 = hashlib.sha1()
+    rowdata = [str(possibly_unicode_string).encode('ascii')
+               for possibly_unicode_string in rowdata]
     sha1.update(str(rowdata) + key)
     rowdata.append('"sha1": "%s"' % sha1.hexdigest()[0:8])
 
     jsondata.append('"%s": {%s}' % (key, ', '.join(rowdata)))
   jsondata.append('"load": true')
-  json = '{%s\n}' % ',\n '.join(jsondata)
-  file.write(json + '\n')
+  jsontext = '{%s\n}' % ',\n '.join(jsondata)
+  file.write(jsontext + '\n')
   file.close()
   return True
 
@@ -201,27 +208,27 @@ def Main(args):
     # Find the high and low values for each of the traces.
     scanning = False
     for line in summarylist:
-      json = ConvertJsonIntoDict(line)
-      if int(json['rev']) <= revb:
+      jsondata = ConvertJsonIntoDict(line)
+      if int(jsondata['rev']) <= revb:
         scanning = True
-      if int(json['rev']) < reva:
+      if int(jsondata['rev']) < reva:
         break
 
       # We found the upper revision in the range.  Scan for trace data until we
       # find the lower revision in the range.
       if scanning:
         for trace in traces:
-          if trace not in json['traces']:
+          if trace not in jsondata['traces']:
             OutputMessage('trace %s missing' % trace)
             continue
-          if type(json['traces'][trace]) != type([]):
+          if type(jsondata['traces'][trace]) != type([]):
             OutputMessage('trace %s format not recognized' % trace)
             continue
           try:
-            tracevalue = float(json['traces'][trace][0])
+            tracevalue = float(jsondata['traces'][trace][0])
           except ValueError:
             OutputMessage('trace %s value error: %s' % (
-                trace, str(json['traces'][trace][0])))
+                trace, str(jsondata['traces'][trace][0])))
             continue
 
           for bound in ['high', 'low']:
