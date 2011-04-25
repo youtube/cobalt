@@ -31,28 +31,6 @@ enum TextDirection {
   LEFT_TO_RIGHT,
 };
 
-// A string along with the text direction it should be displayed in.
-// Conceptually this is a struct; we just use 'class' to make it easier for
-// others to forward-declare us with 'class String16WithDirection'.
-class String16WithDirection {
- public:
-  String16WithDirection() : direction_(UNKNOWN_DIRECTION) { }
-  String16WithDirection(const string16& str, TextDirection dir)
-      : string_(str), direction_(dir) { }
-
-  const string16& string() const { return string_; }
-  TextDirection direction() const { return direction_; }
-
-  bool is_empty() const { return string_.empty(); }
-  bool operator==(const String16WithDirection& other) const {
-    return string_ == other.string_ && direction_ == other.direction_;
-  }
-
- private:
-  string16 string_;
-  TextDirection direction_;
-};
-
 // Get the locale that the currently running process has been configured to use.
 // The return value is of the form language[-country] (e.g., en-US) where the
 // language is the 2 or 3 letter code from ISO-639.
