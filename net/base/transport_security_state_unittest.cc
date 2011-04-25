@@ -553,4 +553,17 @@ TEST_F(TransportSecurityStateTest, PublicKeyHashes) {
                           sizeof(hash.data)));
 }
 
+TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
+  scoped_refptr<TransportSecurityState> state(
+      new TransportSecurityState);
+
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "chrome.google.com",
+                                      true));
+  std::vector<SHA1Fingerprint> hashes;
+  // This essential checks that a built-in list does exist.
+  EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(hashes));
+}
+
 }  // namespace net
