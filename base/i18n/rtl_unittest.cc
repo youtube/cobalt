@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,73 +24,73 @@ class RTLTest : public PlatformTest {
 
 TEST_F(RTLTest, GetFirstStrongCharacterDirection) {
   // Test pure LTR string.
-  std::wstring string(L"foo bar");
+  string16 string(ASCIIToUTF16("foo bar"));
   EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test bidi string in which the first character with strong directionality
   // is a character with type L.
-  string.assign(L"foo \x05d0 bar");
+  string.assign(WideToUTF16(L"foo \x05d0 bar"));
   EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test bidi string in which the first character with strong directionality
   // is a character with type R.
-  string.assign(L"\x05d0 foo bar");
+  string.assign(WideToUTF16(L"\x05d0 foo bar"));
   EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test bidi string which starts with a character with weak directionality
   // and in which the first character with strong directionality is a character
   // with type L.
-  string.assign(L"!foo \x05d0 bar");
+  string.assign(WideToUTF16(L"!foo \x05d0 bar"));
   EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test bidi string which starts with a character with weak directionality
   // and in which the first character with strong directionality is a character
   // with type R.
-  string.assign(L",\x05d0 foo bar");
+  string.assign(WideToUTF16(L",\x05d0 foo bar"));
   EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test bidi string in which the first character with strong directionality
   // is a character with type LRE.
-  string.assign(L"\x202a \x05d0 foo  bar");
+  string.assign(WideToUTF16(L"\x202a \x05d0 foo  bar"));
   EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test bidi string in which the first character with strong directionality
   // is a character with type LRO.
-  string.assign(L"\x202d \x05d0 foo  bar");
+  string.assign(WideToUTF16(L"\x202d \x05d0 foo  bar"));
   EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test bidi string in which the first character with strong directionality
   // is a character with type RLE.
-  string.assign(L"\x202b foo \x05d0 bar");
+  string.assign(WideToUTF16(L"\x202b foo \x05d0 bar"));
   EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test bidi string in which the first character with strong directionality
   // is a character with type RLO.
-  string.assign(L"\x202e foo \x05d0 bar");
+  string.assign(WideToUTF16(L"\x202e foo \x05d0 bar"));
   EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test bidi string in which the first character with strong directionality
   // is a character with type AL.
-  string.assign(L"\x0622 foo \x05d0 bar");
+  string.assign(WideToUTF16(L"\x0622 foo \x05d0 bar"));
   EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test a string without strong directionality characters.
-  string.assign(L",!.{}");
+  string.assign(ASCIIToUTF16(",!.{}"));
   EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
   // Test empty string.
-  string.assign(L"");
+  string.assign(ASCIIToUTF16(""));
   EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
             base::i18n::GetFirstStrongCharacterDirection(string));
 
@@ -98,9 +98,9 @@ TEST_F(RTLTest, GetFirstStrongCharacterDirection) {
   // http://demo.icu-project.org/icu-bin/ubrowse?scr=151&b=10910 for more
   // information).
 #if defined(WCHAR_T_IS_UTF32)
-  string.assign(L" ! \x10910" L"abc 123");
+  string.assign(WideToUTF16(L" ! \x10910" L"abc 123"));
 #elif defined(WCHAR_T_IS_UTF16)
-  string.assign(L" ! \xd802\xdd10" L"abc 123");
+  string.assign(WideToUTF16(L" ! \xd802\xdd10" L"abc 123"));
 #else
 #error wchar_t should be either UTF-16 or UTF-32
 #endif
@@ -108,9 +108,9 @@ TEST_F(RTLTest, GetFirstStrongCharacterDirection) {
             base::i18n::GetFirstStrongCharacterDirection(string));
 
 #if defined(WCHAR_T_IS_UTF32)
-  string.assign(L" ! \x10401" L"abc 123");
+  string.assign(WideToUTF16(L" ! \x10401" L"abc 123"));
 #elif defined(WCHAR_T_IS_UTF16)
-  string.assign(L" ! \xd801\xdc01" L"abc 123");
+  string.assign(WideToUTF16(L" ! \xd801\xdc01" L"abc 123"));
 #else
 #error wchar_t should be either UTF-16 or UTF-32
 #endif
