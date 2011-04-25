@@ -136,9 +136,6 @@ CallbackFunc* GetStaticSingleton() {
   return &CallbackSingletonWithStaticTrait::GetInstance()->callback_;
 }
 
-void ResurrectStaticSingleton() {
-}
-
 }  // namespace
 
 class SingletonTest : public testing::Test {
