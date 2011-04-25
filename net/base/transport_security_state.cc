@@ -336,6 +336,21 @@ bool TransportSecurityState::LoadEntries(const std::string& input,
   return Deserialise(input, dirty, &enabled_hosts_);
 }
 
+static bool AddHash(const std::string& type_and_base64,
+                    std::vector<SHA1Fingerprint>* out) {
+  std::string hash_str;
+  if (type_and_base64.find("sha1/") == 0 &&
+      base::Base64Decode(type_and_base64.substr(5, type_and_base64.size() - 5),
+                         &hash_str) &&
+      hash_str.size() == base::SHA1_LENGTH) {
+    SHA1Fingerprint hash;
+    memcpy(hash.data, hash_str.data(), sizeof(hash.data));
+    out->push_back(hash);
+    return true;
+  }
+  return false;
+}
+
 // static
 bool TransportSecurityState::Deserialise(
     const std::string& input,
@@ -373,17 +388,8 @@ bool TransportSecurityState::Deserialise(
       size_t num_pins = pins_list->GetSize();
       for (size_t i = 0; i < num_pins; ++i) {
         std::string type_and_base64;
-        std::string hash_str;
-        SHA1Fingerprint hash;
-        if (pins_list->GetString(i, &type_and_base64) &&
-            type_and_base64.find("sha1/") == 0 &&
-            base::Base64Decode(
-                type_and_base64.substr(5, type_and_base64.size() - 5),
-                &hash_str) &&
-            hash_str.size() == base::SHA1_LENGTH) {
-          memcpy(hash.data, hash_str.data(), sizeof(hash.data));
-          public_key_hashes.push_back(hash);
-        }
+        if (pins_list->GetString(i, &type_and_base64))
+          AddHash(type_and_base64, &public_key_hashes);
       }
     }
 
@@ -482,6 +488,43 @@ std::string TransportSecurityState::CanonicalizeHost(const std::string& host) {
   return new_host;
 }
 
+struct HSTSPreload {
+  uint8 length;
+  bool include_subdomains;
+  char dns_name[30];
+  bool https_required;
+  const char** required_hashes;
+};
+
+static bool HasPreload(const struct HSTSPreload* entries, size_t num_entries,
+                       const std::string& canonicalized_host, size_t i,
+                       TransportSecurityState::DomainState* out, bool* ret) {
+  for (size_t j = 0; j < num_entries; j++) {
+    if (entries[j].length == canonicalized_host.size() - i &&
+        memcmp(entries[j].dns_name, &canonicalized_host[i],
+               entries[j].length) == 0) {
+      if (!entries[j].include_subdomains && i != 0) {
+        *ret = false;
+      } else {
+        out->include_subdomains = entries[j].include_subdomains;
+        *ret = true;
+        if (!entries[j].https_required)
+          out->mode = TransportSecurityState::DomainState::MODE_NONE;
+        if (entries[j].required_hashes) {
+          const char** hash = entries[j].required_hashes;
+          while (*hash) {
+            bool ok = AddHash(*hash, &out->public_key_hashes);
+            DCHECK(ok);
+            hash++;
+          }
+        }
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 // IsPreloadedSTS returns true if the canonicalized hostname should always be
 // considered to have STS enabled.
 // static
@@ -504,63 +547,78 @@ bool TransportSecurityState::IsPreloadedSTS(
     Deserialise(cmd_line_hsts, &dirty, &hosts);
   }
 
+  // These hashes are base64 encodings of SHA1 hashes for cert public keys.
+  static const char kCertPKHashVerisignClass3[] =
+      "sha1/4n972HfV354KP560yw4uqe/baXc=";
+  static const char kCertPKHashVerisignClass3G3[] =
+      "sha1/IvGeLsbqzPxdI0b0wuj2xVTdXgc=";
+  static const char kCertPKHashGoogle1024[] =
+      "sha1/QMVAHW+MuvCLAO3vse6H0AWzuc0=";
+  static const char kCertPKHashGoogle2048[] =
+      "sha1/AbkhxY0L343gKf+cki7NVWp+ozk=";
+  static const char kCertPKHashEquifaxSecureCA[] =
+      "sha1/SOZo+SvSspXXR9gjIBBPM5iQn9Q=";
+  static const char kCertPKHashGeoTrustGlobalCA[] =
+      "sha1/wHqYaI2J+6sFZAwRfap9ZbjKzE4=";
+  static const char* kGoogleAcceptableCerts[] = {
+    kCertPKHashVerisignClass3,
+    kCertPKHashVerisignClass3G3,
+    kCertPKHashGoogle1024,
+    kCertPKHashGoogle2048,
+    kCertPKHashEquifaxSecureCA,
+    kCertPKHashGeoTrustGlobalCA,
+    0,
+  };
+
   // In the medium term this list is likely to just be hardcoded here. This,
   // slightly odd, form removes the need for additional relocations records.
-  static const struct {
-    uint8 length;
-    bool include_subdomains;
-    char dns_name[30];
-  } kPreloadedSTS[] = {
-    {16, false, "\003www\006paypal\003com"},
-    {16, false, "\003www\006elanex\003biz"},
-    {12, true,  "\006jottit\003com"},
-    {19, true,  "\015sunshinepress\003org"},
-    {21, false, "\003www\013noisebridge\003net"},
-    {10, false, "\004neg9\003org"},
-    {12, true, "\006riseup\003net"},
-    {11, false, "\006factor\002cc"},
-    {22, false, "\007members\010mayfirst\003org"},
-    {22, false, "\007support\010mayfirst\003org"},
-    {17, false, "\002id\010mayfirst\003org"},
-    {20, false, "\005lists\010mayfirst\003org"},
-    {19, true, "\015splendidbacon\003com"},
-    {19, true, "\006health\006google\003com"},
-    {21, true, "\010checkout\006google\003com"},
-    {19, true, "\006chrome\006google\003com"},
-    {26, false, "\006latest\006chrome\006google\003com"},
-    {28, false, "\016aladdinschools\007appspot\003com"},
-    {14, true, "\011ottospora\002nl"},
-    {17, true, "\004docs\006google\003com"},
-    {18, true, "\005sites\006google\003com"},
-    {25, true, "\014spreadsheets\006google\003com"},
-    {22, false, "\011appengine\006google\003com"},
-    {25, false, "\003www\017paycheckrecords\003com"},
-    {20, true, "\006market\007android\003com"},
-    {14, false, "\010lastpass\003com"},
-    {18, false, "\003www\010lastpass\003com"},
-    {14, true, "\010keyerror\003com"},
-    {22, true, "\011encrypted\006google\003com"},
-    {13, false, "\010entropia\002de"},
-    {17, false, "\003www\010entropia\002de"},
-    {21, true, "\010accounts\006google\003com"},
+  static const struct HSTSPreload kPreloadedSTS[] = {
+    {16, false, "\003www\006paypal\003com", true, 0 },
+    {16, false, "\003www\006elanex\003biz", true, 0 },
+    {12, true,  "\006jottit\003com", true, 0 },
+    {19, true,  "\015sunshinepress\003org", true, 0 },
+    {21, false, "\003www\013noisebridge\003net", true, 0 },
+    {10, false, "\004neg9\003org", true, 0 },
+    {12, true, "\006riseup\003net", true, 0 },
+    {11, false, "\006factor\002cc", true, 0 },
+    {22, false, "\007members\010mayfirst\003org", true, 0 },
+    {22, false, "\007support\010mayfirst\003org", true, 0 },
+    {17, false, "\002id\010mayfirst\003org", true, 0 },
+    {20, false, "\005lists\010mayfirst\003org", true, 0 },
+    {19, true, "\015splendidbacon\003com", true, 0 },
+    {19, true, "\006health\006google\003com", true, 0 },
+    {21, true, "\010checkout\006google\003com", true, 0 },
+    {19, true, "\006chrome\006google\003com", true, kGoogleAcceptableCerts },
+    {26, false, "\006latest\006chrome\006google\003com", true, 0 },
+    {28, false, "\016aladdinschools\007appspot\003com", true, 0 },
+    {14, true, "\011ottospora\002nl", true, 0 },
+    {17, true, "\004docs\006google\003com", true, 0 },
+    {18, true, "\005sites\006google\003com", true, 0 },
+    {25, true, "\014spreadsheets\006google\003com", true, 0 },
+    {22, false, "\011appengine\006google\003com", true, 0 },
+    {25, false, "\003www\017paycheckrecords\003com", true, 0 },
+    {20, true, "\006market\007android\003com", true, 0 },
+    {14, false, "\010lastpass\003com", true, 0 },
+    {18, false, "\003www\010lastpass\003com", true, 0 },
+    {14, true, "\010keyerror\003com", true, 0 },
+    {22, true, "\011encrypted\006google\003com", true, 0 },
+    {13, false, "\010entropia\002de", true, 0 },
+    {17, false, "\003www\010entropia\002de", true, 0 },
+    {21, true, "\010accounts\006google\003com", true, 0 },
 #if defined(OS_CHROMEOS)
-    {17, true, "\004mail\006google\003com"},
-    {13, false, "\007twitter\003com"},
-    {17, false, "\003www\007twitter\003com"},
-    {17, false, "\003api\007twitter\003com"},
-    {17, false, "\003dev\007twitter\003com"},
-    {22, false, "\010business\007twitter\003com"},
+    {17, true, "\004mail\006google\003com", true, 0 },
+    {13, false, "\007twitter\003com", true, 0 },
+    {17, false, "\003www\007twitter\003com", true, 0 },
+    {17, false, "\003api\007twitter\003com", true, 0 },
+    {17, false, "\003dev\007twitter\003com", true, 0},
+    {22, false, "\010business\007twitter\003com", true, 0 },
 #endif
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
-  static const struct {
-    uint8 length;
-    bool include_subdomains;
-    char dns_name[30];
-  } kPreloadedSNISTS[] = {
-    {11, true, "\005gmail\003com"},
-    {16, true, "\012googlemail\003com"},
+  static const struct HSTSPreload kPreloadedSNISTS[] = {
+    {11, true, "\005gmail\003com", true, 0 },
+    {16, true, "\012googlemail\003com", true, 0 },
   };
   static const size_t kNumPreloadedSNISTS = ARRAYSIZE_UNSAFE(kPreloadedSNISTS);
 
@@ -575,27 +633,15 @@ bool TransportSecurityState::IsPreloadedSTS(
       out->preloaded = true;
       return true;
     }
-    for (size_t j = 0; j < kNumPreloadedSTS; j++) {
-      if (kPreloadedSTS[j].length == canonicalized_host.size() - i &&
-          memcmp(kPreloadedSTS[j].dns_name, &canonicalized_host[i],
-                 kPreloadedSTS[j].length) == 0) {
-        if (!kPreloadedSTS[j].include_subdomains && i != 0)
-          return false;
-        out->include_subdomains = kPreloadedSTS[j].include_subdomains;
-        return true;
-      }
+    bool ret;
+    if (HasPreload(kPreloadedSTS, kNumPreloadedSTS, canonicalized_host, i, out,
+                   &ret)) {
+      return ret;
     }
-    if (sni_available) {
-      for (size_t j = 0; j < kNumPreloadedSNISTS; j++) {
-        if (kPreloadedSNISTS[j].length == canonicalized_host.size() - i &&
-            memcmp(kPreloadedSNISTS[j].dns_name, &canonicalized_host[i],
-                   kPreloadedSNISTS[j].length) == 0) {
-          if (!kPreloadedSNISTS[j].include_subdomains && i != 0)
-            return false;
-          out->include_subdomains = kPreloadedSNISTS[j].include_subdomains;
-          return true;
-        }
-      }
+    if (sni_available &&
+        HasPreload(kPreloadedSNISTS, kNumPreloadedSNISTS, canonicalized_host, i,
+                   out, &ret)) {
+      return ret;
     }
   }
 
