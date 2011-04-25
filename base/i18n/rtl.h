@@ -67,9 +67,6 @@ TextDirection GetTextDirectionForLocale(const char* locale_name);
 // directionality characters. Please refer to http://unicode.org/reports/tr9/
 // for more information.
 TextDirection GetFirstStrongCharacterDirection(const string16& text);
-#if defined(WCHAR_T_IS_UTF32)
-TextDirection GetFirstStrongCharacterDirection(const std::wstring& text);
-#endif
 
 // Given the string in |text|, this function modifies the string in place with
 // the appropriate Unicode formatting marks that mark the string direction
@@ -94,33 +91,21 @@ TextDirection GetFirstStrongCharacterDirection(const std::wstring& text);
 // language support installed by default, inserting the direction Unicode mark
 // results in Windows displaying squares.
 bool AdjustStringForLocaleDirection(string16* text);
-#if defined(WCHAR_T_IS_UTF32)
-bool AdjustStringForLocaleDirection(std::wstring* text);
-#endif
 
 // Returns true if the string contains at least one character with strong right
 // to left directionality; that is, a character with either R or AL Unicode
 // BiDi character type.
 bool StringContainsStrongRTLChars(const string16& text);
-#if defined(WCHAR_T_IS_UTF32)
-bool StringContainsStrongRTLChars(const std::wstring& text);
-#endif
 
 // Wraps a string with an LRE-PDF pair which essentialy marks the string as a
 // Left-To-Right string. Doing this is useful in order to make sure LTR
 // strings are rendered properly in an RTL context.
 void WrapStringWithLTRFormatting(string16* text);
-#if defined(WCHAR_T_IS_UTF32)
-void WrapStringWithLTRFormatting(std::wstring* text);
-#endif
 
 // Wraps a string with an RLE-PDF pair which essentialy marks the string as a
 // Right-To-Left string. Doing this is useful in order to make sure RTL
 // strings are rendered properly in an LTR context.
 void WrapStringWithRTLFormatting(string16* text);
-#if defined(WCHAR_T_IS_UTF32)
-void WrapStringWithRTLFormatting(std::wstring* text);
-#endif
 
 // Wraps file path to get it to display correctly in RTL UI. All filepaths
 // should be passed through this function before display in UI for RTL locales.
