@@ -78,9 +78,17 @@ class TransportSecurityState :
 
   // Returns true if |host| has TransportSecurity enabled, in the context of
   // |sni_available|. In that case, *result is filled out.
+  // Note that *result is always overwritten on every call.
   bool IsEnabledForHost(DomainState* result,
                         const std::string& host,
                         bool sni_available);
+
+  // Returns true if |host| has any SSL certificate pinning, in the context of
+  // |sni_available|. In that case, *result is filled out.
+  // Note that *result is always overwritten on every call.
+  bool HasPinsForHost(DomainState* result,
+                      const std::string& host,
+                      bool sni_available);
 
   // Deletes all records created since a given time.
   void DeleteSince(const base::Time& time);
@@ -122,6 +130,10 @@ class TransportSecurityState :
   // If we have a callback configured, call it to let our serialiser know that
   // our state is dirty.
   void DirtyNotify();
+
+  bool HasMetadata(DomainState* result,
+                   const std::string& host,
+                   bool sni_available);
 
   static std::string CanonicalizeHost(const std::string& host);
   static bool IsPreloadedSTS(const std::string& canonicalized_host,
