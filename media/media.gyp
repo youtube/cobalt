@@ -483,6 +483,7 @@
       'type': 'executable',
       'dependencies': [
         'media',
+        '../base/base.gyp:base',
       ],
       'sources': [
         'tools/wav_ola_test/wav_ola_test.cc'
@@ -581,6 +582,7 @@
           'type': 'executable',
           'dependencies': [
             'media',
+            '../base/base.gyp:base',
             '../ui/gfx/gl/gl.gyp:gl',
           ],
           'sources': [
