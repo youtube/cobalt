@@ -662,7 +662,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
       ssl_info.is_valid() &&
       context_->transport_security_state()) {
     TransportSecurityState::DomainState domain_state;
-    if (context_->transport_security_state()->IsEnabledForHost(
+    if (context_->transport_security_state()->HasPinsForHost(
             &domain_state,
             request_->url().host(),
             context_->IsSNIAvailable()) &&
