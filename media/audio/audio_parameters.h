@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define MEDIA_AUDIO_AUDIO_PARAMETERS_H_
 
 #include "base/basictypes.h"
+#include "media/base/audio_decoder_config.h"
 
 struct AudioParameters {
   // Compare is useful when AudioParameters is used as a key in std::map.
@@ -30,6 +31,8 @@ struct AudioParameters {
 
   AudioParameters();
 
+  explicit AudioParameters(const media::AudioDecoderConfig& config);
+
   AudioParameters(Format format, int channels, int sample_rate,
                   int bits_per_sample, int samples_per_packet);
 
@@ -39,6 +42,9 @@ struct AudioParameters {
 
   // Returns size of audio packets in bytes.
   int GetPacketSize() const;
+
+  // Returns the number of bytes representing one second of audio.
+  int GetBytesPerSecond() const;
 
   Format format;           // Format of the stream.
   int channels;            // Number of channels.

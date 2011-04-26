@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,14 @@ AudioParameters::AudioParameters()
       channels(0),
       sample_rate(0),
       bits_per_sample(0),
+      samples_per_packet(0) {
+}
+
+AudioParameters::AudioParameters(const media::AudioDecoderConfig& config)
+    : format(AUDIO_PCM_LINEAR),
+      channels(config.channels_per_sample),
+      sample_rate(config.sample_rate),
+      bits_per_sample(config.bits_per_channel),
       samples_per_packet(0) {
 }
 
@@ -36,6 +44,10 @@ bool AudioParameters::IsValid() const {
 
 int AudioParameters::GetPacketSize() const {
   return samples_per_packet * channels * bits_per_sample / 8;
+}
+
+int AudioParameters::GetBytesPerSecond() const {
+  return sample_rate * channels * bits_per_sample / 8;
 }
 
 bool AudioParameters::Compare::operator()(
