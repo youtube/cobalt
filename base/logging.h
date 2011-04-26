@@ -622,7 +622,7 @@ enum { DEBUG_MODE = ENABLE_DLOG };
   COMPACT_GOOGLE_LOG_EX_ERROR_REPORT(ClassName , ##__VA_ARGS__)
 #define COMPACT_GOOGLE_LOG_DCHECK COMPACT_GOOGLE_LOG_ERROR_REPORT
 const LogSeverity LOG_DCHECK = LOG_ERROR_REPORT;
-extern DcheckState g_dcheck_state;
+BASE_API extern DcheckState g_dcheck_state;
 #define DCHECK_IS_ON()                                                  \
   ((::logging::g_dcheck_state ==                                        \
     ::logging::ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS) &&        \
