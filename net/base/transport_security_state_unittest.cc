@@ -561,9 +561,31 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "chrome.google.com",
                                       true));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state, "chrome.google.com", true));
   std::vector<SHA1Fingerprint> hashes;
   // This essential checks that a built-in list does exist.
   EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(hashes));
+  EXPECT_FALSE(state->HasPinsForHost(&domain_state, "www.paypal.com", true));
+  EXPECT_FALSE(state->HasPinsForHost(&domain_state, "twitter.com", true));
+}
+
+TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {
+  scoped_refptr<TransportSecurityState> state(
+      new TransportSecurityState);
+
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "www.google-analytics.com",
+                                       false));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "www.google-analytics.com",
+                                       true));
+  EXPECT_FALSE(state->HasPinsForHost(&domain_state,
+                                     "www.google-analytics.com",
+                                     false));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state,
+                                    "www.google-analytics.com",
+                                    true));
 }
 
 }  // namespace net
