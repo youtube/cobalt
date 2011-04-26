@@ -84,17 +84,31 @@ static std::string IncludeNUL(const char* in) {
   return std::string(in, strlen(in) + 1);
 }
 
+bool TransportSecurityState::HasPinsForHost(DomainState* result,
+                                            const std::string& host,
+                                            bool sni_available) {
+  return HasMetadata(result, host, sni_available) &&
+         !result->public_key_hashes.empty();
+}
+
 bool TransportSecurityState::IsEnabledForHost(DomainState* result,
                                               const std::string& host,
                                               bool sni_available) {
+  return HasMetadata(result, host, sni_available) &&
+         result->mode != DomainState::MODE_NONE;
+}
+
+bool TransportSecurityState::HasMetadata(DomainState* result,
+                                         const std::string& host,
+                                         bool sni_available) {
+  *result = DomainState();
+
   const std::string canonicalized_host = CanonicalizeHost(host);
   if (canonicalized_host.empty())
     return false;
 
   if (IsPreloadedSTS(canonicalized_host, sni_available, result))
-    return result->mode != DomainState::MODE_NONE;
-
-  *result = DomainState();
+    return true;
 
   base::Time current_time(base::Time::Now());
 
@@ -534,8 +548,6 @@ bool TransportSecurityState::IsPreloadedSTS(
     DomainState* out) {
   out->preloaded = true;
   out->mode = DomainState::MODE_STRICT;
-  out->created = base::Time::FromTimeT(0);
-  out->expiry = out->created;
   out->include_subdomains = false;
 
   std::map<std::string, DomainState> hosts;
@@ -610,7 +622,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {13, false, "\007twitter\003com", true, 0 },
     {17, false, "\003www\007twitter\003com", true, 0 },
     {17, false, "\003api\007twitter\003com", true, 0 },
-    {17, false, "\003dev\007twitter\003com", true, 0},
+    {17, false, "\003dev\007twitter\003com", true, 0 },
     {22, false, "\010business\007twitter\003com", true, 0 },
 #endif
   };
@@ -619,6 +631,10 @@ bool TransportSecurityState::IsPreloadedSTS(
   static const struct HSTSPreload kPreloadedSNISTS[] = {
     {11, true, "\005gmail\003com", true, 0 },
     {16, true, "\012googlemail\003com", true, 0 },
+    // TODO(cevans) -- switch to the subdomain level, once we have a dedicated
+    // non-SNI HSTS entry for ssl.google-analytics.com.
+    {26, true, "\003www\020google-analytics\003com", false,
+     kGoogleAcceptableCerts },
   };
   static const size_t kNumPreloadedSNISTS = ARRAYSIZE_UNSAFE(kPreloadedSNISTS);
 
