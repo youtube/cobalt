@@ -1353,6 +1353,10 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
 // field trial policy.
 uint32 ApplyCwndFieldTrialPolicy(int cwnd) {
   base::FieldTrial* trial = base::FieldTrialList::Find("SpdyCwnd");
+  if (!trial) {
+      LOG(WARNING) << "Could not find \"SpdyCwnd\" in FieldTrialList";
+      return cwnd;
+  }
   if (trial->group_name() == "cwnd10")
     return 10;
   else if (trial->group_name() == "cwnd16")
