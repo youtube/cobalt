@@ -7,6 +7,8 @@
 #import <objc/runtime.h>
 #include <stdlib.h>
 
+#include <string>
+
 #include "base/logging.h"
 
 namespace base {
@@ -18,8 +20,8 @@ namespace {
 // if the property is marked "retain" or "copy". If the instance variable name
 // is not known (perhaps because it was not automatically associated with the
 // property by @synthesize) or if the property is not "retain" or "copy",
-// returns NULL.
-const char* ReleasableInstanceName(objc_property_t property) {
+// returns an empty string.
+std::string ReleasableInstanceName(objc_property_t property) {
   // TODO(mark): Starting in newer system releases, the Objective-C runtime
   // provides a function to break the property attribute string into
   // individual attributes (property_copyAttributeList), as well as a function
@@ -34,9 +36,17 @@ const char* ReleasableInstanceName(objc_property_t property) {
   // http://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/ObjCRuntimeGuide/Articles/ocrtPropertyIntrospection.html#//apple_ref/doc/uid/TP40008048-CH101-SW6
   const char* property_attributes = property_getAttributes(property);
 
+  std::string instance_name;
   bool releasable = false;
   while (*property_attributes) {
-    switch (*property_attributes) {
+    char name = *property_attributes;
+
+    const char* value = ++property_attributes;
+    while (*property_attributes && *property_attributes != ',') {
+      ++property_attributes;
+    }
+
+    switch (name) {
       // It might seem intelligent to check the type ('T') attribute to verify
       // that it identifies an NSObject-derived type (the attribute value
       // begins with '@'.) This is a bad idea beacuse it fails to identify
@@ -55,22 +65,25 @@ const char* ReleasableInstanceName(objc_property_t property) {
       case '&':  // retain
         releasable = true;
         break;
-      case 'V':
-        // 'V' is specified as the last attribute to occur, so if releasable
-        // wasn't set to true already, it won't be set to true now. Since 'V'
-        // is last, its value up to the end of the attribute string is the
-        // name of the instance variable backing the property.
-        if (!releasable || !*++property_attributes) {
-          return NULL;
-        }
-        return property_attributes;
+      case 'V':  // instance variable name
+        // 'V' is specified as the last attribute to occur in the
+        // documentation, but empirically, it's not always the last. In
+        // GC-supported or GC-required code, the 'P' (GC-eligible) attribute
+        // occurs after 'V'.
+        instance_name.assign(value, property_attributes - value);
+        break;
     }
-    char previous_char = *property_attributes;
-    while (*++property_attributes && previous_char != ',') {
-      previous_char = *property_attributes;
+
+    if (*property_attributes) {
+      ++property_attributes;
     }
   }
-  return NULL;
+
+  if (releasable) {
+    return instance_name;
+  }
+
+  return std::string();
 }
 
 }  // namespace
@@ -78,7 +91,7 @@ const char* ReleasableInstanceName(objc_property_t property) {
 void ObjCPropertyReleaser::Init(id object, Class classy) {
   DCHECK(!object_);
   DCHECK(!class_);
-  DCHECK([object isKindOfClass:classy]);
+  CHECK([object isKindOfClass:classy]);
 
   object_ = object;
   class_ = classy;
@@ -95,11 +108,13 @@ void ObjCPropertyReleaser::ReleaseProperties() {
        property_index < property_count;
        ++property_index) {
     objc_property_t property = properties[property_index];
-    const char* instance_name = ReleasableInstanceName(property);
-    if (instance_name) {
+    std::string instance_name = ReleasableInstanceName(property);
+    if (!instance_name.empty()) {
       id instance_value = nil;
-      object_getInstanceVariable(object_, instance_name,
-                                 (void**)&instance_value);
+      Ivar instance_variable =
+          object_getInstanceVariable(object_, instance_name.c_str(),
+                                     (void**)&instance_value);
+      CHECK(instance_variable);
       [instance_value release];
     }
   }
