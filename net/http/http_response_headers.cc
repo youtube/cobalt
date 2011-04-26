@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1047,8 +1047,7 @@ bool HttpResponseHeaders::GetTimeValuedHeader(const std::string& name,
   if (!EnumerateHeader(NULL, name, &value))
     return false;
 
-  std::wstring value_wide(value.begin(), value.end());  // inflate ascii
-  return Time::FromString(value_wide.c_str(), result);
+  return Time::FromString(value.c_str(), result);
 }
 
 bool HttpResponseHeaders::IsKeepAlive() const {

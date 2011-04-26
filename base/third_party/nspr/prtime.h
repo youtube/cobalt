@@ -230,7 +230,7 @@ NSPR_API(PRTimeParameters) PR_GMTParameters(const PRExplodedTime *gmt);
  * from the unit test.
  */
 
-BASE_API PRStatus PR_ParseTimeString (
+NSPR_API(PRStatus) PR_ParseTimeString (
 	const char *string,
 	PRBool default_to_gmt,
 	PRTime *result);
