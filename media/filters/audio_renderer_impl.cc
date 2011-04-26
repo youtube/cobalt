@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -72,19 +72,11 @@ void AudioRendererImpl::OnError(AudioOutputStream* stream, int code) {
   NOTIMPLEMENTED();
 }
 
-bool AudioRendererImpl::OnInitialize(const MediaFormat& media_format) {
-  // Parse out audio parameters.
-  AudioParameters params;
-  if (!ParseMediaFormat(media_format, &params.channels,
-                        &params.sample_rate, &params.bits_per_sample)) {
-    return false;
-  }
-
-  // Set packet size.
+bool AudioRendererImpl::OnInitialize(const AudioDecoderConfig& config) {
+  AudioParameters params(config);
   params.samples_per_packet = kSamplesPerBuffer;
 
-  bytes_per_second_ = params.sample_rate * params.channels *
-      params.bits_per_sample / 8;
+  bytes_per_second_ = params.GetBytesPerSecond();
 
   // Create our audio stream.
   stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStream(params);
