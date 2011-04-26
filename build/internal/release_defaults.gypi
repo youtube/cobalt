@@ -9,7 +9,6 @@
       'LinkIncremental': '1',
       'OptimizeReferences': '2',
       'EnableCOMDATFolding': '2',
-      'OptimizeForWindows98': '1',
     },
   },
 }
