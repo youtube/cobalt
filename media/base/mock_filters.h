@@ -214,7 +214,7 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
                                 FilterCallback* callback,
                                 StatisticsCallback* stats_callback));
-  MOCK_METHOD0(media_format, const MediaFormat&());
+  MOCK_METHOD0(config, AudioDecoderConfig());
   MOCK_METHOD1(ProduceAudioSamples, void(scoped_refptr<Buffer>));
 
   // change to public to allow unittest for access;

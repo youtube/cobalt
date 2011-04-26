@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,9 @@ class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
   explicit FFmpegAudioDecoder(MessageLoop* message_loop);
   virtual ~FFmpegAudioDecoder();
 
+  // AudioDecoder implementation.
+  virtual AudioDecoderConfig config();
+
  protected:
   virtual void DoInitialize(DemuxerStream* demuxer_stream, bool* success,
                             Task* done_cb);
@@ -35,6 +38,8 @@ class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
   // A FFmpeg defined structure that holds decoder information, this variable
   // is initialized in OnInitialize().
   AVCodecContext* codec_context_;
+
+  AudioDecoderConfig config_;
 
   // Estimated timestamp for next packet. Useful for packets without timestamps.
   base::TimeDelta estimated_next_timestamp_;

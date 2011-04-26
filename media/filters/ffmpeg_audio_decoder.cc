@@ -30,6 +30,7 @@ const size_t FFmpegAudioDecoder::kOutputBufferSize =
 FFmpegAudioDecoder::FFmpegAudioDecoder(MessageLoop* message_loop)
     : DecoderBase<AudioDecoder, Buffer>(message_loop),
       codec_context_(NULL),
+      config_(0, 0, 0),
       estimated_next_timestamp_(kNoTimestamp) {
 }
 
@@ -68,17 +69,10 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
     return;
   }
 
-  // When calling avcodec_find_decoder(), |codec_context_| might be altered by
-  // the decoder to give more accurate values of the output format of the
-  // decoder. So set the media format after a decoder is allocated.
-  // TODO(hclam): Reuse the information provided by the demuxer for now, we may
-  // need to wait until the first buffer is decoded to know the correct
-  // information.
-  media_format_.SetAsInteger(MediaFormat::kChannels, codec_context_->channels);
-  media_format_.SetAsInteger(MediaFormat::kSampleBits,
-      av_get_bits_per_sample_fmt(codec_context_->sample_fmt));
-  media_format_.SetAsInteger(MediaFormat::kSampleRate,
-      codec_context_->sample_rate);
+  config_.bits_per_channel =
+      av_get_bits_per_sample_fmt(codec_context_->sample_fmt);
+  config_.channels_per_sample = codec_context_->channels;
+  config_.sample_rate = codec_context_->sample_rate;
 
   // Prepare the output buffer.
   output_buffer_.reset(static_cast<uint8*>(av_malloc(kOutputBufferSize)));
@@ -87,6 +81,10 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
     return;
   }
   *success = true;
+}
+
+AudioDecoderConfig FFmpegAudioDecoder::config() {
+  return config_;
 }
 
 void FFmpegAudioDecoder::DoSeek(base::TimeDelta time, Task* done_cb) {
