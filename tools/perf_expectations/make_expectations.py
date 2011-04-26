@@ -88,6 +88,14 @@ def GetRowData(data, key):
   return rowdata
 
 
+def GetRowDigest(rowdata, key):
+  sha1 = hashlib.sha1()
+  rowdata = [str(possibly_unicode_string).encode('ascii')
+             for possibly_unicode_string in rowdata]
+  sha1.update(str(rowdata) + key)
+  return sha1.hexdigest()[0:8]
+
+
 def WriteJson(filename, data, keys):
   """Write a list of |keys| in |data| to the file specified in |filename|."""
   try:
@@ -99,14 +107,8 @@ def WriteJson(filename, data, keys):
   jsondata = []
   for key in keys:
     rowdata = GetRowData(data, key)
-
     # Include an updated checksum.
-    sha1 = hashlib.sha1()
-    rowdata = [str(possibly_unicode_string).encode('ascii')
-               for possibly_unicode_string in rowdata]
-    sha1.update(str(rowdata) + key)
-    rowdata.append('"sha1": "%s"' % sha1.hexdigest()[0:8])
-
+    rowdata.append('"sha1": "%s"' % GetRowDigest(rowdata, key))
     jsondata.append('"%s": {%s}' % (key, ', '.join(rowdata)))
   jsondata.append('"load": true')
   jsontext = '{%s\n}' % ',\n '.join(jsondata)
@@ -154,9 +156,9 @@ def Main(args):
     original_checksum = value.get('sha1', '')
     if 'sha1' in value:
       del value['sha1']
-    sha1 = hashlib.sha1()
-    sha1.update(str(GetRowData(perf, key)) + key)
-    if original_checksum == sha1.hexdigest()[0:8]:
+    rowdata = GetRowData(perf, key)
+    computed_checksum = GetRowDigest(rowdata, key)
+    if original_checksum == computed_checksum:
       OutputMessage('checksum matches, skipping')
       continue
 
