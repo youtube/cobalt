@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -185,12 +185,12 @@ class HttpResponseBodyDrainerTest : public testing::Test {
 
   HttpNetworkSession* CreateNetworkSession() const {
     HttpNetworkSession::Params params;
-    params.proxy_service = proxy_service_;
+    params.proxy_service = proxy_service_.get();
     params.ssl_config_service = ssl_config_service_;
     return new HttpNetworkSession(params);
   }
 
-  scoped_refptr<ProxyService> proxy_service_;
+  scoped_ptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   const scoped_refptr<HttpNetworkSession> session_;
   CloseResultWaiter result_waiter_;

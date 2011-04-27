@@ -172,7 +172,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   DnsRRResolver* const dnsrr_resolver_;
   DnsCertProvenanceChecker* const dns_cert_checker_;
   SSLHostInfoFactory* const ssl_host_info_factory_;
-  const scoped_refptr<ProxyService> proxy_service_;
+  ProxyService* const proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
 
   // Note: this ordering is important.

@@ -94,7 +94,7 @@ struct SessionDependencies {
 
   scoped_ptr<MockHostResolverBase> host_resolver;
   scoped_ptr<CertVerifier> cert_verifier;
-  scoped_refptr<ProxyService> proxy_service;
+  scoped_ptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
@@ -106,7 +106,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   params.client_socket_factory = &session_deps->socket_factory;
   params.host_resolver = session_deps->host_resolver.get();
   params.cert_verifier = session_deps->cert_verifier.get();
-  params.proxy_service = session_deps->proxy_service;
+  params.proxy_service = session_deps->proxy_service.get();
   params.ssl_config_service = session_deps->ssl_config_service;
   params.http_auth_handler_factory =
       session_deps->http_auth_handler_factory.get();
@@ -7410,10 +7410,10 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
       auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_SERVER);
     }
     if (test_config.proxy_url) {
-      session_deps.proxy_service =
-          ProxyService::CreateFixed(test_config.proxy_url);
+      session_deps.proxy_service.reset(
+          ProxyService::CreateFixed(test_config.proxy_url));
     } else {
-      session_deps.proxy_service = ProxyService::CreateDirect();
+      session_deps.proxy_service.reset(ProxyService::CreateDirect());
     }
 
     HttpRequestInfo request;
@@ -7489,7 +7489,7 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
   HttpAuthHandlerMock::Factory* auth_factory(
       new HttpAuthHandlerMock::Factory());
   session_deps.http_auth_handler_factory.reset(auth_factory);
-  session_deps.proxy_service = ProxyService::CreateDirect();
+  session_deps.proxy_service.reset(ProxyService::CreateDirect());
   session_deps.host_resolver->rules()->AddRule("www.example.com", "10.0.0.1");
   session_deps.host_resolver->set_synchronous_mode(true);
 

@@ -34,8 +34,7 @@ class URLRequestContext;
 // This class can be used to resolve the proxy server to use when loading a
 // HTTP(S) URL.  It uses the given ProxyResolver to handle the actual proxy
 // resolution.  See ProxyResolverV8 for example.
-class ProxyService : public base::RefCounted<ProxyService>,
-                     public NetworkChangeNotifier::IPAddressObserver,
+class ProxyService : public NetworkChangeNotifier::IPAddressObserver,
                      public ProxyConfigService::Observer,
                      public base::NonThreadSafe {
  public:
@@ -45,6 +44,8 @@ class ProxyService : public base::RefCounted<ProxyService>,
   ProxyService(ProxyConfigService* config_service,
                ProxyResolver* resolver,
                NetLog* net_log);
+
+  virtual ~ProxyService();
 
   // Used internally to handle PAC queries.
   // TODO(eroman): consider naming this simply "Request".
@@ -217,7 +218,6 @@ class ProxyService : public base::RefCounted<ProxyService>,
 #endif
 
  private:
-  friend class base::RefCounted<ProxyService>;
   FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);
   FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigFromPACToDirect);
   friend class PacRequest;
@@ -234,8 +234,6 @@ class ProxyService : public base::RefCounted<ProxyService>,
     STATE_WAITING_FOR_INIT_PROXY_RESOLVER,
     STATE_READY,
   };
-
-  virtual ~ProxyService();
 
   // Resets all the variables associated with the current proxy configuration,
   // and rewinds the current state to |STATE_NONE|. Returns the previous value

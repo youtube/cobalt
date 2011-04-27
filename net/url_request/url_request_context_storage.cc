@@ -62,7 +62,7 @@ void URLRequestContextStorage::set_http_auth_handler_factory(
 
 void URLRequestContextStorage::set_proxy_service(ProxyService* proxy_service) {
   context_->set_proxy_service(proxy_service);
-  proxy_service_ = proxy_service;
+  proxy_service_.reset(proxy_service);
 }
 
 void URLRequestContextStorage::set_ssl_config_service(
