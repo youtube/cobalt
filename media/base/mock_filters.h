@@ -217,9 +217,8 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD0(config, AudioDecoderConfig());
   MOCK_METHOD1(ProduceAudioSamples, void(scoped_refptr<Buffer>));
 
-  // change to public to allow unittest for access;
-  ConsumeAudioSamplesCallback* consume_audio_samples_callback() {
-    return AudioDecoder::consume_audio_samples_callback();
+  void ConsumeAudioSamplesForTest(scoped_refptr<Buffer> buffer) {
+    AudioDecoder::ConsumeAudioSamples(buffer);
   }
 
  protected:
