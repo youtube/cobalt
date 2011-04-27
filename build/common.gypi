@@ -1,4 +1,4 @@
-# Copyright (c) 2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -541,6 +541,13 @@
         'clang_chrome_plugins_flags':
             '<!(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)',
       }],
+
+      # Set 1 to enable ibus support. Currently it is only supported in touchui.
+      ['touchui==1 and chromeos==1', {
+        'use_ibus%': 1,
+      }, {
+        'use_ibus%': 0,
+      }]
     ],
   },
   'target_defaults': {
