@@ -35,13 +35,20 @@ namespace media {
 
 static const int kWidth = 1280;
 static const int kHeight = 720;
-static const FFmpegVideoDecoder::TimeTuple kTestPts1 =
+
+// Holds timestamp and duration data needed for properly enqueuing a frame.
+struct TimeTuple {
+  base::TimeDelta timestamp;
+  base::TimeDelta duration;
+};
+
+static const TimeTuple kTestPts1 =
     { base::TimeDelta::FromMicroseconds(123),
       base::TimeDelta::FromMicroseconds(50) };
-static const FFmpegVideoDecoder::TimeTuple kTestPts2 =
+static const TimeTuple kTestPts2 =
     { base::TimeDelta::FromMicroseconds(456),
       base::TimeDelta::FromMicroseconds(60) };
-static const FFmpegVideoDecoder::TimeTuple kTestPts3 =
+static const TimeTuple kTestPts3 =
     { base::TimeDelta::FromMicroseconds(789),
       base::TimeDelta::FromMicroseconds(60) };
 static const PipelineStatistics kStatistics;
@@ -261,79 +268,6 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_Successful) {
   EXPECT_EQ(kHeight, height);
 }
 
-TEST_F(FFmpegVideoDecoderTest, FindPtsAndDuration) {
-  // Start with an empty timestamp queue.
-  PtsHeap pts_heap;
-
-  // Use 1/2 second for simple results.  Thus, calculated durations should be
-  // 500000 microseconds.
-  AVRational time_base = {1, 2};
-
-  FFmpegVideoDecoder::TimeTuple last_pts;
-  last_pts.timestamp = kNoTimestamp;
-  last_pts.duration = kNoTimestamp;
-
-  // Simulate an uninitialized |video_frame| and |last_pts| where we cannot
-  // determine a timestamp at all.
-  video_frame_->SetTimestamp(kNoTimestamp);
-  video_frame_->SetDuration(kNoTimestamp);
-  FFmpegVideoDecoder::TimeTuple result_pts =
-      decoder_->FindPtsAndDuration(time_base, &pts_heap,
-                                   last_pts, video_frame_.get());
-  EXPECT_EQ(kNoTimestamp.InMicroseconds(),
-            result_pts.timestamp.InMicroseconds());
-  EXPECT_EQ(500000, result_pts.duration.InMicroseconds());
-
-  // Setup the last known pts to be at 100 microseconds with 16 microsecond
-  // duration.
-  last_pts.timestamp = base::TimeDelta::FromMicroseconds(100);
-  last_pts.duration = base::TimeDelta::FromMicroseconds(16);
-
-  // Simulate an uninitialized |video_frame| where |last_pts| will be used to
-  // generate a timestamp and |time_base| will be used to generate a duration.
-  video_frame_->SetTimestamp(kNoTimestamp);
-  video_frame_->SetDuration(kNoTimestamp);
-  result_pts =
-      decoder_->FindPtsAndDuration(time_base, &pts_heap,
-                                   last_pts, video_frame_.get());
-  EXPECT_EQ(116, result_pts.timestamp.InMicroseconds());
-  EXPECT_EQ(500000, result_pts.duration.InMicroseconds());
-
-  // Test that having pts == 0 in the frame also behaves like the pts is not
-  // provided.  This is because FFmpeg set the pts to zero when there is no
-  // data for the frame, which means that value is useless to us.
-  //
-  // TODO(scherkus): FFmpegVideoDecodeEngine should be able to detect this
-  // situation and set the timestamp to kInvalidTimestamp.
-  video_frame_->SetTimestamp(base::TimeDelta::FromMicroseconds(0));
-  result_pts =
-      decoder_->FindPtsAndDuration(time_base,&pts_heap,
-                                   last_pts, video_frame_.get());
-  EXPECT_EQ(116, result_pts.timestamp.InMicroseconds());
-  EXPECT_EQ(500000, result_pts.duration.InMicroseconds());
-
-  // Add a pts to the |pts_heap| and make sure it overrides estimation.
-  pts_heap.Push(base::TimeDelta::FromMicroseconds(123));
-  result_pts = decoder_->FindPtsAndDuration(time_base,
-                                            &pts_heap,
-                                            last_pts,
-                                            video_frame_.get());
-  EXPECT_EQ(123, result_pts.timestamp.InMicroseconds());
-  EXPECT_EQ(500000, result_pts.duration.InMicroseconds());
-
-  // Set a pts and duration on |video_frame_| and make sure it overrides
-  // |pts_heap|.
-  pts_heap.Push(base::TimeDelta::FromMicroseconds(123));
-  video_frame_->SetTimestamp(base::TimeDelta::FromMicroseconds(456));
-  video_frame_->SetDuration(base::TimeDelta::FromMicroseconds(789));
-  result_pts = decoder_->FindPtsAndDuration(time_base,
-                                            &pts_heap,
-                                            last_pts,
-                                            video_frame_.get());
-  EXPECT_EQ(456, result_pts.timestamp.InMicroseconds());
-  EXPECT_EQ(789, result_pts.duration.InMicroseconds());
-}
-
 ACTION_P2(ReadFromDemux, decoder, buffer) {
   decoder->ProduceVideoSample(buffer);
 }
@@ -350,6 +284,7 @@ ACTION_P4(DecodeComplete, decoder, video_frame, time_tuple, statistics) {
   video_frame->SetDuration(time_tuple.duration);
   decoder->ConsumeVideoFrame(video_frame, statistics);
 }
+
 ACTION_P3(DecodeNotComplete, decoder, buffer, statistics) {
   scoped_refptr<VideoFrame> null_frame;
   if (buffer->IsEndOfStream()) // We had started flushing.
@@ -380,8 +315,8 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
 
   // Setup initial state and check that it is sane.
   ASSERT_EQ(FFmpegVideoDecoder::kNormal, decoder_->state_);
-  ASSERT_TRUE(base::TimeDelta() == decoder_->last_pts_.timestamp);
-  ASSERT_TRUE(base::TimeDelta() == decoder_->last_pts_.duration);
+  ASSERT_TRUE(base::TimeDelta() == decoder_->pts_stream_.current_pts());
+  ASSERT_TRUE(base::TimeDelta() == decoder_->pts_stream_.current_duration());
 
   // Setup decoder to buffer one frame, decode one frame, fail one frame,
   // decode one more, and then fail the last one to end decoding.
@@ -422,9 +357,8 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
   decoder_->ProduceVideoFrame(video_frame_);
   message_loop_.RunAllPending();
   EXPECT_EQ(FFmpegVideoDecoder::kNormal, decoder_->state_);
-  ASSERT_TRUE(kTestPts1.timestamp == decoder_->last_pts_.timestamp);
-  ASSERT_TRUE(kTestPts1.duration == decoder_->last_pts_.duration);
-  EXPECT_FALSE(decoder_->pts_heap_.IsEmpty());
+  ASSERT_TRUE(kTestPts1.timestamp == decoder_->pts_stream_.current_pts());
+  ASSERT_TRUE(kTestPts1.duration == decoder_->pts_stream_.current_duration());
 
   // Second request from renderer: at first round decode engine did not produce
   // any frame. Decoder will issue another read from demuxer. at second round
@@ -432,9 +366,8 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
   decoder_->ProduceVideoFrame(video_frame_);
   message_loop_.RunAllPending();
   EXPECT_EQ(FFmpegVideoDecoder::kFlushCodec, decoder_->state_);
-  EXPECT_TRUE(kTestPts2.timestamp == decoder_->last_pts_.timestamp);
-  EXPECT_TRUE(kTestPts2.duration == decoder_->last_pts_.duration);
-  EXPECT_FALSE(decoder_->pts_heap_.IsEmpty());
+  EXPECT_TRUE(kTestPts2.timestamp == decoder_->pts_stream_.current_pts());
+  EXPECT_TRUE(kTestPts2.duration == decoder_->pts_stream_.current_duration());
 
   // Third request from renderer: decode engine will return frame on the
   // first round. Input stream had reach EOS, therefore we had entered
@@ -442,18 +375,16 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
   decoder_->ProduceVideoFrame(video_frame_);
   message_loop_.RunAllPending();
   EXPECT_EQ(FFmpegVideoDecoder::kFlushCodec, decoder_->state_);
-  EXPECT_TRUE(kTestPts3.timestamp == decoder_->last_pts_.timestamp);
-  EXPECT_TRUE(kTestPts3.duration == decoder_->last_pts_.duration);
-  EXPECT_TRUE(decoder_->pts_heap_.IsEmpty());
+  EXPECT_TRUE(kTestPts3.timestamp == decoder_->pts_stream_.current_pts());
+  EXPECT_TRUE(kTestPts3.duration == decoder_->pts_stream_.current_duration());
 
   // Fourth request from renderer: Both input/output reach EOF. therefore
   // we had reached the kDecodeFinished state after this call.
   decoder_->ProduceVideoFrame(video_frame_);
   message_loop_.RunAllPending();
   EXPECT_EQ(FFmpegVideoDecoder::kDecodeFinished, decoder_->state_);
-  EXPECT_TRUE(kTestPts3.timestamp == decoder_->last_pts_.timestamp);
-  EXPECT_TRUE(kTestPts3.duration == decoder_->last_pts_.duration);
-  EXPECT_TRUE(decoder_->pts_heap_.IsEmpty());
+  EXPECT_TRUE(kTestPts3.timestamp == decoder_->pts_stream_.current_pts());
+  EXPECT_TRUE(kTestPts3.duration == decoder_->pts_stream_.current_duration());
 }
 
 TEST_F(FFmpegVideoDecoderTest, DoSeek) {
@@ -474,9 +405,12 @@ TEST_F(FFmpegVideoDecoderTest, DoSeek) {
     SCOPED_TRACE(Message() << "Iteration " << i);
 
     // Push in some timestamps.
-    decoder_->pts_heap_.Push(kTestPts1.timestamp);
-    decoder_->pts_heap_.Push(kTestPts2.timestamp);
-    decoder_->pts_heap_.Push(kTestPts3.timestamp);
+    buffer_->SetTimestamp(kTestPts1.timestamp);
+    decoder_->pts_stream_.EnqueuePts(buffer_);
+    buffer_->SetTimestamp(kTestPts2.timestamp);
+    decoder_->pts_stream_.EnqueuePts(buffer_);
+    buffer_->SetTimestamp(kTestPts3.timestamp);
+    decoder_->pts_stream_.EnqueuePts(buffer_);
 
     decoder_->state_ = kStates[i];
 
@@ -490,7 +424,7 @@ TEST_F(FFmpegVideoDecoderTest, DoSeek) {
         .WillOnce(EngineSeek(engine_));
     decoder_->Seek(kZero, NewExpectedCallback());
 
-    EXPECT_TRUE(decoder_->pts_heap_.IsEmpty());
+    EXPECT_TRUE(kZero == decoder_->pts_stream_.current_duration());
     EXPECT_EQ(FFmpegVideoDecoder::kNormal, decoder_->state_);
   }
 }
