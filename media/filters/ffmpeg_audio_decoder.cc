@@ -87,6 +87,10 @@ AudioDecoderConfig FFmpegAudioDecoder::config() {
   return config_;
 }
 
+void FFmpegAudioDecoder::ProduceAudioSamples(scoped_refptr<Buffer> output) {
+  DecoderBase<AudioDecoder, Buffer>::PostReadTaskHack(output);
+}
+
 void FFmpegAudioDecoder::DoSeek(base::TimeDelta time, Task* done_cb) {
   avcodec_flush_buffers(codec_context_);
   estimated_next_timestamp_ = kNoTimestamp;
