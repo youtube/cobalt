@@ -43,7 +43,7 @@ class RequestContext : public URLRequestContext {
     ProxyConfig no_proxy;
     set_host_resolver(
         CreateSystemHostResolver(HostResolver::kDefaultParallelism,
-                                      NULL, NULL));
+                                 NULL));
     set_cert_verifier(new CertVerifier);
     set_proxy_service(ProxyService::CreateFixed(no_proxy));
     set_ssl_config_service(new SSLConfigServiceDefaults);
