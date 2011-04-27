@@ -161,7 +161,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   HttpAuthHandlerFactory* const http_auth_handler_factory_;
 
   // Not const since it's modified by HttpNetworkSessionPeer for testing.
-  scoped_refptr<ProxyService> proxy_service_;
+  ProxyService* proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
 
   HttpAuthCache http_auth_cache_;

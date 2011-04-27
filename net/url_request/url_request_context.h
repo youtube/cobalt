@@ -17,7 +17,6 @@
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
 #include "net/ftp/ftp_auth_cache.h"
-#include "net/proxy/proxy_service.h"
 #include "net/socket/dns_cert_provenance_checker.h"
 
 namespace net {
@@ -31,6 +30,7 @@ class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpTransactionFactory;
 class NetworkDelegate;
+class ProxyService;
 class SSLConfigService;
 class URLRequest;
 
@@ -205,7 +205,7 @@ class URLRequestContext
   DnsRRResolver* dnsrr_resolver_;
   DnsCertProvenanceChecker* dns_cert_checker_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
-  scoped_refptr<ProxyService> proxy_service_;
+  ProxyService* proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   NetworkDelegate* network_delegate_;
   scoped_refptr<CookieStore> cookie_store_;

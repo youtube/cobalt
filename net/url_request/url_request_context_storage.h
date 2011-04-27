@@ -73,8 +73,8 @@ class URLRequestContextStorage {
   scoped_ptr<DnsRRResolver> dnsrr_resolver_;
   scoped_ptr<DnsCertProvenanceChecker> dns_cert_checker_;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
+  scoped_ptr<ProxyService> proxy_service_;
   // TODO(willchan): Remove refcounting on these members.
-  scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_ptr<NetworkDelegate> network_delegate_;
   scoped_refptr<CookieStore> cookie_store_;
