@@ -81,7 +81,8 @@ IllegalCharacters::IllegalCharacters() {
 class LocaleAwareComparator {
  public:
   static LocaleAwareComparator* GetInstance() {
-    return Singleton<LocaleAwareComparator>::get();
+    return Singleton<LocaleAwareComparator,
+                     LeakySingletonTraits<LocaleAwareComparator> >::get();
   }
 
   // Note: A similar function is available in l10n_util.
@@ -104,6 +105,8 @@ class LocaleAwareComparator {
   }
 
  private:
+  friend struct DefaultSingletonTraits<LocaleAwareComparator>;
+
   LocaleAwareComparator() {
     UErrorCode error_code = U_ZERO_ERROR;
     // Use the default collator. The default locale should have been properly
@@ -121,7 +124,6 @@ class LocaleAwareComparator {
 
   scoped_ptr<icu::Collator> collator_;
   base::Lock lock_;
-  friend struct DefaultSingletonTraits<LocaleAwareComparator>;
 
   DISALLOW_COPY_AND_ASSIGN(LocaleAwareComparator);
 };
