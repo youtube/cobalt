@@ -497,16 +497,24 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "gmail.com", true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.gmail.com", true));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "m.gmail.com", true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "googlemail.com", true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "www.googlemail.com",
                                       true));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "m.googlemail.com",
+                                       true));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "gmail.com", false));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "www.gmail.com", false));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "m.gmail.com", false));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "googlemail.com", false));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
-                                      "www.googlemail.com",
-                                      false));
+                                       "www.googlemail.com",
+                                       false));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "m.googlemail.com",
+                                       false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
