@@ -22,7 +22,6 @@ namespace media {
 FFmpegVideoDecoder::FFmpegVideoDecoder(MessageLoop* message_loop,
                                        VideoDecodeContext* decode_context)
     : message_loop_(message_loop),
-      time_base_(new AVRational()),
       state_(kUnInitialized),
       decode_engine_(new FFmpegVideoDecodeEngine()),
       decode_context_(decode_context) {
@@ -60,8 +59,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
     return;
   }
 
-  time_base_->den = av_stream->r_frame_rate.num;
-  time_base_->num = av_stream->r_frame_rate.den;
+  pts_stream_.Initialize(GetFrameDuration(av_stream));
 
   int width = av_stream->codec->coded_width;
   int height = av_stream->codec->coded_height;
@@ -178,8 +176,7 @@ void FFmpegVideoDecoder::OnFlushComplete() {
   AutoCallbackRunner done_runner(flush_callback_.release());
 
   // Everything in the presentation time queue is invalid, clear the queue.
-  while (!pts_heap_.IsEmpty())
-    pts_heap_.Pop();
+  pts_stream_.Flush();
 
   // Mark flush operation had been done.
   state_ = kNormal;
@@ -199,6 +196,7 @@ void FFmpegVideoDecoder::Seek(base::TimeDelta time,
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!seek_callback_.get());
 
+  pts_stream_.Seek(time);
   seek_callback_.reset(callback);
   decode_engine_->Seek();
 }
@@ -267,9 +265,8 @@ void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
   //
   // TODO(ajwong): This push logic, along with the pop logic below needs to
   // be reevaluated to correctly handle decode errors.
-  if (state_ == kNormal && !buffer->IsEndOfStream() &&
-      buffer->GetTimestamp() != kNoTimestamp) {
-    pts_heap_.Push(buffer->GetTimestamp());
+  if (state_ == kNormal) {
+    pts_stream_.EnqueuePts(buffer.get());
   }
 
   // Otherwise, attempt to decode a single frame.
@@ -326,11 +323,10 @@ void FFmpegVideoDecoder::ConsumeVideoFrame(
     }
 
     // If we actually got data back, enqueue a frame.
-    last_pts_ = FindPtsAndDuration(*time_base_, &pts_heap_, last_pts_,
-                                   video_frame.get());
+    pts_stream_.UpdatePtsAndDuration(video_frame.get());
 
-    video_frame->SetTimestamp(last_pts_.timestamp);
-    video_frame->SetDuration(last_pts_.duration);
+    video_frame->SetTimestamp(pts_stream_.current_pts());
+    video_frame->SetDuration(pts_stream_.current_duration());
 
     VideoFrameReady(video_frame);
   } else {
@@ -354,55 +350,6 @@ void FFmpegVideoDecoder::ProduceVideoSample(
 
   demuxer_stream_->Read(
       NewCallback(this, &FFmpegVideoDecoder::OnReadComplete));
-}
-
-FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
-    const AVRational& time_base,
-    PtsHeap* pts_heap,
-    const TimeTuple& last_pts,
-    const VideoFrame* frame) {
-  TimeTuple pts;
-
-  // First search the VideoFrame for the pts. This is the most authoritative.
-  // Make a special exclusion for the value pts == 0.  Though this is
-  // technically a valid value, it seems a number of FFmpeg codecs will
-  // mistakenly always set pts to 0.
-  //
-  // TODO(scherkus): FFmpegVideoDecodeEngine should be able to detect this
-  // situation and set the timestamp to kInvalidTimestamp.
-  DCHECK(frame);
-  base::TimeDelta timestamp = frame->GetTimestamp();
-  if (timestamp != kNoTimestamp &&
-      timestamp.ToInternalValue() != 0) {
-    pts.timestamp = timestamp;
-    // We need to clean up the timestamp we pushed onto the |pts_heap|.
-    if (!pts_heap->IsEmpty())
-      pts_heap->Pop();
-  } else if (!pts_heap->IsEmpty()) {
-    // If the frame did not have pts, try to get the pts from the |pts_heap|.
-    pts.timestamp = pts_heap->Top();
-    pts_heap->Pop();
-  } else if (last_pts.timestamp != kNoTimestamp &&
-             last_pts.duration != kNoTimestamp) {
-    // Guess assuming this frame was the same as the last frame.
-    pts.timestamp = last_pts.timestamp + last_pts.duration;
-  } else {
-    // Now we really have no clue!!!  Mark an invalid timestamp and let the
-    // video renderer handle it (i.e., drop frame).
-    pts.timestamp = kNoTimestamp;
-  }
-
-  // Fill in the duration, using the frame itself as the authoratative source.
-  base::TimeDelta duration = frame->GetDuration();
-  if (duration != kNoTimestamp &&
-      duration.ToInternalValue() != 0) {
-    pts.duration = duration;
-  } else {
-    // Otherwise assume a normal frame duration.
-    pts.duration = ConvertFromTimeBase(time_base, 1);
-  }
-
-  return pts;
 }
 
 bool FFmpegVideoDecoder::ProvidesBuffer() {
