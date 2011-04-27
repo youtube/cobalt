@@ -143,7 +143,7 @@ class VideoRendererBaseTest : public ::testing::Test {
                             base::TimeDelta::FromMicroseconds(timestamp),
                             base::TimeDelta::FromMicroseconds(duration),
                             &frame);
-    decoder_->VideoFrameReady(frame);
+    decoder_->VideoFrameReadyForTest(frame);
   }
 
   void ExpectCurrentTimestamp(int64 timestamp) {

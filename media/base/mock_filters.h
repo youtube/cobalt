@@ -188,8 +188,7 @@ class MockVideoDecoder : public VideoDecoder {
   MOCK_METHOD1(ProduceVideoFrame, void(scoped_refptr<VideoFrame>));
   MOCK_METHOD0(ProvidesBuffer, bool());
 
-  // Make this method public so that tests can make use of it.
-  void VideoFrameReady(scoped_refptr<VideoFrame> frame) {
+  void VideoFrameReadyForTest(scoped_refptr<VideoFrame> frame) {
     VideoDecoder::VideoFrameReady(frame);
   }
 
@@ -243,6 +242,9 @@ class MockVideoRenderer : public VideoRenderer {
                                 FilterCallback* callback,
                                 StatisticsCallback* stats_callback));
   MOCK_METHOD0(HasEnded, bool());
+
+  // TODO(scherkus): although VideoRendererBase defines this method, this really
+  // shouldn't be here OR should be renamed.
   MOCK_METHOD1(ConsumeVideoFrame, void(scoped_refptr<VideoFrame> frame));
 
  protected:

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/bind.h"
 #include "base/callback.h"
 #include "base/threading/platform_thread.h"
 #include "media/base/buffers.h"
@@ -166,7 +167,9 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   statistics_callback_.reset(stats_callback);
 
   decoder_->set_consume_video_frame_callback(
-      NewCallback(this, &VideoRendererBase::ConsumeVideoFrame));
+      base::Bind(&VideoRendererBase::ConsumeVideoFrame,
+                 base::Unretained(this)));
+
   // Notify the pipeline of the video dimensions.
   if (!ParseMediaFormat(decoder->media_format(),
                         &surface_type_,
