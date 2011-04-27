@@ -139,6 +139,7 @@
         'mac/objc_property_releaser_unittest.mm',
         'md5_unittest.cc',
         'memory/linked_ptr_unittest.cc',
+        'memory/mru_cache_unittest.cc',
         'memory/ref_counted_unittest.cc',
         'memory/scoped_native_library_unittest.cc',
         'memory/scoped_ptr_unittest.cc',
@@ -242,6 +243,13 @@
                 ],
               },
             ],
+            ['gcc_version==44', {
+              # Avoid gcc 4.4 strict aliasing issues in stl_tree.h when
+              # building mru_cache_unittest.cc.
+              'cflags': [
+                '-fno-strict-aliasing',
+              ],
+            }],
           ],
           'dependencies': [
             '../build/linux/system.gyp:gtk',

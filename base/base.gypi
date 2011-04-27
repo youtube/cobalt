@@ -131,6 +131,7 @@
           'memory/linked_ptr.h',
           'memory/memory_debug.cc',
           'memory/memory_debug.h',
+          'memory/mru_cache.h',
           'memory/raw_scoped_refptr_mismatch_checker.h',
           'memory/ref_counted.cc',
           'memory/ref_counted.h',
