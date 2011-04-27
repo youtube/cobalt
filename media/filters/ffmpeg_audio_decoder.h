@@ -21,6 +21,7 @@ class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
 
   // AudioDecoder implementation.
   virtual AudioDecoderConfig config();
+  virtual void ProduceAudioSamples(scoped_refptr<Buffer> output);
 
  protected:
   virtual void DoInitialize(DemuxerStream* demuxer_stream, bool* success,
