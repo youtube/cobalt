@@ -298,6 +298,9 @@ void TestNetworkDelegate::OnURLRequestDestroyed(net::URLRequest* request) {
   destroyed_requests_++;
 }
 
+void TestNetworkDelegate::OnHttpTransactionDestroyed(uint64 request_id) {
+}
+
 net::URLRequestJob* TestNetworkDelegate::OnMaybeCreateURLRequestJob(
     net::URLRequest* request) {
   return NULL;

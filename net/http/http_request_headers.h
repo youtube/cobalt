@@ -132,6 +132,10 @@ class HttpRequestHeaders {
     *this = other;
   }
 
+  void Swap(HttpRequestHeaders* other) {
+    headers_.swap(other->headers_);
+  }
+
   // Serializes HttpRequestHeaders to a string representation.  Joins all the
   // header keys and values with ": ", and inserts "\r\n" between each header
   // line, and adds the trailing "\r\n".
