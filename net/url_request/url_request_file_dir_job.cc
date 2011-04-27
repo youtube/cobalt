@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/io_buffer.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/url_request/url_request.h"
 
@@ -24,6 +25,7 @@ namespace net {
 URLRequestFileDirJob::URLRequestFileDirJob(URLRequest* request,
                                            const FilePath& dir_path)
     : URLRequestJob(request),
+      ALLOW_THIS_IN_INITIALIZER_LIST(lister_(dir_path, this)),
       dir_path_(dir_path),
       canceled_(false),
       list_complete_(false),
@@ -34,17 +36,7 @@ URLRequestFileDirJob::URLRequestFileDirJob(URLRequest* request,
 }
 
 void URLRequestFileDirJob::StartAsync() {
-  DCHECK(!lister_);
-
-  // TODO(willchan): This is stupid.  We should tell |lister_| not to call us
-  // back.  Fix this stupidity.
-
-  // AddRef so that *this* cannot be destroyed while the lister_
-  // is trying to feed us data.
-
-  AddRef();
-  lister_ = new DirectoryLister(dir_path_, this);
-  lister_->Start();
+  lister_.Start();
 
   NotifyHeadersComplete();
 }
@@ -64,11 +56,8 @@ void URLRequestFileDirJob::Kill() {
 
   canceled_ = true;
 
-  // Don't call CloseLister or dispatch an error to the URLRequest because
-  // we want OnListDone to be called to also write the error to the output
-  // stream. OnListDone will notify the URLRequest at this time.
-  if (lister_)
-    lister_->Cancel();
+  if (!list_complete_)
+    lister_.Cancel();
 
   URLRequestJob::Kill();
 
@@ -153,34 +142,17 @@ void URLRequestFileDirJob::OnListFile(
 }
 
 void URLRequestFileDirJob::OnListDone(int error) {
-  CloseLister();
-
-  if (canceled_) {
-    read_pending_ = false;
-    // No need for NotifyCanceled() since canceled_ is set inside Kill().
-  } else if (error) {
+  DCHECK(!canceled_);
+  if (error != OK) {
     read_pending_ = false;
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, error));
   } else {
     list_complete_ = true;
     CompleteRead();
   }
-
-  Release();  // The Lister is finished; may delete *this*
 }
 
-URLRequestFileDirJob::~URLRequestFileDirJob() {
-  DCHECK(read_pending_ == false);
-  DCHECK(lister_ == NULL);
-}
-
-void URLRequestFileDirJob::CloseLister() {
-  if (lister_) {
-    lister_->Cancel();
-    lister_->set_delegate(NULL);
-    lister_ = NULL;
-  }
-}
+URLRequestFileDirJob::~URLRequestFileDirJob() {}
 
 void URLRequestFileDirJob::CompleteRead() {
   if (read_pending_) {
