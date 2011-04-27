@@ -66,6 +66,9 @@ int64 ConvertToTimeBase(const AVRational& time_base,
 VideoCodec CodecIDToVideoCodec(CodecID codec_id);
 CodecID VideoCodecToCodecID(VideoCodec video_codec);
 
+// Calculates duration of one frame in the |stream| based on its frame rate.
+base::TimeDelta GetFrameDuration(AVStream* stream);
+
 // Get the timestamp of the next seek point after |timestamp|.
 // Returns true if a valid seek point was found after |timestamp| and
 // |seek_time| was set. Returns false if a seek point could not be

@@ -61,6 +61,11 @@ CodecID VideoCodecToCodecID(VideoCodec video_codec) {
   return CODEC_ID_NONE;
 }
 
+base::TimeDelta GetFrameDuration(AVStream* stream) {
+  AVRational time_base = { stream->r_frame_rate.den, stream->r_frame_rate.num };
+  return ConvertFromTimeBase(time_base, 1);
+}
+
 bool GetSeekTimeAfter(AVStream* stream, const base::TimeDelta& timestamp,
                       base::TimeDelta* seek_time) {
   DCHECK(stream);

@@ -10,13 +10,10 @@
 #include "base/gtest_prod_util.h"
 #include "base/time.h"
 #include "media/base/filters.h"
-#include "media/base/pts_heap.h"
+#include "media/base/pts_stream.h"
 #include "media/base/video_frame.h"
 #include "media/filters/decoder_base.h"
 #include "media/video/video_decode_engine.h"
-
-// FFmpeg types.
-struct AVRational;
 
 namespace media {
 
@@ -25,12 +22,6 @@ class VideoDecodeEngine;
 class FFmpegVideoDecoder : public VideoDecoder,
                            public VideoDecodeEngine::EventHandler {
  public:
-  // Holds timestamp and duration data needed for properly enqueuing a frame.
-  struct TimeTuple {
-    base::TimeDelta timestamp;
-    base::TimeDelta duration;
-  };
-
   FFmpegVideoDecoder(MessageLoop* message_loop,
                      VideoDecodeContext* decode_context);
   virtual ~FFmpegVideoDecoder();
@@ -63,7 +54,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
 
   friend class DecoderPrivateMock;
   friend class FFmpegVideoDecoderTest;
-  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest, FindPtsAndDuration);
+  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest, PtsStream);
   FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest,
                            DoDecode_EnqueueVideoFrameError);
   FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest,
@@ -94,19 +85,6 @@ class FFmpegVideoDecoder : public VideoDecoder,
   // Flush the output buffers that we had held in Paused state.
   void FlushBuffers();
 
-  // Attempt to get the PTS and Duration for this frame by examining the time
-  // info provided via packet stream (stored in |pts_heap|), or the info
-  // written into the AVFrame itself.  If no data is available in either, then
-  // attempt to generate a best guess of the pts based on the last known pts.
-  //
-  // Data inside the AVFrame (if provided) is trusted the most, followed
-  // by data from the packet stream.  Estimation based on the |last_pts| is
-  // reserved as a last-ditch effort.
-  virtual TimeTuple FindPtsAndDuration(const AVRational& time_base,
-                                       PtsHeap* pts_heap,
-                                       const TimeTuple& last_pts,
-                                       const VideoFrame* frame);
-
   // Injection point for unittest to provide a mock engine.  Takes ownership of
   // the provided engine.
   virtual void SetVideoDecodeEngineForTest(VideoDecodeEngine* engine);
@@ -114,9 +92,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
   MessageLoop* message_loop_;
   MediaFormat media_format_;
 
-  PtsHeap pts_heap_;  // Heap of presentation timestamps.
-  TimeTuple last_pts_;
-  scoped_ptr<AVRational> time_base_;  // Pointer to avoid needing full type.
+  PtsStream pts_stream_;  // Stream of presentation timestamps.
   DecoderState state_;
   scoped_ptr<VideoDecodeEngine> decode_engine_;
   scoped_ptr<VideoDecodeContext> decode_context_;
