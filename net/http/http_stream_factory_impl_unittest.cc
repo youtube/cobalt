@@ -68,7 +68,7 @@ struct SessionDependencies {
 
   scoped_ptr<MockHostResolverBase> host_resolver;
   scoped_ptr<CertVerifier> cert_verifier;
-  scoped_refptr<ProxyService> proxy_service;
+  scoped_ptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
@@ -79,7 +79,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   HttpNetworkSession::Params params;
   params.host_resolver = session_deps->host_resolver.get();
   params.cert_verifier = session_deps->cert_verifier.get();
-  params.proxy_service = session_deps->proxy_service;
+  params.proxy_service = session_deps->proxy_service.get();
   params.ssl_config_service = session_deps->ssl_config_service;
   params.client_socket_factory = &session_deps->socket_factory;
   params.http_auth_handler_factory =

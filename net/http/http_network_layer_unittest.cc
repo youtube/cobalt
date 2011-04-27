@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,7 +28,7 @@ class HttpNetworkLayerTest : public PlatformTest {
     session_params.client_socket_factory = &mock_socket_factory_;
     session_params.host_resolver = &host_resolver_;
     session_params.cert_verifier = &cert_verifier_;
-    session_params.proxy_service = proxy_service_;
+    session_params.proxy_service = proxy_service_.get();
     session_params.ssl_config_service = ssl_config_service_;
     network_session_ = new HttpNetworkSession(session_params);
     factory_.reset(new HttpNetworkLayer(network_session_));
@@ -37,7 +37,7 @@ class HttpNetworkLayerTest : public PlatformTest {
   MockClientSocketFactory mock_socket_factory_;
   MockHostResolver host_resolver_;
   CertVerifier cert_verifier_;
-  const scoped_refptr<ProxyService> proxy_service_;
+  const scoped_ptr<ProxyService> proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_refptr<HttpNetworkSession> network_session_;
   scoped_ptr<HttpNetworkLayer> factory_;

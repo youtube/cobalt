@@ -16,6 +16,7 @@
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_session.h"
+#include "net/url_request/url_request_context_storage.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -39,14 +40,14 @@ struct FetchResult {
 // A non-mock URL request which can access http:// and file:// urls.
 class RequestContext : public URLRequestContext {
  public:
-  RequestContext() {
+  RequestContext() : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this)) {
     ProxyConfig no_proxy;
-    set_host_resolver(
+    storage_.set_host_resolver(
         CreateSystemHostResolver(HostResolver::kDefaultParallelism,
                                  NULL));
-    set_cert_verifier(new CertVerifier);
-    set_proxy_service(ProxyService::CreateFixed(no_proxy));
-    set_ssl_config_service(new SSLConfigServiceDefaults);
+    storage_.set_cert_verifier(new CertVerifier);
+    storage_.set_proxy_service(ProxyService::CreateFixed(no_proxy));
+    storage_.set_ssl_config_service(new SSLConfigServiceDefaults);
 
     HttpNetworkSession::Params params;
     params.host_resolver = host_resolver();
@@ -55,17 +56,16 @@ class RequestContext : public URLRequestContext {
     params.ssl_config_service = ssl_config_service();
     scoped_refptr<HttpNetworkSession> network_session(
         new HttpNetworkSession(params));
-    set_http_transaction_factory(new HttpCache(
+    storage_.set_http_transaction_factory(new HttpCache(
         network_session,
         HttpCache::DefaultBackend::InMemory(0)));
   }
 
  private:
   ~RequestContext() {
-    delete http_transaction_factory();
-    delete cert_verifier();
-    delete host_resolver();
   }
+
+  URLRequestContextStorage storage_;
 };
 
 // Get a file:// url relative to net/data/proxy/proxy_script_fetcher_unittest.

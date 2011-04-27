@@ -4700,8 +4700,9 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   NormalSpdyTransactionHelper helper_proxy(request_proxy,
                                            BoundNetLog(), GetParam());
   HttpNetworkSessionPeer session_peer(session_proxy);
-  session_peer.SetProxyService(
+  scoped_ptr<net::ProxyService> proxy_service(
           ProxyService::CreateFixedFromPacResult("PROXY myproxy:70"));
+  session_peer.SetProxyService(proxy_service.get());
   helper_proxy.session_deps().swap(ssd_proxy);
   helper_proxy.SetSession(session_proxy);
   helper_proxy.RunPreTestSetup();
