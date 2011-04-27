@@ -53,8 +53,14 @@ void NetworkDelegate::NotifyCompleted(URLRequest* request) {
 }
 
 void NetworkDelegate::NotifyURLRequestDestroyed(URLRequest* request) {
+  DCHECK(CalledOnValidThread());
   DCHECK(request);
-  return OnURLRequestDestroyed(request);
+  OnURLRequestDestroyed(request);
+}
+
+void NetworkDelegate::NotifyHttpTransactionDestroyed(uint64 request_id) {
+  DCHECK(CalledOnValidThread());
+  OnHttpTransactionDestroyed(request_id);
 }
 
 URLRequestJob* NetworkDelegate::MaybeCreateURLRequestJob(URLRequest* request) {
