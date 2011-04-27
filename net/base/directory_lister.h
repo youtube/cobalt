@@ -10,12 +10,8 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/message_loop_proxy.h"
 #include "base/memory/ref_counted.h"
-#include "base/synchronization/cancellation_flag.h"
-#include "base/task.h"
-#include "base/threading/platform_thread.h"
-
-class MessageLoop;
 
 namespace net {
 
@@ -26,8 +22,7 @@ namespace net {
 // structs over to the main application thread.  The consumer of this class
 // is insulated from any of the multi-threading details.
 //
-class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
-                        public base::PlatformThread::Delegate {
+class DirectoryLister  {
  public:
   // Represents one file found.
   struct DirectoryListerData {
@@ -53,7 +48,7 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
   //   directories first in name order, then files by name order
   // FULL_PATH sorts by paths as strings, ignoring files v. directories
   // DATE sorts by last modified date
-  enum SORT_TYPE {
+  enum SortType {
     NO_SORT,
     DATE,
     ALPHA_DIRS_FIRST,
@@ -65,49 +60,61 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
 
   DirectoryLister(const FilePath& dir,
                   bool recursive,
-                  SORT_TYPE sort,
+                  SortType sort,
                   DirectoryListerDelegate* delegate);
 
+  // Will invoke Cancel().
+  ~DirectoryLister();
 
   // Call this method to start the directory enumeration thread.
   bool Start();
 
   // Call this method to asynchronously stop directory enumeration.  The
-  // delegate will receive the OnListDone notification with an error code of
-  // ERR_ABORTED.
+  // delegate will not be called back.
   void Cancel();
 
-  // The delegate pointer may be modified at any time.
-  DirectoryListerDelegate* delegate() const { return delegate_; }
-  void set_delegate(DirectoryListerDelegate* d) { delegate_ = d; }
-
-  // PlatformThread::Delegate implementation
-  virtual void ThreadMain();
-
  private:
-  friend class base::RefCountedThreadSafe<DirectoryLister>;
-  friend class DirectoryDataEvent;
+  class Core : public base::RefCountedThreadSafe<Core> {
+   public:
+    Core(const FilePath& dir,
+         bool recursive,
+         SortType sort,
+         DirectoryLister* lister);
 
-  ~DirectoryLister();
+    bool Start();
 
-  // Comparison methods for sorting, chosen based on |sort_|.
-  static bool CompareAlphaDirsFirst(const DirectoryListerData& a,
-                                    const DirectoryListerData& b);
-  static bool CompareDate(const DirectoryListerData& a,
-                          const DirectoryListerData& b);
-  static bool CompareFullPath(const DirectoryListerData& a,
-                              const DirectoryListerData& b);
+    void Cancel();
 
-  void OnReceivedData(const DirectoryListerData* data, int count);
+   private:
+    friend class base::RefCountedThreadSafe<Core>;
+    class DataEvent;
+
+    ~Core();
+
+    // Runs on a WorkerPool thread.
+    void StartInternal();
+
+    void OnReceivedData(const DirectoryListerData* data, int count);
+    void OnDone(int error);
+
+    FilePath dir_;
+    bool recursive_;
+    SortType sort_;
+    scoped_refptr<base::MessageLoopProxy> origin_loop_;
+
+    // |lister_| gets set to NULL when canceled.
+    DirectoryLister* lister_;
+
+    DISALLOW_COPY_AND_ASSIGN(Core);
+  };
+
+  void OnReceivedData(const DirectoryListerData& data);
   void OnDone(int error);
 
-  FilePath dir_;
-  bool recursive_;
-  DirectoryListerDelegate* delegate_;
-  SORT_TYPE sort_;
-  MessageLoop* message_loop_;
-  base::PlatformThreadHandle thread_;
-  base::CancellationFlag canceled_;
+  const scoped_refptr<Core> core_;
+  DirectoryListerDelegate* const delegate_;
+
+  DISALLOW_COPY_AND_ASSIGN(DirectoryLister);
 };
 
 }  // namespace net
