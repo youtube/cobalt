@@ -138,6 +138,12 @@ HttpCache::Transaction::~Transaction() {
   // after this point.
   callback_ = NULL;
 
+  if (request_ && cache_ && cache_->GetSession() &&
+      cache_->GetSession()->network_delegate()) {
+    cache_->GetSession()->network_delegate()->NotifyHttpTransactionDestroyed(
+        request_->request_id);
+  }
+
   if (cache_) {
     if (entry_) {
       bool cancel_request = reading_;
@@ -901,22 +907,21 @@ int HttpCache::Transaction::DoAddToEntryComplete(int result) {
 
 int HttpCache::Transaction::DoNotifyBeforeSendHeaders() {
   // Balanced in DoNotifyBeforeSendHeadersComplete.
-  cache_callback_->AddRef();
   next_state_ = STATE_NOTIFY_BEFORE_SEND_HEADERS_COMPLETE;
 
   if (cache_->GetSession() && cache_->GetSession()->network_delegate()) {
-    // TODO(mpcomplete): need to be able to modify these headers.
-    HttpRequestHeaders headers = request_->extra_headers;
+    // Give the delegate a copy of the request headers. We ignore any
+    // modification to these headers, since it doesn't make sense to issue a
+    // request from the cache with modified headers.
+    request_headers_copy_.CopyFrom(request_->extra_headers);
     return cache_->GetSession()->network_delegate()->NotifyBeforeSendHeaders(
-        request_->request_id, cache_callback_, &headers);
+        request_->request_id, &io_callback_, &request_headers_copy_);
   }
 
   return OK;
 }
 
 int HttpCache::Transaction::DoNotifyBeforeSendHeadersComplete(int result) {
-  cache_callback_->Release();  // Balanced in DoNotifyBeforeSendHeaders.
-
   // We now have access to the cache entry.
   //
   //  o if we are a reader for the transaction, then we can start reading the

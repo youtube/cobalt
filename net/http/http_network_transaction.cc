@@ -99,9 +99,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
     : pending_auth_target_(HttpAuth::AUTH_NONE),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpNetworkTransaction::OnIOComplete)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(delegate_callback_(
-          new CancelableCompletionCallback<HttpNetworkTransaction>(
-              this, &HttpNetworkTransaction::OnIOComplete))),
       user_callback_(NULL),
       session_(session),
       request_(NULL),
@@ -117,6 +114,11 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
 }
 
 HttpNetworkTransaction::~HttpNetworkTransaction() {
+  if (request_ && session_->network_delegate()) {
+    session_->network_delegate()->NotifyHttpTransactionDestroyed(
+        request_->request_id);
+  }
+
   if (stream_.get()) {
     HttpResponseHeaders* headers = GetResponseHeaders();
     // TODO(mbelshe): The stream_ should be able to compute whether or not the
@@ -149,8 +151,6 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
       }
     }
   }
-
-  delegate_callback_->Cancel();
 }
 
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
@@ -748,8 +748,6 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
 
 int HttpNetworkTransaction::DoBuildRequest() {
   next_state_ = STATE_BUILD_REQUEST_COMPLETE;
-  delegate_callback_->AddRef();  // balanced in DoSendRequestComplete
-
   request_body_.reset(NULL);
   if (request_->upload_data) {
     int error_code;
@@ -771,15 +769,13 @@ int HttpNetworkTransaction::DoBuildRequest() {
 
   if (session_->network_delegate()) {
     return session_->network_delegate()->NotifyBeforeSendHeaders(
-        request_->request_id, delegate_callback_, &request_headers_);
+        request_->request_id, &io_callback_, &request_headers_);
   }
 
   return OK;
 }
 
 int HttpNetworkTransaction::DoBuildRequestComplete(int result) {
-  delegate_callback_->Release();  // balanced in DoBuildRequest
-
   if (result == OK)
     next_state_ = STATE_SEND_REQUEST;
   return result;
