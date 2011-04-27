@@ -4,6 +4,7 @@
 
 #include <deque>
 
+#include "base/bind.h"
 #include "base/memory/singleton.h"
 #include "base/string_util.h"
 #include "media/base/data_buffer.h"
@@ -311,7 +312,8 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
   InitializeDecoderSuccessfully();
 
   decoder_->set_consume_video_frame_callback(
-      NewCallback(renderer_.get(), &MockVideoRenderer::ConsumeVideoFrame));
+      base::Bind(&MockVideoRenderer::ConsumeVideoFrame,
+                 base::Unretained(renderer_.get())));
 
   // Setup initial state and check that it is sane.
   ASSERT_EQ(FFmpegVideoDecoder::kNormal, decoder_->state_);
