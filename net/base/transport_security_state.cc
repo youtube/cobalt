@@ -629,8 +629,10 @@ bool TransportSecurityState::IsPreloadedSTS(
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
   static const struct HSTSPreload kPreloadedSNISTS[] = {
-    {11, true, "\005gmail\003com", true, 0 },
-    {16, true, "\012googlemail\003com", true, 0 },
+    {11, false, "\005gmail\003com", true, 0 },
+    {16, false, "\012googlemail\003com", true, 0 },
+    {15, false, "\003www\005gmail\003com", true, 0 },
+    {20, false, "\003www\012googlemail\003com", true, 0 },
     // TODO(cevans) -- switch to the subdomain level, once we have a dedicated
     // non-SNI HSTS entry for ssl.google-analytics.com.
     {26, true, "\003www\020google-analytics\003com", false,
