@@ -72,7 +72,7 @@ class MockVideoDecodeEngine : public VideoDecodeEngine {
   MOCK_METHOD4(Initialize, void(MessageLoop* message_loop,
                                 VideoDecodeEngine::EventHandler* event_handler,
                                 VideoDecodeContext* context,
-                                const VideoCodecConfig& config));
+                                const VideoDecoderConfig& config));
   MOCK_METHOD1(ConsumeVideoSample, void(scoped_refptr<Buffer> buffer));
   MOCK_METHOD1(ProduceVideoFrame, void(scoped_refptr<VideoFrame> buffer));
   MOCK_METHOD0(Uninitialize, void());

@@ -71,12 +71,12 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
     return;
   }
 
-  VideoCodecConfig config(CodecIDToVideoCodec(av_stream->codec->codec_id),
-                          width, height,
-                          av_stream->r_frame_rate.num,
-                          av_stream->r_frame_rate.den,
-                          av_stream->codec->extradata,
-                          av_stream->codec->extradata_size);
+  VideoDecoderConfig config(CodecIDToVideoCodec(av_stream->codec->codec_id),
+                            width, height,
+                            av_stream->r_frame_rate.num,
+                            av_stream->r_frame_rate.den,
+                            av_stream->codec->extradata,
+                            av_stream->codec->extradata_size);
   state_ = kInitializing;
   decode_engine_->Initialize(message_loop_, this, NULL, config);
 }

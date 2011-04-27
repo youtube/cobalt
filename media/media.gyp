@@ -123,6 +123,8 @@
         'base/seekable_buffer.h',
         'base/state_matrix.cc',
         'base/state_matrix.h',
+        'base/video_decoder_config.cc',
+        'base/video_decoder_config.h',
         'base/video_frame.cc',
         'base/video_frame.h',
         'ffmpeg/ffmpeg_common.cc',
@@ -177,7 +179,6 @@
         'video/ffmpeg_video_decode_engine.h',
         'video/video_decode_accelerator.cc',
         'video/video_decode_accelerator.h',
-        'video/video_decode_engine.cc',
         'video/video_decode_engine.h',
       ],
       'direct_dependent_settings': {
