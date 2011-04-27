@@ -223,8 +223,6 @@ class HttpNetworkTransaction : public HttpTransaction,
   HttpAuth::Target pending_auth_target_;
 
   CompletionCallbackImpl<HttpNetworkTransaction> io_callback_;
-  scoped_refptr<CancelableCompletionCallback<HttpNetworkTransaction> >
-      delegate_callback_;
   CompletionCallback* user_callback_;
   scoped_ptr<UploadDataStream> request_body_;
 

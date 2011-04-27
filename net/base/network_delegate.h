@@ -48,6 +48,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   void NotifyResponseStarted(URLRequest* request);
   void NotifyCompleted(URLRequest* request);
   void NotifyURLRequestDestroyed(URLRequest* request);
+  void NotifyHttpTransactionDestroyed(uint64 request_id);
 
   // Returns a URLRequestJob that will be used to handle the request if
   // non-null.
@@ -63,18 +64,18 @@ class NetworkDelegate : public base::NonThreadSafe {
   // member function, which will perform basic sanity checking.
 
   // Called before a request is sent. Allows the delegate to rewrite the URL
-  // being fetched by modifying |new_url|. The callback can be called at any
-  // time, but will have no effect if the request has already been cancelled or
-  // deleted. Returns a net status code, generally either OK to continue with
-  // the request or ERR_IO_PENDING if the result is not ready yet.
+  // being fetched by modifying |new_url|. |callback| and |new_url| are valid
+  // only until OnURLRequestDestroyed is called for this request. Returns a net
+  // status code, generally either OK to continue with the request or
+  // ERR_IO_PENDING if the result is not ready yet.
   virtual int OnBeforeURLRequest(URLRequest* request,
                                  CompletionCallback* callback,
                                  GURL* new_url) = 0;
 
   // Called right before the HTTP headers are sent. Allows the delegate to
-  // read/write |headers| before they get sent out. The callback can be called
-  // at any time, but will have no effect if the transaction handling this
-  // request has been cancelled. Returns a net status code.
+  // read/write |headers| before they get sent out. |callback| and |headers| are
+  // valid only until OnHttpTransactionDestroyed is called for this request.
+  // Returns a net status code.
   virtual int OnBeforeSendHeaders(uint64 request_id,
                                   CompletionCallback* callback,
                                   HttpRequestHeaders* headers) = 0;
@@ -98,6 +99,10 @@ class NetworkDelegate : public base::NonThreadSafe {
   // being deleted, so it's not safe to call any methods that may result in
   // a virtual method call.
   virtual void OnURLRequestDestroyed(URLRequest* request) = 0;
+
+  // Called when the HttpTransaction for the request with the given ID is
+  // destroyed.
+  virtual void OnHttpTransactionDestroyed(uint64 request_id) = 0;
 
   // Called before a request is sent and before a URLRequestJob is created to
   // handle the request.
