@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -350,11 +350,9 @@
       'target_name': 'ibus',
       'type': 'settings',
       'conditions': [
-        ['"<!@(<(pkg-config) --atleast-version=1.3.99 ibus-1.0 || echo $?)"==""', {
-          'variables': {
-            'ibus': 1
-          },
+        ['use_ibus==1', {
           'direct_dependent_settings': {
+            'defines': ['HAVE_IBUS=1'],
             'cflags': [
               '<!@(<(pkg-config) --cflags ibus-1.0)',
             ],
