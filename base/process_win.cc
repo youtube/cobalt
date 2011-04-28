@@ -6,13 +6,16 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/process_util.h"
+#include "base/win/windows_version.h"
 
 namespace base {
 
 void Process::Close() {
   if (!process_)
     return;
-  ::CloseHandle(process_);
+  // Don't call CloseHandle on a pseudo-handle.
+  if (process_ != ::GetCurrentProcess())
+    ::CloseHandle(process_);
   process_ = NULL;
 }
 
@@ -28,14 +31,26 @@ bool Process::IsProcessBackgrounded() const {
   DWORD priority = GetPriority();
   if (priority == 0)
     return false;  // Failure case.
-  return priority == BELOW_NORMAL_PRIORITY_CLASS;
+  return ((priority == BELOW_NORMAL_PRIORITY_CLASS) ||
+          (priority == IDLE_PRIORITY_CLASS));
 }
 
 bool Process::SetProcessBackgrounded(bool value) {
   if (!process_)
     return false;
-  DWORD priority = value ? BELOW_NORMAL_PRIORITY_CLASS : NORMAL_PRIORITY_CLASS;
-  return (SetPriorityClass(process_, priority) != 0);
+  // Vista and above introduce a real background mode, which not only
+  // sets the priority class on the threads but also on the IO generated
+  // by it. Unfortunately it can only be set for the calling process.
+  DWORD priority;
+  if ((base::win::GetVersion() >= base::win::VERSION_VISTA) &&
+      (process_ == ::GetCurrentProcess())) {
+    priority = value ? PROCESS_MODE_BACKGROUND_BEGIN :
+                       PROCESS_MODE_BACKGROUND_END;
+  } else {
+    priority = value ? BELOW_NORMAL_PRIORITY_CLASS : NORMAL_PRIORITY_CLASS;
+  }
+
+  return (::SetPriorityClass(process_, priority) != 0);
 }
 
 ProcessId Process::pid() const {
@@ -51,12 +66,12 @@ bool Process::is_current() const {
 
 // static
 Process Process::Current() {
-  return Process(GetCurrentProcess());
+  return Process(::GetCurrentProcess());
 }
 
 int Process::GetPriority() const {
   DCHECK(process_);
-  return GetPriorityClass(process_);
+  return ::GetPriorityClass(process_);
 }
 
 }  // namespace base

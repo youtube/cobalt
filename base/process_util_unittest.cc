@@ -260,8 +260,25 @@ TEST_F(ProcessUtilTest, SetProcessBackgrounded) {
   base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess", false);
   base::Process process(handle);
   int old_priority = process.GetPriority();
-  process.SetProcessBackgrounded(true);
-  process.SetProcessBackgrounded(false);
+  if (process.SetProcessBackgrounded(true)) {
+    EXPECT_TRUE(process.IsProcessBackgrounded());
+    EXPECT_TRUE(process.SetProcessBackgrounded(false));
+    EXPECT_FALSE(process.IsProcessBackgrounded());
+  }
+  int new_priority = process.GetPriority();
+  EXPECT_EQ(old_priority, new_priority);
+}
+
+// Same as SetProcessBackgrounded but to this very process. It uses
+// a different code path at least for Windows.
+TEST_F(ProcessUtilTest, SetProcessBackgroundedSelf) {
+  base::Process process(base::Process::Current().handle());
+  int old_priority = process.GetPriority();
+  if (process.SetProcessBackgrounded(true)) {
+    EXPECT_TRUE(process.IsProcessBackgrounded());
+    EXPECT_TRUE(process.SetProcessBackgrounded(false));
+    EXPECT_FALSE(process.IsProcessBackgrounded());
+  }
   int new_priority = process.GetPriority();
   EXPECT_EQ(old_priority, new_priority);
 }
