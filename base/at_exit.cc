@@ -33,7 +33,7 @@ AtExitManager::~AtExitManager() {
     NOTREACHED() << "Tried to ~AtExitManager without an AtExitManager";
     return;
   }
-  DCHECK(g_top_manager == this);
+  DCHECK_EQ(this, g_top_manager);
 
   ProcessCallbacksNow();
   g_top_manager = next_manager_;
