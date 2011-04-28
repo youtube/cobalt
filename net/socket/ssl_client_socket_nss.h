@@ -101,10 +101,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // Initializes the socket peer name in SSL.  Returns a net error code.
   int InitializeSSLPeerName();
 
-#if defined(OS_MACOSX) || defined(OS_WIN)
-  // Creates an OS certificate from a DER-encoded certificate.
-  static X509Certificate::OSCertHandle CreateOSCert(const SECItem& der_cert);
-#endif
   X509Certificate* UpdateServerCert();
   void UpdateConnectionStatus();
   void DoReadCallback(int result);
