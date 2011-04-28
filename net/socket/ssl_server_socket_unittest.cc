@@ -31,6 +31,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
+#include "net/base/ssl_info.h"
 #include "net/base/x509_certificate.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_factory.h"
@@ -251,7 +252,7 @@ class SSLServerSocketTest : public PlatformTest {
 
     // Certificate provided by the host doesn't need authority.
     net::SSLConfig::CertAndStatus cert_and_status;
-    cert_and_status.cert_status = net::CERT_STATUS_AUTHORITY_INVALID;
+    cert_and_status.cert_status = CERT_STATUS_AUTHORITY_INVALID;
     cert_and_status.cert = cert;
     ssl_config.allowed_bad_certs.push_back(cert_and_status);
 
@@ -304,6 +305,11 @@ TEST_F(SSLServerSocketTest, Handshake) {
   if (server_ret == net::ERR_IO_PENDING) {
     EXPECT_EQ(net::OK, accept_callback.WaitForResult());
   }
+
+  // Make sure the cert status is expected.
+  SSLInfo ssl_info;
+  client_socket_->GetSSLInfo(&ssl_info);
+  EXPECT_EQ(CERT_STATUS_AUTHORITY_INVALID, ssl_info.cert_status);
 }
 
 TEST_F(SSLServerSocketTest, DataTransfer) {

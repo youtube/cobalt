@@ -832,7 +832,7 @@ int SocketStream::DoSSLConnectComplete(int result) {
         reinterpret_cast<SSLClientSocket*>(socket_.get());
       SSLInfo ssl_info;
       ssl_socket->GetSSLInfo(&ssl_info);
-      if (ssl_config_.IsAllowedBadCert(ssl_info.cert)) {
+      if (ssl_config_.IsAllowedBadCert(ssl_info.cert, NULL)) {
         // If we already have the certificate in the set of allowed bad
         // certificates, we did try it and failed again, so we should not
         // retry again: the connection should fail at last.

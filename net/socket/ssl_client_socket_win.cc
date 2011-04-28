@@ -1134,6 +1134,13 @@ int SSLClientSocketWin::DoVerifyCert() {
   next_state_ = STATE_VERIFY_CERT_COMPLETE;
 
   DCHECK(server_cert_);
+  int cert_status;
+  if (ssl_config_.IsAllowedBadCert(server_cert_, &cert_status)) {
+    VLOG(1) << "Received an expected bad cert with status: " << cert_status;
+    server_cert_verify_result_.Reset();
+    server_cert_verify_result_.cert_status = cert_status;
+    return OK;
+  }
 
   int flags = 0;
   if (ssl_config_.rev_checking_enabled)
@@ -1149,16 +1156,6 @@ int SSLClientSocketWin::DoVerifyCert() {
 int SSLClientSocketWin::DoVerifyCertComplete(int result) {
   DCHECK(verifier_.get());
   verifier_.reset();
-
-  // If we have been explicitly told to accept this certificate, override the
-  // result of verifier_.Verify.
-  // Eventually, we should cache the cert verification results so that we don't
-  // need to call verifier_.Verify repeatedly. But for now we need to do this.
-  // Alternatively, we could use the cert's status that we stored along with
-  // the cert in the allowed_bad_certs vector.
-  if (IsCertificateError(result) &&
-      ssl_config_.IsAllowedBadCert(server_cert_))
-    result = OK;
 
   if (result == OK)
     LogConnectionTypeMetrics();
