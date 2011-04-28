@@ -23,7 +23,9 @@ struct SSLConfig {
   ~SSLConfig();
 
   // Returns true if |cert| is one of the certs in |allowed_bad_certs|.
-  bool IsAllowedBadCert(X509Certificate* cert) const;
+  // The expected cert status is written to |cert_status|. |*cert_status| can
+  // be NULL if user doesn't care about the cert status.
+  bool IsAllowedBadCert(X509Certificate* cert, int* cert_status) const;
 
   bool rev_checking_enabled;  // True if server certificate revocation
                               // checking is enabled.
