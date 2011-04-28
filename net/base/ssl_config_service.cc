@@ -24,10 +24,14 @@ SSLConfig::SSLConfig()
 SSLConfig::~SSLConfig() {
 }
 
-bool SSLConfig::IsAllowedBadCert(X509Certificate* cert) const {
+bool SSLConfig::IsAllowedBadCert(X509Certificate* cert,
+                                 int* cert_status) const {
   for (size_t i = 0; i < allowed_bad_certs.size(); ++i) {
-    if (cert->Equals(allowed_bad_certs[i].cert))
+    if (cert->Equals(allowed_bad_certs[i].cert)) {
+      if (cert_status)
+        *cert_status = allowed_bad_certs[i].cert_status;
       return true;
+    }
   }
   return false;
 }

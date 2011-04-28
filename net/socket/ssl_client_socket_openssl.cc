@@ -814,8 +814,16 @@ int SSLClientSocketOpenSSL::SelectNextProtoCallback(unsigned char** out,
 int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
   DCHECK(server_cert_);
   GotoState(STATE_VERIFY_CERT_COMPLETE);
-  int flags = 0;
 
+  int cert_status;
+  if (ssl_config_.IsAllowedBadCert(server_cert_, &cert_status)) {
+    VLOG(1) << "Received an expected bad cert with status: " << cert_status;
+    server_cert_verify_result_.Reset();
+    server_cert_verify_result_.cert_status = cert_status;
+    return OK;
+  }
+
+  int flags = 0;
   if (ssl_config_.rev_checking_enabled)
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
@@ -835,18 +843,6 @@ int SSLClientSocketOpenSSL::DoVerifyCertComplete(int result) {
   } else {
     DVLOG(1) << "DoVerifyCertComplete error " << ErrorToString(result)
              << " (" << result << ")";
-  }
-
-  // If we have been explicitly told to accept this certificate, override the
-  // result of verifier_.Verify.
-  // Eventually, we should cache the cert verification results so that we don't
-  // need to call verifier_.Verify repeatedly.  But for now we need to do this.
-  // Alternatively, we could use the cert's status that we stored along with
-  // the cert in the allowed_bad_certs vector.
-  if (IsCertificateError(result) &&
-      ssl_config_.IsAllowedBadCert(server_cert_)) {
-    VLOG(1) << "accepting bad SSL certificate, as user told us to";
-    result = OK;
   }
 
   completed_handshake_ = true;
