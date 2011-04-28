@@ -53,7 +53,7 @@
         ],
       },
       'conditions': [
-        ['OS=="win" and component=="shared_library"', {
+        ['component=="shared_library"', {
           'defines': [
             'GURL_DLL',
             'GURL_IMPLEMENTATION=1',
