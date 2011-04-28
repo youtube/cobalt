@@ -14,6 +14,7 @@
       'dependencies': [
         'yuv_convert',
         '../base/base.gyp:base',
+        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
         '../build/temp_gyp/googleurl.gyp:googleurl',
       ],
