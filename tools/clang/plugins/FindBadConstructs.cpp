@@ -104,7 +104,8 @@ class FindBadConstructsConsumer : public ChromeClassTester {
     if (ctor_score >= 10) {
       if (!record->hasUserDeclaredConstructor()) {
         emitWarning(record_location,
-                    "Complex class/struct needs a declared constructor.");
+                    "Complex class/struct needs an explicit out-of-line "
+                    "constructor.");
       } else {
         // Iterate across all the constructors in this file and yell if we
         // find one that tries to be inline.
@@ -122,8 +123,10 @@ class FindBadConstructsConsumer : public ChromeClassTester {
     // trivial members; 20 ints don't need a destructor.
     if (dtor_score >= 10 && !record->hasTrivialDestructor()) {
       if (!record->hasUserDeclaredDestructor()) {
-        emitWarning(record_location,
-                    "Complex class/struct needs a declared destructor.");
+        emitWarning(
+            record_location,
+            "Complex class/struct needs a needs an explicit out-of-line "
+            "destructor.");
       } else if (CXXDestructorDecl* dtor = record->getDestructor()) {
         if (dtor->hasInlineBody()) {
           emitWarning(dtor->getInnerLocStart(),
