@@ -1561,6 +1561,8 @@
               'usp10.lib',
               'psapi.lib',
               'dbghelp.lib',
+              'winmm.lib',
+              'shlwapi.lib',
             ],
             'conditions': [
               ['msvs_express', {
