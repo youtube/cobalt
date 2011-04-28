@@ -45,7 +45,7 @@ SignatureCreator::~SignatureCreator() {
   CSSM_RETURN crtn;
   if (sig_handle_) {
     crtn = CSSM_DeleteContext(sig_handle_);
-    DCHECK(crtn == CSSM_OK);
+    DCHECK_EQ(CSSM_OK, crtn);
   }
 }
 
@@ -54,7 +54,7 @@ bool SignatureCreator::Update(const uint8* data_part, int data_part_len) {
   data.Data = const_cast<uint8*>(data_part);
   data.Length = data_part_len;
   CSSM_RETURN crtn = CSSM_SignDataUpdate(sig_handle_, &data, 1);
-  DCHECK(crtn == CSSM_OK);
+  DCHECK_EQ(CSSM_OK, crtn);
   return true;
 }
 

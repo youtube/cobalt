@@ -90,7 +90,7 @@ bool SignatureVerifier::VerifyInit(const uint8* signature_algorithm,
 void SignatureVerifier::VerifyUpdate(const uint8* data_part,
                                      int data_part_len) {
   SECStatus rv = VFY_Update(vfy_context_, data_part, data_part_len);
-  DCHECK(rv == SECSuccess);
+  DCHECK_EQ(SECSuccess, rv);
 }
 
 bool SignatureVerifier::VerifyFinal() {
