@@ -99,46 +99,46 @@ class CSSMInitSingleton {
     crtn = CSSM_ModuleAttach(&gGuidAppleCSP, &version, &cssmMemoryFunctions, 0,
                              CSSM_SERVICE_CSP, 0, CSSM_KEY_HIERARCHY_NONE,
                              NULL, 0, NULL, &csp_handle_);
-    DCHECK(crtn == CSSM_OK);
+    DCHECK_EQ(CSSM_OK, crtn);
     crtn = CSSM_ModuleAttach(&gGuidAppleX509CL, &version, &cssmMemoryFunctions,
                              0, CSSM_SERVICE_CL, 0, CSSM_KEY_HIERARCHY_NONE,
                              NULL, 0, NULL, &cl_handle_);
-    DCHECK(crtn == CSSM_OK);
+    DCHECK_EQ(CSSM_OK, crtn);
     crtn = CSSM_ModuleAttach(&gGuidAppleX509TP, &version, &cssmMemoryFunctions,
                              0, CSSM_SERVICE_TP, 0, CSSM_KEY_HIERARCHY_NONE,
                              NULL, 0, NULL, &tp_handle_);
-    DCHECK(crtn == CSSM_OK);
+    DCHECK_EQ(CSSM_OK, crtn);
   }
 
   ~CSSMInitSingleton() {
     CSSM_RETURN crtn;
     if (csp_handle_) {
       CSSM_RETURN crtn = CSSM_ModuleDetach(csp_handle_);
-      DCHECK(crtn == CSSM_OK);
+      DCHECK_EQ(CSSM_OK, crtn);
     }
     if (cl_handle_) {
       CSSM_RETURN crtn = CSSM_ModuleDetach(cl_handle_);
-      DCHECK(crtn == CSSM_OK);
+      DCHECK_EQ(CSSM_OK, crtn);
     }
     if (tp_handle_) {
       CSSM_RETURN crtn = CSSM_ModuleDetach(tp_handle_);
-      DCHECK(crtn == CSSM_OK);
+      DCHECK_EQ(CSSM_OK, crtn);
     }
     if (csp_loaded_) {
       crtn = CSSM_ModuleUnload(&gGuidAppleCSP, NULL, NULL);
-      DCHECK(crtn == CSSM_OK);
+      DCHECK_EQ(CSSM_OK, crtn);
     }
     if (cl_loaded_) {
       crtn = CSSM_ModuleUnload(&gGuidAppleX509CL, NULL, NULL);
-      DCHECK(crtn == CSSM_OK);
+      DCHECK_EQ(CSSM_OK, crtn);
     }
     if (tp_loaded_) {
       crtn = CSSM_ModuleUnload(&gGuidAppleX509TP, NULL, NULL);
-      DCHECK(crtn == CSSM_OK);
+      DCHECK_EQ(CSSM_OK, crtn);
     }
     if (inited_) {
       crtn = CSSM_Terminate();
-      DCHECK(crtn == CSSM_OK);
+      DCHECK_EQ(CSSM_OK, crtn);
     }
   }
 
