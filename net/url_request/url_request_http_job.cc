@@ -660,15 +660,20 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   const SSLInfo& ssl_info = transaction_->GetResponseInfo()->ssl_info;
   if (result == OK &&
       ssl_info.is_valid() &&
+      ssl_info.is_issued_by_known_root &&
       context_->transport_security_state()) {
     TransportSecurityState::DomainState domain_state;
     if (context_->transport_security_state()->HasPinsForHost(
             &domain_state,
             request_->url().host(),
-            context_->IsSNIAvailable()) &&
-        ssl_info.is_issued_by_known_root &&
-        !domain_state.IsChainOfPublicKeysPermitted(ssl_info.public_key_hashes)){
-      result = ERR_CERT_INVALID;
+            context_->IsSNIAvailable())) {
+      if (!domain_state.IsChainOfPublicKeysPermitted(
+              ssl_info.public_key_hashes)) {
+        result = ERR_CERT_INVALID;
+        UMA_HISTOGRAM_BOOLEAN("Net.CertificatePinSuccess", false);
+      } else {
+        UMA_HISTOGRAM_BOOLEAN("Net.CertificatePinSuccess", true);
+      }
     }
   }
 
