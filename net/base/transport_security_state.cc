@@ -585,6 +585,39 @@ bool TransportSecurityState::IsPreloadedSTS(
   // In the medium term this list is likely to just be hardcoded here. This,
   // slightly odd, form removes the need for additional relocations records.
   static const struct HSTSPreload kPreloadedSTS[] = {
+    // (*.)google.com, iff using SSL must use an acceptable certificate.
+    {12, true, "\006google\003com", false, kGoogleAcceptableCerts },
+    // Now we force HTTPS for subtrees of google.com.
+    {19, true, "\006health\006google\003com", true, kGoogleAcceptableCerts },
+    {21, true, "\010checkout\006google\003com", true, kGoogleAcceptableCerts },
+    {19, true, "\006chrome\006google\003com", true, kGoogleAcceptableCerts },
+    {26, false, "\006latest\006chrome\006google\003com", true, 0 },
+    {17, true, "\004docs\006google\003com", true, kGoogleAcceptableCerts },
+    {18, true, "\005sites\006google\003com", true, kGoogleAcceptableCerts },
+    {25, true, "\014spreadsheets\006google\003com", true,
+     kGoogleAcceptableCerts },
+    {22, false, "\011appengine\006google\003com", true,
+     kGoogleAcceptableCerts },
+    {22, true, "\011encrypted\006google\003com", true, kGoogleAcceptableCerts },
+    {21, true, "\010accounts\006google\003com", true, kGoogleAcceptableCerts },
+#if defined(OS_CHROMEOS)
+    // TODO(cevans) - unify this with Chrome.
+    {17, true, "\004mail\006google\003com", true, kGoogleAcceptableCerts },
+#endif
+    // Other Google-related domains that must use HTTPS.
+    {20, true, "\006market\007android\003com", true, kGoogleAcceptableCerts },
+    {26, true, "\003ssl\020google-analytics\003com", true,
+     kGoogleAcceptableCerts },
+    {17, true, "\003ssl\007gstatic\003com", true, kGoogleAcceptableCerts },
+    // Other Google-related domains that must use an acceptable certificate
+    // iff using SSL.
+    {11, true, "\005ytimg\003com", false, kGoogleAcceptableCerts },
+    {23, true, "\021googleusercontent\003com", false, kGoogleAcceptableCerts },
+    {13, true, "\007youtube\003com", false, kGoogleAcceptableCerts },
+    {16, true, "\012googleapis\003com", false, kGoogleAcceptableCerts },
+    {22, true, "\020googleadservices\003com", false, kGoogleAcceptableCerts },
+    {16, true, "\012googlecode\003com", false, kGoogleAcceptableCerts },
+    // Now we force HTTPS for other sites that have requested it.
     {16, false, "\003www\006paypal\003com", true, 0 },
     {16, false, "\003www\006elanex\003biz", true, 0 },
     {12, true,  "\006jottit\003com", true, 0 },
@@ -598,27 +631,15 @@ bool TransportSecurityState::IsPreloadedSTS(
     {17, false, "\002id\010mayfirst\003org", true, 0 },
     {20, false, "\005lists\010mayfirst\003org", true, 0 },
     {19, true, "\015splendidbacon\003com", true, 0 },
-    {19, true, "\006health\006google\003com", true, 0 },
-    {21, true, "\010checkout\006google\003com", true, 0 },
-    {19, true, "\006chrome\006google\003com", true, kGoogleAcceptableCerts },
-    {26, false, "\006latest\006chrome\006google\003com", true, 0 },
     {28, false, "\016aladdinschools\007appspot\003com", true, 0 },
     {14, true, "\011ottospora\002nl", true, 0 },
-    {17, true, "\004docs\006google\003com", true, 0 },
-    {18, true, "\005sites\006google\003com", true, 0 },
-    {25, true, "\014spreadsheets\006google\003com", true, 0 },
-    {22, false, "\011appengine\006google\003com", true, 0 },
     {25, false, "\003www\017paycheckrecords\003com", true, 0 },
-    {20, true, "\006market\007android\003com", true, 0 },
     {14, false, "\010lastpass\003com", true, 0 },
     {18, false, "\003www\010lastpass\003com", true, 0 },
     {14, true, "\010keyerror\003com", true, 0 },
-    {22, true, "\011encrypted\006google\003com", true, 0 },
     {13, false, "\010entropia\002de", true, 0 },
     {17, false, "\003www\010entropia\002de", true, 0 },
-    {21, true, "\010accounts\006google\003com", true, 0 },
 #if defined(OS_CHROMEOS)
-    {17, true, "\004mail\006google\003com", true, 0 },
     {13, false, "\007twitter\003com", true, 0 },
     {17, false, "\003www\007twitter\003com", true, 0 },
     {17, false, "\003api\007twitter\003com", true, 0 },
@@ -629,14 +650,14 @@ bool TransportSecurityState::IsPreloadedSTS(
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
   static const struct HSTSPreload kPreloadedSNISTS[] = {
-    {11, false, "\005gmail\003com", true, 0 },
-    {16, false, "\012googlemail\003com", true, 0 },
-    {15, false, "\003www\005gmail\003com", true, 0 },
-    {20, false, "\003www\012googlemail\003com", true, 0 },
-    // TODO(cevans) -- switch to the subdomain level, once we have a dedicated
-    // non-SNI HSTS entry for ssl.google-analytics.com.
-    {26, true, "\003www\020google-analytics\003com", false,
-     kGoogleAcceptableCerts },
+    // These SNI-only domains must always use HTTPS.
+    {11, false, "\005gmail\003com", true, kGoogleAcceptableCerts },
+    {16, false, "\012googlemail\003com", true, kGoogleAcceptableCerts },
+    {15, false, "\003www\005gmail\003com", true, kGoogleAcceptableCerts },
+    {20, false, "\003www\012googlemail\003com", true, kGoogleAcceptableCerts },
+    // These SNI-only domains must use an acceptable certificate iff using
+    // HTTPS.
+    {22, true, "\020google-analytics\003com", false, kGoogleAcceptableCerts },
   };
   static const size_t kNumPreloadedSNISTS = ARRAYSIZE_UNSAFE(kPreloadedSNISTS);
 
