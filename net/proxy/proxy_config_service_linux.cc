@@ -386,7 +386,7 @@ class GConfSettingGetterImplGConf
   // This is the callback from the debounce timer.
   void OnDebouncedNotification() {
     DCHECK(MessageLoop::current() == loop_);
-    DCHECK(notify_delegate_);
+    CHECK(notify_delegate_);
     // Forward to a method on the proxy config service delegate object.
     notify_delegate_->OnCheckProxyConfigSettings();
   }
@@ -821,7 +821,7 @@ class GConfSettingGetterImplKDE
     DCHECK(MessageLoop::current() == file_loop_);
     VLOG(1) << "inotify change notification for kioslaverc";
     UpdateCachedSettings();
-    DCHECK(notify_delegate_);
+    CHECK(notify_delegate_);
     // Forward to a method on the proxy config service delegate object.
     notify_delegate_->OnCheckProxyConfigSettings();
   }
