@@ -80,6 +80,7 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
 }
 
 FFmpegDemuxerStream::~FFmpegDemuxerStream() {
+  base::AutoLock auto_lock(lock_);
   DCHECK(stopped_);
   DCHECK(read_queue_.empty());
   DCHECK(buffer_queue_.empty());
@@ -87,6 +88,7 @@ FFmpegDemuxerStream::~FFmpegDemuxerStream() {
 
 bool FFmpegDemuxerStream::HasPendingReads() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  base::AutoLock auto_lock(lock_);
   DCHECK(!stopped_ || read_queue_.empty())
       << "Read queue should have been emptied if demuxing stream is stopped";
   return !read_queue_.empty();
@@ -99,6 +101,7 @@ void FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
   base::TimeDelta duration =
       ConvertStreamTimestamp(stream_->time_base, packet->duration);
 
+  base::AutoLock auto_lock(lock_);
   if (stopped_) {
     NOTREACHED() << "Attempted to enqueue packet on a stopped stream";
     return;
@@ -124,12 +127,14 @@ void FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
 
 void FFmpegDemuxerStream::FlushBuffers() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  base::AutoLock auto_lock(lock_);
   DCHECK(read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
 }
 
 void FFmpegDemuxerStream::Stop() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
   STLDeleteElements(&read_queue_);
   stopped_ = true;
@@ -149,13 +154,31 @@ const MediaFormat& FFmpegDemuxerStream::media_format() {
 
 void FFmpegDemuxerStream::Read(Callback1<Buffer*>::Type* read_callback) {
   DCHECK(read_callback);
-  demuxer_->message_loop()->PostTask(FROM_HERE,
+
+  base::AutoLock auto_lock(lock_);
+  if (!buffer_queue_.empty()) {
+    scoped_ptr<Callback1<Buffer*>::Type> read_callback_deleter(read_callback);
+
+    // Dequeue a buffer send back.
+    scoped_refptr<Buffer> buffer = buffer_queue_.front();
+    buffer_queue_.pop_front();
+
+    // Execute the callback.
+    read_callback_deleter->Run(buffer);
+
+    if (!read_queue_.empty())
+      demuxer_->PostDemuxTask();
+
+  } else {
+    demuxer_->message_loop()->PostTask(FROM_HERE,
       NewRunnableMethod(this, &FFmpegDemuxerStream::ReadTask, read_callback));
+  }
 }
 
 void FFmpegDemuxerStream::ReadTask(Callback1<Buffer*>::Type* read_callback) {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
 
+  base::AutoLock auto_lock(lock_);
   // Don't accept any additional reads if we've been told to stop.
   //
   // TODO(scherkus): it would be cleaner if we replied with an error message.
@@ -168,14 +191,15 @@ void FFmpegDemuxerStream::ReadTask(Callback1<Buffer*>::Type* read_callback) {
   read_queue_.push_back(read_callback);
   FulfillPendingRead();
 
-  // There are still pending reads, demux some more.
-  if (HasPendingReads()) {
+  // Check if there are still pending reads, demux some more.
+  if (!read_queue_.empty()) {
     demuxer_->PostDemuxTask();
   }
 }
 
 void FFmpegDemuxerStream::FulfillPendingRead() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  lock_.AssertAcquired();
   if (buffer_queue_.empty() || read_queue_.empty()) {
     return;
   }
