@@ -622,7 +622,6 @@ class MockTCPClientSocket : public MockClientSocket {
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerAddress(AddressList* address) const;
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
 

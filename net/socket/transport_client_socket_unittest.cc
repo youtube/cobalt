@@ -48,7 +48,9 @@ class TransportClientSocketTest
   }
   virtual void DidRead(ListenSocket*, const char* str, int len) {
     // TODO(dkegel): this might not be long enough to tickle some bugs.
-    SendServerReply();
+    connected_sock_->Send(kServerReply,
+                          arraysize(kServerReply) - 1,
+                          false /* don't append line feed */);
   }
   virtual void DidClose(ListenSocket* sock) {}
 
@@ -67,16 +69,6 @@ class TransportClientSocketTest
   void ResumeServerReads() {
     connected_sock_->ResumeReads();
   }
-
-  void SendServerReply() {
-    connected_sock_->Send(kServerReply, arraysize(kServerReply) - 1,
-                          false /* Don't append line feed */);
-  }
-
-  uint32 DrainClientSocket(IOBuffer* buf,
-                           uint32 buf_len,
-                           uint32 bytes_to_read,
-                           TestCompletionCallback* callback);
 
  protected:
   int listen_port_;
@@ -123,26 +115,6 @@ void TransportClientSocketTest::SetUp() {
                                                    NetLog::Source()));
 }
 
-uint32 TransportClientSocketTest::DrainClientSocket(
-    IOBuffer* buf, uint32 buf_len,
-    uint32 bytes_to_read, TestCompletionCallback* callback) {
-  int rv = OK;
-  uint32 bytes_read = 0;
-
-  while (bytes_read < bytes_to_read) {
-    rv = sock_->Read(buf, buf_len, callback);
-    EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
-
-    if (rv == ERR_IO_PENDING)
-      rv = callback->WaitForResult();
-
-    EXPECT_GE(rv, 0);
-    bytes_read += rv;
-  }
-
-  return bytes_read;
-}
-
 // TODO(leighton):  Add SCTP to this list when it is ready.
 INSTANTIATE_TEST_CASE_P(ClientSocket,
                         TransportClientSocketTest,
@@ -175,59 +147,9 @@ TEST_P(TransportClientSocketTest, Connect) {
   EXPECT_FALSE(sock_->IsConnected());
 }
 
-TEST_P(TransportClientSocketTest, IsConnected) {
-  scoped_refptr<IOBuffer> buf(new IOBuffer(4096));
-  TestCompletionCallback callback;
-  uint32 bytes_read;
-
-  EXPECT_FALSE(sock_->IsConnected());
-  int rv = sock_->Connect(&callback);
-  if (rv != OK) {
-    ASSERT_EQ(rv, ERR_IO_PENDING);
-
-    rv = callback.WaitForResult();
-    EXPECT_EQ(rv, OK);
-  }
-
-  EXPECT_TRUE(sock_->IsConnected());
-  EXPECT_TRUE(sock_->IsConnectedAndIdle());
-
-  // Server sends some data
-  SendServerReply();
-  // Drain a single byte so we know we've received some data.
-  bytes_read = DrainClientSocket(buf, 1, 1, &callback);
-  ASSERT_EQ(bytes_read, 1u);
-
-  // Socket should be considered connected, but not idle,
-  EXPECT_TRUE(sock_->IsConnected());
-  EXPECT_FALSE(sock_->IsConnectedAndIdle());
-
-  bytes_read = DrainClientSocket(buf, 4096, arraysize(kServerReply) - 2,
-                                 &callback);
-  ASSERT_EQ(bytes_read, arraysize(kServerReply) - 2);
-
-  // After draining the data, the socket should be back to connected
-  // and idle.
-  EXPECT_TRUE(sock_->IsConnected());
-  EXPECT_TRUE(sock_->IsConnectedAndIdle());
-
-  // This time close the server socket immediately after sending.
-  SendServerReply();
-  CloseServerSocket();
-
-  // As above because of data.
-  EXPECT_TRUE(sock_->IsConnected());
-  EXPECT_FALSE(sock_->IsConnectedAndIdle());
-
-  bytes_read = DrainClientSocket(buf, 4096, arraysize(kServerReply) - 1,
-                                 &callback);
-  ASSERT_EQ(bytes_read, arraysize(kServerReply) - 1);
-
-  // Once the data is drained, the socket should now be seen as
-  // closed.
-  EXPECT_FALSE(sock_->IsConnected());
-  EXPECT_FALSE(sock_->IsConnectedAndIdle());
-}
+// TODO(wtc): Add unit tests for IsConnectedAndIdle:
+//   - Server closes a connection.
+//   - Server sends data unexpectedly.
 
 TEST_P(TransportClientSocketTest, Read) {
   TestCompletionCallback callback;
@@ -253,9 +175,17 @@ TEST_P(TransportClientSocketTest, Read) {
   }
 
   scoped_refptr<IOBuffer> buf(new IOBuffer(4096));
-  uint32 bytes_read = DrainClientSocket(buf, 4096, arraysize(kServerReply) - 1,
-                                        &callback);
-  ASSERT_EQ(bytes_read, arraysize(kServerReply) - 1);
+  uint32 bytes_read = 0;
+  while (bytes_read < arraysize(kServerReply) - 1) {
+    rv = sock_->Read(buf, 4096, &callback);
+    EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
+
+    if (rv == ERR_IO_PENDING)
+      rv = callback.WaitForResult();
+
+    ASSERT_GE(rv, 0);
+    bytes_read += rv;
+  }
 
   // All data has been read now.  Read once more to force an ERR_IO_PENDING, and
   // then close the server socket, and note the close.
