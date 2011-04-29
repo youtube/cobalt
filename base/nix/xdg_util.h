@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,8 @@
 // TODO(brettw) this file should be in app/x11, but is currently used by
 // net. We should have a net API to allow the embedder to specify the behavior
 // that it uses XDG for, and then move this file.
+
+#include "base/base_api.h"
 
 #ifdef nix
 #error asdf
@@ -30,14 +32,14 @@ namespace nix {
 // a directory path. |fallback_dir| is the directory relative to $HOME that we
 // use if |env_name| cannot be found or is empty. |fallback_dir| may be NULL.
 // Examples of |env_name| are XDG_CONFIG_HOME and XDG_DATA_HOME.
-FilePath GetXDGDirectory(Environment* env, const char* env_name,
-                         const char* fallback_dir);
+BASE_API FilePath GetXDGDirectory(Environment* env, const char* env_name,
+                                  const char* fallback_dir);
 
 // Wrapper around xdg_user_dir_lookup() from src/base/third_party/xdg-user-dirs
 // This looks up "well known" user directories like the desktop and music
 // folder. Examples of |dir_name| are DESKTOP and MUSIC.
-FilePath GetXDGUserDirectory(Environment* env, const char* dir_name,
-                             const char* fallback_dir);
+BASE_API FilePath GetXDGUserDirectory(Environment* env, const char* dir_name,
+                                      const char* fallback_dir);
 
 enum DesktopEnvironment {
   DESKTOP_ENVIRONMENT_OTHER,
@@ -53,13 +55,13 @@ enum DesktopEnvironment {
 // of which desktop environment we're using.  We use this to know when
 // to attempt to use preferences from the desktop environment --
 // proxy settings, password manager, etc.
-DesktopEnvironment GetDesktopEnvironment(Environment* env);
+BASE_API DesktopEnvironment GetDesktopEnvironment(Environment* env);
 
 // Return a string representation of the given desktop environment.
 // May return NULL in the case of DESKTOP_ENVIRONMENT_OTHER.
-const char* GetDesktopEnvironmentName(DesktopEnvironment env);
+BASE_API const char* GetDesktopEnvironmentName(DesktopEnvironment env);
 // Convenience wrapper that calls GetDesktopEnvironment() first.
-const char* GetDesktopEnvironmentName(Environment* env);
+BASE_API const char* GetDesktopEnvironmentName(Environment* env);
 
 }  // namespace nix
 }  // namespace base

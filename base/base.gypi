@@ -527,25 +527,29 @@
               'win_util.cc',
             ],
         },],
-        [ 'OS=="win" and component=="shared_library"', {
+        [ 'component=="shared_library"', {
           'defines': [
             'BASE_DLL',
             'BASE_IMPLEMENTATION=1',
           ],
-          'msvs_disabled_warnings': [
-            4251,
+          'conditions': [
+            ['OS=="win"', {
+              'msvs_disabled_warnings': [
+                4251,
+              ],
+              'sources!': [
+                'debug/debug_on_start_win.cc',
+              ],
+              'direct_dependent_settings': {
+                'defines': [
+                  'BASE_DLL',
+                ],
+                'msvs_disabled_warnings': [
+                  4251,
+                ],
+              },
+            }],
           ],
-          'sources!': [
-            'debug/debug_on_start_win.cc',
-          ],
-          'direct_dependent_settings': {
-            'defines': [
-              'BASE_DLL',
-            ],
-            'msvs_disabled_warnings': [
-              4251,
-            ],
-          },
         }],
       ],
       'sources': [
