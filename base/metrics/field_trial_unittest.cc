@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -285,6 +285,32 @@ TEST_F(FieldTrialTest, DuplicateRestore) {
 
   // But it is an error to try to change to a different winner.
   EXPECT_FALSE(FieldTrialList::CreateTrialsInChildProcess("Some name/Loser/"));
+}
+
+TEST_F(FieldTrialTest, CreateFieldTrial) {
+  EXPECT_TRUE(FieldTrialList::Find("Some_name") == NULL);
+
+  FieldTrialList::CreateFieldTrial("Some_name", "Winner");
+
+  FieldTrial* trial = FieldTrialList::Find("Some_name");
+  ASSERT_NE(static_cast<FieldTrial*>(NULL), trial);
+  EXPECT_EQ("Winner", trial->group_name());
+  EXPECT_EQ("Some_name", trial->name());
+}
+
+TEST_F(FieldTrialTest, DuplicateFieldTrial) {
+  FieldTrial* trial =
+      new FieldTrial(
+          "Some_name", 10, "Default some name", next_year_, 12, 31);
+  trial->AppendGroup("Winner", 10);
+
+  // It is OK if we redundantly specify a winner.
+  FieldTrial* trial1 = FieldTrialList::CreateFieldTrial("Some_name", "Winner");
+  EXPECT_TRUE(trial1 != NULL);
+
+  // But it is an error to try to change to a different winner.
+  FieldTrial* trial2 = FieldTrialList::CreateFieldTrial("Some_name", "Loser");
+  EXPECT_TRUE(trial2 == NULL);
 }
 
 TEST_F(FieldTrialTest, MakeName) {
