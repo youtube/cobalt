@@ -6,6 +6,8 @@
 #define BASE_RAND_UTIL_H_
 #pragma once
 
+#include <string>
+
 #include "base/base_api.h"
 #include "base/basictypes.h"
 
@@ -26,6 +28,9 @@ BASE_API uint64 RandGenerator(uint64 max);
 
 // Returns a random double in range [0, 1). Thread-safe.
 BASE_API double RandDouble();
+
+// Returns a random string of the specified length.
+BASE_API std::string RandBytesAsString(size_t length);
 
 }  // namespace base
 
