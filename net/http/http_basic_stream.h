@@ -42,44 +42,41 @@ class HttpBasicStream : public HttpStream {
   // HttpStream methods:
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               CompletionCallback* callback) OVERRIDE;
+                               CompletionCallback* callback);
 
   virtual int SendRequest(const HttpRequestHeaders& headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
-                          CompletionCallback* callback) OVERRIDE;
+                          CompletionCallback* callback);
 
-  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual uint64 GetUploadProgress() const;
 
-  virtual int ReadResponseHeaders(CompletionCallback* callback) OVERRIDE;
+  virtual int ReadResponseHeaders(CompletionCallback* callback);
 
-  virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
+  virtual const HttpResponseInfo* GetResponseInfo() const;
 
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               CompletionCallback* callback) OVERRIDE;
+                               CompletionCallback* callback);
 
-  virtual void Close(bool not_reusable) OVERRIDE;
+  virtual void Close(bool not_reusable);
 
-  virtual HttpStream* RenewStreamForAuth() OVERRIDE;
+  virtual HttpStream* RenewStreamForAuth();
 
-  virtual bool IsResponseBodyComplete() const OVERRIDE;
+  virtual bool IsResponseBodyComplete() const;
 
-  virtual bool CanFindEndOfResponse() const OVERRIDE;
+  virtual bool CanFindEndOfResponse() const;
 
-  virtual bool IsMoreDataBuffered() const OVERRIDE;
+  virtual bool IsMoreDataBuffered() const;
 
-  virtual bool IsConnectionReused() const OVERRIDE;
+  virtual bool IsConnectionReused() const;
 
-  virtual void SetConnectionReused() OVERRIDE;
+  virtual void SetConnectionReused();
 
-  virtual bool IsConnectionReusable() const OVERRIDE;
+  virtual void GetSSLInfo(SSLInfo* ssl_info);
 
-  virtual void GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
+  virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
-  virtual void GetSSLCertRequestInfo(
-      SSLCertRequestInfo* cert_request_info) OVERRIDE;
-
-  virtual bool IsSpdyHttpStream() const OVERRIDE;
+  virtual bool IsSpdyHttpStream() const;
 
  private:
   scoped_refptr<GrowableIOBuffer> read_buf_;

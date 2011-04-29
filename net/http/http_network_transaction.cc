@@ -273,7 +273,7 @@ void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
 
   if (stream_.get()) {
     HttpStream* new_stream = NULL;
-    if (keep_alive && stream_->IsConnectionReusable()) {
+    if (keep_alive) {
       // We should call connection_->set_idle_time(), but this doesn't occur
       // often enough to be worth the trouble.
       stream_->SetConnectionReused();
@@ -281,10 +281,7 @@ void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
     }
 
     if (!new_stream) {
-      // Close the stream and mark it as not_reusable.  Even in the
-      // keep_alive case, we've determined that the stream_ is not
-      // reusable if new_stream is NULL.
-      stream_->Close(true);
+      stream_->Close(!keep_alive);
       next_state_ = STATE_CREATE_STREAM;
     } else {
       next_state_ = STATE_INIT_STREAM;
