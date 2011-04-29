@@ -314,7 +314,7 @@ class BASE_API DictionaryValue : public Value {
   // YOU SHOULD ALWAYS USE THE XXXWithoutPathExpansion() APIs WITH THESE, NOT
   // THE NORMAL XXX() APIs.  This makes sure things will work correctly if any
   // keys have '.'s in them.
-  class BASE_API key_iterator
+  class key_iterator
       : private std::iterator<std::input_iterator_tag, const std::string> {
    public:
     explicit key_iterator(ValueMap::const_iterator itr) { itr_ = itr; }
