@@ -25,6 +25,10 @@ const char FieldTrialList::kPersistentStringSeparator('/');
 
 static const char kHistogramFieldTrialSeparator('_');
 
+// static
+int FieldTrialList::kExpirationYearInFuture = 0;
+
+
 //------------------------------------------------------------------------------
 // FieldTrial methods and members.
 
@@ -83,6 +87,7 @@ int FieldTrial::AppendGroup(const std::string& name,
       base::StringAppendF(&group_name_, "%d", group_);
     else
       group_name_ = name;
+    FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
   }
   return next_group_number_++;
 }
@@ -92,6 +97,7 @@ int FieldTrial::group() {
     accumulated_group_probability_ = divisor_;
     group_ = kDefaultGroupNumber;
     group_name_ = default_group_name_;
+    FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
   }
   return group_;
 }
@@ -136,10 +142,18 @@ FieldTrialList* FieldTrialList::global_ = NULL;
 // static
 bool FieldTrialList::register_without_global_ = false;
 
-FieldTrialList::FieldTrialList() : application_start_time_(TimeTicks::Now()) {
+FieldTrialList::FieldTrialList()
+    : application_start_time_(TimeTicks::Now()),
+      observer_list_(ObserverList<Observer>::NOTIFY_EXISTING_ONLY) {
   DCHECK(!global_);
   DCHECK(!register_without_global_);
   global_ = this;
+
+  Time::Exploded exploded;
+  Time two_years_from_now =
+      Time::NowFromSystemTime() + TimeDelta::FromDays(730);
+  two_years_from_now.LocalExplode(&exploded);
+  kExpirationYearInFuture = exploded.year;
 }
 
 FieldTrialList::~FieldTrialList() {
@@ -219,12 +233,6 @@ bool FieldTrialList::CreateTrialsInChildProcess(
   if (parent_trials.empty() || !global_)
     return true;
 
-  Time::Exploded exploded;
-  Time two_years_from_now =
-      Time::NowFromSystemTime() + TimeDelta::FromDays(730);
-  two_years_from_now.LocalExplode(&exploded);
-  const int kTwoYearsFromNow = exploded.year;
-
   size_t next_item = 0;
   while (next_item < parent_trials.length()) {
     size_t name_end = parent_trials.find(kPersistentStringSeparator, next_item);
@@ -239,20 +247,62 @@ bool FieldTrialList::CreateTrialsInChildProcess(
                            group_name_end - name_end - 1);
     next_item = group_name_end + 1;
 
-    FieldTrial *field_trial(FieldTrialList::Find(name));
-    if (field_trial) {
-      // In single process mode, we may have already created the field trial.
-      if ((field_trial->group_name_internal() != group_name) &&
-          (field_trial->default_group_name() != group_name))
-        return false;
-      continue;
-    }
-    const int kTotalProbability = 100;
-    field_trial = new FieldTrial(name, kTotalProbability, group_name,
-                                 kTwoYearsFromNow, 1, 1);
-    field_trial->AppendGroup(group_name, kTotalProbability);
+    if (!CreateFieldTrial(name, group_name))
+      return false;
   }
   return true;
+}
+
+// static
+FieldTrial* FieldTrialList::CreateFieldTrial(
+    const std::string& name,
+    const std::string& group_name) {
+  DCHECK(global_);
+  DCHECK_GE(name.size(), 0u);
+  DCHECK_GE(group_name.size(), 0u);
+  if (name.empty() || group_name.empty() || !global_)
+    return NULL;
+
+  FieldTrial *field_trial(FieldTrialList::Find(name));
+  if (field_trial) {
+    // In single process mode, we may have already created the field trial.
+    if (field_trial->group_name_internal() != group_name)
+      return NULL;
+    return field_trial;
+  }
+  const int kTotalProbability = 100;
+  field_trial = new FieldTrial(name, kTotalProbability, group_name,
+                               kExpirationYearInFuture, 1, 1);
+  field_trial->AppendGroup(group_name, kTotalProbability);
+  return field_trial;
+}
+
+// static
+void FieldTrialList::AddObserver(Observer* observer) {
+  if (!global_)
+    return;
+  DCHECK(global_);
+  global_->observer_list_.AddObserver(observer);
+}
+
+// static
+void FieldTrialList::RemoveObserver(Observer* observer) {
+  if (!global_)
+    return;
+  DCHECK(global_);
+  global_->observer_list_.RemoveObserver(observer);
+}
+
+// static
+void FieldTrialList::NotifyFieldTrialGroupSelection(
+    const std::string& name,
+    const std::string& group_name) {
+  if (!global_)
+    return;
+  DCHECK(global_);
+  FOR_EACH_OBSERVER(Observer,
+                    global_->observer_list_,
+                    OnFieldTrialGroupFinalized(name, group_name));
 }
 
 // static
