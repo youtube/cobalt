@@ -261,7 +261,9 @@ TEST_F(ProcessUtilTest, SetProcessBackgrounded) {
   base::Process process(handle);
   int old_priority = process.GetPriority();
   if (process.SetProcessBackgrounded(true)) {
+#if defined(OS_WIN)
     EXPECT_TRUE(process.IsProcessBackgrounded());
+#endif
     EXPECT_TRUE(process.SetProcessBackgrounded(false));
     EXPECT_FALSE(process.IsProcessBackgrounded());
   }
@@ -275,7 +277,9 @@ TEST_F(ProcessUtilTest, SetProcessBackgroundedSelf) {
   base::Process process(base::Process::Current().handle());
   int old_priority = process.GetPriority();
   if (process.SetProcessBackgrounded(true)) {
+#if defined(OS_WIN)
     EXPECT_TRUE(process.IsProcessBackgrounded());
+#endif
     EXPECT_TRUE(process.SetProcessBackgrounded(false));
     EXPECT_FALSE(process.IsProcessBackgrounded());
   }
