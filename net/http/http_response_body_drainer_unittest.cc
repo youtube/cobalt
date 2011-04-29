@@ -74,44 +74,48 @@ class MockHttpStream : public HttpStream {
   // HttpStream implementation:
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               CompletionCallback* callback) {
+                               CompletionCallback* callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
-                          CompletionCallback* callback) {
+                          CompletionCallback* callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }
-  virtual uint64 GetUploadProgress() const  { return 0; }
-  virtual int ReadResponseHeaders(CompletionCallback* callback) {
+  virtual uint64 GetUploadProgress() const OVERRIDE { return 0; }
+  virtual int ReadResponseHeaders(CompletionCallback* callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }
-  virtual const HttpResponseInfo* GetResponseInfo() const { return NULL; }
+  virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE {
+    return NULL;
+  }
 
-  virtual bool CanFindEndOfResponse() const { return true; }
-  virtual bool IsMoreDataBuffered() const { return false; }
-  virtual bool IsConnectionReused() const { return false; }
-  virtual void SetConnectionReused() {}
-  virtual void GetSSLInfo(SSLInfo* ssl_info) {}
-  virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) {}
+  virtual bool CanFindEndOfResponse() const OVERRIDE { return true; }
+  virtual bool IsMoreDataBuffered() const OVERRIDE { return false; }
+  virtual bool IsConnectionReused() const OVERRIDE { return false; }
+  virtual void SetConnectionReused() OVERRIDE {}
+  virtual bool IsConnectionReusable() const OVERRIDE { return false; }
+  virtual void GetSSLInfo(SSLInfo* ssl_info) OVERRIDE {}
+  virtual void GetSSLCertRequestInfo(
+      SSLCertRequestInfo* cert_request_info) OVERRIDE {}
 
   // Mocked API
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               CompletionCallback* callback);
-  virtual void Close(bool not_reusable) {
+                               CompletionCallback* callback) OVERRIDE;
+  virtual void Close(bool not_reusable) OVERRIDE {
     DCHECK(!closed_);
     closed_ = true;
     result_waiter_->set_result(not_reusable);
   }
 
-  virtual HttpStream* RenewStreamForAuth() {
+  virtual HttpStream* RenewStreamForAuth() OVERRIDE {
     return NULL;
   }
 
-  virtual bool IsResponseBodyComplete() const { return is_complete_; }
+  virtual bool IsResponseBodyComplete() const OVERRIDE { return is_complete_; }
 
-  virtual bool IsSpdyHttpStream() const { return false; }
+  virtual bool IsSpdyHttpStream() const OVERRIDE { return false; }
 
   // Methods to tweak/observer mock behavior:
   void StallReadsForever() { stall_reads_forever_ = true; }
