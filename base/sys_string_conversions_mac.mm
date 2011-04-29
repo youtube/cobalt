@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 
 #include <vector>
 
-#include "base/foundation_utils_mac.h"
+#include "base/mac/foundation_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/string_piece.h"
 
@@ -157,15 +157,18 @@ CFStringRef SysWideToCFStringRef(const std::wstring& wide) {
 }
 
 NSString* SysUTF8ToNSString(const std::string& utf8) {
-  return CFTypeRefToNSObjectAutorelease(SysUTF8ToCFStringRef(utf8));
+  return (NSString*)base::mac::CFTypeRefToNSObjectAutorelease(
+      SysUTF8ToCFStringRef(utf8));
 }
 
 NSString* SysUTF16ToNSString(const string16& utf16) {
-  return CFTypeRefToNSObjectAutorelease(SysUTF16ToCFStringRef(utf16));
+  return (NSString*)base::mac::CFTypeRefToNSObjectAutorelease(
+      SysUTF16ToCFStringRef(utf16));
 }
 
 NSString* SysWideToNSString(const std::wstring& wide) {
-  return CFTypeRefToNSObjectAutorelease(SysWideToCFStringRef(wide));
+  return (NSString*)base::mac::CFTypeRefToNSObjectAutorelease(
+      SysWideToCFStringRef(wide));
 }
 
 std::string SysCFStringRefToUTF8(CFStringRef ref) {
