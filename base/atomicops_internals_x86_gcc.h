@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,11 @@
 #define BASE_ATOMICOPS_INTERNALS_X86_GCC_H_
 #pragma once
 
+#include "base/base_api.h"
+
 // This struct is not part of the public API of this module; clients may not
-// use it.
+// use it.  (However, it's exported via BASE_API because clients implicitly
+// do use it at link time by inlining these functions.)
 // Features of this x86.  Values may not be correct before main() is run,
 // but are set conservatively.
 struct AtomicOps_x86CPUFeatureStruct {
@@ -17,7 +20,8 @@ struct AtomicOps_x86CPUFeatureStruct {
                             // after acquire compare-and-swap.
   bool has_sse2;            // Processor has SSE2.
 };
-extern struct AtomicOps_x86CPUFeatureStruct AtomicOps_Internalx86CPUFeatures;
+BASE_API extern struct AtomicOps_x86CPUFeatureStruct
+    AtomicOps_Internalx86CPUFeatures;
 
 #define ATOMICOPS_COMPILER_BARRIER() __asm__ __volatile__("" : : : "memory")
 
