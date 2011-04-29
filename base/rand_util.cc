@@ -41,4 +41,20 @@ uint64 RandGenerator(uint64 max) {
   return base::RandUint64() % max;
 }
 
+std::string RandBytesAsString(size_t length) {
+  const size_t kBitsPerChar = 8;
+  const int kCharsPerInt64 = sizeof(uint64)/sizeof(char);
+
+  std::string result(length, '\0');
+  uint64 entropy = 0;
+  for (size_t i = 0; i < result.size(); ++i) {
+    if (i % kCharsPerInt64 == 0)
+      entropy = RandUint64();
+    result[i] = static_cast<char>(entropy);
+    entropy >>= kBitsPerChar;
+  }
+
+  return result;
+}
+
 }  // namespace base
