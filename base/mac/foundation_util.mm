@@ -235,6 +235,17 @@ void NSObjectRelease(void* obj) {
   [nsobj release];
 }
 
+void* CFTypeRefToNSObjectAutorelease(CFTypeRef cf_object) {
+  // When GC is on, NSMakeCollectable marks cf_object for GC and autorelease
+  // is a no-op.
+  //
+  // In the traditional GC-less environment, NSMakeCollectable is a no-op,
+  // and cf_object is autoreleased, balancing out the caller's ownership claim.
+  //
+  // NSMakeCollectable returns nil when used on a NULL object.
+  return [NSMakeCollectable(cf_object) autorelease];
+}
+
 static const char* base_bundle_id;
 
 const char* BaseBundleID() {
