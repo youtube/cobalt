@@ -88,7 +88,7 @@ class ProcessMetrics;
 
 namespace debug {
 
-class TraceLog {
+class BASE_API TraceLog {
  public:
   enum EventType {
     EVENT_BEGIN,
