@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,7 +41,7 @@ uint8* DataBuffer::GetWritableData() {
 
 
 void DataBuffer::SetDataSize(size_t data_size) {
-  DCHECK(data_size <= buffer_size_);
+  DCHECK_LE(data_size, buffer_size_);
   data_size_ = data_size;
 }
 
