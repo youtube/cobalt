@@ -74,6 +74,13 @@ class FFmpegDemuxerStream : public DemuxerStream {
   // DemuxerStream implementation.
   virtual Type type();
   virtual const MediaFormat& media_format();
+
+  // If |buffer_queue_| is not empty will execute on caller's thread, otherwise
+  // will post ReadTask to execute on demuxer's thread. Read will acquire
+  // |lock_| for the life of the function so that means |read_callback| must
+  // not make calls into FFmpegDemuxerStream directly or that may cause a
+  // deadlock. |read_callback| should execute as quickly as possible because
+  // |lock_| is held throughout the life of the callback.
   virtual void Read(Callback1<Buffer*>::Type* read_callback);
   // Bitstream converter to convert input packet.
   virtual void EnableBitstreamConverter();
@@ -86,7 +93,8 @@ class FFmpegDemuxerStream : public DemuxerStream {
   void ReadTask(Callback1<Buffer*>::Type* read_callback);
 
   // Attempts to fulfill a single pending read by dequeueing a buffer and read
-  // callback pair and executing the callback.
+  // callback pair and executing the callback. The calling function must
+  // acquire |lock_| before calling this function.
   void FulfillPendingRead();
 
   // Converts an FFmpeg stream timestamp into a base::TimeDelta.
@@ -109,6 +117,13 @@ class FFmpegDemuxerStream : public DemuxerStream {
 
   // Used to translate bitstream formats.
   scoped_ptr<BitstreamConverter> bitstream_converter_;
+
+  // Used to synchronize access to |buffer_queue_|, |read_queue_|, and
+  // |stopped_|. This is so other threads can get access to buffers that have
+  // already been demuxed without having the demuxer thread sending the
+  // buffers. |lock_| must be acquired before any access to |buffer_queue_|,
+  // |read_queue_|, or |stopped_|.
+  base::Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerStream);
 };
