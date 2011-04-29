@@ -371,7 +371,7 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
   // that case, |current_frame_| could be changed before PutCurrentFrame.
   if (pending_paint_) {
     DCHECK(current_frame_.get() == frame.get());
-    DCHECK(pending_paint_with_last_available_ == false);
+    DCHECK(!pending_paint_with_last_available_);
     pending_paint_ = false;
   } else if (pending_paint_with_last_available_) {
     DCHECK(last_available_frame_.get() == frame.get());

@@ -457,7 +457,7 @@ PipelineImpl::State PipelineImpl::FindNextState(State current) {
 
 void PipelineImpl::SetError(PipelineStatus error) {
   DCHECK(IsRunning());
-  DCHECK(error != PIPELINE_OK) << "PIPELINE_OK isn't an error!";
+  DCHECK_NE(PIPELINE_OK, error);
   VLOG(1) << "Media pipeline error: " << error;
 
   message_loop_->PostTask(FROM_HERE,

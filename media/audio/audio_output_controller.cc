@@ -25,7 +25,7 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
 }
 
 AudioOutputController::~AudioOutputController() {
-  DCHECK(kClosed == state_);
+  DCHECK_EQ(kClosed, state_);
 }
 
 // static
@@ -135,7 +135,7 @@ void AudioOutputController::DoCreate(AudioParameters params) {
   // Close() can be called before DoCreate() is executed.
   if (state_ == kClosed)
     return;
-  DCHECK(state_ == kEmpty);
+  DCHECK_EQ(kEmpty, state_);
 
   if (!AudioManager::GetAudioManager())
     return;
