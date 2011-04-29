@@ -12,6 +12,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/string_split.h"
 #include "base/win/scoped_handle.h"
 #include "base/threading/platform_thread.h"
 
@@ -202,19 +203,21 @@ bool HasInternetZoneIdentifier(const FilePath& full_path) {
   if (!file_util::ReadFileToString(zone_path, &zone_path_contents))
     return false;
 
-  static const char kInternetIdentifier[] = "[ZoneTransfer]\nZoneId=3";
-  static const size_t kInternetIdentifierSize =
-      // Don't include null byte in size of identifier.
-      arraysize(kInternetIdentifier) - 1;
+  std::vector<std::string> lines;
+  // This call also trims whitespaces, including carriage-returns (\r).
+  base::SplitString(zone_path_contents, '\n', &lines);
 
-  // Our test is that the initial characters match the above, and that
-  // the character after the end of the string is eof, null, or newline; any
-  // of those three will invoke the Window Finder cautionary dialog.
-  return ((zone_path_contents.compare(0, kInternetIdentifierSize,
-                                      kInternetIdentifier) == 0) &&
-          (kInternetIdentifierSize == zone_path_contents.length() ||
-           zone_path_contents[kInternetIdentifierSize] == '\0' ||
-           zone_path_contents[kInternetIdentifierSize] == '\n'));
+  switch (lines.size()) {
+    case 3:
+      // optional empty line at end of file:
+      if (lines[2] != "")
+        return false;
+      // fall through:
+    case 2:
+      return lines[0] == "[ZoneTransfer]" && lines[1] == "ZoneId=3";
+    default:
+      return false;
+  }
 }
 
 std::wstring FilePathAsWString(const FilePath& path) {
