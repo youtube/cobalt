@@ -260,13 +260,15 @@ TEST_F(ProcessUtilTest, SetProcessBackgrounded) {
   base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess", false);
   base::Process process(handle);
   int old_priority = process.GetPriority();
-  if (process.SetProcessBackgrounded(true)) {
 #if defined(OS_WIN)
-    EXPECT_TRUE(process.IsProcessBackgrounded());
+  EXPECT_TRUE(process.SetProcessBackgrounded(true));
+  EXPECT_TRUE(process.IsProcessBackgrounded());
+  EXPECT_TRUE(process.SetProcessBackgrounded(false));
+  EXPECT_FALSE(process.IsProcessBackgrounded());
+#else
+  process.SetProcessBackgrounded(true);
+  process.SetProcessBackgrounded(false);
 #endif
-    EXPECT_TRUE(process.SetProcessBackgrounded(false));
-    EXPECT_FALSE(process.IsProcessBackgrounded());
-  }
   int new_priority = process.GetPriority();
   EXPECT_EQ(old_priority, new_priority);
 }
@@ -276,13 +278,15 @@ TEST_F(ProcessUtilTest, SetProcessBackgrounded) {
 TEST_F(ProcessUtilTest, SetProcessBackgroundedSelf) {
   base::Process process(base::Process::Current().handle());
   int old_priority = process.GetPriority();
-  if (process.SetProcessBackgrounded(true)) {
 #if defined(OS_WIN)
-    EXPECT_TRUE(process.IsProcessBackgrounded());
+  EXPECT_TRUE(process.SetProcessBackgrounded(true));
+  EXPECT_TRUE(process.IsProcessBackgrounded());
+  EXPECT_TRUE(process.SetProcessBackgrounded(false));
+  EXPECT_FALSE(process.IsProcessBackgrounded());
+#else
+  process.SetProcessBackgrounded(true);
+  process.SetProcessBackgrounded(false);
 #endif
-    EXPECT_TRUE(process.SetProcessBackgrounded(false));
-    EXPECT_FALSE(process.IsProcessBackgrounded());
-  }
   int new_priority = process.GetPriority();
   EXPECT_EQ(old_priority, new_priority);
 }
