@@ -175,8 +175,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
                         &surface_type_,
                         &surface_format_,
                         &width_, &height_)) {
-    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    state_ = kError;
+    EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
   host()->SetVideoSize(width_, height_);
@@ -185,8 +184,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // TODO(scherkus): do we trust subclasses not to do something silly while
   // we're holding the lock?
   if (!OnInitialize(decoder)) {
-    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    state_ = kError;
+    EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
 
@@ -199,8 +197,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // Create our video thread.
   if (!base::PlatformThread::Create(0, this, &thread_)) {
     NOTREACHED() << "Video thread creation failed";
-    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    state_ = kError;
+    EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
 
@@ -389,11 +386,18 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
 }
 
 void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
-  PipelineStatistics statistics;
-  statistics.video_frames_decoded = 1;
-  statistics_callback_->Run(statistics);
+  if (frame) {
+    PipelineStatistics statistics;
+    statistics.video_frames_decoded = 1;
+    statistics_callback_->Run(statistics);
+  }
 
   base::AutoLock auto_lock(lock_);
+
+  if (!frame) {
+    EnterErrorState_Locked(PIPELINE_ERROR_DECODE);
+    return;
+  }
 
   // Decoder could reach seek state before our Seek() get called.
   // We will enter kSeeking
@@ -568,6 +572,43 @@ base::TimeDelta VideoRendererBase::CalculateSleepDuration(
   // TODO(scherkus): floating point badness and degrade gracefully.
   return base::TimeDelta::FromMicroseconds(
       static_cast<int64>(sleep.InMicroseconds() / playback_rate));
+}
+
+void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
+  lock_.AssertAcquired();
+
+  scoped_ptr<FilterCallback> callback;
+  switch (state_) {
+    case kUninitialized:
+    case kPrerolled:
+    case kPaused:
+    case kFlushed:
+    case kEnded:
+    case kPlaying:
+      break;
+
+    case kFlushing:
+      CHECK(flush_callback_.get());
+      callback.swap(flush_callback_);
+      break;
+
+    case kSeeking:
+      CHECK(seek_callback_.get());
+      callback.swap(seek_callback_);
+      break;
+
+    case kStopped:
+      NOTREACHED() << "Should not error if stopped.";
+      return;
+
+    case kError:
+      return;
+  }
+  state_ = kError;
+  host()->SetError(status);
+
+  if (callback.get())
+    callback->Run();
 }
 
 }  // namespace media
