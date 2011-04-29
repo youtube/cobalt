@@ -270,6 +270,23 @@
       }]]
     },
     {
+      'target_name': 'libgcrypt',
+      'type': 'settings',
+      'conditions': [
+        ['_toolset=="target"', {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(libgcrypt-config --cflags)',
+            ],
+          },
+          'link_settings': {
+            'libraries': [
+              '<!@(libgcrypt-config --libs)',
+            ],
+          },
+      }]]
+    },
+    {
       'target_name': 'selinux',
       'type': 'settings',
       'conditions': [
