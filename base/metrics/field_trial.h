@@ -81,6 +81,7 @@
 #include "base/base_api.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
+#include "base/observer_list.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 
@@ -218,6 +219,20 @@ class BASE_API FieldTrialList {
   // second process to mimic our state (i.e., provide the same group name).
   static const char kPersistentStringSeparator;  // Currently a slash.
 
+  // Define expiration year in future. It is initialized to two years from Now.
+  static int kExpirationYearInFuture;
+
+  // Observer is notified when a FieldTrial's group is selected.
+  class Observer {
+   public:
+    // Notify observers when FieldTrials's group is selected.
+    virtual void OnFieldTrialGroupFinalized(const std::string& trial_name,
+                                            const std::string& group_name) = 0;
+
+   protected:
+    virtual ~Observer() {}
+  };
+
   // This singleton holds the global list of registered FieldTrials.
   FieldTrialList();
   // Destructor Release()'s references to all registered FieldTrial instances.
@@ -245,10 +260,33 @@ class BASE_API FieldTrialList {
   // Use a previously generated state string (re: StatesToString()) augment the
   // current list of field tests to include the supplied tests, and using a 100%
   // probability for each test, force them to have the same group string.  This
-  // is commonly used in a sub-process, to carry randomly selected state in a
-  // parent process into this sub-process.
-  //  Currently only the group_name_ and name_ are restored.
+  // is commonly used in a non-browser process, to carry randomly selected state
+  // in a browser process into this non-browser process. This method calls
+  // CreateFieldTrial to create the FieldTrial in the non-browser process.
+  // Currently only the group_name_ and name_ are restored.
   static bool CreateTrialsInChildProcess(const std::string& prior_trials);
+
+  // Create a FieldTrial with the given |name| and using 100% probability for
+  // the FieldTrial, force FieldTrial to have the same group string as
+  // |group_name|. This is commonly used in a non-browser process, to carry
+  // randomly selected state in a browser process into this non-browser process.
+  // Currently only the group_name_ and name_ are set in the FieldTrial. It
+  // returns NULL if there is a FieldTrial that is already registered with the
+  // same |name| but has different finalized group string (|group_name|).
+  static FieldTrial* CreateFieldTrial(const std::string& name,
+                                      const std::string& group_name);
+
+  // Add an observer to be notified when a field trial is irrevocably committed
+  // to being part of some specific field_group (and hence the group_name is
+  // also finalized for that field_trial).
+  static void AddObserver(Observer* observer);
+
+  // Remove an observer.
+  static void RemoveObserver(Observer* observer);
+
+  // Notify all observers that a group is finalized for the named Trial.
+  static void NotifyFieldTrialGroupSelection(const std::string& name,
+                                             const std::string& group_name);
 
   // The time of construction of the global map is recorded in a static variable
   // and is commonly used by experiments to identify the time since the start
@@ -287,6 +325,9 @@ class BASE_API FieldTrialList {
   // Lock for access to registered_.
   base::Lock lock_;
   RegistrationList registered_;
+
+  // List of observers to be notified when a group is selected for a FieldTrial.
+  ObserverList<Observer> observer_list_;
 
   DISALLOW_COPY_AND_ASSIGN(FieldTrialList);
 };
