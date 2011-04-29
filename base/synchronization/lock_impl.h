@@ -14,6 +14,7 @@
 #include <pthread.h>
 #endif
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 namespace base {
@@ -22,7 +23,7 @@ namespace internal {
 // This class implements the underlying platform-specific spin-lock mechanism
 // used for the Lock class.  Most users should not use LockImpl directly, but
 // should instead use Lock.
-class LockImpl {
+class BASE_API LockImpl {
  public:
 #if defined(OS_WIN)
   typedef CRITICAL_SECTION OSLockType;
