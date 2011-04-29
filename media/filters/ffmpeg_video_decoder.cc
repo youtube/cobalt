@@ -209,7 +209,7 @@ void FFmpegVideoDecoder::OnSeekComplete() {
 }
 
 void FFmpegVideoDecoder::OnError() {
-  NOTIMPLEMENTED();
+  VideoFrameReady(NULL);
 }
 
 void FFmpegVideoDecoder::OnFormatChange(VideoStreamInfo stream_info) {

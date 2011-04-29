@@ -22,6 +22,7 @@
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "media/base/filters.h"
+#include "media/base/pipeline_status.h"
 #include "media/base/video_frame.h"
 
 namespace media {
@@ -129,6 +130,9 @@ class VideoRendererBase : public VideoRenderer,
   // We don't use |playback_rate_| to avoid locking.
   base::TimeDelta CalculateSleepDuration(VideoFrame* next_frame,
                                          float playback_rate);
+
+  // Safely handles entering to an error state.
+  void EnterErrorState_Locked(PipelineStatus status);
 
   // Used for accessing data members.
   base::Lock lock_;

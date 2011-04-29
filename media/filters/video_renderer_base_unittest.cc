@@ -110,21 +110,30 @@ class VideoRendererBaseTest : public ::testing::Test {
     Seek(0);
   }
 
-  void Seek(int64 timestamp) {
-    EXPECT_CALL(*renderer_, OnFrameAvailable());
+  void StartSeeking(int64 timestamp) {
     EXPECT_FALSE(seeking_);
 
-    // Now seek to trigger prerolling.
+    // Seek to trigger prerolling.
     seeking_ = true;
     renderer_->Seek(base::TimeDelta::FromMicroseconds(timestamp),
                     NewCallback(this, &VideoRendererBaseTest::OnSeekComplete));
+  }
 
-    // Now satisfy the read requests.  The callback must be executed in order
+  void FinishSeeking() {
+    EXPECT_CALL(*renderer_, OnFrameAvailable());
+    EXPECT_TRUE(seeking_);
+
+    // Satisfy the read requests.  The callback must be executed in order
     // to exit the loop since VideoRendererBase can read a few extra frames
     // after |timestamp| in order to preroll.
     for (int64 i = 0; seeking_; ++i) {
       CreateFrame(i * kDuration, kDuration);
     }
+  }
+
+  void Seek(int64 timestamp) {
+    StartSeeking(timestamp);
+    FinishSeeking();
   }
 
   void Flush() {
@@ -134,6 +143,10 @@ class VideoRendererBaseTest : public ::testing::Test {
         .WillRepeatedly(Return(true));
 
     renderer_->Flush(NewExpectedCallback());
+  }
+
+  void CreateError() {
+    decoder_->VideoFrameReadyForTest(NULL);
   }
 
   void CreateFrame(int64 timestamp, int64 duration) {
@@ -241,6 +254,25 @@ TEST_F(VideoRendererBaseTest, Initialize_Successful) {
 TEST_F(VideoRendererBaseTest, Play) {
   Initialize();
   renderer_->Play(NewExpectedCallback());
+  Flush();
+}
+
+TEST_F(VideoRendererBaseTest, Error_Playing) {
+  Initialize();
+  renderer_->Play(NewExpectedCallback());
+
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+  CreateError();
+  Flush();
+}
+
+TEST_F(VideoRendererBaseTest, Error_Seeking) {
+  Initialize();
+  Flush();
+  StartSeeking(0);
+
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+  CreateError();
   Flush();
 }
 
