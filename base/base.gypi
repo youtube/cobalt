@@ -94,7 +94,6 @@
           'files/file_path_watcher_win.cc',
           'fix_wp64.h',
           'float_util.h',
-          'foundation_utils_mac.h',
           'global_descriptors_posix.cc',
           'global_descriptors_posix.h',
           'gtest_prod_util.h',

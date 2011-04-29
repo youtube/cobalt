@@ -103,6 +103,25 @@ CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
 void NSObjectRetain(void* obj);
 void NSObjectRelease(void* obj);
 
+// CFTypeRefToNSObjectAutorelease transfers ownership of a Core Foundation
+// object (one derived from CFTypeRef) to the Foundation memory management
+// system.  In a traditional managed-memory environment, cf_object is
+// autoreleased and returned as an NSObject.  In a garbage-collected
+// environment, cf_object is marked as eligible for garbage collection.
+//
+// This function should only be used to convert a concrete CFTypeRef type to
+// its equivalent "toll-free bridged" NSObject subclass, for example,
+// converting a CFStringRef to NSString.
+//
+// By calling this function, callers relinquish any ownership claim to
+// cf_object.  In a managed-memory environment, the object's ownership will be
+// managed by the innermost NSAutoreleasePool, so after this function returns,
+// callers should not assume that cf_object is valid any longer than the
+// returned NSObject.
+//
+// Returns an id, typed here for C++'s sake as a void*.
+void* CFTypeRefToNSObjectAutorelease(CFTypeRef cf_object);
+
 // Returns the base bundle ID, which can be set by SetBaseBundleID but
 // defaults to a reasonable string. This never returns NULL. BaseBundleID
 // returns a pointer to static storage that must not be freed.
