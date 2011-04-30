@@ -288,6 +288,28 @@ TEST(HistogramTest, BoundsTest) {
   EXPECT_EQ(kBucketCount, array_size);
   EXPECT_EQ(0, sample.counts(array_size - 2));
   EXPECT_EQ(2, sample.counts(array_size - 1));
+
+  std::vector<int> custom_ranges;
+  custom_ranges.push_back(10);
+  custom_ranges.push_back(50);
+  custom_ranges.push_back(100);
+  Histogram* test_custom_histogram(CustomHistogram::FactoryGet(
+      "TestCustomRangeBoundedHistogram", custom_ranges, Histogram::kNoFlags));
+
+  // Put two samples "out of bounds" above and below.
+  test_custom_histogram->Add(5);
+  test_custom_histogram->Add(-50);
+  test_custom_histogram->Add(100);
+  test_custom_histogram->Add(1000);
+
+  // Verify they landed in the underflow, and overflow buckets.
+  Histogram::SampleSet custom_sample;
+  test_custom_histogram->SnapshotSample(&custom_sample);
+  EXPECT_EQ(2, custom_sample.counts(0));
+  EXPECT_EQ(0, custom_sample.counts(1));
+  size_t custom_array_size = test_custom_histogram->bucket_count();
+  EXPECT_EQ(0, custom_sample.counts(custom_array_size - 2));
+  EXPECT_EQ(2, custom_sample.counts(custom_array_size - 1));
 }
 
 // Check to be sure samples land as expected is "correct" buckets.
