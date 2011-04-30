@@ -501,7 +501,7 @@ class HostResolverImpl::Job
   void DoLookup(const base::TimeTicks& start_time,
                 const uint32 attempt_number) {
     AddressList results;
-    int os_error;
+    int os_error = 0;
     // Running on the worker thread
     int error = ResolveAddrInfo(resolver_proc_,
                                 key_.hostname,
