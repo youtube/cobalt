@@ -926,6 +926,11 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromGConf(
     // If a port is set and non-zero:
     host += ":" + base::IntToString(port);
   }
+
+  // gconf settings do not appear to distinguish between SOCKS
+  // version. We default to version 5. For more information on this policy
+  // decisions, see:
+  // http://code.google.com/p/chromium/issues/detail?id=55912#c2
   host = FixupProxyHostScheme(
       is_socks ? ProxyServer::SCHEME_SOCKS5 : ProxyServer::SCHEME_HTTP,
       host);
@@ -989,41 +994,44 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   gconf_getter_->GetBoolean("/system/http_proxy/use_same_proxy",
                             &same_proxy);
 
-  ProxyServer proxy_server;
-  if (!same_proxy) {
-    // Try socks.
-    if (GetProxyFromGConf("/system/proxy/socks_", true, &proxy_server)) {
-      // gconf settings do not appear to distinguish between socks
-      // version. We default to version 5. For more information on this policy
-      // decisions, see:
-      // http://code.google.com/p/chromium/issues/detail?id=55912#c2
+  ProxyServer proxy_for_http;
+  ProxyServer proxy_for_https;
+  ProxyServer proxy_for_ftp;
+  ProxyServer socks_proxy;  // (socks)
+
+  // This counts how many of the above ProxyServers were defined and valid.
+  size_t num_proxies_specified = 0;
+
+  // Extract the per-scheme proxies. If we failed to parse it, or no proxy was
+  // specified for the scheme, then the resulting ProxyServer will be invalid.
+  if (GetProxyFromGConf("/system/http_proxy/", false, &proxy_for_http))
+    num_proxies_specified++;
+  if (GetProxyFromGConf("/system/proxy/secure_", false, &proxy_for_https))
+    num_proxies_specified++;
+  if (GetProxyFromGConf("/system/proxy/ftp_", false, &proxy_for_ftp))
+    num_proxies_specified++;
+  if (GetProxyFromGConf("/system/proxy/socks_", true, &socks_proxy))
+    num_proxies_specified++;
+
+  if (same_proxy) {
+    if (proxy_for_http.is_valid()) {
+      // Use the http proxy for all schemes.
       config->proxy_rules().type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
-      config->proxy_rules().single_proxy = proxy_server;
+      config->proxy_rules().single_proxy = proxy_for_http;
     }
-  }
-  if (config->proxy_rules().empty()) {
-    bool have_http = GetProxyFromGConf("/system/http_proxy/", false,
-                                       &proxy_server);
-    if (same_proxy) {
-      if (have_http) {
-        config->proxy_rules().type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
-        config->proxy_rules().single_proxy = proxy_server;
-      }
+  } else if (num_proxies_specified > 0) {
+    if (socks_proxy.is_valid() && num_proxies_specified == 1) {
+      // If the only proxy specified was for SOCKS, use it for all schemes.
+      config->proxy_rules().type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
+      config->proxy_rules().single_proxy = socks_proxy;
     } else {
-      // Protocol specific settings.
-      if (have_http)
-        config->proxy_rules().proxy_for_http = proxy_server;
-      bool have_secure = GetProxyFromGConf("/system/proxy/secure_", false,
-                                           &proxy_server);
-      if (have_secure)
-        config->proxy_rules().proxy_for_https = proxy_server;
-      bool have_ftp = GetProxyFromGConf("/system/proxy/ftp_", false,
-                                        &proxy_server);
-      if (have_ftp)
-        config->proxy_rules().proxy_for_ftp = proxy_server;
-      if (have_http || have_secure || have_ftp)
-        config->proxy_rules().type =
-            ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
+      // Otherwise use the indicate proxies per-scheme.
+      config->proxy_rules().type =
+          ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
+      config->proxy_rules().proxy_for_http = proxy_for_http;
+      config->proxy_rules().proxy_for_https = proxy_for_https;
+      config->proxy_rules().proxy_for_ftp = proxy_for_ftp;
+      config->proxy_rules().fallback_proxy = socks_proxy;
     }
   }
 
