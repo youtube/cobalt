@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/task.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
 
@@ -134,6 +135,8 @@ class URLRequestTestJob : public URLRequestJob {
   // Holds the buffer for an asynchronous ReadRawData call
   IOBuffer* async_buf_;
   int async_buf_size_;
+
+  ScopedRunnableMethodFactory<URLRequestTestJob> method_factory_;
 };
 
 }  // namespace net
