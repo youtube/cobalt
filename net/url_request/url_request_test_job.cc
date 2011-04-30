@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <vector>
-
 #include "net/url_request/url_request_test_job.h"
 
+#include <algorithm>
+#include <list>
+
+#include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "net/base/io_buffer.h"
@@ -18,7 +20,7 @@ namespace net {
 // This emulates the global message loop for the test URL request class, since
 // this is only test code, it's probably not too dangerous to have this static
 // object.
-static std::vector< scoped_refptr<URLRequestTestJob> > g_pending_jobs;
+static std::list<URLRequestTestJob*> g_pending_jobs;
 
 // static getters for known URLs
 GURL URLRequestTestJob::test_url_1() {
@@ -47,28 +49,28 @@ std::string URLRequestTestJob::test_data_3() {
 
 // static getter for simple response headers
 std::string URLRequestTestJob::test_headers() {
-  const char headers[] =
+  static const char kHeaders[] =
       "HTTP/1.1 200 OK\0"
       "Content-type: text/html\0"
       "\0";
-  return std::string(headers, arraysize(headers));
+  return std::string(kHeaders, arraysize(kHeaders));
 }
 
 // static getter for redirect response headers
 std::string URLRequestTestJob::test_redirect_headers() {
-  const char headers[] =
+  static const char kHeaders[] =
       "HTTP/1.1 302 MOVED\0"
       "Location: somewhere\0"
       "\0";
-  return std::string(headers, arraysize(headers));
+  return std::string(kHeaders, arraysize(kHeaders));
 }
 
 // static getter for error response headers
 std::string URLRequestTestJob::test_error_headers() {
-  const char headers[] =
+  static const char kHeaders[] =
       "HTTP/1.1 500 BOO HOO\0"
       "\0";
-  return std::string(headers, arraysize(headers));
+  return std::string(kHeaders, arraysize(kHeaders));
 }
 
 // static
@@ -83,7 +85,8 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request)
       stage_(WAITING),
       offset_(0),
       async_buf_(NULL),
-      async_buf_size_(0) {
+      async_buf_size_(0),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
 }
 
 URLRequestTestJob::URLRequestTestJob(URLRequest* request,
@@ -93,7 +96,8 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request,
       stage_(WAITING),
       offset_(0),
       async_buf_(NULL),
-      async_buf_size_(0) {
+      async_buf_size_(0),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
 }
 
 URLRequestTestJob::URLRequestTestJob(URLRequest* request,
@@ -107,10 +111,14 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request,
       response_data_(response_data),
       offset_(0),
       async_buf_(NULL),
-      async_buf_size_(0) {
+      async_buf_size_(0),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
 }
 
 URLRequestTestJob::~URLRequestTestJob() {
+  g_pending_jobs.erase(
+      std::remove(g_pending_jobs.begin(), g_pending_jobs.end(), this),
+      g_pending_jobs.end());
 }
 
 bool URLRequestTestJob::GetMimeType(std::string* mime_type) const {
@@ -123,8 +131,9 @@ bool URLRequestTestJob::GetMimeType(std::string* mime_type) const {
 void URLRequestTestJob::Start() {
   // Start reading asynchronously so that all error reporting and data
   // callbacks happen as they would for network requests.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-       this, &URLRequestTestJob::StartAsync));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, method_factory_.NewRunnableMethod(
+          &URLRequestTestJob::StartAsync));
 }
 
 void URLRequestTestJob::StartAsync() {
@@ -138,6 +147,8 @@ void URLRequestTestJob::StartAsync() {
     } else if (request_->url().spec() == test_url_3().spec()) {
       response_data_ = test_data_3();
     } else {
+      AdvanceJob();
+
       // unexpected url, return error
       // FIXME(brettw) we may want to use WININET errors or have some more types
       // of errors
@@ -210,11 +221,18 @@ bool URLRequestTestJob::IsRedirectResponse(GURL* location,
 void URLRequestTestJob::Kill() {
   stage_ = DONE;
   URLRequestJob::Kill();
+  method_factory_.RevokeAll();
+  g_pending_jobs.erase(
+      std::remove(g_pending_jobs.begin(), g_pending_jobs.end(), this),
+      g_pending_jobs.end());
 }
 
 void URLRequestTestJob::ProcessNextOperation() {
   switch (stage_) {
     case WAITING:
+      // Must call AdvanceJob() prior to NotifyReadComplete() since that may
+      // delete |this|.
+      AdvanceJob();
       stage_ = DATA_AVAILABLE;
       // OK if ReadRawData wasn't called yet.
       if (async_buf_) {
@@ -226,6 +244,7 @@ void URLRequestTestJob::ProcessNextOperation() {
       }
       break;
     case DATA_AVAILABLE:
+      AdvanceJob();
       stage_ = ALL_DATA;  // done sending data
       break;
     case ALL_DATA:
@@ -237,16 +256,16 @@ void URLRequestTestJob::ProcessNextOperation() {
       NOTREACHED() << "Invalid stage";
       return;
   }
-  AdvanceJob();
 }
 
 void URLRequestTestJob::AdvanceJob() {
   if (auto_advance_) {
-    MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-         this, &URLRequestTestJob::ProcessNextOperation));
+    MessageLoop::current()->PostTask(
+        FROM_HERE, method_factory_.NewRunnableMethod(
+            &URLRequestTestJob::ProcessNextOperation));
     return;
   }
-  g_pending_jobs.push_back(scoped_refptr<URLRequestTestJob>(this));
+  g_pending_jobs.push_back(this);
 }
 
 // static
@@ -254,8 +273,8 @@ bool URLRequestTestJob::ProcessOnePendingMessage() {
   if (g_pending_jobs.empty())
     return false;
 
-  scoped_refptr<URLRequestTestJob> next_job(g_pending_jobs[0]);
-  g_pending_jobs.erase(g_pending_jobs.begin());
+  URLRequestTestJob* next_job(g_pending_jobs.front());
+  g_pending_jobs.pop_front();
 
   DCHECK(!next_job->auto_advance());  // auto_advance jobs should be in this q
   next_job->ProcessNextOperation();
