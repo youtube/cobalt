@@ -601,6 +601,58 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     },
 
     {
+      TEST_DESC("Per-scheme proxy rules with fallback to SOCKS"),
+      { // Input.
+        "manual",                                     // mode
+        "",                                           // autoconfig_url
+        "www.google.com",                             // http_host
+        "www.foo.com",                                // secure_host
+        "ftp.foo.com",                                // ftp
+        "foobar.net",                                 // socks
+        88, 110, 121, 99,                             // ports
+        TRUE, FALSE, FALSE,                           // use, same, auth
+        empty_ignores,                                // ignore_hosts
+      },
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                                          // auto_detect
+      GURL(),                                         // pac_url
+      ProxyRulesExpectation::PerSchemeWithSocks(
+          "www.google.com:88",      // http
+          "www.foo.com:110",        // https
+          "ftp.foo.com:121",        // ftp
+          "socks5://foobar.net:99", // socks
+          ""),                      // bypass rules
+    },
+
+    {
+      TEST_DESC("Per-scheme proxy rules (just HTTP) with fallback to SOCKS"),
+      { // Input.
+        "manual",                                     // mode
+        "",                                           // autoconfig_url
+        "www.google.com",                             // http_host
+        "",                                           // secure_host
+        "",                                           // ftp
+        "foobar.net",                                 // socks
+        88, 0, 0, 99,                                 // ports
+        TRUE, FALSE, FALSE,                           // use, same, auth
+        empty_ignores,                                // ignore_hosts
+      },
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                                          // auto_detect
+      GURL(),                                         // pac_url
+      ProxyRulesExpectation::PerSchemeWithSocks(
+          "www.google.com:88",      // http
+          "",                       // https
+          "",                       // ftp
+          "socks5://foobar.net:99", // socks
+          ""),                      // bypass rules
+    },
+
+    {
       TEST_DESC("Bypass *.google.com"),
       { // Input.
         "manual",                                     // mode
