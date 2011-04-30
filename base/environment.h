@@ -16,7 +16,7 @@ namespace base {
 namespace env_vars {
 
 #if defined(OS_POSIX)
-BASE_API extern const char kHome[];
+extern const char kHome[];
 #endif
 
 }  // namespace env_vars
