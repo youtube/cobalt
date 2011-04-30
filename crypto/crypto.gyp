@@ -119,6 +119,7 @@
         'encryptor_nss.cc',
         'encryptor_openssl.cc',
         'encryptor_win.cc',
+        'hmac.cc',
         'hmac.h',
         'hmac_mac.cc',
         'hmac_nss.cc',
