@@ -368,18 +368,21 @@
       'type': 'settings',
       'conditions': [
         ['use_ibus==1', {
+          'variables': {
+            'ibus_min_version': '1.3.99.20110425',
+          },
           'direct_dependent_settings': {
             'defines': ['HAVE_IBUS=1'],
             'cflags': [
-              '<!@(<(pkg-config) --cflags ibus-1.0)',
+              '<!@(<(pkg-config) --cflags "ibus-1.0 >= <(ibus_min_version)")',
             ],
           },
           'link_settings': {
             'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other ibus-1.0)',
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other "ibus-1.0 >= <(ibus_min_version)")',
             ],
             'libraries': [
-              '<!@(<(pkg-config) --libs-only-l ibus-1.0)',
+              '<!@(<(pkg-config) --libs-only-l "ibus-1.0 >= <(ibus_min_version)")',
             ],
           },
         }],
