@@ -639,6 +639,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {14, true, "\010keyerror\003com", true, 0 },
     {13, false, "\010entropia\002de", true, 0 },
     {17, false, "\003www\010entropia\002de", true, 0 },
+    {11, true, "\005romab\003com", true, 0 },
 #if defined(OS_CHROMEOS)
     {13, false, "\007twitter\003com", true, 0 },
     {17, false, "\003www\007twitter\003com", true, 0 },
