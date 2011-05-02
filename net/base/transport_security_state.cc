@@ -5,14 +5,12 @@
 #include "net/base/transport_security_state.h"
 
 #include "base/base64.h"
-#include "base/command_line.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/sha1.h"
 #include "base/string_number_conversions.h"
-#include "base/string_split.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -20,14 +18,17 @@
 #include "crypto/sha2.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/dns_util.h"
-#include "net/base/net_switches.h"
 
 namespace net {
 
 const long int TransportSecurityState::kMaxHSTSAgeSecs = 86400 * 365;  // 1 year
 
-TransportSecurityState::TransportSecurityState()
+TransportSecurityState::TransportSecurityState(const std::string& hsts_hosts)
     : delegate_(NULL) {
+  if (!hsts_hosts.empty()) {
+    bool dirty;
+    Deserialise(hsts_hosts, &dirty, &forced_hosts_);
+  }
 }
 
 static std::string HashHost(const std::string& canonicalized_host) {
@@ -541,7 +542,6 @@ static bool HasPreload(const struct HSTSPreload* entries, size_t num_entries,
 
 // IsPreloadedSTS returns true if the canonicalized hostname should always be
 // considered to have STS enabled.
-// static
 bool TransportSecurityState::IsPreloadedSTS(
     const std::string& canonicalized_host,
     bool sni_available,
@@ -549,15 +549,6 @@ bool TransportSecurityState::IsPreloadedSTS(
   out->preloaded = true;
   out->mode = DomainState::MODE_STRICT;
   out->include_subdomains = false;
-
-  std::map<std::string, DomainState> hosts;
-  std::string cmd_line_hsts =
-      CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          switches::kHstsHosts);
-  if (!cmd_line_hsts.empty()) {
-    bool dirty;
-    Deserialise(cmd_line_hsts, &dirty, &hosts);
-  }
 
   // These hashes are base64 encodings of SHA1 hashes for cert public keys.
   static const char kCertPKHashVerisignClass3[] =
@@ -667,8 +658,8 @@ bool TransportSecurityState::IsPreloadedSTS(
                                canonicalized_host.size() - i);
     out->domain = DNSDomainToString(host_sub_chunk);
     std::string hashed_host(HashHost(host_sub_chunk));
-    if (hosts.find(hashed_host) != hosts.end()) {
-      *out = hosts[hashed_host];
+    if (forced_hosts_.find(hashed_host) != forced_hosts_.end()) {
+      *out = forced_hosts_[hashed_host];
       out->domain = DNSDomainToString(host_sub_chunk);
       out->preloaded = true;
       return true;

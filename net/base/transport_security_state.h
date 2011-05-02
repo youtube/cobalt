@@ -26,7 +26,10 @@ namespace net {
 class TransportSecurityState :
     public base::RefCountedThreadSafe<TransportSecurityState> {
  public:
-  TransportSecurityState();
+  // If non-empty, |hsts_hosts| is a JSON-formatted string to treat as if it
+  // were a built-in entry (same format as persisted metadata in the
+  // TransportSecurityState file).
+  explicit TransportSecurityState(const std::string& hsts_hosts);
 
   // A DomainState is the information that we persist about a given domain.
   struct DomainState {
@@ -138,11 +141,11 @@ class TransportSecurityState :
   // If we have a callback configured, call it to let our serialiser know that
   // our state is dirty.
   void DirtyNotify();
+  bool IsPreloadedSTS(const std::string& canonicalized_host,
+                      bool sni_available,
+                      DomainState* out);
 
   static std::string CanonicalizeHost(const std::string& host);
-  static bool IsPreloadedSTS(const std::string& canonicalized_host,
-                             bool sni_available,
-                             DomainState* out);
   static bool Deserialise(const std::string& state,
                           bool* dirty,
                           std::map<std::string, DomainState>* out);
@@ -151,6 +154,10 @@ class TransportSecurityState :
   // are SHA256(DNSForm(domain)) where DNSForm converts from dotted form
   // ('www.google.com') to the form used in DNS: "\x03www\x06google\x03com"
   std::map<std::string, DomainState> enabled_hosts_;
+
+  // These hosts are extra rules to treat as built-in, passed in the
+  // constructor (typically originating from the command line).
+  std::map<std::string, DomainState> forced_hosts_;
 
   // Our delegate who gets notified when we are dirtied, or NULL.
   Delegate* delegate_;
