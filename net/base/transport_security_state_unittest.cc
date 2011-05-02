@@ -141,7 +141,7 @@ TEST_F(TransportSecurityStateTest, ValidHeaders) {
 
 TEST_F(TransportSecurityStateTest, SimpleMatches) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
   TransportSecurityState::DomainState domain_state;
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
@@ -154,7 +154,7 @@ TEST_F(TransportSecurityStateTest, SimpleMatches) {
 
 TEST_F(TransportSecurityStateTest, MatchesCase1) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
   TransportSecurityState::DomainState domain_state;
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
@@ -167,7 +167,7 @@ TEST_F(TransportSecurityStateTest, MatchesCase1) {
 
 TEST_F(TransportSecurityStateTest, MatchesCase2) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
   TransportSecurityState::DomainState domain_state;
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
@@ -180,7 +180,7 @@ TEST_F(TransportSecurityStateTest, MatchesCase2) {
 
 TEST_F(TransportSecurityStateTest, SubdomainMatches) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
   TransportSecurityState::DomainState domain_state;
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
@@ -202,7 +202,7 @@ TEST_F(TransportSecurityStateTest, SubdomainMatches) {
 
 TEST_F(TransportSecurityStateTest, Serialise1) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
   std::string output;
   bool dirty;
   state->Serialise(&output);
@@ -212,7 +212,7 @@ TEST_F(TransportSecurityStateTest, Serialise1) {
 
 TEST_F(TransportSecurityStateTest, Serialise2) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
 
   TransportSecurityState::DomainState domain_state;
   const base::Time current_time(base::Time::Now());
@@ -246,7 +246,7 @@ TEST_F(TransportSecurityStateTest, Serialise2) {
 
 TEST_F(TransportSecurityStateTest, Serialise3) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
 
   TransportSecurityState::DomainState domain_state;
   const base::Time current_time(base::Time::Now());
@@ -269,7 +269,7 @@ TEST_F(TransportSecurityStateTest, Serialise3) {
 
 TEST_F(TransportSecurityStateTest, DeleteSince) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
 
   TransportSecurityState::DomainState domain_state;
   const base::Time current_time(base::Time::Now());
@@ -289,7 +289,7 @@ TEST_F(TransportSecurityStateTest, DeleteSince) {
 
 TEST_F(TransportSecurityStateTest, DeleteHost) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
 
   TransportSecurityState::DomainState domain_state;
   const base::Time current_time(base::Time::Now());
@@ -306,7 +306,7 @@ TEST_F(TransportSecurityStateTest, DeleteHost) {
 
 TEST_F(TransportSecurityStateTest, SerialiseOld) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
   // This is an old-style piece of transport state JSON, which has no creation
   // date.
   std::string output =
@@ -323,6 +323,9 @@ TEST_F(TransportSecurityStateTest, SerialiseOld) {
 }
 
 TEST_F(TransportSecurityStateTest, IsPreloaded) {
+  scoped_refptr<TransportSecurityState> state(
+      new TransportSecurityState(std::string()));
+
   const std::string paypal =
       TransportSecurityState::CanonicalizeHost("paypal.com");
   const std::string www_paypal =
@@ -337,24 +340,18 @@ TEST_F(TransportSecurityStateTest, IsPreloaded) {
       TransportSecurityState::CanonicalizeHost("aypal.com");
 
   TransportSecurityState::DomainState domain_state;
-  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(
-      paypal, true, &domain_state));
-  EXPECT_TRUE(TransportSecurityState::IsPreloadedSTS(
-      www_paypal, true, &domain_state));
+  EXPECT_FALSE(state->IsPreloadedSTS(paypal, true, &domain_state));
+  EXPECT_TRUE(state->IsPreloadedSTS(www_paypal, true, &domain_state));
   EXPECT_FALSE(domain_state.include_subdomains);
-  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(
-      a_www_paypal, true, &domain_state));
-  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(
-      abc_paypal, true, &domain_state));
-  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(
-      example, true, &domain_state));
-  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(
-      aypal, true, &domain_state));
+  EXPECT_FALSE(state->IsPreloadedSTS(a_www_paypal, true, &domain_state));
+  EXPECT_FALSE(state->IsPreloadedSTS(abc_paypal, true, &domain_state));
+  EXPECT_FALSE(state->IsPreloadedSTS(example, true, &domain_state));
+  EXPECT_FALSE(state->IsPreloadedSTS(aypal, true, &domain_state));
 }
 
 TEST_F(TransportSecurityStateTest, Preloaded) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
   TransportSecurityState::DomainState domain_state;
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "paypal.com", true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.paypal.com", true));
@@ -553,7 +550,7 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
 
 TEST_F(TransportSecurityStateTest, LongNames) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
   const char kLongName[] =
       "lookupByWaveIdHashAndWaveIdIdAndWaveIdDomainAndWaveletIdIdAnd"
       "WaveletIdDomainAndBlipBlipid";
@@ -564,7 +561,7 @@ TEST_F(TransportSecurityStateTest, LongNames) {
 
 TEST_F(TransportSecurityStateTest, PublicKeyHashes) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
 
   TransportSecurityState::DomainState domain_state;
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "example.com", false));
@@ -597,7 +594,7 @@ TEST_F(TransportSecurityStateTest, PublicKeyHashes) {
 
 TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
 
   TransportSecurityState::DomainState domain_state;
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
@@ -638,7 +635,7 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
 
 TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {
   scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState);
+      new TransportSecurityState(std::string()));
 
   TransportSecurityState::DomainState domain_state;
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
@@ -678,6 +675,23 @@ TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {
   EXPECT_TRUE(state->HasPinsForHost(&domain_state,
                                     "kibbles.googlecode.com",
                                     true));
+}
+
+TEST_F(TransportSecurityStateTest, ForcePreloads) {
+  // This is a docs.google.com override.
+  std::string preload("{"
+    "\"4AGT3lHihuMSd5rUj7B4u6At0jlSH3HFePovjPR+oLE=\": {"
+       "\"created\": 0.0,"
+       "\"expiry\": 2000000000.0,"
+       "\"include_subdomains\": false,"
+       "\"mode\": \"none\""
+    "}}");
+
+  scoped_refptr<TransportSecurityState> state(
+      new TransportSecurityState(preload));
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_FALSE(state->HasPinsForHost(&domain_state, "docs.google.com", true));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "docs.google.com", true));
 }
 
 }  // namespace net
