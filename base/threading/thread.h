@@ -112,7 +112,7 @@ class BASE_API Thread : PlatformThread::Delegate {
   // this will return NULL. Callers can hold on to this even after the thread
   // is gone.
   // TODO(sanjeevr): Look into merging MessageLoop and MessageLoopProxy.
-  scoped_refptr<MessageLoopProxy> message_loop_proxy() {
+  scoped_refptr<MessageLoopProxy> message_loop_proxy() const {
     return message_loop_proxy_;
   }
 
