@@ -74,10 +74,12 @@ TEST_F(ValuesTest, List) {
 
   ASSERT_FALSE(mixed_list->GetInteger(0, &int_value));
   ASSERT_EQ(0, int_value);
-  ASSERT_FALSE(mixed_list->GetDouble(1, &double_value));
-  ASSERT_EQ(0.0, double_value);
+  ASSERT_FALSE(mixed_list->GetBoolean(1, &bool_value));
+  ASSERT_FALSE(bool_value);
   ASSERT_FALSE(mixed_list->GetString(2, &string_value));
   ASSERT_EQ("", string_value);
+  ASSERT_FALSE(mixed_list->GetInteger(2, &int_value));
+  ASSERT_EQ(0, int_value);
   ASSERT_FALSE(mixed_list->GetBoolean(3, &bool_value));
   ASSERT_FALSE(bool_value);
 
@@ -85,6 +87,9 @@ TEST_F(ValuesTest, List) {
   ASSERT_TRUE(bool_value);
   ASSERT_TRUE(mixed_list->GetInteger(1, &int_value));
   ASSERT_EQ(42, int_value);
+  // implicit conversion from Integer to Double should be possible.
+  ASSERT_TRUE(mixed_list->GetDouble(1, &double_value));
+  ASSERT_EQ(42, double_value);
   ASSERT_TRUE(mixed_list->GetDouble(2, &double_value));
   ASSERT_EQ(88.8, double_value);
   ASSERT_TRUE(mixed_list->GetString(3, &string_value));
