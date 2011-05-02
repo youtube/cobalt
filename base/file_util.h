@@ -343,7 +343,7 @@ BASE_API bool SetLastModifiedTime(const FilePath& path,
 
 #if defined(OS_POSIX)
 // Store inode number of |path| in |inode|. Return true on success.
-bool GetInode(const FilePath& path, ino_t* inode);
+BASE_API bool GetInode(const FilePath& path, ino_t* inode);
 #endif
 
 // Wrapper for fopen-like calls. Returns non-NULL FILE* on success.
@@ -365,7 +365,7 @@ BASE_API int ReadFile(const FilePath& filename, char* data, int size);
 BASE_API int WriteFile(const FilePath& filename, const char* data, int size);
 #if defined(OS_POSIX)
 // Append the data to |fd|. Does not close |fd| when done.
-int WriteFileDescriptor(const int fd, const char* data, int size);
+BASE_API int WriteFileDescriptor(const int fd, const char* data, int size);
 #endif
 
 // Gets the current working directory for the process.
@@ -648,7 +648,7 @@ enum FileSystemType {
 
 // Attempts determine the FileSystemType for |path|.
 // Returns false if |path| doesn't exist.
-bool GetFileSystemType(const FilePath& path, FileSystemType* type);
+BASE_API bool GetFileSystemType(const FilePath& path, FileSystemType* type);
 #endif
 
 }  // namespace file_util

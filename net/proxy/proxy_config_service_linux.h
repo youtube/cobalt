@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/environment.h"
 #include "base/memory/ref_counted.h"
@@ -23,7 +24,7 @@ namespace net {
 
 // Implementation of ProxyConfigService that retrieves the system proxy
 // settings from environment variables or gconf.
-class ProxyConfigServiceLinux : public ProxyConfigService {
+class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
  public:
 
   // Forward declaration of Delegate.
