@@ -165,7 +165,7 @@ BASE_API ProcessId GetProcId(ProcessHandle process);
 
 #if defined(OS_LINUX)
 // Returns the path to the executable of the given process.
-FilePath GetProcessExecutablePath(ProcessHandle process);
+BASE_API FilePath GetProcessExecutablePath(ProcessHandle process);
 
 // Parse the data found in /proc/<pid>/stat and return the sum of the
 // CPU-related ticks.  Returns -1 on parse error.
@@ -177,7 +177,7 @@ static const char kAdjustOOMScoreSwitch[] = "--adjust-oom-score";
 // This adjusts /proc/process/oom_adj so the Linux OOM killer will prefer
 // certain process types over others. The range for the adjustment is
 // [-17,15], with [0,15] being user accessible.
-bool AdjustOOMScore(ProcessId process, int score);
+BASE_API bool AdjustOOMScore(ProcessId process, int score);
 #endif
 
 #if defined(OS_POSIX)
@@ -187,7 +187,7 @@ BASE_API ProcessId GetParentProcessId(ProcessHandle process);
 // Close all file descriptors, except those which are a destination in the
 // given multimap. Only call this function in a child process where you know
 // that there aren't any other threads.
-void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
+BASE_API void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
 #endif
 
 #if defined(OS_WIN)
