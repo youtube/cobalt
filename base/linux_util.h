@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,8 @@
 #include <sys/types.h>
 
 #include <string>
+
+#include "base/base_api.h"
 
 namespace base {
 
@@ -26,7 +28,7 @@ std::string GetLinuxDistro();
 void SetLinuxDistro(const std::string& distro);
 
 // Return the inode number for the UNIX domain socket |fd|.
-bool FileDescriptorGetInode(ino_t* inode_out, int fd);
+BASE_API bool FileDescriptorGetInode(ino_t* inode_out, int fd);
 
 // Find the process which holds the given socket, named by inode number. If
 // multiple processes hold the socket, this function returns false.
