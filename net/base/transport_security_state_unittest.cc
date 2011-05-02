@@ -545,6 +545,10 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
                                        "m.googlemail.com",
                                        false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "romab.com", false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.romab.com", false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "foo.romab.com", false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
