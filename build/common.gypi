@@ -1223,11 +1223,6 @@
                   ['arm_thumb == 1', {
                     'cflags': [
                     '-mthumb',
-                    # TODO(piman): -Wa,-mimplicit-it=thumb is needed for
-                    # inline assembly that uses condition codes but it's
-                    # suboptimal. Better would be to #ifdef __thumb__ at the
-                    # right place and have a separate thumb path.
-                    '-Wa,-mimplicit-it=thumb',
                     ]
                   }],
                   ['armv7==1', {
