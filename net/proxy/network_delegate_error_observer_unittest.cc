@@ -4,6 +4,7 @@
 
 #include "net/proxy/network_delegate_error_observer.h"
 
+#include "base/message_loop_proxy.h"
 #include "base/threading/thread.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_delegate.h"
@@ -60,7 +61,8 @@ TEST(NetworkDelegateErrorObserverTest, CallOnThread) {
   thread.Start();
   TestNetworkDelegate network_delegate;
   NetworkDelegateErrorObserver
-      observer(&network_delegate, MessageLoop::current());
+      observer(&network_delegate,
+               base::MessageLoopProxy::CreateForCurrentThread());
   thread.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(&observer,
@@ -75,7 +77,8 @@ TEST(NetworkDelegateErrorObserverTest, CallOnThread) {
 TEST(NetworkDelegateErrorObserverTest, NoDelegate) {
   base::Thread thread("test_thread");
   thread.Start();
-  NetworkDelegateErrorObserver observer(NULL, MessageLoop::current());
+  NetworkDelegateErrorObserver
+      observer(NULL, base::MessageLoopProxy::CreateForCurrentThread());
   thread.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(&observer,
