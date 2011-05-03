@@ -106,8 +106,7 @@ bool SdchManager::Dictionary::CanSet(const std::string& domain,
     SdchErrorRecovery(DICTIONARY_MISSING_DOMAIN_SPECIFIER);
     return false;  // Domain is required.
   }
-  if (RegistryControlledDomainService::GetDomainAndRegistry(domain).size()
-      == 0) {
+  if (RegistryControlledDomainService::GetDomainAndRegistry(domain).empty()) {
     SdchErrorRecovery(DICTIONARY_SPECIFIES_TOP_LEVEL_DOMAIN);
     return false;  // domain was a TLD.
   }

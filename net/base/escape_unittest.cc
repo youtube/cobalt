@@ -19,8 +19,8 @@ namespace {
 static const size_t kNpos = string16::npos;
 
 struct EscapeCase {
-  const wchar_t* input;
-  const wchar_t* output;
+  const char* input;
+  const char* output;
 };
 
 struct UnescapeURLCase {
@@ -63,25 +63,25 @@ struct EscapeForHTMLCase {
 
 TEST(EscapeTest, EscapeTextForFormSubmission) {
   const EscapeCase escape_cases[] = {
-    {L"foo", L"foo"},
-    {L"foo bar", L"foo+bar"},
-    {L"foo++", L"foo%2B%2B"}
+    {"foo", "foo"},
+    {"foo bar", "foo+bar"},
+    {"foo++", "foo%2B%2B"}
   };
   for (size_t i = 0; i < arraysize(escape_cases); ++i) {
     EscapeCase value = escape_cases[i];
-    EXPECT_EQ(WideToUTF16Hack(value.output),
-              EscapeQueryParamValueUTF8(WideToUTF16Hack(value.input), true));
+    EXPECT_EQ(UTF8ToUTF16(value.output),
+              EscapeQueryParamValueUTF8(UTF8ToUTF16(value.input), true));
   }
 
   const EscapeCase escape_cases_no_plus[] = {
-    {L"foo", L"foo"},
-    {L"foo bar", L"foo%20bar"},
-    {L"foo++", L"foo%2B%2B"}
+    {"foo", "foo"},
+    {"foo bar", "foo%20bar"},
+    {"foo++", "foo%2B%2B"}
   };
   for (size_t i = 0; i < arraysize(escape_cases_no_plus); ++i) {
     EscapeCase value = escape_cases_no_plus[i];
-    EXPECT_EQ(WideToUTF16Hack(value.output),
-              EscapeQueryParamValueUTF8(WideToUTF16Hack(value.input), false));
+    EXPECT_EQ(ASCIIToUTF16(value.output),
+              EscapeQueryParamValueUTF8(ASCIIToUTF16(value.input), false));
   }
 
   // Test all the values in we're supposed to be escaping.
@@ -116,13 +116,13 @@ TEST(EscapeTest, EscapeTextForFormSubmission) {
   for (int i = 1; i < 5000; ++i) {
     test_str.push_back(i);
   }
-  string16 wide;
+  string16 utf16;
   EXPECT_TRUE(EscapeQueryParamValue(test_str, base::kCodepageUTF8, true,
-                                    &wide));
-  EXPECT_EQ(wide, EscapeQueryParamValueUTF8(test_str, true));
+                                    &utf16));
+  EXPECT_EQ(utf16, EscapeQueryParamValueUTF8(test_str, true));
   EXPECT_TRUE(EscapeQueryParamValue(test_str, base::kCodepageUTF8, false,
-                                    &wide));
-  EXPECT_EQ(wide, EscapeQueryParamValueUTF8(test_str, false));
+                                    &utf16));
+  EXPECT_EQ(utf16, EscapeQueryParamValueUTF8(test_str, false));
 }
 
 TEST(EscapeTest, EscapePath) {
@@ -181,6 +181,10 @@ TEST(EscapeTest, UnescapeURLComponentASCII) {
     {"Hello%20%13%10world %23# %3F? %3D= %26& %25% %2B+",
      UnescapeRule::URL_SPECIAL_CHARS,
      "Hello%20%13%10world ## ?? == && %% ++"},
+    // We can neither escape nor unescape '@' since some websites expect it to
+    // be preserved as either '@' or "%40".
+    // See http://b/996720 and http://crbug.com/23933 .
+    {"me@my%40example", UnescapeRule::NORMAL, "me@my%40example"},
     // Control characters.
     {"%01%02%03%04%05%06%07%08%09 %25", UnescapeRule::URL_SPECIAL_CHARS,
      "%01%02%03%04%05%06%07%08%09 %"},
@@ -340,23 +344,22 @@ TEST(EscapeTest, UnescapeAndDecodeUTF8URLComponent) {
     // TODO: Need to test unescape_spaces and unescape_percent.
     string16 decoded = UnescapeAndDecodeUTF8URLComponent(
         unescape_cases[i].input, UnescapeRule::NORMAL, NULL);
-    EXPECT_EQ(WideToUTF16Hack(std::wstring(unescape_cases[i].decoded)),
-              decoded);
+    EXPECT_EQ(WideToUTF16(unescape_cases[i].decoded), decoded);
   }
 }
 
 TEST(EscapeTest, AdjustOffset) {
   const AdjustOffsetCase adjust_cases[] = {
-    {"", 0, std::wstring::npos},
+    {"", 0, std::string::npos},
     {"test", 0, 0},
     {"test", 2, 2},
-    {"test", 4, std::wstring::npos},
-    {"test", std::wstring::npos, std::wstring::npos},
+    {"test", 4, std::string::npos},
+    {"test", std::string::npos, std::string::npos},
     {"%2dtest", 6, 4},
-    {"%2dtest", 2, std::wstring::npos},
+    {"%2dtest", 2, std::string::npos},
     {"test%2d", 2, 2},
     {"%E4%BD%A0+%E5%A5%BD", 9, 1},
-    {"%E4%BD%A0+%E5%A5%BD", 6, std::wstring::npos},
+    {"%E4%BD%A0+%E5%A5%BD", 6, std::string::npos},
     {"%ED%B0%80+%E5%A5%BD", 6, 6},
   };
 

@@ -90,7 +90,7 @@ class UnescapeRule {
 // Watch out: this doesn't necessarily result in the correct final result,
 // because the encoding may be unknown. For example, the input might be ASCII,
 // which, after unescaping, is supposed to be interpreted as UTF-8, and then
-// converted into full wide chars. This function won't tell you if any
+// converted into full UTF-16 chars. This function won't tell you if any
 // conversions need to take place, it only unescapes.
 std::string UnescapeURLComponent(const std::string& escaped_text,
                                  UnescapeRule::Type rules);
@@ -105,8 +105,7 @@ string16 UnescapeURLComponent(const string16& escaped_text,
 // adjusted to point at the same logical place in the result strings during
 // decoding.  If this isn't possible because an offset points past the end of
 // the source strings or into the middle of a multibyte sequence, the offending
-// offset will be set to std::wstring::npos. |offset[s]_for_adjustment| may be
-// NULL.
+// offset will be set to string16::npos. |offset[s]_for_adjustment| may be NULL.
 string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
                                            UnescapeRule::Type rules,
                                            size_t* offset_for_adjustment);
