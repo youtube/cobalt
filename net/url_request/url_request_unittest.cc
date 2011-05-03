@@ -137,6 +137,11 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
   virtual int OnBeforeURLRequest(net::URLRequest* request,
                                  net::CompletionCallback* callback,
                                  GURL* new_url) {
+    if (redirect_url_ == request->url()) {
+      // We've already seen this request and redirected elsewhere.
+      return net::OK;
+    }
+
     TestNetworkDelegate::OnBeforeURLRequest(request, callback, new_url);
 
     if (!redirect_url_.is_empty())
