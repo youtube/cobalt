@@ -6,6 +6,7 @@
 #define NET_BASE_NETWORK_DELEGATE_H_
 #pragma once
 
+#include "base/string16.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/completion_callback.h"
 
@@ -58,6 +59,8 @@ class NetworkDelegate : public base::NonThreadSafe {
   // URLRequestJobManager::CreateJob() as a general override mechanism.
   URLRequestJob* MaybeCreateURLRequestJob(URLRequest* request);
 
+  void NotifyPACScriptError(int line_number, const string16& error);
+
  private:
   // This is the interface for subclasses of NetworkDelegate to implement. This
   // member functions will be called by the respective public notification
@@ -108,6 +111,8 @@ class NetworkDelegate : public base::NonThreadSafe {
   // handle the request.
   virtual URLRequestJob* OnMaybeCreateURLRequestJob(URLRequest* request) = 0;
 
+  // Corresponds to ProxyResolverJSBindings::OnError.
+  virtual void OnPACScriptError(int line_number, const string16& error) = 0;
 };
 
 }  // namespace net

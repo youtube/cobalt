@@ -17,6 +17,7 @@
 #include "net/base/net_util.h"
 #include "net/proxy/init_proxy_resolver.h"
 #include "net/proxy/multi_threaded_proxy_resolver.h"
+#include "net/proxy/network_delegate_error_observer.h"
 #include "net/proxy/proxy_config_service_fixed.h"
 #include "net/proxy/proxy_resolver.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
@@ -168,7 +169,8 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
   // |async_host_resolver| will only be operated on |io_loop|.
   ProxyResolverFactoryForV8(HostResolver* async_host_resolver,
                             MessageLoop* io_loop,
-                            NetLog* net_log)
+                            NetLog* net_log,
+                            NetworkDelegate* network_delegate)
       : ProxyResolverFactory(true /*expects_pac_bytes*/),
         async_host_resolver_(async_host_resolver),
         io_loop_(io_loop),
@@ -181,8 +183,13 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
     SyncHostResolverBridge* sync_host_resolver =
         new SyncHostResolverBridge(async_host_resolver_, io_loop_);
 
+    NetworkDelegateErrorObserver* error_observer =
+        new NetworkDelegateErrorObserver(network_delegate_, io_loop_);
+
+    // ProxyResolverJSBindings takes ownership of |error_observer|.
     ProxyResolverJSBindings* js_bindings =
-        ProxyResolverJSBindings::CreateDefault(sync_host_resolver, net_log_);
+        ProxyResolverJSBindings::CreateDefault(
+            sync_host_resolver, net_log_, error_observer);
 
     // ProxyResolverV8 takes ownership of |js_bindings|.
     return new ProxyResolverV8(js_bindings);
@@ -192,6 +199,7 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
   HostResolver* const async_host_resolver_;
   MessageLoop* io_loop_;
   NetLog* net_log_;
+  NetworkDelegate* network_delegate_;
 };
 
 // Creates ProxyResolvers using a platform-specific implementation.
@@ -395,7 +403,8 @@ ProxyService* ProxyService::CreateUsingV8ProxyResolver(
     size_t num_pac_threads,
     ProxyScriptFetcher* proxy_script_fetcher,
     HostResolver* host_resolver,
-    NetLog* net_log) {
+    NetLog* net_log,
+    NetworkDelegate* network_delegate) {
   DCHECK(proxy_config_service);
   DCHECK(proxy_script_fetcher);
   DCHECK(host_resolver);
@@ -407,7 +416,8 @@ ProxyService* ProxyService::CreateUsingV8ProxyResolver(
       new ProxyResolverFactoryForV8(
           host_resolver,
           MessageLoop::current(),
-          net_log);
+          net_log,
+          network_delegate);
 
   ProxyResolver* proxy_resolver =
       new MultiThreadedProxyResolver(sync_resolver_factory, num_pac_threads);
