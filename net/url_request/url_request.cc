@@ -371,7 +371,7 @@ void URLRequest::Start() {
     }
   }
 
-  StartInternal();
+  StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -388,12 +388,8 @@ void URLRequest::BeforeRequestComplete(int error) {
     new_url.Swap(&delegate_redirect_url_);
     StartJob(new URLRequestRedirectJob(this, new_url));
   } else {
-    StartInternal();
+    StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
   }
-}
-
-void URLRequest::StartInternal() {
-  StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
 }
 
 void URLRequest::StartJob(URLRequestJob* job) {
@@ -638,7 +634,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     final_upload_progress_ = job_->GetUploadProgress();
 
   PrepareToRestart();
-  StartInternal();
+  Start();
   return OK;
 }
 
