@@ -591,6 +591,7 @@ bool TransportSecurityState::IsPreloadedSTS(
      kGoogleAcceptableCerts },
     {22, true, "\011encrypted\006google\003com", true, kGoogleAcceptableCerts },
     {21, true, "\010accounts\006google\003com", true, kGoogleAcceptableCerts },
+    {21, true, "\010profiles\006google\003com", true, kGoogleAcceptableCerts },
 #if defined(OS_CHROMEOS)
     // TODO(cevans) - unify this with Chrome.
     {17, true, "\004mail\006google\003com", true, kGoogleAcceptableCerts },
