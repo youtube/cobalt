@@ -562,6 +562,11 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
 
   DCHECK_NE(config_.id(), ProxyConfig::INVALID_ID);
 
+  // If it was impossible to fetch or parse the PAC script, we cannot complete
+  // the request here and bail out.
+  if (permanent_error_ != OK)
+    return permanent_error_;
+
   if (config_.HasAutomaticSettings())
     return ERR_IO_PENDING;  // Must submit the request to the proxy resolver.
 
@@ -652,11 +657,20 @@ void ProxyService::OnInitProxyResolverComplete(int result) {
   init_proxy_resolver_.reset();
 
   if (result != OK) {
-    VLOG(1) << "Failed configuring with PAC script, falling-back to manual "
-               "proxy servers.";
-    config_ = fetched_config_;
-    config_.ClearAutomaticSettings();
+    if (fetched_config_.pac_mandatory()) {
+      VLOG(1) << "Failed configuring with mandatory PAC script, blocking all "
+                 "traffic.";
+      config_ = fetched_config_;
+      result = ERR_MANDATORY_PROXY_CONFIGURATION_FAILED;
+    } else {
+      VLOG(1) << "Failed configuring with PAC script, falling-back to manual "
+                 "proxy servers.";
+      config_ = fetched_config_;
+      config_.ClearAutomaticSettings();
+      result = OK;
+    }
   }
+  permanent_error_ = result;
 
   config_.set_id(fetched_config_.id());
 
@@ -733,15 +747,19 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
         make_scoped_refptr(new NetLogIntegerParameter(
             "net_error", result_code)));
 
-    // Fall-back to direct when the proxy resolver fails. This corresponds
-    // with a javascript runtime error in the PAC script.
-    //
-    // This implicit fall-back to direct matches Firefox 3.5 and
-    // Internet Explorer 8. For more information, see:
-    //
-    // http://www.chromium.org/developers/design-documents/proxy-settings-fallback
-    result->UseDirect();
-    result_code = OK;
+    if (!config_.pac_mandatory()) {
+      // Fall-back to direct when the proxy resolver fails. This corresponds
+      // with a javascript runtime error in the PAC script.
+      //
+      // This implicit fall-back to direct matches Firefox 3.5 and
+      // Internet Explorer 8. For more information, see:
+      //
+      // http://www.chromium.org/developers/design-documents/proxy-settings-fallback
+      result->UseDirect();
+      result_code = OK;
+    } else {
+      result_code = ERR_MANDATORY_PROXY_CONFIGURATION_FAILED;
+    }
   }
 
   net_log.EndEvent(NetLog::TYPE_PROXY_SERVICE, NULL);
@@ -766,6 +784,7 @@ ProxyService::State ProxyService::ResetProxyConfig(bool reset_fetched_config) {
   DCHECK(CalledOnValidThread());
   State previous_state = current_state_;
 
+  permanent_error_ = OK;
   proxy_retry_info_.clear();
   init_proxy_resolver_.reset();
   SuspendAllPendingRequests();
