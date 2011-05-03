@@ -487,6 +487,9 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "accounts.google.com",
                                       true));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "profiles.google.com",
+                                      true));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "entropia.de", true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.entropia.de", true));
@@ -626,6 +629,9 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
                                     true));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state,
                                     "accounts.google.com",
+                                    true));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state,
+                                    "profiles.google.com",
                                     true));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state, "ssl.gstatic.com", true));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state,
