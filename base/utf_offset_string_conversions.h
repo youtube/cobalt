@@ -21,37 +21,21 @@ class StringPiece;
 // will be adjusted to point at the same logical place in the result strings.
 // If this isn't possible because an offset points past the end of the source
 // strings or into the middle of a multibyte sequence, the offending offset will
-// be set to std::wstring::npos. |offset[s]_for_adjustment| may be NULL.
-BASE_API bool UTF8ToWideAndAdjustOffset(const char* src,
-                                        size_t src_len,
-                                        std::wstring* output,
-                                        size_t* offset_for_adjustment);
-BASE_API bool UTF8ToWideAndAdjustOffsets(
+// be set to string16::npos. |offset[s]_for_adjustment| may be NULL.
+BASE_API bool UTF8ToUTF16AndAdjustOffset(const char* src,
+                                         size_t src_len,
+                                         string16* output,
+                                         size_t* offset_for_adjustment);
+BASE_API bool UTF8ToUTF16AndAdjustOffsets(
     const char* src,
     size_t src_len,
-    std::wstring* output,
+    string16* output,
     std::vector<size_t>* offsets_for_adjustment);
 
-BASE_API std::wstring UTF8ToWideAndAdjustOffset(const base::StringPiece& utf8,
-                                                size_t* offset_for_adjustment);
-BASE_API std::wstring UTF8ToWideAndAdjustOffsets(
+BASE_API string16 UTF8ToUTF16AndAdjustOffset(const base::StringPiece& utf8,
+                                             size_t* offset_for_adjustment);
+BASE_API string16 UTF8ToUTF16AndAdjustOffsets(
     const base::StringPiece& utf8,
-    std::vector<size_t>* offsets_for_adjustment);
-
-BASE_API bool UTF16ToWideAndAdjustOffset(const char16* src,
-                                         size_t src_len,
-                                         std::wstring* output,
-                                         size_t* offset_for_adjustment);
-BASE_API bool UTF16ToWideAndAdjustOffsets(
-    const char16* src,
-    size_t src_len,
-    std::wstring* output,
-    std::vector<size_t>* offsets_for_adjustment);
-
-BASE_API std::wstring UTF16ToWideAndAdjustOffset(const string16& utf16,
-                                                 size_t* offset_for_adjustment);
-BASE_API std::wstring UTF16ToWideAndAdjustOffsets(
-    const string16& utf16,
     std::vector<size_t>* offsets_for_adjustment);
 
 // Limiting function callable by std::for_each which will replace any value
@@ -69,30 +53,34 @@ struct LimitOffset {
   size_t limit_;
 };
 
-// Adjustment function called by std::transform which will adjust any offset
-// that occurs after one or more modified substrings. To use, create any
-// number of AdjustOffset::Adjustments, drop them into a vector, then call
-// std::transform with the transform function being something similar to
-// AdjustOffset(adjustments). Each Adjustment gives the original |location|
-// of the encoded section and the |old_length| and |new_length| of the section
-// before and after decoding.
-struct BASE_API AdjustOffset {
-  // Helper structure which indicates where an encoded character occurred
-  // and how long that encoding was.
+// Stack object which, on destruction, will update a vector of offsets based on
+// any supplied adjustments.  To use, declare one of these, providing the
+// address of the offset vector to adjust.  Then Add() any number of Adjustments
+// (each Adjustment gives the |original_offset| of a substring and the lengths
+// of the substring before and after transforming).  When the OffsetAdjuster
+// goes out of scope, all the offsets in the provided vector will be updated.
+class BASE_API OffsetAdjuster {
+ public:
   struct BASE_API Adjustment {
-    Adjustment(size_t location, size_t old_length, size_t new_length);
+    Adjustment(size_t original_offset,
+               size_t original_length,
+               size_t output_length);
 
-    size_t location;
-    size_t old_length;
-    size_t new_length;
+    size_t original_offset;
+    size_t original_length;
+    size_t output_length;
   };
 
-  typedef std::vector<Adjustment> Adjustments;
+  explicit OffsetAdjuster(std::vector<size_t>* offsets_for_adjustment);
+  ~OffsetAdjuster();
 
-  explicit AdjustOffset(const Adjustments& adjustments);
-  void operator()(size_t& offset);
+  void Add(const Adjustment& adjustment);
 
-  const Adjustments& adjustments_;
+ private:
+  void AdjustOffset(std::vector<size_t>::iterator offset);
+
+  std::vector<size_t>* offsets_for_adjustment_;
+  std::vector<Adjustment> adjustments_;
 };
 
 #endif  // BASE_UTF_OFFSET_STRING_CONVERSIONS_H_
