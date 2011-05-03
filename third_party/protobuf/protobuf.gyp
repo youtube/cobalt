@@ -109,7 +109,6 @@
         'src/google/protobuf/reflection_ops.h',
         'src/google/protobuf/service.h',
         'src/google/protobuf/text_format.h',
-        'src/google/protobuf/unknown_field_set.h',
         'src/google/protobuf/wire_format.h',
         'src/google/protobuf/io/gzip_stream.h',
         'src/google/protobuf/io/printer.h',
@@ -135,7 +134,6 @@
         'src/google/protobuf/reflection_ops.cc',
         'src/google/protobuf/service.cc',
         'src/google/protobuf/text_format.cc',
-        'src/google/protobuf/unknown_field_set.cc',
         'src/google/protobuf/wire_format.cc',
         # This file pulls in zlib, but it's not actually used by protoc, so
         # instead of compiling zlib for the host, let's just exclude this.
