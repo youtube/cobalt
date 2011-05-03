@@ -18,12 +18,11 @@
 #include "base/compiler_specific.h"
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
-#include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
-#include "base/synchronization/lock.h"
 #include "base/threading/worker_pool.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
@@ -350,13 +349,14 @@ class HostResolverImpl::Job
      : id_(id),
        key_(key),
        resolver_(resolver),
-       origin_loop_(MessageLoop::current()),
+       origin_loop_(base::MessageLoopProxy::CreateForCurrentThread()),
        resolver_proc_(resolver->effective_resolver_proc()),
        error_(OK),
        os_error_(0),
        had_non_speculative_request_(false),
        net_log_(BoundNetLog::Make(net_log,
                                   NetLog::SOURCE_HOST_RESOLVER_IMPL_JOB)) {
+    DCHECK(resolver);
     net_log_.BeginEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
         make_scoped_refptr(
@@ -366,6 +366,7 @@ class HostResolverImpl::Job
   // Attaches a request to this job. The job takes ownership of |req| and will
   // take care to delete it.
   void AddRequest(Request* req) {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     req->request_net_log().BeginEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_ATTACH,
         make_scoped_refptr(new NetLogSourceParameter(
@@ -378,8 +379,8 @@ class HostResolverImpl::Job
       had_non_speculative_request_ = true;
   }
 
-  // Called from origin loop.
   void Start() {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     start_time_ = base::TimeTicks::Now();
 
     // Dispatch the job to a worker thread.
@@ -391,24 +392,18 @@ class HostResolverImpl::Job
       // call OnLookupComplete().  Instead we must wait until Resolve() has
       // returned (IO_PENDING).
       error_ = ERR_UNEXPECTED;
-      MessageLoop::current()->PostTask(
+      origin_loop_->PostTask(
           FROM_HERE, NewRunnableMethod(this, &Job::OnLookupComplete));
     }
   }
 
-  // Cancels the current job. Callable from origin thread.
+  // Cancels the current job.
   void Cancel() {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
 
     HostResolver* resolver = resolver_;
     resolver_ = NULL;
-
-    // Mark the job as cancelled, so when worker thread completes it will
-    // not try to post completion to origin loop.
-    {
-      base::AutoLock locked(origin_loop_lock_);
-      origin_loop_ = NULL;
-    }
 
     // End here to prevent issues when a Job outlives the HostResolver that
     // spawned it.
@@ -424,38 +419,41 @@ class HostResolverImpl::Job
     }
   }
 
-  // Called from origin thread.
   bool was_cancelled() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return resolver_ == NULL;
   }
 
-  // Called from origin thread.
   const Key& key() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return key_;
   }
 
   int id() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return id_;
   }
 
   base::TimeTicks start_time() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return start_time_;
   }
 
-  // Called from origin thread.
   const RequestsList& requests() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return requests_;
   }
 
   // Returns the first request attached to the job.
   const Request* initial_request() const {
-    DCHECK_EQ(origin_loop_, MessageLoop::current());
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     DCHECK(!requests_.empty());
     return requests_[0];
   }
 
   // Returns true if |req_info| can be fulfilled by this job.
   bool CanServiceRequest(const RequestInfo& req_info) const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return key_ == resolver_->GetEffectiveKeyForRequest(req_info);
   }
 
@@ -480,23 +478,13 @@ class HostResolverImpl::Job
                              &results_,
                              &os_error_);
 
-    // The origin loop could go away while we are trying to post to it, so we
-    // need to call its PostTask method inside a lock.  See ~HostResolver.
-    {
-      base::AutoLock locked(origin_loop_lock_);
-      if (origin_loop_) {
-        origin_loop_->PostTask(FROM_HERE,
-                               NewRunnableMethod(this, &Job::OnLookupComplete));
-      }
-    }
+    origin_loop_->PostTask(FROM_HERE,
+                           NewRunnableMethod(this, &Job::OnLookupComplete));
   }
 
   // Callback for when DoLookup() completes (runs on origin thread).
   void OnLookupComplete() {
-    // Should be running on origin loop.
-    // TODO(eroman): this is being hit by URLRequestTest.CancelTest*,
-    // because MessageLoop::current() == NULL.
-    //DCHECK_EQ(origin_loop_, MessageLoop::current());
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     DCHECK(error_ || results_.head());
 
     // Ideally the following code would be part of host_resolver_proc.cc,
@@ -531,6 +519,7 @@ class HostResolverImpl::Job
   }
 
   void RecordPerformanceHistograms() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     enum Category {  // Used in HISTOGRAM_ENUMERATION.
       RESOLVE_SUCCESS,
       RESOLVE_FAIL,
@@ -604,8 +593,7 @@ class HostResolverImpl::Job
   RequestsList requests_;  // The requests waiting on this job.
 
   // Used to post ourselves onto the origin thread.
-  base::Lock origin_loop_lock_;
-  MessageLoop* origin_loop_;
+  scoped_refptr<base::MessageLoopProxy> origin_loop_;
 
   // Hold an owning reference to the HostResolverProc that we are going to use.
   // This may not be the current resolver procedure by the time we call
@@ -642,14 +630,14 @@ class HostResolverImpl::IPv6ProbeJob
  public:
   explicit IPv6ProbeJob(HostResolverImpl* resolver)
       : resolver_(resolver),
-        origin_loop_(MessageLoop::current()) {
-    DCHECK(!was_cancelled());
+        origin_loop_(base::MessageLoopProxy::CreateForCurrentThread()) {
+    DCHECK(resolver);
   }
 
   void Start() {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     if (was_cancelled())
       return;
-    DCHECK(IsOnOriginThread());
     const bool kIsSlow = true;
     base::WorkerPool::PostTask(
         FROM_HERE, NewRunnableMethod(this, &IPv6ProbeJob::DoProbe), kIsSlow);
@@ -657,15 +645,10 @@ class HostResolverImpl::IPv6ProbeJob
 
   // Cancels the current job.
   void Cancel() {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     if (was_cancelled())
       return;
-    DCHECK(IsOnOriginThread());
     resolver_ = NULL;  // Read/write ONLY on origin thread.
-    {
-      base::AutoLock locked(origin_loop_lock_);
-      // Origin loop may be destroyed before we can use it!
-      origin_loop_ = NULL;  // Write ONLY on origin thread.
-    }
   }
 
  private:
@@ -674,14 +657,9 @@ class HostResolverImpl::IPv6ProbeJob
   ~IPv6ProbeJob() {
   }
 
-  // Should be run on |orgin_thread_|, but that may not be well defined now.
   bool was_cancelled() const {
-    if (!resolver_ || !origin_loop_) {
-      DCHECK(!resolver_);
-      DCHECK(!origin_loop_);
-      return true;
-    }
-    return false;
+    DCHECK(origin_loop_->BelongsToCurrentThread());
+    return !resolver_;
   }
 
   // Run on worker thread.
@@ -690,41 +668,24 @@ class HostResolverImpl::IPv6ProbeJob
     AddressFamily family = IPv6Supported() ? ADDRESS_FAMILY_UNSPECIFIED
                                            : ADDRESS_FAMILY_IPV4;
 
-    Task* reply = NewRunnableMethod(this, &IPv6ProbeJob::OnProbeComplete,
-                                    family);
-
-    // The origin loop could go away while we are trying to post to it, so we
-    // need to call its PostTask method inside a lock.  See ~HostResolver.
-    {
-      base::AutoLock locked(origin_loop_lock_);
-      if (origin_loop_) {
-        origin_loop_->PostTask(FROM_HERE, reply);
-        return;
-      }
-    }
-
-    // We didn't post, so delete the reply.
-    delete reply;
+    origin_loop_->PostTask(
+        FROM_HERE,
+        NewRunnableMethod(this, &IPv6ProbeJob::OnProbeComplete, family));
   }
 
-  // Callback for when DoProbe() completes (runs on origin thread).
+  // Callback for when DoProbe() completes.
   void OnProbeComplete(AddressFamily address_family) {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     if (was_cancelled())
       return;
-    DCHECK(IsOnOriginThread());
     resolver_->IPv6ProbeSetDefaultAddressFamily(address_family);
-  }
-
-  bool IsOnOriginThread() const {
-    return !MessageLoop::current() || origin_loop_ == MessageLoop::current();
   }
 
   // Used/set only on origin thread.
   HostResolverImpl* resolver_;
 
   // Used to post ourselves onto the origin thread.
-  base::Lock origin_loop_lock_;
-  MessageLoop* origin_loop_;
+  scoped_refptr<base::MessageLoopProxy> origin_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(IPv6ProbeJob);
 };
