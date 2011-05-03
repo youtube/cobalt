@@ -36,10 +36,9 @@ bool LooksLikeUnixPermissionsListing(const string16& text) {
   if (text.length() < 10)
     return false;
 
-  if (text[0] != 'b' && text[0] != 'c' && text[0] != 'd' &&
-      text[0] != 'l' && text[0] != 'p' && text[0] != 's' &&
-      text[0] != '-')
-    return false;
+  // Do not check the first character (entry type). There are many weird
+  // servers that use special file types (for example Plan9 and append-only
+  // files). Fortunately, the rest of the permission listing is more consistent.
 
   // Do not check the rest of the string. Some servers fail to properly
   // separate this column from the next column (number of links), resulting
