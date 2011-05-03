@@ -135,18 +135,13 @@ std::string GetHostOrSpecFromURL(const GURL& url);
 // Return the value of the HTTP response header with name 'name'.  'headers'
 // should be in the format that URLRequest::GetResponseHeaders() returns.
 // Returns the empty string if the header is not found.
-std::wstring GetSpecificHeader(const std::wstring& headers,
-                               const std::wstring& name);
 std::string GetSpecificHeader(const std::string& headers,
                               const std::string& name);
 
 // Return the value of the HTTP response header field's parameter named
 // 'param_name'.  Returns the empty string if the parameter is not found or is
 // improperly formatted.
-std::wstring GetHeaderParamValue(const std::wstring& field,
-                                 const std::wstring& param_name,
-                                 QuoteRule::Type quote_rule);
-std::string GetHeaderParamValue(const std::string& field,
+std::string GetHeaderParamValue(const std::string& header,
                                 const std::string& param_name,
                                 QuoteRule::Type quote_rule);
 
@@ -186,8 +181,7 @@ std::string GetFileNameFromCD(const std::string& header,
 // return the ASCII source so it is still usable.
 //
 // The input should be the canonicalized ASCII host name from GURL. This
-// function does NOT accept UTF-8! Its length must also be given (this is
-// designed to work on the substring of the host out of a URL spec).
+// function does NOT accept UTF-8!
 //
 // |languages| is a comma separated list of ISO 639 language codes. It
 // is used to determine whether a hostname is 'comprehensible' to a user
@@ -197,28 +191,12 @@ std::string GetFileNameFromCD(const std::string& header,
 // Latin letters in the ASCII range can be mixed with a limited set of
 // script-language pairs (currently Han, Kana and Hangul for zh,ja and ko).
 // When |languages| is empty, even that mixing is not allowed.
-//
-// (|offset[s]_for_adjustment|) specifies one or more offsets into the original
-// |url|'s spec(); each offset will be adjusted to point at the same logical
-// place in the result strings during decoding.  If this isn't possible because
-// an offset points past the end of |host| or into the middle of a punycode
-// sequence, the offending offset will be set to std::wstring::npos.
-// |offset[s]_for_adjustment| may be NULL.
-std::wstring IDNToUnicode(const char* host,
-                          size_t host_len,
-                          const std::wstring& languages,
-                          size_t* offset_for_adjustment);
-std::wstring IDNToUnicodeWithOffsets(
-    const char* host,
-    size_t host_len,
-    const std::wstring& languages,
-    std::vector<size_t>* offsets_for_adjustment);
+string16 IDNToUnicode(const std::string& host,
+                      const std::string& languages);
 
 // Canonicalizes |host| and returns it.  Also fills |host_info| with
 // IP address information.  |host_info| must not be NULL.
 std::string CanonicalizeHost(const std::string& host,
-                             url_canon::CanonHostInfo* host_info);
-std::string CanonicalizeHost(const std::wstring& host,
                              url_canon::CanonHostInfo* host_info);
 
 // Returns true if |host| is not an IP address and is compliant with a set of
@@ -294,28 +272,11 @@ bool IsPortAllowedByOverride(int port);
 // Set socket to non-blocking mode
 int SetNonBlocking(int fd);
 
-// Appends the given part of the original URL to the output string formatted for
-// the user. The given parsed structure will be updated. The host name formatter
-// also takes the same accept languages component as ElideURL. |new_parsed| may
-// be null.
-//
-// (|offset[s]_for_adjustment|) specifies one or more offsets into the original
-// |url|'s spec(); each offset will be adjusted to point at the same logical
-// place in the result strings after reformatting of the host.  If this isn't
-// possible because an offset points past the end of the host or into the middle
-// of a multi-character sequence, the offending offset will be set to
-// std::wstring::npos. |offset[s]_for_adjustment| may be NULL.
+// Formats the host in |url| and appends it to |output|.  The host formatter
+// takes the same accept languages component as ElideURL().
 void AppendFormattedHost(const GURL& url,
-                         const std::wstring& languages,
-                         std::wstring* output,
-                         url_parse::Parsed* new_parsed,
-                         size_t* offset_for_adjustment);
-void AppendFormattedHostWithOffsets(
-    const GURL& url,
-    const std::wstring& languages,
-    std::wstring* output,
-    url_parse::Parsed* new_parsed,
-    std::vector<size_t>* offsets_for_adjustment);
+                         const std::string& languages,
+                         string16* output);
 
 // Creates a string representation of |url|. The IDN host name may be in Unicode
 // if |languages| accepts the Unicode representation. |format_type| is a bitmask
@@ -480,16 +441,6 @@ typedef std::vector<NetworkInterface> NetworkInterfaceList;
 // the list for each address.
 // Can be called only on a thread that allows IO.
 bool GetNetworkList(NetworkInterfaceList* networks);
-
-// Private adjustment function called by std::transform which sets the offset
-// to npos if the offset occurs at or before |component_start|, otherwise don't
-// alter the offset. Exposed here for unit testing.
-struct ClampComponentOffset {
-  explicit ClampComponentOffset(size_t component_start);
-  size_t operator()(size_t offset);
-
-  const size_t component_start;
-};
 
 }  // namespace net
 
