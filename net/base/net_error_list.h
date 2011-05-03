@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -180,7 +180,9 @@ NET_ERROR(SSL_WEAK_SERVER_EPHEMERAL_DH_KEY, -129)
 // of an HTTP proxy.
 NET_ERROR(PROXY_CONNECTION_FAILED, -130)
 
-// Free: 131
+// A mandatory proxy configuration could not be used. Currently this means
+// that a mandatory PAC script could not be fetched, parsed or executed.
+NET_ERROR(MANDATORY_PROXY_CONFIGURATION_FAILED, -131)
 
 // We detected an ESET product intercepting our HTTPS connections. Since these
 // products are False Start intolerant, we return this error so that we can
