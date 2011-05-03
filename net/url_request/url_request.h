@@ -587,8 +587,6 @@ class URLRequest : public base::NonThreadSafe {
   friend class URLRequestJob;
   typedef std::map<const void*, linked_ptr<UserData> > UserDataMap;
 
-  void StartInternal();
-
   // Resumes or blocks a request paused by the NetworkDelegate::OnBeforeRequest
   // handler. If |blocked| is true, the request is blocked and an error page is
   // returned indicating so. This should only be called after Start is called
