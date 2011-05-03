@@ -9,6 +9,7 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/string_util.h"
 #include "base/values.h"
 #include "googleurl/src/gurl.h"
@@ -167,13 +168,16 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
   // |async_host_resolver|, |io_loop| and |net_log| must remain
   // valid for the duration of our lifetime.
   // |async_host_resolver| will only be operated on |io_loop|.
+  // TODO(willchan): remove io_loop and replace it with origin_loop.
   ProxyResolverFactoryForV8(HostResolver* async_host_resolver,
                             MessageLoop* io_loop,
+                            base::MessageLoopProxy* origin_loop,
                             NetLog* net_log,
                             NetworkDelegate* network_delegate)
       : ProxyResolverFactory(true /*expects_pac_bytes*/),
         async_host_resolver_(async_host_resolver),
         io_loop_(io_loop),
+        origin_loop_(origin_loop),
         net_log_(net_log),
         network_delegate_(network_delegate) {
   }
@@ -185,7 +189,8 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
         new SyncHostResolverBridge(async_host_resolver_, io_loop_);
 
     NetworkDelegateErrorObserver* error_observer =
-        new NetworkDelegateErrorObserver(network_delegate_, io_loop_);
+        new NetworkDelegateErrorObserver(
+            network_delegate_, origin_loop_.get());
 
     // ProxyResolverJSBindings takes ownership of |error_observer|.
     ProxyResolverJSBindings* js_bindings =
@@ -199,6 +204,7 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
  private:
   HostResolver* const async_host_resolver_;
   MessageLoop* io_loop_;
+  scoped_refptr<base::MessageLoopProxy> origin_loop_;
   NetLog* net_log_;
   NetworkDelegate* network_delegate_;
 };
@@ -417,6 +423,7 @@ ProxyService* ProxyService::CreateUsingV8ProxyResolver(
       new ProxyResolverFactoryForV8(
           host_resolver,
           MessageLoop::current(),
+          base::MessageLoopProxy::CreateForCurrentThread(),
           net_log,
           network_delegate);
 
