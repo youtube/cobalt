@@ -158,7 +158,8 @@ dev_list="bison fakeroot flex g++ gperf libapache2-mod-php5 libasound2-dev
           libsctp-dev libsqlite3-dev libxslt1-dev libxss-dev libxtst-dev
           mesa-common-dev msttcorefonts patch perl php5-cgi pkg-config python
           python-dev rpm subversion ttf-dejavu-core ttf-kochi-gothic
-          ttf-kochi-mincho wdiff libcurl4-gnutls-dev
+          ttf-kochi-mincho wdiff libcurl4-gnutls-dev ttf-indic-fonts
+          ttf-thai-tlwg
           $chromeos_dev_list"
 
 # Run-time libraries required by chromeos only
