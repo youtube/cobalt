@@ -305,3 +305,7 @@ net::URLRequestJob* TestNetworkDelegate::OnMaybeCreateURLRequestJob(
     net::URLRequest* request) {
   return NULL;
 }
+
+void TestNetworkDelegate::OnPACScriptError(int line_number,
+                                           const string16& error) {
+}
