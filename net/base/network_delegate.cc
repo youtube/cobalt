@@ -69,4 +69,10 @@ URLRequestJob* NetworkDelegate::MaybeCreateURLRequestJob(URLRequest* request) {
   return OnMaybeCreateURLRequestJob(request);
 }
 
+void NetworkDelegate::NotifyPACScriptError(int line_number,
+                                           const string16& error) {
+  DCHECK(CalledOnValidThread());
+  OnPACScriptError(line_number, error);
+}
+
 }  // namespace net

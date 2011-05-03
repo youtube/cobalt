@@ -215,6 +215,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   virtual void OnHttpTransactionDestroyed(uint64 request_id);
   virtual net::URLRequestJob* OnMaybeCreateURLRequestJob(
       net::URLRequest* request);
+  virtual void OnPACScriptError(int line_number, const string16& error);
 
   int last_os_error_;
   int error_count_;
