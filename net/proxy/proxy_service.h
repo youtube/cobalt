@@ -27,6 +27,7 @@ namespace net {
 
 class HostResolver;
 class InitProxyResolver;
+class NetworkDelegate;
 class ProxyResolver;
 class ProxyScriptFetcher;
 class URLRequestContext;
@@ -174,7 +175,8 @@ class ProxyService : public NetworkChangeNotifier::IPAddressObserver,
       size_t num_pac_threads,
       ProxyScriptFetcher* proxy_script_fetcher,
       HostResolver* host_resolver,
-      NetLog* net_log);
+      NetLog* net_log,
+      NetworkDelegate* network_delegate);
 
   // Same as CreateUsingV8ProxyResolver, except it uses system libraries
   // for evaluating the PAC script if available, otherwise skips
