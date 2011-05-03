@@ -174,7 +174,8 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
       : ProxyResolverFactory(true /*expects_pac_bytes*/),
         async_host_resolver_(async_host_resolver),
         io_loop_(io_loop),
-        net_log_(net_log) {
+        net_log_(net_log),
+        network_delegate_(network_delegate) {
   }
 
   virtual ProxyResolver* CreateProxyResolver() {
