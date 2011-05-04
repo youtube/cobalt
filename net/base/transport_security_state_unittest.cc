@@ -490,6 +490,10 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "profiles.google.com",
                                       true));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "mail.google.com", true));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "chatenabled.mail.google.com",
+                                      true));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "entropia.de", true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.entropia.de", true));
@@ -633,6 +637,10 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   EXPECT_TRUE(state->HasPinsForHost(&domain_state,
                                     "profiles.google.com",
                                     true));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state, "mail.google.com", true));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state,
+                                    "chatenabled.mail.google.com",
+                                    true));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state, "ssl.gstatic.com", true));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state,
                                     "ssl.google-analytics.com",
@@ -655,10 +663,6 @@ TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {
                                      false));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state,
                                     "www.google-analytics.com",
-                                    true));
-  EXPECT_TRUE(state->HasPinsForHost(&domain_state, "mail.google.com", true));
-  EXPECT_TRUE(state->HasPinsForHost(&domain_state,
-                                    "chatenabled.mail.google.com",
                                     true));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state, "google.com", true));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state, "www.google.com", true));
