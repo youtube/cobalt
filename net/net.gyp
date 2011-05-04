@@ -8,7 +8,7 @@
   },
   'targets': [
     {
-      'target_name': 'net_base',
+      'target_name': 'net',
       'type': '<(library)',
       'dependencies': [
         '../base/base.gyp:base',
@@ -220,156 +220,6 @@
         'base/x509_cert_types_mac.cc',
         'base/x509_openssl_util.cc',
         'base/x509_openssl_util.h',
-        'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
-        'third_party/mozilla_security_manager/nsKeygenHandler.h',
-        'third_party/mozilla_security_manager/nsNSSCertificateDB.cpp',
-        'third_party/mozilla_security_manager/nsNSSCertificateDB.h',
-        'third_party/mozilla_security_manager/nsNSSCertTrust.cpp',
-        'third_party/mozilla_security_manager/nsNSSCertTrust.h',
-        'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
-        'third_party/mozilla_security_manager/nsPKCS12Blob.h',
-      ],
-      'export_dependent_settings': [
-        '../base/base.gyp:base',
-      ],
-      'actions': [
-        {
-          'action_name': 'ssl_false_start_blacklist',
-          'inputs': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
-            'base/ssl_false_start_blacklist.txt',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
-          ],
-          'action':
-            ['<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
-             'base/ssl_false_start_blacklist.txt',
-              '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
-            ],
-          'message': 'Generating SSL False Start blacklist',
-          'process_outputs_as_sources': 1,
-        },
-      ],
-      'conditions': [
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
-            'dependencies': [
-              '../build/linux/system.gyp:gconf',
-              '../build/linux/system.gyp:gdk',
-              '../build/linux/system.gyp:libresolv',
-            ],
-            'conditions': [
-              ['use_openssl==1', {
-                'dependencies': [
-                  '../third_party/openssl/openssl.gyp:openssl',
-                ],
-              }, {  # else: not using openssl. Use NSS.
-                'dependencies': [
-                  '../build/linux/system.gyp:nss',
-                ],
-              }],
-            ],
-          },
-          {  # else: OS is not in the above list
-            'sources!': [
-              'base/cert_database_nss.cc',
-              'base/crypto_module_nss.cc',
-              'base/keygen_handler_nss.cc',
-              'base/test_root_certs_nss.cc',
-              'base/x509_certificate_nss.cc',
-              'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
-              'third_party/mozilla_security_manager/nsKeygenHandler.h',
-              'third_party/mozilla_security_manager/nsNSSCertificateDB.cpp',
-              'third_party/mozilla_security_manager/nsNSSCertificateDB.h',
-              'third_party/mozilla_security_manager/nsNSSCertTrust.cpp',
-              'third_party/mozilla_security_manager/nsNSSCertTrust.h',
-              'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
-              'third_party/mozilla_security_manager/nsPKCS12Blob.h',
-            ],
-          },
-        ],
-        [ 'use_openssl==1', {
-            'sources!': [
-              'base/cert_database_nss.cc',
-              'base/crypto_module_nss.cc',
-              'base/dnssec_keyset.cc',
-              'base/dnssec_keyset.h',
-              'base/keygen_handler_nss.cc',
-              'base/nss_memio.c',
-              'base/nss_memio.h',
-              'base/test_root_certs_nss.cc',
-              'base/x509_certificate_nss.cc',
-              'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
-              'third_party/mozilla_security_manager/nsKeygenHandler.h',
-              'third_party/mozilla_security_manager/nsNSSCertificateDB.cpp',
-              'third_party/mozilla_security_manager/nsNSSCertificateDB.h',
-              'third_party/mozilla_security_manager/nsNSSCertTrust.cpp',
-              'third_party/mozilla_security_manager/nsNSSCertTrust.h',
-              'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
-              'third_party/mozilla_security_manager/nsPKCS12Blob.h',
-            ],
-          },
-          {  # else: not using openssl.
-            'sources!': [
-              'base/cert_database_openssl.cc',
-              'base/crypto_module_openssl.cc',
-              'base/keygen_handler_openssl.cc',
-              'base/openssl_memory_private_key_store.cc',
-              'base/openssl_private_key_store.h',
-              'base/test_root_certs_openssl.cc',
-              'base/x509_certificate_openssl.cc',
-              'base/x509_openssl_util.cc',
-              'base/x509_openssl_util.h',
-             ],
-          },
-        ],
-        [ 'OS == "win"', {
-            'dependencies': [
-              '../third_party/nss/nss.gyp:nss',
-              'tld_cleanup',
-            ],
-          },
-          {  # else: OS != "win"
-            'dependencies': [
-              '../third_party/libevent/libevent.gyp:libevent',
-            ],
-            'sources!': [
-              'base/winsock_init.cc',
-              'base/winsock_util.cc',
-            ],
-          },
-        ],
-        [ 'OS == "mac"', {
-            'dependencies': [
-              '../third_party/nss/nss.gyp:nss',
-            ],
-            'link_settings': {
-              'libraries': [
-                '$(SDKROOT)/System/Library/Frameworks/Security.framework',
-                '$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
-                '$(SDKROOT)/usr/lib/libresolv.dylib',
-              ]
-            },
-          },
-        ],
-      ],
-    },
-    {
-      'target_name': 'net',
-      'type': '<(library)',
-      'dependencies': [
-        '../base/base.gyp:base',
-        '../base/base.gyp:base_i18n',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../crypto/crypto.gyp:crypto',
-        '../sdch/sdch.gyp:sdch',
-        '../third_party/icu/icu.gyp:icui18n',
-        '../third_party/icu/icu.gyp:icuuc',
-        '../third_party/zlib/zlib.gyp:zlib',
-        'net_base',
-        'net_resources',
-      ],
-      'sources': [
         'disk_cache/addr.cc',
         'disk_cache/addr.h',
         'disk_cache/backend_impl.cc',
@@ -697,6 +547,14 @@
         'spdy/spdy_settings_storage.h',
         'spdy/spdy_stream.cc',
         'spdy/spdy_stream.h',
+        'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
+        'third_party/mozilla_security_manager/nsKeygenHandler.h',
+        'third_party/mozilla_security_manager/nsNSSCertificateDB.cpp',
+        'third_party/mozilla_security_manager/nsNSSCertificateDB.h',
+        'third_party/mozilla_security_manager/nsNSSCertTrust.cpp',
+        'third_party/mozilla_security_manager/nsNSSCertTrust.h',
+        'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
+        'third_party/mozilla_security_manager/nsPKCS12Blob.h',
         'udp/datagram_client_socket.h',
         'udp/datagram_server_socket.h',
         'udp/datagram_socket.h',
@@ -780,6 +638,25 @@
       'export_dependent_settings': [
         '../base/base.gyp:base',
       ],
+      'actions': [
+        {
+          'action_name': 'ssl_false_start_blacklist',
+          'inputs': [
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
+            'base/ssl_false_start_blacklist.txt',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
+          ],
+          'action':
+            ['<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
+             'base/ssl_false_start_blacklist.txt',
+              '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
+            ],
+          'message': 'Generating SSL False Start blacklist',
+          'process_outputs_as_sources': 1,
+        },
+      ],
       'conditions': [
         ['javascript_engine=="v8"', {
           'dependencies': [
@@ -794,6 +671,15 @@
         }],
         ['use_openssl==1', {
             'sources!': [
+              'base/cert_database_nss.cc',
+              'base/crypto_module_nss.cc',
+              'base/dnssec_keyset.cc',
+              'base/dnssec_keyset.h',
+              'base/keygen_handler_nss.cc',
+              'base/nss_memio.c',
+              'base/nss_memio.h',
+              'base/test_root_certs_nss.cc',
+              'base/x509_certificate_nss.cc',
               'ocsp/nss_ocsp.cc',
               'ocsp/nss_ocsp.h',
               'socket/dns_cert_provenance_check.cc',
@@ -804,10 +690,27 @@
               'socket/ssl_client_socket_nss.h',
               'socket/ssl_server_socket_nss.cc',
               'socket/ssl_server_socket_nss.h',
+              'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
+              'third_party/mozilla_security_manager/nsKeygenHandler.h',
+              'third_party/mozilla_security_manager/nsNSSCertificateDB.cpp',
+              'third_party/mozilla_security_manager/nsNSSCertificateDB.h',
+              'third_party/mozilla_security_manager/nsNSSCertTrust.cpp',
+              'third_party/mozilla_security_manager/nsNSSCertTrust.h',
+              'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
+              'third_party/mozilla_security_manager/nsPKCS12Blob.h',
             ],
           },
           {  # else !use_openssl: remove the unneeded files
             'sources!': [
+              'base/cert_database_openssl.cc',
+              'base/crypto_module_openssl.cc',
+              'base/keygen_handler_openssl.cc',
+              'base/openssl_memory_private_key_store.cc',
+              'base/openssl_private_key_store.h',
+              'base/test_root_certs_openssl.cc',
+              'base/x509_certificate_openssl.cc',
+              'base/x509_openssl_util.cc',
+              'base/x509_openssl_util.h',
               'socket/ssl_client_socket_openssl.cc',
               'socket/ssl_client_socket_openssl.h',
               'socket/ssl_server_socket_openssl.cc',
@@ -818,6 +721,7 @@
             'dependencies': [
               '../build/linux/system.gyp:gconf',
               '../build/linux/system.gyp:gdk',
+              '../build/linux/system.gyp:libresolv',
             ],
             'conditions': [
               ['use_openssl==1', {
@@ -834,8 +738,21 @@
           },
           {  # else: OS is not in the above list
             'sources!': [
+              'base/cert_database_nss.cc',
+              'base/crypto_module_nss.cc',
+              'base/keygen_handler_nss.cc',
+              'base/test_root_certs_nss.cc',
+              'base/x509_certificate_nss.cc',
               'ocsp/nss_ocsp.cc',
               'ocsp/nss_ocsp.h',
+              'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
+              'third_party/mozilla_security_manager/nsKeygenHandler.h',
+              'third_party/mozilla_security_manager/nsNSSCertificateDB.cpp',
+              'third_party/mozilla_security_manager/nsNSSCertificateDB.h',
+              'third_party/mozilla_security_manager/nsNSSCertTrust.cpp',
+              'third_party/mozilla_security_manager/nsNSSCertTrust.h',
+              'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
+              'third_party/mozilla_security_manager/nsPKCS12Blob.h',
             ],
           },
         ],
@@ -857,6 +774,8 @@
               '../third_party/libevent/libevent.gyp:libevent',
             ],
             'sources!': [
+              'base/winsock_init.cc',
+              'base/winsock_util.cc',
               'proxy/proxy_resolver_winhttp.cc',
             ],
           },
@@ -870,6 +789,7 @@
               'libraries': [
                 '$(SDKROOT)/System/Library/Frameworks/Security.framework',
                 '$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
+                '$(SDKROOT)/usr/lib/libresolv.dylib',
               ]
             },
           },
@@ -1324,7 +1244,7 @@
       'target_name': 'dnssec_chain_verify',
       'type': 'executable',
       'dependencies': [
-        'net_base',
+        'net',
       ],
       'sources': [
         'tools/dnssec_chain_verify/dnssec_chain_verify.cc',
