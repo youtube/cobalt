@@ -592,10 +592,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {22, true, "\011encrypted\006google\003com", true, kGoogleAcceptableCerts },
     {21, true, "\010accounts\006google\003com", true, kGoogleAcceptableCerts },
     {21, true, "\010profiles\006google\003com", true, kGoogleAcceptableCerts },
-#if defined(OS_CHROMEOS)
-    // TODO(cevans) - unify this with Chrome.
     {17, true, "\004mail\006google\003com", true, kGoogleAcceptableCerts },
-#endif
     // Other Google-related domains that must use HTTPS.
     {20, true, "\006market\007android\003com", true, kGoogleAcceptableCerts },
     {26, true, "\003ssl\020google-analytics\003com", true,
