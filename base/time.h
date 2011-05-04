@@ -44,9 +44,6 @@ namespace base {
 class Time;
 class TimeTicks;
 
-// This unit test does a lot of manual time manipulation.
-class PageLoadTrackerUnitTest;
-
 // TimeDelta ------------------------------------------------------------------
 
 class BASE_API TimeDelta {
@@ -535,7 +532,6 @@ class BASE_API TimeTicks {
 
  protected:
   friend class TimeDelta;
-  friend class PageLoadTrackerUnitTest;
 
   // Please use Now() to create a new object. This is for internal use
   // and testing. Ticks is in microseconds.
