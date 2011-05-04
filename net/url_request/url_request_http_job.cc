@@ -106,6 +106,10 @@ class URLRequestHttpJob::HttpFilterContext : public FilterContext {
   virtual int GetResponseCode() const;
   virtual void RecordPacketStats(StatisticSelector statistic) const;
 
+  // Method to allow us to reset filter context for a response that should have
+  // been SDCH encoded when there is an update due to an explicit HTTP header.
+  void ResetSdchResponseToFalse();
+
  private:
   URLRequestHttpJob* job_;
 
@@ -142,6 +146,11 @@ bool URLRequestHttpJob::HttpFilterContext::IsCachedContent() const {
 
 bool URLRequestHttpJob::HttpFilterContext::IsDownload() const {
   return (job_->request_info_.load_flags & LOAD_IS_DOWNLOAD) != 0;
+}
+
+void URLRequestHttpJob::HttpFilterContext::ResetSdchResponseToFalse() {
+  DCHECK(job_->sdch_dictionary_advertised_);
+  job_->sdch_dictionary_advertised_ = false;
 }
 
 bool URLRequestHttpJob::HttpFilterContext::IsSdchResponse() const {
@@ -387,7 +396,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
           avail_dictionaries);
       sdch_dictionary_advertised_ = true;
       // Since we're tagging this transaction as advertising a dictionary, we'll
-      // definately employ an SDCH filter (or tentative sdch filter) when we get
+      // definitely employ an SDCH filter (or tentative sdch filter) when we get
       // a response.  When done, we'll record histograms via SDCH_DECODE or
       // SDCH_PASSTHROUGH.  Hence we need to record packet arrival times.
       packet_timing_enabled_ = true;
@@ -864,6 +873,23 @@ Filter* URLRequestHttpJob::SetupFilter() const {
   while (response_info_->headers->EnumerateHeader(&iter, "Content-Encoding",
                                                   &encoding_type)) {
     encoding_types.push_back(Filter::ConvertEncodingToType(encoding_type));
+  }
+
+  if (filter_context_->IsSdchResponse()) {
+    // We are wary of proxies that discard or damage SDCH encoding.  If a server
+    // explicitly states that this is not SDCH content, then we can correct our
+    // assumption that this is an SDCH response, and avoid the need to recover
+    // as though the content is corrupted (when we discover it is not SDCH
+    // encoded).
+    std::string sdch_response_status;
+    iter = NULL;
+    while (response_info_->headers->EnumerateHeader(&iter, "X-Sdch-Encode",
+                                                    &sdch_response_status)) {
+      if (sdch_response_status == "0") {
+        filter_context_->ResetSdchResponseToFalse();
+        break;
+      }
+    }
   }
 
   // Even if encoding types are empty, there is a chance that we need to add
