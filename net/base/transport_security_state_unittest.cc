@@ -561,6 +561,9 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
                                        "foo.logentries.com",
                                        false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "stripe.com", false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "foo.stripe.com", false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
