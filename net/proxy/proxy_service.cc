@@ -867,7 +867,7 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 #else
   LOG(WARNING) << "Failed to choose a system proxy settings fetcher "
                   "for this platform.";
-  return new ProxyConfigServiceNull();
+  return new ProxyConfigServiceDirect();
 #endif
 }
 
