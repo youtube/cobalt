@@ -163,7 +163,6 @@
         '../printing/printing.gyp:printing_unittests',
         '../remoting/remoting.gyp:remoting_unittests',
         '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-        '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
         'temp_gyp/googleurl.gyp:googleurl_unittests',
       ],
       'conditions': [
@@ -222,7 +221,6 @@
         '../printing/printing.gyp:printing_unittests',
         '../remoting/remoting.gyp:remoting_unittests',
         '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-        '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
         'temp_gyp/googleurl.gyp:googleurl_unittests',
       ],
       'conditions': [
@@ -329,7 +327,6 @@
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-            '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
@@ -360,7 +357,6 @@
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-            '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
@@ -378,7 +374,6 @@
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-            '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
           ],
         },
         {
@@ -401,7 +396,6 @@
             '../ui/ui.gyp:gfx_unittests',
             '../jingle/jingle.gyp:jingle_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-            '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
           ],
         },
       ],  # targets
@@ -451,7 +445,6 @@
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-            '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
             '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:copy_TestNetscapePlugIn',
             '../views/views.gyp:views_unittests',
             # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
@@ -481,7 +474,6 @@
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-            '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
@@ -559,7 +551,6 @@
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-            '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
             '../views/views.gyp:views_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
