@@ -163,7 +163,7 @@ FieldTrialList::~FieldTrialList() {
     it->second->Release();
     registered_.erase(it->first);
   }
-  DCHECK(this == global_);
+  DCHECK_EQ(this, global_);
   global_ = NULL;
 }
 
