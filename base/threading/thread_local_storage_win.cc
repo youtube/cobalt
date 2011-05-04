@@ -90,7 +90,8 @@ void* ThreadLocalStorage::Slot::Get() const {
   void** tls_data = static_cast<void**>(TlsGetValue(tls_key_));
   if (!tls_data)
     tls_data = ThreadLocalStorage::Initialize();
-  DCHECK(slot_ >= 0 && slot_ < kThreadLocalStorageSize);
+  DCHECK_GE(slot_, 0);
+  DCHECK_LT(slot_, kThreadLocalStorageSize);
   return tls_data[slot_];
 }
 
@@ -98,7 +99,8 @@ void ThreadLocalStorage::Slot::Set(void* value) {
   void** tls_data = static_cast<void**>(TlsGetValue(tls_key_));
   if (!tls_data)
     tls_data = ThreadLocalStorage::Initialize();
-  DCHECK(slot_ >= 0 && slot_ < kThreadLocalStorageSize);
+  DCHECK_GE(slot_, 0);
+  DCHECK_LT(slot_, kThreadLocalStorageSize);
   tls_data[slot_] = value;
 }
 
