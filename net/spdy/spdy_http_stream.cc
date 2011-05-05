@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -175,6 +175,11 @@ bool SpdyHttpStream::IsConnectionReused() const {
 
 void SpdyHttpStream::SetConnectionReused() {
   // SPDY doesn't need an indicator here.
+}
+
+bool SpdyHttpStream::IsConnectionReusable() const {
+  // SPDY streams aren't considered reusable.
+  return false;
 }
 
 void SpdyHttpStream::set_chunk_callback(ChunkCallback* callback) {
