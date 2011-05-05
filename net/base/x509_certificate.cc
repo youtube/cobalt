@@ -153,14 +153,14 @@ X509Certificate* X509Certificate::CreateFromHandle(
     Source source,
     const OSCertHandles& intermediates) {
   DCHECK(cert_handle);
-  DCHECK(source != SOURCE_UNUSED);
+  DCHECK_NE(source, SOURCE_UNUSED);
 
   // Check if we already have this certificate in memory.
   X509CertificateCache* cache = g_x509_certificate_cache.Pointer();
   X509Certificate* cached_cert =
       cache->Find(CalculateFingerprint(cert_handle));
   if (cached_cert) {
-    DCHECK(cached_cert->source_ != SOURCE_UNUSED);
+    DCHECK_NE(cached_cert->source_, SOURCE_UNUSED);
     if (cached_cert->source_ > source ||
         (cached_cert->source_ == source &&
          cached_cert->HasIntermediateCertificates(intermediates))) {

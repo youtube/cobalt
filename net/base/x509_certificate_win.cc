@@ -897,7 +897,7 @@ bool X509Certificate::GetDEREncoded(std::string* encoded) {
 // http://cabforum.org/EV_Certificate_Guidelines.pdf.
 bool X509Certificate::CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
                               const char* policy_oid) const {
-  DCHECK(chain_context->cChain != 0);
+  DCHECK_NE(static_cast<DWORD>(0), chain_context->cChain);
   // If the cert doesn't match any of the policies, the
   // CERT_TRUST_IS_NOT_VALID_FOR_USAGE bit (0x10) in
   // chain_context->TrustStatus.dwErrorStatus is set.
@@ -991,7 +991,7 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 SHA1Fingerprint X509Certificate::CalculateFingerprint(
     OSCertHandle cert) {
   DCHECK(NULL != cert->pbCertEncoded);
-  DCHECK(0 != cert->cbCertEncoded);
+  DCHECK_NE(static_cast<DWORD>(0), cert->cbCertEncoded);
 
   BOOL rv;
   SHA1Fingerprint sha1;
