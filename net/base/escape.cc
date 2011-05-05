@@ -17,7 +17,8 @@ namespace {
 
 static const char* const kHexString = "0123456789ABCDEF";
 inline char IntToHex(int i) {
-  DCHECK(i >= 0 && i <= 15) << i << " not a hex value";
+  DCHECK_GE(i, 0) << i << " not a hex value";
+  DCHECK_LE(i, 15) << i << " not a hex value";
   return kHexString[i];
 }
 

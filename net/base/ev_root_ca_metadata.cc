@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -354,7 +354,7 @@ EVRootCAMetadata::EVRootCAMetadata() {
     od.mechanism = CKM_INVALID_MECHANISM;
     od.supportedExtension = INVALID_CERT_EXTENSION;
     SECOidTag policy = SECOID_AddEntry(&od);
-    DCHECK(policy != SEC_OID_UNKNOWN);
+    DCHECK_NE(SEC_OID_UNKNOWN, policy);
     ev_policy_[metadata.fingerprint] = policy;
     policy_oids_.push_back(policy);
   }
