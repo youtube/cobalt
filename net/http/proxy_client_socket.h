@@ -6,14 +6,14 @@
 #define NET_HTTP_PROXY_CLIENT_SOCKET_H_
 #pragma once
 
-#include "net/socket/client_socket.h"
+#include "net/socket/stream_socket.h"
 
 namespace net {
 
 class HttpStream;
 class HttpResponseInfo;
 
-class ProxyClientSocket : public ClientSocket {
+class ProxyClientSocket : public StreamSocket {
  public:
   ProxyClientSocket() {}
   virtual ~ProxyClientSocket() {}

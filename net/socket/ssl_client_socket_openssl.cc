@@ -622,7 +622,7 @@ void SSLClientSocketOpenSSL::DoWriteCallback(int rv) {
   c->Run(rv);
 }
 
-// ClientSocket methods
+// StreamSocket methods
 
 int SSLClientSocketOpenSSL::Connect(CompletionCallback* callback) {
   net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);

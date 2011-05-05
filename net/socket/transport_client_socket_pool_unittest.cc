@@ -11,12 +11,12 @@
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
-#include "net/socket/client_socket.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/ssl_host_info.h"
+#include "net/socket/stream_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -29,11 +29,11 @@ const int kMaxSockets = 32;
 const int kMaxSocketsPerGroup = 6;
 const net::RequestPriority kDefaultPriority = LOW;
 
-class MockClientSocket : public ClientSocket {
+class MockClientSocket : public StreamSocket {
  public:
   MockClientSocket() : connected_(false) {}
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback) {
     connected_ = true;
     return OK;
@@ -79,11 +79,11 @@ class MockClientSocket : public ClientSocket {
   BoundNetLog net_log_;
 };
 
-class MockFailingClientSocket : public ClientSocket {
+class MockFailingClientSocket : public StreamSocket {
  public:
   MockFailingClientSocket() {}
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback) {
     return ERR_CONNECTION_FAILED;
   }
@@ -128,7 +128,7 @@ class MockFailingClientSocket : public ClientSocket {
   BoundNetLog net_log_;
 };
 
-class MockPendingClientSocket : public ClientSocket {
+class MockPendingClientSocket : public StreamSocket {
  public:
   // |should_connect| indicates whether the socket should successfully complete
   // or fail.
@@ -141,7 +141,7 @@ class MockPendingClientSocket : public ClientSocket {
         delay_ms_(delay_ms),
         is_connected_(false) {}
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback) {
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
@@ -226,7 +226,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
         client_socket_types_(NULL), client_socket_index_(0),
         client_socket_index_max_(0) {}
 
-  virtual ClientSocket* CreateTransportClientSocket(
+  virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* /* net_log */,
       const NetLog::Source& /* source */) {

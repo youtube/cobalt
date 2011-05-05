@@ -13,7 +13,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_log.h"
-#include "net/socket/client_socket.h"
+#include "net/socket/stream_socket.h"
 
 namespace net {
 

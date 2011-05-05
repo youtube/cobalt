@@ -133,7 +133,7 @@ class TransportClientSocketPool : public ClientSocketPool {
                              ClientSocketHandle* handle);
 
   virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket,
+                             StreamSocket* socket,
                              int id);
 
   virtual void Flush();

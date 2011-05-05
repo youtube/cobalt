@@ -41,7 +41,7 @@ class TCPServerSocketTest : public PlatformTest {
     *address = IPEndPoint(ip_number, port);
   }
 
-  static IPEndPoint GetPeerAddress(ClientSocket* socket) {
+  static IPEndPoint GetPeerAddress(StreamSocket* socket) {
     AddressList address;
     EXPECT_EQ(OK, socket->GetPeerAddress(&address));
     IPEndPoint endpoint;
@@ -62,7 +62,7 @@ TEST_F(TCPServerSocketTest, Accept) {
   connecting_socket.Connect(&connect_callback);
 
   TestCompletionCallback accept_callback;
-  scoped_ptr<ClientSocket> accepted_socket;
+  scoped_ptr<StreamSocket> accepted_socket;
   int result = socket_.Accept(&accepted_socket, &accept_callback);
   if (result == ERR_IO_PENDING)
     result = accept_callback.WaitForResult();
@@ -80,7 +80,7 @@ TEST_F(TCPServerSocketTest, Accept) {
 // Test Accept() callback.
 TEST_F(TCPServerSocketTest, AcceptAsync) {
   TestCompletionCallback accept_callback;
-  scoped_ptr<ClientSocket> accepted_socket;
+  scoped_ptr<StreamSocket> accepted_socket;
 
   ASSERT_EQ(ERR_IO_PENDING, socket_.Accept(&accepted_socket, &accept_callback));
 
@@ -103,7 +103,7 @@ TEST_F(TCPServerSocketTest, AcceptAsync) {
 // Accept two connections simultaneously.
 TEST_F(TCPServerSocketTest, Accept2Connections) {
   TestCompletionCallback accept_callback;
-  scoped_ptr<ClientSocket> accepted_socket;
+  scoped_ptr<StreamSocket> accepted_socket;
 
   ASSERT_EQ(ERR_IO_PENDING,
             socket_.Accept(&accepted_socket, &accept_callback));
@@ -123,7 +123,7 @@ TEST_F(TCPServerSocketTest, Accept2Connections) {
   EXPECT_EQ(OK, accept_callback.WaitForResult());
 
   TestCompletionCallback accept_callback2;
-  scoped_ptr<ClientSocket> accepted_socket2;
+  scoped_ptr<StreamSocket> accepted_socket2;
   int result = socket_.Accept(&accepted_socket2, &accept_callback2);
   if (result == ERR_IO_PENDING)
     result = accept_callback2.WaitForResult();

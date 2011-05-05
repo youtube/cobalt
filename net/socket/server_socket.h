@@ -10,8 +10,8 @@
 
 namespace net {
 
-class ClientSocket;
 class IPEndPoint;
+class StreamSocket;
 
 class ServerSocket {
  public:
@@ -27,7 +27,7 @@ class ServerSocket {
 
   // Accept connection. Callback is called when new connection is
   // accepted.
-  virtual int Accept(scoped_ptr<ClientSocket>* socket,
+  virtual int Accept(scoped_ptr<StreamSocket>* socket,
                      CompletionCallback* callback) = 0;
 
  private:

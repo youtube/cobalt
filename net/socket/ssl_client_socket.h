@@ -11,7 +11,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
-#include "net/socket/client_socket.h"
+#include "net/socket/stream_socket.h"
 
 namespace net {
 
@@ -42,7 +42,7 @@ class DNSSECProvider {
 // connection is established.  If a SSL error occurs during the handshake,
 // Connect will fail.
 //
-class SSLClientSocket : public ClientSocket {
+class SSLClientSocket : public StreamSocket {
  public:
   SSLClientSocket();
 
