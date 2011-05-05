@@ -33,7 +33,7 @@ class SSLClientSocketTest : public PlatformTest {
 
  protected:
   net::SSLClientSocket* CreateSSLClientSocket(
-      net::ClientSocket* transport_socket,
+      net::StreamSocket* transport_socket,
       const net::HostPortPair& host_and_port,
       const net::SSLConfig& ssl_config) {
     return socket_factory_->CreateSSLClientSocket(transport_socket,
@@ -72,7 +72,7 @@ TEST_F(SSLClientSocketTest, Connect) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(
+  net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -114,7 +114,7 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(
+  net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -157,7 +157,7 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(
+  net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -202,7 +202,7 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthCertRequested) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(
+  net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -262,7 +262,7 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(
+  net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -312,7 +312,7 @@ TEST_F(SSLClientSocketTest, Read) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   TestCompletionCallback callback;
-  net::ClientSocket* transport = new net::TCPClientSocket(
+  net::StreamSocket* transport = new net::TCPClientSocket(
       addr, NULL, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -367,7 +367,7 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
   TestCompletionCallback callback;  // Used for everything except Write.
   TestCompletionCallback callback2;  // Used for Write only.
 
-  net::ClientSocket* transport = new net::TCPClientSocket(
+  net::StreamSocket* transport = new net::TCPClientSocket(
       addr, NULL, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -422,7 +422,7 @@ TEST_F(SSLClientSocketTest, Read_SmallChunks) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   TestCompletionCallback callback;
-  net::ClientSocket* transport = new net::TCPClientSocket(
+  net::StreamSocket* transport = new net::TCPClientSocket(
       addr, NULL, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -472,7 +472,7 @@ TEST_F(SSLClientSocketTest, Read_Interrupted) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   TestCompletionCallback callback;
-  net::ClientSocket* transport = new net::TCPClientSocket(
+  net::StreamSocket* transport = new net::TCPClientSocket(
       addr, NULL, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -542,7 +542,7 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
   net::StaticSocketDataProvider data(data_reads, arraysize(data_reads),
                                      NULL, 0);
 
-  net::ClientSocket* transport =
+  net::StreamSocket* transport =
       new net::MockTCPClientSocket(addr, NULL, &data);
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -580,7 +580,7 @@ TEST_F(SSLClientSocketTest, CipherSuiteDisables) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(
+  net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)

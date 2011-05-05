@@ -425,7 +425,7 @@ void HttpProxyClientSocketPool::CancelRequest(
 }
 
 void HttpProxyClientSocketPool::ReleaseSocket(const std::string& group_name,
-                                              ClientSocket* socket, int id) {
+                                              StreamSocket* socket, int id) {
   base_.ReleaseSocket(group_name, socket, id);
 }
 

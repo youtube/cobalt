@@ -37,7 +37,7 @@ class SOCKSClientSocketTest : public PlatformTest {
  protected:
   scoped_ptr<SOCKSClientSocket> user_sock_;
   AddressList address_list_;
-  ClientSocket* tcp_sock_;
+  StreamSocket* tcp_sock_;
   TestCompletionCallback callback_;
   scoped_ptr<MockHostResolver> host_resolver_;
   scoped_ptr<SocketDataProvider> data_;
