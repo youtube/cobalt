@@ -1,7 +1,6 @@
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #include "base/debug/trace_event_win.h"
 
 #include "base/logging.h"
@@ -27,24 +26,26 @@ const GUID kTraceEventClass64 = {
     0x97be602d, 0x2930, 0x4ac3, 0x80, 0x46, 0xb6, 0x76, 0x3b, 0x63, 0x1d, 0xfe};
 
 
-TraceLog::TraceLog() : EtwTraceProvider(kChromeTraceProviderName) {
+TraceEventETWProvider::TraceEventETWProvider() :
+    EtwTraceProvider(kChromeTraceProviderName) {
   Register();
 }
 
-TraceLog* TraceLog::GetInstance() {
-  return Singleton<TraceLog, StaticMemorySingletonTraits<TraceLog> >::get();
+TraceEventETWProvider* TraceEventETWProvider::GetInstance() {
+  return Singleton<TraceEventETWProvider,
+      StaticMemorySingletonTraits<TraceEventETWProvider> >::get();
 }
 
-bool TraceLog::StartTracing() {
+bool TraceEventETWProvider::StartTracing() {
   return true;
 }
 
-void TraceLog::TraceEvent(const char* name,
-                          size_t name_len,
-                          EventType type,
-                          const void* id,
-                          const char* extra,
-                          size_t extra_len) {
+void TraceEventETWProvider::TraceEvent(const char* name,
+                                       size_t name_len,
+                                       TraceEventPhase type,
+                                       const void* id,
+                                       const char* extra,
+                                       size_t extra_len) {
   // Make sure we don't touch NULL.
   if (name == NULL)
     name = "";
@@ -53,14 +54,14 @@ void TraceLog::TraceEvent(const char* name,
 
   EtwEventType etw_type = 0;
   switch (type) {
-    case TraceLog::EVENT_BEGIN:
+    case TRACE_EVENT_PHASE_BEGIN:
       etw_type = kTraceEventTypeBegin;
       break;
-    case TraceLog::EVENT_END:
+    case TRACE_EVENT_PHASE_END:
       etw_type = kTraceEventTypeEnd;
       break;
 
-    case TraceLog::EVENT_INSTANT:
+    case TRACE_EVENT_PHASE_INSTANT:
       etw_type = kTraceEventTypeInstant;
       break;
 
@@ -93,13 +94,13 @@ void TraceLog::TraceEvent(const char* name,
   Log(event.get());
 }
 
-void TraceLog::Trace(const char* name,
-                     size_t name_len,
-                     EventType type,
-                     const void* id,
-                     const char* extra,
-                     size_t extra_len) {
-  TraceLog* provider = TraceLog::GetInstance();
+void TraceEventETWProvider::Trace(const char* name,
+                                  size_t name_len,
+                                  TraceEventPhase type,
+                                  const void* id,
+                                  const char* extra,
+                                  size_t extra_len) {
+  TraceEventETWProvider* provider = TraceEventETWProvider::GetInstance();
   if (provider && provider->IsTracing()) {
     // Compute the name & extra lengths if not supplied already.
     if (name_len == -1)
@@ -111,8 +112,8 @@ void TraceLog::Trace(const char* name,
   }
 }
 
-void TraceLog::Resurrect() {
-  StaticMemorySingletonTraits<TraceLog>::Resurrect();
+void TraceEventETWProvider::Resurrect() {
+  StaticMemorySingletonTraits<TraceEventETWProvider>::Resurrect();
 }
 
 }  // namespace debug
