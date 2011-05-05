@@ -196,12 +196,13 @@ void URLRequestThrottlerEntry::UpdateWithResponse(
 }
 
 void URLRequestThrottlerEntry::ReceivedContentWasMalformed() {
-  // We keep this simple and just count it as a single error.
-  //
-  // If we wanted to get fancy, we would count two errors here, and decrease
-  // the error count only by one when we receive a successful (by status
-  // code) response. Instead, we keep things simple by always resetting the
-  // error count on success, and therefore counting only a single error here.
+  // A malformed body can only occur when the request to fetch a resource
+  // was successful.  Therefore, in such a situation, we will receive one
+  // call to ReceivedContentWasMalformed() and one call to UpdateWithResponse()
+  // with a response categorized as "good".  To end up counting one failure,
+  // we need to count two failures here against the one success in
+  // UpdateWithResponse().
+  GetBackoffEntry()->InformOfRequest(false);
   GetBackoffEntry()->InformOfRequest(false);
 }
 
