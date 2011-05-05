@@ -74,7 +74,7 @@ class TransportClientSocketTest
   int listen_port_;
   CapturingNetLog net_log_;
   ClientSocketFactory* const socket_factory_;
-  scoped_ptr<ClientSocket> sock_;
+  scoped_ptr<StreamSocket> sock_;
 
  private:
   scoped_refptr<ListenSocket> listen_sock_;
@@ -116,7 +116,7 @@ void TransportClientSocketTest::SetUp() {
 }
 
 // TODO(leighton):  Add SCTP to this list when it is ready.
-INSTANTIATE_TEST_CASE_P(ClientSocket,
+INSTANTIATE_TEST_CASE_P(StreamSocket,
                         TransportClientSocketTest,
                         ::testing::Values(TCP));
 

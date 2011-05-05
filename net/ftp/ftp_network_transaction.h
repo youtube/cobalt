@@ -21,9 +21,9 @@
 
 namespace net {
 
-class ClientSocket;
 class ClientSocketFactory;
 class FtpNetworkSession;
+class StreamSocket;
 
 class FtpNetworkTransaction : public FtpTransaction {
  public:
@@ -239,8 +239,8 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   ClientSocketFactory* socket_factory_;
 
-  scoped_ptr<ClientSocket> ctrl_socket_;
-  scoped_ptr<ClientSocket> data_socket_;
+  scoped_ptr<StreamSocket> ctrl_socket_;
+  scoped_ptr<StreamSocket> data_socket_;
 
   State next_state_;
 };

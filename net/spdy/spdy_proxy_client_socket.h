@@ -67,7 +67,7 @@ class SpdyProxyClientSocket : public ProxyClientSocket,
   // the response body.
   virtual HttpStream* CreateConnectResponseStream();
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;

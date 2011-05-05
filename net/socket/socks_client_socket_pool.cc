@@ -239,7 +239,7 @@ void SOCKSClientSocketPool::CancelRequest(const std::string& group_name,
 }
 
 void SOCKSClientSocketPool::ReleaseSocket(const std::string& group_name,
-                                          ClientSocket* socket, int id) {
+                                          StreamSocket* socket, int id) {
   base_.ReleaseSocket(group_name, socket, id);
 }
 

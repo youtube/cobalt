@@ -263,7 +263,7 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
     error_response_info_ = transport_socket_handle_->ssl_error_response_info();
   } else if (result == ERR_PROXY_AUTH_REQUESTED ||
              result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
-    ClientSocket* socket = transport_socket_handle_->socket();
+    StreamSocket* socket = transport_socket_handle_->socket();
     HttpProxyClientSocket* tunnel_socket =
         static_cast<HttpProxyClientSocket*>(socket);
     error_response_info_ = *tunnel_socket->GetConnectResponseInfo();
@@ -514,7 +514,7 @@ void SSLClientSocketPool::CancelRequest(const std::string& group_name,
 }
 
 void SSLClientSocketPool::ReleaseSocket(const std::string& group_name,
-                                        ClientSocket* socket, int id) {
+                                        StreamSocket* socket, int id) {
   base_.ReleaseSocket(group_name, socket, id);
 }
 

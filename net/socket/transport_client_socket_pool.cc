@@ -73,7 +73,7 @@ TransportConnectJob::TransportConnectJob(
 
 TransportConnectJob::~TransportConnectJob() {
   // We don't worry about cancelling the host resolution and TCP connect, since
-  // ~SingleRequestHostResolver and ~ClientSocket will take care of it.
+  // ~SingleRequestHostResolver and ~StreamSocket will take care of it.
 }
 
 LoadState TransportConnectJob::GetLoadState() const {
@@ -270,7 +270,7 @@ void TransportClientSocketPool::CancelRequest(
 
 void TransportClientSocketPool::ReleaseSocket(
     const std::string& group_name,
-    ClientSocket* socket,
+    StreamSocket* socket,
     int id) {
   base_.ReleaseSocket(group_name, socket, id);
 }
