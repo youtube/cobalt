@@ -353,6 +353,7 @@ class HttpCache::Transaction : public HttpTransaction {
   bool is_sparse_;  // The data is stored in sparse byte ranges.
   bool server_responded_206_;
   bool cache_pending_;  // We are waiting for the HttpCache.
+  bool done_reading_;
   scoped_refptr<IOBuffer> read_buf_;
   int io_buf_len_;
   int read_offset_;
