@@ -12,6 +12,7 @@
 #include "base/time.h"
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_base.h"
@@ -90,6 +91,38 @@ LoadState TransportConnectJob::GetLoadState() const {
   }
 }
 
+// static
+void TransportConnectJob::MakeAddrListStartWithIPv4(AddressList* addrlist) {
+  if (addrlist->head()->ai_family != AF_INET6)
+    return;
+  bool has_ipv4 = false;
+  for (const struct addrinfo* ai = addrlist->head(); ai; ai = ai->ai_next) {
+    if (ai->ai_family != AF_INET6) {
+      has_ipv4 = true;
+      break;
+    }
+  }
+  if (!has_ipv4)
+    return;
+
+  struct addrinfo* head = CreateCopyOfAddrinfo(addrlist->head(), true);
+  struct addrinfo* tail = head;
+  while (tail->ai_next)
+    tail = tail->ai_next;
+  char* canonname = head->ai_canonname;
+  head->ai_canonname = NULL;
+  while (head->ai_family == AF_INET6) {
+    tail->ai_next = head;
+    tail = head;
+    head = head->ai_next;
+    tail->ai_next = NULL;
+  }
+  head->ai_canonname = canonname;
+
+  addrlist->Copy(head, true);
+  FreeCopyOfAddrinfo(head);
+}
+
 void TransportConnectJob::OnIOComplete(int result) {
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING)
@@ -142,6 +175,8 @@ int TransportConnectJob::DoResolveHostComplete(int result) {
 
 int TransportConnectJob::DoTransportConnect() {
   next_state_ = STATE_TRANSPORT_CONNECT_COMPLETE;
+  if (prefer_ipv4())
+    MakeAddrListStartWithIPv4(&addresses_);
   set_socket(client_socket_factory_->CreateTransportClientSocket(
         addresses_, net_log().net_log(), net_log().source()));
   connect_start_time_ = base::TimeTicks::Now();

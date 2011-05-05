@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,56 +20,6 @@ char* do_strdup(const char* src) {
 #else
   return strdup(src);
 #endif
-}
-
-// Make a copy of |info| (the dynamically-allocated parts are copied as well).
-// If |recursive| is true, chained entries via ai_next are copied too.
-// Copy returned by this function should be deleted using
-// DeleteCopyOfAddrinfo(), and NOT freeaddrinfo().
-struct addrinfo* CreateCopyOfAddrinfo(const struct addrinfo* info,
-                                      bool recursive) {
-  DCHECK(info);
-  struct addrinfo* copy = new addrinfo;
-
-  // Copy all the fields (some of these are pointers, we will fix that next).
-  memcpy(copy, info, sizeof(addrinfo));
-
-  // ai_canonname is a NULL-terminated string.
-  if (info->ai_canonname) {
-    copy->ai_canonname = do_strdup(info->ai_canonname);
-  }
-
-  // ai_addr is a buffer of length ai_addrlen.
-  if (info->ai_addr) {
-    copy->ai_addr = reinterpret_cast<sockaddr *>(new char[info->ai_addrlen]);
-    memcpy(copy->ai_addr, info->ai_addr, info->ai_addrlen);
-  }
-
-  // Recursive copy.
-  if (recursive && info->ai_next)
-    copy->ai_next = CreateCopyOfAddrinfo(info->ai_next, recursive);
-  else
-    copy->ai_next = NULL;
-
-  return copy;
-}
-
-// Free an addrinfo that was created by CreateCopyOfAddrinfo().
-void FreeMyAddrinfo(struct addrinfo* info) {
-  DCHECK(info);
-  if (info->ai_canonname)
-    free(info->ai_canonname);  // Allocated by strdup.
-
-  if (info->ai_addr)
-    delete [] reinterpret_cast<char*>(info->ai_addr);
-
-  struct addrinfo* next = info->ai_next;
-
-  delete info;
-
-  // Recursive free.
-  if (next)
-    FreeMyAddrinfo(next);
 }
 
 // Assign the port for all addresses in the list.
@@ -283,12 +233,12 @@ AddressList::Data::Data(struct addrinfo* ai, bool is_system_created)
 }
 
 AddressList::Data::~Data() {
-  // Call either freeaddrinfo(head), or FreeMyAddrinfo(head), depending who
-  // created the data.
+  // Call either freeaddrinfo(head), or FreeCopyOfAddrinfo(head), depending on
+  // who created the data.
   if (is_system_created)
     freeaddrinfo(head);
   else
-    FreeMyAddrinfo(head);
+    FreeCopyOfAddrinfo(head);
 }
 
 }  // namespace net
