@@ -192,7 +192,8 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
       request->context()->transport_security_state()->IsEnabledForHost(
           &domain_state,
           request->url().host(),
-          request->context()->IsSNIAvailable())) {
+          SSLConfigService::IsSNIAvailable(
+              request->context()->ssl_config_service()))) {
     if (domain_state.mode ==
          TransportSecurityState::DomainState::MODE_STRICT) {
       DCHECK_EQ(request->url().scheme(), "http");
@@ -675,7 +676,8 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
     if (context_->transport_security_state()->HasPinsForHost(
             &domain_state,
             request_->url().host(),
-            context_->IsSNIAvailable())) {
+            SSLConfigService::IsSNIAvailable(
+                context_->ssl_config_service()))) {
       if (!domain_state.IsChainOfPublicKeysPermitted(
               ssl_info.public_key_hashes)) {
         result = ERR_CERT_INVALID;
@@ -734,7 +736,8 @@ bool URLRequestHttpJob::ShouldTreatAsCertificateError(int result) {
   TransportSecurityState::DomainState domain_state;
   // TODO(agl): don't ignore opportunistic mode.
   const bool r = context_->transport_security_state()->IsEnabledForHost(
-      &domain_state, request_info_.url.host(), context_->IsSNIAvailable());
+      &domain_state, request_info_.url.host(),
+      SSLConfigService::IsSNIAvailable(context_->ssl_config_service()));
 
   return !r || domain_state.mode ==
                TransportSecurityState::DomainState::MODE_OPPORTUNISTIC;
