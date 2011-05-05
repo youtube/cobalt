@@ -28,6 +28,19 @@ TEST(RandUtilTest, RandDouble) {
   EXPECT_LE(0.0, number);
 }
 
+TEST(RandUtilTest, RandBytes) {
+  const size_t buffer_size = 145;
+  char buffer[buffer_size];
+  memset(buffer, 0, buffer_size);
+  base::RandBytes(buffer, buffer_size);
+  char accumulator = 0;
+  for(size_t i = 0; i < buffer_size; ++i)
+    accumulator |= buffer[i];
+  // In theory this test can fail, but it won't before the universe dies of
+  // heat death.
+  EXPECT_NE(0, accumulator);
+}
+
 TEST(RandUtilTest, RandBytesAsString) {
   std::string random_string = base::RandBytesAsString(0);
   EXPECT_EQ(0U, random_string.size());

@@ -33,7 +33,14 @@ BASE_API double RandDouble();
 // the range [0, 1). Thread-safe.
 BASE_API double BitsToOpenEndedUnitInterval(uint64 bits);
 
-// Returns a random string of the specified length.
+// Fills |output_length| bytes of |output| with cryptographically strong random
+// data.
+BASE_API void RandBytes(void* output, size_t output_length);
+
+// Fills a string of length |length| with with cryptographically strong random
+// data and returns it.
+//
+// Not that this is a variation of |RandBytes| with a different return type.
 BASE_API std::string RandBytesAsString(size_t length);
 
 }  // namespace base

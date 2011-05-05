@@ -10,6 +10,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/string_util.h"
 
 namespace base {
 
@@ -47,19 +48,19 @@ uint64 RandGenerator(uint64 max) {
   return base::RandUint64() % max;
 }
 
-std::string RandBytesAsString(size_t length) {
-  const size_t kBitsPerChar = 8;
-  const int kCharsPerInt64 = sizeof(uint64)/sizeof(char);
-
-  std::string result(length, '\0');
-  uint64 entropy = 0;
-  for (size_t i = 0; i < result.size(); ++i) {
-    if (i % kCharsPerInt64 == 0)
-      entropy = RandUint64();
-    result[i] = static_cast<char>(entropy);
-    entropy >>= kBitsPerChar;
+void RandBytes(void* output, size_t output_length) {
+  uint64 random_int;
+  size_t random_int_size = sizeof(random_int);
+  for (size_t i = 0; i < output_length; i += random_int_size) {
+    random_int = base::RandUint64();
+    size_t copy_count = std::min(output_length - i, random_int_size);
+    memcpy(((uint8*)output) + i, &random_int, copy_count);
   }
+}
 
+std::string RandBytesAsString(size_t length) {
+  std::string result;
+  RandBytes(WriteInto(&result, length + 1), length);
   return result;
 }
 
