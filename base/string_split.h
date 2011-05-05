@@ -20,12 +20,6 @@ namespace base {
 // |str| begins with or ends with |s|, then an empty string is inserted.
 //
 // Every substring is trimmed of any leading or trailing white space.
-// Where wchar_t is char16 (i.e. Windows), |c| must be in BMP
-// (Basic Multilingual Plane). Elsewhere (Linux/Mac), wchar_t
-// should be a valid Unicode code point (32-bit).
-BASE_API void SplitString(const std::wstring& str,
-                          wchar_t c,
-                          std::vector<std::wstring>* r);
 // NOTE: |c| must be in BMP (Basic Multilingual Plane)
 BASE_API void SplitString(const string16& str,
                           char16 c,
