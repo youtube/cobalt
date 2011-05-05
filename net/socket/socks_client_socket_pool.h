@@ -99,7 +99,7 @@ class SOCKSConnectJob : public ConnectJob {
   State next_state_;
   CompletionCallbackImpl<SOCKSConnectJob> callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
-  scoped_ptr<ClientSocket> socket_;
+  scoped_ptr<StreamSocket> socket_;
 
   DISALLOW_COPY_AND_ASSIGN(SOCKSConnectJob);
 };
@@ -133,7 +133,7 @@ class SOCKSClientSocketPool : public ClientSocketPool {
                              ClientSocketHandle* handle);
 
   virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket,
+                             StreamSocket* socket,
                              int id);
 
   virtual void Flush();

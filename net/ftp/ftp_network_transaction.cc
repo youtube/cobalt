@@ -18,8 +18,8 @@
 #include "net/ftp/ftp_network_session.h"
 #include "net/ftp/ftp_request_info.h"
 #include "net/ftp/ftp_util.h"
-#include "net/socket/client_socket.h"
 #include "net/socket/client_socket_factory.h"
+#include "net/socket/stream_socket.h"
 
 // TODO(ibrar): Try to avoid sscanf.
 #if !defined(COMPILER_MSVC)

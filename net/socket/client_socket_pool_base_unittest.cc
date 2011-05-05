@@ -18,12 +18,12 @@
 #include "net/base/request_priority.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_response_headers.h"
-#include "net/socket/client_socket.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/ssl_host_info.h"
+#include "net/socket/stream_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -43,7 +43,7 @@ class TestSocketParams : public base::RefCounted<TestSocketParams> {
 };
 typedef ClientSocketPoolBase<TestSocketParams> TestClientSocketPoolBase;
 
-class MockClientSocket : public ClientSocket {
+class MockClientSocket : public StreamSocket {
  public:
   MockClientSocket() : connected_(false), was_used_to_convey_data_(false) {}
 
@@ -61,7 +61,7 @@ class MockClientSocket : public ClientSocket {
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
   virtual bool SetSendBufferSize(int32 size) { return true; }
 
-  // ClientSocket methods:
+  // StreamSocket methods:
 
   virtual int Connect(CompletionCallback* callback) {
     connected_ = true;
@@ -103,7 +103,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
  public:
   MockClientSocketFactory() : allocation_count_(0) {}
 
-  virtual ClientSocket* CreateTransportClientSocket(
+  virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* /* net_log */,
       const NetLog::Source& /*source*/) {
@@ -416,7 +416,7 @@ class TestClientSocketPool : public ClientSocketPool {
 
   virtual void ReleaseSocket(
       const std::string& group_name,
-      ClientSocket* socket,
+      StreamSocket* socket,
       int id) {
     base_.ReleaseSocket(group_name, socket, id);
   }
@@ -500,7 +500,7 @@ class TestConnectJobDelegate : public ConnectJob::Delegate {
 
   virtual void OnConnectJobComplete(int result, ConnectJob* job) {
     result_ = result;
-    scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
+    scoped_ptr<StreamSocket> socket(job->ReleaseSocket());
     // socket.get() should be NULL iff result != OK
     EXPECT_EQ(socket.get() == NULL, result != OK);
     delete job;

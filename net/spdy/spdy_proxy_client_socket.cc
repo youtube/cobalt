@@ -228,13 +228,13 @@ int SpdyProxyClientSocket::Write(IOBuffer* buf, int buf_len,
 }
 
 bool SpdyProxyClientSocket::SetReceiveBufferSize(int32 size) {
-  // Since this ClientSocket sits on top of a shared SpdySession, it
+  // Since this StreamSocket sits on top of a shared SpdySession, it
   // is not safe for callers to set change this underlying socket.
   return false;
 }
 
 bool SpdyProxyClientSocket::SetSendBufferSize(int32 size) {
-  // Since this ClientSocket sits on top of a shared SpdySession, it
+  // Since this StreamSocket sits on top of a shared SpdySession, it
   // is not safe for callers to set change this underlying socket.
   return false;
 }

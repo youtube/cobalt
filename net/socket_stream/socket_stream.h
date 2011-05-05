@@ -300,7 +300,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   scoped_ptr<SingleRequestHostResolver> resolver_;
   AddressList addresses_;
-  scoped_ptr<ClientSocket> socket_;
+  scoped_ptr<StreamSocket> socket_;
 
   SSLConfig ssl_config_;
 

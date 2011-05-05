@@ -228,7 +228,7 @@ EVENT_TYPE(WAITING_FOR_PROXY_RESOLVER_THREAD)
 EVENT_TYPE(SUBMITTED_TO_RESOLVER_THREAD)
 
 // ------------------------------------------------------------------------
-// ClientSocket
+// StreamSocket
 // ------------------------------------------------------------------------
 
 // The start/end of a TCP connect(). This corresponds with a call to

@@ -99,7 +99,7 @@ int TCPServerSocketWin::GetLocalAddress(IPEndPoint* address) const {
 }
 
 int TCPServerSocketWin::Accept(
-    scoped_ptr<ClientSocket>* socket, CompletionCallback* callback) {
+    scoped_ptr<StreamSocket>* socket, CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(socket);
   DCHECK(callback);
@@ -121,7 +121,7 @@ int TCPServerSocketWin::Accept(
   return result;
 }
 
-int TCPServerSocketWin::AcceptInternal(scoped_ptr<ClientSocket>* socket) {
+int TCPServerSocketWin::AcceptInternal(scoped_ptr<StreamSocket>* socket) {
   struct sockaddr_storage addr_storage;
   socklen_t addr_len = sizeof(addr_storage);
   struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);

@@ -46,7 +46,7 @@ class SOCKS5ClientSocketTest : public PlatformTest {
   CapturingNetLog net_log_;
   scoped_ptr<SOCKS5ClientSocket> user_sock_;
   AddressList address_list_;
-  ClientSocket* tcp_sock_;
+  StreamSocket* tcp_sock_;
   TestCompletionCallback callback_;
   scoped_ptr<MockHostResolver> host_resolver_;
   scoped_ptr<SocketDataProvider> data_;
