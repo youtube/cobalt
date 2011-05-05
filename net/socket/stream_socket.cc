@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -134,8 +134,7 @@ void StreamSocket::UseHistory::EmitPreconnectionHistograms() const {
   UMA_HISTOGRAM_ENUMERATION("Net.PreconnectUtilization2", result, 9);
 
   static const bool connect_backup_jobs_fieldtrial =
-      base::FieldTrialList::Find("ConnnectBackupJobs") &&
-      !base::FieldTrialList::Find("ConnnectBackupJobs")->group_name().empty();
+      base::FieldTrialList::TrialExists("ConnnectBackupJobs");
   if (connect_backup_jobs_fieldtrial) {
     UMA_HISTOGRAM_ENUMERATION(
         base::FieldTrial::MakeName("Net.PreconnectUtilization2",

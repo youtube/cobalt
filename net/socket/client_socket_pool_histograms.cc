@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -58,10 +58,8 @@ void ClientSocketPoolHistograms::AddSocketType(int type) const {
 void ClientSocketPoolHistograms::AddRequestTime(base::TimeDelta time) const {
   request_time_->AddTime(time);
 
-  static bool proxy_connection_impact_trial_exists(
-      base::FieldTrialList::Find("ProxyConnectionImpact") &&
-      !base::FieldTrialList::Find("ProxyConnectionImpact")->
-          group_name().empty());
+  static const bool proxy_connection_impact_trial_exists =
+      base::FieldTrialList::TrialExists("ProxyConnectionImpact");
   if (proxy_connection_impact_trial_exists && is_http_proxy_connection_) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
         base::FieldTrial::MakeName("Net.HttpProxySocketRequestTime",
