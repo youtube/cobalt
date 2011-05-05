@@ -4245,7 +4245,7 @@ TEST(HttpCache, DoomOnDestruction3) {
 }
 
 // Tests that we mark an entry as incomplete when the request is cancelled.
-TEST(HttpCache, Set_Truncated_Flag) {
+TEST(HttpCache, SetTruncatedFlag) {
   MockHttpCache cache;
 
   MockTransaction transaction(kSimpleGET_Transaction);
@@ -4299,6 +4299,45 @@ TEST(HttpCache, Set_Truncated_Flag) {
   bool truncated = false;
   EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_TRUE(truncated);
+  entry->Close();
+
+  RemoveMockTransaction(&transaction);
+}
+
+// Tests that we don't mark an entry as truncated when we read everything.
+TEST(HttpCache, DontSetTruncatedFlag) {
+  MockHttpCache cache;
+
+  MockTransaction transaction(kSimpleGET_Transaction);
+  transaction.response_headers =
+      "Last-Modified: Wed, 28 Nov 2007 00:40:09 GMT\n"
+      "Content-Length: 22\n"
+      "Etag: foopy\n";
+  AddMockTransaction(&transaction);
+  MockHttpRequest request(transaction);
+
+  scoped_ptr<Context> c(new Context());
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
+
+  rv = c->trans->Start(&request, &c->callback, net::BoundNetLog());
+  EXPECT_EQ(net::OK, c->callback.GetResult(rv));
+
+  // Read everything.
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(22));
+  rv = c->trans->Read(buf, buf->size(), &c->callback);
+  EXPECT_EQ(buf->size(), c->callback.GetResult(rv));
+
+  // Destroy the transaction.
+  c->trans.reset();
+
+  // Verify that the entry is not marked as truncated.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.OpenBackendEntry(kSimpleGET_Transaction.url, &entry));
+  net::HttpResponseInfo response;
+  bool truncated = true;
+  EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_FALSE(truncated);
   entry->Close();
 
   RemoveMockTransaction(&transaction);
