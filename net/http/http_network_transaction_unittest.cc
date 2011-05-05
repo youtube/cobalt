@@ -1192,9 +1192,18 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
     MockRead("Hello"),
   };
 
+  // If there is a regression where we disconnect a Keep-Alive
+  // connection during an auth roundtrip, we'll end up reading this.
+  MockRead data_reads2[] = {
+    MockRead(false, ERR_FAILED),
+  };
+
   StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
                                  data_writes1, arraysize(data_writes1));
+  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
+                                 NULL, 0);
   session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   TestCompletionCallback callback1;
 
@@ -1224,7 +1233,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_FALSE(response == NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(5, response->headers->GetContentLength());
 }
@@ -1265,9 +1274,17 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveNoBody) {
     MockRead("hello"),
   };
 
+  // An incorrect reconnect would cause this to be read.
+  MockRead data_reads2[] = {
+    MockRead(false, ERR_FAILED),
+  };
+
   StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
                                  data_writes1, arraysize(data_writes1));
+  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
+                                 NULL, 0);
   session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   TestCompletionCallback callback1;
 
@@ -1297,7 +1314,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveNoBody) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_FALSE(response == NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(5, response->headers->GetContentLength());
 }
@@ -1346,9 +1363,17 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveLargeBody) {
     MockRead("hello"),
   };
 
+  // An incorrect reconnect would cause this to be read.
+  MockRead data_reads2[] = {
+    MockRead(false, ERR_FAILED),
+  };
+
   StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
                                  data_writes1, arraysize(data_writes1));
+  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
+                                 NULL, 0);
   session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   TestCompletionCallback callback1;
 
@@ -1378,7 +1403,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveLargeBody) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_FALSE(response == NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(5, response->headers->GetContentLength());
 }

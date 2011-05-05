@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -100,6 +100,10 @@ bool HttpBasicStream::IsConnectionReused() const {
 
 void HttpBasicStream::SetConnectionReused() {
   parser_->SetConnectionReused();
+}
+
+bool HttpBasicStream::IsConnectionReusable() const {
+  return parser_->IsConnectionReusable();
 }
 
 void HttpBasicStream::GetSSLInfo(SSLInfo* ssl_info) {
