@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,20 +35,12 @@ static void SplitStringT(const STR& str,
   }
 }
 
-void SplitString(const std::wstring& str,
-                 wchar_t c,
-                 std::vector<std::wstring>* r) {
-  SplitStringT(str, c, true, r);
-}
-
-#if !defined(WCHAR_T_IS_UTF16)
 void SplitString(const string16& str,
                  char16 c,
                  std::vector<string16>* r) {
   DCHECK(CBU16_IS_SINGLE(c));
   SplitStringT(str, c, true, r);
 }
-#endif
 
 void SplitString(const std::string& str,
                  char c,
