@@ -911,6 +911,14 @@ void AppendFormattedComponent(const std::string& spec,
   }
 }
 
+char* do_strdup(const char* src) {
+#if defined(OS_WIN)
+  return _strdup(src);
+#else
+  return strdup(src);
+#endif
+}
+
 }  // namespace
 
 const FormatUrlType kFormatUrlOmitNothing                     = 0;
@@ -2073,6 +2081,51 @@ bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
   }
 
   return true;
+}
+
+struct addrinfo* CreateCopyOfAddrinfo(const struct addrinfo* info,
+                                      bool recursive) {
+  DCHECK(info);
+  struct addrinfo* copy = new addrinfo;
+
+  // Copy all the fields (some of these are pointers, we will fix that next).
+  memcpy(copy, info, sizeof(addrinfo));
+
+  // ai_canonname is a NULL-terminated string.
+  if (info->ai_canonname) {
+    copy->ai_canonname = do_strdup(info->ai_canonname);
+  }
+
+  // ai_addr is a buffer of length ai_addrlen.
+  if (info->ai_addr) {
+    copy->ai_addr = reinterpret_cast<sockaddr *>(new char[info->ai_addrlen]);
+    memcpy(copy->ai_addr, info->ai_addr, info->ai_addrlen);
+  }
+
+  // Recursive copy.
+  if (recursive && info->ai_next)
+    copy->ai_next = CreateCopyOfAddrinfo(info->ai_next, recursive);
+  else
+    copy->ai_next = NULL;
+
+  return copy;
+}
+
+void FreeCopyOfAddrinfo(struct addrinfo* info) {
+  DCHECK(info);
+  if (info->ai_canonname)
+    free(info->ai_canonname);  // Allocated by strdup.
+
+  if (info->ai_addr)
+    delete [] reinterpret_cast<char*>(info->ai_addr);
+
+  struct addrinfo* next = info->ai_next;
+
+  delete info;
+
+  // Recursive free.
+  if (next)
+    FreeCopyOfAddrinfo(next);
 }
 
 // Returns the port field of the sockaddr in |info|.
