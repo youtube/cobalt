@@ -402,6 +402,16 @@ bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
                            const IPAddressNumber& ip_prefix,
                            size_t prefix_length_in_bits);
 
+// Makes a copy of |info|. The dynamically-allocated parts are copied as well.
+// If |recursive| is true, chained entries via ai_next are copied too.
+// The copy returned by this function should be freed using
+// FreeCopyOfAddrinfo(), and NOT freeaddrinfo().
+struct addrinfo* CreateCopyOfAddrinfo(const struct addrinfo* info,
+                                      bool recursive);
+
+// Frees an addrinfo that was created by CreateCopyOfAddrinfo().
+void FreeCopyOfAddrinfo(struct addrinfo* info);
+
 // Returns the port field of the sockaddr in |info|.
 const uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info);
 uint16* GetPortFieldFromAddrinfo(struct addrinfo* info);
