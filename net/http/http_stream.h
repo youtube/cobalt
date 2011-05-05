@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -115,6 +115,10 @@ class HttpStream {
   // connection is reused or has been connected and idle for some time.
   virtual bool IsConnectionReused() const = 0;
   virtual void SetConnectionReused() = 0;
+
+  // Checks whether the current state of the underlying connection
+  // allows it to be reused.
+  virtual bool IsConnectionReusable() const = 0;
 
   // Get the SSLInfo associated with this stream's connection.  This should
   // only be called for streams over SSL sockets, otherwise the behavior is
