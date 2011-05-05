@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,8 @@
 #include "base/at_exit.h"
 #include "base/basictypes.h"
 #include "base/file_util.h"
-#include "base/debug/trace_event.h"
-#include "base/debug/trace_event_win.h"
 #include "base/win/event_trace_consumer.h"
 #include "base/win/event_trace_controller.h"
-#include "base/win/event_trace_provider.h"
 #include "base/win/windows_version.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -87,9 +84,9 @@ class TestEventConsumer: public EtwTraceConsumerBase<TestEventConsumer> {
 
 TestEventConsumer* TestEventConsumer::current_ = NULL;
 
-class TraceEventWinTest: public testing::Test {
+class TraceEventTest: public testing::Test {
  public:
-  TraceEventWinTest() {
+  TraceEventTest() {
   }
 
   void SetUp() {
@@ -106,10 +103,10 @@ class TraceEventWinTest: public testing::Test {
     // start the private, in-proc session, but on XP we need the global
     // session created and the provider enabled before we register our
     // provider.
-    TraceEventETWProvider* tracelog = NULL;
+    TraceLog* tracelog = NULL;
     if (!is_xp) {
-      TraceEventETWProvider::Resurrect();
-      tracelog = TraceEventETWProvider::GetInstance();
+      TraceLog::Resurrect();
+      tracelog = TraceLog::GetInstance();
       ASSERT_TRUE(tracelog != NULL);
       ASSERT_FALSE(tracelog->IsTracing());
     }
@@ -144,8 +141,8 @@ class TraceEventWinTest: public testing::Test {
                                    0));
 
     if (is_xp) {
-      TraceEventETWProvider::Resurrect();
-      tracelog = TraceEventETWProvider::GetInstance();
+      TraceLog::Resurrect();
+      tracelog = TraceLog::GetInstance();
     }
     ASSERT_TRUE(tracelog != NULL);
     EXPECT_TRUE(tracelog->IsTracing());
@@ -207,16 +204,16 @@ class TraceEventWinTest: public testing::Test {
 }  // namespace
 
 
-TEST_F(TraceEventWinTest, TraceLog) {
+TEST_F(TraceEventTest, TraceLog) {
   ExpectPlayLog();
 
   // The events should arrive in the same sequence as the expects.
   InSequence in_sequence;
 
   // Full argument version, passing lengths explicitly.
-  TraceEventETWProvider::Trace(kName,
+  TraceLog::Trace(kName,
                         strlen(kName),
-                        base::debug::TRACE_EVENT_PHASE_BEGIN,
+                        TraceLog::EVENT_BEGIN,
                         kId,
                         kExtra,
                         strlen(kExtra));
@@ -228,8 +225,8 @@ TEST_F(TraceEventWinTest, TraceLog) {
               kExtra, strlen(kExtra));
 
   // Const char* version.
-  TraceEventETWProvider::Trace(static_cast<const char*>(kName),
-                        base::debug::TRACE_EVENT_PHASE_END,
+  TraceLog::Trace(static_cast<const char*>(kName),
+                        TraceLog::EVENT_END,
                         kId,
                         static_cast<const char*>(kExtra));
 
@@ -240,8 +237,8 @@ TEST_F(TraceEventWinTest, TraceLog) {
               kExtra, strlen(kExtra));
 
   // std::string extra version.
-  TraceEventETWProvider::Trace(static_cast<const char*>(kName),
-                        base::debug::TRACE_EVENT_PHASE_INSTANT,
+  TraceLog::Trace(static_cast<const char*>(kName),
+                        TraceLog::EVENT_INSTANT,
                         kId,
                         std::string(kExtra));
 
@@ -253,9 +250,9 @@ TEST_F(TraceEventWinTest, TraceLog) {
 
 
   // Test for sanity on NULL inputs.
-  TraceEventETWProvider::Trace(NULL,
+  TraceLog::Trace(NULL,
                         0,
-                        base::debug::TRACE_EVENT_PHASE_BEGIN,
+                        TraceLog::EVENT_BEGIN,
                         kId,
                         NULL,
                         0);
@@ -266,9 +263,9 @@ TEST_F(TraceEventWinTest, TraceLog) {
               kId,
               kEmpty, 0);
 
-  TraceEventETWProvider::Trace(NULL,
+  TraceLog::Trace(NULL,
                         -1,
-                        base::debug::TRACE_EVENT_PHASE_END,
+                        TraceLog::EVENT_END,
                         kId,
                         NULL,
                         -1);
@@ -282,27 +279,27 @@ TEST_F(TraceEventWinTest, TraceLog) {
   PlayLog();
 }
 
-TEST_F(TraceEventWinTest, Macros) {
+TEST_F(TraceEventTest, Macros) {
   ExpectPlayLog();
 
   // The events should arrive in the same sequence as the expects.
   InSequence in_sequence;
 
-  TRACE_EVENT_BEGIN_ETW(kName, kId, kExtra);
+  TRACE_EVENT_BEGIN(kName, kId, kExtra);
   ExpectEvent(kTraceEventClass32,
               kTraceEventTypeBegin,
               kName, strlen(kName),
               kId,
               kExtra, strlen(kExtra));
 
-  TRACE_EVENT_END_ETW(kName, kId, kExtra);
+  TRACE_EVENT_END(kName, kId, kExtra);
   ExpectEvent(kTraceEventClass32,
               kTraceEventTypeEnd,
               kName, strlen(kName),
               kId,
               kExtra, strlen(kExtra));
 
-  TRACE_EVENT_INSTANT_ETW(kName, kId, kExtra);
+  TRACE_EVENT_INSTANT(kName, kId, kExtra);
   ExpectEvent(kTraceEventClass32,
               kTraceEventTypeInstant,
               kName, strlen(kName),
