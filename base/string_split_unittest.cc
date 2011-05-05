@@ -1,14 +1,33 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/string_split.h"
+
+#include "base/utf_string_conversions.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::ElementsAre;
 
 namespace base {
+
+namespace {
+
+#if !defined(WCHAR_T_IS_UTF16)
+// Overload SplitString with a wide-char version to make it easier to
+// test the string16 version with wide character literals.
+void SplitString(const std::wstring& str,
+                 wchar_t c,
+                 std::vector<std::wstring>* result) {
+  std::vector<string16> result16;
+  SplitString(WideToUTF16(str), c, &result16);
+  for (size_t i = 0; i < result16.size(); ++i)
+    result->push_back(UTF16ToWide(result16[i]));
+}
+#endif
+
+}  // anonymous namespace
 
 class SplitStringIntoKeyValuesTest : public testing::Test {
  protected:
