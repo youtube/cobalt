@@ -404,7 +404,6 @@
               # regression to page cycler moz.
               'sha1_win.cc',
               'string16.cc',
-              'debug/trace_event.cc',
             ],
           },],
           ['OS=="freebsd" or OS=="openbsd"', {
