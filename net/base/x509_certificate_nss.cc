@@ -277,7 +277,7 @@ void ParsePrincipal(CERTName* name,
 void ParseDate(SECItem* der_date, base::Time* result) {
   PRTime prtime;
   SECStatus rv = DER_DecodeTimeChoice(&prtime, der_date);
-  DCHECK(rv == SECSuccess);
+  DCHECK_EQ(SECSuccess, rv);
   *result = crypto::PRTimeToBaseTime(prtime);
 }
 
@@ -980,11 +980,11 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
   memset(sha1.data, 0, sizeof(sha1.data));
 
   DCHECK(NULL != cert->derCert.data);
-  DCHECK(0 != cert->derCert.len);
+  DCHECK_NE(0U, cert->derCert.len);
 
   SECStatus rv = HASH_HashBuf(HASH_AlgSHA1, sha1.data,
                               cert->derCert.data, cert->derCert.len);
-  DCHECK(rv == SECSuccess);
+  DCHECK_EQ(SECSuccess, rv);
 
   return sha1;
 }
