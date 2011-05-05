@@ -207,7 +207,7 @@ SdchManager::SdchManager() : sdch_enabled_(false) {
 }
 
 SdchManager::~SdchManager() {
-  DCHECK(global_ == this);
+  DCHECK_EQ(this, global_);
   while (!dictionaries_.empty()) {
     DictionaryMap::iterator it = dictionaries_.begin();
     it->second->Release();
@@ -388,7 +388,7 @@ bool SdchManager::AddSdchDictionary(const std::string& dictionary_text,
   while (1) {
     size_t line_end = dictionary_text.find('\n', line_start);
     DCHECK(std::string::npos != line_end);
-    DCHECK(line_end <= header_end);
+    DCHECK_LE(line_end, header_end);
 
     size_t colon_index = dictionary_text.find(':', line_start);
     if (std::string::npos == colon_index) {
