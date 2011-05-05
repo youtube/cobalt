@@ -325,13 +325,8 @@ TEST_F(URLRequestThrottlerEntryTest, MalformedContent) {
   TimeTicks release_after_failures = entry_->GetExponentialBackoffReleaseTime();
 
   // Inform the entry that a response body was malformed, which is supposed to
-  // increase the back-off time.  Note that we also submit a successful
-  // UpdateWithResponse to pair with ReceivedContentWasMalformed() since that
-  // is what happens in practice (if a body is received, then a non-500
-  // response must also have been received).
+  // increase the back-off time.
   entry_->ReceivedContentWasMalformed();
-  MockURLRequestThrottlerHeaderAdapter success_adapter(200);
-  entry_->UpdateWithResponse("", &success_adapter);
   EXPECT_GT(entry_->GetExponentialBackoffReleaseTime(), release_after_failures);
 }
 
