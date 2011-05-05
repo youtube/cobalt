@@ -43,7 +43,7 @@ class DeterministicSocketDataTest : public PlatformTest {
 
   TestCompletionCallback read_callback_;
   TestCompletionCallback write_callback_;
-  ClientSocket* sock_;
+  StreamSocket* sock_;
   scoped_refptr<DeterministicSocketData> data_;
 
  private:

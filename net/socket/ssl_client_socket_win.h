@@ -50,7 +50,7 @@ class SSLClientSocketWin : public SSLClientSocket {
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
   virtual NextProtoStatus GetNextProto(std::string* proto);
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;

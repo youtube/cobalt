@@ -188,7 +188,7 @@ class SocketStreamTest : public PlatformTest {
       frame.push_back('\xff');
       EXPECT_TRUE(event->socket->SendData(&frame[0], frame.size()));
     }
-    // Actual ClientSocket close must happen after all frames queued by
+    // Actual StreamSocket close must happen after all frames queued by
     // SendData above are sent out.
     event->socket->Close();
   }
