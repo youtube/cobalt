@@ -16,6 +16,9 @@ class GURL;
 
 namespace net {
 
+class SSLConfigService;
+class TransportSecurityState;
+
 // SocketStreamJob represents full-duplex communication over SocketStream.
 // If a protocol (e.g. WebSocket protocol) needs to inspect/modify data
 // over SocketStream, you can implement protocol specific job (e.g.
@@ -34,7 +37,8 @@ class SocketStreamJob : public base::RefCountedThreadSafe<SocketStreamJob> {
   static SocketStreamJob* CreateSocketStreamJob(
       const GURL& url,
       SocketStream::Delegate* delegate,
-      const URLRequestContext& context);
+      TransportSecurityState* sts,
+      SSLConfigService* ssl);
 
   SocketStreamJob();
   void InitSocketStream(SocketStream* socket) {

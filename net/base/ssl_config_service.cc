@@ -115,4 +115,14 @@ void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
   }
 }
 
+// static
+bool SSLConfigService::IsSNIAvailable(SSLConfigService* service) {
+  if (!service)
+    return false;
+
+  SSLConfig ssl_config;
+  service->GetSSLConfig(&ssl_config);
+  return ssl_config.tls1_enabled;
+}
+
 }  // namespace net
