@@ -10,6 +10,7 @@
 #include "base/threading/platform_thread.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
@@ -354,6 +355,89 @@ class TransportClientSocketPoolTest : public testing::Test {
   TransportClientSocketPool pool_;
   ClientSocketPoolTest test_base_;
 };
+
+TEST(TransportConnectJobTest, MakeAddrListStartWithIPv4) {
+  IPAddressNumber ip_number;
+  ASSERT_TRUE(ParseIPLiteralToNumber("192.168.1.1", &ip_number));
+  AddressList addrlist_v4_1(ip_number, 80, false);
+  ASSERT_TRUE(ParseIPLiteralToNumber("192.168.1.2", &ip_number));
+  AddressList addrlist_v4_2(ip_number, 80, false);
+  ASSERT_TRUE(ParseIPLiteralToNumber("2001:4860:b006::64", &ip_number));
+  AddressList addrlist_v6_1(ip_number, 80, false);
+  ASSERT_TRUE(ParseIPLiteralToNumber("2001:4860:b006::66", &ip_number));
+  AddressList addrlist_v6_2(ip_number, 80, false);
+
+  AddressList addrlist;
+  const struct addrinfo* ai;
+
+  // Test 1: IPv4 only.  Expect no change.
+  addrlist.Copy(addrlist_v4_1.head(), true);
+  addrlist.Append(addrlist_v4_2.head());
+  TransportConnectJob::MakeAddrListStartWithIPv4(&addrlist);
+  ai = addrlist.head();
+  EXPECT_EQ(AF_INET, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET, ai->ai_family);
+  EXPECT_TRUE(ai->ai_next == NULL);
+
+  // Test 2: IPv6 only.  Expect no change.
+  addrlist.Copy(addrlist_v6_1.head(), true);
+  addrlist.Append(addrlist_v6_2.head());
+  TransportConnectJob::MakeAddrListStartWithIPv4(&addrlist);
+  ai = addrlist.head();
+  EXPECT_EQ(AF_INET6, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET6, ai->ai_family);
+  EXPECT_TRUE(ai->ai_next == NULL);
+
+  // Test 3: IPv4 then IPv6.  Expect no change.
+  addrlist.Copy(addrlist_v4_1.head(), true);
+  addrlist.Append(addrlist_v4_2.head());
+  addrlist.Append(addrlist_v6_1.head());
+  addrlist.Append(addrlist_v6_2.head());
+  TransportConnectJob::MakeAddrListStartWithIPv4(&addrlist);
+  ai = addrlist.head();
+  EXPECT_EQ(AF_INET, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET6, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET6, ai->ai_family);
+  EXPECT_TRUE(ai->ai_next == NULL);
+
+  // Test 4: IPv6, IPv4, IPv6, IPv4.  Expect first IPv6 moved to the end.
+  addrlist.Copy(addrlist_v6_1.head(), true);
+  addrlist.Append(addrlist_v4_1.head());
+  addrlist.Append(addrlist_v6_2.head());
+  addrlist.Append(addrlist_v4_2.head());
+  TransportConnectJob::MakeAddrListStartWithIPv4(&addrlist);
+  ai = addrlist.head();
+  EXPECT_EQ(AF_INET, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET6, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET6, ai->ai_family);
+  EXPECT_TRUE(ai->ai_next == NULL);
+
+  // Test 5: IPv6, IPv6, IPv4, IPv4.  Expect first two IPv6's moved to the end.
+  addrlist.Copy(addrlist_v6_1.head(), true);
+  addrlist.Append(addrlist_v6_2.head());
+  addrlist.Append(addrlist_v4_1.head());
+  addrlist.Append(addrlist_v4_2.head());
+  TransportConnectJob::MakeAddrListStartWithIPv4(&addrlist);
+  ai = addrlist.head();
+  EXPECT_EQ(AF_INET, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET6, ai->ai_family);
+  ai = ai->ai_next;
+  EXPECT_EQ(AF_INET6, ai->ai_family);
+  EXPECT_TRUE(ai->ai_next == NULL);
+}
 
 TEST_F(TransportClientSocketPoolTest, Basic) {
   TestCompletionCallback callback;

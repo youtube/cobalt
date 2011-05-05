@@ -63,6 +63,13 @@ class TransportConnectJob : public ConnectJob {
   // ConnectJob methods.
   virtual LoadState GetLoadState() const;
 
+  // Makes |addrlist| start with an IPv4 address if |addrlist| contains any
+  // IPv4 address.
+  //
+  // WARNING: this method should only be used to implement the prefer-IPv4
+  // hack.  It is a public method for the unit tests.
+  static void MakeAddrListStartWithIPv4(AddressList* addrlist);
+
  private:
   enum State {
     STATE_RESOLVE_HOST,
