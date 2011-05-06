@@ -117,6 +117,7 @@
         'cpu_unittest.cc',
         'debug/leak_tracker_unittest.cc',
         'debug/stack_trace_unittest.cc',
+        'debug/trace_event_unittest.cc',
         'debug/trace_event_win_unittest.cc',
         'dir_reader_posix_unittest.cc',
         'environment_unittest.cc',
