@@ -900,10 +900,16 @@ Value* SpdySession::GetInfoAsValue() const {
 }
 
 int SpdySession::GetPeerAddress(AddressList* address) const {
+  if (!connection_->socket())
+    return ERR_SOCKET_NOT_CONNECTED;
+
   return connection_->socket()->GetPeerAddress(address);
 }
 
 int SpdySession::GetLocalAddress(IPEndPoint* address) const {
+  if (!connection_->socket())
+    return ERR_SOCKET_NOT_CONNECTED;
+
   return connection_->socket()->GetLocalAddress(address);
 }
 
