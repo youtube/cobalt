@@ -11,15 +11,12 @@
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
 #include "media/base/video_frame.h"
+#include "media/video/capture/video_capture_types.h"
 
 namespace media {
 
 class VideoCapture {
  public:
-  // TODO(wjia): this type should be defined in a common place and
-  // shared with device manager.
-  typedef uint64 VideoCaptureId;
-
   // Current status of the video capture device in the browser process. Browser
   // process sends information about the current capture state and error to the
   // renderer process using this type.
@@ -30,25 +27,14 @@ class VideoCapture {
     kError,
   };
 
-  // Parameters for starting video capture and device information.
-  struct CaptureParams {
-    CaptureParams() {}
-    ~CaptureParams() {}
-
-    uint32 width;
-    uint32 height;
-    uint32 frame_rate;
-    VideoCaptureId session_id;
-  };
-
   // TODO(wjia): consider merging with media::VideoFrame if possible.
   class VideoFrameBuffer : public base::RefCountedThreadSafe<VideoFrameBuffer> {
    public:
     VideoFrameBuffer() {}
     ~VideoFrameBuffer() {}
 
-    uint32 width;
-    uint32 height;
+    int width;
+    int height;
     int stride;
     size_t buffer_size;
     void* memory_pointer;
@@ -77,13 +63,20 @@ class VideoCapture {
     // Notify client that a buffer is available.
     virtual void OnBufferReady(VideoCapture* capture,
                                scoped_refptr<VideoFrameBuffer> buffer) = 0;
+
+    // Notify client about device info.
+    virtual void OnDeviceInfoReceived(
+        VideoCapture* capture,
+        const VideoCaptureParams& device_info) = 0;
   };
 
+  // TODO(wjia): merge with similar struct in browser process and move it to
+  // video_capture_types.h.
   struct VideoCaptureCapability {
-    uint32 width;  // desired width.
-    uint32 height;  // desired height.
-    uint32 max_fps;  // desired maximum frame rate.
-    uint32 expected_capture_delay;  // expected delay in millisecond.
+    int width;  // desired width.
+    int height;  // desired height.
+    int max_fps;  // desired maximum frame rate.
+    int expected_capture_delay;  // expected delay in millisecond.
     media::VideoFrame::Format raw_type;  // desired video type.
     bool interlaced;  // need interlace format.
     bool resolution_fixed;  // indicate requested resolution can't be altered.
@@ -105,9 +98,9 @@ class VideoCapture {
   // virtual void FeedBuffer(scoped_refptr<VideoFrameBuffer> buffer) = 0;
 
   virtual bool CaptureStarted() = 0;
-  virtual uint32 CaptureWidth() = 0;
-  virtual uint32 CaptureHeight() = 0;
-  virtual uint32 CaptureFrameRate() = 0;
+  virtual int CaptureWidth() = 0;
+  virtual int CaptureHeight() = 0;
+  virtual int CaptureFrameRate() = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(VideoCapture);
