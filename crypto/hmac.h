@@ -30,6 +30,7 @@ class HMAC {
   explicit HMAC(HashAlgorithm hash_alg);
   ~HMAC();
 
+  // Returns the length of digest that this HMAC will create.
   size_t DigestLength() const;
 
   // TODO(abarth): Add a PreferredKeyLength() member function.
