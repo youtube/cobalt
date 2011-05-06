@@ -47,12 +47,12 @@ namespace base {
 // char16 versions of the functions required by string16_char_traits; these
 // are based on the wide character functions of similar names ("w" or "wcs"
 // instead of "c16").
-int c16memcmp(const char16* s1, const char16* s2, size_t n);
-size_t c16len(const char16* s);
-const char16* c16memchr(const char16* s, char16 c, size_t n);
-char16* c16memmove(char16* s1, const char16* s2, size_t n);
-char16* c16memcpy(char16* s1, const char16* s2, size_t n);
-char16* c16memset(char16* s, char16 c, size_t n);
+BASE_API int c16memcmp(const char16* s1, const char16* s2, size_t n);
+BASE_API size_t c16len(const char16* s);
+BASE_API const char16* c16memchr(const char16* s, char16 c, size_t n);
+BASE_API char16* c16memmove(char16* s1, const char16* s2, size_t n);
+BASE_API char16* c16memcpy(char16* s1, const char16* s2, size_t n);
+BASE_API char16* c16memset(char16* s, char16 c, size_t n);
 
 struct string16_char_traits {
   typedef char16 char_type;
