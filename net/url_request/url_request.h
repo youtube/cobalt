@@ -31,11 +31,6 @@ class Time;
 
 class FilePath;
 
-// This stores the values of the Set-Cookie headers received during the request.
-// Each item in the vector corresponds to a Set-Cookie: line received,
-// excluding the "Set-Cookie:" part.
-typedef std::vector<std::string> ResponseCookies;
-
 namespace net {
 
 class CookieOptions;
@@ -46,6 +41,11 @@ class UploadData;
 class URLRequestContext;
 class URLRequestJob;
 class X509Certificate;
+
+// This stores the values of the Set-Cookie headers received during the request.
+// Each item in the vector corresponds to a Set-Cookie: line received,
+// excluding the "Set-Cookie:" part.
+typedef std::vector<std::string> ResponseCookies;
 
 //-----------------------------------------------------------------------------
 // A class  representing the asynchronous load of a data stream from an URL.
