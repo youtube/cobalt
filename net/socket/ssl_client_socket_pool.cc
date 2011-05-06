@@ -347,8 +347,9 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
                                    100);
       }
 
-      static const bool false_start_trial =
-          base::FieldTrialList::TrialExists("SSLFalseStart");
+      static bool false_start_trial(
+          base::FieldTrialList::Find("SSLFalseStart") &&
+          !base::FieldTrialList::Find("SSLFalseStart")->group_name().empty());
       if (false_start_trial) {
         UMA_HISTOGRAM_CUSTOM_TIMES(base::FieldTrial::MakeName(
                                        "Net.SSL_Connection_Latency",
