@@ -271,6 +271,8 @@ bool WebSocketJob::SendHandshakeRequest(const char* data, int len) {
     return false;
 
   // handshake message is completed.
+  handshake_response_->set_protocol_version(
+      handshake_request_->protocol_version());
   AddCookieHeaderAndSend();
   // Just buffered in |handshake_request_|.
   return true;
