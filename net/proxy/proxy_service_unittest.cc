@@ -391,6 +391,155 @@ TEST(ProxyServiceTest, ProxyResolverFails) {
   EXPECT_EQ("foopy_valid:8080", info.proxy_server().ToURI());
 }
 
+TEST(ProxyServiceTest, ProxyScriptFetcherFailsDownloadingMandatoryPac) {
+  // Test what happens when the ProxyScriptResolver fails to download a
+  // mandatory PAC script.
+
+  ProxyConfig config(
+      ProxyConfig::CreateFromCustomPacURL(GURL("http://foopy/proxy.pac")));
+  config.set_pac_mandatory(true);
+
+  MockProxyConfigService* config_service = new MockProxyConfigService(config);
+
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+
+  ProxyService service(config_service, resolver, NULL);
+
+  // Start first resolve request.
+  GURL url("http://www.google.com/");
+  ProxyInfo info;
+  TestCompletionCallback callback1;
+  int rv = service.ResolveProxy(url, &info, &callback1, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"),
+            resolver->pending_set_pac_script_request()->script_data()->url());
+  resolver->pending_set_pac_script_request()->CompleteNow(ERR_FAILED);
+
+  ASSERT_EQ(0u, resolver->pending_requests().size());
+
+  // As the proxy resolver failed the request and is configured for a mandatory
+  // PAC script, ProxyService must not implicitly fall-back to DIRECT.
+  EXPECT_EQ(ERR_MANDATORY_PROXY_CONFIGURATION_FAILED,
+            callback1.WaitForResult());
+  EXPECT_FALSE(info.is_direct());
+
+  // As the proxy resolver failed the request and is configured for a mandatory
+  // PAC script, ProxyService must not implicitly fall-back to DIRECT.
+  TestCompletionCallback callback2;
+  rv = service.ResolveProxy(url, &info, &callback2, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_MANDATORY_PROXY_CONFIGURATION_FAILED, rv);
+  EXPECT_FALSE(info.is_direct());
+}
+
+TEST(ProxyServiceTest, ProxyResolverFailsParsingJavaScriptMandatoryPac) {
+  // Test what happens when the ProxyResolver fails that is configured to use a
+  // mandatory PAC script. The download of the PAC script has already
+  // succeeded but the PAC script contains no valid javascript.
+
+  ProxyConfig config(
+      ProxyConfig::CreateFromCustomPacURL(GURL("http://foopy/proxy.pac")));
+  config.set_pac_mandatory(true);
+
+  MockProxyConfigService* config_service = new MockProxyConfigService(config);
+
+  MockAsyncProxyResolverExpectsBytes* resolver =
+      new MockAsyncProxyResolverExpectsBytes;
+
+  ProxyService service(config_service, resolver, NULL);
+
+  MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
+  service.SetProxyScriptFetcher(fetcher);
+
+  // Start resolve request.
+  GURL url("http://www.google.com/");
+  ProxyInfo info;
+  TestCompletionCallback callback;
+  int rv = service.ResolveProxy(url, &info, &callback, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // Check that nothing has been sent to the proxy resolver yet.
+  ASSERT_EQ(0u, resolver->pending_requests().size());
+
+  // Downloading the PAC script succeeds.
+  EXPECT_TRUE(fetcher->has_pending_request());
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"), fetcher->pending_request_url());
+  fetcher->NotifyFetchCompletion(OK, "invalid-script-contents");
+
+  // Simulate a parse error.
+  EXPECT_EQ(ASCIIToUTF16("invalid-script-contents"),
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
+  resolver->pending_set_pac_script_request()->CompleteNow(
+      ERR_PAC_SCRIPT_FAILED);
+
+  EXPECT_FALSE(fetcher->has_pending_request());
+  ASSERT_EQ(0u, resolver->pending_requests().size());
+
+  // As the proxy resolver failed the request and is configured for a mandatory
+  // PAC script, ProxyService must not implicitly fall-back to DIRECT.
+  EXPECT_EQ(ERR_MANDATORY_PROXY_CONFIGURATION_FAILED,
+            callback.WaitForResult());
+  EXPECT_FALSE(info.is_direct());
+}
+
+TEST(ProxyServiceTest, ProxyResolverFailsInJavaScriptMandatoryPac) {
+  // Test what happens when the ProxyResolver fails that is configured to use a
+  // mandatory PAC script. The download and setting of the PAC script have
+  // already succeeded, so this corresponds with a javascript runtime error
+  // while calling FindProxyForURL().
+
+  ProxyConfig config(
+      ProxyConfig::CreateFromCustomPacURL(GURL("http://foopy/proxy.pac")));
+  config.set_pac_mandatory(true);
+
+  MockProxyConfigService* config_service = new MockProxyConfigService(config);
+
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+
+  ProxyService service(config_service, resolver, NULL);
+
+  // Start first resolve request.
+  GURL url("http://www.google.com/");
+  ProxyInfo info;
+  TestCompletionCallback callback1;
+  int rv = service.ResolveProxy(url, &info, &callback1, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"),
+            resolver->pending_set_pac_script_request()->script_data()->url());
+  resolver->pending_set_pac_script_request()->CompleteNow(OK);
+
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(url, resolver->pending_requests()[0]->url());
+
+  // Fail the first resolve request in MockAsyncProxyResolver.
+  resolver->pending_requests()[0]->CompleteNow(ERR_FAILED);
+
+  // As the proxy resolver failed the request and is configured for a mandatory
+  // PAC script, ProxyService must not implicitly fall-back to DIRECT.
+  EXPECT_EQ(ERR_MANDATORY_PROXY_CONFIGURATION_FAILED,
+            callback1.WaitForResult());
+  EXPECT_FALSE(info.is_direct());
+
+  // The second resolve request will try to run through the proxy resolver,
+  // regardless of whether the first request failed in it.
+  TestCompletionCallback callback2;
+  rv = service.ResolveProxy(url, &info, &callback2, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(url, resolver->pending_requests()[0]->url());
+
+  // This time we will have the resolver succeed (perhaps the PAC script has
+  // a dependency on the current time).
+  resolver->pending_requests()[0]->results()->UseNamedProxy("foopy_valid:8080");
+  resolver->pending_requests()[0]->CompleteNow(OK);
+
+  EXPECT_EQ(OK, callback2.WaitForResult());
+  EXPECT_FALSE(info.is_direct());
+  EXPECT_EQ("foopy_valid:8080", info.proxy_server().ToURI());
+}
+
 TEST(ProxyServiceTest, ProxyFallback) {
   // Test what happens when we specify multiple proxy servers and some of them
   // are bad.
@@ -695,6 +844,94 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
   EXPECT_EQ(OK, callback3.WaitForResult());
   EXPECT_TRUE(info2.is_direct());
   EXPECT_FALSE(info2.is_empty());
+
+  // The PAC script will work properly next time and successfully return a
+  // proxy list. Since we have not marked the configuration as bad, it should
+  // "just work" the next time we call it.
+  ProxyInfo info3;
+  TestCompletionCallback callback4;
+  rv = service.ReconsiderProxyAfterError(url, &info3, &callback4, NULL,
+                                         BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(url, resolver->pending_requests()[0]->url());
+
+  resolver->pending_requests()[0]->results()->UseNamedProxy(
+      "foopy1:8080;foopy2:9090");
+  resolver->pending_requests()[0]->CompleteNow(OK);
+
+  // The first proxy is not there since the it was added to the bad proxies
+  // list by the earlier ReconsiderProxyAfterError().
+  EXPECT_EQ(OK, callback4.WaitForResult());
+  EXPECT_FALSE(info3.is_direct());
+  EXPECT_EQ("foopy1:8080", info3.proxy_server().ToURI());
+}
+
+TEST(ProxyServiceTest, ProxyFallback_BadConfigMandatory) {
+  // Test proxy failover when the configuration is bad.
+
+  ProxyConfig config(
+      ProxyConfig::CreateFromCustomPacURL(GURL("http://foopy/proxy.pac")));
+
+  config.set_pac_mandatory(true);
+  MockProxyConfigService* config_service = new MockProxyConfigService(config);
+
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+
+  ProxyService service(config_service, resolver, NULL);
+
+  GURL url("http://www.google.com/");
+
+  // Get the proxy information.
+  ProxyInfo info;
+  TestCompletionCallback callback1;
+  int rv = service.ResolveProxy(url, &info, &callback1, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"),
+            resolver->pending_set_pac_script_request()->script_data()->url());
+  resolver->pending_set_pac_script_request()->CompleteNow(OK);
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(url, resolver->pending_requests()[0]->url());
+
+  resolver->pending_requests()[0]->results()->UseNamedProxy(
+      "foopy1:8080;foopy2:9090");
+  resolver->pending_requests()[0]->CompleteNow(OK);
+
+  // The first item is valid.
+  EXPECT_EQ(OK, callback1.WaitForResult());
+  EXPECT_FALSE(info.is_direct());
+  EXPECT_EQ("foopy1:8080", info.proxy_server().ToURI());
+
+  // Fake a proxy error.
+  TestCompletionCallback callback2;
+  rv = service.ReconsiderProxyAfterError(url, &info, &callback2, NULL,
+                                         BoundNetLog());
+  EXPECT_EQ(OK, rv);
+
+  // The first proxy is ignored, and the second one is selected.
+  EXPECT_FALSE(info.is_direct());
+  EXPECT_EQ("foopy2:9090", info.proxy_server().ToURI());
+
+  // Fake a PAC failure.
+  ProxyInfo info2;
+  TestCompletionCallback callback3;
+  rv = service.ResolveProxy(url, &info2, &callback3, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(url, resolver->pending_requests()[0]->url());
+
+  // This simulates a javascript runtime error in the PAC script.
+  resolver->pending_requests()[0]->CompleteNow(ERR_FAILED);
+
+  // Although the resolver failed, the ProxyService will NOT fall-back
+  // to a DIRECT connection as it is configured as mandatory.
+  EXPECT_EQ(ERR_MANDATORY_PROXY_CONFIGURATION_FAILED,
+            callback3.WaitForResult());
+  EXPECT_FALSE(info2.is_direct());
+  EXPECT_TRUE(info2.is_empty());
 
   // The PAC script will work properly next time and successfully return a
   // proxy list. Since we have not marked the configuration as bad, it should
