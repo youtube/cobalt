@@ -1,10 +1,13 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/websockets/websocket_handshake_handler.h"
 
+#include "base/base64.h"
 #include "base/md5.h"
+#include "base/sha1.h"
+#include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
@@ -15,6 +18,13 @@ namespace {
 
 const size_t kRequestKey3Size = 8U;
 const size_t kResponseKeySize = 16U;
+
+// First version that introduced new WebSocket handshake which does not
+// require sending "key3" or "response key" data after headers.
+const int kMinVersionOfHybiNewHandshake = 4;
+
+// Used when we calculate the value of Sec-WebSocket-Accept.
+const char* const kWebSocketGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 void ParseHandshakeHeader(
     const char* handshake_message, int len,
@@ -130,13 +140,29 @@ void GetKeyNumber(const std::string& key, std::string* challenge) {
   challenge->append(part, 4);
 }
 
+int GetVersionFromRequest(const std::string& request_headers) {
+  std::vector<std::string> values;
+  const char* const headers_to_get[2] = { "sec-websocket-version",
+                                          "sec-websocket-draft" };
+  FetchHeaders(request_headers, headers_to_get, 2, &values);
+  DCHECK_LE(values.size(), 1U);
+  if (values.empty())
+    return 0;
+  int version;
+  bool conversion_success = base::StringToInt(values[0], &version);
+  DCHECK(conversion_success);
+  DCHECK_GE(version, 1);
+  return version;
+}
+
 }  // anonymous namespace
 
 namespace net {
 
 WebSocketHandshakeRequestHandler::WebSocketHandshakeRequestHandler()
     : original_length_(0),
-      raw_length_(0) {}
+      raw_length_(0),
+      protocol_version_(-1) {}
 
 bool WebSocketHandshakeRequestHandler::ParseRequest(
     const char* data, int length) {
@@ -144,8 +170,7 @@ bool WebSocketHandshakeRequestHandler::ParseRequest(
   std::string input(data, length);
   int input_header_length =
       HttpUtil::LocateEndOfHeaders(input.data(), input.size(), 0);
-  if (input_header_length <= 0 ||
-      input_header_length + kRequestKey3Size > input.size())
+  if (input_header_length <= 0)
     return false;
 
   ParseHandshakeHeader(input.data(),
@@ -153,15 +178,26 @@ bool WebSocketHandshakeRequestHandler::ParseRequest(
                        &status_line_,
                        &headers_);
 
-  // draft-hixie-thewebsocketprotocol-76 or later will send /key3/
-  // after handshake request header.
+  // WebSocket protocol drafts hixie-76 (hybi-00), hybi-01, 02 and 03 require
+  // the clients to send key3 after the handshake request header fields.
+  // Hybi-04 and later drafts, on the other hand, no longer have key3
+  // in the handshake format.
+  protocol_version_ = GetVersionFromRequest(headers_);
+  DCHECK_GE(protocol_version_, 0);
+  if (protocol_version_ >= kMinVersionOfHybiNewHandshake) {
+    key3_ = "";
+    original_length_ = input_header_length;
+    return true;
+  }
+
+  if (input_header_length + kRequestKey3Size > input.size())
+    return false;
+
   // Assumes WebKit doesn't send any data after handshake request message
   // until handshake is finished.
   // Thus, |key3_| is part of handshake message, and not in part
   // of WebSocket frame stream.
-  DCHECK_EQ(kRequestKey3Size,
-            input.size() -
-            input_header_length);
+  DCHECK_EQ(kRequestKey3Size, input.size() - input_header_length);
   key3_ = std::string(input.data() + input_header_length,
                       input.size() - input_header_length);
   original_length_ = input.size();
@@ -202,17 +238,30 @@ HttpRequestInfo WebSocketHandshakeRequestHandler::GetRequestInfo(
   request_info.extra_headers.RemoveHeader("Upgrade");
   request_info.extra_headers.RemoveHeader("Connection");
 
-  challenge->clear();
-  std::string key;
-  request_info.extra_headers.GetHeader("Sec-WebSocket-Key1", &key);
-  request_info.extra_headers.RemoveHeader("Sec-WebSocket-Key1");
-  GetKeyNumber(key, challenge);
+  if (protocol_version_ >= kMinVersionOfHybiNewHandshake) {
+    std::string key;
+    bool header_present =
+        request_info.extra_headers.GetHeader("Sec-WebSocket-Key", &key);
+    DCHECK(header_present);
+    request_info.extra_headers.RemoveHeader("Sec-WebSocket-Key");
+    *challenge = key;
+  } else {
+    challenge->clear();
+    std::string key;
+    bool header_present =
+        request_info.extra_headers.GetHeader("Sec-WebSocket-Key1", &key);
+    DCHECK(header_present);
+    request_info.extra_headers.RemoveHeader("Sec-WebSocket-Key1");
+    GetKeyNumber(key, challenge);
 
-  request_info.extra_headers.GetHeader("Sec-WebSocket-Key2", &key);
-  request_info.extra_headers.RemoveHeader("Sec-WebSocket-Key2");
-  GetKeyNumber(key, challenge);
+    header_present =
+        request_info.extra_headers.GetHeader("Sec-WebSocket-Key2", &key);
+    DCHECK(header_present);
+    request_info.extra_headers.RemoveHeader("Sec-WebSocket-Key2");
+    GetKeyNumber(key, challenge);
 
-  challenge->append(key3_);
+    challenge->append(key3_);
+  }
 
   return request_info;
 }
@@ -223,8 +272,9 @@ bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
   // protocol.
   (*headers)["url"] = url.spec();
 
-  std::string key1;
-  std::string key2;
+  std::string new_key;  // For protocols hybi-04 and newer.
+  std::string old_key1;  // For protocols hybi-03 and older.
+  std::string old_key2;  // Ditto.
   HttpUtil::HeadersIterator iter(headers_.begin(), headers_.end(), "\r\n");
   while (iter.GetNext()) {
     if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
@@ -237,13 +287,18 @@ bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
       continue;
     } else if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
                                     "sec-websocket-key1")) {
-      // Use only for generating challenge.
-      key1 = iter.values();
+      // Only used for generating challenge.
+      old_key1 = iter.values();
       continue;
     } else if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
                                     "sec-websocket-key2")) {
-      // Use only for generating challenge.
-      key2 = iter.values();
+      // Only used for generating challenge.
+      old_key2 = iter.values();
+      continue;
+    } else if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
+                                    "sec-websocket-key")) {
+      // Only used for generating challenge.
+      new_key = iter.values();
       continue;
     }
     // Others should be sent out to |headers|.
@@ -258,10 +313,20 @@ bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
     }
   }
 
-  challenge->clear();
-  GetKeyNumber(key1, challenge);
-  GetKeyNumber(key2, challenge);
-  challenge->append(key3_);
+  if (protocol_version_ >= kMinVersionOfHybiNewHandshake) {
+    DVLOG_IF(1, !old_key1.empty())
+        << "Server sent unexpected Sec-WebSocket-Key1 header.";
+    DVLOG_IF(1, !old_key2.empty())
+        << "Server sent unexpected Sec-WebSocket-Key2 header.";
+    *challenge = new_key;
+  } else {
+    DVLOG_IF(1, !new_key.empty())
+        << "Server sent unexpected Sec-WebSocket-Key header.";
+    challenge->clear();
+    GetKeyNumber(old_key1, challenge);
+    GetKeyNumber(old_key2, challenge);
+    challenge->append(key3_);
+  }
 
   return true;
 }
@@ -269,7 +334,8 @@ bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
 std::string WebSocketHandshakeRequestHandler::GetRawRequest() {
   DCHECK(!status_line_.empty());
   DCHECK(!headers_.empty());
-  DCHECK_EQ(kRequestKey3Size, key3_.size());
+  // The following works on both hybi-04 and older handshake,
+  // because |key3_| is guaranteed to be empty if the handshake was hybi-04's.
   std::string raw_request = status_line_ + headers_ + "\r\n" + key3_;
   raw_length_ = raw_request.size();
   return raw_request;
@@ -280,11 +346,27 @@ size_t WebSocketHandshakeRequestHandler::raw_length() const {
   return raw_length_;
 }
 
-WebSocketHandshakeResponseHandler::WebSocketHandshakeResponseHandler()
-    : original_header_length_(0) {
+int WebSocketHandshakeRequestHandler::protocol_version() const {
+  DCHECK_GE(protocol_version_, 0);
+  return protocol_version_;
 }
 
+WebSocketHandshakeResponseHandler::WebSocketHandshakeResponseHandler()
+    : original_header_length_(0),
+      protocol_version_(0) {}
+
 WebSocketHandshakeResponseHandler::~WebSocketHandshakeResponseHandler() {}
+
+int WebSocketHandshakeResponseHandler::protocol_version() const {
+  DCHECK_GE(protocol_version_, 0);
+  return protocol_version_;
+}
+
+void WebSocketHandshakeResponseHandler::set_protocol_version(
+    int protocol_version) {
+  DCHECK_GE(protocol_version, 0);
+  protocol_version_ = protocol_version;
+}
 
 size_t WebSocketHandshakeResponseHandler::ParseRawResponse(
     const char* data, int length) {
@@ -292,7 +374,7 @@ size_t WebSocketHandshakeResponseHandler::ParseRawResponse(
   if (HasResponse()) {
     DCHECK(!status_line_.empty());
     DCHECK(!headers_.empty());
-    DCHECK_EQ(kResponseKeySize, key_.size());
+    DCHECK_EQ(GetResponseKeySize(), key_.size());
     return 0;
   }
 
@@ -314,14 +396,13 @@ size_t WebSocketHandshakeResponseHandler::ParseRawResponse(
   header_separator_ = std::string(original_.data() + header_size,
                                   original_header_length_ - header_size);
   key_ = std::string(original_.data() + original_header_length_,
-                     kResponseKeySize);
-
-  return original_header_length_ + kResponseKeySize - old_original_length;
+                     GetResponseKeySize());
+  return original_header_length_ + GetResponseKeySize() - old_original_length;
 }
 
 bool WebSocketHandshakeResponseHandler::HasResponse() const {
   return original_header_length_ > 0 &&
-      original_header_length_ + kResponseKeySize <= original_.size();
+      original_header_length_ + GetResponseKeySize() <= original_.size();
 }
 
 bool WebSocketHandshakeResponseHandler::ParseResponseInfo(
@@ -333,8 +414,20 @@ bool WebSocketHandshakeResponseHandler::ParseResponseInfo(
   std::string response_message;
   response_message = response_info.headers->GetStatusLine();
   response_message += "\r\n";
-  response_message += "Upgrade: WebSocket\r\n";
+  if (protocol_version_ >= kMinVersionOfHybiNewHandshake)
+    response_message += "Upgrade: websocket\r\n";
+  else
+    response_message += "Upgrade: WebSocket\r\n";
   response_message += "Connection: Upgrade\r\n";
+
+  if (protocol_version_ >= kMinVersionOfHybiNewHandshake) {
+    std::string hash = base::SHA1HashString(challenge + kWebSocketGuid);
+    std::string websocket_accept;
+    bool encode_success = base::Base64Encode(hash, &websocket_accept);
+    DCHECK(encode_success);
+    response_message += "Sec-WebSocket-Accept: " + websocket_accept + "\r\n";
+  }
+
   void* iter = NULL;
   std::string name;
   std::string value;
@@ -343,11 +436,13 @@ bool WebSocketHandshakeResponseHandler::ParseResponseInfo(
   }
   response_message += "\r\n";
 
-  MD5Digest digest;
-  MD5Sum(challenge.data(), challenge.size(), &digest);
+  if (protocol_version_ < kMinVersionOfHybiNewHandshake) {
+    MD5Digest digest;
+    MD5Sum(challenge.data(), challenge.size(), &digest);
 
-  const char* digest_data = reinterpret_cast<char*>(digest.a);
-  response_message.append(digest_data, sizeof(digest.a));
+    const char* digest_data = reinterpret_cast<char*>(digest.a);
+    response_message.append(digest_data, sizeof(digest.a));
+  }
 
   return ParseRawResponse(response_message.data(),
                           response_message.size()) == response_message.size();
@@ -357,9 +452,23 @@ bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
     const spdy::SpdyHeaderBlock& headers,
     const std::string& challenge) {
   std::string response_message;
-  response_message = "HTTP/1.1 101 WebSocket Protocol Handshake\r\n";
-  response_message += "Upgrade: WebSocket\r\n";
+  if (protocol_version_ >= kMinVersionOfHybiNewHandshake) {
+    response_message = "HTTP/1.1 101 Switching Protocols\r\n";
+    response_message += "Upgrade: websocket\r\n";
+  } else {
+    response_message = "HTTP/1.1 101 WebSocket Protocol Handshake\r\n";
+    response_message += "Upgrade: WebSocket\r\n";
+  }
   response_message += "Connection: Upgrade\r\n";
+
+  if (protocol_version_ >= kMinVersionOfHybiNewHandshake) {
+    std::string hash = base::SHA1HashString(challenge + kWebSocketGuid);
+    std::string websocket_accept;
+    bool encode_success = base::Base64Encode(hash, &websocket_accept);
+    DCHECK(encode_success);
+    response_message += "Sec-WebSocket-Accept: " + websocket_accept + "\r\n";
+  }
+
   for (spdy::SpdyHeaderBlock::const_iterator iter = headers.begin();
        iter != headers.end();
        ++iter) {
@@ -382,11 +491,13 @@ bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
   }
   response_message += "\r\n";
 
-  MD5Digest digest;
-  MD5Sum(challenge.data(), challenge.size(), &digest);
+  if (protocol_version_ < kMinVersionOfHybiNewHandshake) {
+    MD5Digest digest;
+    MD5Sum(challenge.data(), challenge.size(), &digest);
 
-  const char* digest_data = reinterpret_cast<char*>(digest.a);
-  response_message.append(digest_data, sizeof(digest.a));
+    const char* digest_data = reinterpret_cast<char*>(digest.a);
+    response_message.append(digest_data, sizeof(digest.a));
+  }
 
   return ParseRawResponse(response_message.data(),
                           response_message.size()) == response_message.size();
@@ -399,7 +510,7 @@ void WebSocketHandshakeResponseHandler::GetHeaders(
   DCHECK(HasResponse());
   DCHECK(!status_line_.empty());
   DCHECK(!headers_.empty());
-  DCHECK_EQ(kResponseKeySize, key_.size());
+  DCHECK_EQ(GetResponseKeySize(), key_.size());
 
   FetchHeaders(headers_, headers_to_get, headers_to_get_len, values);
 }
@@ -410,7 +521,7 @@ void WebSocketHandshakeResponseHandler::RemoveHeaders(
   DCHECK(HasResponse());
   DCHECK(!status_line_.empty());
   DCHECK(!headers_.empty());
-  DCHECK_EQ(kResponseKeySize, key_.size());
+  DCHECK_EQ(GetResponseKeySize(), key_.size());
 
   headers_ = FilterHeaders(headers_, headers_to_remove, headers_to_remove_len);
 }
@@ -418,16 +529,22 @@ void WebSocketHandshakeResponseHandler::RemoveHeaders(
 std::string WebSocketHandshakeResponseHandler::GetRawResponse() const {
   DCHECK(HasResponse());
   return std::string(original_.data(),
-                     original_header_length_ + kResponseKeySize);
+                     original_header_length_ + GetResponseKeySize());
 }
 
 std::string WebSocketHandshakeResponseHandler::GetResponse() {
   DCHECK(HasResponse());
   DCHECK(!status_line_.empty());
   // headers_ might be empty for wrong response from server.
-  DCHECK_EQ(kResponseKeySize, key_.size());
+  DCHECK_EQ(GetResponseKeySize(), key_.size());
 
   return status_line_ + headers_ + header_separator_ + key_;
+}
+
+size_t WebSocketHandshakeResponseHandler::GetResponseKeySize() const {
+  if (protocol_version_ >= kMinVersionOfHybiNewHandshake)
+    return 0;
+  return kResponseKeySize;
 }
 
 }  // namespace net
