@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -57,6 +57,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 
 namespace disk_cache {
 
@@ -79,7 +80,7 @@ struct LruData {
 };
 
 // Header for the master index file.
-struct IndexHeader {
+struct NET_TEST IndexHeader {
   IndexHeader();
 
   uint32      magic;
@@ -173,7 +174,7 @@ typedef uint32 AllocBitmap[kMaxBlocks / 32];
 // where did we find the last entry of that type (to avoid searching the bitmap
 // from the beginning every time).
 // This Structure is the header of a block-file:
-struct BlockFileHeader {
+struct NET_TEST BlockFileHeader {
   BlockFileHeader();
 
   uint32          magic;
