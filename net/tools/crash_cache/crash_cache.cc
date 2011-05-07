@@ -20,6 +20,7 @@
 #include "base/string_util.h"
 #include "base/threading/thread.h"
 #include "base/utf_string_conversions.h"
+#include "net/base/net_api.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/backend_impl.h"
@@ -78,7 +79,10 @@ int MasterCode() {
 
 // -----------------------------------------------------------------------
 
-extern RankCrashes g_rankings_crash;
+namespace disk_cache {
+NET_TEST extern RankCrashes g_rankings_crash;
+}
+
 const char* kCrashEntryName = "the first key";
 
 // Creates the destinaton folder for this run, and returns it on full_path.
@@ -143,7 +147,7 @@ int SimpleInsert(const FilePath& path, RankCrashes action,
 
   if (action <= disk_cache::INSERT_EMPTY_3) {
     test_name = kCrashEntryName;
-    g_rankings_crash = action;
+    disk_cache::g_rankings_crash = action;
   }
 
   disk_cache::Entry* entry;
@@ -155,7 +159,7 @@ int SimpleInsert(const FilePath& path, RankCrashes action,
   FlushQueue(cache);
 
   DCHECK(action <= disk_cache::INSERT_ONE_3);
-  g_rankings_crash = action;
+  disk_cache::g_rankings_crash = action;
   test_name = kCrashEntryName;
 
   rv = cache->CreateEntry(test_name, &entry, &cb);
@@ -201,7 +205,7 @@ int SimpleRemove(const FilePath& path, RankCrashes action,
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
-  g_rankings_crash = action;
+  disk_cache::g_rankings_crash = action;
   entry->Doom();
   entry->Close();
   FlushQueue(cache);
@@ -241,7 +245,7 @@ int HeadRemove(const FilePath& path, RankCrashes action,
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
-  g_rankings_crash = action;
+  disk_cache::g_rankings_crash = action;
   entry->Doom();
   entry->Close();
   FlushQueue(cache);
@@ -286,7 +290,7 @@ int LoadOperations(const FilePath& path, RankCrashes action,
   }
 
   if (action <= disk_cache::INSERT_LOAD_2) {
-    g_rankings_crash = action;
+    disk_cache::g_rankings_crash = action;
 
     rv = cache->CreateEntry(kCrashEntryName, &entry, &cb);
     if (cb.GetResult(rv) != net::OK)
@@ -297,7 +301,7 @@ int LoadOperations(const FilePath& path, RankCrashes action,
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
-  g_rankings_crash = action;
+  disk_cache::g_rankings_crash = action;
 
   entry->Doom();
   entry->Close();
