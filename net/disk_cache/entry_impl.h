@@ -19,7 +19,7 @@ class SparseControl;
 
 // This class implements the Entry interface. An object of this
 // class represents a single entry on the cache.
-class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
+class NET_TEST EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   friend class base::RefCounted<EntryImpl>;
   friend class SparseControl;
  public:
