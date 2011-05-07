@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #define NET_DISK_CACHE_FILE_LOCK_H__
 #pragma once
 
+#include "net/base/net_api.h"
 #include "net/disk_cache/disk_format.h"
 
 namespace disk_cache {
@@ -27,7 +28,7 @@ namespace disk_cache {
 // because otherwise the desired effect of the "lock" will not be achieved. If
 // the operations are inlined / optimized, the "locked" operations can happen
 // outside the lock.
-class FileLock {
+class NET_TEST FileLock {
  public:
   explicit FileLock(BlockFileHeader* header);
   virtual ~FileLock() {
