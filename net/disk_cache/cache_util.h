@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 
 class FilePath;
 
@@ -18,14 +19,14 @@ namespace disk_cache {
 // for the cache directory.  Returns true if successful.  On ChromeOS,
 // this moves the cache contents, and leaves the empty cache
 // directory.
-bool MoveCache(const FilePath& from_path, const FilePath& to_path);
+NET_TEST bool MoveCache(const FilePath& from_path, const FilePath& to_path);
 
 // Deletes the cache files stored on |path|, and optionally also attempts to
 // delete the folder itself.
-void DeleteCache(const FilePath& path, bool remove_folder);
+NET_TEST void DeleteCache(const FilePath& path, bool remove_folder);
 
 // Deletes a cache file.
-bool DeleteCacheFile(const FilePath& name);
+NET_TEST bool DeleteCacheFile(const FilePath& name);
 
 }  // namespace disk_cache
 
