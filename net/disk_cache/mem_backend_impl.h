@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,7 +23,7 @@ class MemEntryImpl;
 
 // This class implements the Backend interface. An object of this class handles
 // the operations of the cache without writing to disk.
-class MemBackendImpl : public Backend {
+class NET_TEST MemBackendImpl : public Backend {
  public:
   explicit MemBackendImpl(net::NetLog* net_log);
   ~MemBackendImpl();

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,7 +39,7 @@ enum BackendFlags {
 
 // This class implements the Backend interface. An object of this
 // class handles the operations of the cache for a particular profile.
-class BackendImpl : public Backend {
+class NET_TEST BackendImpl : public Backend {
   friend class Eviction;
  public:
   BackendImpl(const FilePath& path, base::MessageLoopProxy* cache_thread,
@@ -381,7 +381,7 @@ class BackendImpl : public Backend {
 };
 
 // Returns the prefered max cache size given the available disk space.
-int PreferedCacheSize(int64 available);
+NET_TEST int PreferedCacheSize(int64 available);
 
 }  // namespace disk_cache
 

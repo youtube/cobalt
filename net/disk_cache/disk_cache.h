@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,7 @@
 
 #include "base/basictypes.h"
 #include "base/time.h"
+#include "net/base/net_api.h"
 #include "net/base/cache_type.h"
 #include "net/base/completion_callback.h"
 
@@ -49,13 +50,14 @@ typedef net::CompletionCallback CompletionCallback;
 // be invoked when a backend is available or a fatal error condition is reached.
 // The pointer to receive the |backend| must remain valid until the operation
 // completes (the callback is notified).
-int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
-                       bool force, base::MessageLoopProxy* thread,
-                       net::NetLog* net_log, Backend** backend,
-                       CompletionCallback* callback);
+NET_API int CreateCacheBackend(net::CacheType type, const FilePath& path,
+                               int max_bytes, bool force,
+                               base::MessageLoopProxy* thread,
+                               net::NetLog* net_log, Backend** backend,
+                               CompletionCallback* callback);
 
 // The root interface for a disk cache instance.
-class Backend {
+class NET_API Backend {
  public:
   // If the backend is destroyed when there are operations in progress (any
   // callback that has not been invoked yet), this method cancels said
@@ -138,7 +140,7 @@ class Backend {
 };
 
 // This interface represents an entry in the disk cache.
-class Entry {
+class NET_TEST Entry {
  public:
   // Marks this cache entry for deletion.
   virtual void Doom() = 0;
