@@ -270,6 +270,10 @@ class URLRequest : public base::NonThreadSafe {
   static void AllowFileAccess();
   static bool IsFileAccessAllowed();
 
+  // See switches::kEnableMacCookies.
+  static void EnableMacCookies();
+  static bool AreMacCookiesEnabled();
+
   // The original url is the url used to initialize the request, and it may
   // differ from the url if the request was redirected.
   const GURL& original_url() const { return url_chain_.front(); }
@@ -281,7 +285,7 @@ class URLRequest : public base::NonThreadSafe {
   // The URL that should be consulted for the third-party cookie blocking
   // policy.
   const GURL& first_party_for_cookies() const {
-      return first_party_for_cookies_;
+    return first_party_for_cookies_;
   }
   // This method may be called before Start() or FollowDeferredRedirect() is
   // called.
