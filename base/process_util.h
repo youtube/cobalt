@@ -279,10 +279,12 @@ BASE_API bool LaunchApp(const std::vector<std::string>& argv,
 // Similar to the above two methods, but starts the child process in a process
 // group of its own, instead of allowing it to inherit the parent's process
 // group. The pgid of the child process will be the same as its pid.
-bool LaunchAppInNewProcessGroup(const std::vector<std::string>& argv,
-                                const environment_vector& environ,
-                                const file_handle_mapping_vector& fds_to_remap,
-                                bool wait, ProcessHandle* process_handle);
+BASE_API bool LaunchAppInNewProcessGroup(
+    const std::vector<std::string>& argv,
+    const environment_vector& environ,
+    const file_handle_mapping_vector& fds_to_remap,
+    bool wait,
+    ProcessHandle* process_handle);
 
 // AlterEnvironment returns a modified environment vector, constructed from the
 // given environment and the list of changes given in |changes|. Each key in
@@ -348,7 +350,7 @@ BASE_API bool KillProcess(ProcessHandle process, int exit_code, bool wait);
 #if defined(OS_POSIX)
 // Attempts to kill the process group identified by |process_group_id|. Returns
 // true on success.
-bool KillProcessGroup(ProcessHandle process_group_id);
+BASE_API bool KillProcessGroup(ProcessHandle process_group_id);
 #endif
 
 #if defined(OS_WIN)
