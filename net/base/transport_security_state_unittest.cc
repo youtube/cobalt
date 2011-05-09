@@ -728,4 +728,22 @@ TEST_F(TransportSecurityStateTest, ForcePreloads) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "docs.google.com", true));
 }
 
+TEST_F(TransportSecurityStateTest, OverrideBuiltins) {
+  scoped_refptr<TransportSecurityState> state(
+      new TransportSecurityState(std::string()));
+
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state, "google.com", true));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "google.com", true));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "www.google.com", true));
+
+  domain_state = TransportSecurityState::DomainState();
+  const base::Time current_time(base::Time::Now());
+  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
+  domain_state.expiry = expiry;
+  state->EnableHost("www.google.com", domain_state);
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.google.com", true));
+}
+
 }  // namespace net
