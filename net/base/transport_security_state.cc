@@ -560,15 +560,12 @@ bool TransportSecurityState::IsPreloadedSTS(
       "sha1/AbkhxY0L343gKf+cki7NVWp+ozk=";
   static const char kCertPKHashEquifaxSecureCA[] =
       "sha1/SOZo+SvSspXXR9gjIBBPM5iQn9Q=";
-  static const char kCertPKHashGeoTrustGlobalCA[] =
-      "sha1/wHqYaI2J+6sFZAwRfap9ZbjKzE4=";
   static const char* kGoogleAcceptableCerts[] = {
     kCertPKHashVerisignClass3,
     kCertPKHashVerisignClass3G3,
     kCertPKHashGoogle1024,
     kCertPKHashGoogle2048,
     kCertPKHashEquifaxSecureCA,
-    kCertPKHashGeoTrustGlobalCA,
     0,
   };
 
