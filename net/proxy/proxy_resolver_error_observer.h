@@ -11,12 +11,18 @@
 
 namespace net {
 
-// Interface for observing JavaScript error messages from PAC scripts.
+// Interface for observing JavaScript error messages from PAC scripts. The
+// default implementation of the ProxyResolverJSBindings takes a class
+// implementing this interface and forwards all JavaScript errors related to
+// PAC scripts.
 class ProxyResolverErrorObserver {
  public:
   ProxyResolverErrorObserver() {}
   virtual ~ProxyResolverErrorObserver() {}
 
+  // Handler for when an error is encountered. |line_number| may be -1
+  // if a line number is not applicable to this error. |error| is a message
+  // describing the error.
   virtual void OnPACScriptError(int line_number, const string16& error) = 0;
 
  private:
