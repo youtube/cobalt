@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -107,12 +107,12 @@ class DiskCacheTestWithCache : public DiskCacheTest {
   int WriteSparseData(disk_cache::Entry* entry, int64 offset,
                       net::IOBuffer* buf, int len);
 
-  // Asks the cache to trim a an entry. If |empty| is true, the whole entry is
+  // Asks the cache to trim an entry. If |empty| is true, the whole cache is
   // deleted.
   void TrimForTest(bool empty);
 
-  // Asks the cache to trim a an entry from the deleted list. If |empty| is
-  // true, the whole entry is deleted.
+  // Asks the cache to trim an entry from the deleted list. If |empty| is
+  // true, the whole list is deleted.
   void TrimDeletedListForTest(bool empty);
 
   // DiskCacheTest:
