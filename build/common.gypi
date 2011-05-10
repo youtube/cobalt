@@ -1122,7 +1122,7 @@
               # At gyp time, we test the linker for ICF support; this flag
               # is then provided to us by gyp.  (Currently only gold supports
               # an --icf flag.)
-              ['LINKER_SUPPORTS_ICF==1 and release_valgrind_build==0', {
+              ['LINKER_SUPPORTS_ICF==1', {
                 'ldflags': [
                   '-Wl,--icf=safe',
                 ]
