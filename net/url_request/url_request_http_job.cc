@@ -1127,8 +1127,7 @@ void URLRequestHttpJob::RecordTimer() {
   request_creation_time_ = base::Time();
 
   static const bool use_prefetch_histogram =
-      base::FieldTrialList::Find("Prefetch") &&
-      !base::FieldTrialList::Find("Prefetch")->group_name().empty();
+      base::FieldTrialList::TrialExists("Prefetch");
 
   UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte", to_start);
   if (use_prefetch_histogram) {
