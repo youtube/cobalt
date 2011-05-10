@@ -8,8 +8,4 @@ namespace media {
 
 VideoDecodeAccelerator::~VideoDecodeAccelerator() {}
 
-VideoDecodeAccelerator::PictureBuffer::~PictureBuffer() {}
-
-VideoDecodeAccelerator::Picture::~Picture() {}
-
 }
