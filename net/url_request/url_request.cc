@@ -100,14 +100,14 @@ void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
   request->Cancel();
 }
 
-void URLRequest::Delegate::OnGetCookies(URLRequest* request,
-                                        bool blocked_by_policy) {
+bool URLRequest::Delegate::CanGetCookies(URLRequest* request) {
+  return true;
 }
 
-void URLRequest::Delegate::OnSetCookie(URLRequest* request,
-                                       const std::string& cookie_line,
-                                       const CookieOptions& options,
-                                       bool blocked_by_policy) {
+bool URLRequest::Delegate::CanSetCookie(URLRequest* request,
+                                        const std::string& cookie_line,
+                                        CookieOptions* options) {
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

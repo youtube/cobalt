@@ -53,8 +53,8 @@ class URLRequestHttpJob : public URLRequestJob {
   // Process the Strict-Transport-Security header, if one exists.
   void ProcessStrictTransportSecurityHeader();
 
-  void OnCanGetCookiesCompleted(int result);
-  void OnCanSetCookieCompleted(int result);
+  void OnCanGetCookiesCompleted(bool allow);
+  void OnCanSetCookieCompleted();
   void OnStartCompleted(int result);
   void OnReadCompleted(int result);
 
