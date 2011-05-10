@@ -6,6 +6,8 @@
 
 #include "base/logging.h"
 #include "base/rand_util.h"
+#include "base/sha1.h"
+#include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 
@@ -41,11 +43,13 @@ FieldTrial::FieldTrial(const std::string& name,
   : name_(name),
     divisor_(total_probability),
     default_group_name_(default_group_name),
-    random_(static_cast<Probability>(divisor_ * base::RandDouble())),
+    random_(static_cast<Probability>(divisor_ * RandDouble())),
     accumulated_group_probability_(0),
-    next_group_number_(kDefaultGroupNumber+1),
-    group_(kNotFinalized) {
+    next_group_number_(kDefaultGroupNumber + 1),
+    group_(kNotFinalized),
+    enable_field_trial_(true) {
   DCHECK_GT(total_probability, 0);
+  DCHECK(!name_.empty());
   DCHECK(!default_group_name_.empty());
   FieldTrialList::Register(this);
 
@@ -55,7 +59,7 @@ FieldTrial::FieldTrial(const std::string& name,
   DCHECK_GT(day_of_month, 0);
   DCHECK_LT(day_of_month, 32);
 
-  base::Time::Exploded exploded;
+  Time::Exploded exploded;
   exploded.year = year;
   exploded.month = month;
   exploded.day_of_week = 0;  // Should be unused.
@@ -65,8 +69,33 @@ FieldTrial::FieldTrial(const std::string& name,
   exploded.second = 0;
   exploded.millisecond = 0;
 
-  base::Time expiration_time = Time::FromLocalExploded(exploded);
-  disable_field_trial_ = (GetBuildTime() > expiration_time) ? true : false;
+  Time expiration_time = Time::FromLocalExploded(exploded);
+  if (GetBuildTime() > expiration_time)
+    Disable();
+}
+
+void FieldTrial::UseOneTimeRandomization() {
+  DCHECK_EQ(group_, kNotFinalized);
+  DCHECK_EQ(kDefaultGroupNumber + 1, next_group_number_);
+  if (!FieldTrialList::IsOneTimeRandomizationEnabled()) {
+    NOTREACHED();
+    Disable();
+    return;
+  }
+
+  random_ = static_cast<Probability>(
+      divisor_ * HashClientId(FieldTrialList::client_id(), name_));
+}
+
+void FieldTrial::Disable() {
+  enable_field_trial_ = false;
+
+  // In case we are disabled after initialization, we need to switch
+  // the trial to the default group.
+  if (group_ != kNotFinalized) {
+    group_ = kDefaultGroupNumber;
+    group_name_ = default_group_name_;
+  }
 }
 
 int FieldTrial::AppendGroup(const std::string& name,
@@ -74,7 +103,7 @@ int FieldTrial::AppendGroup(const std::string& name,
   DCHECK_LE(group_probability, divisor_);
   DCHECK_GE(group_probability, 0);
 
-  if (enable_benchmarking_ || disable_field_trial_)
+  if (enable_benchmarking_ || !enable_field_trial_)
     group_probability = 0;
 
   accumulated_group_probability_ += group_probability;
@@ -84,7 +113,7 @@ int FieldTrial::AppendGroup(const std::string& name,
     // This is the group that crossed the random line, so we do the assignment.
     group_ = next_group_number_;
     if (name.empty())
-      base::StringAppendF(&group_name_, "%d", group_);
+      StringAppendF(&group_name_, "%d", group_);
     else
       group_name_ = name;
     FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
@@ -103,7 +132,8 @@ int FieldTrial::group() {
 }
 
 std::string FieldTrial::group_name() {
-  group();  // call group() to make group assignment was done.
+  group();  // call group() to make sure group assignment was done.
+  DCHECK(!group_name_.empty());
   return group_name_;
 }
 
@@ -133,6 +163,25 @@ Time FieldTrial::GetBuildTime() {
   return integral_build_time;
 }
 
+// static
+double FieldTrial::HashClientId(const std::string& client_id,
+                                const std::string& trial_name) {
+  // SHA-1 is designed to produce a uniformly random spread in its output space,
+  // even for nearly-identical inputs, so it helps massage whatever client_id
+  // and trial_name we get into something with a uniform distribution, which
+  // is desirable so that we don't skew any part of the 0-100% spectrum.
+  std::string input(client_id + trial_name);
+  unsigned char sha1_hash[SHA1_LENGTH];
+  SHA1HashBytes(reinterpret_cast<const unsigned char*>(input.c_str()),
+                input.size(),
+                sha1_hash);
+
+  COMPILE_ASSERT(sizeof(uint64) < sizeof(sha1_hash), need_more_data);
+  uint64* bits = reinterpret_cast<uint64*>(&sha1_hash[0]);
+
+  return BitsToOpenEndedUnitInterval(*bits);
+}
+
 //------------------------------------------------------------------------------
 // FieldTrialList methods and members.
 
@@ -142,8 +191,9 @@ FieldTrialList* FieldTrialList::global_ = NULL;
 // static
 bool FieldTrialList::register_without_global_ = false;
 
-FieldTrialList::FieldTrialList()
+FieldTrialList::FieldTrialList(const std::string& client_id)
     : application_start_time_(TimeTicks::Now()),
+      client_id_(client_id),
       observer_list_(ObserverList<Observer>::NOTIFY_EXISTING_ONLY) {
   DCHECK(!global_);
   DCHECK(!register_without_global_);
@@ -204,19 +254,23 @@ std::string FieldTrialList::FindFullName(const std::string& name) {
 }
 
 // static
+bool FieldTrialList::TrialExists(const std::string& name) {
+  return Find(name) != NULL;
+}
+
+// static
 void FieldTrialList::StatesToString(std::string* output) {
   if (!global_)
     return;
   DCHECK(output->empty());
   AutoLock auto_lock(global_->lock_);
+
   for (RegistrationList::iterator it = global_->registered_.begin();
        it != global_->registered_.end(); ++it) {
     const std::string name = it->first;
     std::string group_name = it->second->group_name_internal();
     if (group_name.empty())
-      // No definitive winner in this trial, use default_group_name as the
-      // group_name.
-      group_name = it->second->default_group_name();
+      continue;  // Should not include uninitialized trials.
     DCHECK_EQ(name.find(kPersistentStringSeparator), std::string::npos);
     DCHECK_EQ(group_name.find(kPersistentStringSeparator), std::string::npos);
     output->append(name);
@@ -311,6 +365,24 @@ size_t FieldTrialList::GetFieldTrialCount() {
     return 0;
   AutoLock auto_lock(global_->lock_);
   return global_->registered_.size();
+}
+
+// static
+bool FieldTrialList::IsOneTimeRandomizationEnabled() {
+  DCHECK(global_);
+  if (!global_)
+    return false;
+
+  return !global_->client_id_.empty();
+}
+
+// static
+const std::string& FieldTrialList::client_id() {
+  DCHECK(global_);
+  if (!global_)
+    return EmptyString();
+
+  return global_->client_id_;
 }
 
 FieldTrial* FieldTrialList::PreLockedFind(const std::string& name) {
