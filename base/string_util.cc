@@ -292,19 +292,11 @@ void TruncateUTF8ToByteSize(const std::string& input,
     output->clear();
 }
 
-TrimPositions TrimWhitespace(const std::wstring& input,
-                             TrimPositions positions,
-                             std::wstring* output) {
-  return TrimStringT(input, kWhitespaceWide, positions, output);
-}
-
-#if !defined(WCHAR_T_IS_UTF16)
 TrimPositions TrimWhitespace(const string16& input,
                              TrimPositions positions,
                              string16* output) {
   return TrimStringT(input, kWhitespaceUTF16, positions, output);
 }
-#endif
 
 TrimPositions TrimWhitespaceASCII(const std::string& input,
                                   TrimPositions positions,

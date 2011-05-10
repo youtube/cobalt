@@ -221,9 +221,6 @@ enum TrimPositions {
   TRIM_TRAILING = 1 << 1,
   TRIM_ALL      = TRIM_LEADING | TRIM_TRAILING,
 };
-BASE_API TrimPositions TrimWhitespace(const std::wstring& input,
-                                      TrimPositions positions,
-                                      std::wstring* output);
 BASE_API TrimPositions TrimWhitespace(const string16& input,
                                       TrimPositions positions,
                                       string16* output);
