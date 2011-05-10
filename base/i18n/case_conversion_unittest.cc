@@ -21,19 +21,6 @@ TEST(CaseConversionTest, UpperLower) {
   EXPECT_EQ(expected_upper, result);
 }
 
-// Test upper and lower case string conversion.
-TEST(CaseConversionTest, WideUpperLower) {
-  std::wstring mixed(L"Text with UPPer & lowER casE.");
-  const std::wstring expected_lower(L"text with upper & lower case.");
-  const std::wstring expected_upper(L"TEXT WITH UPPER & LOWER CASE.");
-
-  std::wstring result = base::i18n::WideToLower(mixed);
-  EXPECT_EQ(expected_lower, result);
-
-  result = base::i18n::WideToUpper(mixed);
-  EXPECT_EQ(expected_upper, result);
-}
-
 // TODO(jshin): More tests are needed, especially with non-ASCII characters.
 
 }  // namespace
