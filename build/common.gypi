@@ -139,6 +139,9 @@
       # Has no effect if 'clang' is not set as well.
       'clang_use_chrome_plugins%': 0,
 
+      # Allow a user to link Chromium as a non-position independent executable.
+      'disable_pie%': 0,
+
       'conditions': [
         # A flag to enable or disable our compile-time dependency
         # on gnome-keyring. If that dependency is disabled, no gnome-keyring
@@ -205,6 +208,7 @@
     'remoting%': '<(remoting)',
     'p2p_apis%': '<(p2p_apis)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
+    'disable_pie%': '<(disable_pie)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
