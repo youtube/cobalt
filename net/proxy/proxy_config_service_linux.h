@@ -50,11 +50,11 @@ class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
 
     // Releases the gconf client, which clears cached directories and
     // stops notifications.
-    virtual void Shutdown() = 0;
+    virtual void ShutDown() = 0;
 
     // Requests notification of gconf setting changes for proxy
     // settings. Returns true on success.
-    virtual bool SetupNotification(Delegate* delegate) = 0;
+    virtual bool SetUpNotifications(Delegate* delegate) = 0;
 
     // Returns the message loop for the thread on which this object
     // handles notifications, and also on which it must be destroyed.
@@ -68,7 +68,7 @@ class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
     // Gets a string type value from gconf and stores it in
     // result. Returns false if the key is unset or on error. Must
     // only be called after a successful call to Init(), and not
-    // after a failed call to SetupNotification() or after calling
+    // after a failed call to SetUpNotifications() or after calling
     // Release().
     virtual bool GetString(const char* key, std::string* result) = 0;
     // Same thing for a bool typed value.
@@ -92,7 +92,7 @@ class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
   };
 
   // ProxyConfigServiceLinux is created on the UI thread, and
-  // SetupAndFetchInitialConfig() is immediately called to
+  // SetUpAndFetchInitialConfig() is immediately called to
   // synchronously fetch the original configuration and set up gconf
   // notifications on the UI thread.
   //
@@ -131,7 +131,7 @@ class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
     // specified so that notifications can post tasks to it (and for
     // assertions). The message loop for the file thread is used to
     // read any files needed to determine proxy settings.
-    void SetupAndFetchInitialConfig(MessageLoop* glib_default_loop,
+    void SetUpAndFetchInitialConfig(MessageLoop* glib_default_loop,
                                     MessageLoop* io_loop,
                                     MessageLoopForIO* file_loop);
 
@@ -184,6 +184,9 @@ class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
     // carry the new config information.
     void SetNewProxyConfig(const ProxyConfig& new_config);
 
+    // This method is run on the getter's notification thread.
+    void SetUpNotifications();
+
     scoped_ptr<base::Environment> env_var_getter_;
     scoped_ptr<GConfSettingGetter> gconf_getter_;
 
@@ -230,7 +233,7 @@ class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
   void SetupAndFetchInitialConfig(MessageLoop* glib_default_loop,
                                   MessageLoop* io_loop,
                                   MessageLoopForIO* file_loop) {
-    delegate_->SetupAndFetchInitialConfig(glib_default_loop, io_loop,
+    delegate_->SetUpAndFetchInitialConfig(glib_default_loop, io_loop,
                                           file_loop);
   }
   void OnCheckProxyConfigSettings() {
