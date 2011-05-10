@@ -14,8 +14,6 @@
       'dependencies': [
         'yuv_convert',
         '../base/base.gyp:base',
-        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
         '../build/temp_gyp/googleurl.gyp:googleurl',
       ],
       'include_dirs': [
@@ -199,7 +197,23 @@
             'libraries': [
               '-lasound',
             ],
-          },
+         },
+        }],
+        ['OS=="cell_lv2"', {
+          'sources/': [
+            # The following sources are cut because they depend on ffmpeg.
+            ['exclude', 'base/media_posix.cc'],
+            ['exclude', '^ffmpeg/'],
+            ['exclude', '^filters/audio_file_reader.*'],
+            ['exclude', '^filters/bitstream_'],
+            ['exclude', '^filters/ffmpeg_'],
+            ['exclude', '^video/ffmpeg_'],
+          ],
+        }, { # !cell_lv2
+          'dependencies': [ # we re-introduce the dependency on ffmpeg here for all other OS
+            '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg'
+          ]
         }],
         ['OS=="openbsd"', {
           'sources/': [ ['exclude', 'alsa_' ],
@@ -303,41 +317,6 @@
       ],
     },
     {
-      'target_name': 'ffmpeg_unittests',
-      'type': 'executable',
-      'dependencies': [
-        'media',
-        'media_test_support',
-        '../base/base.gyp:base',
-        '../base/base.gyp:base_i18n',
-        '../base/base.gyp:test_support_base',
-        '../base/base.gyp:test_support_perf',
-        '../testing/gtest.gyp:gtest',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
-      'sources': [
-        'ffmpeg/ffmpeg_unittest.cc',
-      ],
-      'conditions': [
-        ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
-          'dependencies': [
-            # Needed for the following #include chain:
-            #   base/run_all_unittests.cc
-            #   ../base/test_suite.h
-            #   gtk/gtk.h
-            '../build/linux/system.gyp:gtk',
-          ],
-          'conditions': [
-            ['linux_use_tcmalloc==1', {
-              'dependencies': [
-                '../base/allocator/allocator.gyp:allocator',
-              ],
-            }],
-          ],
-        }],
-      ],
-    },
-    {
       'target_name': 'media_unittests',
       'type': 'executable',
       'msvs_guid': 'C8C6183C-B03C-11DD-B471-DFD256D89593',
@@ -350,7 +329,6 @@
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
         '../third_party/openmax/openmax.gyp:il',
       ],
       'sources!': [
@@ -423,6 +401,20 @@
             }],
           ],
         }],
+        ['OS=="cell_lv2"', {
+          'sources/': [
+            # The following sources are cut because they depend on ffmpeg.
+            ['exclude', '^base/mock_ffmpeg.*'],
+            ['exclude', '^filters/bitstream_converter_unittest.cc'],
+            ['exclude', '^filters/ffmpeg_'],
+            ['exclude', '^video/ffmpeg_'],
+            ['exclude', '^ffmpeg/*'],
+          ]          
+        }, { # !cell_lv2
+          'dependencies': [
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg'
+          ]
+        }]
       ],
     },
     {
@@ -448,19 +440,6 @@
       ],
     },
     {
-      'target_name': 'media_bench',
-      'type': 'executable',
-      'msvs_guid': '45BC4F87-4604-4962-A751-7C7B29A080BF',
-      'dependencies': [
-        'media',
-        '../base/base.gyp:base',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
-      'sources': [
-        'tools/media_bench/media_bench.cc',
-      ],
-    },
-    {
       'target_name': 'scaler_bench',
       'type': 'executable',
       'dependencies': [
@@ -470,18 +449,6 @@
       ],
       'sources': [
         'tools/scaler_bench/scaler_bench.cc',
-      ],
-    },
-    {
-      'target_name': 'ffmpeg_tests',
-      'type': 'executable',
-      'dependencies': [
-        'media',
-        '../base/base.gyp:base',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
-      'sources': [
-        'test/ffmpeg_tests/ffmpeg_tests.cc',
       ],
     },
     {
@@ -504,6 +471,70 @@
     },
   ],
   'conditions': [
+    ['OS!="cell_lv2"', {
+      'targets': [
+        {
+          'target_name': 'media_bench',
+          'type': 'executable',
+          'msvs_guid': '45BC4F87-4604-4962-A751-7C7B29A080BF',
+          'dependencies': [
+            'media',
+            '../base/base.gyp:base',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources': [
+            'tools/media_bench/media_bench.cc',
+          ],
+        },
+        {
+          'target_name': 'ffmpeg_tests',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            '../base/base.gyp:base',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources': [
+            'test/ffmpeg_tests/ffmpeg_tests.cc',
+          ],
+        },
+        {
+          'target_name': 'ffmpeg_unittests',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            'media_test_support',
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../base/base.gyp:test_support_base',
+            '../base/base.gyp:test_support_perf',
+            '../testing/gtest.gyp:gtest',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources': [
+            'ffmpeg/ffmpeg_unittest.cc',
+          ],
+          'conditions': [
+            ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+              'dependencies': [
+                # Needed for the following #include chain:
+                #   base/run_all_unittests.cc
+                #   ../base/test_suite.h
+                #   gtk/gtk.h
+                '../build/linux/system.gyp:gtk',
+              ],
+              'conditions': [
+                ['linux_use_tcmalloc==1', {
+                  'dependencies': [
+                    '../base/allocator/allocator.gyp:allocator',
+                  ],
+                }],
+              ],
+            }],
+          ],
+        }
+      ]
+    }],    
     ['OS=="win"', {
       'targets': [
         {
