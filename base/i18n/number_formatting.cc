@@ -8,6 +8,7 @@
 #include "base/logging.h"
 #include "base/lazy_instance.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/stringprintf.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "unicode/numfmt.h"

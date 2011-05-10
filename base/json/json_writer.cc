@@ -6,7 +6,7 @@
 
 #include "base/json/string_escape.h"
 #include "base/logging.h"
-#include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "base/values.h"
 #include "base/utf_string_conversions.h"
@@ -71,7 +71,7 @@ void JSONWriter::BuildJSONString(const Value* const node,
         int value;
         bool result = node->GetAsInteger(&value);
         DCHECK(result);
-        StringAppendF(json_string_, "%d", value);
+        base::StringAppendF(json_string_, "%d", value);
         break;
       }
 
