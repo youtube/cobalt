@@ -5,6 +5,7 @@
 #include "net/http/http_request_headers.h"
 
 #include "base/logging.h"
+#include "base/stringprintf.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "net/http/http_util.h"
