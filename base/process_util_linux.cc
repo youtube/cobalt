@@ -17,6 +17,7 @@
 
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/string_tokenizer.h"
@@ -75,7 +76,7 @@ int GetProcessCPU(pid_t pid) {
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
   // Use /proc/<pid>/task to find all threads and parse their /stat file.
-  FilePath path = FilePath(StringPrintf("/proc/%d/task/", pid));
+  FilePath path = FilePath(base::StringPrintf("/proc/%d/task/", pid));
 
   DIR* dir = opendir(path.value().c_str());
   if (!dir) {
