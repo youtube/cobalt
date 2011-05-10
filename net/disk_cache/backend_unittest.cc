@@ -494,6 +494,37 @@ TEST_F(DiskCacheBackendTest, AppCacheLoad) {
   BackendLoad();
 }
 
+TEST_F(DiskCacheBackendTest, NewEvictionTrim) {
+  SetNewEviction();
+  SetDirectMode();
+  InitCache();
+
+  disk_cache::Entry* entry;
+  for (int i = 0; i < 100; i++) {
+    std::string name(StringPrintf("Key %d", i));
+    ASSERT_EQ(net::OK, CreateEntry(name, &entry));
+    entry->Close();
+    if (i < 90) {
+      // Entries 0 to 89 are in list 1; 90 to 99 are in list 0.
+      ASSERT_EQ(net::OK, OpenEntry(name, &entry));
+      entry->Close();
+    }
+  }
+
+  // The first eviction must come from list 1 (10% limit), the second must come
+  // from list 0.
+  TrimForTest(false);
+  EXPECT_NE(net::OK, OpenEntry("Key 0", &entry));
+  TrimForTest(false);
+  EXPECT_NE(net::OK, OpenEntry("Key 90", &entry));
+
+  // Double check that we still have the list tails.
+  ASSERT_EQ(net::OK, OpenEntry("Key 1", &entry));
+  entry->Close();
+  ASSERT_EQ(net::OK, OpenEntry("Key 91", &entry));
+  entry->Close();
+}
+
 // Before looking for invalid entries, let's check a valid entry.
 void DiskCacheBackendTest::BackendValidEntry() {
   SetDirectMode();
