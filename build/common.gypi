@@ -1085,6 +1085,10 @@
               # The following flag is to disable --gc-sections linker
               # option for these bots.
               'no_gc_sections%': 0,
+
+              # TODO(bradnelson): reexamine how this is done if we change the
+              # expansion of configurations
+              'release_valgrind_build%': 0,
             },
             'cflags': [
               '-O>(release_optimize)',
@@ -1122,7 +1126,7 @@
               # At gyp time, we test the linker for ICF support; this flag
               # is then provided to us by gyp.  (Currently only gold supports
               # an --icf flag.)
-              ['LINKER_SUPPORTS_ICF==1', {
+              ['LINKER_SUPPORTS_ICF==1 and release_valgrind_build==0', {
                 'ldflags': [
                   '-Wl,--icf=safe',
                 ]
