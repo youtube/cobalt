@@ -15,11 +15,9 @@ namespace i18n {
 
 // Returns the lower case equivalent of string. Uses ICU's default locale.
 string16 ToLower(const string16& string);
-std::wstring WideToLower(const std::wstring& string);
 
 // Returns the upper case equivalent of string. Uses ICU's default locale.
 string16 ToUpper(const string16& string);
-std::wstring WideToUpper(const std::wstring& string);
 
 }  // namespace i18n
 }  // namespace base
