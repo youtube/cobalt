@@ -334,8 +334,7 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
     // creating a new one.  If the SYN is lost, this backup socket may complete
     // before the slow socket, improving end user latency.
     if (connect_backup_jobs_enabled_ &&
-        group->IsEmpty() && !group->HasBackupJob() &&
-        handle) {
+        group->IsEmpty() && !group->HasBackupJob()) {
       group->StartBackupSocketTimer(group_name, this);
     }
 
@@ -1065,10 +1064,8 @@ void ClientSocketPoolBaseHelper::Group::OnBackupSocketTimerFired(
     return;
   }
 
-  if (pending_requests_.empty()) {
-    LOG(DFATAL) << "No pending request for backup job.";
+  if (pending_requests_.empty())
     return;
-  }
 
   ConnectJob* backup_job = pool->connect_job_factory_->NewConnectJob(
       group_name, **pending_requests_.begin(), pool);
