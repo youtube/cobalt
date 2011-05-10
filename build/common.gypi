@@ -110,7 +110,7 @@
       'disable_sse2%': 0,
 
       # Use libjpeg-turbo as the JPEG codec used by Chromium.
-      'use_libjpeg_turbo%': 1,
+      'use_libjpeg_turbo%': 0,
 
       # Variable 'component' is for cases where we would like to build some
       # components as dynamic shared libraries but still need variable
@@ -246,7 +246,7 @@
 
     # Overridable specification for potential use of alternative
     # JavaScript engines.
-    'javascript_engine%': 'v8',
+    'javascript_engine%': 'JavaScriptCore',
 
     # Although base/allocator lets you select a heap library via an
     # environment variable, the libcmt shim it uses sometimes gets in
@@ -342,7 +342,7 @@
 
     # Used to disable Native Client at compile time, for platforms where it
     # isn't supported
-    'disable_nacl%': 0,
+    'disable_nacl%': 1,
 
     # Set Thumb compilation flags.
     'arm_thumb%': 0,
