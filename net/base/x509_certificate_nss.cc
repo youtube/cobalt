@@ -292,7 +292,8 @@ void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
 
   SECItem alt_name;
   SECStatus rv = CERT_FindCertExtension(cert_handle,
-      SEC_OID_X509_SUBJECT_ALT_NAME, &alt_name);
+                                        SEC_OID_X509_SUBJECT_ALT_NAME,
+                                        &alt_name);
   if (rv != SECSuccess)
     return;
 
