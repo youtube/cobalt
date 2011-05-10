@@ -210,7 +210,7 @@ class GConfSettingGetterImplGConf
         // the case at least for ui_tests running under Valgrind in
         // bug 16076.
         VLOG(1) << "~GConfSettingGetterImplGConf: releasing gconf client";
-        Shutdown();
+        ShutDown();
       } else {
         LOG(WARNING) << "~GConfSettingGetterImplGConf: leaking gconf client";
         client_ = NULL;
@@ -244,13 +244,13 @@ class GConfSettingGetterImplGConf
     if (error != NULL) {
       LOG(ERROR) << "Error requesting gconf directory: " << error->message;
       g_error_free(error);
-      Shutdown();
+      ShutDown();
       return false;
     }
     return true;
   }
 
-  void Shutdown() {
+  void ShutDown() {
     if (client_) {
       DCHECK(MessageLoop::current() == loop_);
       // This also disables gconf notifications.
@@ -260,7 +260,7 @@ class GConfSettingGetterImplGConf
     }
   }
 
-  bool SetupNotification(ProxyConfigServiceLinux::Delegate* delegate) {
+  bool SetUpNotifications(ProxyConfigServiceLinux::Delegate* delegate) {
     DCHECK(client_);
     DCHECK(MessageLoop::current() == loop_);
     GError* error = NULL;
@@ -278,9 +278,11 @@ class GConfSettingGetterImplGConf
     if (error != NULL) {
       LOG(ERROR) << "Error requesting gconf notifications: " << error->message;
       g_error_free(error);
-      Shutdown();
+      ShutDown();
       return false;
     }
+    // Simulate a change to avoid possibly losing updates before this point.
+    OnChangeNotification();
     return true;
   }
 
@@ -500,7 +502,7 @@ class GConfSettingGetterImplKDE
     // Here in the KDE version, we can safely close the file descriptor
     // anyway. (Not that it really matters; the process is exiting.)
     if (inotify_fd_ >= 0)
-      Shutdown();
+      ShutDown();
     DCHECK(inotify_fd_ < 0);
   }
 
@@ -523,12 +525,12 @@ class GConfSettingGetterImplKDE
     }
     file_loop_ = file_loop;
     // The initial read is done on the current thread, not |file_loop_|,
-    // since we will need to have it for SetupAndFetchInitialConfig().
+    // since we will need to have it for SetUpAndFetchInitialConfig().
     UpdateCachedSettings();
     return true;
   }
 
-  void Shutdown() {
+  void ShutDown() {
     if (inotify_fd_ >= 0) {
       ResetCachedSettings();
       inotify_watcher_.StopWatchingFileDescriptor();
@@ -537,9 +539,9 @@ class GConfSettingGetterImplKDE
     }
   }
 
-  bool SetupNotification(ProxyConfigServiceLinux::Delegate* delegate) {
+  bool SetUpNotifications(ProxyConfigServiceLinux::Delegate* delegate) {
     DCHECK(inotify_fd_ >= 0);
-    DCHECK(file_loop_);
+    DCHECK(MessageLoop::current() == file_loop_);
     // We can't just watch the kioslaverc file directly, since KDE will write
     // a new copy of it and then rename it whenever settings are changed and
     // inotify watches inodes (so we'll be watching the old deleted file after
@@ -549,8 +551,12 @@ class GConfSettingGetterImplKDE
                           IN_MODIFY | IN_MOVED_TO) < 0)
       return false;
     notify_delegate_ = delegate;
-    return file_loop_->WatchFileDescriptor(inotify_fd_, true,
-        MessageLoopForIO::WATCH_READ, &inotify_watcher_, this);
+    if (!file_loop_->WatchFileDescriptor(inotify_fd_, true,
+            MessageLoopForIO::WATCH_READ, &inotify_watcher_, this))
+      return false;
+    // Simulate a change to avoid possibly losing updates before this point.
+    OnChangeNotification();
+    return true;
   }
 
   virtual MessageLoop* GetNotificationLoop() {
@@ -1102,7 +1108,7 @@ ProxyConfigServiceLinux::Delegate::Delegate(base::Environment* env_var_getter,
       glib_default_loop_(NULL), io_loop_(NULL) {
 }
 
-void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
+void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
     MessageLoop* glib_default_loop, MessageLoop* io_loop,
     MessageLoopForIO* file_loop) {
   // We should be running on the default glib main loop thread right
@@ -1130,25 +1136,43 @@ void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
   // mislead us.
 
   bool got_config = false;
-  if (gconf_getter_.get()) {
-    if (gconf_getter_->Init(glib_default_loop, file_loop) &&
-        (!io_loop || !file_loop || gconf_getter_->SetupNotification(this))) {
-      if (GetConfigFromGConf(&cached_config_)) {
-        cached_config_.set_id(1);  // mark it as valid
-        got_config = true;
-        VLOG(1) << "Obtained proxy settings from "
-                << gconf_getter_->GetDataSource();
-        // If gconf proxy mode is "none", meaning direct, then we take
-        // that to be a valid config and will not check environment
-        // variables. The alternative would have been to look for a proxy
-        // whereever we can find one.
-        //
-        // Keep a copy of the config for use from this thread for
-        // comparison with updated settings when we get notifications.
-        reference_config_ = cached_config_;
-        reference_config_.set_id(1);  // mark it as valid
+  if (gconf_getter_.get() &&
+      gconf_getter_->Init(glib_default_loop, file_loop) &&
+      GetConfigFromGConf(&cached_config_)) {
+    cached_config_.set_id(1);  // Mark it as valid.
+    VLOG(1) << "Obtained proxy settings from "
+            << gconf_getter_->GetDataSource();
+
+    // If gconf proxy mode is "none", meaning direct, then we take
+    // that to be a valid config and will not check environment
+    // variables. The alternative would have been to look for a proxy
+    // whereever we can find one.
+    got_config = true;
+
+    // Keep a copy of the config for use from this thread for
+    // comparison with updated settings when we get notifications.
+    reference_config_ = cached_config_;
+    reference_config_.set_id(1);  // Mark it as valid.
+
+    // We only set up notifications if we have IO and file loops available.
+    // We do this after getting the initial configuration so that we don't have
+    // to worry about cancelling it if the initial fetch above fails. Note that
+    // setting up notifications has the side effect of simulating a change, so
+    // that we won't lose any updates that may have happened after the initial
+    // fetch and before setting up notifications. We'll detect the common case
+    // of no changes in OnCheckProxyConfigSettings() (or sooner) and ignore it.
+    if (io_loop && file_loop) {
+      MessageLoop* required_loop = gconf_getter_->GetNotificationLoop();
+      if (!required_loop || MessageLoop::current() == required_loop) {
+        // In this case we are already on an acceptable thread.
+        SetUpNotifications();
       } else {
-        gconf_getter_->Shutdown();  // Stop notifications
+        // Post a task to set up notifications. We don't wait for success.
+        required_loop->PostTask(
+            FROM_HERE,
+            NewRunnableMethod(
+                this,
+                &ProxyConfigServiceLinux::Delegate::SetUpNotifications));
       }
     }
   }
@@ -1156,14 +1180,22 @@ void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
   if (!got_config) {
     // We fall back on environment variables.
     //
-    // Consulting environment variables doesn't need to be done from
-    // the default glib main loop, but it's a tiny enough amount of
-    // work.
+    // Consulting environment variables doesn't need to be done from the
+    // default glib main loop, but it's a tiny enough amount of work.
     if (GetConfigFromEnv(&cached_config_)) {
-      cached_config_.set_id(1);  // mark it as valid
+      cached_config_.set_id(1);  // Mark it as valid.
       VLOG(1) << "Obtained proxy settings from environment variables";
     }
   }
+}
+
+// Depending on the GConfSettingGetter in use, this method will be called
+// on either the UI thread (GConf) or the file thread (KDE).
+void ProxyConfigServiceLinux::Delegate::SetUpNotifications() {
+  MessageLoop* required_loop = gconf_getter_->GetNotificationLoop();
+  DCHECK(!required_loop || MessageLoop::current() == required_loop);
+  if (!gconf_getter_->SetUpNotifications(this))
+    LOG(ERROR) << "Unable to set up proxy configuration change notifications";
 }
 
 void ProxyConfigServiceLinux::Delegate::AddObserver(Observer* observer) {
@@ -1216,6 +1248,8 @@ void ProxyConfigServiceLinux::Delegate::OnCheckProxyConfigSettings() {
             new_config));
     // Update the thread-private copy in |reference_config_| as well.
     reference_config_ = new_config;
+  } else {
+    VLOG(1) << "Detected no-op change to proxy settings. Doing nothing.";
   }
 }
 
@@ -1250,7 +1284,7 @@ void ProxyConfigServiceLinux::Delegate::PostDestroyTask() {
 void ProxyConfigServiceLinux::Delegate::OnDestroy() {
   MessageLoop* shutdown_loop = gconf_getter_->GetNotificationLoop();
   DCHECK(!shutdown_loop || MessageLoop::current() == shutdown_loop);
-  gconf_getter_->Shutdown();
+  gconf_getter_->ShutDown();
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux()

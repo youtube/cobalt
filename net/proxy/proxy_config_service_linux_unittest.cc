@@ -176,9 +176,9 @@ class MockGConfSettingGetter
     return true;
   }
 
-  virtual void Shutdown() {}
+  virtual void ShutDown() {}
 
-  virtual bool SetupNotification(ProxyConfigServiceLinux::Delegate* delegate) {
+  virtual bool SetUpNotifications(ProxyConfigServiceLinux::Delegate* delegate) {
     return true;
   }
 
