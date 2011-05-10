@@ -4,7 +4,8 @@
 
 #include "media/filters/ffmpeg_glue.h"
 
-#include "base/string_util.h"
+#include "base/logging.h"
+#include "base/stringprintf.h"
 #include "media/base/filters.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 
@@ -181,7 +182,7 @@ std::string FFmpegGlue::GetProtocolKey(FFmpegURLProtocol* protocol) {
   // Use the FFmpegURLProtocol's memory address to generate the unique string.
   // This also has the nice property that adding the same FFmpegURLProtocol
   // reference will not generate duplicate entries.
-  return StringPrintf("%s://%p", kProtocol, static_cast<void*>(protocol));
+  return base::StringPrintf("%s://%p", kProtocol, static_cast<void*>(protocol));
 }
 
 }  // namespace media
