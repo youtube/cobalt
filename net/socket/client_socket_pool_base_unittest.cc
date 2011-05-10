@@ -3129,6 +3129,61 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectClosesIdleSocketRemovesGroup) {
   EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("b"));
 }
 
+TEST_F(ClientSocketPoolBaseTest, PreconnectWithoutBackupTimer) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  pool_->EnableConnectBackupJobs();
+
+  // Make the ConnectJob hang until it times out, shorten the timeout.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+  connect_job_factory_->set_timeout_duration(
+      base::TimeDelta::FromMilliseconds(500));
+  pool_->RequestSockets("a", &params_, 1, BoundNetLog());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+  MessageLoop::current()->RunAllPending();
+
+  // Make sure the backup timer doesn't fire, by making it a pending job instead
+  // of a waiting job, so it *would* complete if the timer fired.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+  base::PlatformThread::Sleep(1000);
+  MessageLoop::current()->RunAllPending();
+  EXPECT_FALSE(pool_->HasGroup("a"));
+}
+
+TEST_F(ClientSocketPoolBaseTest, PreconnectWithBackupTimer) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  pool_->EnableConnectBackupJobs();
+
+  // Make the ConnectJob hang forever.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+  pool_->RequestSockets("a", &params_, 1, BoundNetLog());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+  MessageLoop::current()->RunAllPending();
+
+  // Make the backup job be a pending job, so it completes normally.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+  EXPECT_EQ(ERR_IO_PENDING, handle.Init("a",
+                                        params_,
+                                        kDefaultPriority,
+                                        &callback,
+                                        pool_.get(),
+                                        BoundNetLog()));
+  // Timer has started, but the other connect job shouldn't be created yet.
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+  EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("a"));
+  ASSERT_EQ(OK, callback.WaitForResult());
+
+  // The hung connect job should still be there, but everything else should be
+  // complete.
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+  EXPECT_EQ(1, pool_->NumActiveSocketsInGroup("a"));
+}
+
 }  // namespace
 
 }  // namespace net
