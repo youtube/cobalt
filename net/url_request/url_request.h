@@ -188,18 +188,17 @@ class URLRequest : public base::NonThreadSafe {
                                        int cert_error,
                                        X509Certificate* cert);
 
-    // Called when reading cookies. |blocked_by_policy| is true if access to
-    // cookies was denied due to content settings. This method will never be
-    // invoked when LOAD_DO_NOT_SEND_COOKIES is specified.
-    virtual void OnGetCookies(URLRequest* request, bool blocked_by_policy);
+    // Called when reading cookies to allow the delegate to block access to the
+    // cookie. This method will never be invoked when LOAD_DO_NOT_SEND_COOKIES
+    // is specified.
+    virtual bool CanGetCookies(URLRequest* request);
 
-    // Called when a cookie is set. |blocked_by_policy| is true if the cookie
-    // was rejected due to content settings. This method will never be invoked
-    // when LOAD_DO_NOT_SAVE_COOKIES is specified.
-    virtual void OnSetCookie(URLRequest* request,
-                             const std::string& cookie_line,
-                             const CookieOptions& options,
-                             bool blocked_by_policy);
+    // Called when a cookie is set to allow the delegate to block access to the
+    // cookie. This method will never be invoked when LOAD_DO_NOT_SAVE_COOKIES
+    // is specified.
+    virtual bool CanSetCookie(URLRequest* request,
+                              const std::string& cookie_line,
+                              CookieOptions* options);
 
     // After calling Start(), the delegate will receive an OnResponseStarted
     // callback when the request has completed.  If an error occurred, the

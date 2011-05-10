@@ -16,7 +16,6 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "net/base/cert_status_flags.h"
-#include "net/base/cookie_policy.h"
 #include "net/base/cookie_store.h"
 #include "net/base/filter.h"
 #include "net/base/host_port_pair.h"
@@ -427,17 +426,18 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  int policy = OK;
+  // If the request was destroyed, then there is no more work to do.
+  if (!request_)
+    return;
 
-  if (request_info_.load_flags & LOAD_DO_NOT_SEND_COOKIES) {
-    policy = ERR_FAILED;
-  } else if (request_->context()->cookie_policy()) {
-    policy = request_->context()->cookie_policy()->CanGetCookies(
-        request_->url(),
-        request_->first_party_for_cookies());
+  bool allow = true;
+  if (request_info_.load_flags & LOAD_DO_NOT_SEND_COOKIES ||
+      (request_->delegate() &&
+       !request_->delegate()->CanGetCookies(request_))) {
+    allow = false;
   }
 
-  OnCanGetCookiesCompleted(policy);
+  OnCanGetCookiesCompleted(allow);
 }
 
 void URLRequestHttpJob::SaveCookiesAndNotifyHeadersComplete() {
@@ -468,18 +468,23 @@ void URLRequestHttpJob::SaveNextCookie() {
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  int policy = OK;
-
+  bool allow = true;
+  CookieOptions options;
   if (request_info_.load_flags & LOAD_DO_NOT_SAVE_COOKIES) {
-    policy = ERR_FAILED;
-  } else if (request_->context()->cookie_policy()) {
-    policy = request_->context()->cookie_policy()->CanSetCookie(
-        request_->url(),
-        request_->first_party_for_cookies(),
-        response_cookies_[response_cookies_save_index_]);
+    allow = false;
+  } else if (request_->delegate() && request_->context()->cookie_store()) {
+    CookieOptions options;
+    options.set_include_httponly();
+    if (request_->delegate()->CanSetCookie(
+            request_,
+            response_cookies_[response_cookies_save_index_], &options)) {
+      request_->context()->cookie_store()->SetCookieWithOptions(
+          request_->url(), response_cookies_[response_cookies_save_index_],
+          options);
+    }
   }
 
-  OnCanSetCookieCompleted(policy);
+  OnCanSetCookieCompleted();
 }
 
 void URLRequestHttpJob::FetchResponseCookies(
@@ -583,69 +588,33 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   }
 }
 
-void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
-  // If the request was destroyed, then there is no more work to do.
-  if (request_ && request_->delegate()) {
-    if (request_->context()->cookie_store()) {
-      if (policy == ERR_ACCESS_DENIED) {
-        request_->delegate()->OnGetCookies(request_, true);
-      } else if (policy == OK) {
-        request_->delegate()->OnGetCookies(request_, false);
-        CookieOptions options;
-        options.set_include_httponly();
-        std::string cookies =
-            request_->context()->cookie_store()->GetCookiesWithOptions(
-                request_->url(), options);
-        if (!cookies.empty()) {
-          request_info_.extra_headers.SetHeader(
-              HttpRequestHeaders::kCookie, cookies);
-        }
-      }
+void URLRequestHttpJob::OnCanGetCookiesCompleted(bool allow) {
+  if (request_->context()->cookie_store() && allow) {
+    CookieOptions options;
+    options.set_include_httponly();
+    std::string cookies =
+        request_->context()->cookie_store()->GetCookiesWithOptions(
+            request_->url(), options);
+    if (!cookies.empty()) {
+      request_info_.extra_headers.SetHeader(
+          HttpRequestHeaders::kCookie, cookies);
     }
-    // We may have been canceled within OnGetCookies.
-    if (GetStatus().is_success()) {
-      StartTransaction();
-    } else {
-      NotifyCanceled();
-    }
+  }
+  // We may have been canceled within CanGetCookies.
+  if (GetStatus().is_success()) {
+    StartTransaction();
+  } else {
+    NotifyCanceled();
   }
 }
 
-void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
-  // If the request was destroyed, then there is no more work to do.
-  if (request_ && request_->delegate()) {
-    if (request_->context()->cookie_store()) {
-      if (policy == ERR_ACCESS_DENIED) {
-        CookieOptions options;
-        options.set_include_httponly();
-        request_->delegate()->OnSetCookie(
-            request_,
-            response_cookies_[response_cookies_save_index_],
-            options,
-            true);
-      } else if (policy == OK || policy == OK_FOR_SESSION_ONLY) {
-        // OK to save the current response cookie now.
-        CookieOptions options;
-        options.set_include_httponly();
-        if (policy == OK_FOR_SESSION_ONLY)
-          options.set_force_session();
-        request_->context()->cookie_store()->SetCookieWithOptions(
-            request_->url(), response_cookies_[response_cookies_save_index_],
-            options);
-        request_->delegate()->OnSetCookie(
-            request_,
-            response_cookies_[response_cookies_save_index_],
-            options,
-            false);
-      }
-    }
-    response_cookies_save_index_++;
-    // We may have been canceled within OnSetCookie.
-    if (GetStatus().is_success()) {
-      SaveNextCookie();
-    } else {
-      NotifyCanceled();
-    }
+void URLRequestHttpJob::OnCanSetCookieCompleted() {
+  response_cookies_save_index_++;
+  // We may have been canceled within OnSetCookie.
+  if (GetStatus().is_success()) {
+    SaveNextCookie();
+  } else {
+    NotifyCanceled();
   }
 }
 
