@@ -5,18 +5,21 @@
 #ifndef MEDIA_VIDEO_CAPTURE_VIDEO_CAPTURE_TYPES_H_
 #define MEDIA_VIDEO_CAPTURE_VIDEO_CAPTURE_TYPES_H_
 
-#include "content/common/media_stream/media_stream_types.h"
-
 namespace media {
+
+// TODO(wjia): this type should be defined in a common place and
+// shared with device manager.
+typedef int VideoCaptureSessionId;
 
 // Parameters for starting video capture and device information.
 struct VideoCaptureParams {
   int width;
   int height;
   int frame_per_second;
-  media_stream::MediaCaptureSessionId session_id;
+  VideoCaptureSessionId session_id;
 };
 
 }  // namespace media
 
 #endif  // MEDIA_VIDEO_CAPTURE_VIDEO_CAPTURE_TYPES_H_
+
