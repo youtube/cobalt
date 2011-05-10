@@ -1655,10 +1655,8 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
 
   // Verify that the cookie isn't sent.
   {
-    TestCookiePolicy cookie_policy(TestCookiePolicy::NO_GET_COOKIES);
-    context->set_cookie_policy(&cookie_policy);
-
     TestDelegate d;
+    d.set_cookie_options(TestDelegate::NO_GET_COOKIES);
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(context);
     req.Start();
@@ -1666,8 +1664,6 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
 
     EXPECT_TRUE(d.data_received().find("Cookie: CookieToNotSend=1")
                 == std::string::npos);
-
-    context->set_cookie_policy(NULL);
 
     EXPECT_EQ(1, d.blocked_get_cookies_count());
     EXPECT_EQ(0, d.blocked_set_cookie_count());
@@ -1695,18 +1691,14 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
 
   // Try to set-up another cookie and update the previous cookie.
   {
-    TestCookiePolicy cookie_policy(TestCookiePolicy::NO_SET_COOKIE);
-    context->set_cookie_policy(&cookie_policy);
-
     TestDelegate d;
+    d.set_cookie_options(TestDelegate::NO_SET_COOKIE);
     URLRequest req(test_server.GetURL(
         "set-cookie?CookieToNotSave=1&CookieToNotUpdate=1"), &d);
     req.set_context(context);
     req.Start();
 
     MessageLoop::current()->Run();
-
-    context->set_cookie_policy(NULL);
 
     EXPECT_EQ(0, d.blocked_get_cookies_count());
     EXPECT_EQ(2, d.blocked_set_cookie_count());
@@ -1786,10 +1778,8 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
 
   // Verify that the cookie isn't sent.
   {
-    TestCookiePolicy cookie_policy(TestCookiePolicy::NO_GET_COOKIES);
-    context->set_cookie_policy(&cookie_policy);
-
     TestDelegate d;
+    d.set_cookie_options(TestDelegate::NO_GET_COOKIES);
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(context);
     req.Start();
@@ -1797,8 +1787,6 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
 
     EXPECT_TRUE(d.data_received().find("Cookie: CookieToNotSend=1")
                 == std::string::npos);
-
-    context->set_cookie_policy(NULL);
 
     EXPECT_EQ(1, d.blocked_get_cookies_count());
     EXPECT_EQ(0, d.blocked_set_cookie_count());
@@ -1826,18 +1814,14 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
 
   // Try to set-up another cookie and update the previous cookie.
   {
-    TestCookiePolicy cookie_policy(TestCookiePolicy::NO_SET_COOKIE);
-    context->set_cookie_policy(&cookie_policy);
-
     TestDelegate d;
+    d.set_cookie_options(TestDelegate::NO_SET_COOKIE);
     URLRequest req(test_server.GetURL(
         "set-cookie?CookieToNotSave=1&CookieToNotUpdate=1"), &d);
     req.set_context(context);
     req.Start();
 
     MessageLoop::current()->Run();
-
-    context->set_cookie_policy(NULL);
 
     EXPECT_EQ(0, d.blocked_get_cookies_count());
     EXPECT_EQ(2, d.blocked_set_cookie_count());
@@ -1867,12 +1851,10 @@ TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
 
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
 
-  TestCookiePolicy cookie_policy(TestCookiePolicy::FORCE_SESSION);
-  context->set_cookie_policy(&cookie_policy);
-
   // Set up a cookie.
   {
     TestDelegate d;
+    d.set_cookie_options(TestDelegate::FORCE_SESSION);
     URLRequest req(test_server.GetURL(
         "set-cookie?A=1;expires=\"Fri, 05 Feb 2010 23:42:01 GMT\""), &d);
     req.set_context(context);
@@ -1889,8 +1871,6 @@ TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
       context->cookie_store()->GetCookieMonster()->GetAllCookies();
   EXPECT_EQ(1U, cookies.size());
   EXPECT_FALSE(cookies[0].IsPersistent());
-
-  context->set_cookie_policy(NULL);
 }
 
 // In this test, we do a POST which the server will 302 redirect.
