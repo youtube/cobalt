@@ -184,6 +184,8 @@
         'video/ffmpeg_video_allocator.h',
         'video/ffmpeg_video_decode_engine.cc',
         'video/ffmpeg_video_decode_engine.h',
+        'video/picture.cc',
+        'video/picture.h',
         'video/video_decode_accelerator.cc',
         'video/video_decode_accelerator.h',
         'video/video_decode_engine.h',
