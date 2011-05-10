@@ -308,6 +308,11 @@ class BASE_API DictionaryValue : public Value {
   // replaced.
   void MergeDictionary(const DictionaryValue* dictionary);
 
+  // Swaps contents with the |other| dictionary.
+  void Swap(DictionaryValue* other) {
+    dictionary_.swap(other->dictionary_);
+  }
+
   // This class provides an iterator for the keys in the dictionary.
   // It can't be used to modify the dictionary.
   //
