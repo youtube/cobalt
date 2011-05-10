@@ -255,6 +255,7 @@ void MessageLoop::RemoveDestructionObserver(
 
 void MessageLoop::PostTask(
     const tracked_objects::Location& from_here, Task* task) {
+  CHECK(task);
   PendingTask pending_task(
       base::Bind(&TaskClosureAdapter::Run,
                  new TaskClosureAdapter(task, &should_leak_tasks_)),
@@ -265,6 +266,7 @@ void MessageLoop::PostTask(
 
 void MessageLoop::PostDelayedTask(
     const tracked_objects::Location& from_here, Task* task, int64 delay_ms) {
+  CHECK(task);
   PendingTask pending_task(
       base::Bind(&TaskClosureAdapter::Run,
                  new TaskClosureAdapter(task, &should_leak_tasks_)),
@@ -275,6 +277,7 @@ void MessageLoop::PostDelayedTask(
 
 void MessageLoop::PostNonNestableTask(
     const tracked_objects::Location& from_here, Task* task) {
+  CHECK(task);
   PendingTask pending_task(
       base::Bind(&TaskClosureAdapter::Run,
                  new TaskClosureAdapter(task, &should_leak_tasks_)),
@@ -285,6 +288,7 @@ void MessageLoop::PostNonNestableTask(
 
 void MessageLoop::PostNonNestableDelayedTask(
     const tracked_objects::Location& from_here, Task* task, int64 delay_ms) {
+  CHECK(task);
   PendingTask pending_task(
       base::Bind(&TaskClosureAdapter::Run,
                  new TaskClosureAdapter(task, &should_leak_tasks_)),
@@ -295,7 +299,7 @@ void MessageLoop::PostNonNestableDelayedTask(
 
 void MessageLoop::PostTask(
     const tracked_objects::Location& from_here, const base::Closure& task) {
-  DCHECK(!task.is_null());
+  CHECK(!task.is_null());
   PendingTask pending_task(task, from_here, CalculateDelayedRuntime(0), true);
   AddToIncomingQueue(&pending_task);
 }
@@ -303,7 +307,7 @@ void MessageLoop::PostTask(
 void MessageLoop::PostDelayedTask(
     const tracked_objects::Location& from_here, const base::Closure& task,
     int64 delay_ms) {
-  DCHECK(!task.is_null());
+  CHECK(!task.is_null());
   PendingTask pending_task(task, from_here,
                            CalculateDelayedRuntime(delay_ms), true);
   AddToIncomingQueue(&pending_task);
@@ -311,7 +315,7 @@ void MessageLoop::PostDelayedTask(
 
 void MessageLoop::PostNonNestableTask(
     const tracked_objects::Location& from_here, const base::Closure& task) {
-  DCHECK(!task.is_null());
+  CHECK(!task.is_null());
   PendingTask pending_task(task, from_here, CalculateDelayedRuntime(0), false);
   AddToIncomingQueue(&pending_task);
 }
@@ -319,7 +323,7 @@ void MessageLoop::PostNonNestableTask(
 void MessageLoop::PostNonNestableDelayedTask(
     const tracked_objects::Location& from_here, const base::Closure& task,
     int64 delay_ms) {
-  DCHECK(!task.is_null());
+  CHECK(!task.is_null());
   PendingTask pending_task(task, from_here,
                            CalculateDelayedRuntime(delay_ms), false);
   AddToIncomingQueue(&pending_task);
