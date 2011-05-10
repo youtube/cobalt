@@ -531,6 +531,14 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
                                        "googleadservices.com",
                                        true));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "googlecode.com", true));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "appspot.com", true));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "googlesyndication.com",
+                                       true));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "doubleclick.net", true));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "googlegroups.com",
+                                       true));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "gmail.com", true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.gmail.com", true));
@@ -709,6 +717,19 @@ TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {
   EXPECT_TRUE(state->HasPinsForHost(&domain_state,
                                     "kibbles.googlecode.com",
                                     true));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state, "appspot.com", true));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state,
+                                    "googlesyndication.com",
+                                    true));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state, "doubleclick.net", true));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state, "ad.doubleclick.net", true));
+  EXPECT_FALSE(state->HasPinsForHost(&domain_state,
+                                     "learn.doubleclick.net",
+                                     true));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state, "a.googlegroups.com", true));
+  EXPECT_FALSE(state->HasPinsForHost(&domain_state,
+                                     "a.googlegroups.com",
+                                     false));
 }
 
 TEST_F(TransportSecurityStateTest, ForcePreloads) {

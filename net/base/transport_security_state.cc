@@ -604,6 +604,12 @@ bool TransportSecurityState::IsPreloadedSTS(
     {16, true, "\012googleapis\003com", false, kGoogleAcceptableCerts },
     {22, true, "\020googleadservices\003com", false, kGoogleAcceptableCerts },
     {16, true, "\012googlecode\003com", false, kGoogleAcceptableCerts },
+    {13, true, "\007appspot\003com", false, kGoogleAcceptableCerts },
+    {23, true, "\021googlesyndication\003com", false, kGoogleAcceptableCerts },
+    {17, true, "\013doubleclick\003net", false, kGoogleAcceptableCerts },
+    // Exclude the learn.doubleclick.net subdomain because it uses a different
+    // CA.
+    {23, true, "\005learn\013doubleclick\003net", false, 0 },
     // Now we force HTTPS for other sites that have requested it.
     {16, false, "\003www\006paypal\003com", true, 0 },
     {16, false, "\003www\006elanex\003biz", true, 0 },
@@ -650,6 +656,8 @@ bool TransportSecurityState::IsPreloadedSTS(
     // These SNI-only domains must use an acceptable certificate iff using
     // HTTPS.
     {22, true, "\020google-analytics\003com", false, kGoogleAcceptableCerts },
+    // www. requires SNI.
+    {18, true, "\014googlegroups\003com", false, kGoogleAcceptableCerts },
   };
   static const size_t kNumPreloadedSNISTS = ARRAYSIZE_UNSAFE(kPreloadedSNISTS);
 
