@@ -6,6 +6,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
+#include "base/stringprintf.h"
 #include "base/string_util.h"
 #include "net/base/address_list.h"
 #include "net/base/auth.h"

@@ -4,7 +4,7 @@
 
 #include "net/url_request/view_cache_helper.h"
 
-#include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/escape.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
