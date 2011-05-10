@@ -54,7 +54,7 @@
 // which is threadsafe internally via TraceLog::lock_. The enabled flag may
 // cause some threads to incorrectly call or skip calling AddTraceEvent near
 // the time of the system being enabled or disabled. This is acceptable as
-// we tollerate some data loss while the system is being enabled/disabled and
+// we tolerate some data loss while the system is being enabled/disabled and
 // because AddTraceEvent is threadsafe internally and checks the enabled state
 // again under lock.
 //
