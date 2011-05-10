@@ -22,6 +22,7 @@
         '../media/media.gyp:*',
         '../net/net.gyp:*',
         '../ppapi/ppapi.gyp:*',
+        '../ppapi/ppapi_internal.gyp:*',
         '../printing/printing.gyp:*',
         '../sdch/sdch.gyp:*',
         '../skia/skia.gyp:*',
