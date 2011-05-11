@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -808,7 +808,7 @@ bool BackendImpl::SetMaxSize(int max_bytes) {
 }
 
 void BackendImpl::SetType(net::CacheType type) {
-  DCHECK(type != net::MEMORY_CACHE);
+  DCHECK_NE(net::MEMORY_CACHE, type);
   cache_type_ = type;
 }
 
@@ -933,7 +933,7 @@ void BackendImpl::RemoveEntry(EntryImpl* entry) {
   if (!new_eviction_)
     return;
 
-  DCHECK(ENTRY_NORMAL != entry->entry()->Data()->state);
+  DCHECK_NE(ENTRY_NORMAL, entry->entry()->Data()->state);
 
   Trace("Remove entry 0x%p", entry);
   eviction_.OnDestroyEntry(entry);
