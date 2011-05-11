@@ -202,7 +202,7 @@ ClientSocketPoolBaseHelper::RemoveRequestFromQueue(
   group->mutable_pending_requests()->erase(it);
   // If there are no more requests, we kill the backup timer.
   if (group->pending_requests().empty())
-    group->CleanupBackupJob();
+    group->CleanupBackupJobTimer();
   return req;
 }
 
@@ -334,7 +334,7 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
     // creating a new one.  If the SYN is lost, this backup socket may complete
     // before the slow socket, improving end user latency.
     if (connect_backup_jobs_enabled_ &&
-        group->IsEmpty() && !group->HasBackupJob()) {
+        group->IsEmpty() && !group->BackupJobTimerIsRunning()) {
       group->StartBackupSocketTimer(group_name, this);
     }
 
@@ -562,7 +562,7 @@ DictionaryValue* ClientSocketPoolBaseHelper::GetInfoAsValue(
 
     group_dict->SetBoolean("is_stalled",
                            group->IsStalled(max_sockets_per_group_));
-    group_dict->SetBoolean("has_backup_job", group->HasBackupJob());
+    group_dict->SetBoolean("has_backup_job", group->BackupJobTimerIsRunning());
 
     all_groups_dict->SetWithoutPathExpansion(it->first, group_dict);
   }
@@ -687,6 +687,11 @@ void ClientSocketPoolBaseHelper::ReleaseSocket(const std::string& group_name,
     OnAvailableSocketSlot(group_name, group);
   } else {
     delete socket;
+    if (connect_backup_jobs_enabled_ &&
+        !group->BackupJobTimerIsRunning() && !group->HasBackupJob() &&
+        !group->pending_requests().empty()) {
+      group->StartBackupSocketTimer(group_name, this);
+    }
   }
 
   CheckForStalledSocketGroups();
@@ -828,8 +833,10 @@ void ClientSocketPoolBaseHelper::RemoveConnectJob(ConnectJob* job,
 
   // If we've got no more jobs for this group, then we no longer need a
   // backup job either.
+  // TODO(willchan): Probably should only cancel the backup job timer if
+  // RemoveConnectJob() is called on success.
   if (group->jobs().empty())
-    group->CleanupBackupJob();
+    group->CleanupBackupJobTimer();
 
   DCHECK(job);
   delete job;
@@ -1015,8 +1022,19 @@ ClientSocketPoolBaseHelper::Group::Group()
     : active_socket_count_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
 
-ClientSocketPoolBaseHelper::Group::~Group() {
-  CleanupBackupJob();
+ClientSocketPoolBaseHelper::Group::~Group() {}
+
+bool ClientSocketPoolBaseHelper::Group::HasBackupJob() const {
+  for (std::set<ConnectJob*>::const_iterator it = jobs_.begin();
+       it != jobs_.end(); ++it) {
+    const ConnectJob* job = *it;
+    // NOTE(willchan): We should probably create a better signal at some point.
+    // I consider this code a temporary hack anyway, so I'll fix this later.
+    if (job->prefer_ipv4())
+      return true;
+  }
+
+  return false;
 }
 
 void ClientSocketPoolBaseHelper::Group::StartBackupSocketTimer(
