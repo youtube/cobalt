@@ -80,12 +80,11 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 #if defined(OS_WIN)
   typedef base::MessagePumpWin::Dispatcher Dispatcher;
   typedef base::MessagePumpForUI::Observer Observer;
-#elif !defined(OS_MACOSX)
-#if defined(TOUCH_UI)
+#elif defined(TOUCH_UI)
   typedef base::MessagePumpGlibXDispatcher Dispatcher;
-#else
+  typedef base::MessagePumpXObserver Observer;
+#elif !defined(OS_MACOSX)
   typedef base::MessagePumpForUI::Dispatcher Dispatcher;
-#endif
   typedef base::MessagePumpForUI::Observer Observer;
 #endif
 
