@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -107,7 +107,7 @@ void MemEntryImpl::Open() {
   // counting to child entry.
   DCHECK(type() == kParentEntry);
   ref_count_++;
-  DCHECK(ref_count_ >= 0);
+  DCHECK_GE(ref_count_, 0);
   DCHECK(!doomed_);
 }
 
@@ -141,7 +141,7 @@ void MemEntryImpl::Close() {
   // Only a parent entry can be closed.
   DCHECK(type() == kParentEntry);
   ref_count_--;
-  DCHECK(ref_count_ >= 0);
+  DCHECK_GE(ref_count_, 0);
   if (!ref_count_ && doomed_)
     InternalDoom();
 }
