@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -611,7 +611,7 @@ void OnNoMemory() {
 }  // namespace
 
 extern "C" {
-#if !defined(USE_TCMALLOC)
+#if !defined(USE_TCMALLOC) && !defined(ADDRESS_SANITIZER)
 
 extern "C" {
 void* __libc_malloc(size_t size);
@@ -637,6 +637,9 @@ void* __libc_memalign(size_t alignment, size_t size);
 //
 // If we are using tcmalloc, then the problem is moot since tcmalloc handles
 // this for us. Thus this code is in a !defined(USE_TCMALLOC) block.
+//
+// If we are testing the binary with AddressSanitizer, we should not
+// redefine malloc and let AddressSanitizer do it instead.
 //
 // We call the real libc functions in this code by using __libc_malloc etc.
 // Previously we tried using dlsym(RTLD_NEXT, ...) but that failed depending on
