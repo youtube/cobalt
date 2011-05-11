@@ -13,7 +13,6 @@
 #pragma once
 
 #include "base/callback_internal.h"
-#include "base/callback_old.h"
 
 // New, super-duper, unified Callback system.  This will eventually replace
 // NewRunnableMethod, NewRunnableFunction, CreateFunctor, and CreateCallback
