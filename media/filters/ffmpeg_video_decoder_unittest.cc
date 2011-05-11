@@ -284,7 +284,6 @@ ACTION_P2(ReadFromDemux, decoder, buffer) {
 }
 
 ACTION_P3(ReturnFromDemux, decoder, buffer, time_tuple) {
-  delete arg0;
   buffer->SetTimestamp(time_tuple.timestamp);
   buffer->SetDuration(time_tuple.duration);
   decoder->OnReadComplete(buffer);

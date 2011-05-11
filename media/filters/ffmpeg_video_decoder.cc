@@ -6,6 +6,7 @@
 
 #include <deque>
 
+#include "base/bind.h"
 #include "base/task.h"
 #include "media/base/callback.h"
 #include "media/base/filters.h"
@@ -348,8 +349,8 @@ void FFmpegVideoDecoder::ProduceVideoSample(
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kStopped);
 
-  demuxer_stream_->Read(
-      NewCallback(this, &FFmpegVideoDecoder::OnReadComplete));
+  demuxer_stream_->Read(base::Bind(&FFmpegVideoDecoder::OnReadComplete,
+                                   this));
 }
 
 bool FFmpegVideoDecoder::ProvidesBuffer() {
