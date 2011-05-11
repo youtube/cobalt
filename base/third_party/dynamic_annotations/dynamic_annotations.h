@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2009, Google Inc.
+/* Copyright (c) 2011, Google Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,9 +22,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * ---
- * Author: Kostya Serebryany
  */
 
 /* This file defines dynamic annotations for use with dynamic analysis
@@ -145,8 +142,10 @@
     DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarSignalAll)(__FILE__, __LINE__, cv)
 
   /* Annotations for user-defined synchronization mechanisms. */
-  #define ANNOTATE_HAPPENS_BEFORE(obj) ANNOTATE_CONDVAR_SIGNAL(obj)
-  #define ANNOTATE_HAPPENS_AFTER(obj)  ANNOTATE_CONDVAR_WAIT(obj)
+  #define ANNOTATE_HAPPENS_BEFORE(obj) \
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateHappensBefore)(__FILE__, __LINE__, obj)
+  #define ANNOTATE_HAPPENS_AFTER(obj) \
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateHappensAfter)(__FILE__, __LINE__, obj)
 
   /* DEPRECATED. Don't use it. */
   #define ANNOTATE_PUBLISH_MEMORY_RANGE(pointer, size) \
@@ -463,6 +462,12 @@ void DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarSignal)(
 void DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarSignalAll)(
     const char *file, int line,
     const volatile void *cv) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateHappensBefore)(
+    const char *file, int line,
+    const volatile void *obj) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateHappensAfter)(
+    const char *file, int line,
+    const volatile void *obj) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
 void DYNAMIC_ANNOTATIONS_NAME(AnnotatePublishMemoryRange)(
     const char *file, int line,
     const volatile void *address, long size) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
