@@ -136,7 +136,7 @@ void FFmpegDemuxerStream::Stop() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
-  STLDeleteElements(&read_queue_);
+  read_queue_.clear();
   stopped_ = true;
 }
 
@@ -152,19 +152,17 @@ const MediaFormat& FFmpegDemuxerStream::media_format() {
   return media_format_;
 }
 
-void FFmpegDemuxerStream::Read(Callback1<Buffer*>::Type* read_callback) {
-  DCHECK(read_callback);
+void FFmpegDemuxerStream::Read(const ReadCallback& read_callback) {
+  DCHECK(!read_callback.is_null());
 
   base::AutoLock auto_lock(lock_);
   if (!buffer_queue_.empty()) {
-    scoped_ptr<Callback1<Buffer*>::Type> read_callback_deleter(read_callback);
-
     // Dequeue a buffer send back.
     scoped_refptr<Buffer> buffer = buffer_queue_.front();
     buffer_queue_.pop_front();
 
     // Execute the callback.
-    read_callback_deleter->Run(buffer);
+    read_callback.Run(buffer);
 
     if (!read_queue_.empty())
       demuxer_->PostDemuxTask();
@@ -175,7 +173,7 @@ void FFmpegDemuxerStream::Read(Callback1<Buffer*>::Type* read_callback) {
   }
 }
 
-void FFmpegDemuxerStream::ReadTask(Callback1<Buffer*>::Type* read_callback) {
+void FFmpegDemuxerStream::ReadTask(const ReadCallback& read_callback) {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
 
   base::AutoLock auto_lock(lock_);
@@ -183,7 +181,6 @@ void FFmpegDemuxerStream::ReadTask(Callback1<Buffer*>::Type* read_callback) {
   //
   // TODO(scherkus): it would be cleaner if we replied with an error message.
   if (stopped_) {
-    delete read_callback;
     return;
   }
 
@@ -206,12 +203,12 @@ void FFmpegDemuxerStream::FulfillPendingRead() {
 
   // Dequeue a buffer and pending read pair.
   scoped_refptr<Buffer> buffer = buffer_queue_.front();
-  scoped_ptr<Callback1<Buffer*>::Type> read_callback(read_queue_.front());
+  ReadCallback read_callback(read_queue_.front());
   buffer_queue_.pop_front();
   read_queue_.pop_front();
 
   // Execute the callback.
-  read_callback->Run(buffer);
+  read_callback.Run(buffer);
 }
 
 void FFmpegDemuxerStream::EnableBitstreamConverter() {

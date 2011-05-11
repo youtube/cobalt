@@ -81,7 +81,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   // not make calls into FFmpegDemuxerStream directly or that may cause a
   // deadlock. |read_callback| should execute as quickly as possible because
   // |lock_| is held throughout the life of the callback.
-  virtual void Read(Callback1<Buffer*>::Type* read_callback);
+  virtual void Read(const ReadCallback& read_callback);
   // Bitstream converter to convert input packet.
   virtual void EnableBitstreamConverter();
   virtual AVStream* GetAVStream();
@@ -90,7 +90,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   virtual ~FFmpegDemuxerStream();
 
   // Carries out enqueuing a pending read on the demuxer thread.
-  void ReadTask(Callback1<Buffer*>::Type* read_callback);
+  void ReadTask(const ReadCallback& read_callback);
 
   // Attempts to fulfill a single pending read by dequeueing a buffer and read
   // callback pair and executing the callback. The calling function must
@@ -112,7 +112,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   typedef std::deque<scoped_refptr<Buffer> > BufferQueue;
   BufferQueue buffer_queue_;
 
-  typedef std::deque<Callback1<Buffer*>::Type*> ReadQueue;
+  typedef std::deque<ReadCallback> ReadQueue;
   ReadQueue read_queue_;
 
   // Used to translate bitstream formats.

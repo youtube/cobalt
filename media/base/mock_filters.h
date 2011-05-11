@@ -157,7 +157,7 @@ class MockDemuxerStream : public DemuxerStream {
   // DemuxerStream implementation.
   MOCK_METHOD0(type, Type());
   MOCK_METHOD0(media_format, const MediaFormat&());
-  MOCK_METHOD1(Read, void(Callback1<Buffer*>::Type* read_callback));
+  MOCK_METHOD1(Read, void(const ReadCallback& read_callback));
   MOCK_METHOD0(GetAVStream, AVStream*());
   MOCK_METHOD0(EnableBitstreamConverter, void());
 
