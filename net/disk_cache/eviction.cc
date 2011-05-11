@@ -266,7 +266,7 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty) {
   } else {
     entry->DeleteEntryData(false);
     EntryStore* info = entry->entry()->Data();
-    DCHECK(ENTRY_NORMAL == info->state);
+    DCHECK_EQ(ENTRY_NORMAL, info->state);
 
     rankings_->Remove(entry->rankings(), GetListForEntryV2(entry));
     info->state = ENTRY_EVICTED;
@@ -368,7 +368,7 @@ void Eviction::UpdateRankV2(EntryImpl* entry, bool modified) {
 
 void Eviction::OnOpenEntryV2(EntryImpl* entry) {
   EntryStore* info = entry->entry()->Data();
-  DCHECK(ENTRY_NORMAL == info->state);
+  DCHECK_EQ(ENTRY_NORMAL, info->state);
 
   if (info->reuse_count < kint32max) {
     info->reuse_count++;
@@ -434,7 +434,7 @@ void Eviction::OnDestroyEntryV2(EntryImpl* entry) {
 
 Rankings::List Eviction::GetListForEntryV2(EntryImpl* entry) {
   EntryStore* info = entry->entry()->Data();
-  DCHECK(ENTRY_NORMAL == info->state);
+  DCHECK_EQ(ENTRY_NORMAL, info->state);
 
   if (!info->reuse_count)
     return Rankings::NO_USE;

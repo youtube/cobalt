@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -182,7 +182,7 @@ bool File::Read(void* buffer, size_t buffer_len, size_t offset,
 
   // The operation completed already. We'll be called back anyway.
   *completed = (actual == size);
-  DCHECK(actual == size);
+  DCHECK_EQ(size, actual);
   data->callback_ = NULL;
   data->file_ = NULL;  // There is no reason to hold on to this anymore.
   return *completed;
@@ -222,7 +222,7 @@ bool File::AsyncWrite(const void* buffer, size_t buffer_len, size_t offset,
 
   // The operation completed already. We'll be called back anyway.
   *completed = (actual == size);
-  DCHECK(actual == size);
+  DCHECK_EQ(size, actual);
   data->callback_ = NULL;
   data->file_ = NULL;  // There is no reason to hold on to this anymore.
   return *completed;

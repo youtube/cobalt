@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -133,7 +133,7 @@ CallbackTest::~CallbackTest() {}
 // errors (an unexpected test received)
 void CallbackTest::RunWithParams(const Tuple1<int>& params) {
   if (reuse_) {
-    DCHECK(1 == reuse_);
+    DCHECK_EQ(1, reuse_);
     if (2 == reuse_)
       g_cache_tests_error = true;
     reuse_++;
