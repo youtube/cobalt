@@ -8,8 +8,11 @@
 
 #include <vector>
 
+#include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
+#include "base/time.h"
 #include "net/base/capturing_net_log.h"
 #include "net/base/host_cache.h"
 #include "net/base/host_resolver.h"
@@ -48,6 +51,12 @@ namespace net {
 // threads.
 //
 // Requests are ordered in the queue based on their priority.
+//
+// Whenever we try to resolve the host, we post a delayed task to check if host
+// resolution (OnLookupComplete) is completed or not. If the original attempt
+// hasn't completed, then we start another attempt for host resolution. We take
+// the results from the first attempt that finishes and ignore the results from
+// all other attempts.
 
 class HostResolverImpl : public HostResolver,
                          public base::NonThreadSafe,
@@ -74,7 +83,16 @@ class HostResolverImpl : public HostResolver,
   // |resolver_proc| is NULL then the default host resolver procedure is
   // used (which is SystemHostResolverProc except if overridden).
   // |max_jobs| specifies the maximum number of threads that the host resolver
-  // will use. Use SetPoolConstraints() to specify finer-grain settings.
+  // will use (not counting potential duplicate attempts). Use
+  // SetPoolConstraints() to specify finer-grain settings.
+  //
+  // For each attempt, we could start another attempt if host is not resolved
+  // within unresponsive_delay_ time. We keep attempting to resolve the host
+  // until retry interval reaches maximum_unresponsive_delay_ time. For every
+  // retry attempt, we grow the unresponsive_delay_ by the retry_factor_ amount
+  // (that is retry interval is multiplied by the retry factor each time). Once
+  // retry interval exceeds maximum_unresponsive_delay_ time, we give up on
+  // additional attempts.
   //
   // |net_log| must remain valid for the life of the HostResolverImpl.
   HostResolverImpl(HostResolverProc* resolver_proc,
@@ -129,6 +147,12 @@ class HostResolverImpl : public HostResolver,
   virtual void Shutdown();
 
  private:
+  // Allow tests to access our innards for testing purposes.
+  friend class LookupAttemptHostResolverProc;
+
+  // Allow tests to access our innards for testing purposes.
+  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest, MultipleAttempts);
+
   class Job;
   class JobPool;
   class IPv6ProbeJob;
@@ -226,14 +250,52 @@ class HostResolverImpl : public HostResolver,
   // NetworkChangeNotifier::IPAddressObserver methods:
   virtual void OnIPAddressChanged();
 
+  // Helper methods for unit tests to get and set unresponsive_delay_.
+  base::TimeDelta unresponsive_delay() const { return unresponsive_delay_; }
+  void set_unresponsive_delay(const base::TimeDelta& unresponsive_delay) {
+    unresponsive_delay_ = unresponsive_delay;
+  }
+
+  // Helper methods to get and set retry_factor.
+  uint32 retry_factor() const {
+    return retry_factor_;
+  }
+  void set_retry_factor(const uint32 retry_factor) {
+    retry_factor_ = retry_factor;
+  }
+
+  // Helper methods for unit tests to get and set maximum_unresponsive_delay_.
+  base::TimeDelta maximum_unresponsive_delay() const {
+    return maximum_unresponsive_delay_;
+  }
+  void set_maximum_unresponsive_delay(
+      const base::TimeDelta& maximum_unresponsive_delay) {
+    maximum_unresponsive_delay_ = maximum_unresponsive_delay;
+  }
+
   // Cache of host resolution results.
   scoped_ptr<HostCache> cache_;
 
   // Map from hostname to outstanding job.
   JobMap jobs_;
 
-  // Maximum number of concurrent jobs allowed, across all pools.
+  // Maximum number of concurrent jobs allowed, across all pools. Each job may
+  // create multiple concurrent resolve attempts for the hostname.
   size_t max_jobs_;
+
+  // This is the limit after which we make another attempt to resolve the host
+  // if the worker thread has not responded yet. Allow unit tests to change the
+  // value.
+  base::TimeDelta unresponsive_delay_;
+
+  // Factor to grow unresponsive_delay_ when we re-re-try. Allow unit tests to
+  // change the value.
+  uint32 retry_factor_;
+
+  // This is the limit on how large we grow the retry interval. Once it exceeds
+  // this, we give up on additional attempts. Allow unit tests to change the
+  // value.
+  base::TimeDelta maximum_unresponsive_delay_;
 
   // The information to track pending requests for a JobPool, as well as
   // how many outstanding jobs the pool already has, and its constraints.
