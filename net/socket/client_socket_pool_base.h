@@ -360,9 +360,11 @@ class ClientSocketPoolBaseHelper
       return pending_requests_.front()->priority();
     }
 
-    bool HasBackupJob() const { return !method_factory_.empty(); }
+    bool HasBackupJob() const;
 
-    void CleanupBackupJob() {
+    bool BackupJobTimerIsRunning() const { return !method_factory_.empty(); }
+
+    void CleanupBackupJobTimer() {
       method_factory_.RevokeAll();
     }
 
