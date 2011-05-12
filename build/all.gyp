@@ -60,7 +60,7 @@
             '../v8/tools/gyp/v8.gyp:*',
           ],
         }],
-        ['OS=="mac" or OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+        ['OS=="mac" or OS=="linux"', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',
            ],
@@ -89,7 +89,7 @@
             }],
           ],
         }],
-        ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+        ['toolkit_uses_gtk==1', {
           'dependencies': [
             '../tools/gtk_clipboard_dump/gtk_clipboard_dump.gyp:*',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:*',
@@ -285,11 +285,11 @@
         '../chrome/chrome.gyp:chromedriver',
       ],
       'conditions': [
-        ['OS=="mac" or OS=="win" or (OS=="linux" and target_arch==python_arch)', {
+        ['OS=="mac" or OS=="win" or (os_posix==1 and target_arch==python_arch)', {
           'dependencies': [
             '../chrome/chrome.gyp:pyautolib',
           ],
-        }], # 'OS=="mac" or OS=="win" or (OS=="linux" and target_arch==python_arch)'
+        }],
       ],
     }, # target_name: chromium_builder_qa
   ],
