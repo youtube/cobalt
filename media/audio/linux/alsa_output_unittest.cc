@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/message_loop.h"
-#include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
 #include "media/audio/linux/audio_manager_linux.h"
@@ -649,7 +649,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect) {
   for (int i = 1; i <= 9; ++i) {
     if (i == 3 || i == 4 || i == 5)  // invalid number of channels
       continue;
-    SCOPED_TRACE(StringPrintf("Attempting %d Channel", i));
+    SCOPED_TRACE(base::StringPrintf("Attempting %d Channel", i));
 
     // Hints will only be grabbed for channel numbers that have non-default
     // devices associated with them.
