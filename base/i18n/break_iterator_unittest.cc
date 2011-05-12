@@ -4,8 +4,8 @@
 
 #include "base/i18n/break_iterator.h"
 
+#include "base/stringprintf.h"
 #include "base/string_piece.h"
-#include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -88,7 +88,7 @@ TEST(BreakIteratorTest, BreakWide32) {
   // U+1D49C MATHEMATICAL SCRIPT CAPITAL A
   const char* very_wide_char = "\xF0\x9D\x92\x9C";
   const string16 str(
-      UTF8ToUTF16(StringPrintf("%s a", very_wide_char)));
+      UTF8ToUTF16(base::StringPrintf("%s a", very_wide_char)));
   const string16 very_wide_word(str.substr(0, 2));
 
   base::BreakIterator iter(&str, base::BreakIterator::BREAK_WORD);
@@ -193,7 +193,7 @@ TEST(BreakIteratorTest, BreakSpaceWide32) {
   // U+1D49C MATHEMATICAL SCRIPT CAPITAL A
   const char* very_wide_char = "\xF0\x9D\x92\x9C";
   const string16 str(
-      UTF8ToUTF16(StringPrintf("%s a", very_wide_char)));
+      UTF8ToUTF16(base::StringPrintf("%s a", very_wide_char)));
   const string16 very_wide_word(str.substr(0, 3));
 
   base::BreakIterator iter(&str, base::BreakIterator::BREAK_SPACE);
@@ -291,7 +291,7 @@ TEST(BreakIteratorTest, BreakLineWide32) {
   // U+1D49C MATHEMATICAL SCRIPT CAPITAL A
   const char* very_wide_char = "\xF0\x9D\x92\x9C";
   const string16 str(
-      UTF8ToUTF16(StringPrintf("%s\na", very_wide_char)));
+      UTF8ToUTF16(base::StringPrintf("%s\na", very_wide_char)));
   const string16 very_wide_line(str.substr(0, 3));
   base::BreakIterator iter(&str, base::BreakIterator::BREAK_NEWLINE);
   ASSERT_TRUE(iter.Init());
