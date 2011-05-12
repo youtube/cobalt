@@ -437,7 +437,23 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
     allow = false;
   }
 
-  OnCanGetCookiesCompleted(allow);
+  if (request_->context()->cookie_store() && allow) {
+    CookieOptions options;
+    options.set_include_httponly();
+    std::string cookies =
+        request_->context()->cookie_store()->GetCookiesWithOptions(
+            request_->url(), options);
+    if (!cookies.empty()) {
+      request_info_.extra_headers.SetHeader(
+          HttpRequestHeaders::kCookie, cookies);
+    }
+  }
+  // We may have been canceled within CanGetCookies.
+  if (GetStatus().is_success()) {
+    StartTransaction();
+  } else {
+    NotifyCanceled();
+  }
 }
 
 void URLRequestHttpJob::SaveCookiesAndNotifyHeadersComplete() {
@@ -484,7 +500,13 @@ void URLRequestHttpJob::SaveNextCookie() {
     }
   }
 
-  OnCanSetCookieCompleted();
+  response_cookies_save_index_++;
+  // We may have been canceled within OnSetCookie.
+  if (GetStatus().is_success()) {
+    SaveNextCookie();
+  } else {
+    NotifyCanceled();
+  }
 }
 
 void URLRequestHttpJob::FetchResponseCookies(
@@ -585,36 +607,6 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
                            delegate)) {
       delete delegate;
     }
-  }
-}
-
-void URLRequestHttpJob::OnCanGetCookiesCompleted(bool allow) {
-  if (request_->context()->cookie_store() && allow) {
-    CookieOptions options;
-    options.set_include_httponly();
-    std::string cookies =
-        request_->context()->cookie_store()->GetCookiesWithOptions(
-            request_->url(), options);
-    if (!cookies.empty()) {
-      request_info_.extra_headers.SetHeader(
-          HttpRequestHeaders::kCookie, cookies);
-    }
-  }
-  // We may have been canceled within CanGetCookies.
-  if (GetStatus().is_success()) {
-    StartTransaction();
-  } else {
-    NotifyCanceled();
-  }
-}
-
-void URLRequestHttpJob::OnCanSetCookieCompleted() {
-  response_cookies_save_index_++;
-  // We may have been canceled within OnSetCookie.
-  if (GetStatus().is_success()) {
-    SaveNextCookie();
-  } else {
-    NotifyCanceled();
   }
 }
 

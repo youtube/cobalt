@@ -58,7 +58,6 @@
         'base/cookie_monster.cc',
         'base/cookie_monster.h',
         'base/cookie_options.h',
-        'base/cookie_policy.h',
         'base/cookie_store.cc',
         'base/cookie_store.h',
         'base/crypto_module.h',

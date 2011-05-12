@@ -32,6 +32,7 @@ namespace net {
 
 class AuthChallengeInfo;
 class ClientSocketFactory;
+class CookieOptions;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class SSLConfigService;
@@ -95,6 +96,21 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
     // This is only for error reporting to the delegate.
     // |error| is net::Error.
     virtual void OnError(const SocketStream* socket, int error) {}
+
+    // Called when reading cookies to allow the delegate to block access to the
+    // cookie.
+    virtual bool CanGetCookies(SocketStream* socket, const GURL& url) {
+      return true;
+    }
+
+    // Called when a cookie is set to allow the delegate to block access to the
+    // cookie.
+    virtual bool CanSetCookie(SocketStream* request,
+                              const GURL& url,
+                              const std::string& cookie_line,
+                              CookieOptions* options) {
+      return true;
+    }
   };
 
   SocketStream(const GURL& url, Delegate* delegate);
