@@ -354,7 +354,7 @@
           '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework/Frameworks',
         ],
         'conditions': [
-          [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"', {
+          [ 'toolkit_uses_gtk==0', {
               'sources/': [
                 ['exclude', '^nix/'],
               ],
@@ -406,12 +406,12 @@
               'string16.cc',
             ],
           },],
-          ['OS=="freebsd" or OS=="openbsd"', {
+          ['os_posix==1 and OS!="linux" and OS!="mac"', {
             'sources!': [
-              'base/files/file_path_watcher_linux.cc',
+              'files/file_path_watcher_linux.cc',
             ],
             'sources': [
-              'base/files/file_path_watcher_stub.cc',
+              'files/file_path_watcher_stub.cc',
             ],
           }],
         ],
@@ -442,7 +442,7 @@
         ],
       },
       'conditions': [
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
+        [ 'toolkit_uses_gtk==1', {
           'conditions': [
             [ 'chromeos==1', {
                 'sources/': [ ['include', '_chromeos\\.cc$'] ]
@@ -477,7 +477,7 @@
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:x11',
           ],
-        }, {  # OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"
+        }, {  # toolkit_uses_gtk!=1
             'sources/': [
               ['exclude', '/xdg_user_dirs/'],
               ['exclude', '_nss\.cc$'],
@@ -627,7 +627,7 @@
         },
       ],
     }],
-    [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
+    [ 'os_posix==1 and OS!="mac"', {
       'targets': [
         {
           'target_name': 'symbolize',

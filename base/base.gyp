@@ -20,7 +20,7 @@
         '../third_party/icu/icu.gyp:icuuc',
       ],
       'conditions': [
-        ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+        ['toolkit_uses_gtk==1', {
           'dependencies': [
             # i18n/rtl.cc uses gtk
             '../build/linux/system.gyp:gtk',
@@ -233,7 +233,7 @@
         '../testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        ['OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
+        ['toolkit_uses_gtk==1', {
           'sources!': [
             'file_version_info_unittest.cc',
           ],
@@ -260,7 +260,7 @@
             '../build/linux/system.gyp:nss',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:xdisplaycheck',
           ],
-        }, {  # OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"
+        }, {  # toolkit_uses_gtk!=1
           'sources!': [
             'message_pump_glib_unittest.cc',
           ]
@@ -303,7 +303,7 @@
         'base',
       ],
       'conditions': [
-        ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+        ['toolkit_uses_gtk==1', {
           'dependencies': [
             # test_suite initializes GTK.
             '../build/linux/system.gyp:gtk',
@@ -348,7 +348,7 @@
         ],
       },
       'conditions': [
-        ['OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
+        ['toolkit_uses_gtk==1', {
           'dependencies': [
             # Needed to handle the #include chain:
             #   base/test/perf_test_suite.h
