@@ -86,7 +86,7 @@
         '../../base/test/run_all_unittests.cc',
       ],
       'conditions': [
-        ['OS=="linux" or OS=="freebsd"', {
+        ['os_posix==1 and OS!="mac"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [

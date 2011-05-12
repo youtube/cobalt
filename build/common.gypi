@@ -38,14 +38,16 @@
 
         # Compute the architecture that we're building on.
         'conditions': [
-          [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
-            # This handles the Linux platforms we generally deal with. Anything
-            # else gets passed through, which probably won't work very well; such
-            # hosts should pass an explicit target_arch to gyp.
+          [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+            # This handles the Unix platforms for which there is some support.
+            # Anything else gets passed through, which probably won't work very
+            # well; such hosts should pass an explicit target_arch to gyp.
             'host_arch%':
-              '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/")',
-          }, {  # OS!="linux"
+              '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
+            'os_nix%': 1,
+          }, { # OS=="win" or OS=="mac"
             'host_arch%': 'ia32',
+            'os_nix%': 0,
           }],
 
           # Set default value of toolkit_views on for Windows, Chrome OS
@@ -64,6 +66,7 @@
       'host_arch%': '<(host_arch)',
       'library%': '<(library)',
       'toolkit_views%': '<(toolkit_views)',
+      'os_nix%': '<(os_nix)',
 
       # Override branding to select the desired branding flavor.
       'branding%': 'Chromium',
@@ -143,6 +146,22 @@
       'disable_pie%': 0,
 
       'conditions': [
+        # A flag for POSIX platforms
+        ['os_nix==1 or OS=="mac"', {
+          'os_posix%': 1,
+        }, {
+          'os_posix%': 0,
+        }],
+
+        # Flags to use Gtk and X11 on non-Mac POSIX platforms
+        ['os_nix==1', {
+          'toolkit_uses_gtk%': 1,
+          'use_x11%': 1,
+        }, {
+          'toolkit_uses_gtk%': 0,
+          'use_x11%': 0,
+        }],
+
         # A flag to enable or disable our compile-time dependency
         # on gnome-keyring. If that dependency is disabled, no gnome-keyring
         # support will be available. This option is useful
@@ -188,6 +207,9 @@
     'target_arch%': '<(target_arch)',
     'host_arch%': '<(host_arch)',
     'toolkit_views%': '<(toolkit_views)',
+    'os_posix%': '<(os_posix)',
+    'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',
+    'use_x11%': '<(use_x11)',
     'use_gnome_keyring%': '<(use_gnome_keyring)',
     'linux_fpic%': '<(linux_fpic)',
     'enable_flapper_hacks%': '<(enable_flapper_hacks)',
@@ -409,7 +431,7 @@
     'icu_src_dir': '../third_party/icu',
 
     'conditions': [
-      ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+      ['os_posix==1 and OS!="mac"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
         'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
@@ -425,7 +447,7 @@
             'linux_dump_symbols%': 1,
           }],
         ],
-      }],  # OS=="linux" or OS=="freebsd" or OS=="openbsd"
+      }],  # os_posix==1 and OS!="mac"
 
       ['OS=="mac"', {
         'conditions': [
@@ -487,7 +509,7 @@
         ],
       }],
 
-      ['OS=="mac" or (OS=="linux" and chromeos==0 and target_arch!="arm")', {
+      ['os_posix==1 and chromeos==0 and target_arch!="arm"', {
         'use_cups%': 1,
       }, {
         'use_cups%': 0,
@@ -736,7 +758,7 @@
     'target_conditions': [
       ['chromium_code==0', {
         'conditions': [
-          [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+          [ 'os_posix==1 and OS!="mac"', {
             # We don't want to get warnings from third-party code,
             # so remove any existing warning-enabling flags like -Wall.
             'cflags!': [
@@ -792,7 +814,7 @@
                           ['exclude', '(^|/)(cocoa|mac)/'],
                           ['exclude', '\\.mm?$' ] ],
           }],
-          ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
+          ['toolkit_uses_gtk!=1', {
             'sources/': [
               ['exclude', '_(chromeos|gtk|x|x11|xdg)(_unittest)?\\.(h|cc)$'],
               ['exclude', '(^|/)gtk/'],
@@ -1027,16 +1049,19 @@
     },
   },
   'conditions': [
-    ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+    ['os_posix==1 and OS!="mac"', {
       'target_defaults': {
         # Enable -Werror by default, but put it in a variable so it can
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
         'variables': {
           # Use -fno-strict-aliasing, see http://crbug.com/32204
           'no_strict_aliasing%': 1,
-          'conditions': [['OS=="linux"', {'werror%': '-Werror',}],
-                         ['OS=="freebsd"', {'werror%': '',}],
-                         ['OS=="openbsd"', {'werror%': '',}],
+          'conditions': [
+            ['OS=="linux"', {
+              'werror%': '-Werror',
+              }, { # turn off -Werror on other Unices
+              'werror%': '',
+            }],
           ],
         },
         'cflags': [
@@ -1634,7 +1659,7 @@
         },
       },
     }],
-    ['disable_nacl==1 or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+    ['disable_nacl==1', {
       'target_defaults': {
         'defines': [
           'DISABLE_NACL',
