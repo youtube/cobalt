@@ -175,8 +175,6 @@ int TransportConnectJob::DoResolveHostComplete(int result) {
 
 int TransportConnectJob::DoTransportConnect() {
   next_state_ = STATE_TRANSPORT_CONNECT_COMPLETE;
-  if (prefer_ipv4())
-    MakeAddrListStartWithIPv4(&addresses_);
   set_socket(client_socket_factory_->CreateTransportClientSocket(
         addresses_, net_log().net_log(), net_log().source()));
   connect_start_time_ = base::TimeTicks::Now();

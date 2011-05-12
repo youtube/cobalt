@@ -80,18 +80,12 @@ class ConnectJob {
   bool is_unused_preconnect() const {
     return preconnect_state_ == UNUSED_PRECONNECT;
   }
-  bool prefer_ipv4() const { return prefer_ipv4_; }
 
   // Initialized by the ClientSocketPoolBaseHelper.
   // TODO(willchan): Move most of the constructor arguments over here.  We
   // shouldn't give the ConnectJobFactory (subclasses) the ability to screw up
   // the initialization.
   void Initialize(bool is_preconnect);
-
-  // Instructs the ConnectJob to try IPv4 addresses first.  This can be useful
-  // when IPv6 is likely to be broken.
-  // TODO(wtc): this should be folded into the Initialize() method.
-  void set_prefer_ipv4() { prefer_ipv4_ = true; }
 
   // Releases |socket_| to the client.  On connection error, this should return
   // NULL.
@@ -148,8 +142,6 @@ class ConnectJob {
   BoundNetLog net_log_;
   // A ConnectJob is idle until Connect() has been called.
   bool idle_;
-  // True if we should try IPv4 addresses first.
-  bool prefer_ipv4_;
   PreconnectState preconnect_state_;
 
   DISALLOW_COPY_AND_ASSIGN(ConnectJob);
