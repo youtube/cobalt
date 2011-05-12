@@ -1084,7 +1084,12 @@ std::string GetHeaderParamValue(const std::string& header,
   if (equals_offset == std::string::npos || header[equals_offset] != '=')
     return std::string();
 
-  param_begin = header.begin() + equals_offset + 1;
+  size_t param_value_offset =
+      header.find_first_not_of(whitespace, equals_offset + 1);
+  if (param_value_offset == std::string::npos)
+    return std::string();
+
+  param_begin = header.begin() + param_value_offset;
   if (param_begin == header.end())
     return std::string();
 
