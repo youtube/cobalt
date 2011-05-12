@@ -60,26 +60,14 @@ class MockHostResolverWithMultipleResults : public HostResolver {
     return result;
   }
 
-  // Builds an AddressList that is |ip_literal| + |address_list|.
+  // Builds an AddressList that is |ip_literal| + |orig_list|.
   // |orig_list| must not be empty.
   AddressList PrependAddressToList(const char* ip_literal,
                                    const AddressList& orig_list) {
     // Build an addrinfo for |ip_literal|.
     AddressList result = ResolveIPLiteral(ip_literal);
-
-    struct addrinfo* result_head = const_cast<struct addrinfo*>(result.head());
-
-    // Temporarily append |orig_list| to |result|.
-    result_head->ai_next = const_cast<struct addrinfo*>(orig_list.head());
-
-    // Make a copy of the concatenated list.
-    AddressList concatenated;
-    concatenated.Copy(result.head(), true);
-
-    // Restore |result| (so it is freed properly).
-    result_head->ai_next = NULL;
-
-    return concatenated;
+    result.Append(orig_list.head());
+    return result;
   }
 };
 

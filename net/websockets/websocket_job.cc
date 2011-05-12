@@ -164,7 +164,7 @@ int WebSocketJob::OnStartOpenConnection(
     SocketStream* socket, CompletionCallback* callback) {
   DCHECK(!callback_);
   state_ = CONNECTING;
-  addresses_.Copy(socket->address_list().head(), true);
+  addresses_ = socket->address_list();
   WebSocketThrottle::GetInstance()->PutInQueue(this);
   if (!waiting_)
     return OK;
