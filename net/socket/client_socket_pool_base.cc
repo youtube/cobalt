@@ -45,7 +45,6 @@ ConnectJob::ConnectJob(const std::string& group_name,
       delegate_(delegate),
       net_log_(net_log),
       idle_(true),
-      prefer_ipv4_(false),
       preconnect_state_(NOT_PRECONNECT) {
   DCHECK(!group_name.empty());
   DCHECK(delegate);
@@ -1071,14 +1070,6 @@ void ClientSocketPoolBaseHelper::Group::OnBackupSocketTimerFired(
       group_name, **pending_requests_.begin(), pool);
   backup_job->net_log().AddEvent(NetLog::TYPE_SOCKET_BACKUP_CREATED, NULL);
   SIMPLE_STATS_COUNTER("socket.backup_created");
-  // The purpose of the backup job is to initiate a new connect job when the
-  // first connect job takes too long.  We call set_prefer_ipv4 here to use
-  // the backup job for a second purpose: if the first connect job is IPv6,
-  // try an IPv4 connect job in parallel.  This hides the long timeout error
-  // on some networks with broken IPv6 support.
-  // TODO(wtc): remove the set_prefer_ipv4 call when broken IPv6 networks are
-  // gone.
-  backup_job->set_prefer_ipv4();
   int rv = backup_job->Connect();
   pool->connecting_socket_count_++;
   AddJob(backup_job);
