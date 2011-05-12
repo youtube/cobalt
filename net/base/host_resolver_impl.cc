@@ -44,6 +44,30 @@ namespace net {
 
 namespace {
 
+// Helper to create an AddressList that has a particular port. It has an
+// optimization to avoid allocating a new address linked list when the
+// port is already what we want.
+AddressList CreateAddressListUsingPort(const AddressList& src, int port) {
+  if (src.GetPort() == port)
+    return src;
+
+  AddressList out = src;
+  out.SetPort(port);
+  return out;
+}
+
+// Helper to mutate the linked list contained by AddressList to the given
+// port. Note that in general this is dangerous since the AddressList's
+// data might be shared (and you should use AddressList::SetPort).
+//
+// However since we allocated the AddressList ourselves we can safely
+// do this optimization and avoid reallocating the list.
+void MutableSetPort(int port, AddressList* addrlist) {
+  struct addrinfo* mutable_head =
+      const_cast<struct addrinfo*>(addrlist->head());
+  SetPortForAllAddrinfos(mutable_head, port);
+}
+
 // We use a separate histogram name for each platform to facilitate the
 // display of error codes by their symbolic name (since each platform has
 // different mappings).
@@ -279,7 +303,7 @@ class HostResolverImpl::Request {
 
   void OnComplete(int error, const AddressList& addrlist) {
     if (error == OK)
-      addresses_->SetFrom(addrlist, port());
+      *addresses_ = CreateAddressListUsingPort(addrlist, port());
     CompletionCallback* callback = callback_;
     MarkAsCancelled();
     callback->Run(error);
@@ -590,7 +614,7 @@ class HostResolverImpl::Job
 
      // Use the port number of the first request.
     if (error == OK)
-      results_.SetPort(requests_[0]->port());
+      MutableSetPort(requests_[0]->port(), &results_);
 
     resolver_->OnJobComplete(this, error, os_error, results_);
   }
@@ -1090,9 +1114,9 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
     if (ip_number.size() == 16 && ipv6_disabled) {
       net_error = ERR_NAME_NOT_RESOLVED;
     } else {
-      AddressList result(ip_number, info.port(),
-                         (key.host_resolver_flags & HOST_RESOLVER_CANONNAME));
-      *addresses = result;
+      *addresses = AddressList::CreateFromIPAddressWithCname(
+          ip_number, info.port(),
+          (key.host_resolver_flags & HOST_RESOLVER_CANONNAME));
     }
     // Update the net log and notify registered observers.
     OnFinishRequest(source_net_log, request_net_log, request_id, info,
@@ -1107,8 +1131,10 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
     if (cache_entry) {
       request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CACHE_HIT, NULL);
       int net_error = cache_entry->error;
-      if (net_error == OK)
-        addresses->SetFrom(cache_entry->addrlist, info.port());
+      if (net_error == OK) {
+        *addresses = CreateAddressListUsingPort(
+            cache_entry->addrlist, info.port());
+      }
 
       // Update the net log and notify registered observers.
       OnFinishRequest(source_net_log, request_net_log, request_id, info,
@@ -1137,7 +1163,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
         effective_resolver_proc(), key.hostname, key.address_family,
         key.host_resolver_flags, &addrlist, &os_error);
     if (error == OK) {
-      addrlist.SetPort(info.port());
+      MutableSetPort(info.port(), &addrlist);
       *addresses = addrlist;
     }
 

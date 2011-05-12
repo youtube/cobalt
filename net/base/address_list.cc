@@ -22,22 +22,16 @@ char* do_strdup(const char* src) {
 #endif
 }
 
-// Assign the port for all addresses in the list.
-void SetPortRecursive(struct addrinfo* info, int port) {
-  uint16* port_field = GetPortFieldFromAddrinfo(info);
-  if (port_field)
-    *port_field = htons(port);
-
-  // Assign recursively.
-  if (info->ai_next)
-    SetPortRecursive(info->ai_next, port);
-}
-
 }  // namespace
 
 struct AddressList::Data : public base::RefCountedThreadSafe<Data> {
   Data(struct addrinfo* ai, bool is_system_created);
-  struct addrinfo* head;
+
+  // This variable is const since it should NOT be mutated. Since
+  // Data is reference counted, this |head| could be shared by multiple
+  // instances of AddressList, hence we need to be careful not to mutate
+  // it from any one instance.
+  const struct addrinfo * const head;
 
   // Indicates which free function to use for |head|.
   bool is_system_created;
@@ -51,8 +45,18 @@ struct AddressList::Data : public base::RefCountedThreadSafe<Data> {
 AddressList::AddressList() {
 }
 
-AddressList::AddressList(const IPAddressNumber& address, int port,
-                         bool canonicalize_name) {
+// static
+AddressList AddressList::CreateFromIPAddress(
+      const IPAddressNumber& address,
+      uint16 port) {
+  return CreateFromIPAddressWithCname(address, port, false);
+}
+
+// static
+AddressList AddressList::CreateFromIPAddressWithCname(
+    const IPAddressNumber& address,
+    uint16 port,
+    bool canonicalize_name) {
   struct addrinfo* ai = new addrinfo;
   memset(ai, 0, sizeof(addrinfo));
   ai->ai_socktype = SOCK_STREAM;
@@ -94,8 +98,8 @@ AddressList::AddressList(const IPAddressNumber& address, int port,
     std::string name = NetAddressToString(ai);
     ai->ai_canonname = do_strdup(name.c_str());
   }
-  data_ = new Data(ai, false /*is_system_created*/);
-  SetPort(port);
+  SetPortForAllAddrinfos(ai, port);
+  return AddressList(new Data(ai, false /*is_system_created*/));
 }
 
 AddressList::AddressList(const AddressList& addresslist)
@@ -110,24 +114,30 @@ AddressList& AddressList::operator=(const AddressList& addresslist) {
   return *this;
 }
 
-void AddressList::Adopt(struct addrinfo* head) {
-  data_ = new Data(head, true /*is_system_created*/);
+// static
+AddressList AddressList::CreateByAdoptingFromSystem(struct addrinfo* head) {
+  return AddressList(new Data(head, true /*is_system_created*/));
 }
 
-void AddressList::Copy(const struct addrinfo* head, bool recursive) {
-  data_ = new Data(CreateCopyOfAddrinfo(head, recursive),
-                   false /*is_system_created*/);
+// static
+AddressList AddressList::CreateByCopying(const struct addrinfo* head) {
+  return AddressList(new Data(CreateCopyOfAddrinfo(head, true /*recursive*/),
+                              false /*is_system_created*/));
+}
+
+// static
+AddressList AddressList::CreateByCopyingFirstAddress(
+    const struct addrinfo* head) {
+  return AddressList(new Data(CreateCopyOfAddrinfo(head, false /*recursive*/),
+                              false /*is_system_created*/));
 }
 
 void AddressList::Append(const struct addrinfo* head) {
   DCHECK(head);
-  struct addrinfo* new_head;
-  if (data_->is_system_created) {
-    new_head = CreateCopyOfAddrinfo(data_->head, true);
-    data_ = new Data(new_head, false /*is_system_created*/);
-  } else {
-    new_head = data_->head;
-  }
+  // Always create a copy, since the Data might be shared across instances.
+  struct addrinfo* new_head = CreateCopyOfAddrinfo(data_->head, true);
+  data_ = new Data(new_head, false /*is_system_created*/);
+
   // Find the end of current linked list and append new data there.
   struct addrinfo* copy_ptr = new_head;
   while (copy_ptr->ai_next)
@@ -146,23 +156,16 @@ void AddressList::Append(const struct addrinfo* head) {
   }
 }
 
-void AddressList::SetPort(int port) {
-  SetPortRecursive(data_->head, port);
+void AddressList::SetPort(uint16 port) {
+  // NOTE: we need to be careful not to mutate the reference-counted data,
+  // since it might be shared by other AddressLists.
+  struct addrinfo* head = CreateCopyOfAddrinfo(data_->head, true);
+  SetPortForAllAddrinfos(head, port);
+  data_ = new Data(head, false /*is_system_created*/);
 }
 
-int AddressList::GetPort() const {
+uint16 AddressList::GetPort() const {
   return GetPortFromAddrinfo(data_->head);
-}
-
-void AddressList::SetFrom(const AddressList& src, int port) {
-  if (src.GetPort() == port) {
-    // We can reference the data from |src| directly.
-    *this = src;
-  } else {
-    // Otherwise we need to make a copy in order to change the port number.
-    Copy(src.head(), true);
-    SetPort(port);
-  }
 }
 
 bool AddressList::GetCanonicalName(std::string* canonical_name) const {
@@ -171,10 +174,6 @@ bool AddressList::GetCanonicalName(std::string* canonical_name) const {
     return false;
   canonical_name->assign(data_->head->ai_canonname);
   return true;
-}
-
-void AddressList::Reset() {
-  data_ = NULL;
 }
 
 const struct addrinfo* AddressList::head() const {
@@ -186,7 +185,7 @@ const struct addrinfo* AddressList::head() const {
 AddressList::AddressList(Data* data) : data_(data) {}
 
 // static
-AddressList* AddressList::CreateAddressListFromSockaddr(
+AddressList AddressList::CreateFromSockaddr(
     const struct sockaddr* address,
     socklen_t address_length,
     int socket_type,
@@ -223,7 +222,7 @@ AddressList* AddressList::CreateAddressListFromSockaddr(
   ai->ai_addrlen = address_length;
   ai->ai_addr = reinterpret_cast<struct sockaddr*>(new char[address_length]);
   memcpy(ai->ai_addr, address, address_length);
-  return new AddressList(new Data(ai, false /*is_system_created*/));
+  return AddressList(new Data(ai, false /*is_system_created*/));
 }
 
 
@@ -233,12 +232,16 @@ AddressList::Data::Data(struct addrinfo* ai, bool is_system_created)
 }
 
 AddressList::Data::~Data() {
-  // Call either freeaddrinfo(head), or FreeCopyOfAddrinfo(head), depending on
-  // who created the data.
+  // Casting away the const is safe, since upon destruction we know that
+  // no one holds a reference to the data any more.
+  struct addrinfo* mutable_head = const_cast<struct addrinfo*>(head);
+
+  // Call either freeaddrinfo(head), or FreeMyAddrinfo(head), depending who
+  // created the data.
   if (is_system_created)
-    freeaddrinfo(head);
+    freeaddrinfo(mutable_head);
   else
-    FreeCopyOfAddrinfo(head);
+    FreeCopyOfAddrinfo(mutable_head);
 }
 
 }  // namespace net

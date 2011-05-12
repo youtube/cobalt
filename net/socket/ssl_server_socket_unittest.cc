@@ -146,7 +146,7 @@ class FakeSocket : public StreamSocket {
 
   virtual int GetPeerAddress(AddressList* address) const {
     net::IPAddressNumber ip_address(4);
-    *address = net::AddressList(ip_address, 0, false);
+    *address = net::AddressList::CreateFromIPAddress(ip_address, 0 /*port*/);
     return net::OK;
   }
 
