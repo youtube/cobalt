@@ -417,13 +417,17 @@ const uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info);
 uint16* GetPortFieldFromAddrinfo(struct addrinfo* info);
 
 // Returns the value of |info's| port (in host byte ordering).
-int GetPortFromAddrinfo(const struct addrinfo* info);
+uint16 GetPortFromAddrinfo(const struct addrinfo* info);
 
 // Same except for struct sockaddr.
 const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
                                        socklen_t address_len);
 int GetPortFromSockaddr(const struct sockaddr* address,
                         socklen_t address_len);
+
+// Sets every addrinfo in the linked list |head| as having a port field of
+// |port|.
+void SetPortForAllAddrinfos(struct addrinfo* head, uint16 port);
 
 // Returns true if |host| is one of the names (e.g. "localhost") or IP
 // addresses (IPv4 127.0.0.0/8 or IPv6 ::1) that indicate a loopback.

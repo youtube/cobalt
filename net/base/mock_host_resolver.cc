@@ -41,12 +41,12 @@ int CreateIPAddressList(const std::string& host_list,
       return ERR_UNEXPECTED;
     }
 
-    AddressList result(ip_number, -1, false);
+    AddressList result = AddressList::CreateFromIPAddress(ip_number, -1);
     struct addrinfo* ai = const_cast<struct addrinfo*>(result.head());
     if (index == 0)
       ai->ai_canonname = do_strdup(canonical_name.c_str());
     if (!addrlist->head())
-      addrlist->Copy(result.head(), false);
+      *addrlist = AddressList::CreateByCopyingFirstAddress(result.head());
     else
       addrlist->Append(result.head());
   }
