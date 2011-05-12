@@ -11,7 +11,6 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
-#include "net/base/cookie_policy.h"
 #include "net/base/cookie_store.h"
 #include "net/base/io_buffer.h"
 #include "net/http/http_util.h"
@@ -279,22 +278,14 @@ bool WebSocketJob::SendHandshakeRequest(const char* data, int len) {
 }
 
 void WebSocketJob::AddCookieHeaderAndSend() {
-  int policy = OK;
-  if (socket_->context()->cookie_policy()) {
-    GURL url_for_cookies = GetURLForCookies();
-    policy = socket_->context()->cookie_policy()->CanGetCookies(
-        url_for_cookies,
-        url_for_cookies);
-  }
-  DCHECK_NE(ERR_IO_PENDING, policy);
-  OnCanGetCookiesCompleted(policy);
-}
+  bool allow = true;
+  if (delegate_ && !delegate_->CanGetCookies(socket_, GetURLForCookies()))
+    allow = false;
 
-void WebSocketJob::OnCanGetCookiesCompleted(int policy) {
   if (socket_ && delegate_ && state_ == CONNECTING) {
     handshake_request_->RemoveHeaders(
         kCookieHeaders, arraysize(kCookieHeaders));
-    if (policy == OK) {
+    if (allow) {
       // Add cookies, including HttpOnly cookies.
       if (socket_->context()->cookie_store()) {
         CookieOptions cookie_options;
@@ -407,31 +398,18 @@ void WebSocketJob::SaveNextCookie() {
     return;
   }
 
-  int policy = OK;
-  if (socket_->context()->cookie_policy()) {
-    GURL url_for_cookies = GetURLForCookies();
-    policy = socket_->context()->cookie_policy()->CanSetCookie(
-        url_for_cookies,
-        url_for_cookies,
-        response_cookies_[response_cookies_save_index_]);
-  }
+  bool allow = true;
+  CookieOptions options;
+  GURL url = GetURLForCookies();
+  std::string cookie = response_cookies_[response_cookies_save_index_];
+  if (delegate_ && !delegate_->CanSetCookie(socket_, url, cookie, &options))
+    allow = false;
 
-  DCHECK_NE(ERR_IO_PENDING, policy);
-  OnCanSetCookieCompleted(policy);
-}
-
-void WebSocketJob::OnCanSetCookieCompleted(int policy) {
   if (socket_ && delegate_ && state_ == CONNECTING) {
-    if ((policy == OK || policy == OK_FOR_SESSION_ONLY) &&
-        socket_->context()->cookie_store()) {
-      CookieOptions options;
+    if (allow && socket_->context()->cookie_store()) {
       options.set_include_httponly();
-      if (policy == OK_FOR_SESSION_ONLY)
-        options.set_force_session();
-      GURL url_for_cookies = GetURLForCookies();
       socket_->context()->cookie_store()->SetCookieWithOptions(
-          url_for_cookies, response_cookies_[response_cookies_save_index_],
-          options);
+          url, cookie, options);
     }
     response_cookies_save_index_++;
     SaveNextCookie();
