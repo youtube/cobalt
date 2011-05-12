@@ -3184,39 +3184,6 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectWithBackupTimer) {
   EXPECT_EQ(1, pool_->NumActiveSocketsInGroup("a"));
 }
 
-TEST_F(ClientSocketPoolBaseTest, ReleaseSocketRestartsBackupJobTimer) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
-  pool_->EnableConnectBackupJobs();
-
-  // Make the ConnectJob hang forever.
-  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
-  ClientSocketHandle handle1;
-  TestCompletionCallback callback1;
-  EXPECT_EQ(ERR_IO_PENDING, handle1.Init("a",
-                                         params_,
-                                         kDefaultPriority,
-                                         &callback1,
-                                         pool_.get(),
-                                         BoundNetLog()));
-  ClientSocketHandle handle2;
-  TestCompletionCallback callback2;
-  EXPECT_EQ(ERR_IO_PENDING, handle2.Init("a",
-                                         params_,
-                                         kDefaultPriority,
-                                         &callback2,
-                                         pool_.get(),
-                                         BoundNetLog()));
-  EXPECT_EQ(2, pool_->NumConnectJobsInGroup("a"));
-  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
-
-  // Make the backup job be a pending job, so it completes normally.
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  ASSERT_EQ(OK, callback1.WaitForResult());
-  handle1.socket()->Disconnect();
-  handle1.Reset();
-  ASSERT_EQ(OK, callback2.WaitForResult());
-}
-
 }  // namespace
 
 }  // namespace net
