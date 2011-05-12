@@ -70,6 +70,8 @@ class TransportConnectJob : public ConnectJob {
   // hack.  It is a public method for the unit tests.
   static void MakeAddrListStartWithIPv4(AddressList* addrlist);
 
+  static const int kIPv6FallbackTimerInMs;
+
  private:
   enum State {
     STATE_RESOLVE_HOST,
@@ -89,6 +91,10 @@ class TransportConnectJob : public ConnectJob {
   int DoTransportConnect();
   int DoTransportConnectComplete(int result);
 
+  // Not part of the state machine.
+  void DoIPv6FallbackTransportConnect();
+  void DoIPv6FallbackTransportConnectComplete(int result);
+
   // Begins the host resolution and the TCP connect.  Returns OK on success
   // and ERR_IO_PENDING if it cannot immediately service the request.
   // Otherwise, it returns a net error code.
@@ -106,6 +112,14 @@ class TransportConnectJob : public ConnectJob {
 
   // The time the connect was started (after DNS finished).
   base::TimeTicks connect_start_time_;
+
+  scoped_ptr<StreamSocket> transport_socket_;
+
+  scoped_ptr<StreamSocket> fallback_transport_socket_;
+  scoped_ptr<AddressList> fallback_addresses_;
+  CompletionCallbackImpl<TransportConnectJob> fallback_callback_;
+  base::TimeTicks fallback_connect_start_time_;
+  base::OneShotTimer<TransportConnectJob> fallback_timer_;
 
   DISALLOW_COPY_AND_ASSIGN(TransportConnectJob);
 };
