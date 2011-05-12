@@ -159,7 +159,7 @@ int TCPServerSocketLibevent::AcceptInternal(
     return ERR_FAILED;
   }
   TCPClientSocket* tcp_socket = new TCPClientSocket(
-      AddressList(address.address(), address.port(), false),
+      AddressList::CreateFromIPAddress(address.address(), address.port()),
       net_log_.net_log(), net_log_.source());
   tcp_socket->AdoptSocket(result);
   socket->reset(tcp_socket);

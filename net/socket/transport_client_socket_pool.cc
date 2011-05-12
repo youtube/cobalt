@@ -119,7 +119,7 @@ void TransportConnectJob::MakeAddrListStartWithIPv4(AddressList* addrlist) {
   }
   head->ai_canonname = canonname;
 
-  addrlist->Copy(head, true);
+  *addrlist = AddressList::CreateByCopying(head);
   FreeCopyOfAddrinfo(head);
 }
 

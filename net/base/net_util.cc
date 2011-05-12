@@ -2143,7 +2143,7 @@ const uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info) {
   return GetPortFieldFromSockaddr(address, info->ai_addrlen);
 }
 
-int GetPortFromAddrinfo(const struct addrinfo* info) {
+uint16 GetPortFromAddrinfo(const struct addrinfo* info) {
   const uint16* port_field = GetPortFieldFromAddrinfo(info);
   if (!port_field)
     return -1;
@@ -2173,6 +2173,16 @@ int GetPortFromSockaddr(const struct sockaddr* address, socklen_t address_len) {
   if (!port_field)
     return -1;
   return ntohs(*port_field);
+}
+
+// Assign |port| to each address in the linked list starting from |head|.
+void SetPortForAllAddrinfos(struct addrinfo* head, uint16 port) {
+  DCHECK(head);
+  for (struct addrinfo* ai = head; ai; ai = ai->ai_next) {
+    uint16* port_field = GetPortFieldFromAddrinfo(ai);
+    if (port_field)
+      *port_field = htons(port);
+  }
 }
 
 bool IsLocalhost(const std::string& host) {

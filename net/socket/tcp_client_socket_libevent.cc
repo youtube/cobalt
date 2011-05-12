@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -615,7 +615,7 @@ int TCPClientSocketLibevent::GetPeerAddress(AddressList* address) const {
   DCHECK(address);
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
-  address->Copy(current_ai_, false);
+  *address = AddressList::CreateByCopyingFirstAddress(current_ai_);
   return OK;
 }
 
