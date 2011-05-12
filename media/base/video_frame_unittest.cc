@@ -6,7 +6,7 @@
 
 #include "base/format_macros.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "media/base/buffers.h"
 #include "media/base/mock_filters.h"
 #include "media/base/yuv_convert.h"
@@ -79,8 +79,8 @@ void ExpectFrameColor(media::VideoFrame* yv12_frame, uint32 expect_rgb_color) {
         rgb_frame->data(VideoFrame::kRGBPlane) +
         (rgb_frame->stride(VideoFrame::kRGBPlane) * row));
     for (size_t col = 0; col < rgb_frame->width(); ++col) {
-      SCOPED_TRACE(StringPrintf("Checking (%" PRIuS ", %" PRIuS ")",
-                                row, col));
+      SCOPED_TRACE(
+          base::StringPrintf("Checking (%" PRIuS ", %" PRIuS ")", row, col));
       EXPECT_EQ(expect_rgb_color, rgb_row_data[col]);
     }
   }
