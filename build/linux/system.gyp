@@ -13,13 +13,13 @@
         'pkg-config': 'pkg-config'
       },
     }],
-    [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+    [ 'os_posix==1 and OS!="mac"', {
       'variables': {
         # We use our own copy of libssl3, although we still need to link against
         # the rest of NSS.
         'use_system_ssl%': 0,
       },
-    }, {  # OS!="linux"
+    }, {
       'variables': {
         'use_system_ssl%': 1,
       },
