@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "net/base/cert_verifier.h"
-#include "net/base/cookie_policy.h"
 #include "net/base/cookie_store.h"
 #include "net/base/dnsrr_resolver.h"
 #include "net/base/host_resolver.h"
@@ -80,11 +79,6 @@ void URLRequestContextStorage::set_network_delegate(
 void URLRequestContextStorage::set_cookie_store(CookieStore* cookie_store) {
   context_->set_cookie_store(cookie_store);
   cookie_store_ = cookie_store;
-}
-
-void URLRequestContextStorage::set_cookie_policy(CookiePolicy* cookie_policy) {
-  context_->set_cookie_policy(cookie_policy);
-  cookie_policy_.reset(cookie_policy);
 }
 
 void URLRequestContextStorage::set_transport_security_state(
