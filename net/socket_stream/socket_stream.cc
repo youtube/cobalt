@@ -252,7 +252,7 @@ SocketStream::~SocketStream() {
 }
 
 void SocketStream::CopyAddrInfo(struct addrinfo* head) {
-  addresses_.Copy(head, true);
+  addresses_ = AddressList::CreateByCopying(head);
 }
 
 void SocketStream::DoClose() {
