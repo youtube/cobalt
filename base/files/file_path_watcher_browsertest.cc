@@ -21,8 +21,8 @@
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/path_service.h"
-#include "base/string_util.h"
 #include "base/stl_util-inl.h"
+#include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread.h"
@@ -335,7 +335,7 @@ TEST_F(FilePathWatcherTest, DirectoryChain) {
   FilePath path(temp_dir_.path());
   std::vector<std::string> dir_names;
   for (int i = 0; i < 20; i++) {
-    std::string dir(StringPrintf("d%d", i));
+    std::string dir(base::StringPrintf("d%d", i));
     dir_names.push_back(dir);
     path = path.AppendASCII(dir);
   }
