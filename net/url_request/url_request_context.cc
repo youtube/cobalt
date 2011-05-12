@@ -21,7 +21,6 @@ URLRequestContext::URLRequestContext()
       dns_cert_checker_(NULL),
       http_auth_handler_factory_(NULL),
       network_delegate_(NULL),
-      cookie_policy_(NULL),
       transport_security_state_(NULL),
       http_transaction_factory_(NULL),
       ftp_transaction_factory_(NULL) {
@@ -40,7 +39,6 @@ void URLRequestContext::CopyFrom(URLRequestContext* other) {
   set_ssl_config_service(other->ssl_config_service());
   set_network_delegate(other->network_delegate());
   set_cookie_store(other->cookie_store());
-  set_cookie_policy(other->cookie_policy());
   set_transport_security_state(other->transport_security_state());
   // FTPAuthCache is unique per context.
   set_accept_language(other->accept_language());

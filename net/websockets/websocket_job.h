@@ -75,14 +75,12 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
 
   bool SendHandshakeRequest(const char* data, int len);
   void AddCookieHeaderAndSend();
-  void OnCanGetCookiesCompleted(int policy);
 
   void OnSentHandshakeRequest(SocketStream* socket, int amount_sent);
   void OnReceivedHandshakeResponse(
       SocketStream* socket, const char* data, int len);
   void SaveCookiesAndNotifyHeaderComplete();
   void SaveNextCookie();
-  void OnCanSetCookieCompleted(int policy);
 
   GURL GetURLForCookies() const;
 

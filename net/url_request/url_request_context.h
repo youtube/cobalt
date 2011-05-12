@@ -21,7 +21,6 @@
 
 namespace net {
 class CertVerifier;
-class CookiePolicy;
 class CookieStore;
 class DnsCertProvenanceChecker;
 class DnsRRResolver;
@@ -133,13 +132,6 @@ class URLRequestContext
   CookieStore* cookie_store() const { return cookie_store_.get(); }
   void set_cookie_store(CookieStore* cookie_store);
 
-  // Gets the cookie policy for this context (may be null, in which case
-  // cookies are allowed).
-  CookiePolicy* cookie_policy() const { return cookie_policy_; }
-  void set_cookie_policy(CookiePolicy* cookie_policy) {
-    cookie_policy_ = cookie_policy;
-  }
-
   TransportSecurityState* transport_security_state() const {
       return transport_security_state_;
   }
@@ -206,7 +198,6 @@ class URLRequestContext
   scoped_refptr<SSLConfigService> ssl_config_service_;
   NetworkDelegate* network_delegate_;
   scoped_refptr<CookieStore> cookie_store_;
-  CookiePolicy* cookie_policy_;
   scoped_refptr<TransportSecurityState> transport_security_state_;
   FtpAuthCache ftp_auth_cache_;
   std::string accept_language_;
