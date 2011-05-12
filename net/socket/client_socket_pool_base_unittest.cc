@@ -9,8 +9,8 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop.h"
+#include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
-#include "base/string_util.h"
 #include "base/threading/platform_thread.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -1071,12 +1071,13 @@ TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
     ClientSocketHandle handles[kDefaultMaxSockets];
     for (int i = 0; i < kDefaultMaxSockets; ++i) {
       TestCompletionCallback callback;
-      EXPECT_EQ(OK, handles[i].Init(base::StringPrintf("Take 2: %d", i),
-                                    params_,
-                                    kDefaultPriority,
-                                    &callback,
-                                    pool_.get(),
-                                    BoundNetLog()));
+      EXPECT_EQ(OK, handles[i].Init(base::StringPrintf(
+          "Take 2: %d", i),
+          params_,
+          kDefaultPriority,
+          &callback,
+          pool_.get(),
+          BoundNetLog()));
     }
 
     EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());

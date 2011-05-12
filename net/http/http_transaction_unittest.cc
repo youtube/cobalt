@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "base/message_loop.h"
-#include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/net_errors.h"
 #include "net/base/load_flags.h"
 #include "net/disk_cache/disk_cache.h"
