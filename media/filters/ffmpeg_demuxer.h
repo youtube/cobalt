@@ -142,7 +142,7 @@ class FFmpegDemuxer : public Demuxer,
 
   // Filter implementation.
   virtual void Stop(FilterCallback* callback);
-  virtual void Seek(base::TimeDelta time, FilterCallback* callback);
+  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb);
   virtual void OnAudioRendererDisabled();
   virtual void set_host(FilterHost* filter_host);
   virtual void SetPlaybackRate(float playback_rate);
@@ -171,7 +171,7 @@ class FFmpegDemuxer : public Demuxer,
       DataSource* data_source, PipelineStatusCallback* callback);
 
   // Carries out a seek on the demuxer thread.
-  void SeekTask(base::TimeDelta time, FilterCallback* callback);
+  void SeekTask(base::TimeDelta time, const FilterStatusCB& cb);
 
   // Carries out demuxing and satisfying stream reads on the demuxer thread.
   void DemuxTask();

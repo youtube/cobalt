@@ -183,30 +183,27 @@ void FFmpegVideoDecoder::OnFlushComplete() {
   state_ = kNormal;
 }
 
-void FFmpegVideoDecoder::Seek(base::TimeDelta time,
-                              FilterCallback* callback) {
+void FFmpegVideoDecoder::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
   if (MessageLoop::current() != message_loop_) {
      message_loop_->PostTask(FROM_HERE,
-                              NewRunnableMethod(this,
-                                                &FFmpegVideoDecoder::Seek,
-                                                time,
-                                                callback));
+                             NewRunnableMethod(this, &FFmpegVideoDecoder::Seek,
+                                               time, cb));
      return;
   }
 
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(!seek_callback_.get());
+  DCHECK(seek_cb_.is_null());
 
   pts_stream_.Seek(time);
-  seek_callback_.reset(callback);
+  seek_cb_ = cb;
   decode_engine_->Seek();
 }
 
 void FFmpegVideoDecoder::OnSeekComplete() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(seek_callback_.get());
+  DCHECK(!seek_cb_.is_null());
 
-  AutoCallbackRunner done_runner(seek_callback_.release());
+  ResetAndRunCB(&seek_cb_, PIPELINE_OK);
 }
 
 void FFmpegVideoDecoder::OnError() {

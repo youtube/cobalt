@@ -425,7 +425,7 @@ TEST_F(FFmpegDemuxerTest, Seek) {
       .WillOnce(Return(0));
 
   // ...then our callback will be executed...
-  FilterCallback* seek_callback = NewExpectedCallback();
+  FilterStatusCB seek_cb = NewExpectedStatusCB(PIPELINE_OK);
   EXPECT_CALL(mock_ffmpeg_, CheckPoint(2));
 
   // ...followed by two audio packet reads we'll trigger...
@@ -468,7 +468,7 @@ TEST_F(FFmpegDemuxerTest, Seek) {
 
   // Issue a simple forward seek, which should discard queued packets.
   demuxer_->Seek(base::TimeDelta::FromMicroseconds(kExpectedTimestamp),
-                 seek_callback);
+                 seek_cb);
   message_loop_.RunAllPending();
   mock_ffmpeg_.CheckPoint(2);
 
