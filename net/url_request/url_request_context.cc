@@ -20,6 +20,7 @@ URLRequestContext::URLRequestContext()
       dnsrr_resolver_(NULL),
       dns_cert_checker_(NULL),
       http_auth_handler_factory_(NULL),
+      proxy_service_(NULL),
       network_delegate_(NULL),
       transport_security_state_(NULL),
       http_transaction_factory_(NULL),
