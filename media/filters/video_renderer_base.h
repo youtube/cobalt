@@ -51,7 +51,7 @@ class VideoRendererBase : public VideoRenderer,
   virtual void Flush(FilterCallback* callback);
   virtual void Stop(FilterCallback* callback);
   virtual void SetPlaybackRate(float playback_rate);
-  virtual void Seek(base::TimeDelta time, FilterCallback* callback);
+  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb);
 
   // VideoRenderer implementation.
   virtual void Initialize(VideoDecoder* decoder,
@@ -213,7 +213,7 @@ class VideoRendererBase : public VideoRenderer,
 
   // Filter callbacks.
   scoped_ptr<FilterCallback> flush_callback_;
-  scoped_ptr<FilterCallback> seek_callback_;
+  FilterStatusCB seek_cb_;
   scoped_ptr<StatisticsCallback> statistics_callback_;
 
   base::TimeDelta seek_timestamp_;

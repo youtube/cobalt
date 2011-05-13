@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/bind.h"
 #include "base/stl_util-inl.h"
 #include "media/base/callback.h"
 #include "media/base/data_buffer.h"
@@ -110,13 +111,15 @@ class VideoRendererBaseTest : public ::testing::Test {
     Seek(0);
   }
 
-  void StartSeeking(int64 timestamp) {
+  void StartSeeking(int64 timestamp, PipelineStatus expected_status) {
     EXPECT_FALSE(seeking_);
 
     // Seek to trigger prerolling.
     seeking_ = true;
     renderer_->Seek(base::TimeDelta::FromMicroseconds(timestamp),
-                    NewCallback(this, &VideoRendererBaseTest::OnSeekComplete));
+                    base::Bind(&VideoRendererBaseTest::OnSeekComplete,
+                               base::Unretained(this),
+                               expected_status));
   }
 
   void FinishSeeking() {
@@ -132,7 +135,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
   void Seek(int64 timestamp) {
-    StartSeeking(timestamp);
+    StartSeeking(timestamp, PIPELINE_OK);
     FinishSeeking();
   }
 
@@ -191,7 +194,8 @@ class VideoRendererBaseTest : public ::testing::Test {
     read_queue_.push_back(frame);
   }
 
-  void OnSeekComplete() {
+  void OnSeekComplete(PipelineStatus expected_status, PipelineStatus status) {
+    EXPECT_EQ(status, expected_status);
     EXPECT_TRUE(seeking_);
     seeking_ = false;
   }
@@ -269,9 +273,7 @@ TEST_F(VideoRendererBaseTest, Error_Playing) {
 TEST_F(VideoRendererBaseTest, Error_Seeking) {
   Initialize();
   Flush();
-  StartSeeking(0);
-
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+  StartSeeking(0, PIPELINE_ERROR_DECODE);
   CreateError();
   Flush();
 }

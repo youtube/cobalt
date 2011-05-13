@@ -313,13 +313,13 @@ void FFmpegDemuxer::Stop(FilterCallback* callback) {
   SignalReadCompleted(DataSource::kReadError);
 }
 
-void FFmpegDemuxer::Seek(base::TimeDelta time, FilterCallback* callback) {
+void FFmpegDemuxer::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
   // TODO(hclam): by returning from this method, it is assumed that the seek
   // operation is completed and filters behind the demuxer is good to issue
   // more reads, but we are posting a task here, which makes the seek operation
   // asynchronous, should change how seek works to make it fully asynchronous.
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxer::SeekTask, time, callback));
+      NewRunnableMethod(this, &FFmpegDemuxer::SeekTask, time, cb));
 }
 
 void FFmpegDemuxer::SetPlaybackRate(float playback_rate) {
@@ -528,9 +528,8 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   callback->Run(PIPELINE_OK);
 }
 
-void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
+void FFmpegDemuxer::SeekTask(base::TimeDelta time, const FilterStatusCB& cb) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  scoped_ptr<FilterCallback> c(callback);
 
   // Tell streams to flush buffers due to seeking.
   StreamVector::iterator iter;
@@ -553,7 +552,7 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
   }
 
   // Notify we're finished seeking.
-  callback->Run();
+  cb.Run(PIPELINE_OK);
 }
 
 void FFmpegDemuxer::DemuxTask() {

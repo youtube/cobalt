@@ -9,6 +9,7 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/stl_util-inl.h"
@@ -575,6 +576,19 @@ void PipelineImpl::OnFilterStateTransition() {
       NewRunnableMethod(this, &PipelineImpl::FilterStateTransitionTask));
 }
 
+// Called from any thread.
+// This method makes the FilterStatusCB behave like a FilterCallback. It
+// makes it look like a host()->SetError() call followed by a call to
+// OnFilterStateTransition() when errors occur.
+//
+// TODO: Revisit this code when SetError() is removed from FilterHost and
+//       all the FilterCallbacks are converted to FilterStatusCB.
+void PipelineImpl::OnFilterStateTransitionWithStatus(PipelineStatus status) {
+  if (status != PIPELINE_OK)
+    SetError(status);
+  OnFilterStateTransition();
+}
+
 void PipelineImpl::OnTeardownStateTransition() {
   message_loop_->PostTask(FROM_HERE,
       NewRunnableMethod(this, &PipelineImpl::TeardownStateTransitionTask));
@@ -710,8 +724,9 @@ void PipelineImpl::InitializeTask() {
     seek_pending_ = true;
     set_state(kSeeking);
     seek_timestamp_ = base::TimeDelta();
-    pipeline_filter_->Seek(seek_timestamp_,
-        NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+    pipeline_filter_->Seek(
+        seek_timestamp_,
+        base::Bind(&PipelineImpl::OnFilterStateTransitionWithStatus, this));
   }
 }
 
@@ -952,7 +967,7 @@ void PipelineImpl::FilterStateTransitionTask() {
           NewCallback(this, &PipelineImpl::OnFilterStateTransition));
     } else if (state_ == kSeeking) {
       pipeline_filter_->Seek(seek_timestamp_,
-          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+          base::Bind(&PipelineImpl::OnFilterStateTransitionWithStatus, this));
     } else if (state_ == kStarting) {
       pipeline_filter_->Play(
           NewCallback(this, &PipelineImpl::OnFilterStateTransition));

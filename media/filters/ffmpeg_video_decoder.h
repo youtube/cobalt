@@ -28,7 +28,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
 
   // Filter implementation.
   virtual void Stop(FilterCallback* callback);
-  virtual void Seek(base::TimeDelta time, FilterCallback* callback);
+  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb);
   virtual void Pause(FilterCallback* callback);
   virtual void Flush(FilterCallback* callback);
 
@@ -100,7 +100,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
   scoped_ptr<FilterCallback> initialize_callback_;
   scoped_ptr<FilterCallback> uninitialize_callback_;
   scoped_ptr<FilterCallback> flush_callback_;
-  scoped_ptr<FilterCallback> seek_callback_;
+  FilterStatusCB seek_cb_;
   scoped_ptr<StatisticsCallback> statistics_callback_;
 
   // Hold video frames when flush happens.
