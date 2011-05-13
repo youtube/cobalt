@@ -28,9 +28,10 @@ int NetworkDelegate::NotifyBeforeSendHeaders(uint64 request_id,
 
 void NetworkDelegate::NotifyRequestSent(
     uint64 request_id,
-    const HostPortPair& socket_address) {
+    const HostPortPair& socket_address,
+    const HttpRequestHeaders& headers) {
   DCHECK(CalledOnValidThread());
-  OnRequestSent(request_id, socket_address);
+  OnRequestSent(request_id, socket_address, headers);
 }
 
 void NetworkDelegate::NotifyResponseStarted(URLRequest* request) {
