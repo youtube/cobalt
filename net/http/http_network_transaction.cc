@@ -794,7 +794,7 @@ int HttpNetworkTransaction::DoSendRequest() {
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
   if (session_->network_delegate()) {
     session_->network_delegate()->NotifyRequestSent(
-        request_->request_id, response_.socket_address);
+        request_->request_id, response_.socket_address, request_headers_);
   }
 
   if (result < 0)
