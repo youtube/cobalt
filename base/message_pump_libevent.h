@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
+#include "base/threading/thread_checker.h"
 #include "base/time.h"
 
 // Declare structs we need from libevent.h rather than including it
@@ -105,6 +106,7 @@ class BASE_API MessagePumpLibevent : public MessagePump {
   // If an error occurs while calling this method in a cumulative fashion, the
   // event previously attached to |controller| is aborted.
   // Returns true on success.
+  // Must be called on the same thread the message_pump is running on.
   // TODO(dkegel): switch to edge-triggered readiness notification
   bool WatchFileDescriptor(int fd,
                            bool persistent,
@@ -157,7 +159,7 @@ class BASE_API MessagePumpLibevent : public MessagePump {
   event* wakeup_event_;
 
   ObserverList<IOObserver> io_observers_;
-
+  ThreadChecker watch_file_descriptor_caller_checker_;
   DISALLOW_COPY_AND_ASSIGN(MessagePumpLibevent);
 };
 

@@ -154,6 +154,7 @@
         'message_loop_proxy_impl_unittest.cc',
         'message_loop_unittest.cc',
         'message_pump_glib_unittest.cc',
+        'message_pump_libevent_unittest.cc',
         'metrics/field_trial_unittest.cc',
         'metrics/histogram_unittest.cc',
         'metrics/stats_table_unittest.cc',
@@ -275,6 +276,7 @@
             'dir_reader_posix_unittest.cc',
             'file_descriptor_shuffle_unittest.cc',
             'threading/worker_pool_posix_unittest.cc',
+            'message_pump_libevent_unittest.cc',
           ],
         }, {  # OS != "win"
           'sources/': [
