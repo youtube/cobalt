@@ -96,9 +96,10 @@ struct BASE_API PlatformFileInfo {
   base::Time creation_time;
 };
 
-// Creates or opens the given file. If PLATFORM_FILE_OPEN_ALWAYS is used, and
-// |created| is provided, |created| will be set to true if the file was created
-// or to false in case the file was just opened. |error_code| can be NULL.
+// Creates or opens the given file. If |created| is provided, it will be set to
+// true if a new file was created [or an old one truncated to zero length to
+// simulate a new file, which can happen with PLATFORM_FILE_CREATE_ALWAYS], and
+// false otherwise.  |error_code| can be NULL.
 BASE_API PlatformFile CreatePlatformFile(const FilePath& name,
                                          int flags,
                                          bool* created,
