@@ -582,6 +582,13 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "foo.cloudsecurityalliance.org",
                                       false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "login.sapo.pt",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "foo.login.sapo.pt",
+                                      false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
