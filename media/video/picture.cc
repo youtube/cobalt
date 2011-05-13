@@ -27,4 +27,12 @@ SysmemBuffer::SysmemBuffer(int32 id, gfx::Size size, void* data)
       info_(id, size) {
 }
 
+Picture::Picture(int32 picture_buffer_id, int32 bitstream_buffer_id,
+                 gfx::Size visible_size, gfx::Size decoded_size)
+    : picture_buffer_id_(picture_buffer_id),
+      bitstream_buffer_id_(bitstream_buffer_id),
+      visible_size_(visible_size),
+      decoded_size_(decoded_size) {
+}
+
 }  // namespace media

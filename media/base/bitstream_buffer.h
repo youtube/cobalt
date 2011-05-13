@@ -11,24 +11,23 @@ namespace media {
 
 // Class for passing bitstream buffers around. Ownership of the bitstream
 // pointer remains with whoever uses this class.
+// This is media-namespace equivalent of PP_BitstreamBuffer_Dev.
 class BitstreamBuffer {
  public:
-  BitstreamBuffer(uint8* bitstream, size_t bitstream_size, void* user_handle)
-      : bitstream_(bitstream),
-        bitstream_size_(bitstream_size),
-        user_handle_(user_handle) {
+  BitstreamBuffer(int32 id, uint8* data, size_t size)
+      : id_(id),
+        data_(data),
+        size_(size) {
   }
 
-  ~BitstreamBuffer() {}
-
-  uint8* bitstream() { return bitstream_; }
-  size_t bitstream_size() { return bitstream_size_; }
-  void* user_handle() { return user_handle_; }
+  int32 id() const { return id_; }
+  uint8* data() const { return data_; }
+  size_t size() const { return size_; }
 
  private:
-  uint8* bitstream_;
-  size_t bitstream_size_;
-  void* user_handle_;
+  int32 id_;
+  uint8* data_;
+  size_t size_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(BitstreamBuffer);
 };
