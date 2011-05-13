@@ -262,7 +262,8 @@ int TestNetworkDelegate::OnBeforeSendHeaders(
 
 void TestNetworkDelegate::OnRequestSent(
     uint64 request_id,
-    const net::HostPortPair& socket_address) {
+    const net::HostPortPair& socket_address,
+    const net::HttpRequestHeaders& headers) {
 }
 
 void TestNetworkDelegate::OnBeforeRedirect(net::URLRequest* request,

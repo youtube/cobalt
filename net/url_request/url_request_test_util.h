@@ -189,7 +189,8 @@ class TestNetworkDelegate : public net::NetworkDelegate {
                                   net::CompletionCallback* callback,
                                   net::HttpRequestHeaders* headers);
   virtual void OnRequestSent(uint64 request_id,
-                             const net::HostPortPair& socket_address);
+                             const net::HostPortPair& socket_address,
+                             const net::HttpRequestHeaders& headers);
   virtual void OnBeforeRedirect(net::URLRequest* request,
                                 const GURL& new_location);
   virtual void OnResponseStarted(net::URLRequest* request);
