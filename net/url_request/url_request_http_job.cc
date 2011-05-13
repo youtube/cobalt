@@ -27,6 +27,7 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
+#include "net/http/http_mac_signature.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
@@ -53,6 +54,30 @@ static const size_t kSdchPacketHistogramCount = 5;
 namespace net {
 
 namespace {
+
+void AddAuthorizationHeader(
+    const std::vector<CookieStore::CookieInfo>& cookie_infos,
+    HttpRequestInfo* request_info) {
+  const GURL& url = request_info->url;
+  const std::string& method = request_info->method;
+  std::string request_uri = HttpUtil::PathForRequest(url);
+  const std::string& host = url.host();
+  int port = url.EffectiveIntPort();
+  for (size_t i = 0; i < cookie_infos.size(); ++i) {
+    HttpMacSignature signature;
+    if (!signature.AddStateInfo(cookie_infos[i].name,
+                                cookie_infos[i].mac_key,
+                                cookie_infos[i].mac_algorithm)) {
+      continue;
+    }
+    if (!signature.AddHttpInfo(method, request_uri, host, port))
+      continue;
+    request_info->extra_headers.SetHeader(
+        HttpRequestHeaders::kAuthorization,
+        signature.GenerateAuthorizationHeader());
+    return;  // Only add the first valid header.
+  }
+}
 
 class HTTPSProberDelegateImpl : public HTTPSProberDelegate {
  public:
@@ -440,13 +465,16 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
   if (request_->context()->cookie_store() && allow) {
     CookieOptions options;
     options.set_include_httponly();
-    std::string cookies =
-        request_->context()->cookie_store()->GetCookiesWithOptions(
-            request_->url(), options);
-    if (!cookies.empty()) {
+    std::string cookie_line;
+    std::vector<CookieStore::CookieInfo> cookie_infos;
+    request_->context()->cookie_store()->GetCookiesWithInfo(
+        request_->url(), options, &cookie_line, &cookie_infos);
+    if (!cookie_line.empty()) {
       request_info_.extra_headers.SetHeader(
-          HttpRequestHeaders::kCookie, cookies);
+          HttpRequestHeaders::kCookie, cookie_line);
     }
+    if (URLRequest::AreMacCookiesEnabled())
+      AddAuthorizationHeader(cookie_infos, &request_info_);
   }
   // We may have been canceled within CanGetCookies.
   if (GetStatus().is_success()) {
