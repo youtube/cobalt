@@ -93,6 +93,8 @@ class SysmemBuffer {
 // This is the media-namespace equivalent of PP_Picture_Dev.
 class Picture {
  public:
+  Picture(int32 picture_buffer_id, int32 bitstream_buffer_id,
+          gfx::Size visible_size, gfx::Size decoded_size);
   Picture(const PP_Picture_Dev& picture);
 
   // Returns the id of the picture buffer where this picture is contained.
@@ -100,11 +102,10 @@ class Picture {
     return picture_buffer_id_;
   }
 
-  // Returns the handle associated with the bitstream buffer from which this
-  // picture was decoded.
+  // Returns the id of the bitstream buffer from which this frame was decoded.
   // TODO(vrk): Handle the case where a picture can span multiple buffers.
-  void* user_handle() const {
-    return user_handle_;
+  int32 bitstream_buffer_id() const {
+    return bitstream_buffer_id_;
   }
 
   // Returns the visible size of the decoded picture in pixels.
@@ -119,7 +120,7 @@ class Picture {
 
  private:
   int32 picture_buffer_id_;
-  void* user_handle_;
+  int32 bitstream_buffer_id_;
   gfx::Size visible_size_;
   gfx::Size decoded_size_;
 };

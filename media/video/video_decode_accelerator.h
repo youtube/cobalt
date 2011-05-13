@@ -190,7 +190,7 @@ class VideoDecodeAccelerator {
     // buffer to the decoder.
     virtual void ProvidePictureBuffers(
         uint32 requested_num_of_buffers,
-        gfx::Size dimensions,
+        const gfx::Size& dimensions,
         MemoryType type) = 0;
 
     // Callback to dismiss picture buffer that was assigned earlier.
@@ -202,6 +202,16 @@ class VideoDecodeAccelerator {
     // Callback to notify that decoder has decoded end of stream marker and has
     // outputted all displayable pictures.
     virtual void NotifyEndOfStream() = 0;
+
+    // Callback to notify that decoded has decoded the end of the current
+    // bitstream buffer.
+    virtual void NotifyEndOfBitstreamBuffer(int32 bitstream_buffer_id) = 0;
+
+    // Callback to notify that the outstanding flush has finished.
+    virtual void NotifyFlushDone() = 0;
+
+    // Callback to notify that the outstanding abort has finished.
+    virtual void NotifyAbortDone() = 0;
 
     // Callback to notify about decoding errors.
     virtual void NotifyError(Error error) = 0;
@@ -227,15 +237,13 @@ class VideoDecodeAccelerator {
   virtual bool Initialize(const std::vector<uint32>& config) = 0;
 
   // Decodes given bitstream buffer. Once decoder is done with processing
-  // |bitstream_buffer| is will call |callback|.
+  // |bitstream_buffer| it will call NotifyEndOfBitstreamBuffer() with the
+  // bitstream buffer id.
   // Parameters:
   //  |bitstream_buffer| is the input bitstream that is sent for decoding.
-  //  |callback| contains the callback function pointer for informing about
-  //  finished processing for |bitstream_buffer|.
   //
   // Returns true when command successfully accepted. Otherwise false.
-  virtual bool Decode(const BitstreamBuffer& bitstream_buffer,
-                      VideoDecodeAcceleratorCallback* callback) = 0;
+  virtual bool Decode(const BitstreamBuffer& bitstream_buffer) = 0;
 
   // Assigns a set of picture buffers to the video decoder.
   // AssignGLESBuffers assigns texture-backed buffers.
@@ -257,29 +265,23 @@ class VideoDecodeAccelerator {
   //
   // Parameters:
   //  |picture_buffer_id| id of the picture buffer that is to be reused.
-  virtual void ReusePictureBuffer(uint32 picture_buffer_id) = 0;
+  virtual void ReusePictureBuffer(int32 picture_buffer_id) = 0;
 
   // Flushes the decoder. Flushing will result in output of the
   // pictures and buffers held inside the decoder and returning of bitstream
   // buffers using the callbacks implemented by the plug-in. Once done with
-  // flushing, the decode will call the |callback|.
-  //
-  // Parameters:
-  //  |callback| contains the callback function pointer.
+  // flushing, the decode will call NotifyFlushDone().
   //
   // Returns true when command successfully accepted. Otherwise false.
-  virtual bool Flush(VideoDecodeAcceleratorCallback* callback) = 0;
+  virtual bool Flush() = 0;
 
   // Aborts the decoder. Decode will abort the decoding as soon as possible and
-  // will not output anything. |callback| will be called as soon as abort has
+  // will not output anything. NotifyAbortDone() is called  as soon as abort has
   // been finished. After abort all buffers can be considered dismissed, even
   // when there has not been callbacks to dismiss them.
   //
-  // Parameters:
-  //  |callback| contains the callback function pointer.
-  //
   // Returns true when command successfully accepted. Otherwise false.
-  virtual bool Abort(VideoDecodeAcceleratorCallback* callback) = 0;
+  virtual bool Abort() = 0;
 };
 
 }  // namespace media
