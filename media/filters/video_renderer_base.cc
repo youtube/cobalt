@@ -129,28 +129,37 @@ void VideoRendererBase::SetPlaybackRate(float playback_rate) {
   playback_rate_ = playback_rate;
 }
 
-void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
-  base::AutoLock auto_lock(lock_);
-  // There is a race condition between filters to receive SeekTask().
-  // It turns out we could receive buffer from decoder before seek()
-  // is called on us. so we do the following:
-  // kFlushed => ( Receive first buffer or Seek() ) => kSeeking and
-  // kSeeking => ( Receive enough buffers) => kPrerolled. )
-  DCHECK(kPrerolled == state_ || kFlushed == state_ || kSeeking == state_);
+void VideoRendererBase::Seek(base::TimeDelta time, const FilterStatusCB&  cb) {
+  bool run_callback = false;
 
-  if (state_ == kPrerolled) {
-    // Already get enough buffers from decoder.
-    callback->Run();
-    delete callback;
-  } else {
-    // Otherwise we are either kFlushed or kSeeking, but without enough buffers;
-    // we should save the callback function and call it later.
-    state_ = kSeeking;
-    seek_callback_.reset(callback);
+  {
+    base::AutoLock auto_lock(lock_);
+    // There is a race condition between filters to receive SeekTask().
+    // It turns out we could receive buffer from decoder before seek()
+    // is called on us. so we do the following:
+    // kFlushed => ( Receive first buffer or Seek() ) => kSeeking and
+    // kSeeking => ( Receive enough buffers) => kPrerolled. )
+    DCHECK(kPrerolled == state_ || kFlushed == state_ || kSeeking == state_);
+    DCHECK(!cb.is_null());
+    DCHECK(seek_cb_.is_null());
+
+    if (state_ == kPrerolled) {
+      // Already get enough buffers from decoder.
+      run_callback = true;
+
+    } else {
+      // Otherwise we are either kFlushed or kSeeking, but without enough
+      // buffers we should save the callback function and call it later.
+      state_ = kSeeking;
+      seek_cb_ = cb;
+    }
+
+    seek_timestamp_ = time;
+    ScheduleRead_Locked();
   }
 
-  seek_timestamp_ = time;
-  ScheduleRead_Locked();
+  if (run_callback)
+    cb.Run(PIPELINE_OK);
 }
 
 void VideoRendererBase::Initialize(VideoDecoder* decoder,
@@ -462,9 +471,8 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
       // If we reach prerolled state before Seek() is called by pipeline,
       // |seek_callback_| is not set, we will return immediately during
       // when Seek() is eventually called.
-      if ((seek_callback_.get())) {
-        seek_callback_->Run();
-        seek_callback_.reset();
+      if (!seek_cb_.is_null()) {
+        ResetAndRunCB(&seek_cb_, PIPELINE_OK);
       }
     }
   } else if (state_ == kFlushing && pending_reads_ == 0 && !pending_paint_) {
@@ -578,7 +586,10 @@ void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
   lock_.AssertAcquired();
 
   scoped_ptr<FilterCallback> callback;
-  switch (state_) {
+  State old_state = state_;
+  state_ = kError;
+
+  switch (old_state) {
     case kUninitialized:
     case kPrerolled:
     case kPaused:
@@ -593,8 +604,9 @@ void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
       break;
 
     case kSeeking:
-      CHECK(seek_callback_.get());
-      callback.swap(seek_callback_);
+      CHECK(!seek_cb_.is_null());
+      ResetAndRunCB(&seek_cb_, status);
+      return;
       break;
 
     case kStopped:
@@ -604,7 +616,7 @@ void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
     case kError:
       return;
   }
-  state_ = kError;
+
   host()->SetError(status);
 
   if (callback.get())
