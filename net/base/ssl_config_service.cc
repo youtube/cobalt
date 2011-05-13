@@ -41,13 +41,6 @@ SSLConfigService::SSLConfigService()
 }
 
 // static
-SSLConfigService* SSLConfigService::CreateSystemSSLConfigService() {
-  // TODO(rtenneti): We don't use the system SSL configuration any more.
-  // Simplify this code after talking with mattm.
-  return new SSLConfigServiceDefaults;
-}
-
-// static
 bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
     const std::string& hostname) {
   return SSLFalseStartBlacklist::IsMember(hostname.c_str());
