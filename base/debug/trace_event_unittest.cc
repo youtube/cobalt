@@ -21,10 +21,17 @@ namespace debug {
 
 namespace {
 
+struct JsonKeyValue {
+  const char* key;
+  const char* value;
+};
+
 class TraceEventTestFixture : public testing::Test {
  public:
   void ManualTestSetUp();
   void OnTraceDataCollected(TraceLog::RefCountedString* json_events_str);
+  bool FindMatchingTraceEntry(const JsonKeyValue* key_values);
+  bool FindNamePhase(const char* name, const char* phase);
 
   std::string trace_string_;
   ListValue trace_parsed_;
@@ -61,6 +68,61 @@ void TraceEventTestFixture::OnTraceDataCollected(
     root_list->Remove(0, &item);
     trace_parsed_.Append(item);
   }
+}
+
+static bool IsKeyValueInDict(const JsonKeyValue* key_value,
+                             DictionaryValue* dict) {
+  Value* value = NULL;
+  std::string value_str;
+  if (dict->Get(key_value->key, &value) &&
+      value->GetAsString(&value_str) &&
+      value_str == key_value->value)
+    return true;
+
+  // Recurse to test arguments
+  DictionaryValue* args_dict = NULL;
+  dict->GetDictionary("args", &args_dict);
+  if (args_dict)
+    return IsKeyValueInDict(key_value, args_dict);
+
+  return false;
+}
+
+static bool IsAllKeyValueInDict(const JsonKeyValue* key_values,
+                                DictionaryValue* dict) {
+  // Scan all key_values, they must all be present and equal.
+  while (key_values && key_values->key) {
+    if (!IsKeyValueInDict(key_values, dict))
+      return false;
+    ++key_values;
+  }
+  return true;
+}
+
+bool TraceEventTestFixture::FindMatchingTraceEntry(
+    const JsonKeyValue* key_values) {
+  // Scan all items
+  size_t trace_parsed_count = trace_parsed_.GetSize();
+  for (size_t i = 0; i < trace_parsed_count; i++) {
+    Value* value = NULL;
+    trace_parsed_.Get(i, &value);
+    if (!value || value->GetType() != Value::TYPE_DICTIONARY)
+      continue;
+    DictionaryValue* dict = static_cast<DictionaryValue*>(value);
+
+    if (IsAllKeyValueInDict(key_values, dict))
+      return true;
+  }
+  return false;
+}
+
+bool TraceEventTestFixture::FindNamePhase(const char* name, const char* phase) {
+  JsonKeyValue key_values[] = {
+    {"name", name},
+    {"ph", phase},
+    {0, 0}
+  };
+  return FindMatchingTraceEntry(key_values);
 }
 
 bool IsStringInDict(const char* string_to_match, DictionaryValue* dict) {
@@ -222,6 +284,109 @@ TEST_F(TraceEventTestFixture, DataCaptured) {
   TraceLog::GetInstance()->SetEnabled(false);
 
   DataCapturedValidateTraces(trace_parsed_, trace_string_);
+}
+
+// Simple Test for time threshold events.
+TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
+  ManualTestSetUp();
+  TraceLog::GetInstance()->SetEnabled(true);
+
+  // Test that events at the same level are properly filtered by threshold.
+  {
+    TRACE_EVENT_IF_LONGER_THAN0(100, "time", "threshold 100");
+    TRACE_EVENT_IF_LONGER_THAN0(1000, "time", "threshold 1000");
+    TRACE_EVENT_IF_LONGER_THAN0(10000, "time", "threshold 10000");
+    // 100+ seconds to avoid flakiness.
+    TRACE_EVENT_IF_LONGER_THAN0(100000000, "time", "threshold long1");
+    TRACE_EVENT_IF_LONGER_THAN0(200000000, "time", "threshold long2");
+    base::PlatformThread::Sleep(20); // 20000 us
+  }
+
+  // Test that a normal nested event remains after it's parent event is dropped.
+  {
+    TRACE_EVENT_IF_LONGER_THAN0(1000000, "time", "2threshold10000");
+    {
+      TRACE_EVENT0("time", "nonthreshold1");
+    }
+  }
+
+  // Test that parent thresholded events are dropped while some nested events
+  // remain.
+  {
+    TRACE_EVENT0("time", "nonthreshold3");
+    {
+      TRACE_EVENT_IF_LONGER_THAN0(200000000, "time", "3thresholdlong2");
+      {
+        TRACE_EVENT_IF_LONGER_THAN0(100000000, "time", "3thresholdlong1");
+        {
+          TRACE_EVENT_IF_LONGER_THAN0(10000, "time", "3threshold10000");
+          {
+            TRACE_EVENT_IF_LONGER_THAN0(1000, "time", "3threshold1000");
+            {
+              TRACE_EVENT_IF_LONGER_THAN0(100, "time", "3threshold100");
+              base::PlatformThread::Sleep(20);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Test that child thresholded events are dropped while some parent events
+  // remain.
+  {
+    TRACE_EVENT0("time", "nonthreshold4");
+    {
+      TRACE_EVENT_IF_LONGER_THAN0(100, "time", "4threshold100");
+      {
+        TRACE_EVENT_IF_LONGER_THAN0(1000, "time", "4threshold1000");
+        {
+          TRACE_EVENT_IF_LONGER_THAN0(10000, "time", "4threshold10000");
+          {
+            TRACE_EVENT_IF_LONGER_THAN0(100000000, "time",
+                                        "4thresholdlong1");
+            {
+              TRACE_EVENT_IF_LONGER_THAN0(200000000, "time",
+                                          "4thresholdlong2");
+              base::PlatformThread::Sleep(20);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  TraceLog::GetInstance()->SetEnabled(false);
+
+#define EXPECT_FIND_BE_(str) \
+  EXPECT_TRUE(FindNamePhase(str, "B")); \
+  EXPECT_TRUE(FindNamePhase(str, "E"))
+#define EXPECT_NOT_FIND_BE_(str) \
+  EXPECT_FALSE(FindNamePhase(str, "B")); \
+  EXPECT_FALSE(FindNamePhase(str, "E"))
+
+  EXPECT_FIND_BE_("threshold 100");
+  EXPECT_FIND_BE_("threshold 1000");
+  EXPECT_FIND_BE_("threshold 10000");
+  EXPECT_NOT_FIND_BE_("threshold long1");
+  EXPECT_NOT_FIND_BE_("threshold long2");
+
+  EXPECT_NOT_FIND_BE_("2threshold10000");
+  EXPECT_FIND_BE_("nonthreshold1");
+
+  EXPECT_FIND_BE_("nonthreshold3");
+  EXPECT_FIND_BE_("3threshold100");
+  EXPECT_FIND_BE_("3threshold1000");
+  EXPECT_FIND_BE_("3threshold10000");
+  EXPECT_NOT_FIND_BE_("3thresholdlong1");
+  EXPECT_NOT_FIND_BE_("3thresholdlong2");
+
+  EXPECT_FIND_BE_("nonthreshold4");
+  EXPECT_FIND_BE_("4threshold100");
+  EXPECT_FIND_BE_("4threshold1000");
+  EXPECT_FIND_BE_("4threshold10000");
+  EXPECT_NOT_FIND_BE_("4thresholdlong1");
+  EXPECT_NOT_FIND_BE_("4thresholdlong2");
 }
 
 // Test that data sent from other threads is gathered

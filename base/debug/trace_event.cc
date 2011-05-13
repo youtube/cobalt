@@ -155,12 +155,34 @@ const char* GetPhaseStr(TraceEventPhase phase) {
 }  // namespace
 
 TraceEvent::TraceEvent()
-    : process_id(0),
-      thread_id(0),
-      phase(TRACE_EVENT_PHASE_BEGIN),
-      category(NULL),
-      name(NULL) {
-  memset(arg_names, 0, sizeof(arg_names));
+    : process_id_(0),
+      thread_id_(0),
+      phase_(TRACE_EVENT_PHASE_BEGIN),
+      category_(NULL),
+      name_(NULL) {
+  arg_names_[0] = NULL;
+  arg_names_[1] = NULL;
+}
+
+TraceEvent::TraceEvent(unsigned long process_id,
+                       unsigned long thread_id,
+                       TimeTicks timestamp,
+                       TraceEventPhase phase,
+                       const TraceCategory* category,
+                       const char* name,
+                       const char* arg1_name, const TraceValue& arg1_val,
+                       const char* arg2_name, const TraceValue& arg2_val)
+    : process_id_(process_id),
+      thread_id_(thread_id),
+      timestamp_(timestamp),
+      phase_(phase),
+      category_(category),
+      name_(name) {
+  COMPILE_ASSERT(kTraceMaxNumArgs == 2, TraceEvent_arg_count_out_of_sync);
+  arg_names_[0] = arg1_name;
+  arg_names_[1] = arg2_name;
+  arg_values_[0] = arg1_val;
+  arg_values_[1] = arg2_val;
 }
 
 TraceEvent::~TraceEvent() {
@@ -180,28 +202,28 @@ void TraceEvent::AppendEventsAsJSON(const std::vector<TraceEvent>& events,
 }
 
 void TraceEvent::AppendAsJSON(std::string* out) const {
-  const char* phase_str = GetPhaseStr(phase);
-  int64 time_int64 = timestamp.ToInternalValue();
+  const char* phase_str = GetPhaseStr(phase_);
+  int64 time_int64 = timestamp_.ToInternalValue();
   // Category name checked at category creation time.
-  DCHECK(!strchr(name, '"'));
+  DCHECK(!strchr(name_, '"'));
   StringAppendF(out,
       "{\"cat\":\"%s\",\"pid\":%i,\"tid\":%i,\"ts\":%lld,"
       "\"ph\":\"%s\",\"name\":\"%s\",\"args\":{",
-      category->name,
-      static_cast<int>(process_id),
-      static_cast<int>(thread_id),
+      category_->name,
+      static_cast<int>(process_id_),
+      static_cast<int>(thread_id_),
       static_cast<long long>(time_int64),
       phase_str,
-      name);
+      name_);
 
   // Output argument names and values, stop at first NULL argument name.
-  for (size_t i = 0; i < kTraceMaxNumArgs && arg_names[i]; ++i) {
+  for (size_t i = 0; i < kTraceMaxNumArgs && arg_names_[i]; ++i) {
     if (i > 0)
       *out += ",";
     *out += "\"";
-    *out += arg_names[i];
+    *out += arg_names_[i];
     *out += "\":";
-    arg_values[i].AppendAsJSON(out);
+    arg_values_[i].AppendAsJSON(out);
   }
   *out += "}}";
 }
@@ -314,38 +336,50 @@ void TraceLog::Flush() {
   }
 }
 
-void TraceLog::AddTraceEvent(TraceEventPhase phase,
-                             const char* file, int line,
-                             const TraceCategory* category,
-                             const char* name,
-                             const char* arg1_name, TraceValue arg1_val,
-                             const char* arg2_name, TraceValue arg2_val) {
-  DCHECK(file && name);
+int TraceLog::AddTraceEvent(TraceEventPhase phase,
+                            const TraceCategory* category,
+                            const char* name,
+                            const char* arg1_name, TraceValue arg1_val,
+                            const char* arg2_name, TraceValue arg2_val,
+                            int threshold_begin_id,
+                            int64 threshold) {
+  DCHECK(name);
 #ifdef USE_UNRELIABLE_NOW
   TimeTicks now = TimeTicks::HighResNow();
 #else
   TimeTicks now = TimeTicks::Now();
 #endif
   BufferFullCallback buffer_full_callback_copy;
+  int ret_begin_id = -1;
   {
     AutoLock lock(lock_);
     if (!enabled_ || !category->enabled)
-      return;
+      return -1;
     if (logged_events_.size() >= kTraceEventBufferSize)
-      return;
-    logged_events_.push_back(TraceEvent());
-    TraceEvent& event = logged_events_.back();
-    event.process_id = static_cast<unsigned long>(base::GetCurrentProcId());
-    event.thread_id = PlatformThread::CurrentId();
-    event.timestamp = now;
-    event.phase = phase;
-    event.category = category;
-    event.name = name;
-    event.arg_names[0] = arg1_name;
-    event.arg_values[0] = arg1_val;
-    event.arg_names[1] = arg2_name;
-    event.arg_values[1] = arg2_val;
-    COMPILE_ASSERT(kTraceMaxNumArgs == 2, TraceEvent_arg_count_out_of_sync);
+      return -1;
+    if (threshold_begin_id > -1) {
+      DCHECK(phase == base::debug::TRACE_EVENT_PHASE_END);
+      size_t begin_i = static_cast<size_t>(threshold_begin_id);
+      // Return now if there has been a flush since the begin event was posted.
+      if (begin_i >= logged_events_.size())
+        return -1;
+      // Determine whether to drop the begin/end pair.
+      TimeDelta elapsed = now - logged_events_[begin_i].timestamp();
+      if (elapsed < TimeDelta::FromMicroseconds(threshold)) {
+        // Remove begin event and do not add end event.
+        // This will be expensive if there have been other events in the
+        // mean time (should be rare).
+        logged_events_.erase(logged_events_.begin() + begin_i);
+        return -1;
+      }
+    }
+    ret_begin_id = static_cast<int>(logged_events_.size());
+    logged_events_.push_back(
+        TraceEvent(static_cast<unsigned long>(base::GetCurrentProcId()),
+                   PlatformThread::CurrentId(),
+                   now, phase, category, name,
+                   arg1_name, arg1_val,
+                   arg2_name, arg2_val));
 
     if (logged_events_.size() == kTraceEventBufferSize) {
       buffer_full_callback_copy = buffer_full_callback_;
@@ -354,10 +388,11 @@ void TraceLog::AddTraceEvent(TraceEventPhase phase,
 
   if (!buffer_full_callback_copy.is_null())
     buffer_full_callback_copy.Run();
+
+  return ret_begin_id;
 }
 
 void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
-                                const char* file, int line,
                                 const char* name,
                                 const void* id,
                                 const char* extra) {
@@ -372,15 +407,62 @@ void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
     TraceLog* tracelog = TraceLog::GetInstance();
     if (!tracelog)
       return;
-    tracelog->AddTraceEvent(phase, file, line, category, name,
+    tracelog->AddTraceEvent(phase, category, name,
                             "id", id,
-                            "extra", extra ? extra : "");
+                            "extra", extra ? extra : "",
+                            -1, 0);
   }
 }
 
 void TraceLog::Resurrect() {
   StaticMemorySingletonTraits<TraceLog>::Resurrect();
 }
+
+namespace internal {
+
+void TraceEndOnScopeClose::Initialize(const TraceCategory* category,
+                                      const char* name) {
+  data_.category = category;
+  data_.name = name;
+  p_data_ = &data_;
+}
+
+void TraceEndOnScopeClose::AddEventIfEnabled() {
+  // Only called when p_data_ is non-null.
+  if (p_data_->category->enabled) {
+    base::debug::TraceLog::GetInstance()->AddTraceEvent(
+        base::debug::TRACE_EVENT_PHASE_END,
+        p_data_->category,
+        p_data_->name,
+        NULL, 0, NULL, 0,
+        -1, 0);
+  }
+}
+
+void TraceEndOnScopeCloseThreshold::Initialize(const TraceCategory* category,
+                                               const char* name,
+                                               int threshold_begin_id,
+                                               int64 threshold) {
+  data_.category = category;
+  data_.name = name;
+  data_.threshold_begin_id = threshold_begin_id;
+  data_.threshold = threshold;
+  p_data_ = &data_;
+}
+
+void TraceEndOnScopeCloseThreshold::AddEventIfEnabled() {
+  // Only called when p_data_ is non-null.
+  if (p_data_->category->enabled) {
+    base::debug::TraceLog::GetInstance()->AddTraceEvent(
+        base::debug::TRACE_EVENT_PHASE_END,
+        p_data_->category,
+        p_data_->name,
+        NULL, 0, NULL, 0,
+        p_data_->threshold_begin_id, p_data_->threshold);
+  }
+}
+
+} // namespace internal
 
 }  // namespace debug
 }  // namespace base
