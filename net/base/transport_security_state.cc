@@ -637,6 +637,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {20, false, "\003www\012logentries\003com", true, 0 },
     {12, true, "\006stripe\003com", true, 0 },
     {27, true, "\025cloudsecurityalliance\003org", true, 0 },
+    {15, true, "\005login\004sapo\002pt", true, 0 },
 #if defined(OS_CHROMEOS)
     {13, false, "\007twitter\003com", true, 0 },
     {17, false, "\003www\007twitter\003com", true, 0 },
