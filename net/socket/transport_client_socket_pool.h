@@ -48,16 +48,22 @@ class TransportSocketParams : public base::RefCounted<TransportSocketParams> {
 };
 
 // TransportConnectJob handles the host resolution necessary for socket creation
-// and the transport (likely TCP) connect.
+// and the transport (likely TCP) connect. TransportConnectJob also has fallback
+// logic for IPv6 connect() timeouts (which may happen due to networks / routers
+// with broken IPv6 support). Those timeouts take 20s, so rather than make the
+// user wait 20s for the timeout to fire, we use a fallback timer
+// (kIPv6FallbackTimerInMs) and start a connect() to a IPv4 address if the timer
+// fires. Then we race the IPv4 connect() against the IPv6 connect() (which has
+// a headstart) and return the one that completes first to the socket pool.
 class TransportConnectJob : public ConnectJob {
  public:
   TransportConnectJob(const std::string& group_name,
-                const scoped_refptr<TransportSocketParams>& params,
-                base::TimeDelta timeout_duration,
-                ClientSocketFactory* client_socket_factory,
-                HostResolver* host_resolver,
-                Delegate* delegate,
-                NetLog* net_log);
+                      const scoped_refptr<TransportSocketParams>& params,
+                      base::TimeDelta timeout_duration,
+                      ClientSocketFactory* client_socket_factory,
+                      HostResolver* host_resolver,
+                      Delegate* delegate,
+                      NetLog* net_log);
   virtual ~TransportConnectJob();
 
   // ConnectJob methods.
