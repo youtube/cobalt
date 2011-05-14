@@ -32,6 +32,7 @@ class NetworkDelegate;
 class ProxyService;
 class SSLConfigService;
 class URLRequest;
+class URLRequestJobFactory;
 
 // Subclass to provide application-specific context for URLRequest
 // instances. Note that URLRequestContext typically does not provide storage for
@@ -172,6 +173,11 @@ class URLRequestContext
   bool is_main() const { return is_main_; }
   void set_is_main(bool is_main) { is_main_ = is_main; }
 
+  const URLRequestJobFactory* job_factory() const { return job_factory_; }
+  void set_job_factory(const URLRequestJobFactory* job_factory) {
+    job_factory_ = job_factory;
+  }
+
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContext>;
 
@@ -206,9 +212,9 @@ class URLRequestContext
   // used in communication with a server but is used to construct a suggested
   // filename for file download.
   std::string referrer_charset_;
-
   HttpTransactionFactory* http_transaction_factory_;
   FtpTransactionFactory* ftp_transaction_factory_;
+  const URLRequestJobFactory* job_factory_;
 
   // ---------------------------------------------------------------------------
   // Important: When adding any new members below, consider whether they need to
