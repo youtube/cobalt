@@ -64,12 +64,6 @@ void NetworkDelegate::NotifyHttpTransactionDestroyed(uint64 request_id) {
   OnHttpTransactionDestroyed(request_id);
 }
 
-URLRequestJob* NetworkDelegate::MaybeCreateURLRequestJob(URLRequest* request) {
-  DCHECK(CalledOnValidThread());
-  DCHECK(request);
-  return OnMaybeCreateURLRequestJob(request);
-}
-
 void NetworkDelegate::NotifyPACScriptError(int line_number,
                                            const string16& error) {
   DCHECK(CalledOnValidThread());
