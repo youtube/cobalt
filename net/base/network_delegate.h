@@ -52,15 +52,6 @@ class NetworkDelegate : public base::NonThreadSafe {
   void NotifyCompleted(URLRequest* request);
   void NotifyURLRequestDestroyed(URLRequest* request);
   void NotifyHttpTransactionDestroyed(uint64 request_id);
-
-  // Returns a URLRequestJob that will be used to handle the request if
-  // non-null.
-  // TODO(koz): Currently this is called inside registered ProtocolFactories,
-  // so that we can perform Delegate-dependent request handling from the static
-  // factories, but ultimately it should be called directly from
-  // URLRequestJobManager::CreateJob() as a general override mechanism.
-  URLRequestJob* MaybeCreateURLRequestJob(URLRequest* request);
-
   void NotifyPACScriptError(int line_number, const string16& error);
 
  private:
@@ -109,10 +100,6 @@ class NetworkDelegate : public base::NonThreadSafe {
   // Called when the HttpTransaction for the request with the given ID is
   // destroyed.
   virtual void OnHttpTransactionDestroyed(uint64 request_id) = 0;
-
-  // Called before a request is sent and before a URLRequestJob is created to
-  // handle the request.
-  virtual URLRequestJob* OnMaybeCreateURLRequestJob(URLRequest* request) = 0;
 
   // Corresponds to ProxyResolverJSBindings::OnError.
   virtual void OnPACScriptError(int line_number, const string16& error) = 0;

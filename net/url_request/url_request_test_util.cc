@@ -10,6 +10,7 @@
 #include "base/threading/thread.h"
 #include "net/base/host_port_pair.h"
 #include "net/http/http_network_session.h"
+#include "net/url_request/url_request_job_factory.h"
 
 TestURLRequestContext::TestURLRequestContext()
     : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
@@ -67,6 +68,7 @@ void TestURLRequestContext::Init() {
   context_storage_.set_cookie_store(new net::CookieMonster(NULL, NULL));
   set_accept_language("en-us,fr");
   set_accept_charset("iso-8859-1,*,utf-8");
+  context_storage_.set_job_factory(new net::URLRequestJobFactory);
 }
 
 
