@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,32 +15,95 @@
 // and quotes.
 // Consider the command-line argument: q\"bs1\bs2\\bs3q\\\"
 // Here it is with C-style escapes.
-#define TRICKY_QUOTED L"q\\\"bs1\\bs2\\\\bs3q\\\\\\\""
+static const CommandLine::StringType kTrickyQuoted =
+    FILE_PATH_LITERAL("q\\\"bs1\\bs2\\\\bs3q\\\\\\\"");
 // It should be parsed by Windows as: q"bs1\bs2\\bs3q\"
 // Here that is with C-style escapes.
-#define TRICKY L"q\"bs1\\bs2\\\\bs3q\\\""
+static const CommandLine::StringType kTricky =
+    FILE_PATH_LITERAL("q\"bs1\\bs2\\\\bs3q\\\"");
 
 TEST(CommandLineTest, CommandLineConstructor) {
+  const CommandLine::CharType* argv[] = {
+      FILE_PATH_LITERAL("program"),
+      FILE_PATH_LITERAL("--foo="),
+      FILE_PATH_LITERAL("-bAr"),
+      FILE_PATH_LITERAL("-spaetzel=pierogi"),
+      FILE_PATH_LITERAL("-baz"),
+      FILE_PATH_LITERAL("flim"),
+      FILE_PATH_LITERAL("--other-switches=--dog=canine --cat=feline"),
+      FILE_PATH_LITERAL("-spaetzle=Crepe"),
+      FILE_PATH_LITERAL("-=loosevalue"),
+      FILE_PATH_LITERAL("FLAN"),
+      FILE_PATH_LITERAL("--input-translation=45--output-rotation"),
+      FILE_PATH_LITERAL("--"),
+      FILE_PATH_LITERAL("--"),
+      FILE_PATH_LITERAL("--not-a-switch"),
+      FILE_PATH_LITERAL("\"in the time of submarines...\""),
+      FILE_PATH_LITERAL("unquoted arg-with-space")};
+  CommandLine cl(arraysize(argv), argv);
+
+  EXPECT_FALSE(cl.command_line_string().empty());
+  EXPECT_FALSE(cl.HasSwitch("cruller"));
+  EXPECT_FALSE(cl.HasSwitch("flim"));
+  EXPECT_FALSE(cl.HasSwitch("program"));
+  EXPECT_FALSE(cl.HasSwitch("dog"));
+  EXPECT_FALSE(cl.HasSwitch("cat"));
+  EXPECT_FALSE(cl.HasSwitch("output-rotation"));
+  EXPECT_FALSE(cl.HasSwitch("not-a-switch"));
+  EXPECT_FALSE(cl.HasSwitch("--"));
+
+  EXPECT_EQ(FilePath(FILE_PATH_LITERAL("program")).value(),
+            cl.GetProgram().value());
+
+  EXPECT_TRUE(cl.HasSwitch("foo"));
+  EXPECT_TRUE(cl.HasSwitch("bAr"));
+  EXPECT_TRUE(cl.HasSwitch("baz"));
+  EXPECT_TRUE(cl.HasSwitch("spaetzle"));
+#if defined(OS_WIN)
+  EXPECT_TRUE(cl.HasSwitch("SPAETZLE"));
+#endif
+  EXPECT_TRUE(cl.HasSwitch("other-switches"));
+  EXPECT_TRUE(cl.HasSwitch("input-translation"));
+
+  EXPECT_EQ("Crepe", cl.GetSwitchValueASCII("spaetzle"));
+  EXPECT_EQ("", cl.GetSwitchValueASCII("Foo"));
+  EXPECT_EQ("", cl.GetSwitchValueASCII("bar"));
+  EXPECT_EQ("", cl.GetSwitchValueASCII("cruller"));
+  EXPECT_EQ("--dog=canine --cat=feline", cl.GetSwitchValueASCII(
+      "other-switches"));
+  EXPECT_EQ("45--output-rotation", cl.GetSwitchValueASCII("input-translation"));
+
+  const std::vector<CommandLine::StringType>& args = cl.args();
+  ASSERT_EQ(6U, args.size());
+
+  std::vector<CommandLine::StringType>::const_iterator iter = args.begin();
+  EXPECT_EQ(FILE_PATH_LITERAL("flim"), *iter);
+  ++iter;
+  EXPECT_EQ(FILE_PATH_LITERAL("FLAN"), *iter);
+  ++iter;
+  EXPECT_EQ(FILE_PATH_LITERAL("--"), *iter);
+  ++iter;
+  EXPECT_EQ(FILE_PATH_LITERAL("--not-a-switch"), *iter);
+  ++iter;
+  EXPECT_EQ(FILE_PATH_LITERAL("\"in the time of submarines...\""), *iter);
+  ++iter;
+  EXPECT_EQ(FILE_PATH_LITERAL("unquoted arg-with-space"), *iter);
+  ++iter;
+  EXPECT_TRUE(iter == args.end());
+}
+
+TEST(CommandLineTest, CommandLineFromString) {
 #if defined(OS_WIN)
   CommandLine cl = CommandLine::FromString(
-                     L"program --foo= -bAr  /Spaetzel=pierogi /Baz flim "
-                     L"--other-switches=\"--dog=canine --cat=feline\" "
-                     L"-spaetzle=Crepe   -=loosevalue  flan "
-                     L"--input-translation=\"45\"--output-rotation "
-                     L"--quotes=" TRICKY_QUOTED L" "
-                     L"-- -- --not-a-switch "
-                     L"\"in the time of submarines...\"");
+      L"program --foo= -bAr  /Spaetzel=pierogi /Baz flim "
+      L"--other-switches=\"--dog=canine --cat=feline\" "
+      L"-spaetzle=Crepe   -=loosevalue  FLAN "
+      L"--input-translation=\"45\"--output-rotation "
+      L"--quotes=" + kTrickyQuoted + L" "
+      L"-- -- --not-a-switch "
+      L"\"in the time of submarines...\"");
+
   EXPECT_FALSE(cl.command_line_string().empty());
-#elif defined(OS_POSIX)
-  const char* argv[] = {"program", "--foo=", "-bar",
-                        "-spaetzel=pierogi", "-baz", "flim",
-                        "--other-switches=--dog=canine --cat=feline",
-                        "-spaetzle=Crepe", "-=loosevalue", "flan",
-                        "--input-translation=45--output-rotation",
-                        "--", "--", "--not-a-switch",
-                        "in the time of submarines..."};
-  CommandLine cl(arraysize(argv), argv);
-#endif
   EXPECT_FALSE(cl.HasSwitch("cruller"));
   EXPECT_FALSE(cl.HasSwitch("flim"));
   EXPECT_FALSE(cl.HasSwitch("program"));
@@ -57,14 +120,10 @@ TEST(CommandLineTest, CommandLineConstructor) {
   EXPECT_TRUE(cl.HasSwitch("bar"));
   EXPECT_TRUE(cl.HasSwitch("baz"));
   EXPECT_TRUE(cl.HasSwitch("spaetzle"));
-#if defined(OS_WIN)
   EXPECT_TRUE(cl.HasSwitch("SPAETZLE"));
-#endif
   EXPECT_TRUE(cl.HasSwitch("other-switches"));
   EXPECT_TRUE(cl.HasSwitch("input-translation"));
-#if defined(OS_WIN)
   EXPECT_TRUE(cl.HasSwitch("quotes"));
-#endif
 
   EXPECT_EQ("Crepe", cl.GetSwitchValueASCII("spaetzle"));
   EXPECT_EQ("", cl.GetSwitchValueASCII("Foo"));
@@ -73,9 +132,7 @@ TEST(CommandLineTest, CommandLineConstructor) {
   EXPECT_EQ("--dog=canine --cat=feline", cl.GetSwitchValueASCII(
       "other-switches"));
   EXPECT_EQ("45--output-rotation", cl.GetSwitchValueASCII("input-translation"));
-#if defined(OS_WIN)
-  EXPECT_EQ(TRICKY, cl.GetSwitchValueNative("quotes"));
-#endif
+  EXPECT_EQ(kTricky, cl.GetSwitchValueNative("quotes"));
 
   const std::vector<CommandLine::StringType>& args = cl.args();
   ASSERT_EQ(5U, args.size());
@@ -83,7 +140,7 @@ TEST(CommandLineTest, CommandLineConstructor) {
   std::vector<CommandLine::StringType>::const_iterator iter = args.begin();
   EXPECT_EQ(FILE_PATH_LITERAL("flim"), *iter);
   ++iter;
-  EXPECT_EQ(FILE_PATH_LITERAL("flan"), *iter);
+  EXPECT_EQ(FILE_PATH_LITERAL("FLAN"), *iter);
   ++iter;
   EXPECT_EQ(FILE_PATH_LITERAL("--"), *iter);
   ++iter;
@@ -92,67 +149,90 @@ TEST(CommandLineTest, CommandLineConstructor) {
   EXPECT_EQ(FILE_PATH_LITERAL("in the time of submarines..."), *iter);
   ++iter;
   EXPECT_TRUE(iter == args.end());
-#if defined(OS_POSIX)
-  const std::vector<std::string>& argvec = cl.argv();
 
-  for (size_t i = 0; i < argvec.size(); i++) {
-    EXPECT_EQ(0, argvec[i].compare(argv[i]));
-  }
+  // Check that a generated string produces an equivalent command line.
+  CommandLine cl_duplicate = CommandLine::FromString(cl.command_line_string());
+  EXPECT_EQ(cl.command_line_string(), cl_duplicate.command_line_string());
 #endif
 }
 
 // Tests behavior with an empty input string.
 TEST(CommandLineTest, EmptyString) {
 #if defined(OS_WIN)
-  CommandLine cl = CommandLine::FromString(L"");
-  EXPECT_TRUE(cl.command_line_string().empty());
-  EXPECT_TRUE(cl.GetProgram().empty());
-#elif defined(OS_POSIX)
-  CommandLine cl(0, NULL);
-  EXPECT_TRUE(cl.argv().empty());
+  CommandLine cl_from_string = CommandLine::FromString(L"");
+  EXPECT_TRUE(cl_from_string.command_line_string().empty());
+  EXPECT_TRUE(cl_from_string.GetProgram().empty());
+  EXPECT_EQ(1U, cl_from_string.argv().size());
+  EXPECT_TRUE(cl_from_string.args().empty());
 #endif
-  EXPECT_TRUE(cl.args().empty());
+  CommandLine cl_from_argv(0, NULL);
+  EXPECT_TRUE(cl_from_argv.command_line_string().empty());
+  EXPECT_TRUE(cl_from_argv.GetProgram().empty());
+  EXPECT_EQ(1U, cl_from_argv.argv().size());
+  EXPECT_TRUE(cl_from_argv.args().empty());
 }
 
 // Test methods for appending switches to a command line.
 TEST(CommandLineTest, AppendSwitches) {
   std::string switch1 = "switch1";
   std::string switch2 = "switch2";
-  std::string value = "value";
+  std::string value2 = "value";
   std::string switch3 = "switch3";
   std::string value3 = "a value with spaces";
   std::string switch4 = "switch4";
   std::string value4 = "\"a value with quotes\"";
   std::string switch5 = "quotes";
-  std::string value5 = WideToUTF8(TRICKY);
+  CommandLine::StringType value5 = kTricky;
 
   CommandLine cl(FilePath(FILE_PATH_LITERAL("Program")));
 
   cl.AppendSwitch(switch1);
-  cl.AppendSwitchASCII(switch2, value);
+  cl.AppendSwitchASCII(switch2, value2);
   cl.AppendSwitchASCII(switch3, value3);
   cl.AppendSwitchASCII(switch4, value4);
-  cl.AppendSwitchASCII(switch5, value5);
+  cl.AppendSwitchNative(switch5, value5);
 
   EXPECT_TRUE(cl.HasSwitch(switch1));
   EXPECT_TRUE(cl.HasSwitch(switch2));
-  EXPECT_EQ(value, cl.GetSwitchValueASCII(switch2));
+  EXPECT_EQ(value2, cl.GetSwitchValueASCII(switch2));
   EXPECT_TRUE(cl.HasSwitch(switch3));
   EXPECT_EQ(value3, cl.GetSwitchValueASCII(switch3));
   EXPECT_TRUE(cl.HasSwitch(switch4));
   EXPECT_EQ(value4, cl.GetSwitchValueASCII(switch4));
   EXPECT_TRUE(cl.HasSwitch(switch5));
-  EXPECT_EQ(value5, cl.GetSwitchValueASCII(switch5));
+  EXPECT_EQ(value5, cl.GetSwitchValueNative(switch5));
 
 #if defined(OS_WIN)
-  EXPECT_EQ(L"\"Program\" "
+  EXPECT_EQ(L"Program "
             L"--switch1 "
             L"--switch2=value "
             L"--switch3=\"a value with spaces\" "
             L"--switch4=\"\\\"a value with quotes\\\"\" "
-            L"--quotes=\"" TRICKY_QUOTED L"\"",
+            L"--quotes=\"" + kTrickyQuoted + L"\"",
             cl.command_line_string());
 #endif
+}
+
+TEST(CommandLineTest, AppendSwitchesDashDash) {
+ const CommandLine::CharType* raw_argv[] = { FILE_PATH_LITERAL("prog"),
+                                             FILE_PATH_LITERAL("--"),
+                                             FILE_PATH_LITERAL("--arg1") };
+  CommandLine cl(arraysize(raw_argv), raw_argv);
+
+  cl.AppendSwitch("switch1");
+  cl.AppendSwitchASCII("switch2", "foo");
+
+  cl.AppendArg("--arg2");
+
+  EXPECT_EQ(FILE_PATH_LITERAL("prog --switch1 --switch2=foo -- --arg1 --arg2"),
+            cl.command_line_string());
+  CommandLine::StringVector cl_argv = cl.argv();
+  EXPECT_EQ(FILE_PATH_LITERAL("prog"), cl_argv[0]);
+  EXPECT_EQ(FILE_PATH_LITERAL("--switch1"), cl_argv[1]);
+  EXPECT_EQ(FILE_PATH_LITERAL("--switch2=foo"), cl_argv[2]);
+  EXPECT_EQ(FILE_PATH_LITERAL("--"), cl_argv[3]);
+  EXPECT_EQ(FILE_PATH_LITERAL("--arg1"), cl_argv[4]);
+  EXPECT_EQ(FILE_PATH_LITERAL("--arg2"), cl_argv[5]);
 }
 
 // Tests that when AppendArguments is called that the program is set correctly
@@ -180,21 +260,27 @@ TEST(CommandLineTest, AppendArguments) {
 }
 
 #if defined(OS_WIN)
-// Make sure that the program part of a command line is always quoted.
+// Make sure that program paths of command_line_string are quoted as necessary.
 // This only makes sense on Windows and the test is basically here to guard
 // against regressions.
 TEST(CommandLineTest, ProgramQuotes) {
+  // Check that quotes are not added for paths without spaces.
   const FilePath kProgram(L"Program");
+  CommandLine cl_program(kProgram);
+  EXPECT_EQ(kProgram.value(), cl_program.GetProgram().value());
+  EXPECT_EQ(kProgram.value(), cl_program.command_line_string());
+
+  const FilePath kProgramPath(L"Program Path");
 
   // Check that quotes are not returned from GetProgram().
-  CommandLine cl(kProgram);
-  EXPECT_EQ(kProgram.value(), cl.GetProgram().value());
+  CommandLine cl_program_path(kProgramPath);
+  EXPECT_EQ(kProgramPath.value(), cl_program_path.GetProgram().value());
 
-  // Verify that in the command line string, the program part is always quoted.
-  CommandLine::StringType cmd(cl.command_line_string());
-  CommandLine::StringType program(cl.GetProgram().value());
-  EXPECT_EQ('"', cmd[0]);
-  EXPECT_EQ(program, cmd.substr(1, program.length()));
-  EXPECT_EQ('"', cmd[program.length() + 1]);
+  // Check that quotes are added to command line string paths containing spaces.
+  CommandLine::StringType cmd_string(cl_program_path.command_line_string());
+  CommandLine::StringType program_string(cl_program_path.GetProgram().value());
+  EXPECT_EQ('"', cmd_string[0]);
+  EXPECT_EQ(program_string, cmd_string.substr(1, program_string.length()));
+  EXPECT_EQ('"', cmd_string[program_string.length() + 1]);
 }
 #endif
