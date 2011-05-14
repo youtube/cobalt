@@ -24,7 +24,8 @@ URLRequestContext::URLRequestContext()
       network_delegate_(NULL),
       transport_security_state_(NULL),
       http_transaction_factory_(NULL),
-      ftp_transaction_factory_(NULL) {
+      ftp_transaction_factory_(NULL),
+      job_factory_(NULL) {
 }
 
 void URLRequestContext::CopyFrom(URLRequestContext* other) {
@@ -47,6 +48,7 @@ void URLRequestContext::CopyFrom(URLRequestContext* other) {
   set_referrer_charset(other->referrer_charset());
   set_http_transaction_factory(other->http_transaction_factory());
   set_ftp_transaction_factory(other->ftp_transaction_factory());
+  set_job_factory(other->job_factory());
 }
 
 void URLRequestContext::set_cookie_store(CookieStore* cookie_store) {
