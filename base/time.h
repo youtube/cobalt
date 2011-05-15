@@ -25,6 +25,7 @@
 
 #include <time.h>
 
+#include "base/atomicops.h"
 #include "base/base_api.h"
 #include "base/basictypes.h"
 
@@ -281,10 +282,16 @@ class BASE_API Time {
   // Activates or deactivates the high resolution timer based on the |activate|
   // flag.  If the HighResolutionTimer is not Enabled (see
   // EnableHighResolutionTimer), this function will return false.  Otherwise
-  // returns true.
+  // returns true.  Each successful activate call must be paired with a
+  // subsequent deactivate call.
   // All callers to activate the high resolution timer must eventually call
   // this function to deactivate the high resolution timer.
   static bool ActivateHighResolutionTimer(bool activate);
+
+  // Returns true if the high resolution timer is both enabled and activated.
+  // This is provided for testing only, and is not tracked in a thread-safe
+  // way.
+  static bool IsHighResolutionTimerInUse();
 #endif
 
   // Converts an exploded structure representing either the local time or UTC
@@ -403,6 +410,9 @@ class BASE_API Time {
   // when using battery power, we might elect to prevent high speed timers
   // which would draw more power.
   static bool high_resolution_timer_enabled_;
+  // Count of activations on the high resolution timer.  Only use in tests
+  // which are single threaded.
+  static int high_resolution_timer_activated_;
 #endif
 
   // Time in microseconds in UTC.
