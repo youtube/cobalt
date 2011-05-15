@@ -15,6 +15,7 @@
 #include "base/scoped_ptr.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_local.h"
+#include "base/time.h"
 #include "base/tracked_objects.h"
 
 #if defined(OS_MACOSX)
@@ -226,6 +227,16 @@ MessageLoop::~MessageLoop() {
 
   // OK, now make it so that no one can find us.
   lazy_tls_ptr.Pointer()->Set(NULL);
+
+#if defined(OS_WIN)
+  // If we left the high-resolution timer activated, deactivate it now.
+  // Doing this is not-critical, it is mainly to make sure we track
+  // the high resolution timer activations properly in our unit tests.
+  if (!high_resolution_timer_expiration_.is_null()) {
+    base::Time::ActivateHighResolutionTimer(false);
+    high_resolution_timer_expiration_ = base::TimeTicks();
+  }
+#endif
 }
 
 // static
@@ -576,9 +587,10 @@ TimeTicks MessageLoop::CalculateDelayedRuntime(int64 delay_ms) {
       bool needs_high_res_timers =
           delay_ms < (2 * base::Time::kMinLowResolutionThresholdMs);
       if (needs_high_res_timers) {
-        base::Time::ActivateHighResolutionTimer(true);
-        high_resolution_timer_expiration_ = TimeTicks::Now() +
-            TimeDelta::FromMilliseconds(kHighResolutionTimerModeLeaseTimeMs);
+        if (base::Time::ActivateHighResolutionTimer(true)) {
+          high_resolution_timer_expiration_ = TimeTicks::Now() +
+              TimeDelta::FromMilliseconds(kHighResolutionTimerModeLeaseTimeMs);
+        }
       }
     }
 #endif
