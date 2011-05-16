@@ -82,6 +82,8 @@
         'base/buffers.h',
         'base/callback.cc',
         'base/callback.h',
+        'base/channel_layout.cc',
+        'base/channel_layout.h',
         'base/clock.cc',
         'base/clock.h',
         'base/composite_data_source_factory.cc',

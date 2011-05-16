@@ -33,7 +33,7 @@ struct AudioParameters {
 
   explicit AudioParameters(const media::AudioDecoderConfig& config);
 
-  AudioParameters(Format format, int channels, int sample_rate,
+  AudioParameters(Format format, ChannelLayout channel_layout, int sample_rate,
                   int bits_per_sample, int samples_per_packet);
 
   // Checks that all values are in the expected range. All limits are specified
@@ -46,11 +46,14 @@ struct AudioParameters {
   // Returns the number of bytes representing one second of audio.
   int GetBytesPerSecond() const;
 
-  Format format;           // Format of the stream.
-  int channels;            // Number of channels.
-  int sample_rate;         // Sampling frequency/rate.
-  int bits_per_sample;     // Number of bits per sample.
-  int samples_per_packet;  // Size of a packet in frames.
+  Format format;                 // Format of the stream.
+  ChannelLayout channel_layout;  // Order of surround sound channels.
+  int sample_rate;               // Sampling frequency/rate.
+  int bits_per_sample;           // Number of bits per sample.
+  int samples_per_packet;        // Size of a packet in frames.
+
+  int channels;                  // Number of channels. Value set based on
+                                 // |channel_layout|.
 };
 
 #endif  // MEDIA_AUDIO_AUDIO_PARAMETERS_H_

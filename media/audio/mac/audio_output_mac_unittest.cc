@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -57,7 +57,8 @@ TEST(MacAudioTest, PCMWaveStreamGetAndClose) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, 8000, 16, 1024));
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_STEREO,
+                      8000, 16, 1024));
   ASSERT_TRUE(NULL != oas);
   oas->Close();
 }
@@ -69,7 +70,8 @@ TEST(MacAudioTest, PCMWaveStreamOpenAndClose) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, 8000, 16, 1024));
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_STEREO,
+                      8000, 16, 1024));
   ASSERT_TRUE(NULL != oas);
   EXPECT_TRUE(oas->Open());
   oas->Close();
@@ -86,7 +88,7 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
     return;
   uint32 frames_100_ms = AudioParameters::kAudioCDSampleRate / 10;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_MONO,
                       AudioParameters::kAudioCDSampleRate, 16, frames_100_ms));
   ASSERT_TRUE(NULL != oas);
   EXPECT_TRUE(oas->Open());
@@ -117,7 +119,7 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone22KssMono) {
     return;
   uint32 frames_100_ms = AudioParameters::kAudioCDSampleRate / 10;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_MONO,
                       AudioParameters::kAudioCDSampleRate / 2, 16,
                       frames_100_ms));
   ASSERT_TRUE(NULL != oas);
@@ -145,7 +147,7 @@ TEST(MacAudioTest, PCMWaveStreamPendingBytes) {
 
   uint32 frames_100_ms = AudioParameters::kAudioCDSampleRate / 10;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_MONO,
                       AudioParameters::kAudioCDSampleRate, 16, frames_100_ms));
   ASSERT_TRUE(NULL != oas);
 
