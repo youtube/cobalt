@@ -31,6 +31,8 @@ template <typename R>
 struct FunctionTraits<R(__stdcall *)()> {
   typedef R (*NormalizedSig)();
   typedef false_type IsMethod;
+
+  typedef R Return;
 };
 
 // __fastcall Function: Arity 0.
@@ -38,6 +40,8 @@ template <typename R>
 struct FunctionTraits<R(__fastcall *)()> {
   typedef R (*NormalizedSig)();
   typedef false_type IsMethod;
+
+  typedef R Return;
 };
 
 // __stdcall Function: Arity 1.
@@ -45,6 +49,9 @@ template <typename R, typename X1>
 struct FunctionTraits<R(__stdcall *)(X1)> {
   typedef R (*NormalizedSig)(X1);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
 };
@@ -54,6 +61,9 @@ template <typename R, typename X1>
 struct FunctionTraits<R(__fastcall *)(X1)> {
   typedef R (*NormalizedSig)(X1);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
 };
@@ -63,6 +73,9 @@ template <typename R, typename X1, typename X2>
 struct FunctionTraits<R(__stdcall *)(X1, X2)> {
   typedef R (*NormalizedSig)(X1, X2);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -73,6 +86,9 @@ template <typename R, typename X1, typename X2>
 struct FunctionTraits<R(__fastcall *)(X1, X2)> {
   typedef R (*NormalizedSig)(X1, X2);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -83,6 +99,9 @@ template <typename R, typename X1, typename X2, typename X3>
 struct FunctionTraits<R(__stdcall *)(X1, X2, X3)> {
   typedef R (*NormalizedSig)(X1, X2, X3);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -94,6 +113,9 @@ template <typename R, typename X1, typename X2, typename X3>
 struct FunctionTraits<R(__fastcall *)(X1, X2, X3)> {
   typedef R (*NormalizedSig)(X1, X2, X3);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -105,6 +127,9 @@ template <typename R, typename X1, typename X2, typename X3, typename X4>
 struct FunctionTraits<R(__stdcall *)(X1, X2, X3, X4)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -117,6 +142,9 @@ template <typename R, typename X1, typename X2, typename X3, typename X4>
 struct FunctionTraits<R(__fastcall *)(X1, X2, X3, X4)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -130,6 +158,9 @@ template <typename R, typename X1, typename X2, typename X3, typename X4,
 struct FunctionTraits<R(__stdcall *)(X1, X2, X3, X4, X5)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4, X5);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -144,6 +175,9 @@ template <typename R, typename X1, typename X2, typename X3, typename X4,
 struct FunctionTraits<R(__fastcall *)(X1, X2, X3, X4, X5)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4, X5);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -158,6 +192,9 @@ template <typename R, typename X1, typename X2, typename X3, typename X4,
 struct FunctionTraits<R(__stdcall *)(X1, X2, X3, X4, X5, X6)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4, X5, X6);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -173,6 +210,9 @@ template <typename R, typename X1, typename X2, typename X3, typename X4,
 struct FunctionTraits<R(__fastcall *)(X1, X2, X3, X4, X5, X6)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4, X5, X6);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;

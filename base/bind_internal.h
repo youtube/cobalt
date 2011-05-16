@@ -14,6 +14,7 @@
 
 #include "base/bind_helpers.h"
 #include "base/callback_internal.h"
+#include "base/memory/weak_ptr.h"
 #include "base/template_util.h"
 #include "build/build_config.h"
 
@@ -39,9 +40,20 @@ namespace internal {
 //                 a calback.
 //   InvokerStorageN<> -- Provides storage for the bound parameters, and
 //                        typedefs to the above.
+//   IsWeakMethod<> -- Determines if we are binding a method to a WeakPtr<>.
 //
 // More details about the design of each class is included in a comment closer
 // to their defition.
+
+
+// IsWeakMethod determines if we are binding a method to a WeakPtr<> for an
+// object.  It is used to select an InvokerN that will no-op itself in the
+// event the WeakPtr<> for the target object is invalidated.
+template <bool IsMethod, typename T>
+struct IsWeakMethod : public false_type {};
+
+template <typename T>
+struct IsWeakMethod<true, WeakPtr<T> > : public true_type {};
 
 // FunctionTraits<>
 //
@@ -75,6 +87,8 @@ struct FunctionTraits<R(*)()> {
   typedef R (*NormalizedSig)();
   typedef false_type IsMethod;
 
+  typedef R Return;
+
 };
 
 // Method: Arity 0.
@@ -82,6 +96,8 @@ template <typename R, typename T>
 struct FunctionTraits<R(T::*)()> {
   typedef R (T::*NormalizedSig)();
   typedef true_type IsMethod;
+
+  typedef R Return;
 
   // Target type for each bound parameter.
   typedef T B1;
@@ -94,6 +110,8 @@ struct FunctionTraits<R(T::*)() const> {
   typedef R (T::*NormalizedSig)();
   typedef true_type IsMethod;
 
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef T B1;
 
@@ -104,6 +122,9 @@ template <typename R, typename X1>
 struct FunctionTraits<R(*)(X1)> {
   typedef R (*NormalizedSig)(X1);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
 
@@ -114,6 +135,8 @@ template <typename R, typename T, typename X1>
 struct FunctionTraits<R(T::*)(X1)> {
   typedef R (T::*NormalizedSig)(X1);
   typedef true_type IsMethod;
+
+  typedef R Return;
 
   // Target type for each bound parameter.
   typedef T B1;
@@ -127,6 +150,8 @@ struct FunctionTraits<R(T::*)(X1) const> {
   typedef R (T::*NormalizedSig)(X1);
   typedef true_type IsMethod;
 
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef T B1;
   typedef X1 B2;
@@ -138,6 +163,9 @@ template <typename R, typename X1, typename X2>
 struct FunctionTraits<R(*)(X1, X2)> {
   typedef R (*NormalizedSig)(X1, X2);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -149,6 +177,8 @@ template <typename R, typename T, typename X1, typename X2>
 struct FunctionTraits<R(T::*)(X1, X2)> {
   typedef R (T::*NormalizedSig)(X1, X2);
   typedef true_type IsMethod;
+
+  typedef R Return;
 
   // Target type for each bound parameter.
   typedef T B1;
@@ -163,6 +193,8 @@ struct FunctionTraits<R(T::*)(X1, X2) const> {
   typedef R (T::*NormalizedSig)(X1, X2);
   typedef true_type IsMethod;
 
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef T B1;
   typedef X1 B2;
@@ -175,6 +207,9 @@ template <typename R, typename X1, typename X2, typename X3>
 struct FunctionTraits<R(*)(X1, X2, X3)> {
   typedef R (*NormalizedSig)(X1, X2, X3);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -187,6 +222,8 @@ template <typename R, typename T, typename X1, typename X2, typename X3>
 struct FunctionTraits<R(T::*)(X1, X2, X3)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3);
   typedef true_type IsMethod;
+
+  typedef R Return;
 
   // Target type for each bound parameter.
   typedef T B1;
@@ -202,6 +239,8 @@ struct FunctionTraits<R(T::*)(X1, X2, X3) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3);
   typedef true_type IsMethod;
 
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef T B1;
   typedef X1 B2;
@@ -215,6 +254,9 @@ template <typename R, typename X1, typename X2, typename X3, typename X4>
 struct FunctionTraits<R(*)(X1, X2, X3, X4)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -229,6 +271,8 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4);
   typedef true_type IsMethod;
+
+  typedef R Return;
 
   // Target type for each bound parameter.
   typedef T B1;
@@ -246,6 +290,8 @@ struct FunctionTraits<R(T::*)(X1, X2, X3, X4) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4);
   typedef true_type IsMethod;
 
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef T B1;
   typedef X1 B2;
@@ -261,6 +307,9 @@ template <typename R, typename X1, typename X2, typename X3, typename X4,
 struct FunctionTraits<R(*)(X1, X2, X3, X4, X5)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4, X5);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -276,6 +325,8 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5);
   typedef true_type IsMethod;
+
+  typedef R Return;
 
   // Target type for each bound parameter.
   typedef T B1;
@@ -294,6 +345,8 @@ struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5);
   typedef true_type IsMethod;
 
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef T B1;
   typedef X1 B2;
@@ -310,6 +363,9 @@ template <typename R, typename X1, typename X2, typename X3, typename X4,
 struct FunctionTraits<R(*)(X1, X2, X3, X4, X5, X6)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4, X5, X6);
   typedef false_type IsMethod;
+
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef X1 B1;
   typedef X2 B2;
@@ -326,6 +382,8 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5, X6)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5, X6);
   typedef true_type IsMethod;
+
+  typedef R Return;
 
   // Target type for each bound parameter.
   typedef T B1;
@@ -344,6 +402,8 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5, X6) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5, X6);
   typedef true_type IsMethod;
+
+  typedef R Return;
 
   // Target type for each bound parameter.
   typedef T B1;
@@ -376,12 +436,12 @@ struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5, X6) const> {
 // templates classes in the system to only have as many specializations as
 // the max arity of function we wish to support.
 
-template <typename StorageType, typename NormalizedSig>
+template <bool IsWeak, typename StorageType, typename NormalizedSig>
 struct Invoker0;
 
 // Function: Arity 0 -> 0.
 template <typename StorageType, typename R>
-struct Invoker0<StorageType, R(*)()> {
+struct Invoker0<false, StorageType, R(*)()> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_();
@@ -390,7 +450,7 @@ struct Invoker0<StorageType, R(*)()> {
 
 // Function: Arity 1 -> 1.
 template <typename StorageType, typename R,typename X1>
-struct Invoker0<StorageType, R(*)(X1)> {
+struct Invoker0<false, StorageType, R(*)(X1)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -400,7 +460,7 @@ struct Invoker0<StorageType, R(*)(X1)> {
 
 // Function: Arity 2 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2>
-struct Invoker0<StorageType, R(*)(X1, X2)> {
+struct Invoker0<false, StorageType, R(*)(X1, X2)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2) {
@@ -412,7 +472,7 @@ struct Invoker0<StorageType, R(*)(X1, X2)> {
 // Function: Arity 3 -> 3.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
-struct Invoker0<StorageType, R(*)(X1, X2, X3)> {
+struct Invoker0<false, StorageType, R(*)(X1, X2, X3)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -425,7 +485,7 @@ struct Invoker0<StorageType, R(*)(X1, X2, X3)> {
 // Function: Arity 4 -> 4.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
-struct Invoker0<StorageType, R(*)(X1, X2, X3, X4)> {
+struct Invoker0<false, StorageType, R(*)(X1, X2, X3, X4)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -439,7 +499,7 @@ struct Invoker0<StorageType, R(*)(X1, X2, X3, X4)> {
 // Function: Arity 5 -> 5.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct Invoker0<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker0<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -454,7 +514,7 @@ struct Invoker0<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Function: Arity 6 -> 6.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct Invoker0<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker0<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -467,12 +527,12 @@ struct Invoker0<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   }
 };
 
-template <typename StorageType, typename NormalizedSig>
+template <bool IsWeak, typename StorageType, typename NormalizedSig>
 struct Invoker1;
 
 // Function: Arity 1 -> 0.
 template <typename StorageType, typename R,typename X1>
-struct Invoker1<StorageType, R(*)(X1)> {
+struct Invoker1<false, StorageType, R(*)(X1)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_));
@@ -481,16 +541,29 @@ struct Invoker1<StorageType, R(*)(X1)> {
 
 // Method: Arity 0 -> 0.
 template <typename StorageType, typename R, typename T>
-struct Invoker1<StorageType, R(T::*)()> {
+struct Invoker1<false, StorageType, R(T::*)()> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)();
   }
 };
 
+// WeakPtr Method: Arity 0 -> 0.
+template <typename StorageType, typename T>
+struct Invoker1<true, StorageType, void(T::*)()> {
+  static void DoInvoke(InvokerStorageBase* base) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)();
+  }
+};
+
 // Function: Arity 2 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2>
-struct Invoker1<StorageType, R(*)(X1, X2)> {
+struct Invoker1<false, StorageType, R(*)(X1, X2)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -500,7 +573,7 @@ struct Invoker1<StorageType, R(*)(X1, X2)> {
 
 // Method: Arity 1 -> 1.
 template <typename StorageType, typename R, typename T, typename X1>
-struct Invoker1<StorageType, R(T::*)(X1)> {
+struct Invoker1<false, StorageType, R(T::*)(X1)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -508,10 +581,24 @@ struct Invoker1<StorageType, R(T::*)(X1)> {
   }
 };
 
+// WeakPtr Method: Arity 1 -> 1.
+template <typename StorageType, typename T, typename X1>
+struct Invoker1<true, StorageType, void(T::*)(X1)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(x1);
+  }
+};
+
 // Function: Arity 3 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
-struct Invoker1<StorageType, R(*)(X1, X2, X3)> {
+struct Invoker1<false, StorageType, R(*)(X1, X2, X3)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3) {
@@ -523,7 +610,7 @@ struct Invoker1<StorageType, R(*)(X1, X2, X3)> {
 // Method: Arity 2 -> 2.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
-struct Invoker1<StorageType, R(T::*)(X1, X2)> {
+struct Invoker1<false, StorageType, R(T::*)(X1, X2)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2) {
@@ -532,10 +619,25 @@ struct Invoker1<StorageType, R(T::*)(X1, X2)> {
   }
 };
 
+// WeakPtr Method: Arity 2 -> 2.
+template <typename StorageType, typename T, typename X1, typename X2>
+struct Invoker1<true, StorageType, void(T::*)(X1, X2)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(x1, x2);
+  }
+};
+
 // Function: Arity 4 -> 3.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
-struct Invoker1<StorageType, R(*)(X1, X2, X3, X4)> {
+struct Invoker1<false, StorageType, R(*)(X1, X2, X3, X4)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -548,7 +650,7 @@ struct Invoker1<StorageType, R(*)(X1, X2, X3, X4)> {
 // Method: Arity 3 -> 3.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
-struct Invoker1<StorageType, R(T::*)(X1, X2, X3)> {
+struct Invoker1<false, StorageType, R(T::*)(X1, X2, X3)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -558,10 +660,27 @@ struct Invoker1<StorageType, R(T::*)(X1, X2, X3)> {
   }
 };
 
+// WeakPtr Method: Arity 3 -> 3.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3>
+struct Invoker1<true, StorageType, void(T::*)(X1, X2, X3)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(x1, x2, x3);
+  }
+};
+
 // Function: Arity 5 -> 4.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct Invoker1<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker1<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -575,7 +694,7 @@ struct Invoker1<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Method: Arity 4 -> 4.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
-struct Invoker1<StorageType, R(T::*)(X1, X2, X3, X4)> {
+struct Invoker1<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -586,10 +705,28 @@ struct Invoker1<StorageType, R(T::*)(X1, X2, X3, X4)> {
   }
 };
 
+// WeakPtr Method: Arity 4 -> 4.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4>
+struct Invoker1<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(x1, x2, x3, x4);
+  }
+};
+
 // Function: Arity 6 -> 5.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct Invoker1<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker1<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -604,7 +741,7 @@ struct Invoker1<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 5.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct Invoker1<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker1<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -616,12 +753,31 @@ struct Invoker1<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-template <typename StorageType, typename NormalizedSig>
+// WeakPtr Method: Arity 5 -> 5.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4, typename X5>
+struct Invoker1<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(x1, x2, x3, x4, x5);
+  }
+};
+
+template <bool IsWeak, typename StorageType, typename NormalizedSig>
 struct Invoker2;
 
 // Function: Arity 2 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2>
-struct Invoker2<StorageType, R(*)(X1, X2)> {
+struct Invoker2<false, StorageType, R(*)(X1, X2)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_));
@@ -630,17 +786,30 @@ struct Invoker2<StorageType, R(*)(X1, X2)> {
 
 // Method: Arity 1 -> 0.
 template <typename StorageType, typename R, typename T, typename X1>
-struct Invoker2<StorageType, R(T::*)(X1)> {
+struct Invoker2<false, StorageType, R(T::*)(X1)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_));
   }
 };
 
+// WeakPtr Method: Arity 1 -> 0.
+template <typename StorageType, typename T, typename X1>
+struct Invoker2<true, StorageType, void(T::*)(X1)> {
+  static void DoInvoke(InvokerStorageBase* base) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_));
+  }
+};
+
 // Function: Arity 3 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
-struct Invoker2<StorageType, R(*)(X1, X2, X3)> {
+struct Invoker2<false, StorageType, R(*)(X1, X2, X3)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -651,7 +820,7 @@ struct Invoker2<StorageType, R(*)(X1, X2, X3)> {
 // Method: Arity 2 -> 1.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
-struct Invoker2<StorageType, R(T::*)(X1, X2)> {
+struct Invoker2<false, StorageType, R(T::*)(X1, X2)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -659,10 +828,24 @@ struct Invoker2<StorageType, R(T::*)(X1, X2)> {
   }
 };
 
+// WeakPtr Method: Arity 2 -> 1.
+template <typename StorageType, typename T, typename X1, typename X2>
+struct Invoker2<true, StorageType, void(T::*)(X1, X2)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), x2);
+  }
+};
+
 // Function: Arity 4 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
-struct Invoker2<StorageType, R(*)(X1, X2, X3, X4)> {
+struct Invoker2<false, StorageType, R(*)(X1, X2, X3, X4)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4) {
@@ -674,7 +857,7 @@ struct Invoker2<StorageType, R(*)(X1, X2, X3, X4)> {
 // Method: Arity 3 -> 2.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
-struct Invoker2<StorageType, R(T::*)(X1, X2, X3)> {
+struct Invoker2<false, StorageType, R(T::*)(X1, X2, X3)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3) {
@@ -683,10 +866,26 @@ struct Invoker2<StorageType, R(T::*)(X1, X2, X3)> {
   }
 };
 
+// WeakPtr Method: Arity 3 -> 2.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3>
+struct Invoker2<true, StorageType, void(T::*)(X1, X2, X3)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), x2, x3);
+  }
+};
+
 // Function: Arity 5 -> 3.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct Invoker2<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker2<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4,
@@ -699,7 +898,7 @@ struct Invoker2<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Method: Arity 4 -> 3.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
-struct Invoker2<StorageType, R(T::*)(X1, X2, X3, X4)> {
+struct Invoker2<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -710,10 +909,27 @@ struct Invoker2<StorageType, R(T::*)(X1, X2, X3, X4)> {
   }
 };
 
+// WeakPtr Method: Arity 4 -> 3.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4>
+struct Invoker2<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), x2, x3, x4);
+  }
+};
+
 // Function: Arity 6 -> 4.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct Invoker2<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker2<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4,
@@ -728,7 +944,7 @@ struct Invoker2<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 4.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct Invoker2<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker2<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -740,13 +956,31 @@ struct Invoker2<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-template <typename StorageType, typename NormalizedSig>
+// WeakPtr Method: Arity 5 -> 4.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4, typename X5>
+struct Invoker2<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), x2, x3, x4, x5);
+  }
+};
+
+template <bool IsWeak, typename StorageType, typename NormalizedSig>
 struct Invoker3;
 
 // Function: Arity 3 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
-struct Invoker3<StorageType, R(*)(X1, X2, X3)> {
+struct Invoker3<false, StorageType, R(*)(X1, X2, X3)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -757,7 +991,7 @@ struct Invoker3<StorageType, R(*)(X1, X2, X3)> {
 // Method: Arity 2 -> 0.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
-struct Invoker3<StorageType, R(T::*)(X1, X2)> {
+struct Invoker3<false, StorageType, R(T::*)(X1, X2)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -765,10 +999,23 @@ struct Invoker3<StorageType, R(T::*)(X1, X2)> {
   }
 };
 
+// WeakPtr Method: Arity 2 -> 0.
+template <typename StorageType, typename T, typename X1, typename X2>
+struct Invoker3<true, StorageType, void(T::*)(X1, X2)> {
+  static void DoInvoke(InvokerStorageBase* base) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), Unwrap(invoker->p3_));
+  }
+};
+
 // Function: Arity 4 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
-struct Invoker3<StorageType, R(*)(X1, X2, X3, X4)> {
+struct Invoker3<false, StorageType, R(*)(X1, X2, X3, X4)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -780,7 +1027,7 @@ struct Invoker3<StorageType, R(*)(X1, X2, X3, X4)> {
 // Method: Arity 3 -> 1.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
-struct Invoker3<StorageType, R(T::*)(X1, X2, X3)> {
+struct Invoker3<false, StorageType, R(T::*)(X1, X2, X3)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -789,10 +1036,25 @@ struct Invoker3<StorageType, R(T::*)(X1, X2, X3)> {
   }
 };
 
+// WeakPtr Method: Arity 3 -> 1.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3>
+struct Invoker3<true, StorageType, void(T::*)(X1, X2, X3)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X3>::ForwardType x3) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), Unwrap(invoker->p3_), x3);
+  }
+};
+
 // Function: Arity 5 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct Invoker3<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker3<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4,
       typename internal::ParamTraits<X5>::ForwardType x5) {
@@ -805,7 +1067,7 @@ struct Invoker3<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Method: Arity 4 -> 2.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
-struct Invoker3<StorageType, R(T::*)(X1, X2, X3, X4)> {
+struct Invoker3<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4) {
@@ -815,10 +1077,27 @@ struct Invoker3<StorageType, R(T::*)(X1, X2, X3, X4)> {
   }
 };
 
+// WeakPtr Method: Arity 4 -> 2.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4>
+struct Invoker3<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), Unwrap(invoker->p3_), x3,
+        x4);
+  }
+};
+
 // Function: Arity 6 -> 3.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct Invoker3<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker3<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4,
       typename internal::ParamTraits<X5>::ForwardType x5,
@@ -832,7 +1111,7 @@ struct Invoker3<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 3.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct Invoker3<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker3<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4,
@@ -843,13 +1122,31 @@ struct Invoker3<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-template <typename StorageType, typename NormalizedSig>
+// WeakPtr Method: Arity 5 -> 3.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4, typename X5>
+struct Invoker3<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), Unwrap(invoker->p3_), x3,
+        x4, x5);
+  }
+};
+
+template <bool IsWeak, typename StorageType, typename NormalizedSig>
 struct Invoker4;
 
 // Function: Arity 4 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
-struct Invoker4<StorageType, R(*)(X1, X2, X3, X4)> {
+struct Invoker4<false, StorageType, R(*)(X1, X2, X3, X4)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -860,7 +1157,7 @@ struct Invoker4<StorageType, R(*)(X1, X2, X3, X4)> {
 // Method: Arity 3 -> 0.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
-struct Invoker4<StorageType, R(T::*)(X1, X2, X3)> {
+struct Invoker4<false, StorageType, R(T::*)(X1, X2, X3)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -868,10 +1165,25 @@ struct Invoker4<StorageType, R(T::*)(X1, X2, X3)> {
   }
 };
 
+// WeakPtr Method: Arity 3 -> 0.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3>
+struct Invoker4<true, StorageType, void(T::*)(X1, X2, X3)> {
+  static void DoInvoke(InvokerStorageBase* base) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), Unwrap(invoker->p3_),
+        Unwrap(invoker->p4_));
+  }
+};
+
 // Function: Arity 5 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct Invoker4<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker4<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -883,7 +1195,7 @@ struct Invoker4<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Method: Arity 4 -> 1.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
-struct Invoker4<StorageType, R(T::*)(X1, X2, X3, X4)> {
+struct Invoker4<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -892,10 +1204,26 @@ struct Invoker4<StorageType, R(T::*)(X1, X2, X3, X4)> {
   }
 };
 
+// WeakPtr Method: Arity 4 -> 1.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4>
+struct Invoker4<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), Unwrap(invoker->p3_),
+        Unwrap(invoker->p4_), x4);
+  }
+};
+
 // Function: Arity 6 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct Invoker4<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker4<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X5>::ForwardType x5,
       typename internal::ParamTraits<X6>::ForwardType x6) {
@@ -908,7 +1236,7 @@ struct Invoker4<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 2.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct Invoker4<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker4<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4,
       typename internal::ParamTraits<X5>::ForwardType x5) {
@@ -918,13 +1246,30 @@ struct Invoker4<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-template <typename StorageType, typename NormalizedSig>
+// WeakPtr Method: Arity 5 -> 2.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4, typename X5>
+struct Invoker4<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), Unwrap(invoker->p3_),
+        Unwrap(invoker->p4_), x4, x5);
+  }
+};
+
+template <bool IsWeak, typename StorageType, typename NormalizedSig>
 struct Invoker5;
 
 // Function: Arity 5 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct Invoker5<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker5<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -935,7 +1280,7 @@ struct Invoker5<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Method: Arity 4 -> 0.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
-struct Invoker5<StorageType, R(T::*)(X1, X2, X3, X4)> {
+struct Invoker5<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -943,10 +1288,25 @@ struct Invoker5<StorageType, R(T::*)(X1, X2, X3, X4)> {
   }
 };
 
+// WeakPtr Method: Arity 4 -> 0.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4>
+struct Invoker5<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
+  static void DoInvoke(InvokerStorageBase* base) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), Unwrap(invoker->p3_),
+        Unwrap(invoker->p4_), Unwrap(invoker->p5_));
+  }
+};
+
 // Function: Arity 6 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct Invoker5<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker5<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X6>::ForwardType x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -958,7 +1318,7 @@ struct Invoker5<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 1.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct Invoker5<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker5<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -967,13 +1327,29 @@ struct Invoker5<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-template <typename StorageType, typename NormalizedSig>
+// WeakPtr Method: Arity 5 -> 1.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4, typename X5>
+struct Invoker5<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  static void DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), Unwrap(invoker->p3_),
+        Unwrap(invoker->p4_), Unwrap(invoker->p5_), x5);
+  }
+};
+
+template <bool IsWeak, typename StorageType, typename NormalizedSig>
 struct Invoker6;
 
 // Function: Arity 6 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct Invoker6<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker6<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -985,7 +1361,7 @@ struct Invoker6<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 0.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct Invoker6<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker6<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -994,6 +1370,20 @@ struct Invoker6<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
+// WeakPtr Method: Arity 5 -> 0.
+template <typename StorageType, typename T, typename X1, typename X2,
+    typename X3, typename X4, typename X5>
+struct Invoker6<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  static void DoInvoke(InvokerStorageBase* base) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)(Unwrap(invoker->p2_), Unwrap(invoker->p3_),
+        Unwrap(invoker->p4_), Unwrap(invoker->p5_), Unwrap(invoker->p6_));
+  }
+};
 
 // InvokerStorageN<>
 //
@@ -1014,8 +1404,10 @@ class InvokerStorage0 : public InvokerStorageBase {
  public:
   typedef InvokerStorage0 StorageType;
   typedef FunctionTraits<Sig> TargetTraits;
-  typedef Invoker0<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+  typedef Sig Signature;
+  typedef Invoker0<false, StorageType,
+                   typename TargetTraits::NormalizedSig> Invoker;
 
 
 
@@ -1033,8 +1425,14 @@ class InvokerStorage1 : public InvokerStorageBase {
  public:
   typedef InvokerStorage1 StorageType;
   typedef FunctionTraits<Sig> TargetTraits;
-  typedef Invoker1<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+  typedef Sig Signature;
+  typedef ParamTraits<P1> P1Traits;
+  typedef Invoker1<IsWeakMethod<IsMethod::value, P1>::value, StorageType,
+                   typename TargetTraits::NormalizedSig> Invoker;
+  COMPILE_ASSERT(!(IsWeakMethod<IsMethod::value, P1>::value) ||
+                 is_void<typename TargetTraits::Return>::value,
+                 weak_ptrs_can_only_bind_to_methods_without_return_values);
 
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
@@ -1073,8 +1471,15 @@ class InvokerStorage2 : public InvokerStorageBase {
  public:
   typedef InvokerStorage2 StorageType;
   typedef FunctionTraits<Sig> TargetTraits;
-  typedef Invoker2<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+  typedef Sig Signature;
+  typedef ParamTraits<P1> P1Traits;
+  typedef ParamTraits<P2> P2Traits;
+  typedef Invoker2<IsWeakMethod<IsMethod::value, P1>::value, StorageType,
+                   typename TargetTraits::NormalizedSig> Invoker;
+  COMPILE_ASSERT(!(IsWeakMethod<IsMethod::value, P1>::value) ||
+                 is_void<typename TargetTraits::Return>::value,
+                 weak_ptrs_can_only_bind_to_methods_without_return_values);
 
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
@@ -1118,8 +1523,16 @@ class InvokerStorage3 : public InvokerStorageBase {
  public:
   typedef InvokerStorage3 StorageType;
   typedef FunctionTraits<Sig> TargetTraits;
-  typedef Invoker3<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+  typedef Sig Signature;
+  typedef ParamTraits<P1> P1Traits;
+  typedef ParamTraits<P2> P2Traits;
+  typedef ParamTraits<P3> P3Traits;
+  typedef Invoker3<IsWeakMethod<IsMethod::value, P1>::value, StorageType,
+                   typename TargetTraits::NormalizedSig> Invoker;
+  COMPILE_ASSERT(!(IsWeakMethod<IsMethod::value, P1>::value) ||
+                 is_void<typename TargetTraits::Return>::value,
+                 weak_ptrs_can_only_bind_to_methods_without_return_values);
 
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
@@ -1168,8 +1581,17 @@ class InvokerStorage4 : public InvokerStorageBase {
  public:
   typedef InvokerStorage4 StorageType;
   typedef FunctionTraits<Sig> TargetTraits;
-  typedef Invoker4<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+  typedef Sig Signature;
+  typedef ParamTraits<P1> P1Traits;
+  typedef ParamTraits<P2> P2Traits;
+  typedef ParamTraits<P3> P3Traits;
+  typedef ParamTraits<P4> P4Traits;
+  typedef Invoker4<IsWeakMethod<IsMethod::value, P1>::value, StorageType,
+                   typename TargetTraits::NormalizedSig> Invoker;
+  COMPILE_ASSERT(!(IsWeakMethod<IsMethod::value, P1>::value) ||
+                 is_void<typename TargetTraits::Return>::value,
+                 weak_ptrs_can_only_bind_to_methods_without_return_values);
 
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
@@ -1224,8 +1646,18 @@ class InvokerStorage5 : public InvokerStorageBase {
  public:
   typedef InvokerStorage5 StorageType;
   typedef FunctionTraits<Sig> TargetTraits;
-  typedef Invoker5<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+  typedef Sig Signature;
+  typedef ParamTraits<P1> P1Traits;
+  typedef ParamTraits<P2> P2Traits;
+  typedef ParamTraits<P3> P3Traits;
+  typedef ParamTraits<P4> P4Traits;
+  typedef ParamTraits<P5> P5Traits;
+  typedef Invoker5<IsWeakMethod<IsMethod::value, P1>::value, StorageType,
+                   typename TargetTraits::NormalizedSig> Invoker;
+  COMPILE_ASSERT(!(IsWeakMethod<IsMethod::value, P1>::value) ||
+                 is_void<typename TargetTraits::Return>::value,
+                 weak_ptrs_can_only_bind_to_methods_without_return_values);
 
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
@@ -1286,8 +1718,19 @@ class InvokerStorage6 : public InvokerStorageBase {
  public:
   typedef InvokerStorage6 StorageType;
   typedef FunctionTraits<Sig> TargetTraits;
-  typedef Invoker6<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+  typedef Sig Signature;
+  typedef ParamTraits<P1> P1Traits;
+  typedef ParamTraits<P2> P2Traits;
+  typedef ParamTraits<P3> P3Traits;
+  typedef ParamTraits<P4> P4Traits;
+  typedef ParamTraits<P5> P5Traits;
+  typedef ParamTraits<P6> P6Traits;
+  typedef Invoker6<IsWeakMethod<IsMethod::value, P1>::value, StorageType,
+                   typename TargetTraits::NormalizedSig> Invoker;
+  COMPILE_ASSERT(!(IsWeakMethod<IsMethod::value, P1>::value) ||
+                 is_void<typename TargetTraits::Return>::value,
+                 weak_ptrs_can_only_bind_to_methods_without_return_values);
 
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also

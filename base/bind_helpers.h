@@ -52,6 +52,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "base/memory/weak_ptr.h"
 #include "base/template_util.h"
 
 namespace base {
@@ -215,7 +216,7 @@ const T& Unwrap(ConstRefWrapper<T> const_ref) {
 
 // Utility for handling different refcounting semantics in the Bind()
 // function.
-template <typename ref, typename T>
+template <typename IsMethod, typename T>
 struct MaybeRefcount;
 
 template <typename T>
@@ -246,6 +247,12 @@ template <typename T>
 struct MaybeRefcount<base::true_type, const T*> {
   static void AddRef(const T* o) { o->AddRef(); }
   static void Release(const T* o) { o->Release(); }
+};
+
+template <typename T>
+struct MaybeRefcount<base::true_type, WeakPtr<T> > {
+  static void AddRef(const WeakPtr<T>&) {}
+  static void Release(const WeakPtr<T>&) {}
 };
 
 }  // namespace internal
