@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -94,13 +94,7 @@ DEFINE_TRIVIAL_HASH(unsigned long long);
     }
 
 DEFINE_STRING_HASH(std::string);
-DEFINE_STRING_HASH(std::wstring);
-
-#if defined(WCHAR_T_IS_UTF32)
-// If string16 and std::wstring are not the same type, provide a
-// specialization for string16.
 DEFINE_STRING_HASH(string16);
-#endif  // WCHAR_T_IS_UTF32
 
 #undef DEFINE_STRING_HASH
 
