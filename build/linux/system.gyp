@@ -212,6 +212,41 @@
       }]]
     },
     {
+      'target_name': 'gio',
+      'type': 'settings',
+      'conditions': [
+        ['use_gio==1 and _toolset=="target"', {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(<(pkg-config) --cflags gio-2.0)',
+            ],
+            'defines': [
+              'USE_GIO',
+            ],
+            'conditions': [
+              ['linux_link_gsettings==0', {
+                'defines': ['DLOPEN_GSETTINGS'],
+              }],
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other gio-2.0)',
+            ],
+            'libraries': [
+              '<!@(<(pkg-config) --libs-only-l gio-2.0)',
+            ],
+            'conditions': [
+              ['linux_link_gsettings==0', {
+                'libraries': [
+                  '-ldl',
+                ],
+              }],
+            ],
+          },
+      }]]
+    },
+    {
       'target_name': 'x11',
       'type': 'settings',
       'conditions': [
