@@ -17,6 +17,7 @@ $var MAX_ARITY = 6
 
 #include "base/bind_helpers.h"
 #include "base/callback_internal.h"
+#include "base/memory/weak_ptr.h"
 #include "base/template_util.h"
 #include "build/build_config.h"
 
@@ -42,9 +43,20 @@ namespace internal {
 //                 a calback.
 //   InvokerStorageN<> -- Provides storage for the bound parameters, and
 //                        typedefs to the above.
+//   IsWeakMethod<> -- Determines if we are binding a method to a WeakPtr<>.
 //
 // More details about the design of each class is included in a comment closer
 // to their defition.
+
+
+// IsWeakMethod determines if we are binding a method to a WeakPtr<> for an
+// object.  It is used to select an InvokerN that will no-op itself in the
+// event the WeakPtr<> for the target object is invalidated.
+template <bool IsMethod, typename T>
+struct IsWeakMethod : public false_type {};
+
+template <typename T>
+struct IsWeakMethod<true, WeakPtr<T> > : public true_type {};
 
 // FunctionTraits<>
 //
@@ -83,6 +95,8 @@ struct FunctionTraits<R(*)($for ARG , [[X$(ARG)]])> {
   typedef R (*NormalizedSig)($for ARG , [[X$(ARG)]]);
   typedef false_type IsMethod;
 
+  typedef R Return;
+
 $if ARITY > 0 [[
 
   // Target type for each bound parameter.
@@ -102,6 +116,8 @@ struct FunctionTraits<R(T::*)($for ARG , [[X$(ARG)]])> {
   typedef R (T::*NormalizedSig)($for ARG , [[X$(ARG)]]);
   typedef true_type IsMethod;
 
+  typedef R Return;
+
   // Target type for each bound parameter.
   typedef T B1;
 
@@ -118,6 +134,8 @@ $if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
 struct FunctionTraits<R(T::*)($for ARG , [[X$(ARG)]]) const> {
   typedef R (T::*NormalizedSig)($for ARG , [[X$(ARG)]]);
   typedef true_type IsMethod;
+
+  typedef R Return;
 
   // Target type for each bound parameter.
   typedef T B1;
@@ -154,7 +172,7 @@ $for ARG [[
 $range BOUND 0..MAX_ARITY
 $for BOUND [[
 
-template <typename StorageType, typename NormalizedSig>
+template <bool IsWeak, typename StorageType, typename NormalizedSig>
 struct Invoker$(BOUND);
 
 $range ARITY 0..MAX_ARITY
@@ -179,7 +197,7 @@ $range M_UNBOUND_ARG (M_ARITY - UNBOUND + 1)..M_ARITY
 template <typename StorageType, typename R[[]]
 $if ARITY > 0 [[,]][[]]
 $for ARG , [[typename X$(ARG)]]>
-struct Invoker$(BOUND)<StorageType, R(*)($for ARG , [[X$(ARG)]])> {
+struct Invoker$(BOUND)<false, StorageType, R(*)($for ARG , [[X$(ARG)]])> {
   static R DoInvoke(InvokerStorageBase* base[[]]
 $if UNBOUND != 0 [[, ]][[]]
 $for UNBOUND_ARG , [[typename internal::ParamTraits<X$(UNBOUND_ARG)>::ForwardType x$(UNBOUND_ARG)]]) {
@@ -196,7 +214,7 @@ $if BOUND > 0 [[
 // Method: Arity $(M_ARITY) -> $(UNBOUND).
 template <typename StorageType, typename R, typename T[[]]
 $if M_ARITY > 0[[, ]] $for M_ARG , [[typename X$(M_ARG)]]>
-struct Invoker$(BOUND)<StorageType, R(T::*)($for M_ARG , [[X$(M_ARG)]])> {
+struct Invoker$(BOUND)<false, StorageType, R(T::*)($for M_ARG , [[X$(M_ARG)]])> {
   static R DoInvoke(InvokerStorageBase* base[[]]
 $if UNBOUND > 0 [[, ]][[]]
 $for M_UNBOUND_ARG , [[typename internal::ParamTraits<X$(M_UNBOUND_ARG)>::ForwardType x$(M_UNBOUND_ARG)]]) {
@@ -208,12 +226,30 @@ $for M_UNBOUND_ARG , [[x$(M_UNBOUND_ARG)]]);
   }
 };
 
+// WeakPtr Method: Arity $(M_ARITY) -> $(UNBOUND).
+template <typename StorageType, typename T[[]]
+$if M_ARITY > 0[[, ]] $for M_ARG , [[typename X$(M_ARG)]]>
+struct Invoker$(BOUND)<true, StorageType, void(T::*)($for M_ARG , [[X$(M_ARG)]])> {
+  static void DoInvoke(InvokerStorageBase* base[[]]
+$if UNBOUND > 0 [[, ]][[]]
+$for M_UNBOUND_ARG , [[typename internal::ParamTraits<X$(M_UNBOUND_ARG)>::ForwardType x$(M_UNBOUND_ARG)]]) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
+    if (!weak_ptr.get()) {
+      return;
+    }
+    (weak_ptr->*invoker->f_)([[]]
+$for M_BOUND_ARG , [[Unwrap(invoker->p$(M_BOUND_ARG)_)]][[]]
+$if UNBOUND > 0 [[$if BOUND > 1 [[, ]]]][[]]
+$for M_UNBOUND_ARG , [[x$(M_UNBOUND_ARG)]]);
+  }
+};
+
 ]]  $$ if BOUND
 
 ]]  $$ if UNBOUND
 ]]  $$ for ARITY
 ]]  $$ for BOUND
-
 
 // InvokerStorageN<>
 //
@@ -239,8 +275,25 @@ class InvokerStorage$(BOUND) : public InvokerStorageBase {
  public:
   typedef InvokerStorage$(BOUND) StorageType;
   typedef FunctionTraits<Sig> TargetTraits;
-  typedef Invoker$(BOUND)<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+  typedef Sig Signature;
+
+$for BOUND_ARG [[
+  typedef ParamTraits<P$(BOUND_ARG)> P$(BOUND_ARG)Traits;
+
+]]
+
+$if BOUND == 0 [[
+  typedef Invoker$(BOUND)<false, StorageType,
+                   typename TargetTraits::NormalizedSig> Invoker;
+]] $else [[
+  typedef Invoker$(BOUND)<IsWeakMethod<IsMethod::value, P1>::value, StorageType,
+                   typename TargetTraits::NormalizedSig> Invoker;
+  COMPILE_ASSERT(!(IsWeakMethod<IsMethod::value, P1>::value) ||
+                 is_void<typename TargetTraits::Return>::value,
+                 weak_ptrs_can_only_bind_to_methods_without_return_values);
+]]
+
 
 $for BOUND_ARG [[
 $if BOUND_ARG == 1 [[

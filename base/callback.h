@@ -49,7 +49,7 @@
 //
 // void PrintHi() { LOG(INFO) << "hi."; }
 // base::Closure void_func_cb = base::Bind(&PrintHi);
-// LOG(INFO) << void_func_cb.Run();  // Prints: hi.
+// void_func_cb.Run();  // Prints: hi.
 //
 // /* Binding a class method. */
 // class Ref : public RefCountedThreadSafe<Ref> {
