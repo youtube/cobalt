@@ -361,6 +361,8 @@
 
     # Set to 1 to link against libgnome-keyring instead of using dlopen().
     'linux_link_gnome_keyring%': 0,
+    # Set to 1 to link against gsettings APIs instead of using dlopen().
+    'linux_link_gsettings%': 0,
 
     # Used to disable Native Client at compile time, for platforms where it
     # isn't supported
@@ -519,11 +521,14 @@
         'libjpeg_gyp_path': '../third_party/libjpeg/libjpeg.gyp',
       }],  # use_libjpeg_turbo==1
 
-      # Use GConf, the GNOME configuration system.
+      # Options controlling the use of GConf (the classic GNOME configuration
+      # system) and GIO, which contains GSettings (the new GNOME config system).
       ['chromeos==1', {
         'use_gconf%': 0,
+        'use_gio%': 0,
       }, {
         'use_gconf%': 1,
+        'use_gio%': 1,
       }],
 
       # Set up -D and -E flags passed into grit.
