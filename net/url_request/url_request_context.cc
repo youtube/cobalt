@@ -13,8 +13,7 @@
 namespace net {
 
 URLRequestContext::URLRequestContext()
-    : is_main_(false),
-      net_log_(NULL),
+    : net_log_(NULL),
       host_resolver_(NULL),
       cert_verifier_(NULL),
       dnsrr_resolver_(NULL),
@@ -30,7 +29,6 @@ URLRequestContext::URLRequestContext()
 
 void URLRequestContext::CopyFrom(URLRequestContext* other) {
   // Copy URLRequestContext parameters.
-  // Do not copy is_main_.
   set_net_log(other->net_log());
   set_host_resolver(other->host_resolver());
   set_cert_verifier(other->cert_verifier());
