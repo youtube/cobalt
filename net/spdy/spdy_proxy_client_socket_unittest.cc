@@ -957,6 +957,7 @@ TEST_F(SpdyProxyClientSocketTest, ReadOnClosedSocketReturnsZero) {
   ASSERT_EQ(0, sock_->Read(NULL, 1, NULL));
   ASSERT_EQ(ERR_CONNECTION_CLOSED, sock_->Read(NULL, 1, NULL));
   ASSERT_EQ(ERR_CONNECTION_CLOSED, sock_->Read(NULL, 1, NULL));
+  ASSERT_FALSE(sock_->IsConnectedAndIdle());
 }
 
 // Read pending when socket is closed should return 0
