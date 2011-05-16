@@ -52,6 +52,7 @@
 //   }
 
 namespace base {
+namespace i18n {
 
 class BreakIterator {
  public:
@@ -116,6 +117,7 @@ class BreakIterator {
   DISALLOW_COPY_AND_ASSIGN(BreakIterator);
 };
 
+}  // namespace i18n
 }  // namespace base
 
-#endif  // BASE_I18N_BREAK_ITERATOR_H__
+#endif  // BASE_I18N_BREAK_ITERATOR_H_
