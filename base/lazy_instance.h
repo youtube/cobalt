@@ -90,8 +90,18 @@ class BASE_API LazyInstanceHelper {
   };
 
   explicit LazyInstanceHelper(LinkerInitialized /*unused*/) {/* state_ is 0 */}
+
   // Declaring a destructor (even if it's empty) will cause MSVC to register a
   // static initializer to register the empty destructor with atexit().
+
+  // A destructor is intentionally not defined.  If we were to say
+  // ~LazyInstanceHelper() { }
+  // Even though it's empty, a destructor will still be generated.
+  // In order for the constructor to be called for static variables,
+  // it will be registered as a callback at runtime with AtExit().
+  // We don't want this, so we don't declare a destructor at all,
+  // effectively keeping the type POD (at least in terms of
+  // initialization and destruction).
 
   // Check if instance needs to be created. If so return true otherwise
   // if another thread has beat us, wait for instance to be created and
@@ -112,8 +122,11 @@ template <typename Type, typename Traits = DefaultLazyInstanceTraits<Type> >
 class LazyInstance : public LazyInstanceHelper {
  public:
   explicit LazyInstance(LinkerInitialized x) : LazyInstanceHelper(x) { }
+
   // Declaring a destructor (even if it's empty) will cause MSVC to register a
   // static initializer to register the empty destructor with atexit().
+  // Refer to the destructor-related comment in LazyInstanceHelper.
+  // ~LazyInstance() {}
 
   Type& Get() {
     return *Pointer();
@@ -124,7 +137,13 @@ class LazyInstance : public LazyInstanceHelper {
       base::ThreadRestrictions::AssertSingletonAllowed();
 
     // We will hopefully have fast access when the instance is already created.
-    if ((base::subtle::NoBarrier_Load(&state_) != STATE_CREATED) &&
+    // Since a thread sees state_ != STATE_CREATED at most once,
+    // the load is taken out of NeedsInstance() as a fast-path.
+    // The load has acquire memory ordering as a thread which sees
+    // state_ == STATE_CREATED needs to acquire visibility over
+    // the associated data (buf_). Pairing Release_Store is in
+    // CompleteInstance().
+    if ((base::subtle::Acquire_Load(&state_) != STATE_CREATED) &&
         NeedsInstance()) {
       // Create the instance in the space provided by |buf_|.
       instance_ = Traits::New(buf_);
