@@ -47,12 +47,12 @@ $var MAX_ARITY = 6
 //
 // /* Binding a normal function. */
 // int Return5() { return 5; }
-// base::Callback<int(int)> func_cb = base::Bind(&Return5);
-// LOG(INFO) << func_cb.Run(5);  // Prints 5.
+// base::Callback<int(void)> func_cb = base::Bind(&Return5);
+// LOG(INFO) << func_cb.Run();  // Prints 5.
 //
 // void PrintHi() { LOG(INFO) << "hi."; }
 // base::Closure void_func_cb = base::Bind(&PrintHi);
-// LOG(INFO) << void_func_cb.Run();  // Prints: hi.
+// void_func_cb.Run();  // Prints: hi.
 //
 // /* Binding a class method. */
 // class Ref : public RefCountedThreadSafe<Ref> {
@@ -191,7 +191,7 @@ $var MAX_ARITY = 6
 //
 // These are not features that are required in Chromium. Some of them, such as
 // allowing for reference parameters, and subtyping of functions, may actually
-// because a source of errors. Removing support for these features actually
+// become a source of errors. Removing support for these features actually
 // allows for a simpler implementation, and a terser Currying API.
 //
 //
