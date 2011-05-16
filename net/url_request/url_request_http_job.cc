@@ -66,6 +66,7 @@ void AddAuthorizationHeader(
   for (size_t i = 0; i < cookie_infos.size(); ++i) {
     HttpMacSignature signature;
     if (!signature.AddStateInfo(cookie_infos[i].name,
+                                cookie_infos[i].creation_date,
                                 cookie_infos[i].mac_key,
                                 cookie_infos[i].mac_algorithm)) {
       continue;
