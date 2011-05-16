@@ -722,6 +722,7 @@
             'dependencies': [
               '../build/linux/system.gyp:gconf',
               '../build/linux/system.gyp:gdk',
+              '../build/linux/system.gyp:gio',
               '../build/linux/system.gyp:libresolv',
             ],
             'conditions': [
