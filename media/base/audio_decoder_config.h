@@ -5,17 +5,19 @@
 #ifndef MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
 #define MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
 
+#include "media/base/channel_layout.h"
+
 namespace media {
 
 struct AudioDecoderConfig {
-  AudioDecoderConfig(int bits, int channels, int rate)
+  AudioDecoderConfig(int bits, ChannelLayout layout, int rate)
       : bits_per_channel(bits),
-        channels_per_sample(channels),
+        channel_layout(layout),
         sample_rate(rate) {
   }
 
   int bits_per_channel;
-  int channels_per_sample;
+  ChannelLayout channel_layout;
   int sample_rate;
 };
 

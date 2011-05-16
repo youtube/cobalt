@@ -11,6 +11,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/singleton.h"
 #include "base/time.h"
+#include "media/base/channel_layout.h"
 #include "media/video/video_decode_engine.h"
 
 // Include FFmpeg header files.
@@ -65,6 +66,12 @@ int64 ConvertToTimeBase(const AVRational& time_base,
 
 VideoCodec CodecIDToVideoCodec(CodecID codec_id);
 CodecID VideoCodecToCodecID(VideoCodec video_codec);
+
+// Converts FFmpeg's channel layout to chrome's ChannelLayout.  |channels| can
+// be used when FFmpeg's channel layout is not informative in order to make a
+// good guess about the plausible channel layout based on number of channels.
+ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
+                                                 int channels);
 
 // Calculates duration of one frame in the |stream| based on its frame rate.
 base::TimeDelta GetFrameDuration(AVStream* stream);

@@ -19,6 +19,7 @@ namespace media {
 static const int kSampleRate = AudioParameters::kAudioCDSampleRate;
 static const int kBitsPerSample = 16;
 static const int kChannels = 2;
+static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
 static const int kSamplesPerPacket = kSampleRate / 10;
 
 ACTION_P3(CheckCountAndSignalEvent, count, limit, event) {
@@ -50,7 +51,7 @@ TEST(AudioInputControllerTest, CreateAndClose) {
   EXPECT_CALL(event_handler, OnCreated(NotNull()))
       .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
 
-  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannels,
+  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioInputController> controller =
       AudioInputController::Create(&event_handler, params);
@@ -81,7 +82,7 @@ TEST(AudioInputControllerTest, RecordAndClose) {
       .Times(AtLeast(10))
       .WillRepeatedly(CheckCountAndSignalEvent(&count, 10, &event));
 
-  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannels,
+  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioInputController> controller =
       AudioInputController::Create(&event_handler, params);
@@ -103,7 +104,7 @@ TEST(AudioInputControllerTest, SamplesPerPacketTooLarge) {
   // Create an audio device with a very large packet size.
   MockAudioInputControllerEventHandler event_handler;
 
-  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannels,
+  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket * 1000);
   scoped_refptr<AudioInputController> controller = AudioInputController::Create(
       &event_handler, params);
@@ -114,7 +115,7 @@ TEST(AudioInputControllerTest, SamplesPerPacketTooLarge) {
 TEST(AudioInputControllerTest, CloseTwice) {
   MockAudioInputControllerEventHandler event_handler;
   EXPECT_CALL(event_handler, OnCreated(NotNull()));
-  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannels,
+  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioInputController> controller =
       AudioInputController::Create(&event_handler, params);
