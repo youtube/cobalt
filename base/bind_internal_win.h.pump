@@ -40,6 +40,8 @@ struct FunctionTraits<R(__stdcall *)($for ARG , [[X$(ARG)]])> {
   typedef R (*NormalizedSig)($for ARG , [[X$(ARG)]]);
   typedef false_type IsMethod;
 
+  typedef R Return;
+
 $if ARITY > 0 [[
 
   // Target type for each bound parameter.
@@ -57,6 +59,8 @@ $if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
 struct FunctionTraits<R(__fastcall *)($for ARG , [[X$(ARG)]])> {
   typedef R (*NormalizedSig)($for ARG , [[X$(ARG)]]);
   typedef false_type IsMethod;
+
+  typedef R Return;
 
 $if ARITY > 0 [[
 
