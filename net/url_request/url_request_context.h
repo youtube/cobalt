@@ -168,11 +168,6 @@ class URLRequestContext
     referrer_charset_ = charset;
   }
 
-  // Controls whether or not the URLRequestContext considers itself to be the
-  // "main" URLRequestContext.
-  bool is_main() const { return is_main_; }
-  void set_is_main(bool is_main) { is_main_ = is_main; }
-
   const URLRequestJobFactory* job_factory() const { return job_factory_; }
   void set_job_factory(const URLRequestJobFactory* job_factory) {
     job_factory_ = job_factory;
@@ -188,9 +183,6 @@ class URLRequestContext
   // Important: When adding any new members below, consider whether they need to
   // be added to CopyFrom.
   // ---------------------------------------------------------------------------
-
-  // Indicates whether or not this is the main URLRequestContext.
-  bool is_main_;
 
   // Ownership for these members are not defined here. Clients should either
   // provide storage elsewhere or have a subclass take ownership.

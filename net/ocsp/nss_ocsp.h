@@ -26,7 +26,6 @@ void ShutdownOCSP();
 
 // Set URLRequestContext for OCSP handlers.
 void SetURLRequestContextForOCSP(URLRequestContext* request_context);
-URLRequestContext* GetURLRequestContextForOCSP();
 
 }  // namespace net
 
