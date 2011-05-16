@@ -11,8 +11,6 @@
 #include "base/memory/ref_counted.h"
 #include "net/base/net_util.h"
 
-// TODO(eroman): Fix the declaration + definition ordering to match style guide.
-
 struct addrinfo;
 
 namespace net {
@@ -24,6 +22,10 @@ class AddressList {
   // Constructs an invalid address list. Should not call any methods on this
   // other than assignment.
   AddressList();
+
+  AddressList(const AddressList& addresslist);
+  ~AddressList();
+  AddressList& operator=(const AddressList& addresslist);
 
   // Creates an address list for a single IP literal.
   static AddressList CreateFromIPAddress(
@@ -38,10 +40,6 @@ class AddressList {
       uint16 port,
       bool canonicalize_name);
 
-  AddressList(const AddressList& addresslist);
-  ~AddressList();
-  AddressList& operator=(const AddressList& addresslist);
-
   // Adopts the given addrinfo list (assumed to have been created by
   // the system, e.g. returned by getaddrinfo()) in place of the
   // existing one if any.  This hands over responsibility for freeing
@@ -55,6 +53,16 @@ class AddressList {
   // Creates a new address list wich has a single address, |head|. If there
   // are other addresses in |head| they will be ignored.
   static AddressList CreateByCopyingFirstAddress(const struct addrinfo* head);
+
+  // Creates an address list for a single socket address.
+  // |address| the sockaddr to copy.
+  // |socket_type| is either SOCK_STREAM or SOCK_DGRAM.
+  // |protocol| is either IPPROTO_TCP or IPPROTO_UDP.
+  static AddressList CreateFromSockaddr(
+      const struct sockaddr* address,
+      socklen_t address_length,
+      int socket_type,
+      int protocol);
 
   // Appends a copy of |head| and all its linked addrinfos to the stored
   // addrinfo. Note that this will cause a reallocation of the linked list,
@@ -88,16 +96,6 @@ class AddressList {
   //            cause the head to be reallocated, so do not cache the return
   //            value of head() across such calls.
   const struct addrinfo* head() const;
-
-  // Creates an address list for a single socket address.
-  // |address| the sockaddr to copy.
-  // |socket_type| is either SOCK_STREAM or SOCK_DGRAM.
-  // |protocol| is either IPPROTO_TCP or IPPROTO_UDP.
-  static AddressList CreateFromSockaddr(
-      const struct sockaddr* address,
-      socklen_t address_length,
-      int socket_type,
-      int protocol);
 
  private:
   struct Data;
