@@ -61,6 +61,51 @@ CodecID VideoCodecToCodecID(VideoCodec video_codec) {
   return CODEC_ID_NONE;
 }
 
+ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
+                                                 int channels) {
+  switch (layout) {
+    case CH_LAYOUT_MONO:
+      return CHANNEL_LAYOUT_MONO;
+    case CH_LAYOUT_STEREO:
+      return CHANNEL_LAYOUT_STEREO;
+    case CH_LAYOUT_2_1:
+      return CHANNEL_LAYOUT_2_1;
+    case CH_LAYOUT_SURROUND:
+      return CHANNEL_LAYOUT_SURROUND;
+    case CH_LAYOUT_4POINT0:
+      return CHANNEL_LAYOUT_4POINT0;
+    case CH_LAYOUT_2_2:
+      return CHANNEL_LAYOUT_2_2;
+    case CH_LAYOUT_QUAD:
+      return CHANNEL_LAYOUT_QUAD;
+    case CH_LAYOUT_5POINT0:
+      return CHANNEL_LAYOUT_5POINT0;
+    case CH_LAYOUT_5POINT1:
+      return CHANNEL_LAYOUT_5POINT1;
+    case CH_LAYOUT_5POINT0_BACK:
+      return CHANNEL_LAYOUT_5POINT0_BACK;
+    case CH_LAYOUT_5POINT1_BACK:
+      return CHANNEL_LAYOUT_5POINT1_BACK;
+    case CH_LAYOUT_7POINT0:
+      return CHANNEL_LAYOUT_7POINT0;
+    case CH_LAYOUT_7POINT1:
+      return CHANNEL_LAYOUT_7POINT1;
+    case CH_LAYOUT_7POINT1_WIDE:
+      return CHANNEL_LAYOUT_7POINT1_WIDE;
+    case CH_LAYOUT_STEREO_DOWNMIX:
+      return CHANNEL_LAYOUT_STEREO_DOWNMIX;
+    default:
+      // FFmpeg channel_layout is 0 for .wav and .mp3.  We know mono and stereo
+      // from the number of channels, otherwise report errors.
+      if (channels == 1)
+        return CHANNEL_LAYOUT_MONO;
+      if (channels == 2)
+        return CHANNEL_LAYOUT_STEREO;
+      DLOG(WARNING) << "Unsupported/unencountered channel layout values";
+      return CHANNEL_LAYOUT_UNSUPPORTED;
+  }
+}
+
 base::TimeDelta GetFrameDuration(AVStream* stream) {
   AVRational time_base = { stream->r_frame_rate.den, stream->r_frame_rate.num };
   return ConvertFromTimeBase(time_base, 1);
