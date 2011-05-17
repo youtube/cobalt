@@ -104,6 +104,12 @@ class BASE_API SimpleThread : public PlatformThread::Delegate {
   // Overridden from PlatformThread::Delegate:
   virtual void ThreadMain();
 
+  // Only set priorities with a careful understanding of the consequences.
+  // This is meant for very limited use cases.
+  void SetThreadPriority(ThreadPriority priority) {
+    PlatformThread::SetThreadPriority(thread_, priority);
+  }
+
  private:
   const std::string name_prefix_;
   std::string name_;
