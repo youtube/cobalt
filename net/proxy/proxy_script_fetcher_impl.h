@@ -45,9 +45,9 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
 
   // ProxyScriptFetcher methods:
   virtual int Fetch(const GURL& url, string16* text,
-                    CompletionCallback* callback);
-  virtual void Cancel();
-  virtual URLRequestContext* GetRequestContext();
+                    CompletionCallback* callback) OVERRIDE;
+  virtual void Cancel() OVERRIDE;
+  virtual URLRequestContext* GetRequestContext() const OVERRIDE;
 
   // URLRequest::Delegate methods:
   virtual void OnAuthRequired(URLRequest* request,
