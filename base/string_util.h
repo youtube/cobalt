@@ -180,9 +180,6 @@ BASE_API extern const char kUtf8ByteOrderMark[];
 // Removes characters in remove_chars from anywhere in input.  Returns true if
 // any characters were removed.
 // NOTE: Safe to use the same variable for both input and output.
-BASE_API bool RemoveChars(const std::wstring& input,
-                          const wchar_t remove_chars[],
-                          std::wstring* output);
 BASE_API bool RemoveChars(const string16& input,
                           const char16 remove_chars[],
                           string16* output);

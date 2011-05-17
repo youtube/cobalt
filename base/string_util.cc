@@ -184,19 +184,11 @@ bool RemoveCharsT(const STR& input,
   return removed;
 }
 
-bool RemoveChars(const std::wstring& input,
-                 const wchar_t remove_chars[],
-                 std::wstring* output) {
-  return RemoveCharsT(input, remove_chars, output);
-}
-
-#if !defined(WCHAR_T_IS_UTF16)
 bool RemoveChars(const string16& input,
                  const char16 remove_chars[],
                  string16* output) {
   return RemoveCharsT(input, remove_chars, output);
 }
-#endif
 
 bool RemoveChars(const std::string& input,
                  const char remove_chars[],
