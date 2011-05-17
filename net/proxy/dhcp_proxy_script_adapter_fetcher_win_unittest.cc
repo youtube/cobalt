@@ -176,7 +176,7 @@ TEST(DhcpProxyScriptAdapterFetcher, NormalCaseURLInDhcp) {
   EXPECT_EQ(GURL(kPacUrl), client.fetcher_->GetPacURL());
 }
 
-TEST(DhcpProxyScriptAdapterFetcher, TimeoutDuringDhcp) {
+TEST(DhcpProxyScriptAdapterFetcher, FLAKY_TimeoutDuringDhcp) {
   // Does a Fetch() with a long enough delay on accessing DHCP that the
   // fetcher should time out.  This is to test a case manual testing found,
   // where under certain circumstances (e.g. adapter enabled for DHCP and
