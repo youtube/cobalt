@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -119,12 +119,12 @@ EVENT_TYPE(INIT_PROXY_RESOLVER_WAIT)
 //
 // The START event has the parameters:
 //   {
-//     "url": <URL string of script being fetched>,
+//     "source": <String describing where PAC script comes from>,
 //   }
 //
 // If the fetch failed, then the END phase has these parameters:
 //   {
-//      "error_code": <Net error code integer>,
+//      "net_error": <Net error code integer>,
 //   }
 EVENT_TYPE(INIT_PROXY_RESOLVER_FETCH_PAC_SCRIPT)
 
@@ -133,7 +133,7 @@ EVENT_TYPE(INIT_PROXY_RESOLVER_FETCH_PAC_SCRIPT)
 //
 // If the parsing of the script failed, the END phase will have parameters:
 //   {
-//      "error_code": <Net error code integer>,
+//      "net_error": <Net error code integer>,
 //   }
 EVENT_TYPE(INIT_PROXY_RESOLVER_SET_PAC_SCRIPT)
 
@@ -141,9 +141,9 @@ EVENT_TYPE(INIT_PROXY_RESOLVER_SET_PAC_SCRIPT)
 // configured script fetcher. (This indicates a configuration error).
 EVENT_TYPE(INIT_PROXY_RESOLVER_HAS_NO_FETCHER)
 
-// This event is emitted after deciding to fall-back to the next PAC
-// script in the list.
-EVENT_TYPE(INIT_PROXY_RESOLVER_FALLING_BACK_TO_NEXT_PAC_URL)
+// This event is emitted after deciding to fall-back to the next source
+// of PAC scripts in the list.
+EVENT_TYPE(INIT_PROXY_RESOLVER_FALLING_BACK_TO_NEXT_PAC_SOURCE)
 
 // ------------------------------------------------------------------------
 // ProxyService
