@@ -15,9 +15,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/test_completion_callback.h"
-#include "net/proxy/dhcp_proxy_script_fetcher.h"
 #include "net/proxy/mock_proxy_resolver.h"
-#include "net/proxy/mock_proxy_script_fetcher.h"
 #include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_resolver.h"
 #include "net/proxy/proxy_script_fetcher.h"
@@ -68,6 +66,53 @@ class MockProxyConfigService: public ProxyConfigService {
 };
 
 }  // namespace
+
+// A mock ProxyScriptFetcher. No result will be returned to the fetch client
+// until we call NotifyFetchCompletion() to set the results.
+class MockProxyScriptFetcher : public ProxyScriptFetcher {
+ public:
+  MockProxyScriptFetcher()
+      : pending_request_callback_(NULL), pending_request_text_(NULL) {
+  }
+
+  // ProxyScriptFetcher implementation.
+  virtual int Fetch(const GURL& url,
+                    string16* text,
+                    CompletionCallback* callback) {
+    DCHECK(!has_pending_request());
+
+    // Save the caller's information, and have them wait.
+    pending_request_url_ = url;
+    pending_request_callback_ = callback;
+    pending_request_text_ = text;
+    return ERR_IO_PENDING;
+  }
+
+  void NotifyFetchCompletion(int result, const std::string& ascii_text) {
+    DCHECK(has_pending_request());
+    *pending_request_text_ = ASCIIToUTF16(ascii_text);
+    CompletionCallback* callback = pending_request_callback_;
+    pending_request_callback_ = NULL;
+    callback->Run(result);
+  }
+
+  virtual void Cancel() {}
+
+  virtual URLRequestContext* GetRequestContext() { return NULL; }
+
+  const GURL& pending_request_url() const {
+    return pending_request_url_;
+  }
+
+  bool has_pending_request() const {
+    return pending_request_callback_ != NULL;
+  }
+
+ private:
+  GURL pending_request_url_;
+  CompletionCallback* pending_request_callback_;
+  string16* pending_request_text_;
+};
 
 TEST(ProxyServiceTest, Direct) {
   MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
@@ -404,8 +449,7 @@ TEST(ProxyServiceTest, ProxyResolverFailsParsingJavaScriptMandatoryPac) {
   ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
-  DhcpProxyScriptFetcher* dhcp_fetcher = new DoNothingDhcpProxyScriptFetcher();
-  service.SetProxyScriptFetchers(fetcher, dhcp_fetcher);
+  service.SetProxyScriptFetcher(fetcher);
 
   // Start resolve request.
   GURL url("http://www.google.com/");
@@ -1139,8 +1183,7 @@ TEST(ProxyServiceTest, InitialPACScriptDownload) {
   ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
-  service.SetProxyScriptFetchers(fetcher,
-                                 new DoNothingDhcpProxyScriptFetcher());
+  service.SetProxyScriptFetcher(fetcher);
 
   // Start 3 requests.
 
@@ -1219,8 +1262,7 @@ TEST(ProxyServiceTest, ChangeScriptFetcherWhilePACDownloadInProgress) {
   ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
-  service.SetProxyScriptFetchers(fetcher,
-                                 new DoNothingDhcpProxyScriptFetcher());
+  service.SetProxyScriptFetcher(fetcher);
 
   // Start 2 requests.
 
@@ -1248,8 +1290,7 @@ TEST(ProxyServiceTest, ChangeScriptFetcherWhilePACDownloadInProgress) {
   // the initialization with the new fetcher.
 
   fetcher = new MockProxyScriptFetcher;
-  service.SetProxyScriptFetchers(fetcher,
-                                 new DoNothingDhcpProxyScriptFetcher());
+  service.SetProxyScriptFetcher(fetcher);
 
   // Nothing has been sent to the resolver yet.
   EXPECT_TRUE(resolver->pending_requests().empty());
@@ -1278,8 +1319,7 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
-  service.SetProxyScriptFetchers(fetcher,
-                                 new DoNothingDhcpProxyScriptFetcher());
+  service.SetProxyScriptFetcher(fetcher);
 
   // Start 3 requests.
   ProxyInfo info1;
@@ -1370,8 +1410,7 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac) {
   ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
-  service.SetProxyScriptFetchers(fetcher,
-                                 new DoNothingDhcpProxyScriptFetcher());
+  service.SetProxyScriptFetcher(fetcher);
 
   // Start 2 requests.
 
@@ -1441,8 +1480,7 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac2) {
   ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
-  service.SetProxyScriptFetchers(fetcher,
-                                 new DoNothingDhcpProxyScriptFetcher());
+  service.SetProxyScriptFetcher(fetcher);
 
   // Start 2 requests.
 
@@ -1517,8 +1555,7 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomToManual) {
   ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
-  service.SetProxyScriptFetchers(fetcher,
-                                 new DoNothingDhcpProxyScriptFetcher());
+  service.SetProxyScriptFetcher(fetcher);
 
   // Start 2 requests.
 
@@ -1575,8 +1612,7 @@ TEST(ProxyServiceTest, BypassDoesntApplyToPac) {
   ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
-  service.SetProxyScriptFetchers(fetcher,
-                                 new DoNothingDhcpProxyScriptFetcher());
+  service.SetProxyScriptFetcher(fetcher);
 
   // Start 1 requests.
 
@@ -1643,8 +1679,7 @@ TEST(ProxyServiceTest, DeleteWhileInitProxyResolverHasOutstandingFetch) {
   ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
-  service.SetProxyScriptFetchers(fetcher,
-                                 new DoNothingDhcpProxyScriptFetcher());
+  service.SetProxyScriptFetcher(fetcher);
 
   // Start 1 request.
 
@@ -1775,8 +1810,7 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   ProxyService service(config_service, resolver, &log);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
-  service.SetProxyScriptFetchers(fetcher,
-                                 new DoNothingDhcpProxyScriptFetcher());
+  service.SetProxyScriptFetcher(fetcher);
 
   // Disable the "wait after IP address changes" hack, so this unit-test can
   // complete quickly.
