@@ -446,6 +446,11 @@ NET_ERROR(RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH, -346)
 // headers are missing, so we're expecting additional frames to complete them.
 NET_ERROR(INCOMPLETE_SPDY_HEADERS, -347)
 
+// No PAC URL configuration could be retrieved from DHCP. This can indicate
+// either a failure to retrieve the DHCP configuration, or that there was no
+// PAC URL configured in DHCP.
+NET_ERROR(PAC_NOT_IN_DHCP, -348)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 
