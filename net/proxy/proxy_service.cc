@@ -16,6 +16,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
+#include "net/proxy/dhcp_proxy_script_fetcher.h"
 #include "net/proxy/init_proxy_resolver.h"
 #include "net/proxy/multi_threaded_proxy_resolver.h"
 #include "net/proxy/network_delegate_error_observer.h"
@@ -409,11 +410,13 @@ ProxyService* ProxyService::CreateUsingV8ProxyResolver(
     ProxyConfigService* proxy_config_service,
     size_t num_pac_threads,
     ProxyScriptFetcher* proxy_script_fetcher,
+    DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher,
     HostResolver* host_resolver,
     NetLog* net_log,
     NetworkDelegate* network_delegate) {
   DCHECK(proxy_config_service);
   DCHECK(proxy_script_fetcher);
+  DCHECK(dhcp_proxy_script_fetcher);
   DCHECK(host_resolver);
 
   if (num_pac_threads == 0)
@@ -433,8 +436,9 @@ ProxyService* ProxyService::CreateUsingV8ProxyResolver(
   ProxyService* proxy_service =
       new ProxyService(proxy_config_service, proxy_resolver, net_log);
 
-  // Configure PAC script downloads to be issued using |proxy_script_fetcher|.
-  proxy_service->SetProxyScriptFetcher(proxy_script_fetcher);
+  // Configure fetchers to use for PAC script downloads and auto-detect.
+  proxy_service->SetProxyScriptFetchers(proxy_script_fetcher,
+                                        dhcp_proxy_script_fetcher);
 
   return proxy_service;
 }
@@ -774,11 +778,13 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
   return result_code;
 }
 
-void ProxyService::SetProxyScriptFetcher(
-    ProxyScriptFetcher* proxy_script_fetcher) {
+void ProxyService::SetProxyScriptFetchers(
+    ProxyScriptFetcher* proxy_script_fetcher,
+    DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher) {
   DCHECK(CalledOnValidThread());
   State previous_state = ResetProxyConfig(false);
   proxy_script_fetcher_.reset(proxy_script_fetcher);
+  dhcp_proxy_script_fetcher_.reset(dhcp_proxy_script_fetcher);
   if (previous_state != STATE_NONE)
     ApplyProxyConfigIfAvailable();
 }
@@ -927,7 +933,9 @@ void ProxyService::InitializeUsingLastFetchedConfig() {
   current_state_ = STATE_WAITING_FOR_INIT_PROXY_RESOLVER;
 
   init_proxy_resolver_.reset(
-      new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get(),
+      new InitProxyResolver(resolver_.get(),
+                            proxy_script_fetcher_.get(),
+                            dhcp_proxy_script_fetcher_.get(),
                             net_log_));
 
   // If we changed networks recently, we should delay running proxy auto-config.
