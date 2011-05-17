@@ -47,6 +47,13 @@ typedef pid_t PlatformThreadId;
 
 const PlatformThreadId kInvalidThreadId = 0;
 
+// Valid values for SetThreadPriority()
+enum ThreadPriority{
+  kThreadPriority_Normal,
+  // Suitable for low-latency, glitch-resistant audio.
+  kThreadPriority_RealtimeAudio
+};
+
 // A namespace for low-level thread functions.
 class BASE_API PlatformThread {
  public:
@@ -90,6 +97,9 @@ class BASE_API PlatformThread {
   // the caller until the designated thread exits.  This will invalidate
   // |thread_handle|.
   static void Join(PlatformThreadHandle thread_handle);
+
+  static void SetThreadPriority(PlatformThreadHandle handle,
+                                ThreadPriority priority);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PlatformThread);
