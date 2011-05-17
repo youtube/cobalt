@@ -189,14 +189,13 @@ namespace {
 const int kDebounceTimeoutMilliseconds = 250;
 
 #if defined(USE_GCONF)
-// This is the "real" gconf version that actually uses gconf.
-class GConfSettingGetterImplGConf
-    : public ProxyConfigServiceLinux::GConfSettingGetter {
+// This setting getter uses gconf, as used in GNOME 2 and some GNOME 3 desktops.
+class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
  public:
-  GConfSettingGetterImplGConf()
+  SettingGetterImplGConf()
       : client_(NULL), notify_delegate_(NULL), loop_(NULL) {}
 
-  virtual ~GConfSettingGetterImplGConf() {
+  virtual ~SettingGetterImplGConf() {
     // client_ should have been released before now, from
     // Delegate::OnDestroy(), while running on the UI thread. However
     // on exiting the process, it may happen that
@@ -209,10 +208,10 @@ class GConfSettingGetterImplGConf
         // We are on the UI thread so we can clean it safely. This is
         // the case at least for ui_tests running under Valgrind in
         // bug 16076.
-        VLOG(1) << "~GConfSettingGetterImplGConf: releasing gconf client";
+        VLOG(1) << "~SettingGetterImplGConf: releasing gconf client";
         ShutDown();
       } else {
-        LOG(WARNING) << "~GConfSettingGetterImplGConf: leaking gconf client";
+        LOG(WARNING) << "~SettingGetterImplGConf: leaking gconf client";
         client_ = NULL;
       }
     }
@@ -294,7 +293,71 @@ class GConfSettingGetterImplGConf
     return "gconf";
   }
 
-  virtual bool GetString(const char* key, std::string* result) {
+  virtual bool GetString(Setting key, std::string* result) {
+    switch (key) {
+      case PROXY_MODE:
+        return GetStringByPath("/system/proxy/mode", result);
+      case PROXY_AUTOCONF_URL:
+        return GetStringByPath("/system/proxy/autoconfig_url", result);
+      case PROXY_HTTP_HOST:
+        return GetStringByPath("/system/http_proxy/host", result);
+      case PROXY_HTTPS_HOST:
+        return GetStringByPath("/system/proxy/secure_host", result);
+      case PROXY_FTP_HOST:
+        return GetStringByPath("/system/proxy/ftp_host", result);
+      case PROXY_SOCKS_HOST:
+        return GetStringByPath("/system/proxy/socks_host", result);
+      default:
+        return false;
+    }
+  }
+  virtual bool GetBool(Setting key, bool* result) {
+    switch (key) {
+      case PROXY_USE_HTTP_PROXY:
+        return GetBoolByPath("/system/http_proxy/use_http_proxy", result);
+      case PROXY_USE_SAME_PROXY:
+        return GetBoolByPath("/system/http_proxy/use_same_proxy", result);
+      case PROXY_USE_AUTHENTICATION:
+        return GetBoolByPath("/system/http_proxy/use_authentication", result);
+      default:
+        return false;
+    }
+  }
+  virtual bool GetInt(Setting key, int* result) {
+    switch (key) {
+      case PROXY_HTTP_PORT:
+        return GetIntByPath("/system/http_proxy/port", result);
+      case PROXY_HTTPS_PORT:
+        return GetIntByPath("/system/proxy/secure_port", result);
+      case PROXY_FTP_PORT:
+        return GetIntByPath("/system/proxy/ftp_port", result);
+      case PROXY_SOCKS_PORT:
+        return GetIntByPath("/system/proxy/socks_port", result);
+      default:
+        return false;
+    }
+  }
+  virtual bool GetStringList(Setting key,
+                             std::vector<std::string>* result) {
+    switch (key) {
+      case PROXY_IGNORE_HOSTS:
+        return GetStringListByPath("/system/http_proxy/ignore_hosts", result);
+      default:
+        return false;
+    }
+  }
+
+  virtual bool BypassListIsReversed() {
+    // This is a KDE-specific setting.
+    return false;
+  }
+
+  virtual bool MatchHostsUsingSuffixMatching() {
+    return false;
+  }
+
+ private:
+  bool GetStringByPath(const char* key, std::string* result) {
     DCHECK(client_);
     DCHECK(MessageLoop::current() == loop_);
     GError* error = NULL;
@@ -307,7 +370,7 @@ class GConfSettingGetterImplGConf
     g_free(value);
     return true;
   }
-  virtual bool GetBoolean(const char* key, bool* result) {
+  bool GetBoolByPath(const char* key, bool* result) {
     DCHECK(client_);
     DCHECK(MessageLoop::current() == loop_);
     GError* error = NULL;
@@ -330,7 +393,7 @@ class GConfSettingGetterImplGConf
     gconf_value_free(gconf_value);
     return true;
   }
-  virtual bool GetInt(const char* key, int* result) {
+  bool GetIntByPath(const char* key, int* result) {
     DCHECK(client_);
     DCHECK(MessageLoop::current() == loop_);
     GError* error = NULL;
@@ -342,8 +405,7 @@ class GConfSettingGetterImplGConf
     *result = value;
     return true;
   }
-  virtual bool GetStringList(const char* key,
-                             std::vector<std::string>* result) {
+  bool GetStringListByPath(const char* key, std::vector<std::string>* result) {
     DCHECK(client_);
     DCHECK(MessageLoop::current() == loop_);
     GError* error = NULL;
@@ -363,16 +425,6 @@ class GConfSettingGetterImplGConf
     return true;
   }
 
-  virtual bool BypassListIsReversed() {
-    // This is a KDE-specific setting.
-    return false;
-  }
-
-  virtual bool MatchHostsUsingSuffixMatching() {
-    return false;
-  }
-
- private:
   // Logs and frees a glib error. Returns false if there was no error
   // (error is NULL).
   bool HandleGError(GError* error, const char* key) {
@@ -399,7 +451,7 @@ class GConfSettingGetterImplGConf
     debounce_timer_.Stop();
     debounce_timer_.Start(base::TimeDelta::FromMilliseconds(
         kDebounceTimeoutMilliseconds), this,
-        &GConfSettingGetterImplGConf::OnDebouncedNotification);
+        &SettingGetterImplGConf::OnDebouncedNotification);
   }
 
   // gconf notification callback, dispatched from the default glib main loop.
@@ -409,32 +461,31 @@ class GConfSettingGetterImplGConf
     VLOG(1) << "gconf change notification for key "
             << gconf_entry_get_key(entry);
     // We don't track which key has changed, just that something did change.
-    GConfSettingGetterImplGConf* setting_getter =
-        reinterpret_cast<GConfSettingGetterImplGConf*>(user_data);
+    SettingGetterImplGConf* setting_getter =
+        reinterpret_cast<SettingGetterImplGConf*>(user_data);
     setting_getter->OnChangeNotification();
   }
 
   GConfClient* client_;
   ProxyConfigServiceLinux::Delegate* notify_delegate_;
-  base::OneShotTimer<GConfSettingGetterImplGConf> debounce_timer_;
+  base::OneShotTimer<SettingGetterImplGConf> debounce_timer_;
 
   // Message loop of the thread that we make gconf calls on. It should
   // be the UI thread and all our methods should be called on this
   // thread. Only for assertions.
   MessageLoop* loop_;
 
-  DISALLOW_COPY_AND_ASSIGN(GConfSettingGetterImplGConf);
+  DISALLOW_COPY_AND_ASSIGN(SettingGetterImplGConf);
 };
 #endif  // defined(USE_GCONF)
 
 // This is the KDE version that reads kioslaverc and simulates gconf.
 // Doing this allows the main Delegate code, as well as the unit tests
 // for it, to stay the same - and the settings map fairly well besides.
-class GConfSettingGetterImplKDE
-    : public ProxyConfigServiceLinux::GConfSettingGetter,
-      public base::MessagePumpLibevent::Watcher {
+class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
+                             public base::MessagePumpLibevent::Watcher {
  public:
-  explicit GConfSettingGetterImplKDE(base::Environment* env_var_getter)
+  explicit SettingGetterImplKDE(base::Environment* env_var_getter)
       : inotify_fd_(-1), notify_delegate_(NULL), indirect_manual_(false),
         auto_no_pac_(false), reversed_bypass_list_(false),
         env_var_getter_(env_var_getter), file_loop_(NULL) {
@@ -493,7 +544,7 @@ class GConfSettingGetterImplKDE
     }
   }
 
-  virtual ~GConfSettingGetterImplKDE() {
+  virtual ~SettingGetterImplKDE() {
     // inotify_fd_ should have been closed before now, from
     // Delegate::OnDestroy(), while running on the file thread. However
     // on exiting the process, it may happen that Delegate::OnDestroy()
@@ -577,22 +628,22 @@ class GConfSettingGetterImplKDE
     return "KDE";
   }
 
-  virtual bool GetString(const char* key, std::string* result) {
+  virtual bool GetString(Setting key, std::string* result) {
     string_map_type::iterator it = string_table_.find(key);
     if (it == string_table_.end())
       return false;
     *result = it->second;
     return true;
   }
-  virtual bool GetBoolean(const char* key, bool* result) {
+  virtual bool GetBool(Setting key, bool* result) {
     // We don't ever have any booleans.
     return false;
   }
-  virtual bool GetInt(const char* key, int* result) {
+  virtual bool GetInt(Setting key, int* result) {
     // We don't ever have any integers. (See AddProxy() below about ports.)
     return false;
   }
-  virtual bool GetStringList(const char* key,
+  virtual bool GetStringList(Setting key,
                              std::vector<std::string>* result) {
     strings_map_type::iterator it = strings_table_.find(key);
     if (it == strings_table_.end())
@@ -622,17 +673,17 @@ class GConfSettingGetterImplKDE
     return kde_home.Append("share").Append("config");
   }
 
-  void AddProxy(const std::string& prefix, const std::string& value) {
+  void AddProxy(Setting host_key, const std::string& value) {
     if (value.empty() || value.substr(0, 3) == "//:")
       // No proxy.
       return;
-    // We don't need to parse the port number out; GetProxyFromGConf()
+    // We don't need to parse the port number out; GetProxyFromSettings()
     // would only append it right back again. So we just leave the port
     // number right in the host string.
-    string_table_[prefix + "host"] = value;
+    string_table_[host_key] = value;
   }
 
-  void AddHostList(const std::string& key, const std::string& value) {
+  void AddHostList(Setting key, const std::string& value) {
     std::vector<std::string> tokens;
     StringTokenizer tk(value, ", ");
     while (tk.GetNext()) {
@@ -674,15 +725,15 @@ class GConfSettingGetterImplKDE
           indirect_manual_ = true;
           break;
       }
-      string_table_["/system/proxy/mode"] = mode;
+      string_table_[PROXY_MODE] = mode;
     } else if (key == "Proxy Config Script") {
-      string_table_["/system/proxy/autoconfig_url"] = value;
+      string_table_[PROXY_AUTOCONF_URL] = value;
     } else if (key == "httpProxy") {
-      AddProxy("/system/http_proxy/", value);
+      AddProxy(PROXY_HTTP_HOST, value);
     } else if (key == "httpsProxy") {
-      AddProxy("/system/proxy/secure_", value);
+      AddProxy(PROXY_HTTPS_HOST, value);
     } else if (key == "ftpProxy") {
-      AddProxy("/system/proxy/ftp_", value);
+      AddProxy(PROXY_FTP_HOST, value);
     } else if (key == "ReversedException") {
       // We count "true" or any nonzero number as true, otherwise false.
       // Note that if the value is not actually numeric StringToInt()
@@ -691,7 +742,7 @@ class GConfSettingGetterImplKDE
       base::StringToInt(value, &int_value);
       reversed_bypass_list_ = (value == "true" || int_value);
     } else if (key == "NoProxyFor") {
-      AddHostList("/system/http_proxy/ignore_hosts", value);
+      AddHostList(PROXY_IGNORE_HOSTS, value);
     } else if (key == "AuthMode") {
       // Check for authentication, just so we can warn.
       int mode;
@@ -705,7 +756,7 @@ class GConfSettingGetterImplKDE
     }
   }
 
-  void ResolveIndirect(const std::string& key) {
+  void ResolveIndirect(Setting key) {
     string_map_type::iterator it = string_table_.find(key);
     if (it != string_table_.end()) {
       std::string value;
@@ -716,7 +767,7 @@ class GConfSettingGetterImplKDE
     }
   }
 
-  void ResolveIndirectList(const std::string& key) {
+  void ResolveIndirectList(Setting key) {
     strings_map_type::iterator it = strings_table_.find(key);
     if (it != strings_table_.end()) {
       std::string value;
@@ -734,14 +785,14 @@ class GConfSettingGetterImplKDE
   // order they occur and do any necessary tweaking after we finish.
   void ResolveModeEffects() {
     if (indirect_manual_) {
-      ResolveIndirect("/system/http_proxy/host");
-      ResolveIndirect("/system/proxy/secure_host");
-      ResolveIndirect("/system/proxy/ftp_host");
-      ResolveIndirectList("/system/http_proxy/ignore_hosts");
+      ResolveIndirect(PROXY_HTTP_HOST);
+      ResolveIndirect(PROXY_HTTPS_HOST);
+      ResolveIndirect(PROXY_FTP_HOST);
+      ResolveIndirectList(PROXY_IGNORE_HOSTS);
     }
     if (auto_no_pac_) {
       // Remove the PAC URL; we're not supposed to use it.
-      string_table_.erase("/system/proxy/autoconfig_url");
+      string_table_.erase(PROXY_AUTOCONF_URL);
     }
   }
 
@@ -882,17 +933,17 @@ class GConfSettingGetterImplKDE
       debounce_timer_.Stop();
       debounce_timer_.Start(base::TimeDelta::FromMilliseconds(
           kDebounceTimeoutMilliseconds), this,
-          &GConfSettingGetterImplKDE::OnDebouncedNotification);
+          &SettingGetterImplKDE::OnDebouncedNotification);
     }
   }
 
-  typedef std::map<std::string, std::string> string_map_type;
-  typedef std::map<std::string, std::vector<std::string> > strings_map_type;
+  typedef std::map<Setting, std::string> string_map_type;
+  typedef std::map<Setting, std::vector<std::string> > strings_map_type;
 
   int inotify_fd_;
   base::MessagePumpLibevent::FileDescriptorWatcher inotify_watcher_;
   ProxyConfigServiceLinux::Delegate* notify_delegate_;
-  base::OneShotTimer<GConfSettingGetterImplKDE> debounce_timer_;
+  base::OneShotTimer<SettingGetterImplKDE> debounce_timer_;
   FilePath kde_config_dir_;
   bool indirect_manual_;
   bool auto_no_pac_;
@@ -911,35 +962,35 @@ class GConfSettingGetterImplKDE
   // on this thread.
   MessageLoopForIO* file_loop_;
 
-  DISALLOW_COPY_AND_ASSIGN(GConfSettingGetterImplKDE);
+  DISALLOW_COPY_AND_ASSIGN(SettingGetterImplKDE);
 };
 
 }  // namespace
 
-bool ProxyConfigServiceLinux::Delegate::GetProxyFromGConf(
-    const char* key_prefix, bool is_socks, ProxyServer* result_server) {
-  std::string key(key_prefix);
+bool ProxyConfigServiceLinux::Delegate::GetProxyFromSettings(
+    SettingGetter::Setting host_key,
+    ProxyServer* result_server) {
   std::string host;
-  if (!gconf_getter_->GetString((key + "host").c_str(), &host)
-      || host.empty()) {
+  if (!setting_getter_->GetString(host_key, &host) || host.empty()) {
     // Unset or empty.
     return false;
   }
   // Check for an optional port.
   int port = 0;
-  gconf_getter_->GetInt((key + "port").c_str(), &port);
+  SettingGetter::Setting port_key =
+      SettingGetter::HostSettingToPortSetting(host_key);
+  setting_getter_->GetInt(port_key, &port);
   if (port != 0) {
     // If a port is set and non-zero:
     host += ":" + base::IntToString(port);
   }
 
-  // gconf settings do not appear to distinguish between SOCKS
-  // version. We default to version 5. For more information on this policy
-  // decisions, see:
+  // gconf settings do not appear to distinguish between SOCKS version. We
+  // default to version 5. For more information on this policy decision, see:
   // http://code.google.com/p/chromium/issues/detail?id=55912#c2
-  host = FixupProxyHostScheme(
-      is_socks ? ProxyServer::SCHEME_SOCKS5 : ProxyServer::SCHEME_HTTP,
-      host);
+  ProxyServer::Scheme scheme = (host_key == SettingGetter::PROXY_SOCKS_HOST) ?
+      ProxyServer::SCHEME_SOCKS5 : ProxyServer::SCHEME_HTTP;
+  host = FixupProxyHostScheme(scheme, host);
   ProxyServer proxy_server = ProxyServer::FromURI(host,
                                                   ProxyServer::SCHEME_HTTP);
   if (proxy_server.is_valid()) {
@@ -949,12 +1000,12 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromGConf(
   return false;
 }
 
-bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
+bool ProxyConfigServiceLinux::Delegate::GetConfigFromSettings(
     ProxyConfig* config) {
   std::string mode;
-  if (!gconf_getter_->GetString("/system/proxy/mode", &mode)) {
+  if (!setting_getter_->GetString(SettingGetter::PROXY_MODE, &mode)) {
     // We expect this to always be set, so if we don't see it then we
-    // probably have a gconf problem, and so we don't have a valid
+    // probably have a gconf/gsettings problem, and so we don't have a valid
     // proxy config.
     return false;
   }
@@ -966,8 +1017,8 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   if (mode == "auto") {
     // automatic proxy config
     std::string pac_url_str;
-    if (gconf_getter_->GetString("/system/proxy/autoconfig_url",
-                                 &pac_url_str)) {
+    if (setting_getter_->GetString(SettingGetter::PROXY_AUTOCONF_URL,
+                                   &pac_url_str)) {
       if (!pac_url_str.empty()) {
         GURL pac_url(pac_url_str);
         if (!pac_url.is_valid())
@@ -985,8 +1036,8 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
     return false;
   }
   bool use_http_proxy;
-  if (gconf_getter_->GetBoolean("/system/http_proxy/use_http_proxy",
-                                &use_http_proxy)
+  if (setting_getter_->GetBool(SettingGetter::PROXY_USE_HTTP_PROXY,
+                               &use_http_proxy)
       && !use_http_proxy) {
     // Another master switch for some reason. If set to false, then no
     // proxy. But we don't panic if the key doesn't exist.
@@ -995,10 +1046,10 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
 
   bool same_proxy = false;
   // Indicates to use the http proxy for all protocols. This one may
-  // not exist (presumably on older versions), assume false in that
+  // not exist (presumably on older versions); we assume false in that
   // case.
-  gconf_getter_->GetBoolean("/system/http_proxy/use_same_proxy",
-                            &same_proxy);
+  setting_getter_->GetBool(SettingGetter::PROXY_USE_SAME_PROXY,
+                           &same_proxy);
 
   ProxyServer proxy_for_http;
   ProxyServer proxy_for_https;
@@ -1010,13 +1061,13 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
 
   // Extract the per-scheme proxies. If we failed to parse it, or no proxy was
   // specified for the scheme, then the resulting ProxyServer will be invalid.
-  if (GetProxyFromGConf("/system/http_proxy/", false, &proxy_for_http))
+  if (GetProxyFromSettings(SettingGetter::PROXY_HTTP_HOST, &proxy_for_http))
     num_proxies_specified++;
-  if (GetProxyFromGConf("/system/proxy/secure_", false, &proxy_for_https))
+  if (GetProxyFromSettings(SettingGetter::PROXY_HTTPS_HOST, &proxy_for_https))
     num_proxies_specified++;
-  if (GetProxyFromGConf("/system/proxy/ftp_", false, &proxy_for_ftp))
+  if (GetProxyFromSettings(SettingGetter::PROXY_FTP_HOST, &proxy_for_ftp))
     num_proxies_specified++;
-  if (GetProxyFromGConf("/system/proxy/socks_", true, &socks_proxy))
+  if (GetProxyFromSettings(SettingGetter::PROXY_SOCKS_HOST, &socks_proxy))
     num_proxies_specified++;
 
   if (same_proxy) {
@@ -1048,8 +1099,8 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
 
   // Check for authentication, just so we can warn.
   bool use_auth = false;
-  gconf_getter_->GetBoolean("/system/http_proxy/use_authentication",
-                            &use_auth);
+  setting_getter_->GetBool(SettingGetter::PROXY_USE_AUTHENTICATION,
+                           &use_auth);
   if (use_auth) {
     // ProxyConfig does not support authentication parameters, but
     // Chrome will prompt for the password later. So we ignore
@@ -1060,11 +1111,11 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   // Now the bypass list.
   std::vector<std::string> ignore_hosts_list;
   config->proxy_rules().bypass_rules.Clear();
-  if (gconf_getter_->GetStringList("/system/http_proxy/ignore_hosts",
-                                   &ignore_hosts_list)) {
+  if (setting_getter_->GetStringList(SettingGetter::PROXY_IGNORE_HOSTS,
+                                     &ignore_hosts_list)) {
     std::vector<std::string>::const_iterator it(ignore_hosts_list.begin());
     for (; it != ignore_hosts_list.end(); ++it) {
-      if (gconf_getter_->MatchHostsUsingSuffixMatching()) {
+      if (setting_getter_->MatchHostsUsingSuffixMatching()) {
         config->proxy_rules().bypass_rules.
             AddRuleFromStringUsingSuffixMatching(*it);
       } else {
@@ -1077,7 +1128,8 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   // as a hostname rule.
 
   // KDE allows one to reverse the bypass rules.
-  config->proxy_rules().reverse_bypass = gconf_getter_->BypassListIsReversed();
+  config->proxy_rules().reverse_bypass =
+      setting_getter_->BypassListIsReversed();
 
   return true;
 }
@@ -1085,16 +1137,16 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
 ProxyConfigServiceLinux::Delegate::Delegate(base::Environment* env_var_getter)
     : env_var_getter_(env_var_getter),
       glib_default_loop_(NULL), io_loop_(NULL) {
-  // Figure out which GConfSettingGetterImpl to use, if any.
+  // Figure out which SettingGetterImpl to use, if any.
   switch (base::nix::GetDesktopEnvironment(env_var_getter)) {
     case base::nix::DESKTOP_ENVIRONMENT_GNOME:
 #if defined(USE_GCONF)
-      gconf_getter_.reset(new GConfSettingGetterImplGConf());
+      setting_getter_.reset(new SettingGetterImplGConf());
 #endif
       break;
     case base::nix::DESKTOP_ENVIRONMENT_KDE3:
     case base::nix::DESKTOP_ENVIRONMENT_KDE4:
-      gconf_getter_.reset(new GConfSettingGetterImplKDE(env_var_getter));
+      setting_getter_.reset(new SettingGetterImplKDE(env_var_getter));
       break;
     case base::nix::DESKTOP_ENVIRONMENT_XFCE:
     case base::nix::DESKTOP_ENVIRONMENT_OTHER:
@@ -1102,9 +1154,9 @@ ProxyConfigServiceLinux::Delegate::Delegate(base::Environment* env_var_getter)
   }
 }
 
-ProxyConfigServiceLinux::Delegate::Delegate(base::Environment* env_var_getter,
-    GConfSettingGetter* gconf_getter)
-    : env_var_getter_(env_var_getter), gconf_getter_(gconf_getter),
+ProxyConfigServiceLinux::Delegate::Delegate(
+    base::Environment* env_var_getter, SettingGetter* setting_getter)
+    : env_var_getter_(env_var_getter), setting_getter_(setting_getter),
       glib_default_loop_(NULL), io_loop_(NULL) {
 }
 
@@ -1136,12 +1188,12 @@ void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
   // mislead us.
 
   bool got_config = false;
-  if (gconf_getter_.get() &&
-      gconf_getter_->Init(glib_default_loop, file_loop) &&
-      GetConfigFromGConf(&cached_config_)) {
+  if (setting_getter_.get() &&
+      setting_getter_->Init(glib_default_loop, file_loop) &&
+      GetConfigFromSettings(&cached_config_)) {
     cached_config_.set_id(1);  // Mark it as valid.
     VLOG(1) << "Obtained proxy settings from "
-            << gconf_getter_->GetDataSource();
+            << setting_getter_->GetDataSource();
 
     // If gconf proxy mode is "none", meaning direct, then we take
     // that to be a valid config and will not check environment
@@ -1162,7 +1214,7 @@ void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
     // fetch and before setting up notifications. We'll detect the common case
     // of no changes in OnCheckProxyConfigSettings() (or sooner) and ignore it.
     if (io_loop && file_loop) {
-      MessageLoop* required_loop = gconf_getter_->GetNotificationLoop();
+      MessageLoop* required_loop = setting_getter_->GetNotificationLoop();
       if (!required_loop || MessageLoop::current() == required_loop) {
         // In this case we are already on an acceptable thread.
         SetUpNotifications();
@@ -1189,12 +1241,12 @@ void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
   }
 }
 
-// Depending on the GConfSettingGetter in use, this method will be called
+// Depending on the SettingGetter in use, this method will be called
 // on either the UI thread (GConf) or the file thread (KDE).
 void ProxyConfigServiceLinux::Delegate::SetUpNotifications() {
-  MessageLoop* required_loop = gconf_getter_->GetNotificationLoop();
+  MessageLoop* required_loop = setting_getter_->GetNotificationLoop();
   DCHECK(!required_loop || MessageLoop::current() == required_loop);
-  if (!gconf_getter_->SetUpNotifications(this))
+  if (!setting_getter_->SetUpNotifications(this))
     LOG(ERROR) << "Unable to set up proxy configuration change notifications";
 }
 
@@ -1225,13 +1277,13 @@ ProxyConfigService::ConfigAvailability
   return CONFIG_VALID;
 }
 
-// Depending on the GConfSettingGetter in use, this method will be called
+// Depending on the SettingGetter in use, this method will be called
 // on either the UI thread (GConf) or the file thread (KDE).
 void ProxyConfigServiceLinux::Delegate::OnCheckProxyConfigSettings() {
-  MessageLoop* required_loop = gconf_getter_->GetNotificationLoop();
+  MessageLoop* required_loop = setting_getter_->GetNotificationLoop();
   DCHECK(!required_loop || MessageLoop::current() == required_loop);
   ProxyConfig new_config;
-  bool valid = GetConfigFromGConf(&new_config);
+  bool valid = GetConfigFromSettings(&new_config);
   if (valid)
     new_config.set_id(1);  // mark it as valid
 
@@ -1264,9 +1316,9 @@ void ProxyConfigServiceLinux::Delegate::SetNewProxyConfig(
 }
 
 void ProxyConfigServiceLinux::Delegate::PostDestroyTask() {
-  if (!gconf_getter_.get())
+  if (!setting_getter_.get())
     return;
-  MessageLoop* shutdown_loop = gconf_getter_->GetNotificationLoop();
+  MessageLoop* shutdown_loop = setting_getter_->GetNotificationLoop();
   if (!shutdown_loop || MessageLoop::current() == shutdown_loop) {
     // Already on the right thread, call directly.
     // This is the case for the unittests.
@@ -1282,9 +1334,9 @@ void ProxyConfigServiceLinux::Delegate::PostDestroyTask() {
   }
 }
 void ProxyConfigServiceLinux::Delegate::OnDestroy() {
-  MessageLoop* shutdown_loop = gconf_getter_->GetNotificationLoop();
+  MessageLoop* shutdown_loop = setting_getter_->GetNotificationLoop();
   DCHECK(!shutdown_loop || MessageLoop::current() == shutdown_loop);
-  gconf_getter_->ShutDown();
+  setting_getter_->ShutDown();
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux()
@@ -1301,9 +1353,8 @@ ProxyConfigServiceLinux::ProxyConfigServiceLinux(
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux(
-    base::Environment* env_var_getter,
-    GConfSettingGetter* gconf_getter)
-    : delegate_(new Delegate(env_var_getter, gconf_getter)) {
+    base::Environment* env_var_getter, SettingGetter* setting_getter)
+    : delegate_(new Delegate(env_var_getter, setting_getter)) {
 }
 
 void ProxyConfigServiceLinux::AddObserver(Observer* observer) {
