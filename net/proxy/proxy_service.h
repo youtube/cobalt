@@ -25,6 +25,7 @@ class MessageLoop;
 
 namespace net {
 
+class DhcpProxyScriptFetcher;
 class HostResolver;
 class InitProxyResolver;
 class NetworkDelegate;
@@ -98,10 +99,12 @@ class ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // Call this method with a non-null |pac_request| to cancel the PAC request.
   void CancelPacRequest(PacRequest* pac_request);
 
-  // Sets the ProxyScriptFetcher dependency. This is needed if the ProxyResolver
-  // is of type ProxyResolverWithoutFetch. ProxyService takes ownership of
-  // |proxy_script_fetcher|.
-  void SetProxyScriptFetcher(ProxyScriptFetcher* proxy_script_fetcher);
+  // Sets the ProxyScriptFetcher and DhcpProxyScriptFetcher dependencies. This
+  // is needed if the ProxyResolver is of type ProxyResolverWithoutFetch.
+  // ProxyService takes ownership of both objects.
+  void SetProxyScriptFetchers(
+      ProxyScriptFetcher* proxy_script_fetcher,
+      DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher);
   ProxyScriptFetcher* GetProxyScriptFetcher() const;
 
   // Tells this ProxyService to start using a new ProxyConfigService to
@@ -161,6 +164,10 @@ class ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // |proxy_script_fetcher| specifies the dependency to use for downloading
   // any PAC scripts. The resulting ProxyService will take ownership of it.
   //
+  // |dhcp_proxy_script_fetcher| specifies the dependency to use for attempting
+  // to retrieve the most appropriate PAC script configured in DHCP. The
+  // resulting ProxyService will take ownership of it.
+  //
   // |host_resolver| points to the host resolving dependency the PAC script
   // should use for any DNS queries. It must remain valid throughout the
   // lifetime of the ProxyService.
@@ -174,6 +181,7 @@ class ProxyService : public NetworkChangeNotifier::IPAddressObserver,
       ProxyConfigService* proxy_config_service,
       size_t num_pac_threads,
       ProxyScriptFetcher* proxy_script_fetcher,
+      DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher,
       HostResolver* host_resolver,
       NetLog* net_log,
       NetworkDelegate* network_delegate);
@@ -318,6 +326,11 @@ class ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // This dependency can be NULL if our ProxyResolver has no need for
   // external PAC script fetching.
   scoped_ptr<ProxyScriptFetcher> proxy_script_fetcher_;
+
+  // The fetcher to use when attempting to download the most appropriate PAC
+  // script configured in DHCP, if any. Can be NULL if the ProxyResolver has
+  // no need for DHCP PAC script fetching.
+  scoped_ptr<DhcpProxyScriptFetcher> dhcp_proxy_script_fetcher_;
 
   // Callback for when |init_proxy_resolver_| is done.
   CompletionCallbackImpl<ProxyService> init_proxy_resolver_callback_;
