@@ -12,9 +12,7 @@ namespace {
 
 TEST(DhcpProxyScriptFetcherFactoryTest, DoNothingWhenDisabled) {
   DhcpProxyScriptFetcherFactory factory;
-  // Non-do-nothing fetchers would DCHECK on the NULL pointer.
-  DhcpProxyScriptFetcher* fetcher = factory.Create(NULL);
-  ASSERT_TRUE(fetcher);
+  scoped_ptr<DhcpProxyScriptFetcher> fetcher(factory.Create(NULL));
   EXPECT_EQ("", fetcher->GetFetcherName());
 }
 
@@ -24,8 +22,7 @@ TEST(DhcpProxyScriptFetcherFactoryTest, WindowsFetcherOnWindows) {
   factory.set_enabled(true);
 
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
-  DhcpProxyScriptFetcher* fetcher = factory.Create(context);
-  ASSERT_TRUE(fetcher);
+  scoped_ptr<DhcpProxyScriptFetcher> fetcher(factory.Create(context));
   EXPECT_EQ("win", fetcher->GetFetcherName());
 }
 #endif  // defined(OS_WIN)
