@@ -147,9 +147,25 @@ bool DelayedCacheCleanup(const FilePath& full_path) {
   return true;
 }
 
+// Initializes the field trial structures to allow performance measurements
+// for the current cache configuration.
+void SetFieldTrialInfo(int group) {
+  static bool first = true;
+  if (!first)
+    return;
+
+  // Field trials involve static objects so we have to do this only once.
+  first = false;
+  std::string group1 = base::StringPrintf("CacheListSize_%d", group);
+  int probability = 10;
+  scoped_refptr<base::FieldTrial> trial1(
+      new base::FieldTrial("CacheListSize", probability, group1, 2011, 9, 30));
+  trial1->AppendGroup(group1, probability);
+}
+
 // Sets group for the current experiment. Returns false if the files should be
 // discarded.
-bool InitExperiment(disk_cache::IndexHeader* header) {
+bool InitExperiment(disk_cache::IndexHeader* header, uint32 mask) {
   if (header->experiment == disk_cache::EXPERIMENT_OLD_FILE1 ||
       header->experiment == disk_cache::EXPERIMENT_OLD_FILE2) {
     // Discard current cache.
@@ -157,28 +173,35 @@ bool InitExperiment(disk_cache::IndexHeader* header) {
   }
 
   // See if we already defined the group for this profile.
-  if (header->experiment >= disk_cache::EXPERIMENT_DELETED_LIST_OUT)
+  if (header->experiment > disk_cache::EXPERIMENT_DELETED_LIST_OUT) {
+    SetFieldTrialInfo(header->experiment);
     return true;
+  }
 
-  // The experiment is closed.
-  header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT;
+  if (!header->create_time || !header->lru.filled)
+    return true; // Wait untill we fill up the cache.
+
+  int index_load = header->num_entries * 100 / (mask + 1);
+  if (index_load > 25) {
+   // Out of the experiment (~18% users).
+   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT2;
+   return true;
+  }
+
+  int option = base::RandInt(0, 4);
+  if (option > 1) {
+   // 60% out (49% of the total).
+   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT2;
+  } else if (!option) {
+   // About 16% of the total.
+   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_CONTROL;
+  } else {
+   // About 16% of the total.
+   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_IN;
+  }
+
+  SetFieldTrialInfo(header->experiment);
   return true;
-}
-
-// Initializes the field trial structures to allow performance measurements
-// for the current cache configuration.
-void SetFieldTrialInfo(int size_group) {
-  static bool first = true;
-  if (!first)
-    return;
-
-  // Field trials involve static objects so we have to do this only once.
-  first = false;
-  std::string group1 = base::StringPrintf("CacheSizeGroup_%d", size_group);
-  int totalProbability = 10;
-  scoped_refptr<base::FieldTrial> trial1(
-      new base::FieldTrial("CacheSize", totalProbability, group1, 2011, 6, 30));
-  trial1->AppendGroup(group1, totalProbability);
 }
 
 // ------------------------------------------------------------------------
@@ -470,7 +493,7 @@ int BackendImpl::SyncInit() {
 
   if (!(user_flags_ & disk_cache::kNoRandom) &&
       cache_type_ == net::DISK_CACHE &&
-      !InitExperiment(&data_->header))
+      !InitExperiment(&data_->header, mask_))
     return net::ERR_FAILED;
 
   // We don't care if the value overflows. The only thing we care about is that
@@ -496,10 +519,6 @@ int BackendImpl::SyncInit() {
     DCHECK(!new_eviction_);
     read_only_ = true;
   }
-
-  // Setup load-time data only for the main cache.
-  if (cache_type() == net::DISK_CACHE)
-    SetFieldTrialInfo(GetSizeGroup());
 
   eviction_.Init(this);
 
@@ -1058,6 +1077,13 @@ void BackendImpl::FirstEviction() {
   DCHECK(data_->header.create_time);
   if (!GetEntryCount())
     return;  // This is just for unit tests.
+
+  if (!(user_flags_ & disk_cache::kNoRandom) &&
+      cache_type_ == net::DISK_CACHE) {
+    // We were waiting for the first eviction to init the experiment.
+    bool rv = InitExperiment(&data_->header, mask_);
+    DCHECK(rv);
+  }
 
   Time create_time = Time::FromInternalValue(data_->header.create_time);
   CACHE_UMA(AGE, "FillupAge", 0, create_time);

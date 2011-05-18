@@ -237,6 +237,7 @@ void Eviction::ReportTrimTimes(EntryImpl* entry) {
     if (header_->create_time) {
       // This is the first entry that we have to evict, generate some noise.
       backend_->FirstEviction();
+      in_experiment_ = (header_->experiment == EXPERIMENT_DELETED_LIST_IN);
     } else {
       // This is an old file, but we may want more reports from this user so
       // lets save some create_time.
