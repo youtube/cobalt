@@ -17,12 +17,13 @@
 #include "base/time.h"
 #include "build/build_config.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 #include "net/base/network_change_notifier.h"
 
 namespace net {
 
 // RRResponse contains the result of a successful request for a resource record.
-struct RRResponse {
+struct NET_TEST RRResponse {
   RRResponse();
   ~RRResponse();
 
@@ -66,8 +67,8 @@ class RRResolverJob;
 // the name is a fully qualified DNS domain.
 //
 // A DnsRRResolver must be used from the MessageLoop which created it.
-class DnsRRResolver : public base::NonThreadSafe,
-                      public NetworkChangeNotifier::IPAddressObserver {
+class NET_API DnsRRResolver : NON_EXPORTED_BASE(public base::NonThreadSafe),
+                              public NetworkChangeNotifier::IPAddressObserver {
  public:
   typedef intptr_t Handle;
 

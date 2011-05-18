@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "net/base/net_api.h"
 #include "net/base/net_util.h"
 
 struct addrinfo;
@@ -17,7 +18,7 @@ namespace net {
 
 // An AddressList object contains a linked list of addrinfo structures.  This
 // class is designed to be copied around by value.
-class AddressList {
+class NET_API AddressList {
  public:
   // Constructs an invalid address list. Should not call any methods on this
   // other than assignment.

@@ -14,6 +14,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/platform_file.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 
 class FilePath;
 
@@ -27,7 +28,7 @@ enum Whence {
   FROM_END     = 2
 };
 
-class FileStream {
+class NET_API FileStream {
  public:
   FileStream();
 
