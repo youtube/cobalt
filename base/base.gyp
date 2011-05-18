@@ -186,7 +186,6 @@
         'sys_info_unittest.cc',
         'sys_string_conversions_mac_unittest.mm',
         'sys_string_conversions_unittest.cc',
-        'system_monitor/system_monitor_unittest.cc',
         'task_queue_unittest.cc',
         'task_unittest.cc',
         'template_util_unittest.cc',
@@ -284,6 +283,7 @@
             ['exclude', '^win/'],
           ],
           'sources!': [
+            'system_monitor_unittest.cc',
             'time_win_unittest.cc',
             'trace_event_win_unittest.cc',
             'win_util_unittest.cc',
