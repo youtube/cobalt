@@ -1248,6 +1248,7 @@ string16 StripWWW(const string16& text) {
 string16 GetSuggestedFilename(const GURL& url,
                               const std::string& content_disposition,
                               const std::string& referrer_charset,
+                              const std::string& suggested_name,
                               const string16& default_name) {
   // TODO: this function to be updated to match the httpbis recommendations.
   // Talk to abarth for the latest news.
@@ -1256,16 +1257,15 @@ string16 GetSuggestedFilename(const GURL& url,
   // needed, the caller should provide localized fallback default_name.
   static const char* kFinalFallbackName = "download";
 
-  // about: and data: URLs don't have file names, but esp. data: URLs may
-  // contain parts that look like ones (i.e., contain a slash).
-  // Therefore we don't attempt to divine a file name out of them.
-  if (url.SchemeIs("about") || url.SchemeIs("data")) {
-    return default_name.empty() ? ASCIIToUTF16(kFinalFallbackName)
-                                : default_name;
-  }
+  std::string filename;
 
-  std::string filename = GetFileNameFromCD(content_disposition,
-                                           referrer_charset);
+  // Try to extract from content-disposition first.
+  if (!content_disposition.empty())
+    filename = GetFileNameFromCD(content_disposition, referrer_charset);
+
+  // Then try to use suggested name.
+  if (filename.empty() && !suggested_name.empty())
+    filename = suggested_name;
 
   if (!filename.empty()) {
     // Replace any path information the server may have sent, by changing
@@ -1277,7 +1277,16 @@ string16 GetSuggestedFilename(const GURL& url,
     // tricks with hidden files, "..", and "."
     TrimString(filename, ".", &filename);
   }
+
   if (filename.empty()) {
+    // about: and data: URLs don't have file names, but esp. data: URLs may
+    // contain parts that look like ones (i.e., contain a slash).
+    // Therefore we don't attempt to divine a file name out of them.
+    if (url.SchemeIs("about") || url.SchemeIs("data")) {
+      return default_name.empty() ? ASCIIToUTF16(kFinalFallbackName)
+                                  : default_name;
+    }
+
     if (url.is_valid()) {
       const std::string unescaped_url_filename = UnescapeURLComponent(
           url.ExtractFileName(),

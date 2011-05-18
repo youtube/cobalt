@@ -245,18 +245,19 @@ NET_API std::string GetDirectoryListingEntry(const string16& name,
 // unmodified.
 NET_API string16 StripWWW(const string16& text);
 
-// Gets the filename from the raw Content-Disposition header (as read from the
-// network).  Otherwise uses the last path component name or hostname from
-// |url|. If there is no filename or it can't be used, the given |default_name|,
-// will be used unless it is empty.
-
-// Note: it's possible for the suggested filename to be empty (e.g.,
-// file:///). referrer_charset is used as one of charsets
-// to interpret a raw 8bit string in C-D header (after interpreting
-// as UTF-8 fails). See the comment for GetFilenameFromCD for more details.
+// Gets the filename in the following order:
+// 1) the raw Content-Disposition header (as read from the network).
+//    |referrer_charset| is used as one of charsets to interpret a raw 8bit
+//    string in C-D header (after interpreting as UTF-8 fails).
+//    See the comment for GetFilenameFromCD for more details.
+// 2) the suggested name
+// 3) the last path component name or hostname from |url|
+// 4) the given |default_name|
+// 5) the hard-coded name "download", as the last resort
 NET_API string16 GetSuggestedFilename(const GURL& url,
                                       const std::string& content_disposition,
                                       const std::string& referrer_charset,
+                                      const std::string& suggested_name,
                                       const string16& default_name);
 
 // Checks the given port against a list of ports which are restricted by
