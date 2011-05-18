@@ -97,6 +97,16 @@
 // LOG(INFO) << bound_copy_cb.Run();  // Prints 1.
 // LOG(INFO) << bound_ref_cb.Run();  // Prints 2.
 //
+// /* Currying parameters. This also works for methods. */
+// int Sum(int a, int b, int c) {
+//   return a + b + c;
+// }
+// base::Callback<int(int, int)> sum3_cb = base::Bind(&Sum, 3);
+// LOG(INFO) << sum3_cb.Run(4, 5);  // Prints 12.
+//
+// base::Callback<int(int)> sum7_cb = base::Bind(&Sum, 3, 4);
+// LOG(INFO) << sum7_cb.Run(10);  // Prints 17.
+//
 //
 // WHERE IS THIS DESIGN FROM:
 //
