@@ -241,7 +241,6 @@ TraceLog* TraceLog::GetInstance() {
 
 TraceLog::TraceLog()
     : enabled_(false) {
-  logged_events_.reserve(1024);
 }
 
 TraceLog::~TraceLog() {
@@ -285,6 +284,7 @@ void TraceLog::SetEnabled(bool enabled) {
     AutoLock lock(lock_);
     if (enabled == enabled_)
       return;
+    logged_events_.reserve(1024);
     enabled_ = enabled;
     for (int i = 0; i < g_category_index; i++) {
       //TODO(scheib): If changed to enable specific categories instead of all
