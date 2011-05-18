@@ -11,6 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "net/base/net_api.h"
 
 class Value;
 
@@ -35,7 +36,7 @@ namespace net {
 // TODO(eroman): Start a new Source each time URLRequest redirects
 //               (simpler to reason about each as a separate entity).
 
-class NetLog {
+class NET_API NetLog {
  public:
   enum EventType {
 #define EVENT_TYPE(label) TYPE_ ## label,
@@ -61,7 +62,7 @@ class NetLog {
   // Identifies the entity that generated this log. The |id| field should
   // uniquely identify the source, and is used by log observers to infer
   // message groupings. Can use NetLog::NextID() to create unique IDs.
-  struct Source {
+  struct NET_API Source {
     static const uint32 kInvalidId = 0;
 
     Source() : type(SOURCE_NONE), id(kInvalidId) {}
@@ -78,7 +79,8 @@ class NetLog {
   // Base class for associating additional parameters with an event. Log
   // observers need to know what specific derivations of EventParameters a
   // particular EventType uses, in order to get at the individual components.
-  class EventParameters : public base::RefCountedThreadSafe<EventParameters> {
+  class NET_API EventParameters
+      : public base::RefCountedThreadSafe<EventParameters> {
    public:
     EventParameters() {}
     virtual ~EventParameters() {}
@@ -163,7 +165,7 @@ class NetLog {
 
 // Helper that binds a Source to a NetLog, and exposes convenience methods to
 // output log messages without needing to pass in the source.
-class BoundNetLog {
+class NET_API BoundNetLog {
  public:
   BoundNetLog() : net_log_(NULL) {}
 
@@ -279,7 +281,7 @@ class NetLogSourceParameter : public NetLog::EventParameters {
 
 // ScopedNetLogEvent logs a begin event on creation, and the corresponding end
 // event on destruction.
-class ScopedNetLogEvent {
+class NET_TEST ScopedNetLogEvent {
  public:
   ScopedNetLogEvent(const BoundNetLog& net_log,
                     NetLog::EventType event_type,

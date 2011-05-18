@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/string_piece.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -45,8 +46,8 @@ bool GetElement(base::StringPiece* in,
 // ExtractSPKIFromDERCert parses the DER encoded certificate in |cert| and
 // extracts the bytes of the SubjectPublicKeyInfo. On successful return,
 // |spki_out| is set to contain the SPKI, pointing into |cert|.
-bool ExtractSPKIFromDERCert(base::StringPiece cert,
-                            base::StringPiece* spki_out);
+NET_TEST bool ExtractSPKIFromDERCert(base::StringPiece cert,
+                                     base::StringPiece* spki_out);
 
 } // namespace asn1
 

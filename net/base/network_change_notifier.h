@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,15 +8,16 @@
 
 #include "base/basictypes.h"
 #include "base/observer_list_threadsafe.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
 // NetworkChangeNotifier monitors the system for network changes, and notifies
 // registered observers of those events.  Observers may register on any thread,
 // and will be called back on the thread from which they registered.
-class NetworkChangeNotifier {
+class NET_API NetworkChangeNotifier {
  public:
-  class IPAddressObserver {
+  class NET_API IPAddressObserver {
    public:
     virtual ~IPAddressObserver() {}
 
@@ -93,12 +94,10 @@ class NetworkChangeNotifier {
   static void RemoveIPAddressObserver(IPAddressObserver* observer);
   static void RemoveOnlineStateObserver(OnlineStateObserver* observer);
 
-#ifdef UNIT_TEST
   // Allow unit tests to trigger notifications.
   static void NotifyObserversOfIPAddressChangeForTests() {
     NotifyObserversOfIPAddressChange();
   }
-#endif
 
  protected:
   NetworkChangeNotifier();
