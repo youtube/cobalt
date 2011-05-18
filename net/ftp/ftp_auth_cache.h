@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 
 #include "base/string16.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -21,7 +22,7 @@ namespace net {
 //   GURL("ftp://myserver") -- OK (implied port of 21)
 //   GURL("ftp://myserver:21") -- OK
 //   GURL("ftp://myserver/PATH") -- WRONG, paths not allowed
-class FtpAuthCache {
+class NET_TEST FtpAuthCache {
  public:
   // Maximum number of entries we allow in the cache.
   static const size_t kMaxEntries;
