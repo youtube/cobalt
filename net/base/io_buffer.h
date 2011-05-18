@@ -11,12 +11,13 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/pickle.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
 // This is a simple wrapper around a buffer that provides ref counting for
 // easier asynchronous IO handling.
-class IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
+class NET_API IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
  public:
   IOBuffer();
   explicit IOBuffer(int buffer_size);
@@ -39,7 +40,7 @@ class IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
 // doesn't have to keep track of that value.
 // NOTE: This doesn't mean that we want to stop sending the size as an explicit
 // argument to IO functions. Please keep using IOBuffer* for API declarations.
-class IOBufferWithSize : public IOBuffer {
+class NET_API IOBufferWithSize : public IOBuffer {
  public:
   explicit IOBufferWithSize(int size);
 
@@ -53,7 +54,7 @@ class IOBufferWithSize : public IOBuffer {
 
 // This is a read only IOBuffer.  The data is stored in a string and
 // the IOBuffer interface does not provide a proper way to modify it.
-class StringIOBuffer : public IOBuffer {
+class NET_API StringIOBuffer : public IOBuffer {
  public:
   explicit StringIOBuffer(const std::string& s);
 
@@ -67,7 +68,7 @@ class StringIOBuffer : public IOBuffer {
 
 // This version wraps an existing IOBuffer and provides convenient functions
 // to progressively read all the data.
-class DrainableIOBuffer : public IOBuffer {
+class NET_API DrainableIOBuffer : public IOBuffer {
  public:
   DrainableIOBuffer(IOBuffer* base, int size);
 
@@ -96,7 +97,7 @@ class DrainableIOBuffer : public IOBuffer {
 };
 
 // This version provides a resizable buffer and a changeable offset.
-class GrowableIOBuffer : public IOBuffer {
+class NET_API GrowableIOBuffer : public IOBuffer {
  public:
   GrowableIOBuffer();
 
@@ -121,7 +122,7 @@ class GrowableIOBuffer : public IOBuffer {
 
 // This versions allows a pickle to be used as the storage for a write-style
 // operation, avoiding an extra data copy.
-class PickledIOBuffer : public IOBuffer {
+class NET_API PickledIOBuffer : public IOBuffer {
  public:
   PickledIOBuffer();
 
@@ -142,7 +143,7 @@ class PickledIOBuffer : public IOBuffer {
 // A good example is the buffer for a synchronous operation, where we can be
 // sure that nobody is keeping an extra reference to this object so the lifetime
 // of the buffer can be completely managed by its intended owner.
-class WrappedIOBuffer : public IOBuffer {
+class NET_API WrappedIOBuffer : public IOBuffer {
  public:
   explicit WrappedIOBuffer(const char* data);
 

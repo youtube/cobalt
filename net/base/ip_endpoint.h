@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 #include "net/base/net_util.h"
 
 struct sockaddr;
@@ -16,7 +17,7 @@ namespace net {
 // An IPEndPoint represents the address of a transport endpoint:
 //  * IP address (either v4 or v6)
 //  * Port
-class IPEndPoint {
+class NET_API IPEndPoint {
  public:
   IPEndPoint();
   virtual ~IPEndPoint();

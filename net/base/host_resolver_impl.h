@@ -17,6 +17,7 @@
 #include "net/base/host_cache.h"
 #include "net/base/host_resolver.h"
 #include "net/base/host_resolver_proc.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
 
@@ -58,9 +59,10 @@ namespace net {
 // the results from the first attempt that finishes and ignore the results from
 // all other attempts.
 
-class HostResolverImpl : public HostResolver,
-                         public base::NonThreadSafe,
-                         public NetworkChangeNotifier::IPAddressObserver {
+class NET_API HostResolverImpl
+    : public HostResolver,
+      NON_EXPORTED_BASE(public base::NonThreadSafe),
+      public NetworkChangeNotifier::IPAddressObserver {
  public:
   // The index into |job_pools_| for the various job pools. Pools with a higher
   // index have lower priority.

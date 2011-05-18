@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,8 @@
 #pragma once
 
 #include <string>
+
+#include "net/base/net_api.h"
 
 class GURL;
 
@@ -26,7 +28,7 @@ namespace net {
 // If <mediatype> is omitted, it defaults to text/plain;charset=US-ASCII.  As a
 // shorthand, "text/plain" can be omitted but the charset parameter supplied.
 //
-class DataURL {
+class NET_API DataURL {
  public:
   // This method can be used to parse a 'data' URL into its component pieces.
   //
