@@ -9,13 +9,14 @@
 #include <vector>
 
 #include "base/string16.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
 struct FtpDirectoryListingEntry;
 
 // Parses Windows FTP directory listing. Returns true on success.
-bool ParseFtpDirectoryListingWindows(
+NET_TEST bool ParseFtpDirectoryListingWindows(
     const std::vector<string16>& lines,
     std::vector<FtpDirectoryListingEntry>* entries);
 

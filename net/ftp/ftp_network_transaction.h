@@ -25,7 +25,7 @@ class ClientSocketFactory;
 class FtpNetworkSession;
 class StreamSocket;
 
-class FtpNetworkTransaction : public FtpTransaction {
+class NET_TEST FtpNetworkTransaction : public FtpTransaction {
  public:
   FtpNetworkTransaction(FtpNetworkSession* session,
                         ClientSocketFactory* socket_factory);

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/memory/ref_counted.h"
+#include "net/base/net_api.h"
 #include "net/ftp/ftp_transaction_factory.h"
 
 namespace net {
@@ -14,7 +15,7 @@ namespace net {
 class FtpNetworkSession;
 class HostResolver;
 
-class FtpNetworkLayer : public FtpTransactionFactory {
+class NET_API FtpNetworkLayer : public FtpTransactionFactory {
  public:
   explicit FtpNetworkLayer(HostResolver* host_resolver);
   ~FtpNetworkLayer();
