@@ -6,6 +6,7 @@
 #define BASE_SYSTEM_MONITOR_SYSTEM_MONITOR_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "build/build_config.h"
 
@@ -32,7 +33,7 @@ namespace base {
 // Class for monitoring various system-related subsystems
 // such as power management, network status, etc.
 // TODO(mbelshe):  Add support beyond just power management.
-class SystemMonitor {
+class BASE_API SystemMonitor {
  public:
   // Normalized list of power events.
   enum PowerEvent {
