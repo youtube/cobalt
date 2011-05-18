@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1434,7 +1434,13 @@ TEST(HttpResponseHeadersTest, HasStrongValidators) {
     { "HTTP/0.9 200 OK",
       false
     },
-    { "HTTP/0.9 200 OK\n"
+    { "HTTP/1.0 200 OK\n"
+      "Date: Wed, 28 Nov 2007 01:40:10 GMT\n"
+      "Last-Modified: Wed, 28 Nov 2007 00:40:10 GMT\n"
+      "ETag: \"foo\"\n",
+      false
+    },
+    { "HTTP/1.1 200 OK\n"
       "Date: Wed, 28 Nov 2007 01:40:10 GMT\n"
       "Last-Modified: Wed, 28 Nov 2007 00:40:10 GMT\n"
       "ETag: \"foo\"\n",
