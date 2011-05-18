@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,7 +17,8 @@ enum {
   EXPERIMENT_OLD_FILE2 = 4,
   EXPERIMENT_DELETED_LIST_OUT = 11,
   EXPERIMENT_DELETED_LIST_CONTROL = 12,
-  EXPERIMENT_DELETED_LIST_IN = 13
+  EXPERIMENT_DELETED_LIST_IN = 13,
+  EXPERIMENT_DELETED_LIST_OUT2 = 14
 };
 
 }  // namespace disk_cache
