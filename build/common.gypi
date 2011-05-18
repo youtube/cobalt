@@ -38,16 +38,14 @@
 
         # Compute the architecture that we're building on.
         'conditions': [
-          [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+          [ 'OS=="win" or OS=="mac"', {
+            'host_arch%': 'ia32',
+          }, {
             # This handles the Unix platforms for which there is some support.
             # Anything else gets passed through, which probably won't work very
             # well; such hosts should pass an explicit target_arch to gyp.
             'host_arch%':
               '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
-            'os_nix%': 1,
-          }, { # OS=="win" or OS=="mac"
-            'host_arch%': 'ia32',
-            'os_nix%': 0,
           }],
 
           # Set default value of toolkit_views on for Windows, Chrome OS
@@ -66,7 +64,6 @@
       'host_arch%': '<(host_arch)',
       'library%': '<(library)',
       'toolkit_views%': '<(toolkit_views)',
-      'os_nix%': '<(os_nix)',
 
       # Override branding to select the desired branding flavor.
       'branding%': 'Chromium',
@@ -144,19 +141,19 @@
 
       'conditions': [
         # A flag for POSIX platforms
-        ['os_nix==1 or OS=="mac"', {
-          'os_posix%': 1,
-        }, {
+        ['OS=="win"', {
           'os_posix%': 0,
+        }, {
+          'os_posix%': 1,
         }],
 
         # Flags to use Gtk and X11 on non-Mac POSIX platforms
-        ['os_nix==1', {
-          'toolkit_uses_gtk%': 1,
-          'use_x11%': 1,
-        }, {
+        ['OS=="win" or OS=="mac"', {
           'toolkit_uses_gtk%': 0,
           'use_x11%': 0,
+        }, {
+          'toolkit_uses_gtk%': 1,
+          'use_x11%': 1,
         }],
 
         # A flag to enable or disable our compile-time dependency
