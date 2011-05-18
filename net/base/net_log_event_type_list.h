@@ -70,6 +70,31 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_POOL_QUEUE_EVICTED)
 // for a request.
 EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_JOB)
 
+// This event is created when HostResolverImpl::Job is about to start a new
+// attempt to resolve the host.
+//
+// The ATTEMPT_STARTED event has the parameters:
+//
+//   {
+//     "attempt_number": <the number of the attempt that is resolving the host>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_ATTEMPT_STARTED)
+
+// This event is created when HostResolverImpl::Job has finished resolving the
+// host.
+//
+// The ATTEMPT_FINISHED event has the parameters:
+//
+//   {
+//     "attempt_number": <the number of the attempt that has resolved the host>,
+//   }
+// If an error occurred, the END phase will contain these additional parameters:
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//     "os_error": <The exact error code integer that getaddrinfo() returned>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_ATTEMPT_FINISHED)
+
 // This is logged for a request when it's attached to a
 // HostResolverImpl::Job.  When this occurs without a preceding
 // HOST_RESOLVER_IMPL_CREATE_JOB entry, it means the request was attached to an

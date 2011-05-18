@@ -134,13 +134,19 @@ static int ResolveAddrInfo(HostResolverProc* resolver_proc,
 // Extra parameters to attach to the NetLog when the resolve failed.
 class HostResolveFailedParams : public NetLog::EventParameters {
  public:
-  HostResolveFailedParams(int net_error, int os_error)
-      : net_error_(net_error),
+  HostResolveFailedParams(uint32 attempt_number,
+                          int net_error,
+                          int os_error)
+      : attempt_number_(attempt_number),
+        net_error_(net_error),
         os_error_(os_error) {
   }
 
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
+    if (attempt_number_)
+      dict->SetInteger("attempt_number", attempt_number_);
+
     dict->SetInteger("net_error", net_error_);
 
     if (os_error_) {
@@ -167,6 +173,7 @@ class HostResolveFailedParams : public NetLog::EventParameters {
   }
 
  private:
+  const uint32 attempt_number_;
   const int net_error_;
   const int os_error_;
 };
@@ -433,6 +440,12 @@ class HostResolverImpl::Job
                             start_time, attempt_number_, ERR_UNEXPECTED, 0));
       return;
     }
+
+    net_log_.AddEvent(
+        NetLog::TYPE_HOST_RESOLVER_IMPL_ATTEMPT_STARTED,
+        make_scoped_refptr(new NetLogIntegerParameter(
+            "attempt_number", attempt_number_)));
+
     // Post a task to check if we get the results within a given time.
     // OnCheckForComplete has the potential for starting a new attempt on a
     // different worker thread if none of our outstanding attempts have
@@ -565,6 +578,15 @@ class HostResolverImpl::Job
     bool was_retry_attempt = attempt_number > 1;
 
     if (!was_cancelled()) {
+      scoped_refptr<NetLog::EventParameters> params;
+      if (error != OK) {
+        params = new HostResolveFailedParams(attempt_number, error, os_error);
+      } else {
+        params = new NetLogIntegerParameter("attempt_number", attempt_number_);
+      }
+      net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_ATTEMPT_FINISHED,
+                        params);
+
       // If host is already resolved, then record data and return.
       if (was_completed()) {
         // If this is the first attempt that is finishing later, then record
@@ -601,7 +623,7 @@ class HostResolverImpl::Job
 
     scoped_refptr<NetLog::EventParameters> params;
     if (error != OK) {
-      params = new HostResolveFailedParams(error, os_error);
+      params = new HostResolveFailedParams(0, error, os_error);
     } else {
       params = new AddressListNetLogParam(results_);
     }
@@ -1407,7 +1429,7 @@ void HostResolverImpl::OnFinishRequest(const BoundNetLog& source_net_log,
   // Log some extra parameters on failure for synchronous requests.
   scoped_refptr<NetLog::EventParameters> params;
   if (!was_resolved) {
-    params = new HostResolveFailedParams(net_error, os_error);
+    params = new HostResolveFailedParams(0, net_error, os_error);
   }
 
   request_net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST, params);
