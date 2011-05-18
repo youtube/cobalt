@@ -51,7 +51,9 @@ class HMAC {
   // to the constructor and the key supplied to the Init method. The HMAC is
   // returned in |digest|, which has |digest_length| bytes of storage available.
   // TODO(abarth): digest_length should be a size_t.
-  bool Sign(const std::string& data, unsigned char* digest, int digest_length);
+  bool Sign(const std::string& data,
+            unsigned char* digest,
+            int digest_length) const;
 
   // TODO(albertb): Add a Verify method.
 
