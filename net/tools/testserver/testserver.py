@@ -896,6 +896,9 @@ class TestPageHandler(BasePageHandler):
 
     # Authentication successful.  (Return a cachable response to allow for
     # testing cached pages that require authentication.)
+    old_protocol_version = self.protocol_version
+    self.protocol_version = "HTTP/1.1"
+
     if_none_match = self.headers.getheader('if-none-match')
     if if_none_match == "abc":
       self.send_response(304)
@@ -906,6 +909,7 @@ class TestPageHandler(BasePageHandler):
       gif_path = os.path.join(self.server.data_dir, *test_image_path)
       if not os.path.isfile(gif_path):
         self.send_error(404)
+        self.protocol_version = old_protocol_version
         return True
 
       f = open(gif_path, "rb")
@@ -931,6 +935,7 @@ class TestPageHandler(BasePageHandler):
       self.wfile.write('You sent:<br>%s<p>' % self.headers)
       self.wfile.write('</body></html>')
 
+    self.protocol_version = old_protocol_version
     return True
 
   def GetNonce(self, force_reset=False):
