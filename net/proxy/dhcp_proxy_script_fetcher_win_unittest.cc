@@ -499,12 +499,14 @@ void TestShortCircuitLessPreferredAdapters(FetcherClient* client) {
   ASSERT_GT(TimeDelta::FromMilliseconds(23), timer.Elapsed());
 }
 
-TEST(DhcpProxyScriptFetcherWin, ShortCircuitLessPreferredAdapters) {
+// Seems to be flaky under TSAN. http://crbug.com/82991
+TEST(DhcpProxyScriptFetcherWin, FLAKY_ShortCircuitLessPreferredAdapters) {
   FetcherClient client;
   TestShortCircuitLessPreferredAdapters(&client);
 }
 
-TEST(DhcpProxyScriptFetcherWin, ReuseFetcher) {
+// Seems to be flaky under TSAN. http://crbug.com/82991
+TEST(DhcpProxyScriptFetcherWin, FLAKY_ReuseFetcher) {
   FetcherClient client;
 
   // The ProxyScriptFetcher interface stipulates that only a single

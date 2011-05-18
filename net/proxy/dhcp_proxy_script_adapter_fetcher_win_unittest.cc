@@ -156,7 +156,9 @@ class FetcherClient {
   string16 pac_text_;
 };
 
-TEST(DhcpProxyScriptAdapterFetcher, NormalCaseURLNotInDhcp) {
+// Seems to be flaky under TSAN.
+// http://crbug.com/82991
+TEST(DhcpProxyScriptAdapterFetcher, FLAKY_NormalCaseURLNotInDhcp) {
   FetcherClient client;
   client.fetcher_->configured_url_ = "";
   client.RunTest();
