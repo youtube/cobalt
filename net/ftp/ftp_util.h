@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/string16.h"
+#include "net/base/net_api.h"
 
 namespace base {
 class Time;
@@ -16,7 +17,7 @@ class Time;
 
 namespace net {
 
-class FtpUtil {
+class NET_TEST FtpUtil {
  public:
   // Converts Unix file path to VMS path (must be a file, and not a directory).
   static std::string UnixFilePathToVMS(const std::string& unix_path);
