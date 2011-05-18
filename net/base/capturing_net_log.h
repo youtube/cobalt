@@ -14,15 +14,16 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 
 namespace net {
 
 // CapturingNetLog is an implementation of NetLog that saves messages to a
 // bounded buffer.
-class CapturingNetLog : public NetLog {
+class NET_API CapturingNetLog : public NetLog {
  public:
-  struct Entry {
+  struct NET_API Entry {
     Entry(EventType type,
           const base::TimeTicks& time,
           Source source,
@@ -83,7 +84,7 @@ class CapturingNetLog : public NetLog {
 //
 // CapturingBoundNetLog can easily be converted to a BoundNetLog using the
 // bound() method.
-class CapturingBoundNetLog {
+class NET_TEST CapturingBoundNetLog {
  public:
   CapturingBoundNetLog(const NetLog::Source& source, CapturingNetLog* net_log);
 

@@ -13,6 +13,7 @@
 #include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
+#include "net/base/net_api.h"
 #include "net/base/request_priority.h"
 
 namespace net {
@@ -32,11 +33,11 @@ class NetLog;
 // request at a time is to create a SingleRequestHostResolver wrapper around
 // HostResolver (which will automatically cancel the single request when it
 // goes out of scope).
-class HostResolver {
+class NET_API HostResolver {
  public:
   // The parameters for doing a Resolve(). A hostname and port are required,
   // the rest are optional (and have reasonable defaults).
-  class RequestInfo {
+  class NET_API RequestInfo {
    public:
     explicit RequestInfo(const HostPortPair& host_port_pair);
 
@@ -241,8 +242,8 @@ class SingleRequestHostResolver {
 // |max_concurrent_resolves| is how many resolve requests will be allowed to
 // run in parallel. Pass HostResolver::kDefaultParallelism to choose a
 // default value.
-HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
-                                       NetLog* net_log);
+NET_API HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
+                                               NetLog* net_log);
 
 }  // namespace net
 
