@@ -948,7 +948,7 @@ const MockTransaction kRangeGET_TransactionOK = {
   EXTRA_HEADER,
   net::LOAD_NORMAL,
   "HTTP/1.1 206 Partial Content",
-  "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+  "Last-Modified: Sat, 18 Apr 2007 01:10:43 GMT\n"
   "ETag: \"foo\"\n"
   "Accept-Ranges: bytes\n"
   "Content-Length: 10\n",
@@ -2208,6 +2208,62 @@ TEST(HttpCache, ETagGET_ConditionalRequest_304) {
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
+}
+
+static void ETagGet_UnconditionalRequest_Handler(
+    const net::HttpRequestInfo* request,
+    std::string* response_status,
+    std::string* response_headers,
+    std::string* response_data) {
+  EXPECT_FALSE(
+      request->extra_headers.HasHeader(net::HttpRequestHeaders::kIfNoneMatch));
+}
+
+TEST(HttpCache, ETagGET_Http10) {
+  MockHttpCache cache;
+
+  ScopedMockTransaction transaction(kETagGET_Transaction);
+  transaction.status = "HTTP/1.0 200 OK";
+
+  // Write to the cache.
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Get the same URL again, without generating a conditional request.
+  transaction.load_flags = net::LOAD_VALIDATE_CACHE;
+  transaction.handler = ETagGet_UnconditionalRequest_Handler;
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+}
+
+TEST(HttpCache, ETagGET_Http10_Range) {
+  MockHttpCache cache;
+
+  ScopedMockTransaction transaction(kETagGET_Transaction);
+  transaction.status = "HTTP/1.0 200 OK";
+
+  // Write to the cache.
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Get the same URL again, but use a byte range request.
+  transaction.load_flags = net::LOAD_VALIDATE_CACHE;
+  transaction.handler = ETagGet_UnconditionalRequest_Handler;
+  transaction.request_headers = "Range: bytes = 5-";
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
 }
 
 static void ETagGet_ConditionalRequest_NoStore_Handler(
@@ -4349,7 +4405,7 @@ TEST(HttpCache, GET_IncompleteResource) {
   AddMockTransaction(&kRangeGET_TransactionOK);
 
   std::string raw_headers("HTTP/1.1 200 OK\n"
-                          "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+                          "Last-Modified: Sat, 18 Apr 2007 01:10:43 GMT\n"
                           "ETag: \"foo\"\n"
                           "Accept-Ranges: bytes\n"
                           "Content-Length: 80\n");
@@ -4366,7 +4422,7 @@ TEST(HttpCache, GET_IncompleteResource) {
   // We update the headers with the ones received while revalidating.
   std::string expected_headers(
       "HTTP/1.1 200 OK\n"
-      "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+      "Last-Modified: Sat, 18 Apr 2007 01:10:43 GMT\n"
       "Accept-Ranges: bytes\n"
       "ETag: \"foo\"\n"
       "Content-Length: 80\n");
@@ -4396,7 +4452,7 @@ TEST(HttpCache, GET_IncompleteResource2) {
 
   // Content-length will be intentionally bad.
   std::string raw_headers("HTTP/1.1 200 OK\n"
-                          "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+                          "Last-Modified: Sat, 18 Apr 2007 01:10:43 GMT\n"
                           "ETag: \"foo\"\n"
                           "Accept-Ranges: bytes\n"
                           "Content-Length: 50\n");
