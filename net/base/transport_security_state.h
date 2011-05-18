@@ -14,6 +14,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
+#include "net/base/net_api.h"
 #include "net/base/x509_cert_types.h"
 
 namespace net {
@@ -23,7 +24,7 @@ namespace net {
 // Tracks which hosts have enabled *-Transport-Security. This object manages
 // the in-memory store. A separate object must register itself with this object
 // in order to persist the state to disk.
-class TransportSecurityState :
+class NET_API TransportSecurityState :
     public base::RefCountedThreadSafe<TransportSecurityState> {
  public:
   // If non-empty, |hsts_hosts| is a JSON-formatted string to treat as if it
@@ -32,7 +33,7 @@ class TransportSecurityState :
   explicit TransportSecurityState(const std::string& hsts_hosts);
 
   // A DomainState is the information that we persist about a given domain.
-  struct DomainState {
+  struct NET_API DomainState {
     enum Mode {
       // Strict mode implies:
       //   * We generate internal redirects from HTTP -> HTTPS.

@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "net/base/filter.h"
+#include "net/base/net_api.h"
 #include "net/base/sdch_manager.h"
 
 namespace open_vcdiff {
@@ -27,7 +28,7 @@ class VCDiffStreamingDecoder;
 
 namespace net {
 
-class SdchFilter : public Filter {
+class NET_TEST SdchFilter : public Filter {
  public:
   virtual ~SdchFilter();
 

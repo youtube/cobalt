@@ -16,6 +16,7 @@
 #include "net/base/cert_database.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 #include "net/base/x509_cert_types.h"
 
 namespace net {
@@ -47,8 +48,8 @@ struct CachedCertVerifyResult {
 // request at a time is to create a SingleRequestCertVerifier wrapper around
 // CertVerifier (which will automatically cancel the single request when it
 // goes out of scope).
-class CertVerifier : public base::NonThreadSafe,
-                     public CertDatabase::Observer {
+class NET_API CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
+                             public CertDatabase::Observer {
  public:
   // Opaque type used to cancel a request.
   typedef void* RequestHandle;

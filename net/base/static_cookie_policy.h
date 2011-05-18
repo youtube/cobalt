@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 
 class GURL;
 
@@ -16,7 +17,7 @@ namespace net {
 
 // The StaticCookiePolicy class implements a static cookie policy that supports
 // three modes: allow all, deny all, or block third-party cookies.
-class StaticCookiePolicy {
+class NET_API StaticCookiePolicy {
  public:
   // Do not change the order of these types as they are persisted in
   // preferences.

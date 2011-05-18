@@ -11,6 +11,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "net/base/host_mapping_rules.h"
 #include "net/base/host_resolver.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -18,7 +19,7 @@ namespace net {
 // request before passing it off to |impl|. This is different from
 // MockHostResolver which does the remapping at the HostResolverProc
 // layer, so it is able to preserve the effectiveness of the cache.
-class MappedHostResolver : public HostResolver {
+class NET_API MappedHostResolver : public HostResolver {
  public:
   // Creates a MappedHostResolver that forwards all of its requests through
   // |impl|.  It takes ownership of |impl|.

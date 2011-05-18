@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,8 @@
 #pragma once
 
 #include <string>
+
+#include "net/base/net_api.h"
 
 class GURL;
 
@@ -24,7 +26,7 @@ const int kMaxBytesToSniff = 1024;
 // @param url The URL from which we obtained the content.
 // @param mime_type The current mime type, e.g. from the Content-Type header.
 // @return Returns true if we should sniff the mime type.
-bool ShouldSniffMimeType(const GURL& url, const std::string& mime_type);
+NET_API bool ShouldSniffMimeType(const GURL& url, const std::string& mime_type);
 
 // Guess a mime type from the first few bytes of content an its URL.  Always
 // assigns |result| with its best guess of a mime type.
@@ -35,9 +37,9 @@ bool ShouldSniffMimeType(const GURL& url, const std::string& mime_type);
 // @param type_hint The current mime type, e.g. from the Content-Type header.
 // @param result Address at which to place the sniffed mime type.
 // @return Returns true if we have enough content to guess the mime type.
-bool SniffMimeType(const char* content, size_t content_size,
-                   const GURL& url, const std::string& type_hint,
-                   std::string* result);
+NET_API bool SniffMimeType(const char* content, size_t content_size,
+                           const GURL& url, const std::string& type_hint,
+                           std::string* result);
 
 }  // namespace net
 
