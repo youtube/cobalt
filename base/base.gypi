@@ -604,7 +604,7 @@
       'targets': [
         {
           'target_name': 'base_nacl_win64',
-          'type': '<(library)',
+          'type': 'static_library',
           'msvs_guid': 'CEE1F794-DC70-4FED-B7C4-4C12986672FE',
           'variables': {
             'base_target': 1,
@@ -638,7 +638,7 @@
       'targets': [
         {
           'target_name': 'symbolize',
-          'type': '<(library)',
+          'type': 'static_library',
           'variables': {
             'chromium_code': 0,
           },
@@ -663,7 +663,7 @@
         },
         {
           'target_name': 'xdg_mime',
-          'type': '<(library)',
+          'type': 'static_library',
           'variables': {
             'chromium_code': 0,
           },
