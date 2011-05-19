@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 #include "net/base/sys_byteorder.h"
 #include "net/spdy/spdy_protocol.h"
 
@@ -25,7 +26,7 @@ namespace spdy {
 // When reading from a SpdyFrameBuilder the consumer must know what value types
 // to read and in what order to read them as the SpdyFrameBuilder does not keep
 // track of the type of data written to it.
-class SpdyFrameBuilder {
+class NET_TEST SpdyFrameBuilder {
  public:
   SpdyFrameBuilder();
 

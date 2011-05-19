@@ -44,8 +44,8 @@ class SpdySettingsStorage;
 class SpdyStream;
 class SSLInfo;
 
-class SpdySession : public base::RefCounted<SpdySession>,
-                    public spdy::SpdyFramerVisitorInterface {
+class NET_API SpdySession : public base::RefCounted<SpdySession>,
+                            public spdy::SpdyFramerVisitorInterface {
  public:
   // Create a new SpdySession.
   // |host_port_proxy_pair| is the host/port that this session connects to, and
