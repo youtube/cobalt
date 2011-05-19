@@ -772,8 +772,11 @@
             'sources!': [
               'http/http_auth_handler_ntlm_portable.cc',
               'socket/tcp_client_socket_libevent.cc',
+              'socket/tcp_client_socket_libevent.h',
               'socket/tcp_server_socket_libevent.cc',
+              'socket/tcp_server_socket_libevent.h',
               'udp/udp_socket_libevent.cc',
+              'udp/udp_socket_libevent.h',
             ],
             'dependencies': [
               '../third_party/nss/nss.gyp:nss',
@@ -787,8 +790,11 @@
             ],
             'sources!': [
               'base/winsock_init.cc',
+              'base/winsock_init.h',
               'base/winsock_util.cc',
+              'base/winsock_util.h',
               'proxy/proxy_resolver_winhttp.cc',
+              'proxy/proxy_resolver_winhttp.h',
             ],
           },
         ],
