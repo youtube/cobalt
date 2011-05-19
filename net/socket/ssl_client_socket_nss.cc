@@ -183,7 +183,6 @@ namespace net {
 #define EnterFunction(x)
 #define LeaveFunction(x)
 #define GotoState(s) next_handshake_state_ = s
-#define LogData(s, len)
 #else
 #define EnterFunction(x)\
     VLOG(1) << (void *)this << " " << __FUNCTION__ << " enter " << x\
@@ -196,9 +195,6 @@ namespace net {
       VLOG(1) << (void *)this << " " << __FUNCTION__ << " jump to state " << s;\
       next_handshake_state_ = s;\
     } while (0)
-#define LogData(s, len)\
-    VLOG(1) << (void *)this << " " << __FUNCTION__\
-            << " data [" << std::string(s, len) << "]"
 #endif
 
 namespace {
@@ -1625,7 +1621,8 @@ int SSLClientSocketNSS::DoPayloadRead() {
     return rv;
   }
   if (rv >= 0) {
-    LogData(user_read_buf_->data(), rv);
+    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, rv,
+                    user_read_buf_->data());
     LeaveFunction("");
     return rv;
   }
@@ -1646,7 +1643,8 @@ int SSLClientSocketNSS::DoPayloadWrite() {
   DCHECK(user_write_buf_);
   int rv = PR_Write(nss_fd_, user_write_buf_->data(), user_write_buf_len_);
   if (rv >= 0) {
-    LogData(user_write_buf_->data(), rv);
+    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
+                    user_write_buf_->data());
     LeaveFunction("");
     return rv;
   }
