@@ -12,7 +12,7 @@
   'targets': [
     {
       'target_name': 'base_i18n',
-      'type': '<(library)',
+      'type': 'static_library',
       'msvs_guid': '968F3222-9798-4D21-BE08-15ECB5EF2994',
       'dependencies': [
         'base',
@@ -60,7 +60,7 @@
       # dynamic library. Note that this library cannot depend on base because
       # base depends on base_static.
       'target_name': 'base_static',
-      'type': '<(library)',
+      'type': 'static_library',
       'sources': [
         'base_switches.cc',
         'base_switches.h',
@@ -75,7 +75,7 @@
       # TODO(rvargas): Remove this when gyp finally supports a clean model.
       # See bug 36232.
       'target_name': 'base_static_win64',
-      'type': '<(library)',
+      'type': 'static_library',
       'sources': [
         'base_switches.cc',
         'base_switches.h',
@@ -293,7 +293,7 @@
     },
     {
       'target_name': 'test_support_base',
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         'base',
         'base_static',
@@ -335,7 +335,7 @@
     },
     {
       'target_name': 'test_support_perf',
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         'base',
         '../testing/gtest.gyp:gtest',
