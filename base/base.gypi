@@ -49,6 +49,8 @@
           'compiler_specific.h',
           'cpu.cc',
           'cpu.h',
+          'debug/alias.cc',
+          'debug/alias.h',
           'debug/debug_on_start_win.cc',
           'debug/debug_on_start_win.h',
           'debug/debugger.cc',
