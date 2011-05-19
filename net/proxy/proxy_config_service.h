@@ -6,12 +6,14 @@
 #define NET_PROXY_PROXY_CONFIG_SERVICE_H_
 #pragma once
 
+#include "net/base/net_api.h"
+
 namespace net {
 
 class ProxyConfig;
 
 // Service for watching when the proxy settings have changed.
-class ProxyConfigService {
+class NET_API ProxyConfigService {
  public:
   // Indicates whether proxy configuration is valid, and if not, why.
   enum ConfigAvailability {
@@ -24,7 +26,7 @@ class ProxyConfigService {
   };
 
   // Observer for being notified when the proxy settings have changed.
-  class Observer {
+  class NET_API Observer {
    public:
     virtual ~Observer() {}
     // Notification callback that should be invoked by ProxyConfigService

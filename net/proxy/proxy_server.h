@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,12 +14,13 @@
 
 #include <string>
 #include "net/base/host_port_pair.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
 // ProxyServer encodes the {type, host, port} of a proxy server.
 // ProxyServer is immutable.
-class ProxyServer {
+class NET_API ProxyServer {
  public:
   // The type of proxy. These are defined as bit flags so they can be ORed
   // together to pass as the |scheme_bit_field| argument to
