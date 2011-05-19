@@ -8,6 +8,7 @@
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/debug/alias.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/message_pump_default.h"
@@ -467,6 +468,14 @@ void MessageLoop::RunTask(const PendingTask& pending_task) {
   // Execute the task and assume the worst: It is probably not reentrant.
   nestable_tasks_allowed_ = false;
 
+  // Before running the task, store the program counter where it was posted
+  // and deliberately alias it to ensure it is on the stack if the task
+  // crashes. Be careful not to assume that the variable itself will have the
+  // expected value when displayed by the optimizer in an optimized build.
+  // Look at a memory dump of the stack.
+  const void* program_counter = pending_task.birth_program_counter;
+  base::debug::Alias(&program_counter);
+
   HistogramEvent(kTaskRunEvent);
   FOR_EACH_OBSERVER(TaskObserver, task_observers_,
                     WillProcessTask(pending_task.time_posted));
@@ -766,7 +775,8 @@ MessageLoop::PendingTask::PendingTask(
       time_posted(TimeTicks::Now()),
       delayed_run_time(delayed_run_time),
       sequence_num(0),
-      nestable(nestable) {
+      nestable(nestable),
+      birth_program_counter(posted_from.program_counter()) {
 #if defined(TRACK_ALL_TASK_OBJECTS)
   if (tracked_objects::ThreadData::IsActive()) {
     tracked_objects::ThreadData* current_thread_data =
