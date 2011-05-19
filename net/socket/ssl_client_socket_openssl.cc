@@ -1192,7 +1192,7 @@ int SSLClientSocketOpenSSL::DoPayloadWrite() {
 
   if (rv >= 0) {
     LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
-                    user_read_buf_->data());
+                    user_write_buf_->data());
     return rv;
   }
 
