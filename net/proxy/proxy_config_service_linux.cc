@@ -8,7 +8,13 @@
 #include <fcntl.h>
 #if defined(USE_GCONF)
 #include <gconf/gconf-client.h>
-#endif
+#endif  // defined(USE_GCONF)
+#if defined(USE_GIO)
+#include <gio/gio.h>
+#if defined(DLOPEN_GSETTINGS)
+#include <dlfcn.h>
+#endif  // defined(DLOPEN_GSETTINGS)
+#endif  // defined(USE_GIO)
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -337,8 +343,7 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
         return false;
     }
   }
-  virtual bool GetStringList(Setting key,
-                             std::vector<std::string>* result) {
+  virtual bool GetStringList(Setting key, std::vector<std::string>* result) {
     switch (key) {
       case PROXY_IGNORE_HOSTS:
         return GetStringListByPath("/system/http_proxy/ignore_hosts", result);
@@ -413,10 +418,8 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
                                          GCONF_VALUE_STRING, &error);
     if (HandleGError(error, key))
       return false;
-    if (!list) {
-      // unset
+    if (!list)
       return false;
-    }
     for (GSList *it = list; it; it = it->next) {
       result->push_back(static_cast<char*>(it->data));
       g_free(it->data);
@@ -449,15 +452,14 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     // We don't use Reset() because the timer may not yet be running.
     // (In that case Stop() is a no-op.)
     debounce_timer_.Stop();
-    debounce_timer_.Start(base::TimeDelta::FromMilliseconds(
-        kDebounceTimeoutMilliseconds), this,
-        &SettingGetterImplGConf::OnDebouncedNotification);
+    debounce_timer_.Start(
+        base::TimeDelta::FromMilliseconds(kDebounceTimeoutMilliseconds),
+        this, &SettingGetterImplGConf::OnDebouncedNotification);
   }
 
-  // gconf notification callback, dispatched from the default glib main loop.
-  static void OnGConfChangeNotification(
-      GConfClient* client, guint cnxn_id,
-      GConfEntry* entry, gpointer user_data) {
+  // gconf notification callback, dispatched on the default glib main loop.
+  static void OnGConfChangeNotification(GConfClient* client, guint cnxn_id,
+                                        GConfEntry* entry, gpointer user_data) {
     VLOG(1) << "gconf change notification for key "
             << gconf_entry_get_key(entry);
     // We don't track which key has changed, just that something did change.
@@ -478,6 +480,370 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
   DISALLOW_COPY_AND_ASSIGN(SettingGetterImplGConf);
 };
 #endif  // defined(USE_GCONF)
+
+#if defined(USE_GIO)
+// This setting getter uses gsettings, as used in most GNOME 3 desktops.
+class SettingGetterImplGSettings
+    : public ProxyConfigServiceLinux::SettingGetter {
+ public:
+  SettingGetterImplGSettings()
+      : client_(NULL), notify_delegate_(NULL), loop_(NULL) {
+#if defined(DLOPEN_GSETTINGS)
+    gio_handle_ = NULL;
+#endif
+  }
+
+  virtual ~SettingGetterImplGSettings() {
+    // client_ should have been released before now, from
+    // Delegate::OnDestroy(), while running on the UI thread. However
+    // on exiting the process, it may happen that
+    // Delegate::OnDestroy() task is left pending on the glib loop
+    // after the loop was quit, and pending tasks may then be deleted
+    // without being run.
+    if (client_) {
+      // gconf client was not cleaned up.
+      if (MessageLoop::current() == loop_) {
+        // We are on the UI thread so we can clean it safely. This is
+        // the case at least for ui_tests running under Valgrind in
+        // bug 16076.
+        VLOG(1) << "~SettingGetterImplGSettings: releasing gsettings client";
+        ShutDown();
+      } else {
+        LOG(WARNING) << "~SettingGetterImplGSettings: leaking gsettings client";
+        client_ = NULL;
+      }
+    }
+    DCHECK(!client_);
+#if defined(DLOPEN_GSETTINGS)
+    if (gio_handle_) {
+      dlclose(gio_handle_);
+      gio_handle_ = NULL;
+    }
+#endif
+  }
+
+  // LoadAndCheckVersion() must be called *before* Init()!
+  bool LoadAndCheckVersion(base::Environment* env);
+
+  virtual bool Init(MessageLoop* glib_default_loop,
+                    MessageLoopForIO* file_loop) {
+    DCHECK(MessageLoop::current() == glib_default_loop);
+    DCHECK(!client_);
+    DCHECK(!loop_);
+    client_ = g_settings_new("org.gnome.system.proxy");
+    if (!client_) {
+      // It's not clear whether/when this can return NULL.
+      LOG(ERROR) << "Unable to create a gsettings client";
+      return false;
+    }
+    loop_ = glib_default_loop;
+    // We assume these all work if the above call worked.
+    http_client_ = g_settings_get_child(client_, "http");
+    https_client_ = g_settings_get_child(client_, "https");
+    ftp_client_ = g_settings_get_child(client_, "ftp");
+    socks_client_ = g_settings_get_child(client_, "socks");
+    DCHECK(http_client_ && https_client_ && ftp_client_ && socks_client_);
+    return true;
+  }
+
+  void ShutDown() {
+    if (client_) {
+      DCHECK(MessageLoop::current() == loop_);
+      // This also disables gsettings notifications.
+      g_object_unref(socks_client_);
+      g_object_unref(ftp_client_);
+      g_object_unref(https_client_);
+      g_object_unref(http_client_);
+      g_object_unref(client_);
+      // We only need to null client_ because it's the only one that we check.
+      client_ = NULL;
+      loop_ = NULL;
+    }
+  }
+
+  bool SetUpNotifications(ProxyConfigServiceLinux::Delegate* delegate) {
+    DCHECK(client_);
+    DCHECK(MessageLoop::current() == loop_);
+    notify_delegate_ = delegate;
+    // We could watch for the change-event signal instead of changed, but
+    // since we have to watch more than one object, we'd still have to
+    // debounce change notifications. This is conceptually simpler.
+    g_signal_connect(G_OBJECT(client_), "changed",
+                     G_CALLBACK(OnGSettingsChangeNotification), this);
+    g_signal_connect(G_OBJECT(http_client_), "changed",
+                     G_CALLBACK(OnGSettingsChangeNotification), this);
+    g_signal_connect(G_OBJECT(https_client_), "changed",
+                     G_CALLBACK(OnGSettingsChangeNotification), this);
+    g_signal_connect(G_OBJECT(ftp_client_), "changed",
+                     G_CALLBACK(OnGSettingsChangeNotification), this);
+    g_signal_connect(G_OBJECT(socks_client_), "changed",
+                     G_CALLBACK(OnGSettingsChangeNotification), this);
+    // Simulate a change to avoid possibly losing updates before this point.
+    OnChangeNotification();
+    return true;
+  }
+
+  virtual MessageLoop* GetNotificationLoop() {
+    return loop_;
+  }
+
+  virtual const char* GetDataSource() {
+    return "gsettings";
+  }
+
+  virtual bool GetString(Setting key, std::string* result) {
+    DCHECK(client_);
+    switch (key) {
+      case PROXY_MODE:
+        return GetStringByPath(client_, "mode", result);
+      case PROXY_AUTOCONF_URL:
+        return GetStringByPath(client_, "autoconfig-url", result);
+      case PROXY_HTTP_HOST:
+        return GetStringByPath(http_client_, "host", result);
+      case PROXY_HTTPS_HOST:
+        return GetStringByPath(https_client_, "host", result);
+      case PROXY_FTP_HOST:
+        return GetStringByPath(ftp_client_, "host", result);
+      case PROXY_SOCKS_HOST:
+        return GetStringByPath(socks_client_, "host", result);
+      default:
+        return false;
+    }
+  }
+  virtual bool GetBool(Setting key, bool* result) {
+    DCHECK(client_);
+    switch (key) {
+      case PROXY_USE_HTTP_PROXY:
+        // Although there is an "enabled" boolean in http_client_, it is not set
+        // to true by the proxy config utility. We ignore it and return false.
+        return false;
+      case PROXY_USE_SAME_PROXY:
+        // Similarly, although there is a "use-same-proxy" boolean in client_,
+        // it is never set to false by the proxy config utility. We ignore it.
+        return false;
+      case PROXY_USE_AUTHENTICATION:
+        // There is also no way to set this in the proxy config utility, but it
+        // doesn't hurt us to get the actual setting (unlike the two above).
+        return GetBoolByPath(http_client_, "use-authentication", result);
+      default:
+        return false;
+    }
+  }
+  virtual bool GetInt(Setting key, int* result) {
+    DCHECK(client_);
+    switch (key) {
+      case PROXY_HTTP_PORT:
+        return GetIntByPath(http_client_, "port", result);
+      case PROXY_HTTPS_PORT:
+        return GetIntByPath(https_client_, "port", result);
+      case PROXY_FTP_PORT:
+        return GetIntByPath(ftp_client_, "port", result);
+      case PROXY_SOCKS_PORT:
+        return GetIntByPath(socks_client_, "port", result);
+      default:
+        return false;
+    }
+  }
+  virtual bool GetStringList(Setting key, std::vector<std::string>* result) {
+    DCHECK(client_);
+    switch (key) {
+      case PROXY_IGNORE_HOSTS:
+        return GetStringListByPath(client_, "ignore-hosts", result);
+      default:
+        return false;
+    }
+  }
+
+  virtual bool BypassListIsReversed() {
+    // This is a KDE-specific setting.
+    return false;
+  }
+
+  virtual bool MatchHostsUsingSuffixMatching() {
+    return false;
+  }
+
+ private:
+#if defined(DLOPEN_GSETTINGS)
+  // We replicate the prototypes for the g_settings APIs we need. We may not
+  // even be compiling on a system that has them. If we are, these won't
+  // conflict both because they are identical and also due to scoping. The
+  // scoping will also ensure that these get used instead of the global ones.
+  struct _GSettings;
+  typedef struct _GSettings GSettings;
+  GSettings* (*g_settings_new)(const gchar* schema);
+  GSettings* (*g_settings_get_child)(GSettings* settings, const gchar* name);
+  gboolean (*g_settings_get_boolean)(GSettings* settings, const gchar* key);
+  gchar* (*g_settings_get_string)(GSettings* settings, const gchar* key);
+  gint (*g_settings_get_int)(GSettings* settings, const gchar* key);
+  gchar** (*g_settings_get_strv)(GSettings* settings, const gchar* key);
+
+  // The library handle.
+  void* gio_handle_;
+
+  // Load a symbol from |gio_handle_| and store it into |*func_ptr|.
+  bool LoadSymbol(const char* name, void** func_ptr) {
+    dlerror();
+    *func_ptr = dlsym(gio_handle_, name);
+    const char* error = dlerror();
+    if (error) {
+      VLOG(1) << "Unable to load symbol " << name << ": " << error;
+      return false;
+    }
+    return true;
+  }
+#endif  // defined(DLOPEN_GSETTINGS)
+
+  bool GetStringByPath(GSettings* client, const char* key,
+                       std::string* result) {
+    DCHECK(MessageLoop::current() == loop_);
+    gchar* value = g_settings_get_string(client, key);
+    if (!value)
+      return false;
+    *result = value;
+    g_free(value);
+    return true;
+  }
+  bool GetBoolByPath(GSettings* client, const char* key, bool* result) {
+    DCHECK(MessageLoop::current() == loop_);
+    *result = static_cast<bool>(g_settings_get_boolean(client, key));
+    return true;
+  }
+  bool GetIntByPath(GSettings* client, const char* key, int* result) {
+    DCHECK(MessageLoop::current() == loop_);
+    *result = g_settings_get_int(client, key);
+    return true;
+  }
+  bool GetStringListByPath(GSettings* client, const char* key,
+                           std::vector<std::string>* result) {
+    DCHECK(MessageLoop::current() == loop_);
+    gchar** list = g_settings_get_strv(client, key);
+    if (!list)
+      return false;
+    for (size_t i = 0; list[i]; ++i) {
+      result->push_back(static_cast<char*>(list[i]));
+      g_free(list[i]);
+    }
+    g_free(list);
+    return true;
+  }
+
+  // This is the callback from the debounce timer.
+  void OnDebouncedNotification() {
+    DCHECK(MessageLoop::current() == loop_);
+    CHECK(notify_delegate_);
+    // Forward to a method on the proxy config service delegate object.
+    notify_delegate_->OnCheckProxyConfigSettings();
+  }
+
+  void OnChangeNotification() {
+    // We don't use Reset() because the timer may not yet be running.
+    // (In that case Stop() is a no-op.)
+    debounce_timer_.Stop();
+    debounce_timer_.Start(
+        base::TimeDelta::FromMilliseconds(kDebounceTimeoutMilliseconds),
+        this, &SettingGetterImplGSettings::OnDebouncedNotification);
+  }
+
+  // gsettings notification callback, dispatched on the default glib main loop.
+  static void OnGSettingsChangeNotification(GSettings* client, gchar* key,
+                                            gpointer user_data) {
+    VLOG(1) << "gsettings change notification for key " << key;
+    // We don't track which key has changed, just that something did change.
+    SettingGetterImplGSettings* setting_getter =
+        reinterpret_cast<SettingGetterImplGSettings*>(user_data);
+    setting_getter->OnChangeNotification();
+  }
+
+  GSettings* client_;
+  GSettings* http_client_;
+  GSettings* https_client_;
+  GSettings* ftp_client_;
+  GSettings* socks_client_;
+  ProxyConfigServiceLinux::Delegate* notify_delegate_;
+  base::OneShotTimer<SettingGetterImplGSettings> debounce_timer_;
+
+  // Message loop of the thread that we make gsettings calls on. It should
+  // be the UI thread and all our methods should be called on this
+  // thread. Only for assertions.
+  MessageLoop* loop_;
+
+  DISALLOW_COPY_AND_ASSIGN(SettingGetterImplGSettings);
+};
+
+bool SettingGetterImplGSettings::LoadAndCheckVersion(
+    base::Environment* env) {
+  // LoadAndCheckVersion() must be called *before* Init()!
+  DCHECK(!client_);
+
+  // The APIs to query gsettings were introduced after the minimum glib
+  // version we target, so we can't link directly against them. We load them
+  // dynamically at runtime, and if they don't exist, return false here. (We
+  // support linking directly via gyp flags though.) Additionally, even when
+  // they are present, we do two additional checks to make sure we should use
+  // them and not gconf. First, we attempt to load the schema for proxy
+  // settings. Second, we check for the program that was used in older
+  // versions of GNOME to configure proxy settings, and return false if it
+  // exists. Some distributions (e.g. Ubuntu 11.04) have the API and schema
+  // but don't use gsettings for proxy settings, but they do have the old
+  // binary, so we detect these systems that way.
+
+#ifdef DLOPEN_GSETTINGS
+  gio_handle_ = dlopen("libgio-2.0.so", RTLD_NOW | RTLD_GLOBAL);
+  if (!gio_handle_) {
+    VLOG(1) << "Cannot load gio library. Will fall back to gconf.";
+    return false;
+  }
+  if (!LoadSymbol("g_settings_new",
+                  reinterpret_cast<void**>(&g_settings_new)) ||
+      !LoadSymbol("g_settings_get_child",
+                  reinterpret_cast<void**>(&g_settings_get_child)) ||
+      !LoadSymbol("g_settings_get_string",
+                  reinterpret_cast<void**>(&g_settings_get_string)) ||
+      !LoadSymbol("g_settings_get_boolean",
+                  reinterpret_cast<void**>(&g_settings_get_boolean)) ||
+      !LoadSymbol("g_settings_get_int",
+                  reinterpret_cast<void**>(&g_settings_get_int)) ||
+      !LoadSymbol("g_settings_get_strv",
+                  reinterpret_cast<void**>(&g_settings_get_strv))) {
+    VLOG(1) << "Cannot load gsettings API. Will fall back to gconf.";
+    dlclose(gio_handle_);
+    gio_handle_ = NULL;
+    return false;
+  }
+#endif
+
+  GSettings* client = g_settings_new("org.gnome.system.proxy");
+  if (!client) {
+    VLOG(1) << "Cannot create gsettings client. Will fall back to gconf.";
+    return false;
+  }
+  g_object_unref(client);
+
+  std::string path;
+  if (!env->GetVar("PATH", &path)) {
+    LOG(ERROR) << "No $PATH variable. Assuming no gnome-network-properties.";
+  } else {
+    // Yes, we're on the UI thread. Yes, we're accessing the file system.
+    // Sadly, we don't have much choice. We need the proxy settings and we
+    // need them now, and to figure out where to get them, we have to check
+    // for this binary. See http://crbug.com/69057 for additional details.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    std::vector<std::string> paths;
+    Tokenize(path, ":", &paths);
+    for (size_t i = 0; i < paths.size(); ++i) {
+      FilePath file(paths[i]);
+      if (file_util::PathExists(file.Append("gnome-network-properties"))) {
+        VLOG(1) << "Found gnome-network-properties. Will fall back to gconf.";
+        return false;
+      }
+    }
+  }
+
+  VLOG(1) << "All gsettings tests OK. Will get proxy config from gsettings.";
+  return true;
+}
+#endif  // defined(USE_GIO)
 
 // This is the KDE version that reads kioslaverc and simulates gconf.
 // Doing this allows the main Delegate code, as well as the unit tests
@@ -643,8 +1009,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     // We don't ever have any integers. (See AddProxy() below about ports.)
     return false;
   }
-  virtual bool GetStringList(Setting key,
-                             std::vector<std::string>* result) {
+  virtual bool GetStringList(Setting key, std::vector<std::string>* result) {
     strings_map_type::iterator it = strings_table_.find(key);
     if (it == strings_table_.end())
       return false;
@@ -1140,8 +1505,20 @@ ProxyConfigServiceLinux::Delegate::Delegate(base::Environment* env_var_getter)
   // Figure out which SettingGetterImpl to use, if any.
   switch (base::nix::GetDesktopEnvironment(env_var_getter)) {
     case base::nix::DESKTOP_ENVIRONMENT_GNOME:
+#if defined(USE_GIO)
+      {
+        scoped_ptr<SettingGetterImplGSettings> gs_getter(
+            new SettingGetterImplGSettings());
+        // We have to load symbols and check the GNOME version in use to decide
+        // if we should use the gsettings getter. See LoadAndCheckVersion().
+        if (gs_getter->LoadAndCheckVersion(env_var_getter))
+          setting_getter_.reset(gs_getter.release());
+      }
+#endif
 #if defined(USE_GCONF)
-      setting_getter_.reset(new SettingGetterImplGConf());
+      // Fall back on gconf if gsettings is unavailable or incorrect.
+      if (!setting_getter_.get())
+        setting_getter_.reset(new SettingGetterImplGConf());
 #endif
       break;
     case base::nix::DESKTOP_ENVIRONMENT_KDE3:
