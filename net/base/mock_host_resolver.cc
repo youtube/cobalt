@@ -85,7 +85,7 @@ void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
         base::TimeDelta::FromSeconds(0));
   }
 
-  impl_.reset(new HostResolverImpl(proc, cache, 50u, 4u, NULL));
+  impl_.reset(new HostResolverImpl(proc, cache, 50u, NULL));
 }
 
 int MockHostResolverBase::Resolve(const RequestInfo& info,
