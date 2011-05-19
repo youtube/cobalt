@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/string16.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -18,7 +19,7 @@ class ProxyResolverErrorObserver;
 struct ProxyResolverRequestContext;
 
 // Interface for the javascript bindings.
-class ProxyResolverJSBindings {
+class NET_TEST ProxyResolverJSBindings {
  public:
   ProxyResolverJSBindings() : current_request_context_(NULL) {}
 

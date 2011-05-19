@@ -14,6 +14,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
 #include "net/proxy/proxy_config_service.h"
@@ -36,9 +37,9 @@ class URLRequestContext;
 // This class can be used to resolve the proxy server to use when loading a
 // HTTP(S) URL.  It uses the given ProxyResolver to handle the actual proxy
 // resolution.  See ProxyResolverV8 for example.
-class ProxyService : public NetworkChangeNotifier::IPAddressObserver,
-                     public ProxyConfigService::Observer,
-                     public base::NonThreadSafe {
+class NET_API ProxyService : public NetworkChangeNotifier::IPAddressObserver,
+                             public ProxyConfigService::Observer,
+                             NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // The instance takes ownership of |config_service| and |resolver|.
   // |net_log| is a possibly NULL destination to send log events to. It must
@@ -221,11 +222,10 @@ class ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   static ProxyConfigService* CreateSystemProxyConfigService(
       MessageLoop* io_loop, MessageLoop* file_loop);
 
-#if UNIT_TEST
+  // This method should only be used by unit tests.
   void set_stall_proxy_auto_config_delay(base::TimeDelta delay) {
     stall_proxy_auto_config_delay_ = delay;
   }
-#endif
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);

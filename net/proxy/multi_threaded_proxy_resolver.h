@@ -13,6 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
+#include "net/base/net_api.h"
 #include "net/proxy/proxy_resolver.h"
 
 namespace base {
@@ -71,8 +72,9 @@ class ProxyResolverFactory {
 //     a global counter and using that to make a decision. In the
 //     multi-threaded model, each thread may have a different value for this
 //     counter, so it won't globally be seen as monotonically increasing!
-class MultiThreadedProxyResolver : public ProxyResolver,
-                                   public base::NonThreadSafe {
+class NET_TEST MultiThreadedProxyResolver
+    : public ProxyResolver,
+      NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // Creates an asynchronous ProxyResolver that runs requests on up to
   // |max_num_threads|.
