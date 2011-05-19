@@ -12,6 +12,7 @@
 
 #include "base/string16.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 
 class GURL;
 
@@ -21,7 +22,7 @@ class URLRequestContext;
 
 // Interface for downloading a PAC script. Implementations can enforce
 // timeouts, maximum size constraints, content encoding, etc..
-class ProxyScriptFetcher {
+class NET_TEST ProxyScriptFetcher {
  public:
   // Destruction should cancel any outstanding requests.
   virtual ~ProxyScriptFetcher() {}
