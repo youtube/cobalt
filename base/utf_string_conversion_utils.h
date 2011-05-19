@@ -38,23 +38,23 @@ inline bool IsValidCharacter(uint32 code_point) {
 // (as in a for loop) will take the reader to the next character.
 //
 // Returns true on success. On false, |*code_point| will be invalid.
-bool ReadUnicodeCharacter(const char* src,
-                          int32 src_len,
-                          int32* char_index,
-                          uint32* code_point_out);
+BASE_API bool ReadUnicodeCharacter(const char* src,
+                                   int32 src_len,
+                                   int32* char_index,
+                                   uint32* code_point_out);
 
 // Reads a UTF-16 character. The usage is the same as the 8-bit version above.
-bool ReadUnicodeCharacter(const char16* src,
-                          int32 src_len,
-                          int32* char_index,
-                          uint32* code_point);
+BASE_API bool ReadUnicodeCharacter(const char16* src,
+                                   int32 src_len,
+                                   int32* char_index,
+                                   uint32* code_point);
 
 #if defined(WCHAR_T_IS_UTF32)
 // Reads UTF-32 character. The usage is the same as the 8-bit version above.
-bool ReadUnicodeCharacter(const wchar_t* src,
-                          int32 src_len,
-                          int32* char_index,
-                          uint32* code_point);
+BASE_API bool ReadUnicodeCharacter(const wchar_t* src,
+                                   int32 src_len,
+                                   int32* char_index,
+                                   uint32* code_point);
 #endif  // defined(WCHAR_T_IS_UTF32)
 
 // WriteUnicodeCharacter -------------------------------------------------------
