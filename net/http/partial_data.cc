@@ -240,6 +240,9 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
                                           disk_cache::Entry* entry,
                                           bool truncated) {
   resource_size_ = 0;
+  if (!headers->HasStrongValidators())
+    return false;
+
   if (truncated) {
     DCHECK_EQ(headers->response_code(), 200);
     // We don't have the real length and the user may be trying to create a
@@ -250,7 +253,7 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
     // Now we avoid resume if there is no content length, but that was not
     // always the case so double check here.
     int64 total_length = headers->GetContentLength();
-    if (total_length <= 0 || !headers->HasStrongValidators())
+    if (total_length <= 0)
       return false;
 
     truncated_ = true;
