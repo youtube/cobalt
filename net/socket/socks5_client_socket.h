@@ -27,7 +27,7 @@ class BoundNetLog;
 
 // This StreamSocket is used to setup a SOCKSv5 handshake with a socks proxy.
 // Currently no SOCKSv5 authentication is supported.
-class SOCKS5ClientSocket : public StreamSocket {
+class NET_TEST SOCKS5ClientSocket : public StreamSocket {
  public:
   // Takes ownership of the |transport_socket|, which should already be
   // connected by the time Connect() is called.

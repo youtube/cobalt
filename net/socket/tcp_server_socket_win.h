@@ -18,9 +18,10 @@ namespace net {
 
 class IPEndPoint;
 
-class TCPServerSocketWin : public ServerSocket,
-                           public base::NonThreadSafe,
-                           public base::win::ObjectWatcher::Delegate  {
+class NET_TEST TCPServerSocketWin
+    : public ServerSocket,
+      NON_EXPORTED_BASE(public base::NonThreadSafe),
+      public base::win::ObjectWatcher::Delegate  {
  public:
   TCPServerSocketWin(net::NetLog* net_log,
                      const net::NetLog::Source& source);
