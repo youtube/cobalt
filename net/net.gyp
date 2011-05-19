@@ -9,7 +9,7 @@
   'targets': [
     {
       'target_name': 'net',
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
@@ -1127,7 +1127,7 @@
     },
     {
       'target_name': 'net_test_support',
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         'net',
         '../base/base.gyp:base',
@@ -1250,7 +1250,7 @@
     },
     {
       'target_name': 'http_server',
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         'net',
         '../base/base.gyp:base',
@@ -1360,7 +1360,7 @@
          },
          {
            'target_name': 'curvecp',
-           'type': '<(library)',
+           'type': 'static_library',
            'dependencies': [
              '../base/base.gyp:base',
              'net.gyp:net',

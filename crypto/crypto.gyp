@@ -10,7 +10,7 @@
     {
       'target_name': 'crypto',
       'product_name': 'crcrypto',  # Avoid colliding with OpenSSL's libcrypto
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         '../base/base.gyp:base',
       ],
