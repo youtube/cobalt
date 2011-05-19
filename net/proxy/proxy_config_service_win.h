@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,8 +39,9 @@ namespace net {
 // implementation details of  WinHttpGetIEProxyConfigForCurrentUser() ever
 // change, or in case we got it wrong (and are not checking all possible
 // registry dependencies).
-class ProxyConfigServiceWin : public PollingProxyConfigService,
-                              public base::win::ObjectWatcher::Delegate {
+class NET_TEST ProxyConfigServiceWin
+    : public PollingProxyConfigService,
+      public base::win::ObjectWatcher::Delegate {
  public:
   ProxyConfigServiceWin();
   virtual ~ProxyConfigServiceWin();

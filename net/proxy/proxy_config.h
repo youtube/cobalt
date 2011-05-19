@@ -9,6 +9,7 @@
 #include <string>
 
 #include "googleurl/src/gurl.h"
+#include "net/base/net_api.h"
 #include "net/proxy/proxy_bypass_rules.h"
 #include "net/proxy/proxy_server.h"
 
@@ -29,11 +30,11 @@ class ProxyInfo;
 //
 // For more details see:
 // http://www.chromium.org/developers/design-documents/proxy-settings-fallback
-class ProxyConfig {
+class NET_API ProxyConfig {
  public:
   // ProxyRules describes the "manual" proxy settings.
   // TODO(eroman): Turn this into a class.
-  struct ProxyRules {
+  struct NET_API ProxyRules {
     enum Type {
       TYPE_NO_RULES,
       TYPE_SINGLE_PROXY,
