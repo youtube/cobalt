@@ -1176,8 +1176,11 @@ int SSLClientSocketOpenSSL::DoPayloadRead() {
   if (client_auth_cert_needed_)
     return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
 
-  if (rv >= 0)
+  if (rv >= 0) {
+    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, rv,
+                    user_read_buf_->data());
     return rv;
+  }
 
   int err = SSL_get_error(ssl_, rv);
   return MapOpenSSLError(err, err_tracer);
@@ -1187,8 +1190,11 @@ int SSLClientSocketOpenSSL::DoPayloadWrite() {
   crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
   int rv = SSL_write(ssl_, user_write_buf_->data(), user_write_buf_len_);
 
-  if (rv >= 0)
+  if (rv >= 0) {
+    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
+                    user_read_buf_->data());
     return rv;
+  }
 
   int err = SSL_get_error(ssl_, rv);
   return MapOpenSSLError(err, err_tracer);
