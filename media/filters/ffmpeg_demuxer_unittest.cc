@@ -66,7 +66,7 @@ class FFmpegDemuxerTest : public testing::Test {
   FFmpegDemuxerTest() {
     // Create an FFmpegDemuxer.
     demuxer_ = new FFmpegDemuxer(&message_loop_);
-    demuxer_->disable_first_seek_hack_for_testing();
+    DCHECK(demuxer_);
 
     // Inject a filter host and message loop and prepare a data source.
     demuxer_->set_host(&host_);
