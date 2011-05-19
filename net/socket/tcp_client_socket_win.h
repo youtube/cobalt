@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,8 @@ namespace net {
 
 class BoundNetLog;
 
-class TCPClientSocketWin : public StreamSocket, base::NonThreadSafe {
+class NET_API TCPClientSocketWin : public StreamSocket,
+                                   NON_EXPORTED_BASE(base::NonThreadSafe) {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a

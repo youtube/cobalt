@@ -38,6 +38,7 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
+#include "net/base/net_api.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
@@ -52,9 +53,9 @@ class ClientSocketHandle;
 // ConnectJob provides an abstract interface for "connecting" a socket.
 // The connection may involve host resolution, tcp connection, ssl connection,
 // etc.
-class ConnectJob {
+class NET_TEST ConnectJob {
  public:
-  class Delegate {
+  class NET_TEST Delegate {
    public:
     Delegate() {}
     virtual ~Delegate() {}
@@ -154,7 +155,7 @@ namespace internal {
 // ClientSocketPoolBase adds templated definitions built on top of
 // ClientSocketPoolBaseHelper.  This class is not for external use, please use
 // ClientSocketPoolBase instead.
-class ClientSocketPoolBaseHelper
+class NET_TEST ClientSocketPoolBaseHelper
     : public ConnectJob::Delegate,
       public NetworkChangeNotifier::IPAddressObserver {
  public:
@@ -166,7 +167,7 @@ class ClientSocketPoolBaseHelper
     NO_IDLE_SOCKETS = 0x1,  // Do not return an idle socket. Create a new one.
   };
 
-  class Request {
+  class NET_TEST Request {
    public:
     Request(ClientSocketHandle* handle,
             CompletionCallback* callback,
