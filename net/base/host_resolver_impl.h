@@ -87,22 +87,19 @@ class NET_API HostResolverImpl
   // |max_jobs| specifies the maximum number of threads that the host resolver
   // will use (not counting potential duplicate attempts). Use
   // SetPoolConstraints() to specify finer-grain settings.
-  // |max_retry_attempts| is the maximum number of times we will retry for host
-  // resolution. Pass HostResolver::kDefaultRetryAttempts to choose a default
-  // value.
   //
   // For each attempt, we could start another attempt if host is not resolved
   // within unresponsive_delay_ time. We keep attempting to resolve the host
-  // for max_retry_attempts. For every retry attempt, we grow the
-  // unresponsive_delay_ by the retry_factor_ amount (that is retry interval is
-  // multiplied by the retry factor each time). Once we have retried
-  // max_retry_attempts, we give up on additional attempts.
+  // until retry interval reaches maximum_unresponsive_delay_ time. For every
+  // retry attempt, we grow the unresponsive_delay_ by the retry_factor_ amount
+  // (that is retry interval is multiplied by the retry factor each time). Once
+  // retry interval exceeds maximum_unresponsive_delay_ time, we give up on
+  // additional attempts.
   //
   // |net_log| must remain valid for the life of the HostResolverImpl.
   HostResolverImpl(HostResolverProc* resolver_proc,
                    HostCache* cache,
                    size_t max_jobs,
-                   size_t max_retry_attempts,
                    NetLog* net_log);
 
   // If any completion callbacks are pending when the resolver is destroyed,
@@ -255,26 +252,27 @@ class NET_API HostResolverImpl
   // NetworkChangeNotifier::IPAddressObserver methods:
   virtual void OnIPAddressChanged();
 
-  // Helper methods to get and set max_retry_attempts_.
-  size_t max_retry_attempts() const {
-    return max_retry_attempts_;
-  }
-  void set_max_retry_attempts(const size_t max_retry_attempts) {
-    max_retry_attempts_ = max_retry_attempts;
-  }
-
   // Helper methods for unit tests to get and set unresponsive_delay_.
   base::TimeDelta unresponsive_delay() const { return unresponsive_delay_; }
   void set_unresponsive_delay(const base::TimeDelta& unresponsive_delay) {
     unresponsive_delay_ = unresponsive_delay;
   }
 
-  // Helper methods to get and set retry_factor_.
+  // Helper methods to get and set retry_factor.
   uint32 retry_factor() const {
     return retry_factor_;
   }
   void set_retry_factor(const uint32 retry_factor) {
     retry_factor_ = retry_factor;
+  }
+
+  // Helper methods for unit tests to get and set maximum_unresponsive_delay_.
+  base::TimeDelta maximum_unresponsive_delay() const {
+    return maximum_unresponsive_delay_;
+  }
+  void set_maximum_unresponsive_delay(
+      const base::TimeDelta& maximum_unresponsive_delay) {
+    maximum_unresponsive_delay_ = maximum_unresponsive_delay;
   }
 
   // Cache of host resolution results.
@@ -287,9 +285,6 @@ class NET_API HostResolverImpl
   // create multiple concurrent resolve attempts for the hostname.
   size_t max_jobs_;
 
-  // Maximum number retry attempts to resolve the hostname.
-  size_t max_retry_attempts_;
-
   // This is the limit after which we make another attempt to resolve the host
   // if the worker thread has not responded yet. Allow unit tests to change the
   // value.
@@ -298,6 +293,11 @@ class NET_API HostResolverImpl
   // Factor to grow unresponsive_delay_ when we re-re-try. Allow unit tests to
   // change the value.
   uint32 retry_factor_;
+
+  // This is the limit on how large we grow the retry interval. Once it exceeds
+  // this, we give up on additional attempts. Allow unit tests to change the
+  // value.
+  base::TimeDelta maximum_unresponsive_delay_;
 
   // The information to track pending requests for a JobPool, as well as
   // how many outstanding jobs the pool already has, and its constraints.
