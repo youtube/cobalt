@@ -119,6 +119,7 @@ void TransportClientSocketTest::SetUp() {
   AddressList addr;
   scoped_ptr<HostResolver> resolver(
       CreateSystemHostResolver(HostResolver::kDefaultParallelism,
+                               HostResolver::kDefaultRetryAttempts,
                                NULL));
   HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));
   int rv = resolver->Resolve(info, &addr, NULL, NULL, BoundNetLog());

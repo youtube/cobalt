@@ -16,6 +16,7 @@ TestURLRequestContext::TestURLRequestContext()
     : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
   context_storage_.set_host_resolver(
       net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
+                                    net::HostResolver::kDefaultRetryAttempts,
                                     NULL));
   context_storage_.set_proxy_service(net::ProxyService::CreateDirect());
   Init();
@@ -25,6 +26,7 @@ TestURLRequestContext::TestURLRequestContext(const std::string& proxy)
     : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
   context_storage_.set_host_resolver(
       net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
+                                    net::HostResolver::kDefaultRetryAttempts,
                                     NULL));
   net::ProxyConfig proxy_config;
   proxy_config.proxy_rules().ParseFromString(proxy);
