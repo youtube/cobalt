@@ -6,6 +6,7 @@
 
 #include "base/perftimer.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/test/test_timeouts.h"
 #include "base/timer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -35,7 +36,7 @@ class MockDhcpProxyScriptAdapterFetcher
   explicit MockDhcpProxyScriptAdapterFetcher(URLRequestContext* context)
       : DhcpProxyScriptAdapterFetcher(context),
         dhcp_delay_ms_(1),
-        timeout_ms_(100),
+        timeout_ms_(TestTimeouts::action_timeout_ms()),
         configured_url_(kPacUrl),
         fetcher_delay_ms_(1),
         fetcher_result_(OK),
@@ -156,9 +157,7 @@ class FetcherClient {
   string16 pac_text_;
 };
 
-// Seems to be flaky under TSAN.
-// http://crbug.com/82991
-TEST(DhcpProxyScriptAdapterFetcher, FLAKY_NormalCaseURLNotInDhcp) {
+TEST(DhcpProxyScriptAdapterFetcher, NormalCaseURLNotInDhcp) {
   FetcherClient client;
   client.fetcher_->configured_url_ = "";
   client.RunTest();
@@ -178,7 +177,7 @@ TEST(DhcpProxyScriptAdapterFetcher, NormalCaseURLInDhcp) {
   EXPECT_EQ(GURL(kPacUrl), client.fetcher_->GetPacURL());
 }
 
-TEST(DhcpProxyScriptAdapterFetcher, FLAKY_TimeoutDuringDhcp) {
+TEST(DhcpProxyScriptAdapterFetcher, TimeoutDuringDhcp) {
   // Does a Fetch() with a long enough delay on accessing DHCP that the
   // fetcher should time out.  This is to test a case manual testing found,
   // where under certain circumstances (e.g. adapter enabled for DHCP and
@@ -186,16 +185,15 @@ TEST(DhcpProxyScriptAdapterFetcher, FLAKY_TimeoutDuringDhcp) {
   // present on the network) accessing DHCP can take on the order of tens
   // of seconds.
   FetcherClient client;
-  client.fetcher_->dhcp_delay_ms_ = 20 * 1000;
+  client.fetcher_->dhcp_delay_ms_ = TestTimeouts::action_max_timeout_ms();
   client.fetcher_->timeout_ms_ = 25;
 
   PerfTimer timer;
   client.RunTest();
+  // An error different from this would be received if the timeout didn't
+  // kick in.
   client.WaitForResult(ERR_TIMED_OUT);
 
-  // The timeout should occur within about 25 ms, way before the 20s set as
-  // the API delay above.
-  ASSERT_GT(base::TimeDelta::FromMilliseconds(35), timer.Elapsed());
   ASSERT_TRUE(client.fetcher_->DidFinish());
   EXPECT_EQ(ERR_TIMED_OUT, client.fetcher_->GetResult());
   EXPECT_EQ(string16(L""), client.fetcher_->GetPacScript());
@@ -205,7 +203,6 @@ TEST(DhcpProxyScriptAdapterFetcher, FLAKY_TimeoutDuringDhcp) {
 
 TEST(DhcpProxyScriptAdapterFetcher, CancelWhileDhcp) {
   FetcherClient client;
-  client.fetcher_->dhcp_delay_ms_ = 10;
   client.RunTest();
   client.fetcher_->Cancel();
   MessageLoop::current()->RunAllPending();

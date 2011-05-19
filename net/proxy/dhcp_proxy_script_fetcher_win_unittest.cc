@@ -9,6 +9,7 @@
 #include "base/message_loop.h"
 #include "base/perftimer.h"
 #include "base/rand_util.h"
+#include "base/test/test_timeouts.h"
 #include "base/threading/platform_thread.h"
 #include "net/base/completion_callback.h"
 #include "net/proxy/dhcp_proxy_script_adapter_fetcher_win.h"
@@ -263,8 +264,8 @@ class DummyDhcpProxyScriptAdapterFetcher
 class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
  public:
   MockDhcpProxyScriptFetcherWin()
-      : DhcpProxyScriptFetcherWin(new TestURLRequestContext()),
-        next_adapter_fetcher_index_(0) {
+      : DhcpProxyScriptFetcherWin(new TestURLRequestContext()) {
+    ResetTestState();
   }
 
   // Adds a fetcher object to the queue of fetchers used by
@@ -298,7 +299,7 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
   }
 
   int ImplGetMaxWaitMs() OVERRIDE {
-    return 25;
+    return max_wait_ms_;
   }
 
   void ResetTestState() {
@@ -306,6 +307,11 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
     adapter_fetchers_.clear();
     // String pointers contained herein will have been freed during test.
     adapter_names_.clear();
+    max_wait_ms_ = TestTimeouts::tiny_timeout_ms();
+  }
+
+  bool HasPendingFetchers() {
+    return num_pending_fetchers_ > 0;
   }
 
   int next_adapter_fetcher_index_;
@@ -315,6 +321,8 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
   std::vector<DhcpProxyScriptAdapterFetcher*> adapter_fetchers_;
 
   std::vector<std::string> adapter_names_;
+
+  int max_wait_ms_;
 };
 
 class FetcherClient {
@@ -404,7 +412,8 @@ void TestNormalCaseURLConfiguredMultipleAdaptersWithTimeout(
       "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"", 1);
   // This will time out.
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "second", false, ERR_IO_PENDING, L"bingo", 1000);
+      "second", false, ERR_IO_PENDING, L"bingo",
+      TestTimeouts::action_timeout_ms());
   client->fetcher_.ConfigureAndPushBackAdapter(
       "third", true, OK, L"rocko", 1);
   client->RunTest();
@@ -425,7 +434,8 @@ void TestFailureCaseURLConfiguredMultipleAdaptersWithTimeout(
       "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"", 1);
   // This will time out.
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "second", false, ERR_IO_PENDING, L"bingo", 1000);
+      "second", false, ERR_IO_PENDING, L"bingo",
+      TestTimeouts::action_timeout_ms());
   // This is the first non-ERR_PAC_NOT_IN_DHCP error and as such
   // should be chosen.
   client->fetcher_.ConfigureAndPushBackAdapter(
@@ -449,7 +459,8 @@ void TestFailureCaseNoURLConfigured(FetcherClient* client) {
       "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"", 1);
   // This will time out.
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "second", false, ERR_IO_PENDING, L"bingo", 1000);
+      "second", false, ERR_IO_PENDING, L"bingo",
+      TestTimeouts::action_timeout_ms());
   // This is the first non-ERR_PAC_NOT_IN_DHCP error and as such
   // should be chosen.
   client->fetcher_.ConfigureAndPushBackAdapter(
@@ -487,26 +498,31 @@ void TestShortCircuitLessPreferredAdapters(FetcherClient* client) {
   client->fetcher_.ConfigureAndPushBackAdapter(
       "2", true, OK, L"bingo", 1);
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "3", true, OK, L"wrongo", 1000);
+      "3", true, OK, L"wrongo", TestTimeouts::action_max_timeout_ms());
+
+  // Increase the timeout to ensure the short circuit mechanism has
+  // time to kick in before the timeout waiting for more adapters kicks in.
+  client->fetcher_.max_wait_ms_ = TestTimeouts::action_timeout_ms();
 
   PerfTimer timer;
   client->RunTest();
   client->RunMessageLoopUntilComplete();
-  // Assert that the time passed is just less than the wait timer
-  // timeout (which we have mocked out above to be 25 ms), to avoid
-  // flakiness but still get a strong signal that it was the shortcut
-  // mechanism (in OnFetcherDone) that kicked in.
-  ASSERT_GT(TimeDelta::FromMilliseconds(23), timer.Elapsed());
+  ASSERT_TRUE(client->fetcher_.HasPendingFetchers());
+  // Assert that the time passed is definitely less than the wait timer
+  // timeout, to get a second signal that it was the shortcut mechanism
+  // (in OnFetcherDone) that kicked in, and not the timeout waiting for
+  // more adapters.
+  ASSERT_GT(base::TimeDelta::FromMilliseconds(
+      client->fetcher_.max_wait_ms_ - (client->fetcher_.max_wait_ms_ / 10)),
+      timer.Elapsed());
 }
 
-// Seems to be flaky under TSAN. http://crbug.com/82991
-TEST(DhcpProxyScriptFetcherWin, FLAKY_ShortCircuitLessPreferredAdapters) {
+TEST(DhcpProxyScriptFetcherWin, ShortCircuitLessPreferredAdapters) {
   FetcherClient client;
   TestShortCircuitLessPreferredAdapters(&client);
 }
 
-// Seems to be flaky under TSAN. http://crbug.com/82991
-TEST(DhcpProxyScriptFetcherWin, FLAKY_ReuseFetcher) {
+TEST(DhcpProxyScriptFetcherWin, ReuseFetcher) {
   FetcherClient client;
 
   // The ProxyScriptFetcher interface stipulates that only a single
