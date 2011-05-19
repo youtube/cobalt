@@ -19,7 +19,7 @@ namespace net {
 class HttpNetworkSession;
 class SpdySession;
 
-class HttpStreamFactoryImpl : public HttpStreamFactory {
+class NET_TEST HttpStreamFactoryImpl : public HttpStreamFactory {
  public:
   explicit HttpStreamFactoryImpl(HttpNetworkSession* session);
   virtual ~HttpStreamFactoryImpl();

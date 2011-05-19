@@ -12,6 +12,7 @@
 #include "base/basictypes.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
+#include "net/base/net_api.h"
 #include "net/http/http_version.h"
 
 class Pickle;
@@ -24,7 +25,7 @@ class TimeDelta;
 namespace net {
 
 // HttpResponseHeaders: parses and holds HTTP response headers.
-class HttpResponseHeaders
+class NET_API HttpResponseHeaders
     : public base::RefCountedThreadSafe<HttpResponseHeaders> {
  public:
   // Persist options.
