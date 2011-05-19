@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/md5.h"
+#include "net/base/net_api.h"
 
 class Pickle;
 
@@ -27,7 +28,7 @@ class HttpResponseHeaders;
 // Instead, it relies on the consumer to store that and to supply it again to
 // the MatchesRequest function for comparing against future HTTP requests.
 //
-class HttpVaryData {
+class NET_TEST HttpVaryData {
  public:
   HttpVaryData();
 
