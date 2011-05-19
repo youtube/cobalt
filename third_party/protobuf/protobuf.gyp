@@ -37,7 +37,7 @@
     # to your .proto file.
     {
       'target_name': 'protobuf_lite',
-      'type': '<(library)',
+      'type': 'static_library',
       'toolsets': ['host', 'target'],
       'sources': [
         'src/google/protobuf/stubs/common.h',
@@ -97,7 +97,7 @@
     # DO NOT LINK AGAINST THIS TARGET IN CHROME CODE  --agl
     {
       'target_name': 'protobuf_full_do_not_use',
-      'type': '<(library)',
+      'type': 'static_library',
       'toolsets': ['host','target'],
       'sources': [
         'src/google/protobuf/descriptor.h',

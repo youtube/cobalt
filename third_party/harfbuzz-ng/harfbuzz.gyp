@@ -6,7 +6,7 @@
   'targets': [
     {
       'target_name': 'harfbuzz',
-      'type': '<(library)',
+      'type': 'static_library',
       'sources': [
         'src/hb-blob-private.h',
         'src/hb-blob.c',

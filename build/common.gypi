@@ -62,7 +62,7 @@
       'chromeos%': '<(chromeos)',
       'touchui%': '<(touchui)',
       'host_arch%': '<(host_arch)',
-      'library%': '<(library)',
+      'library%': 'static_library',
       'toolkit_views%': '<(toolkit_views)',
 
       # Override branding to select the desired branding flavor.
@@ -117,7 +117,7 @@
       # 'library' for static libraries.
       # By default, component is set to whatever library is set to and
       # it can be overriden by the GYP command line or by ~/.gyp/include.gypi.
-      'component%': '<(library)',
+      'component%': 'static_library',
 
       # Set to select the Title Case versions of strings in GRD files.
       'use_titlecase_in_grd_files%': 0,
@@ -217,7 +217,7 @@
     'arm_neon%': '<(arm_neon)',
     'sysroot%': '<(sysroot)',
     'disable_sse2%': '<(disable_sse2)',
-    'library%': '<(library)',
+    'library%': 'static_library',
     'component%': '<(component)',
     'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
     'use_third_party_translations%': '<(use_third_party_translations)',

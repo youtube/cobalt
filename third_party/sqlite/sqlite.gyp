@@ -66,7 +66,7 @@
           },
         }, { # else: OS != "linux" or ! use_system_sqlite
           'product_name': 'sqlite3',
-          'type': '<(library)',
+          'type': 'static_library',
           'msvs_guid': '6EAD4A4B-2BBC-4974-8E45-BB5C16CC2AC9',
           'sources': [
             'amalgamation/sqlite3.h',

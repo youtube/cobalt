@@ -11,7 +11,7 @@
       'targets': [
         {
           'target_name': 'libwebp_enc',
-          'type': '<(library)',
+          'type': 'static_library',
           'include_dirs': ['.'],
           'sources': [
             'enc/analysis.c',
@@ -31,7 +31,7 @@
         },
         {
           'target_name': 'libwebp_dec',
-          'type': '<(library)',
+          'type': 'static_library',
           'include_dirs': ['.'],
           'sources': [
             'dec/bits.c',
