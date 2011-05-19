@@ -25,7 +25,7 @@ class ConnectJobFactory;
 class TransportClientSocketPool;
 class TransportSocketParams;
 
-class SOCKSSocketParams : public base::RefCounted<SOCKSSocketParams> {
+class NET_TEST SOCKSSocketParams : public base::RefCounted<SOCKSSocketParams> {
  public:
   SOCKSSocketParams(const scoped_refptr<TransportSocketParams>& proxy_server,
                     bool socks_v5, const HostPortPair& host_port_pair,
@@ -104,7 +104,7 @@ class SOCKSConnectJob : public ConnectJob {
   DISALLOW_COPY_AND_ASSIGN(SOCKSConnectJob);
 };
 
-class SOCKSClientSocketPool : public ClientSocketPool {
+class NET_TEST SOCKSClientSocketPool : public ClientSocketPool {
  public:
   SOCKSClientSocketPool(
       int max_sockets,

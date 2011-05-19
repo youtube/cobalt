@@ -10,6 +10,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
+#include "net/base/net_api.h"
 
 namespace base {
 class Histogram;
@@ -17,7 +18,7 @@ class Histogram;
 
 namespace net {
 
-class ClientSocketPoolHistograms {
+class NET_TEST ClientSocketPoolHistograms {
  public:
   ClientSocketPoolHistograms(const std::string& pool_name);
   ~ClientSocketPoolHistograms();
