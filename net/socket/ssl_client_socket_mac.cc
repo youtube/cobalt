@@ -1194,8 +1194,11 @@ int SSLClientSocketMac::DoPayloadRead() {
   // transparent renegotiation, so that we can update our state machine above,
   // which otherwise would get out of sync with the SSLContextRef's internal
   // state machine.
-  if (processed > 0)
+  if (processed > 0) {
+    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED,
+                    processed, user_read_buf_->data());
     return processed;
+  }
 
   switch (status) {
     case errSSLClosedNoNotify:
@@ -1220,8 +1223,11 @@ int SSLClientSocketMac::DoPayloadWrite() {
                              user_write_buf_len_,
                              &processed);
 
-  if (processed > 0)
+  if (processed > 0) {
+    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, processed,
+                    user_write_buf_->data());
     return processed;
+  }
 
   return NetErrorFromOSStatus(status);
 }

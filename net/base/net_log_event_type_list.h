@@ -405,6 +405,7 @@ EVENT_TYPE(SSL_NSS_ERROR)
 //                           Only present when byte logging is enabled>,
 //   }
 EVENT_TYPE(SOCKET_BYTES_SENT)
+EVENT_TYPE(SSL_SOCKET_BYTES_SENT)
 
 // The specified number of bytes were received on the socket.
 // The following parameters are attached:
@@ -414,6 +415,7 @@ EVENT_TYPE(SOCKET_BYTES_SENT)
 //                           Only present when byte logging is enabled>,
 //   }
 EVENT_TYPE(SOCKET_BYTES_RECEIVED)
+EVENT_TYPE(SSL_SOCKET_BYTES_RECEIVED)
 
 // ------------------------------------------------------------------------
 // ClientSocketPoolBase::ConnectJob
