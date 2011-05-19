@@ -1694,6 +1694,9 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
   response_.headers->EnumerateHeader(NULL, "last-modified",
                                      &last_modified_value);
 
+  if (response_.headers->GetHttpVersion() < HttpVersion(1, 1))
+    etag_value.clear();
+
   if (etag_value.empty() && last_modified_value.empty())
     return false;
 
