@@ -14,11 +14,13 @@
       ['exclude', '/(gtk|win|x11)_[^/]*\\.cc$'],
     ],
     'conditions': [
-      ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {'sources/': [
-        ['include', '/gtk/'],
-        ['include', '_(gtk|linux|posix|skia|x)\\.cc$'],
-        ['include', '/(gtk|x11)_[^/]*\\.cc$'],
-      ]}],
+      ['toolkit_uses_gtk == 1', {
+        'sources/': [
+          ['include', '/gtk/'],
+          ['include', '_(gtk|linux|posix|skia|x)\\.cc$'],
+          ['include', '/(gtk|x11)_[^/]*\\.cc$'],
+        ],
+      }],
       ['OS=="mac"', {'sources/': [
         ['include', '/cocoa/'],
         ['include', '_(cocoa|mac|posix)\\.(cc|mm?)$'],
