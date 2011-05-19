@@ -415,6 +415,9 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 
     // OK to dispatch from a nested loop.
     bool nestable;
+
+    // The site this PendingTask was posted from.
+    const void* birth_program_counter;
   };
 
   class TaskQueue : public std::queue<PendingTask> {
