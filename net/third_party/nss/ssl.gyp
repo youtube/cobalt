@@ -23,7 +23,7 @@
     {
       'target_name': 'ssl',
       'product_name': 'ssl',
-      'type': '<(library)',
+      'type': 'static_library',
       'sources': [
         'ssl/authcert.c',
         'ssl/cmpcert.c',
