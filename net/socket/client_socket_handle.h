@@ -15,6 +15,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_response_info.h"
@@ -29,7 +30,7 @@ namespace net {
 // connection.  It is used by the ClientSocketPool to group similar connected
 // client socket objects.
 //
-class ClientSocketHandle {
+class NET_API ClientSocketHandle {
  public:
   enum SocketReuseType {
     UNUSED = 0,   // unused socket that just finished connecting

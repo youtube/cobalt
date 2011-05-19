@@ -7,13 +7,14 @@
 
 #include "base/scoped_ptr.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
 class IPEndPoint;
 class StreamSocket;
 
-class ServerSocket {
+class NET_API ServerSocket {
  public:
   ServerSocket() { }
   virtual ~ServerSocket() { }
