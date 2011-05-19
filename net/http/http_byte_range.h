@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,14 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
 // A container class that represents a "range" specified for range request
 // specified by RFC 2616 Section 14.35.1.
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.1
-class HttpByteRange {
+class NET_API HttpByteRange {
  public:
   HttpByteRange();
 
