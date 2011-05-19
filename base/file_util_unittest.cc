@@ -6,10 +6,10 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
-#include <winioctl.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <tchar.h>
+#include <winioctl.h>
 #endif
 
 #include <fstream>
@@ -18,8 +18,8 @@
 #include "base/base_paths.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/memory/scoped_temp_dir.h"
 #include "base/path_service.h"
+#include "base/scoped_temp_dir.h"
 #include "base/threading/platform_thread.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
