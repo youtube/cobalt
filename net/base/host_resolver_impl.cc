@@ -97,6 +97,7 @@ HostCache* CreateDefaultCache() {
 
 // static
 HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
+                                       size_t max_retry_attempts,
                                        NetLog* net_log) {
   // Maximum of 8 concurrent resolver threads.
   // Some routers (or resolvers) appear to start to provide host-not-found if
@@ -108,8 +109,8 @@ HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
     max_concurrent_resolves = kDefaultMaxJobs;
 
   HostResolverImpl* resolver =
-      new HostResolverImpl(NULL, CreateDefaultCache(),
-                           max_concurrent_resolves, net_log);
+      new HostResolverImpl(NULL, CreateDefaultCache(), max_concurrent_resolves,
+                           max_retry_attempts, net_log);
 
   return resolver;
 }
@@ -450,10 +451,12 @@ class HostResolverImpl::Job
     // OnCheckForComplete has the potential for starting a new attempt on a
     // different worker thread if none of our outstanding attempts have
     // completed yet.
-    origin_loop_->PostDelayedTask(
-        FROM_HERE,
-        NewRunnableMethod(this, &Job::OnCheckForComplete),
-        unresponsive_delay_.InMilliseconds());
+    if (attempt_number_ <= resolver_->max_retry_attempts()) {
+      origin_loop_->PostDelayedTask(
+          FROM_HERE,
+          NewRunnableMethod(this, &Job::OnCheckForComplete),
+          unresponsive_delay_.InMilliseconds());
+    }
   }
 
   // Cancels the current job. The Job will be orphaned. Any outstanding resolve
@@ -553,16 +556,11 @@ class HostResolverImpl::Job
   void OnCheckForComplete() {
     DCHECK(origin_loop_->BelongsToCurrentThread());
 
-    if (was_cancelled() || was_completed())
+    if (was_completed() || was_cancelled())
       return;
 
     DCHECK(resolver_);
-    base::TimeDelta unresponsive_delay =
-        unresponsive_delay_ * resolver_->retry_factor();
-    if (unresponsive_delay >= resolver_->maximum_unresponsive_delay())
-      return;
-
-    unresponsive_delay_ = unresponsive_delay;
+    unresponsive_delay_ *= resolver_->retry_factor();
     StartLookupAttempt();
   }
 
@@ -1033,12 +1031,13 @@ HostResolverImpl::HostResolverImpl(
     HostResolverProc* resolver_proc,
     HostCache* cache,
     size_t max_jobs,
+    size_t max_retry_attempts,
     NetLog* net_log)
     : cache_(cache),
       max_jobs_(max_jobs),
+      max_retry_attempts_(max_retry_attempts),
       unresponsive_delay_(base::TimeDelta::FromMilliseconds(6000)),
       retry_factor_(2),
-      maximum_unresponsive_delay_(base::TimeDelta::FromMilliseconds(60000)),
       next_request_id_(0),
       next_job_id_(0),
       resolver_proc_(resolver_proc),
@@ -1048,6 +1047,12 @@ HostResolverImpl::HostResolverImpl(
       additional_resolver_flags_(0),
       net_log_(net_log) {
   DCHECK_GT(max_jobs, 0u);
+
+  // Maximum of 4 retry attempts for host resolution.
+  static const size_t kDefaultMaxRetryAttempts = 4u;
+
+  if (max_retry_attempts_ == HostResolver::kDefaultRetryAttempts)
+    max_retry_attempts_ = kDefaultMaxRetryAttempts;
 
   // It is cumbersome to expose all of the constraints in the constructor,
   // so we choose some defaults, which users can override later.
@@ -1537,7 +1542,7 @@ HostResolverImpl::Job* HostResolverImpl::CreateAndStartJob(Request* req) {
                                   NULL);
 
   scoped_refptr<Job> job(new Job(next_job_id_++, this, key,
-                                   req->request_net_log(), net_log_));
+                                 req->request_net_log(), net_log_));
   job->AddRequest(req);
   AddOutstandingJob(job);
   job->Start();
