@@ -596,6 +596,13 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "foo.mattmccutchen.net",
                                       false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "betnet.fr",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "foo.betnet.fr",
+                                      false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
