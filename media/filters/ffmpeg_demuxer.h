@@ -161,6 +161,9 @@ class FFmpegDemuxer : public Demuxer,
   // Provide access to FFmpegDemuxerStream.
   MessageLoop* message_loop();
 
+  // For testing purposes.
+  void disable_first_seek_hack_for_testing() { first_seek_hack_ = false; }
+
  private:
   // Only allow a factory to create this class.
   friend class MockFFmpegDemuxer;
@@ -245,6 +248,10 @@ class FFmpegDemuxer : public Demuxer,
   // store these bits for deferred reporting to the FilterHost when we get one.
   base::TimeDelta max_duration_;
   PipelineStatus deferred_status_;
+
+  // Used to skip the implicit "first seek" to avoid resetting FFmpeg's internal
+  // state.
+  bool first_seek_hack_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };
