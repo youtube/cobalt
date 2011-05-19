@@ -41,10 +41,11 @@ HostCache* CreateDefaultCache() {
 }
 
 static const size_t kMaxJobs = 10u;
+static const size_t kMaxRetryAttempts = 4u;
 
 HostResolverImpl* CreateHostResolverImpl(HostResolverProc* resolver_proc) {
   return new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs,
-                              NULL);
+                              kMaxRetryAttempts, NULL);
 }
 
 // Helper to create a HostResolver::RequestInfo.
@@ -451,6 +452,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
         new HostResolverImpl(resolver_proc,
                              CreateDefaultCache(),
                              kMaxJobs,
+                             kMaxRetryAttempts,
                              &net_log));
     AddressList addrlist;
     const int kPortnum = 80;
@@ -897,7 +899,8 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
 
   // Turn off caching for this host resolver.
   scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, NULL, kMaxJobs, NULL));
+      new HostResolverImpl(resolver_proc, NULL, kMaxJobs, kMaxRetryAttempts,
+                           NULL));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened.
@@ -1197,7 +1200,8 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
 // Test that IP address changes flush the cache.
 TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(NULL, CreateDefaultCache(), kMaxJobs, NULL));
+      new HostResolverImpl(NULL, CreateDefaultCache(), kMaxJobs,
+                           kMaxRetryAttempts, NULL));
 
   AddressList addrlist;
 
@@ -1231,7 +1235,8 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
       new WaitingHostResolverProc(NULL));
   HostCache* cache = CreateDefaultCache();
   scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, cache, kMaxJobs, NULL));
+      new HostResolverImpl(resolver_proc, cache, kMaxJobs, kMaxRetryAttempts,
+                           NULL));
 
   // Resolve "host1".
   HostResolver::RequestInfo info(HostPortPair("host1", 70));
@@ -1354,9 +1359,10 @@ TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   size_t kMaxJobs = 1u;
+  const size_t kRetryAttempts = 0u;
   scoped_ptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs,
-                           NULL));
+                           kRetryAttempts, NULL));
 
   CapturingObserver observer;
   host_resolver->AddObserver(&observer);
@@ -1439,9 +1445,10 @@ TEST_F(HostResolverImplTest, CancelPendingRequest) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxJobs = 1u;
+  const size_t kRetryAttempts = 0u;
   scoped_ptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs,
-                           NULL));
+                           kRetryAttempts, NULL));
 
   // Note that at this point the CapturingHostResolverProc is blocked, so any
   // requests we make will not complete.
@@ -1502,8 +1509,10 @@ TEST_F(HostResolverImplTest, QueueOverflow) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
+  const size_t kRetryAttempts = 0u;
   scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
+      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, kRetryAttempts,
+      NULL));
 
   // Only allow up to 3 requests to be enqueued at a time.
   const size_t kMaxPendingRequests = 3u;
@@ -1580,8 +1589,10 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv4) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
+  const size_t kRetryAttempts = 0u;
   scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
+      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, kRetryAttempts,
+      NULL));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV4);
 
@@ -1648,8 +1659,10 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv6) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
+  const size_t kRetryAttempts = 0u;
   scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
+      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, kRetryAttempts,
+      NULL));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV6);
 
@@ -1713,9 +1726,8 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_Synchronous) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc(
       new CapturingHostResolverProc(new EchoingHostResolverProc));
 
-  const size_t kMaxOutstandingJobs = 10u;
   scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
+      resolver_proc, CreateDefaultCache(), kMaxJobs, kMaxRetryAttempts, NULL));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV4);
 
@@ -1814,16 +1826,14 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
           NULL, kAttemptNumberToResolve, kTotalAttempts));
   HostCache* cache = CreateDefaultCache();
   scoped_ptr<HostResolverImpl> host_resolver(
-      new HostResolverImpl(resolver_proc, cache, kMaxJobs, NULL));
+      new HostResolverImpl(resolver_proc, cache, kMaxJobs, kMaxRetryAttempts,
+                           NULL));
 
-  // Specify smaller interval for unresponsive_delay_ and
-  // maximum_unresponsive_delay_ for HostResolverImpl so that unit test
-  // runs faster. For example, this test finishes in 1.5 secs (500ms * 3).
+  // Specify smaller interval for unresponsive_delay_ for HostResolverImpl so
+  // that unit test runs faster. For example, this test finishes in 1.5 secs
+  // (500ms * 3).
   TimeDelta kUnresponsiveTime = TimeDelta::FromMilliseconds(500);
-  TimeDelta kMaximumUnresponsiveTime = TimeDelta::FromMilliseconds(2500);
-
   host_resolver->set_unresponsive_delay(kUnresponsiveTime);
-  host_resolver->set_maximum_unresponsive_delay(kMaximumUnresponsiveTime);
 
   // Resolve "host1".
   HostResolver::RequestInfo info(HostPortPair("host1", 70));
