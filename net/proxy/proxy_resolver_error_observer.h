@@ -8,6 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/string16.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -15,7 +16,7 @@ namespace net {
 // default implementation of the ProxyResolverJSBindings takes a class
 // implementing this interface and forwards all JavaScript errors related to
 // PAC scripts.
-class ProxyResolverErrorObserver {
+class NET_TEST ProxyResolverErrorObserver {
  public:
   ProxyResolverErrorObserver() {}
   virtual ~ProxyResolverErrorObserver() {}
