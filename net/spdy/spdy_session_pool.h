@@ -17,6 +17,7 @@
 #include "net/base/cert_database.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
+#include "net/base/net_api.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/ssl_config_service.h"
@@ -34,7 +35,7 @@ class HttpNetworkSession;
 class SpdySession;
 
 // This is a very simple pool for open SpdySessions.
-class SpdySessionPool
+class NET_API SpdySessionPool
     : public NetworkChangeNotifier::IPAddressObserver,
       public SSLConfigService::Observer,
       public CertDatabase::Observer {

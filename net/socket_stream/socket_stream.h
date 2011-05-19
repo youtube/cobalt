@@ -18,6 +18,7 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service.h"
@@ -45,7 +46,7 @@ class SocketStreamMetrics;
 // authentication identity for proxy URL first.  If server requires proxy
 // authentication, it will try authentication identity for realm that server
 // requests.
-class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
+class NET_API SocketStream : public base::RefCountedThreadSafe<SocketStream> {
  public:
   // Derive from this class and add your own data members to associate extra
   // information with a SocketStream.  Use GetUserData(key) and
@@ -56,7 +57,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
     virtual ~UserData() {}
   };
 
-  class Delegate {
+  class NET_API Delegate {
    public:
     virtual ~Delegate() {}
 

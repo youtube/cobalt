@@ -10,6 +10,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
+#include "net/base/net_api.h"
 #include "net/socket_stream/socket_stream.h"
 
 class GURL;
@@ -25,7 +26,8 @@ class TransportSecurityState;
 // WebSocketJob) to do some work on data over SocketStream.
 // Registers the protocol specific SocketStreamJob by RegisterProtocolFactory
 // and call CreateSocketStreamJob to create SocketStreamJob for the URL.
-class SocketStreamJob : public base::RefCountedThreadSafe<SocketStreamJob> {
+class NET_API SocketStreamJob
+    : public base::RefCountedThreadSafe<SocketStreamJob> {
  public:
   // Callback function implemented by protocol handlers to create new jobs.
   typedef SocketStreamJob* (ProtocolFactory)(const GURL& url,

@@ -36,8 +36,8 @@ class IOBuffer;
 class SpdySession;
 class SpdyStream;
 
-class SpdyProxyClientSocket : public ProxyClientSocket,
-                              public SpdyStream::Delegate {
+class NET_TEST SpdyProxyClientSocket : public ProxyClientSocket,
+                                       public SpdyStream::Delegate {
  public:
   // Create a socket on top of the |spdy_stream| by sending a SYN_STREAM
   // CONNECT frame for |endpoint|.  After the SYN_REPLY is received,
