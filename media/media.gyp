@@ -181,6 +181,8 @@
         'video/capture/linux/video_capture_device_linux.h',
         'video/capture/video_capture.h',
         'video/capture/video_capture_device.h',
+        'video/capture/video_capture_device_dummy.cc',
+        'video/capture/video_capture_device_dummy.h',
         'video/capture/video_capture_types.h',
         'video/ffmpeg_video_allocator.cc',
         'video/ffmpeg_video_allocator.h',
@@ -234,6 +236,12 @@
           'dependencies': [
             'omx_wrapper',
           ]
+        }],
+        ['OS=="linux"', {
+          'sources!': [
+            'video/capture/video_capture_device_dummy.cc',
+            'video/capture/video_capture_device_dummy.h',
+          ],
         }],
         ['OS=="mac"', {
           'link_settings': {
