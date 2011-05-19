@@ -132,11 +132,6 @@ class NET_API HostResolver {
   // concurrency.
   static const size_t kDefaultParallelism = 0;
 
-  // This value can be passed into CreateSystemHostResolver as the
-  // |max_retry_attempts| parameter. This is the maximum number of times we
-  // will retry for host resolution.
-  static const size_t kDefaultRetryAttempts = -1;
-
   // If any completion callbacks are pending when the resolver is destroyed,
   // the host resolutions are cancelled, and the completion callbacks will not
   // be called.
@@ -247,11 +242,7 @@ class SingleRequestHostResolver {
 // |max_concurrent_resolves| is how many resolve requests will be allowed to
 // run in parallel. Pass HostResolver::kDefaultParallelism to choose a
 // default value.
-// |max_retry_attempts| is the maximum number of times we will retry for host
-// resolution. Pass HostResolver::kDefaultRetryAttempts to choose a default
-// value.
 NET_API HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
-                                               size_t max_retry_attempts,
                                                NetLog* net_log);
 
 }  // namespace net
