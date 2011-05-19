@@ -13,12 +13,14 @@
 
 #include <string>
 #include <vector>
+
 #include "base/basictypes.h"
 #include "base/string_piece.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
-class HttpRequestHeaders {
+class NET_API HttpRequestHeaders {
  public:
   struct HeaderKeyValuePair {
     HeaderKeyValuePair();
