@@ -45,6 +45,7 @@ class RequestContext : public URLRequestContext {
     ProxyConfig no_proxy;
     storage_.set_host_resolver(
         CreateSystemHostResolver(HostResolver::kDefaultParallelism,
+                                 HostResolver::kDefaultRetryAttempts,
                                  NULL));
     storage_.set_cert_verifier(new CertVerifier);
     storage_.set_proxy_service(ProxyService::CreateFixed(no_proxy));
