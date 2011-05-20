@@ -15,6 +15,7 @@
 #include "base/memory/singleton.h"
 #include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/net_api.h"
 #include "net/url_request/url_request_throttler_entry.h"
 
 namespace net {
@@ -32,7 +33,8 @@ namespace net {
 // NOTE: All usage of this singleton object must be on the same thread,
 // although to allow it to be used as a singleton, construction and destruction
 // can occur on a separate thread.
-class URLRequestThrottlerManager : public base::NonThreadSafe {
+class NET_API URLRequestThrottlerManager
+    : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   static URLRequestThrottlerManager* GetInstance();
 

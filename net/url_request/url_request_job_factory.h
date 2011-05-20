@@ -11,6 +11,7 @@
 #include <vector>
 #include "base/basictypes.h"
 #include "base/threading/non_thread_safe.h"
+#include "net/base/net_api.h"
 
 class GURL;
 
@@ -19,16 +20,17 @@ namespace net {
 class URLRequest;
 class URLRequestJob;
 
-class URLRequestJobFactory : public base::NonThreadSafe {
+class NET_TEST URLRequestJobFactory
+    : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
-  class ProtocolHandler {
+  class NET_TEST ProtocolHandler {
    public:
     virtual ~ProtocolHandler();
 
     virtual URLRequestJob* MaybeCreateJob(URLRequest* request) const = 0;
   };
 
-  class Interceptor {
+  class NET_TEST Interceptor {
    public:
     virtual ~Interceptor();
 
