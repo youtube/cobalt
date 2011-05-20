@@ -28,14 +28,6 @@
         'chromeos%': '<(chromeos)',
         'touchui%': '<(touchui)',
 
-        # To do a shared build on linux we need to be able to choose between
-        # type static_library and shared_library. We default to doing a static
-        # build but you can override this with "gyp -Dlibrary=shared_library"
-        # or you can add the following line (without the #) to
-        # ~/.gyp/include.gypi {'variables': {'library': 'shared_library'}}
-        # to compile as shared by default
-        'library%': 'static_library',
-
         # Compute the architecture that we're building on.
         'conditions': [
           [ 'OS=="win" or OS=="mac"', {
@@ -62,8 +54,14 @@
       'chromeos%': '<(chromeos)',
       'touchui%': '<(touchui)',
       'host_arch%': '<(host_arch)',
-      'library%': 'static_library',
       'toolkit_views%': '<(toolkit_views)',
+
+      # We used to provide a variable for changing how libraries were built.
+      # This variable remains until we can clean up all the users.
+      # This needs to be one nested variables dict in so that dependent
+      # gyp files can make use of it in their outer variables.  (Yikes!)
+      # http://code.google.com/p/chromium/issues/detail?id=83308
+      'library%': 'static_library',
 
       # Override branding to select the desired branding flavor.
       'branding%': 'Chromium',
@@ -200,6 +198,7 @@
     'buildtype%': '<(buildtype)',
     'target_arch%': '<(target_arch)',
     'host_arch%': '<(host_arch)',
+    'library%': 'static_library',
     'toolkit_views%': '<(toolkit_views)',
     'os_posix%': '<(os_posix)',
     'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',
@@ -217,7 +216,6 @@
     'arm_neon%': '<(arm_neon)',
     'sysroot%': '<(sysroot)',
     'disable_sse2%': '<(disable_sse2)',
-    'library%': 'static_library',
     'component%': '<(component)',
     'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
     'use_third_party_translations%': '<(use_third_party_translations)',
@@ -1339,22 +1337,6 @@
           ['linux_breakpad==1', {
             'cflags': [ '-g' ],
             'defines': ['USE_LINUX_BREAKPAD'],
-          }],
-          ['library=="shared_library"', {
-            # When building with shared libraries, remove the visiblity-hiding
-            # flag.
-            'cflags!': [ '-fvisibility=hidden' ],
-            'conditions': [
-              ['target_arch=="x64" or target_arch=="arm"', {
-                # Shared libraries need -fPIC on x86-64 and arm
-                'cflags': ['-fPIC']
-              }]
-            ],
-            'ldflags!': [
-              # --as-needed confuses library interdependencies.
-              # See http://code.google.com/p/chromium/issues/detail?id=61430
-              '-Wl,--as-needed',
-            ],
           }],
           ['linux_use_heapchecker==1', {
             'variables': {'linux_use_tcmalloc%': 1},
