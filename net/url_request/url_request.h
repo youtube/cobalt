@@ -19,6 +19,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_request_headers.h"
@@ -58,7 +59,7 @@ typedef std::vector<std::string> ResponseCookies;
 //
 // NOTE: All usage of all instances of this class should be on the same thread.
 //
-class URLRequest : public base::NonThreadSafe {
+class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // Callback function implemented by protocol handlers to create new jobs.
   // The factory may return NULL to indicate an error, which will cause other
@@ -85,7 +86,7 @@ class URLRequest : public base::NonThreadSafe {
 
   // This class handles network interception.  Use with
   // (Un)RegisterRequestInterceptor.
-  class Interceptor {
+  class NET_API Interceptor {
   public:
     virtual ~Interceptor() {}
 
@@ -137,7 +138,7 @@ class URLRequest : public base::NonThreadSafe {
   // if an error occurred, or if the IO is just pending.  When Read() returns
   // true with zero bytes read, it indicates the end of the response.
   //
-  class Delegate {
+  class NET_API Delegate {
    public:
     virtual ~Delegate() {}
 
