@@ -40,6 +40,9 @@ typedef pthread_t PlatformThreadHandle;
 const PlatformThreadHandle kNullThreadHandle = 0;
 #if defined(OS_MACOSX)
 typedef mach_port_t PlatformThreadId;
+#elif defined(__LB_PS3__)
+#include <sys/process.h>
+typedef sys_pid_t PlatformThreadId;
 #else  // OS_POSIX && !OS_MACOSX
 typedef pid_t PlatformThreadId;
 #endif
