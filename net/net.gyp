@@ -16,7 +16,6 @@
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
-        '../sdch/sdch.gyp:sdch',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
         '../third_party/zlib/zlib.gyp:zlib',
@@ -252,6 +251,22 @@
         },
       ],
       'conditions': [
+        ['OS!="cell_lv2"', {
+            'dependencies': [
+              '../sdch/sdch.gyp:sdch',
+            ],
+            'conditions': [
+              ['OS!="win"', { # windows and cell_lv2 both exclude libevent from build
+                'dependencies': [
+                  '../third_party/libevent/libevent.gyp:libevent'
+                ]
+              }]
+            ]
+          }, { # OS=="cell_lvl2"
+            'dependencies': [
+              '../../openssl/openssl.gyp:libssl'
+            ]
+        }],
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
             'dependencies': [
               '../build/linux/system.gyp:gconf',
@@ -330,9 +345,6 @@
             ],
           },
           {  # else: OS != "win"
-            'dependencies': [
-              '../third_party/libevent/libevent.gyp:libevent',
-            ],
             'sources!': [
               'base/winsock_init.cc',
               'base/winsock_util.cc',
@@ -362,7 +374,6 @@
         '../base/base.gyp:base_i18n',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
-        '../sdch/sdch.gyp:sdch',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
         '../third_party/zlib/zlib.gyp:zlib',
@@ -776,6 +787,11 @@
         '../base/base.gyp:base',
       ],
       'conditions': [
+        ['OS!="cell_lv2"', {
+          'dependencies': [
+            '../sdch/sdch.gyp:sdch'
+          ]
+        }],
         ['javascript_engine=="v8"', {
           'dependencies': [
             '../v8/tools/gyp/v8.gyp:v8',
@@ -834,6 +850,11 @@
             ],
           },
         ],
+        ['OS!="cell_lv2" and OS!="win"', {
+          'dependencies': [
+              '../third_party/libevent/libevent.gyp:libevent',
+            ],
+        }],
         [ 'OS == "win"', {
             'sources!': [
               'http/http_auth_handler_ntlm_portable.cc',
@@ -848,9 +869,6 @@
             ],
           },
           {  # else: OS != "win"
-            'dependencies': [
-              '../third_party/libevent/libevent.gyp:libevent',
-            ],
             'sources!': [
               'proxy/proxy_resolver_winhttp.cc',
             ],

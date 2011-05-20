@@ -4,8 +4,10 @@
 
 #include "net/base/dnsrr_resolver.h"
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_PS3__)
 #include <resolv.h>
+#elif defined(__LB_PS3__)
+#include <netdb.h>
 #endif
 
 #if defined(OS_WIN)
@@ -174,7 +176,7 @@ class RRResolverWorker {
 
  private:
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_PS3__)
 
   void Run() {
     // Runs on a worker thread.
@@ -248,6 +250,14 @@ class RRResolverWorker {
 
     return response_.ParseFromResponse(answer, len, rrtype_);
   }
+
+#elif defined(__LB_PS3__)
+
+   void Run() {
+// __LB_PS3__WRITE_ME__
+
+     return;
+   }
 
 #else  // OS_WIN
 
@@ -544,7 +554,7 @@ bool RRResponse::HasExpired(const base::Time current_time) const {
 
 bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
                                    uint16 rrtype_requested) {
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_PS3__)
   name.clear();
   ttl = 0;
   dnssec = false;
@@ -623,6 +633,10 @@ bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
       signatures.push_back(std::string(rrdata.data(), rrdata.size()));
     }
   }
+#elif defined(__LB_PS3__)
+
+// __LB_PS3__WRITE_ME__
+
 #endif  // defined(OS_POSIX)
 
   return true;

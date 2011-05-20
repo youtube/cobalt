@@ -363,6 +363,14 @@
                 'message_pump_glib.cc',
                 'message_pump_glib_x.cc',
               ],
+          }], 
+          [ 'OS=="cell_lv2"', {
+            'sources!': [
+              'atomicops_internals_x86_msvc.h'
+            ],
+            'sources': [
+              'atomicops_internals_cell_ppu.h'
+            ]
           }],
           [ 'OS != "linux"', {
               'sources!': [
@@ -514,7 +522,7 @@
             ],
           },
         }],
-        [ 'OS != "win"', {
+        [ 'OS != "win" and OS != "cell_lv2"', {
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
             'sources!': [
               'third_party/purify/pure_api.c',
