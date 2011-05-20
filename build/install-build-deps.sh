@@ -129,9 +129,9 @@ EOF
 }
 
 if ! egrep -q \
-    'Ubuntu (8\.04|8\.10|9\.04|9\.10|10\.04|10\.10|karmic|lucid|maverick)' \
+    'Ubuntu (10\.04|10\.10|11\.04|lucid|maverick|natty)' \
     /etc/issue; then
-  echo "Only Ubuntu 8.04 (hardy) through 10.10 (maverick) are currently" \
+  echo "Only Ubuntu 10.04 (lucid) through 11.04 (natty) are currently" \
       "supported" >&2
   exit 1
 fi
@@ -151,8 +151,9 @@ fi
 chromeos_dev_list="libpulse-dev"
 
 # Packages need for development
-dev_list="bison fakeroot flex g++ gperf libapache2-mod-php5 libasound2-dev
-          libbz2-dev libcairo2-dev libdbus-glib-1-dev libgconf2-dev
+dev_list="apache2.2-bin bison fakeroot flex g++ gperf libapache2-mod-php5
+          libasound2-dev libbz2-dev libcairo2-dev
+          libdbus-glib-1-dev libgconf2-dev
           libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev libgnome-keyring-dev
           libgtk2.0-dev libjpeg62-dev libnspr4-dev libnss3-dev libpam0g-dev
           libsctp-dev libsqlite3-dev libxslt1-dev libxss-dev libxtst-dev
@@ -168,7 +169,7 @@ chromeos_lib_list="libpulse0 libbz2-1.0 libcurl4-gnutls-dev"
 # Full list of required run-time libraries
 lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
           libfontconfig1 libfreetype6 libglib2.0-0 libgnome-keyring0 libgtk2.0-0
-          libnspr4-0d libnss3-1d libpam0g libpango1.0-0 libpcre3 libpixman-1-0
+          libpam0g libpango1.0-0 libpcre3 libpixman-1-0
           libpng12-0 libstdc++6 libsqlite3-0 libx11-6 libxau6 libxcb1
           libxcomposite1 libxcursor1 libxdamage1 libxdmcp6 libxext6 libxfixes3
           libxi6 libxinerama1 libxrandr2 libxrender1 libxtst6 zlib1g
@@ -176,27 +177,21 @@ lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
 
 # Debugging symbols for all of the run-time libraries
 dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg
-          libfontconfig1-dbg libglib2.0-0-dbg libgtk2.0-0-dbg libnspr4-0d-dbg
-          libnss3-1d-dbg libpango1.0-0-dbg libpcre3-dbg libpixman-1-0-dbg
+          libfontconfig1-dbg libglib2.0-0-dbg libgtk2.0-0-dbg
+          libpango1.0-0-dbg libpcre3-dbg libpixman-1-0-dbg
           libsqlite3-0-dbg
           libx11-6-dbg libxau6-dbg libxcb1-dbg libxcomposite1-dbg
           libxcursor1-dbg libxdamage1-dbg libxdmcp6-dbg libxext6-dbg
           libxfixes3-dbg libxi6-dbg libxinerama1-dbg libxrandr2-dbg
           libxrender1-dbg libxtst6-dbg zlib1g-dbg"
 
-# CUPS package changed its name from hardy to the next version. Include
-# proper package here depending on the system.
-if egrep -q 'Ubuntu (8\.04|8\.10)' /etc/issue; then
-  dev_list="${dev_list} libcupsys2-dev"
+# Some NSS packages were renamed in Natty.
+if egrep -q 'Ubuntu (10\.04|10\.10)' /etc/issue; then
+  dbg_list="${dbg_list} libnspr4-0d-dbg libnss3-1d-dbg"
+  lib_list="${lib_list} libnspr4-0d libnss3-1d"
 else
-  dev_list="${dev_list} libcups2-dev"
-fi
-
-# apache2.2-bin package was introduced in karmic.
-if egrep -q 'Ubuntu (8\.04|8\.10|9\.04)' /etc/issue; then
-  dev_list="${dev_list} apache2"
-else
-  dev_list="${dev_list} apache2.2-bin"
+  dbg_list="${dbg_list} libnspr4-dbg libnss3-dbg"
+  lib_list="${lib_list} libnspr4 libnss3"
 fi
 
 # Waits for the user to press 'Y' or 'N'. Either uppercase of lowercase is
