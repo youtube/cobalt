@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include <string>
 
 #include "base/hash_tables.h"
+#include "net/base/net_api.h"
 
 template <typename T> struct DefaultSingletonTraits;
 
@@ -26,7 +27,7 @@ class WebSocketJob;
 //        remote host (IP address) identified by /host/, even if known by
 //        another name, wait until that connection has been established or
 //        for that connection to have failed.
-class WebSocketThrottle {
+class NET_TEST WebSocketThrottle {
  public:
   // Returns the singleton instance.
   static WebSocketThrottle* GetInstance();
