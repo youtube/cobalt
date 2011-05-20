@@ -91,7 +91,7 @@ void URLRequest::Delegate::OnAuthRequired(URLRequest* request,
 void URLRequest::Delegate::OnCertificateRequested(
     URLRequest* request,
     SSLCertRequestInfo* cert_request_info) {
-  request->ContinueWithCertificate(NULL);
+  request->Cancel();
 }
 
 void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
