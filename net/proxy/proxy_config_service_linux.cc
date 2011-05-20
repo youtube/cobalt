@@ -522,6 +522,16 @@ class SettingGetterImplGSettings
 #endif
   }
 
+  bool SchemaExists(const char* schema_name) {
+    const gchar* const* schemas = g_settings_list_schemas();
+    while (*schemas) {
+      if (strcmp(schema_name, reinterpret_cast<const char*>(schemas)) == 0)
+        return true;
+      schemas++;
+    }
+    return false;
+  }
+
   // LoadAndCheckVersion() must be called *before* Init()!
   bool LoadAndCheckVersion(base::Environment* env);
 
@@ -530,8 +540,9 @@ class SettingGetterImplGSettings
     DCHECK(MessageLoop::current() == glib_default_loop);
     DCHECK(!client_);
     DCHECK(!loop_);
-    client_ = g_settings_new("org.gnome.system.proxy");
-    if (!client_) {
+
+    if (!SchemaExists("org.gnome.system.proxy") ||
+        !(client_ = g_settings_new("org.gnome.system.proxy"))) {
       // It's not clear whether/when this can return NULL.
       LOG(ERROR) << "Unable to create a gsettings client";
       return false;
@@ -677,6 +688,7 @@ class SettingGetterImplGSettings
   gchar* (*g_settings_get_string)(GSettings* settings, const gchar* key);
   gint (*g_settings_get_int)(GSettings* settings, const gchar* key);
   gchar** (*g_settings_get_strv)(GSettings* settings, const gchar* key);
+  const gchar* const* (*g_settings_list_schemas)();
 
   // The library handle.
   void* gio_handle_;
@@ -805,7 +817,9 @@ bool SettingGetterImplGSettings::LoadAndCheckVersion(
       !LoadSymbol("g_settings_get_int",
                   reinterpret_cast<void**>(&g_settings_get_int)) ||
       !LoadSymbol("g_settings_get_strv",
-                  reinterpret_cast<void**>(&g_settings_get_strv))) {
+                  reinterpret_cast<void**>(&g_settings_get_strv)) ||
+      !LoadSymbol("g_settings_list_schemas",
+                  reinterpret_cast<void**>(&g_settings_list_schemas))) {
     VLOG(1) << "Cannot load gsettings API. Will fall back to gconf.";
     dlclose(gio_handle_);
     gio_handle_ = NULL;
@@ -813,8 +827,9 @@ bool SettingGetterImplGSettings::LoadAndCheckVersion(
   }
 #endif
 
-  GSettings* client = g_settings_new("org.gnome.system.proxy");
-  if (!client) {
+  GSettings* client;
+  if (!SchemaExists("org.gnome.system.proxy") ||
+      !(client = g_settings_new("org.gnome.system.proxy"))) {
     VLOG(1) << "Cannot create gsettings client. Will fall back to gconf.";
     return false;
   }
