@@ -70,25 +70,31 @@ class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
     // corresponding paths in gconf for these, but gconf is now obsolete and
     // in the future we'll be using mostly gsettings/kioslaverc so we
     // enumerate them instead to avoid unnecessary string operations.
-    enum Setting {
-      PROXY_MODE,                // string
-      PROXY_AUTOCONF_URL,        // string
-      PROXY_USE_HTTP_PROXY,      // bool
-      PROXY_USE_SAME_PROXY,      // bool
-      PROXY_USE_AUTHENTICATION,  // bool
-      PROXY_IGNORE_HOSTS,        // string list
-      PROXY_HTTP_HOST,           // string
-      PROXY_HTTP_PORT,           // int
-      PROXY_HTTPS_HOST,          // string
-      PROXY_HTTPS_PORT,          // int
-      PROXY_FTP_HOST,            // string
-      PROXY_FTP_PORT,            // int
-      PROXY_SOCKS_HOST,          // string
-      PROXY_SOCKS_PORT,          // int
+    enum StringSetting {
+      PROXY_MODE,
+      PROXY_AUTOCONF_URL,
+      PROXY_HTTP_HOST,
+      PROXY_HTTPS_HOST,
+      PROXY_FTP_HOST,
+      PROXY_SOCKS_HOST,
+    };
+    enum BoolSetting {
+      PROXY_USE_HTTP_PROXY,
+      PROXY_USE_SAME_PROXY,
+      PROXY_USE_AUTHENTICATION,
+    };
+    enum IntSetting {
+      PROXY_HTTP_PORT,
+      PROXY_HTTPS_PORT,
+      PROXY_FTP_PORT,
+      PROXY_SOCKS_PORT,
+    };
+    enum StringListSetting {
+      PROXY_IGNORE_HOSTS,
     };
 
     // Given a PROXY_*_HOST value, return the corresponding PROXY_*_PORT value.
-    static Setting HostSettingToPortSetting(Setting host) {
+    static IntSetting HostSettingToPortSetting(StringSetting host) {
       switch (host) {
         case PROXY_HTTP_HOST:
           return PROXY_HTTP_PORT;
@@ -100,7 +106,7 @@ class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
           return PROXY_SOCKS_PORT;
         default:
           NOTREACHED();
-          return host;  // placate compiler
+          return PROXY_HTTP_PORT;  // Placate compiler.
       }
     }
 
@@ -108,13 +114,13 @@ class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
     // |*result|. Returns false if the key is unset or on error. Must only be
     // called after a successful call to Init(), and not after a failed call
     // to SetUpNotifications() or after calling Release().
-    virtual bool GetString(Setting key, std::string* result) = 0;
+    virtual bool GetString(StringSetting key, std::string* result) = 0;
     // Same thing for a bool typed value.
-    virtual bool GetBool(Setting key, bool* result) = 0;
+    virtual bool GetBool(BoolSetting key, bool* result) = 0;
     // Same for an int typed value.
-    virtual bool GetInt(Setting key, int* result) = 0;
+    virtual bool GetInt(IntSetting key, int* result) = 0;
     // And for a string list.
-    virtual bool GetStringList(Setting key,
+    virtual bool GetStringList(StringListSetting key,
                                std::vector<std::string>* result) = 0;
 
     // Returns true if the bypass list should be interpreted as a proxy
@@ -213,7 +219,7 @@ class BASE_API ProxyConfigServiceLinux : public ProxyConfigService {
     // Obtains host and port config settings and parses a proxy server
     // specification from it and puts it in result. Returns true if the
     // requested variable is defined and the value valid.
-    bool GetProxyFromSettings(SettingGetter::Setting host_key,
+    bool GetProxyFromSettings(SettingGetter::StringSetting host_key,
                               ProxyServer* result_server);
     // Fills proxy config from settings. Returns true if settings were found
     // and the configuration is valid.

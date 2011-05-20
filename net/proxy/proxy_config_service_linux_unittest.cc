@@ -63,13 +63,12 @@ struct GConfValues {
 
 // Mapping from a setting name to the location of the corresponding
 // value (inside a EnvVarValues or GConfValues struct).
-template<typename value_type>
+template<typename key_type, typename value_type>
 struct SettingsTable {
-  typedef ProxyConfigServiceLinux::SettingGetter::Setting Setting;
-  typedef std::map<Setting, value_type*> map_type;
+  typedef std::map<key_type, value_type*> map_type;
 
   // Gets the value from its location
-  value_type Get(Setting key) {
+  value_type Get(key_type key) {
     typename map_type::const_iterator it = settings.find(key);
     // In case there's a typo or the unittest becomes out of sync.
     CHECK(it != settings.end()) << "key " << key << " not found";
@@ -193,7 +192,7 @@ class MockSettingGetter
     return "test";
   }
 
-  virtual bool GetString(Setting key, std::string* result) {
+  virtual bool GetString(StringSetting key, std::string* result) {
     const char* value = strings_table.Get(key);
     if (value) {
       *result = value;
@@ -202,13 +201,7 @@ class MockSettingGetter
     return false;
   }
 
-  virtual bool GetInt(Setting key, int* result) {
-    // We don't bother to distinguish unset keys from 0 values.
-    *result = ints_table.Get(key);
-    return true;
-  }
-
-  virtual bool GetBool(Setting key, bool* result) {
+  virtual bool GetBool(BoolSetting key, bool* result) {
     BoolSettingValue value = bools_table.Get(key);
     switch (value) {
     case UNSET:
@@ -222,7 +215,14 @@ class MockSettingGetter
     return true;
   }
 
-  virtual bool GetStringList(Setting key, std::vector<std::string>* result) {
+  virtual bool GetInt(IntSetting key, int* result) {
+    // We don't bother to distinguish unset keys from 0 values.
+    *result = ints_table.Get(key);
+    return true;
+  }
+
+  virtual bool GetStringList(StringListSetting key,
+                             std::vector<std::string>* result) {
     *result = string_lists_table.Get(key);
     // We don't bother to distinguish unset keys from empty lists.
     return !result->empty();
@@ -240,10 +240,11 @@ class MockSettingGetter
   GConfValues values;
 
  private:
-  SettingsTable<const char*> strings_table;
-  SettingsTable<int> ints_table;
-  SettingsTable<BoolSettingValue> bools_table;
-  SettingsTable<std::vector<std::string> > string_lists_table;
+  SettingsTable<StringSetting, const char*> strings_table;
+  SettingsTable<BoolSetting, BoolSettingValue> bools_table;
+  SettingsTable<IntSetting, int> ints_table;
+  SettingsTable<StringListSetting,
+                std::vector<std::string> > string_lists_table;
 };
 
 }  // namespace
