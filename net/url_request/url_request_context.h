@@ -13,6 +13,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/threading/non_thread_safe.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
@@ -38,9 +39,9 @@ class URLRequestJobFactory;
 // instances. Note that URLRequestContext typically does not provide storage for
 // these member variables, since they may be shared. For the ones that aren't
 // shared, URLRequestContextStorage can be helpful in defining their storage.
-class URLRequestContext
+class NET_API URLRequestContext
     : public base::RefCountedThreadSafe<URLRequestContext>,
-      public base::NonThreadSafe {
+      NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   URLRequestContext();
 

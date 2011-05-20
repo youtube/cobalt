@@ -11,6 +11,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/host_resolver.h"
+#include "net/base/net_api.h"
 #include "net/base/ssl_client_auth_cache.h"
 #include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth_cache.h"
@@ -39,10 +40,11 @@ class SSLConfigService;
 class SSLHostInfoFactory;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
-class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
-                           public base::NonThreadSafe {
+class NET_API HttpNetworkSession
+    : public base::RefCounted<HttpNetworkSession>,
+      NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
-  struct Params {
+  struct NET_API Params {
     Params()
         : client_socket_factory(NULL),
           host_resolver(NULL),
