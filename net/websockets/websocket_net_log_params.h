@@ -19,7 +19,8 @@
 
 namespace net {
 
-class NetLogWebSocketHandshakeParameter : public NetLog::EventParameters {
+class NET_TEST NetLogWebSocketHandshakeParameter
+    : public NetLog::EventParameters {
  public:
   explicit NetLogWebSocketHandshakeParameter(const std::string& headers);
 
