@@ -125,7 +125,7 @@ class FindBadConstructsConsumer : public ChromeClassTester {
       if (!record->hasUserDeclaredDestructor()) {
         emitWarning(
             record_location,
-            "Complex class/struct needs a needs an explicit out-of-line "
+            "Complex class/struct needs an explicit out-of-line "
             "destructor.");
       } else if (CXXDestructorDecl* dtor = record->getDestructor()) {
         if (dtor->hasInlineBody()) {
