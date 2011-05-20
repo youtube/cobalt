@@ -8,13 +8,16 @@
 namespace base {
 namespace debug {
 
-namespace {
-const void* g_global;
-}
+#if defined(COMPILER_MSVC)
+#pragma optimize("", off)
+#endif
 
 void Alias(const void* var) {
-  g_global = var;
 }
+
+#if defined(COMPILER_MSVC)
+#pragma optimize("", on)
+#endif
 
 }  // namespace debug
 }  // namespace base
