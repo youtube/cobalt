@@ -16,6 +16,8 @@
 #include "net/base/net_errors.h"
 #if defined(USE_SYSTEM_LIBEVENT)
 #include <event.h>
+#elif defined(__LB_PS3__)
+// __LB_PS3__FIX_ME__
 #else
 #include "third_party/libevent/event.h"
 #endif
