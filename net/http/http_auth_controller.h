@@ -16,6 +16,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/http/http_auth.h"
 
@@ -28,8 +29,9 @@ class HttpAuthCache;
 class HttpRequestHeaders;
 struct HttpRequestInfo;
 
-class HttpAuthController : public base::RefCounted<HttpAuthController>,
-                           public base::NonThreadSafe {
+class NET_TEST HttpAuthController
+    : public base::RefCounted<HttpAuthController>,
+      NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // The arguments are self explanatory except possibly for |auth_url|, which
   // should be both the auth target and auth path in a single url argument.
