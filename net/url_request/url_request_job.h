@@ -18,6 +18,7 @@
 #include "net/base/filter.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_states.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -30,7 +31,7 @@ class UploadData;
 class URLRequestStatus;
 class X509Certificate;
 
-class URLRequestJob : public base::RefCounted<URLRequestJob> {
+class NET_API URLRequestJob : public base::RefCounted<URLRequestJob> {
  public:
   explicit URLRequestJob(URLRequest* request);
 

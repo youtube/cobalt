@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -30,7 +31,7 @@ class URLRequestJobFactory;
 
 // URLRequestContextStorage is a helper class that provides storage for unowned
 // member variables of URLRequestContext.
-class URLRequestContextStorage {
+class NET_API URLRequestContextStorage {
  public:
   // Note that URLRequestContextStorage does not acquire a reference to
   // URLRequestContext, since it is often designed to be embedded in a

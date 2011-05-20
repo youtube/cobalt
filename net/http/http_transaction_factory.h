@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/memory/scoped_ptr.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -16,7 +17,7 @@ class HttpTransaction;
 
 
 // An interface to a class that can create HttpTransaction objects.
-class HttpTransactionFactory {
+class NET_API HttpTransactionFactory {
  public:
   virtual ~HttpTransactionFactory() {}
 
