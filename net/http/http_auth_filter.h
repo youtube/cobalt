@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <list>
 #include <string>
 
+#include "net/base/net_api.h"
 #include "net/http/http_auth.h"
 #include "net/proxy/proxy_bypass_rules.h"
 
@@ -18,7 +19,7 @@ namespace net {
 
 // |HttpAuthFilter|s determine whether an authentication scheme should be
 // allowed for a particular peer.
-class HttpAuthFilter {
+class NET_TEST HttpAuthFilter {
  public:
   virtual ~HttpAuthFilter() {}
 
@@ -32,7 +33,7 @@ class HttpAuthFilter {
 //
 // Uses the ProxyBypassRules class to do whitelisting for servers.
 // All proxies are allowed.
-class HttpAuthFilterWhitelist : public HttpAuthFilter {
+class NET_API HttpAuthFilterWhitelist : public HttpAuthFilter {
  public:
   explicit HttpAuthFilterWhitelist(const std::string& server_whitelist);
   virtual ~HttpAuthFilterWhitelist();
