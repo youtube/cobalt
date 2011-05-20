@@ -84,6 +84,12 @@
         'NO_NSPR_10_SUPPORT',
       ],
       'conditions': [
+        ['OS=="cell_lv2"', {
+          'dependencies': [
+            '../../../third_party/zlib/zlib.gyp:zlib',
+            '../../../third_party/nss/nss.gyp:nss',
+          ],
+        }],
         [ 'OS=="mac"', {
           'defines': [
             'XP_UNIX',

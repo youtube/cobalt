@@ -383,7 +383,7 @@ class BASE_API FilePath {
 
 // Provide a hash function so that hash_sets and maps can contain FilePath
 // objects.
-#if defined(COMPILER_GCC)
+#if defined(COMPILER_GCC) && !defined(__LB_PS3__)
 namespace __gnu_cxx {
 
 template<>
@@ -394,7 +394,7 @@ struct hash<FilePath> {
 };
 
 }  // namespace __gnu_cxx
-#elif defined(COMPILER_MSVC)
+#elif defined(COMPILER_MSVC) || defined(__LB_PS3__)
 namespace stdext {
 
 inline size_t hash_value(const FilePath& f) {

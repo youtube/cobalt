@@ -107,7 +107,7 @@
       'sysroot%': '',
 
       # On Linux, we build with sse2 for Chromium builds.
-      'disable_sse2%': 0,
+      'disable_sse2%': 1,
 
       # Use libjpeg-turbo as the JPEG codec used by Chromium.
       'use_libjpeg_turbo%': 0,
@@ -359,10 +359,10 @@
 
     # Enable a variable used elsewhere throughout the GYP files to determine
     # whether to compile in the sources for the GPU plugin / process.
-    'enable_gpu%': 1,
+    'enable_gpu%': 0,
 
     # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
-    'use_openssl%': 0,
+    'use_openssl%': 1,
 
     # .gyp files or targets should set chromium_code to 1 if they build
     # Chromium-specific code, as opposed to external code.  This variable is
@@ -598,6 +598,9 @@
       ],
     },
     'conditions': [
+      ['OS!="cell_lv2"', {
+        'default_configuration': 'Debug', # LBPS3 provides its own configurations
+      }],
       ['branding=="Chrome"', {
         'defines': ['GOOGLE_CHROME_BUILD'],
       }, {  # else: branding!="Chrome"
@@ -819,7 +822,6 @@
         ],
       }],
     ],  # target_conditions for 'target_defaults'
-    'default_configuration': 'Debug',
     'configurations': {
       # VCLinkerTool LinkIncremental values below:
       #   0 == default
@@ -988,21 +990,23 @@
           },
         },
       },
-      #
-      # Concrete configurations
-      #
-      'Debug': {
-        'inherit_from': ['Common_Base', 'x86_Base', 'Debug_Base'],
-      },
-      'Release': {
-        'inherit_from': ['Common_Base', 'x86_Base', 'Release_Base'],
-        'conditions': [
-          ['msvs_use_common_release', {
-            'includes': ['release.gypi'],
-          }],
-        ]
-      },
       'conditions': [
+        [ 'OS!="cell_lv2"', {
+          #
+          # Concrete configurations omitted from LBPS3 build
+          #
+          'Debug': {
+            'inherit_from': ['Common_Base', 'x86_Base', 'Debug_Base'],
+          },
+          'Release': {
+            'inherit_from': ['Common_Base', 'x86_Base', 'Release_Base'],
+            'conditions': [
+              ['msvs_use_common_release', {
+                'includes': ['release.gypi'],
+              }],
+            ]
+          },          
+        }],
         [ 'OS=="win"', {
           # TODO(bradnelson): add a gyp mechanism to make this more graceful.
           'Purify': {

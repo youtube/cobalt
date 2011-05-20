@@ -25,7 +25,7 @@
 #if !defined(TOOLKIT_VIEWS)
 #define TOOLKIT_GTK
 #endif
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__LB_PS3__)
 #define OS_WIN 1
 #define TOOLKIT_VIEWS 1
 #elif defined(__FreeBSD__)
@@ -37,6 +37,8 @@
 #elif defined(__sun)
 #define OS_SOLARIS 1
 #define TOOLKIT_GTK
+#elif defined(__LB_PS3__)
+// NO toolkit!
 #else
 #error Please add support for your platform in build/build_config.h
 #endif
@@ -62,7 +64,8 @@
 // For access to standard POSIXish features, use OS_POSIX instead of a
 // more specific macro.
 #if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD) || \
-    defined(OS_OPENBSD) || defined(OS_SOLARIS) || defined(OS_NACL)
+    defined(OS_OPENBSD) || defined(OS_SOLARIS) || defined(OS_NACL) || \
+    defined(__LB_PS3__)
 #define OS_POSIX 1
 // Use base::DataPack for name/value pairs.
 #define USE_BASE_DATA_PACK 1
@@ -79,9 +82,9 @@
 #endif
 
 // Compiler detection.
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__LB_PS3__)
 #define COMPILER_GCC 1
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(__LB_PS3__)
 #define COMPILER_MSVC 1
 #else
 #error Please add support for your compiler in build/build_config.h
@@ -95,7 +98,7 @@
 #define ARCH_CPU_X86_FAMILY 1
 #define ARCH_CPU_X86_64 1
 #define ARCH_CPU_64_BITS 1
-#elif defined(_M_IX86) || defined(__i386__)
+#elif (defined(_M_IX86) || defined(__i386__)) && !defined(__LB_PS3__)
 #define ARCH_CPU_X86_FAMILY 1
 #define ARCH_CPU_X86 1
 #define ARCH_CPU_32_BITS 1
@@ -104,12 +107,14 @@
 #define ARCH_CPU_ARMEL 1
 #define ARCH_CPU_32_BITS 1
 #define WCHAR_T_IS_UNSIGNED 1
+#elif defined (__LB_PS3__)
+#define ARCH_CPU_64_BITS 1
 #else
 #error Please add support for your architecture in build/build_config.h
 #endif
 
 // Type detection for wchar_t.
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(__LB_PS3__)
 #define WCHAR_T_IS_UTF16
 #elif defined(OS_POSIX) && defined(COMPILER_GCC) && \
     defined(__WCHAR_MAX__) && \
