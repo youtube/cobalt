@@ -299,7 +299,7 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     return "gconf";
   }
 
-  virtual bool GetString(Setting key, std::string* result) {
+  virtual bool GetString(StringSetting key, std::string* result) {
     switch (key) {
       case PROXY_MODE:
         return GetStringByPath("/system/proxy/mode", result);
@@ -313,11 +313,10 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
         return GetStringByPath("/system/proxy/ftp_host", result);
       case PROXY_SOCKS_HOST:
         return GetStringByPath("/system/proxy/socks_host", result);
-      default:
-        return false;
     }
+    return false;  // Placate compiler.
   }
-  virtual bool GetBool(Setting key, bool* result) {
+  virtual bool GetBool(BoolSetting key, bool* result) {
     switch (key) {
       case PROXY_USE_HTTP_PROXY:
         return GetBoolByPath("/system/http_proxy/use_http_proxy", result);
@@ -325,11 +324,10 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
         return GetBoolByPath("/system/http_proxy/use_same_proxy", result);
       case PROXY_USE_AUTHENTICATION:
         return GetBoolByPath("/system/http_proxy/use_authentication", result);
-      default:
-        return false;
     }
+    return false;  // Placate compiler.
   }
-  virtual bool GetInt(Setting key, int* result) {
+  virtual bool GetInt(IntSetting key, int* result) {
     switch (key) {
       case PROXY_HTTP_PORT:
         return GetIntByPath("/system/http_proxy/port", result);
@@ -339,17 +337,16 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
         return GetIntByPath("/system/proxy/ftp_port", result);
       case PROXY_SOCKS_PORT:
         return GetIntByPath("/system/proxy/socks_port", result);
-      default:
-        return false;
     }
+    return false;  // Placate compiler.
   }
-  virtual bool GetStringList(Setting key, std::vector<std::string>* result) {
+  virtual bool GetStringList(StringListSetting key,
+                             std::vector<std::string>* result) {
     switch (key) {
       case PROXY_IGNORE_HOSTS:
         return GetStringListByPath("/system/http_proxy/ignore_hosts", result);
-      default:
-        return false;
     }
+    return false;  // Placate compiler.
   }
 
   virtual bool BypassListIsReversed() {
@@ -602,7 +599,7 @@ class SettingGetterImplGSettings
     return "gsettings";
   }
 
-  virtual bool GetString(Setting key, std::string* result) {
+  virtual bool GetString(StringSetting key, std::string* result) {
     DCHECK(client_);
     switch (key) {
       case PROXY_MODE:
@@ -617,11 +614,10 @@ class SettingGetterImplGSettings
         return GetStringByPath(ftp_client_, "host", result);
       case PROXY_SOCKS_HOST:
         return GetStringByPath(socks_client_, "host", result);
-      default:
-        return false;
     }
+    return false;  // Placate compiler.
   }
-  virtual bool GetBool(Setting key, bool* result) {
+  virtual bool GetBool(BoolSetting key, bool* result) {
     DCHECK(client_);
     switch (key) {
       case PROXY_USE_HTTP_PROXY:
@@ -636,11 +632,10 @@ class SettingGetterImplGSettings
         // There is also no way to set this in the proxy config utility, but it
         // doesn't hurt us to get the actual setting (unlike the two above).
         return GetBoolByPath(http_client_, "use-authentication", result);
-      default:
-        return false;
     }
+    return false;  // Placate compiler.
   }
-  virtual bool GetInt(Setting key, int* result) {
+  virtual bool GetInt(IntSetting key, int* result) {
     DCHECK(client_);
     switch (key) {
       case PROXY_HTTP_PORT:
@@ -651,18 +646,17 @@ class SettingGetterImplGSettings
         return GetIntByPath(ftp_client_, "port", result);
       case PROXY_SOCKS_PORT:
         return GetIntByPath(socks_client_, "port", result);
-      default:
-        return false;
     }
+    return false;  // Placate compiler.
   }
-  virtual bool GetStringList(Setting key, std::vector<std::string>* result) {
+  virtual bool GetStringList(StringListSetting key,
+                             std::vector<std::string>* result) {
     DCHECK(client_);
     switch (key) {
       case PROXY_IGNORE_HOSTS:
         return GetStringListByPath(client_, "ignore-hosts", result);
-      default:
-        return false;
     }
+    return false;  // Placate compiler.
   }
 
   virtual bool BypassListIsReversed() {
@@ -1009,22 +1003,23 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     return "KDE";
   }
 
-  virtual bool GetString(Setting key, std::string* result) {
+  virtual bool GetString(StringSetting key, std::string* result) {
     string_map_type::iterator it = string_table_.find(key);
     if (it == string_table_.end())
       return false;
     *result = it->second;
     return true;
   }
-  virtual bool GetBool(Setting key, bool* result) {
+  virtual bool GetBool(BoolSetting key, bool* result) {
     // We don't ever have any booleans.
     return false;
   }
-  virtual bool GetInt(Setting key, int* result) {
+  virtual bool GetInt(IntSetting key, int* result) {
     // We don't ever have any integers. (See AddProxy() below about ports.)
     return false;
   }
-  virtual bool GetStringList(Setting key, std::vector<std::string>* result) {
+  virtual bool GetStringList(StringListSetting key,
+                             std::vector<std::string>* result) {
     strings_map_type::iterator it = strings_table_.find(key);
     if (it == strings_table_.end())
       return false;
@@ -1053,7 +1048,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     return kde_home.Append("share").Append("config");
   }
 
-  void AddProxy(Setting host_key, const std::string& value) {
+  void AddProxy(StringSetting host_key, const std::string& value) {
     if (value.empty() || value.substr(0, 3) == "//:")
       // No proxy.
       return;
@@ -1063,7 +1058,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     string_table_[host_key] = value;
   }
 
-  void AddHostList(Setting key, const std::string& value) {
+  void AddHostList(StringListSetting key, const std::string& value) {
     std::vector<std::string> tokens;
     StringTokenizer tk(value, ", ");
     while (tk.GetNext()) {
@@ -1136,7 +1131,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     }
   }
 
-  void ResolveIndirect(Setting key) {
+  void ResolveIndirect(StringSetting key) {
     string_map_type::iterator it = string_table_.find(key);
     if (it != string_table_.end()) {
       std::string value;
@@ -1147,7 +1142,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     }
   }
 
-  void ResolveIndirectList(Setting key) {
+  void ResolveIndirectList(StringListSetting key) {
     strings_map_type::iterator it = strings_table_.find(key);
     if (it != strings_table_.end()) {
       std::string value;
@@ -1317,8 +1312,9 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     }
   }
 
-  typedef std::map<Setting, std::string> string_map_type;
-  typedef std::map<Setting, std::vector<std::string> > strings_map_type;
+  typedef std::map<StringSetting, std::string> string_map_type;
+  typedef std::map<StringListSetting,
+                   std::vector<std::string> > strings_map_type;
 
   int inotify_fd_;
   base::MessagePumpLibevent::FileDescriptorWatcher inotify_watcher_;
@@ -1348,7 +1344,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
 }  // namespace
 
 bool ProxyConfigServiceLinux::Delegate::GetProxyFromSettings(
-    SettingGetter::Setting host_key,
+    SettingGetter::StringSetting host_key,
     ProxyServer* result_server) {
   std::string host;
   if (!setting_getter_->GetString(host_key, &host) || host.empty()) {
@@ -1357,7 +1353,7 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromSettings(
   }
   // Check for an optional port.
   int port = 0;
-  SettingGetter::Setting port_key =
+  SettingGetter::IntSetting port_key =
       SettingGetter::HostSettingToPortSetting(host_key);
   setting_getter_->GetInt(port_key, &port);
   if (port != 0) {
