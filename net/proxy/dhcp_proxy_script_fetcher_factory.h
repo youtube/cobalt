@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/memory/singleton.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 #include "net/url_request/url_request_context.h"
 
 namespace net {
@@ -29,7 +30,7 @@ class DhcpProxyScriptFetcher;
 //
 // Therefore, we have platform-specific implementations, and so we use
 // this factory to select the right one.
-class DhcpProxyScriptFetcherFactory {
+class NET_API DhcpProxyScriptFetcherFactory {
  public:
   // Creates a new factory object with default settings.
   DhcpProxyScriptFetcherFactory();
