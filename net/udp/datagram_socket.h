@@ -6,13 +6,15 @@
 #define NET_UDP_DATAGRAM_SOCKET_H_
 #pragma once
 
+#include "net/base/net_api.h"
+
 namespace net {
 
 class IPEndPoint;
 
 // A datagram socket is an interface to a protocol which exchanges
 // datagrams, like UDP.
-class DatagramSocket {
+class NET_TEST DatagramSocket {
  public:
   virtual ~DatagramSocket() {}
 
