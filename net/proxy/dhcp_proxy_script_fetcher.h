@@ -10,6 +10,7 @@
 #include "base/compiler_specific.h"
 #include "base/string16.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 #include "net/proxy/proxy_script_fetcher.h"
 #include "net/url_request/url_request_context.h"
 
@@ -23,7 +24,7 @@ namespace net {
 // Normally there are zero or one DHCP scripts configured, but in the
 // presence of multiple adapters with DHCP enabled, the fetcher resolves
 // which PAC script to use if one or more are available.
-class DhcpProxyScriptFetcher {
+class NET_TEST DhcpProxyScriptFetcher {
  public:
   // Destruction should cancel any outstanding requests.
   virtual ~DhcpProxyScriptFetcher();
@@ -79,7 +80,7 @@ class DhcpProxyScriptFetcher {
 
 // A do-nothing retriever, always returns synchronously with
 // ERR_NOT_IMPLEMENTED result and empty text.
-class DoNothingDhcpProxyScriptFetcher : public DhcpProxyScriptFetcher {
+class NET_TEST DoNothingDhcpProxyScriptFetcher : public DhcpProxyScriptFetcher {
  public:
   DoNothingDhcpProxyScriptFetcher();
   virtual ~DoNothingDhcpProxyScriptFetcher();

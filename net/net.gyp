@@ -822,6 +822,8 @@
         'net_test_support',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
+        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+        '../build/temp_gyp/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
@@ -1054,6 +1056,7 @@
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_perf',
+        '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
       ],
       'msvs_guid': 'AAC78796-B9A2-4CD9-BF89-09B03E92BF73',
@@ -1118,6 +1121,7 @@
         'net',
         'net_test_support',
         '../base/base.gyp:base',
+        '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
       ],
       'msvs_guid': '506F2468-6B1D-48E2-A67C-9D9C6BAC0EC5',
@@ -1218,6 +1222,8 @@
       'dependencies': [
         'net',
         '../base/base.gyp:base',
+        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+        '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
       ],
       'msvs_guid': 'DABB8796-B9A2-4CD9-BF89-09B03E92B123',
@@ -1231,6 +1237,7 @@
       'dependencies': [
         'net',
         '../base/base.gyp:base',
+        '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
       ],
       'msvs_guid': 'DABB8796-B9A2-4CD9-BF89-09B03E92B124',
@@ -1269,6 +1276,7 @@
       'type': 'executable',
       'dependencies': [
         'net',
+        '../base/base.gyp:base',
       ],
       'sources': [
         'tools/dnssec_chain_verify/dnssec_chain_verify.cc',
