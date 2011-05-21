@@ -13,6 +13,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "base/timer.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 #include "googleurl/src/gurl.h"
 
 namespace base {
@@ -26,9 +27,9 @@ class URLRequestContext;
 
 // For a given adapter, this class takes care of first doing a DHCP lookup
 // to get the PAC URL, then if there is one, trying to fetch it.
-class DhcpProxyScriptAdapterFetcher
+class NET_TEST DhcpProxyScriptAdapterFetcher
     : public base::SupportsWeakPtr<DhcpProxyScriptAdapterFetcher>,
-      public base::NonThreadSafe {
+      NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // |url_request_context| must outlive DhcpProxyScriptAdapterFetcher.
   explicit DhcpProxyScriptAdapterFetcher(
@@ -81,7 +82,8 @@ class DhcpProxyScriptAdapterFetcher
   // only a weak reference back to the main object, so that the main object
   // can be destroyed before the thread ends.  This also keeps the main
   // object completely thread safe and allows it to be non-refcounted.
-  class WorkerThread : public base::RefCountedThreadSafe<WorkerThread> {
+  class NET_TEST WorkerThread
+      : public base::RefCountedThreadSafe<WorkerThread> {
    public:
     // Creates and initializes (but does not start) the worker thread.
     explicit WorkerThread(

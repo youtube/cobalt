@@ -21,9 +21,9 @@ class DhcpProxyScriptAdapterFetcher;
 class URLRequestContext;
 
 // Windows-specific implementation.
-class DhcpProxyScriptFetcherWin
+class NET_TEST DhcpProxyScriptFetcherWin
     : public DhcpProxyScriptFetcher,
-      public base::NonThreadSafe {
+      NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // Creates a DhcpProxyScriptFetcherWin that issues requests through
   // |url_request_context|. |url_request_context| must remain valid for
