@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -97,9 +97,9 @@
         }],
         # TODO(victorw): The unittest code uses inline functions that access
         # global variables, it also uses internal functions that we may not want
-        # to export, so skip building unittests for windows multi dll build.
+        # to export, so skip building unittests for component builds.
         # The googleurl functions are tested by the static library build.
-        ['OS=="win" and component=="shared_library"', {
+        ['component=="shared_library"', {
           'type': 'none',
         }, {
           'type': 'executable',
