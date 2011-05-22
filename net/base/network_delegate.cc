@@ -40,6 +40,12 @@ void NetworkDelegate::NotifyResponseStarted(URLRequest* request) {
   OnResponseStarted(request);
 }
 
+void NetworkDelegate::NotifyRawBytesRead(const URLRequest& request,
+                                         int bytes_read) {
+  DCHECK(CalledOnValidThread());
+  OnRawBytesRead(request, bytes_read);
+}
+
 void NetworkDelegate::NotifyBeforeRedirect(URLRequest* request,
                                            const GURL& new_location) {
   DCHECK(CalledOnValidThread());

@@ -252,7 +252,7 @@ TestNetworkDelegate::~TestNetworkDelegate() {}
 int TestNetworkDelegate::OnBeforeURLRequest(
     net::URLRequest* request,
     net::CompletionCallback* callback,
-    GURL* new_url) {
+    GURL* new_url ) {
   created_requests_++;
   return net::OK;
 }
@@ -281,6 +281,10 @@ void TestNetworkDelegate::OnResponseStarted(net::URLRequest* request) {
   }
 }
 
+void TestNetworkDelegate::OnRawBytesRead(const net::URLRequest& request,
+                                         int bytes_read) {
+}
+
 void TestNetworkDelegate::OnCompleted(net::URLRequest* request) {
   if (request->status().status() == net::URLRequestStatus::FAILED) {
     error_count_++;
@@ -288,7 +292,8 @@ void TestNetworkDelegate::OnCompleted(net::URLRequest* request) {
   }
 }
 
-void TestNetworkDelegate::OnURLRequestDestroyed(net::URLRequest* request) {
+void TestNetworkDelegate::OnURLRequestDestroyed(
+    net::URLRequest* request) {
   destroyed_requests_++;
 }
 
