@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -204,7 +204,6 @@ class MockNetworkLayer : public net::HttpTransactionFactory {
   virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans);
   virtual net::HttpCache* GetCache();
   virtual net::HttpNetworkSession* GetSession();
-  virtual void Suspend(bool suspend);
 
  private:
   int transaction_count_;

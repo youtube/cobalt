@@ -339,8 +339,6 @@ net::HttpNetworkSession* MockNetworkLayer::GetSession() {
   return NULL;
 }
 
-void MockNetworkLayer::Suspend(bool suspend) {}
-
 //-----------------------------------------------------------------------------
 // helpers
 

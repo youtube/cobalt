@@ -183,7 +183,6 @@ class NET_API HttpCache : public HttpTransactionFactory,
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
   virtual HttpCache* GetCache();
   virtual HttpNetworkSession* GetSession();
-  virtual void Suspend(bool suspend);
 
  protected:
   // Disk cache entry data indices.

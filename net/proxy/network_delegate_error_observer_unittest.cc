@@ -15,6 +15,7 @@ DISABLE_RUNNABLE_METHOD_REFCOUNT(net::NetworkDelegateErrorObserver);
 namespace net {
 
 namespace {
+
 class TestNetworkDelegate : public net::NetworkDelegate {
  public:
   TestNetworkDelegate() : got_pac_error_(false) {}
@@ -40,13 +41,16 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   virtual void OnBeforeRedirect(URLRequest* request,
                                 const GURL& new_location) {}
   virtual void OnResponseStarted(URLRequest* request) {}
+  virtual void OnRawBytesRead(const URLRequest& request,
+                              int bytes_read) {}
   virtual void OnCompleted(URLRequest* request) {}
   virtual void OnURLRequestDestroyed(URLRequest* request) {}
   virtual void OnHttpTransactionDestroyed(uint64 request_id) {}
   virtual URLRequestJob* OnMaybeCreateURLRequestJob(URLRequest* request) {
     return NULL;
   }
-  virtual void OnPACScriptError(int line_number, const string16& error) {
+  virtual void OnPACScriptError(int line_number,
+                                const string16& error) {
     got_pac_error_ = true;
   }
 

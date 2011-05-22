@@ -17,7 +17,6 @@
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
-#include "net/url_request/url_request_job_tracker.h"
 
 namespace net {
 
@@ -33,14 +32,15 @@ URLRequestJob::URLRequestJob(URLRequest* request)
       expected_content_size_(-1),
       deferred_redirect_status_code_(-1),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
-  g_url_request_job_tracker.AddNewJob(this);
+  base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
+  if (system_monitor)
+    base::SystemMonitor::Get()->AddObserver(this);
 }
 
 void URLRequestJob::SetUpload(UploadData* upload) {
 }
 
-void URLRequestJob::SetExtraRequestHeaders(
-    const HttpRequestHeaders& headers) {
+void URLRequestJob::SetExtraRequestHeaders(const HttpRequestHeaders& headers) {
 }
 
 void URLRequestJob::Kill() {
@@ -203,8 +203,14 @@ HostPortPair URLRequestJob::GetSocketAddress() const {
   return HostPortPair();
 }
 
+void URLRequestJob::OnSuspend() {
+  Kill();
+}
+
 URLRequestJob::~URLRequestJob() {
-  g_url_request_job_tracker.RemoveJob(this);
+  base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
+  if (system_monitor)
+    base::SystemMonitor::Get()->RemoveObserver(this);
 }
 
 void URLRequestJob::NotifyHeadersComplete() {
@@ -361,8 +367,6 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
     if (request_->status().is_success())
       request_->set_status(status);
   }
-
-  g_url_request_job_tracker.OnJobDone(this, status);
 
   if (request_ && request_->context() &&
       request_->context()->network_delegate()) {
@@ -578,8 +582,6 @@ bool URLRequestJob::ReadRawDataHelper(IOBuffer* buf, int buf_size,
 }
 
 void URLRequestJob::FollowRedirect(const GURL& location, int http_status_code) {
-  g_url_request_job_tracker.OnJobRedirect(this, location, http_status_code);
-
   int rv = request_->Redirect(location, http_status_code);
   if (rv != OK)
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, rv));
@@ -596,8 +598,9 @@ void URLRequestJob::OnRawReadComplete(int bytes_read) {
 void URLRequestJob::RecordBytesRead(int bytes_read) {
   filter_input_byte_count_ += bytes_read;
   UpdatePacketReadTimes();  // Facilitate stats recording if it is active.
-  g_url_request_job_tracker.OnBytesRead(this, raw_read_buffer_->data(),
-                                        bytes_read);
+  const URLRequestContext* context = request_->context();
+  if (context && context->network_delegate())
+    context->network_delegate()->NotifyRawBytesRead(*request_, bytes_read);
 }
 
 bool URLRequestJob::FilterHasData() {
