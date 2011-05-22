@@ -194,6 +194,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   virtual void OnBeforeRedirect(net::URLRequest* request,
                                 const GURL& new_location);
   virtual void OnResponseStarted(net::URLRequest* request);
+  virtual void OnRawBytesRead(const net::URLRequest& request, int bytes_read);
   virtual void OnCompleted(net::URLRequest* request);
   virtual void OnURLRequestDestroyed(net::URLRequest* request);
   virtual void OnHttpTransactionDestroyed(uint64 request_id);

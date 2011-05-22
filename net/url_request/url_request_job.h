@@ -12,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string16.h"
+#include "base/system_monitor/system_monitor.h"
 #include "base/task.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
@@ -31,7 +32,8 @@ class UploadData;
 class URLRequestStatus;
 class X509Certificate;
 
-class NET_API URLRequestJob : public base::RefCounted<URLRequestJob> {
+class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
+                              public base::SystemMonitor::PowerObserver {
  public:
   explicit URLRequestJob(URLRequest* request);
 
@@ -179,6 +181,10 @@ class NET_API URLRequestJob : public base::RefCounted<URLRequestJob> {
   // Returns the socket address for the connection.
   // See url_request.h for details.
   virtual HostPortPair GetSocketAddress() const;
+
+  // base::SystemMonitor::PowerObserver methods:
+  // We invoke URLRequestJob::Kill on suspend (crbug.com/4606).
+  virtual void OnSuspend();
 
  protected:
   friend class base::RefCounted<URLRequestJob>;
