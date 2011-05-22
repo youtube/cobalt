@@ -49,6 +49,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   void NotifyBeforeRedirect(URLRequest* request,
                             const GURL& new_location);
   void NotifyResponseStarted(URLRequest* request);
+  void NotifyRawBytesRead(const URLRequest& request, int bytes_read);
   void NotifyCompleted(URLRequest* request);
   void NotifyURLRequestDestroyed(URLRequest* request);
   void NotifyHttpTransactionDestroyed(uint64 request_id);
@@ -88,6 +89,9 @@ class NetworkDelegate : public base::NonThreadSafe {
 
   // This corresponds to URLRequestDelegate::OnResponseStarted.
   virtual void OnResponseStarted(URLRequest* request) = 0;
+
+  // Called every time we read raw bytes.
+  virtual void OnRawBytesRead(const URLRequest& request, int bytes_read) = 0;
 
   // Indicates that the URL request has been completed or failed.
   virtual void OnCompleted(URLRequest* request) = 0;

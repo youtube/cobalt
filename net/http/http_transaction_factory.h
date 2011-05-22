@@ -30,10 +30,6 @@ class NET_API HttpTransactionFactory {
 
   // Returns the associated HttpNetworkSession used by new transactions.
   virtual HttpNetworkSession* GetSession() = 0;
-
-  // Suspends the creation of new transactions. If |suspend| is false, creation
-  // of new transactions is resumed.
-  virtual void Suspend(bool suspend) = 0;
 };
 
 }  // namespace net
