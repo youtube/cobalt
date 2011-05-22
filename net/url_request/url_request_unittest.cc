@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/file_util.h"
 #include "base/format_macros.h"
 #include "base/message_loop.h"
@@ -49,13 +50,6 @@
 #include "testing/platform_test.h"
 
 using base::Time;
-
-// We don't need a refcount because we are guaranteed the test will not proceed
-// until its task is run.
-namespace net {
-class BlockingNetworkDelegate;
-}  // namespace net
-DISABLE_RUNNABLE_METHOD_REFCOUNT(net::BlockingNetworkDelegate);
 
 namespace net {
 
@@ -126,7 +120,9 @@ void CheckSSLInfo(const SSLInfo& ssl_info) {
 // them.
 class BlockingNetworkDelegate : public TestNetworkDelegate {
  public:
-  BlockingNetworkDelegate() : callback_retval_(net::OK) {}
+  BlockingNetworkDelegate()
+      : callback_retval_(net::OK),
+        ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
 
   void set_callback_retval(int retval) { callback_retval_ = retval; }
   void set_redirect_url(const GURL& url) { redirect_url_ = url; }
@@ -145,9 +141,10 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
 
     if (!redirect_url_.is_empty())
       *new_url = redirect_url_;
-    MessageLoop::current()->PostTask(FROM_HERE,
-        NewRunnableMethod(this, &BlockingNetworkDelegate::DoCallback,
-                          callback));
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        method_factory_.NewRunnableMethod(&BlockingNetworkDelegate::DoCallback,
+                                          callback));
     return net::ERR_IO_PENDING;
   }
 
@@ -157,6 +154,7 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
 
   int callback_retval_;
   GURL redirect_url_;
+  ScopedRunnableMethodFactory<BlockingNetworkDelegate> method_factory_;
 };
 
 // Inherit PlatformTest since we require the autorelease pool on Mac OS X.f

@@ -57,14 +57,14 @@ TEST_F(HttpNetworkLayerTest, Suspend) {
 
   trans.reset();
 
-  factory_->Suspend(true);
+  factory_->OnSuspend();
 
   rv = factory_->CreateTransaction(&trans);
   EXPECT_EQ(ERR_NETWORK_IO_SUSPENDED, rv);
 
   ASSERT_TRUE(trans == NULL);
 
-  factory_->Suspend(false);
+  factory_->OnResume();
 
   rv = factory_->CreateTransaction(&trans);
   EXPECT_EQ(OK, rv);
