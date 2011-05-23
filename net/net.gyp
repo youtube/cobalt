@@ -726,7 +726,7 @@
             ],
           },
         ],
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+        [ 'toolkit_uses_gtk == 1', {
             'dependencies': [
               '../build/linux/system.gyp:gconf',
               '../build/linux/system.gyp:gdk',
@@ -995,7 +995,7 @@
              'proxy/proxy_config_service_linux_unittest.cc',
           ],
         }],
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+        [ 'toolkit_uses_gtk == 1', {
             'dependencies': [
               '../build/linux/system.gyp:gtk',
               '../build/linux/system.gyp:nss',
@@ -1007,7 +1007,7 @@
             ],
           }
         ],
-        [ 'OS == "linux"', {
+        [ 'os_posix == 1 and OS != "mac"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -1171,7 +1171,7 @@
             '../third_party/protobuf/protobuf.gyp:py_proto',
           ],
         }],
-        ['OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+        ['os_posix == 1 and OS != "mac"', {
           'conditions': [
             ['use_openssl==1', {
               'dependencies': [
@@ -1184,7 +1184,7 @@
             }],
           ],
         }],
-        ['OS == "linux"', {
+        ['os_posix == 1 and OS != "mac"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -1292,7 +1292,7 @@
     },
   ],
   'conditions': [
-     ['OS=="linux"', {
+     ['os_posix == 1 and OS != "mac"', {
        'targets': [
          {
            'target_name': 'flip_in_mem_edsm_server',

@@ -4,7 +4,7 @@
 
 {
   'conditions': [
-    [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+    [ 'os_posix == 1 and OS != "mac"', {
       'conditions': [
         ['sysroot!=""', {
           'variables': {
@@ -105,7 +105,7 @@
             ],
           },
         ],
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+        [ 'os_posix == 1 and OS != "mac"', {
           'defines': [
             # These macros are needed only for compiling the files in
             # ssl/bodge.
