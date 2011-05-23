@@ -177,6 +177,7 @@ Value* SpdySessionPool::SpdySessionPoolInfoToValue() const {
 
 void SpdySessionPool::OnIPAddressChanged() {
   CloseCurrentSessions();
+  spdy_settings_.Clear();
 }
 
 void SpdySessionPool::OnSSLConfigChanged() {
