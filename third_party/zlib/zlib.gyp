@@ -5,12 +5,12 @@
 {
   'variables': {
     'conditions': [
-      [ 'OS=="linux" or OS=="freebsd"', {
+      [ 'os_posix == 1 and OS != "mac" and OS != "openbsd"', {
         # Link to system .so since we already use it due to GTK.
         # TODO(pvalchev): OpenBSD is purposefully left out, as the system
         # zlib brings up an incompatibility that breaks rendering.
         'use_system_zlib%': 1,
-      }, {  # OS!="linux" and OS!="freebsd"
+      }, {  # os_posix != 1 or OS == "mac" or OS == "openbsd"
         'use_system_zlib%': 0,
       }],
     ],
