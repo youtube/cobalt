@@ -9,6 +9,8 @@
 #include "net/base/data_url.h"
 
 #include "base/base64.h"
+#include "base/basictypes.h"
+#include "base/string_split.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/escape.h"
@@ -18,6 +20,8 @@ namespace net {
 // static
 bool DataURL::Parse(const GURL& url, std::string* mime_type,
                     std::string* charset, std::string* data) {
+  DCHECK(mime_type->empty());
+  DCHECK(charset->empty());
   std::string::const_iterator begin = url.spec().begin();
   std::string::const_iterator end = url.spec().end();
 
@@ -26,31 +30,32 @@ bool DataURL::Parse(const GURL& url, std::string* mime_type,
     return false;
   ++after_colon;
 
-  // first, find the start of the data
   std::string::const_iterator comma = std::find(after_colon, end, ',');
   if (comma == end)
     return false;
 
-  const char kBase64Tag[] = ";base64";
-  std::string::const_iterator it =
-      std::search(after_colon, comma, kBase64Tag,
-                  kBase64Tag + sizeof(kBase64Tag)-1);
+  std::vector<std::string> meta_data;
+  std::string unparsed_meta_data(after_colon, comma);
+  base::SplitString(unparsed_meta_data, ';', &meta_data);
 
-  bool base64_encoded = (it != comma);
+  std::vector<std::string>::iterator iter = meta_data.begin();
+  if (iter != meta_data.end()) {
+    mime_type->swap(*iter);
+    StringToLowerASCII(mime_type);
+    ++iter;
+  }
 
-  if (comma != after_colon) {
-    // everything else is content type
-    std::string::const_iterator semi_colon = std::find(after_colon, comma, ';');
-    if (semi_colon != after_colon) {
-      mime_type->assign(after_colon, semi_colon);
-      StringToLowerASCII(mime_type);
-    }
-    if (semi_colon != comma) {
-      const char kCharsetTag[] = "charset=";
-      it = std::search(semi_colon + 1, comma, kCharsetTag,
-                       kCharsetTag + sizeof(kCharsetTag)-1);
-      if (it != comma)
-        charset->assign(it + sizeof(kCharsetTag)-1, comma);
+  static const char kBase64Tag[] = "base64";
+  static const char kCharsetTag[] = "charset=";
+  const size_t kCharsetTagLength = arraysize(kCharsetTag) - 1;
+
+  bool base64_encoded = false;
+  for (; iter != meta_data.end(); ++iter) {
+    if (!base64_encoded && *iter == kBase64Tag) {
+      base64_encoded = true;
+    } else if (charset->empty() &&
+               iter->compare(0, kCharsetTagLength, kCharsetTag) == 0) {
+      charset->assign(iter->substr(kCharsetTagLength));
     }
   }
 
