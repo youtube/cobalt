@@ -206,7 +206,7 @@
             'video/mft_h264_decode_engine.h',
           ],
         }],
-        ['OS=="linux" or OS=="freebsd"', {
+        ['OS == "linux" or OS == "freebsd" or OS == "solaris"', {
           'link_settings': {
             'libraries': [
               '-lasound',
@@ -228,7 +228,7 @@
             'audio/openbsd/audio_manager_openbsd.h',
           ],
         }],
-        ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+        ['os_posix == 1 and OS != "mac"', {
           'sources': [
             'filters/omx_video_decoder.cc',
             'filters/omx_video_decoder.h',
@@ -237,7 +237,7 @@
             'omx_wrapper',
           ]
         }],
-        ['OS=="linux"', {
+        ['os_posix == 1 and OS != "mac"', {
           'sources!': [
             'video/capture/video_capture_device_dummy.cc',
             'video/capture/video_capture_device_dummy.h',
@@ -310,7 +310,7 @@
         '..',
       ],
       'conditions': [
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+        [ 'os_posix == 1 and OS != "mac"', {
           'cflags': [
             '-msse2',
           ],
@@ -337,7 +337,7 @@
         'ffmpeg/ffmpeg_unittest.cc',
       ],
       'conditions': [
-        ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+        ['toolkit_uses_gtk == 1', {
           'dependencies': [
             # Needed for the following #include chain:
             #   base/run_all_unittests.cc
@@ -422,7 +422,7 @@
         'video/ffmpeg_video_decode_engine_unittest.cc',
       ],
       'conditions': [
-        ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+        ['toolkit_uses_gtk == 1', {
           'dependencies': [
             # Needed for the following #include chain:
             #   base/run_all_unittests.cc
@@ -625,7 +625,7 @@
             'tools/shader_bench/window.h',
           ],
           'conditions': [
-            ['OS=="linux"', {
+            ['toolkit_uses_gtk == 1', {
               'dependencies': [
                 '../build/linux/system.gyp:gtk',
               ],
@@ -665,7 +665,7 @@
         },
       ],
     }],
-    ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+    ['os_posix == 1 and OS != "mac"', {
       'targets': [
         {
           'target_name': 'omx_test',
@@ -697,7 +697,7 @@
             '../testing/gtest.gyp:gtest',
           ],
           'conditions': [
-            ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+            ['toolkit_uses_gtk == 1', {
               'dependencies': [
                 '../build/linux/system.gyp:gtk',
               ],

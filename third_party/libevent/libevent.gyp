@@ -50,7 +50,7 @@
                 ],
               },
             }],
-            [ 'OS == "mac" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
+            [ 'OS == "mac" or OS == "freebsd" or OS == "openbsd"', {
               'sources': [ 'kqueue.c' ],
               'include_dirs': [ 'mac' ]
             }],
