@@ -527,6 +527,49 @@ TEST_F(SpdySessionTest, IPPoolingCloseCurrentSessions) {
   IPPoolingTest(true);
 }
 
+TEST_F(SpdySessionTest, ClearSettingsStorage) {
+  SpdySettingsStorage settings_storage;
+  const std::string kTestHost("www.foo.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  spdy::SpdySettings test_settings;
+  spdy::SettingsFlagsAndId id(0);
+  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
+  const size_t max_concurrent_streams = 2;
+  test_settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
+
+  settings_storage.Set(test_host_port_pair, test_settings);
+  EXPECT_NE(0u, settings_storage.Get(test_host_port_pair).size());
+  settings_storage.Clear();
+  EXPECT_EQ(0u, settings_storage.Get(test_host_port_pair).size());
+}
+
+TEST_F(SpdySessionTest, ClearSettingsStorageOnIPAddressChanged) {
+  const std::string kTestHost("www.foo.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+
+  SpdySessionDependencies session_deps;
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+
+  SpdySettingsStorage* test_settings_storage =
+      spdy_session_pool->mutable_spdy_settings();
+  spdy::SettingsFlagsAndId id(0);
+  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
+  const size_t max_concurrent_streams = 2;
+  spdy::SpdySettings test_settings;
+  test_settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
+
+  test_settings_storage->Set(test_host_port_pair, test_settings);
+  EXPECT_NE(0u, test_settings_storage->Get(test_host_port_pair).size());
+  spdy_session_pool->OnIPAddressChanged();
+  EXPECT_EQ(0u, test_settings_storage->Get(test_host_port_pair).size());
+}
+
 }  // namespace
 
 }  // namespace net
