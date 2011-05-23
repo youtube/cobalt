@@ -44,6 +44,12 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     open_flags = O_CREAT | O_TRUNC;
   }
 
+  if (flags & PLATFORM_FILE_OPEN_TRUNCATED) {
+    DCHECK(!open_flags);
+    DCHECK(flags & PLATFORM_FILE_WRITE);
+    open_flags = O_TRUNC;
+  }
+
   if (!open_flags && !(flags & PLATFORM_FILE_OPEN) &&
       !(flags & PLATFORM_FILE_OPEN_ALWAYS)) {
     NOTREACHED();
@@ -60,11 +66,6 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
              !(flags & PLATFORM_FILE_WRITE_ATTRIBUTES) &&
              !(flags & PLATFORM_FILE_OPEN_ALWAYS)) {
     NOTREACHED();
-  }
-
-  if (flags & PLATFORM_FILE_TRUNCATE) {
-    DCHECK(flags & PLATFORM_FILE_WRITE);
-    open_flags |= O_TRUNC;
   }
 
   COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
