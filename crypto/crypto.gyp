@@ -18,7 +18,7 @@
         4018,
       ],
       'conditions': [
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
+        [ 'os_posix == 1 and OS != "mac"', {
           'conditions': [
             [ 'chromeos==1', {
                 'sources/': [ ['include', '_chromeos\\.cc$'] ]
@@ -38,7 +38,7 @@
               }
             ],
           ],
-        }, {  # OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"
+        }, {  # os_posix != 1 or OS == "mac"
             'sources/': [
               ['exclude', '_nss\.cc$'],
             ],
@@ -192,7 +192,7 @@
         '../testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
+        [ 'os_posix == 1 and OS != "mac"', {
           'conditions': [
             [ 'linux_use_tcmalloc==1', {
                 'dependencies': [
@@ -204,7 +204,7 @@
           'dependencies': [
             '../build/linux/system.gyp:nss',
           ],
-        }, {  # OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"
+        }, {  # os_posix != 1 or OS == "mac"
           'sources!': [
             'rsa_private_key_nss_unittest.cc',
           ]

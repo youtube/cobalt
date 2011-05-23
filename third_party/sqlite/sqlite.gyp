@@ -41,7 +41,7 @@
             ],
           },
         }],
-        ['(OS=="linux" or OS=="freebsd" or OS=="openbsd") and use_system_sqlite', {
+        ['os_posix == 1 and OS != "mac" and use_system_sqlite', {
           'type': 'settings',
           'direct_dependent_settings': {
             'cflags': [
@@ -64,7 +64,7 @@
               '<!@(pkg-config --libs-only-l sqlite3)',
             ],
           },
-        }, { # else: OS != "linux" or ! use_system_sqlite
+        }, { # else: os_posix == 1 or OS == "mac" or ! use_system_sqlite
           'product_name': 'sqlite3',
           'type': 'static_library',
           'msvs_guid': '6EAD4A4B-2BBC-4974-8E45-BB5C16CC2AC9',
@@ -110,7 +110,7 @@
             4018, 4244,
           ],
           'conditions': [
-            ['OS=="linux"', {
+            ['os_posix == 1 and OS != "mac"', {
               'cflags': [
                 # SQLite doesn't believe in compiler warnings,
                 # preferring testing.
@@ -125,7 +125,7 @@
     },
   ],
   'conditions': [
-    ['(OS=="linux" or OS=="freebsd" or OS=="openbsd") and not use_system_sqlite', {
+    ['os_posix == 1 and OS != "mac" and not use_system_sqlite', {
       'targets': [
         {
           'target_name': 'sqlite_shell',
