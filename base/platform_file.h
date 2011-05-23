@@ -28,20 +28,26 @@ typedef int PlatformFile;
 const PlatformFile kInvalidPlatformFileValue = -1;
 #endif
 
+// PLATFORM_FILE_(OPEN|CREATE).* are mutually exclusive. You should specify
+// exactly one of the five (possibly combining with other flags) when opening
+// or creating a file.
 enum PlatformFileFlags {
-  PLATFORM_FILE_OPEN = 1,
-  PLATFORM_FILE_CREATE = 2,
-  PLATFORM_FILE_OPEN_ALWAYS = 4,    // May create a new file.
-  PLATFORM_FILE_CREATE_ALWAYS = 8,  // May overwrite an old file.
-  PLATFORM_FILE_READ = 16,
-  PLATFORM_FILE_WRITE = 32,
-  PLATFORM_FILE_EXCLUSIVE_READ = 64,  // EXCLUSIVE is opposite of Windows SHARE
-  PLATFORM_FILE_EXCLUSIVE_WRITE = 128,
-  PLATFORM_FILE_ASYNC = 256,
-  PLATFORM_FILE_TEMPORARY = 512,        // Used on Windows only
-  PLATFORM_FILE_HIDDEN = 1024,          // Used on Windows only
-  PLATFORM_FILE_DELETE_ON_CLOSE = 2048,
-  PLATFORM_FILE_TRUNCATE = 4096,
+  PLATFORM_FILE_OPEN = 1,             // Opens a file, only if it exists.
+  PLATFORM_FILE_CREATE = 2,           // Creates a new file, only if it does not
+                                      // already exist.
+  PLATFORM_FILE_OPEN_ALWAYS = 4,      // May create a new file.
+  PLATFORM_FILE_CREATE_ALWAYS = 8,    // May overwrite an old file.
+  PLATFORM_FILE_OPEN_TRUNCATED = 16,  // Opens a file and truncates it, only if
+                                      // it exists.
+  PLATFORM_FILE_READ = 32,
+  PLATFORM_FILE_WRITE = 64,
+  PLATFORM_FILE_EXCLUSIVE_READ = 128,  // EXCLUSIVE is opposite of Windows SHARE
+  PLATFORM_FILE_EXCLUSIVE_WRITE = 256,
+  PLATFORM_FILE_ASYNC = 512,
+  PLATFORM_FILE_TEMPORARY = 1024,       // Used on Windows only
+  PLATFORM_FILE_HIDDEN = 2048,          // Used on Windows only
+  PLATFORM_FILE_DELETE_ON_CLOSE = 4096,
+
   PLATFORM_FILE_WRITE_ATTRIBUTES = 8192,  // Used on Windows only
   PLATFORM_FILE_ENUMERATE = 16384,  // May enumerate directory
 };

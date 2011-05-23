@@ -38,7 +38,7 @@ PlatformFile CreatePlatformFile(const FilePath& name,
     disposition = CREATE_ALWAYS;
   }
 
-  if (flags & PLATFORM_FILE_TRUNCATE) {
+  if (flags & PLATFORM_FILE_OPEN_TRUNCATED) {
     DCHECK(!disposition);
     DCHECK(flags & PLATFORM_FILE_WRITE);
     disposition = TRUNCATE_EXISTING;
