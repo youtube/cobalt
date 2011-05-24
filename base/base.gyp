@@ -62,6 +62,8 @@
       'target_name': 'base_static',
       'type': 'static_library',
       'sources': [
+        'base_switches.cc',
+        'base_switches.h',
         'win/pe_image.cc',
         'win/pe_image.h',
       ],
@@ -75,6 +77,8 @@
       'target_name': 'base_static_win64',
       'type': 'static_library',
       'sources': [
+        'base_switches.cc',
+        'base_switches.h',
         'win/pe_image.cc',
         'win/pe_image.h',
       ],
