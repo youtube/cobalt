@@ -6,6 +6,8 @@
 #define NET_BASE_NET_ERRORS_H__
 #pragma once
 
+#include <vector>
+
 #include "base/basictypes.h"
 
 namespace net {
@@ -38,6 +40,15 @@ inline bool IsCertificateError(int error) {
 
 // Map system error code to Error.
 Error MapSystemError(int os_error);
+
+// Returns a list of all the possible net error codes (not counting OK). This
+// is intended for use with UMA histograms that are reporting the result of
+// an action that is represented as a net error code.
+//
+// Note that the error codes are all positive (since histograms expect positive
+// sample values). Also note that a guard bucket is created after any valid
+// error code that is not followed immediately by a valid error code.
+std::vector<int> GetAllErrorCodesForUma();
 
 }  // namespace net
 

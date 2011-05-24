@@ -5,6 +5,7 @@
 #include "net/proxy/dhcp_proxy_script_adapter_fetcher_win.h"
 
 #include "base/message_loop_proxy.h"
+#include "base/metrics/histogram.h"
 #include "base/sys_string_conversions.h"
 #include "base/task.h"
 #include "base/threading/worker_pool.h"
@@ -201,8 +202,12 @@ void DhcpProxyScriptAdapterFetcher::OnFetcherDone(int result) {
 void DhcpProxyScriptAdapterFetcher::TransitionToFinish() {
   DCHECK(state_ == STATE_WAIT_DHCP || state_ == STATE_WAIT_URL);
   state_ = STATE_FINISH;
-  callback_->Run(result_);
+  CompletionCallback* callback = callback_;
   callback_ = NULL;
+
+  // Be careful not to touch any member state after this, as the client
+  // may delete us during this callback.
+  callback->Run(result_);
 }
 
 ProxyScriptFetcher* DhcpProxyScriptAdapterFetcher::ImplCreateScriptFetcher() {
@@ -269,7 +274,8 @@ std::string DhcpProxyScriptAdapterFetcher::GetPacURLFromDhcp(
   } while (res == ERROR_MORE_DATA && retry_count <= 3);
 
   if (res != NO_ERROR) {
-    NOTREACHED();
+    LOG(INFO) << "Error fetching PAC URL from DHCP: " << res;
+    UMA_HISTOGRAM_COUNTS("Net.DhcpWpadUnhandledDhcpError", 1);
   } else if (wpad_params.nBytesData) {
     // The result should be ASCII, not wide character.
     DCHECK_EQ(strlen(reinterpret_cast<const char*>(wpad_params.Data)) + 1,
