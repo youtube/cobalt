@@ -23,10 +23,14 @@
 
           # Disable touch support by default.
           'touchui%': 0,
+
+          # Whether the compositor is enabled on views.
+          'views_compositor%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
         'touchui%': '<(touchui)',
+        'views_compositor%': '<(views_compositor)',
 
         # Compute the architecture that we're building on.
         'conditions': [
@@ -55,6 +59,7 @@
       'touchui%': '<(touchui)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
+      'views_compositor%': '<(views_compositor)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -200,6 +205,7 @@
     'host_arch%': '<(host_arch)',
     'library%': 'static_library',
     'toolkit_views%': '<(toolkit_views)',
+    'views_compositor%': '<(views_compositor)',
     'os_posix%': '<(os_posix)',
     'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',
     'use_x11%': '<(use_x11)',
@@ -627,6 +633,10 @@
       }],
       ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
+      }],
+      ['views_compositor==1', {
+        # TODO(sky): nuke COMPOSITOR_2 when we remove it from views.
+        'defines': ['VIEWS_COMPOSITOR=1', 'COMPOSITOR_2=1'],
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
