@@ -30,8 +30,14 @@ class HMAC {
   explicit HMAC(HashAlgorithm hash_alg);
   ~HMAC();
 
+  // Returns the length of digest that this HMAC will create.
+  size_t DigestLength() const;
+
+  // TODO(abarth): Add a PreferredKeyLength() member function.
+
   // Initializes this instance using |key| of the length |key_length|. Call Init
   // only once. It returns false on the second or later calls.
+  // TODO(abarth): key_length should be a size_t.
   bool Init(const unsigned char* key, int key_length);
 
   // Initializes this instance using |key|. Call Init only once. It returns
@@ -44,7 +50,10 @@ class HMAC {
   // Calculates the HMAC for the message in |data| using the algorithm supplied
   // to the constructor and the key supplied to the Init method. The HMAC is
   // returned in |digest|, which has |digest_length| bytes of storage available.
-  bool Sign(const std::string& data, unsigned char* digest, int digest_length);
+  // TODO(abarth): digest_length should be a size_t.
+  bool Sign(const std::string& data,
+            unsigned char* digest,
+            int digest_length) const;
 
   // TODO(albertb): Add a Verify method.
 

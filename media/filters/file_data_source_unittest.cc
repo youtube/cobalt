@@ -101,7 +101,7 @@ TEST(FileDataSourceTest, Seek) {
   const base::TimeDelta kZero;
 
   scoped_refptr<FileDataSource> filter(new FileDataSource());
-  filter->Seek(kZero, NewExpectedCallback());
+  filter->Seek(kZero, NewExpectedStatusCB(PIPELINE_OK));
 
   filter->Stop(NewExpectedCallback());
 }

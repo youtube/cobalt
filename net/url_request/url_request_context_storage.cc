@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "net/base/cert_verifier.h"
-#include "net/base/cookie_policy.h"
 #include "net/base/cookie_store.h"
 #include "net/base/dnsrr_resolver.h"
 #include "net/base/host_resolver.h"
@@ -17,6 +16,7 @@
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy/proxy_service.h"
 #include "net/url_request/url_request_context.h"
+#include "net/url_request/url_request_job_factory.h"
 
 namespace net {
 
@@ -82,11 +82,6 @@ void URLRequestContextStorage::set_cookie_store(CookieStore* cookie_store) {
   cookie_store_ = cookie_store;
 }
 
-void URLRequestContextStorage::set_cookie_policy(CookiePolicy* cookie_policy) {
-  context_->set_cookie_policy(cookie_policy);
-  cookie_policy_.reset(cookie_policy);
-}
-
 void URLRequestContextStorage::set_transport_security_state(
     TransportSecurityState* transport_security_state) {
   context_->set_transport_security_state(transport_security_state);
@@ -103,6 +98,12 @@ void URLRequestContextStorage::set_ftp_transaction_factory(
     FtpTransactionFactory* ftp_transaction_factory) {
   context_->set_ftp_transaction_factory(ftp_transaction_factory);
   ftp_transaction_factory_.reset(ftp_transaction_factory);
+}
+
+void URLRequestContextStorage::set_job_factory(
+    URLRequestJobFactory* job_factory) {
+  context_->set_job_factory(job_factory);
+  job_factory_.reset(job_factory);
 }
 
 }  // namespace net

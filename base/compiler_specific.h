@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -54,6 +54,21 @@
                                              code \
                                              MSVC_POP_WARNING()
 
+// Allows exporting a class that inherits from a non-exported base class.
+// This uses suppress instead of push/pop because the delimiter after the
+// declaration (either "," or "{") has to be placed before the pop macro.
+//
+// Example usage:
+// class EXPORT_API Foo : NON_EXPORTED_BASE(public Bar) {
+//
+// MSVC Compiler warning C4275:
+// non dll-interface class 'Bar' used as base for dll-interface class 'Foo'.
+// Note that this is intended to be used only when no access to the base class
+// can be gained through the derived class. For more info, see
+// http://msdn.microsoft.com/en-us/library/3tdb471s(VS.80).aspx
+#define NON_EXPORTED_BASE(code) MSVC_SUPPRESS_WARNING(4275) \
+                                code
+
 #else  // Not MSVC
 
 #define MSVC_SUPPRESS_WARNING(n)
@@ -63,6 +78,7 @@
 #define MSVC_DISABLE_OPTIMIZE()
 #define MSVC_ENABLE_OPTIMIZE()
 #define ALLOW_THIS_IN_INITIALIZER_LIST(code) code
+#define NON_EXPORTED_BASE(code) code
 
 #endif  // COMPILER_MSVC
 
@@ -74,8 +90,10 @@
 //   int x ALLOW_UNUSED = ...;
 #if defined(COMPILER_GCC)
 #define ALLOW_UNUSED __attribute__((unused))
+#define NOINLINE __attribute__((noinline))
 #else
 #define ALLOW_UNUSED
+#define NOINLINE
 #endif
 
 // Annotate a virtual method indicating it must be overriding a virtual
@@ -93,6 +111,7 @@
 // Annotate a function indicating the caller must examine the return value.
 // Use like:
 //   int foo() WARN_UNUSED_RESULT;
+// To explicitly ignore a result, see |ignore_result()| in <base/basictypes.h>.
 #if defined(COMPILER_GCC)
 #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else

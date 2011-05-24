@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,11 +7,12 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 
 namespace disk_cache {
 
 // This class provides support for simple maps of bits.
-class Bitmap {
+class NET_TEST Bitmap {
  public:
   Bitmap() : map_(NULL), num_bits_(0), array_size_(0), alloc_(false) {}
 

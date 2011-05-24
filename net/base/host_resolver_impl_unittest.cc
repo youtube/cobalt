@@ -11,6 +11,9 @@
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/synchronization/condition_variable.h"
+#include "base/synchronization/lock.h"
+#include "base/time.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/mock_host_resolver.h"
@@ -27,7 +30,8 @@
 
 namespace net {
 
-namespace {
+using base::TimeDelta;
+using base::TimeTicks;
 
 HostCache* CreateDefaultCache() {
   return new HostCache(
@@ -37,10 +41,11 @@ HostCache* CreateDefaultCache() {
 }
 
 static const size_t kMaxJobs = 10u;
+static const size_t kMaxRetryAttempts = 4u;
 
 HostResolverImpl* CreateHostResolverImpl(HostResolverProc* resolver_proc) {
   return new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs,
-                              NULL);
+                              kMaxRetryAttempts, NULL);
 }
 
 // Helper to create a HostResolver::RequestInfo.
@@ -148,6 +153,107 @@ class EchoingHostResolverProc : public HostResolverProc {
                                   host_resolver_flags,
                                   addrlist, os_error);
   }
+};
+
+// Using LookupAttemptHostResolverProc simulate very long lookups, and control
+// which attempt resolves the host.
+class LookupAttemptHostResolverProc : public HostResolverProc {
+ public:
+  LookupAttemptHostResolverProc(HostResolverProc* previous,
+                                int attempt_number_to_resolve,
+                                int total_attempts)
+      : HostResolverProc(previous),
+        attempt_number_to_resolve_(attempt_number_to_resolve),
+        current_attempt_number_(0),
+        total_attempts_(total_attempts),
+        total_attempts_resolved_(0),
+        resolved_attempt_number_(0),
+        all_done_(&lock_) {
+  }
+
+  // Test harness will wait for all attempts to finish before checking the
+  // results.
+  void WaitForAllAttemptsToFinish(const TimeDelta& wait_time) {
+    TimeTicks end_time = TimeTicks::Now() + wait_time;
+    {
+      base::AutoLock auto_lock(lock_);
+      while (total_attempts_resolved_ != total_attempts_ &&
+             TimeTicks::Now() < end_time) {
+        all_done_.TimedWait(end_time - TimeTicks::Now());
+      }
+    }
+  }
+
+  // All attempts will wait for an attempt to resolve the host.
+  void WaitForAnAttemptToComplete() {
+    TimeDelta wait_time = TimeDelta::FromMilliseconds(60000);
+    TimeTicks end_time = TimeTicks::Now() + wait_time;
+    {
+      base::AutoLock auto_lock(lock_);
+      while (resolved_attempt_number_ == 0 && TimeTicks::Now() < end_time)
+        all_done_.TimedWait(end_time - TimeTicks::Now());
+    }
+    all_done_.Broadcast();  // Tell all waiting attempts to proceed.
+  }
+
+  // Returns the number of attempts that have finished the Resolve() method.
+  int total_attempts_resolved() { return total_attempts_resolved_; }
+
+  // Returns the first attempt that that has resolved the host.
+  int resolved_attempt_number() { return resolved_attempt_number_; }
+
+  // HostResolverProc methods.
+  virtual int Resolve(const std::string& host,
+                      AddressFamily address_family,
+                      HostResolverFlags host_resolver_flags,
+                      AddressList* addrlist,
+                      int* os_error) {
+    bool wait_for_right_attempt_to_complete = true;
+    {
+      base::AutoLock auto_lock(lock_);
+      ++current_attempt_number_;
+      if (current_attempt_number_ == attempt_number_to_resolve_) {
+        resolved_attempt_number_ = current_attempt_number_;
+        wait_for_right_attempt_to_complete = false;
+      }
+    }
+
+    if (wait_for_right_attempt_to_complete)
+      // Wait for the attempt_number_to_resolve_ attempt to resolve.
+      WaitForAnAttemptToComplete();
+
+    int result = ResolveUsingPrevious(host, address_family, host_resolver_flags,
+                                      addrlist, os_error);
+
+    {
+      base::AutoLock auto_lock(lock_);
+      ++total_attempts_resolved_;
+    }
+
+    all_done_.Broadcast();  // Tell all attempts to proceed.
+
+    // Since any negative number is considered a network error, with -1 having
+    // special meaning (ERR_IO_PENDING). We could return the attempt that has
+    // resolved the host as a negative number. For example, if attempt number 3
+    // resolves the host, then this method returns -4.
+    if (result == OK)
+      return -1 - resolved_attempt_number_;
+    else
+      return result;
+  }
+
+ private:
+  virtual ~LookupAttemptHostResolverProc() {}
+
+  int attempt_number_to_resolve_;
+  int current_attempt_number_;  // Incremented whenever Resolve is called.
+  int total_attempts_;
+  int total_attempts_resolved_;
+  int resolved_attempt_number_;
+
+  // All attempts wait for right attempt to be resolve.
+  base::Lock lock_;
+  base::ConditionVariable all_done_;
 };
 
 // Helper that represents a single Resolve() result, used to inspect all the
@@ -346,6 +452,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
         new HostResolverImpl(resolver_proc,
                              CreateDefaultCache(),
                              kMaxJobs,
+                             kMaxRetryAttempts,
                              &net_log));
     AddressList addrlist;
     const int kPortnum = 80;
@@ -792,7 +899,8 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
 
   // Turn off caching for this host resolver.
   scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, NULL, kMaxJobs, NULL));
+      new HostResolverImpl(resolver_proc, NULL, kMaxJobs, kMaxRetryAttempts,
+                           NULL));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened.
@@ -1092,7 +1200,8 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
 // Test that IP address changes flush the cache.
 TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(NULL, CreateDefaultCache(), kMaxJobs, NULL));
+      new HostResolverImpl(NULL, CreateDefaultCache(), kMaxJobs,
+                           kMaxRetryAttempts, NULL));
 
   AddressList addrlist;
 
@@ -1126,7 +1235,8 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
       new WaitingHostResolverProc(NULL));
   HostCache* cache = CreateDefaultCache();
   scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, cache, kMaxJobs, NULL));
+      new HostResolverImpl(resolver_proc, cache, kMaxJobs, kMaxRetryAttempts,
+                           NULL));
 
   // Resolve "host1".
   HostResolver::RequestInfo info(HostPortPair("host1", 70));
@@ -1249,9 +1359,10 @@ TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   size_t kMaxJobs = 1u;
+  const size_t kRetryAttempts = 0u;
   scoped_ptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs,
-                           NULL));
+                           kRetryAttempts, NULL));
 
   CapturingObserver observer;
   host_resolver->AddObserver(&observer);
@@ -1334,9 +1445,10 @@ TEST_F(HostResolverImplTest, CancelPendingRequest) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxJobs = 1u;
+  const size_t kRetryAttempts = 0u;
   scoped_ptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs,
-                           NULL));
+                           kRetryAttempts, NULL));
 
   // Note that at this point the CapturingHostResolverProc is blocked, so any
   // requests we make will not complete.
@@ -1397,8 +1509,10 @@ TEST_F(HostResolverImplTest, QueueOverflow) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
+  const size_t kRetryAttempts = 0u;
   scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
+      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, kRetryAttempts,
+      NULL));
 
   // Only allow up to 3 requests to be enqueued at a time.
   const size_t kMaxPendingRequests = 3u;
@@ -1475,8 +1589,10 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv4) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
+  const size_t kRetryAttempts = 0u;
   scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
+      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, kRetryAttempts,
+      NULL));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV4);
 
@@ -1543,8 +1659,10 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv6) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
+  const size_t kRetryAttempts = 0u;
   scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
+      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, kRetryAttempts,
+      NULL));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV6);
 
@@ -1608,9 +1726,8 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_Synchronous) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc(
       new CapturingHostResolverProc(new EchoingHostResolverProc));
 
-  const size_t kMaxOutstandingJobs = 10u;
   scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
+      resolver_proc, CreateDefaultCache(), kMaxJobs, kMaxRetryAttempts, NULL));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV4);
 
@@ -1694,8 +1811,48 @@ TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
   EXPECT_TRUE(htons(kPortnum) == sa_in->sin_port);
   EXPECT_TRUE(htonl(0xc0a8012a) == sa_in->sin_addr.s_addr);
 }
-// TODO(cbentzel): Test a mix of requests with different HostResolverFlags.
 
-}  // namespace
+// Test the retry attempts simulating host resolver proc that takes too long.
+TEST_F(HostResolverImplTest, MultipleAttempts) {
+  // Total number of attempts would be 3 and we want the 3rd attempt to resolve
+  // the host. First and second attempt will be forced to sleep until they get
+  // word that a resolution has completed. The 3rd resolution attempt will try
+  // to get done ASAP, and won't sleep..
+  int kAttemptNumberToResolve = 3;
+  int kTotalAttempts = 3;
+
+  scoped_refptr<LookupAttemptHostResolverProc> resolver_proc(
+      new LookupAttemptHostResolverProc(
+          NULL, kAttemptNumberToResolve, kTotalAttempts));
+  HostCache* cache = CreateDefaultCache();
+  scoped_ptr<HostResolverImpl> host_resolver(
+      new HostResolverImpl(resolver_proc, cache, kMaxJobs, kMaxRetryAttempts,
+                           NULL));
+
+  // Specify smaller interval for unresponsive_delay_ for HostResolverImpl so
+  // that unit test runs faster. For example, this test finishes in 1.5 secs
+  // (500ms * 3).
+  TimeDelta kUnresponsiveTime = TimeDelta::FromMilliseconds(500);
+  host_resolver->set_unresponsive_delay(kUnresponsiveTime);
+
+  // Resolve "host1".
+  HostResolver::RequestInfo info(HostPortPair("host1", 70));
+  TestCompletionCallback callback;
+  AddressList addrlist;
+  int rv = host_resolver->Resolve(info, &addrlist, &callback, NULL,
+                                  BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // Resolve returns -4 to indicate that 3rd attempt has resolved the host.
+  EXPECT_EQ(-4, callback.WaitForResult());
+
+  resolver_proc->WaitForAllAttemptsToFinish(TimeDelta::FromMilliseconds(60000));
+  MessageLoop::current()->RunAllPending();
+
+  EXPECT_EQ(resolver_proc->total_attempts_resolved(), kTotalAttempts);
+  EXPECT_EQ(resolver_proc->resolved_attempt_number(), kAttemptNumberToResolve);
+}
+
+// TODO(cbentzel): Test a mix of requests with different HostResolverFlags.
 
 }  // namespace net

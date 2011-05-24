@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,29 +9,30 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 
 namespace net {
 
 class AddressList;
 class CertVerifier;
-class ClientSocket;
 class ClientSocketHandle;
 class DnsCertProvenanceChecker;
 class HostPortPair;
 class SSLClientSocket;
 struct SSLConfig;
 class SSLHostInfo;
+class StreamSocket;
 
-// An interface used to instantiate ClientSocket objects.  Used to facilitate
+// An interface used to instantiate StreamSocket objects.  Used to facilitate
 // testing code with mock socket implementations.
-class ClientSocketFactory {
+class NET_API ClientSocketFactory {
  public:
   virtual ~ClientSocketFactory() {}
 
   // |source| is the NetLog::Source for the entity trying to create the socket,
   // if it has one.
-  virtual ClientSocket* CreateTransportClientSocket(
+  virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
       const NetLog::Source& source) = 0;
@@ -44,9 +45,9 @@ class ClientSocketFactory {
       CertVerifier* cert_verifier,
       DnsCertProvenanceChecker* dns_cert_checker) = 0;
 
-  // Deprecated function (http://crbug.com/37810) that takes a ClientSocket.
+  // Deprecated function (http://crbug.com/37810) that takes a StreamSocket.
   virtual SSLClientSocket* CreateSSLClientSocket(
-      ClientSocket* transport_socket,
+      StreamSocket* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,

@@ -63,12 +63,12 @@ struct GConfValues {
 
 // Mapping from a setting name to the location of the corresponding
 // value (inside a EnvVarValues or GConfValues struct).
-template<typename value_type>
+template<typename key_type, typename value_type>
 struct SettingsTable {
-  typedef std::map<std::string, value_type*> map_type;
+  typedef std::map<key_type, value_type*> map_type;
 
   // Gets the value from its location
-  value_type Get(const std::string& key) {
+  value_type Get(key_type key) {
     typename map_type::const_iterator it = settings.find(key);
     // In case there's a typo or the unittest becomes out of sync.
     CHECK(it != settings.end()) << "key " << key << " not found";
@@ -82,7 +82,7 @@ struct SettingsTable {
 class MockEnvironment : public base::Environment {
  public:
   MockEnvironment() {
-#define ENTRY(x) table.settings[#x] = &values.x
+#define ENTRY(x) table[#x] = &values.x
     ENTRY(DESKTOP_SESSION);
     ENTRY(HOME);
     ENTRY(KDEHOME);
@@ -99,7 +99,7 @@ class MockEnvironment : public base::Environment {
     Reset();
   }
 
-  // Zeros all environment values.
+  // Zeroes all environment values.
   void Reset() {
     EnvVarValues zero_values = { 0 };
     values = zero_values;
@@ -107,10 +107,11 @@ class MockEnvironment : public base::Environment {
 
   // Begin base::Environment implementation.
   virtual bool GetVar(const char* variable_name, std::string* result) {
-    const char* env_value = table.Get(variable_name);
-    if (env_value) {
+    std::map<std::string, const char**>::iterator it =
+        table.find(variable_name);
+    if (it != table.end() && *(it->second) != NULL) {
       // Note that the variable may be defined but empty.
-      *result = env_value;
+      *result = *(it->second);
       return true;
     }
     return false;
@@ -131,37 +132,38 @@ class MockEnvironment : public base::Environment {
   EnvVarValues values;
 
  private:
-  SettingsTable<const char*> table;
+  std::map<std::string, const char**> table;
 };
 
-class MockGConfSettingGetter
-    : public ProxyConfigServiceLinux::GConfSettingGetter {
+class MockSettingGetter
+    : public ProxyConfigServiceLinux::SettingGetter {
  public:
-  MockGConfSettingGetter() {
+  typedef ProxyConfigServiceLinux::SettingGetter SettingGetter;
+  MockSettingGetter() {
 #define ENTRY(key, field) \
-      strings_table.settings["/system/" key] = &values.field
-    ENTRY("proxy/mode", mode);
-    ENTRY("proxy/autoconfig_url", autoconfig_url);
-    ENTRY("http_proxy/host", http_host);
-    ENTRY("proxy/secure_host", secure_host);
-    ENTRY("proxy/ftp_host", ftp_host);
-    ENTRY("proxy/socks_host", socks_host);
+      strings_table.settings[SettingGetter::key] = &values.field
+    ENTRY(PROXY_MODE, mode);
+    ENTRY(PROXY_AUTOCONF_URL, autoconfig_url);
+    ENTRY(PROXY_HTTP_HOST, http_host);
+    ENTRY(PROXY_HTTPS_HOST, secure_host);
+    ENTRY(PROXY_FTP_HOST, ftp_host);
+    ENTRY(PROXY_SOCKS_HOST, socks_host);
 #undef ENTRY
 #define ENTRY(key, field) \
-      ints_table.settings["/system/" key] = &values.field
-    ENTRY("http_proxy/port", http_port);
-    ENTRY("proxy/secure_port", secure_port);
-    ENTRY("proxy/ftp_port", ftp_port);
-    ENTRY("proxy/socks_port", socks_port);
+      ints_table.settings[SettingGetter::key] = &values.field
+    ENTRY(PROXY_HTTP_PORT, http_port);
+    ENTRY(PROXY_HTTPS_PORT, secure_port);
+    ENTRY(PROXY_FTP_PORT, ftp_port);
+    ENTRY(PROXY_SOCKS_PORT, socks_port);
 #undef ENTRY
 #define ENTRY(key, field) \
-      bools_table.settings["/system/" key] = &values.field
-    ENTRY("http_proxy/use_http_proxy", use_proxy);
-    ENTRY("http_proxy/use_same_proxy", same_proxy);
-    ENTRY("http_proxy/use_authentication", use_auth);
+      bools_table.settings[SettingGetter::key] = &values.field
+    ENTRY(PROXY_USE_HTTP_PROXY, use_proxy);
+    ENTRY(PROXY_USE_SAME_PROXY, same_proxy);
+    ENTRY(PROXY_USE_AUTHENTICATION, use_auth);
 #undef ENTRY
-    string_lists_table.settings["/system/http_proxy/ignore_hosts"] =
-      &values.ignore_hosts;
+    string_lists_table.settings[SettingGetter::PROXY_IGNORE_HOSTS] =
+        &values.ignore_hosts;
     Reset();
   }
 
@@ -176,9 +178,9 @@ class MockGConfSettingGetter
     return true;
   }
 
-  virtual void Shutdown() {}
+  virtual void ShutDown() {}
 
-  virtual bool SetupNotification(ProxyConfigServiceLinux::Delegate* delegate) {
+  virtual bool SetUpNotifications(ProxyConfigServiceLinux::Delegate* delegate) {
     return true;
   }
 
@@ -190,7 +192,7 @@ class MockGConfSettingGetter
     return "test";
   }
 
-  virtual bool GetString(const char* key, std::string* result) {
+  virtual bool GetString(StringSetting key, std::string* result) {
     const char* value = strings_table.Get(key);
     if (value) {
       *result = value;
@@ -199,13 +201,7 @@ class MockGConfSettingGetter
     return false;
   }
 
-  virtual bool GetInt(const char* key, int* result) {
-    // We don't bother to distinguish unset keys from 0 values.
-    *result = ints_table.Get(key);
-    return true;
-  }
-
-  virtual bool GetBoolean(const char* key, bool* result) {
+  virtual bool GetBool(BoolSetting key, bool* result) {
     BoolSettingValue value = bools_table.Get(key);
     switch (value) {
     case UNSET:
@@ -219,7 +215,13 @@ class MockGConfSettingGetter
     return true;
   }
 
-  virtual bool GetStringList(const char* key,
+  virtual bool GetInt(IntSetting key, int* result) {
+    // We don't bother to distinguish unset keys from 0 values.
+    *result = ints_table.Get(key);
+    return true;
+  }
+
+  virtual bool GetStringList(StringListSetting key,
                              std::vector<std::string>* result) {
     *result = string_lists_table.Get(key);
     // We don't bother to distinguish unset keys from empty lists.
@@ -238,10 +240,11 @@ class MockGConfSettingGetter
   GConfValues values;
 
  private:
-  SettingsTable<const char*> strings_table;
-  SettingsTable<int> ints_table;
-  SettingsTable<BoolSettingValue> bools_table;
-  SettingsTable<std::vector<std::string> > string_lists_table;
+  SettingsTable<StringSetting, const char*> strings_table;
+  SettingsTable<BoolSetting, BoolSettingValue> bools_table;
+  SettingsTable<IntSetting, int> ints_table;
+  SettingsTable<StringListSetting,
+                std::vector<std::string> > string_lists_table;
 };
 
 }  // namespace
@@ -601,6 +604,58 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     },
 
     {
+      TEST_DESC("Per-scheme proxy rules with fallback to SOCKS"),
+      { // Input.
+        "manual",                                     // mode
+        "",                                           // autoconfig_url
+        "www.google.com",                             // http_host
+        "www.foo.com",                                // secure_host
+        "ftp.foo.com",                                // ftp
+        "foobar.net",                                 // socks
+        88, 110, 121, 99,                             // ports
+        TRUE, FALSE, FALSE,                           // use, same, auth
+        empty_ignores,                                // ignore_hosts
+      },
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                                          // auto_detect
+      GURL(),                                         // pac_url
+      ProxyRulesExpectation::PerSchemeWithSocks(
+          "www.google.com:88",      // http
+          "www.foo.com:110",        // https
+          "ftp.foo.com:121",        // ftp
+          "socks5://foobar.net:99", // socks
+          ""),                      // bypass rules
+    },
+
+    {
+      TEST_DESC("Per-scheme proxy rules (just HTTP) with fallback to SOCKS"),
+      { // Input.
+        "manual",                                     // mode
+        "",                                           // autoconfig_url
+        "www.google.com",                             // http_host
+        "",                                           // secure_host
+        "",                                           // ftp
+        "foobar.net",                                 // socks
+        88, 0, 0, 99,                                 // ports
+        TRUE, FALSE, FALSE,                           // use, same, auth
+        empty_ignores,                                // ignore_hosts
+      },
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                                          // auto_detect
+      GURL(),                                         // pac_url
+      ProxyRulesExpectation::PerSchemeWithSocks(
+          "www.google.com:88",      // http
+          "",                       // https
+          "",                       // ftp
+          "socks5://foobar.net:99", // socks
+          ""),                      // bypass rules
+    },
+
+    {
       TEST_DESC("Bypass *.google.com"),
       { // Input.
         "manual",                                     // mode
@@ -624,11 +679,11 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "] %s", i,
                                     tests[i].description.c_str()));
     MockEnvironment* env = new MockEnvironment;
-    MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
+    MockSettingGetter* setting_getter = new MockSettingGetter;
     SynchConfigGetter sync_config_getter(
-        new ProxyConfigServiceLinux(env, gconf_getter));
+        new ProxyConfigServiceLinux(env, setting_getter));
     ProxyConfig config;
-    gconf_getter->values = tests[i].values;
+    setting_getter->values = tests[i].values;
     sync_config_getter.SetupAndInitialFetch();
     ProxyConfigService::ConfigAvailability availability =
         sync_config_getter.SyncGetLatestProxyConfig(&config);
@@ -932,9 +987,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "] %s", i,
                                     tests[i].description.c_str()));
     MockEnvironment* env = new MockEnvironment;
-    MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
+    MockSettingGetter* setting_getter = new MockSettingGetter;
     SynchConfigGetter sync_config_getter(
-        new ProxyConfigServiceLinux(env, gconf_getter));
+        new ProxyConfigServiceLinux(env, setting_getter));
     ProxyConfig config;
     env->values = tests[i].values;
     sync_config_getter.SetupAndInitialFetch();
@@ -952,22 +1007,22 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
 
 TEST_F(ProxyConfigServiceLinuxTest, GconfNotification) {
   MockEnvironment* env = new MockEnvironment;
-  MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
+  MockSettingGetter* setting_getter = new MockSettingGetter;
   ProxyConfigServiceLinux* service =
-      new ProxyConfigServiceLinux(env, gconf_getter);
+      new ProxyConfigServiceLinux(env, setting_getter);
   SynchConfigGetter sync_config_getter(service);
   ProxyConfig config;
 
   // Start with no proxy.
-  gconf_getter->values.mode = "none";
+  setting_getter->values.mode = "none";
   sync_config_getter.SetupAndInitialFetch();
   EXPECT_EQ(ProxyConfigService::CONFIG_VALID,
             sync_config_getter.SyncGetLatestProxyConfig(&config));
   EXPECT_FALSE(config.auto_detect());
 
   // Now set to auto-detect.
-  gconf_getter->values.mode = "auto";
-  // Simulate gconf notification callback.
+  setting_getter->values.mode = "auto";
+  // Simulate setting change notification callback.
   service->OnCheckProxyConfigSettings();
   EXPECT_EQ(ProxyConfigService::CONFIG_VALID,
             sync_config_getter.SyncGetLatestProxyConfig(&config));
@@ -978,7 +1033,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
   // One of the tests below needs a worst-case long line prefix. We build it
   // programmatically so that it will always be the right size.
   std::string long_line;
-  size_t limit = ProxyConfigServiceLinux::GConfSettingGetter::BUFFER_SIZE - 1;
+  size_t limit = ProxyConfigServiceLinux::SettingGetter::BUFFER_SIZE - 1;
   for (size_t i = 0; i < limit; ++i)
     long_line += "-";
 

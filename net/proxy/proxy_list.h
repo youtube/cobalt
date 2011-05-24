@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "net/base/net_api.h"
 #include "net/proxy/proxy_retry_info.h"
 
 namespace net {
@@ -18,7 +19,7 @@ class ProxyServer;
 // This class is used to hold a list of proxies returned by GetProxyForUrl or
 // manually configured. It handles proxy fallback if multiple servers are
 // specified.
-class ProxyList {
+class NET_TEST ProxyList {
  public:
   ProxyList();
   ~ProxyList();

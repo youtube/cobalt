@@ -8,7 +8,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
-#include "base/mac/mac_util.h"
+#include "base/mac/foundation_util.h"
 #include "base/sys_string_conversions.h"
 
 FileVersionInfoMac::FileVersionInfoMac(NSBundle *bundle)

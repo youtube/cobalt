@@ -9,8 +9,8 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop.h"
+#include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
-#include "base/string_util.h"
 #include "base/threading/platform_thread.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -18,12 +18,12 @@
 #include "net/base/request_priority.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_response_headers.h"
-#include "net/socket/client_socket.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/ssl_host_info.h"
+#include "net/socket/stream_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -43,7 +43,7 @@ class TestSocketParams : public base::RefCounted<TestSocketParams> {
 };
 typedef ClientSocketPoolBase<TestSocketParams> TestClientSocketPoolBase;
 
-class MockClientSocket : public ClientSocket {
+class MockClientSocket : public StreamSocket {
  public:
   MockClientSocket() : connected_(false), was_used_to_convey_data_(false) {}
 
@@ -61,7 +61,7 @@ class MockClientSocket : public ClientSocket {
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
   virtual bool SetSendBufferSize(int32 size) { return true; }
 
-  // ClientSocket methods:
+  // StreamSocket methods:
 
   virtual int Connect(CompletionCallback* callback) {
     connected_ = true;
@@ -103,7 +103,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
  public:
   MockClientSocketFactory() : allocation_count_(0) {}
 
-  virtual ClientSocket* CreateTransportClientSocket(
+  virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* /* net_log */,
       const NetLog::Source& /*source*/) {
@@ -416,7 +416,7 @@ class TestClientSocketPool : public ClientSocketPool {
 
   virtual void ReleaseSocket(
       const std::string& group_name,
-      ClientSocket* socket,
+      StreamSocket* socket,
       int id) {
     base_.ReleaseSocket(group_name, socket, id);
   }
@@ -500,7 +500,7 @@ class TestConnectJobDelegate : public ConnectJob::Delegate {
 
   virtual void OnConnectJobComplete(int result, ConnectJob* job) {
     result_ = result;
-    scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
+    scoped_ptr<StreamSocket> socket(job->ReleaseSocket());
     // socket.get() should be NULL iff result != OK
     EXPECT_EQ(socket.get() == NULL, result != OK);
     delete job;
@@ -1071,12 +1071,13 @@ TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
     ClientSocketHandle handles[kDefaultMaxSockets];
     for (int i = 0; i < kDefaultMaxSockets; ++i) {
       TestCompletionCallback callback;
-      EXPECT_EQ(OK, handles[i].Init(base::StringPrintf("Take 2: %d", i),
-                                    params_,
-                                    kDefaultPriority,
-                                    &callback,
-                                    pool_.get(),
-                                    BoundNetLog()));
+      EXPECT_EQ(OK, handles[i].Init(base::StringPrintf(
+          "Take 2: %d", i),
+          params_,
+          kDefaultPriority,
+          &callback,
+          pool_.get(),
+          BoundNetLog()));
     }
 
     EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
@@ -3127,6 +3128,61 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectClosesIdleSocketRemovesGroup) {
   EXPECT_EQ(0, pool_->NumConnectJobsInGroup("b"));
   EXPECT_EQ(1, pool_->IdleSocketCountInGroup("b"));
   EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("b"));
+}
+
+TEST_F(ClientSocketPoolBaseTest, PreconnectWithoutBackupTimer) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  pool_->EnableConnectBackupJobs();
+
+  // Make the ConnectJob hang until it times out, shorten the timeout.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+  connect_job_factory_->set_timeout_duration(
+      base::TimeDelta::FromMilliseconds(500));
+  pool_->RequestSockets("a", &params_, 1, BoundNetLog());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+  MessageLoop::current()->RunAllPending();
+
+  // Make sure the backup timer doesn't fire, by making it a pending job instead
+  // of a waiting job, so it *would* complete if the timer fired.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+  base::PlatformThread::Sleep(1000);
+  MessageLoop::current()->RunAllPending();
+  EXPECT_FALSE(pool_->HasGroup("a"));
+}
+
+TEST_F(ClientSocketPoolBaseTest, PreconnectWithBackupTimer) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  pool_->EnableConnectBackupJobs();
+
+  // Make the ConnectJob hang forever.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+  pool_->RequestSockets("a", &params_, 1, BoundNetLog());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+  MessageLoop::current()->RunAllPending();
+
+  // Make the backup job be a pending job, so it completes normally.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+  EXPECT_EQ(ERR_IO_PENDING, handle.Init("a",
+                                        params_,
+                                        kDefaultPriority,
+                                        &callback,
+                                        pool_.get(),
+                                        BoundNetLog()));
+  // Timer has started, but the other connect job shouldn't be created yet.
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+  EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("a"));
+  ASSERT_EQ(OK, callback.WaitForResult());
+
+  // The hung connect job should still be there, but everything else should be
+  // complete.
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+  EXPECT_EQ(1, pool_->NumActiveSocketsInGroup("a"));
 }
 
 }  // namespace

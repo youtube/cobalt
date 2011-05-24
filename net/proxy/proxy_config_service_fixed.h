@@ -13,7 +13,7 @@
 namespace net {
 
 // Implementation of ProxyConfigService that returns a fixed result.
-class ProxyConfigServiceFixed : public ProxyConfigService {
+class NET_API ProxyConfigServiceFixed : public ProxyConfigService {
  public:
   explicit ProxyConfigServiceFixed(const ProxyConfig& pc);
   virtual ~ProxyConfigServiceFixed();

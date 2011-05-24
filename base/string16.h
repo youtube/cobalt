@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <string>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 #if defined(WCHAR_T_IS_UTF16)
@@ -46,12 +47,12 @@ namespace base {
 // char16 versions of the functions required by string16_char_traits; these
 // are based on the wide character functions of similar names ("w" or "wcs"
 // instead of "c16").
-int c16memcmp(const char16* s1, const char16* s2, size_t n);
-size_t c16len(const char16* s);
-const char16* c16memchr(const char16* s, char16 c, size_t n);
-char16* c16memmove(char16* s1, const char16* s2, size_t n);
-char16* c16memcpy(char16* s1, const char16* s2, size_t n);
-char16* c16memset(char16* s, char16 c, size_t n);
+BASE_API int c16memcmp(const char16* s1, const char16* s2, size_t n);
+BASE_API size_t c16len(const char16* s);
+BASE_API const char16* c16memchr(const char16* s, char16 c, size_t n);
+BASE_API char16* c16memmove(char16* s1, const char16* s2, size_t n);
+BASE_API char16* c16memcpy(char16* s1, const char16* s2, size_t n);
+BASE_API char16* c16memset(char16* s, char16 c, size_t n);
 
 struct string16_char_traits {
   typedef char16 char_type;
@@ -168,7 +169,8 @@ extern template class std::basic_string<char16, base::string16_char_traits>;
 typedef std::basic_string<char16, base::string16_char_traits> string16;
 
 namespace base {
-extern std::ostream& operator<<(std::ostream& out, const string16& str);
+BASE_API extern std::ostream& operator<<(std::ostream& out,
+                                         const string16& str);
 }
 
 #endif  // WCHAR_T_IS_UTF32

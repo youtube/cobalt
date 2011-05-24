@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/memory/scoped_ptr.h"
+#include "net/base/net_api.h"
 #include "net/base/upload_data.h"
 
 namespace net {
@@ -14,7 +15,7 @@ namespace net {
 class FileStream;
 class IOBuffer;
 
-class UploadDataStream {
+class NET_API UploadDataStream {
  public:
   ~UploadDataStream();
 
@@ -62,9 +63,8 @@ class UploadDataStream {
   // returns true only after the data in buf() has been consumed.
   bool IsOnLastChunk() const;
 
-#if defined(UNIT_TEST)
+  // This method is provided only to be used by unit tests.
   static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
-#endif
 
  private:
   enum { kBufSize = 16384 };

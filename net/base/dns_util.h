@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -17,14 +18,14 @@ namespace net {
 //
 //   dotted: a string in dotted form: "www.google.com"
 //   out: a result in DNS form: "\x03www\x06google\x03com\x00"
-bool DNSDomainFromDot(const std::string& dotted, std::string* out);
+NET_TEST bool DNSDomainFromDot(const std::string& dotted, std::string* out);
 
 // DNSDomainToString coverts a domain in DNS format to a dotted string.
-std::string DNSDomainToString(const std::string& domain);
+NET_TEST std::string DNSDomainToString(const std::string& domain);
 
 // Returns true iff the given character is in the set of valid DNS label
 // characters as given in RFC 3490, 4.1, 3(a)
-bool IsSTD3ASCIIValidCharacter(char c);
+NET_TEST bool IsSTD3ASCIIValidCharacter(char c);
 
 // Returns the hostname by trimming the ending dot, if one exists.
 std::string TrimEndingDot(const std::string& host);

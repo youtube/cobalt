@@ -215,10 +215,10 @@ bool IsKnownRoot(CERTCertificate* root) {
                      "NSS Builtin Objects");
 }
 
-typedef char* (*CERTGetNameFunc)(CERTName* name);
-
 void ParsePrincipal(CERTName* name,
                     CertPrincipal* principal) {
+  typedef char* (*CERTGetNameFunc)(CERTName* name);
+
   // TODO(jcampan): add business_category and serial_number.
   // TODO(wtc): NSS has the CERT_GetOrgName, CERT_GetOrgUnitName, and
   // CERT_GetDomainComponentName functions, but they return only the most
@@ -277,7 +277,7 @@ void ParsePrincipal(CERTName* name,
 void ParseDate(SECItem* der_date, base::Time* result) {
   PRTime prtime;
   SECStatus rv = DER_DecodeTimeChoice(&prtime, der_date);
-  DCHECK(rv == SECSuccess);
+  DCHECK_EQ(SECSuccess, rv);
   *result = crypto::PRTimeToBaseTime(prtime);
 }
 
@@ -292,7 +292,8 @@ void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
 
   SECItem alt_name;
   SECStatus rv = CERT_FindCertExtension(cert_handle,
-      SEC_OID_X509_SUBJECT_ALT_NAME, &alt_name);
+                                        SEC_OID_X509_SUBJECT_ALT_NAME,
+                                        &alt_name);
   if (rv != SECSuccess)
     return;
 
@@ -534,8 +535,9 @@ SECStatus RetryPKIXVerifyCertWithWorkarounds(
 CERTCertificatePolicies* DecodeCertPolicies(
     X509Certificate::OSCertHandle cert_handle) {
   SECItem policy_ext;
-  SECStatus rv = CERT_FindCertExtension(
-      cert_handle, SEC_OID_X509_CERTIFICATE_POLICIES, &policy_ext);
+  SECStatus rv = CERT_FindCertExtension(cert_handle,
+                                        SEC_OID_X509_CERTIFICATE_POLICIES,
+                                        &policy_ext);
   if (rv != SECSuccess)
     return NULL;
   CERTCertificatePolicies* policies =
@@ -980,11 +982,11 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
   memset(sha1.data, 0, sizeof(sha1.data));
 
   DCHECK(NULL != cert->derCert.data);
-  DCHECK(0 != cert->derCert.len);
+  DCHECK_NE(0U, cert->derCert.len);
 
   SECStatus rv = HASH_HashBuf(HASH_AlgSHA1, sha1.data,
                               cert->derCert.data, cert->derCert.len);
-  DCHECK(rv == SECSuccess);
+  DCHECK_EQ(SECSuccess, rv);
 
   return sha1;
 }

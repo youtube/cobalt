@@ -6,7 +6,7 @@
 #define NET_BASE_COMPLETION_CALLBACK_H__
 #pragma once
 
-#include "base/callback.h"
+#include "base/callback_old.h"
 
 namespace net {
 

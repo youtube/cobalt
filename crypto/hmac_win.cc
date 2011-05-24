@@ -156,7 +156,7 @@ HMAC::~HMAC() {
 
 bool HMAC::Sign(const std::string& data,
                 unsigned char* digest,
-                int digest_length) {
+                int digest_length) const {
   if (hash_alg_ == SHA256) {
     if (plat_->raw_key_.empty())
       return false;

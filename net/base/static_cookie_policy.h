@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "net/base/cookie_policy.h"
+#include "net/base/net_api.h"
 
 class GURL;
 
@@ -17,11 +17,7 @@ namespace net {
 
 // The StaticCookiePolicy class implements a static cookie policy that supports
 // three modes: allow all, deny all, or block third-party cookies.
-//
-// NOTE: This CookiePolicy implementation always completes synchronously.  The
-// callback parameter will be ignored if specified.  Just pass NULL.
-//
-class StaticCookiePolicy : public CookiePolicy {
+class NET_API StaticCookiePolicy {
  public:
   // Do not change the order of these types as they are persisted in
   // preferences.
@@ -49,18 +45,15 @@ class StaticCookiePolicy : public CookiePolicy {
   void set_type(Type type) { type_ = type; }
   Type type() const { return type_; }
 
-  // CookiePolicy methods:
-
   // Consults the user's third-party cookie blocking preferences to determine
   // whether the URL's cookies can be read.
-  virtual int CanGetCookies(const GURL& url,
-                            const GURL& first_party_for_cookies) const;
+  int CanGetCookies(const GURL& url, const GURL& first_party_for_cookies) const;
 
   // Consults the user's third-party cookie blocking preferences to determine
   // whether the URL's cookies can be set.
-  virtual int CanSetCookie(const GURL& url,
-                           const GURL& first_party_for_cookies,
-                           const std::string& cookie_line) const;
+  int CanSetCookie(const GURL& url,
+                   const GURL& first_party_for_cookies,
+                   const std::string& cookie_line) const;
 
  private:
   Type type_;

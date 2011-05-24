@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -116,7 +116,7 @@ void Eviction::TrimCache(bool empty) {
   Rankings::ScopedRankingsBlock next(rankings_,
       rankings_->GetPrev(node.get(), Rankings::NO_USE));
   int target_size = empty ? 0 : max_size_;
-  while (header_->num_bytes > target_size && next.get()) {
+  while ((header_->num_bytes > target_size && next.get()) || test_mode_) {
     // The iterator could be invalidated within EvictEntry().
     if (!next->HasData())
       break;
@@ -237,6 +237,7 @@ void Eviction::ReportTrimTimes(EntryImpl* entry) {
     if (header_->create_time) {
       // This is the first entry that we have to evict, generate some noise.
       backend_->FirstEviction();
+      in_experiment_ = (header_->experiment == EXPERIMENT_DELETED_LIST_IN);
     } else {
       // This is an old file, but we may want more reports from this user so
       // lets save some create_time.
@@ -266,7 +267,7 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty) {
   } else {
     entry->DeleteEntryData(false);
     EntryStore* info = entry->entry()->Data();
-    DCHECK(ENTRY_NORMAL == info->state);
+    DCHECK_EQ(ENTRY_NORMAL, info->state);
 
     rankings_->Remove(entry->rankings(), GetListForEntryV2(entry));
     info->state = ENTRY_EVICTED;
@@ -304,15 +305,8 @@ void Eviction::TrimCacheV2(bool empty) {
   }
 
   // If we are not meeting the time targets lets move on to list length.
-  if (!empty && Rankings::LAST_ELEMENT == list) {
-    list = SelectListByLenght();
-    // Make sure that frequently used items are kept for a minimum time; we know
-    // that this entry is not older than its current target, but it must be at
-    // least older than the target for list 0 (kTargetTime).
-    if ((Rankings::HIGH_USE == list || Rankings::LOW_USE == list) &&
-        !NodeIsOldEnough(next[list].get(), 0))
-      list = 0;
-  }
+  if (!empty && Rankings::LAST_ELEMENT == list)
+    list = SelectListByLength(next);
 
   if (empty)
     list = 0;
@@ -321,7 +315,8 @@ void Eviction::TrimCacheV2(bool empty) {
 
   int target_size = empty ? 0 : max_size_;
   for (; list < kListsToSearch; list++) {
-    while (header_->num_bytes > target_size && next[list].get()) {
+    while ((header_->num_bytes > target_size && next[list].get()) ||
+           test_mode_) {
       // The iterator could be invalidated within EvictEntry().
       if (!next[list]->HasData())
         break;
@@ -374,7 +369,7 @@ void Eviction::UpdateRankV2(EntryImpl* entry, bool modified) {
 
 void Eviction::OnOpenEntryV2(EntryImpl* entry) {
   EntryStore* info = entry->entry()->Data();
-  DCHECK(ENTRY_NORMAL == info->state);
+  DCHECK_EQ(ENTRY_NORMAL, info->state);
 
   if (info->reuse_count < kint32max) {
     info->reuse_count++;
@@ -440,7 +435,7 @@ void Eviction::OnDestroyEntryV2(EntryImpl* entry) {
 
 Rankings::List Eviction::GetListForEntryV2(EntryImpl* entry) {
   EntryStore* info = entry->entry()->Data();
-  DCHECK(ENTRY_NORMAL == info->state);
+  DCHECK_EQ(ENTRY_NORMAL, info->state);
 
   if (!info->reuse_count)
     return Rankings::NO_USE;
@@ -514,15 +509,24 @@ bool Eviction::NodeIsOldEnough(CacheRankingsBlock* node, int list) {
   return (Time::Now() - used).InHours() > kTargetTime * multiplier;
 }
 
-int Eviction::SelectListByLenght() {
+int Eviction::SelectListByLength(Rankings::ScopedRankingsBlock* next) {
   int data_entries = header_->num_entries -
                      header_->lru.sizes[Rankings::DELETED];
   // Start by having each list to be roughly the same size.
   if (header_->lru.sizes[0] > data_entries / 3)
     return 0;
-  if (header_->lru.sizes[1] > data_entries / 3)
-    return 1;
-  return 2;
+
+  int list = (header_->lru.sizes[1] > data_entries / 3) ? 1 : 2;
+
+  // Make sure that frequently used items are kept for a minimum time; we know
+  // that this entry is not older than its current target, but it must be at
+  // least older than the target for list 0 (kTargetTime), as long as we don't
+  // exhaust list 0.
+  if (!NodeIsOldEnough(next[list].get(), 0) &&
+      header_->lru.sizes[0] > data_entries / 10)
+    list = 0;
+
+  return list;
 }
 
 void Eviction::ReportListStats() {

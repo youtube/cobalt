@@ -13,13 +13,13 @@
         'pkg-config': 'pkg-config'
       },
     }],
-    [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+    [ 'os_posix==1 and OS!="mac"', {
       'variables': {
         # We use our own copy of libssl3, although we still need to link against
         # the rest of NSS.
         'use_system_ssl%': 0,
       },
-    }, {  # OS!="linux"
+    }, {
       'variables': {
         'use_system_ssl%': 1,
       },
@@ -212,6 +212,41 @@
       }]]
     },
     {
+      'target_name': 'gio',
+      'type': 'settings',
+      'conditions': [
+        ['use_gio==1 and _toolset=="target"', {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(<(pkg-config) --cflags gio-2.0)',
+            ],
+            'defines': [
+              'USE_GIO',
+            ],
+            'conditions': [
+              ['linux_link_gsettings==0', {
+                'defines': ['DLOPEN_GSETTINGS'],
+              }],
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other gio-2.0)',
+            ],
+            'libraries': [
+              '<!@(<(pkg-config) --libs-only-l gio-2.0)',
+            ],
+            'conditions': [
+              ['linux_link_gsettings==0', {
+                'libraries': [
+                  '-ldl',
+                ],
+              }],
+            ],
+          },
+      }]]
+    },
+    {
       'target_name': 'x11',
       'type': 'settings',
       'conditions': [
@@ -368,18 +403,21 @@
       'type': 'settings',
       'conditions': [
         ['use_ibus==1', {
+          'variables': {
+            'ibus_min_version': '1.3.99.20110425',
+          },
           'direct_dependent_settings': {
             'defines': ['HAVE_IBUS=1'],
             'cflags': [
-              '<!@(<(pkg-config) --cflags ibus-1.0)',
+              '<!@(<(pkg-config) --cflags "ibus-1.0 >= <(ibus_min_version)")',
             ],
           },
           'link_settings': {
             'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other ibus-1.0)',
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other "ibus-1.0 >= <(ibus_min_version)")',
             ],
             'libraries': [
-              '<!@(<(pkg-config) --libs-only-l ibus-1.0)',
+              '<!@(<(pkg-config) --libs-only-l "ibus-1.0 >= <(ibus_min_version)")',
             ],
           },
         }],

@@ -1,14 +1,13 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <string>
 
 #include "base/string_piece.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace base;
+namespace base {
 
 TEST(StringPieceTest, CheckComparisonOperators) {
 #define CMP_Y(op, x, y)                                               \
@@ -540,3 +539,5 @@ TEST(StringPieceTest, HeterogenousStringPieceEquals) {
   ASSERT_TRUE(StringPiece("hello") == std::string("hello"));
   ASSERT_TRUE("hello" == StringPiece("hello"));
 }
+
+}  // namespace base

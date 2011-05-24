@@ -179,7 +179,9 @@ bool FundamentalValue::GetAsInteger(int* out_value) const {
 bool FundamentalValue::GetAsDouble(double* out_value) const {
   if (out_value && IsType(TYPE_DOUBLE))
     *out_value = double_value_;
-  return (IsType(TYPE_DOUBLE));
+  else if (out_value && IsType(TYPE_INTEGER))
+    *out_value = integer_value_;
+  return (IsType(TYPE_DOUBLE) || IsType(TYPE_INTEGER));
 }
 
 FundamentalValue* FundamentalValue::DeepCopy() const {

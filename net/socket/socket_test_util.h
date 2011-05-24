@@ -45,10 +45,10 @@ enum {
   ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ = -10000,
 };
 
-class ClientSocket;
 class MockClientSocket;
 class SSLClientSocket;
 class SSLHostInfo;
+class StreamSocket;
 
 struct MockConnect {
   // Asynchronous connection success.
@@ -468,7 +468,7 @@ class DeterministicSocketData : public StaticSocketDataProvider,
   bool print_debug_;
 };
 
-// Holds an array of SocketDataProvider elements.  As Mock{TCP,SSL}ClientSocket
+// Holds an array of SocketDataProvider elements.  As Mock{TCP,SSL}StreamSocket
 // objects get instantiated, they take their data from the i'th element of this
 // array.
 template<typename T>
@@ -533,7 +533,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
   }
 
   // ClientSocketFactory
-  virtual ClientSocket* CreateTransportClientSocket(
+  virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
       const NetLog::Source& source);
@@ -574,7 +574,7 @@ class MockClientSocket : public net::SSLClientSocket {
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(net::CompletionCallback* callback) = 0;
   virtual void Disconnect();
   virtual bool IsConnected() const;
@@ -617,7 +617,7 @@ class MockTCPClientSocket : public MockClientSocket {
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::CompletionCallback* callback);
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(net::CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
@@ -670,7 +670,7 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   virtual int Read(net::IOBuffer* buf, int buf_len,
                    net::CompletionCallback* callback);
 
-  // ClientSocket:
+  // StreamSocket:
   virtual int Connect(net::CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
@@ -712,7 +712,7 @@ class MockSSLClientSocket : public MockClientSocket {
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::CompletionCallback* callback);
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(net::CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
@@ -819,7 +819,7 @@ class MockTransportClientSocketPool : public TransportClientSocketPool {
  public:
   class MockConnectJob {
    public:
-    MockConnectJob(ClientSocket* socket, ClientSocketHandle* handle,
+    MockConnectJob(StreamSocket* socket, ClientSocketHandle* handle,
                    CompletionCallback* callback);
     ~MockConnectJob();
 
@@ -829,7 +829,7 @@ class MockTransportClientSocketPool : public TransportClientSocketPool {
    private:
     void OnConnect(int rv);
 
-    scoped_ptr<ClientSocket> socket_;
+    scoped_ptr<StreamSocket> socket_;
     ClientSocketHandle* handle_;
     CompletionCallback* user_callback_;
     CompletionCallbackImpl<MockConnectJob> connect_callback_;
@@ -859,7 +859,7 @@ class MockTransportClientSocketPool : public TransportClientSocketPool {
   virtual void CancelRequest(const std::string& group_name,
                              ClientSocketHandle* handle);
   virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket, int id);
+                             StreamSocket* socket, int id);
 
  private:
   ClientSocketFactory* client_socket_factory_;
@@ -891,7 +891,7 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
   }
 
   // ClientSocketFactory
-  virtual ClientSocket* CreateTransportClientSocket(
+  virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
       const NetLog::Source& source);
@@ -934,7 +934,7 @@ class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
   virtual void CancelRequest(const std::string& group_name,
                              ClientSocketHandle* handle);
   virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket, int id);
+                             StreamSocket* socket, int id);
 
  private:
   TransportClientSocketPool* const transport_pool_;

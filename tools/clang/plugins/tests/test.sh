@@ -30,6 +30,9 @@ do_testcase() {
     echo "FAIL: ${1}"
     echo "Output of compiler:"
     echo "${output}"
+    echo "Expected output:"
+    cat "${2}"
+    echo
   fi
 }
 

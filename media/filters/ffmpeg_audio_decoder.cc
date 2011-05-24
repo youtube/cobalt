@@ -30,7 +30,7 @@ const size_t FFmpegAudioDecoder::kOutputBufferSize =
 FFmpegAudioDecoder::FFmpegAudioDecoder(MessageLoop* message_loop)
     : DecoderBase<AudioDecoder, Buffer>(message_loop),
       codec_context_(NULL),
-      config_(0, 0, 0),
+      config_(0, CHANNEL_LAYOUT_NONE, 0),
       estimated_next_timestamp_(kNoTimestamp) {
 }
 
@@ -53,11 +53,13 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
   int bps = av_get_bits_per_sample_fmt(codec_context_->sample_fmt);
   if (codec_context_->channels <= 0 ||
       codec_context_->channels > Limits::kMaxChannels ||
+      (codec_context_->channel_layout == 0 && codec_context_->channels > 2) ||
       bps <= 0 || bps > Limits::kMaxBitsPerSample ||
       codec_context_->sample_rate <= 0 ||
       codec_context_->sample_rate > Limits::kMaxSampleRate) {
     DLOG(WARNING) << "Invalid audio stream -"
         << " channels: " << codec_context_->channels
+        << " channel layout:" << codec_context_->channel_layout
         << " bps: " << bps
         << " sample rate: " << codec_context_->sample_rate;
     return;
@@ -71,7 +73,9 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
 
   config_.bits_per_channel =
       av_get_bits_per_sample_fmt(codec_context_->sample_fmt);
-  config_.channels_per_sample = codec_context_->channels;
+  config_.channel_layout =
+      ChannelLayoutToChromeChannelLayout(codec_context_->channel_layout,
+                                         codec_context_->channels);
   config_.sample_rate = codec_context_->sample_rate;
 
   // Prepare the output buffer.

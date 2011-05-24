@@ -205,9 +205,11 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Callback executed by filters upon completing initialization.
   void OnFilterInitialize();
 
-  // Callback executed by filters upon completing Play(), Pause(), Seek(),
-  // or Stop().
+  // Callback executed by filters upon completing Play(), Pause(), or Stop().
   void OnFilterStateTransition();
+
+  // Callback executed by filters upon completing Seek().
+  void OnFilterStateTransitionWithStatus(PipelineStatus status);
 
   // Callback executed by filters when completing teardown operations.
   void OnTeardownStateTransition();

@@ -129,28 +129,37 @@ void VideoRendererBase::SetPlaybackRate(float playback_rate) {
   playback_rate_ = playback_rate;
 }
 
-void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
-  base::AutoLock auto_lock(lock_);
-  // There is a race condition between filters to receive SeekTask().
-  // It turns out we could receive buffer from decoder before seek()
-  // is called on us. so we do the following:
-  // kFlushed => ( Receive first buffer or Seek() ) => kSeeking and
-  // kSeeking => ( Receive enough buffers) => kPrerolled. )
-  DCHECK(kPrerolled == state_ || kFlushed == state_ || kSeeking == state_);
+void VideoRendererBase::Seek(base::TimeDelta time, const FilterStatusCB&  cb) {
+  bool run_callback = false;
 
-  if (state_ == kPrerolled) {
-    // Already get enough buffers from decoder.
-    callback->Run();
-    delete callback;
-  } else {
-    // Otherwise we are either kFlushed or kSeeking, but without enough buffers;
-    // we should save the callback function and call it later.
-    state_ = kSeeking;
-    seek_callback_.reset(callback);
+  {
+    base::AutoLock auto_lock(lock_);
+    // There is a race condition between filters to receive SeekTask().
+    // It turns out we could receive buffer from decoder before seek()
+    // is called on us. so we do the following:
+    // kFlushed => ( Receive first buffer or Seek() ) => kSeeking and
+    // kSeeking => ( Receive enough buffers) => kPrerolled. )
+    DCHECK(kPrerolled == state_ || kFlushed == state_ || kSeeking == state_);
+    DCHECK(!cb.is_null());
+    DCHECK(seek_cb_.is_null());
+
+    if (state_ == kPrerolled) {
+      // Already get enough buffers from decoder.
+      run_callback = true;
+
+    } else {
+      // Otherwise we are either kFlushed or kSeeking, but without enough
+      // buffers we should save the callback function and call it later.
+      state_ = kSeeking;
+      seek_cb_ = cb;
+    }
+
+    seek_timestamp_ = time;
+    ScheduleRead_Locked();
   }
 
-  seek_timestamp_ = time;
-  ScheduleRead_Locked();
+  if (run_callback)
+    cb.Run(PIPELINE_OK);
 }
 
 void VideoRendererBase::Initialize(VideoDecoder* decoder,
@@ -175,8 +184,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
                         &surface_type_,
                         &surface_format_,
                         &width_, &height_)) {
-    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    state_ = kError;
+    EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
   host()->SetVideoSize(width_, height_);
@@ -185,8 +193,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // TODO(scherkus): do we trust subclasses not to do something silly while
   // we're holding the lock?
   if (!OnInitialize(decoder)) {
-    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    state_ = kError;
+    EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
 
@@ -199,8 +206,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // Create our video thread.
   if (!base::PlatformThread::Create(0, this, &thread_)) {
     NOTREACHED() << "Video thread creation failed";
-    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    state_ = kError;
+    EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
 
@@ -371,7 +377,7 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
   // that case, |current_frame_| could be changed before PutCurrentFrame.
   if (pending_paint_) {
     DCHECK(current_frame_.get() == frame.get());
-    DCHECK(pending_paint_with_last_available_ == false);
+    DCHECK(!pending_paint_with_last_available_);
     pending_paint_ = false;
   } else if (pending_paint_with_last_available_) {
     DCHECK(last_available_frame_.get() == frame.get());
@@ -389,11 +395,18 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
 }
 
 void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
-  PipelineStatistics statistics;
-  statistics.video_frames_decoded = 1;
-  statistics_callback_->Run(statistics);
+  if (frame) {
+    PipelineStatistics statistics;
+    statistics.video_frames_decoded = 1;
+    statistics_callback_->Run(statistics);
+  }
 
   base::AutoLock auto_lock(lock_);
+
+  if (!frame) {
+    EnterErrorState_Locked(PIPELINE_ERROR_DECODE);
+    return;
+  }
 
   // Decoder could reach seek state before our Seek() get called.
   // We will enter kSeeking
@@ -458,9 +471,8 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
       // If we reach prerolled state before Seek() is called by pipeline,
       // |seek_callback_| is not set, we will return immediately during
       // when Seek() is eventually called.
-      if ((seek_callback_.get())) {
-        seek_callback_->Run();
-        seek_callback_.reset();
+      if (!seek_cb_.is_null()) {
+        ResetAndRunCB(&seek_cb_, PIPELINE_OK);
       }
     }
   } else if (state_ == kFlushing && pending_reads_ == 0 && !pending_paint_) {
@@ -568,6 +580,47 @@ base::TimeDelta VideoRendererBase::CalculateSleepDuration(
   // TODO(scherkus): floating point badness and degrade gracefully.
   return base::TimeDelta::FromMicroseconds(
       static_cast<int64>(sleep.InMicroseconds() / playback_rate));
+}
+
+void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
+  lock_.AssertAcquired();
+
+  scoped_ptr<FilterCallback> callback;
+  State old_state = state_;
+  state_ = kError;
+
+  switch (old_state) {
+    case kUninitialized:
+    case kPrerolled:
+    case kPaused:
+    case kFlushed:
+    case kEnded:
+    case kPlaying:
+      break;
+
+    case kFlushing:
+      CHECK(flush_callback_.get());
+      callback.swap(flush_callback_);
+      break;
+
+    case kSeeking:
+      CHECK(!seek_cb_.is_null());
+      ResetAndRunCB(&seek_cb_, status);
+      return;
+      break;
+
+    case kStopped:
+      NOTREACHED() << "Should not error if stopped.";
+      return;
+
+    case kError:
+      return;
+  }
+
+  host()->SetError(status);
+
+  if (callback.get())
+    callback->Run();
 }
 
 }  // namespace media

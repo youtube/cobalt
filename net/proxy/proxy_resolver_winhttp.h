@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@ namespace net {
 
 // An implementation of ProxyResolver that uses WinHTTP and the system
 // proxy settings.
-class ProxyResolverWinHttp : public ProxyResolver {
+class NET_TEST ProxyResolverWinHttp : public ProxyResolver {
  public:
   ProxyResolverWinHttp();
   virtual ~ProxyResolverWinHttp();

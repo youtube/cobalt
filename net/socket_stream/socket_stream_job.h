@@ -10,11 +10,15 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
+#include "net/base/net_api.h"
 #include "net/socket_stream/socket_stream.h"
 
 class GURL;
 
 namespace net {
+
+class SSLConfigService;
+class TransportSecurityState;
 
 // SocketStreamJob represents full-duplex communication over SocketStream.
 // If a protocol (e.g. WebSocket protocol) needs to inspect/modify data
@@ -22,7 +26,8 @@ namespace net {
 // WebSocketJob) to do some work on data over SocketStream.
 // Registers the protocol specific SocketStreamJob by RegisterProtocolFactory
 // and call CreateSocketStreamJob to create SocketStreamJob for the URL.
-class SocketStreamJob : public base::RefCountedThreadSafe<SocketStreamJob> {
+class NET_API SocketStreamJob
+    : public base::RefCountedThreadSafe<SocketStreamJob> {
  public:
   // Callback function implemented by protocol handlers to create new jobs.
   typedef SocketStreamJob* (ProtocolFactory)(const GURL& url,
@@ -34,7 +39,8 @@ class SocketStreamJob : public base::RefCountedThreadSafe<SocketStreamJob> {
   static SocketStreamJob* CreateSocketStreamJob(
       const GURL& url,
       SocketStream::Delegate* delegate,
-      const URLRequestContext& context);
+      TransportSecurityState* sts,
+      SSLConfigService* ssl);
 
   SocketStreamJob();
   void InitSocketStream(SocketStream* socket) {

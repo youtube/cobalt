@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -48,6 +48,8 @@
 
 #include <string>
 
+#include "net/base/net_api.h"
+
 namespace net {
 
 // From RFC2617 section 3.6.1, the chunked transfer coding is defined as:
@@ -74,7 +76,7 @@ namespace net {
 // NOTE: This implementation does not bother to parse trailers since they are
 // not used on the web.
 //
-class HttpChunkedDecoder {
+class NET_TEST HttpChunkedDecoder {
  public:
   HttpChunkedDecoder();
 

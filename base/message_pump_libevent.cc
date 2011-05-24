@@ -139,6 +139,9 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
   DCHECK(controller);
   DCHECK(delegate);
   DCHECK(mode == WATCH_READ || mode == WATCH_WRITE || mode == WATCH_READ_WRITE);
+  // WatchFileDescriptor should be called on the pump thread. It is not
+  // threadsafe, and your watcher may never be registered.
+  DCHECK(watch_file_descriptor_caller_checker_.CalledOnValidThread());
 
   int event_mask = persistent ? EV_PERSIST : 0;
   if ((mode & WATCH_READ) != 0) {

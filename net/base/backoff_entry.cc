@@ -29,10 +29,18 @@ BackoffEntry::~BackoffEntry() {
 
 void BackoffEntry::InformOfRequest(bool succeeded) {
   if (!succeeded) {
-    failure_count_++;
+    ++failure_count_;
     exponential_backoff_release_time_ = CalculateReleaseTime();
   } else {
-    failure_count_ = 0;
+    // We slowly decay the number of times delayed instead of resetting it to 0
+    // in order to stay stable if we receive successes interleaved between lots
+    // of failures.
+    //
+    // TODO(joi): Revisit this; it might be most correct to go to zero
+    // but have a way to go back to "old error count +1" if there is
+    // another error soon after.
+    if (failure_count_ > 0)
+      --failure_count_;
 
     // The reason why we are not just cutting the release time to GetTimeNow()
     // is on the one hand, it would unset a release time set by
