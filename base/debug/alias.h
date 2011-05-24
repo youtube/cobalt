@@ -6,13 +6,15 @@
 #define BASE_DEBUG_ALIAS_H_
 #pragma once
 
+#include "base/base_api.h"
+
 namespace base {
 namespace debug {
 
 // Make the optimizer think that var is aliased. This is to prevent it from
 // optimizing out variables that that would not otherwise be live at the point
 // of a potential crash.
-void Alias(const void* var);
+void BASE_API Alias(const void* var);
 
 }  // namespace debug
 }  // namespace base
