@@ -80,6 +80,7 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
 }
 
 FFmpegDemuxerStream::~FFmpegDemuxerStream() {
+  base::AutoLock auto_lock(lock_);
   DCHECK(stopped_);
   DCHECK(read_queue_.empty());
   DCHECK(buffer_queue_.empty());
@@ -87,6 +88,7 @@ FFmpegDemuxerStream::~FFmpegDemuxerStream() {
 
 bool FFmpegDemuxerStream::HasPendingReads() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  base::AutoLock auto_lock(lock_);
   DCHECK(!stopped_ || read_queue_.empty())
       << "Read queue should have been emptied if demuxing stream is stopped";
   return !read_queue_.empty();
@@ -99,6 +101,7 @@ void FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
   base::TimeDelta duration =
       ConvertStreamTimestamp(stream_->time_base, packet->duration);
 
+  base::AutoLock auto_lock(lock_);
   if (stopped_) {
     NOTREACHED() << "Attempted to enqueue packet on a stopped stream";
     return;
@@ -124,14 +127,16 @@ void FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
 
 void FFmpegDemuxerStream::FlushBuffers() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  base::AutoLock auto_lock(lock_);
   DCHECK(read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
 }
 
 void FFmpegDemuxerStream::Stop() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
-  STLDeleteElements(&read_queue_);
+  read_queue_.clear();
   stopped_ = true;
 }
 
@@ -147,20 +152,35 @@ const MediaFormat& FFmpegDemuxerStream::media_format() {
   return media_format_;
 }
 
-void FFmpegDemuxerStream::Read(Callback1<Buffer*>::Type* read_callback) {
-  DCHECK(read_callback);
-  demuxer_->message_loop()->PostTask(FROM_HERE,
+void FFmpegDemuxerStream::Read(const ReadCallback& read_callback) {
+  DCHECK(!read_callback.is_null());
+
+  base::AutoLock auto_lock(lock_);
+  if (!buffer_queue_.empty()) {
+    // Dequeue a buffer send back.
+    scoped_refptr<Buffer> buffer = buffer_queue_.front();
+    buffer_queue_.pop_front();
+
+    // Execute the callback.
+    read_callback.Run(buffer);
+
+    if (!read_queue_.empty())
+      demuxer_->PostDemuxTask();
+
+  } else {
+    demuxer_->message_loop()->PostTask(FROM_HERE,
       NewRunnableMethod(this, &FFmpegDemuxerStream::ReadTask, read_callback));
+  }
 }
 
-void FFmpegDemuxerStream::ReadTask(Callback1<Buffer*>::Type* read_callback) {
+void FFmpegDemuxerStream::ReadTask(const ReadCallback& read_callback) {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
 
+  base::AutoLock auto_lock(lock_);
   // Don't accept any additional reads if we've been told to stop.
   //
   // TODO(scherkus): it would be cleaner if we replied with an error message.
   if (stopped_) {
-    delete read_callback;
     return;
   }
 
@@ -168,26 +188,27 @@ void FFmpegDemuxerStream::ReadTask(Callback1<Buffer*>::Type* read_callback) {
   read_queue_.push_back(read_callback);
   FulfillPendingRead();
 
-  // There are still pending reads, demux some more.
-  if (HasPendingReads()) {
+  // Check if there are still pending reads, demux some more.
+  if (!read_queue_.empty()) {
     demuxer_->PostDemuxTask();
   }
 }
 
 void FFmpegDemuxerStream::FulfillPendingRead() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  lock_.AssertAcquired();
   if (buffer_queue_.empty() || read_queue_.empty()) {
     return;
   }
 
   // Dequeue a buffer and pending read pair.
   scoped_refptr<Buffer> buffer = buffer_queue_.front();
-  scoped_ptr<Callback1<Buffer*>::Type> read_callback(read_queue_.front());
+  ReadCallback read_callback(read_queue_.front());
   buffer_queue_.pop_front();
   read_queue_.pop_front();
 
   // Execute the callback.
-  read_callback->Run(buffer);
+  read_callback.Run(buffer);
 }
 
 void FFmpegDemuxerStream::EnableBitstreamConverter() {
@@ -243,7 +264,8 @@ FFmpegDemuxer::FFmpegDemuxer(MessageLoop* message_loop)
       last_read_bytes_(0),
       read_position_(0),
       max_duration_(base::TimeDelta::FromMicroseconds(-1)),
-      deferred_status_(PIPELINE_OK) {
+      deferred_status_(PIPELINE_OK),
+      first_seek_hack_(true) {
   DCHECK(message_loop_);
 }
 
@@ -292,13 +314,13 @@ void FFmpegDemuxer::Stop(FilterCallback* callback) {
   SignalReadCompleted(DataSource::kReadError);
 }
 
-void FFmpegDemuxer::Seek(base::TimeDelta time, FilterCallback* callback) {
+void FFmpegDemuxer::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
   // TODO(hclam): by returning from this method, it is assumed that the seek
   // operation is completed and filters behind the demuxer is good to issue
   // more reads, but we are posting a task here, which makes the seek operation
   // asynchronous, should change how seek works to make it fully asynchronous.
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxer::SeekTask, time, callback));
+      NewRunnableMethod(this, &FFmpegDemuxer::SeekTask, time, cb));
 }
 
 void FFmpegDemuxer::SetPlaybackRate(float playback_rate) {
@@ -507,9 +529,16 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   callback->Run(PIPELINE_OK);
 }
 
-void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
+void FFmpegDemuxer::SeekTask(base::TimeDelta time, const FilterStatusCB& cb) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  scoped_ptr<FilterCallback> c(callback);
+
+  // TODO(scherkus): remove this by separating Seek() from Flush() from
+  // Preroll() states (i.e., the implicit Seek(0) should really be a Preroll()).
+  if (first_seek_hack_) {
+    first_seek_hack_ = false;
+    cb.Run(PIPELINE_OK);
+    return;
+  }
 
   // Tell streams to flush buffers due to seeking.
   StreamVector::iterator iter;
@@ -532,7 +561,7 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
   }
 
   // Notify we're finished seeking.
-  callback->Run();
+  cb.Run(PIPELINE_OK);
 }
 
 void FFmpegDemuxer::DemuxTask() {

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,14 @@
 #define NET_FTP_FTP_TRANSACTION_FACTORY_H_
 #pragma once
 
+#include "net/base/net_api.h"
+
 namespace net {
 
 class FtpTransaction;
 
 // An interface to a class that can create FtpTransaction objects.
-class FtpTransactionFactory {
+class NET_API FtpTransactionFactory {
  public:
   virtual ~FtpTransactionFactory() {}
 

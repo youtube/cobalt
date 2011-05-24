@@ -11,12 +11,13 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
+#include "net/base/net_api.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
 
 // A collection of SSL-related configuration settings.
-struct SSLConfig {
+struct NET_API SSLConfig {
   // Default to revocation checking.
   // Default to SSL 3.0 on and TLS 1.0 on.
   SSLConfig();
@@ -62,7 +63,7 @@ struct SSLConfig {
   // TODO(wtc): move the following members to a new SSLParams structure.  They
   // are not SSL configuration settings.
 
-  struct CertAndStatus {
+  struct NET_API CertAndStatus {
     CertAndStatus();
     ~CertAndStatus();
 
@@ -99,10 +100,11 @@ struct SSLConfig {
 // does not cover setting the SSL configuration, as on some systems, the
 // SSLConfigService objects may not have direct access to the configuration, or
 // live longer than the configuration preferences.
-class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
+class NET_API SSLConfigService
+    : public base::RefCountedThreadSafe<SSLConfigService> {
  public:
   // Observer is notified when SSL config settings have changed.
-  class Observer {
+  class NET_API Observer {
    public:
     // Notify observers if SSL settings have changed.  We don't check all of the
     // data in SSLConfig, just those that qualify as a user config change.
@@ -145,6 +147,9 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   // Enables DNS side checks for certificates.
   static void EnableDNSCertProvenanceChecking();
   static bool dns_cert_provenance_checking_enabled();
+
+  // Is SNI available in this configuration?
+  static bool IsSNIAvailable(SSLConfigService* service);
 
   // Add an observer of this service.
   void AddObserver(Observer* observer);

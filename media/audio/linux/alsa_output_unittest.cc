@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/message_loop.h"
-#include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
 #include "media/audio/linux/audio_manager_linux.h"
@@ -91,19 +91,20 @@ class MockAudioManagerLinux : public AudioManagerLinux {
 class AlsaPcmOutputStreamTest : public testing::Test {
  protected:
   AlsaPcmOutputStreamTest() {
-    test_stream_ = CreateStream(kTestChannels);
+    test_stream_ = CreateStream(kTestChannelLayout);
   }
 
   virtual ~AlsaPcmOutputStreamTest() {
     test_stream_ = NULL;
   }
 
-  AlsaPcmOutputStream* CreateStream(int channels) {
-    return CreateStream(channels, kTestFramesPerPacket);
+  AlsaPcmOutputStream* CreateStream(ChannelLayout layout) {
+    return CreateStream(layout, kTestFramesPerPacket);
   }
 
-  AlsaPcmOutputStream* CreateStream(int channels, int32 samples_per_packet) {
-    AudioParameters params(kTestFormat, channels, kTestSampleRate,
+  AlsaPcmOutputStream* CreateStream(ChannelLayout layout,
+                                    int32 samples_per_packet) {
+    AudioParameters params(kTestFormat, layout, kTestSampleRate,
                            kTestBitsPerSample, samples_per_packet);
     return new AlsaPcmOutputStream(kTestDeviceName,
                                    params,
@@ -131,7 +132,7 @@ class AlsaPcmOutputStreamTest : public testing::Test {
     test_stream_->buffer_->Append(packet_.get());
   }
 
-  static const int kTestChannels;
+  static const ChannelLayout kTestChannelLayout;
   static const int kTestSampleRate;
   static const int kTestBitsPerSample;
   static const int kTestBytesPerFrame;
@@ -162,13 +163,14 @@ class AlsaPcmOutputStreamTest : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmOutputStreamTest);
 };
 
-const int AlsaPcmOutputStreamTest::kTestChannels = 2;
+const ChannelLayout AlsaPcmOutputStreamTest::kTestChannelLayout =
+    CHANNEL_LAYOUT_STEREO;
 const int AlsaPcmOutputStreamTest::kTestSampleRate =
     AudioParameters::kAudioCDSampleRate;
 const int AlsaPcmOutputStreamTest::kTestBitsPerSample = 8;
 const int AlsaPcmOutputStreamTest::kTestBytesPerFrame =
     AlsaPcmOutputStreamTest::kTestBitsPerSample / 8 *
-    AlsaPcmOutputStreamTest::kTestChannels;
+    ChannelLayoutToChannelCount(AlsaPcmOutputStreamTest::kTestChannelLayout);
 const AudioParameters::Format AlsaPcmOutputStreamTest::kTestFormat =
     AudioParameters::AUDIO_PCM_LINEAR;
 const char AlsaPcmOutputStreamTest::kTestDeviceName[] = "TestDevice";
@@ -196,17 +198,17 @@ TEST_F(AlsaPcmOutputStreamTest, ConstructedState) {
             test_stream_->shared_data_.state());
 
   // Should support mono.
-  test_stream_ = CreateStream(1);
+  test_stream_ = CreateStream(CHANNEL_LAYOUT_MONO);
   EXPECT_EQ(AlsaPcmOutputStream::kCreated,
             test_stream_->shared_data_.state());
 
   // Should support multi-channel.
-  test_stream_ = CreateStream(3);
+  test_stream_ = CreateStream(CHANNEL_LAYOUT_SURROUND);
   EXPECT_EQ(AlsaPcmOutputStream::kCreated,
             test_stream_->shared_data_.state());
 
   // Bad bits per sample.
-  AudioParameters bad_bps_params(kTestFormat, kTestChannels,
+  AudioParameters bad_bps_params(kTestFormat, kTestChannelLayout,
                                  kTestSampleRate, kTestBitsPerSample - 1,
                                  kTestFramesPerPacket);
   test_stream_ = new AlsaPcmOutputStream(kTestDeviceName,
@@ -219,8 +221,8 @@ TEST_F(AlsaPcmOutputStreamTest, ConstructedState) {
 
   // Bad format.
   AudioParameters bad_format_params(
-      AudioParameters::AUDIO_LAST_FORMAT, kTestChannels,
-      kTestSampleRate, kTestBitsPerSample, kTestFramesPerPacket);
+      AudioParameters::AUDIO_LAST_FORMAT, kTestChannelLayout, kTestSampleRate,
+      kTestBitsPerSample, kTestFramesPerPacket);
   test_stream_ = new AlsaPcmOutputStream(kTestDeviceName,
                                          bad_format_params,
                                          &mock_alsa_wrapper_,
@@ -251,7 +253,7 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
                       SetArgumentPointee<2>(kTestFramesPerPacket / 2),
                       Return(0)));
 
-  test_stream_ = CreateStream(kTestChannels, kPacketFramesInMinLatency);
+  test_stream_ = CreateStream(kTestChannelLayout, kPacketFramesInMinLatency);
   ASSERT_TRUE(test_stream_->Open());
   message_loop_.RunAllPending();
 
@@ -281,7 +283,7 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
                       SetArgumentPointee<2>(kTestFramesPerPacket / 2),
                       Return(0)));
 
-  test_stream_ = CreateStream(kTestChannels, kOverMinLatencyPacketSize);
+  test_stream_ = CreateStream(kTestChannelLayout, kOverMinLatencyPacketSize);
   ASSERT_TRUE(test_stream_->Open());
   message_loop_.RunAllPending();
 
@@ -315,7 +317,7 @@ TEST_F(AlsaPcmOutputStreamTest, OpenClose) {
               PcmSetParams(kFakeHandle,
                            SND_PCM_FORMAT_U8,
                            SND_PCM_ACCESS_RW_INTERLEAVED,
-                           kTestChannels,
+                           ChannelLayoutToChannelCount(kTestChannelLayout),
                            kTestSampleRate,
                            1,
                            expected_micros))
@@ -645,11 +647,21 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect) {
                                         AlsaPcmOutputStream::kDefaultDevice };
   bool kExpectedDownmix[] = { false, false, false, false, false, true,
                               false, false, false, false };
+  ChannelLayout kExpectedLayouts[] = { CHANNEL_LAYOUT_NONE,
+                                       CHANNEL_LAYOUT_MONO,
+                                       CHANNEL_LAYOUT_STEREO,
+                                       CHANNEL_LAYOUT_SURROUND,
+                                       CHANNEL_LAYOUT_4POINT0,
+                                       CHANNEL_LAYOUT_5POINT0,
+                                       CHANNEL_LAYOUT_5POINT1,
+                                       CHANNEL_LAYOUT_7POINT0,
+                                       CHANNEL_LAYOUT_7POINT1 };
 
-  for (int i = 1; i <= 9; ++i) {
+
+  for (int i = 1; i < 9; ++i) {
     if (i == 3 || i == 4 || i == 5)  // invalid number of channels
       continue;
-    SCOPED_TRACE(StringPrintf("Attempting %d Channel", i));
+    SCOPED_TRACE(base::StringPrintf("Attempting %d Channel", i));
 
     // Hints will only be grabbed for channel numbers that have non-default
     // devices associated with them.
@@ -676,8 +688,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect) {
     EXPECT_CALL(mock_alsa_wrapper_, DeviceNameGetHint(_, StrEq("NAME")))
         .WillRepeatedly(Invoke(EchoHint));
 
-
-    test_stream_ = CreateStream(i);
+    test_stream_ = CreateStream(kExpectedLayouts[i]);
     EXPECT_TRUE(test_stream_->AutoSelectDevice(i));
     EXPECT_EQ(kExpectedDownmix[i], test_stream_->should_downmix_);
 
@@ -727,7 +738,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_FallbackDevices) {
   EXPECT_CALL(mock_alsa_wrapper_, PcmOpen(_, StrEq(fourth_try.c_str()), _, _))
       .WillOnce(Return(kTestFailedErrno));
 
-  test_stream_ = CreateStream(5);
+  test_stream_ = CreateStream(CHANNEL_LAYOUT_5POINT0);
   EXPECT_FALSE(test_stream_->AutoSelectDevice(5));
 }
 
@@ -745,7 +756,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_HintFail) {
   EXPECT_CALL(mock_alsa_wrapper_, StrError(kTestFailedErrno))
       .WillOnce(Return(kDummyMessage));
 
-  test_stream_ = CreateStream(5);
+  test_stream_ = CreateStream(CHANNEL_LAYOUT_5POINT0);
   EXPECT_TRUE(test_stream_->AutoSelectDevice(5));
   EXPECT_TRUE(test_stream_->should_downmix_);
 }

@@ -19,7 +19,6 @@
 #include "base/utf_string_conversions.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/cookie_monster.h"
-#include "net/base/cookie_policy.h"
 #include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -30,7 +29,6 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
-#include "net/test/test_server.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_storage.h"
@@ -43,29 +41,6 @@ using base::TimeDelta;
 namespace net {
 class HostPortPair;
 }
-
-//-----------------------------------------------------------------------------
-
-class TestCookiePolicy : public net::CookiePolicy {
- public:
-  enum Options {
-    NO_GET_COOKIES = 1 << 0,
-    NO_SET_COOKIE  = 1 << 1,
-    FORCE_SESSION  = 1 << 2,
-  };
-
-  explicit TestCookiePolicy(int options_bit_mask);
-  virtual ~TestCookiePolicy();
-
-  // net::CookiePolicy:
-  virtual int CanGetCookies(const GURL& url, const GURL& first_party) const;
-  virtual int CanSetCookie(const GURL& url,
-                           const GURL& first_party,
-                           const std::string& cookie_line) const;
-
- private:
-  int options_;
-};
 
 //-----------------------------------------------------------------------------
 
@@ -97,6 +72,12 @@ class TestURLRequest : public net::URLRequest {
 
 class TestDelegate : public net::URLRequest::Delegate {
  public:
+  enum Options {
+    NO_GET_COOKIES = 1 << 0,
+    NO_SET_COOKIE  = 1 << 1,
+    FORCE_SESSION  = 1 << 2,
+  };
+
   TestDelegate();
   virtual ~TestDelegate();
 
@@ -117,6 +98,7 @@ class TestDelegate : public net::URLRequest::Delegate {
   void set_allow_certificate_errors(bool val) {
     allow_certificate_errors_ = val;
   }
+  void set_cookie_options(int o) {cookie_options_bit_mask_ = o; }
   void set_username(const string16& u) { username_ = u; }
   void set_password(const string16& p) { password_ = p; }
 
@@ -136,19 +118,19 @@ class TestDelegate : public net::URLRequest::Delegate {
 
   // net::URLRequest::Delegate:
   virtual void OnReceivedRedirect(net::URLRequest* request, const GURL& new_url,
-                                  bool* defer_redirect);
+                                  bool* defer_redirect) OVERRIDE;
   virtual void OnAuthRequired(net::URLRequest* request,
-                              net::AuthChallengeInfo* auth_info);
+                              net::AuthChallengeInfo* auth_info) OVERRIDE;
   virtual void OnSSLCertificateError(net::URLRequest* request,
                                      int cert_error,
-                                     net::X509Certificate* cert);
-  virtual void OnGetCookies(net::URLRequest* request, bool blocked_by_policy);
-  virtual void OnSetCookie(net::URLRequest* request,
-                           const std::string& cookie_line,
-                           const net::CookieOptions& options,
-                           bool blocked_by_policy);
-  virtual void OnResponseStarted(net::URLRequest* request);
-  virtual void OnReadCompleted(net::URLRequest* request, int bytes_read);
+                                     net::X509Certificate* cert) OVERRIDE;
+  virtual bool CanGetCookies(net::URLRequest* request) OVERRIDE;
+  virtual bool CanSetCookie(net::URLRequest* request,
+                            const std::string& cookie_line,
+                            net::CookieOptions* options) OVERRIDE;
+  virtual void OnResponseStarted(net::URLRequest* request) OVERRIDE;
+  virtual void OnReadCompleted(net::URLRequest* request,
+                               int bytes_read) OVERRIDE;
 
  private:
   static const int kBufferSize = 4096;
@@ -165,6 +147,7 @@ class TestDelegate : public net::URLRequest::Delegate {
   bool quit_on_complete_;
   bool quit_on_redirect_;
   bool allow_certificate_errors_;
+  int cookie_options_bit_mask_;
 
   string16 username_;
   string16 password_;
@@ -206,15 +189,18 @@ class TestNetworkDelegate : public net::NetworkDelegate {
                                   net::CompletionCallback* callback,
                                   net::HttpRequestHeaders* headers);
   virtual void OnRequestSent(uint64 request_id,
-                             const net::HostPortPair& socket_address);
+                             const net::HostPortPair& socket_address,
+                             const net::HttpRequestHeaders& headers);
   virtual void OnBeforeRedirect(net::URLRequest* request,
                                 const GURL& new_location);
   virtual void OnResponseStarted(net::URLRequest* request);
+  virtual void OnRawBytesRead(const net::URLRequest& request, int bytes_read);
   virtual void OnCompleted(net::URLRequest* request);
   virtual void OnURLRequestDestroyed(net::URLRequest* request);
   virtual void OnHttpTransactionDestroyed(uint64 request_id);
   virtual net::URLRequestJob* OnMaybeCreateURLRequestJob(
       net::URLRequest* request);
+  virtual void OnPACScriptError(int line_number, const string16& error);
 
   int last_os_error_;
   int error_count_;

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/memory/scoped_ptr.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -16,7 +17,7 @@ class HttpTransaction;
 
 
 // An interface to a class that can create HttpTransaction objects.
-class HttpTransactionFactory {
+class NET_API HttpTransactionFactory {
  public:
   virtual ~HttpTransactionFactory() {}
 
@@ -29,10 +30,6 @@ class HttpTransactionFactory {
 
   // Returns the associated HttpNetworkSession used by new transactions.
   virtual HttpNetworkSession* GetSession() = 0;
-
-  // Suspends the creation of new transactions. If |suspend| is false, creation
-  // of new transactions is resumed.
-  virtual void Suspend(bool suspend) = 0;
 };
 
 }  // namespace net

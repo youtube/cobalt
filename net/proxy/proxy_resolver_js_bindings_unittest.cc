@@ -60,26 +60,14 @@ class MockHostResolverWithMultipleResults : public HostResolver {
     return result;
   }
 
-  // Builds an AddressList that is |ip_literal| + |address_list|.
+  // Builds an AddressList that is |ip_literal| + |orig_list|.
   // |orig_list| must not be empty.
   AddressList PrependAddressToList(const char* ip_literal,
                                    const AddressList& orig_list) {
     // Build an addrinfo for |ip_literal|.
     AddressList result = ResolveIPLiteral(ip_literal);
-
-    struct addrinfo* result_head = const_cast<struct addrinfo*>(result.head());
-
-    // Temporarily append |orig_list| to |result|.
-    result_head->ai_next = const_cast<struct addrinfo*>(orig_list.head());
-
-    // Make a copy of the concatenated list.
-    AddressList concatenated;
-    concatenated.Copy(result.head(), true);
-
-    // Restore |result| (so it is freed properly).
-    result_head->ai_next = NULL;
-
-    return concatenated;
+    result.Append(orig_list.head());
+    return result;
   }
 };
 
@@ -115,7 +103,7 @@ TEST(ProxyResolverJSBindingsTest, DnsResolve) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL, NULL));
 
   std::string ip_address;
 
@@ -142,7 +130,7 @@ TEST(ProxyResolverJSBindingsTest, MyIpAddress) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL, NULL));
 
   // Our IP address is always going to be 127.0.0.1, since we are using a
   // mock host resolver.
@@ -169,7 +157,7 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL, NULL));
 
   // Make it so requests resolve to particular address patterns based on family:
   //  IPV4_ONLY --> 192.168.1.*
@@ -226,7 +214,7 @@ TEST(ProxyResolverJSBindingsTest, ExFunctionsReturnList) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL, NULL));
 
   std::string ip_addresses;
 
@@ -243,7 +231,7 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL, NULL));
 
   std::string ip_address;
 
@@ -295,7 +283,8 @@ TEST(ProxyResolverJSBindingsTest, NetLog) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), &global_log));
+      ProxyResolverJSBindings::CreateDefault(
+          host_resolver.get(), &global_log, NULL));
 
   // Attach a capturing NetLog as the current request's log stream.
   CapturingNetLog log(CapturingNetLog::kUnbounded);

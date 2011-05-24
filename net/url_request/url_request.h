@@ -19,6 +19,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_request_headers.h"
@@ -31,11 +32,6 @@ class Time;
 
 class FilePath;
 
-// This stores the values of the Set-Cookie headers received during the request.
-// Each item in the vector corresponds to a Set-Cookie: line received,
-// excluding the "Set-Cookie:" part.
-typedef std::vector<std::string> ResponseCookies;
-
 namespace net {
 
 class CookieOptions;
@@ -46,6 +42,11 @@ class UploadData;
 class URLRequestContext;
 class URLRequestJob;
 class X509Certificate;
+
+// This stores the values of the Set-Cookie headers received during the request.
+// Each item in the vector corresponds to a Set-Cookie: line received,
+// excluding the "Set-Cookie:" part.
+typedef std::vector<std::string> ResponseCookies;
 
 //-----------------------------------------------------------------------------
 // A class  representing the asynchronous load of a data stream from an URL.
@@ -58,7 +59,7 @@ class X509Certificate;
 //
 // NOTE: All usage of all instances of this class should be on the same thread.
 //
-class URLRequest : public base::NonThreadSafe {
+class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // Callback function implemented by protocol handlers to create new jobs.
   // The factory may return NULL to indicate an error, which will cause other
@@ -85,7 +86,7 @@ class URLRequest : public base::NonThreadSafe {
 
   // This class handles network interception.  Use with
   // (Un)RegisterRequestInterceptor.
-  class Interceptor {
+  class NET_API Interceptor {
   public:
     virtual ~Interceptor() {}
 
@@ -137,7 +138,7 @@ class URLRequest : public base::NonThreadSafe {
   // if an error occurred, or if the IO is just pending.  When Read() returns
   // true with zero bytes read, it indicates the end of the response.
   //
-  class Delegate {
+  class NET_API Delegate {
    public:
     virtual ~Delegate() {}
 
@@ -188,18 +189,17 @@ class URLRequest : public base::NonThreadSafe {
                                        int cert_error,
                                        X509Certificate* cert);
 
-    // Called when reading cookies. |blocked_by_policy| is true if access to
-    // cookies was denied due to content settings. This method will never be
-    // invoked when LOAD_DO_NOT_SEND_COOKIES is specified.
-    virtual void OnGetCookies(URLRequest* request, bool blocked_by_policy);
+    // Called when reading cookies to allow the delegate to block access to the
+    // cookie. This method will never be invoked when LOAD_DO_NOT_SEND_COOKIES
+    // is specified.
+    virtual bool CanGetCookies(URLRequest* request);
 
-    // Called when a cookie is set. |blocked_by_policy| is true if the cookie
-    // was rejected due to content settings. This method will never be invoked
-    // when LOAD_DO_NOT_SAVE_COOKIES is specified.
-    virtual void OnSetCookie(URLRequest* request,
-                             const std::string& cookie_line,
-                             const CookieOptions& options,
-                             bool blocked_by_policy);
+    // Called when a cookie is set to allow the delegate to block access to the
+    // cookie. This method will never be invoked when LOAD_DO_NOT_SAVE_COOKIES
+    // is specified.
+    virtual bool CanSetCookie(URLRequest* request,
+                              const std::string& cookie_line,
+                              CookieOptions* options);
 
     // After calling Start(), the delegate will receive an OnResponseStarted
     // callback when the request has completed.  If an error occurred, the
@@ -270,6 +270,10 @@ class URLRequest : public base::NonThreadSafe {
   static void AllowFileAccess();
   static bool IsFileAccessAllowed();
 
+  // See switches::kEnableMacCookies.
+  static void EnableMacCookies();
+  static bool AreMacCookiesEnabled();
+
   // The original url is the url used to initialize the request, and it may
   // differ from the url if the request was redirected.
   const GURL& original_url() const { return url_chain_.front(); }
@@ -281,7 +285,7 @@ class URLRequest : public base::NonThreadSafe {
   // The URL that should be consulted for the third-party cookie blocking
   // policy.
   const GURL& first_party_for_cookies() const {
-      return first_party_for_cookies_;
+    return first_party_for_cookies_;
   }
   // This method may be called before Start() or FollowDeferredRedirect() is
   // called.
@@ -586,8 +590,6 @@ class URLRequest : public base::NonThreadSafe {
  private:
   friend class URLRequestJob;
   typedef std::map<const void*, linked_ptr<UserData> > UserDataMap;
-
-  void StartInternal();
 
   // Resumes or blocks a request paused by the NetworkDelegate::OnBeforeRequest
   // handler. If |blocked| is true, the request is blocked and an error page is

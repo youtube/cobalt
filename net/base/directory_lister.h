@@ -12,6 +12,7 @@
 #include "base/file_util.h"
 #include "base/message_loop_proxy.h"
 #include "base/memory/ref_counted.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -22,7 +23,7 @@ namespace net {
 // structs over to the main application thread.  The consumer of this class
 // is insulated from any of the multi-threading details.
 //
-class DirectoryLister  {
+class NET_API DirectoryLister  {
  public:
   // Represents one file found.
   struct DirectoryListerData {

@@ -10,37 +10,13 @@
 #include "base/threading/thread.h"
 #include "net/base/host_port_pair.h"
 #include "net/http/http_network_session.h"
-
-TestCookiePolicy::TestCookiePolicy(int options_bit_mask)
-    : options_(options_bit_mask) {
-}
-
-TestCookiePolicy::~TestCookiePolicy() {}
-
-int TestCookiePolicy::CanGetCookies(const GURL& url,
-                                    const GURL& first_party) const {
-  if (options_ & NO_GET_COOKIES)
-    return net::ERR_ACCESS_DENIED;
-
-  return net::OK;
-}
-
-int TestCookiePolicy::CanSetCookie(const GURL& url,
-                                   const GURL& first_party,
-                                   const std::string& cookie_line) const {
-  if (options_ & NO_SET_COOKIE)
-    return net::ERR_ACCESS_DENIED;
-
-  if (options_ & FORCE_SESSION)
-    return net::OK_FOR_SESSION_ONLY;
-
-  return net::OK;
-}
+#include "net/url_request/url_request_job_factory.h"
 
 TestURLRequestContext::TestURLRequestContext()
     : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
   context_storage_.set_host_resolver(
       net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
+                                    net::HostResolver::kDefaultRetryAttempts,
                                     NULL));
   context_storage_.set_proxy_service(net::ProxyService::CreateDirect());
   Init();
@@ -50,6 +26,7 @@ TestURLRequestContext::TestURLRequestContext(const std::string& proxy)
     : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
   context_storage_.set_host_resolver(
       net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
+                                    net::HostResolver::kDefaultRetryAttempts,
                                     NULL));
   net::ProxyConfig proxy_config;
   proxy_config.proxy_rules().ParseFromString(proxy);
@@ -93,6 +70,7 @@ void TestURLRequestContext::Init() {
   context_storage_.set_cookie_store(new net::CookieMonster(NULL, NULL));
   set_accept_language("en-us,fr");
   set_accept_charset("iso-8859-1,*,utf-8");
+  context_storage_.set_job_factory(new net::URLRequestJobFactory);
 }
 
 
@@ -113,6 +91,7 @@ TestDelegate::TestDelegate()
       quit_on_complete_(true),
       quit_on_redirect_(false),
       allow_certificate_errors_(false),
+      cookie_options_bit_mask_(0),
       response_started_count_(0),
       received_bytes_count_(0),
       received_redirect_count_(0),
@@ -161,26 +140,40 @@ void TestDelegate::OnSSLCertificateError(net::URLRequest* request,
     request->Cancel();
 }
 
-void TestDelegate::OnGetCookies(net::URLRequest* request,
-                                bool blocked_by_policy) {
-  if (blocked_by_policy) {
+bool TestDelegate::CanGetCookies(net::URLRequest* request) {
+  bool allow = true;
+  if (cookie_options_bit_mask_ & NO_GET_COOKIES)
+    allow = false;
+
+  if (!allow) {
     blocked_get_cookies_count_++;
     if (cancel_in_getcookiesblocked_)
       request->Cancel();
   }
+
+  return allow;
 }
 
-void TestDelegate::OnSetCookie(net::URLRequest* request,
-                               const std::string& cookie_line,
-                               const net::CookieOptions& options,
-                               bool blocked_by_policy) {
-  if (blocked_by_policy) {
+bool TestDelegate::CanSetCookie(net::URLRequest* request,
+                                const std::string& cookie_line,
+                                net::CookieOptions* options) {
+  bool allow = true;
+  if (cookie_options_bit_mask_ & NO_SET_COOKIE)
+    allow = false;
+
+  if (cookie_options_bit_mask_ & FORCE_SESSION)
+    options->set_force_session();
+
+
+  if (!allow) {
     blocked_set_cookie_count_++;
     if (cancel_in_setcookieblocked_)
       request->Cancel();
   } else {
     set_cookie_count_++;
   }
+
+  return allow;
 }
 
 void TestDelegate::OnResponseStarted(net::URLRequest* request) {
@@ -259,7 +252,7 @@ TestNetworkDelegate::~TestNetworkDelegate() {}
 int TestNetworkDelegate::OnBeforeURLRequest(
     net::URLRequest* request,
     net::CompletionCallback* callback,
-    GURL* new_url) {
+    GURL* new_url ) {
   created_requests_++;
   return net::OK;
 }
@@ -273,7 +266,8 @@ int TestNetworkDelegate::OnBeforeSendHeaders(
 
 void TestNetworkDelegate::OnRequestSent(
     uint64 request_id,
-    const net::HostPortPair& socket_address) {
+    const net::HostPortPair& socket_address,
+    const net::HttpRequestHeaders& headers) {
 }
 
 void TestNetworkDelegate::OnBeforeRedirect(net::URLRequest* request,
@@ -287,6 +281,10 @@ void TestNetworkDelegate::OnResponseStarted(net::URLRequest* request) {
   }
 }
 
+void TestNetworkDelegate::OnRawBytesRead(const net::URLRequest& request,
+                                         int bytes_read) {
+}
+
 void TestNetworkDelegate::OnCompleted(net::URLRequest* request) {
   if (request->status().status() == net::URLRequestStatus::FAILED) {
     error_count_++;
@@ -294,7 +292,8 @@ void TestNetworkDelegate::OnCompleted(net::URLRequest* request) {
   }
 }
 
-void TestNetworkDelegate::OnURLRequestDestroyed(net::URLRequest* request) {
+void TestNetworkDelegate::OnURLRequestDestroyed(
+    net::URLRequest* request) {
   destroyed_requests_++;
 }
 
@@ -304,4 +303,8 @@ void TestNetworkDelegate::OnHttpTransactionDestroyed(uint64 request_id) {
 net::URLRequestJob* TestNetworkDelegate::OnMaybeCreateURLRequestJob(
     net::URLRequest* request) {
   return NULL;
+}
+
+void TestNetworkDelegate::OnPACScriptError(int line_number,
+                                           const string16& error) {
 }

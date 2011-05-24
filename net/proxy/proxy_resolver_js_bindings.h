@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,15 +9,17 @@
 #include <string>
 
 #include "base/string16.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
 class HostResolver;
 class NetLog;
+class ProxyResolverErrorObserver;
 struct ProxyResolverRequestContext;
 
 // Interface for the javascript bindings.
-class ProxyResolverJSBindings {
+class NET_TEST ProxyResolverJSBindings {
  public:
   ProxyResolverJSBindings() : current_request_context_(NULL) {}
 
@@ -64,8 +66,11 @@ class ProxyResolverJSBindings {
   //   - Use the provided host resolver to service dnsResolve().
   //
   // Note that |host_resolver| will be used in sync mode mode.
-  static ProxyResolverJSBindings* CreateDefault(HostResolver* host_resolver,
-                                                NetLog* net_log);
+  // Takes ownership of |error_observer| which might be NULL.
+  static ProxyResolverJSBindings* CreateDefault(
+      HostResolver* host_resolver,
+      NetLog* net_log,
+      ProxyResolverErrorObserver* error_observer);
 
   // Sets details about the currently executing FindProxyForURL() request.
   void set_current_request_context(

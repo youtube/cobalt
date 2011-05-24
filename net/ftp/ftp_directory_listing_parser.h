@@ -12,6 +12,7 @@
 #include "base/basictypes.h"
 #include "base/string16.h"
 #include "base/time.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -35,9 +36,10 @@ struct FtpDirectoryListingEntry {
 
 // Parses an FTP directory listing |text|. On success fills in |entries|.
 // Returns network error code.
-int ParseFtpDirectoryListing(const std::string& text,
-                             const base::Time& current_time,
-                             std::vector<FtpDirectoryListingEntry>* entries);
+NET_API int ParseFtpDirectoryListing(
+    const std::string& text,
+    const base::Time& current_time,
+    std::vector<FtpDirectoryListingEntry>* entries);
 
 }  // namespace net
 

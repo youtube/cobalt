@@ -6,67 +6,33 @@
 
 namespace media {
 
-// PictureBuffer implementation.
-PictureBuffer::PictureBuffer(int32 id,
-                             gfx::Size pixel_size,
-                             std::vector<uint32> color_format,
-                             MemoryType memory_type,
-                             std::vector<DataPlaneHandle> data_plane_handles)
+// Implementations for the other constructors are found in
+// webkit/plugins/ppapi/ppb_video_decoder_impl.cc.
+// They are not included in this file because it would require
+// media/ to depend on files in ppapi/.
+BufferInfo::BufferInfo(int32 id, gfx::Size size)
     : id_(id),
-      pixel_size_(pixel_size),
-      color_format_(color_format),
-      memory_type_(memory_type),
-      data_plane_handles_(data_plane_handles) {
+      size_(size) {
 }
 
-PictureBuffer::~PictureBuffer() {}
-
-int32 PictureBuffer::GetId() {
-  return id_;
+GLESBuffer::GLESBuffer(
+    int32 id, gfx::Size size, uint32 texture_id, uint32 context_id)
+    : texture_id_(texture_id),
+      context_id_(context_id),
+      info_(id, size) {
 }
 
-gfx::Size PictureBuffer::GetSize() {
-  return pixel_size_;
+SysmemBuffer::SysmemBuffer(int32 id, gfx::Size size, void* data)
+    : data_(data),
+      info_(id, size) {
 }
 
-const std::vector<uint32>& PictureBuffer::GetColorFormat() {
-  return color_format_;
-}
-
-PictureBuffer::MemoryType PictureBuffer::GetMemoryType() {
-  return memory_type_;
-}
-
-std::vector<PictureBuffer::DataPlaneHandle>& PictureBuffer::GetPlaneHandles() {
-  return data_plane_handles_;
-}
-
-// Picture implementation.
-Picture::Picture(PictureBuffer* picture_buffer, gfx::Size decoded_pixel_size,
-                 gfx::Size visible_pixel_size, void* user_handle)
-    : picture_buffer_(picture_buffer),
-      decoded_pixel_size_(decoded_pixel_size),
-      visible_pixel_size_(visible_pixel_size),
-      user_handle_(user_handle) {
-}
-
-Picture::~Picture() {}
-
-PictureBuffer* Picture::picture_buffer() {
-  return picture_buffer_;
-}
-
-gfx::Size Picture::GetDecodedSize() const {
-  return decoded_pixel_size_;
-}
-
-gfx::Size Picture::GetVisibleSize() const {
-  return visible_pixel_size_;
-}
-
-void* Picture::GetUserHandle() {
-  return user_handle_;
+Picture::Picture(int32 picture_buffer_id, int32 bitstream_buffer_id,
+                 gfx::Size visible_size, gfx::Size decoded_size)
+    : picture_buffer_id_(picture_buffer_id),
+      bitstream_buffer_id_(bitstream_buffer_id),
+      visible_size_(visible_size),
+      decoded_size_(decoded_size) {
 }
 
 }  // namespace media
-

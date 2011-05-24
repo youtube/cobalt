@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -114,7 +114,8 @@ bool SpdyProxyClientSocket::IsConnected() const {
 }
 
 bool SpdyProxyClientSocket::IsConnectedAndIdle() const {
-  return IsConnected() && !spdy_stream_->is_idle();
+  return IsConnected() && spdy_stream_.get() != NULL &&
+      !spdy_stream_->is_idle();
 }
 
 const BoundNetLog& SpdyProxyClientSocket::NetLog() const {
@@ -228,13 +229,13 @@ int SpdyProxyClientSocket::Write(IOBuffer* buf, int buf_len,
 }
 
 bool SpdyProxyClientSocket::SetReceiveBufferSize(int32 size) {
-  // Since this ClientSocket sits on top of a shared SpdySession, it
+  // Since this StreamSocket sits on top of a shared SpdySession, it
   // is not safe for callers to set change this underlying socket.
   return false;
 }
 
 bool SpdyProxyClientSocket::SetSendBufferSize(int32 size) {
-  // Since this ClientSocket sits on top of a shared SpdySession, it
+  // Since this StreamSocket sits on top of a shared SpdySession, it
   // is not safe for callers to set change this underlying socket.
   return false;
 }

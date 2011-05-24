@@ -29,7 +29,9 @@ class WebSocketHandshakeResponseHandler;
 // see HttpOnly cookies, so it injects cookie header in handshake request and
 // strips set-cookie headers in handshake response.
 // TODO(ukai): refactor websocket.cc to use this.
-class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
+class NET_API WebSocketJob
+    : public SocketStreamJob,
+      public SocketStream::Delegate {
  public:
   // This is state of WebSocket, not SocketStream.
   enum State {
@@ -75,14 +77,12 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
 
   bool SendHandshakeRequest(const char* data, int len);
   void AddCookieHeaderAndSend();
-  void OnCanGetCookiesCompleted(int policy);
 
   void OnSentHandshakeRequest(SocketStream* socket, int amount_sent);
   void OnReceivedHandshakeResponse(
       SocketStream* socket, const char* data, int len);
   void SaveCookiesAndNotifyHeaderComplete();
   void SaveNextCookie();
-  void OnCanSetCookieCompleted(int policy);
 
   GURL GetURLForCookies() const;
 

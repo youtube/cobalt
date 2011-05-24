@@ -8,8 +8,9 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/callback.h"
+#include "base/callback_old.h"
 #include "media/base/bitstream_buffer.h"
+#include "media/video/picture.h"
 #include "ui/gfx/size.h"
 
 namespace media {
@@ -72,89 +73,11 @@ enum VideoAttributeKey {
   // H264 tool called Weighted Prediction.
   VIDEOATTRIBUTEKEY_BITSTREAMFORMAT_H264_FEATURE_WEIGHTEDPREDICTION,
 
-  VIDEOATTRIBUTEKEY_COLORFORMAT_BASE = 0x1000,
-  // Keys for definining attributes of a color buffer. Using these attributes
-  // users can define color spaces in terms of red, green, blue and alpha
-  // components as well as with combination of luma and chroma values with
-  // different subsampling schemes. Also planar, semiplanar and interleaved
-  // formats can be described by using the provided keys as instructed.
-  //
-  // Rules for describing the color planes (1 or more) that constitute the whole
-  // picture are:
-  //   1. Each plane starts with VIDEOATTRIBUTEKEY_COLORFORMAT_PLANE_PIXEL_SIZE
-  //   attribute telling how many bits per pixel the plane contains.
-  //   2. VIDEOATTRIBUTEKEY_COLORFORMAT_PLANE_PIXEL_SIZE attribute must be
-  //   followed either by
-  //     a. Red, green and blue components followed optionally by alpha size
-  //     attribute.
-  //     OR
-  //     b. Luma, blue difference chroma and red difference chroma components as
-  //     well as three sampling reference factors that tell how the chroma may
-  //     have been subsampled with respect to luma.
-  //   3. Description must be terminated with VIDEOATTRIBUTEKEY_COLORFORMAT_NONE
-  //   key with no value for attribute.
-  //
-  // For example, semiplanar YCbCr 4:2:2 (2 planes, one containing 8-bit luma,
-  // the other containing two interleaved chroma data components) may be
-  // described with the following attributes:
-  // {
-  //    VIDEOATTRIBUTEKEY_COLORFORMAT_PLANE_PIXEL_SIZE, 8,
-  //    VIDEOATTRIBUTEKEY_COLORFORMAT_LUMA_SIZE, 8,
-  //    VIDEOATTRIBUTEKEY_COLORFORMAT_PLANE_PIXEL_SIZE, 16,
-  //    VIDEOATTRIBUTEKEY_COLORFORMAT_CHROMA_BLUE_SIZE, 8,
-  //    VIDEOATTRIBUTEKEY_COLORFORMAT_CHROMA_RED_SIZE, 8,
-  //    VIDEOATTRIBUTEKEY_COLORFORMAT_HORIZONTAL_SAMPLING_FACTOR_REFERENCE, 4,
-  //    VIDEOATTRIBUTEKEY_COLORFORMAT_CHROMA_HORIZONTAL_SUBSAMPLING_FACTOR, 2,
-  //    VIDEOATTRIBUTEKEY_COLORFORMAT_CHROMA_VERTICAL_SUBSAMPLING_FACTOR, 2
-  //    VIDEOATTRIBUTEKEY_TERMINATOR
-  // }
-  //
-  // Another example, commonly known 16-bit RGB 565 color format may be
-  // specified as follows:
-  // {
-  //   VIDEOATTRIBUTEKEY_COLORFORMAT_PLANE_PIXEL_SIZE, 16,
-  //   VIDEOATTRIBUTEKEY_COLORFORMAT_RED_SIZE, 5,
-  //   VIDEOATTRIBUTEKEY_COLORFORMAT_GREEN_SIZE, 6,
-  //   VIDEOATTRIBUTEKEY_COLORFORMAT_BLUE_SIZE, 5,
-  //   VIDEOATTRIBUTEKEY_TERMINATOR
-  // }
-  // Total color component bits per pixel in the picture buffer.
-  VIDEOATTRIBUTEKEY_COLORFORMAT_PLANE_PIXEL_SIZE,
-  // Bits of red per pixel in picture buffer.
-  VIDEOATTRIBUTEKEY_COLORFORMAT_RED_SIZE,
-  // Bits of green per pixel in picture buffer.
-  VIDEOATTRIBUTEKEY_COLORFORMAT_GREEN_SIZE,
-  // Bits of blue per pixel in picture buffer.
-  VIDEOATTRIBUTEKEY_COLORFORMAT_BLUE_SIZE,
-  // Bits of alpha in color buffer.
-  VIDEOATTRIBUTEKEY_COLORFORMAT_ALPHA_SIZE,
-  // Bits of luma per pixel in color buffer.
-  VIDEOATTRIBUTEKEY_COLORFORMAT_LUMA_SIZE,
-  // Bits of blue difference chroma (Cb) data in color buffer.
-  VIDEOATTRIBUTEKEY_COLORFORMAT_CHROMA_BLUE_SIZE,
-  // Bits of blue difference chroma (Cr) data in color buffer.
-  VIDEOATTRIBUTEKEY_COLORFORMAT_CHROMA_RED_SIZE,
-  // Three keys to describe the subsampling of YCbCr sampled digital video
-  // signal. For example, 4:2:2 sampling could be defined by setting:
-  // VIDEOATTRIBUTEKEY_COLORFORMAT_HORIZONTAL_SAMPLING_FACTOR_REFERENCE = 4
-  // VIDEOATTRIBUTEKEY_COLORFORMAT_CHROMINANCE_HORIZONTAL_SUBSAMPLING_FACTOR = 2
-  // VIDEOATTRIBUTEKEY_COLORFORMAT_CHROMINANCE_VERTICAL_SUBSAMPLING_FACTOR = 2
-  VIDEOATTRIBUTEKEY_COLORFORMAT_HORIZONTAL_SAMPLING_FACTOR_REFERENCE,
-  VIDEOATTRIBUTEKEY_COLORFORMAT_CHROMA_HORIZONTAL_SUBSAMPLING_FACTOR,
-  VIDEOATTRIBUTEKEY_COLORFORMAT_CHROMA_VERTICAL_SUBSAMPLING_FACTOR,
-  // Base for telling implementation specific information about the optimal
-  // number of picture buffers to be provided to the implementation.
-  VIDEOATTRIBUTEKEY_PICTUREBUFFER_REQUIREMENTS_BASE = 0x10000,
-  // Following two keys are used to signal how many buffers are needed by the
-  // implementation as a function of the maximum number of reference frames set
-  // by the stream. Number of required buffers is
-  //   MAX_REF_FRAMES * REFERENCE_PIC_MULTIPLIER + ADDITIONAL_BUFFERS
-  VIDEOATTRIBUTEKEY_PICTUREBUFFER_REQUIREMENTS_ADDITIONAL_BUFFERS,
-  VIDEOATTRIBUTEKEY_PICTUREBUFFER_REQUIREMENTS_REFERENCE_PIC_MULTIPLIER,
-  // If decoder does not support pixel accurate strides for picture buffer, this
-  // parameter tells the stride multiple that is needed by the decoder. Plugin
-  // must obey the given stride in its picture buffer allocations.
-  VIDEOATTRIBUTEKEY_PICTUREBUFFER_REQUIREMENTS_STRIDE_MULTIPLE,
+  VIDEOATTRIBUTEKEY_COLOR_FORMAT_BASE = 0x1000,
+  // This specifies the output color format for a decoded frame.
+  // When used in GetConfigs, this represents the color types the
+  // Decode is capable of decoding.
+  VIDEOATTRIBUTEKEY_COLORFORMAT_RGBA,
 };
 
 enum VideoCodecFourcc {
@@ -228,8 +151,8 @@ enum H264PayloadFormat {
 };
 
 // Video decoder interface.
-// TODO(vmr): Move much of the inner classes to media namespace to simplify code
-//            that's using it.
+// This interface is extended by the various components that ultimately
+// implement the backend of PPB_VideoDecode_Dev.
 class VideoDecodeAccelerator {
  public:
   virtual ~VideoDecodeAccelerator();
@@ -247,76 +170,18 @@ class VideoDecodeAccelerator {
     VIDEODECODERERROR_UNEXPECTED_FLUSH,
   };
 
-  // Interface expected from PictureBuffers where pictures are stored.
-  class PictureBuffer {
-   public:
-    enum MemoryType {
-      PICTUREBUFFER_MEMORYTYPE_NONE = 0,
-      PICTUREBUFFER_MEMORYTYPE_SYSTEM,
-      PICTUREBUFFER_MEMORYTYPE_GL_TEXTURE,
-    };
-    // Union to represent one data plane in picture buffer.
-    union DataPlaneHandle {
-      struct {
-        uint32 context_id;  // GLES context id.
-        uint32 texture_id;  // GLES texture id.
-      };
-      void* sysmem;  // Simply a pointer to system memory.
-    };
-
-    virtual ~PictureBuffer();
-    virtual int32 GetId() = 0;
-    virtual gfx::Size GetSize() = 0;
-    virtual const std::vector<uint32>& GetColorFormat() = 0;
-    virtual MemoryType GetMemoryType() = 0;
-    virtual std::vector<DataPlaneHandle>& GetPlaneHandles() = 0;
-  };
-
-  class Picture {
-   public:
-    virtual ~Picture();
-
-    // Picture size related functions.
-    // There are three types of logical picture sizes that applications using
-    // video decoder should be aware of:
-    //   - Visible picture size,
-    //   - Decoded picture size, and
-    //   - Picture buffer size.
-    //
-    // Visible picture size means the actual picture size that is intended to be
-    // displayed from the decoded output.
-    //
-    // Decoded picture size might vary from the visible size of the picture,
-    // because of the underlying properties of the codec. Vast majority of
-    // modern video compression algorithms are based on (macro)block-based
-    // transforms and therefore process the picture in small windows (usually
-    // of size 16x16 pixels) one by one. However, if the native picture size
-    // does not happen to match the block-size of the algorithm, there may be
-    // redundant data left on the sides of the output picture, which are not
-    // intended for display. For example, this happens to video of size 854x480
-    // and H.264 codec. Since the width (854 pixels) is not multiple of the
-    // block size of the coding format (16 pixels), pixel columns 854-863
-    // contain garbage data which is notintended for display.
-    //
-    // Plugin is providing the buffers for output decoding and it should know
-    // the picture buffer size it has provided to the decoder. Thus, there is
-    // no function to query the buffer size from this class.
-
-    // Returns the picture buffer where this picture is contained.
-    virtual PictureBuffer* picture_buffer() = 0;
-
-    // Returns the decoded size of the decoded picture in pixels.
-    virtual gfx::Size GetDecodedSize() const = 0;
-
-    // Returns the visible size of the decoded picture in pixels.
-    virtual gfx::Size GetVisibleSize() const = 0;
-
-    // Returns metadata associated with the picture.
-    virtual void* GetUserHandle() = 0;
+  // Represents the type of data buffer to be used by the decoder.
+  enum MemoryType {
+    PICTUREBUFFER_MEMORYTYPE_NONE = 0,
+    PICTUREBUFFER_MEMORYTYPE_SYSTEM,
+    PICTUREBUFFER_MEMORYTYPE_GL_TEXTURE,
   };
 
   // Interface for collaborating with picture interface to provide memory for
   // output picture and blitting them.
+  // This interface is extended by the various layers that relay messages back
+  // to the plugin, through the PPP_VideoDecode_Dev interface the plugin
+  // implements.
   class Client {
    public:
     virtual ~Client() {}
@@ -325,33 +190,44 @@ class VideoDecodeAccelerator {
     // buffer to the decoder.
     virtual void ProvidePictureBuffers(
         uint32 requested_num_of_buffers,
-        const std::vector<uint32>& buffer_properties) = 0;
+        const gfx::Size& dimensions,
+        MemoryType type) = 0;
 
     // Callback to dismiss picture buffer that was assigned earlier.
-    virtual void DismissPictureBuffer(PictureBuffer* picture_buffer) = 0;
+    virtual void DismissPictureBuffer(int32 picture_buffer_id) = 0;
 
     // Callback to deliver decoded pictures ready to be displayed.
-    virtual void PictureReady(Picture* picture) = 0;
+    virtual void PictureReady(const Picture& picture) = 0;
 
     // Callback to notify that decoder has decoded end of stream marker and has
     // outputted all displayable pictures.
     virtual void NotifyEndOfStream() = 0;
+
+    // Callback to notify that decoded has decoded the end of the current
+    // bitstream buffer.
+    virtual void NotifyEndOfBitstreamBuffer(int32 bitstream_buffer_id) = 0;
+
+    // Callback to notify that the outstanding flush has finished.
+    virtual void NotifyFlushDone() = 0;
+
+    // Callback to notify that the outstanding abort has finished.
+    virtual void NotifyAbortDone() = 0;
 
     // Callback to notify about decoding errors.
     virtual void NotifyError(Error error) = 0;
   };
 
   // Video decoder functions.
-  // GetConfig returns supported configurations that are subsets of given
-  // |prototype_config|.
+  // GetConfigs returns the supported configurations that is a subset of the
+  // given |requested_configs|.
   // Parameters:
-  //  |instance| is the pointer to the plug-in instance.
-  //  |prototype_config| is the prototypical configuration.
-  //
-  // Returns std::vector containing all the configurations that match the
-  // prototypical configuration.
-  virtual const std::vector<uint32>& GetConfig(
-      const std::vector<uint32>& prototype_config) = 0;
+  //  |requested_configs| is the set of configurations the plugin is querying
+  //  for support.
+  //  |matched_configs| is the subset of |requested_configs| that the decoder
+  //  supports.
+  virtual void GetConfigs(
+      const std::vector<uint32>& requested_configs,
+      std::vector<uint32>* matched_configs) = 0;
 
   // Initializes the video decoder with specific configuration.
   // Parameters:
@@ -361,56 +237,51 @@ class VideoDecodeAccelerator {
   virtual bool Initialize(const std::vector<uint32>& config) = 0;
 
   // Decodes given bitstream buffer. Once decoder is done with processing
-  // |bitstream_buffer| is will call |callback|.
+  // |bitstream_buffer| it will call NotifyEndOfBitstreamBuffer() with the
+  // bitstream buffer id.
   // Parameters:
   //  |bitstream_buffer| is the input bitstream that is sent for decoding.
-  //  |callback| contains the callback function pointer for informing about
-  //  finished processing for |bitstream_buffer|.
   //
   // Returns true when command successfully accepted. Otherwise false.
-  virtual bool Decode(BitstreamBuffer* bitstream_buffer,
-                      VideoDecodeAcceleratorCallback* callback) = 0;
+  virtual bool Decode(const BitstreamBuffer& bitstream_buffer) = 0;
 
-  // Assigns picture buffer to the video decoder. This function must be called
-  // at latest when decoder has made a ProvidePictureBuffers callback to the
-  // client. Ownership of the picture buffer remains with the client, but it is
-  // not allowed to deallocate picture buffer before DismissPictureBuffer
+  // Assigns a set of picture buffers to the video decoder.
+  // AssignGLESBuffers assigns texture-backed buffers.
+  // AssignSysmemBuffers assigns system memory-backed buffers.
+  //
+  // Ownership of each picture buffer remains with the client, but the client
+  // is not allowed to deallocate the buffer before the DismissPictureBuffer
   // callback has been initiated for a given buffer.
   //
   // Parameters:
-  //  |picture_buffers| contains the allocated picture buffers for the output.
-  virtual void AssignPictureBuffer(
-      std::vector<PictureBuffer*> picture_buffers) = 0;
+  //  |buffers| contains the allocated picture buffers for the output.
+  virtual void AssignGLESBuffers(const std::vector<GLESBuffer>& buffers) = 0;
+  virtual void AssignSysmemBuffers(
+      const std::vector<SysmemBuffer>& buffers) = 0;
 
   // Sends picture buffers to be reused by the decoder. This needs to be called
   // for each buffer that has been processed so that decoder may know onto which
   // picture buffers it can write the output to.
   //
   // Parameters:
-  //  |picture_buffer| points to the picture buffer that is to be reused.
-  virtual void ReusePictureBuffer(PictureBuffer* picture_buffer) = 0;
+  //  |picture_buffer_id| id of the picture buffer that is to be reused.
+  virtual void ReusePictureBuffer(int32 picture_buffer_id) = 0;
 
   // Flushes the decoder. Flushing will result in output of the
   // pictures and buffers held inside the decoder and returning of bitstream
   // buffers using the callbacks implemented by the plug-in. Once done with
-  // flushing, the decode will call the |callback|.
-  //
-  // Parameters:
-  //  |callback| contains the callback function pointer.
+  // flushing, the decode will call NotifyFlushDone().
   //
   // Returns true when command successfully accepted. Otherwise false.
-  virtual bool Flush(VideoDecodeAcceleratorCallback* callback) = 0;
+  virtual bool Flush() = 0;
 
   // Aborts the decoder. Decode will abort the decoding as soon as possible and
-  // will not output anything. |callback| will be called as soon as abort has
+  // will not output anything. NotifyAbortDone() is called  as soon as abort has
   // been finished. After abort all buffers can be considered dismissed, even
   // when there has not been callbacks to dismiss them.
   //
-  // Parameters:
-  //  |callback| contains the callback function pointer.
-  //
   // Returns true when command successfully accepted. Otherwise false.
-  virtual bool Abort(VideoDecodeAcceleratorCallback* callback) = 0;
+  virtual bool Abort() = 0;
 };
 
 }  // namespace media

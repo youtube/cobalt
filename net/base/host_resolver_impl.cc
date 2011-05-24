@@ -18,12 +18,12 @@
 #include "base/compiler_specific.h"
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
-#include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
-#include "base/synchronization/lock.h"
+#include "base/task.h"
 #include "base/threading/worker_pool.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
@@ -43,6 +43,30 @@
 namespace net {
 
 namespace {
+
+// Helper to create an AddressList that has a particular port. It has an
+// optimization to avoid allocating a new address linked list when the
+// port is already what we want.
+AddressList CreateAddressListUsingPort(const AddressList& src, int port) {
+  if (src.GetPort() == port)
+    return src;
+
+  AddressList out = src;
+  out.SetPort(port);
+  return out;
+}
+
+// Helper to mutate the linked list contained by AddressList to the given
+// port. Note that in general this is dangerous since the AddressList's
+// data might be shared (and you should use AddressList::SetPort).
+//
+// However since we allocated the AddressList ourselves we can safely
+// do this optimization and avoid reallocating the list.
+void MutableSetPort(int port, AddressList* addrlist) {
+  struct addrinfo* mutable_head =
+      const_cast<struct addrinfo*>(addrlist->head());
+  SetPortForAllAddrinfos(mutable_head, port);
+}
 
 // We use a separate histogram name for each platform to facilitate the
 // display of error codes by their symbolic name (since each platform has
@@ -71,7 +95,9 @@ HostCache* CreateDefaultCache() {
 
 }  // anonymous namespace
 
+// static
 HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
+                                       size_t max_retry_attempts,
                                        NetLog* net_log) {
   // Maximum of 8 concurrent resolver threads.
   // Some routers (or resolvers) appear to start to provide host-not-found if
@@ -83,8 +109,8 @@ HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
     max_concurrent_resolves = kDefaultMaxJobs;
 
   HostResolverImpl* resolver =
-      new HostResolverImpl(NULL, CreateDefaultCache(),
-                           max_concurrent_resolves, net_log);
+      new HostResolverImpl(NULL, CreateDefaultCache(), max_concurrent_resolves,
+                           max_retry_attempts, net_log);
 
   return resolver;
 }
@@ -109,13 +135,19 @@ static int ResolveAddrInfo(HostResolverProc* resolver_proc,
 // Extra parameters to attach to the NetLog when the resolve failed.
 class HostResolveFailedParams : public NetLog::EventParameters {
  public:
-  HostResolveFailedParams(int net_error, int os_error)
-      : net_error_(net_error),
+  HostResolveFailedParams(uint32 attempt_number,
+                          int net_error,
+                          int os_error)
+      : attempt_number_(attempt_number),
+        net_error_(net_error),
         os_error_(os_error) {
   }
 
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
+    if (attempt_number_)
+      dict->SetInteger("attempt_number", attempt_number_);
+
     dict->SetInteger("net_error", net_error_);
 
     if (os_error_) {
@@ -142,6 +174,7 @@ class HostResolveFailedParams : public NetLog::EventParameters {
   }
 
  private:
+  const uint32 attempt_number_;
   const int net_error_;
   const int os_error_;
 };
@@ -278,7 +311,7 @@ class HostResolverImpl::Request {
 
   void OnComplete(int error, const AddressList& addrlist) {
     if (error == OK)
-      addresses_->SetFrom(addrlist, port());
+      *addresses_ = CreateAddressListUsingPort(addrlist, port());
     CompletionCallback* callback = callback_;
     MarkAsCancelled();
     callback->Run(error);
@@ -350,13 +383,16 @@ class HostResolverImpl::Job
      : id_(id),
        key_(key),
        resolver_(resolver),
-       origin_loop_(MessageLoop::current()),
+       origin_loop_(base::MessageLoopProxy::CreateForCurrentThread()),
        resolver_proc_(resolver->effective_resolver_proc()),
-       error_(OK),
-       os_error_(0),
+       unresponsive_delay_(resolver->unresponsive_delay()),
+       attempt_number_(0),
+       completed_attempt_number_(0),
+       completed_attempt_error_(ERR_UNEXPECTED),
        had_non_speculative_request_(false),
        net_log_(BoundNetLog::Make(net_log,
                                   NetLog::SOURCE_HOST_RESOLVER_IMPL_JOB)) {
+    DCHECK(resolver);
     net_log_.BeginEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
         make_scoped_refptr(
@@ -366,6 +402,7 @@ class HostResolverImpl::Job
   // Attaches a request to this job. The job takes ownership of |req| and will
   // take care to delete it.
   void AddRequest(Request* req) {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     req->request_net_log().BeginEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_ATTACH,
         make_scoped_refptr(new NetLogSourceParameter(
@@ -378,37 +415,59 @@ class HostResolverImpl::Job
       had_non_speculative_request_ = true;
   }
 
-  // Called from origin loop.
   void Start() {
-    start_time_ = base::TimeTicks::Now();
+    DCHECK(origin_loop_->BelongsToCurrentThread());
+    StartLookupAttempt();
+  }
 
-    // Dispatch the job to a worker thread.
-    if (!base::WorkerPool::PostTask(FROM_HERE,
-            NewRunnableMethod(this, &Job::DoLookup), true)) {
+  void StartLookupAttempt() {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
+    base::TimeTicks start_time = base::TimeTicks::Now();
+    ++attempt_number_;
+    // Dispatch the lookup attempt to a worker thread.
+    if (!base::WorkerPool::PostTask(
+            FROM_HERE,
+            NewRunnableMethod(this, &Job::DoLookup, start_time,
+                              attempt_number_),
+            true)) {
       NOTREACHED();
 
       // Since we could be running within Resolve() right now, we can't just
       // call OnLookupComplete().  Instead we must wait until Resolve() has
       // returned (IO_PENDING).
-      error_ = ERR_UNEXPECTED;
-      MessageLoop::current()->PostTask(
-          FROM_HERE, NewRunnableMethod(this, &Job::OnLookupComplete));
+      origin_loop_->PostTask(
+          FROM_HERE,
+          NewRunnableMethod(this, &Job::OnLookupComplete, AddressList(),
+                            start_time, attempt_number_, ERR_UNEXPECTED, 0));
+      return;
+    }
+
+    net_log_.AddEvent(
+        NetLog::TYPE_HOST_RESOLVER_IMPL_ATTEMPT_STARTED,
+        make_scoped_refptr(new NetLogIntegerParameter(
+            "attempt_number", attempt_number_)));
+
+    // Post a task to check if we get the results within a given time.
+    // OnCheckForComplete has the potential for starting a new attempt on a
+    // different worker thread if none of our outstanding attempts have
+    // completed yet.
+    if (attempt_number_ <= resolver_->max_retry_attempts()) {
+      origin_loop_->PostDelayedTask(
+          FROM_HERE,
+          NewRunnableMethod(this, &Job::OnCheckForComplete),
+          unresponsive_delay_.InMilliseconds());
     }
   }
 
-  // Cancels the current job. Callable from origin thread.
+  // Cancels the current job. The Job will be orphaned. Any outstanding resolve
+  // attempts running on worker threads will continue running. Only once all the
+  // attempts complete will the final reference to this Job be released.
   void Cancel() {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
 
     HostResolver* resolver = resolver_;
     resolver_ = NULL;
-
-    // Mark the job as cancelled, so when worker thread completes it will
-    // not try to post completion to origin loop.
-    {
-      base::AutoLock locked(origin_loop_lock_);
-      origin_loop_ = NULL;
-    }
 
     // End here to prevent issues when a Job outlives the HostResolver that
     // spawned it.
@@ -424,38 +483,41 @@ class HostResolverImpl::Job
     }
   }
 
-  // Called from origin thread.
   bool was_cancelled() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return resolver_ == NULL;
   }
 
-  // Called from origin thread.
+  bool was_completed() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
+    return completed_attempt_number_ > 0;
+  }
+
   const Key& key() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return key_;
   }
 
   int id() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return id_;
   }
 
-  base::TimeTicks start_time() const {
-    return start_time_;
-  }
-
-  // Called from origin thread.
   const RequestsList& requests() const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return requests_;
   }
 
   // Returns the first request attached to the job.
   const Request* initial_request() const {
-    DCHECK_EQ(origin_loop_, MessageLoop::current());
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     DCHECK(!requests_.empty());
     return requests_[0];
   }
 
   // Returns true if |req_info| can be fulfilled by this job.
   bool CanServiceRequest(const RequestInfo& req_info) const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     return key_ == resolver_->GetEffectiveKeyForRequest(req_info);
   }
 
@@ -470,49 +532,96 @@ class HostResolverImpl::Job
   // WARNING: This code runs inside a worker pool. The shutdown code cannot
   // wait for it to finish, so we must be very careful here about using other
   // objects (like MessageLoops, Singletons, etc). During shutdown these objects
-  // may no longer exist.
-  void DoLookup() {
+  // may no longer exist. Multiple DoLookups() could be running in parallel, so
+  // any state inside of |this| must not mutate .
+  void DoLookup(const base::TimeTicks& start_time,
+                const uint32 attempt_number) {
+    AddressList results;
+    int os_error = 0;
     // Running on the worker thread
-    error_ = ResolveAddrInfo(resolver_proc_,
-                             key_.hostname,
-                             key_.address_family,
-                             key_.host_resolver_flags,
-                             &results_,
-                             &os_error_);
+    int error = ResolveAddrInfo(resolver_proc_,
+                                key_.hostname,
+                                key_.address_family,
+                                key_.host_resolver_flags,
+                                &results,
+                                &os_error);
 
-    // The origin loop could go away while we are trying to post to it, so we
-    // need to call its PostTask method inside a lock.  See ~HostResolver.
-    {
-      base::AutoLock locked(origin_loop_lock_);
-      if (origin_loop_) {
-        origin_loop_->PostTask(FROM_HERE,
-                               NewRunnableMethod(this, &Job::OnLookupComplete));
-      }
-    }
+    origin_loop_->PostTask(
+        FROM_HERE,
+        NewRunnableMethod(this, &Job::OnLookupComplete, results, start_time,
+                          attempt_number, error, os_error));
+  }
+
+  // Callback to see if DoLookup() has finished or not (runs on origin thread).
+  void OnCheckForComplete() {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
+
+    if (was_completed() || was_cancelled())
+      return;
+
+    DCHECK(resolver_);
+    unresponsive_delay_ *= resolver_->retry_factor();
+    StartLookupAttempt();
   }
 
   // Callback for when DoLookup() completes (runs on origin thread).
-  void OnLookupComplete() {
-    // Should be running on origin loop.
-    // TODO(eroman): this is being hit by URLRequestTest.CancelTest*,
-    // because MessageLoop::current() == NULL.
-    //DCHECK_EQ(origin_loop_, MessageLoop::current());
-    DCHECK(error_ || results_.head());
+  void OnLookupComplete(const AddressList& results,
+                        const base::TimeTicks& start_time,
+                        const uint32 attempt_number,
+                        int error,
+                        const int os_error) {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
+    DCHECK(error || results.head());
+
+    bool was_retry_attempt = attempt_number > 1;
+
+    if (!was_cancelled()) {
+      scoped_refptr<NetLog::EventParameters> params;
+      if (error != OK) {
+        params = new HostResolveFailedParams(attempt_number, error, os_error);
+      } else {
+        params = new NetLogIntegerParameter("attempt_number", attempt_number_);
+      }
+      net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_ATTEMPT_FINISHED,
+                        params);
+
+      // If host is already resolved, then record data and return.
+      if (was_completed()) {
+        // If this is the first attempt that is finishing later, then record
+        // data for the first attempt. Won't contaminate with retry attempt's
+        // data.
+        if (!was_retry_attempt)
+          RecordPerformanceHistograms(start_time, error, os_error);
+
+        RecordAttemptHistograms(start_time, attempt_number, error, os_error);
+        return;
+      }
+
+      // Copy the results from the first worker thread that resolves the host.
+      results_ = results;
+      completed_attempt_number_ = attempt_number;
+      completed_attempt_error_ = error;
+    }
 
     // Ideally the following code would be part of host_resolver_proc.cc,
     // however it isn't safe to call NetworkChangeNotifier from worker
     // threads. So we do it here on the IO thread instead.
-    if (error_ != OK && NetworkChangeNotifier::IsOffline())
-      error_ = ERR_INTERNET_DISCONNECTED;
+    if (error != OK && NetworkChangeNotifier::IsOffline())
+      error = ERR_INTERNET_DISCONNECTED;
 
-    RecordPerformanceHistograms();
+    // We will record data for the first attempt. Don't contaminate with retry
+    // attempt's data.
+    if (!was_retry_attempt)
+      RecordPerformanceHistograms(start_time, error, os_error);
+
+    RecordAttemptHistograms(start_time, attempt_number, error, os_error);
 
     if (was_cancelled())
       return;
 
     scoped_refptr<NetLog::EventParameters> params;
-    if (error_ != OK) {
-      params = new HostResolveFailedParams(error_, os_error_);
+    if (error != OK) {
+      params = new HostResolveFailedParams(0, error, os_error);
     } else {
       params = new AddressListNetLogParam(results_);
     }
@@ -524,13 +633,16 @@ class HostResolverImpl::Job
     DCHECK(!requests_.empty());
 
      // Use the port number of the first request.
-    if (error_ == OK)
-      results_.SetPort(requests_[0]->port());
+    if (error == OK)
+      MutableSetPort(requests_[0]->port(), &results_);
 
-    resolver_->OnJobComplete(this, error_, os_error_, results_);
+    resolver_->OnJobComplete(this, error, os_error, results_);
   }
 
-  void RecordPerformanceHistograms() const {
+  void RecordPerformanceHistograms(const base::TimeTicks& start_time,
+                                   const int error,
+                                   const int os_error) const {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     enum Category {  // Used in HISTOGRAM_ENUMERATION.
       RESOLVE_SUCCESS,
       RESOLVE_FAIL,
@@ -540,8 +652,8 @@ class HostResolverImpl::Job
     };
     int category = RESOLVE_MAX;  // Illegal value for later DCHECK only.
 
-    base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
-    if (error_ == OK) {
+    base::TimeDelta duration = base::TimeTicks::Now() - start_time;
+    if (error == OK) {
       if (had_non_speculative_request_) {
         category = RESOLVE_SUCCESS;
         DNS_HISTOGRAM("DNS.ResolveSuccess", duration);
@@ -558,16 +670,15 @@ class HostResolverImpl::Job
         DNS_HISTOGRAM("DNS.ResolveSpeculativeFail", duration);
       }
       UMA_HISTOGRAM_CUSTOM_ENUMERATION(kOSErrorsForGetAddrinfoHistogramName,
-                                       std::abs(os_error_),
+                                       std::abs(os_error),
                                        GetAllGetAddrinfoOSErrors());
     }
     DCHECK_LT(category, static_cast<int>(RESOLVE_MAX));  // Be sure it was set.
 
     UMA_HISTOGRAM_ENUMERATION("DNS.ResolveCategory", category, RESOLVE_MAX);
 
-    static bool show_speculative_experiment_histograms =
-        base::FieldTrialList::Find("DnsImpact") &&
-        !base::FieldTrialList::Find("DnsImpact")->group_name().empty();
+    static const bool show_speculative_experiment_histograms =
+        base::FieldTrialList::TrialExists("DnsImpact");
     if (show_speculative_experiment_histograms) {
       UMA_HISTOGRAM_ENUMERATION(
           base::FieldTrial::MakeName("DNS.ResolveCategory", "DnsImpact"),
@@ -577,9 +688,8 @@ class HostResolverImpl::Job
                                                  "DnsImpact"), duration);
       }
     }
-    static bool show_parallelism_experiment_histograms =
-        base::FieldTrialList::Find("DnsParallelism") &&
-        !base::FieldTrialList::Find("DnsParallelism")->group_name().empty();
+    static const bool show_parallelism_experiment_histograms =
+        base::FieldTrialList::TrialExists("DnsParallelism");
     if (show_parallelism_experiment_histograms) {
       UMA_HISTOGRAM_ENUMERATION(
           base::FieldTrial::MakeName("DNS.ResolveCategory", "DnsParallelism"),
@@ -591,7 +701,47 @@ class HostResolverImpl::Job
     }
   }
 
+  void RecordAttemptHistograms(const base::TimeTicks& start_time,
+                               const uint32 attempt_number,
+                               const int error,
+                               const int os_error) const {
+    bool first_attempt_to_complete =
+        completed_attempt_number_ == attempt_number;
 
+    if (first_attempt_to_complete) {
+      // If this was first attempt to complete, then record the resolution
+      // status of the attempt.
+      if (completed_attempt_error_ == OK) {
+        UMA_HISTOGRAM_ENUMERATION(
+            "DNS.AttemptFirstSuccess", attempt_number, 100);
+      } else {
+        UMA_HISTOGRAM_ENUMERATION(
+            "DNS.AttemptFirstFailure", attempt_number, 100);
+      }
+    }
+
+    if (error == OK)
+      UMA_HISTOGRAM_ENUMERATION("DNS.AttemptSuccess", attempt_number, 100);
+    else
+      UMA_HISTOGRAM_ENUMERATION("DNS.AttemptFailure", attempt_number, 100);
+
+    if (was_cancelled() || !first_attempt_to_complete) {
+      // Count those attempts which completed after the job was already canceled
+      // OR after the job was already completed by an earlier attempt (so in
+      // effect).
+      UMA_HISTOGRAM_ENUMERATION("DNS.AttemptDiscarded", attempt_number, 100);
+
+      // Record if job is cancelled.
+      if (was_cancelled())
+        UMA_HISTOGRAM_ENUMERATION("DNS.AttemptCancelled", attempt_number, 100);
+    }
+
+    base::TimeDelta duration = base::TimeTicks::Now() - start_time;
+    if (error == OK)
+      DNS_HISTOGRAM("DNS.AttemptSuccessDuration", duration);
+    else
+      DNS_HISTOGRAM("DNS.AttemptFailDuration", duration);
+  }
 
   // Immutable. Can be read from either thread,
   const int id_;
@@ -604,8 +754,7 @@ class HostResolverImpl::Job
   RequestsList requests_;  // The requests waiting on this job.
 
   // Used to post ourselves onto the origin thread.
-  base::Lock origin_loop_lock_;
-  MessageLoop* origin_loop_;
+  scoped_refptr<base::MessageLoopProxy> origin_loop_;
 
   // Hold an owning reference to the HostResolverProc that we are going to use.
   // This may not be the current resolver procedure by the time we call
@@ -613,9 +762,21 @@ class HostResolverImpl::Job
   // reference ensures that it remains valid until we are done.
   scoped_refptr<HostResolverProc> resolver_proc_;
 
-  // Assigned on the worker thread, read on the origin thread.
-  int error_;
-  int os_error_;
+  // The amount of time after starting a resolution attempt until deciding to
+  // retry.
+  base::TimeDelta unresponsive_delay_;
+
+  // Keeps track of the number of attempts we have made so far to resolve the
+  // host. Whenever we start an attempt to resolve the host, we increase this
+  // number.
+  uint32 attempt_number_;
+
+  // The index of the attempt which finished first (or 0 if the job is still in
+  // progress).
+  uint32 completed_attempt_number_;
+
+  // The result (a net error code) from the first attempt to complete.
+  int completed_attempt_error_;
 
   // True if a non-speculative request was ever attached to this job
   // (regardless of whether or not it was later cancelled.
@@ -624,9 +785,6 @@ class HostResolverImpl::Job
   bool had_non_speculative_request_;
 
   AddressList results_;
-
-  // The time when the job was started.
-  base::TimeTicks start_time_;
 
   BoundNetLog net_log_;
 
@@ -642,14 +800,14 @@ class HostResolverImpl::IPv6ProbeJob
  public:
   explicit IPv6ProbeJob(HostResolverImpl* resolver)
       : resolver_(resolver),
-        origin_loop_(MessageLoop::current()) {
-    DCHECK(!was_cancelled());
+        origin_loop_(base::MessageLoopProxy::CreateForCurrentThread()) {
+    DCHECK(resolver);
   }
 
   void Start() {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     if (was_cancelled())
       return;
-    DCHECK(IsOnOriginThread());
     const bool kIsSlow = true;
     base::WorkerPool::PostTask(
         FROM_HERE, NewRunnableMethod(this, &IPv6ProbeJob::DoProbe), kIsSlow);
@@ -657,15 +815,10 @@ class HostResolverImpl::IPv6ProbeJob
 
   // Cancels the current job.
   void Cancel() {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     if (was_cancelled())
       return;
-    DCHECK(IsOnOriginThread());
     resolver_ = NULL;  // Read/write ONLY on origin thread.
-    {
-      base::AutoLock locked(origin_loop_lock_);
-      // Origin loop may be destroyed before we can use it!
-      origin_loop_ = NULL;  // Write ONLY on origin thread.
-    }
   }
 
  private:
@@ -674,14 +827,9 @@ class HostResolverImpl::IPv6ProbeJob
   ~IPv6ProbeJob() {
   }
 
-  // Should be run on |orgin_thread_|, but that may not be well defined now.
   bool was_cancelled() const {
-    if (!resolver_ || !origin_loop_) {
-      DCHECK(!resolver_);
-      DCHECK(!origin_loop_);
-      return true;
-    }
-    return false;
+    DCHECK(origin_loop_->BelongsToCurrentThread());
+    return !resolver_;
   }
 
   // Run on worker thread.
@@ -690,41 +838,24 @@ class HostResolverImpl::IPv6ProbeJob
     AddressFamily family = IPv6Supported() ? ADDRESS_FAMILY_UNSPECIFIED
                                            : ADDRESS_FAMILY_IPV4;
 
-    Task* reply = NewRunnableMethod(this, &IPv6ProbeJob::OnProbeComplete,
-                                    family);
-
-    // The origin loop could go away while we are trying to post to it, so we
-    // need to call its PostTask method inside a lock.  See ~HostResolver.
-    {
-      base::AutoLock locked(origin_loop_lock_);
-      if (origin_loop_) {
-        origin_loop_->PostTask(FROM_HERE, reply);
-        return;
-      }
-    }
-
-    // We didn't post, so delete the reply.
-    delete reply;
+    origin_loop_->PostTask(
+        FROM_HERE,
+        NewRunnableMethod(this, &IPv6ProbeJob::OnProbeComplete, family));
   }
 
-  // Callback for when DoProbe() completes (runs on origin thread).
+  // Callback for when DoProbe() completes.
   void OnProbeComplete(AddressFamily address_family) {
+    DCHECK(origin_loop_->BelongsToCurrentThread());
     if (was_cancelled())
       return;
-    DCHECK(IsOnOriginThread());
     resolver_->IPv6ProbeSetDefaultAddressFamily(address_family);
-  }
-
-  bool IsOnOriginThread() const {
-    return !MessageLoop::current() || origin_loop_ == MessageLoop::current();
   }
 
   // Used/set only on origin thread.
   HostResolverImpl* resolver_;
 
   // Used to post ourselves onto the origin thread.
-  base::Lock origin_loop_lock_;
-  MessageLoop* origin_loop_;
+  scoped_refptr<base::MessageLoopProxy> origin_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(IPv6ProbeJob);
 };
@@ -900,9 +1031,13 @@ HostResolverImpl::HostResolverImpl(
     HostResolverProc* resolver_proc,
     HostCache* cache,
     size_t max_jobs,
+    size_t max_retry_attempts,
     NetLog* net_log)
     : cache_(cache),
       max_jobs_(max_jobs),
+      max_retry_attempts_(max_retry_attempts),
+      unresponsive_delay_(base::TimeDelta::FromMilliseconds(6000)),
+      retry_factor_(2),
       next_request_id_(0),
       next_job_id_(0),
       resolver_proc_(resolver_proc),
@@ -912,6 +1047,12 @@ HostResolverImpl::HostResolverImpl(
       additional_resolver_flags_(0),
       net_log_(net_log) {
   DCHECK_GT(max_jobs, 0u);
+
+  // Maximum of 4 retry attempts for host resolution.
+  static const size_t kDefaultMaxRetryAttempts = 4u;
+
+  if (max_retry_attempts_ == HostResolver::kDefaultRetryAttempts)
+    max_retry_attempts_ = kDefaultMaxRetryAttempts;
 
   // It is cumbersome to expose all of the constraints in the constructor,
   // so we choose some defaults, which users can override later.
@@ -1000,9 +1141,9 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
     if (ip_number.size() == 16 && ipv6_disabled) {
       net_error = ERR_NAME_NOT_RESOLVED;
     } else {
-      AddressList result(ip_number, info.port(),
-                         (key.host_resolver_flags & HOST_RESOLVER_CANONNAME));
-      *addresses = result;
+      *addresses = AddressList::CreateFromIPAddressWithCname(
+          ip_number, info.port(),
+          (key.host_resolver_flags & HOST_RESOLVER_CANONNAME));
     }
     // Update the net log and notify registered observers.
     OnFinishRequest(source_net_log, request_net_log, request_id, info,
@@ -1017,8 +1158,10 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
     if (cache_entry) {
       request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CACHE_HIT, NULL);
       int net_error = cache_entry->error;
-      if (net_error == OK)
-        addresses->SetFrom(cache_entry->addrlist, info.port());
+      if (net_error == OK) {
+        *addresses = CreateAddressListUsingPort(
+            cache_entry->addrlist, info.port());
+      }
 
       // Update the net log and notify registered observers.
       OnFinishRequest(source_net_log, request_net_log, request_id, info,
@@ -1047,7 +1190,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
         effective_resolver_proc(), key.hostname, key.address_family,
         key.host_resolver_flags, &addrlist, &os_error);
     if (error == OK) {
-      addrlist.SetPort(info.port());
+      MutableSetPort(info.port(), &addrlist);
       *addresses = addrlist;
     }
 
@@ -1291,7 +1434,7 @@ void HostResolverImpl::OnFinishRequest(const BoundNetLog& source_net_log,
   // Log some extra parameters on failure for synchronous requests.
   scoped_refptr<NetLog::EventParameters> params;
   if (!was_resolved) {
-    params = new HostResolveFailedParams(net_error, os_error);
+    params = new HostResolveFailedParams(0, net_error, os_error);
   }
 
   request_net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST, params);
@@ -1399,7 +1542,7 @@ HostResolverImpl::Job* HostResolverImpl::CreateAndStartJob(Request* req) {
                                   NULL);
 
   scoped_refptr<Job> job(new Job(next_job_id_++, this, key,
-                                   req->request_net_log(), net_log_));
+                                 req->request_net_log(), net_log_));
   job->AddRequest(req);
   AddOutstandingJob(job);
   job->Start();

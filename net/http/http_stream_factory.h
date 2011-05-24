@@ -12,6 +12,7 @@
 #include "base/string16.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
+#include "net/base/net_api.h"
 
 class GURL;
 
@@ -37,12 +38,12 @@ struct SSLConfig;
 // created, this object is the creator's handle for interacting with the
 // HttpStream creation process.  The request is cancelled by deleting it, after
 // which no callbacks will be invoked.
-class HttpStreamRequest {
+class NET_TEST HttpStreamRequest {
  public:
   // The HttpStreamRequest::Delegate is a set of callback methods for a
   // HttpStreamRequestJob.  Generally, only one of these methods will be
   // called as a result of a stream request.
-  class Delegate {
+  class NET_TEST Delegate {
    public:
     virtual ~Delegate() {}
 
@@ -143,7 +144,7 @@ class HttpStreamRequest {
 };
 
 // The HttpStreamFactory defines an interface for creating usable HttpStreams.
-class HttpStreamFactory {
+class NET_API HttpStreamFactory {
  public:
   virtual ~HttpStreamFactory();
 

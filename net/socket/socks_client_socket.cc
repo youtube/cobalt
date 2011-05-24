@@ -70,7 +70,7 @@ SOCKSClientSocket::SOCKSClientSocket(ClientSocketHandle* transport_socket,
       net_log_(transport_socket->socket()->NetLog()) {
 }
 
-SOCKSClientSocket::SOCKSClientSocket(ClientSocket* transport_socket,
+SOCKSClientSocket::SOCKSClientSocket(StreamSocket* transport_socket,
                                      const HostResolver::RequestInfo& req_info,
                                      HostResolver* host_resolver)
     : ALLOW_THIS_IN_INITIALIZER_LIST(

@@ -33,10 +33,10 @@
 #include "net/base/ssl_config_service.h"
 #include "net/base/ssl_info.h"
 #include "net/base/x509_certificate.h"
-#include "net/socket/client_socket.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/ssl_client_socket.h"
+#include "net/socket/stream_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -100,7 +100,7 @@ class FakeDataChannel {
   DISALLOW_COPY_AND_ASSIGN(FakeDataChannel);
 };
 
-class FakeSocket : public ClientSocket {
+class FakeSocket : public StreamSocket {
  public:
   FakeSocket(FakeDataChannel* incoming_channel,
              FakeDataChannel* outgoing_channel)
@@ -146,7 +146,7 @@ class FakeSocket : public ClientSocket {
 
   virtual int GetPeerAddress(AddressList* address) const {
     net::IPAddressNumber ip_address(4);
-    *address = net::AddressList(ip_address, 0, false);
+    *address = net::AddressList::CreateFromIPAddress(ip_address, 0 /*port*/);
     return net::OK;
   }
 

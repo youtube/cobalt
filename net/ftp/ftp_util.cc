@@ -4,10 +4,13 @@
 
 #include "net/ftp/ftp_util.h"
 
+#include <map>
 #include <vector>
 
+#include "base/i18n/case_conversion.h"
 #include "base/i18n/char_iterator.h"
 #include "base/logging.h"
+#include "base/memory/singleton.h"
 #include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
@@ -111,47 +114,82 @@ std::string FtpUtil::VMSPathToUnix(const std::string& vms_path) {
   return result;
 }
 
-// static
-bool FtpUtil::AbbreviatedMonthToNumber(const string16& text, int* number) {
-  icu::UnicodeString unicode_text(text.data(), text.size());
+namespace {
 
-  int32_t locales_count;
-  const icu::Locale* locales =
-      icu::DateFormat::getAvailableLocales(locales_count);
+// Lazy-initialized map of abbreviated month names.
+class AbbreviatedMonthsMap {
+ public:
+  static AbbreviatedMonthsMap* GetInstance() {
+    return Singleton<AbbreviatedMonthsMap>::get();
+  }
 
-  // Some FTP servers localize the date listings. To guess the locale,
-  // we loop over all available ones.
-  for (int32_t locale = 0; locale < locales_count; locale++) {
-    UErrorCode status(U_ZERO_ERROR);
+  // Converts abbreviated month name |text| to its number (in range 1-12).
+  // On success returns true and puts the number in |number|.
+  bool GetMonthNumber(const string16& text, int* number) {
+    // Ignore the case of the month names. The simplest way to handle that
+    // is to make everything lowercase.
+    string16 text_lower(base::i18n::ToLower(text));
 
-    icu::DateFormatSymbols format_symbols(locales[locale], status);
+    if (map_.find(text_lower) == map_.end())
+      return false;
 
-    // If we cannot get format symbols for some locale, it's not a fatal error.
-    // Just try another one.
-    if (U_FAILURE(status))
-      continue;
+    *number = map_[text_lower];
+    return true;
+  }
 
-    int32_t months_count;
-    const icu::UnicodeString* months =
-        format_symbols.getShortMonths(months_count);
+ private:
+  friend struct DefaultSingletonTraits<AbbreviatedMonthsMap>;
 
-    // Loop over all abbreviated month names in given locale.
-    // An alternative solution (to parse |text| in given locale) is more
-    // lenient, and may accept more than we want even with setLenient(false).
-    for (int32_t month = 0; month < months_count; month++) {
-      // Compare (case-insensitive), but just first three characters. Sometimes
-      // ICU returns longer strings (for example for Russian locale), and in FTP
-      // listings they are abbreviated to just three characters.
-      // Note: ICU may also return strings shorter than three characters,
-      // and those also should be accepted.
-      if (months[month].caseCompare(0, 3, unicode_text, 0) == 0) {
-        *number = month + 1;
-        return true;
+  // Constructor, initializes the map based on ICU data. It is much faster
+  // to do that just once.
+  AbbreviatedMonthsMap() {
+    int32_t locales_count;
+    const icu::Locale* locales =
+        icu::DateFormat::getAvailableLocales(locales_count);
+
+    for (int32_t locale = 0; locale < locales_count; locale++) {
+      UErrorCode status(U_ZERO_ERROR);
+
+      icu::DateFormatSymbols format_symbols(locales[locale], status);
+
+      // If we cannot get format symbols for some locale, it's not a fatal
+      // error. Just try another one.
+      if (U_FAILURE(status))
+        continue;
+
+      int32_t months_count;
+      const icu::UnicodeString* months =
+          format_symbols.getShortMonths(months_count);
+
+      for (int32_t month = 0; month < months_count; month++) {
+        string16 month_name(months[month].getBuffer(),
+                            static_cast<size_t>(months[month].length()));
+
+        // Ignore the case of the month names. The simplest way to handle that
+        // is to make everything lowercase.
+        month_name = base::i18n::ToLower(month_name);
+
+        map_[month_name] = month + 1;
+
+        // Sometimes ICU returns longer strings, but in FTP listings a shorter
+        // abbreviation is used (for example for the Russian locale). Make sure
+        // we always have a map entry for a three-letter abbreviation.
+        map_[month_name.substr(0, 3)] = month + 1;
       }
     }
   }
 
-  return false;
+  // Maps lowercase month names to numbers in range 1-12.
+  std::map<string16, int> map_;
+
+  DISALLOW_COPY_AND_ASSIGN(AbbreviatedMonthsMap);
+};
+
+}  // namespace
+
+// static
+bool FtpUtil::AbbreviatedMonthToNumber(const string16& text, int* number) {
+  return AbbreviatedMonthsMap::GetInstance()->GetMonthNumber(text, number);
 }
 
 // static

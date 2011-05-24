@@ -10,12 +10,13 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
 // Holds info about an authentication challenge that we may want to display
 // to the user.
-class AuthChallengeInfo :
+class NET_API AuthChallengeInfo :
     public base::RefCountedThreadSafe<AuthChallengeInfo> {
  public:
   AuthChallengeInfo();

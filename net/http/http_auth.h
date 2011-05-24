@@ -11,6 +11,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/string16.h"
+#include "net/base/net_api.h"
 #include "net/http/http_util.h"
 
 template <class T> class scoped_refptr;
@@ -23,7 +24,7 @@ class HttpAuthHandlerFactory;
 class HttpResponseHeaders;
 
 // Utility class for http authentication.
-class HttpAuth {
+class NET_TEST HttpAuth {
  public:
   // Http authentication can be done the the proxy server, origin server,
   // or both. This enum tracks who the target is.
@@ -176,7 +177,7 @@ class HttpAuth {
   // parameters as either a base-64 encoded string or a comma-delimited list
   // of name-value pairs. param_pairs() and base64_param() methods are provided
   // to support either usage.
-  class ChallengeTokenizer {
+  class NET_TEST ChallengeTokenizer {
    public:
     ChallengeTokenizer(std::string::const_iterator begin,
                        std::string::const_iterator end)

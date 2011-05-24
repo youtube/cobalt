@@ -71,8 +71,8 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   ASSERT_TRUE(NULL != audio_man);
   AudioParameters params(
-      AudioParameters::AUDIO_MOCK, 1, AudioParameters::kTelephoneSampleRate,
-      bytes_per_sample * 2, samples);
+      AudioParameters::AUDIO_MOCK, CHANNEL_LAYOUT_MONO,
+      AudioParameters::kTelephoneSampleRate, bytes_per_sample * 2, samples);
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(params);
   ASSERT_TRUE(NULL != oas);
   EXPECT_TRUE(oas->Open());

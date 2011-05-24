@@ -252,7 +252,7 @@ SocketStream::~SocketStream() {
 }
 
 void SocketStream::CopyAddrInfo(struct addrinfo* head) {
-  addresses_.Copy(head, true);
+  addresses_ = AddressList::CreateByCopying(head);
 }
 
 void SocketStream::DoClose() {
@@ -776,7 +776,7 @@ int SocketStream::DoSOCKSConnect() {
 
   next_state_ = STATE_SOCKS_CONNECT_COMPLETE;
 
-  ClientSocket* s = socket_.release();
+  StreamSocket* s = socket_.release();
   HostResolver::RequestInfo req_info(HostPortPair::FromURL(url_));
 
   DCHECK(!proxy_info_.is_empty());

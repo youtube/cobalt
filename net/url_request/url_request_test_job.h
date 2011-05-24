@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/task.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
 
@@ -35,7 +36,7 @@ namespace net {
 //
 // Optionally, you can also construct test jobs that advance automatically
 // without having to call ProcessOnePendingMessage.
-class URLRequestTestJob : public URLRequestJob {
+class NET_TEST URLRequestTestJob : public URLRequestJob {
  public:
   // Constructs a job to return one of the canned responses depending on the
   // request url, with auto advance disabled.
@@ -134,6 +135,8 @@ class URLRequestTestJob : public URLRequestJob {
   // Holds the buffer for an asynchronous ReadRawData call
   IOBuffer* async_buf_;
   int async_buf_size_;
+
+  ScopedRunnableMethodFactory<URLRequestTestJob> method_factory_;
 };
 
 }  // namespace net

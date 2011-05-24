@@ -79,8 +79,8 @@ class AudioOutputProxyTest : public testing::Test {
   }
 
   void InitDispatcher(int close_delay_ms) {
-    AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, 2, 44100,
-                           16, 1024);
+    AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR,
+                           CHANNEL_LAYOUT_STEREO, 44100, 16, 1024);
     dispatcher_ = new AudioOutputDispatcher(&manager_, params, close_delay_ms);
   }
 

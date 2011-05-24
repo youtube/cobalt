@@ -12,7 +12,7 @@ CookieStore* URLRequestContextGetter::DONTUSEME_GetCookieStore() {
   return NULL;
 }
 
-URLRequestContextGetter::URLRequestContextGetter() : is_main_(false) {}
+URLRequestContextGetter::URLRequestContextGetter() {}
 
 URLRequestContextGetter::~URLRequestContextGetter() {}
 

@@ -165,29 +165,29 @@ BASE_API ProcessId GetProcId(ProcessHandle process);
 
 #if defined(OS_LINUX)
 // Returns the path to the executable of the given process.
-FilePath GetProcessExecutablePath(ProcessHandle process);
+BASE_API FilePath GetProcessExecutablePath(ProcessHandle process);
 
 // Parse the data found in /proc/<pid>/stat and return the sum of the
 // CPU-related ticks.  Returns -1 on parse error.
 // Exposed for testing.
-int ParseProcStatCPU(const std::string& input);
+BASE_API int ParseProcStatCPU(const std::string& input);
 
 static const char kAdjustOOMScoreSwitch[] = "--adjust-oom-score";
 
 // This adjusts /proc/process/oom_adj so the Linux OOM killer will prefer
 // certain process types over others. The range for the adjustment is
 // [-17,15], with [0,15] being user accessible.
-bool AdjustOOMScore(ProcessId process, int score);
+BASE_API bool AdjustOOMScore(ProcessId process, int score);
 #endif
 
 #if defined(OS_POSIX)
 // Returns the ID for the parent of the given process.
-ProcessId GetParentProcessId(ProcessHandle process);
+BASE_API ProcessId GetParentProcessId(ProcessHandle process);
 
 // Close all file descriptors, except those which are a destination in the
 // given multimap. Only call this function in a child process where you know
 // that there aren't any other threads.
-void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
+BASE_API void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
 #endif
 
 #if defined(OS_WIN)
@@ -264,25 +264,27 @@ BASE_API bool LaunchAppAsUser(UserTokenHandle token,
 // Note that the first argument in argv must point to the executable filename.
 // If the filename is not fully specified, PATH will be searched.
 typedef std::vector<std::pair<int, int> > file_handle_mapping_vector;
-bool LaunchApp(const std::vector<std::string>& argv,
-               const file_handle_mapping_vector& fds_to_remap,
-               bool wait, ProcessHandle* process_handle);
+BASE_API bool LaunchApp(const std::vector<std::string>& argv,
+                        const file_handle_mapping_vector& fds_to_remap,
+                        bool wait, ProcessHandle* process_handle);
 
 // Similar to the above, but also (un)set environment variables in child process
 // through |environ|.
 typedef std::vector<std::pair<std::string, std::string> > environment_vector;
-bool LaunchApp(const std::vector<std::string>& argv,
-               const environment_vector& environ,
-               const file_handle_mapping_vector& fds_to_remap,
-               bool wait, ProcessHandle* process_handle);
+BASE_API bool LaunchApp(const std::vector<std::string>& argv,
+                        const environment_vector& environ,
+                        const file_handle_mapping_vector& fds_to_remap,
+                        bool wait, ProcessHandle* process_handle);
 
 // Similar to the above two methods, but starts the child process in a process
 // group of its own, instead of allowing it to inherit the parent's process
 // group. The pgid of the child process will be the same as its pid.
-bool LaunchAppInNewProcessGroup(const std::vector<std::string>& argv,
-                                const environment_vector& environ,
-                                const file_handle_mapping_vector& fds_to_remap,
-                                bool wait, ProcessHandle* process_handle);
+BASE_API bool LaunchAppInNewProcessGroup(
+    const std::vector<std::string>& argv,
+    const environment_vector& environ,
+    const file_handle_mapping_vector& fds_to_remap,
+    bool wait,
+    ProcessHandle* process_handle);
 
 // AlterEnvironment returns a modified environment vector, constructed from the
 // given environment and the list of changes given in |changes|. Each key in
@@ -291,8 +293,8 @@ bool LaunchAppInNewProcessGroup(const std::vector<std::string>& argv,
 // the second is empty, in which case the key-value is removed.
 //
 // The returned array is allocated using new[] and must be freed by the caller.
-char** AlterEnvironment(const environment_vector& changes,
-                        const char* const* const env);
+BASE_API char** AlterEnvironment(const environment_vector& changes,
+                                 const char* const* const env);
 #endif  // defined(OS_POSIX)
 
 // Executes the application specified by cl. This function delegates to one
@@ -310,8 +312,8 @@ BASE_API bool GetAppOutput(const CommandLine& cl, std::string* output);
 // A restricted version of |GetAppOutput()| which (a) clears the environment,
 // and (b) stores at most |max_output| bytes; also, it doesn't search the path
 // for the command.
-bool GetAppOutputRestricted(const CommandLine& cl,
-                            std::string* output, size_t max_output);
+BASE_API bool GetAppOutputRestricted(const CommandLine& cl,
+                                     std::string* output, size_t max_output);
 #endif
 
 // Used to filter processes by process ID.
@@ -348,7 +350,7 @@ BASE_API bool KillProcess(ProcessHandle process, int exit_code, bool wait);
 #if defined(OS_POSIX)
 // Attempts to kill the process group identified by |process_group_id|. Returns
 // true on success.
-bool KillProcessGroup(ProcessHandle process_group_id);
+BASE_API bool KillProcessGroup(ProcessHandle process_group_id);
 #endif
 
 #if defined(OS_WIN)
@@ -650,7 +652,7 @@ BASE_API void EnableTerminationOnHeapCorruption();
 #if !defined(OS_WIN)
 // Turns on process termination if memory runs out. This is handled on Windows
 // inside RegisterInvalidParamHandler().
-void EnableTerminationOnOutOfMemory();
+BASE_API void EnableTerminationOnOutOfMemory();
 #if defined(OS_MACOSX)
 // Exposed for testing.
 malloc_zone_t* GetPurgeableZone();

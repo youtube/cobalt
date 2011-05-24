@@ -10,7 +10,7 @@
   'targets': [
     {
       'target_name': 'media',
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         'yuv_convert',
         '../base/base.gyp:base',
@@ -80,6 +80,8 @@
         'base/buffers.h',
         'base/callback.cc',
         'base/callback.h',
+        'base/channel_layout.cc',
+        'base/channel_layout.h',
         'base/clock.cc',
         'base/clock.h',
         'base/composite_data_source_factory.cc',
@@ -171,11 +173,21 @@
         'filters/rtc_video_decoder.h',
         'filters/video_renderer_base.cc',
         'filters/video_renderer_base.h',
+        'video/capture/fake_video_capture_device.cc',
+        'video/capture/fake_video_capture_device.h',
+        'video/capture/linux/video_capture_device_linux.cc',
+        'video/capture/linux/video_capture_device_linux.h',
         'video/capture/video_capture.h',
+        'video/capture/video_capture_device.h',
+        'video/capture/video_capture_device_dummy.cc',
+        'video/capture/video_capture_device_dummy.h',
+        'video/capture/video_capture_types.h',
         'video/ffmpeg_video_allocator.cc',
         'video/ffmpeg_video_allocator.h',
         'video/ffmpeg_video_decode_engine.cc',
         'video/ffmpeg_video_decode_engine.h',
+        'video/picture.cc',
+        'video/picture.h',
         'video/video_decode_accelerator.cc',
         'video/video_decode_accelerator.h',
         'video/video_decode_engine.h',
@@ -239,6 +251,12 @@
             'omx_wrapper',
           ]
         }],
+        ['OS=="linux"', {
+          'sources!': [
+            'video/capture/video_capture_device_dummy.cc',
+            'video/capture/video_capture_device_dummy.h',
+          ],
+        }],
         ['OS=="mac"', {
           'link_settings': {
             'libraries': [
@@ -252,7 +270,7 @@
     },
     {
       'target_name': 'cpu_features',
-      'type': '<(library)',
+      'type': 'static_library',
       'include_dirs': [
         '..',
       ],
@@ -274,7 +292,7 @@
     },
     {
       'target_name': 'yuv_convert',
-      'type': '<(library)',
+      'type': 'static_library',
       'include_dirs': [
         '..',
       ],
@@ -301,7 +319,7 @@
     },
     {
       'target_name': 'yuv_convert_sse2',
-      'type': '<(library)',
+      'type': 'static_library',
       'include_dirs': [
         '..',
       ],
@@ -419,7 +437,7 @@
     },
     {
       'target_name': 'media_test_support',
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         'media',
         '../base/base.gyp:base',
@@ -723,7 +741,7 @@
         },
         {
           'target_name': 'omx_wrapper',
-          'type': '<(library)',
+          'type': 'static_library',
           'dependencies': [
             '../base/base.gyp:base',
             '../third_party/openmax/openmax.gyp:il',

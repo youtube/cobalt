@@ -14,6 +14,7 @@
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
+#include "net/base/net_api.h"
 #include "net/base/sys_byteorder.h"
 #include "net/spdy/spdy_protocol.h"
 
@@ -51,7 +52,7 @@ typedef std::list<SpdySetting> SpdySettings;
 // SpdyFramerVisitorInterface is a set of callbacks for the SpdyFramer.
 // Implement this interface to receive event callbacks as frames are
 // decoded from the framer.
-class SpdyFramerVisitorInterface {
+class NET_TEST SpdyFramerVisitorInterface {
  public:
   virtual ~SpdyFramerVisitorInterface() {}
 
@@ -72,7 +73,7 @@ class SpdyFramerVisitorInterface {
                                  size_t len) = 0;
 };
 
-class SpdyFramer {
+class NET_TEST SpdyFramer {
  public:
   // SPDY states.
   // TODO(mbelshe): Can we move these into the implementation

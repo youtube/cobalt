@@ -5,8 +5,8 @@
 #include "base/metrics/stats_counters.h"
 #include "base/metrics/stats_table.h"
 #include "base/shared_memory.h"
+#include "base/stringprintf.h"
 #include "base/string_piece.h"
-#include "base/string_util.h"
 #include "base/test/multiprocess_test.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
@@ -42,7 +42,7 @@ TEST_F(StatsTableTest, VerifySlots) {
   std::string counter_base_name = "counter";
   for (int index = 0; index < kMaxCounter; index++) {
     std::string counter_name = counter_base_name;
-    StringAppendF(&counter_name, "counter.ctr%d", index);
+    base::StringAppendF(&counter_name, "counter.ctr%d", index);
     int counter_id = table.FindCounter(counter_name);
     EXPECT_GT(counter_id, 0);
   }

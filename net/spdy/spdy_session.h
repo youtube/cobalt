@@ -23,8 +23,8 @@
 #include "net/base/request_priority.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/upload_data_stream.h"
-#include "net/socket/client_socket.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/stream_socket.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"
@@ -44,8 +44,8 @@ class SpdySettingsStorage;
 class SpdyStream;
 class SSLInfo;
 
-class SpdySession : public base::RefCounted<SpdySession>,
-                    public spdy::SpdyFramerVisitorInterface {
+class NET_API SpdySession : public base::RefCounted<SpdySession>,
+                            public spdy::SpdyFramerVisitorInterface {
  public:
   // Create a new SpdySession.
   // |host_port_proxy_pair| is the host/port that this session connects to, and

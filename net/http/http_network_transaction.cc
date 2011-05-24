@@ -794,7 +794,7 @@ int HttpNetworkTransaction::DoSendRequest() {
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
   if (session_->network_delegate()) {
     session_->network_delegate()->NotifyRequestSent(
-        request_->request_id, response_.socket_address);
+        request_->request_id, response_.socket_address, request_headers_);
   }
 
   if (result < 0)
@@ -1010,9 +1010,8 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
 
-  static bool use_conn_impact_histogram(
-      base::FieldTrialList::Find("ConnCountImpact") &&
-      !base::FieldTrialList::Find("ConnCountImpact")->group_name().empty());
+  static const bool use_conn_impact_histogram =
+      base::FieldTrialList::TrialExists("ConnCountImpact");
   if (use_conn_impact_histogram) {
     UMA_HISTOGRAM_CLIPPED_TIMES(
         base::FieldTrial::MakeName("Net.Transaction_Connected_New",
@@ -1023,8 +1022,8 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
     }
   }
 
-  static bool use_spdy_histogram(base::FieldTrialList::Find("SpdyImpact") &&
-      !base::FieldTrialList::Find("SpdyImpact")->group_name().empty());
+  static const bool use_spdy_histogram =
+      base::FieldTrialList::TrialExists("SpdyImpact");
   if (use_spdy_histogram && response_.was_npn_negotiated) {
     UMA_HISTOGRAM_CLIPPED_TIMES(
       base::FieldTrial::MakeName("Net.Transaction_Connected_Under_10",

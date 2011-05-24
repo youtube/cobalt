@@ -75,7 +75,7 @@ bool HMAC::Init(const unsigned char *key, int key_length) {
 
 bool HMAC::Sign(const std::string& data,
                 unsigned char* digest,
-                int digest_length) {
+                int digest_length) const {
   if (!plat_->sym_key_.get()) {
     // Init has not been called before Sign.
     NOTREACHED();

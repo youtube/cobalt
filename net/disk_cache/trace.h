@@ -12,6 +12,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "net/base/net_api.h"
 
 namespace disk_cache {
 
@@ -33,7 +34,7 @@ class TraceObject : public base::RefCounted<TraceObject> {
 };
 
 // Traces to the internal buffer.
-void Trace(const char* format, ...);
+NET_TEST void Trace(const char* format, ...);
 
 }  // namespace disk_cache
 

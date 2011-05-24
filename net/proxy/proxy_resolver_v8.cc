@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -468,8 +468,11 @@ class ProxyResolverV8::Context {
     // At a minimum, the FindProxyForURL() function must be defined for this
     // to be a legitimiate PAC script.
     v8::Local<v8::Value> function;
-    if (!GetFindProxyForURL(&function))
+    if (!GetFindProxyForURL(&function)) {
+      js_bindings_->OnError(
+          -1, ASCIIToUTF16("FindProxyForURL() is undefined."));
       return ERR_PAC_SCRIPT_FAILED;
+    }
 
     return OK;
   }

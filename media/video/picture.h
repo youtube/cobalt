@@ -5,59 +5,124 @@
 #ifndef MEDIA_VIDEO_PICTURE_H_
 #define MEDIA_VIDEO_PICTURE_H_
 
-#include <vector>
+#include "base/basictypes.h"
+#include "ui/gfx/size.h"
 
-#include "base/compiler_specific.h"
-#include "media/video/video_decode_accelerator.h"
+struct PP_BufferInfo_Dev;
+struct PP_GLESBuffer_Dev;
+struct PP_Picture_Dev;
+struct PP_SysmemBuffer_Dev;
 
 namespace media {
 
-// TODO(vmr): Evaluate the generalization potential of these interfaces &
-//            classes and refactor as needed with the rest of media stack.
-class PictureBuffer : public VideoDecodeAccelerator::PictureBuffer {
+// Information about the picture buffer.
+// This is the media-namespace equivalent of PP_BufferInfo_Dev.
+class BufferInfo {
  public:
-  PictureBuffer(int32 id, gfx::Size pixel_size,
-                std::vector<uint32> color_format, MemoryType memory_type,
-                std::vector<DataPlaneHandle> data_plane_handles);
-  virtual ~PictureBuffer();
+  BufferInfo(int32 id, gfx::Size size);
+  BufferInfo(const PP_BufferInfo_Dev& info);
 
-  // VideoDecodeAccelerator::PictureBuffer implementation.
-  virtual int32 GetId() OVERRIDE;
-  virtual gfx::Size GetSize() OVERRIDE;
-  virtual const std::vector<uint32>& GetColorFormat() OVERRIDE;
-  virtual MemoryType GetMemoryType() OVERRIDE;
-  virtual std::vector<DataPlaneHandle>& GetPlaneHandles() OVERRIDE;
+  // Returns the client-specified id of the buffer.
+  int32 id() const {
+    return id_;
+  }
+
+  // Returns the size of the buffer.
+  gfx::Size size() const {
+    return size_;
+  }
 
  private:
   int32 id_;
-  gfx::Size pixel_size_;
-  std::vector<uint32> color_format_;
-  MemoryType memory_type_;
-  std::vector<DataPlaneHandle>& data_plane_handles_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PictureBuffer);
+  gfx::Size size_;
 };
 
-class Picture : public VideoDecodeAccelerator::Picture {
+// A picture buffer that is composed of a GLES2 texture and context.
+// This is the media-namespace equivalent of PP_GLESBuffer_Dev.
+class GLESBuffer {
  public:
-  Picture(PictureBuffer* picture_buffer, gfx::Size decoded_pixel_size,
-          gfx::Size visible_pixel_size, void* user_handle);
-  virtual ~Picture();
+  GLESBuffer(int32 id, gfx::Size size, uint32 texture_id, uint32 context_id);
+  GLESBuffer(const PP_GLESBuffer_Dev& buffer);
 
-  // VideoDecodeAccelerator::Picture implementation.
-  virtual PictureBuffer* picture_buffer() OVERRIDE;
-  virtual gfx::Size GetDecodedSize() const OVERRIDE;
-  virtual gfx::Size GetVisibleSize() const OVERRIDE;
-  virtual void* GetUserHandle() OVERRIDE;
+  // Returns the id of the texture.
+  uint32 texture_id() const {
+    return texture_id_;
+  }
+
+  // Returns the id of the context in which this texture lives.
+  // TODO(vrk): I'm not sure if "id" is what we want, or some reference to the
+  // PPB_Context3D_Dev. Not sure how this eventually gets used.
+  uint32 context_id() const {
+    return context_id_;
+  }
+
+  // Returns information regarding the buffer.
+  const BufferInfo& buffer_info() const {
+    return info_;
+  }
 
  private:
-  // Pointer to the picture buffer which contains this picture.
-  PictureBuffer* picture_buffer_;
-  gfx::Size decoded_pixel_size_;
-  gfx::Size visible_pixel_size_;
-  void* user_handle_;
+  uint32 texture_id_;
+  uint32 context_id_;
+  BufferInfo info_;
+};
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Picture);
+// A picture buffer that lives in system memory.
+// This is the media-namespace equivalent of PP_SysmemBuffer_Dev.
+class SysmemBuffer {
+ public:
+  SysmemBuffer(int32 id, gfx::Size size, void* data);
+  SysmemBuffer(const PP_SysmemBuffer_Dev&);
+
+  // Returns a pointer to the buffer data.
+  void* data() const {
+    return data_;
+  }
+
+  // Returns information regarding the buffer.
+  const BufferInfo& buffer_info() const {
+    return info_;
+  }
+
+ private:
+  void* data_;
+  BufferInfo info_;
+};
+
+// A decoded picture frame.
+// This is the media-namespace equivalent of PP_Picture_Dev.
+class Picture {
+ public:
+  Picture(int32 picture_buffer_id, int32 bitstream_buffer_id,
+          gfx::Size visible_size, gfx::Size decoded_size);
+  Picture(const PP_Picture_Dev& picture);
+
+  // Returns the id of the picture buffer where this picture is contained.
+  int32 picture_buffer_id() const {
+    return picture_buffer_id_;
+  }
+
+  // Returns the id of the bitstream buffer from which this frame was decoded.
+  // TODO(vrk): Handle the case where a picture can span multiple buffers.
+  int32 bitstream_buffer_id() const {
+    return bitstream_buffer_id_;
+  }
+
+  // Returns the visible size of the decoded picture in pixels.
+  gfx::Size visible_size() const {
+    return visible_size_;
+  }
+
+  // Returns the decoded size of the decoded picture in pixels.
+  gfx::Size decoded_size() const {
+    return decoded_size_;
+  }
+
+ private:
+  int32 picture_buffer_id_;
+  int32 bitstream_buffer_id_;
+  gfx::Size visible_size_;
+  gfx::Size decoded_size_;
 };
 
 }  // namespace media

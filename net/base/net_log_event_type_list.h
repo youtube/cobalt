@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -70,6 +70,31 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_POOL_QUEUE_EVICTED)
 // for a request.
 EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_JOB)
 
+// This event is created when HostResolverImpl::Job is about to start a new
+// attempt to resolve the host.
+//
+// The ATTEMPT_STARTED event has the parameters:
+//
+//   {
+//     "attempt_number": <the number of the attempt that is resolving the host>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_ATTEMPT_STARTED)
+
+// This event is created when HostResolverImpl::Job has finished resolving the
+// host.
+//
+// The ATTEMPT_FINISHED event has the parameters:
+//
+//   {
+//     "attempt_number": <the number of the attempt that has resolved the host>,
+//   }
+// If an error occurred, the END phase will contain these additional parameters:
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//     "os_error": <The exact error code integer that getaddrinfo() returned>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_ATTEMPT_FINISHED)
+
 // This is logged for a request when it's attached to a
 // HostResolverImpl::Job.  When this occurs without a preceding
 // HOST_RESOLVER_IMPL_CREATE_JOB entry, it means the request was attached to an
@@ -119,12 +144,12 @@ EVENT_TYPE(INIT_PROXY_RESOLVER_WAIT)
 //
 // The START event has the parameters:
 //   {
-//     "url": <URL string of script being fetched>,
+//     "source": <String describing where PAC script comes from>,
 //   }
 //
 // If the fetch failed, then the END phase has these parameters:
 //   {
-//      "error_code": <Net error code integer>,
+//      "net_error": <Net error code integer>,
 //   }
 EVENT_TYPE(INIT_PROXY_RESOLVER_FETCH_PAC_SCRIPT)
 
@@ -133,7 +158,7 @@ EVENT_TYPE(INIT_PROXY_RESOLVER_FETCH_PAC_SCRIPT)
 //
 // If the parsing of the script failed, the END phase will have parameters:
 //   {
-//      "error_code": <Net error code integer>,
+//      "net_error": <Net error code integer>,
 //   }
 EVENT_TYPE(INIT_PROXY_RESOLVER_SET_PAC_SCRIPT)
 
@@ -141,9 +166,9 @@ EVENT_TYPE(INIT_PROXY_RESOLVER_SET_PAC_SCRIPT)
 // configured script fetcher. (This indicates a configuration error).
 EVENT_TYPE(INIT_PROXY_RESOLVER_HAS_NO_FETCHER)
 
-// This event is emitted after deciding to fall-back to the next PAC
-// script in the list.
-EVENT_TYPE(INIT_PROXY_RESOLVER_FALLING_BACK_TO_NEXT_PAC_URL)
+// This event is emitted after deciding to fall-back to the next source
+// of PAC scripts in the list.
+EVENT_TYPE(INIT_PROXY_RESOLVER_FALLING_BACK_TO_NEXT_PAC_SOURCE)
 
 // ------------------------------------------------------------------------
 // ProxyService
@@ -228,7 +253,7 @@ EVENT_TYPE(WAITING_FOR_PROXY_RESOLVER_THREAD)
 EVENT_TYPE(SUBMITTED_TO_RESOLVER_THREAD)
 
 // ------------------------------------------------------------------------
-// ClientSocket
+// StreamSocket
 // ------------------------------------------------------------------------
 
 // The start/end of a TCP connect(). This corresponds with a call to
@@ -380,6 +405,7 @@ EVENT_TYPE(SSL_NSS_ERROR)
 //                           Only present when byte logging is enabled>,
 //   }
 EVENT_TYPE(SOCKET_BYTES_SENT)
+EVENT_TYPE(SSL_SOCKET_BYTES_SENT)
 
 // The specified number of bytes were received on the socket.
 // The following parameters are attached:
@@ -389,6 +415,7 @@ EVENT_TYPE(SOCKET_BYTES_SENT)
 //                           Only present when byte logging is enabled>,
 //   }
 EVENT_TYPE(SOCKET_BYTES_RECEIVED)
+EVENT_TYPE(SSL_SOCKET_BYTES_RECEIVED)
 
 // ------------------------------------------------------------------------
 // ClientSocketPoolBase::ConnectJob

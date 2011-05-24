@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -221,7 +221,8 @@ void ListenSocket::Read() {
 #endif
     } else {
       // TODO(ibrar): maybe change DidRead to take a length instead
-      DCHECK(len > 0 && len <= kReadBufSize);
+      DCHECK_GT(len, 0);
+      DCHECK_LE(len, kReadBufSize);
       buf[len] = 0;  // already create a buffer with +1 length
       socket_delegate_->DidRead(this, buf, len);
     }

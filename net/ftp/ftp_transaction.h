@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -18,7 +19,7 @@ class FtpRequestInfo;
 class BoundNetLog;
 
 // Represents a single FTP transaction.
-class FtpTransaction {
+class NET_TEST FtpTransaction {
  public:
   // Stops any pending IO and destroys the transaction object.
   virtual ~FtpTransaction() {}

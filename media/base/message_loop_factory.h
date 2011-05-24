@@ -7,7 +7,9 @@
 
 #include <string>
 
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop_proxy.h"
 
 class MessageLoop;
 
@@ -22,6 +24,14 @@ class MessageLoopFactory {
   // MessageLoop needs to be created and a failure occurs during the
   // creation process.
   virtual MessageLoop* GetMessageLoop(const std::string& name) = 0;
+
+  // Get the message loop proxy associated with |name|. A new MessageLoopProxy
+  // is created if the factory doesn't have one associated with |name|.
+  // NULL is returned if |name| is an empty string, or a new
+  // MessageLoop needs to be created and a failure occurs during the
+  // creation process.
+  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoopProxy(
+      const std::string& name) = 0;
 
  protected:
   // Only allow scoped_ptr<> to delete factory.

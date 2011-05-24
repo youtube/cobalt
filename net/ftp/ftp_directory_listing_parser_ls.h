@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/string16.h"
+#include "net/base/net_api.h"
 
 namespace base {
 class Time;
@@ -19,9 +20,10 @@ namespace net {
 struct FtpDirectoryListingEntry;
 
 // Parses "ls -l" FTP directory listing. Returns true on success.
-bool ParseFtpDirectoryListingLs(const std::vector<string16>& lines,
-                                const base::Time& current_time,
-                                std::vector<FtpDirectoryListingEntry>* entries);
+NET_TEST bool ParseFtpDirectoryListingLs(
+    const std::vector<string16>& lines,
+    const base::Time& current_time,
+    std::vector<FtpDirectoryListingEntry>* entries);
 
 }  // namespace net
 
