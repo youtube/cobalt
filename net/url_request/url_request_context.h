@@ -18,7 +18,6 @@
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
 #include "net/ftp/ftp_auth_cache.h"
-#include "net/socket/dns_cert_provenance_checker.h"
 
 namespace net {
 class CertVerifier;
@@ -31,7 +30,6 @@ class HttpAuthHandlerFactory;
 class HttpTransactionFactory;
 class NetworkDelegate;
 class ProxyService;
-class SSLConfigService;
 class URLRequest;
 class URLRequestJobFactory;
 
