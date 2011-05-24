@@ -312,13 +312,12 @@ void URLRequestJob::NotifyReadComplete(int bytes_read) {
     return;
 
   // When notifying the delegate, the delegate can release the request
-  // (and thus release 'this').  After calling to the delgate, we must
+  // (and thus release 'this').  After calling to the delegate, we must
   // check the request pointer to see if it still exists, and return
   // immediately if it has been destroyed.  self_preservation ensures our
   // survival until we can get out of this method.
   scoped_refptr<URLRequestJob> self_preservation(this);
 
-  prefilter_bytes_read_ += bytes_read;
   if (filter_.get()) {
     // Tell the filter that it has more data
     FilteredDataRead(bytes_read);
@@ -326,13 +325,16 @@ void URLRequestJob::NotifyReadComplete(int bytes_read) {
     // Filter the data.
     int filter_bytes_read = 0;
     if (ReadFilteredData(&filter_bytes_read)) {
-      postfilter_bytes_read_ += filter_bytes_read;
       request_->delegate()->OnReadCompleted(request_, filter_bytes_read);
     }
   } else {
-    postfilter_bytes_read_ += bytes_read;
     request_->delegate()->OnReadCompleted(request_, bytes_read);
   }
+  DVLOG(1) << __FUNCTION__ << "() "
+           << "\"" << (request_ ? request_->url().spec() : "???") << "\""
+           << " pre bytes read = " << bytes_read
+           << " pre total = " << prefilter_bytes_read_
+           << " post total = " << postfilter_bytes_read_;
 }
 
 void URLRequestJob::NotifyStartError(const URLRequestStatus &status) {
@@ -472,6 +474,7 @@ bool URLRequestJob::ReadFilteredData(int* bytes_read) {
       case Filter::FILTER_DONE: {
         filter_needs_more_output_space_ = false;
         *bytes_read = filtered_data_len;
+        postfilter_bytes_read_ += filtered_data_len;
         rv = true;
         break;
       }
@@ -486,6 +489,7 @@ bool URLRequestJob::ReadFilteredData(int* bytes_read) {
         // We can revisit this issue if there is a real perf need.
         if (filtered_data_len > 0) {
           *bytes_read = filtered_data_len;
+          postfilter_bytes_read_ += filtered_data_len;
           rv = true;
         } else {
           // Read again since we haven't received enough data yet (e.g., we may
@@ -498,10 +502,14 @@ bool URLRequestJob::ReadFilteredData(int* bytes_read) {
         filter_needs_more_output_space_ =
             (filtered_data_len == output_buffer_size);
         *bytes_read = filtered_data_len;
+        postfilter_bytes_read_ += filtered_data_len;
         rv = true;
         break;
       }
       case Filter::FILTER_ERROR: {
+        DVLOG(1) << __FUNCTION__ << "() "
+                 << "\"" << (request_ ? request_->url().spec() : "???") << "\""
+                 << " Filter Error";
         filter_needs_more_output_space_ = false;
         NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
                    ERR_CONTENT_DECODING_FAILED));
@@ -515,6 +523,13 @@ bool URLRequestJob::ReadFilteredData(int* bytes_read) {
         break;
       }
     }
+    DVLOG(2) << __FUNCTION__ << "() "
+             << "\"" << (request_ ? request_->url().spec() : "???") << "\""
+             << " rv = " << rv
+             << " post bytes read = " << filtered_data_len
+             << " pre total = " << prefilter_bytes_read_
+             << " post total = "
+             << postfilter_bytes_read_;
   } else {
     // we are done, or there is no data left.
     rv = true;
@@ -597,6 +612,14 @@ void URLRequestJob::OnRawReadComplete(int bytes_read) {
 
 void URLRequestJob::RecordBytesRead(int bytes_read) {
   filter_input_byte_count_ += bytes_read;
+  prefilter_bytes_read_ += bytes_read;
+  if (!filter_.get())
+    postfilter_bytes_read_ += bytes_read;
+  DVLOG(2) << __FUNCTION__ << "() "
+           << "\"" << (request_ ? request_->url().spec() : "???") << "\""
+           << " pre bytes read = " << bytes_read
+           << " pre total = " << prefilter_bytes_read_
+           << " post total = " << postfilter_bytes_read_;
   UpdatePacketReadTimes();  // Facilitate stats recording if it is active.
   const URLRequestContext* context = request_->context();
   if (context && context->network_delegate())

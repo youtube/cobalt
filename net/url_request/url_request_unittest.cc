@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/file_util.h"
 #include "base/format_macros.h"
@@ -425,6 +426,53 @@ TEST_F(URLRequestTestHTTP, GetTest) {
               r.GetSocketAddress().host());
     EXPECT_EQ(test_server_.host_port_pair().port(),
               r.GetSocketAddress().port());
+  }
+}
+
+TEST_F(URLRequestTestHTTP, GetZippedTest) {
+  ASSERT_TRUE(test_server_.Start());
+
+  // Parameter that specifies the Content-Length field in the response:
+  // C - Compressed length.
+  // U - Uncompressed length.
+  // L - Large length (larger than both C & U).
+  // M - Medium length (between C & U).
+  // S - Small length (smaller than both C & U).
+  const char test_parameters[] = "CULMS";
+  const int num_tests = arraysize(test_parameters)- 1;  // Skip NULL.
+  // C & U should be OK.
+  // L & M are larger than the data sent, and show an error.
+  // S has too little data, but we seem to accept it.
+  const bool test_expect_success[num_tests] =
+      { true, true, false, false, true };
+
+  for (int i = 0; i < num_tests ; i++) {
+    TestDelegate d;
+    {
+      std::string test_file =
+          base::StringPrintf("compressedfiles/BullRunSpeech.txt?%c",
+                             test_parameters[i]);
+      TestURLRequest r(test_server_.GetURL(test_file), &d);
+
+      r.Start();
+      EXPECT_TRUE(r.is_pending());
+
+      MessageLoop::current()->Run();
+
+      EXPECT_EQ(1, d.response_started_count());
+      EXPECT_FALSE(d.received_data_before_response());
+      VLOG(1) << " Received " << d.bytes_received() << " bytes"
+              << " status = " << r.status().status()
+              << " os_error = " << r.status().os_error();
+      if (test_expect_success[i]) {
+        EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status())
+            << " Parameter = \"" << test_file << "\"";
+      } else {
+        EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
+        EXPECT_EQ(-100, r.status().os_error())
+            << " Parameter = \"" << test_file << "\"";
+      }
+    }
   }
 }
 

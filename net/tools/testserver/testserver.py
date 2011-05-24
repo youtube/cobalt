@@ -30,6 +30,7 @@ import struct
 import time
 import urlparse
 import warnings
+import zlib
 
 # Ignore deprecation warnings, they make our output more cluttered.
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -280,6 +281,7 @@ class TestPageHandler(BasePageHandler):
       self.EchoHeader,
       self.EchoHeaderCache,
       self.EchoAllHandler,
+      self.ZipFileHandler,
       self.FileHandler,
       self.SetCookieHandler,
       self.AuthBasicHandler,
@@ -746,6 +748,72 @@ class TestPageHandler(BasePageHandler):
       new_text = base64.urlsafe_b64decode(new_text_b64)
       data = data.replace(old_text, new_text)
     return data
+
+  def ZipFileHandler(self):
+    """This handler sends the contents of the requested file in compressed form.
+    Can pass in a parameter that specifies that the content length be
+    C - the compressed size (OK),
+    U - the uncompressed size (Non-standard, but handled),
+    S - less than compressed (OK because we keep going),
+    M - larger than compressed but less than uncompressed (an error),
+    L - larger than uncompressed (an error)
+    Example: compressedfiles/Picture_1.doc?C
+    """
+
+    prefix = "/compressedfiles/"
+    if not self.path.startswith(prefix):
+      return False
+
+    # Consume a request body if present.
+    if self.command == 'POST' or self.command == 'PUT' :
+      self.ReadRequestBody()
+
+    _, _, url_path, _, query, _ = urlparse.urlparse(self.path)
+
+    if not query in ('C', 'U', 'S', 'M', 'L'):
+      return False
+
+    sub_path = url_path[len(prefix):]
+    entries = sub_path.split('/')
+    file_path = os.path.join(self.server.data_dir, *entries)
+    if os.path.isdir(file_path):
+      file_path = os.path.join(file_path, 'index.html')
+
+    if not os.path.isfile(file_path):
+      print "File not found " + sub_path + " full path:" + file_path
+      self.send_error(404)
+      return True
+
+    f = open(file_path, "rb")
+    data = f.read()
+    uncompressed_len = len(data)
+    f.close()
+
+    # Compress the data.
+    data = zlib.compress(data)
+    compressed_len = len(data)
+
+    content_length = compressed_len
+    if query == 'U':
+      content_length = uncompressed_len
+    elif query == 'S':
+      content_length = compressed_len / 2
+    elif query == 'M':
+      content_length = (compressed_len + uncompressed_len) / 2
+    elif query == 'L':
+      content_length = compressed_len + uncompressed_len
+
+    self.send_response(200)
+    self.send_header('Content-type', 'application/msword')
+    self.send_header('Content-encoding', 'deflate')
+    self.send_header('Connection', 'close')
+    self.send_header('Content-Length', content_length)
+    self.send_header('ETag', '\'' + file_path + '\'')
+    self.end_headers()
+
+    self.wfile.write(data)
+
+    return True
 
   def FileHandler(self):
     """This handler sends the contents of the requested file.  Wow, it's like
