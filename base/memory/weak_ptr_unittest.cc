@@ -80,6 +80,20 @@ TEST(WeakPtrTest, Multiple) {
   EXPECT_TRUE(b.get() == NULL);
 }
 
+TEST(WeakPtrTest, MultipleStaged) {
+  WeakPtr<int> a;
+  {
+    int data;
+    WeakPtrFactory<int> factory(&data);
+    a = factory.GetWeakPtr();
+    {
+      WeakPtr<int> b = factory.GetWeakPtr();
+    }
+    EXPECT_TRUE(a.get() != NULL);
+  }
+  EXPECT_TRUE(a.get() == NULL);
+}
+
 TEST(WeakPtrTest, UpCast) {
   Derived data;
   WeakPtrFactory<Derived> factory(&data);
