@@ -12,6 +12,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "base/threading/non_thread_safe.h"
+#include "base/time.h"
 #include "base/timer.h"
 #include "net/proxy/dhcp_proxy_script_fetcher.h"
 
@@ -44,6 +45,7 @@ class NET_TEST DhcpProxyScriptFetcherWin
 
  protected:
   // Event/state transition handlers
+  void CancelImpl();
   void OnFetcherDone(int result);
   void OnWaitTimer();
   void TransitionToDone();
@@ -114,6 +116,12 @@ class NET_TEST DhcpProxyScriptFetcherWin
   base::OneShotTimer<DhcpProxyScriptFetcherWin> wait_timer_;
 
   scoped_refptr<URLRequestContext> url_request_context_;
+
+ private:
+  // TODO(joi): Move other members to private as appropriate.
+
+  // Time |Fetch()| was last called, 0 if never.
+  base::TimeTicks fetch_start_time_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(DhcpProxyScriptFetcherWin);
 };
