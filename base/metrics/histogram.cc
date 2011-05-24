@@ -940,6 +940,21 @@ Histogram::ClassType CustomHistogram::histogram_type() const {
   return CUSTOM_HISTOGRAM;
 }
 
+// static
+std::vector<Histogram::Sample> CustomHistogram::ArrayToCustomRanges(
+    const Sample* values, size_t num_values) {
+  std::vector<Sample> all_values;
+  for (size_t i = 0; i < num_values; ++i) {
+    Sample value = values[i];
+    all_values.push_back(value);
+
+    // Ensure that a guard bucket is added. If we end up with duplicate
+    // values, FactoryGet will take care of removing them.
+    all_values.push_back(value + 1);
+  }
+  return all_values;
+}
+
 CustomHistogram::CustomHistogram(const std::string& name,
                                  const std::vector<Sample>& custom_ranges)
     : Histogram(name, custom_ranges[1], custom_ranges.back(),
