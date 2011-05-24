@@ -263,7 +263,7 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
     error_response_info_ = transport_socket_handle_->ssl_error_response_info();
   } else if (result == ERR_PROXY_AUTH_REQUESTED ||
              result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
-    ClientSocket* socket = transport_socket_handle_->socket();
+    StreamSocket* socket = transport_socket_handle_->socket();
     HttpProxyClientSocket* tunnel_socket =
         static_cast<HttpProxyClientSocket*>(socket);
     error_response_info_ = *tunnel_socket->GetConnectResponseInfo();
@@ -338,7 +338,8 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
 
       const std::string& host = params_->host_and_port().host();
       bool is_google = host == "google.com" ||
-                       host.rfind(".google.com") == host.size() - 11;
+                       (host.size() > 11 &&
+                        host.rfind(".google.com") == host.size() - 11);
       if (is_google) {
         UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Google",
                                    connect_duration,
@@ -347,9 +348,8 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
                                    100);
       }
 
-      static bool false_start_trial(
-          base::FieldTrialList::Find("SSLFalseStart") &&
-          !base::FieldTrialList::Find("SSLFalseStart")->group_name().empty());
+      static const bool false_start_trial =
+          base::FieldTrialList::TrialExists("SSLFalseStart");
       if (false_start_trial) {
         UMA_HISTOGRAM_CUSTOM_TIMES(base::FieldTrial::MakeName(
                                        "Net.SSL_Connection_Latency",
@@ -514,7 +514,7 @@ void SSLClientSocketPool::CancelRequest(const std::string& group_name,
 }
 
 void SSLClientSocketPool::ReleaseSocket(const std::string& group_name,
-                                        ClientSocket* socket, int id) {
+                                        StreamSocket* socket, int id) {
   base_.ReleaseSocket(group_name, socket, id);
 }
 

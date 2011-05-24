@@ -588,7 +588,7 @@ MockSSLClientSocket* MockClientSocketFactory::GetMockSSLClientSocket(
   return ssl_client_sockets_[index];
 }
 
-ClientSocket* MockClientSocketFactory::CreateTransportClientSocket(
+StreamSocket* MockClientSocketFactory::CreateTransportClientSocket(
     const AddressList& addresses,
     net::NetLog* net_log,
     const NetLog::Source& source) {
@@ -1186,7 +1186,7 @@ void ClientSocketPoolTest::ReleaseAllConnections(KeepAlive keep_alive) {
 }
 
 MockTransportClientSocketPool::MockConnectJob::MockConnectJob(
-    ClientSocket* socket,
+    StreamSocket* socket,
     ClientSocketHandle* handle,
     CompletionCallback* callback)
     : socket_(socket),
@@ -1255,7 +1255,7 @@ int MockTransportClientSocketPool::RequestSocket(const std::string& group_name,
                                            ClientSocketHandle* handle,
                                            CompletionCallback* callback,
                                            const BoundNetLog& net_log) {
-  ClientSocket* socket = client_socket_factory_->CreateTransportClientSocket(
+  StreamSocket* socket = client_socket_factory_->CreateTransportClientSocket(
       AddressList(), net_log.net_log(), net::NetLog::Source());
   MockConnectJob* job = new MockConnectJob(socket, handle, callback);
   job_list_.push_back(job);
@@ -1275,7 +1275,7 @@ void MockTransportClientSocketPool::CancelRequest(const std::string& group_name,
 }
 
 void MockTransportClientSocketPool::ReleaseSocket(const std::string& group_name,
-                                            ClientSocket* socket, int id) {
+                                            StreamSocket* socket, int id) {
   EXPECT_EQ(1, id);
   release_count_++;
   delete socket;
@@ -1306,7 +1306,7 @@ MockSSLClientSocket* DeterministicMockClientSocketFactory::
   return ssl_client_sockets_[index];
 }
 
-ClientSocket* DeterministicMockClientSocketFactory::CreateTransportClientSocket(
+StreamSocket* DeterministicMockClientSocketFactory::CreateTransportClientSocket(
     const AddressList& addresses,
     net::NetLog* net_log,
     const net::NetLog::Source& source) {
@@ -1368,7 +1368,7 @@ void MockSOCKSClientSocketPool::CancelRequest(
 }
 
 void MockSOCKSClientSocketPool::ReleaseSocket(const std::string& group_name,
-                                              ClientSocket* socket, int id) {
+                                              StreamSocket* socket, int id) {
   return transport_pool_->ReleaseSocket(group_name, socket, id);
 }
 

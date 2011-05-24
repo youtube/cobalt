@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/memory/ref_counted.h"
+#include "net/base/net_api.h"
 #include "net/ftp/ftp_auth_cache.h"
 
 namespace net {
@@ -14,7 +15,7 @@ namespace net {
 class HostResolver;
 
 // This class holds session objects used by FtpNetworkTransaction objects.
-class FtpNetworkSession : public base::RefCounted<FtpNetworkSession> {
+class NET_TEST FtpNetworkSession : public base::RefCounted<FtpNetworkSession> {
  public:
   explicit FtpNetworkSession(HostResolver* host_resolver);
 

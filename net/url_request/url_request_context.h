@@ -13,6 +13,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/threading/non_thread_safe.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
@@ -21,7 +22,6 @@
 
 namespace net {
 class CertVerifier;
-class CookiePolicy;
 class CookieStore;
 class DnsCertProvenanceChecker;
 class DnsRRResolver;
@@ -33,14 +33,15 @@ class NetworkDelegate;
 class ProxyService;
 class SSLConfigService;
 class URLRequest;
+class URLRequestJobFactory;
 
 // Subclass to provide application-specific context for URLRequest
 // instances. Note that URLRequestContext typically does not provide storage for
 // these member variables, since they may be shared. For the ones that aren't
 // shared, URLRequestContextStorage can be helpful in defining their storage.
-class URLRequestContext
+class NET_API URLRequestContext
     : public base::RefCountedThreadSafe<URLRequestContext>,
-      public base::NonThreadSafe {
+      NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   URLRequestContext();
 
@@ -133,13 +134,6 @@ class URLRequestContext
   CookieStore* cookie_store() const { return cookie_store_.get(); }
   void set_cookie_store(CookieStore* cookie_store);
 
-  // Gets the cookie policy for this context (may be null, in which case
-  // cookies are allowed).
-  CookiePolicy* cookie_policy() const { return cookie_policy_; }
-  void set_cookie_policy(CookiePolicy* cookie_policy) {
-    cookie_policy_ = cookie_policy;
-  }
-
   TransportSecurityState* transport_security_state() const {
       return transport_security_state_;
   }
@@ -175,13 +169,10 @@ class URLRequestContext
     referrer_charset_ = charset;
   }
 
-  // Controls whether or not the URLRequestContext considers itself to be the
-  // "main" URLRequestContext.
-  bool is_main() const { return is_main_; }
-  void set_is_main(bool is_main) { is_main_ = is_main; }
-
-  // Is SNI available in this request context?
-  bool IsSNIAvailable() const;
+  const URLRequestJobFactory* job_factory() const { return job_factory_; }
+  void set_job_factory(const URLRequestJobFactory* job_factory) {
+    job_factory_ = job_factory;
+  }
 
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContext>;
@@ -193,9 +184,6 @@ class URLRequestContext
   // Important: When adding any new members below, consider whether they need to
   // be added to CopyFrom.
   // ---------------------------------------------------------------------------
-
-  // Indicates whether or not this is the main URLRequestContext.
-  bool is_main_;
 
   // Ownership for these members are not defined here. Clients should either
   // provide storage elsewhere or have a subclass take ownership.
@@ -209,7 +197,6 @@ class URLRequestContext
   scoped_refptr<SSLConfigService> ssl_config_service_;
   NetworkDelegate* network_delegate_;
   scoped_refptr<CookieStore> cookie_store_;
-  CookiePolicy* cookie_policy_;
   scoped_refptr<TransportSecurityState> transport_security_state_;
   FtpAuthCache ftp_auth_cache_;
   std::string accept_language_;
@@ -218,9 +205,9 @@ class URLRequestContext
   // used in communication with a server but is used to construct a suggested
   // filename for file download.
   std::string referrer_charset_;
-
   HttpTransactionFactory* http_transaction_factory_;
   FtpTransactionFactory* ftp_transaction_factory_;
+  const URLRequestJobFactory* job_factory_;
 
   // ---------------------------------------------------------------------------
   // Important: When adding any new members below, consider whether they need to

@@ -16,8 +16,9 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/bandwidth_metrics.h"
 #include "net/base/io_buffer.h"
-#include "net/base/upload_data.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
+#include "net/base/upload_data.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
 
@@ -36,12 +37,12 @@ class SSLInfo;
 // a SpdyNetworkTransaction) will maintain a reference to the stream.  When
 // initiated by the server, only the SpdySession will maintain any reference,
 // until such a time as a client object requests a stream for the path.
-class SpdyStream
+class NET_TEST SpdyStream
     : public base::RefCounted<SpdyStream>,
       public ChunkCallback {
  public:
   // Delegate handles protocol specific behavior of spdy stream.
-  class Delegate {
+  class NET_TEST Delegate {
    public:
     Delegate() {}
 

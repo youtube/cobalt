@@ -69,6 +69,12 @@ TEST(DataURLTest, Parse) {
       "kk",
       "boo" },
 
+    { "data:foo/bar;charset=kk;baz=1,boo",
+      true,
+      "foo/bar",
+      "kk",
+      "boo" },
+
     { "data:text/html,%3Chtml%3E%3Cbody%3E%3Cb%3Ehello%20world"
           "%3C%2Fb%3E%3C%2Fbody%3E%3C%2Fhtml%3E",
       true,
@@ -135,6 +141,12 @@ TEST(DataURLTest, Parse) {
       "img/png",
       "US-ASCII",
       "AB \nC" },
+
+    { "data:text/plain;charset=utf-8;base64,SGVsbMO2",
+      true,
+      "text/plain",
+      "utf-8",
+      "Hell\xC3\xB6" },
 
     // TODO(darin): add more interesting tests
   };

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,7 @@ void ThreadLocalPlatform::AllocateSlot(SlotType& slot) {
 // static
 void ThreadLocalPlatform::FreeSlot(SlotType& slot) {
   int error = pthread_key_delete(slot);
-  DCHECK(error == 0);
+  DCHECK_EQ(0, error);
 }
 
 // static

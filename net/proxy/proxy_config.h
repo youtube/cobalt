@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <string>
 
 #include "googleurl/src/gurl.h"
+#include "net/base/net_api.h"
 #include "net/proxy/proxy_bypass_rules.h"
 #include "net/proxy/proxy_server.h"
 
@@ -29,11 +30,11 @@ class ProxyInfo;
 //
 // For more details see:
 // http://www.chromium.org/developers/design-documents/proxy-settings-fallback
-class ProxyConfig {
+class NET_API ProxyConfig {
  public:
   // ProxyRules describes the "manual" proxy settings.
   // TODO(eroman): Turn this into a class.
-  struct ProxyRules {
+  struct NET_API ProxyRules {
     enum Type {
       TYPE_NO_RULES,
       TYPE_SINGLE_PROXY,
@@ -148,6 +149,14 @@ class ProxyConfig {
     return pac_url_;
   }
 
+  void set_pac_mandatory(bool enable_pac_mandatory) {
+    pac_mandatory_ = enable_pac_mandatory;
+  }
+
+  bool pac_mandatory() const {
+    return pac_mandatory_;
+  }
+
   bool has_pac_url() const {
     return pac_url_.is_valid();
   }
@@ -175,6 +184,8 @@ class ProxyConfig {
   static ProxyConfig CreateFromCustomPacURL(const GURL& pac_url) {
     ProxyConfig config;
     config.set_pac_url(pac_url);
+    // By default fall back to direct connection in case PAC script fails.
+    config.set_pac_mandatory(false);
     return config;
   }
 
@@ -184,6 +195,10 @@ class ProxyConfig {
 
   // If non-empty, indicates the URL of the proxy auto-config file to use.
   GURL pac_url_;
+
+  // If true, blocks all traffic in case fetching the pac script from |pac_url_|
+  // fails. Only valid if |pac_url_| is non-empty.
+  bool pac_mandatory_;
 
   // Manual proxy settings.
   ProxyRules proxy_rules_;

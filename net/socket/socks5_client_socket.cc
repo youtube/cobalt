@@ -44,7 +44,7 @@ SOCKS5ClientSocket::SOCKS5ClientSocket(
 }
 
 SOCKS5ClientSocket::SOCKS5ClientSocket(
-    ClientSocket* transport_socket,
+    StreamSocket* transport_socket,
     const HostResolver::RequestInfo& req_info)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &SOCKS5ClientSocket::OnIOComplete)),

@@ -18,7 +18,7 @@
 #include "net/base/host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
-#include "net/socket/client_socket.h"
+#include "net/socket/stream_socket.h"
 
 namespace net {
 
@@ -26,7 +26,7 @@ class ClientSocketHandle;
 class BoundNetLog;
 
 // The SOCKS client socket implementation
-class SOCKSClientSocket : public ClientSocket {
+class NET_TEST SOCKSClientSocket : public StreamSocket {
  public:
   // Takes ownership of the |transport_socket|, which should already be
   // connected by the time Connect() is called.
@@ -37,15 +37,15 @@ class SOCKSClientSocket : public ClientSocket {
                     const HostResolver::RequestInfo& req_info,
                     HostResolver* host_resolver);
 
-  // Deprecated constructor (http://crbug.com/37810) that takes a ClientSocket.
-  SOCKSClientSocket(ClientSocket* transport_socket,
+  // Deprecated constructor (http://crbug.com/37810) that takes a StreamSocket.
+  SOCKSClientSocket(StreamSocket* transport_socket,
                     const HostResolver::RequestInfo& req_info,
                     HostResolver* host_resolver);
 
   // On destruction Disconnect() is called.
   virtual ~SOCKSClientSocket();
 
-  // ClientSocket methods:
+  // StreamSocket methods:
 
   // Does the SOCKS handshake and completes the protocol.
   virtual int Connect(CompletionCallback* callback);

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,13 +12,14 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
-#include "net/socket/client_socket.h"
+#include "net/socket/stream_socket.h"
 
 namespace net {
 
 class BoundNetLog;
 
-class TCPClientSocketWin : public ClientSocket, base::NonThreadSafe {
+class NET_API TCPClientSocketWin : public StreamSocket,
+                                   NON_EXPORTED_BASE(base::NonThreadSafe) {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a
@@ -36,7 +37,7 @@ class TCPClientSocketWin : public ClientSocket, base::NonThreadSafe {
   // and for testing.
   void AdoptSocket(SOCKET socket);
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;

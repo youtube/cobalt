@@ -24,8 +24,8 @@ class URLRequestContext;
 
 // Implementation of ProxyScriptFetcher that downloads scripts using the
 // specified request context.
-class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
-                               public URLRequest::Delegate {
+class NET_API ProxyScriptFetcherImpl : public ProxyScriptFetcher,
+                                       public URLRequest::Delegate {
  public:
   // Creates a ProxyScriptFetcher that issues requests through
   // |url_request_context|. |url_request_context| must remain valid for the
@@ -45,9 +45,9 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
 
   // ProxyScriptFetcher methods:
   virtual int Fetch(const GURL& url, string16* text,
-                    CompletionCallback* callback);
-  virtual void Cancel();
-  virtual URLRequestContext* GetRequestContext();
+                    CompletionCallback* callback) OVERRIDE;
+  virtual void Cancel() OVERRIDE;
+  virtual URLRequestContext* GetRequestContext() const OVERRIDE;
 
   // URLRequest::Delegate methods:
   virtual void OnAuthRequired(URLRequest* request,

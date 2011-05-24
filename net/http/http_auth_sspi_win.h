@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/string16.h"
+#include "net/base/net_api.h"
 #include "net/http/http_auth.h"
 
 namespace net {
@@ -121,7 +122,7 @@ class SSPILibraryDefault : public SSPILibrary {
   }
 };
 
-class HttpAuthSSPI {
+class NET_TEST HttpAuthSSPI {
  public:
   HttpAuthSSPI(SSPILibrary* sspi_library,
                const std::string& scheme,
@@ -180,9 +181,9 @@ class HttpAuthSSPI {
 // If |combined| is of form "bar", |domain| will be empty and |user| will
 // contain "bar".
 // |domain| and |user| must be non-NULL.
-void SplitDomainAndUser(const string16& combined,
-                        string16* domain,
-                        string16* user);
+NET_TEST void SplitDomainAndUser(const string16& combined,
+                                 string16* domain,
+                                 string16* user);
 
 // Determines the maximum token length in bytes for a particular SSPI package.
 //
@@ -198,9 +199,9 @@ void SplitDomainAndUser(const string16& combined,
 // If the return value is ERR_UNEXPECTED, there was an unanticipated problem
 // in the underlying SSPI call. The details are logged, and |*max_token_length|
 // is not changed.
-int DetermineMaxTokenLength(SSPILibrary* library,
-                            const std::wstring& package,
-                            ULONG* max_token_length);
+NET_TEST int DetermineMaxTokenLength(SSPILibrary* library,
+                                     const std::wstring& package,
+                                     ULONG* max_token_length);
 
 }  // namespace net
 

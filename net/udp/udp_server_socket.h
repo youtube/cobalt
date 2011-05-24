@@ -16,7 +16,7 @@ class IPEndPoint;
 class BoundNetLog;
 
 // A client socket that uses UDP as the transport layer.
-class UDPServerSocket : public DatagramServerSocket {
+class NET_API UDPServerSocket : public DatagramServerSocket {
  public:
   UDPServerSocket(net::NetLog* net_log,
                   const net::NetLog::Source& source);

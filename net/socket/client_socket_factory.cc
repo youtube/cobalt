@@ -52,7 +52,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
     ClearSSLSessionCache();
   }
 
-  virtual ClientSocket* CreateTransportClientSocket(
+  virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
       const NetLog::Source& source) {
@@ -121,9 +121,9 @@ static base::LazyInstance<DefaultClientSocketFactory>
 
 }  // namespace
 
-// Deprecated function (http://crbug.com/37810) that takes a ClientSocket.
+// Deprecated function (http://crbug.com/37810) that takes a StreamSocket.
 SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
-    ClientSocket* transport_socket,
+    StreamSocket* transport_socket,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     SSLHostInfo* ssl_host_info,

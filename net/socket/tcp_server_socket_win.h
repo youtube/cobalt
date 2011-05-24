@@ -18,9 +18,10 @@ namespace net {
 
 class IPEndPoint;
 
-class TCPServerSocketWin : public ServerSocket,
-                           public base::NonThreadSafe,
-                           public base::win::ObjectWatcher::Delegate  {
+class NET_TEST TCPServerSocketWin
+    : public ServerSocket,
+      NON_EXPORTED_BASE(public base::NonThreadSafe),
+      public base::win::ObjectWatcher::Delegate  {
  public:
   TCPServerSocketWin(net::NetLog* net_log,
                      const net::NetLog::Source& source);
@@ -29,14 +30,14 @@ class TCPServerSocketWin : public ServerSocket,
   // net::ServerSocket implementation.
   virtual int Listen(const net::IPEndPoint& address, int backlog);
   virtual int GetLocalAddress(IPEndPoint* address) const;
-  virtual int Accept(scoped_ptr<ClientSocket>* socket,
+  virtual int Accept(scoped_ptr<StreamSocket>* socket,
                      CompletionCallback* callback);
 
   // base::ObjectWatcher::Delegate implementation.
   virtual void OnObjectSignaled(HANDLE object);
 
  private:
-  int AcceptInternal(scoped_ptr<ClientSocket>* socket);
+  int AcceptInternal(scoped_ptr<StreamSocket>* socket);
   void Close();
 
   SOCKET socket_;
@@ -44,7 +45,7 @@ class TCPServerSocketWin : public ServerSocket,
 
   base::win::ObjectWatcher accept_watcher_;
 
-  scoped_ptr<ClientSocket>* accept_socket_;
+  scoped_ptr<StreamSocket>* accept_socket_;
   CompletionCallback* accept_callback_;
 
   BoundNetLog net_log_;

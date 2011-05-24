@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
+#include "net/proxy/proxy_resolver_error_observer.h"
 #include "net/proxy/proxy_resolver_request_context.h"
 
 namespace net {
@@ -64,9 +65,12 @@ class AlertNetlogParams : public NetLog::EventParameters {
 // ProxyResolverJSBindings implementation.
 class DefaultJSBindings : public ProxyResolverJSBindings {
  public:
-  DefaultJSBindings(HostResolver* host_resolver, NetLog* net_log)
+  DefaultJSBindings(HostResolver* host_resolver,
+                    NetLog* net_log,
+                    ProxyResolverErrorObserver* error_observer)
       : host_resolver_(host_resolver),
-        net_log_(net_log) {
+        net_log_(net_log),
+        error_observer_(error_observer) {
   }
 
   // Handler for "alert(message)".
@@ -150,6 +154,9 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     LogEventToCurrentRequestAndGlobally(
         NetLog::TYPE_PAC_JAVASCRIPT_ERROR,
         new ErrorNetlogParams(line_number, message));
+
+    if (error_observer_.get())
+      error_observer_->OnPACScriptError(line_number, message);
   }
 
   virtual void Shutdown() {
@@ -287,14 +294,17 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
   HostResolver* const host_resolver_;
   NetLog* net_log_;
+  scoped_ptr<ProxyResolverErrorObserver> error_observer_;
 };
 
 }  // namespace
 
 // static
 ProxyResolverJSBindings* ProxyResolverJSBindings::CreateDefault(
-    HostResolver* host_resolver, NetLog* net_log) {
-  return new DefaultJSBindings(host_resolver, net_log);
+    HostResolver* host_resolver,
+    NetLog* net_log,
+    ProxyResolverErrorObserver* error_observer) {
+  return new DefaultJSBindings(host_resolver, net_log, error_observer);
 }
 
 }  // namespace net

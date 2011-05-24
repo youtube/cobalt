@@ -205,13 +205,13 @@ class BASE_API FilePath {
   // only contains one component, returns a FilePath identifying
   // kCurrentDirectory.  If this object already refers to the root directory,
   // returns a FilePath identifying the root directory.
-  FilePath DirName() const;
+  FilePath DirName() const WARN_UNUSED_RESULT;
 
   // Returns a FilePath corresponding to the last path component of this
   // object, either a file or a directory.  If this object already refers to
   // the root directory, returns a FilePath identifying the root directory;
   // this is the only situation in which BaseName will return an absolute path.
-  FilePath BaseName() const;
+  FilePath BaseName() const WARN_UNUSED_RESULT;
 
   // Returns ".jpg" for path "C:\pics\jojo.jpg", or an empty string if
   // the file has no extension.  If non-empty, Extension() will always start
@@ -226,7 +226,7 @@ class BASE_API FilePath {
   // Returns "C:\pics\jojo" for path "C:\pics\jojo.jpg"
   // NOTE: this is slightly different from the similar file_util implementation
   // which returned simply 'jojo'.
-  FilePath RemoveExtension() const;
+  FilePath RemoveExtension() const WARN_UNUSED_RESULT;
 
   // Inserts |suffix| after the file name portion of |path| but before the
   // extension.  Returns "" if BaseName() == "." or "..".
@@ -235,14 +235,17 @@ class BASE_API FilePath {
   // path == "jojo.jpg"         suffix == " (1)", returns "jojo (1).jpg"
   // path == "C:\pics\jojo"     suffix == " (1)", returns "C:\pics\jojo (1)"
   // path == "C:\pics.old\jojo" suffix == " (1)", returns "C:\pics.old\jojo (1)"
-  FilePath InsertBeforeExtension(const StringType& suffix) const;
-  FilePath InsertBeforeExtensionASCII(const base::StringPiece& suffix) const;
+  FilePath InsertBeforeExtension(
+      const StringType& suffix) const WARN_UNUSED_RESULT;
+  FilePath InsertBeforeExtensionASCII(
+      const base::StringPiece& suffix) const WARN_UNUSED_RESULT;
 
   // Replaces the extension of |file_name| with |extension|.  If |file_name|
   // does not have an extension, them |extension| is added.  If |extension| is
   // empty, then the extension is removed from |file_name|.
   // Returns "" if BaseName() == "." or "..".
-  FilePath ReplaceExtension(const StringType& extension) const;
+  FilePath ReplaceExtension(
+      const StringType& extension) const WARN_UNUSED_RESULT;
 
   // Returns true if the file path matches the specified extension. The test is
   // case insensitive. Don't forget the leading period if appropriate.
@@ -274,7 +277,7 @@ class BASE_API FilePath {
 
   // Returns a copy of this FilePath that does not end with a trailing
   // separator.
-  FilePath StripTrailingSeparators() const;
+  FilePath StripTrailingSeparators() const WARN_UNUSED_RESULT;
 
   // Returns true if this FilePath contains any attempt to reference a parent
   // directory (i.e. has a path component that is ".."

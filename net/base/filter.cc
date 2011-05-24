@@ -123,7 +123,7 @@ Filter::FilterStatus Filter::ReadData(char* dest_buffer, int* dest_len) {
 }
 
 bool Filter::FlushStreamBuffer(int stream_data_len) {
-  DCHECK(stream_data_len <= stream_buffer_size_);
+  DCHECK_LE(stream_data_len, stream_buffer_size_);
   if (stream_data_len <= 0 || stream_data_len > stream_buffer_size_)
     return false;
 

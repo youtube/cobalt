@@ -41,13 +41,6 @@ SSLConfigService::SSLConfigService()
 }
 
 // static
-SSLConfigService* SSLConfigService::CreateSystemSSLConfigService() {
-  // TODO(rtenneti): We don't use the system SSL configuration any more.
-  // Simplify this code after talking with mattm.
-  return new SSLConfigServiceDefaults;
-}
-
-// static
 bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
     const std::string& hostname) {
   return SSLFalseStartBlacklist::IsMember(hostname.c_str());
@@ -113,6 +106,16 @@ void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
       orig_config.tls1_enabled != new_config.tls1_enabled) {
     FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());
   }
+}
+
+// static
+bool SSLConfigService::IsSNIAvailable(SSLConfigService* service) {
+  if (!service)
+    return false;
+
+  SSLConfig ssl_config;
+  service->GetSSLConfig(&ssl_config);
+  return ssl_config.tls1_enabled;
 }
 
 }  // namespace net

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 #include "net/http/http_auth_handler_digest.h"
 #include "net/http/http_auth_handler_negotiate.h"
 #include "net/http/http_auth_handler_ntlm.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 
@@ -142,9 +143,9 @@ std::string HttpAuth::GetChallengeHeaderName(Target target) {
 std::string HttpAuth::GetAuthorizationHeaderName(Target target) {
   switch (target) {
     case AUTH_PROXY:
-      return "Proxy-Authorization";
+      return HttpRequestHeaders::kProxyAuthorization;
     case AUTH_SERVER:
-      return "Authorization";
+      return HttpRequestHeaders::kAuthorization;
     default:
       NOTREACHED();
       return "";

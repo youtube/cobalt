@@ -15,6 +15,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string_piece.h"
 #include "base/time.h"
+#include "net/base/net_api.h"
 #include "net/base/x509_cert_types.h"
 
 #if defined(OS_WIN)
@@ -48,7 +49,8 @@ class CertVerifyResult;
 typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 
 // X509Certificate represents an X.509 certificate used by SSL.
-class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
+class NET_API X509Certificate
+    : public base::RefCountedThreadSafe<X509Certificate> {
  public:
   // A handle to the certificate object in the underlying crypto library.
   // We assume that OSCertHandle is a pointer type on all platforms and

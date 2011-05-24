@@ -116,6 +116,7 @@ HttpCache::Transaction::Transaction(HttpCache* cache)
       is_sparse_(false),
       server_responded_206_(false),
       cache_pending_(false),
+      done_reading_(false),
       read_offset_(0),
       effective_load_flags_(0),
       write_len_(0),
@@ -196,6 +197,10 @@ bool HttpCache::Transaction::AddTruncatedFlag() {
 
   if (!CanResume(true))
     return false;
+
+  // We may have received the whole resource already.
+  if (done_reading_)
+    return true;
 
   truncated_ = true;
   target_state_ = STATE_NONE;
@@ -865,8 +870,7 @@ int HttpCache::Transaction::DoAddToEntryComplete(int result) {
       base::TimeTicks::Now() - entry_lock_waiting_since_;
   UMA_HISTOGRAM_TIMES("HttpCache.EntryLockWait", entry_lock_wait);
   static const bool prefetching_fieldtrial =
-      base::FieldTrialList::Find("Prefetch") &&
-      !base::FieldTrialList::Find("Prefetch")->group_name().empty();
+      base::FieldTrialList::TrialExists("Prefetch");
   if (prefetching_fieldtrial) {
     UMA_HISTOGRAM_TIMES(
         base::FieldTrial::MakeName("HttpCache.EntryLockWait", "Prefetch"),
@@ -1174,6 +1178,11 @@ int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
     return ERR_CACHE_READ_FAILURE;
   }
 
+  // Some resources may have slipped in as truncated when they're not.
+  int current_size = entry_->disk_entry->GetDataSize(kResponseContentIndex);
+  if (response_.headers->GetContentLength() == current_size)
+    truncated_ = false;
+
   next_state_ = STATE_NOTIFY_BEFORE_SEND_HEADERS;
   return OK;
 }
@@ -1318,6 +1327,10 @@ int HttpCache::Transaction::DoCacheWriteDataComplete(int result) {
     // We want to ignore errors writing to disk and just keep reading from
     // the network.
     result = write_len_;
+  } else if (!done_reading_ && entry_) {
+    int current_size = entry_->disk_entry->GetDataSize(kResponseContentIndex);
+    if (response_.headers->GetContentLength() == current_size)
+      done_reading_ = true;
   }
 
   if (partial_.get()) {
@@ -1680,6 +1693,9 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
   std::string last_modified_value;
   response_.headers->EnumerateHeader(NULL, "last-modified",
                                      &last_modified_value);
+
+  if (response_.headers->GetHttpVersion() < HttpVersion(1, 1))
+    etag_value.clear();
 
   if (etag_value.empty() && last_modified_value.empty())
     return false;
