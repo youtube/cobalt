@@ -25,7 +25,7 @@ class ConnectJobFactory;
 class TransportClientSocketPool;
 class TransportSocketParams;
 
-class SOCKSSocketParams : public base::RefCounted<SOCKSSocketParams> {
+class NET_TEST SOCKSSocketParams : public base::RefCounted<SOCKSSocketParams> {
  public:
   SOCKSSocketParams(const scoped_refptr<TransportSocketParams>& proxy_server,
                     bool socks_v5, const HostPortPair& host_port_pair,
@@ -99,12 +99,12 @@ class SOCKSConnectJob : public ConnectJob {
   State next_state_;
   CompletionCallbackImpl<SOCKSConnectJob> callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
-  scoped_ptr<ClientSocket> socket_;
+  scoped_ptr<StreamSocket> socket_;
 
   DISALLOW_COPY_AND_ASSIGN(SOCKSConnectJob);
 };
 
-class SOCKSClientSocketPool : public ClientSocketPool {
+class NET_TEST SOCKSClientSocketPool : public ClientSocketPool {
  public:
   SOCKSClientSocketPool(
       int max_sockets,
@@ -133,7 +133,7 @@ class SOCKSClientSocketPool : public ClientSocketPool {
                              ClientSocketHandle* handle);
 
   virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket,
+                             StreamSocket* socket,
                              int id);
 
   virtual void Flush();

@@ -44,7 +44,7 @@ namespace win {
 //
 class BASE_API ObjectWatcher : public MessageLoop::DestructionObserver {
  public:
-  class Delegate {
+  class BASE_API Delegate {
    public:
     virtual ~Delegate() {}
     // Called from the MessageLoop when a signaled object is detected.  To

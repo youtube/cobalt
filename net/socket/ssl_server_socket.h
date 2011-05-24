@@ -7,6 +7,7 @@
 
 #include "base/basictypes.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 #include "net/socket/socket.h"
 
 namespace crypto {
@@ -44,7 +45,7 @@ class SSLServerSocket : public Socket {
 // is copied.
 // TODO(hclam): Defines ServerSocketFactory to create SSLServerSocket. This will
 // make mocking easier.
-SSLServerSocket* CreateSSLServerSocket(
+NET_API SSLServerSocket* CreateSSLServerSocket(
     Socket* socket, X509Certificate* certificate, crypto::RSAPrivateKey* key,
     const SSLConfig& ssl_config);
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -66,7 +66,7 @@ bool CreateMapBlock(int target, int size, disk_cache::BlockFileHeader* header,
 
       header->hints[target - 1] = current;
       header->empty[target - 1]--;
-      DCHECK(header->empty[target - 1] >= 0);
+      DCHECK_GE(header->empty[target - 1], 0);
       header->num_entries++;
       if (target != size) {
         header->empty[target - size - 1]++;
@@ -115,10 +115,10 @@ void DeleteMapBlock(int index, int size, disk_cache::BlockFileHeader* header) {
     if (bits_at_end)
       header->empty[bits_at_end - 1]--;
     header->empty[new_type - 1]++;
-    DCHECK(header->empty[bits_at_end - 1] >= 0);
+    DCHECK_GE(header->empty[bits_at_end - 1], 0);
   }
   header->num_entries--;
-  DCHECK(header->num_entries >= 0);
+  DCHECK_GE(header->num_entries, 0);
   HISTOGRAM_TIMES("DiskCache.DeleteBlock", TimeTicks::Now() - start);
 }
 

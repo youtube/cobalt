@@ -37,7 +37,7 @@
     # to your .proto file.
     {
       'target_name': 'protobuf_lite',
-      'type': '<(library)',
+      'type': 'static_library',
       'toolsets': ['host', 'target'],
       'sources': [
         'src/google/protobuf/stubs/common.h',
@@ -97,7 +97,7 @@
     # DO NOT LINK AGAINST THIS TARGET IN CHROME CODE  --agl
     {
       'target_name': 'protobuf_full_do_not_use',
-      'type': '<(library)',
+      'type': 'static_library',
       'toolsets': ['host','target'],
       'sources': [
         'src/google/protobuf/descriptor.h',
@@ -109,7 +109,6 @@
         'src/google/protobuf/reflection_ops.h',
         'src/google/protobuf/service.h',
         'src/google/protobuf/text_format.h',
-        'src/google/protobuf/unknown_field_set.h',
         'src/google/protobuf/wire_format.h',
         'src/google/protobuf/io/gzip_stream.h',
         'src/google/protobuf/io/printer.h',
@@ -135,7 +134,6 @@
         'src/google/protobuf/reflection_ops.cc',
         'src/google/protobuf/service.cc',
         'src/google/protobuf/text_format.cc',
-        'src/google/protobuf/unknown_field_set.cc',
         'src/google/protobuf/wire_format.cc',
         # This file pulls in zlib, but it's not actually used by protoc, so
         # instead of compiling zlib for the host, let's just exclude this.

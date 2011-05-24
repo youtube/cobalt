@@ -6,7 +6,7 @@
   'targets': [
     {
       'target_name': 'gmock',
-      'type': '<(library)',
+      'type': 'static_library',
       'msvs_guid': 'F9D886ED-B09F-4B74-932F-D8E4691E6B7F',
       'dependencies': [
         'gtest.gyp:gtest',
@@ -51,7 +51,7 @@
     },
     {
       'target_name': 'gmock_main',
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         'gmock',
       ],

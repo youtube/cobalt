@@ -52,6 +52,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "base/memory/weak_ptr.h"
 #include "base/template_util.h"
 
 namespace base {
@@ -123,6 +124,9 @@ namespace internal {
 //
 // TODO(ajwong): Move to ref_counted.h or template_util.h when we've vetted
 // this works well.
+//
+// TODO(ajwong): Make this check for Release() as well.
+// See http://crbug.com/82038.
 template <typename T>
 class SupportsAddRefAndRelease {
   typedef char Yes[1];
@@ -130,7 +134,6 @@ class SupportsAddRefAndRelease {
 
   struct BaseMixin {
     void AddRef();
-    void Release();
   };
 
 // MSVC warns when you try to use Base if T has a private destructor, the
@@ -148,13 +151,13 @@ class SupportsAddRefAndRelease {
   template <void(BaseMixin::*)(void)> struct Helper {};
 
   template <typename C>
-  static No& Check(Helper<&C::AddRef>*, Helper<&C::Release>*);
+  static No& Check(Helper<&C::AddRef>*);
 
   template <typename >
   static Yes& Check(...);
 
  public:
-  static const bool value = sizeof(Check<Base>(0,0)) == sizeof(Yes);
+  static const bool value = sizeof(Check<Base>(0)) == sizeof(Yes);
 };
 
 
@@ -213,7 +216,7 @@ const T& Unwrap(ConstRefWrapper<T> const_ref) {
 
 // Utility for handling different refcounting semantics in the Bind()
 // function.
-template <typename ref, typename T>
+template <typename IsMethod, typename T>
 struct MaybeRefcount;
 
 template <typename T>
@@ -244,6 +247,12 @@ template <typename T>
 struct MaybeRefcount<base::true_type, const T*> {
   static void AddRef(const T* o) { o->AddRef(); }
   static void Release(const T* o) { o->Release(); }
+};
+
+template <typename T>
+struct MaybeRefcount<base::true_type, WeakPtr<T> > {
+  static void AddRef(const WeakPtr<T>&) {}
+  static void Release(const WeakPtr<T>&) {}
 };
 
 }  // namespace internal

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,15 +9,16 @@
 #include <string>
 
 #include "base/string16.h"
+#include "net/base/net_api.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 
 namespace net {
 
 // Code for handling http basic authentication.
-class HttpAuthHandlerBasic : public HttpAuthHandler {
+class NET_TEST HttpAuthHandlerBasic : public HttpAuthHandler {
  public:
-  class Factory : public HttpAuthHandlerFactory {
+  class NET_TEST Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
     virtual ~Factory();

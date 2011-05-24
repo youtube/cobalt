@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #define NET_DISK_CACHE_MAPPED_FILE_H_
 #pragma once
 
+#include "net/base/net_api.h"
 #include "net/disk_cache/disk_format.h"
 #include "net/disk_cache/file.h"
 #include "net/disk_cache/file_block.h"
@@ -20,7 +21,7 @@ namespace disk_cache {
 // idea is that the header and bitmap will be memory mapped all the time, and
 // the actual data for the blocks will be access asynchronously (most of the
 // time).
-class MappedFile : public File {
+class NET_TEST MappedFile : public File {
  public:
   MappedFile() : File(true), init_(false) {}
 

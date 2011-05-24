@@ -10,6 +10,7 @@
 #include "unicode/ustring.h"
 
 namespace base {
+namespace i18n {
 
 const size_t npos = -1;
 
@@ -98,4 +99,5 @@ string16 BreakIterator::GetString() const {
   return string_->substr(prev_, pos_ - prev_);
 }
 
+}  // namespace i18n
 }  // namespace base

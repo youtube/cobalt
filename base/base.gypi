@@ -49,6 +49,8 @@
           'compiler_specific.h',
           'cpu.cc',
           'cpu.h',
+          'debug/alias.cc',
+          'debug/alias.h',
           'debug/debug_on_start_win.cc',
           'debug/debug_on_start_win.h',
           'debug/debugger.cc',
@@ -138,13 +140,9 @@
           'memory/ref_counted_memory.h',
           'memory/scoped_callback_factory.h',
           'memory/scoped_handle.h',
-          'memory/scoped_native_library.cc',
-          'memory/scoped_native_library.h',
           'memory/scoped_nsobject.h',
           'memory/scoped_open_process.h',
           'memory/scoped_ptr.h',
-          'memory/scoped_temp_dir.cc',
-          'memory/scoped_temp_dir.h',
           'memory/scoped_vector.h',
           'memory/singleton.h',
           'memory/weak_ptr.cc',
@@ -205,6 +203,10 @@
           'safe_strerror_posix.cc',
           'safe_strerror_posix.h',
           'scoped_ptr.h',
+          'scoped_native_library.cc',
+          'scoped_native_library.h',
+          'scoped_temp_dir.cc',
+          'scoped_temp_dir.h',
           'sha1.h',
           'sha1_portable.cc',
           'sha1_win.cc',
@@ -243,6 +245,11 @@
           'synchronization/waitable_event_watcher_posix.cc',
           'synchronization/waitable_event_watcher_win.cc',
           'synchronization/waitable_event_win.cc',
+          'system_monitor/system_monitor.cc',
+          'system_monitor/system_monitor.h',
+          'system_monitor/system_monitor_mac.mm',
+          'system_monitor/system_monitor_posix.cc',
+          'system_monitor/system_monitor_win.cc',
           'sys_info.h',
           'sys_info_chromeos.cc',
           'sys_info_freebsd.cc',
@@ -354,7 +361,7 @@
           '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework/Frameworks',
         ],
         'conditions': [
-          [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"', {
+          [ 'toolkit_uses_gtk==0', {
               'sources/': [
                 ['exclude', '^nix/'],
               ],
@@ -412,15 +419,14 @@
               # regression to page cycler moz.
               'sha1_win.cc',
               'string16.cc',
-              'debug/trace_event.cc',
             ],
           },],
-          ['OS=="freebsd" or OS=="openbsd"', {
+          ['os_posix==1 and OS!="linux" and OS!="mac"', {
             'sources!': [
-              'base/files/file_path_watcher_linux.cc',
+              'files/file_path_watcher_linux.cc',
             ],
             'sources': [
-              'base/files/file_path_watcher_stub.cc',
+              'files/file_path_watcher_stub.cc',
             ],
           }],
         ],
@@ -451,7 +457,7 @@
         ],
       },
       'conditions': [
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
+        [ 'toolkit_uses_gtk==1', {
           'conditions': [
             [ 'chromeos==1', {
                 'sources/': [ ['include', '_chromeos\\.cc$'] ]
@@ -486,7 +492,7 @@
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:x11',
           ],
-        }, {  # OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"
+        }, {  # toolkit_uses_gtk!=1
             'sources/': [
               ['exclude', '/xdg_user_dirs/'],
               ['exclude', '_nss\.cc$'],
@@ -535,25 +541,29 @@
               'win_util.cc',
             ],
         },],
-        [ 'OS=="win" and component=="shared_library"', {
+        [ 'component=="shared_library"', {
           'defines': [
             'BASE_DLL',
             'BASE_IMPLEMENTATION=1',
           ],
-          'msvs_disabled_warnings': [
-            4251,
+          'conditions': [
+            ['OS=="win"', {
+              'msvs_disabled_warnings': [
+                4251,
+              ],
+              'sources!': [
+                'debug/debug_on_start_win.cc',
+              ],
+              'direct_dependent_settings': {
+                'defines': [
+                  'BASE_DLL',
+                ],
+                'msvs_disabled_warnings': [
+                  4251,
+                ],
+              },
+            }],
           ],
-          'sources!': [
-            'debug/debug_on_start_win.cc',
-          ],
-          'direct_dependent_settings': {
-            'defines': [
-              'BASE_DLL',
-            ],
-            'msvs_disabled_warnings': [
-              4251,
-            ],
-          },
         }],
       ],
       'sources': [
@@ -602,7 +612,7 @@
       'targets': [
         {
           'target_name': 'base_nacl_win64',
-          'type': '<(library)',
+          'type': 'static_library',
           'msvs_guid': 'CEE1F794-DC70-4FED-B7C4-4C12986672FE',
           'variables': {
             'base_target': 1,
@@ -632,11 +642,11 @@
         },
       ],
     }],
-    [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
+    [ 'os_posix==1 and OS!="mac"', {
       'targets': [
         {
           'target_name': 'symbolize',
-          'type': '<(library)',
+          'type': 'static_library',
           'variables': {
             'chromium_code': 0,
           },
@@ -661,7 +671,7 @@
         },
         {
           'target_name': 'xdg_mime',
-          'type': '<(library)',
+          'type': 'static_library',
           'variables': {
             'chromium_code': 0,
           },

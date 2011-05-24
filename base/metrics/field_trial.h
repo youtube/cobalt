@@ -13,12 +13,13 @@
 // pseudo-randomly selected).
 //
 // States are typically generated randomly, either based on a one time
-// randomization (generated randomly once, and then persistently reused in the
-// client during each future run of the program), or by a startup randomization
-// (generated each time the application starts up, but held constant during the
-// duration of the process), or by continuous randomization across a run (where
-// the state can be recalculated again and again, many times during a process).
-// Only startup randomization is implemented thus far.
+// randomization (which will yield the same results, in terms of selecting
+// the client for a field trial or not, for every run of the program on a
+// given machine), or by a startup randomization (generated each time the
+// application starts up, but held constant during the duration of the
+// process), or by continuous randomization across a run (where the state
+// can be recalculated again and again, many times during a process).
+// Continuous randomization is not yet implemented.
 
 //------------------------------------------------------------------------------
 // Example:  Suppose we have an experiment involving memory, such as determining
@@ -52,10 +53,9 @@
 // to randomly be assigned:
 
 // HISTOGRAM_COUNTS("Memory.RendererTotal", count);  // The original histogram.
-// static bool use_memoryexperiment_histogram(
-//     base::FieldTrialList::Find("MemoryExperiment") &&
-//     !base::FieldTrialList::Find("MemoryExperiment")->group_name().empty());
-// if (use_memoryexperiment_histogram) {
+// static const bool memory_renderer_total_trial_exists =
+//     FieldTrialList::TrialExists("Memory.RendererTotal");
+// if (memory_renderer_total_trial_exists) {
 //   HISTOGRAM_COUNTS(FieldTrial::MakeName("Memory.RendererTotal",
 //                                         "MemoryExperiment"), count);
 // }
@@ -103,14 +103,34 @@ class BASE_API FieldTrial : public RefCounted<FieldTrial> {
 
   // The name is used to register the instance with the FieldTrialList class,
   // and can be used to find the trial (only one trial can be present for each
-  // name).
+  // name).  |name| and |default_group_name| may not be empty.
+  //
   // Group probabilities that are later supplied must sum to less than or equal
   // to the total_probability. Arguments year, month and day_of_month specify
   // the expiration time. If the build time is after the expiration time then
   // the field trial reverts to the 'default' group.
+  //
+  // Using this constructor creates a startup-randomized FieldTrial. If you
+  // want a one-time randomized trial, call UseOneTimeRandomization() right
+  // after construction.
   FieldTrial(const std::string& name, Probability total_probability,
              const std::string& default_group_name, const int year,
              const int month, const int day_of_month);
+
+  // Changes the field trial to use one-time randomization, i.e. produce the
+  // same result for the current trial on every run of this client. Must be
+  // called right after construction.
+  //
+  // Before using this method, |FieldTrialList::EnableOneTimeRandomization()|
+  // must be called exactly once.
+  void UseOneTimeRandomization();
+
+  // Disables this trial, meaning it always determines the default group
+  // has been selected. May be called immediately after construction, or
+  // at any time after initialization (should not be interleaved with
+  // AppendGroup calls). Once disabled, there is no way to re-enable a
+  // trial.
+  void Disable();
 
   // Establish the name and probability of the next group in this trial.
   // Sometimes, based on construction randomization, this call may cause the
@@ -124,18 +144,17 @@ class BASE_API FieldTrial : public RefCounted<FieldTrial> {
   // Return the randomly selected group number that was assigned.
   // Return kDefaultGroupNumber if the instance is in the 'default' group.
   // Note that this will force an instance to participate, and make it illegal
-  // to attempt to probabalistically add any other groups to the trial.
+  // to attempt to probabilistically add any other groups to the trial.
   int group();
 
-  // If the field trial is not in an experiment, this returns the empty string.
-  // if the group's name is empty, a name of "_" concatenated with the group
+  // If the group's name is empty, a string version containing the group
   // number is used as the group name.
   std::string group_name();
 
   // Return the default group name of the FieldTrial.
   std::string default_group_name() const { return default_group_name_; }
 
-  // Helper function for the most common use: as an argument to specifiy the
+  // Helper function for the most common use: as an argument to specify the
   // name of a HISTOGRAM.  Use the original histogram name as the name_prefix.
   static std::string MakeName(const std::string& name_prefix,
                               const std::string& trial_name);
@@ -155,6 +174,9 @@ class BASE_API FieldTrial : public RefCounted<FieldTrial> {
   FRIEND_TEST(FieldTrialTest, Save);
   FRIEND_TEST(FieldTrialTest, DuplicateRestore);
   FRIEND_TEST(FieldTrialTest, MakeName);
+  FRIEND_TEST(FieldTrialTest, HashClientId);
+  FRIEND_TEST(FieldTrialTest, HashClientIdIsUniform);
+  FRIEND_TEST(FieldTrialTest, UseOneTimeRandomization);
 
   friend class base::FieldTrialList;
 
@@ -168,8 +190,13 @@ class BASE_API FieldTrial : public RefCounted<FieldTrial> {
   // Get build time.
   static Time GetBuildTime();
 
+  // Calculates a uniformly-distributed double between [0.0, 1.0) given
+  // a |client_id| and a |trial_name| (the latter is used as salt to avoid
+  // separate one-time randomized trials from all having the same results).
+  static double HashClientId(const std::string& client_id,
+                             const std::string& trial_name);
+
   // The name of the field trial, as can be found via the FieldTrialList.
-  // This is empty of the trial is not in the experiment.
   const std::string name_;
 
   // The maximum sum of all probabilities supplied, which corresponds to 100%.
@@ -182,7 +209,7 @@ class BASE_API FieldTrial : public RefCounted<FieldTrial> {
   // The randomly selected probability that is used to select a group (or have
   // the instance not participate).  It is the product of divisor_ and a random
   // number between [0, 1).
-  const Probability random_;
+  Probability random_;
 
   // Sum of the probabilities of all appended groups.
   Probability accumulated_group_probability_;
@@ -193,13 +220,13 @@ class BASE_API FieldTrial : public RefCounted<FieldTrial> {
   // This is kNotFinalized if no group has been assigned.
   int group_;
 
-  // A textual name for the randomly selected group. If this Trial is not a
-  // member of an group, this string is empty.
+  // A textual name for the randomly selected group. Valid after |group()|
+  // has been called.
   std::string group_name_;
 
-  // When disable_field_trial_ is true, field trial reverts to the 'default'
+  // When enable_field_trial_ is false, field trial reverts to the 'default'
   // group.
-  bool disable_field_trial_;
+  bool enable_field_trial_;
 
   // When benchmarking is enabled, field trials all revert to the 'default'
   // group.
@@ -234,7 +261,12 @@ class BASE_API FieldTrialList {
   };
 
   // This singleton holds the global list of registered FieldTrials.
-  FieldTrialList();
+  //
+  // |client_id| should be an opaque, diverse ID for this client that does not
+  // change between sessions, to enable one-time randomized trials. The empty
+  // string may be provided, in which case one-time randomized trials will
+  // not be available.
+  explicit FieldTrialList(const std::string& client_id);
   // Destructor Release()'s references to all registered FieldTrial instances.
   ~FieldTrialList();
 
@@ -246,15 +278,22 @@ class BASE_API FieldTrialList {
   // registered, or to retrieve a pointer to it from the global map.
   static FieldTrial* Find(const std::string& name);
 
+  // Returns the group number chosen for the named trial, or
+  // FieldTrial::kNotFinalized if the trial does not exist.
   static int FindValue(const std::string& name);
 
+  // Returns the group name chosen for the named trial, or the
+  // empty string if the trial does not exist.
   static std::string FindFullName(const std::string& name);
 
-  // Create a persistent representation of all FieldTrial instances for
-  // resurrection in another process.  This allows randomization to be done in
-  // one process, and secondary processes can by synchronized on the result.
-  // The resulting string contains only the names, the trial name, and a "/"
-  // separator.
+  // Returns true if the named trial has been registered.
+  static bool TrialExists(const std::string& name);
+
+  // Create a persistent representation of all FieldTrial instances and the
+  // |client_id()| state for resurrection in another process.  This allows
+  // randomization to be done in one process, and secondary processes can by
+  // synchronized on the result. The resulting string contains the
+  // |client_id()|, the names, the trial name, and a "/" separator.
   static void StatesToString(std::string* output);
 
   // Use a previously generated state string (re: StatesToString()) augment the
@@ -263,7 +302,9 @@ class BASE_API FieldTrialList {
   // is commonly used in a non-browser process, to carry randomly selected state
   // in a browser process into this non-browser process. This method calls
   // CreateFieldTrial to create the FieldTrial in the non-browser process.
-  // Currently only the group_name_ and name_ are restored.
+  // Currently only the group_name_ and name_ are restored, as well as the
+  // |client_id()| state, that could be used for one-time randomized trials
+  // set up only in child processes.
   static bool CreateTrialsInChildProcess(const std::string& prior_trials);
 
   // Create a FieldTrial with the given |name| and using 100% probability for
@@ -303,6 +344,17 @@ class BASE_API FieldTrialList {
   // Return the number of active field trials.
   static size_t GetFieldTrialCount();
 
+  // Returns true if you can call |FieldTrial::UseOneTimeRandomization()|
+  // without error, i.e. if a non-empty string was provided as the client_id
+  // when constructing the FieldTrialList singleton.
+  static bool IsOneTimeRandomizationEnabled();
+
+  // Returns an opaque, diverse ID for this client that does not change
+  // between sessions.
+  //
+  // Returns the empty string if one-time randomization is not enabled.
+  static const std::string& client_id();
+
  private:
   // A map from FieldTrial names to the actual instances.
   typedef std::map<std::string, FieldTrial*> RegistrationList;
@@ -317,7 +369,7 @@ class BASE_API FieldTrialList {
   // is created after that.
   static bool register_without_global_;
 
-  // A helper value made availabel to users, that shows when the FieldTrialList
+  // A helper value made available to users, that shows when the FieldTrialList
   // was initialized.  Note that this is a singleton instance, and hence is a
   // good approximation to the start of the process.
   TimeTicks application_start_time_;
@@ -325,6 +377,10 @@ class BASE_API FieldTrialList {
   // Lock for access to registered_.
   base::Lock lock_;
   RegistrationList registered_;
+
+  // An opaque, diverse ID for this client that does not change
+  // between sessions, or the empty string if not initialized.
+  std::string client_id_;
 
   // List of observers to be notified when a group is selected for a FieldTrial.
   ObserverList<Observer> observer_list_;
@@ -335,4 +391,3 @@ class BASE_API FieldTrialList {
 }  // namespace base
 
 #endif  // BASE_METRICS_FIELD_TRIAL_H_
-

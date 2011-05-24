@@ -8,13 +8,14 @@
 
 #include <vector>
 
+#include "net/base/net_api.h"
 #include "net/base/x509_cert_types.h"
 
 namespace net {
 
 // The result of certificate verification.  Eventually this may contain the
 // certificate chain that was constructed during certificate verification.
-class CertVerifyResult {
+class NET_API CertVerifyResult {
  public:
   CertVerifyResult();
   ~CertVerifyResult();

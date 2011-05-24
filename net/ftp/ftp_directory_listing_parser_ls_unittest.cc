@@ -92,17 +92,22 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
 
     // Tests for "ls -l" style listing with group name containing spaces.
     { "drwxrwxr-x   3 %%%%     Domain Users     4096 Dec  9  2009 %%%%%",
-      net::FtpDirectoryListingEntry::DIRECTORY, "%%%%%", -1,
+      FtpDirectoryListingEntry::DIRECTORY, "%%%%%", -1,
       2009, 12, 9, 0, 0 },
 
     // Tests for "ls -l" style listing in Russian locale (note the swapped
     // parts order: the day of month is the first, before month).
     { "-rwxrwxr-x 1 ftp ftp 123 23 \xd0\xbc\xd0\xb0\xd0\xb9 2011 test",
-      net::FtpDirectoryListingEntry::FILE, "test", 123,
+      FtpDirectoryListingEntry::FILE, "test", 123,
       2011, 5, 23, 0, 0 },
     { "drwxrwxr-x 1 ftp ftp 4096 19 \xd0\xbe\xd0\xba\xd1\x82 2011 dir",
-      net::FtpDirectoryListingEntry::DIRECTORY, "dir", -1,
+      FtpDirectoryListingEntry::DIRECTORY, "dir", -1,
       2011, 10, 19, 0, 0 },
+
+    // Plan9 sends entry type "a" for append-only files.
+    { "ar-xr-xr-x   2 none     none         512 Apr 26 17:52 plan9",
+      FtpDirectoryListingEntry::FILE, "plan9", 512,
+      1994, 4, 26, 17, 52 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,

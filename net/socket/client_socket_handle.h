@@ -15,21 +15,22 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_response_info.h"
-#include "net/socket/client_socket.h"
 #include "net/socket/client_socket_pool.h"
+#include "net/socket/stream_socket.h"
 
 namespace net {
 
-// A container for a ClientSocket.
+// A container for a StreamSocket.
 //
 // The handle's |group_name| uniquely identifies the origin and type of the
 // connection.  It is used by the ClientSocketPool to group similar connected
 // client socket objects.
 //
-class ClientSocketHandle {
+class NET_API ClientSocketHandle {
  public:
   enum SocketReuseType {
     UNUSED = 0,   // unused socket that just finished connecting
@@ -84,7 +85,7 @@ class ClientSocketHandle {
   //
   // NOTE: To prevent the socket from being kept alive, be sure to call its
   // Disconnect method.  This will result in the ClientSocketPool deleting the
-  // ClientSocket.
+  // StreamSocket.
   void Reset();
 
   // Used after Init() is called, but before the ClientSocketPool has
@@ -102,7 +103,7 @@ class ClientSocketHandle {
 
   // Used by ClientSocketPool to initialize the ClientSocketHandle.
   void set_is_reused(bool is_reused) { is_reused_ = is_reused; }
-  void set_socket(ClientSocket* s) { socket_.reset(s); }
+  void set_socket(StreamSocket* s) { socket_.reset(s); }
   void set_idle_time(base::TimeDelta idle_time) { idle_time_ = idle_time; }
   void set_pool_id(int id) { pool_id_ = id; }
   void set_is_ssl_error(bool is_ssl_error) { is_ssl_error_ = is_ssl_error; }
@@ -131,8 +132,8 @@ class ClientSocketHandle {
   // These may only be used if is_initialized() is true.
   const std::string& group_name() const { return group_name_; }
   int id() const { return pool_id_; }
-  ClientSocket* socket() { return socket_.get(); }
-  ClientSocket* release_socket() { return socket_.release(); }
+  StreamSocket* socket() { return socket_.get(); }
+  StreamSocket* release_socket() { return socket_.release(); }
   bool is_reused() const { return is_reused_; }
   base::TimeDelta idle_time() const { return idle_time_; }
   SocketReuseType reuse_type() const {
@@ -163,7 +164,7 @@ class ClientSocketHandle {
 
   bool is_initialized_;
   ClientSocketPool* pool_;
-  scoped_ptr<ClientSocket> socket_;
+  scoped_ptr<StreamSocket> socket_;
   std::string group_name_;
   bool is_reused_;
   CompletionCallbackImpl<ClientSocketHandle> callback_;

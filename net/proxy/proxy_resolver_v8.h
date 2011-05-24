@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/memory/scoped_ptr.h"
+#include "net/base/net_api.h"
 #include "net/proxy/proxy_resolver.h"
 
 namespace net {
@@ -31,7 +32,7 @@ class ProxyResolverJSBindings;
 // This is the case with the V8 instance used by chromium's renderer -- it runs
 // on a different thread from ProxyResolver (renderer thread vs PAC thread),
 // and does not use locking since it expects to be alone.
-class ProxyResolverV8 : public ProxyResolver {
+class NET_TEST ProxyResolverV8 : public ProxyResolver {
  public:
   // Constructs a ProxyResolverV8 with custom bindings. ProxyResolverV8 takes
   // ownership of |custom_js_bindings| and deletes it when ProxyResolverV8

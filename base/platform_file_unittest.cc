@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "base/file_util.h"
-#include "base/memory/scoped_temp_dir.h"
 #include "base/platform_file.h"
+#include "base/scoped_temp_dir.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

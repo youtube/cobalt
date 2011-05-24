@@ -38,12 +38,13 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
+#include "net/base/net_api.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/request_priority.h"
-#include "net/socket/client_socket.h"
 #include "net/socket/client_socket_pool.h"
+#include "net/socket/stream_socket.h"
 
 namespace net {
 
@@ -52,9 +53,9 @@ class ClientSocketHandle;
 // ConnectJob provides an abstract interface for "connecting" a socket.
 // The connection may involve host resolution, tcp connection, ssl connection,
 // etc.
-class ConnectJob {
+class NET_TEST ConnectJob {
  public:
-  class Delegate {
+  class NET_TEST Delegate {
    public:
     Delegate() {}
     virtual ~Delegate() {}
@@ -89,7 +90,7 @@ class ConnectJob {
 
   // Releases |socket_| to the client.  On connection error, this should return
   // NULL.
-  ClientSocket* ReleaseSocket() { return socket_.release(); }
+  StreamSocket* ReleaseSocket() { return socket_.release(); }
 
   // Begins connecting the socket.  Returns OK on success, ERR_IO_PENDING if it
   // cannot complete synchronously without blocking, or another net error code
@@ -113,8 +114,8 @@ class ConnectJob {
   const BoundNetLog& net_log() const { return net_log_; }
 
  protected:
-  void set_socket(ClientSocket* socket);
-  ClientSocket* socket() { return socket_.get(); }
+  void set_socket(StreamSocket* socket);
+  StreamSocket* socket() { return socket_.get(); }
   void NotifyDelegateOfCompletion(int rv);
   void ResetTimer(base::TimeDelta remainingTime);
 
@@ -138,7 +139,7 @@ class ConnectJob {
   // Timer to abort jobs that take too long.
   base::OneShotTimer<ConnectJob> timer_;
   Delegate* delegate_;
-  scoped_ptr<ClientSocket> socket_;
+  scoped_ptr<StreamSocket> socket_;
   BoundNetLog net_log_;
   // A ConnectJob is idle until Connect() has been called.
   bool idle_;
@@ -154,7 +155,7 @@ namespace internal {
 // ClientSocketPoolBase adds templated definitions built on top of
 // ClientSocketPoolBaseHelper.  This class is not for external use, please use
 // ClientSocketPoolBase instead.
-class ClientSocketPoolBaseHelper
+class NET_TEST ClientSocketPoolBaseHelper
     : public ConnectJob::Delegate,
       public NetworkChangeNotifier::IPAddressObserver {
  public:
@@ -166,7 +167,7 @@ class ClientSocketPoolBaseHelper
     NO_IDLE_SOCKETS = 0x1,  // Do not return an idle socket. Create a new one.
   };
 
-  class Request {
+  class NET_TEST Request {
    public:
     Request(ClientSocketHandle* handle,
             CompletionCallback* callback,
@@ -236,7 +237,7 @@ class ClientSocketPoolBaseHelper
 
   // See ClientSocketPool::ReleaseSocket for documentation on this function.
   void ReleaseSocket(const std::string& group_name,
-                     ClientSocket* socket,
+                     StreamSocket* socket,
                      int id);
 
   // See ClientSocketPool::Flush for documentation on this function.
@@ -314,7 +315,7 @@ class ClientSocketPoolBaseHelper
     // socket for a new request.
     bool ShouldCleanup(base::TimeTicks now, base::TimeDelta timeout) const;
 
-    ClientSocket* socket;
+    StreamSocket* socket;
     base::TimeTicks start_time;
   };
 
@@ -445,7 +446,7 @@ class ClientSocketPoolBaseHelper
   void ProcessPendingRequest(const std::string& group_name, Group* group);
 
   // Assigns |socket| to |handle| and updates |group|'s counters appropriately.
-  void HandOutSocket(ClientSocket* socket,
+  void HandOutSocket(StreamSocket* socket,
                      bool reused,
                      ClientSocketHandle* handle,
                      base::TimeDelta time_idle,
@@ -453,7 +454,7 @@ class ClientSocketPoolBaseHelper
                      const BoundNetLog& net_log);
 
   // Adds |socket| to the list of idle sockets for |group|.
-  void AddIdleSocket(ClientSocket* socket, Group* group);
+  void AddIdleSocket(StreamSocket* socket, Group* group);
 
   // Iterates through |group_map_|, canceling all ConnectJobs and deleting
   // groups if they are no longer needed.
@@ -655,7 +656,7 @@ class ClientSocketPoolBase {
     return helper_.CancelRequest(group_name, handle);
   }
 
-  void ReleaseSocket(const std::string& group_name, ClientSocket* socket,
+  void ReleaseSocket(const std::string& group_name, StreamSocket* socket,
                      int id) {
     return helper_.ReleaseSocket(group_name, socket, id);
   }

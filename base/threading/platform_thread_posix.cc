@@ -222,4 +222,14 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
   pthread_join(thread_handle, NULL);
 }
 
+#if !defined(OS_MACOSX)
+// Mac OS X uses lower-level mach APIs
+
+// static
+void PlatformThread::SetThreadPriority(PlatformThreadHandle, ThreadPriority) {
+  // TODO(crogers): implement
+  NOTIMPLEMENTED();
+}
+#endif
+
 }  // namespace base

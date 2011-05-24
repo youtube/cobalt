@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "net/base/net_api.h"
 #include "net/base/x509_cert_types.h"
 
 namespace net {
@@ -17,7 +18,7 @@ class X509Certificate;
 
 // SSL connection info.
 // This is really a struct.  All members are public.
-class SSLInfo {
+class NET_API SSLInfo {
  public:
   SSLInfo();
   SSLInfo(const SSLInfo& info);

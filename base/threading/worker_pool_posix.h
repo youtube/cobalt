@@ -39,7 +39,7 @@ class Task;
 
 namespace base {
 
-class PosixDynamicThreadPool
+class BASE_API PosixDynamicThreadPool
     : public RefCountedThreadSafe<PosixDynamicThreadPool> {
  public:
   class PosixDynamicThreadPoolPeer;

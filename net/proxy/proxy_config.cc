@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -158,12 +158,14 @@ ProxyServer* ProxyConfig::ProxyRules::MapUrlSchemeToProxyNoFallback(
   return NULL;  // No mapping for this scheme.
 }
 
-ProxyConfig::ProxyConfig() : auto_detect_(false), id_(INVALID_ID) {
+ProxyConfig::ProxyConfig()
+    : auto_detect_(false), pac_mandatory_(false), id_(INVALID_ID)  {
 }
 
 ProxyConfig::ProxyConfig(const ProxyConfig& config)
     : auto_detect_(config.auto_detect_),
       pac_url_(config.pac_url_),
+      pac_mandatory_(config.pac_mandatory_),
       proxy_rules_(config.proxy_rules_),
       id_(config.id_) {
 }
@@ -174,6 +176,7 @@ ProxyConfig::~ProxyConfig() {
 ProxyConfig& ProxyConfig::operator=(const ProxyConfig& config) {
   auto_detect_ = config.auto_detect_;
   pac_url_ = config.pac_url_;
+  pac_mandatory_ = config.pac_mandatory_;
   proxy_rules_ = config.proxy_rules_;
   id_ = config.id_;
   return *this;
@@ -184,6 +187,7 @@ bool ProxyConfig::Equals(const ProxyConfig& other) const {
   // have the same settings.
   return auto_detect_ == other.auto_detect_ &&
          pac_url_ == other.pac_url_ &&
+         pac_mandatory_ == other.pac_mandatory_ &&
          proxy_rules_.Equals(other.proxy_rules());
 }
 
@@ -202,8 +206,11 @@ Value* ProxyConfig::ToValue() const {
   // Output the automatic settings.
   if (auto_detect_)
     dict->SetBoolean("auto_detect", auto_detect_);
-  if (has_pac_url())
+  if (has_pac_url()) {
     dict->SetString("pac_url", pac_url_.possibly_invalid_spec());
+    if (pac_mandatory_)
+      dict->SetBoolean("pac_mandatory", pac_mandatory_);
+  }
 
   // Output the manual settings.
   if (proxy_rules_.type != ProxyRules::TYPE_NO_RULES) {
@@ -246,4 +253,3 @@ Value* ProxyConfig::ToValue() const {
 }
 
 }  // namespace net
-

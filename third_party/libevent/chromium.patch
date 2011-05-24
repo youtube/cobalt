@@ -1,3 +1,16 @@
+diff --git a/third_party/libevent/evdns.h b/third_party/libevent/evdns.h
+index 1eb5c38..fca4ac3 100644
+--- a/third_party/libevent/evdns.h
++++ b/third_party/libevent/evdns.h
+@@ -165,7 +165,7 @@ extern "C" {
+ #endif
+
+ /* For integer types. */
+-#include <evutil.h>
++#include "evutil.h"
+
+ /** Error codes 0-5 are as described in RFC 1035. */
+ #define DNS_ERR_NONE 0
 diff --git a/third_party/libevent/event-config.h b/third_party/libevent/event-config.h
 new file mode 100644
 index 0000000..78a4727

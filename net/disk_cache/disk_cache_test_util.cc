@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -133,7 +133,7 @@ CallbackTest::~CallbackTest() {}
 // errors (an unexpected test received)
 void CallbackTest::RunWithParams(const Tuple1<int>& params) {
   if (reuse_) {
-    DCHECK(1 == reuse_);
+    DCHECK_EQ(1, reuse_);
     if (2 == reuse_)
       g_cache_tests_error = true;
     reuse_++;
@@ -150,9 +150,6 @@ MessageLoopHelper::MessageLoopHelper()
       num_iterations_(0),
       last_(0),
       completed_(false) {
-  // Create a recurrent timer of 50 mS.
-  timer_.Start(
-      TimeDelta::FromMilliseconds(50), this, &MessageLoopHelper::TimerExpired);
 }
 
 MessageLoopHelper::~MessageLoopHelper() {
@@ -163,6 +160,10 @@ bool MessageLoopHelper::WaitUntilCacheIoFinished(int num_callbacks) {
     return true;
 
   ExpectCallbacks(num_callbacks);
+  // Create a recurrent timer of 50 mS.
+  if (!timer_.IsRunning())
+    timer_.Start(TimeDelta::FromMilliseconds(50), this,
+                 &MessageLoopHelper::TimerExpired);
   MessageLoop::current()->Run();
   return completed_;
 }
@@ -170,9 +171,8 @@ bool MessageLoopHelper::WaitUntilCacheIoFinished(int num_callbacks) {
 // Quits the message loop when all callbacks are called or we've been waiting
 // too long for them (2 secs without a callback).
 void MessageLoopHelper::TimerExpired() {
-  if (g_cache_tests_received > num_callbacks_) {
-    NOTREACHED();
-  } else if (g_cache_tests_received == num_callbacks_) {
+  CHECK_LE(g_cache_tests_received, num_callbacks_);
+  if (g_cache_tests_received == num_callbacks_) {
     completed_ = true;
     MessageLoop::current()->Quit();
   } else {

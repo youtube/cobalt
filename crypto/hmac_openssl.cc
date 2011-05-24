@@ -42,7 +42,7 @@ HMAC::~HMAC() {
 
 bool HMAC::Sign(const std::string& data,
                 unsigned char* digest,
-                int digest_length) {
+                int digest_length) const {
   DCHECK_GE(digest_length, 0);
   DCHECK(!plat_->key.empty());  // Init must be called before Sign.
 

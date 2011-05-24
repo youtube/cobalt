@@ -770,7 +770,7 @@ double ProcessMetrics::GetCPUUsage() {
 
   int64 system_time_delta = system_time - last_system_time_;
   int64 time_delta = time - last_time_;
-  DCHECK(time_delta != 0);
+  DCHECK_NE(0U, time_delta);
   if (time_delta == 0)
     return 0;
 

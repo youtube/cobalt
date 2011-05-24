@@ -6,7 +6,7 @@
   'targets': [
     {
       'target_name': 'gtest',
-      'type': '<(library)',
+      'type': 'static_library',
       'msvs_guid': 'BFE8E2A7-3B3B-43B0-A994-3058B852DB8B',
       'sources': [
         'gtest/include/gtest/gtest-death-test.h',
@@ -123,7 +123,7 @@
     },
     {
       'target_name': 'gtest_main',
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         'gtest',
       ],

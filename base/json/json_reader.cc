@@ -7,6 +7,7 @@
 #include "base/float_util.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -189,8 +190,8 @@ Value* JSONReader::JsonToValue(const std::string& json, bool check_root,
 std::string JSONReader::FormatErrorMessage(int line, int column,
                                            const std::string& description) {
   if (line || column) {
-    return StringPrintf("Line: %i, column: %i, %s",
-                        line, column, description.c_str());
+    return base::StringPrintf(
+        "Line: %i, column: %i, %s", line, column, description.c_str());
   }
   return description;
 }

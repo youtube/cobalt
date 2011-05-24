@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define NET_SPDY_SPDY_HTTP_UTILS_H_
 #pragma once
 
+#include "net/base/net_api.h"
 #include "net/base/request_priority.h"
 #include "net/spdy/spdy_framer.h"
 
@@ -30,7 +31,7 @@ void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
                                       spdy::SpdyHeaderBlock* headers,
                                       bool direct);
 
-int ConvertRequestPriorityToSpdyPriority(RequestPriority priority);
+NET_TEST int ConvertRequestPriorityToSpdyPriority(RequestPriority priority);
 
 }  // namespace net
 

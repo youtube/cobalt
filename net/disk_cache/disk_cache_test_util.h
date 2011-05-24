@@ -8,10 +8,11 @@
 
 #include <string>
 
-#include "base/callback.h"
+#include "base/callback_old.h"
 #include "base/file_path.h"
 #include "base/message_loop.h"
 #include "base/timer.h"
+#include "base/tuple.h"
 #include "build/build_config.h"
 
 // Re-creates a given test file inside the cache test folder.

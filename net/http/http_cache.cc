@@ -478,10 +478,6 @@ HttpNetworkSession* HttpCache::GetSession() {
   return network->GetSession();
 }
 
-void HttpCache::Suspend(bool suspend) {
-  network_layer_->Suspend(suspend);
-}
-
 //-----------------------------------------------------------------------------
 
 int HttpCache::CreateBackend(disk_cache::Backend** backend,

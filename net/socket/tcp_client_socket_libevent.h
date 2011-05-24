@@ -13,7 +13,7 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
-#include "net/socket/client_socket.h"
+#include "net/socket/stream_socket.h"
 
 struct event;  // From libevent
 
@@ -22,7 +22,7 @@ namespace net {
 class BoundNetLog;
 
 // A client socket that uses TCP as the transport layer.
-class TCPClientSocketLibevent : public ClientSocket, base::NonThreadSafe {
+class TCPClientSocketLibevent : public StreamSocket, base::NonThreadSafe {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a
@@ -40,7 +40,7 @@ class TCPClientSocketLibevent : public ClientSocket, base::NonThreadSafe {
   // and for testing.
   void AdoptSocket(int socket);
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;

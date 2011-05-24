@@ -16,20 +16,21 @@
 #include "net/base/completion_callback.h"
 #include "net/base/host_resolver.h"
 #include "net/base/load_states.h"
+#include "net/base/net_api.h"
 #include "net/base/request_priority.h"
 
 class DictionaryValue;
 
 namespace net {
 
-class ClientSocket;
 class ClientSocketHandle;
 class ClientSocketPoolHistograms;
+class StreamSocket;
 
 // A ClientSocketPool is used to restrict the number of sockets open at a time.
 // It also maintains a list of idle persistent sockets.
 //
-class ClientSocketPool {
+class NET_API ClientSocketPool {
  public:
   // Requests a connected socket for a group_name.
   //
@@ -50,7 +51,7 @@ class ClientSocketPool {
   //
   // If this function returns OK, then |handle| is initialized upon return.
   // The |handle|'s is_initialized method will return true in this case.  If a
-  // ClientSocket was reused, then ClientSocketPool will call
+  // StreamSocket was reused, then ClientSocketPool will call
   // |handle|->set_reused(true).  In either case, the socket will have been
   // allocated and will be connected.  A client might want to know whether or
   // not the socket is reused in order to request a new socket if he encounters
@@ -93,12 +94,12 @@ class ClientSocketPool {
   // Called to release a socket once the socket is no longer needed.  If the
   // socket still has an established connection, then it will be added to the
   // set of idle sockets to be used to satisfy future RequestSocket calls.
-  // Otherwise, the ClientSocket is destroyed.  |id| is used to differentiate
+  // Otherwise, the StreamSocket is destroyed.  |id| is used to differentiate
   // between updated versions of the same pool instance.  The pool's id will
   // change when it flushes, so it can use this |id| to discard sockets with
   // mismatched ids.
   virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket,
+                             StreamSocket* socket,
                              int id) = 0;
 
   // This flushes all state from the ClientSocketPool.  This means that all

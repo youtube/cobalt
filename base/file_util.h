@@ -180,15 +180,16 @@ BASE_API bool ReadFileToString(const FilePath& path, std::string* contents);
 // Read exactly |bytes| bytes from file descriptor |fd|, storing the result
 // in |buffer|. This function is protected against EINTR and partial reads.
 // Returns true iff |bytes| bytes have been successfuly read from |fd|.
-bool ReadFromFD(int fd, char* buffer, size_t bytes);
+BASE_API bool ReadFromFD(int fd, char* buffer, size_t bytes);
 
 // Creates a symbolic link at |symlink| pointing to |target|.  Returns
 // false on failure.
-bool CreateSymbolicLink(const FilePath& target, const FilePath& symlink);
+BASE_API bool CreateSymbolicLink(const FilePath& target,
+                                 const FilePath& symlink);
 
 // Reads the given |symlink| and returns where it points to in |target|.
 // Returns false upon failure.
-bool ReadSymbolicLink(const FilePath& symlink, FilePath* target);
+BASE_API bool ReadSymbolicLink(const FilePath& symlink, FilePath* target);
 #endif  // defined(OS_POSIX)
 
 #if defined(OS_WIN)
@@ -342,7 +343,7 @@ BASE_API bool SetLastModifiedTime(const FilePath& path,
 
 #if defined(OS_POSIX)
 // Store inode number of |path| in |inode|. Return true on success.
-bool GetInode(const FilePath& path, ino_t* inode);
+BASE_API bool GetInode(const FilePath& path, ino_t* inode);
 #endif
 
 // Wrapper for fopen-like calls. Returns non-NULL FILE* on success.
@@ -364,7 +365,7 @@ BASE_API int ReadFile(const FilePath& filename, char* data, int size);
 BASE_API int WriteFile(const FilePath& filename, const char* data, int size);
 #if defined(OS_POSIX)
 // Append the data to |fd|. Does not close |fd| when done.
-int WriteFileDescriptor(const int fd, const char* data, int size);
+BASE_API int WriteFileDescriptor(const int fd, const char* data, int size);
 #endif
 
 // Gets the current working directory for the process.
@@ -647,7 +648,7 @@ enum FileSystemType {
 
 // Attempts determine the FileSystemType for |path|.
 // Returns false if |path| doesn't exist.
-bool GetFileSystemType(const FilePath& path, FileSystemType* type);
+BASE_API bool GetFileSystemType(const FilePath& path, FileSystemType* type);
 #endif
 
 }  // namespace file_util

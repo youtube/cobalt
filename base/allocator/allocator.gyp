@@ -10,7 +10,7 @@
   'targets': [
     {
       'target_name': 'allocator',
-      'type': '<(library)',
+      'type': 'static_library',
       'msvs_guid': 'C564F145-9172-42C3-BFCB-60FDEA124321',
       'include_dirs': [
         '.',
@@ -309,7 +309,7 @@
             '<(tcmalloc_dir)/src/debugallocation.cc',
           ],
         }],
-        ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+        ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
           'sources!': [
             '<(tcmalloc_dir)/src/system-alloc.h',
             '<(tcmalloc_dir)/src/windows/port.cc',

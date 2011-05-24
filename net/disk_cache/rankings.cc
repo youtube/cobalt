@@ -13,8 +13,10 @@
 using base::Time;
 using base::TimeTicks;
 
+namespace disk_cache {
 // This is used by crash_cache.exe to generate unit test files.
-disk_cache::RankCrashes g_rankings_crash = disk_cache::NO_CRASH;
+NET_TEST RankCrashes g_rankings_crash = NO_CRASH;
+}
 
 namespace {
 
@@ -82,11 +84,11 @@ void TerminateSelf() {
 // This used by crash_cache.exe to generate unit-test files.
 void GenerateCrash(CrashLocation location) {
 #ifndef NDEBUG
-  if (disk_cache::NO_CRASH == g_rankings_crash)
+  if (disk_cache::NO_CRASH == disk_cache::g_rankings_crash)
     return;
   switch (location) {
     case ON_INSERT_1:
-      switch (g_rankings_crash) {
+      switch (disk_cache::g_rankings_crash) {
         case disk_cache::INSERT_ONE_1:
         case disk_cache::INSERT_LOAD_1:
           TerminateSelf();
@@ -95,11 +97,11 @@ void GenerateCrash(CrashLocation location) {
       }
       break;
     case ON_INSERT_2:
-      if (disk_cache::INSERT_EMPTY_1 == g_rankings_crash)
+      if (disk_cache::INSERT_EMPTY_1 == disk_cache::g_rankings_crash)
         TerminateSelf();
       break;
     case ON_INSERT_3:
-      switch (g_rankings_crash) {
+      switch (disk_cache::g_rankings_crash) {
         case disk_cache::INSERT_EMPTY_2:
         case disk_cache::INSERT_ONE_2:
         case disk_cache::INSERT_LOAD_2:
@@ -109,7 +111,7 @@ void GenerateCrash(CrashLocation location) {
       }
       break;
     case ON_INSERT_4:
-      switch (g_rankings_crash) {
+      switch (disk_cache::g_rankings_crash) {
         case disk_cache::INSERT_EMPTY_3:
         case disk_cache::INSERT_ONE_3:
           TerminateSelf();
@@ -118,7 +120,7 @@ void GenerateCrash(CrashLocation location) {
       }
       break;
     case ON_REMOVE_1:
-      switch (g_rankings_crash) {
+      switch (disk_cache::g_rankings_crash) {
         case disk_cache::REMOVE_ONE_1:
         case disk_cache::REMOVE_HEAD_1:
         case disk_cache::REMOVE_TAIL_1:
@@ -129,27 +131,27 @@ void GenerateCrash(CrashLocation location) {
       }
       break;
     case ON_REMOVE_2:
-      if (disk_cache::REMOVE_ONE_2 == g_rankings_crash)
+      if (disk_cache::REMOVE_ONE_2 == disk_cache::g_rankings_crash)
         TerminateSelf();
       break;
     case ON_REMOVE_3:
-      if (disk_cache::REMOVE_ONE_3 == g_rankings_crash)
+      if (disk_cache::REMOVE_ONE_3 == disk_cache::g_rankings_crash)
         TerminateSelf();
       break;
     case ON_REMOVE_4:
-      if (disk_cache::REMOVE_HEAD_2 == g_rankings_crash)
+      if (disk_cache::REMOVE_HEAD_2 == disk_cache::g_rankings_crash)
         TerminateSelf();
       break;
     case ON_REMOVE_5:
-      if (disk_cache::REMOVE_TAIL_2 == g_rankings_crash)
+      if (disk_cache::REMOVE_TAIL_2 == disk_cache::g_rankings_crash)
         TerminateSelf();
       break;
     case ON_REMOVE_6:
-      if (disk_cache::REMOVE_TAIL_3 == g_rankings_crash)
+      if (disk_cache::REMOVE_TAIL_3 == disk_cache::g_rankings_crash)
         TerminateSelf();
       break;
     case ON_REMOVE_7:
-      switch (g_rankings_crash) {
+      switch (disk_cache::g_rankings_crash) {
         case disk_cache::REMOVE_ONE_4:
         case disk_cache::REMOVE_LOAD_2:
         case disk_cache::REMOVE_HEAD_3:
@@ -159,7 +161,7 @@ void GenerateCrash(CrashLocation location) {
       }
       break;
     case ON_REMOVE_8:
-      switch (g_rankings_crash) {
+      switch (disk_cache::g_rankings_crash) {
         case disk_cache::REMOVE_HEAD_4:
         case disk_cache::REMOVE_LOAD_3:
           TerminateSelf();
