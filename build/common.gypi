@@ -564,7 +564,7 @@
             '<!(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)',
       }],
 
-      # Set 1 to enable ibus support. Currently it is only supported in touchui.
+      # Set use_ibus to 1 to enable ibus support.
       ['touchui==1 and chromeos==1', {
         'use_ibus%': 1,
       }, {
