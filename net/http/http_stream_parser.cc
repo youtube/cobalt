@@ -20,6 +20,23 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/client_socket_handle.h"
 
+namespace {
+
+std::string GetResponseHeaderLines(const net::HttpResponseHeaders& headers) {
+  std::string raw_headers = headers.raw_headers();
+  const char* null_separated_headers = raw_headers.c_str();
+  const char* header_line = null_separated_headers;
+  std::string cr_separated_headers;
+  while (header_line[0] != 0) {
+    cr_separated_headers += header_line;
+    cr_separated_headers += "\n";
+    header_line += strlen(header_line) + 1;
+  }
+  return cr_separated_headers;
+}
+
+}  // namespace
+
 namespace net {
 
 HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
@@ -70,6 +87,9 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
         make_scoped_refptr(new NetLogHttpRequestParameter(
             request_line, headers)));
   }
+  DVLOG(1) << __FUNCTION__ << "()"
+           << " request_line = \"" << request_line << "\""
+           << " headers = \"" << headers.ToString() << "\"";
   response_ = response;
 
   // Put the peer's IP address and port into the response.
@@ -620,6 +640,11 @@ int HttpStreamParser::DoParseResponseHeaders(int end_offset) {
 
   response_->headers = headers;
   response_->vary_data.Init(*request_, *response_->headers);
+  DVLOG(1) << __FUNCTION__ << "()"
+           << " content_length = \""
+           << response_->headers->GetContentLength() << "\n\""
+           << " headers = \"" << GetResponseHeaderLines(*response_->headers)
+           << "\"";
   return OK;
 }
 
