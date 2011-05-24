@@ -66,7 +66,7 @@ class BASE_API SystemMonitor {
   // are finished. Observers should implement quick callback functions; if
   // lengthy operations are needed, the observer should take care to invoke
   // the operation on an appropriate thread.
-  class PowerObserver {
+  class BASE_API PowerObserver {
    public:
     // Notification of a change in power status of the computer, such
     // as from switching between battery and A/C power.
