@@ -13,23 +13,22 @@
 namespace net {
 
 URLRequestContext::URLRequestContext()
-    : is_main_(false),
-      net_log_(NULL),
+    : net_log_(NULL),
       host_resolver_(NULL),
       cert_verifier_(NULL),
       dnsrr_resolver_(NULL),
       dns_cert_checker_(NULL),
       http_auth_handler_factory_(NULL),
+      proxy_service_(NULL),
       network_delegate_(NULL),
-      cookie_policy_(NULL),
       transport_security_state_(NULL),
       http_transaction_factory_(NULL),
-      ftp_transaction_factory_(NULL) {
+      ftp_transaction_factory_(NULL),
+      job_factory_(NULL) {
 }
 
 void URLRequestContext::CopyFrom(URLRequestContext* other) {
   // Copy URLRequestContext parameters.
-  // Do not copy is_main_.
   set_net_log(other->net_log());
   set_host_resolver(other->host_resolver());
   set_cert_verifier(other->cert_verifier());
@@ -40,7 +39,6 @@ void URLRequestContext::CopyFrom(URLRequestContext* other) {
   set_ssl_config_service(other->ssl_config_service());
   set_network_delegate(other->network_delegate());
   set_cookie_store(other->cookie_store());
-  set_cookie_policy(other->cookie_policy());
   set_transport_security_state(other->transport_security_state());
   // FTPAuthCache is unique per context.
   set_accept_language(other->accept_language());
@@ -48,6 +46,7 @@ void URLRequestContext::CopyFrom(URLRequestContext* other) {
   set_referrer_charset(other->referrer_charset());
   set_http_transaction_factory(other->http_transaction_factory());
   set_ftp_transaction_factory(other->ftp_transaction_factory());
+  set_job_factory(other->job_factory());
 }
 
 void URLRequestContext::set_cookie_store(CookieStore* cookie_store) {
@@ -56,15 +55,6 @@ void URLRequestContext::set_cookie_store(CookieStore* cookie_store) {
 
 const std::string& URLRequestContext::GetUserAgent(const GURL& url) const {
   return EmptyString();
-}
-
-bool URLRequestContext::IsSNIAvailable() const {
-  if (!ssl_config_service_)
-    return false;
-
-  SSLConfig ssl_config;
-  ssl_config_service_->GetSSLConfig(&ssl_config);
-  return ssl_config.tls1_enabled;
 }
 
 URLRequestContext::~URLRequestContext() {

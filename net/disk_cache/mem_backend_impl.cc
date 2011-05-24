@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -306,7 +306,7 @@ void MemBackendImpl::TrimCache(bool empty) {
 
 void MemBackendImpl::AddStorageSize(int32 bytes) {
   current_size_ += bytes;
-  DCHECK(current_size_ >= 0);
+  DCHECK_GE(current_size_, 0);
 
   if (current_size_ > max_size_)
     TrimCache(false);
@@ -314,7 +314,7 @@ void MemBackendImpl::AddStorageSize(int32 bytes) {
 
 void MemBackendImpl::SubstractStorageSize(int32 bytes) {
   current_size_ -= bytes;
-  DCHECK(current_size_ >= 0);
+  DCHECK_GE(current_size_, 0);
 }
 
 }  // namespace disk_cache

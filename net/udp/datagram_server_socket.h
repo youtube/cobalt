@@ -15,7 +15,7 @@ class IPEndPoint;
 class IOBuffer;
 
 // A UDP Socket.
-class DatagramServerSocket : public DatagramSocket {
+class NET_API DatagramServerSocket : public DatagramSocket {
  public:
   virtual ~DatagramServerSocket() {}
 

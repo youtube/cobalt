@@ -17,7 +17,7 @@
 #include "net/base/host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
-#include "net/socket/client_socket.h"
+#include "net/socket/stream_socket.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
@@ -25,9 +25,9 @@ namespace net {
 class ClientSocketHandle;
 class BoundNetLog;
 
-// This ClientSocket is used to setup a SOCKSv5 handshake with a socks proxy.
+// This StreamSocket is used to setup a SOCKSv5 handshake with a socks proxy.
 // Currently no SOCKSv5 authentication is supported.
-class SOCKS5ClientSocket : public ClientSocket {
+class NET_TEST SOCKS5ClientSocket : public StreamSocket {
  public:
   // Takes ownership of the |transport_socket|, which should already be
   // connected by the time Connect() is called.
@@ -41,14 +41,14 @@ class SOCKS5ClientSocket : public ClientSocket {
   SOCKS5ClientSocket(ClientSocketHandle* transport_socket,
                      const HostResolver::RequestInfo& req_info);
 
-  // Deprecated constructor (http://crbug.com/37810) that takes a ClientSocket.
-  SOCKS5ClientSocket(ClientSocket* transport_socket,
+  // Deprecated constructor (http://crbug.com/37810) that takes a StreamSocket.
+  SOCKS5ClientSocket(StreamSocket* transport_socket,
                      const HostResolver::RequestInfo& req_info);
 
   // On destruction Disconnect() is called.
   virtual ~SOCKS5ClientSocket();
 
-  // ClientSocket methods:
+  // StreamSocket methods:
 
   // Does the SOCKS handshake and completes the protocol.
   virtual int Connect(CompletionCallback* callback);

@@ -171,7 +171,7 @@ void ProxyScriptFetcherImpl::Cancel() {
   ResetCurRequestState();
 }
 
-URLRequestContext* ProxyScriptFetcherImpl::GetRequestContext() {
+URLRequestContext* ProxyScriptFetcherImpl::GetRequestContext() const {
   return url_request_context_;
 }
 

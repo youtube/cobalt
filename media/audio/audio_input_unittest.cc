@@ -102,8 +102,8 @@ static bool CanRunAudioTests() {
 static AudioInputStream* CreateTestAudioInputStream() {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   AudioInputStream* ais = audio_man->MakeAudioInputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, kSamplingRate,
-                      16, kSamplesPerPacket));
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_STEREO,
+                      kSamplingRate, 16, kSamplesPerPacket));
   EXPECT_TRUE(NULL != ais);
   return ais;
 }
@@ -115,21 +115,28 @@ TEST(AudioInputTest, SanityOnMakeParams) {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   AudioParameters::Format fmt = AudioParameters::AUDIO_PCM_LINEAR;
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, 8, 8000, 16, kSamplesPerPacket)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_7POINT1, 8000, 16,
+                      kSamplesPerPacket)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, 1, 1024 * 1024, 16, kSamplesPerPacket)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_MONO, 1024 * 1024, 16,
+                      kSamplesPerPacket)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, 2, 8000, 80, kSamplesPerPacket)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 80,
+                      kSamplesPerPacket)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, 2, 8000, 80, 1000 * kSamplesPerPacket)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 80,
+                      1000 * kSamplesPerPacket)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, -2, 8000, 16, kSamplesPerPacket)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_UNSUPPORTED, 8000, 16,
+                      kSamplesPerPacket)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, 2, -8000, 16, kSamplesPerPacket)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, -8000, 16,
+                      kSamplesPerPacket)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, 2, 8000, -16, kSamplesPerPacket)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, -16,
+                      kSamplesPerPacket)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, 2, 8000, 16, -1024)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 16, -1024)));
 }
 
 // Test create and close of an AudioInputStream without recording audio.

@@ -5,6 +5,7 @@
 #include "net/socket_stream/socket_stream_job.h"
 
 #include "base/memory/singleton.h"
+#include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
 #include "net/socket_stream/socket_stream_job_manager.h"
 #include "net/url_request/url_request_context.h"
@@ -22,13 +23,12 @@ SocketStreamJob::ProtocolFactory* SocketStreamJob::RegisterProtocolFactory(
 SocketStreamJob* SocketStreamJob::CreateSocketStreamJob(
     const GURL& url,
     SocketStream::Delegate* delegate,
-    const URLRequestContext& context) {
+    TransportSecurityState* sts,
+    SSLConfigService* ssl) {
   GURL socket_url(url);
   TransportSecurityState::DomainState domain_state;
-  if (url.scheme() == "ws" &&
-      context.transport_security_state() &&
-      context.transport_security_state()->IsEnabledForHost(
-          &domain_state, url.host(), context.IsSNIAvailable()) &&
+  if (url.scheme() == "ws" && sts && sts->IsEnabledForHost(
+          &domain_state, url.host(), SSLConfigService::IsSNIAvailable(ssl)) &&
       domain_state.mode == TransportSecurityState::DomainState::MODE_STRICT) {
     url_canon::Replacements<char> replacements;
     static const char kNewScheme[] = "wss";

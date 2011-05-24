@@ -183,6 +183,10 @@ void RefArgSet(int &n) {
   n = 2;
 }
 
+int FunctionWithWeakFirstParam(WeakPtr<NoRef> o, int n) {
+  return n;
+}
+
 // Only useful in no-compile tests.
 int UnwrapNoRefParentRef(Parent& p) {
   return p.value;
@@ -451,7 +455,7 @@ TEST_F(BindTest, SupportsAddRefAndRelease) {
 }
 
 // Unretained() wrapper support.
-//   - Method bound to Unretained() non-object.
+//   - Method bound to Unretained() non-const object.
 //   - Const method bound to Unretained() non-const object.
 //   - Const method bound to Unretained() const object.
 TEST_F(BindTest, Unretained) {
@@ -469,6 +473,46 @@ TEST_F(BindTest, Unretained) {
   Callback<void(void)> const_method_const_ptr_cb =
       Bind(&NoRef::VoidConstMethod0, Unretained(const_no_ref_ptr_));
   const_method_const_ptr_cb.Run();
+}
+
+// WeakPtr() support.
+//   - Method bound to WeakPtr<> to non-const object.
+//   - Const method bound to WeakPtr<> to non-const object.
+//   - Const method bound to WeakPtr<> to const object.
+//   - Normal Function with WeakPtr<> as P1 can have return type and is
+//     not canceled.
+TEST_F(BindTest, WeakPtr) {
+  EXPECT_CALL(no_ref_, VoidMethod0());
+  EXPECT_CALL(no_ref_, VoidConstMethod0()).Times(2);
+
+  WeakPtrFactory<NoRef> weak_factory(&no_ref_);
+  WeakPtrFactory<const NoRef> const_weak_factory(const_no_ref_ptr_);
+
+  Callback<void(void)> method_cb =
+      Bind(&NoRef::VoidMethod0, weak_factory.GetWeakPtr());
+  method_cb.Run();
+
+  Callback<void(void)> const_method_cb =
+      Bind(&NoRef::VoidConstMethod0, const_weak_factory.GetWeakPtr());
+  const_method_cb.Run();
+
+  Callback<void(void)> const_method_const_ptr_cb =
+      Bind(&NoRef::VoidConstMethod0, const_weak_factory.GetWeakPtr());
+  const_method_const_ptr_cb.Run();
+
+  Callback<int(int)> normal_func_cb =
+      Bind(&FunctionWithWeakFirstParam, weak_factory.GetWeakPtr());
+  EXPECT_EQ(1, normal_func_cb.Run(1));
+
+  weak_factory.InvalidateWeakPtrs();
+  const_weak_factory.InvalidateWeakPtrs();
+
+  method_cb.Run();
+  const_method_cb.Run();
+  const_method_const_ptr_cb.Run();
+
+  // Still runs even after the pointers are invalidated.
+  EXPECT_EQ(2, normal_func_cb.Run(2));
 }
 
 // ConstRef() wrapper support.
@@ -626,6 +670,12 @@ TEST_F(BindTest, NoCompile) {
   // HasRef for_raw_ptr;
   // Callback<void(void)> ref_count_as_raw_ptr =
   //     Bind(&VoidPolymorphic1<HasRef*>, &for_raw_ptr);
+
+  // - WeakPtrs cannot be bound to methods with return types.
+  // HasRef for_raw_ptr;
+  // WeakPtrFactory<NoRef> weak_factory(&no_ref_);
+  // Callback<int(void)> weak_ptr_with_non_void_return_type =
+  //     Bind(&NoRef::IntMethod0, weak_factory.GetWeakPtr());
 
 }
 

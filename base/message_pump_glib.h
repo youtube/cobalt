@@ -93,6 +93,8 @@ class MessagePumpForUI : public MessagePump {
   // Returns the dispatcher for the current run state (|state_->dispatcher|).
   Dispatcher* GetDispatcher();
 
+  ObserverList<Observer>& observers() { return observers_; }
+
  private:
   // We may make recursive calls to Run, so we save state that needs to be
   // separate between them in this structure type.

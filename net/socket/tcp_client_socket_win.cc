@@ -468,7 +468,7 @@ int TCPClientSocketWin::GetPeerAddress(AddressList* address) const {
   DCHECK(address);
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
-  address->Copy(current_ai_, false);
+  *address = AddressList::CreateByCopyingFirstAddress(current_ai_);
   return OK;
 }
 

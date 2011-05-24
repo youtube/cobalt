@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,10 +20,10 @@ using ::testing::Return;
 
 static const int kSampleRate = AudioParameters::kAudioCDSampleRate;
 static const int kBitsPerSample = 16;
-static const int kChannels = 2;
+static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
 static const int kSamplesPerPacket = kSampleRate / 10;
-static const int kHardwareBufferSize = kSamplesPerPacket * kChannels *
-    kBitsPerSample / 8;
+static const int kHardwareBufferSize = kSamplesPerPacket *
+    ChannelLayoutToChannelCount(kChannelLayout) * kBitsPerSample / 8;
 static const int kBufferCapacity = 3 * kHardwareBufferSize;
 
 namespace media {
@@ -97,7 +97,7 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
       .Times(1);
   EXPECT_CALL(event_handler, OnMoreData(NotNull(), _));
 
-  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
       AudioOutputController::Create(&event_handler, params, kBufferCapacity);
@@ -127,7 +127,7 @@ TEST(AudioOutputControllerTest, PlayAndClose) {
       .Times(AtLeast(10))
       .WillRepeatedly(SignalEvent(&event));
 
-  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
       AudioOutputController::Create(&event_handler, params, kBufferCapacity);
@@ -176,7 +176,7 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
       .Times(Exactly(1))
       .WillOnce(InvokeWithoutArgs(&pause_event, &base::WaitableEvent::Signal));
 
-  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
       AudioOutputController::Create(&event_handler, params, kBufferCapacity);
@@ -236,7 +236,7 @@ TEST(AudioOutputControllerTest, PlayPausePlay) {
     .Times(Exactly(1))
     .RetiresOnSaturation();
 
-  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
       AudioOutputController::Create(&event_handler, params, kBufferCapacity);
@@ -279,7 +279,7 @@ TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
 
   // Create an audio device with a very large hardware buffer size.
   MockAudioOutputControllerEventHandler event_handler;
-  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample,
                          kSamplesPerPacket * 1000);
   scoped_refptr<AudioOutputController> controller =
@@ -307,7 +307,7 @@ TEST(AudioOutputControllerTest, CloseTwice) {
       .Times(AtLeast(1))
       .WillRepeatedly(SignalEvent(&event));
 
-  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
       AudioOutputController::Create(&event_handler, params, kBufferCapacity);

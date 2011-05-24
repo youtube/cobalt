@@ -740,6 +740,8 @@ int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
   // reading more ciphertext from the transport socket.
   if (bytes_decrypted_ != 0) {
     int len = std::min(buf_len, bytes_decrypted_);
+    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, len,
+                    decrypted_ptr_);
     memcpy(buf->data(), decrypted_ptr_, len);
     decrypted_ptr_ += len;
     bytes_decrypted_ -= len;
@@ -1359,6 +1361,8 @@ int SSLClientSocketWin::DoPayloadDecrypt() {
   // mistaken for EOF.  Continue decrypting or read more.
   if (len == 0)
     return DoPayloadRead();
+  LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, len,
+                  user_read_buf_->data());
   return len;
 }
 
@@ -1376,6 +1380,8 @@ int SSLClientSocketWin::DoPayloadEncrypt() {
   payload_send_buffer_.reset(new char[alloc_len]);
   memcpy(&payload_send_buffer_[stream_sizes_.cbHeader],
          user_write_buf_->data(), message_len);
+  LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, message_len,
+                  user_write_buf_->data());
 
   SecBuffer buffers[4];
   buffers[0].pvBuffer = payload_send_buffer_.get();

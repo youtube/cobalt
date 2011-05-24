@@ -85,7 +85,7 @@ void ConnectJob::UseForNormalRequest() {
   preconnect_state_ = USED_PRECONNECT;
 }
 
-void ConnectJob::set_socket(ClientSocket* socket) {
+void ConnectJob::set_socket(StreamSocket* socket) {
   if (socket) {
     net_log().AddEvent(NetLog::TYPE_CONNECT_JOB_SET_SOCKET, make_scoped_refptr(
           new NetLogSourceParameter("source_dependency",
@@ -333,8 +333,7 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
     // creating a new one.  If the SYN is lost, this backup socket may complete
     // before the slow socket, improving end user latency.
     if (connect_backup_jobs_enabled_ &&
-        group->IsEmpty() && !group->HasBackupJob() &&
-        handle) {
+        group->IsEmpty() && !group->HasBackupJob()) {
       group->StartBackupSocketTimer(group_name, this);
     }
 
@@ -343,7 +342,7 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
     group->AddJob(connect_job.release());
   } else {
     LogBoundConnectJobToRequest(connect_job->net_log().source(), request);
-    ClientSocket* error_socket = NULL;
+    StreamSocket* error_socket = NULL;
     if (!preconnecting) {
       DCHECK(handle);
       connect_job->GetAdditionalErrorState(handle);
@@ -426,7 +425,7 @@ void ClientSocketPoolBaseHelper::CancelRequest(
   if (callback_it != pending_callback_map_.end()) {
     int result = callback_it->second.result;
     pending_callback_map_.erase(callback_it);
-    ClientSocket* socket = handle->release_socket();
+    StreamSocket* socket = handle->release_socket();
     if (socket) {
       if (result != OK)
         socket->Disconnect();
@@ -666,7 +665,7 @@ void ClientSocketPoolBaseHelper::DecrementIdleCount() {
 }
 
 void ClientSocketPoolBaseHelper::ReleaseSocket(const std::string& group_name,
-                                               ClientSocket* socket,
+                                               StreamSocket* socket,
                                                int id) {
   GroupMap::iterator i = group_map_.find(group_name);
   CHECK(i != group_map_.end());
@@ -757,7 +756,7 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
   CHECK(group_it != group_map_.end());
   Group* group = group_it->second;
 
-  scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
+  scoped_ptr<StreamSocket> socket(job->ReleaseSocket());
 
   BoundNetLog job_log = job->net_log();
 
@@ -861,7 +860,7 @@ void ClientSocketPoolBaseHelper::ProcessPendingRequest(
 }
 
 void ClientSocketPoolBaseHelper::HandOutSocket(
-    ClientSocket* socket,
+    StreamSocket* socket,
     bool reused,
     ClientSocketHandle* handle,
     base::TimeDelta idle_time,
@@ -889,7 +888,7 @@ void ClientSocketPoolBaseHelper::HandOutSocket(
 }
 
 void ClientSocketPoolBaseHelper::AddIdleSocket(
-    ClientSocket* socket, Group* group) {
+    StreamSocket* socket, Group* group) {
   DCHECK(socket);
   IdleSocket idle_socket;
   idle_socket.socket = socket;
@@ -1064,10 +1063,8 @@ void ClientSocketPoolBaseHelper::Group::OnBackupSocketTimerFired(
     return;
   }
 
-  if (pending_requests_.empty()) {
-    LOG(DFATAL) << "No pending request for backup job.";
+  if (pending_requests_.empty())
     return;
-  }
 
   ConnectJob* backup_job = pool->connect_job_factory_->NewConnectJob(
       group_name, **pending_requests_.begin(), pool);

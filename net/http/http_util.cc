@@ -11,6 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"

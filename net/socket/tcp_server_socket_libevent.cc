@@ -111,7 +111,7 @@ int TCPServerSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
 }
 
 int TCPServerSocketLibevent::Accept(
-    scoped_ptr<ClientSocket>* socket, CompletionCallback* callback) {
+    scoped_ptr<StreamSocket>* socket, CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(socket);
   DCHECK(callback);
@@ -137,7 +137,7 @@ int TCPServerSocketLibevent::Accept(
 }
 
 int TCPServerSocketLibevent::AcceptInternal(
-    scoped_ptr<ClientSocket>* socket) {
+    scoped_ptr<StreamSocket>* socket) {
   struct sockaddr_storage addr_storage;
   socklen_t addr_len = sizeof(addr_storage);
   struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
@@ -159,7 +159,7 @@ int TCPServerSocketLibevent::AcceptInternal(
     return ERR_FAILED;
   }
   TCPClientSocket* tcp_socket = new TCPClientSocket(
-      AddressList(address.address(), address.port(), false),
+      AddressList::CreateFromIPAddress(address.address(), address.port()),
       net_log_.net_log(), net_log_.source());
   tcp_socket->AdoptSocket(result);
   socket->reset(tcp_socket);

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,8 @@
 #pragma once
 
 #include <string>
+
+#include "base/base_api.h"
 
 // BEFORE using anything from this file, first look at PLOG and friends in
 // logging.h and use them instead if applicable.
@@ -24,7 +26,7 @@
 // result is always null-terminated. The value of errno is never changed.
 //
 // Use this instead of strerror_r().
-void safe_strerror_r(int err, char *buf, size_t len);
+BASE_API void safe_strerror_r(int err, char *buf, size_t len);
 
 // Calls safe_strerror_r with a buffer of suitable size and returns the result
 // in a C++ string.
@@ -32,6 +34,6 @@ void safe_strerror_r(int err, char *buf, size_t len);
 // Use this instead of strerror(). Note though that safe_strerror_r will be
 // more robust in the case of heap corruption errors, since it doesn't need to
 // allocate a string.
-std::string safe_strerror(int err);
+BASE_API std::string safe_strerror(int err);
 
 #endif  // BASE_SAFE_STRERROR_POSIX_H_

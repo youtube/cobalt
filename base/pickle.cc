@@ -327,7 +327,7 @@ bool Pickle::WriteData(const char* data, int length) {
 }
 
 bool Pickle::WriteBytes(const void* data, int data_len) {
-  DCHECK(capacity_ != kCapacityReadOnly) << "oops: pickle is readonly";
+  DCHECK_NE(kCapacityReadOnly, capacity_) << "oops: pickle is readonly";
 
   char* dest = BeginWrite(data_len);
   if (!dest)

@@ -28,7 +28,8 @@ class URLRequestThrottlerManager;
 // destination and provide guidance (to the application level only) on whether
 // too many requests have been sent and when a good time to send the next one
 // would be. This is never used to deny requests at the network level.
-class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
+class NET_API URLRequestThrottlerEntry
+    : public URLRequestThrottlerEntryInterface {
  public:
   // Sliding window period.
   static const int kDefaultSlidingWindowPeriodMs;

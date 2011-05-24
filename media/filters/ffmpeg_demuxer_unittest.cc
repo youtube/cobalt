@@ -66,7 +66,7 @@ class FFmpegDemuxerTest : public testing::Test {
   FFmpegDemuxerTest() {
     // Create an FFmpegDemuxer.
     demuxer_ = new FFmpegDemuxer(&message_loop_);
-    DCHECK(demuxer_);
+    demuxer_->disable_first_seek_hack_for_testing();
 
     // Inject a filter host and message loop and prepare a data source.
     demuxer_->set_host(&host_);
@@ -425,7 +425,7 @@ TEST_F(FFmpegDemuxerTest, Seek) {
       .WillOnce(Return(0));
 
   // ...then our callback will be executed...
-  FilterCallback* seek_callback = NewExpectedCallback();
+  FilterStatusCB seek_cb = NewExpectedStatusCB(PIPELINE_OK);
   EXPECT_CALL(mock_ffmpeg_, CheckPoint(2));
 
   // ...followed by two audio packet reads we'll trigger...
@@ -468,7 +468,7 @@ TEST_F(FFmpegDemuxerTest, Seek) {
 
   // Issue a simple forward seek, which should discard queued packets.
   demuxer_->Seek(base::TimeDelta::FromMicroseconds(kExpectedTimestamp),
-                 seek_callback);
+                 seek_cb);
   message_loop_.RunAllPending();
   mock_ffmpeg_.CheckPoint(2);
 
@@ -519,21 +519,19 @@ TEST_F(FFmpegDemuxerTest, Seek) {
 
 // A mocked callback specialization for calling Read().  Since RunWithParams()
 // is mocked we don't need to pass in object or method pointers.
-typedef CallbackImpl<FFmpegDemuxerTest,
-                     void (FFmpegDemuxerTest::*)(Buffer*),
-                     Tuple1<Buffer*> > ReadCallback;
-class MockReadCallback : public ReadCallback {
+class MockReadCallback : public base::RefCountedThreadSafe<MockReadCallback> {
  public:
-  MockReadCallback()
-      : ReadCallback(NULL, NULL) {
-  }
+  MockReadCallback() {}
 
   virtual ~MockReadCallback() {
     OnDelete();
   }
 
   MOCK_METHOD0(OnDelete, void());
-  MOCK_METHOD1(RunWithParams, void(const Tuple1<Buffer*>& params));
+  MOCK_METHOD1(Run, void(Buffer* buffer));
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockReadCallback);
 };
 
 TEST_F(FFmpegDemuxerTest, Stop) {
@@ -543,11 +541,6 @@ TEST_F(FFmpegDemuxerTest, Stop) {
     SCOPED_TRACE("");
     InitializeDemuxer();
   }
-
-  // Create our mocked callback.  The demuxer will take ownership of this
-  // pointer.
-  scoped_ptr<StrictMock<MockReadCallback> > callback(
-      new StrictMock<MockReadCallback>());
 
   // Get our stream.
   scoped_refptr<DemuxerStream> audio =
@@ -564,13 +557,18 @@ TEST_F(FFmpegDemuxerTest, Stop) {
   // Expect all calls in sequence.
   InSequence s;
 
+  // Create our mocked callback. The Callback created by base::Bind() will take
+  // ownership of this pointer.
+  StrictMock<MockReadCallback>* callback = new StrictMock<MockReadCallback>();
+
   // The callback should be immediately deleted.  We'll use a checkpoint to
   // verify that it has indeed been deleted.
   EXPECT_CALL(*callback, OnDelete());
   EXPECT_CALL(mock_ffmpeg_, CheckPoint(1));
 
   // Attempt the read...
-  audio->Read(callback.release());
+  audio->Read(base::Bind(&MockReadCallback::Run, callback));
+
   message_loop_.RunAllPending();
 
   // ...and verify that |callback| was deleted.

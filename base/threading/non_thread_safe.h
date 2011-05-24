@@ -6,6 +6,12 @@
 #define BASE_THREADING_NON_THREAD_SAFE_H_
 #pragma once
 
+// Classes deriving from NonThreadSafe may need to supress MSVC warning 4275:
+// non dll-interface class 'Bar' used as base for dll-interface class 'Foo'.
+// There is a specific macro to do it: NON_EXPORTED_BASE(), defined in
+// compiler_specific.h
+#include "base/compiler_specific.h"
+
 #ifndef NDEBUG
 #include "base/threading/non_thread_safe_impl.h"
 #endif

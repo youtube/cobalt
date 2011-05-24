@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -225,23 +225,24 @@ TEST(StringUtilTest, TruncateUTF8ToByteSize) {
 }
 
 TEST(StringUtilTest, TrimWhitespace) {
-  std::wstring output;  // Allow contents to carry over to next testcase
+  string16 output;  // Allow contents to carry over to next testcase
   for (size_t i = 0; i < arraysize(trim_cases); ++i) {
     const trim_case& value = trim_cases[i];
     EXPECT_EQ(value.return_value,
-              TrimWhitespace(value.input, value.positions, &output));
-    EXPECT_EQ(value.output, output);
+              TrimWhitespace(WideToUTF16(value.input), value.positions,
+                             &output));
+    EXPECT_EQ(WideToUTF16(value.output), output);
   }
 
   // Test that TrimWhitespace() can take the same string for input and output
-  output = L"  This is a test \r\n";
+  output = ASCIIToUTF16("  This is a test \r\n");
   EXPECT_EQ(TRIM_ALL, TrimWhitespace(output, TRIM_ALL, &output));
-  EXPECT_EQ(L"This is a test", output);
+  EXPECT_EQ(ASCIIToUTF16("This is a test"), output);
 
   // Once more, but with a string of whitespace
-  output = L"  \r\n";
+  output = ASCIIToUTF16("  \r\n");
   EXPECT_EQ(TRIM_ALL, TrimWhitespace(output, TRIM_ALL, &output));
-  EXPECT_EQ(L"", output);
+  EXPECT_EQ(ASCIIToUTF16(""), output);
 
   std::string output_ascii;
   for (size_t i = 0; i < arraysize(trim_cases_ascii); ++i) {

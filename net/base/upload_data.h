@@ -12,8 +12,9 @@
 #include "base/file_path.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "googleurl/src/gurl.h"
 #include "base/time.h"
+#include "googleurl/src/gurl.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -21,7 +22,7 @@ class FileStream;
 
 // Interface implemented by callers who require callbacks when new chunks
 // of data are added.
-class ChunkCallback {
+class NET_TEST ChunkCallback {
  public:
   // Invoked when a new data chunk was given for a chunked transfer upload.
   virtual void OnChunkAvailable() = 0;
@@ -30,7 +31,7 @@ class ChunkCallback {
   virtual ~ChunkCallback() {}
 };
 
-class UploadData : public base::RefCounted<UploadData> {
+class NET_API UploadData : public base::RefCounted<UploadData> {
  public:
   enum Type {
     TYPE_BYTES,
@@ -42,7 +43,7 @@ class UploadData : public base::RefCounted<UploadData> {
     TYPE_CHUNK,
   };
 
-  class Element {
+  class NET_API Element {
    public:
     Element();
     ~Element();

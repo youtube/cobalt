@@ -10,7 +10,7 @@
     {
       'target_name': 'crypto',
       'product_name': 'crcrypto',  # Avoid colliding with OpenSSL's libcrypto
-      'type': '<(library)',
+      'type': 'static_library',
       'dependencies': [
         '../base/base.gyp:base',
       ],
@@ -119,6 +119,7 @@
         'encryptor_nss.cc',
         'encryptor_openssl.cc',
         'encryptor_win.cc',
+        'hmac.cc',
         'hmac.h',
         'hmac_mac.cc',
         'hmac_nss.cc',

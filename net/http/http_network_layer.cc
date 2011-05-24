@@ -152,11 +152,15 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
   return session_;
 }
 
-void HttpNetworkLayer::Suspend(bool suspend) {
-  suspended_ = suspend;
+void HttpNetworkLayer::OnSuspend() {
+  suspended_ = true;
 
-  if (suspend && session_)
+  if (session_)
     session_->CloseIdleConnections();
+}
+
+void HttpNetworkLayer::OnResume() {
+  suspended_ = false;
 }
 
 }  // namespace net

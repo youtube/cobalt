@@ -7,8 +7,8 @@
 #include "crypto/hmac.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-static const int kSHA1DigestSize = 20;
-static const int kSHA256DigestSize = 32;
+static const size_t kSHA1DigestSize = 20;
+static const size_t kSHA256DigestSize = 32;
 
 TEST(HMACTest, HmacSafeBrowsingResponseTest) {
   const int kKeySize = 16;
@@ -151,6 +151,7 @@ TEST(HMACTest, RFC4231TestCase6) {
   ASSERT_TRUE(hmac.Init(key, sizeof(key)));
   unsigned char calculated_hmac[kSHA256DigestSize];
 
+  EXPECT_EQ(kSHA256DigestSize, hmac.DigestLength());
   EXPECT_TRUE(hmac.Sign(data, calculated_hmac, kSHA256DigestSize));
   EXPECT_EQ(0, memcmp(kKnownHMACSHA256, calculated_hmac, kSHA256DigestSize));
 }
@@ -191,6 +192,7 @@ TEST(HMACTest, NSSFIPSPowerUpSelfTest) {
   ASSERT_TRUE(hmac.Init(kKnownSecretKey, kKnownSecretKeySize));
   unsigned char calculated_hmac[kSHA1DigestSize];
 
+  EXPECT_EQ(kSHA1DigestSize, hmac.DigestLength());
   EXPECT_TRUE(hmac.Sign(message_data, calculated_hmac, kSHA1DigestSize));
   EXPECT_EQ(0, memcmp(kKnownHMACSHA1, calculated_hmac, kSHA1DigestSize));
 

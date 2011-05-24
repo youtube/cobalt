@@ -145,10 +145,11 @@ class FFmpegVideoDecoderTest : public testing::Test {
     renderer_ = new MockVideoRenderer();
     engine_ = new StrictMock<MockVideoDecodeEngine>();
 
-    DCHECK(decoder_);
-
     // Inject mocks and prepare a demuxer stream.
     decoder_->set_host(&host_);
+    decoder_->set_consume_video_frame_callback(
+        base::Bind(&MockVideoRenderer::ConsumeVideoFrame,
+                   base::Unretained(renderer_.get())));
     decoder_->SetVideoDecodeEngineForTest(engine_);
     demuxer_ = new StrictMock<MockFFmpegDemuxerStream>();
 
@@ -269,12 +270,20 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_Successful) {
   EXPECT_EQ(kHeight, height);
 }
 
+TEST_F(FFmpegVideoDecoderTest, OnError) {
+  InitializeDecoderSuccessfully();
+
+  scoped_refptr<VideoFrame> null_frame;
+  EXPECT_CALL(*renderer_, ConsumeVideoFrame(null_frame));
+  engine_->event_handler_->OnError();
+}
+
+
 ACTION_P2(ReadFromDemux, decoder, buffer) {
   decoder->ProduceVideoSample(buffer);
 }
 
 ACTION_P3(ReturnFromDemux, decoder, buffer, time_tuple) {
-  delete arg0;
   buffer->SetTimestamp(time_tuple.timestamp);
   buffer->SetDuration(time_tuple.duration);
   decoder->OnReadComplete(buffer);
@@ -310,10 +319,6 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
   //      given.
   //   5) All state transitions happen as expected.
   InitializeDecoderSuccessfully();
-
-  decoder_->set_consume_video_frame_callback(
-      base::Bind(&MockVideoRenderer::ConsumeVideoFrame,
-                 base::Unretained(renderer_.get())));
 
   // Setup initial state and check that it is sane.
   ASSERT_EQ(FFmpegVideoDecoder::kNormal, decoder_->state_);
@@ -424,7 +429,7 @@ TEST_F(FFmpegVideoDecoderTest, DoSeek) {
     // Expect Seek and verify the results.
     EXPECT_CALL(*engine_, Seek())
         .WillOnce(EngineSeek(engine_));
-    decoder_->Seek(kZero, NewExpectedCallback());
+    decoder_->Seek(kZero, NewExpectedStatusCB(PIPELINE_OK));
 
     EXPECT_TRUE(kZero == decoder_->pts_stream_.current_duration());
     EXPECT_EQ(FFmpegVideoDecoder::kNormal, decoder_->state_);

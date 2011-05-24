@@ -7,13 +7,14 @@
 
 #include "base/scoped_ptr.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
-class ClientSocket;
 class IPEndPoint;
+class StreamSocket;
 
-class ServerSocket {
+class NET_API ServerSocket {
  public:
   ServerSocket() { }
   virtual ~ServerSocket() { }
@@ -27,7 +28,7 @@ class ServerSocket {
 
   // Accept connection. Callback is called when new connection is
   // accepted.
-  virtual int Accept(scoped_ptr<ClientSocket>* socket,
+  virtual int Accept(scoped_ptr<StreamSocket>* socket,
                      CompletionCallback* callback) = 0;
 
  private:

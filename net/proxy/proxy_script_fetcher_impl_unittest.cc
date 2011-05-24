@@ -16,6 +16,7 @@
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_session.h"
+#include "net/test/test_server.h"
 #include "net/url_request/url_request_context_storage.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -44,6 +45,7 @@ class RequestContext : public URLRequestContext {
     ProxyConfig no_proxy;
     storage_.set_host_resolver(
         CreateSystemHostResolver(HostResolver::kDefaultParallelism,
+                                 HostResolver::kDefaultRetryAttempts,
                                  NULL));
     storage_.set_cert_verifier(new CertVerifier);
     storage_.set_proxy_service(ProxyService::CreateFixed(no_proxy));

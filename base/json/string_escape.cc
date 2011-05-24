@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/stringprintf.h"
 #include "base/string_util.h"
 
 namespace base {
@@ -63,7 +64,7 @@ void JsonDoubleQuoteT(const STR& str,
         // 2. Technically, we could also pass through c > 126 as UTF8, but this
         //    is also optional.  It would also be a pain to implement here.
         unsigned int as_uint = static_cast<unsigned int>(c);
-        StringAppendF(dst, "\\u%04X", as_uint);
+        base::StringAppendF(dst, "\\u%04X", as_uint);
       } else {
         unsigned char ascii = static_cast<unsigned char>(*it);
         dst->push_back(ascii);

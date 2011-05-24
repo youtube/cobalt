@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
-#include "net/socket/client_socket.h"
+#include "net/socket/stream_socket.h"
 
 namespace net {
 
@@ -42,7 +42,7 @@ class DNSSECProvider {
 // connection is established.  If a SSL error occurs during the handshake,
 // Connect will fail.
 //
-class SSLClientSocket : public ClientSocket {
+class NET_API SSLClientSocket : public StreamSocket {
  public:
   SSLClientSocket();
 

@@ -155,7 +155,7 @@ Filter::FilterStatus SdchFilter::ReadFilteredData(char* dest_buffer,
     if (FILTER_NEED_MORE_DATA == status)
       return FILTER_NEED_MORE_DATA;
     if (FILTER_ERROR == status) {
-      DCHECK(DECODING_ERROR == decoding_status_);
+      DCHECK_EQ(DECODING_ERROR, decoding_status_);
       DCHECK_EQ(0u, dest_buffer_excess_index_);
       DCHECK(dest_buffer_excess_.empty());
       // This is where we try very hard to do error recovery, and make this
@@ -251,7 +251,7 @@ Filter::FilterStatus SdchFilter::ReadFilteredData(char* dest_buffer,
         dest_buffer_excess_ = kDecompressionErrorHtml;
       }
     } else {
-      DCHECK(DECODING_IN_PROGRESS == decoding_status_);
+      DCHECK_EQ(DECODING_IN_PROGRESS, decoding_status_);
     }
   }
 

@@ -6,6 +6,7 @@
 #define NET_BASE_NETWORK_DELEGATE_H_
 #pragma once
 
+#include "base/string16.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/completion_callback.h"
 
@@ -42,21 +43,17 @@ class NetworkDelegate : public base::NonThreadSafe {
   int NotifyBeforeSendHeaders(uint64 request_id,
                               CompletionCallback* callback,
                               HttpRequestHeaders* headers);
-  void NotifyRequestSent(uint64 request_id, const HostPortPair& socket_address);
+  void NotifyRequestSent(uint64 request_id,
+                         const HostPortPair& socket_address,
+                         const HttpRequestHeaders& headers);
   void NotifyBeforeRedirect(URLRequest* request,
                             const GURL& new_location);
   void NotifyResponseStarted(URLRequest* request);
+  void NotifyRawBytesRead(const URLRequest& request, int bytes_read);
   void NotifyCompleted(URLRequest* request);
   void NotifyURLRequestDestroyed(URLRequest* request);
   void NotifyHttpTransactionDestroyed(uint64 request_id);
-
-  // Returns a URLRequestJob that will be used to handle the request if
-  // non-null.
-  // TODO(koz): Currently this is called inside registered ProtocolFactories,
-  // so that we can perform Delegate-dependent request handling from the static
-  // factories, but ultimately it should be called directly from
-  // URLRequestJobManager::CreateJob() as a general override mechanism.
-  URLRequestJob* MaybeCreateURLRequestJob(URLRequest* request);
+  void NotifyPACScriptError(int line_number, const string16& error);
 
  private:
   // This is the interface for subclasses of NetworkDelegate to implement. This
@@ -83,7 +80,8 @@ class NetworkDelegate : public base::NonThreadSafe {
   // Called right after the HTTP headers have been sent and notifies where
   // the request has actually been sent to.
   virtual void OnRequestSent(uint64 request_id,
-                             const HostPortPair& socket_address) = 0;
+                             const HostPortPair& socket_address,
+                             const HttpRequestHeaders& headers) = 0;
 
   // Called right after a redirect response code was received.
   virtual void OnBeforeRedirect(URLRequest* request,
@@ -91,6 +89,9 @@ class NetworkDelegate : public base::NonThreadSafe {
 
   // This corresponds to URLRequestDelegate::OnResponseStarted.
   virtual void OnResponseStarted(URLRequest* request) = 0;
+
+  // Called every time we read raw bytes.
+  virtual void OnRawBytesRead(const URLRequest& request, int bytes_read) = 0;
 
   // Indicates that the URL request has been completed or failed.
   virtual void OnCompleted(URLRequest* request) = 0;
@@ -104,10 +105,8 @@ class NetworkDelegate : public base::NonThreadSafe {
   // destroyed.
   virtual void OnHttpTransactionDestroyed(uint64 request_id) = 0;
 
-  // Called before a request is sent and before a URLRequestJob is created to
-  // handle the request.
-  virtual URLRequestJob* OnMaybeCreateURLRequestJob(URLRequest* request) = 0;
-
+  // Corresponds to ProxyResolverJSBindings::OnError.
+  virtual void OnPACScriptError(int line_number, const string16& error) = 0;
 };
 
 }  // namespace net

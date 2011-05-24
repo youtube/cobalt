@@ -68,7 +68,7 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   virtual const HttpResponseInfo* GetConnectResponseInfo() const;
   virtual HttpStream* CreateConnectResponseStream();
 
-  // ClientSocket methods:
+  // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;

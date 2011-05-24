@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -23,7 +23,7 @@
     {
       'target_name': 'ssl',
       'product_name': 'ssl',
-      'type': '<(library)',
+      'type': 'static_library',
       'sources': [
         'ssl/authcert.c',
         'ssl/cmpcert.c',
@@ -83,6 +83,7 @@
         # Regrettably, NSS can't be compiled with NO_NSPR_10_SUPPORT yet.
         'NO_NSPR_10_SUPPORT',
       ],
+      'msvs_disabled_warnings': [4018, 4244],
       'conditions': [
         ['OS=="cell_lv2"', {
           'dependencies': [

@@ -32,6 +32,8 @@ namespace net {
 
 namespace {
 
+static bool g_mac_cookies_enabled = false;
+
 // Max number of http redirects to follow.  Same number as gecko.
 const int kMaxRedirects = 20;
 
@@ -89,7 +91,7 @@ void URLRequest::Delegate::OnAuthRequired(URLRequest* request,
 void URLRequest::Delegate::OnCertificateRequested(
     URLRequest* request,
     SSLCertRequestInfo* cert_request_info) {
-  request->ContinueWithCertificate(NULL);
+  request->Cancel();
 }
 
 void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
@@ -98,14 +100,14 @@ void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
   request->Cancel();
 }
 
-void URLRequest::Delegate::OnGetCookies(URLRequest* request,
-                                        bool blocked_by_policy) {
+bool URLRequest::Delegate::CanGetCookies(URLRequest* request) {
+  return true;
 }
 
-void URLRequest::Delegate::OnSetCookie(URLRequest* request,
-                                       const std::string& cookie_line,
-                                       const CookieOptions& options,
-                                       bool blocked_by_policy) {
+bool URLRequest::Delegate::CanSetCookie(URLRequest* request,
+                                        const std::string& cookie_line,
+                                        CookieOptions* options) {
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -328,6 +330,15 @@ bool URLRequest::IsFileAccessAllowed() {
   return URLRequestJobManager::GetInstance()->enable_file_access();
 }
 
+// static
+void URLRequest::EnableMacCookies() {
+  g_mac_cookies_enabled = true;
+}
+
+// static
+bool URLRequest::AreMacCookiesEnabled() {
+  return g_mac_cookies_enabled;
+}
 
 void URLRequest::set_first_party_for_cookies(
     const GURL& first_party_for_cookies) {
@@ -371,7 +382,7 @@ void URLRequest::Start() {
     }
   }
 
-  StartInternal();
+  StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -388,12 +399,8 @@ void URLRequest::BeforeRequestComplete(int error) {
     new_url.Swap(&delegate_redirect_url_);
     StartJob(new URLRequestRedirectJob(this, new_url));
   } else {
-    StartInternal();
+    StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
   }
-}
-
-void URLRequest::StartInternal() {
-  StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
 }
 
 void URLRequest::StartJob(URLRequestJob* job) {
@@ -638,7 +645,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     final_upload_progress_ = job_->GetUploadProgress();
 
   PrepareToRestart();
-  StartInternal();
+  Start();
   return OK;
 }
 

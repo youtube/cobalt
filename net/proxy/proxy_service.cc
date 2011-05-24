@@ -9,14 +9,17 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/string_util.h"
 #include "base/values.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
+#include "net/proxy/dhcp_proxy_script_fetcher.h"
 #include "net/proxy/init_proxy_resolver.h"
 #include "net/proxy/multi_threaded_proxy_resolver.h"
+#include "net/proxy/network_delegate_error_observer.h"
 #include "net/proxy/proxy_config_service_fixed.h"
 #include "net/proxy/proxy_resolver.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
@@ -166,13 +169,18 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
   // |async_host_resolver|, |io_loop| and |net_log| must remain
   // valid for the duration of our lifetime.
   // |async_host_resolver| will only be operated on |io_loop|.
+  // TODO(willchan): remove io_loop and replace it with origin_loop.
   ProxyResolverFactoryForV8(HostResolver* async_host_resolver,
                             MessageLoop* io_loop,
-                            NetLog* net_log)
+                            base::MessageLoopProxy* origin_loop,
+                            NetLog* net_log,
+                            NetworkDelegate* network_delegate)
       : ProxyResolverFactory(true /*expects_pac_bytes*/),
         async_host_resolver_(async_host_resolver),
         io_loop_(io_loop),
-        net_log_(net_log) {
+        origin_loop_(origin_loop),
+        net_log_(net_log),
+        network_delegate_(network_delegate) {
   }
 
   virtual ProxyResolver* CreateProxyResolver() {
@@ -181,8 +189,14 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
     SyncHostResolverBridge* sync_host_resolver =
         new SyncHostResolverBridge(async_host_resolver_, io_loop_);
 
+    NetworkDelegateErrorObserver* error_observer =
+        new NetworkDelegateErrorObserver(
+            network_delegate_, origin_loop_.get());
+
+    // ProxyResolverJSBindings takes ownership of |error_observer|.
     ProxyResolverJSBindings* js_bindings =
-        ProxyResolverJSBindings::CreateDefault(sync_host_resolver, net_log_);
+        ProxyResolverJSBindings::CreateDefault(
+            sync_host_resolver, net_log_, error_observer);
 
     // ProxyResolverV8 takes ownership of |js_bindings|.
     return new ProxyResolverV8(js_bindings);
@@ -191,7 +205,9 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
  private:
   HostResolver* const async_host_resolver_;
   MessageLoop* io_loop_;
+  scoped_refptr<base::MessageLoopProxy> origin_loop_;
   NetLog* net_log_;
+  NetworkDelegate* network_delegate_;
 };
 
 // Creates ProxyResolvers using a platform-specific implementation.
@@ -394,10 +410,13 @@ ProxyService* ProxyService::CreateUsingV8ProxyResolver(
     ProxyConfigService* proxy_config_service,
     size_t num_pac_threads,
     ProxyScriptFetcher* proxy_script_fetcher,
+    DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher,
     HostResolver* host_resolver,
-    NetLog* net_log) {
+    NetLog* net_log,
+    NetworkDelegate* network_delegate) {
   DCHECK(proxy_config_service);
   DCHECK(proxy_script_fetcher);
+  DCHECK(dhcp_proxy_script_fetcher);
   DCHECK(host_resolver);
 
   if (num_pac_threads == 0)
@@ -407,7 +426,9 @@ ProxyService* ProxyService::CreateUsingV8ProxyResolver(
       new ProxyResolverFactoryForV8(
           host_resolver,
           MessageLoop::current(),
-          net_log);
+          base::MessageLoopProxy::CreateForCurrentThread(),
+          net_log,
+          network_delegate);
 
   ProxyResolver* proxy_resolver =
       new MultiThreadedProxyResolver(sync_resolver_factory, num_pac_threads);
@@ -415,8 +436,9 @@ ProxyService* ProxyService::CreateUsingV8ProxyResolver(
   ProxyService* proxy_service =
       new ProxyService(proxy_config_service, proxy_resolver, net_log);
 
-  // Configure PAC script downloads to be issued using |proxy_script_fetcher|.
-  proxy_service->SetProxyScriptFetcher(proxy_script_fetcher);
+  // Configure fetchers to use for PAC script downloads and auto-detect.
+  proxy_service->SetProxyScriptFetchers(proxy_script_fetcher,
+                                        dhcp_proxy_script_fetcher);
 
   return proxy_service;
 }
@@ -552,6 +574,11 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
 
   DCHECK_NE(config_.id(), ProxyConfig::INVALID_ID);
 
+  // If it was impossible to fetch or parse the PAC script, we cannot complete
+  // the request here and bail out.
+  if (permanent_error_ != OK)
+    return permanent_error_;
+
   if (config_.HasAutomaticSettings())
     return ERR_IO_PENDING;  // Must submit the request to the proxy resolver.
 
@@ -642,11 +669,20 @@ void ProxyService::OnInitProxyResolverComplete(int result) {
   init_proxy_resolver_.reset();
 
   if (result != OK) {
-    VLOG(1) << "Failed configuring with PAC script, falling-back to manual "
-               "proxy servers.";
-    config_ = fetched_config_;
-    config_.ClearAutomaticSettings();
+    if (fetched_config_.pac_mandatory()) {
+      VLOG(1) << "Failed configuring with mandatory PAC script, blocking all "
+                 "traffic.";
+      config_ = fetched_config_;
+      result = ERR_MANDATORY_PROXY_CONFIGURATION_FAILED;
+    } else {
+      VLOG(1) << "Failed configuring with PAC script, falling-back to manual "
+                 "proxy servers.";
+      config_ = fetched_config_;
+      config_.ClearAutomaticSettings();
+      result = OK;
+    }
   }
+  permanent_error_ = result;
 
   config_.set_id(fetched_config_.id());
 
@@ -723,26 +759,32 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
         make_scoped_refptr(new NetLogIntegerParameter(
             "net_error", result_code)));
 
-    // Fall-back to direct when the proxy resolver fails. This corresponds
-    // with a javascript runtime error in the PAC script.
-    //
-    // This implicit fall-back to direct matches Firefox 3.5 and
-    // Internet Explorer 8. For more information, see:
-    //
-    // http://www.chromium.org/developers/design-documents/proxy-settings-fallback
-    result->UseDirect();
-    result_code = OK;
+    if (!config_.pac_mandatory()) {
+      // Fall-back to direct when the proxy resolver fails. This corresponds
+      // with a javascript runtime error in the PAC script.
+      //
+      // This implicit fall-back to direct matches Firefox 3.5 and
+      // Internet Explorer 8. For more information, see:
+      //
+      // http://www.chromium.org/developers/design-documents/proxy-settings-fallback
+      result->UseDirect();
+      result_code = OK;
+    } else {
+      result_code = ERR_MANDATORY_PROXY_CONFIGURATION_FAILED;
+    }
   }
 
   net_log.EndEvent(NetLog::TYPE_PROXY_SERVICE, NULL);
   return result_code;
 }
 
-void ProxyService::SetProxyScriptFetcher(
-    ProxyScriptFetcher* proxy_script_fetcher) {
+void ProxyService::SetProxyScriptFetchers(
+    ProxyScriptFetcher* proxy_script_fetcher,
+    DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher) {
   DCHECK(CalledOnValidThread());
   State previous_state = ResetProxyConfig(false);
   proxy_script_fetcher_.reset(proxy_script_fetcher);
+  dhcp_proxy_script_fetcher_.reset(dhcp_proxy_script_fetcher);
   if (previous_state != STATE_NONE)
     ApplyProxyConfigIfAvailable();
 }
@@ -756,6 +798,7 @@ ProxyService::State ProxyService::ResetProxyConfig(bool reset_fetched_config) {
   DCHECK(CalledOnValidThread());
   State previous_state = current_state_;
 
+  permanent_error_ = OK;
   proxy_retry_info_.clear();
   init_proxy_resolver_.reset();
   SuspendAllPendingRequests();
@@ -830,7 +873,7 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 #else
   LOG(WARNING) << "Failed to choose a system proxy settings fetcher "
                   "for this platform.";
-  return new ProxyConfigServiceNull();
+  return new ProxyConfigServiceDirect();
 #endif
 }
 
@@ -890,7 +933,9 @@ void ProxyService::InitializeUsingLastFetchedConfig() {
   current_state_ = STATE_WAITING_FOR_INIT_PROXY_RESOLVER;
 
   init_proxy_resolver_.reset(
-      new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get(),
+      new InitProxyResolver(resolver_.get(),
+                            proxy_script_fetcher_.get(),
+                            dhcp_proxy_script_fetcher_.get(),
                             net_log_));
 
   // If we changed networks recently, we should delay running proxy auto-config.

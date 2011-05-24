@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/string_piece.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
@@ -18,7 +19,7 @@ namespace net {
 // cannot see the ResourceBundle class used by Chrome), so it uses this API to
 // get access to such resources.
 //
-class NetModule {
+class NET_API NetModule {
  public:
   typedef base::StringPiece (*ResourceProvider)(int key);
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "build/build_config.h"
+#include "net/base/net_api.h"
 
 #if defined(OS_MACOSX)
 #include <Security/x509defs.h>
@@ -45,7 +46,7 @@ class SHA1FingerprintLessThan {
 };
 
 // CertPrincipal represents the issuer or subject field of an X.509 certificate.
-struct CertPrincipal {
+struct NET_API CertPrincipal {
   CertPrincipal();
   explicit CertPrincipal(const std::string& name);
   ~CertPrincipal();
@@ -84,7 +85,7 @@ struct CertPrincipal {
 
 // This class is useful for maintaining policies about which certificates are
 // permitted or forbidden for a particular purpose.
-class CertPolicy {
+class NET_API CertPolicy {
  public:
   // The judgments this policy can reach.
   enum Judgment {

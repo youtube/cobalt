@@ -36,7 +36,8 @@ class TransportClientSocketTest
   TransportClientSocketTest()
       : listen_port_(0),
         net_log_(CapturingNetLog::kUnbounded),
-        socket_factory_(ClientSocketFactory::GetDefaultFactory()) {
+        socket_factory_(ClientSocketFactory::GetDefaultFactory()),
+        close_server_socket_on_next_send_(false) {
   }
 
   ~TransportClientSocketTest() {
@@ -48,7 +49,10 @@ class TransportClientSocketTest
   }
   virtual void DidRead(ListenSocket*, const char* str, int len) {
     // TODO(dkegel): this might not be long enough to tickle some bugs.
-    SendServerReply();
+    connected_sock_->Send(kServerReply, arraysize(kServerReply) - 1,
+                          false /* Don't append line feed */);
+    if (close_server_socket_on_next_send_)
+      CloseServerSocket();
   }
   virtual void DidClose(ListenSocket* sock) {}
 
@@ -68,25 +72,27 @@ class TransportClientSocketTest
     connected_sock_->ResumeReads();
   }
 
-  void SendServerReply() {
-    connected_sock_->Send(kServerReply, arraysize(kServerReply) - 1,
-                          false /* Don't append line feed */);
-  }
+  int DrainClientSocket(IOBuffer* buf,
+                        uint32 buf_len,
+                        uint32 bytes_to_read,
+                        TestCompletionCallback* callback);
 
-  uint32 DrainClientSocket(IOBuffer* buf,
-                           uint32 buf_len,
-                           uint32 bytes_to_read,
-                           TestCompletionCallback* callback);
+  void SendClientRequest();
+
+  void set_close_server_socket_on_next_send(bool close) {
+    close_server_socket_on_next_send_ = close;
+  }
 
  protected:
   int listen_port_;
   CapturingNetLog net_log_;
   ClientSocketFactory* const socket_factory_;
-  scoped_ptr<ClientSocket> sock_;
+  scoped_ptr<StreamSocket> sock_;
 
  private:
   scoped_refptr<ListenSocket> listen_sock_;
   scoped_refptr<ListenSocket> connected_sock_;
+  bool close_server_socket_on_next_send_;
 };
 
 void TransportClientSocketTest::SetUp() {
@@ -113,6 +119,7 @@ void TransportClientSocketTest::SetUp() {
   AddressList addr;
   scoped_ptr<HostResolver> resolver(
       CreateSystemHostResolver(HostResolver::kDefaultParallelism,
+                               HostResolver::kDefaultRetryAttempts,
                                NULL));
   HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));
   int rv = resolver->Resolve(info, &addr, NULL, NULL, BoundNetLog());
@@ -123,7 +130,7 @@ void TransportClientSocketTest::SetUp() {
                                                    NetLog::Source()));
 }
 
-uint32 TransportClientSocketTest::DrainClientSocket(
+int TransportClientSocketTest::DrainClientSocket(
     IOBuffer* buf, uint32 buf_len,
     uint32 bytes_to_read, TestCompletionCallback* callback) {
   int rv = OK;
@@ -140,11 +147,28 @@ uint32 TransportClientSocketTest::DrainClientSocket(
     bytes_read += rv;
   }
 
-  return bytes_read;
+  return static_cast<int>(bytes_read);
+}
+
+void TransportClientSocketTest::SendClientRequest() {
+  const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
+  scoped_refptr<IOBuffer> request_buffer(
+      new IOBuffer(arraysize(request_text) - 1));
+  TestCompletionCallback callback;
+  int rv;
+
+  memcpy(request_buffer->data(), request_text, arraysize(request_text) - 1);
+  rv = sock_->Write(request_buffer, arraysize(request_text) - 1, &callback);
+  EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
+
+  if (rv == ERR_IO_PENDING) {
+    rv = callback.WaitForResult();
+    EXPECT_EQ(rv, static_cast<int>(arraysize(request_text) - 1));
+  }
 }
 
 // TODO(leighton):  Add SCTP to this list when it is ready.
-INSTANTIATE_TEST_CASE_P(ClientSocket,
+INSTANTIATE_TEST_CASE_P(StreamSocket,
                         TransportClientSocketTest,
                         ::testing::Values(TCP));
 
@@ -181,24 +205,25 @@ TEST_P(TransportClientSocketTest, IsConnected) {
   uint32 bytes_read;
 
   EXPECT_FALSE(sock_->IsConnected());
+  EXPECT_FALSE(sock_->IsConnectedAndIdle());
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
-
     rv = callback.WaitForResult();
     EXPECT_EQ(rv, OK);
   }
-
   EXPECT_TRUE(sock_->IsConnected());
   EXPECT_TRUE(sock_->IsConnectedAndIdle());
 
-  // Server sends some data
-  SendServerReply();
+  // Send the request and wait for the server to respond.
+  SendClientRequest();
+
   // Drain a single byte so we know we've received some data.
   bytes_read = DrainClientSocket(buf, 1, 1, &callback);
   ASSERT_EQ(bytes_read, 1u);
 
-  // Socket should be considered connected, but not idle,
+  // Socket should be considered connected, but not idle, due to
+  // pending data.
   EXPECT_TRUE(sock_->IsConnected());
   EXPECT_FALSE(sock_->IsConnectedAndIdle());
 
@@ -211,17 +236,20 @@ TEST_P(TransportClientSocketTest, IsConnected) {
   EXPECT_TRUE(sock_->IsConnected());
   EXPECT_TRUE(sock_->IsConnectedAndIdle());
 
-  // This time close the server socket immediately after sending.
-  SendServerReply();
-  CloseServerSocket();
+  // This time close the server socket immediately after the server response.
+  set_close_server_socket_on_next_send(true);
+  SendClientRequest();
+
+  bytes_read = DrainClientSocket(buf, 1, 1, &callback);
+  ASSERT_EQ(bytes_read, 1u);
 
   // As above because of data.
   EXPECT_TRUE(sock_->IsConnected());
   EXPECT_FALSE(sock_->IsConnectedAndIdle());
 
-  bytes_read = DrainClientSocket(buf, 4096, arraysize(kServerReply) - 1,
+  bytes_read = DrainClientSocket(buf, 4096, arraysize(kServerReply) - 2,
                                  &callback);
-  ASSERT_EQ(bytes_read, arraysize(kServerReply) - 1);
+  ASSERT_EQ(bytes_read, arraysize(kServerReply) - 2);
 
   // Once the data is drained, the socket should now be seen as
   // closed.
@@ -238,19 +266,7 @@ TEST_P(TransportClientSocketTest, Read) {
     rv = callback.WaitForResult();
     EXPECT_EQ(rv, OK);
   }
-
-  const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
-  scoped_refptr<IOBuffer> request_buffer(
-      new IOBuffer(arraysize(request_text) - 1));
-  memcpy(request_buffer->data(), request_text, arraysize(request_text) - 1);
-
-  rv = sock_->Write(request_buffer, arraysize(request_text) - 1, &callback);
-  EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
-
-  if (rv == ERR_IO_PENDING) {
-    rv = callback.WaitForResult();
-    EXPECT_EQ(rv, static_cast<int>(arraysize(request_text) - 1));
-  }
+  SendClientRequest();
 
   scoped_refptr<IOBuffer> buf(new IOBuffer(4096));
   uint32 bytes_read = DrainClientSocket(buf, 4096, arraysize(kServerReply) - 1,
@@ -275,19 +291,7 @@ TEST_P(TransportClientSocketTest, Read_SmallChunks) {
     rv = callback.WaitForResult();
     EXPECT_EQ(rv, OK);
   }
-
-  const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
-  scoped_refptr<IOBuffer> request_buffer(
-      new IOBuffer(arraysize(request_text) - 1));
-  memcpy(request_buffer->data(), request_text, arraysize(request_text) - 1);
-
-  rv = sock_->Write(request_buffer, arraysize(request_text) - 1, &callback);
-  EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
-
-  if (rv == ERR_IO_PENDING) {
-    rv = callback.WaitForResult();
-    EXPECT_EQ(rv, static_cast<int>(arraysize(request_text) - 1));
-  }
+  SendClientRequest();
 
   scoped_refptr<IOBuffer> buf(new IOBuffer(1));
   uint32 bytes_read = 0;
@@ -320,19 +324,7 @@ TEST_P(TransportClientSocketTest, Read_Interrupted) {
     rv = callback.WaitForResult();
     EXPECT_EQ(rv, OK);
   }
-
-  const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
-  scoped_refptr<IOBuffer> request_buffer(
-      new IOBuffer(arraysize(request_text) - 1));
-  memcpy(request_buffer->data(), request_text, arraysize(request_text) - 1);
-
-  rv = sock_->Write(request_buffer, arraysize(request_text) - 1, &callback);
-  EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
-
-  if (rv == ERR_IO_PENDING) {
-    rv = callback.WaitForResult();
-    EXPECT_EQ(rv, static_cast<int>(arraysize(request_text) - 1));
-  }
+  SendClientRequest();
 
   // Do a partial read and then exit.  This test should not crash!
   scoped_refptr<IOBuffer> buf(new IOBuffer(16));
