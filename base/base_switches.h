@@ -8,19 +8,21 @@
 #define BASE_BASE_SWITCHES_H_
 #pragma once
 
+#include "base/base_api.h"
+
 namespace switches {
 
-extern const char kDebugOnStart[];
-extern const char kDisableBreakpad[];
-extern const char kEnableDCHECK[];
-extern const char kFullMemoryCrashReport[];
-extern const char kLocalePak[];
-extern const char kNoErrorDialogs[];
-extern const char kNoMessageBox[];
-extern const char kTestChildProcess[];
-extern const char kV[];
-extern const char kVModule[];
-extern const char kWaitForDebugger[];
+BASE_API extern const char kDebugOnStart[];
+BASE_API extern const char kDisableBreakpad[];
+BASE_API extern const char kEnableDCHECK[];
+BASE_API extern const char kFullMemoryCrashReport[];
+BASE_API extern const char kLocalePak[];
+BASE_API extern const char kNoErrorDialogs[];
+BASE_API extern const char kNoMessageBox[];
+BASE_API extern const char kTestChildProcess[];
+BASE_API extern const char kV[];
+BASE_API extern const char kVModule[];
+BASE_API extern const char kWaitForDebugger[];
 
 }  // namespace switches
 
