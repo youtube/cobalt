@@ -108,7 +108,6 @@ class Lock;
 
 // Support histograming of an enumerated value.  The samples should always be
 // less than boundary_value.
-
 #define HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
     static base::Histogram* counter(NULL); \
     if (!counter) \
@@ -118,6 +117,10 @@ class Lock;
     counter->Add(sample); \
   } while (0)
 
+// Support histograming of an enumerated value. Samples should be one of the
+// std::vector<int> list provided via |custom_ranges|. You can use the helper
+// function |base::CustomHistogram::ArrayToCustomRanges(samples, num_samples)|
+// to transform a C-style array of valid sample values to a std::vector<int>.
 #define HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) do { \
     static base::Histogram* counter(NULL); \
     if (!counter) \
@@ -663,6 +666,14 @@ class BASE_API CustomHistogram : public Histogram {
 
   // Overridden from Histogram:
   virtual ClassType histogram_type() const;
+
+  // Helper method for transforming an array of valid enumeration values
+  // to the std::vector<int> expected by HISTOGRAM_CUSTOM_ENUMERATION.
+  // This function ensures that a guard bucket exists right after any
+  // valid sample value (unless the next higher sample is also a valid value),
+  // so that invalid samples never fall into the same bucket as valid samples.
+  static std::vector<Sample> ArrayToCustomRanges(const Sample* values,
+                                                 size_t num_values);
 
  protected:
   CustomHistogram(const std::string& name,
