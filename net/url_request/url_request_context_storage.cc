@@ -15,6 +15,7 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy/proxy_service.h"
+#include "net/socket/dns_cert_provenance_checker.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_job_factory.h"
 
