@@ -129,6 +129,8 @@
           'mac/scoped_cftyperef.h',
           'mac/scoped_nsautorelease_pool.h',
           'mac/scoped_nsautorelease_pool.mm',
+          'mac/scoped_nsexception_enabler.h',
+          'mac/scoped_nsexception_enabler.mm',
           'mach_ipc_mac.h',
           'mach_ipc_mac.mm',
           'memory/linked_ptr.h',
