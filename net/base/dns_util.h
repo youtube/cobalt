@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/string_piece.h"
 #include "net/base/net_api.h"
 
 namespace net {
@@ -53,6 +54,37 @@ static const uint8 kDNSSEC_RSA_SHA256 = 8;
 // RFC 4509
 static const uint8 kDNSSEC_SHA1 = 1;
 static const uint8 kDNSSEC_SHA256 = 2;
+
+// A Buffer is used for walking over a DNS response packet.
+class DnsResponseBuffer {
+ public:
+  DnsResponseBuffer(const uint8* p, unsigned len)
+      : p_(p),
+        packet_(p),
+        len_(len),
+        packet_len_(len) {
+  }
+
+  bool U8(uint8* v);
+  bool U16(uint16* v);
+  bool U32(uint32* v);
+  bool Skip(unsigned n);
+
+  bool Block(base::StringPiece* out, unsigned len);
+
+  // DNSName parses a (possibly compressed) DNS name from the packet. If |name|
+  // is not NULL, then the name is written into it. See RFC 1035 section 4.1.4.
+  bool DNSName(std::string* name);
+
+ private:
+  const uint8* p_;
+  const uint8* const packet_;
+  unsigned len_;
+  const unsigned packet_len_;
+
+  DISALLOW_COPY_AND_ASSIGN(DnsResponseBuffer);
+};
+
 
 }  // namespace net
 
