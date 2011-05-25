@@ -1025,11 +1025,6 @@
               'base/dnssec_unittest.cc',
             ],
           },
-          { # else, remove openssl specific tests
-            'sources!': [
-              'base/x509_openssl_util_unittest.cc',
-            ],
-          }
         ],
         [ 'OS == "win"', {
             'sources!': [
@@ -1337,7 +1332,6 @@
              'tools/flip_server/loadtime_measurement.h',
              'tools/flip_server/mem_cache.h',
              'tools/flip_server/mem_cache.cc',
-             'tools/flip_server/porting.txt',
              'tools/flip_server/output_ordering.cc',
              'tools/flip_server/output_ordering.h',
              'tools/flip_server/ring_buffer.cc',
@@ -1358,9 +1352,6 @@
              'tools/flip_server/streamer_interface.cc',
              'tools/flip_server/streamer_interface.h',
              'tools/flip_server/string_piece_utils.h',
-             'tools/flip_server/thread.h',
-             'tools/flip_server/url_to_filename_encoder.h',
-             'tools/flip_server/url_utilities.h',
            ],
          },
          {
