@@ -15,6 +15,8 @@
 
 namespace media {
 
+typedef Callback0::Type VideoDecodeAcceleratorCallback;
+
 // Enumeration defining global dictionary ranges for various purposes that are
 // used to handle the configurations of the video decoder.
 enum VideoAttributeKey {
