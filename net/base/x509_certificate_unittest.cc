@@ -486,6 +486,43 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
   root_certs->Clear();
 }
 
+// Test for bug 58437.
+// This certificate will expire on 2011-12-21. The test will still
+// pass if error == ERR_CERT_DATE_INVALID.
+// This test is DISABLED because it appears that we cannot do
+// certificate revocation checking when running all of the net unit tests.
+// This test passes when run individually, but when run with all of the net
+// unit tests, the call to PKIXVerifyCert returns the NSS error -8180, which is
+// SEC_ERROR_REVOKED_CERTIFICATE. This indicates a lack of revocation
+// status, i.e. that the revocation check is failing for some reason.
+TEST(X509CertificateTest, DISABLED_GlobalSignR3EVTest) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> server_cert =
+      ImportCertFromFile(certs_dir, "2029_globalsign_com_cert.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), server_cert);
+
+  scoped_refptr<X509Certificate> intermediate_cert =
+      ImportCertFromFile(certs_dir, "globalsign_ev_sha256_ca_cert.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
+                                        X509Certificate::SOURCE_FROM_NETWORK,
+                                        intermediates);
+
+  CertVerifyResult verify_result;
+  int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
+              X509Certificate::VERIFY_EV_CERT;
+  int error = cert_chain->Verify("2029.globalsign.com", flags, &verify_result);
+  if (error == OK)
+    EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_IS_EV);
+  else
+    EXPECT_EQ(ERR_CERT_DATE_INVALID, error);
+}
+
 TEST(X509CertificateTest, TestKnownRoot) {
   FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> cert =
