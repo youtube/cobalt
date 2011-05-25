@@ -95,7 +95,7 @@ class MockHostResolver : public MockHostResolverBase {
 class MockCachingHostResolver : public MockHostResolverBase {
  public:
   MockCachingHostResolver() : MockHostResolverBase(true /*use_caching*/) {}
-  ~MockCachingHostResolver() {}
+  virtual ~MockCachingHostResolver() {}
 };
 
 // RuleBasedHostResolverProc applies a set of rules to map a host string to
@@ -147,7 +147,7 @@ class NET_TEST RuleBasedHostResolverProc : public HostResolverProc {
   struct Rule;
   typedef std::list<Rule> RuleList;
 
-  ~RuleBasedHostResolverProc();
+  virtual ~RuleBasedHostResolverProc();
 
   RuleList rules_;
 };

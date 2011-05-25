@@ -22,7 +22,7 @@ class TCPServerSocketLibevent : public ServerSocket,
  public:
   TCPServerSocketLibevent(net::NetLog* net_log,
                           const net::NetLog::Source& source);
-  ~TCPServerSocketLibevent();
+  virtual ~TCPServerSocketLibevent();
 
   // net::ServerSocket implementation.
   virtual int Listen(const net::IPEndPoint& address, int backlog);

@@ -152,7 +152,7 @@ class NET_TEST EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   };
   class UserBuffer;
 
-  ~EntryImpl();
+  virtual ~EntryImpl();
 
   // Do all the work for ReadDataImpl and WriteDataImpl.  Implemented as
   // separate functions to make logging of results simpler.

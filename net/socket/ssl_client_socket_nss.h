@@ -53,7 +53,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
                      SSLHostInfo* ssl_host_info,
                      CertVerifier* cert_verifier,
                      DnsCertProvenanceChecker* dnsrr_resolver);
-  ~SSLClientSocketNSS();
+  virtual ~SSLClientSocketNSS();
 
   // For tests
   static void ClearSessionCache();

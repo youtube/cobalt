@@ -38,7 +38,7 @@ class SSLClientSocketMac : public SSLClientSocket {
                      const HostPortPair& host_and_port,
                      const SSLConfig& ssl_config,
                      CertVerifier* cert_verifier);
-  ~SSLClientSocketMac();
+  virtual ~SSLClientSocketMac();
 
   // SSLClientSocket methods:
   virtual void GetSSLInfo(SSLInfo* ssl_info);
