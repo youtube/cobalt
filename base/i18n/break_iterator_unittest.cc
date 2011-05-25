@@ -14,7 +14,7 @@ namespace i18n {
 
 TEST(BreakIteratorTest, BreakWordEmpty) {
   string16 empty;
-  BreakIterator iter(&empty, BreakIterator::BREAK_WORD);
+  BreakIterator iter(empty, BreakIterator::BREAK_WORD);
   ASSERT_TRUE(iter.Init());
   EXPECT_FALSE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -25,7 +25,7 @@ TEST(BreakIteratorTest, BreakWordEmpty) {
 TEST(BreakIteratorTest, BreakWord) {
   string16 space(UTF8ToUTF16(" "));
   string16 str(UTF8ToUTF16(" foo bar! \npouet boom"));
-  BreakIterator iter(&str, BreakIterator::BREAK_WORD);
+  BreakIterator iter(str, BreakIterator::BREAK_WORD);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -70,7 +70,7 @@ TEST(BreakIteratorTest, BreakWide16) {
       L"\x03bf\x03c2\x0020\x0399\x03c3\x03c4\x03cc\x03c2"));
   const string16 word1(str.substr(0, 10));
   const string16 word2(str.substr(11, 5));
-  BreakIterator iter(&str, BreakIterator::BREAK_WORD);
+  BreakIterator iter(str, BreakIterator::BREAK_WORD);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_TRUE(iter.IsWord());
@@ -94,7 +94,7 @@ TEST(BreakIteratorTest, BreakWide32) {
       UTF8ToUTF16(base::StringPrintf("%s a", very_wide_char)));
   const string16 very_wide_word(str.substr(0, 2));
 
-  BreakIterator iter(&str, BreakIterator::BREAK_WORD);
+  BreakIterator iter(str, BreakIterator::BREAK_WORD);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_TRUE(iter.IsWord());
@@ -113,7 +113,7 @@ TEST(BreakIteratorTest, BreakWide32) {
 
 TEST(BreakIteratorTest, BreakSpaceEmpty) {
   string16 empty;
-  BreakIterator iter(&empty, BreakIterator::BREAK_SPACE);
+  BreakIterator iter(empty, BreakIterator::BREAK_SPACE);
   ASSERT_TRUE(iter.Init());
   EXPECT_FALSE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -123,7 +123,7 @@ TEST(BreakIteratorTest, BreakSpaceEmpty) {
 
 TEST(BreakIteratorTest, BreakSpace) {
   string16 str(UTF8ToUTF16(" foo bar! \npouet boom"));
-  BreakIterator iter(&str, BreakIterator::BREAK_SPACE);
+  BreakIterator iter(str, BreakIterator::BREAK_SPACE);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -148,7 +148,7 @@ TEST(BreakIteratorTest, BreakSpace) {
 
 TEST(BreakIteratorTest, BreakSpaceSP) {
   string16 str(UTF8ToUTF16(" foo bar! \npouet boom "));
-  BreakIterator iter(&str, BreakIterator::BREAK_SPACE);
+  BreakIterator iter(str, BreakIterator::BREAK_SPACE);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -178,7 +178,7 @@ TEST(BreakIteratorTest, BreakSpacekWide16) {
       L"\x03bf\x03c2\x0020\x0399\x03c3\x03c4\x03cc\x03c2"));
   const string16 word1(str.substr(0, 11));
   const string16 word2(str.substr(11, 5));
-  BreakIterator iter(&str, BreakIterator::BREAK_SPACE);
+  BreakIterator iter(str, BreakIterator::BREAK_SPACE);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -199,7 +199,7 @@ TEST(BreakIteratorTest, BreakSpaceWide32) {
       UTF8ToUTF16(base::StringPrintf("%s a", very_wide_char)));
   const string16 very_wide_word(str.substr(0, 3));
 
-  BreakIterator iter(&str, BreakIterator::BREAK_SPACE);
+  BreakIterator iter(str, BreakIterator::BREAK_SPACE);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -215,7 +215,7 @@ TEST(BreakIteratorTest, BreakSpaceWide32) {
 
 TEST(BreakIteratorTest, BreakLineEmpty) {
   string16 empty;
-  BreakIterator iter(&empty, BreakIterator::BREAK_NEWLINE);
+  BreakIterator iter(empty, BreakIterator::BREAK_NEWLINE);
   ASSERT_TRUE(iter.Init());
   EXPECT_FALSE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -226,7 +226,7 @@ TEST(BreakIteratorTest, BreakLineEmpty) {
 TEST(BreakIteratorTest, BreakLine) {
   string16 nl(UTF8ToUTF16("\n"));
   string16 str(UTF8ToUTF16("\nfoo bar!\n\npouet boom"));
-  BreakIterator iter(&str, BreakIterator::BREAK_NEWLINE);
+  BreakIterator iter(str, BreakIterator::BREAK_NEWLINE);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -249,7 +249,7 @@ TEST(BreakIteratorTest, BreakLine) {
 TEST(BreakIteratorTest, BreakLineNL) {
   string16 nl(UTF8ToUTF16("\n"));
   string16 str(UTF8ToUTF16("\nfoo bar!\n\npouet boom\n"));
-  BreakIterator iter(&str, BreakIterator::BREAK_NEWLINE);
+  BreakIterator iter(str, BreakIterator::BREAK_NEWLINE);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -276,7 +276,7 @@ TEST(BreakIteratorTest, BreakLineWide16) {
       L"\x03bf\x03c2\x000a\x0399\x03c3\x03c4\x03cc\x03c2"));
   const string16 line1(str.substr(0, 11));
   const string16 line2(str.substr(11, 5));
-  BreakIterator iter(&str, BreakIterator::BREAK_NEWLINE);
+  BreakIterator iter(str, BreakIterator::BREAK_NEWLINE);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
@@ -296,7 +296,7 @@ TEST(BreakIteratorTest, BreakLineWide32) {
   const string16 str(
       UTF8ToUTF16(base::StringPrintf("%s\na", very_wide_char)));
   const string16 very_wide_line(str.substr(0, 3));
-  BreakIterator iter(&str, BreakIterator::BREAK_NEWLINE);
+  BreakIterator iter(str, BreakIterator::BREAK_NEWLINE);
   ASSERT_TRUE(iter.Init());
   EXPECT_TRUE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());

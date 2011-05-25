@@ -67,7 +67,7 @@ class BreakIterator {
   };
 
   // Requires |str| to live as long as the BreakIterator does.
-  BreakIterator(const string16* str, BreakType break_type);
+  BreakIterator(const string16& str, BreakType break_type);
   ~BreakIterator();
 
   // Init() must be called before any of the iterators are valid.
@@ -106,7 +106,7 @@ class BreakIterator {
   void* iter_;
 
   // The string we're iterating over.
-  const string16* string_;
+  const string16& string_;
 
   // The breaking style (word/space/newline).
   BreakType break_type_;
