@@ -315,6 +315,18 @@
             '-msse2',
           ],
         }],
+        [ 'OS == "mac"', {
+          'configurations': {
+            'Debug': {
+              'xcode_settings': {
+                # gcc on the mac builds horribly unoptimized sse code in debug
+                # mode. Since this is rarely going to be debugged, run with full
+                # optimizations in Debug as well as Release.
+                'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
+               },
+             },
+          },
+        }],
       ],
       'sources': [
         'base/yuv_convert_sse2.cc',
