@@ -98,7 +98,7 @@
       'file_manager_extension%': 0,
 
       # Python version.
-      'python_ver%': '2.6',
+      'python_ver%': '2.5',
 
       # Set ARM-v7 compilation flags
       'armv7%': 0,
