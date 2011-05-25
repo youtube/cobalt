@@ -163,8 +163,6 @@
           'message_pump_win.h',
           'metrics/histogram.cc',
           'metrics/histogram.h',
-          'metrics/nacl_histogram.cc',
-          'metrics/nacl_histogram.h',
           'metrics/stats_counters.cc',
           'metrics/stats_counters.h',
           'metrics/stats_table.cc',
