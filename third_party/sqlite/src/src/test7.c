@@ -11,8 +11,6 @@
 *************************************************************************
 ** Code for testing the client/server version of the SQLite library.
 ** Derived from test4.c.
-**
-** $Id: test7.c,v 1.13 2008/10/12 00:27:54 shane Exp $
 */
 #include "sqliteInt.h"
 #include "tcl.h"
@@ -22,7 +20,7 @@
 ** the SQLITE_SERVER option.
 */
 #if defined(SQLITE_SERVER) && !defined(SQLITE_OMIT_SHARED_CACHE) && \
-    defined(SQLITE_OS_UNIX) && OS_UNIX && SQLITE_THREADSAFE
+    SQLITE_OS_UNIX && SQLITE_THREADSAFE
 
 #include <stdlib.h>
 #include <string.h>
@@ -166,7 +164,7 @@ static int tcl_client_create(
   }
   threadset[i].busy = 1;
   sqlite3_free(threadset[i].zFilename);
-  threadset[i].zFilename = sqlite3DbStrDup(0, argv[2]);
+  threadset[i].zFilename = sqlite3_mprintf("%s", argv[2]);
   threadset[i].opnum = 1;
   threadset[i].completed = 0;
   rc = pthread_create(&x, 0, client_main, &threadset[i]);
@@ -509,7 +507,7 @@ static int tcl_client_compile(
   client_wait(&threadset[i]);
   threadset[i].xOp = do_compile;
   sqlite3_free(threadset[i].zArg);
-  threadset[i].zArg = sqlite3DbStrDup(0, argv[2]);
+  threadset[i].zArg = sqlite3_mprintf("%s", argv[2]);
   threadset[i].opnum++;
   return TCL_OK;
 }

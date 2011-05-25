@@ -17,6 +17,11 @@
 set testdir [file dirname $argv0]
 source $testdir/tester.tcl
 
+# Do not use a codec for tests in this file, as the database file is
+# manipulated directly using tcl scripts (using the [hexio_write] command).
+#
+do_not_use_codec
+
 # Test organization:
 #
 # pragma-1.*: Test cache_size, default_cache_size and synchronous on main db.
@@ -317,6 +322,7 @@ ifcapable attach {
       puts -nonewline $out [read $in]
       close $in
       close $out
+      hexio_write testerr.db 28 00000000
       execsql {REINDEX t2}
       execsql {PRAGMA integrity_check}
     } {ok}
@@ -533,7 +539,7 @@ ifcapable {foreignkey} {
       CREATE TABLE t3(a int references t2(b), b UNIQUE);
       pragma foreign_key_list(t3);
     }
-  } {0 0 t2 a b RESTRICT RESTRICT NONE}
+  } {0 0 t2 a b {NO ACTION} {NO ACTION} NONE}
   do_test pragma-6.3.2 {
     execsql {
       pragma foreign_key_list;
@@ -634,13 +640,15 @@ do_test pragma-7.1.2 {
 } {}
 } ;# ifcapable schema_pragmas
 ifcapable {utf16} {
-  do_test pragma-7.2 {
-    db close
-    sqlite3 db test.db
-    catchsql {
-      pragma encoding=bogus;
-    }
-  } {1 {unsupported encoding: bogus}}
+  if {[permutation] == ""} {
+    do_test pragma-7.2 {
+      db close
+      sqlite3 db test.db
+      catchsql {
+        pragma encoding=bogus;
+      }
+    } {1 {unsupported encoding: bogus}}
+  }
 }
 ifcapable tempdb {
   do_test pragma-7.3 {
@@ -1371,21 +1379,21 @@ ifcapable lock_proxy_pragmas&&prefer_proxy_locking {
   
   set sqlite_hostid_num 2
   do_test pragma-16.7 {
-    sqlite3 db test2.db
-    execsql {
-      PRAGMA lock_proxy_file=":auto:";
-    } 
-    catchsql {
-      select * from sqlite_master;
-    }
+    list [catch {
+      sqlite3 db test2.db
+      execsql { 
+        PRAGMA lock_proxy_file=":auto:";
+        select * from sqlite_master;
+      }
+    } msg] $msg
   } {1 {database is locked}}
   db close
   
   do_test pragma-16.8 {
-    sqlite3 db test2.db
-    catchsql {
-      select * from sqlite_master;
-    } 
+    list [catch {
+      sqlite3 db test2.db
+      execsql { select * from sqlite_master } 
+    } msg] $msg
   } {1 {database is locked}}
 
   db2 close

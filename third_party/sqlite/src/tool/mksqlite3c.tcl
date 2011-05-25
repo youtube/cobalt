@@ -51,10 +51,10 @@ puts $out [subst \
 {/******************************************************************************
 ** This file is an amalgamation of many separate C source files from SQLite
 ** version $VERSION.  By combining all the individual C code files into this 
-** single large file, the entire code can be compiled as a one translation
+** single large file, the entire code can be compiled as a single translation
 ** unit.  This allows many compilers to do optimizations that would not be
 ** possible if the files were compiled separately.  Performance improvements
-** of 5% are more are commonly seen when SQLite is compiled as a single
+** of 5% or more are commonly seen when SQLite is compiled as a single
 ** translation unit.
 **
 ** This file is all you need to compile SQLite.  To use SQLite in other
@@ -66,8 +66,6 @@ puts $out [subst \
 ** if you want a wrapper to interface SQLite with your choice of programming
 ** language. The code for the "sqlite3" command-line shell is also in a
 ** separate file. This file contains only code for the core SQLite library.
-**
-** This amalgamation was generated on $today.
 */
 #define SQLITE_CORE 1
 #define SQLITE_AMALGAMATION 1}]
@@ -89,7 +87,7 @@ foreach hdr {
    btree.h
    btreeInt.h
    fts3.h
-   fts3_expr.h
+   fts3Int.h
    fts3_hash.h
    fts3_tokenizer.h
    hash.h
@@ -111,6 +109,7 @@ foreach hdr {
    sqliteLimit.h
    vdbe.h
    vdbeInt.h
+   wal.h
 } {
   set available_hdr($hdr) 1
 }
@@ -213,6 +212,7 @@ foreach file {
    sqliteInt.h
 
    global.c
+   ctime.c
    status.c
    date.c
    os.c
@@ -245,6 +245,7 @@ foreach file {
    pcache1.c
    rowset.c
    pager.c
+   wal.c
 
    btmutex.c
    btree.c
@@ -253,6 +254,7 @@ foreach file {
    vdbemem.c
    vdbeaux.c
    vdbeapi.c
+   vdbetrace.c
    vdbe.c
    vdbeblob.c
    journal.c
@@ -269,6 +271,7 @@ foreach file {
    callback.c
    delete.c
    func.c
+   fkey.c
    insert.c
    legacy.c
    loadext.c
@@ -291,11 +294,14 @@ foreach file {
    notify.c
 
    fts3.c
+   fts3_aux.c
    fts3_expr.c
    fts3_hash.c
    fts3_porter.c
    fts3_tokenizer.c
    fts3_tokenizer1.c
+   fts3_write.c
+   fts3_snippet.c
 
    rtree.c
    icu.c

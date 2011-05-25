@@ -13,8 +13,6 @@
 ** This file contains code that modified the OS layer in order to simulate
 ** the effect on the database file of an OS crash or power failure.  This
 ** is used to test the ability of SQLite to recover from those situations.
-**
-** $Id: test6.c,v 1.43 2009/02/11 14:27:04 danielk1977 Exp $
 */
 #if SQLITE_TEST          /* This file is used for testing only */
 #include "sqliteInt.h"
@@ -173,7 +171,7 @@ static void *crash_realloc(void *p, int n){
 ** 512 byte block begining at offset PENDING_BYTE.
 */
 static int writeDbFile(CrashFile *p, u8 *z, i64 iAmt, i64 iOff){
-  int rc;
+  int rc = SQLITE_OK;
   int iSkip = 0;
   if( iOff==PENDING_BYTE && (p->flags&SQLITE_OPEN_MAIN_DB) ){
     iSkip = 512;
@@ -522,8 +520,30 @@ static int cfDeviceCharacteristics(sqlite3_file *pFile){
   return g.iDeviceCharacteristics;
 }
 
+/*
+** Pass-throughs for WAL support.
+*/
+static int cfShmLock(sqlite3_file *pFile, int ofst, int n, int flags){
+  return sqlite3OsShmLock(((CrashFile*)pFile)->pRealFile, ofst, n, flags);
+}
+static void cfShmBarrier(sqlite3_file *pFile){
+  sqlite3OsShmBarrier(((CrashFile*)pFile)->pRealFile);
+}
+static int cfShmUnmap(sqlite3_file *pFile, int delFlag){
+  return sqlite3OsShmUnmap(((CrashFile*)pFile)->pRealFile, delFlag);
+}
+static int cfShmMap(
+  sqlite3_file *pFile,            /* Handle open on database file */
+  int iRegion,                    /* Region to retrieve */
+  int sz,                         /* Size of regions */
+  int w,                          /* True to extend file if necessary */
+  void volatile **pp              /* OUT: Mapped memory */
+){
+  return sqlite3OsShmMap(((CrashFile*)pFile)->pRealFile, iRegion, sz, w, pp);
+}
+
 static const sqlite3_io_methods CrashFileVtab = {
-  1,                            /* iVersion */
+  2,                            /* iVersion */
   cfClose,                      /* xClose */
   cfRead,                       /* xRead */
   cfWrite,                      /* xWrite */
@@ -535,7 +555,11 @@ static const sqlite3_io_methods CrashFileVtab = {
   cfCheckReservedLock,          /* xCheckReservedLock */
   cfFileControl,                /* xFileControl */
   cfSectorSize,                 /* xSectorSize */
-  cfDeviceCharacteristics       /* xDeviceCharacteristics */
+  cfDeviceCharacteristics,      /* xDeviceCharacteristics */
+  cfShmMap,                     /* xShmMap */
+  cfShmLock,                    /* xShmLock */
+  cfShmBarrier,                 /* xShmBarrier */
+  cfShmUnmap                    /* xShmUnmap */
 };
 
 /*
@@ -766,7 +790,7 @@ static int crashEnableCmd(
 ){
   int isEnable;
   static sqlite3_vfs crashVfs = {
-    1,                  /* iVersion */
+    2,                  /* iVersion */
     0,                  /* szOsFile */
     0,                  /* mxPathname */
     0,                  /* pNext */
@@ -783,7 +807,9 @@ static int crashEnableCmd(
     cfDlClose,            /* xDlClose */
     cfRandomness,         /* xRandomness */
     cfSleep,              /* xSleep */
-    cfCurrentTime         /* xCurrentTime */
+    cfCurrentTime,        /* xCurrentTime */
+    0,                    /* xGetlastError */
+    0,                    /* xCurrentTimeInt64 */
   };
 
   if( objc!=2 ){
