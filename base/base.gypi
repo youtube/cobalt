@@ -384,7 +384,7 @@
           ],
           [ 'OS != "mac"', {
               'sources!': [
-                'scoped_aedesc.h'
+                'mac/scoped_aedesc.h'
               ],
           }],
           # For now, just test the *BSD platforms enough to exclude them.
@@ -526,13 +526,8 @@
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
             'sources!': [
               'third_party/purify/pure_api.c',
-              'base_drag_source.cc',
-              'base_drop_target.cc',
               'event_recorder.cc',
-              'file_version_info.cc',
-              'registry.cc',
               'resource_util.cc',
-              'win_util.cc',
             ],
         },],
         [ 'component=="shared_library"', {
