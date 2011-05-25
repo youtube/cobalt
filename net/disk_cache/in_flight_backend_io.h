@@ -103,7 +103,7 @@ class BackendIO : public BackgroundIO {
     OP_IS_READY
   };
 
-  ~BackendIO();
+  virtual ~BackendIO();
 
   void ExecuteBackendOperation();
   void ExecuteEntryOperation();
@@ -139,7 +139,7 @@ class InFlightBackendIO : public InFlightIO {
  public:
   InFlightBackendIO(BackendImpl* backend,
                     base::MessageLoopProxy* background_thread);
-  ~InFlightBackendIO();
+  virtual ~InFlightBackendIO();
 
   // The operations we proxy:
   void Init(net::CompletionCallback* callback);

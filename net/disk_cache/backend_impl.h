@@ -47,7 +47,7 @@ class NET_TEST BackendImpl : public Backend {
   // mask can be used to limit the usable size of the hash table, for testing.
   BackendImpl(const FilePath& path, uint32 mask,
               base::MessageLoopProxy* cache_thread, net::NetLog* net_log);
-  ~BackendImpl();
+  virtual ~BackendImpl();
 
   // Returns a new backend with the desired flags. See the declaration of
   // CreateCacheBackend().

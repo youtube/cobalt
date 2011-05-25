@@ -21,7 +21,7 @@ class URLRequestErrorJob : public URLRequestJob {
   virtual void Start();
 
  private:
-  ~URLRequestErrorJob();
+  virtual ~URLRequestErrorJob();
 
   void StartAsync();
 

@@ -144,7 +144,7 @@ class NET_API HttpCache : public HttpTransactionFactory,
             NetLog* net_log,
             BackendFactory* backend_factory);
 
-  ~HttpCache();
+  virtual ~HttpCache();
 
   HttpTransactionFactory* network_layer() { return network_layer_.get(); }
 

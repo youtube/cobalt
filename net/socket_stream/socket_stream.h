@@ -189,7 +189,7 @@ class NET_API SocketStream : public base::RefCountedThreadSafe<SocketStream> {
     std::string headers_;
 
     private:
-     ~RequestHeaders() { data_ = NULL; }
+     virtual ~RequestHeaders() { data_ = NULL; }
   };
 
   class ResponseHeaders : public IOBuffer {
@@ -202,7 +202,7 @@ class NET_API SocketStream : public base::RefCountedThreadSafe<SocketStream> {
     void Realloc(size_t new_size);
 
    private:
-     ~ResponseHeaders();
+     virtual ~ResponseHeaders();
 
     scoped_ptr_malloc<char> headers_;
   };

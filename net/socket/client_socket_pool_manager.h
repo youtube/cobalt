@@ -78,7 +78,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
                           SSLHostInfoFactory* ssl_host_info_factory,
                           ProxyService* proxy_service,
                           SSLConfigService* ssl_config_service);
-  ~ClientSocketPoolManager();
+  virtual ~ClientSocketPoolManager();
 
   void FlushSocketPools();
   void CloseIdleSockets();
