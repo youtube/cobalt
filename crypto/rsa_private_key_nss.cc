@@ -16,6 +16,7 @@
 #include "base/string_util.h"
 #include "crypto/nss_util.h"
 #include "crypto/nss_util_internal.h"
+#include "crypto/scoped_nss_types.h"
 
 // TODO(rafaelw): Consider refactoring common functions and definitions from
 // rsa_private_key_win.cc or using NSS's ASN.1 encoder.
@@ -91,7 +92,7 @@ RSAPrivateKey* RSAPrivateKey::FindFromPublicKeyInfo(
   key_der.data = const_cast<unsigned char*>(&input[0]);
   key_der.len = input.size();
 
-  CERTSubjectPublicKeyInfo *spki =
+  CERTSubjectPublicKeyInfo* spki =
       SECKEY_DecodeDERSubjectPublicKeyInfo(&key_der);
   if (!spki) {
     NOTREACHED();
@@ -105,35 +106,38 @@ RSAPrivateKey* RSAPrivateKey::FindFromPublicKeyInfo(
     return NULL;
   }
 
-  // Now, look for the associated private key in the user's
-  // hardware-backed NSS DB.  If it's not there, consider that an
-  // error.
-  PK11SlotInfo *slot = GetPrivateNSSKeySlot();
-  if (!slot) {
-    NOTREACHED();
-    return NULL;
-  }
-
   // Make sure the key is an RSA key.  If not, that's an error
   if (result->public_key_->keyType != rsaKey) {
-    PK11_FreeSlot(slot);
     NOTREACHED();
     return NULL;
   }
 
-  SECItem *ck_id = PK11_MakeIDFromPubKey(&(result->public_key_->u.rsa.modulus));
-  if (!ck_id) {
-    PK11_FreeSlot(slot);
+  ScopedSECItem ck_id(
+      PK11_MakeIDFromPubKey(&(result->public_key_->u.rsa.modulus)));
+  if (!ck_id.get()) {
+    NOTREACHED();
+    return NULL;
+  }
+
+  ScopedPK11Slot slot(GetPrivateNSSKeySlot());
+  if (!slot.get()) {
     NOTREACHED();
     return NULL;
   }
 
   // Finally...Look for the key!
-  result->key_ = PK11_FindKeyByKeyID(slot, ck_id, NULL);
+  result->key_ = PK11_FindKeyByKeyID(slot.get(), ck_id.get(), NULL);
 
-  // Cleanup...
-  PK11_FreeSlot(slot);
-  SECITEM_FreeItem(ck_id, PR_TRUE);
+  // If we don't find the matching key in the private slot, then we
+  // look in the public slot.
+  if (!result->key_) {
+    slot.reset(GetPublicNSSKeySlot());
+    if (!slot.get()) {
+      NOTREACHED();
+      return NULL;
+    }
+    result->key_ = PK11_FindKeyByKeyID(slot.get(), ck_id.get(), NULL);
+  }
 
   // If we didn't find it, that's ok.
   if (!result->key_)
@@ -166,8 +170,8 @@ bool RSAPrivateKey::ExportPrivateKey(std::vector<uint8>* output) {
 }
 
 bool RSAPrivateKey::ExportPublicKey(std::vector<uint8>* output) {
-  SECItem* der_pubkey = SECKEY_EncodeDERSubjectPublicKeyInfo(public_key_);
-  if (!der_pubkey) {
+  ScopedSECItem der_pubkey(SECKEY_EncodeDERSubjectPublicKeyInfo(public_key_));
+  if (!der_pubkey.get()) {
     NOTREACHED();
     return false;
   }
@@ -175,7 +179,6 @@ bool RSAPrivateKey::ExportPublicKey(std::vector<uint8>* output) {
   for (size_t i = 0; i < der_pubkey->len; ++i)
     output->push_back(der_pubkey->data[i]);
 
-  SECITEM_FreeItem(der_pubkey, PR_TRUE);
   return true;
 }
 
@@ -191,16 +194,20 @@ RSAPrivateKey* RSAPrivateKey::CreateWithParams(uint16 num_bits,
 
   scoped_ptr<RSAPrivateKey> result(new RSAPrivateKey);
 
-  PK11SlotInfo *slot = GetPrivateNSSKeySlot();
-  if (!slot)
+  ScopedPK11Slot slot(GetPrivateNSSKeySlot());
+  if (!slot.get())
     return NULL;
 
   PK11RSAGenParams param;
   param.keySizeInBits = num_bits;
   param.pe = 65537L;
-  result->key_ = PK11_GenerateKeyPair(slot, CKM_RSA_PKCS_KEY_PAIR_GEN, &param,
-      &result->public_key_, permanent, sensitive, NULL);
-  PK11_FreeSlot(slot);
+  result->key_ = PK11_GenerateKeyPair(slot.get(),
+                                      CKM_RSA_PKCS_KEY_PAIR_GEN,
+                                      &param,
+                                      &result->public_key_,
+                                      permanent,
+                                      sensitive,
+                                      NULL);
   if (!result->key_)
     return NULL;
 
@@ -217,8 +224,8 @@ RSAPrivateKey* RSAPrivateKey::CreateFromPrivateKeyInfoWithParams(
 
   scoped_ptr<RSAPrivateKey> result(new RSAPrivateKey);
 
-  PK11SlotInfo *slot = GetPrivateNSSKeySlot();
-  if (!slot)
+  ScopedPK11Slot slot(GetPrivateNSSKeySlot());
+  if (!slot.get())
     return NULL;
 
   SECItem der_private_key_info;
@@ -229,9 +236,8 @@ RSAPrivateKey* RSAPrivateKey::CreateFromPrivateKeyInfoWithParams(
   const unsigned int key_usage = KU_KEY_ENCIPHERMENT | KU_DATA_ENCIPHERMENT |
                                  KU_DIGITAL_SIGNATURE;
   SECStatus rv =  PK11_ImportDERPrivateKeyInfoAndReturnKey(
-      slot, &der_private_key_info, NULL, NULL, permanent, sensitive,
+      slot.get(), &der_private_key_info, NULL, NULL, permanent, sensitive,
       key_usage, &result->key_, NULL);
-  PK11_FreeSlot(slot);
   if (rv != SECSuccess) {
     NOTREACHED();
     return NULL;
