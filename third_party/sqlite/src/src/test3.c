@@ -12,8 +12,6 @@
 ** Code for testing the btree.c module in SQLite.  This code
 ** is not included in the SQLite library.  It is used for automated
 ** testing of the SQLite library.
-**
-** $Id: test3.c,v 1.111 2009/07/09 05:07:38 danielk1977 Exp $
 */
 #include "sqliteInt.h"
 #include "btreeInt.h"
@@ -55,7 +53,7 @@ static sqlite3 sDb;
 static int nRefSqlite3 = 0;
 
 /*
-** Usage:   btree_open FILENAME NCACHE FLAGS
+** Usage:   btree_open FILENAME NCACHE
 **
 ** Open a new database
 */
@@ -66,22 +64,21 @@ static int btree_open(
   const char **argv      /* Text of each argument */
 ){
   Btree *pBt;
-  int rc, nCache, flags;
+  int rc, nCache;
   char zBuf[100];
-  if( argc!=4 ){
+  if( argc!=3 ){
     Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
        " FILENAME NCACHE FLAGS\"", 0);
     return TCL_ERROR;
   }
   if( Tcl_GetInt(interp, argv[2], &nCache) ) return TCL_ERROR;
-  if( Tcl_GetInt(interp, argv[3], &flags) ) return TCL_ERROR;
   nRefSqlite3++;
   if( nRefSqlite3==1 ){
     sDb.pVfs = sqlite3_vfs_find(0);
     sDb.mutex = sqlite3MutexAlloc(SQLITE_MUTEX_RECURSIVE);
     sqlite3_mutex_enter(sDb.mutex);
   }
-  rc = sqlite3BtreeOpen(argv[1], &sDb, &pBt, flags,
+  rc = sqlite3BtreeOpen(argv[1], &sDb, &pBt, 0, 
      SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_MAIN_DB);
   if( rc!=SQLITE_OK ){
     Tcl_AppendResult(interp, errorName(rc), 0);
@@ -221,7 +218,7 @@ static int btree_cursor(
   Btree *pBt;
   int iTable;
   BtCursor *pCur;
-  int rc;
+  int rc = SQLITE_OK;
   int wrFlag;
   char zBuf[30];
 
@@ -236,7 +233,9 @@ static int btree_cursor(
   pCur = (BtCursor *)ckalloc(sqlite3BtreeCursorSize());
   memset(pCur, 0, sqlite3BtreeCursorSize());
   sqlite3BtreeEnter(pBt);
+#ifndef SQLITE_OMIT_SHARED_CACHE
   rc = sqlite3BtreeLockTable(pBt, iTable, wrFlag);
+#endif
   if( rc==SQLITE_OK ){
     rc = sqlite3BtreeCursor(pBt, iTable, wrFlag, 0, pCur);
   }

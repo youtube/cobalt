@@ -1,13 +1,13 @@
 Name: sqlite
 License File: src/LICENSE
 URL: http://sqlite.org/
-Version: 3.6.18
+Version: 3.7.6.3
 Included In Release: Yes
 Security Critical: Yes
 
 Instructions for importing a new release of SQLite from sqlite.org.
 
-Note: our current base version is 3.6.18.
+Note: our current base version is 3.7.6.3.
 
 First, you need to be on Linux.
 
@@ -18,14 +18,16 @@ First, you need to be on Linux.
 # Note - this is just an example. Always refer to the version above for our
 # real current version.
 # Set some variables to remember the versions, e.g.:
-BASE=3.6.18
-LATEST=3.6.22
+BASE=3.7.6.3
+LATEST=3.7.6.4
 
 # Get to the src/third_party directory in your Chromium client:
 cd src/third_party
 
 # Download the .tar.gz files for the releases:
 # (If the URL changes you might need to find the new one.)
+# TODO(shess): Rewrite this to track the new naming format.  Meanwhile,
+# manually navigate to www.sqlite.org and find downloads, use "legacy" version.
 wget http://www.sqlite.org/sqlite-$BASE.tar.gz
 wget http://www.sqlite.org/sqlite-$LATEST.tar.gz
 

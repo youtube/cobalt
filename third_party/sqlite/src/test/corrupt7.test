@@ -19,6 +19,11 @@
 set testdir [file dirname $argv0]
 source $testdir/tester.tcl
 
+# Do not use a codec for tests in this file, as the database file is
+# manipulated directly using tcl scripts (using the [hexio_write] command).
+#
+do_not_use_codec
+
 # We must have the page_size pragma for these tests to work.
 #
 ifcapable !pager_pragmas {
@@ -89,7 +94,7 @@ Corruption detected in cell 15 on page 2}}
     sqlite3 db test.db
     db eval {PRAGMA integrity_check(1)}
   } {{*** in database main ***
-Corruption detected in cell 15 on page 2}}
+On tree page 2 cell 15: Rowid 0 out of order (previous was 15)}}
 }
   
 # The code path that was causing the buffer overrun that this test
