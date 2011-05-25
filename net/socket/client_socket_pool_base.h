@@ -219,7 +219,7 @@ class NET_TEST ClientSocketPoolBaseHelper
       base::TimeDelta used_idle_socket_timeout,
       ConnectJobFactory* connect_job_factory);
 
-  ~ClientSocketPoolBaseHelper();
+  virtual ~ClientSocketPoolBaseHelper();
 
   // See ClientSocketPool::RequestSocket for documentation on this function.
   // ClientSocketPoolBaseHelper takes ownership of |request|, which must be

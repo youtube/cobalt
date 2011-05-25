@@ -83,7 +83,7 @@ class NET_API DnsRRResolver : NON_EXPORTED_BASE(public base::NonThreadSafe),
   };
 
   DnsRRResolver();
-  ~DnsRRResolver();
+  virtual ~DnsRRResolver();
 
   uint64 requests() const { return requests_; }
   uint64 cache_hits() const { return cache_hits_; }
