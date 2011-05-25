@@ -186,6 +186,9 @@ class VideoDecodeAccelerator {
    public:
     virtual ~Client() {}
 
+    // Callback to notify client that decoder has been initialized.
+    virtual void NotifyInitializeDone() = 0;
+
     // Callback to tell the information needed by the client to provide decoding
     // buffer to the decoder.
     virtual void ProvidePictureBuffers(
