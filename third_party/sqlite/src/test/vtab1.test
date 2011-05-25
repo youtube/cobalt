@@ -1154,12 +1154,29 @@ foreach method [list \
   incr tn
 }
 
-do_test vtab1-16.$tn {
-  set echo_module_fail(xRename,t2) "the xRename method has failed"
-  catchsql { ALTER TABLE echo_t2 RENAME TO another_name }
-} "1 {echo-vtab-error: the xRename method has failed}"
-unset echo_module_fail(xRename,t2)
-incr tn
+ifcapable altertable {
+  do_test vtab1-16.$tn {
+    set echo_module_fail(xRename,t2) "the xRename method has failed"
+    catchsql { ALTER TABLE echo_t2 RENAME TO another_name }
+  } "1 {echo-vtab-error: the xRename method has failed}"
+  unset echo_module_fail(xRename,t2)
+  incr tn
+}
+
+# The following test case exposes an instance in sqlite3_declare_vtab()
+# an error message was set using a call similar to sqlite3_mprintf(zErr),
+# where zErr is an arbitrary string. This is no good if the string contains
+# characters that can be mistaken for printf() formatting directives.
+#
+do_test vtab1-17.1 {
+  execsql { 
+    PRAGMA writable_schema = 1;
+    INSERT INTO sqlite_master VALUES(
+      'table', 't3', 't3', 0, 'INSERT INTO "%s%s" VALUES(1)'
+    );
+  }
+  catchsql { CREATE VIRTUAL TABLE t4 USING echo(t3); }
+} {1 {vtable constructor failed: t4}}
 
 unset -nocomplain echo_module_begin_fail
 finish_test

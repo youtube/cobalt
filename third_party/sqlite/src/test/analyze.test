@@ -73,7 +73,7 @@ do_test analyze-1.6.3 {
 } {1 {table sqlite_stat1 may not be indexed}}
 do_test analyze-1.7 {
   execsql {
-    SELECT * FROM sqlite_stat1
+    SELECT * FROM sqlite_stat1 WHERE idx NOT NULL
   }
 } {}
 do_test analyze-1.8 {
@@ -83,7 +83,7 @@ do_test analyze-1.8 {
 } {0 {}}
 do_test analyze-1.9 {
   execsql {
-    SELECT * FROM sqlite_stat1
+    SELECT * FROM sqlite_stat1 WHERE idx NOT NULL
   }
 } {}
 do_test analyze-1.10 {
@@ -296,7 +296,7 @@ do_test analyze-99.1 {
     UPDATE sqlite_master SET sql='nonsense' WHERE name='sqlite_stat1';
   }
   db close
-  sqlite3 db test.db
+  catch { sqlite3 db test.db }
   catchsql {
     ANALYZE
   }
