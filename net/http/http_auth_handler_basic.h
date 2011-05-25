@@ -45,7 +45,7 @@ class NET_TEST HttpAuthHandlerBasic : public HttpAuthHandler {
                                     std::string* auth_token);
 
  private:
-  ~HttpAuthHandlerBasic() {}
+  virtual ~HttpAuthHandlerBasic() {}
 
   bool ParseChallenge(HttpAuth::ChallengeTokenizer* challenge);
 };

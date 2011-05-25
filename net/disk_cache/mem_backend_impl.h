@@ -26,7 +26,7 @@ class MemEntryImpl;
 class NET_TEST MemBackendImpl : public Backend {
  public:
   explicit MemBackendImpl(net::NetLog* net_log);
-  ~MemBackendImpl();
+  virtual ~MemBackendImpl();
 
   // Returns an instance of a Backend implemented only in memory. The returned
   // object should be deleted when not needed anymore. max_bytes is the maximum

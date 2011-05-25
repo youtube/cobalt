@@ -127,7 +127,7 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
                                     std::string* auth_token);
 
  private:
-  ~HttpAuthHandlerNTLM();
+  virtual ~HttpAuthHandlerNTLM();
 
 #if defined(NTLM_PORTABLE)
   // For unit tests to override the GenerateRandom and GetHostName functions.

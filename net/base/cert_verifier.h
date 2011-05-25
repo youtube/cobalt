@@ -71,7 +71,7 @@ class NET_API CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
 
   // When the verifier is destroyed, all certificate verifications requests are
   // canceled, and their completion callbacks will not be called.
-  ~CertVerifier();
+  virtual ~CertVerifier();
 
   // Verifies the given certificate against the given hostname.  Returns OK if
   // successful or an error code upon failure.

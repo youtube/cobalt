@@ -281,7 +281,7 @@ class DelayedSocketData : public StaticSocketDataProvider,
   DelayedSocketData(const MockConnect& connect, int write_delay,
                     MockRead* reads, size_t reads_count,
                     MockWrite* writes, size_t writes_count);
-  ~DelayedSocketData();
+  virtual ~DelayedSocketData();
 
   void ForceNextRead();
 
