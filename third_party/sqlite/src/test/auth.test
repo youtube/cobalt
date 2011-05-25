@@ -1628,9 +1628,20 @@ ifcapable attach {
       ATTACH DATABASE ':memory:' AS test1
     }
   } {0 {}}
-  do_test auth-1.252 {
+  do_test auth-1.252a {
     set ::authargs
   } {:memory: {} {} {}}
+  do_test auth-1.252b {
+    db eval {DETACH test1}
+    set ::attachfilename :memory:
+    db eval {ATTACH $::attachfilename AS test1}
+    set ::authargs
+  } {{} {} {} {}}
+  do_test auth-1.252c {
+    db eval {DETACH test1}
+    db eval {ATTACH ':mem' || 'ory:' AS test1}
+    set ::authargs
+  } {{} {} {} {}}
   do_test auth-1.253 {
     catchsql {DETACH DATABASE test1}
     proc auth {code arg1 arg2 arg3 arg4} {
@@ -1976,12 +1987,12 @@ ifcapable analyze {
       ANALYZE;
     }
     set ::authargs
-  } {t4 {} main {}}
+  } {t4 {} main {} t2 {} main {}}
   do_test auth-1.295 {
     execsql {
       SELECT count(*) FROM sqlite_stat1;
     }
-  } 2
+  } 3
   proc auth {code args} {
     if {$code=="SQLITE_ANALYZE"} {
       set ::authargs [concat $::authargs $args]
@@ -1999,7 +2010,7 @@ ifcapable analyze {
     execsql {
       SELECT count(*) FROM sqlite_stat1;
     }
-  } 2
+  } 3
 } ;# ifcapable analyze
 
 
@@ -2248,15 +2259,16 @@ do_test auth-4.3 {
   set authargs
 } [list \
   SQLITE_UPDATE v1     x  main {} \
-  SQLITE_INSERT v1chng {} main r2 \
-  SQLITE_READ   v1     x  main r2 \
-  SQLITE_READ   v1     x  main r2 \
   SQLITE_SELECT {}     {} {}   v1 \
   SQLITE_READ   t2     a  main v1 \
   SQLITE_READ   t2     b  main v1 \
   SQLITE_SELECT {}     {} {}   {} \
   SQLITE_READ   v1     x  main v1 \
+  SQLITE_INSERT v1chng {} main r2 \
+  SQLITE_READ   v1     x  main r2 \
+  SQLITE_READ   v1     x  main r2 \
 ]
+
 do_test auth-4.4 {
   execsql {
     CREATE TRIGGER r3 INSTEAD OF DELETE ON v1 BEGIN
