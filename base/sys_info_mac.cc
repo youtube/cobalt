@@ -10,8 +10,21 @@
 #include <mach/mach_init.h>
 
 #include "base/logging.h"
+#include "base/stringprintf.h"
 
 namespace base {
+
+// static
+std::string SysInfo::OperatingSystemName() {
+  return "Mac OS X";
+}
+
+// static
+std::string SysInfo::OperatingSystemVersion() {
+  int32 major, minor, bugfix;
+  OperatingSystemVersionNumbers(&major, &minor, &bugfix);
+  return base::StringPrintf("%d.%d.%d", major, minor, bugfix);
+}
 
 // static
 void SysInfo::OperatingSystemVersionNumbers(int32* major_version,

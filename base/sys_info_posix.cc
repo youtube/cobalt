@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,6 +46,7 @@ int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
   return static_cast<int64>(stats.f_bavail) * stats.f_frsize;
 }
 
+#if !defined(OS_MACOSX)
 // static
 std::string SysInfo::OperatingSystemName() {
   utsname info;
@@ -65,6 +66,7 @@ std::string SysInfo::OperatingSystemVersion() {
   }
   return std::string(info.release);
 }
+#endif
 
 // static
 std::string SysInfo::CPUArchitecture() {
