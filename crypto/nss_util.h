@@ -86,7 +86,7 @@ bool CheckNSSVersion(const char* version);
 // GetPublicNSSKeySlot().
 void OpenPersistentNSSDB();
 
-// A delegate class that we can use it to access the cros API for
+// A delegate class that we can use to access the cros API for
 // communication with cryptohomed and the TPM.
 class TPMTokenInfoDelegate {
  public:
