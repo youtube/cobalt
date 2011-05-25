@@ -15,13 +15,12 @@ struct PP_SysmemBuffer_Dev;
 
 namespace media {
 
-// Common information about GLES & Sysmem picture buffers.
+// Information about the picture buffer.
 // This is the media-namespace equivalent of PP_BufferInfo_Dev.
-class BaseBuffer {
+class BufferInfo {
  public:
-  BaseBuffer(int32 id, gfx::Size size);
-  BaseBuffer(const PP_BufferInfo_Dev& info);
-  virtual ~BaseBuffer();
+  BufferInfo(int32 id, gfx::Size size);
+  BufferInfo(const PP_BufferInfo_Dev& info);
 
   // Returns the client-specified id of the buffer.
   int32 id() const {
@@ -40,7 +39,7 @@ class BaseBuffer {
 
 // A picture buffer that is composed of a GLES2 texture and context.
 // This is the media-namespace equivalent of PP_GLESBuffer_Dev.
-class GLESBuffer : public BaseBuffer {
+class GLESBuffer {
  public:
   GLESBuffer(int32 id, gfx::Size size, uint32 texture_id, uint32 context_id);
   GLESBuffer(const PP_GLESBuffer_Dev& buffer);
@@ -57,14 +56,20 @@ class GLESBuffer : public BaseBuffer {
     return context_id_;
   }
 
+  // Returns information regarding the buffer.
+  const BufferInfo& buffer_info() const {
+    return info_;
+  }
+
  private:
   uint32 texture_id_;
   uint32 context_id_;
+  BufferInfo info_;
 };
 
 // A picture buffer that lives in system memory.
 // This is the media-namespace equivalent of PP_SysmemBuffer_Dev.
-class SysmemBuffer : public BaseBuffer {
+class SysmemBuffer {
  public:
   SysmemBuffer(int32 id, gfx::Size size, void* data);
   SysmemBuffer(const PP_SysmemBuffer_Dev&);
@@ -74,8 +79,14 @@ class SysmemBuffer : public BaseBuffer {
     return data_;
   }
 
+  // Returns information regarding the buffer.
+  const BufferInfo& buffer_info() const {
+    return info_;
+  }
+
  private:
   void* data_;
+  BufferInfo info_;
 };
 
 // A decoded picture frame.
@@ -92,9 +103,7 @@ class Picture {
   }
 
   // Returns the id of the bitstream buffer from which this frame was decoded.
-  // TODO(fischman,vrk): Remove this field; pictures can span arbitrarily many
-  // BitstreamBuffers, and it's not clear what clients would do with this
-  // information, anyway.
+  // TODO(vrk): Handle the case where a picture can span multiple buffers.
   int32 bitstream_buffer_id() const {
     return bitstream_buffer_id_;
   }
