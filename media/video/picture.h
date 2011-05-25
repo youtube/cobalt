@@ -15,12 +15,13 @@ struct PP_SysmemBuffer_Dev;
 
 namespace media {
 
-// Information about the picture buffer.
+// Common information about GLES & Sysmem picture buffers.
 // This is the media-namespace equivalent of PP_BufferInfo_Dev.
-class BufferInfo {
+class BaseBuffer {
  public:
-  BufferInfo(int32 id, gfx::Size size);
-  BufferInfo(const PP_BufferInfo_Dev& info);
+  BaseBuffer(int32 id, gfx::Size size);
+  BaseBuffer(const PP_BufferInfo_Dev& info);
+  virtual ~BaseBuffer();
 
   // Returns the client-specified id of the buffer.
   int32 id() const {
@@ -39,7 +40,7 @@ class BufferInfo {
 
 // A picture buffer that is composed of a GLES2 texture and context.
 // This is the media-namespace equivalent of PP_GLESBuffer_Dev.
-class GLESBuffer {
+class GLESBuffer : public BaseBuffer {
  public:
   GLESBuffer(int32 id, gfx::Size size, uint32 texture_id, uint32 context_id);
   GLESBuffer(const PP_GLESBuffer_Dev& buffer);
@@ -56,20 +57,14 @@ class GLESBuffer {
     return context_id_;
   }
 
-  // Returns information regarding the buffer.
-  const BufferInfo& buffer_info() const {
-    return info_;
-  }
-
  private:
   uint32 texture_id_;
   uint32 context_id_;
-  BufferInfo info_;
 };
 
 // A picture buffer that lives in system memory.
 // This is the media-namespace equivalent of PP_SysmemBuffer_Dev.
-class SysmemBuffer {
+class SysmemBuffer : public BaseBuffer {
  public:
   SysmemBuffer(int32 id, gfx::Size size, void* data);
   SysmemBuffer(const PP_SysmemBuffer_Dev&);
@@ -79,14 +74,8 @@ class SysmemBuffer {
     return data_;
   }
 
-  // Returns information regarding the buffer.
-  const BufferInfo& buffer_info() const {
-    return info_;
-  }
-
  private:
   void* data_;
-  BufferInfo info_;
 };
 
 // A decoded picture frame.
@@ -103,7 +92,9 @@ class Picture {
   }
 
   // Returns the id of the bitstream buffer from which this frame was decoded.
-  // TODO(vrk): Handle the case where a picture can span multiple buffers.
+  // TODO(fischman,vrk): Remove this field; pictures can span arbitrarily many
+  // BitstreamBuffers, and it's not clear what clients would do with this
+  // information, anyway.
   int32 bitstream_buffer_id() const {
     return bitstream_buffer_id_;
   }
