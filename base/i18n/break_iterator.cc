@@ -14,7 +14,7 @@ namespace i18n {
 
 const size_t npos = -1;
 
-BreakIterator::BreakIterator(const string16* str, BreakType break_type)
+BreakIterator::BreakIterator(const string16& str, BreakType break_type)
     : iter_(NULL),
       string_(str),
       break_type_(break_type),
@@ -43,7 +43,7 @@ bool BreakIterator::Init() {
       return false;
   }
   iter_ = ubrk_open(break_type, NULL,
-                    string_->data(), static_cast<int32_t>(string_->size()),
+                    string_.data(), static_cast<int32_t>(string_.size()),
                     &status);
   if (U_FAILURE(status)) {
     NOTREACHED() << "ubrk_open failed";
@@ -96,7 +96,7 @@ bool BreakIterator::IsWord() const {
 
 string16 BreakIterator::GetString() const {
   DCHECK(prev_ != npos && pos_ != npos);
-  return string_->substr(prev_, pos_ - prev_);
+  return string_.substr(prev_, pos_ - prev_);
 }
 
 }  // namespace i18n
