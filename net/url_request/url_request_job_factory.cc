@@ -78,6 +78,11 @@ URLRequestJob* URLRequestJobFactory::MaybeCreateJobWithProtocolHandler(
 
 bool URLRequestJobFactory::IsHandledProtocol(const std::string& scheme) const {
   DCHECK(CalledOnValidThread());
+  InterceptorList::const_iterator i;
+  for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
+    if ((*i)->WillHandleProtocol(scheme))
+      return true;
+  }
   return ContainsKey(protocol_handler_map_, scheme) ||
       URLRequestJobManager::GetInstance()->SupportsScheme(scheme);
 }

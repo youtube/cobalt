@@ -59,6 +59,13 @@ class NET_TEST URLRequestJobFactory
     // returned.
     virtual URLRequestJob* MaybeInterceptResponse(
         URLRequest* request) const = 0;
+
+    // Returns true if this interceptor handles requests for URLs with the
+    // given protocol. Returning false does not imply that this interceptor
+    // can't or won't handle requests with the given protocol.
+    virtual bool WillHandleProtocol(const std::string& protocol) const {
+        return false;
+    }
   };
 
   URLRequestJobFactory();
