@@ -355,7 +355,7 @@ class BASE_API ListValue : public Value {
   typedef ValueVector::const_iterator const_iterator;
 
   ListValue();
-  ~ListValue();
+  virtual ~ListValue();
 
   // Clears the contents of this ListValue
   void Clear();

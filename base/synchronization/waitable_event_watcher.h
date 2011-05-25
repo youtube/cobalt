@@ -68,7 +68,7 @@ class BASE_API WaitableEventWatcher
  public:
 
   WaitableEventWatcher();
-  ~WaitableEventWatcher();
+  virtual ~WaitableEventWatcher();
 
   class Delegate {
    public:

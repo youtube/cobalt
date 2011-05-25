@@ -111,7 +111,7 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   // Normally, it is not necessary to instantiate a MessageLoop.  Instead, it
   // is typical to make use of the current thread's MessageLoop instance.
   explicit MessageLoop(Type type = TYPE_DEFAULT);
-  ~MessageLoop();
+  virtual ~MessageLoop();
 
   // Returns the MessageLoop object for the current thread, or null if none.
   static MessageLoop* current();

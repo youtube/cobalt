@@ -18,7 +18,7 @@ class HostResolver;
 class NET_API FtpNetworkLayer : public FtpTransactionFactory {
  public:
   explicit FtpNetworkLayer(HostResolver* host_resolver);
-  ~FtpNetworkLayer();
+  virtual ~FtpNetworkLayer();
 
   static FtpTransactionFactory* CreateFactory(HostResolver* host_resolver);
 
