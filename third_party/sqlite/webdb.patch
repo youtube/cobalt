@@ -42,7 +42,7 @@ index ef04a72..e5e1509 100644
 +                                               const char* fileName,
 +                                               int noLock,
 +                                               int isDelete) {
-+  return fillInUnixFile(vfs, fd, dirfd, file, fileName, noLock, isDelete);
++  return fillInUnixFile(vfs, fd, dirfd, file, fileName, noLock, isDelete, 0);
 +}
 +
 +/*

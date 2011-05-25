@@ -33,13 +33,11 @@
 ** Bitvec object is the number of pages in the database file at the
 ** start of a transaction, and is thus usually less than a few thousand,
 ** but can be as large as 2 billion for a really big database.
-**
-** @(#) $Id: bitvec.c,v 1.17 2009/07/25 17:33:26 drh Exp $
 */
 #include "sqliteInt.h"
 
 /* Size of the Bitvec structure in bytes. */
-#define BITVEC_SZ        (sizeof(void*)*128)  /* 512 on 32bit.  1024 on 64bit */
+#define BITVEC_SZ        512
 
 /* Round the union size down to the nearest pointer boundary, since that's how 
 ** it will be aligned within the Bitvec struct. */
