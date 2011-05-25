@@ -17,7 +17,6 @@
         '../ui/ui.gyp:*',
         '../gpu/gpu.gyp:*',
         '../gpu/demos/demos.gyp:*',
-        '../gpu/gles2_conform_support/gles2_conform_support.gyp:*',
         '../ipc/ipc.gyp:*',
         '../jingle/jingle.gyp:*',
         '../media/media.gyp:*',
