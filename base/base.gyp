@@ -284,9 +284,9 @@
             ['exclude', '^win/'],
           ],
           'sources!': [
+            'debug/trace_event_win_unittest.cc',
             'time_win_unittest.cc',
-            'trace_event_win_unittest.cc',
-            'win_util_unittest.cc',
+            'win/win_util_unittest.cc',
           ],
         }],
       ],
