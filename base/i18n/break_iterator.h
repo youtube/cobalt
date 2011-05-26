@@ -41,12 +41,13 @@
 // breaks are at the periods in ".foo\n.bar\n.\n.").
 //
 // To extract the words from a string, move a BREAK_WORD BreakIterator
-// through the string and test whether IsWord() is true.  E.g.,
-//   BreakIterator iter(&str, BreakIterator::BREAK_WORD);
-//   if (!iter.Init()) return false;
+// through the string and test whether IsWord() is true. E.g.,
+//   BreakIterator iter(str, BreakIterator::BREAK_WORD);
+//   if (!iter.Init())
+//     return false;
 //   while (iter.Advance()) {
 //     if (iter.IsWord()) {
-//       // region [iter.prev(),iter.pos()) contains a word.
+//       // Region [iter.prev(), iter.pos()) contains a word.
 //       VLOG(1) << "word: " << iter.GetString();
 //     }
 //   }
@@ -74,13 +75,6 @@ class BreakIterator {
   // Returns false if ICU failed to initialize.
   bool Init();
 
-  // Return the current break position within the string,
-  // or BreakIterator::npos when done.
-  size_t pos() const { return pos_; }
-
-  // Return the value of pos() returned before Advance() was last called.
-  size_t prev() const { return prev_; }
-
   // Advance to the next break.  Returns false if we've run past the end of
   // the string.  (Note that the very last "break" is after the final
   // character in the string, and when we advance to that position it's the
@@ -93,10 +87,17 @@ class BreakIterator {
   // this distinction doesn't apply and it always retuns false.
   bool IsWord() const;
 
-  // Return the string between prev() and pos().
-  // Advance() must have been called successfully at least once
-  // for pos() to have advanced to somewhere useful.
+  // Returns the string between prev() and pos().
+  // Advance() must have been called successfully at least once for pos() to
+  // have advanced to somewhere useful.
   string16 GetString() const;
+
+  // Returns the value of pos() returned before Advance() was last called.
+  size_t prev() const { return prev_; }
+
+  // Returns the current break position within the string,
+  // or BreakIterator::npos when done.
+  size_t pos() const { return pos_; }
 
  private:
   // ICU iterator, avoiding ICU ubrk.h dependence.
