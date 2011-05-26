@@ -534,6 +534,7 @@ TEST(NetUtilTest, FileURLConversion) {
     {L"/foo/bar.txt", "file:///foo/bar.txt"},
     {L"/foo/BAR.txt", "file:///foo/BAR.txt"},
     {L"/C:/foo/bar.txt", "file:///C:/foo/bar.txt"},
+    {L"/foo/bar?.txt", "file:///foo/bar%3F.txt"},
     {L"/some computer/foo/bar.txt", "file:///some%20computer/foo/bar.txt"},
     {L"/Name;with%some symbols*#", "file:///Name%3Bwith%25some%20symbols*%23"},
     {L"/latin1/caf\x00E9\x00DD.txt", "file:///latin1/caf%C3%A9%C3%9D.txt"},
