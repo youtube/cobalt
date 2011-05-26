@@ -8,6 +8,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/mac/foundation_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_nsobject.h"
 #include "base/sys_string_conversions.h"
@@ -238,47 +239,29 @@ void ActivateProcess(pid_t pid) {
   }
 }
 
-bool SetFileBackupExclusion(const FilePath& file_path, bool exclude) {
+bool SetFileBackupExclusion(const FilePath& file_path) {
   NSString* filePath =
       [NSString stringWithUTF8String:file_path.value().c_str()];
-
-  // If being asked to exclude something in a tmp directory, just lie and say it
-  // was done.  TimeMachine will already ignore tmp directories.  This keeps the
-  // temporary profiles used by unittests from being added to the exclude list.
-  // Otherwise, as /Library/Preferences/com.apple.TimeMachine.plist grows the
-  // bots slow down due to reading/writing all the temporary profiles used over
-  // time.
-
-  NSString* tmpDir = NSTemporaryDirectory();
-  // Make sure the temp dir is terminated with a slash
-  if (tmpDir && ![tmpDir hasSuffix:@"/"])
-    tmpDir = [tmpDir stringByAppendingString:@"/"];
-  // '/var' is a link to '/private/var', make sure to check both forms.
-  NSString* privateTmpDir = nil;
-  if ([tmpDir hasPrefix:@"/var/"])
-    privateTmpDir = [@"/private" stringByAppendingString:tmpDir];
-
-  if ((tmpDir && [filePath hasPrefix:tmpDir]) ||
-      (privateTmpDir && [filePath hasPrefix:privateTmpDir]) ||
-      [filePath hasPrefix:@"/tmp/"] ||
-      [filePath hasPrefix:@"/var/tmp/"] ||
-      [filePath hasPrefix:@"/private/tmp/"] ||
-      [filePath hasPrefix:@"/private/var/tmp/"]) {
-    return true;
-  }
-
   NSURL* url = [NSURL fileURLWithPath:filePath];
-  // Note that we always set CSBackupSetItemExcluded's excludeByPath param
-  // to true.  This prevents a problem with toggling the setting: if the file
-  // is excluded with excludeByPath set to true then excludeByPath must
-  // also be true when un-excluding the file, otherwise the un-excluding
-  // will be ignored.
-  bool success =
-      CSBackupSetItemExcluded((CFURLRef)url, exclude, true) == noErr;
-  if (!success)
+  // Do a pre-emptive unexclude by-path since by-path exclusions may have been
+  // performed on this file in the past.
+  CSBackupSetItemExcluded(base::mac::NSToCFCast(url), FALSE, TRUE);
+  // When excludeByPath is true the application must be running with root
+  // privileges (admin for 10.6 and earlier) but the URL does not have to
+  // already exist. When excludeByPath is false the URL must already exist but
+  // can be used in non-root (or admin as above) mode. We use false so that
+  // non-root (or admin) users don't get their TimeMachine drive filled up with
+  // unnecessary backups.
+  OSStatus os_err =
+      CSBackupSetItemExcluded(base::mac::NSToCFCast(url), TRUE, FALSE);
+  if (os_err != noErr) {
     LOG(WARNING) << "Failed to set backup exclusion for file '"
-                 << file_path.value().c_str() << "'.  Continuing.";
-  return success;
+                 << file_path.value().c_str() << "' with error "
+                 << os_err << " (" << GetMacOSStatusErrorString(os_err)
+                 << ": " << GetMacOSStatusCommentString(os_err)
+                 << ").  Continuing.";
+  }
+  return os_err == noErr;
 }
 
 void SetProcessName(CFStringRef process_name) {
