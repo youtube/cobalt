@@ -1232,7 +1232,7 @@ static int fts3ScanInteriorNode(
     ** the prefix is longer than the previous term, or if the suffix
     ** causes overflow.
     */
-    if( nPrefix<0 || nSuffix<0 || nPrefix>nBuffer
+    if( nPrefix<0 || nSuffix<0 /* || nPrefix>nBuffer */
      || &zCsr[nSuffix]<zCsr || &zCsr[nSuffix]>zEnd ){
       rc = SQLITE_CORRUPT;
       goto finish_scan;
