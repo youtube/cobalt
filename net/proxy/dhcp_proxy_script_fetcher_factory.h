@@ -58,7 +58,7 @@ class NET_API DhcpProxyScriptFetcherFactory {
   // operating system.
   static bool IsSupported();
 
- protected:
+ private:
   bool feature_enabled_;
 
   DISALLOW_COPY_AND_ASSIGN(DhcpProxyScriptFetcherFactory);
