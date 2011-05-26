@@ -8,8 +8,10 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/mac/foundation_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_nsobject.h"
+#include "base/scoped_temp_dir.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -95,26 +97,27 @@ TEST_F(MacUtilTest, TestGetAppBundlePath) {
 }
 
 TEST_F(MacUtilTest, TestExcludeFileFromBackups) {
-  NSString* homeDirectory = NSHomeDirectory();
-  NSString* dummyFilePath =
-      [homeDirectory stringByAppendingPathComponent:@"DummyFile"];
-  const char* dummy_file_path = [dummyFilePath fileSystemRepresentation];
-  ASSERT_TRUE(dummy_file_path);
-  FilePath file_path(dummy_file_path);
-  // It is not actually necessary to have a physical file in order to
-  // set its exclusion property.
-  NSURL* fileURL = [NSURL URLWithString:dummyFilePath];
-  // Reset the exclusion in case it was set previously.
-  SetFileBackupExclusion(file_path, false);
-  Boolean excludeByPath;
+  // The file must already exist in order to set its exclusion property.
+  ScopedTempDir temp_dir_;
+  ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+  FilePath dummy_file_path = temp_dir_.path().Append("DummyFile");
+  const char dummy_data[] = "All your base are belong to us!";
+  // Dump something real into the file.
+  ASSERT_EQ(static_cast<int>(arraysize(dummy_data)),
+      file_util::WriteFile(dummy_file_path, dummy_data, arraysize(dummy_data)));
+  NSString* fileURLString =
+      [NSString stringWithUTF8String:dummy_file_path.value().c_str()];
+  NSURL* fileURL = [NSURL URLWithString:fileURLString];
   // Initial state should be non-excluded.
-  EXPECT_FALSE(CSBackupIsItemExcluded((CFURLRef)fileURL, &excludeByPath));
+  EXPECT_FALSE(CSBackupIsItemExcluded(base::mac::NSToCFCast(fileURL), NULL));
   // Exclude the file.
-  EXPECT_TRUE(SetFileBackupExclusion(file_path, true));
-  EXPECT_TRUE(CSBackupIsItemExcluded((CFURLRef)fileURL, &excludeByPath));
-  // Un-exclude the file.
-  EXPECT_TRUE(SetFileBackupExclusion(file_path, false));
-  EXPECT_FALSE(CSBackupIsItemExcluded((CFURLRef)fileURL, &excludeByPath));
+  EXPECT_TRUE(SetFileBackupExclusion(dummy_file_path));
+  // SetFileBackupExclusion never excludes by path.
+  Boolean excluded_by_path = FALSE;
+  Boolean excluded =
+      CSBackupIsItemExcluded(base::mac::NSToCFCast(fileURL), &excluded_by_path);
+  EXPECT_TRUE(excluded);
+  EXPECT_FALSE(excluded_by_path);
 }
 
 TEST_F(MacUtilTest, TestGetValueFromDictionary) {
