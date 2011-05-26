@@ -77,6 +77,22 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
                        int ystride,
                        int uvstride);
 
+void ConvertRGB24ToYUV(const uint8* rgbframe,
+                       uint8* yplane,
+                       uint8* uplane,
+                       uint8* vplane,
+                       int width,
+                       int height,
+                       int rgbstride,
+                       int ystride,
+                       int uvstride);
+
+void ConvertYUY2ToYUV(const uint8* src,
+                      uint8* yplane,
+                      uint8* uplane,
+                      uint8* vplane,
+                      int width,
+                      int height);
 }  // namespace media
 
 #endif  // MEDIA_BASE_YUV_CONVERT_H_
