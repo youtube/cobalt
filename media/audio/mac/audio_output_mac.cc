@@ -6,6 +6,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
@@ -64,6 +65,8 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
   format_.mBytesPerFrame = format_.mBytesPerPacket;
 
   packet_size_ = params.GetPacketSize();
+  num_source_channels_ = params.channels;
+  source_layout_ = params.channel_layout;
 
   if (params.bits_per_sample > 8) {
     format_.mFormatFlags |= kLinearPCMFormatFlagIsSignedInteger;
@@ -89,9 +92,57 @@ void PCMQueueOutAudioOutputStream::HandleError(OSStatus err) {
 }
 
 bool PCMQueueOutAudioOutputStream::Open() {
+  // Get the default device id.
+  unsigned int device_id = 0;
+  AudioObjectPropertyAddress property_address = {
+      kAudioHardwarePropertyDefaultOutputDevice,
+      kAudioObjectPropertyScopeGlobal,
+      kAudioObjectPropertyElementMaster
+  };
+  UInt32 device_id_size = sizeof(device_id);
+  OSStatus err = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                            &property_address, 0, NULL,
+                                            &device_id_size, &device_id);
+  if (err != noErr) {
+    HandleError(err);
+    return false;
+  }
+  // Get the size of the channel layout.
+  UInt32 core_layout_size;
+  err = AudioDeviceGetPropertyInfo(device_id, 0, false,
+                                   kAudioDevicePropertyPreferredChannelLayout,
+                                   &core_layout_size, NULL);
+  if (err != noErr) {
+    HandleError(err);
+    return false;
+  }
+  // Get the device's channel layout.
+  scoped_ptr<AudioChannelLayout> core_channel_layout;
+  core_channel_layout.reset(
+      reinterpret_cast<AudioChannelLayout*>(new char[core_layout_size]));
+  err = AudioDeviceGetProperty(device_id, 0, false,
+                               kAudioDevicePropertyPreferredChannelLayout,
+                               &core_layout_size, core_channel_layout.get());
+  if (err != noErr) {
+    HandleError(err);
+    return false;
+  }
+
+  num_core_channels_ =
+      static_cast<int>(core_channel_layout->mNumberChannelDescriptions);
+  if (num_core_channels_ == 2 &&
+      ChannelLayoutToChannelCount(source_layout_) > 2) {
+    should_down_mix_ = true;
+    format_.mChannelsPerFrame = num_core_channels_;
+    format_.mBytesPerFrame = (format_.mBitsPerChannel >> 3) *
+        format_.mChannelsPerFrame;
+    format_.mBytesPerPacket = format_.mBytesPerFrame * format_.mFramesPerPacket;
+  } else {
+    should_down_mix_ = false;
+  }
   // Create the actual queue object and let the OS use its own thread to
   // run its CFRunLoop.
-  OSStatus err = AudioQueueNewOutput(&format_, RenderCallback, this, NULL,
+  err = AudioQueueNewOutput(&format_, RenderCallback, this, NULL,
                                      kCFRunLoopCommonModes, 0, &audio_queue_);
   if (err != noErr) {
     HandleError(err);
@@ -113,6 +164,95 @@ bool PCMQueueOutAudioOutputStream::Open() {
     HandleError(err);
     return false;
   }
+
+  // Capture channel layout in a format we can use.
+  for (int i = 0; i < CHANNELS_MAX; ++i)
+    core_channel_orderings_[i] = kEmptyChannel;
+
+  for (int i = 0; i < num_core_channels_; ++i) {
+    switch (core_channel_layout->mChannelDescriptions[i].mChannelLabel) {
+      case kAudioChannelLabel_Left:
+        core_channel_orderings_[LEFT] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][LEFT];
+        break;
+      case kAudioChannelLabel_Right:
+        core_channel_orderings_[RIGHT] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][RIGHT];
+        break;
+      case kAudioChannelLabel_Center:
+        core_channel_orderings_[CENTER] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][CENTER];
+        break;
+      case kAudioChannelLabel_LFEScreen:
+        core_channel_orderings_[LFE] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][LFE];
+        break;
+      case kAudioChannelLabel_LeftSurround:
+        core_channel_orderings_[SIDE_LEFT] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][SIDE_LEFT];
+        break;
+      case kAudioChannelLabel_RightSurround:
+        core_channel_orderings_[SIDE_RIGHT] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][SIDE_RIGHT];
+        break;
+      case kAudioChannelLabel_LeftCenter:
+        core_channel_orderings_[LEFT_OF_CENTER] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][LEFT_OF_CENTER];
+        break;
+      case kAudioChannelLabel_RightCenter:
+        core_channel_orderings_[RIGHT_OF_CENTER] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][RIGHT_OF_CENTER];
+        break;
+      case kAudioChannelLabel_CenterSurround:
+        core_channel_orderings_[BACK_CENTER] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][BACK_CENTER];
+        break;
+      case kAudioChannelLabel_RearSurroundLeft:
+        core_channel_orderings_[BACK_LEFT] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][BACK_LEFT];
+        break;
+      case kAudioChannelLabel_RearSurroundRight:
+        core_channel_orderings_[BACK_RIGHT] = i;
+        channel_remap_[i] = kChannelOrderings[source_layout_][BACK_RIGHT];
+        break;
+      default:
+        DLOG(WARNING) << "Channel label not supported";
+        break;
+    }
+  }
+
+  // Check if we need to adjust the layout.
+  // If the device has a BACK_LEFT and no SIDE_LEFT and the source has
+  // a SIDE_LEFT but no BACK_LEFT, then move (and preserve the channel).
+  // e.g. CHANNEL_LAYOUT_5POINT1 -> CHANNEL_LAYOUT_5POINT1_BACK
+  CheckForAdjustedLayout(SIDE_LEFT, BACK_LEFT);
+  // Same for SIDE_RIGHT -> BACK_RIGHT.
+  CheckForAdjustedLayout(SIDE_RIGHT, BACK_RIGHT);
+  // Move BACK_LEFT to SIDE_LEFT.
+  // e.g. CHANNEL_LAYOUT_5POINT1_BACK -> CHANNEL_LAYOUT_5POINT1
+  CheckForAdjustedLayout(BACK_LEFT, SIDE_LEFT);
+  // Same for BACK_RIGHT -> SIDE_RIGHT.
+  CheckForAdjustedLayout(BACK_RIGHT, SIDE_RIGHT);
+  // Move SIDE_LEFT to LEFT_OF_CENTER.
+  // e.g. CHANNEL_LAYOUT_7POINT1 -> CHANNEL_LAYOUT_7POINT1_WIDE
+  CheckForAdjustedLayout(SIDE_LEFT, LEFT_OF_CENTER);
+  // Same for SIDE_RIGHT -> RIGHT_OF_CENTER.
+  CheckForAdjustedLayout(SIDE_RIGHT, RIGHT_OF_CENTER);
+  // Move LEFT_OF_CENTER to SIDE_LEFT.
+  // e.g. CHANNEL_LAYOUT_7POINT1_WIDE -> CHANNEL_LAYOUT_7POINT1
+  CheckForAdjustedLayout(LEFT_OF_CENTER, SIDE_LEFT);
+  // Same for RIGHT_OF_CENTER -> SIDE_RIGHT.
+  CheckForAdjustedLayout(RIGHT_OF_CENTER, SIDE_RIGHT);
+
+  // Check if we will need to swizzle from source to device layout (maybe not!).
+  should_swizzle_ = false;
+  for (int i = 0; i < num_core_channels_; ++i) {
+    if (kChannelOrderings[source_layout_][i] != core_channel_orderings_[i]) {
+      should_swizzle_ = true;
+      break;
+    }
+  }
+
   return true;
 }
 
@@ -175,21 +315,38 @@ void PCMQueueOutAudioOutputStream::GetVolume(double* volume) {
   *volume = volume_;
 }
 
-// Reorder PCM from AAC layout to Core Audio layout.
-// TODO(fbarchard): Switch layout when ffmpeg is updated.
 template<class Format>
-static void SwizzleLayout(Format* b, uint32 filled) {
-  static const int kNumSurroundChannels = 6;
-  Format aac[kNumSurroundChannels];
-  for (uint32 i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
-    memcpy(aac, b, sizeof(aac));
-    b[0] = aac[1];  // L
-    b[1] = aac[2];  // R
-    b[2] = aac[0];  // C
-    b[3] = aac[5];  // LFE
-    b[4] = aac[3];  // Ls
-    b[5] = aac[4];  // Rs
+void PCMQueueOutAudioOutputStream::SwizzleLayout(Format* b, uint32 filled) {
+  Format src_format[num_source_channels_];
+  int filled_channels = (num_core_channels_ < num_source_channels_) ?
+                        num_core_channels_ : num_source_channels_;
+  for (uint32 i = 0; i < filled; i += sizeof(src_format),
+      b += num_source_channels_) {
+    // TODO(fbarchard): This could be further optimized with pshufb.
+    memcpy(src_format, b, sizeof(src_format));
+    for (int ch = 0; ch < filled_channels; ++ch) {
+      if (channel_remap_[ch] != kEmptyChannel &&
+          channel_remap_[ch] <= CHANNELS_MAX) {
+        b[ch] = src_format[channel_remap_[ch]];
+      } else {
+        b[ch] = 0;
+      }
+    }
   }
+}
+
+bool PCMQueueOutAudioOutputStream::CheckForAdjustedLayout(
+    Channels input_channel,
+    Channels output_channel) {
+  if (core_channel_orderings_[output_channel] > kEmptyChannel &&
+      core_channel_orderings_[input_channel] == kEmptyChannel &&
+      kChannelOrderings[source_layout_][input_channel] > kEmptyChannel &&
+      kChannelOrderings[source_layout_][output_channel] == kEmptyChannel) {
+    channel_remap_[core_channel_orderings_[output_channel]] =
+        kChannelOrderings[source_layout_][input_channel];
+    return true;
+  }
+  return false;
 }
 
 // Note to future hackers of this function: Do not add locks here because we
@@ -240,14 +397,28 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
     static_cast<AudioQueueUserData*>(buffer->mUserData)->empty_buffer = false;
   }
 
-  // Handle channel order for 5.1 audio.
-  if (audio_stream->format_.mChannelsPerFrame == 6) {
+  if (audio_stream->should_down_mix_) {
+    // Downmixes the L, R, C channels to stereo.
+    if (media::FoldChannels(buffer->mAudioData,
+                            filled,
+                            audio_stream->num_source_channels_,
+                            audio_stream->format_.mBitsPerChannel >> 3,
+                            audio_stream->volume_)) {
+      filled = filled * 2 / audio_stream->num_source_channels_;
+    } else {
+      LOG(ERROR) << "Folding failed";
+    }
+  } else if (audio_stream->should_swizzle_) {
+    // Handle channel order for surround sound audio.
     if (audio_stream->format_.mBitsPerChannel == 8) {
-      SwizzleLayout(reinterpret_cast<uint8*>(buffer->mAudioData), filled);
+      audio_stream->SwizzleLayout(reinterpret_cast<uint8*>(buffer->mAudioData),
+                                  filled);
     } else if (audio_stream->format_.mBitsPerChannel == 16) {
-      SwizzleLayout(reinterpret_cast<int16*>(buffer->mAudioData), filled);
+      audio_stream->SwizzleLayout(reinterpret_cast<int16*>(buffer->mAudioData),
+                                  filled);
     } else if (audio_stream->format_.mBitsPerChannel == 32) {
-      SwizzleLayout(reinterpret_cast<int32*>(buffer->mAudioData), filled);
+      audio_stream->SwizzleLayout(reinterpret_cast<int32*>(buffer->mAudioData),
+                                  filled);
     }
   }
 
