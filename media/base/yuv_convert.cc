@@ -374,4 +374,25 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
                rgbstride, ystride, uvstride);
 }
 
+void ConvertRGB24ToYUV(const uint8* rgbframe,
+                       uint8* yplane,
+                       uint8* uplane,
+                       uint8* vplane,
+                       int width,
+                       int height,
+                       int rgbstride,
+                       int ystride,
+                       int uvstride) {
+  ConvertRGB24ToYUV_C(rgbframe, yplane, uplane, vplane, width, height,
+                      rgbstride, ystride, uvstride);
+}
+
+void ConvertYUY2ToYUV(const uint8* src,
+                      uint8* yplane,
+                      uint8* uplane,
+                      uint8* vplane,
+                      int width,
+                      int height) {
+  ConvertYUY2ToYUV_C(src, yplane, uplane, vplane, width, height);
+}
 }  // namespace media
