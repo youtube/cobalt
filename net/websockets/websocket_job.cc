@@ -53,9 +53,16 @@ static base::LazyInstance<WebSocketJobInitSingleton> g_websocket_job_init(
 
 namespace net {
 
+bool WebSocketJob::websocket_over_spdy_enabled_ = false;
+
 // static
 void WebSocketJob::EnsureInit() {
   g_websocket_job_init.Get();
+}
+
+// static
+void WebSocketJob::set_websocket_over_spdy_enabled(bool enabled) {
+  websocket_over_spdy_enabled_ = enabled;
 }
 
 WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
