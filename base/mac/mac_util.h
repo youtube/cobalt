@@ -77,8 +77,8 @@ bool ShouldWindowsMiniaturizeOnDoubleClick();
 // Activates the process with the given PID.
 void ActivateProcess(pid_t pid);
 
-// Set the Time Machine exclusion property for the given file.
-bool SetFileBackupExclusion(const FilePath& file_path, bool exclude);
+// Excludes the file given by |file_path| from being backed up by Time Machine.
+bool SetFileBackupExclusion(const FilePath& file_path);
 
 // Sets the process name as displayed in Activity Monitor to process_name.
 void SetProcessName(CFStringRef process_name);
