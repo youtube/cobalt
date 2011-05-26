@@ -93,6 +93,49 @@ HostCache* CreateDefaultCache() {
   return cache;
 }
 
+// Gets a list of the likely error codes that getaddrinfo() can return
+// (non-exhaustive). These are the error codes that we will track via
+// a histogram.
+std::vector<int> GetAllGetAddrinfoOSErrors() {
+  int os_errors[] = {
+#if defined(OS_POSIX)
+    EAI_ADDRFAMILY,
+    EAI_AGAIN,
+    EAI_BADFLAGS,
+    EAI_FAIL,
+    EAI_FAMILY,
+    EAI_MEMORY,
+    EAI_NODATA,
+    EAI_NONAME,
+    EAI_SERVICE,
+    EAI_SOCKTYPE,
+    EAI_SYSTEM,
+#elif defined(OS_WIN)
+    // See: http://msdn.microsoft.com/en-us/library/ms738520(VS.85).aspx
+    WSA_NOT_ENOUGH_MEMORY,
+    WSAEAFNOSUPPORT,
+    WSAEINVAL,
+    WSAESOCKTNOSUPPORT,
+    WSAHOST_NOT_FOUND,
+    WSANO_DATA,
+    WSANO_RECOVERY,
+    WSANOTINITIALISED,
+    WSATRY_AGAIN,
+    WSATYPE_NOT_FOUND,
+    // The following are not in doc, but might be to appearing in results :-(.
+    WSA_INVALID_HANDLE,
+#endif
+  };
+
+  // Ensure all errors are positive, as histogram only tracks positive values.
+  for (size_t i = 0; i < arraysize(os_errors); ++i) {
+    os_errors[i] = std::abs(os_errors[i]);
+  }
+
+  return base::CustomHistogram::ArrayToCustomRanges(os_errors,
+                                                    arraysize(os_errors));
+}
+
 }  // anonymous namespace
 
 // static
@@ -226,52 +269,6 @@ class JobCreationParameters : public NetLog::EventParameters {
   const std::string host_;
   const NetLog::Source source_;
 };
-
-// Gets a list of the likely error codes that getaddrinfo() can return
-// (non-exhaustive). These are the error codes that we will track via
-// a histogram.
-std::vector<int> GetAllGetAddrinfoOSErrors() {
-  int os_errors[] = {
-#if defined(OS_POSIX)
-    EAI_ADDRFAMILY,
-    EAI_AGAIN,
-    EAI_BADFLAGS,
-    EAI_FAIL,
-    EAI_FAMILY,
-    EAI_MEMORY,
-    EAI_NODATA,
-    EAI_NONAME,
-    EAI_SERVICE,
-    EAI_SOCKTYPE,
-    EAI_SYSTEM,
-#elif defined(OS_WIN)
-    // See: http://msdn.microsoft.com/en-us/library/ms738520(VS.85).aspx
-    WSA_NOT_ENOUGH_MEMORY,
-    WSAEAFNOSUPPORT,
-    WSAEINVAL,
-    WSAESOCKTNOSUPPORT,
-    WSAHOST_NOT_FOUND,
-    WSANO_DATA,
-    WSANO_RECOVERY,
-    WSANOTINITIALISED,
-    WSATRY_AGAIN,
-    WSATYPE_NOT_FOUND,
-    // The following are not in doc, but might be to appearing in results :-(.
-    WSA_INVALID_HANDLE,
-#endif
-  };
-
-  // Histogram enumerations require positive numbers.
-  std::vector<int> errors;
-  for (size_t i = 0; i < arraysize(os_errors); ++i) {
-    errors.push_back(std::abs(os_errors[i]));
-    // Also add N+1 for each error, so the bucket that contains our expected
-    // error is of size 1. That way if we get unexpected error codes, they
-    // won't fall into the same buckets as the expected ones.
-    errors.push_back(std::abs(os_errors[i]) + 1);
-  }
-  return errors;
-}
 
 //-----------------------------------------------------------------------------
 
