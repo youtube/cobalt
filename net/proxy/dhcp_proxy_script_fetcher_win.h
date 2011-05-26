@@ -44,17 +44,22 @@ class NET_TEST DhcpProxyScriptFetcherWin
   static bool GetCandidateAdapterNames(std::set<std::string>* adapter_names);
 
  protected:
-  // Event/state transition handlers
-  void CancelImpl();
-  void OnFetcherDone(int result);
-  void OnWaitTimer();
-  void TransitionToDone();
+  int num_pending_fetchers() const;
+
+  URLRequestContext* url_request_context() const;
 
   // Virtual methods introduced to allow unit testing.
   virtual DhcpProxyScriptAdapterFetcher* ImplCreateAdapterFetcher();
   virtual bool ImplGetCandidateAdapterNames(
       std::set<std::string>* adapter_names);
   virtual int ImplGetMaxWaitMs();
+
+ private:
+  // Event/state transition handlers
+  void CancelImpl();
+  void OnFetcherDone(int result);
+  void OnWaitTimer();
+  void TransitionToDone();
 
   // This is the outer state machine for fetching PAC configuration from
   // DHCP.  It relies for sub-states on the state machine of the
@@ -116,9 +121,6 @@ class NET_TEST DhcpProxyScriptFetcherWin
   base::OneShotTimer<DhcpProxyScriptFetcherWin> wait_timer_;
 
   scoped_refptr<URLRequestContext> url_request_context_;
-
- private:
-  // TODO(joi): Move other members to private as appropriate.
 
   // Time |Fetch()| was last called, 0 if never.
   base::TimeTicks fetch_start_time_;

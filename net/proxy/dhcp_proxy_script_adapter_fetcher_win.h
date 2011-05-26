@@ -78,6 +78,35 @@ class NET_TEST DhcpProxyScriptAdapterFetcher
   static std::string GetPacURLFromDhcp(const std::string& adapter_name);
 
  protected:
+  // This is the state machine for fetching from a given adapter.
+  //
+  // The state machine goes from START->WAIT_DHCP when it starts
+  // a worker thread to fetch the PAC URL from DHCP.
+  //
+  // In state WAIT_DHCP, if the DHCP query finishes and has no URL, it
+  // moves to state FINISH.  If there is a URL, it starts a
+  // ProxyScriptFetcher to fetch it and moves to state WAIT_URL.
+  //
+  // It goes from WAIT_URL->FINISH when the ProxyScriptFetcher completes.
+  //
+  // In state FINISH, completion is indicated to the outer class, with
+  // the results of the fetch if a PAC script was successfully fetched.
+  //
+  // In state WAIT_DHCP, our timeout occurring can push us to FINISH.
+  //
+  // In any state except FINISH, a call to Cancel() will move to state
+  // CANCEL and cause all outstanding work to be cancelled or its
+  // results ignored when available.
+  enum State {
+    STATE_START,
+    STATE_WAIT_DHCP,
+    STATE_WAIT_URL,
+    STATE_FINISH,
+    STATE_CANCEL,
+  };
+
+  State state() const;
+
   // This inner class is used to encapsulate the worker thread, which has
   // only a weak reference back to the main object, so that the main object
   // can be destroyed before the thread ends.  This also keeps the main
@@ -122,44 +151,18 @@ class NET_TEST DhcpProxyScriptAdapterFetcher
     DISALLOW_COPY_AND_ASSIGN(WorkerThread);
   };
 
-  // Event/state transition handlers
-  void OnQueryDhcpDone(const std::string& url);
-  void OnTimeout();
-  void OnFetcherDone(int result);
-  void TransitionToFinish();
-
   // Virtual methods introduced to allow unit testing.
   virtual ProxyScriptFetcher* ImplCreateScriptFetcher();
   virtual WorkerThread* ImplCreateWorkerThread(
       const base::WeakPtr<DhcpProxyScriptAdapterFetcher>& owner);
   virtual base::TimeDelta ImplGetTimeout() const;
 
-  // This is the state machine for fetching from a given adapter.
-  //
-  // The state machine goes from START->WAIT_DHCP when it starts
-  // a worker thread to fetch the PAC URL from DHCP.
-  //
-  // In state WAIT_DHCP, if the DHCP query finishes and has no URL, it
-  // moves to state FINISH.  If there is a URL, it starts a
-  // ProxyScriptFetcher to fetch it and moves to state WAIT_URL.
-  //
-  // It goes from WAIT_URL->FINISH when the ProxyScriptFetcher completes.
-  //
-  // In state FINISH, completion is indicated to the outer class, with
-  // the results of the fetch if a PAC script was successfully fetched.
-  //
-  // In state WAIT_DHCP, our timeout occurring can push us to FINISH.
-  //
-  // In any state except FINISH, a call to Cancel() will move to state
-  // CANCEL and cause all outstanding work to be cancelled or its
-  // results ignored when available.
-  enum State {
-    STATE_START,
-    STATE_WAIT_DHCP,
-    STATE_WAIT_URL,
-    STATE_FINISH,
-    STATE_CANCEL,
-  };
+ private:
+  // Event/state transition handlers
+  void OnQueryDhcpDone(const std::string& url);
+  void OnTimeout();
+  void OnFetcherDone(int result);
+  void TransitionToFinish();
 
   // Current state of this state machine.
   State state_;
