@@ -525,6 +525,7 @@ void Histogram::Accumulate(Sample value, Count count, size_t index) {
 
 void Histogram::SetBucketRange(size_t i, Sample value) {
   DCHECK_GT(bucket_count_, i);
+  DCHECK_GE(value, 0);
   ranges_[i] = value;
 }
 
