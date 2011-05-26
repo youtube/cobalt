@@ -24,7 +24,7 @@ class StaticCookiePolicyTest : public testing::Test {
     return policy_.CanGetCookies(url, first_party);
   }
   int CanSetCookie(const GURL& url, const GURL& first_party) {
-    return policy_.CanSetCookie(url, first_party, std::string());
+    return policy_.CanSetCookie(url, first_party);
   }
  protected:
   StaticCookiePolicy policy_;
