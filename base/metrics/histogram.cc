@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <string>
 
+#include "base/debug/leak_annotations.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "base/stringprintf.h"
@@ -101,6 +102,7 @@ Histogram* Histogram::FactoryGet(const std::string& name,
 
   DCHECK_EQ(HISTOGRAM, histogram->histogram_type());
   DCHECK(histogram->HasConstructorArguments(minimum, maximum, bucket_count));
+  ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
   return histogram;
 }
 
@@ -794,6 +796,7 @@ Histogram* LinearHistogram::FactoryGet(const std::string& name,
 
   DCHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
   DCHECK(histogram->HasConstructorArguments(minimum, maximum, bucket_count));
+  ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
   return histogram;
 }
 
@@ -884,6 +887,7 @@ Histogram* BooleanHistogram::FactoryGet(const std::string& name, Flags flags) {
   }
 
   DCHECK_EQ(BOOLEAN_HISTOGRAM, histogram->histogram_type());
+  ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
   return histogram;
 }
 
@@ -933,6 +937,7 @@ Histogram* CustomHistogram::FactoryGet(const std::string& name,
   DCHECK_EQ(histogram->histogram_type(), CUSTOM_HISTOGRAM);
   DCHECK(histogram->HasConstructorArguments(ranges[1], ranges.back(),
                                             ranges.size()));
+  ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
   return histogram;
 }
 
