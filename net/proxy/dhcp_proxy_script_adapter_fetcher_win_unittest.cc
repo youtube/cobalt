@@ -107,11 +107,11 @@ class MockDhcpProxyScriptAdapterFetcher
   }
 
   bool IsWaitingForFetcher() const {
-    return state_ == STATE_WAIT_URL;
+    return state() == STATE_WAIT_URL;
   }
 
   bool WasCancelled() const {
-    return state_ == STATE_CANCEL;
+    return state() == STATE_CANCEL;
   }
 
   void FinishTest() {

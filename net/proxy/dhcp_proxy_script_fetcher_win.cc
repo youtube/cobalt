@@ -221,6 +221,14 @@ void DhcpProxyScriptFetcherWin::TransitionToDone() {
   client_callback_->Run(result);
 }
 
+int DhcpProxyScriptFetcherWin::num_pending_fetchers() const {
+  return num_pending_fetchers_;
+}
+
+URLRequestContext* DhcpProxyScriptFetcherWin::url_request_context() const {
+  return url_request_context_;
+}
+
 DhcpProxyScriptAdapterFetcher*
     DhcpProxyScriptFetcherWin::ImplCreateAdapterFetcher() {
   return new DhcpProxyScriptAdapterFetcher(url_request_context_);
