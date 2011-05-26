@@ -86,11 +86,6 @@ class NET_TEST URLRequestJobFactory
   URLRequestJob* MaybeCreateJobWithProtocolHandler(const std::string& scheme,
                                                    URLRequest* request) const;
 
-  URLRequestJob* MaybeInterceptRedirect(const GURL& location,
-                                        URLRequest* request) const;
-
-  URLRequestJob* MaybeInterceptResponse(URLRequest* request) const;
-
   bool IsHandledProtocol(const std::string& scheme) const;
 
   bool IsHandledURL(const GURL& url) const;
