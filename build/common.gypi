@@ -129,6 +129,9 @@
       # currently only works on Linux.
       'use_third_party_translations%': 0,
 
+      # Enable the Manage Handlers section in the settings page.
+      'enable_register_protocol_handler%': 0,
+
       # Remoting compilation is enabled by default. Set to 0 to disable.
       'remoting%': 1,
 
@@ -228,6 +231,7 @@
     'remoting%': '<(remoting)',
     'p2p_apis%': '<(p2p_apis)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
+    'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
@@ -575,7 +579,11 @@
         'use_ibus%': 1,
       }, {
         'use_ibus%': 0,
-      }]
+      }],
+
+      ['enable_register_protocol_handler==1', {
+        'grit_defines': ['-D', 'enable_register_protocol_handler'],
+      }],
     ],
   },
   'target_defaults': {
@@ -760,6 +768,11 @@
           '<(DEPTH)/third_party/wtl/include',
         ],
       }],  # OS==win
+      ['enable_register_protocol_handler==1', {
+        'defines': [
+          'ENABLE_REGISTER_PROTOCOL_HANDLER',
+        ],
+      }],
     ],  # conditions for 'target_defaults'
     'target_conditions': [
       ['chromium_code==0', {
