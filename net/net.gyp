@@ -668,7 +668,7 @@
       'conditions': [
         ['OS=="cell_lv2"', {
           'dependencies': [
-            '../../openssl/openssl.gyp:libssl'
+            '../../openssl/openssl.gyp:openssl'
           ]
         }, { # os is not CellLv2
           'dependencies': [
