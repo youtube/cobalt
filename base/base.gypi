@@ -34,8 +34,6 @@
           'base_paths_linux.cc',
           'base_paths_win.cc',
           'base_paths_win.h',
-          'base_switches.cc',
-          'base_switches.h',
           'basictypes.h',
           'bind.h',
           'bind_helpers.h',
@@ -436,7 +434,11 @@
         'base_target': 1,
       },
       'dependencies': [
+        'base_static',
         '../third_party/modp_b64/modp_b64.gyp:modp_b64',
+        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+      ],
+      'export_dependent_settings': [
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
       # TODO(gregoryd): direct_dependent_settings should be shared with the
@@ -518,21 +520,18 @@
             ],
           },
         }],
-        [ 'OS == "win"', {
-          'dependencies': ['base_static'],
-        },
-        {  # else OS != WIN
-          'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
-          'sources!': [
-            'third_party/purify/pure_api.c',
-            'event_recorder.cc',
-            'resource_util.cc',
-          ],
+        [ 'OS != "win"', {
+            'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
+            'sources!': [
+              'third_party/purify/pure_api.c',
+              'event_recorder.cc',
+              'resource_util.cc',
+            ],
         },],
         [ 'component=="shared_library"', {
           'defines': [
             'BASE_DLL',
-            'BASE_IMPLEMENTATION',
+            'BASE_IMPLEMENTATION=1',
           ],
           'conditions': [
             ['OS=="win"', {
