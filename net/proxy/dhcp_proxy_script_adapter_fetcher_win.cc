@@ -210,6 +210,11 @@ void DhcpProxyScriptAdapterFetcher::TransitionToFinish() {
   callback->Run(result_);
 }
 
+DhcpProxyScriptAdapterFetcher::State
+    DhcpProxyScriptAdapterFetcher::state() const {
+  return state_;
+}
+
 ProxyScriptFetcher* DhcpProxyScriptAdapterFetcher::ImplCreateScriptFetcher() {
   return new ProxyScriptFetcherImpl(url_request_context_);
 }

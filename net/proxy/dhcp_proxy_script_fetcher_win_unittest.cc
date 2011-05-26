@@ -185,7 +185,7 @@ class DelayingDhcpProxyScriptFetcherWin
   }
 
   DhcpProxyScriptAdapterFetcher* ImplCreateAdapterFetcher() OVERRIDE {
-    return new DelayingDhcpProxyScriptAdapterFetcher(url_request_context_);
+    return new DelayingDhcpProxyScriptAdapterFetcher(url_request_context());
   }
 };
 
@@ -311,7 +311,7 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
   }
 
   bool HasPendingFetchers() {
-    return num_pending_fetchers_ > 0;
+    return num_pending_fetchers() > 0;
   }
 
   int next_adapter_fetcher_index_;
