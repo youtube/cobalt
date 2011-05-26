@@ -1,9 +1,10 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/base_paths_mac.h"
 
+#include <dlfcn.h>
 #import <Foundation/Foundation.h>
 #include <mach-o/dyld.h>
 
@@ -37,6 +38,19 @@ bool GetNSExecutablePath(FilePath* path) {
   return true;
 }
 
+// Returns true if the module for |address| is found. |path| will contain
+// the path to the module. Note that |path| may not be absolute.
+bool GetModulePathForAddress(FilePath* path,
+                             const void* address) WARN_UNUSED_RESULT;
+
+bool GetModulePathForAddress(FilePath* path, const void* address) {
+  Dl_info info;
+  if (dladdr(address, &info) == 0)
+    return false;
+  *path = FilePath(info.dli_fname);
+  return true;
+}
+
 }  // namespace
 
 namespace base {
@@ -44,9 +58,10 @@ namespace base {
 bool PathProviderMac(int key, FilePath* result) {
   switch (key) {
     case base::FILE_EXE:
-    case base::FILE_MODULE: {
       return GetNSExecutablePath(result);
-    }
+    case base::FILE_MODULE:
+      return GetModulePathForAddress(result,
+          reinterpret_cast<const void*>(&base::PathProviderMac));
     case base::DIR_CACHE:
       return base::mac::GetUserDirectory(NSCachesDirectory, result);
     case base::DIR_APP_DATA:
