@@ -146,7 +146,7 @@
         }],
 
         # Flags to use Gtk and X11 on non-Mac POSIX platforms
-        ['OS=="win" or OS=="mac"', {
+        ['OS=="win" or OS=="mac" or OS=="cell_lv2"', {
           'toolkit_uses_gtk%': 0,
           'use_x11%': 0,
         }, {
