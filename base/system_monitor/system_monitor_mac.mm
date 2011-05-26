@@ -46,6 +46,8 @@ void SystemMonitor::PlatformInit() {
       this, &notification_port_ref_, SystemPowerEventCallback,
       &notifier_object_);
   DCHECK_NE(g_system_power_io_port, 0u);
+  if (g_system_power_io_port == 0)
+    return;
 
   // Add the notification port to the application runloop
   CFRunLoopAddSource(CFRunLoopGetCurrent(),
@@ -55,6 +57,8 @@ void SystemMonitor::PlatformInit() {
 
 void SystemMonitor::PlatformDestroy() {
   DCHECK_NE(g_system_power_io_port, 0u);
+  if (g_system_power_io_port == 0)
+    return;
 
   // Remove the sleep notification port from the application runloop
   CFRunLoopRemoveSource(
