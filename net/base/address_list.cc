@@ -22,6 +22,52 @@ char* do_strdup(const char* src) {
 #endif
 }
 
+struct addrinfo* CreateAddrInfo(const IPAddressNumber& address,
+                                bool canonicalize_name) {
+  struct addrinfo* ai = new addrinfo;
+  memset(ai, 0, sizeof(addrinfo));
+  ai->ai_socktype = SOCK_STREAM;
+
+  switch (address.size()) {
+    case kIPv4AddressSize: {
+      ai->ai_family = AF_INET;
+      const size_t sockaddr_in_size = sizeof(struct sockaddr_in);
+      ai->ai_addrlen = sockaddr_in_size;
+
+      struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(
+          new char[sockaddr_in_size]);
+      memset(addr, 0, sockaddr_in_size);
+      addr->sin_family = AF_INET;
+      memcpy(&addr->sin_addr, &address[0], kIPv4AddressSize);
+      ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr);
+      break;
+    }
+    case kIPv6AddressSize: {
+      ai->ai_family = AF_INET6;
+      const size_t sockaddr_in6_size = sizeof(struct sockaddr_in6);
+      ai->ai_addrlen = sockaddr_in6_size;
+
+      struct sockaddr_in6* addr6 = reinterpret_cast<struct sockaddr_in6*>(
+          new char[sockaddr_in6_size]);
+      memset(addr6, 0, sockaddr_in6_size);
+      addr6->sin6_family = AF_INET6;
+      memcpy(&addr6->sin6_addr, &address[0], kIPv6AddressSize);
+      ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr6);
+      break;
+    }
+    default: {
+      NOTREACHED() << "Bad IP address";
+      break;
+    }
+  }
+
+  if (canonicalize_name) {
+    std::string name = NetAddressToString(ai);
+    ai->ai_canonname = do_strdup(name.c_str());
+  }
+  return ai;
+}
+
 }  // namespace
 
 struct AddressList::Data : public base::RefCountedThreadSafe<Data> {
@@ -58,6 +104,28 @@ AddressList& AddressList::operator=(const AddressList& addresslist) {
 }
 
 // static
+AddressList AddressList::CreateFromIPAddressList(
+    const std::vector<IPAddressNumber>& addresses,
+    uint16 port) {
+  DCHECK(!addresses.empty());
+  struct addrinfo* head = NULL;
+  struct addrinfo* next = NULL;
+
+  for (std::vector<IPAddressNumber>::const_iterator it = addresses.begin();
+       it != addresses.end(); ++it) {
+    if (head == NULL) {
+      head = next = CreateAddrInfo(*it, false);
+    } else {
+      next->ai_next = CreateAddrInfo(*it, false);
+      next = next->ai_next;
+    }
+  }
+
+  SetPortForAllAddrinfos(head, port);
+  return AddressList(new Data(head, false));
+}
+
+// static
 AddressList AddressList::CreateFromIPAddress(
       const IPAddressNumber& address,
       uint16 port) {
@@ -69,47 +137,8 @@ AddressList AddressList::CreateFromIPAddressWithCname(
     const IPAddressNumber& address,
     uint16 port,
     bool canonicalize_name) {
-  struct addrinfo* ai = new addrinfo;
-  memset(ai, 0, sizeof(addrinfo));
-  ai->ai_socktype = SOCK_STREAM;
+  struct addrinfo* ai = CreateAddrInfo(address, canonicalize_name);
 
-  switch (address.size()) {
-    case 4: {
-      ai->ai_family = AF_INET;
-      const size_t sockaddr_in_size = sizeof(struct sockaddr_in);
-      ai->ai_addrlen = sockaddr_in_size;
-
-      struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(
-          new char[sockaddr_in_size]);
-      memset(addr, 0, sockaddr_in_size);
-      addr->sin_family = AF_INET;
-      memcpy(&addr->sin_addr, &address[0], 4);
-      ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr);
-      break;
-    }
-    case 16: {
-      ai->ai_family = AF_INET6;
-      const size_t sockaddr_in6_size = sizeof(struct sockaddr_in6);
-      ai->ai_addrlen = sockaddr_in6_size;
-
-      struct sockaddr_in6* addr6 = reinterpret_cast<struct sockaddr_in6*>(
-          new char[sockaddr_in6_size]);
-      memset(addr6, 0, sockaddr_in6_size);
-      addr6->sin6_family = AF_INET6;
-      memcpy(&addr6->sin6_addr, &address[0], 16);
-      ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr6);
-      break;
-    }
-    default: {
-      NOTREACHED() << "Bad IP address";
-      break;
-    }
-  }
-
-  if (canonicalize_name) {
-    std::string name = NetAddressToString(ai);
-    ai->ai_canonname = do_strdup(name.c_str());
-  }
   SetPortForAllAddrinfos(ai, port);
   return AddressList(new Data(ai, false /*is_system_created*/));
 }
