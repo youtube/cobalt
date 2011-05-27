@@ -70,36 +70,6 @@ void SetTCPKeepAlive(int fd) {
 #endif
 }
 
-// Sets socket parameters. Returns the OS error code (or 0 on
-// success).
-int SetupSocket(int socket) {
-  if (SetNonBlocking(socket))
-    return errno;
-
-  // This mirrors the behaviour on Windows. See the comment in
-  // tcp_client_socket_win.cc after searching for "NODELAY".
-  DisableNagle(socket);  // If DisableNagle fails, we don't care.
-  SetTCPKeepAlive(socket);
-
-  return 0;
-}
-
-// Creates a new socket and sets default parameters for it. Returns
-// the OS error code (or 0 on success).
-int CreateSocket(int family, int* socket) {
-  *socket = ::socket(family, SOCK_STREAM, IPPROTO_TCP);
-  if (*socket == kInvalidSocket)
-    return errno;
-  int error = SetupSocket(*socket);
-  if (error) {
-    if (HANDLE_EINTR(close(*socket)) < 0)
-      PLOG(ERROR) << "close";
-    *socket = kInvalidSocket;
-    return error;
-  }
-  return 0;
-}
-
 int MapConnectError(int os_error) {
   switch (os_error) {
     case EACCES:
@@ -130,7 +100,6 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(
     net::NetLog* net_log,
     const net::NetLog::Source& source)
     : socket_(kInvalidSocket),
-      bound_socket_(kInvalidSocket),
       addresses_(addresses),
       current_ai_(NULL),
       read_watcher_(this),
@@ -157,53 +126,16 @@ TCPClientSocketLibevent::~TCPClientSocketLibevent() {
   net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
 }
 
-int TCPClientSocketLibevent::AdoptSocket(int socket) {
+void TCPClientSocketLibevent::AdoptSocket(int socket) {
   DCHECK_EQ(socket_, kInvalidSocket);
-
-  int error = SetupSocket(socket);
-  if (error)
-    return MapSystemError(error);
-
   socket_ = socket;
-
-  // This is to make GetPeerAddress() work. It's up to the caller ensure
-  // that |address_| contains a reasonable address for this
-  // socket. (i.e. at least match IPv4 vs IPv6!).
+  int error = SetupSocket();
+  DCHECK_EQ(0, error);
+  // This is to make GetPeerAddress work. It's up to the test that is calling
+  // this function to ensure that address_ contains a reasonable address for
+  // this socket. (i.e. at least match IPv4 vs IPv6!).
   current_ai_ = addresses_.head();
   use_history_.set_was_ever_connected();
-
-  return OK;
-}
-
-int TCPClientSocketLibevent::Bind(const IPEndPoint& address) {
-  if (current_ai_ != NULL || bind_address_.get()) {
-    // Cannot bind the socket if we are already bound connected or
-    // connecting.
-    return ERR_UNEXPECTED;
-  }
-
-  sockaddr_storage addr_storage;
-  sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  size_t addr_len;
-  if (!address.ToSockAddr(addr, &addr_len))
-    return ERR_INVALID_ARGUMENT;
-
-  // Create |bound_socket_| and try to bound it to |address|.
-  int error = CreateSocket(address.GetFamily(), &bound_socket_);
-  if (error)
-    return MapSystemError(error);
-
-  if (HANDLE_EINTR(bind(bound_socket_, addr, addr_len))) {
-    error = errno;
-    if (HANDLE_EINTR(close(bound_socket_)) < 0)
-      PLOG(ERROR) << "close";
-    bound_socket_ = kInvalidSocket;
-    return MapSystemError(error);
-  }
-
-  bind_address_.reset(new IPEndPoint(address));
-
-  return 0;
 }
 
 int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
@@ -280,26 +212,10 @@ int TCPClientSocketLibevent::DoConnect() {
 
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
-  if (bound_socket_ != kInvalidSocket) {
-    DCHECK(bind_address_.get());
-    socket_ = bound_socket_;
-    bound_socket_ = kInvalidSocket;
-  } else {
-    // Create a non-blocking socket.
-    connect_os_error_ = CreateSocket(current_ai_->ai_family, &socket_);
-    if (connect_os_error_)
-      return MapSystemError(connect_os_error_);
-
-    if (bind_address_.get()) {
-      sockaddr_storage addr_storage;
-      sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-      size_t addr_len;
-      if (!bind_address_->ToSockAddr(addr, &addr_len))
-        return ERR_INVALID_ARGUMENT;
-      if (HANDLE_EINTR(bind(socket_, addr, addr_len)))
-        return MapSystemError(errno);
-    }
-  }
+  // Create a non-blocking socket.
+  connect_os_error_ = CreateSocket(current_ai_);
+  if (connect_os_error_)
+    return MapSystemError(connect_os_error_);
 
   // Connect the socket.
   if (!use_tcp_fastopen_) {
@@ -542,6 +458,30 @@ bool TCPClientSocketLibevent::SetSendBufferSize(int32 size) {
       sizeof(size));
   DCHECK(!rv) << "Could not set socket send buffer size: " << errno;
   return rv == 0;
+}
+
+
+int TCPClientSocketLibevent::CreateSocket(const addrinfo* ai) {
+  socket_ = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+  if (socket_ == kInvalidSocket)
+    return errno;
+  return SetupSocket();
+}
+
+int TCPClientSocketLibevent::SetupSocket() {
+  if (SetNonBlocking(socket_)) {
+    const int err = errno;
+    close(socket_);
+    socket_ = kInvalidSocket;
+    return err;
+  }
+
+  // This mirrors the behaviour on Windows. See the comment in
+  // tcp_client_socket_win.cc after searching for "NODELAY".
+  DisableNagle(socket_);  // If DisableNagle fails, we don't care.
+  SetTCPKeepAlive(socket_);
+
+  return 0;
 }
 
 void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
