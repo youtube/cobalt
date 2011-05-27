@@ -26,24 +26,11 @@ class TCPServerSocketTest : public PlatformTest {
       : socket_(NULL, NetLog::Source()) {
   }
 
-  void SetUpIPv4() {
+  void SetUp() OVERRIDE {
     IPEndPoint address;
     ParseAddress("127.0.0.1", 0, &address);
     ASSERT_EQ(OK, socket_.Listen(address, kListenBacklog));
     ASSERT_EQ(OK, socket_.GetLocalAddress(&local_address_));
-  }
-
-  void SetUpIPv6(bool* success) {
-    IPEndPoint address;
-    ParseAddress("::1", 0, &address);
-    if (socket_.Listen(address, kListenBacklog) != 0) {
-      LOG(ERROR) << "Failed to listen on ::1 - probably because IPv6 is "
-          "disabled. Skipping the test";
-      *success = false;
-      return;
-    }
-    ASSERT_EQ(OK, socket_.GetLocalAddress(&local_address_));
-    *success = true;
   }
 
   void ParseAddress(std::string ip_str, int port, IPEndPoint* address) {
@@ -73,8 +60,6 @@ class TCPServerSocketTest : public PlatformTest {
 };
 
 TEST_F(TCPServerSocketTest, Accept) {
-  ASSERT_NO_FATAL_FAILURE(SetUpIPv4());
-
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(),
                                     NULL, NetLog::Source());
@@ -98,8 +83,6 @@ TEST_F(TCPServerSocketTest, Accept) {
 
 // Test Accept() callback.
 TEST_F(TCPServerSocketTest, AcceptAsync) {
-  ASSERT_NO_FATAL_FAILURE(SetUpIPv4());
-
   TestCompletionCallback accept_callback;
   scoped_ptr<StreamSocket> accepted_socket;
 
@@ -122,8 +105,6 @@ TEST_F(TCPServerSocketTest, AcceptAsync) {
 
 // Accept two connections simultaneously.
 TEST_F(TCPServerSocketTest, Accept2Connections) {
-  ASSERT_NO_FATAL_FAILURE(SetUpIPv4());
-
   TestCompletionCallback accept_callback;
   scoped_ptr<StreamSocket> accepted_socket;
 
@@ -159,33 +140,6 @@ TEST_F(TCPServerSocketTest, Accept2Connections) {
             local_address_.address());
   EXPECT_EQ(GetPeerAddress(accepted_socket2.get()).address(),
             local_address_.address());
-}
-
-TEST_F(TCPServerSocketTest, AcceptIPv6) {
-  bool initialized;
-  ASSERT_NO_FATAL_FAILURE(SetUpIPv6(&initialized));
-  if (!initialized)
-    return;
-
-  TestCompletionCallback connect_callback;
-  TCPClientSocket connecting_socket(local_address_list(),
-                                    NULL, NetLog::Source());
-  connecting_socket.Connect(&connect_callback);
-
-  TestCompletionCallback accept_callback;
-  scoped_ptr<StreamSocket> accepted_socket;
-  int result = socket_.Accept(&accepted_socket, &accept_callback);
-  if (result == ERR_IO_PENDING)
-    result = accept_callback.WaitForResult();
-  ASSERT_EQ(OK, result);
-
-  ASSERT_TRUE(accepted_socket.get() != NULL);
-
-  // Both sockets should be on the loopback network interface.
-  EXPECT_EQ(GetPeerAddress(accepted_socket.get()).address(),
-            local_address_.address());
-
-  EXPECT_EQ(OK, connect_callback.WaitForResult());
 }
 
 }  // namespace
