@@ -5,7 +5,10 @@
 #include "net/url_request/url_request_throttler_manager.h"
 
 #include "base/logging.h"
+#include "base/metrics/field_trial.h"
+#include "base/metrics/histogram.h"
 #include "base/string_util.h"
+#include "net/base/net_log.h"
 #include "net/base/net_util.h"
 
 namespace net {
@@ -27,10 +30,20 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
   // Periodically garbage collect old entries.
   GarbageCollectEntriesIfNecessary();
 
-  // Find the entry in the map or create it.
+  // Find the entry in the map or create a new NULL entry.
   scoped_refptr<URLRequestThrottlerEntry>& entry = url_entries_[url_id];
+
+  // If the entry exists but could be garbage collected at this point, we
+  // start with a fresh entry so that we possibly back off a bit less
+  // aggressively (i.e. this resets the error count when the entry's URL
+  // hasn't been requested in long enough).
+  if (entry.get() && entry->IsEntryOutdated()) {
+    entry = NULL;
+  }
+
+  // Create the entry if needed.
   if (entry.get() == NULL) {
-    entry = new URLRequestThrottlerEntry(this);
+    entry = new URLRequestThrottlerEntry(this, url_id);
 
     // We only disable back-off throttling on an entry that we have
     // just constructed.  This is to allow unit tests to explicitly override
@@ -40,6 +53,13 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
     std::string host = url.host();
     if (opt_out_hosts_.find(host) != opt_out_hosts_.end() ||
         IsLocalhost(host)) {
+      if (!logged_for_localhost_disabled_ && IsLocalhost(host)) {
+        logged_for_localhost_disabled_ = true;
+        net_log_->AddEvent(
+            NetLog::TYPE_THROTTLING_DISABLED_FOR_HOST,
+            make_scoped_refptr(new NetLogStringParameter("host", host)));
+      }
+
       // TODO(joi): Once sliding window is separate from back-off throttling,
       // we can simply return a dummy implementation of
       // URLRequestThrottlerEntryInterface here that never blocks anything (and
@@ -57,7 +77,18 @@ void URLRequestThrottlerManager::AddToOptOutList(const std::string& host) {
   // after there are already one or more entries in url_entries_ for that
   // host, the pre-existing entries may still perform back-off throttling.
   // In practice, this would almost never occur.
-  opt_out_hosts_.insert(host);
+  if (opt_out_hosts_.find(host) == opt_out_hosts_.end()) {
+    UMA_HISTOGRAM_COUNTS("Throttling.SiteOptedOut", 1);
+    if (base::FieldTrialList::TrialExists("ThrottlingEnabled")) {
+      UMA_HISTOGRAM_COUNTS(base::FieldTrial::MakeName(
+          "Throttling.SiteOptedOut", "ThrottlingEnabled"), 1);
+    }
+
+    net_log_->EndEvent(
+        NetLog::TYPE_THROTTLING_DISABLED_FOR_HOST,
+        make_scoped_refptr(new NetLogStringParameter("host", host)));
+    opt_out_hosts_.insert(host);
+  }
 }
 
 void URLRequestThrottlerManager::OverrideEntryForTests(
@@ -94,11 +125,31 @@ bool URLRequestThrottlerManager::enforce_throttling() {
   return enforce_throttling_;
 }
 
+void URLRequestThrottlerManager::set_net_log(NetLog* net_log) {
+  DCHECK(net_log);
+  NetLog::Source source(NetLog::SOURCE_EXPONENTIAL_BACKOFF_THROTTLING,
+                        net_log->NextID());
+  net_log_.reset(new BoundNetLog(source, net_log));
+}
+
+NetLog* URLRequestThrottlerManager::net_log() const {
+  return net_log_->net_log();
+}
+
+void URLRequestThrottlerManager::OnIPAddressChanged() {
+  OnNetworkChange();
+}
+
+void URLRequestThrottlerManager::OnOnlineStateChanged(bool online) {
+  OnNetworkChange();
+}
+
 // TODO(joi): Turn throttling on by default when appropriate.
 URLRequestThrottlerManager::URLRequestThrottlerManager()
     : requests_since_last_gc_(0),
       enforce_throttling_(false),
-      enable_thread_checks_(false) {
+      enable_thread_checks_(false),
+      logged_for_localhost_disabled_(false) {
   // Construction/destruction is on main thread (because BrowserMain
   // retrieves an instance to call InitializeOptions), but is from then on
   // used on I/O thread.
@@ -108,11 +159,21 @@ URLRequestThrottlerManager::URLRequestThrottlerManager()
   url_id_replacements_.ClearUsername();
   url_id_replacements_.ClearQuery();
   url_id_replacements_.ClearRef();
+
+  // Make sure there is always a net_log_ instance, even if it logs to
+  // nowhere.
+  net_log_.reset(new BoundNetLog());
+
+  NetworkChangeNotifier::AddIPAddressObserver(this);
+  NetworkChangeNotifier::AddOnlineStateObserver(this);
 }
 
 URLRequestThrottlerManager::~URLRequestThrottlerManager() {
   // Destruction is on main thread (AtExit), but real use is on I/O thread.
   DetachFromThread();
+
+  NetworkChangeNotifier::RemoveIPAddressObserver(this);
+  NetworkChangeNotifier::RemoveOnlineStateObserver(this);
 
   // Since, for now, the manager object might conceivably go away before
   // the entries, detach the entries' back-pointer to the manager.
@@ -161,6 +222,15 @@ void URLRequestThrottlerManager::GarbageCollectEntries() {
   while (url_entries_.size() > kMaximumNumberOfEntries) {
     url_entries_.erase(url_entries_.begin());
   }
+}
+
+void URLRequestThrottlerManager::OnNetworkChange() {
+  // Remove all entries.  Any entries that in-flight requests have a reference
+  // to will live until those requests end, and these entries may be
+  // inconsistent with new entries for the same URLs, but since what we
+  // want is a clean slate for the new connection state, this is OK.
+  url_entries_.clear();
+  requests_since_last_gc_ = 0;
 }
 
 }  // namespace net

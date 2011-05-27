@@ -13,12 +13,9 @@
 namespace net {
 
 BackoffEntry::BackoffEntry(const BackoffEntry::Policy* const policy)
-    : failure_count_(0),
-      policy_(policy) {
+    : policy_(policy) {
   DCHECK(policy_);
-
-  // Can't use GetTimeNow() as it's virtual.
-  exponential_backoff_release_time_ = base::TimeTicks::Now();
+  Reset();
 }
 
 BackoffEntry::~BackoffEntry() {
@@ -42,21 +39,22 @@ void BackoffEntry::InformOfRequest(bool succeeded) {
     if (failure_count_ > 0)
       --failure_count_;
 
-    // The reason why we are not just cutting the release time to GetTimeNow()
-    // is on the one hand, it would unset a release time set by
-    // SetCustomReleaseTime and on the other we would like to push every
-    // request up to our "horizon" when dealing with multiple in-flight
-    // requests. Ex: If we send three requests and we receive 2 failures and
-    // 1 success. The success that follows those failures will not reset the
-    // release time, further requests will then need to wait the delay caused
-    // by the 2 failures.
+    // The reason why we are not just cutting the release time to
+    // ImplGetTimeNow() is on the one hand, it would unset a release
+    // time set by SetCustomReleaseTime and on the other we would like
+    // to push every request up to our "horizon" when dealing with
+    // multiple in-flight requests. Ex: If we send three requests and
+    // we receive 2 failures and 1 success. The success that follows
+    // those failures will not reset the release time, further
+    // requests will then need to wait the delay caused by the 2
+    // failures.
     exponential_backoff_release_time_ = std::max(
-        GetTimeNow(), exponential_backoff_release_time_);
+        ImplGetTimeNow(), exponential_backoff_release_time_);
   }
 }
 
 bool BackoffEntry::ShouldRejectRequest() const {
-  return exponential_backoff_release_time_ > GetTimeNow();
+  return exponential_backoff_release_time_ > ImplGetTimeNow();
 }
 
 base::TimeTicks BackoffEntry::GetReleaseTime() const {
@@ -71,7 +69,7 @@ bool BackoffEntry::CanDiscard() const {
   if (policy_->entry_lifetime_ms == -1)
     return false;
 
-  base::TimeTicks now = GetTimeNow();
+  base::TimeTicks now = ImplGetTimeNow();
 
   int64 unused_since_ms =
       (now - exponential_backoff_release_time_).InMilliseconds();
@@ -92,7 +90,18 @@ bool BackoffEntry::CanDiscard() const {
   return unused_since_ms >= policy_->entry_lifetime_ms;
 }
 
-base::TimeTicks BackoffEntry::GetTimeNow() const {
+void BackoffEntry::Reset() {
+  failure_count_ = 0;
+
+  // We leave exponential_backoff_release_time_ unset, meaning 0. We could
+  // initialize to ImplGetTimeNow() but because it's a virtual method it's
+  // not safe to call in the constructor (and the constructor calls Reset()).
+  // The effects are the same, i.e. ShouldRejectRequest() will return false
+  // right after Reset().
+  exponential_backoff_release_time_ = base::TimeTicks();
+}
+
+base::TimeTicks BackoffEntry::ImplGetTimeNow() const {
   return base::TimeTicks::Now();
 }
 
@@ -102,7 +111,7 @@ base::TimeTicks BackoffEntry::CalculateReleaseTime() const {
   if (effective_failure_count == 0) {
     // Never reduce previously set release horizon, e.g. due to Retry-After
     // header.
-    return std::max(GetTimeNow(), exponential_backoff_release_time_);
+    return std::max(ImplGetTimeNow(), exponential_backoff_release_time_);
   }
 
   // The delay is calculated with this formula:
@@ -119,8 +128,9 @@ base::TimeTicks BackoffEntry::CalculateReleaseTime() const {
 
   // Never reduce previously set release horizon, e.g. due to Retry-After
   // header.
-  return std::max(GetTimeNow() + base::TimeDelta::FromMilliseconds(delay_int),
-                  exponential_backoff_release_time_);
+  return std::max(
+      ImplGetTimeNow() + base::TimeDelta::FromMilliseconds(delay_int),
+      exponential_backoff_release_time_);
 }
 
 }  // namespace net

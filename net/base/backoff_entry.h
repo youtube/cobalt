@@ -69,10 +69,15 @@ class NET_TEST BackoffEntry : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // had for Policy::entry_lifetime_ms_.
   bool CanDiscard() const;
 
+  // Resets this entry to a fresh (as if just constructed) state.
+  void Reset();
+
+  // Returns the failure count for this entry.
+  int failure_count() const { return failure_count_; }
+
  protected:
   // Equivalent to TimeTicks::Now(), virtual so unit tests can override.
-  // TODO(joi): Switch to constructor-time dependency injection?
-  virtual base::TimeTicks GetTimeNow() const;
+  virtual base::TimeTicks ImplGetTimeNow() const;
 
  private:
   // Calculates when requests should again be allowed through.
