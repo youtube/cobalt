@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <string>
 
+#include "base/debug/leak_annotations.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "base/stringprintf.h"
@@ -97,6 +98,8 @@ Histogram* Histogram::FactoryGet(const std::string& name,
     tentative_histogram->SetFlags(flags);
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
+    if (histogram == tentative_histogram)
+        ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
   }
 
   DCHECK_EQ(HISTOGRAM, histogram->histogram_type());
@@ -791,6 +794,8 @@ Histogram* LinearHistogram::FactoryGet(const std::string& name,
     tentative_histogram->SetFlags(flags);
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
+    if (histogram == tentative_histogram)
+        ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
   }
 
   DCHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
@@ -882,6 +887,8 @@ Histogram* BooleanHistogram::FactoryGet(const std::string& name, Flags flags) {
     tentative_histogram->SetFlags(flags);
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
+    if (histogram == tentative_histogram)
+        ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
   }
 
   DCHECK_EQ(BOOLEAN_HISTOGRAM, histogram->histogram_type());
@@ -929,6 +936,8 @@ Histogram* CustomHistogram::FactoryGet(const std::string& name,
     tentative_histogram->SetFlags(flags);
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
+    if (histogram == tentative_histogram)
+        ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
   }
 
   DCHECK_EQ(histogram->histogram_type(), CUSTOM_HISTOGRAM);
