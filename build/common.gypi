@@ -129,8 +129,8 @@
       # currently only works on Linux.
       'use_third_party_translations%': 0,
 
-      # Enable the Manage Handlers section in the settings page.
-      'enable_register_protocol_handler%': 0,
+      # Enable navigator.registerProtocolHandler and supporting UI.
+      'enable_register_protocol_handler%': 1,
 
       # Remoting compilation is enabled by default. Set to 0 to disable.
       'remoting%': 1,
