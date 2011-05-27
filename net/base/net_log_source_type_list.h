@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,5 +18,6 @@ SOURCE_TYPE(HOST_RESOLVER_IMPL_JOB, 8)
 SOURCE_TYPE(DISK_CACHE_ENTRY, 9)
 SOURCE_TYPE(MEMORY_CACHE_ENTRY, 10)
 SOURCE_TYPE(HTTP_STREAM_JOB, 11)
+SOURCE_TYPE(EXPONENTIAL_BACKOFF_THROTTLING, 12)
 
-SOURCE_TYPE(COUNT, 12)  // Always keep this as the last entry.
+SOURCE_TYPE(COUNT, 13)  // Always keep this as the last entry.
