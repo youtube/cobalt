@@ -42,6 +42,8 @@ Error MapSystemError(int os_error) {
       return ERR_SOCKET_NOT_CONNECTED;
     case WSAEAFNOSUPPORT:
       return ERR_ADDRESS_UNREACHABLE;
+    case WSAEINVAL:
+      return ERR_INVALID_ARGUMENT;
     case ERROR_SUCCESS:
       return OK;
     default:
