@@ -8,7 +8,6 @@
 
 #include <winsock2.h>
 
-#include "base/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
@@ -36,10 +35,7 @@ class NET_API TCPClientSocketWin : public StreamSocket,
   // the given socket and then acts as if Connect() had been called. This
   // function is used by TCPServerSocket() to adopt accepted connections
   // and for testing.
-  int AdoptSocket(SOCKET socket);
-
-  // Binds the socket to a local IP address and port.
-  int Bind(const IPEndPoint& address);
+  void AdoptSocket(SOCKET socket);
 
   // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback);
@@ -87,6 +83,12 @@ class NET_API TCPClientSocketWin : public StreamSocket,
     return next_connect_state_ != CONNECT_STATE_NONE;
   }
 
+  // Returns the OS error code (or 0 on success).
+  int CreateSocket(const struct addrinfo* ai);
+
+  // Returns the OS error code (or 0 on success).
+  int SetupSocket();
+
   // Called after Connect() has completed with |net_error|.
   void LogConnectCompletion(int net_error);
 
@@ -97,13 +99,6 @@ class NET_API TCPClientSocketWin : public StreamSocket,
   void DidCompleteWrite();
 
   SOCKET socket_;
-
-  // Local IP address and port we are bound to. Set to NULL if Bind()
-  // was't called (in that cases OS chooses address/port).
-  scoped_ptr<IPEndPoint> bind_address_;
-
-  // Stores bound socket between Bind() and Connect() calls.
-  SOCKET bound_socket_;
 
   // The list of addresses we should try in order to establish a connection.
   AddressList addresses_;
