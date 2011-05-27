@@ -15,7 +15,9 @@ namespace net {
 
 DhcpProxyScriptFetcherFactory::DhcpProxyScriptFetcherFactory()
     : feature_enabled_(false) {
-  set_enabled(true);
+  // TODO(joi): Change this default, and the comment on |set_enabled()|,
+  // when the time is right.
+  set_enabled(false);
 }
 
 DhcpProxyScriptFetcher* DhcpProxyScriptFetcherFactory::Create(
