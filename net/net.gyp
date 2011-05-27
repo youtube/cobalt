@@ -954,6 +954,7 @@
         'socket/ssl_client_socket_unittest.cc',
         'socket/ssl_client_socket_pool_unittest.cc',
         'socket/ssl_server_socket_unittest.cc',
+        'socket/tcp_client_socket_unittest.cc',
         'socket/tcp_server_socket_unittest.cc',
         'socket/transport_client_socket_pool_unittest.cc',
         'socket/transport_client_socket_unittest.cc',
