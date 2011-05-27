@@ -1019,3 +1019,29 @@ EVENT_TYPE(APPCACHE_DELIVERING_ERROR_RESPONSE)
 // This event is emitted whenever NetworkChangeNotifier determines that the
 // underlying network has changed.
 EVENT_TYPE(NETWORK_IP_ADDRESSES_CHANGED)
+
+// ------------------------------------------------------------------------
+// Exponential back-off throttling events
+// ------------------------------------------------------------------------
+
+// Emitted when back-off is disabled for a given host, or the first time
+// a localhost URL is used (back-off is always disabled for localhost).
+//   {
+//     "host": <The hostname back-off was disabled for>
+//   }
+EVENT_TYPE(THROTTLING_DISABLED_FOR_HOST)
+
+// Emitted when a request is denied due to exponential back-off throttling.
+//   {
+//     "url":              <URL that was being requested>,
+//     "num_failures":     <Failure count for the URL>,
+//     "release_after_ms": <Number of milliseconds until URL will be unblocked>
+//   }
+EVENT_TYPE(THROTTLING_REJECTED_REQUEST)
+
+// Emitted when throttling entry receives an X-Retry-After header.
+//   {
+//     "url":               <URL that was being requested>,
+//     "retry_after_ms":    <Milliseconds until retry-after expires>
+//   }
+EVENT_TYPE(THROTTLING_GOT_CUSTOM_RETRY_AFTER)
