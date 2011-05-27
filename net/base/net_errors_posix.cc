@@ -36,7 +36,6 @@ Error MapSystemError(int os_error) {
     case EHOSTUNREACH:
     case EHOSTDOWN:
     case ENETUNREACH:
-    case EAFNOSUPPORT:
       return ERR_ADDRESS_UNREACHABLE;
     case EADDRNOTAVAIL:
       return ERR_ADDRESS_INVALID;
@@ -44,8 +43,6 @@ Error MapSystemError(int os_error) {
       return ERR_MSG_TOO_BIG;
     case ENOTCONN:
       return ERR_SOCKET_NOT_CONNECTED;
-    case EINVAL:
-      return ERR_INVALID_ARGUMENT;
     case 0:
       return OK;
     default:
