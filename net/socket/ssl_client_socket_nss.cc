@@ -620,7 +620,11 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
     }
   }
 
-  GotoState(STATE_HANDSHAKE);
+  if (ssl_host_info_.get()) {
+    GotoState(STATE_LOAD_SSL_HOST_INFO);
+  } else {
+    GotoState(STATE_HANDSHAKE);
+  }
 
   rv = DoHandshakeLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -1237,6 +1241,9 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
       case STATE_NONE:
         // we're just pumping data between the buffer and the network
         break;
+      case STATE_LOAD_SSL_HOST_INFO:
+        rv = DoLoadSSLHostInfo();
+        break;
       case STATE_HANDSHAKE:
         rv = DoHandshake();
         break;
@@ -1321,6 +1328,23 @@ int SSLClientSocketNSS::DoWriteLoop(int result) {
   return rv;
 }
 
+int SSLClientSocketNSS::DoLoadSSLHostInfo() {
+  EnterFunction("");
+  int rv = ssl_host_info_->WaitForDataReady(&handshake_io_callback_);
+  GotoState(STATE_HANDSHAKE);
+
+  if (rv == OK) {
+    // TODO(wtc): use ssl_host_info->state().certs in the cached information
+    // extension.  Call SSL_SetPredictedPeerCertificates.
+  } else {
+    DCHECK_EQ(ERR_IO_PENDING, rv);
+    GotoState(STATE_LOAD_SSL_HOST_INFO);
+  }
+
+  LeaveFunction("");
+  return rv;
+}
+
 int SSLClientSocketNSS::DoHandshake() {
   EnterFunction("");
   int net_error = net::OK;
@@ -1345,7 +1369,8 @@ int SSLClientSocketNSS::DoHandshake() {
       } else {
         // We need to see if the predicted certificate chain (in
         // |ssl_host_info_->state().certs) matches the actual certificate chain
-        // before we try to save it before we update |ssl_host_info_|.
+        // before we call SaveSSLHostInfo, as that will update
+        // |ssl_host_info_|.
         if (ssl_host_info_.get() && !ssl_host_info_->state().certs.empty()) {
           PeerCertificateChain certs(nss_fd_);
           const SSLHostInfo::State& state = ssl_host_info_->state();
