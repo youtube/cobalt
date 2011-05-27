@@ -113,7 +113,6 @@ void ChromeClassTester::BuildBannedLists() {
   ignored_record_names_.insert("Validators");
 
   // RAII class that's simple enough (media/base/callback.h).
-  ignored_record_names_.insert("AutoTaskRunner");
   ignored_record_names_.insert("AutoCallbackRunner");
 
   // Has a UNIT_TEST only constructor. Isn't *terribly* complex...
