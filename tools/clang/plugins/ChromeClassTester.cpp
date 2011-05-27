@@ -92,6 +92,7 @@ void ChromeClassTester::BuildBannedLists() {
   banned_directories_.push_back("llvm");
   banned_directories_.push_back("ninja");
   banned_directories_.push_back("xcodebuild");
+  banned_directories_.push_back("clang");
 
   // You are standing in a mazy of twisty dependencies, all resolved by
   // putting everything in the header.
