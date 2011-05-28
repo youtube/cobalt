@@ -634,6 +634,10 @@
       ],
     },
     'conditions': [
+      ['OS=="mac" and clang==1', {
+        # TODO(thakis): Remove this once http://llvm.org/PR10031 is fixed.
+        'mac_release_optimization%': '2',
+      }],
       ['branding=="Chrome"', {
         'defines': ['GOOGLE_CHROME_BUILD'],
       }, {  # else: branding!="Chrome"
