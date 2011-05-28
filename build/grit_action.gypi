@@ -15,15 +15,13 @@
 
 {
   'variables': {
-    'grit_info_cmd': ['python', '<(DEPTH)/tools/grit/grit_info.py',
-                      '<@(grit_defines)'],
     'grit_cmd': ['python', '<(DEPTH)/tools/grit/grit.py'],
   },
   'inputs': [
-    '<!@(<(grit_info_cmd) --inputs <(grit_grd_file))',
+    '<!@pymod_do_main(grit_info <@(grit_defines) --inputs <(grit_grd_file))',
   ],
   'outputs': [
-    '<!@(<(grit_info_cmd) --outputs \'<(grit_out_dir)\' <(grit_grd_file))',
+    '<!@pymod_do_main(grit_info <@(grit_defines) --outputs \'<(grit_out_dir)\' <(grit_grd_file))',
   ],
   'action': ['<@(grit_cmd)',
              '-i', '<(grit_grd_file)', 'build',
