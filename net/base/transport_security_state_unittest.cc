@@ -603,6 +603,20 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "foo.betnet.fr",
                                       false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "uprotect.it",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "foo.uprotect.it",
+                                      false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "squareup.com",
+                                      false));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "foo.squareup.com",
+                                       false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
