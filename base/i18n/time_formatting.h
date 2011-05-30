@@ -21,14 +21,22 @@ enum HourClockType {
   k24HourClock,  // Uses 0-23. e.g., "15:07"
 };
 
+// Argument type used to specify whether or not to include AM/PM sign.
+enum AmPmClockType {
+  kDropAmPm,  // Drops AM/PM sign. e.g., "3:07"
+  kKeepAmPm,  // Keeps AM/PM sign. e.g., "3:07 PM"
+};
+
 // Returns the time of day, e.g., "3:07 PM".
 string16 TimeFormatTimeOfDay(const Time& time);
 
 // Returns the time of day in the specified hour clock type. e.g.
-// "3:07 PM" (type == k12HourClock).
+// "3:07 PM" (type == k12HourClock, ampm == kKeepAmPm).
+// "3:07"    (type == k12HourClock, ampm == kDropAmPm).
 // "15:07"   (type == k24HourClock).
 string16 TimeFormatTimeOfDayWithHourClockType(const Time& time,
-                                              HourClockType type);
+                                              HourClockType type,
+                                              AmPmClockType ampm);
 
 // Returns a shortened date, e.g. "Nov 7, 2007"
 string16 TimeFormatShortDate(const Time& time);
@@ -36,8 +44,7 @@ string16 TimeFormatShortDate(const Time& time);
 // Returns a numeric date such as 12/13/52.
 string16 TimeFormatShortDateNumeric(const Time& time);
 
-// Formats a time in a friendly sentence format, e.g.
-// "Monday, March 6, 2008 2:44:30 PM".
+// Returns a numeric date and time such as "12/13/52 2:44:30 PM".
 string16 TimeFormatShortDateAndTime(const Time& time);
 
 // Formats a time in a friendly sentence format, e.g.
