@@ -26,6 +26,26 @@ string16 TimeFormat(const icu::DateFormat* formatter,
                   static_cast<size_t>(date_string.length()));
 }
 
+string16 TimeFormatWithoutAmPm(const icu::DateFormat* formatter,
+                               const Time& time) {
+  DCHECK(formatter);
+  icu::UnicodeString time_string;
+
+  icu::FieldPosition ampm_field(icu::DateFormat::kAmPmField);
+  formatter->format(
+      static_cast<UDate>(time.ToDoubleT() * 1000), time_string, ampm_field);
+  int ampm_length = ampm_field.getEndIndex() - ampm_field.getBeginIndex();
+  if (ampm_length) {
+    int begin = ampm_field.getBeginIndex();
+    // Doesn't include any spacing before the field.
+    if (begin)
+      begin--;
+    time_string.removeBetween(begin, ampm_field.getEndIndex());
+  }
+  return string16(time_string.getBuffer(),
+                  static_cast<size_t>(time_string.length()));
+}
+
 }  // namespace
 
 namespace base {
@@ -39,11 +59,12 @@ string16 TimeFormatTimeOfDay(const Time& time) {
 }
 
 string16 TimeFormatTimeOfDayWithHourClockType(const Time& time,
-                                              HourClockType type) {
+                                              HourClockType type,
+                                              AmPmClockType ampm) {
   // Just redirect to the normal function if the default type matches the
   // given type.
   HourClockType default_type = GetHourClockType();
-  if (default_type == type) {
+  if (default_type == type && (type == k24HourClock || ampm == kKeepAmPm)) {
     return TimeFormatTimeOfDay(time);
   }
 
@@ -63,7 +84,11 @@ string16 TimeFormatTimeOfDayWithHourClockType(const Time& time,
   // Then, format the time using the generated pattern.
   icu::SimpleDateFormat formatter(generated_pattern, status);
   CHECK(U_SUCCESS(status));
-  return TimeFormat(&formatter, time);
+  if (ampm == kKeepAmPm) {
+    return TimeFormat(&formatter, time);
+  } else {
+    return TimeFormatWithoutAmPm(&formatter, time);
+  }
 }
 
 string16 TimeFormatShortDate(const Time& time) {
