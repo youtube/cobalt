@@ -73,8 +73,8 @@ string16 TimeFormatTimeOfDayWithHourClockType(const Time& time,
   // use (some locales use '.' instead of ':'), and where to put the am/pm
   // marker.
   UErrorCode status = U_ZERO_ERROR;
-  icu::DateTimePatternGenerator *generator =
-      icu::DateTimePatternGenerator::createInstance(status);
+  scoped_ptr<icu::DateTimePatternGenerator> generator(
+      icu::DateTimePatternGenerator::createInstance(status));
   CHECK(U_SUCCESS(status));
   const char* base_pattern = (type == k12HourClock ? "ahm" : "Hm");
   icu::UnicodeString generated_pattern =
