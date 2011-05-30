@@ -133,6 +133,7 @@
         'i18n/file_util_icu_unittest.cc',
         'i18n/icu_string_conversions_unittest.cc',
         'i18n/rtl_unittest.cc',
+        'i18n/time_formatting_unittest.cc',
         'json/json_reader_unittest.cc',
         'json/json_writer_unittest.cc',
         'json/string_escape_unittest.cc',
@@ -233,6 +234,8 @@
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
+        '../third_party/icu/icu.gyp:icui18n',
+        '../third_party/icu/icu.gyp:icuuc',
       ],
       'conditions': [
         ['toolkit_uses_gtk==1', {
