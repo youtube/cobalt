@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #pragma once
 
 #include "build/build_config.h"
+#include "net/base/net_api.h"
 
 #if defined(OS_WIN)
 #include "net/socket/tcp_client_socket_win.h"
@@ -25,7 +26,7 @@ typedef TCPClientSocketLibevent TCPClientSocket;
 
 // Enable/disable experimental TCP FastOpen option.
 // Not thread safe.  Must be called during initialization/startup only.
-void set_tcp_fastopen_enabled(bool value);
+NET_API void set_tcp_fastopen_enabled(bool value);
 
 // Check if the TCP FastOpen option is enabled.
 bool is_tcp_fastopen_enabled();
