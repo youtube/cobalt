@@ -78,13 +78,13 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPIStartup) {
   // functions we want.
   scoped_ptr<GSSAPILibrary> gssapi(new GSSAPISharedLibrary(""));
   DCHECK(gssapi.get());
-  DCHECK(gssapi.get()->Init());
+  EXPECT_TRUE(gssapi.get()->Init());
 }
 
 TEST(HttpAuthGSSAPIPOSIXTest, GSSAPILoadCustomLibrary) {
   scoped_ptr<GSSAPILibrary> gssapi(
       new GSSAPISharedLibrary("/this/library/does/not/exist"));
-  DCHECK(!gssapi.get()->Init());
+  EXPECT_FALSE(gssapi.get()->Init());
 }
 
 TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
