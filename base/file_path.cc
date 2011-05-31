@@ -551,41 +551,24 @@ FilePath FilePath::FromWStringHack(const std::wstring& wstring) {
 }
 #endif
 
-// static.
-void FilePath::WriteStringTypeToPickle(Pickle* pickle,
-                                       const StringType& path) {
-#if defined(WCHAR_T_IS_UTF16)
-  pickle->WriteWString(path);
-#elif defined(WCHAR_T_IS_UTF32)
-  pickle->WriteString(path);
-#else
-  NOTIMPLEMENTED() << "Impossible encoding situation!";
-#endif
-}
-
-// static.
-bool FilePath::ReadStringTypeFromPickle(Pickle* pickle, void** iter,
-                                        StringType* path) {
-#if defined(WCHAR_T_IS_UTF16)
-  if (!pickle->ReadWString(iter, path))
-    return false;
-#elif defined(WCHAR_T_IS_UTF32)
-  if (!pickle->ReadString(iter, path))
-    return false;
-#else
-  NOTIMPLEMENTED() << "Impossible encoding situation!";
-  return false;
-#endif
-
-  return true;
-}
-
 void FilePath::WriteToPickle(Pickle* pickle) {
-  WriteStringTypeToPickle(pickle, value());
+#if defined(OS_WIN)
+  pickle->WriteString16(path_);
+#else
+  pickle->WriteString(path_);
+#endif
 }
 
 bool FilePath::ReadFromPickle(Pickle* pickle, void** iter) {
-  return ReadStringTypeFromPickle(pickle, iter, &path_);
+#if defined(OS_WIN)
+  if (!pickle->ReadString16(iter, &path_))
+    return false;
+#else
+  if (!pickle->ReadString(iter, &path_))
+    return false;
+#endif
+
+  return true;
 }
 
 #if defined(OS_WIN)
