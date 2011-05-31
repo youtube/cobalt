@@ -44,8 +44,8 @@ kdiff3 -m sqlite-$BASE sqlite-$LATEST sqlite
 # Change to the sqlite directory:
 cd sqlite
 
-# Run the google_generate_preprocessed.sh script:
-./google_generate_preprocessed.sh
+# Run the google_generate_amalgamation.sh script:
+./google_generate_amalgamation.sh
 
 # Find a sucker.  Send review.
 # TODO(shess) Describe an appropriate comment style.  Seems like it
@@ -68,20 +68,19 @@ icu-shell.patch
 attach-integer.patch
 webdb.patch
 test.patch
+mac_time_machine.patch
 
 So, e.g. you could do this to apply all our patches to vanilla SQLite:
 
 cd sqlite-$LATEST
 patch -p0 < ../sqlite/misc.patch
 patch -p0 < ../sqlite/preload-cache.patch
-patch -p0 < ../sqlite/safe-tolower.patch
 patch -p0 < ../sqlite/fts2.patch
 patch -p0 < ../sqlite/fts3.patch
-patch -p0 < ../sqlite/icu-regexp.patch
 patch -p0 < ../sqlite/icu-shell.patch
-patch -p0 < ../sqlite/attach-integer.patch
 patch -p0 < ../sqlite/webdb.patch
 patch -p0 < ../sqlite/test.patch
+patch -p0 < ../sqlite/mac_time_machine.patch
 
 This will only be the case if all changes we make also update the corresponding
 patch files. Therefore please remember to do that whenever you make a change!
@@ -177,3 +176,11 @@ Changes from Chrome:
    chromium_sqlite3_fill_in_unix_sqlite3_file() function that calls
    fillInUnixFile(), which will be made static again as soon as a
    WebKit patch using the new function lands.
+ - From mac_time_machine.patch:
+   When __APPLE__ and when creating a -journal file, determine if the database
+   for which the journal is being created has been excluded from being backed
+   up using Apple's Time Machine and if so then also exclude the journal. These
+   changes were made in pager.c with includes of Apple interfaces being made in
+   sqliteInt.h. In order to eliminate a symbol conflict with an Apple library
+   after amalgamation it was also necessary to rename fts3_porter.c's 'cType'
+   to 'vOrCType'.
