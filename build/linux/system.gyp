@@ -74,12 +74,17 @@
       }]]
     },
     {
-      'target_name': 'nss',
+      'target_name': 'ssl',
       'type': 'settings',
       'conditions': [
         ['_toolset=="target"', {
           'conditions': [
-            ['use_system_ssl==0', {
+            ['use_openssl==1', {
+              'dependencies': [
+                '../../third_party/openssl/openssl.gyp:openssl',
+              ],
+            }],
+            ['use_openssl==0 and use_system_ssl==0', {
               'dependencies': [
                 '../../net/third_party/nss/ssl.gyp:ssl',
                 '../../third_party/zlib/zlib.gyp:zlib',
@@ -106,7 +111,8 @@
                   '<!@(<(pkg-config) --libs-only-l nss | sed -e "s/-lssl3//")',
                 ],
               },
-            }, {
+            }],
+            ['use_openssl==0 and use_system_ssl==1', {
               'direct_dependent_settings': {
                 'cflags': [
                   '<!@(<(pkg-config) --cflags nss)',
@@ -123,8 +129,8 @@
                   '<!@(<(pkg-config) --libs-only-l nss)',
                 ],
               },
-            }
-          ]]
+            }],
+          ]
         }],
       ],
     },
