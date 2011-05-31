@@ -702,6 +702,12 @@ bool CreateDirectory(const FilePath& full_path) {
   }
 }
 
+// TODO(rkc): Work out if we want to handle NTFS junctions here or not, handle
+// them if we do decide to.
+bool IsLink(const FilePath& file_path) {
+  return false;
+}
+
 bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* results) {
   base::ThreadRestrictions::AssertIOAllowed();
 
