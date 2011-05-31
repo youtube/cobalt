@@ -202,7 +202,7 @@ class NET_API HostResolver {
 // This class represents the task of resolving a hostname (or IP address
 // literal) to an AddressList object.  It wraps HostResolver to resolve only a
 // single hostname at a time and cancels this request when going out of scope.
-class SingleRequestHostResolver {
+class NET_API SingleRequestHostResolver {
  public:
   // |resolver| must remain valid for the lifetime of |this|.
   explicit SingleRequestHostResolver(HostResolver* resolver);
