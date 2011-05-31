@@ -312,12 +312,6 @@ class BASE_API FilePath {
   //   ever use the result of that again as a path.
   static FilePath FromWStringHack(const std::wstring& wstring);
 
-  // Static helper method to write a StringType to a pickle.
-  static void WriteStringTypeToPickle(Pickle* pickle,
-                                      const FilePath::StringType& path);
-  static bool ReadStringTypeFromPickle(Pickle* pickle, void** iter,
-                                       FilePath::StringType* path);
-
   void WriteToPickle(Pickle* pickle);
   bool ReadFromPickle(Pickle* pickle, void** iter);
 
