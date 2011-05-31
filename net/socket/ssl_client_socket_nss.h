@@ -86,7 +86,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
  private:
   enum State {
     STATE_NONE,
-    STATE_LOAD_SSL_HOST_INFO,
     STATE_HANDSHAKE,
     STATE_VERIFY_DNSSEC,
     STATE_VERIFY_DNSSEC_COMPLETE,
@@ -115,7 +114,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoReadLoop(int result);
   int DoWriteLoop(int result);
 
-  int DoLoadSSLHostInfo();
   int DoHandshake();
 
   int DoVerifyDNSSEC(int result);
