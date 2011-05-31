@@ -202,8 +202,8 @@ int SSLConnectJob::DoTransportConnect() {
     if (dnsrr_resolver_)
       ssl_host_info_->StartDnsLookup(dnsrr_resolver_);
 
-    // This starts fetching the SSL host info from the disk cache for Snap
-    // Start.
+    // This starts fetching the SSL host info from the disk cache for early
+    // certificate verification and the TLS cached information extension.
     ssl_host_info_->Start();
   }
 
