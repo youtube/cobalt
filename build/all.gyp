@@ -132,7 +132,7 @@
             '../remoting/remoting.gyp:*',
           ],
         }],
-        ['use_openssl!=1', {
+        ['use_openssl==0', {
           'dependencies': [
             '../net/third_party/nss/ssl.gyp:*',
           ],
