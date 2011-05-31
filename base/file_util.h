@@ -328,6 +328,9 @@ BASE_API bool NormalizeToNativeFilePath(const FilePath& path,
                                         FilePath* nt_path);
 #endif
 
+// This function will return if the given file is a symlink or not.
+BASE_API bool IsLink(const FilePath& file_path);
+
 // Returns information about the given file path.
 BASE_API bool GetFileInfo(const FilePath& file_path,
                           base::PlatformFileInfo* info);

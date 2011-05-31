@@ -522,6 +522,21 @@ bool CreateDirectory(const FilePath& full_path) {
   return true;
 }
 
+// TODO(rkc): Refactor GetFileInfo and FileEnumerator to handle symlinks
+// correctly. http://code.google.com/p/chromium-os/issues/detail?id=15948
+bool IsLink(const FilePath& file_path) {
+  struct stat st;
+  // If we can't lstat the file, it's safe to assume that the file won't at
+  // least be a 'followable' link.
+  if (lstat(file_path.value().c_str(), &st) != 0)
+    return false;
+
+  if (S_ISLNK(st.st_mode))
+    return true;
+  else
+    return false;
+}
+
 bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* results) {
   stat_wrapper_t file_info;
   if (CallStat(file_path.value().c_str(), &file_info) != 0)
