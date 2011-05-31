@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <string>
 
+#include "base/debug/leak_annotations.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "base/stringprintf.h"
@@ -1030,17 +1031,27 @@ bool StatisticsRecorder::IsActive() {
 }
 
 Histogram* StatisticsRecorder::RegisterOrDeleteDuplicate(Histogram* histogram) {
+  // As per crbug.com/79322 the histograms are intentionally leaked, so we need
+  // to annotate them. Because ANNOTATE_LEAKING_OBJECT_PTR may be used only once
+  // for an object, the duplicates should not be annotated.
+  // Callers are responsible for not calling RegisterOrDeleteDuplicate(ptr)
+  // twice if (lock_ == NULL) || (!histograms_).
   DCHECK(histogram->HasValidRangeChecksum());
-  if (lock_ == NULL)
+  if (lock_ == NULL) {
+    ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
     return histogram;
+  }
   base::AutoLock auto_lock(*lock_);
-  if (!histograms_)
+  if (!histograms_) {
+    ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
     return histogram;
+  }
   const std::string name = histogram->histogram_name();
   HistogramMap::iterator it = histograms_->find(name);
   // Avoid overwriting a previous registration.
   if (histograms_->end() == it) {
     (*histograms_)[name] = histogram;
+    ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
   } else {
     delete histogram;  // We already have one by this name.
     histogram = it->second;
