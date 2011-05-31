@@ -1,12 +1,15 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/upload_data.h"
 
+#include <algorithm>
+
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/threading/thread_restrictions.h"
 #include "net/base/file_stream.h"
 #include "net/base/net_errors.h"
 
@@ -65,8 +68,15 @@ uint64 UploadData::Element::GetContentLength() {
     return 0;
 
   int64 length = 0;
-  if (!file_util::GetFileSize(file_path_, &length))
-    return 0;
+
+  {
+    // TODO(tzik):
+    // file_util::GetFileSize may cause blocking IO.
+    // Temporary allow until fix: http://crbug.com/72001.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    if (!file_util::GetFileSize(file_path_, &length))
+      return 0;
+  }
 
   if (file_range_offset_ >= static_cast<uint64>(length))
     return 0;  // range is beyond eof
@@ -85,6 +95,11 @@ FileStream* UploadData::Element::NewFileStreamForReading() {
     file_stream_ = NULL;
     return file;
   }
+
+  // TODO(tzik):
+  // FileStream::Open and FileStream::Seek may cause blocking IO.
+  // Temporary allow until fix: http://crbug.com/72001.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
 
   scoped_ptr<FileStream> file(new FileStream());
   int64 rv = file->Open(file_path_,
