@@ -15,4 +15,4 @@ static library using GYP.
 3) chromium.patch is applied to allow libevent to be used without
    being installed.
 4) The directories WIN32-Code and WIN32-Prj are not included.
-5) Apply rXXXXX (FIXME(agl): update to include eventual revision number)
+5) Apply r87338.
