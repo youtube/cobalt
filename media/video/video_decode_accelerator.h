@@ -17,6 +17,9 @@ namespace media {
 
 // Enumeration defining global dictionary ranges for various purposes that are
 // used to handle the configurations of the video decoder.
+//
+// IMPORTANT! Dictionary keys and corresponding values MUST match the ones found
+// in Pepper API dictionary for video (ppapi/c/dev/pp_video_dev.h)!
 enum VideoAttributeKey {
   VIDEOATTRIBUTEKEY_TERMINATOR = 0,
 
@@ -72,10 +75,9 @@ enum VideoAttributeKey {
   VIDEOATTRIBUTEKEY_BITSTREAMFORMAT_H264_FEATURE_WEIGHTEDPREDICTION,
 
   VIDEOATTRIBUTEKEY_COLOR_FORMAT_BASE = 0x1000,
-  // This specifies the output color format for a decoded frame.
-  // When used in GetConfigs, this represents the color types the
-  // Decode is capable of decoding.
-  VIDEOATTRIBUTEKEY_COLORFORMAT_RGBA,
+  // This specifies the output color format for a decoded frame. Value is one
+  // of the values in VideoColorFormat enumeration.
+  VIDEOATTRIBUTEKEY_VIDEOCOLORFORMAT,
 };
 
 enum VideoCodecFourcc {
@@ -146,6 +148,14 @@ enum H264PayloadFormat {
   H264PAYLOADFORMAT_TWO_BYTE_INTERLEAVED_LENGTH = 1 << 3,
   // NALU separated by 4-byte interleaved length field.
   H264PAYLOADFORMAT_FOUR_BYTE_INTERLEAVED_LENGTH = 1 << 4,
+};
+
+// Enumeration for various color formats.
+enum VideoColorFormat {
+  // Value represents 32-bit RGBA format where each component is 8-bit in order
+  // R-G-B-A. Regardless of endianness of the architecture color components are
+  // stored in this order in the memory.
+  VIDEOCOLORFORMAT_RGBA = 0,
 };
 
 // Video decoder interface.
