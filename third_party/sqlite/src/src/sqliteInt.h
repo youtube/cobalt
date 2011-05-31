@@ -2522,6 +2522,16 @@ int sqlite3CantopenError(int);
 #endif
 
 /*
+** The CoreServices.h and CoreFoundation.h headers are needed for excluding a
+** -journal file from Time Machine backups when its associated database has
+** previously been excluded by the client code.
+*/
+#if defined(__APPLE__)
+#include <CoreServices/CoreServices.h>
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
+/*
 ** The following macros mimic the standard library functions toupper(),
 ** isspace(), isalnum(), isdigit() and isxdigit(), respectively. The
 ** sqlite versions only work for ASCII characters, regardless of locale.

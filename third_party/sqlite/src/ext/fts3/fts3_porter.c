@@ -129,7 +129,7 @@ static int porterClose(sqlite3_tokenizer_cursor *pCursor){
 /*
 ** Vowel or consonant
 */
-static const char cType[] = {
+static const char vOrCType[] = {
    0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0,
    1, 1, 1, 2, 1
 };
@@ -153,7 +153,7 @@ static int isConsonant(const char *z){
   char x = *z;
   if( x==0 ) return 0;
   assert( x>='a' && x<='z' );
-  j = cType[x-'a'];
+  j = vOrCType[x-'a'];
   if( j<2 ) return j;
   return z[1]==0 || isVowel(z + 1);
 }
@@ -162,7 +162,7 @@ static int isVowel(const char *z){
   char x = *z;
   if( x==0 ) return 0;
   assert( x>='a' && x<='z' );
-  j = cType[x-'a'];
+  j = vOrCType[x-'a'];
   if( j<2 ) return 1-j;
   return isConsonant(z + 1);
 }
