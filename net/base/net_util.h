@@ -199,8 +199,8 @@ NET_API string16 IDNToUnicode(const std::string& host,
 
 // Canonicalizes |host| and returns it.  Also fills |host_info| with
 // IP address information.  |host_info| must not be NULL.
-std::string CanonicalizeHost(const std::string& host,
-                             url_canon::CanonHostInfo* host_info);
+NET_API std::string CanonicalizeHost(const std::string& host,
+                                     url_canon::CanonHostInfo* host_info);
 
 // Returns true if |host| is not an IP address and is compliant with a set of
 // rules based on RFC 1738 and tweaked to be compatible with the real world.
@@ -222,7 +222,7 @@ NET_API bool IsCanonicalizedHostCompliant(const std::string& host,
 
 // Call these functions to get the html snippet for a directory listing.
 // The return values of both functions are in UTF-8.
-std::string GetDirectoryListingHeader(const string16& title);
+NET_API std::string GetDirectoryListingHeader(const string16& title);
 
 // Given the name of a file in a directory (ftp or local) and
 // other information (is_dir, size, modification time), it returns
@@ -278,9 +278,9 @@ int SetNonBlocking(int fd);
 
 // Formats the host in |url| and appends it to |output|.  The host formatter
 // takes the same accept languages component as ElideURL().
-void AppendFormattedHost(const GURL& url,
-                         const std::string& languages,
-                         string16* output);
+NET_API void AppendFormattedHost(const GURL& url,
+                                 const std::string& languages,
+                                 string16* output);
 
 // Creates a string representation of |url|. The IDN host name may be in Unicode
 // if |languages| accepts the Unicode representation. |format_type| is a bitmask
@@ -330,7 +330,7 @@ inline string16 FormatUrl(const GURL& url, const std::string& languages) {
 
 // Returns whether FormatUrl() would strip a trailing slash from |url|, given a
 // format flag including kFormatUrlOmitTrailingSlashOnBareHostname.
-bool CanStripTrailingSlash(const GURL& url);
+NET_API bool CanStripTrailingSlash(const GURL& url);
 
 // Strip the portions of |url| that aren't core to the network request.
 //   - user name / password
@@ -353,7 +353,7 @@ class NET_API ScopedPortException {
 // Perform a simplistic test to see if IPv6 is supported by trying to create an
 // IPv6 socket.
 // TODO(jar): Make test more in-depth as needed.
-bool IPv6Supported();
+NET_API bool IPv6Supported();
 
 // Returns true if it can determine that only loopback addresses are configured.
 // i.e. if only 127.0.0.1 and ::1 are routable.

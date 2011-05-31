@@ -32,7 +32,7 @@ class NET_API NetworkChangeNotifier {
     DISALLOW_COPY_AND_ASSIGN(IPAddressObserver);
   };
 
-  class OnlineStateObserver {
+  class NET_API OnlineStateObserver {
    public:
     virtual ~OnlineStateObserver() {}
 

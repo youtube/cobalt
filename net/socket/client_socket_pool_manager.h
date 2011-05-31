@@ -19,6 +19,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "net/base/cert_database.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
 #include "net/socket/client_socket_pool_histograms.h"
 
 class Value;
@@ -99,8 +100,8 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
       const HostPortPair& proxy_server);
 
   static int max_sockets_per_group();
-  static void set_max_sockets_per_group(int socket_count);
-  static void set_max_sockets_per_proxy_server(int socket_count);
+  NET_API static void set_max_sockets_per_group(int socket_count);
+  NET_API static void set_max_sockets_per_proxy_server(int socket_count);
 
   // A helper method that uses the passed in proxy information to initialize a
   // ClientSocketHandle with the relevant socket pool. Use this method for
@@ -122,7 +123,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   // ClientSocketHandle with the relevant socket pool. Use this method for
   // a raw socket connection to a host-port pair (that needs to tunnel through
   // the proxies).
-  static int InitSocketHandleForRawConnect(
+  NET_API static int InitSocketHandleForRawConnect(
       const HostPortPair& host_port_pair,
       HttpNetworkSession* session,
       const ProxyInfo& proxy_info,

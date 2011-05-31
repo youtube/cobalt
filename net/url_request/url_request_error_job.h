@@ -10,11 +10,12 @@
 #pragma once
 
 #include "base/task.h"
+#include "net/base/net_api.h"
 #include "net/url_request/url_request_job.h"
 
 namespace net {
 
-class URLRequestErrorJob : public URLRequestJob {
+class NET_API URLRequestErrorJob : public URLRequestJob {
  public:
   URLRequestErrorJob(URLRequest* request, int error);
 
