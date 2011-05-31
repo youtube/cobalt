@@ -22,8 +22,8 @@ HttpAuthHandlerNegotiate::Factory::Factory()
 #if defined(OS_WIN)
       max_token_length_(0),
       first_creation_(true),
-      is_unsupported_(false),
 #endif
+      is_unsupported_(false),
       auth_library_(NULL) {
 }
 
@@ -65,6 +65,12 @@ int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
   handler->swap(tmp_handler);
   return OK;
 #elif defined(OS_POSIX)
+  if (is_unsupported_)
+    return ERR_UNSUPPORTED_AUTH_SCHEME;
+  if (!auth_library_->Init()) {
+    is_unsupported_ = true;
+    return ERR_UNSUPPORTED_AUTH_SCHEME;
+  }
   // TODO(ahendrickson): Move towards model of parsing in the factory
   //                     method and only constructing when valid.
   scoped_ptr<HttpAuthHandler> tmp_handler(
