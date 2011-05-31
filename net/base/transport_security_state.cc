@@ -595,7 +595,6 @@ bool TransportSecurityState::IsPreloadedSTS(
     {20, true, "\006market\007android\003com", true, kGoogleAcceptableCerts },
     {26, true, "\003ssl\020google-analytics\003com", true,
      kGoogleAcceptableCerts },
-    {17, true, "\003ssl\007gstatic\003com", true, kGoogleAcceptableCerts },
     // Other Google-related domains that must use an acceptable certificate
     // iff using SSL.
     {11, true, "\005ytimg\003com", false, kGoogleAcceptableCerts },
@@ -607,6 +606,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {13, true, "\007appspot\003com", false, kGoogleAcceptableCerts },
     {23, true, "\021googlesyndication\003com", false, kGoogleAcceptableCerts },
     {17, true, "\013doubleclick\003net", false, kGoogleAcceptableCerts },
+    {17, true, "\003ssl\007gstatic\003com", false, kGoogleAcceptableCerts },
     // Exclude the learn.doubleclick.net subdomain because it uses a different
     // CA.
     {23, true, "\005learn\013doubleclick\003net", false, 0 },
