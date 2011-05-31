@@ -2,6 +2,7 @@ Name: libevent
 URL: http://www.monkey.org/~provos/libevent/
 Version: 1.4.13
 License: BSD
+Security Critical: yes
 
 Local Modifications:
 Rather than use libevent's own build system, we just build a Chrome
@@ -14,3 +15,4 @@ static library using GYP.
 3) chromium.patch is applied to allow libevent to be used without
    being installed.
 4) The directories WIN32-Code and WIN32-Prj are not included.
+5) Apply rXXXXX (FIXME(agl): update to include eventual revision number)
