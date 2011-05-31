@@ -33,7 +33,7 @@ class NET_API HttpRequestHeaders {
 
   typedef std::vector<HeaderKeyValuePair> HeaderVector;
 
-  class Iterator {
+  class NET_API Iterator {
    public:
     explicit Iterator(const HttpRequestHeaders& headers);
     ~Iterator();
