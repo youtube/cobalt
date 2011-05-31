@@ -29,7 +29,7 @@ NET_TEST std::string DNSDomainToString(const std::string& domain);
 NET_TEST bool IsSTD3ASCIIValidCharacter(char c);
 
 // Returns the hostname by trimming the ending dot, if one exists.
-std::string TrimEndingDot(const std::string& host);
+NET_API std::string TrimEndingDot(const std::string& host);
 
 // DNS resource record types. See
 // http://www.iana.org/assignments/dns-parameters

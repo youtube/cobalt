@@ -9,11 +9,12 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
 // Error domain of the net module's error codes.
-extern const char kErrorDomain[];
+NET_API extern const char kErrorDomain[];
 
 // Error values are negative.
 enum Error {
@@ -29,7 +30,7 @@ enum Error {
 };
 
 // Returns a textual representation of the error code for logging purposes.
-const char* ErrorToString(int error);
+NET_API const char* ErrorToString(int error);
 
 // Returns true if |error| is a certificate error code.
 inline bool IsCertificateError(int error) {
@@ -39,7 +40,7 @@ inline bool IsCertificateError(int error) {
 }
 
 // Map system error code to Error.
-Error MapSystemError(int os_error);
+NET_API Error MapSystemError(int os_error);
 
 // Returns a list of all the possible net error codes (not counting OK). This
 // is intended for use with UMA histograms that are reporting the result of
