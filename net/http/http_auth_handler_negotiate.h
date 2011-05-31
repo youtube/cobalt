@@ -86,8 +86,8 @@ class NET_TEST HttpAuthHandlerNegotiate : public HttpAuthHandler {
 #if defined(OS_WIN)
     ULONG max_token_length_;
     bool first_creation_;
-    bool is_unsupported_;
 #endif
+    bool is_unsupported_;
     scoped_ptr<AuthLibrary> auth_library_;
   };
 
