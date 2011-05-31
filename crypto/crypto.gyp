@@ -19,23 +19,16 @@
       ],
       'conditions': [
         [ 'os_posix == 1 and OS != "mac"', {
+          'dependencies': [
+            '../build/linux/system.gyp:ssl',
+          ],
+          'export_dependent_settings': [
+            '../build/linux/system.gyp:ssl',
+          ],
           'conditions': [
             [ 'chromeos==1', {
                 'sources/': [ ['include', '_chromeos\\.cc$'] ]
               },
-            ],
-            [ 'use_openssl==1', {
-                'dependencies': [
-                  '../third_party/openssl/openssl.gyp:openssl',
-                ],
-              }, {  # use_openssl==0
-                'dependencies': [
-                  '../build/linux/system.gyp:nss',
-                ],
-                'export_dependent_settings': [
-                  '../build/linux/system.gyp:nss',
-                ],
-              }
             ],
           ],
         }, {  # os_posix != 1 or OS == "mac"
@@ -202,7 +195,7 @@
             ],
           ],
           'dependencies': [
-            '../build/linux/system.gyp:nss',
+            '../build/linux/system.gyp:ssl',
           ],
         }, {  # os_posix != 1 or OS == "mac"
           'sources!': [
