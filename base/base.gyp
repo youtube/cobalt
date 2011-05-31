@@ -262,7 +262,7 @@
           ],
           'dependencies': [
             '../build/linux/system.gyp:gtk',
-            '../build/linux/system.gyp:nss',
+            '../build/linux/system.gyp:ssl',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:xdisplaycheck',
           ],
         }, {  # toolkit_uses_gtk!=1
