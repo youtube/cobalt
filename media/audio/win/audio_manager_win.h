@@ -29,6 +29,7 @@ class AudioManagerWin : public AudioManagerBase {
   virtual string16 GetAudioInputDeviceModel();
   virtual bool CanShowAudioInputSettings();
   virtual void ShowAudioInputSettings();
+  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names);
 
   // Windows-only methods to free a stream created in MakeAudioStream. These
   // are called internally by the audio stream when it has been closed.

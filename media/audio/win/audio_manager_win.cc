@@ -253,6 +253,20 @@ void AudioManagerWin::ShowAudioInputSettings() {
   base::LaunchApp(command_line, false, false, NULL);
 }
 
+void AudioManagerWin::GetAudioInputDeviceNames(
+    media::AudioDeviceNames* device_names) {
+  // TODO(xians): query a full list of valid devices.
+  if (HasAudioInputDevices()) {
+    // Add the default device to the list.
+    // We use index 0 to make up the unique_id to identify the
+    // default devices.
+    media::AudioDeviceName name;
+    name.device_name = AudioManagerBase::kDefaultDeviceName;
+    name.unique_id = "0";
+    device_names->push_back(name);
+  }
+}
+
 // static
 AudioManager* AudioManager::CreateAudioManager() {
   return new AudioManagerWin();
