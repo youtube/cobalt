@@ -435,8 +435,8 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
     read_bytes.Add(nread);
     if (nread > 0)
       use_history_.set_was_used_to_convey_data();
-    LogByteTransfer(
-        net_log_, NetLog::TYPE_SOCKET_BYTES_RECEIVED, nread, buf->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED, nread,
+                                  buf->data());
     return nread;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -474,8 +474,8 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
     write_bytes.Add(nwrite);
     if (nwrite > 0)
       use_history_.set_was_used_to_convey_data();
-    LogByteTransfer(
-        net_log_, NetLog::TYPE_SOCKET_BYTES_SENT, nwrite, buf->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_SENT, nwrite,
+                                  buf->data());
     return nwrite;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK)
@@ -629,8 +629,8 @@ void TCPClientSocketLibevent::DidCompleteRead() {
     read_bytes.Add(bytes_transferred);
     if (bytes_transferred > 0)
       use_history_.set_was_used_to_convey_data();
-    LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_RECEIVED, result,
-                    read_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED, result,
+                                  read_buf_->data());
   } else {
     result = MapSystemError(errno);
   }
@@ -656,8 +656,8 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
     write_bytes.Add(bytes_transferred);
     if (bytes_transferred > 0)
       use_history_.set_was_used_to_convey_data();
-    LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_SENT, result,
-                    write_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_SENT, result,
+                                  write_buf_->data());
   } else {
     result = MapSystemError(errno);
   }
