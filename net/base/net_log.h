@@ -202,6 +202,11 @@ class NET_API BoundNetLog {
   void EndEventWithNetErrorCode(NetLog::EventType event_type,
                                 int net_error) const;
 
+  // Logs a byte transfer event to the NetLog.  Determines whether to log the
+  // received bytes or not based on the current logging level.
+  void AddByteTransferEvent(NetLog::EventType event_type,
+                            int byte_count, char* bytes) const;
+
   NetLog::LogLevel GetLogLevel() const;
 
   // Returns true if the log level is LOG_ALL.
