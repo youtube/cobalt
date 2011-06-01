@@ -541,6 +541,17 @@ EVENT_TYPE(URL_REQUEST_REDIRECTED)
 // respond to the onBefoteRequest extension event.
 EVENT_TYPE(URL_REQUEST_BLOCKED_ON_EXTENSION)
 
+// The specified number of bytes were read from the net::URLRequest.
+// The filtered event is used when the bytes were passed through a filter before
+// being read.  This event is only present when byte logging is enabled.
+// The following parameters are attached:
+//   {
+//     "byte_count": <Number of bytes that were just sent>,
+//     "hex_encoded_bytes": <The exact bytes sent, as a hexadecimal string>,
+//   }
+EVENT_TYPE(URL_REQUEST_JOB_BYTES_READ)
+EVENT_TYPE(URL_REQUEST_JOB_FILTERED_BYTES_READ)
+
 // ------------------------------------------------------------------------
 // HttpCache
 // ------------------------------------------------------------------------

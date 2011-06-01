@@ -13,6 +13,42 @@
 
 namespace net {
 
+namespace {
+
+// Parameters for logging data transferred events. Includes bytes transferred
+// and, if |bytes| is not NULL, the bytes themselves.
+class NetLogBytesTransferredParameter : public NetLog::EventParameters {
+ public:
+  NetLogBytesTransferredParameter(int byte_count, const char* bytes);
+
+  virtual Value* ToValue() const;
+
+ private:
+  const int byte_count_;
+  std::string hex_encoded_bytes_;
+  bool has_bytes_;
+};
+
+NetLogBytesTransferredParameter::NetLogBytesTransferredParameter(
+    int byte_count, const char* transferred_bytes)
+    : byte_count_(byte_count),
+      has_bytes_(false) {
+  if (transferred_bytes) {
+    hex_encoded_bytes_ = base::HexEncode(transferred_bytes, byte_count);
+    has_bytes_ = true;
+  }
+}
+
+Value* NetLogBytesTransferredParameter::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger("byte_count", byte_count_);
+  if (has_bytes_ && byte_count_ > 0)
+    dict->SetString("hex_encoded_bytes", hex_encoded_bytes_);
+  return dict;
+}
+
+}  // namespace
+
 Value* NetLog::Source::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
   dict->SetInteger("type", static_cast<int>(type));
@@ -155,6 +191,17 @@ void BoundNetLog::EndEventWithNetErrorCode(NetLog::EventType event_type,
         event_type,
         make_scoped_refptr(new NetLogIntegerParameter("net_error", net_error)));
   }
+}
+
+void BoundNetLog::AddByteTransferEvent(NetLog::EventType event_type,
+                                       int byte_count, char* bytes) const {
+  scoped_refptr<NetLog::EventParameters> params;
+  if (IsLoggingBytes()) {
+    params = new NetLogBytesTransferredParameter(byte_count, bytes);
+  } else {
+    params = new NetLogBytesTransferredParameter(byte_count, NULL);
+  }
+  AddEvent(event_type, params);
 }
 
 NetLog::LogLevel BoundNetLog::GetLogLevel() const {
