@@ -139,6 +139,9 @@
       # Also note that this should be enabled for remoting to compile.
       'p2p_apis%': 1,
 
+      # Configuration policy is enabled by default. Set to 0 to disable.
+      'configuration_policy%': 1,
+
       # If this is set, the clang plugins used on the buildbot will be used.
       # Run tools/clang/scripts/update.sh to make sure they are compiled.
       # This causes 'clang_chrome_plugins_flags' to be set.
@@ -230,6 +233,7 @@
     'use_third_party_translations%': '<(use_third_party_translations)',
     'remoting%': '<(remoting)',
     'p2p_apis%': '<(p2p_apis)',
+    'configuration_policy%': '<(configuration_policy)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
 
