@@ -11,42 +11,6 @@
 
 namespace net {
 
-namespace {
-
-// Parameters for SOCKET_BYTES_RECEIVED and SOCKET_BYTES_SENT events.
-// Includes bytes transferred and, if |bytes| is not NULL, the bytes themselves.
-class NetLogBytesTransferredParameter : public NetLog::EventParameters {
- public:
-  NetLogBytesTransferredParameter(int byte_count, const char* bytes);
-
-  virtual Value* ToValue() const;
-
- private:
-  const int byte_count_;
-  std::string hex_encoded_bytes_;
-  bool has_bytes_;
-};
-
-NetLogBytesTransferredParameter::NetLogBytesTransferredParameter(
-    int byte_count, const char* transferred_bytes)
-    : byte_count_(byte_count),
-      has_bytes_(false) {
-  if (transferred_bytes) {
-    hex_encoded_bytes_ = base::HexEncode(transferred_bytes, byte_count);
-    has_bytes_ = true;
-  }
-}
-
-Value* NetLogBytesTransferredParameter::ToValue() const {
-  DictionaryValue* dict = new DictionaryValue();
-  dict->SetInteger("byte_count", byte_count_);
-  if (has_bytes_)
-    dict->SetString("hex_encoded_bytes", hex_encoded_bytes_);
-  return dict;
-}
-
-}  // namespace
-
 StreamSocket::UseHistory::UseHistory()
     : was_ever_connected_(false),
       was_used_to_convey_data_(false),
@@ -141,19 +105,6 @@ void StreamSocket::UseHistory::EmitPreconnectionHistograms() const {
                                    "ConnnectBackupJobs"),
         result, 9);
   }
-}
-
-void StreamSocket::LogByteTransfer(const BoundNetLog& net_log,
-                                   NetLog::EventType event_type,
-                                   int byte_count,
-                                   char* bytes) const {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (net_log.IsLoggingBytes()) {
-    params = new NetLogBytesTransferredParameter(byte_count, bytes);
-  } else {
-    params = new NetLogBytesTransferredParameter(byte_count, NULL);
-  }
-  net_log.AddEvent(event_type, params);
 }
 
 }  // namespace net

@@ -1177,8 +1177,8 @@ int SSLClientSocketOpenSSL::DoPayloadRead() {
     return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
 
   if (rv >= 0) {
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, rv,
-                    user_read_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, rv,
+                                  user_read_buf_->data());
     return rv;
   }
 
@@ -1191,8 +1191,8 @@ int SSLClientSocketOpenSSL::DoPayloadWrite() {
   int rv = SSL_write(ssl_, user_write_buf_->data(), user_write_buf_len_);
 
   if (rv >= 0) {
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
-                    user_write_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
+                                  user_write_buf_->data());
     return rv;
   }
 

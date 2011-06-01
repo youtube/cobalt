@@ -120,12 +120,6 @@ class NET_TEST StreamSocket : public Socket {
     bool subresource_speculation_;
     DISALLOW_COPY_AND_ASSIGN(UseHistory);
   };
-
-  // Logs a SOCKET_BYTES_RECEIVED or SOCKET_BYTES_SENT event to the NetLog.
-  // Determines whether to log the received bytes or not, based on the current
-  // logging level.
-  void LogByteTransfer(const BoundNetLog& net_log, NetLog::EventType event_type,
-                       int byte_count, char* bytes) const;
 };
 
 }  // namespace net

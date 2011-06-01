@@ -1195,8 +1195,8 @@ int SSLClientSocketMac::DoPayloadRead() {
   // which otherwise would get out of sync with the SSLContextRef's internal
   // state machine.
   if (processed > 0) {
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED,
-                    processed, user_read_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED,
+                                  processed, user_read_buf_->data());
     return processed;
   }
 
@@ -1224,8 +1224,8 @@ int SSLClientSocketMac::DoPayloadWrite() {
                              &processed);
 
   if (processed > 0) {
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, processed,
-                    user_write_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_SENT, processed,
+                                  user_write_buf_->data());
     return processed;
   }
 

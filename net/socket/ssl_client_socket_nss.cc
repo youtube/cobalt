@@ -1621,8 +1621,8 @@ int SSLClientSocketNSS::DoPayloadRead() {
     return rv;
   }
   if (rv >= 0) {
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, rv,
-                    user_read_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, rv,
+                                  user_read_buf_->data());
     LeaveFunction("");
     return rv;
   }
@@ -1643,8 +1643,8 @@ int SSLClientSocketNSS::DoPayloadWrite() {
   DCHECK(user_write_buf_);
   int rv = PR_Write(nss_fd_, user_write_buf_->data(), user_write_buf_len_);
   if (rv >= 0) {
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
-                    user_write_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
+                                  user_write_buf_->data());
     LeaveFunction("");
     return rv;
   }
