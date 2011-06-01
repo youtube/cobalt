@@ -345,6 +345,122 @@ TEST_F(FFmpegDemuxerTest, Read_Video) {
                       reader->buffer()->GetDataSize()));
 }
 
+TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
+  // Test the start time is the first timestamp of the video and audio stream.
+  const int64 kStartTime = 60000;
+  // Set the audio and video stream's first timestamp.
+  streams_[AV_STREAM_AUDIO].first_dts = kStartTime;
+  streams_[AV_STREAM_VIDEO].first_dts = kStartTime;
+  {
+    SCOPED_TRACE("");
+    InitializeDemuxer();
+  }
+
+  // Ignore all AVFreePacket() calls.  We check this via valgrind.
+  EXPECT_CALL(mock_ffmpeg_, AVFreePacket(_)).Times(AnyNumber());
+
+  const base::TimeDelta kExpectedTimestamp =
+      base::TimeDelta::FromMicroseconds(kStartTime);
+
+  // Simulate a successful frame read.
+  EXPECT_CALL(mock_ffmpeg_, AVReadFrame(&format_context_, _))
+      .WillOnce(CreatePacketTimeNoCount(AV_STREAM_VIDEO,
+                                        kVideoData,
+                                        kDataSize,
+                                        kStartTime));
+  EXPECT_CALL(mock_ffmpeg_, AVDupPacket(_))
+      .WillOnce(Return(0));
+
+  // Attempt a read from the video stream and run the message loop until done.
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
+  reader->Read(video);
+  message_loop_.RunAllPending();
+
+  EXPECT_TRUE(reader->called());
+  ASSERT_TRUE(reader->buffer());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(kExpectedTimestamp, reader->buffer()->GetTimestamp());
+  EXPECT_EQ(0, memcmp(kVideoData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
+
+  EXPECT_EQ(kExpectedTimestamp, demuxer_->GetStartTime());
+}
+
+TEST_F(FFmpegDemuxerTest, CheckMinStartTime) {
+  // Test the start time is minimum timestamp of all streams.
+  const int64 kAudioStartTime = 5000000;
+  const int64 kVideoStartTime = 5033000;
+  // Set the audio and video stream's first timestamp.
+  streams_[AV_STREAM_AUDIO].first_dts = kAudioStartTime;
+  streams_[AV_STREAM_VIDEO].first_dts = kVideoStartTime;
+  {
+    SCOPED_TRACE("");
+    InitializeDemuxer();
+  }
+
+  // Ignore all AVFreePacket() calls.  We check this via valgrind.
+  EXPECT_CALL(mock_ffmpeg_, AVFreePacket(_)).Times(AnyNumber());
+
+  // Expect all calls in sequence.
+  InSequence s;
+
+  const base::TimeDelta kExpectedAudioTimestamp =
+      base::TimeDelta::FromMicroseconds(kAudioStartTime);
+  const base::TimeDelta kExpectedVideoTimestamp =
+      base::TimeDelta::FromMicroseconds(kVideoStartTime);
+
+  // First read a video packet, then an audio packet.
+  EXPECT_CALL(mock_ffmpeg_, AVReadFrame(&format_context_, _))
+      .WillOnce(CreatePacketTimeNoCount(AV_STREAM_AUDIO,
+                                        kAudioData,
+                                        kDataSize,
+                                        kAudioStartTime));
+  EXPECT_CALL(mock_ffmpeg_, AVDupPacket(_))
+      .WillOnce(Return(0));
+  EXPECT_CALL(mock_ffmpeg_, AVReadFrame(&format_context_, _))
+      .WillOnce(CreatePacketTimeNoCount(AV_STREAM_VIDEO,
+                                        kVideoData,
+                                        kDataSize,
+                                        kVideoStartTime));
+  EXPECT_CALL(mock_ffmpeg_, AVDupPacket(_))
+      .WillOnce(Return(0));
+
+  // Attempt a read from the video stream and run the message loop until done.
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  ASSERT_TRUE(video);
+  ASSERT_TRUE(audio);
+
+  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
+  reader->Read(video);
+  message_loop_.RunAllPending();
+
+  EXPECT_TRUE(reader->called());
+  ASSERT_TRUE(reader->buffer());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(kExpectedVideoTimestamp, reader->buffer()->GetTimestamp());
+  EXPECT_EQ(0, memcmp(kVideoData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
+
+  EXPECT_EQ(kExpectedAudioTimestamp, demuxer_->GetStartTime());
+
+  reader->Reset();
+  reader->Read(audio);
+  message_loop_.RunAllPending();
+  EXPECT_TRUE(reader->called());
+  ASSERT_TRUE(reader->buffer());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(kExpectedAudioTimestamp, reader->buffer()->GetTimestamp());
+  EXPECT_EQ(0, memcmp(kAudioData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
+
+  EXPECT_EQ(kExpectedAudioTimestamp, demuxer_->GetStartTime());
+}
+
 TEST_F(FFmpegDemuxerTest, Read_EndOfStream) {
   // On end of stream, a new, empty, AVPackets are created without any data for
   // each stream and enqueued into the Buffer stream.  Verify that these are

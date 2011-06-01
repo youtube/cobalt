@@ -723,7 +723,11 @@ void PipelineImpl::InitializeTask() {
     // Fire the seek request to get the filters to preroll.
     seek_pending_ = true;
     set_state(kSeeking);
-    seek_timestamp_ = base::TimeDelta();
+    if (demuxer_)
+      seek_timestamp_ = demuxer_->GetStartTime();
+    else
+      seek_timestamp_ = base::TimeDelta();
+
     pipeline_filter_->Seek(
         seek_timestamp_,
         base::Bind(&PipelineImpl::OnFilterStateTransitionWithStatus, this));
@@ -1113,6 +1117,14 @@ void PipelineImpl::OnDemuxerBuilt(PipelineStatus status, Demuxer* demuxer) {
     return;
 
   demuxer_ = demuxer;
+
+  {
+    base::AutoLock auto_lock(lock_);
+    // We do not want to start the clock running. We only want to set the base
+    // media time so our timestamp calculations will be correct.
+    clock_->SetTime(demuxer_->GetStartTime());
+  }
+
   OnFilterInitialize();
 }
 
