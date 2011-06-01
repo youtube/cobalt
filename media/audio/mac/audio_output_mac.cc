@@ -42,14 +42,18 @@ enum {
 
 PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
     AudioManagerMac* manager, AudioParameters params)
-    : format_(),
-      audio_queue_(NULL),
-      buffer_(),
+    : audio_queue_(NULL),
       source_(NULL),
       manager_(manager),
+      packet_size_(params.GetPacketSize()),
       silence_bytes_(0),
       volume_(1),
-      pending_bytes_(0) {
+      pending_bytes_(0),
+      num_source_channels_(params.channels),
+      source_layout_(params.channel_layout),
+      num_core_channels_(0),
+      should_swizzle_(false),
+      should_down_mix_(false) {
   // We must have a manager.
   DCHECK(manager_);
   // A frame is one sample across all channels. In interleaved audio the per
@@ -64,9 +68,8 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
   format_.mBytesPerPacket = (format_.mBitsPerChannel * params.channels) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
 
-  packet_size_ = params.GetPacketSize();
-  num_source_channels_ = params.channels;
-  source_layout_ = params.channel_layout;
+  memset(core_channel_orderings_, 0, sizeof(core_channel_orderings_));
+  memset(channel_remap_, 0, sizeof(channel_remap_));
 
   if (params.bits_per_sample > 8) {
     format_.mFormatFlags |= kLinearPCMFormatFlagIsSignedInteger;
@@ -116,10 +119,12 @@ bool PCMQueueOutAudioOutputStream::Open() {
     HandleError(err);
     return false;
   }
-  // Get the device's channel layout.
-  scoped_ptr<AudioChannelLayout> core_channel_layout;
+  // Get the device's channel layout.  This layout may vary in sized based on
+  // the number of channels.  Use |core_layout_size| to allocate memory.
+  scoped_ptr_malloc<AudioChannelLayout> core_channel_layout;
   core_channel_layout.reset(
-      reinterpret_cast<AudioChannelLayout*>(new char[core_layout_size]));
+      reinterpret_cast<AudioChannelLayout*>(malloc(core_layout_size)));
+  memset(core_channel_layout.get(), 0, core_layout_size);
   err = AudioDeviceGetProperty(device_id, 0, false,
                                kAudioDevicePropertyPreferredChannelLayout,
                                &core_layout_size, core_channel_layout.get());
@@ -217,6 +222,7 @@ bool PCMQueueOutAudioOutputStream::Open() {
         break;
       default:
         DLOG(WARNING) << "Channel label not supported";
+        channel_remap_[i] = kEmptyChannel;
         break;
     }
   }
