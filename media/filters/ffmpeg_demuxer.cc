@@ -265,7 +265,8 @@ FFmpegDemuxer::FFmpegDemuxer(MessageLoop* message_loop)
       read_position_(0),
       max_duration_(base::TimeDelta::FromMicroseconds(-1)),
       deferred_status_(PIPELINE_OK),
-      first_seek_hack_(true) {
+      first_seek_hack_(true),
+      start_time_(kNoTimestamp) {
   DCHECK(message_loop_);
 }
 
@@ -365,6 +366,10 @@ scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(
   DCHECK_GE(type, 0);
   DCHECK_LT(type, DemuxerStream::NUM_TYPES);
   return streams_[type];
+}
+
+base::TimeDelta FFmpegDemuxer::GetStartTime() const {
+  return start_time_;
 }
 
 int FFmpegDemuxer::Read(int size, uint8* data) {
@@ -498,6 +503,13 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
         no_supported_streams = false;
         streams_[demuxer_stream->type()] = demuxer_stream;
         max_duration = std::max(max_duration, demuxer_stream->duration());
+
+        if (stream->first_dts != static_cast<int64_t>(AV_NOPTS_VALUE)) {
+          const base::TimeDelta first_dts = ConvertFromTimeBase(
+            stream->time_base, stream->first_dts);
+          if (start_time_ == kNoTimestamp || first_dts < start_time_)
+            start_time_ = first_dts;
+        }
       }
       packet_streams_.push_back(demuxer_stream);
     } else {
@@ -521,6 +533,9 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
     max_duration = base::TimeDelta::FromMicroseconds(
         Limits::kMaxTimeInMicroseconds);
   }
+
+  if (start_time_ == kNoTimestamp)
+    start_time_ = base::TimeDelta();
 
   // Good to go: set the duration and notify we're done initializing.
   if (host())

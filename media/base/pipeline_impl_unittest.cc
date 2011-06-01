@@ -76,6 +76,9 @@ class PipelineImplTest : public ::testing::Test {
     DemuxerStream* null_pointer = NULL;
     EXPECT_CALL(*mocks_->demuxer(), GetStream(_))
         .WillRepeatedly(Return(null_pointer));
+
+    EXPECT_CALL(*mocks_->demuxer(), GetStartTime())
+        .WillRepeatedly(Return(base::TimeDelta()));
   }
 
   virtual ~PipelineImplTest() {
@@ -101,7 +104,7 @@ class PipelineImplTest : public ::testing::Test {
         kTotalBytes, kBufferedBytes, duration);
     EXPECT_CALL(*mocks_->demuxer(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->demuxer(), SetPreload(AUTO));
-    EXPECT_CALL(*mocks_->demuxer(), Seek(base::TimeDelta(), _))
+    EXPECT_CALL(*mocks_->demuxer(), Seek(mocks_->demuxer()->GetStartTime(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
     EXPECT_CALL(*mocks_->demuxer(), Stop(NotNull()))
         .WillOnce(Invoke(&RunStopFilterCallback));
@@ -128,7 +131,8 @@ class PipelineImplTest : public ::testing::Test {
                 Initialize(stream, NotNull(), NotNull()))
         .WillOnce(DoAll(Invoke(&RunFilterCallback3), DeleteArg<2>()));
     EXPECT_CALL(*mocks_->video_decoder(), SetPlaybackRate(0.0f));
-    EXPECT_CALL(*mocks_->video_decoder(), Seek(base::TimeDelta(), _))
+    EXPECT_CALL(*mocks_->video_decoder(),
+                Seek(mocks_->demuxer()->GetStartTime(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
     EXPECT_CALL(*mocks_->video_decoder(), Stop(NotNull()))
         .WillOnce(Invoke(&RunStopFilterCallback));
@@ -152,7 +156,8 @@ class PipelineImplTest : public ::testing::Test {
                 Initialize(mocks_->video_decoder(), NotNull(), NotNull()))
         .WillOnce(DoAll(Invoke(&RunFilterCallback3), DeleteArg<2>()));
     EXPECT_CALL(*mocks_->video_renderer(), SetPlaybackRate(0.0f));
-    EXPECT_CALL(*mocks_->video_renderer(), Seek(base::TimeDelta(), _))
+    EXPECT_CALL(*mocks_->video_renderer(),
+                Seek(mocks_->demuxer()->GetStartTime(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
     EXPECT_CALL(*mocks_->video_renderer(), Stop(NotNull()))
         .WillOnce(Invoke(&RunStopFilterCallback));
@@ -799,6 +804,47 @@ TEST_F(PipelineImplTest, ErrorDuringSeek) {
   EXPECT_CALL(callbacks_, OnSeek(PIPELINE_ERROR_READ));
   EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_READ));
   message_loop_.RunAllPending();
+}
+
+TEST_F(PipelineImplTest, StartTimeIsZero) {
+  CreateVideoStream();
+  MockDemuxerStreamVector streams;
+  streams.push_back(video_stream());
+
+  const base::TimeDelta kDuration = base::TimeDelta::FromSeconds(100);
+  InitializeDemuxer(&streams, kDuration);
+  InitializeVideoDecoder(video_stream());
+  InitializeVideoRenderer();
+
+  InitializePipeline(PIPELINE_OK);
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_FALSE(pipeline_->HasAudio());
+  EXPECT_TRUE(pipeline_->HasVideo());
+
+  EXPECT_EQ(base::TimeDelta(), pipeline_->GetCurrentTime());
+}
+
+TEST_F(PipelineImplTest, StartTimeIsNonZero) {
+  const base::TimeDelta kStartTime = base::TimeDelta::FromSeconds(4);
+  const base::TimeDelta kDuration = base::TimeDelta::FromSeconds(100);
+
+  EXPECT_CALL(*mocks_->demuxer(), GetStartTime())
+      .WillRepeatedly(Return(kStartTime));
+
+  CreateVideoStream();
+  MockDemuxerStreamVector streams;
+  streams.push_back(video_stream());
+
+  InitializeDemuxer(&streams, kDuration);
+  InitializeVideoDecoder(video_stream());
+  InitializeVideoRenderer();
+
+  InitializePipeline(PIPELINE_OK);
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_FALSE(pipeline_->HasAudio());
+  EXPECT_TRUE(pipeline_->HasVideo());
+
+  EXPECT_EQ(kStartTime, pipeline_->GetCurrentTime());
 }
 
 class FlexibleCallbackRunner : public base::DelegateSimpleThread::Delegate {

@@ -150,6 +150,7 @@ class FFmpegDemuxer : public Demuxer,
 
   // Demuxer implementation.
   virtual scoped_refptr<DemuxerStream> GetStream(DemuxerStream::Type type);
+  virtual base::TimeDelta GetStartTime() const;
 
   // FFmpegProtocol implementation.
   virtual int Read(int size, uint8* data);
@@ -252,6 +253,11 @@ class FFmpegDemuxer : public Demuxer,
   // Used to skip the implicit "first seek" to avoid resetting FFmpeg's internal
   // state.
   bool first_seek_hack_;
+
+  // The first timestamp of the opened media file. This is used to set the
+  // starting clock value to match the timestamps in the media file. Default
+  // is 0.
+  base::TimeDelta start_time_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };
