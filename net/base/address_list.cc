@@ -38,6 +38,9 @@ struct addrinfo* CreateAddrInfo(const IPAddressNumber& address,
           new char[sockaddr_in_size]);
       memset(addr, 0, sockaddr_in_size);
       addr->sin_family = AF_INET;
+#if defined(OS_MACOSX)
+      addr->sin_len = sockaddr_in_size;
+#endif
       memcpy(&addr->sin_addr, &address[0], kIPv4AddressSize);
       ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr);
       break;
@@ -51,6 +54,9 @@ struct addrinfo* CreateAddrInfo(const IPAddressNumber& address,
           new char[sockaddr_in6_size]);
       memset(addr6, 0, sockaddr_in6_size);
       addr6->sin6_family = AF_INET6;
+#if defined(OS_MACOSX)
+      addr6->sin6_len = sockaddr_in6_size;
+#endif
       memcpy(&addr6->sin6_addr, &address[0], kIPv6AddressSize);
       ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr6);
       break;
