@@ -28,6 +28,7 @@
         'audio/audio_io.h',
         'audio/audio_input_controller.cc',
         'audio/audio_input_controller.h',
+        'audio/audio_device_name.h',
         'audio/audio_manager.cc',
         'audio/audio_manager.h',
         'audio/audio_manager_base.cc',
@@ -388,6 +389,7 @@
       ],
       'sources': [
         'audio/audio_input_controller_unittest.cc',
+        'audio/audio_input_device_unittest.cc',
         'audio/audio_input_unittest.cc',
         'audio/audio_output_controller_unittest.cc',
         'audio/audio_output_proxy_unittest.cc',

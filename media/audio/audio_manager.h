@@ -8,6 +8,7 @@
 #include "base/basictypes.h"
 #include "base/string16.h"
 #include "base/task.h"
+#include "media/audio/audio_device_name.h"
 #include "media/audio/audio_parameters.h"
 
 class AudioInputStream;
@@ -44,6 +45,12 @@ class AudioManager {
   // ideally must not be called from the UI thread or other time sensitive
   // threads to avoid blocking the rest of the application.
   virtual void ShowAudioInputSettings() = 0;
+
+  // Appends a list of available input devices. It is not guaranteed that
+  // all the devices in the list support all formats and sample rates for
+  // recording.
+  virtual void GetAudioInputDeviceNames(
+      media::AudioDeviceNames* device_names) = 0;
 
   // Factory for all the supported stream formats. |params| defines parameters
   // of the audio stream to be created.

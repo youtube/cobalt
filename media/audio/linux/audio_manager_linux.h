@@ -30,6 +30,7 @@ class AudioManagerLinux : public AudioManagerBase {
   virtual AudioInputStream* MakeAudioInputStream(AudioParameters params);
   virtual bool CanShowAudioInputSettings();
   virtual void ShowAudioInputSettings();
+  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names);
 
   virtual void MuteAll();
   virtual void UnMuteAll();
@@ -40,6 +41,9 @@ class AudioManagerLinux : public AudioManagerBase {
   virtual ~AudioManagerLinux();
 
  private:
+  // Helper method to query if there is any valid input device
+  bool HasAnyValidAudioInputDevice(void** hint);
+
   scoped_ptr<AlsaWrapper> wrapper_;
 
   base::Lock lock_;
