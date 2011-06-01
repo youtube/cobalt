@@ -548,7 +548,7 @@ void DYNAMIC_ANNOTATIONS_NAME(AnnotateFlushState)(
     - Make your tool intercept the function RunningOnValgrind() and
       change its return value.
  */
-int RunningOnValgrind(void);
+int RunningOnValgrind(void) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
 #endif /* DYNAMIC_ANNOTATIONS_PROVIDE_RUNNING_ON_VALGRIND == 1 */
 
 #ifdef __cplusplus
