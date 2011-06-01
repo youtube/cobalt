@@ -188,6 +188,19 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersBadStatus) {
   TestCommon(test);
 }
 
+TEST(HttpResponseHeadersTest, NormalizeHeadersInvalidStatusCode) {
+  TestData test = {
+    "HTTP/1.1 -1  Unknown\n",
+
+    "HTTP/1.1 200 OK\n",
+
+    200,
+    net::HttpVersion(1,1),
+    net::HttpVersion(1,1)
+  };
+  TestCommon(test);
+}
+
 TEST(HttpResponseHeadersTest, NormalizeHeadersEmpty) {
   TestData test = {
     "",
