@@ -267,8 +267,8 @@ TEST(AddressListTest, AddressFromAddrInfo) {
     EXPECT_EQ(good_ai->ai_family, test_ai->ai_family);
     EXPECT_EQ(good_ai->ai_addrlen, test_ai->ai_addrlen);
     size_t sockaddr_size =
-        good_ai->ai_socktype == AF_INET ? sizeof(struct sockaddr_in) :
-        good_ai->ai_socktype == AF_INET6 ? sizeof(struct sockaddr_in6) : 0;
+        good_ai->ai_family == AF_INET ? sizeof(struct sockaddr_in) :
+        good_ai->ai_family == AF_INET6 ? sizeof(struct sockaddr_in6) : 0;
     EXPECT_EQ(memcmp(good_ai->ai_addr, test_ai->ai_addr, sockaddr_size), 0);
     EXPECT_EQ(good_ai->ai_next, test_ai->ai_next);
   }
@@ -311,8 +311,8 @@ TEST(AddressListTest, CreateFromIPAddressList) {
       EXPECT_EQ(good_ai->ai_family, next_ai->ai_family);
       EXPECT_EQ(good_ai->ai_addrlen, next_ai->ai_addrlen);
       size_t sockaddr_size =
-        good_ai->ai_socktype == AF_INET ? sizeof(struct sockaddr_in) :
-        good_ai->ai_socktype == AF_INET6 ? sizeof(struct sockaddr_in6) : 0;
+        good_ai->ai_family == AF_INET ? sizeof(struct sockaddr_in) :
+        good_ai->ai_family == AF_INET6 ? sizeof(struct sockaddr_in6) : 0;
       EXPECT_EQ(memcmp(good_ai->ai_addr, next_ai->ai_addr, sockaddr_size), 0);
     }
     next_ai = next_ai->ai_next;
