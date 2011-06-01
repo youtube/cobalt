@@ -591,6 +591,9 @@ bool TransportSecurityState::IsPreloadedSTS(
     {17, true, "\004mail\006google\003com", true, kGoogleAcceptableCerts },
     {23, true, "\012talkgadget\006google\003com", true,
      kGoogleAcceptableCerts },
+    {17, true, "\004talk\006google\003com", true, kGoogleAcceptableCerts },
+    {29, true, "\020hostedtalkgadget\006google\003com", true,
+     kGoogleAcceptableCerts },
     // Other Google-related domains that must use HTTPS.
     {20, true, "\006market\007android\003com", true, kGoogleAcceptableCerts },
     {26, true, "\003ssl\020google-analytics\003com", true,
