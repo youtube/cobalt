@@ -530,6 +530,13 @@ bool URLRequestJob::ReadFilteredData(int* bytes_read) {
              << " pre total = " << prefilter_bytes_read_
              << " post total = "
              << postfilter_bytes_read_;
+    // If logging all bytes is enabled, log the filtered bytes read.
+    if (rv && request() && request()->net_log().IsLoggingBytes() &&
+        filtered_data_len > 0) {
+      request()->net_log().AddByteTransferEvent(
+          NetLog::TYPE_URL_REQUEST_JOB_FILTERED_BYTES_READ,
+          filtered_data_len, filtered_read_buffer_->data());
+    }
   } else {
     // we are done, or there is no data left.
     rv = true;
@@ -588,6 +595,15 @@ bool URLRequestJob::ReadRawDataHelper(IOBuffer* buf, int buf_size,
   bool rv = ReadRawData(buf, buf_size, bytes_read);
 
   if (!request_->status().is_io_pending()) {
+    // If |filter_| is NULL, and logging all bytes is enabled, log the raw
+    // bytes read.
+    if (!filter_.get() && request() && request()->net_log().IsLoggingBytes() &&
+        *bytes_read > 0) {
+      request()->net_log().AddByteTransferEvent(
+          NetLog::TYPE_URL_REQUEST_JOB_BYTES_READ,
+          *bytes_read, raw_read_buffer_->data());
+    }
+
     // If the read completes synchronously, either success or failure,
     // invoke the OnRawReadComplete callback so we can account for the
     // completed read.
