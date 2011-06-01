@@ -21,6 +21,7 @@ class AudioManagerMac : public AudioManagerBase {
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices();
   virtual bool HasAudioInputDevices();
+  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names);
   virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params);
   virtual AudioInputStream* MakeAudioInputStream(AudioParameters params);
   virtual void MuteAll();
