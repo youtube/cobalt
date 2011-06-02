@@ -11,7 +11,7 @@
 
 namespace switches {
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_SOLARIS)
 extern const char kAlsaOutputDevice[];
 extern const char kAlsaInputDevice[];
 #endif
