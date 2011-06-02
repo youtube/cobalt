@@ -72,6 +72,7 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
       callback_(NULL),
       handshake_request_(new WebSocketHandshakeRequestHandler),
       handshake_response_(new WebSocketHandshakeResponseHandler),
+      started_to_send_handshake_request_(false),
       handshake_request_sent_(0),
       response_cookies_save_index_(0),
       send_frame_handler_(new WebSocketFrameHandler),
@@ -273,6 +274,8 @@ void WebSocketJob::OnError(const SocketStream* socket, int error) {
 
 bool WebSocketJob::SendHandshakeRequest(const char* data, int len) {
   DCHECK_EQ(state_, CONNECTING);
+  if (started_to_send_handshake_request_)
+    return false;
   if (!handshake_request_->ParseRequest(data, len))
     return false;
 
@@ -281,6 +284,7 @@ bool WebSocketJob::SendHandshakeRequest(const char* data, int len) {
       handshake_request_->protocol_version());
   AddCookieHeaderAndSend();
   // Just buffered in |handshake_request_|.
+  started_to_send_handshake_request_ = true;
   return true;
 }
 
