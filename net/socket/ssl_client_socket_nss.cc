@@ -305,96 +305,65 @@ enum DNSValidationResult {
   DNSVR_CONTINUE,  // perform CA validation as usual.
 };
 
-// VerifyTXTRecords processes the RRDATA for a number of DNS TXT records and
-// checks them against the given certificate.
-//   dnssec: if true then the TXT records are DNSSEC validated. In this case,
-//       DNSVR_SUCCESS may be returned.
-//    server_cert_nss: the certificate to validate
-//    rrdatas: the TXT records for the current domain.
-DNSValidationResult VerifyTXTRecords(
-    bool dnssec,
+// VerifyCAARecords processes DNSSEC validated RRDATA for a number of DNS CAA
+// records and checks them against the given chain.
+//    server_cert_nss: the server's leaf certificate.
+//    rrdatas: the CAA records for the current domain.
+//    port: the TCP port number that we connected to.
+DNSValidationResult VerifyCAARecords(
     CERTCertificate* server_cert_nss,
-    const std::vector<base::StringPiece>& rrdatas) {
-  bool found_well_formed_record = false;
-  bool matched_record = false;
+    const std::vector<base::StringPiece>& rrdatas,
+    uint16 port) {
+  DnsCAARecord::Policy policy;
+  const DnsCAARecord::ParseResult r = DnsCAARecord::Parse(rrdatas, &policy);
+  if (r == DnsCAARecord::SYNTAX_ERROR || r == DnsCAARecord::UNKNOWN_CRITICAL)
+    return DNSVR_FAILURE;
+  if (r == DnsCAARecord::DISCARD)
+    return DNSVR_CONTINUE;
+  DCHECK(r == DnsCAARecord::SUCCESS);
 
-  for (std::vector<base::StringPiece>::const_iterator
-       i = rrdatas.begin(); i != rrdatas.end(); ++i) {
-    std::map<std::string, std::string> m(
-        DNSSECChainVerifier::ParseTLSTXTRecord(*i));
-    if (m.empty())
-      continue;
+  for (std::vector<DnsCAARecord::Policy::Hash>::const_iterator
+       hash = policy.authorized_hashes.begin();
+       hash != policy.authorized_hashes.end();
+       ++hash) {
+    if (hash->target == DnsCAARecord::Policy::SUBJECT_PUBLIC_KEY_INFO &&
+        (hash->port == 0 || hash->port == port)) {
+      CHECK_LE(hash->data.size(), static_cast<unsigned>(SHA512_LENGTH));
+      uint8 calculated_hash[SHA512_LENGTH];  // SHA512 is the largest.
+      SECStatus rv = HASH_HashBuf(
+          static_cast<HASH_HashType>(hash->algorithm),
+          calculated_hash,
+          server_cert_nss->derPublicKey.data,
+          server_cert_nss->derPublicKey.len);
+      DCHECK(rv == SECSuccess);
+      const std::string actual_digest(reinterpret_cast<char*>(calculated_hash),
+                                      hash->data.size());
 
-    std::map<std::string, std::string>::const_iterator j;
-    j = m.find("v");
-    if (j == m.end() || j->second != "tls1")
-      continue;
-
-    j = m.find("ha");
-
-    HASH_HashType hash_algorithm;
-    unsigned hash_length;
-    if (j == m.end() || j->second == "sha1") {
-      hash_algorithm = HASH_AlgSHA1;
-      hash_length = SHA1_LENGTH;
-    } else if (j->second == "sha256") {
-      hash_algorithm = HASH_AlgSHA256;
-      hash_length = SHA256_LENGTH;
-    } else {
-      continue;
-    }
-
-    j = m.find("h");
-    if (j == m.end())
-      continue;
-
-    std::vector<uint8> given_hash;
-    if (!base::HexStringToBytes(j->second, &given_hash))
-      continue;
-
-    if (given_hash.size() != hash_length)
-      continue;
-
-    uint8 calculated_hash[SHA256_LENGTH];  // SHA256 is the largest.
-    SECStatus rv;
-
-    j = m.find("hr");
-    if (j == m.end() || j->second == "pubkey") {
-      rv = HASH_HashBuf(hash_algorithm, calculated_hash,
-                        server_cert_nss->derPublicKey.data,
-                        server_cert_nss->derPublicKey.len);
-    } else if (j->second == "cert") {
-      rv = HASH_HashBuf(hash_algorithm, calculated_hash,
-                        server_cert_nss->derCert.data,
-                        server_cert_nss->derCert.len);
-    } else {
-      continue;
-    }
-
-    if (rv != SECSuccess)
-      NOTREACHED();
-
-    found_well_formed_record = true;
-
-    if (memcmp(calculated_hash, &given_hash[0], hash_length) == 0) {
-      matched_record = true;
-      if (dnssec)
+      // Note that the parser ensures that hash->data.size() is correct for the
+      // given algorithm. An attacker cannot give a zero length hash that
+      // always matches.
+      if (actual_digest == hash->data) {
+        // A DNSSEC secure hash over the public key of the leaf-certificate
+        // is sufficient.
         return DNSVR_SUCCESS;
+      }
     }
   }
 
-  if (found_well_formed_record && !matched_record)
-    return DNSVR_FAILURE;
-
-  return DNSVR_CONTINUE;
+  // If a CAA record was found, but nothing matched, then we reject the
+  // certificate.
+  return DNSVR_FAILURE;
 }
 
 // CheckDNSSECChain tries to validate a DNSSEC chain embedded in
 // |server_cert_nss_|. It returns true iff a chain is found that proves the
-// value of a TXT record that contains a valid public key fingerprint.
+// value of a CAA record that contains a valid public key fingerprint.
+// |port| contains the TCP port number that we connected to as CAA records can
+// be specific to a given port.
 DNSValidationResult CheckDNSSECChain(
     const std::string& hostname,
-    CERTCertificate* server_cert_nss) {
+    CERTCertificate* server_cert_nss,
+    uint16 port) {
   if (!server_cert_nss)
     return DNSVR_CONTINUE;
 
@@ -439,12 +408,13 @@ DNSValidationResult CheckDNSSECChain(
     return DNSVR_CONTINUE;
   }
 
-  if (verifier.rrtype() != kDNS_TXT)
+  if (verifier.rrtype() != kDNS_CAA)
     return DNSVR_CONTINUE;
 
-  DNSValidationResult r = VerifyTXTRecords(
-      true /* DNSSEC verified */, server_cert_nss, verifier.rrdatas());
+  DNSValidationResult r = VerifyCAARecords(
+      server_cert_nss, verifier.rrdatas(), port);
   SECITEM_FreeItem(&dnssec_embedded_chain, PR_FALSE);
+
   return r;
 }
 
@@ -483,7 +453,6 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       eset_mitm_detected_(false),
       predicted_cert_chain_correct_(false),
       peername_initialized_(false),
-      dnssec_provider_(NULL),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
       nss_bufs_(NULL),
@@ -578,10 +547,6 @@ SSLClientSocketNSS::GetNextProto(std::string* proto) {
   proto->clear();
   return kNextProtoUnsupported;
 #endif
-}
-
-void SSLClientSocketNSS::UseDNSSEC(DNSSECProvider* provider) {
-  dnssec_provider_ = provider;
 }
 
 int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
@@ -1243,9 +1208,6 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
       case STATE_VERIFY_DNSSEC:
         rv = DoVerifyDNSSEC(rv);
         break;
-      case STATE_VERIFY_DNSSEC_COMPLETE:
-        rv = DoVerifyDNSSECComplete(rv);
-        break;
       case STATE_VERIFY_CERT:
         DCHECK(rv == OK);
         rv = DoVerifyCert(rv);
@@ -1446,7 +1408,8 @@ int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
 
   if (ssl_config_.dnssec_enabled) {
     DNSValidationResult r = CheckDNSSECChain(host_and_port_.host(),
-                                             server_cert_nss_);
+                                             server_cert_nss_,
+                                             host_and_port_.port());
     if (r == DNSVR_SUCCESS) {
       local_server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
       server_cert_verify_result_ = &local_server_cert_verify_result_;
@@ -1455,60 +1418,7 @@ int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
     }
   }
 
-  if (dnssec_provider_ == NULL) {
-    GotoState(STATE_VERIFY_CERT);
-    return OK;
-  }
-
-  GotoState(STATE_VERIFY_DNSSEC_COMPLETE);
-  RRResponse* response;
-  dnssec_wait_start_time_ = base::Time::Now();
-  return dnssec_provider_->GetDNSSECRecords(&response, &handshake_io_callback_);
-}
-
-int SSLClientSocketNSS::DoVerifyDNSSECComplete(int result) {
-  RRResponse* response;
-  int err = dnssec_provider_->GetDNSSECRecords(&response, NULL);
-  DCHECK_EQ(err, OK);
-
-  const base::TimeDelta elapsed = base::Time::Now() - dnssec_wait_start_time_;
-  HISTOGRAM_TIMES("Net.DNSSECWaitTime", elapsed);
-
   GotoState(STATE_VERIFY_CERT);
-  if (!response || response->rrdatas.empty())
-    return OK;
-
-  std::vector<base::StringPiece> records;
-  records.resize(response->rrdatas.size());
-  for (unsigned i = 0; i < response->rrdatas.size(); i++)
-    records[i] = base::StringPiece(response->rrdatas[i]);
-  DNSValidationResult r =
-      VerifyTXTRecords(response->dnssec, server_cert_nss_, records);
-
-  if (!ssl_config_.dnssec_enabled) {
-    // If DNSSEC is not enabled we don't take any action based on the result,
-    // except to record the latency, above.
-    return OK;
-  }
-
-  switch (r) {
-    case DNSVR_FAILURE:
-      GotoState(STATE_VERIFY_CERT_COMPLETE);
-      local_server_cert_verify_result_.cert_status |= CERT_STATUS_NOT_IN_DNS;
-      server_cert_verify_result_ = &local_server_cert_verify_result_;
-      return ERR_CERT_NOT_IN_DNS;
-    case DNSVR_CONTINUE:
-      GotoState(STATE_VERIFY_CERT);
-      break;
-    case DNSVR_SUCCESS:
-      local_server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
-      server_cert_verify_result_ = &local_server_cert_verify_result_;
-      GotoState(STATE_VERIFY_CERT_COMPLETE);
-      break;
-    default:
-      NOTREACHED();
-      GotoState(STATE_VERIFY_CERT);
-  }
 
   return OK;
 }

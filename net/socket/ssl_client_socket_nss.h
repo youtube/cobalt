@@ -62,7 +62,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
   virtual NextProtoStatus GetNextProto(std::string* proto);
-  virtual void UseDNSSEC(DNSSECProvider* provider);
 
   // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback);
@@ -88,7 +87,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
     STATE_NONE,
     STATE_HANDSHAKE,
     STATE_VERIFY_DNSSEC,
-    STATE_VERIFY_DNSSEC_COMPLETE,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
   };
@@ -117,7 +115,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoHandshake();
 
   int DoVerifyDNSSEC(int result);
-  int DoVerifyDNSSECComplete(int result);
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
   int DoPayloadRead();
@@ -229,8 +226,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // True if the peer name has been initialized.
   bool peername_initialized_;
 
-  // This pointer is owned by the caller of UseDNSSEC.
-  DNSSECProvider* dnssec_provider_;
   // The time when we started waiting for DNSSEC records.
   base::Time dnssec_wait_start_time_;
 
