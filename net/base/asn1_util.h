@@ -6,6 +6,8 @@
 #define NET_BASE_ASN1_UTIL_H_
 #pragma once
 
+#include <vector>
+
 #include "base/string_piece.h"
 #include "net/base/net_api.h"
 
@@ -14,13 +16,18 @@ namespace net {
 namespace asn1 {
 
 // These are the DER encodings of the tag byte for ASN.1 objects.
+static const unsigned kBOOLEAN = 0x01;
 static const unsigned kINTEGER = 0x02;
+static const unsigned kOCTETSTRING = 0x04;
 static const unsigned kOID = 0x06;
 static const unsigned kSEQUENCE = 0x30;
 
 // These are flags that can be ORed with the above tag numbers.
 static const unsigned kContextSpecific = 0x80;
 static const unsigned kCompound = 0x20;
+
+// kAny matches any tag value;
+static const unsigned kAny = 0x10000;
 
 // ParseElement parses a DER encoded ASN1 element from |in|, requiring that
 // it have the given |tag_value|. It returns true on success. The following
@@ -48,6 +55,19 @@ bool GetElement(base::StringPiece* in,
 // |spki_out| is set to contain the SPKI, pointing into |cert|.
 NET_TEST bool ExtractSPKIFromDERCert(base::StringPiece cert,
                                      base::StringPiece* spki_out);
+
+// ExtractCRLURLsFromDERCert parses the DER encoded certificate in |cert| and
+// extracts the URL of each CRL. On successful return, the elements of
+// |urls_out| point into |cert|.
+//
+// CRLs that only cover a subset of the reasons are omitted as the spec
+// requires that at least one CRL be included that covers all reasons.
+//
+// The nested set of GeneralNames is flattened into a single list because
+// having several CRLs with one location is equivalent to having one CRL with
+// several locations as far as a CRL filter is concerned.
+bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
+                               std::vector<base::StringPiece>* urls_out);
 
 } // namespace asn1
 
