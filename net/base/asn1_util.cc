@@ -17,7 +17,7 @@ bool ParseElement(base::StringPiece* in,
   if (in->size() < 2)
     return false;
 
-  if (static_cast<unsigned char>(data[0]) != tag_value)
+  if (tag_value != kAny && static_cast<unsigned char>(data[0]) != tag_value)
     return false;
 
   size_t len = 0;
@@ -71,8 +71,10 @@ bool GetElement(base::StringPiece* in,
   return true;
 }
 
-bool ExtractSPKIFromDERCert(base::StringPiece cert,
-                            base::StringPiece* spki_out) {
+// SeekToSPKI changes |cert| so that it points to a suffix of the original
+// value where the suffix begins at the start of the ASN.1 SubjectPublicKeyInfo
+// value.
+static bool SeekToSPKI(base::StringPiece* cert) {
   // From RFC 5280, section 4.1
   //    Certificate  ::=  SEQUENCE  {
   //      tbsCertificate       TBSCertificate,
@@ -89,36 +91,175 @@ bool ExtractSPKIFromDERCert(base::StringPiece cert,
   //      subjectPublicKeyInfo SubjectPublicKeyInfo,
 
   base::StringPiece certificate;
-  if (!asn1::GetElement(&cert, asn1::kSEQUENCE, &certificate))
+  if (!GetElement(cert, kSEQUENCE, &certificate))
     return false;
 
   base::StringPiece tbs_certificate;
-  if (!asn1::GetElement(&certificate, asn1::kSEQUENCE, &tbs_certificate))
+  if (!GetElement(&certificate, kSEQUENCE, &tbs_certificate))
     return false;
 
   // The version is optional, so a failure to parse it is fine.
-  asn1::GetElement(&tbs_certificate,
-                   asn1::kCompound | asn1::kContextSpecific | 0,
-                   NULL);
+  GetElement(&tbs_certificate,
+             kCompound | kContextSpecific | 0,
+             NULL);
 
   // serialNumber
-  if (!asn1::GetElement(&tbs_certificate, asn1::kINTEGER, NULL))
+  if (!GetElement(&tbs_certificate, kINTEGER, NULL))
     return false;
   // signature
-  if (!asn1::GetElement(&tbs_certificate, asn1::kSEQUENCE, NULL))
+  if (!GetElement(&tbs_certificate, kSEQUENCE, NULL))
     return false;
   // issuer
-  if (!asn1::GetElement(&tbs_certificate, asn1::kSEQUENCE, NULL))
+  if (!GetElement(&tbs_certificate, kSEQUENCE, NULL))
     return false;
   // validity
-  if (!asn1::GetElement(&tbs_certificate, asn1::kSEQUENCE, NULL))
+  if (!GetElement(&tbs_certificate, kSEQUENCE, NULL))
     return false;
   // subject
-  if (!asn1::GetElement(&tbs_certificate, asn1::kSEQUENCE, NULL))
+  if (!GetElement(&tbs_certificate, kSEQUENCE, NULL))
     return false;
+  *cert = tbs_certificate;
+  return true;
+}
+
+bool ExtractSPKIFromDERCert(base::StringPiece cert,
+                            base::StringPiece* spki_out) {
+  if (!SeekToSPKI(&cert))
+    return false;
+  if (!ParseElement(&cert, kSEQUENCE, spki_out, NULL))
+    return false;
+  return true;
+}
+
+bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
+                               std::vector<base::StringPiece>* urls_out) {
+  urls_out->clear();
+
+  if (!SeekToSPKI(&cert))
+    return false;
+
+  // From RFC 5280, section 4.1
+  // TBSCertificate  ::=  SEQUENCE  {
+  //      ...
+  //      subjectPublicKeyInfo SubjectPublicKeyInfo,
+  //      issuerUniqueID  [1]  IMPLICIT UniqueIdentifier OPTIONAL,
+  //      subjectUniqueID [2]  IMPLICIT UniqueIdentifier OPTIONAL,
+  //      extensions      [3]  EXPLICIT Extensions OPTIONAL
+
   // subjectPublicKeyInfo
-  if (!asn1::ParseElement(&tbs_certificate, asn1::kSEQUENCE, spki_out, NULL))
+  if (!GetElement(&cert, kSEQUENCE, NULL))
     return false;
+  // issuerUniqueID
+  GetElement(&cert, kCompound | kContextSpecific | 1, NULL);
+  // subjectUniqueID
+  GetElement(&cert, kCompound | kContextSpecific | 2, NULL);
+
+  base::StringPiece extensions_seq;
+  if (!GetElement(&cert, kCompound | kContextSpecific | 3,
+                  &extensions_seq)) {
+    // If there are no extensions, then there are no CRL URLs.
+    return true;
+  }
+
+  // Extensions  ::=  SEQUENCE SIZE (1..MAX) OF Extension
+  // Extension   ::=  SEQUENCE  {
+  //      extnID      OBJECT IDENTIFIER,
+  //      critical    BOOLEAN DEFAULT FALSE,
+  //      extnValue   OCTET STRING
+
+  // |extensions_seq| was EXPLICITly tagged, so we still need to remove the
+  // ASN.1 SEQUENCE header.
+  base::StringPiece extensions;
+  if (!GetElement(&extensions_seq, kSEQUENCE, &extensions))
+    return false;
+
+  while (extensions.size() > 0) {
+    base::StringPiece extension;
+    if (!GetElement(&extensions, kSEQUENCE, &extension))
+      return false;
+
+    base::StringPiece oid;
+    if (!GetElement(&extension, kOID, &oid))
+      return false;
+
+    // kCRLDistributionPointsOID is the DER encoding of the OID for the X.509
+    // CRL Distribution Points extension.
+    static const uint8 kCRLDistributionPointsOID[] = {0x55, 0x1d, 0x1f};
+
+    if (oid.size() != sizeof(kCRLDistributionPointsOID) ||
+        memcmp(oid.data(), kCRLDistributionPointsOID, oid.size()) != 0) {
+      continue;
+    }
+
+    // critical
+    GetElement(&extension, kBOOLEAN, NULL);
+
+    // extnValue
+    base::StringPiece extension_value;
+    if (!GetElement(&extension, kOCTETSTRING, &extension_value))
+      return false;
+
+    // RFC 5280, section 4.2.1.13.
+    //
+    // CRLDistributionPoints ::= SEQUENCE SIZE (1..MAX) OF DistributionPoint
+    //
+    // DistributionPoint ::= SEQUENCE {
+    //  distributionPoint       [0]     DistributionPointName OPTIONAL,
+    //  reasons                 [1]     ReasonFlags OPTIONAL,
+    //  cRLIssuer               [2]     GeneralNames OPTIONAL }
+
+    base::StringPiece distribution_points;
+    if (!GetElement(&extension_value, kSEQUENCE, &distribution_points))
+      return false;
+
+    while (distribution_points.size() > 0) {
+      base::StringPiece distrib_point;
+      if (!GetElement(&distribution_points, kSEQUENCE, &distrib_point))
+        return false;
+
+      base::StringPiece name;
+      if (!GetElement(&distrib_point, kContextSpecific | kCompound | 0,
+                      &name)) {
+        // If it doesn't contain a name then we skip it.
+        continue;
+      }
+
+      if (GetElement(&distrib_point, kContextSpecific | 1, NULL)) {
+        // If it contains a subset of reasons then we skip it. We aren't
+        // interested in subsets of CRLs and the RFC states that there MUST be
+        // a CRL that covers all reasons.
+        continue;
+      }
+
+      if (GetElement(&distrib_point, kContextSpecific | kCompound | 2, NULL)) {
+        // If it contains a alternative issuer, then we skip it.
+        continue;
+      }
+
+      // DistributionPointName ::= CHOICE {
+      //   fullName                [0]     GeneralNames,
+      //   nameRelativeToCRLIssuer [1]     RelativeDistinguishedName }
+      base::StringPiece general_names;
+      if (!GetElement(&name, kContextSpecific | kCompound | 0, &general_names))
+        continue;
+
+      // GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName
+      // GeneralName ::= CHOICE {
+      //   ...
+      //   uniformResourceIdentifier [6]  IA5String,
+      //   ...
+      while (general_names.size() > 0) {
+        base::StringPiece url;
+        if (GetElement(&general_names, kContextSpecific | 6, &url)) {
+          urls_out->push_back(url);
+        } else {
+          if (!GetElement(&general_names, kAny, NULL))
+            return false;
+        }
+      }
+    }
+  }
+
   return true;
 }
 
