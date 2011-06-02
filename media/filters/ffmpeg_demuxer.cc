@@ -551,8 +551,11 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, const FilterStatusCB& cb) {
   // Preroll() states (i.e., the implicit Seek(0) should really be a Preroll()).
   if (first_seek_hack_) {
     first_seek_hack_ = false;
-    cb.Run(PIPELINE_OK);
-    return;
+
+    if (time == start_time_) {
+      cb.Run(PIPELINE_OK);
+      return;
+    }
   }
 
   // Tell streams to flush buffers due to seeking.
