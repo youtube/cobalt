@@ -199,7 +199,7 @@ const int kDebounceTimeoutMilliseconds = 250;
 class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
  public:
   SettingGetterImplGConf()
-      : client_(NULL), notify_delegate_(NULL), loop_(NULL) {}
+      : this_(this), client_(NULL), notify_delegate_(NULL), loop_(NULL) {}
 
   virtual ~SettingGetterImplGConf() {
     // client_ should have been released before now, from
@@ -446,6 +446,9 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
   }
 
   void OnChangeNotification() {
+    // See below. This check is to try and track bugs 75508 and 84673.
+    // TODO(mdm): remove this check once it gives us some results.
+    CHECK(this_ == this);
     // We don't use Reset() because the timer may not yet be running.
     // (In that case Stop() is a no-op.)
     debounce_timer_.Stop();
@@ -464,6 +467,12 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
         reinterpret_cast<SettingGetterImplGConf*>(user_data);
     setting_getter->OnChangeNotification();
   }
+
+  // See bugs 75508 and 84673. I kind of suspect we're getting bogus pointers to
+  // this object somehow in callbacks from GConf; this pointer is always set to
+  // |this| on construction and should help verify whether this object has been
+  // scribbled upon or if we have a stray pointer somehow.
+  SettingGetterImplGConf* this_;
 
   GConfClient* client_;
   ProxyConfigServiceLinux::Delegate* notify_delegate_;
