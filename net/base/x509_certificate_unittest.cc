@@ -576,6 +576,25 @@ TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
   EXPECT_TRUE(0 == memcmp(hash, nistSPKIHash, sizeof(hash)));
 }
 
+TEST(X509CertificateTest, ExtractCRLURLsFromDERCert) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir, "nist.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
+
+  std::string derBytes;
+  EXPECT_TRUE(cert->GetDEREncoded(&derBytes));
+
+  std::vector<base::StringPiece> crl_urls;
+  EXPECT_TRUE(asn1::ExtractCRLURLsFromDERCert(derBytes, &crl_urls));
+
+  EXPECT_EQ(crl_urls.size(), 1u);
+  if (crl_urls.size() > 0) {
+    EXPECT_EQ(crl_urls[0].as_string(),
+              "http://SVRSecure-G3-crl.verisign.com/SVRSecureG3.crl");
+  }
+}
+
 TEST(X509CertificateTest, PublicKeyHashes) {
   FilePath certs_dir = GetTestCertsDirectory();
   // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
