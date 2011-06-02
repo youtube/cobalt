@@ -99,13 +99,15 @@ HostCache* CreateDefaultCache() {
 std::vector<int> GetAllGetAddrinfoOSErrors() {
   int os_errors[] = {
 #if defined(OS_POSIX)
+#if !defined(OS_FREEBSD)
     EAI_ADDRFAMILY,
+    EAI_NODATA,
+#endif
     EAI_AGAIN,
     EAI_BADFLAGS,
     EAI_FAIL,
     EAI_FAMILY,
     EAI_MEMORY,
-    EAI_NODATA,
     EAI_NONAME,
     EAI_SERVICE,
     EAI_SOCKTYPE,
@@ -1058,7 +1060,7 @@ HostResolverImpl::HostResolverImpl(
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
   if (HaveOnlyLoopbackAddresses())
     additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
 #endif
@@ -1598,7 +1600,7 @@ void HostResolverImpl::OnIPAddressChanged() {
     ipv6_probe_job_ = new IPv6ProbeJob(this);
     ipv6_probe_job_->Start();
   }
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
   if (HaveOnlyLoopbackAddresses()) {
     additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
   } else {
