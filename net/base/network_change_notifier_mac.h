@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,10 @@
 #pragma once
 
 #include <SystemConfiguration/SCDynamicStore.h>
+#include <SystemConfiguration/SCNetworkReachability.h>
 
 #include "base/basictypes.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_config_watcher_mac.h"
 
@@ -47,8 +49,15 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store);
   void OnNetworkConfigChange(CFArrayRef changed_keys);
 
+  static void ReachabilityCallback(SCNetworkReachabilityRef target,
+                                   SCNetworkConnectionFlags flags,
+                                   void* notifier);
+
   Forwarder forwarder_;
   const NetworkConfigWatcherMac config_watcher_;
+  base::mac::ScopedCFTypeRef<CFRunLoopRef> run_loop_;
+  base::mac::ScopedCFTypeRef<SCNetworkReachabilityRef> reachability_;
+  bool network_reachable_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };
