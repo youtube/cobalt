@@ -6,6 +6,8 @@
 #define NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_INTERFACE_H_
 #pragma once
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
