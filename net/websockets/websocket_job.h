@@ -109,6 +109,7 @@ class NET_API WebSocketJob
   scoped_ptr<WebSocketHandshakeRequestHandler> handshake_request_;
   scoped_ptr<WebSocketHandshakeResponseHandler> handshake_response_;
 
+  bool started_to_send_handshake_request_;
   size_t handshake_request_sent_;
 
   std::vector<std::string> response_cookies_;
