@@ -534,6 +534,8 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
         Limits::kMaxTimeInMicroseconds);
   }
 
+  // Some demuxers, like WAV, do not put timestamps on their frames. We
+  // assume the the start time is 0.
   if (start_time_ == kNoTimestamp)
     start_time_ = base::TimeDelta();
 
