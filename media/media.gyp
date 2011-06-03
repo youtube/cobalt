@@ -201,12 +201,6 @@
         ],
       },
       'conditions': [
-        ['OS=="win"', {
-          'sources': [
-            'video/mft_h264_decode_engine.cc',
-            'video/mft_h264_decode_engine.h',
-          ],
-        }],
         ['OS == "linux" or OS == "freebsd" or OS == "solaris"', {
           'link_settings': {
             'libraries': [
