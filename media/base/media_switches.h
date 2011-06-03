@@ -18,9 +18,7 @@ extern const char kAlsaInputDevice[];
 
 extern const char kEnableAcceleratedDecoding[];
 extern const char kEnableAdaptive[];
-extern const char kEnableOpenMax[];
 extern const char kVideoThreads[];
-
 
 }  // namespace switches
 
