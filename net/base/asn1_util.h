@@ -66,8 +66,9 @@ NET_TEST bool ExtractSPKIFromDERCert(base::StringPiece cert,
 // The nested set of GeneralNames is flattened into a single list because
 // having several CRLs with one location is equivalent to having one CRL with
 // several locations as far as a CRL filter is concerned.
-bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
-                               std::vector<base::StringPiece>* urls_out);
+NET_TEST bool ExtractCRLURLsFromDERCert(
+    base::StringPiece cert,
+    std::vector<base::StringPiece>* urls_out);
 
 } // namespace asn1
 
