@@ -231,23 +231,6 @@ NET_ERROR(SSL_CLIENT_AUTH_SIGNATURE_FAILED, -141)
 // which exceeds size threshold).
 NET_ERROR(MSG_TOO_BIG, -142)
 
-// DNS resolver received a malformed response.
-NET_ERROR(DNS_MALFORMED_RESPONSE, -143)
-
-// DNS server requires TCP
-NET_ERROR(DNS_SERVER_REQUIRES_TCP, -144)
-
-// DNS server failed.  This error is returned for all of the following
-// error conditions:
-// 1 - Format error - The name server was unable to interpret the query.
-// 2 - Server failure - The name server was unable to process this query
-//     due to a problem with the name server.
-// 4 - Not Implemented - The name server does not support the requested
-//     kind of query.
-// 5 - Refused - The name server refuses to perform the specified
-//     operation for policy reasons.
-NET_ERROR(DNS_SERVER_FAILED, -145)
-
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
