@@ -1406,16 +1406,14 @@ int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
         host_and_port_.host(), certs.AsStringPieceVector());
   }
 
-  if (ssl_config_.dnssec_enabled) {
-    DNSValidationResult r = CheckDNSSECChain(host_and_port_.host(),
-                                             server_cert_nss_,
-                                             host_and_port_.port());
-    if (r == DNSVR_SUCCESS) {
-      local_server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
-      server_cert_verify_result_ = &local_server_cert_verify_result_;
-      GotoState(STATE_VERIFY_CERT_COMPLETE);
-      return OK;
-    }
+  DNSValidationResult r = CheckDNSSECChain(host_and_port_.host(),
+                                           server_cert_nss_,
+                                           host_and_port_.port());
+  if (r == DNSVR_SUCCESS) {
+    local_server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
+    server_cert_verify_result_ = &local_server_cert_verify_result_;
+    GotoState(STATE_VERIFY_CERT_COMPLETE);
+    return OK;
   }
 
   GotoState(STATE_VERIFY_CERT);
