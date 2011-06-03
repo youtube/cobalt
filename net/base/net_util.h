@@ -274,7 +274,7 @@ bool IsPortAllowedByFtp(int port);
 bool IsPortAllowedByOverride(int port);
 
 // Set socket to non-blocking mode
-int SetNonBlocking(int fd);
+NET_API int SetNonBlocking(int fd);
 
 // Formats the host in |url| and appends it to |output|.  The host formatter
 // takes the same accept languages component as ElideURL().
