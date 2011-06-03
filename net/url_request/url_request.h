@@ -561,9 +561,9 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     priority_ = priority;
   }
 
-#ifdef UNIT_TEST
+  // This method is intended only for unit tests, but it is being used by
+  // unit tests outside of net :(.
   URLRequestJob* job() { return job_; }
-#endif
 
  protected:
   // Allow the URLRequestJob class to control the is_pending() flag.

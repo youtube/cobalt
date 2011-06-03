@@ -10,6 +10,8 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
 
+#pragma comment(lib, "crypt32.lib")
+
 namespace {
   // Helper for error handling during key import.
 #define READ_ASSERT(truth) \
