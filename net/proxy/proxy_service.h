@@ -362,7 +362,7 @@ class NET_API ProxyService : public NetworkChangeNotifier::IPAddressObserver,
 };
 
 // Wrapper for invoking methods on a ProxyService synchronously.
-class SyncProxyServiceHelper
+class NET_API SyncProxyServiceHelper
     : public base::RefCountedThreadSafe<SyncProxyServiceHelper> {
  public:
   SyncProxyServiceHelper(MessageLoop* io_message_loop,
