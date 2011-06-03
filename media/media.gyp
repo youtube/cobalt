@@ -15,9 +15,8 @@
         'yuv_convert',
         '../base/base.gyp:base',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-        '../third_party/openmax/openmax.gyp:il',
+        '../build/temp_gyp/googleurl.gyp:googleurl',
       ],
       'include_dirs': [
         '..',
@@ -225,6 +224,15 @@
           ],
         }],
         ['os_posix == 1 and OS != "mac"', {
+          'sources': [
+            'filters/omx_video_decoder.cc',
+            'filters/omx_video_decoder.h',
+          ],
+          'dependencies': [
+            'omx_wrapper',
+          ]
+        }],
+        ['os_posix == 1 and OS != "mac"', {
           'sources!': [
             'video/capture/video_capture_device_dummy.cc',
             'video/capture/video_capture_device_dummy.h',
@@ -368,6 +376,10 @@
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+        '../third_party/openmax/openmax.gyp:il',
+      ],
+      'sources!': [
+        '../third_party/openmax/omx_stub.cc',
       ],
       'sources': [
         'audio/audio_input_controller_unittest.cc',
@@ -413,7 +425,30 @@
         'filters/file_data_source_unittest.cc',
         'filters/rtc_video_decoder_unittest.cc',
         'filters/video_renderer_base_unittest.cc',
+        'omx/mock_omx.cc',
+        'omx/mock_omx.h',
         'video/ffmpeg_video_decode_engine_unittest.cc',
+      ],
+      'conditions': [
+        ['toolkit_uses_gtk == 1', {
+          'dependencies': [
+            # Needed for the following #include chain:
+            #   base/run_all_unittests.cc
+            #   ../base/test_suite.h
+            #   gtk/gtk.h
+            '../build/linux/system.gyp:gtk',
+          ],
+          'sources': [
+            'omx/omx_codec_unittest.cc',
+          ],
+          'conditions': [
+            ['linux_use_tcmalloc==1', {
+              'dependencies': [
+                '../base/allocator/allocator.gyp:allocator',
+              ],
+            }],
+          ],
+        }],
       ],
     },
     {
@@ -640,6 +675,67 @@
     }],
     ['os_posix == 1 and OS != "mac"', {
       'targets': [
+        {
+          'target_name': 'omx_test',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+            '../third_party/openmax/openmax.gyp:il',
+          ],
+          'sources': [
+            'tools/omx_test/color_space_util.cc',
+            'tools/omx_test/color_space_util.h',
+            'tools/omx_test/file_reader_util.cc',
+            'tools/omx_test/file_reader_util.h',
+            'tools/omx_test/file_sink.cc',
+            'tools/omx_test/file_sink.h',
+            'tools/omx_test/omx_test.cc',
+          ],
+        },
+        {
+          'target_name': 'omx_unittests',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            'omx_wrapper',
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../base/base.gyp:test_support_base',
+            '../testing/gtest.gyp:gtest',
+          ],
+          'conditions': [
+            ['toolkit_uses_gtk == 1', {
+              'dependencies': [
+                '../build/linux/system.gyp:gtk',
+              ],
+            }],
+          ],
+          'sources': [
+            'omx/omx_unittest.cc',
+            'omx/run_all_unittests.cc',
+          ],
+        },
+        {
+          'target_name': 'omx_wrapper',
+          'type': 'static_library',
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../third_party/openmax/openmax.gyp:il',
+            # TODO(wjia): remove ffmpeg
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources': [
+            'omx/omx_configurator.cc',
+            'omx/omx_configurator.h',
+            'video/omx_video_decode_engine.cc',
+            'video/omx_video_decode_engine.cc',
+          ],
+          'hard_dependency': 1,
+          'export_dependent_settings': [
+            '../third_party/openmax/openmax.gyp:il',
+          ],
+        },
         {
           'target_name': 'player_x11',
           'type': 'executable',

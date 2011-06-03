@@ -88,6 +88,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 }
 
 void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
+  // TODO(scherkus): Dedup this from OmxVideoDecoder::OnInitializeComplete.
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(initialize_callback_.get());
 

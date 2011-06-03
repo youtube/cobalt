@@ -19,6 +19,10 @@ const char kEnableAcceleratedDecoding[]  = "enable-accelerated-decoding";
 // Enable x-adaptive URL scheme.
 const char kEnableAdaptive[] = "enable-adaptive";
 
+// Enable hardware decoding using OpenMax API.
+// In practice this is for ChromeOS ARM.
+const char kEnableOpenMax[] = "enable-openmax";
+
 // Set number of threads to use for video decoding.
 const char kVideoThreads[] = "video-threads";
 
