@@ -185,8 +185,6 @@
         'video/capture/video_capture_device_dummy.cc',
         'video/capture/video_capture_device_dummy.h',
         'video/capture/video_capture_types.h',
-        'video/ffmpeg_video_allocator.cc',
-        'video/ffmpeg_video_allocator.h',
         'video/ffmpeg_video_decode_engine.cc',
         'video/ffmpeg_video_decode_engine.h',
         'video/picture.cc',
