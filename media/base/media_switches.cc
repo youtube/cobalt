@@ -13,9 +13,6 @@ const char kAlsaOutputDevice[] = "alsa-output-device";
 const char kAlsaInputDevice[] = "alsa-input-device";
 #endif
 
-// Enable hardware decoding through gpu process.
-const char kEnableAcceleratedDecoding[]  = "enable-accelerated-decoding";
-
 // Enable x-adaptive URL scheme.
 const char kEnableAdaptive[] = "enable-adaptive";
 
