@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -303,8 +303,7 @@ union SettingsFlagsAndId {
   uint32 id() const { return (ntohl(id_) & kSettingsIdMask); }
   void set_id(uint32 id) {
     DCHECK_EQ(0u, (id & ~kSettingsIdMask));
-    id = htonl(id & kSettingsIdMask);
-    id_ = flags() | id;
+    id_ = htonl((flags() << 24) | (id & kSettingsIdMask));
   }
 
   uint8 flags_[4];  // 8 bits
