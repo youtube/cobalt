@@ -15,7 +15,7 @@ SSLConfig::CertAndStatus::~CertAndStatus() {}
 
 SSLConfig::SSLConfig()
     : rev_checking_enabled(true), ssl3_enabled(true),
-      tls1_enabled(true), dnssec_enabled(false),
+      tls1_enabled(true),
       dns_cert_provenance_checking_enabled(false),
       false_start_enabled(true),
       send_client_cert(false), verify_ev_cert(false), ssl3_fallback(false) {
@@ -46,19 +46,8 @@ bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
   return SSLFalseStartBlacklist::IsMember(hostname.c_str());
 }
 
-static bool g_dnssec_enabled = false;
 static bool g_false_start_enabled = true;
 static bool g_dns_cert_provenance_checking = false;
-
-// static
-void SSLConfigService::EnableDNSSEC() {
-  g_dnssec_enabled = true;
-}
-
-// static
-bool SSLConfigService::dnssec_enabled() {
-  return g_dnssec_enabled;
-}
 
 // static
 void SSLConfigService::DisableFalseStart() {
@@ -93,7 +82,6 @@ SSLConfigService::~SSLConfigService() {
 
 // static
 void SSLConfigService::SetSSLConfigFlags(SSLConfig* ssl_config) {
-  ssl_config->dnssec_enabled = g_dnssec_enabled;
   ssl_config->false_start_enabled = g_false_start_enabled;
   ssl_config->dns_cert_provenance_checking_enabled =
       g_dns_cert_provenance_checking;
