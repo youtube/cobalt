@@ -1183,8 +1183,12 @@
               # is then provided to us by gyp.  (Currently only gold supports
               # an --icf flag.)
               ['LINKER_SUPPORTS_ICF==1 and release_valgrind_build==0', {
-                'ldflags': [
-                  '-Wl,--icf=safe',
+                'target_conditions': [
+                  ['_toolset=="target"', {
+                    'ldflags': [
+                      '-Wl,--icf=safe',
+                    ]
+                  }]
                 ]
               }],
             ]
