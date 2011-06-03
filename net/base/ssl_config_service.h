@@ -33,7 +33,6 @@ struct NET_API SSLConfig {
   // SSL 2.0 is not supported.
   bool ssl3_enabled;  // True if SSL 3.0 is enabled.
   bool tls1_enabled;  // True if TLS 1.0 is enabled.
-  bool dnssec_enabled;  // True if we'll accept DNSSEC chains in certificates.
   // True if we'll do async checks for certificate provenance using DNS.
   bool dns_cert_provenance_checking_enabled;
 
@@ -133,11 +132,6 @@ class NET_API SSLConfigService
   // Returns true if the given hostname is known to be incompatible with TLS
   // False Start.
   static bool IsKnownFalseStartIncompatibleServer(const std::string& hostname);
-
-  // Enables the acceptance of self-signed certificates which contain an
-  // embedded DNSSEC chain proving their validity.
-  static void EnableDNSSEC();
-  static bool dnssec_enabled();
 
   // Disables False Start in SSL connections.
   static void DisableFalseStart();
