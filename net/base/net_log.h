@@ -267,7 +267,7 @@ class NetLogIntegerParameter : public NetLog::EventParameters {
 
 // NetLogSourceParameter is a subclass of EventParameters that encapsulates a
 // single NetLog::Source parameter.
-class NetLogSourceParameter : public NetLog::EventParameters {
+class NET_API NetLogSourceParameter : public NetLog::EventParameters {
  public:
   // |name| must be a string literal.
   NetLogSourceParameter(const char* name, const NetLog::Source& value)
