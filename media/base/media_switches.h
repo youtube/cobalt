@@ -16,7 +16,6 @@ extern const char kAlsaOutputDevice[];
 extern const char kAlsaInputDevice[];
 #endif
 
-extern const char kEnableAcceleratedDecoding[];
 extern const char kEnableAdaptive[];
 extern const char kEnableOpenMax[];
 extern const char kVideoThreads[];
