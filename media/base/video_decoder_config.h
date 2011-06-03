@@ -23,6 +23,7 @@ enum VideoCodec {
 class VideoDecoderConfig {
  public:
   VideoDecoderConfig(VideoCodec codec, int width, int height,
+                     int surface_width, int surface_height,
                      int frame_rate_numerator, int frame_rate_denominator,
                      uint8* extra_data, size_t extra_data_size);
   ~VideoDecoderConfig();
@@ -30,6 +31,8 @@ class VideoDecoderConfig {
   VideoCodec codec() const;
   int width() const;
   int height() const;
+  int surface_width() const;
+  int surface_height() const;
   int frame_rate_numerator() const;
   int frame_rate_denominator() const;
   uint8* extra_data() const;
@@ -41,6 +44,10 @@ class VideoDecoderConfig {
   // Container's concept of width and height of this video.
   int width_;
   int height_;
+
+  // Width and height of the display surface for this video.
+  int surface_width_;
+  int surface_height_;
 
   // Frame rate in seconds expressed as a fraction.
   // TODO(scherkus): fairly certain decoders don't require frame rates.

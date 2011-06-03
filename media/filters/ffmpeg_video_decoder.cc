@@ -64,9 +64,13 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   int width = av_stream->codec->coded_width;
   int height = av_stream->codec->coded_height;
-  if (width > Limits::kMaxDimension ||
-      height > Limits::kMaxDimension ||
-      (width * height) > Limits::kMaxCanvas) {
+
+  int surface_width = GetSurfaceWidth(av_stream);
+  int surface_height = GetSurfaceHeight(av_stream);
+
+  if (surface_width > Limits::kMaxDimension ||
+      surface_height > Limits::kMaxDimension ||
+      (surface_width * surface_height) > Limits::kMaxCanvas) {
     VideoCodecInfo info = {0};
     OnInitializeComplete(info);
     return;
@@ -74,6 +78,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   VideoDecoderConfig config(CodecIDToVideoCodec(av_stream->codec->codec_id),
                             width, height,
+                            surface_width, surface_height,
                             av_stream->r_frame_rate.num,
                             av_stream->r_frame_rate.den,
                             av_stream->codec->extradata,
