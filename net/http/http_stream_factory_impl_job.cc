@@ -703,6 +703,39 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       return result;
   }
 
+  if (!connection_->socket()) {
+    // If we enter this code path, then we'll cause a crash later in
+    // DoCreateStream(). Crash now and figure out what happened:
+    // http://crbug.com/80095.
+    GURL url = original_url_.get() ? *original_url_ : request_info_.url;
+    bool using_ssl = using_ssl_;
+    bool using_spdy = using_spdy_;
+
+    // Note that these local variables have their addresses referenced to
+    // prevent the compiler from optimizing them away.
+    if (using_spdy) {
+      LOG(FATAL) << "Crashing here because willchan doesn't know why we're "
+                 << "crashing later. Sorry! I'll give you a cookie later. "
+                 << "Cheers mate!\n"
+                 << "url[" << &url << "]: " << url << "\n"
+                 << "using_ssl[" << &using_ssl << "]: "
+                 << (using_ssl ? "true\n" : "false\n")
+                 << "using_spdy[" << &using_spdy << "]: "
+                 << (using_spdy ? "true\n" : "false\n")
+                 << "result: " << result;
+    } else {
+      LOG(FATAL) << "Crashing here because willchan doesn't know why we're "
+                 << "crashing later. Sorry! I'll give you a cookie later. "
+                 << "Cheers mate!\n"
+                 << "url[" << &url << "]: " << url << "\n"
+                 << "using_ssl[" << &using_ssl << "]: "
+                 << (using_ssl ? "true\n" : "false\n")
+                 << "using_spdy[" << &using_spdy << "]: "
+                 << (using_spdy ? "true\n" : "false\n")
+                 << "result: " << result;
+    }
+  }
+
   next_state_ = STATE_CREATE_STREAM;
   return OK;
 }
