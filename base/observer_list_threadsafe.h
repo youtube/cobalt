@@ -83,7 +83,8 @@ class ObserverListThreadSafe
       : type_(ObserverListBase<ObserverType>::NOTIFY_ALL) {}
   explicit ObserverListThreadSafe(NotificationType type) : type_(type) {}
 
-  // Add an observer to the list.
+  // Add an observer to the list.  An observer should not be added to
+  // the same list more than once.
   void AddObserver(ObserverType* obs) {
     ObserverList<ObserverType>* list = NULL;
     MessageLoop* loop = MessageLoop::current();
@@ -101,11 +102,11 @@ class ObserverListThreadSafe
     list->AddObserver(obs);
   }
 
-  // Remove an observer from the list.
+  // Remove an observer from the list if it is in the list.
   // If there are pending notifications in-transit to the observer, they will
   // be aborted.
-  // RemoveObserver MUST be called from the same thread which called
-  // AddObserver.
+  // If the observer to be removed is in the list, RemoveObserver MUST
+  // be called from the same thread which called AddObserver.
   void RemoveObserver(ObserverType* obs) {
     ObserverList<ObserverType>* list = NULL;
     MessageLoop* loop = MessageLoop::current();
@@ -113,16 +114,18 @@ class ObserverListThreadSafe
       return;  // On shutdown, it is possible that current() is already null.
     {
       base::AutoLock lock(list_lock_);
-      list = observer_lists_[loop];
-      if (!list) {
-        NOTREACHED() << "RemoveObserver called on for unknown thread";
+      typename ObserversListMap::iterator it = observer_lists_.find(loop);
+      if (it == observer_lists_.end()) {
+        // This may happen if we try to remove an observer on a thread
+        // we never added an observer for.
         return;
       }
+      list = it->second;
 
       // If we're about to remove the last observer from the list,
       // then we can remove this observer_list entirely.
-      if (list->size() == 1)
-        observer_lists_.erase(loop);
+      if (list->HasObserver(obs) && list->size() == 1)
+        observer_lists_.erase(it);
     }
     list->RemoveObserver(obs);
 
