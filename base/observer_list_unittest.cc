@@ -175,7 +175,7 @@ class AddRemoveThread : public PlatformThread::Delegate,
 
 TEST(ObserverListTest, BasicTest) {
   ObserverList<Foo> observer_list;
-  Adder a(1), b(-1), c(1), d(-1);
+  Adder a(1), b(-1), c(1), d(-1), e(-1);
   Disrupter evil(&observer_list, &c);
 
   observer_list.AddObserver(&a);
@@ -187,12 +187,16 @@ TEST(ObserverListTest, BasicTest) {
   observer_list.AddObserver(&c);
   observer_list.AddObserver(&d);
 
+  // Removing an observer not in the list should do nothing.
+  observer_list.RemoveObserver(&e);
+
   FOR_EACH_OBSERVER(Foo, observer_list, Observe(10));
 
   EXPECT_EQ(a.total, 20);
   EXPECT_EQ(b.total, -20);
   EXPECT_EQ(c.total, 0);
   EXPECT_EQ(d.total, -10);
+  EXPECT_EQ(e.total, 0);
 }
 
 TEST(ObserverListThreadSafeTest, BasicTest) {
@@ -223,6 +227,35 @@ TEST(ObserverListThreadSafeTest, BasicTest) {
   EXPECT_EQ(b.total, -20);
   EXPECT_EQ(c.total, 0);
   EXPECT_EQ(d.total, -10);
+}
+
+TEST(ObserverListThreadSafeTest, RemoveObserver) {
+  MessageLoop loop;
+
+  scoped_refptr<ObserverListThreadSafe<Foo> > observer_list(
+      new ObserverListThreadSafe<Foo>);
+  Adder a(1), b(1);
+
+  // Should do nothing.
+  observer_list->RemoveObserver(&a);
+  observer_list->RemoveObserver(&b);
+
+  observer_list->Notify(&Foo::Observe, 10);
+  loop.RunAllPending();
+
+  EXPECT_EQ(a.total, 0);
+  EXPECT_EQ(b.total, 0);
+
+  observer_list->AddObserver(&a);
+
+  // Should also do nothing.
+  observer_list->RemoveObserver(&b);
+
+  observer_list->Notify(&Foo::Observe, 10);
+  loop.RunAllPending();
+
+  EXPECT_EQ(a.total, 10);
+  EXPECT_EQ(b.total, 0);
 }
 
 class FooRemover : public Foo {
