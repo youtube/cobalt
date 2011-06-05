@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -111,14 +111,18 @@ class ObserverListBase {
   explicit ObserverListBase(NotificationType type)
       : notify_depth_(0), type_(type) {}
 
-  // Add an observer to the list.
+  // Add an observer to the list.  An observer should not be added to
+  // the same list more than once.
   void AddObserver(ObserverType* obs) {
-    DCHECK(find(observers_.begin(), observers_.end(), obs) == observers_.end())
-        << "Observers can only be added once!";
+    if (std::find(observers_.begin(), observers_.end(), obs)
+        != observers_.end()) {
+      NOTREACHED() << "Observers can only be added once!";
+      return;
+    }
     observers_.push_back(obs);
   }
 
-  // Remove an observer from the list.
+  // Remove an observer from the list if it is in the list.
   void RemoveObserver(ObserverType* obs) {
     typename ListType::iterator it =
       std::find(observers_.begin(), observers_.end(), obs);
