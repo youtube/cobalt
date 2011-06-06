@@ -92,11 +92,12 @@ class Picture {
   }
 
   // Returns the id of the bitstream buffer from which this frame was decoded.
-  // TODO(fischman,vrk): Remove this field; pictures can span arbitrarily many
-  // BitstreamBuffers, and it's not clear what clients would do with this
-  // information, anyway.
   int32 bitstream_buffer_id() const {
     return bitstream_buffer_id_;
+  }
+
+  void set_bitstream_buffer_id(int32 bitstream_buffer_id) {
+    bitstream_buffer_id_ = bitstream_buffer_id;
   }
 
   // Returns the visible size of the decoded picture in pixels.
