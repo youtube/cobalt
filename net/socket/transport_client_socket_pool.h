@@ -15,6 +15,7 @@
 #include "base/timer.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/host_resolver.h"
+#include "net/base/single_request_host_resolver.h"
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool.h"
