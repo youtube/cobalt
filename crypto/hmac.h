@@ -9,10 +9,9 @@
 #define CRYPTO_HMAC_H_
 #pragma once
 
-#include <string>
-
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/string_piece.h"
 
 namespace crypto {
 
@@ -42,7 +41,7 @@ class HMAC {
 
   // Initializes this instance using |key|. Call Init only once. It returns
   // false on the second or later calls.
-  bool Init(const std::string& key) {
+  bool Init(const base::StringPiece& key) {
     return Init(reinterpret_cast<const unsigned char*>(key.data()),
                 static_cast<int>(key.size()));
   }
@@ -51,8 +50,7 @@ class HMAC {
   // to the constructor and the key supplied to the Init method. The HMAC is
   // returned in |digest|, which has |digest_length| bytes of storage available.
   // TODO(abarth): digest_length should be a size_t.
-  bool Sign(const std::string& data,
-            unsigned char* digest,
+  bool Sign(const base::StringPiece& data, unsigned char* digest,
             int digest_length) const;
 
   // TODO(albertb): Add a Verify method.
