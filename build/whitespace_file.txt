@@ -6,4 +6,4 @@ This file is used for making non-code changes to trigger buildbot cycles. Make
 any modification below this line.
 ================================================================================
 
-<<< All your net are belong to us. >>>
+<<< All your ipc are belong to us. >>>
