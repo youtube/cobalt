@@ -11,6 +11,7 @@
 #include "net/base/address_family.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_errors.h"
+#include "net/base/single_request_host_resolver.h"
 #include "net/http/http_auth_filter.h"
 #include "net/http/url_security_manager.h"
 
