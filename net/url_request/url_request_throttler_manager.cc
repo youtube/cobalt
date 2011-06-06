@@ -24,6 +24,16 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
     URLRequestThrottlerManager::RegisterRequestUrl(const GURL &url) {
   DCHECK(!enable_thread_checks_ || CalledOnValidThread());
 
+  if (registered_from_thread_ == base::kInvalidThreadId) {
+    // We can't currently do this in the constructor as it is run on the
+    // UI thread and notifications go to the thread from which they are
+    // registered.
+    // TODO(joi): Clean this up once this is no longer a Singleton.
+    NetworkChangeNotifier::AddIPAddressObserver(this);
+    NetworkChangeNotifier::AddOnlineStateObserver(this);
+    registered_from_thread_ = base::PlatformThread::CurrentId();
+  }
+
   // Normalize the url.
   std::string url_id = GetIdFromUrl(url);
 
@@ -149,7 +159,8 @@ URLRequestThrottlerManager::URLRequestThrottlerManager()
     : requests_since_last_gc_(0),
       enforce_throttling_(false),
       enable_thread_checks_(false),
-      logged_for_localhost_disabled_(false) {
+      logged_for_localhost_disabled_(false),
+      registered_from_thread_(base::kInvalidThreadId) {
   // Construction/destruction is on main thread (because BrowserMain
   // retrieves an instance to call InitializeOptions), but is from then on
   // used on I/O thread.
@@ -163,17 +174,21 @@ URLRequestThrottlerManager::URLRequestThrottlerManager()
   // Make sure there is always a net_log_ instance, even if it logs to
   // nowhere.
   net_log_.reset(new BoundNetLog());
-
-  NetworkChangeNotifier::AddIPAddressObserver(this);
-  NetworkChangeNotifier::AddOnlineStateObserver(this);
 }
 
 URLRequestThrottlerManager::~URLRequestThrottlerManager() {
   // Destruction is on main thread (AtExit), but real use is on I/O thread.
+  // The AtExit manager does not run until the I/O thread has finished
+  // processing.
   DetachFromThread();
 
-  NetworkChangeNotifier::RemoveIPAddressObserver(this);
-  NetworkChangeNotifier::RemoveOnlineStateObserver(this);
+  // We must currently skip this in the production case, where the destructor
+  // does not run on the thread we registered from.
+  // TODO(joi): Fix once we are no longer a Singleton.
+  if (base::PlatformThread::CurrentId() == registered_from_thread_) {
+    NetworkChangeNotifier::RemoveIPAddressObserver(this);
+    NetworkChangeNotifier::RemoveOnlineStateObserver(this);
+  }
 
   // Since, for now, the manager object might conceivably go away before
   // the entries, detach the entries' back-pointer to the manager.

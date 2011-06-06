@@ -14,6 +14,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/threading/non_thread_safe.h"
+#include "base/threading/platform_thread.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_api.h"
 #include "net/base/network_change_notifier.h"
@@ -167,6 +168,9 @@ class NET_API URLRequestThrottlerManager
 
   // NetLog to use, or NULL if none configured.
   scoped_ptr<BoundNetLog> net_log_;
+
+  // Valid once we've registered for network notifications.
+  base::PlatformThreadId registered_from_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerManager);
 };
