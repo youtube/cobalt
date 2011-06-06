@@ -15,6 +15,7 @@
 #include "net/base/address_list.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
+#include "net/base/single_request_host_resolver.h"
 #include "net/ftp/ftp_ctrl_response_buffer.h"
 #include "net/ftp/ftp_response_info.h"
 #include "net/ftp/ftp_transaction.h"
