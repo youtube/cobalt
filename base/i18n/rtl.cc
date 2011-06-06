@@ -20,10 +20,12 @@
 
 namespace {
 
-// Extract language and country, ignore keywords, concatenate using dash.
+// Extract language, country and variant, but ignore keywords.  For example,
+// en-US, ca@valencia, ca-ES@valencia.
 std::string GetLocaleString(const icu::Locale& locale) {
   const char* language = locale.getLanguage();
   const char* country = locale.getCountry();
+  const char* variant = locale.getVariant();
 
   std::string result =
       (language != NULL && *language != '\0') ? language : "und";
@@ -31,6 +33,12 @@ std::string GetLocaleString(const icu::Locale& locale) {
   if (country != NULL && *country != '\0') {
     result += '-';
     result += country;
+  }
+
+  if (variant != NULL && *variant != '\0') {
+    std::string variant_str(variant);
+    StringToLowerASCII(&variant_str);
+    result += '@' + variant_str;
   }
 
   return result;
