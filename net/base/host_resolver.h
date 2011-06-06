@@ -199,48 +199,6 @@ class NET_API HostResolver {
   DISALLOW_COPY_AND_ASSIGN(HostResolver);
 };
 
-// This class represents the task of resolving a hostname (or IP address
-// literal) to an AddressList object.  It wraps HostResolver to resolve only a
-// single hostname at a time and cancels this request when going out of scope.
-class NET_API SingleRequestHostResolver {
- public:
-  // |resolver| must remain valid for the lifetime of |this|.
-  explicit SingleRequestHostResolver(HostResolver* resolver);
-
-  // If a completion callback is pending when the resolver is destroyed, the
-  // host resolution is cancelled, and the completion callback will not be
-  // called.
-  ~SingleRequestHostResolver();
-
-  // Resolves the given hostname (or IP address literal), filling out the
-  // |addresses| object upon success. See HostResolver::Resolve() for details.
-  int Resolve(const HostResolver::RequestInfo& info,
-              AddressList* addresses,
-              CompletionCallback* callback,
-              const BoundNetLog& net_log);
-
-  // Cancels the in-progress request, if any. This prevents the callback
-  // from being invoked. Resolve() can be called again after cancelling.
-  void Cancel();
-
- private:
-  // Callback for when the request to |resolver_| completes, so we dispatch
-  // to the user's callback.
-  void OnResolveCompletion(int result);
-
-  // The actual host resolver that will handle the request.
-  HostResolver* const resolver_;
-
-  // The current request (if any).
-  HostResolver::RequestHandle cur_request_;
-  CompletionCallback* cur_request_callback_;
-
-  // Completion callback for when request to |resolver_| completes.
-  CompletionCallbackImpl<SingleRequestHostResolver> callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(SingleRequestHostResolver);
-};
-
 // Creates a HostResolver implementation that queries the underlying system.
 // (Except if a unit-test has changed the global HostResolverProc using
 // ScopedHostResolverProc to intercept requests to the system).
