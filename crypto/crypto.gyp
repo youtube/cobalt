@@ -18,6 +18,14 @@
         4018,
       ],
       'conditions': [
+        ['OS=="cell_lv2"', {
+          'dependencies' : [
+            '../../openssl/openssl.gyp:openssl'
+          ],
+          'include_dirs': [
+            '../../openssl/include'
+          ]
+        }],
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
           'conditions': [
             [ 'chromeos==1', {

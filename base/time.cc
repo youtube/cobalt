@@ -4,7 +4,9 @@
 
 #include "base/time.h"
 #include "base/sys_string_conversions.h"
+#if !defined(__LB_PS3__)
 #include "base/third_party/nspr/prtime.h"
+#endif
 
 #include "base/logging.h"
 
@@ -98,6 +100,7 @@ Time Time::LocalMidnight() const {
 }
 
 // static
+#if !defined(__LB_PS3__)
 bool Time::FromString(const wchar_t* time_string, Time* parsed_time) {
   DCHECK((time_string != NULL) && (parsed_time != NULL));
   std::string ascii_time_string = SysWideToUTF8(time_string);
@@ -112,6 +115,9 @@ bool Time::FromString(const wchar_t* time_string, Time* parsed_time) {
   *parsed_time = Time(result_time);
   return true;
 }
+#else
+// __LB_PS3__WRITE_ME__
+#endif
 
 // Time::Exploded -------------------------------------------------------------
 

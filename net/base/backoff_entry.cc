@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <cmath>
 
+#if defined(__LB_PS3__)
+#include <math.h>
+#endif
+
 #include "base/logging.h"
 #include "base/rand_util.h"
 

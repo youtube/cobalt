@@ -238,6 +238,8 @@ bool TruncateFile(FILE* file) {
   int fd = _fileno(file);
   if (_chsize(fd, current_offset) != 0)
     return false;
+#elif defined(__LB_PS3__)
+  // __LB_PS3__WRITE_ME__
 #else
   int fd = fileno(file);
   if (ftruncate(fd, current_offset) != 0)

@@ -24,9 +24,13 @@
 #pragma comment(lib, "iphlpapi.lib")
 #elif defined(OS_POSIX)
 #include <fcntl.h>
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
+#else
 #include <ifaddrs.h>
-#include <netdb.h>
 #include <net/if.h>
+#endif
+#include <netdb.h>
 #include <netinet/in.h>
 #endif
 
@@ -1377,11 +1381,14 @@ int SetNonBlocking(int fd) {
 #if defined(OS_WIN)
   unsigned long no_block = 1;
   return ioctlsocket(fd, FIONBIO, &no_block);
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) && !defined(__LB_PS3__)
   int flags = fcntl(fd, F_GETFL, 0);
   if (-1 == flags)
     return flags;
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+#elif defined(__LB_PS3__)
+  int val = 1;
+  return setsockopt(fd, SOL_SOCKET, SO_NBIO, &val, sizeof(int));
 #endif
 }
 
@@ -1824,7 +1831,7 @@ static void IPv6SupportResults(IPv6SupportStatus result) {
 // to do a test resolution, and a test connection, to REALLY verify support.
 // static
 bool IPv6Supported() {
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_PS3__)
   int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
   if (test_socket == -1) {
     IPv6SupportResults(IPV6_CANNOT_CREATE_SOCKETS);
@@ -1939,7 +1946,7 @@ bool IPv6Supported() {
 }
 
 bool HaveOnlyLoopbackAddresses() {
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_PS3__)
   struct ifaddrs* interface_addr = NULL;
   int rv = getifaddrs(&interface_addr);
   if (rv != 0) {
@@ -2171,12 +2178,16 @@ const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
     const struct sockaddr_in* sockaddr =
         reinterpret_cast<const struct sockaddr_in*>(address);
     return &sockaddr->sin_port;
-  } else if (address->sa_family == AF_INET6) {
+  } 
+#if !defined(__LB_PS3__)
+  else if (address->sa_family == AF_INET6) {
     DCHECK_LE(sizeof(sockaddr_in6), static_cast<size_t>(address_len));
     const struct sockaddr_in6* sockaddr =
         reinterpret_cast<const struct sockaddr_in6*>(address);
     return &sockaddr->sin6_port;
-  } else {
+  } 
+#endif
+  else {
     NOTREACHED();
     return NULL;
   }
@@ -2218,13 +2229,13 @@ bool IsLocalhost(const std::string& host) {
         }
         return IPNumberMatchesPrefix(ip_number, localhost_prefix, 8);
       }
-
+#if !defined(__LB_PS3__)
       case kIPv6AddressSize: {
         struct in6_addr sin6_addr;
         memcpy(&sin6_addr, &ip_number[0], kIPv6AddressSize);
         return !!IN6_IS_ADDR_LOOPBACK(&sin6_addr);
       }
-
+#endif
       default:
         NOTREACHED();
     }

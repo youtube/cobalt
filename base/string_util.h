@@ -24,6 +24,11 @@
 // and then remove this.
 #include "base/stringprintf.h"
 
+#if defined(__LB_PS3__)
+#include <ctype.h> // for tolower() et al
+#include <wctype.h>
+#endif
+
 // Safe standard library wrappers for all platforms.
 
 namespace base {

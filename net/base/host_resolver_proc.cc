@@ -6,8 +6,12 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(__LB_PS3__)
 #include <resolv.h>
+#endif
+
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
 #endif
 
 #include "base/logging.h"
@@ -34,6 +38,7 @@ bool IsAllLocalhostOfOneFamily(const struct addrinfo* ai) {
           return false;
         break;
       }
+#if !defined(__LB_PS3__)
       case AF_INET6: {
         const struct sockaddr_in6* addr_in6 =
             reinterpret_cast<struct sockaddr_in6*>(ai->ai_addr);
@@ -43,6 +48,7 @@ bool IsAllLocalhostOfOneFamily(const struct addrinfo* ai) {
           return false;
         break;
       }
+#endif
       default:
         NOTREACHED();
         return false;
@@ -156,7 +162,7 @@ int SystemHostResolverProc(const std::string& host,
       hints.ai_family = AF_UNSPEC;
   }
 
-#if defined(OS_WIN) || defined(OS_OPENBSD)
+#if defined(OS_WIN) || defined(OS_OPENBSD) || defined(__LB_PS3__)
   // DO NOT USE AI_ADDRCONFIG ON WINDOWS.
   //
   // The following comment in <winsock2.h> is the best documentation I found
@@ -198,7 +204,7 @@ int SystemHostResolverProc(const std::string& host,
 
   int err = getaddrinfo(host.c_str(), NULL, &hints, &ai);
   bool should_retry = false;
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) && !defined(__LB_PS3__)
   // If we fail, re-initialise the resolver just in case there have been any
   // changes to /etc/resolv.conf and retry. See http://crbug.com/11380 for info.
   if (err && DnsReloadTimerHasExpired()) {

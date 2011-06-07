@@ -44,7 +44,8 @@ void SimpleThread::ThreadMain() {
   tid_ = PlatformThread::CurrentId();
   // Construct our full name of the form "name_prefix_/TID".
   name_.push_back('/');
-  name_.append(IntToString(tid_));
+  // __LB_PS3__FIX_ME__
+  name_.append(IntToString(reinterpret_cast<int>(tid_)));
   PlatformThread::SetName(name_.c_str());
 
   // We've initialized our new thread, signal that we're done to Start().
