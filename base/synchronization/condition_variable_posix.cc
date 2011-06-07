@@ -11,6 +11,10 @@
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 
+#if defined(__LB_PS3__)
+#include <sys/sys_time.h> // for sys_time_get_current_time()
+#endif
+
 namespace base {
 
 ConditionVariable::ConditionVariable(Lock* user_lock)
@@ -42,6 +46,17 @@ void ConditionVariable::Wait() {
 void ConditionVariable::TimedWait(const TimeDelta& max_time) {
   int64 usecs = max_time.InMicroseconds();
 
+#if defined(__LB_PS3__)
+  sys_time_sec_t sec; 
+  sys_time_nsec_t nsec;
+  sys_time_get_current_time(&sec, &nsec);
+  struct timespec abstime;
+  abstime.tv_sec = sec + (usecs / Time::kMicrosecondsPerSecond);
+  abstime.tv_nsec = (nsec + (usecs % Time::kMillisecondsPerSecond)) *
+    Time::kNanosecondsPerMicrosecond;
+  abstime.tv_sec += abstime.tv_nsec / Time::kNanosecondsPerSecond;
+  abstime.tv_nsec %= Time::kNanosecondsPerSecond;
+#else
   // The timeout argument to pthread_cond_timedwait is in absolute time.
   struct timeval now;
   gettimeofday(&now, NULL);
@@ -53,6 +68,7 @@ void ConditionVariable::TimedWait(const TimeDelta& max_time) {
   abstime.tv_sec += abstime.tv_nsec / Time::kNanosecondsPerSecond;
   abstime.tv_nsec %= Time::kNanosecondsPerSecond;
   DCHECK_GE(abstime.tv_sec, now.tv_sec);  // Overflow paranoia
+#endif
 
 #if !defined(NDEBUG)
   user_lock_->CheckHeldAndUnmark();

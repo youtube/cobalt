@@ -29,6 +29,11 @@
 #include <sys/nacl_syscalls.h>
 #endif
 
+#if defined(__LB_PS3__)
+#include <sys/ppu_thread.h>
+#include <sys/timer.h>
+#endif
+
 namespace base {
 
 #if defined(OS_MACOSX)
@@ -127,18 +132,25 @@ PlatformThreadId PlatformThread::CurrentId() {
 #elif defined(OS_FREEBSD)
   // TODO(BSD): find a better thread ID
   return reinterpret_cast<int64>(pthread_self());
-#elif defined(OS_NACL)
+#elif defined(OS_NACL) || defined(__LB_PS3__)
   return pthread_self();
 #endif
 }
 
 // static
 void PlatformThread::YieldCurrentThread() {
+#if defined(__LB_PS3__)
+  sys_ppu_thread_yield();
+#else
   sched_yield();
+#endif
 }
 
 // static
 void PlatformThread::Sleep(int duration_ms) {
+#if defined(__LB_PS3__)
+  sys_timer_usleep(duration_ms * 1000);
+#else
   struct timespec sleep_time, remaining;
 
   // Contains the portion of duration_ms >= 1 sec.
@@ -150,6 +162,7 @@ void PlatformThread::Sleep(int duration_ms) {
 
   while (nanosleep(&sleep_time, &remaining) == -1 && errno == EINTR)
     sleep_time = remaining;
+#endif
 }
 
 // Linux SetName is currently disabled, as we need to distinguish between

@@ -19,6 +19,10 @@
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/tcp_client_socket.h"
 
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
+#endif
+
 using base::TimeDelta;
 
 namespace net {

@@ -373,10 +373,33 @@
           }], 
           [ 'OS=="cell_lv2"', {
             'sources!': [
-              'atomicops_internals_x86_msvc.h'
+              'atomicops_internals_x86_msvc.h',
+              'sys_info_posix.cc',
+              'shared_memory_posix.cc',
+              'environment.cc',
+              'platform_file_posix.cc',
+              'time_posix.cc',
+              'process_posix.cc',
+              'string16.cc',
+              'message_pump_libevent.cc',
+              'file_descriptor_shuffle.cc',
+              'sync_socket_posix.cc',
+              'process_util_posix.cc',
+              'file_util_posix.cc',
+              'files/file_path_watcher.cc',
+              'files/file_path_watcher_stub.cc',
+              'third_party/nspr/prtime.cc',
             ],
             'sources': [
-              'atomicops_internals_cell_ppu.h'
+              'atomicops_internals_cell_ppu.h',
+              'sys_info_ps3.cc',
+              'environment_ps3.cc',
+              'platform_file_ps3.cc',
+              'time_ps3.cc',
+              'process_ps3.cc',
+              'sync_socket_ps3.cc',
+              'process_util_ps3.cc',
+              'file_util_ps3.cc',
             ]
           }],
           [ 'OS != "linux"', {
@@ -457,6 +480,20 @@
         ],
       },
       'conditions': [
+        ['OS=="cell_lv2"', {
+          'sources!': [
+            'third_party/purify/pure_api.c',
+            'base_drag_source.cc',
+            'base_drop_target.cc',
+            'event_recorder.cc',
+            'file_version_info.cc',
+            'registry.cc',
+            'resource_util.cc',
+            'win_util.cc'
+          ]
+        }, { # OS != "cell_lv2"
+          'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],          
+        }],
         [ 'toolkit_uses_gtk==1', {
           'conditions': [
             [ 'chromeos==1', {

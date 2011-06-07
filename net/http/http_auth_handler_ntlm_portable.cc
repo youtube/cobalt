@@ -73,7 +73,10 @@ namespace net {
 #if defined(ARCH_CPU_X86) || defined(ARCH_CPU_X86_64) || defined(ARCH_CPU_ARMEL)
 #define IS_LITTLE_ENDIAN 1
 #undef  IS_BIG_ENDIAN
-#else
+#elif defined(__LB_PS3__)
+#define IS_BIG_ENDIAN 1
+#undef  IS_LITTLE_ENDIAN
+#else 
 #error "Unknown endianness"
 #endif
 

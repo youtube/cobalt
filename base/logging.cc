@@ -117,6 +117,9 @@ LogMessageHandlerFunction log_message_handler = NULL;
 int32 CurrentProcessId() {
 #if defined(OS_WIN)
   return GetCurrentProcessId();
+#elif defined(__LB_PS3__)
+  // __LB_PS3__WRITE_ME__
+  return 0;
 #elif defined(OS_POSIX)
   return getpid();
 #endif
@@ -146,6 +149,9 @@ uint64 TickCount() {
   // NaCl sadly does not have _POSIX_TIMERS enabled in sys/features.h
   // So we have to use clock() for now.
   return clock();
+#elif defined (__LB_PS3__)
+  // __LB_PS3__WRITE_ME__
+  return 0;
 #elif defined(OS_POSIX)
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -657,6 +663,8 @@ void LogMessage::Init(const char* file, int line) {
     struct tm local_time = {0};
 #if _MSC_VER >= 1400
     localtime_s(&local_time, &t);
+#elif defined(__LB_PS3__)
+    // __LB_PS3__FIX_ME__
 #else
     localtime_r(&t, &local_time);
 #endif
@@ -786,9 +794,13 @@ void RawLog(int level, const char* message) {
     const size_t message_len = strlen(message);
     int rv;
     while (bytes_written < message_len) {
+#if defined(__LB_PS3__)
+// __LB_PS3__WRITE_ME__
+#else
       rv = HANDLE_EINTR(
           write(STDERR_FILENO, message + bytes_written,
                 message_len - bytes_written));
+#endif
       if (rv < 0) {
         // Give up, nothing we can do now.
         break;
@@ -798,7 +810,11 @@ void RawLog(int level, const char* message) {
 
     if (message_len > 0 && message[message_len - 1] != '\n') {
       do {
+#if defined(__LB_PS3__)
+// __LB_PS3__WRITE_ME__
+#else
         rv = HANDLE_EINTR(write(STDERR_FILENO, "\n", 1));
+#endif
         if (rv < 0) {
           // Give up, nothing we can do now.
           break;
