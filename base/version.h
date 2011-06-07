@@ -15,22 +15,27 @@
 
 // Version represents a dotted version number, like "1.2.3.4", supporting
 // parsing and comparison.
-// Each component is limited to a uint16.
 class BASE_API Version {
  public:
-  // Exposed only so that a Version can be stored in STL containers;
-  // any call to the methods below on a default-constructed Version
-  // will DCHECK.
+  // The only thing you can legally do to a default constructed
+  // Version object is assign to it.
   Version();
 
-  ~Version();
+  // Initializes from a decimal dotted version number, like "0.1.1".
+  // Each component is limited to a uint16. Call IsValid() to learn
+  // the outcome.
+  explicit Version(const std::string& version_str);
 
-  // The version string must be made up of 1 or more uint16's separated
-  // by '.'. Returns NULL if string is not in this format.
+  // Returns true if the object contains a valid version number.
+  bool IsValid() const;
+
+  // Returns NULL if the string is not in the proper format.
   // Caller is responsible for freeing the Version object once done.
+  // DO NOT USE FOR NEWER CODE.
   static Version* GetVersionFromString(const std::string& version_str);
 
-  // Creates a copy of this version. Caller takes ownership.
+  // Creates a copy of this version object. Caller takes ownership.
+  // DO NOT USE FOR NEWER CODE.
   Version* Clone() const;
 
   bool Equals(const Version& other) const;
@@ -44,14 +49,7 @@ class BASE_API Version {
   const std::vector<uint16>& components() const { return components_; }
 
  private:
-  bool InitFromString(const std::string& version_str);
-
-  bool is_valid_;
   std::vector<uint16> components_;
-
-  FRIEND_TEST_ALL_PREFIXES(VersionTest, DefaultConstructor);
-  FRIEND_TEST_ALL_PREFIXES(VersionTest, GetVersionFromString);
-  FRIEND_TEST_ALL_PREFIXES(VersionTest, Compare);
 };
 
 #endif  // BASE_VERSION_H_
