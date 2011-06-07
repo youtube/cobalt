@@ -10,40 +10,63 @@
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
-#include "base/utf_string_conversions.h"
 
-Version::Version() : is_valid_(false) {}
+Version::Version() {
+}
 
-Version::~Version() {}
+Version::Version(const std::string& version_str) {
+  std::vector<std::string> numbers;
+  base::SplitString(version_str, '.', &numbers);
+  if (numbers.empty())
+    return;
+  std::vector<uint16> parsed;
+  for (std::vector<std::string>::iterator i = numbers.begin();
+       i != numbers.end(); ++i) {
+    int num;
+    if (!base::StringToInt(*i, &num))
+      return;
+    if (num < 0)
+      return;
+    const uint16 max = 0xFFFF;
+    if (num > max)
+      return;
+    // This throws out things like +3, or 032.
+    if (base::IntToString(num) != *i)
+      return;
+    parsed.push_back(static_cast<uint16>(num));
+  }
+  components_.swap(parsed);
+}
 
-// static
+bool Version::IsValid() const {
+  return (!components_.empty());
+}
+
+// TODO(cpu): remove this method.
 Version* Version::GetVersionFromString(const std::string& version_str) {
-  Version* vers = new Version();
-  if (vers->InitFromString(version_str)) {
-    DCHECK(vers->is_valid_);
+  Version* vers = new Version(version_str);
+  if (vers->IsValid()) {
     return vers;
   }
   delete vers;
   return NULL;
 }
 
+// TODO(cpu): remove this method.
 Version* Version::Clone() const {
-  DCHECK(is_valid_);
-  Version* copy = new Version();
-  copy->components_ = components_;
-  copy->is_valid_ = true;
-  return copy;
+  DCHECK(IsValid());
+  return new Version(*this);
 }
 
 bool Version::Equals(const Version& that) const {
-  DCHECK(is_valid_);
-  DCHECK(that.is_valid_);
-  return CompareTo(that) == 0;
+  DCHECK(IsValid());
+  DCHECK(that.IsValid());
+  return (CompareTo(that) == 0);
 }
 
 int Version::CompareTo(const Version& other) const {
-  DCHECK(is_valid_);
-  DCHECK(other.is_valid_);
+  DCHECK(IsValid());
+  DCHECK(other.IsValid());
   size_t count = std::min(components_.size(), other.components_.size());
   for (size_t i = 0; i < count; ++i) {
     if (components_[i] > other.components_[i])
@@ -64,7 +87,7 @@ int Version::CompareTo(const Version& other) const {
 }
 
 const std::string Version::GetString() const {
-  DCHECK(is_valid_);
+  DCHECK(IsValid());
   std::string version_str;
   size_t count = components_.size();
   for (size_t i = 0; i < count - 1; ++i) {
@@ -73,30 +96,4 @@ const std::string Version::GetString() const {
   }
   version_str.append(base::IntToString(components_[count - 1]));
   return version_str;
-}
-
-bool Version::InitFromString(const std::string& version_str) {
-  DCHECK(!is_valid_);
-  std::vector<std::string> numbers;
-  base::SplitString(version_str, '.', &numbers);
-  if (numbers.empty())
-    return false;
-  for (std::vector<std::string>::iterator i = numbers.begin();
-       i != numbers.end(); ++i) {
-    int num;
-    if (!base::StringToInt(*i, &num))
-      return false;
-    if (num < 0)
-      return false;
-    const uint16 max = 0xFFFF;
-    if (num > max)
-      return false;
-    // This throws out things like +3, or 032.
-    if (base::IntToString(num) != *i)
-      return false;
-    uint16 component = static_cast<uint16>(num);
-    components_.push_back(component);
-  }
-  is_valid_ = true;
-  return true;
 }
