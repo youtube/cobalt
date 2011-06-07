@@ -12,6 +12,10 @@
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
+#endif
+
 namespace net {
 
 namespace {

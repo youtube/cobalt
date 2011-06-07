@@ -18,7 +18,9 @@
 namespace base {
 
 inline bool IsFinite(const double& number) {
-#if defined(OS_POSIX)
+#if defined(__LB_PS3__)
+  return fpclassify(number) != FP_INFINITE;
+#elif defined(OS_POSIX)
   return finite(number) != 0;
 #elif defined(OS_WIN)
   return _finite(number) != 0;

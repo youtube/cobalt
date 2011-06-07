@@ -12,6 +12,10 @@
 #include "net/base/sys_addrinfo.h"
 #include "net/socket/client_socket_handle.h"
 
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
+#endif
+
 namespace net {
 
 // Every SOCKS server requests a user-id from the client. It is optional

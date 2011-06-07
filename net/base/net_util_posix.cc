@@ -4,7 +4,11 @@
 
 #include "net/base/net_util.h"
 
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
+#else
 #include <ifaddrs.h>
+#endif
 #include <sys/types.h>
 
 #include "base/eintr_wrapper.h"

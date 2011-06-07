@@ -18,7 +18,12 @@ namespace crypto {
 namespace {
 
 unsigned long CurrentThreadId() {
+#if defined(__LB_PS3__)
+  // __LB_PS3__FIX_ME__
+  return reinterpret_cast<unsigned long>(base::PlatformThread::CurrentId());
+#else
   return static_cast<unsigned long>(base::PlatformThread::CurrentId());
+#endif
 }
 
 // Singleton for initializing and cleaning up the OpenSSL library.

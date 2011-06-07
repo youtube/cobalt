@@ -20,7 +20,6 @@
         '../third_party/icu/icu.gyp:icuuc',
         '../third_party/zlib/zlib.gyp:zlib',
         'net_resources',
-        'ssl_false_start_blacklist_process#host',
       ],
       'sources': [
         'base/address_family.h',
@@ -66,6 +65,8 @@
         'base/data_url.h',
         'base/directory_lister.cc',
         'base/directory_lister.h',
+        'base/dns_addrinfo_ps3.cc',
+        'base/dns_addrinfo_ps3.h',
         'base/dns_reload_timer.cc',
         'base/dns_reload_timer.h',
         'base/dnssec_chain_verifier.cc',
@@ -646,33 +647,61 @@
       'export_dependent_settings': [
         '../base/base.gyp:base',
       ],
-      'actions': [
-        {
-          'action_name': 'ssl_false_start_blacklist',
-          'inputs': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
-            'base/ssl_false_start_blacklist.txt',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
-          ],
-          'action':
-            ['<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
-             'base/ssl_false_start_blacklist.txt',
-              '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
-            ],
-          'message': 'Generating SSL False Start blacklist',
-          'process_outputs_as_sources': 1,
-        },
-      ],
       'conditions': [
         ['OS=="cell_lv2"', {
           'dependencies': [
             '../../openssl/openssl.gyp:openssl'
+          ],
+          'include_dirs' : [
+            '../../openssl/include'
+          ],
+          'sources/': [
+            # I would love to support SPDY on PS3 but porting it right now is outside the scope of effort.
+            # __LB_PS3__FIX_ME__
+            ['exclude', 'spdy'],
+            # we _really_ don't want to support FTP.
+            ['exclude', 'ftp'],
+            # or UDP
+            ['exclude', 'udp'],
+            # or file tree access
+            ['exclude', 'disk_cache'],
+            # or SDCH, Shared Dictionary Compression over HTTP
+            ['exclude', 'sdch'],
+            # and any v8-specific bindings
+            ['exclude', 'v8'],
+            # and any request on a url for local files
+            ['exclude', 'url_request_file'],
+            # and the unsupported libevent
+            ['exclude', 'libevent'],
+            # no need for SOCKS
+            ['exclude', 'socks']
           ]
         }, { # os is not CellLv2
           'dependencies': [
             '../sdch/sdch.gyp:sdch',
+            'ssl_false_start_blacklist_process#host',
+          ],
+          'sources/': [
+            ['exclude', 'ps3']
+          ],
+          'actions': [
+            {
+              'action_name': 'ssl_false_start_blacklist',
+              'inputs': [
+                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
+                'base/ssl_false_start_blacklist.txt',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
+              ],
+              'action':
+                ['<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
+                 'base/ssl_false_start_blacklist.txt',
+                  '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
+                ],
+              'message': 'Generating SSL False Start blacklist',
+              'process_outputs_as_sources': 1,
+            },
           ],
           'conditions': [
             ['OS!="win"', { # Windows doesn't like libevent either

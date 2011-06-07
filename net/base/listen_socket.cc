@@ -155,7 +155,11 @@ void ListenSocket::SendInternal(const char* bytes, int len) {
       if (WSAGetLastError() != WSAEWOULDBLOCK) {
         LOG(ERROR) << "send failed: WSAGetLastError()==" << WSAGetLastError();
 #elif defined(OS_POSIX)
-      if (errno != EWOULDBLOCK && errno != EAGAIN) {
+      if (
+#if defined(EWOULDBLOCK)
+        errno != EWOULDBLOCK &&
+#endif
+        errno != EAGAIN) {
         LOG(ERROR) << "send failed: errno==" << errno;
 #endif
         break;
@@ -206,7 +210,11 @@ void ListenSocket::Read() {
       int err = WSAGetLastError();
       if (err == WSAEWOULDBLOCK) {
 #elif defined(OS_POSIX)
-      if (errno == EWOULDBLOCK || errno == EAGAIN) {
+      if (
+#if defined(EWOULDBLOCK)
+        errno == EWOULDBLOCK || 
+#endif
+        errno == EAGAIN) {
 #endif
         break;
       } else {
