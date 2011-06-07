@@ -11,7 +11,21 @@ class VersionTest : public testing::Test {
 
 TEST_F(VersionTest, DefaultConstructor) {
   Version v;
-  EXPECT_FALSE(v.is_valid_);
+  EXPECT_FALSE(v.IsValid());
+}
+
+TEST_F(VersionTest, ValueSemantics) {
+  Version v1("1.2.3.4");
+  EXPECT_TRUE(v1.IsValid());
+  Version v3;
+  EXPECT_FALSE(v3.IsValid());
+  {
+    Version v2(v1);
+    v3 = v2;
+    EXPECT_TRUE(v2.IsValid());
+    EXPECT_TRUE(v1.Equals(v2));
+  }
+  EXPECT_TRUE(v3.Equals(v1));
 }
 
 TEST_F(VersionTest, GetVersionFromString) {
@@ -43,7 +57,7 @@ TEST_F(VersionTest, GetVersionFromString) {
     scoped_ptr<Version> vers(Version::GetVersionFromString(cases[i].input));
     EXPECT_EQ(cases[i].success, vers.get() != NULL);
     if (cases[i].success) {
-      EXPECT_TRUE(vers->is_valid_);
+      EXPECT_TRUE(vers->IsValid());
       EXPECT_EQ(cases[i].parts, vers->components().size());
     }
   }
