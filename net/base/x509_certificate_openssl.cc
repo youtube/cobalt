@@ -22,11 +22,9 @@
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
-#include "net/base/x509_openssl_util.h"
+#include "net/base/x509_util_openssl.h"
 
 namespace net {
-
-namespace nxou = net::x509_openssl_util;
 
 namespace {
 
@@ -63,7 +61,7 @@ void ParsePrincipalValues(X509_NAME* name,
   for (int index = -1;
        (index = X509_NAME_get_index_by_NID(name, nid, index)) != -1;) {
     std::string field;
-    if (!nxou::ParsePrincipalValueByIndex(name, index, &field))
+    if (!x509_util::ParsePrincipalValueByIndex(name, index, &field))
       break;
     fields->push_back(field);
   }
@@ -84,14 +82,14 @@ void ParsePrincipal(X509Certificate::OSCertHandle cert,
   ParsePrincipalValues(x509_name, NID_domainComponent,
                        &principal->domain_components);
 
-  nxou::ParsePrincipalValueByNID(x509_name, NID_commonName,
-                                 &principal->common_name);
-  nxou::ParsePrincipalValueByNID(x509_name, NID_localityName,
-                                 &principal->locality_name);
-  nxou::ParsePrincipalValueByNID(x509_name, NID_stateOrProvinceName,
-                                 &principal->state_or_province_name);
-  nxou::ParsePrincipalValueByNID(x509_name, NID_countryName,
-                                 &principal->country_name);
+  x509_util::ParsePrincipalValueByNID(x509_name, NID_commonName,
+                                      &principal->common_name);
+  x509_util::ParsePrincipalValueByNID(x509_name, NID_localityName,
+                                      &principal->locality_name);
+  x509_util::ParsePrincipalValueByNID(x509_name, NID_stateOrProvinceName,
+                                      &principal->state_or_province_name);
+  x509_util::ParsePrincipalValueByNID(x509_name, NID_countryName,
+                                      &principal->country_name);
 }
 
 void ParseSubjectAltNames(X509Certificate::OSCertHandle cert,
@@ -325,8 +323,8 @@ void X509Certificate::Initialize() {
 
   ParsePrincipal(cert_handle_, X509_get_subject_name(cert_handle_), &subject_);
   ParsePrincipal(cert_handle_, X509_get_issuer_name(cert_handle_), &issuer_);
-  nxou::ParseDate(X509_get_notBefore(cert_handle_), &valid_start_);
-  nxou::ParseDate(X509_get_notAfter(cert_handle_), &valid_expiry_);
+  x509_util::ParseDate(X509_get_notBefore(cert_handle_), &valid_start_);
+  x509_util::ParseDate(X509_get_notAfter(cert_handle_), &valid_expiry_);
 }
 
 // static
