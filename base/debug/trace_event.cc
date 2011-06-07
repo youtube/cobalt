@@ -376,7 +376,8 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
     ret_begin_id = static_cast<int>(logged_events_.size());
     logged_events_.push_back(
         TraceEvent(static_cast<unsigned long>(base::GetCurrentProcId()),
-                   PlatformThread::CurrentId(),
+      // __LB_PS3__FIX_ME__
+        reinterpret_cast<int>(PlatformThread::CurrentId()),
                    now, phase, category, name,
                    arg1_name, arg1_val,
                    arg2_name, arg2_val));

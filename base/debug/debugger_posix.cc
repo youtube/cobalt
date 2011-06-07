@@ -5,14 +5,17 @@
 #include "base/debug/debugger.h"
 #include "build/build_config.h"
 
-#include <errno.h>
+#if !defined(__LB_PS3__)
+#include <sys/param.h>
 #include <execinfo.h>
+#endif
+
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/param.h>
 #include <sys/stat.h>
-#if !defined(OS_NACL)
+#if !defined(OS_NACL) && !defined(__LB_PS3__)
 #include <sys/sysctl.h>
 #endif
 #include <sys/types.h>
@@ -136,6 +139,13 @@ bool BeingDebugged() {
   return false;
 }
 
+#elif defined(__LB_PS3__)
+
+bool BeingDebugged() {
+  NOTIMPLEMENTED();
+  return false;
+}
+
 #elif defined(OS_FREEBSD)
 
 bool BeingDebugged() {
@@ -169,6 +179,9 @@ bool BeingDebugged() {
 #define DEBUG_BREAK() abort()
 #elif defined(ARCH_CPU_ARM_FAMILY)
 #define DEBUG_BREAK() asm("bkpt 0")
+#elif defined(__LB_PS3__)
+// __LB_PS3__WRITE_ME__
+#define DEBUG_BREAK()
 #else
 #define DEBUG_BREAK() asm("int3")
 #endif

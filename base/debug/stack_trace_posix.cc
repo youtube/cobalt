@@ -4,14 +4,17 @@
 
 #include "base/debug/stack_trace.h"
 
-#include <errno.h>
+#if !defined(__LB_PS3__)
 #include <execinfo.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#endif
+
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/sysctl.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -127,6 +130,8 @@ bool GetBacktraceStrings(void *const *trace, int size,
       trace_strings->push_back(base::StringPrintf("%p", trace[i]));
     }
   }
+#elif defined(__LB_PS3__)
+  // __LB_PS3__WRITE_ME__
 #else
   scoped_ptr_malloc<char*> trace_symbols(backtrace_symbols(trace, size));
   if (trace_symbols.get()) {
@@ -159,7 +164,12 @@ StackTrace::StackTrace() {
 #endif
   // Though the backtrace API man page does not list any possible negative
   // return values, we take no chance.
+#if defined(__LB_PS3__)
+  // __LB_PS3__WRITE_ME__
+  count_ = 0;
+#else
   count_ = std::max(backtrace(trace_, arraysize(trace_)), 0);
+#endif
 }
 
 void StackTrace::PrintBacktrace() const {

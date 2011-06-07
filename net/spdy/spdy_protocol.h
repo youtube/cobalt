@@ -10,6 +10,10 @@
 
 #include <limits>
 
+#if defined(__LB_PS3__)
+#include <netinet/in.h> // for ntohl() and family
+#endif
+
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "net/base/sys_byteorder.h"

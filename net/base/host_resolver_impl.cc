@@ -40,6 +40,10 @@
 #include "net/base/winsock_init.h"
 #endif
 
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
+#endif
+
 namespace net {
 
 namespace {
@@ -232,7 +236,7 @@ class JobCreationParameters : public NetLog::EventParameters {
 // a histogram.
 std::vector<int> GetAllGetAddrinfoOSErrors() {
   int os_errors[] = {
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_PS3__)
     EAI_ADDRFAMILY,
     EAI_AGAIN,
     EAI_BADFLAGS,
@@ -244,6 +248,13 @@ std::vector<int> GetAllGetAddrinfoOSErrors() {
     EAI_SERVICE,
     EAI_SOCKTYPE,
     EAI_SYSTEM,
+#elif defined(__LB_PS3__)
+    NETDB_INTERNAL,
+    HOST_NOT_FOUND,
+    TRY_AGAIN,
+    NO_RECOVERY,
+    NO_DATA,
+    NO_ADDRESS
 #elif defined(OS_WIN)
     // See: http://msdn.microsoft.com/en-us/library/ms738520(VS.85).aspx
     WSA_NOT_ENOUGH_MEMORY,

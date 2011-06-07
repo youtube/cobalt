@@ -12,6 +12,10 @@
 #include <netinet/in.h>
 #endif
 
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
+#endif
+
 namespace net {
 
 IPEndPoint::IPEndPoint() : port_(0) {}
@@ -58,6 +62,7 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       memcpy(&addr->sin_addr, &address_[0], kIPv4AddressSize);
       break;
     }
+#if !defined(__LB_PS3__)
     case kIPv6AddressSize: {
       if (*address_length < sizeof(struct sockaddr_in6))
         return false;
@@ -70,6 +75,7 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       memcpy(&addr6->sin6_addr, &address_[0], kIPv6AddressSize);
       break;
     }
+#endif
     default: {
       NOTREACHED() << "Bad IP address";
       break;
@@ -90,6 +96,7 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
       address_.assign(&bytes[0], &bytes[kIPv4AddressSize]);
       break;
     }
+#if !defined(__LB_PS3__)
     case AF_INET6: {
       const struct sockaddr_in6* addr =
           reinterpret_cast<const struct sockaddr_in6*>(address);
@@ -98,6 +105,7 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
       address_.assign(&bytes[0], &bytes[kIPv6AddressSize]);
       break;
     }
+#endif
     default: {
       NOTREACHED() << "Bad IP address";
       break;

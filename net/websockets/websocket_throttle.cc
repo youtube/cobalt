@@ -18,6 +18,10 @@
 #include "net/socket_stream/socket_stream.h"
 #include "net/websockets/websocket_job.h"
 
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
+#endif
+
 namespace net {
 
 static std::string AddrinfoToHashkey(const struct addrinfo* addrinfo) {
@@ -29,6 +33,7 @@ static std::string AddrinfoToHashkey(const struct addrinfo* addrinfo) {
                                 addrinfo->ai_family,
                                 base::HexEncode(&addr->sin_addr, 4).c_str());
       }
+#if !defined(__LB_PS3__)
     case AF_INET6: {
       const struct sockaddr_in6* const addr6 =
           reinterpret_cast<const sockaddr_in6*>(addrinfo->ai_addr);
@@ -38,6 +43,7 @@ static std::string AddrinfoToHashkey(const struct addrinfo* addrinfo) {
           base::HexEncode(&addr6->sin6_addr,
                           sizeof(addr6->sin6_addr)).c_str());
       }
+#endif
     default:
       return base::StringPrintf("%d:%s",
                                 addrinfo->ai_family,
