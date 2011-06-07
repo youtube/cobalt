@@ -940,7 +940,7 @@ void Comparator::SetSubgroupTiebreaker(Selector selector) {
 }
 
 void Comparator::ParseKeyphrase(const std::string& key_phrase) {
-  typedef std::map<const std::string, Selector> KeyMap;
+  typedef std::map<std::string, Selector> KeyMap;
   static KeyMap key_map;
   static bool initialized = false;
   if (!initialized) {

@@ -95,8 +95,10 @@ class NET_API ProxyInfo {
   // Deletes any entry which doesn't have one of the specified proxy schemes.
   void RemoveProxiesWithoutScheme(int scheme_bit_field);
 
+#if !defined(__LB_PS3__)
  private:
-  friend class ProxyService;
+#endif
+   friend class ProxyService;
 
   // The ordered list of proxy servers (including DIRECT attempts) remaining to
   // try. If proxy_list_ is empty, then there is nothing left to fall back to.

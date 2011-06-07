@@ -8,6 +8,10 @@
 
 #include "base/logging.h"
 
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
+#endif
+
 namespace net {
 
 Error MapSystemError(int os_error) {

@@ -8,6 +8,12 @@
 
 #include "build/build_config.h"
 
+#if defined(__LB_PS3__)
+// must be included before sys/socket.h
+// to define size_t and ssize_t
+#include <sys/types.h>
+#endif
+
 #if defined(OS_WIN)
 #include <windows.h>
 #include <ws2tcpip.h>

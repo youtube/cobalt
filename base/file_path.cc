@@ -554,7 +554,7 @@ FilePath FilePath::FromWStringHack(const std::wstring& wstring) {
 // static.
 void FilePath::WriteStringTypeToPickle(Pickle* pickle,
                                        const StringType& path) {
-#if defined(WCHAR_T_IS_UTF16)
+#if defined(WCHAR_T_IS_UTF16) && !defined(__LB_PS3__)
   pickle->WriteWString(path);
 #elif defined(WCHAR_T_IS_UTF32)
   pickle->WriteString(path);
@@ -566,7 +566,7 @@ void FilePath::WriteStringTypeToPickle(Pickle* pickle,
 // static.
 bool FilePath::ReadStringTypeFromPickle(Pickle* pickle, void** iter,
                                         StringType* path) {
-#if defined(WCHAR_T_IS_UTF16)
+#if defined(WCHAR_T_IS_UTF16) && !defined(__LB_PS3__)
   if (!pickle->ReadWString(iter, path))
     return false;
 #elif defined(WCHAR_T_IS_UTF32)

@@ -10,6 +10,10 @@
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 
+#if defined(__LB_PS3__)
+#include "net/base/dns_addrinfo_ps3.h"
+#endif
+
 namespace net {
 
 namespace {
@@ -87,6 +91,7 @@ AddressList AddressList::CreateFromIPAddressWithCname(
       ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr);
       break;
     }
+#if !defined(__LB_PS3__)
     case 16: {
       ai->ai_family = AF_INET6;
       const size_t sockaddr_in6_size = sizeof(struct sockaddr_in6);
@@ -100,6 +105,7 @@ AddressList AddressList::CreateFromIPAddressWithCname(
       ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr6);
       break;
     }
+#endif
     default: {
       NOTREACHED() << "Bad IP address";
       break;
@@ -154,6 +160,7 @@ AddressList AddressList::CreateFromSockaddr(
         DCHECK_EQ(AF_INET, ai->ai_family);
       }
       break;
+#if !defined(__LB_PS3__)
     case sizeof(struct sockaddr_in6):
       {
         const struct sockaddr_in6* sin6 =
@@ -161,6 +168,7 @@ AddressList AddressList::CreateFromSockaddr(
         ai->ai_family = sin6->sin6_family;
         DCHECK_EQ(AF_INET6, ai->ai_family);
       }
+#endif
       break;
     default:
       NOTREACHED() << "Bad IP address";

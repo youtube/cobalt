@@ -25,7 +25,7 @@
 #if defined(OS_POSIX)
 #include "base/message_pump_libevent.h"
 #endif
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(__LB_PS3__)
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include "base/message_pump_glib.h"
