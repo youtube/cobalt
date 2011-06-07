@@ -77,7 +77,7 @@ FilePath GetDefaultConfigDirectory() {
   }
   dir = dir.AppendASCII(".pki").AppendASCII("nssdb");
   if (!file_util::CreateDirectory(dir)) {
-    LOG(ERROR) << "Failed to create ~/.pki/nssdb directory.";
+    LOG(ERROR) << "Failed to create " << dir.value() << " directory.";
     dir.clear();
   }
   return dir;
