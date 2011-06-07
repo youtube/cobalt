@@ -12,6 +12,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -61,7 +62,8 @@ template <typename ObserverType>
 class ObserverListThreadSafe;
 
 template <class ObserverType>
-class ObserverListBase {
+class ObserverListBase
+    : public base::SupportsWeakPtr<ObserverListBase<ObserverType> > {
  public:
   // Enumeration of which observers are notified.
   enum NotificationType {
@@ -79,21 +81,23 @@ class ObserverListBase {
   class Iterator {
    public:
     Iterator(ObserverListBase<ObserverType>& list)
-        : list_(list),
+        : list_(list.AsWeakPtr()),
           index_(0),
           max_index_(list.type_ == NOTIFY_ALL ?
                      std::numeric_limits<size_t>::max() :
                      list.observers_.size()) {
-      ++list_.notify_depth_;
+      ++list_->notify_depth_;
     }
 
     ~Iterator() {
-      if (--list_.notify_depth_ == 0)
-        list_.Compact();
+      if (list_ && --list_->notify_depth_ == 0)
+        list_->Compact();
     }
 
     ObserverType* GetNext() {
-      ListType& observers = list_.observers_;
+      if (!list_)
+        return NULL;
+      ListType& observers = list_->observers_;
       // Advance if the current element is null
       size_t max_index = std::min(max_index_, observers.size());
       while (index_ < max_index && !observers[index_])
@@ -102,7 +106,7 @@ class ObserverListBase {
     }
 
    private:
-    ObserverListBase<ObserverType>& list_;
+    base::WeakPtr<ObserverListBase<ObserverType> > list_;
     size_t index_;
     size_t max_index_;
   };
