@@ -578,7 +578,6 @@ bool TransportSecurityState::IsPreloadedSTS(
     {19, true, "\006health\006google\003com", true, kGoogleAcceptableCerts },
     {21, true, "\010checkout\006google\003com", true, kGoogleAcceptableCerts },
     {19, true, "\006chrome\006google\003com", true, kGoogleAcceptableCerts },
-    {26, false, "\006latest\006chrome\006google\003com", true, 0 },
     {17, true, "\004docs\006google\003com", true, kGoogleAcceptableCerts },
     {18, true, "\005sites\006google\003com", true, kGoogleAcceptableCerts },
     {25, true, "\014spreadsheets\006google\003com", true,
@@ -594,6 +593,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {17, true, "\004talk\006google\003com", true, kGoogleAcceptableCerts },
     {29, true, "\020hostedtalkgadget\006google\003com", true,
      kGoogleAcceptableCerts },
+    {17, true, "\004plus\006google\003com", true, kGoogleAcceptableCerts },
     // Other Google-related domains that must use HTTPS.
     {20, true, "\006market\007android\003com", true, kGoogleAcceptableCerts },
     {26, true, "\003ssl\020google-analytics\003com", true,
