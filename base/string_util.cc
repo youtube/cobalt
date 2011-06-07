@@ -815,7 +815,6 @@ template<class FormatStringType, class OutStringType>
 OutStringType DoReplaceStringPlaceholders(const FormatStringType& format_string,
     const std::vector<OutStringType>& subst, std::vector<size_t>* offsets) {
   size_t substitutions = subst.size();
-  DCHECK(substitutions < 10);
 
   size_t sub_length = 0;
   for (typename std::vector<OutStringType>::const_iterator iter = subst.begin();
@@ -840,7 +839,14 @@ OutStringType DoReplaceStringPlaceholders(const FormatStringType& format_string,
           }
           --i;
         } else {
-          uintptr_t index = *i - '1';
+          uintptr_t index = 0;
+          while (i != format_string.end() && '0' <= *i && *i <= '9') {
+            index *= 10;
+            index += *i - '0';
+            ++i;
+          }
+          --i;
+          index -= 1;
           if (offsets) {
             ReplacementOffset r_offset(index,
                 static_cast<int>(formatted.size()));
