@@ -21,6 +21,8 @@ class BASE_API Version {
   // Version object is assign to it.
   Version();
 
+  ~Version();
+
   // Initializes from a decimal dotted version number, like "0.1.1".
   // Each component is limited to a uint16. Call IsValid() to learn
   // the outcome.
