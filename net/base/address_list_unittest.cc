@@ -277,12 +277,35 @@ TEST(AddressListTest, AddressFromAddrInfo) {
 TEST(AddressListTest, CreateFromIPAddressList) {
   struct TestData {
     std::string ip_address;
-    bool is_ipv6;
+    const char* in_addr;
+    int ai_family;
+    size_t ai_addrlen;
+    size_t in_addr_offset;
+    size_t in_addr_size;
   } tests[] = {
-    { "127.0.0.1", false },
-    { "2001:db8:0::42", true },
-    { "192.168.1.1", false },
+    { "127.0.0.1",
+      "\x7f\x00\x00\x01",
+      AF_INET,
+      sizeof(struct sockaddr_in),
+      offsetof(struct sockaddr_in, sin_addr),
+      sizeof(struct in_addr),
+    },
+    { "2001:db8:0::42",
+      "\x20\x01\x0d\xb8\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x42",
+      AF_INET6,
+      sizeof(struct sockaddr_in6),
+      offsetof(struct sockaddr_in6, sin6_addr),
+      sizeof(struct in6_addr),
+    },
+    { "192.168.1.1",
+      "\xc0\xa8\x01\x01",
+      AF_INET,
+      sizeof(struct sockaddr_in),
+      offsetof(struct sockaddr_in, sin_addr),
+      sizeof(struct in_addr),
+    },
   };
+  const uint16 kPort = 80;
 
   // Construct a list of ip addresses.
   std::vector<IPAddressNumber> ip_list;
@@ -292,29 +315,22 @@ TEST(AddressListTest, CreateFromIPAddressList) {
     ip_list.push_back(ip_number);
   }
 
-  AddressList test_list = AddressList::CreateFromIPAddressList(ip_list, 80);
-  EXPECT_EQ(80, test_list.GetPort());
+  AddressList test_list = AddressList::CreateFromIPAddressList(ip_list, kPort);
+  EXPECT_EQ(kPort, test_list.GetPort());
 
   // Make sure that CreateFromIPAddressList has created an addrinfo
   // chain of exactly the same length as the |tests| with correct content.
-  struct addrinfo* next_ai = const_cast<struct addrinfo*>(test_list.head());
+  const struct addrinfo* next_ai = test_list.head();
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     ASSERT_TRUE(next_ai != NULL);
-    AddressList expected_list;
-    int rv = CreateAddressList(tests[i].ip_address, 80, &expected_list);
-    if (tests[i].is_ipv6 && rv != 0) {
-      LOG(WARNING) << "Unable to resolve ip literal '" << tests[i].ip_address
-                   << "' test skipped.";
-    } else {
-      ASSERT_EQ(0, rv);
-      const struct addrinfo* good_ai = expected_list.head();
-      EXPECT_EQ(good_ai->ai_family, next_ai->ai_family);
-      EXPECT_EQ(good_ai->ai_addrlen, next_ai->ai_addrlen);
-      size_t sockaddr_size =
-        good_ai->ai_family == AF_INET ? sizeof(struct sockaddr_in) :
-        good_ai->ai_family == AF_INET6 ? sizeof(struct sockaddr_in6) : 0;
-      EXPECT_EQ(memcmp(good_ai->ai_addr, next_ai->ai_addr, sockaddr_size), 0);
-    }
+    EXPECT_EQ(tests[i].ai_family, next_ai->ai_family);
+    EXPECT_EQ(tests[i].ai_addrlen, next_ai->ai_addrlen);
+
+    char* ai_addr = reinterpret_cast<char*>(next_ai->ai_addr);
+    int rv = memcmp(tests[i].in_addr,
+                    ai_addr + tests[i].in_addr_offset,
+                    tests[i].in_addr_size);
+    EXPECT_EQ(0, rv);
     next_ai = next_ai->ai_next;
   }
   EXPECT_EQ(NULL, next_ai);
