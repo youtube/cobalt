@@ -129,9 +129,6 @@
       # currently only works on Linux.
       'use_third_party_translations%': 0,
 
-      # Enable navigator.registerProtocolHandler and supporting UI.
-      'enable_register_protocol_handler%': 1,
-
       # Remoting compilation is enabled by default. Set to 0 to disable.
       'remoting%': 1,
 
@@ -200,6 +197,15 @@
           'file_manager_extension%': 1,
         }, {
           'file_manager_extension%': 0,
+        }],
+
+        # Enable navigator.registerProtocolHandler and supporting UI.
+        # We disable on Linux because the OS-level component of RPH isn't
+        # implemented.
+        ['OS=="linux"', {
+          'enable_register_protocol_handler%': 0,
+        }, {
+          'enable_register_protocol_handler%': 1,
         }],
       ],
     },
