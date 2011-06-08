@@ -443,9 +443,6 @@
     # Point to ICU directory.
     'icu_src_dir': '../third_party/icu',
 
-    # Enable desktop notifications.
-    'enable_desktop_notifications%': 1,
-
     'conditions': [
       ['os_posix==1 and OS!="mac"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
