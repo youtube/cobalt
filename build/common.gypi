@@ -1363,7 +1363,8 @@
                   # TODO(thakis): Remove this once all instances of this
                   # are fixed in the views and chromeos code.
                   # http://crbug.com/84424
-                  '-Wno-delete-non-virtual-dtor',
+                  # TODO(thakis): Add back in when rolling clang past r131989
+                  #'-Wno-delete-non-virtual-dtor',
                 ],
               }]],
           }],
