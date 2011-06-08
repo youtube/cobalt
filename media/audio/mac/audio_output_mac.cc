@@ -96,7 +96,7 @@ void PCMQueueOutAudioOutputStream::HandleError(OSStatus err) {
 
 bool PCMQueueOutAudioOutputStream::Open() {
   // Get the default device id.
-  unsigned int device_id = 0;
+  AudioObjectID device_id = 0;
   AudioObjectPropertyAddress property_address = {
       kAudioHardwarePropertyDefaultOutputDevice,
       kAudioObjectPropertyScopeGlobal,
@@ -112,6 +112,9 @@ bool PCMQueueOutAudioOutputStream::Open() {
   }
   // Get the size of the channel layout.
   UInt32 core_layout_size;
+  // TODO(annacc): AudioDeviceGetPropertyInfo() is deprecated, but its
+  // replacement, AudioObjectGetPropertyDataSize(), doesn't work yet with
+  // kAudioDevicePropertyPreferredChannelLayout.
   err = AudioDeviceGetPropertyInfo(device_id, 0, false,
                                    kAudioDevicePropertyPreferredChannelLayout,
                                    &core_layout_size, NULL);
@@ -125,6 +128,9 @@ bool PCMQueueOutAudioOutputStream::Open() {
   core_channel_layout.reset(
       reinterpret_cast<AudioChannelLayout*>(malloc(core_layout_size)));
   memset(core_channel_layout.get(), 0, core_layout_size);
+  // TODO(annacc): AudioDeviceGetProperty() is deprecated, but its
+  // replacement, AudioObjectGetPropertyData(), doesn't work yet with
+  // kAudioDevicePropertyPreferredChannelLayout.
   err = AudioDeviceGetProperty(device_id, 0, false,
                                kAudioDevicePropertyPreferredChannelLayout,
                                &core_layout_size, core_channel_layout.get());
@@ -174,8 +180,15 @@ bool PCMQueueOutAudioOutputStream::Open() {
   for (int i = 0; i < CHANNELS_MAX; ++i)
     core_channel_orderings_[i] = kEmptyChannel;
 
+  bool all_channels_unknown = true;
   for (int i = 0; i < num_core_channels_; ++i) {
-    switch (core_channel_layout->mChannelDescriptions[i].mChannelLabel) {
+    AudioChannelLabel label =
+        core_channel_layout->mChannelDescriptions[i].mChannelLabel;
+    if (label == kAudioChannelLabel_Unknown) {
+      continue;
+    }
+    all_channels_unknown = false;
+    switch (label) {
       case kAudioChannelLabel_Left:
         core_channel_orderings_[LEFT] = i;
         channel_remap_[i] = kChannelOrderings[source_layout_][LEFT];
@@ -227,6 +240,10 @@ bool PCMQueueOutAudioOutputStream::Open() {
     }
   }
 
+  if (all_channels_unknown) {
+    return true;
+  }
+
   // Check if we need to adjust the layout.
   // If the device has a BACK_LEFT and no SIDE_LEFT and the source has
   // a SIDE_LEFT but no BACK_LEFT, then move (and preserve the channel).
@@ -249,6 +266,9 @@ bool PCMQueueOutAudioOutputStream::Open() {
   CheckForAdjustedLayout(LEFT_OF_CENTER, SIDE_LEFT);
   // Same for RIGHT_OF_CENTER -> SIDE_RIGHT.
   CheckForAdjustedLayout(RIGHT_OF_CENTER, SIDE_RIGHT);
+  // For MONO -> STEREO, move audio to LEFT and RIGHT if applicable.
+  CheckForAdjustedLayout(CENTER, LEFT);
+  CheckForAdjustedLayout(CENTER, RIGHT);
 
   // Check if we will need to swizzle from source to device layout (maybe not!).
   should_swizzle_ = false;
