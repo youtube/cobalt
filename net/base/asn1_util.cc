@@ -14,32 +14,11 @@ bool ParseElement(base::StringPiece* in,
                   unsigned *out_header_len) {
   const uint8* data = reinterpret_cast<const uint8*>(in->data());
 
-  // We don't support kAny and kOptional at the same time.
-  if ((tag_value & kAny) && (tag_value & kOptional))
-    return false;
-
-  if (in->empty() && (tag_value & kOptional)) {
-    if (out_header_len)
-      *out_header_len = 0;
-    if (out)
-      *out = base::StringPiece();
-    return true;
-  }
-
   if (in->size() < 2)
     return false;
 
-  if (tag_value != kAny &&
-      static_cast<unsigned char>(data[0]) != (tag_value & 0xff)) {
-    if (tag_value & kOptional) {
-      if (out_header_len)
-        *out_header_len = 0;
-      if (out)
-        *out = base::StringPiece();
-      return true;
-    }
+  if (tag_value != kAny && static_cast<unsigned char>(data[0]) != tag_value)
     return false;
-  }
 
   size_t len = 0;
   if ((data[1] & 0x80) == 0) {
@@ -92,9 +71,9 @@ bool GetElement(base::StringPiece* in,
   return true;
 }
 
-// SeekToSPKI changes |cert| so that it points to a suffix of the
-// TBSCertificate where the suffix begins at the start of the ASN.1
-// SubjectPublicKeyInfo value.
+// SeekToSPKI changes |cert| so that it points to a suffix of the original
+// value where the suffix begins at the start of the ASN.1 SubjectPublicKeyInfo
+// value.
 static bool SeekToSPKI(base::StringPiece* cert) {
   // From RFC 5280, section 4.1
   //    Certificate  ::=  SEQUENCE  {
@@ -115,19 +94,14 @@ static bool SeekToSPKI(base::StringPiece* cert) {
   if (!GetElement(cert, kSEQUENCE, &certificate))
     return false;
 
-  // We don't allow junk after the certificate.
-  if (!cert->empty())
-    return false;
-
   base::StringPiece tbs_certificate;
   if (!GetElement(&certificate, kSEQUENCE, &tbs_certificate))
     return false;
 
-  if (!GetElement(&tbs_certificate,
-                  kOptional | kConstructed | kContextSpecific | 0,
-                  NULL)) {
-    return false;
-  }
+  // The version is optional, so a failure to parse it is fine.
+  GetElement(&tbs_certificate,
+             kCompound | kContextSpecific | 0,
+             NULL);
 
   // serialNumber
   if (!GetElement(&tbs_certificate, kINTEGER, NULL))
@@ -160,7 +134,6 @@ bool ExtractSPKIFromDERCert(base::StringPiece cert,
 bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
                                std::vector<base::StringPiece>* urls_out) {
   urls_out->clear();
-  std::vector<base::StringPiece> tmp_urls_out;
 
   if (!SeekToSPKI(&cert))
     return false;
@@ -177,20 +150,16 @@ bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
   if (!GetElement(&cert, kSEQUENCE, NULL))
     return false;
   // issuerUniqueID
-  if (!GetElement(&cert, kOptional | kConstructed | kContextSpecific | 1, NULL))
-    return false;
+  GetElement(&cert, kCompound | kContextSpecific | 1, NULL);
   // subjectUniqueID
-  if (!GetElement(&cert, kOptional | kConstructed | kContextSpecific | 2, NULL))
-    return false;
+  GetElement(&cert, kCompound | kContextSpecific | 2, NULL);
 
   base::StringPiece extensions_seq;
-  if (!GetElement(&cert, kOptional | kConstructed | kContextSpecific | 3,
+  if (!GetElement(&cert, kCompound | kContextSpecific | 3,
                   &extensions_seq)) {
-    return false;
-  }
-
-  if (extensions_seq.empty())
+    // If there are no extensions, then there are no CRL URLs.
     return true;
+  }
 
   // Extensions  ::=  SEQUENCE SIZE (1..MAX) OF Extension
   // Extension   ::=  SEQUENCE  {
@@ -249,7 +218,7 @@ bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
         return false;
 
       base::StringPiece name;
-      if (!GetElement(&distrib_point, kContextSpecific | kConstructed | 0,
+      if (!GetElement(&distrib_point, kContextSpecific | kCompound | 0,
                       &name)) {
         // If it doesn't contain a name then we skip it.
         continue;
@@ -262,8 +231,7 @@ bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
         continue;
       }
 
-      if (GetElement(&distrib_point,
-                     kContextSpecific | kConstructed | 2, NULL)) {
+      if (GetElement(&distrib_point, kContextSpecific | kCompound | 2, NULL)) {
         // If it contains a alternative issuer, then we skip it.
         continue;
       }
@@ -272,10 +240,8 @@ bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
       //   fullName                [0]     GeneralNames,
       //   nameRelativeToCRLIssuer [1]     RelativeDistinguishedName }
       base::StringPiece general_names;
-      if (!GetElement(&name,
-                      kContextSpecific | kConstructed | 0, &general_names)) {
+      if (!GetElement(&name, kContextSpecific | kCompound | 0, &general_names))
         continue;
-      }
 
       // GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName
       // GeneralName ::= CHOICE {
@@ -285,7 +251,7 @@ bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
       while (general_names.size() > 0) {
         base::StringPiece url;
         if (GetElement(&general_names, kContextSpecific | 6, &url)) {
-          tmp_urls_out.push_back(url);
+          urls_out->push_back(url);
         } else {
           if (!GetElement(&general_names, kAny, NULL))
             return false;
@@ -294,7 +260,6 @@ bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
     }
   }
 
-  urls_out->swap(tmp_urls_out);
   return true;
 }
 
