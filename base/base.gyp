@@ -334,6 +334,7 @@
         'test/test_switches.h',
         'test/test_timeouts.cc',
         'test/test_timeouts.h',
+        'test/test_util.h',
       ],
     },
     {
