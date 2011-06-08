@@ -4,65 +4,29 @@
 //
 // THREAD SAFETY
 //
-// The AlsaPcmOutputStream object's internal state is accessed by two threads:
-//
+// AlsaPcmOutputStream object is *not* thread-safe -- we assume that
 //   client thread - creates the object and calls the public APIs.
 //   message loop thread - executes all the internal tasks including querying
 //      the data source for more data, writing to the alsa device, and closing
-//      the alsa device.  It does *not* handle opening the device though.
-//
-// The class is designed so that most operations that read/modify the object's
-// internal state are done on the message loop thread.  The exception is data
-// conatined in the |shared_data_| structure.  Data in this structure needs to
-// be accessed by both threads, and should only be accessed when the
-// |shared_data_.lock_| is held.
-//
-// All member variables that are not in |shared_data_| are created/destroyed on
-// the |message_loop_|.  This allows safe access to them from any task posted to
-// |message_loop_|.  The values in |shared_data_| are considered to be read-only
-// signals by tasks posted to |message_loop_| (see the SEMANTICS of
-// |shared_data_| section below).  Because of these two constraints, tasks can,
-// and must, be coded to be safe in the face of a changing |shared_data_|.
-//
-//
-// SEMANTICS OF |shared_data_|
-//
-// Though |shared_data_| is accessable by both threads, the code has been
-// structured so that all mutations to |shared_data_| are only done in the
-// client thread.  The message loop thread only ever reads the shared data.
-//
-// This reduces the need for critical sections because the public API code can
-// assume that no mutations occur to the |shared_data_| between queries.
-//
-// On the message loop side, tasks have been coded such that they can
-// operate safely regardless of when state changes happen to |shared_data_|.
-// Code that is sensitive to the timing of state changes are delegated to the
-// |shared_data_| object so they can executed while holding
-// |shared_data_.lock_|.
+//      the alsa device.
+// is actually the same thread.
 //
 //
 // SEMANTICS OF CloseTask()
 //
 // The CloseTask() is responsible for cleaning up any resources that were
-// acquired after a successful Open().  After a CloseTask() has executed,
-// scheduling of reads should stop.  Currently scheduled tasks may run, but
-// they should not attempt to access any of the internal structures beyond
-// querying the |stop_stream_| flag and no-oping themselves.  This will
-// guarantee that eventually no more tasks will be posted into the message
-// loop, and the AlsaPcmOutputStream will be able to delete itself.
+// acquired after a successful Open().  CloseTask() would revoke any
+// scheduled outstanding runnable methods.
 //
 //
 // SEMANTICS OF ERROR STATES
 //
-// The object has two distinct error states: |shared_data_.state_| == kInError
-// and |stop_stream_|.  The |shared_data_.state_| state is only settable
-// by the client thread, and thus cannot be used to signal when the ALSA device
-// fails due to a hardware (or other low-level) event.  The |stop_stream_|
-// variable is only accessed by the message loop thread; it is used to indicate
+// The object has two distinct error states: |state_| == kInError
+// and |stop_stream_|.  The |stop_stream_| variable is used to indicate
 // that the playback_handle should no longer be used either because of a
-// hardware/low-level event, or because the CloseTask() has been run.
+// hardware/low-level event.
 //
-// When |shared_data_.state_| == kInError, all public API functions will fail
+// When |state_| == kInError, all public API functions will fail
 // with an error (Start() will call the OnError() function on the callback
 // immediately), or no-op themselves with the exception of Close().  Even if an
 // error state has been entered, if Open() has previously returned successfully,
@@ -218,8 +182,7 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
                                          AlsaWrapper* wrapper,
                                          AudioManagerLinux* manager,
                                          MessageLoop* message_loop)
-    : shared_data_(MessageLoop::current()),
-      requested_device_name_(device_name),
+    : requested_device_name_(device_name),
       pcm_format_(alsa_util::BitsToFormat(params.bits_per_sample)),
       channels_(params.channels),
       sample_rate_(params.sample_rate),
@@ -238,30 +201,36 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       manager_(manager),
       playback_handle_(NULL),
       frames_per_packet_(packet_size_ / bytes_per_frame_),
-      client_thread_loop_(MessageLoop::current()),
-      message_loop_(message_loop) {
+      message_loop_(message_loop),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
+      state_(kCreated),
+      volume_(1.0f),
+      source_callback_(NULL) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // Sanity check input values.
   if ((params.sample_rate > kAlsaMaxSampleRate) || (params.sample_rate <= 0)) {
     LOG(WARNING) << "Unsupported audio frequency.";
-    shared_data_.TransitionTo(kInError);
+    TransitionTo(kInError);
   }
 
   if (AudioParameters::AUDIO_PCM_LINEAR != params.format &&
       AudioParameters::AUDIO_PCM_LOW_LATENCY != params.format) {
     LOG(WARNING) << "Unsupported audio format";
-    shared_data_.TransitionTo(kInError);
+    TransitionTo(kInError);
   }
 
   if (pcm_format_ == SND_PCM_FORMAT_UNKNOWN) {
     LOG(WARNING) << "Unsupported bits per sample: " << params.bits_per_sample;
-    shared_data_.TransitionTo(kInError);
+    TransitionTo(kInError);
   }
 }
 
 AlsaPcmOutputStream::~AlsaPcmOutputStream() {
-  InternalState state = shared_data_.state();
-  DCHECK(state == kCreated || state == kIsClosed || state == kInError);
+  InternalState current_state = state();
+  DCHECK(current_state == kCreated ||
+         current_state == kIsClosed ||
+         current_state == kInError);
 
   // TODO(ajwong): Ensure that CloseTask has been called and the
   // playback handle released by DCHECKing that playback_handle_ is NULL.
@@ -270,14 +239,14 @@ AlsaPcmOutputStream::~AlsaPcmOutputStream() {
 }
 
 bool AlsaPcmOutputStream::Open() {
-  DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  if (shared_data_.state() == kInError) {
+  if (state() == kInError) {
     return false;
   }
 
-  if (!shared_data_.CanTransitionTo(kIsOpened)) {
-    NOTREACHED() << "Invalid state: " << shared_data_.state();
+  if (!CanTransitionTo(kIsOpened)) {
+    NOTREACHED() << "Invalid state: " << state();
     return false;
   }
 
@@ -285,67 +254,62 @@ bool AlsaPcmOutputStream::Open() {
   // CanTransitionTo() was checked above, and it is assumed that this
   // object's public API is only called on one thread so the state cannot
   // transition out from under us.
-  shared_data_.TransitionTo(kIsOpened);
+  TransitionTo(kIsOpened);
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &AlsaPcmOutputStream::OpenTask));
+      method_factory_.NewRunnableMethod(&AlsaPcmOutputStream::OpenTask));
 
   return true;
 }
 
 void AlsaPcmOutputStream::Close() {
-  DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // Sanity check that the transition occurs correctly.  It is safe to
   // continue anyways because all operations for closing are idempotent.
-  if (shared_data_.TransitionTo(kIsClosed) != kIsClosed) {
+  if (TransitionTo(kIsClosed) != kIsClosed) {
     NOTREACHED() << "Unable to transition Closed.";
   }
 
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &AlsaPcmOutputStream::CloseTask));
-
-  // Signal to the manager that we're closed and can be removed.  Since
-  // we just posted a CloseTask to the message loop, we won't be deleted
-  // immediately, but it will happen soon afterwards.
-  manager()->ReleaseOutputStream(this);
+      method_factory_.NewRunnableMethod(&AlsaPcmOutputStream::CloseTask));
 }
 
 void AlsaPcmOutputStream::Start(AudioSourceCallback* callback) {
-  DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   CHECK(callback);
 
-  shared_data_.set_source_callback(callback);
+  set_source_callback(callback);
 
   // Only post the task if we can enter the playing state.
-  if (shared_data_.TransitionTo(kIsPlaying) == kIsPlaying) {
+  if (TransitionTo(kIsPlaying) == kIsPlaying) {
     message_loop_->PostTask(
         FROM_HERE,
-        NewRunnableMethod(this, &AlsaPcmOutputStream::StartTask));
+        method_factory_.NewRunnableMethod(&AlsaPcmOutputStream::StartTask));
   }
 }
 
 void AlsaPcmOutputStream::Stop() {
-  DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // Reset the callback, so that it is not called anymore.
-  shared_data_.set_source_callback(NULL);
+  set_source_callback(NULL);
 
-  shared_data_.TransitionTo(kIsStopped);
+  TransitionTo(kIsStopped);
 }
 
 void AlsaPcmOutputStream::SetVolume(double volume) {
-  DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  shared_data_.set_volume(static_cast<float>(volume));
+  volume_ = static_cast<float>(volume);
 }
 
 void AlsaPcmOutputStream::GetVolume(double* volume) {
-  DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  *volume = shared_data_.volume();
+  *volume = volume_;
 }
 
 void AlsaPcmOutputStream::OpenTask() {
@@ -396,7 +360,7 @@ void AlsaPcmOutputStream::StartTask() {
     return;
   }
 
-  if (shared_data_.state() != kIsPlaying) {
+  if (state() != kIsPlaying) {
     return;
   }
 
@@ -428,8 +392,6 @@ void AlsaPcmOutputStream::StartTask() {
 }
 
 void AlsaPcmOutputStream::CloseTask() {
-  // NOTE: Keep this function idempotent to handle errors that might cause
-  // multiple CloseTasks to be posted.
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
   // Shutdown the audio device.
@@ -443,7 +405,13 @@ void AlsaPcmOutputStream::CloseTask() {
   buffer_.reset();
 
   // Signal anything that might already be scheduled to stop.
-  stop_stream_ = true;
+  stop_stream_ = true;  // Not necessary in production, but unit tests
+                        // uses the flag to verify that stream was closed.
+  method_factory_.RevokeAll();
+
+  // Signal to the manager that we're closed and can be removed.
+  // Should be last call in the method as it deletes "this".
+  manager_->ReleaseOutputStream(this);
 }
 
 void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
@@ -470,10 +438,10 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
 
     scoped_refptr<media::DataBuffer> packet =
         new media::DataBuffer(packet_size_);
-    size_t packet_size =
-        shared_data_.OnMoreData(
-            this, packet->GetWritableData(), packet->GetBufferSize(),
-            AudioBuffersState(buffer_delay, hardware_delay));
+    size_t packet_size = RunDataCallback(packet->GetWritableData(),
+                                         packet->GetBufferSize(),
+                                         AudioBuffersState(buffer_delay,
+                                                           hardware_delay));
     CHECK(packet_size <= packet->GetBufferSize()) <<
         "Data source overran buffer.";
 
@@ -489,7 +457,7 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
                               packet_size,
                               channels_,
                               bytes_per_sample_,
-                              shared_data_.volume())) {
+                              volume_)) {
         // Adjust packet size for downmix.
         packet_size =
             packet_size / bytes_per_frame_ * bytes_per_output_frame_;
@@ -525,7 +493,7 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
                           packet_size,
                           channels_,
                           bytes_per_sample_,
-                          shared_data_.volume());
+                          volume_);
     }
 
     if (packet_size > 0) {
@@ -547,7 +515,7 @@ void AlsaPcmOutputStream::WritePacket() {
     return;
   }
 
-  if (shared_data_.state() == kIsStopped) {
+  if (state() == kIsStopped) {
     return;
   }
 
@@ -579,7 +547,7 @@ void AlsaPcmOutputStream::WritePacket() {
       if (frames_written != -EAGAIN) {
         LOG(ERROR) << "Failed to write to pcm device: "
                    << wrapper_->StrError(frames_written);
-        shared_data_.OnError(this, frames_written);
+        RunErrorCallback(frames_written);
         stop_stream_ = true;
       }
     } else {
@@ -610,7 +578,7 @@ void AlsaPcmOutputStream::WriteTask() {
     return;
   }
 
-  if (shared_data_.state() == kIsStopped) {
+  if (state() == kIsStopped) {
     return;
   }
 
@@ -655,17 +623,17 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
   }
 
   // Only schedule more reads/writes if we are still in the playing state.
-  if (shared_data_.state() == kIsPlaying) {
+  if (state() == kIsPlaying) {
     if (next_fill_time_ms == 0) {
       message_loop_->PostTask(
           FROM_HERE,
-          NewRunnableMethod(this, &AlsaPcmOutputStream::WriteTask));
+          method_factory_.NewRunnableMethod(&AlsaPcmOutputStream::WriteTask));
     } else {
       // TODO(ajwong): Measure the reliability of the delay interval.  Use
       // base/metrics/histogram.h.
       message_loop_->PostDelayedTask(
           FROM_HERE,
-          NewRunnableMethod(this, &AlsaPcmOutputStream::WriteTask),
+          method_factory_.NewRunnableMethod(&AlsaPcmOutputStream::WriteTask),
           next_fill_time_ms);
     }
   }
@@ -842,28 +810,7 @@ snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
   return NULL;
 }
 
-AudioManagerLinux* AlsaPcmOutputStream::manager() {
-  DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
-  return manager_;
-}
-
-AlsaPcmOutputStream::SharedData::SharedData(
-    MessageLoop* state_transition_loop)
-    : state_(kCreated),
-      volume_(1.0f),
-      source_callback_(NULL),
-      state_transition_loop_(state_transition_loop) {
-}
-
-bool AlsaPcmOutputStream::SharedData::CanTransitionTo(InternalState to) {
-  base::AutoLock l(lock_);
-  return CanTransitionTo_Locked(to);
-}
-
-bool AlsaPcmOutputStream::SharedData::CanTransitionTo_Locked(
-    InternalState to) {
-  lock_.AssertAcquired();
-
+bool AlsaPcmOutputStream::CanTransitionTo(InternalState to) {
   switch (state_) {
     case kCreated:
       return to == kIsOpened || to == kIsClosed || to == kInError;
@@ -890,11 +837,10 @@ bool AlsaPcmOutputStream::SharedData::CanTransitionTo_Locked(
 }
 
 AlsaPcmOutputStream::InternalState
-AlsaPcmOutputStream::SharedData::TransitionTo(InternalState to) {
-  DCHECK_EQ(MessageLoop::current(), state_transition_loop_);
+AlsaPcmOutputStream::TransitionTo(InternalState to) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  base::AutoLock l(lock_);
-  if (!CanTransitionTo_Locked(to)) {
+  if (!CanTransitionTo(to)) {
     NOTREACHED() << "Cannot transition from: " << state_ << " to: " << to;
     state_ = kInError;
   } else {
@@ -903,45 +849,29 @@ AlsaPcmOutputStream::SharedData::TransitionTo(InternalState to) {
   return state_;
 }
 
-AlsaPcmOutputStream::InternalState AlsaPcmOutputStream::SharedData::state() {
-  base::AutoLock l(lock_);
+AlsaPcmOutputStream::InternalState AlsaPcmOutputStream::state() {
   return state_;
 }
 
-float AlsaPcmOutputStream::SharedData::volume() {
-  base::AutoLock l(lock_);
-  return volume_;
-}
-
-void AlsaPcmOutputStream::SharedData::set_volume(float v) {
-  base::AutoLock l(lock_);
-  volume_ = v;
-}
-
-uint32 AlsaPcmOutputStream::SharedData::OnMoreData(
-    AudioOutputStream* stream, uint8* dest, uint32 max_size,
-    AudioBuffersState buffers_state) {
-  base::AutoLock l(lock_);
+uint32 AlsaPcmOutputStream::RunDataCallback(uint8* dest,
+                                            uint32 max_size,
+                                            AudioBuffersState buffers_state) {
   if (source_callback_) {
-    return source_callback_->OnMoreData(stream, dest, max_size, buffers_state);
+    return source_callback_->OnMoreData(this, dest, max_size, buffers_state);
   }
 
   return 0;
 }
 
-void AlsaPcmOutputStream::SharedData::OnError(AudioOutputStream* stream,
-                                              int code) {
-  base::AutoLock l(lock_);
+void AlsaPcmOutputStream::RunErrorCallback(int code) {
   if (source_callback_) {
-    source_callback_->OnError(stream, code);
+    source_callback_->OnError(this, code);
   }
 }
 
 // Changes the AudioSourceCallback to proxy calls to.  Pass in NULL to
 // release ownership of the currently registered callback.
-void AlsaPcmOutputStream::SharedData::set_source_callback(
-    AudioSourceCallback* callback) {
-  DCHECK_EQ(MessageLoop::current(), state_transition_loop_);
-  base::AutoLock l(lock_);
+void AlsaPcmOutputStream::set_source_callback(AudioSourceCallback* callback) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   source_callback_ = callback;
 }
