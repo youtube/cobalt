@@ -122,7 +122,7 @@ void NetworkChangeNotifierMac::ReachabilityCallback(
   bool old_reachability = notifier_mac->network_reachable_;
   notifier_mac->network_reachable_ = reachable && !connection_required;
   if (old_reachability != notifier_mac->network_reachable_)
-    notifier_mac->NotifyObserversOfOnlineStateChange();
+    NotifyObserversOfOnlineStateChange();
 }
 
 }  // namespace net
