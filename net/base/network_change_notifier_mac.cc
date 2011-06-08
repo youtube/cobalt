@@ -10,6 +10,7 @@
 #include <SystemConfiguration/SCSchemaDefinitions.h>
 
 #include "base/mac/scoped_cftyperef.h"
+#include "base/synchronization/lock.h"
 
 namespace net {
 
@@ -27,6 +28,7 @@ NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
 }
 
 bool NetworkChangeNotifierMac::IsCurrentlyOffline() const {
+  base::AutoLock lock(network_reachable_lock_);
   return !network_reachable_;
 }
 
@@ -120,7 +122,10 @@ void NetworkChangeNotifierMac::ReachabilityCallback(
   bool reachable = flags & kSCNetworkFlagsReachable;
   bool connection_required = flags & kSCNetworkFlagsConnectionRequired;
   bool old_reachability = notifier_mac->network_reachable_;
-  notifier_mac->network_reachable_ = reachable && !connection_required;
+  {
+    base::AutoLock lock(notifier_mac->network_reachable_lock_);
+    notifier_mac->network_reachable_ = reachable && !connection_required;
+  }
   if (old_reachability != notifier_mac->network_reachable_)
     NotifyObserversOfOnlineStateChange();
 }
