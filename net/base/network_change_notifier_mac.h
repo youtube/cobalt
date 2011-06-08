@@ -11,6 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/mac/scoped_cftyperef.h"
+#include "base/synchronization/lock.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_config_watcher_mac.h"
 
@@ -58,6 +59,7 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   base::mac::ScopedCFTypeRef<CFRunLoopRef> run_loop_;
   base::mac::ScopedCFTypeRef<SCNetworkReachabilityRef> reachability_;
   bool network_reachable_;
+  mutable base::Lock network_reachable_lock_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };
