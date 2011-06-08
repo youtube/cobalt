@@ -155,24 +155,6 @@ void UseLocalCacheOfNSSDatabaseIfNFS(const FilePath& database_dir) {
 #endif  // defined(OS_LINUX)
 }
 
-// A helper class that acquires the SECMOD list read lock while the
-// AutoSECMODListReadLock is in scope.
-class AutoSECMODListReadLock {
- public:
-  AutoSECMODListReadLock()
-      : lock_(SECMOD_GetDefaultModuleListLock()) {
-    SECMOD_GetReadLock(lock_);
-  }
-
-  ~AutoSECMODListReadLock() {
-    SECMOD_ReleaseReadLock(lock_);
-  }
-
- private:
-  SECMODListLock* lock_;
-  DISALLOW_COPY_AND_ASSIGN(AutoSECMODListReadLock);
-};
-
 PK11SlotInfo* FindSlotWithTokenName(const std::string& token_name) {
   AutoSECMODListReadLock auto_lock;
   SECMODModuleList* head = SECMOD_GetDefaultModuleList();
@@ -670,6 +652,16 @@ AutoNSSWriteLock::~AutoNSSWriteLock() {
     lock_->Release();
   }
 }
+
+AutoSECMODListReadLock::AutoSECMODListReadLock()
+      : lock_(SECMOD_GetDefaultModuleListLock()) {
+    SECMOD_GetReadLock(lock_);
+  }
+
+AutoSECMODListReadLock::~AutoSECMODListReadLock() {
+  SECMOD_ReleaseReadLock(lock_);
+}
+
 #endif  // defined(USE_NSS)
 
 #if defined(OS_CHROMEOS)
