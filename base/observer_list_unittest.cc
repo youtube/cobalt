@@ -422,27 +422,4 @@ TEST(ObserverListTest, ClearNotifyExistingOnly) {
       << "Adder should not observe, so sum should still be 0.";
 }
 
-class ListDestructor : public Foo {
- public:
-  explicit ListDestructor(ObserverList<Foo>* list) : list_(list) {}
-  virtual void Observe(int x) {
-    delete list_;
-  }
-  virtual ~ListDestructor() { }
-  int total;
- private:
-  ObserverList<Foo>* list_;
-};
-
-
-TEST(ObserverListTest, IteratorOutlivesList) {
-  ObserverList<Foo>* observer_list = new ObserverList<Foo>;
-  ListDestructor a(observer_list);
-  observer_list->AddObserver(&a);
-
-  FOR_EACH_OBSERVER(Foo, *observer_list, Observe(0));
-  // If this test fails, there'll be Valgrind errors when this function goes out
-  // of scope.
-}
-
 }  // namespace
