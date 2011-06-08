@@ -1353,18 +1353,6 @@
                 ],
               }]],
           }],
-          ['clang==1 and chromeos==1', {
-            'target_conditions': [
-              ['_toolset=="target"', {
-                'cflags': [
-                  # TODO(thakis): Remove this once all instances of this
-                  # are fixed in the views and chromeos code.
-                  # http://crbug.com/84424
-                  # TODO(thakis): Add back in when rolling clang past r131989
-                  '-Wno-delete-non-virtual-dtor',
-                ],
-              }]],
-          }],
           ['clang==1 and clang_use_chrome_plugins==1', {
             'target_conditions': [
               ['_toolset=="target"', {
