@@ -106,7 +106,7 @@ class NET_API NetworkChangeNotifier {
   // happens asynchronously, even for observers on the current thread, even in
   // tests.
   static void NotifyObserversOfIPAddressChange();
-  void NotifyObserversOfOnlineStateChange();
+  static void NotifyObserversOfOnlineStateChange();
 
  private:
   const scoped_refptr<ObserverListThreadSafe<IPAddressObserver> >
