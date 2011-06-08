@@ -91,11 +91,11 @@ class MockAudioManagerLinux : public AudioManagerLinux {
 class AlsaPcmOutputStreamTest : public testing::Test {
  protected:
   AlsaPcmOutputStreamTest() {
-    test_stream_ = CreateStream(kTestChannelLayout);
+    test_stream_.reset(CreateStream(kTestChannelLayout));
   }
 
   virtual ~AlsaPcmOutputStreamTest() {
-    test_stream_ = NULL;
+    test_stream_.reset(NULL);
   }
 
   AlsaPcmOutputStream* CreateStream(ChannelLayout layout) {
@@ -156,7 +156,7 @@ class AlsaPcmOutputStreamTest : public testing::Test {
   StrictMock<MockAlsaWrapper> mock_alsa_wrapper_;
   StrictMock<MockAudioManagerLinux> mock_manager_;
   MessageLoop message_loop_;
-  scoped_refptr<AlsaPcmOutputStream> test_stream_;
+  scoped_ptr<AlsaPcmOutputStream> test_stream_;
   scoped_refptr<media::DataBuffer> packet_;
 
  private:
@@ -194,42 +194,37 @@ void* AlsaPcmOutputStreamTest::kFakeHints[] = {
     kSurround70, kSurround71, NULL };
 
 TEST_F(AlsaPcmOutputStreamTest, ConstructedState) {
-  EXPECT_EQ(AlsaPcmOutputStream::kCreated,
-            test_stream_->shared_data_.state());
+  EXPECT_EQ(AlsaPcmOutputStream::kCreated, test_stream_->state());
 
   // Should support mono.
-  test_stream_ = CreateStream(CHANNEL_LAYOUT_MONO);
-  EXPECT_EQ(AlsaPcmOutputStream::kCreated,
-            test_stream_->shared_data_.state());
+  test_stream_.reset(CreateStream(CHANNEL_LAYOUT_MONO));
+  EXPECT_EQ(AlsaPcmOutputStream::kCreated, test_stream_->state());
 
   // Should support multi-channel.
-  test_stream_ = CreateStream(CHANNEL_LAYOUT_SURROUND);
-  EXPECT_EQ(AlsaPcmOutputStream::kCreated,
-            test_stream_->shared_data_.state());
+  test_stream_.reset(CreateStream(CHANNEL_LAYOUT_SURROUND));
+  EXPECT_EQ(AlsaPcmOutputStream::kCreated, test_stream_->state());
 
   // Bad bits per sample.
   AudioParameters bad_bps_params(kTestFormat, kTestChannelLayout,
                                  kTestSampleRate, kTestBitsPerSample - 1,
                                  kTestFramesPerPacket);
-  test_stream_ = new AlsaPcmOutputStream(kTestDeviceName,
-                                         bad_bps_params,
-                                         &mock_alsa_wrapper_,
-                                         &mock_manager_,
-                                         &message_loop_);
-  EXPECT_EQ(AlsaPcmOutputStream::kInError,
-            test_stream_->shared_data_.state());
+  test_stream_.reset(new AlsaPcmOutputStream(kTestDeviceName,
+                                             bad_bps_params,
+                                             &mock_alsa_wrapper_,
+                                             &mock_manager_,
+                                             &message_loop_));
+  EXPECT_EQ(AlsaPcmOutputStream::kInError, test_stream_->state());
 
   // Bad format.
   AudioParameters bad_format_params(
       AudioParameters::AUDIO_LAST_FORMAT, kTestChannelLayout, kTestSampleRate,
       kTestBitsPerSample, kTestFramesPerPacket);
-  test_stream_ = new AlsaPcmOutputStream(kTestDeviceName,
-                                         bad_format_params,
-                                         &mock_alsa_wrapper_,
-                                         &mock_manager_,
-                                         &message_loop_);
-  EXPECT_EQ(AlsaPcmOutputStream::kInError,
-            test_stream_->shared_data_.state());
+  test_stream_.reset(new AlsaPcmOutputStream(kTestDeviceName,
+                                             bad_format_params,
+                                             &mock_alsa_wrapper_,
+                                             &mock_manager_,
+                                             &message_loop_));
+  EXPECT_EQ(AlsaPcmOutputStream::kInError, test_stream_->state());
 }
 
 TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
@@ -253,7 +248,8 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
                       SetArgumentPointee<2>(kTestFramesPerPacket / 2),
                       Return(0)));
 
-  test_stream_ = CreateStream(kTestChannelLayout, kPacketFramesInMinLatency);
+  test_stream_.reset(CreateStream(kTestChannelLayout,
+                                  kPacketFramesInMinLatency));
   ASSERT_TRUE(test_stream_->Open());
   message_loop_.RunAllPending();
 
@@ -283,7 +279,8 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
                       SetArgumentPointee<2>(kTestFramesPerPacket / 2),
                       Return(0)));
 
-  test_stream_ = CreateStream(kTestChannelLayout, kOverMinLatencyPacketSize);
+  test_stream_.reset(CreateStream(kTestChannelLayout,
+                                  kOverMinLatencyPacketSize));
   ASSERT_TRUE(test_stream_->Open());
   message_loop_.RunAllPending();
 
@@ -331,8 +328,7 @@ TEST_F(AlsaPcmOutputStreamTest, OpenClose) {
   ASSERT_TRUE(test_stream_->Open());
   message_loop_.RunAllPending();
 
-  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened,
-            test_stream_->shared_data_.state());
+  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened, test_stream_->state());
   EXPECT_EQ(kFakeHandle, test_stream_->playback_handle_);
   EXPECT_EQ(kTestFramesPerPacket, test_stream_->frames_per_packet_);
   EXPECT_TRUE(test_stream_->buffer_.get());
@@ -360,14 +356,12 @@ TEST_F(AlsaPcmOutputStreamTest, PcmOpenFailed) {
 
   // Open still succeeds since PcmOpen is delegated to another thread.
   ASSERT_TRUE(test_stream_->Open());
-  ASSERT_EQ(AlsaPcmOutputStream::kIsOpened,
-            test_stream_->shared_data_.state());
+  ASSERT_EQ(AlsaPcmOutputStream::kIsOpened, test_stream_->state());
   ASSERT_FALSE(test_stream_->stop_stream_);
   message_loop_.RunAllPending();
 
   // Ensure internal state is set for a no-op stream if PcmOpen() failes.
-  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened,
-            test_stream_->shared_data_.state());
+  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened, test_stream_->state());
   EXPECT_TRUE(test_stream_->stop_stream_);
   EXPECT_TRUE(test_stream_->playback_handle_ == NULL);
   EXPECT_FALSE(test_stream_->buffer_.get());
@@ -394,14 +388,12 @@ TEST_F(AlsaPcmOutputStreamTest, PcmSetParamsFailed) {
   // If open fails, the stream stays in kCreated because it has effectively had
   // no changes.
   ASSERT_TRUE(test_stream_->Open());
-  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened,
-            test_stream_->shared_data_.state());
+  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened, test_stream_->state());
   ASSERT_FALSE(test_stream_->stop_stream_);
   message_loop_.RunAllPending();
 
   // Ensure internal state is set for a no-op stream if PcmSetParams() failes.
-  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened,
-            test_stream_->shared_data_.state());
+  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened, test_stream_->state());
   EXPECT_TRUE(test_stream_->stop_stream_);
   EXPECT_TRUE(test_stream_->playback_handle_ == NULL);
   EXPECT_FALSE(test_stream_->buffer_.get());
@@ -561,7 +553,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket) {
       .WillOnce(Return(10));
 
   bool source_exhausted;
-  test_stream_->shared_data_.set_source_callback(&mock_callback);
+  test_stream_->set_source_callback(&mock_callback);
   test_stream_->packet_size_ = kTestPacketSize;
   test_stream_->BufferPacket(&source_exhausted);
 
@@ -586,7 +578,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Negative) {
       .WillOnce(Return(10));
 
   bool source_exhausted;
-  test_stream_->shared_data_.set_source_callback(&mock_callback);
+  test_stream_->set_source_callback(&mock_callback);
   test_stream_->packet_size_ = kTestPacketSize;
   test_stream_->BufferPacket(&source_exhausted);
 
@@ -611,7 +603,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Underrun) {
       .WillOnce(Return(10));
 
   bool source_exhausted;
-  test_stream_->shared_data_.set_source_callback(&mock_callback);
+  test_stream_->set_source_callback(&mock_callback);
   test_stream_->packet_size_ = kTestPacketSize;
   test_stream_->BufferPacket(&source_exhausted);
 
@@ -688,7 +680,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect) {
     EXPECT_CALL(mock_alsa_wrapper_, DeviceNameGetHint(_, StrEq("NAME")))
         .WillRepeatedly(Invoke(EchoHint));
 
-    test_stream_ = CreateStream(kExpectedLayouts[i]);
+    test_stream_.reset(CreateStream(kExpectedLayouts[i]));
     EXPECT_TRUE(test_stream_->AutoSelectDevice(i));
     EXPECT_EQ(kExpectedDownmix[i], test_stream_->should_downmix_);
 
@@ -738,7 +730,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_FallbackDevices) {
   EXPECT_CALL(mock_alsa_wrapper_, PcmOpen(_, StrEq(fourth_try.c_str()), _, _))
       .WillOnce(Return(kTestFailedErrno));
 
-  test_stream_ = CreateStream(CHANNEL_LAYOUT_5POINT0);
+  test_stream_.reset(CreateStream(CHANNEL_LAYOUT_5POINT0));
   EXPECT_FALSE(test_stream_->AutoSelectDevice(5));
 }
 
@@ -756,7 +748,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_HintFail) {
   EXPECT_CALL(mock_alsa_wrapper_, StrError(kTestFailedErrno))
       .WillOnce(Return(kDummyMessage));
 
-  test_stream_ = CreateStream(CHANNEL_LAYOUT_5POINT0);
+  test_stream_.reset(CreateStream(CHANNEL_LAYOUT_5POINT0));
   EXPECT_TRUE(test_stream_->AutoSelectDevice(5));
   EXPECT_TRUE(test_stream_->should_downmix_);
 }
@@ -771,8 +763,8 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_StopStream) {
 }
 
 TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite) {
-  test_stream_->shared_data_.TransitionTo(AlsaPcmOutputStream::kIsOpened);
-  test_stream_->shared_data_.TransitionTo(AlsaPcmOutputStream::kIsPlaying);
+  test_stream_->TransitionTo(AlsaPcmOutputStream::kIsOpened);
+  test_stream_->TransitionTo(AlsaPcmOutputStream::kIsPlaying);
 
   InitBuffer();
 
@@ -789,12 +781,12 @@ TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite) {
   test_stream_->stop_stream_ = true;
   message_loop_.RunAllPending();
 
-  test_stream_->shared_data_.TransitionTo(AlsaPcmOutputStream::kIsClosed);
+  test_stream_->TransitionTo(AlsaPcmOutputStream::kIsClosed);
 }
 
 TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite_StopStream) {
-  test_stream_->shared_data_.TransitionTo(AlsaPcmOutputStream::kIsOpened);
-  test_stream_->shared_data_.TransitionTo(AlsaPcmOutputStream::kIsPlaying);
+  test_stream_->TransitionTo(AlsaPcmOutputStream::kIsOpened);
+  test_stream_->TransitionTo(AlsaPcmOutputStream::kIsPlaying);
 
   InitBuffer();
 
@@ -805,5 +797,5 @@ TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite_StopStream) {
   // posted so we can verify that the Alsa code will indeed break the task
   // posting loop.
 
-  test_stream_->shared_data_.TransitionTo(AlsaPcmOutputStream::kIsClosed);
+  test_stream_->TransitionTo(AlsaPcmOutputStream::kIsClosed);
 }

@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "base/nix/xdg_util.h"
 #include "base/process_util.h"
+#include "base/stl_util-inl.h"
 #include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
@@ -107,9 +108,7 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
   AlsaPcmOutputStream* stream =
       new AlsaPcmOutputStream(device_name, params, wrapper_.get(), this,
                               GetMessageLoop());
-
-  base::AutoLock l(lock_);
-  active_streams_[stream] = scoped_refptr<AlsaPcmOutputStream>(stream);
+  active_streams_.insert(stream);
   return stream;
 }
 
@@ -153,7 +152,9 @@ AudioManagerLinux::~AudioManagerLinux() {
   // Free output dispatchers, closing all remaining open streams.
   output_dispatchers_.clear();
 
-  active_streams_.clear();
+  // Delete all the streams. Have to do it manually, we don't have ScopedSet<>,
+  // and we are not using ScopedVector<> because search there is slow.
+  STLDeleteElements(&active_streams_);
 }
 
 void AudioManagerLinux::Init() {
@@ -171,8 +172,8 @@ void AudioManagerLinux::UnMuteAll() {
 
 void AudioManagerLinux::ReleaseOutputStream(AlsaPcmOutputStream* stream) {
   if (stream) {
-    base::AutoLock l(lock_);
     active_streams_.erase(stream);
+    delete stream;
   }
 }
 
