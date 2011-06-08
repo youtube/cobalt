@@ -641,10 +641,6 @@
           'win_release_RuntimeLibrary%': '0', # 0 = /MT (nondebug static)
           'win_debug_RuntimeLibrary%': '1',   # 1 = /MTd (debug static)
         }],
-        ['OS=="mac" and clang==1', {
-          # TODO(thakis): Remove this once http://llvm.org/PR10031 is fixed.
-          'mac_release_optimization%': '2',
-        }],
       ],
     },
     'conditions': [
