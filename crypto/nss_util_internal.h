@@ -25,6 +25,18 @@ PK11SlotInfo* GetPublicNSSKeySlot();
 // PK11_FreeSlot.
 PK11SlotInfo* GetPrivateNSSKeySlot();
 
+// A helper class that acquires the SECMOD list read lock while the
+// AutoSECMODListReadLock is in scope.
+class AutoSECMODListReadLock {
+ public:
+  AutoSECMODListReadLock();
+  ~AutoSECMODListReadLock();
+
+ private:
+  SECMODListLock* lock_;
+  DISALLOW_COPY_AND_ASSIGN(AutoSECMODListReadLock);
+};
+
 }  // namespace crypto
 
 #endif  // CRYPTO_NSS_UTIL_INTERNAL_H_
