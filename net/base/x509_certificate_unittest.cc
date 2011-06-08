@@ -588,10 +588,10 @@ TEST(X509CertificateTest, ExtractCRLURLsFromDERCert) {
   std::vector<base::StringPiece> crl_urls;
   EXPECT_TRUE(asn1::ExtractCRLURLsFromDERCert(derBytes, &crl_urls));
 
-  EXPECT_EQ(crl_urls.size(), 1u);
+  EXPECT_EQ(1u, crl_urls.size());
   if (crl_urls.size() > 0) {
-    EXPECT_EQ(crl_urls[0].as_string(),
-              "http://SVRSecure-G3-crl.verisign.com/SVRSecureG3.crl");
+    EXPECT_EQ("http://SVRSecure-G3-crl.verisign.com/SVRSecureG3.crl",
+              crl_urls[0].as_string());
   }
 }
 
