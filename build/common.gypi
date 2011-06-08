@@ -1364,7 +1364,7 @@
                   # are fixed in the views and chromeos code.
                   # http://crbug.com/84424
                   # TODO(thakis): Add back in when rolling clang past r131989
-                  #'-Wno-delete-non-virtual-dtor',
+                  '-Wno-delete-non-virtual-dtor',
                 ],
               }]],
           }],
@@ -1483,6 +1483,9 @@
                 # http://code.google.com/p/googletest/source/detail?r=446 .
                 # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
                 '-Wno-unnamed-type-template-args',
+                # TODO(thakis): Reenable once the one instance this warns on
+                # is fixed.
+                '-Wno-parentheses',
               ],
               'OTHER_CFLAGS': [
                 # TODO(thakis): Causes many warnings - http://crbug.com/75001
