@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -106,8 +106,10 @@ void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
 }
 
 void NetworkChangeNotifier::NotifyObserversOfOnlineStateChange() {
-  online_state_observer_list_->Notify(
-      &OnlineStateObserver::OnOnlineStateChanged, !IsOffline());
+  if (g_network_change_notifier) {
+    g_network_change_notifier->online_state_observer_list_->Notify(
+        &OnlineStateObserver::OnOnlineStateChanged, !IsOffline());
+  }
 }
 
 }  // namespace net
