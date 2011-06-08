@@ -428,7 +428,7 @@ class RecordDeletionProbe : public base::RefCounted<RecordDeletionProbe> {
           FROM_HERE,
           base::Bind(&RecordDeletionProbe::Run, post_on_delete_.get()));
   }
-  virtual void Run() {}
+  void Run() {}
  private:
   scoped_refptr<RecordDeletionProbe> post_on_delete_;
   bool* was_deleted_;
