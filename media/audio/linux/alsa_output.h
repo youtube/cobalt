@@ -24,13 +24,6 @@
 // threading assumptions at the top of the implementation file to avoid
 // introducing race conditions between tasks posted to the internal
 // message_loop, and the thread calling the public APIs.
-//
-// TODO(sergeyu): AlsaPcmOutputStream is always created and used from the
-// audio thread (i.e. |client_thread_loop_| and |message_loop_| always point
-// to the same thread), so it doesn't need to be thread-safe anymore.
-//
-// TODO(sergeyu): Remove refcounter from AlsaPcmOutputStream and use
-// ScopedRunnableMethodFactory to create tasks.
 
 #ifndef MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_
 #define MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_
@@ -40,9 +33,8 @@
 #include <string>
 
 #include "base/gtest_prod_util.h"
-#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/synchronization/lock.h"
+#include "base/task.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -54,9 +46,7 @@ class AlsaWrapper;
 class AudioManagerLinux;
 class MessageLoop;
 
-class AlsaPcmOutputStream :
-    public AudioOutputStream,
-    public base::RefCountedThreadSafe<AlsaPcmOutputStream> {
+class AlsaPcmOutputStream : public AudioOutputStream {
  public:
   // String for the generic "default" ALSA device that has the highest
   // compatibility and chance of working.
@@ -85,6 +75,8 @@ class AlsaPcmOutputStream :
                       AudioManagerLinux* manager,
                       MessageLoop* message_loop);
 
+  virtual ~AlsaPcmOutputStream();
+
   // Implementation of AudioOutputStream.
   virtual bool Open();
   virtual void Close();
@@ -94,7 +86,6 @@ class AlsaPcmOutputStream :
   virtual void GetVolume(double* volume);
 
  private:
-  friend class base::RefCountedThreadSafe<AlsaPcmOutputStream>;
   friend class AlsaPcmOutputStreamTest;
   FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest,
                            AutoSelectDevice_DeviceSelect);
@@ -119,8 +110,6 @@ class AlsaPcmOutputStream :
   FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, WritePacket_NormalPacket);
   FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, WritePacket_StopStream);
   FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, WritePacket_WriteFails);
-
-  virtual ~AlsaPcmOutputStream();
 
   // Flags indicating the state of the stream.
   enum InternalState {
@@ -156,54 +145,28 @@ class AlsaPcmOutputStream :
   // of channels.  This function will set |device_name_| and |should_downmix_|.
   snd_pcm_t* AutoSelectDevice(uint32 latency);
 
-  // Thread-asserting accessors for member variables.
-  AudioManagerLinux* manager();
+  // Functions to safeguard state transitions.  All changes to the object state
+  // should go through these functions.
+  bool CanTransitionTo(InternalState to);
+  InternalState TransitionTo(InternalState to);
+  InternalState state();
 
-  // Struct holding all mutable the data that must be shared by the
-  // message_loop() and the thread that created the object.
-  class SharedData {
-   public:
-    explicit SharedData(MessageLoop* state_transition_loop);
+  // API for Proxying calls to the AudioSourceCallback provided during
+  // Start().
+  //
+  // TODO(ajwong): This is necessary because the ownership semantics for the
+  // |source_callback_| object are incorrect in AudioRenderHost. The callback
+  // is passed into the output stream, but ownership is not transfered which
+  // requires a synchronization on access of the |source_callback_| to avoid
+  // using a deleted callback.
+  uint32 RunDataCallback(uint8* dest,
+                         uint32 max_size,
+                         AudioBuffersState buffers_state);
+  void RunErrorCallback(int code);
 
-    // Functions to safeguard state transitions and ensure that transitions are
-    // only allowed occuring on the thread that created the object.  All
-    // changes to the object state should go through these functions.
-    bool CanTransitionTo(InternalState to);
-    bool CanTransitionTo_Locked(InternalState to);
-    InternalState TransitionTo(InternalState to);
-    InternalState state();
-
-    float volume();
-    void set_volume(float v);
-
-    // API for Proxying calls to the AudioSourceCallback provided during
-    // Start().  These APIs are threadsafe.
-    //
-    // TODO(ajwong): This is necessary because the ownership semantics for the
-    // |source_callback_| object are incorrect in AudioRenderHost. The callback
-    // is passed into the output stream, but ownership is not transfered which
-    // requires a synchronization on access of the |source_callback_| to avoid
-    // using a deleted callback.
-    uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
-                      uint32 max_size, AudioBuffersState buffers_state);
-    void OnError(AudioOutputStream* stream, int code);
-
-    // Changes the AudioSourceCallback to proxy calls to.  Pass in NULL to
-    // release ownership of the currently registered callback.
-    void set_source_callback(AudioSourceCallback* callback);
-
-   private:
-    base::Lock lock_;
-
-    InternalState state_;
-    float volume_;  // Volume level from 0.0 to 1.0.
-
-    AudioSourceCallback* source_callback_;
-
-    MessageLoop* const state_transition_loop_;
-
-    DISALLOW_COPY_AND_ASSIGN(SharedData);
-  } shared_data_;
+  // Changes the AudioSourceCallback to proxy calls to.  Pass in NULL to
+  // release ownership of the currently registered callback.
+  void set_source_callback(AudioSourceCallback* callback);
 
   // Configuration constants from the constructor.  Referenceable by all threads
   // since they are constants.
@@ -232,8 +195,6 @@ class AlsaPcmOutputStream :
   AlsaWrapper* wrapper_;
 
   // Audio manager that created us.  Used to report that we've been closed.
-  // This should only be used on the |client_thread_loop_|.  Access via
-  // the manager() function.
   AudioManagerLinux* manager_;
 
   // Handle to the actual PCM playback device.
@@ -242,12 +203,18 @@ class AlsaPcmOutputStream :
   scoped_ptr<media::SeekableBuffer> buffer_;
   uint32 frames_per_packet_;
 
-  // Used to check which message loop is allowed to call the public APIs.
-  MessageLoop* client_thread_loop_;
-
   // The message loop responsible for querying the data source, and writing to
   // the output device.
   MessageLoop* message_loop_;
+
+  // Allows us to run tasks on the AlsaPcmOutputStream instance which are
+  // bound by its lifetime.
+  ScopedRunnableMethodFactory<AlsaPcmOutputStream> method_factory_;
+
+  InternalState state_;
+  float volume_;  // Volume level from 0.0 to 1.0.
+
+  AudioSourceCallback* source_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmOutputStream);
 };
