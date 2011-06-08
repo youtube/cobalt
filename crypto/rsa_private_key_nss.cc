@@ -7,6 +7,7 @@
 #include <cryptohi.h>
 #include <keyhi.h>
 #include <pk11pub.h>
+#include <secmod.h>
 
 #include <list>
 
@@ -119,31 +120,22 @@ RSAPrivateKey* RSAPrivateKey::FindFromPublicKeyInfo(
     return NULL;
   }
 
-  ScopedPK11Slot slot(GetPrivateNSSKeySlot());
-  if (!slot.get()) {
-    NOTREACHED();
-    return NULL;
-  }
-
-  // Finally...Look for the key!
-  result->key_ = PK11_FindKeyByKeyID(slot.get(), ck_id.get(), NULL);
-
-  // If we don't find the matching key in the private slot, then we
-  // look in the public slot.
-  if (!result->key_) {
-    slot.reset(GetPublicNSSKeySlot());
-    if (!slot.get()) {
-      NOTREACHED();
-      return NULL;
+  // Search all slots in all modules for the key with the given ID.
+  AutoSECMODListReadLock auto_lock;
+  SECMODModuleList* head = SECMOD_GetDefaultModuleList();
+  for (SECMODModuleList* item = head; item != NULL; item = item->next) {
+    int slot_count = item->module->loaded ? item->module->slotCount : 0;
+    for (int i = 0; i < slot_count; i++) {
+      // Finally...Look for the key!
+      result->key_ = PK11_FindKeyByKeyID(item->module->slots[i],
+                                         ck_id.get(), NULL);
+      if (result->key_)
+        return result.release();
     }
-    result->key_ = PK11_FindKeyByKeyID(slot.get(), ck_id.get(), NULL);
   }
 
-  // If we didn't find it, that's ok.
-  if (!result->key_)
-    return NULL;
-
-  return result.release();
+  // We didn't find the key.
+  return NULL;
 }
 
 
