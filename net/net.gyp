@@ -198,6 +198,8 @@
         'base/ssl_info.h',
         'base/static_cookie_policy.cc',
         'base/static_cookie_policy.h',
+        'base/test_data_stream.cc',
+        'base/test_data_stream.h',
         'base/test_root_certs.cc',
         'base/test_root_certs.h',
         'base/test_root_certs_mac.cc',
