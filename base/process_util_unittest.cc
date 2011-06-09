@@ -59,9 +59,6 @@ const int kExpectedKilledExitCode = 1;
 const int kExpectedStillRunningExitCode = 0;
 #endif
 
-// The longest we'll wait for a process, in milliseconds.
-const int kMaxWaitTimeMs = TestTimeouts::action_max_timeout_ms();
-
 // Sleeps until file filename is created.
 void WaitToDie(const char* filename) {
   FILE *fp;
@@ -94,7 +91,7 @@ base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
     base::PlatformThread::Sleep(kIntervalMs);
     waited += kIntervalMs;
   } while (status == base::TERMINATION_STATUS_STILL_RUNNING &&
-           waited < kMaxWaitTimeMs);
+           waited < TestTimeouts::action_max_timeout_ms());
 
   return status;
 }
@@ -116,7 +113,8 @@ MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
 TEST_F(ProcessUtilTest, SpawnChild) {
   base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
-  EXPECT_TRUE(base::WaitForSingleProcess(handle, kMaxWaitTimeMs));
+  EXPECT_TRUE(base::WaitForSingleProcess(
+                  handle, TestTimeouts::action_max_timeout_ms()));
   base::CloseProcessHandle(handle);
 }
 
@@ -130,7 +128,8 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
   base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
   SignalChildren(kSignalFileSlow);
-  EXPECT_TRUE(base::WaitForSingleProcess(handle, kMaxWaitTimeMs));
+  EXPECT_TRUE(base::WaitForSingleProcess(
+                  handle, TestTimeouts::action_max_timeout_ms()));
   base::CloseProcessHandle(handle);
   remove(kSignalFileSlow);
 }
