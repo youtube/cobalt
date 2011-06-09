@@ -780,7 +780,7 @@
       }],  # OS==win
       ['enable_register_protocol_handler==1', {
         'defines': [
-          'ENABLE_REGISTER_PROTOCOL_HANDLER',
+          'ENABLE_REGISTER_PROTOCOL_HANDLER=1',
         ],
       }],
     ],  # conditions for 'target_defaults'
