@@ -248,7 +248,6 @@ static const ssl3HelloExtensionHandler serverHelloHandlersTLS[] = {
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ClientHandleNextProtoNegoXtn },
     { ssl_cert_status_xtn,        &ssl3_ClientHandleStatusRequestXtn },
-    { ssl_snap_start_xtn,         &ssl3_ClientHandleSnapStartXtn },
     { -1, NULL }
 };
 
@@ -273,9 +272,7 @@ ssl3HelloExtensionSender clientHelloSendersTLS[SSL_MAX_EXTENSIONS] = {
 #endif
     { ssl_session_ticket_xtn,     &ssl3_SendSessionTicketXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ClientSendNextProtoNegoXtn },
-    { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn },
-    { ssl_snap_start_xtn,         &ssl3_SendSnapStartXtn }
-    /* NOTE: The Snap Start sender MUST be the last extension in the list. */
+    { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn }
     /* any extra entries will appear as { 0, NULL }    */
 };
 
@@ -303,7 +300,7 @@ ssl3_ExtensionNegotiated(sslSocket *ss, PRUint16 ex_type) {
 	                          xtnData->numNegotiated, ex_type);
 }
 
-PRBool
+static PRBool
 ssl3_ClientExtensionAdvertised(sslSocket *ss, PRUint16 ex_type) {
     TLSExtensionData *xtnData = &ss->xtnData;
     return arrayContainsExtension(xtnData->advertised,
@@ -520,8 +517,6 @@ ssl3_SendSessionTicketXtn(
 	    rv = ssl3_AppendHandshakeVariable(ss, session_ticket->ticket.data,
 		session_ticket->ticket.len, 2);
 	    ss->xtnData.ticketTimestampVerified = PR_FALSE;
-	    if (!ss->sec.isServer)
-		ss->xtnData.clientSentNonEmptySessionTicket = PR_TRUE;
 	} else {
 	    rv = ssl3_AppendHandshakeNumber(ss, 0, 2);
 	}
@@ -580,7 +575,7 @@ ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned short length)
 
 SECStatus
 ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
-                                  SECItem *data)
+                                 SECItem *data)
 {
     unsigned int i, j;
     SECStatus rv;
@@ -1102,7 +1097,7 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
      * instead of terminating the current connection.
      */
     if (data->len == 0) {
-	ss->xtnData.serverReceivedEmptySessionTicket = PR_TRUE;
+	ss->xtnData.emptySessionTicket = PR_TRUE;
     } else {
 	int                    i;
 	SECItem                extension_data;
