@@ -42,6 +42,8 @@ class TestServer {
     TYPE_HTTP,
     TYPE_HTTPS,
     TYPE_SYNC,
+    TYPE_TCP_ECHO,
+    TYPE_UDP_ECHO,
   };
 
   // Container for various options to control how the HTTPS server is
