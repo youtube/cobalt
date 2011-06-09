@@ -27,11 +27,6 @@ Patches:
     patches/cachecerts.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=606049
 
-  * Add Snap Start support
-    patches/snapstart.patch
-    patches/snapstart2.patch
-    http://tools.ietf.org/html/draft-agl-tls-snapstart-00
-
   * Add the SSL_PeerCertificateChain function
     patches/peercertchain.patch
 

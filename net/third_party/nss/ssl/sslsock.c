@@ -743,10 +743,6 @@ SSL_OptionSet(PRFileDesc *fd, PRInt32 which, PRBool on)
 	ss->opt.enableFalseStart = on;
 	break;
 
-      case SSL_ENABLE_SNAP_START:
-	ss->opt.enableSnapStart = on;
-	break;
-
       case SSL_ENABLE_OCSP_STAPLING:
 	ss->opt.enableOCSPStapling = on;
 	break;
@@ -815,7 +811,6 @@ SSL_OptionGet(PRFileDesc *fd, PRInt32 which, PRBool *pOn)
     case SSL_REQUIRE_SAFE_NEGOTIATION: 
                                   on = ss->opt.requireSafeNegotiation; break;
     case SSL_ENABLE_FALSE_START:  on = ss->opt.enableFalseStart;   break;
-    case SSL_ENABLE_SNAP_START:   on = ss->opt.enableSnapStart;    break;
     case SSL_ENABLE_OCSP_STAPLING: on = ss->opt.enableOCSPStapling; break;
 
     default:
@@ -868,7 +863,6 @@ SSL_OptionGetDefault(PRInt32 which, PRBool *pOn)
                                   on = ssl_defaults.requireSafeNegotiation; 
 				  break;
     case SSL_ENABLE_FALSE_START:  on = ssl_defaults.enableFalseStart;   break;
-    case SSL_ENABLE_SNAP_START:   on = ssl_defaults.enableSnapStart;   break;
     case SSL_ENABLE_OCSP_STAPLING:
 	on = ssl_defaults.enableOCSPStapling;
 	break;
@@ -1017,10 +1011,6 @@ SSL_OptionSetDefault(PRInt32 which, PRBool on)
 
       case SSL_ENABLE_FALSE_START:
 	ssl_defaults.enableFalseStart = on;
-	break;
-
-      case SSL_ENABLE_SNAP_START:
-	ssl_defaults.enableSnapStart = on;
 	break;
 
       case SSL_ENABLE_OCSP_STAPLING:
