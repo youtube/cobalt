@@ -3,7 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""This is a simple HTTP server used for testing Chrome.
+"""This is a simple HTTP/FTP/SYNC/TCP ECHO/UDP ECHO/ server used for testing
+Chrome.
 
 It supports several test URLs, as specified by the handlers in TestPageHandler.
 By default, it listens on an ephemeral port and sends the port number back to
@@ -52,6 +53,8 @@ if sys.platform == 'win32':
 SERVER_HTTP = 0
 SERVER_FTP = 1
 SERVER_SYNC = 2
+SERVER_TCP_ECHO = 3
+SERVER_UDP_ECHO = 4
 
 # Using debug() seems to cause hangs on XP: see http://crbug.com/64515 .
 debug_output = sys.stderr
@@ -207,6 +210,42 @@ class SyncHTTPServer(StoppableHTTPServer):
       for fd in exceptional_fds:
         HandleXmppSocket(fd, self._xmpp_socket_map,
                          asyncore.dispatcher.handle_expt_event)
+
+
+class TCPEchoServer(SocketServer.TCPServer):
+  """A TCP echo server that echoes back what it has received."""
+
+  def server_bind(self):
+    """Override server_bind to store the server name."""
+    SocketServer.TCPServer.server_bind(self)
+    host, port = self.socket.getsockname()[:2]
+    self.server_name = socket.getfqdn(host)
+    self.server_port = port
+
+  def serve_forever(self):
+    self.stop = False
+    self.nonce_time = None
+    while not self.stop:
+      self.handle_request()
+    self.socket.close()
+
+
+class UDPEchoServer(SocketServer.UDPServer):
+  """A UDP echo server that echoes back what it has received."""
+
+  def server_bind(self):
+    """Override server_bind to store the server name."""
+    SocketServer.UDPServer.server_bind(self)
+    host, port = self.socket.getsockname()[:2]
+    self.server_name = socket.getfqdn(host)
+    self.server_port = port
+
+  def serve_forever(self):
+    self.stop = False
+    self.nonce_time = None
+    while not self.stop:
+      self.handle_request()
+    self.socket.close()
 
 
 class BasePageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -1446,6 +1485,34 @@ def MakeDataDir():
 
   return my_data_dir
 
+
+class TCPEchoHandler(SocketServer.BaseRequestHandler):
+  """The RequestHandler class for TCP echo server.
+
+  It is instantiated once per connection to the server, and overrides the
+  handle() method to implement communication to the client.
+  """
+
+  def handle(self):
+    data = self.request.recv(65536)
+    if not data:
+        return
+    self.request.send(data)
+
+
+class UDPEchoHandler(SocketServer.BaseRequestHandler):
+  """The RequestHandler class for UDP echo server.
+
+  It is instantiated once per connection to the server, and overrides the
+  handle() method to implement communication to the client.
+  """
+
+  def handle(self):
+    data = self.request[0].strip()
+    socket = self.request[1]
+    socket.sendto(data, self.client_address)
+
+
 class FileMultiplexer:
   def __init__(self, fd1, fd2) :
     self.__fd1 = fd1
@@ -1509,6 +1576,14 @@ def main(options, args):
     print 'Sync XMPP server started on port %d...' % server.xmpp_port
     server_data['port'] = server.server_port
     server_data['xmpp_port'] = server.xmpp_port
+  elif options.server_type == SERVER_TCP_ECHO:
+    server = TCPEchoServer(('127.0.0.1', port), TCPEchoHandler)
+    print 'Echo TCP server started on port %d...' % server.server_port
+    server_data['port'] = server.server_port
+  elif options.server_type == SERVER_UDP_ECHO:
+    server = UDPEchoServer(('127.0.0.1', port), UDPEchoHandler)
+    print 'Echo UDP server started on port %d...' % server.server_port
+    server_data['port'] = server.server_port
   # means FTP Server
   else:
     my_data_dir = MakeDataDir()
@@ -1571,6 +1646,14 @@ if __name__ == '__main__':
                            const=SERVER_SYNC, default=SERVER_HTTP,
                            dest='server_type',
                            help='start up a sync server.')
+  option_parser.add_option('', '--tcp-echo', action='store_const',
+                           const=SERVER_TCP_ECHO, default=SERVER_HTTP,
+                           dest='server_type',
+                           help='start up a tcp echo server.')
+  option_parser.add_option('', '--udp-echo', action='store_const',
+                           const=SERVER_UDP_ECHO, default=SERVER_HTTP,
+                           dest='server_type',
+                           help='start up a udp echo server.')
   option_parser.add_option('', '--log-to-console', action='store_const',
                            const=True, default=False,
                            dest='log_to_console',
