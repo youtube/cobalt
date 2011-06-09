@@ -217,6 +217,10 @@ class HttpStreamFactoryImpl::Job {
   // The origin server we're trying to reach.
   HostPortPair origin_;
 
+  // The origin url we're trying to reach. This url may be different from the
+  // original request when host mapping rules are set-up.
+  GURL origin_url_;
+
   // If this is a Job for an "Alternate-Protocol", then this will be non-NULL
   // and will specify the original URL.
   scoped_ptr<GURL> original_url_;
