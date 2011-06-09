@@ -13,9 +13,6 @@ patch -p4 < $patches_dir/renegoscsv.patch
 
 patch -p4 < $patches_dir/cachecerts.patch
 
-patch -p5 < $patches_dir/snapstart.patch
-patch -p3 < $patches_dir/snapstart2.patch
-
 patch -p3 < $patches_dir/peercertchain.patch
 
 patch -p4 < $patches_dir/ocspstapling.patch

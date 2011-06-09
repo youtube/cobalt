@@ -287,7 +287,6 @@ struct sslSocketOpsStr {
 /* Flags interpreted by ssl send functions. */
 #define ssl_SEND_FLAG_FORCE_INTO_BUFFER	0x40000000
 #define ssl_SEND_FLAG_NO_BUFFER		0x20000000
-#define ssl_SEND_FLAG_NO_FLUSH		0x10000000
 #define ssl_SEND_FLAG_MASK		0x7f000000
 
 /*
@@ -349,8 +348,7 @@ typedef struct sslOptionsStr {
     unsigned int enableRenegotiation    : 2;  /* 20-21 */
     unsigned int requireSafeNegotiation : 1;  /* 22 */
     unsigned int enableFalseStart       : 1;  /* 23 */
-    unsigned int enableSnapStart        : 1;  /* 24 */
-    unsigned int enableOCSPStapling     : 1;  /* 25 */
+    unsigned int enableOCSPStapling     : 1;  /* 24 */
 } sslOptions;
 
 typedef enum { sslHandshakingUndetermined = 0,
@@ -765,8 +763,7 @@ struct TLSExtensionDataStr {
 
     /* SessionTicket Extension related data. */
     PRBool ticketTimestampVerified;
-    PRBool serverReceivedEmptySessionTicket;
-    PRBool clientSentNonEmptySessionTicket;
+    PRBool emptySessionTicket;
 
     /* SNI Extension related data
      * Names data is not coppied from the input buffer. It can not be
@@ -775,14 +772,6 @@ struct TLSExtensionDataStr {
     SECItem *sniNameArr;
     PRUint32 sniNameArrSize;
 };
-
-typedef enum {
-    snap_start_none = 0,
-    snap_start_full,
-    snap_start_recovery,
-    snap_start_resume,
-    snap_start_resume_recovery
-} TLSSnapStartType;
 
 /*
 ** This is the "hs" member of the "ssl3" struct.
@@ -830,14 +819,6 @@ const ssl3CipherSuiteDef *suite_def;
 	SSL3Hashes        sFinished[2];
 	SSL3Opaque        data[72];
     }                     finishedMsgs;
-
-    TLSSnapStartType      snapStartType;
-    /* When we perform a Snap Start handshake, we hash our ClientHello as if
-     * the Snap Start extension wasn't included. However, if the server rejects
-     * our Snap Start attempt, then it will hash the whole ClientHello. Thus we
-     * store the original ClientHello that we sent in case we need to reset our
-     * Finished hash to cover it. */
-    SECItem               origClientHello;
 #ifdef NSS_ENABLE_ECC
     PRUint32              negotiatedECCurves; /* bit mask */
 #endif /* NSS_ENABLE_ECC */
@@ -872,17 +853,6 @@ struct ssl3StateStr {
 #endif  /* NSS_PLATFORM_CLIENT_AUTH */
     CERTCertificateList *clientCertChain;    /* used by client */
     PRBool               sendEmptyCert;      /* used by client */
-
-    /* TLS Snap Start: */
-    CERTCertificate **   predictedCertChain;
-			    /* An array terminated with a NULL. */
-    SECItem		 serverHelloPredictionData;
-    PRBool		 serverHelloPredictionDataValid;
-			    /* data needed to predict the ServerHello from
-			     * this server. */
-    SECItem		 snapStartApplicationData;
-			    /* the application data to include in the Snap
-			     * Start extension. */
 
     int                  policy;
 			/* This says what cipher suites we can do, and should 
@@ -1323,12 +1293,9 @@ extern sslSessionID *ssl3_NewSessionID(sslSocket *ss, PRBool is_server);
 extern sslSessionID *ssl_LookupSID(const PRIPv6Addr *addr, PRUint16 port, 
                                    const char *peerID, const char *urlSvrName);
 extern void      ssl_FreeSID(sslSessionID *sid);
-extern void      ssl3_CopyPeerCertsFromSID(sslSocket *ss, sslSessionID *sid);
 
 extern int       ssl3_SendApplicationData(sslSocket *ss, const PRUint8 *in,
 				          int len, int flags);
-
-extern SECStatus ssl3_RestartHandshakeHashes(sslSocket *ss);
 
 extern PRBool    ssl_FdIsBlocking(PRFileDesc *fd);
 
@@ -1502,9 +1469,6 @@ ECName	ssl3_GetCurveWithECKeyStrength(PRUint32 curvemsk, int requiredECCbits);
 
 #endif /* NSS_ENABLE_ECC */
 
-extern SECStatus ssl3_UpdateHandshakeHashes(sslSocket* ss, unsigned char *b,
-                                            unsigned int l);
-
 extern SECStatus ssl3_CipherPrefSetDefault(ssl3CipherSuite which, PRBool on);
 extern SECStatus ssl3_CipherPrefGetDefault(ssl3CipherSuite which, PRBool *on);
 extern SECStatus ssl2_CipherPrefSetDefault(PRInt32 which, PRBool enabled);
@@ -1525,7 +1489,6 @@ extern void      ssl3_InitSocketPolicy(sslSocket *ss);
 
 extern SECStatus ssl3_ConstructV2CipherSpecsHack(sslSocket *ss,
 						 unsigned char *cs, int *size);
-extern void ssl3_DestroyCipherSpec(ssl3CipherSpec* spec, PRBool freeSrvName);
 
 extern SECStatus ssl3_RedoHandshake(sslSocket *ss, PRBool flushCache);
 
@@ -1575,31 +1538,6 @@ extern SECStatus ssl3_VerifySignedHashes(SSL3Hashes *hash,
 extern SECStatus ssl3_CacheWrappedMasterSecret(sslSocket *ss,
 			sslSessionID *sid, ssl3CipherSpec *spec,
 			SSL3KEAType effectiveExchKeyType);
-extern void ssl3_CleanupPredictedPeerCertificates(sslSocket *ss);
-extern const ssl3CipherSuiteDef* ssl_LookupCipherSuiteDef(ssl3CipherSuite suite);
-extern SECStatus ssl3_SetupPendingCipherSpec(sslSocket *ss);
-extern SECStatus ssl3_SendClientKeyExchange(sslSocket *ss);
-extern SECStatus ssl3_SendNextProto(sslSocket *ss);
-extern SECStatus ssl3_SendFinished(sslSocket *ss, PRInt32 flags);
-extern SECStatus ssl3_CompressMACEncryptRecord
-	(sslSocket *        ss,
-	 SSL3ContentType    type,
-	 const SSL3Opaque * pIn,
-	 PRUint32           contentLen);
-extern PRBool ssl3_ClientExtensionAdvertised(sslSocket *ss, PRUint16 ex_type);
-extern SECStatus ssl3_SetupMasterSecretFromSessionID(sslSocket* ss);
-extern SECStatus ssl3_ComputeHandshakeHashes(
-	sslSocket *     ss,
-	ssl3CipherSpec *spec,   /* uses ->master_secret */
-	SSL3Hashes *    hashes, /* output goes here. */
-	PRUint32        sender);
-extern SECStatus ssl3_UpdateHandshakeHashes(sslSocket* ss, unsigned char *b,
-					    unsigned int l);
-extern SECStatus ssl3_ComputeTLSFinished(
-	ssl3CipherSpec *spec,
-	PRBool          isServer,
-	const   SSL3Finished *  hashes,
-	TLSFinished  *  tlsFinished);
 
 /* Functions that handle ClientHello and ServerHello extensions. */
 extern SECStatus ssl3_HandleServerNameXtn(sslSocket * ss,
@@ -1633,13 +1571,6 @@ extern PRInt32 ssl3_ClientSendStatusRequestXtn(sslSocket *ss, PRBool append,
  */
 extern PRInt32 ssl3_SendServerNameXtn(sslSocket *ss, PRBool append,
                      PRUint32 maxBytes);
-extern PRInt32 ssl3_SendSnapStartXtn(sslSocket *ss, PRBool append,
-                     PRUint32 maxBytes);
-extern SECStatus ssl3_ClientHandleSnapStartXtn(sslSocket *ss, PRUint16 ex_type,
-                     SECItem *data);
-
-extern SECStatus ssl3_ResetForSnapStartRecovery(sslSocket *ss,
-                      SSL3Opaque *b, PRUint32 length);
 
 /* Assigns new cert, cert chain and keys to ss->serverCerts
  * struct. If certChain is NULL, tries to find one. Aborts if
@@ -1763,12 +1694,6 @@ SECStatus SSL_DisableDefaultExportCipherSuites(void);
 SECStatus SSL_DisableExportCipherSuites(PRFileDesc * fd);
 PRBool    SSL_IsExportCipherSuite(PRUint16 cipherSuite);
 
-/********************** FNV hash  *********************/
-
-void FNV1A64_Init(PRUint64 *digest);
-void FNV1A64_Update(PRUint64 *digest, const unsigned char *data,
-                    unsigned int length);
-void FNV1A64_Final(PRUint64 *digest);
 
 #ifdef TRACE
 #define SSL_TRACE(msg) ssl_Trace msg
