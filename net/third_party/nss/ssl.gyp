@@ -22,7 +22,6 @@
   'targets': [
     {
       'target_name': 'ssl',
-      'product_name': 'ssl',
       'type': 'static_library',
       'sources': [
         'ssl/authcert.c',
