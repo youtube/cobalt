@@ -329,19 +329,38 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
                                  base::TimeDelta::FromMilliseconds(1),
                                  base::TimeDelta::FromMinutes(10),
                                  100);
-    } else {
-      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency",
+    }
+
+    UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency",
+                               connect_duration,
+                               base::TimeDelta::FromMilliseconds(1),
+                               base::TimeDelta::FromMinutes(10),
+                               100);
+
+    const std::string& host = params_->host_and_port().host();
+    bool is_google = host == "google.com" ||
+                     (host.size() > 11 &&
+                      host.rfind(".google.com") == host.size() - 11);
+    if (is_google) {
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Google",
                                  connect_duration,
                                  base::TimeDelta::FromMilliseconds(1),
                                  base::TimeDelta::FromMinutes(10),
                                  100);
 
-      const std::string& host = params_->host_and_port().host();
-      bool is_google = host == "google.com" ||
-                       (host.size() > 11 &&
-                        host.rfind(".google.com") == host.size() - 11);
-      if (is_google) {
-        UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Google",
+      base::FieldTrial* trial = base::FieldTrialList::Find("RevCheckingImpact");
+      if (trial) {
+        std::string histogram_name;
+        if (trial->group() != base::FieldTrial::kDefaultGroupNumber ||
+            !params_->ssl_config().rev_checking_enabled) {
+          histogram_name =
+              "Net.SSL_Connection_Latency_Google_No_Revocation_Checking";
+        } else {
+          histogram_name =
+              "Net.SSL_Connection_Latency_Google_Revocation_Checking";
+        }
+
+        UMA_HISTOGRAM_CUSTOM_TIMES(histogram_name,
                                    connect_duration,
                                    base::TimeDelta::FromMilliseconds(1),
                                    base::TimeDelta::FromMinutes(10),
