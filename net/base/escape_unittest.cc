@@ -147,17 +147,12 @@ TEST(EscapeTest, EscapeUrlEncodedData) {
       "\x02\n\x1d !\"#$%&'()*+,-./0123456789:;"
       "<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "[\\]^_`abcdefghijklmnopqrstuvwxyz"
-      "{|}~\x7f\x80\xff", true),
+      "{|}~\x7f\x80\xff"),
     // Escaped
     "%02%0A%1D+!%22%23%24%25%26%27()*%2B,-./0123456789:%3B"
     "%3C%3D%3E%3F%40ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "%5B%5C%5D%5E_%60abcdefghijklmnopqrstuvwxyz"
     "%7B%7C%7D~%7F%80%FF");
-}
-
-TEST(EscapeTest, EscapeUrlEncodedDataSpace) {
-  ASSERT_EQ(EscapeUrlEncodedData("a b", true), "a+b");
-  ASSERT_EQ(EscapeUrlEncodedData("a b", false), "a%20b");
 }
 
 TEST(EscapeTest, UnescapeURLComponentASCII) {
