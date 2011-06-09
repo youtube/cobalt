@@ -212,9 +212,8 @@ static const Charmap kUrlEscape(
   0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL
 );
 
-std::string EscapeUrlEncodedData(const std::string& path,
-                                 bool use_plus) {
-  return Escape(path, kUrlEscape, use_plus);
+std::string EscapeUrlEncodedData(const std::string& path) {
+  return Escape(path, kUrlEscape, true);
 }
 
 // non-7bit
