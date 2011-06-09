@@ -58,7 +58,11 @@ static void AddSocketPoolsToList(ListValue* list,
 
 // The meat of the implementation for the InitSocketHandleForHttpRequest,
 // InitSocketHandleForRawConnect and PreconnectSocketsForHttpRequest methods.
-int InitSocketPoolHelper(const HttpRequestInfo& request_info,
+int InitSocketPoolHelper(const GURL& request_url,
+                         const GURL& request_referrer,
+                         const HttpRequestHeaders& request_extra_headers,
+                         int request_load_flags,
+                         RequestPriority request_priority,
                          HttpNetworkSession* session,
                          const ProxyInfo& proxy_info,
                          bool force_spdy_over_ssl,
@@ -75,18 +79,18 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
   scoped_refptr<SOCKSSocketParams> socks_params;
   scoped_ptr<HostPortPair> proxy_host_port;
 
-  bool using_ssl = request_info.url.SchemeIs("https") || force_spdy_over_ssl;
+  bool using_ssl = request_url.SchemeIs("https") || force_spdy_over_ssl;
 
   HostPortPair origin_host_port =
-      HostPortPair(request_info.url.HostNoBrackets(),
-                   request_info.url.EffectiveIntPort());
+      HostPortPair(request_url.HostNoBrackets(),
+                   request_url.EffectiveIntPort());
 
   bool disable_resolver_cache =
-      request_info.load_flags & LOAD_BYPASS_CACHE ||
-      request_info.load_flags & LOAD_VALIDATE_CACHE ||
-      request_info.load_flags & LOAD_DISABLE_CACHE;
+      request_load_flags & LOAD_BYPASS_CACHE ||
+      request_load_flags & LOAD_VALIDATE_CACHE ||
+      request_load_flags & LOAD_DISABLE_CACHE;
 
-  int load_flags = request_info.load_flags;
+  int load_flags = request_load_flags;
   if (HttpStreamFactory::ignore_certificate_errors())
     load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
 
@@ -97,27 +101,27 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
   if (using_ssl)
     connection_group = base::StringPrintf("ssl/%s", connection_group.c_str());
 
-  bool ignore_limits = (request_info.load_flags & LOAD_IGNORE_LIMITS) != 0;
+  bool ignore_limits = (request_load_flags & LOAD_IGNORE_LIMITS) != 0;
   if (proxy_info.is_direct()) {
     tcp_params = new TransportSocketParams(origin_host_port,
-                                     request_info.priority,
-                                     request_info.referrer,
-                                     disable_resolver_cache,
-                                     ignore_limits);
+                                           request_priority,
+                                           request_referrer,
+                                           disable_resolver_cache,
+                                           ignore_limits);
   } else {
     ProxyServer proxy_server = proxy_info.proxy_server();
     proxy_host_port.reset(new HostPortPair(proxy_server.host_port_pair()));
     scoped_refptr<TransportSocketParams> proxy_tcp_params(
         new TransportSocketParams(*proxy_host_port,
-                            request_info.priority,
-                            request_info.referrer,
-                            disable_resolver_cache,
-                            ignore_limits));
+                                  request_priority,
+                                  request_referrer,
+                                  disable_resolver_cache,
+                                  ignore_limits));
 
     if (proxy_info.is_http() || proxy_info.is_https()) {
       std::string user_agent;
-      request_info.extra_headers.GetHeader(HttpRequestHeaders::kUserAgent,
-                                           &user_agent);
+      request_extra_headers.GetHeader(HttpRequestHeaders::kUserAgent,
+                                      &user_agent);
       scoped_refptr<SSLSocketParams> ssl_params;
       if (proxy_info.is_https()) {
         // Set ssl_params, and unset proxy_tcp_params
@@ -136,7 +140,7 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
       http_proxy_params =
           new HttpProxySocketParams(proxy_tcp_params,
                                     ssl_params,
-                                    request_info.url,
+                                    request_url,
                                     user_agent,
                                     origin_host_port,
                                     session->http_auth_cache(),
@@ -156,8 +160,8 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
       socks_params = new SOCKSSocketParams(proxy_tcp_params,
                                            socks_version == '5',
                                            origin_host_port,
-                                           request_info.priority,
-                                           request_info.referrer);
+                                           request_priority,
+                                           request_referrer);
     }
   }
 
@@ -186,7 +190,7 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
     }
 
     return socket_handle->Init(connection_group, ssl_params,
-                               request_info.priority, callback, ssl_pool,
+                               request_priority, callback, ssl_pool,
                                net_log);
   }
 
@@ -201,7 +205,7 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
     }
 
     return socket_handle->Init(connection_group, http_proxy_params,
-                               request_info.priority, callback,
+                               request_priority, callback,
                                pool, net_log);
   }
 
@@ -215,7 +219,7 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
     }
 
     return socket_handle->Init(connection_group, socks_params,
-                               request_info.priority, callback, pool,
+                               request_priority, callback, pool,
                                net_log);
   }
 
@@ -229,7 +233,7 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
   }
 
   return socket_handle->Init(connection_group, tcp_params,
-                             request_info.priority, callback,
+                             request_priority, callback,
                              pool, net_log);
 }
 
@@ -601,7 +605,11 @@ void ClientSocketPoolManager::OnCertTrustChanged(const X509Certificate* cert) {
 
 // static
 int ClientSocketPoolManager::InitSocketHandleForHttpRequest(
-    const HttpRequestInfo& request_info,
+    const GURL& request_url,
+    const GURL& request_referrer,
+    const HttpRequestHeaders& request_extra_headers,
+    int request_load_flags,
+    RequestPriority request_priority,
     HttpNetworkSession* session,
     const ProxyInfo& proxy_info,
     bool force_spdy_over_ssl,
@@ -612,7 +620,11 @@ int ClientSocketPoolManager::InitSocketHandleForHttpRequest(
     ClientSocketHandle* socket_handle,
     CompletionCallback* callback) {
   DCHECK(socket_handle);
-  return InitSocketPoolHelper(request_info,
+  return InitSocketPoolHelper(request_url,
+                              request_referrer,
+                              request_extra_headers,
+                              request_load_flags,
+                              request_priority,
                               session,
                               proxy_info,
                               force_spdy_over_ssl,
@@ -638,9 +650,17 @@ int ClientSocketPoolManager::InitSocketHandleForRawConnect(
     CompletionCallback* callback) {
   DCHECK(socket_handle);
   // Synthesize an HttpRequestInfo.
-  HttpRequestInfo request_info;
-  request_info.url = GURL("http://" + host_port_pair.ToString());
-  return InitSocketPoolHelper(request_info,
+  GURL request_url = GURL("http://" + host_port_pair.ToString());
+  GURL request_referrer;
+  HttpRequestHeaders request_extra_headers;
+  int request_load_flags = 0;
+  RequestPriority request_priority = MEDIUM;
+
+  return InitSocketPoolHelper(request_url,
+                              request_referrer,
+                              request_extra_headers,
+                              request_load_flags,
+                              request_priority,
                               session,
                               proxy_info,
                               false,
@@ -656,7 +676,11 @@ int ClientSocketPoolManager::InitSocketHandleForRawConnect(
 
 // static
 int ClientSocketPoolManager::PreconnectSocketsForHttpRequest(
-    const HttpRequestInfo& request_info,
+    const GURL& request_url,
+    const GURL& request_referrer,
+    const HttpRequestHeaders& request_extra_headers,
+    int request_load_flags,
+    RequestPriority request_priority,
     HttpNetworkSession* session,
     const ProxyInfo& proxy_info,
     bool force_spdy_over_ssl,
@@ -665,7 +689,11 @@ int ClientSocketPoolManager::PreconnectSocketsForHttpRequest(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     int num_preconnect_streams) {
-  return InitSocketPoolHelper(request_info,
+  return InitSocketPoolHelper(request_url,
+                              request_referrer,
+                              request_extra_headers,
+                              request_load_flags,
+                              request_priority,
                               session,
                               proxy_info,
                               force_spdy_over_ssl,
