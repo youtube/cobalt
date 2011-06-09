@@ -20,8 +20,10 @@
 #include "net/base/cert_database.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_api.h"
+#include "net/base/request_priority.h"
 #include "net/socket/client_socket_pool_histograms.h"
 
+class GURL;
 class Value;
 
 namespace net {
@@ -34,6 +36,7 @@ class ClientSocketPoolHistograms;
 class DnsCertProvenanceChecker;
 class DnsRRResolver;
 class HttpNetworkSession;
+class HttpRequestHeaders;
 class HostPortPair;
 class HttpProxyClientSocketPool;
 class HostResolver;
@@ -46,7 +49,6 @@ class SSLConfigService;
 class SSLHostInfoFactory;
 class TransportClientSocketPool;
 
-struct HttpRequestInfo;
 struct SSLConfig;
 
 namespace internal {
@@ -108,7 +110,11 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   // HTTP/HTTPS requests. |ssl_config_for_origin| is only used if the request
   // uses SSL and |ssl_config_for_proxy| is used if the proxy server is HTTPS.
   static int InitSocketHandleForHttpRequest(
-      const HttpRequestInfo& request_info,
+      const GURL& request_url,
+      const GURL& request_referrer,
+      const HttpRequestHeaders& request_extra_headers,
+      int request_load_flags,
+      RequestPriority request_priority,
       HttpNetworkSession* session,
       const ProxyInfo& proxy_info,
       bool force_spdy_over_ssl,
@@ -136,7 +142,11 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   // Similar to InitSocketHandleForHttpRequest except that it initiates the
   // desired number of preconnect streams from the relevant socket pool.
   static int PreconnectSocketsForHttpRequest(
-      const HttpRequestInfo& request_info,
+      const GURL& request_url,
+      const GURL& request_referrer,
+      const HttpRequestHeaders& request_extra_headers,
+      int request_load_flags,
+      RequestPriority request_priority,
       HttpNetworkSession* session,
       const ProxyInfo& proxy_info,
       bool force_spdy_over_ssl,

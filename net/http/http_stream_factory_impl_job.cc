@@ -30,9 +30,32 @@
 
 namespace net {
 
-namespace {
+// Parameters associated with the start of a HTTP stream job.
+class HttpStreamJobParameters : public NetLog::EventParameters {
+ public:
+  static scoped_refptr<HttpStreamJobParameters> Create(
+      const GURL& original_url,
+      const GURL& url) {
+    return make_scoped_refptr(new HttpStreamJobParameters(original_url, url));
+  }
 
-}  // namespace
+  virtual Value* ToValue() const;
+
+ private:
+  HttpStreamJobParameters(const GURL& original_url, const GURL& url)
+      : original_url_(original_url.GetOrigin().spec()),
+        url_(url.GetOrigin().spec()) {}
+
+  const std::string original_url_;
+  const std::string url_;
+};
+
+Value* HttpStreamJobParameters::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetString("original_url", original_url_);
+  dict->SetString("url", url_);
+  return dict;
+}
 
 HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
                                 HttpNetworkSession* session,
@@ -440,9 +463,15 @@ int HttpStreamFactoryImpl::Job::DoLoop(int result) {
 
 int HttpStreamFactoryImpl::Job::StartInternal() {
   CHECK_EQ(STATE_NONE, next_state_);
+
+  origin_ = HostPortPair(request_info_.url.HostNoBrackets(),
+                         request_info_.url.EffectiveIntPort());
+  origin_url_ = HttpStreamFactory::ApplyHostMappingRules(
+      request_info_.url, &origin_);
+
   net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_JOB,
-                      make_scoped_refptr(new NetLogStringParameter(
-                          "url", request_info_.url.GetOrigin().spec())));
+                      HttpStreamJobParameters::Create(request_info_.url,
+                                                      origin_url_));
   next_state_ = STATE_RESOLVE_PROXY;
   int rv = RunLoop(OK);
   DCHECK_EQ(ERR_IO_PENDING, rv);
@@ -453,9 +482,6 @@ int HttpStreamFactoryImpl::Job::DoResolveProxy() {
   DCHECK(!pac_request_);
 
   next_state_ = STATE_RESOLVE_PROXY_COMPLETE;
-
-  origin_ = HostPortPair(request_info_.url.HostNoBrackets(),
-                         request_info_.url.EffectiveIntPort());
 
   if (request_info_.load_flags & LOAD_BYPASS_PROXY) {
     proxy_info_.UseDirect();
@@ -576,7 +602,11 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
 
   if (IsPreconnecting()) {
     return ClientSocketPoolManager::PreconnectSocketsForHttpRequest(
-        request_info_,
+        origin_url_,
+        request_info_.referrer,
+        request_info_.extra_headers,
+        request_info_.load_flags,
+        request_info_.priority,
         session_,
         proxy_info_,
         ShouldForceSpdySSL(),
@@ -587,7 +617,11 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
         num_streams_);
   } else {
     return ClientSocketPoolManager::InitSocketHandleForHttpRequest(
-        request_info_,
+        origin_url_,
+        request_info_.referrer,
+        request_info_.extra_headers,
+        request_info_.load_flags,
+        request_info_.priority,
         session_,
         proxy_info_,
         ShouldForceSpdySSL(),
