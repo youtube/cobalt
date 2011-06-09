@@ -21,10 +21,8 @@ NET_API std::string EscapePath(const std::string& path);
 
 // Escape application/x-www-form-urlencoded content.  This includes:
 // non-printable, non-7bit, and (including space)  ?>=<;+'&%$#"![\]^`{|}
-// Space is escaped as + (if use_plus is true) and other special characters
-// as %XX (hex).
-NET_API std::string EscapeUrlEncodedData(const std::string& path,
-                                         bool use_plus);
+// Space is escaped as + and other special characters as %XX (hex).
+NET_API std::string EscapeUrlEncodedData(const std::string& path);
 
 // Escape all non-ASCII input.
 NET_API std::string EscapeNonASCII(const std::string& input);
