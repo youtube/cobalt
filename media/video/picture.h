@@ -6,6 +6,7 @@
 #define MEDIA_VIDEO_PICTURE_H_
 
 #include "base/basictypes.h"
+#include "ui/gfx/gl/gl_context.h"
 #include "ui/gfx/size.h"
 
 struct PP_BufferInfo_Dev;
@@ -42,24 +43,18 @@ class BaseBuffer {
 // This is the media-namespace equivalent of PP_GLESBuffer_Dev.
 class GLESBuffer : public BaseBuffer {
  public:
-  GLESBuffer(int32 id, gfx::Size size, uint32 texture_id, uint32 context_id);
+  GLESBuffer(int32 id, gfx::Size size, uint32 texture_id);
   GLESBuffer(const PP_GLESBuffer_Dev& buffer);
 
   // Returns the id of the texture.
+  // NOTE: The texture id in the renderer process corresponds to a different
+  // texture id in the GPU process.
   uint32 texture_id() const {
     return texture_id_;
   }
 
-  // Returns the id of the context in which this texture lives.
-  // TODO(vrk): I'm not sure if "id" is what we want, or some reference to the
-  // PPB_Context3D_Dev. Not sure how this eventually gets used.
-  uint32 context_id() const {
-    return context_id_;
-  }
-
  private:
   uint32 texture_id_;
-  uint32 context_id_;
 };
 
 // A picture buffer that lives in system memory.
