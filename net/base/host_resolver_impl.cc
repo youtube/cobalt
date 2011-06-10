@@ -660,6 +660,20 @@ class HostResolverImpl::Job
         category = RESOLVE_SPECULATIVE_SUCCESS;
         DNS_HISTOGRAM("DNS.ResolveSpeculativeSuccess", duration);
       }
+
+      // Log DNS lookups based on address_family.  This will help us determine
+      // if IPv4 or IPv4/6 lookups are faster or slower.
+      switch(key_.address_family) {
+        case ADDRESS_FAMILY_IPV4:
+          DNS_HISTOGRAM("DNS.ResolveSuccess_FAMILY_IPV4", duration);
+          break;
+        case ADDRESS_FAMILY_IPV6:
+          DNS_HISTOGRAM("DNS.ResolveSuccess_FAMILY_IPV6", duration);
+          break;
+        case ADDRESS_FAMILY_UNSPECIFIED:
+          DNS_HISTOGRAM("DNS.ResolveSuccess_FAMILY_UNSPEC", duration);
+          break;
+      }
     } else {
       if (had_non_speculative_request_) {
         category = RESOLVE_FAIL;
@@ -667,6 +681,19 @@ class HostResolverImpl::Job
       } else {
         category = RESOLVE_SPECULATIVE_FAIL;
         DNS_HISTOGRAM("DNS.ResolveSpeculativeFail", duration);
+      }
+      // Log DNS lookups based on address_family.  This will help us determine
+      // if IPv4 or IPv4/6 lookups are faster or slower.
+      switch(key_.address_family) {
+        case ADDRESS_FAMILY_IPV4:
+          DNS_HISTOGRAM("DNS.ResolveFail_FAMILY_IPV4", duration);
+          break;
+        case ADDRESS_FAMILY_IPV6:
+          DNS_HISTOGRAM("DNS.ResolveFail_FAMILY_IPV6", duration);
+          break;
+        case ADDRESS_FAMILY_UNSPECIFIED:
+          DNS_HISTOGRAM("DNS.ResolveFail_FAMILY_UNSPEC", duration);
+          break;
       }
       UMA_HISTOGRAM_CUSTOM_ENUMERATION(kOSErrorsForGetAddrinfoHistogramName,
                                        std::abs(os_error),
