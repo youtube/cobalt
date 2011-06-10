@@ -15,9 +15,9 @@ BaseBuffer::~BaseBuffer() {}
 BaseBuffer::BaseBuffer(int32 id, gfx::Size size) : id_(id), size_(size) {
 }
 
-GLESBuffer::GLESBuffer(
-    int32 id, gfx::Size size, uint32 texture_id, uint32 context_id)
-    : BaseBuffer(id, size), texture_id_(texture_id), context_id_(context_id) {
+GLESBuffer::GLESBuffer(int32 id, gfx::Size size, uint32 texture_id)
+    : BaseBuffer(id, size),
+      texture_id_(texture_id) {
 }
 
 SysmemBuffer::SysmemBuffer(int32 id, gfx::Size size, void* data)
