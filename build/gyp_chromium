@@ -88,9 +88,8 @@ def additional_include_files(args=[]):
     if os.path.realpath(path) not in specified_includes:
       result.append(path)
 
-  # Always include common.gypi & features_override.gypi
+  # Always include common.gypi.
   AddInclude(os.path.join(script_dir, 'common.gypi'))
-  AddInclude(os.path.join(script_dir, 'features_override.gypi'))
 
   # Optionally add supplemental .gypi files if present.
   supplements = glob.glob(os.path.join(chrome_src, '*', 'supplement.gypi'))
