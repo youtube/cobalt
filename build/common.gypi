@@ -653,8 +653,7 @@
         'defines': ['TOOLKIT_VIEWS=1'],
       }],
       ['views_compositor==1', {
-        # TODO(sky): nuke COMPOSITOR_2 when we remove it from views.
-        'defines': ['VIEWS_COMPOSITOR=1', 'COMPOSITOR_2=1'],
+        'defines': ['VIEWS_COMPOSITOR=1'],
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
