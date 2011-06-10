@@ -172,13 +172,35 @@ bool InitExperiment(disk_cache::IndexHeader* header, uint32 mask) {
     return false;
   }
 
-  // The current experiment is closed for new profiles.
-  if (header->experiment < disk_cache::EXPERIMENT_DELETED_LIST_OUT)
-    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT;
-
-  // If we are part of the experiment, set up the field trial.
-  if (header->experiment > disk_cache::EXPERIMENT_DELETED_LIST_OUT)
+  // See if we already defined the group for this profile.
+  if (header->experiment > disk_cache::EXPERIMENT_DELETED_LIST_OUT) {
     SetFieldTrialInfo(header->experiment);
+    return true;
+  }
+
+  if (!header->create_time || !header->lru.filled)
+    return true; // Wait untill we fill up the cache.
+
+  int index_load = header->num_entries * 100 / (mask + 1);
+  if (index_load > 25) {
+   // Out of the experiment (~18% users).
+   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT2;
+   return true;
+  }
+
+  int option = base::RandInt(0, 4);
+  if (option > 1) {
+   // 60% out (49% of the total).
+   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT2;
+  } else if (!option) {
+   // About 16% of the total.
+   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_CONTROL;
+  } else {
+   // About 16% of the total.
+   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_IN;
+  }
+
+  SetFieldTrialInfo(header->experiment);
   return true;
 }
 
