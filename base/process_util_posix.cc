@@ -18,6 +18,7 @@
 
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
+#include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
 #include "base/dir_reader_posix.h"
 #include "base/eintr_wrapper.h"
@@ -105,6 +106,9 @@ int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
 }
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
+  if (debug::BeingDebugged())
+    debug::BreakDebugger();
+
   LOG(ERROR) << "Received signal " << signal;
   debug::StackTrace().PrintBacktrace();
 
