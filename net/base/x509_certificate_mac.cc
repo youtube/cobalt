@@ -101,6 +101,8 @@ int CertStatusFromOSStatus(OSStatus status) {
       // Failure was due to something Chromium doesn't define a
       // specific status for (such as basic constraints violation, or
       // unknown critical extension)
+      LOG(WARNING) << "Unknown error " << status
+                   << " mapped to CERT_STATUS_INVALID";
       return CERT_STATUS_INVALID;
   }
 }
@@ -948,6 +950,11 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
         if (chain_info[index].StatusBits & CSSM_CERT_STATUS_EXPIRED ||
             chain_info[index].StatusBits & CSSM_CERT_STATUS_NOT_VALID_YET)
           verify_result->cert_status |= CERT_STATUS_DATE_INVALID;
+        if (chain_info[index].NumStatusCodes == 0) {
+          LOG(WARNING) << "chain_info[" << index << "].NumStatusCodes is 0"
+                          ", chain_info[" << index << "].StatusBits is "
+                       << chain_info[index].StatusBits;
+        }
         for (uint32 status_code_index = 0;
              status_code_index < chain_info[index].NumStatusCodes;
              ++status_code_index) {
@@ -969,6 +976,7 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
       // is not trusted and the loop through CSSM_TP_APPLE_EVIDENCE_INFO
       // should pick up everything else, but let's be safe.
       if (!verify_result->cert_status && !got_certificate_error) {
+        LOG(ERROR) << "cssm_result=" << cssm_result;
         verify_result->cert_status |= CERT_STATUS_INVALID;
         NOTREACHED();
       }
@@ -979,8 +987,10 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
       if (status)
         return NetErrorFromOSStatus(status);
       verify_result->cert_status |= CertStatusFromOSStatus(cssm_result);
-      if (!verify_result->cert_status)
+      if (!verify_result->cert_status) {
+        LOG(WARNING) << "trust_result=" << trust_result;
         verify_result->cert_status |= CERT_STATUS_INVALID;
+      }
       break;
   }
 
