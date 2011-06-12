@@ -30,7 +30,12 @@ class VideoCapture {
   // TODO(wjia): consider merging with media::VideoFrame if possible.
   class VideoFrameBuffer : public base::RefCountedThreadSafe<VideoFrameBuffer> {
    public:
-    VideoFrameBuffer() {}
+    VideoFrameBuffer()
+        : width(0),
+          height(0),
+          stride(0),
+          buffer_size(0),
+          memory_pointer(NULL) {}
     ~VideoFrameBuffer() {}
 
     int width;
