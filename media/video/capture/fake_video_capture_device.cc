@@ -38,6 +38,7 @@ VideoCaptureDevice* FakeVideoCaptureDevice::Create(const Name& device_name) {
 
 FakeVideoCaptureDevice::FakeVideoCaptureDevice(const Name& device_name)
     : device_name_(device_name),
+      observer_(NULL),
       state_(kIdle),
       capture_thread_("CaptureThread") {
 }
