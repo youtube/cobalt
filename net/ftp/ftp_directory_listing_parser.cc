@@ -109,7 +109,9 @@ int DecodeAndParse(const std::string& text,
 
 }  // namespace
 
-FtpDirectoryListingEntry::FtpDirectoryListingEntry() {
+FtpDirectoryListingEntry::FtpDirectoryListingEntry()
+    : type(UNKNOWN),
+      size(-1) {
 }
 
 int ParseFtpDirectoryListing(const std::string& text,
