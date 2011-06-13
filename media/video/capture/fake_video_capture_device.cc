@@ -70,9 +70,10 @@ void FakeVideoCaptureDevice::Allocate(int width,
     current_settings.frame_rate = 30;
   }
 
-  fake_frame_.reset(new uint8[current_settings.width *
-                              current_settings.height * 3 / 2]);
-  memset(fake_frame_.get(), 0, sizeof(fake_frame_.get()));
+  size_t fake_frame_size =
+      current_settings.width * current_settings.height * 3 / 2;
+  fake_frame_.reset(new uint8[fake_frame_size]);
+  memset(fake_frame_.get(), 0, fake_frame_size);
 
   state_ = kAllocated;
   observer_->OnFrameInfo(current_settings);
