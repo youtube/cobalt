@@ -64,9 +64,16 @@ class BASE_API FileUtilProxy {
                            CreateOrOpenCallback* callback);
 
   // Creates a temporary file for writing.  The path and an open file handle
-  // are returned.  It is invalid to pass NULL for the callback.
+  // are returned.  It is invalid to pass NULL for the callback.  The additional
+  // file flags will be added on top of the default file flags which are:
+  //   base::PLATFORM_FILE_CREATE_ALWAYS
+  //   base::PLATFORM_FILE_WRITE
+  //   base::PLATFORM_FILE_TEMPORARY.
+  // Set |additional_file_flags| to 0 for synchronous writes and set to
+  // base::PLATFORM_FILE_ASYNC to support asynchronous file operations.
   static bool CreateTemporary(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      int additional_file_flags,
       CreateTemporaryCallback* callback);
 
   // Close the given file handle.
