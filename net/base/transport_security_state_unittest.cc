@@ -614,6 +614,13 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
                                        "foo.squareup.com",
                                        false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "cert.se",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "foo.cert.se",
+                                       false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
