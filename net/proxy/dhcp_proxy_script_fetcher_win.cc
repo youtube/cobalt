@@ -99,6 +99,7 @@ void DhcpProxyScriptFetcherWin::CancelImpl() {
   DCHECK(CalledOnValidThread());
 
   if (state_ != STATE_DONE) {
+    client_callback_ = NULL;
     wait_timer_.Stop();
     state_ = STATE_DONE;
 
@@ -206,9 +207,11 @@ void DhcpProxyScriptFetcherWin::TransitionToDone() {
     }
   }
 
+  CompletionCallback* callback = client_callback_;
   CancelImpl();
   DCHECK_EQ(state_, STATE_DONE);
   DCHECK(fetchers_.empty());
+  DCHECK(!client_callback_);  // Invariant of data.
 
   UMA_HISTOGRAM_TIMES("Net.DhcpWpadCompletionTime",
                       base::TimeTicks::Now() - fetch_start_time_);
@@ -218,7 +221,8 @@ void DhcpProxyScriptFetcherWin::TransitionToDone() {
         "Net.DhcpWpadFetchError", std::abs(result), GetAllErrorCodesForUma());
   }
 
-  client_callback_->Run(result);
+  // We may be deleted re-entrantly within this outcall.
+  callback->Run(result);
 }
 
 int DhcpProxyScriptFetcherWin::num_pending_fetchers() const {
