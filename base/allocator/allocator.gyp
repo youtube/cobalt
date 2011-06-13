@@ -11,7 +11,6 @@
     {
       'target_name': 'allocator',
       'type': 'static_library',
-      'msvs_guid': 'C564F145-9172-42C3-BFCB-60FDEA124321',
       'include_dirs': [
         '.',
         '<(tcmalloc_dir)/src/base',
@@ -392,7 +391,6 @@
         '<(tcmalloc_dir)/src',
         '../..',
       ],
-      'msvs_guid': 'E99DA267-BE90-4F45-1294-6919DB2C9999',
       'sources': [
         'unittest_utils.cc',
         'allocator_unittests.cc',

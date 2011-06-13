@@ -429,7 +429,6 @@
     {
       'target_name': 'base',
       'type': '<(component)',
-      'msvs_guid': '1832A374-8A74-4F9E-B536-69A699B3E165',
       'variables': {
         'base_target': 1,
       },
@@ -600,7 +599,6 @@
         {
           'target_name': 'base_nacl_win64',
           'type': 'static_library',
-          'msvs_guid': 'CEE1F794-DC70-4FED-B7C4-4C12986672FE',
           'variables': {
             'base_target': 1,
           },
