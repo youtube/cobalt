@@ -247,7 +247,7 @@ void MD5Final(MD5Digest* digest, MD5Context *pCtx){
         MD5Transform(ctx->buf, (uint32 *)ctx->in);
         byteReverse((unsigned char *)ctx->buf, 4);
         memcpy(digest->a, ctx->buf, 16);
-        memset(ctx, 0, sizeof(ctx));    /* In case it's sensitive */
+        memset(ctx, 0, sizeof(*ctx));    /* In case it's sensitive */
 }
 
 std::string MD5DigestToBase16(const MD5Digest& digest){
