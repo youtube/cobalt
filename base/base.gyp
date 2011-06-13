@@ -13,7 +13,6 @@
     {
       'target_name': 'base_i18n',
       'type': 'static_library',
-      'msvs_guid': '968F3222-9798-4D21-BE08-15ECB5EF2994',
       'dependencies': [
         'base',
         '../third_party/icu/icu.gyp:icui18n',
@@ -101,7 +100,6 @@
     {
       'target_name': 'base_unittests',
       'type': 'executable',
-      'msvs_guid': '27A30967-4BBA-48D1-8522-CDE95F7B1CEC',
       'sources': [
         # Infrastructure files.
         'test/run_all_unittests.cc',
