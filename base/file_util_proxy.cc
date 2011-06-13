@@ -167,8 +167,10 @@ class RelayCreateTemporary : public MessageLoopRelay {
  public:
   RelayCreateTemporary(
       scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
+      int additional_file_flags,
       base::FileUtilProxy::CreateTemporaryCallback* callback)
       : message_loop_proxy_(message_loop_proxy),
+        additional_file_flags_(additional_file_flags),
         callback_(callback),
         file_handle_(base::kInvalidPlatformFileValue) {
     DCHECK(callback);
@@ -185,13 +187,12 @@ class RelayCreateTemporary : public MessageLoopRelay {
     // that returns a FilePath and a PlatformFile.
     file_util::CreateTemporaryFile(&file_path_);
 
-    // Use a fixed set of flags that are appropriate for writing to a temporary
-    // file from the IO thread using a net::FileStream.
     int file_flags =
-        base::PLATFORM_FILE_CREATE_ALWAYS |
         base::PLATFORM_FILE_WRITE |
-        base::PLATFORM_FILE_ASYNC |
-        base::PLATFORM_FILE_TEMPORARY;
+        base::PLATFORM_FILE_TEMPORARY |
+        base::PLATFORM_FILE_CREATE_ALWAYS |
+        additional_file_flags_;
+
     base::PlatformFileError error_code = base::PLATFORM_FILE_OK;
     file_handle_ = base::CreatePlatformFile(file_path_, file_flags,
                                             NULL, &error_code);
@@ -206,6 +207,7 @@ class RelayCreateTemporary : public MessageLoopRelay {
 
  private:
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  int additional_file_flags_;
   base::FileUtilProxy::CreateTemporaryCallback* callback_;
   base::PlatformFile file_handle_;
   FilePath file_path_;
@@ -742,9 +744,12 @@ bool FileUtilProxy::CreateOrOpen(
 // static
 bool FileUtilProxy::CreateTemporary(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    int additional_file_flags,
     CreateTemporaryCallback* callback) {
   return Start(FROM_HERE, message_loop_proxy,
-               new RelayCreateTemporary(message_loop_proxy, callback));
+               new RelayCreateTemporary(message_loop_proxy,
+                                        additional_file_flags,
+                                        callback));
 }
 
 // static
