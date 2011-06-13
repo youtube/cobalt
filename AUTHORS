@@ -1,7 +1,15 @@
-# Names should be added to this file like so:
-# Name or Organization <email address>
+# Names should be added to this file with this pattern:
+#
+# For individuals:
+#   Name <email address>
+#
+# For organizations:
+#   Organization <fnmatch pattern>
+#
+# See python fnmatch module documentation for more information.
 
-Google Inc.
+The Chromium Authors <*@chromium.org>
+Google Inc. <*@google.com>
 Seo Sanghyeon <sanxiyn@gmail.com>
 Alex Scheele <alexscheele@gmail.com>
 Andrew Brampton <me@bramp.net>
@@ -71,7 +79,7 @@ Chamal De Silva <chamal.desilva@gmail.com>
 Jay Soffian <jaysoffian@gmail.com>
 Brian G. Merrell <bgmerrell@gmail.com>
 Matthew Willis <appamatto@gmail.com>
-Novell Inc.
+Novell Inc. <*@novell.com>
 Ryan Sleevi <ryan.sleevi@gmail.com>
 Satoshi Matsuzaki <satoshi.matsuzaki@gmail.com>
 Benjamin Jemlich <pcgod99@gmail.com>
@@ -80,7 +88,7 @@ Jared Wein <weinjared@gmail.com>
 Mingmin Xie <melvinxie@gmail.com>
 Michael Gilbert <floppymaster@gmail.com>
 Giuseppe Iuculano <giuseppe@iuculano.it>
-litl LLC
+litl LLC <*@litl.com>
 James Willcox <jwillcox@litl.com>
 Shreyas VA <v.a.shreyas@gmail.com>
 Steven Pennington <spenn@engr.uvic.ca>
@@ -104,3 +112,4 @@ David Futcher <bobbo@ubuntu.com>
 Ramkumar Gokarnesan <ramgo@yahoo-inc.com>
 Matt Arpidone <mma.public@gmail.com>
 ruben <chromium@hybridsource.org>
+NVIDIA Corporation <*@nvidia.com>
