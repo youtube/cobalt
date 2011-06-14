@@ -95,7 +95,8 @@ static const MimeInfo primary_mappings[] = {
   { "audio/webm", "webm" },
   { "audio/wav", "wav" },
   { "application/xhtml+xml", "xhtml,xht" },
-  { "application/x-chrome-extension", "crx" }
+  { "application/x-chrome-extension", "crx" },
+  { "multipart/related", "mhtml,mht" }
 };
 
 static const MimeInfo secondary_mappings[] = {
@@ -117,8 +118,7 @@ static const MimeInfo secondary_mappings[] = {
   { "application/rdf+xml", "rdf" },
   { "text/xml", "xsl,xbl" },
   { "application/vnd.mozilla.xul+xml", "xul" },
-  { "application/x-shockwave-flash", "swf,swl" },
-  { "multipart/related", "mht,mhtml" }
+  { "application/x-shockwave-flash", "swf,swl" }
 };
 
 static const char* FindMimeType(const MimeInfo* mappings,
