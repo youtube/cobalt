@@ -618,6 +618,12 @@ class HostResolverImpl::Job
     if (was_cancelled())
       return;
 
+    if (was_retry_attempt) {
+      // If retry attempt finishes before 1st attempt, then get stats on how
+      // much time is saved by having spawned an extra attempt.
+      retry_attempt_finished_time_ = base::TimeTicks::Now();
+    }
+
     scoped_refptr<NetLog::EventParameters> params;
     if (error != OK) {
       params = new HostResolveFailedParams(0, error, os_error);
@@ -733,6 +739,7 @@ class HostResolverImpl::Job
                                const int os_error) const {
     bool first_attempt_to_complete =
         completed_attempt_number_ == attempt_number;
+    bool is_first_attempt = (attempt_number == 1);
 
     if (first_attempt_to_complete) {
       // If this was first attempt to complete, then record the resolution
@@ -750,6 +757,13 @@ class HostResolverImpl::Job
       UMA_HISTOGRAM_ENUMERATION("DNS.AttemptSuccess", attempt_number, 100);
     else
       UMA_HISTOGRAM_ENUMERATION("DNS.AttemptFailure", attempt_number, 100);
+
+    // If first attempt didn't finish before retry attempt, then calculate stats
+    // on how much time is saved by having spawned an extra attempt.
+    if (!first_attempt_to_complete && is_first_attempt && !was_cancelled()) {
+      DNS_HISTOGRAM("DNS.AttemptTimeSavedByRetry",
+                    base::TimeTicks::Now() - retry_attempt_finished_time_);
+    }
 
     if (was_cancelled() || !first_attempt_to_complete) {
       // Count those attempts which completed after the job was already canceled
@@ -803,6 +817,9 @@ class HostResolverImpl::Job
 
   // The result (a net error code) from the first attempt to complete.
   int completed_attempt_error_;
+
+  // The time when retry attempt was finished.
+  base::TimeTicks retry_attempt_finished_time_;
 
   // True if a non-speculative request was ever attached to this job
   // (regardless of whether or not it was later cancelled.
