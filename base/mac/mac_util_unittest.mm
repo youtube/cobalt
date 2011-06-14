@@ -12,6 +12,7 @@
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_nsobject.h"
 #include "base/scoped_temp_dir.h"
+#include "base/sys_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -158,6 +159,48 @@ TEST_F(MacUtilTest, NSObjectRetainRelease) {
 
   NSObjectRelease(array);
   EXPECT_EQ(1U, [array retainCount]);
+}
+
+TEST_F(MacUtilTest, IsOSEllipsis) {
+  int32 major, minor, bugfix;
+  base::SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
+
+  if (major == 10) {
+    if (minor == 5) {
+      EXPECT_TRUE(IsOSLeopard());
+      EXPECT_TRUE(IsOSLeopardOrEarlier());
+      EXPECT_FALSE(IsOSSnowLeopard());
+      EXPECT_TRUE(IsOSSnowLeopardOrEarlier());
+      EXPECT_FALSE(IsOSSnowLeopardOrLater());
+      EXPECT_FALSE(IsOSLion());
+      EXPECT_FALSE(IsOSLionOrLater());
+      EXPECT_FALSE(IsOSLaterThanLion());
+    } else if (minor == 6) {
+      EXPECT_FALSE(IsOSLeopard());
+      EXPECT_FALSE(IsOSLeopardOrEarlier());
+      EXPECT_TRUE(IsOSSnowLeopard());
+      EXPECT_TRUE(IsOSSnowLeopardOrEarlier());
+      EXPECT_TRUE(IsOSSnowLeopardOrLater());
+      EXPECT_FALSE(IsOSLion());
+      EXPECT_FALSE(IsOSLionOrLater());
+      EXPECT_FALSE(IsOSLaterThanLion());
+    } else if (minor == 7) {
+      EXPECT_FALSE(IsOSLeopard());
+      EXPECT_FALSE(IsOSLeopardOrEarlier());
+      EXPECT_FALSE(IsOSSnowLeopard());
+      EXPECT_FALSE(IsOSSnowLeopardOrEarlier());
+      EXPECT_TRUE(IsOSSnowLeopardOrLater());
+      EXPECT_TRUE(IsOSLion());
+      EXPECT_TRUE(IsOSLionOrLater());
+      EXPECT_FALSE(IsOSLaterThanLion());
+    } else {
+      // Not five, six, or seven. Ah, ah, ah.
+      EXPECT_TRUE(false);
+    }
+  } else {
+    // Not ten. What you gonna do?
+    EXPECT_FALSE(true);
+  }
 }
 
 }  // namespace

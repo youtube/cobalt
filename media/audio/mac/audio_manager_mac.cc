@@ -4,7 +4,7 @@
 
 #include <CoreAudio/AudioHardware.h>
 
-#include "base/sys_info.h"
+#include "base/mac/mac_util.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/mac/audio_input_mac.h"
@@ -34,9 +34,7 @@ static size_t GetMaxAudioOutputStreamsAllowed() {
     // there's no way to detect it within the AudioQueue API, so we put a
     // special hard limit only for Leopard.
     // See bug: http://crbug.com/30242
-    int32 major, minor, bugfix;
-    base::SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
-    if (major < 10 || (major == 10 && minor <= 5)) {
+    if (base::mac::IsOSLeopardOrEarlier()) {
       g_max_output_streams = kMaxOutputStreamsLeopard;
     } else {
       // In OS other than OSX Leopard, the number of audio streams
