@@ -243,12 +243,22 @@ void ActivateProcess(pid_t pid) {
 }
 
 bool SetFileBackupExclusion(const FilePath& file_path) {
-  NSString* filePath =
+  NSString* file_path_ns =
       [NSString stringWithUTF8String:file_path.value().c_str()];
-  NSURL* url = [NSURL fileURLWithPath:filePath];
-  // Do a pre-emptive unexclude by-path since by-path exclusions may have been
-  // performed on this file in the past.
-  CSBackupSetItemExcluded(base::mac::NSToCFCast(url), FALSE, TRUE);
+  NSURL* file_url = [NSURL fileURLWithPath:file_path_ns];
+
+  if (IsOSSnowLeopardOrEarlier()) {
+    // Do a pre-emptive unexclude by-path since by-path exclusions may have
+    // been performed on this file in the past. This feature is available to
+    // administrative users in 10.5 and 10.6, but is restricted to the root
+    // user in 10.7. Since it logs messages to the console in 10.7 and
+    // wouldn't work anyway, avoid calling it altogether in that version.
+    //
+    // TODO(mrossetti) or TODO(mark): remove on the trunk after September
+    // 2011, M15. http://crbug.com/86104
+    CSBackupSetItemExcluded(base::mac::NSToCFCast(file_url), FALSE, TRUE);
+  }
+
   // When excludeByPath is true the application must be running with root
   // privileges (admin for 10.6 and earlier) but the URL does not have to
   // already exist. When excludeByPath is false the URL must already exist but
@@ -256,7 +266,7 @@ bool SetFileBackupExclusion(const FilePath& file_path) {
   // non-root (or admin) users don't get their TimeMachine drive filled up with
   // unnecessary backups.
   OSStatus os_err =
-      CSBackupSetItemExcluded(base::mac::NSToCFCast(url), TRUE, FALSE);
+      CSBackupSetItemExcluded(base::mac::NSToCFCast(file_url), TRUE, FALSE);
   if (os_err != noErr) {
     LOG(WARNING) << "Failed to set backup exclusion for file '"
                  << file_path.value().c_str() << "' with error "
