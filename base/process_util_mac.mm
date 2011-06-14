@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "base/process_util.h"
 
 #import <Cocoa/Cocoa.h>
@@ -19,7 +18,6 @@
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
-#include <sys/utsname.h>
 #include <sys/wait.h>
 
 #include <new>
@@ -29,6 +27,7 @@
 #include "base/eintr_wrapper.h"
 #include "base/hash_tables.h"
 #include "base/logging.h"
+#include "base/mac/mac_util.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
 #include "base/sys_string_conversions.h"
@@ -622,28 +621,25 @@ void oom_killer_new() {
 
 // === Core Foundation CFAllocators ===
 
-bool CanGetContextForCFAllocator(long darwin_version) {
+bool CanGetContextForCFAllocator() {
   // TODO(avi): remove at final release; http://crbug.com/74589
-  if (darwin_version == 11) {
+  if (base::mac::IsOSLion()) {
     NSLog(@"Unsure about the internals of CFAllocator but going to patch them "
            "anyway. Watch out for crashes inside of CFAllocatorAllocate.");
   }
-  return darwin_version == 9 ||
-         darwin_version == 10 ||
-         darwin_version == 11;
+  return !base::mac::IsOSLaterThanLion();
 }
 
-CFAllocatorContext* ContextForCFAllocator(CFAllocatorRef allocator,
-                                          long darwin_version) {
-  if (darwin_version == 9 || darwin_version == 10) {
-    ChromeCFAllocator9and10* our_allocator =
-        const_cast<ChromeCFAllocator9and10*>(
-            reinterpret_cast<const ChromeCFAllocator9and10*>(allocator));
+CFAllocatorContext* ContextForCFAllocator(CFAllocatorRef allocator) {
+  if (base::mac::IsOSLeopard() || base::mac::IsOSSnowLeopard()) {
+    ChromeCFAllocatorLeopards* our_allocator =
+        const_cast<ChromeCFAllocatorLeopards*>(
+            reinterpret_cast<const ChromeCFAllocatorLeopards*>(allocator));
     return &our_allocator->_context;
-  } else if (darwin_version == 11) {
-    ChromeCFAllocator11* our_allocator =
-        const_cast<ChromeCFAllocator11*>(
-            reinterpret_cast<const ChromeCFAllocator11*>(allocator));
+  } else if (base::mac::IsOSLion()) {
+    ChromeCFAllocatorLion* our_allocator =
+        const_cast<ChromeCFAllocatorLion*>(
+            reinterpret_cast<const ChromeCFAllocatorLion*>(allocator));
     return &our_allocator->_context;
   } else {
     return NULL;
@@ -714,18 +710,6 @@ void EnableTerminationOnOutOfMemory() {
 
   g_oom_killer_enabled = true;
 
-  // Not SysInfo::OperatingSystemVersionNumbers as that calls through to Gestalt
-  // which ends up (on > 10.6) spawning threads.
-  struct utsname machine_info;
-  if (uname(&machine_info)) {
-    return;
-  }
-
-  // The string machine_info.release is the xnu/Darwin version number, "9.xxx"
-  // on Mac OS X 10.5, and "10.xxx" on Mac OS X 10.6. See
-  // http://en.wikipedia.org/wiki/Darwin_(operating_system) .
-  long darwin_version = strtol(machine_info.release, NULL, 10);
-
   // === C malloc/calloc/valloc/realloc/posix_memalign ===
 
   // This approach is not perfect, as requests for amounts of memory larger than
@@ -743,7 +727,7 @@ void EnableTerminationOnOutOfMemory() {
         !g_old_memalign_purgeable) << "Old allocators unexpectedly non-null";
 
   // See http://trac.webkit.org/changeset/53362/trunk/Tools/DumpRenderTree/mac
-  bool zone_allocators_protected = darwin_version > 10;
+  bool zone_allocators_protected = base::mac::IsOSLionOrLater();
 
   ChromeMallocZone* default_zone =
       reinterpret_cast<ChromeMallocZone*>(malloc_default_zone());
@@ -858,26 +842,25 @@ void EnableTerminationOnOutOfMemory() {
         !g_old_cfallocator_malloc_zone)
       << "Old allocators unexpectedly non-null";
 
-  bool cf_allocator_internals_known =
-      CanGetContextForCFAllocator(darwin_version);
+  bool cf_allocator_internals_known = CanGetContextForCFAllocator();
 
   if (cf_allocator_internals_known) {
     CFAllocatorContext* context =
-        ContextForCFAllocator(kCFAllocatorSystemDefault, darwin_version);
+        ContextForCFAllocator(kCFAllocatorSystemDefault);
     CHECK(context) << "Failed to get context for kCFAllocatorSystemDefault.";
     g_old_cfallocator_system_default = context->allocate;
     CHECK(g_old_cfallocator_system_default)
         << "Failed to get kCFAllocatorSystemDefault allocation function.";
     context->allocate = oom_killer_cfallocator_system_default;
 
-    context = ContextForCFAllocator(kCFAllocatorMalloc, darwin_version);
+    context = ContextForCFAllocator(kCFAllocatorMalloc);
     CHECK(context) << "Failed to get context for kCFAllocatorMalloc.";
     g_old_cfallocator_malloc = context->allocate;
     CHECK(g_old_cfallocator_malloc)
         << "Failed to get kCFAllocatorMalloc allocation function.";
     context->allocate = oom_killer_cfallocator_malloc;
 
-    context = ContextForCFAllocator(kCFAllocatorMallocZone, darwin_version);
+    context = ContextForCFAllocator(kCFAllocatorMallocZone);
     CHECK(context) << "Failed to get context for kCFAllocatorMallocZone.";
     g_old_cfallocator_malloc_zone = context->allocate;
     CHECK(g_old_cfallocator_malloc_zone)

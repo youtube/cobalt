@@ -41,6 +41,11 @@ class BASE_API SysInfo {
   // Retrieves detailed numeric values for the OS version.
   // TODO(port): Implement a Linux version of this method and enable the
   // corresponding unit test.
+  // DON'T USE THIS ON THE MAC OR WINDOWS to determine the current OS release
+  // for OS version-specific feature checks and workarounds. If you must use
+  // an OS version check instead of a feature check, use the base::mac::IsOS*
+  // family from base/mac/mac_util.h, or base::win::GetVersion from
+  // base/win/windows_version.h.
   static void OperatingSystemVersionNumbers(int32* major_version,
                                             int32* minor_version,
                                             int32* bugfix_version);
