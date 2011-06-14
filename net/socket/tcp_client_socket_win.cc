@@ -11,8 +11,8 @@
 #include "base/memory/memory_debug.h"
 #include "base/metrics/stats_counters.h"
 #include "base/string_util.h"
-#include "base/sys_info.h"
 #include "base/win/object_watcher.h"
+#include "base/win/windows_version.h"
 #include "net/base/address_list_net_log_param.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
@@ -56,10 +56,7 @@ int SetupSocket(SOCKET socket) {
   //    http://blogs.msdn.com/wndp/archive/2006/05/05/Winhec-blog-tcpip-2.aspx
   // Since Vista's auto-tune is better than any static value we can could set,
   // only change these on pre-vista machines.
-  int32 major_version, minor_version, fix_version;
-  base::SysInfo::OperatingSystemVersionNumbers(&major_version, &minor_version,
-    &fix_version);
-  if (major_version < 6) {
+  if (base::win::GetVersion() < base::win::VERSION_VISTA) {
     const int32 kSocketBufferSize = 64 * 1024;
     SetSocketReceiveBufferSize(socket, kSocketBufferSize);
     SetSocketSendBufferSize(socket, kSocketBufferSize);
