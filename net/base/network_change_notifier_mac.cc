@@ -14,6 +14,12 @@
 
 namespace net {
 
+static bool CalculateReachability(SCNetworkConnectionFlags flags) {
+  bool reachable = flags & kSCNetworkFlagsReachable;
+  bool connection_required = flags & kSCNetworkFlagsConnectionRequired;
+  return reachable && !connection_required;
+}
+
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
     : forwarder_(this),
       config_watcher_(&forwarder_),
@@ -68,6 +74,17 @@ void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
   addr.sin_family = AF_INET;
   reachability_.reset(SCNetworkReachabilityCreateWithAddress(
       kCFAllocatorDefault, reinterpret_cast<struct sockaddr*>(&addr)));
+
+  // 1. Get the initial network state synchronously.
+  SCNetworkConnectionFlags flags;
+  if (SCNetworkReachabilityGetFlags(reachability_.get(), &flags)) {
+    bool reachable = CalculateReachability(flags);
+    base::AutoLock lock(network_reachable_lock_);
+    network_reachable_ = reachable;
+  } else
+    LOG(ERROR) << "Could not get initial network state.";
+
+  // 2. Set up periodic callbacks when the state changes.
   SCNetworkReachabilityContext reachability_context = {
     0,     // version
     this,  // user data
@@ -119,14 +136,14 @@ void NetworkChangeNotifierMac::ReachabilityCallback(
 
   DCHECK_EQ(notifier_mac->run_loop_.get(), CFRunLoopGetCurrent());
 
-  bool reachable = flags & kSCNetworkFlagsReachable;
-  bool connection_required = flags & kSCNetworkFlagsConnectionRequired;
-  bool old_reachability = notifier_mac->network_reachable_;
+  bool new_reachability = CalculateReachability(flags);
+  bool old_reachability;
   {
     base::AutoLock lock(notifier_mac->network_reachable_lock_);
-    notifier_mac->network_reachable_ = reachable && !connection_required;
+    old_reachability = notifier_mac->network_reachable_;
+    notifier_mac->network_reachable_ = new_reachability;
   }
-  if (old_reachability != notifier_mac->network_reachable_)
+  if (old_reachability != new_reachability)
     NotifyObserversOfOnlineStateChange();
 }
 
