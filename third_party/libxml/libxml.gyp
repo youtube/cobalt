@@ -39,7 +39,6 @@
           },
         }, { # else: os_posix != 1 or OS == "mac" or ! use_system_libxml
           'type': 'static_library',
-          'msvs_guid': 'F9810DE8-CBC3-4605-A7B1-ECA2D5292FD7',
           'sources': [
             'linux/config.h',
             'linux/include/libxml/xmlversion.h',
