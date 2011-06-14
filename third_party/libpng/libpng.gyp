@@ -26,7 +26,6 @@
             'CHROME_PNG_WRITE_SUPPORT',
             'PNG_USER_CONFIG',
           ],
-          'msvs_guid': 'C564F145-9172-42C3-BFCB-6014CA97DBCD',
           'sources': [
             'png.c',
             'png.h',
