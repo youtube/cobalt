@@ -6,6 +6,7 @@
 #define BASE_MAC_MAC_UTIL_H_
 #pragma once
 
+#include <AvailabilityMacros.h>
 #include <Carbon/Carbon.h>
 #include <string>
 
@@ -109,6 +110,54 @@ void RemoveFromLoginItems();
 // Returns true if the current process was automatically launched as a
 // 'Login Item' with 'hide on startup' flag. Used to suppress opening windows.
 bool WasLaunchedAsHiddenLoginItem();
+
+// Run-time OS version checks. Use these instead of
+// base::SysInfo::OperatingSystemVersionNumbers. Prefer the "OrEarlier" and
+// "OrLater" variants to those that check for a specific version, unless you
+// know for sure that you need to check for a specific version.
+
+// Leopard is Mac OS X 10.5, Darwin 9.
+bool IsOSLeopard();
+bool IsOSLeopardOrEarlier();
+
+// Snow Leopard is Mac OS X 10.6, Darwin 10.
+bool IsOSSnowLeopard();
+bool IsOSSnowLeopardOrEarlier();
+bool IsOSSnowLeopardOrLater();
+
+// Lion is Mac OS X 10.7, Darwin 11.
+bool IsOSLion();
+bool IsOSLionOrLater();
+
+// This should be infrequently used. It only makes sense to use this to avoid
+// codepaths that are very likely to break on future (unreleased, untested,
+// unborn) OS releases.
+bool IsOSLaterThanLion();
+
+// When the deployment target is set, the code produced cannot run on earlier
+// OS releases. That enables some of the IsOS* family to be implemented as
+// constant-value inline functions. The MAC_OS_X_VERSION_MIN_REQUIRED macro
+// contains the value of the deployment target.
+
+#if defined(MAC_OS_X_VERSION_10_6) && \
+    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
+#define BASE_MAC_MAC_UTIL_H_INLINED_GE_10_6
+inline bool IsOSLeopardOrEarlier() { return false; }
+inline bool IsOSSnowLeopardOrLater() { return true; }
+#endif
+
+#if defined(MAC_OS_X_VERSION_10_7) && \
+    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7
+#define BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7
+inline bool IsOSSnowLeopardOrEarlier() { return false; }
+inline bool IsOSLionOrLater() { return true; }
+#endif
+
+#if defined(MAC_OS_X_VERSION_10_7) && \
+    MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_7
+#define BASE_MAC_MAC_UTIL_H_INLINED_GT_10_7
+inline bool IsOSLaterThanLion() { return true; }
+#endif
 
 }  // namespace mac
 }  // namespace base
