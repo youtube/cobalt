@@ -566,9 +566,11 @@ enum {
 
 }  // namespace
 
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_6)
 bool IsOSLeopard() {
   return MacOSXMinorVersion() == LEOPARD_MINOR_VERSION;
 }
+#endif
 
 #if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_6)
 bool IsOSLeopardOrEarlier() {
@@ -576,9 +578,11 @@ bool IsOSLeopardOrEarlier() {
 }
 #endif
 
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7)
 bool IsOSSnowLeopard() {
   return MacOSXMinorVersion() == SNOW_LEOPARD_MINOR_VERSION;
 }
+#endif
 
 #if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7)
 bool IsOSSnowLeopardOrEarlier() {
@@ -592,9 +596,11 @@ bool IsOSSnowLeopardOrLater() {
 }
 #endif
 
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GT_10_7)
 bool IsOSLion() {
   return MacOSXMinorVersion() == LION_MINOR_VERSION;
 }
+#endif
 
 #if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7)
 bool IsOSLionOrLater() {
