@@ -24,12 +24,14 @@
 // We need this to declare base::MessagePumpWin::Dispatcher, which we should
 // really just eliminate.
 #include "base/message_pump_win.h"
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) && !defined(__LB_PS3__)
 #include "base/message_pump_libevent.h"
-#if !defined(OS_MACOSX)
+#if !defined(OS_MACOSX) 
 #include "base/message_pump_glib.h"
 typedef struct _XDisplay Display;
 #endif
+#elif defined(__LB_PS3__)
+#include "base/message_pump_ps3.h"
 #endif
 #if defined(TOUCH_UI)
 #include "base/message_pump_glib_x_dispatch.h"
@@ -83,7 +85,10 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 #elif defined(TOUCH_UI)
   typedef base::MessagePumpGlibXDispatcher Dispatcher;
   typedef base::MessagePumpXObserver Observer;
-#elif !defined(OS_MACOSX)
+#elif !defined(OS_MACOSX) && !defined(__LB_PS3__)
+  typedef base::MessagePumpForUI::Dispatcher Dispatcher;
+  typedef base::MessagePumpForUI::Observer Observer;
+#elif defined(__LB_PS3__)
   typedef base::MessagePumpForUI::Dispatcher Dispatcher;
   typedef base::MessagePumpForUI::Observer Observer;
 #endif
@@ -433,7 +438,7 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   base::MessagePumpWin* pump_win() {
     return static_cast<base::MessagePumpWin*>(pump_.get());
   }
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) && !defined(__LB_PS3__)
   base::MessagePumpLibevent* pump_libevent() {
     return static_cast<base::MessagePumpLibevent*>(pump_.get());
   }
@@ -632,7 +637,7 @@ class BASE_API MessageLoopForIO : public MessageLoop {
   typedef base::MessagePumpForIO::IOHandler IOHandler;
   typedef base::MessagePumpForIO::IOContext IOContext;
   typedef base::MessagePumpForIO::IOObserver IOObserver;
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) && !defined(__LB_PS3__)
   typedef base::MessagePumpLibevent::Watcher Watcher;
   typedef base::MessagePumpLibevent::FileDescriptorWatcher
       FileDescriptorWatcher;
@@ -643,7 +648,16 @@ class BASE_API MessageLoopForIO : public MessageLoop {
     WATCH_WRITE = base::MessagePumpLibevent::WATCH_WRITE,
     WATCH_READ_WRITE = base::MessagePumpLibevent::WATCH_READ_WRITE
   };
+#elif defined(__LB_PS3__)
+   typedef base::MessagePumpForIO::IOObserver IOObserver;
+   typedef base::MessagePumpForIO::Watcher Watcher;
+   typedef base::MessagePumpForIO::FileDescriptorWatcher FileDescriptorWatcher;
 
+  enum Mode {
+    WATCH_READ = base::MessagePumpForIO::WATCH_READ,
+    WATCH_WRITE = base::MessagePumpForIO::WATCH_WRITE,
+    WATCH_READ_WRITE = base::MessagePumpForIO::WATCH_READ_WRITE
+  };
 #endif
 
   MessageLoopForIO() : MessageLoop(TYPE_IO) {
@@ -675,7 +689,7 @@ class BASE_API MessageLoopForIO : public MessageLoop {
     return static_cast<base::MessagePumpForIO*>(pump_.get());
   }
 
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) && !defined(__LB_PS3__)
   // Please see MessagePumpLibevent for definition.
   bool WatchFileDescriptor(int fd,
                            bool persistent,
@@ -687,7 +701,18 @@ class BASE_API MessageLoopForIO : public MessageLoop {
   base::MessagePumpLibevent* pump_io() {
     return static_cast<base::MessagePumpLibevent*>(pump_.get());
   }
-#endif  // defined(OS_POSIX)
+#elif defined(__LB_PS3__)
+  bool WatchSocket(int s,
+                   bool persistent, 
+                   Mode mode, 
+                   FileDescriptorWatcher *controller,
+                   Watcher *del);
+
+ protected:
+  base::MessagePumpForIO* pump_io() {
+    return static_cast<base::MessagePumpForIO*>(pump_.get());
+  }
+#endif  // defined(OS_*)
 };
 
 // Do not add any member variables to MessageLoopForIO!  This is important b/c
