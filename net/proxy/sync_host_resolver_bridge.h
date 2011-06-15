@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/memory/scoped_ptr.h"
-#include "net/base/host_resolver.h"
+#include "net/proxy/sync_host_resolver.h"
 
 class MessageLoop;
 
@@ -15,22 +15,16 @@ namespace net {
 
 // Wrapper around HostResolver to give a sync API while running the resolver
 // in async mode on |host_resolver_loop|.
-class NET_TEST SyncHostResolverBridge : public HostResolver {
+class NET_TEST SyncHostResolverBridge : public SyncHostResolver {
  public:
   SyncHostResolverBridge(HostResolver* host_resolver,
                          MessageLoop* host_resolver_loop);
 
   virtual ~SyncHostResolverBridge();
 
-  // HostResolver methods:
-  virtual int Resolve(const RequestInfo& info,
-                      AddressList* addresses,
-                      CompletionCallback* callback,
-                      RequestHandle* out_req,
-                      const BoundNetLog& net_log);
-  virtual void CancelRequest(RequestHandle req);
-  virtual void AddObserver(Observer* observer);
-  virtual void RemoveObserver(Observer* observer);
+  // SyncHostResolver methods:
+  virtual int Resolve(const HostResolver::RequestInfo& info,
+                      AddressList* addresses);
 
   // The Shutdown() method should be called prior to destruction, from
   // |host_resolver_loop_|. It aborts any in progress synchronous resolves, to

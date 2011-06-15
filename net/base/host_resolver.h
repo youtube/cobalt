@@ -189,9 +189,6 @@ class NET_API HostResolver {
   // additional functionality on the about:net-internals page.
   virtual HostResolverImpl* GetAsHostResolverImpl();
 
-  // Does additional cleanup prior to destruction.
-  virtual void Shutdown() {}
-
  protected:
   HostResolver();
 

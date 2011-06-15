@@ -12,6 +12,7 @@
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_v8.h"
+#include "net/proxy/sync_host_resolver.h"
 #include "net/test/test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -20,6 +21,16 @@
 #elif defined(OS_MACOSX)
 #include "net/proxy/proxy_resolver_mac.h"
 #endif
+
+class MockSyncHostResolver : public net::SyncHostResolver {
+ public:
+  virtual int Resolve(const net::HostResolver::RequestInfo& info,
+                      net::AddressList* addresses) {
+    return net::ERR_NAME_NOT_RESOLVED;
+  }
+
+  virtual void Shutdown() {}
+};
 
 // This class holds the URL to use for resolving, and the expected result.
 // We track the expected result in order to make sure the performance
@@ -193,7 +204,7 @@ TEST(ProxyResolverPerfTest, ProxyResolverMac) {
 TEST(ProxyResolverPerfTest, ProxyResolverV8) {
   net::ProxyResolverJSBindings* js_bindings =
       net::ProxyResolverJSBindings::CreateDefault(
-          new net::MockHostResolver, NULL, NULL);
+          new MockSyncHostResolver, NULL, NULL);
 
   net::ProxyResolverV8 resolver(js_bindings);
   PacPerfSuiteRunner runner(&resolver, "ProxyResolverV8");
