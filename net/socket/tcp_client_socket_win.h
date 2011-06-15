@@ -8,7 +8,7 @@
 
 #include <winsock2.h>
 
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"

@@ -4,8 +4,10 @@
 
 #include "net/socket/tcp_server_socket.h"
 
+#include <string>
+
 #include "base/compiler_specific.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/address_list.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
