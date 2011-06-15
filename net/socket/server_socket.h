@@ -5,7 +5,7 @@
 #ifndef NET_SOCKET_SERVER_SOCKET_H_
 #define NET_SOCKET_SERVER_SOCKET_H_
 
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_api.h"
 
@@ -37,4 +37,4 @@ class NET_API ServerSocket {
 
 }  // namespace net
 
-#endif  // NET_SOCKET_TCP_SERVER_SOCKET_H_
+#endif  // NET_SOCKET_SERVER_SOCKET_H_
