@@ -18,6 +18,8 @@
 #include <event.h>
 #elif defined(__LB_PS3__)
 // __LB_PS3__FIX_ME__
+#include <sys/types.h>
+#include <sys/socket.h>
 #else
 #include "third_party/libevent/event.h"
 #endif
@@ -251,6 +253,8 @@ void ListenSocket::CloseSocket(SOCKET s) {
     UnwatchSocket();
 #if defined(OS_WIN)
     closesocket(s);
+#elif defined(__LB_PS3__)
+    socketclose(s);
 #elif defined(OS_POSIX)
     close(s);
 #endif
@@ -261,6 +265,9 @@ void ListenSocket::WatchSocket(WaitState state) {
 #if defined(OS_WIN)
   WSAEventSelect(socket_, socket_event_, FD_ACCEPT | FD_CLOSE | FD_READ);
   watcher_.StartWatching(socket_event_, this);
+#elif defined(__LB_PS3__)
+  MessageLoopForIO::current()->WatchSocket(
+    socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);
 #elif defined(OS_POSIX)
   // Implicitly calls StartWatchingFileDescriptor().
   MessageLoopForIO::current()->WatchFileDescriptor(
