@@ -193,7 +193,8 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
         new NetworkDelegateErrorObserver(
             network_delegate_, origin_loop_.get());
 
-    // ProxyResolverJSBindings takes ownership of |error_observer|.
+    // ProxyResolverJSBindings takes ownership of |error_observer| and
+    // |sync_host_resolver|.
     ProxyResolverJSBindings* js_bindings =
         ProxyResolverJSBindings::CreateDefault(
             sync_host_resolver, net_log_, error_observer);
