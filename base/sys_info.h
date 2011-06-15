@@ -54,13 +54,6 @@ class BASE_API SysInfo {
   // across platforms.
   static std::string CPUArchitecture();
 
-  // Returns the pixel dimensions of the primary display via the
-  // width and height parameters.
-  static void GetPrimaryDisplayDimensions(int* width, int* height);
-
-  // Return the number of displays.
-  static int DisplayCount();
-
   // Return the smallest amount of memory (in bytes) which the VM system will
   // allocate.
   static size_t VMAllocationGranularity();
