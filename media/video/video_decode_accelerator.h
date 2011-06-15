@@ -229,14 +229,17 @@ class VideoDecodeAccelerator {
   };
 
   // Video decoder functions.
+
   // GetConfigs returns the supported configurations that is a subset of the
-  // given |requested_configs|.
+  // given |requested_configs|.  Unrecognized or malformed |requested_configs|
+  // elements return false and represent a failure; the client must not pass
+  // unknown request elements to Initialize.
   // Parameters:
   //  |requested_configs| is the set of configurations the plugin is querying
   //  for support.
   //  |matched_configs| is the subset of |requested_configs| that the decoder
   //  supports.
-  virtual void GetConfigs(
+  virtual bool GetConfigs(
       const std::vector<uint32>& requested_configs,
       std::vector<uint32>* matched_configs) = 0;
 
