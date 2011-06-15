@@ -50,6 +50,13 @@ function __ontimeout() {
     window.gc();
   }
 
+  var timings = __tl;
+  var oldTimings = __get_timings();
+  if (oldTimings != "") {
+    timings = oldTimings + "," + timings;
+  }
+  __set_timings(timings);
+
   var ts = (new Date()).getTime();
   var tlag = (ts - __te) - __TIMEOUT;
   if (tlag > 0)
@@ -57,16 +64,10 @@ function __ontimeout() {
   if (__cycle == (__pages().length * __iterations)) {
     document.cookie = "__pc_done=1; path=/";
     doc = "../../common/report.html";
+    if (window.console) console.log("times: [" + __get_timings() + "]");
   } else {
-    doc = "../" + __pages()[__page] + "/index.html"
+    doc = "../" + __pages()[__page] + "/index.html";
   }
-
-  var timings = __tl;
-  var oldTimings = __get_timings();
-  if (oldTimings != "") {
-    timings = oldTimings + "," + timings;
-  }
-  __set_timings(timings);
 
   var url = doc + "?n=" + __iterations + "&i=" + __cycle + "&p=" + __page +
             "&ts=" + ts + "&td=" + __td + "&tf=" + __tf;
