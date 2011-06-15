@@ -7,9 +7,12 @@
 #include "base/threading/thread_restrictions.h"
 #include "media/base/limits.h"
 
-namespace media {
+namespace {
+const int kMaxInputChannels = 2;
+const int kTimerResetInterval = 1; // One second.
+}
 
-static const int kMaxInputChannels = 2;
+namespace media {
 
 // static
 AudioInputController::Factory* AudioInputController::factory_ = NULL;
@@ -18,6 +21,10 @@ AudioInputController::AudioInputController(EventHandler* handler,
                                            SyncWriter* sync_writer)
     : handler_(handler),
       stream_(NULL),
+      ALLOW_THIS_IN_INITIALIZER_LIST(no_data_timer_(
+          base::TimeDelta::FromSeconds(kTimerResetInterval),
+          this,
+          &AudioInputController::DoReportNoDataError)),
       state_(kEmpty),
       thread_("AudioInputControllerThread"),
       sync_writer_(sync_writer) {
@@ -123,6 +130,9 @@ void AudioInputController::DoCreate(AudioParameters params) {
     return;
   }
 
+  thread_.message_loop()->PostTask(
+      FROM_HERE,
+      NewRunnableMethod(this, &AudioInputController::DoResetNoDataTimer));
   state_ = kCreated;
   handler_->OnCreated(this);
 }
@@ -168,6 +178,16 @@ void AudioInputController::DoReportError(int code) {
   handler_->OnError(this, code);
 }
 
+void AudioInputController::DoReportNoDataError() {
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  handler_->OnError(this, 0);
+}
+
+void AudioInputController::DoResetNoDataTimer() {
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  no_data_timer_.Reset();
+}
+
 void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
                                   uint32 size) {
   {
@@ -175,6 +195,10 @@ void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
     if (state_ != kRecording)
       return;
   }
+
+  thread_.message_loop()->PostTask(
+      FROM_HERE,
+      NewRunnableMethod(this, &AudioInputController::DoResetNoDataTimer));
 
   // Use SyncSocket if we are in a low-latency mode.
   if (LowLatencyMode()) {

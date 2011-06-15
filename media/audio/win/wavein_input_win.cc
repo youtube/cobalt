@@ -8,11 +8,14 @@
 #include <mmsystem.h>
 #pragma comment(lib, "winmm.lib")
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
+
+namespace {
+const int kStopInputStreamCallbackTimeout = 3000; // Three seconds.
+}
 
 // Our sound buffers are allocated once and kept in a linked list using the
 // the WAVEHDR::dwUser variable. The last buffer points to the first buffer.
@@ -130,7 +133,8 @@ void PCMWaveInAudioInputStream::Stop() {
     return;
   state_ = kStateStopping;
   // Wait for the callback to finish, it will signal us when ready to be reset.
-  if (WAIT_OBJECT_0 != ::WaitForSingleObject(stopped_event_, INFINITE)) {
+  if (WAIT_OBJECT_0 !=
+      ::WaitForSingleObject(stopped_event_, kStopInputStreamCallbackTimeout)) {
     HandleError(::GetLastError());
     return;
   }
