@@ -16,6 +16,7 @@
 #include "net/base/sys_addrinfo.h"
 #include "net/proxy/proxy_resolver_error_observer.h"
 #include "net/proxy/proxy_resolver_request_context.h"
+#include "net/proxy/sync_host_resolver.h"
 
 namespace net {
 
@@ -65,7 +66,7 @@ class AlertNetlogParams : public NetLog::EventParameters {
 // ProxyResolverJSBindings implementation.
 class DefaultJSBindings : public ProxyResolverJSBindings {
  public:
-  DefaultJSBindings(HostResolver* host_resolver,
+  DefaultJSBindings(SyncHostResolver* host_resolver,
                     NetLog* net_log,
                     ProxyResolverErrorObserver* error_observer)
       : host_resolver_(host_resolver),
@@ -255,9 +256,8 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
       }
     }
 
-    // Otherwise ask the resolver.
-    int result = host_resolver_->Resolve(info, address_list, NULL, NULL,
-                                         BoundNetLog());
+    // Otherwise ask the host resolver.
+    int result = host_resolver_->Resolve(info, address_list);
 
     // Save the result back to the per-request DNS cache.
     if (host_cache) {
@@ -292,16 +292,17 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     }
   }
 
-  HostResolver* const host_resolver_;
+  scoped_ptr<SyncHostResolver> host_resolver_;
   NetLog* net_log_;
   scoped_ptr<ProxyResolverErrorObserver> error_observer_;
+  DISALLOW_COPY_AND_ASSIGN(DefaultJSBindings);
 };
 
 }  // namespace
 
 // static
 ProxyResolverJSBindings* ProxyResolverJSBindings::CreateDefault(
-    HostResolver* host_resolver,
+    SyncHostResolver* host_resolver,
     NetLog* net_log,
     ProxyResolverErrorObserver* error_observer) {
   return new DefaultJSBindings(host_resolver, net_log, error_observer);

@@ -1085,7 +1085,6 @@ HostResolverImpl::HostResolverImpl(
       next_job_id_(0),
       resolver_proc_(resolver_proc),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
-      shutdown_(false),
       ipv6_probe_monitoring_(false),
       additional_resolver_flags_(0),
       net_log_(net_log) {
@@ -1153,9 +1152,6 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
                               RequestHandle* out_req,
                               const BoundNetLog& source_net_log) {
   DCHECK(CalledOnValidThread());
-
-  if (shutdown_)
-    return ERR_UNEXPECTED;
 
   // Choose a unique ID number for observers to see.
   int request_id = next_request_id_++;
@@ -1281,14 +1277,6 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
 // cancelled requests from Job::requests_.
 void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
   DCHECK(CalledOnValidThread());
-  if (shutdown_) {
-    // TODO(eroman): temp hack for: http://crbug.com/18373
-    // Because we destroy outstanding requests during Shutdown(),
-    // |req_handle| is already cancelled.
-    LOG(ERROR) << "Called HostResolverImpl::CancelRequest() after Shutdown().";
-    base::debug::StackTrace().PrintBacktrace();
-    return;
-  }
   Request* req = reinterpret_cast<Request*>(req_handle);
   DCHECK(req);
 
@@ -1342,16 +1330,6 @@ AddressFamily HostResolverImpl::GetDefaultAddressFamily() const {
 
 HostResolverImpl* HostResolverImpl::GetAsHostResolverImpl() {
   return this;
-}
-
-void HostResolverImpl::Shutdown() {
-  DCHECK(CalledOnValidThread());
-
-  // Cancel the outstanding jobs.
-  CancelAllJobs();
-  DiscardIPv6ProbeJob();
-
-  shutdown_ = true;
 }
 
 void HostResolverImpl::AddOutstandingJob(Job* job) {
@@ -1637,9 +1615,6 @@ void HostResolverImpl::OnIPAddressChanged() {
   if (cache_.get())
     cache_->clear();
   if (ipv6_probe_monitoring_) {
-    DCHECK(!shutdown_);
-    if (shutdown_)
-      return;
     DiscardIPv6ProbeJob();
     ipv6_probe_job_ = new IPv6ProbeJob(this);
     ipv6_probe_job_->Start();
