@@ -22,7 +22,7 @@
 #if defined(OS_MACOSX)
 #include "base/message_pump_mac.h"
 #endif
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_PS3__)
 #include "base/message_pump_libevent.h"
 #endif
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(__LB_PS3__)
@@ -32,6 +32,9 @@
 #endif
 #if defined(TOUCH_UI)
 #include "base/message_pump_glib_x.h"
+#endif
+#if defined(__LB_PS3__)
+#include "base/message_pump_ps3.h"
 #endif
 
 using base::TimeDelta;
@@ -169,7 +172,7 @@ MessageLoop::MessageLoop(Type type)
   lazy_tls_ptr.Pointer()->Set(this);
 
 // TODO(rvargas): Get rid of the OS guards.
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(__LB_PS3__)
 #define MESSAGE_PUMP_UI new base::MessagePumpForUI()
 #define MESSAGE_PUMP_IO new base::MessagePumpForIO()
 #elif defined(OS_MACOSX)
@@ -852,6 +855,24 @@ void MessageLoopForIO::RegisterIOHandler(HANDLE file, IOHandler* handler) {
 
 bool MessageLoopForIO::WaitForIOCompletion(DWORD timeout, IOHandler* filter) {
   return pump_io()->WaitForIOCompletion(timeout, filter);
+}
+
+#elif defined(__LB_PS3__)
+
+bool MessageLoopForIO::WatchSocket(int s,
+                                   bool persistent,
+                                   Mode mode,
+                                   FileDescriptorWatcher *controller,
+                                   Watcher *del) {
+  return pump_io()->WatchSocket(
+    s,
+    persistent,
+    // __LB_PS3__FIX_ME__
+    // these are the same type, see the typedefs in message_loop.h
+    // this old-school cast is the only way I can get this to compile
+    (base::MessagePumpForIO::Mode)mode,
+    (base::MessagePumpForIO::FileDescriptorWatcher*)controller,
+    (base::MessagePumpForIO::Watcher*)del);
 }
 
 #elif defined(OS_POSIX) && !defined(OS_NACL)
