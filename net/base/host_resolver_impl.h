@@ -148,9 +148,6 @@ class NET_API HostResolverImpl
 
   virtual HostResolverImpl* GetAsHostResolverImpl();
 
-  // TODO(eroman): hack for http://crbug.com/15513
-  virtual void Shutdown();
-
  private:
   // Allow tests to access our innards for testing purposes.
   friend class LookupAttemptHostResolverProc;
@@ -324,9 +321,6 @@ class NET_API HostResolverImpl
 
   // Address family to use when the request doesn't specify one.
   AddressFamily default_address_family_;
-
-  // TODO(eroman): hack for http://crbug.com/15513
-  bool shutdown_;
 
   // Indicate if probing is done after each network change event to set address
   // family.
