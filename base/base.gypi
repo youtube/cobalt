@@ -159,6 +159,8 @@
           'message_pump_default.h',
           'message_pump_win.cc',
           'message_pump_win.h',
+          'message_pump_ps3.cc',
+          'message_pump_ps3.h',
           'metrics/histogram.cc',
           'metrics/histogram.h',
           'metrics/nacl_histogram.cc',
@@ -382,6 +384,7 @@
               'process_posix.cc',
               'string16.cc',
               'message_pump_libevent.cc',
+              'message_pump_libevent.h',
               'file_descriptor_shuffle.cc',
               'sync_socket_posix.cc',
               'process_util_posix.cc',
@@ -389,6 +392,7 @@
               'files/file_path_watcher.cc',
               'files/file_path_watcher_stub.cc',
               'third_party/nspr/prtime.cc',
+              'metrics/stats_table.cc'
             ],
             'sources': [
               'atomicops_internals_cell_ppu.h',
@@ -400,6 +404,10 @@
               'sync_socket_ps3.cc',
               'process_util_ps3.cc',
               'file_util_ps3.cc',
+              'message_pump_ps3.cc',
+              'message_pump_ps3.h',
+              'sys_string_conversions_ps3.cc',
+              'metrics/stats_table_ps3.cc'
             ]
           }],
           [ 'OS != "linux"', {
@@ -480,20 +488,6 @@
         ],
       },
       'conditions': [
-        ['OS=="cell_lv2"', {
-          'sources!': [
-            'third_party/purify/pure_api.c',
-            'base_drag_source.cc',
-            'base_drop_target.cc',
-            'event_recorder.cc',
-            'file_version_info.cc',
-            'registry.cc',
-            'resource_util.cc',
-            'win_util.cc'
-          ]
-        }, { # OS != "cell_lv2"
-          'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],          
-        }],
         [ 'toolkit_uses_gtk==1', {
           'conditions': [
             [ 'chromeos==1', {
@@ -602,6 +596,21 @@
             }],
           ],
         }],
+        ['OS=="cell_lv2"', {
+          'sources!': [
+            'third_party/purify/pure_api.c',
+            'base_drag_source.cc',
+            'base_drop_target.cc',
+            'event_recorder.cc',
+            'file_version_info.cc',
+            'registry.cc',
+            'resource_util.cc',
+            'win_util.cc',
+            'file_descriptor_shuffle.cc'
+          ]
+        }, { # OS != "cell_lv2"
+          'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],          
+        }]
       ],
       'sources': [
         'third_party/nspr/prcpucfg.h',

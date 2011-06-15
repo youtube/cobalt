@@ -116,7 +116,10 @@ bool Time::FromString(const wchar_t* time_string, Time* parsed_time) {
   return true;
 }
 #else
-// __LB_PS3__WRITE_ME__
+bool Time::FromString(const wchar_t * time_string, Time* parsed_time) {
+  // __LB_PS3__WRITE_ME__
+  return false;
+}
 #endif
 
 // Time::Exploded -------------------------------------------------------------
