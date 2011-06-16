@@ -13,7 +13,11 @@
 #include "net/base/net_log.h"
 #include "net/base/cookie_store.h"
 #include "net/base/io_buffer.h"
+#include "net/http/http_network_session.h"
+#include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
+#include "net/spdy/spdy_session.h"
+#include "net/spdy/spdy_session_pool.h"
 #include "net/url_request/url_request_context.h"
 #include "net/websockets/websocket_frame_handler.h"
 #include "net/websockets/websocket_handshake_handler.h"
@@ -110,7 +114,8 @@ bool WebSocketJob::SendData(const char* data, int len) {
         // pending bytes less than max_pending_send_allowed, so when sending
         // larger message than max_pending_send_allowed should not be buffered.
         // If we don't call OnSentData, WebCore::SocketStreamHandle would stop
-        // sending more data when pending data reaches max_pending_send_allowed.
+        // sending more data when pending data reaches
+        // max_pending_send_allowed.
         // TODO(ukai): Fix this to support compression for larger message.
         int err = 0;
         if (!send_frame_handler_->GetCurrentBuffer() &&
@@ -119,7 +124,7 @@ bool WebSocketJob::SendData(const char* data, int len) {
           current_buffer_ = new DrainableIOBuffer(
               send_frame_handler_->GetCurrentBuffer(),
               send_frame_handler_->GetCurrentBufferSize());
-          return socket_->SendData(
+          return SendDataInternal(
               current_buffer_->data(), current_buffer_->BytesRemaining());
         }
         return err >= 0;
@@ -139,7 +144,7 @@ void WebSocketJob::Close() {
     return;
   }
   state_ = CLOSED;
-  socket_->Close();
+  CloseInternal();
 }
 
 void WebSocketJob::RestartWithAuth(
@@ -173,11 +178,14 @@ int WebSocketJob::OnStartOpenConnection(
   state_ = CONNECTING;
   addresses_ = socket->address_list();
   WebSocketThrottle::GetInstance()->PutInQueue(this);
-  if (!waiting_)
-    return OK;
+  if (!waiting_) {
+    int result = TrySpdyStream();
+    if (result != ERR_IO_PENDING)
+      return result;
+  }
   callback_ = callback;
   AddRef();  // Balanced when callback_ becomes NULL.
-  return ERR_IO_PENDING;
+  return ERR_IO_PENDING;  // Wakeup will be called later.
 }
 
 void WebSocketJob::OnConnected(
@@ -440,6 +448,33 @@ const AddressList& WebSocketJob::address_list() const {
   return addresses_;
 }
 
+int WebSocketJob::TrySpdyStream() {
+  if (!socket_.get())
+    return ERR_FAILED;
+
+  if (websocket_over_spdy_enabled_) {
+    // Check if we have a SPDY session available.
+    // If so, use it to create the websocket stream.
+    HttpTransactionFactory* factory =
+        socket_->context()->http_transaction_factory();
+    if (factory) {
+      scoped_refptr<HttpNetworkSession> session = factory->GetSession();
+      if (session.get()) {
+        SpdySessionPool* spdy_pool = session->spdy_session_pool();
+        const HostPortProxyPair pair(HostPortPair::FromURL(socket_->url()),
+                                     socket_->proxy_server());
+        if (spdy_pool->HasSession(pair)) {
+          // TODO(toyoshim): Switch to SpdyWebSocketStream here by returning
+          // ERR_PROTOCOL_SWITCHED.
+        }
+      }
+    }
+  }
+  // No SPDY session was available.
+  // Fallback to connecting a new socket.
+  return OK;
+}
+
 void WebSocketJob::SetWaiting() {
   waiting_ = true;
 }
@@ -455,18 +490,28 @@ void WebSocketJob::Wakeup() {
   DCHECK(callback_);
   MessageLoopForIO::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this,
-                        &WebSocketJob::DoCallback));
+      NewRunnableMethod(this, &WebSocketJob::RetryPendingIO));
 }
 
-void WebSocketJob::DoCallback() {
+void WebSocketJob::RetryPendingIO() {
+  int result = TrySpdyStream();
   // |callback_| may be NULL if OnClose() or DetachDelegate() was called.
   if (callback_) {
     net::CompletionCallback* callback = callback_;
     callback_ = NULL;
-    callback->Run(net::OK);
+    callback->Run(result);
     Release();  // Balanced with OnStartOpenConnection().
   }
+}
+
+bool WebSocketJob::SendDataInternal(const char* data, int length) {
+  // TODO(toyoshim): Call protocol specific SendData().
+  return socket_->SendData(data, length);
+}
+
+void WebSocketJob::CloseInternal() {
+  // TODO(toyoshim): Call protocol specific Close().
+  socket_->Close();
 }
 
 void WebSocketJob::SendPending() {
@@ -477,13 +522,13 @@ void WebSocketJob::SendPending() {
   if (send_frame_handler_->UpdateCurrentBuffer(false) <= 0) {
     // No more data to send.
     if (state_ == CLOSING)
-      socket_->Close();
+      CloseInternal();
     return;
   }
   current_buffer_ = new DrainableIOBuffer(
       send_frame_handler_->GetCurrentBuffer(),
       send_frame_handler_->GetCurrentBufferSize());
-  socket_->SendData(current_buffer_->data(), current_buffer_->BytesRemaining());
+  SendDataInternal(current_buffer_->data(), current_buffer_->BytesRemaining());
 }
 
 }  // namespace net
