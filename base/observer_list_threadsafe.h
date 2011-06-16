@@ -148,9 +148,30 @@ class ObserverListThreadSafe
   }
 
   template <class Method, class A>
-  void Notify(Method m, const A &a) {
+  void Notify(Method m, const A& a) {
     UnboundMethod<ObserverType, Method, Tuple1<A> > method(m, MakeTuple(a));
     Notify<Method, Tuple1<A> >(method);
+  }
+
+  template <class Method, class A, class B>
+  void Notify(Method m, const A& a, const B& b) {
+    UnboundMethod<ObserverType, Method, Tuple2<A, B> > method(
+        m, MakeTuple(a, b));
+    Notify<Method, Tuple2<A, B> >(method);
+  }
+
+  template <class Method, class A, class B, class C>
+  void Notify(Method m, const A& a, const B& b, const C& c) {
+    UnboundMethod<ObserverType, Method, Tuple3<A, B, C> > method(
+        m, MakeTuple(a, b, c));
+    Notify<Method, Tuple3<A, B, C> >(method);
+  }
+
+  template <class Method, class A, class B, class C, class D>
+  void Notify(Method m, const A& a, const B& b, const C& c, const D& d) {
+    UnboundMethod<ObserverType, Method, Tuple4<A, B, C, D> > method(
+        m, MakeTuple(a, b, c, d));
+    Notify<Method, Tuple4<A, B, C, D> >(method);
   }
 
   // TODO(mbelshe):  Add more wrappers for Notify() with more arguments.
