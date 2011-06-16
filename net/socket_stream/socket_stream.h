@@ -159,6 +159,8 @@ class NET_API SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   // back.
   virtual void DetachDelegate();
 
+  const ProxyServer& proxy_server() const;
+
   // Sets an alternative HostResolver. For testing purposes only.
   void SetHostResolver(HostResolver* host_resolver);
 
