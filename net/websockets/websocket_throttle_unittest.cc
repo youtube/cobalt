@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket_stream/socket_stream.h"
+#include "net/url_request/url_request_test_util.h"
 #include "net/websockets/websocket_job.h"
 #include "net/websockets/websocket_throttle.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -64,6 +65,8 @@ class WebSocketThrottleTest : public PlatformTest {
   static void MockSocketStreamConnect(
       SocketStream* socket, struct addrinfo* head) {
     socket->CopyAddrInfo(head);
+    // TODO(toyoshim): We should introduce additional tests on cases via proxy.
+    socket->proxy_info_.UseDirect();
     // In SocketStream::Connect(), it adds reference to socket, which is
     // balanced with SocketStream::Finish() that is finally called from
     // SocketStream::Close() or SocketStream::DetachDelegate(), when
@@ -77,7 +80,11 @@ class WebSocketThrottleTest : public PlatformTest {
 };
 
 TEST_F(WebSocketThrottleTest, Throttle) {
+  scoped_refptr<URLRequestContext> context(new TestURLRequestContext);
   DummySocketStreamDelegate delegate;
+  // TODO(toyoshim): We need to consider both spdy-enabled and spdy-disabled
+  // configuration.
+  WebSocketJob::set_websocket_over_spdy_enabled(true);
 
   // For host1: 1.2.3.4, 1.2.3.5, 1.2.3.6
   struct addrinfo* addr = AddAddr(1, 2, 3, 4, NULL);
@@ -86,6 +93,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<WebSocketJob> w1(new WebSocketJob(&delegate));
   scoped_refptr<SocketStream> s1(
       new SocketStream(GURL("ws://host1/"), w1.get()));
+  s1->set_context(context.get());
   w1->InitSocketStream(s1.get());
   WebSocketThrottleTest::MockSocketStreamConnect(s1, addr);
   DeleteAddrInfo(addr);
@@ -106,6 +114,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<WebSocketJob> w2(new WebSocketJob(&delegate));
   scoped_refptr<SocketStream> s2(
       new SocketStream(GURL("ws://host2/"), w2.get()));
+  s2->set_context(context.get());
   w2->InitSocketStream(s2.get());
   WebSocketThrottleTest::MockSocketStreamConnect(s2, addr);
   DeleteAddrInfo(addr);
@@ -125,6 +134,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<WebSocketJob> w3(new WebSocketJob(&delegate));
   scoped_refptr<SocketStream> s3(
       new SocketStream(GURL("ws://host3/"), w3.get()));
+  s3->set_context(context.get());
   w3->InitSocketStream(s3.get());
   WebSocketThrottleTest::MockSocketStreamConnect(s3, addr);
   DeleteAddrInfo(addr);
@@ -144,6 +154,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<WebSocketJob> w4(new WebSocketJob(&delegate));
   scoped_refptr<SocketStream> s4(
       new SocketStream(GURL("ws://host4/"), w4.get()));
+  s4->set_context(context.get());
   w4->InitSocketStream(s4.get());
   WebSocketThrottleTest::MockSocketStreamConnect(s4, addr);
   DeleteAddrInfo(addr);
@@ -162,6 +173,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<WebSocketJob> w5(new WebSocketJob(&delegate));
   scoped_refptr<SocketStream> s5(
       new SocketStream(GURL("ws://host5/"), w5.get()));
+  s5->set_context(context.get());
   w5->InitSocketStream(s5.get());
   WebSocketThrottleTest::MockSocketStreamConnect(s5, addr);
   DeleteAddrInfo(addr);
@@ -180,6 +192,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<WebSocketJob> w6(new WebSocketJob(&delegate));
   scoped_refptr<SocketStream> s6(
       new SocketStream(GURL("ws://host6/"), w6.get()));
+  s6->set_context(context.get());
   w6->InitSocketStream(s6.get());
   WebSocketThrottleTest::MockSocketStreamConnect(s6, addr);
   DeleteAddrInfo(addr);
@@ -281,7 +294,9 @@ TEST_F(WebSocketThrottleTest, Throttle) {
 }
 
 TEST_F(WebSocketThrottleTest, NoThrottleForDuplicateAddress) {
+  scoped_refptr<URLRequestContext> context(new TestURLRequestContext);
   DummySocketStreamDelegate delegate;
+  WebSocketJob::set_websocket_over_spdy_enabled(true);
 
   // For localhost: 127.0.0.1, 127.0.0.1
   struct addrinfo* addr = AddAddr(127, 0, 0, 1, NULL);
@@ -289,6 +304,7 @@ TEST_F(WebSocketThrottleTest, NoThrottleForDuplicateAddress) {
   scoped_refptr<WebSocketJob> w1(new WebSocketJob(&delegate));
   scoped_refptr<SocketStream> s1(
       new SocketStream(GURL("ws://localhost/"), w1.get()));
+  s1->set_context(context.get());
   w1->InitSocketStream(s1.get());
   WebSocketThrottleTest::MockSocketStreamConnect(s1, addr);
   DeleteAddrInfo(addr);

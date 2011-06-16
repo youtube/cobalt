@@ -257,9 +257,10 @@ void SocketStream::CopyAddrInfo(struct addrinfo* head) {
 
 void SocketStream::DoClose() {
   closing_ = true;
-  // If next_state_ is STATE_TCP_CONNECT, it's waiting other socket establishing
-  // connection.  If next_state_ is STATE_AUTH_REQUIRED, it's waiting for
-  // restarting.  In these states, we'll close the SocketStream now.
+  // If next_state_ is STATE_TCP_CONNECT, it's waiting other socket
+  // establishing connection.  If next_state_ is STATE_AUTH_REQUIRED, it's
+  // waiting for restarting.  In these states, we'll close the SocketStream
+  // now.
   if (next_state_ == STATE_TCP_CONNECT || next_state_ == STATE_AUTH_REQUIRED) {
     DoLoop(ERR_ABORTED);
     return;
@@ -470,6 +471,14 @@ int SocketStream::DoResolveProxy() {
     return ERR_INVALID_ARGUMENT;
   }
 
+  // TODO(toyoshim): Check server advertisement of SPDY through the HTTP
+  // Alternate-Protocol header, then switch to SPDY if SPDY is available.
+  // Usually we already have a session to the SPDY server because JavaScript
+  // running WebSocket itself would be served by SPDY. But, in some situation
+  // (E.g. Used by Chrome Extensions or used for cross origin connection), this
+  // connection might be the first one. At that time, we should check
+  // Alternate-Protocol header here for ws:// or TLS NPN extension for wss:// .
+
   return proxy_service()->ResolveProxy(
       proxy_url_, &proxy_info_, &io_callback_, &pac_request_, net_log_);
 }
@@ -541,11 +550,18 @@ int SocketStream::DoResolveHostComplete(int result) {
     result = delegate_->OnStartOpenConnection(this, &io_callback_);
     if (result == ERR_IO_PENDING)
       metrics_->OnWaitConnection();
+    else if (result == ERR_PROTOCOL_SWITCHED)
+      // TODO(toyoshim): Add metrics events for protocol switch.
+      next_state_ = STATE_CLOSE;
   } else {
     next_state_ = STATE_CLOSE;
   }
   // TODO(ukai): if error occured, reconsider proxy after error.
   return result;
+}
+
+const ProxyServer& SocketStream::proxy_server() const {
+  return proxy_info_.proxy_server();
 }
 
 int SocketStream::DoTcpConnect(int result) {
@@ -852,6 +868,10 @@ int SocketStream::DoSSLConnectComplete(int result) {
       return OK;
     }
   }
+
+  // TODO(toyoshim): Upgrade to SPDY through TLS NPN extension if possible.
+  // If we use HTTPS and this is the first connection to the SPDY server,
+  // we should take care of TLS NPN extension here.
 
   if (result == OK)
     result = DidEstablishConnection();
