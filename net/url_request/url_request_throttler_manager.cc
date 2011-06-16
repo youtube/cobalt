@@ -89,9 +89,9 @@ void URLRequestThrottlerManager::AddToOptOutList(const std::string& host) {
   // In practice, this would almost never occur.
   if (opt_out_hosts_.find(host) == opt_out_hosts_.end()) {
     UMA_HISTOGRAM_COUNTS("Throttling.SiteOptedOut", 1);
-    if (base::FieldTrialList::TrialExists("ThrottlingEnabled")) {
+    if (base::FieldTrialList::TrialExists("HttpThrottlingEnabled")) {
       UMA_HISTOGRAM_COUNTS(base::FieldTrial::MakeName(
-          "Throttling.SiteOptedOut", "ThrottlingEnabled"), 1);
+          "Throttling.SiteOptedOut", "HttpThrottlingEnabled"), 1);
     }
 
     net_log_->EndEvent(
