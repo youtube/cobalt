@@ -21,7 +21,6 @@
       'include_dirs': [
         '..',
       ],
-      'msvs_guid': '6AE76406-B03B-11DD-94B1-80B556D89593',
       'sources': [
         'audio/audio_buffers_state.cc',
         'audio/audio_buffers_state.h',
@@ -363,7 +362,6 @@
     {
       'target_name': 'media_unittests',
       'type': 'executable',
-      'msvs_guid': 'C8C6183C-B03C-11DD-B471-DFD256D89593',
       'dependencies': [
         'media',
         'media_test_support',
@@ -474,7 +472,6 @@
     {
       'target_name': 'media_bench',
       'type': 'executable',
-      'msvs_guid': '45BC4F87-4604-4962-A751-7C7B29A080BF',
       'dependencies': [
         'media',
         '../base/base.gyp:base',
