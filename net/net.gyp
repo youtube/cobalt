@@ -838,7 +838,6 @@
         '../testing/gtest.gyp:gtest',
         '../third_party/zlib/zlib.gyp:zlib',
       ],
-      'msvs_guid': 'E99DA267-BE90-4F45-88A1-6919DB2C7567',
       'sources': [
         'base/address_list_unittest.cc',
         'base/backoff_entry_unittest.cc',
@@ -1070,7 +1069,6 @@
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
       ],
-      'msvs_guid': 'AAC78796-B9A2-4CD9-BF89-09B03E92BF73',
       'sources': [
         'base/cookie_monster_perftest.cc',
         'disk_cache/disk_cache_perftest.cc',
@@ -1107,7 +1105,6 @@
         '../base/base.gyp:base_i18n',
         '../build/temp_gyp/googleurl.gyp:googleurl',
       ],
-      'msvs_guid': 'E13045CD-7E1F-4A41-9B18-8D288B2E7B41',
       'sources': [
         'tools/tld_cleanup/tld_cleanup.cc',
       ],
@@ -1120,7 +1117,6 @@
         'net_test_support',
         '../base/base.gyp:base',
       ],
-      'msvs_guid': 'B0EE0599-2913-46A0-A847-A3EC813658D3',
       'sources': [
         'tools/crash_cache/crash_cache.cc',
       ],
@@ -1135,7 +1131,6 @@
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
       ],
-      'msvs_guid': '506F2468-6B1D-48E2-A67C-9D9C6BAC0EC5',
       'sources': [
         'tools/testserver/run_testserver.cc',
       ],
@@ -1212,7 +1207,6 @@
     {
       'target_name': 'net_resources',
       'type': 'none',
-      'msvs_guid': '8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942',
       'variables': {
         'grit_out_dir': '<(SHARED_INTERMEDIATE_DIR)/net',
       },
@@ -1237,7 +1231,6 @@
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
       ],
-      'msvs_guid': 'DABB8796-B9A2-4CD9-BF89-09B03E92B123',
       'sources': [
         'tools/fetch/fetch_client.cc',
       ],
@@ -1251,7 +1244,6 @@
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
       ],
-      'msvs_guid': 'DABB8796-B9A2-4CD9-BF89-09B03E92B124',
       'sources': [
         'tools/fetch/fetch_server.cc',
         'tools/fetch/http_listen_socket.cc',
@@ -1274,7 +1266,6 @@
         '../base/base.gyp:base',
         '../testing/gtest.gyp:gtest',
       ],
-      'msvs_guid': 'FCB894A4-CC6C-48C2-B495-52C80527E9BE',
       'sources': [
         'server/http_server.cc',
         'server/http_server.h',
