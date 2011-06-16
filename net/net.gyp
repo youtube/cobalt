@@ -167,6 +167,7 @@
         # TODO(tc): gnome-vfs? xdgmime? /etc/mime.types?
         'base/platform_mime_util_linux.cc',
         'base/platform_mime_util_mac.cc',
+        'base/platform_mime_util_ps3.cc',
         'base/platform_mime_util_win.cc',
         'base/registry_controlled_domain.cc',
         'base/registry_controlled_domain.h',
