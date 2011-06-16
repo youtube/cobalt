@@ -199,9 +199,10 @@ bool URLRequestThrottlerEntry::IsDuringExponentialBackoff() const {
   int reject_count = reject_request ? 1 : 0;
   UMA_HISTOGRAM_ENUMERATION(
       "Throttling.RequestThrottled", reject_count, 2);
-  if (base::FieldTrialList::TrialExists("ThrottlingEnabled")) {
+  if (base::FieldTrialList::TrialExists("HttpThrottlingEnabled")) {
     UMA_HISTOGRAM_ENUMERATION(base::FieldTrial::MakeName(
-        "Throttling.RequestThrottled", "ThrottlingEnabled"), reject_count, 2);
+        "Throttling.RequestThrottled", "HttpThrottlingEnabled"),
+        reject_count, 2);
   }
 
   return reject_request;
@@ -367,10 +368,10 @@ void URLRequestThrottlerEntry::HandleCustomRetryAfter(
   UMA_HISTOGRAM_CUSTOM_TIMES(
       "Throttling.CustomRetryAfterMs", value,
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromHours(12), 50);
-  if (base::FieldTrialList::TrialExists("ThrottlingEnabled")) {
+  if (base::FieldTrialList::TrialExists("HttpThrottlingEnabled")) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
         base::FieldTrial::MakeName("Throttling.CustomRetryAfterMs",
-                                   "ThrottlingEnabled"), value,
+                                   "HttpThrottlingEnabled"), value,
         base::TimeDelta::FromSeconds(1), base::TimeDelta::FromHours(12), 50);
   }
 }
@@ -393,10 +394,10 @@ void URLRequestThrottlerEntry::HandleMetricsTracking(int response_code) {
   // to make sure we count only the responses seen by throttling.
   // TODO(joi): Remove after experiment.
   UMA_HISTOGRAM_ENUMERATION("Throttling.HttpResponseCode", response_code, 600);
-  if (base::FieldTrialList::TrialExists("ThrottlingEnabled")) {
+  if (base::FieldTrialList::TrialExists("HttpThrottlingEnabled")) {
     UMA_HISTOGRAM_ENUMERATION(
         base::FieldTrial::MakeName("Throttling.HttpResponseCode",
-                                   "ThrottlingEnabled"),
+                                   "HttpThrottlingEnabled"),
         response_code, 600);
   }
 
@@ -419,12 +420,12 @@ void URLRequestThrottlerEntry::HandleMetricsTracking(int response_code) {
           base::TimeDelta::FromMilliseconds(10),
           base::TimeDelta::FromHours(6), 50);
 
-      if (base::FieldTrialList::TrialExists("ThrottlingEnabled")) {
+      if (base::FieldTrialList::TrialExists("HttpThrottlingEnabled")) {
         UMA_HISTOGRAM_COUNTS(base::FieldTrial::MakeName(
-            "Throttling.FailureCountAtSuccess", "ThrottlingEnabled"),
+            "Throttling.FailureCountAtSuccess", "HttpThrottlingEnabled"),
             failure_count);
         UMA_HISTOGRAM_CUSTOM_TIMES(base::FieldTrial::MakeName(
-            "Throttling.PerceivedDowntime", "ThrottlingEnabled"), down_time,
+            "Throttling.PerceivedDowntime", "HttpThrottlingEnabled"), down_time,
             base::TimeDelta::FromMilliseconds(10),
             base::TimeDelta::FromHours(6), 50);
       }

@@ -369,7 +369,9 @@ size_t FieldTrialList::GetFieldTrialCount() {
 
 // static
 bool FieldTrialList::IsOneTimeRandomizationEnabled() {
-  DCHECK(global_);
+  // TODO(joi): Put back a DCHECK(global_) here.  First, need to make sure all
+  // unit test executables have exactly one FieldTrialList instance (currently
+  // they have 0 or 1).
   if (!global_)
     return false;
 
