@@ -118,7 +118,9 @@ static const MimeInfo secondary_mappings[] = {
   { "application/rdf+xml", "rdf" },
   { "text/xml", "xsl,xbl" },
   { "application/vnd.mozilla.xul+xml", "xul" },
-  { "application/x-shockwave-flash", "swf,swl" }
+  { "application/x-shockwave-flash", "swf,swl" },
+  { "application/pkcs7-mime", "p7m,p7c,p7z" },
+  { "application/pkcs7-signature", "p7s" }
 };
 
 static const char* FindMimeType(const MimeInfo* mappings,
