@@ -289,7 +289,6 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
 
   if (SdchManager::Global() &&
       SdchManager::Global()->IsInSupportedDomain(request_->url())) {
-    static const std::string name = "Get-Dictionary";
     std::string url_text;
     void* iter = NULL;
     // TODO(jar): We need to not fetch dictionaries the first time they are
@@ -298,7 +297,8 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
     // require multiple suggestions before we get additional ones for this site.
     // Eventually we should wait until a dictionary is requested several times
     // before we even download it (so that we don't waste memory or bandwidth).
-    if (response_info_->headers->EnumerateHeader(&iter, name, &url_text)) {
+    if (response_info_->headers->EnumerateHeader(&iter, "Get-Dictionary",
+                                                 &url_text)) {
       // request_->url() won't be valid in the destructor, so we use an
       // alternate copy.
       DCHECK_EQ(request_->url(), request_info_.url);
