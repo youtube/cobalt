@@ -248,6 +248,10 @@ NET_ERROR(DNS_SERVER_REQUIRES_TCP, -144)
 //     operation for policy reasons.
 NET_ERROR(DNS_SERVER_FAILED, -145)
 
+// Connection was aborted for switching to another ptotocol.
+// WebSocket abort SocketStream connection when alternate protocol is found.
+NET_ERROR(PROTOCOL_SWITCHED, -146)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.

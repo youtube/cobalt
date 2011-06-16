@@ -62,17 +62,13 @@ class NET_API WebSocketJob
   // SocketStream::Delegate methods.
   virtual int OnStartOpenConnection(
       SocketStream* socket, CompletionCallback* callback);
-  virtual void OnConnected(
-      SocketStream* socket, int max_pending_send_allowed);
-  virtual void OnSentData(
-      SocketStream* socket, int amount_sent);
-  virtual void OnReceivedData(
-      SocketStream* socket, const char* data, int len);
+  virtual void OnConnected(SocketStream* socket, int max_pending_send_allowed);
+  virtual void OnSentData(SocketStream* socket, int amount_sent);
+  virtual void OnReceivedData(SocketStream* socket, const char* data, int len);
   virtual void OnClose(SocketStream* socket);
   virtual void OnAuthRequired(
       SocketStream* socket, AuthChallengeInfo* auth_info);
-  virtual void OnError(
-      const SocketStream* socket, int error);
+  virtual void OnError(const SocketStream* socket, int error);
 
  private:
   friend class WebSocketThrottle;
@@ -91,11 +87,14 @@ class NET_API WebSocketJob
   GURL GetURLForCookies() const;
 
   const AddressList& address_list() const;
+  int TrySpdyStream();
   void SetWaiting();
   bool IsWaiting() const;
   void Wakeup();
-  void DoCallback();
+  void RetryPendingIO();
 
+  bool SendDataInternal(const char* data, int length);
+  void CloseInternal();
   void SendPending();
 
   static bool websocket_over_spdy_enabled_;
