@@ -23,27 +23,37 @@ namespace net {
 
 class SSLServerSocketNSS : public SSLServerSocket {
  public:
-  // This object takes ownership of the following parameters:
-  // |socket| - A socket that is already connected.
-  // |cert| - The certificate to be used by the server.
-  //
-  // The following parameters are copied in the constructor.
-  // |ssl_config| - Options for SSL socket.
-  // |key| - The private key used by the server.
-  SSLServerSocketNSS(Socket* transport_socket,
-                     scoped_refptr<X509Certificate> cert,
+  // See comments on CreateSSLServerSocket for details of how these
+  // parameters are used.
+  SSLServerSocketNSS(StreamSocket* socket,
+                     scoped_refptr<X509Certificate> certificate,
                      crypto::RSAPrivateKey* key,
                      const SSLConfig& ssl_config);
   virtual ~SSLServerSocketNSS();
 
-  // SSLServerSocket implementation.
-  virtual int Accept(CompletionCallback* callback);
+  // SSLServerSocket interface.
+  virtual int Handshake(CompletionCallback* callback);
+
+  // Socket interface (via StreamSocket).
   virtual int Read(IOBuffer* buf, int buf_len,
                    CompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len,
                     CompletionCallback* callback);
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
+
+  // StreamSocket interface.
+  virtual int Connect(CompletionCallback* callback);
+  virtual void Disconnect();
+  virtual bool IsConnected() const;
+  virtual bool IsConnectedAndIdle() const;
+  virtual int GetPeerAddress(AddressList* address) const;
+  virtual int GetLocalAddress(IPEndPoint* address) const;
+  virtual const BoundNetLog& NetLog() const;
+  virtual void SetSubresourceSpeculation();
+  virtual void SetOmniboxSpeculation();
+  virtual bool WasEverUsed() const;
+  virtual bool UsingTCPFastOpen() const;
 
  private:
   enum State {
@@ -69,7 +79,7 @@ class SSLServerSocketNSS : public SSLServerSocket {
   int DoReadLoop(int result);
   int DoWriteLoop(int result);
   int DoHandshake();
-  void DoAcceptCallback(int result);
+  void DoHandshakeCallback(int result);
   void DoReadCallback(int result);
   void DoWriteCallback(int result);
 
@@ -91,7 +101,7 @@ class SSLServerSocketNSS : public SSLServerSocket {
 
   BoundNetLog net_log_;
 
-  CompletionCallback* user_accept_callback_;
+  CompletionCallback* user_handshake_callback_;
   CompletionCallback* user_read_callback_;
   CompletionCallback* user_write_callback_;
 
@@ -109,12 +119,10 @@ class SSLServerSocketNSS : public SSLServerSocket {
   // Buffers for the network end of the SSL state machine
   memio_Private* nss_bufs_;
 
-  // Socket for sending and receiving data.
-  scoped_ptr<Socket> transport_socket_;
+  // StreamSocket for sending and receiving data.
+  scoped_ptr<StreamSocket> transport_socket_;
 
   // Options for the SSL socket.
-  // TODO(hclam): This memeber is currently not used. Should make use of this
-  // member to configure the socket.
   SSLConfig ssl_config_;
 
   // Certificate for the server.
