@@ -9,6 +9,7 @@
 #include <string>
 
 #include "build/build_config.h"
+#include "crypto/crypto_api.h"
 
 #if defined(USE_NSS)
 #include "crypto/scoped_nss_types.h"
@@ -20,7 +21,7 @@ namespace crypto {
 
 class SymmetricKey;
 
-class Encryptor {
+class CRYPTO_API Encryptor {
  public:
   enum Mode {
     CBC

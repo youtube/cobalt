@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "crypto/crypto_api.h"
 
 #if defined(USE_NSS)
 #include "crypto/scoped_nss_types.h"
@@ -22,7 +23,7 @@ namespace crypto {
 
 // Wraps a platform-specific symmetric key and allows it to be held in a
 // scoped_ptr.
-class SymmetricKey {
+class CRYPTO_API SymmetricKey {
  public:
   // Defines the algorithm that a key will be used with. See also
   // classs Encrptor.
