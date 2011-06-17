@@ -7,53 +7,16 @@
 
 namespace net {
 
-namespace {
-
-class SSLServerSocketOpenSSL : public SSLServerSocket {
- public:
-  virtual ~SSLServerSocketOpenSSL() {}
-
-  // SSLServerSocket
-  virtual int Accept(CompletionCallback* callback) {
-    // TODO(bulach): implement.
-    NOTIMPLEMENTED();
-    return 0;
-  }
-
-  // Socket
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   CompletionCallback* callback) {
-    // TODO(bulach): implement.
-    NOTIMPLEMENTED();
-    return 0;
-  }
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    CompletionCallback* callback) {
-    // TODO(bulach): implement.
-    NOTIMPLEMENTED();
-    return 0;
-  }
-
-  virtual bool SetReceiveBufferSize(int32 size) {
-    // TODO(bulach): implement.
-    NOTIMPLEMENTED();
-    return false;
-  }
-
-  virtual bool SetSendBufferSize(int32 size) {
-    // TODO(bulach): implement.
-    NOTIMPLEMENTED();
-    return false;
-  }
-};
-
-}  // namespace
-
-SSLServerSocket* CreateSSLServerSocket(Socket* socket,
+// TODO(bulach): Rather than disable components which call
+// CreateSSLServerSocket when building for OpenSSL rather than NSS, just
+// provide a stub for it for now.
+SSLServerSocket* CreateSSLServerSocket(StreamSocket* socket,
                                        X509Certificate* certificate,
                                        crypto::RSAPrivateKey* key,
                                        const SSLConfig& ssl_config) {
-  return new SSLServerSocketOpenSSL();
+  NOTIMPLEMENTED();
+  delete socket;
+  return NULL;
 }
 
 }  // namespace net
