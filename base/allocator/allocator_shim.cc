@@ -5,6 +5,7 @@
 #include "base/allocator/allocator_shim.h"
 
 #include <config.h>
+#include "base/sysinfo.h"
 
 // When defined, different heap allocators can be used via an environment
 // variable set before running the program.  This may reduce the amount
