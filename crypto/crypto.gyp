@@ -13,6 +13,7 @@
       'type': 'static_library',
       'dependencies': [
         '../base/base.gyp:base',
+        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
       'msvs_disabled_warnings': [
         4018,
@@ -104,6 +105,7 @@
       'sources': [
         'capi_util.cc',
         'capi_util.h',
+        'crypto_api.h',
         'crypto_module_blocking_password_delegate.h',
         'cssm_init.cc',
         'cssm_init.h',

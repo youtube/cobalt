@@ -8,6 +8,8 @@
 
 #include <string>
 
+#include "crypto/crypto_api.h"
+
 namespace crypto {
 
 // These functions perform SHA-256 operations.
@@ -21,12 +23,12 @@ enum {
 // Computes the SHA-256 hash of the input string 'str' and stores the first
 // 'len' bytes of the hash in the output buffer 'output'.  If 'len' > 32,
 // only 32 bytes (the full hash) are stored in the 'output' buffer.
-void SHA256HashString(const std::string& str,
-                      void* output, size_t len);
+CRYPTO_API void SHA256HashString(const std::string& str,
+                                 void* output, size_t len);
 
 // Convenience version of the above that returns the result in a 32-byte
 // string.
-std::string SHA256HashString(const std::string& str);
+CRYPTO_API std::string SHA256HashString(const std::string& str);
 
 }  // namespace crypto
 
