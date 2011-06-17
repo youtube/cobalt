@@ -57,6 +57,11 @@ enum {
   // This bit is set if the request was fetched via an explicit proxy.
   RESPONSE_INFO_WAS_PROXY = 1 << 15,
 
+  // This bit is set if the response info has an SSL connection status field.
+  // This contains the ciphersuite used to fetch the resource as well as the
+  // protocol version, compression method and whether SSLv3 fallback was used.
+  RESPONSE_INFO_HAS_SSL_CONNECTION_STATUS = 1 << 16,
+
   // TODO(darin): Add other bits to indicate alternate request methods.
   // For now, we don't support storing those.
 };
@@ -158,6 +163,13 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
     ssl_info.security_bits = security_bits;
   }
 
+  if (flags & RESPONSE_INFO_HAS_SSL_CONNECTION_STATUS) {
+    int connection_status;
+    if (!pickle.ReadInt(&iter, &connection_status))
+      return false;
+    ssl_info.connection_status = connection_status;
+  }
+
   // read vary-data
   if (flags & RESPONSE_INFO_HAS_VARY_DATA) {
     if (!vary_data.InitFromPickle(pickle, &iter))
@@ -198,7 +210,8 @@ void HttpResponseInfo::Persist(Pickle* pickle,
     flags |= RESPONSE_INFO_HAS_CERT_STATUS;
     if (ssl_info.security_bits != -1)
       flags |= RESPONSE_INFO_HAS_SECURITY_BITS;
-    // TODO(wtc): we should persist ssl_info.connection_status.
+    if (ssl_info.connection_status != 0)
+      flags |= RESPONSE_INFO_HAS_SSL_CONNECTION_STATUS;
   }
   if (vary_data.is_valid())
     flags |= RESPONSE_INFO_HAS_VARY_DATA;
@@ -234,6 +247,8 @@ void HttpResponseInfo::Persist(Pickle* pickle,
     pickle->WriteInt(ssl_info.cert_status);
     if (ssl_info.security_bits != -1)
       pickle->WriteInt(ssl_info.security_bits);
+    if (ssl_info.connection_status != 0)
+      pickle->WriteInt(ssl_info.connection_status);
   }
 
   if (vary_data.is_valid())
