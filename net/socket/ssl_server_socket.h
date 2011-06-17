@@ -8,7 +8,7 @@
 #include "base/basictypes.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_api.h"
-#include "net/socket/socket.h"
+#include "net/socket/stream_socket.h"
 
 namespace crypto {
 class RSAPrivateKey;
@@ -20,35 +20,34 @@ class IOBuffer;
 struct SSLConfig;
 class X509Certificate;
 
-// SSLServerSocket takes an already connected socket and performs SSL on top of
-// it.
-//
-// This class is designed to work in a peer-to-peer connection and is not
-// intended to be used as a standalone SSL server.
-class SSLServerSocket : public Socket {
+class SSLServerSocket : public StreamSocket {
  public:
   virtual ~SSLServerSocket() {}
 
-  // Performs an SSL server handshake on the existing socket. The given socket
-  // must have already been connected.
-  //
-  // Accept either returns ERR_IO_PENDING, in which case the given callback
-  // will be called in the future with the real result, or it completes
-  // synchronously, returning the result immediately.
-  virtual int Accept(CompletionCallback* callback) = 0;
+  // Perform the SSL server handshake, and notify the supplied callback
+  // if the process completes asynchronously.  If Disconnect is called before
+  // completion then the callback will be silently, as for other StreamSocket
+  // calls.
+  virtual int Handshake(CompletionCallback* callback) = 0;
 };
 
-// Creates an SSL server socket using an already connected socket. A certificate
-// and private key needs to be provided.
+// Creates an SSL server socket over an already-connected transport socket.
+// The caller must provide the server certificate and private key to use.
 //
-// This created server socket will take ownership of |socket|. However |key|
-// is copied.
-// TODO(hclam): Defines ServerSocketFactory to create SSLServerSocket. This will
-// make mocking easier.
+// The returned SSLServerSocket takes ownership of |socket|.  Stubbed versions
+// of CreateSSLServerSocket will delete |socket| and return NULL.
+// It takes a reference to |certificate|.
+// The |key| and |ssl_config| parameters are copied.  |key| cannot be const
+// because the methods used to copy its contents are non-const.
+//
+// The caller starts the SSL server handshake by calling Handshake on the
+// returned socket.
 NET_API SSLServerSocket* CreateSSLServerSocket(
-    Socket* socket, X509Certificate* certificate, crypto::RSAPrivateKey* key,
+    StreamSocket* socket,
+    X509Certificate* certificate,
+    crypto::RSAPrivateKey* key,
     const SSLConfig& ssl_config);
 
 }  // namespace net
 
-#endif  // NET_SOCKET_SSL_SERVER_SOCKET_NSS_H_
+#endif  // NET_SOCKET_SSL_SERVER_SOCKET_H_

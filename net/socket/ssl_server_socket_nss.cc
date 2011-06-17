@@ -46,13 +46,15 @@ static const int kRecvBufferSize = 4096;
 namespace net {
 
 SSLServerSocket* CreateSSLServerSocket(
-    Socket* socket, X509Certificate* cert, crypto::RSAPrivateKey* key,
+    StreamSocket* socket,
+    X509Certificate* cert,
+    crypto::RSAPrivateKey* key,
     const SSLConfig& ssl_config) {
   return new SSLServerSocketNSS(socket, cert, key, ssl_config);
 }
 
 SSLServerSocketNSS::SSLServerSocketNSS(
-    Socket* transport_socket,
+    StreamSocket* transport_socket,
     scoped_refptr<X509Certificate> cert,
     crypto::RSAPrivateKey* key,
     const SSLConfig& ssl_config)
@@ -62,7 +64,7 @@ SSLServerSocketNSS::SSLServerSocketNSS(
           this, &SSLServerSocketNSS::BufferRecvComplete)),
       transport_send_busy_(false),
       transport_recv_busy_(false),
-      user_accept_callback_(NULL),
+      user_handshake_callback_(NULL),
       user_read_callback_(NULL),
       user_write_callback_(NULL),
       nss_fd_(NULL),
@@ -90,20 +92,20 @@ SSLServerSocketNSS::~SSLServerSocketNSS() {
   }
 }
 
-int SSLServerSocketNSS::Accept(CompletionCallback* callback) {
-  net_log_.BeginEvent(NetLog::TYPE_SSL_ACCEPT, NULL);
+int SSLServerSocketNSS::Handshake(CompletionCallback* callback) {
+  net_log_.BeginEvent(NetLog::TYPE_SSL_SERVER_HANDSHAKE, NULL);
 
   int rv = Init();
   if (rv != OK) {
     LOG(ERROR) << "Failed to initialize NSS";
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_ACCEPT, rv);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_SERVER_HANDSHAKE, rv);
     return rv;
   }
 
   rv = InitializeSSLOptions();
   if (rv != OK) {
     LOG(ERROR) << "Failed to initialize SSL options";
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_ACCEPT, rv);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_SERVER_HANDSHAKE, rv);
     return rv;
   }
 
@@ -116,18 +118,23 @@ int SSLServerSocketNSS::Accept(CompletionCallback* callback) {
   GotoState(STATE_HANDSHAKE);
   rv = DoHandshakeLoop(net::OK);
   if (rv == ERR_IO_PENDING) {
-    user_accept_callback_ = callback;
+    user_handshake_callback_ = callback;
   } else {
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_ACCEPT, rv);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_SERVER_HANDSHAKE, rv);
   }
 
   return rv > OK ? OK : rv;
 }
 
+int SSLServerSocketNSS::Connect(CompletionCallback* callback) {
+  NOTIMPLEMENTED();
+  return ERR_NOT_IMPLEMENTED;
+}
+
 int SSLServerSocketNSS::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   DCHECK(!user_read_callback_);
-  DCHECK(!user_accept_callback_);
+  DCHECK(!user_handshake_callback_);
   DCHECK(!user_read_buf_);
   DCHECK(nss_bufs_);
 
@@ -168,11 +175,55 @@ int SSLServerSocketNSS::Write(IOBuffer* buf, int buf_len,
 }
 
 bool SSLServerSocketNSS::SetReceiveBufferSize(int32 size) {
-  return false;
+  return transport_socket_->SetReceiveBufferSize(size);
 }
 
 bool SSLServerSocketNSS::SetSendBufferSize(int32 size) {
-  return false;
+  return transport_socket_->SetSendBufferSize(size);
+}
+
+bool SSLServerSocketNSS::IsConnected() const {
+  return completed_handshake_;
+}
+
+void SSLServerSocketNSS::Disconnect() {
+  transport_socket_->Disconnect();
+}
+
+bool SSLServerSocketNSS::IsConnectedAndIdle() const {
+  return completed_handshake_ && transport_socket_->IsConnectedAndIdle();
+}
+
+int SSLServerSocketNSS::GetPeerAddress(AddressList* address) const {
+  if (!IsConnected())
+    return ERR_SOCKET_NOT_CONNECTED;
+  return transport_socket_->GetPeerAddress(address);
+}
+
+int SSLServerSocketNSS::GetLocalAddress(IPEndPoint* address) const {
+  if (!IsConnected())
+    return ERR_SOCKET_NOT_CONNECTED;
+  return transport_socket_->GetLocalAddress(address);
+}
+
+const BoundNetLog& SSLServerSocketNSS::NetLog() const {
+  return net_log_;
+}
+
+void SSLServerSocketNSS::SetSubresourceSpeculation() {
+  transport_socket_->SetSubresourceSpeculation();
+}
+
+void SSLServerSocketNSS::SetOmniboxSpeculation() {
+  transport_socket_->SetOmniboxSpeculation();
+}
+
+bool SSLServerSocketNSS::WasEverUsed() const {
+  return transport_socket_->WasEverUsed();
+}
+
+bool SSLServerSocketNSS::UsingTCPFastOpen() const {
+  return transport_socket_->UsingTCPFastOpen();
 }
 
 int SSLServerSocketNSS::InitializeSSLOptions() {
@@ -385,9 +436,10 @@ void SSLServerSocketNSS::OnRecvComplete(int result) {
 void SSLServerSocketNSS::OnHandshakeIOComplete(int result) {
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEventWithNetErrorCode(net::NetLog::TYPE_SSL_ACCEPT, rv);
-    if (user_accept_callback_)
-      DoAcceptCallback(rv);
+    net_log_.EndEventWithNetErrorCode(net::NetLog::TYPE_SSL_SERVER_HANDSHAKE,
+                                      rv);
+    if (user_handshake_callback_)
+      DoHandshakeCallback(rv);
   }
 }
 
@@ -609,11 +661,11 @@ int SSLServerSocketNSS::DoHandshake() {
   return net_error;
 }
 
-void SSLServerSocketNSS::DoAcceptCallback(int rv) {
+void SSLServerSocketNSS::DoHandshakeCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
 
-  CompletionCallback* c = user_accept_callback_;
-  user_accept_callback_ = NULL;
+  CompletionCallback* c = user_handshake_callback_;
+  user_handshake_callback_ = NULL;
   c->Run(rv > OK ? OK : rv);
 }
 

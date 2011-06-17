@@ -360,11 +360,11 @@ EVENT_TYPE(SOCKS_UNEXPECTED_AUTH)
 //   }
 EVENT_TYPE(SOCKS_UNKNOWN_ADDRESS_TYPE)
 
-// The start/end of a SSL connect().
+// The start/end of an SSL "connect" (aka client handshake).
 EVENT_TYPE(SSL_CONNECT)
 
-// The start/end of a SSL accept().
-EVENT_TYPE(SSL_ACCEPT)
+// The start/end of an SSL server handshake (aka "accept").
+EVENT_TYPE(SSL_SERVER_HANDSHAKE)
 
 // An SSL error occurred while trying to do the indicated activity.
 // The following parameters are attached to the event:
