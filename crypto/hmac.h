@@ -12,13 +12,14 @@
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
+#include "crypto/crypto_api.h"
 
 namespace crypto {
 
 // Simplify the interface and reduce includes by abstracting out the internals.
 struct HMACPlatformData;
 
-class HMAC {
+class CRYPTO_API HMAC {
  public:
   // The set of supported hash functions. Extend as required.
   enum HashAlgorithm {
