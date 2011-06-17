@@ -284,8 +284,8 @@ TEST_F(SSLServerSocketTest, Initialize) {
   Initialize();
 }
 
-// This test executes Connect() of SSLClientSocket and Accept() of
-// SSLServerSocket to make sure handshaking between the two sockets are
+// This test executes Connect() on SSLClientSocket and Handshake() on
+// SSLServerSocket to make sure handshaking between the two sockets is
 // completed successfully.
 TEST_F(SSLServerSocketTest, Handshake) {
   Initialize();
@@ -293,7 +293,7 @@ TEST_F(SSLServerSocketTest, Handshake) {
   TestCompletionCallback connect_callback;
   TestCompletionCallback accept_callback;
 
-  int server_ret = server_socket_->Accept(&accept_callback);
+  int server_ret = server_socket_->Handshake(&accept_callback);
   EXPECT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
   int client_ret = client_socket_->Connect(&connect_callback);
@@ -322,7 +322,7 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   int client_ret = client_socket_->Connect(&connect_callback);
   ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
 
-  int server_ret = server_socket_->Accept(&accept_callback);
+  int server_ret = server_socket_->Handshake(&accept_callback);
   ASSERT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
   if (client_ret == net::ERR_IO_PENDING) {
