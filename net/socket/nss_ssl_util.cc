@@ -101,6 +101,8 @@ PRErrorCode MapErrorToNSS(int result) {
       return PR_NO_ACCESS_RIGHTS_ERROR;
     case ERR_NOT_IMPLEMENTED:
       return PR_NOT_IMPLEMENTED_ERROR;
+    case ERR_SOCKET_NOT_CONNECTED:
+      return PR_NOT_CONNECTED_ERROR;
     case ERR_INTERNET_DISCONNECTED:  // Equivalent to ENETDOWN.
       return PR_NETWORK_UNREACHABLE_ERROR;  // Best approximation.
     case ERR_CONNECTION_TIMED_OUT:
@@ -143,6 +145,8 @@ int MapNSSError(PRErrorCode err) {
       return ERR_CONNECTION_ABORTED;
     case PR_CONNECT_REFUSED_ERROR:
       return ERR_CONNECTION_REFUSED;
+    case PR_NOT_CONNECTED_ERROR:
+      return ERR_SOCKET_NOT_CONNECTED;
     case PR_HOST_UNREACHABLE_ERROR:
     case PR_NETWORK_UNREACHABLE_ERROR:
       return ERR_ADDRESS_UNREACHABLE;
