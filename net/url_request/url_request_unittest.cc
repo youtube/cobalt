@@ -2845,6 +2845,39 @@ TEST_F(URLRequestTestHTTP, OverrideAcceptLanguage) {
   EXPECT_EQ(std::string("ru"), d.data_received());
 }
 
+// Check that default A-E header is sent.
+TEST_F(URLRequestTestHTTP, DefaultAcceptEncoding) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  TestURLRequest
+      req(test_server_.GetURL("echoheader?Accept-Encoding"), &d);
+  req.set_context(new TestURLRequestContext());
+  HttpRequestHeaders headers;
+  req.SetExtraRequestHeaders(headers);
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_TRUE(ContainsString(d.data_received(), "gzip"));
+}
+
+// Check that if request overrides the A-E header, the default is not appended.
+// See http://crbug.com/47381
+TEST_F(URLRequestTestHTTP, OverrideAcceptEncoding) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  TestURLRequest
+      req(test_server_.GetURL("echoheader?Accept-Encoding"), &d);
+  req.set_context(new TestURLRequestContext());
+  HttpRequestHeaders headers;
+  headers.SetHeader(HttpRequestHeaders::kAcceptEncoding, "identity");
+  req.SetExtraRequestHeaders(headers);
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_FALSE(ContainsString(d.data_received(), "gzip"));
+  EXPECT_TRUE(ContainsString(d.data_received(), "identity"));
+}
+
 // Check that default A-C header is sent.
 TEST_F(URLRequestTestHTTP, DefaultAcceptCharset) {
   ASSERT_TRUE(test_server_.Start());
