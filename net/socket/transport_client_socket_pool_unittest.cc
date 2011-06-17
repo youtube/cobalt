@@ -973,7 +973,14 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 // Test the case where a socket took long enough to start the creation
 // of the backup socket and never completes, and then the backup
 // connection fails.
-TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterStall) {
+//
+// Flaky on Mac only.  http://crbug.com/86550
+#if defined(OS_MAC)
+#define MAYBE_BackupSocketFailAfterStall FLAKY_BackupSocketFailAfterStall
+#else
+#define MAYBE_BackupSocketFailAfterStall BackupSocketFailAfterStall
+#endif
+TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterStall) {
   MockClientSocketFactory::ClientSocketType case_types[] = {
     // The first socket will not connect.
     MockClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET,
