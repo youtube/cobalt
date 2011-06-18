@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
