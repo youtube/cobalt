@@ -9,6 +9,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/test/test_timeouts.h"
 #include "base/utf_string_conversions.h"
 #include "net/test/test_server.h"
 
@@ -20,6 +21,8 @@ static void PrintUsage() {
 int main(int argc, const char* argv[]) {
   base::AtExitManager at_exit_manager;
   MessageLoopForIO message_loop;
+
+  TestTimeouts::Initialize();
 
   // Process command line
   CommandLine::Init(argc, argv);
