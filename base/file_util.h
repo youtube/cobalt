@@ -18,6 +18,7 @@
 #endif
 #elif defined(OS_POSIX)
 #include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 #include <stdio.h>
