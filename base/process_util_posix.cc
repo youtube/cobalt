@@ -28,6 +28,7 @@
 #include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
@@ -227,6 +228,13 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
 
   if (result && wait) {
     int tries = 60;
+
+    if (RunningOnValgrind()) {
+      // Wait for some extra time when running under Valgrind since the child
+      // processes may take some time doing leak checking.
+      tries *= 2;
+    }
+
     // The process may not end immediately due to pending I/O
     bool exited = false;
     while (tries-- > 0) {
