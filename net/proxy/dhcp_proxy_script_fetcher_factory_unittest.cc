@@ -9,10 +9,8 @@
 
 namespace net {
 namespace {
-
 TEST(DhcpProxyScriptFetcherFactoryTest, DoNothingWhenDisabled) {
   DhcpProxyScriptFetcherFactory factory;
-  factory.set_enabled(false);
   scoped_ptr<DhcpProxyScriptFetcher> fetcher(factory.Create(NULL));
   EXPECT_EQ("", fetcher->GetFetcherName());
 }
@@ -38,11 +36,7 @@ TEST(DhcpProxyScriptFetcherFactoryTest, IsSupported) {
 
 TEST(DhcpProxyScriptFetcherFactoryTest, SetEnabled) {
   DhcpProxyScriptFetcherFactory factory;
-#if defined(OS_WIN)
-  EXPECT_TRUE(factory.enabled());
-#else
   EXPECT_FALSE(factory.enabled());
-#endif  // defined(OS_WIN)
 
   factory.set_enabled(false);
   EXPECT_FALSE(factory.enabled());
