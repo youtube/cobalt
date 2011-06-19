@@ -145,12 +145,7 @@ int ProxyScriptFetcherImpl::Fetch(const GURL& url,
   // Also disable the use of the disk cache. The cache is disabled so that if
   // the user switches networks we don't potentially use the cached response
   // from old network when we should in fact be re-fetching on the new network.
-  // If the PAC script is hosted on an HTTPS server we bypass revocation
-  // checking in order to avoid a circular dependency when attempting to fetch
-  // the OCSP response or CRL. We could make the revocation check go direct but
-  // the proxy might be the only way to the outside world.
-  cur_request_->set_load_flags(LOAD_BYPASS_PROXY | LOAD_DISABLE_CACHE |
-                               LOAD_DISABLE_CERT_REVOCATION_CHECKING);
+  cur_request_->set_load_flags(LOAD_BYPASS_PROXY | LOAD_DISABLE_CACHE);
 
   // Save the caller's info for notification on completion.
   callback_ = callback;
