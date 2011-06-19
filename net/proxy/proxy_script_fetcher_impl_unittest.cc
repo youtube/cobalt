@@ -11,7 +11,6 @@
 #include "base/path_service.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/net_util.h"
-#include "net/base/load_flags.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/disk_cache.h"
@@ -19,7 +18,6 @@
 #include "net/http/http_network_session.h"
 #include "net/test/test_server.h"
 #include "net/url_request/url_request_context_storage.h"
-#include "net/url_request/url_request_job_factory.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -38,26 +36,6 @@ const FilePath::CharType kDocRoot[] =
 struct FetchResult {
   int code;
   string16 text;
-};
-
-// CheckNoRevocationFlagSetInterceptor causes a test failure if a request is
-// seen that doesn't set a load flag to bypass revocation checking.
-class CheckNoRevocationFlagSetInterceptor :
-    public URLRequestJobFactory::Interceptor {
- public:
-  virtual URLRequestJob* MaybeIntercept(URLRequest* request) const OVERRIDE {
-    EXPECT_TRUE(request->load_flags() & LOAD_DISABLE_CERT_REVOCATION_CHECKING);
-    return NULL;
-  }
-
-  virtual URLRequestJob* MaybeInterceptRedirect(const GURL& location,
-                                                URLRequest* request) const {
-    return NULL;
-  }
-
-  virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request) const {
-    return NULL;
-  }
 };
 
 // A non-mock URL request which can access http:// and file:// urls.
@@ -83,10 +61,6 @@ class RequestContext : public URLRequestContext {
     storage_.set_http_transaction_factory(new HttpCache(
         network_session,
         HttpCache::DefaultBackend::InMemory(0)));
-    url_request_job_factory_.reset(new URLRequestJobFactory);
-    set_job_factory(url_request_job_factory_.get());
-    url_request_job_factory_->AddInterceptor(
-        new CheckNoRevocationFlagSetInterceptor);
   }
 
  private:
@@ -94,7 +68,6 @@ class RequestContext : public URLRequestContext {
   }
 
   URLRequestContextStorage storage_;
-  scoped_ptr<URLRequestJobFactory> url_request_job_factory_;
 };
 
 // Get a file:// url relative to net/data/proxy/proxy_script_fetcher_unittest.
