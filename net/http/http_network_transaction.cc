@@ -162,9 +162,6 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
   request_ = request_info;
   start_time_ = base::Time::Now();
 
-  if (request_->load_flags & LOAD_DISABLE_CERT_REVOCATION_CHECKING)
-    ssl_config_.rev_checking_enabled = false;
-
   next_state_ = STATE_CREATE_STREAM;
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
