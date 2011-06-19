@@ -46,7 +46,6 @@ v8.log
 /chrome/app/theme/google_chrome
 /chrome/browser/autofill/internal
 /chrome/browser/extensions/default_extensions/chromeos
-/chrome/browser/ui/webui/web_ui_browsertest-inl.h
 /chrome/installer/linux
 /chrome/installer/mac/internal
 /chrome/installer/mac/third_party/xz/xz
