@@ -54,7 +54,8 @@ bool SignatureVerifier::VerifyInit(const uint8* signature_algorithm,
   sig_alg_der.len = signature_algorithm_len;
   SECAlgorithmID sig_alg_id;
   SECStatus rv;
-  rv = SEC_QuickDERDecodeItem(arena, &sig_alg_id, SECOID_AlgorithmIDTemplate,
+  rv = SEC_QuickDERDecodeItem(arena, &sig_alg_id,
+                              SEC_ASN1_GET(SECOID_AlgorithmIDTemplate),
                               &sig_alg_der);
   if (rv != SECSuccess) {
     SECKEY_DestroyPublicKey(public_key);
