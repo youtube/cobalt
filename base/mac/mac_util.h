@@ -81,12 +81,6 @@ void ActivateProcess(pid_t pid);
 // Excludes the file given by |file_path| from being backed up by Time Machine.
 bool SetFileBackupExclusion(const FilePath& file_path);
 
-// TODO(mrossetti): Remove in M15. See http://crbug.com/85999
-// Remove possible exclude-by-path setting from |file_path|. Ignore errors since
-// we don't care if the file does not exist or if it has not had its exclusion
-// set by-path. This function is a NOOP for Mac OS X Lion or later.
-void ClearByPathBackupExclusion(const FilePath& file_path);
-
 // Sets the process name as displayed in Activity Monitor to process_name.
 void SetProcessName(CFStringRef process_name);
 
