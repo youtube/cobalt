@@ -242,28 +242,7 @@ void ActivateProcess(pid_t pid) {
   }
 }
 
-// TODO(mrossetti): Remove in M15. See http://crbug.com/85999
-void ClearByPathBackupExclusion(const FilePath& file_path) {
-  if (IsOSSnowLeopardOrEarlier()) {
-    NSString* file_path_ns =
-        [NSString stringWithUTF8String:file_path.value().c_str()];
-    NSURL* file_url = [NSURL fileURLWithPath:file_path_ns];
-    // Ignore errors since the file may not exist.
-    CSBackupSetItemExcluded(base::mac::NSToCFCast(file_url), FALSE, TRUE);
-  }
-}
-
 bool SetFileBackupExclusion(const FilePath& file_path) {
-  // Do a pre-emptive unexclude by-path since by-path exclusions may have
-  // been performed on this file in the past. This feature is available to
-  // administrative users in 10.5 and 10.6, but is restricted to the root
-  // user in 10.7. Since it logs messages to the console in 10.7 and
-  // wouldn't work anyway, avoid calling it altogether in that version.
-  //
-  // TODO(mrossetti): Remove on the trunk after September
-  // 2011, M15. http://crbug.com/85999
-  ClearByPathBackupExclusion(file_path);
-
   NSString* file_path_ns =
       [NSString stringWithUTF8String:file_path.value().c_str()];
   NSURL* file_url = [NSURL fileURLWithPath:file_path_ns];
