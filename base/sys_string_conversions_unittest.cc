@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 
 #include "base/basictypes.h"
 #include "base/string_piece.h"
-#include "base/test/scoped_locale.h"
+#include "base/test/test_util.h"
 #include "base/utf_string_conversions.h"
 #include "base/sys_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -77,7 +77,7 @@ TEST(SysStrings, SysUTF8ToWide) {
 
 TEST(SysStrings, SysWideToNativeMB) {
   using base::SysWideToNativeMB;
-  base::ScopedLocale locale("en_US.utf-8");
+  base::ScopedSetLocale locale("en_US.utf-8");
   EXPECT_EQ("Hello, world", SysWideToNativeMB(L"Hello, world"));
   EXPECT_EQ("\xe4\xbd\xa0\xe5\xa5\xbd", SysWideToNativeMB(L"\x4f60\x597d"));
 
@@ -108,7 +108,7 @@ TEST(SysStrings, SysWideToNativeMB) {
 // We assume the test is running in a UTF8 locale.
 TEST(SysStrings, SysNativeMBToWide) {
   using base::SysNativeMBToWide;
-  base::ScopedLocale locale("en_US.utf-8");
+  base::ScopedSetLocale locale("en_US.utf-8");
   EXPECT_EQ(L"Hello, world", SysNativeMBToWide("Hello, world"));
   EXPECT_EQ(L"\x4f60\x597d", SysNativeMBToWide("\xe4\xbd\xa0\xe5\xa5\xbd"));
   // >16 bits
@@ -162,7 +162,7 @@ static const wchar_t* const kConvertRoundtripCases[] = {
 
 
 TEST(SysStrings, SysNativeMBAndWide) {
-  base::ScopedLocale locale("en_US.utf-8");
+  base::ScopedSetLocale locale("en_US.utf-8");
   for (size_t i = 0; i < arraysize(kConvertRoundtripCases); ++i) {
     std::wstring wide = kConvertRoundtripCases[i];
     std::wstring trip = base::SysNativeMBToWide(base::SysWideToNativeMB(wide));
