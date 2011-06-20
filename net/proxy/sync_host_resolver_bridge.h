@@ -36,6 +36,7 @@ class NET_TEST SyncHostResolverBridge : public SyncHostResolver {
 
   MessageLoop* const host_resolver_loop_;
   scoped_refptr<Core> core_;
+  DISALLOW_COPY_AND_ASSIGN(SyncHostResolverBridge);
 };
 
 }  // namespace net
