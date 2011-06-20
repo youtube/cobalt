@@ -51,9 +51,9 @@ LOAD_FLAG(IGNORE_CERT_DATE_INVALID, 1 << 9)
 // (The default behavior is to trigger an OnSSLCertificateError callback).
 LOAD_FLAG(IGNORE_CERT_AUTHORITY_INVALID, 1 << 10)
 
-// If present, ignores certificate revocation
-// (The default behavior is to trigger an OnSSLCertificateError callback).
-LOAD_FLAG(IGNORE_CERT_REVOCATION, 1 << 11)
+// If present, causes certificate revocation checks to be skipped on secure
+// connections.
+LOAD_FLAG(DISABLE_CERT_REVOCATION_CHECKING, 1 << 11)
 
 // If present, ignores wrong key usage of the certificate
 // (The default behavior is to trigger an OnSSLCertificateError callback).
