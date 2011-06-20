@@ -142,11 +142,6 @@ class NET_API SSLConfigService
   static void EnableDNSCertProvenanceChecking();
   static bool dns_cert_provenance_checking_enabled();
 
-  // Disabled revocation checking for some sites that we have additional
-  // security on.
-  static void DisableRevCheckingForPinnedSites();
-  static bool rev_checking_disabled_for_pinned_sites();
-
   // Is SNI available in this configuration?
   static bool IsSNIAvailable(SSLConfigService* service);
 
