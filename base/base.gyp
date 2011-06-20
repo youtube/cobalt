@@ -312,12 +312,6 @@
             '../build/linux/system.gyp:gtk',
           ],
         }],
-        ['os_posix==0', {
-          'sources!': [
-            'test/scoped_locale.cc',
-            'test/scoped_locale.h',
-          ],
-        }],
       ],
       'sources': [
         'perftimer.cc',
@@ -327,8 +321,6 @@
         'test/multiprocess_test.h',
         'test/perf_test_suite.cc',
         'test/perf_test_suite.h',
-        'test/scoped_locale.cc',
-        'test/scoped_locale.h',
         'test/test_file_util.h',
         'test/test_file_util_linux.cc',
         'test/test_file_util_mac.cc',
@@ -340,6 +332,7 @@
         'test/test_switches.h',
         'test/test_timeouts.cc',
         'test/test_timeouts.h',
+        'test/test_util.h',
       ],
     },
     {
