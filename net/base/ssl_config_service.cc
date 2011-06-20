@@ -48,7 +48,6 @@ bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
 
 static bool g_false_start_enabled = true;
 static bool g_dns_cert_provenance_checking = false;
-static bool g_rev_checking_disabled_for_pinned_sites = false;
 
 // static
 void SSLConfigService::DisableFalseStart() {
@@ -68,16 +67,6 @@ void SSLConfigService::EnableDNSCertProvenanceChecking() {
 // static
 bool SSLConfigService::dns_cert_provenance_checking_enabled() {
   return g_dns_cert_provenance_checking;
-}
-
-// static
-void SSLConfigService::DisableRevCheckingForPinnedSites() {
-  g_rev_checking_disabled_for_pinned_sites = true;
-}
-
-// static
-bool SSLConfigService::rev_checking_disabled_for_pinned_sites() {
-  return g_rev_checking_disabled_for_pinned_sites;
 }
 
 void SSLConfigService::AddObserver(Observer* observer) {
