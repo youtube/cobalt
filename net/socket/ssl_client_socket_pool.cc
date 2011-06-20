@@ -347,25 +347,6 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
                                  base::TimeDelta::FromMilliseconds(1),
                                  base::TimeDelta::FromMinutes(10),
                                  100);
-
-      base::FieldTrial* trial = base::FieldTrialList::Find("RevCheckingImpact");
-      if (trial) {
-        std::string histogram_name;
-        if (trial->group() != base::FieldTrial::kDefaultGroupNumber ||
-            !params_->ssl_config().rev_checking_enabled) {
-          histogram_name =
-              "Net.SSL_Connection_Latency_Google_No_Revocation_Checking";
-        } else {
-          histogram_name =
-              "Net.SSL_Connection_Latency_Google_Revocation_Checking";
-        }
-
-        UMA_HISTOGRAM_CUSTOM_TIMES(histogram_name,
-                                   connect_duration,
-                                   base::TimeDelta::FromMilliseconds(1),
-                                   base::TimeDelta::FromMinutes(10),
-                                   100);
-      }
     }
   }
 
