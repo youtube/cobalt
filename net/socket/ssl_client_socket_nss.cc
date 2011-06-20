@@ -1461,18 +1461,8 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
   }
 
   int flags = 0;
-  if (ssl_config_.rev_checking_enabled) {
-    const std::string& hostname = host_and_port_.host();
-    // is_pinned is an approximation but is currently accurate. Even if more
-    // pinned sites are added, this errs on the site of caution.
-    bool is_pinned = hostname == "google.com" ||
-                     (hostname.size() > 11 &&
-                      hostname.rfind(".google.com") == hostname.size() - 11);
-    if (!is_pinned ||
-        !SSLConfigService::rev_checking_disabled_for_pinned_sites()) {
-      flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
-    }
-  }
+  if (ssl_config_.rev_checking_enabled)
+    flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
