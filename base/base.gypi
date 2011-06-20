@@ -437,9 +437,6 @@
         '../third_party/modp_b64/modp_b64.gyp:modp_b64',
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
-      'export_dependent_settings': [
-        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-      ],
       # TODO(gregoryd): direct_dependent_settings should be shared with the
       #  64-bit target, but it doesn't work due to a bug in gyp
       'direct_dependent_settings': {
@@ -530,7 +527,7 @@
         [ 'component=="shared_library"', {
           'defines': [
             'BASE_DLL',
-            'BASE_IMPLEMENTATION=1',
+            'BASE_IMPLEMENTATION',
           ],
           'conditions': [
             ['OS=="win"', {
