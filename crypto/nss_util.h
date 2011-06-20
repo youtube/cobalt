@@ -8,6 +8,7 @@
 
 #include <string>
 #include "base/basictypes.h"
+#include "crypto/crypto_api.h"
 
 #if defined(USE_NSS)
 class FilePath;
@@ -32,12 +33,12 @@ void EarlySetupForNSSInit();
 
 // Initialize NRPR if it isn't already initialized.  This function is
 // thread-safe, and NSPR will only ever be initialized once.
-void EnsureNSPRInit();
+void CRYPTO_API EnsureNSPRInit();
 
 // Initialize NSS if it isn't already initialized.  This must be called before
 // any other NSS functions.  This function is thread-safe, and NSS will only
 // ever be initialized once.
-void EnsureNSSInit();
+void CRYPTO_API EnsureNSSInit();
 
 // Call this before calling EnsureNSSInit() will force NSS to initialize
 // without a persistent DB.  This is used for the special case where access of

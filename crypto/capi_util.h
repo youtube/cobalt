@@ -9,6 +9,8 @@
 #include <windows.h>
 #include <wincrypt.h>
 
+#include "crypto/crypto_api.h"
+
 namespace crypto {
 
 // CryptAcquireContext when passed CRYPT_NEWKEYSET or CRYPT_DELETEKEYSET in
@@ -21,11 +23,11 @@ namespace crypto {
 // "The CryptAcquireContext function is generally thread safe unless
 // CRYPT_NEWKEYSET or CRYPT_DELETEKEYSET is specified in the dwFlags
 // parameter."
-BOOL CryptAcquireContextLocked(HCRYPTPROV* prov,
-                               LPCWSTR container,
-                               LPCWSTR provider,
-                               DWORD prov_type,
-                               DWORD flags);
+CRYPTO_API BOOL CryptAcquireContextLocked(HCRYPTPROV* prov,
+                                          LPCWSTR container,
+                                          LPCWSTR provider,
+                                          DWORD prov_type,
+                                          DWORD flags);
 
 }  // namespace crypto
 
