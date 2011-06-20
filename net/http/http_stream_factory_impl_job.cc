@@ -9,6 +9,7 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
@@ -84,6 +85,7 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
       was_npn_negotiated_(false),
       num_streams_(0),
       spdy_session_direct_(false),
+      expect_to_use_existing_spdy_session_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   DCHECK(stream_factory);
   DCHECK(session);
@@ -572,6 +574,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
       return OK;
     using_spdy_ = true;
     next_state_ = STATE_CREATE_STREAM;
+    expect_to_use_existing_spdy_session_ = true;
     return OK;
   } else if (request_ && (using_ssl_ || ShouldForceSpdyWithoutSSL())) {
     // Update the spdy session key for the request that launched this job.
@@ -738,36 +741,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
   }
 
   if (!connection_->socket()) {
-    // If we enter this code path, then we'll cause a crash later in
-    // DoCreateStream(). Crash now and figure out what happened:
-    // http://crbug.com/80095.
-    GURL url = original_url_.get() ? *original_url_ : request_info_.url;
-    bool using_ssl = using_ssl_;
-    bool using_spdy = using_spdy_;
-
-    // Note that these local variables have their addresses referenced to
-    // prevent the compiler from optimizing them away.
-    if (using_spdy) {
-      LOG(FATAL) << "Crashing here because willchan doesn't know why we're "
-                 << "crashing later. Sorry! I'll give you a cookie later. "
-                 << "Cheers mate!\n"
-                 << "url[" << &url << "]: " << url << "\n"
-                 << "using_ssl[" << &using_ssl << "]: "
-                 << (using_ssl ? "true\n" : "false\n")
-                 << "using_spdy[" << &using_spdy << "]: "
-                 << (using_spdy ? "true\n" : "false\n")
-                 << "result: " << result;
-    } else {
-      LOG(FATAL) << "Crashing here because willchan doesn't know why we're "
-                 << "crashing later. Sorry! I'll give you a cookie later. "
-                 << "Cheers mate!\n"
-                 << "url[" << &url << "]: " << url << "\n"
-                 << "using_ssl[" << &using_ssl << "]: "
-                 << (using_ssl ? "true\n" : "false\n")
-                 << "using_spdy[" << &using_spdy << "]: "
-                 << (using_spdy ? "true\n" : "false\n")
-                 << "result: " << result;
-    }
+    HACKCrashHereToDebug80095();
   }
 
   next_state_ = STATE_CREATE_STREAM;
@@ -784,6 +758,10 @@ int HttpStreamFactoryImpl::Job::DoWaitingUserAction(int result) {
 }
 
 int HttpStreamFactoryImpl::Job::DoCreateStream() {
+  if (!expect_to_use_existing_spdy_session_ && !connection_->socket()) {
+    HACKCrashHereToDebug80095();
+  }
+
   next_state_ = STATE_CREATE_STREAM_COMPLETE;
 
   // We only set the socket motivation if we're the first to use
@@ -804,6 +782,10 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
 
   CHECK(!stream_.get());
 
+  if (!expect_to_use_existing_spdy_session_ && !connection_->socket()) {
+    HACKCrashHereToDebug80095();
+  }
+
   bool direct = true;
   SpdySessionPool* spdy_pool = session_->spdy_session_pool();
   scoped_refptr<SpdySession> spdy_session;
@@ -820,8 +802,12 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
                              ProxyServer::Direct());
     if (spdy_pool->HasSession(pair)) {
       spdy_session = spdy_pool->Get(pair, net_log_);
+    } else if (expect_to_use_existing_spdy_session_) {
+      HACKCrashHereToDebug80095();
     }
     direct = false;
+  } else if (expect_to_use_existing_spdy_session_) {
+    HACKCrashHereToDebug80095();
   }
 
   if (spdy_session.get()) {
@@ -833,7 +819,10 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
     // SPDY can be negotiated using the TLS next protocol negotiation (NPN)
     // extension, or just directly using SSL. Either way, |connection_| must
     // contain an SSLClientSocket.
-    CHECK(connection_->socket());
+    if (!connection_->socket()) {
+      HACKCrashHereToDebug80095();
+    }
+
     int error = spdy_pool->GetSpdySessionFromSocket(
         pair, connection_.release(), net_log_, spdy_certificate_error_,
         &spdy_session, using_ssl_);
@@ -1097,5 +1086,48 @@ bool HttpStreamFactoryImpl::Job::IsPreconnecting() const {
 bool HttpStreamFactoryImpl::Job::IsOrphaned() const {
   return !IsPreconnecting() && !request_;
 }
+
+#if defined(OS_WIN)
+#pragma warning (disable: 4748)
+#pragma optimize( "", off )
+#endif
+
+void HttpStreamFactoryImpl::Job::HACKCrashHereToDebug80095() {
+  // If we enter this code path, then we'll cause a crash later in
+  // DoCreateStream(). Crash now and figure out what happened:
+  // http://crbug.com/80095.
+  GURL url = original_url_.get() ? *original_url_ : request_info_.url;
+  bool using_ssl = using_ssl_;
+  bool using_spdy = using_spdy_;
+  char url_buf[512];
+  base::strlcpy(url_buf, url.spec().data(), arraysize(url_buf));
+
+  // Note that these local variables have their addresses referenced to
+  // prevent the compiler from optimizing them away.
+  if (using_spdy) {
+    LOG(FATAL) << "Crashing here because willchan doesn't know why we're "
+               << "crashing later. Sorry! I'll give you a cookie later. "
+               << "Cheers mate!\n"
+               << "url[" << &url << "]: " << url << "\n"
+               << "using_ssl[" << &using_ssl << "]: "
+               << (using_ssl ? "true\n" : "false\n")
+               << "using_spdy[" << &using_spdy << "]: "
+               << (using_spdy ? "true\n" : "false\n");
+  } else {
+    LOG(FATAL) << "Crashing here because willchan doesn't know why we're "
+               << "crashing later. Sorry! I'll give you a cookie later. "
+               << "Cheers mate!\n"
+               << "url[" << &url << "]: " << url << "\n"
+               << "using_ssl[" << &using_ssl << "]: "
+               << (using_ssl ? "true\n" : "false\n")
+               << "using_spdy[" << &using_spdy << "]: "
+               << (using_spdy ? "true\n" : "false\n");
+  }
+}
+
+#if defined(OS_WIN)
+#pragma optimize( "", on )
+#pragma warning (default: 4748)
+#endif
 
 }  // namespace net
