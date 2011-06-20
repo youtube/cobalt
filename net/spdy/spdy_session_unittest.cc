@@ -159,7 +159,7 @@ TEST_F(SpdySessionTest, OnSettings) {
   session_deps.host_resolver->set_synchronous_mode(true);
 
   spdy::SpdySettings new_settings;
-  spdy::SettingsFlagsAndId id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  spdy::SettingsFlagsAndId id(0);
   id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 2;
   new_settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
@@ -276,7 +276,7 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   // Initialize the SpdySettingsStorage with 1 max concurrent streams.
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   spdy::SpdySettings settings;
-  spdy::SettingsFlagsAndId id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  spdy::SettingsFlagsAndId id(0);
   id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
   settings.push_back(spdy::SpdySetting(id, 1));
@@ -351,7 +351,7 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   spdy::SpdySettings settings;
   const uint32 kBogusSettingId = 0xABAB;
   const uint32 kBogusSettingValue = 0xCDCD;
-  spdy::SettingsFlagsAndId id(kBogusSettingId);
+  spdy::SettingsFlagsAndId id(0);
   id.set_id(kBogusSettingId);
   id.set_flags(spdy::SETTINGS_FLAG_PERSISTED);
   settings.push_back(spdy::SpdySetting(id, kBogusSettingValue));
