@@ -663,20 +663,13 @@ HCERTSTORE X509Certificate::cert_store() {
   return g_cert_store.Get().cert_store();
 }
 
-int X509Certificate::Verify(const std::string& hostname,
-                            int flags,
-                            CertVerifyResult* verify_result) const {
-  verify_result->Reset();
+int X509Certificate::VerifyInternal(const std::string& hostname,
+                                    int flags,
+                                    CertVerifyResult* verify_result) const {
   if (!cert_handle_)
     return ERR_UNEXPECTED;
 
-  if (IsBlacklisted()) {
-    verify_result->cert_status |= CERT_STATUS_REVOKED;
-    return ERR_CERT_REVOKED;
-  }
-
   // Build and validate certificate chain.
-
   CERT_CHAIN_PARA chain_para;
   memset(&chain_para, 0, sizeof(chain_para));
   chain_para.cbSize = sizeof(chain_para);
@@ -919,14 +912,6 @@ bool X509Certificate::CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
   SHA1Fingerprint fingerprint = CalculateFingerprint(root_cert);
   EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
   return metadata->HasEVPolicyOID(fingerprint, policy_oid);
-}
-
-bool X509Certificate::VerifyEV() const {
-  // We don't call this private method, but we do need to implement it because
-  // it's defined in x509_certificate.h. We perform EV checking in the
-  // Verify() above.
-  NOTREACHED();
-  return false;
 }
 
 // static

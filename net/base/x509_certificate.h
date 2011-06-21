@@ -371,8 +371,9 @@ class NET_API X509Certificate
 #if defined(OS_MACOSX)
   static bool IsIssuedByKnownRoot(CFArrayRef chain);
 #endif
+#if defined(USE_NSS)
   bool VerifyEV() const;
-
+#endif
 #if defined(USE_OPENSSL)
   // Resets the store returned by cert_store() to default state. Used by
   // TestRootCerts to undo modifications.
@@ -389,9 +390,17 @@ class NET_API X509Certificate
   // SAN fields of a certificate.
   // WARNING:  This function may return false negatives (for example, if
   //           |hostname| is an IP address literal) on some platforms.  Only
-  //           use in cases where some false-positives are acceptible.
+  //           use in cases where some false-negatives are acceptible.
   static bool VerifyHostname(const std::string& hostname,
                              const std::vector<std::string>& cert_names);
+
+  // Performs the platform-dependent part of the Verify() method, verifiying
+  // this certificate against the platform's root CA certificates.
+  //
+  // Parameters and return value are as per Verify().
+  int VerifyInternal(const std::string& hostname,
+                     int flags,
+                     CertVerifyResult* verify_result) const;
 
   // The serial number, DER encoded.
   // NOTE: keep this method private, used by IsBlacklisted only.  To simplify
