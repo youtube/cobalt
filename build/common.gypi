@@ -146,6 +146,13 @@
       'clang_use_chrome_plugins%': 0,
 
       'conditions': [
+        # Use Skia as WebKit renderer on Mac
+        ['OS=="mac"', {
+          'use_skia%': 0,
+        }, {
+          'use_skia%': 1,
+        }],
+
         # A flag for POSIX platforms
         ['OS=="win"', {
           'os_posix%': 0,
@@ -220,6 +227,7 @@
     'views_compositor%': '<(views_compositor)',
     'os_posix%': '<(os_posix)',
     'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',
+    'use_skia%': '<(use_skia)',
     'use_x11%': '<(use_x11)',
     'use_gnome_keyring%': '<(use_gnome_keyring)',
     'linux_fpic%': '<(linux_fpic)',
@@ -729,6 +737,11 @@
       ['enable_eglimage==1', {
         'defines': [
           'ENABLE_EGLIMAGE=1',
+        ],
+      }],
+      ['use_skia==1', {
+        'defines': [
+          'USE_SKIA=1',
         ],
       }],
       ['coverage!=0', {
