@@ -1,8 +1,14 @@
+commit 47ee639fe155c26aed5ef6edba34be6d359a92c7
+Author: Adam Langley <agl@chromium.org>
+Date:   Mon Jun 20 15:50:01 2011 -0400
+
+    versionskew.patch
+
 diff --git a/mozilla/security/nss/lib/ssl/sslsecur.c b/mozilla/security/nss/lib/ssl/sslsecur.c
-index 8f79135..80c2ba6 100644
+index a0cae54..816b8f6 100644
 --- a/mozilla/security/nss/lib/ssl/sslsecur.c
 +++ b/mozilla/security/nss/lib/ssl/sslsecur.c
-@@ -1307,6 +1307,10 @@ SSL_SetURL(PRFileDesc *fd, const char *url)
+@@ -1316,6 +1316,10 @@ SSL_SetURL(PRFileDesc *fd, const char *url)
  SECStatus
  SSL_SetTrustAnchors(PRFileDesc *fd, CERTCertList *certList)
  {
@@ -13,7 +19,7 @@ index 8f79135..80c2ba6 100644
      sslSocket *   ss = ssl_FindSocket(fd);
      CERTDistNames *names = NULL;
  
-@@ -1334,6 +1338,7 @@ SSL_SetTrustAnchors(PRFileDesc *fd, CERTCertList *certList)
+@@ -1343,6 +1347,7 @@ SSL_SetTrustAnchors(PRFileDesc *fd, CERTCertList *certList)
      ssl_Release1stHandshakeLock(ss);
  
      return SECSuccess;
@@ -22,10 +28,10 @@ index 8f79135..80c2ba6 100644
  
  /*
 diff --git a/mozilla/security/nss/lib/ssl/sslsock.c b/mozilla/security/nss/lib/ssl/sslsock.c
-index aab48d6..01ef3bd 100644
+index 4c8fbfd..b7e32a2 100644
 --- a/mozilla/security/nss/lib/ssl/sslsock.c
 +++ b/mozilla/security/nss/lib/ssl/sslsock.c
-@@ -1258,6 +1258,11 @@ SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd)
+@@ -1343,6 +1343,11 @@ SSL_GetNextProto(PRFileDesc *fd, int *state, unsigned char *buf,
  PRFileDesc *
  SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
  {
@@ -37,7 +43,7 @@ index aab48d6..01ef3bd 100644
      sslSocket * sm = NULL, *ss = NULL;
      int i;
      sslServerCerts * mc = sm->serverCerts;
-@@ -1360,6 +1365,7 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
+@@ -1445,6 +1450,7 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
      return fd;
  loser:
      return NULL;
