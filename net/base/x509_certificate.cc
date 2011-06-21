@@ -19,6 +19,9 @@
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "net/base/cert_status_flags.h"
+#include "net/base/cert_verify_result.h"
+#include "net/base/net_errors.h"
 #include "net/base/pem_tokenizer.h"
 
 namespace net {
@@ -505,6 +508,21 @@ bool X509Certificate::VerifyHostname(
            << " (canonicalized as " << reference_name
            << ") in cert names " << JoinString(cert_names, '|');
   return false;
+}
+
+int X509Certificate::Verify(const std::string& hostname, int flags,
+                            CertVerifyResult* verify_result) const {
+  verify_result->Reset();
+
+  if (IsBlacklisted()) {
+    verify_result->cert_status |= CERT_STATUS_REVOKED;
+    return ERR_CERT_REVOKED;
+  }
+
+  int rv = VerifyInternal(hostname, flags, verify_result);
+
+  // If needed, do any post-validation here.
+  return rv;
 }
 
 #if !defined(USE_NSS)
