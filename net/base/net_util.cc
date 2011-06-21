@@ -1181,7 +1181,8 @@ bool IsCanonicalizedHostCompliant(const std::string& host,
     const char c = *i;
     if (!in_component) {
       most_recent_component_started_alpha = IsHostCharAlpha(c);
-      if (!most_recent_component_started_alpha && !IsHostCharDigit(c))
+      if (!most_recent_component_started_alpha && !IsHostCharDigit(c) &&
+          (c != '-'))
         return false;
       in_component = true;
     } else {
