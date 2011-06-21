@@ -14,6 +14,10 @@
 #include "base/logging.h"
 #include "base/utf_string_conversions.h"
 
+#if defined(OS_ANDROID)
+#include "base/os_compat_android.h"
+#endif
+
 namespace base {
 
 #if defined(OS_OPENBSD) || defined(OS_FREEBSD) || \
