@@ -19,6 +19,13 @@ namespace net {
 NET_API bool GetMimeTypeFromExtension(const FilePath::StringType& ext,
                                       std::string* mime_type);
 
+// Get the mime type (if any) that is associated with the given file extension.
+// Returns true if a corresponding mime type exists. In this method,
+// the search for a mime type is constrained to a limited set of
+// types known to the net library, the OS/registry is not consulted.
+NET_API bool GetWellKnownMimeTypeFromExtension(const FilePath::StringType& ext,
+                                               std::string* mime_type);
+
 // Get the mime type (if any) that is associated with the given file.  Returns
 // true if a corresponding mime type exists.
 NET_API bool GetMimeTypeFromFile(const FilePath& file_path,
