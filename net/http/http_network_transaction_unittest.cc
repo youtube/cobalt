@@ -4910,8 +4910,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_Referer) {
   request.method = "GET";
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
-  request.extra_headers.SetHeader(HttpRequestHeaders::kReferer,
-                                  "http://the.previous.site.com/");
+  request.referrer = GURL("http://the.previous.site.com/");
 
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
@@ -5188,7 +5187,6 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeadersStripped) {
     MockWrite("GET / HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Connection: keep-alive\r\n"
-              "referer: www.foo.com\r\n"
               "hEllo: Kitty\r\n"
               "FoO: bar\r\n\r\n"),
   };
@@ -5759,9 +5757,8 @@ TEST_F(HttpNetworkTransactionTest, ResolveMadeWithReferrer) {
   // Issue a request, containing an HTTP referrer.
   HttpRequestInfo request;
   request.method = "GET";
+  request.referrer = referrer;
   request.url = GURL("http://www.google.com/");
-  request.extra_headers.SetHeader(HttpRequestHeaders::kReferer,
-                                  referrer.spec());
 
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
