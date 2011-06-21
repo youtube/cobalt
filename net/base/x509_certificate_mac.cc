@@ -808,15 +808,9 @@ void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
     dns_names->push_back(subject_.common_name);
 }
 
-int X509Certificate::Verify(const std::string& hostname, int flags,
-                            CertVerifyResult* verify_result) const {
-  verify_result->Reset();
-
-  if (IsBlacklisted()) {
-    verify_result->cert_status |= CERT_STATUS_REVOKED;
-    return ERR_CERT_REVOKED;
-  }
-
+int X509Certificate::VerifyInternal(const std::string& hostname,
+                                    int flags,
+                                    CertVerifyResult* verify_result) const {
   ScopedCFTypeRef<CFArrayRef> trust_policies;
   OSStatus status = CreateTrustPolicies(hostname, flags, &trust_policies);
   if (status)
@@ -1057,14 +1051,6 @@ bool X509Certificate::GetDEREncoded(std::string* encoded) {
                     der_data.Length);
     return true;
   }
-  return false;
-}
-
-bool X509Certificate::VerifyEV() const {
-  // We don't call this private method, but we do need to implement it because
-  // it's defined in x509_certificate.h. We perform EV checking in the
-  // Verify() above.
-  NOTREACHED();
   return false;
 }
 
