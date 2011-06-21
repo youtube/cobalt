@@ -794,11 +794,22 @@ void URLRequestHttpJob::Start() {
   GURL referrer(request_->GetSanitizedReferrer());
 
   request_info_.url = request_->url();
-  request_info_.referrer = referrer;
   request_info_.method = request_->method();
   request_info_.load_flags = request_->load_flags();
   request_info_.priority = request_->priority();
   request_info_.request_id = request_->identifier();
+
+  // Strip Referer from request_info_.extra_headers to prevent, e.g., plugins
+  // from overriding headers that are controlled using other means. Otherwise a
+  // plugin could set a referrer although sending the referrer is inhibited.
+  request_info_.extra_headers.RemoveHeader(HttpRequestHeaders::kReferer);
+
+  // Our consumer should have made sure that this is a safe referrer.  See for
+  // instance WebCore::FrameLoader::HideReferrer.
+  if (referrer.is_valid()) {
+    request_info_.extra_headers.SetHeader(HttpRequestHeaders::kReferer,
+                                          referrer.spec());
+  }
 
   if (request_->context()) {
     request_info_.extra_headers.SetHeaderIfMissing(
