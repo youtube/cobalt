@@ -59,6 +59,7 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
     : demuxer_(demuxer),
       stream_(stream),
       type_(UNKNOWN),
+      discontinuous_(false),
       stopped_(false) {
   DCHECK(demuxer_);
 

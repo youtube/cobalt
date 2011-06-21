@@ -39,7 +39,8 @@ SSLSocketParams::SSLSocketParams(
       ssl_config_(ssl_config),
       load_flags_(load_flags),
       force_spdy_over_ssl_(force_spdy_over_ssl),
-      want_spdy_over_npn_(want_spdy_over_npn) {
+      want_spdy_over_npn_(want_spdy_over_npn),
+      ignore_limits_(false) {
   switch (proxy_) {
     case ProxyServer::SCHEME_DIRECT:
       DCHECK(transport_params_.get() != NULL);
