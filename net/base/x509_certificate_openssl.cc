@@ -406,16 +406,9 @@ X509_STORE* X509Certificate::cert_store() {
   return X509InitSingleton::GetInstance()->store();
 }
 
-int X509Certificate::Verify(const std::string& hostname,
-                            int flags,
-                            CertVerifyResult* verify_result) const {
-  verify_result->Reset();
-
-  if (IsBlacklisted()) {
-    verify_result->cert_status |= CERT_STATUS_REVOKED;
-    return ERR_CERT_REVOKED;
-  }
-
+int X509Certificate::VerifyInternal(const std::string& hostname,
+                                    int flags,
+                                    CertVerifyResult* verify_result) const {
   // TODO(joth): We should fetch the subjectAltNames directly rather than via
   // GetDNSNames, so we can apply special handling for IP addresses vs DNS
   // names, etc. See http://crbug.com/62973.
