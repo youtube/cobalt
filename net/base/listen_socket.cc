@@ -91,6 +91,8 @@ ListenSocket::ListenSocket(SOCKET s, ListenSocketDelegate *del)
   socket_event_ = WSACreateEvent();
   // TODO(ibrar): error handling in case of socket_event_ == WSA_INVALID_EVENT
   WatchSocket(NOT_WAITING);
+#elif defined(OS_POSIX)
+  wait_state_ = NOT_WAITING;
 #endif
 }
 
