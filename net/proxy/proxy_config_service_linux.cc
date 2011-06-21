@@ -492,11 +492,36 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
 class SettingGetterImplGSettings
     : public ProxyConfigServiceLinux::SettingGetter {
  public:
-  SettingGetterImplGSettings()
-      : client_(NULL), notify_delegate_(NULL), loop_(NULL) {
-#if defined(DLOPEN_GSETTINGS)
-    gio_handle_ = NULL;
+#if 0
+GSettings* (*g_settings_new)(const gchar* schema);
+  GSettings* (*g_settings_get_child)(GSettings* settings, const gchar* name);
+  gboolean (*g_settings_get_boolean)(GSettings* settings, const gchar* key);
+  gchar* (*g_settings_get_string)(GSettings* settings, const gchar* key);
+  gint (*g_settings_get_int)(GSettings* settings, const gchar* key);
+  gchar** (*g_settings_get_strv)(GSettings* settings, const gchar* key);
+  const gchar* const* (*g_settings_list_schemas)();
+
+  // The library handle.
+  void* gio_handle_;
 #endif
+  SettingGetterImplGSettings() :
+#if defined(DLOPEN_GSETTINGS)
+    g_settings_new(NULL),
+    g_settings_get_child(NULL),
+    g_settings_get_boolean(NULL),
+    g_settings_get_string(NULL),
+    g_settings_get_int(NULL),
+    g_settings_get_strv(NULL),
+    g_settings_list_schemas(NULL),
+    gio_handle_(NULL),
+#endif
+    client_(NULL),
+    http_client_(NULL),
+    https_client_(NULL),
+    ftp_client_(NULL),
+    socks_client_(NULL),
+    notify_delegate_(NULL),
+    loop_(NULL) {
   }
 
   virtual ~SettingGetterImplGSettings() {
