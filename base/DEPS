@@ -1,4 +1,5 @@
 include_rules = [
+  "+third_party/ashmem",
   "+third_party/apple_apsl",
   "+third_party/libevent",
   "+third_party/dmg_fp",

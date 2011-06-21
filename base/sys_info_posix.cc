@@ -7,8 +7,6 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/param.h>
-#include <sys/statvfs.h>
-#include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <unistd.h>
 
@@ -16,6 +14,14 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/utf_string_conversions.h"
+
+#if defined(OS_ANDROID)
+#include <sys/vfs.h>
+#define statvfs statfs  // Android uses a statvfs-like statfs struct and call.
+#else
+#include <sys/statvfs.h>
+#include <sys/sysctl.h>
+#endif
 
 namespace base {
 

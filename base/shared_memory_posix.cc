@@ -21,12 +21,19 @@
 #include "base/mac/foundation_util.h"
 #endif  // OS_MACOSX
 
+#if defined(OS_ANDROID)
+#include "base/os_compat_android.h"
+#include "third_party/ashmem/ashmem.h"
+#endif
+
 namespace base {
 
 namespace {
+
 // Paranoia. Semaphores and shared memory segments should live in different
 // namespaces, but who knows what's out there.
 const char kSemaphoreSuffix[] = "-sem";
+
 }
 
 SharedMemory::SharedMemory()
@@ -95,6 +102,7 @@ bool SharedMemory::CreateAnonymous(uint32 size) {
   return CreateNamed("", false, size);
 }
 
+#if !defined(OS_ANDROID)
 // Chromium mostly only uses the unique/private shmem as specified by
 // "name == L"". The exception is in the StatsTable.
 // TODO(jrg): there is no way to "clean up" all unused named shmem if
@@ -201,9 +209,27 @@ bool SharedMemory::Open(const std::string& name, bool read_only) {
   return PrepareMapFile(fp);
 }
 
+#endif  // !defined(OS_ANDROID)
+
 bool SharedMemory::Map(uint32 bytes) {
   if (mapped_file_ == -1)
     return false;
+
+#if defined(OS_ANDROID)
+  if (bytes == 0) {
+    int ashmem_bytes = ashmem_get_size_region();
+    if (ashmem_bytes < 0)
+      return false;
+
+    DCHECK_GE(static_cast<uint32>(ashmem_bytes), bytes);
+    // The caller wants to determine the map region size from ashmem.
+    bytes = ashmem_bytes;
+    // TODO(port): we set the created size here so that it is available in
+    // transport_dib_android.cc. We should use ashmem_get_size_region()
+    // in transport_dib_android.cc.
+    created_size_ = bytes;
+  }
+#endif
 
   memory_ = mmap(NULL, bytes, PROT_READ | (read_only_ ? 0 : PROT_WRITE),
                  MAP_SHARED, mapped_file_, 0);
@@ -248,6 +274,7 @@ void SharedMemory::Unlock() {
   LockOrUnlockCommon(F_ULOCK);
 }
 
+#if !defined(OS_ANDROID)
 bool SharedMemory::PrepareMapFile(FILE *fp) {
   DCHECK_EQ(-1, mapped_file_);
   if (fp == NULL) return false;
@@ -276,6 +303,7 @@ bool SharedMemory::PrepareMapFile(FILE *fp) {
 
   return true;
 }
+#endif
 
 // For the given shmem named |mem_name|, return a filename to mmap()
 // (and possibly create).  Modifies |filename|.  Return false on
