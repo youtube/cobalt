@@ -421,9 +421,10 @@ bool FFmpegDemuxer::SetPosition(int64 position) {
   DCHECK(data_source_);
 
   int64 file_size;
-  if (!data_source_->GetSize(&file_size) || position >= file_size ||
-      position < 0)
+  if ((data_source_->GetSize(&file_size) && position >= file_size) ||
+      position < 0) {
     return false;
+  }
 
   read_position_ = position;
   return true;
