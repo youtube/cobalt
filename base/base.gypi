@@ -96,6 +96,7 @@
           'files/file_path_watcher_win.cc',
           'fix_wp64.h',
           'float_util.h',
+          'getenv_ps3.cc',
           'global_descriptors_posix.cc',
           'global_descriptors_posix.h',
           'gtest_prod_util.h',
@@ -199,6 +200,7 @@
           'rand_util.cc',
           'rand_util.h',
           'rand_util_posix.cc',
+          'rand_util_ps3.cc',
           'rand_util_win.cc',
           'resource_util.cc',
           'resource_util.h',
@@ -392,7 +394,8 @@
               'files/file_path_watcher.cc',
               'files/file_path_watcher_stub.cc',
               'third_party/nspr/prtime.cc',
-              'metrics/stats_table.cc'
+              'metrics/stats_table.cc',
+              'rand_util_posix.cc',
             ],
             'sources': [
               'atomicops_internals_cell_ppu.h',
