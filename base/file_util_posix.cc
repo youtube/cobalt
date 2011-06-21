@@ -25,7 +25,7 @@
 #if defined(OS_MACOSX)
 #include <AvailabilityMacros.h>
 #include "base/mac/foundation_util.h"
-#else
+#elif !defined(OS_ANDROID)
 #include <glib.h>
 #endif
 
@@ -43,6 +43,10 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
+
+#if defined(OS_ANDROID)
+#include "base/os_compat_android.h"
+#endif
 
 namespace file_util {
 
@@ -106,7 +110,7 @@ int CountFilesCreatedAfter(const FilePath& path,
   DIR* dir = opendir(path.value().c_str());
   if (dir) {
 #if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD) && \
-    !defined(OS_OPENBSD) && !defined(OS_SOLARIS)
+    !defined(OS_OPENBSD) && !defined(OS_SOLARIS) && !defined(OS_ANDROID)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
@@ -739,7 +743,7 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
     return false;
 
 #if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD) && \
-    !defined(OS_OPENBSD) && !defined(OS_SOLARIS)
+    !defined(OS_OPENBSD) && !defined(OS_SOLARIS) && !defined(OS_ANDROID)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
@@ -839,26 +843,36 @@ bool GetTempDir(FilePath* path) {
   if (tmp)
     *path = FilePath(tmp);
   else
+#if defined(OS_ANDROID)
+    *path = FilePath("/data/local/tmp");
+#else
     *path = FilePath("/tmp");
+#endif
   return true;
 }
 
+#if !defined(OS_ANDROID)
 bool GetShmemTempDir(FilePath* path) {
   *path = FilePath("/dev/shm");
   return true;
 }
+#endif
 
 FilePath GetHomeDir() {
   const char* home_dir = getenv("HOME");
   if (home_dir && home_dir[0])
     return FilePath(home_dir);
 
+#if defined(OS_ANDROID)
+  LOG(WARNING) << "OS_ANDROID: Home directory lookup not yet implemented.";
+#else
   // g_get_home_dir calls getpwent, which can fall through to LDAP calls.
   base::ThreadRestrictions::AssertIOAllowed();
 
   home_dir = g_get_home_dir();
   if (home_dir && home_dir[0])
     return FilePath(home_dir);
+#endif
 
   FilePath rv;
   if (file_util::GetTempDir(&rv))
