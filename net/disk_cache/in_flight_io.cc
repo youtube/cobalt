@@ -55,7 +55,6 @@ void InFlightIO::OnIOComplete(BackgroundIO* operation) {
     DCHECK(single_thread_ || !running_);
     single_thread_ = true;
   }
-  running_ = true;
 #endif
 
   callback_thread_->PostTask(FROM_HERE,
@@ -67,6 +66,7 @@ void InFlightIO::OnIOComplete(BackgroundIO* operation) {
 // Runs on the primary thread.
 void InFlightIO::InvokeCallback(BackgroundIO* operation, bool cancel_task) {
   operation->io_completed()->Wait();
+  running_ = true;
 
   if (cancel_task)
     operation->Cancel();
