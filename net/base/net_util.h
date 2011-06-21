@@ -206,9 +206,10 @@ NET_API std::string CanonicalizeHost(const std::string& host,
 // rules based on RFC 1738 and tweaked to be compatible with the real world.
 // The rules are:
 //   * One or more components separated by '.'
-//   * Each component begins and ends with an alphanumeric character
+//   * Each component begins with an alphanumeric character or '-'
 //   * Each component contains only alphanumeric characters and '-' or '_'
-//   * The last component does not begin with a digit
+//   * Each component ends with an alphanumeric character
+//   * The last component begins with an alphabetic character
 //   * Optional trailing dot after last component (means "treat as FQDN")
 // If |desired_tld| is non-NULL, the host will only be considered invalid if
 // appending it as a trailing component still results in an invalid host.  This
