@@ -37,9 +37,11 @@ BASE_API bool FindProcessHoldingSocket(pid_t* pid_out, ino_t socket_inode);
 // For a given process |pid|, look through all its threads and find the first
 // thread with /proc/[pid]/task/[thread_id]/syscall whose first N bytes matches
 // |expected_data|, where N is the length of |expected_data|.
-// Returns the thread id or -1 on error.
+// Returns the thread id or -1 on error.  If |syscall_supported| is
+// set to false the kernel does not support syscall in procfs.
 BASE_API pid_t FindThreadIDWithSyscall(pid_t pid,
-                                       const std::string& expected_data);
+                                       const std::string& expected_data,
+                                       bool* syscall_supported);
 
 }  // namespace base
 
