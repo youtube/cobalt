@@ -1,8 +1,26 @@
-Index: net/third_party/nss/ssl/ssl.h
-===================================================================
---- net/third_party/nss/ssl/ssl.h	(revision 63749)
-+++ net/third_party/nss/ssl/ssl.h	(revision 63750)
-@@ -273,6 +273,17 @@
+commit 3833600af1d2e49f0d3b9381de10d120ddf0a03c
+Author: Adam Langley <agl@chromium.org>
+Date:   Mon Jun 20 15:54:45 2011 -0400
+
+    peercertchain.patch
+
+diff --git a/mozilla/security/nss/lib/ssl/ssl.def b/mozilla/security/nss/lib/ssl/ssl.def
+index a1f4b51..0fa8777 100644
+--- a/mozilla/security/nss/lib/ssl/ssl.def
++++ b/mozilla/security/nss/lib/ssl/ssl.def
+@@ -155,6 +155,7 @@ SSL_SNISocketConfigHook;
+ ;+NSS_CHROMIUM {
+ ;+    global:
+ SSL_GetNextProto;
++SSL_PeerCertificateChain;
+ SSL_SetNextProtoNego;
+ ;+    local:
+ ;+*;
+diff --git a/mozilla/security/nss/lib/ssl/ssl.h b/mozilla/security/nss/lib/ssl/ssl.h
+index ffa973c..cccb49a 100644
+--- a/mozilla/security/nss/lib/ssl/ssl.h
++++ b/mozilla/security/nss/lib/ssl/ssl.h
+@@ -264,6 +264,17 @@ SSL_IMPORT SECStatus SSL_SecurityStatus(PRFileDesc *fd, int *on, char **cipher,
  SSL_IMPORT CERTCertificate *SSL_PeerCertificate(PRFileDesc *fd);
  
  /*
@@ -20,11 +38,11 @@ Index: net/third_party/nss/ssl/ssl.h
  ** Authenticate certificate hook. Called when a certificate comes in
  ** (because of SSL_REQUIRE_CERTIFICATE in SSL_Enable) to authenticate the
  ** certificate.
-Index: net/third_party/nss/ssl/sslauth.c
-===================================================================
---- net/third_party/nss/ssl/sslauth.c	(revision 63749)
-+++ net/third_party/nss/ssl/sslauth.c	(revision 63750)
-@@ -60,6 +60,42 @@
+diff --git a/mozilla/security/nss/lib/ssl/sslauth.c b/mozilla/security/nss/lib/ssl/sslauth.c
+index 6d1eab0..df40f30 100644
+--- a/mozilla/security/nss/lib/ssl/sslauth.c
++++ b/mozilla/security/nss/lib/ssl/sslauth.c
+@@ -60,6 +60,42 @@ SSL_PeerCertificate(PRFileDesc *fd)
  }
  
  /* NEED LOCKS IN HERE.  */
@@ -67,15 +85,3 @@ Index: net/third_party/nss/ssl/sslauth.c
  CERTCertificate *
  SSL_LocalCertificate(PRFileDesc *fd)
  {
-Index: net/third_party/nss/ssl/ssl.def
-===================================================================
---- net/third_party/nss/ssl/ssl.def	(revision 63749)
-+++ net/third_party/nss/ssl/ssl.def	(revision 63750)
-@@ -163,6 +163,7 @@
- ;+    global:
- SSL_GetPredictedServerHelloData;
- SSL_GetSnapStartResult;
-+SSL_PeerCertificateChain;
- SSL_SetPredictedPeerCertificates;
- SSL_SetPredictedServerHelloData;
- SSL_SetSnapStartApplicationData;
