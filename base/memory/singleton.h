@@ -2,6 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// PLEASE READ: Do you really need a singleton?
+//
+// Singletons make it hard to determine the lifetime of an object, which can
+// lead to buggy code and spurious crashes.
+//
+// Instead of adding another singleton into the mix, try to identify either:
+//   a) An existing singleton that can manage your object's lifetime
+//   b) Locations where you can deterministically create the object and pass
+//      into other objects
+//
+// If you absolutely need a singleton, please keep them as trivial as possible
+// and ideally a leaf dependency. Singletons get problematic when they attempt
+// to do too much in their destructor or have circular dependencies.
+
 #ifndef BASE_MEMORY_SINGLETON_H_
 #define BASE_MEMORY_SINGLETON_H_
 #pragma once
