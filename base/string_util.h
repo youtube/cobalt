@@ -407,31 +407,11 @@ inline bool IsWhitespace(wchar_t c) {
   return wcschr(kWhitespaceWide, c) != NULL;
 }
 
-enum DataUnits {
-  DATA_UNITS_BYTE = 0,
-  DATA_UNITS_KIBIBYTE,
-  DATA_UNITS_MEBIBYTE,
-  DATA_UNITS_GIBIBYTE,
-};
-
-// Return the unit type that is appropriate for displaying the amount of bytes
-// passed in.
-BASE_API DataUnits GetByteDisplayUnits(int64 bytes);
-
-// Return a byte string in human-readable format, displayed in units appropriate
-// specified by 'units', with an optional unit suffix.
-// Ex: FormatBytes(512, DATA_UNITS_KIBIBYTE, true) => "0.5 KB"
-// Ex: FormatBytes(10*1024, DATA_UNITS_MEBIBYTE, false) => "0.1"
-BASE_API string16 FormatBytes(int64 bytes, DataUnits units, bool show_units);
-
-// As above, but with "/s" units.
-// Ex: FormatSpeed(512, DATA_UNITS_KIBIBYTE, true) => "0.5 KB/s"
-// Ex: FormatSpeed(10*1024, DATA_UNITS_MEBIBYTE, false) => "0.1"
-BASE_API string16 FormatSpeed(int64 bytes, DataUnits units, bool show_units);
-
-// Return a number formated with separators in the user's locale way.
-// Ex: FormatNumber(1234567) => 1,234,567
-BASE_API string16 FormatNumber(int64 number);
+// Return a byte string in human-readable format with a unit suffix. Not
+// appropriate for use in any UI; use of FormatBytes and friends in ui/base is
+// highly recommended instead. TODO(avi): Figure out how to get callers to use
+// FormatBytes instead; remove this.
+BASE_API string16 FormatBytesUnlocalized(int64 bytes);
 
 // Starting at |start_offset| (usually 0), replace the first instance of
 // |find_this| with |replace_with|.
