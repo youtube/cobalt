@@ -67,7 +67,9 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
   format_.mFramesPerPacket = 1;
   format_.mBytesPerPacket = (format_.mBitsPerChannel * params.channels) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
+  format_.mReserved = 0;
 
+  memset(buffer_, 0, sizeof(buffer_));
   memset(core_channel_orderings_, 0, sizeof(core_channel_orderings_));
   memset(channel_remap_, 0, sizeof(channel_remap_));
 

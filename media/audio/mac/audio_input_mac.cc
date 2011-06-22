@@ -36,6 +36,7 @@ PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
   format_.mFramesPerPacket = 1;
   format_.mBytesPerPacket = (params.bits_per_sample * params.channels) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
+  format_.mReserved = 0;
 
   buffer_size_bytes_ = params.GetPacketSize();
 }
