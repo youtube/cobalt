@@ -7958,7 +7958,6 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     PRInt32          size;
     SECStatus        rv;
     PRBool           isServer	= (PRBool)(!!ss->sec.isServer);
-    PRBool           trusted 	= PR_FALSE;
     PRBool           isTLS;
     SSL3AlertDescription desc	= bad_certificate;
     int              errCode    = SSL_ERROR_RX_MALFORMED_CERTIFICATE;
@@ -8018,77 +8017,114 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	goto loser;	/* don't send alerts on memory errors */
     }
 
-    /* First get the peer cert. */
-    remaining -= 3;
-    if (remaining < 0)
-	goto decode_loser;
+    if (length == 12 && ssl3_ExtensionNegotiated(ss, ssl_cached_info_xtn)) {
+        /* We are dealing with a certificate_chain digest */
+	int i;
 
-    size = ssl3_ConsumeHandshakeNumber(ss, 3, &b, &length);
-    if (size <= 0)
-	goto loser;	/* fatal alert already sent by ConsumeHandshake. */
+        ss->ssl3.digestReceived = PR_TRUE;
 
-    if (remaining < size)
-	goto decode_loser;
+	/* Make sure the digests match. */
+	if (memcmp(b + 4, ss->ssl3.certChainDigest, 8)) {
+            desc = handshake_failure;
+            goto alert_loser;
+	}
 
-    certItem.data = b;
-    certItem.len = size;
-    b      += size;
-    length -= size;
-    remaining -= size;
-
-    ss->sec.peerCert = CERT_NewTempCertificate(ss->dbHandle, &certItem, NULL,
-                                            PR_FALSE, PR_TRUE);
-    if (ss->sec.peerCert == NULL) {
-	/* We should report an alert if the cert was bad, but not if the
-	 * problem was just some local problem, like memory error.
-	 */
-	goto ambiguous_err;
-    }
-
-    /* Now get all of the CA certs. */
-    while (remaining > 0) {
-	remaining -= 3;
-	if (remaining < 0)
+        /* First get the peer cert. */
+        if (ss->ssl3.predictedCertChain[0] == NULL) {
+            desc = handshake_failure;
+            goto alert_loser;
+	}
+        ss->sec.peerCert = CERT_DupCertificate(ss->ssl3.predictedCertChain[0]);
+	
+        /* Now get all of the CA certs. */
+	ss->ssl3.peerCertChain = NULL;
+	for (i = 1; ss->ssl3.predictedCertChain[i] != NULL; i++) {
+	    c = PORT_ArenaNew(arena, ssl3CertNode);
+	    if (c == NULL) {
+	        goto loser;	/* don't send alerts on memory errors */
+	    }
+	    c->cert = CERT_DupCertificate(ss->ssl3.predictedCertChain[i]);
+	    c->next = NULL;
+	    if (lastCert) {
+	        lastCert->next = c;
+	    } else {
+	        ss->ssl3.peerCertChain = c;
+	    }
+	    lastCert = c;
+	}
+    } else {
+        /* We are dealing with a regular certificate message */
+        ss->ssl3.digestReceived = PR_FALSE;
+      
+        /* First get the peer cert. */
+        remaining -= 3;
+        if (remaining < 0)
 	    goto decode_loser;
-
-	size = ssl3_ConsumeHandshakeNumber(ss, 3, &b, &length);
-	if (size <= 0)
+        
+        size = ssl3_ConsumeHandshakeNumber(ss, 3, &b, &length);
+        if (size <= 0)
 	    goto loser;	/* fatal alert already sent by ConsumeHandshake. */
-
-	if (remaining < size)
+        
+        if (remaining < size)
 	    goto decode_loser;
-
-	certItem.data = b;
-	certItem.len = size;
-	b      += size;
-	length -= size;
-	remaining -= size;
-
-	c = PORT_ArenaNew(arena, ssl3CertNode);
-	if (c == NULL) {
-	    goto loser;	/* don't send alerts on memory errors */
-	}
-
-	c->cert = CERT_NewTempCertificate(ss->dbHandle, &certItem, NULL,
-	                                  PR_FALSE, PR_TRUE);
-	if (c->cert == NULL) {
+        
+        certItem.data = b;
+        certItem.len = size;
+        b += size;
+        length -= size;
+        remaining -= size;
+        
+        ss->sec.peerCert = CERT_NewTempCertificate(ss->dbHandle, &certItem,
+						   NULL, PR_FALSE, PR_TRUE);
+        if (ss->sec.peerCert == NULL) {
+	    /* We should report an alert if the cert was bad, but not if the
+	     * problem was just some local problem, like memory error.
+	     */
 	    goto ambiguous_err;
-	}
-
-	if (c->cert->trust)
-	    trusted = PR_TRUE;
-
-	c->next = NULL;
-	if (lastCert) {
-	    lastCert->next = c;
-	} else {
-	    certs = c;
-	}
-	lastCert = c;
+        }
+        
+        /* Now get all of the CA certs. */
+        while (remaining > 0) {
+	    remaining -= 3;
+	    if (remaining < 0)
+	        goto decode_loser;
+        
+	    size = ssl3_ConsumeHandshakeNumber(ss, 3, &b, &length);
+	    if (size <= 0)
+	        goto loser; /* fatal alert already sent by ConsumeHandshake. */
+        
+	    if (remaining < size)
+	        goto decode_loser;
+        
+	    certItem.data = b;
+	    certItem.len = size;
+	    b      += size;
+	    length -= size;
+	    remaining -= size;
+	    
+	    c = PORT_ArenaNew(arena, ssl3CertNode);
+	    if (c == NULL) {
+	        goto loser;	/* don't send alerts on memory errors */
+	    }
+        
+	    c->cert = CERT_NewTempCertificate(ss->dbHandle, &certItem, NULL,
+					      PR_FALSE, PR_TRUE);
+	    if (c->cert == NULL) {
+	        goto ambiguous_err;
+	    }
+        
+	    c->next = NULL;
+	    if (lastCert) {
+	        lastCert->next = c;
+	    } else {
+	        certs = c;
+	    }
+	    lastCert = c;
+        }
+        
+        if (remaining != 0)
+            goto decode_loser;
     }
-
-    if (remaining != 0)
-        goto decode_loser;
 
     SECKEY_UpdateCertPQG(ss->sec.peerCert);
 
@@ -8250,7 +8286,10 @@ alert_loser:
     (void)SSL3_SendAlert(ss, alert_fatal, desc);
 
 loser:
-    ss->ssl3.peerCertChain = certs;  certs = NULL;  arena = NULL;
+    if (ss->ssl3.peerCertChain == NULL) {
+        ss->ssl3.peerCertChain = certs;  certs = NULL;  arena = NULL;
+    }
+    PORT_Assert(certs == NULL);
     ssl3_CleanupPeerCerts(ss);
 
     if (ss->sec.peerCert != NULL) {
@@ -9736,6 +9775,21 @@ ssl3_RedoHandshake(sslSocket *ss, PRBool flushCache)
     return rv;
 }
 
+static void
+ssl3_CleanupPredictedPeerCertificates(sslSocket *ss) {
+    unsigned int i;
+
+    if (!ss->ssl3.predictedCertChain)
+        return;
+
+    for (i = 0; ss->ssl3.predictedCertChain[i]; i++) {
+        CERT_DestroyCertificate(ss->ssl3.predictedCertChain[i]);
+    }
+
+    PORT_Free(ss->ssl3.predictedCertChain);
+    ss->ssl3.predictedCertChain = NULL;
+}
+
 /* Called from ssl_DestroySocketContents() in sslsock.c */
 void
 ssl3_DestroySSL3Info(sslSocket *ss)
@@ -9758,6 +9812,9 @@ ssl3_DestroySSL3Info(sslSocket *ss)
        CERT_DestroyCertificateList(ss->ssl3.clientCertChain);
        ss->ssl3.clientCertChain = NULL;
     }
+
+    if (ss->ssl3.predictedCertChain != NULL)
+	ssl3_CleanupPredictedPeerCertificates(ss);
 
     /* clean up handshake */
     if (ss->opt.bypassPKCS11) {

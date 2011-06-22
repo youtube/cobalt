@@ -585,7 +585,11 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
     }
   }
 
-  GotoState(STATE_HANDSHAKE);
+  if (ssl_config_.cached_info_enabled && ssl_host_info_.get()) {
+    GotoState(STATE_LOAD_SSL_HOST_INFO);
+  } else {
+    GotoState(STATE_HANDSHAKE);
+  }
 
   rv = DoHandshakeLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -916,9 +920,18 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #ifdef SSL_ENABLE_OCSP_STAPLING
   if (IsOCSPStaplingSupported()) {
     rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_OCSP_STAPLING, PR_TRUE);
-    if (rv != SECSuccess)
-      LogFailedNSSFunction(net_log_, "SSL_OptionSet (OCSP stapling)", "");
+    if (rv != SECSuccess) {
+      LogFailedNSSFunction(net_log_, "SSL_OptionSet",
+                           "SSL_ENABLE_OCSP_STAPLING");
+    }
   }
+#endif
+
+#ifdef SSL_ENABLE_CACHED_INFO
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_CACHED_INFO,
+                     ssl_config_.cached_info_enabled);
+  if (rv != SECSuccess)
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_CACHED_INFO");
 #endif
 
   rv = SSL_OptionSet(nss_fd_, SSL_HANDSHAKE_AS_CLIENT, PR_TRUE);
@@ -1202,6 +1215,9 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
       case STATE_NONE:
         // we're just pumping data between the buffer and the network
         break;
+      case STATE_LOAD_SSL_HOST_INFO:
+        rv = DoLoadSSLHostInfo();
+        break;
       case STATE_HANDSHAKE:
         rv = DoHandshake();
         break;
@@ -1283,6 +1299,57 @@ int SSLClientSocketNSS::DoWriteLoop(int result) {
   return rv;
 }
 
+bool SSLClientSocketNSS::LoadSSLHostInfo() {
+  const SSLHostInfo::State& state(ssl_host_info_->state());
+
+  if (state.certs.empty())
+    return false;
+
+  SECStatus rv;
+  const std::vector<std::string>& certs_in = state.certs;
+  scoped_array<CERTCertificate*> certs(new CERTCertificate*[certs_in.size()]);
+
+  for (size_t i = 0; i < certs_in.size(); i++) {
+    SECItem derCert;
+    derCert.data =
+      const_cast<uint8*>(reinterpret_cast<const uint8*>(certs_in[i].data()));
+    derCert.len = certs_in[i].size();
+    certs[i] = CERT_NewTempCertificate(
+        CERT_GetDefaultCertDB(), &derCert, NULL /* no nickname given */,
+        PR_FALSE /* not permanent */, PR_TRUE /* copy DER data */);
+    if (!certs[i]) {
+      DestroyCertificates(&certs[0], i);
+      NOTREACHED();
+      return false;
+    }
+  }
+
+  rv = SSL_SetPredictedPeerCertificates(nss_fd_, certs.get(), certs_in.size());
+  DestroyCertificates(&certs[0], certs_in.size());
+  DCHECK_EQ(SECSuccess, rv);
+
+  return true;
+}
+
+int SSLClientSocketNSS::DoLoadSSLHostInfo() {
+  int rv;
+
+  EnterFunction("");
+  rv = ssl_host_info_->WaitForDataReady(&handshake_io_callback_);
+  GotoState(STATE_HANDSHAKE);
+
+  if (rv == OK) {
+    if (!LoadSSLHostInfo())
+      LOG(WARNING) << "LoadSSLHostInfo failed: " << host_and_port_.ToString();
+  } else {
+    DCHECK_EQ(ERR_IO_PENDING, rv);
+    GotoState(STATE_LOAD_SSL_HOST_INFO);
+  }
+
+  LeaveFunction("");
+  return rv;
+}
+
 int SSLClientSocketNSS::DoHandshake() {
   EnterFunction("");
   int net_error = net::OK;
@@ -1307,7 +1374,8 @@ int SSLClientSocketNSS::DoHandshake() {
       } else {
         // We need to see if the predicted certificate chain (in
         // |ssl_host_info_->state().certs) matches the actual certificate chain
-        // before we try to save it before we update |ssl_host_info_|.
+        // before we call SaveSSLHostInfo, as that will update
+        // |ssl_host_info_|.
         if (ssl_host_info_.get() && !ssl_host_info_->state().certs.empty()) {
           PeerCertificateChain certs(nss_fd_);
           const SSLHostInfo::State& state = ssl_host_info_->state();
