@@ -58,6 +58,8 @@ PlatformFile CreatePlatformFile(const FilePath& name,
   DWORD sharing = (flags & PLATFORM_FILE_EXCLUSIVE_READ) ? 0 : FILE_SHARE_READ;
   if (!(flags & PLATFORM_FILE_EXCLUSIVE_WRITE))
     sharing |= FILE_SHARE_WRITE;
+  if (flags & PLATFORM_FILE_SHARE_DELETE)
+    sharing |= FILE_SHARE_DELETE;
 
   DWORD create_flags = 0;
   if (flags & PLATFORM_FILE_ASYNC)
