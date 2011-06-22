@@ -21,6 +21,7 @@
 #endif
 #include "net/socket/ssl_host_info.h"
 #include "net/socket/tcp_client_socket.h"
+#include "net/udp/udp_client_socket.h"
 
 namespace net {
 
@@ -50,6 +51,12 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
     // Always flush now because OnCertTrustChanged does not tell us this.
     // See comments in ClientSocketPoolManager::OnCertTrustChanged.
     ClearSSLSessionCache();
+  }
+
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      NetLog* net_log,
+      const NetLog::Source& source) {
+    return new UDPClientSocket(net_log, source);
   }
 
   virtual StreamSocket* CreateTransportClientSocket(
