@@ -41,7 +41,7 @@ enum {
 #endif
 
 PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
-    AudioManagerMac* manager, AudioParameters params)
+    AudioManagerMac* manager, const AudioParameters& params)
     : audio_queue_(NULL),
       source_(NULL),
       manager_(manager),

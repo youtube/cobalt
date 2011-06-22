@@ -37,7 +37,7 @@ AudioInputController::~AudioInputController() {
 // static
 scoped_refptr<AudioInputController> AudioInputController::Create(
     EventHandler* event_handler,
-    AudioParameters params) {
+    const AudioParameters& params) {
   if (!params.IsValid() || (params.channels > kMaxInputChannels))
     return NULL;
 
@@ -60,7 +60,7 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
 // static
 scoped_refptr<AudioInputController> AudioInputController::CreateLowLatency(
     EventHandler* event_handler,
-    AudioParameters params,
+    const AudioParameters& params,
     SyncWriter* sync_writer) {
   DCHECK(sync_writer);
 
@@ -113,7 +113,7 @@ void AudioInputController::Close() {
   thread_.Stop();
 }
 
-void AudioInputController::DoCreate(AudioParameters params) {
+void AudioInputController::DoCreate(const AudioParameters& params) {
   stream_ = AudioManager::GetAudioManager()->MakeAudioInputStream(params);
 
   if (!stream_) {

@@ -12,7 +12,7 @@ FakeAudioOutputStream* FakeAudioOutputStream::last_fake_stream_ = NULL;
 
 // static
 AudioOutputStream* FakeAudioOutputStream::MakeFakeStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   if (!has_created_fake_stream_)
     base::AtExitManager::RegisterCallback(&DestroyLastFakeStream, NULL);
   has_created_fake_stream_ = true;
@@ -63,7 +63,7 @@ void FakeAudioOutputStream::Close() {
   closed_ = true;
 }
 
-FakeAudioOutputStream::FakeAudioOutputStream(AudioParameters params)
+FakeAudioOutputStream::FakeAudioOutputStream(const AudioParameters& params)
     : volume_(0),
       callback_(NULL),
       packet_size_(params.GetPacketSize()),

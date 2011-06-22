@@ -94,7 +94,7 @@ void AudioManagerMac::GetAudioInputDeviceNames(
 }
 
 AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   if (!params.IsValid())
     return NULL;
 
@@ -119,7 +119,7 @@ AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
 }
 
 AudioInputStream* AudioManagerMac::MakeAudioInputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   if (!params.IsValid() || (params.channels > kMaxInputChannels))
     return NULL;
 

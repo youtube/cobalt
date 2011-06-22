@@ -24,7 +24,7 @@ static WAVEHDR* GetNextBuffer(WAVEHDR* current) {
 }
 
 PCMWaveInAudioInputStream::PCMWaveInAudioInputStream(
-    AudioManagerWin* manager, AudioParameters params, int num_buffers,
+    AudioManagerWin* manager, const AudioParameters& params, int num_buffers,
     UINT device_id)
     : state_(kStateEmpty),
       manager_(manager),

@@ -31,7 +31,7 @@ AudioOutputController::~AudioOutputController() {
 // static
 scoped_refptr<AudioOutputController> AudioOutputController::Create(
     EventHandler* event_handler,
-    AudioParameters params,
+    const AudioParameters& params,
     uint32 buffer_capacity) {
 
   if (!params.IsValid())
@@ -56,7 +56,7 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
 // static
 scoped_refptr<AudioOutputController> AudioOutputController::CreateLowLatency(
     EventHandler* event_handler,
-    AudioParameters params,
+    const AudioParameters& params,
     SyncReader* sync_reader) {
 
   DCHECK(sync_reader);
@@ -129,7 +129,7 @@ void AudioOutputController::EnqueueData(const uint8* data, uint32 size) {
   }
 }
 
-void AudioOutputController::DoCreate(AudioParameters params) {
+void AudioOutputController::DoCreate(const AudioParameters& params) {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
   // Close() can be called before DoCreate() is executed.
