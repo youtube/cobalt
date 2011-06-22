@@ -103,6 +103,13 @@ class MockClientSocketFactory : public ClientSocketFactory {
  public:
   MockClientSocketFactory() : allocation_count_(0) {}
 
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      NetLog* net_log,
+      const NetLog::Source& source) {
+    NOTREACHED();
+    return NULL;
+  }
+
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* /* net_log */,
