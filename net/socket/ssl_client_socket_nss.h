@@ -226,9 +226,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // that we found the prediction to be correct.
   bool predicted_cert_chain_correct_;
 
-  // True if the peer name has been initialized.
-  bool peername_initialized_;
-
   // The time when we started waiting for DNSSEC records.
   base::Time dnssec_wait_start_time_;
 

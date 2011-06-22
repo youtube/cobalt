@@ -452,7 +452,6 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       completed_handshake_(false),
       eset_mitm_detected_(false),
       predicted_cert_chain_correct_(false),
-      peername_initialized_(false),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
       nss_bufs_(NULL),
@@ -575,14 +574,10 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
     return rv;
   }
 
-  // Attempt to initialize the peer name.  In the case of TCP FastOpen,
-  // we don't have the peer yet.
-  if (!UsingTCPFastOpen()) {
-    rv = InitializeSSLPeerName();
-    if (rv != OK) {
-      net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
-      return rv;
-    }
+  rv = InitializeSSLPeerName();
+  if (rv != OK) {
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
+    return rv;
   }
 
   if (ssl_config_.cached_info_enabled && ssl_host_info_.get()) {
@@ -640,7 +635,6 @@ void SSLClientSocketNSS::Disconnect() {
   eset_mitm_detected_    = false;
   start_cert_verification_time_ = base::TimeTicks();
   predicted_cert_chain_correct_ = false;
-  peername_initialized_  = false;
   nss_bufs_              = NULL;
   client_certs_.clear();
   client_auth_cert_needed_ = false;
@@ -967,7 +961,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   SSL_SetURL(nss_fd_, host_and_port_.host().c_str());
 
   // Tell SSL we're a client; needed if not letting NSPR do socket I/O
-  SSL_ResetHandshake(nss_fd_, 0);
+  SSL_ResetHandshake(nss_fd_, PR_FALSE);
 
   return OK;
 }
@@ -1004,7 +998,6 @@ int SSLClientSocketNSS::InitializeSSLPeerName() {
   if (rv != SECSuccess)
     LogFailedNSSFunction(net_log_, "SSL_SetSockPeerID", peer_id.c_str());
 
-  peername_initialized_ = true;
   return OK;
 }
 
@@ -1755,11 +1748,6 @@ int SSLClientSocketNSS::BufferSend(void) {
 
 void SSLClientSocketNSS::BufferSendComplete(int result) {
   EnterFunction(result);
-
-  // In the case of TCP FastOpen, connect is now finished.
-  if (!peername_initialized_ && UsingTCPFastOpen())
-    InitializeSSLPeerName();
-
   memio_PutWriteResult(nss_bufs_, MapErrorToNSS(result));
   transport_send_busy_ = false;
   OnSendComplete(result);
