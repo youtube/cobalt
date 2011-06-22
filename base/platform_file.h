@@ -50,6 +50,8 @@ enum PlatformFileFlags {
 
   PLATFORM_FILE_WRITE_ATTRIBUTES = 8192,  // Used on Windows only
   PLATFORM_FILE_ENUMERATE = 16384,  // May enumerate directory
+
+  PLATFORM_FILE_SHARE_DELETE = 32768,  // Used on Windows only
 };
 
 // PLATFORM_FILE_ERROR_ACCESS_DENIED is returned when a call fails because of
