@@ -265,6 +265,13 @@ class MockClientSocketFactory : public ClientSocketFactory {
         client_socket_index_max_(0),
         delay_ms_(ClientSocketPool::kMaxConnectRetryIntervalMs) {}
 
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      NetLog* net_log,
+      const NetLog::Source& source) {
+    NOTREACHED();
+    return NULL;
+  }
+
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* /* net_log */,
