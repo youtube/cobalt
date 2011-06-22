@@ -27,6 +27,7 @@
         'ssl/authcert.c',
         'ssl/cmpcert.c',
         'ssl/derive.c',
+        'ssl/fnv1a64.c',
         'ssl/nsskea.c',
         'ssl/os2_err.c',
         'ssl/os2_err.h',

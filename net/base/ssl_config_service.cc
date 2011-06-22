@@ -16,7 +16,7 @@ SSLConfig::CertAndStatus::~CertAndStatus() {}
 SSLConfig::SSLConfig()
     : rev_checking_enabled(true), ssl3_enabled(true),
       tls1_enabled(true),
-      dns_cert_provenance_checking_enabled(false),
+      dns_cert_provenance_checking_enabled(false), cached_info_enabled(false),
       false_start_enabled(true),
       send_client_cert(false), verify_ev_cert(false), ssl3_fallback(false) {
 }
@@ -46,6 +46,7 @@ bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
   return SSLFalseStartBlacklist::IsMember(hostname.c_str());
 }
 
+static bool g_cached_info_enabled = false;
 static bool g_false_start_enabled = true;
 static bool g_dns_cert_provenance_checking = false;
 
@@ -69,6 +70,16 @@ bool SSLConfigService::dns_cert_provenance_checking_enabled() {
   return g_dns_cert_provenance_checking;
 }
 
+// static
+void SSLConfigService::EnableCachedInfo() {
+  g_cached_info_enabled = true;
+}
+
+// static
+bool SSLConfigService::cached_info_enabled() {
+  return g_cached_info_enabled;
+}
+
 void SSLConfigService::AddObserver(Observer* observer) {
   observer_list_.AddObserver(observer);
 }
@@ -85,6 +96,7 @@ void SSLConfigService::SetSSLConfigFlags(SSLConfig* ssl_config) {
   ssl_config->false_start_enabled = g_false_start_enabled;
   ssl_config->dns_cert_provenance_checking_enabled =
       g_dns_cert_provenance_checking;
+  ssl_config->cached_info_enabled = g_cached_info_enabled;
 }
 
 void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
