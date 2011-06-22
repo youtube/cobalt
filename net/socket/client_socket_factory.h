@@ -17,6 +17,7 @@ namespace net {
 class AddressList;
 class CertVerifier;
 class ClientSocketHandle;
+class DatagramClientSocket;
 class DnsCertProvenanceChecker;
 class HostPortPair;
 class SSLClientSocket;
@@ -32,6 +33,10 @@ class NET_API ClientSocketFactory {
 
   // |source| is the NetLog::Source for the entity trying to create the socket,
   // if it has one.
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      NetLog* net_log,
+      const NetLog::Source& source) = 0;
+
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
