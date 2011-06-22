@@ -178,7 +178,7 @@ const uint32 AlsaPcmOutputStream::kMinLatencyMicros =
     kSleepErrorMilliseconds * 2 * 1000;
 
 AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
-                                         AudioParameters params,
+                                         const AudioParameters& params,
                                          AlsaWrapper* wrapper,
                                          AudioManagerLinux* manager,
                                          MessageLoop* message_loop)

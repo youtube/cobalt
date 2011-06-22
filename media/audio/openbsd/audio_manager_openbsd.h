@@ -17,8 +17,10 @@ class AudioManagerOpenBSD : public AudioManagerBase {
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices();
   virtual bool HasAudioInputDevices();
-  virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params);
-  virtual AudioInputStream* MakeAudioInputStream(AudioParameters params);
+  virtual AudioOutputStream* MakeAudioOutputStream(
+      const AudioParameters& params);
+  virtual AudioInputStream* MakeAudioInputStream(
+      const AudioParameters& params);
   virtual void MuteAll();
   virtual void UnMuteAll();
 

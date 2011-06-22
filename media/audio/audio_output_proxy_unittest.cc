@@ -41,11 +41,11 @@ class MockAudioManager : public AudioManager {
   MOCK_METHOD0(HasAudioInputDevices, bool());
   MOCK_METHOD0(GetAudioInputDeviceModel, string16());
   MOCK_METHOD1(MakeAudioOutputStream, AudioOutputStream*(
-      AudioParameters params));
+      const AudioParameters& params));
   MOCK_METHOD1(MakeAudioOutputStreamProxy, AudioOutputStream*(
       const AudioParameters& params));
   MOCK_METHOD1(MakeAudioInputStream, AudioInputStream*(
-      AudioParameters params));
+      const AudioParameters& params));
   MOCK_METHOD0(MuteAll, void());
   MOCK_METHOD0(UnMuteAll, void());
   MOCK_METHOD0(CanShowAudioInputSettings, bool());

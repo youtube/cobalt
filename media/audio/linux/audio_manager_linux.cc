@@ -83,7 +83,7 @@ bool AudioManagerLinux::HasAudioInputDevices() {
 }
 
 AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   // Early return for testing hook.  Do this before checking for
   // |initialized_|.
   if (params.format == AudioParameters::AUDIO_MOCK) {
@@ -113,7 +113,7 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
 }
 
 AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   if (!params.IsValid() || params.channels > kMaxInputChannels)
     return NULL;
 

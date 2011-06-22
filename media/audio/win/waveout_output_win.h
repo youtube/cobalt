@@ -31,8 +31,10 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // The ctor takes all the usual parameters, plus |manager| which is the
   // the audio manager who is creating this object and |device_id| which
   // is provided by the operating system.
-  PCMWaveOutAudioOutputStream(AudioManagerWin* manager, AudioParameters params,
-                              int num_buffers, UINT device_id);
+  PCMWaveOutAudioOutputStream(AudioManagerWin* manager,
+                              const AudioParameters& params,
+                              int num_buffers,
+                              UINT device_id);
   virtual ~PCMWaveOutAudioOutputStream();
 
   // Implementation of AudioOutputStream.

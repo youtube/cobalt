@@ -70,7 +70,7 @@ class AlsaPcmOutputStream : public AudioOutputStream {
   //
   // If unsure of what to use for |device_name|, use |kAutoSelectDevice|.
   AlsaPcmOutputStream(const std::string& device_name,
-                      AudioParameters params,
+                      const AudioParameters& params,
                       AlsaWrapper* wrapper,
                       AudioManagerLinux* manager,
                       MessageLoop* message_loop);
