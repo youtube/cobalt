@@ -127,6 +127,42 @@ TEST(PlatformFile, CreatePlatformFile) {
   EXPECT_FALSE(file_util::PathExists(file_path));
 }
 
+TEST(PlatformFile, DeleteOpenFile) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  FilePath file_path = temp_dir.path().AppendASCII("create_file_1");
+
+  // Create a file.
+  bool created = false;
+  base::PlatformFileError error_code = base::PLATFORM_FILE_OK;
+  base::PlatformFile file = base::CreatePlatformFile(
+      file_path,
+      base::PLATFORM_FILE_OPEN_ALWAYS |
+      base::PLATFORM_FILE_READ |
+      base::PLATFORM_FILE_SHARE_DELETE,
+      &created, &error_code);
+  EXPECT_NE(base::kInvalidPlatformFileValue, file);
+  EXPECT_TRUE(created);
+  EXPECT_EQ(base::PLATFORM_FILE_OK, error_code);
+
+  // Open an existing file and mark it as delete on close.
+  created = false;
+  base::PlatformFile same_file = base::CreatePlatformFile(
+      file_path,
+      base::PLATFORM_FILE_OPEN |
+      base::PLATFORM_FILE_DELETE_ON_CLOSE |
+      base::PLATFORM_FILE_READ,
+      &created, &error_code);
+  EXPECT_NE(base::kInvalidPlatformFileValue, file);
+  EXPECT_FALSE(created);
+  EXPECT_EQ(base::PLATFORM_FILE_OK, error_code);
+
+  // Close both handles and check that the file is gone.
+  base::ClosePlatformFile(file);
+  base::ClosePlatformFile(same_file);
+  EXPECT_FALSE(file_util::PathExists(file_path));
+}
+
 TEST(PlatformFile, ReadWritePlatformFile) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
