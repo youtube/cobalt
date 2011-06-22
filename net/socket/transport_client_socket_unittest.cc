@@ -161,10 +161,9 @@ void TransportClientSocketTest::SendClientRequest() {
   rv = sock_->Write(request_buffer, arraysize(request_text) - 1, &callback);
   EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
 
-  if (rv == ERR_IO_PENDING) {
+  if (rv == ERR_IO_PENDING)
     rv = callback.WaitForResult();
-    EXPECT_EQ(rv, static_cast<int>(arraysize(request_text) - 1));
-  }
+  EXPECT_EQ(rv, static_cast<int>(arraysize(request_text) - 1));
 }
 
 // TODO(leighton):  Add SCTP to this list when it is ready.
