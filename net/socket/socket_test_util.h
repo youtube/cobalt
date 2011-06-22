@@ -32,6 +32,7 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/transport_client_socket_pool.h"
+#include "net/udp/datagram_client_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -500,6 +501,7 @@ class SocketDataProviderArray {
   std::vector<T*> data_providers_;
 };
 
+class MockUDPClientSocket;
 class MockTCPClientSocket;
 class MockSSLClientSocket;
 
@@ -533,6 +535,9 @@ class MockClientSocketFactory : public ClientSocketFactory {
   }
 
   // ClientSocketFactory
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      NetLog* net_log,
+      const NetLog::Source& source);
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
@@ -551,6 +556,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
   SocketDataProviderArray<SSLSocketDataProvider> mock_ssl_data_;
 
   // Store pointers to handed out sockets in case the test wants to get them.
+  std::vector<MockUDPClientSocket*> udp_client_sockets_;
   std::vector<MockTCPClientSocket*> tcp_client_sockets_;
   std::vector<MockSSLClientSocket*> ssl_client_sockets_;
 };
@@ -740,6 +746,38 @@ class MockSSLClientSocket : public MockClientSocket {
   bool was_used_to_convey_data_;
 };
 
+class MockUDPClientSocket : public DatagramClientSocket {
+ public:
+  explicit MockUDPClientSocket(SocketDataProvider* data);
+  virtual ~MockUDPClientSocket();
+
+  // Socket interface
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   net::CompletionCallback* callback);
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    net::CompletionCallback* callback);
+  virtual bool SetReceiveBufferSize(int32 size);
+  virtual bool SetSendBufferSize(int32 size);
+
+  // DatagramSocket interface
+  virtual void Close();
+  virtual int GetPeerAddress(IPEndPoint* address) const;
+  virtual int GetLocalAddress(IPEndPoint* address) const;
+
+  // DatagramClientSocket interface
+  virtual int Connect(const IPEndPoint& address);
+
+ private:
+  void RunCallbackAsync(net::CompletionCallback* callback, int result);
+  void RunCallback(net::CompletionCallback* callback, int result);
+
+  bool connected_;
+  SocketDataProvider* data_;
+  ScopedRunnableMethodFactory<MockUDPClientSocket> method_factory_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockUDPClientSocket);
+};
+
 class TestSocketRequest : public CallbackRunner< Tuple1<int> > {
  public:
   TestSocketRequest(
@@ -891,6 +929,9 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
   }
 
   // ClientSocketFactory
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      NetLog* net_log,
+      const NetLog::Source& source);
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
