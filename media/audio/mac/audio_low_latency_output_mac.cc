@@ -28,7 +28,7 @@ using media::SwizzleCoreAudioLayout5_1;
 // and notify the audio manager, which likely will destroy this object.
 
 AUAudioOutputStream::AUAudioOutputStream(
-    AudioManagerMac* manager, AudioParameters params)
+    AudioManagerMac* manager, const AudioParameters& params)
     : manager_(manager),
       source_(NULL),
       output_unit_(0),

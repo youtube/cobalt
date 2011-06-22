@@ -87,12 +87,12 @@ class AudioInputController
   // handler will receive a OnCreated() call.
   static scoped_refptr<AudioInputController> Create(
       EventHandler* event_handler,
-      AudioParameters params);
+      const AudioParameters& params);
 
   // Factory method for creating a low latency audio stream.
   static scoped_refptr<AudioInputController> CreateLowLatency(
       EventHandler* event_handler,
-      AudioParameters params,
+      const AudioParameters& params,
       // External synchronous reader for audio controller.
       SyncWriter* sync_writer);
 
@@ -136,7 +136,7 @@ class AudioInputController
   AudioInputController(EventHandler* handler, SyncWriter* sync_writer);
 
   // The following methods are executed on the audio controller thread.
-  void DoCreate(AudioParameters params);
+  void DoCreate(const AudioParameters& params);
   void DoRecord();
   void DoClose();
   void DoReportError(int code);

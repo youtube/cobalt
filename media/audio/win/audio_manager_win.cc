@@ -115,7 +115,7 @@ bool AudioManagerWin::HasAudioInputDevices() {
 // - PCMWaveOutAudioOutputStream: Based on the waveOutWrite API (in progress)
 // - PCMDXSoundAudioOutputStream: Based on DirectSound or XAudio (future work).
 AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   if (!params.IsValid() || (params.channels > kWinMaxChannels))
     return NULL;
 
@@ -139,7 +139,7 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
 
 // Factory for the implementations of AudioInputStream.
 AudioInputStream* AudioManagerWin::MakeAudioInputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   if (!params.IsValid() || (params.channels > kWinMaxInputChannels))
     return NULL;
 

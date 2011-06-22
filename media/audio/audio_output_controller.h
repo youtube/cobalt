@@ -107,7 +107,7 @@ class AudioOutputController
   // event handler will receive a OnCreated() call.
   static scoped_refptr<AudioOutputController> Create(
       EventHandler* event_handler,
-      AudioParameters params,
+      const AudioParameters& params,
       // Soft limit for buffer capacity in this controller. This parameter
       // is used only in regular latency mode.
       uint32 buffer_capacity);
@@ -115,7 +115,7 @@ class AudioOutputController
   // Factory method for creating a low latency audio stream.
   static scoped_refptr<AudioOutputController> CreateLowLatency(
       EventHandler* event_handler,
-      AudioParameters params,
+      const AudioParameters& params,
       // External synchronous reader for audio controller.
       SyncReader* sync_reader);
 
@@ -161,7 +161,7 @@ class AudioOutputController
                         uint32 capacity, SyncReader* sync_reader);
 
   // The following methods are executed on the audio controller thread.
-  void DoCreate(AudioParameters params);
+  void DoCreate(const AudioParameters& params);
   void DoPlay();
   void DoPause();
   void DoFlush();

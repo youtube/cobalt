@@ -75,7 +75,7 @@ static const unsigned int kChannelsToMask[kMaxChannelsToMask + 1] = {
 };
 
 PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
-    AudioManagerWin* manager, AudioParameters params, int num_buffers,
+    AudioManagerWin* manager, const AudioParameters& params, int num_buffers,
     UINT device_id)
     : state_(PCMA_BRAND_NEW),
       manager_(manager),
