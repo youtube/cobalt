@@ -7,7 +7,7 @@
 namespace base {
 
 #if defined(OS_POSIX)
-ProcessEntry::ProcessEntry() {}
+ProcessEntry::ProcessEntry() : pid_(0), ppid_(0), gid_(0) {}
 ProcessEntry::~ProcessEntry() {}
 #endif
 
