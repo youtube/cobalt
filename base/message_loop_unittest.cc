@@ -20,9 +20,6 @@
 #include "base/message_pump_win.h"
 #include "base/win/scoped_handle.h"
 #endif
-#if defined(OS_POSIX)
-#include "base/message_pump_libevent.h"
-#endif
 
 using base::PlatformThread;
 using base::Thread;
@@ -1560,7 +1557,7 @@ TEST(MessageLoopTest, HighResolutionTimer) {
 
 namespace {
 
-class QuitDelegate : public base::MessagePumpLibevent::Watcher {
+class QuitDelegate : public MessageLoopForIO::Watcher {
  public:
   virtual void OnFileCanWriteWithoutBlocking(int fd) {
     MessageLoop::current()->Quit();
@@ -1583,7 +1580,7 @@ TEST(MessageLoopTest, FileDescriptorWatcherOutlivesMessageLoop) {
   int fd = pipefds[1];
   {
     // Arrange for controller to live longer than message loop.
-    base::MessagePumpLibevent::FileDescriptorWatcher controller;
+    MessageLoopForIO::FileDescriptorWatcher controller;
     {
       MessageLoopForIO message_loop;
 
@@ -1610,7 +1607,7 @@ TEST(MessageLoopTest, FileDescriptorWatcherDoubleStop) {
     // Arrange for message loop to live longer than controller.
     MessageLoopForIO message_loop;
     {
-      base::MessagePumpLibevent::FileDescriptorWatcher controller;
+      MessageLoopForIO::FileDescriptorWatcher controller;
 
       QuitDelegate delegate;
       message_loop.WatchFileDescriptor(fd,

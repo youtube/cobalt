@@ -15,8 +15,6 @@
 #include "net/base/net_log.h"
 #include "net/socket/stream_socket.h"
 
-struct event;  // From libevent
-
 namespace net {
 
 class BoundNetLog;

@@ -26,11 +26,6 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
-#if defined(USE_SYSTEM_LIBEVENT)
-#include <event.h>
-#else
-#include "third_party/libevent/event.h"
-#endif
 
 namespace net {
 
