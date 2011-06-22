@@ -658,7 +658,6 @@
           ],
           'sources/': [
             # I would love to support SPDY on PS3 but porting it right now is outside the scope of effort.
-            # __LB_PS3__FIX_ME__
             ['exclude', 'spdy'],
             # we _really_ don't want to support FTP.
             ['exclude', 'ftp'],
