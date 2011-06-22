@@ -1225,10 +1225,7 @@ std::string GetDirectoryListingEntry(const string16& name,
     result.append(",0,");
   }
 
-  base::JsonDoubleQuote(
-      FormatBytes(size, GetByteDisplayUnits(size), true),
-      true,
-      &result);
+  base::JsonDoubleQuote(FormatBytesUnlocalized(size), true, &result);
 
   result.append(",");
 
