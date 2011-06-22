@@ -130,6 +130,7 @@
         'i18n/case_conversion_unittest.cc',
         'i18n/file_util_icu_unittest.cc',
         'i18n/icu_string_conversions_unittest.cc',
+        'i18n/number_formatting_unittest.cc',
         'i18n/rtl_unittest.cc',
         'i18n/time_formatting_unittest.cc',
         'json/json_reader_unittest.cc',
