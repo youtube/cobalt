@@ -384,6 +384,15 @@ bool TCPClientSocketLibevent::IsConnected() const {
   if (socket_ == kInvalidSocket || waiting_connect())
     return false;
 
+  if (use_tcp_fastopen_ && !tcp_fastopen_connected_) {
+    // With TCP FastOpen, we pretend that the socket is connected.
+    // This allows GetPeerAddress() to return current_ai_ as the peer
+    // address.  Since we don't fail over to the next address if
+    // sendto() fails, current_ai_ is the only possible peer address.
+    CHECK(current_ai_);
+    return true;
+  }
+
   // Check if connection is alive.
   char c;
   int rv = HANDLE_EINTR(recv(socket_, &c, 1, MSG_PEEK));
@@ -400,6 +409,9 @@ bool TCPClientSocketLibevent::IsConnectedAndIdle() const {
 
   if (socket_ == kInvalidSocket || waiting_connect())
     return false;
+
+  // TODO(wtc): should we also handle the TCP FastOpen case here,
+  // as we do in IsConnected()?
 
   // Check if connection is alive and we haven't received any data
   // unexpectedly.
