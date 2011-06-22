@@ -794,9 +794,6 @@
             ],
           },
           {  # else: OS != "win"
-            'dependencies': [
-              '../third_party/libevent/libevent.gyp:libevent',
-            ],
             'sources!': [
               'base/winsock_init.cc',
               'base/winsock_init.h',
