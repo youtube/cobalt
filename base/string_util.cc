@@ -604,85 +604,35 @@ bool EndsWith(const string16& str, const string16& search,
 }
 #endif
 
-DataUnits GetByteDisplayUnits(int64 bytes) {
-  // The byte thresholds at which we display amounts.  A byte count is displayed
-  // in unit U when kUnitThresholds[U] <= bytes < kUnitThresholds[U+1].
-  // This must match the DataUnits enum.
-  static const int64 kUnitThresholds[] = {
-    0,              // DATA_UNITS_BYTE,
-    3*1024,         // DATA_UNITS_KIBIBYTE,
-    2*1024*1024,    // DATA_UNITS_MEBIBYTE,
-    1024*1024*1024  // DATA_UNITS_GIBIBYTE,
-  };
-
-  if (bytes < 0) {
-    NOTREACHED() << "Negative bytes value";
-    return DATA_UNITS_BYTE;
-  }
-
-  int unit_index = arraysize(kUnitThresholds);
-  while (--unit_index > 0) {
-    if (bytes >= kUnitThresholds[unit_index])
-      break;
-  }
-
-  DCHECK(unit_index >= DATA_UNITS_BYTE && unit_index <= DATA_UNITS_GIBIBYTE);
-  return DataUnits(unit_index);
-}
-
-// TODO(mpcomplete): deal with locale
-// Byte suffixes.  This must match the DataUnits enum.
-static const char* const kByteStrings[] = {
-  "B",
-  "kB",
-  "MB",
-  "GB"
+static const char* const kByteStringsUnlocalized[] = {
+  " B",
+  " kB",
+  " MB",
+  " GB",
+  " TB",
+  " PB"
 };
 
-static const char* const kSpeedStrings[] = {
-  "B/s",
-  "kB/s",
-  "MB/s",
-  "GB/s"
-};
-
-string16 FormatBytesInternal(int64 bytes,
-                             DataUnits units,
-                             bool show_units,
-                             const char* const* suffix) {
-  if (bytes < 0) {
-    NOTREACHED() << "Negative bytes value";
-    return string16();
-  }
-
-  DCHECK(units >= DATA_UNITS_BYTE && units <= DATA_UNITS_GIBIBYTE);
-
-  // Put the quantity in the right units.
+string16 FormatBytesUnlocalized(int64 bytes) {
   double unit_amount = static_cast<double>(bytes);
-  for (int i = 0; i < units; ++i)
-    unit_amount /= 1024.0;
+  size_t dimension = 0;
+  const int kKilo = 1024;
+  while (unit_amount >= kKilo &&
+         dimension < arraysize(kByteStringsUnlocalized) - 1) {
+    unit_amount /= kKilo;
+    dimension++;
+  }
 
   char buf[64];
-  if (bytes != 0 && units != DATA_UNITS_BYTE && unit_amount < 100)
-    base::snprintf(buf, arraysize(buf), "%.1lf", unit_amount);
-  else
-    base::snprintf(buf, arraysize(buf), "%.0lf", unit_amount);
-
-  std::string ret(buf);
-  if (show_units) {
-    ret += " ";
-    ret += suffix[units];
+  if (bytes != 0 && dimension > 0 && unit_amount < 100) {
+    base::snprintf(buf, arraysize(buf), "%.1lf%s", unit_amount,
+                   kByteStringsUnlocalized[dimension]);
+  } else {
+    base::snprintf(buf, arraysize(buf), "%.0lf%s", unit_amount,
+                   kByteStringsUnlocalized[dimension]);
   }
 
-  return ASCIIToUTF16(ret);
-}
-
-string16 FormatBytes(int64 bytes, DataUnits units, bool show_units) {
-  return FormatBytesInternal(bytes, units, show_units, kByteStrings);
-}
-
-string16 FormatSpeed(int64 bytes, DataUnits units, bool show_units) {
-  return FormatBytesInternal(bytes, units, show_units, kSpeedStrings);
+  return ASCIIToUTF16(buf);
 }
 
 template<class StringType>
