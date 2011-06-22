@@ -696,6 +696,9 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   CERT_DestroyValidity(validity);
   CERT_DestroyCertificateRequest(cert_request);
 
+  if (!cert)
+    return NULL;
+
   // Sign the cert here. The logic of this method references SignCert() in NSS
   // utility certutil: http://mxr.mozilla.org/security/ident?i=SignCert.
 
