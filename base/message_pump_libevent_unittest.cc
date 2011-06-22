@@ -42,7 +42,7 @@ class StupidWatcher : public base::MessagePumpLibevent::Watcher {
  public:
   virtual ~StupidWatcher() {}
 
-  // base:MessagePumpLibEvent::Watcher interface
+  // base:MessagePumpLibevent::Watcher interface
   virtual void OnFileCanReadWithoutBlocking(int fd) {}
   virtual void OnFileCanWriteWithoutBlocking(int fd) {}
 };

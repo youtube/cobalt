@@ -21,11 +21,6 @@
 #if defined(OS_POSIX)
 #include <netinet/in.h>
 #endif
-#if defined(USE_SYSTEM_LIBEVENT)
-#include <event.h>
-#else
-#include "third_party/libevent/event.h"
-#endif
 
 namespace net {
 
