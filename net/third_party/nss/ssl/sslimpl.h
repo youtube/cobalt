@@ -349,6 +349,7 @@ typedef struct sslOptionsStr {
     unsigned int requireSafeNegotiation : 1;  /* 22 */
     unsigned int enableFalseStart       : 1;  /* 23 */
     unsigned int enableOCSPStapling     : 1;  /* 24 */
+    unsigned int enableCachedInfo       : 1;  /* 25 */
 } sslOptions;
 
 typedef enum { sslHandshakingUndetermined = 0,
@@ -773,6 +774,11 @@ struct TLSExtensionDataStr {
     PRUint32 sniNameArrSize;
 };
 
+typedef enum {
+    cached_info_certificate_chain = 1,
+    cached_info_trusted_cas = 2
+} TLSCachedInfoType;
+
 /*
 ** This is the "hs" member of the "ssl3" struct.
 ** This entire struct is protected by ssl3HandshakeLock
@@ -853,6 +859,14 @@ struct ssl3StateStr {
 #endif  /* NSS_PLATFORM_CLIENT_AUTH */
     CERTCertificateList *clientCertChain;    /* used by client */
     PRBool               sendEmptyCert;      /* used by client */
+
+    /* TLS Cached Info Extension */
+    CERTCertificate **   predictedCertChain;
+			    /* An array terminated with a NULL. */
+    PRUint8              certChainDigest[8];
+                            /* Used in cached info extension. Stored in network
+                             * byte order. */
+    PRBool               digestReceived;
 
     int                  policy;
 			/* This says what cipher suites we can do, and should 
@@ -1550,6 +1564,8 @@ extern SECStatus ssl3_ClientHandleSessionTicketXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
+extern SECStatus ssl3_ClientHandleCachedInfoXtn(sslSocket *ss,
+			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ClientHandleStatusRequestXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ServerHandleSessionTicketXtn(sslSocket *ss,
@@ -1570,6 +1586,8 @@ extern PRInt32 ssl3_ClientSendStatusRequestXtn(sslSocket *ss, PRBool append,
  * The code is in ssl3ext.c.
  */
 extern PRInt32 ssl3_SendServerNameXtn(sslSocket *ss, PRBool append,
+                     PRUint32 maxBytes);
+extern PRInt32 ssl3_ClientSendCachedInfoXtn(sslSocket *ss, PRBool append,
                      PRUint32 maxBytes);
 
 /* Assigns new cert, cert chain and keys to ss->serverCerts

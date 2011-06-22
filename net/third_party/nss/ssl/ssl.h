@@ -140,6 +140,8 @@ SSL_IMPORT PRFileDesc *SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd);
 /* bits. The advantage of False Start is that it saves a round trip for     */
 /* client-speaks-first protocols when performing a full handshake.          */
 #define SSL_ENABLE_OCSP_STAPLING       23 /* Request OCSP stapling (client) */
+#define SSL_ENABLE_CACHED_INFO         24 /* Enable TLS cached information  */
+                                          /* extension, off by default.     */
 
 #ifdef SSL_DEPRECATED_FUNCTION 
 /* Old deprecated function names */
@@ -436,6 +438,17 @@ SSL_IMPORT SECStatus SSL_SetPKCS11PinArg(PRFileDesc *fd, void *a);
 typedef SECStatus (PR_CALLBACK *SSLBadCertHandler)(void *arg, PRFileDesc *fd);
 SSL_IMPORT SECStatus SSL_BadCertHook(PRFileDesc *fd, SSLBadCertHandler f, 
 				     void *arg);
+
+/*	
+ ** Set the predicted chain of certificates for the peer. This is used for the	
+ ** TLS Cached Info extension. Note that the SSL_ENABLE_CACHED_INFO option must	
+ ** be set for this to occur.	
+ **	
+ ** This function takes a reference to each of the given certificates.	
+ */	
+ SSL_IMPORT SECStatus SSL_SetPredictedPeerCertificates(	
+         PRFileDesc *fd, CERTCertificate **certs,	
+         unsigned int numCerts);
 
 /*
 ** Configure SSL socket for running a secure server. Needs the
