@@ -251,6 +251,9 @@
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
 
+    # Smooth scrolling is disabled by default.
+    'enable_smooth_scrolling%': 0,
+
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
     # The default is 'all', which does no channel-specific filtering.
