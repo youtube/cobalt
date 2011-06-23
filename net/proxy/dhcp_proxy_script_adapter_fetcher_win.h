@@ -111,6 +111,9 @@ class NET_TEST DhcpProxyScriptAdapterFetcher
   // only a weak reference back to the main object, so that the main object
   // can be destroyed before the thread ends.  This also keeps the main
   // object completely thread safe and allows it to be non-refcounted.
+  //
+  // TODO(joi): Replace with PostTaskAndReply once http://crbug.com/86301
+  // has been implemented.
   class NET_TEST WorkerThread
       : public base::RefCountedThreadSafe<WorkerThread> {
    public:
