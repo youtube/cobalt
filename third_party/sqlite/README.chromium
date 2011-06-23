@@ -63,6 +63,7 @@ preload-cache.patch
 safe-tolower.patch
 fts2.patch
 fts3.patch
+fts3_85522.patch
 icu-regexp.patch
 icu-shell.patch
 attach-integer.patch
@@ -77,6 +78,7 @@ patch -p0 < ../sqlite/misc.patch
 patch -p0 < ../sqlite/preload-cache.patch
 patch -p0 < ../sqlite/fts2.patch
 patch -p0 < ../sqlite/fts3.patch
+patch -p0 < ../sqlite/fts3_85522.patch
 patch -p0 < ../sqlite/icu-shell.patch
 patch -p0 < ../sqlite/webdb.patch
 patch -p0 < ../sqlite/test.patch
@@ -184,3 +186,4 @@ Changes from Chrome:
    sqliteInt.h. In order to eliminate a symbol conflict with an Apple library
    after amalgamation it was also necessary to rename fts3_porter.c's 'cType'
    to 'vOrCType'.
+ - fts3_85522.patch allows fts3 to work if PRAGMA is not authorized.
