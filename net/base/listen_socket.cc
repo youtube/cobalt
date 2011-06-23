@@ -25,6 +25,8 @@
 typedef int socklen_t;
 #endif  // defined(OS_WIN)
 
+namespace net {
+
 namespace {
 
 const int kReadBufSize = 4096;
@@ -132,7 +134,7 @@ SOCKET ListenSocket::Accept(SOCKET s) {
   SOCKET conn =
       HANDLE_EINTR(accept(s, reinterpret_cast<sockaddr*>(&from), &from_len));
   if (conn != kInvalidSocket) {
-    net::SetNonBlocking(conn);
+    SetNonBlocking(conn);
   }
   return conn;
 }
@@ -321,3 +323,5 @@ void ListenSocket::OnFileCanWriteWithoutBlocking(int fd) {
 }
 
 #endif
+
+}  // namespace net
