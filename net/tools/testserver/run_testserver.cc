@@ -22,8 +22,6 @@ int main(int argc, const char* argv[]) {
   base::AtExitManager at_exit_manager;
   MessageLoopForIO message_loop;
 
-  TestTimeouts::Initialize();
-
   // Process command line
   CommandLine::Init(argc, argv);
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -37,6 +35,8 @@ int main(int argc, const char* argv[]) {
     printf("Error: could not initialize logging. Exiting.\n");
     return -1;
   }
+
+  TestTimeouts::Initialize();
 
   if (command_line->GetSwitchCount() == 0 ||
       command_line->HasSwitch("help")) {
