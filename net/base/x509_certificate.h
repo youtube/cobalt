@@ -257,15 +257,41 @@ class NET_API X509Certificate
   // Do any of the given issuer names appear in this cert's chain of trust?
   bool IsIssuedBy(const std::vector<CertPrincipal>& valid_issuers);
 
-  // Creates a security policy for SSL client certificates.
-  static OSStatus CreateSSLClientPolicy(SecPolicyRef* outPolicy);
+  // Creates a security policy for certificates used as client certificates
+  // in SSL.
+  // If a policy is successfully created, it will be stored in
+  // |*policy| and ownership transferred to the caller.
+  static OSStatus CreateSSLClientPolicy(SecPolicyRef* policy);
+
+  // Creates a security policy for certificates used by SSL servers.
+  // |hostname| is an optionally-supplied string indicating the name to verify
+  // the server certificate as; if it is empty, no hostname verification will
+  // happen.
+  // If a policy is successfully created, it will be stored in |*policy| and
+  // ownership transferred to the caller.
+  static OSStatus CreateSSLServerPolicy(const std::string& hostname,
+                                        SecPolicyRef* policy);
+
+  // Creates a security policy for basic X.509 validation. If the policy is
+  // successfully created, it will be stored in |*policy| and ownership
+  // transferred to the caller.
+  static OSStatus CreateBasicX509Policy(SecPolicyRef* policy);
+
+  // Creates security policies to control revocation checking (OCSP and CRL).
+  // If |enable_revocation_checking| is false, the policies returned will be
+  // explicitly disabled from accessing the network or the cache. This may be
+  // used to override system settings regarding revocation checking.
+  // If the policies are successfully created, they will be appended to
+  // |policies|.
+  static OSStatus CreateRevocationPolicies(bool enable_revocation_checking,
+                                           CFMutableArrayRef policies);
 
   // Adds all available SSL client identity certs to the given vector.
   // |server_domain| is a hint for which domain the cert is to be sent to
   // (a cert previously specified as the default for that domain will be given
   // precedence and returned first in the output vector.)
-  // If valid_issuers is non-empty, only certs that were transitively issued by
-  // one of the given names will be included in the list.
+  // If valid_issuers is non-empty, only certs that were transitively issued
+  // by one of the given names will be included in the list.
   static bool GetSSLClientCertificates(
       const std::string& server_domain,
       const std::vector<CertPrincipal>& valid_issuers,
