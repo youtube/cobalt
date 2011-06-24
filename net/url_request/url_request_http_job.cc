@@ -258,6 +258,7 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       is_cached_content_(false),
       request_creation_time_(),
       packet_timing_enabled_(false),
+      done_(false),
       bytes_observed_in_packets_(0),
       packet_times_(),
       request_time_snapshot_(),
@@ -341,13 +342,14 @@ void URLRequestHttpJob::NotifyDone(const URLRequestStatus& original_status) {
     }
   }
 
-  RecordCompressionHistograms();
+  DoneWithRequest(FINISHED);
   URLRequestJob::NotifyDone(status);
 }
 
 void URLRequestHttpJob::DestroyTransaction() {
   DCHECK(transaction_.get());
 
+  DoneWithRequest(ABORTED);
   transaction_.reset();
   response_info_ = NULL;
   context_ = NULL;
@@ -376,6 +378,7 @@ void URLRequestHttpJob::StartTransaction() {
           !throttling_entry_->IsDuringExponentialBackoff()) {
         rv = transaction_->Start(
             &request_info_, &start_callback_, request_->net_log());
+        start_time_ = base::TimeTicks::Now();
       } else {
         // Special error code for the exponential back-off module.
         rv = ERR_TEMPORARILY_THROTTLED;
@@ -1087,6 +1090,8 @@ bool URLRequestHttpJob::ReadRawData(IOBuffer* buf, int buf_size,
   int rv = transaction_->Read(buf, buf_size, &read_callback_);
   if (rv >= 0) {
     *bytes_read = rv;
+    if (!rv)
+      DoneWithRequest(FINISHED);
     return true;
   }
 
@@ -1135,6 +1140,7 @@ URLRequestHttpJob::~URLRequestHttpJob() {
     if (manager)  // Defensive programming.
       manager->FetchDictionary(request_info_.url, sdch_dictionary_url_);
   }
+  DoneWithRequest(ABORTED);
 }
 
 void URLRequestHttpJob::RecordTimer() {
@@ -1423,6 +1429,52 @@ bool URLRequestHttpJob::IsCompressibleContent() const {
   return GetMimeType(&mime_type) &&
       (IsSupportedJavascriptMimeType(mime_type.c_str()) ||
        IsSupportedNonImageMimeType(mime_type.c_str()));
+}
+
+void URLRequestHttpJob::RecordPerfHistograms(CompletionCause reason) {
+  if (start_time_.is_null())
+    return;
+
+  base::TimeDelta total_time = base::TimeTicks::Now() - start_time_;
+  UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTime", total_time);
+
+  if (reason == FINISHED) {
+    UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTimeSuccess", total_time);
+  } else {
+    UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTimeCancel", total_time);
+  }
+
+  static bool cache_experiment = false;
+  if (!cache_experiment)
+    cache_experiment = base::FieldTrialList::TrialExists("CacheListSize");
+  if (cache_experiment) {
+    UMA_HISTOGRAM_TIMES(
+        base::FieldTrial::MakeName("Net.HttpJob.TotalTime", "CacheListSize"),
+        total_time);
+    if (reason == FINISHED) {
+      UMA_HISTOGRAM_TIMES(
+          base::FieldTrial::MakeName("Net.HttpJob.TotalTimeSuccess",
+                                     "CacheListSize"),
+          total_time);
+    } else {
+      UMA_HISTOGRAM_TIMES(
+          base::FieldTrial::MakeName("Net.HttpJob.TotalTimeCancel",
+                                     "CacheListSize"),
+          total_time);
+    }
+  }
+
+  start_time_ = base::TimeTicks();
+}
+
+void URLRequestHttpJob::DoneWithRequest(CompletionCause reason) {
+  if (done_)
+    return;
+  done_ = true;
+
+  RecordPerfHistograms(reason);
+  if (reason == FINISHED)
+    RecordCompressionHistograms();
 }
 
 }  // namespace net
