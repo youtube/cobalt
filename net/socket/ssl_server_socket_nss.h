@@ -54,8 +54,6 @@ class SSLServerSocketNSS : public SSLServerSocket {
   virtual void SetOmniboxSpeculation();
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
-  virtual int64 NumBytesRead() const;
-  virtual base::TimeDelta GetConnectTimeMicros() const;
 
  private:
   enum State {

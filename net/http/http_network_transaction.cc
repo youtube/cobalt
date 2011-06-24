@@ -940,7 +940,6 @@ int HttpNetworkTransaction::DoReadBodyComplete(int result) {
   // Clean up connection if we are done.
   if (done) {
     LogTransactionMetrics();
-    stream_->LogNumRttVsBytesMetrics();
     stream_->Close(!keep_alive);
     // Note: we don't reset the stream here.  We've closed it, but we still
     // need it around so that callers can call methods such as

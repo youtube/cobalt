@@ -731,22 +731,6 @@ bool SSLClientSocketWin::UsingTCPFastOpen() const {
   return false;
 }
 
-int64 SSLClientSocketWin::NumBytesRead() const {
-  if (transport_.get() && transport_->socket()) {
-    return transport_->socket()->NumBytesRead();
-  }
-  NOTREACHED();
-  return -1;
-}
-
-base::TimeDelta SSLClientSocketWin::GetConnectTimeMicros() const {
-  if (transport_.get() && transport_->socket()) {
-    return transport_->socket()->GetConnectTimeMicros();
-  }
-  NOTREACHED();
-  return base::TimeDelta::FromMicroseconds(-1);
-}
-
 int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   DCHECK(completed_handshake());
