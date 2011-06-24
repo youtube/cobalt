@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/websockets/websocket_handshake_handler.h"
+
 #include <string>
 #include <vector>
 
@@ -10,7 +12,6 @@
 #include "googleurl/src/gurl.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
-#include "net/websockets/websocket_handshake_handler.h"
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
