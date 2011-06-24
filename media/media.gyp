@@ -675,6 +675,7 @@
           'type': 'executable',
           'dependencies': [
             'media',
+            '../base/base.gyp:base',
             '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
             '../third_party/openmax/openmax.gyp:il',
           ],
