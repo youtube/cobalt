@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/websockets/websocket_throttle.h"
+
 #include <string>
 
 #include "base/message_loop.h"
@@ -12,7 +14,6 @@
 #include "net/socket_stream/socket_stream.h"
 #include "net/url_request/url_request_test_util.h"
 #include "net/websockets/websocket_job.h"
-#include "net/websockets/websocket_throttle.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
