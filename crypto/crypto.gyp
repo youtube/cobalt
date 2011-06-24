@@ -109,6 +109,7 @@
         'crypto_module_blocking_password_delegate.h',
         'cssm_init.cc',
         'cssm_init.h',
+        'encryptor.cc',
         'encryptor.h',
         'encryptor_mac.cc',
         'encryptor_nss.cc',
