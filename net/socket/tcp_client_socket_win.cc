@@ -323,8 +323,7 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)),
-      previously_disconnected_(false),
-      num_bytes_read_(0) {
+      previously_disconnected_(false) {
   scoped_refptr<NetLog::EventParameters> params;
   if (source.is_valid())
     params = new NetLogSourceParameter("source_dependency", source);
@@ -485,7 +484,6 @@ int TCPClientSocketWin::DoConnect() {
 
   core_->write_overlapped_.hEvent = WSACreateEvent();
 
-  connect_start_time_ = base::TimeTicks::Now();
   if (!connect(socket_, ai->ai_addr, static_cast<int>(ai->ai_addrlen))) {
     // Connected without waiting!
     //
@@ -524,7 +522,6 @@ int TCPClientSocketWin::DoConnectComplete(int result) {
   net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT, params);
 
   if (result == OK) {
-    connect_time_micros_ = base::TimeTicks::Now() - connect_start_time_;
     use_history_.set_was_ever_connected();
     return OK;  // Done!
   }
@@ -661,14 +658,6 @@ bool TCPClientSocketWin::UsingTCPFastOpen() const {
   return false;
 }
 
-int64 TCPClientSocketWin::NumBytesRead() const {
-  return num_bytes_read_;
-}
-
-base::TimeDelta TCPClientSocketWin::GetConnectTimeMicros() const {
-  return connect_time_micros_;
-}
-
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
                              CompletionCallback* callback) {
@@ -699,7 +688,6 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
       base::MemoryDebug::MarkAsInitialized(core_->read_buffer_.buf, num);
       base::StatsCounter read_bytes("tcp.read_bytes");
       read_bytes.Add(num);
-      num_bytes_read_ += num;
       if (num > 0)
         use_history_.set_was_used_to_convey_data();
       net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED, num,
@@ -870,7 +858,6 @@ void TCPClientSocketWin::DidCompleteRead() {
   if (ok) {
     base::StatsCounter read_bytes("tcp.read_bytes");
     read_bytes.Add(num_bytes);
-    num_bytes_read_ += num_bytes;
     if (num_bytes > 0)
       use_history_.set_was_used_to_convey_data();
     net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,

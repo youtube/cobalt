@@ -171,14 +171,6 @@ class FakeSocket : public StreamSocket {
     return false;
   }
 
-  virtual int64 NumBytesRead() const {
-    return -1;
-  }
-
-  virtual base::TimeDelta GetConnectTimeMicros() const {
-    return base::TimeDelta::FromMicroseconds(-1);
-  }
-
  private:
   net::BoundNetLog net_log_;
   FakeDataChannel* incoming_;

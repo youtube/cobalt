@@ -277,8 +277,6 @@ TEST_P(TransportClientSocketTest, Read) {
 
   rv = sock_->Read(buf, 4096, &callback);
   ASSERT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(static_cast<int64>(std::string(kServerReply).size()),
-            sock_->NumBytesRead());
   CloseServerSocket();
   EXPECT_EQ(0, callback.WaitForResult());
 }
@@ -311,8 +309,6 @@ TEST_P(TransportClientSocketTest, Read_SmallChunks) {
   // then close the server socket, and note the close.
 
   rv = sock_->Read(buf, 1, &callback);
-  EXPECT_EQ(static_cast<int64>(std::string(kServerReply).size()),
-            sock_->NumBytesRead());
   ASSERT_EQ(ERR_IO_PENDING, rv);
   CloseServerSocket();
   EXPECT_EQ(0, callback.WaitForResult());
@@ -333,12 +329,9 @@ TEST_P(TransportClientSocketTest, Read_Interrupted) {
   scoped_refptr<IOBuffer> buf(new IOBuffer(16));
   rv = sock_->Read(buf, 16, &callback);
   EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
-  EXPECT_EQ(0, sock_->NumBytesRead());
 
-  if (rv == ERR_IO_PENDING) {
+  if (rv == ERR_IO_PENDING)
     rv = callback.WaitForResult();
-    EXPECT_EQ(16, sock_->NumBytesRead());
-  }
 
   EXPECT_NE(0, rv);
 }

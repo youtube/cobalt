@@ -226,14 +226,6 @@ bool SSLServerSocketNSS::UsingTCPFastOpen() const {
   return transport_socket_->UsingTCPFastOpen();
 }
 
-int64 SSLServerSocketNSS::NumBytesRead() const {
-  return transport_socket_->NumBytesRead();
-}
-
-base::TimeDelta SSLServerSocketNSS::GetConnectTimeMicros() const {
-  return transport_socket_->GetConnectTimeMicros();
-}
-
 int SSLServerSocketNSS::InitializeSSLOptions() {
   // Transport connected, now hook it up to nss
   // TODO(port): specify rx and tx buffer sizes separately

@@ -81,8 +81,6 @@ class HttpBasicStream : public HttpStream {
 
   virtual bool IsSpdyHttpStream() const OVERRIDE;
 
-  virtual void LogNumRttVsBytesMetrics() const OVERRIDE;
-
  private:
   scoped_refptr<GrowableIOBuffer> read_buf_;
 
@@ -95,10 +93,6 @@ class HttpBasicStream : public HttpStream {
   std::string request_line_;
 
   const HttpRequestInfo* request_info_;
-
-  const HttpResponseInfo* response_;
-
-  int64 bytes_read_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpBasicStream);
 };
