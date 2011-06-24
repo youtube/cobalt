@@ -714,6 +714,22 @@ bool SSLClientSocketNSS::UsingTCPFastOpen() const {
   return false;
 }
 
+int64 SSLClientSocketNSS::NumBytesRead() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->NumBytesRead();
+  }
+  NOTREACHED();
+  return -1;
+}
+
+base::TimeDelta SSLClientSocketNSS::GetConnectTimeMicros() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetConnectTimeMicros();
+  }
+  NOTREACHED();
+  return base::TimeDelta::FromMicroseconds(-1);
+}
+
 int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   EnterFunction(buf_len);
