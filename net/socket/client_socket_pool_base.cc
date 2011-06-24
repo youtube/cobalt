@@ -4,14 +4,11 @@
 
 #include "net/socket/client_socket_pool_base.h"
 
-#include <math.h>
 #include "base/compiler_specific.h"
 #include "base/format_macros.h"
-#include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
 #include "base/stl_util-inl.h"
-#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/time.h"
 #include "base/values.h"
@@ -35,32 +32,9 @@ const int kCleanupInterval = 10;  // DO NOT INCREASE THIS TIMEOUT.
 // after a certain timeout has passed without receiving an ACK.
 bool g_connect_backup_jobs_enabled = true;
 
-double g_socket_reuse_policy_penalty_exponent = -1;
-int g_socket_reuse_policy = -1;
-
 }  // namespace
 
 namespace net {
-
-int GetSocketReusePolicy() {
-  return g_socket_reuse_policy;
-}
-
-void SetSocketReusePolicy(int policy) {
-  DCHECK_GE(policy, 0);
-  DCHECK_LE(policy, 2);
-  if (policy > 2 || policy < 0) {
-    LOG(ERROR) << "Invalid socket reuse policy";
-    return;
-  }
-
-  double exponents[] = { 0, 0.25, -1 };
-  g_socket_reuse_policy_penalty_exponent = exponents[policy];
-  g_socket_reuse_policy = policy;
-
-  VLOG(1) << "Setting g_socket_reuse_policy_penalty_exponent = "
-          << g_socket_reuse_policy_penalty_exponent;
-}
 
 ConnectJob::ConnectJob(const std::string& group_name,
                        base::TimeDelta timeout_duration,
@@ -389,7 +363,6 @@ bool ClientSocketPoolBaseHelper::AssignIdleSocketToGroup(
     const Request* request, Group* group) {
   std::list<IdleSocket>* idle_sockets = group->mutable_idle_sockets();
   std::list<IdleSocket>::iterator idle_socket_it = idle_sockets->end();
-  double max_score = -1;
 
   // Iterate through the idle sockets forwards (oldest to newest)
   //   * Delete any disconnected ones.
@@ -406,22 +379,7 @@ bool ClientSocketPoolBaseHelper::AssignIdleSocketToGroup(
 
     if (it->socket->WasEverUsed()) {
       // We found one we can reuse!
-      double score = 0;
-      int64 bytes_read = it->socket->NumBytesRead();
-      double num_kb = static_cast<double>(bytes_read) / 1024.0;
-      int idle_time_sec = (base::TimeTicks::Now() - it->start_time).InSeconds();
-      idle_time_sec = std::max(1, idle_time_sec);
-
-      if (g_socket_reuse_policy_penalty_exponent >= 0 && num_kb >= 0) {
-        score = num_kb / pow(idle_time_sec,
-                             g_socket_reuse_policy_penalty_exponent);
-      }
-
-      // Equality to prefer recently used connection.
-      if (score >= max_score) {
-        idle_socket_it = it;
-        max_score = score;
-      }
+      idle_socket_it = it;
     }
 
     ++it;
