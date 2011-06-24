@@ -546,13 +546,18 @@ int SocketStream::DoResolveHost() {
 
 int SocketStream::DoResolveHostComplete(int result) {
   if (result == OK && delegate_) {
-    next_state_ = STATE_TCP_CONNECT;
     result = delegate_->OnStartOpenConnection(this, &io_callback_);
-    if (result == ERR_IO_PENDING)
-      metrics_->OnWaitConnection();
-    else if (result == ERR_PROTOCOL_SWITCHED)
-      // TODO(toyoshim): Add metrics events for protocol switch.
+    if (result == ERR_PROTOCOL_SWITCHED) {
       next_state_ = STATE_CLOSE;
+      metrics_->OnCountWireProtocolType(
+          SocketStreamMetrics::WIRE_PROTOCOL_SPDY);
+    } else {
+      next_state_ = STATE_TCP_CONNECT;
+      metrics_->OnCountWireProtocolType(
+          SocketStreamMetrics::WIRE_PROTOCOL_WEBSOCKET);
+      if (result == ERR_IO_PENDING)
+        metrics_->OnWaitConnection();
+    }
   } else {
     next_state_ = STATE_CLOSE;
   }
@@ -603,7 +608,7 @@ int SocketStream::DoWriteTunnelHeaders() {
   next_state_ = STATE_WRITE_TUNNEL_HEADERS_COMPLETE;
 
   if (!tunnel_request_headers_.get()) {
-    metrics_->OnTunnelProxy();
+    metrics_->OnCountConnectionType(SocketStreamMetrics::TUNNEL_CONNECTION);
     tunnel_request_headers_ = new RequestHeaders();
     tunnel_request_headers_bytes_sent_ = 0;
   }
@@ -801,7 +806,7 @@ int SocketStream::DoSOCKSConnect() {
   else
     s = new SOCKSClientSocket(s, req_info, host_resolver_);
   socket_.reset(s);
-  metrics_->OnSOCKSProxy();
+  metrics_->OnCountConnectionType(SocketStreamMetrics::SOCKS_CONNECTION);
   return socket_->Connect(&io_callback_);
 }
 
@@ -828,7 +833,7 @@ int SocketStream::DoSSLConnect() {
                                                 NULL /* ssl_host_info */,
                                                 cert_verifier_));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
-  metrics_->OnSSLConnection();
+  metrics_->OnCountConnectionType(SocketStreamMetrics::SSL_CONNECTION);
   return socket_->Connect(&io_callback_);
 }
 
