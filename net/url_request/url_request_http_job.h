@@ -132,6 +132,11 @@ class URLRequestHttpJob : public URLRequestJob {
   bool is_cached_content_;
 
  private:
+  enum CompletionCause {
+    ABORTED,
+    FINISHED
+  };
+
   class HttpFilterContext;
 
   virtual ~URLRequestHttpJob();
@@ -144,6 +149,9 @@ class URLRequestHttpJob : public URLRequestJob {
 
   void RecordCompressionHistograms();
   bool IsCompressibleContent() const;
+
+  void RecordPerfHistograms(CompletionCause reason);
+  void DoneWithRequest(CompletionCause reason);
 
   base::Time request_creation_time_;
 
@@ -158,6 +166,7 @@ class URLRequestHttpJob : public URLRequestJob {
 
   // Enable recording of packet arrival times for histogramming.
   bool packet_timing_enabled_;
+  bool done_;  // True when we are done doing work.
 
   // The number of bytes that have been accounted for in packets (where some of
   // those packets may possibly have had their time of arrival recorded).
@@ -173,6 +182,9 @@ class URLRequestHttpJob : public URLRequestJob {
   // Since we don't save all packet times in packet_times_, we save the
   // last time for use in histograms.
   base::Time final_packet_time_;
+
+  // The start time for the job, ignoring re-starts.
+  base::TimeTicks start_time_;
 
   // The count of the number of packets, some of which may not have been timed.
   // We're ignoring overflow, as 1430 x 2^31 is a LOT of bytes.
