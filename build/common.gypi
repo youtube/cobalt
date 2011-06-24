@@ -145,6 +145,10 @@
       # Has no effect if 'clang' is not set as well.
       'clang_use_chrome_plugins%': 0,
 
+      # Set to 1 compile with -fPIC cflag on linux. This is a must for shared
+      # libraries on linux x86-64 and arm, plus ASLR.
+      'linux_fpic%': 1,
+
       'conditions': [
         # Use Skia as WebKit renderer on Mac
         ['OS=="mac"', {
@@ -177,14 +181,6 @@
           'use_gnome_keyring%': 0,
         }, {
           'use_gnome_keyring%': 1,
-        }],
-
-        # Set to 1 compile with -fPIC cflag on linux. This is a must for shared
-        # libraries on linux x86-64 and arm.
-        ['host_arch=="ia32"', {
-          'linux_fpic%': 0,
-        }, {
-          'linux_fpic%': 1,
         }],
 
         ['toolkit_views==0 or OS=="mac"', {
