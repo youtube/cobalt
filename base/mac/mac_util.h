@@ -78,6 +78,11 @@ bool ShouldWindowsMiniaturizeOnDoubleClick();
 // Activates the process with the given PID.
 void ActivateProcess(pid_t pid);
 
+// Returns true if this process is in the foreground, meaning that it's the
+// frontmost process, the one whose menu bar is shown at the top of the main
+// display.
+bool AmIForeground();
+
 // Excludes the file given by |file_path| from being backed up by Time Machine.
 bool SetFileBackupExclusion(const FilePath& file_path);
 
