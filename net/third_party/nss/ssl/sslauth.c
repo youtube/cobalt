@@ -97,24 +97,24 @@ SSL_PeerCertificateChain(PRFileDesc *fd, CERTCertificate **certs,
 
 SECStatus
 SSL_SetPredictedPeerCertificates(PRFileDesc *fd, CERTCertificate **certs,
-                                 unsigned int numCerts)
+				 unsigned int numCerts)
 {
     sslSocket *ss;
     unsigned int i;
 
     ss = ssl_FindSocket(fd);
     if (!ss) {
-        SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetPredictedPeerCertificates",
-                 SSL_GETPID(), fd));
-        return SECFailure;
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetPredictedPeerCertificates",
+		 SSL_GETPID(), fd));
+	return SECFailure;
     }
 
     ss->ssl3.predictedCertChain =
-        PORT_NewArray(CERTCertificate*, numCerts + 1);
+	PORT_NewArray(CERTCertificate*, numCerts + 1);
     if (!ss->ssl3.predictedCertChain)
-        return SECFailure;        /* error code was set */
+	return SECFailure;	/* error code was set */
     for (i = 0; i < numCerts; i++)
-        ss->ssl3.predictedCertChain[i] = CERT_DupCertificate(certs[i]);
+	ss->ssl3.predictedCertChain[i] = CERT_DupCertificate(certs[i]);
     ss->ssl3.predictedCertChain[numCerts] = NULL;
 
     return SECSuccess;

@@ -43,6 +43,9 @@ Patches:
     patches/clientauth.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=616757
 
+  * Add support for TLS cached info extension.
+    patches/cachedinfo.patch
+
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
 
