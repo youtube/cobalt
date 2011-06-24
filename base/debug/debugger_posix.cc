@@ -142,8 +142,11 @@ bool BeingDebugged() {
 #elif defined(__LB_PS3__)
 
 bool BeingDebugged() {
-  NOTIMPLEMENTED();
+#if defined(NDEBUG)
   return false;
+#else
+  return true;
+#endif
 }
 
 #elif defined(OS_FREEBSD)
@@ -180,8 +183,7 @@ bool BeingDebugged() {
 #elif defined(ARCH_CPU_ARM_FAMILY)
 #define DEBUG_BREAK() asm("bkpt 0")
 #elif defined(__LB_PS3__)
-// __LB_PS3__WRITE_ME__
-#define DEBUG_BREAK()
+#define DEBUG_BREAK() __builtin_snpause()
 #else
 #define DEBUG_BREAK() asm("int3")
 #endif
