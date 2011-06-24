@@ -368,8 +368,14 @@
               'sources!': [
                 'atomicops_internals_x86_gcc.cc',
                 'message_pump_glib.cc',
-                'message_pump_glib_x.cc',
+                'message_pump_gtk.cc',
+                'message_pump_x.cc',
               ],
+          }],
+          [ 'touchui==0', {
+            'sources!' : [ 'message_pump_x.cc', ],
+          }, {
+            'sources!' : [ 'message_pump_gtk.cc', ],
           }],
           [ 'OS != "linux"', {
               'sources!': [
@@ -571,9 +577,10 @@
         'md5.h',
         'message_pump_glib.cc',
         'message_pump_glib.h',
-        'message_pump_glib_x.cc',
-        'message_pump_glib_x.h',
-        'message_pump_glib_x_dispatch.h',
+        'message_pump_gtk.cc',
+        'message_pump_gtk.h',
+        'message_pump_x.cc',
+        'message_pump_x.h',
         'message_pump_libevent.cc',
         'message_pump_libevent.h',
         'message_pump_mac.h',
