@@ -138,6 +138,14 @@ bool SpdyProxyClientSocket::UsingTCPFastOpen() const {
   return false;
 }
 
+int64 SpdyProxyClientSocket::NumBytesRead() const {
+  return -1;
+}
+
+base::TimeDelta SpdyProxyClientSocket::GetConnectTimeMicros() const {
+  return base::TimeDelta::FromMicroseconds(-1);
+}
+
 int SpdyProxyClientSocket::Read(IOBuffer* buf, int buf_len,
                                 CompletionCallback* callback) {
   DCHECK(!read_callback_);
