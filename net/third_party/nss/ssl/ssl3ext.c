@@ -693,7 +693,7 @@ ssl3_ClientSendCachedInfoXtn(sslSocket * ss, PRBool append,
 
     predictedCertChain = ss->ssl3.predictedCertChain;
     send_empty = (predictedCertChain == NULL);
-    
+
     /* minimum extension:
      * extension_type (2-bytes) +
      * length(extension_data) (2-bytes) +
@@ -720,40 +720,40 @@ ssl3_ClientSendCachedInfoXtn(sslSocket * ss, PRBool append,
 	} else {
 	    PRUint64 certChainHash;
 	    int i;
-            PRUint8* digestPtr = (PRUint8*) &certChainHash;
+	    PRUint8* digestPtr = (PRUint8*) &certChainHash;
 
 	    /* Cached Information Length */
 	    rv = ssl3_AppendHandshakeNumber(ss, 10, 2);
 	    if (rv != SECSuccess)
-	        return -1;
+		return -1;
 	    /* Cached Information Type */
 	    rv = ssl3_AppendHandshakeNumber(ss, 1 /* certificate_chain */, 1);
 	    if (rv != SECSuccess)
-	        return -1;
+		return -1;
 	    /* hash length */
 	    rv = ssl3_AppendHandshakeNumber(ss, 8, 1);
 	    if (rv != SECSuccess)
-	        return -1;
+		return -1;
 	    /* hash */
 	    FNV1A64_Init(&certChainHash);
 	    for (i = 0; predictedCertChain[i] != NULL; i++) {
-	        unsigned int certLen = predictedCertChain[i]->derCert.len;
+		unsigned int certLen = predictedCertChain[i]->derCert.len;
 		unsigned char certLenArray[3] = {
 		    (certLen & 0xff0000) >> 16,
 		    (certLen & 0xff00) >> 8,
 		     certLen & 0xff
 		};
-	        FNV1A64_Update(&certChainHash, certLenArray, 3);
-	        FNV1A64_Update(&certChainHash,
+		FNV1A64_Update(&certChainHash, certLenArray, 3);
+		FNV1A64_Update(&certChainHash,
 			       predictedCertChain[i]->derCert.data, certLen);
 	    }
 	    FNV1A64_Final(&certChainHash);
 	    rv = ssl3_AppendHandshake(ss, &certChainHash, 8);
 	    if (rv != SECSuccess)
-	        return -1;
-            for (i = 0; i < 8; i++) {
-                ss->ssl3.certChainDigest[i] = digestPtr[i];
-            }
+		return -1;
+	    for (i = 0; i < 8; i++) {
+		ss->ssl3.certChainDigest[i] = digestPtr[i];
+	    }
 	}
 
     } else if (maxBytes < extension_length) {
@@ -761,7 +761,7 @@ ssl3_ClientSendCachedInfoXtn(sslSocket * ss, PRBool append,
 	return 0;
     }
     ss->xtnData.advertised[ss->xtnData.numAdvertised++] =
-        ssl_cached_info_xtn;
+	ssl_cached_info_xtn;
     return extension_length;
 }
 
@@ -778,37 +778,37 @@ ssl3_ClientHandleCachedInfoXtn(sslSocket *ss, PRUint16 ex_type,
 	return SECFailure;
 
     if (data->len == 0) {
-        /* The server supports information caching, but provides no information
+	/* The server supports information caching, but provides no information
 	 * about what information types it supports */
-        ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
+	ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
 	return SECSuccess;
     }
 
     if (data->len < 2)
-        return SECFailure;
+	return SECFailure;
     remaining_cached_info_length = (cached_info[0] << 8) | cached_info[1];
     if (remaining_cached_info_length != data->len - 2)
-        return SECFailure;
+	return SECFailure;
     cached_info += 2;
     while (remaining_cached_info_length >= 2) {
-        /* The server supports only those CachedInformationType types that are
+	/* The server supports only those CachedInformationType types that are
 	 * identified by a present CachedObject */
-        unsigned char cached_object_type;
+	unsigned char cached_object_type;
 	unsigned int cached_object_length;
 	unsigned char cached_object_digest[8];
-        cached_object_type = *cached_info++;
+	cached_object_type = *cached_info++;
 	cached_object_length = *cached_info++;
 	remaining_cached_info_length -= 2;
 	if (remaining_cached_info_length < cached_object_length)
-            return SECFailure;
+	    return SECFailure;
 	if (cached_object_length != 0 && cached_object_length != 8)
-            return SECFailure;
+	    return SECFailure;
 	remaining_cached_info_length -= cached_object_length;
 	if (cached_object_type == cached_info_certificate_chain) {
 	    if (cached_object_length == 0)
-	        has_correct_cert_chain = PR_TRUE;
+		has_correct_cert_chain = PR_TRUE;
 	    else { /* Hashes must match */
-	        int i;
+		int i;
 		for (i = 0; i < 8; i++)
 		    cached_object_digest[i] = *cached_info++;
 		if (!memcmp(cached_object_digest, ss->ssl3.certChainDigest, 8))
@@ -818,10 +818,10 @@ ssl3_ClientHandleCachedInfoXtn(sslSocket *ss, PRUint16 ex_type,
     }
 
     if (remaining_cached_info_length != 0)
-        return SECFailure;
+	return SECFailure;
 
     if (has_correct_cert_chain) {
-        ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
+	ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
 	return SECSuccess;
     }
 
