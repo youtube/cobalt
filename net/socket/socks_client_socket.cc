@@ -169,6 +169,22 @@ bool SOCKSClientSocket::UsingTCPFastOpen() const {
   return false;
 }
 
+int64 SOCKSClientSocket::NumBytesRead() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->NumBytesRead();
+  }
+  NOTREACHED();
+  return -1;
+}
+
+base::TimeDelta SOCKSClientSocket::GetConnectTimeMicros() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetConnectTimeMicros();
+  }
+  NOTREACHED();
+  return base::TimeDelta::FromMicroseconds(-1);
+}
+
 
 // Read is called by the transport layer above to read. This can only be done
 // if the SOCKS handshake is complete.

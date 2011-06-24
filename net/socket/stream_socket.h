@@ -6,6 +6,7 @@
 #define NET_SOCKET_STREAM_SOCKET_H_
 #pragma once
 
+#include "base/time.h"
 #include "net/base/net_log.h"
 #include "net/socket/socket.h"
 
@@ -78,6 +79,12 @@ class NET_TEST StreamSocket : public Socket {
   // Returns true if the underlying transport socket is using TCP FastOpen.
   // TCP FastOpen is an experiment with sending data in the TCP SYN packet.
   virtual bool UsingTCPFastOpen() const = 0;
+
+  // Returns the number of bytes successfully read from this socket.
+  virtual int64 NumBytesRead() const = 0;
+
+  // Returns the connection setup time of this socket.
+  virtual base::TimeDelta GetConnectTimeMicros() const = 0;
 
  protected:
   // The following class is only used to gather statistics about the history of
