@@ -27,12 +27,13 @@
 #elif defined(OS_POSIX)
 #include "base/message_pump_libevent.h"
 #if !defined(OS_MACOSX)
-#include "base/message_pump_glib.h"
+#if defined(TOUCH_UI)
+#include "base/message_pump_x.h"
+#else
+#include "base/message_pump_gtk.h"
+#endif
 typedef struct _XDisplay Display;
 #endif
-#endif
-#if defined(TOUCH_UI)
-#include "base/message_pump_glib_x_dispatch.h"
 #endif
 
 namespace base {
@@ -80,12 +81,9 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 #if defined(OS_WIN)
   typedef base::MessagePumpWin::Dispatcher Dispatcher;
   typedef base::MessagePumpForUI::Observer Observer;
-#elif defined(TOUCH_UI)
-  typedef base::MessagePumpGlibXDispatcher Dispatcher;
-  typedef base::MessagePumpXObserver Observer;
 #elif !defined(OS_MACOSX)
-  typedef base::MessagePumpForUI::Dispatcher Dispatcher;
-  typedef base::MessagePumpForUI::Observer Observer;
+  typedef base::MessagePumpDispatcher Dispatcher;
+  typedef base::MessagePumpObserver Observer;
 #endif
 
   // A MessageLoop has a particular type, which indicates the set of

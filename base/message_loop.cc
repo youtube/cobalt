@@ -25,14 +25,16 @@
 #if defined(OS_POSIX)
 #include "base/message_pump_libevent.h"
 #endif
+
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
-#include "base/message_pump_glib.h"
-#endif
 #if defined(TOUCH_UI)
-#include "base/message_pump_glib_x.h"
-#endif
+#include "base/message_pump_x.h"
+#else
+#include "base/message_pump_gtk.h"
+#endif  // defined(TOUCH_UI)
+#endif  // defined(OS_POSIX) && !defined(OS_MACOSX)
 
 using base::TimeDelta;
 using base::TimeTicks;
@@ -176,7 +178,7 @@ MessageLoop::MessageLoop(Type type)
 #define MESSAGE_PUMP_UI base::MessagePumpMac::Create()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
 #elif defined(TOUCH_UI)
-#define MESSAGE_PUMP_UI new base::MessagePumpGlibX()
+#define MESSAGE_PUMP_UI new base::MessagePumpX()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
 #elif defined(OS_NACL)
 // Currently NaCl doesn't have a UI or an IO MessageLoop.
@@ -184,7 +186,7 @@ MessageLoop::MessageLoop(Type type)
 #define MESSAGE_PUMP_UI NULL
 #define MESSAGE_PUMP_IO NULL
 #elif defined(OS_POSIX)  // POSIX but not MACOSX.
-#define MESSAGE_PUMP_UI new base::MessagePumpForUI()
+#define MESSAGE_PUMP_UI new base::MessagePumpGtk()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
 #else
 #error Not implemented
