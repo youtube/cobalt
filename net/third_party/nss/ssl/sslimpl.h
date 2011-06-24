@@ -864,8 +864,8 @@ struct ssl3StateStr {
     CERTCertificate **   predictedCertChain;
 			    /* An array terminated with a NULL. */
     PRUint8              certChainDigest[8];
-                            /* Used in cached info extension. Stored in network
-                             * byte order. */
+			    /* Used in cached info extension. Stored in network
+			     * byte order. */
     PRBool               digestReceived;
 
     int                  policy;
