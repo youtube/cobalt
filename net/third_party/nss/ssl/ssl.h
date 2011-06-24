@@ -439,15 +439,15 @@ typedef SECStatus (PR_CALLBACK *SSLBadCertHandler)(void *arg, PRFileDesc *fd);
 SSL_IMPORT SECStatus SSL_BadCertHook(PRFileDesc *fd, SSLBadCertHandler f, 
 				     void *arg);
 
-/*	
- ** Set the predicted chain of certificates for the peer. This is used for the	
- ** TLS Cached Info extension. Note that the SSL_ENABLE_CACHED_INFO option must	
- ** be set for this to occur.	
- **	
- ** This function takes a reference to each of the given certificates.	
- */	
- SSL_IMPORT SECStatus SSL_SetPredictedPeerCertificates(	
-         PRFileDesc *fd, CERTCertificate **certs,	
+/*
+ ** Set the predicted chain of certificates for the peer. This is used for the
+ ** TLS Cached Info extension. Note that the SSL_ENABLE_CACHED_INFO option must
+ ** be set for this to occur.
+ **
+ ** This function takes a reference to each of the given certificates.
+ */
+ SSL_IMPORT SECStatus SSL_SetPredictedPeerCertificates(
+         PRFileDesc *fd, CERTCertificate **certs,
          unsigned int numCerts);
 
 /*
