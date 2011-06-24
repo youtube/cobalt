@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/socket_stream/socket_stream_metrics.h"
+
 #include "base/basictypes.h"
 #include "base/metrics/histogram.h"
 #include "googleurl/src/gurl.h"
-#include "net/socket_stream/socket_stream_metrics.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
