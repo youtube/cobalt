@@ -45,14 +45,12 @@ typedef ClientSocketPoolBase<TestSocketParams> TestClientSocketPoolBase;
 
 class MockClientSocket : public StreamSocket {
  public:
-  MockClientSocket() : connected_(false), was_used_to_convey_data_(false),
-                       num_bytes_read_(0) {}
+  MockClientSocket() : connected_(false), was_used_to_convey_data_(false) {}
 
   // Socket methods:
   virtual int Read(
-      IOBuffer* /* buf */, int len, CompletionCallback* /* callback */) {
-    num_bytes_read_ += len;
-    return len;
+      IOBuffer* /* buf */, int /* len */, CompletionCallback* /* callback */) {
+    return ERR_UNEXPECTED;
   }
 
   virtual int Write(
@@ -88,22 +86,13 @@ class MockClientSocket : public StreamSocket {
 
   virtual void SetSubresourceSpeculation() {}
   virtual void SetOmniboxSpeculation() {}
-  virtual bool WasEverUsed() const {
-    return was_used_to_convey_data_ || num_bytes_read_ > 0;
-  }
+  virtual bool WasEverUsed() const { return was_used_to_convey_data_; }
   virtual bool UsingTCPFastOpen() const { return false; }
-  virtual int64 NumBytesRead() const { return num_bytes_read_; }
-  virtual base::TimeDelta GetConnectTimeMicros() const {
-    static const base::TimeDelta kDummyConnectTimeMicros =
-        base::TimeDelta::FromMicroseconds(10);
-    return kDummyConnectTimeMicros;  // Dummy value.
-  }
 
  private:
   bool connected_;
   BoundNetLog net_log_;
   bool was_used_to_convey_data_;
-  int num_bytes_read_;
 
   DISALLOW_COPY_AND_ASSIGN(MockClientSocket);
 };
@@ -614,71 +603,6 @@ class ClientSocketPoolBaseTest : public testing::Test {
   scoped_ptr<TestClientSocketPool> pool_;
   ClientSocketPoolTest test_base_;
 };
-
-TEST_F(ClientSocketPoolBaseTest, AssignIdleSocketToGroup_WarmestSocket) {
-  CreatePool(4, 4);
-  net::SetSocketReusePolicy(0);
-
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-
-  std::map<int, StreamSocket*> sockets_;
-  for (size_t i = 0; i < test_base_.requests_size(); i++) {
-    TestSocketRequest* req = test_base_.request(i);
-    StreamSocket* s = req->handle()->socket();
-    MockClientSocket* sock = static_cast<MockClientSocket*>(s);
-    CHECK(sock);
-    sockets_[i] = sock;
-    sock->Read(NULL, 1024 - i, NULL);
-  }
-
-  ReleaseAllConnections(ClientSocketPoolTest::KEEP_ALIVE);
-
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  TestSocketRequest* req = test_base_.request(test_base_.requests_size() - 1);
-
-  // First socket is warmest.
-  EXPECT_EQ(sockets_[0], req->handle()->socket());
-
-  // Test that NumBytes are as expected.
-  EXPECT_EQ(1024, sockets_[0]->NumBytesRead());
-  EXPECT_EQ(1023, sockets_[1]->NumBytesRead());
-  EXPECT_EQ(1022, sockets_[2]->NumBytesRead());
-  EXPECT_EQ(1021, sockets_[3]->NumBytesRead());
-
-  ReleaseAllConnections(ClientSocketPoolTest::NO_KEEP_ALIVE);
-}
-
-TEST_F(ClientSocketPoolBaseTest, AssignIdleSocketToGroup_LastAccessedSocket) {
-  CreatePool(4, 4);
-  net::SetSocketReusePolicy(2);
-
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-
-  std::map<int, StreamSocket*> sockets_;
-  for (size_t i = 0; i < test_base_.requests_size(); i++) {
-    TestSocketRequest* req = test_base_.request(i);
-    StreamSocket* s = req->handle()->socket();
-    MockClientSocket* sock = static_cast<MockClientSocket*>(s);
-    CHECK(sock);
-    sockets_[i] = sock;
-    sock->Read(NULL, 1024 - i, NULL);
-  }
-
-  ReleaseAllConnections(ClientSocketPoolTest::KEEP_ALIVE);
-
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  TestSocketRequest* req = test_base_.request(test_base_.requests_size() - 1);
-
-  // Last socket is most recently accessed.
-  EXPECT_EQ(sockets_[3], req->handle()->socket());
-  ReleaseAllConnections(ClientSocketPoolTest::NO_KEEP_ALIVE);
-}
 
 // Even though a timeout is specified, it doesn't time out on a synchronous
 // completion.

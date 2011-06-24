@@ -117,8 +117,6 @@ class MockHttpStream : public HttpStream {
 
   virtual bool IsSpdyHttpStream() const OVERRIDE { return false; }
 
-  virtual void LogNumRttVsBytesMetrics() const OVERRIDE {}
-
   // Methods to tweak/observer mock behavior:
   void StallReadsForever() { stall_reads_forever_ = true; }
 
