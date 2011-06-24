@@ -707,6 +707,7 @@ MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
       addresses_(addresses),
       data_(data),
       read_offset_(0),
+      num_bytes_read_(0),
       read_data_(false, net::ERR_UNEXPECTED),
       need_read_data_(true),
       peer_closed_connection_(false),
@@ -811,6 +812,17 @@ bool MockTCPClientSocket::UsingTCPFastOpen() const {
   return false;
 }
 
+int64 MockTCPClientSocket::NumBytesRead() const {
+  return num_bytes_read_;
+}
+
+base::TimeDelta MockTCPClientSocket::GetConnectTimeMicros() const {
+  // Dummy value.
+  static const base::TimeDelta kTestingConnectTimeMicros =
+      base::TimeDelta::FromMicroseconds(20);
+  return kTestingConnectTimeMicros;
+}
+
 void MockTCPClientSocket::OnReadComplete(const MockRead& data) {
   // There must be a read pending.
   DCHECK(pending_buf_);
@@ -853,6 +865,7 @@ int MockTCPClientSocket::CompleteRead() {
       result = std::min(buf_len, read_data_.data_len - read_offset_);
       memcpy(buf->data(), read_data_.data + read_offset_, result);
       read_offset_ += result;
+      num_bytes_read_ += result;
       if (read_offset_ == read_data_.data_len) {
         need_read_data_ = true;
         read_offset_ = 0;
@@ -1001,6 +1014,14 @@ bool DeterministicMockTCPClientSocket::UsingTCPFastOpen() const {
   return false;
 }
 
+int64 DeterministicMockTCPClientSocket::NumBytesRead() const {
+  return -1;
+}
+
+base::TimeDelta DeterministicMockTCPClientSocket::GetConnectTimeMicros() const {
+  return base::TimeDelta::FromMicroseconds(-1);
+}
+
 void DeterministicMockTCPClientSocket::OnReadComplete(const MockRead& data) {}
 
 class MockSSLClientSocket::ConnectCallback
@@ -1092,6 +1113,14 @@ bool MockSSLClientSocket::WasEverUsed() const {
 
 bool MockSSLClientSocket::UsingTCPFastOpen() const {
   return transport_->socket()->UsingTCPFastOpen();
+}
+
+int64 MockSSLClientSocket::NumBytesRead() const {
+  return -1;
+}
+
+base::TimeDelta MockSSLClientSocket::GetConnectTimeMicros() const {
+  return base::TimeDelta::FromMicroseconds(-1);
 }
 
 void MockSSLClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
