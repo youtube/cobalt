@@ -242,6 +242,26 @@ void ActivateProcess(pid_t pid) {
   }
 }
 
+bool AmIForeground() {
+  ProcessSerialNumber foreground_psn = { 0 };
+  OSErr err = GetFrontProcess(&foreground_psn);
+  if (err != noErr) {
+    LOG(WARNING) << "GetFrontProcess: " << err;
+    return false;
+  }
+
+  ProcessSerialNumber my_psn = { 0, kCurrentProcess };
+
+  Boolean result = FALSE;
+  err = SameProcess(&foreground_psn, &my_psn, &result);
+  if (err != noErr) {
+    LOG(WARNING) << "SameProcess: " << err;
+    return false;
+  }
+
+  return result;
+}
+
 bool SetFileBackupExclusion(const FilePath& file_path) {
   NSString* file_path_ns =
       [NSString stringWithUTF8String:file_path.value().c_str()];
