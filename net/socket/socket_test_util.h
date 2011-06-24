@@ -631,6 +631,8 @@ class MockTCPClientSocket : public MockClientSocket {
   virtual int GetPeerAddress(AddressList* address) const;
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
+  virtual int64 NumBytesRead() const;
+  virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // MockClientSocket:
   virtual void OnReadComplete(const MockRead& data);
@@ -642,6 +644,7 @@ class MockTCPClientSocket : public MockClientSocket {
 
   net::SocketDataProvider* data_;
   int read_offset_;
+  int num_bytes_read_;
   net::MockRead read_data_;
   bool need_read_data_;
 
@@ -683,6 +686,8 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   virtual bool IsConnectedAndIdle() const;
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
+  virtual int64 NumBytesRead() const;
+  virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // MockClientSocket:
   virtual void OnReadComplete(const MockRead& data);
@@ -724,6 +729,8 @@ class MockSSLClientSocket : public MockClientSocket {
   virtual bool IsConnected() const;
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
+  virtual int64 NumBytesRead() const;
+  virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // SSLClientSocket methods:
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
