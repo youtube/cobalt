@@ -51,7 +51,7 @@ TEST(SocketStreamMetricsTest, ProtocolType) {
   Histogram::SampleSet sample;
   histogram->SnapshotSample(&sample);
   original.Resize(*histogram);  // Ensure |original| size is same as |sample|.
-  sample.Subtract(original); // Cancel the original values.
+  sample.Subtract(original);  // Cancel the original values.
   EXPECT_EQ(1, sample.counts(SocketStreamMetrics::PROTOCOL_UNKNOWN));
   EXPECT_EQ(2, sample.counts(SocketStreamMetrics::PROTOCOL_WEBSOCKET));
   EXPECT_EQ(3, sample.counts(SocketStreamMetrics::PROTOCOL_WEBSOCKET_SECURE));
@@ -71,11 +71,11 @@ TEST(SocketStreamMetricsTest, ConnectionType) {
   for (int i = 0; i < 1; ++i)
     metrics.OnStartConnection();
   for (int i = 0; i < 2; ++i)
-    metrics.OnTunnelProxy();
+    metrics.OnCountConnectionType(SocketStreamMetrics::TUNNEL_CONNECTION);
   for (int i = 0; i < 3; ++i)
-    metrics.OnSOCKSProxy();
+    metrics.OnCountConnectionType(SocketStreamMetrics::SOCKS_CONNECTION);
   for (int i = 0; i < 4; ++i)
-    metrics.OnSSLConnection();
+    metrics.OnCountConnectionType(SocketStreamMetrics::SSL_CONNECTION);
 
   ASSERT_TRUE(StatisticsRecorder::FindHistogram(
       "Net.SocketStream.ConnectionType", &histogram));
@@ -89,6 +89,35 @@ TEST(SocketStreamMetricsTest, ConnectionType) {
   EXPECT_EQ(2, sample.counts(SocketStreamMetrics::TUNNEL_CONNECTION));
   EXPECT_EQ(3, sample.counts(SocketStreamMetrics::SOCKS_CONNECTION));
   EXPECT_EQ(4, sample.counts(SocketStreamMetrics::SSL_CONNECTION));
+}
+
+TEST(SocketStreamMetricsTest, WireProtocolType) {
+  Histogram* histogram;
+
+  // First we'll preserve the original values.
+  Histogram::SampleSet original;
+  if (StatisticsRecorder::FindHistogram(
+          "Net.SocketStream.WireProtocolType", &histogram)) {
+    histogram->SnapshotSample(&original);
+  }
+
+  SocketStreamMetrics metrics(GURL("ws://www.example.com/"));
+  for (int i = 0; i < 3; ++i)
+    metrics.OnCountWireProtocolType(
+        SocketStreamMetrics::WIRE_PROTOCOL_WEBSOCKET);
+  for (int i = 0; i < 7; ++i)
+    metrics.OnCountWireProtocolType(SocketStreamMetrics::WIRE_PROTOCOL_SPDY);
+
+  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
+      "Net.SocketStream.WireProtocolType", &histogram));
+  EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
+
+  Histogram::SampleSet sample;
+  histogram->SnapshotSample(&sample);
+  original.Resize(*histogram);
+  sample.Subtract(original);
+  EXPECT_EQ(3, sample.counts(SocketStreamMetrics::WIRE_PROTOCOL_WEBSOCKET));
+  EXPECT_EQ(7, sample.counts(SocketStreamMetrics::WIRE_PROTOCOL_SPDY));
 }
 
 TEST(SocketStreamMetricsTest, OtherNumbers) {
