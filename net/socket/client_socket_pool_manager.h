@@ -111,6 +111,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   // uses SSL and |ssl_config_for_proxy| is used if the proxy server is HTTPS.
   static int InitSocketHandleForHttpRequest(
       const GURL& request_url,
+      const GURL& request_referrer,
       const HttpRequestHeaders& request_extra_headers,
       int request_load_flags,
       RequestPriority request_priority,
@@ -142,6 +143,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   // desired number of preconnect streams from the relevant socket pool.
   static int PreconnectSocketsForHttpRequest(
       const GURL& request_url,
+      const GURL& request_referrer,
       const HttpRequestHeaders& request_extra_headers,
       int request_load_flags,
       RequestPriority request_priority,
