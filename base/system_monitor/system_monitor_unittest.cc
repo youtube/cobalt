@@ -47,8 +47,6 @@ TEST(SystemMonitor, PowerNotifications) {
 
   // Initialize a message loop for this to run on.
   MessageLoop loop;
-  // Initialize time() since it registers as a SystemMonitor observer.
-  base::Time now = base::Time::Now();
 
   SystemMonitor system_monitor;
   PowerTest test[kObservers];
