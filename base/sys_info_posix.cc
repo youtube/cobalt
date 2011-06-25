@@ -20,7 +20,6 @@
 #define statvfs statfs  // Android uses a statvfs-like statfs struct and call.
 #else
 #include <sys/statvfs.h>
-#include <sys/sysctl.h>
 #endif
 
 namespace base {
@@ -51,7 +50,7 @@ int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
 #if !defined(OS_MACOSX)
 // static
 std::string SysInfo::OperatingSystemName() {
-  utsname info;
+  struct utsname info;
   if (uname(&info) < 0) {
     NOTREACHED();
     return "";
@@ -61,7 +60,7 @@ std::string SysInfo::OperatingSystemName() {
 
 // static
 std::string SysInfo::OperatingSystemVersion() {
-  utsname info;
+  struct utsname info;
   if (uname(&info) < 0) {
     NOTREACHED();
     return "";
@@ -72,7 +71,7 @@ std::string SysInfo::OperatingSystemVersion() {
 
 // static
 std::string SysInfo::CPUArchitecture() {
-  utsname info;
+  struct utsname info;
   if (uname(&info) < 0) {
     NOTREACHED();
     return "";
