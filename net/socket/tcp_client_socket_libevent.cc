@@ -336,9 +336,8 @@ int TCPClientSocketLibevent::DoConnectComplete(int result) {
     params = new NetLogIntegerParameter("os_error", os_error);
   net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT, params);
 
-  write_socket_watcher_.StopWatchingFileDescriptor();
-
   if (result == OK) {
+    write_socket_watcher_.StopWatchingFileDescriptor();
     use_history_.set_was_ever_connected();
     return OK;  // Done!
   }
