@@ -48,7 +48,7 @@ class BASE_API ObjectWatcher : public MessageLoop::DestructionObserver {
    public:
     virtual ~Delegate() {}
     // Called from the MessageLoop when a signaled object is detected.  To
-    // continue watching the object, AddWatch must be called again.
+    // continue watching the object, StartWatching must be called again.
     virtual void OnObjectSignaled(HANDLE object) = 0;
   };
 
