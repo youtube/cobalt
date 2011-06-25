@@ -755,6 +755,13 @@
                   '../build/linux/system.gyp:ssl',
                 ],
               }],
+              ['OS=="solaris"', {
+                'link_settings': {
+                  'ldflags': [
+                    '-R/usr/lib/mps',
+                  ],
+                },
+              }],
             ],
           },
           {  # else: OS is not in the above list
