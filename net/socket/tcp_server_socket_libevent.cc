@@ -172,6 +172,8 @@ int TCPServerSocketLibevent::AcceptInternal(
 
 void TCPServerSocketLibevent::Close() {
   if (socket_ != kInvalidSocket) {
+    bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
+    DCHECK(ok);
     if (HANDLE_EINTR(close(socket_)) < 0)
       PLOG(ERROR) << "close";
     socket_ = kInvalidSocket;
@@ -186,6 +188,8 @@ void TCPServerSocketLibevent::OnFileCanReadWithoutBlocking(int fd) {
     CompletionCallback* c = accept_callback_;
     accept_callback_ = NULL;
     accept_socket_ = NULL;
+    bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
+    DCHECK(ok);
     c->Run(result);
   }
 }
