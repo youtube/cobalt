@@ -12,9 +12,6 @@
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-#if !defined(OS_NACL)
-#include <sys/sysctl.h>
-#endif
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -27,6 +24,10 @@
 
 #if defined(OS_MACOSX)
 #include <AvailabilityMacros.h>
+#endif
+
+#if defined(OS_MACOSX) || defined(OS_OPENBSD) || defined(OS_FREEBSD)
+#include <sys/sysctl.h>
 #endif
 
 #include <iostream>
@@ -136,7 +137,7 @@ bool BeingDebugged() {
   return false;
 }
 
-#elif defined(OS_FREEBSD)
+#else
 
 bool BeingDebugged() {
   // TODO(benl): can we determine this under FreeBSD?

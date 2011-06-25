@@ -127,7 +127,7 @@ PlatformThreadId PlatformThread::CurrentId() {
 #elif defined(OS_FREEBSD)
   // TODO(BSD): find a better thread ID
   return reinterpret_cast<int64>(pthread_self());
-#elif defined(OS_NACL)
+#elif defined(OS_NACL) || defined(OS_SOLARIS)
   return pthread_self();
 #endif
 }
