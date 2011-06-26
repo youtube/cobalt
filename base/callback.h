@@ -13,6 +13,7 @@
 #pragma once
 
 #include "base/callback_internal.h"
+#include "base/template_util.h"
 
 // New, super-duper, unified Callback system.  This will eventually replace
 // NewRunnableMethod, NewRunnableFunction, CreateFunctor, and CreateCallback
@@ -252,6 +253,9 @@ class Callback<R(void)> : public internal::CallbackBase {
       : CallbackBase(
           reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
+    COMPILE_ASSERT((is_same<PolymorphicInvoke,
+                    typename T::Invoker::DoInvokeType>::value),
+                   callback_type_does_not_match_bind_result);
   }
 
   R Run() const {
@@ -283,6 +287,9 @@ class Callback<R(A1)> : public internal::CallbackBase {
       : CallbackBase(
           reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
+    COMPILE_ASSERT((is_same<PolymorphicInvoke,
+                    typename T::Invoker::DoInvokeType>::value),
+                   callback_type_does_not_match_bind_result);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1) const {
@@ -315,6 +322,9 @@ class Callback<R(A1, A2)> : public internal::CallbackBase {
       : CallbackBase(
           reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
+    COMPILE_ASSERT((is_same<PolymorphicInvoke,
+                    typename T::Invoker::DoInvokeType>::value),
+                   callback_type_does_not_match_bind_result);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1,
@@ -350,6 +360,9 @@ class Callback<R(A1, A2, A3)> : public internal::CallbackBase {
       : CallbackBase(
           reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
+    COMPILE_ASSERT((is_same<PolymorphicInvoke,
+                    typename T::Invoker::DoInvokeType>::value),
+                   callback_type_does_not_match_bind_result);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1,
@@ -388,6 +401,9 @@ class Callback<R(A1, A2, A3, A4)> : public internal::CallbackBase {
       : CallbackBase(
           reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
+    COMPILE_ASSERT((is_same<PolymorphicInvoke,
+                    typename T::Invoker::DoInvokeType>::value),
+                   callback_type_does_not_match_bind_result);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1,
@@ -430,6 +446,9 @@ class Callback<R(A1, A2, A3, A4, A5)> : public internal::CallbackBase {
       : CallbackBase(
           reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
+    COMPILE_ASSERT((is_same<PolymorphicInvoke,
+                    typename T::Invoker::DoInvokeType>::value),
+                   callback_type_does_not_match_bind_result);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1,
@@ -475,6 +494,9 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
       : CallbackBase(
           reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
+    COMPILE_ASSERT((is_same<PolymorphicInvoke,
+                    typename T::Invoker::DoInvokeType>::value),
+                   callback_type_does_not_match_bind_result);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1,

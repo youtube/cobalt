@@ -29,7 +29,8 @@ struct JsonKeyValue {
 class TraceEventTestFixture : public testing::Test {
  public:
   void ManualTestSetUp();
-  void OnTraceDataCollected(TraceLog::RefCountedString* json_events_str);
+  void OnTraceDataCollected(
+      scoped_refptr<TraceLog::RefCountedString> json_events_str);
   bool FindMatchingTraceEntry(const JsonKeyValue* key_values);
   bool FindNamePhase(const char* name, const char* phase);
 
@@ -52,7 +53,7 @@ void TraceEventTestFixture::ManualTestSetUp() {
 }
 
 void TraceEventTestFixture::OnTraceDataCollected(
-    TraceLog::RefCountedString* json_events_str) {
+    scoped_refptr<TraceLog::RefCountedString> json_events_str) {
   trace_string_ += json_events_str->data;
 
   scoped_ptr<Value> root;

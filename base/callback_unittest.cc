@@ -23,6 +23,7 @@ class HelperObject {
 };
 
 struct FakeInvoker {
+  typedef void(*DoInvokeType)(internal::InvokerStorageBase*);
   static void DoInvoke(internal::InvokerStorageBase*) {
   }
 };

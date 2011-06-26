@@ -677,6 +677,8 @@ TEST_F(BindTest, NoCompile) {
   // Callback<int(void)> weak_ptr_with_non_void_return_type =
   //     Bind(&NoRef::IntMethod0, weak_factory.GetWeakPtr());
 
+  // - Bind result cannot be assigned to Callbacks with a mismatching type.
+  // Closure callback_mismatches_bind_type = Bind(&VoidPolymorphic1<int>);
 }
 
 #if defined(OS_WIN)

@@ -198,6 +198,11 @@ template <typename StorageType, typename R[[]]
 $if ARITY > 0 [[,]][[]]
 $for ARG , [[typename X$(ARG)]]>
 struct Invoker$(BOUND)<false, StorageType, R(*)($for ARG , [[X$(ARG)]])> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*[[]]
+$if UNBOUND != 0 [[, ]]
+$for UNBOUND_ARG , [[typename internal::ParamTraits<X$(UNBOUND_ARG)>::ForwardType]]);
+
   static R DoInvoke(InvokerStorageBase* base[[]]
 $if UNBOUND != 0 [[, ]][[]]
 $for UNBOUND_ARG , [[typename internal::ParamTraits<X$(UNBOUND_ARG)>::ForwardType x$(UNBOUND_ARG)]]) {
@@ -215,6 +220,11 @@ $if BOUND > 0 [[
 template <typename StorageType, typename R, typename T[[]]
 $if M_ARITY > 0[[, ]] $for M_ARG , [[typename X$(M_ARG)]]>
 struct Invoker$(BOUND)<false, StorageType, R(T::*)($for M_ARG , [[X$(M_ARG)]])> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*[[]]
+$if UNBOUND != 0 [[, ]]
+$for M_UNBOUND_ARG , [[typename internal::ParamTraits<X$(M_UNBOUND_ARG)>::ForwardType]]);
+
   static R DoInvoke(InvokerStorageBase* base[[]]
 $if UNBOUND > 0 [[, ]][[]]
 $for M_UNBOUND_ARG , [[typename internal::ParamTraits<X$(M_UNBOUND_ARG)>::ForwardType x$(M_UNBOUND_ARG)]]) {
@@ -230,6 +240,11 @@ $for M_UNBOUND_ARG , [[x$(M_UNBOUND_ARG)]]);
 template <typename StorageType, typename T[[]]
 $if M_ARITY > 0[[, ]] $for M_ARG , [[typename X$(M_ARG)]]>
 struct Invoker$(BOUND)<true, StorageType, void(T::*)($for M_ARG , [[X$(M_ARG)]])> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*[[]]
+$if UNBOUND != 0 [[, ]]
+$for M_UNBOUND_ARG , [[typename internal::ParamTraits<X$(M_UNBOUND_ARG)>::ForwardType]]);
+
   static void DoInvoke(InvokerStorageBase* base[[]]
 $if UNBOUND > 0 [[, ]][[]]
 $for M_UNBOUND_ARG , [[typename internal::ParamTraits<X$(M_UNBOUND_ARG)>::ForwardType x$(M_UNBOUND_ARG)]]) {
