@@ -442,6 +442,9 @@ struct Invoker0;
 // Function: Arity 0 -> 0.
 template <typename StorageType, typename R>
 struct Invoker0<false, StorageType, R(*)()> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_();
@@ -451,6 +454,10 @@ struct Invoker0<false, StorageType, R(*)()> {
 // Function: Arity 1 -> 1.
 template <typename StorageType, typename R,typename X1>
 struct Invoker0<false, StorageType, R(*)(X1)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -461,6 +468,11 @@ struct Invoker0<false, StorageType, R(*)(X1)> {
 // Function: Arity 2 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2>
 struct Invoker0<false, StorageType, R(*)(X1, X2)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2) {
@@ -473,6 +485,12 @@ struct Invoker0<false, StorageType, R(*)(X1, X2)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
 struct Invoker0<false, StorageType, R(*)(X1, X2, X3)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -486,6 +504,13 @@ struct Invoker0<false, StorageType, R(*)(X1, X2, X3)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker0<false, StorageType, R(*)(X1, X2, X3, X4)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -500,6 +525,14 @@ struct Invoker0<false, StorageType, R(*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker0<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -515,6 +548,15 @@ struct Invoker0<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker0<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType,
+          typename internal::ParamTraits<X6>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -533,6 +575,9 @@ struct Invoker1;
 // Function: Arity 1 -> 0.
 template <typename StorageType, typename R,typename X1>
 struct Invoker1<false, StorageType, R(*)(X1)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_));
@@ -542,6 +587,9 @@ struct Invoker1<false, StorageType, R(*)(X1)> {
 // Method: Arity 0 -> 0.
 template <typename StorageType, typename R, typename T>
 struct Invoker1<false, StorageType, R(T::*)()> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)();
@@ -551,6 +599,9 @@ struct Invoker1<false, StorageType, R(T::*)()> {
 // WeakPtr Method: Arity 0 -> 0.
 template <typename StorageType, typename T>
 struct Invoker1<true, StorageType, void(T::*)()> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static void DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
@@ -564,6 +615,10 @@ struct Invoker1<true, StorageType, void(T::*)()> {
 // Function: Arity 2 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2>
 struct Invoker1<false, StorageType, R(*)(X1, X2)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -574,6 +629,10 @@ struct Invoker1<false, StorageType, R(*)(X1, X2)> {
 // Method: Arity 1 -> 1.
 template <typename StorageType, typename R, typename T, typename X1>
 struct Invoker1<false, StorageType, R(T::*)(X1)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -584,6 +643,10 @@ struct Invoker1<false, StorageType, R(T::*)(X1)> {
 // WeakPtr Method: Arity 1 -> 1.
 template <typename StorageType, typename T, typename X1>
 struct Invoker1<true, StorageType, void(T::*)(X1)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -599,6 +662,11 @@ struct Invoker1<true, StorageType, void(T::*)(X1)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
 struct Invoker1<false, StorageType, R(*)(X1, X2, X3)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3) {
@@ -611,6 +679,11 @@ struct Invoker1<false, StorageType, R(*)(X1, X2, X3)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
 struct Invoker1<false, StorageType, R(T::*)(X1, X2)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2) {
@@ -622,6 +695,11 @@ struct Invoker1<false, StorageType, R(T::*)(X1, X2)> {
 // WeakPtr Method: Arity 2 -> 2.
 template <typename StorageType, typename T, typename X1, typename X2>
 struct Invoker1<true, StorageType, void(T::*)(X1, X2)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2) {
@@ -638,6 +716,12 @@ struct Invoker1<true, StorageType, void(T::*)(X1, X2)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker1<false, StorageType, R(*)(X1, X2, X3, X4)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -651,6 +735,12 @@ struct Invoker1<false, StorageType, R(*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
 struct Invoker1<false, StorageType, R(T::*)(X1, X2, X3)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -664,6 +754,12 @@ struct Invoker1<false, StorageType, R(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3>
 struct Invoker1<true, StorageType, void(T::*)(X1, X2, X3)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -681,6 +777,13 @@ struct Invoker1<true, StorageType, void(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker1<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -695,6 +798,13 @@ struct Invoker1<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
 struct Invoker1<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -709,6 +819,13 @@ struct Invoker1<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker1<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -727,6 +844,14 @@ struct Invoker1<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker1<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType,
+          typename internal::ParamTraits<X6>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -742,6 +867,14 @@ struct Invoker1<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker1<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -757,6 +890,14 @@ struct Invoker1<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker1<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X1>::ForwardType,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X1>::ForwardType x1,
       typename internal::ParamTraits<X2>::ForwardType x2,
@@ -778,6 +919,9 @@ struct Invoker2;
 // Function: Arity 2 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2>
 struct Invoker2<false, StorageType, R(*)(X1, X2)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_));
@@ -787,6 +931,9 @@ struct Invoker2<false, StorageType, R(*)(X1, X2)> {
 // Method: Arity 1 -> 0.
 template <typename StorageType, typename R, typename T, typename X1>
 struct Invoker2<false, StorageType, R(T::*)(X1)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_));
@@ -796,6 +943,9 @@ struct Invoker2<false, StorageType, R(T::*)(X1)> {
 // WeakPtr Method: Arity 1 -> 0.
 template <typename StorageType, typename T, typename X1>
 struct Invoker2<true, StorageType, void(T::*)(X1)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static void DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
@@ -810,6 +960,10 @@ struct Invoker2<true, StorageType, void(T::*)(X1)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
 struct Invoker2<false, StorageType, R(*)(X1, X2, X3)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X3>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -821,6 +975,10 @@ struct Invoker2<false, StorageType, R(*)(X1, X2, X3)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
 struct Invoker2<false, StorageType, R(T::*)(X1, X2)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -831,6 +989,10 @@ struct Invoker2<false, StorageType, R(T::*)(X1, X2)> {
 // WeakPtr Method: Arity 2 -> 1.
 template <typename StorageType, typename T, typename X1, typename X2>
 struct Invoker2<true, StorageType, void(T::*)(X1, X2)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -846,6 +1008,11 @@ struct Invoker2<true, StorageType, void(T::*)(X1, X2)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker2<false, StorageType, R(*)(X1, X2, X3, X4)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4) {
@@ -858,6 +1025,11 @@ struct Invoker2<false, StorageType, R(*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
 struct Invoker2<false, StorageType, R(T::*)(X1, X2, X3)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3) {
@@ -870,6 +1042,11 @@ struct Invoker2<false, StorageType, R(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3>
 struct Invoker2<true, StorageType, void(T::*)(X1, X2, X3)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3) {
@@ -886,6 +1063,12 @@ struct Invoker2<true, StorageType, void(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker2<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4,
@@ -899,6 +1082,12 @@ struct Invoker2<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
 struct Invoker2<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -913,6 +1102,12 @@ struct Invoker2<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker2<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -930,6 +1125,13 @@ struct Invoker2<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker2<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType,
+          typename internal::ParamTraits<X6>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4,
@@ -945,6 +1147,13 @@ struct Invoker2<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker2<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -960,6 +1169,13 @@ struct Invoker2<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker2<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X2>::ForwardType,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X2>::ForwardType x2,
       typename internal::ParamTraits<X3>::ForwardType x3,
@@ -981,6 +1197,9 @@ struct Invoker3;
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
 struct Invoker3<false, StorageType, R(*)(X1, X2, X3)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -992,6 +1211,9 @@ struct Invoker3<false, StorageType, R(*)(X1, X2, X3)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
 struct Invoker3<false, StorageType, R(T::*)(X1, X2)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -1002,6 +1224,9 @@ struct Invoker3<false, StorageType, R(T::*)(X1, X2)> {
 // WeakPtr Method: Arity 2 -> 0.
 template <typename StorageType, typename T, typename X1, typename X2>
 struct Invoker3<true, StorageType, void(T::*)(X1, X2)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static void DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
@@ -1016,6 +1241,10 @@ struct Invoker3<true, StorageType, void(T::*)(X1, X2)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker3<false, StorageType, R(*)(X1, X2, X3, X4)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1028,6 +1257,10 @@ struct Invoker3<false, StorageType, R(*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
 struct Invoker3<false, StorageType, R(T::*)(X1, X2, X3)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X3>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1040,6 +1273,10 @@ struct Invoker3<false, StorageType, R(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3>
 struct Invoker3<true, StorageType, void(T::*)(X1, X2, X3)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X3>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1055,6 +1292,11 @@ struct Invoker3<true, StorageType, void(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker3<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4,
       typename internal::ParamTraits<X5>::ForwardType x5) {
@@ -1068,6 +1310,11 @@ struct Invoker3<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
 struct Invoker3<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4) {
@@ -1081,6 +1328,11 @@ struct Invoker3<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker3<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4) {
@@ -1098,6 +1350,12 @@ struct Invoker3<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker3<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType,
+          typename internal::ParamTraits<X6>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4,
       typename internal::ParamTraits<X5>::ForwardType x5,
@@ -1112,6 +1370,12 @@ struct Invoker3<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker3<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4,
@@ -1126,6 +1390,12 @@ struct Invoker3<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker3<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X3>::ForwardType,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X3>::ForwardType x3,
       typename internal::ParamTraits<X4>::ForwardType x4,
@@ -1147,6 +1417,9 @@ struct Invoker4;
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker4<false, StorageType, R(*)(X1, X2, X3, X4)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -1158,6 +1431,9 @@ struct Invoker4<false, StorageType, R(*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
 struct Invoker4<false, StorageType, R(T::*)(X1, X2, X3)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -1169,6 +1445,9 @@ struct Invoker4<false, StorageType, R(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3>
 struct Invoker4<true, StorageType, void(T::*)(X1, X2, X3)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static void DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
@@ -1184,6 +1463,10 @@ struct Invoker4<true, StorageType, void(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker4<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1196,6 +1479,10 @@ struct Invoker4<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
 struct Invoker4<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1208,6 +1495,10 @@ struct Invoker4<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker4<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X4>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1224,6 +1515,11 @@ struct Invoker4<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker4<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X5>::ForwardType,
+          typename internal::ParamTraits<X6>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X5>::ForwardType x5,
       typename internal::ParamTraits<X6>::ForwardType x6) {
@@ -1237,6 +1533,11 @@ struct Invoker4<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker4<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4,
       typename internal::ParamTraits<X5>::ForwardType x5) {
@@ -1250,6 +1551,11 @@ struct Invoker4<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker4<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X4>::ForwardType,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X4>::ForwardType x4,
       typename internal::ParamTraits<X5>::ForwardType x5) {
@@ -1270,6 +1576,9 @@ struct Invoker5;
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker5<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -1281,6 +1590,9 @@ struct Invoker5<false, StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
 struct Invoker5<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -1292,6 +1604,9 @@ struct Invoker5<false, StorageType, R(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker5<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static void DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;
@@ -1307,6 +1622,10 @@ struct Invoker5<true, StorageType, void(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker5<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X6>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X6>::ForwardType x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1319,6 +1638,10 @@ struct Invoker5<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker5<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static R DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1331,6 +1654,10 @@ struct Invoker5<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker5<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*,
+          typename internal::ParamTraits<X5>::ForwardType);
+
   static void DoInvoke(InvokerStorageBase* base,
       typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1350,6 +1677,9 @@ struct Invoker6;
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker6<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -1362,6 +1692,9 @@ struct Invoker6<false, StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker6<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+  typedef R(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -1374,6 +1707,9 @@ struct Invoker6<false, StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename T, typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker6<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
+  typedef void(*DoInvokeType)(
+      internal::InvokerStorageBase*);
+
   static void DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     typename StorageType::P1Traits::StorageType& weak_ptr = invoker->p1_;

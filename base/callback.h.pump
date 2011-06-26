@@ -16,6 +16,7 @@ $var MAX_ARITY = 6
 #pragma once
 
 #include "base/callback_internal.h"
+#include "base/template_util.h"
 
 // New, super-duper, unified Callback system.  This will eventually replace
 // NewRunnableMethod, NewRunnableFunction, CreateFunctor, and CreateCallback
@@ -268,6 +269,9 @@ $for ARG , [[typename internal::ParamTraits<A$(ARG)>::ForwardType]]);
       : CallbackBase(
           reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
+    COMPILE_ASSERT((is_same<PolymorphicInvoke,
+                    typename T::Invoker::DoInvokeType>::value),
+                   callback_type_does_not_match_bind_result);
   }
 
   R Run($for ARG ,

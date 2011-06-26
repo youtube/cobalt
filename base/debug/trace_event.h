@@ -420,7 +420,7 @@ class BASE_API TraceLog {
   // the output callback. If no callback is set, the output will be
   // silently dropped. The callback must be thread safe.
   typedef RefCountedData<std::string> RefCountedString;
-  typedef base::Callback<void(RefCountedString*)> OutputCallback;
+  typedef base::Callback<void(scoped_refptr<RefCountedString>)> OutputCallback;
   void SetOutputCallback(const OutputCallback& cb);
 
   // The trace buffer does not flush dynamically, so when it fills up,
