@@ -332,7 +332,7 @@ void TraceLog::Flush() {
                                    i,
                                    kTraceEventBatchSize,
                                    &(json_events_str_ptr->data));
-    output_callback_copy.Run(json_events_str_ptr.get());
+    output_callback_copy.Run(json_events_str_ptr);
   }
 }
 
