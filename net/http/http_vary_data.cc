@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -97,10 +97,6 @@ bool HttpVaryData::MatchesRequest(
 std::string HttpVaryData::GetRequestValue(
     const HttpRequestInfo& request_info,
     const std::string& request_header) {
-  // Some special cases:
-  if (!base::strcasecmp(request_header.c_str(), HttpRequestHeaders::kReferer))
-    return request_info.referrer.spec();
-
   // Unfortunately, we do not have access to all of the request headers at this
   // point.  Most notably, we do not have access to an Authorization header if
   // one will be added to the request.
