@@ -47,6 +47,11 @@ Patches:
     patches/cachedinfo.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=665739
 
+  * Precede each set of CBC encrypted application data records, resulting from
+    a single call to ssl3_SendApplicationData, with an empty application data
+    record in order to randomize the IV in a backwards compatible manner.
+    patches/cbcrandomiv.patch
+
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
 
