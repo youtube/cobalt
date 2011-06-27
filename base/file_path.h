@@ -380,8 +380,8 @@ class BASE_API FilePath {
 
 // Provide a hash function so that hash_sets and maps can contain FilePath
 // objects.
+namespace BASE_HASH_NAMESPACE {
 #if defined(COMPILER_GCC)
-namespace __gnu_cxx {
 
 template<>
 struct hash<FilePath> {
@@ -390,15 +390,14 @@ struct hash<FilePath> {
   }
 };
 
-}  // namespace __gnu_cxx
 #elif defined(COMPILER_MSVC)
-namespace stdext {
 
 inline size_t hash_value(const FilePath& f) {
   return hash_value(f.value());
 }
 
-}  // namespace stdext
 #endif  // COMPILER
+
+}  // namespace BASE_HASH_NAMESPACE
 
 #endif  // BASE_FILE_PATH_H_
