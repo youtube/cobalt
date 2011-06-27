@@ -210,8 +210,8 @@ class SocketStreamTest : public PlatformTest {
     return net::ERR_PROTOCOL_SWITCHED;
   }
 
-  static const char* kWebSocketHandshakeRequest;
-  static const char* kWebSocketHandshakeResponse;
+  static const char kWebSocketHandshakeRequest[];
+  static const char kWebSocketHandshakeResponse[];
 
  private:
   std::string handshake_request_;
@@ -221,7 +221,7 @@ class SocketStreamTest : public PlatformTest {
   scoped_ptr<MockClientSocketFactory> mock_socket_factory_;
 };
 
-const char* SocketStreamTest::kWebSocketHandshakeRequest =
+const char SocketStreamTest::kWebSocketHandshakeRequest[] =
     "GET /demo HTTP/1.1\r\n"
     "Host: example.com\r\n"
     "Connection: Upgrade\r\n"
@@ -233,7 +233,7 @@ const char* SocketStreamTest::kWebSocketHandshakeRequest =
     "\r\n"
     "^n:ds[4U";
 
-const char* SocketStreamTest::kWebSocketHandshakeResponse =
+const char SocketStreamTest::kWebSocketHandshakeResponse[] =
     "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
     "Upgrade: WebSocket\r\n"
     "Connection: Upgrade\r\n"
