@@ -2504,6 +2504,16 @@ TEST_F(URLRequestTest, DoNotOverrideReferrer) {
 
     EXPECT_EQ("http://foo.com/", d.data_received());
   }
+}
+
+// TODO(iyengar): Please fix this on Chrome Frame for IE6 and merge this back
+// to URLRequestTest.DoNotOverrideReferrer. We do not need to startup a test
+// server twice. http://crbug.com/87591
+TEST_F(URLRequestTest, FAILS_DoNotOverrideReferrerIfEmpty) {
+  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  ASSERT_TRUE(test_server.Start());
+
+  scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
 
   // If extra headers contain a referer but the request does not, no referer
   // shall be sent in the header.
