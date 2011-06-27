@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -217,7 +217,7 @@ class StringTokenizerT {
     bool in_quote;
     bool in_escape;
     char_type quote_char;
-    AdvanceState() : in_quote(false), in_escape(false) {}
+    AdvanceState() : in_quote(false), in_escape(false), quote_char('\0') {}
   };
 
   // Returns true if a delimiter was not hit.
