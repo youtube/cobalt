@@ -2479,6 +2479,50 @@ TEST_F(URLRequestTest, NetworkDelegateProxyError) {
   EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, network_delegate.last_os_error());
 }
 
+// Check that it is impossible to change the referrer in the extra headers of
+// an URLRequest.
+TEST_F(URLRequestTest, DoNotOverrideReferrer) {
+  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  ASSERT_TRUE(test_server.Start());
+
+  scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+
+  // If extra headers contain referer and the request contains a referer,
+  // only the latter shall be respected.
+  {
+    TestDelegate d;
+    TestURLRequest req(test_server.GetURL("echoheader?Referer"), &d);
+    req.set_referrer("http://foo.com/");
+    req.set_context(context);
+
+    HttpRequestHeaders headers;
+    headers.SetHeader(HttpRequestHeaders::kReferer, "http://bar.com/");
+    req.SetExtraRequestHeaders(headers);
+
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ("http://foo.com/", d.data_received());
+  }
+
+  // If extra headers contain a referer but the request does not, no referer
+  // shall be sent in the header.
+  {
+    TestDelegate d;
+    TestURLRequest req(test_server.GetURL("echoheader?Referer"), &d);
+    req.set_context(context);
+
+    HttpRequestHeaders headers;
+    headers.SetHeader(HttpRequestHeaders::kReferer, "http://bar.com/");
+    req.SetExtraRequestHeaders(headers);
+
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ("None", d.data_received());
+  }
+}
+
 class URLRequestTestFTP : public URLRequestTest {
  public:
   URLRequestTestFTP() : test_server_(TestServer::TYPE_FTP, FilePath()) {
