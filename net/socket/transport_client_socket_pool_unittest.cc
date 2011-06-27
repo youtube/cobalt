@@ -85,6 +85,10 @@ class MockClientSocket : public StreamSocket {
   virtual void SetOmniboxSpeculation() {}
   virtual bool WasEverUsed() const { return false; }
   virtual bool UsingTCPFastOpen() const { return false; }
+  virtual int64 NumBytesRead() const { return -1; }
+  virtual base::TimeDelta GetConnectTimeMicros() const {
+    return base::TimeDelta::FromMicroseconds(-1);
+  }
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len,
@@ -135,6 +139,10 @@ class MockFailingClientSocket : public StreamSocket {
   virtual void SetOmniboxSpeculation() {}
   virtual bool WasEverUsed() const { return false; }
   virtual bool UsingTCPFastOpen() const { return false; }
+  virtual int64 NumBytesRead() const { return -1; }
+  virtual base::TimeDelta GetConnectTimeMicros() const {
+    return base::TimeDelta::FromMicroseconds(-1);
+  }
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len,
@@ -209,6 +217,10 @@ class MockPendingClientSocket : public StreamSocket {
   virtual void SetOmniboxSpeculation() {}
   virtual bool WasEverUsed() const { return false; }
   virtual bool UsingTCPFastOpen() const { return false; }
+  virtual int64 NumBytesRead() const { return -1; }
+  virtual base::TimeDelta GetConnectTimeMicros() const {
+    return base::TimeDelta::FromMicroseconds(-1);
+  }
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len,
