@@ -59,7 +59,8 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
       !(flags & PLATFORM_FILE_OPEN_ALWAYS)) {
     NOTREACHED();
     errno = EOPNOTSUPP;
-    *error_code = error_code ? PLATFORM_FILE_ERROR_FAILED : PLATFORM_FILE_OK;
+    if (error_code)
+      *error_code = PLATFORM_FILE_ERROR_FAILED;
     return kInvalidPlatformFileValue;
   }
 
