@@ -34,7 +34,7 @@ namespace net {
 TEST(WebSocketHandshakeRequestHandlerTest, SimpleRequest) {
   WebSocketHandshakeRequestHandler handler;
 
-  static const char* kHandshakeRequestMessage =
+  static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Connection: Upgrade\r\n"
@@ -58,7 +58,7 @@ TEST(WebSocketHandshakeRequestHandlerTest, SimpleRequest) {
 TEST(WebSocketHandshakeRequestHandlerTest, SimpleRequestHybi06Handshake) {
   WebSocketHandshakeRequestHandler handler;
 
-  static const char* kHandshakeRequestMessage =
+  static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Upgrade: websocket\r\n"
@@ -81,7 +81,7 @@ TEST(WebSocketHandshakeRequestHandlerTest, SimpleRequestHybi06Handshake) {
 TEST(WebSocketHandshakeRequestHandlerTest, ReplaceRequestCookies) {
   WebSocketHandshakeRequestHandler handler;
 
-  static const char* kHandshakeRequestMessage =
+  static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Connection: Upgrade\r\n"
@@ -104,7 +104,7 @@ TEST(WebSocketHandshakeRequestHandlerTest, ReplaceRequestCookies) {
                                 "WK-websocket-test=1; "
                                 "WK-websocket-test-httponly=1");
 
-  static const char* kHandshakeRequestExpectedMessage =
+  static const char kHandshakeRequestExpectedMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Connection: Upgrade\r\n"
@@ -124,7 +124,7 @@ TEST(WebSocketHandshakeRequestHandlerTest,
      ReplaceRequestCookiesHybi06Handshake) {
   WebSocketHandshakeRequestHandler handler;
 
-  static const char* kHandshakeRequestMessage =
+  static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Upgrade: websocket\r\n"
@@ -146,7 +146,7 @@ TEST(WebSocketHandshakeRequestHandlerTest,
                                 "WK-websocket-test=1; "
                                 "WK-websocket-test-httponly=1");
 
-  static const char* kHandshakeRequestExpectedMessage =
+  static const char kHandshakeRequestExpectedMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Upgrade: websocket\r\n"
@@ -165,7 +165,7 @@ TEST(WebSocketHandshakeResponseHandlerTest, SimpleResponse) {
   WebSocketHandshakeResponseHandler handler;
   EXPECT_EQ(0, handler.protocol_version());
 
-  static const char* kHandshakeResponseMessage =
+  static const char kHandshakeResponseMessage[] =
       "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
       "Upgrade: WebSocket\r\n"
       "Connection: Upgrade\r\n"
@@ -190,7 +190,7 @@ TEST(WebSocketHandshakeResponseHandlerTest, SimpleResponseHybi06Handshake) {
   handler.set_protocol_version(6);
   EXPECT_EQ(6, handler.protocol_version());
 
-  static const char* kHandshakeResponseMessage =
+  static const char kHandshakeResponseMessage[] =
       "HTTP/1.1 101 Switching Protocols\r\n"
       "Upgrade: websocket\r\n"
       "Connection: Upgrade\r\n"
@@ -212,7 +212,7 @@ TEST(WebSocketHandshakeResponseHandlerTest, ReplaceResponseCookies) {
   WebSocketHandshakeResponseHandler handler;
   EXPECT_EQ(0, handler.protocol_version());
 
-  static const char* kHandshakeResponseMessage =
+  static const char kHandshakeResponseMessage[] =
       "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
       "Upgrade: WebSocket\r\n"
       "Connection: Upgrade\r\n"
@@ -235,7 +235,7 @@ TEST(WebSocketHandshakeResponseHandlerTest, ReplaceResponseCookies) {
   EXPECT_EQ("WK-websocket-test-httponly=1; HttpOnly", cookies[1]);
   handler.RemoveHeaders(kSetCookieHeaders, arraysize(kSetCookieHeaders));
 
-  static const char* kHandshakeResponseExpectedMessage =
+  static const char kHandshakeResponseExpectedMessage[] =
       "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
       "Upgrade: WebSocket\r\n"
       "Connection: Upgrade\r\n"
@@ -254,7 +254,7 @@ TEST(WebSocketHandshakeResponseHandlerTest,
   handler.set_protocol_version(6);
   EXPECT_EQ(6, handler.protocol_version());
 
-  static const char* kHandshakeResponseMessage =
+  static const char kHandshakeResponseMessage[] =
       "HTTP/1.1 101 Switching Protocols\r\n"
       "Upgrade: websocket\r\n"
       "Connection: Upgrade\r\n"
@@ -275,7 +275,7 @@ TEST(WebSocketHandshakeResponseHandlerTest,
   EXPECT_EQ("WK-websocket-test-httponly=1; HttpOnly", cookies[1]);
   handler.RemoveHeaders(kSetCookieHeaders, arraysize(kSetCookieHeaders));
 
-  static const char* kHandshakeResponseExpectedMessage =
+  static const char kHandshakeResponseExpectedMessage[] =
       "HTTP/1.1 101 Switching Protocols\r\n"
       "Upgrade: websocket\r\n"
       "Connection: Upgrade\r\n"
@@ -289,7 +289,7 @@ TEST(WebSocketHandshakeResponseHandlerTest,
 TEST(WebSocketHandshakeResponseHandlerTest, BadResponse) {
   WebSocketHandshakeResponseHandler handler;
 
-  static const char* kBadMessage = "\n\n\r\net-Location: w";
+  static const char kBadMessage[] = "\n\n\r\net-Location: w";
   EXPECT_EQ(strlen(kBadMessage),
             handler.ParseRawResponse(kBadMessage, strlen(kBadMessage)));
   EXPECT_TRUE(handler.HasResponse());
@@ -299,7 +299,7 @@ TEST(WebSocketHandshakeResponseHandlerTest, BadResponse) {
 TEST(WebSocketHandshakeResponseHandlerTest, BadResponse2) {
   WebSocketHandshakeResponseHandler handler;
 
-  static const char* kBadMessage = "\n\r\n\r\net-Location: w";
+  static const char kBadMessage[] = "\n\r\n\r\net-Location: w";
   EXPECT_EQ(strlen(kBadMessage),
             handler.ParseRawResponse(kBadMessage, strlen(kBadMessage)));
   EXPECT_TRUE(handler.HasResponse());
@@ -309,7 +309,7 @@ TEST(WebSocketHandshakeResponseHandlerTest, BadResponse2) {
 TEST(WebSocketHandshakeHandlerTest, HttpRequestResponse) {
   WebSocketHandshakeRequestHandler request_handler;
 
-  static const char* kHandshakeRequestMessage =
+  static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Connection: Upgrade\r\n"
@@ -345,11 +345,11 @@ TEST(WebSocketHandshakeHandlerTest, HttpRequestResponse) {
                                                    &value));
   EXPECT_EQ("sample", value);
 
-  const char* expected_challenge = "\x31\x6e\x41\x13\x0f\x7e\xd6\x3c^n:ds[4U";
+  const char expected_challenge[] = "\x31\x6e\x41\x13\x0f\x7e\xd6\x3c^n:ds[4U";
 
   EXPECT_EQ(expected_challenge, challenge);
 
-  static const char* kHandshakeResponseHeader =
+  static const char kHandshakeResponseHeader[] =
       "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
       "Sec-WebSocket-Origin: http://example.com\r\n"
       "Sec-WebSocket-Location: ws://example.com/demo\r\n"
@@ -377,7 +377,7 @@ TEST(WebSocketHandshakeHandlerTest, HttpRequestResponse) {
   EXPECT_TRUE(response_handler.ParseResponseInfo(response_info, challenge));
   EXPECT_TRUE(response_handler.HasResponse());
 
-  static const char* kHandshakeResponseExpectedMessage =
+  static const char kHandshakeResponseExpectedMessage[] =
       "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
       "Upgrade: WebSocket\r\n"
       "Connection: Upgrade\r\n"
@@ -393,7 +393,7 @@ TEST(WebSocketHandshakeHandlerTest, HttpRequestResponse) {
 TEST(WebSocketHandshakeHandlerTest, HttpRequestResponseHybi06Handshake) {
   WebSocketHandshakeRequestHandler request_handler;
 
-  static const char* kHandshakeRequestMessage =
+  static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Upgrade: websocket\r\n"
@@ -430,7 +430,7 @@ TEST(WebSocketHandshakeHandlerTest, HttpRequestResponseHybi06Handshake) {
 
   EXPECT_EQ("dGhlIHNhbXBsZSBub25jZQ==", challenge);
 
-  static const char* kHandshakeResponseHeader =
+  static const char kHandshakeResponseHeader[] =
       "HTTP/1.1 101 Switching Protocols\r\n"
       "Sec-WebSocket-Protocol: sample\r\n";
 
@@ -455,7 +455,7 @@ TEST(WebSocketHandshakeHandlerTest, HttpRequestResponseHybi06Handshake) {
   EXPECT_TRUE(response_handler.ParseResponseInfo(response_info, challenge));
   EXPECT_TRUE(response_handler.HasResponse());
 
-  static const char* kHandshakeResponseExpectedMessage =
+  static const char kHandshakeResponseExpectedMessage[] =
       "HTTP/1.1 101 Switching Protocols\r\n"
       "Upgrade: websocket\r\n"
       "Connection: Upgrade\r\n"
@@ -469,7 +469,7 @@ TEST(WebSocketHandshakeHandlerTest, HttpRequestResponseHybi06Handshake) {
 TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponse) {
   WebSocketHandshakeRequestHandler request_handler;
 
-  static const char* kHandshakeRequestMessage =
+  static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Connection: Upgrade\r\n"
@@ -524,7 +524,7 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponse) {
   EXPECT_TRUE(response_handler.HasResponse());
 
   // Note that order of sec-websocket-* is sensitive with hash_map order.
-  static const char* kHandshakeResponseExpectedMessage =
+  static const char kHandshakeResponseExpectedMessage[] =
       "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
       "Upgrade: WebSocket\r\n"
       "Connection: Upgrade\r\n"
@@ -540,7 +540,7 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponse) {
 TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponseHybi06Handshake) {
   WebSocketHandshakeRequestHandler request_handler;
 
-  static const char* kHandshakeRequestMessage =
+  static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Upgrade: websocket\r\n"
@@ -589,7 +589,7 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponseHybi06Handshake) {
   EXPECT_TRUE(response_handler.HasResponse());
 
   // Note that order of sec-websocket-* is sensitive with hash_map order.
-  static const char* kHandshakeResponseExpectedMessage =
+  static const char kHandshakeResponseExpectedMessage[] =
       "HTTP/1.1 101 Switching Protocols\r\n"
       "Upgrade: websocket\r\n"
       "Connection: Upgrade\r\n"
@@ -604,7 +604,7 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponseWithCookies) {
   WebSocketHandshakeRequestHandler request_handler;
 
   // Note that websocket won't use multiple headers in request now.
-  static const char* kHandshakeRequestMessage =
+  static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Connection: Upgrade\r\n"
@@ -661,7 +661,7 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponseWithCookies) {
   EXPECT_TRUE(response_handler.HasResponse());
 
   // Note that order of sec-websocket-* is sensitive with hash_map order.
-  static const char* kHandshakeResponseExpectedMessage =
+  static const char kHandshakeResponseExpectedMessage[] =
       "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
       "Upgrade: WebSocket\r\n"
       "Connection: Upgrade\r\n"
@@ -681,7 +681,7 @@ TEST(WebSocketHandshakeHandlerTest,
   WebSocketHandshakeRequestHandler request_handler;
 
   // Note that websocket won't use multiple headers in request now.
-  static const char* kHandshakeRequestMessage =
+  static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
       "Upgrade: websocket\r\n"
@@ -732,7 +732,7 @@ TEST(WebSocketHandshakeHandlerTest,
   EXPECT_TRUE(response_handler.HasResponse());
 
   // Note that order of sec-websocket-* is sensitive with hash_map order.
-  static const char* kHandshakeResponseExpectedMessage =
+  static const char kHandshakeResponseExpectedMessage[] =
       "HTTP/1.1 101 Switching Protocols\r\n"
       "Upgrade: websocket\r\n"
       "Connection: Upgrade\r\n"
