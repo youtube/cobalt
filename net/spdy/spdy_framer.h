@@ -29,6 +29,7 @@ class SpdyNetworkTransactionTest;
 class SpdyProxyClientSocketTest;
 class SpdySessionTest;
 class SpdyStreamTest;
+class SpdyWebSocketStreamTest;
 }
 
 namespace spdy {
@@ -268,6 +269,7 @@ class NET_TEST SpdyFramer {
   friend class net::SpdyProxyClientSocketTest;
   friend class net::SpdySessionTest;
   friend class net::SpdyStreamTest;
+  friend class net::SpdyWebSocketStreamTest;
   friend class test::TestSpdyVisitor;
   friend void test::FramerSetEnableCompressionHelper(SpdyFramer* framer,
                                                      bool compress);

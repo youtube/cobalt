@@ -199,6 +199,7 @@ class NET_TEST SpdyStream
   void OnClose(int status);
 
   void Cancel();
+  void Close();
   bool cancelled() const { return cancelled_; }
   bool closed() const { return io_state_ == STATE_DONE; }
 
