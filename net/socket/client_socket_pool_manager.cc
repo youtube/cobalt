@@ -59,7 +59,6 @@ static void AddSocketPoolsToList(ListValue* list,
 // The meat of the implementation for the InitSocketHandleForHttpRequest,
 // InitSocketHandleForRawConnect and PreconnectSocketsForHttpRequest methods.
 int InitSocketPoolHelper(const GURL& request_url,
-                         const GURL& request_referrer,
                          const HttpRequestHeaders& request_extra_headers,
                          int request_load_flags,
                          RequestPriority request_priority,
@@ -78,6 +77,13 @@ int InitSocketPoolHelper(const GURL& request_url,
   scoped_refptr<HttpProxySocketParams> http_proxy_params;
   scoped_refptr<SOCKSSocketParams> socks_params;
   scoped_ptr<HostPortPair> proxy_host_port;
+
+  GURL request_referrer;
+  std::string request_referrer_str;
+  if (request_extra_headers.GetHeader(HttpRequestHeaders::kReferer,
+                                      &request_referrer_str)) {
+    request_referrer = GURL(request_referrer_str);
+  }
 
   bool using_ssl = request_url.SchemeIs("https") || force_spdy_over_ssl;
 
@@ -613,7 +619,6 @@ void ClientSocketPoolManager::OnCertTrustChanged(const X509Certificate* cert) {
 // static
 int ClientSocketPoolManager::InitSocketHandleForHttpRequest(
     const GURL& request_url,
-    const GURL& request_referrer,
     const HttpRequestHeaders& request_extra_headers,
     int request_load_flags,
     RequestPriority request_priority,
@@ -628,7 +633,6 @@ int ClientSocketPoolManager::InitSocketHandleForHttpRequest(
     CompletionCallback* callback) {
   DCHECK(socket_handle);
   return InitSocketPoolHelper(request_url,
-                              request_referrer,
                               request_extra_headers,
                               request_load_flags,
                               request_priority,
@@ -658,13 +662,11 @@ int ClientSocketPoolManager::InitSocketHandleForRawConnect(
   DCHECK(socket_handle);
   // Synthesize an HttpRequestInfo.
   GURL request_url = GURL("http://" + host_port_pair.ToString());
-  GURL request_referrer;
   HttpRequestHeaders request_extra_headers;
   int request_load_flags = 0;
   RequestPriority request_priority = MEDIUM;
 
   return InitSocketPoolHelper(request_url,
-                              request_referrer,
                               request_extra_headers,
                               request_load_flags,
                               request_priority,
@@ -684,7 +686,6 @@ int ClientSocketPoolManager::InitSocketHandleForRawConnect(
 // static
 int ClientSocketPoolManager::PreconnectSocketsForHttpRequest(
     const GURL& request_url,
-    const GURL& request_referrer,
     const HttpRequestHeaders& request_extra_headers,
     int request_load_flags,
     RequestPriority request_priority,
@@ -697,7 +698,6 @@ int ClientSocketPoolManager::PreconnectSocketsForHttpRequest(
     const BoundNetLog& net_log,
     int num_preconnect_streams) {
   return InitSocketPoolHelper(request_url,
-                              request_referrer,
                               request_extra_headers,
                               request_load_flags,
                               request_priority,

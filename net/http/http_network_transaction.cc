@@ -695,13 +695,6 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
     request_headers_.SetHeader(HttpRequestHeaders::kConnection, "keep-alive");
   }
 
-  // Our consumer should have made sure that this is a safe referrer.  See for
-  // instance WebCore::FrameLoader::HideReferrer.
-  if (request_->referrer.is_valid()) {
-    request_headers_.SetHeader(HttpRequestHeaders::kReferer,
-                               request_->referrer.spec());
-  }
-
   // Add a content length header?
   if (request_body_.get()) {
     if (request_body_->is_chunked()) {
@@ -736,20 +729,7 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
     auth_controllers_[HttpAuth::AUTH_SERVER]->AddAuthorizationHeader(
         &request_headers_);
 
-  // Headers that will be stripped from request_->extra_headers to prevent,
-  // e.g., plugins from overriding headers that are controlled using other
-  // means. Otherwise a plugin could set a referrer although sending the
-  // referrer is inhibited.
-  // TODO(jochen): check whether also other headers should be stripped.
-  static const char* const kExtraHeadersToBeStripped[] = {
-    "Referer"
-  };
-
-  HttpRequestHeaders stripped_extra_headers;
-  stripped_extra_headers.CopyFrom(request_->extra_headers);
-  for (size_t i = 0; i < arraysize(kExtraHeadersToBeStripped); ++i)
-    stripped_extra_headers.RemoveHeader(kExtraHeadersToBeStripped[i]);
-  request_headers_.MergeFrom(stripped_extra_headers);
+  request_headers_.MergeFrom(request_->extra_headers);
 }
 
 int HttpNetworkTransaction::DoBuildRequest() {
