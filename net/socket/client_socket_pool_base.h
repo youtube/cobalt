@@ -50,6 +50,13 @@ namespace net {
 
 class ClientSocketHandle;
 
+// Returns the client socket reuse policy.
+int GetSocketReusePolicy();
+
+// Sets the client socket reuse policy.
+// NOTE: 'policy' should be a valid ClientSocketReusePolicy enum value.
+NET_API void SetSocketReusePolicy(int policy);
+
 // ConnectJob provides an abstract interface for "connecting" a socket.
 // The connection may involve host resolution, tcp connection, ssl connection,
 // etc.
@@ -165,6 +172,17 @@ class NET_TEST ClientSocketPoolBaseHelper
   enum Flag {
     NORMAL = 0,  // Normal behavior.
     NO_IDLE_SOCKETS = 0x1,  // Do not return an idle socket. Create a new one.
+  };
+
+  enum ClientSocketReusePolicy {
+    // Socket with largest amount of bytes transferred.
+    USE_WARMEST_SOCKET = 0,
+
+    // Socket which scores highest on large bytes transferred and low idle time.
+    USE_WARM_SOCKET = 1,
+
+    // Socket which was most recently used.
+    USE_LAST_ACCESSED_SOCKET = 2,
   };
 
   class NET_TEST Request {
