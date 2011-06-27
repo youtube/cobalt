@@ -20,5 +20,3 @@ patch -p6 < $patches_dir/ocspstapling.patch
 patch -p6 < $patches_dir/clientauth.patch
 
 patch -p6 < $patches_dir/cachedinfo.patch
-
-patch -p6 < $patches_dir/cbcrandomiv.patch
