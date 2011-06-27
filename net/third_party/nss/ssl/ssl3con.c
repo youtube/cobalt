@@ -2229,7 +2229,7 @@ ssl3_SendRecord(   sslSocket *        ss,
 	return SECFailure;
     }
 
-    do {
+    while (nIn > 0) {
 	PRUint32  contentLen = PR_MIN(nIn, MAX_FRAGMENT_LENGTH);
 
 	if (wrBuf->space < contentLen + SSL3_BUFFER_FUDGE) {
@@ -2306,7 +2306,7 @@ ssl3_SendRecord(   sslSocket *        ss,
 	    }
 	}
 	totalSent += contentLen;
-    } while (nIn > 0);
+    }
     return totalSent;
 }
 
@@ -2321,7 +2321,6 @@ ssl3_SendApplicationData(sslSocket *ss, const unsigned char *in,
 {
     PRInt32   totalSent	= 0;
     PRInt32   discarded = 0;
-    PRBool    isBlockCipher;
 
     PORT_Assert( ss->opt.noLocks || ssl_HaveXmitBufLock(ss) );
     if (len < 0 || !in) {
@@ -2346,28 +2345,6 @@ ssl3_SendApplicationData(sslSocket *ss, const unsigned char *in,
 	len--;
 	discarded = 1;
     }
-
-    ssl_GetSpecReadLock(ss);
-    isBlockCipher = ss->ssl3.cwSpec->cipher_def->type == type_block;
-    ssl_ReleaseSpecReadLock(ss);
-
-    if (isBlockCipher && len > 0) {
-	// We assume that block ciphers are used in CBC mode and prepend an
-	// empty record. This effectively randomizes the IV in a backwards
-	// compatible way.
-	PRInt32 sent = ssl3_SendRecord(ss, content_application_data,
-				       in, 0 /* no payload */, flags);
-	if (sent < 0) {
-	    return SECFailure; /* error code set by ssl3_SendRecord */
-	}
-	if (ss->pendingBuf.len) {
-	    /* must be a non-blocking socket */
-	    PORT_Assert(!ssl_SocketIsBlocking(ss));
-	    PORT_Assert(ss->lastWriteBlocked);
-	    return SECFailure;
-	}
-    }
-
     while (len > totalSent) {
 	PRInt32   sent, toSend;
 
@@ -2400,7 +2377,6 @@ ssl3_SendApplicationData(sslSocket *ss, const unsigned char *in,
 	    break;	
 	}
     }
-
     if (ss->pendingBuf.len) {
 	/* Must be non-blocking. */
 	PORT_Assert(!ssl_SocketIsBlocking(ss));
