@@ -9,11 +9,6 @@
 #include "ui/gfx/gl/gl_context.h"
 #include "ui/gfx/size.h"
 
-struct PP_BufferInfo_Dev;
-struct PP_GLESBuffer_Dev;
-struct PP_Picture_Dev;
-struct PP_SysmemBuffer_Dev;
-
 namespace media {
 
 // Common information about GLES & Sysmem picture buffers.
@@ -21,7 +16,6 @@ namespace media {
 class BaseBuffer {
  public:
   BaseBuffer(int32 id, gfx::Size size);
-  BaseBuffer(const PP_BufferInfo_Dev& info);
   virtual ~BaseBuffer();
 
   // Returns the client-specified id of the buffer.
@@ -44,7 +38,6 @@ class BaseBuffer {
 class GLESBuffer : public BaseBuffer {
  public:
   GLESBuffer(int32 id, gfx::Size size, uint32 texture_id);
-  GLESBuffer(const PP_GLESBuffer_Dev& buffer);
 
   // Returns the id of the texture.
   // NOTE: The texture id in the renderer process corresponds to a different
@@ -62,7 +55,6 @@ class GLESBuffer : public BaseBuffer {
 class SysmemBuffer : public BaseBuffer {
  public:
   SysmemBuffer(int32 id, gfx::Size size, void* data);
-  SysmemBuffer(const PP_SysmemBuffer_Dev&);
 
   // Returns a pointer to the buffer data.
   void* data() const {
@@ -79,7 +71,6 @@ class Picture {
  public:
   Picture(int32 picture_buffer_id, int32 bitstream_buffer_id,
           gfx::Size visible_size, gfx::Size decoded_size);
-  Picture(const PP_Picture_Dev& picture);
 
   // Returns the id of the picture buffer where this picture is contained.
   int32 picture_buffer_id() const {
