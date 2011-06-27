@@ -583,7 +583,10 @@
       }],
       ['use_third_party_translations==1', {
         'grit_defines': ['-D', 'use_third_party_translations'],
-        'locales': ['ast', 'ca@valencia', 'eo', 'eu', 'gl', 'hy', 'ka', 'ku', 'kw', 'ug'],
+        'locales': [
+          'ast', 'bs', 'ca@valencia', 'eo', 'eu', 'gl', 'hy', 'ka', 'ku', 'kw',
+          'ug',
+        ],
       }],
 
       ['clang_use_chrome_plugins==1', {
