@@ -508,7 +508,9 @@ bool LaunchAppImpl(
     const file_handle_mapping_vector& fds_to_remap,
     bool wait,
     ProcessHandle* process_handle,
-    bool start_new_process_group) {
+    bool start_new_process_group,
+    bool use_clone,
+    int clone_flags) {
   pid_t pid;
   InjectiveMultimap fd_shuffle1, fd_shuffle2;
   fd_shuffle1.reserve(fds_to_remap.size());
@@ -516,7 +518,15 @@ bool LaunchAppImpl(
   scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
   scoped_array<char*> new_environ(AlterEnvironment(env_changes, environ));
 
-  pid = fork();
+  if (use_clone) {
+#if defined(OS_LINUX)
+    pid = syscall(__NR_clone, clone_flags, 0, 0, 0);
+#else
+    NOTREACHED() << "Tried to use clone() on non-Linux system.";
+#endif
+  } else {
+    pid = fork();
+  }
   if (pid < 0) {
     PLOG(ERROR) << "fork";
     return false;
@@ -617,7 +627,10 @@ bool LaunchApp(
     bool wait,
     ProcessHandle* process_handle) {
   return LaunchAppImpl(argv, env_changes, fds_to_remap,
-                       wait, process_handle, false);
+                       wait, process_handle,
+                       false,  // don't start new process group
+                       false,  // don't use clone()
+                       0);     // clone flags
 }
 
 bool LaunchAppInNewProcessGroup(
@@ -627,7 +640,21 @@ bool LaunchAppInNewProcessGroup(
     bool wait,
     ProcessHandle* process_handle) {
   return LaunchAppImpl(argv, env_changes, fds_to_remap, wait,
-                       process_handle, true);
+                       process_handle,
+                       true,   // start new process group
+                       false,  // don't use clone()
+                       0);     // clone flags
+}
+
+BASE_API bool LaunchAppWithClone(const std::vector<std::string>& argv,
+                                 const file_handle_mapping_vector& fds_to_remap,
+                                 bool wait, ProcessHandle* process_handle,
+                                 int clone_flags) {
+  base::environment_vector no_env;
+  return LaunchAppImpl(argv, no_env, fds_to_remap, wait, process_handle,
+                       false,  // don't start new process group
+                       true,   // use clone()
+                       clone_flags);
 }
 
 bool LaunchApp(const std::vector<std::string>& argv,
