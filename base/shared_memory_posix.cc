@@ -150,14 +150,20 @@ bool SharedMemory::CreateNamed(const std::string& name,
   if (fp && fix_size) {
     // Get current size.
     struct stat stat;
-    if (fstat(fileno(fp), &stat) != 0)
+    if (fstat(fileno(fp), &stat) != 0) {
+      file_util::CloseFile(fp);
       return false;
+    }
     const uint32 current_size = stat.st_size;
     if (current_size != size) {
-      if (HANDLE_EINTR(ftruncate(fileno(fp), size)) != 0)
+      if (HANDLE_EINTR(ftruncate(fileno(fp), size)) != 0) {
+        file_util::CloseFile(fp);
         return false;
-      if (fseeko(fp, size, SEEK_SET) != 0)
+      }
+      if (fseeko(fp, size, SEEK_SET) != 0) {
+        file_util::CloseFile(fp);
         return false;
+      }
     }
     created_size_ = size;
   }
