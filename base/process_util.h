@@ -286,6 +286,15 @@ BASE_API bool LaunchAppInNewProcessGroup(
     bool wait,
     ProcessHandle* process_handle);
 
+#if defined(OS_LINUX)
+// Similar to LaunchApp variants above except uses clone(.. clone_flags ..)
+// rather than fork(). This is useful for work inside the setuid sandbox.
+BASE_API bool LaunchAppWithClone(const std::vector<std::string>& argv,
+                                 const file_handle_mapping_vector& fds_to_remap,
+                                 bool wait, ProcessHandle* process_handle,
+                                 int clone_flags);
+#endif
+
 // AlterEnvironment returns a modified environment vector, constructed from the
 // given environment and the list of changes given in |changes|. Each key in
 // the environment is matched against the first element of the pairs. In the
