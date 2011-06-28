@@ -204,6 +204,7 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
  private:
   friend class base::RefCounted<SpdySession>;
   FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, GetActivePushStream);
+  friend class HttpNetworkTransactionTest;
 
   struct PendingCreateStream {
     PendingCreateStream(const GURL& url, RequestPriority priority,
@@ -330,6 +331,8 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
                                  size_t len);
   virtual void OnControl(const spdy::SpdyControlFrame* frame);
 
+  static bool SetDomainVerification(bool value);
+
   // Callbacks for the Spdy session.
   CompletionCallbackImpl<SpdySession> read_callback_;
   CompletionCallbackImpl<SpdySession> write_callback_;
@@ -435,6 +438,7 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   static bool use_ssl_;
   static bool use_flow_control_;
   static size_t max_concurrent_stream_limit_;
+  static bool verify_domain_authentication_;
 };
 
 class NetLogSpdySynParameter : public NetLog::EventParameters {
