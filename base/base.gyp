@@ -341,6 +341,8 @@
         'test/test_switches.h',
         'test/test_timeouts.cc',
         'test/test_timeouts.h',
+        'test/thread_test_helper.cc',
+        'test/thread_test_helper.h',
       ],
     },
     {
