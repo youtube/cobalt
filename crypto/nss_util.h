@@ -93,7 +93,17 @@ class TPMTokenInfoDelegate {
  public:
   TPMTokenInfoDelegate();
   virtual ~TPMTokenInfoDelegate();
+
+  // Returns true if the hardware supports a TPM Token and the TPM is enabled.
+  virtual bool IsTokenAvailable() const = 0;
+
+  // Returns true if the TPM and PKCS#11 token slot is ready to be used.
+  // If IsTokenAvailable() is false this should return false.
+  // If IsTokenAvailable() is true, this should eventually return true.
   virtual bool IsTokenReady() const = 0;
+
+  // Fetches token properties. TODO(stevenjb): make this interface asynchronous
+  // so that the implementation does not have to be blocking.
   virtual void GetTokenInfo(std::string* token_name,
                             std::string* user_pin) const = 0;
 };
@@ -110,11 +120,18 @@ void EnableTPMTokenForNSS(TPMTokenInfoDelegate* delegate);
 // EnableTPMTokenForNSS has been called with a non-null delegate.
 void GetTPMTokenInfo(std::string* token_name, std::string* user_pin);
 
+// Returns true if the machine has a TPM and it can be used to store tokens.
+bool IsTPMTokenAvailable();
+
 // Returns true if the TPM is owned and PKCS#11 initialized with the
 // user and security officer PINs, and has been enabled in NSS by
 // calling EnableTPMForNSS, and opencryptoki has been successfully
 // loaded into NSS.
 bool IsTPMTokenReady();
+
+// Same as IsTPMTokenReady() except this attempts to initialize the token
+// if necessary.
+bool EnsureTPMTokenReady();
 #endif
 
 // Convert a NSS PRTime value into a base::Time object.

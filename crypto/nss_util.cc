@@ -226,6 +226,47 @@ class NSSInitSingleton {
     EnsureTPMTokenReady();
   }
 
+  // This is called whenever we want to make sure opencryptoki is
+  // properly loaded, because it can fail shortly after the initial
+  // login while the PINs are being initialized, and we want to retry
+  // if this happens.
+  bool EnsureTPMTokenReady() {
+    // If EnableTPMTokenForNSS hasn't been called, or if everything is
+    // already initialized, then this call succeeds.
+    if (tpm_token_info_delegate_.get() == NULL ||
+        (opencryptoki_module_ && tpm_slot_)) {
+      return true;
+    }
+
+    if (tpm_token_info_delegate_->IsTokenReady()) {
+      // This tries to load the opencryptoki module so NSS can talk to
+      // the hardware TPM.
+      if (!opencryptoki_module_) {
+        opencryptoki_module_ = LoadModule(
+            kOpencryptokiModuleName,
+            kOpencryptokiPath,
+            // trustOrder=100 -- means it'll select this as the most
+            //   trusted slot for the mechanisms it provides.
+            // slotParams=... -- selects RSA as the only mechanism, and only
+            //   asks for the password when necessary (instead of every
+            //   time, or after a timeout).
+            "trustOrder=100 slotParams=(1={slotFlags=[RSA] askpw=only})");
+      }
+      if (opencryptoki_module_) {
+        // If this gets set, then we'll use the TPM for certs with
+        // private keys, otherwise we'll fall back to the software
+        // implementation.
+        tpm_slot_ = GetTPMSlot();
+        return tpm_slot_ != NULL;
+      }
+    }
+    return false;
+  }
+
+  bool IsTPMTokenAvailable() {
+    return tpm_token_info_delegate_->IsTokenAvailable();
+  }
+
   void GetTPMTokenInfo(std::string* token_name, std::string* user_pin) {
     tpm_token_info_delegate_->GetTokenInfo(token_name, user_pin);
   }
@@ -239,6 +280,7 @@ class NSSInitSingleton {
     GetTPMTokenInfo(&token_name, NULL);
     return FindSlotWithTokenName(token_name);
   }
+
 #endif  // defined(OS_CHROMEOS)
 
 
@@ -487,45 +529,6 @@ class NSSInitSingleton {
     return db_slot;
   }
 
-#if defined(OS_CHROMEOS)
-  // This is called whenever we want to make sure opencryptoki is
-  // properly loaded, because it can fail shortly after the initial
-  // login while the PINs are being initialized, and we want to retry
-  // if this happens.
-  bool EnsureTPMTokenReady() {
-    // If EnableTPMTokenForNSS hasn't been called, or if everything is
-    // already initialized, then this call succeeds.
-    if (tpm_token_info_delegate_.get() == NULL ||
-        (opencryptoki_module_ && tpm_slot_)) {
-      return true;
-    }
-
-    if (tpm_token_info_delegate_->IsTokenReady()) {
-      // This tries to load the opencryptoki module so NSS can talk to
-      // the hardware TPM.
-      if (!opencryptoki_module_) {
-        opencryptoki_module_ = LoadModule(
-            kOpencryptokiModuleName,
-            kOpencryptokiPath,
-            // trustOrder=100 -- means it'll select this as the most
-            //   trusted slot for the mechanisms it provides.
-            // slotParams=... -- selects RSA as the only mechanism, and only
-            //   asks for the password when necessary (instead of every
-            //   time, or after a timeout).
-            "trustOrder=100 slotParams=(1={slotFlags=[RSA] askpw=only})");
-      }
-      if (opencryptoki_module_) {
-        // If this gets set, then we'll use the TPM for certs with
-        // private keys, otherwise we'll fall back to the software
-        // implementation.
-        tpm_slot_ = GetTPMSlot();
-        return tpm_slot_ != NULL;
-      }
-    }
-    return false;
-  }
-#endif
-
   // If this is set to true NSS is forced to be initialized without a DB.
   static bool force_nodb_init_;
 
@@ -680,8 +683,16 @@ void GetTPMTokenInfo(std::string* token_name, std::string* user_pin) {
   g_nss_singleton.Get().GetTPMTokenInfo(token_name, user_pin);
 }
 
+bool IsTPMTokenAvailable() {
+  return g_nss_singleton.Get().IsTPMTokenAvailable();
+}
+
 bool IsTPMTokenReady() {
   return g_nss_singleton.Get().IsTPMTokenReady();
+}
+
+bool EnsureTPMTokenReady() {
+  return g_nss_singleton.Get().EnsureTPMTokenReady();
 }
 
 #endif  // defined(OS_CHROMEOS)
