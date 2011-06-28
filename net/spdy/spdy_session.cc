@@ -210,6 +210,9 @@ bool SpdySession::use_flow_control_ = false;
 // static
 size_t SpdySession::max_concurrent_stream_limit_ = 256;
 
+// static
+bool SpdySession::verify_domain_authentication_ = true;
+
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          SpdySessionPool* spdy_session_pool,
                          SpdySettingsStorage* spdy_settings,
@@ -303,6 +306,9 @@ net::Error SpdySession::InitializeWithSocket(
 }
 
 bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
+  if (!verify_domain_authentication_)
+    return true;
+
   if (state_ != CONNECTED)
     return false;
 
@@ -1519,6 +1525,12 @@ void SpdySession::InvokeUserStreamCreationCallback(
   int result = it->second.result;
   pending_callback_map_.erase(it);
   callback->Run(result);
+}
+
+bool SpdySession::SetDomainVerification(bool value) {
+  bool old_value = verify_domain_authentication_;
+  verify_domain_authentication_ = value;
+  return old_value;
 }
 
 }  // namespace net
