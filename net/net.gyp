@@ -798,6 +798,7 @@
               'udp/udp_socket_libevent.h',
             ],
             'dependencies': [
+              '../third_party/nss/nss.gyp:nspr',
               '../third_party/nss/nss.gyp:nss',
               'third_party/nss/ssl.gyp:ssl',
               'tld_cleanup',
@@ -816,6 +817,7 @@
         ],
         [ 'OS == "mac"', {
             'dependencies': [
+              '../third_party/nss/nss.gyp:nspr',
               '../third_party/nss/nss.gyp:nss',
               'third_party/nss/ssl.gyp:ssl',
             ],
