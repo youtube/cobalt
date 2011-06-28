@@ -258,7 +258,7 @@ int TestNetworkDelegate::OnBeforeURLRequest(
 }
 
 int TestNetworkDelegate::OnBeforeSendHeaders(
-    uint64 request_id,
+    net::URLRequest* request,
     net::CompletionCallback* callback,
     net::HttpRequestHeaders* headers) {
   return net::OK;

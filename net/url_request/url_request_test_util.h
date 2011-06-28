@@ -185,7 +185,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   virtual int OnBeforeURLRequest(net::URLRequest* request,
                                  net::CompletionCallback* callback,
                                  GURL* new_url);
-  virtual int OnBeforeSendHeaders(uint64 request_id,
+  virtual int OnBeforeSendHeaders(net::URLRequest* request,
                                   net::CompletionCallback* callback,
                                   net::HttpRequestHeaders* headers);
   virtual void OnRequestSent(uint64 request_id,
