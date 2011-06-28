@@ -17,13 +17,13 @@ int NetworkDelegate::NotifyBeforeURLRequest(URLRequest* request,
   return OnBeforeURLRequest(request, callback, new_url);
 }
 
-int NetworkDelegate::NotifyBeforeSendHeaders(uint64 request_id,
+int NetworkDelegate::NotifyBeforeSendHeaders(URLRequest* request,
                                              CompletionCallback* callback,
                                              HttpRequestHeaders* headers) {
   DCHECK(CalledOnValidThread());
   DCHECK(headers);
   DCHECK(callback);
-  return OnBeforeSendHeaders(request_id, callback, headers);
+  return OnBeforeSendHeaders(request, callback, headers);
 }
 
 void NetworkDelegate::NotifyRequestSent(

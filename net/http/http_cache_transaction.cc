@@ -480,13 +480,6 @@ int HttpCache::Transaction::DoLoop(int result) {
       case STATE_ADD_TO_ENTRY_COMPLETE:
         rv = DoAddToEntryComplete(rv);
         break;
-      case STATE_NOTIFY_BEFORE_SEND_HEADERS:
-        DCHECK_EQ(OK, rv);
-        rv = DoNotifyBeforeSendHeaders();
-        break;
-      case STATE_NOTIFY_BEFORE_SEND_HEADERS_COMPLETE:
-        rv = DoNotifyBeforeSendHeadersComplete(rv);
-        break;
       case STATE_START_PARTIAL_CACHE_VALIDATION:
         DCHECK_EQ(OK, rv);
         rv = DoStartPartialCacheValidation();
@@ -909,56 +902,6 @@ int HttpCache::Transaction::DoAddToEntryComplete(int result) {
   return OK;
 }
 
-int HttpCache::Transaction::DoNotifyBeforeSendHeaders() {
-  // Balanced in DoNotifyBeforeSendHeadersComplete.
-  next_state_ = STATE_NOTIFY_BEFORE_SEND_HEADERS_COMPLETE;
-
-  if (cache_->GetSession() && cache_->GetSession()->network_delegate()) {
-    // Give the delegate a copy of the request headers. We ignore any
-    // modification to these headers, since it doesn't make sense to issue a
-    // request from the cache with modified headers.
-    request_headers_copy_.CopyFrom(request_->extra_headers);
-    return cache_->GetSession()->network_delegate()->NotifyBeforeSendHeaders(
-        request_->request_id, &io_callback_, &request_headers_copy_);
-  }
-
-  return OK;
-}
-
-int HttpCache::Transaction::DoNotifyBeforeSendHeadersComplete(int result) {
-  // We now have access to the cache entry.
-  //
-  //  o if we are a reader for the transaction, then we can start reading the
-  //    cache entry.
-  //
-  //  o if we can read or write, then we should check if the cache entry needs
-  //    to be validated and then issue a network request if needed or just read
-  //    from the cache if the cache entry is already valid.
-  //
-  //  o if we are set to UPDATE, then we are handling an externally
-  //    conditionalized request (if-modified-since / if-none-match). We check
-  //    if the request headers define a validation request.
-  //
-  if (result == net::OK) {
-    switch (mode_) {
-      case READ:
-        result = BeginCacheRead();
-        break;
-      case READ_WRITE:
-        result = BeginPartialCacheValidation();
-        break;
-      case UPDATE:
-        result = BeginExternallyConditionalizedRequest();
-        break;
-      case WRITE:
-      default:
-        NOTREACHED();
-        result = ERR_FAILED;
-    }
-  }
-  return result;
-}
-
 // We may end up here multiple times for a given request.
 int HttpCache::Transaction::DoStartPartialCacheValidation() {
   if (mode_ == NONE)
@@ -1183,8 +1126,35 @@ int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
   if (response_.headers->GetContentLength() == current_size)
     truncated_ = false;
 
-  next_state_ = STATE_NOTIFY_BEFORE_SEND_HEADERS;
-  return OK;
+  // We now have access to the cache entry.
+  //
+  //  o if we are a reader for the transaction, then we can start reading the
+  //    cache entry.
+  //
+  //  o if we can read or write, then we should check if the cache entry needs
+  //    to be validated and then issue a network request if needed or just read
+  //    from the cache if the cache entry is already valid.
+  //
+  //  o if we are set to UPDATE, then we are handling an externally
+  //    conditionalized request (if-modified-since / if-none-match). We check
+  //    if the request headers define a validation request.
+  //
+  switch (mode_) {
+    case READ:
+      result = BeginCacheRead();
+      break;
+    case READ_WRITE:
+      result = BeginPartialCacheValidation();
+      break;
+    case UPDATE:
+      result = BeginExternallyConditionalizedRequest();
+      break;
+    case WRITE:
+    default:
+      NOTREACHED();
+      result = ERR_FAILED;
+  }
+  return result;
 }
 
 int HttpCache::Transaction::DoCacheWriteResponse() {
