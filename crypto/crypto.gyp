@@ -61,6 +61,7 @@
         }],
         [ 'OS == "mac" or OS == "win"', {
             'dependencies': [
+              '../third_party/nss/nss.gyp:nspr',
               '../third_party/nss/nss.gyp:nss',
             ],
         },],
