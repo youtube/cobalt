@@ -268,10 +268,11 @@ class HttpStreamFactoryImpl::Job {
   // Initialized when we create a new SpdySession.
   scoped_refptr<SpdySession> new_spdy_session_;
 
+  // Initialized when we have an existing SpdySession.
+  scoped_refptr<SpdySession> existing_spdy_session_;
+
   // Only used if |new_spdy_session_| is non-NULL.
   bool spdy_session_direct_;
-
-  bool expect_to_use_existing_spdy_session_;
 
   ScopedRunnableMethodFactory<Job> method_factory_;
 
