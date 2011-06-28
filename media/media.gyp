@@ -411,6 +411,13 @@
         'filters/video_renderer_base_unittest.cc',
         'video/ffmpeg_video_decode_engine_unittest.cc',
       ],
+      'conditions': [
+        ['linux_use_tcmalloc==1', {
+          'dependencies': [
+            '../base/allocator/allocator.gyp:allocator',
+          ],
+        }],
+      ],
     },
     {
       'target_name': 'media_test_support',
