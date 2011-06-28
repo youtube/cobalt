@@ -537,9 +537,9 @@ EVENT_TYPE(URL_REQUEST_START_JOB)
 //   }
 EVENT_TYPE(URL_REQUEST_REDIRECTED)
 
-// Measures the time a net::URLRequest is blocked waiting for an extension to
-// respond to the onBefoteRequest extension event.
-EVENT_TYPE(URL_REQUEST_BLOCKED_ON_EXTENSION)
+// Measures the time a net::URLRequest is blocked waiting for a delegate
+// (usually an extension) to respond to the onBeforeRequest extension event.
+EVENT_TYPE(URL_REQUEST_BLOCKED_ON_DELEGATE)
 
 // The specified number of bytes were read from the net::URLRequest.
 // The filtered event is used when the bytes were passed through a filter before
