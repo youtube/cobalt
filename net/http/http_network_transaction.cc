@@ -753,11 +753,6 @@ int HttpNetworkTransaction::DoBuildRequest() {
     BuildRequestHeaders(using_proxy);
   }
 
-  if (session_->network_delegate()) {
-    return session_->network_delegate()->NotifyBeforeSendHeaders(
-        request_->request_id, &io_callback_, &request_headers_);
-  }
-
   return OK;
 }
 

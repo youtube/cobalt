@@ -23,6 +23,7 @@
 #include "net/base/mime_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/base/network_delegate.h"
 #include "net/base/sdch_manager.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_config_service.h"
@@ -248,6 +249,8 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
           this, &URLRequestHttpJob::OnStartCompleted)),
       ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_(
           this, &URLRequestHttpJob::OnReadCompleted)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(notify_before_headers_sent_callback_(
+          this, &URLRequestHttpJob::NotifyBeforeSendHeadersCallback)),
       read_in_progress_(false),
       transaction_(NULL),
       throttling_entry_(URLRequestThrottlerManager::GetInstance()->
@@ -356,6 +359,37 @@ void URLRequestHttpJob::DestroyTransaction() {
 }
 
 void URLRequestHttpJob::StartTransaction() {
+  if (request_->context() && request_->context()->network_delegate()) {
+    int rv = request_->context()->network_delegate()->NotifyBeforeSendHeaders(
+        request_, &notify_before_headers_sent_callback_,
+        &request_info_.extra_headers);
+    // If an extension blocks the request, we rely on the callback to
+    // StartTransactionInternal().
+    if (rv == ERR_IO_PENDING) {
+      request_->net_log().BeginEvent(
+          NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+      return;
+    }
+  }
+  StartTransactionInternal();
+}
+
+void URLRequestHttpJob::NotifyBeforeSendHeadersCallback(int result) {
+  request_->net_log().EndEvent(
+      NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+
+  if (result == OK) {
+    StartTransactionInternal();
+  } else {
+    // TODO(battre): Allow passing information of the extension that canceled
+    // the event.
+    request_->net_log().AddEvent(NetLog::TYPE_CANCELLED,
+        make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
+    NotifyCanceled();
+  }
+}
+
+void URLRequestHttpJob::StartTransactionInternal() {
   // NOTE: This method assumes that request_info_ is already setup properly.
 
   // If we already have a transaction, then we should restart the transaction

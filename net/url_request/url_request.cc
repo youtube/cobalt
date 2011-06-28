@@ -377,7 +377,7 @@ void URLRequest::Start() {
     if (context_->network_delegate()->NotifyBeforeURLRequest(
             this, &before_request_callback_, &delegate_redirect_url_) ==
             net::ERR_IO_PENDING) {
-      net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_EXTENSION, NULL);
+      net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
       return;  // paused
     }
   }
@@ -391,8 +391,12 @@ void URLRequest::BeforeRequestComplete(int error) {
   DCHECK(!job_);
   DCHECK_NE(ERR_IO_PENDING, error);
 
-  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_EXTENSION, NULL);
+  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
   if (error != OK) {
+    // TODO(battre): Allow passing information of the extension that canceled
+    // the event.
+    net_log_.AddEvent(NetLog::TYPE_CANCELLED,
+        make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
     StartJob(new URLRequestErrorJob(this, error));
   } else if (!delegate_redirect_url_.is_empty()) {
     GURL new_url;
