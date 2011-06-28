@@ -383,6 +383,10 @@ HttpCache::~HttpCache() {
 
   STLDeleteElements(&doomed_entries_);
 
+  // Before deleting pending_ops_, we have to make sure that the disk cache is
+  // done with said operations, or it will attempt to use deleted data.
+  disk_cache_.reset();
+
   PendingOpsMap::iterator pending_it = pending_ops_.begin();
   for (; pending_it != pending_ops_.end(); ++pending_it) {
     // We are not notifying the transactions about the cache going away, even
