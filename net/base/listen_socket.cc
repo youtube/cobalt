@@ -228,10 +228,11 @@ void ListenSocket::Read() {
 
 void ListenSocket::Close() {
 #if defined(OS_POSIX)
-  if (wait_state_ == WAITING_CLOSE)
+  if (wait_state_ == NOT_WAITING)
     return;
-  wait_state_ = WAITING_CLOSE;
+  wait_state_ = NOT_WAITING;
 #endif
+  UnwatchSocket();
   socket_delegate_->DidClose(this);
 }
 
@@ -300,19 +301,21 @@ void ListenSocket::OnObjectSignaled(HANDLE object) {
 }
 #elif defined(OS_POSIX)
 void ListenSocket::OnFileCanReadWithoutBlocking(int fd) {
-  if (wait_state_ == WAITING_ACCEPT) {
-    Accept();
-  }
-  if (wait_state_ == WAITING_READ) {
-    if (reads_paused_) {
-      has_pending_reads_ = true;
-    } else {
-      Read();
-    }
-  }
-  if (wait_state_ == WAITING_CLOSE) {
-    // Close() is called by Read() in the Linux case.
-    // TODO(erikkay): this seems to get hit multiple times after the close
+  switch (wait_state_) {
+    case WAITING_ACCEPT:
+      Accept();
+      break;
+    case WAITING_READ:
+      if (reads_paused_) {
+        has_pending_reads_ = true;
+      } else {
+        Read();
+      }
+      break;
+    default:
+      // Close() is called by Read() in the Linux case.
+      NOTREACHED();
+      break;
   }
 }
 
