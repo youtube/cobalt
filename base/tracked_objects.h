@@ -424,7 +424,7 @@ class BASE_API Comparator {
   // Translate a keyword and restriction in URL path to a selector for sorting.
   void ParseKeyphrase(const std::string& key_phrase);
 
-  // Parse a query in an about:tasks URL to decide on sort ordering.
+  // Parse a query to decide on sort ordering.
   bool ParseQuery(const std::string& query);
 
   // Output a header line that can be used to indicated what items will be
@@ -480,7 +480,8 @@ class BASE_API ThreadData {
   // return null.
   static ThreadData* current();
 
-  // For a given about:tasks URL, develop resulting HTML, and append to output.
+  // For a given (unescaped) about:tasks query, develop resulting HTML, and
+  // append to output.
   static void WriteHTML(const std::string& query, std::string* output);
 
   // For a given accumulated array of results, use the comparator to sort and
