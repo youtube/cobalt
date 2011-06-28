@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -405,7 +405,9 @@ int main(int argc, const char** argv) {
     if (max_frames && (frames >= max_frames))
       break;
   } while (read_result >= 0);
+#if SHOW_VERBOSE
   base::TimeDelta total = base::TimeTicks::HighResNow() - start;
+#endif
   LeaveTimingSection();
 
   // Clean up.

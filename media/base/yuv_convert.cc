@@ -221,7 +221,9 @@ void ScaleYUVToRGB32(const uint8* y_buf,
     return;
   int source_dx = source_width * kFractionMax / width;
   int source_dy = source_height * kFractionMax / height;
+#if USE_MMX && defined(_MSC_VER)
   int source_dx_uv = source_dx;
+#endif
 
   if ((view_rotate == ROTATE_90) ||
       (view_rotate == ROTATE_270)) {
@@ -234,7 +236,9 @@ void ScaleYUVToRGB32(const uint8* y_buf,
     int original_dx = source_dx;
     int original_dy = source_dy;
     source_dx = ((original_dy >> kFractionBits) * y_pitch) << kFractionBits;
+#if USE_MMX && defined(_MSC_VER)
     source_dx_uv = ((original_dy >> kFractionBits) * uv_pitch) << kFractionBits;
+#endif
     source_dy = original_dx;
     if (view_rotate == ROTATE_90) {
       y_pitch = -1;
