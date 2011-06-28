@@ -553,7 +553,6 @@
             '../jingle/jingle.gyp:jingle_unittests',
             '../media/media.gyp:ffmpeg_tests',
             '../media/media.gyp:media_unittests',
-            '../media/media.gyp:omx_test',
             '../net/net.gyp:net_unittests',
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
