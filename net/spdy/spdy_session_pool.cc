@@ -61,6 +61,19 @@ SpdySessionPool::~SpdySessionPool() {
 scoped_refptr<SpdySession> SpdySessionPool::Get(
     const HostPortProxyPair& host_port_proxy_pair,
     const BoundNetLog& net_log) {
+  return GetInternal(host_port_proxy_pair, net_log, false);
+}
+
+scoped_refptr<SpdySession> SpdySessionPool::GetIfExists(
+    const HostPortProxyPair& host_port_proxy_pair,
+    const BoundNetLog& net_log) {
+  return GetInternal(host_port_proxy_pair, net_log, true);
+}
+
+scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
+    const HostPortProxyPair& host_port_proxy_pair,
+    const BoundNetLog& net_log,
+    bool only_use_existing_sessions) {
   scoped_refptr<SpdySession> spdy_session;
   SpdySessionList* list = GetSessionList(host_port_proxy_pair);
   if (!list) {
@@ -75,6 +88,8 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
           make_scoped_refptr(new NetLogSourceParameter(
           "session", spdy_session->net_log().source())));
       return spdy_session;
+    } else if (only_use_existing_sessions) {
+      return NULL;
     }
     list = AddSessionList(host_port_proxy_pair);
   }
@@ -91,6 +106,8 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
           "session", spdy_session->net_log().source())));
     return spdy_session;
   }
+
+  DCHECK(!only_use_existing_sessions);
 
   spdy_session = new SpdySession(host_port_proxy_pair, this, &spdy_settings_,
                                  net_log.net_log());

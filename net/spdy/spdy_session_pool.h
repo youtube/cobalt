@@ -50,6 +50,11 @@ class NET_API SpdySessionPool
       const HostPortProxyPair& host_port_proxy_pair,
       const BoundNetLog& net_log);
 
+  // Only returns a SpdySession if it already exists.
+  scoped_refptr<SpdySession> GetIfExists(
+      const HostPortProxyPair& host_port_proxy_pair,
+      const BoundNetLog& net_log);
+
   // Set the maximum concurrent sessions per domain.
   static void set_max_sessions_per_domain(int max) {
     if (max >= 1)
@@ -75,7 +80,10 @@ class NET_API SpdySessionPool
       bool is_secure);
 
   // TODO(willchan): Consider renaming to HasReusableSession, since perhaps we
-  // should be creating a new session.
+  // should be creating a new session. WARNING: Because of IP connection pooling
+  // using the HostCache, if HasSession() returns true at one point, it does not
+  // imply the SpdySessionPool will still have a matching session in the near
+  // future, since the HostCache's entry may have expired.
   bool HasSession(const HostPortProxyPair& host_port_proxy_pair) const;
 
   // Close all SpdySessions, including any new ones created in the process of
@@ -128,6 +136,11 @@ class NET_API SpdySessionPool
   typedef std::map<HostPortProxyPair, SpdySessionList*> SpdySessionsMap;
   typedef std::map<IPEndPoint, HostPortProxyPair> SpdyAliasMap;
 
+
+  scoped_refptr<SpdySession> GetInternal(
+      const HostPortProxyPair& host_port_proxy_pair,
+      const BoundNetLog& net_log,
+      bool only_use_existing_sessions);
   scoped_refptr<SpdySession> GetExistingSession(
       SpdySessionList* list,
       const BoundNetLog& net_log) const;
