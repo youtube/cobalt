@@ -10,10 +10,9 @@
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-class ValuesTest : public testing::Test {
-};
+namespace base {
 
-TEST_F(ValuesTest, Basic) {
+TEST(ValuesTest, Basic) {
   // Test basic dictionary getting/setting
   DictionaryValue settings;
   std::string homepage = "http://google.com";
@@ -56,7 +55,7 @@ TEST_F(ValuesTest, Basic) {
   ASSERT_EQ(std::string("http://froogle.com"), bookmark_url);
 }
 
-TEST_F(ValuesTest, List) {
+TEST(ValuesTest, List) {
   scoped_ptr<ListValue> mixed_list(new ListValue());
   mixed_list->Set(0, Value::CreateBooleanValue(true));
   mixed_list->Set(1, Value::CreateIntegerValue(42));
@@ -96,7 +95,7 @@ TEST_F(ValuesTest, List) {
   ASSERT_EQ("foo", string_value);
 }
 
-TEST_F(ValuesTest, BinaryValue) {
+TEST(ValuesTest, BinaryValue) {
   char* buffer = NULL;
   // Passing a null buffer pointer doesn't yield a BinaryValue
   scoped_ptr<BinaryValue> binary(BinaryValue::Create(buffer, 0));
@@ -129,7 +128,7 @@ TEST_F(ValuesTest, BinaryValue) {
   ASSERT_EQ(0, memcmp(stack_buffer, binary->GetBuffer(), binary->GetSize()));
 }
 
-TEST_F(ValuesTest, StringValue) {
+TEST(ValuesTest, StringValue) {
   // Test overloaded CreateStringValue.
   scoped_ptr<Value> narrow_value(Value::CreateStringValue("narrow"));
   ASSERT_TRUE(narrow_value.get());
@@ -175,7 +174,7 @@ class DeletionTestValue : public Value {
   bool* deletion_flag_;
 };
 
-TEST_F(ValuesTest, ListDeletion) {
+TEST(ValuesTest, ListDeletion) {
   bool deletion_flag = true;
 
   {
@@ -202,7 +201,7 @@ TEST_F(ValuesTest, ListDeletion) {
   }
 }
 
-TEST_F(ValuesTest, ListRemoval) {
+TEST(ValuesTest, ListRemoval) {
   bool deletion_flag = true;
   Value* removed_item = NULL;
 
@@ -243,7 +242,7 @@ TEST_F(ValuesTest, ListRemoval) {
   }
 }
 
-TEST_F(ValuesTest, DictionaryDeletion) {
+TEST(ValuesTest, DictionaryDeletion) {
   std::string key = "test";
   bool deletion_flag = true;
 
@@ -271,7 +270,7 @@ TEST_F(ValuesTest, DictionaryDeletion) {
   }
 }
 
-TEST_F(ValuesTest, DictionaryRemoval) {
+TEST(ValuesTest, DictionaryRemoval) {
   std::string key = "test";
   bool deletion_flag = true;
   Value* removed_item = NULL;
@@ -302,7 +301,7 @@ TEST_F(ValuesTest, DictionaryRemoval) {
   }
 }
 
-TEST_F(ValuesTest, DictionaryWithoutPathExpansion) {
+TEST(ValuesTest, DictionaryWithoutPathExpansion) {
   DictionaryValue dict;
   dict.Set("this.is.expanded", Value::CreateNullValue());
   dict.SetWithoutPathExpansion("this.isnt.expanded", Value::CreateNullValue());
@@ -324,7 +323,7 @@ TEST_F(ValuesTest, DictionaryWithoutPathExpansion) {
   EXPECT_EQ(Value::TYPE_NULL, value4->GetType());
 }
 
-TEST_F(ValuesTest, DeepCopy) {
+TEST(ValuesTest, DeepCopy) {
   DictionaryValue original_dict;
   Value* original_null = Value::CreateNullValue();
   original_dict.Set("null", original_null);
@@ -449,7 +448,7 @@ TEST_F(ValuesTest, DeepCopy) {
   ASSERT_EQ(1, copy_list_element_1_value);
 }
 
-TEST_F(ValuesTest, Equals) {
+TEST(ValuesTest, Equals) {
   Value* null1 = Value::CreateNullValue();
   Value* null2 = Value::CreateNullValue();
   EXPECT_NE(null1, null2);
@@ -493,7 +492,7 @@ TEST_F(ValuesTest, Equals) {
   EXPECT_FALSE(dv.Equals(copy.get()));
 }
 
-TEST_F(ValuesTest, StaticEquals) {
+TEST(ValuesTest, StaticEquals) {
   scoped_ptr<Value> null1(Value::CreateNullValue());
   scoped_ptr<Value> null2(Value::CreateNullValue());
   EXPECT_TRUE(Value::Equals(null1.get(), null2.get()));
@@ -516,7 +515,7 @@ TEST_F(ValuesTest, StaticEquals) {
   EXPECT_FALSE(Value::Equals(NULL, null1.get()));
 }
 
-TEST_F(ValuesTest, DeepCopyCovariantReturnTypes) {
+TEST(ValuesTest, DeepCopyCovariantReturnTypes) {
   DictionaryValue original_dict;
   Value* original_null = Value::CreateNullValue();
   original_dict.Set("null", original_null);
@@ -572,7 +571,7 @@ TEST_F(ValuesTest, DeepCopyCovariantReturnTypes) {
   EXPECT_TRUE(original_list_value->Equals(copy_list_value.get()));
 }
 
-TEST_F(ValuesTest, RemoveEmptyChildren) {
+TEST(ValuesTest, RemoveEmptyChildren) {
   scoped_ptr<DictionaryValue> root(new DictionaryValue);
   // Remove empty lists and dictionaries.
   root->Set("empty_dict", new DictionaryValue);
@@ -647,7 +646,7 @@ TEST_F(ValuesTest, RemoveEmptyChildren) {
   }
 }
 
-TEST_F(ValuesTest, MergeDictionary) {
+TEST(ValuesTest, MergeDictionary) {
   scoped_ptr<DictionaryValue> base(new DictionaryValue);
   base->SetString("base_key", "base_key_value_base");
   base->SetString("collide_key", "collide_key_value_base");
@@ -691,3 +690,5 @@ TEST_F(ValuesTest, MergeDictionary) {
   EXPECT_TRUE(res_sub_dict->GetString("sub_merge_key", &sub_merge_key_value));
   EXPECT_EQ("sub_merge_key_value_merge", sub_merge_key_value); // Merged in.
 }
+
+}  // namespace base
