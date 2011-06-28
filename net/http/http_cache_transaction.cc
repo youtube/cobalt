@@ -1516,7 +1516,7 @@ int HttpCache::Transaction::BeginCacheValidation() {
     cache_->ConvertWriterToReader(entry_);
     mode_ = READ;
 
-    if (entry_ && entry_->disk_entry->GetDataSize(kMetadataIndex))
+    if (entry_->disk_entry->GetDataSize(kMetadataIndex))
       next_state_ = STATE_CACHE_READ_METADATA;
   } else {
     // Make the network request conditional, to see if we may reuse our cached
