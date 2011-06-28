@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -131,44 +131,12 @@ ThreadData* ThreadData::current() {
   return registry;
 }
 
-// Do mininimal fixups for searching function names.
-static std::string UnescapeQuery(const std::string& query) {
-  std::string result;
-  for (size_t i = 0; i < query.size(); i++) {
-    char next = query[i];
-    if ('%' == next && i + 2 < query.size()) {
-      std::string hex = query.substr(i + 1, 2);
-      char replacement = '\0';
-      // Only bother with "<", ">", and " ".
-      if (LowerCaseEqualsASCII(hex, "3c"))
-        replacement ='<';
-      else if (LowerCaseEqualsASCII(hex, "3e"))
-        replacement = '>';
-      else if (hex == "20")
-        replacement = ' ';
-      if (replacement) {
-        next = replacement;
-        i += 2;
-      }
-    }
-    result.push_back(next);
-  }
-  return result;
-}
-
 // static
 void ThreadData::WriteHTML(const std::string& query, std::string* output) {
   if (!ThreadData::IsActive())
     return;  // Not yet initialized.
 
   DCHECK(ThreadData::current());
-
-  output->append("<html><head><title>About Tasks");
-  std::string escaped_query = UnescapeQuery(query);
-  if (!escaped_query.empty())
-    output->append(" - " + escaped_query);
-  output->append("</title></head><body><pre>");
-
   DataCollector collected_data;  // Gather data.
   collected_data.AddListOfLivingObjects();  // Add births that are still alive.
 
@@ -177,7 +145,7 @@ void ThreadData::WriteHTML(const std::string& query, std::string* output) {
 
   // Create filtering and sort comparison object.
   Comparator comparator;
-  comparator.ParseQuery(escaped_query);
+  comparator.ParseQuery(query);
 
   // Filter out acceptable (matching) instances.
   DataCollector::Collection match_array;
@@ -222,7 +190,6 @@ void ThreadData::WriteHTML(const std::string& query, std::string* output) {
     "If you wish to monitor Renderer events, be sure to run in --single-process"
     " mode.";
   output->append(help_string);
-  output->append("</body></html>");
 }
 
 // static

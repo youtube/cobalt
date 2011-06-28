@@ -1064,13 +1064,6 @@ void StatisticsRecorder::WriteHTMLGraph(const std::string& query,
                                         std::string* output) {
   if (!IsActive())
     return;
-  output->append("<html><head><title>About Histograms");
-  if (!query.empty())
-    output->append(" - " + query);
-  output->append("</title>"
-                 // We'd like the following no-cache... but it doesn't work.
-                 // "<META HTTP-EQUIV=\"Pragma\" CONTENT=\"no-cache\">"
-                 "</head><body>");
 
   Histograms snapshot;
   GetSnapshot(query, &snapshot);
@@ -1080,7 +1073,6 @@ void StatisticsRecorder::WriteHTMLGraph(const std::string& query,
     (*it)->WriteHTMLGraph(output);
     output->append("<br><hr><br>");
   }
-  output->append("</body></html>");
 }
 
 // static
