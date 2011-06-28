@@ -30,7 +30,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
                                  GURL* new_url) {
     return net::OK;
   }
-  virtual int OnBeforeSendHeaders(uint64 request_id,
+  virtual int OnBeforeSendHeaders(URLRequest* request,
                                   CompletionCallback* callback,
                                   HttpRequestHeaders* headers) {
     return net::OK;

@@ -42,7 +42,7 @@ class URLRequestHttpJob : public URLRequestJob {
   void NotifyDone(const URLRequestStatus& status);
 
   void DestroyTransaction();
-  void StartTransaction();
+
   void AddExtraHeaders();
   void AddCookieHeaderAndStart();
   void SaveCookiesAndNotifyHeadersComplete();
@@ -55,6 +55,7 @@ class URLRequestHttpJob : public URLRequestJob {
 
   void OnStartCompleted(int result);
   void OnReadCompleted(int result);
+  void NotifyBeforeSendHeadersCallback(int result);
 
   bool ShouldTreatAsCertificateError(int result);
 
@@ -105,6 +106,8 @@ class URLRequestHttpJob : public URLRequestJob {
 
   CompletionCallbackImpl<URLRequestHttpJob> start_callback_;
   CompletionCallbackImpl<URLRequestHttpJob> read_callback_;
+  CompletionCallbackImpl<URLRequestHttpJob>
+      notify_before_headers_sent_callback_;
 
   bool read_in_progress_;
 
@@ -149,6 +152,11 @@ class URLRequestHttpJob : public URLRequestJob {
 
   void RecordCompressionHistograms();
   bool IsCompressibleContent() const;
+
+  // Starts the transaction if extensions using the webrequest API do not
+  // object.
+  void StartTransaction();
+  void StartTransactionInternal();
 
   void RecordPerfHistograms(CompletionCause reason);
   void DoneWithRequest(CompletionCause reason);

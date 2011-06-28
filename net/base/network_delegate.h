@@ -40,7 +40,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   int NotifyBeforeURLRequest(URLRequest* request,
                              CompletionCallback* callback,
                              GURL* new_url);
-  int NotifyBeforeSendHeaders(uint64 request_id,
+  int NotifyBeforeSendHeaders(URLRequest* request,
                               CompletionCallback* callback,
                               HttpRequestHeaders* headers);
   void NotifyRequestSent(uint64 request_id,
@@ -73,7 +73,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   // read/write |headers| before they get sent out. |callback| and |headers| are
   // valid only until OnHttpTransactionDestroyed is called for this request.
   // Returns a net status code.
-  virtual int OnBeforeSendHeaders(uint64 request_id,
+  virtual int OnBeforeSendHeaders(URLRequest* request,
                                   CompletionCallback* callback,
                                   HttpRequestHeaders* headers) = 0;
 
