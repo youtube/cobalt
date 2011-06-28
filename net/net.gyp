@@ -174,6 +174,7 @@
         'base/platform_mime_util_linux.cc',
         'base/platform_mime_util_mac.cc',
         'base/platform_mime_util_win.cc',
+        'base/rand_callback.h',
         'base/registry_controlled_domain.cc',
         'base/registry_controlled_domain.h',
         'base/scoped_cert_chain_context.h',
