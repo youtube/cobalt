@@ -134,6 +134,7 @@
           ],
           'dependencies': [
             '../../../third_party/zlib/zlib.gyp:zlib',
+            '../../../third_party/nss/nss.gyp:nspr',
             '../../../third_party/nss/nss.gyp:nss',
           ],
           'direct_dependent_settings': {
