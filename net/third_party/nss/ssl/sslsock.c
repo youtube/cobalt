@@ -1517,6 +1517,20 @@ SSL_GetStapledOCSPResponse(PRFileDesc *fd, unsigned char *out_data,
     return SECSuccess;
 }
 
+SECStatus
+SSL_HandshakeResumedSession(PRFileDesc *fd, PRBool *handshake_resumed) {
+    sslSocket *ss = ssl_FindSocket(fd);
+
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_HandshakeResumedSession",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    *handshake_resumed = ss->ssl3.hs.isResuming;
+    return SECSuccess;
+}
+
 /************************************************************************/
 /* The following functions are the TOP LEVEL SSL functions.
 ** They all get called through the NSPRIOMethods table below.

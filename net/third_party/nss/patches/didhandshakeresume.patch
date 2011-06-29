@@ -1,0 +1,58 @@
+commit 1b8c2b2242f6d6868d97c7915f84808134bc68a3
+Author: Adam Langley <agl@chromium.org>
+Date:   Tue Jun 21 11:41:12 2011 -0400
+
+    didhandshakeresume.patch
+
+diff --git a/mozilla/security/nss/lib/ssl/ssl.def b/mozilla/security/nss/lib/ssl/ssl.def
+index 35cc1e3..7ef15db 100644
+--- a/mozilla/security/nss/lib/ssl/ssl.def
++++ b/mozilla/security/nss/lib/ssl/ssl.def
+@@ -156,6 +156,7 @@ SSL_SNISocketConfigHook;
+ ;+    global:
+ SSL_GetNextProto;
+ SSL_GetStapledOCSPResponse;
++SSL_HandshakeResumedSession;
+ SSL_PeerCertificateChain;
+ SSL_SetNextProtoNego;
+ ;+    local:
+diff --git a/mozilla/security/nss/lib/ssl/ssl.h b/mozilla/security/nss/lib/ssl/ssl.h
+index 7357d9f..20a5167 100644
+--- a/mozilla/security/nss/lib/ssl/ssl.h
++++ b/mozilla/security/nss/lib/ssl/ssl.h
+@@ -717,6 +717,10 @@ SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
+                                                       SSLExtensionType extId,
+                                                       PRBool *yes);
+ 
++SSL_IMPORT SECStatus SSL_HandshakeResumedSession(PRFileDesc *fd,
++                                                 PRBool *last_handshake_resumed);
++
++
+ SEC_END_PROTOS
+ 
+ #endif /* __ssl_h_ */
+diff --git a/mozilla/security/nss/lib/ssl/sslsock.c b/mozilla/security/nss/lib/ssl/sslsock.c
+index f00f8f4..340d17c 100644
+--- a/mozilla/security/nss/lib/ssl/sslsock.c
++++ b/mozilla/security/nss/lib/ssl/sslsock.c
+@@ -1517,6 +1517,20 @@ SSL_GetStapledOCSPResponse(PRFileDesc *fd, unsigned char *out_data,
+     return SECSuccess;
+ }
+ 
++SECStatus
++SSL_HandshakeResumedSession(PRFileDesc *fd, PRBool *handshake_resumed) {
++    sslSocket *ss = ssl_FindSocket(fd);
++
++    if (!ss) {
++	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_HandshakeResumedSession",
++		 SSL_GETPID(), fd));
++	return SECFailure;
++    }
++
++    *handshake_resumed = ss->ssl3.hs.isResuming;
++    return SECSuccess;
++}
++
+ /************************************************************************/
+ /* The following functions are the TOP LEVEL SSL functions.
+ ** They all get called through the NSPRIOMethods table below.

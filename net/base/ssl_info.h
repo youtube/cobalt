@@ -20,6 +20,14 @@ class X509Certificate;
 // This is really a struct.  All members are public.
 class NET_API SSLInfo {
  public:
+  // HandshakeType enumerates the possible resumption cases after an SSL
+  // handshake.
+  enum HandshakeType {
+    HANDSHAKE_UNKNOWN = 0,
+    HANDSHAKE_RESUME,  // we resumed a previous session.
+    HANDSHAKE_FULL,  // we negotiated a new session.
+  };
+
   SSLInfo();
   SSLInfo(const SSLInfo& info);
   ~SSLInfo();
@@ -53,6 +61,8 @@ class NET_API SSLInfo {
   // If the certificate is valid, then this is true iff it was rooted at a
   // standard CA root. (As opposed to a user-installed root.)
   bool is_issued_by_known_root;
+
+  HandshakeType handshake_type;
 
   // The hashes of the SubjectPublicKeyInfos from each certificate in the chain.
   std::vector<SHA1Fingerprint> public_key_hashes;
