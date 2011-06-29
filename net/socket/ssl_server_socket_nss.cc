@@ -416,12 +416,17 @@ void SSLServerSocketNSS::OnSendComplete(int result) {
     return;
   }
 
-  if (!user_write_buf_ || !completed_handshake_)
+  if (!completed_handshake_)
     return;
 
-  int rv = DoWriteLoop(result);
-  if (rv != ERR_IO_PENDING)
-    DoWriteCallback(rv);
+  if (user_write_buf_) {
+    int rv = DoWriteLoop(result);
+    if (rv != ERR_IO_PENDING)
+      DoWriteCallback(rv);
+  } else {
+    // Ensure that any queued ciphertext is flushed.
+    DoTransportIO();
+  }
 }
 
 void SSLServerSocketNSS::OnRecvComplete(int result) {
