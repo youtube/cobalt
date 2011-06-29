@@ -611,7 +611,8 @@ void OnNoMemory() {
 }  // namespace
 
 extern "C" {
-#if !defined(USE_TCMALLOC) && !defined(ADDRESS_SANITIZER)
+#if !defined(USE_TCMALLOC) && !defined(ADDRESS_SANITIZER) && \
+    !defined(OS_ANDROID)
 
 extern "C" {
 void* __libc_malloc(size_t size);
@@ -694,10 +695,15 @@ int posix_memalign(void** ptr, size_t alignment, size_t size) {
 }  // extern C
 
 void EnableTerminationOnOutOfMemory() {
+#if defined(OS_ANDROID)
+  // Android doesn't support setting a new handler.
+  DLOG(WARNING) << "Not feasible.";
+#else
   // Set the new-out of memory handler.
   std::set_new_handler(&OnNoMemory);
   // If we're using glibc's allocator, the above functions will override
   // malloc and friends and make them die on out of memory.
+#endif
 }
 
 bool AdjustOOMScore(ProcessId process, int score) {
