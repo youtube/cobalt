@@ -206,4 +206,28 @@ int GetSurfaceWidth(AVStream* stream) {
   return width & ~1;
 }
 
+void DestroyAVFormatContext(AVFormatContext* format_context) {
+  DCHECK(format_context);
+
+  // Iterate each stream and destroy each one of them.
+  int streams = format_context->nb_streams;
+  for (int i = 0; i < streams; ++i) {
+    AVStream* stream = format_context->streams[i];
+
+    // The conditions for calling avcodec_close():
+    // 1. AVStream is alive.
+    // 2. AVCodecContext in AVStream is alive.
+    // 3. AVCodec in AVCodecContext is alive.
+    // Notice that closing a codec context without prior avcodec_open() will
+    // result in a crash in FFmpeg.
+    if (stream && stream->codec && stream->codec->codec) {
+      stream->discard = AVDISCARD_ALL;
+      avcodec_close(stream->codec);
+    }
+  }
+
+  // Then finally cleanup the format context.
+  av_close_input_file(format_context);
+}
+
 }  // namespace media
