@@ -7,6 +7,7 @@
 #pragma once
 
 #include "net/base/net_log.h"
+#include "net/base/rand_callback.h"
 #include "net/udp/datagram_client_socket.h"
 #include "net/udp/udp_socket.h"
 
@@ -17,7 +18,9 @@ class BoundNetLog;
 // A client socket that uses UDP as the transport layer.
 class NET_TEST UDPClientSocket : public DatagramClientSocket {
  public:
-  UDPClientSocket(net::NetLog* net_log,
+  UDPClientSocket(DatagramSocket::BindType bind_type,
+                  const RandIntCallback& rand_int_cb,
+                  net::NetLog* net_log,
                   const net::NetLog::Source& source);
   virtual ~UDPClientSocket();
 

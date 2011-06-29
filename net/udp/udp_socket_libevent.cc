@@ -13,6 +13,7 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
+#include "base/rand_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
@@ -22,23 +23,38 @@
 #include <netinet/in.h>
 #endif
 
+namespace {
+
+static const int kBindRetries = 10;
+static const int kPortStart = 1024;
+static const int kPortEnd = 65535;
+
+}  // namespace net
+
 namespace net {
 
-UDPSocketLibevent::UDPSocketLibevent(net::NetLog* net_log,
-                                     const net::NetLog::Source& source)
-    : socket_(kInvalidSocket),
-      read_watcher_(this),
-      write_watcher_(this),
-      read_buf_len_(0),
-      recv_from_address_(NULL),
-      write_buf_len_(0),
-      read_callback_(NULL),
-      write_callback_(NULL),
-      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
+UDPSocketLibevent::UDPSocketLibevent(
+    DatagramSocket::BindType bind_type,
+    const RandIntCallback& rand_int_cb,
+    net::NetLog* net_log,
+    const net::NetLog::Source& source)
+        : socket_(kInvalidSocket),
+          bind_type_(bind_type),
+          rand_int_cb_(rand_int_cb),
+          read_watcher_(this),
+          write_watcher_(this),
+          read_buf_len_(0),
+          recv_from_address_(NULL),
+          write_buf_len_(0),
+          read_callback_(NULL),
+          write_callback_(NULL),
+          net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
   scoped_refptr<NetLog::EventParameters> params;
   if (source.is_valid())
     params = new NetLogSourceParameter("source_dependency", source);
   net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+  if (bind_type == DatagramSocket::RANDOM_BIND)
+    DCHECK(!rand_int_cb.is_null());
 }
 
 UDPSocketLibevent::~UDPSocketLibevent() {
@@ -208,6 +224,13 @@ int UDPSocketLibevent::Connect(const IPEndPoint& address) {
   if (rv < 0)
     return rv;
 
+  if (bind_type_ == DatagramSocket::RANDOM_BIND)
+    rv = RandomBind(address);
+  // else connect() does the DatagramSocket::DEFAULT_BIND
+
+  if (rv < 0)
+    return rv;
+
   struct sockaddr_storage addr_storage;
   size_t addr_len = sizeof(addr_storage);
   struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
@@ -224,21 +247,12 @@ int UDPSocketLibevent::Connect(const IPEndPoint& address) {
 
 int UDPSocketLibevent::Bind(const IPEndPoint& address) {
   DCHECK(!is_connected());
-  DCHECK(!local_address_.get());
   int rv = CreateSocket(address);
   if (rv < 0)
     return rv;
-
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
-    return ERR_FAILED;
-
-  rv = bind(socket_, addr, addr_len);
+  rv = DoBind(address);
   if (rv < 0)
-    return MapSystemError(errno);
-
+    return rv;
   local_address_.reset();
   return rv;
 }
@@ -357,6 +371,30 @@ int UDPSocketLibevent::InternalSendTo(IOBuffer* buf, int buf_len,
                              0,
                              addr,
                              addr_len));
+}
+
+int UDPSocketLibevent::DoBind(const IPEndPoint& address) {
+  struct sockaddr_storage addr_storage;
+  size_t addr_len = sizeof(addr_storage);
+  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+  if (!address.ToSockAddr(addr, &addr_len))
+    return ERR_UNEXPECTED;
+  int rv = bind(socket_, addr, addr_len);
+  return rv < 0 ? MapSystemError(errno) : rv;
+}
+
+int UDPSocketLibevent::RandomBind(const IPEndPoint& address) {
+  DCHECK(bind_type_ == DatagramSocket::RANDOM_BIND && !rand_int_cb_.is_null());
+
+  // Construct IPAddressNumber of appropriate size (IPv4 or IPv6) of 0s.
+  IPAddressNumber ip(address.address().size());
+
+  for (int i = 0; i < kBindRetries; ++i) {
+    int rv = DoBind(IPEndPoint(ip, rand_int_cb_.Run(kPortStart, kPortEnd)));
+    if (rv == OK || rv != ERR_ADDRESS_IN_USE)
+      return rv;
+  }
+  return DoBind(IPEndPoint(ip, 0));
 }
 
 }  // namespace net

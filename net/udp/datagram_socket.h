@@ -16,6 +16,12 @@ class IPEndPoint;
 // datagrams, like UDP.
 class NET_TEST DatagramSocket {
  public:
+  // Type of source port binding to use.
+  enum BindType {
+    RANDOM_BIND,
+    DEFAULT_BIND,
+  };
+
   virtual ~DatagramSocket() {}
 
   // Close the socket.
