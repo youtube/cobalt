@@ -595,8 +595,7 @@ DatagramClientSocket* MockClientSocketFactory::CreateDatagramClientSocket(
     const NetLog::Source& source) {
   SocketDataProvider* data_provider = mock_data_.GetNext();
   MockUDPClientSocket* socket = new MockUDPClientSocket(data_provider);
-
-  // TODO(agayev): figure out how to enable data_provider->set_socket(socket).
+  data_provider->set_socket(socket);
   udp_client_sockets_.push_back(socket);
   return socket;
 }
@@ -1166,6 +1165,12 @@ void MockSSLClientSocket::OnReadComplete(const MockRead& data) {
 MockUDPClientSocket::MockUDPClientSocket(SocketDataProvider* data)
     : connected_(false),
       data_(data),
+      read_offset_(0),
+      read_data_(false, net::ERR_UNEXPECTED),
+      need_read_data_(true),
+      pending_buf_(NULL),
+      pending_buf_len_(0),
+      pending_callback_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   DCHECK(data_);
   data_->Reset();
@@ -1175,26 +1180,29 @@ MockUDPClientSocket::~MockUDPClientSocket() {}
 
 int MockUDPClientSocket::Read(net::IOBuffer* buf, int buf_len,
                               net::CompletionCallback* callback) {
-  DCHECK(buf);
-  DCHECK_GT(buf_len, 0);
-
   if (!connected_)
-    return ERR_UNEXPECTED;
+    return net::ERR_UNEXPECTED;
 
-  MockRead read_data = data_->GetNextRead();
-  DCHECK_LE(read_data.data_len, buf_len);
+  // If the buffer is already in use, a read is already in progress!
+  DCHECK(pending_buf_ == NULL);
 
-  int result = read_data.result;
-  if (result == 0) {
-    result = read_data.data_len;
-    memcpy(buf->data(), read_data.data, read_data.data_len);
+  // Store our async IO data.
+  pending_buf_ = buf;
+  pending_buf_len_ = buf_len;
+  pending_callback_ = callback;
+
+  if (need_read_data_) {
+    read_data_ = data_->GetNextRead();
+    // ERR_IO_PENDING means that the SocketDataProvider is taking responsibility
+    // to complete the async IO manually later (via OnReadComplete).
+    if (read_data_.result == ERR_IO_PENDING) {
+      DCHECK(callback);  // We need to be using async IO in this case.
+      return ERR_IO_PENDING;
+    }
+    need_read_data_ = false;
   }
 
-  if (read_data.async) {
-    RunCallbackAsync(callback, result);
-    return ERR_IO_PENDING;
-  }
-  return result;
+  return CompleteRead();
 }
 
 int MockUDPClientSocket::Write(net::IOBuffer* buf, int buf_len,
@@ -1240,6 +1248,63 @@ int MockUDPClientSocket::GetLocalAddress(IPEndPoint* address) const {
 int MockUDPClientSocket::Connect(const IPEndPoint& address) {
   connected_ = true;
   return OK;
+}
+
+void MockUDPClientSocket::OnReadComplete(const MockRead& data) {
+  // There must be a read pending.
+  DCHECK(pending_buf_);
+  // You can't complete a read with another ERR_IO_PENDING status code.
+  DCHECK_NE(ERR_IO_PENDING, data.result);
+  // Since we've been waiting for data, need_read_data_ should be true.
+  DCHECK(need_read_data_);
+
+  read_data_ = data;
+  need_read_data_ = false;
+
+  // The caller is simulating that this IO completes right now.  Don't
+  // let CompleteRead() schedule a callback.
+  read_data_.async = false;
+
+  net::CompletionCallback* callback = pending_callback_;
+  int rv = CompleteRead();
+  RunCallback(callback, rv);
+}
+
+int MockUDPClientSocket::CompleteRead() {
+  DCHECK(pending_buf_);
+  DCHECK(pending_buf_len_ > 0);
+
+  // Save the pending async IO data and reset our |pending_| state.
+  net::IOBuffer* buf = pending_buf_;
+  int buf_len = pending_buf_len_;
+  net::CompletionCallback* callback = pending_callback_;
+  pending_buf_ = NULL;
+  pending_buf_len_ = 0;
+  pending_callback_ = NULL;
+
+  int result = read_data_.result;
+  DCHECK(result != ERR_IO_PENDING);
+
+  if (read_data_.data) {
+    if (read_data_.data_len - read_offset_ > 0) {
+      result = std::min(buf_len, read_data_.data_len - read_offset_);
+      memcpy(buf->data(), read_data_.data + read_offset_, result);
+      read_offset_ += result;
+      if (read_offset_ == read_data_.data_len) {
+        need_read_data_ = true;
+        read_offset_ = 0;
+      }
+    } else {
+      result = 0;  // EOF
+    }
+  }
+
+  if (read_data_.async) {
+    DCHECK(callback);
+    RunCallbackAsync(callback, result);
+    return net::ERR_IO_PENDING;
+  }
+  return result;
 }
 
 void MockUDPClientSocket::RunCallbackAsync(net::CompletionCallback* callback,
