@@ -106,6 +106,8 @@ int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
   return status;
 }
 
+// Android has built-in crash handling.
+#if !defined(OS_ANDROID)
 void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
   if (debug::BeingDebugged())
     debug::BreakDebugger();
@@ -157,6 +159,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
 #endif  // defined(OS_MACOSX)
   _exit(1);
 }
+#endif  // !defined(OS_ANDROID)
 
 void ResetChildSignalHandlersToDefaults() {
   // The previous signal handlers are likely to be meaningless in the child's
@@ -303,6 +306,9 @@ typedef scoped_ptr_malloc<DIR, ScopedDIRClose> ScopedDIR;
 #elif defined(OS_OPENBSD)
   static const rlim_t kSystemDefaultMaxFds = 256;
   static const char kFDDir[] = "/dev/fd";
+#elif defined(OS_ANDROID)
+  static const rlim_t kSystemDefaultMaxFds = 1024;
+  static const char kFDDir[] = "/proc/self/fd";
 #endif
 
 void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
@@ -660,6 +666,8 @@ bool EnableInProcessStackDumping() {
   sigemptyset(&action.sa_mask);
   bool success = (sigaction(SIGPIPE, &action, NULL) == 0);
 
+  // Android has built-in crash handling, so no need to hook the signals.
+#if !defined(OS_ANDROID)
   sig_t handler = reinterpret_cast<sig_t>(&StackDumpSignalHandler);
   success &= (signal(SIGILL, handler) != SIG_ERR);
   success &= (signal(SIGABRT, handler) != SIG_ERR);
@@ -667,6 +675,7 @@ bool EnableInProcessStackDumping() {
   success &= (signal(SIGBUS, handler) != SIG_ERR);
   success &= (signal(SIGSEGV, handler) != SIG_ERR);
   success &= (signal(SIGSYS, handler) != SIG_ERR);
+#endif
 
   return success;
 }
@@ -994,7 +1003,7 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
       break;
     }
     base::PlatformThread::Sleep(100);
-  } while ((base::Time::Now() - end_time) > base::TimeDelta());
+  } while ((end_time - base::Time::Now()) > base::TimeDelta());
 
   return result;
 }
