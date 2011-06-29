@@ -717,6 +717,10 @@ SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
                                                       SSLExtensionType extId,
                                                       PRBool *yes);
 
+SSL_IMPORT SECStatus SSL_HandshakeResumedSession(PRFileDesc *fd,
+                                                 PRBool *last_handshake_resumed);
+
+
 SEC_END_PROTOS
 
 #endif /* __ssl_h_ */

@@ -47,6 +47,10 @@ Patches:
     patches/cachedinfo.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=665739
 
+  * Add a function to export whether the last handshake on a socket resumed a
+    previous session.
+    patches/didhandshakeresume.patch
+
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
 

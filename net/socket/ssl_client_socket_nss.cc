@@ -500,6 +500,17 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
     LOG(DFATAL) << "SSL_GetCipherSuiteInfo returned " << PR_GetError()
                 << " for cipherSuite " << cipher_suite;
   }
+
+  PRBool last_handshake_resumed;
+  ok = SSL_HandshakeResumedSession(nss_fd_, &last_handshake_resumed);
+  if (ok == SECSuccess) {
+    if (last_handshake_resumed) {
+      ssl_info->handshake_type = SSLInfo::HANDSHAKE_RESUME;
+    } else {
+      ssl_info->handshake_type = SSLInfo::HANDSHAKE_FULL;
+    }
+  }
+
   LeaveFunction("");
 }
 
