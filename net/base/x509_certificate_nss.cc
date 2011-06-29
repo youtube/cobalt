@@ -873,14 +873,17 @@ bool X509Certificate::VerifyEV() const {
     return false;
   SHA1Fingerprint fingerprint =
       X509Certificate::CalculateFingerprint(root_ca);
-  SECOidTag ev_policy_tag = SEC_OID_UNKNOWN;
-  if (!metadata->GetPolicyOID(fingerprint, &ev_policy_tag))
+  std::vector<SECOidTag> ev_policy_tags;
+  if (!metadata->GetPolicyOIDsForCA(fingerprint, &ev_policy_tags))
     return false;
+  DCHECK(!ev_policy_tags.empty());
 
-  if (!CheckCertPolicies(cert_handle_, ev_policy_tag))
-    return false;
-
-  return true;
+  for (std::vector<SECOidTag>::const_iterator
+       i = ev_policy_tags.begin(); i != ev_policy_tags.end(); ++i) {
+    if (CheckCertPolicies(cert_handle_, *i))
+      return true;
+  }
+  return false;
 }
 
 bool X509Certificate::GetDEREncoded(std::string* encoded) {
