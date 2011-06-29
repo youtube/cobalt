@@ -185,7 +185,7 @@ static int ParseWebMElementHeader(const uint8* buf, int size,
   if (size == 0)
     return 0;
 
-  int64 tmp;
+  int64 tmp = 0;
   int num_id_bytes = ParseWebMElementHeaderField(buf, size, 4, false, &tmp);
 
   if (num_id_bytes <= 0)
