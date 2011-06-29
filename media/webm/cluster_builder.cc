@@ -35,6 +35,7 @@ Cluster::Cluster(const uint8* data, int size) : data_(data), size_(size) {}
 Cluster::~Cluster() {}
 
 ClusterBuilder::ClusterBuilder() { Reset(); }
+ClusterBuilder::~ClusterBuilder() {}
 
 void ClusterBuilder::SetClusterTimecode(int64 cluster_timecode) {
   DCHECK_EQ(cluster_timecode_, -1);
