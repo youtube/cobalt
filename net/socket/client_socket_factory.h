@@ -11,6 +11,8 @@
 #include "base/basictypes.h"
 #include "net/base/net_api.h"
 #include "net/base/net_log.h"
+#include "net/base/rand_callback.h"
+#include "net/udp/datagram_socket.h"
 
 namespace net {
 
@@ -34,6 +36,8 @@ class NET_API ClientSocketFactory {
   // |source| is the NetLog::Source for the entity trying to create the socket,
   // if it has one.
   virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
       NetLog* net_log,
       const NetLog::Source& source) = 0;
 
