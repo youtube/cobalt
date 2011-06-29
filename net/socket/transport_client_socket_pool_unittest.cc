@@ -278,6 +278,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
         delay_ms_(ClientSocketPool::kMaxConnectRetryIntervalMs) {}
 
   virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
       NetLog* net_log,
       const NetLog::Source& source) {
     NOTREACHED();

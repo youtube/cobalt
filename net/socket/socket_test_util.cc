@@ -589,6 +589,8 @@ MockSSLClientSocket* MockClientSocketFactory::GetMockSSLClientSocket(
 }
 
 DatagramClientSocket* MockClientSocketFactory::CreateDatagramClientSocket(
+    DatagramSocket::BindType bind_type,
+    const RandIntCallback& rand_int_cb,
     NetLog* net_log,
     const NetLog::Source& source) {
   SocketDataProvider* data_provider = mock_data_.GetNext();
@@ -1440,6 +1442,8 @@ MockSSLClientSocket* DeterministicMockClientSocketFactory::
 
 DatagramClientSocket*
 DeterministicMockClientSocketFactory::CreateDatagramClientSocket(
+    DatagramSocket::BindType bind_type,
+    const RandIntCallback& rand_int_cb,
     NetLog* net_log,
     const NetLog::Source& source) {
   NOTREACHED();

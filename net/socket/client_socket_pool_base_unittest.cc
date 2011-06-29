@@ -115,6 +115,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
   MockClientSocketFactory() : allocation_count_(0) {}
 
   virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
       NetLog* net_log,
       const NetLog::Source& source) {
     NOTREACHED();
