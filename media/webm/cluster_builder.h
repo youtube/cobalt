@@ -30,6 +30,7 @@ class Cluster {
 class ClusterBuilder {
  public:
   ClusterBuilder();
+  ~ClusterBuilder();
 
   void SetClusterTimecode(int64 cluster_timecode);
   void AddSimpleBlock(int track_num, int64 timecode, int flags,
