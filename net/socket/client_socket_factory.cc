@@ -54,9 +54,11 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
   }
 
   virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
       NetLog* net_log,
       const NetLog::Source& source) {
-    return new UDPClientSocket(net_log, source);
+    return new UDPClientSocket(bind_type, rand_int_cb, net_log, source);
   }
 
   virtual StreamSocket* CreateTransportClientSocket(

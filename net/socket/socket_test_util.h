@@ -536,6 +536,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
 
   // ClientSocketFactory
   virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
       NetLog* net_log,
       const NetLog::Source& source);
   virtual StreamSocket* CreateTransportClientSocket(
@@ -937,6 +939,8 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
 
   // ClientSocketFactory
   virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
       NetLog* net_log,
       const NetLog::Source& source);
   virtual StreamSocket* CreateTransportClientSocket(
