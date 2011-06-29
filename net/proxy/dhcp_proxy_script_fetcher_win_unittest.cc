@@ -58,7 +58,9 @@ class RealFetchTester {
   }
 
   void RunTest() {
-    fetcher_->Fetch(&pac_text_, &completion_callback_);
+    int result = fetcher_->Fetch(&pac_text_, &completion_callback_);
+    if (result != ERR_IO_PENDING)
+      finished_ = true;
   }
 
   void RunTestWithCancel() {
@@ -67,9 +69,12 @@ class RealFetchTester {
   }
 
   void RunTestWithDeferredCancel() {
-    RunTest();
-    cancel_timer_.Start(base::TimeDelta::FromMilliseconds(1),
+    // Put the cancellation into the queue before even running the
+    // test to avoid the chance of one of the adapter fetcher worker
+    // threads completing before cancellation.  See http://crbug.com/86756.
+    cancel_timer_.Start(base::TimeDelta::FromMilliseconds(0),
                         this, &RealFetchTester::OnCancelTimer);
+    RunTest();
   }
 
   void OnCompletion(int result) {
@@ -297,6 +302,17 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
     ResetTestState();
   }
 
+  virtual ~MockDhcpProxyScriptFetcherWin() {
+    // Delete any adapter fetcher objects we didn't hand out.
+    std::vector<DhcpProxyScriptAdapterFetcher*>::const_iterator it
+        = adapter_fetchers_.begin();
+    for (; it != adapter_fetchers_.end(); ++it) {
+      if (num_fetchers_created_-- <= 0) {
+        delete (*it);
+      }
+    }
+  }
+
   // Adds a fetcher object to the queue of fetchers used by
   // |ImplCreateAdapterFetcher()|, and its name to the list of adapters
   // returned by ImplGetCandidateAdapterNames.
@@ -347,8 +363,9 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
 
   int next_adapter_fetcher_index_;
 
-  // Ownership is not here; it gets transferred to the implementation
-  // class via ImplCreateAdapterFetcher.
+  // Ownership gets transferred to the implementation class via
+  // ImplCreateAdapterFetcher, but any objects not handed out are
+  // deleted on destruction.
   std::vector<DhcpProxyScriptAdapterFetcher*> adapter_fetchers_;
 
   scoped_refptr<MockWorkerThread> worker_thread_;
