@@ -52,6 +52,7 @@
   'includes': [
     'ui_base.gypi',
     'ui_gfx.gypi',
+    'ui_resources.gypi',
   ],
   'conditions': [
     ['toolkit_views2==1', {
