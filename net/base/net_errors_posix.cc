@@ -46,6 +46,8 @@ Error MapSystemError(int os_error) {
       return ERR_SOCKET_NOT_CONNECTED;
     case EINVAL:
       return ERR_INVALID_ARGUMENT;
+    case EADDRINUSE:
+      return ERR_ADDRESS_IN_USE;
     case 0:
       return OK;
     default:

@@ -252,6 +252,9 @@ NET_ERROR(DNS_SERVER_FAILED, -145)
 // WebSocket abort SocketStream connection when alternate protocol is found.
 NET_ERROR(PROTOCOL_SWITCHED, -146)
 
+// Returned when attempting to bind an address that is already in use.
+NET_ERROR(ADDRESS_IN_USE, -147)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.

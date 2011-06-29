@@ -4,11 +4,16 @@
 
 #include "net/udp/udp_server_socket.h"
 
+#include "net/base/rand_callback.h"
+
 namespace net {
 
 UDPServerSocket::UDPServerSocket(net::NetLog* net_log,
                                  const net::NetLog::Source& source)
-    : socket_(net_log, source) {
+    : socket_(DatagramSocket::DEFAULT_BIND,
+              RandIntCallback(),
+              net_log,
+              source) {
 }
 
 UDPServerSocket::~UDPServerSocket() {
@@ -43,6 +48,5 @@ int UDPServerSocket::GetPeerAddress(IPEndPoint* address) const {
 int UDPServerSocket::GetLocalAddress(IPEndPoint* address) const {
   return socket_.GetLocalAddress(address);
 }
-
 
 }  // namespace net

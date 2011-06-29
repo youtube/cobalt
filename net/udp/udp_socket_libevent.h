@@ -11,9 +11,11 @@
 #include "base/message_loop.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/completion_callback.h"
+#include "net/base/rand_callback.h"
+#include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_log.h"
-#include "net/socket/stream_socket.h"
+#include "net/udp/datagram_socket.h"
 
 namespace net {
 
@@ -21,7 +23,9 @@ class BoundNetLog;
 
 class UDPSocketLibevent : public base::NonThreadSafe {
  public:
-  UDPSocketLibevent(net::NetLog* net_log,
+  UDPSocketLibevent(DatagramSocket::BindType bind_type,
+                    const RandIntCallback& rand_int_cb,
+                    net::NetLog* net_log,
                     const net::NetLog::Source& source);
   virtual ~UDPSocketLibevent();
 
@@ -153,7 +157,17 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 
+  int DoBind(const IPEndPoint& address);
+  int RandomBind(const IPEndPoint& address);
+
   int socket_;
+
+  // How to do source port binding, used only when UDPSocket is part of
+  // UDPClientSocket, since UDPServerSocket provides Bind.
+  DatagramSocket::BindType bind_type_;
+
+  // PRNG function for generating port numbers.
+  RandIntCallback rand_int_cb_;
 
   // These are mutable since they're just cached copies to make
   // GetPeerAddress/GetLocalAddress smarter.
