@@ -149,6 +149,7 @@ int
 nsPKCS12Blob_ImportHelper(const char* pkcs12_data,
                           size_t pkcs12_len,
                           const string16& password,
+                          bool is_extractable,
                           bool try_zero_length_secitem,
                           PK11SlotInfo *slot)
 {
@@ -165,7 +166,7 @@ nsPKCS12Blob_ImportHelper(const char* pkcs12_data,
     unicodeToItem(password.c_str(), &unicodePw);
   }
 
-  // initialize the decoder
+  // Initialize the decoder
   dcx = SEC_PKCS12DecoderStart(&unicodePw, slot,
                                // wincx
                                NULL,
@@ -190,6 +191,37 @@ nsPKCS12Blob_ImportHelper(const char* pkcs12_data,
   // import cert and key
   srv = SEC_PKCS12DecoderImportBags(dcx);
   if (srv) goto finish;
+
+  if (!is_extractable) {
+    SECItem attribute_value;
+    CK_BBOOL attribute_data = CK_FALSE;
+    attribute_value.data = &attribute_data;
+    attribute_value.len = sizeof(attribute_data);
+    CERTCertList* cert_list = SEC_PKCS12DecoderGetCerts(dcx);
+
+    // Iterate through each certificate in the chain and mark corresponding
+    // private key as unextractable.
+    for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+         !CERT_LIST_END(node, cert_list); node = CERT_LIST_NEXT(node)) {
+      SECKEYPrivateKey* privKey =  PK11_FindKeyByDERCert(slot,
+                                                         node->cert,
+                                                         NULL);  // wincx
+      if (privKey) {
+        // Mark the private key as unextractable.
+        srv = PK11_WriteRawAttribute(PK11_TypePrivKey, privKey, CKA_EXTRACTABLE,
+                                     &attribute_value);
+        SECKEY_DestroyPrivateKey(privKey);
+        if (srv) {
+          LOG(ERROR) << "Couldn't set CKA_EXTRACTABLE attribute on private "
+                     << "key.";
+          break;
+        }
+      }
+    }
+    CERT_DestroyCertList(cert_list);
+    if (srv) goto finish;
+  }
+
   import_result = net::OK;
 finish:
   // If srv != SECSuccess, NSS probably set a specific error code.
@@ -205,29 +237,33 @@ finish:
       import_result = net::ERR_PKCS12_IMPORT_FAILED;
     }
   }
-  // finish the decoder
+  // Finish the decoder
   if (dcx)
     SEC_PKCS12DecoderFinish(dcx);
   SECITEM_ZfreeItem(&unicodePw, PR_FALSE);
   return import_result;
 }
 
-PRBool
-isExtractable(SECKEYPrivateKey *privKey)
+
+// Attempt to read the CKA_EXTRACTABLE attribute on a private key inside
+// a token. On success, store the attribute in |extractable| and return
+// SECSuccess.
+SECStatus
+isExtractable(SECKEYPrivateKey *privKey, PRBool *extractable)
 {
   SECItem value;
-  PRBool  isExtractable = PR_FALSE;
   SECStatus rv;
 
   rv=PK11_ReadRawAttribute(PK11_TypePrivKey, privKey, CKA_EXTRACTABLE, &value);
-  if (rv != SECSuccess) {
-    return PR_FALSE;
-  }
-  if ((value.len == 1) && (value.data != NULL)) {
-    isExtractable = !!(*(CK_BBOOL*)value.data);
-  }
+  if (rv != SECSuccess)
+    return rv;
+
+  if ((value.len == 1) && (value.data != NULL))
+    *extractable = !!(*(CK_BBOOL*)value.data);
+  else
+    rv = SECFailure;
   SECITEM_FreeItem(&value, PR_FALSE);
-  return isExtractable;
+  return rv;
 }
 
 class PKCS12InitSingleton {
@@ -264,10 +300,11 @@ void EnsurePKCS12Init() {
 int nsPKCS12Blob_Import(PK11SlotInfo* slot,
                         const char* pkcs12_data,
                         size_t pkcs12_len,
-                        const string16& password) {
+                        const string16& password,
+                        bool is_extractable) {
 
-  int rv = nsPKCS12Blob_ImportHelper(pkcs12_data, pkcs12_len, password, false,
-                                     slot);
+  int rv = nsPKCS12Blob_ImportHelper(pkcs12_data, pkcs12_len, password,
+                                     is_extractable, false, slot);
 
   // When the user entered a zero length password:
   //   An empty password should be represented as an empty
@@ -275,10 +312,11 @@ int nsPKCS12Blob_Import(PK11SlotInfo* slot,
   //   NULL UTF16 character), but some applications use a
   //   zero length SECItem.
   //   We try both variations, zero length item and empty string,
-  //   without giving a user prompt when trying the different empty password flavors.
+  //   without giving a user prompt when trying the different empty password
+  //   flavors.
   if (rv == net::ERR_PKCS12_IMPORT_BAD_PASSWORD && password.empty()) {
-    rv = nsPKCS12Blob_ImportHelper(pkcs12_data, pkcs12_len, password, true,
-                                   slot);
+    rv = nsPKCS12Blob_ImportHelper(pkcs12_data, pkcs12_len, password,
+                                   is_extractable, true, slot);
   }
   return rv;
 }
@@ -327,27 +365,25 @@ nsPKCS12Blob_Export(std::string* output,
     CERTCertificate* nssCert = certs[i]->os_cert_handle();
     DCHECK(nssCert);
 
-    // We can only successfully export certs that are on 
-    // internal token.  Most, if not all, smart card vendors
-    // won't let you extract the private key (in any way
-    // shape or form) from the card.  So let's punt if 
-    // the cert is not in the internal db.
-    if (nssCert->slot && !PK11_IsInternal(nssCert->slot)) {
-      // we aren't the internal token, see if the key is extractable.
+    // We only allow certificate and private key extraction if the corresponding
+    // CKA_EXTRACTABLE private key attribute is set to CK_TRUE. Most hardware
+    // tokens including smartcards enforce this behavior. An internal (soft)
+    // token may ignore this attribute (and hence still be able to export) but
+    // we still refuse to attempt an export.
+    // In addition, some tokens may not support this attribute, in which case
+    // we still attempt the export and let the token implementation dictate
+    // the export behavior.
+    if (nssCert->slot) {
       SECKEYPrivateKey *privKey=PK11_FindKeyByDERCert(nssCert->slot,
                                                       nssCert,
-                                                      NULL /* wincx */);
-
-      if (privKey) {
-        PRBool privKeyIsExtractable = isExtractable(privKey);
-
+                                                      NULL);  // wincx
+       if (privKey) {
+        PRBool privKeyIsExtractable;
+        SECStatus rv = isExtractable(privKey, &privKeyIsExtractable);
         SECKEY_DestroyPrivateKey(privKey);
 
-        if (!privKeyIsExtractable) {
-          LOG(ERROR) << "private key not extractable";
-          // TODO(mattm): firefox has a notification dialog about trying to
-          // export from a smartcard.  I don't think we support smartcards, so
-          // we can ignore that for now.
+        if (rv == SECSuccess && !privKeyIsExtractable) {
+          LOG(ERROR) << "Private key is not extractable";
           continue;
         }
       }
