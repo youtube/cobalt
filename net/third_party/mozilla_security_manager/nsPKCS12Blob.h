@@ -56,12 +56,14 @@ namespace mozilla_security_manager {
 // Initialize NSS PKCS#12 libs.
 void EnsurePKCS12Init();
 
-// Import certificate from PKCS#12 blob into the slot.
+// Import the private key and certificate from a PKCS#12 blob into the slot.
+// If |is_extractable| is false, mark the private key as unextractable.
 // Returns a net error code.
 int nsPKCS12Blob_Import(PK11SlotInfo* slot,
                         const char* pkcs12_data,
                         size_t pkcs12_len,
-                        const string16& password);
+                        const string16& password,
+                        bool is_extractable);
 
 // Export the given certificates into a PKCS#12 blob, storing into output.
 // Returns the number of certificates exported.
