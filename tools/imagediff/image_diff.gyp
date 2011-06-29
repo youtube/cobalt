@@ -11,8 +11,8 @@
       'target_name': 'image_diff',
       'type': 'executable',
       'dependencies': [
-        '../../app/app.gyp:app_base',
         '../../base/base.gyp:base',
+	'../../ui/ui.gyp:ui_gfx',
       ],
       'sources': [
         'image_diff.cc',
