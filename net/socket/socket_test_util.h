@@ -46,6 +46,7 @@ enum {
   ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ = -10000,
 };
 
+class AsyncSocket;
 class MockClientSocket;
 class SSLClientSocket;
 class SSLHostInfo;
@@ -140,24 +141,36 @@ class SocketDataProvider {
 
   // Returns the buffer and result code for the next simulated read.
   // If the |MockRead.result| is ERR_IO_PENDING, it informs the caller
-  // that it will be called via the MockClientSocket::OnReadComplete()
+  // that it will be called via the AsyncSocket::OnReadComplete()
   // function at a later time.
   virtual MockRead GetNextRead() = 0;
   virtual MockWriteResult OnWrite(const std::string& data) = 0;
   virtual void Reset() = 0;
 
   // Accessor for the socket which is using the SocketDataProvider.
-  MockClientSocket* socket() { return socket_; }
-  void set_socket(MockClientSocket* socket) { socket_ = socket; }
+  AsyncSocket* socket() { return socket_; }
+  void set_socket(AsyncSocket* socket) { socket_ = socket; }
 
   MockConnect connect_data() const { return connect_; }
   void set_connect_data(const MockConnect& connect) { connect_ = connect; }
 
  private:
   MockConnect connect_;
-  MockClientSocket* socket_;
+  AsyncSocket* socket_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketDataProvider);
+};
+
+// The AsyncSocket is an interface used by the SocketDataProvider to
+// complete the asynchronous read operation.
+class AsyncSocket {
+ public:
+  // If an async IO is pending because the SocketDataProvider returned
+  // ERR_IO_PENDING, then the AsyncSocket waits until this OnReadComplete
+  // is called to complete the asynchronous read operation.
+  // data.async is ignored, and this read is completed synchronously as
+  // part of this call.
+  virtual void OnReadComplete(const MockRead& data) = 0;
 };
 
 // SocketDataProvider which responds based on static tables of mock reads and
@@ -533,6 +546,9 @@ class MockClientSocketFactory : public ClientSocketFactory {
   std::vector<MockTCPClientSocket*>& tcp_client_sockets() {
     return tcp_client_sockets_;
   }
+  std::vector<MockUDPClientSocket*>& udp_client_sockets() {
+    return udp_client_sockets_;
+  }
 
   // ClientSocketFactory
   virtual DatagramClientSocket* CreateDatagramClientSocket(
@@ -566,13 +582,6 @@ class MockClientSocketFactory : public ClientSocketFactory {
 class MockClientSocket : public net::SSLClientSocket {
  public:
   explicit MockClientSocket(net::NetLog* net_log);
-
-  // If an async IO is pending because the SocketDataProvider returned
-  // ERR_IO_PENDING, then the MockClientSocket waits until this OnReadComplete
-  // is called to complete the asynchronous read operation.
-  // data.async is ignored, and this read is completed synchronously as
-  // part of this call.
-  virtual void OnReadComplete(const MockRead& data) = 0;
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
@@ -612,7 +621,7 @@ class MockClientSocket : public net::SSLClientSocket {
   net::BoundNetLog net_log_;
 };
 
-class MockTCPClientSocket : public MockClientSocket {
+class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
  public:
   MockTCPClientSocket(const net::AddressList& addresses, net::NetLog* net_log,
                       net::SocketDataProvider* socket);
@@ -636,7 +645,7 @@ class MockTCPClientSocket : public MockClientSocket {
   virtual int64 NumBytesRead() const;
   virtual base::TimeDelta GetConnectTimeMicros() const;
 
-  // MockClientSocket:
+  // AsyncSocket:
   virtual void OnReadComplete(const MockRead& data);
 
  private:
@@ -663,6 +672,7 @@ class MockTCPClientSocket : public MockClientSocket {
 };
 
 class DeterministicMockTCPClientSocket : public MockClientSocket,
+    public AsyncSocket,
     public base::SupportsWeakPtr<DeterministicMockTCPClientSocket> {
  public:
   DeterministicMockTCPClientSocket(net::NetLog* net_log,
@@ -691,7 +701,7 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   virtual int64 NumBytesRead() const;
   virtual base::TimeDelta GetConnectTimeMicros() const;
 
-  // MockClientSocket:
+  // AsyncSocket:
   virtual void OnReadComplete(const MockRead& data);
 
  private:
@@ -709,7 +719,7 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   bool was_used_to_convey_data_;
 };
 
-class MockSSLClientSocket : public MockClientSocket {
+class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
  public:
   MockSSLClientSocket(
       net::ClientSocketHandle* transport_socket,
@@ -755,7 +765,8 @@ class MockSSLClientSocket : public MockClientSocket {
   bool was_used_to_convey_data_;
 };
 
-class MockUDPClientSocket : public DatagramClientSocket {
+class MockUDPClientSocket : public DatagramClientSocket,
+    public AsyncSocket {
  public:
   explicit MockUDPClientSocket(SocketDataProvider* data);
   virtual ~MockUDPClientSocket();
@@ -776,12 +787,26 @@ class MockUDPClientSocket : public DatagramClientSocket {
   // DatagramClientSocket interface
   virtual int Connect(const IPEndPoint& address);
 
+  // AsyncSocket interface
+  virtual void OnReadComplete(const MockRead& data);
+
  private:
+  int CompleteRead();
+
   void RunCallbackAsync(net::CompletionCallback* callback, int result);
   void RunCallback(net::CompletionCallback* callback, int result);
 
   bool connected_;
   SocketDataProvider* data_;
+  int read_offset_;
+  net::MockRead read_data_;
+  bool need_read_data_;
+
+  // While an asynchronous IO is pending, we save our user-buffer state.
+  net::IOBuffer* pending_buf_;
+  int pending_buf_len_;
+  net::CompletionCallback* pending_callback_;
+
   ScopedRunnableMethodFactory<MockUDPClientSocket> method_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(MockUDPClientSocket);
