@@ -156,10 +156,12 @@ void CertDatabase::ListModules(CryptoModuleList* modules, bool need_rw) const {
 int CertDatabase::ImportFromPKCS12(
     CryptoModule* module,
     const std::string& data,
-    const string16& password) {
+    const string16& password,
+    bool is_extractable) {
   int result = psm::nsPKCS12Blob_Import(module->os_module_handle(),
                                         data.data(), data.size(),
-                                        password);
+                                        password,
+                                        is_extractable);
   if (result == net::OK)
     CertDatabase::NotifyObserversOfUserCertAdded(NULL);
 
