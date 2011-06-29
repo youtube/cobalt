@@ -180,46 +180,4 @@ bool AudioFileReader::Read(const std::vector<float*>& audio_data,
   return true;
 }
 
-InMemoryDataReader::InMemoryDataReader(const char* data, int64 size)
-    : data_(data),
-      size_(size),
-      position_(0) {
-}
-
-int InMemoryDataReader::Read(int size, uint8* data) {
-  if (size < 0)
-    return -1;
-
-  int available_bytes = static_cast<int>(size_ - position_);
-  if (size > available_bytes)
-    size = available_bytes;
-
-  memcpy(data, data_ + position_, size);
-  position_ += size;
-  return size;
-}
-
-bool InMemoryDataReader::GetPosition(int64* position_out) {
-  if (position_out)
-    *position_out = position_;
-  return true;
-}
-
-bool InMemoryDataReader::SetPosition(int64 position) {
-  if (position >= size_)
-    return false;
-  position_ = position;
-  return true;
-}
-
-bool InMemoryDataReader::GetSize(int64* size_out) {
-  if (size_out)
-    *size_out = size_;
-  return true;
-}
-
-bool InMemoryDataReader::IsStreaming() {
-  return false;
-}
-
 }  // namespace media
