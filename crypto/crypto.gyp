@@ -10,7 +10,6 @@
     {
       'target_name': 'crypto',
       'product_name': 'crcrypto',  # Avoid colliding with OpenSSL's libcrypto
-      'type': 'static_library',
       'dependencies': [
         '../base/base.gyp:base',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
@@ -60,17 +59,31 @@
           ],
         }],
         [ 'OS == "mac" or OS == "win"', {
-            'dependencies': [
-              '../third_party/nss/nss.gyp:nspr',
-              '../third_party/nss/nss.gyp:nss',
+          'dependencies': [
+            '../third_party/nss/nss.gyp:nspr',
+            '../third_party/nss/nss.gyp:nss',
+          ],
+        }],
+        [ 'OS == "win"', {
+          'type': '<(component)',
+        }, { # else OS != "win"
+          'type': 'static_library',
+          'sources!': [
+            'capi_util.h',
+            'capi_util.cc',
+          ],
+        }],
+        [ 'OS == "win" and component == "shared_library"', { 
+          'defines': [
+            'CRYPTO_DLL',
+            'CRYPTO_IMPLEMENTATION',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'CRYPTO_DLL',
             ],
-        },],
-        [ 'OS != "win"', {
-            'sources!': [
-              'capi_util.h',
-              'capi_util.cc',
-            ],
-        },],
+          },
+        }],
         [ 'use_openssl==1', {
             # TODO(joth): Use a glob to match exclude patterns once the
             #             OpenSSL file set is complete.
