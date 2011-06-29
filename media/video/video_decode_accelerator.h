@@ -255,9 +255,7 @@ class VideoDecodeAccelerator {
   // bitstream buffer id.
   // Parameters:
   //  |bitstream_buffer| is the input bitstream that is sent for decoding.
-  //
-  // Returns true when command successfully accepted. Otherwise false.
-  virtual bool Decode(const BitstreamBuffer& bitstream_buffer) = 0;
+  virtual void Decode(const BitstreamBuffer& bitstream_buffer) = 0;
 
   // Assigns a set of picture buffers to the video decoder.
   // AssignGLESBuffers assigns texture-backed buffers.
@@ -285,17 +283,13 @@ class VideoDecodeAccelerator {
   // pictures and buffers held inside the decoder and returning of bitstream
   // buffers using the callbacks implemented by the plug-in. Once done with
   // flushing, the decode will call NotifyFlushDone().
-  //
-  // Returns true when command successfully accepted. Otherwise false.
-  virtual bool Flush() = 0;
+  virtual void Flush() = 0;
 
   // Aborts the decoder. Decode will abort the decoding as soon as possible and
   // will not output anything. NotifyAbortDone() is called  as soon as abort has
   // been finished. After abort all buffers can be considered dismissed, even
   // when there has not been callbacks to dismiss them.
-  //
-  // Returns true when command successfully accepted. Otherwise false.
-  virtual bool Abort() = 0;
+  virtual void Abort() = 0;
 };
 
 }  // namespace media
