@@ -338,6 +338,23 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
                                base::TimeDelta::FromMinutes(10),
                                100);
 
+    SSLInfo ssl_info;
+    ssl_socket_->GetSSLInfo(&ssl_info);
+
+    if (ssl_info.handshake_type == SSLInfo::HANDSHAKE_RESUME) {
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Resume_Handshake",
+                                 connect_duration,
+                                 base::TimeDelta::FromMilliseconds(1),
+                                 base::TimeDelta::FromMinutes(1),
+                                 100);
+    } else if (ssl_info.handshake_type == SSLInfo::HANDSHAKE_FULL) {
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Full_Handshake",
+                                 connect_duration,
+                                 base::TimeDelta::FromMilliseconds(1),
+                                 base::TimeDelta::FromMinutes(1),
+                                 100);
+    }
+
     const std::string& host = params_->host_and_port().host();
     bool is_google = host == "google.com" ||
                      (host.size() > 11 &&
@@ -348,6 +365,21 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
                                  base::TimeDelta::FromMilliseconds(1),
                                  base::TimeDelta::FromMinutes(10),
                                  100);
+      if (ssl_info.handshake_type == SSLInfo::HANDSHAKE_RESUME) {
+        UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Google_"
+                                       "Resume_Handshake",
+                                   connect_duration,
+                                   base::TimeDelta::FromMilliseconds(1),
+                                   base::TimeDelta::FromMinutes(1),
+                                   100);
+      } else if (ssl_info.handshake_type == SSLInfo::HANDSHAKE_FULL) {
+        UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Google_"
+                                       "Full_Handshake",
+                                   connect_duration,
+                                   base::TimeDelta::FromMilliseconds(1),
+                                   base::TimeDelta::FromMinutes(1),
+                                   100);
+      }
     }
   }
 
