@@ -25,7 +25,7 @@ struct EVMetadata {
   SHA1Fingerprint fingerprint;
 
   // The EV policy OIDs of the root CA.
-  const char* policy_oids[2];
+  const char* policy_oids[3];
 };
 
 static const EVMetadata ev_root_ca_metadata[] = {
@@ -226,11 +226,9 @@ static const EVMetadata ev_root_ca_metadata[] = {
     {"1.3.6.1.4.1.6449.1.2.1.5.1", NULL},
   },
   // ValiCert Class 2 Policy Validation Authority
-  // TODO(wtc): bug 1165107: this CA has another policy OID
-  // "2.16.840.1.114414.1.7.23.3".
   { { { 0x31, 0x7a, 0x2a, 0xd0, 0x7f, 0x2b, 0x33, 0x5e, 0xf5, 0xa1,
         0xc3, 0x4e, 0x4b, 0x57, 0xe8, 0xb7, 0xd8, 0xf1, 0xfc, 0xa6 } },
-    {"2.16.840.1.114413.1.7.23.3", NULL},
+    {"2.16.840.1.114413.1.7.23.3", "2.16.840.1.114414.1.7.23.3", NULL},
   },
   // VeriSign Class 3 Public Primary Certification Authority
   // https://www.verisign.com/
