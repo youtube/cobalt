@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/native_library.h"
 #include "base/string16.h"
+#include "net/base/net_api.h"
 #include "net/http/http_auth.h"
 
 #define GSS_USE_FUNCTION_POINTERS
@@ -26,7 +27,7 @@ extern gss_OID CHROME_GSS_KRB5_MECH_OID_DESC;
 // library. The default implementation attempts to load one of the standard
 // GSSAPI library implementations, then simply passes the arguments on to
 // that implementation.
-class GSSAPILibrary {
+class NET_TEST GSSAPILibrary {
  public:
   virtual ~GSSAPILibrary() {}
 
@@ -98,7 +99,7 @@ class GSSAPILibrary {
 };
 
 // GSSAPISharedLibrary class is defined here so that unit tests can access it.
-class GSSAPISharedLibrary : public GSSAPILibrary {
+class NET_TEST GSSAPISharedLibrary : public GSSAPILibrary {
  public:
   // If |gssapi_library_name| is empty, hard-coded default library names are
   // used.
@@ -213,7 +214,7 @@ class ScopedSecurityContext {
 
 
 // TODO(ahendrickson): Share code with HttpAuthSSPI.
-class HttpAuthGSSAPI {
+class NET_TEST HttpAuthGSSAPI {
  public:
   HttpAuthGSSAPI(GSSAPILibrary* library,
                  const std::string& scheme,

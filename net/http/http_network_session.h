@@ -98,19 +98,13 @@ class NET_API HttpNetworkSession
   }
 
   SOCKSClientSocketPool* GetSocketPoolForSOCKSProxy(
-      const HostPortPair& socks_proxy) {
-    return socket_pool_manager_.GetSocketPoolForSOCKSProxy(socks_proxy);
-  }
+      const HostPortPair& socks_proxy);
 
   HttpProxyClientSocketPool* GetSocketPoolForHTTPProxy(
-      const HostPortPair& http_proxy) {
-    return socket_pool_manager_.GetSocketPoolForHTTPProxy(http_proxy);
-  }
+      const HostPortPair& http_proxy);
 
   SSLClientSocketPool* GetSocketPoolForSSLWithProxy(
-      const HostPortPair& proxy_server) {
-    return socket_pool_manager_.GetSocketPoolForSSLWithProxy(proxy_server);
-  }
+      const HostPortPair& proxy_server);
 
   CertVerifier* cert_verifier() { return cert_verifier_; }
   ProxyService* proxy_service() { return proxy_service_; }
@@ -133,23 +127,14 @@ class NET_API HttpNetworkSession
 
   // Creates a Value summary of the state of the socket pools. The caller is
   // responsible for deleting the returned value.
-  Value* SocketPoolInfoToValue() const {
-    return socket_pool_manager_.SocketPoolInfoToValue();
-  }
+  Value* SocketPoolInfoToValue() const;
 
   // Creates a Value summary of the state of the SPDY sessions. The caller is
   // responsible for deleting the returned value.
   Value* SpdySessionPoolInfoToValue() const;
 
-  void CloseAllConnections() {
-    socket_pool_manager_.FlushSocketPools();
-    spdy_session_pool_.CloseCurrentSessions();
-  }
-
-  void CloseIdleConnections() {
-    socket_pool_manager_.CloseIdleSockets();
-  }
-
+  void CloseAllConnections();
+  void CloseIdleConnections();
 
  private:
   friend class base::RefCounted<HttpNetworkSession>;
