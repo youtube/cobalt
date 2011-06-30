@@ -17,7 +17,7 @@
 //   500-599 ?
 //   600-699 FTP errors
 //   700-799 Certificate manager errors
-//
+//   800-899 DNS resolver errors
 
 // An asynchronous IO operation is not yet complete.  This usually does not
 // indicate a fatal error.  Typically this error will be generated as a
@@ -231,29 +231,15 @@ NET_ERROR(SSL_CLIENT_AUTH_SIGNATURE_FAILED, -141)
 // which exceeds size threshold).
 NET_ERROR(MSG_TOO_BIG, -142)
 
-// DNS resolver received a malformed response.
-NET_ERROR(DNS_MALFORMED_RESPONSE, -143)
-
-// DNS server requires TCP
-NET_ERROR(DNS_SERVER_REQUIRES_TCP, -144)
-
-// DNS server failed.  This error is returned for all of the following
-// error conditions:
-// 1 - Format error - The name server was unable to interpret the query.
-// 2 - Server failure - The name server was unable to process this query
-//     due to a problem with the name server.
-// 4 - Not Implemented - The name server does not support the requested
-//     kind of query.
-// 5 - Refused - The name server refuses to perform the specified
-//     operation for policy reasons.
-NET_ERROR(DNS_SERVER_FAILED, -145)
-
 // Connection was aborted for switching to another ptotocol.
 // WebSocket abort SocketStream connection when alternate protocol is found.
 NET_ERROR(PROTOCOL_SWITCHED, -146)
 
 // Returned when attempting to bind an address that is already in use.
 NET_ERROR(ADDRESS_IN_USE, -147)
+
+// NOTE: error codes 143-145 are available, please use those before adding
+// 148.
 
 // Certificate error codes
 //
@@ -560,3 +546,25 @@ NET_ERROR(IMPORT_CA_CERT_FAILED, -705)
 
 // Server certificate import failed due to some internal error.
 NET_ERROR(IMPORT_SERVER_CERT_FAILED, -706)
+
+// DNS error codes.
+
+// DNS resolver received a malformed response.
+NET_ERROR(DNS_MALFORMED_RESPONSE, -800)
+
+// DNS server requires TCP
+NET_ERROR(DNS_SERVER_REQUIRES_TCP, -801)
+
+// DNS server failed.  This error is returned for all of the following
+// error conditions:
+// 1 - Format error - The name server was unable to interpret the query.
+// 2 - Server failure - The name server was unable to process this query
+//     due to a problem with the name server.
+// 4 - Not Implemented - The name server does not support the requested
+//     kind of query.
+// 5 - Refused - The name server refuses to perform the specified
+//     operation for policy reasons.
+NET_ERROR(DNS_SERVER_FAILED, -802)
+
+// DNS transaction timed out.
+NET_ERROR(DNS_TIMED_OUT, -803)
