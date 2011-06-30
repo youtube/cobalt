@@ -593,7 +593,6 @@ bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
     if (oid_tag == ev_policy_tag)
       return true;
   }
-  LOG(ERROR) << "No EV Policy Tag";
   return false;
 }
 
