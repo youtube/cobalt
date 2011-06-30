@@ -527,20 +527,18 @@ char** AlterEnvironment(const environment_vector& changes,
   return ret;
 }
 
-bool LaunchAppImpl(
-    const std::vector<std::string>& argv,
-    const environment_vector& env_changes,
-    const file_handle_mapping_vector& fds_to_remap,
-    bool wait,
-    ProcessHandle* process_handle,
-    bool start_new_process_group) {
+bool LaunchProcess(const std::vector<std::string>& argv,
+                   const LaunchOptions& options) {
   pid_t pid;
   InjectiveMultimap fd_shuffle1, fd_shuffle2;
-  fd_shuffle1.reserve(fds_to_remap.size());
-  fd_shuffle2.reserve(fds_to_remap.size());
+  if (options.fds_to_remap) {
+    fd_shuffle1.reserve(options.fds_to_remap->size());
+    fd_shuffle2.reserve(options.fds_to_remap->size());
+  }
   scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
-  scoped_array<char*> new_environ(AlterEnvironment(env_changes,
-                                                   GetEnvironment()));
+  scoped_array<char*> new_environ;
+  if (options.environ)
+    new_environ.reset(AlterEnvironment(*options.environ, GetEnvironment()));
 
   pid = fork();
   if (pid < 0) {
@@ -572,7 +570,7 @@ bool LaunchAppImpl(
       _exit(127);
     }
 
-    if (start_new_process_group) {
+    if (options.new_process_group) {
       // Instead of inheriting the process group ID of the parent, the child
       // starts off a new process group with pgid equal to its process ID.
       if (setpgid(0, 0) < 0) {
@@ -598,13 +596,17 @@ bool LaunchAppImpl(
     // DANGER: no calls to malloc are allowed from now on:
     // http://crbug.com/36678
 
-    for (file_handle_mapping_vector::const_iterator
-        it = fds_to_remap.begin(); it != fds_to_remap.end(); ++it) {
-      fd_shuffle1.push_back(InjectionArc(it->first, it->second, false));
-      fd_shuffle2.push_back(InjectionArc(it->first, it->second, false));
+    if (options.fds_to_remap) {
+      for (file_handle_mapping_vector::const_iterator
+               it = options.fds_to_remap->begin();
+           it != options.fds_to_remap->end(); ++it) {
+        fd_shuffle1.push_back(InjectionArc(it->first, it->second, false));
+        fd_shuffle2.push_back(InjectionArc(it->first, it->second, false));
+      }
     }
 
-    SetEnvironment(new_environ.get());
+    if (options.environ)
+      SetEnvironment(new_environ.get());
 
     // fd_shuffle1 is mutated by this call because it cannot malloc.
     if (!ShuffleFileDescriptors(&fd_shuffle1))
@@ -621,7 +623,7 @@ bool LaunchAppImpl(
     _exit(127);
   } else {
     // Parent process
-    if (wait) {
+    if (options.wait) {
       // While this isn't strictly disk IO, waiting for another process to
       // finish is the sort of thing ThreadRestrictions is trying to prevent.
       base::ThreadRestrictions::AssertIOAllowed();
@@ -629,45 +631,16 @@ bool LaunchAppImpl(
       DPCHECK(ret > 0);
     }
 
-    if (process_handle)
-      *process_handle = pid;
+    if (options.process_handle)
+      *options.process_handle = pid;
   }
 
   return true;
 }
 
-bool LaunchApp(
-    const std::vector<std::string>& argv,
-    const environment_vector& env_changes,
-    const file_handle_mapping_vector& fds_to_remap,
-    bool wait,
-    ProcessHandle* process_handle) {
-  return LaunchAppImpl(argv, env_changes, fds_to_remap,
-                       wait, process_handle, false);
-}
-
-bool LaunchAppInNewProcessGroup(
-    const std::vector<std::string>& argv,
-    const environment_vector& env_changes,
-    const file_handle_mapping_vector& fds_to_remap,
-    bool wait,
-    ProcessHandle* process_handle) {
-  return LaunchAppImpl(argv, env_changes, fds_to_remap, wait,
-                       process_handle, true);
-}
-
-bool LaunchApp(const std::vector<std::string>& argv,
-               const file_handle_mapping_vector& fds_to_remap,
-               bool wait, ProcessHandle* process_handle) {
-  base::environment_vector no_env;
-  return LaunchApp(argv, no_env, fds_to_remap, wait, process_handle);
-}
-
-bool LaunchApp(const CommandLine& cl,
-               bool wait, bool start_hidden,
-               ProcessHandle* process_handle) {
-  file_handle_mapping_vector no_files;
-  return LaunchApp(cl.argv(), no_files, wait, process_handle);
+bool LaunchProcess(const CommandLine& cmdline,
+                   const LaunchOptions& options) {
+  return LaunchProcess(cmdline.argv(), options);
 }
 
 ProcessMetrics::~ProcessMetrics() { }
