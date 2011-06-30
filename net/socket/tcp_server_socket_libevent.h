@@ -16,9 +16,9 @@ namespace net {
 
 class IPEndPoint;
 
-class TCPServerSocketLibevent : public ServerSocket,
-                                public base::NonThreadSafe,
-                                public MessageLoopForIO::Watcher {
+class NET_TEST TCPServerSocketLibevent : public ServerSocket,
+                                         public base::NonThreadSafe,
+                                         public MessageLoopForIO::Watcher {
  public:
   TCPServerSocketLibevent(net::NetLog* net_log,
                           const net::NetLog::Source& source);
