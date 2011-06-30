@@ -36,7 +36,6 @@
 #if defined(OS_MACOSX)
 #include <crt_externs.h>
 #include <sys/event.h>
-#define environ (*_NSGetEnviron())
 #else
 extern char** environ;
 #endif
@@ -44,6 +43,26 @@ extern char** environ;
 namespace base {
 
 namespace {
+
+// Get the process's "environment" (i.e. the thing that setenv/getenv
+// work with).
+char** GetEnvironment() {
+#if defined(OS_MACOSX)
+  return *_NSGetEnviron();
+#else
+  return environ;
+#endif
+}
+
+// Set the process's "environment" (i.e. the thing that setenv/getenv
+// work with).
+void SetEnvironment(char** env) {
+#if defined(OS_MACOSX)
+  *_NSGetEnviron() = env;
+#else
+  environ = env;
+#endif
+}
 
 int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
                        bool* success) {
@@ -520,7 +539,8 @@ bool LaunchAppImpl(
   fd_shuffle1.reserve(fds_to_remap.size());
   fd_shuffle2.reserve(fds_to_remap.size());
   scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
-  scoped_array<char*> new_environ(AlterEnvironment(env_changes, environ));
+  scoped_array<char*> new_environ(AlterEnvironment(env_changes,
+                                                   GetEnvironment()));
 
   pid = fork();
   if (pid < 0) {
@@ -584,7 +604,7 @@ bool LaunchAppImpl(
       fd_shuffle2.push_back(InjectionArc(it->first, it->second, false));
     }
 
-    environ = new_environ.get();
+    SetEnvironment(new_environ.get());
 
     // fd_shuffle1 is mutated by this call because it cannot malloc.
     if (!ShuffleFileDescriptors(&fd_shuffle1))
