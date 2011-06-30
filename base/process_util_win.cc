@@ -217,94 +217,59 @@ bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level) {
   return true;
 }
 
-bool LaunchAppImpl(const std::wstring& cmdline,
-                   bool wait, bool start_hidden, bool inherit_handles,
-                   ProcessHandle* process_handle) {
-  STARTUPINFO startup_info = {0};
+bool LaunchProcess(const string16& cmdline,
+                   const LaunchOptions& options) {
+  STARTUPINFO startup_info = {};
   startup_info.cb = sizeof(startup_info);
+  if (options.empty_desktop_name)
+    startup_info.lpDesktop = L"";
   startup_info.dwFlags = STARTF_USESHOWWINDOW;
-  startup_info.wShowWindow = start_hidden ? SW_HIDE : SW_SHOW;
+  startup_info.wShowWindow = options.start_hidden ? SW_HIDE : SW_SHOW;
   PROCESS_INFORMATION process_info;
-  if (!CreateProcess(NULL,
-                     const_cast<wchar_t*>(cmdline.c_str()), NULL, NULL,
-                     inherit_handles, 0, NULL, NULL,
-                     &startup_info, &process_info))
-    return false;
 
-  // Handles must be closed or they will leak
+  if (options.as_user) {
+    DWORD flags = CREATE_UNICODE_ENVIRONMENT;
+    void* enviroment_block = NULL;
+
+    if (!CreateEnvironmentBlock(&enviroment_block, options.as_user, FALSE))
+      return false;
+
+    BOOL launched =
+        CreateProcessAsUser(options.as_user, NULL,
+                            const_cast<wchar_t*>(cmdline.c_str()),
+                            NULL, NULL, options.inherit_handles, flags,
+                            enviroment_block, NULL, &startup_info,
+                            &process_info);
+    DestroyEnvironmentBlock(enviroment_block);
+    if (!launched)
+      return false;
+  } else {
+    if (!CreateProcess(NULL,
+                       const_cast<wchar_t*>(cmdline.c_str()), NULL, NULL,
+                       options.inherit_handles, 0, NULL, NULL,
+                       &startup_info, &process_info)) {
+      return false;
+    }
+  }
+
+  // Handles must be closed or they will leak.
   CloseHandle(process_info.hThread);
 
-  if (wait)
+  if (options.wait)
     WaitForSingleObject(process_info.hProcess, INFINITE);
 
   // If the caller wants the process handle, we won't close it.
-  if (process_handle) {
-    *process_handle = process_info.hProcess;
+  if (options.process_handle) {
+    *options.process_handle = process_info.hProcess;
   } else {
     CloseHandle(process_info.hProcess);
   }
   return true;
 }
 
-bool LaunchApp(const std::wstring& cmdline,
-               bool wait, bool start_hidden, ProcessHandle* process_handle) {
-  return LaunchAppImpl(cmdline, wait, start_hidden, false, process_handle);
-}
-
-bool LaunchAppWithHandleInheritance(
-    const std::wstring& cmdline, bool wait, bool start_hidden,
-    ProcessHandle* process_handle) {
-  return LaunchAppImpl(cmdline, wait, start_hidden, true, process_handle);
-}
-
-bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
-                     bool start_hidden, ProcessHandle* process_handle) {
-  return LaunchAppAsUser(token, cmdline, start_hidden, process_handle,
-                         false, false);
-}
-
-bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
-                     bool start_hidden, ProcessHandle* process_handle,
-                     bool empty_desktop_name, bool inherit_handles) {
-  STARTUPINFO startup_info = {0};
-  startup_info.cb = sizeof(startup_info);
-  if (empty_desktop_name)
-    startup_info.lpDesktop = L"";
-  PROCESS_INFORMATION process_info;
-  if (start_hidden) {
-    startup_info.dwFlags = STARTF_USESHOWWINDOW;
-    startup_info.wShowWindow = SW_HIDE;
-  }
-  DWORD flags = CREATE_UNICODE_ENVIRONMENT;
-  void* enviroment_block = NULL;
-
-  if (!CreateEnvironmentBlock(&enviroment_block, token, FALSE))
-    return false;
-
-  BOOL launched =
-      CreateProcessAsUser(token, NULL, const_cast<wchar_t*>(cmdline.c_str()),
-                          NULL, NULL, inherit_handles, flags, enviroment_block,
-                          NULL, &startup_info, &process_info);
-
-  DestroyEnvironmentBlock(enviroment_block);
-
-  if (!launched)
-    return false;
-
-  CloseHandle(process_info.hThread);
-
-  if (process_handle) {
-    *process_handle = process_info.hProcess;
-  } else {
-    CloseHandle(process_info.hProcess);
-  }
-  return true;
-}
-
-bool LaunchApp(const CommandLine& cl,
-               bool wait, bool start_hidden, ProcessHandle* process_handle) {
-  return LaunchAppImpl(cl.command_line_string(), wait,
-                       start_hidden, false, process_handle);
+bool LaunchProcess(const CommandLine& cmdline,
+                   const LaunchOptions& options) {
+  return LaunchProcess(cmdline.command_line_string(), options);
 }
 
 // Attempts to kill the process identified by the given process

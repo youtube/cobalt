@@ -190,6 +190,79 @@ BASE_API ProcessId GetParentProcessId(ProcessHandle process);
 BASE_API void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
 #endif
 
+// TODO(evan): rename these to use StudlyCaps.
+typedef std::vector<std::pair<std::string, std::string> > environment_vector;
+typedef std::vector<std::pair<int, int> > file_handle_mapping_vector;
+
+// Options for launching a subprocess that are passed to LaunchApp().
+struct LaunchOptions {
+  LaunchOptions() : wait(false), process_handle(NULL),
+#if defined(OS_WIN)
+                    start_hidden(false), inherit_handles(false), as_user(NULL),
+                    empty_desktop_name(false)
+#else
+                    environ(NULL), fds_to_remap(NULL), new_process_group(false)
+#endif
+      {}
+
+  // If true, wait for the process to complete.
+  bool wait;
+
+  // If non-NULL, will be filled in with the handle of the launched process.
+  // NOTE: In this case, the caller is responsible for closing the handle so
+  //       that it doesn't leak!  Otherwise, the handle will be implicitly
+  //       closed.
+  // Not especially useful unless |wait| is false.
+  ProcessHandle* process_handle;
+
+#if defined(OS_WIN)
+  bool start_hidden;
+
+  // If true, the new process inherits handles from the parent.
+  bool inherit_handles;
+
+  // If non-NULL, runs as if the user represented by the token had launched it.
+  // Whether the application is visible on the interactive desktop depends on
+  // the token belonging to an interactive logon session.
+  //
+  // To avoid hard to diagnose problems, when specified this loads the
+  // environment variables associated with the user and if this operation fails
+  // the entire call fails as well.
+  UserTokenHandle as_user;
+
+  // If true, use an empty string for the desktop name.
+  bool empty_desktop_name;
+#else
+  // If non-NULL, set/unset environment variables.
+  // See documentation of AlterEnvironment().
+  // This pointer is owned by the caller and must live through the
+  // call to LaunchProcess().
+  const environment_vector* environ;
+
+  // If non-NULL, remap file descriptors according to the mapping of
+  // src fd->dest fd to propagate FDs into the child process.
+  // This pointer is owned by the caller and must live through the
+  // call to LaunchProcess().
+  const file_handle_mapping_vector* fds_to_remap;
+
+  // If true, start the process in a new process group, instead of
+  // inheriting the parent's process group.  The pgid of the child process
+  // will be the same as its pid.
+  bool new_process_group;
+#endif
+};
+
+// Launch a process via the command line |cmdline|.
+// See the documentation of LaunchOptions for details on launching options.
+//
+// Unix-specific notes:
+// - Before launching, all FDs open in the parent process will be marked as
+//   close-on-exec.
+// - If the first argument on the command line does not contain a slash,
+//   PATH will be searched.  (See man execvp.)
+BASE_API bool LaunchProcess(const CommandLine& cmdline,
+                            const LaunchOptions& options);
+
 #if defined(OS_WIN)
 
 enum IntegrityLevel {
@@ -204,87 +277,115 @@ enum IntegrityLevel {
 BASE_API bool GetProcessIntegrityLevel(ProcessHandle process,
                                        IntegrityLevel *level);
 
-// Runs the given application name with the given command line. Normally, the
-// first command line argument should be the path to the process, and don't
-// forget to quote it.
+// Windows-specific LaunchProcess that takes the command line as a
+// string.  Useful for situations where you need to control the
+// command line arguments directly, but prefer the CommandLine version
+// if launching Chrome itself.
 //
-// If wait is true, it will block and wait for the other process to finish,
-// otherwise, it will just continue asynchronously.
+// The first command line argument should be the path to the process,
+// and don't forget to quote it.
 //
 // Example (including literal quotes)
 //  cmdline = "c:\windows\explorer.exe" -foo "c:\bar\"
-//
-// If process_handle is non-NULL, the process handle of the launched app will be
-// stored there on a successful launch.
-// NOTE: In this case, the caller is responsible for closing the handle so
-//       that it doesn't leak!
-BASE_API bool LaunchApp(const std::wstring& cmdline,
-                        bool wait, bool start_hidden,
-                        ProcessHandle* process_handle);
+BASE_API bool LaunchProcess(const string16& cmdline,
+                            const LaunchOptions& options);
 
-// Same as LaunchApp, except allows the new process to inherit handles of the
-// parent process.
-BASE_API bool LaunchAppWithHandleInheritance(const std::wstring& cmdline,
-                                             bool wait, bool start_hidden,
-                                             ProcessHandle* process_handle);
+// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
+inline bool LaunchApp(const std::wstring& cmdline,
+                      bool wait, bool start_hidden,
+                      ProcessHandle* process_handle) {
+  LaunchOptions options;
+  options.wait = wait;
+  options.start_hidden = start_hidden;
+  options.process_handle = process_handle;
+  return LaunchProcess(cmdline, options);
+}
 
-// Runs the given application name with the given command line as if the user
-// represented by |token| had launched it. The caveats about |cmdline| and
-// |process_handle| explained for LaunchApp above apply as well.
-//
-// Whether the application is visible on the interactive desktop depends on
-// the token belonging to an interactive logon session.
-//
-// To avoid hard to diagnose problems, this function internally loads the
-// environment variables associated with the user and if this operation fails
-// the entire call fails as well.
-BASE_API bool LaunchAppAsUser(UserTokenHandle token,
-                              const std::wstring& cmdline,
-                              bool start_hidden,
-                              ProcessHandle* process_handle);
+// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
+inline bool LaunchAppWithHandleInheritance(const std::wstring& cmdline,
+                                           bool wait, bool start_hidden,
+                                           ProcessHandle* process_handle) {
+  LaunchOptions options;
+  options.wait = wait;
+  options.start_hidden = start_hidden;
+  options.process_handle = process_handle;
+  options.inherit_handles = true;
+  return LaunchProcess(cmdline, options);
+}
 
-// Has the same behavior as LaunchAppAsUser, but offers the boolean option to
-// use an empty string for the desktop name and a boolean for allowing the
-// child process to inherit handles from its parent.
-BASE_API bool LaunchAppAsUser(UserTokenHandle token,
-                              const std::wstring& cmdline,
-                              bool start_hidden, ProcessHandle* process_handle,
-                              bool empty_desktop_name, bool inherit_handles);
+// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
+inline bool LaunchAppAsUser(UserTokenHandle token,
+                            const std::wstring& cmdline,
+                            bool start_hidden,
+                            ProcessHandle* process_handle) {
+  LaunchOptions options;
+  options.start_hidden = start_hidden;
+  options.process_handle = process_handle;
+  options.as_user = token;
+  return LaunchProcess(cmdline, options);
+}
 
+// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
+inline bool LaunchAppAsUser(UserTokenHandle token,
+                            const std::wstring& cmdline,
+                            bool start_hidden, ProcessHandle* process_handle,
+                            bool empty_desktop_name, bool inherit_handles) {
+  LaunchOptions options;
+  options.start_hidden = start_hidden;
+  options.process_handle = process_handle;
+  options.as_user = token;
+  options.empty_desktop_name = empty_desktop_name;
+  options.inherit_handles = inherit_handles;
+  return LaunchProcess(cmdline, options);
+}
 
 #elif defined(OS_POSIX)
-// Runs the application specified in argv[0] with the command line argv.
-// Before launching all FDs open in the parent process will be marked as
-// close-on-exec.  |fds_to_remap| defines a mapping of src fd->dest fd to
-// propagate FDs into the child process.
-//
-// As above, if wait is true, execute synchronously. The pid will be stored
-// in process_handle if that pointer is non-null.
-//
-// Note that the first argument in argv must point to the executable filename.
-// If the filename is not fully specified, PATH will be searched.
-typedef std::vector<std::pair<int, int> > file_handle_mapping_vector;
-BASE_API bool LaunchApp(const std::vector<std::string>& argv,
-                        const file_handle_mapping_vector& fds_to_remap,
-                        bool wait, ProcessHandle* process_handle);
+// A POSIX-specific version of LaunchProcess that takes an argv array
+// instead of a CommandLine.  Useful for situations where you need to
+// control the command line arguments directly, but prefer the
+// CommandLine version if launching Chrome itself.
+BASE_API bool LaunchProcess(const std::vector<std::string>& argv,
+                            const LaunchOptions& options);
 
-// Similar to the above, but also (un)set environment variables in child process
-// through |environ|.
-typedef std::vector<std::pair<std::string, std::string> > environment_vector;
-BASE_API bool LaunchApp(const std::vector<std::string>& argv,
-                        const environment_vector& environ,
-                        const file_handle_mapping_vector& fds_to_remap,
-                        bool wait, ProcessHandle* process_handle);
+// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
+inline bool LaunchApp(const std::vector<std::string>& argv,
+                      const file_handle_mapping_vector& fds_to_remap,
+                      bool wait, ProcessHandle* process_handle) {
+  LaunchOptions options;
+  options.fds_to_remap = &fds_to_remap;
+  options.wait = wait;
+  options.process_handle = process_handle;
+  return LaunchProcess(argv, options);
+}
 
-// Similar to the above two methods, but starts the child process in a process
-// group of its own, instead of allowing it to inherit the parent's process
-// group. The pgid of the child process will be the same as its pid.
-BASE_API bool LaunchAppInNewProcessGroup(
+// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
+inline bool LaunchApp(const std::vector<std::string>& argv,
+                      const environment_vector& environ,
+                      const file_handle_mapping_vector& fds_to_remap,
+                      bool wait, ProcessHandle* process_handle) {
+  LaunchOptions options;
+  options.environ = &environ;
+  options.fds_to_remap = &fds_to_remap;
+  options.wait = wait;
+  options.process_handle = process_handle;
+  return LaunchProcess(argv, options);
+}
+
+// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
+inline bool LaunchAppInNewProcessGroup(
     const std::vector<std::string>& argv,
     const environment_vector& environ,
     const file_handle_mapping_vector& fds_to_remap,
     bool wait,
-    ProcessHandle* process_handle);
+    ProcessHandle* process_handle) {
+  LaunchOptions options;
+  options.environ = &environ;
+  options.fds_to_remap = &fds_to_remap;
+  options.wait = wait;
+  options.process_handle = process_handle;
+  options.new_process_group = true;
+  return LaunchProcess(argv, options);
+}
 
 // AlterEnvironment returns a modified environment vector, constructed from the
 // given environment and the list of changes given in |changes|. Each key in
@@ -298,9 +399,16 @@ BASE_API char** AlterEnvironment(const environment_vector& changes,
 #endif  // defined(OS_POSIX)
 
 // Executes the application specified by cl. This function delegates to one
-// of the above two platform-specific functions.
-BASE_API bool LaunchApp(const CommandLine& cl, bool wait, bool start_hidden,
-                        ProcessHandle* process_handle);
+// of the above platform-specific functions.
+// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
+inline bool LaunchApp(const CommandLine& cl, bool wait, bool start_hidden,
+                      ProcessHandle* process_handle) {
+  LaunchOptions options;
+  options.wait = wait;
+  options.process_handle = process_handle;
+
+  return LaunchProcess(cl, options);
+}
 
 // Executes the application specified by |cl| and wait for it to exit. Stores
 // the output (stdout) in |output|. Redirects stderr to /dev/null. Returns true
