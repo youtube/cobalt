@@ -7,7 +7,6 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
-#include "base/callback.h"
 #include "base/metrics/histogram.h"
 #include "base/stl_util-inl.h"
 #include "net/base/io_buffer.h"
