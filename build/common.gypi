@@ -21,6 +21,17 @@
           # Whether we're building a ChromeOS build.
           'chromeos%': 0,
 
+          # Whether the Views toolkit can use its Pure form when available
+          # or if it must only use GTK (the default at the moment).
+          # This is an intermediate step until all of Views is 'Pure',
+          # at which point we plan to remove those switches.
+          # This turns on the TOOLKIT_USES_PURE_VIEWS macro which is used
+          # to replace the corresponding GTK implementation in such a way
+          # that GTK and PureViews can coexist. This intermediate solution
+          # allow us to switch the view implementations using
+          # --use-pure-views, without breaking exiting gtk implementation.
+          'toolkit_uses_pure_views%': 0,
+
           # Disable touch support by default.
           'touchui%': 0,
 
@@ -29,6 +40,7 @@
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
+        'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
         'touchui%': '<(touchui)',
         'views_compositor%': '<(views_compositor)',
 
@@ -46,10 +58,17 @@
 
           # Set default value of toolkit_views on for Windows, Chrome OS
           # and the touch UI.
-          ['OS=="win" or chromeos==1 or touchui==1', {
+          ['OS=="win" or chromeos==1 or touchui==1 or toolkit_uses_pure_views==1', {
             'toolkit_views%': 1,
           }, {
             'toolkit_views%': 0,
+          }],
+
+          # Views are always Pure in Touch case
+          ['touchui==1', {
+            'toolkit_uses_pure_views%': 1,
+          }, {
+            'toolkit_uses_pure_views%': 0,
           }],
         ],
       },
@@ -59,6 +78,7 @@
       'touchui%': '<(touchui)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
+      'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
       'views_compositor%': '<(views_compositor)',
 
       # We used to provide a variable for changing how libraries were built.
@@ -220,6 +240,7 @@
     'host_arch%': '<(host_arch)',
     'library%': 'static_library',
     'toolkit_views%': '<(toolkit_views)',
+    'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
     'views_compositor%': '<(views_compositor)',
     'os_posix%': '<(os_posix)',
     'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',
@@ -569,6 +590,9 @@
       ['toolkit_views==1', {
         'grit_defines': ['-D', 'toolkit_views'],
       }],
+      ['toolkit_uses_pure_views==1', {
+        'grit_defines': ['-D', 'toolkit_uses_pure_views'],
+      }],
       ['touchui==1', {
         'grit_defines': ['-D', 'touchui'],
       }],
@@ -661,6 +685,9 @@
       }],
       ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
+      }],
+      ['toolkit_uses_pure_views==1', {
+        'defines': ['TOOLKIT_USES_PURE_VIEWS=1'],
       }],
       ['views_compositor==1', {
         'defines': ['VIEWS_COMPOSITOR=1'],
