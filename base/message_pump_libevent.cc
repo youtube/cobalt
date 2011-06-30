@@ -107,7 +107,6 @@ void MessagePumpLibevent::FileDescriptorWatcher::OnFileCanWriteWithoutBlocking(
 MessagePumpLibevent::MessagePumpLibevent()
     : keep_running_(true),
       in_run_(false),
-      processed_io_events_(false),
       event_base_(event_base_new()),
       wakeup_pipe_in_(-1),
       wakeup_pipe_out_(-1) {
@@ -227,10 +226,6 @@ void MessagePumpLibevent::Run(Delegate* delegate) {
     if (!keep_running_)
       break;
 
-    event_base_loop(event_base_, EVLOOP_NONBLOCK);
-    did_work |= processed_io_events_;
-    processed_io_events_ = false;
-
     did_work |= delegate->DoDelayedWork(&delayed_work_time_);
     if (!keep_running_)
       break;
@@ -300,7 +295,6 @@ void MessagePumpLibevent::WillProcessIOEvent() {
 
 void MessagePumpLibevent::DidProcessIOEvent() {
   FOR_EACH_OBSERVER(IOObserver, io_observers_, DidProcessIOEvent());
-  processed_io_events_ = true;
 }
 
 bool MessagePumpLibevent::Init() {
