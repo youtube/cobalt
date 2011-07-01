@@ -75,7 +75,6 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
 
   virtual int OnStartOpenConnection(net::SocketStream* socket,
                                     net::CompletionCallback* callback) {
-    connection_callback_ = callback;
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_START_OPEN_CONNECTION,
                           socket, 0, std::string(), NULL, callback));
@@ -139,9 +138,6 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
     username_ = username;
     password_ = password;
   }
-  void CompleteConnection(int result) {
-    connection_callback_->Run(result);
-  }
 
   const std::vector<SocketStreamEvent>& GetSeenEvents() const {
     return events_;
@@ -156,7 +152,6 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
   base::Callback<void(SocketStreamEvent*)> on_close_;
   base::Callback<void(SocketStreamEvent*)> on_auth_required_;
   net::CompletionCallback* callback_;
-  net::CompletionCallback* connection_callback_;
 
   string16 username_;
   string16 password_;
@@ -215,16 +210,8 @@ class SocketStreamTest : public PlatformTest {
     return net::ERR_PROTOCOL_SWITCHED;
   }
 
-  virtual int DoIOPending(SocketStreamEvent* event) {
-    io_callback_.Run(net::OK);
-    return net::ERR_IO_PENDING;
-  }
-
   static const char kWebSocketHandshakeRequest[];
   static const char kWebSocketHandshakeResponse[];
-
- protected:
-  TestCompletionCallback io_callback_;
 
  private:
   std::string handshake_request_;
@@ -386,72 +373,6 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
   // TODO(eroman): Add back NetLogTest here...
 }
 
-TEST_F(SocketStreamTest, IOPending) {
-  TestCompletionCallback callback;
-
-  scoped_ptr<SocketStreamEventRecorder> delegate(
-      new SocketStreamEventRecorder(&callback));
-  delegate->SetOnConnected(base::Bind(
-      &SocketStreamTest::DoSendWebSocketHandshake, base::Unretained(this)));
-  delegate->SetOnReceivedData(base::Bind(
-      &SocketStreamTest::DoCloseFlushPendingWriteTest,
-      base::Unretained(this)));
-  delegate->SetOnStartOpenConnection(base::Bind(
-      &SocketStreamTest::DoIOPending, base::Unretained(this)));
-
-  MockHostResolver host_resolver;
-
-  scoped_refptr<SocketStream> socket_stream(
-      new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
-
-  socket_stream->set_context(new TestURLRequestContext());
-  socket_stream->SetHostResolver(&host_resolver);
-
-  MockWrite data_writes[] = {
-    MockWrite(SocketStreamTest::kWebSocketHandshakeRequest),
-    MockWrite(true, "\0message1\xff", 10),
-    MockWrite(true, "\0message2\xff", 10)
-  };
-  MockRead data_reads[] = {
-    MockRead(SocketStreamTest::kWebSocketHandshakeResponse),
-    // Server doesn't close the connection after handshake.
-    MockRead(true, ERR_IO_PENDING)
-  };
-  AddWebSocketMessage("message1");
-  AddWebSocketMessage("message2");
-
-  scoped_refptr<DelayedSocketData> data_provider(
-      new DelayedSocketData(1,
-                            data_reads, arraysize(data_reads),
-                            data_writes, arraysize(data_writes)));
-
-  MockClientSocketFactory* mock_socket_factory =
-      GetMockClientSocketFactory();
-  mock_socket_factory->AddSocketDataProvider(data_provider.get());
-
-  socket_stream->SetClientSocketFactory(mock_socket_factory);
-
-  socket_stream->Connect();
-  io_callback_.WaitForResult();
-  EXPECT_EQ(net::SocketStream::STATE_RESOLVE_PROTOCOL_COMPLETE,
-            socket_stream->next_state_);
-  delegate->CompleteConnection(net::OK);
-
-  EXPECT_EQ(net::OK, callback.WaitForResult());
-
-  const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
-  ASSERT_EQ(7U, events.size());
-
-  EXPECT_EQ(SocketStreamEvent::EVENT_START_OPEN_CONNECTION,
-            events[0].event_type);
-  EXPECT_EQ(SocketStreamEvent::EVENT_CONNECTED, events[1].event_type);
-  EXPECT_EQ(SocketStreamEvent::EVENT_SENT_DATA, events[2].event_type);
-  EXPECT_EQ(SocketStreamEvent::EVENT_RECEIVED_DATA, events[3].event_type);
-  EXPECT_EQ(SocketStreamEvent::EVENT_SENT_DATA, events[4].event_type);
-  EXPECT_EQ(SocketStreamEvent::EVENT_SENT_DATA, events[5].event_type);
-  EXPECT_EQ(SocketStreamEvent::EVENT_CLOSE, events[6].event_type);
-}
-
 TEST_F(SocketStreamTest, SwitchToSpdy) {
   TestCompletionCallback callback;
 
@@ -469,38 +390,6 @@ TEST_F(SocketStreamTest, SwitchToSpdy) {
   socket_stream->SetHostResolver(&host_resolver);
 
   socket_stream->Connect();
-
-  EXPECT_EQ(net::OK, callback.WaitForResult());
-
-  const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
-  ASSERT_EQ(2U, events.size());
-
-  EXPECT_EQ(SocketStreamEvent::EVENT_START_OPEN_CONNECTION,
-            events[0].event_type);
-  EXPECT_EQ(SocketStreamEvent::EVENT_CLOSE, events[1].event_type);
-}
-
-TEST_F(SocketStreamTest, SwitchAfterPending) {
-  TestCompletionCallback callback;
-
-  scoped_ptr<SocketStreamEventRecorder> delegate(
-      new SocketStreamEventRecorder(&callback));
-  delegate->SetOnStartOpenConnection(base::Bind(
-      &SocketStreamTest::DoIOPending, base::Unretained(this)));
-
-  MockHostResolver host_resolver;
-
-  scoped_refptr<SocketStream> socket_stream(
-      new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
-
-  socket_stream->set_context(new TestURLRequestContext());
-  socket_stream->SetHostResolver(&host_resolver);
-
-  socket_stream->Connect();
-  io_callback_.WaitForResult();
-  EXPECT_EQ(net::SocketStream::STATE_RESOLVE_PROTOCOL_COMPLETE,
-            socket_stream->next_state_);
-  delegate->CompleteConnection(net::ERR_PROTOCOL_SWITCHED);
 
   int result = callback.WaitForResult();
 
