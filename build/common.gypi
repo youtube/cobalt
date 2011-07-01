@@ -976,7 +976,6 @@
           'COPY_PHASE_STRIP': 'NO',
           'GCC_OPTIMIZATION_LEVEL': '<(mac_debug_optimization)',
           'OTHER_CFLAGS': [
-            '-fstack-protector-all',  # Implies -fstack-protector
             '<@(debug_extra_cflags)',
           ],
         },
@@ -1014,6 +1013,13 @@
             'cflags': [
               '<@(debug_extra_cflags)',
             ],
+          }],
+          ['release_valgrind_build==0', {
+            'xcode_settings': {
+              'OTHER_CFLAGS': [
+                '-fstack-protector-all',  # Implies -fstack-protector
+              ],
+            },
           }],
         ],
       },
