@@ -144,6 +144,9 @@ class BASE_API MessagePumpLibevent : public MessagePump {
   // This flag is set when inside Run.
   bool in_run_;
 
+  // This flag is set if libevent has processed I/O events.
+  bool processed_io_events_;
+
   // The time at which we should call DoDelayedWork.
   TimeTicks delayed_work_time_;
 
