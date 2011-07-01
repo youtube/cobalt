@@ -451,6 +451,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       handshake_callback_called_(false),
       completed_handshake_(false),
       eset_mitm_detected_(false),
+      kaspersky_mitm_detected_(false),
       predicted_cert_chain_correct_(false),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
@@ -644,6 +645,7 @@ void SSLClientSocketNSS::Disconnect() {
   ssl_connection_status_ = 0;
   completed_handshake_   = false;
   eset_mitm_detected_    = false;
+  kaspersky_mitm_detected_ = false;
   start_cert_verification_time_ = base::TimeTicks();
   predicted_cert_chain_correct_ = false;
   nss_bufs_              = NULL;
@@ -1391,6 +1393,8 @@ int SSLClientSocketNSS::DoHandshake() {
     if (handshake_callback_called_) {
       if (eset_mitm_detected_) {
         net_error = ERR_ESET_ANTI_VIRUS_SSL_INTERCEPTION;
+      } else if (kaspersky_mitm_detected_) {
+        net_error = ERR_KASPERSKY_ANTI_VIRUS_SSL_INTERCEPTION;
       } else {
         // We need to see if the predicted certificate chain (in
         // |ssl_host_info_->state().certs) matches the actual certificate chain
@@ -1873,39 +1877,42 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
   SECStatus rv = SSL_OptionGet(socket, SSL_ENABLE_FALSE_START, &false_start);
   DCHECK_EQ(SECSuccess, rv);
 
-  if (false_start) {
-    SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
-
-    // ESET anti-virus is capable of intercepting HTTPS connections on Windows.
-    // However, it is False Start intolerant and causes the connections to hang
-    // forever. We detect ESET by the issuer of the leaf certificate and set a
-    // flag to return a specific error, giving the user instructions for
-    // reconfiguring ESET.
-    CERTCertificate* cert = SSL_PeerCertificate(that->nss_fd_);
-    if (cert) {
-      char* common_name = CERT_GetCommonName(&cert->issuer);
-      if (common_name) {
-        if (strcmp(common_name, "ESET_RootSslCert") == 0)
-          that->eset_mitm_detected_ = true;
-        if (strcmp(common_name,
-                   "ContentWatch Root Certificate Authority") == 0) {
-          // This is NetNanny. NetNanny are updating their product so we
-          // silently disable False Start for now.
-          rv = SSL_OptionSet(socket, SSL_ENABLE_FALSE_START, PR_FALSE);
-          DCHECK_EQ(SECSuccess, rv);
-          false_start = 0;
-        }
-        PORT_Free(common_name);
+  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+  CERTCertificate* cert = SSL_PeerCertificate(that->nss_fd_);
+  if (cert) {
+    char* common_name = CERT_GetCommonName(&cert->issuer);
+    if (common_name) {
+      if (false_start && strcmp(common_name, "ESET_RootSslCert") == 0)
+        // ESET anti-virus is capable of intercepting HTTPS connections on
+        // Windows.  However, it is False Start intolerant and causes the
+        // connections to hang forever. We detect ESET by the issuer of the
+        // leaf certificate and set a flag to return a specific error, giving
+        // the user instructions for reconfiguring ESET.
+        that->eset_mitm_detected_ = true;
+      if (strcmp(common_name,
+                 "Kaspersky Anti-Virus personal root certificate") == 0) {
+        // Kaspersky has an unknown intolerance to our HTTPS handshakes and so
+        // we detect and give a more helpful error message.
+        that->kaspersky_mitm_detected_ = true;
       }
-      CERT_DestroyCertificate(cert);
+      if (false_start &&
+          strcmp(common_name, "ContentWatch Root Certificate Authority") == 0) {
+        // This is NetNanny. NetNanny are updating their product so we
+        // silently disable False Start for now.
+        rv = SSL_OptionSet(socket, SSL_ENABLE_FALSE_START, PR_FALSE);
+        DCHECK_EQ(SECSuccess, rv);
+        false_start = 0;
+      }
+      PORT_Free(common_name);
     }
+    CERT_DestroyCertificate(cert);
+  }
 
-    if (false_start && !that->handshake_callback_called_) {
-      that->corked_ = true;
-      that->uncork_timer_.Start(
-          base::TimeDelta::FromMilliseconds(kCorkTimeoutMs),
-          that, &SSLClientSocketNSS::UncorkAfterTimeout);
-    }
+  if (false_start && !that->handshake_callback_called_) {
+    that->corked_ = true;
+    that->uncork_timer_.Start(
+        base::TimeDelta::FromMilliseconds(kCorkTimeoutMs),
+        that, &SSLClientSocketNSS::UncorkAfterTimeout);
   }
 #endif
 
