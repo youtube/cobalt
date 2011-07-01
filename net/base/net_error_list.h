@@ -187,6 +187,7 @@ NET_ERROR(MANDATORY_PROXY_CONFIGURATION_FAILED, -131)
 // We detected an ESET product intercepting our HTTPS connections. Since these
 // products are False Start intolerant, we return this error so that we can
 // give the user a helpful error message rather than have the connection hang.
+// See also: KASPERSKY_ANTI_VIRUS_SSL_INTERCEPTION
 NET_ERROR(ESET_ANTI_VIRUS_SSL_INTERCEPTION, -132)
 
 // We've hit the max socket limit for the socket pool while preconnecting.  We
@@ -231,6 +232,13 @@ NET_ERROR(SSL_CLIENT_AUTH_SIGNATURE_FAILED, -141)
 // which exceeds size threshold).
 NET_ERROR(MSG_TOO_BIG, -142)
 
+// We detected a Kaspersky product intercepting our HTTPS connections. This
+// interacts badly with our SSL stack for unknown reasons (disabling False
+// Start doesn't help). We return this error so that we can give the user a
+// helpful error message rather than have the connection hang.
+// See also: ESET_ANTI_VIRUS_SSL_INTERCEPTION
+NET_ERROR(KASPERSKY_ANTI_VIRUS_SSL_INTERCEPTION, -143)
+
 // Connection was aborted for switching to another ptotocol.
 // WebSocket abort SocketStream connection when alternate protocol is found.
 NET_ERROR(PROTOCOL_SWITCHED, -146)
@@ -238,7 +246,7 @@ NET_ERROR(PROTOCOL_SWITCHED, -146)
 // Returned when attempting to bind an address that is already in use.
 NET_ERROR(ADDRESS_IN_USE, -147)
 
-// NOTE: error codes 143-145 are available, please use those before adding
+// NOTE: error codes 144-145 are available, please use those before adding
 // 148.
 
 // Certificate error codes
