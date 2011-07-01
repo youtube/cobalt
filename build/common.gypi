@@ -1538,6 +1538,19 @@
           ['_mac_bundle', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-ObjC']},
           }],
+          ['_type=="executable" and release_valgrind_build==0', {
+            # Turn on position-independence (ASLR) for executables. When PIE
+            # is on for the Chrome executables, the framework will also be
+            # subject to ASLR.
+            # Don't do this when building for Valgrind because Valgrind
+            # doesn't understand slide. TODO: Make Valgrind on Mac OS X
+            # understand slide, and get rid of the Valgrind check.
+            'xcode_settings': {
+              'OTHER_LDFLAGS': [
+                '-Wl,-pie',  # Position-independent executable (MH_PIE)
+              ],
+            },
+          }],
           ['(_type=="executable" or _type=="shared_library" or \
              _type=="loadable_module") and mac_strip!=0', {
             'target_conditions': [
