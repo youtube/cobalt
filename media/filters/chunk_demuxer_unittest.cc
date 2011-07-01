@@ -57,13 +57,7 @@ class ChunkDemuxerTest : public testing::Test{
   }
 
   virtual ~ChunkDemuxerTest() {
-    if (demuxer_.get())
-      demuxer_->Shutdown();
-    if (format_context_.streams) {
-      delete[] format_context_.streams;
-      format_context_.streams = NULL;
-      format_context_.nb_streams = 0;
-    }
+    ShutdownDemuxer();
   }
 
   void ReadFile(const std::string& name, scoped_array<uint8>* buffer,
@@ -140,31 +134,7 @@ class ChunkDemuxerTest : public testing::Test{
     }
   }
 
-  void SetupAVFormatContext(bool has_audio, bool has_video) {
-    int i = 0;
-    format_context_.streams = new AVStream *[MAX_CODECS_INDEX];
-    if (has_audio) {
-      format_context_.streams[i] = &streams_[i];
-      streams_[i].codec = &codecs_[AUDIO];
-      streams_[i].duration = 100;
-      streams_[i].time_base.den = base::Time::kMicrosecondsPerSecond;
-      streams_[i].time_base.num = 1;
-      i++;
-    }
-
-    if (has_video) {
-      format_context_.streams[i] = &streams_[i];
-      streams_[i].codec = &codecs_[VIDEO];
-      streams_[i].duration = 100;
-      streams_[i].time_base.den = base::Time::kMicrosecondsPerSecond;
-      streams_[i].time_base.num = 1;
-      i++;
-    }
-
-    format_context_.nb_streams = i;
-  }
-
-void InitDemuxer(bool has_audio, bool has_video) {
+  void InitDemuxer(bool has_audio, bool has_video) {
     EXPECT_CALL(mock_ffmpeg_, AVOpenInputFile(_, _, NULL, 0, NULL))
         .WillOnce(DoAll(SetArgumentPointee<0>(&format_context_),
                         Return(0)));
@@ -187,6 +157,18 @@ void InitDemuxer(bool has_audio, bool has_video) {
               has_audio || has_video);
   }
 
+  void ShutdownDemuxer() {
+    if (demuxer_) {
+      demuxer_->Shutdown();
+    }
+
+    if (format_context_.streams) {
+      delete[] format_context_.streams;
+      format_context_.streams = NULL;
+      format_context_.nb_streams = 0;
+    }
+  }
+
   void AddSimpleBlock(ClusterBuilder* cb, int track_num, int64 timecode) {
     uint8 data[] = { 0x00 };
     cb->AddSimpleBlock(track_num, timecode, 0, data, sizeof(data));
@@ -203,6 +185,30 @@ void InitDemuxer(bool has_audio, bool has_video) {
   scoped_refptr<ChunkDemuxer> demuxer_;
 
  private:
+  void SetupAVFormatContext(bool has_audio, bool has_video) {
+    int i = 0;
+    format_context_.streams = new AVStream*[MAX_CODECS_INDEX];
+    if (has_audio) {
+      format_context_.streams[i] = &streams_[i];
+      streams_[i].codec = &codecs_[AUDIO];
+      streams_[i].duration = 100;
+      streams_[i].time_base.den = base::Time::kMicrosecondsPerSecond;
+      streams_[i].time_base.num = 1;
+      i++;
+    }
+
+    if (has_video) {
+      format_context_.streams[i] = &streams_[i];
+      streams_[i].codec = &codecs_[VIDEO];
+      streams_[i].duration = 100;
+      streams_[i].time_base.den = base::Time::kMicrosecondsPerSecond;
+      streams_[i].time_base.num = 1;
+      i++;
+    }
+
+    format_context_.nb_streams = i;
+  }
+
   DISALLOW_COPY_AND_ASSIGN(ChunkDemuxerTest);
 };
 
@@ -218,7 +224,7 @@ TEST_F(ChunkDemuxerTest, TestInit) {
               has_audio);
     EXPECT_EQ(demuxer_->GetStream(DemuxerStream::VIDEO).get() != NULL,
               has_video);
-    demuxer_->Shutdown();
+    ShutdownDemuxer();
     demuxer_ = NULL;
   }
 }
