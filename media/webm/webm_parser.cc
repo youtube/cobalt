@@ -368,8 +368,8 @@ static int ParseElements(const ElementIdInfo* id_info,
     return -1;
 
   while (cur_size > 0) {
-    int id;
-    int64 element_size;
+    int id = 0;
+    int64 element_size = 0;
     int res = ParseWebMElementHeader(cur, cur_size, &id, &element_size);
 
     if (res < 0)
