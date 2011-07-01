@@ -234,6 +234,10 @@ void SocketStream::DetachDelegate() {
   Close();
 }
 
+const ProxyServer& SocketStream::proxy_server() const {
+  return proxy_info_.proxy_server();
+}
+
 void SocketStream::SetHostResolver(HostResolver* host_resolver) {
   DCHECK(host_resolver);
   host_resolver_ = host_resolver;
@@ -401,6 +405,12 @@ void SocketStream::DoLoop(int result) {
       case STATE_RESOLVE_HOST_COMPLETE:
         result = DoResolveHostComplete(result);
         break;
+      case STATE_RESOLVE_PROTOCOL:
+        result = DoResolveProtocol(result);
+        break;
+      case STATE_RESOLVE_PROTOCOL_COMPLETE:
+        result = DoResolveProtocolComplete(result);
+        break;
       case STATE_TCP_CONNECT:
         result = DoTcpConnect(result);
         break;
@@ -452,6 +462,8 @@ void SocketStream::DoLoop(int result) {
         Finish(result);
         return;
     }
+    if (state == STATE_RESOLVE_PROTOCOL && result == ERR_PROTOCOL_SWITCHED)
+      continue;
     // If the connection is not established yet and had actual errors,
     // close the connection.
     if (state != STATE_READ_WRITE && result < ERR_IO_PENDING) {
@@ -545,28 +557,40 @@ int SocketStream::DoResolveHost() {
 }
 
 int SocketStream::DoResolveHostComplete(int result) {
-  if (result == OK && delegate_) {
-    result = delegate_->OnStartOpenConnection(this, &io_callback_);
-    if (result == ERR_PROTOCOL_SWITCHED) {
-      next_state_ = STATE_CLOSE;
-      metrics_->OnCountWireProtocolType(
-          SocketStreamMetrics::WIRE_PROTOCOL_SPDY);
-    } else {
-      next_state_ = STATE_TCP_CONNECT;
-      metrics_->OnCountWireProtocolType(
-          SocketStreamMetrics::WIRE_PROTOCOL_WEBSOCKET);
-      if (result == ERR_IO_PENDING)
-        metrics_->OnWaitConnection();
-    }
-  } else {
+  if (result == OK && delegate_)
+    next_state_ = STATE_RESOLVE_PROTOCOL;
+  else
     next_state_ = STATE_CLOSE;
-  }
   // TODO(ukai): if error occured, reconsider proxy after error.
   return result;
 }
 
-const ProxyServer& SocketStream::proxy_server() const {
-  return proxy_info_.proxy_server();
+int SocketStream::DoResolveProtocol(int result) {
+  DCHECK_EQ(OK, result);
+  next_state_ = STATE_RESOLVE_PROTOCOL_COMPLETE;
+  result = delegate_->OnStartOpenConnection(this, &io_callback_);
+  if (result == ERR_IO_PENDING)
+    metrics_->OnWaitConnection();
+  else if (result != OK && result != ERR_PROTOCOL_SWITCHED)
+    next_state_ = STATE_CLOSE;
+  return result;
+}
+
+int SocketStream::DoResolveProtocolComplete(int result) {
+  DCHECK_NE(ERR_IO_PENDING, result);
+
+  if (result == ERR_PROTOCOL_SWITCHED) {
+    next_state_ = STATE_CLOSE;
+    metrics_->OnCountWireProtocolType(
+        SocketStreamMetrics::WIRE_PROTOCOL_SPDY);
+  } else if (result == OK) {
+    next_state_ = STATE_TCP_CONNECT;
+    metrics_->OnCountWireProtocolType(
+        SocketStreamMetrics::WIRE_PROTOCOL_WEBSOCKET);
+  } else {
+    next_state_ = STATE_CLOSE;
+  }
+  return result;
 }
 
 int SocketStream::DoTcpConnect(int result) {
