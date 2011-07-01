@@ -124,7 +124,6 @@ class HttpNetworkTransactionTest : public PlatformTest {
   };
 
   virtual void SetUp() {
-    disabled_spdy_session_domain_verification_ = false;
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
     MessageLoop::current()->RunAllPending();
     spdy::SpdyFramer::set_enable_compression_default(false);
@@ -139,10 +138,6 @@ class HttpNetworkTransactionTest : public PlatformTest {
     PlatformTest::TearDown();
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
     MessageLoop::current()->RunAllPending();
-    if (disabled_spdy_session_domain_verification_) {
-      SpdySession::SetDomainVerification(
-          spdy_session_domain_verification_old_value_);
-    }
   }
 
   void KeepAliveConnectionResendRequestTest(const MockRead& read_failure);
@@ -211,15 +206,6 @@ class HttpNetworkTransactionTest : public PlatformTest {
                                              int expected_status);
 
   void ConnectStatusHelper(const MockRead& status);
-
-  void DisableSpdySessionDomainVerification() {
-    disabled_spdy_session_domain_verification_ = true;
-    spdy_session_domain_verification_old_value_ =
-        SpdySession::SetDomainVerification(false);
-  }
-
-  bool disabled_spdy_session_domain_verification_;
-  bool spdy_session_domain_verification_old_value_;
 };
 
 // Fill |str| with a long header list that consumes >= |size| bytes.
@@ -8719,7 +8705,6 @@ TEST_F(HttpNetworkTransactionTest, ClientAuthCertCache_Proxy_Fail) {
 TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::set_next_protos(kExpectedNPNString);
-  DisableSpdySessionDomainVerification();
 
   // Set up a special HttpNetworkSession with a MockCachingHostResolver.
   SessionDependencies session_deps;
@@ -8734,6 +8719,8 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
       session_deps.http_auth_handler_factory.get();
   params.net_log = session_deps.net_log;
   scoped_refptr<HttpNetworkSession> session(new HttpNetworkSession(params));
+  SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
+  pool_peer.DisableDomainAuthenticationVerification();
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
@@ -8861,7 +8848,6 @@ TEST_F(HttpNetworkTransactionTest,
        UseIPConnectionPoolingWithHostCacheExpiration) {
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::set_next_protos(kExpectedNPNString);
-  DisableSpdySessionDomainVerification();
 
   // Set up a special HttpNetworkSession with a OneTimeCachingHostResolver.
   SessionDependencies session_deps;
@@ -8876,6 +8862,8 @@ TEST_F(HttpNetworkTransactionTest,
       session_deps.http_auth_handler_factory.get();
   params.net_log = session_deps.net_log;
   scoped_refptr<HttpNetworkSession> session(new HttpNetworkSession(params));
+  SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
+  pool_peer.DisableDomainAuthenticationVerification();
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
