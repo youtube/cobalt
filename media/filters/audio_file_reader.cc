@@ -71,7 +71,7 @@ bool AudioFileReader::Open() {
   codec_context_ = NULL;
   for (size_t i = 0; i < format_context_->nb_streams; ++i) {
     AVCodecContext* c = format_context_->streams[i]->codec;
-    if (c->codec_type == CODEC_TYPE_AUDIO) {
+    if (c->codec_type == AVMEDIA_TYPE_AUDIO) {
       codec_context_ = c;
       break;
     }

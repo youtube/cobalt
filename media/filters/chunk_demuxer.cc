@@ -534,9 +534,9 @@ bool ChunkDemuxer::SetupStreams() {
   for (size_t i = 0; i < format_context_->nb_streams; ++i) {
     AVStream* stream = format_context_->streams[i];
     AVCodecContext* codec_context = stream->codec;
-    CodecType codec_type = codec_context->codec_type;
+    AVMediaType codec_type = codec_context->codec_type;
 
-    if (codec_type == CODEC_TYPE_AUDIO &&
+    if (codec_type == AVMEDIA_TYPE_AUDIO &&
         stream->codec->codec_id == CODEC_ID_VORBIS &&
         !audio_.get()) {
       audio_ = new ChunkDemuxerStream(DemuxerStream::AUDIO, stream);
@@ -544,7 +544,7 @@ bool ChunkDemuxer::SetupStreams() {
       continue;
     }
 
-    if (codec_type == CODEC_TYPE_VIDEO &&
+    if (codec_type == AVMEDIA_TYPE_VIDEO &&
         stream->codec->codec_id == CODEC_ID_VP8 &&
         !video_.get()) {
       video_ = new ChunkDemuxerStream(DemuxerStream::VIDEO, stream);

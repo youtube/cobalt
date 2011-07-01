@@ -65,10 +65,10 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
 
   // Determine our media format.
   switch (stream->codec->codec_type) {
-    case CODEC_TYPE_AUDIO:
+    case AVMEDIA_TYPE_AUDIO:
       type_ = AUDIO;
       break;
-    case CODEC_TYPE_VIDEO:
+    case AVMEDIA_TYPE_VIDEO:
       type_ = VIDEO;
       break;
     default:
@@ -361,7 +361,7 @@ int FFmpegDemuxer::Read(int size, uint8* data) {
   // If read has ever failed, return with an error.
   // TODO(hclam): use a more meaningful constant as error.
   if (read_has_failed_)
-    return AVERROR_IO;
+    return AVERROR(EIO);
 
   // Even though FFmpeg defines AVERROR_EOF, it's not to be used with I/O
   // routines.  Instead return 0 for any read at or past EOF.
@@ -385,7 +385,7 @@ int FFmpegDemuxer::Read(int size, uint8* data) {
 
     // Returns with a negative number to signal an error to FFmpeg.
     read_has_failed_ = true;
-    return AVERROR_IO;
+    return AVERROR(EIO);
   }
   read_position_ += last_read_bytes;
 
@@ -471,8 +471,8 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   bool no_supported_streams = true;
   for (size_t i = 0; i < format_context_->nb_streams; ++i) {
     AVCodecContext* codec_context = format_context_->streams[i]->codec;
-    CodecType codec_type = codec_context->codec_type;
-    if (codec_type == CODEC_TYPE_AUDIO || codec_type == CODEC_TYPE_VIDEO) {
+    AVMediaType codec_type = codec_context->codec_type;
+    if (codec_type == AVMEDIA_TYPE_AUDIO || codec_type == AVMEDIA_TYPE_VIDEO) {
       AVStream* stream = format_context_->streams[i];
       // WebM is currently strictly VP8 and Vorbis.
       if (kDemuxerIsWebm && (stream->codec->codec_id != CODEC_ID_VP8 &&
@@ -647,7 +647,7 @@ void FFmpegDemuxer::DisableAudioStreamTask() {
     // look for such reference, and this will result in deleting the
     // audio packets after they are demuxed.
     if (packet_streams_[i]->GetAVStream()->codec->codec_type ==
-        CODEC_TYPE_AUDIO) {
+        AVMEDIA_TYPE_AUDIO) {
       packet_streams_[i] = NULL;
     }
   }
