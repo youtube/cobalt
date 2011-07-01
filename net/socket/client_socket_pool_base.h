@@ -51,7 +51,7 @@ namespace net {
 class ClientSocketHandle;
 
 // Returns the client socket reuse policy.
-int GetSocketReusePolicy();
+NET_TEST int GetSocketReusePolicy();
 
 // Sets the client socket reuse policy.
 // NOTE: 'policy' should be a valid ClientSocketReusePolicy enum value.
