@@ -25,11 +25,11 @@ static FilePath::CharType* GetDLLName(FFmpegDLLKeys dll_key) {
   // TODO(ajwong): Do we want to lock to a specific ffmpeg version?
   switch (dll_key) {
     case FILE_LIBAVCODEC:
-      return FILE_PATH_LITERAL("avcodec-52.dll");
+      return FILE_PATH_LITERAL("avcodec-53.dll");
     case FILE_LIBAVFORMAT:
-      return FILE_PATH_LITERAL("avformat-52.dll");
+      return FILE_PATH_LITERAL("avformat-53.dll");
     case FILE_LIBAVUTIL:
-      return FILE_PATH_LITERAL("avutil-50.dll");
+      return FILE_PATH_LITERAL("avutil-51.dll");
     default:
       LOG(DFATAL) << "Invalid DLL key requested: " << dll_key;
       return FILE_PATH_LITERAL("");
