@@ -9,7 +9,6 @@
   'targets': [
     {
       'target_name': 'net',
-      'type': 'static_library',
       'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
@@ -790,6 +789,7 @@
           },
         ],
         [ 'OS == "win"', {
+            'type': '<(component)',
             'sources!': [
               'http/http_auth_handler_ntlm_portable.cc',
               'socket/tcp_client_socket_libevent.cc',
@@ -805,8 +805,8 @@
               'third_party/nss/ssl.gyp:ssl',
               'tld_cleanup',
             ],
-          },
-          {  # else: OS != "win"
+          }, { # else: OS != "win"
+            'type': 'static_library',
             'sources!': [
               'base/winsock_init.cc',
               'base/winsock_init.h',
@@ -817,6 +817,24 @@
             ],
           },
         ],
+        [ 'OS == "win" and component == "shared_library"', {
+          'defines': [
+            'NET_DLL',
+            'NET_IMPLEMENTATION',
+          ],
+          'msvs_disabled_warnings': [
+            # class 'std::xx' needs to have dll-interface.
+            4251,
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'NET_DLL',
+            ],
+            'msvs_disabled_warnings': [
+              4251,
+            ],
+          },
+        }],
         [ 'OS == "mac"', {
             'dependencies': [
               '../third_party/nss/nss.gyp:nspr',
