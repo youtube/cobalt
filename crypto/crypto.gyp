@@ -92,7 +92,6 @@
               'hmac_nss.cc',
               'nss_util.cc',
               'nss_util.h',
-              'openpgp_symmetric_encryption_nss.cc',
               'rsa_private_key_nss.cc',
               'secure_hash_default.cc',
               'signature_creator_nss.cc',
@@ -107,6 +106,7 @@
             'sources!': [
               'encryptor_openssl.cc',
               'hmac_openssl.cc',
+              'openpgp_symmetric_encryption_openssl.cc',
               'openssl_util.cc',
               'openssl_util.h',
               'rsa_private_key_openssl.cc',
@@ -141,7 +141,7 @@
         'nss_util.cc',
         'nss_util.h',
         'nss_util_internal.h',
-        'openpgp_symmetric_encryption_nss.cc',
+        'openpgp_symmetric_encryption_openssl.cc',
         'openpgp_symmetric_encryption.h',
         'openssl_util.cc',
         'openssl_util.h',
@@ -196,7 +196,7 @@
         'signature_creator_unittest.cc',
         'signature_verifier_unittest.cc',
         'symmetric_key_unittest.cc',
-        'openpgp_symmetric_encryption_nss_unittest.cc',
+        'openpgp_symmetric_encryption_test_openssl.cc',
       ],
       'dependencies': [
         'crypto',
@@ -230,8 +230,11 @@
         }],
         [ 'use_openssl==1', {
           'sources!': [
-            'openpgp_symmetric_encryption_test_nss.cc',
             'rsa_private_key_nss_unittest.cc',
+          ],
+        }, {
+          'sources!': [
+            'openpgp_symmetric_encryption_test_openssl.cc',
           ],
         }],
       ],
