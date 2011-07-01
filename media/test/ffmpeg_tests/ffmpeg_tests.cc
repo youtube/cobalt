@@ -130,7 +130,7 @@ int main(int argc, const char** argv) {
                                   NULL, 0, NULL);
   if (result < 0) {
     switch (result) {
-      case AVERROR_NOFMT:
+      case AVERROR(EINVAL):
         std::cerr << "Error: File format not supported "
                   << in_path.value() << std::endl;
         break;
@@ -166,13 +166,13 @@ int main(int argc, const char** argv) {
   for (size_t i = 0; i < format_context->nb_streams; ++i) {
     AVCodecContext* codec_context = format_context->streams[i]->codec;
 
-    if (codec_context->codec_type == CODEC_TYPE_VIDEO && video_stream < 0) {
+    if (codec_context->codec_type == AVMEDIA_TYPE_VIDEO && video_stream < 0) {
 #if SHOW_VERBOSE
       *log_out << "V ";
 #endif
       video_stream = i;
     } else {
-      if (codec_context->codec_type == CODEC_TYPE_AUDIO && audio_stream < 0) {
+      if (codec_context->codec_type == AVMEDIA_TYPE_AUDIO && audio_stream < 0) {
 #if SHOW_VERBOSE
         *log_out << "A ";
 #endif
@@ -186,7 +186,7 @@ int main(int argc, const char** argv) {
 
 #if SHOW_VERBOSE
     AVCodec* codec = avcodec_find_decoder(codec_context->codec_id);
-    if (!codec || (codec_context->codec_type == CODEC_TYPE_UNKNOWN)) {
+    if (!codec || (codec_context->codec_type == AVMEDIA_TYPE_UNKNOWN)) {
       *log_out << "Stream #" << i << ": Unknown" << std::endl;
     } else {
       // Print out stream information
@@ -196,10 +196,10 @@ int main(int argc, const char** argv) {
 #endif
   }
   int target_stream = video_stream;
-  CodecType target_codec = CODEC_TYPE_VIDEO;
+  AVMediaType target_codec = AVMEDIA_TYPE_VIDEO;
   if (target_stream < 0) {
     target_stream = audio_stream;
-    target_codec = CODEC_TYPE_AUDIO;
+    target_codec = AVMEDIA_TYPE_AUDIO;
   }
 
   // Only continue if we found our target stream.
@@ -232,11 +232,8 @@ int main(int argc, const char** argv) {
   codec_context->error_recognition = FF_ER_CAREFUL;
 
   // Initialize threaded decode.
-  if (target_codec == CODEC_TYPE_VIDEO && video_threads > 0) {
-    if (avcodec_thread_init(codec_context, video_threads) < 0) {
-      std::cerr << "Warning: Could not initialize threading!\n"
-                << "Did you build with pthread/w32thread support?" << std::endl;
-    }
+  if (target_codec == AVMEDIA_TYPE_VIDEO && video_threads > 0) {
+    codec_context->thread_count = video_threads;
   }
 
   // Initialize our codec.
@@ -291,7 +288,7 @@ int main(int argc, const char** argv) {
     // Only decode packets from our target stream.
     if (packet.stream_index == target_stream) {
       int result = -1;
-      if (target_codec == CODEC_TYPE_AUDIO) {
+      if (target_codec == AVMEDIA_TYPE_AUDIO) {
         int size_out = AVCODEC_MAX_AUDIO_FRAME_SIZE;
 
         base::TimeTicks decode_start = base::TimeTicks::HighResNow();
@@ -323,7 +320,7 @@ int main(int argc, const char** argv) {
             MD5Update(&ctx, u8_samples, size_out);
           }
         }
-      } else if (target_codec == CODEC_TYPE_VIDEO) {
+      } else if (target_codec == AVMEDIA_TYPE_VIDEO) {
         int got_picture = 0;
 
         base::TimeTicks decode_start = base::TimeTicks::HighResNow();
@@ -425,7 +422,7 @@ int main(int argc, const char** argv) {
   }
 
   if (sum > 0) {
-    if (target_codec == CODEC_TYPE_AUDIO) {
+    if (target_codec == AVMEDIA_TYPE_AUDIO) {
       // Calculate the average milliseconds per frame.
       // Audio decoding is usually in the millisecond or range, and
       // best expressed in time (ms) rather than FPS, which can approach
@@ -435,7 +432,7 @@ int main(int argc, const char** argv) {
       log_out->setf(std::ios::fixed);
       log_out->precision(2);
       *log_out << "TIME PER FRAME (MS):" << std::setw(11) << ms << std::endl;
-    } else if (target_codec == CODEC_TYPE_VIDEO) {
+    } else if (target_codec == AVMEDIA_TYPE_VIDEO) {
       // Calculate the average frames per second.
       // Video decoding is expressed in Frames Per Second - a term easily
       // understood and should exceed a typical target of 30 fps.

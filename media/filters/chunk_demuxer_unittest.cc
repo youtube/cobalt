@@ -45,12 +45,12 @@ class ChunkDemuxerTest : public testing::Test{
     memset(&streams_, 0, sizeof(streams_));
     memset(&codecs_, 0, sizeof(codecs_));
 
-    codecs_[VIDEO].codec_type = CODEC_TYPE_VIDEO;
+    codecs_[VIDEO].codec_type = AVMEDIA_TYPE_VIDEO;
     codecs_[VIDEO].codec_id = CODEC_ID_VP8;
     codecs_[VIDEO].width = 320;
     codecs_[VIDEO].height = 240;
 
-    codecs_[AUDIO].codec_type = CODEC_TYPE_AUDIO;
+    codecs_[AUDIO].codec_type = AVMEDIA_TYPE_AUDIO;
     codecs_[AUDIO].codec_id = CODEC_ID_VORBIS;
     codecs_[AUDIO].channels = 2;
     codecs_[AUDIO].sample_rate = 44100;
@@ -59,6 +59,11 @@ class ChunkDemuxerTest : public testing::Test{
   virtual ~ChunkDemuxerTest() {
     if (demuxer_.get())
       demuxer_->Shutdown();
+    if (format_context_.streams) {
+      delete[] format_context_.streams;
+      format_context_.streams = NULL;
+      format_context_.nb_streams = 0;
+    }
   }
 
   void ReadFile(const std::string& name, scoped_array<uint8>* buffer,
@@ -137,6 +142,7 @@ class ChunkDemuxerTest : public testing::Test{
 
   void SetupAVFormatContext(bool has_audio, bool has_video) {
     int i = 0;
+    format_context_.streams = new AVStream *[MAX_CODECS_INDEX];
     if (has_audio) {
       format_context_.streams[i] = &streams_[i];
       streams_[i].codec = &codecs_[AUDIO];
