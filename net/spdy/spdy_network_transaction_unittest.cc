@@ -2432,7 +2432,7 @@ TEST_P(SpdyNetworkTransactionTest, RedirectGetRequest) {
     "accept-encoding",
     "gzip,deflate",
   };
-  const SpdyHeaderInfo kSynStartHeader = make_spdy_header(spdy::SYN_STREAM);
+  const SpdyHeaderInfo kSynStartHeader = MakeSpdyHeader(spdy::SYN_STREAM);
   const char* const kStandardGetHeaders[] = {
     "host",
     "www.google.com",
@@ -2538,7 +2538,7 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
     "accept-encoding",
     "gzip,deflate",
   };
-  const SpdyHeaderInfo kSynStartHeader = make_spdy_header(spdy::SYN_STREAM);
+  const SpdyHeaderInfo kSynStartHeader = MakeSpdyHeader(spdy::SYN_STREAM);
   const char* const kStandardGetHeaders[] = {
     "host",
     "www.google.com",
