@@ -181,7 +181,10 @@ class NET_API SpdySessionPool
   static bool g_enable_ip_pooling;
 
   const scoped_refptr<SSLConfigService> ssl_config_service_;
-  HostResolver* resolver_;
+  HostResolver* const resolver_;
+
+  // Defaults to true. May be controlled via SpdySessionPoolPeer for tests.
+  bool verify_domain_authentication_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdySessionPool);
 };
