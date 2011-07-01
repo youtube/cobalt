@@ -42,7 +42,8 @@ bool SpdySessionPool::g_enable_ip_pooling = true;
 SpdySessionPool::SpdySessionPool(HostResolver* resolver,
                                  SSLConfigService* ssl_config_service)
     : ssl_config_service_(ssl_config_service),
-      resolver_(resolver) {
+      resolver_(resolver),
+      verify_domain_authentication_(true) {
   NetworkChangeNotifier::AddIPAddressObserver(this);
   if (ssl_config_service_)
     ssl_config_service_->AddObserver(this);
@@ -110,6 +111,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
   DCHECK(!only_use_existing_sessions);
 
   spdy_session = new SpdySession(host_port_proxy_pair, this, &spdy_settings_,
+                                 verify_domain_authentication_,
                                  net_log.net_log());
   UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionGet",
                             CREATED_NEW,
@@ -135,6 +137,7 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
                             SPDY_SESSION_GET_MAX);
   // Create the SPDY session and add it to the pool.
   *spdy_session = new SpdySession(host_port_proxy_pair, this, &spdy_settings_,
+                                  verify_domain_authentication_,
                                   net_log.net_log());
   SpdySessionList* list = GetSessionList(host_port_proxy_pair);
   if (!list)
