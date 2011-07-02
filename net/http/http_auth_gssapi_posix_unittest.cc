@@ -162,6 +162,7 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
                                                   &output_token,
                                                   &ret_flags,
                                                   &time_rec);
+    EXPECT_EQ(queries[i].response_code, major_status);
     CopyBuffer(&input_token, &output_token);
     ClearBuffer(&output_token);
   }
@@ -169,6 +170,7 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
   major_status = mock_library->delete_sec_context(&minor_status,
                                                   &context_handle,
                                                   GSS_C_NO_BUFFER);
+  EXPECT_EQ(static_cast<OM_uint32>(GSS_S_COMPLETE), major_status);
 }
 
 TEST(HttpAuthGSSAPITest, ParseChallenge_FirstRound) {

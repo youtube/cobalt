@@ -244,15 +244,10 @@ std::string DescribeOid(GSSAPILibrary* gssapi_lib, const gss_OID oid) {
     // Check if the first |kMaxCharsToPrint| characters
     // contain only printable characters and are NULL terminated.
     const char* str = reinterpret_cast<const char*>(oid);
-    bool is_printable = true;
     size_t str_length = 0;
     for ( ; str_length < kMaxCharsToPrint; ++str_length) {
-      if (!str[str_length])
+      if (!str[str_length] || !isprint(str[str_length]))
         break;
-      if (!isprint(str[str_length])) {
-        is_printable = false;
-        break;
-      }
     }
     if (!str[str_length]) {
       output += base::StringPrintf("\"%s\"", str);
