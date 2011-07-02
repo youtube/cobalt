@@ -406,7 +406,6 @@ bool X509Certificate::VerifyHostname(
 
   bool found_alpha = false;
   bool found_ip6_chars = false;
-  bool found_hyphen = false;
   int dot_count = 0;
 
   size_t first_dot_index = std::string::npos;
@@ -422,9 +421,7 @@ bool X509Certificate::VerifyHostname(
         first_dot_index = reference_name.length();
     } else if (c == ':') {
       found_ip6_chars = true;
-    } else if (c == '-') {
-      found_hyphen = true;
-    } else if (!IsAsciiDigit(c)) {
+    } else if (c != '-' && !IsAsciiDigit(c)) {
       LOG(WARNING) << "Invalid char " << c << " in hostname " << hostname;
       return false;
     }
