@@ -226,9 +226,7 @@ HttpRequestInfo WebSocketHandshakeRequestHandler::GetRequestInfo(
     const GURL& url, std::string* challenge) {
   HttpRequestInfo request_info;
   request_info.url = url;
-  base::StringPiece method = status_line_.data();
-  size_t method_end = base::StringPiece(
-      status_line_.data(), status_line_.size()).find_first_of(" ");
+  size_t method_end = base::StringPiece(status_line_).find_first_of(" ");
   if (method_end != base::StringPiece::npos)
     request_info.method = std::string(status_line_.data(), method_end);
 

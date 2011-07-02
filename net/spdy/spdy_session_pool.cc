@@ -183,7 +183,6 @@ void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
 Value* SpdySessionPool::SpdySessionPoolInfoToValue() const {
   ListValue* list = new ListValue();
 
-  SpdySessionsMap::const_iterator spdy_session_pool_it = sessions_.begin();
   for (SpdySessionsMap::const_iterator it = sessions_.begin();
        it != sessions_.end(); ++it) {
     SpdySessionList* sessions = it->second;
