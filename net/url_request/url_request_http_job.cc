@@ -581,11 +581,9 @@ void URLRequestHttpJob::SaveNextCookie() {
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  bool allow = true;
   CookieOptions options;
-  if (request_info_.load_flags & LOAD_DO_NOT_SAVE_COOKIES) {
-    allow = false;
-  } else if (request_->delegate() && request_->context()->cookie_store()) {
+  if (!(request_info_.load_flags & LOAD_DO_NOT_SAVE_COOKIES) &&
+      request_->delegate() && request_->context()->cookie_store()) {
     CookieOptions options;
     options.set_include_httponly();
     if (request_->delegate()->CanSetCookie(
