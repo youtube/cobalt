@@ -1085,7 +1085,6 @@ TEST_F(DiskCacheBackendTest, NewEvictionFixEnumerators) {
 
 void DiskCacheBackendTest::BackendDoomRecent() {
   InitCache();
-  Time initial = Time::Now();
 
   disk_cache::Entry *entry;
   ASSERT_EQ(net::OK, CreateEntry("first", &entry));
@@ -1133,7 +1132,6 @@ TEST_F(DiskCacheBackendTest, MemoryOnlyDoomRecent) {
 
 void DiskCacheBackendTest::BackendDoomBetween() {
   InitCache();
-  Time initial = Time::Now();
 
   disk_cache::Entry *entry;
   ASSERT_EQ(net::OK, CreateEntry("first", &entry));
@@ -1833,7 +1831,6 @@ TEST_F(DiskCacheTest, Backend_UsageStats) {
 
 void DiskCacheBackendTest::BackendDoomAll() {
   InitCache();
-  Time initial = Time::Now();
 
   disk_cache::Entry *entry1, *entry2;
   ASSERT_EQ(net::OK, CreateEntry("first", &entry1));
