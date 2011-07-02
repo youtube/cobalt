@@ -273,8 +273,14 @@ def Main(args):
       improve = int(math.floor(improve - abs(improve*variance)))
       regress = int(math.ceil(regress + abs(regress*variance)))
 
+    # Calculate the new checksum to test if this is the only thing that may have
+    # changed.
+    checksum_rowdata = GetRowData(perf, key)
+    new_checksum = GetRowDigest(checksum_rowdata, key)
+
     if ('regress' in perf[key] and 'improve' in perf[key] and
-        perf[key]['regress'] == regress and perf[key]['improve'] == improve):
+        perf[key]['regress'] == regress and perf[key]['improve'] == improve and
+        original_checksum == new_checksum):
       OutputMessage('no change')
       continue
 
