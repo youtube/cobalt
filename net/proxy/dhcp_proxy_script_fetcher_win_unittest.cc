@@ -303,14 +303,7 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
   }
 
   virtual ~MockDhcpProxyScriptFetcherWin() {
-    // Delete any adapter fetcher objects we didn't hand out.
-    std::vector<DhcpProxyScriptAdapterFetcher*>::const_iterator it
-        = adapter_fetchers_.begin();
-    for (; it != adapter_fetchers_.end(); ++it) {
-      if (num_fetchers_created_-- <= 0) {
-        delete (*it);
-      }
-    }
+    ResetTestState();
   }
 
   // Adds a fetcher object to the queue of fetchers used by
@@ -350,6 +343,15 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
   }
 
   void ResetTestState() {
+    // Delete any adapter fetcher objects we didn't hand out.
+    std::vector<DhcpProxyScriptAdapterFetcher*>::const_iterator it
+        = adapter_fetchers_.begin();
+    for (; it != adapter_fetchers_.end(); ++it) {
+      if (num_fetchers_created_-- <= 0) {
+        delete (*it);
+      }
+    }
+
     next_adapter_fetcher_index_ = 0;
     num_fetchers_created_ = 0;
     adapter_fetchers_.clear();
