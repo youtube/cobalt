@@ -48,6 +48,10 @@ TEST(SystemMonitor, PowerNotifications) {
   // Initialize a message loop for this to run on.
   MessageLoop loop;
 
+#if defined(OS_MACOSX)
+  SystemMonitor::AllocateSystemIOPorts();
+#endif
+
   SystemMonitor system_monitor;
   PowerTest test[kObservers];
   for (int index = 0; index < kObservers; ++index)
