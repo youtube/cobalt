@@ -50,6 +50,14 @@ class BASE_API SystemMonitor {
   // Get the application-wide SystemMonitor (if not present, returns NULL).
   static SystemMonitor* Get();
 
+#if defined(OS_MACOSX)
+  // Allocate system resources needed by the SystemMonitor class.
+  //
+  // This function must be called before instantiating an instance of the class
+  // and before the Sandbox is initialized.
+  static void AllocateSystemIOPorts();
+#endif
+
   //
   // Power-related APIs
   //
@@ -128,11 +136,6 @@ class BASE_API SystemMonitor {
 
 #if defined(ENABLE_BATTERY_MONITORING)
   base::OneShotTimer<SystemMonitor> delayed_battery_check_;
-#endif
-
-#if defined(OS_MACOSX)
-  IONotificationPortRef notification_port_ref_;
-  io_object_t notifier_object_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(SystemMonitor);
