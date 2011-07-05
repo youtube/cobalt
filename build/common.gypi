@@ -169,6 +169,9 @@
       # libraries on linux x86-64 and arm, plus ASLR.
       'linux_fpic%': 1,
 
+      # Enable navigator.registerProtocolHandler and supporting UI.
+      'enable_register_protocol_handler%': 1,
+
       'conditions': [
         # Use Skia as WebKit renderer on Mac
         ['OS=="mac"', {
@@ -220,15 +223,6 @@
           'file_manager_extension%': 1,
         }, {
           'file_manager_extension%': 0,
-        }],
-
-        # Enable navigator.registerProtocolHandler and supporting UI.
-        # We disable on Linux because the OS-level component of RPH isn't
-        # implemented.
-        ['OS=="linux"', {
-          'enable_register_protocol_handler%': 0,
-        }, {
-          'enable_register_protocol_handler%': 1,
         }],
       ],
     },
