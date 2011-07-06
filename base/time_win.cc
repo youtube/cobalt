@@ -62,7 +62,7 @@ int64 FileTimeToMicroseconds(const FILETIME& ft) {
 }
 
 void MicrosecondsToFileTime(int64 us, FILETIME* ft) {
-  DCHECK_GE(us, 0ULL) << "Time is less than 0, negative values are not "
+  DCHECK_GE(us, 0LL) << "Time is less than 0, negative values are not "
       "representable in FILETIME";
 
   // Multiply by 10 to convert milliseconds to 100-nanoseconds. Bit_cast will
@@ -206,38 +206,52 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
   st.wSecond = exploded.second;
   st.wMilliseconds = exploded.millisecond;
 
-  // Convert to FILETIME.
   FILETIME ft;
-  if (!SystemTimeToFileTime(&st, &ft)) {
-    NOTREACHED() << "Unable to convert time";
-    return Time(0);
-  }
-
+  bool success = true;
   // Ensure that it's in UTC.
   if (is_local) {
-    FILETIME utc_ft;
-    LocalFileTimeToFileTime(&ft, &utc_ft);
-    return Time(FileTimeToMicroseconds(utc_ft));
+    SYSTEMTIME utc_st;
+    success = TzSpecificLocalTimeToSystemTime(NULL, &st, &utc_st) &&
+              SystemTimeToFileTime(&utc_st, &ft);
+  } else {
+    success = !!SystemTimeToFileTime(&st, &ft);
+  }
+
+  if (!success) {
+    NOTREACHED() << "Unable to convert time";
+    return Time(0);
   }
   return Time(FileTimeToMicroseconds(ft));
 }
 
 void Time::Explode(bool is_local, Exploded* exploded) const {
+  if (us_ < 0LL) {
+    // We are not able to convert it to FILETIME.
+    ZeroMemory(exploded, sizeof(*exploded));
+    return;
+  }
+
   // FILETIME in UTC.
   FILETIME utc_ft;
   MicrosecondsToFileTime(us_, &utc_ft);
 
   // FILETIME in local time if necessary.
-  BOOL success = TRUE;
-  FILETIME ft;
-  if (is_local)
-    success = FileTimeToLocalFileTime(&utc_ft, &ft);
-  else
-    ft = utc_ft;
-
+  bool success = true;
   // FILETIME in SYSTEMTIME (exploded).
   SYSTEMTIME st;
-  if (!success || !FileTimeToSystemTime(&ft, &st)) {
+  if (is_local) {
+    SYSTEMTIME utc_st;
+    // We don't use FileTimeToLocalFileTime here, since it uses the current
+    // settings for the time zone and daylight saving time. Therefore, if it is
+    // daylight saving time, it will take daylight saving time into account,
+    // even if the time you are converting is in standard time.
+    success = FileTimeToSystemTime(&utc_ft, &utc_st) &&
+              SystemTimeToTzSpecificLocalTime(NULL, &utc_st, &st);
+  } else {
+    success = !!FileTimeToSystemTime(&utc_ft, &st);
+  }
+
+  if (!success) {
     NOTREACHED() << "Unable to convert time, don't know why";
     ZeroMemory(exploded, sizeof(*exploded));
     return;
