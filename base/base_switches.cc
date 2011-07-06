@@ -21,10 +21,6 @@ const char kEnableDCHECK[]                  = "enable-dcheck";
 // Generates full memory crash dump.
 const char kFullMemoryCrashReport[]         = "full-memory-crash-report";
 
-// Load the locale resources from the given path. When running on Mac/Unix the
-// path should point to a locale.pak file.
-const char kLocalePak[]                     = "locale_pak";
-
 // Suppresses all error dialogs when present.
 const char kNoErrorDialogs[]                = "noerrdialogs";
 
