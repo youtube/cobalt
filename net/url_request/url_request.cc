@@ -501,7 +501,10 @@ bool URLRequest::Read(IOBuffer* dest, int dest_size, int* bytes_read) {
     return true;
   }
 
-  return job_->Read(dest, dest_size, bytes_read);
+  bool rv = job_->Read(dest, dest_size, bytes_read);
+  // If rv is false, the status cannot be success.
+  DCHECK(rv || status_.status() != URLRequestStatus::SUCCESS);
+  return rv;
 }
 
 void URLRequest::StopCaching() {
