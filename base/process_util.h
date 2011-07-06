@@ -371,22 +371,6 @@ inline bool LaunchApp(const std::vector<std::string>& argv,
   return LaunchProcess(argv, options);
 }
 
-// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
-inline bool LaunchAppInNewProcessGroup(
-    const std::vector<std::string>& argv,
-    const environment_vector& environ,
-    const file_handle_mapping_vector& fds_to_remap,
-    bool wait,
-    ProcessHandle* process_handle) {
-  LaunchOptions options;
-  options.environ = &environ;
-  options.fds_to_remap = &fds_to_remap;
-  options.wait = wait;
-  options.process_handle = process_handle;
-  options.new_process_group = true;
-  return LaunchProcess(argv, options);
-}
-
 // AlterEnvironment returns a modified environment vector, constructed from the
 // given environment and the list of changes given in |changes|. Each key in
 // the environment is matched against the first element of the pairs. In the
