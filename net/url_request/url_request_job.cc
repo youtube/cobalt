@@ -416,8 +416,7 @@ bool URLRequestJob::ReadRawData(IOBuffer* buf, int buf_size,
                                 int *bytes_read) {
   DCHECK(bytes_read);
   *bytes_read = 0;
-  NotifyDone(URLRequestStatus());
-  return false;
+  return true;
 }
 
 void URLRequestJob::FilteredDataRead(int bytes_read) {
