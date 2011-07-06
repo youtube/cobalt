@@ -851,18 +851,40 @@ int64 TimeValToMicroseconds(const struct timeval& tv) {
   return ret;
 }
 
+// Return value used by GetAppOutputInternal to encapsulate the various exit
+// scenarios from the function.
+enum GetAppOutputInternalResult {
+  EXECUTE_FAILURE,
+  EXECUTE_SUCCESS,
+  GOT_MAX_OUTPUT,
+};
+
 // Executes the application specified by |cl| and wait for it to exit. Stores
 // the output (stdout) in |output|. If |do_search_path| is set, it searches the
 // path for the application; in that case, |envp| must be null, and it will use
 // the current environment. If |do_search_path| is false, |cl| should fully
 // specify the path of the application, and |envp| will be used as the
-// environment. Redirects stderr to /dev/null. Returns true on success
-// (application launched and exited cleanly, with exit code indicating success).
-static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
-                                 std::string* output, size_t max_output,
-                                 bool do_search_path) {
+// environment. Redirects stderr to /dev/null.
+// If we successfully start the application and get all requested output, we
+// return GOT_MAX_OUTPUT, or if there is a problem starting or exiting
+// the application we return RUN_FAILURE. Otherwise we return EXECUTE_SUCCESS.
+// The GOT_MAX_OUTPUT return value exists so a caller that asks for limited
+// output can treat this as a success, despite having an exit code of SIG_PIPE
+// due to us closing the output pipe.
+// In the case of EXECUTE_SUCCESS, the application exit code will be returned
+// in |*exit_code|, which should be checked to determine if the application
+// ran successfully.
+static GetAppOutputInternalResult GetAppOutputInternal(const CommandLine& cl,
+                                                       char* const envp[],
+                                                       std::string* output,
+                                                       size_t max_output,
+                                                       bool do_search_path,
+                                                       int* exit_code) {
   // Doing a blocking wait for another command to finish counts as IO.
   base::ThreadRestrictions::AssertIOAllowed();
+  // exit_code must be supplied so calling function can determine success.
+  DCHECK(exit_code);
+  *exit_code = EXIT_FAILURE;
 
   int pipe_fd[2];
   pid_t pid;
@@ -878,13 +900,13 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
   DCHECK(!do_search_path ^ !envp);
 
   if (pipe(pipe_fd) < 0)
-    return false;
+    return EXECUTE_FAILURE;
 
   switch (pid = fork()) {
     case -1:  // error
       close(pipe_fd[0]);
       close(pipe_fd[1]);
-      return false;
+      return EXECUTE_FAILURE;
     case 0:  // child
       {
 #if defined(OS_MACOSX)
@@ -948,26 +970,28 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
         }
         close(pipe_fd[0]);
 
-        // Always wait for exit code (even if we know we'll declare success).
-        int exit_code = EXIT_FAILURE;
-        bool success = WaitForExitCode(pid, &exit_code);
+        // Always wait for exit code (even if we know we'll declare
+        // GOT_MAX_OUTPUT).
+        bool success = WaitForExitCode(pid, exit_code);
 
-        // If we stopped because we read as much as we wanted, we always declare
-        // success (because the child may exit due to |SIGPIPE|).
-        if (output_buf_left || bytes_read <= 0) {
-          if (!success || exit_code != EXIT_SUCCESS)
-            return false;
-        }
-
-        return true;
+        // If we stopped because we read as much as we wanted, we return
+        // GOT_MAX_OUTPUT (because the child may exit due to |SIGPIPE|).
+        if (!output_buf_left && bytes_read > 0)
+          return GOT_MAX_OUTPUT;
+        else if (success)
+          return EXECUTE_SUCCESS;
+        return EXECUTE_FAILURE;
       }
   }
 }
 
 bool GetAppOutput(const CommandLine& cl, std::string* output) {
   // Run |execve()| with the current environment and store "unlimited" data.
-  return GetAppOutputInternal(cl, NULL, output,
-                              std::numeric_limits<std::size_t>::max(), true);
+  int exit_code;
+  GetAppOutputInternalResult result = GetAppOutputInternal(
+      cl, NULL, output, std::numeric_limits<std::size_t>::max(), true,
+      &exit_code);
+  return result == EXECUTE_SUCCESS && exit_code == EXIT_SUCCESS;
 }
 
 // TODO(viettrungluu): Conceivably, we should have a timeout as well, so we
@@ -976,7 +1000,22 @@ bool GetAppOutputRestricted(const CommandLine& cl,
                             std::string* output, size_t max_output) {
   // Run |execve()| with the empty environment.
   char* const empty_environ = NULL;
-  return GetAppOutputInternal(cl, &empty_environ, output, max_output, false);
+  int exit_code;
+  GetAppOutputInternalResult result = GetAppOutputInternal(cl, &empty_environ,
+                                                           output, max_output,
+                                                           false, &exit_code);
+  return result == GOT_MAX_OUTPUT || (result == EXECUTE_SUCCESS &&
+                                      exit_code == EXIT_SUCCESS);
+}
+
+bool GetAppOutputWithExitCode(const CommandLine& cl,
+                              std::string* output,
+                              int* exit_code) {
+  // Run |execve()| with the current environment and store "unlimited" data.
+  GetAppOutputInternalResult result = GetAppOutputInternal(
+      cl, NULL, output, std::numeric_limits<std::size_t>::max(), true,
+      exit_code);
+  return result == EXECUTE_SUCCESS;
 }
 
 bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
