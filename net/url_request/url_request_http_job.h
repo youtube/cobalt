@@ -161,6 +161,13 @@ class URLRequestHttpJob : public URLRequestJob {
   void RecordPerfHistograms(CompletionCause reason);
   void DoneWithRequest(CompletionCause reason);
 
+  // Some servers send the body compressed, but specify the content length as
+  // the uncompressed size. If this is the case, we return true in order
+  // to request to work around this non-adherence to the HTTP standard.
+  // |rv| is the standard return value of a read function indicating the number
+  // of bytes read or, if negative, an error code.
+  bool ShouldFixMismatchedContentLength(int rv) const;
+
   base::Time request_creation_time_;
 
   // Data used for statistics gathering. This data is only used for histograms
