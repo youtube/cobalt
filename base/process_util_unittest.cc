@@ -660,6 +660,21 @@ TEST_F(ProcessUtilTest, GetAppOutputRestricted) {
   EXPECT_STREQ("", output.c_str());
 }
 
+#if !(OS_MACOSX)
+// TODO(benwells): GetAppOutputRestricted should terminate applications
+// with SIGPIPE when we have enough output. http://crbug.com/88502
+TEST_F(ProcessUtilTest, GetAppOutputRestrictedSIGPIPE) {
+  std::vector<std::string> argv;
+  std::string output;
+
+  argv.push_back("/bin/sh");
+  argv.push_back("-c");
+  argv.push_back("yes");
+  EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 10));
+  EXPECT_STREQ("y\ny\ny\ny\ny\n", output.c_str());
+}
+#endif
+
 TEST_F(ProcessUtilTest, GetAppOutputRestrictedNoZombies) {
   std::vector<std::string> argv;
   argv.push_back("/bin/sh");  // argv[0]
@@ -680,6 +695,29 @@ TEST_F(ProcessUtilTest, GetAppOutputRestrictedNoZombies) {
     EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 10));
     EXPECT_STREQ("1234567890", output.c_str());
   }
+}
+
+TEST_F(ProcessUtilTest, GetAppOutputWithExitCode) {
+  // Test getting output from a successful application.
+  std::vector<std::string> argv;
+  std::string output;
+  int exit_code;
+  argv.push_back("/bin/sh");  // argv[0]
+  argv.push_back("-c");       // argv[1]
+  argv.push_back("echo foo"); // argv[2];
+  EXPECT_TRUE(base::GetAppOutputWithExitCode(CommandLine(argv), &output,
+                                             &exit_code));
+  EXPECT_STREQ("foo\n", output.c_str());
+  EXPECT_EQ(exit_code, 0);
+
+  // Test getting output from an application which fails with a specific exit
+  // code.
+  output.clear();
+  argv[2] = "echo foo; exit 2";
+  EXPECT_TRUE(base::GetAppOutputWithExitCode(CommandLine(argv), &output,
+                                             &exit_code));
+  EXPECT_STREQ("foo\n", output.c_str());
+  EXPECT_EQ(exit_code, 2);
 }
 
 TEST_F(ProcessUtilTest, GetParentProcessId) {
