@@ -14,7 +14,6 @@ extern const char kDebugOnStart[];
 extern const char kDisableBreakpad[];
 extern const char kEnableDCHECK[];
 extern const char kFullMemoryCrashReport[];
-extern const char kLocalePak[];
 extern const char kNoErrorDialogs[];
 extern const char kNoMessageBox[];
 extern const char kTestChildProcess[];
