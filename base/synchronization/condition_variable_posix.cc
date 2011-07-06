@@ -52,8 +52,8 @@ void ConditionVariable::TimedWait(const TimeDelta& max_time) {
   sys_time_get_current_time(&sec, &nsec);
   struct timespec abstime;
   abstime.tv_sec = sec + (usecs / Time::kMicrosecondsPerSecond);
-  abstime.tv_nsec = (nsec + (usecs % Time::kMillisecondsPerSecond)) *
-    Time::kNanosecondsPerMicrosecond;
+  abstime.tv_nsec = nsec + ((usecs % Time::kMillisecondsPerSecond) *
+    Time::kNanosecondsPerMicrosecond);
   abstime.tv_sec += abstime.tv_nsec / Time::kNanosecondsPerSecond;
   abstime.tv_nsec %= Time::kNanosecondsPerSecond;
 #else
