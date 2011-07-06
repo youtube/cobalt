@@ -422,6 +422,13 @@ BASE_API bool GetAppOutput(const CommandLine& cl, std::string* output);
 // for the command.
 BASE_API bool GetAppOutputRestricted(const CommandLine& cl,
                                      std::string* output, size_t max_output);
+
+// A version of |GetAppOutput()| which also returns the exit code of the
+// executed command. Returns true if the application runs and exits cleanly. If
+// this is the case the exit code of the application is available in
+// |*exit_code|.
+BASE_API bool GetAppOutputWithExitCode(const CommandLine& cl,
+                                       std::string* output, int* exit_code);
 #endif
 
 // Used to filter processes by process ID.
