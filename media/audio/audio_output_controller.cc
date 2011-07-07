@@ -9,7 +9,7 @@
 namespace media {
 
 // Signal a pause in low-latency mode.
-static const int kPauseMark = -1;
+const int AudioOutputController::kPauseMark = -1;
 
 AudioOutputController::AudioOutputController(EventHandler* handler,
                                              uint32 capacity,

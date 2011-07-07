@@ -63,6 +63,10 @@ class AudioOutputController
     kError,
   };
 
+  // Value sent by the controller to the renderer in low-latency mode
+  // indicating that the stream is paused.
+  static const int kPauseMark;
+
   // An event handler that receives events from the AudioOutputController. The
   // following methods are called on the audio controller thread.
   class EventHandler {
