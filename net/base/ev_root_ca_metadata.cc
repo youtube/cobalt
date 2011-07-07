@@ -149,6 +149,15 @@ static const EVMetadata ev_root_ca_metadata[] = {
         0xd8, 0x09, 0xcf, 0x79, 0x44, 0x31, 0x36, 0x7e, 0xf4, 0x74 } },
     {"1.3.6.1.4.1.6334.1.100.1", NULL},
   },
+  // Izenpe.com
+  // The first OID is for businesses and the second for government entities.
+  // These are the test sites, respectively:
+  // https://servicios.izenpe.com
+  // https://servicios1.izenpe.com
+  { { { 0x2f, 0x78, 0x3d, 0x25, 0x52, 0x18, 0xa7, 0x4a, 0x65, 0x39,
+        0x71, 0xb5, 0x2c, 0xa2, 0x9c, 0x45, 0x15, 0x6f, 0xe9, 0x19} },
+    {"1.3.6.1.4.1.14777.6.1.1", "1.3.6.1.4.1.14777.6.1.2", NULL},
+  },
   //  Network Solutions Certificate Authority
   //  https://www.networksolutions.com/website-packages/index.jsp
   { { { 0x74, 0xf8, 0xa3, 0xc3, 0xef, 0xe7, 0xb3, 0x90, 0x06, 0x4b,
@@ -261,6 +270,8 @@ const EVRootCAMetadata::PolicyOID EVRootCAMetadata::policy_oids_[] = {
   // The OIDs must be sorted in ascending order.
   "1.2.392.200091.100.721.1",
   "1.3.6.1.4.1.14370.1.6",
+  "1.3.6.1.4.1.14777.6.1.1",
+  "1.3.6.1.4.1.14777.6.1.2",
   "1.3.6.1.4.1.22234.2.5.2.3.1",
   "1.3.6.1.4.1.23223.1.1.1",
   "1.3.6.1.4.1.34697.2.1",
