@@ -58,6 +58,10 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/safe_strerror_posix.h"
 #endif
 
+#if defined(OS_ANDROID)
+#include <android/log.h>
+#endif
+
 namespace logging {
 
 DcheckState g_dcheck_state = DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
@@ -129,6 +133,8 @@ int32 CurrentThreadId() {
   return mach_thread_self();
 #elif defined(OS_LINUX)
   return syscall(__NR_gettid);
+#elif defined(OS_ANDROID)
+  return gettid();
 #elif defined(OS_FREEBSD)
   // TODO(BSD): find a better thread ID
   return reinterpret_cast<int64>(pthread_self());
@@ -546,7 +552,9 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity,
 }
 
 LogMessage::~LogMessage() {
-#ifndef NDEBUG
+  // TODO(port): enable stacktrace generation on LOG_FATAL once backtrace are
+  // working in Android.
+#if  !defined(NDEBUG) && !defined(OS_ANDROID)
   if (severity_ == LOG_FATAL) {
     // Include a stack trace on a fatal.
     base::debug::StackTrace trace;
@@ -568,6 +576,24 @@ LogMessage::~LogMessage() {
       logging_destination == LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG) {
 #if defined(OS_WIN)
     OutputDebugStringA(str_newline.c_str());
+#elif defined(OS_ANDROID)
+    android_LogPriority priority = ANDROID_LOG_UNKNOWN;
+    switch (severity_) {
+      case LOG_INFO:
+        priority = ANDROID_LOG_INFO;
+        break;
+      case LOG_WARNING:
+        priority = ANDROID_LOG_WARN;
+        break;
+      case LOG_ERROR:
+      case LOG_ERROR_REPORT:
+        priority = ANDROID_LOG_ERROR;
+        break;
+      case LOG_FATAL:
+        priority = ANDROID_LOG_FATAL;
+        break;
+    }
+    __android_log_write(priority, "chromium", str_newline.c_str());
 #endif
     fprintf(stderr, "%s", str_newline.c_str());
     fflush(stderr);

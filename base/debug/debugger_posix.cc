@@ -44,6 +44,11 @@
 #include "base/third_party/symbolize/symbolize.h"
 #endif
 
+#if defined(OS_ANDROID)
+#include <execinfo.h>
+#include "base/threading/platform_thread.h"
+#endif
+
 namespace base {
 namespace debug {
 
@@ -94,7 +99,7 @@ bool BeingDebugged() {
   return being_debugged;
 }
 
-#elif defined(OS_LINUX)
+#elif defined(OS_LINUX) || defined(OS_ANDROID)
 
 // We can look in /proc/self/status for TracerPid.  We are likely used in crash
 // handling, so we are careful not to use the heap or have side effects.
@@ -161,7 +166,7 @@ bool BeingDebugged() {
 // Linux: Debug mode, send SIGTRAP; Release mode, send SIGABRT.
 // Mac: Always send SIGTRAP.
 
-#if defined(NDEBUG) && !defined(OS_MACOSX)
+#if defined(NDEBUG) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
 #define DEBUG_BREAK() abort()
 #elif defined(OS_NACL)
 // The NaCl verifier doesn't let use use int3.  For now, we call abort().  We
@@ -169,7 +174,21 @@ bool BeingDebugged() {
 // http://code.google.com/p/nativeclient/issues/detail?id=645
 #define DEBUG_BREAK() abort()
 #elif defined(ARCH_CPU_ARM_FAMILY)
+#if defined(OS_ANDROID)
+// Though Android has a "helpful" process called debuggerd to catch native
+// signals on the general assumption that they are fatal errors, we've had great
+// difficulty continuing in a debugger once we stop from SIGINT triggered by
+// native code.
+//
+// Use GDB to set |go| to 1 to resume execution.
+#define DEBUG_BREAK() do { \
+  volatile int go = 0;             \
+  while (!go) { base::PlatformThread::Sleep(100); }   \
+} while (0)
+#else
+// ARM && !ANDROID
 #define DEBUG_BREAK() asm("bkpt 0")
+#endif
 #else
 #define DEBUG_BREAK() asm("int3")
 #endif
