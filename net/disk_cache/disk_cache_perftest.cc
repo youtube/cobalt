@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,9 +24,6 @@
 
 using base::Time;
 
-extern volatile int g_cache_tests_received;
-extern volatile bool g_cache_tests_error;
-
 typedef PlatformTest DiskCacheTest;
 
 namespace {
@@ -41,7 +38,7 @@ const int kMaxSize = 16 * 1024 - 1;
 
 // Creates num_entries on the cache, and writes 200 bytes of metadata and up
 // to kMaxSize of data to each entry.
-int TimeWrite(int num_entries, disk_cache::Backend* cache,
+bool TimeWrite(int num_entries, disk_cache::Backend* cache,
               TestEntries* entries) {
   const int kSize1 = 200;
   scoped_refptr<net::IOBuffer> buffer1(new net::IOBuffer(kSize1));
@@ -50,12 +47,10 @@ int TimeWrite(int num_entries, disk_cache::Backend* cache,
   CacheTestFillBuffer(buffer1->data(), kSize1, false);
   CacheTestFillBuffer(buffer2->data(), kMaxSize, false);
 
-  CallbackTest callback(true);
-  g_cache_tests_error = false;
-  g_cache_tests_received = 0;
   int expected = 0;
 
   MessageLoopHelper helper;
+  CallbackTest callback(&helper, true);
 
   PerfTimeLogger timer("Write disk cache entries");
 
@@ -88,11 +83,11 @@ int TimeWrite(int num_entries, disk_cache::Backend* cache,
   helper.WaitUntilCacheIoFinished(expected);
   timer.Done();
 
-  return expected;
+  return (expected == helper.callbacks_called());
 }
 
 // Reads the data and metadata from each entry listed on |entries|.
-int TimeRead(int num_entries, disk_cache::Backend* cache,
+bool TimeRead(int num_entries, disk_cache::Backend* cache,
              const TestEntries& entries, bool cold) {
   const int kSize1 = 200;
   scoped_refptr<net::IOBuffer> buffer1(new net::IOBuffer(kSize1));
@@ -101,12 +96,10 @@ int TimeRead(int num_entries, disk_cache::Backend* cache,
   CacheTestFillBuffer(buffer1->data(), kSize1, false);
   CacheTestFillBuffer(buffer2->data(), kMaxSize, false);
 
-  CallbackTest callback(true);
-  g_cache_tests_error = false;
-  g_cache_tests_received = 0;
   int expected = 0;
 
   MessageLoopHelper helper;
+  CallbackTest callback(&helper, true);
 
   const char* message = cold ? "Read disk cache entries (cold)" :
                         "Read disk cache entries (warm)";
@@ -135,7 +128,7 @@ int TimeRead(int num_entries, disk_cache::Backend* cache,
   helper.WaitUntilCacheIoFinished(expected);
   timer.Done();
 
-  return expected;
+  return (expected == helper.callbacks_called());
 }
 
 int BlockSize() {
@@ -179,8 +172,7 @@ TEST_F(DiskCacheTest, CacheBackendPerformance) {
   TestEntries entries;
   int num_entries = 1000;
 
-  int ret = TimeWrite(num_entries, cache, &entries);
-  EXPECT_EQ(ret, g_cache_tests_received);
+  EXPECT_TRUE(TimeWrite(num_entries, cache, &entries));
 
   MessageLoop::current()->RunAllPending();
   delete cache;
@@ -201,11 +193,9 @@ TEST_F(DiskCacheTest, CacheBackendPerformance) {
                                       NULL, &cache, &cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
 
-  ret = TimeRead(num_entries, cache, entries, true);
-  EXPECT_EQ(ret, g_cache_tests_received);
+  EXPECT_TRUE(TimeRead(num_entries, cache, entries, true));
 
-  ret = TimeRead(num_entries, cache, entries, false);
-  EXPECT_EQ(ret, g_cache_tests_received);
+  EXPECT_TRUE(TimeRead(num_entries, cache, entries, false));
 
   MessageLoop::current()->RunAllPending();
   delete cache;

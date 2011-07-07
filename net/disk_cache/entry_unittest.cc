@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,9 +17,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::Time;
-
-extern volatile int g_cache_tests_received;
-extern volatile bool g_cache_tests_error;
 
 // Tests that can run with different types of caches.
 class DiskCacheEntryTest : public DiskCacheTestWithCache {
@@ -157,25 +154,21 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   entry->Close();
   ASSERT_EQ(net::OK, OpenEntry("the first key", &entry));
 
-  // Let's verify that each IO goes to the right callback object.
-  CallbackTest callback1(false);
-  CallbackTest callback2(false);
-  CallbackTest callback3(false);
-  CallbackTest callback4(false);
-  CallbackTest callback5(false);
-  CallbackTest callback6(false);
-  CallbackTest callback7(false);
-  CallbackTest callback8(false);
-  CallbackTest callback9(false);
-  CallbackTest callback10(false);
-  CallbackTest callback11(false);
-  CallbackTest callback12(false);
-  CallbackTest callback13(false);
-
-  g_cache_tests_error = false;
-  g_cache_tests_received = 0;
-
   MessageLoopHelper helper;
+  // Let's verify that each IO goes to the right callback object.
+  CallbackTest callback1(&helper, false);
+  CallbackTest callback2(&helper, false);
+  CallbackTest callback3(&helper, false);
+  CallbackTest callback4(&helper, false);
+  CallbackTest callback5(&helper, false);
+  CallbackTest callback6(&helper, false);
+  CallbackTest callback7(&helper, false);
+  CallbackTest callback8(&helper, false);
+  CallbackTest callback9(&helper, false);
+  CallbackTest callback10(&helper, false);
+  CallbackTest callback11(&helper, false);
+  CallbackTest callback12(&helper, false);
+  CallbackTest callback13(&helper, false);
 
   const int kSize1 = 10;
   const int kSize2 = 5000;
@@ -264,8 +257,7 @@ void DiskCacheEntryTest::InternalAsyncIO() {
 
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
 
-  EXPECT_FALSE(g_cache_tests_error);
-  EXPECT_EQ(expected, g_cache_tests_received);
+  EXPECT_FALSE(helper.callback_reused_error());
 
   entry->Doom();
   entry->Close();
@@ -364,22 +356,19 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   disk_cache::Entry* entry;
   ASSERT_EQ(net::OK, CreateEntry("the first key", &entry));
 
-  // Let's verify that each IO goes to the right callback object.
-  CallbackTest callback1(false);
-  CallbackTest callback2(false);
-  CallbackTest callback3(false);
-  CallbackTest callback4(false);
-  CallbackTest callback5(false);
-  CallbackTest callback6(false);
-  CallbackTest callback7(false);
-  CallbackTest callback8(false);
-  CallbackTest callback9(false);
-
-  g_cache_tests_error = false;
-  g_cache_tests_received = 0;
   int expected = 0;
 
   MessageLoopHelper helper;
+  // Let's verify that each IO goes to the right callback object.
+  CallbackTest callback1(&helper, false);
+  CallbackTest callback2(&helper, false);
+  CallbackTest callback3(&helper, false);
+  CallbackTest callback4(&helper, false);
+  CallbackTest callback5(&helper, false);
+  CallbackTest callback6(&helper, false);
+  CallbackTest callback7(&helper, false);
+  CallbackTest callback8(&helper, false);
+  CallbackTest callback9(&helper, false);
 
   const int kSize1 = 17000;
   const int kSize2 = 25000;
@@ -448,8 +437,7 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
   EXPECT_EQ(37000, entry->GetDataSize(1));
 
-  EXPECT_FALSE(g_cache_tests_error);
-  EXPECT_EQ(expected, g_cache_tests_received);
+  EXPECT_FALSE(helper.callback_reused_error());
 
   entry->Doom();
   entry->Close();
