@@ -34,7 +34,7 @@ static const int kTotalBytes = 1024;
 static const int kBufferedBytes = 1024;
 
 // Test url for raw video pipeline.
-static const std::string kUrlMedia = "media://raw_video_stream";
+static const char kUrlRawVideo[] = "://raw_video_stream";
 
 // Used for setting expectations on pipeline callbacks.  Using a StrictMock
 // also lets us test for missing callbacks.
@@ -206,8 +206,8 @@ class PipelineImplTest : public ::testing::Test {
     EXPECT_CALL(callbacks_, OnStart(start_status));
 
     bool run_build = true;
-    if (url.compare(kUrlMedia) == 0)
-        run_build = false;
+    if (url.find(kRawMediaScheme) == 0)
+      run_build = false;
 
     pipeline_->Start(mocks_->filter_collection(true,
                                                true,
@@ -430,7 +430,8 @@ TEST_F(PipelineImplTest, RawVideoStream) {
   InitializeVideoDecoder(NULL);
   InitializeVideoRenderer();
 
-  InitializePipeline(PIPELINE_OK, PIPELINE_OK, kUrlMedia);
+  InitializePipeline(PIPELINE_OK, PIPELINE_OK,
+      std::string(kRawMediaScheme).append(kUrlRawVideo));
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_FALSE(pipeline_->HasAudio());
   EXPECT_TRUE(pipeline_->HasVideo());
