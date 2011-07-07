@@ -1014,6 +1014,8 @@
         'spdy/spdy_test_util.cc',
         'spdy/spdy_test_util.h',
         'spdy/spdy_websocket_stream_unittest.cc',
+        'spdy/spdy_websocket_test_util.cc',
+        'spdy/spdy_websocket_test_util.h',
         'test/python_utils_unittest.cc',
         'tools/dump_cache/url_to_filename_encoder.cc',
         'tools/dump_cache/url_to_filename_encoder.h',
