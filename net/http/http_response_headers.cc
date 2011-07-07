@@ -329,7 +329,7 @@ void HttpResponseHeaders::Parse(const std::string& raw_input) {
   // ParseStatusLine adds a normalized status line to raw_headers_
   std::string::const_iterator line_begin = raw_input.begin();
   std::string::const_iterator line_end =
-      find(line_begin, raw_input.end(), '\0');
+      std::find(line_begin, raw_input.end(), '\0');
   // has_headers = true, if there is any data following the status line.
   // Used by ParseStatusLine() to decide if a HTTP/0.9 is really a HTTP/1.0.
   bool has_headers = (line_end != raw_input.end() &&
@@ -457,7 +457,7 @@ std::string HttpResponseHeaders::GetStatusText() const {
   std::string::const_iterator begin = status_text.begin();
   std::string::const_iterator end = status_text.end();
   for (int i = 0; i < 2; ++i)
-    begin = find(begin, end, ' ') + 1;
+    begin = std::find(begin, end, ' ') + 1;
   return std::string(begin, end);
 }
 
@@ -557,7 +557,7 @@ HttpVersion HttpResponseHeaders::ParseVersion(
     return HttpVersion();
   }
 
-  std::string::const_iterator dot = find(p, line_end, '.');
+  std::string::const_iterator dot = std::find(p, line_end, '.');
   if (dot == line_end) {
     DVLOG(1) << "malformed version";
     return HttpVersion();
@@ -604,7 +604,7 @@ void HttpResponseHeaders::ParseStatusLine(
   }
 
   // TODO(eroman): this doesn't make sense if ParseVersion failed.
-  std::string::const_iterator p = find(line_begin, line_end, ' ');
+  std::string::const_iterator p = std::find(line_begin, line_end, ' ');
 
   if (p == line_end) {
     DVLOG(1) << "missing response status; assuming 200 OK";
