@@ -703,7 +703,12 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 #define DCHECK_GE(val1, val2) DCHECK_OP(GE, >=, val1, val2)
 #define DCHECK_GT(val1, val2) DCHECK_OP(GT, > , val1, val2)
 
+#if defined(OS_ANDROID) && !defined(OFFICIAL_BUILD)
+// TODO(port): fix once "enough" works
+#define NOTREACHED() LOG(ERROR) <<  "NOTREACHED()"
+#else
 #define NOTREACHED() DCHECK(false)
+#endif
 
 // Redefine the standard assert to use our nice log files
 #undef assert

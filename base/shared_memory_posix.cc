@@ -223,7 +223,7 @@ bool SharedMemory::Map(uint32 bytes) {
 
 #if defined(OS_ANDROID)
   if (bytes == 0) {
-    int ashmem_bytes = ashmem_get_size_region();
+    int ashmem_bytes = ashmem_get_size_region(mapped_file_);
     if (ashmem_bytes < 0)
       return false;
 
