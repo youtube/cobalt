@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,28 +12,33 @@
 
 namespace {
 
-int g_cache_tests_max_id;
-volatile int g_cache_tests_received;
-volatile bool g_cache_tests_error;
-
 // Implementation of FileIOCallback for the tests.
 class FileCallbackTest: public disk_cache::FileIOCallback {
  public:
-  explicit FileCallbackTest(int id) : id_(id) {}
-  ~FileCallbackTest() {}
+  explicit FileCallbackTest(int id,
+                            MessageLoopHelper* helper,
+                            int* max_id)
+      : id_(id),
+        helper_(helper),
+        max_id_(max_id) {
+  }
+  virtual ~FileCallbackTest() {}
 
   virtual void OnFileIOComplete(int bytes_copied);
+
  private:
   int id_;
+  MessageLoopHelper* helper_;
+  int* max_id_;
 };
 
 void FileCallbackTest::OnFileIOComplete(int bytes_copied) {
-  if (id_ > g_cache_tests_max_id) {
+  if (id_ > *max_id_) {
     NOTREACHED();
-    g_cache_tests_error = true;
+    helper_->set_callback_reused_error(true);
   }
 
-  g_cache_tests_received++;
+  helper_->CallbackWasCalled();
 }
 
 }  // namespace
@@ -59,12 +64,9 @@ TEST_F(DiskCacheTest, MappedFile_AsyncIO) {
   ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
 
-  FileCallbackTest callback(1);
-  g_cache_tests_error = false;
-  g_cache_tests_max_id = 0;
-  g_cache_tests_received = 0;
-
+  int max_id = 0;
   MessageLoopHelper helper;
+  FileCallbackTest callback(1, &helper, &max_id);
 
   char buffer1[20];
   char buffer2[20];
@@ -75,7 +77,7 @@ TEST_F(DiskCacheTest, MappedFile_AsyncIO) {
               &completed));
   int expected = completed ? 0 : 1;
 
-  g_cache_tests_max_id = 1;
+  max_id = 1;
   helper.WaitUntilCacheIoFinished(expected);
 
   EXPECT_TRUE(file->Read(buffer2, sizeof(buffer2), 1024 * 1024, &callback,
@@ -85,7 +87,7 @@ TEST_F(DiskCacheTest, MappedFile_AsyncIO) {
 
   helper.WaitUntilCacheIoFinished(expected);
 
-  EXPECT_EQ(expected, g_cache_tests_received);
-  EXPECT_FALSE(g_cache_tests_error);
+  EXPECT_EQ(expected, helper.callbacks_called());
+  EXPECT_FALSE(helper.callback_reused_error());
   EXPECT_STREQ(buffer1, buffer2);
 }
