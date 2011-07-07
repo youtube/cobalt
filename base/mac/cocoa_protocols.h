@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,6 +34,7 @@ DEFINE_EMPTY_PROTOCOL(NSMenuDelegate)
 DEFINE_EMPTY_PROTOCOL(NSOpenSavePanelDelegate)
 DEFINE_EMPTY_PROTOCOL(NSOutlineViewDataSource)
 DEFINE_EMPTY_PROTOCOL(NSOutlineViewDelegate)
+DEFINE_EMPTY_PROTOCOL(NSSpeechSynthesizerDelegate)
 DEFINE_EMPTY_PROTOCOL(NSTableViewDataSource)
 DEFINE_EMPTY_PROTOCOL(NSTableViewDelegate)
 DEFINE_EMPTY_PROTOCOL(NSTextFieldDelegate)
