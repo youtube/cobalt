@@ -8,6 +8,7 @@
 #define BASE_STRING_UTIL_H_
 #pragma once
 
+#include <ctype.h>
 #include <stdarg.h>   // va_list
 
 #include <string>

@@ -4,6 +4,7 @@
 
 #include "base/string_number_conversions.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <wctype.h>
