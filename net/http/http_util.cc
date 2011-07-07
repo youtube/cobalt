@@ -651,7 +651,7 @@ bool HttpUtil::HeadersIterator::GetNext() {
     name_begin_ = lines_.token_begin();
     values_end_ = lines_.token_end();
 
-    string::const_iterator colon = find(name_begin_, values_end_, ':');
+    string::const_iterator colon = std::find(name_begin_, values_end_, ':');
     if (colon == values_end_)
       continue;  // skip malformed header
 
