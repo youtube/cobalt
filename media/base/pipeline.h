@@ -21,6 +21,8 @@ class TimeDelta;
 
 namespace media {
 
+extern const char kRawMediaScheme[];
+
 struct PipelineStatistics {
   PipelineStatistics() :
       audio_bytes_decoded(0),
@@ -29,8 +31,8 @@ struct PipelineStatistics {
       video_frames_dropped(0) {
   }
 
-  uint32 audio_bytes_decoded; // Should be uint64?
-  uint32 video_bytes_decoded; // Should be uint64?
+  uint32 audio_bytes_decoded;  // Should be uint64?
+  uint32 video_bytes_decoded;  // Should be uint64?
   uint32 video_frames_decoded;
   uint32 video_frames_dropped;
 };
