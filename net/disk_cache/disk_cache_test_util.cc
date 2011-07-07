@@ -122,41 +122,20 @@ ScopedTestCache::~ScopedTestCache() {
 
 // -----------------------------------------------------------------------
 
-volatile int g_cache_tests_received = 0;
-volatile bool g_cache_tests_error = 0;
-
-CallbackTest::CallbackTest(bool reuse) : result_(-1), reuse_(reuse ? 0 : 1) {}
-
-CallbackTest::~CallbackTest() {}
-
-// On the actual callback, increase the number of tests received and check for
-// errors (an unexpected test received)
-void CallbackTest::RunWithParams(const Tuple1<int>& params) {
-  if (reuse_) {
-    DCHECK_EQ(1, reuse_);
-    if (2 == reuse_)
-      g_cache_tests_error = true;
-    reuse_++;
-  }
-
-  result_ = params.a;
-  g_cache_tests_received++;
-}
-
-// -----------------------------------------------------------------------
-
 MessageLoopHelper::MessageLoopHelper()
     : num_callbacks_(0),
       num_iterations_(0),
       last_(0),
-      completed_(false) {
+      completed_(false),
+      callback_reused_error_(false),
+      callbacks_called_(0) {
 }
 
 MessageLoopHelper::~MessageLoopHelper() {
 }
 
 bool MessageLoopHelper::WaitUntilCacheIoFinished(int num_callbacks) {
-  if (num_callbacks == g_cache_tests_received)
+  if (num_callbacks == callbacks_called_)
     return true;
 
   ExpectCallbacks(num_callbacks);
@@ -171,17 +150,41 @@ bool MessageLoopHelper::WaitUntilCacheIoFinished(int num_callbacks) {
 // Quits the message loop when all callbacks are called or we've been waiting
 // too long for them (2 secs without a callback).
 void MessageLoopHelper::TimerExpired() {
-  CHECK_LE(g_cache_tests_received, num_callbacks_);
-  if (g_cache_tests_received == num_callbacks_) {
+  CHECK_LE(callbacks_called_, num_callbacks_);
+  if (callbacks_called_ == num_callbacks_) {
     completed_ = true;
     MessageLoop::current()->Quit();
   } else {
     // Not finished yet. See if we have to abort.
-    if (last_ == g_cache_tests_received)
+    if (last_ == callbacks_called_)
       num_iterations_++;
     else
-      last_ = g_cache_tests_received;
+      last_ = callbacks_called_;
     if (40 == num_iterations_)
       MessageLoop::current()->Quit();
   }
+}
+
+// -----------------------------------------------------------------------
+
+CallbackTest::CallbackTest(MessageLoopHelper* helper,
+                           bool reuse)
+    : helper_(helper),
+      reuse_(reuse ? 0 : 1) {
+}
+
+CallbackTest::~CallbackTest() {
+}
+
+// On the actual callback, increase the number of tests received and check for
+// errors (an unexpected test received)
+void CallbackTest::RunWithParams(const Tuple1<int>& params) {
+  if (reuse_) {
+    DCHECK_EQ(1, reuse_);
+    if (2 == reuse_)
+      helper_->set_callback_reused_error(true);
+    reuse_++;
+  }
+
+  helper_->CallbackWasCalled();
 }
