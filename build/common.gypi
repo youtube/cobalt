@@ -172,6 +172,9 @@
       # Enable navigator.registerProtocolHandler and supporting UI.
       'enable_register_protocol_handler%': 1,
 
+      # Smooth scrolling is disabled by default.
+      'enable_smooth_scrolling%': 0,
+
       'conditions': [
         # Use Skia as WebKit renderer on Mac
         ['OS=="mac"', {
@@ -224,6 +227,13 @@
         }, {
           'file_manager_extension%': 0,
         }],
+        
+        # Enable smooth scrolling for Linux and ChromeOS
+        ['OS=="linux"', {
+          'enable_smooth_scrolling%': 1,
+        }, {
+          'enable_smooth_scrolling%': 0,
+        }],
       ],
     },
 
@@ -261,9 +271,7 @@
     'configuration_policy%': '<(configuration_policy)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
-
-    # Smooth scrolling is disabled by default.
-    'enable_smooth_scrolling%': 0,
+    'enable_smooth_scrolling%': '<(enable_smooth_scrolling)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
