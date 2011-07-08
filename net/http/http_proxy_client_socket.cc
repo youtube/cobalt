@@ -42,7 +42,8 @@ HttpProxyClientSocket::HttpProxyClientSocket(
       endpoint_(endpoint),
       auth_(tunnel ?
           new HttpAuthController(HttpAuth::AUTH_PROXY,
-                                 GURL("http://" + proxy_server.ToString()),
+                                 GURL((is_https_proxy ? "https://" : "http://")
+                                      + proxy_server.ToString()),
                                  http_auth_cache,
                                  http_auth_handler_factory)
           : NULL),
