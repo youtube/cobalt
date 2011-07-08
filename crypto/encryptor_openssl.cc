@@ -52,7 +52,9 @@ Encryptor::Encryptor()
 Encryptor::~Encryptor() {
 }
 
-bool Encryptor::Init(SymmetricKey* key, Mode mode, const std::string& iv) {
+bool Encryptor::Init(SymmetricKey* key,
+                     Mode mode,
+                     const base::StringPiece& iv) {
   DCHECK(key);
   DCHECK_EQ(CBC, mode);
 
@@ -65,20 +67,22 @@ bool Encryptor::Init(SymmetricKey* key, Mode mode, const std::string& iv) {
 
   key_ = key;
   mode_ = mode;
-  iv_ = iv;
+  iv.CopyToString(&iv_);
   return true;
 }
 
-bool Encryptor::Encrypt(const std::string& plaintext, std::string* ciphertext) {
+bool Encryptor::Encrypt(const base::StringPiece& plaintext,
+                        std::string* ciphertext) {
   return Crypt(true, plaintext, ciphertext);
 }
 
-bool Encryptor::Decrypt(const std::string& ciphertext, std::string* plaintext) {
+bool Encryptor::Decrypt(const base::StringPiece& ciphertext,
+                        std::string* plaintext) {
   return Crypt(false, ciphertext, plaintext);
 }
 
 bool Encryptor::Crypt(bool do_encrypt,
-                      const std::string& input,
+                      const base::StringPiece& input,
                       std::string* output) {
   DCHECK(key_);  // Must call Init() before En/De-crypt.
   // Work on the result in a local variable, and then only transfer it to
