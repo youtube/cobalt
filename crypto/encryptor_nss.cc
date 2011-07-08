@@ -41,7 +41,9 @@ Encryptor::Encryptor()
 Encryptor::~Encryptor() {
 }
 
-bool Encryptor::Init(SymmetricKey* key, Mode mode, const std::string& iv) {
+bool Encryptor::Init(SymmetricKey* key,
+                     Mode mode,
+                     const base::StringPiece& iv) {
   DCHECK(key);
   DCHECK(CBC == mode || CTR == mode) << "Unsupported mode of operation";
 
@@ -75,7 +77,8 @@ bool Encryptor::Init(SymmetricKey* key, Mode mode, const std::string& iv) {
   return true;
 }
 
-bool Encryptor::Encrypt(const std::string& plaintext, std::string* ciphertext) {
+bool Encryptor::Encrypt(const base::StringPiece& plaintext,
+                        std::string* ciphertext) {
   ScopedPK11Context context(PK11_CreateContextBySymKey(GetMechanism(mode_),
                                                        CKA_ENCRYPT,
                                                        key_->key(),
@@ -89,7 +92,8 @@ bool Encryptor::Encrypt(const std::string& plaintext, std::string* ciphertext) {
     return Crypt(context.get(), plaintext, ciphertext);
 }
 
-bool Encryptor::Decrypt(const std::string& ciphertext, std::string* plaintext) {
+bool Encryptor::Decrypt(const base::StringPiece& ciphertext,
+                        std::string* plaintext) {
   if (ciphertext.empty())
     return false;
 
@@ -105,7 +109,8 @@ bool Encryptor::Decrypt(const std::string& ciphertext, std::string* plaintext) {
     return Crypt(context.get(), ciphertext, plaintext);
 }
 
-bool Encryptor::Crypt(PK11Context* context, const std::string& input,
+bool Encryptor::Crypt(PK11Context* context,
+                      const base::StringPiece& input,
                       std::string* output) {
   size_t output_len = input.size() + AES_BLOCK_SIZE;
   CHECK(output_len > input.size()) << "Output size overflow";
@@ -145,7 +150,8 @@ bool Encryptor::Crypt(PK11Context* context, const std::string& input,
   return true;
 }
 
-bool Encryptor::CryptCTR(PK11Context* context, const std::string& input,
+bool Encryptor::CryptCTR(PK11Context* context,
+                         const base::StringPiece& input,
                          std::string* output) {
   if (!counter_.get()) {
     LOG(ERROR) << "Counter value not set in CTR mode.";
