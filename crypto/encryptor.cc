@@ -34,7 +34,7 @@ namespace crypto {
 
 /////////////////////////////////////////////////////////////////////////////
 // Encyptor::Counter Implementation.
-Encryptor::Counter::Counter(const std::string& counter) {
+Encryptor::Counter::Counter(const base::StringPiece& counter) {
   CHECK(sizeof(counter_) == counter.length());
 
   memcpy(&counter_, counter.data(), sizeof(counter_));
@@ -70,7 +70,7 @@ size_t Encryptor::Counter::GetLengthInBytes() const {
 /////////////////////////////////////////////////////////////////////////////
 // Partial Encryptor Implementation.
 
-bool Encryptor::SetCounter(const std::string& counter) {
+bool Encryptor::SetCounter(const base::StringPiece& counter) {
   if (mode_ != CTR)
     return false;
   if (counter.length() != 16u)
