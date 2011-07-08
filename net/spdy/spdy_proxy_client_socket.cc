@@ -38,7 +38,7 @@ SpdyProxyClientSocket::SpdyProxyClientSocket(
       endpoint_(endpoint),
       auth_(
           new HttpAuthController(HttpAuth::AUTH_PROXY,
-                                 GURL("http://" + proxy_server.ToString()),
+                                 GURL("https://" + proxy_server.ToString()),
                                  auth_cache,
                                  auth_handler_factory)),
       user_buffer_(NULL),
