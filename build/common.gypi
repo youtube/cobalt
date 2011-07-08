@@ -348,6 +348,11 @@
     # but that doesn't work as we'd like.
     'msvs_debug_link_incremental%': '2',
 
+    # TODO(dmichael): eliminate this when possible.
+    # This flag, when 0, makes ppapi build without synchronous scripting
+    # support in public interfaces.  This is a temporary transitional option.
+    'pepper_scripting%': 1,
+
     # Needed for some of the largest modules.
     'msvs_debug_link_nonincremental%': '1',
 
@@ -717,6 +722,10 @@
       }],
       ['enable_flapper_hacks==1', {
         'defines': ['ENABLE_FLAPPER_HACKS=1'],
+      }],
+      ['pepper_scripting==0', {
+        'defines': ['PPAPI_INSTANCE_REMOVE_SCRIPTING',
+                    'PPAPI_VAR_REMOVE_SCRIPTING'],
       }],
       ['fastbuild!=0', {
         'conditions': [
