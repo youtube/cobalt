@@ -30,12 +30,6 @@ namespace net {
 // is usually accessed through a BoundNetLog, which will always pass in a
 // specific source ID.
 //
-// ******** The NetLog (and associated logging) is a work in progress ********
-//
-// TODO(eroman): Remove the 'const' qualitifer from the BoundNetLog methods.
-// TODO(eroman): Start a new Source each time URLRequest redirects
-//               (simpler to reason about each as a separate entity).
-
 class NET_API NetLog {
  public:
   enum EventType {
