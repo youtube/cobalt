@@ -10,6 +10,7 @@
 
 #include "base/basictypes.h"
 #include "base/scoped_ptr.h"
+#include "base/string_piece.h"
 #include "build/build_config.h"
 #include "crypto/crypto_api.h"
 
@@ -34,7 +35,7 @@ class CRYPTO_API Encryptor {
   // Only 128-bits counter is supported in this class.
   class Counter {
    public:
-    Counter(const std::string& counter);
+    Counter(const base::StringPiece& counter);
     ~Counter();
 
     // Increment the counter value.
@@ -61,19 +62,19 @@ class CRYPTO_API Encryptor {
   // key or the initialization vector cannot be used.
   //
   // When |mode| is CTR then |iv| should be empty.
-  bool Init(SymmetricKey* key, Mode mode, const std::string& iv);
+  bool Init(SymmetricKey* key, Mode mode, const base::StringPiece& iv);
 
   // Encrypts |plaintext| into |ciphertext|.
-  bool Encrypt(const std::string& plaintext, std::string* ciphertext);
+  bool Encrypt(const base::StringPiece& plaintext, std::string* ciphertext);
 
   // Decrypts |ciphertext| into |plaintext|.
-  bool Decrypt(const std::string& ciphertext, std::string* plaintext);
+  bool Decrypt(const base::StringPiece& ciphertext, std::string* plaintext);
 
   // Sets the counter value when in CTR mode. Currently only 128-bits
   // counter value is supported.
   //
   // Returns true only if update was successful.
-  bool SetCounter(const std::string& counter);
+  bool SetCounter(const base::StringPiece& counter);
 
   // TODO(albertb): Support streaming encryption.
 
@@ -107,21 +108,21 @@ class CRYPTO_API Encryptor {
 
 #if defined(USE_OPENSSL)
   bool Crypt(bool encrypt,  // Pass true to encrypt, false to decrypt.
-             const std::string& input,
+             const base::StringPiece& input,
              std::string* output);
   std::string iv_;
 #elif defined(USE_NSS)
   bool Crypt(PK11Context* context,
-             const std::string& input,
+             const base::StringPiece& input,
              std::string* output);
   bool CryptCTR(PK11Context* context,
-                const std::string& input,
+                const base::StringPiece& input,
                 std::string* output);
   ScopedPK11Slot slot_;
   ScopedSECItem param_;
 #elif defined(OS_MACOSX)
   bool Crypt(int /*CCOperation*/ op,
-             const std::string& input,
+             const base::StringPiece& input,
              std::string* output);
 
   std::string iv_;
