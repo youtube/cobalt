@@ -231,12 +231,13 @@ class NSSInitSingleton {
   // login while the PINs are being initialized, and we want to retry
   // if this happens.
   bool EnsureTPMTokenReady() {
-    // If EnableTPMTokenForNSS hasn't been called, or if everything is
-    // already initialized, then this call succeeds.
-    if (tpm_token_info_delegate_.get() == NULL ||
-        (opencryptoki_module_ && tpm_slot_)) {
+    // If EnableTPMTokenForNSS hasn't been called, return false.
+    if (tpm_token_info_delegate_.get() == NULL)
+      return false;
+
+    // If everything is already initialized, then return true.
+    if (opencryptoki_module_ && tpm_slot_)
       return true;
-    }
 
     if (tpm_token_info_delegate_->IsTokenReady()) {
       // This tries to load the opencryptoki module so NSS can talk to
@@ -264,10 +265,16 @@ class NSSInitSingleton {
   }
 
   bool IsTPMTokenAvailable() {
+    if (tpm_token_info_delegate_.get() == NULL)
+      return false;
     return tpm_token_info_delegate_->IsTokenAvailable();
   }
 
   void GetTPMTokenInfo(std::string* token_name, std::string* user_pin) {
+    if (tpm_token_info_delegate_.get() == NULL) {
+      LOG(ERROR) << "GetTPMTokenInfo called before TPM Token is ready.";
+      return;
+    }
     tpm_token_info_delegate_->GetTokenInfo(token_name, user_pin);
   }
 
