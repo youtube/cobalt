@@ -20,17 +20,17 @@ namespace net {
 class URLRequest;
 class URLRequestJob;
 
-class NET_TEST URLRequestJobFactory
+class NET_API URLRequestJobFactory
     : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
-  class NET_TEST ProtocolHandler {
+  class NET_API ProtocolHandler {
    public:
     virtual ~ProtocolHandler();
 
     virtual URLRequestJob* MaybeCreateJob(URLRequest* request) const = 0;
   };
 
-  class NET_TEST Interceptor {
+  class NET_API Interceptor {
    public:
     virtual ~Interceptor();
 
