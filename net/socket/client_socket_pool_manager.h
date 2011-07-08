@@ -51,8 +51,6 @@ class TransportClientSocketPool;
 
 struct SSLConfig;
 
-extern const int kDefaultMaxSocketsPerProxyServer;
-
 namespace internal {
 
 // A helper class for auto-deleting Values in the destructor.

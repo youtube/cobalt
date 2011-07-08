@@ -27,8 +27,6 @@
 
 namespace net {
 
-const int kDefaultMaxSocketsPerProxyServer = 32;
-
 namespace {
 
 // Total limit of sockets.
@@ -42,7 +40,7 @@ int g_max_sockets_per_group = 6;
 // The max number of sockets to allow per proxy server.  This applies both to
 // http and SOCKS proxies.  See http://crbug.com/12066 and
 // http://crbug.com/44501 for details about proxy server connection limits.
-int g_max_sockets_per_proxy_server = kDefaultMaxSocketsPerProxyServer;
+int g_max_sockets_per_proxy_server = 32;
 
 // Appends information about all |socket_pools| to the end of |list|.
 template <class MapType>
