@@ -478,11 +478,7 @@
           'type': 'none',
           'dependencies': [
             '../app/app.gyp:app_unittests',
-            # TODO(bradnelson): app_unittests should depend on locales.
-            # However, we can't add dependencies on chrome/ to app/
-            # See http://crbug.com/43603
             '../base/base.gyp:base_unittests',
-            '../chrome/app/locales/locales.gyp:*',
             '../chrome/chrome.gyp:sync_unit_tests',
             '../crypto/crypto.gyp:crypto_unittests',
             '../ipc/ipc.gyp:ipc_tests',
