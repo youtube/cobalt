@@ -95,7 +95,8 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   void AddAuthToCache() {
     const string16 kFoo(ASCIIToUTF16("foo"));
     const string16 kBar(ASCIIToUTF16("bar"));
-    session_->http_auth_cache()->Add(GURL("http://proxy/"),
+    GURL proxy_url(GetParam() == HTTP ? "http://proxy" : "https://proxy:80");
+    session_->http_auth_cache()->Add(proxy_url,
                                      "MyRealm1",
                                      HttpAuth::AUTH_SCHEME_BASIC,
                                      "Basic realm=MyRealm1",
