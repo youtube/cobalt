@@ -48,7 +48,7 @@ install_gold() {
 
   BINUTILS=binutils-2.21.1
   BINUTILS_URL=http://ftp.gnu.org/gnu/binutils/$BINUTILS.tar.bz2
-  BINUTILS_SHA1=a22801a9cad45c85e9ff6afc10537d72
+  BINUTILS_SHA1=f188490772cc902ec44a76545887bff60dbfa22d
 
   test -f $BINUTILS.tar.bz2 || wget $BINUTILS_URL
   if test "`sha1sum $BINUTILS.tar.bz2|cut -d' ' -f1`" != "$BINUTILS_SHA1"
