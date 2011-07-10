@@ -23,7 +23,9 @@
 #include "net/base/mime_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#if !defined(__LB_PS3__)
 #include "net/base/sdch_manager.h"
+#endif
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
@@ -287,6 +289,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
 
   ProcessStrictTransportSecurityHeader();
 
+#if !defined(__LB_PS3__)
   if (SdchManager::Global() &&
       SdchManager::Global()->IsInSupportedDomain(request_->url())) {
     static const std::string name = "Get-Dictionary";
@@ -306,6 +309,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
       sdch_dictionary_url_ = request_info_.url.Resolve(url_text);
     }
   }
+#endif
 
   // The HTTP transaction may be restarted several times for the purposes
   // of sending authorization information. Each time it restarts, we get
@@ -377,6 +381,7 @@ void URLRequestHttpJob::StartTransaction() {
 }
 
 void URLRequestHttpJob::AddExtraHeaders() {
+#if !defined(__LB_PS3__)
   // TODO(jar): Consider optimizing away SDCH advertising bytes when the URL is
   // probably an img or such (and SDCH encoding is not likely).
   bool advertise_sdch = SdchManager::Global() &&
@@ -410,9 +415,11 @@ void URLRequestHttpJob::AddExtraHeaders() {
   // to filter and analyze the streams to assure that a proxy has not damaged
   // these headers.  Some proxies deliberately corrupt Accept-Encoding headers.
   if (!advertise_sdch) {
+#endif
     // Tell the server what compression formats we support (other than SDCH).
     request_info_.extra_headers.SetHeader(
         HttpRequestHeaders::kAcceptEncoding, "gzip,deflate");
+#if !defined(__LB_PS3__)
   } else {
     // Include SDCH in acceptable list.
     request_info_.extra_headers.SetHeader(
@@ -429,6 +436,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
       packet_timing_enabled_ = true;
     }
   }
+#endif
 
   URLRequestContext* context = request_->context();
   if (context) {
@@ -1090,6 +1098,7 @@ URLRequestHttpJob::~URLRequestHttpJob() {
   // filter_context_ is still alive.
   DestroyFilters();
 
+#if !defined(__LB_PS3__)
   if (sdch_dictionary_url_.is_valid()) {
     // Prior to reaching the destructor, request_ has been set to a NULL
     // pointer, so request_->url() is no longer valid in the destructor, and we
@@ -1104,6 +1113,7 @@ URLRequestHttpJob::~URLRequestHttpJob() {
     if (manager)  // Defensive programming.
       manager->FetchDictionary(request_info_.url, sdch_dictionary_url_);
   }
+#endif
 }
 
 void URLRequestHttpJob::RecordTimer() {

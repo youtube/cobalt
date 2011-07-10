@@ -24,9 +24,13 @@
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/ssl_client_socket_pool.h"
+#if !defined(__LB_PS3__)
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
+#else
+#include "base/metrics/histogram.h"
+#endif
 
 namespace net {
 
@@ -198,6 +202,7 @@ void HttpStreamFactoryImpl::Job::OnStreamReadyCallback() {
   // |this| may be deleted after this call.
 }
 
+#if !defined(__LB_PS3__)
 void HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback() {
   DCHECK(!stream_.get());
   DCHECK(!IsPreconnecting());
@@ -215,6 +220,7 @@ void HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback() {
   }
   // |this| may be deleted after this call.
 }
+#endif
 
 void HttpStreamFactoryImpl::Job::OnStreamFailedCallback(int result) {
   DCHECK(!IsPreconnecting());
@@ -271,11 +277,13 @@ void HttpStreamFactoryImpl::Job::OnHttpsProxyTunnelResponseCallback(
 
 void HttpStreamFactoryImpl::Job::OnPreconnectsComplete() {
   DCHECK(!request_);
+#if !defined(__LB_PS3__)
   if (new_spdy_session_) {
     stream_factory_->OnSpdySessionReady(
         new_spdy_session_, spdy_session_direct_, ssl_config_,
         proxy_info_, was_npn_negotiated(), using_spdy(), net_log_.source());
   }
+#endif
   stream_factory_->OnPreconnectsComplete(this);
   // |this| may be deleted after this call.
 }
@@ -360,12 +368,15 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
 
     case OK:
       next_state_ = STATE_DONE;
+#if !defined(__LB_PS3__)
       if (new_spdy_session_) {
         MessageLoop::current()->PostTask(
             FROM_HERE,
             method_factory_.NewRunnableMethod(
                 &HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback));
-      } else {
+      } else
+#endif
+      {
         MessageLoop::current()->PostTask(
             FROM_HERE,
             method_factory_.NewRunnableMethod(
@@ -529,6 +540,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
   using_ssl_ = request_info_.url.SchemeIs("https") || ShouldForceSpdySSL();
   using_spdy_ = false;
 
+#if !defined(__LB_PS3__)
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
   HostPortProxyPair spdy_session_key;
@@ -551,7 +563,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
     // Update the spdy session key for the request that launched this job.
     request_->SetSpdySessionKey(spdy_session_key);
   }
-
+#endif
   // OK, there's no available SPDY session. Let |dependent_job_| resume if it's
   // paused.
 
@@ -735,6 +747,11 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
     return OK;
   }
 
+#if defined(__LB_PS3__)
+  DCHECK(!using_spdy_);
+  return OK;
+#else
+
   CHECK(!stream_.get());
 
   bool direct = true;
@@ -788,6 +805,7 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
   bool use_relative_url = direct || request_info_.url.SchemeIs("https");
   stream_.reset(new SpdyHttpStream(spdy_session, use_relative_url));
   return OK;
+#endif
 }
 
 int HttpStreamFactoryImpl::Job::DoCreateStreamComplete(int result) {

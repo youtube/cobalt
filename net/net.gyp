@@ -248,6 +248,7 @@
         'disk_cache/file_lock.cc',
         'disk_cache/file_lock.h',
         'disk_cache/file_posix.cc',
+        'disk_cache/file_ps3.cc',
         'disk_cache/file_win.cc',
         'disk_cache/hash.cc',
         'disk_cache/hash.h',
@@ -258,6 +259,7 @@
         'disk_cache/in_flight_io.h',
         'disk_cache/mapped_file.h',
         'disk_cache/mapped_file_posix.cc',
+        'disk_cache/mapped_file_ps3.cc',
         'disk_cache/mapped_file_win.cc',
         'disk_cache/mem_backend_impl.cc',
         'disk_cache/mem_backend_impl.h',
@@ -518,6 +520,8 @@
         'socket/tcp_client_socket.h',
         'socket/tcp_client_socket_libevent.cc',
         'socket/tcp_client_socket_libevent.h',
+        'socket/tcp_client_socket_ps3.cc',
+        'socket/tcp_client_socket_ps3.h',
         'socket/tcp_client_socket_win.cc',
         'socket/tcp_client_socket_win.h',
         'socket/tcp_server_socket.h',
@@ -664,7 +668,8 @@
             # or UDP
             ['exclude', 'udp'],
             # or file tree access
-            ['exclude', 'disk_cache'],
+            ['exclude', 'disk_cache/mapped_file_posix.cc'],
+            ['exclude', 'disk_cache/file_posix.cc'],
             # or SDCH, Shared Dictionary Compression over HTTP
             ['exclude', 'sdch'],
             # and any v8-specific bindings
@@ -674,7 +679,9 @@
             # and the unsupported libevent
             ['exclude', 'libevent'],
             # no need for SOCKS
-            ['exclude', 'socks']
+            ['exclude', 'socks'],
+            # WWW-authenticate: Negotiate requries a native GSSAPI, which PS3 lacks
+            ['exclude', 'http/http_auth_handler_negotiate.cc'],
           ]
         }, { # os is not CellLv2
           'dependencies': [
