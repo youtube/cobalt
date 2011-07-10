@@ -14,7 +14,9 @@
 #include "net/http/http_proxy_client_socket_pool.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
+#if !defined(__LB_PS3__)
 #include "net/socket/socks_client_socket_pool.h"
+#endif
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/ssl_host_info.h"
 #include "net/socket/transport_client_socket_pool.h"
@@ -23,7 +25,9 @@ namespace net {
 
 SSLSocketParams::SSLSocketParams(
     const scoped_refptr<TransportSocketParams>& transport_params,
+#if !defined(__LB_PS3__)
     const scoped_refptr<SOCKSSocketParams>& socks_params,
+#endif
     const scoped_refptr<HttpProxySocketParams>& http_proxy_params,
     ProxyServer::Scheme proxy,
     const HostPortPair& host_and_port,
@@ -33,7 +37,9 @@ SSLSocketParams::SSLSocketParams(
     bool want_spdy_over_npn)
     : transport_params_(transport_params),
       http_proxy_params_(http_proxy_params),
+#if !defined(__LB_PS3__)
       socks_params_(socks_params),
+#endif
       proxy_(proxy),
       host_and_port_(host_and_port),
       ssl_config_(ssl_config),
@@ -44,16 +50,21 @@ SSLSocketParams::SSLSocketParams(
     case ProxyServer::SCHEME_DIRECT:
       DCHECK(transport_params_.get() != NULL);
       DCHECK(http_proxy_params_.get() == NULL);
+#if !defined(__LB_PS3__)
       DCHECK(socks_params_.get() == NULL);
+#endif
       ignore_limits_ = transport_params_->ignore_limits();
       break;
     case ProxyServer::SCHEME_HTTP:
     case ProxyServer::SCHEME_HTTPS:
       DCHECK(transport_params_.get() == NULL);
       DCHECK(http_proxy_params_.get() != NULL);
+#if !defined(__LB_PS3__)
       DCHECK(socks_params_.get() == NULL);
+#endif
       ignore_limits_ = http_proxy_params_->ignore_limits();
       break;
+#if !defined(__LB_PS3__)
     case ProxyServer::SCHEME_SOCKS4:
     case ProxyServer::SCHEME_SOCKS5:
       DCHECK(transport_params_.get() == NULL);
@@ -61,6 +72,7 @@ SSLSocketParams::SSLSocketParams(
       DCHECK(socks_params_.get() != NULL);
       ignore_limits_ = socks_params_->ignore_limits();
       break;
+#endif
     default:
       LOG(DFATAL) << "unknown proxy type";
       break;
@@ -77,7 +89,9 @@ SSLConnectJob::SSLConnectJob(
     const scoped_refptr<SSLSocketParams>& params,
     const base::TimeDelta& timeout_duration,
     TransportClientSocketPool* transport_pool,
+#if !defined(__LB_PS3__)
     SOCKSClientSocketPool* socks_pool,
+#endif
     HttpProxyClientSocketPool* http_proxy_pool,
     ClientSocketFactory* client_socket_factory,
     HostResolver* host_resolver,
@@ -91,7 +105,9 @@ SSLConnectJob::SSLConnectJob(
                  BoundNetLog::Make(net_log, NetLog::SOURCE_CONNECT_JOB)),
       params_(params),
       transport_pool_(transport_pool),
+#if !defined(__LB_PS3__)
       socks_pool_(socks_pool),
+#endif
       http_proxy_pool_(http_proxy_pool),
       client_socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
@@ -158,6 +174,7 @@ int SSLConnectJob::DoLoop(int result) {
       case STATE_TRANSPORT_CONNECT_COMPLETE:
         rv = DoTransportConnectComplete(rv);
         break;
+#if !defined(__LB_PS3__)
       case STATE_SOCKS_CONNECT:
         DCHECK_EQ(OK, rv);
         rv = DoSOCKSConnect();
@@ -165,6 +182,7 @@ int SSLConnectJob::DoLoop(int result) {
       case STATE_SOCKS_CONNECT_COMPLETE:
         rv = DoSOCKSConnectComplete(rv);
         break;
+#endif
       case STATE_TUNNEL_CONNECT:
         DCHECK_EQ(OK, rv);
         rv = DoTunnelConnect();
@@ -225,6 +243,7 @@ int SSLConnectJob::DoTransportConnectComplete(int result) {
   return result;
 }
 
+#if !defined(__LB_PS3__)
 int SSLConnectJob::DoSOCKSConnect() {
   DCHECK(socks_pool_);
   next_state_ = STATE_SOCKS_CONNECT_COMPLETE;
@@ -241,6 +260,7 @@ int SSLConnectJob::DoSOCKSConnectComplete(int result) {
 
   return result;
 }
+#endif
 
 int SSLConnectJob::DoTunnelConnect() {
   DCHECK(http_proxy_pool_);
@@ -394,7 +414,9 @@ int SSLConnectJob::ConnectInternal() {
 
 SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
     TransportClientSocketPool* transport_pool,
+#if !defined(__LB_PS3__)
     SOCKSClientSocketPool* socks_pool,
+#endif
     HttpProxyClientSocketPool* http_proxy_pool,
     ClientSocketFactory* client_socket_factory,
     HostResolver* host_resolver,
@@ -404,7 +426,9 @@ SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
     SSLHostInfoFactory* ssl_host_info_factory,
     NetLog* net_log)
     : transport_pool_(transport_pool),
+#if !defined(__LB_PS3__)
       socks_pool_(socks_pool),
+#endif
       http_proxy_pool_(http_proxy_pool),
       client_socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
@@ -417,11 +441,13 @@ SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
   base::TimeDelta pool_timeout;
   if (transport_pool_)
     max_transport_timeout = transport_pool_->ConnectionTimeout();
+#if !defined(__LB_PS3__)
   if (socks_pool_) {
     pool_timeout = socks_pool_->ConnectionTimeout();
     if (pool_timeout > max_transport_timeout)
       max_transport_timeout = pool_timeout;
   }
+#endif
   if (http_proxy_pool_) {
     pool_timeout = http_proxy_pool_->ConnectionTimeout();
     if (pool_timeout > max_transport_timeout)
@@ -442,19 +468,25 @@ SSLClientSocketPool::SSLClientSocketPool(
     SSLHostInfoFactory* ssl_host_info_factory,
     ClientSocketFactory* client_socket_factory,
     TransportClientSocketPool* transport_pool,
+#if !defined(__LB_PS3__)
     SOCKSClientSocketPool* socks_pool,
+#endif
     HttpProxyClientSocketPool* http_proxy_pool,
     SSLConfigService* ssl_config_service,
     NetLog* net_log)
     : transport_pool_(transport_pool),
+#if !defined(__LB_PS3__)
       socks_pool_(socks_pool),
+#endif
       http_proxy_pool_(http_proxy_pool),
       base_(max_sockets, max_sockets_per_group, histograms,
             base::TimeDelta::FromSeconds(
                 ClientSocketPool::unused_idle_socket_timeout()),
             base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
             new SSLConnectJobFactory(transport_pool,
+#if !defined(__LB_PS3__)
                                      socks_pool,
+#endif
                                      http_proxy_pool,
                                      client_socket_factory,
                                      host_resolver,
@@ -478,7 +510,11 @@ ConnectJob* SSLClientSocketPool::SSLConnectJobFactory::NewConnectJob(
     const PoolBase::Request& request,
     ConnectJob::Delegate* delegate) const {
   return new SSLConnectJob(group_name, request.params(), ConnectionTimeout(),
-                           transport_pool_, socks_pool_, http_proxy_pool_,
+                           transport_pool_, 
+#if !defined(__LB_PS3__)
+                           socks_pool_, 
+#endif
+                           http_proxy_pool_,
                            client_socket_factory_, host_resolver_,
                            cert_verifier_, dnsrr_resolver_, dns_cert_checker_,
                            ssl_host_info_factory_, delegate, net_log_);
@@ -552,11 +588,13 @@ DictionaryValue* SSLClientSocketPool::GetInfoAsValue(
                                                    "transport_socket_pool",
                                                    false));
     }
+#if !defined(__LB_PS3__)
     if (socks_pool_) {
       list->Append(socks_pool_->GetInfoAsValue("socks_pool",
                                                "socks_pool",
                                                true));
     }
+#endif
     if (http_proxy_pool_) {
       list->Append(http_proxy_pool_->GetInfoAsValue("http_proxy_pool",
                                                     "http_proxy_pool",

@@ -28,8 +28,10 @@ class HttpAuthCache;
 class HttpAuthHandlerFactory;
 class SSLClientSocketPool;
 class SSLSocketParams;
+#if !defined(__LB_PS3__)
 class SpdySessionPool;
 class SpdyStream;
+#endif
 class TransportClientSocketPool;
 class TransportSocketParams;
 
@@ -48,7 +50,9 @@ class NET_TEST HttpProxySocketParams
       HostPortPair endpoint,
       HttpAuthCache* http_auth_cache,
       HttpAuthHandlerFactory* http_auth_handler_factory,
+#if !defined(__LB_PS3__)
       SpdySessionPool* spdy_session_pool,
+#endif
       bool tunnel);
 
   const scoped_refptr<TransportSocketParams>& transport_params() const {
@@ -64,9 +68,11 @@ class NET_TEST HttpProxySocketParams
   HttpAuthHandlerFactory* http_auth_handler_factory() const {
     return http_auth_handler_factory_;
   }
+#if !defined(__LB_PS3__)
   SpdySessionPool* spdy_session_pool() {
     return spdy_session_pool_;
   }
+#endif
   const HostResolver::RequestInfo& destination() const;
   bool tunnel() const { return tunnel_; }
   bool ignore_limits() const { return ignore_limits_; }
@@ -77,7 +83,9 @@ class NET_TEST HttpProxySocketParams
 
   const scoped_refptr<TransportSocketParams> transport_params_;
   const scoped_refptr<SSLSocketParams> ssl_params_;
+#if !defined(__LB_PS3__)
   SpdySessionPool* spdy_session_pool_;
+#endif
   const GURL request_url_;
   const std::string user_agent_;
   const HostPortPair endpoint_;
@@ -162,7 +170,9 @@ class HttpProxyConnectJob : public ConnectJob {
 
   HttpResponseInfo error_response_info_;
 
+#if !defined(__LB_PS3__)
   scoped_refptr<SpdyStream> spdy_stream_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxyConnectJob);
 };

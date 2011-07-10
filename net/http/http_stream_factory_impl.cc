@@ -12,7 +12,9 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_stream_factory_impl_job.h"
 #include "net/http/http_stream_factory_impl_request.h"
+#if !defined(__LB_PS3__)
 #include "net/spdy/spdy_http_stream.h"
+#endif
 
 namespace net {
 
@@ -118,6 +120,9 @@ bool HttpStreamFactoryImpl::IsTLSIntolerantServer(
 bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
     const GURL& original_url,
     GURL* alternate_url) const {
+#if defined(__LB_PS3__)
+  return false;
+#else
   if (!spdy_enabled())
     return false;
 
@@ -150,6 +155,7 @@ bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
 
   *alternate_url = UpgradeUrlToHttps(original_url);
   return true;
+#endif
 }
 
 void HttpStreamFactoryImpl::OrphanJob(Job* job, const Request* request) {
@@ -163,6 +169,7 @@ void HttpStreamFactoryImpl::OrphanJob(Job* job, const Request* request) {
   job->Orphan(request);
 }
 
+#if !defined(__LB_PS3__)
 void HttpStreamFactoryImpl::OnSpdySessionReady(
     scoped_refptr<SpdySession> spdy_session,
     bool direct,
@@ -193,6 +200,7 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
   }
   // TODO(mbelshe): Alert other valid requests.
 }
+#endif
 
 void HttpStreamFactoryImpl::OnOrphanedJobComplete(const Job* job) {
   orphaned_job_set_.erase(job);
