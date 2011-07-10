@@ -6,6 +6,7 @@
 
 namespace net {
 
+#if !defined(__LB_PS3__)
 // static
 bool SSLFalseStartBlacklist::IsMember(const char* host) {
   const char* last_two_labels = LastTwoLabels(host);
@@ -30,5 +31,13 @@ bool SSLFalseStartBlacklist::IsMember(const char* host) {
 
   return false;
 }
+#else
+bool SSLFalseStartBlacklist::IsMember(const char*host) {
+  // __LB_PS3__ is not designed as a general-purpose web 
+  // browser but rather a focused application container.
+  // let's not keep the entire blacklist in memory then
+  return false;
+}
+#endif
 
 }  // namespace net

@@ -16,8 +16,10 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_data_job.h"
 #include "net/url_request/url_request_error_job.h"
+#if !defined(__LB_PS3__)
 #include "net/url_request/url_request_file_job.h"
 #include "net/url_request/url_request_ftp_job.h"
+#endif
 #include "net/url_request/url_request_http_job.h"
 #include "net/url_request/url_request_job_factory.h"
 
@@ -36,8 +38,10 @@ struct SchemeToFactory {
 static const SchemeToFactory kBuiltinFactories[] = {
   { "http", URLRequestHttpJob::Factory },
   { "https", URLRequestHttpJob::Factory },
+#if !defined(__LB_PS3__)
   { "file", URLRequestFileJob::Factory },
   { "ftp", URLRequestFtpJob::Factory },
+#endif
   { "about", URLRequestAboutJob::Factory },
   { "data", URLRequestDataJob::Factory },
 };

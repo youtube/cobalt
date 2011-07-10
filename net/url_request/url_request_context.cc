@@ -7,7 +7,9 @@
 #include "base/string_util.h"
 #include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
+#if !defined(__LB_PS3__)
 #include "net/ftp/ftp_transaction_factory.h"
+#endif
 #include "net/http/http_transaction_factory.h"
 
 namespace net {
@@ -23,7 +25,9 @@ URLRequestContext::URLRequestContext()
       network_delegate_(NULL),
       transport_security_state_(NULL),
       http_transaction_factory_(NULL),
+#if !defined(__LB_PS3__)
       ftp_transaction_factory_(NULL),
+#endif
       job_factory_(NULL) {
 }
 
@@ -45,7 +49,9 @@ void URLRequestContext::CopyFrom(URLRequestContext* other) {
   set_accept_charset(other->accept_charset());
   set_referrer_charset(other->referrer_charset());
   set_http_transaction_factory(other->http_transaction_factory());
+#if !defined(__LB_PS3__)
   set_ftp_transaction_factory(other->ftp_transaction_factory());
+#endif
   set_job_factory(other->job_factory());
 }
 

@@ -310,6 +310,7 @@ int64 ComputeFilesSize(const FilePath& directory,
   return running_size;
 }
 
+#if !defined(__LB_PS3__)
 ///////////////////////////////////////////////
 // MemoryMappedFile
 
@@ -359,6 +360,7 @@ bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
 
   return MapFileToMemoryInternal();
 }
+#endif
 
 // Deprecated functions ----------------------------------------------------
 

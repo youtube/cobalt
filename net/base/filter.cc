@@ -205,6 +205,7 @@ void Filter::FixupEncodingTypes(
     }
   }
 
+#if !defined(__LB_PS3__)
   // If the request was for SDCH content, then we might need additional fixups.
   if (!filter_context.IsSdchResponse()) {
     // It was not an SDCH request, so we'll just record stats.
@@ -300,6 +301,7 @@ void Filter::FixupEncodingTypes(
           SdchManager::BINARY_FIXED_CONTENT_ENCODINGS);
     }
   }
+#endif
 
   // Leave the existing encoding type to be processed first, and add our
   // tentative decodings to be done afterwards.  Vodaphone UK reportedyl will
@@ -353,6 +355,7 @@ Filter* Filter::InitGZipFilter(FilterType type_id, int buffer_size) {
   return gz_filter->InitDecoding(type_id) ? gz_filter.release() : NULL;
 }
 
+#if !defined(__LB_PS3__)
 // static
 Filter* Filter::InitSdchFilter(FilterType type_id,
                                const FilterContext& filter_context,
@@ -361,6 +364,7 @@ Filter* Filter::InitSdchFilter(FilterType type_id,
   sdch_filter->InitBuffer(buffer_size);
   return sdch_filter->InitDecoding(type_id) ? sdch_filter.release() : NULL;
 }
+#endif
 
 // static
 Filter* Filter::PrependNewFilter(FilterType type_id,
@@ -374,10 +378,12 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
     case FILTER_TYPE_GZIP:
       first_filter.reset(InitGZipFilter(type_id, buffer_size));
       break;
+#if !defined(__LB_PS3__)
     case FILTER_TYPE_SDCH:
     case FILTER_TYPE_SDCH_POSSIBLE:
       first_filter.reset(InitSdchFilter(type_id, filter_context, buffer_size));
       break;
+#endif
     default:
       break;
   }

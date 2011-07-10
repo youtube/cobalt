@@ -7,8 +7,10 @@
 #include "base/logging.h"
 #include "base/stl_util-inl.h"
 #include "net/http/http_stream_factory_impl_job.h"
+#if !defined(__LB_PS3__)
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
+#endif
 
 namespace net {
 
@@ -45,6 +47,7 @@ HttpStreamFactoryImpl::Request::~Request() {
   RemoveRequestFromSpdySessionRequestMap();
 }
 
+#if !defined(__LB_PS3__)
 void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
     const HostPortProxyPair& spdy_session_key) {
   DCHECK(!spdy_session_key_.get());
@@ -54,6 +57,7 @@ void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
   DCHECK(!ContainsKey(request_set, this));
   request_set.insert(this);
 }
+#endif
 
 void HttpStreamFactoryImpl::Request::AttachJob(Job* job) {
   DCHECK(job);
@@ -225,6 +229,7 @@ HttpStreamFactoryImpl::Request::RemoveRequestFromSpdySessionRequestMap() {
   }
 }
 
+#if !defined(__LB_PS3__)
 void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
     Job* job,
     scoped_refptr<SpdySession> spdy_session,
@@ -264,6 +269,7 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
       spdy_session, direct, used_ssl_config, used_proxy_info,
       was_npn_negotiated, using_spdy, source);
 }
+#endif
 
 void HttpStreamFactoryImpl::Request::OrphanJobsExcept(Job* job) {
   DCHECK(job);

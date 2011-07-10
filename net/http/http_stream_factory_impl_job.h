@@ -259,8 +259,10 @@ class HttpStreamFactoryImpl::Job {
   // preconnect.
   int num_streams_;
 
+#if !defined(__LB_PS3__)
   // Initialized when we create a new SpdySession.
   scoped_refptr<SpdySession> new_spdy_session_;
+#endif
 
   // Only used if |new_spdy_session_| is non-NULL.
   bool spdy_session_direct_;
