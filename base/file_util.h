@@ -505,6 +505,7 @@ class BASE_API FileEnumerator {
   DISALLOW_COPY_AND_ASSIGN(FileEnumerator);
 };
 
+#if !defined(__LB_PS3__)
 class BASE_API MemoryMappedFile {
  public:
   // The default constructor sets all members to invalid/null values.
@@ -557,6 +558,7 @@ class BASE_API MemoryMappedFile {
 
   DISALLOW_COPY_AND_ASSIGN(MemoryMappedFile);
 };
+#endif
 
 // Renames a file using the SHFileOperation API to ensure that the target file
 // gets the correct default security descriptor in the new path.
