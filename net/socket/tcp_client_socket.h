@@ -10,6 +10,8 @@
 
 #if defined(OS_WIN)
 #include "net/socket/tcp_client_socket_win.h"
+#elif defined(__LB_PS3__)
+#include "net/socket/tcp_client_socket_ps3.h"
 #elif defined(OS_POSIX)
 #include "net/socket/tcp_client_socket_libevent.h"
 #endif
@@ -19,6 +21,8 @@ namespace net {
 // A client socket that uses TCP as the transport layer.
 #if defined(OS_WIN)
 typedef TCPClientSocketWin TCPClientSocket;
+#elif defined(__LB_PS3__)
+typedef TCPClientSocketPS3 TCPClientSocket;
 #elif defined(OS_POSIX)
 typedef TCPClientSocketLibevent TCPClientSocket;
 #endif
