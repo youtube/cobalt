@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -22,6 +23,7 @@
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_util.h"
 #include "net/base/pem_tokenizer.h"
 
 namespace net {
@@ -122,8 +124,25 @@ X509Certificate* X509CertificateCache::Find(
 
 // CompareSHA1Hashes is a helper function for using bsearch() with an array of
 // SHA1 hashes.
-static int CompareSHA1Hashes(const void* a, const void* b) {
+int CompareSHA1Hashes(const void* a, const void* b) {
   return memcmp(a, b, base::SHA1_LENGTH);
+}
+
+// Utility to split |src| on the first occurrence of |c|, if any. |right| will
+// either be empty if |c| was not found, or will contain the remainder of the
+// string including the split character itself.
+void SplitOnChar(const base::StringPiece& src,
+                 char c,
+                 base::StringPiece* left,
+                 base::StringPiece* right) {
+   size_t pos = src.find(c);
+   if (pos == base::StringPiece::npos) {
+     *left = src;
+     right->clear();
+   } else {
+     *left = src.substr(0, pos);
+     *right = src.substr(pos);
+   }
 }
 
 }  // namespace
@@ -395,20 +414,29 @@ bool X509Certificate::HasIntermediateCertificates(const OSCertHandles& certs) {
 // static
 bool X509Certificate::VerifyHostname(
     const std::string& hostname,
-    const std::vector<std::string>& cert_names) {
+    const std::string& cert_common_name,
+    const std::vector<std::string>& cert_san_dns_names,
+    const std::vector<std::string>& cert_san_ip_addrs) {
   DCHECK(!hostname.empty());
+  // Perform name verification following http://tools.ietf.org/html/rfc6125.
+  // The terminology used in this method is as per that RFC:-
+  // Reference identifier == the host the local user/agent is intending to
+  //                         access, i.e. the thing displayed in the URL bar.
+  // Presented identifier(s) == name(s) the server knows itself as, in its cert.
 
-  // Simple host name validation. A valid domain name must only contain
-  // alpha, digits, hyphens, and dots. An IP address may have digits and dots,
-  // and also square braces and colons for IPv6 addresses.
+  // First, do simple host name validation. A valid domain name must only
+  // contain alpha, digits, hyphens, and dots. An IP address may have digits and
+  // dots, and also colons for IPv6 addresses.
+  // TODO(joth): Consider moving to use url_comon::CanonicalizeHost for this,
+  // and also detecting IP address family.
   std::string reference_name;
   reference_name.reserve(hostname.length());
 
   bool found_alpha = false;
-  bool found_ip6_chars = false;
+  bool found_ipv6_chars = false;
+  bool found_hyphen = false;
   int dot_count = 0;
 
-  size_t first_dot_index = std::string::npos;
   for (std::string::const_iterator it = hostname.begin();
        it != hostname.end(); ++it) {
     char c = *it;
@@ -417,93 +445,121 @@ bool X509Certificate::VerifyHostname(
       c = base::ToLowerASCII(c);
     } else if (c == '.') {
       ++dot_count;
-      if (first_dot_index == std::string::npos)
-        first_dot_index = reference_name.length();
     } else if (c == ':') {
-      found_ip6_chars = true;
-    } else if (c != '-' && !IsAsciiDigit(c)) {
-      LOG(WARNING) << "Invalid char " << c << " in hostname " << hostname;
+      found_ipv6_chars = true;
+    } else if (c == '-') {
+      found_hyphen = true;
+    } else if (!IsAsciiDigit(c)) {
+      DVLOG(1) << "Invalid char " << c << " in hostname " << hostname;
       return false;
     }
     reference_name.push_back(c);
   }
   DCHECK(!reference_name.empty());
+  // Allow fallback to Common name matching. As this is deprecated and only
+  // supported for compatibility, refuse it for IPv6 addresses.
+  const bool common_name_fallback = cert_san_dns_names.empty() &&
+                                    cert_san_ip_addrs.empty() &&
+                                    !found_ipv6_chars;
 
-  if (found_ip6_chars || !found_alpha) {
-    // For now we just do simple localhost IP address support, primarily as
-    // it's needed by the test server. TODO(joth): Replace this with full IP
-    // address support. See http://crbug.com/62973
-    if (hostname == "127.0.0.1") {
-      for (size_t index = 0; index < cert_names.size(); ++index) {
-        if (cert_names[index] == hostname) {
-          DVLOG(1) << "Allowing localhost IP certificate: " << hostname;
-          return true;
-        }
-      }
+  // Fully handle all cases where |hostname| contains an IP address. TODO(joth):
+  // handle IP addresses with less than three dots; for now we're relying on
+  // |hostname| having been canonicalized before it arrives in here.
+  if (found_ipv6_chars || (!found_alpha && !found_hyphen && dot_count == 3)) {
+    IPAddressNumber ip_address;
+    if (ParseIPLiteralToNumber(reference_name, &ip_address)) {
+      // If we successfully parsed hostname an IP address, now verify it.
+      DCHECK_EQ(found_ipv6_chars ? kIPv6AddressSize : kIPv4AddressSize,
+                ip_address.size());
+      if (common_name_fallback)
+        return reference_name == cert_common_name;
+
+      base::StringPiece ip_addr_string(reinterpret_cast<const char*>(
+          &ip_address[0]), ip_address.size());
+      return std::find(cert_san_ip_addrs.begin(), cert_san_ip_addrs.end(),
+                       ip_addr_string) != cert_san_ip_addrs.end();
     }
-    NOTIMPLEMENTED() << hostname;  // See comment above.
-    return false;
+    if (found_ipv6_chars) {
+      DVLOG(1) << "Couldn't parse as v6 address: " << hostname;
+      return false;
+    }
+    // else it was a candidate IPv4 address but didn't parse: fallback to
+    // reg-name (DNS name) matching.
   }
 
-  // |wildcard_domain| is the remainder of |host| after the leading host
+  // |reference_domain| is the remainder of |host| after the leading host
   // component is stripped off, but includes the leading dot e.g.
   // "www.f.com" -> ".f.com".
-  // If there is no meaningful domain part to |host| (e.g. it is an IP address
-  // or contains no dots) then |wildcard_domain| will be empty.
-  // We required at least 3 components (i.e. 2 dots) as a basic protection
-  // against too-broad wild-carding.
-  base::StringPiece wildcard_domain;
-  if (found_alpha && !found_ip6_chars && dot_count >= 2) {
-    DCHECK(first_dot_index != std::string::npos);
-    wildcard_domain = reference_name;
-    wildcard_domain.remove_prefix(first_dot_index);
-    DCHECK(wildcard_domain.starts_with("."));
-  }
+  // If there is no meaningful domain part to |host| (e.g. it contains no dots)
+  // then |reference_domain| will be empty.
+  base::StringPiece reference_host, reference_domain;
+  SplitOnChar(reference_name, '.', &reference_host, &reference_domain);
+  DCHECK(reference_domain.empty() || reference_domain.starts_with("."));
 
-  for (std::vector<std::string>::const_iterator it = cert_names.begin();
-       it != cert_names.end(); ++it) {
+  // Now step through the DNS names doing wild card comparison (if necessary)
+  // on each against the reference name. If subjectAltName is empty, then
+  // fallback to use the common name instead.
+  std::vector<std::string> common_name_as_vector;
+  const std::vector<std::string>* presented_names = &cert_san_dns_names;
+  if (common_name_fallback) {
+    common_name_as_vector.push_back(cert_common_name);
+    presented_names = &common_name_as_vector;
+  }
+  for (std::vector<std::string>::const_iterator it =
+           presented_names->begin();
+       it != presented_names->end(); ++it) {
     // Catch badly corrupt cert names up front.
     if (it->empty() || it->find('\0') != std::string::npos) {
-      LOG(WARNING) << "Bad name in cert: " << *it;
+      DVLOG(1) << "Bad name in cert: " << *it;
       continue;
     }
-    const std::string cert_name_string(StringToLowerASCII(*it));
-    base::StringPiece cert_match(cert_name_string);
+    std::string presented_name(StringToLowerASCII(*it));
 
     // Remove trailing dot, if any.
-    if (cert_match.ends_with("."))
-      cert_match.remove_suffix(1);
+    if (*presented_name.rbegin() == '.')
+      presented_name.resize(presented_name.length() - 1);
 
     // The hostname must be at least as long as the cert name it is matching,
     // as we require the wildcard (if present) to match at least one character.
-    if (cert_match.length() > reference_name.length())
+    if (presented_name.length() > reference_name.length())
       continue;
 
-    if (cert_match == reference_name)
-      return true;
+    base::StringPiece presented_host, presented_domain;
+    SplitOnChar(presented_name, '.', &presented_host, &presented_domain);
 
-    // Next see if this cert name starts with a wildcard, so long as the
-    // hostname we're matching against has a valid 'domain' part to match.
-    // Note the "-10" version of draft-saintandre-tls-server-id-check allows
-    // the wildcard to appear anywhere in the leftmost label, rather than
-    // requiring it to be the only character. See also http://crbug.com/60719
-    if (wildcard_domain.empty() || !cert_match.starts_with("*"))
+    if (presented_domain != reference_domain)
       continue;
 
-    // Erase the * but not the . from the domain, as we need to include the dot
-    // in the comparison.
-    cert_match.remove_prefix(1);
+    base::StringPiece pattern_begin, pattern_end;
+    SplitOnChar(presented_host, '*', &pattern_begin, &pattern_end);
 
-    // Do character by character comparison on the remainder to see
-    // if we have a wildcard match. This intentionally does no special handling
-    // for any other wildcard characters in |domain|; alternatively it could
-    // detect these and skip those candidate cert names.
-    if (cert_match == wildcard_domain)
+    if (pattern_end.empty()) {  // No '*' in the presented_host
+      if (presented_host == reference_host)
+        return true;
+      continue;
+    }
+    pattern_end.remove_prefix(1);  // move past the *
+
+    // We required at least 3 components (i.e. 2 dots) as a basic protection
+    // against too-broad wild-carding.
+    // Also we don't attempt wildcard matching on a purely numerical hostname.
+    if (dot_count < 2 || (!found_alpha && !found_hyphen))
+      continue;
+
+    // * must not match a substring of an IDN A label; just a whole fragment.
+    if (found_hyphen && reference_host.starts_with("xn--") &&
+        !(pattern_begin.empty() && pattern_end.empty()))
+      continue;
+
+    if (reference_host.starts_with(pattern_begin) &&
+        reference_host.ends_with(pattern_end))
       return true;
   }
   DVLOG(1) << "Could not find any match for " << hostname
            << " (canonicalized as " << reference_name
-           << ") in cert names " << JoinString(cert_names, '|');
+           << ") in dns names " << JoinString(cert_san_dns_names, '|')
+           << " common name " << cert_common_name
+           << " and IP addresses count: " << cert_san_ip_addrs.size();
   return false;
 }
 
@@ -524,9 +580,11 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
 
 #if !defined(USE_NSS)
 bool X509Certificate::VerifyNameMatch(const std::string& hostname) const {
-  std::vector<std::string> dns_names;
+  // TODO(joth): Define a cross platform version of ParseSubjectAltName and use
+  // that to retrieve dns names and ip addresses, independent of common name.
+  std::vector<std::string> dns_names, ip_addrs;
   GetDNSNames(&dns_names);
-  return VerifyHostname(hostname, dns_names);
+  return VerifyHostname(hostname, subject_.common_name, dns_names, ip_addrs);
 }
 #endif
 

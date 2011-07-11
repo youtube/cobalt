@@ -92,8 +92,10 @@ void ParsePrincipal(X509Certificate::OSCertHandle cert,
                                       &principal->country_name);
 }
 
-void ParseSubjectAltNames(X509Certificate::OSCertHandle cert,
-                          std::vector<std::string>* dns_names) {
+void ParseSubjectAltName(X509Certificate::OSCertHandle cert,
+                         std::vector<std::string>* dns_names,
+                         std::vector<std::string>* ip_addresses) {
+  DCHECK(dns_names || ip_addresses);
   int index = X509_get_ext_by_NID(cert, NID_subject_alt_name, -1);
   X509_EXTENSION* alt_name_ext = X509_get_ext(cert, index);
   if (!alt_name_ext)
@@ -106,13 +108,27 @@ void ParseSubjectAltNames(X509Certificate::OSCertHandle cert,
 
   for (int i = 0; i < sk_GENERAL_NAME_num(alt_names.get()); ++i) {
     const GENERAL_NAME* name = sk_GENERAL_NAME_value(alt_names.get(), i);
-    if (name->type == GEN_DNS) {
-      unsigned char* dns_name = ASN1_STRING_data(name->d.dNSName);
+    if (name->type == GEN_DNS && dns_names) {
+      const unsigned char* dns_name = ASN1_STRING_data(name->d.dNSName);
       if (!dns_name)
         continue;
       int dns_name_len = ASN1_STRING_length(name->d.dNSName);
       dns_names->push_back(
-          std::string(reinterpret_cast<char*>(dns_name), dns_name_len));
+          std::string(reinterpret_cast<const char*>(dns_name), dns_name_len));
+    } else if (name->type == GEN_IPADD && ip_addresses) {
+      const unsigned char* ip_addr = name->d.iPAddress->data;
+      if (!ip_addr)
+        continue;
+      int ip_addr_len = name->d.iPAddress->length;
+      if (ip_addr_len != 4 && ip_addr_len != 8) {
+        // http://www.ietf.org/rfc/rfc3280.txt requires subjectAltName iPAddress
+        // to have 4 or 16 bytes, whereas in a name constraint it includes a
+        // net mask hence 8 or 32 bytes. Logging to help diagnose any mixup.
+        LOG(WARNING) << "Bad sized IP Address in cert: " << ip_addr_len;
+        continue;
+      }
+      ip_addresses->push_back(
+          std::string(reinterpret_cast<const char*>(ip_addr), ip_addr_len));
     }
   }
 }
@@ -395,8 +411,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
 void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
   dns_names->clear();
 
-  ParseSubjectAltNames(cert_handle_, dns_names);
-
+  ParseSubjectAltName(cert_handle_, dns_names, NULL);
   if (dns_names->empty())
     dns_names->push_back(subject_.common_name);
 }
@@ -409,12 +424,10 @@ X509_STORE* X509Certificate::cert_store() {
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
                                     CertVerifyResult* verify_result) const {
-  // TODO(joth): We should fetch the subjectAltNames directly rather than via
-  // GetDNSNames, so we can apply special handling for IP addresses vs DNS
-  // names, etc. See http://crbug.com/62973.
-  std::vector<std::string> cert_names;
-  GetDNSNames(&cert_names);
-  if (!VerifyHostname(hostname, cert_names))
+  std::vector<std::string> dns_names, ip_addresses;
+  ParseSubjectAltName(cert_handle_, &dns_names, &ip_addresses);
+
+  if (!VerifyHostname(hostname, subject_.common_name, dns_names, ip_addresses))
     verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
   crypto::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
