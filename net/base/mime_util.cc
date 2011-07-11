@@ -227,10 +227,14 @@ static const char* const supported_image_types[] = {
 // A list of media types: http://en.wikipedia.org/wiki/Internet_media_type
 // A comprehensive mime type list: http://plugindoc.mozdev.org/winmime.php
 static const char* const supported_media_types[] = {
+#if defined(ENABLE_MEDIA_TYPE_OGG)
   // Ogg.
   "video/ogg",
   "audio/ogg",
   "application/ogg",
+#endif
+
+  // WebM.
   "video/webm",
   "audio/webm",
   "audio/wav",
@@ -259,7 +263,9 @@ static const char* const supported_media_codecs[] = {
   "avc1",
   "mp4a",
 #endif
+#if defined(ENABLE_MEDIA_CODEC_THEORA)
   "theora",
+#endif
   "vorbis",
   "vp8",
   "1"  // PCM for WAV.
