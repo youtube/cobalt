@@ -24,7 +24,7 @@ class ChunkDemuxer : public Demuxer {
   ChunkDemuxer();
   virtual ~ChunkDemuxer();
 
-  bool Init(const uint8* data, int size);
+  void Init(PipelineStatusCB cb);
 
   // Filter implementation.
   virtual void set_host(FilterHost* filter_host);
@@ -39,18 +39,24 @@ class ChunkDemuxer : public Demuxer {
 
   // Methods used by MediaDataSink
   void FlushData();
-  bool AddData(const uint8* data, unsigned length);
+  bool AppendData(const uint8* data, unsigned length);
   void Shutdown();
 
  private:
   enum State {
     WAITING_FOR_INIT,
+    INITIALIZING,
     INITIALIZED,
     INIT_ERROR,
     SHUTDOWN,
   };
 
   void ChangeState(State new_state);
+
+  // Parses a buffer that contains an INFO & TRACKS element. Returns false if
+  // the parse fails. This method handles calling & clearing |init_cb_|
+  // before it returns.
+  bool ParseInfoAndTracks_Locked(const uint8* data, int size);
 
   // Generates an AVFormatContext for the INFO & TRACKS elements contained
   // in |data|. Returns NULL if parsing |data| fails.
@@ -63,15 +69,19 @@ class ChunkDemuxer : public Demuxer {
 
   // Parse all the buffers in |pending_buffers_|. Returns false if parsing one
   // of the buffers fails.
-  bool ParsePendingBuffers();
+  bool ParsePendingBuffers_Locked();
 
-  // Parse a buffer that was passed to AddData(). |data| is expected to contain
-  // one or more WebM Clusters. Returns false if parsing the data fails.
-  bool ParseAndAddData_Locked(const uint8* data, int length);
+  // Parse a buffer that was passed to AppendData(). |data| is expected to
+  // contain one or more WebM Clusters. Returns false if parsing the data fails.
+  bool ParseAndAppendData_Locked(const uint8* data, int length);
+
+  // Called when initialization fails. Handles calling & clearing init_cb_.
+  void InitFailed_Locked();
 
   base::Lock lock_;
   State state_;
 
+  PipelineStatusCB init_cb_;
   FilterStatusCB seek_cb_;
 
   scoped_refptr<ChunkDemuxerStream> audio_;
