@@ -1082,9 +1082,14 @@ struct CertificateNameVerifyTestData {
   bool expected;
   // The hostname to match.
   const char* hostname;
-  // '/' separated list of certificate names to match against. Any occurrence
+  // Common name, may be used if |dns_names| or |ip_addrs| are empty.
+  const char* common_name;
+  // Comma separated list of certificate names to match against. Any occurrence
   // of '#' will be replaced with a null character before processing.
-  const char* cert_names;
+  const char* dns_names;
+  // Comma separated list of certificate IP Addresses to match against. Each
+  // address is x prefixed 16 byte hex code for v6 or dotted-decimals for v4.
+  const char* ip_addrs;
 };
 
 // Required by valgrind on mac, otherwise it complains when using its default
@@ -1097,8 +1102,11 @@ struct CertificateNameVerifyTestData {
 // testing::internal2::TypeWithoutFormatter
 // ...
 void PrintTo(const CertificateNameVerifyTestData& data, std::ostream* os) {
-  *os << " expected: " << data.expected << ", hostname: "
-      << data.hostname << ", cert_names: " << data.cert_names;
+  *os << " expected: " << data.expected
+      << "; hostname: " << data.hostname
+      << "; common_name: " << data.common_name
+      << "; dns_names: " << data.dns_names
+      << "; ip_addrs: " << data.ip_addrs;
 }
 
 const CertificateNameVerifyTestData kNameVerifyTestData[] = {
@@ -1108,49 +1116,96 @@ const CertificateNameVerifyTestData kNameVerifyTestData[] = {
     { true, "f", "f." },
     { true, "bar.foo.com", "*.foo.com" },
     { true, "www-3.bar.foo.com", "*.bar.foo.com." },
-    { true, "www.test.fr", "*.test.com/*.test.co.uk/*.test.de/*.test.fr" },
-    { true, "wwW.tESt.fr", "//*.*/*.test.de/*.test.FR/www" },
+    { true, "www.test.fr", "common.name",
+        "*.test.com,*.test.co.uk,*.test.de,*.test.fr" },
+    { true, "wwW.tESt.fr",  "common.name",
+        ",*.*,*.test.de,*.test.FR,www" },
     { false, "foo.com", "*.com" },
     { false, "f.uk", ".uk" },
     { true,  "h.co.uk", "*.co.uk" },
-    { false, "192.168.1.11", "*.168.1.11" },
     { false, "foo.us", "*.us" },
-    { false, "www.bar.foo.com",
-      "*.foo.com/*.*.foo.com/*.*.bar.foo.com/*w*.bar.foo.com/*..bar.foo.com" },
     { false, "w.bar.foo.com", "?.bar.foo.com" },
     { false, "www.foo.com", "(www|ftp).foo.com" },
-    { false, "www.foo.com", "www.foo.com#*.foo.com/#" },  // # = null char.
+    { false, "www.foo.com", "www.foo.com#" }, // # = null char.
+    { false, "www.foo.com", "", "www.foo.com#*.foo.com,#,#" },
     { false, "foo", "*" },
     { false, "foo.", "*." },
-    { false, "test.org", "www.test.org/*.test.org/*.org" },
-    { false, "1.2.3.4.5.6", "*.2.3.4.5.6" },
+    { false, "www.house.example", "ww.house.example" },
+    { false, "test.org", "", "www.test.org,*.test.org,*.org" },
+    { false, "w.bar.foo.com", "w*.bar.foo.com" },
+    { false, "www.bar.foo.com", "ww*ww.bar.foo.com" },
+    { false, "wwww.bar.foo.com", "ww*ww.bar.foo.com" },
+    { true, "wwww.bar.foo.com", "w*w.bar.foo.com" },
+    { false, "wwww.bar.foo.com", "w*w.bar.foo.c0m" },
+    { true, "wally.bar.foo.com", "wa*.bar.foo.com" },
+    { true, "wally.bar.foo.com", "*ly.bar.foo.com" },
+    // Common name must not be used if subject alternative name was provided.
+    { false, "www.test.co.jp",  "www.test.co.jp",
+        "*.test.de,*.jp,www.test.co.uk,www.*.co.jp" },
+    { false, "www.bar.foo.com", "www.bar.foo.com",
+      "*.foo.com,*.*.foo.com,*.*.bar.foo.com,*..bar.foo.com," },
+    { false, "www.bath.org", "www.bath.org", "", "20.30.40.50" },
+    { false, "66.77.88.99", "www.bath.org", "www.bath.org" },
     // IDN tests
     { true, "xn--poema-9qae5a.com.br", "xn--poema-9qae5a.com.br" },
     { true, "www.xn--poema-9qae5a.com.br", "*.xn--poema-9qae5a.com.br" },
-    { false, "xn--poema-9qae5a.com.br", "*.xn--poema-9qae5a.com.br" },
-    // The following are adapted from the examples in
-    // http://tools.ietf.org/html/draft-saintandre-tls-server-id-check-09#section-4.4.3
+    { false, "xn--poema-9qae5a.com.br", "", "*.xn--poema-9qae5a.com.br,"
+                                            "xn--poema-*.com.br,"
+                                            "xn--*-9qae5a.com.br,"
+                                            "*--poema-9qae5a.com.br" },
+    { true, "xn--poema-9qae5a.com.br", "*.com.br" },
+    // The following are adapted from the  examples quoted from
+    // http://tools.ietf.org/html/rfc6125#section-6.4.3
+    //  (e.g., *.example.com would match foo.example.com but
+    //   not bar.foo.example.com or example.com).
     { true, "foo.example.com", "*.example.com" },
     { false, "bar.foo.example.com", "*.example.com" },
     { false, "example.com", "*.example.com" },
-    { false, "baz1.example.net", "baz*.example.net" },
-    { false, "baz2.example.net", "baz*.example.net" },
-    { false, "bar.*.example.net", "bar.*.example.net" },
-    { false, "bar.f*o.example.net", "bar.f*o.example.net" },
-    // IP addresses currently not supported, except for the localhost.
+    //   (e.g., baz*.example.net and *baz.example.net and b*z.example.net would
+    //   be taken to match baz1.example.net and foobaz.example.net and
+    //   buzz.example.net, respectively
+    { true, "baz1.example.net", "baz*.example.net" },
+    { true, "foobaz.example.net", "*baz.example.net" },
+    { true, "buzz.example.net", "b*z.example.net" },
+    // IP addresses in common name; IPv4 only.
     { true, "127.0.0.1", "127.0.0.1" },
-    { false, "192.168.1.1", "192.168.1.1" },
-    { false, "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210",
-      "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210" },
-    { false, "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210", "*.]" },
-    { false, "::192.9.5.5", "::192.9.5.5" },
+    { true, "192.168.1.1", "192.168.1.1" },
+    { false, "192.169.1.1", "192.168.1.1" },
+    { false, "12.19.1.1", "12.19.1.1/255.255.255.0" },
+    { false, "FEDC:ba98:7654:3210:FEDC:BA98:7654:3210",
+      "FEDC:BA98:7654:3210:FEDC:ba98:7654:3210" },
+    { false, "1111:2222:3333:4444:5555:6666:7777:8888",
+      "1111:2222:3333:4444:5555:6666:7777:8888" },
+    { false, "::192.9.5.5", "[::192.9.5.5]" },
+    // No wildcard matching in valid IP addresses
     { false, "::192.9.5.5", "*.9.5.5" },
     { false, "2010:836B:4179::836B:4179", "*:836B:4179::836B:4179" },
+    { false, "192.168.1.11", "*.168.1.11" },
+    { false, "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210", "*.]" },
+    // IP addresses in subject alternative name (common name ignored)
+    { true, "10.1.2.3", "", "", "10.1.2.3" },
+    { false, "10.1.2.7", "10.1.2.7", "", "10.1.2.6,10.1.2.8" },
+    { true, "::4.5.6.7", "", "", "x00000000000000000000000004050607" },
+    { false, "::6.7.8.9", "::6.7.8.9", "",
+        "x00000000000000000000000006070808,x0000000000000000000000000607080a,"
+        "xff000000000000000000000006070809,6.7.8.9" },
+    { true, "FE80::200:f8ff:fe21:67cf", "no.common.name", "",
+        "x00000000000000000000000006070808,xfe800000000000000200f8fffe2167cf,"
+        "xff0000000000000000000000060708ff,10.0.0.1" },
+    // Numeric only hostnames (none of these are considered valid IP addresses).
+    { true,  "12345.6", "", "12345.6" },
+    { true,  "676768", "", "676768" },
+    { true,  "1.2.3", "1.2.4", "1.2.3", "1.2.3.0,0.1.2.3" },
+    { false, "121.2.3.512", "", "1*1.2.3.512,*1.2.3.512,1*.2.3.512,*.2.3.512",
+        "121.2.3.0"},
+    { false, "1.2.3.4.5.6", "*.2.3.4.5.6" },
     // Invalid host names.
     { false, "www%26.foo.com", "www%26.foo.com" },
     { false, "www.*.com", "www.*.com" },
     { false, "w$w.f.com", "w$w.f.com" },
+    { false, "nocolonallowed:example", "", "nocolonallowed:example" },
     { false, "www-1.[::FFFF:129.144.52.38]", "*.[::FFFF:129.144.52.38]" },
+    { false, "[::4.5.6.9]", "", "", "x00000000000000000000000004050609" },
 };
 
 class X509CertificateNameVerifyTest
@@ -1160,15 +1215,54 @@ class X509CertificateNameVerifyTest
 TEST_P(X509CertificateNameVerifyTest, VerifyHostname) {
   CertificateNameVerifyTestData test_data = GetParam();
 
-  std::string cert_name_line(test_data.cert_names);
-  std::replace(cert_name_line.begin(), cert_name_line.end(), '#', '\0');
-  std::vector<std::string> cert_names;
-  base::SplitString(cert_name_line, '/', &cert_names);
+  std::string common_name(test_data.common_name);
+  ASSERT_EQ(std::string::npos, common_name.find(','));
+  std::replace(common_name.begin(), common_name.end(), '#', '\0');
 
-  EXPECT_EQ(test_data.expected,
-            X509Certificate::VerifyHostname(test_data.hostname, cert_names))
-      << "Host [" << test_data.hostname
-      << "], cert name [" << test_data.cert_names << "]";
+  std::vector<std::string> dns_names, ip_addressses;
+  if (test_data.dns_names) {
+    // Build up the certificate DNS names list.
+    std::string dns_name_line(test_data.dns_names);
+    std::replace(dns_name_line.begin(), dns_name_line.end(), '#', '\0');
+    base::SplitString(dns_name_line, ',', &dns_names);
+  }
+
+  if (test_data.ip_addrs) {
+    // Build up the certificate IP address list.
+    std::string ip_addrs_line(test_data.ip_addrs);
+    std::vector<std::string> ip_addressses_ascii;
+    base::SplitString(ip_addrs_line, ',', &ip_addressses_ascii);
+    for (size_t i = 0; i < ip_addressses_ascii.size(); ++i) {
+      std::string& addr_ascii = ip_addressses_ascii[i];
+      ASSERT_NE(0U, addr_ascii.length());
+      if (addr_ascii[0] == 'x') { // Hex encoded address
+        addr_ascii.erase(0, 1);
+        std::vector<uint8> bytes;
+        EXPECT_TRUE(base::HexStringToBytes(addr_ascii, &bytes))
+            << "Could not parse hex address " << addr_ascii << " i = " << i;
+        ip_addressses.push_back(std::string(reinterpret_cast<char*>(&bytes[0]),
+                                            bytes.size()));
+        ASSERT_EQ(16U, ip_addressses.back().size()) << i;
+      } else {  // Decimal groups
+        std::vector<std::string> decimals_ascii;
+        base::SplitString(addr_ascii, '.', &decimals_ascii);
+        EXPECT_EQ(4U, decimals_ascii.size()) << i;
+        std::string addr_bytes;
+        for (size_t j = 0; j < decimals_ascii.size(); ++j) {
+          int decimal_value;
+          EXPECT_TRUE(base::StringToInt(decimals_ascii[j], &decimal_value));
+          EXPECT_GE(decimal_value, 0);
+          EXPECT_LE(decimal_value, 255);
+          addr_bytes.push_back(static_cast<char>(decimal_value));
+        }
+        ip_addressses.push_back(addr_bytes);
+        ASSERT_EQ(4U, ip_addressses.back().size()) << i;
+      }
+    }
+  }
+
+  EXPECT_EQ(test_data.expected, X509Certificate::VerifyHostname(
+      test_data.hostname, common_name, dns_names, ip_addressses));
 }
 
 INSTANTIATE_TEST_CASE_P(, X509CertificateNameVerifyTest,
