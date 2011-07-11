@@ -63,7 +63,13 @@ void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
   // At the root of the chain, map everything to localhost.
   scoped_refptr<RuleBasedHostResolverProc> catchall(
       new RuleBasedHostResolverProc(NULL));
+#if defined(OS_ANDROID)
+  // In Android emulator, the development machine's '127.0.0.1' is mapped to
+  // '10.0.2.2'.
+  catchall->AddRule("*", "10.0.2.2");
+#else
   catchall->AddRule("*", "127.0.0.1");
+#endif
 
   // Next add a rules-based layer the use controls.
   rules_ = new RuleBasedHostResolverProc(catchall);
