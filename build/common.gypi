@@ -159,6 +159,9 @@
       # Configuration policy is enabled by default. Set to 0 to disable.
       'configuration_policy%': 1,
 
+      # Safe browsing is compiled in by default. Set to 0 to disable.
+      'safe_browsing%': 1,
+
       # If this is set, the clang plugins used on the buildbot will be used.
       # Run tools/clang/scripts/update.sh to make sure they are compiled.
       # This causes 'clang_chrome_plugins_flags' to be set.
@@ -269,6 +272,7 @@
     'remoting%': '<(remoting)',
     'p2p_apis%': '<(p2p_apis)',
     'configuration_policy%': '<(configuration_policy)',
+    'safe_browsing%': '<(safe_browsing)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
     'enable_smooth_scrolling%': '<(enable_smooth_scrolling)',
