@@ -100,21 +100,21 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest {
         "\x69\xE3\x55\xF9\x30\xD3\xD4\x08\xC8\xCA\x62\xF8\x64\xEC\x9B\x92"
         "\x1A\xF1\x03\x2E\xCC\xDC\xEB\x17\xDE\x09\xAC\xA9\x58\x86";
     test::GssContextMockImpl context1(
-        "localhost",                    // Source name
-        "example.com",                  // Target name
-        23,                             // Lifetime
-        *GSS_C_NT_HOSTBASED_SERVICE,    // Mechanism
-        0,                              // Context flags
-        1,                              // Locally initiated
-        0);                             // Open
+        "localhost",                         // Source name
+        "example.com",                       // Target name
+        23,                                  // Lifetime
+        *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+        0,                                   // Context flags
+        1,                                   // Locally initiated
+        0);                                  // Open
     test::GssContextMockImpl context2(
-        "localhost",                    // Source name
-        "example.com",                  // Target name
-        23,                             // Lifetime
-        *GSS_C_NT_HOSTBASED_SERVICE,    // Mechanism
-        0,                              // Context flags
-        1,                              // Locally initiated
-        1);                             // Open
+        "localhost",                         // Source name
+        "example.com",                       // Target name
+        23,                                  // Lifetime
+        *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+        0,                                   // Context flags
+        1,                                   // Locally initiated
+        1);                                  // Open
     test::MockGSSAPILibrary::SecurityContextQuery queries[] = {
     test::MockGSSAPILibrary::SecurityContextQuery(
         "Negotiate",                    // Package name

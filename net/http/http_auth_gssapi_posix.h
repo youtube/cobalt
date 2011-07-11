@@ -19,9 +19,9 @@
 
 namespace net {
 
-extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X;
-extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE;
-extern gss_OID CHROME_GSS_KRB5_MECH_OID_DESC;
+NET_TEST extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X;
+NET_TEST extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE;
+NET_TEST extern gss_OID CHROME_GSS_KRB5_MECH_OID_DESC;
 
 // GSSAPILibrary is introduced so unit tests can mock the calls to the GSSAPI
 // library. The default implementation attempts to load one of the standard

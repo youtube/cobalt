@@ -51,13 +51,13 @@ const char kInitialAuthResponse[] = "Mary had a little lamb";
 
 void EstablishInitialContext(test::MockGSSAPILibrary* library) {
   test::GssContextMockImpl context_info(
-      "localhost",                    // Source name
-      "example.com",                  // Target name
-      23,                             // Lifetime
-      *GSS_C_NT_HOSTBASED_SERVICE,    // Mechanism
-      0,                              // Context flags
-      1,                              // Locally initiated
-      0);                             // Open
+      "localhost",                         // Source name
+      "example.com",                       // Target name
+      23,                                  // Lifetime
+      *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+      0,                                   // Context flags
+      1,                                   // Locally initiated
+      0);                                  // Open
   gss_buffer_desc in_buffer = {0, NULL};
   gss_buffer_desc out_buffer = {arraysize(kInitialAuthResponse),
                                 const_cast<char*>(kInitialAuthResponse)};
@@ -93,21 +93,21 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
   mock_library->Init();
   const char kAuthResponse[] = "Mary had a little lamb";
   test::GssContextMockImpl context1(
-      "localhost",                    // Source name
-      "example.com",                  // Target name
-      23,                             // Lifetime
-      *GSS_C_NT_HOSTBASED_SERVICE,    // Mechanism
-      0,                              // Context flags
-      1,                              // Locally initiated
-      0);                             // Open
+      "localhost",                         // Source name
+      "example.com",                       // Target name
+      23,                                  // Lifetime
+      *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+      0,                                   // Context flags
+      1,                                   // Locally initiated
+      0);                                  // Open
   test::GssContextMockImpl context2(
-      "localhost",                    // Source name
-      "example.com",                  // Target name
-      23,                             // Lifetime
-      *GSS_C_NT_HOSTBASED_SERVICE,    // Mechanism
-      0,                              // Context flags
-      1,                              // Locally initiated
-      1);                             // Open
+      "localhost",                         // Source name
+      "example.com",                       // Target name
+      23,                                  // Lifetime
+      *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+      0,                                   // Context flags
+      1,                                   // Locally initiated
+      1);                                  // Open
   test::MockGSSAPILibrary::SecurityContextQuery queries[] = {
     test::MockGSSAPILibrary::SecurityContextQuery(
         "Negotiate",            // Package name
