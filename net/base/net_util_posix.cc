@@ -4,7 +4,6 @@
 
 #include "net/base/net_util.h"
 
-#include <ifaddrs.h>
 #include <sys/types.h>
 
 #include "base/eintr_wrapper.h"
@@ -16,6 +15,10 @@
 #include "net/base/escape.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
+
+#if !defined(OS_ANDROID)
+#include <ifaddrs.h>
+#endif
 
 namespace net {
 
@@ -54,6 +57,14 @@ bool FileURLToFilePath(const GURL& url, FilePath* path) {
 }
 
 bool GetNetworkList(NetworkInterfaceList* networks) {
+#if defined(OS_ANDROID)
+  // TODO: Android API doesn't support ifaddrs. This method was only used by
+  // P2PMessage. Consider to implement it until really needed. The possible
+  // approach is implementing the similar feature by
+  // java.net.NetworkInterface through JNI.
+  NOTIMPLEMENTED();
+  return false;
+#else
   // getifaddrs() may require IO operations.
   base::ThreadRestrictions::AssertIOAllowed();
 
@@ -79,6 +90,7 @@ bool GetNetworkList(NetworkInterfaceList* networks) {
   freeifaddrs(ifaddr);
 
   return true;
+#endif
 }
 
 }  // namespace net

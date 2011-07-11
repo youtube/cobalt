@@ -100,7 +100,10 @@ std::vector<int> GetAllGetAddrinfoOSErrors() {
   int os_errors[] = {
 #if defined(OS_POSIX)
 #if !defined(OS_FREEBSD)
+#if !defined(OS_ANDROID)
+    // EAI_ADDRFAMILY has been declared obsolete in Android's netdb.h.
     EAI_ADDRFAMILY,
+#endif
     EAI_NODATA,
 #endif
     EAI_AGAIN,

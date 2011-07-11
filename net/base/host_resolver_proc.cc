@@ -198,7 +198,8 @@ int SystemHostResolverProc(const std::string& host,
 
   int err = getaddrinfo(host.c_str(), NULL, &hints, &ai);
   bool should_retry = false;
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) && \
+    !defined(OS_ANDROID)
   // If we fail, re-initialise the resolver just in case there have been any
   // changes to /etc/resolv.conf and retry. See http://crbug.com/11380 for info.
   if (err && DnsReloadTimerHasExpired()) {
