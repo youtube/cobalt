@@ -51,6 +51,10 @@ class TransportClientSocketPool;
 
 struct SSLConfig;
 
+// This should rather be a simple constant but Windows shared libs doesn't
+// really offer much flexiblity in exporting contants.
+enum DefaultMaxValues { kDefaultMaxSocketsPerProxyServer = 32 };
+
 namespace internal {
 
 // A helper class for auto-deleting Values in the destructor.
