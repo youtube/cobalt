@@ -152,6 +152,7 @@
         'base/net_util_win.cc',
         'base/network_change_notifier.cc',
         'base/network_change_notifier.h',
+        'base/network_change_notifier_factory.h',
         'base/network_change_notifier_linux.cc',
         'base/network_change_notifier_linux.h',
         'base/network_change_notifier_mac.cc',
