@@ -12,6 +12,8 @@
 
 namespace net {
 
+class NetworkChangeNotifierFactory;
+
 // NetworkChangeNotifier monitors the system for network changes, and notifies
 // registered observers of those events.  Observers may register on any thread,
 // and will be called back on the thread from which they registered.
@@ -54,6 +56,10 @@ class NET_API NetworkChangeNotifier {
   // Implementations must be thread-safe. Implementations must also be
   // cheap as this could be called (repeatedly) from the IO thread.
   virtual bool IsCurrentlyOffline() const = 0;
+
+  // Replaces the default class factory instance of NetworkChangeNotifier class.
+  // The method will take over the ownership of |factory| object.
+  static void SetFactory(NetworkChangeNotifierFactory* factory);
 
   // Creates the process-wide, platform-specific NetworkChangeNotifier.  The
   // caller owns the returned pointer.  You may call this on any thread.  You
