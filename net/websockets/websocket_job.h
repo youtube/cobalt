@@ -13,6 +13,7 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/socket_stream/socket_stream_job.h"
+#include "net/spdy/spdy_websocket_stream.h"
 
 class GURL;
 
@@ -31,7 +32,8 @@ class WebSocketHandshakeResponseHandler;
 // TODO(ukai): refactor websocket.cc to use this.
 class NET_API WebSocketJob
     : public SocketStreamJob,
-      public SocketStream::Delegate {
+      public SocketStream::Delegate,
+      public SpdyWebSocketStream::Delegate {
  public:
   // This is state of WebSocket, not SocketStream.
   enum State {
@@ -70,6 +72,15 @@ class NET_API WebSocketJob
       SocketStream* socket, AuthChallengeInfo* auth_info);
   virtual void OnError(const SocketStream* socket, int error);
 
+  // SpdyWebSocketStream::Delegate methods.
+  virtual void OnCreatedSpdyStream(int status);
+  virtual void OnSentSpdyHeaders(int status);
+  virtual int OnReceivedSpdyResponseHeader(
+      const spdy::SpdyHeaderBlock& headers, int status);
+  virtual void OnSentSpdyData(int amount_sent);
+  virtual void OnReceivedSpdyData(const char* data, int length);
+  virtual void OnCloseSpdyStream();
+
  private:
   friend class WebSocketThrottle;
   friend class WebSocketJobTest;
@@ -92,6 +103,7 @@ class NET_API WebSocketJob
   bool IsWaiting() const;
   void Wakeup();
   void RetryPendingIO();
+  void CompleteIO(int result);
 
   bool SendDataInternal(const char* data, int length);
   void CloseInternal();
@@ -117,6 +129,9 @@ class NET_API WebSocketJob
   scoped_ptr<WebSocketFrameHandler> send_frame_handler_;
   scoped_refptr<DrainableIOBuffer> current_buffer_;
   scoped_ptr<WebSocketFrameHandler> receive_frame_handler_;
+
+  scoped_ptr<SpdyWebSocketStream> spdy_websocket_stream_;
+  std::string challenge_;
 
   DISALLOW_COPY_AND_ASSIGN(WebSocketJob);
 };
