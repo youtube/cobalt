@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/base/network_change_notifier.h"
+#include "net/base/network_change_notifier_factory.h"
 #include "build/build_config.h"
 #if defined(OS_WIN)
 #include "net/base/network_change_notifier_win.h"
@@ -22,6 +23,9 @@ namespace {
 // anyway.)
 NetworkChangeNotifier* g_network_change_notifier = NULL;
 
+// Class factory singleton.
+NetworkChangeNotifierFactory* g_network_change_notifier_factory = NULL;
+
 class MockNetworkChangeNotifier : public NetworkChangeNotifier {
  public:
   virtual bool IsCurrentlyOffline() const { return false; }
@@ -34,9 +38,24 @@ NetworkChangeNotifier::~NetworkChangeNotifier() {
   g_network_change_notifier = NULL;
 }
 
+// static
+void NetworkChangeNotifier::SetFactory(
+    NetworkChangeNotifierFactory* factory) {
+  CHECK(!g_network_change_notifier_factory);
+  g_network_change_notifier_factory = factory;
+}
+
+// static
 NetworkChangeNotifier* NetworkChangeNotifier::Create() {
+  if (g_network_change_notifier_factory)
+    return g_network_change_notifier_factory->CreateInstance();
+
 #if defined(OS_WIN)
   return new NetworkChangeNotifierWin();
+#elif defined(OS_CHROMEOS)
+  // ChromeOS builds MUST use its own class factory.
+  CHECK(false);
+  return NULL;
 #elif defined(OS_LINUX) || defined(OS_ANDROID)
   return new NetworkChangeNotifierLinux();
 #elif defined(OS_MACOSX)
