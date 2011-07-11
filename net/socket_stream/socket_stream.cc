@@ -290,14 +290,14 @@ void SocketStream::Finish(int result) {
     result = ERR_CONNECTION_CLOSED;
   DCHECK_EQ(next_state_, STATE_NONE);
   DVLOG(1) << "Finish result=" << ErrorToString(result);
+  if (delegate_)
+    delegate_->OnError(this, result);
 
   metrics_->OnClose();
   Delegate* delegate = delegate_;
   delegate_ = NULL;
   if (delegate) {
-    delegate->OnError(this, result);
-    if (result != ERR_PROTOCOL_SWITCHED)
-      delegate->OnClose(this);
+    delegate->OnClose(this);
   }
   Release();
 }
