@@ -144,7 +144,6 @@
       'target_name': 'chromium_builder_tests',
       'type': 'none',
       'dependencies': [
-        '../app/app.gyp:app_unittests',
         '../base/base.gyp:base_unittests',
         '../chrome/chrome.gyp:browser_tests',
         '../chrome/chrome.gyp:interactive_ui_tests',
@@ -204,7 +203,6 @@
       'type': 'none',
       'dependencies': [
         '../chrome/chrome.gyp:chrome',
-        '../app/app.gyp:app_unittests',
         '../base/base.gyp:base_unittests',
         '../chrome/chrome.gyp:browser_tests',
         '../chrome/chrome.gyp:interactive_ui_tests',
@@ -317,7 +315,6 @@
           'target_name': 'chromium_builder_dbg',
           'type': 'none',
           'dependencies': [
-            '../app/app.gyp:app_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:nacl_ui_tests',
@@ -344,7 +341,6 @@
           'target_name': 'chromium_builder_rel',
           'type': 'none',
           'dependencies': [
-            '../app/app.gyp:app_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:memory_test',
             '../chrome/chrome.gyp:nacl_ui_tests',
@@ -393,10 +389,8 @@
           'target_name': 'chromium_builder_dbg_valgrind_mac',
           'type': 'none',
           'dependencies': [
-            '../app/app.gyp:app_unittests',
             '../base/base.gyp:base_unittests',
             '../crypto/crypto.gyp:crypto_unittests',
-            'temp_gyp/googleurl.gyp:googleurl_unittests',
             '../ipc/ipc.gyp:ipc_tests',
             '../media/media.gyp:media_unittests',
             '../net/net.gyp:net_unittests',
@@ -411,6 +405,7 @@
             '../sql/sql.gyp:sql_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
             '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
+            'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
       ],  # targets
@@ -423,7 +418,6 @@
           'target_name': 'chromium_builder',
           'type': 'none',
           'dependencies': [
-            '../app/app.gyp:app_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:installer_util_unittests',
             '../chrome/chrome.gyp:interactive_ui_tests',
@@ -477,7 +471,6 @@
           'target_name': 'chromium_builder_dbg_tsan_win',
           'type': 'none',
           'dependencies': [
-            '../app/app.gyp:app_unittests',
             '../base/base.gyp:base_unittests',
             '../chrome/chrome.gyp:sync_unit_tests',
             '../crypto/crypto.gyp:crypto_unittests',
@@ -537,7 +530,6 @@
             'all.gyp',
           ],
           'dependencies': [
-            '../app/app.gyp:app_unittests',
             '../base/base.gyp:base_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:chrome',
