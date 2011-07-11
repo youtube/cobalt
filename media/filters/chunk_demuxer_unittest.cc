@@ -134,7 +134,7 @@ class ChunkDemuxerTest : public testing::Test{
     }
   }
 
-  void InitDemuxer(bool has_audio, bool has_video) {
+  void AppendInfoTracks(bool has_audio, bool has_video) {
     EXPECT_CALL(mock_ffmpeg_, AVOpenInputFile(_, _, NULL, 0, NULL))
         .WillOnce(DoAll(SetArgumentPointee<0>(&format_context_),
                         Return(0)));
@@ -153,8 +153,27 @@ class ChunkDemuxerTest : public testing::Test{
 
     SetupAVFormatContext(has_audio, has_video);
 
-    EXPECT_EQ(demuxer_->Init(info_tracks.get(), info_tracks_size),
-              has_audio || has_video);
+    demuxer_->AppendData(info_tracks.get(), info_tracks_size);
+  }
+
+  static void InitDoneCalled(bool* was_called, PipelineStatus expectedStatus,
+                             PipelineStatus status) {
+    EXPECT_EQ(status, expectedStatus);
+    *was_called = true;
+  }
+
+  void InitDemuxer(bool has_audio, bool has_video) {
+    bool init_done_called = false;
+    PipelineStatus expectedStatus =
+        (has_audio || has_video) ? PIPELINE_OK : DEMUXER_ERROR_COULD_NOT_OPEN;
+    demuxer_->Init(base::Bind(&ChunkDemuxerTest::InitDoneCalled,
+                              &init_done_called, expectedStatus));
+
+    EXPECT_FALSE(init_done_called);
+
+    AppendInfoTracks(has_audio, has_video);
+
+    EXPECT_TRUE(init_done_called);
   }
 
   void ShutdownDemuxer() {
@@ -240,7 +259,7 @@ TEST_F(ChunkDemuxerTest, TestShutdownBeforeFirstSeekCompletes) {
 
 // Test that Seek() completes successfully when the first cluster
 // arrives.
-TEST_F(ChunkDemuxerTest, TestAddDataAfterSeek) {
+TEST_F(ChunkDemuxerTest, TestAppendDataAfterSeek) {
   InitDemuxer(true, true);
 
   InSequence s;
@@ -259,23 +278,25 @@ TEST_F(ChunkDemuxerTest, TestAddDataAfterSeek) {
 
   Checkpoint(1);
 
-  EXPECT_TRUE(demuxer_->AddData(cluster->data(), cluster->size()));
+  EXPECT_TRUE(demuxer_->AppendData(cluster->data(), cluster->size()));
 
   Checkpoint(2);
 }
 
-// Test the case where AddData() is called before Init(). This can happen
+// Test the case where AppendData() is called before Init(). This can happen
 // when JavaScript starts sending data before the pipeline is completely
 // initialized.
-TEST_F(ChunkDemuxerTest, TestAddDataBeforeInit) {
+TEST_F(ChunkDemuxerTest, TestAppendDataBeforeInit) {
+  AppendInfoTracks(true, true);
+
   ClusterBuilder cb;
   cb.SetClusterTimecode(0);
   AddSimpleBlock(&cb, kVideoTrackNum, 0);
   scoped_ptr<Cluster> cluster(cb.Finish());
 
-  EXPECT_TRUE(demuxer_->AddData(cluster->data(), cluster->size()));
+  EXPECT_TRUE(demuxer_->AppendData(cluster->data(), cluster->size()));
 
-  InitDemuxer(true, true);
+  demuxer_->Init(NewExpectedStatusCB(PIPELINE_OK));
 
   demuxer_->Seek(base::TimeDelta::FromSeconds(0),
                  NewExpectedStatusCB(PIPELINE_OK));
@@ -313,7 +334,7 @@ TEST_F(ChunkDemuxerTest, TestRead) {
   AddSimpleBlock(&cb, kVideoTrackNum, 123);
   scoped_ptr<Cluster> cluster(cb.Finish());
 
-  EXPECT_TRUE(demuxer_->AddData(cluster->data(), cluster->size()));
+  EXPECT_TRUE(demuxer_->AppendData(cluster->data(), cluster->size()));
 
   EXPECT_TRUE(audio_read_done);
   EXPECT_TRUE(video_read_done);
@@ -331,7 +352,7 @@ TEST_F(ChunkDemuxerTest, TestOutOfOrderClusters) {
   AddSimpleBlock(&cb, kVideoTrackNum, 43);
   scoped_ptr<Cluster> clusterA(cb.Finish());
 
-  EXPECT_TRUE(demuxer_->AddData(clusterA->data(), clusterA->size()));
+  EXPECT_TRUE(demuxer_->AppendData(clusterA->data(), clusterA->size()));
 
   // Cluster B starts before clusterA and has data
   // that overlaps.
@@ -342,9 +363,9 @@ TEST_F(ChunkDemuxerTest, TestOutOfOrderClusters) {
   AddSimpleBlock(&cb, kVideoTrackNum, 40);
   scoped_ptr<Cluster> clusterB(cb.Finish());
 
-  // Make sure that AddData() fails because this cluster data
+  // Make sure that AppendData() fails because this cluster data
   // is before previous data.
-  EXPECT_FALSE(demuxer_->AddData(clusterB->data(), clusterB->size()));
+  EXPECT_FALSE(demuxer_->AppendData(clusterB->data(), clusterB->size()));
 
   // Cluster C starts after clusterA.
   cb.SetClusterTimecode(56);
@@ -355,15 +376,15 @@ TEST_F(ChunkDemuxerTest, TestOutOfOrderClusters) {
   scoped_ptr<Cluster> clusterC(cb.Finish());
 
   // Verify that clusterC is accepted.
-  EXPECT_TRUE(demuxer_->AddData(clusterC->data(), clusterC->size()));
+  EXPECT_TRUE(demuxer_->AppendData(clusterC->data(), clusterC->size()));
 
   // Flush and try clusterB again.
   demuxer_->FlushData();
-  EXPECT_TRUE(demuxer_->AddData(clusterB->data(), clusterB->size()));
+  EXPECT_TRUE(demuxer_->AppendData(clusterB->data(), clusterB->size()));
 
   // Following that with clusterC should work too since it doesn't
   // overlap with clusterB.
-  EXPECT_TRUE(demuxer_->AddData(clusterC->data(), clusterC->size()));
+  EXPECT_TRUE(demuxer_->AppendData(clusterC->data(), clusterC->size()));
 }
 
 TEST_F(ChunkDemuxerTest, TestInvalidBlockSequences) {
@@ -380,7 +401,7 @@ TEST_F(ChunkDemuxerTest, TestInvalidBlockSequences) {
   AddSimpleBlock(&cb, kVideoTrackNum, 15);
   scoped_ptr<Cluster> clusterA(cb.Finish());
 
-  EXPECT_FALSE(demuxer_->AddData(clusterA->data(), clusterA->size()));
+  EXPECT_FALSE(demuxer_->AppendData(clusterA->data(), clusterA->size()));
 
   // Test timecodes going backwards before cluster timecode.
   cb.SetClusterTimecode(5);
@@ -390,7 +411,7 @@ TEST_F(ChunkDemuxerTest, TestInvalidBlockSequences) {
   AddSimpleBlock(&cb, kVideoTrackNum, 3);
   scoped_ptr<Cluster> clusterB(cb.Finish());
 
-  EXPECT_FALSE(demuxer_->AddData(clusterB->data(), clusterB->size()));
+  EXPECT_FALSE(demuxer_->AppendData(clusterB->data(), clusterB->size()));
 
   // Test strict monotonic increasing timestamps on a per stream
   // basis.
@@ -401,7 +422,7 @@ TEST_F(ChunkDemuxerTest, TestInvalidBlockSequences) {
   AddSimpleBlock(&cb, kVideoTrackNum, 7);
   scoped_ptr<Cluster> clusterC(cb.Finish());
 
-  EXPECT_FALSE(demuxer_->AddData(clusterC->data(), clusterC->size()));
+  EXPECT_FALSE(demuxer_->AppendData(clusterC->data(), clusterC->size()));
 
   // Test strict monotonic increasing timestamps on a per stream
   // basis across clusters.
@@ -410,14 +431,27 @@ TEST_F(ChunkDemuxerTest, TestInvalidBlockSequences) {
   AddSimpleBlock(&cb, kVideoTrackNum, 5);
   scoped_ptr<Cluster> clusterD(cb.Finish());
 
-  EXPECT_TRUE(demuxer_->AddData(clusterD->data(), clusterD->size()));
+  EXPECT_TRUE(demuxer_->AppendData(clusterD->data(), clusterD->size()));
 
   cb.SetClusterTimecode(5);
   AddSimpleBlock(&cb, kAudioTrackNum, 5);
   AddSimpleBlock(&cb, kVideoTrackNum, 7);
   scoped_ptr<Cluster> clusterE(cb.Finish());
 
-  EXPECT_FALSE(demuxer_->AddData(clusterE->data(), clusterE->size()));
+  EXPECT_FALSE(demuxer_->AppendData(clusterE->data(), clusterE->size()));
+}
+
+// Test the case where a cluster is passed to AppendData() before
+// INFO & TRACKS data.
+TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
+  demuxer_->Init(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+
+  ClusterBuilder cb;
+  cb.SetClusterTimecode(0);
+  AddSimpleBlock(&cb, kVideoTrackNum, 0);
+  scoped_ptr<Cluster> cluster(cb.Finish());
+
+  EXPECT_FALSE(demuxer_->AppendData(cluster->data(), cluster->size()));
 }
 
 }  // namespace media

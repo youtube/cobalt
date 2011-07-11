@@ -283,53 +283,20 @@ ChunkDemuxer::~ChunkDemuxer() {
   format_context_ = NULL;
 }
 
-bool ChunkDemuxer::Init(const uint8* data, int size) {
-  DCHECK(data);
-  DCHECK_GT(size, 0);
-
+void ChunkDemuxer::Init(PipelineStatusCB cb) {
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, WAITING_FOR_INIT);
 
-  const uint8* cur = data;
-  int cur_size = size;
-  WebMInfoParser info_parser;
-  int res = info_parser.Parse(cur, cur_size);
+  ChangeState(INITIALIZING);
+  init_cb_ = cb;
 
-  if (res <= 0) {
-    ChangeState(INIT_ERROR);
-    return false;
-  }
+  if (pending_buffers_.empty())
+    return;
 
-  cur += res;
-  cur_size -= res;
+  scoped_refptr<Buffer> buf = pending_buffers_.front();
+  pending_buffers_.pop_front();
 
-  WebMTracksParser tracks_parser(info_parser.timecode_scale());
-  res = tracks_parser.Parse(cur, cur_size);
-
-  if (res <= 0) {
-    ChangeState(INIT_ERROR);
-    return false;
-  }
-
-  double mult = info_parser.timecode_scale() / 1000.0;
-  duration_ = base::TimeDelta::FromMicroseconds(info_parser.duration() * mult);
-
-  cluster_parser_.reset(new WebMClusterParser(
-      info_parser.timecode_scale(),
-      tracks_parser.audio_track_num(),
-      tracks_parser.audio_default_duration(),
-      tracks_parser.video_track_num(),
-      tracks_parser.video_default_duration()));
-
-  format_context_ = CreateFormatContext(data, size);
-
-  if (!format_context_ || !SetupStreams() || !ParsePendingBuffers()) {
-    ChangeState(INIT_ERROR);
-    return false;
-  }
-
-  ChangeState(INITIALIZED);
-  return true;
+  ParseInfoAndTracks_Locked(buf->GetData(), buf->GetDataSize());
 }
 
 // Filter implementation.
@@ -353,6 +320,7 @@ void ChunkDemuxer::Seek(base::TimeDelta time, const FilterStatusCB&  cb) {
     base::AutoLock auto_lock(lock_);
 
     if (seek_waits_for_data_) {
+      VLOG(1) << "Seek() : waiting for more data to arrive.";
       seek_cb_ = cb;
       return;
     }
@@ -398,8 +366,8 @@ void ChunkDemuxer::FlushData() {
   seek_waits_for_data_ = true;
 }
 
-bool ChunkDemuxer::AddData(const uint8* data, unsigned length) {
-  VLOG(1) << "AddData(" << length << ")";
+bool ChunkDemuxer::AppendData(const uint8* data, unsigned length) {
+  VLOG(1) << "AppendData(" << length << ")";
   DCHECK(data);
   DCHECK_GT(length, 0u);
 
@@ -416,16 +384,24 @@ bool ChunkDemuxer::AddData(const uint8* data, unsigned length) {
         return true;
         break;
 
+      case INITIALIZING:
+        if (!ParseInfoAndTracks_Locked(data, length)) {
+          VLOG(1) << "AppendData(): parsing info & tracks failed";
+          return false;
+        }
+        return true;
+        break;
+
       case INITIALIZED:
-        if (!ParseAndAddData_Locked(data, length)) {
-          VLOG(1) << "AddData(): parsing data failed";
+        if (!ParseAndAppendData_Locked(data, length)) {
+          VLOG(1) << "AppendData(): parsing data failed";
           return false;
         }
         break;
 
       case INIT_ERROR:
       case SHUTDOWN:
-        VLOG(1) << "AddData(): called in unexpected state " << state_;
+        VLOG(1) << "AppendData(): called in unexpected state " << state_;
         return false;
         break;
     }
@@ -489,6 +465,56 @@ void ChunkDemuxer::Shutdown() {
 void ChunkDemuxer::ChangeState(State new_state) {
   lock_.AssertAcquired();
   state_ = new_state;
+}
+
+bool ChunkDemuxer::ParseInfoAndTracks_Locked(const uint8* data, int size) {
+  DCHECK(data);
+  DCHECK_GT(size, 0);
+
+  DCHECK_EQ(state_, INITIALIZING);
+
+  const uint8* cur = data;
+  int cur_size = size;
+  WebMInfoParser info_parser;
+  int res = info_parser.Parse(cur, cur_size);
+
+  if (res <= 0) {
+    InitFailed_Locked();
+    return false;
+  }
+
+  cur += res;
+  cur_size -= res;
+
+  WebMTracksParser tracks_parser(info_parser.timecode_scale());
+  res = tracks_parser.Parse(cur, cur_size);
+
+  if (res <= 0) {
+    InitFailed_Locked();
+    return false;
+  }
+
+  double mult = info_parser.timecode_scale() / 1000.0;
+  duration_ = base::TimeDelta::FromMicroseconds(info_parser.duration() * mult);
+
+  cluster_parser_.reset(new WebMClusterParser(
+      info_parser.timecode_scale(),
+      tracks_parser.audio_track_num(),
+      tracks_parser.audio_default_duration(),
+      tracks_parser.video_track_num(),
+      tracks_parser.video_default_duration()));
+
+  format_context_ = CreateFormatContext(data, size);
+
+  if (!format_context_ || !SetupStreams() || !ParsePendingBuffers_Locked()) {
+    InitFailed_Locked();
+    return false;
+  }
+
+  ChangeState(INITIALIZED);
+  init_cb_.Run(PIPELINE_OK);
+  init_cb_.Reset();
+  return true;
 }
 
 AVFormatContext* ChunkDemuxer::CreateFormatContext(const uint8* data,
@@ -556,7 +582,7 @@ bool ChunkDemuxer::SetupStreams() {
   return !no_supported_streams;
 }
 
-bool ChunkDemuxer::ParsePendingBuffers() {
+bool ChunkDemuxer::ParsePendingBuffers_Locked() {
   bool had_pending_buffers = !pending_buffers_.empty();
   // Handle any buffers that came in between the time the pipeline was
   // started and Init() was called.
@@ -564,7 +590,7 @@ bool ChunkDemuxer::ParsePendingBuffers() {
     scoped_refptr<media::Buffer> buf = pending_buffers_.front();
     pending_buffers_.pop_front();
 
-    if (!ParseAndAddData_Locked(buf->GetData(), buf->GetDataSize())) {
+    if (!ParseAndAppendData_Locked(buf->GetData(), buf->GetDataSize())) {
       pending_buffers_.clear();
       ChangeState(INIT_ERROR);
       return false;
@@ -575,7 +601,7 @@ bool ChunkDemuxer::ParsePendingBuffers() {
   return true;
 }
 
-bool ChunkDemuxer::ParseAndAddData_Locked(const uint8* data, int length) {
+bool ChunkDemuxer::ParseAndAppendData_Locked(const uint8* data, int length) {
   if (!cluster_parser_.get())
     return false;
 
@@ -586,7 +612,7 @@ bool ChunkDemuxer::ParseAndAddData_Locked(const uint8* data, int length) {
     int res = cluster_parser_->Parse(cur, cur_size);
 
     if (res <= 0) {
-      VLOG(1) << "ParseAndAddData_Locked() : cluster parsing failed.";
+      VLOG(1) << "ParseAndAppendData_Locked() : cluster parsing failed.";
       return false;
     }
 
@@ -614,6 +640,13 @@ bool ChunkDemuxer::ParseAndAddData_Locked(const uint8* data, int length) {
   buffered_bytes_ += length;
 
   return true;
+}
+
+void ChunkDemuxer::InitFailed_Locked() {
+  ChangeState(INIT_ERROR);
+  PipelineStatusCB cb;
+  std::swap(cb, init_cb_);
+  cb.Run(DEMUXER_ERROR_COULD_NOT_OPEN);
 }
 
 }  // namespace media
