@@ -11,7 +11,13 @@
 
 #include "base/base_api.h"
 #include "base/basictypes.h"
+#ifdef __LB_PS3__
+// __LB_PS3__FIX_ME
+// Should work with ""
 #include <base/callback.h>
+#else
+#include "base/callback.h"
+#endif // __LB_PS3__
 #include "base/memory/ref_counted.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
