@@ -3215,7 +3215,7 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectClosesIdleSocketRemovesGroup) {
   EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("b"));
 }
 
-TEST_F(ClientSocketPoolBaseTest, PreconnectWithoutBackupTimer) {
+TEST_F(ClientSocketPoolBaseTest, PreconnectWithoutBackupJob) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
   pool_->EnableConnectBackupJobs();
 
@@ -3226,17 +3226,18 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectWithoutBackupTimer) {
   pool_->RequestSockets("a", &params_, 1, BoundNetLog());
   EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
   EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
-  MessageLoop::current()->RunAllPending();
 
-  // Make sure the backup timer doesn't fire, by making it a pending job instead
-  // of a waiting job, so it *would* complete if the timer fired.
+  // Verify the backup timer doesn't create a backup job, by making
+  // the backup job a pending job instead of a waiting job, so it
+  // *would* complete if it were created.
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  base::PlatformThread::Sleep(1000);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->PostDelayedTask(FROM_HERE,
+                                          new MessageLoop::QuitTask(), 1000);
+  MessageLoop::current()->Run();
   EXPECT_FALSE(pool_->HasGroup("a"));
 }
 
-TEST_F(ClientSocketPoolBaseTest, PreconnectWithBackupTimer) {
+TEST_F(ClientSocketPoolBaseTest, PreconnectWithBackupJob) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
   pool_->EnableConnectBackupJobs();
 
@@ -3257,7 +3258,7 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectWithBackupTimer) {
                                         &callback,
                                         pool_.get(),
                                         BoundNetLog()));
-  // Timer has started, but the other connect job shouldn't be created yet.
+  // Timer has started, but the backup connect job shouldn't be created yet.
   EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
   EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
   EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("a"));
