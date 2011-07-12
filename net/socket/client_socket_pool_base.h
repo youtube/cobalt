@@ -298,8 +298,8 @@ class NET_TEST ClientSocketPoolBaseHelper
   void CleanupIdleSockets(bool force);
 
   // See ClientSocketPool::GetInfoAsValue for documentation on this function.
-  DictionaryValue* GetInfoAsValue(const std::string& name,
-                                  const std::string& type) const;
+  base::DictionaryValue* GetInfoAsValue(const std::string& name,
+                                        const std::string& type) const;
 
   base::TimeDelta ConnectionTimeout() const {
     return connect_job_factory_->ConnectionTimeout();
@@ -712,8 +712,8 @@ class ClientSocketPoolBase {
     return helper_.CleanupIdleSockets(force);
   }
 
-  DictionaryValue* GetInfoAsValue(const std::string& name,
-                                  const std::string& type) const {
+  base::DictionaryValue* GetInfoAsValue(const std::string& name,
+                                        const std::string& type) const {
     return helper_.GetInfoAsValue(name, type);
   }
 
