@@ -12,7 +12,6 @@
       'target_name': 'media',
       'type': 'static_library',
       'dependencies': [
-        'yuv_convert',
         '../base/base.gyp:base',
         '../build/temp_gyp/googleurl.gyp:googleurl',
       ],
@@ -193,9 +192,7 @@
         'video/video_decode_engine.h',
       ],
       'direct_dependent_settings': {
-        'include_dirs': [
-          '..',
-        ],
+        'include_dirs': ['..'],
       },
       'conditions': [
         ['OS=="win"', {
@@ -223,6 +220,7 @@
           ],
         }, { # !cell_lv2
           'dependencies': [ # we re-introduce the dependency on ffmpeg here for all other OS
+            'yuv_convert',
             '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
             '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg'
           ]
