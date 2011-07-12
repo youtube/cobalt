@@ -94,6 +94,7 @@ class BASE_API Value {
   virtual bool GetAsString(std::string* out_value) const;
   virtual bool GetAsString(string16* out_value) const;
   virtual bool GetAsList(ListValue** out_value);
+  virtual bool GetAsList(const ListValue** out_value) const;
 
   // This creates a deep copy of the entire Value tree, and returns a pointer
   // to the copy.  The caller gets ownership of the copy, of course.
@@ -427,6 +428,7 @@ class BASE_API ListValue : public Value {
 
   // Overridden from Value:
   virtual bool GetAsList(ListValue** out_value);
+  virtual bool GetAsList(const ListValue** out_value) const;
   virtual ListValue* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
