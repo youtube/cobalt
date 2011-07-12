@@ -9,6 +9,7 @@
   'targets': [
     {
       'target_name': 'net',
+      'type': '<(component)',
       'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
@@ -793,7 +794,6 @@
           },
         ],
         [ 'OS == "win"', {
-            'type': '<(component)',
             'sources!': [
               'http/http_auth_handler_ntlm_portable.cc',
               'socket/tcp_client_socket_libevent.cc',
@@ -810,7 +810,6 @@
               'tld_cleanup',
             ],
           }, { # else: OS != "win"
-            'type': 'static_library',
             'sources!': [
               'base/winsock_init.cc',
               'base/winsock_init.h',
@@ -821,23 +820,29 @@
             ],
           },
         ],
-        [ 'OS == "win" and component == "shared_library"', {
+        [ 'component == "shared_library"', {
           'defines': [
             'NET_DLL',
             'NET_IMPLEMENTATION',
-          ],
-          'msvs_disabled_warnings': [
-            # class 'std::xx' needs to have dll-interface.
-            4251,
           ],
           'direct_dependent_settings': {
             'defines': [
               'NET_DLL',
             ],
-            'msvs_disabled_warnings': [
-              4251,
-            ],
           },
+          'conditions': [
+            [ 'OS == "win"', {
+              'msvs_disabled_warnings': [
+                # class 'std::xx' needs to have dll-interface.
+                4251,
+              ],
+              'direct_dependent_settings': {
+                'msvs_disabled_warnings': [
+                  4251,
+                ],
+              },
+            }],
+          ],
         }],
         [ 'OS == "mac"', {
             'dependencies': [
