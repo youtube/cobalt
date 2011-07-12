@@ -20,7 +20,9 @@
 #include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_settings_storage.h"
 
+namespace base {
 class Value;
+}
 
 namespace net {
 
@@ -127,11 +129,11 @@ class NET_API HttpNetworkSession
 
   // Creates a Value summary of the state of the socket pools. The caller is
   // responsible for deleting the returned value.
-  Value* SocketPoolInfoToValue() const;
+  base::Value* SocketPoolInfoToValue() const;
 
   // Creates a Value summary of the state of the SPDY sessions. The caller is
   // responsible for deleting the returned value.
-  Value* SpdySessionPoolInfoToValue() const;
+  base::Value* SpdySessionPoolInfoToValue() const;
 
   void CloseAllConnections();
   void CloseIdleConnections();

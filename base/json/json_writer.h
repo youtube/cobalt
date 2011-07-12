@@ -11,9 +11,9 @@
 #include "base/base_api.h"
 #include "base/basictypes.h"
 
-class Value;
-
 namespace base {
+
+class Value;
 
 class BASE_API JSONWriter {
  public:
