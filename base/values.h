@@ -32,6 +32,13 @@
 #include "base/string16.h"
 #include "build/build_config.h"
 
+// This file declares "using base::Value", etc. at the bottom, so that
+// current code can use these classes without the base namespace. In
+// new code, please always use base::Value, etc. or add your own
+// "using" declaration.
+// http://crbug.com/88666
+namespace base {
+
 class BinaryValue;
 class DictionaryValue;
 class FundamentalValue;
@@ -454,5 +461,18 @@ class BASE_API ValueSerializer {
   // error message including the location of the error if appropriate.
   virtual Value* Deserialize(int* error_code, std::string* error_str) = 0;
 };
+
+}  // namespace base
+
+// http://crbug.com/88666
+using base::BinaryValue;
+using base::DictionaryValue;
+using base::FundamentalValue;
+using base::ListValue;
+using base::StringValue;
+using base::Value;
+using base::ValueMap;
+using base::ValueSerializer;
+using base::ValueVector;
 
 #endif  // BASE_VALUES_H_

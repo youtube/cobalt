@@ -13,7 +13,9 @@
 #include "base/memory/ref_counted.h"
 #include "net/base/net_api.h"
 
+namespace base {
 class Value;
+}
 
 namespace base {
 class TimeTicks;
@@ -64,7 +66,7 @@ class NET_API NetLog {
     bool is_valid() const { return id != kInvalidId; }
 
     // The caller takes ownership of the returned Value*.
-    Value* ToValue() const;
+    base::Value* ToValue() const;
 
     SourceType type;
     uint32 id;
@@ -82,7 +84,7 @@ class NET_API NetLog {
     // Serializes the parameters to a Value tree. This is intended to be a
     // lossless conversion, which is used to serialize the parameters to JSON.
     // The caller takes ownership of the returned Value*.
-    virtual Value* ToValue() const = 0;
+    virtual base::Value* ToValue() const = 0;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(EventParameters);
@@ -146,12 +148,12 @@ class NET_API NetLog {
 
   // Serializes the specified event to a DictionaryValue.
   // If |use_strings| is true, uses strings rather than numeric ids.
-  static Value* EntryToDictionaryValue(NetLog::EventType type,
-                                       const base::TimeTicks& time,
-                                       const NetLog::Source& source,
-                                       NetLog::EventPhase phase,
-                                       NetLog::EventParameters* params,
-                                       bool use_strings);
+  static base::Value* EntryToDictionaryValue(NetLog::EventType type,
+                                             const base::TimeTicks& time,
+                                             const NetLog::Source& source,
+                                             NetLog::EventPhase phase,
+                                             NetLog::EventParameters* params,
+                                             bool use_strings);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NetLog);
@@ -233,7 +235,7 @@ class NetLogStringParameter : public NetLog::EventParameters {
     return value_;
   }
 
-  virtual Value* ToValue() const;
+  virtual base::Value* ToValue() const;
 
  private:
   const char* const name_;
@@ -252,7 +254,7 @@ class NetLogIntegerParameter : public NetLog::EventParameters {
     return value_;
   }
 
-  virtual Value* ToValue() const;
+  virtual base::Value* ToValue() const;
 
  private:
   const char* name_;
@@ -271,7 +273,7 @@ class NET_API NetLogSourceParameter : public NetLog::EventParameters {
     return value_;
   }
 
-  virtual Value* ToValue() const;
+  virtual base::Value* ToValue() const;
 
  private:
   const char* name_;

@@ -10,6 +10,7 @@
 #include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "base/values.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"

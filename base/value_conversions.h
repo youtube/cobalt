@@ -11,10 +11,11 @@
 #include "base/base_api.h"
 
 class FilePath;
-class StringValue;
-class Value;
 
 namespace base {
+
+class StringValue;
+class Value;
 
 // The caller takes ownership of the returned value.
 BASE_API StringValue* CreateFilePathValue(const FilePath& in_value);
