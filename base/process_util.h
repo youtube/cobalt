@@ -347,17 +347,6 @@ inline bool LaunchAppAsUser(UserTokenHandle token,
 BASE_API bool LaunchProcess(const std::vector<std::string>& argv,
                             const LaunchOptions& options);
 
-// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
-inline bool LaunchApp(const std::vector<std::string>& argv,
-                      const file_handle_mapping_vector& fds_to_remap,
-                      bool wait, ProcessHandle* process_handle) {
-  LaunchOptions options;
-  options.fds_to_remap = &fds_to_remap;
-  options.wait = wait;
-  options.process_handle = process_handle;
-  return LaunchProcess(argv, options);
-}
-
 // AlterEnvironment returns a modified environment vector, constructed from the
 // given environment and the list of changes given in |changes|. Each key in
 // the environment is matched against the first element of the pairs. In the
