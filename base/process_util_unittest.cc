@@ -495,10 +495,9 @@ TEST_F(ProcessUtilTest, FDRemapping) {
 
 namespace {
 
-std::string TestLaunchApp(const base::environment_vector& env_changes) {
+std::string TestLaunchProcess(const base::environment_vector& env_changes) {
   std::vector<std::string> args;
   base::file_handle_mapping_vector fds_to_remap;
-  base::ProcessHandle handle;
 
   args.push_back("bash");
   args.push_back("-c");
@@ -508,8 +507,11 @@ std::string TestLaunchApp(const base::environment_vector& env_changes) {
   PCHECK(pipe(fds) == 0);
 
   fds_to_remap.push_back(std::make_pair(fds[1], 1));
-  EXPECT_TRUE(base::LaunchApp(args, env_changes, fds_to_remap,
-                              true /* wait for exit */, &handle));
+  base::LaunchOptions options;
+  options.wait = true;
+  options.environ = &env_changes;
+  options.fds_to_remap = &fds_to_remap;
+  EXPECT_TRUE(base::LaunchProcess(args, options));
   PCHECK(HANDLE_EINTR(close(fds[1])) == 0);
 
   char buf[512];
@@ -532,31 +534,31 @@ const char kLargeString[] =
 
 }  // namespace
 
-TEST_F(ProcessUtilTest, LaunchApp) {
+TEST_F(ProcessUtilTest, LaunchProcess) {
   base::environment_vector env_changes;
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
                                        std::string("bar")));
-  EXPECT_EQ("bar\n", TestLaunchApp(env_changes));
+  EXPECT_EQ("bar\n", TestLaunchProcess(env_changes));
   env_changes.clear();
 
   EXPECT_EQ(0, setenv("BASE_TEST", "testing", 1 /* override */));
-  EXPECT_EQ("testing\n", TestLaunchApp(env_changes));
+  EXPECT_EQ("testing\n", TestLaunchProcess(env_changes));
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
                                        std::string("")));
-  EXPECT_EQ("\n", TestLaunchApp(env_changes));
+  EXPECT_EQ("\n", TestLaunchProcess(env_changes));
 
   env_changes[0].second = "foo";
-  EXPECT_EQ("foo\n", TestLaunchApp(env_changes));
+  EXPECT_EQ("foo\n", TestLaunchProcess(env_changes));
 
   env_changes.clear();
   EXPECT_EQ(0, setenv("BASE_TEST", kLargeString, 1 /* override */));
-  EXPECT_EQ(std::string(kLargeString) + "\n", TestLaunchApp(env_changes));
+  EXPECT_EQ(std::string(kLargeString) + "\n", TestLaunchProcess(env_changes));
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
                                        std::string("wibble")));
-  EXPECT_EQ("wibble\n", TestLaunchApp(env_changes));
+  EXPECT_EQ("wibble\n", TestLaunchProcess(env_changes));
 }
 
 TEST_F(ProcessUtilTest, AlterEnvironment) {
