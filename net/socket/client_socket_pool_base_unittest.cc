@@ -12,6 +12,7 @@
 #include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "base/threading/platform_thread.h"
+#include "base/values.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"

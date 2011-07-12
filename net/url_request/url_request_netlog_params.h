@@ -32,7 +32,7 @@ class NET_API URLRequestStartEventParameters : public NetLog::EventParameters {
     return load_flags_;
   }
 
-  virtual Value* ToValue() const;
+  virtual base::Value* ToValue() const;
 
  private:
   const GURL url_;

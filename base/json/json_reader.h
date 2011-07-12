@@ -43,9 +43,9 @@
 #define FRIEND_TEST(test_case_name, test_name)\
 friend class test_case_name##_##test_name##_Test
 
-class Value;
-
 namespace base {
+
+class Value;
 
 class BASE_API JSONReader {
  public:

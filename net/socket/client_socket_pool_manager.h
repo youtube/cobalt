@@ -24,7 +24,10 @@
 #include "net/socket/client_socket_pool_histograms.h"
 
 class GURL;
+
+namespace base {
 class Value;
+}
 
 namespace net {
 
@@ -160,7 +163,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
 
   // Creates a Value summary of the state of the socket pools. The caller is
   // responsible for deleting the returned value.
-  Value* SocketPoolInfoToValue() const;
+  base::Value* SocketPoolInfoToValue() const;
 
   // CertDatabase::Observer methods:
   virtual void OnUserCertAdded(const X509Certificate* cert);
