@@ -9,6 +9,7 @@
   'targets': [
     {
       'target_name': 'crypto',
+      'type': '<(component)',
       'product_name': 'crcrypto',  # Avoid colliding with OpenSSL's libcrypto
       'dependencies': [
         '../base/base.gyp:base',
@@ -67,16 +68,13 @@
             '../third_party/nss/nss.gyp:nss',
           ],
         }],
-        [ 'OS == "win"', {
-          'type': '<(component)',
-        }, { # else OS != "win"
-          'type': 'static_library',
+        [ 'OS != "win"', {
           'sources!': [
             'capi_util.h',
             'capi_util.cc',
           ],
         }],
-        [ 'OS == "win" and component == "shared_library"', { 
+        [ 'component == "shared_library"', {
           'defines': [
             'CRYPTO_DLL',
             'CRYPTO_IMPLEMENTATION',

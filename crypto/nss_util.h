@@ -28,7 +28,7 @@ namespace crypto {
 // EarlySetupForNSSInit performs lightweight setup which must occur before the
 // process goes multithreaded. This does not initialise NSS. For test, see
 // EnsureNSSInit.
-void EarlySetupForNSSInit();
+CRYPTO_API void EarlySetupForNSSInit();
 #endif
 
 // Initialize NRPR if it isn't already initialized.  This function is
@@ -55,7 +55,7 @@ void CRYPTO_API EnsureNSSInit();
 // Calling this method only has effect on Linux.
 //
 // WARNING: Use this with caution.
-void ForceNSSNoDBInit();
+CRYPTO_API void ForceNSSNoDBInit();
 
 // This methods is used to disable checks in NSS when used in a forked process.
 // NSS checks whether it is running a forked process to avoid problems when
@@ -66,7 +66,7 @@ void ForceNSSNoDBInit();
 // This method must be called before EnsureNSSInit() to take effect.
 //
 // WARNING: Use this with caution.
-void DisableNSSForkCheck();
+CRYPTO_API void DisableNSSForkCheck();
 
 // Load NSS library files. This function has no effect on Mac and Windows.
 // This loads the necessary NSS library files so that NSS can be initialized
@@ -75,7 +75,7 @@ void DisableNSSForkCheck();
 //
 // Note that this does not load libnssckbi.so which contains the root
 // certificates.
-void LoadNSSLibraries();
+CRYPTO_API void LoadNSSLibraries();
 
 // Check if the current NSS version is greater than or equals to |version|.
 // A sample version string is "3.12.3".
@@ -136,14 +136,14 @@ bool EnsureTPMTokenReady();
 
 // Convert a NSS PRTime value into a base::Time object.
 // We use a int64 instead of PRTime here to avoid depending on NSPR headers.
-base::Time PRTimeToBaseTime(int64 prtime);
+CRYPTO_API base::Time PRTimeToBaseTime(int64 prtime);
 
 #if defined(USE_NSS)
 // Exposed for unittests only.  |path| should be an existing directory under
 // which the DB files will be placed.  |description| is a user-visible name for
 // the DB, as a utf8 string, which will be truncated at 32 bytes.
-bool OpenTestNSSDB(const FilePath& path, const char* description);
-void CloseTestNSSDB();
+CRYPTO_API bool OpenTestNSSDB(const FilePath& path, const char* description);
+CRYPTO_API void CloseTestNSSDB();
 
 // NSS has a bug which can cause a deadlock or stall in some cases when writing
 // to the certDB and keyDB. It also has a bug which causes concurrent key pair
@@ -157,7 +157,7 @@ base::Lock* GetNSSWriteLock();
 
 // A helper class that acquires the NSS write Lock while the AutoNSSWriteLock
 // is in scope.
-class AutoNSSWriteLock {
+class CRYPTO_API AutoNSSWriteLock {
  public:
   AutoNSSWriteLock();
   ~AutoNSSWriteLock();
