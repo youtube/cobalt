@@ -11,7 +11,13 @@
 
 #include <string>
 
+#ifdef __LB_PS3__
+// __LB_PS3__FIX_ME__
+// Should use ""
 #include <base/callback.h>
+#else
+#include "base/callback.h"
+#endif // __LB_PS3__
 #include "media/base/filters.h"
 #include "media/base/pipeline_status.h"
 

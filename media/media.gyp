@@ -192,7 +192,9 @@
         'video/video_decode_engine.h',
       ],
       'direct_dependent_settings': {
-        'include_dirs': ['..'],
+        'include_dirs': [
+          '..',
+        ],
       },
       'conditions': [
         ['OS=="win"', {
