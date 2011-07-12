@@ -79,6 +79,9 @@ struct MimeInfo {
 };
 
 static const MimeInfo primary_mappings[] = {
+#ifdef __LB_PS3__
+  { "video/x-flv", "flv" },
+#endif
   { "text/html", "html,htm" },
   { "text/css", "css" },
   { "text/xml", "xml" },
