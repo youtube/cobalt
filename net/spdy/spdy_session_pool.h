@@ -99,7 +99,7 @@ class NET_API SpdySessionPool
 
   // Creates a Value summary of the state of the spdy session pool. The caller
   // responsible for deleting the returned value.
-  Value* SpdySessionPoolInfoToValue() const;
+  base::Value* SpdySessionPoolInfoToValue() const;
 
   SpdySettingsStorage* mutable_spdy_settings() { return &spdy_settings_; }
   const SpdySettingsStorage& spdy_settings() const { return spdy_settings_; }

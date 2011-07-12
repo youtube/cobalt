@@ -211,9 +211,10 @@ class NET_TEST HttpProxyClientSocketPool : public ClientSocketPool {
   virtual LoadState GetLoadState(const std::string& group_name,
                                  const ClientSocketHandle* handle) const;
 
-  virtual DictionaryValue* GetInfoAsValue(const std::string& name,
-                                          const std::string& type,
-                                          bool include_nested_pools) const;
+  virtual base::DictionaryValue* GetInfoAsValue(
+      const std::string& name,
+      const std::string& type,
+      bool include_nested_pools) const;
 
   virtual base::TimeDelta ConnectionTimeout() const;
 

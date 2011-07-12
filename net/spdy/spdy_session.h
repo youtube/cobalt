@@ -172,7 +172,7 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
 
   // Retrieves information on the current state of the SPDY session as a
   // Value.  Caller takes possession of the returned value.
-  Value* GetInfoAsValue() const;
+  base::Value* GetInfoAsValue() const;
 
   // Indicates whether the session is being reused after having successfully
   // used to send/receive data in the past.
@@ -452,7 +452,7 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
     return headers_;
   }
 
-  virtual Value* ToValue() const;
+  virtual base::Value* ToValue() const;
 
  private:
   virtual ~NetLogSpdySynParameter();
