@@ -45,6 +45,11 @@ class NET_API ViewCacheHelper {
                       std::string* out,
                       CompletionCallback* callback);
 
+  // Lower-level helper to produce a textual representation of binary data.
+  // The results are appended to |result| and can be used in HTML pages
+  // provided the dump is contained within <pre></pre> tags.
+  static void HexDump(const char *buf, size_t buf_len, std::string* result);
+
  private:
   enum State {
     STATE_NONE,
