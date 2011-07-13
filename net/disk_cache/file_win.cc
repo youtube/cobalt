@@ -7,6 +7,7 @@
 #include "base/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/message_loop.h"
+#include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
 
 namespace {
@@ -42,7 +43,7 @@ void CompletionHandler::OnIOCompleted(MessageLoopForIO::IOContext* context,
 
   if (error) {
     DCHECK(!actual_bytes);
-    actual_bytes = static_cast<DWORD>(-1);
+    actual_bytes = static_cast<DWORD>(net::ERR_CACHE_READ_FAILURE);
     NOTREACHED();
   }
 
