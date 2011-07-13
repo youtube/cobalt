@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -171,6 +171,30 @@ TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
     scoped_refptr<File> file(new File);
     ASSERT_TRUE(file->Init(filename));
     EXPECT_TRUE(file->SetLength(0));
+  }
+
+  // Initializing should fail, not crash.
+  ASSERT_FALSE(files.Init(false));
+}
+
+// Handling of truncated files (non empty).
+TEST_F(DiskCacheTest, BlockFiles_TruncatedFile) {
+  FilePath path = GetCacheFilePath();
+  ASSERT_TRUE(DeleteCache(path));
+  ASSERT_TRUE(file_util::CreateDirectory(path));
+
+  BlockFiles files(path);
+  ASSERT_TRUE(files.Init(true));
+  Addr address;
+  EXPECT_TRUE(files.CreateBlock(RANKINGS, 2, &address));
+
+  FilePath filename = files.Name(0);
+  files.CloseFiles();
+  // Truncate one of the files.
+  {
+    scoped_refptr<File> file(new File);
+    ASSERT_TRUE(file->Init(filename));
+    EXPECT_TRUE(file->SetLength(15000));
   }
 
   // Initializing should fail, not crash.
