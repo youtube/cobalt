@@ -535,25 +535,13 @@
         },],
         [ 'component=="shared_library"', {
           'defines': [
-            'BASE_DLL',
             'BASE_IMPLEMENTATION',
           ],
           'conditions': [
             ['OS=="win"', {
-              'msvs_disabled_warnings': [
-                4251,
-              ],
               'sources!': [
                 'debug/debug_on_start_win.cc',
               ],
-              'direct_dependent_settings': {
-                'defines': [
-                  'BASE_DLL',
-                ],
-                'msvs_disabled_warnings': [
-                  4251,
-                ],
-              },
             }],
           ],
         }],
@@ -605,7 +593,7 @@
       'targets': [
         {
           'target_name': 'base_nacl_win64',
-          'type': 'static_library',
+          'type': '<(component)',
           'variables': {
             'base_target': 1,
           },
@@ -622,6 +610,41 @@
           },
           'defines': [
             '<@(nacl_win64_defines)',
+          ],
+          'sources': [
+            'i18n/icu_util_nacl_win64.cc',
+          ],
+          'configurations': {
+            'Common_Base': {
+              'msvs_target_platform': 'x64',
+            },
+          },
+          'conditions': [
+            [ 'component == "shared_library"', {
+              'defines': [
+                'BASE_IMPLEMENTATION',
+              ],
+              'sources!': [
+                'debug/debug_on_start_win.cc',
+              ],
+            }],
+          ],
+        },
+        {
+          'target_name': 'base_i18n_nacl_win64',
+          'type': 'static_library',
+          # TODO(gregoryd): direct_dependent_settings should be shared with the
+          # 32-bit target, but it doesn't work due to a bug in gyp
+          'direct_dependent_settings': {
+            'include_dirs': [
+              '..',
+            ],
+          },
+          'defines': [
+            '<@(nacl_win64_defines)',
+          ],
+          'include_dirs': [
+            '..',
           ],
           'sources': [
             'i18n/icu_util_nacl_win64.cc',
