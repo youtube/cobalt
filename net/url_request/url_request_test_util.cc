@@ -244,8 +244,7 @@ TestNetworkDelegate::TestNetworkDelegate()
   : last_os_error_(0),
     error_count_(0),
     created_requests_(0),
-    destroyed_requests_(0),
-    completed_requests_(0) {
+    destroyed_requests_(0) {
 }
 
 TestNetworkDelegate::~TestNetworkDelegate() {}
@@ -287,7 +286,6 @@ void TestNetworkDelegate::OnRawBytesRead(const net::URLRequest& request,
 }
 
 void TestNetworkDelegate::OnCompleted(net::URLRequest* request) {
-  completed_requests_++;
   if (request->status().status() == net::URLRequestStatus::FAILED) {
     error_count_++;
     last_os_error_ = request->status().os_error();

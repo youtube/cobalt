@@ -306,9 +306,10 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Returns the referrer header with potential username and password removed.
   GURL GetSanitizedReferrer() const;
 
-  // Sets the delegate of the request.  This value may be changed at any time,
+  // The delegate of the request.  This value may be changed at any time,
   // and it is permissible for it to be null.
-  void set_delegate(Delegate* delegate);
+  Delegate* delegate() const { return delegate_; }
+  void set_delegate(Delegate* delegate) { delegate_ = delegate; }
 
   // The data comprising the request message body is specified as a sequence of
   // data segments and/or files containing data to upload.  These methods may
@@ -576,7 +577,11 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   int Redirect(const GURL& location, int http_status_code);
 
   // Called by URLRequestJob to allow interception when a redirect occurs.
-  void NotifyReceivedRedirect(const GURL& location, bool* defer_redirect);
+  void ReceivedRedirect(const GURL& location, bool* defer_redirect);
+
+  // Called by URLRequestJob to allow interception when the final response
+  // occurs.
+  void ResponseStarted();
 
   // Allow an interceptor's URLRequestJob to restart this request.
   // Should only be called if the original job has not started a response.
@@ -584,7 +589,6 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
  private:
   friend class URLRequestJob;
-
   typedef std::map<const void*, linked_ptr<UserData> > UserDataMap;
 
   // Resumes or blocks a request paused by the NetworkDelegate::OnBeforeRequest
@@ -610,27 +614,6 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // passed values.
   void DoCancel(int os_error, const SSLInfo& ssl_info);
 
-  // Notifies the network delegate that the request has been completed.
-  // This does not imply a successful completion. Also a canceled request is
-  // considered completed.
-  void NotifyRequestCompleted();
-
-  // Called by URLRequestJob to allow interception when the final response
-  // occurs.
-  void NotifyResponseStarted();
-
-  bool has_delegate() const { return delegate_ != NULL; }
-
-  // These functions delegate to |delegate_| and may only be used if
-  // |delegate_| is not NULL. See URLRequest::Delegate for the meaning
-  // of these functions.
-  void NotifyAuthRequired(AuthChallengeInfo* auth_info);
-  void NotifyCertificateRequested(SSLCertRequestInfo* cert_request_info);
-  void NotifySSLCertificateError(int cert_error, X509Certificate* cert);
-  bool CanGetCookies();
-  bool CanSetCookie(const std::string& cookie_line, CookieOptions* options);
-  void NotifyReadCompleted(int bytes_read);
-
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
   // cookie store, socket pool, etc.)
@@ -650,8 +633,6 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   int load_flags_;  // Flags indicating the request type for the load;
                     // expected values are LOAD_* enums above.
 
-  // Never access methods of the |delegate_| directly. Always use the
-  // Notify... methods for this.
   Delegate* delegate_;
 
   // Current error status of the job. When no error has been encountered, this
@@ -690,11 +671,6 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Callback passed to the network delegate to notify us when a blocked request
   // is ready to be resumed or canceled.
   CompletionCallbackImpl<URLRequest> before_request_callback_;
-
-  // Safe-guard to ensure that we do not send multiple "I am completed"
-  // messages to network delegate.
-  // TODO(battre): Remove this. http://crbug.com/89049
-  bool has_notified_completion_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };
