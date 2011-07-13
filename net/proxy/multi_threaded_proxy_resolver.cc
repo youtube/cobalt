@@ -1,10 +1,10 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/proxy/multi_threaded_proxy_resolver.h"
 
-#include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread.h"
@@ -146,7 +146,7 @@ class MultiThreadedProxyResolver::Job
   // This method is called on the worker thread to do the job's work. On
   // completion, implementors are expected to call OnJobCompleted() on
   // |origin_loop|.
-  virtual void Run(MessageLoop* origin_loop) = 0;
+  virtual void Run(scoped_refptr<base::MessageLoopProxy> origin_loop) = 0;
 
  protected:
   void OnJobCompleted() {
@@ -188,7 +188,7 @@ class MultiThreadedProxyResolver::SetPacScriptJob
   }
 
   // Runs on the worker thread.
-  virtual void Run(MessageLoop* origin_loop) {
+  virtual void Run(scoped_refptr<base::MessageLoopProxy> origin_loop) {
     ProxyResolver* resolver = executor()->resolver();
     int rv = resolver->SetPacScript(script_data_, NULL);
 
@@ -253,7 +253,7 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
   }
 
   // Runs on the worker thread.
-  virtual void Run(MessageLoop* origin_loop) {
+  virtual void Run(scoped_refptr<base::MessageLoopProxy> origin_loop) {
     ProxyResolver* resolver = executor()->resolver();
     int rv = resolver->GetProxyForURL(
         url_, &results_buf_, NULL, NULL, net_log_);
@@ -320,7 +320,8 @@ void MultiThreadedProxyResolver::Executor::StartJob(Job* job) {
   job->FinishedWaitingForThread();
   thread_->message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(job, &Job::Run, MessageLoop::current()));
+      NewRunnableMethod(job, &Job::Run,
+                        base::MessageLoopProxy::CreateForCurrentThread()));
 }
 
 void MultiThreadedProxyResolver::Executor::OnJobCompleted(Job* job) {
