@@ -25,9 +25,9 @@
 #include <deque>
 #include <vector>
 
-#include <base/callback.h>
-#include <base/gtest_prod_util.h>
-#include <base/synchronization/waitable_event.h>
+#include "base/callback.h"
+#include "base/gtest_prod_util.h"
+#include "base/synchronization/waitable_event.h"
 #include "media/base/buffers.h"
 #include "media/base/filters.h"
 #include "media/base/pipeline.h"
