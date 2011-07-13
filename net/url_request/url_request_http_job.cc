@@ -504,8 +504,9 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
     return;
 
   bool allow = true;
-  if ((request_info_.load_flags & LOAD_DO_NOT_SEND_COOKIES) ||
-      !CanGetCookies()) {
+  if (request_info_.load_flags & LOAD_DO_NOT_SEND_COOKIES ||
+      (request_->delegate() &&
+       !request_->delegate()->CanGetCookies(request_))) {
     allow = false;
   }
 
@@ -561,11 +562,12 @@ void URLRequestHttpJob::SaveNextCookie() {
 
   CookieOptions options;
   if (!(request_info_.load_flags & LOAD_DO_NOT_SAVE_COOKIES) &&
-      request_->context()->cookie_store()) {
+      request_->delegate() && request_->context()->cookie_store()) {
     CookieOptions options;
     options.set_include_httponly();
-    if (CanSetCookie(
-        response_cookies_[response_cookies_save_index_], &options)) {
+    if (request_->delegate()->CanSetCookie(
+            request_,
+            response_cookies_[response_cookies_save_index_], &options)) {
       request_->context()->cookie_store()->SetCookieWithOptions(
           request_->url(), response_cookies_[response_cookies_save_index_],
           options);
@@ -686,7 +688,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   RecordTimer();
 
   // If the request was destroyed, then there is no more work to do.
-  if (!request_)
+  if (!request_ || !request_->delegate())
     return;
 
   // If the transaction was destroyed, then the job was cancelled, and
@@ -729,11 +731,11 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
     // what we should do.
     // TODO(wtc): also pass ssl_info.cert_status, or just pass the whole
     // ssl_info.
-    NotifySSLCertificateError(
-        result, transaction_->GetResponseInfo()->ssl_info.cert);
+    request_->delegate()->OnSSLCertificateError(
+        request_, result, transaction_->GetResponseInfo()->ssl_info.cert);
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
-    NotifyCertificateRequested(
-        transaction_->GetResponseInfo()->cert_request_info);
+    request_->delegate()->OnCertificateRequested(
+        request_, transaction_->GetResponseInfo()->cert_request_info);
   } else {
     NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, result));
   }

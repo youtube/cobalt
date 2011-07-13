@@ -298,7 +298,8 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateTunnelConnectionFailed) {
     EXPECT_EQ(0, d.received_redirect_count());
 
     EXPECT_EQ(1, network_delegate.error_count());
-    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, network_delegate.last_os_error());
+    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED,
+              network_delegate.last_os_error());
   }
 }
 
@@ -2458,7 +2459,8 @@ TEST_F(URLRequestTest, NetworkDelegateProxyError) {
   TestURLRequest req(GURL("http://example.com"), &d);
   req.set_method("GET");
 
-  scoped_ptr<MockHostResolverBase> host_resolver(new MockHostResolver);
+  scoped_ptr<MockHostResolverBase> host_resolver(
+      new MockHostResolver);
   host_resolver->rules()->AddSimulatedFailure("*");
   scoped_refptr<TestURLRequestContext> context(
       new TestURLRequestContext("myproxy:70", host_resolver.release()));
@@ -2475,7 +2477,6 @@ TEST_F(URLRequestTest, NetworkDelegateProxyError) {
 
   EXPECT_EQ(1, network_delegate.error_count());
   EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, network_delegate.last_os_error());
-  EXPECT_EQ(1, network_delegate.completed_requests());
 }
 
 // Check that it is impossible to change the referrer in the extra headers of
@@ -2521,20 +2522,6 @@ TEST_F(URLRequestTest, DoNotOverrideReferrer) {
 
     EXPECT_EQ("None", d.data_received());
   }
-}
-
-// Make sure that net::NetworkDelegate::NotifyCompleted is called if
-// content is empty.
-TEST_F(URLRequestTest, RequestCompletionForEmptyResponse) {
-  TestNetworkDelegate network_delegate;
-  TestDelegate d;
-  TestURLRequest req(GURL("data:,"), &d);
-  req.set_context(new TestURLRequestContext());
-  req.context()->set_network_delegate(&network_delegate);
-  req.Start();
-  MessageLoop::current()->Run();
-  EXPECT_EQ("", d.data_received());
-  EXPECT_EQ(1, network_delegate.completed_requests());
 }
 
 class URLRequestTestFTP : public URLRequestTest {
