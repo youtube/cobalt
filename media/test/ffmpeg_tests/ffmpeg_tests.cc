@@ -71,7 +71,7 @@ int main(int argc, const char** argv) {
   CommandLine::Init(argc, argv);
   const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
 
-  const std::vector<CommandLine::StringType>& filenames = cmd_line->args();
+  const CommandLine::StringVector& filenames = cmd_line->GetArgs();
 
   if (filenames.empty()) {
     std::cerr << "Usage: " << argv[0] << " MEDIAFILE" << std::endl;

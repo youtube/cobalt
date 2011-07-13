@@ -118,8 +118,7 @@ class BASE_API CommandLine {
                         size_t count);
 
   // Get the remaining arguments to the command.
-  // TODO(msw): Rename GetArgs.
-  StringVector args() const;
+  StringVector GetArgs() const;
 
   // Append an argument to the command line. Note that the argument is quoted
   // properly such that it is interpreted as one argument to the target command.
