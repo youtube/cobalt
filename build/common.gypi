@@ -694,9 +694,6 @@
       }, {  # else: branding!="Chrome"
         'defines': ['CHROMIUM_BUILD'],
       }],
-      ['component=="shared_library"', {
-        'defines': ['COMPONENT_BUILD'],
-      }],
       ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
       }],
@@ -924,11 +921,6 @@
                 'AdditionalOptions': ['/we4389'],
               },
             },
-          }],
-          ['OS=="win" and component=="shared_library"', {
-            'msvs_disabled_warnings': [
-              4251,  # class 'std::xx' needs to have dll-interface.
-            ],
           }],
           ['chromeos!=1', {
             'sources/': [ ['exclude', '_chromeos\\.(h|cc)$'] ]

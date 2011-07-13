@@ -822,7 +822,26 @@
         ],
         [ 'component == "shared_library"', {
           'defines': [
+            'NET_DLL',
             'NET_IMPLEMENTATION',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'NET_DLL',
+            ],
+          },
+          'conditions': [
+            [ 'OS == "win"', {
+              'msvs_disabled_warnings': [
+                # class 'std::xx' needs to have dll-interface.
+                4251,
+              ],
+              'direct_dependent_settings': {
+                'msvs_disabled_warnings': [
+                  4251,
+                ],
+              },
+            }],
           ],
         }],
         [ 'OS == "mac"', {
