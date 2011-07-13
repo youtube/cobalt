@@ -99,10 +99,6 @@ class BASE_API CommandLine {
   FilePath GetSwitchValuePath(const std::string& switch_string) const;
   StringType GetSwitchValueNative(const std::string& switch_string) const;
 
-  // Get the number of switches in this process.
-  // TODO(msw): Remove unnecessary API.
-  size_t GetSwitchCount() const;
-
   // Get a copy of all switches, along with their values.
   const SwitchMap& GetSwitches() const { return switches_; }
 
