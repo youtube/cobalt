@@ -284,3 +284,11 @@ TEST(CommandLineTest, ProgramQuotes) {
   EXPECT_EQ('"', cmd_string[program_string.length() + 1]);
 }
 #endif
+
+// Calling Init multiple times should not modify the previous CommandLine.
+TEST(CommandLineTest, Init) {
+  CommandLine* initial = CommandLine::ForCurrentProcess();
+  CommandLine::Init(0, NULL);
+  CommandLine* current = CommandLine::ForCurrentProcess();
+  EXPECT_EQ(initial, current);
+}
