@@ -336,7 +336,7 @@ void CommandLine::CopySwitchesFrom(const CommandLine& source,
   }
 }
 
-CommandLine::StringVector CommandLine::args() const {
+CommandLine::StringVector CommandLine::GetArgs() const {
   // Gather all arguments after the last switch (may include kSwitchTerminator).
   StringVector args(argv_.begin() + begin_args_, argv_.end());
   // Erase only the first kSwitchTerminator (maybe "--" is a legitimate page?)
