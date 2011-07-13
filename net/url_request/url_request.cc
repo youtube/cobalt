@@ -124,7 +124,8 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       priority_(LOWEST),
       identifier_(GenerateURLRequestIdentifier()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          before_request_callback_(this, &URLRequest::BeforeRequestComplete)) {
+          before_request_callback_(this, &URLRequest::BeforeRequestComplete)),
+      has_notified_completion_(false) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
   // Sanity check out environment.
@@ -135,10 +136,10 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
 }
 
 URLRequest::~URLRequest() {
+  Cancel();
+
   if (context_ && context_->network_delegate())
     context_->network_delegate()->NotifyURLRequestDestroyed(this);
-
-  Cancel();
 
   if (job_)
     OrphanJob();
@@ -369,6 +370,10 @@ GURL URLRequest::GetSanitizedReferrer() const {
   return ret;
 }
 
+void URLRequest::set_delegate(Delegate* delegate) {
+  delegate_ = delegate;
+}
+
 void URLRequest::Start() {
   response_info_.request_time = Time::Now();
 
@@ -479,6 +484,11 @@ void URLRequest::DoCancel(int os_error, const SSLInfo& ssl_info) {
 
   job_->Kill();
 
+  // We need to notify about the end of this job here synchronously. The
+  // Job sends an asynchronous notification but by the time this is processed,
+  // our |context_| is NULL.
+  NotifyRequestCompleted();
+
   // The Job will call our NotifyDone method asynchronously.  This is done so
   // that the Delegate implementation can call Cancel without having to worry
   // about being called recursively.
@@ -504,6 +514,8 @@ bool URLRequest::Read(IOBuffer* dest, int dest_size, int* bytes_read) {
   bool rv = job_->Read(dest, dest_size, bytes_read);
   // If rv is false, the status cannot be success.
   DCHECK(rv || status_.status() != URLRequestStatus::SUCCESS);
+  if (rv && *bytes_read <= 0 && status_.is_success())
+    NotifyRequestCompleted();
   return rv;
 }
 
@@ -512,7 +524,8 @@ void URLRequest::StopCaching() {
   job_->StopCaching();
 }
 
-void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
+void URLRequest::NotifyReceivedRedirect(const GURL& location,
+                                        bool* defer_redirect) {
   URLRequestJob* job =
       URLRequestJobManager::GetInstance()->MaybeInterceptRedirect(this,
                                                                   location);
@@ -523,7 +536,7 @@ void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
   }
 }
 
-void URLRequest::ResponseStarted() {
+void URLRequest::NotifyResponseStarted() {
   scoped_refptr<NetLog::EventParameters> params;
   if (!status_.is_success())
     params = new NetLogIntegerParameter("net_error", status_.os_error());
@@ -534,10 +547,22 @@ void URLRequest::ResponseStarted() {
   if (job) {
     RestartWithJob(job);
   } else {
-    if (context_ && context_->network_delegate())
-      context_->network_delegate()->NotifyResponseStarted(this);
-    if (delegate_)
+    if (delegate_) {
+      // In some cases (e.g. an event was canceled), we might have sent the
+      // completion event and receive a NotifyResponseStarted() later.
+      if (!has_notified_completion_ && status_.is_success()) {
+        if (context_ && context_->network_delegate())
+          context_->network_delegate()->NotifyResponseStarted(this);
+      }
+
+      // Notify in case the entire URL Request has been finished.
+      if (!has_notified_completion_ && !status_.is_success())
+        NotifyRequestCompleted();
+
       delegate_->OnResponseStarted(this);
+      // Nothing may appear below this line as OnResponseStarted may delete
+      // |this|.
+    }
   }
 }
 
@@ -695,6 +720,57 @@ URLRequest::UserData* URLRequest::GetUserData(const void* key) const {
 
 void URLRequest::SetUserData(const void* key, UserData* data) {
   user_data_[key] = linked_ptr<UserData>(data);
+}
+
+void URLRequest::NotifyAuthRequired(AuthChallengeInfo* auth_info) {
+  if (delegate_)
+    delegate_->OnAuthRequired(this, auth_info);
+}
+
+void URLRequest::NotifyCertificateRequested(
+    SSLCertRequestInfo* cert_request_info) {
+  if (delegate_)
+    delegate_->OnCertificateRequested(this, cert_request_info);
+}
+
+void URLRequest::NotifySSLCertificateError(int cert_error,
+                                           X509Certificate* cert) {
+  if (delegate_)
+    delegate_->OnSSLCertificateError(this, cert_error, cert);
+}
+
+bool URLRequest::CanGetCookies() {
+  if (delegate_)
+    return delegate_->CanGetCookies(this);
+  return false;
+}
+
+bool URLRequest::CanSetCookie(const std::string& cookie_line,
+                              CookieOptions* options) {
+  if (delegate_)
+    return delegate_->CanSetCookie(this, cookie_line, options);
+  return false;
+}
+
+
+void URLRequest::NotifyReadCompleted(int bytes_read) {
+  if (delegate_)
+    delegate_->OnReadCompleted(this, bytes_read);
+
+  // Notify in case the entire URL Request has been finished.
+  if (bytes_read <= 0)
+    NotifyRequestCompleted();
+}
+
+void URLRequest::NotifyRequestCompleted() {
+  // TODO(battre): Get rid of this check, according to willchan it should
+  // not be needed.
+  if (has_notified_completion_)
+    return;
+
+  has_notified_completion_ = true;
+  if (context_ && context_->network_delegate())
+    context_->network_delegate()->NotifyCompleted(this);
 }
 
 }  // namespace net
