@@ -355,7 +355,7 @@
     # TODO(dmichael): eliminate this when possible.
     # This flag, when 0, makes ppapi build without synchronous scripting
     # support in public interfaces.  This is a temporary transitional option.
-    'pepper_scripting%': 1,
+    'pepper_scripting%': 0,
 
     # Needed for some of the largest modules.
     'msvs_debug_link_nonincremental%': '1',
