@@ -333,6 +333,11 @@
             '<(jemalloc_dir)/rb.h',
 
           ],
+          # tcmalloc ignores the return value of e.g. write() in many cases.
+          # http://code.google.com/p/chromium/issues/detail?id=89109
+          'cflags': [
+            '-Wno-unused-result',
+          ],
           'cflags!': [
             '-fvisibility=hidden',
           ],
