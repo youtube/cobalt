@@ -76,8 +76,14 @@
         }],
         [ 'component == "shared_library"', {
           'defines': [
+            'CRYPTO_DLL',
             'CRYPTO_IMPLEMENTATION',
           ],
+          'direct_dependent_settings': {
+            'defines': [
+              'CRYPTO_DLL',
+            ],
+          },
         }],
         [ 'use_openssl==1', {
             # TODO(joth): Use a glob to match exclude patterns once the
