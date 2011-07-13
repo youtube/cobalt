@@ -44,6 +44,7 @@ void URLRequestJob::SetExtraRequestHeaders(const HttpRequestHeaders& headers) {
 }
 
 void URLRequestJob::Kill() {
+  method_factory_.RevokeAll();
   // Make sure the request is notified that we are done.  We assume that the
   // request took care of setting its error status before calling Kill.
   if (request_)
@@ -213,8 +214,39 @@ URLRequestJob::~URLRequestJob() {
     base::SystemMonitor::Get()->RemoveObserver(this);
 }
 
+void URLRequestJob::NotifyCertificateRequested(
+    SSLCertRequestInfo* cert_request_info) {
+  if (!request_)
+    return;  // The request was destroyed, so there is no more work to do.
+
+  request_->NotifyCertificateRequested(cert_request_info);
+}
+
+void URLRequestJob::NotifySSLCertificateError(int cert_error,
+                                              X509Certificate* cert) {
+  if (!request_)
+    return;  // The request was destroyed, so there is no more work to do.
+
+  request_->NotifySSLCertificateError(cert_error, cert);
+}
+
+bool URLRequestJob::CanGetCookies() {
+  if (!request_)
+    return false;  // The request was destroyed, so there is no more work to do.
+
+  return request_->CanGetCookies();
+}
+
+bool URLRequestJob::CanSetCookie(const std::string& cookie_line,
+                                 CookieOptions* options) {
+  if (!request_)
+    return false;  // The request was destroyed, so there is no more work to do.
+
+  return request_->CanSetCookie(cookie_line, options);
+}
+
 void URLRequestJob::NotifyHeadersComplete() {
-  if (!request_ || !request_->delegate())
+  if (!request_ || !request_->has_delegate())
     return;  // The request was destroyed, so there is no more work to do.
 
   if (has_handled_response_)
@@ -252,10 +284,11 @@ void URLRequestJob::NotifyHeadersComplete() {
     }
 
     bool defer_redirect = false;
-    request_->ReceivedRedirect(new_location, &defer_redirect);
+    request_->NotifyReceivedRedirect(new_location, &defer_redirect);
 
-    // Ensure that the request wasn't detached or destroyed in ReceivedRedirect
-    if (!request_ || !request_->delegate())
+    // Ensure that the request wasn't detached or destroyed in
+    // NotifyReceivedRedirect
+    if (!request_ || !request_->has_delegate())
       return;
 
     // If we were not cancelled, then maybe follow the redirect.
@@ -274,7 +307,7 @@ void URLRequestJob::NotifyHeadersComplete() {
     // Need to check for a NULL auth_info because the server may have failed
     // to send a challenge with the 401 response.
     if (auth_info) {
-      request_->delegate()->OnAuthRequired(request_, auth_info);
+      request_->NotifyAuthRequired(auth_info);
       // Wait for SetAuth or CancelAuth to be called.
       return;
     }
@@ -291,11 +324,11 @@ void URLRequestJob::NotifyHeadersComplete() {
       base::StringToInt64(content_length, &expected_content_size_);
   }
 
-  request_->ResponseStarted();
+  request_->NotifyResponseStarted();
 }
 
 void URLRequestJob::NotifyReadComplete(int bytes_read) {
-  if (!request_ || !request_->delegate())
+  if (!request_ || !request_->has_delegate())
     return;  // The request was destroyed, so there is no more work to do.
 
   // TODO(darin): Bug 1004233. Re-enable this test once all of the chrome
@@ -325,10 +358,10 @@ void URLRequestJob::NotifyReadComplete(int bytes_read) {
     // Filter the data.
     int filter_bytes_read = 0;
     if (ReadFilteredData(&filter_bytes_read)) {
-      request_->delegate()->OnReadCompleted(request_, filter_bytes_read);
+      request_->NotifyReadCompleted(filter_bytes_read);
     }
   } else {
-    request_->delegate()->OnReadCompleted(request_, bytes_read);
+    request_->NotifyReadCompleted(bytes_read);
   }
   DVLOG(1) << __FUNCTION__ << "() "
            << "\"" << (request_ ? request_->url().spec() : "???") << "\""
@@ -342,7 +375,7 @@ void URLRequestJob::NotifyStartError(const URLRequestStatus &status) {
   has_handled_response_ = true;
   if (request_) {
     request_->set_status(status);
-    request_->ResponseStarted();
+    request_->NotifyResponseStarted();
   }
 }
 
@@ -370,11 +403,6 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
       request_->set_status(status);
   }
 
-  if (request_ && request_->context() &&
-      request_->context()->network_delegate()) {
-    request_->context()->network_delegate()->NotifyCompleted(request_);
-  }
-
   // Complete this notification later.  This prevents us from re-entering the
   // delegate if we're done because of a synchronous call.
   MessageLoop::current()->PostTask(
@@ -386,23 +414,22 @@ void URLRequestJob::CompleteNotifyDone() {
   // Check if we should notify the delegate that we're done because of an error.
   if (request_ &&
       !request_->status().is_success() &&
-      request_->delegate()) {
+      request_->has_delegate()) {
     // We report the error differently depending on whether we've called
     // OnResponseStarted yet.
     if (has_handled_response_) {
       // We signal the error by calling OnReadComplete with a bytes_read of -1.
-      request_->delegate()->OnReadCompleted(request_, -1);
+      request_->NotifyReadCompleted(-1);
     } else {
       has_handled_response_ = true;
-      request_->ResponseStarted();
+      request_->NotifyResponseStarted();
     }
   }
 }
 
 void URLRequestJob::NotifyCanceled() {
   if (!done_) {
-    NotifyDone(URLRequestStatus(URLRequestStatus::CANCELED,
-                                ERR_ABORTED));
+    NotifyDone(URLRequestStatus(URLRequestStatus::CANCELED, ERR_ABORTED));
   }
 }
 
