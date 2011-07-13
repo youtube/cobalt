@@ -98,6 +98,11 @@ class SeekableBuffer {
   // position.
   size_t backward_bytes() const { return backward_bytes_; }
 
+  // Sets the forward_capacity to |new_forward_capacity| bytes.
+  void set_forward_capacity(size_t new_forward_capacity) {
+    forward_capacity_ = new_forward_capacity;
+  }
+
   // Returns the maximum number of bytes that should be kept in the forward
   // direction.
   size_t forward_capacity() const { return forward_capacity_; }

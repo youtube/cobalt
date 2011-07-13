@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,7 +33,6 @@ void SeekableBuffer::Clear() {
   forward_bytes_ = 0;
   current_time_ = kNoTimestamp;
 }
-
 
 size_t SeekableBuffer::Read(uint8* data, size_t size) {
   DCHECK(data);
