@@ -20,6 +20,7 @@
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "googleurl/src/url_canon_ip.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
@@ -424,67 +425,31 @@ bool X509Certificate::VerifyHostname(
   //                         access, i.e. the thing displayed in the URL bar.
   // Presented identifier(s) == name(s) the server knows itself as, in its cert.
 
-  // First, do simple host name validation. A valid domain name must only
-  // contain alpha, digits, hyphens, and dots. An IP address may have digits and
-  // dots, and also colons for IPv6 addresses.
-  // TODO(joth): Consider moving to use url_comon::CanonicalizeHost for this,
-  // and also detecting IP address family.
-  std::string reference_name;
-  reference_name.reserve(hostname.length());
+  // CanonicalizeHost requires surrounding brackets to parse an IPv6 address.
+  const std::string host_or_ip = hostname.find(':') != std::string::npos ?
+      "[" + hostname + "]" : hostname;
+  url_canon::CanonHostInfo host_info;
+  const std::string reference_name = CanonicalizeHost(host_or_ip, &host_info);
+  if (reference_name.empty())
+    return false;
 
-  bool found_alpha = false;
-  bool found_ipv6_chars = false;
-  bool found_hyphen = false;
-  int dot_count = 0;
-
-  for (std::string::const_iterator it = hostname.begin();
-       it != hostname.end(); ++it) {
-    char c = *it;
-    if (IsAsciiAlpha(c)) {
-      found_alpha = true;
-      c = base::ToLowerASCII(c);
-    } else if (c == '.') {
-      ++dot_count;
-    } else if (c == ':') {
-      found_ipv6_chars = true;
-    } else if (c == '-') {
-      found_hyphen = true;
-    } else if (!IsAsciiDigit(c)) {
-      DVLOG(1) << "Invalid char " << c << " in hostname " << hostname;
-      return false;
-    }
-    reference_name.push_back(c);
-  }
-  DCHECK(!reference_name.empty());
-  // Allow fallback to Common name matching. As this is deprecated and only
-  // supported for compatibility, refuse it for IPv6 addresses.
+  // Allow fallback to Common name matching?
   const bool common_name_fallback = cert_san_dns_names.empty() &&
-                                    cert_san_ip_addrs.empty() &&
-                                    !found_ipv6_chars;
+                                    cert_san_ip_addrs.empty();
 
-  // Fully handle all cases where |hostname| contains an IP address. TODO(joth):
-  // handle IP addresses with less than three dots; for now we're relying on
-  // |hostname| having been canonicalized before it arrives in here.
-  if (found_ipv6_chars || (!found_alpha && !found_hyphen && dot_count == 3)) {
-    IPAddressNumber ip_address;
-    if (ParseIPLiteralToNumber(reference_name, &ip_address)) {
-      // If we successfully parsed hostname an IP address, now verify it.
-      DCHECK_EQ(found_ipv6_chars ? kIPv6AddressSize : kIPv4AddressSize,
-                ip_address.size());
-      if (common_name_fallback)
-        return reference_name == cert_common_name;
-
-      base::StringPiece ip_addr_string(reinterpret_cast<const char*>(
-          &ip_address[0]), ip_address.size());
-      return std::find(cert_san_ip_addrs.begin(), cert_san_ip_addrs.end(),
-                       ip_addr_string) != cert_san_ip_addrs.end();
+  // Fully handle all cases where |hostname| contains an IP address.
+  if (host_info.IsIPAddress()) {
+    if (common_name_fallback &&
+        host_info.family == url_canon::CanonHostInfo::IPV4) {
+      // Fallback to Common name matching. As this is deprecated and only
+      // supported for compatibility refuse it for IPv6 addresses.
+      return reference_name == cert_common_name;
     }
-    if (found_ipv6_chars) {
-      DVLOG(1) << "Couldn't parse as v6 address: " << hostname;
-      return false;
-    }
-    // else it was a candidate IPv4 address but didn't parse: fallback to
-    // reg-name (DNS name) matching.
+    base::StringPiece ip_addr_string(
+        reinterpret_cast<const char*>(host_info.address),
+        host_info.AddressLength());
+    return std::find(cert_san_ip_addrs.begin(), cert_san_ip_addrs.end(),
+                     ip_addr_string) != cert_san_ip_addrs.end();
   }
 
   // |reference_domain| is the remainder of |host| after the leading host
@@ -494,7 +459,15 @@ bool X509Certificate::VerifyHostname(
   // then |reference_domain| will be empty.
   base::StringPiece reference_host, reference_domain;
   SplitOnChar(reference_name, '.', &reference_host, &reference_domain);
-  DCHECK(reference_domain.empty() || reference_domain.starts_with("."));
+  bool allow_wildcards = false;
+  if (!reference_domain.empty()) {
+    DCHECK(reference_domain.starts_with("."));
+    // We required at least 3 components (i.e. 2 dots) as a basic protection
+    // against too-broad wild-carding.
+    // Also we don't attempt wildcard matching on a purely numerical hostname.
+    allow_wildcards = reference_domain.rfind('.') != 0 &&
+        reference_name.find_first_not_of("0123456789.") != std::string::npos;
+  }
 
   // Now step through the DNS names doing wild card comparison (if necessary)
   // on each against the reference name. If subjectAltName is empty, then
@@ -540,14 +513,11 @@ bool X509Certificate::VerifyHostname(
     }
     pattern_end.remove_prefix(1);  // move past the *
 
-    // We required at least 3 components (i.e. 2 dots) as a basic protection
-    // against too-broad wild-carding.
-    // Also we don't attempt wildcard matching on a purely numerical hostname.
-    if (dot_count < 2 || (!found_alpha && !found_hyphen))
+    if (!allow_wildcards)
       continue;
 
     // * must not match a substring of an IDN A label; just a whole fragment.
-    if (found_hyphen && reference_host.starts_with("xn--") &&
+    if (reference_host.starts_with("xn--") &&
         !(pattern_begin.empty() && pattern_end.empty()))
       continue;
 
