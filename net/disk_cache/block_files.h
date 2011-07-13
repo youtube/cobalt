@@ -93,6 +93,7 @@ class NET_TEST BlockFiles {
   scoped_ptr<base::ThreadChecker> thread_checker_;
 
   FRIEND_TEST_ALL_PREFIXES(DiskCacheTest, BlockFiles_ZeroSizeFile);
+  FRIEND_TEST_ALL_PREFIXES(DiskCacheTest, BlockFiles_TruncatedFile);
   FRIEND_TEST_ALL_PREFIXES(DiskCacheTest, BlockFiles_InvalidFile);
   FRIEND_TEST_ALL_PREFIXES(DiskCacheTest, BlockFiles_Stats);
 
