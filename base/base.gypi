@@ -197,6 +197,8 @@
           'process_util_posix.cc',
           'process_util_win.cc',
           'process_win.cc',
+          'ps3/object_watcher.cc',
+          'ps3/object_watcher.h',
           'rand_util.cc',
           'rand_util.h',
           'rand_util_posix.cc',
@@ -411,6 +413,10 @@
               'message_pump_ps3.h',
               'sys_string_conversions_ps3.cc',
               'metrics/stats_table_ps3.cc'
+            ]
+          }, { # OS != cell_lv2
+            'sources/' : [
+              ['exclude', 'ps3']
             ]
           }],
           [ 'OS != "linux"', {
