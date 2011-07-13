@@ -555,6 +555,15 @@ NET_ERROR(IMPORT_CA_CERT_FAILED, -705)
 // Server certificate import failed due to some internal error.
 NET_ERROR(IMPORT_SERVER_CERT_FAILED, -706)
 
+// PKCS #12 import failed due to invalid MAC.
+NET_ERROR(PKCS12_IMPORT_INVALID_MAC, -707)
+
+// PKCS #12 import failed due to invalid/corrupt file.
+NET_ERROR(PKCS12_IMPORT_INVALID_FILE, -708)
+
+// PKCS #12 import failed due to unsupported features.
+NET_ERROR(PKCS12_IMPORT_UNSUPPORTED, -709)
+
 // DNS error codes.
 
 // DNS resolver received a malformed response.
