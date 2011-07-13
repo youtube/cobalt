@@ -8,6 +8,7 @@
 
 #include "base/logging.h"
 #include "base/threading/worker_pool.h"
+#include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/in_flight_io.h"
 
@@ -92,7 +93,7 @@ void FileBackgroundIO::Read() {
   if (file_->Read(const_cast<void*>(buf_), buf_len_, offset_)) {
     result_ = static_cast<int>(buf_len_);
   } else {
-    result_ = -1;
+    result_ = net::ERR_CACHE_READ_FAILURE;
   }
   controller_->OnIOComplete(this);
 }
@@ -101,7 +102,7 @@ void FileBackgroundIO::Read() {
 void FileBackgroundIO::Write() {
   bool rv = file_->Write(buf_, buf_len_, offset_);
 
-  result_ = rv ? static_cast<int>(buf_len_) : -1;
+  result_ = rv ? static_cast<int>(buf_len_) : net::ERR_CACHE_WRITE_FAILURE;
   controller_->OnIOComplete(this);
 }
 

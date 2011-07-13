@@ -419,6 +419,12 @@ bool BlockFiles::OpenBlockFile(int index) {
       return false;
   }
 
+  if (static_cast<int>(file_len) <
+      header->max_entries * header->entry_size + kBlockHeaderSize) {
+    LOG(ERROR) << "File too small " << name.value();
+    return false;
+  }
+
   if (index == 0) {
     // Load the links file into memory with a single read.
     scoped_array<char> buf(new char[file_len]);

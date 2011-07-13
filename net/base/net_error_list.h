@@ -475,7 +475,8 @@ NET_ERROR(CACHE_MISS, -400)
 // Unable to read from the disk cache.
 NET_ERROR(CACHE_READ_FAILURE, -401)
 
-// ****NOTE THAT code -402 is available****
+// Unable to write to the disk cache.
+NET_ERROR(CACHE_WRITE_FAILURE, -402)
 
 // The operation is not supported for this entry.
 NET_ERROR(CACHE_OPERATION_NOT_SUPPORTED, -403)
