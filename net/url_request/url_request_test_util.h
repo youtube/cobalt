@@ -179,6 +179,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   int error_count() const { return error_count_; }
   int created_requests() const { return created_requests_; }
   int destroyed_requests() const { return destroyed_requests_; }
+  int completed_requests() const { return completed_requests_; }
 
  protected:
   // net::NetworkDelegate:
@@ -206,6 +207,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   int error_count_;
   int created_requests_;
   int destroyed_requests_;
+  int completed_requests_;
 };
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_TEST_UTIL_H_
