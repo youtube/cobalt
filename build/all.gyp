@@ -81,6 +81,7 @@
             '../breakpad/breakpad.gyp:*',
             '../courgette/courgette.gyp:*',
             '../sandbox/sandbox.gyp:*',
+            '../cloud_print/virtual_driver/virtual_driver_linux.gyp:*',
           ],
           'conditions': [
             ['branding=="Chrome"', {
