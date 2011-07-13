@@ -38,6 +38,9 @@ typedef struct _XDisplay Display;
 #endif
 #elif defined(__LB_PS3__)
 #include "base/message_pump_ps3.h"
+// there may be a more elegant way to do this..
+#define MessagePumpForUI MessagePumpForPS3
+#define MessagePumpForIO MessagePumpForPS3
 #endif
 #if defined(TOUCH_UI)
 #include "base/message_pump_glib_x_dispatch.h"
@@ -95,8 +98,8 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   typedef base::MessagePumpForUI::Dispatcher Dispatcher;
   typedef base::MessagePumpForUI::Observer Observer;
 #elif defined(__LB_PS3__)
-  typedef base::MessagePumpForUI::Dispatcher Dispatcher;
-  typedef base::MessagePumpForUI::Observer Observer;
+  typedef base::MessagePumpForPS3::Dispatcher Dispatcher;
+  typedef base::MessagePumpForPS3::Observer Observer;
 #endif
 
   // A MessageLoop has a particular type, which indicates the set of
@@ -655,14 +658,14 @@ class BASE_API MessageLoopForIO : public MessageLoop {
     WATCH_READ_WRITE = base::MessagePumpLibevent::WATCH_READ_WRITE
   };
 #elif defined(__LB_PS3__)
-   typedef base::MessagePumpForIO::IOObserver IOObserver;
-   typedef base::MessagePumpForIO::Watcher Watcher;
-   typedef base::MessagePumpForIO::FileDescriptorWatcher FileDescriptorWatcher;
+   typedef base::MessagePumpForPS3::IOObserver IOObserver;
+   typedef base::MessagePumpForPS3::Watcher Watcher;
+   typedef base::MessagePumpForPS3::FileDescriptorWatcher FileDescriptorWatcher;
 
   enum Mode {
-    WATCH_READ = base::MessagePumpForIO::WATCH_READ,
-    WATCH_WRITE = base::MessagePumpForIO::WATCH_WRITE,
-    WATCH_READ_WRITE = base::MessagePumpForIO::WATCH_READ_WRITE
+    WATCH_READ = base::MessagePumpForPS3::WATCH_READ,
+    WATCH_WRITE = base::MessagePumpForPS3::WATCH_WRITE,
+    WATCH_READ_WRITE = base::MessagePumpForPS3::WATCH_READ_WRITE
   };
 #endif
 
