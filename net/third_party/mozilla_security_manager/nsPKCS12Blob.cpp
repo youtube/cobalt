@@ -228,13 +228,30 @@ finish:
   // We should use that error code instead of inventing a new one
   // for every error possible.
   if (srv != SECSuccess) {
-    if (SEC_ERROR_BAD_PASSWORD == PORT_GetError()) {
-      import_result = net::ERR_PKCS12_IMPORT_BAD_PASSWORD;
-    }
-    else
-    {
-      LOG(ERROR) << "PKCS#12 import failed with error " << PORT_GetError();
-      import_result = net::ERR_PKCS12_IMPORT_FAILED;
+    int error = PORT_GetError();
+    LOG(ERROR) << "PKCS#12 import failed with error " << error;
+    switch (error) {
+      case SEC_ERROR_BAD_PASSWORD:
+      case SEC_ERROR_PKCS12_PRIVACY_PASSWORD_INCORRECT:
+        import_result = net::ERR_PKCS12_IMPORT_BAD_PASSWORD;
+        break;
+      case SEC_ERROR_PKCS12_INVALID_MAC:
+        import_result = net::ERR_PKCS12_IMPORT_INVALID_MAC;
+        break;
+      case SEC_ERROR_BAD_DER:
+      case SEC_ERROR_PKCS12_DECODING_PFX:
+      case SEC_ERROR_PKCS12_CORRUPT_PFX_STRUCTURE:
+        import_result = net::ERR_PKCS12_IMPORT_INVALID_FILE;
+        break;
+      case SEC_ERROR_PKCS12_UNSUPPORTED_MAC_ALGORITHM:
+      case SEC_ERROR_PKCS12_UNSUPPORTED_TRANSPORT_MODE:
+      case SEC_ERROR_PKCS12_UNSUPPORTED_PBE_ALGORITHM:
+      case SEC_ERROR_PKCS12_UNSUPPORTED_VERSION:
+        import_result = net::ERR_PKCS12_IMPORT_UNSUPPORTED;
+        break;
+      default:
+        import_result = net::ERR_PKCS12_IMPORT_FAILED;
+        break;
     }
   }
   // Finish the decoder
