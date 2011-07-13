@@ -168,7 +168,13 @@ CommandLine::~CommandLine() {
 
 // static
 void CommandLine::Init(int argc, const char* const* argv) {
-  delete current_process_commandline_;
+  if (current_process_commandline_) {
+    // If this is intentional, Reset() must be called first. If we are using
+    // the shared build mode, we have to share a single object across multiple
+    // shared libraries.
+    return;
+  }
+
   current_process_commandline_ = new CommandLine(NO_PROGRAM);
 #if defined(OS_WIN)
   current_process_commandline_->ParseFromString(::GetCommandLineW());
