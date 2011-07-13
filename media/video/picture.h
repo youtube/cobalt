@@ -50,6 +50,10 @@ class GLESBuffer : public BaseBuffer {
   uint32 texture_id_;
 };
 
+// TODO(fischman,vrk): rip out SysmemBuffer and all its vestiges (such as
+// BaseBuffer's existence, VideoDecodeAccelerator::MemoryType, their ppapi
+// equivalents, etc).  Rename GLESBuffer to PictureBuffer.
+
 // A picture buffer that lives in system memory.
 // This is the media-namespace equivalent of PP_SysmemBuffer_Dev.
 class SysmemBuffer : public BaseBuffer {
