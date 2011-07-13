@@ -24,11 +24,9 @@
 namespace net {
 
 class AuthChallengeInfo;
-class CookieOptions;
 class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
-class SSLCertRequestInfo;
 class URLRequest;
 class UploadData;
 class URLRequestStatus;
@@ -191,18 +189,6 @@ class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
  protected:
   friend class base::RefCounted<URLRequestJob>;
   virtual ~URLRequestJob();
-
-  // Notifies the job that a certificate is requested.
-  void NotifyCertificateRequested(SSLCertRequestInfo* cert_request_info);
-
-  // Notifies the job about an SSL certificate error.
-  void NotifySSLCertificateError(int cert_error, X509Certificate* cert);
-
-  // Delegates to URLRequest::Delegate.
-  bool CanGetCookies();
-
-  // Delegates to URLRequest::Delegate.
-  bool CanSetCookie(const std::string& cookie_line, CookieOptions* options);
 
   // Notifies the job that headers have been received.
   void NotifyHeadersComplete();
