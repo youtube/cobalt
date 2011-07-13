@@ -73,7 +73,7 @@ TEST(CommandLineTest, CommandLineConstructor) {
       "other-switches"));
   EXPECT_EQ("45--output-rotation", cl.GetSwitchValueASCII("input-translation"));
 
-  const std::vector<CommandLine::StringType>& args = cl.args();
+  const CommandLine::StringVector& args = cl.GetArgs();
   ASSERT_EQ(6U, args.size());
 
   std::vector<CommandLine::StringType>::const_iterator iter = args.begin();
@@ -134,7 +134,7 @@ TEST(CommandLineTest, CommandLineFromString) {
   EXPECT_EQ("45--output-rotation", cl.GetSwitchValueASCII("input-translation"));
   EXPECT_EQ(kTricky, cl.GetSwitchValueNative("quotes"));
 
-  const std::vector<CommandLine::StringType>& args = cl.args();
+  const CommandLine::StringVector& args = cl.GetArgs();
   ASSERT_EQ(5U, args.size());
 
   std::vector<CommandLine::StringType>::const_iterator iter = args.begin();
@@ -163,13 +163,13 @@ TEST(CommandLineTest, EmptyString) {
   EXPECT_TRUE(cl_from_string.command_line_string().empty());
   EXPECT_TRUE(cl_from_string.GetProgram().empty());
   EXPECT_EQ(1U, cl_from_string.argv().size());
-  EXPECT_TRUE(cl_from_string.args().empty());
+  EXPECT_TRUE(cl_from_string.GetArgs().empty());
 #endif
   CommandLine cl_from_argv(0, NULL);
   EXPECT_TRUE(cl_from_argv.command_line_string().empty());
   EXPECT_TRUE(cl_from_argv.GetProgram().empty());
   EXPECT_EQ(1U, cl_from_argv.argv().size());
-  EXPECT_TRUE(cl_from_argv.args().empty());
+  EXPECT_TRUE(cl_from_argv.GetArgs().empty());
 }
 
 // Test methods for appending switches to a command line.
