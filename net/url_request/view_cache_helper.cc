@@ -15,7 +15,9 @@
 #include "net/url_request/url_request_context.h"
 
 #define VIEW_CACHE_HEAD \
-  "<html><body><table>"
+  "<html><meta charset=\"utf-8\"><meta http-equiv=\"X-WebKit-CSP\" " \
+  "content=\"object-src 'none'; script-src 'none' 'unsafe-eval'\">" \
+  "<body><table>"
 
 #define VIEW_CACHE_TAIL \
   "</table></body></html>"
