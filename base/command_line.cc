@@ -290,10 +290,6 @@ CommandLine::StringType CommandLine::GetSwitchValueNative(
   return result == switches_.end() ? StringType() : result->second;
 }
 
-size_t CommandLine::GetSwitchCount() const {
-  return switches_.size();
-}
-
 void CommandLine::AppendSwitch(const std::string& switch_string) {
   AppendSwitchNative(switch_string, StringType());
 }
