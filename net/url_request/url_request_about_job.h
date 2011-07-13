@@ -14,7 +14,7 @@
 
 namespace net {
 
-class URLRequestAboutJob : public URLRequestJob {
+class NET_API URLRequestAboutJob : public URLRequestJob {
  public:
   explicit URLRequestAboutJob(URLRequest* request);
 
