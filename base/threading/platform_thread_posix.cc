@@ -105,6 +105,15 @@ bool CreateThread(size_t stack_size, bool joinable,
   }
 #endif  // OS_MACOSX
 
+#if defined(__LB_PS3__)
+  // default stack size of 16K is _not_ cutting it :)
+  // switch to a default stack size of at least 64K
+  // useful read: https://ps3.scedev.net/projects/knowledge_base/docs/overflow/1
+  if (stack_size < 64*1024)
+    stack_size = 64*1024;
+#endif
+
+
   if (stack_size > 0)
     pthread_attr_setstacksize(&attributes, stack_size);
 
