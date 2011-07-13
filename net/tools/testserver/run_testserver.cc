@@ -38,8 +38,7 @@ int main(int argc, const char* argv[]) {
 
   TestTimeouts::Initialize();
 
-  if (command_line->GetSwitchCount() == 0 ||
-      command_line->HasSwitch("help")) {
+  if (command_line->GetSwitches().empty() || command_line->HasSwitch("help")) {
     PrintUsage();
     return -1;
   }
