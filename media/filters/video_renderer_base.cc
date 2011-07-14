@@ -101,12 +101,13 @@ void VideoRendererBase::Flush(FilterCallback* callback) {
 }
 
 void VideoRendererBase::Stop(FilterCallback* callback) {
-  DCHECK_EQ(pending_reads_, 0);
-
   base::PlatformThreadHandle old_thread_handle = base::kNullThreadHandle;
   {
     base::AutoLock auto_lock(lock_);
     state_ = kStopped;
+
+    if (!pending_paint_ && !pending_paint_with_last_available_)
+      DoStopOrErrorFlush_Locked();
 
     // Clean up our thread if present.
     if (thread_) {
@@ -348,12 +349,11 @@ void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
   base::AutoLock auto_lock(lock_);
   DCHECK(!pending_paint_ && !pending_paint_with_last_available_);
 
-  if (!current_frame_.get() || current_frame_->IsEndOfStream()) {
-    if (!last_available_frame_.get() ||
-        last_available_frame_->IsEndOfStream()) {
-      *frame_out = NULL;
-      return;
-    }
+  if ((!current_frame_.get() || current_frame_->IsEndOfStream()) &&
+      (!last_available_frame_.get() ||
+       last_available_frame_->IsEndOfStream())) {
+    *frame_out = NULL;
+    return;
   }
 
   // We should have initialized and have the current frame.
@@ -390,8 +390,11 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
   // frame is timed-out. We will wake up our main thread to advance the current
   // frame when this is true.
   frame_available_.Signal();
-  if (state_ == kFlushing)
+  if (state_ == kFlushing) {
     FlushBuffers();
+  } else if (state_ == kError || state_ == kStopped) {
+    DoStopOrErrorFlush_Locked();
+  }
 }
 
 void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
@@ -531,7 +534,7 @@ void VideoRendererBase::FlushBuffers() {
     ScheduleRead_Locked();
   }
 
-  if (pending_reads_ == 0)
+  if (pending_reads_ == 0 && state_ == kFlushing)
     OnFlushDone();
 }
 
@@ -589,6 +592,11 @@ void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
   State old_state = state_;
   state_ = kError;
 
+  // Flush frames if we aren't in the middle of a paint. If we
+  // are painting then flushing will happen when the paint completes.
+  if (!pending_paint_ && !pending_paint_with_last_available_)
+    DoStopOrErrorFlush_Locked();
+
   switch (old_state) {
     case kUninitialized:
     case kPrerolled:
@@ -621,6 +629,15 @@ void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
 
   if (callback.get())
     callback->Run();
+}
+
+void VideoRendererBase::DoStopOrErrorFlush_Locked() {
+  DCHECK(!pending_paint_);
+  DCHECK(!pending_paint_with_last_available_);
+  lock_.AssertAcquired();
+  FlushBuffers();
+  last_available_frame_ = NULL;
+  DCHECK_EQ(pending_reads_, 0);
 }
 
 }  // namespace media

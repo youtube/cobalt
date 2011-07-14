@@ -67,6 +67,8 @@ class VideoRendererBaseTest : public ::testing::Test {
     decoder_media_format_.SetAsInteger(MediaFormat::kHeight, kHeight);
     EXPECT_CALL(*decoder_, media_format())
         .WillRepeatedly(ReturnRef(decoder_media_format_));
+    EXPECT_CALL(*decoder_, ProvidesBuffer())
+        .WillRepeatedly(Return(true));
     EXPECT_CALL(stats_callback_object_, OnStatistics(_))
         .Times(AnyNumber());
   }
@@ -74,12 +76,14 @@ class VideoRendererBaseTest : public ::testing::Test {
   virtual ~VideoRendererBaseTest() {
     read_queue_.clear();
 
-    // Expect a call into the subclass.
-    EXPECT_CALL(*renderer_, OnStop(NotNull()))
-        .WillOnce(DoAll(OnStop(), Return()))
-        .RetiresOnSaturation();
+    if (renderer_.get()) {
+      // Expect a call into the subclass.
+      EXPECT_CALL(*renderer_, OnStop(NotNull()))
+          .WillOnce(DoAll(OnStop(), Return()))
+          .RetiresOnSaturation();
 
-    renderer_->Stop(NewExpectedCallback());
+      renderer_->Stop(NewExpectedCallback());
+    }
   }
 
   void Initialize() {
@@ -141,9 +145,6 @@ class VideoRendererBaseTest : public ::testing::Test {
 
   void Flush() {
     renderer_->Pause(NewExpectedCallback());
-
-    EXPECT_CALL(*decoder_, ProvidesBuffer())
-        .WillRepeatedly(Return(true));
 
     renderer_->Flush(NewExpectedCallback());
   }
@@ -211,11 +212,14 @@ const int64 VideoRendererBaseTest::kDuration = 10;
 
 // Test initialization where the decoder's media format is malformed.
 TEST_F(VideoRendererBaseTest, Initialize_BadMediaFormat) {
-  InSequence s;
-
   // Don't set a media format.
   MediaFormat media_format;
   scoped_refptr<MockVideoDecoder> bad_decoder(new MockVideoDecoder());
+  EXPECT_CALL(*bad_decoder, ProvidesBuffer())
+      .WillRepeatedly(Return(true));
+
+  InSequence s;
+
   EXPECT_CALL(*bad_decoder, media_format())
       .WillRepeatedly(ReturnRef(media_format));
 
@@ -300,6 +304,62 @@ TEST_F(VideoRendererBaseTest, Seek_RightAfter) {
   Seek(kDuration * 6 + 1);
   ExpectCurrentTimestamp(kDuration * 6);
   Flush();
+}
+
+// Verify behavior for GetCurrentFrame() calls that happen after a
+// decoder error.
+TEST_F(VideoRendererBaseTest, GetCurrentFrame_AfterError) {
+  Initialize();
+  renderer_->Play(NewExpectedCallback());
+
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+  CreateError();
+
+  scoped_refptr<VideoFrame> frame;
+  renderer_->GetCurrentFrame(&frame);
+  EXPECT_TRUE(!frame.get());
+  renderer_->PutCurrentFrame(frame);
+}
+
+// Verify behavior for GetCurrentFrame() when an error occurs in the middle
+// of a paint operation.
+TEST_F(VideoRendererBaseTest, Error_DuringPaint) {
+  Initialize();
+  renderer_->Play(NewExpectedCallback());
+
+  scoped_refptr<VideoFrame> frame;
+  renderer_->GetCurrentFrame(&frame);
+
+  EXPECT_TRUE(frame.get());
+
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+  CreateError();
+
+  renderer_->PutCurrentFrame(frame);
+
+  renderer_->GetCurrentFrame(&frame);
+  EXPECT_TRUE(!frame.get());
+  renderer_->PutCurrentFrame(frame);
+}
+
+
+// Verify behavior for GetCurrentFrame() calls that happen after
+// the renderer has been stopped.
+TEST_F(VideoRendererBaseTest, GetCurrentFrame_AfterStop) {
+  Initialize();
+
+  EXPECT_CALL(*renderer_, OnStop(NotNull()))
+      .WillOnce(DoAll(OnStop(), Return()))
+      .RetiresOnSaturation();
+
+  renderer_->Stop(NewExpectedCallback());
+
+  scoped_refptr<VideoFrame> frame;
+  renderer_->GetCurrentFrame(&frame);
+  EXPECT_TRUE(!frame.get());
+  renderer_->PutCurrentFrame(frame);
+
+  renderer_ = NULL;
 }
 
 }  // namespace media
