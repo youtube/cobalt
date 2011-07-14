@@ -1026,6 +1026,15 @@
           },
           'VCLinkerTool': {
             'LinkIncremental': '<(msvs_debug_link_incremental)',
+            # ASLR makes debugging with windbg difficult because Chrome.exe and
+            # Chrome.dll share the same base name. As result, windbg will
+            # name the Chrome.dll module like chrome_<base address>, where
+            # <base address> typically changes with each launch. This in turn
+            # means that breakpoints in Chrome.dll don't stick from one launch
+            # to the next. For this reason, we turn ASLR off in debug builds.
+            # Note that this is a three-way bool, where 0 means to pick up
+            # the default setting, 1 is off and 2 is on.
+            'RandomizedBaseAddress': 1,
           },
           'VCResourceCompilerTool': {
             'PreprocessorDefinitions': ['_DEBUG'],
