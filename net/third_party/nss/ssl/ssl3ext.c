@@ -249,6 +249,7 @@ static const ssl3HelloExtensionHandler serverHelloHandlersTLS[] = {
     { ssl_next_proto_neg_xtn,     &ssl3_ClientHandleNextProtoNegoXtn },
     { ssl_cached_info_xtn,        &ssl3_ClientHandleCachedInfoXtn },
     { ssl_cert_status_xtn,        &ssl3_ClientHandleStatusRequestXtn },
+    { ssl_ob_cert_xtn,            &ssl3_ClientHandleOBCertXtn },
     { -1, NULL }
 };
 
@@ -274,7 +275,8 @@ ssl3HelloExtensionSender clientHelloSendersTLS[SSL_MAX_EXTENSIONS] = {
     { ssl_session_ticket_xtn,     &ssl3_SendSessionTicketXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ClientSendNextProtoNegoXtn },
     { ssl_cached_info_xtn,        &ssl3_ClientSendCachedInfoXtn },
-    { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn }
+    { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn },
+    { ssl_ob_cert_xtn,            &ssl3_SendOBCertXtn }
     /* any extra entries will appear as { 0, NULL }    */
 };
 
@@ -1867,3 +1869,80 @@ ssl3_HandleRenegotiationInfoXtn(sslSocket *ss, PRUint16 ex_type, SECItem *data)
     return rv;
 }
 
+/* This sender is used by both the client and server. */
+PRInt32
+ssl3_SendOBCertXtn(sslSocket * ss, PRBool append,
+		   PRUint32 maxBytes)
+{
+    SECStatus rv;
+    PRUint32 extension_length;
+  
+    if (!ss)
+        return 0;
+    
+    if (!ss->opt.enableOBCerts)
+        return 0;
+
+    /* extension length = extension_type (2-bytes) +
+     * length(extension_data) (2-bytes) +
+     */
+
+    extension_length = 4;
+
+    if (append && maxBytes >= extension_length) {
+        /* extension_type */
+        rv = ssl3_AppendHandshakeNumber(ss, ssl_ob_cert_xtn, 2); 
+        if (rv != SECSuccess) return -1;
+        /* length of extension_data */
+        rv = ssl3_AppendHandshakeNumber(ss, extension_length - 4, 2); 
+        if (rv != SECSuccess) return -1;
+
+	if (!ss->sec.isServer) {
+	    TLSExtensionData *xtnData = &ss->xtnData;
+	    xtnData->advertised[xtnData->numAdvertised++] = ssl_ob_cert_xtn;
+	}
+    }
+
+    return extension_length;
+}
+
+SECStatus
+ssl3_ServerHandleOBCertXtn(sslSocket *ss, PRUint16 ex_type,
+			   SECItem *data)
+{
+    SECStatus rv;
+
+    /* Ignore the OBCert extension if it is disabled. */
+    if (!ss->opt.enableOBCerts)
+	return SECSuccess;
+
+    /* The echoed extension must be empty. */
+    if (data->len != 0)
+	return SECFailure;
+
+    /* Keep track of negotiated extensions. */
+    ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
+
+    rv = ssl3_RegisterServerHelloExtensionSender(ss, ex_type,
+						 ssl3_SendOBCertXtn);
+
+    return SECSuccess;
+}
+
+SECStatus
+ssl3_ClientHandleOBCertXtn(sslSocket *ss, PRUint16 ex_type,
+			   SECItem *data)
+{
+    /* If we didn't request this extension, then the server may not echo it. */
+    if (!ss->opt.enableOBCerts)
+	return SECFailure;
+
+    /* The echoed extension must be empty. */
+    if (data->len != 0)
+	return SECFailure;
+
+    /* Keep track of negotiated extensions. */
+    ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
+
+    return SECSuccess;
+}
