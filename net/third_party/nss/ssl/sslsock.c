@@ -187,6 +187,7 @@ static sslOptions ssl_defaults = {
     PR_FALSE,   /* enableFalseStart   */
     PR_FALSE,   /* enableOCSPStapling */
     PR_FALSE,   /* enableCachedInfo */
+    PR_TRUE,    /* enableOBCerts */
 };
 
 sslSessionIDLookupFunc  ssl_sid_lookup;
@@ -752,6 +753,10 @@ SSL_OptionSet(PRFileDesc *fd, PRInt32 which, PRBool on)
 	ss->opt.enableCachedInfo = on;
 	break;
 
+      case SSL_ENABLE_OB_CERTS:
+	ss->opt.enableOBCerts = on;
+	break;
+
       default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	rv = SECFailure;
@@ -817,7 +822,8 @@ SSL_OptionGet(PRFileDesc *fd, PRInt32 which, PRBool *pOn)
                                   on = ss->opt.requireSafeNegotiation; break;
     case SSL_ENABLE_FALSE_START:  on = ss->opt.enableFalseStart;   break;
     case SSL_ENABLE_OCSP_STAPLING: on = ss->opt.enableOCSPStapling; break;
-    case SSL_ENABLE_CACHED_INFO:  on = ss->opt.enableCachedInfo; break;
+    case SSL_ENABLE_CACHED_INFO:  on = ss->opt.enableCachedInfo;   break;
+    case SSL_ENABLE_OB_CERTS:     on = ss->opt.enableOBCerts;      break;
 
     default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -873,6 +879,7 @@ SSL_OptionGetDefault(PRInt32 which, PRBool *pOn)
 	on = ssl_defaults.enableOCSPStapling;
 	break;
     case SSL_ENABLE_CACHED_INFO:  on = ssl_defaults.enableCachedInfo;   break;
+    case SSL_ENABLE_OB_CERTS:     on = ssl_defaults.enableOBCerts;      break;
 
     default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -1026,6 +1033,10 @@ SSL_OptionSetDefault(PRInt32 which, PRBool on)
 
       case SSL_ENABLE_CACHED_INFO:
 	ssl_defaults.enableCachedInfo = on;
+	break;
+
+      case SSL_ENABLE_OB_CERTS:
+	ssl_defaults.enableOBCerts = on;
 	break;
 
       default:
