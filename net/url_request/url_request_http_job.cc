@@ -316,6 +316,10 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   // notified of the headers completion so that we can update the cookie store.
   if (transaction_->IsReadyToRestartForAuth()) {
     DCHECK(!response_info_->auth_challenge.get());
+    // TODO(battre): This breaks the webrequest API for
+    // URLRequestTestHTTP.BasicAuthWithCookies
+    // where OnBeforeSendHeaders -> OnRequestSent -> OnBeforeSendHeaders
+    // occurs.
     RestartTransactionWithAuth(string16(), string16());
     return;
   }
