@@ -25,7 +25,6 @@
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
-#include "net/base/network_delegate.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/upload_data_stream.h"
@@ -114,11 +113,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
 }
 
 HttpNetworkTransaction::~HttpNetworkTransaction() {
-  if (request_ && session_->network_delegate()) {
-    session_->network_delegate()->NotifyHttpTransactionDestroyed(
-        request_->request_id);
-  }
-
   if (stream_.get()) {
     HttpResponseHeaders* headers = GetResponseHeaders();
     // TODO(mbelshe): The stream_ should be able to compute whether or not the
@@ -770,11 +764,6 @@ int HttpNetworkTransaction::DoSendRequest() {
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
-  if (session_->network_delegate()) {
-    session_->network_delegate()->NotifyRequestSent(
-        request_->request_id, response_.socket_address, request_headers_);
-  }
-
   if (result < 0)
     return HandleIOError(result);
   next_state_ = STATE_READ_HEADERS;
