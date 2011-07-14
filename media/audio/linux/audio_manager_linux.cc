@@ -192,7 +192,8 @@ void AudioManagerLinux::ShowAudioInputSettings() {
       env.get());
   std::string command((desktop == base::nix::DESKTOP_ENVIRONMENT_GNOME) ?
                       "gnome-volume-control" : "kmix");
-  base::LaunchApp(CommandLine(FilePath(command)), false, false, NULL);
+  base::LaunchOptions options;
+  base::LaunchProcess(CommandLine(FilePath(command)), options);
 }
 
 void AudioManagerLinux::GetAudioInputDeviceNames(

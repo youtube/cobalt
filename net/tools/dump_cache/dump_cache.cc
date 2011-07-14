@@ -97,7 +97,7 @@ int LaunchSlave(const CommandLine& command_line,
 
   // TODO(evanm): remove needless usage of wstring from here and elsewhere.
   new_command_line.AppendSwitchASCII(kPipe, WideToASCII(pipe_number));
-  if (!base::LaunchApp(new_command_line, false, false, NULL)) {
+  if (!base::LaunchProcess(new_command_line, base::LaunchOptions())) {
     printf("Unable to launch the needed version of this tool: %ls\n",
            new_program.c_str());
     printf(kUpgradeHelp);
