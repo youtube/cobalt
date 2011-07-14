@@ -22,6 +22,7 @@ URLRequestContext::URLRequestContext()
       proxy_service_(NULL),
       network_delegate_(NULL),
       transport_security_state_(NULL),
+      ftp_auth_cache_(new FtpAuthCache),
       http_transaction_factory_(NULL),
       ftp_transaction_factory_(NULL),
       job_factory_(NULL) {
