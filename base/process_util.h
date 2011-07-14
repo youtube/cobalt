@@ -358,9 +358,9 @@ BASE_API char** AlterEnvironment(const environment_vector& changes,
                                  const char* const* const env);
 #endif  // defined(OS_POSIX)
 
-// Executes the application specified by cl. This function delegates to one
-// of the above platform-specific functions.
+#if defined(OS_WIN)
 // TODO(evan): deprecated; change callers to use LaunchProcess, remove.
+// Successfully deprecated on non-Windows.
 inline bool LaunchApp(const CommandLine& cl, bool wait, bool start_hidden,
                       ProcessHandle* process_handle) {
   LaunchOptions options;
@@ -369,6 +369,7 @@ inline bool LaunchApp(const CommandLine& cl, bool wait, bool start_hidden,
 
   return LaunchProcess(cl, options);
 }
+#endif
 
 // Executes the application specified by |cl| and wait for it to exit. Stores
 // the output (stdout) in |output|. Redirects stderr to /dev/null. Returns true
