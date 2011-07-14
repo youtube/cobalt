@@ -2521,14 +2521,14 @@ TEST_F(URLRequestTest, Identifiers) {
 // Check that a failure to connect to the proxy is reported to the network
 // delegate.
 TEST_F(URLRequestTest, NetworkDelegateProxyError) {
-  scoped_ptr<MockHostResolverBase> host_resolver(new MockHostResolver);
-  host_resolver->rules()->AddSimulatedFailure("*");
+  MockHostResolver host_resolver;
+  host_resolver.rules()->AddSimulatedFailure("*");
 
   TestNetworkDelegate network_delegate;  // must outlive URLRequests
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
   context->set_network_delegate(&network_delegate);
   context->SetProxyFromString("myproxy:70");
-  context->set_host_resolver(host_resolver.release());
+  context->set_host_resolver(&host_resolver);
   context->Init();
 
   TestDelegate d;
