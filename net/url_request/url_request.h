@@ -682,6 +682,12 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // this to determine which URLRequest to allocate sockets to first.
   RequestPriority priority_;
 
+  // TODO(battre): The only consumer of the identifier_ is currently the
+  // web request API. We need to match identifiers of requests between the
+  // web request API and the web navigation API. As the URLRequest does not
+  // exist when the web navigation API is triggered, the tracking probably
+  // needs to be done outside of the URLRequest anyway. Therefore, this
+  // identifier should be deleted here. http://crbug.com/89321
   // A globally unique identifier for this request.
   const uint64 identifier_;
 

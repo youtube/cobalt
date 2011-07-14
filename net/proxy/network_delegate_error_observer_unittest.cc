@@ -35,8 +35,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
                                   HttpRequestHeaders* headers) {
     return net::OK;
   }
-  virtual void OnRequestSent(uint64 request_id,
-                             const HostPortPair& socket_address,
+  virtual void OnSendHeaders(URLRequest* request,
                              const HttpRequestHeaders& headers) {}
   virtual void OnBeforeRedirect(URLRequest* request,
                                 const GURL& new_location) {}
