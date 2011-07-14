@@ -748,6 +748,9 @@
         'defines': ['PPAPI_INSTANCE_REMOVE_SCRIPTING',
                     'PPAPI_VAR_REMOVE_SCRIPTING'],
       }],
+      ['configuration_policy==1', {
+        'defines': ['ENABLE_CONFIGURATION_POLICY'],
+      }],
       ['fastbuild!=0', {
         'conditions': [
           # For Windows, we don't genererate debug information.
