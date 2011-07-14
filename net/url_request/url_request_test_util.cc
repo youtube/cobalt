@@ -12,49 +12,110 @@
 #include "net/http/http_network_session.h"
 #include "net/url_request/url_request_job_factory.h"
 
+namespace {
+
+// These constants put the net::NetworkDelegate events of TestNetworkDelegate
+// into an order. They are used in conjunction with
+// |TestNetworkDelegate::next_states_| to check that we do not send
+// events in the wrong order.
+const int kStageBeforeURLRequest = 1 << 0;
+const int kStageBeforeSendHeaders = 1 << 1;
+const int kStageRequestSent = 1 << 2;
+const int kStageBeforeRedirect = 1 << 3;
+const int kStageResponseStarted = 1 << 4;
+const int kStageCompletedSuccess = 1 << 5;
+const int kStageCompletedError = 1 << 6;
+const int kStageURLRequestDestroyed = 1 << 7;
+const int kStageDestruction = 1 << 8;
+
+}  // namespace
+
 TestURLRequestContext::TestURLRequestContext()
-    : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
+    : initialized_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
   context_storage_.set_host_resolver(
       net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
                                     net::HostResolver::kDefaultRetryAttempts,
                                     NULL));
-  context_storage_.set_proxy_service(net::ProxyService::CreateDirect());
+  SetProxyDirect();
   Init();
 }
 
-TestURLRequestContext::TestURLRequestContext(const std::string& proxy)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
+TestURLRequestContext::TestURLRequestContext(bool delay_initialization)
+    : initialized_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
   context_storage_.set_host_resolver(
       net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
                                     net::HostResolver::kDefaultRetryAttempts,
                                     NULL));
-  net::ProxyConfig proxy_config;
-  proxy_config.proxy_rules().ParseFromString(proxy);
-  context_storage_.set_proxy_service(
-      net::ProxyService::CreateFixed(proxy_config));
+  SetProxyDirect();
+  if (!delay_initialization)
+    Init();
+}
+
+TestURLRequestContext::TestURLRequestContext(const std::string& proxy)
+    : initialized_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
+  context_storage_.set_host_resolver(
+      net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
+                                    net::HostResolver::kDefaultRetryAttempts,
+                                    NULL));
+  SetProxyFromString(proxy);
+  Init();
+}
+
+TestURLRequestContext::TestURLRequestContext(const char* proxy)
+    : initialized_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
+  context_storage_.set_host_resolver(
+      net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
+                                    net::HostResolver::kDefaultRetryAttempts,
+                                    NULL));
+  SetProxyFromString(proxy);
   Init();
 }
 
 TestURLRequestContext::TestURLRequestContext(const std::string& proxy,
                                              net::HostResolver* host_resolver)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
+    : initialized_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
   context_storage_.set_host_resolver(host_resolver);
+  SetProxyFromString(proxy);
+  Init();
+}
+
+void TestURLRequestContext::SetProxyFromString(const std::string& proxy) {
+  DCHECK(!initialized_);
   net::ProxyConfig proxy_config;
   proxy_config.proxy_rules().ParseFromString(proxy);
   context_storage_.set_proxy_service(
       net::ProxyService::CreateFixed(proxy_config));
-  Init();
 }
 
-TestURLRequestContext::~TestURLRequestContext() {}
+void TestURLRequestContext::SetProxyDirect() {
+  DCHECK(!initialized_);
+  context_storage_.set_proxy_service(net::ProxyService::CreateDirect());
+}
+
+TestURLRequestContext::~TestURLRequestContext() {
+  DCHECK(initialized_);
+}
 
 void TestURLRequestContext::Init() {
-  context_storage_.set_cert_verifier(new net::CertVerifier);
-  context_storage_.set_ftp_transaction_factory(
-      new net::FtpNetworkLayer(host_resolver()));
-  context_storage_.set_ssl_config_service(new net::SSLConfigServiceDefaults);
-  context_storage_.set_http_auth_handler_factory(
-      net::HttpAuthHandlerFactory::CreateDefault(host_resolver()));
+  DCHECK(!initialized_);
+  initialized_ = true;
+  if (!cert_verifier())
+    context_storage_.set_cert_verifier(new net::CertVerifier);
+  if (!ftp_transaction_factory()) {
+    context_storage_.set_ftp_transaction_factory(
+        new net::FtpNetworkLayer(host_resolver()));
+  }
+  if (!ssl_config_service())
+    context_storage_.set_ssl_config_service(new net::SSLConfigServiceDefaults);
+  if (!http_auth_handler_factory()) {
+    context_storage_.set_http_auth_handler_factory(
+        net::HttpAuthHandlerFactory::CreateDefault(host_resolver()));
+  }
   net::HttpNetworkSession::Params params;
   params.host_resolver = host_resolver();
   params.cert_verifier = cert_verifier();
@@ -63,14 +124,20 @@ void TestURLRequestContext::Init() {
   params.http_auth_handler_factory = http_auth_handler_factory();
   params.network_delegate = network_delegate();
 
-  context_storage_.set_http_transaction_factory(new net::HttpCache(
-      new net::HttpNetworkSession(params),
-      net::HttpCache::DefaultBackend::InMemory(0)));
+  if (!http_transaction_factory()) {
+    context_storage_.set_http_transaction_factory(new net::HttpCache(
+        new net::HttpNetworkSession(params),
+        net::HttpCache::DefaultBackend::InMemory(0)));
+  }
   // In-memory cookie store.
-  context_storage_.set_cookie_store(new net::CookieMonster(NULL, NULL));
-  set_accept_language("en-us,fr");
-  set_accept_charset("iso-8859-1,*,utf-8");
-  context_storage_.set_job_factory(new net::URLRequestJobFactory);
+  if (!cookie_store())
+    context_storage_.set_cookie_store(new net::CookieMonster(NULL, NULL));
+  if (accept_language().empty())
+    set_accept_language("en-us,fr");
+  if (accept_charset().empty())
+    set_accept_charset("iso-8859-1,*,utf-8");
+  if (!job_factory())
+    context_storage_.set_job_factory(new net::URLRequestJobFactory);
 }
 
 
@@ -248,12 +315,36 @@ TestNetworkDelegate::TestNetworkDelegate()
     completed_requests_(0) {
 }
 
-TestNetworkDelegate::~TestNetworkDelegate() {}
+TestNetworkDelegate::~TestNetworkDelegate() {
+  for (std::map<int, int>::iterator i = next_states_.begin();
+       i != next_states_.end(); ++i) {
+    event_order_[i->first] += "~TestNetworkDelegate\n";
+    EXPECT_TRUE(i->second & kStageDestruction) << event_order_[i->first];
+  }
+}
+
+void TestNetworkDelegate::InitRequestStatesIfNew(int request_id) {
+  if (next_states_.find(request_id) == next_states_.end()) {
+    next_states_[request_id] = kStageBeforeURLRequest;
+    event_order_[request_id] = "";
+  }
+}
+
 
 int TestNetworkDelegate::OnBeforeURLRequest(
     net::URLRequest* request,
     net::CompletionCallback* callback,
     GURL* new_url ) {
+  int req_id = request->identifier();
+  event_order_[req_id] += "OnBeforeURLRequest\n";
+  InitRequestStatesIfNew(req_id);
+  EXPECT_TRUE(next_states_[req_id] & kStageBeforeURLRequest) <<
+      event_order_[req_id];
+  next_states_[req_id] =
+      kStageBeforeSendHeaders |
+      kStageResponseStarted |  // data: URLs do not trigger sending headers
+      kStageBeforeRedirect |  // a delegate can trigger a redirection
+      kStageCompletedError;  // request canceled by delegate
   created_requests_++;
   return net::OK;
 }
@@ -262,6 +353,18 @@ int TestNetworkDelegate::OnBeforeSendHeaders(
     net::URLRequest* request,
     net::CompletionCallback* callback,
     net::HttpRequestHeaders* headers) {
+  int req_id = request->identifier();
+  event_order_[req_id] += "OnBeforeSendHeaders\n";
+  InitRequestStatesIfNew(req_id);
+  EXPECT_TRUE(next_states_[req_id] & kStageBeforeSendHeaders) <<
+      event_order_[req_id];
+  next_states_[req_id] =
+      kStageRequestSent |
+      kStageCompletedError;  // request canceled by delegate
+
+  // In case we can answer a request from the cache we can respond directly.
+  next_states_[req_id] |= kStageResponseStarted;
+
   return net::OK;
 }
 
@@ -269,13 +372,45 @@ void TestNetworkDelegate::OnRequestSent(
     uint64 request_id,
     const net::HostPortPair& socket_address,
     const net::HttpRequestHeaders& headers) {
+  event_order_[request_id] += "OnRequestSent\n";
+  InitRequestStatesIfNew(request_id);
+  EXPECT_TRUE(next_states_[request_id] & kStageRequestSent) <<
+      event_order_[request_id];
+  next_states_[request_id] =
+      kStageBeforeRedirect |
+      kStageResponseStarted |
+      kStageCompletedError;  // e.g. proxy resolution problem
+
+  // Basic authentication sends a second request from the URLRequestHttpJob
+  // layer before the URLRequest reports that a response has started.
+  next_states_[request_id] |= kStageBeforeSendHeaders;
 }
 
 void TestNetworkDelegate::OnBeforeRedirect(net::URLRequest* request,
                                            const GURL& new_location) {
+  int req_id = request->identifier();
+  event_order_[req_id] += "OnBeforeRedirect\n";
+  InitRequestStatesIfNew(req_id);
+  EXPECT_TRUE(next_states_[req_id] & kStageBeforeRedirect) <<
+      event_order_[req_id];
+  next_states_[req_id] =
+      kStageBeforeURLRequest |  // HTTP redirects trigger this.
+      kStageBeforeSendHeaders |  // Redirects from the network delegate do not
+                                 // trigger onBeforeURLRequest.
+      kStageCompletedError;
+
+  // A redirect can lead to a file or a data URL. In this case, we do not send
+  // headers.
+  next_states_[req_id] |= kStageResponseStarted;
 }
 
 void TestNetworkDelegate::OnResponseStarted(net::URLRequest* request) {
+  int req_id = request->identifier();
+  event_order_[req_id] += "OnResponseStarted\n";
+  InitRequestStatesIfNew(req_id);
+  EXPECT_TRUE(next_states_[req_id] & kStageResponseStarted) <<
+      event_order_[req_id];
+  next_states_[req_id] = kStageCompletedSuccess | kStageCompletedError;
   if (request->status().status() == net::URLRequestStatus::FAILED) {
     error_count_++;
     last_os_error_ = request->status().os_error();
@@ -287,6 +422,19 @@ void TestNetworkDelegate::OnRawBytesRead(const net::URLRequest& request,
 }
 
 void TestNetworkDelegate::OnCompleted(net::URLRequest* request) {
+  int req_id = request->identifier();
+  event_order_[req_id] += "OnCompleted\n";
+  InitRequestStatesIfNew(req_id);
+  // Expect "Success -> (next_states_ & kStageCompletedSuccess)"
+  // is logically identical to
+  // Expect "!(Success) || (next_states_ & kStageCompletedSuccess)"
+  EXPECT_TRUE(!request->status().is_success() ||
+              (next_states_[req_id] & kStageCompletedSuccess)) <<
+      event_order_[req_id];
+  EXPECT_TRUE(request->status().is_success() ||
+              (next_states_[req_id] & kStageCompletedError)) <<
+      event_order_[req_id];
+  next_states_[req_id] = kStageURLRequestDestroyed;
   completed_requests_++;
   if (request->status().status() == net::URLRequestStatus::FAILED) {
     error_count_++;
@@ -296,6 +444,12 @@ void TestNetworkDelegate::OnCompleted(net::URLRequest* request) {
 
 void TestNetworkDelegate::OnURLRequestDestroyed(
     net::URLRequest* request) {
+  int req_id = request->identifier();
+  event_order_[req_id] += "OnURLRequestDestroyed\n";
+  InitRequestStatesIfNew(req_id);
+  EXPECT_TRUE(next_states_[req_id] & kStageURLRequestDestroyed) <<
+      event_order_[req_id];
+  next_states_[req_id] = kStageDestruction;
   destroyed_requests_++;
 }
 
