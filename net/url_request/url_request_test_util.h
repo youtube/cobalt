@@ -47,16 +47,29 @@ class HostPortPair;
 class TestURLRequestContext : public net::URLRequestContext {
  public:
   TestURLRequestContext();
+  // Default constructor like TestURLRequestContext() but does not call
+  // Init() in case |delay_initialization| is true. This allows modifying the
+  // URLRequestContext before it is constructed completely. If
+  // |delay_initialization| is true, Init() needs be be called manually.
+  explicit TestURLRequestContext(bool delay_initialization);
+  // We need this constructor because TestURLRequestContext("foo") actually
+  // calls the boolean constructor rather than the std::string constructor.
+  explicit TestURLRequestContext(const char* proxy);
   explicit TestURLRequestContext(const std::string& proxy);
   TestURLRequestContext(const std::string& proxy,
                         net::HostResolver* host_resolver);
+
+  // Configures the proxy server, must not be called after Init().
+  void SetProxyFromString(const std::string& proxy);
+  void SetProxyDirect();
+
+  void Init();
 
  protected:
   virtual ~TestURLRequestContext();
 
  private:
-  void Init();
-
+  bool initialized_;
   net::URLRequestContextStorage context_storage_;
 };
 
@@ -203,11 +216,23 @@ class TestNetworkDelegate : public net::NetworkDelegate {
       net::URLRequest* request);
   virtual void OnPACScriptError(int line_number, const string16& error);
 
+  void InitRequestStatesIfNew(int request_id);
+
   int last_os_error_;
   int error_count_;
   int created_requests_;
   int destroyed_requests_;
   int completed_requests_;
+
+  // net::NetworkDelegate callbacks happen in a particular order (e.g.
+  // OnBeforeURLRequest is always called before OnBeforeSendHeaders).
+  // This bit-set indicates for each request id (key) what events may be sent
+  // next.
+  std::map<int, int> next_states_;
+
+  // A log that records for each request id (key) the order in which On...
+  // functions were called.
+  std::map<int, std::string> event_order_;
 };
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_TEST_UTIL_H_
