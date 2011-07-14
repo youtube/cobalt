@@ -23,7 +23,6 @@
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
-#include "net/base/network_delegate.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_config_service.h"
 #include "net/disk_cache/disk_cache.h"
@@ -138,12 +137,6 @@ HttpCache::Transaction::~Transaction() {
   // We may have to issue another IO, but we should never invoke the callback_
   // after this point.
   callback_ = NULL;
-
-  if (request_ && cache_ && cache_->GetSession() &&
-      cache_->GetSession()->network_delegate()) {
-    cache_->GetSession()->network_delegate()->NotifyHttpTransactionDestroyed(
-        request_->request_id);
-  }
 
   if (cache_) {
     if (entry_) {

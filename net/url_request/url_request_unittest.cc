@@ -1497,11 +1497,6 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
   }
 
   // expect a cache hit
-
-  // TODO(battre): We have a sequence OnBeforeSendHeaders -> OnResponseStarted
-  // here because the cache hit does not trigger a OnRequestSent event.
-  // Do we need it?
-
   {
     TestDelegate d;
     URLRequest req(test_server_.GetURL("echoheadercache?foo"), &d);

@@ -318,7 +318,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
     DCHECK(!response_info_->auth_challenge.get());
     // TODO(battre): This breaks the webrequest API for
     // URLRequestTestHTTP.BasicAuthWithCookies
-    // where OnBeforeSendHeaders -> OnRequestSent -> OnBeforeSendHeaders
+    // where OnBeforeSendHeaders -> OnSendHeaders -> OnBeforeSendHeaders
     // occurs.
     RestartTransactionWithAuth(string16(), string16());
     return;
@@ -379,6 +379,11 @@ void URLRequestHttpJob::StartTransactionInternal() {
   // with auth provided by username_ and password_.
 
   int rv;
+
+  if (request_->context() && request_->context()->network_delegate()) {
+    request_->context()->network_delegate()->NotifySendHeaders(
+        request_, request_info_.extra_headers);
+  }
 
   if (transaction_.get()) {
     rv = transaction_->RestartWithAuth(username_, password_, &start_callback_);

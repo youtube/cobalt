@@ -20,7 +20,7 @@ namespace {
 // events in the wrong order.
 const int kStageBeforeURLRequest = 1 << 0;
 const int kStageBeforeSendHeaders = 1 << 1;
-const int kStageRequestSent = 1 << 2;
+const int kStageSendHeaders = 1 << 2;
 const int kStageBeforeRedirect = 1 << 3;
 const int kStageResponseStarted = 1 << 4;
 const int kStageCompletedSuccess = 1 << 5;
@@ -359,31 +359,28 @@ int TestNetworkDelegate::OnBeforeSendHeaders(
   EXPECT_TRUE(next_states_[req_id] & kStageBeforeSendHeaders) <<
       event_order_[req_id];
   next_states_[req_id] =
-      kStageRequestSent |
+      kStageSendHeaders |
       kStageCompletedError;  // request canceled by delegate
-
-  // In case we can answer a request from the cache we can respond directly.
-  next_states_[req_id] |= kStageResponseStarted;
 
   return net::OK;
 }
 
-void TestNetworkDelegate::OnRequestSent(
-    uint64 request_id,
-    const net::HostPortPair& socket_address,
+void TestNetworkDelegate::OnSendHeaders(
+    net::URLRequest* request,
     const net::HttpRequestHeaders& headers) {
-  event_order_[request_id] += "OnRequestSent\n";
-  InitRequestStatesIfNew(request_id);
-  EXPECT_TRUE(next_states_[request_id] & kStageRequestSent) <<
-      event_order_[request_id];
-  next_states_[request_id] =
+  int req_id = request->identifier();
+  event_order_[req_id] += "OnSendHeaders\n";
+  InitRequestStatesIfNew(req_id);
+  EXPECT_TRUE(next_states_[req_id] & kStageSendHeaders) <<
+      event_order_[req_id];
+  next_states_[req_id] =
       kStageBeforeRedirect |
       kStageResponseStarted |
       kStageCompletedError;  // e.g. proxy resolution problem
 
   // Basic authentication sends a second request from the URLRequestHttpJob
   // layer before the URLRequest reports that a response has started.
-  next_states_[request_id] |= kStageBeforeSendHeaders;
+  next_states_[req_id] |= kStageBeforeSendHeaders;
 }
 
 void TestNetworkDelegate::OnBeforeRedirect(net::URLRequest* request,

@@ -46,6 +46,7 @@ void StripPostSpecificHeaders(HttpRequestHeaders* headers) {
   headers->RemoveHeader(HttpRequestHeaders::kOrigin);
 }
 
+// TODO(battre): Delete this, see http://crbug.com/89321:
 // This counter keeps track of the identifiers used for URL requests so far.
 // 0 is reserved to represent an invalid ID.
 uint64 g_next_url_request_identifier = 1;
@@ -730,7 +731,7 @@ void URLRequest::NotifyAuthRequired(AuthChallengeInfo* auth_info) {
   //}
   // This fixes URLRequestTestHTTP.BasicAuth but not
   // URLRequestTestHTTP.BasicAuthWithCookies. In both cases we observe a
-  // call sequence of OnBeforeSendHeaders -> OnRequestSent ->
+  // call sequence of OnBeforeSendHeaders -> OnSendHeaders ->
   // OnBeforeSendHeaders.
 
   if (delegate_)
