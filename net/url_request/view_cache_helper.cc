@@ -63,13 +63,13 @@ ViewCacheHelper::~ViewCacheHelper() {
 }
 
 int ViewCacheHelper::GetEntryInfoHTML(const std::string& key,
-                                      const URLRequestContext* context,
+                                      URLRequestContext* context,
                                       std::string* out,
                                       CompletionCallback* callback) {
   return GetInfoHTML(key, context, std::string(), out, callback);
 }
 
-int ViewCacheHelper::GetContentsHTML(const URLRequestContext* context,
+int ViewCacheHelper::GetContentsHTML(URLRequestContext* context,
                                      const std::string& url_prefix,
                                      std::string* out,
                                      CompletionCallback* callback) {
@@ -118,7 +118,7 @@ void ViewCacheHelper::HexDump(const char *buf, size_t buf_len,
 //-----------------------------------------------------------------------------
 
 int ViewCacheHelper::GetInfoHTML(const std::string& key,
-                                 const URLRequestContext* context,
+                                 URLRequestContext* context,
                                  const std::string& url_prefix,
                                  std::string* out,
                                  CompletionCallback* callback) {

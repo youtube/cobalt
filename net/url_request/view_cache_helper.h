@@ -31,7 +31,7 @@ class NET_API ViewCacheHelper {
   // operation completes. |out| must remain valid until this operation completes
   // or the object is destroyed.
   int GetEntryInfoHTML(const std::string& key,
-                       const URLRequestContext* context,
+                       URLRequestContext* context,
                        std::string* out,
                        CompletionCallback* callback);
 
@@ -40,7 +40,7 @@ class NET_API ViewCacheHelper {
   // operation completes. |out| must remain valid until this operation completes
   // or the object is destroyed. |url_prefix| will be prepended to each entry
   // key as a link to the entry.
-  int GetContentsHTML(const URLRequestContext* context,
+  int GetContentsHTML(URLRequestContext* context,
                       const std::string& url_prefix,
                       std::string* out,
                       CompletionCallback* callback);
@@ -67,7 +67,7 @@ class NET_API ViewCacheHelper {
 
   // Implements GetEntryInfoHTML and GetContentsHTML.
   int GetInfoHTML(const std::string& key,
-                  const URLRequestContext* context,
+                  URLRequestContext* context,
                   const std::string& url_prefix,
                   std::string* out,
                   CompletionCallback* callback);
@@ -99,7 +99,7 @@ class NET_API ViewCacheHelper {
   // Called to signal completion of asynchronous IO.
   void OnIOComplete(int result);
 
-  scoped_refptr<const URLRequestContext> context_;
+  scoped_refptr<URLRequestContext> context_;
   disk_cache::Backend* disk_cache_;
   disk_cache::Entry* entry_;
   void* iter_;
