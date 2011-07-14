@@ -723,6 +723,16 @@ void URLRequest::SetUserData(const void* key, UserData* data) {
 }
 
 void URLRequest::NotifyAuthRequired(AuthChallengeInfo* auth_info) {
+  // TODO(battre): We could simulate a redirection there as follows:
+  // if (context_ && context_->network_delegate()) {
+  //  // We simulate a redirection.
+  //   context_->network_delegate()->NotifyBeforeRedirect(this, url());
+  //}
+  // This fixes URLRequestTestHTTP.BasicAuth but not
+  // URLRequestTestHTTP.BasicAuthWithCookies. In both cases we observe a
+  // call sequence of OnBeforeSendHeaders -> OnRequestSent ->
+  // OnBeforeSendHeaders.
+
   if (delegate_)
     delegate_->OnAuthRequired(this, auth_info);
 }
