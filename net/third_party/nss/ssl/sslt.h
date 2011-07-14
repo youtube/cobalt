@@ -206,9 +206,10 @@ typedef enum {
     ssl_session_ticket_xtn           = 35,
     ssl_next_proto_neg_xtn           = 13172,
     ssl_cached_info_xtn              = 13173,
-    ssl_renegotiation_info_xtn       = 0xff01	/* experimental number */
+    ssl_renegotiation_info_xtn       = 0xff01,	/* experimental number */
+    ssl_ob_cert_xtn                  = 0xff0f	/* experimental number */
 } SSLExtensionType;
 
-#define SSL_MAX_EXTENSIONS             8
+#define SSL_MAX_EXTENSIONS             9
 
 #endif /* __sslt_h_ */
