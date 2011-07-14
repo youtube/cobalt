@@ -2527,10 +2527,11 @@ TEST_F(URLRequestTest, DoNotOverrideReferrer) {
 // content is empty.
 TEST_F(URLRequestTest, RequestCompletionForEmptyResponse) {
   TestNetworkDelegate network_delegate;
+  scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+  context->set_network_delegate(&network_delegate);
   TestDelegate d;
   TestURLRequest req(GURL("data:,"), &d);
-  req.set_context(new TestURLRequestContext());
-  req.context()->set_network_delegate(&network_delegate);
+  req.set_context(context);
   req.Start();
   MessageLoop::current()->Run();
   EXPECT_EQ("", d.data_received());
