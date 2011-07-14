@@ -134,6 +134,9 @@ class VideoRendererBase : public VideoRenderer,
   // Safely handles entering to an error state.
   void EnterErrorState_Locked(PipelineStatus status);
 
+  // Helper function that flushes the buffers when a Stop() or error occurs.
+  void DoStopOrErrorFlush_Locked();
+
   // Used for accessing data members.
   base::Lock lock_;
 
