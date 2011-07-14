@@ -293,7 +293,7 @@ void ProxyScriptFetcherImpl::FetchCompleted() {
 
   // Hold a reference to the URLRequestContext to prevent re-entrancy from
   // ~URLRequestContext.
-  scoped_refptr<const URLRequestContext> context(cur_request_->context());
+  scoped_refptr<URLRequestContext> context(cur_request_->context());
   ResetCurRequestState();
 
   callback->Run(result_code);
