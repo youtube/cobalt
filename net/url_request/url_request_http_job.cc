@@ -477,7 +477,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
     }
   }
 
-  const URLRequestContext* context = request_->context();
+  URLRequestContext* context = request_->context();
   if (context) {
     // Only add default Accept-Language and Accept-Charset if the request
     // didn't have them specified.
@@ -597,7 +597,7 @@ void URLRequestHttpJob::FetchResponseCookies(
 void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   DCHECK(response_info_);
 
-  const URLRequestContext* ctx = request_->context();
+  URLRequestContext* ctx = request_->context();
   if (!ctx || !ctx->transport_security_state())
     return;
 
