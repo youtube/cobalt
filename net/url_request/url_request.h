@@ -544,8 +544,8 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   void ContinueDespiteLastError();
 
   // Used to specify the context (cookie store, cache) for this request.
-  URLRequestContext* context() const;
-  void set_context(URLRequestContext* context);
+  const URLRequestContext* context() const;
+  void set_context(const URLRequestContext* context);
 
   const BoundNetLog& net_log() const { return net_log_; }
 
@@ -634,7 +634,7 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
   // cookie store, socket pool, etc.)
-  scoped_refptr<URLRequestContext> context_;
+  scoped_refptr<const URLRequestContext> context_;
 
   // Tracks the time spent in various load states throughout this request.
   BoundNetLog net_log_;

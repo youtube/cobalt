@@ -681,12 +681,12 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
   return OK;
 }
 
-URLRequestContext* URLRequest::context() const {
+const URLRequestContext* URLRequest::context() const {
   return context_.get();
 }
 
-void URLRequest::set_context(URLRequestContext* context) {
-  scoped_refptr<URLRequestContext> prev_context = context_;
+void URLRequest::set_context(const URLRequestContext* context) {
+  scoped_refptr<const URLRequestContext> prev_context = context_;
 
   context_ = context;
 
