@@ -957,6 +957,12 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_CACHED_INFO");
 #endif
 
+#ifdef SSL_ENABLE_OB_CERTS
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_OB_CERTS, PR_FALSE);
+  if (rv != SECSuccess)
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_OB_CERTS");
+#endif
+
   rv = SSL_OptionSet(nss_fd_, SSL_HANDSHAKE_AS_CLIENT, PR_TRUE);
   if (rv != SECSuccess) {
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_HANDSHAKE_AS_CLIENT");
