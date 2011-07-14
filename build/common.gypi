@@ -35,6 +35,9 @@
           # Disable touch support by default.
           'touchui%': 0,
 
+          # Disable webui certificate viewer until it is complete.
+          'webui_certificate_viewer%': 0,
+
           # Whether the compositor is enabled on views.
           'views_compositor%': 0,
         },
@@ -42,6 +45,7 @@
         'chromeos%': '<(chromeos)',
         'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
         'touchui%': '<(touchui)',
+        'webui_certificate_viewer%': '<(webui_certificate_viewer)',
         'views_compositor%': '<(views_compositor)',
 
         # Compute the architecture that we're building on.
@@ -70,12 +74,18 @@
           }, {
             'toolkit_uses_pure_views%': 0,
           }],
+
+          # Use WebUI certificate viewer in Touch case
+          ['touchui==1', {
+            'webui_certificate_viewer%': 1
+          }],
         ],
       },
 
       # Copy conditionally-set variables out one scope.
       'chromeos%': '<(chromeos)',
       'touchui%': '<(touchui)',
+      'webui_certificate_viewer%': '<(webui_certificate_viewer)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
       'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
@@ -258,6 +268,7 @@
     'enable_flapper_hacks%': '<(enable_flapper_hacks)',
     'chromeos%': '<(chromeos)',
     'touchui%': '<(touchui)',
+    'webui_certificate_viewer%': '<(webui_certificate_viewer)',
     'file_manager_extension%': '<(file_manager_extension)',
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
@@ -606,6 +617,9 @@
       }],
       ['touchui==1', {
         'grit_defines': ['-D', 'touchui'],
+      }],
+      ['webui_certificate_viewer==1', {
+        'grit_defines': ['-D', 'webui_certificate_viewer'],
       }],
       ['file_manager_extension==1', {
         'grit_defines': ['-D', 'file_manager_extension'],
