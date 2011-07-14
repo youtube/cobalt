@@ -997,7 +997,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 //
 // Flaky on Mac - http://crbug.com/86550
 // Flaky on ChromeOS - http://crbug.com/89273
-#if defined(OS_MAC) || defined(OS_CHROMEOS)
+#if defined(OS_MACOSX) || defined(OS_CHROMEOS)
 #define MAYBE_BackupSocketFailAfterStall FLAKY_BackupSocketFailAfterStall
 #else
 #define MAYBE_BackupSocketFailAfterStall BackupSocketFailAfterStall
