@@ -24,7 +24,6 @@ class VideoCapture {
     kStarted,
     kPaused,
     kStopped,
-    kStopping,
     kError,
   };
 
@@ -43,7 +42,7 @@ class VideoCapture {
     int height;
     int stride;
     size_t buffer_size;
-    uint8* memory_pointer;
+    void* memory_pointer;
     base::Time timestamp;
 
    private:
@@ -99,8 +98,9 @@ class VideoCapture {
   // Request video capture to stop capturing for client |handler|.
   virtual void StopCapture(EventHandler* handler) = 0;
 
-  // Feed buffer to video capture when done with it.
-  virtual void FeedBuffer(scoped_refptr<VideoFrameBuffer> buffer) = 0;
+  // TODO(wjia): Add FeedBuffer when buffer sharing is needed between video
+  // capture and downstream module.
+  // virtual void FeedBuffer(scoped_refptr<VideoFrameBuffer> buffer) = 0;
 
   virtual bool CaptureStarted() = 0;
   virtual int CaptureWidth() = 0;
