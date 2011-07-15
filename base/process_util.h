@@ -202,7 +202,8 @@ struct LaunchOptions {
                     start_hidden(false), inherit_handles(false), as_user(NULL),
                     empty_desktop_name(false)
 #else
-                    environ(NULL), fds_to_remap(NULL), new_process_group(false)
+                    environ(NULL), fds_to_remap(NULL), new_process_group(false),
+                    clone_flags(0)
 #endif
       {}
 
@@ -243,6 +244,9 @@ struct LaunchOptions {
   // inheriting the parent's process group.  The pgid of the child process
   // will be the same as its pid.
   bool new_process_group;
+
+  // If non-zero, start the process using clone(), using flags as provided.
+  int clone_flags;
 #endif
 };
 
