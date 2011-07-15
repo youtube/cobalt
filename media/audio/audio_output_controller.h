@@ -14,7 +14,6 @@
 #include "media/audio/audio_manager.h"
 #include "media/audio/simple_sources.h"
 
-struct AudioBuffersState;
 class MessageLoop;
 class Task;
 
@@ -91,9 +90,10 @@ class AudioOutputController
    public:
     virtual ~SyncReader() {}
 
-    // Notify the synchronous reader the buffer state. This is used by
-    // SyncReader to prepare more data and perform synchronization.
-    virtual void UpdateBufferState(const AudioBuffersState& buffer_state) = 0;
+    // Notify the synchronous reader the number of bytes in the
+    // AudioOutputController not yet played. This is used by SyncReader to
+    // prepare more data and perform synchronization.
+    virtual void UpdatePendingBytes(uint32 bytes) = 0;
 
     // Read certain amount of data into |data|. This method returns if some
     // data is available.
@@ -208,4 +208,4 @@ class AudioOutputController
 
 }  // namespace media
 
-#endif  // MEDIA_AUDIO_AUDIO_OUTPUT_CONTROLLER_H_
+#endif  //  MEDIA_AUDIO_AUDIO_OUTPUT_CONTROLLER_H_
