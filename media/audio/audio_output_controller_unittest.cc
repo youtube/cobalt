@@ -50,7 +50,7 @@ class MockAudioOutputControllerSyncReader
  public:
   MockAudioOutputControllerSyncReader() {}
 
-  MOCK_METHOD1(UpdateBufferState, void(const AudioBuffersState& buffer_state));
+  MOCK_METHOD1(UpdatePendingBytes, void(uint32 bytes));
   MOCK_METHOD2(Read, uint32(void* data, uint32 size));
   MOCK_METHOD0(Close, void());
 
