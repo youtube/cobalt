@@ -49,9 +49,7 @@ int RunSlave(RankCrashes action) {
   cmdline.AppendArg(base::IntToString(action));
 
   base::ProcessHandle handle;
-  base::LaunchOptions options;
-  options.process_handle = &handle;
-  if (!base::LaunchProcess(cmdline, options)) {
+  if (!base::LaunchProcess(cmdline, base::LaunchOptions(), &handle)) {
     printf("Unable to run test %d\n", action);
     return GENERIC;
   }

@@ -250,8 +250,7 @@ void AudioManagerWin::ShowAudioInputSettings() {
   path = path.Append(program);
   CommandLine command_line(path);
   command_line.AppendArg(argument);
-  base::LaunchOptions options;
-  base::LaunchProcess(command_line, options);
+  base::LaunchProcess(command_line, base::LaunchOptions(), NULL);
 }
 
 void AudioManagerWin::GetAudioInputDeviceNames(

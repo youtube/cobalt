@@ -195,8 +195,9 @@ typedef std::vector<std::pair<std::string, std::string> > environment_vector;
 typedef std::vector<std::pair<int, int> > file_handle_mapping_vector;
 
 // Options for launching a subprocess that are passed to LaunchApp().
+// The default constructor constructs the object with default options.
 struct LaunchOptions {
-  LaunchOptions() : wait(false), process_handle(NULL),
+  LaunchOptions() : wait(false),
 #if defined(OS_WIN)
                     start_hidden(false), inherit_handles(false), as_user(NULL),
                     empty_desktop_name(false)
@@ -207,13 +208,6 @@ struct LaunchOptions {
 
   // If true, wait for the process to complete.
   bool wait;
-
-  // If non-NULL, will be filled in with the handle of the launched process.
-  // NOTE: In this case, the caller is responsible for closing the handle so
-  //       that it doesn't leak!  Otherwise, the handle will be implicitly
-  //       closed.
-  // Not especially useful unless |wait| is false.
-  ProcessHandle* process_handle;
 
 #if defined(OS_WIN)
   bool start_hidden;
@@ -253,7 +247,12 @@ struct LaunchOptions {
 };
 
 // Launch a process via the command line |cmdline|.
-// See the documentation of LaunchOptions for details on launching options.
+// See the documentation of LaunchOptions for details on |options|.
+//
+// If |process_handle| is non-NULL, it will be filled in with the
+// handle of the launched process.  NOTE: In this case, the caller is
+// responsible for closing the handle so that it doesn't leak!
+// Otherwise, the process handle will be implicitly closed.
 //
 // Unix-specific notes:
 // - Before launching, all FDs open in the parent process will be marked as
@@ -261,7 +260,8 @@ struct LaunchOptions {
 // - If the first argument on the command line does not contain a slash,
 //   PATH will be searched.  (See man execvp.)
 BASE_API bool LaunchProcess(const CommandLine& cmdline,
-                            const LaunchOptions& options);
+                            const LaunchOptions& options,
+                            ProcessHandle* process_handle);
 
 #if defined(OS_WIN)
 
@@ -288,7 +288,8 @@ BASE_API bool GetProcessIntegrityLevel(ProcessHandle process,
 // Example (including literal quotes)
 //  cmdline = "c:\windows\explorer.exe" -foo "c:\bar\"
 BASE_API bool LaunchProcess(const string16& cmdline,
-                            const LaunchOptions& options);
+                            const LaunchOptions& options,
+                            ProcessHandle* process_handle);
 
 // TODO(evan): deprecated; change callers to use LaunchProcess, remove.
 inline bool LaunchApp(const std::wstring& cmdline,
@@ -297,8 +298,7 @@ inline bool LaunchApp(const std::wstring& cmdline,
   LaunchOptions options;
   options.wait = wait;
   options.start_hidden = start_hidden;
-  options.process_handle = process_handle;
-  return LaunchProcess(cmdline, options);
+  return LaunchProcess(cmdline, options, process_handle);
 }
 
 // TODO(evan): deprecated; change callers to use LaunchProcess, remove.
@@ -308,9 +308,8 @@ inline bool LaunchAppWithHandleInheritance(const std::wstring& cmdline,
   LaunchOptions options;
   options.wait = wait;
   options.start_hidden = start_hidden;
-  options.process_handle = process_handle;
   options.inherit_handles = true;
-  return LaunchProcess(cmdline, options);
+  return LaunchProcess(cmdline, options, process_handle);
 }
 
 // TODO(evan): deprecated; change callers to use LaunchProcess, remove.
@@ -320,9 +319,8 @@ inline bool LaunchAppAsUser(UserTokenHandle token,
                             ProcessHandle* process_handle) {
   LaunchOptions options;
   options.start_hidden = start_hidden;
-  options.process_handle = process_handle;
   options.as_user = token;
-  return LaunchProcess(cmdline, options);
+  return LaunchProcess(cmdline, options, process_handle);
 }
 
 // TODO(evan): deprecated; change callers to use LaunchProcess, remove.
@@ -332,11 +330,10 @@ inline bool LaunchAppAsUser(UserTokenHandle token,
                             bool empty_desktop_name, bool inherit_handles) {
   LaunchOptions options;
   options.start_hidden = start_hidden;
-  options.process_handle = process_handle;
   options.as_user = token;
   options.empty_desktop_name = empty_desktop_name;
   options.inherit_handles = inherit_handles;
-  return LaunchProcess(cmdline, options);
+  return LaunchProcess(cmdline, options, process_handle);
 }
 
 #elif defined(OS_POSIX)
@@ -345,7 +342,8 @@ inline bool LaunchAppAsUser(UserTokenHandle token,
 // control the command line arguments directly, but prefer the
 // CommandLine version if launching Chrome itself.
 BASE_API bool LaunchProcess(const std::vector<std::string>& argv,
-                            const LaunchOptions& options);
+                            const LaunchOptions& options,
+                            ProcessHandle* process_handle);
 
 // AlterEnvironment returns a modified environment vector, constructed from the
 // given environment and the list of changes given in |changes|. Each key in
@@ -365,9 +363,8 @@ inline bool LaunchApp(const CommandLine& cl, bool wait, bool start_hidden,
                       ProcessHandle* process_handle) {
   LaunchOptions options;
   options.wait = wait;
-  options.process_handle = process_handle;
-
-  return LaunchProcess(cl, options);
+  options.start_hidden = start_hidden;
+  return LaunchProcess(cl, options, process_handle);
 }
 #endif
 
