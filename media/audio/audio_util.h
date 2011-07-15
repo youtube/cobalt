@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,6 @@
 #include <vector>
 
 #include "base/basictypes.h"
-
-namespace base {
-class SharedMemory;
-}
 
 namespace media {
 
@@ -97,16 +93,6 @@ void SwizzleCoreAudioLayout5_1(Format* b, uint32 filled) {
 
 // Returns the default audio hardware sample-rate.
 double GetAudioHardwareSampleRate();
-
-// Functions that handle data buffer passed between processes in the shared
-// memory. Called on both IPC sides.
-
-uint32 TotalSharedMemorySizeInBytes(uint32 packet_size);
-uint32 GetMaxDataSizeInBytes(uint32 shared_memory_size);
-uint32 GetActualDataSizeInBytes(base::SharedMemory* shared_memory);
-void SetActualDataSizeInBytes(base::SharedMemory* shared_memory,
-                              uint32 actual_data_size);
-void* GetDataPointer(base::SharedMemory* shared_memory);
 
 }  // namespace media
 

@@ -10,7 +10,6 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/shared_memory.h"
 #include "media/audio/audio_util.h"
 #if defined(OS_MACOSX)
 #include "media/audio/mac/audio_low_latency_output_mac.h"
@@ -233,38 +232,6 @@ double GetAudioHardwareSampleRate()
     // TODO(crogers) : return correct value in rare non-48KHz cases.
     return 48000.0;
 #endif
-}
-
-// When transferring data in the shared memory, first word is size of data
-// in bytes. Actual data starts immediately after it.
-
-uint32 TotalSharedMemorySizeInBytes(uint32 packet_size) {
-  // Need to reserve extra 4 bytes for size of data.
-  return packet_size + sizeof(uint32);
-}
-
-uint32 GetMaxDataSizeInBytes(uint32 shared_memory_size) {
-  // We can transfer 4 less bytes of data than shared memory size..
-  DCHECK_GT(shared_memory_size, sizeof(uint32));
-  return shared_memory_size - sizeof(uint32);
-}
-
-uint32 GetActualDataSizeInBytes(base::SharedMemory* shared_memory) {
-  // Actual data size stored in the beginning of the buffer.
-  uint32 actual_data_size = 0;
-  memcpy(&actual_data_size, shared_memory->memory(), sizeof(uint32));
-  return actual_data_size;
-}
-
-void SetActualDataSizeInBytes(base::SharedMemory* shared_memory,
-                              uint32 actual_data_size) {
-  // Set actual data size in the beginning of the buffer.
-  memcpy(shared_memory->memory(), &actual_data_size, sizeof(uint32));
-}
-
-void* GetDataPointer(base::SharedMemory* shared_memory) {
-  // Data itself is stored after size that occupies 4 bytes.
-  return static_cast<char*>(shared_memory->memory()) + sizeof(uint32);
 }
 
 }  // namespace media
