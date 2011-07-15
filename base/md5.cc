@@ -18,8 +18,6 @@
  * will fill a supplied 16-byte array with the digest.
  */
 
-#include <string>
-
 #include "base/md5.h"
 
 #include "base/basictypes.h"
