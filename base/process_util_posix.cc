@@ -528,7 +528,8 @@ char** AlterEnvironment(const environment_vector& changes,
 }
 
 bool LaunchProcess(const std::vector<std::string>& argv,
-                   const LaunchOptions& options) {
+                   const LaunchOptions& options,
+                   ProcessHandle* process_handle) {
   pid_t pid;
   InjectiveMultimap fd_shuffle1, fd_shuffle2;
   if (options.fds_to_remap) {
@@ -631,16 +632,17 @@ bool LaunchProcess(const std::vector<std::string>& argv,
       DPCHECK(ret > 0);
     }
 
-    if (options.process_handle)
-      *options.process_handle = pid;
+    if (process_handle)
+      *process_handle = pid;
   }
 
   return true;
 }
 
 bool LaunchProcess(const CommandLine& cmdline,
-                   const LaunchOptions& options) {
-  return LaunchProcess(cmdline.argv(), options);
+                   const LaunchOptions& options,
+                   ProcessHandle* process_handle) {
+  return LaunchProcess(cmdline.argv(), options, process_handle);
 }
 
 ProcessMetrics::~ProcessMetrics() { }
