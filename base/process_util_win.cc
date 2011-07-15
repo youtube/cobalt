@@ -218,7 +218,8 @@ bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level) {
 }
 
 bool LaunchProcess(const string16& cmdline,
-                   const LaunchOptions& options) {
+                   const LaunchOptions& options,
+                   ProcessHandle* process_handle) {
   STARTUPINFO startup_info = {};
   startup_info.cb = sizeof(startup_info);
   if (options.empty_desktop_name)
@@ -259,8 +260,8 @@ bool LaunchProcess(const string16& cmdline,
     WaitForSingleObject(process_info.hProcess, INFINITE);
 
   // If the caller wants the process handle, we won't close it.
-  if (options.process_handle) {
-    *options.process_handle = process_info.hProcess;
+  if (process_handle) {
+    *process_handle = process_info.hProcess;
   } else {
     CloseHandle(process_info.hProcess);
   }
@@ -268,8 +269,9 @@ bool LaunchProcess(const string16& cmdline,
 }
 
 bool LaunchProcess(const CommandLine& cmdline,
-                   const LaunchOptions& options) {
-  return LaunchProcess(cmdline.command_line_string(), options);
+                   const LaunchOptions& options,
+                   ProcessHandle* process_handle) {
+  return LaunchProcess(cmdline.command_line_string(), options, process_handle);
 }
 
 // Attempts to kill the process identified by the given process

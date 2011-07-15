@@ -47,13 +47,12 @@ ProcessHandle MultiProcessTest::SpawnChildImpl(
     bool debug_on_start) {
   ProcessHandle handle = kNullProcessHandle;
   base::LaunchOptions options;
-  options.process_handle = &handle;
 #if defined(OS_WIN)
   options.start_hidden = true;
 #else
   options.fds_to_remap = &fds_to_map;
 #endif
-  base::LaunchProcess(MakeCmdLine(procname, debug_on_start), options);
+  base::LaunchProcess(MakeCmdLine(procname, debug_on_start), options, &handle);
   return handle;
 }
 

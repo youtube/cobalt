@@ -59,9 +59,7 @@ int RunSlave(int iteration) {
   cmdline.AppendArg(base::IntToString(iteration));
 
   base::ProcessHandle handle;
-  base::LaunchOptions options;
-  options.process_handle = &handle;
-  if (!base::LaunchProcess(cmdline, options)) {
+  if (!base::LaunchProcess(cmdline, base::LaunchOptions(), &handle)) {
     printf("Unable to run test\n");
     return kError;
   }
