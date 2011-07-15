@@ -5,6 +5,7 @@
 #include "media/audio/audio_output_controller.h"
 
 #include "base/message_loop.h"
+#include "media/audio/audio_buffers_state.h"
 
 namespace media {
 
@@ -202,7 +203,7 @@ void AudioOutputController::DoPause() {
 
   if (LowLatencyMode()) {
     // Send a special pause mark to the low-latency audio thread.
-    sync_reader_->UpdatePendingBytes(kPauseMark);
+    sync_reader_->UpdateBufferState(AudioBuffersState(kPauseMark, 0));
   }
 
   handler_->OnPaused(this);
@@ -268,13 +269,13 @@ void AudioOutputController::DoReportError(int code) {
 uint32 AudioOutputController::OnMoreData(
     AudioOutputStream* stream, uint8* dest,
     uint32 max_size, AudioBuffersState buffers_state) {
+  base::AutoLock auto_lock(lock_);
+
+  // Save current buffers state.
+  buffers_state_ = buffers_state;
+
   // If regular latency mode is used.
   if (!sync_reader_) {
-    base::AutoLock auto_lock(lock_);
-
-    // Save current buffers state.
-    buffers_state_ = buffers_state;
-
     if (state_ != kPlaying) {
       // Don't read anything. Save the number of bytes in the hardware buffer.
       return 0;
@@ -288,7 +289,8 @@ uint32 AudioOutputController::OnMoreData(
 
   // Low latency mode.
   uint32 size =  sync_reader_->Read(dest, max_size);
-  sync_reader_->UpdatePendingBytes(buffers_state.total_bytes() + size);
+  buffers_state_.pending_bytes += size;
+  sync_reader_->UpdateBufferState(buffers_state_);
   return size;
 }
 
