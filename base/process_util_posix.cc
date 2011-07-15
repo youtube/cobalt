@@ -541,7 +541,16 @@ bool LaunchProcess(const std::vector<std::string>& argv,
   if (options.environ)
     new_environ.reset(AlterEnvironment(*options.environ, GetEnvironment()));
 
-  pid = fork();
+  if (options.clone_flags) {
+#if defined(OS_LINUX)
+    pid = syscall(__NR_clone, options.clone_flags, 0, 0, 0);
+#else
+    pid = -1;  // hygiene; prevent clang warnings
+    NOTREACHED() << "Tried to use clone() on non-Linux system";
+#endif
+  } else {
+    pid = fork();
+  }
   if (pid < 0) {
     PLOG(ERROR) << "fork";
     return false;

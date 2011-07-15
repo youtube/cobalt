@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include <glib.h>
+#include <sched.h>
 #endif
 #if defined(OS_POSIX)
 #include <dlfcn.h>
@@ -495,7 +496,8 @@ TEST_F(ProcessUtilTest, FDRemapping) {
 
 namespace {
 
-std::string TestLaunchProcess(const base::environment_vector& env_changes) {
+std::string TestLaunchProcess(const base::environment_vector& env_changes,
+                              const int clone_flags) {
   std::vector<std::string> args;
   base::file_handle_mapping_vector fds_to_remap;
 
@@ -511,6 +513,7 @@ std::string TestLaunchProcess(const base::environment_vector& env_changes) {
   options.wait = true;
   options.environ = &env_changes;
   options.fds_to_remap = &fds_to_remap;
+  options.clone_flags = clone_flags;
   EXPECT_TRUE(base::LaunchProcess(args, options, NULL));
   PCHECK(HANDLE_EINTR(close(fds[1])) == 0);
 
@@ -536,29 +539,36 @@ const char kLargeString[] =
 
 TEST_F(ProcessUtilTest, LaunchProcess) {
   base::environment_vector env_changes;
+  const int no_clone_flags = 0;
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
                                        std::string("bar")));
-  EXPECT_EQ("bar\n", TestLaunchProcess(env_changes));
+  EXPECT_EQ("bar\n", TestLaunchProcess(env_changes, no_clone_flags));
   env_changes.clear();
 
   EXPECT_EQ(0, setenv("BASE_TEST", "testing", 1 /* override */));
-  EXPECT_EQ("testing\n", TestLaunchProcess(env_changes));
+  EXPECT_EQ("testing\n", TestLaunchProcess(env_changes, no_clone_flags));
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
                                        std::string("")));
-  EXPECT_EQ("\n", TestLaunchProcess(env_changes));
+  EXPECT_EQ("\n", TestLaunchProcess(env_changes, no_clone_flags));
 
   env_changes[0].second = "foo";
-  EXPECT_EQ("foo\n", TestLaunchProcess(env_changes));
+  EXPECT_EQ("foo\n", TestLaunchProcess(env_changes, no_clone_flags));
 
   env_changes.clear();
   EXPECT_EQ(0, setenv("BASE_TEST", kLargeString, 1 /* override */));
-  EXPECT_EQ(std::string(kLargeString) + "\n", TestLaunchProcess(env_changes));
+  EXPECT_EQ(std::string(kLargeString) + "\n",
+            TestLaunchProcess(env_changes, no_clone_flags));
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
                                        std::string("wibble")));
-  EXPECT_EQ("wibble\n", TestLaunchProcess(env_changes));
+  EXPECT_EQ("wibble\n", TestLaunchProcess(env_changes, no_clone_flags));
+
+#if defined(OS_LINUX)
+  // test a non-trival value for clone_flags
+  EXPECT_EQ("wibble\n", TestLaunchProcess(env_changes, CLONE_FS | SIGCHLD));
+#endif
 }
 
 TEST_F(ProcessUtilTest, AlterEnvironment) {
