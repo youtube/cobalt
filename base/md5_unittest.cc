@@ -6,10 +6,11 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/md5.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace base {
 
 TEST(MD5, DigestToBase16) {
   MD5Digest digest;
@@ -21,9 +22,8 @@ TEST(MD5, DigestToBase16) {
     0xec, 0xf8, 0x42, 0x7e
   };
 
-  for (int i = 0; i < 16; ++i) {
+  for (int i = 0; i < 16; ++i)
     digest.a[i] = data[i] & 0xff;
-  }
 
   std::string actual = MD5DigestToBase16(digest);
   std::string expected = "d41d8cd98f00b204e9800998ecf8427e";
@@ -44,9 +44,8 @@ TEST(MD5, MD5SumEmtpyData) {
     0xec, 0xf8, 0x42, 0x7e
   };
 
-  for (int i = 0; i < 16; ++i) {
+  for (int i = 0; i < 16; ++i)
     EXPECT_EQ(expected[i], digest.a[i] & 0xFF);
-  }
 }
 
 TEST(MD5, MD5SumOneByteData) {
@@ -62,21 +61,18 @@ TEST(MD5, MD5SumOneByteData) {
     0x69, 0x77, 0x26, 0x61
   };
 
-  for (int i = 0; i < 16; ++i) {
+  for (int i = 0; i < 16; ++i)
     EXPECT_EQ(expected[i], digest.a[i] & 0xFF);
-  }
 }
 
 TEST(MD5, MD5SumLongData) {
-  MD5Digest digest;
-
   const int length = 10 * 1024 * 1024 + 1;
   scoped_array<char> data(new char[length]);
 
-  for (int i = 0; i < length; ++i) {
+  for (int i = 0; i < length; ++i)
     data[i] = i & 0xFF;
-  }
 
+  MD5Digest digest;
   MD5Sum(data.get(), length, &digest);
 
   int expected[] = {
@@ -86,9 +82,8 @@ TEST(MD5, MD5SumLongData) {
     0x21, 0xc7, 0xa1, 0x3e
   };
 
-  for (int i = 0; i < 16; ++i) {
+  for (int i = 0; i < 16; ++i)
     EXPECT_EQ(expected[i], digest.a[i] & 0xFF);
-  }
 }
 
 TEST(MD5, ContextWithEmptyData) {
@@ -105,9 +100,8 @@ TEST(MD5, ContextWithEmptyData) {
     0xec, 0xf8, 0x42, 0x7e
   };
 
-  for (int i = 0; i < 16; ++i) {
+  for (int i = 0; i < 16; ++i)
     EXPECT_EQ(expected[i], digest.a[i] & 0xFF);
-  }
 }
 
 TEST(MD5, ContextWithLongData) {
@@ -117,16 +111,14 @@ TEST(MD5, ContextWithLongData) {
   const int length = 10 * 1024 * 1024 + 1;
   scoped_array<char> data(new char[length]);
 
-  for (int i = 0; i < length; ++i) {
+  for (int i = 0; i < length; ++i)
     data[i] = i & 0xFF;
-  }
 
   int total = 0;
   while (total < length) {
     int len = 4097;  // intentionally not 2^k.
-    if (len > length - total) {
+    if (len > length - total)
       len = length - total;
-    }
 
     MD5Update(&ctx, data.get() + total, len);
     total += len;
@@ -144,9 +136,8 @@ TEST(MD5, ContextWithLongData) {
     0x21, 0xc7, 0xa1, 0x3e
   };
 
-  for (int i = 0; i < 16; ++i) {
+  for (int i = 0; i < 16; ++i)
     EXPECT_EQ(expected[i], digest.a[i] & 0xFF);
-  }
 }
 
 // Example data from http://www.ietf.org/rfc/rfc1321.txt A.5 Test Suite
@@ -182,17 +173,19 @@ TEST(MD5, MD5StringTestSuite5) {
 
 TEST(MD5, MD5StringTestSuite6) {
   std::string actual = MD5String("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                            "abcdefghijklmnopqrstuvwxyz"
-                            "0123456789");
+                                 "abcdefghijklmnopqrstuvwxyz"
+                                 "0123456789");
   std::string expected = "d174ab98d277d9f5a5611c2c9f419d9f";
   EXPECT_EQ(expected, actual);
 }
 
 TEST(MD5, MD5StringTestSuite7) {
   std::string actual = MD5String("12345678901234567890"
-                            "12345678901234567890"
-                            "12345678901234567890"
-                            "12345678901234567890");
+                                 "12345678901234567890"
+                                 "12345678901234567890"
+                                 "12345678901234567890");
   std::string expected = "57edf4a22be3c955ac49da2e2107b67a";
   EXPECT_EQ(expected, actual);
 }
+
+}  // namespace base
