@@ -511,7 +511,7 @@ std::string TestLaunchProcess(const base::environment_vector& env_changes) {
   options.wait = true;
   options.environ = &env_changes;
   options.fds_to_remap = &fds_to_remap;
-  EXPECT_TRUE(base::LaunchProcess(args, options));
+  EXPECT_TRUE(base::LaunchProcess(args, options, NULL));
   PCHECK(HANDLE_EINTR(close(fds[1])) == 0);
 
   char buf[512];
