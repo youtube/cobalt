@@ -780,14 +780,12 @@ MessageLoop::PendingTask::PendingTask(
       nestable(nestable),
       birth_program_counter(posted_from.program_counter()) {
 #if defined(TRACK_ALL_TASK_OBJECTS)
+  post_births = NULL;
   if (tracked_objects::ThreadData::IsActive()) {
     tracked_objects::ThreadData* current_thread_data =
         tracked_objects::ThreadData::current();
     if (current_thread_data) {
       post_births = current_thread_data->TallyABirth(posted_from);
-    } else {
-      // Shutdown started, and this thread wasn't registered.
-      post_births = NULL;
     }
   }
 #endif  // defined(TRACK_ALL_TASK_OBJECTS)
