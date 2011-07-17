@@ -886,6 +886,12 @@
               },
             },
           }],
+          # TODO(darin): Unfortunately, some third_party code depends on base/
+          [ 'OS=="win" and component=="shared_library"', {
+            'msvs_disabled_warnings': [
+              4251,  # class 'std::xx' needs to have dll-interface.
+            ],
+          }],
           [ 'OS=="mac"', {
             'xcode_settings': {
               'GCC_TREAT_WARNINGS_AS_ERRORS': 'NO',
