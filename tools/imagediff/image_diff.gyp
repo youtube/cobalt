@@ -12,7 +12,7 @@
       'type': 'executable',
       'dependencies': [
         '../../base/base.gyp:base',
-	'../../ui/ui.gyp:ui_gfx',
+        '../../ui/ui.gyp:ui',
       ],
       'sources': [
         'image_diff.cc',
