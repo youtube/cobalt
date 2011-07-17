@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,7 +28,7 @@ namespace gfx {
 
 class Insets;
 
-class Rect {
+class UI_API Rect {
  public:
   Rect();
   Rect(int width, int height);
@@ -177,7 +177,7 @@ class Rect {
   gfx::Size size_;
 };
 
-std::ostream& operator<<(std::ostream& out, const gfx::Rect& r);
+UI_API std::ostream& operator<<(std::ostream& out, const gfx::Rect& r);
 
 }  // namespace gfx
 
