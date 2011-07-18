@@ -97,6 +97,8 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   // Returns true if the socket is already connected or bound.
   bool is_connected() const { return socket_ != kInvalidSocket; }
 
+  const BoundNetLog& NetLog() const { return net_log_; }
+
  private:
   static const int kInvalidSocket = -1;
 

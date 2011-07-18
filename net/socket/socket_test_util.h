@@ -768,7 +768,7 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
 class MockUDPClientSocket : public DatagramClientSocket,
     public AsyncSocket {
  public:
-  explicit MockUDPClientSocket(SocketDataProvider* data);
+  MockUDPClientSocket(SocketDataProvider* data, net::NetLog* net_log);
   virtual ~MockUDPClientSocket();
 
   // Socket interface
@@ -783,6 +783,7 @@ class MockUDPClientSocket : public DatagramClientSocket,
   virtual void Close();
   virtual int GetPeerAddress(IPEndPoint* address) const;
   virtual int GetLocalAddress(IPEndPoint* address) const;
+  virtual const BoundNetLog& NetLog() const;
 
   // DatagramClientSocket interface
   virtual int Connect(const IPEndPoint& address);
@@ -806,6 +807,8 @@ class MockUDPClientSocket : public DatagramClientSocket,
   net::IOBuffer* pending_buf_;
   int pending_buf_len_;
   net::CompletionCallback* pending_callback_;
+
+  BoundNetLog net_log_;
 
   ScopedRunnableMethodFactory<MockUDPClientSocket> method_factory_;
 
