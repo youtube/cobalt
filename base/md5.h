@@ -10,6 +10,8 @@
 
 #include "base/base_api.h"
 
+namespace base {
+
 // MD5 stands for Message Digest algorithm 5.
 // MD5 is a robust hash function, designed for cyptography, but often used
 // for file checksums.  The code is complex and slow, but has few
@@ -63,5 +65,10 @@ BASE_API std::string MD5DigestToBase16(const MD5Digest& digest);
 
 // Returns the MD5 (in hexadecimal) of a string.
 BASE_API std::string MD5String(const std::string& str);
+
+}  // namespace base
+
+// TODO(tfarina): Fix third_party/hunspell then remove this hack.
+using base::MD5Digest;
 
 #endif  // BASE_MD5_H_
