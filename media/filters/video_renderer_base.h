@@ -29,8 +29,9 @@ namespace media {
 
 // TODO(scherkus): to avoid subclasses, consider using a peer/delegate interface
 // and pass in a reference to the constructor.
-class VideoRendererBase : public VideoRenderer,
-                          public base::PlatformThread::Delegate {
+class VideoRendererBase
+    : public VideoRenderer,
+      public base::PlatformThread::Delegate {
  public:
   VideoRendererBase();
   virtual ~VideoRendererBase();
