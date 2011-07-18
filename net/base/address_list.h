@@ -30,7 +30,7 @@ class NET_API AddressList {
 
   // Creates an address list for a list of IP literals.
   static AddressList CreateFromIPAddressList(
-      const std::vector<IPAddressNumber>& addresses,
+      const IPAddressList& addresses,
       uint16 port);
 
   // Creates an address list for a single IP literal.
