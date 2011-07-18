@@ -333,9 +333,11 @@
             '<(jemalloc_dir)/rb.h',
 
           ],
-          # tcmalloc ignores the return value of e.g. write() in many cases.
-          # http://code.google.com/p/chromium/issues/detail?id=89109
+          # We enable all warnings by default, but upstream disables a few.
+          # Keep "-Wno-*" flags in sync with upstream by comparing against:
+          # http://code.google.com/p/google-perftools/source/browse/trunk/Makefile.am
           'cflags': [
+            '-Wno-sign-compare',
             '-Wno-unused-result',
           ],
           'cflags!': [
