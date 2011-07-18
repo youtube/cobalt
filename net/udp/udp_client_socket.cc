@@ -54,4 +54,8 @@ bool UDPClientSocket::SetSendBufferSize(int32 size) {
   return true;
 }
 
+const BoundNetLog& UDPClientSocket::NetLog() const {
+  return socket_.NetLog();
+}
+
 }  // namespace net
