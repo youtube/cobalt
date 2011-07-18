@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -321,21 +321,21 @@ std::string HttpAuthHandlerDigest::AssembleResponseDigest(
     const std::string& nc) const {
   // ha1 = MD5(A1)
   // TODO(eroman): is this the right encoding?
-  std::string ha1 = MD5String(UTF16ToUTF8(username) + ":" + realm_ + ":" +
-                              UTF16ToUTF8(password));
+  std::string ha1 = base::MD5String(UTF16ToUTF8(username) + ":" + realm_ + ":" +
+                                    UTF16ToUTF8(password));
   if (algorithm_ == HttpAuthHandlerDigest::ALGORITHM_MD5_SESS)
-    ha1 = MD5String(ha1 + ":" + nonce_ + ":" + cnonce);
+    ha1 = base::MD5String(ha1 + ":" + nonce_ + ":" + cnonce);
 
   // ha2 = MD5(A2)
   // TODO(eroman): need to add MD5(req-entity-body) for qop=auth-int.
-  std::string ha2 = MD5String(method + ":" + path);
+  std::string ha2 = base::MD5String(method + ":" + path);
 
   std::string nc_part;
   if (qop_ != HttpAuthHandlerDigest::QOP_UNSPECIFIED) {
     nc_part = nc + ":" + cnonce + ":" + QopToString(qop_) + ":";
   }
 
-  return MD5String(ha1 + ":" + nonce_ + ":" + nc_part + ha2);
+  return base::MD5String(ha1 + ":" + nonce_ + ":" + nc_part + ha2);
 }
 
 std::string HttpAuthHandlerDigest::AssembleCredentials(

@@ -435,8 +435,8 @@ bool WebSocketHandshakeResponseHandler::ParseResponseInfo(
   response_message += "\r\n";
 
   if (protocol_version_ < kMinVersionOfHybiNewHandshake) {
-    MD5Digest digest;
-    MD5Sum(challenge.data(), challenge.size(), &digest);
+    base::MD5Digest digest;
+    base::MD5Sum(challenge.data(), challenge.size(), &digest);
 
     const char* digest_data = reinterpret_cast<char*>(digest.a);
     response_message.append(digest_data, sizeof(digest.a));
@@ -490,8 +490,8 @@ bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
   response_message += "\r\n";
 
   if (protocol_version_ < kMinVersionOfHybiNewHandshake) {
-    MD5Digest digest;
-    MD5Sum(challenge.data(), challenge.size(), &digest);
+    base::MD5Digest digest;
+    base::MD5Sum(challenge.data(), challenge.size(), &digest);
 
     const char* digest_data = reinterpret_cast<char*>(digest.a);
     response_message.append(digest_data, sizeof(digest.a));
