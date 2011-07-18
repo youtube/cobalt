@@ -54,7 +54,15 @@ class CRYPTO_API HMAC {
   bool Sign(const base::StringPiece& data, unsigned char* digest,
             int digest_length) const;
 
-  // TODO(albertb): Add a Verify method.
+  // Verifies that the HMAC for the message in |data| equals the HMAC provided
+  // in |digest|, using the algorithm supplied to the constructor and the key
+  // supplied to the Init method. Use of this method is strongly recommended
+  // over using Sign() with a manual comparison (such as memcmp), as such
+  // comparisons may result in side-channel disclosures, such as timing, that
+  // undermine the cryptographic integrity. This method does not support
+  // comparing truncated HMACs.
+  bool Verify(const base::StringPiece& data,
+              const base::StringPiece& digest) const;
 
  private:
   HashAlgorithm hash_alg_;
