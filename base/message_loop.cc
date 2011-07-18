@@ -821,7 +821,10 @@ void MessageLoopForUI::DidProcessMessage(const MSG& message) {
 
 #if defined(USE_X11)
 Display* MessageLoopForUI::GetDisplay() {
-  return gdk_x11_get_default_xdisplay();
+  GdkDisplay* display = gdk_display_get_default();
+  if (!display)
+    return NULL;
+  return GDK_DISPLAY_XDISPLAY(display);
 }
 #endif  // defined(USE_X11)
 
