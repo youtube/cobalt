@@ -16,9 +16,9 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
-class FakeAudioInputStream :
-    public AudioInputStream,
-    public base::RefCountedThreadSafe<FakeAudioInputStream> {
+class FakeAudioInputStream
+    : public AudioInputStream,
+      public base::RefCountedThreadSafe<FakeAudioInputStream> {
  public:
   static AudioInputStream* MakeFakeStream(const AudioParameters& params);
 

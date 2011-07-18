@@ -19,8 +19,9 @@ namespace media {
 
 class VideoDecodeEngine;
 
-class FFmpegVideoDecoder : public VideoDecoder,
-                           public VideoDecodeEngine::EventHandler {
+class FFmpegVideoDecoder
+    : public VideoDecoder,
+      public VideoDecodeEngine::EventHandler {
  public:
   FFmpegVideoDecoder(MessageLoop* message_loop,
                      VideoDecodeContext* decode_context);
