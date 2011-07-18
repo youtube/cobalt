@@ -99,6 +99,8 @@ class UDPSocketWin : public base::NonThreadSafe {
   // Returns true if the socket is already connected or bound.
   bool is_connected() const { return socket_ != INVALID_SOCKET; }
 
+  const BoundNetLog& NetLog() const { return net_log_; }
+
  private:
   class ReadDelegate : public base::win::ObjectWatcher::Delegate {
    public:
