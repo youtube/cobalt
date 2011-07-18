@@ -49,4 +49,8 @@ int UDPServerSocket::GetLocalAddress(IPEndPoint* address) const {
   return socket_.GetLocalAddress(address);
 }
 
+const BoundNetLog& UDPServerSocket::NetLog() const {
+  return socket_.NetLog();
+}
+
 }  // namespace net

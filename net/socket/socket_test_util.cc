@@ -594,7 +594,7 @@ DatagramClientSocket* MockClientSocketFactory::CreateDatagramClientSocket(
     NetLog* net_log,
     const NetLog::Source& source) {
   SocketDataProvider* data_provider = mock_data_.GetNext();
-  MockUDPClientSocket* socket = new MockUDPClientSocket(data_provider);
+  MockUDPClientSocket* socket = new MockUDPClientSocket(data_provider, net_log);
   data_provider->set_socket(socket);
   udp_client_sockets_.push_back(socket);
   return socket;
@@ -1162,7 +1162,8 @@ void MockSSLClientSocket::OnReadComplete(const MockRead& data) {
   NOTIMPLEMENTED();
 }
 
-MockUDPClientSocket::MockUDPClientSocket(SocketDataProvider* data)
+MockUDPClientSocket::MockUDPClientSocket(SocketDataProvider* data,
+                                         net::NetLog* net_log)
     : connected_(false),
       data_(data),
       read_offset_(0),
@@ -1171,6 +1172,7 @@ MockUDPClientSocket::MockUDPClientSocket(SocketDataProvider* data)
       pending_buf_(NULL),
       pending_buf_len_(0),
       pending_callback_(NULL),
+      net_log_(NetLog::Source(), net_log),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   DCHECK(data_);
   data_->Reset();
@@ -1243,6 +1245,10 @@ int MockUDPClientSocket::GetPeerAddress(IPEndPoint* address) const {
 int MockUDPClientSocket::GetLocalAddress(IPEndPoint* address) const {
   NOTIMPLEMENTED();
   return OK;
+}
+
+const BoundNetLog& MockUDPClientSocket::NetLog() const {
+  return net_log_;
 }
 
 int MockUDPClientSocket::Connect(const IPEndPoint& address) {
