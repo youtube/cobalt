@@ -296,16 +296,6 @@ BASE_API bool LaunchProcess(const string16& cmdline,
                             ProcessHandle* process_handle);
 
 // TODO(evan): deprecated; change callers to use LaunchProcess, remove.
-inline bool LaunchApp(const std::wstring& cmdline,
-                      bool wait, bool start_hidden,
-                      ProcessHandle* process_handle) {
-  LaunchOptions options;
-  options.wait = wait;
-  options.start_hidden = start_hidden;
-  return LaunchProcess(cmdline, options, process_handle);
-}
-
-// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
 inline bool LaunchAppWithHandleInheritance(const std::wstring& cmdline,
                                            bool wait, bool start_hidden,
                                            ProcessHandle* process_handle) {
@@ -359,18 +349,6 @@ BASE_API bool LaunchProcess(const std::vector<std::string>& argv,
 BASE_API char** AlterEnvironment(const environment_vector& changes,
                                  const char* const* const env);
 #endif  // defined(OS_POSIX)
-
-#if defined(OS_WIN)
-// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
-// Successfully deprecated on non-Windows.
-inline bool LaunchApp(const CommandLine& cl, bool wait, bool start_hidden,
-                      ProcessHandle* process_handle) {
-  LaunchOptions options;
-  options.wait = wait;
-  options.start_hidden = start_hidden;
-  return LaunchProcess(cl, options, process_handle);
-}
-#endif
 
 // Executes the application specified by |cl| and wait for it to exit. Stores
 // the output (stdout) in |output|. Redirects stderr to /dev/null. Returns true
