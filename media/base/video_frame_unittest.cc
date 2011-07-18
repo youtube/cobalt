@@ -52,12 +52,11 @@ void ExpectFrameColor(media::VideoFrame* yv12_frame, uint32 expect_rgb_color) {
             yv12_frame->stride(VideoFrame::kVPlane));
 
   scoped_refptr<media::VideoFrame> rgb_frame;
-  media::VideoFrame::CreateFrame(VideoFrame::RGBA,
-                                 yv12_frame->width(),
-                                 yv12_frame->height(),
-                                 yv12_frame->GetTimestamp(),
-                                 yv12_frame->GetDuration(),
-                                 &rgb_frame);
+  rgb_frame = media::VideoFrame::CreateFrame(VideoFrame::RGBA,
+                                             yv12_frame->width(),
+                                             yv12_frame->height(),
+                                             yv12_frame->GetTimestamp(),
+                                             yv12_frame->GetDuration());
 
   ASSERT_EQ(yv12_frame->width(), rgb_frame->width());
   ASSERT_EQ(yv12_frame->height(), rgb_frame->height());
@@ -95,9 +94,9 @@ TEST(VideoFrame, CreateFrame) {
   const base::TimeDelta kDurationB = base::TimeDelta::FromMicroseconds(5678);
 
   // Create a YV12 Video Frame.
-  scoped_refptr<media::VideoFrame> frame;
-  VideoFrame::CreateFrame(media::VideoFrame::YV12, kWidth, kHeight,
-                          kTimestampA, kDurationA, &frame);
+  scoped_refptr<media::VideoFrame> frame =
+      VideoFrame::CreateFrame(media::VideoFrame::YV12, kWidth, kHeight,
+                              kTimestampA, kDurationA);
   ASSERT_TRUE(frame);
 
   // Test StreamSample implementation.
@@ -129,7 +128,7 @@ TEST(VideoFrame, CreateFrame) {
   }
 
   // Test an empty frame.
-  VideoFrame::CreateEmptyFrame(&frame);
+  frame = VideoFrame::CreateEmptyFrame();
   EXPECT_TRUE(frame->IsEndOfStream());
 }
 
@@ -139,8 +138,8 @@ TEST(VideoFrame, CreateBlackFrame) {
   const uint8 kExpectedYRow[] = { 0, 0 };
   const uint8 kExpectedUVRow[] = { 128 };
 
-  scoped_refptr<media::VideoFrame> frame;
-  VideoFrame::CreateBlackFrame(kWidth, kHeight, &frame);
+  scoped_refptr<media::VideoFrame> frame =
+      VideoFrame::CreateBlackFrame(kWidth, kHeight);
   ASSERT_TRUE(frame);
 
   // Test basic properties.
@@ -174,14 +173,14 @@ TEST(VideoFrame, CreateBlackFrame) {
 TEST(VideoFram, CreateExternalFrame) {
   scoped_array<uint8> memory(new uint8[1]);
 
-  scoped_refptr<media::VideoFrame> frame;
   uint8* data[3] = {memory.get(), NULL, NULL};
   int strides[3] = {1, 0, 0};
-  VideoFrame::CreateFrameExternal(media::VideoFrame::TYPE_SYSTEM_MEMORY,
-                                  media::VideoFrame::RGB32, 0, 0, 3,
-                                  data, strides,
-                                  base::TimeDelta(), base::TimeDelta(),
-                                  NULL, &frame);
+  scoped_refptr<media::VideoFrame> frame =
+      VideoFrame::CreateFrameExternal(media::VideoFrame::TYPE_SYSTEM_MEMORY,
+                                      media::VideoFrame::RGB32, 0, 0, 3,
+                                      data, strides,
+                                      base::TimeDelta(), base::TimeDelta(),
+                                      NULL);
   ASSERT_TRUE(frame);
 
   // Test frame properties.

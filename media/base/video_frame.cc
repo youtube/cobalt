@@ -29,117 +29,103 @@ size_t VideoFrame::GetNumberOfPlanes(VideoFrame::Format format) {
 }
 
 // static
-void VideoFrame::CreateFrame(VideoFrame::Format format,
-                             size_t width,
-                             size_t height,
-                             base::TimeDelta timestamp,
-                             base::TimeDelta duration,
-                             scoped_refptr<VideoFrame>* frame_out) {
+scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
+    VideoFrame::Format format,
+    size_t width,
+    size_t height,
+    base::TimeDelta timestamp,
+    base::TimeDelta duration) {
   DCHECK(width > 0 && height > 0);
   DCHECK(width * height < 100000000);
-  DCHECK(frame_out);
-  bool alloc_worked = false;
   scoped_refptr<VideoFrame> frame(
       new VideoFrame(VideoFrame::TYPE_SYSTEM_MEMORY, format, width, height));
-  if (frame) {
-    frame->SetTimestamp(timestamp);
-    frame->SetDuration(duration);
-    switch (format) {
-      case VideoFrame::RGB555:
-      case VideoFrame::RGB565:
-        alloc_worked = frame->AllocateRGB(2u);
-        break;
-      case VideoFrame::RGB24:
-        alloc_worked = frame->AllocateRGB(3u);
-        break;
-      case VideoFrame::RGB32:
-      case VideoFrame::RGBA:
-        alloc_worked = frame->AllocateRGB(4u);
-        break;
-      case VideoFrame::YV12:
-      case VideoFrame::YV16:
-        alloc_worked = frame->AllocateYUV();
-        break;
-      case VideoFrame::ASCII:
-        alloc_worked = frame->AllocateRGB(1u);
-        break;
-      default:
-        NOTREACHED();
-        alloc_worked = false;
-        break;
-    }
+  frame->SetTimestamp(timestamp);
+  frame->SetDuration(duration);
+  switch (format) {
+    case VideoFrame::RGB555:
+    case VideoFrame::RGB565:
+      frame->AllocateRGB(2u);
+      break;
+    case VideoFrame::RGB24:
+      frame->AllocateRGB(3u);
+      break;
+    case VideoFrame::RGB32:
+    case VideoFrame::RGBA:
+      frame->AllocateRGB(4u);
+      break;
+    case VideoFrame::YV12:
+    case VideoFrame::YV16:
+      frame->AllocateYUV();
+      break;
+    case VideoFrame::ASCII:
+      frame->AllocateRGB(1u);
+      break;
+    default:
+      NOTREACHED();
+      return NULL;
   }
-  *frame_out = alloc_worked ? frame : NULL;
+  return frame;
 }
 
 // static
-void VideoFrame::CreateFrameExternal(SurfaceType type,
-                                     Format format,
-                                     size_t width,
-                                     size_t height,
-                                     size_t planes,
-                                     uint8* const data[kMaxPlanes],
-                                     const int32 strides[kMaxPlanes],
-                                     base::TimeDelta timestamp,
-                                     base::TimeDelta duration,
-                                     void* private_buffer,
-                                     scoped_refptr<VideoFrame>* frame_out) {
-  DCHECK(frame_out);
+scoped_refptr<VideoFrame> VideoFrame::CreateFrameExternal(
+    SurfaceType type,
+    Format format,
+    size_t width,
+    size_t height,
+    size_t planes,
+    uint8* const data[kMaxPlanes],
+    const int32 strides[kMaxPlanes],
+    base::TimeDelta timestamp,
+    base::TimeDelta duration,
+    void* private_buffer) {
   scoped_refptr<VideoFrame> frame(
       new VideoFrame(type, format, width, height));
-  if (frame) {
-    frame->SetTimestamp(timestamp);
-    frame->SetDuration(duration);
-    frame->external_memory_ = true;
-    frame->planes_ = planes;
-    frame->private_buffer_ = private_buffer;
-    for (size_t i = 0; i < kMaxPlanes; ++i) {
-      frame->data_[i] = data[i];
-      frame->strides_[i] = strides[i];
-    }
+  frame->SetTimestamp(timestamp);
+  frame->SetDuration(duration);
+  frame->external_memory_ = true;
+  frame->planes_ = planes;
+  frame->private_buffer_ = private_buffer;
+  for (size_t i = 0; i < kMaxPlanes; ++i) {
+    frame->data_[i] = data[i];
+    frame->strides_[i] = strides[i];
   }
-  *frame_out = frame;
+  return frame;
 }
 
 // static
-void VideoFrame::CreateFrameGlTexture(Format format,
-                                      size_t width,
-                                      size_t height,
-                                      GlTexture const textures[kMaxPlanes],
-                                      scoped_refptr<VideoFrame>* frame_out) {
-  DCHECK(frame_out);
+scoped_refptr<VideoFrame> VideoFrame::CreateFrameGlTexture(
+    Format format,
+    size_t width,
+    size_t height,
+    GlTexture const textures[kMaxPlanes]) {
   scoped_refptr<VideoFrame> frame(
       new VideoFrame(TYPE_GL_TEXTURE, format, width, height));
-  if (frame) {
-    frame->external_memory_ = true;
-    frame->planes_ = GetNumberOfPlanes(format);
-    for (size_t i = 0; i < kMaxPlanes; ++i) {
-      frame->gl_textures_[i] = textures[i];
-      // TODO(hclam): Fix me for color format other than RGBA.
-      frame->strides_[i] = width;
-    }
+  frame->external_memory_ = true;
+  frame->planes_ = GetNumberOfPlanes(format);
+  for (size_t i = 0; i < kMaxPlanes; ++i) {
+    frame->gl_textures_[i] = textures[i];
+    // TODO(hclam): Fix me for color format other than RGBA.
+    frame->strides_[i] = width;
   }
-  *frame_out = frame;
+  return frame;
 }
 
 // static
-void VideoFrame::CreateEmptyFrame(scoped_refptr<VideoFrame>* frame_out) {
-  *frame_out = new VideoFrame(VideoFrame::TYPE_SYSTEM_MEMORY,
-                              VideoFrame::EMPTY, 0, 0);
+scoped_refptr<VideoFrame> VideoFrame::CreateEmptyFrame() {
+  return new VideoFrame(VideoFrame::TYPE_SYSTEM_MEMORY,
+                        VideoFrame::EMPTY, 0, 0);
 }
 
 // static
-void VideoFrame::CreateBlackFrame(int width, int height,
-                                  scoped_refptr<VideoFrame>* frame_out) {
+scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(int width, int height) {
   DCHECK_GT(width, 0);
   DCHECK_GT(height, 0);
 
   // Create our frame.
-  scoped_refptr<VideoFrame> frame;
   const base::TimeDelta kZero;
-  VideoFrame::CreateFrame(VideoFrame::YV12, width, height, kZero, kZero,
-                          &frame);
-  DCHECK(frame);
+  scoped_refptr<VideoFrame> frame =
+      VideoFrame::CreateFrame(VideoFrame::YV12, width, height, kZero, kZero);
 
   // Now set the data to YUV(0,128,128).
   const uint8 kBlackY = 0x00;
@@ -162,8 +148,7 @@ void VideoFrame::CreateBlackFrame(int width, int height,
     v_plane += frame->stride(VideoFrame::kVPlane);
   }
 
-  // Success!
-  *frame_out = frame;
+  return frame;
 }
 
 static inline size_t RoundUp(size_t value, size_t alignment) {
@@ -172,24 +157,21 @@ static inline size_t RoundUp(size_t value, size_t alignment) {
   return ((value + (alignment - 1)) & ~(alignment-1));
 }
 
-bool VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
+void VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
   // Round up to align at a 64-bit (8 byte) boundary for each row.  This
   // is sufficient for MMX reads (movq).
   size_t bytes_per_row = RoundUp(width_ * bytes_per_pixel, 8);
   planes_ = VideoFrame::kNumRGBPlanes;
   strides_[VideoFrame::kRGBPlane] = bytes_per_row;
   data_[VideoFrame::kRGBPlane] = new uint8[bytes_per_row * height_];
-  DCHECK(data_[VideoFrame::kRGBPlane]);
   DCHECK(!(reinterpret_cast<intptr_t>(data_[VideoFrame::kRGBPlane]) & 7));
   COMPILE_ASSERT(0 == VideoFrame::kRGBPlane, RGB_data_must_be_index_0);
-  return (NULL != data_[VideoFrame::kRGBPlane]);
 }
 
-static const int kFramePadBytes = 15;  // allows faster SIMD YUV convert
+static const int kFramePadBytes = 15;  // Allows faster SIMD YUV convert.
 
-bool VideoFrame::AllocateYUV() {
-  DCHECK(format_ == VideoFrame::YV12 ||
-         format_ == VideoFrame::YV16);
+void VideoFrame::AllocateYUV() {
+  DCHECK(format_ == VideoFrame::YV12 || format_ == VideoFrame::YV16);
   // Align Y rows at 32-bit (4 byte) boundaries.  The stride for both YV12 and
   // YV16 is 1/2 of the stride of Y.  For YV12, every row of bytes for U and V
   // applies to two rows of Y (one byte of UV for 4 bytes of Y), so in the
@@ -208,19 +190,14 @@ bool VideoFrame::AllocateYUV() {
     uv_bytes /= 2;
   }
   uint8* data = new uint8[y_bytes + (uv_bytes * 2) + kFramePadBytes];
-  if (data) {
-    planes_ = VideoFrame::kNumYUVPlanes;
-    COMPILE_ASSERT(0 == VideoFrame::kYPlane, y_plane_data_must_be_index_0);
-    data_[VideoFrame::kYPlane] = data;
-    data_[VideoFrame::kUPlane] = data + y_bytes;
-    data_[VideoFrame::kVPlane] = data + y_bytes + uv_bytes;
-    strides_[VideoFrame::kYPlane] = y_bytes_per_row;
-    strides_[VideoFrame::kUPlane] = uv_stride;
-    strides_[VideoFrame::kVPlane] = uv_stride;
-    return true;
-  }
-  NOTREACHED();
-  return false;
+  planes_ = VideoFrame::kNumYUVPlanes;
+  COMPILE_ASSERT(0 == VideoFrame::kYPlane, y_plane_data_must_be_index_0);
+  data_[VideoFrame::kYPlane] = data;
+  data_[VideoFrame::kUPlane] = data + y_bytes;
+  data_[VideoFrame::kVPlane] = data + y_bytes + uv_bytes;
+  strides_[VideoFrame::kYPlane] = y_bytes_per_row;
+  strides_[VideoFrame::kUPlane] = uv_stride;
+  strides_[VideoFrame::kVPlane] = uv_stride;
 }
 
 VideoFrame::VideoFrame(VideoFrame::SurfaceType type,

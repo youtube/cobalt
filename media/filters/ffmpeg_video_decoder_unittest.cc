@@ -159,9 +159,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
     memset(&codec_, 0, sizeof(codec_));
     memset(&yuv_frame_, 0, sizeof(yuv_frame_));
     base::TimeDelta zero;
-    VideoFrame::CreateFrame(VideoFrame::YV12, kWidth, kHeight,
-                            zero, zero, &video_frame_);
-
+    video_frame_ = VideoFrame::CreateFrame(VideoFrame::YV12, kWidth, kHeight,
+                                           zero, zero);
     stream_.codec = &codec_context_;
     codec_context_.width = kWidth;
     codec_context_.height = kHeight;

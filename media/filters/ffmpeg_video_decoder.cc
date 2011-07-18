@@ -297,9 +297,7 @@ void FFmpegVideoDecoder::ProduceVideoFrame(
   // If the decoding is finished, we just always return empty frames.
   if (state_ == kDecodeFinished) {
     // Signal VideoRenderer the end of the stream event.
-    scoped_refptr<VideoFrame> empty_frame;
-    VideoFrame::CreateEmptyFrame(&empty_frame);
-    VideoFrameReady(empty_frame);
+    VideoFrameReady(VideoFrame::CreateEmptyFrame());
 
     // Fall through, because we still need to keep record of this frame.
   }
@@ -338,9 +336,7 @@ void FFmpegVideoDecoder::ConsumeVideoFrame(
       state_ = kDecodeFinished;
 
       // Signal VideoRenderer the end of the stream event.
-      scoped_refptr<VideoFrame> video_frame;
-      VideoFrame::CreateEmptyFrame(&video_frame);
-      VideoFrameReady(video_frame);
+      VideoFrameReady(VideoFrame::CreateEmptyFrame());
     }
   }
 }
