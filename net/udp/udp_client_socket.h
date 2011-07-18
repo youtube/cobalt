@@ -33,6 +33,7 @@ class NET_TEST UDPClientSocket : public DatagramClientSocket {
   virtual int GetLocalAddress(IPEndPoint* address) const;
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
+  virtual const BoundNetLog& NetLog() const;
 
  private:
   UDPSocket socket_;
