@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -555,7 +555,7 @@ static int GenerateType3Msg(const string16& domain,
   uint8 ntlm_hash[NTLM_HASH_LEN];
   if (msg.flags & NTLM_NegotiateNTLM2Key) {
     // compute NTLM2 session response
-    MD5Digest session_hash;
+    base::MD5Digest session_hash;
     uint8 temp[16];
 
     memcpy(lm_resp, rand_8_bytes, 8);
@@ -563,7 +563,7 @@ static int GenerateType3Msg(const string16& domain,
 
     memcpy(temp, msg.challenge, 8);
     memcpy(temp + 8, lm_resp, 8);
-    MD5Sum(temp, 16, &session_hash);
+    base::MD5Sum(temp, 16, &session_hash);
 
     NTLM_Hash(password, ntlm_hash);
     LM_Response(ntlm_hash, session_hash.a, ntlm_resp);
