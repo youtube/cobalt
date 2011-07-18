@@ -308,7 +308,7 @@ TEST(AddressListTest, CreateFromIPAddressList) {
   const uint16 kPort = 80;
 
   // Construct a list of ip addresses.
-  std::vector<IPAddressNumber> ip_list;
+  IPAddressList ip_list;
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     IPAddressNumber ip_number;
     ParseIPLiteralToNumber(tests[i].ip_address, &ip_number);
