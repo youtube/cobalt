@@ -57,43 +57,42 @@ class VideoFrame : public StreamSample {
 
   // Creates a new frame in system memory with given parameters. Buffers for
   // the frame are allocated but not initialized.
-  static void CreateFrame(Format format,
-                          size_t width,
-                          size_t height,
-                          base::TimeDelta timestamp,
-                          base::TimeDelta duration,
-                          scoped_refptr<VideoFrame>* frame_out);
+  static scoped_refptr<VideoFrame> CreateFrame(
+      Format format,
+      size_t width,
+      size_t height,
+      base::TimeDelta timestamp,
+      base::TimeDelta duration);
 
   // Creates a new frame with given parameters. Buffers for the frame are
   // provided externally. Reference to the buffers and strides are copied
   // from |data| and |strides| respectively.
-  static void CreateFrameExternal(SurfaceType type,
-                                  Format format,
-                                  size_t width,
-                                  size_t height,
-                                  size_t planes,
-                                  uint8* const data[kMaxPlanes],
-                                  const int32 strides[kMaxPlanes],
-                                  base::TimeDelta timestamp,
-                                  base::TimeDelta duration,
-                                  void* private_buffer,
-                                  scoped_refptr<VideoFrame>* frame_out);
+  static scoped_refptr<VideoFrame> CreateFrameExternal(
+      SurfaceType type,
+      Format format,
+      size_t width,
+      size_t height,
+      size_t planes,
+      uint8* const data[kMaxPlanes],
+      const int32 strides[kMaxPlanes],
+      base::TimeDelta timestamp,
+      base::TimeDelta duration,
+      void* private_buffer);
 
   // Creates a new frame with GL textures.
-  static void CreateFrameGlTexture(Format format,
-                                   size_t width,
-                                   size_t height,
-                                   GlTexture const textures[kMaxPlanes],
-                                   scoped_refptr<VideoFrame>* frame_out);
+  static scoped_refptr<VideoFrame> CreateFrameGlTexture(
+      Format format,
+      size_t width,
+      size_t height,
+      GlTexture const textures[kMaxPlanes]);
 
   // Creates a frame with format equals to VideoFrame::EMPTY, width, height
   // timestamp and duration are all 0.
-  static void CreateEmptyFrame(scoped_refptr<VideoFrame>* frame_out);
+  static scoped_refptr<VideoFrame> CreateEmptyFrame();
 
   // Allocates YV12 frame based on |width| and |height|, and sets its data to
   // the YUV equivalent of RGB(0,0,0).
-  static void CreateBlackFrame(int width, int height,
-                               scoped_refptr<VideoFrame>* frame_out);
+  static scoped_refptr<VideoFrame> CreateBlackFrame(int width, int height);
 
   SurfaceType type() const { return type_; }
 
@@ -130,8 +129,8 @@ class VideoFrame : public StreamSample {
   virtual ~VideoFrame();
 
   // Used internally by CreateFrame().
-  bool AllocateRGB(size_t bytes_per_pixel);
-  bool AllocateYUV();
+  void AllocateRGB(size_t bytes_per_pixel);
+  void AllocateYUV();
 
   // Frame format.
   Format format_;

@@ -155,11 +155,10 @@ class VideoRendererBaseTest : public ::testing::Test {
 
   void CreateFrame(int64 timestamp, int64 duration) {
     const base::TimeDelta kZero;
-    scoped_refptr<VideoFrame> frame;
-    VideoFrame::CreateFrame(VideoFrame::RGB32, kWidth, kHeight,
-                            base::TimeDelta::FromMicroseconds(timestamp),
-                            base::TimeDelta::FromMicroseconds(duration),
-                            &frame);
+    scoped_refptr<VideoFrame> frame =
+        VideoFrame::CreateFrame(VideoFrame::RGB32, kWidth, kHeight,
+                                base::TimeDelta::FromMicroseconds(timestamp),
+                                base::TimeDelta::FromMicroseconds(duration));
     decoder_->VideoFrameReadyForTest(frame);
   }
 
