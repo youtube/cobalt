@@ -10,6 +10,28 @@
 static const size_t kSHA1DigestSize = 20;
 static const size_t kSHA256DigestSize = 32;
 
+static const char* kSimpleKey =
+    "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+    "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+    "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+    "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+    "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA";
+static const int kSimpleKeyLength = 80;
+
+static const struct {
+  const char *data;
+  const int data_len;
+  const char *digest;
+} kSimpleHmacCases[] = {
+  { "Test Using Larger Than Block-Size Key - Hash Key First", 54,
+    "\xAA\x4A\xE5\xE1\x52\x72\xD0\x0E\x95\x70\x56\x37\xCE\x8A\x3B\x55"
+        "\xED\x40\x21\x12" },
+  { "Test Using Larger Than Block-Size Key and Larger "
+        "Than One Block-Size Data", 73,
+    "\xE8\xE9\x9D\x0F\x45\x23\x7D\x78\x6D\x6B\xBA\xA7\x96\x5C\x78\x08"
+        "\xBB\xFF\x1A\x91" }
+};
+
 TEST(HMACTest, HmacSafeBrowsingResponseTest) {
   const int kKeySize = 16;
 
@@ -195,6 +217,10 @@ TEST(HMACTest, NSSFIPSPowerUpSelfTest) {
   EXPECT_EQ(kSHA1DigestSize, hmac.DigestLength());
   EXPECT_TRUE(hmac.Sign(message_data, calculated_hmac, kSHA1DigestSize));
   EXPECT_EQ(0, memcmp(kKnownHMACSHA1, calculated_hmac, kSHA1DigestSize));
+  EXPECT_TRUE(hmac.Verify(
+      message_data,
+      base::StringPiece(reinterpret_cast<const char*>(kKnownHMACSHA1),
+                        kSHA1DigestSize)));
 
   crypto::HMAC hmac2(crypto::HMAC::SHA256);
   ASSERT_TRUE(hmac2.Init(kKnownSecretKey, kKnownSecretKeySize));
@@ -205,34 +231,43 @@ TEST(HMACTest, NSSFIPSPowerUpSelfTest) {
 }
 
 TEST(HMACTest, HMACObjectReuse) {
-  const char *key =
-      "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
-      "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
-      "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
-      "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
-      "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA";
-  const int key_len = 80;
-
-  const struct {
-    const char *data;
-    const int data_len;
-    const char *digest;
-  } cases[] = {
-    { "Test Using Larger Than Block-Size Key - Hash Key First", 54,
-      "\xAA\x4A\xE5\xE1\x52\x72\xD0\x0E\x95\x70\x56\x37\xCE\x8A\x3B\x55"
-          "\xED\x40\x21\x12" },
-    { "Test Using Larger Than Block-Size Key and Larger "
-          "Than One Block-Size Data", 73,
-      "\xE8\xE9\x9D\x0F\x45\x23\x7D\x78\x6D\x6B\xBA\xA7\x96\x5C\x78\x08"
-          "\xBB\xFF\x1A\x91" }
-  };
-
   crypto::HMAC hmac(crypto::HMAC::SHA1);
-  ASSERT_TRUE(hmac.Init(reinterpret_cast<const unsigned char*>(key), key_len));
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-    std::string data_string(cases[i].data, cases[i].data_len);
+  ASSERT_TRUE(
+      hmac.Init(reinterpret_cast<const unsigned char*>(kSimpleKey),
+                kSimpleKeyLength));
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kSimpleHmacCases); ++i) {
+    std::string data_string(kSimpleHmacCases[i].data,
+                            kSimpleHmacCases[i].data_len);
     unsigned char digest[kSHA1DigestSize];
     EXPECT_TRUE(hmac.Sign(data_string, digest, kSHA1DigestSize));
-    EXPECT_EQ(0, memcmp(cases[i].digest, digest, kSHA1DigestSize));
+    EXPECT_EQ(0, memcmp(kSimpleHmacCases[i].digest, digest, kSHA1DigestSize));
+  }
+}
+
+TEST(HMACTest, Verify) {
+  crypto::HMAC hmac(crypto::HMAC::SHA1);
+  ASSERT_TRUE(
+      hmac.Init(reinterpret_cast<const unsigned char*>(kSimpleKey),
+                kSimpleKeyLength));
+  const char empty_digest[kSHA1DigestSize] = { 0 };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kSimpleHmacCases); ++i) {
+    // Expected results
+    EXPECT_TRUE(hmac.Verify(
+        base::StringPiece(kSimpleHmacCases[i].data,
+                          kSimpleHmacCases[i].data_len),
+        base::StringPiece(kSimpleHmacCases[i].digest,
+                          kSHA1DigestSize)));
+    // Mismatched size
+    EXPECT_FALSE(hmac.Verify(
+        base::StringPiece(kSimpleHmacCases[i].data,
+                          kSimpleHmacCases[i].data_len),
+        base::StringPiece(kSimpleHmacCases[i].data,
+                          kSimpleHmacCases[i].data_len)));
+
+    // Expected size, mismatched data
+    EXPECT_FALSE(hmac.Verify(
+        base::StringPiece(kSimpleHmacCases[i].data,
+                          kSimpleHmacCases[i].data_len),
+        base::StringPiece(empty_digest, kSHA1DigestSize)));
   }
 }
