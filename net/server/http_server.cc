@@ -85,8 +85,8 @@ void HttpServer::AcceptWebSocket(
   memcpy(data + 4, &fp2, 4);
   memcpy(data + 8, &request.data[0], 8);
 
-  MD5Digest digest;
-  MD5Sum(data, 16, &digest);
+  base::MD5Digest digest;
+  base::MD5Sum(data, 16, &digest);
 
   std::string origin = GetHeaderValue(request, "Origin");
   std::string host = GetHeaderValue(request, "Host");
