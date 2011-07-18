@@ -111,13 +111,13 @@ AddressList& AddressList::operator=(const AddressList& addresslist) {
 
 // static
 AddressList AddressList::CreateFromIPAddressList(
-    const std::vector<IPAddressNumber>& addresses,
+    const IPAddressList& addresses,
     uint16 port) {
   DCHECK(!addresses.empty());
   struct addrinfo* head = NULL;
   struct addrinfo* next = NULL;
 
-  for (std::vector<IPAddressNumber>::const_iterator it = addresses.begin();
+  for (IPAddressList::const_iterator it = addresses.begin();
        it != addresses.end(); ++it) {
     if (head == NULL) {
       head = next = CreateAddrInfo(*it, false);

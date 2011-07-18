@@ -366,6 +366,7 @@ bool HaveOnlyLoopbackAddresses();
 //
 // IPv4 addresses will have length 4, whereas IPv6 address will have length 16.
 typedef std::vector<unsigned char> IPAddressNumber;
+typedef std::vector<IPAddressNumber> IPAddressList;
 
 static const size_t kIPv4AddressSize = 4;
 static const size_t kIPv6AddressSize = 16;
