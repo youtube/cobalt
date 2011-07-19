@@ -7,6 +7,7 @@
 import hashlib
 import math
 import optparse
+import os
 import re
 import subprocess
 import sys
@@ -21,7 +22,7 @@ except ImportError:
 
 
 __version__ = '1.0'
-DEFAULT_EXPECTATIONS_FILE = 'perf_expectations.json'
+DEFAULT_CONFIG_FILE = 'chromium_perf_expectations.cfg'
 DEFAULT_VARIANCE = 0.05
 USAGE = ''
 
@@ -132,14 +133,22 @@ def Main(args):
   parser = optparse.OptionParser(usage=USAGE, version=__version__)
   parser.add_option('-v', '--verbose', action='store_true', default=False,
                     help='enable verbose output')
+  parser.add_option('-c', '--config', dest='config_file',
+                    default=DEFAULT_CONFIG_FILE,
+                    help='set the config file to FILE', metavar='FILE')
   options, args = parser.parse_args(args)
 
   if options.verbose:
     print 'Verbose output enabled.'
 
+  config = ConvertJsonIntoDict(ReadFile(options.config_file))
+
   # Get the list of summaries for a test.
-  base_url = 'http://build.chromium.org/f/chromium/perf'
-  perf = ConvertJsonIntoDict(ReadFile(DEFAULT_EXPECTATIONS_FILE))
+  base_url = config['base_url']
+  # Make the perf expectations file relative to the path of the config file.
+  perf_file = os.path.join(
+    os.path.dirname(options.config_file), config['perf_file'])
+  perf = ConvertJsonIntoDict(ReadFile(perf_file))
 
   # Fetch graphs.dat for this combination.
   perfkeys = perf.keys()
@@ -293,7 +302,7 @@ def Main(args):
 
   if write_new_expectations:
     print '\nWriting expectations... ',
-    WriteJson(DEFAULT_EXPECTATIONS_FILE, perf, perfkeys)
+    WriteJson(perf_file, perf, perfkeys)
     print 'done'
   else:
     if options.verbose:
