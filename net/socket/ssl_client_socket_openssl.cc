@@ -869,8 +869,7 @@ X509Certificate* SSLClientSocketOpenSSL::UpdateServerCert() {
     for (int i = 0; i < sk_X509_num(chain); ++i)
       intermediates.push_back(sk_X509_value(chain, i));
   }
-  server_cert_ = X509Certificate::CreateFromHandle(
-      cert.get(), X509Certificate::SOURCE_FROM_NETWORK, intermediates);
+  server_cert_ = X509Certificate::CreateFromHandle(cert.get(), intermediates);
   DCHECK(server_cert_);
 
   return server_cert_;
