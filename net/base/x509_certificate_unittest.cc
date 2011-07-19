@@ -475,7 +475,6 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
   intermediates.push_back(intermediate_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert_chain =
       X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
-                                        X509Certificate::SOURCE_FROM_NETWORK,
                                         intermediates);
 
   int flags = 0;
@@ -510,7 +509,6 @@ TEST(X509CertificateTest, DISABLED_GlobalSignR3EVTest) {
   intermediates.push_back(intermediate_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert_chain =
       X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
-                                        X509Certificate::SOURCE_FROM_NETWORK,
                                         intermediates);
 
   CertVerifyResult verify_result;
@@ -539,7 +537,6 @@ TEST(X509CertificateTest, TestKnownRoot) {
   intermediates.push_back(intermediate_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert_chain =
       X509Certificate::CreateFromHandle(cert->os_cert_handle(),
-                                        X509Certificate::SOURCE_FROM_NETWORK,
                                         intermediates);
 
   int flags = 0;
@@ -615,7 +612,6 @@ TEST(X509CertificateTest, PublicKeyHashes) {
   intermediates.push_back(intermediate_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert_chain =
       X509Certificate::CreateFromHandle(cert->os_cert_handle(),
-                                        X509Certificate::SOURCE_FROM_NETWORK,
                                         intermediates);
 
   int flags = 0;
@@ -663,66 +659,54 @@ TEST(X509CertificateTest, InvalidKeyUsage) {
 #endif
 }
 
-// Tests X509Certificate::Cache via X509Certificate::CreateFromHandle.  We
+// Tests X509CertificateCache via X509Certificate::CreateFromHandle.  We
 // call X509Certificate::CreateFromHandle several times and observe whether
-// it returns a cached or new X509Certificate object.
-//
-// All the OS certificate handles in this test are actually from the same
-// source (the bytes of a lone certificate), but we pretend that some of them
-// come from the network.
+// it returns a cached or new OSCertHandle.
 TEST(X509CertificateTest, Cache) {
   X509Certificate::OSCertHandle google_cert_handle;
+  X509Certificate::OSCertHandle thawte_cert_handle;
 
-  // Add a certificate from the source SOURCE_LONE_CERT_IMPORT to our
-  // certificate cache.
+  // Add a single certificate to the certificate cache.
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
   scoped_refptr<X509Certificate> cert1(X509Certificate::CreateFromHandle(
-      google_cert_handle, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-      X509Certificate::OSCertHandles()));
+      google_cert_handle, X509Certificate::OSCertHandles()));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
 
-  // Add a certificate from the same source (SOURCE_LONE_CERT_IMPORT).  This
-  // should return the cached certificate (cert1).
+  // Add the same certificate, but as a new handle.
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
   scoped_refptr<X509Certificate> cert2(X509Certificate::CreateFromHandle(
-      google_cert_handle, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-      X509Certificate::OSCertHandles()));
+      google_cert_handle, X509Certificate::OSCertHandles()));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
 
-  EXPECT_EQ(cert1, cert2);
+  // A new X509Certificate should be returned.
+  EXPECT_NE(cert1.get(), cert2.get());
+  // But both instances should share the underlying OS certificate handle.
+  EXPECT_EQ(cert1->os_cert_handle(), cert2->os_cert_handle());
+  EXPECT_EQ(0u, cert1->GetIntermediateCertificates().size());
+  EXPECT_EQ(0u, cert2->GetIntermediateCertificates().size());
 
-  // Add a certificate from the network.  This should kick out the original
-  // cached certificate (cert1) and return a new certificate.
+  // Add the same certificate, but this time with an intermediate. This
+  // should result in the intermediate being cached. Note that this is not
+  // a legitimate chain, but is suitable for testing.
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
+  thawte_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
+      reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der));
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(thawte_cert_handle);
   scoped_refptr<X509Certificate> cert3(X509Certificate::CreateFromHandle(
-      google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-      X509Certificate::OSCertHandles()));
+      google_cert_handle, intermediates));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
+  X509Certificate::FreeOSCertHandle(thawte_cert_handle);
 
-  EXPECT_NE(cert1, cert3);
-
-  // Add one certificate from each source.  Both should return the new cached
-  // certificate (cert3).
-  google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  scoped_refptr<X509Certificate> cert4(X509Certificate::CreateFromHandle(
-      google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-      X509Certificate::OSCertHandles()));
-  X509Certificate::FreeOSCertHandle(google_cert_handle);
-
-  EXPECT_EQ(cert3, cert4);
-
-  google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  scoped_refptr<X509Certificate> cert5(X509Certificate::CreateFromHandle(
-      google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-      X509Certificate::OSCertHandles()));
-  X509Certificate::FreeOSCertHandle(google_cert_handle);
-
-  EXPECT_EQ(cert3, cert5);
+  // Test that the new certificate, even with intermediates, results in the
+  // same underlying handle being used.
+  EXPECT_EQ(cert1->os_cert_handle(), cert3->os_cert_handle());
+  // Though they use the same OS handle, the intermediates should be different.
+  EXPECT_NE(cert1->GetIntermediateCertificates().size(),
+      cert3->GetIntermediateCertificates().size());
 }
 
 TEST(X509CertificateTest, Pickle) {
@@ -735,13 +719,8 @@ TEST(X509CertificateTest, Pickle) {
 
   X509Certificate::OSCertHandles intermediates;
   intermediates.push_back(thawte_cert_handle);
-  // Faking SOURCE_LONE_CERT_IMPORT so that when the pickled certificate is
-  // read, it successfully evicts |cert| from the X509Certificate::Cache.
-  // This will be fixed when http://crbug.com/49377 is fixed.
   scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
-      google_cert_handle,
-      X509Certificate::SOURCE_LONE_CERT_IMPORT,
-      intermediates);
+      google_cert_handle, intermediates);
   ASSERT_NE(static_cast<X509Certificate*>(NULL), cert.get());
 
   X509Certificate::FreeOSCertHandle(google_cert_handle);
@@ -755,7 +734,6 @@ TEST(X509CertificateTest, Pickle) {
       X509Certificate::CreateFromPickle(
           pickle, &iter, X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN);
   ASSERT_NE(static_cast<X509Certificate*>(NULL), cert_from_pickle);
-  EXPECT_NE(cert.get(), cert_from_pickle.get());
   EXPECT_TRUE(X509Certificate::IsSameOSCert(
       cert->os_cert_handle(), cert_from_pickle->os_cert_handle()));
   EXPECT_TRUE(cert->HasIntermediateCertificates(
@@ -798,7 +776,6 @@ TEST(X509CertificateTest, Policy) {
   EXPECT_TRUE(policy.HasDeniedCert());
 }
 
-#if defined(OS_MACOSX) || defined(OS_WIN)
 TEST(X509CertificateTest, IntermediateCertificates) {
   scoped_refptr<X509Certificate> webkit_cert(
       X509Certificate::CreateFromBytes(
@@ -819,8 +796,7 @@ TEST(X509CertificateTest, IntermediateCertificates) {
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
   X509Certificate::OSCertHandles intermediates1;
   scoped_refptr<X509Certificate> cert1;
-  cert1 = X509Certificate::CreateFromHandle(
-      google_handle, X509Certificate::SOURCE_FROM_NETWORK, intermediates1);
+  cert1 = X509Certificate::CreateFromHandle(google_handle, intermediates1);
   EXPECT_TRUE(cert1->HasIntermediateCertificates(intermediates1));
   EXPECT_FALSE(cert1->HasIntermediateCertificate(
       webkit_cert->os_cert_handle()));
@@ -830,11 +806,7 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   intermediates2.push_back(webkit_cert->os_cert_handle());
   intermediates2.push_back(thawte_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert2;
-  cert2 = X509Certificate::CreateFromHandle(
-      google_handle, X509Certificate::SOURCE_FROM_NETWORK, intermediates2);
-
-  // The cache should have stored cert2 'cause it has more intermediates:
-  EXPECT_NE(cert1, cert2);
+  cert2 = X509Certificate::CreateFromHandle(google_handle, intermediates2);
 
   // Verify it has all the intermediates:
   EXPECT_TRUE(cert2->HasIntermediateCertificate(
@@ -844,20 +816,9 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   EXPECT_FALSE(cert2->HasIntermediateCertificate(
       paypal_cert->os_cert_handle()));
 
-  // Create object with 1 intermediate:
-  X509Certificate::OSCertHandles intermediates3;
-  intermediates2.push_back(thawte_cert->os_cert_handle());
-  scoped_refptr<X509Certificate> cert3;
-  cert3 = X509Certificate::CreateFromHandle(
-      google_handle, X509Certificate::SOURCE_FROM_NETWORK, intermediates3);
-
-  // The cache should have returned cert2 'cause it has more intermediates:
-  EXPECT_EQ(cert3, cert2);
-
   // Cleanup
   X509Certificate::FreeOSCertHandle(google_handle);
 }
-#endif
 
 #if defined(OS_MACOSX)
 TEST(X509CertificateTest, IsIssuedBy) {

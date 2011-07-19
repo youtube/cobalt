@@ -19,6 +19,7 @@
 #include "base/sha1.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "googleurl/src/url_canon_ip.h"
 #include "net/base/cert_status_flags.h"
@@ -53,29 +54,62 @@ const char kCertificateHeader[] = "CERTIFICATE";
 // The PEM block header used for PKCS#7 data
 const char kPKCS7Header[] = "PKCS7";
 
-// A thread-safe cache for X509Certificate objects.
+// A thread-safe cache for OS certificate handles.
 //
-// The cache does not hold a reference to the certificate objects.  The objects
-// must |Remove| themselves from the cache upon destruction (or else the cache
-// will be holding dead pointers to the objects).
-// TODO(rsleevi): There exists a chance of a use-after-free, due to a race
-// between Find() and Remove(). See http://crbug.com/49377
+// Within each of the supported underlying crypto libraries, a certificate
+// handle is represented as a ref-counted object that contains the parsed
+// data for the certificate. In addition, the underlying OS handle may also
+// contain a copy of the original ASN.1 DER used to constructed the handle.
+//
+// In order to reduce the memory usage when multiple SSL connections exist,
+// with each connection storing the server's identity certificate plus any
+// intermediates supplied, the certificate handles are cached. Any two
+// X509Certificates that were created from the same ASN.1 DER data,
+// regardless of where that data came from, will share the same underlying
+// OS certificate handle.
 class X509CertificateCache {
  public:
-  void Insert(X509Certificate* cert);
-  void Remove(X509Certificate* cert);
-  X509Certificate* Find(const SHA1Fingerprint& fingerprint);
+  // Performs a compare-and-swap like operation. If an OS certificate handle
+  // for the same certificate data as |*cert_handle| already exists in the
+  // cache, the original |*cert_handle| will be freed and |cert_handle|
+  // will be updated to point to a duplicated reference to the existing cached
+  // certificate, with the caller taking ownership of this duplicated handle.
+  // If an equivalent OS certificate handle is not found, a duplicated
+  // reference to |*cert_handle| will be added to the cache. In either case,
+  // upon return, the caller fully owns |*cert_handle| and is responsible for
+  // calling FreeOSCertHandle(), after first calling Remove().
+  void InsertOrUpdate(X509Certificate::OSCertHandle* cert_handle);
+
+  // Decrements the cache reference count for |cert_handle|, a handle that was
+  // previously obtained by calling InsertOrUpdate(). If this is the last
+  // cached reference held, this will remove the handle from the cache. The
+  // caller retains ownership of |cert_handle| and remains responsible for
+  // calling FreeOSCertHandle() to release the underlying OS certificate
+  void Remove(X509Certificate::OSCertHandle cert_handle);
 
  private:
-  typedef std::map<SHA1Fingerprint, X509Certificate*, SHA1FingerprintLessThan>
-      CertMap;
+  // A single entry in the cache. Certificates will be keyed by their SHA1
+  // fingerprints, but will not be considered equivalent unless the entire
+  // certificate data matches.
+  struct Entry {
+    Entry() : cert_handle(NULL), ref_count(0) {}
+
+    X509Certificate::OSCertHandle cert_handle;
+
+    // Increased by each call to InsertOrUpdate(), and balanced by each call
+    // to Remove(). When it equals 0, all references created by
+    // InsertOrUpdate() have been released, so the cache entry will be removed
+    // the cached OS certificate handle will be freed.
+    int ref_count;
+  };
+  typedef std::map<SHA1Fingerprint, Entry, SHA1FingerprintLessThan> CertMap;
 
   // Obtain an instance of X509CertificateCache via a LazyInstance.
   X509CertificateCache() {}
   ~X509CertificateCache() {}
   friend struct base::DefaultLazyInstanceTraits<X509CertificateCache>;
 
-  // You must acquire this lock before using any private data of this object.
+  // You must acquire this lock before using any private data of this object
   // You must not block while holding this lock.
   base::Lock lock_;
 
@@ -89,39 +123,76 @@ base::LazyInstance<X509CertificateCache,
                    base::LeakyLazyInstanceTraits<X509CertificateCache> >
     g_x509_certificate_cache(base::LINKER_INITIALIZED);
 
-// Insert |cert| into the cache.  The cache does NOT AddRef |cert|.
-// Any existing certificate with the same fingerprint will be replaced.
-void X509CertificateCache::Insert(X509Certificate* cert) {
+void X509CertificateCache::InsertOrUpdate(
+    X509Certificate::OSCertHandle* cert_handle) {
+  DCHECK(cert_handle);
+  SHA1Fingerprint fingerprint =
+      X509Certificate::CalculateFingerprint(*cert_handle);
+
+  X509Certificate::OSCertHandle old_handle = NULL;
+  {
+    base::AutoLock lock(lock_);
+    CertMap::iterator pos = cache_.find(fingerprint);
+    if (pos == cache_.end()) {
+      // A cached entry was not found, so initialize a new entry. The entry
+      // assumes ownership of the current |*cert_handle|.
+      Entry cache_entry;
+      cache_entry.cert_handle = *cert_handle;
+      cache_entry.ref_count = 0;
+      CertMap::value_type cache_value(fingerprint, cache_entry);
+      pos = cache_.insert(cache_value).first;
+    } else {
+      bool is_same_cert =
+          X509Certificate::IsSameOSCert(*cert_handle, pos->second.cert_handle);
+      if (!is_same_cert) {
+        // Two certificates don't match, due to a SHA1 hash collision. Given
+        // the low probability, the simplest solution is to not cache the
+        // certificate, which should not affect performance too negatively.
+        return;
+      }
+      // A cached entry was found and will be used instead of the caller's
+      // handle. Ensure the caller's original handle will be freed, since
+      // ownership is assumed.
+      old_handle = *cert_handle;
+    }
+    // Whether an existing cached handle or a new handle, increment the
+    // cache's reference count and return a handle that the caller can own.
+    ++pos->second.ref_count;
+    *cert_handle = X509Certificate::DupOSCertHandle(pos->second.cert_handle);
+  }
+  // If the caller's handle was replaced with a cached handle, free the
+  // original handle now. This is done outside of the lock because
+  // |old_handle| may be the only handle for this particular certificate, so
+  // freeing it may be complex or resource-intensive and does not need to
+  // be guarded by the lock.
+  if (old_handle) {
+    X509Certificate::FreeOSCertHandle(old_handle);
+    DHISTOGRAM_COUNTS("X509CertificateReuseCount", 1);
+  }
+}
+
+void X509CertificateCache::Remove(X509Certificate::OSCertHandle cert_handle) {
+  SHA1Fingerprint fingerprint =
+      X509Certificate::CalculateFingerprint(cert_handle);
   base::AutoLock lock(lock_);
 
-  DCHECK(!IsNullFingerprint(cert->fingerprint())) <<
-      "Only insert certs with real fingerprints.";
-  cache_[cert->fingerprint()] = cert;
-};
-
-// Remove |cert| from the cache.  The cache does not assume that |cert| is
-// already in the cache.
-void X509CertificateCache::Remove(X509Certificate* cert) {
-  base::AutoLock lock(lock_);
-
-  CertMap::iterator pos(cache_.find(cert->fingerprint()));
+  CertMap::iterator pos = cache_.find(fingerprint);
   if (pos == cache_.end())
-    return;  // It is not an error to remove a cert that is not in the cache.
-  cache_.erase(pos);
-};
+    return;  // A hash collision where the winning cert was already freed.
 
-// Find a certificate in the cache with the given fingerprint.  If one does
-// not exist, this method returns NULL.
-X509Certificate* X509CertificateCache::Find(
-    const SHA1Fingerprint& fingerprint) {
-  base::AutoLock lock(lock_);
+  bool is_same_cert = X509Certificate::IsSameOSCert(cert_handle,
+                                                    pos->second.cert_handle);
+  if (!is_same_cert)
+    return;  // A hash collision where the winning cert is still around.
 
-  CertMap::iterator pos(cache_.find(fingerprint));
-  if (pos == cache_.end())
-    return NULL;
-
-  return pos->second;
-};
+  if (--pos->second.ref_count == 0) {
+    // The last reference to |cert_handle| has been removed, so release the
+    // Entry's OS handle and remove the Entry. The caller still holds a
+    // reference to |cert_handle| and is responsible for freeing it.
+    X509Certificate::FreeOSCertHandle(pos->second.cert_handle);
+    cache_.erase(pos);
+  }
+}
 
 // CompareSHA1Hashes is a helper function for using bsearch() with an array of
 // SHA1 hashes.
@@ -165,57 +236,22 @@ X509Certificate::X509Certificate(const std::string& subject,
       issuer_(issuer),
       valid_start_(start_date),
       valid_expiry_(expiration_date),
-      cert_handle_(NULL),
-      source_(SOURCE_UNUSED) {
+      cert_handle_(NULL) {
   memset(fingerprint_.data, 0, sizeof(fingerprint_.data));
 }
 
 // static
 X509Certificate* X509Certificate::CreateFromHandle(
     OSCertHandle cert_handle,
-    Source source,
     const OSCertHandles& intermediates) {
   DCHECK(cert_handle);
-  DCHECK_NE(source, SOURCE_UNUSED);
-
-  // Check if we already have this certificate in memory.
-  X509CertificateCache* cache = g_x509_certificate_cache.Pointer();
-  X509Certificate* cached_cert =
-      cache->Find(CalculateFingerprint(cert_handle));
-  if (cached_cert) {
-    DCHECK_NE(cached_cert->source_, SOURCE_UNUSED);
-    if (cached_cert->source_ > source ||
-        (cached_cert->source_ == source &&
-         cached_cert->HasIntermediateCertificates(intermediates))) {
-      // Return the certificate with the same fingerprint from our cache.
-      DHISTOGRAM_COUNTS("X509CertificateReuseCount", 1);
-      return cached_cert;
-    }
-    // Else the new cert is better and will replace the old one in the cache.
-  }
-
-  // Otherwise, allocate and cache a new object.
-  X509Certificate* cert = new X509Certificate(cert_handle, source,
-                                              intermediates);
-  cache->Insert(cert);
-  return cert;
+  return new X509Certificate(cert_handle, intermediates);
 }
 
-#if defined(OS_WIN)
-static X509Certificate::OSCertHandle CreateOSCert(base::StringPiece der_cert) {
-  X509Certificate::OSCertHandle cert_handle = NULL;
-  BOOL ok = CertAddEncodedCertificateToStore(
-      X509Certificate::cert_store(), X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-      reinterpret_cast<const BYTE*>(der_cert.data()), der_cert.size(),
-      CERT_STORE_ADD_USE_EXISTING, &cert_handle);
-  return ok ? cert_handle : NULL;
-}
-#else
 static X509Certificate::OSCertHandle CreateOSCert(base::StringPiece der_cert) {
   return X509Certificate::CreateOSCertHandleFromBytes(
       const_cast<char*>(der_cert.data()), der_cert.size());
 }
-#endif
 
 // static
 X509Certificate* X509Certificate::CreateFromDERCertChain(
@@ -232,8 +268,7 @@ X509Certificate* X509Certificate::CreateFromDERCertChain(
 
   OSCertHandle handle = CreateOSCert(der_certs[0]);
   DCHECK(handle);
-  X509Certificate* cert =
-      CreateFromHandle(handle, SOURCE_FROM_NETWORK, intermediate_ca_certs);
+  X509Certificate* cert = CreateFromHandle(handle, intermediate_ca_certs);
   FreeOSCertHandle(handle);
   for (size_t i = 0; i < intermediate_ca_certs.size(); i++)
     FreeOSCertHandle(intermediate_ca_certs[i]);
@@ -248,9 +283,7 @@ X509Certificate* X509Certificate::CreateFromBytes(const char* data,
   if (!cert_handle)
     return NULL;
 
-  X509Certificate* cert = CreateFromHandle(cert_handle,
-                                           SOURCE_LONE_CERT_IMPORT,
-                                           OSCertHandles());
+  X509Certificate* cert = CreateFromHandle(cert_handle, OSCertHandles());
   FreeOSCertHandle(cert_handle);
   return cert;
 }
@@ -282,7 +315,7 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
 
   X509Certificate* cert = NULL;
   if (intermediates.size() == num_intermediates)
-    cert = CreateFromHandle(cert_handle, SOURCE_FROM_CACHE, intermediates);
+    cert = CreateFromHandle(cert_handle, intermediates);
   FreeOSCertHandle(cert_handle);
   for (size_t i = 0; i < intermediates.size(); ++i)
     FreeOSCertHandle(intermediates[i]);
@@ -359,8 +392,7 @@ CertificateList X509Certificate::CreateCertificateListFromBytes(
 
   for (OSCertHandles::iterator it = certificates.begin();
        it != certificates.end(); ++it) {
-    X509Certificate* result = CreateFromHandle(*it, SOURCE_LONE_CERT_IMPORT,
-                                               OSCertHandles());
+    X509Certificate* result = CreateFromHandle(*it, OSCertHandles());
     results.push_back(scoped_refptr<X509Certificate>(result));
     FreeOSCertHandle(*it);
   }
@@ -554,24 +586,34 @@ bool X509Certificate::VerifyNameMatch(const std::string& hostname) const {
 #endif
 
 X509Certificate::X509Certificate(OSCertHandle cert_handle,
-                                 Source source,
                                  const OSCertHandles& intermediates)
-    : cert_handle_(DupOSCertHandle(cert_handle)),
-      source_(source) {
-  // Copy/retain the intermediate cert handles.
-  for (size_t i = 0; i < intermediates.size(); ++i)
-    intermediate_ca_certs_.push_back(DupOSCertHandle(intermediates[i]));
+    : cert_handle_(DupOSCertHandle(cert_handle)) {
+  X509CertificateCache* cache = g_x509_certificate_cache.Pointer();
+  cache->InsertOrUpdate(&cert_handle_);
+  for (size_t i = 0; i < intermediates.size(); ++i) {
+    // Duplicate the incoming certificate, as the caller retains ownership
+    // of |intermediates|.
+    OSCertHandle intermediate = DupOSCertHandle(intermediates[i]);
+    // Update the cache, which will assume ownership of the duplicated
+    // handle and return a suitable equivalent, potentially from the cache.
+    cache->InsertOrUpdate(&intermediate);
+    intermediate_ca_certs_.push_back(intermediate);
+  }
   // Platform-specific initialization.
   Initialize();
 }
 
 X509Certificate::~X509Certificate() {
   // We might not be in the cache, but it is safe to remove ourselves anyway.
-  g_x509_certificate_cache.Get().Remove(this);
-  if (cert_handle_)
+  X509CertificateCache* cache = g_x509_certificate_cache.Pointer();
+  if (cert_handle_) {
+    cache->Remove(cert_handle_);
     FreeOSCertHandle(cert_handle_);
-  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i)
+  }
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
+    cache->Remove(intermediate_ca_certs_[i]);
     FreeOSCertHandle(intermediate_ca_certs_[i]);
+  }
 }
 
 bool X509Certificate::IsBlacklisted() const {

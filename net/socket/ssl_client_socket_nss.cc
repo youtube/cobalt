@@ -2041,11 +2041,10 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     // Get the leaf certificate.
     PCCERT_CONTEXT cert_context =
         chain_context->rgpChain[0]->rgpElement[0]->pCertContext;
-    // Copy it to our own certificate store, so that we can close the "MY"
-    // certificate store before returning from this function.
+    // Copy the certificate into a NULL store, so that we can close the "MY"
+    // store before returning from this function.
     PCCERT_CONTEXT cert_context2;
-    BOOL ok = CertAddCertificateContextToStore(X509Certificate::cert_store(),
-                                               cert_context,
+    BOOL ok = CertAddCertificateContextToStore(NULL, cert_context,
                                                CERT_STORE_ADD_USE_EXISTING,
                                                &cert_context2);
     if (!ok) {
@@ -2060,8 +2059,8 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     net::X509Certificate::OSCertHandles intermediates;
     for (DWORD i = 1; i < chain_context->rgpChain[0]->cElement; i++) {
       PCCERT_CONTEXT intermediate_copy;
-      ok = CertAddCertificateContextToStore(X509Certificate::cert_store(),
-          chain_context->rgpChain[0]->rgpElement[i]->pCertContext,
+      ok = CertAddCertificateContextToStore(
+          NULL, chain_context->rgpChain[0]->rgpElement[i]->pCertContext,
           CERT_STORE_ADD_USE_EXISTING, &intermediate_copy);
       if (!ok) {
         NOTREACHED();
@@ -2071,8 +2070,7 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     }
 
     scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
-        cert_context2, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-        intermediates);
+        cert_context2, intermediates);
     that->client_certs_.push_back(cert);
 
     X509Certificate::FreeOSCertHandle(cert_context2);
@@ -2235,8 +2233,7 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
           NSS_CmpCertChainWCANames(node->cert, ca_names) != SECSuccess)
         continue;
       X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
-          node->cert, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-          net::X509Certificate::OSCertHandles());
+          node->cert, net::X509Certificate::OSCertHandles());
       that->client_certs_.push_back(x509_cert);
     }
     CERT_DestroyCertList(client_certs);
