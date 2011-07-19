@@ -9,7 +9,6 @@
       'type': 'none',
       'xcode_create_dependents_test_runner': 1,
       'dependencies': [
-        '../app/app.gyp:*',
         '../base/base.gyp:*',
         '../chrome/browser/sync/tools/sync_tools.gyp:*',
         '../chrome/chrome.gyp:*',
