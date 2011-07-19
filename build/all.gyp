@@ -486,6 +486,26 @@
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
+        {
+          'target_name': 'chromium_builder_dbg_drmemory_win',
+          'type': 'none',
+          'dependencies': [
+            '../base/base.gyp:base_unittests',
+            '../chrome/chrome.gyp:sync_unit_tests',
+            '../chrome/chrome.gyp:unit_tests',
+            '../crypto/crypto.gyp:crypto_unittests',
+            '../ipc/ipc.gyp:ipc_tests',
+            '../jingle/jingle.gyp:jingle_unittests',
+            '../media/media.gyp:media_unittests',
+            '../net/net.gyp:net_unittests',
+            '../printing/printing.gyp:printing_unittests',
+            '../remoting/remoting.gyp:remoting_unittests',
+            '../sql/sql.gyp:sql_unittests',
+            '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
+            '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
+            'temp_gyp/googleurl.gyp:googleurl_unittests',
+          ],
+        },
       ],  # targets
       'conditions': [
         ['branding=="Chrome"', {
