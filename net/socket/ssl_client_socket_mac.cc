@@ -438,8 +438,8 @@ X509Certificate* GetServerCert(SSLContextRef ssl_context) {
 
   SecCertificateRef server_cert = static_cast<SecCertificateRef>(
       const_cast<void*>(CFArrayGetValueAtIndex(certs, 0)));
-  return X509Certificate::CreateFromHandle(
-      server_cert, X509Certificate::SOURCE_FROM_NETWORK, intermediate_ca_certs);
+  return X509Certificate::CreateFromHandle(server_cert,
+                                           intermediate_ca_certs);
 }
 
 // Dynamically look up a pointer to a function exported by a bundle.
