@@ -408,12 +408,15 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   return NULL;
 }
 
-void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
-  dns_names->clear();
+void X509Certificate::GetSubjectAltName(
+    std::vector<std::string>* dns_names,
+    std::vector<std::string>* ip_addrs) const {
+  if (dns_names)
+    dns_names->clear();
+  if (ip_addrs)
+    ip_addrs->clear();
 
-  ParseSubjectAltName(cert_handle_, dns_names, NULL);
-  if (dns_names->empty())
-    dns_names->push_back(subject_.common_name);
+  ParseSubjectAltName(cert_handle_, dns_names, ip_addrs);
 }
 
 // static
@@ -424,10 +427,7 @@ X509_STORE* X509Certificate::cert_store() {
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
                                     CertVerifyResult* verify_result) const {
-  std::vector<std::string> dns_names, ip_addresses;
-  ParseSubjectAltName(cert_handle_, &dns_names, &ip_addresses);
-
-  if (!VerifyHostname(hostname, subject_.common_name, dns_names, ip_addresses))
+  if (!VerifyNameMatch(hostname))
     verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
   crypto::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
@@ -541,4 +541,4 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
       der_cache.data_length);
 }
 
-} // namespace net
+}  // namespace net
