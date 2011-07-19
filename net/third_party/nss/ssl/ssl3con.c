@@ -7827,6 +7827,69 @@ ssl3_SendCertificate(sslSocket *ss)
 	}
     }
 
+    if (ss->ssl3.cachedInfoCertChainDigestReceived) {
+        /* Compute hash. */
+        PRUint64 certChainHash;
+	int i;
+	FNV1A64_Init(&certChainHash);
+	for (i = 0; i < certChain->len; i++) {
+	    unsigned int certLen = certChain->certs[i].len;
+	    unsigned char certLenArray[3] = {
+	        certLen >> 16,
+		certLen >> 8,
+		certLen
+	    };
+	    FNV1A64_Update(&certChainHash, certLenArray, sizeof(certLenArray));
+	    FNV1A64_Update(&certChainHash, certChain->certs[i].data, certLen);
+	}
+	FNV1A64_Final(&certChainHash);
+
+	/* Both |&certChainHash| and |ss->ssl3.certChainDigest| should be in
+	 * network byte order since both are computed with the FNV1A64 hash,
+	 * which calls the function htonll.
+	 */
+	if (memcmp(&certChainHash, ss->ssl3.certChainDigest,
+		   sizeof(certChainHash)) == 0) {
+	    /* The client correctly predicted the certificate chain. */
+
+	    /* Handshake type: certificate. */
+	    rv = ssl3_AppendHandshakeNumber(ss, certificate, 1);
+	    if (rv != SECSuccess) {
+	        return rv; 		/* err set by AppendHandshake. */
+	    }
+	    /* Handshake message length. */
+	    rv = ssl3_AppendHandshakeNumber(ss, 15, 3);
+	    if (rv != SECSuccess) {
+	        return rv; 		/* err set by AppendHandshake. */
+	    }
+	    /* CertChainLen(3) + ASN.1CertLen(3) + DigestLen(1) + Digest(8) */
+	    rv = ssl3_AppendHandshakeNumber(ss, 12, 3);
+	    if (rv != SECSuccess) {
+	        return rv; 		/* err set by AppendHandshake. */
+	    }
+	    /* ASN.1CertLen(3) + DigestLen(1) + Digest(8) */
+	    rv = ssl3_AppendHandshakeNumber(ss, 9, 3);
+	    if (rv != SECSuccess) {
+	        return rv; 		/* err set by AppendHandshake. */
+	    }
+	    /* Digest Length Byte */
+	    rv = ssl3_AppendHandshakeNumber(ss, sizeof(certChainHash), 1);
+	    if (rv != SECSuccess) {
+	        return rv; 		/* err set by AppendHandshake. */
+	    }
+	    /* Digest */
+	    rv = ssl3_AppendHandshake(ss, &certChainHash,
+				      sizeof(certChainHash));
+	    if (rv != SECSuccess) {
+	        return rv; 		/* err set by AppendHandshake. */
+	    }
+
+	    return SECSuccess;
+	}
+    }
+
+    /* Send the entire certificate as usual. */
+
     rv = ssl3_AppendHandshakeHeader(ss, certificate, len + 3);
     if (rv != SECSuccess) {
 	return rv; 		/* err set by AppendHandshake. */
@@ -8044,7 +8107,7 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	/* We are dealing with a certificate_chain digest */
 	int i;
 
-	ss->ssl3.digestReceived = PR_TRUE;
+	ss->ssl3.cachedInfoCertChainDigestReceived = PR_TRUE;
 
 	/* Make sure the digests match. */
 	if (memcmp(b + 4, ss->ssl3.certChainDigest, 8)) {
@@ -8077,7 +8140,7 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	}
     } else {
 	/* We are dealing with a regular certificate message */
-	ss->ssl3.digestReceived = PR_FALSE;
+	ss->ssl3.cachedInfoCertChainDigestReceived = PR_FALSE;
 
 	/* First get the peer cert. */
 	remaining -= 3;
@@ -8147,6 +8210,8 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 
 	if (remaining != 0)
 	    goto decode_loser;
+
+	ss->ssl3.peerCertChain = certs;  certs = NULL;  arena = NULL;
     }
 
     SECKEY_UpdateCertPQG(ss->sec.peerCert);
@@ -8167,8 +8232,6 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 		/* someone will handle this connection asynchronously*/
 		SSL_DBG(("%d: SSL3[%d]: go to async cert handler",
 			 SSL_GETPID(), ss->fd));
-		ss->ssl3.peerCertChain = certs;
-		certs               = NULL;
 		ssl_SetAlwaysBlock(ss);
 		goto cert_block;
 	    }
@@ -8237,8 +8300,6 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	    pubKey = NULL;
     	}
     }
-
-    ss->ssl3.peerCertChain = certs;  certs = NULL;  arena = NULL;
 
 cert_block:
     if (ss->sec.isServer) {

@@ -259,6 +259,12 @@ SSL_IMPORT SECStatus SSL_SecurityStatus(PRFileDesc *fd, int *on, char **cipher,
 #define SSL_SECURITY_STATUS_FORTEZZA	3 /* NO LONGER SUPPORTED */
 
 /*
+** Returns true if the server's Certificate message contained a hash of the
+** certificate chain due to the TLS cached info extension.
+*/
+SSL_IMPORT PRBool SSL_CertChainDigestReceived(PRFileDesc *fd);
+
+/*
 ** Return the certificate for our SSL peer. If the client calls this
 ** it will always return the server's certificate. If the server calls
 ** this, it may return NULL if client authentication is not enabled or
@@ -277,6 +283,13 @@ SSL_IMPORT CERTCertificate *SSL_PeerCertificate(PRFileDesc *fd);
 */
 SSL_IMPORT SECStatus SSL_PeerCertificateChain(
 	PRFileDesc *fd, CERTCertificate **certs, unsigned int *certs_size);
+
+/*
+** Set the predicted cert chain to be used in the cached info extension.
+*/
+SSL_IMPORT SECStatus SSL_SetPredictedPeerCertificates(PRFileDesc *fd,
+						      CERTCertificate **certs,
+						      unsigned int len);
 
 /* SSL_GetStapledOCSPResponse returns the OCSP response that was provided by
  * the TLS server. The resulting data is copied to |out_data|. On entry, |*len|
