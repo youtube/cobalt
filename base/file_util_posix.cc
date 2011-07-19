@@ -735,6 +735,16 @@ FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
   return FilePath(find_info.filename);
 }
 
+// static
+int64 FileEnumerator::GetFilesize(const FindInfo& find_info) {
+  return find_info.stat.st_size;
+}
+
+// static
+base::Time FileEnumerator::GetLastModifiedTime(const FindInfo& find_info) {
+  return base::Time::FromTimeT(find_info.stat.st_mtime);
+}
+
 bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
                                    const FilePath& source, bool show_links) {
   base::ThreadRestrictions::AssertIOAllowed();
