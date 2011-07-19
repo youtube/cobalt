@@ -1056,3 +1056,40 @@ EVENT_TYPE(THROTTLING_REJECTED_REQUEST)
 //     "retry_after_ms":    <Milliseconds until retry-after expires>
 //   }
 EVENT_TYPE(THROTTLING_GOT_CUSTOM_RETRY_AFTER)
+
+// ------------------------------------------------------------------------
+// DnsTransaction
+// ------------------------------------------------------------------------
+
+// The start/end of a DnsTransaction.
+//
+// The BEGIN phase contains the following parameters:
+//
+// {
+//   "dns_server": <IP of the DNS server to which queries are sent>,
+//   "hostname": <The hostname it is trying to resolve>,
+//   "query_type": <Type of the query>,
+//   "source_dependency":  <Source id, if any, of what created the
+//                          transaction>,
+// }
+//
+// The END phase contains the following parameters:
+//
+// {
+//   "net_error": <The net error code for the failure>,
+//   "ip_address_list": <The result of the resolution process -- list of IP
+//                       addresses>,
+// }
+EVENT_TYPE(DNS_TRANSACTION)
+
+// This event is created when DnsTransaction creates a new UDP socket and
+// tries to resolve the hostname.
+//
+// It has a single parameter:
+//
+//   {
+//     "attempt_number": <current attempt number at resolving hostname>
+//     "source_dependency": <Source id of the UDP socket that caused the
+//                           attempt>,
+//   }
+EVENT_TYPE(DNS_TRANSACTION_ATTEMPT_STARTED)
