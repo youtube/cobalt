@@ -451,6 +451,9 @@ class RelayReadDirectory : public MessageLoopRelay {
       // This will just give the entry's name instead of entire path
       // if we use current.value().
       entry.name = file_util::FileEnumerator::GetFilename(info).value();
+      entry.size = file_util::FileEnumerator::GetFilesize(info);
+      entry.last_modified_time =
+          file_util::FileEnumerator::GetLastModifiedTime(info);
       entries_.push_back(entry);
     }
   }
