@@ -867,7 +867,7 @@ struct ssl3StateStr {
     PRUint8              certChainDigest[8];
 			    /* Used in cached info extension. Stored in network
 			     * byte order. */
-    PRBool               digestReceived;
+    PRBool               cachedInfoCertChainDigestReceived;
 
     int                  policy;
 			/* This says what cipher suites we can do, and should 
@@ -876,7 +876,10 @@ struct ssl3StateStr {
     PRArenaPool *        peerCertArena;  
 			    /* These are used to keep track of the peer CA */
     void *               peerCertChain;     
-			    /* chain while we are trying to validate it.   */
+			    /* Chain while we are trying to validate it. This
+			     * does not include the leaf cert. It is actually a
+			     * linked list of ssl3CertNode structs.
+			     */
     CERTDistNames *      ca_list; 
 			    /* used by server.  trusted CAs for this socket. */
     PRBool               initialized;
@@ -1565,6 +1568,8 @@ extern SECStatus ssl3_ClientHandleSessionTicketXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
+extern SECStatus ssl3_ServerHandleCachedInfoXtn(sslSocket *ss,
+			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ClientHandleCachedInfoXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ClientHandleStatusRequestXtn(sslSocket *ss,
@@ -1594,6 +1599,8 @@ extern PRInt32 ssl3_SendServerNameXtn(sslSocket *ss, PRBool append,
                      PRUint32 maxBytes);
 extern PRInt32 ssl3_ClientSendCachedInfoXtn(sslSocket *ss, PRBool append,
                      PRUint32 maxBytes);
+extern PRInt32 ssl3_ServerSendCachedInfoXtn(sslSocket *ss, PRBool append,
+		     PRUint32 maxBytes);
 extern PRInt32 ssl3_SendOBCertXtn(sslSocket *ss, PRBool append,
 			PRUint32 maxBytes);
 
@@ -1719,6 +1726,12 @@ SECStatus SSL_DisableDefaultExportCipherSuites(void);
 SECStatus SSL_DisableExportCipherSuites(PRFileDesc * fd);
 PRBool    SSL_IsExportCipherSuite(PRUint16 cipherSuite);
 
+/********************** FNV hash  *********************/
+
+void FNV1A64_Init(PRUint64 *digest);
+void FNV1A64_Update(PRUint64 *digest, const unsigned char *data,
+                    unsigned int length);
+void FNV1A64_Final(PRUint64 *digest);
 
 #ifdef TRACE
 #define SSL_TRACE(msg) ssl_Trace msg

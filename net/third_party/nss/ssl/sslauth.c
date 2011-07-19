@@ -120,6 +120,21 @@ SSL_SetPredictedPeerCertificates(PRFileDesc *fd, CERTCertificate **certs,
     return SECSuccess;
 }
 
+PRBool
+SSL_CertChainDigestReceived(PRFileDesc *fd)
+{
+    sslSocket *ss;
+
+    ss = ssl_FindSocket(fd);
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_CertChainDigestReceived",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    return ss->ssl3.cachedInfoCertChainDigestReceived;
+}
+
 /* NEED LOCKS IN HERE.  */
 CERTCertificate *
 SSL_LocalCertificate(PRFileDesc *fd)
