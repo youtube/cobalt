@@ -281,47 +281,6 @@ void ParseDate(SECItem* der_date, base::Time* result) {
   *result = crypto::PRTimeToBaseTime(prtime);
 }
 
-void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
-                                  CERTGeneralNameType name_type,
-                                  std::vector<std::string>* result) {
-  // For future extension: We only support general names of types
-  // RFC822Name, DNSName or URI.
-  DCHECK(name_type == certRFC822Name ||
-         name_type == certDNSName ||
-         name_type == certURI);
-
-  SECItem alt_name;
-  SECStatus rv = CERT_FindCertExtension(cert_handle,
-                                        SEC_OID_X509_SUBJECT_ALT_NAME,
-                                        &alt_name);
-  if (rv != SECSuccess)
-    return;
-
-  PRArenaPool* arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
-  DCHECK(arena != NULL);
-
-  CERTGeneralName* alt_name_list;
-  alt_name_list = CERT_DecodeAltNameExtension(arena, &alt_name);
-  SECITEM_FreeItem(&alt_name, PR_FALSE);
-
-  CERTGeneralName* name = alt_name_list;
-  while (name) {
-    // All of the general name types we support are encoded as
-    // IA5String. In general, we should be switching off
-    // |name->type| and doing type-appropriate conversions.
-    if (name->type == name_type) {
-      unsigned char* p = name->name.other.data;
-      int len = name->name.other.len;
-      std::string value = std::string(reinterpret_cast<char*>(p), len);
-      result->push_back(value);
-    }
-    name = CERT_GetNextGeneralName(name);
-    if (name == alt_name_list)
-      break;
-  }
-  PORT_FreeArena(arena, PR_FALSE);
-}
-
 // Forward declarations.
 SECStatus RetryPKIXVerifyCertWithWorkarounds(
     X509Certificate::OSCertHandle cert_handle, int num_policy_oids,
@@ -755,14 +714,47 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   return x509_cert;
 }
 
-void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
-  dns_names->clear();
+void X509Certificate::GetSubjectAltName(
+    std::vector<std::string>* dns_names,
+    std::vector<std::string>* ip_addrs) const {
+  if (dns_names)
+    dns_names->clear();
+  if (ip_addrs)
+    ip_addrs->clear();
 
-  // Compare with CERT_VerifyCertName().
-  GetCertSubjectAltNamesOfType(cert_handle_, certDNSName, dns_names);
+  SECItem alt_name;
+  SECStatus rv = CERT_FindCertExtension(cert_handle_,
+                                        SEC_OID_X509_SUBJECT_ALT_NAME,
+                                        &alt_name);
+  if (rv != SECSuccess)
+    return;
 
-  if (dns_names->empty())
-    dns_names->push_back(subject_.common_name);
+  PRArenaPool* arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+  DCHECK(arena != NULL);
+
+  CERTGeneralName* alt_name_list;
+  alt_name_list = CERT_DecodeAltNameExtension(arena, &alt_name);
+  SECITEM_FreeItem(&alt_name, PR_FALSE);
+
+  CERTGeneralName* name = alt_name_list;
+  while (name) {
+    // DNSName and IPAddress are encoded as IA5String and OCTET STRINGs
+    // respectively, both of which can be byte copied from
+    // SECItemType::data into the appropriate output vector.
+    if (dns_names && name->type == certDNSName) {
+      dns_names->push_back(std::string(
+          reinterpret_cast<char*>(name->name.other.data),
+          name->name.other.len));
+    } else if (ip_addrs && name->type == certIPAddress) {
+      ip_addrs->push_back(std::string(
+          reinterpret_cast<char*>(name->name.other.data),
+          name->name.other.len));
+    }
+    name = CERT_GetNextGeneralName(name);
+    if (name == alt_name_list)
+      break;
+  }
+  PORT_FreeArena(arena, PR_FALSE);
 }
 
 int X509Certificate::VerifyInternal(const std::string& hostname,
