@@ -113,7 +113,7 @@ HttpCache::Transaction::Transaction(HttpCache* cache)
       invalid_range_(false),
       truncated_(false),
       is_sparse_(false),
-      server_responded_206_(false),
+      handling_206_(false),
       cache_pending_(false),
       done_reading_(false),
       read_offset_(0),
@@ -408,6 +408,71 @@ int HttpCache::Transaction::HandleResult(int rv) {
   return rv;
 }
 
+// A few common patterns: (Foo* means Foo -> FooComplete)
+//
+// Not-cached entry:
+//   Start():
+//   GetBackend* -> InitEntry -> OpenEntry* -> CreateEntry* -> AddToEntry* ->
+//   SendRequest* -> SuccessfulSendRequest -> OverwriteCachedResponse ->
+//   CacheWriteResponse* -> TruncateCachedData* -> TruncateCachedMetadata* ->
+//   PartialHeadersReceived
+//
+//   Read():
+//   NetworkRead* -> CacheWriteData*
+//
+// Cached entry, no validation:
+//   Start():
+//   GetBackend* -> InitEntry -> OpenEntry* -> AddToEntry* -> CacheReadResponse*
+//   -> BeginPartialCacheValidation() -> BeginCacheValidation()
+//
+//   Read():
+//   CacheReadData*
+//
+// Cached entry, validation (304):
+//   Start():
+//   GetBackend* -> InitEntry -> OpenEntry* -> AddToEntry* -> CacheReadResponse*
+//   -> BeginPartialCacheValidation() -> BeginCacheValidation() ->
+//   SendRequest* -> SuccessfulSendRequest -> UpdateCachedResponse ->
+//   CacheWriteResponse* -> UpdateCachedResponseComplete ->
+//   OverwriteCachedResponse -> PartialHeadersReceived
+//
+//   Read():
+//   CacheReadData*
+//
+// Cached entry, validation and replace (200):
+//   Start():
+//   GetBackend* -> InitEntry -> OpenEntry* -> AddToEntry* -> CacheReadResponse*
+//   -> BeginPartialCacheValidation() -> BeginCacheValidation() ->
+//   SendRequest* -> SuccessfulSendRequest -> OverwriteCachedResponse ->
+//   CacheWriteResponse* -> DoTruncateCachedData* -> TruncateCachedMetadata* ->
+//   PartialHeadersReceived
+//
+//   Read():
+//   NetworkRead* -> CacheWriteData*
+//
+// Sparse entry, partially cached, byte range request:
+//   Start():
+//   GetBackend* -> InitEntry -> OpenEntry* -> AddToEntry* -> CacheReadResponse*
+//   -> BeginPartialCacheValidation() -> CacheQueryData* ->
+//   ValidateEntryHeadersAndContinue() -> StartPartialCacheValidation ->
+//   CompletePartialCacheValidation -> BeginCacheValidation() -> SendRequest* ->
+//   SuccessfulSendRequest -> UpdateCachedResponse -> CacheWriteResponse* ->
+//   UpdateCachedResponseComplete -> OverwriteCachedResponse ->
+//   PartialHeadersReceived
+//
+//   Read() 1:
+//   NetworkRead* -> CacheWriteData*
+//
+//   Read() 2:
+//   NetworkRead* -> CacheWriteData* -> StartPartialCacheValidation ->
+//   CompletePartialCacheValidation -> CacheReadData* ->
+//
+//   Read() 3:
+//   CacheReadData* -> StartPartialCacheValidation ->
+//   CompletePartialCacheValidation -> BeginCacheValidation() -> SendRequest* ->
+//   SuccessfulSendRequest -> UpdateCachedResponse* -> OverwriteCachedResponse
+//   -> PartialHeadersReceived -> NetworkRead* -> CacheWriteData*
+//
 int HttpCache::Transaction::DoLoop(int result) {
   DCHECK(next_state_ != STATE_NONE);
 
@@ -668,8 +733,7 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
   }
 
   new_response_ = new_response;
-  if (!ValidatePartialResponse(&server_responded_206_) &&
-      !auth_response_.headers) {
+  if (!ValidatePartialResponse() && !auth_response_.headers) {
     // Something went wrong with this request and we have to restart it.
     // If we have an authentication response, we are exposed to weird things
     // hapenning if the user cancels the authentication before we receive
@@ -680,8 +744,7 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     next_state_ = STATE_SEND_REQUEST;
     return OK;
   }
-  if (server_responded_206_ && mode_ == READ_WRITE && !truncated_ &&
-      !is_sparse_) {
+  if (handling_206_ && mode_ == READ_WRITE && !truncated_ && !is_sparse_) {
     // We have stored the full entry, but it changed and the server is
     // sending a range. We have to delete the old entry.
     DoneWritingToEntry(false);
@@ -695,8 +758,7 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
 
   // Are we expecting a response to a conditional query?
   if (mode_ == READ_WRITE || mode_ == UPDATE) {
-    if (new_response->headers->response_code() == 304 ||
-        server_responded_206_) {
+    if (new_response->headers->response_code() == 304 || handling_206_) {
       next_state_ = STATE_UPDATE_CACHED_RESPONSE;
       return OK;
     }
@@ -957,14 +1019,14 @@ int HttpCache::Transaction::DoUpdateCachedResponse() {
 
 int HttpCache::Transaction::DoUpdateCachedResponseComplete(int result) {
   if (mode_ == UPDATE) {
-    DCHECK(!server_responded_206_);
+    DCHECK(!handling_206_);
     // We got a "not modified" response and already updated the corresponding
     // cache entry above.
     //
     // By closing the cached entry now, we make sure that the 304 rather than
     // the cached 200 response, is what will be returned to the user.
     DoneWritingToEntry(true);
-  } else if (entry_ && !server_responded_206_) {
+  } else if (entry_ && !handling_206_) {
     DCHECK_EQ(READ_WRITE, mode_);
     if (!partial_.get() || partial_->IsLastRange()) {
       cache_->ConvertWriterToReader(entry_);
@@ -973,7 +1035,7 @@ int HttpCache::Transaction::DoUpdateCachedResponseComplete(int result) {
     // We no longer need the network transaction, so destroy it.
     final_upload_progress_ = network_trans_->GetUploadProgress();
     network_trans_.reset();
-  } else if (entry_ && server_responded_206_ && truncated_ &&
+  } else if (entry_ && handling_206_ && truncated_ &&
              partial_->initial_validation()) {
     // We just finished the validation of a truncated entry, and the server
     // is willing to resume the operation. Now we go back and start serving
@@ -995,12 +1057,12 @@ int HttpCache::Transaction::DoOverwriteCachedResponse() {
   }
 
   // We change the value of Content-Length for partial content.
-  if (server_responded_206_ && partial_.get())
+  if (handling_206_ && partial_.get())
     partial_->FixContentLength(new_response_->headers);
 
   response_ = *new_response_;
 
-  if (server_responded_206_ && !CanResume(false)) {
+  if (handling_206_ && !CanResume(false)) {
     // There is no point in storing this resource because it will never be used.
     DoneWritingToEntry(false);
     if (partial_.get())
@@ -1720,11 +1782,11 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
 // WARNING: Whenever this code returns false, it has to make sure that the next
 // time it is called it will return true so that we don't keep retrying the
 // request.
-bool HttpCache::Transaction::ValidatePartialResponse(bool* partial_content) {
+bool HttpCache::Transaction::ValidatePartialResponse() {
   const HttpResponseHeaders* headers = new_response_->headers;
   int response_code = headers->response_code();
   bool partial_response = (response_code == 206);
-  *partial_content = false;
+  handling_206_ = false;
 
   if (!entry_)
     return true;
@@ -1766,7 +1828,7 @@ bool HttpCache::Transaction::ValidatePartialResponse(bool* partial_content) {
   } else {
     // We asked for "If-Range: " so a 206 means just another range.
     if (partial_response && partial_->ResponseHeadersOK(headers)) {
-      *partial_content = true;
+      handling_206_ = true;
       return true;
     }
 

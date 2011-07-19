@@ -268,9 +268,9 @@ class HttpCache::Transaction : public HttpTransaction {
   bool ConditionalizeRequest();
 
   // Makes sure that a 206 response is expected.  Returns true on success.
-  // On success, |partial_content| will be set to true if we are processing a
+  // On success, handling_206_ will be set to true if we are processing a
   // partial entry.
-  bool ValidatePartialResponse(bool* partial_content);
+  bool ValidatePartialResponse();
 
   // Handles a response validation error by bypassing the cache.
   void IgnoreRangeRequest();
@@ -347,7 +347,7 @@ class HttpCache::Transaction : public HttpTransaction {
   bool invalid_range_;  // We may bypass the cache for this request.
   bool truncated_;  // We don't have all the response data.
   bool is_sparse_;  // The data is stored in sparse byte ranges.
-  bool server_responded_206_;
+  bool handling_206_;  // We must deal with this 206 response.
   bool cache_pending_;  // We are waiting for the HttpCache.
   bool done_reading_;
   scoped_refptr<IOBuffer> read_buf_;
