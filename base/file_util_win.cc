@@ -10,6 +10,8 @@
 #include <shellapi.h>
 #include <shlobj.h>
 #include <time.h>
+
+#include <limits>
 #include <string>
 
 #include "base/file_path.h"
@@ -891,6 +893,20 @@ bool FileEnumerator::IsDirectory(const FindInfo& info) {
 // static
 FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
   return FilePath(find_info.cFileName);
+}
+
+// static
+int64 FileEnumerator::GetFilesize(const FindInfo& find_info) {
+  ULARGE_INTEGER size;
+  size.HighPart = find_info.nFileSizeHigh;
+  size.LowPart = find_info.nFileSizeLow;
+  DCHECK_LE(size.QuadPart, std::numeric_limits<int64>::max());
+  return static_cast<int64>(size.QuadPart);
+}
+
+// static
+base::Time FileEnumerator::GetLastModifiedTime(const FindInfo& find_info) {
+  return base::Time::FromFileTime(find_info.ftLastWriteTime);
 }
 
 FilePath FileEnumerator::Next() {
