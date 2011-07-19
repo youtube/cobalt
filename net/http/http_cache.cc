@@ -17,7 +17,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
 #include "base/pickle.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"

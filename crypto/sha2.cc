@@ -5,7 +5,7 @@
 #include "crypto/sha2.h"
 
 #include "base/scoped_ptr.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "crypto/secure_hash.h"
 
 namespace crypto {

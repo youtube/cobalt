@@ -215,7 +215,7 @@
           'shared_memory_win.cc',
           'spin_wait.h',
           'stack_container.h',
-          'stl_util-inl.h',
+          'stl_util.h',
           'string_number_conversions.cc',
           'string_number_conversions.h',
           'string_piece.cc',
