@@ -296,17 +296,6 @@ BASE_API bool LaunchProcess(const string16& cmdline,
                             ProcessHandle* process_handle);
 
 // TODO(evan): deprecated; change callers to use LaunchProcess, remove.
-inline bool LaunchAppWithHandleInheritance(const std::wstring& cmdline,
-                                           bool wait, bool start_hidden,
-                                           ProcessHandle* process_handle) {
-  LaunchOptions options;
-  options.wait = wait;
-  options.start_hidden = start_hidden;
-  options.inherit_handles = true;
-  return LaunchProcess(cmdline, options, process_handle);
-}
-
-// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
 inline bool LaunchAppAsUser(UserTokenHandle token,
                             const std::wstring& cmdline,
                             bool start_hidden,
