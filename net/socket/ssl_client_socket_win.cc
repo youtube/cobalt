@@ -9,7 +9,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/synchronization/lock.h"
 #include "base/utf_string_conversions.h"

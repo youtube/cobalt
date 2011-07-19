@@ -6,7 +6,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/worker_pool.h"
 #include "net/base/net_errors.h"

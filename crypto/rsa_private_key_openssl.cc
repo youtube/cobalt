@@ -10,7 +10,6 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/stl_util-inl.h"
 #include "crypto/openssl_util.h"
 
 namespace crypto {
@@ -41,7 +40,8 @@ bool ExportKey(EVP_PKEY* key,
   if (!data || len < 0)
     return false;
 
-  STLAssignToVector(output, reinterpret_cast<const uint8*>(data), len);
+  std::vector<uint8> for_output(data, data + len);
+  output->swap(for_output);
   return true;
 }
 
