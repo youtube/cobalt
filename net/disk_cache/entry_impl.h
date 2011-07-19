@@ -124,6 +124,9 @@ class NET_TEST EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
 
   const net::BoundNetLog& net_log() const;
 
+  // Returns the number of blocks needed to store an EntryStore.
+  static int NumBlocksForEntry(int key_size);
+
   // Entry interface.
   virtual void Doom();
   virtual void Close();
