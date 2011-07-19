@@ -5,7 +5,6 @@
 {
   'variables': {
     'chromium_code': 1,
-    'player_x11_renderer%': 'x11',
   },
   'targets': [
     {
@@ -684,6 +683,7 @@
           'dependencies': [
             'media',
             '../base/base.gyp:base',
+            '../ui/gfx/gl/gl.gyp:gl',
           ],
           'link_settings': {
             'libraries': [
@@ -694,43 +694,11 @@
             ],
           },
           'sources': [
+            'tools/player_x11/gl_video_renderer.cc',
+            'tools/player_x11/gl_video_renderer.h',
             'tools/player_x11/player_x11.cc',
-          ],
-          'conditions' : [
-            ['player_x11_renderer == "x11"', {
-              'sources': [
-                'tools/player_x11/x11_video_renderer.cc',
-                'tools/player_x11/x11_video_renderer.h',
-              ],
-              'defines': [
-                'RENDERER_X11',
-              ],
-            }],
-            ['player_x11_renderer == "gles"', {
-              'libraries': [
-                '-lEGL',
-                '-lGLESv2',
-              ],
-              'sources': [
-                'tools/player_x11/gles_video_renderer.cc',
-                'tools/player_x11/gles_video_renderer.h',
-              ],
-              'defines': [
-                'RENDERER_GLES',
-              ],
-            }],
-            ['player_x11_renderer == "gl"', {
-              'dependencies': [
-                '../ui/gfx/gl/gl.gyp:gl',
-              ],
-              'sources': [
-                'tools/player_x11/gl_video_renderer.cc',
-                'tools/player_x11/gl_video_renderer.h',
-              ],
-              'defines': [
-                'RENDERER_GL',
-              ],
-            }],
+            'tools/player_x11/x11_video_renderer.cc',
+            'tools/player_x11/x11_video_renderer.h',
           ],
         },
       ],
