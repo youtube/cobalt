@@ -21,7 +21,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/task.h"
 #include "base/threading/worker_pool.h"

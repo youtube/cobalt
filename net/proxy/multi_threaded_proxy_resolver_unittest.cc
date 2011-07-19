@@ -5,7 +5,7 @@
 #include "net/proxy/multi_threaded_proxy_resolver.h"
 
 #include "base/message_loop.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/threading/platform_thread.h"

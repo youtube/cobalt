@@ -5,7 +5,7 @@
 #include "net/http/http_stream_factory_impl_request.h"
 
 #include "base/logging.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "net/http/http_stream_factory_impl_job.h"
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
