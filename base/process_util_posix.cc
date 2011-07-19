@@ -628,7 +628,7 @@ bool LaunchProcess(const std::vector<std::string>& argv,
       argv_cstr[i] = const_cast<char*>(argv[i].c_str());
     argv_cstr[argv.size()] = NULL;
     execvp(argv_cstr[0], argv_cstr.get());
-    RAW_LOG(ERROR, "LaunchApp: failed to execvp:");
+    RAW_LOG(ERROR, "LaunchProcess: failed to execvp:");
     RAW_LOG(ERROR, argv_cstr[0]);
     _exit(127);
   } else {

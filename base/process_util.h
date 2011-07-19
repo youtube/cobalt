@@ -194,7 +194,7 @@ BASE_API void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
 typedef std::vector<std::pair<std::string, std::string> > environment_vector;
 typedef std::vector<std::pair<int, int> > file_handle_mapping_vector;
 
-// Options for launching a subprocess that are passed to LaunchApp().
+// Options for launching a subprocess that are passed to LaunchProcess().
 // The default constructor constructs the object with default options.
 struct LaunchOptions {
   LaunchOptions() : wait(false),
