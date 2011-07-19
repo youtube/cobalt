@@ -215,6 +215,13 @@ class NET_API X509Certificate
   // Otherwise, it gets the common name in the subject field.
   void GetDNSNames(std::vector<std::string>* dns_names) const;
 
+  // Gets the subjectAltName extension field from the certificate, if any.
+  // For future extension; currently this only returns those name types that
+  // are required for HTTP certificate name verification - see VerifyHostname.
+  // Unrequired parameters may be passed as NULL.
+  void GetSubjectAltName(std::vector<std::string>* dns_names,
+                         std::vector<std::string>* ip_addrs) const;
+
   // Convenience method that returns whether this certificate has expired as of
   // now.
   bool HasExpired() const;
@@ -313,10 +320,6 @@ class NET_API X509Certificate
   // Does not verify that the certificate is valid, only that the certificate
   // matches this host.
   // Returns true if it matches.
-  //
-  // WARNING:  This function may return false negatives (for example, if
-  //           |hostname| is an IP address literal) on some platforms.  Only
-  //           use in cases where some false-negatives are acceptable.
   bool VerifyNameMatch(const std::string& hostname) const;
 
   // This method returns the DER encoded certificate.
