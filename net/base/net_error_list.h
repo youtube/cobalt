@@ -239,15 +239,18 @@ NET_ERROR(MSG_TOO_BIG, -142)
 // See also: ESET_ANTI_VIRUS_SSL_INTERCEPTION
 NET_ERROR(KASPERSKY_ANTI_VIRUS_SSL_INTERCEPTION, -143)
 
+// Violation of limits (e.g. imposed to prevent DoS).
+NET_ERROR(LIMIT_VIOLATION, -144)
+
+// WebSocket protocol error occurred.
+NET_ERROR(WS_PROTOCOL_ERROR, -145)
+
 // Connection was aborted for switching to another ptotocol.
 // WebSocket abort SocketStream connection when alternate protocol is found.
 NET_ERROR(PROTOCOL_SWITCHED, -146)
 
 // Returned when attempting to bind an address that is already in use.
 NET_ERROR(ADDRESS_IN_USE, -147)
-
-// NOTE: error codes 144-145 are available, please use those before adding
-// 148.
 
 // Certificate error codes
 //
