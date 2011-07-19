@@ -8702,6 +8702,37 @@ TEST_F(HttpNetworkTransactionTest, ClientAuthCertCache_Proxy_Fail) {
   }
 }
 
+void IPPoolingPreloadHostCache(MockCachingHostResolver* host_resolver,
+                               SpdySessionPoolPeer* pool_peer) {
+  const int kTestPort = 443;
+  struct TestHosts {
+    std::string name;
+    std::string iplist;
+  } test_hosts[] = {
+    { "www.google.com", "127.0.0.1"},
+  };
+
+  // Preload cache entries into HostCache.
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_hosts); i++) {
+    host_resolver->rules()->AddIPLiteralRule(test_hosts[i].name,
+        test_hosts[i].iplist, "");
+
+    AddressList addresses;
+    // This test requires that the HostResolver cache be populated.  Normal
+    // code would have done this already, but we do it manually.
+    HostResolver::RequestInfo info(HostPortPair(test_hosts[i].name, kTestPort));
+    host_resolver->Resolve(
+        info, &addresses, NULL, NULL, BoundNetLog());
+
+    // Setup a HostPortProxyPair
+    HostPortProxyPair pair = HostPortProxyPair(
+        HostPortPair(test_hosts[i].name, kTestPort), ProxyServer::Direct());
+
+    const addrinfo* address = addresses.head();
+    pool_peer->AddAlias(address, pair);
+  }
+}
+
 TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::set_next_protos(kExpectedNPNString);
@@ -8780,6 +8811,8 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   AddressList ignored;
   host_resolver.Resolve(resolve_info, &ignored, NULL, NULL, BoundNetLog());
 
+  IPPoolingPreloadHostCache(&host_resolver, &pool_peer);
+
   HttpRequestInfo request2;
   request2.method = "GET";
   request2.url = GURL("https://www.gmail.com/");
@@ -8837,6 +8870,10 @@ class OneTimeCachingHostResolver : public net::HostResolver {
 
   virtual void RemoveObserver(Observer* observer) {
     return host_resolver_.RemoveObserver(observer);
+  }
+
+  MockCachingHostResolver* GetMockHostResolver() {
+    return &host_resolver_;
   }
 
  private:
@@ -8927,6 +8964,8 @@ TEST_F(HttpNetworkTransactionTest,
   request2.url = GURL("https://www.gmail.com/");
   request2.load_flags = 0;
   HttpNetworkTransaction trans2(session);
+
+  IPPoolingPreloadHostCache(host_resolver.GetMockHostResolver(), &pool_peer);
 
   rv = trans2.Start(&request2, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
