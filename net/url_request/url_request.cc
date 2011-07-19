@@ -62,6 +62,22 @@ uint64 GenerateURLRequestIdentifier() {
 
 }  // namespace
 
+URLRequest::ProtocolFactory*
+URLRequest::Deprecated::RegisterProtocolFactory(const std::string& scheme,
+                                                ProtocolFactory* factory) {
+  return URLRequest::RegisterProtocolFactory(scheme, factory);
+}
+
+void URLRequest::Deprecated::RegisterRequestInterceptor(
+    Interceptor* interceptor) {
+  URLRequest::RegisterRequestInterceptor(interceptor);
+}
+
+void URLRequest::Deprecated::UnregisterRequestInterceptor(
+    Interceptor* interceptor) {
+  URLRequest::UnregisterRequestInterceptor(interceptor);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // URLRequest::Interceptor
 
