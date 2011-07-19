@@ -128,7 +128,7 @@ class NET_API PickledIOBuffer : public IOBuffer {
 
   Pickle* pickle() { return &pickle_; }
 
-  // Signals that we are done writing to the pickle and we can use it for a
+  // Signals that we are done writing to the picke and we can use it for a
   // write-style IO operation.
   void Done();
 
