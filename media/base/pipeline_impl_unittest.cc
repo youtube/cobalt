@@ -5,7 +5,7 @@
 #include <string>
 
 #include "base/callback.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/threading/simple_thread.h"
 #include "media/base/pipeline_impl.h"
 #include "media/base/media_format.h"

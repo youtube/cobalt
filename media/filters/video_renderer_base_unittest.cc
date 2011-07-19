@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/bind.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "media/base/callback.h"
 #include "media/base/data_buffer.h"
 #include "media/base/limits.h"

@@ -5,7 +5,7 @@
 #include "net/http/http_stream_factory_impl_job.h"
 
 #include "base/logging.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/values.h"

@@ -11,7 +11,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/win/registry.h"
 #include "net/base/net_errors.h"

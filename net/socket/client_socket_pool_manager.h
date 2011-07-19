@@ -14,7 +14,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/template_util.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/cert_database.h"

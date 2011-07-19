@@ -8,7 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/values.h"
 #include "net/http/http_auth_handler_factory.h"
