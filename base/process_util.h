@@ -295,30 +295,6 @@ BASE_API bool LaunchProcess(const string16& cmdline,
                             const LaunchOptions& options,
                             ProcessHandle* process_handle);
 
-// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
-inline bool LaunchAppAsUser(UserTokenHandle token,
-                            const std::wstring& cmdline,
-                            bool start_hidden,
-                            ProcessHandle* process_handle) {
-  LaunchOptions options;
-  options.start_hidden = start_hidden;
-  options.as_user = token;
-  return LaunchProcess(cmdline, options, process_handle);
-}
-
-// TODO(evan): deprecated; change callers to use LaunchProcess, remove.
-inline bool LaunchAppAsUser(UserTokenHandle token,
-                            const std::wstring& cmdline,
-                            bool start_hidden, ProcessHandle* process_handle,
-                            bool empty_desktop_name, bool inherit_handles) {
-  LaunchOptions options;
-  options.start_hidden = start_hidden;
-  options.as_user = token;
-  options.empty_desktop_name = empty_desktop_name;
-  options.inherit_handles = inherit_handles;
-  return LaunchProcess(cmdline, options, process_handle);
-}
-
 #elif defined(OS_POSIX)
 // A POSIX-specific version of LaunchProcess that takes an argv array
 // instead of a CommandLine.  Useful for situations where you need to
