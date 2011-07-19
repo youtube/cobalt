@@ -26,11 +26,55 @@
 #include "net/http/http_response_info.h"
 #include "net/url_request/url_request_status.h"
 
+class FilePath;
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+class AutoUpdateInterceptor;
+class ChildProcessSecurityPolicyTest;
+class ComponentUpdateInterceptor;
+class ResourceDispatcherHostTest;
+class TestAutomationProvider;
+class URLRequestAutomationJob;
+class UserScriptListenerTest;
+
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace appcache {
+class AppCacheInterceptor;
+class AppCacheRequestHandlerTest;
+class AppCacheURLRequestJobTest;
+}
+
 namespace base {
 class Time;
 }  // namespace base
 
-class FilePath;
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace chrome_browser_net {
+class ConnectInterceptor;
+}
+
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace fileapi {
+class FileSystemDirURLRequestJobTest;
+class FileSystemOperationWriteTest;
+class FileSystemURLRequestJobTest;
+class FileWriterDelegateTest;
+}
+
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace policy {
+class CannedResponseInterceptor;
+}
+
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace webkit_blob {
+class BlobURLRequestJobTest;
+}
 
 namespace net {
 
@@ -113,6 +157,43 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     // response, instead the response produced by the intercept job will be
     // returned.
     virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request);
+  };
+
+  // Deprecated interfaces in net::URLRequest. They have been moved to
+  // URLRequest's private section to prevent new uses. Existing uses are
+  // explicitly friended here and should be removed over time.
+  class NET_API Deprecated {
+   private:
+    // TODO(willchan): Kill off these friend declarations.
+    friend class ::AutoUpdateInterceptor;
+    friend class ::ChildProcessSecurityPolicyTest;
+    friend class ::ComponentUpdateInterceptor;
+    friend class ::ResourceDispatcherHostTest;
+    friend class ::TestAutomationProvider;
+    friend class ::UserScriptListenerTest;
+    friend class ::URLRequestAutomationJob;
+    friend class TestInterceptor;
+    friend class URLRequestFilter;
+    friend class appcache::AppCacheInterceptor;
+    friend class appcache::AppCacheRequestHandlerTest;
+    friend class appcache::AppCacheURLRequestJobTest;
+    friend class chrome_browser_net::ConnectInterceptor;
+    friend class fileapi::FileSystemDirURLRequestJobTest;
+    friend class fileapi::FileSystemOperationWriteTest;
+    friend class fileapi::FileSystemURLRequestJobTest;
+    friend class fileapi::FileWriterDelegateTest;
+    friend class policy::CannedResponseInterceptor;
+    friend class webkit_blob::BlobURLRequestJobTest;
+
+    // Use URLRequestJobFactory::ProtocolHandler instead.
+    static ProtocolFactory* RegisterProtocolFactory(const std::string& scheme,
+                                                    ProtocolFactory* factory);
+
+    // Use URLRequestJobFactory::Interceptor instead.
+    static void RegisterRequestInterceptor(Interceptor* interceptor);
+    static void UnregisterRequestInterceptor(Interceptor* interceptor);
+
+    DISALLOW_IMPLICIT_CONSTRUCTORS(Deprecated);
   };
 
   // The delegate's methods are called from the message loop of the thread
@@ -233,27 +314,6 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // delete the object if it is changed or the request is destroyed.
   UserData* GetUserData(const void* key) const;
   void SetUserData(const void* key, UserData* data);
-
-  // Registers a new protocol handler for the given scheme. If the scheme is
-  // already handled, this will overwrite the given factory. To delete the
-  // protocol factory, use NULL for the factory BUT this WILL NOT put back
-  // any previously registered protocol factory. It will have returned
-  // the previously registered factory (or NULL if none is registered) when
-  // the scheme was first registered so that the caller can manually put it
-  // back if desired.
-  //
-  // The scheme must be all-lowercase ASCII. See the ProtocolFactory
-  // declaration for its requirements.
-  //
-  // The registered protocol factory may return NULL, which will cause the
-  // regular "built-in" protocol factory to be used.
-  //
-  static ProtocolFactory* RegisterProtocolFactory(const std::string& scheme,
-                                                  ProtocolFactory* factory);
-
-  // Registers or unregisters a network interception class.
-  static void RegisterRequestInterceptor(Interceptor* interceptor);
-  static void UnregisterRequestInterceptor(Interceptor* interceptor);
 
   // Returns true if the scheme can be handled by URLRequest. False otherwise.
   static bool IsHandledProtocol(const std::string& scheme);
@@ -586,6 +646,27 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   friend class URLRequestJob;
 
   typedef std::map<const void*, linked_ptr<UserData> > UserDataMap;
+
+  // Registers a new protocol handler for the given scheme. If the scheme is
+  // already handled, this will overwrite the given factory. To delete the
+  // protocol factory, use NULL for the factory BUT this WILL NOT put back
+  // any previously registered protocol factory. It will have returned
+  // the previously registered factory (or NULL if none is registered) when
+  // the scheme was first registered so that the caller can manually put it
+  // back if desired.
+  //
+  // The scheme must be all-lowercase ASCII. See the ProtocolFactory
+  // declaration for its requirements.
+  //
+  // The registered protocol factory may return NULL, which will cause the
+  // regular "built-in" protocol factory to be used.
+  //
+  static ProtocolFactory* RegisterProtocolFactory(const std::string& scheme,
+                                                  ProtocolFactory* factory);
+
+  // Registers or unregisters a network interception class.
+  static void RegisterRequestInterceptor(Interceptor* interceptor);
+  static void UnregisterRequestInterceptor(Interceptor* interceptor);
 
   // Resumes or blocks a request paused by the NetworkDelegate::OnBeforeRequest
   // handler. If |blocked| is true, the request is blocked and an error page is

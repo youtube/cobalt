@@ -2090,11 +2090,11 @@ class TestInterceptor : URLRequest::Interceptor {
         did_simulate_error_main_(false),
         did_intercept_redirect_(false), did_cancel_redirect_(false),
         did_intercept_final_(false), did_cancel_final_(false) {
-    URLRequest::RegisterRequestInterceptor(this);
+    URLRequest::Deprecated::RegisterRequestInterceptor(this);
   }
 
   ~TestInterceptor() {
-    URLRequest::UnregisterRequestInterceptor(this);
+    URLRequest::Deprecated::UnregisterRequestInterceptor(this);
   }
 
   virtual URLRequestJob* MaybeIntercept(URLRequest* request) {
