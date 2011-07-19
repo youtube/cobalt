@@ -14,6 +14,7 @@
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service_defaults.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/base/test_certificate_data.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -26,6 +27,7 @@
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
+#include "net/spdy/spdy_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -655,10 +657,11 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
     std::string name;
     std::string iplist;
     HostPortProxyPair pair;
+    AddressList addresses;
   } test_hosts[] = {
-    { "www.webkit.org",    "192.168.0.1,192.168.0.5" },
+    { "www.webkit.org",    "192.0.2.33,192.168.0.1,192.168.0.5" },
     { "code.google.com",   "192.168.0.2,192.168.0.3,192.168.0.5" },
-    { "js.webkit.org",     "192.168.0.4,192.168.0.5" },
+    { "js.webkit.org",     "192.168.0.4,192.168.0.1,192.0.2.33" },
   };
 
   host_resolver_.set_synchronous_mode(true);
@@ -669,8 +672,8 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
     // This test requires that the HostResolver cache be populated.  Normal
     // code would have done this already, but we do it manually.
     HostResolver::RequestInfo info(HostPortPair(test_hosts[i].name, kTestPort));
-    AddressList result;
-    host_resolver_.Resolve(info, &result, NULL, NULL, BoundNetLog());
+    host_resolver_.Resolve(info, &test_hosts[i].addresses, NULL, NULL,
+                           BoundNetLog());
 
     // Setup a HostPortProxyPair
     test_hosts[i].pair = HostPortProxyPair(
@@ -711,6 +714,12 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   ssl_socket->GetNextProto(&proto);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
             SSLClientSocket::kProtoSPDY2);
+
+  // TODO(rtenneti): MockClientSocket::GetPeerAddress return's 0 as the port
+  // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
+  const addrinfo* address = test_hosts[0].addresses.head();
+  SpdySessionPoolPeer pool_peer(session_->spdy_session_pool());
+  pool_peer.AddAlias(address, test_hosts[0].pair);
 
   scoped_refptr<SpdySession> spdy_session;
   rv = session_->spdy_session_pool()->GetSpdySessionFromSocket(
