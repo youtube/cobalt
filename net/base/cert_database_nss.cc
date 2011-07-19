@@ -102,9 +102,7 @@ void CertDatabase::ListCerts(CertificateList* certs) {
        !CERT_LIST_END(node, cert_list);
        node = CERT_LIST_NEXT(node)) {
     certs->push_back(X509Certificate::CreateFromHandle(
-        node->cert,
-        X509Certificate::SOURCE_LONE_CERT_IMPORT,
-        X509Certificate::OSCertHandles()));
+        node->cert, X509Certificate::OSCertHandles()));
   }
   CERT_DestroyCertList(cert_list);
 }

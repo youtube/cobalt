@@ -4,7 +4,6 @@
 
 #include "net/base/x509_certificate.h"
 
-#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "base/sha1.h"
@@ -605,9 +604,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   if (!cert_handle)
     return NULL;
 
-  X509Certificate* cert = CreateFromHandle(cert_handle,
-                                           SOURCE_LONE_CERT_IMPORT,
-                                           OSCertHandles());
+  X509Certificate* cert = CreateFromHandle(cert_handle, OSCertHandles());
   FreeOSCertHandle(cert_handle);
   return cert;
 }
@@ -631,36 +628,6 @@ void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
   }
   if (dns_names->empty())
     dns_names->push_back(subject_.common_name);
-}
-
-class GlobalCertStore {
- public:
-  HCERTSTORE cert_store() {
-    return cert_store_;
-  }
-
- private:
-  friend struct base::DefaultLazyInstanceTraits<GlobalCertStore>;
-
-  GlobalCertStore()
-      : cert_store_(CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL)) {
-  }
-
-  ~GlobalCertStore() {
-    CertCloseStore(cert_store_, 0 /* flags */);
-  }
-
-  const HCERTSTORE cert_store_;
-
-  DISALLOW_COPY_AND_ASSIGN(GlobalCertStore);
-};
-
-static base::LazyInstance<GlobalCertStore> g_cert_store(
-    base::LINKER_INITIALIZED);
-
-// static
-HCERTSTORE X509Certificate::cert_store() {
-  return g_cert_store.Get().cert_store();
 }
 
 int X509Certificate::VerifyInternal(const std::string& hostname,

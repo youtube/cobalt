@@ -742,9 +742,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   }
   scoped_cert.reset(certificate_ref);
 
-  return CreateFromHandle(
-     scoped_cert, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-     X509Certificate::OSCertHandles());
+  return CreateFromHandle(scoped_cert, X509Certificate::OSCertHandles());
 }
 
 void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
@@ -1148,9 +1146,7 @@ bool X509Certificate::IsIssuedBy(
     SecCertificateRef cert_handle = reinterpret_cast<SecCertificateRef>(
         const_cast<void*>(CFArrayGetValueAtIndex(cert_chain, i)));
     scoped_refptr<X509Certificate> cert(X509Certificate::CreateFromHandle(
-        cert_handle,
-        X509Certificate::SOURCE_LONE_CERT_IMPORT,
-        X509Certificate::OSCertHandles()));
+        cert_handle, X509Certificate::OSCertHandles()));
     for (unsigned j = 0; j < valid_issuers.size(); j++) {
       if (cert->issuer().Matches(valid_issuers[j]))
         return true;
@@ -1290,8 +1286,7 @@ bool X509Certificate::GetSSLClientCertificates(
     ScopedCFTypeRef<SecCertificateRef> scoped_cert_handle(cert_handle);
 
     scoped_refptr<X509Certificate> cert(
-        CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT,
-                         OSCertHandles()));
+        CreateFromHandle(cert_handle, OSCertHandles()));
     if (cert->HasExpired() || !cert->SupportsSSLClientAuth())
       continue;
 

@@ -48,7 +48,10 @@ class CertVerifyResult;
 
 typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 
-// X509Certificate represents an X.509 certificate used by SSL.
+// X509Certificate represents a X.509 certificate, which is comprised a
+// particular identity or end-entity certificate, such as an SSL server
+// identity or an SSL client certificate, and zero or more intermediate
+// certificates that may be used to build a path to a root certificate.
 class NET_API X509Certificate
     : public base::RefCountedThreadSafe<X509Certificate> {
  public:
@@ -74,18 +77,6 @@ class NET_API X509Certificate
   class NET_API LessThan {
    public:
     bool operator() (X509Certificate* lhs,  X509Certificate* rhs) const;
-  };
-
-  // Where the certificate comes from.  The enumeration constants are
-  // listed in increasing order of preference.
-  enum Source {
-    SOURCE_UNUSED = 0,            // The source_ member is not used.
-    SOURCE_LONE_CERT_IMPORT = 1,  // From importing a certificate without
-                                  // any intermediate CA certificates.
-    SOURCE_FROM_CACHE = 2,        // From the disk cache - which contains
-                                  // intermediate CA certificates, but may be
-                                  // stale.
-    SOURCE_FROM_NETWORK = 3,      // From the network.
   };
 
   enum VerifyFlags {
@@ -136,22 +127,16 @@ class NET_API X509Certificate
                   base::Time start_date, base::Time expiration_date);
 
   // Create an X509Certificate from a handle to the certificate object in the
-  // underlying crypto library. |source| specifies where |cert_handle| comes
-  // from.  Given two certificate handles for the same certificate, our
-  // certificate cache prefers the handle from the network because our HTTP
-  // cache isn't caching the corresponding intermediate CA certificates yet
-  // (http://crbug.com/7065).
-  // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
+  // underlying crypto library. The returned pointer must be stored in a
+  // scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromHandle(OSCertHandle cert_handle,
-                                           Source source,
                                            const OSCertHandles& intermediates);
 
   // Create an X509Certificate from a chain of DER encoded certificates. The
   // first certificate in the chain is the end-entity certificate to which a
   // handle is returned. The other certificates in the chain are intermediate
-  // certificates. See the comment for |CreateFromHandle| about the |source|
-  // argument.
-  // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
+  // certificates. The returned pointer must be stored in a
+  // scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromDERCertChain(
       const std::vector<base::StringPiece>& der_certs);
 
@@ -301,17 +286,6 @@ class NET_API X509Certificate
   CFArrayRef CreateClientCertificateChain() const;
 #endif
 
-#if defined(OS_WIN)
-  // Returns a handle to a global, in-memory certificate store. We use it for
-  // two purposes:
-  // 1. Import server certificates into this store so that we can verify and
-  //    display the certificates using CryptoAPI.
-  // 2. Copy client certificates from the "MY" system certificate store into
-  //    this store so that we can close the system store when we finish
-  //    searching for client certificates.
-  static HCERTSTORE cert_store();
-#endif
-
 #if defined(USE_OPENSSL)
   // Returns a handle to a global, in-memory certificate store. We
   // use it for test code, e.g. importing the test server's certificate.
@@ -371,6 +345,10 @@ class NET_API X509Certificate
   // Frees (or releases a reference to) an OS certificate handle.
   static void FreeOSCertHandle(OSCertHandle cert_handle);
 
+  // Calculates the SHA-1 fingerprint of the certificate.  Returns an empty
+  // (all zero) fingerprint on failure.
+  static SHA1Fingerprint CalculateFingerprint(OSCertHandle cert_handle);
+
  private:
   friend class base::RefCountedThreadSafe<X509Certificate>;
   friend class TestRootCerts;  // For unit tests
@@ -381,7 +359,7 @@ class NET_API X509Certificate
 
   // Construct an X509Certificate from a handle to the certificate object
   // in the underlying crypto library.
-  X509Certificate(OSCertHandle cert_handle, Source source,
+  X509Certificate(OSCertHandle cert_handle,
                   const OSCertHandles& intermediates);
 
   ~X509Certificate();
@@ -405,10 +383,6 @@ class NET_API X509Certificate
   // TestRootCerts to undo modifications.
   static void ResetCertStore();
 #endif
-
-  // Calculates the SHA-1 fingerprint of the certificate.  Returns an empty
-  // (all zero) fingerprint on failure.
-  static SHA1Fingerprint CalculateFingerprint(OSCertHandle cert_handle);
 
   // Verifies that |hostname| matches one of the certificate names or IP
   // addresses supplied, based on TLS name matching rules - specifically,
@@ -490,9 +464,6 @@ class NET_API X509Certificate
   // (Marked mutable because it's used in a const method.)
   mutable base::Lock verification_lock_;
 #endif
-
-  // Where the certificate comes from.
-  Source source_;
 
   DISALLOW_COPY_AND_ASSIGN(X509Certificate);
 };

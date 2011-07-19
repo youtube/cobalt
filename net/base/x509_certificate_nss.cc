@@ -750,8 +750,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   // Save the signed result to the cert.
   cert->derCert = *result;
 
-  X509Certificate* x509_cert =
-      CreateFromHandle(cert, SOURCE_LONE_CERT_IMPORT, OSCertHandles());
+  X509Certificate* x509_cert = CreateFromHandle(cert, OSCertHandles());
   CERT_DestroyCertificate(cert);
   return x509_cert;
 }
