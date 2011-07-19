@@ -1932,3 +1932,29 @@ TEST_F(DiskCacheEntryTest, CancelSparseIO) {
   EXPECT_EQ(0, cb5.GetResult(rv));
   entry->Close();
 }
+
+// Tests that we perform sanity checks on an entry's key. Note that there are
+// other tests that exercise sanity checks by using saved corrupt files.
+TEST_F(DiskCacheEntryTest, KeySanityCheck) {
+  UseCurrentThread();
+  InitCache();
+  std::string key("the first key");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+
+  disk_cache::EntryImpl* entry_impl =
+      static_cast<disk_cache::EntryImpl*>(entry);
+  disk_cache::EntryStore* store = entry_impl->entry()->Data();
+
+  // We have reserved space for a short key (one block), let's say that the key
+  // takes more than one block, and remove the NULLs after the actual key.
+  store->key_len = 800;
+  memset(store->key + key.size(), 'k', sizeof(store->key) - key.size());
+  entry_impl->entry()->set_modified();
+  entry->Close();
+
+  // We have a corrupt entry. Now reload it. We should NOT read beyond the
+  // allocated buffer here.
+  ASSERT_NE(net::OK, OpenEntry(key, &entry));
+  DisableIntegrityCheck();
+}
