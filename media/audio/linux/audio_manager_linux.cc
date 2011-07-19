@@ -9,7 +9,7 @@
 #include "base/logging.h"
 #include "base/nix/xdg_util.h"
 #include "base/process_util.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
