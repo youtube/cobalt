@@ -176,47 +176,6 @@ OSStatus GetCertFields(X509Certificate::OSCertHandle cert_handle,
   return status;
 }
 
-void GetCertGeneralNamesForOID(X509Certificate::OSCertHandle cert_handle,
-                               CSSM_OID oid, CE_GeneralNameType name_type,
-                               std::vector<std::string>* result) {
-  // For future extension: We only support general names of types
-  // GNT_RFC822Name, GNT_DNSName or GNT_URI.
-  DCHECK(name_type == GNT_RFC822Name ||
-         name_type == GNT_DNSName ||
-         name_type == GNT_URI);
-
-  CSSMFields fields;
-  OSStatus status = GetCertFields(cert_handle, &fields);
-  if (status)
-    return;
-
-  for (size_t field = 0; field < fields.num_of_fields; ++field) {
-    if (CSSMOIDEqual(&fields.fields[field].FieldOid, &oid)) {
-      CSSM_X509_EXTENSION_PTR cssm_ext =
-          reinterpret_cast<CSSM_X509_EXTENSION_PTR>(
-              fields.fields[field].FieldValue.Data);
-      CE_GeneralNames* alt_name =
-          reinterpret_cast<CE_GeneralNames*>(cssm_ext->value.parsedValue);
-
-      for (size_t name = 0; name < alt_name->numNames; ++name) {
-        const CE_GeneralName& name_struct = alt_name->generalName[name];
-        // All of the general name types we support are encoded as
-        // IA5String. In general, we should be switching off
-        // |name_struct.nameType| and doing type-appropriate conversions. See
-        // certextensions.h and the comment immediately preceding
-        // CE_GeneralNameType for more information.
-        if (name_struct.nameType == name_type) {
-          const CSSM_DATA& name_data = name_struct.name;
-          std::string value = std::string(
-              reinterpret_cast<const char*>(name_data.Data),
-              name_data.Length);
-          result->push_back(value);
-        }
-      }
-    }
-  }
-}
-
 void GetCertDateForOID(X509Certificate::OSCertHandle cert_handle,
                        CSSM_OID oid, Time* result) {
   *result = Time::Time();
@@ -546,7 +505,7 @@ class ScopedEncodedCertResults {
     crypto::CSSMFree(results_);
   }
 
-private:
+ private:
   CSSM_TP_RESULT_SET* results_;
 };
 
@@ -644,7 +603,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   // Convert the map of oid/string pairs into an array of
   // CSSM_APPLE_TP_NAME_OIDs.
   std::vector<CSSM_APPLE_TP_NAME_OID> cssm_subject_names;
-  for(CSSMOIDStringVector::iterator iter = subject_name_oids.begin();
+  for (CSSMOIDStringVector::iterator iter = subject_name_oids.begin();
       iter != subject_name_oids.end(); ++iter) {
     CSSM_APPLE_TP_NAME_OID cssm_subject_name;
     cssm_subject_name.oid = iter->oid_;
@@ -666,7 +625,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   certReq.serialNumber = serial_number & 0x7fffffff;
   certReq.numSubjectNames = cssm_subject_names.size();
   certReq.subjectNames = &cssm_subject_names[0];
-  certReq.numIssuerNames = 0; // Root.
+  certReq.numIssuerNames = 0;  // Root.
   certReq.issuerNames = NULL;
   certReq.issuerNameX509 = NULL;
   certReq.certPublicKey = key->public_key();
@@ -700,7 +659,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   CSSM_RETURN crtn = CSSM_TP_SubmitCredRequest(tp_handle, NULL,
       CSSM_TP_AUTHORITY_REQUEST_CERTISSUE, &reqSet, &callerAuthContext,
        &estTime, &refId);
-  if(crtn) {
+  if (crtn) {
     DLOG(ERROR) << "CSSM_TP_SubmitCredRequest failed " << crtn;
     return NULL;
   }
@@ -745,14 +704,46 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   return CreateFromHandle(scoped_cert, X509Certificate::OSCertHandles());
 }
 
-void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
-  dns_names->clear();
+void X509Certificate::GetSubjectAltName(
+    std::vector<std::string>* dns_names,
+    std::vector<std::string>* ip_addrs) const {
+  if (dns_names)
+    dns_names->clear();
+  if (ip_addrs)
+    ip_addrs->clear();
 
-  GetCertGeneralNamesForOID(cert_handle_, CSSMOID_SubjectAltName, GNT_DNSName,
-                            dns_names);
+  CSSMFields fields;
+  OSStatus status = GetCertFields(cert_handle_, &fields);
+  if (status)
+    return;
 
-  if (dns_names->empty())
-    dns_names->push_back(subject_.common_name);
+  for (size_t field = 0; field < fields.num_of_fields; ++field) {
+    if (!CSSMOIDEqual(&fields.fields[field].FieldOid, &CSSMOID_SubjectAltName))
+      continue;
+    CSSM_X509_EXTENSION_PTR cssm_ext =
+        reinterpret_cast<CSSM_X509_EXTENSION_PTR>(
+            fields.fields[field].FieldValue.Data);
+    CE_GeneralNames* alt_name =
+        reinterpret_cast<CE_GeneralNames*>(cssm_ext->value.parsedValue);
+
+    for (size_t name = 0; name < alt_name->numNames; ++name) {
+      const CE_GeneralName& name_struct = alt_name->generalName[name];
+      const CSSM_DATA& name_data = name_struct.name;
+      // DNSName and IPAddress are encoded as IA5String and OCTET STRINGs
+      // respectively, both of which can be byte copied from
+      // CSSM_DATA::data into the appropriate output vector.
+      if (dns_names && name_struct.nameType == GNT_DNSName) {
+        dns_names->push_back(std::string(
+            reinterpret_cast<const char*>(name_data.Data),
+            name_data.Length));
+      } else if (ip_addrs && name_struct.nameType == GNT_IPAddress) {
+        ip_addrs->push_back(std::string(
+            reinterpret_cast<const char*>(name_data.Data),
+            name_data.Length));
+
+      }
+    }
+  }
 }
 
 int X509Certificate::VerifyInternal(const std::string& hostname,
@@ -993,7 +984,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
 bool X509Certificate::GetDEREncoded(std::string* encoded) {
   encoded->clear();
   CSSM_DATA der_data;
-  if(SecCertificateGetData(cert_handle_, &der_data) == noErr) {
+  if (SecCertificateGetData(cert_handle_, &der_data) == noErr) {
     encoded->append(reinterpret_cast<char*>(der_data.Data),
                     der_data.Length);
     return true;
