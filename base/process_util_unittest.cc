@@ -15,6 +15,7 @@
 #include "base/process_util.h"
 #include "base/test/multiprocess_test.h"
 #include "base/test/test_timeouts.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/platform_thread.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -566,8 +567,11 @@ TEST_F(ProcessUtilTest, LaunchProcess) {
   EXPECT_EQ("wibble\n", TestLaunchProcess(env_changes, no_clone_flags));
 
 #if defined(OS_LINUX)
-  // test a non-trival value for clone_flags
-  EXPECT_EQ("wibble\n", TestLaunchProcess(env_changes, CLONE_FS | SIGCHLD));
+  // Test a non-trival value for clone_flags.
+  // Don't test on Valgrind as it has limited support for clone().
+  if (!RunningOnValgrind()) {
+    EXPECT_EQ("wibble\n", TestLaunchProcess(env_changes, CLONE_FS | SIGCHLD));
+  }
 #endif
 }
 
