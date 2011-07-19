@@ -27,6 +27,8 @@ class BASE_API FileUtilProxy {
   struct Entry {
     FilePath::StringType name;
     bool is_directory;
+    int64 size;
+    base::Time last_modified_time;
   };
 
   // This callback is used by methods that report only an error code.  It is
