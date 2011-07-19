@@ -188,6 +188,9 @@
       # Smooth scrolling is disabled by default.
       'enable_smooth_scrolling%': 0,
 
+      # Webrtc compilation is enabled by default. Set to 0 to disable.
+      'enable_webrtc%': 1,
+
       'conditions': [
         # Use Skia as WebKit renderer on Mac
         ['OS=="mac"', {
@@ -281,6 +284,7 @@
     'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
     'use_third_party_translations%': '<(use_third_party_translations)',
     'remoting%': '<(remoting)',
+    'enable_webrtc%': '<(enable_webrtc)',
     'p2p_apis%': '<(p2p_apis)',
     'configuration_policy%': '<(configuration_policy)',
     'safe_browsing%': '<(safe_browsing)',
