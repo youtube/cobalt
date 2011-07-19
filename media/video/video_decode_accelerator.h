@@ -182,13 +182,6 @@ class VideoDecodeAccelerator
     VIDEODECODERERROR_UNEXPECTED_FLUSH,
   };
 
-  // Represents the type of data buffer to be used by the decoder.
-  enum MemoryType {
-    PICTUREBUFFER_MEMORYTYPE_NONE = 0,
-    PICTUREBUFFER_MEMORYTYPE_SYSTEM,
-    PICTUREBUFFER_MEMORYTYPE_GL_TEXTURE,
-  };
-
   // Interface for collaborating with picture interface to provide memory for
   // output picture and blitting them.
   // This interface is extended by the various layers that relay messages back
@@ -201,12 +194,9 @@ class VideoDecodeAccelerator
     // Callback to notify client that decoder has been initialized.
     virtual void NotifyInitializeDone() = 0;
 
-    // Callback to tell the information needed by the client to provide decoding
-    // buffer to the decoder.
+    // Callback to tell client how many and what size of buffers to provide.
     virtual void ProvidePictureBuffers(
-        uint32 requested_num_of_buffers,
-        const gfx::Size& dimensions,
-        MemoryType type) = 0;
+        uint32 requested_num_of_buffers, const gfx::Size& dimensions) = 0;
 
     // Callback to dismiss picture buffer that was assigned earlier.
     virtual void DismissPictureBuffer(int32 picture_buffer_id) = 0;
@@ -256,7 +246,8 @@ class VideoDecodeAccelerator
   //
   // Parameters:
   //  |buffers| contains the allocated picture buffers for the output.
-  virtual void AssignGLESBuffers(const std::vector<GLESBuffer>& buffers) = 0;
+  virtual void AssignPictureBuffers(
+      const std::vector<PictureBuffer>& buffers) = 0;
 
   // Sends picture buffers to be reused by the decoder. This needs to be called
   // for each buffer that has been processed so that decoder may know onto which
