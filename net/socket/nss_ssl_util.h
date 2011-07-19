@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file is only included in ssl_client_socket_nss.cc and
+// This file is only inclued in ssl_client_socket_nss.cc and
 // ssl_server_socket_nss.cc to share common functions of NSS.
 
 #ifndef NET_SOCKET_NSS_SSL_UTIL_H_
