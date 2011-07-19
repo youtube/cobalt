@@ -207,14 +207,14 @@ void SplitOnChar(const base::StringPiece& src,
                  char c,
                  base::StringPiece* left,
                  base::StringPiece* right) {
-   size_t pos = src.find(c);
-   if (pos == base::StringPiece::npos) {
-     *left = src;
-     right->clear();
-   } else {
-     *left = src.substr(0, pos);
-     *right = src.substr(pos);
-   }
+  size_t pos = src.find(c);
+  if (pos == base::StringPiece::npos) {
+    *left = src;
+    right->clear();
+  } else {
+    *left = src.substr(0, pos);
+    *right = src.substr(pos);
+  }
 }
 
 }  // namespace
@@ -420,6 +420,12 @@ void X509Certificate::Persist(Pickle* pickle) {
   }
 }
 
+void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
+  GetSubjectAltName(dns_names, NULL);
+  if (dns_names->empty())
+    dns_names->push_back(subject_.common_name);
+}
+
 bool X509Certificate::HasExpired() const {
   return base::Time::Now() > valid_expiry();
 }
@@ -507,6 +513,10 @@ bool X509Certificate::VerifyHostname(
   std::vector<std::string> common_name_as_vector;
   const std::vector<std::string>* presented_names = &cert_san_dns_names;
   if (common_name_fallback) {
+    // Note: there's a small possibility cert_common_name is an international
+    // domain name in non-standard encoding (e.g. UTF8String or BMPString
+    // instead of A-label). As common name fallback is deprecated we're not
+    // doing anything specific to deal with this.
     common_name_as_vector.push_back(cert_common_name);
     presented_names = &common_name_as_vector;
   }
@@ -577,10 +587,8 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
 
 #if !defined(USE_NSS)
 bool X509Certificate::VerifyNameMatch(const std::string& hostname) const {
-  // TODO(joth): Define a cross platform version of ParseSubjectAltName and use
-  // that to retrieve dns names and ip addresses, independent of common name.
   std::vector<std::string> dns_names, ip_addrs;
-  GetDNSNames(&dns_names);
+  GetSubjectAltName(&dns_names, &ip_addrs);
   return VerifyHostname(hostname, subject_.common_name, dns_names, ip_addrs);
 }
 #endif

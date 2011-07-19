@@ -609,25 +609,37 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   return cert;
 }
 
-void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
-  dns_names->clear();
-  if (cert_handle_) {
-    scoped_ptr_malloc<CERT_ALT_NAME_INFO> alt_name_info;
-    GetCertSubjectAltName(cert_handle_, &alt_name_info);
-    CERT_ALT_NAME_INFO* alt_name = alt_name_info.get();
-    if (alt_name) {
-      int num_entries = alt_name->cAltEntry;
-      for (int i = 0; i < num_entries; i++) {
-        // dNSName is an ASN.1 IA5String representing a string of ASCII
-        // characters, so we can use WideToASCII here.
-        if (alt_name->rgAltEntry[i].dwAltNameChoice == CERT_ALT_NAME_DNS_NAME)
-          dns_names->push_back(
-              WideToASCII(alt_name->rgAltEntry[i].pwszDNSName));
+void X509Certificate::GetSubjectAltName(
+    std::vector<std::string>* dns_names,
+    std::vector<std::string>* ip_addrs) const {
+  if (dns_names)
+    dns_names->clear();
+  if (ip_addrs)
+    ip_addrs->clear();
+
+  if (!cert_handle_)
+    return;
+
+  scoped_ptr_malloc<CERT_ALT_NAME_INFO> alt_name_info;
+  GetCertSubjectAltName(cert_handle_, &alt_name_info);
+  CERT_ALT_NAME_INFO* alt_name = alt_name_info.get();
+  if (alt_name) {
+    int num_entries = alt_name->cAltEntry;
+    for (int i = 0; i < num_entries; i++) {
+      // dNSName is an ASN.1 IA5String representing a string of ASCII
+      // characters, so we can use WideToASCII here.
+      const CERT_ALT_NAME_ENTRY& entry = alt_name->rgAltEntry[i];
+
+      if (dns_names && entry.dwAltNameChoice == CERT_ALT_NAME_DNS_NAME) {
+        dns_names->push_back(WideToASCII(entry.pwszDNSName));
+      } else if (ip_addrs &&
+                 entry.dwAltNameChoice == CERT_ALT_NAME_IP_ADDRESS) {
+        ip_addrs->push_back(std::string(
+            reinterpret_cast<const char*>(entry.IPAddress.pbData),
+            entry.IPAddress.cbData));
       }
     }
   }
-  if (dns_names->empty())
-    dns_names->push_back(subject_.common_name);
 }
 
 int X509Certificate::VerifyInternal(const std::string& hostname,
