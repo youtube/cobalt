@@ -71,35 +71,25 @@ int Help() {
 }
 
 // Starts a new process, to generate the files.
-int LaunchSlave(const CommandLine& command_line,
-                const std::wstring& pipe_number, int version) {
-  // TODO(port): remove this string-munging hackery.
-  std::wstring hacked_command_line = command_line.command_line_string();
-  const std::wstring old_exe(L"dump_cache");
-  size_t to_remove = hacked_command_line.find(old_exe);
-  hacked_command_line.erase(to_remove, old_exe.size());
-
+int LaunchSlave(CommandLine command_line,
+                const std::wstring& pipe_number,
+                int version) {
   bool do_upgrade = command_line.HasSwitch(kUpgrade);
   bool do_convert_to_text = command_line.HasSwitch(kDumpToFiles);
 
-  std::wstring new_program;
-  if (do_upgrade)
-    new_program = base::StringPrintf(L"%ls%d", L"dump_cache_", version);
-  else
-    new_program = base::StringPrintf(L"dump_cache");
-
-  hacked_command_line.insert(to_remove, new_program);
-
-  CommandLine new_command_line = CommandLine::FromString(hacked_command_line);
+  if (do_upgrade) {
+    FilePath program(base::StringPrintf(L"%ls%d", L"dump_cache", version));
+    command_line.SetProgram(program);
+  }
 
   if (do_upgrade || do_convert_to_text)
-    new_command_line.AppendSwitch(kSlave);
+    command_line.AppendSwitch(kSlave);
 
   // TODO(evanm): remove needless usage of wstring from here and elsewhere.
-  new_command_line.AppendSwitchASCII(kPipe, WideToASCII(pipe_number));
-  if (!base::LaunchProcess(new_command_line, base::LaunchOptions(), NULL)) {
+  command_line.AppendSwitchASCII(kPipe, WideToASCII(pipe_number));
+  if (!base::LaunchProcess(command_line, base::LaunchOptions(), NULL)) {
     printf("Unable to launch the needed version of this tool: %ls\n",
-           new_program.c_str());
+           command_line.GetProgram().value().c_str());
     printf(kUpgradeHelp);
     return TOOL_NOT_FOUND;
   }

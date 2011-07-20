@@ -79,8 +79,7 @@ class BASE_API CommandLine {
 
   // Constructs and returns the represented command line string.
   // CAUTION! This should be avoided because quoting behavior is unclear.
-  // TODO(msw): Rename GetCommandLineString.
-  StringType command_line_string() const;
+  StringType GetCommandLineString() const;
 
   // Returns the original command line string as a vector of strings.
   const StringVector& argv() const { return argv_; }
