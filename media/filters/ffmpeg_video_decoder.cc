@@ -100,9 +100,6 @@ void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
     media_format_.SetAsInteger(MediaFormat::kHeight,
                                info.stream_info.surface_height);
     media_format_.SetAsInteger(
-        MediaFormat::kSurfaceType,
-        static_cast<int>(info.stream_info.surface_type));
-    media_format_.SetAsInteger(
         MediaFormat::kSurfaceFormat,
         static_cast<int>(info.stream_info.surface_format));
     state_ = kNormal;

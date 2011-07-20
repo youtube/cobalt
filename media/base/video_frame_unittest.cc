@@ -114,7 +114,6 @@ TEST(VideoFrame, CreateFrame) {
   EXPECT_FALSE(frame->IsEndOfStream());
 
   // Test VideoFrame implementation.
-  EXPECT_EQ(media::VideoFrame::TYPE_SYSTEM_MEMORY, frame->type());
   EXPECT_EQ(media::VideoFrame::YV12, frame->format());
   {
     SCOPED_TRACE("");
@@ -168,28 +167,6 @@ TEST(VideoFrame, CreateBlackFrame) {
     u_plane += frame->stride(VideoFrame::kUPlane);
     v_plane += frame->stride(VideoFrame::kVPlane);
   }
-}
-
-TEST(VideoFram, CreateExternalFrame) {
-  scoped_array<uint8> memory(new uint8[1]);
-
-  uint8* data[3] = {memory.get(), NULL, NULL};
-  int strides[3] = {1, 0, 0};
-  scoped_refptr<media::VideoFrame> frame =
-      VideoFrame::CreateFrameExternal(media::VideoFrame::TYPE_SYSTEM_MEMORY,
-                                      media::VideoFrame::RGB32, 0, 0, 3,
-                                      data, strides,
-                                      base::TimeDelta(), base::TimeDelta(),
-                                      NULL);
-  ASSERT_TRUE(frame);
-
-  // Test frame properties.
-  EXPECT_EQ(1, frame->stride(VideoFrame::kRGBPlane));
-  EXPECT_EQ(memory.get(), frame->data(VideoFrame::kRGBPlane));
-
-  // Delete |memory| and then |frame|.
-  memory.reset();
-  frame = NULL;
 }
 
 }  // namespace media
