@@ -957,7 +957,8 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #endif
 
 #ifdef SSL_ENABLE_OB_CERTS
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_OB_CERTS, PR_FALSE);
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_OB_CERTS,
+                     ssl_config_.origin_bound_certs_enabled);
   if (rv != SECSuccess)
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_OB_CERTS");
 #endif
