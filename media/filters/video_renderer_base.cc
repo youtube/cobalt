@@ -31,7 +31,6 @@ VideoRendererBase::VideoRendererBase()
     : width_(0),
       height_(0),
       surface_format_(VideoFrame::INVALID),
-      surface_type_(VideoFrame::TYPE_SYSTEM_MEMORY),
       frame_available_(&lock_),
       state_(kUninitialized),
       thread_(base::kNullThreadHandle),
@@ -49,15 +48,8 @@ VideoRendererBase::~VideoRendererBase() {
 // static
 bool VideoRendererBase::ParseMediaFormat(
     const MediaFormat& media_format,
-    VideoFrame::SurfaceType* surface_type_out,
     VideoFrame::Format* surface_format_out,
     int* width_out, int* height_out) {
-  int surface_type;
-  if (!media_format.GetAsInteger(MediaFormat::kSurfaceType, &surface_type))
-    return false;
-  if (surface_type_out)
-    *surface_type_out = static_cast<VideoFrame::SurfaceType>(surface_type);
-
   int surface_format;
   if (!media_format.GetAsInteger(MediaFormat::kSurfaceFormat, &surface_format))
     return false;
@@ -182,7 +174,6 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
 
   // Notify the pipeline of the video dimensions.
   if (!ParseMediaFormat(decoder->media_format(),
-                        &surface_type_,
                         &surface_format_,
                         &width_, &height_)) {
     EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
