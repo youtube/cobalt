@@ -666,6 +666,9 @@
         'websockets/websocket_throttle.cc',
         'websockets/websocket_throttle.h',
       ],
+      'defines': [
+        'NET_IMPLEMENTATION',
+      ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
       ],
@@ -822,11 +825,6 @@
             ],
           },
         ],
-        [ 'component == "shared_library"', {
-          'defines': [
-            'NET_IMPLEMENTATION',
-          ],
-        }],
         [ 'OS == "mac"', {
             'dependencies': [
               '../third_party/nss/nss.gyp:nspr',

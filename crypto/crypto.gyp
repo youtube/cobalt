@@ -15,6 +15,9 @@
         '../base/base.gyp:base',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
+      'defines': [
+        'CRYPTO_IMPLEMENTATION',
+      ],
       'msvs_disabled_warnings': [
         4018,
       ],
@@ -72,11 +75,6 @@
           'sources!': [
             'capi_util.h',
             'capi_util.cc',
-          ],
-        }],
-        [ 'component == "shared_library"', {
-          'defines': [
-            'CRYPTO_IMPLEMENTATION',
           ],
         }],
         [ 'use_openssl==1', {

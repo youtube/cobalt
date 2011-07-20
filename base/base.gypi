@@ -353,6 +353,9 @@
           'win/wrapped_window_proc.cc',
           'win/wrapped_window_proc.h',
         ],
+        'defines': [
+          'BASE_IMPLEMENTATION',
+        ],
         'include_dirs': [
           '..',
         ],
@@ -534,9 +537,6 @@
             ],
         },],
         [ 'component=="shared_library"', {
-          'defines': [
-            'BASE_IMPLEMENTATION',
-          ],
           'conditions': [
             ['OS=="win"', {
               'sources!': [
@@ -621,9 +621,6 @@
           },
           'conditions': [
             [ 'component == "shared_library"', {
-              'defines': [
-                'BASE_IMPLEMENTATION',
-              ],
               'sources!': [
                 'debug/debug_on_start_win.cc',
               ],
