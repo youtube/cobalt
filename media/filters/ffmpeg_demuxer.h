@@ -31,7 +31,6 @@
 #include "media/base/buffers.h"
 #include "media/base/filters.h"
 #include "media/base/pipeline.h"
-#include "media/base/media_format.h"
 #include "media/filters/ffmpeg_glue.h"
 
 // FFmpeg forward declarations.
@@ -73,7 +72,6 @@ class FFmpegDemuxerStream : public DemuxerStream {
 
   // DemuxerStream implementation.
   virtual Type type();
-  virtual const MediaFormat& media_format();
 
   // If |buffer_queue_| is not empty will execute on caller's thread, otherwise
   // will post ReadTask to execute on demuxer's thread. Read will acquire
@@ -104,7 +102,6 @@ class FFmpegDemuxerStream : public DemuxerStream {
   FFmpegDemuxer* demuxer_;
   AVStream* stream_;
   Type type_;
-  MediaFormat media_format_;
   base::TimeDelta duration_;
   bool discontinuous_;
   bool stopped_;

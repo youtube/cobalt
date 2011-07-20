@@ -80,7 +80,6 @@ class ChunkDemuxerStream : public DemuxerStream {
   // DemuxerStream methods.
   virtual void Read(const ReadCallback& read_callback);
   virtual Type type();
-  virtual const MediaFormat& media_format();
   virtual void EnableBitstreamConverter();
   virtual AVStream* GetAVStream();
 
@@ -88,7 +87,6 @@ class ChunkDemuxerStream : public DemuxerStream {
   static void RunCallback(ReadCallback cb, scoped_refptr<Buffer> buffer);
 
   Type type_;
-  MediaFormat media_format_;
   AVStream* av_stream_;
 
   mutable base::Lock lock_;
@@ -259,8 +257,6 @@ void ChunkDemuxerStream::Read(const ReadCallback& read_callback) {
 }
 
 DemuxerStream::Type ChunkDemuxerStream::type() { return type_; }
-
-const MediaFormat& ChunkDemuxerStream::media_format() { return media_format_; }
 
 void ChunkDemuxerStream::EnableBitstreamConverter() {}
 

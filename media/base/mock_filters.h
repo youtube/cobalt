@@ -77,7 +77,6 @@ class MockDataSource : public DataSource {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // DataSource implementation.
-  MOCK_METHOD0(media_format, const MediaFormat&());
   MOCK_METHOD4(Read, void(int64 position, size_t size, uint8* data,
                           DataSource::ReadCallback* callback));
   MOCK_METHOD1(GetSize, bool(int64* size_out));
@@ -157,7 +156,6 @@ class MockDemuxerStream : public DemuxerStream {
 
   // DemuxerStream implementation.
   MOCK_METHOD0(type, Type());
-  MOCK_METHOD0(media_format, const MediaFormat&());
   MOCK_METHOD1(Read, void(const ReadCallback& read_callback));
   MOCK_METHOD0(GetAVStream, AVStream*());
   MOCK_METHOD0(EnableBitstreamConverter, void());
@@ -166,8 +164,6 @@ class MockDemuxerStream : public DemuxerStream {
   virtual ~MockDemuxerStream();
 
  private:
-  MediaFormat media_format_;
-
   DISALLOW_COPY_AND_ASSIGN(MockDemuxerStream);
 };
 

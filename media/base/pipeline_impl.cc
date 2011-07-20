@@ -17,7 +17,6 @@
 #include "base/synchronization/condition_variable.h"
 #include "media/base/clock.h"
 #include "media/base/filter_collection.h"
-#include "media/base/media_format.h"
 
 namespace media {
 
