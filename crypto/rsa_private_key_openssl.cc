@@ -40,8 +40,7 @@ bool ExportKey(EVP_PKEY* key,
   if (!data || len < 0)
     return false;
 
-  std::vector<uint8> for_output(data, data + len);
-  output->swap(for_output);
+  output->assign(data, data + len);
   return true;
 }
 
@@ -76,11 +75,12 @@ RSAPrivateKey* RSAPrivateKey::CreateSensitive(uint16 num_bits) {
 // static
 RSAPrivateKey* RSAPrivateKey::CreateFromPrivateKeyInfo(
     const std::vector<uint8>& input) {
-  OpenSSLErrStackTracer err_tracer(FROM_HERE);
+  if (input.empty())
+    return NULL;
 
+  OpenSSLErrStackTracer err_tracer(FROM_HERE);
   // BIO_new_mem_buf is not const aware, but it does not modify the buffer.
-  char* data = reinterpret_cast<char*>(const_cast<uint8*>(
-      vector_as_array(&input)));
+  char* data = reinterpret_cast<char*>(const_cast<uint8*>(&input[0]));
   ScopedOpenSSL<BIO, BIO_free_all> bio(BIO_new_mem_buf(data, input.size()));
   if (!bio.get())
     return NULL;
