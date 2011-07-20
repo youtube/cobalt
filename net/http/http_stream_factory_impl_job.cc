@@ -1013,7 +1013,13 @@ int HttpStreamFactoryImpl::Job::HandleCertificateError(int error) {
   // RestartIgnoringLastError(). And the user will be asked interactively
   // before RestartIgnoringLastError() is ever called.
   SSLConfig::CertAndStatus bad_cert;
-  bad_cert.cert = ssl_info_.cert;
+
+  // |ssl_info_.cert| may be NULL if we failed to create
+  // X509Certificate for whatever reason, but normally it shouldn't
+  // happen, unless this code is used inside sandbox.
+  if (ssl_info_.cert == NULL ||
+      !ssl_info_.cert->GetDEREncoded(&bad_cert.der_cert))
+    return error;
   bad_cert.cert_status = ssl_info_.cert_status;
   ssl_config_.allowed_bad_certs.push_back(bad_cert);
 

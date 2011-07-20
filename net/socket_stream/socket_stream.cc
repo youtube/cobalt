@@ -877,7 +877,8 @@ int SocketStream::DoSSLConnectComplete(int result) {
         reinterpret_cast<SSLClientSocket*>(socket_.get());
       SSLInfo ssl_info;
       ssl_socket->GetSSLInfo(&ssl_info);
-      if (ssl_config_.IsAllowedBadCert(ssl_info.cert, NULL)) {
+      if (ssl_info.cert == NULL ||
+          ssl_config_.IsAllowedBadCert(ssl_info.cert, NULL)) {
         // If we already have the certificate in the set of allowed bad
         // certificates, we did try it and failed again, so we should not
         // retry again: the connection should fail at last.
@@ -887,7 +888,10 @@ int SocketStream::DoSSLConnectComplete(int result) {
       // Add the bad certificate to the set of allowed certificates in the
       // SSL config object.
       SSLConfig::CertAndStatus bad_cert;
-      bad_cert.cert = ssl_info.cert;
+      if (!ssl_info.cert->GetDEREncoded(&bad_cert.der_cert)) {
+        next_state_ = STATE_CLOSE;
+        return result;
+      }
       bad_cert.cert_status = ssl_info.cert_status;
       ssl_config_.allowed_bad_certs.push_back(bad_cert);
       // Restart connection ignoring the bad certificate.
