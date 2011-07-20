@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,8 @@
 #include <stdlib.h>
 
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
+#include "base/string_util.h"
 #include "net/base/ssl_connection_status_flags.h"
 
 // Rather than storing the names of all the ciphersuites we eliminate the
@@ -370,6 +372,18 @@ void SSLVersionToString(const char** name, int ssl_version) {
       *name = "???";
       break;
   }
+}
+
+bool ParseSSLCipherString(const std::string& cipher_string,
+                          uint16* cipher_suite) {
+  int value = 0;
+  if (cipher_string.size() == 6 &&
+      StartsWithASCII(cipher_string, "0x", false /* case insensitive */) &&
+      base::HexStringToInt(cipher_string, &value)) {
+    *cipher_suite = static_cast<uint16>(value);
+    return true;
+  }
+  return false;
 }
 
 }  // namespace net
