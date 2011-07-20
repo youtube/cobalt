@@ -8,6 +8,7 @@
 #include <fcntl.h>
 
 #include "base/auto_reset.h"
+#include "base/compiler_specific.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/mac/scoped_nsautorelease_pool.h"
@@ -53,7 +54,7 @@ MessagePumpLibevent::FileDescriptorWatcher::FileDescriptorWatcher()
     : is_persistent_(false),
       event_(NULL),
       pump_(NULL),
-      watcher_(NULL) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 
 MessagePumpLibevent::FileDescriptorWatcher::~FileDescriptorWatcher() {
@@ -92,6 +93,10 @@ event *MessagePumpLibevent::FileDescriptorWatcher::ReleaseEvent() {
 
 void MessagePumpLibevent::FileDescriptorWatcher::OnFileCanReadWithoutBlocking(
     int fd, MessagePumpLibevent* pump) {
+  // Since OnFileCanWriteWithoutBlocking() gets called first, it can stop
+  // watching the file descriptor.
+  if (!watcher_)
+    return;
   pump->WillProcessIOEvent();
   watcher_->OnFileCanReadWithoutBlocking(fd);
   pump->DidProcessIOEvent();
@@ -99,6 +104,7 @@ void MessagePumpLibevent::FileDescriptorWatcher::OnFileCanReadWithoutBlocking(
 
 void MessagePumpLibevent::FileDescriptorWatcher::OnFileCanWriteWithoutBlocking(
     int fd, MessagePumpLibevent* pump) {
+  DCHECK(watcher_);
   pump->WillProcessIOEvent();
   watcher_->OnFileCanWriteWithoutBlocking(fd);
   pump->DidProcessIOEvent();
@@ -334,8 +340,9 @@ bool MessagePumpLibevent::Init() {
 // static
 void MessagePumpLibevent::OnLibeventNotification(int fd, short flags,
                                                  void* context) {
-  FileDescriptorWatcher* controller =
-      static_cast<FileDescriptorWatcher*>(context);
+  base::WeakPtr<FileDescriptorWatcher> controller =
+      static_cast<FileDescriptorWatcher*>(context)->weak_factory_.GetWeakPtr();
+  DCHECK(controller.get());
 
   MessagePumpLibevent* pump = controller->pump();
   pump->processed_io_events_ = true;
@@ -343,7 +350,8 @@ void MessagePumpLibevent::OnLibeventNotification(int fd, short flags,
   if (flags & EV_WRITE) {
     controller->OnFileCanWriteWithoutBlocking(fd, pump);
   }
-  if (flags & EV_READ) {
+  // Check |controller| in case it's been deleted in this callback.
+  if (controller.get() && flags & EV_READ) {
     controller->OnFileCanReadWithoutBlocking(fd, pump);
   }
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
 #include "base/threading/thread_checker.h"
@@ -37,8 +38,10 @@ class BASE_API MessagePumpLibevent : public MessagePump {
     virtual ~IOObserver() {}
   };
 
-  // Used with WatchFileDescptor to asynchronously monitor the I/O readiness of
-  // a File Descriptor.
+  class FileDescriptorWatcher;
+
+  // Used with WatchFileDescriptor to asynchronously monitor the I/O readiness
+  // of a file descriptor.
   class Watcher {
    public:
     virtual ~Watcher() {}
@@ -63,6 +66,7 @@ class BASE_API MessagePumpLibevent : public MessagePump {
 
    private:
     friend class MessagePumpLibevent;
+    friend class MessagePumpLibeventTest;
 
     // Called by MessagePumpLibevent, ownership of |e| is transferred to this
     // object.
@@ -83,6 +87,7 @@ class BASE_API MessagePumpLibevent : public MessagePump {
     event* event_;
     MessagePumpLibevent* pump_;
     Watcher* watcher_;
+    base::WeakPtrFactory<FileDescriptorWatcher> weak_factory_;
 
     DISALLOW_COPY_AND_ASSIGN(FileDescriptorWatcher);
   };
@@ -124,6 +129,8 @@ class BASE_API MessagePumpLibevent : public MessagePump {
   virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time);
 
  private:
+  friend class MessagePumpLibeventTest;
+
   void WillProcessIOEvent();
   void DidProcessIOEvent();
 
