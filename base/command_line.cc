@@ -220,7 +220,7 @@ void CommandLine::InitFromArgv(const StringVector& argv) {
   AppendSwitchesAndArguments(*this, argv);
 }
 
-CommandLine::StringType CommandLine::command_line_string() const {
+CommandLine::StringType CommandLine::GetCommandLineString() const {
   StringType string(argv_[0]);
 #if defined(OS_WIN)
   string = QuoteForCommandLineToArgvW(string);

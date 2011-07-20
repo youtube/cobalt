@@ -389,7 +389,7 @@ TEST_F(ProcessUtilTest, LaunchAsUser) {
   base::UserTokenHandle token;
   ASSERT_TRUE(OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &token));
   std::wstring cmdline =
-      this->MakeCmdLine("SimpleChildProcess", false).command_line_string();
+      this->MakeCmdLine("SimpleChildProcess", false).GetCommandLineString();
   base::LaunchOptions options;
   options.as_user = token;
   EXPECT_TRUE(base::LaunchProcess(cmdline, options, NULL));
