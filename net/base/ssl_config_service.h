@@ -42,17 +42,18 @@ struct NET_API SSLConfig {
   // True if we'll do async checks for certificate provenance using DNS.
   bool dns_cert_provenance_checking_enabled;
 
-  // Cipher suites which should be explicitly prevented from being used in
-  // addition to those disabled by the net built-in policy -- by default, all
-  // cipher suites supported by the underlying SSL implementation will be
-  // enabled except for:
+  // Presorted list of cipher suites which should be explicitly prevented from
+  // being used in addition to those disabled by the net built-in policy.
+  //
+  // By default, all cipher suites supported by the underlying SSL
+  // implementation will be enabled except for:
   // - Null encryption cipher suites.
   // - Weak cipher suites: < 80 bits of security strength.
   // - FORTEZZA cipher suites (obsolete).
   // - IDEA cipher suites (RFC 5469 explains why).
   // - Anonymous cipher suites.
   // The ciphers listed in |disabled_cipher_suites| will be removed in addition
-  // to the above statically defined disable list.
+  // to the above list.
   //
   // Though cipher suites are sent in TLS as "uint8 CipherSuite[2]", in
   // big-endian form, they should be declared in host byte order, with the
@@ -60,7 +61,7 @@ struct NET_API SSLConfig {
   // Ex: To disable TLS_RSA_WITH_RC4_128_MD5, specify 0x0004, while to
   // disable TLS_ECDH_ECDSA_WITH_RC4_128_SHA, specify 0xC002.
   //
-  // TODO(rsleevi): Not implemented when using Schannel.
+  // Note: Not implemented when using Schannel/SSLClientSocketWin.
   std::vector<uint16> disabled_cipher_suites;
 
   bool cached_info_enabled;  // True if TLS cached info extension is enabled.
@@ -118,6 +119,7 @@ class NET_API SSLConfigService
     //     rev_checking_enabled
     //     ssl3_enabled
     //     tls1_enabled
+    //     disabled_cipher_suites
     virtual void OnSSLConfigChanged() = 0;
 
    protected:
