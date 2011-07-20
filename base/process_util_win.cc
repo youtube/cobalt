@@ -271,7 +271,7 @@ bool LaunchProcess(const string16& cmdline,
 bool LaunchProcess(const CommandLine& cmdline,
                    const LaunchOptions& options,
                    ProcessHandle* process_handle) {
-  return LaunchProcess(cmdline.command_line_string(), options, process_handle);
+  return LaunchProcess(cmdline.GetCommandLineString(), options, process_handle);
 }
 
 // Attempts to kill the process identified by the given process
@@ -317,7 +317,8 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
     return false;
   }
 
-  // Now create the child process
+  std::wstring writable_command_line_string(cl.GetCommandLineString());
+
   PROCESS_INFORMATION proc_info = { 0 };
   STARTUPINFO start_info = { 0 };
 
@@ -330,7 +331,7 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
 
   // Create the child process.
   if (!CreateProcess(NULL,
-                     const_cast<wchar_t*>(cl.command_line_string().c_str()),
+                     &writable_command_line_string[0],
                      NULL, NULL,
                      TRUE,  // Handles are inherited.
                      0, NULL, NULL, &start_info, &proc_info)) {
