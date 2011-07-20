@@ -14,6 +14,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_api.h"
+#include "net/base/net_util.h"
 #include "net/base/request_priority.h"
 
 namespace net {
@@ -209,6 +210,11 @@ NET_API HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
                                                size_t max_retry_attempts,
                                                NetLog* net_log);
 
+// Creates a HostResolver implementation that sends actual DNS queries to
+// the specified DNS server and parses response and returns results.
+NET_API HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
+                                              const IPAddressNumber& dns_ip,
+                                              NetLog* net_log);
 }  // namespace net
 
 #endif  // NET_BASE_HOST_RESOLVER_H_
