@@ -47,6 +47,9 @@
         'gfx_resources',
         '<(libjpeg_gyp_path):libjpeg',
       ],
+      'defines': [
+        'UI_IMPLEMENTATION',
+      ],
       # Export these dependencies since text_elider.h includes ICU headers.
       'export_dependent_settings': [
         '../net/net.gyp:net',
@@ -358,11 +361,6 @@
             ['exclude', '^base/win/*'],
           ],
         }],
-        ['component == "shared_library"', {
-          'defines': [
-            'UI_IMPLEMENTATION',
-          ],
-        }],
         ['OS=="mac"', {
           'link_settings': {
             'libraries': [
@@ -464,6 +462,7 @@
             '../base/base.gyp:base_nacl_win64',
           ],
           'defines': [
+            'UI_IMPLEMENTATION',
             '<@(nacl_win64_defines)',
           ],
           'sources': [
@@ -481,13 +480,6 @@
               'msvs_target_platform': 'x64',
             },
           },
-          'conditions': [
-            ['component=="shared_library"', {
-              'defines': [
-                'UI_IMPLEMENTATION',
-              ],
-            }],
-          ],
         },
       ],
     }],
