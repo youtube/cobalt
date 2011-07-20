@@ -102,7 +102,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // Initializes the socket peer name in SSL.  Returns a net error code.
   int InitializeSSLPeerName();
 
-  X509Certificate* UpdateServerCert();
+  void UpdateServerCert();
   void UpdateConnectionStatus();
   void DoReadCallback(int result);
   void DoWriteCallback(int result);

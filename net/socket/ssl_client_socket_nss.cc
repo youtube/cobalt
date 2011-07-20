@@ -478,11 +478,10 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   EnterFunction("");
   ssl_info->Reset();
 
-  if (!server_cert_)
+  if (!server_cert_nss_)
     return;
 
   ssl_info->cert_status = server_cert_verify_result_->cert_status;
-  DCHECK(server_cert_ != NULL);
   ssl_info->cert = server_cert_;
   ssl_info->connection_status = ssl_connection_status_;
   ssl_info->public_key_hashes = server_cert_verify_result_->public_key_hashes;
@@ -1038,18 +1037,18 @@ int SSLClientSocketNSS::InitializeSSLPeerName() {
 
 
 // Sets server_cert_ and server_cert_nss_ if not yet set.
-// Returns server_cert_.
-X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
+void SSLClientSocketNSS::UpdateServerCert() {
   // We set the server_cert_ from HandshakeCallback().
   if (server_cert_ == NULL) {
     server_cert_nss_ = SSL_PeerCertificate(nss_fd_);
     if (server_cert_nss_) {
       PeerCertificateChain certs(nss_fd_);
+      // This call may fail when SSL is used inside sandbox. In that
+      // case CreateFromDERCertChain() returns NULL.
       server_cert_ = X509Certificate::CreateFromDERCertChain(
           certs.AsStringPieceVector());
     }
   }
-  return server_cert_;
 }
 
 // Sets ssl_connection_status_.
@@ -1521,20 +1520,35 @@ int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
 }
 
 int SSLClientSocketNSS::DoVerifyCert(int result) {
-  DCHECK(server_cert_);
+  DCHECK(server_cert_nss_);
 
   GotoState(STATE_VERIFY_CERT_COMPLETE);
 
-  // If the certificate is expected to be bad we can use the expectation as the
-  // cert status.
+  // If the certificate is expected to be bad we can use the
+  // expectation as the cert status. Don't use |server_cert_| here
+  // because it can be set to NULL in case we failed to create
+  // X509Certificate in UpdateServerCert(). This may happen when this
+  // code is used inside sandbox.
+  base::StringPiece der_cert(
+      reinterpret_cast<char*>(server_cert_nss_->derCert.data),
+      server_cert_nss_->derCert.len);
   int cert_status;
-  if (ssl_config_.IsAllowedBadCert(server_cert_, &cert_status)) {
+  if (ssl_config_.IsAllowedBadCert(der_cert, &cert_status)) {
     DCHECK(start_cert_verification_time_.is_null());
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;
     server_cert_verify_result_ = &local_server_cert_verify_result_;
     local_server_cert_verify_result_.Reset();
     local_server_cert_verify_result_.cert_status = cert_status;
     return OK;
+  }
+
+  // We may have failed to create X509Certificate object if we are
+  // running inside sandbox.
+  if (!server_cert_) {
+    server_cert_verify_result_ = &local_server_cert_verify_result_;
+    local_server_cert_verify_result_.Reset();
+    local_server_cert_verify_result_.cert_status = CERT_STATUS_INVALID;
+    return ERR_CERT_INVALID;
   }
 
   start_cert_verification_time_ = base::TimeTicks::Now();

@@ -262,7 +262,7 @@ class SSLServerSocketTest : public PlatformTest {
     // Certificate provided by the host doesn't need authority.
     net::SSLConfig::CertAndStatus cert_and_status;
     cert_and_status.cert_status = CERT_STATUS_AUTHORITY_INVALID;
-    cert_and_status.cert = cert;
+    cert_and_status.der_cert = cert_der;
     ssl_config.allowed_bad_certs.push_back(cert_and_status);
 
     net::HostPortPair host_and_pair("unittest", 0);

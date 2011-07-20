@@ -262,14 +262,22 @@ X509Certificate* X509Certificate::CreateFromDERCertChain(
   X509Certificate::OSCertHandles intermediate_ca_certs;
   for (size_t i = 1; i < der_certs.size(); i++) {
     OSCertHandle handle = CreateOSCert(der_certs[i]);
-    DCHECK(handle);
+    if (!handle)
+      break;
     intermediate_ca_certs.push_back(handle);
   }
 
-  OSCertHandle handle = CreateOSCert(der_certs[0]);
-  DCHECK(handle);
-  X509Certificate* cert = CreateFromHandle(handle, intermediate_ca_certs);
-  FreeOSCertHandle(handle);
+  OSCertHandle handle = NULL;
+  // Return NULL if we failed to parse any of the certs.
+  if (der_certs.size() - 1 == intermediate_ca_certs.size())
+    handle = CreateOSCert(der_certs[0]);
+
+  X509Certificate* cert = NULL;
+  if (handle) {
+    cert = CreateFromHandle(handle, intermediate_ca_certs);
+    FreeOSCertHandle(handle);
+  }
+
   for (size_t i = 0; i < intermediate_ca_certs.size(); i++)
     FreeOSCertHandle(intermediate_ca_certs[i]);
 
