@@ -12,7 +12,6 @@
 #include "media/base/filters.h"
 #include "media/base/filter_host.h"
 #include "media/base/limits.h"
-#include "media/base/media_format.h"
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/video/ffmpeg_video_decode_engine.h"
@@ -95,13 +94,6 @@ void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
   AutoCallbackRunner done_runner(initialize_callback_.release());
 
   if (info.success) {
-    media_format_.SetAsInteger(MediaFormat::kWidth,
-                               info.stream_info.surface_width);
-    media_format_.SetAsInteger(MediaFormat::kHeight,
-                               info.stream_info.surface_height);
-    media_format_.SetAsInteger(
-        MediaFormat::kSurfaceFormat,
-        static_cast<int>(info.stream_info.surface_format));
     state_ = kNormal;
   } else {
     host()->SetError(PIPELINE_ERROR_DECODE);
@@ -272,10 +264,6 @@ void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
   decode_engine_->ConsumeVideoSample(buffer);
 }
 
-const MediaFormat& FFmpegVideoDecoder::media_format() {
-  return media_format_;
-}
-
 void FFmpegVideoDecoder::ProduceVideoFrame(
     scoped_refptr<VideoFrame> video_frame) {
   if (MessageLoop::current() != message_loop_) {
@@ -350,6 +338,16 @@ void FFmpegVideoDecoder::ProduceVideoSample(
 bool FFmpegVideoDecoder::ProvidesBuffer() {
   DCHECK(info_.success);
   return info_.provides_buffers;
+}
+
+int FFmpegVideoDecoder::width() {
+  DCHECK(info_.success);
+  return info_.stream_info.surface_width;
+}
+
+int FFmpegVideoDecoder::height() {
+  DCHECK(info_.success);
+  return info_.stream_info.surface_height;
 }
 
 void FFmpegVideoDecoder::FlushBuffers() {

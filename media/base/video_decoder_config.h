@@ -18,6 +18,11 @@ enum VideoCodec {
   kCodecMPEG4,
   kCodecTheora,
   kCodecVP8,
+
+  // DO NOT ADD RANDOM VIDEO CODECS!
+  //
+  // The only acceptable time to add a new codec is if there is production code
+  // that uses said codec in the same CL.
 };
 
 class VideoDecoderConfig {

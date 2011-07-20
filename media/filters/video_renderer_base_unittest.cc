@@ -58,15 +58,12 @@ class VideoRendererBaseTest : public ::testing::Test {
     EXPECT_CALL(*decoder_, ProduceVideoFrame(_))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::EnqueueCallback));
 
-    // Sets the essential media format keys for this decoder.
-    decoder_media_format_.SetAsInteger(MediaFormat::kSurfaceFormat,
-                                       VideoFrame::YV12);
-    decoder_media_format_.SetAsInteger(MediaFormat::kWidth, kWidth);
-    decoder_media_format_.SetAsInteger(MediaFormat::kHeight, kHeight);
-    EXPECT_CALL(*decoder_, media_format())
-        .WillRepeatedly(ReturnRef(decoder_media_format_));
     EXPECT_CALL(*decoder_, ProvidesBuffer())
         .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*decoder_, width()).WillRepeatedly(Return(kWidth));
+    EXPECT_CALL(*decoder_, height()).WillRepeatedly(Return(kHeight));
+
     EXPECT_CALL(stats_callback_object_, OnStatistics(_))
         .Times(AnyNumber());
   }
@@ -181,7 +178,6 @@ class VideoRendererBaseTest : public ::testing::Test {
   scoped_refptr<MockVideoRendererBase> renderer_;
   scoped_refptr<MockVideoDecoder> decoder_;
   StrictMock<MockFilterHost> host_;
-  MediaFormat decoder_media_format_;
   MockStatisticsCallback stats_callback_object_;
 
   // Receives all the buffers that renderer had provided to |decoder_|.
@@ -206,28 +202,6 @@ class VideoRendererBaseTest : public ::testing::Test {
 const size_t VideoRendererBaseTest::kWidth = 16u;
 const size_t VideoRendererBaseTest::kHeight = 16u;
 const int64 VideoRendererBaseTest::kDuration = 10;
-
-// Test initialization where the decoder's media format is malformed.
-TEST_F(VideoRendererBaseTest, Initialize_BadMediaFormat) {
-  // Don't set a media format.
-  MediaFormat media_format;
-  scoped_refptr<MockVideoDecoder> bad_decoder(new MockVideoDecoder());
-  EXPECT_CALL(*bad_decoder, ProvidesBuffer())
-      .WillRepeatedly(Return(true));
-
-  InSequence s;
-
-  EXPECT_CALL(*bad_decoder, media_format())
-      .WillRepeatedly(ReturnRef(media_format));
-
-  // We expect to receive an error.
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_INITIALIZATION_FAILED));
-
-  // Initialize, we expect to have no reads.
-  renderer_->Initialize(bad_decoder,
-                        NewExpectedCallback(), NewStatisticsCallback());
-  EXPECT_EQ(0u, read_queue_.size());
-}
 
 // Test initialization where the subclass failed for some reason.
 TEST_F(VideoRendererBaseTest, Initialize_Failed) {

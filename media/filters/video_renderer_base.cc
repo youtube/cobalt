@@ -28,10 +28,7 @@ static const int64 kMaxSleepMilliseconds = 60;
 static const int kIdleMilliseconds = 10;
 
 VideoRendererBase::VideoRendererBase()
-    : width_(0),
-      height_(0),
-      surface_format_(VideoFrame::INVALID),
-      frame_available_(&lock_),
+    : frame_available_(&lock_),
       state_(kUninitialized),
       thread_(base::kNullThreadHandle),
       pending_reads_(0),
@@ -43,27 +40,6 @@ VideoRendererBase::VideoRendererBase()
 VideoRendererBase::~VideoRendererBase() {
   base::AutoLock auto_lock(lock_);
   DCHECK(state_ == kUninitialized || state_ == kStopped);
-}
-
-// static
-bool VideoRendererBase::ParseMediaFormat(
-    const MediaFormat& media_format,
-    VideoFrame::Format* surface_format_out,
-    int* width_out, int* height_out) {
-  int surface_format;
-  if (!media_format.GetAsInteger(MediaFormat::kSurfaceFormat, &surface_format))
-    return false;
-  if (surface_format_out)
-    *surface_format_out = static_cast<VideoFrame::Format>(surface_format);
-
-  int width, height;
-  if (!media_format.GetAsInteger(MediaFormat::kWidth, &width))
-    return false;
-  if (!media_format.GetAsInteger(MediaFormat::kHeight, &height))
-    return false;
-  if (width_out) *width_out = width;
-  if (height_out) *height_out = height;
-  return true;
 }
 
 void VideoRendererBase::Play(FilterCallback* callback) {
@@ -173,13 +149,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
                  base::Unretained(this)));
 
   // Notify the pipeline of the video dimensions.
-  if (!ParseMediaFormat(decoder->media_format(),
-                        &surface_format_,
-                        &width_, &height_)) {
-    EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    return;
-  }
-  host()->SetVideoSize(width_, height_);
+  host()->SetVideoSize(decoder_->width(), decoder_->height());
 
   // Initialize the subclass.
   // TODO(scherkus): do we trust subclasses not to do something silly while
@@ -477,10 +447,6 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
     base::AutoUnlock auto_unlock(lock_);
     OnFrameAvailable();
   }
-}
-
-VideoDecoder* VideoRendererBase::GetDecoder() {
-  return decoder_.get();
 }
 
 void VideoRendererBase::ReadInput(scoped_refptr<VideoFrame> frame) {
