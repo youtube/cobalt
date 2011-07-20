@@ -65,6 +65,8 @@ struct NET_API SSLConfig {
   std::vector<uint16> disabled_cipher_suites;
 
   bool cached_info_enabled;  // True if TLS cached info extension is enabled.
+  bool origin_bound_certs_enabled;  // True if TLS origin bound cert extension
+                                    // is enabled.
   bool false_start_enabled;  // True if we'll use TLS False Start.
 
   // TODO(wtc): move the following members to a new SSLParams structure.  They
@@ -155,6 +157,11 @@ class NET_API SSLConfigService
   // just a digest of its certificate chain.
   static void EnableCachedInfo();
   static bool cached_info_enabled();
+
+  // Enables the TLS origin bound cert extension, which allows the replacement
+  // of login cookies by self-signed certificates.
+  static void EnableOriginBoundCerts();
+  static bool origin_bound_certs_enabled();
 
   // Is SNI available in this configuration?
   static bool IsSNIAvailable(SSLConfigService* service);
