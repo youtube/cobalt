@@ -9,26 +9,6 @@
 namespace media {
 
 // static
-size_t VideoFrame::GetNumberOfPlanes(VideoFrame::Format format) {
-  switch (format) {
-    case VideoFrame::RGB555:
-    case VideoFrame::RGB565:
-    case VideoFrame::RGB24:
-    case VideoFrame::RGB32:
-    case VideoFrame::RGBA:
-    case VideoFrame::ASCII:
-      return VideoFrame::kNumRGBPlanes;
-    case VideoFrame::YV12:
-    case VideoFrame::YV16:
-      return VideoFrame::kNumYUVPlanes;
-    case VideoFrame::NV12:
-      return VideoFrame::kNumNV12Planes;
-    default:
-      return 0;
-  }
-}
-
-// static
 scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
     VideoFrame::Format format,
     size_t width,
@@ -170,6 +150,88 @@ VideoFrame::~VideoFrame() {
   // on the heap, and other |data| pointers point inside the same, single block
   // so just delete index 0.
   delete[] data_[0];
+}
+
+bool VideoFrame::IsValidPlane(size_t plane) const {
+  switch (format_) {
+    case RGB555:
+    case RGB565:
+    case RGB24:
+    case RGB32:
+    case RGBA:
+      return plane == kRGBPlane;
+
+    case YV12:
+    case YV16:
+      return plane == kYPlane || plane == kUPlane || plane == kVPlane;
+
+    default:
+      break;
+  }
+
+  // Intentionally leave out non-production formats.
+  NOTREACHED() << "Unsupported video frame format: " << format_;
+  return false;
+}
+
+int VideoFrame::stride(size_t plane) const {
+  DCHECK(IsValidPlane(plane));
+  return strides_[plane];
+}
+
+int VideoFrame::row_bytes(size_t plane) const {
+  DCHECK(IsValidPlane(plane));
+  switch (format_) {
+    case RGB555:
+    case RGB565:
+    case RGB24:
+    case RGB32:
+    case RGBA:
+      return width_;
+
+    case YV12:
+    case YV16:
+      if (plane == kYPlane)
+        return width_;
+      return width_ / 2;
+
+    default:
+      break;
+  }
+
+  // Intentionally leave out non-production formats.
+  NOTREACHED() << "Unsupported video frame format: " << format_;
+  return 0;
+}
+
+int VideoFrame::rows(size_t plane) const {
+  DCHECK(IsValidPlane(plane));
+  switch (format_) {
+    case RGB555:
+    case RGB565:
+    case RGB24:
+    case RGB32:
+    case RGBA:
+    case YV16:
+      return height_;
+
+    case YV12:
+      if (plane == kYPlane)
+        return height_;
+      return height_ / 2;
+
+    default:
+      break;
+  }
+
+  // Intentionally leave out non-production formats.
+  NOTREACHED() << "Unsupported video frame format: " << format_;
+  return 0;
+}
+
+uint8* VideoFrame::data(size_t plane) const {
+  DCHECK(IsValidPlane(plane));
+  return data_[plane];
 }
 
 bool VideoFrame::IsEndOfStream() const {

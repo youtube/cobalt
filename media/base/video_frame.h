@@ -40,9 +40,6 @@ class VideoFrame : public StreamSample {
     I420,        // 12bpp YVU planar 1x1 Y, 2x2 UV samples.
   };
 
-  // Get the number of planes for a video frame format.
-  static size_t GetNumberOfPlanes(VideoFrame::Format format);
-
   // Creates a new frame in system memory with given parameters. Buffers for
   // the frame are allocated but not initialized.
   static scoped_refptr<VideoFrame> CreateFrame(
@@ -68,11 +65,18 @@ class VideoFrame : public StreamSample {
 
   size_t planes() const { return planes_;  }
 
-  int32 stride(size_t plane) const { return strides_[plane]; }
+  int stride(size_t plane) const;
+
+  // Returns the number of bytes per row and number of rows for a given plane.
+  //
+  // As opposed to stride(), row_bytes() refers to the bytes representing
+  // visible pixels.
+  int row_bytes(size_t plane) const;
+  int rows(size_t plane) const;
 
   // Returns pointer to the buffer for a given plane. The memory is owned by
   // VideoFrame object and must not be freed by the caller.
-  uint8* data(size_t plane) const { return data_[plane]; }
+  uint8* data(size_t plane) const;
 
   // StreamSample interface.
   virtual bool IsEndOfStream() const;
@@ -88,6 +92,9 @@ class VideoFrame : public StreamSample {
   // Used internally by CreateFrame().
   void AllocateRGB(size_t bytes_per_pixel);
   void AllocateYUV();
+
+  // Used to DCHECK() plane parameters.
+  bool IsValidPlane(size_t plane) const;
 
   // Frame format.
   Format format_;
