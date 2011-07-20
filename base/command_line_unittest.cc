@@ -42,7 +42,7 @@ TEST(CommandLineTest, CommandLineConstructor) {
       FILE_PATH_LITERAL("unquoted arg-with-space")};
   CommandLine cl(arraysize(argv), argv);
 
-  EXPECT_FALSE(cl.command_line_string().empty());
+  EXPECT_FALSE(cl.GetCommandLineString().empty());
   EXPECT_FALSE(cl.HasSwitch("cruller"));
   EXPECT_FALSE(cl.HasSwitch("flim"));
   EXPECT_FALSE(cl.HasSwitch("program"));
@@ -103,7 +103,7 @@ TEST(CommandLineTest, CommandLineFromString) {
       L"-- -- --not-a-switch "
       L"\"in the time of submarines...\"");
 
-  EXPECT_FALSE(cl.command_line_string().empty());
+  EXPECT_FALSE(cl.GetCommandLineString().empty());
   EXPECT_FALSE(cl.HasSwitch("cruller"));
   EXPECT_FALSE(cl.HasSwitch("flim"));
   EXPECT_FALSE(cl.HasSwitch("program"));
@@ -151,8 +151,8 @@ TEST(CommandLineTest, CommandLineFromString) {
   EXPECT_TRUE(iter == args.end());
 
   // Check that a generated string produces an equivalent command line.
-  CommandLine cl_duplicate = CommandLine::FromString(cl.command_line_string());
-  EXPECT_EQ(cl.command_line_string(), cl_duplicate.command_line_string());
+  CommandLine cl_duplicate = CommandLine::FromString(cl.GetCommandLineString());
+  EXPECT_EQ(cl.GetCommandLineString(), cl_duplicate.GetCommandLineString());
 #endif
 }
 
@@ -160,13 +160,13 @@ TEST(CommandLineTest, CommandLineFromString) {
 TEST(CommandLineTest, EmptyString) {
 #if defined(OS_WIN)
   CommandLine cl_from_string = CommandLine::FromString(L"");
-  EXPECT_TRUE(cl_from_string.command_line_string().empty());
+  EXPECT_TRUE(cl_from_string.GetCommandLineString().empty());
   EXPECT_TRUE(cl_from_string.GetProgram().empty());
   EXPECT_EQ(1U, cl_from_string.argv().size());
   EXPECT_TRUE(cl_from_string.GetArgs().empty());
 #endif
   CommandLine cl_from_argv(0, NULL);
-  EXPECT_TRUE(cl_from_argv.command_line_string().empty());
+  EXPECT_TRUE(cl_from_argv.GetCommandLineString().empty());
   EXPECT_TRUE(cl_from_argv.GetProgram().empty());
   EXPECT_EQ(1U, cl_from_argv.argv().size());
   EXPECT_TRUE(cl_from_argv.GetArgs().empty());
@@ -209,7 +209,7 @@ TEST(CommandLineTest, AppendSwitches) {
             L"--switch3=\"a value with spaces\" "
             L"--switch4=\"\\\"a value with quotes\\\"\" "
             L"--quotes=\"" + kTrickyQuoted + L"\"",
-            cl.command_line_string());
+            cl.GetCommandLineString());
 #endif
 }
 
@@ -225,7 +225,7 @@ TEST(CommandLineTest, AppendSwitchesDashDash) {
   cl.AppendArg("--arg2");
 
   EXPECT_EQ(FILE_PATH_LITERAL("prog --switch1 --switch2=foo -- --arg1 --arg2"),
-            cl.command_line_string());
+            cl.GetCommandLineString());
   CommandLine::StringVector cl_argv = cl.argv();
   EXPECT_EQ(FILE_PATH_LITERAL("prog"), cl_argv[0]);
   EXPECT_EQ(FILE_PATH_LITERAL("--switch1"), cl_argv[1]);
@@ -246,7 +246,7 @@ TEST(CommandLineTest, AppendArguments) {
   CommandLine cl2(CommandLine::NO_PROGRAM);
   cl2.AppendArguments(cl1, true);
   EXPECT_EQ(cl1.GetProgram().value(), cl2.GetProgram().value());
-  EXPECT_EQ(cl1.command_line_string(), cl2.command_line_string());
+  EXPECT_EQ(cl1.GetCommandLineString(), cl2.GetCommandLineString());
 
   CommandLine c1(FilePath(FILE_PATH_LITERAL("Program1")));
   c1.AppendSwitch("switch1");
@@ -260,7 +260,7 @@ TEST(CommandLineTest, AppendArguments) {
 }
 
 #if defined(OS_WIN)
-// Make sure that program paths of command_line_string are quoted as necessary.
+// Make sure that the command line string program paths are quoted as necessary.
 // This only makes sense on Windows and the test is basically here to guard
 // against regressions.
 TEST(CommandLineTest, ProgramQuotes) {
@@ -268,7 +268,7 @@ TEST(CommandLineTest, ProgramQuotes) {
   const FilePath kProgram(L"Program");
   CommandLine cl_program(kProgram);
   EXPECT_EQ(kProgram.value(), cl_program.GetProgram().value());
-  EXPECT_EQ(kProgram.value(), cl_program.command_line_string());
+  EXPECT_EQ(kProgram.value(), cl_program.GetCommandLineString());
 
   const FilePath kProgramPath(L"Program Path");
 
@@ -277,7 +277,7 @@ TEST(CommandLineTest, ProgramQuotes) {
   EXPECT_EQ(kProgramPath.value(), cl_program_path.GetProgram().value());
 
   // Check that quotes are added to command line string paths containing spaces.
-  CommandLine::StringType cmd_string(cl_program_path.command_line_string());
+  CommandLine::StringType cmd_string(cl_program_path.GetCommandLineString());
   CommandLine::StringType program_string(cl_program_path.GetProgram().value());
   EXPECT_EQ('"', cmd_string[0]);
   EXPECT_EQ(program_string, cmd_string.substr(1, program_string.length()));
