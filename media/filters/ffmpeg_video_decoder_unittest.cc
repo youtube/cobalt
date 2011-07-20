@@ -111,7 +111,6 @@ class DecoderPrivateMock : public FFmpegVideoDecoder {
 ACTION_P2(EngineInitialize, engine, success) {
   engine->event_handler_ = arg1;
   engine->info_.success = success;
-  engine->info_.stream_info.surface_type = VideoFrame::TYPE_SYSTEM_MEMORY;
   engine->info_.stream_info.surface_format = VideoFrame::YV12;
   engine->info_.stream_info.surface_width = kWidth;
   engine->info_.stream_info.surface_height = kHeight;

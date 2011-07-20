@@ -38,11 +38,10 @@ class VideoRendererBase
 
   // Helper method to parse out video-related information from a MediaFormat.
   // Returns true all the required parameters are existent in |media_format|.
-  // |surface_type_out|, |surface_format_out|, |width_out|, |height_out| can
-  // be NULL where the result is not needed.
+  // |surface_format_out|, |width_out|, |height_out| can be NULL where the
+  // result is not needed.
   static bool ParseMediaFormat(
       const MediaFormat& media_format,
-      VideoFrame::SurfaceType* surface_type_out,
       VideoFrame::Format* surface_format_out,
       int* width_out, int* height_out);
 
@@ -103,7 +102,6 @@ class VideoRendererBase
   int width() { return width_; }
   int height() { return height_; }
   VideoFrame::Format surface_format() { return surface_format_; }
-  VideoFrame::SurfaceType surface_type() { return surface_type_; }
 
   void ReadInput(scoped_refptr<VideoFrame> frame);
 
@@ -146,7 +144,6 @@ class VideoRendererBase
   int width_;
   int height_;
   VideoFrame::Format surface_format_;
-  VideoFrame::SurfaceType surface_type_;
 
   // Queue of incoming frames as well as the current frame since the last time
   // OnFrameAvailable() was called.
