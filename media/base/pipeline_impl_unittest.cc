@@ -8,7 +8,6 @@
 #include "base/stl_util.h"
 #include "base/threading/simple_thread.h"
 #include "media/base/pipeline_impl.h"
-#include "media/base/media_format.h"
 #include "media/base/filters.h"
 #include "media/base/filter_host.h"
 #include "media/base/mock_callback.h"
