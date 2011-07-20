@@ -256,6 +256,7 @@ class SSLServerSocketTest : public PlatformTest {
     net::SSLConfig ssl_config;
     ssl_config.cached_info_enabled = false;
     ssl_config.false_start_enabled = false;
+    ssl_config.origin_bound_certs_enabled = false;
     ssl_config.ssl3_enabled = true;
     ssl_config.tls1_enabled = true;
 
