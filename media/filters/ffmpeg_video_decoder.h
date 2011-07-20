@@ -37,9 +37,10 @@ class FFmpegVideoDecoder
   virtual void Initialize(DemuxerStream* demuxer_stream,
                           FilterCallback* callback,
                           StatisticsCallback* stats_callback);
-  virtual const MediaFormat& media_format();
   virtual void ProduceVideoFrame(scoped_refptr<VideoFrame> video_frame);
   virtual bool ProvidesBuffer();
+  virtual int width();
+  virtual int height();
 
  private:
   // VideoDecodeEngine::EventHandler interface.
@@ -91,7 +92,6 @@ class FFmpegVideoDecoder
   virtual void SetVideoDecodeEngineForTest(VideoDecodeEngine* engine);
 
   MessageLoop* message_loop_;
-  MediaFormat media_format_;
 
   PtsStream pts_stream_;  // Stream of presentation timestamps.
   DecoderState state_;

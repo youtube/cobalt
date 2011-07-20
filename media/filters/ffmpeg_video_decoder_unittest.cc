@@ -257,15 +257,10 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_EngineFails) {
 TEST_F(FFmpegVideoDecoderTest, Initialize_Successful) {
   InitializeDecoderSuccessfully();
 
-  // Test that the output media format is an uncompressed video surface that
-  // matches the dimensions specified by FFmpeg.
-  const MediaFormat& media_format = decoder_->media_format();
-  int width = 0;
-  int height = 0;
-  EXPECT_TRUE(media_format.GetAsInteger(MediaFormat::kWidth, &width));
-  EXPECT_EQ(kWidth, width);
-  EXPECT_TRUE(media_format.GetAsInteger(MediaFormat::kHeight, &height));
-  EXPECT_EQ(kHeight, height);
+  // Test that the uncompressed video surface matches the dimensions
+  // specified by FFmpeg.
+  EXPECT_EQ(kWidth, decoder_->width());
+  EXPECT_EQ(kHeight, decoder_->height());
 }
 
 TEST_F(FFmpegVideoDecoderTest, OnError) {
