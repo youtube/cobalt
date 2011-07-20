@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
+#include "base/string_piece.h"
 #include "net/base/net_api.h"
 #include "net/base/x509_certificate.h"
 
@@ -27,6 +28,11 @@ struct NET_API SSLConfig {
   // The expected cert status is written to |cert_status|. |*cert_status| can
   // be NULL if user doesn't care about the cert status.
   bool IsAllowedBadCert(X509Certificate* cert, int* cert_status) const;
+
+  // Same as above except works with DER encoded certificates instead
+  // of X509Certificate.
+  bool IsAllowedBadCert(const base::StringPiece& der_cert,
+                        int* cert_status) const;
 
   bool rev_checking_enabled;  // True if server certificate revocation
                               // checking is enabled.
@@ -67,7 +73,7 @@ struct NET_API SSLConfig {
     CertAndStatus();
     ~CertAndStatus();
 
-    scoped_refptr<X509Certificate> cert;
+    std::string der_cert;
     int cert_status;
   };
 
