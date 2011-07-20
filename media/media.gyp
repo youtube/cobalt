@@ -104,8 +104,6 @@
         'base/h264_bitstream_converter.cc',
         'base/h264_bitstream_converter.h',
         'base/media.h',
-        'base/media_format.cc',
-        'base/media_format.h',
         'base/media_posix.cc',
         'base/media_switches.cc',
         'base/media_switches.h',
