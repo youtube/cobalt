@@ -23,6 +23,7 @@ class DatagramClientSocket;
 class DnsCertProvenanceChecker;
 class HostPortPair;
 class SSLClientSocket;
+struct SSLClientSocketContext;
 struct SSLConfig;
 class SSLHostInfo;
 class StreamSocket;
@@ -51,8 +52,7 @@ class NET_API ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      CertVerifier* cert_verifier,
-      DnsCertProvenanceChecker* dns_cert_checker) = 0;
+      const SSLClientSocketContext& context) = 0;
 
   // Deprecated function (http://crbug.com/37810) that takes a StreamSocket.
   virtual SSLClientSocket* CreateSSLClientSocket(
@@ -60,7 +60,7 @@ class NET_API ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      CertVerifier* cert_verifier);
+      const SSLClientSocketContext& context);
 
   // Clears cache used for SSL session resumption.
   virtual void ClearSSLSessionCache() = 0;

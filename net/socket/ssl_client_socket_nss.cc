@@ -424,8 +424,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                                        const HostPortPair& host_and_port,
                                        const SSLConfig& ssl_config,
                                        SSLHostInfo* ssl_host_info,
-                                       CertVerifier* cert_verifier,
-                                       DnsCertProvenanceChecker* dns_ctx)
+                                       const SSLClientSocketContext& context)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLClientSocketNSS::BufferSendComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(buffer_recv_callback_(
@@ -447,7 +446,8 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       server_cert_verify_result_(NULL),
       ssl_connection_status_(0),
       client_auth_cert_needed_(false),
-      cert_verifier_(cert_verifier),
+      cert_verifier_(context.cert_verifier),
+      origin_bound_cert_service_(context.origin_bound_cert_service),
       handshake_callback_called_(false),
       completed_handshake_(false),
       eset_mitm_detected_(false),
@@ -458,7 +458,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       nss_bufs_(NULL),
       net_log_(transport_socket->socket()->NetLog()),
       ssl_host_info_(ssl_host_info),
-      dns_cert_checker_(dns_ctx),
+      dns_cert_checker_(context.dns_cert_checker),
       valid_thread_id_(base::kInvalidThreadId) {
   EnterFunction("");
 }

@@ -100,10 +100,7 @@ class SSLConnectJob : public ConnectJob {
       HttpProxyClientSocketPool* http_proxy_pool,
       ClientSocketFactory* client_socket_factory,
       HostResolver* host_resolver,
-      CertVerifier* cert_verifier,
-      DnsRRResolver* dnsrr_resolver,
-      DnsCertProvenanceChecker* dns_cert_checker,
-      SSLHostInfoFactory* ssl_host_info_factory,
+      const SSLClientSocketContext& context,
       Delegate* delegate,
       NetLog* net_log);
   virtual ~SSLConnectJob();
@@ -151,10 +148,8 @@ class SSLConnectJob : public ConnectJob {
   HttpProxyClientSocketPool* const http_proxy_pool_;
   ClientSocketFactory* const client_socket_factory_;
   HostResolver* const host_resolver_;
-  CertVerifier* const cert_verifier_;
-  DnsRRResolver* const dnsrr_resolver_;
-  DnsCertProvenanceChecker* dns_cert_checker_;
-  SSLHostInfoFactory* const ssl_host_info_factory_;
+
+  const SSLClientSocketContext context_;
 
   State next_state_;
   CompletionCallbackImpl<SSLConnectJob> callback_;
@@ -181,6 +176,7 @@ class NET_TEST SSLClientSocketPool : public ClientSocketPool,
       ClientSocketPoolHistograms* histograms,
       HostResolver* host_resolver,
       CertVerifier* cert_verifier,
+      OriginBoundCertService* origin_bound_cert_service,
       DnsRRResolver* dnsrr_resolver,
       DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
@@ -250,10 +246,7 @@ class NET_TEST SSLClientSocketPool : public ClientSocketPool,
         HttpProxyClientSocketPool* http_proxy_pool,
         ClientSocketFactory* client_socket_factory,
         HostResolver* host_resolver,
-        CertVerifier* cert_verifier,
-        DnsRRResolver* dnsrr_resolver,
-        DnsCertProvenanceChecker* dns_cert_checker,
-        SSLHostInfoFactory* ssl_host_info_factory,
+        const SSLClientSocketContext& context,
         NetLog* net_log);
 
     virtual ~SSLConnectJobFactory() {}
@@ -272,10 +265,7 @@ class NET_TEST SSLClientSocketPool : public ClientSocketPool,
     HttpProxyClientSocketPool* const http_proxy_pool_;
     ClientSocketFactory* const client_socket_factory_;
     HostResolver* const host_resolver_;
-    CertVerifier* const cert_verifier_;
-    DnsRRResolver* const dnsrr_resolver_;
-    DnsCertProvenanceChecker* const dns_cert_checker_;
-    SSLHostInfoFactory* const ssl_host_info_factory_;
+    const SSLClientSocketContext context_;
     base::TimeDelta timeout_;
     NetLog* net_log_;
 
