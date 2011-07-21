@@ -337,6 +337,40 @@ static BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
 
 //-----------------------------------------------------------------------------
 
+// A memory certificate store for client certificates.  This allows us to
+// close the "MY" system certificate store when we finish searching for
+// client certificates.
+class ClientCertStore {
+ public:
+  ClientCertStore() {
+    store_ = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL);
+  }
+
+  ~ClientCertStore() {
+    if (store_) {
+      BOOL ok = CertCloseStore(store_, CERT_CLOSE_STORE_CHECK_FLAG);
+      DCHECK(ok);
+    }
+  }
+
+  PCCERT_CONTEXT CopyCertContext(PCCERT_CONTEXT client_cert) {
+    PCCERT_CONTEXT copy;
+    BOOL ok = CertAddCertificateContextToStore(store_, client_cert,
+                                               CERT_STORE_ADD_USE_EXISTING,
+                                               &copy);
+    DCHECK(ok);
+    return ok ? copy : NULL;
+  }
+
+ private:
+  HCERTSTORE store_;
+};
+
+static base::LazyInstance<ClientCertStore> g_client_cert_store(
+    base::LINKER_INITIALIZED);
+
+//-----------------------------------------------------------------------------
+
 // Size of recv_buffer_
 //
 // Ciphertext is decrypted one SSL record at a time, so recv_buffer_ needs to
@@ -488,13 +522,11 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
     // Get the leaf certificate.
     PCCERT_CONTEXT cert_context =
         chain_context->rgpChain[0]->rgpElement[0]->pCertContext;
-    // Copy the certificate into a NULL store, so that we can close the "MY"
-    // store before returning from this function.
-    PCCERT_CONTEXT cert_context2 = NULL;
-    BOOL ok = CertAddCertificateContextToStore(NULL, cert_context,
-                                               CERT_STORE_ADD_USE_EXISTING,
-                                               &cert_context2);
-    if (!ok) {
+    // Copy it to our own certificate store, so that we can close the "MY"
+    // certificate store before returning from this function.
+    PCCERT_CONTEXT cert_context2 =
+        g_client_cert_store.Get().CopyCertContext(cert_context);
+    if (!cert_context2) {
       NOTREACHED();
       continue;
     }

@@ -4,6 +4,7 @@
 
 #include "net/base/x509_certificate.h"
 
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "base/sha1.h"
@@ -640,6 +641,37 @@ void X509Certificate::GetSubjectAltName(
       }
     }
   }
+}
+
+class GlobalCertStore {
+ public:
+  HCERTSTORE cert_store() {
+    return cert_store_;
+  }
+
+ private:
+  friend struct base::DefaultLazyInstanceTraits<GlobalCertStore>;
+
+  GlobalCertStore()
+      : cert_store_(CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL)) {
+  }
+
+  ~GlobalCertStore() {
+    CertCloseStore(cert_store_, 0 /* flags */);
+  }
+
+  const HCERTSTORE cert_store_;
+
+  DISALLOW_COPY_AND_ASSIGN(GlobalCertStore);
+};
+
+static base::LazyInstance<GlobalCertStore,
+                          base::LeakyLazyInstanceTraits<GlobalCertStore> >
+    g_cert_store(base::LINKER_INITIALIZED);
+
+// static
+HCERTSTORE X509Certificate::cert_store() {
+  return g_cert_store.Get().cert_store();
 }
 
 int X509Certificate::VerifyInternal(const std::string& hostname,
