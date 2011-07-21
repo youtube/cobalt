@@ -1749,15 +1749,23 @@ void SSLClientSocketNSS::UncorkAfterTimeout() {
   } while (nsent > 0);
 }
 
-// Do network I/O between the given buffer and the given socket.
-// Return true if some I/O performed, false otherwise (error or ERR_IO_PENDING)
+// Do as much network I/O as possible between the buffer and the
+// transport socket. Return true if some I/O performed, false
+// otherwise (error or ERR_IO_PENDING).
 bool SSLClientSocketNSS::DoTransportIO() {
   EnterFunction("");
   bool network_moved = false;
   if (nss_bufs_ != NULL) {
-    int nsent = BufferSend();
-    int nreceived = BufferRecv();
-    network_moved = (nsent > 0 || nreceived >= 0);
+    int rv;
+    // Read and write as much data as we can. The loop is neccessary
+    // because Write() may return synchronously.
+    do {
+      rv = BufferSend();
+      if (rv > 0)
+        network_moved = true;
+    } while (rv > 0);
+    if (BufferRecv() >= 0)
+      network_moved = true;
   }
   LeaveFunction(network_moved);
   return network_moved;
