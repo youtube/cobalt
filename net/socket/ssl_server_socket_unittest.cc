@@ -15,10 +15,14 @@
 
 #include "net/socket/ssl_server_socket.h"
 
+#include <stdlib.h>
+
 #include <queue>
 
+#include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "crypto/nss_util.h"
 #include "crypto/rsa_private_key.h"
@@ -46,7 +50,10 @@ namespace {
 
 class FakeDataChannel {
  public:
-  FakeDataChannel() : read_callback_(NULL), read_buf_len_(0) {
+  FakeDataChannel()
+      : read_callback_(NULL),
+        read_buf_len_(0),
+        ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
   }
 
   virtual int Read(IOBuffer* buf, int buf_len,
@@ -63,13 +70,15 @@ class FakeDataChannel {
   virtual int Write(IOBuffer* buf, int buf_len,
                     CompletionCallback* callback) {
     data_.push(new net::DrainableIOBuffer(buf, buf_len));
-    DoReadCallback();
+    MessageLoop::current()->PostTask(
+        FROM_HERE, task_factory_.NewRunnableMethod(
+            &FakeDataChannel::DoReadCallback));
     return buf_len;
   }
 
  private:
   void DoReadCallback() {
-    if (!read_callback_)
+    if (!read_callback_ || data_.empty())
       return;
 
     int copied = PropogateData(read_buf_, read_buf_len_);
@@ -97,6 +106,8 @@ class FakeDataChannel {
 
   std::queue<scoped_refptr<net::DrainableIOBuffer> > data_;
 
+  ScopedRunnableMethodFactory<FakeDataChannel> task_factory_;
+
   DISALLOW_COPY_AND_ASSIGN(FakeDataChannel);
 };
 
@@ -109,16 +120,19 @@ class FakeSocket : public StreamSocket {
   }
 
   virtual ~FakeSocket() {
-
   }
 
   virtual int Read(IOBuffer* buf, int buf_len,
                    CompletionCallback* callback) {
+    // Read random number of bytes.
+    buf_len = rand() % buf_len + 1;
     return incoming_->Read(buf, buf_len, callback);
   }
 
   virtual int Write(IOBuffer* buf, int buf_len,
                     CompletionCallback* callback) {
+    // Write random number of bytes.
+    buf_len = rand() % buf_len + 1;
     return outgoing_->Write(buf, buf_len, callback);
   }
 
@@ -204,17 +218,28 @@ TEST(FakeSocketTest, DataTransfer) {
   scoped_refptr<net::IOBuffer> read_buf = new net::IOBuffer(kReadBufSize);
 
   // Write then read.
-  EXPECT_EQ(kTestDataSize, server.Write(write_buf, kTestDataSize, NULL));
-  EXPECT_EQ(kTestDataSize, client.Read(read_buf, kReadBufSize, NULL));
-  EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), kTestDataSize));
+  int written = server.Write(write_buf, kTestDataSize, NULL);
+  EXPECT_GT(written, 0);
+  EXPECT_LE(written, kTestDataSize);
+
+  int read = client.Read(read_buf, kReadBufSize, NULL);
+  EXPECT_GT(read, 0);
+  EXPECT_LE(read, written);
+  EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), read));
 
   // Read then write.
   TestCompletionCallback callback;
   EXPECT_EQ(net::ERR_IO_PENDING,
             server.Read(read_buf, kReadBufSize, &callback));
-  EXPECT_EQ(kTestDataSize, client.Write(write_buf, kTestDataSize, NULL));
-  EXPECT_EQ(kTestDataSize, callback.WaitForResult());
-  EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), kTestDataSize));
+
+  written = client.Write(write_buf, kTestDataSize, NULL);
+  EXPECT_GT(written, 0);
+  EXPECT_LE(written, kTestDataSize);
+
+  read = callback.WaitForResult();
+  EXPECT_GT(read, 0);
+  EXPECT_LE(read, written);
+  EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), read));
 }
 
 class SSLServerSocketTest : public PlatformTest {
