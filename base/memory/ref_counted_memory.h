@@ -6,11 +6,9 @@
 #define BASE_MEMORY_REF_COUNTED_MEMORY_H_
 #pragma once
 
-#include <string>
 #include <vector>
 
 #include "base/base_api.h"
-#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 
 // TODO(erg): The contents of this file should be in a namespace. This would
@@ -42,9 +40,9 @@ class BASE_API RefCountedStaticMemory : public RefCountedMemory {
   RefCountedStaticMemory()
       : data_(NULL), length_(0) {}
   RefCountedStaticMemory(const unsigned char* data, size_t length)
-      : data_(length ? data : NULL), length_(length) {}
+      : data_(data), length_(length) {}
 
-  // Overridden from RefCountedMemory:
+  // Overriden from RefCountedMemory:
   virtual const unsigned char* front() const;
   virtual size_t size() const;
 
@@ -69,51 +67,18 @@ class BASE_API RefCountedBytes : public RefCountedMemory {
   // vector.)
   static RefCountedBytes* TakeVector(std::vector<unsigned char>* to_destroy);
 
-  // Overridden from RefCountedMemory:
-  virtual const unsigned char* front() const OVERRIDE;
-  virtual size_t size() const OVERRIDE;
+  // Overriden from RefCountedMemory:
+  virtual const unsigned char* front() const;
+  virtual size_t size() const;
 
-  const std::vector<unsigned char>& data() const { return data_; }
-  std::vector<unsigned char>& data() { return data_; }
+  std::vector<unsigned char> data;
 
- private:
+ protected:
   friend class base::RefCountedThreadSafe<RefCountedBytes>;
   virtual ~RefCountedBytes();
 
-  std::vector<unsigned char> data_;
-
+ private:
   DISALLOW_COPY_AND_ASSIGN(RefCountedBytes);
 };
-
-namespace base {
-
-// An implementation of RefCountedMemory, where the bytes are stored in an STL
-// string. Use this if your data naturally arrives in that format.
-class BASE_API RefCountedString : public RefCountedMemory {
- public:
-  RefCountedString();
-
-  // Constructs a RefCountedString object by performing a swap. (To non
-  // destructively build a RefCountedString, use the default constructor and
-  // copy into object->data()).
-  static RefCountedString* TakeString(std::string* to_destroy);
-
-  // Overridden from RefCountedMemory:
-  virtual const unsigned char* front() const OVERRIDE;
-  virtual size_t size() const OVERRIDE;
-
-  const std::string& data() const { return data_; }
-  std::string& data() { return data_; }
-
- private:
-  friend class base::RefCountedThreadSafe<RefCountedString>;
-  virtual ~RefCountedString();
-
-  std::string data_;
-
-  DISALLOW_COPY_AND_ASSIGN(RefCountedString);
-};
-
-}  // namespace base
 
 #endif  // BASE_MEMORY_REF_COUNTED_MEMORY_H_
