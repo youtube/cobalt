@@ -34,6 +34,7 @@ class BoundNetLog;
 class CertVerifier;
 class ClientSocketHandle;
 class DnsCertProvenanceChecker;
+class OriginBoundCertService;
 class SingleRequestCertVerifier;
 class SSLHostInfo;
 class X509Certificate;
@@ -51,8 +52,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
                      const HostPortPair& host_and_port,
                      const SSLConfig& ssl_config,
                      SSLHostInfo* ssl_host_info,
-                     CertVerifier* cert_verifier,
-                     DnsCertProvenanceChecker* dnsrr_resolver);
+                     const SSLClientSocketContext& context);
   virtual ~SSLClientSocketNSS();
 
   // For tests
@@ -213,6 +213,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   CertVerifier* const cert_verifier_;
   scoped_ptr<SingleRequestCertVerifier> verifier_;
+
+  // For the use of origin bound certificates for client auth.
+  OriginBoundCertService* origin_bound_cert_service_;
 
   // True if NSS has called HandshakeCallback.
   bool handshake_callback_called_;

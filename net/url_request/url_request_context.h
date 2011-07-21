@@ -30,6 +30,7 @@ class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpTransactionFactory;
 class NetworkDelegate;
+class OriginBoundCertService;
 class ProxyService;
 class URLRequest;
 class URLRequestJobFactory;
@@ -69,6 +70,14 @@ class NET_API URLRequestContext
 
   void set_cert_verifier(CertVerifier* cert_verifier) {
     cert_verifier_ = cert_verifier;
+  }
+
+  OriginBoundCertService* origin_bound_cert_service() const {
+    return origin_bound_cert_service_;
+  }
+  void set_origin_bound_cert_service(
+      OriginBoundCertService* origin_bound_cert_service) {
+    origin_bound_cert_service_ = origin_bound_cert_service;
   }
 
   DnsRRResolver* dnsrr_resolver() const {
@@ -189,6 +198,7 @@ class NET_API URLRequestContext
   NetLog* net_log_;
   HostResolver* host_resolver_;
   CertVerifier* cert_verifier_;
+  OriginBoundCertService* origin_bound_cert_service_;
   DnsRRResolver* dnsrr_resolver_;
   DnsCertProvenanceChecker* dns_cert_checker_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;

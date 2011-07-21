@@ -44,6 +44,7 @@ class HostPortPair;
 class HttpProxyClientSocketPool;
 class HostResolver;
 class NetLog;
+class OriginBoundCertService;
 class ProxyInfo;
 class ProxyService;
 class SOCKSClientSocketPool;
@@ -83,6 +84,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
                           ClientSocketFactory* socket_factory,
                           HostResolver* host_resolver,
                           CertVerifier* cert_verifier,
+                          OriginBoundCertService* origin_bound_cert_service,
                           DnsRRResolver* dnsrr_resolver,
                           DnsCertProvenanceChecker* dns_cert_checker,
                           SSLHostInfoFactory* ssl_host_info_factory,
@@ -185,6 +187,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   ClientSocketFactory* const socket_factory_;
   HostResolver* const host_resolver_;
   CertVerifier* const cert_verifier_;
+  OriginBoundCertService* const origin_bound_cert_service_;
   DnsRRResolver* const dnsrr_resolver_;
   DnsCertProvenanceChecker* const dns_cert_checker_;
   SSLHostInfoFactory* const ssl_host_info_factory_;
