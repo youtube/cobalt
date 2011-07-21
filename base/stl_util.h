@@ -8,9 +8,6 @@
 #define BASE_STL_UTIL_H_
 #pragma once
 
-#include <assert.h>
-#include <string.h>  // for memcpy
-
 #include <string>
 #include <vector>
 
@@ -79,13 +76,17 @@ void STLDeleteContainerPairFirstPointers(ForwardIterator begin,
 
 // STLDeleteContainerPairSecondPointers()
 //  For a range within a container of pairs, calls delete
+// NOTE: Like STLDeleteContainerPointers, deleting behind the iterator.
+// Deleting the value does not always invalidate the iterator, but it may
+// do so if the key is a pointer into the value object.
 //  (non-array version) on the SECOND item in the pairs.
 template <class ForwardIterator>
 void STLDeleteContainerPairSecondPointers(ForwardIterator begin,
                                           ForwardIterator end) {
   while (begin != end) {
-    delete begin->second;
+    ForwardIterator temp = begin;
     ++begin;
+    delete temp->second;
   }
 }
 
@@ -95,20 +96,12 @@ void STLDeleteContainerPairSecondPointers(ForwardIterator begin,
 
 template<typename T>
 inline T* vector_as_array(std::vector<T>* v) {
-# ifdef NDEBUG
-  return &*v->begin();
-# else
   return v->empty() ? NULL : &*v->begin();
-# endif
 }
 
 template<typename T>
 inline const T* vector_as_array(const std::vector<T>* v) {
-# ifdef NDEBUG
-  return &*v->begin();
-# else
   return v->empty() ? NULL : &*v->begin();
-# endif
 }
 
 // Return a mutable char* pointing to a string's internal buffer,
