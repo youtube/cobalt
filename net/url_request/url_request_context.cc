@@ -16,6 +16,7 @@ URLRequestContext::URLRequestContext()
     : net_log_(NULL),
       host_resolver_(NULL),
       cert_verifier_(NULL),
+      origin_bound_cert_service_(NULL),
       dnsrr_resolver_(NULL),
       dns_cert_checker_(NULL),
       http_auth_handler_factory_(NULL),
@@ -33,6 +34,7 @@ void URLRequestContext::CopyFrom(URLRequestContext* other) {
   set_net_log(other->net_log());
   set_host_resolver(other->host_resolver());
   set_cert_verifier(other->cert_verifier());
+  set_origin_bound_cert_service(other->origin_bound_cert_service());
   set_dnsrr_resolver(other->dnsrr_resolver());
   set_dns_cert_checker(other->dns_cert_checker());
   set_http_auth_handler_factory(other->http_auth_handler_factory());

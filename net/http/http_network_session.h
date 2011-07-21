@@ -51,6 +51,7 @@ class NET_API HttpNetworkSession
         : client_socket_factory(NULL),
           host_resolver(NULL),
           cert_verifier(NULL),
+          origin_bound_cert_service(NULL),
           dnsrr_resolver(NULL),
           dns_cert_checker(NULL),
           proxy_service(NULL),
@@ -63,6 +64,7 @@ class NET_API HttpNetworkSession
     ClientSocketFactory* client_socket_factory;
     HostResolver* host_resolver;
     CertVerifier* cert_verifier;
+    OriginBoundCertService* origin_bound_cert_service;
     DnsRRResolver* dnsrr_resolver;
     DnsCertProvenanceChecker* dns_cert_checker;
     ProxyService* proxy_service;

@@ -36,11 +36,13 @@ class SSLClientSocketTest : public PlatformTest {
       net::StreamSocket* transport_socket,
       const net::HostPortPair& host_and_port,
       const net::SSLConfig& ssl_config) {
+    net::SSLClientSocketContext context;
+    context.cert_verifier = cert_verifier_.get();
     return socket_factory_->CreateSSLClientSocket(transport_socket,
                                                   host_and_port,
                                                   ssl_config,
                                                   NULL,
-                                                  cert_verifier_.get());
+                                                  context);
   }
 
   net::ClientSocketFactory* socket_factory_;
@@ -79,10 +81,12 @@ TEST_F(SSLClientSocketTest, Connect) {
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
+  net::SSLClientSocketContext context;
+  context.cert_verifier = cert_verifier_.get();
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
           transport, test_server.host_port_pair(), kDefaultSSLConfig,
-          NULL, cert_verifier_.get()));
+          NULL, context));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -374,10 +378,12 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
+  net::SSLClientSocketContext context;
+  context.cert_verifier = cert_verifier_.get();
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
           transport, test_server.host_port_pair(), kDefaultSSLConfig,
-          NULL, cert_verifier_.get()));
+          NULL, context));
 
   rv = sock->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)

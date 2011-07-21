@@ -39,7 +39,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   SSLClientSocketOpenSSL(ClientSocketHandle* transport_socket,
                          const HostPortPair& host_and_port,
                          const SSLConfig& ssl_config,
-                         CertVerifier* cert_verifier);
+                         const SSLClientSocketContext& context);
   ~SSLClientSocketOpenSSL();
 
   const HostPortPair& host_and_port() const { return host_and_port_; }

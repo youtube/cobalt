@@ -381,7 +381,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
     ClientSocketHandle* transport_socket,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
-    CertVerifier* cert_verifier)
+    const SSLClientSocketContext& context)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLClientSocketOpenSSL::BufferSendComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(buffer_recv_callback_(
@@ -393,7 +393,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       user_write_callback_(NULL),
       completed_handshake_(false),
       client_auth_cert_needed_(false),
-      cert_verifier_(cert_verifier),
+      cert_verifier_(context.cert_verifier),
       ALLOW_THIS_IN_INITIALIZER_LIST(handshake_io_callback_(
           this, &SSLClientSocketOpenSSL::OnHandshakeIOComplete)),
       ssl_(NULL),
