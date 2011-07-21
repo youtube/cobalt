@@ -293,6 +293,17 @@ class NET_API X509Certificate
   CFArrayRef CreateClientCertificateChain() const;
 #endif
 
+#if defined(OS_WIN)
+  // Returns a handle to a global, in-memory certificate store. We use it for
+  // two purposes:
+  // 1. Import server certificates into this store so that we can verify and
+  //    display the certificates using CryptoAPI.
+  // 2. Copy client certificates from the "MY" system certificate store into
+  //    this store so that we can close the system store when we finish
+  //    searching for client certificates.
+  static HCERTSTORE cert_store();
+#endif
+
 #if defined(USE_OPENSSL)
   // Returns a handle to a global, in-memory certificate store. We
   // use it for test code, e.g. importing the test server's certificate.
