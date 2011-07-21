@@ -361,6 +361,9 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
     // For ARM processors, always use C version.
     // TODO(hclam): Implement a NEON version.
     convert_proc = &ConvertRGB32ToYUV_C;
+#elif defined(__LB_PS3__)
+    // For the PS3, always use C version.
+    convert_proc = &ConvertRGB32ToYUV_C;
 #else
     // For x86 processors, check if SSE2 is supported.
     if (hasSSE2())
