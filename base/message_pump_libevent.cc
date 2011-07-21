@@ -54,6 +54,7 @@ MessagePumpLibevent::FileDescriptorWatcher::FileDescriptorWatcher()
     : is_persistent_(false),
       event_(NULL),
       pump_(NULL),
+      watcher_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 
@@ -350,7 +351,8 @@ void MessagePumpLibevent::OnLibeventNotification(int fd, short flags,
   if (flags & EV_WRITE) {
     controller->OnFileCanWriteWithoutBlocking(fd, pump);
   }
-  // Check |controller| in case it's been deleted in this callback.
+  // Check |controller| in case it's been deleted in
+  // controller->OnFileCanWriteWithoutBlocking().
   if (controller.get() && flags & EV_READ) {
     controller->OnFileCanReadWithoutBlocking(fd, pump);
   }
