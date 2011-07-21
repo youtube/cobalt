@@ -73,32 +73,29 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      CertVerifier* cert_verifier,
-      DnsCertProvenanceChecker* dns_cert_checker) {
+      const SSLClientSocketContext& context) {
     scoped_ptr<SSLHostInfo> shi(ssl_host_info);
+
 #if defined(OS_WIN)
     if (g_use_system_ssl) {
       return new SSLClientSocketWin(transport_socket, host_and_port,
-                                    ssl_config, cert_verifier);
+                                    ssl_config, context);
     }
     return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
-                                  shi.release(), cert_verifier,
-                                  dns_cert_checker);
+                                  shi.release(), context);
 #elif defined(USE_OPENSSL)
     return new SSLClientSocketOpenSSL(transport_socket, host_and_port,
-                                      ssl_config, cert_verifier);
+                                      ssl_config, context);
 #elif defined(USE_NSS)
     return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
-                                  shi.release(), cert_verifier,
-                                  dns_cert_checker);
+                                  shi.release(), context);
 #elif defined(OS_MACOSX)
     if (g_use_system_ssl) {
       return new SSLClientSocketMac(transport_socket, host_and_port,
-                                    ssl_config, cert_verifier);
+                                    ssl_config, context);
     }
     return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
-                                  shi.release(), cert_verifier,
-                                  dns_cert_checker);
+                                  shi.release(), context);
 #else
     NOTIMPLEMENTED();
     return NULL;
@@ -136,12 +133,11 @@ SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     SSLHostInfo* ssl_host_info,
-    CertVerifier* cert_verifier) {
+    const SSLClientSocketContext& context) {
   ClientSocketHandle* socket_handle = new ClientSocketHandle();
   socket_handle->set_socket(transport_socket);
   return CreateSSLClientSocket(socket_handle, host_and_port, ssl_config,
-                               ssl_host_info, cert_verifier,
-                               NULL /* DnsCertProvenanceChecker */);
+                               ssl_host_info, context);
 }
 
 // static

@@ -267,10 +267,11 @@ class SSLServerSocketTest : public PlatformTest {
     ssl_config.allowed_bad_certs.push_back(cert_and_status);
 
     net::HostPortPair host_and_pair("unittest", 0);
+    net::SSLClientSocketContext context;
+    context.cert_verifier = &cert_verifier_;
     client_socket_.reset(
         socket_factory_->CreateSSLClientSocket(
-            fake_client_socket, host_and_pair, ssl_config, NULL,
-            &cert_verifier_));
+            fake_client_socket, host_and_pair, ssl_config, NULL, context));
     server_socket_.reset(net::CreateSSLServerSocket(fake_server_socket,
                                                     cert, private_key.get(),
                                                     net::SSLConfig()));

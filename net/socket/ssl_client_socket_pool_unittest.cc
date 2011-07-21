@@ -93,6 +93,7 @@ class SSLClientSocketPoolTest : public testing::Test {
         ssl_histograms_.get(),
         NULL /* host_resolver */,
         NULL /* cert_verifier */,
+        NULL /* origin_bound_cert_service */,
         NULL /* dnsrr_resolver */,
         NULL /* dns_cert_checker */,
         NULL /* ssl_host_info_factory */,

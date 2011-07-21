@@ -53,6 +53,7 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       next_state_(STATE_NONE),
       host_resolver_(NULL),
       cert_verifier_(NULL),
+      origin_bound_cert_service_(NULL),
       http_auth_handler_factory_(NULL),
       factory_(ClientSocketFactory::GetDefaultFactory()),
       proxy_mode_(kDirectConnection),
@@ -121,6 +122,7 @@ void SocketStream::set_context(URLRequestContext* context) {
   if (context_) {
     host_resolver_ = context_->host_resolver();
     cert_verifier_ = context_->cert_verifier();
+    origin_bound_cert_service_ = context_->origin_bound_cert_service();
     http_auth_handler_factory_ = context_->http_auth_handler_factory();
   }
 }
@@ -850,12 +852,15 @@ int SocketStream::DoSOCKSConnectComplete(int result) {
 
 int SocketStream::DoSSLConnect() {
   DCHECK(factory_);
+  SSLClientSocketContext ssl_context;
+  ssl_context.cert_verifier = cert_verifier_;
+  ssl_context.origin_bound_cert_service = origin_bound_cert_service_;
   // TODO(agl): look into plumbing SSLHostInfo here.
   socket_.reset(factory_->CreateSSLClientSocket(socket_.release(),
                                                 HostPortPair::FromURL(url_),
                                                 ssl_config_,
                                                 NULL /* ssl_host_info */,
-                                                cert_verifier_));
+                                                ssl_context));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   metrics_->OnCountConnectionType(SocketStreamMetrics::SSL_CONNECTION);
   return socket_->Connect(&io_callback_);

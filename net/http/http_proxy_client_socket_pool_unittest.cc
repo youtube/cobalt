@@ -66,6 +66,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
                          &ssl_histograms_,
                          &host_resolver_,
                          &cert_verifier_,
+                         NULL /* origin_bound_cert_store */,
                          NULL /* dnsrr_resolver */,
                          NULL /* dns_cert_checker */,
                          NULL /* ssl_host_info_factory */,

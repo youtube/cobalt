@@ -384,7 +384,7 @@ static const int kRecvBufferSize = (5 + 16*1024 + 64);
 SSLClientSocketWin::SSLClientSocketWin(ClientSocketHandle* transport_socket,
                                        const HostPortPair& host_and_port,
                                        const SSLConfig& ssl_config,
-                                       CertVerifier* cert_verifier)
+                                       const SSLClientSocketContext& context)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
         handshake_io_callback_(this,
                                &SSLClientSocketWin::OnHandshakeIOComplete)),
@@ -401,7 +401,7 @@ SSLClientSocketWin::SSLClientSocketWin(ClientSocketHandle* transport_socket,
       user_write_callback_(NULL),
       user_write_buf_len_(0),
       next_state_(STATE_NONE),
-      cert_verifier_(cert_verifier),
+      cert_verifier_(context.cert_verifier),
       creds_(NULL),
       isc_status_(SEC_E_OK),
       payload_send_buffer_len_(0),
