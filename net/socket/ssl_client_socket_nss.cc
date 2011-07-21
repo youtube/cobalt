@@ -2056,10 +2056,11 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     // Get the leaf certificate.
     PCCERT_CONTEXT cert_context =
         chain_context->rgpChain[0]->rgpElement[0]->pCertContext;
-    // Copy the certificate into a NULL store, so that we can close the "MY"
-    // store before returning from this function.
+    // Copy it to our own certificate store, so that we can close the "MY"
+    // certificate store before returning from this function.
     PCCERT_CONTEXT cert_context2;
-    BOOL ok = CertAddCertificateContextToStore(NULL, cert_context,
+    BOOL ok = CertAddCertificateContextToStore(X509Certificate::cert_store(),
+                                               cert_context,
                                                CERT_STORE_ADD_USE_EXISTING,
                                                &cert_context2);
     if (!ok) {
@@ -2074,8 +2075,8 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     net::X509Certificate::OSCertHandles intermediates;
     for (DWORD i = 1; i < chain_context->rgpChain[0]->cElement; i++) {
       PCCERT_CONTEXT intermediate_copy;
-      ok = CertAddCertificateContextToStore(
-          NULL, chain_context->rgpChain[0]->rgpElement[i]->pCertContext,
+      ok = CertAddCertificateContextToStore(X509Certificate::cert_store(),
+          chain_context->rgpChain[0]->rgpElement[i]->pCertContext,
           CERT_STORE_ADD_USE_EXISTING, &intermediate_copy);
       if (!ok) {
         NOTREACHED();
