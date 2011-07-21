@@ -314,7 +314,7 @@
       'target_name': 'libgcrypt',
       'type': 'settings',
       'conditions': [
-        ['_toolset=="target"', {
+        ['_toolset=="target" and use_cups==1', {
           'direct_dependent_settings': {
             'cflags': [
               '<!@(libgcrypt-config --cflags)',
