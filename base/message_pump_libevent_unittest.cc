@@ -8,7 +8,6 @@
 
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
-#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(USE_SYSTEM_LIBEVENT)
