@@ -15,13 +15,14 @@ struct AVFormatContext;
 
 namespace media {
 
+class ChunkDemuxerClient;
 class ChunkDemuxerStream;
 
 // Demuxer implementation that allows chunks of WebM media data to be passed
 // from JavaScript to the media stack.
 class ChunkDemuxer : public Demuxer {
  public:
-  ChunkDemuxer();
+  explicit ChunkDemuxer(ChunkDemuxerClient* client);
   virtual ~ChunkDemuxer();
 
   void Init(PipelineStatusCB cb);
@@ -37,9 +38,11 @@ class ChunkDemuxer : public Demuxer {
   virtual scoped_refptr<DemuxerStream> GetStream(DemuxerStream::Type type);
   virtual base::TimeDelta GetStartTime() const;
 
-  // Methods used by MediaDataSink
+  // Methods used by an external object to control this demuxer.
   void FlushData();
   bool AppendData(const uint8* data, unsigned length);
+  void EndOfStream(PipelineStatus status);
+  bool HasEnded();
   void Shutdown();
 
  private:
@@ -47,6 +50,7 @@ class ChunkDemuxer : public Demuxer {
     WAITING_FOR_INIT,
     INITIALIZING,
     INITIALIZED,
+    ENDED,
     INIT_ERROR,
     SHUTDOWN,
   };
@@ -67,10 +71,6 @@ class ChunkDemuxer : public Demuxer {
   // found.
   bool SetupStreams();
 
-  // Parse all the buffers in |pending_buffers_|. Returns false if parsing one
-  // of the buffers fails.
-  bool ParsePendingBuffers_Locked();
-
   // Parse a buffer that was passed to AppendData(). |data| is expected to
   // contain one or more WebM Clusters. Returns false if parsing the data fails.
   bool ParseAndAppendData_Locked(const uint8* data, int length);
@@ -81,6 +81,7 @@ class ChunkDemuxer : public Demuxer {
   base::Lock lock_;
   State state_;
 
+  ChunkDemuxerClient* client_;
   PipelineStatusCB init_cb_;
   FilterStatusCB seek_cb_;
 
@@ -94,9 +95,6 @@ class ChunkDemuxer : public Demuxer {
   base::TimeDelta duration_;
 
   scoped_ptr<WebMClusterParser> cluster_parser_;
-
-  typedef std::list<scoped_refptr<media::Buffer> > BufferList;
-  BufferList pending_buffers_;
 
   // Should a Seek() call wait for more data before calling the
   // callback.

@@ -10,12 +10,14 @@
 #include "media/base/mock_callback.h"
 #include "media/base/mock_ffmpeg.h"
 #include "media/filters/chunk_demuxer.h"
+#include "media/filters/chunk_demuxer_client.h"
 #include "media/webm/cluster_builder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SetArgumentPointee;
+using ::testing::NiceMock;
 using ::testing::_;
 
 namespace media {
@@ -31,6 +33,18 @@ static const int kTracksSizeOffset = 4;
 static const int kVideoTrackNum = 1;
 static const int kAudioTrackNum = 2;
 
+class MockChunkDemuxerClient : public ChunkDemuxerClient {
+ public:
+  MockChunkDemuxerClient() {}
+  virtual ~MockChunkDemuxerClient() {}
+
+  MOCK_METHOD1(DemuxerOpened, void(ChunkDemuxer* demuxer));
+  MOCK_METHOD0(DemuxerClosed, void());
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockChunkDemuxerClient);
+};
+
 class ChunkDemuxerTest : public testing::Test{
  protected:
   enum CodecsIndex {
@@ -40,7 +54,8 @@ class ChunkDemuxerTest : public testing::Test{
   };
 
   ChunkDemuxerTest()
-      : demuxer_(new ChunkDemuxer()) {
+      : client_(new MockChunkDemuxerClient()),
+        demuxer_(new ChunkDemuxer(client_.get())) {
     memset(&format_context_, 0, sizeof(format_context_));
     memset(&streams_, 0, sizeof(streams_));
     memset(&codecs_, 0, sizeof(codecs_));
@@ -166,8 +181,11 @@ class ChunkDemuxerTest : public testing::Test{
     bool init_done_called = false;
     PipelineStatus expectedStatus =
         (has_audio || has_video) ? PIPELINE_OK : DEMUXER_ERROR_COULD_NOT_OPEN;
+
+    EXPECT_CALL(*client_, DemuxerOpened(_));
     demuxer_->Init(base::Bind(&ChunkDemuxerTest::InitDoneCalled,
-                              &init_done_called, expectedStatus));
+                              &init_done_called,
+                              expectedStatus));
 
     EXPECT_FALSE(init_done_called);
 
@@ -178,6 +196,7 @@ class ChunkDemuxerTest : public testing::Test{
 
   void ShutdownDemuxer() {
     if (demuxer_) {
+      EXPECT_CALL(*client_, DemuxerClosed());
       demuxer_->Shutdown();
     }
 
@@ -201,6 +220,7 @@ class ChunkDemuxerTest : public testing::Test{
   AVCodecContext codecs_[MAX_CODECS_INDEX];
   AVStream streams_[MAX_CODECS_INDEX];
 
+  scoped_ptr<MockChunkDemuxerClient> client_;
   scoped_refptr<ChunkDemuxer> demuxer_;
 
  private:
@@ -237,7 +257,8 @@ TEST_F(ChunkDemuxerTest, TestInit) {
     bool has_audio = (i & 0x1) != 0;
     bool has_video = (i & 0x2) != 0;
 
-    demuxer_ = new ChunkDemuxer();
+    client_.reset(new MockChunkDemuxerClient());
+    demuxer_ = new ChunkDemuxer(client_.get());
     InitDemuxer(has_audio, has_video);
     EXPECT_EQ(demuxer_->GetStream(DemuxerStream::AUDIO).get() != NULL,
               has_audio);
@@ -283,23 +304,13 @@ TEST_F(ChunkDemuxerTest, TestAppendDataAfterSeek) {
   Checkpoint(2);
 }
 
-// Test the case where AppendData() is called before Init(). This can happen
-// when JavaScript starts sending data before the pipeline is completely
-// initialized.
+// Test the case where AppendData() is called before Init().
 TEST_F(ChunkDemuxerTest, TestAppendDataBeforeInit) {
-  AppendInfoTracks(true, true);
+  scoped_array<uint8> info_tracks;
+  int info_tracks_size = 0;
+  CreateInfoTracks(true, true, &info_tracks, &info_tracks_size);
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kVideoTrackNum, 0);
-  scoped_ptr<Cluster> cluster(cb.Finish());
-
-  EXPECT_TRUE(demuxer_->AppendData(cluster->data(), cluster->size()));
-
-  demuxer_->Init(NewExpectedStatusCB(PIPELINE_OK));
-
-  demuxer_->Seek(base::TimeDelta::FromSeconds(0),
-                 NewExpectedStatusCB(PIPELINE_OK));
+  EXPECT_FALSE(demuxer_->AppendData(info_tracks.get(), info_tracks_size));
 }
 
 static void OnReadDone(const base::TimeDelta& expected_time,
@@ -444,6 +455,7 @@ TEST_F(ChunkDemuxerTest, TestInvalidBlockSequences) {
 // Test the case where a cluster is passed to AppendData() before
 // INFO & TRACKS data.
 TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
+  EXPECT_CALL(*client_, DemuxerOpened(_));
   demuxer_->Init(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
 
   ClusterBuilder cb;
@@ -454,4 +466,11 @@ TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
   EXPECT_FALSE(demuxer_->AppendData(cluster->data(), cluster->size()));
 }
 
+
+// Test cases where we get an EndOfStream() call during initialization.
+TEST_F(ChunkDemuxerTest, TestEOSDuringInit) {
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Init(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+  demuxer_->EndOfStream(PIPELINE_OK);
+}
 }  // namespace media
