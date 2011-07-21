@@ -28,6 +28,8 @@ struct JsonKeyValue {
 
 class TraceEventTestFixture : public testing::Test {
  public:
+  // This fixture does not use SetUp() because the fixture must be manually set
+  // up multiple times when testing AtExit. Use ManualTestSetUp for this.
   void ManualTestSetUp();
   void OnTraceDataCollected(
       scoped_refptr<TraceLog::RefCountedString> json_events_str);
@@ -557,6 +559,77 @@ TEST_F(TraceEventTestFixture, AtExit) {
     TraceCallsWithCachedCategoryPointersPointers(
         "not recorded; system shutdown");
   }
+}
+
+TEST_F(TraceEventTestFixture, NormallyNoDeepCopy) {
+  // Test that the TRACE_EVENT macros do not deep-copy their string. If they
+  // do so it may indicate a performance regression, but more-over it would
+  // make the DEEP_COPY overloads redundant.
+  ManualTestSetUp();
+
+  std::string name_string("event name");
+
+  TraceLog::GetInstance()->SetEnabled(true);
+  TRACE_EVENT_INSTANT0("category", name_string.c_str());
+
+  // Modify the string in place (a wholesale reassignment may leave the old
+  // string intact on the heap).
+  name_string[0] = '@';
+
+  TraceLog::GetInstance()->SetEnabled(false);
+
+  EXPECT_FALSE(FindTraceEntry(trace_parsed_, "event name"));
+  EXPECT_TRUE(FindTraceEntry(trace_parsed_, name_string.c_str()));
+}
+
+TEST_F(TraceEventTestFixture, DeepCopy) {
+  ManualTestSetUp();
+
+  static const char kOriginalName1[] = "name1";
+  static const char kOriginalName2[] = "name2";
+  static const char kOriginalName3[] = "name3";
+  std::string name1(kOriginalName1);
+  std::string name2(kOriginalName2);
+  std::string name3(kOriginalName3);
+  std::string arg1("arg1");
+  std::string arg2("arg2");
+  std::string val1("val1");
+  std::string val2("val2");
+
+  TraceLog::GetInstance()->SetEnabled(true);
+  TRACE_EVENT_COPY_INSTANT0("category", name1.c_str());
+  TRACE_EVENT_COPY_BEGIN1("category", name2.c_str(),
+                          arg1.c_str(), 5);
+  TRACE_EVENT_COPY_END2("category", name3.c_str(),
+                        arg1.c_str(), val1.c_str(),
+                        arg2.c_str(), val2.c_str());
+
+  // As per NormallyNoDeepCopy, modify the strings in place.
+  name1[0] = name2[0] = name3[0] = arg1[0] = arg2[0] = val1[0] = val2[0] = '@';
+
+  TraceLog::GetInstance()->SetEnabled(false);
+
+  EXPECT_FALSE(FindTraceEntry(trace_parsed_, name1.c_str()));
+  EXPECT_FALSE(FindTraceEntry(trace_parsed_, name2.c_str()));
+  EXPECT_FALSE(FindTraceEntry(trace_parsed_, name3.c_str()));
+
+  DictionaryValue* entry1 = FindTraceEntry(trace_parsed_, kOriginalName1);
+  DictionaryValue* entry2 = FindTraceEntry(trace_parsed_, kOriginalName2);
+  DictionaryValue* entry3 = FindTraceEntry(trace_parsed_, kOriginalName3);
+  ASSERT_TRUE(entry1);
+  ASSERT_TRUE(entry2);
+  ASSERT_TRUE(entry3);
+
+  int i;
+  EXPECT_FALSE(entry2->GetInteger("args.@rg1", &i));
+  EXPECT_TRUE(entry2->GetInteger("args.arg1", &i));
+  EXPECT_EQ(5, i);
+
+  std::string s;
+  EXPECT_TRUE(entry3->GetString("args.arg1", &s));
+  EXPECT_EQ("val1", s);
+  EXPECT_TRUE(entry3->GetString("args.arg2", &s));
+  EXPECT_EQ("val2", s);
 }
 
 }  // namespace debug

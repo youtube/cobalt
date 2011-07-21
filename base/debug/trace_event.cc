@@ -8,6 +8,7 @@
 #include "base/debug/trace_event_win.h"
 #endif
 #include "base/format_macros.h"
+#include "base/memory/ref_counted_memory.h"
 #include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
@@ -42,56 +43,12 @@ static int g_category_index = 2; // skip initial 2 error categories
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void TraceValue::Destroy() {
-  if (type_ == TRACE_TYPE_STRING) {
-    value_.as_string_refptr->Release();
-    value_.as_string_refptr = NULL;
-  }
-  type_ = TRACE_TYPE_UNDEFINED;
-  value_.as_uint = 0ull;
-}
-
-TraceValue& TraceValue::operator=(const TraceValue& rhs) {
-  if (this == &rhs)
-    return *this;
-
-  Destroy();
-
-  type_ = rhs.type_;
-  switch(type_) {
-    case TRACE_TYPE_UNDEFINED:
-      return *this;
-    case TRACE_TYPE_BOOL:
-      value_.as_bool = rhs.value_.as_bool;
-      return *this;
-    case TRACE_TYPE_UINT:
-      value_.as_uint = rhs.value_.as_uint;
-      return *this;
-    case TRACE_TYPE_INT:
-      value_.as_int = rhs.value_.as_int;
-      return *this;
-    case TRACE_TYPE_DOUBLE:
-      value_.as_double = rhs.value_.as_double;
-      return *this;
-    case TRACE_TYPE_POINTER:
-      value_.as_pointer = rhs.value_.as_pointer;
-      return *this;
-    case TRACE_TYPE_STRING:
-      value_.as_string_refptr = rhs.value_.as_string_refptr;
-      value_.as_string_refptr->AddRef();
-      return *this;
-    default:
-      NOTREACHED();
-      return *this;
-  }
-}
-
 void TraceValue::AppendAsJSON(std::string* out) const {
   char temp_string[128];
   std::string::size_type start_pos;
   switch (type_) {
     case TRACE_TYPE_BOOL:
-      *out += as_bool()? "true" : "false";
+      *out += as_bool() ? "true" : "false";
       break;
     case TRACE_TYPE_UINT:
       base::snprintf(temp_string, arraysize(temp_string), "%llu",
@@ -152,6 +109,21 @@ const char* GetPhaseStr(TraceEventPhase phase) {
   }
 }
 
+size_t GetAllocLength(const char* str) { return str ? strlen(str) + 1 : 0; }
+
+// Copies |*member| into |*buffer|, sets |*member| to point to this new
+// location, and then advances |*buffer| by the amount written.
+void CopyTraceEventParameter(char** buffer,
+                             const char** member,
+                             const char* end) {
+  if (*member) {
+    size_t written = strlcpy(*buffer, *member, end - *buffer) + 1;
+    DCHECK_LE(static_cast<int>(written), end - *buffer);
+    *member = *buffer;
+    *buffer += written;
+  }
+}
+
 }  // namespace
 
 TraceEvent::TraceEvent()
@@ -171,7 +143,8 @@ TraceEvent::TraceEvent(unsigned long process_id,
                        const TraceCategory* category,
                        const char* name,
                        const char* arg1_name, const TraceValue& arg1_val,
-                       const char* arg2_name, const TraceValue& arg2_val)
+                       const char* arg2_name, const TraceValue& arg2_val,
+                       bool copy)
     : process_id_(process_id),
       thread_id_(thread_id),
       timestamp_(timestamp),
@@ -183,6 +156,35 @@ TraceEvent::TraceEvent(unsigned long process_id,
   arg_names_[1] = arg2_name;
   arg_values_[0] = arg1_val;
   arg_values_[1] = arg2_val;
+
+  size_t alloc_size = 0;
+  if (copy) {
+    alloc_size += GetAllocLength(name);
+    alloc_size += GetAllocLength(arg1_name);
+    alloc_size += GetAllocLength(arg2_name);
+  }
+  // We always take a copy of string arg_vals, even if |copy| was not set.
+  if (arg1_val.type() == TraceValue::TRACE_TYPE_STRING)
+    alloc_size += GetAllocLength(arg1_val.as_string());
+  if (arg2_val.type() == TraceValue::TRACE_TYPE_STRING)
+    alloc_size += GetAllocLength(arg2_val.as_string());
+
+  if (alloc_size) {
+    parameter_copy_storage_ = new RefCountedBytes;
+    parameter_copy_storage_->data.resize(alloc_size);
+    char* ptr = reinterpret_cast<char*>(&parameter_copy_storage_->data[0]);
+    const char* end = ptr + alloc_size;
+    if (copy) {
+      CopyTraceEventParameter(&ptr, &name_, end);
+      CopyTraceEventParameter(&ptr, &arg_names_[0], end);
+      CopyTraceEventParameter(&ptr, &arg_names_[1], end);
+    }
+    if (arg_values_[0].type() == TraceValue::TRACE_TYPE_STRING)
+      CopyTraceEventParameter(&ptr, arg_values_[0].as_assignable_string(), end);
+    if (arg_values_[1].type() == TraceValue::TRACE_TYPE_STRING)
+      CopyTraceEventParameter(&ptr, arg_values_[1].as_assignable_string(), end);
+    DCHECK_EQ(end, ptr) << "Overrun by " << ptr - end;
+  }
 }
 
 TraceEvent::~TraceEvent() {
@@ -342,7 +344,8 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
                             const char* arg1_name, TraceValue arg1_val,
                             const char* arg2_name, TraceValue arg2_val,
                             int threshold_begin_id,
-                            int64 threshold) {
+                            int64 threshold,
+                            bool copy) {
   DCHECK(name);
 #ifdef USE_UNRELIABLE_NOW
   TimeTicks now = TimeTicks::HighResNow();
@@ -379,7 +382,8 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
                    PlatformThread::CurrentId(),
                    now, phase, category, name,
                    arg1_name, arg1_val,
-                   arg2_name, arg2_val));
+                   arg2_name, arg2_val,
+                   copy));
 
     if (logged_events_.size() == kTraceEventBufferSize) {
       buffer_full_callback_copy = buffer_full_callback_;
@@ -410,7 +414,7 @@ void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
     tracelog->AddTraceEvent(phase, category, name,
                             "id", id,
                             "extra", extra ? extra : "",
-                            -1, 0);
+                            -1, 0, false);
   }
 }
 
@@ -435,7 +439,7 @@ void TraceEndOnScopeClose::AddEventIfEnabled() {
         p_data_->category,
         p_data_->name,
         NULL, 0, NULL, 0,
-        -1, 0);
+        -1, 0, false);
   }
 }
 
@@ -458,7 +462,7 @@ void TraceEndOnScopeCloseThreshold::AddEventIfEnabled() {
         p_data_->category,
         p_data_->name,
         NULL, 0, NULL, 0,
-        p_data_->threshold_begin_id, p_data_->threshold);
+        p_data_->threshold_begin_id, p_data_->threshold, false);
   }
 }
 
