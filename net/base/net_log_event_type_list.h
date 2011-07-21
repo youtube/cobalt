@@ -1077,8 +1077,8 @@ EVENT_TYPE(THROTTLING_GOT_CUSTOM_RETRY_AFTER)
 //
 // {
 //   "net_error": <The net error code for the failure>,
-//   "ip_address_list": <The result of the resolution process,
-//                       an IPAddressList>
+//   "ip_address_list": <The result of the resolution process -- list of IP
+//                       addresses>,
 // }
 EVENT_TYPE(DNS_TRANSACTION)
 
@@ -1093,39 +1093,3 @@ EVENT_TYPE(DNS_TRANSACTION)
 //                           attempt>,
 //   }
 EVENT_TYPE(DNS_TRANSACTION_ATTEMPT_STARTED)
-
-// ------------------------------------------------------------------------
-// AsyncHostResolver
-// ------------------------------------------------------------------------
-
-// The start/end of waiting on a host resolve (DNS) request.
-// The BEGIN phase contains the following parameters:
-//
-//   {
-//     "source_dependency": <Source id of the request being waited on>,
-//   }
-EVENT_TYPE(ASYNC_HOST_RESOLVER)
-
-// The start/end of a host resolve (DNS) request.
-//
-// The BEGIN phase contains the following parameters:
-//
-//   {
-//     "hostname": <Hostname associated with the request>,
-//     "address_family": <Address family of the request>,
-//     "allow_cached_response": <Whether to allow cached response>,
-//     "only_use_cached_response": <Use cached results only>,
-//     "is_speculative": <Whether the lookup is speculative>,
-//     "priority": <Priority of the request>,
-//     "source_dependency": <Source id, if any, of what created the request>,
-//   }
-//
-// The END phase will contain this parameter:
-//   {
-//     "net_error": <The net error code integer>,
-//   }
-EVENT_TYPE(ASYNC_HOST_RESOLVER_REQUEST)
-
-// This event is created when a new DnsTransaction is about to be created
-// for a request.
-EVENT_TYPE(ASYNC_HOST_RESOLVER_CREATE_DNS_TRANSACTION)
