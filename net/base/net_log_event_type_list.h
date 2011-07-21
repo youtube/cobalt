@@ -1120,12 +1120,15 @@ EVENT_TYPE(ASYNC_HOST_RESOLVER)
 //     "source_dependency": <Source id, if any, of what created the request>,
 //   }
 //
-// The END phase will contain this parameter:
+// If an error occurred, the END phase will contain this parameter:
 //   {
-//     "net_error": <The net error code integer>,
+//     "net_error": <The net error code integer for the failure>,
 //   }
 EVENT_TYPE(ASYNC_HOST_RESOLVER_REQUEST)
 
 // This event is created when a new DnsTransaction is about to be created
 // for a request.
 EVENT_TYPE(ASYNC_HOST_RESOLVER_CREATE_DNS_TRANSACTION)
+
+// This event is logged when a request is handled by a cache entry.
+EVENT_TYPE(ASYNC_HOST_RESOLVER_CACHE_HIT)
