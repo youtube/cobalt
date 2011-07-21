@@ -144,6 +144,7 @@
         'md5_unittest.cc',
         'memory/linked_ptr_unittest.cc',
         'memory/mru_cache_unittest.cc',
+        'memory/ref_counted_memory_unittest.cc',
         'memory/ref_counted_unittest.cc',
         'memory/scoped_ptr_unittest.cc',
         'memory/scoped_vector_unittest.cc',
