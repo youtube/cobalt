@@ -152,6 +152,7 @@
         'filters/bitstream_converter.h',
         'filters/chunk_demuxer.cc',
         'filters/chunk_demuxer.h',
+        'filters/chunk_demuxer_client.h',
         'filters/chunk_demuxer_factory.cc',
         'filters/chunk_demuxer_factory.h',
         'filters/decoder_base.h',
