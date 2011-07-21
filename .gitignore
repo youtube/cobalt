@@ -58,7 +58,6 @@ v8.log
 /chrome/test/data/osdd
 /chrome/test/data/plugin
 /chrome/test/data/pyauto_private
-/chrome/test/data/gpu/webgl_conformance
 /chrome/tools/memory
 /chrome/tools/test/reference_build
 /chrome_frame/tools/test/reference_build
@@ -133,6 +132,7 @@ v8.log
 /third_party/swig
 /third_party/valgrind
 /third_party/webdriver/python
+/third_party/webgl_conformance
 /third_party/webrtc
 /third_party/xdg-utils
 /third_party/xulrunner-sdk
