@@ -279,4 +279,13 @@ AddressList::Data::~Data() {
     FreeCopyOfAddrinfo(mutable_head);
 }
 
+AddressList CreateAddressListUsingPort(const AddressList& src, int port) {
+  if (src.GetPort() == port)
+    return src;
+
+  AddressList out = src;
+  out.SetPort(port);
+  return out;
+}
+
 }  // namespace net

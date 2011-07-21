@@ -44,18 +44,6 @@ namespace net {
 
 namespace {
 
-// Helper to create an AddressList that has a particular port. It has an
-// optimization to avoid allocating a new address linked list when the
-// port is already what we want.
-AddressList CreateAddressListUsingPort(const AddressList& src, int port) {
-  if (src.GetPort() == port)
-    return src;
-
-  AddressList out = src;
-  out.SetPort(port);
-  return out;
-}
-
 // Helper to mutate the linked list contained by AddressList to the given
 // port. Note that in general this is dangerous since the AddressList's
 // data might be shared (and you should use AddressList::SetPort).
@@ -81,17 +69,6 @@ const char kOSErrorsForGetAddrinfoHistogramName[] =
 #else
     "Net.OSErrorsForGetAddrinfo";
 #endif
-
-HostCache* CreateDefaultCache() {
-  static const size_t kMaxHostCacheEntries = 100;
-
-  HostCache* cache = new HostCache(
-      kMaxHostCacheEntries,
-      base::TimeDelta::FromMinutes(1),
-      base::TimeDelta::FromSeconds(0));  // Disable caching of failed DNS.
-
-  return cache;
-}
 
 // Gets a list of the likely error codes that getaddrinfo() can return
 // (non-exhaustive). These are the error codes that we will track via
@@ -157,8 +134,8 @@ HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
     max_concurrent_resolves = kDefaultMaxJobs;
 
   HostResolverImpl* resolver =
-      new HostResolverImpl(NULL, CreateDefaultCache(), max_concurrent_resolves,
-                           max_retry_attempts, net_log);
+      new HostResolverImpl(NULL, HostCache::CreateDefaultCache(),
+          max_concurrent_resolves, max_retry_attempts, net_log);
 
   return resolver;
 }

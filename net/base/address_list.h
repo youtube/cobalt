@@ -111,6 +111,11 @@ class NET_API AddressList {
   scoped_refptr<Data> data_;
 };
 
+// Helper to create an AddressList that has a particular port. It has an
+// optimization to avoid allocating a new address linked list when the
+// port is already what we want.
+AddressList CreateAddressListUsingPort(const AddressList& src, int port);
+
 }  // namespace net
 
 #endif  // NET_BASE_ADDRESS_LIST_H_

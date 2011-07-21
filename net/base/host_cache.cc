@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -115,6 +115,18 @@ const HostCache::EntryMap& HostCache::entries() const {
 // static
 bool HostCache::CanUseEntry(const Entry* entry, const base::TimeTicks now) {
   return entry->expiration > now;
+}
+
+// static
+HostCache* HostCache::CreateDefaultCache() {
+  static const size_t kMaxHostCacheEntries = 100;
+
+  HostCache* cache = new HostCache(
+      kMaxHostCacheEntries,
+      base::TimeDelta::FromMinutes(1),
+      base::TimeDelta::FromSeconds(0));  // Disable caching of failed DNS.
+
+  return cache;
 }
 
 void HostCache::Compact(base::TimeTicks now, const Entry* pinned_entry) {
