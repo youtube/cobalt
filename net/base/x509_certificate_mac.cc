@@ -895,7 +895,8 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
         if (chain_info[index].StatusBits & CSSM_CERT_STATUS_EXPIRED ||
             chain_info[index].StatusBits & CSSM_CERT_STATUS_NOT_VALID_YET)
           verify_result->cert_status |= CERT_STATUS_DATE_INVALID;
-        if (chain_info[index].NumStatusCodes == 0) {
+        if (!IsCertStatusError(verify_result->cert_status) &&
+            chain_info[index].NumStatusCodes == 0) {
           LOG(WARNING) << "chain_info[" << index << "].NumStatusCodes is 0"
                           ", chain_info[" << index << "].StatusBits is "
                        << chain_info[index].StatusBits;
@@ -920,7 +921,8 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
       // call to SecTrustGetCssmResultCode() should pick up when the chain
       // is not trusted and the loop through CSSM_TP_APPLE_EVIDENCE_INFO
       // should pick up everything else, but let's be safe.
-      if (!verify_result->cert_status && !got_certificate_error) {
+      if (!IsCertStatusError(verify_result->cert_status) &&
+          !got_certificate_error) {
         LOG(ERROR) << "cssm_result=" << cssm_result;
         verify_result->cert_status |= CERT_STATUS_INVALID;
         NOTREACHED();
@@ -932,7 +934,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
       if (status)
         return NetErrorFromOSStatus(status);
       verify_result->cert_status |= CertStatusFromOSStatus(cssm_result);
-      if (!verify_result->cert_status) {
+      if (!IsCertStatusError(verify_result->cert_status)) {
         LOG(WARNING) << "trust_result=" << trust_result;
         verify_result->cert_status |= CERT_STATUS_INVALID;
       }
