@@ -622,11 +622,6 @@ void oom_killer_new() {
 // === Core Foundation CFAllocators ===
 
 bool CanGetContextForCFAllocator() {
-  // TODO(avi): remove at final release; http://crbug.com/74589
-  if (base::mac::IsOSLion()) {
-    NSLog(@"Unsure about the internals of CFAllocator but going to patch them "
-           "anyway. Watch out for crashes inside of CFAllocatorAllocate.");
-  }
   return !base::mac::IsOSLaterThanLion();
 }
 
