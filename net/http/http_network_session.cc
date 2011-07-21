@@ -35,6 +35,7 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
                                ClientSocketFactory::GetDefaultFactory(),
                            params.host_resolver,
                            params.cert_verifier,
+                           params.origin_bound_cert_service,
                            params.dnsrr_resolver,
                            params.dns_cert_checker,
                            params.ssl_host_info_factory,

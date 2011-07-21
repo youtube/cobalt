@@ -565,8 +565,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      CertVerifier* cert_verifier,
-      DnsCertProvenanceChecker* dns_cert_checker);
+      const SSLClientSocketContext& context);
   virtual void ClearSSLSessionCache();
 
  private:
@@ -980,8 +979,7 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      CertVerifier* cert_verifier,
-      DnsCertProvenanceChecker* dns_cert_checker);
+      const SSLClientSocketContext& context);
   virtual void ClearSSLSessionCache();
 
  private:
