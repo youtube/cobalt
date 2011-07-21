@@ -31,6 +31,8 @@
         'base/address_list_net_log_param.h',
         'base/asn1_util.cc',
         'base/asn1_util.h',
+        'base/async_host_resolver.cc',
+        'base/async_host_resolver.h',
         'base/auth.cc',
         'base/auth.h',
         'base/backoff_entry.cc',
@@ -872,6 +874,7 @@
       ],
       'sources': [
         'base/address_list_unittest.cc',
+        'base/async_host_resolver_unittest.cc',
         'base/backoff_entry_unittest.cc',
         'base/cert_database_nss_unittest.cc',
         'base/cert_verifier_unittest.cc',
