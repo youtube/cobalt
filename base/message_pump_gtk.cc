@@ -5,6 +5,7 @@
 #include "base/message_pump_gtk.h"
 
 #include <gtk/gtk.h>
+#include <gdk/gdkx.h>
 
 namespace base {
 
@@ -29,6 +30,12 @@ void MessagePumpGtk::DispatchEvents(GdkEvent* event) {
   DidProcessEvent(event);
 }
 
+// static
+Display* MessagePumpGtk::GetDefaultXDisplay() {
+  static GdkDisplay* display = gdk_display_get_default();
+  return display ? GDK_DISPLAY_XDISPLAY(display) : NULL;
+}
+
 bool MessagePumpGtk::RunOnce(GMainContext* context, bool block) {
   // g_main_context_iteration returns true if events have been dispatched.
   return g_main_context_iteration(context, block);
@@ -49,4 +56,3 @@ void MessagePumpGtk::EventDispatcher(GdkEvent* event, gpointer data) {
 }
 
 }  // namespace base
-

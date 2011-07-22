@@ -32,7 +32,6 @@
 #else
 #include "base/message_pump_gtk.h"
 #endif
-typedef struct _XDisplay Display;
 #endif
 #endif
 
@@ -583,18 +582,6 @@ class BASE_API MessageLoopForUI : public MessageLoop {
 #if defined(OS_WIN)
   void DidProcessMessage(const MSG& message);
 #endif  // defined(OS_WIN)
-
-#if defined(USE_X11)
-  // Returns the Xlib Display that backs the MessagePump for this MessageLoop.
-  //
-  // This allows for raw access to the X11 server in situations where our
-  // abstractions do not provide enough power.
-  //
-  // Be careful how this is used. The MessagePump in general expects
-  // exclusive access to the Display. Calling things like XNextEvent() will
-  // likely break things in subtle, hard to detect, ways.
-  Display* GetDisplay();
-#endif  // defined(OS_X11)
 
 #if !defined(OS_MACOSX)
   // Please see message_pump_win/message_pump_glib for definitions of these
