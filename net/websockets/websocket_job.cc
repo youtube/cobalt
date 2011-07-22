@@ -140,6 +140,9 @@ bool WebSocketJob::SendData(const char* data, int len) {
 }
 
 void WebSocketJob::Close() {
+  if (state_ == CLOSED)
+    return;
+
   state_ = CLOSING;
   if (current_buffer_) {
     // Will close in SendPending.
@@ -621,7 +624,8 @@ bool WebSocketJob::SendDataInternal(const char* data, int length) {
 void WebSocketJob::CloseInternal() {
   if (spdy_websocket_stream_.get())
     spdy_websocket_stream_->Close();
-  socket_->Close();
+  if (socket_.get())
+    socket_->Close();
 }
 
 void WebSocketJob::SendPending() {
