@@ -1520,6 +1520,19 @@ void URLRequestHttpJob::RecordPerfHistograms(CompletionCause reason) {
                                      "CacheListSize"),
           total_time);
     }
+    if (response_info_) {
+      if (response_info_->was_cached) {
+        UMA_HISTOGRAM_TIMES(
+            base::FieldTrial::MakeName("Net.HttpJob.TotalTimeCached",
+                                       "CacheListSize"),
+            total_time);
+      } else  {
+        UMA_HISTOGRAM_TIMES(
+            base::FieldTrial::MakeName("Net.HttpJob.TotalTimeNotCached",
+                                       "CacheListSize"),
+            total_time);
+      }
+    }
   }
 
   start_time_ = base::TimeTicks();
