@@ -56,6 +56,9 @@ Patches:
     record in order to randomize the IV in a backwards compatible manner.
     patches/cbcrandomiv.patch
 
+  * Support origin bound certificates (http://balfanz.github.com/tls-obc-spec/draft-balfanz-tls-obc-00.txt)
+    patches/origin_bound_certs.patch
+
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
 
