@@ -82,7 +82,8 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
       handshake_request_sent_(0),
       response_cookies_save_index_(0),
       send_frame_handler_(new WebSocketFrameHandler),
-      receive_frame_handler_(new WebSocketFrameHandler) {
+      receive_frame_handler_(new WebSocketFrameHandler),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
 }
 
 WebSocketJob::~WebSocketJob() {
@@ -228,9 +229,12 @@ void WebSocketJob::OnSentData(SocketStream* socket, int amount_sent) {
     DCHECK_GT(amount_sent, 0);
     current_buffer_ = NULL;
     send_frame_handler_->ReleaseCurrentBuffer();
+    if (method_factory_.empty()) {
+      MessageLoopForIO::current()->PostTask(
+          FROM_HERE,
+          method_factory_.NewRunnableMethod(&WebSocketJob::SendPending));
+    }
     delegate_->OnSentData(socket, amount_sent);
-    MessageLoopForIO::current()->PostTask(
-        FROM_HERE, NewRunnableMethod(this, &WebSocketJob::SendPending));
   }
 }
 
@@ -593,7 +597,7 @@ void WebSocketJob::Wakeup() {
   DCHECK(callback_);
   MessageLoopForIO::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &WebSocketJob::RetryPendingIO));
+      method_factory_.NewRunnableMethod(&WebSocketJob::RetryPendingIO));
 }
 
 void WebSocketJob::RetryPendingIO() {
@@ -618,7 +622,9 @@ void WebSocketJob::CompleteIO(int result) {
 bool WebSocketJob::SendDataInternal(const char* data, int length) {
   if (spdy_websocket_stream_.get())
     return ERR_IO_PENDING == spdy_websocket_stream_->SendData(data, length);
-  return socket_->SendData(data, length);
+  if (socket_.get())
+    return socket_->SendData(data, length);
+  return false;
 }
 
 void WebSocketJob::CloseInternal() {
