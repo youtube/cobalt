@@ -6074,6 +6074,10 @@ TEST_F(HttpNetworkTransactionTest, HTTPSViaProxyWithExtraData) {
   EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
 }
 
+// If a server advertises a large Content-Length, and then fails to send that
+// many bytes in the message body prior to closing the connection, still treat
+// the response as if it was OK. Although this is erroneous behavior, it is
+// common in the wild and matches behavior of the other major browsers.
 TEST_F(HttpNetworkTransactionTest, LargeContentLengthThenClose) {
   HttpRequestInfo request;
   request.method = "GET";
@@ -6107,7 +6111,7 @@ TEST_F(HttpNetworkTransactionTest, LargeContentLengthThenClose) {
 
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
-  EXPECT_EQ(ERR_CONNECTION_CLOSED, rv);
+  EXPECT_EQ(OK, rv);
 }
 
 TEST_F(HttpNetworkTransactionTest, UploadFileSmallerThanLength) {
