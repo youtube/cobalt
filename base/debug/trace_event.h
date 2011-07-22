@@ -278,9 +278,9 @@
         INTERNAL_TRACE_EVENT_UID(begin_event_id), threshold); \
   }
 
-class RefCountedBytes;
-
 namespace base {
+
+class RefCountedString;
 
 namespace debug {
 
@@ -438,7 +438,7 @@ class TraceEvent {
   const char* name_;
   const char* arg_names_[kTraceMaxNumArgs];
   TraceValue arg_values_[kTraceMaxNumArgs];
-  scoped_refptr<RefCountedBytes> parameter_copy_storage_;
+  scoped_refptr<base::RefCountedString> parameter_copy_storage_;
 };
 
 
