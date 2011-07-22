@@ -133,6 +133,8 @@ class NET_API WebSocketJob
   scoped_ptr<SpdyWebSocketStream> spdy_websocket_stream_;
   std::string challenge_;
 
+  ScopedRunnableMethodFactory<WebSocketJob> method_factory_;
+
   DISALLOW_COPY_AND_ASSIGN(WebSocketJob);
 };
 
