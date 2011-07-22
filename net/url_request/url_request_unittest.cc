@@ -463,10 +463,11 @@ TEST_F(URLRequestTestHTTP, GetZippedTest) {
   const char test_parameters[] = "CULMS";
   const int num_tests = arraysize(test_parameters)- 1;  // Skip NULL.
   // C & U should be OK.
-  // L & M are larger than the data sent, and show an error.
+  // L & M are larger than the data sent, but we still accept it since a number
+  //   of servers in the wild have invalid Content-Lengths.
   // S has too little data, but we seem to accept it.
   const bool test_expect_success[num_tests] =
-      { true, true, false, false, true };
+      { true, true, true, true, true };
 
   for (int i = 0; i < num_tests ; i++) {
     TestDelegate d;
