@@ -486,10 +486,8 @@ void VideoRendererBase::FlushBuffers() {
   }
   current_frame_ = NULL;
 
-  if (decoder_->ProvidesBuffer()) {
-    // Flush all buffers out to decoder;
-    ScheduleRead_Locked();
-  }
+  // Flush all buffers out to decoder.
+  ScheduleRead_Locked();
 
   if (pending_reads_ == 0 && state_ == kFlushing)
     OnFlushDone();
@@ -497,12 +495,7 @@ void VideoRendererBase::FlushBuffers() {
 
 void VideoRendererBase::OnFlushDone() {
   // Check all buffers are return to owners.
-  if (decoder_->ProvidesBuffer()) {
-    DCHECK_EQ(frames_queue_done_.size(), 0u);
-  } else {
-    DCHECK_EQ(frames_queue_done_.size(),
-              static_cast<size_t>(Limits::kMaxVideoFrames));
-  }
+  DCHECK_EQ(frames_queue_done_.size(), 0u);
   DCHECK(!current_frame_.get());
   DCHECK(frames_queue_ready_.empty());
 

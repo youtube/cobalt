@@ -28,8 +28,7 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(MessageLoop* message_loop,
   memset(&info_, 0, sizeof(info_));
 }
 
-FFmpegVideoDecoder::~FFmpegVideoDecoder() {
-}
+FFmpegVideoDecoder::~FFmpegVideoDecoder() {}
 
 void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
                                     FilterCallback* callback,
@@ -203,10 +202,6 @@ void FFmpegVideoDecoder::OnError() {
   VideoFrameReady(NULL);
 }
 
-void FFmpegVideoDecoder::OnFormatChange(VideoStreamInfo stream_info) {
-  NOTIMPLEMENTED();
-}
-
 void FFmpegVideoDecoder::OnReadComplete(Buffer* buffer_in) {
   scoped_refptr<Buffer> buffer(buffer_in);
   message_loop_->PostTask(
@@ -335,19 +330,14 @@ void FFmpegVideoDecoder::ProduceVideoSample(
                                    this));
 }
 
-bool FFmpegVideoDecoder::ProvidesBuffer() {
-  DCHECK(info_.success);
-  return info_.provides_buffers;
-}
-
 int FFmpegVideoDecoder::width() {
   DCHECK(info_.success);
-  return info_.stream_info.surface_width;
+  return info_.surface_width;
 }
 
 int FFmpegVideoDecoder::height() {
   DCHECK(info_.success);
-  return info_.stream_info.surface_height;
+  return info_.surface_height;
 }
 
 void FFmpegVideoDecoder::FlushBuffers() {
@@ -356,12 +346,8 @@ void FFmpegVideoDecoder::FlushBuffers() {
     video_frame = frame_queue_flushed_.front();
     frame_queue_flushed_.pop_front();
 
-    // Depends on who own the buffers, we either return it to the renderer
-    // or return it to the decode engine.
-    if (ProvidesBuffer())
-      decode_engine_->ProduceVideoFrame(video_frame);
-    else
-      VideoFrameReady(video_frame);
+    // Return frames back to the decode engine.
+    decode_engine_->ProduceVideoFrame(video_frame);
   }
 }
 
