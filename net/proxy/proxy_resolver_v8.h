@@ -6,6 +6,7 @@
 #define NET_PROXY_PROXY_RESOLVER_V8_H_
 #pragma once
 
+#include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_api.h"
 #include "net/proxy/proxy_resolver.h"
@@ -48,14 +49,14 @@ class NET_TEST ProxyResolverV8 : public ProxyResolver {
                              ProxyInfo* results,
                              CompletionCallback* /*callback*/,
                              RequestHandle* /*request*/,
-                             const BoundNetLog& net_log);
-  virtual void CancelRequest(RequestHandle request);
-  virtual void CancelSetPacScript();
-  virtual void PurgeMemory();
-  virtual void Shutdown();
+                             const BoundNetLog& net_log) OVERRIDE;
+  virtual void CancelRequest(RequestHandle request) OVERRIDE;
+  virtual void CancelSetPacScript() OVERRIDE;
+  virtual void PurgeMemory() OVERRIDE;
+  virtual void Shutdown() OVERRIDE;
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* /*callback*/);
+      CompletionCallback* /*callback*/) OVERRIDE;
 
  private:
   // Context holds the Javascript state for the most recently loaded PAC

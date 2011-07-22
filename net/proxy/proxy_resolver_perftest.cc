@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/base_paths.h"
+#include "base/compiler_specific.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/perftimer.h"
@@ -25,11 +26,11 @@
 class MockSyncHostResolver : public net::SyncHostResolver {
  public:
   virtual int Resolve(const net::HostResolver::RequestInfo& info,
-                      net::AddressList* addresses) {
+                      net::AddressList* addresses) OVERRIDE {
     return net::ERR_NAME_NOT_RESOLVED;
   }
 
-  virtual void Shutdown() {}
+  virtual void Shutdown() OVERRIDE {}
 };
 
 // This class holds the URL to use for resolving, and the expected result.

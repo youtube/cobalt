@@ -51,11 +51,13 @@ class CheckNoRevocationFlagSetInterceptor :
   }
 
   virtual URLRequestJob* MaybeInterceptRedirect(const GURL& location,
-                                                URLRequest* request) const {
+                                                URLRequest* request)
+      const OVERRIDE {
     return NULL;
   }
 
-  virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request) const {
+  virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request)
+      const OVERRIDE{
     return NULL;
   }
 };
