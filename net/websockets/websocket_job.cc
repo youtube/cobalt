@@ -180,6 +180,10 @@ int WebSocketJob::OnStartOpenConnection(
   state_ = CONNECTING;
   addresses_ = socket->address_list();
   WebSocketThrottle::GetInstance()->PutInQueue(this);
+  if (delegate_) {
+    int result = delegate_->OnStartOpenConnection(socket, callback);
+    DCHECK_EQ(OK, result);
+  }
   if (waiting_) {
     // PutInQueue() may set |waiting_| true for throttling. In this case,
     // Wakeup() will be called later.
