@@ -2261,7 +2261,7 @@ TEST(HttpCache, ETagGET_Http10_Range) {
   transaction.request_headers = "Range: bytes = 5-";
   RunTransactionTest(cache.http_cache(), transaction);
 
-  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(2, cache.disk_cache()->create_count());
 }
