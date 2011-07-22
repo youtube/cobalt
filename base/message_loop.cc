@@ -819,15 +819,6 @@ void MessageLoopForUI::DidProcessMessage(const MSG& message) {
 }
 #endif  // defined(OS_WIN)
 
-#if defined(USE_X11)
-Display* MessageLoopForUI::GetDisplay() {
-  GdkDisplay* display = gdk_display_get_default();
-  if (!display)
-    return NULL;
-  return GDK_DISPLAY_XDISPLAY(display);
-}
-#endif  // defined(USE_X11)
-
 #if !defined(OS_MACOSX) && !defined(OS_NACL)
 void MessageLoopForUI::AddObserver(Observer* observer) {
   pump_ui()->AddObserver(observer);
