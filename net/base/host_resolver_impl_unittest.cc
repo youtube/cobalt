@@ -16,7 +16,6 @@
 #include "base/time.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
-#include "net/base/dns_test_util.h"
 #include "net/base/host_cache.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
@@ -24,6 +23,7 @@
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
+#include "net/base/test_host_resolver_observer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO(eroman):
