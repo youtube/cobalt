@@ -4,6 +4,7 @@
 
 #include "net/proxy/proxy_resolver_js_bindings.h"
 
+#include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
 #include "net/base/address_list.h"
@@ -30,7 +31,7 @@ class MockHostResolverWithMultipleResults : public SyncHostResolver {
  public:
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) {
+                      AddressList* addresses) OVERRIDE {
     // Build up the result list (in reverse).
     AddressList temp_list = ResolveIPLiteral("200.100.1.2");
     temp_list = PrependAddressToList("172.22.34.1", temp_list);
@@ -39,10 +40,10 @@ class MockHostResolverWithMultipleResults : public SyncHostResolver {
     return OK;
   }
 
-  virtual void Shutdown() {}
+  virtual void Shutdown() OVERRIDE {}
 
  private:
-  ~MockHostResolverWithMultipleResults() {}
+  virtual ~MockHostResolverWithMultipleResults() {}
 
   // Resolves an IP literal to an address list.
   AddressList ResolveIPLiteral(const char* ip_literal) {
@@ -73,12 +74,12 @@ class MockFailingHostResolver : public SyncHostResolver {
 
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) {
+                      AddressList* addresses) OVERRIDE {
     count_++;
     return ERR_NAME_NOT_RESOLVED;
   }
 
-  virtual void Shutdown() {}
+  virtual void Shutdown() OVERRIDE {}
 
   // Returns the number of times Resolve() has been called.
   int count() const { return count_; }
@@ -91,11 +92,11 @@ class MockFailingHostResolver : public SyncHostResolver {
 class MockSyncHostResolver : public SyncHostResolver {
  public:
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) {
+                      AddressList* addresses) OVERRIDE {
     return resolver_.Resolve(info, addresses, NULL, NULL, BoundNetLog());
   }
 
-  virtual void Shutdown() {}
+  virtual void Shutdown() OVERRIDE {}
 
   RuleBasedHostResolverProc* rules() {
     return resolver_.rules();

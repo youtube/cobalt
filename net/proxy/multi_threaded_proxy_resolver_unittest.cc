@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,7 +40,7 @@ class MockProxyResolver : public ProxyResolver {
                              ProxyInfo* results,
                              CompletionCallback* callback,
                              RequestHandle* request,
-                             const BoundNetLog& net_log) {
+                             const BoundNetLog& net_log) OVERRIDE {
     if (resolve_latency_ms_)
       base::PlatformThread::Sleep(resolve_latency_ms_);
 
@@ -58,23 +58,23 @@ class MockProxyResolver : public ProxyResolver {
     return request_count_++;
   }
 
-  virtual void CancelRequest(RequestHandle request) {
+  virtual void CancelRequest(RequestHandle request) OVERRIDE {
     NOTREACHED();
   }
 
-  virtual void CancelSetPacScript() {
+  virtual void CancelSetPacScript() OVERRIDE {
     NOTREACHED();
   }
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback) {
+      CompletionCallback* callback) OVERRIDE {
     CheckIsOnWorkerThread();
     last_script_data_ = script_data;
     return OK;
   }
 
-  virtual void PurgeMemory() {
+  virtual void PurgeMemory() OVERRIDE {
     CheckIsOnWorkerThread();
     ++purge_count_;
   }
@@ -139,7 +139,7 @@ class BlockableProxyResolver : public MockProxyResolver {
                              ProxyInfo* results,
                              CompletionCallback* callback,
                              RequestHandle* request,
-                             const BoundNetLog& net_log) {
+                             const BoundNetLog& net_log) OVERRIDE {
     if (should_block_) {
       blocked_.Signal();
       unblocked_.Wait();
@@ -166,26 +166,26 @@ class ForwardingProxyResolver : public ProxyResolver {
                              ProxyInfo* results,
                              CompletionCallback* callback,
                              RequestHandle* request,
-                             const BoundNetLog& net_log) {
+                             const BoundNetLog& net_log) OVERRIDE {
     return impl_->GetProxyForURL(
         query_url, results, callback, request, net_log);
   }
 
-  virtual void CancelRequest(RequestHandle request) {
+  virtual void CancelRequest(RequestHandle request) OVERRIDE {
     impl_->CancelRequest(request);
   }
 
-  virtual void CancelSetPacScript() {
+  virtual void CancelSetPacScript() OVERRIDE {
     impl_->CancelSetPacScript();
   }
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback) {
+      CompletionCallback* callback) OVERRIDE {
     return impl_->SetPacScript(script_data, callback);
   }
 
-  virtual void PurgeMemory() {
+  virtual void PurgeMemory() OVERRIDE {
     impl_->PurgeMemory();
   }
 
@@ -201,7 +201,7 @@ class ForwardingProxyResolverFactory : public ProxyResolverFactory {
       : ProxyResolverFactory(resolver->expects_pac_bytes()),
         resolver_(resolver) {}
 
-  virtual ProxyResolver* CreateProxyResolver() {
+  virtual ProxyResolver* CreateProxyResolver() OVERRIDE {
     return new ForwardingProxyResolver(resolver_);
   }
 
@@ -218,7 +218,7 @@ class BlockableProxyResolverFactory : public ProxyResolverFactory {
     STLDeleteElements(&resolvers_);
   }
 
-  virtual ProxyResolver* CreateProxyResolver() {
+  virtual ProxyResolver* CreateProxyResolver() OVERRIDE {
     BlockableProxyResolver* resolver = new BlockableProxyResolver;
     resolvers_.push_back(resolver);
     return new ForwardingProxyResolver(resolver);

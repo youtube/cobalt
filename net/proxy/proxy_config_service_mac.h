@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
 #include "net/base/network_config_watcher_mac.h"
@@ -25,9 +26,9 @@ class ProxyConfigServiceMac : public ProxyConfigService {
 
  public:
   // ProxyConfigService implementation:
-  virtual void AddObserver(Observer* observer);
-  virtual void RemoveObserver(Observer* observer);
-  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config);
+  virtual void AddObserver(Observer* observer) OVERRIDE;
+  virtual void RemoveObserver(Observer* observer) OVERRIDE;
+  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config) OVERRIDE;
 
  private:
   class Helper;
@@ -40,10 +41,11 @@ class ProxyConfigServiceMac : public ProxyConfigService {
         : net_config_watcher_(net_config_watcher) {}
 
     // NetworkConfigWatcherMac::Delegate implementation:
-    virtual void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store) {
+    virtual void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store)
+        OVERRIDE {
       net_config_watcher_->SetDynamicStoreNotificationKeys(store);
     }
-    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) {
+    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) OVERRIDE {
       net_config_watcher_->OnNetworkConfigChange(changed_keys);
     }
 
