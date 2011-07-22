@@ -509,6 +509,13 @@ int HttpStreamParser::DoReadBody() {
 }
 
 int HttpStreamParser::DoReadBodyComplete(int result) {
+  // If we didn't get a content-length and aren't using a chunked encoding,
+  // the only way to signal the end of a stream is to close the connection,
+  // so we don't treat that as an error, though in some cases we may not
+  // have completely received the resource.
+  if (result == 0 && !IsResponseBodyComplete() && CanFindEndOfResponse())
+    result = ERR_CONNECTION_CLOSED;
+
   // Filter incoming data if appropriate.  FilterBuf may return an error.
   if (result > 0 && chunked_decoder_.get()) {
     result = chunked_decoder_->FilterBuf(user_read_buf_->data(), result);
