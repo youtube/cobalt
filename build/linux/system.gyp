@@ -264,29 +264,12 @@
           },
           'link_settings': {
             'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other x11)',
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other x11 xi)',
             ],
             'libraries': [
-              '<!@(<(pkg-config) --libs-only-l x11)',
+              '<!@(<(pkg-config) --libs-only-l x11 xi)',
             ],
           },
-      }],
-      # When XInput2 is available (i.e. inputproto version is 2.0), the
-      # pkg-config command will succeed, so the output will be empty.
-      ['"<!@(<(pkg-config) --atleast-version=2.0 inputproto || echo $?)"==""', {
-        'direct_dependent_settings': {
-          'defines': [
-            'HAVE_XINPUT2',
-          ],
-        },
-        'link_settings': {
-          'ldflags': [
-            '<!@(<(pkg-config) --libs-only-L --libs-only-other xi)',
-          ],
-          'libraries': [
-            '<!@(<(pkg-config) --libs-only-l xi)',
-          ],
-        }
       }],
       ],
     },
