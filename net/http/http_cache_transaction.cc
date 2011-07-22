@@ -113,6 +113,7 @@ HttpCache::Transaction::Transaction(HttpCache* cache)
       invalid_range_(false),
       truncated_(false),
       is_sparse_(false),
+      range_requested_(false),
       handling_206_(false),
       cache_pending_(false),
       done_reading_(false),
@@ -675,12 +676,17 @@ int HttpCache::Transaction::DoGetBackendComplete(int result) {
     return ERR_CACHE_MISS;
 
   if (mode_ == NONE) {
-    if (partial_.get())
+    if (partial_.get()) {
       partial_->RestoreHeaders(&custom_request_->extra_headers);
+      partial_.reset();
+    }
     next_state_ = STATE_SEND_REQUEST;
   } else {
     next_state_ = STATE_INIT_ENTRY;
   }
+
+  // This is only set if we have something to do with the response.
+  range_requested_ = (partial_.get() != NULL);
 
   return OK;
 }
@@ -711,7 +717,7 @@ int HttpCache::Transaction::DoSendRequestComplete(int result) {
   if (IsCertificateError(result)) {
     const HttpResponseInfo* response = network_trans_->GetResponseInfo();
     // If we get a certificate error, then there is a certificate in ssl_info,
-    // so GetResponseInfo() should never returns NULL here.
+    // so GetResponseInfo() should never return NULL here.
     DCHECK(response);
     response_.ssl_info = response->ssl_info;
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
@@ -1272,19 +1278,19 @@ int HttpCache::Transaction::DoCacheReadMetadataComplete(int result) {
 int HttpCache::Transaction::DoCacheQueryData() {
   next_state_ = STATE_CACHE_QUERY_DATA_COMPLETE;
 
-  // Balanced in ValidateEntryHeadersAndContinue.
+  // Balanced in DoCacheQueryDataComplete.
   cache_callback_->AddRef();
   return entry_->disk_entry->ReadyForSparseIO(cache_callback_);
 }
 
 int HttpCache::Transaction::DoCacheQueryDataComplete(int result) {
   DCHECK_EQ(OK, result);
-  // Balance the AddRef from BeginPartialCacheValidation.
+  // Balance the AddRef from DoCacheQueryData.
   cache_callback_->Release();
   if (!cache_)
     return ERR_UNEXPECTED;
 
-  return ValidateEntryHeadersAndContinue(true);
+  return ValidateEntryHeadersAndContinue();
 }
 
 int HttpCache::Transaction::DoCacheReadData() {
@@ -1565,8 +1571,7 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
       !truncated_)
     return BeginCacheValidation();
 
-  bool byte_range_requested = partial_.get() != NULL;
-  if (byte_range_requested) {
+  if (range_requested_) {
     next_state_ = STATE_CACHE_QUERY_DATA;
     return OK;
   }
@@ -1578,19 +1583,18 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
     request_ = custom_request_.get();
   }
 
-  return ValidateEntryHeadersAndContinue(false);
+  return ValidateEntryHeadersAndContinue();
 }
 
 // This should only be called once per request.
-int HttpCache::Transaction::ValidateEntryHeadersAndContinue(
-    bool byte_range_requested) {
+int HttpCache::Transaction::ValidateEntryHeadersAndContinue() {
   DCHECK(mode_ == READ_WRITE);
 
   if (!partial_->UpdateFromStoredHeaders(response_.headers, entry_->disk_entry,
                                          truncated_)) {
     // The stored data cannot be used. Get rid of it and restart this request.
     // We need to also reset the |truncated_| flag as a new entry is created.
-    DoomPartialEntry(!byte_range_requested);
+    DoomPartialEntry(!range_requested_);
     mode_ = WRITE;
     truncated_ = false;
     next_state_ = STATE_INIT_ENTRY;
@@ -1832,18 +1836,18 @@ bool HttpCache::Transaction::ValidatePartialResponse() {
       return true;
     }
 
+    if (response_code == 200 && !reading_ && !is_sparse_) {
+      // The server is sending the whole resource, and we can save it.
+      DCHECK((truncated_ && !partial_->IsLastRange()) || range_requested_);
+      partial_.reset();
+      truncated_ = false;
+      return true;
+    }
+
     // 304 is not expected here, but we'll spare the entry (unless it was
     // truncated).
-    if (truncated_) {
-      if (!reading_ && response_code == 200) {
-        // The server is sending the whole resource, and we can save it.
-        DCHECK(!partial_->IsLastRange());
-        partial_.reset();
-        truncated_ = false;
-        return true;
-      }
+    if (truncated_)
       failure = true;
-    }
   }
 
   if (failure) {

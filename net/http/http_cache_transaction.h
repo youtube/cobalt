@@ -239,7 +239,7 @@ class HttpCache::Transaction : public HttpTransaction {
 
   // Validates the entry headers against the requested range and continues with
   // the validation of the rest of the entry.  Returns a network error code.
-  int ValidateEntryHeadersAndContinue(bool byte_range_requested);
+  int ValidateEntryHeadersAndContinue();
 
   // Called to start requests which were given an "if-modified-since" or
   // "if-none-match" validation header by the caller (NOT when the request was
@@ -347,6 +347,7 @@ class HttpCache::Transaction : public HttpTransaction {
   bool invalid_range_;  // We may bypass the cache for this request.
   bool truncated_;  // We don't have all the response data.
   bool is_sparse_;  // The data is stored in sparse byte ranges.
+  bool range_requested_;  // The user requested a byte range.
   bool handling_206_;  // We must deal with this 206 response.
   bool cache_pending_;  // We are waiting for the HttpCache.
   bool done_reading_;
