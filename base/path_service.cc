@@ -23,6 +23,8 @@ namespace base {
   bool PathProviderWin(int key, FilePath* result);
 #elif defined(OS_MACOSX)
   bool PathProviderMac(int key, FilePath* result);
+#elif defined(__LB_PS3__)
+  bool PathProviderPS3(int key, FilePath* result);
 #elif defined(OS_POSIX)
   bool PathProviderPosix(int key, FilePath* result);
 #endif
@@ -80,7 +82,11 @@ static Provider base_provider_mac = {
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
 static Provider base_provider_posix = {
+#if !defined(__LB_PS3__)
   base::PathProviderPosix,
+#else
+  base::PathProviderPS3,
+#endif
   &base_provider,
 #ifndef NDEBUG
   0,
