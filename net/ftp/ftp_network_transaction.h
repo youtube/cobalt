@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string16.h"
@@ -38,14 +39,15 @@ class NET_TEST FtpNetworkTransaction : public FtpTransaction {
   // FtpTransaction methods:
   virtual int Start(const FtpRequestInfo* request_info,
                     CompletionCallback* callback,
-                    const BoundNetLog& net_log);
+                    const BoundNetLog& net_log) OVERRIDE;
   virtual int RestartWithAuth(const string16& username,
                               const string16& password,
-                              CompletionCallback* callback);
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual const FtpResponseInfo* GetResponseInfo() const;
-  virtual LoadState GetLoadState() const;
-  virtual uint64 GetUploadProgress() const;
+                              CompletionCallback* callback) OVERRIDE;
+  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback)
+      OVERRIDE;
+  virtual const FtpResponseInfo* GetResponseInfo() const OVERRIDE;
+  virtual LoadState GetLoadState() const OVERRIDE;
+  virtual uint64 GetUploadProgress() const OVERRIDE;
 
  private:
   enum Command {
