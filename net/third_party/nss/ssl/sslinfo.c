@@ -20,6 +20,7 @@
  *
  * Contributor(s):
  *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
+ *   Douglas Stebila <douglas@stebila.ca>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -38,6 +39,7 @@
 #include "ssl.h"
 #include "sslimpl.h"
 #include "sslproto.h"
+#include "pk11func.h"
 
 static const char *
 ssl_GetCompressionMethodName(SSLCompressionMethod compression)
@@ -314,6 +316,67 @@ SSL_IsExportCipherSuite(PRUint16 cipherSuite)
 	}
     }
     return PR_FALSE;
+}
+
+/* Export keying material according to draft-ietf-tls-extractor-06.
+** fd must correspond to a TLS 1.0 or higher socket, out must
+** be already allocated.
+*/
+SECStatus
+SSL_ExportKeyingMaterial(PRFileDesc *fd, const char *label,
+			 const unsigned char *context,
+			 unsigned int contextLen,
+			 unsigned char *out,
+			 unsigned int outLen)
+{
+    sslSocket *ss;
+    unsigned char *val = NULL;
+    unsigned int valLen, i;
+    SECStatus rv = SECFailure;
+
+    ss = ssl_FindSocket(fd);
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in ExportKeyingMaterial",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    if (ss->version < SSL_LIBRARY_VERSION_3_1_TLS) {
+	PORT_SetError(SSL_ERROR_UNSUPPORTED_VERSION);
+	return SECFailure;
+    }
+
+    if (ss->ssl3.hs.ws != idle_handshake) {
+	PORT_SetError(SSL_ERROR_HANDSHAKE_NOT_COMPLETED);
+	return SECFailure;
+    }
+
+    valLen = SSL3_RANDOM_LENGTH * 2;
+    if (contextLen > 0)
+	valLen += 2 /* uint16 length */ + contextLen;
+    val = PORT_Alloc(valLen);
+    if (val == NULL)
+	return SECFailure;
+    i = 0;
+    PORT_Memcpy(val + i, &ss->ssl3.hs.client_random.rand, SSL3_RANDOM_LENGTH);
+    i += SSL3_RANDOM_LENGTH;
+    PORT_Memcpy(val + i, &ss->ssl3.hs.server_random.rand, SSL3_RANDOM_LENGTH);
+    i += SSL3_RANDOM_LENGTH;
+    if (contextLen > 0) {
+	val[i++] = contextLen >> 8;
+	val[i++] = contextLen;
+	PORT_Memcpy(val + i, context, contextLen);
+	i += contextLen;
+    }
+    PORT_Assert(i == valLen);
+
+    ssl_GetSpecReadLock(ss);
+    rv = ssl3_TLSPRFWithMasterSecret(ss->ssl3.crSpec, label, strlen(label), val, valLen, out, outLen);
+    ssl_ReleaseSpecReadLock(ss);
+
+    if (val != NULL)
+	PORT_ZFree(val, valLen);
+    return rv;
 }
 
 SECItem*

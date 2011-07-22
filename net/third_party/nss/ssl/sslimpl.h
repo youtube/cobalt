@@ -1726,6 +1726,12 @@ SECStatus SSL_DisableDefaultExportCipherSuites(void);
 SECStatus SSL_DisableExportCipherSuites(PRFileDesc * fd);
 PRBool    SSL_IsExportCipherSuite(PRUint16 cipherSuite);
 
+SECStatus ssl3_TLSPRFWithMasterSecret(
+			ssl3CipherSpec *spec, const char *label,
+			unsigned int labelLen, const unsigned char *val,
+			unsigned int valLen, unsigned char *out,
+			unsigned int outLen);
+
 /********************** FNV hash  *********************/
 
 void FNV1A64_Init(PRUint64 *digest);
