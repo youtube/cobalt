@@ -27,29 +27,26 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   // net::NetworkDelegate:
   virtual int OnBeforeURLRequest(URLRequest* request,
                                  CompletionCallback* callback,
-                                 GURL* new_url) {
+                                 GURL* new_url) OVERRIDE {
     return net::OK;
   }
   virtual int OnBeforeSendHeaders(URLRequest* request,
                                   CompletionCallback* callback,
-                                  HttpRequestHeaders* headers) {
+                                  HttpRequestHeaders* headers) OVERRIDE {
     return net::OK;
   }
   virtual void OnSendHeaders(URLRequest* request,
-                             const HttpRequestHeaders& headers) {}
+                             const HttpRequestHeaders& headers) OVERRIDE {}
   virtual void OnBeforeRedirect(URLRequest* request,
-                                const GURL& new_location) {}
-  virtual void OnResponseStarted(URLRequest* request) {}
+                                const GURL& new_location) OVERRIDE {}
+  virtual void OnResponseStarted(URLRequest* request) OVERRIDE {}
   virtual void OnRawBytesRead(const URLRequest& request,
-                              int bytes_read) {}
-  virtual void OnCompleted(URLRequest* request) {}
-  virtual void OnURLRequestDestroyed(URLRequest* request) {}
-  virtual void OnHttpTransactionDestroyed(uint64 request_id) {}
-  virtual URLRequestJob* OnMaybeCreateURLRequestJob(URLRequest* request) {
-    return NULL;
-  }
+                              int bytes_read) OVERRIDE {}
+  virtual void OnCompleted(URLRequest* request) OVERRIDE {}
+  virtual void OnURLRequestDestroyed(URLRequest* request) OVERRIDE {}
+
   virtual void OnPACScriptError(int line_number,
-                                const string16& error) {
+                                const string16& error) OVERRIDE {
     got_pac_error_ = true;
   }
 

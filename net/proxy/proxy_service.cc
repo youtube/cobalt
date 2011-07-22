@@ -91,9 +91,10 @@ const int64 kNumMillisToStallAfterNetworkChanges = 2000;
 class ProxyConfigServiceDirect : public ProxyConfigService {
  public:
   // ProxyConfigService implementation:
-  virtual void AddObserver(Observer* observer) {}
-  virtual void RemoveObserver(Observer* observer) {}
-  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config) {
+  virtual void AddObserver(Observer* observer) OVERRIDE {}
+  virtual void RemoveObserver(Observer* observer) OVERRIDE {}
+  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config)
+      OVERRIDE {
     *config = ProxyConfig::CreateDirect();
     return CONFIG_VALID;
   }
@@ -109,21 +110,21 @@ class ProxyResolverNull : public ProxyResolver {
                              ProxyInfo* results,
                              CompletionCallback* callback,
                              RequestHandle* request,
-                             const BoundNetLog& net_log) {
+                             const BoundNetLog& net_log) OVERRIDE {
     return ERR_NOT_IMPLEMENTED;
   }
 
-  virtual void CancelRequest(RequestHandle request) {
+  virtual void CancelRequest(RequestHandle request) OVERRIDE {
     NOTREACHED();
   }
 
-  virtual void CancelSetPacScript() {
+  virtual void CancelSetPacScript() OVERRIDE {
     NOTREACHED();
   }
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& /*script_data*/,
-      CompletionCallback* /*callback*/) {
+      CompletionCallback* /*callback*/) OVERRIDE {
     return ERR_NOT_IMPLEMENTED;
   }
 };
@@ -140,22 +141,22 @@ class ProxyResolverFromPacString : public ProxyResolver {
                              ProxyInfo* results,
                              CompletionCallback* callback,
                              RequestHandle* request,
-                             const BoundNetLog& net_log) {
+                             const BoundNetLog& net_log) OVERRIDE {
     results->UsePacString(pac_string_);
     return OK;
   }
 
-  virtual void CancelRequest(RequestHandle request) {
+  virtual void CancelRequest(RequestHandle request) OVERRIDE {
     NOTREACHED();
   }
 
-  virtual void CancelSetPacScript() {
+  virtual void CancelSetPacScript() OVERRIDE {
     NOTREACHED();
   }
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& pac_script,
-      CompletionCallback* callback) {
+      CompletionCallback* callback) OVERRIDE {
     return OK;
   }
 
@@ -183,7 +184,7 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
         network_delegate_(network_delegate) {
   }
 
-  virtual ProxyResolver* CreateProxyResolver() {
+  virtual ProxyResolver* CreateProxyResolver() OVERRIDE {
     // Create a synchronous host resolver wrapper that operates
     // |async_host_resolver_| on |io_loop_|.
     SyncHostResolverBridge* sync_host_resolver =
@@ -217,7 +218,7 @@ class ProxyResolverFactoryForSystem : public ProxyResolverFactory {
   ProxyResolverFactoryForSystem()
       : ProxyResolverFactory(false /*expects_pac_bytes*/) {}
 
-  virtual ProxyResolver* CreateProxyResolver() {
+  virtual ProxyResolver* CreateProxyResolver() OVERRIDE {
     DCHECK(IsSupported());
 #if defined(OS_WIN)
     return new ProxyResolverWinHttp();
@@ -247,7 +248,7 @@ class ProxyConfigChangedNetLogParam : public NetLog::EventParameters {
         new_config_(new_config) {
   }
 
-  virtual Value* ToValue() const {
+  virtual Value* ToValue() const OVERRIDE {
     DictionaryValue* dict = new DictionaryValue();
     // The "old_config" is optional -- the first notification will not have
     // any "previous" configuration.
