@@ -58,9 +58,6 @@ class VideoRendererBaseTest : public ::testing::Test {
     EXPECT_CALL(*decoder_, ProduceVideoFrame(_))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::EnqueueCallback));
 
-    EXPECT_CALL(*decoder_, ProvidesBuffer())
-        .WillRepeatedly(Return(true));
-
     EXPECT_CALL(*decoder_, width()).WillRepeatedly(Return(kWidth));
     EXPECT_CALL(*decoder_, height()).WillRepeatedly(Return(kHeight));
 

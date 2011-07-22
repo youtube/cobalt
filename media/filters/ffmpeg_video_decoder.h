@@ -28,31 +28,31 @@ class FFmpegVideoDecoder
   virtual ~FFmpegVideoDecoder();
 
   // Filter implementation.
-  virtual void Stop(FilterCallback* callback);
-  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb);
-  virtual void Pause(FilterCallback* callback);
-  virtual void Flush(FilterCallback* callback);
+  virtual void Stop(FilterCallback* callback) OVERRIDE;
+  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb) OVERRIDE;
+  virtual void Pause(FilterCallback* callback) OVERRIDE;
+  virtual void Flush(FilterCallback* callback) OVERRIDE;
 
   // Decoder implementation.
   virtual void Initialize(DemuxerStream* demuxer_stream,
                           FilterCallback* callback,
-                          StatisticsCallback* stats_callback);
-  virtual void ProduceVideoFrame(scoped_refptr<VideoFrame> video_frame);
-  virtual bool ProvidesBuffer();
-  virtual int width();
-  virtual int height();
+                          StatisticsCallback* stats_callback) OVERRIDE;
+  virtual void ProduceVideoFrame(
+      scoped_refptr<VideoFrame> video_frame) OVERRIDE;
+  virtual int width() OVERRIDE;
+  virtual int height() OVERRIDE;
 
  private:
   // VideoDecodeEngine::EventHandler interface.
-  virtual void OnInitializeComplete(const VideoCodecInfo& info);
-  virtual void OnUninitializeComplete();
-  virtual void OnFlushComplete();
-  virtual void OnSeekComplete();
-  virtual void OnError();
-  virtual void OnFormatChange(VideoStreamInfo stream_info);
-  virtual void ProduceVideoSample(scoped_refptr<Buffer> buffer);
-  virtual void ConsumeVideoFrame(scoped_refptr<VideoFrame> frame,
-                                 const PipelineStatistics& statistics);
+  virtual void OnInitializeComplete(const VideoCodecInfo& info) OVERRIDE;
+  virtual void OnUninitializeComplete() OVERRIDE;
+  virtual void OnFlushComplete() OVERRIDE;
+  virtual void OnSeekComplete() OVERRIDE;
+  virtual void OnError() OVERRIDE;
+  virtual void ProduceVideoSample(scoped_refptr<Buffer> buffer) OVERRIDE;
+  virtual void ConsumeVideoFrame(
+      scoped_refptr<VideoFrame> frame,
+      const PipelineStatistics& statistics) OVERRIDE;
 
   friend class DecoderPrivateMock;
   friend class FFmpegVideoDecoderTest;

@@ -182,7 +182,6 @@ class MockVideoDecoder : public VideoDecoder {
                                 FilterCallback* callback,
                                 StatisticsCallback* stats_callback));
   MOCK_METHOD1(ProduceVideoFrame, void(scoped_refptr<VideoFrame>));
-  MOCK_METHOD0(ProvidesBuffer, bool());
   MOCK_METHOD0(width, int());
   MOCK_METHOD0(height, int());
 
