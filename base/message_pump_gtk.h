@@ -9,7 +9,6 @@
 #include "base/message_pump_glib.h"
 
 typedef union _GdkEvent GdkEvent;
-typedef struct _XDisplay Display;
 
 namespace base {
 
@@ -49,9 +48,6 @@ class MessagePumpGtk : public MessagePumpGlib {
   // Dispatch an available GdkEvent. Essentially this allows a subclass to do
   // some task before/after calling the default handler (EventDispatcher).
   void DispatchEvents(GdkEvent* event);
-
-  // Returns default X Display.
-  static Display* GetDefaultXDisplay();
 
  private:
   // Overridden from MessagePumpGlib
