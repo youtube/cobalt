@@ -6,6 +6,7 @@
 
 #include "build/build_config.h"
 
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -57,7 +58,7 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
     Init();
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -109,7 +110,7 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
     return state_;
   }
 
-  virtual void Reset() {
+  virtual void Reset() OVERRIDE {
     DynamicSocketDataProvider::Reset();
     Init();
   }
@@ -181,7 +182,7 @@ class FtpSocketDataProviderDirectoryListing : public FtpSocketDataProvider {
   FtpSocketDataProviderDirectoryListing() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -207,7 +208,7 @@ class FtpSocketDataProviderDirectoryListingWithPasvFallback
   FtpSocketDataProviderDirectoryListingWithPasvFallback() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -233,7 +234,7 @@ class FtpSocketDataProviderDirectoryListingZeroSize
   FtpSocketDataProviderDirectoryListingZeroSize() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -253,7 +254,7 @@ class FtpSocketDataProviderVMSDirectoryListing : public FtpSocketDataProvider {
   FtpSocketDataProviderVMSDirectoryListing() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -290,7 +291,7 @@ class FtpSocketDataProviderVMSDirectoryListingRootDirectory
   FtpSocketDataProviderVMSDirectoryListingRootDirectory() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -329,7 +330,7 @@ class FtpSocketDataProviderFileDownloadWithFileTypecode
   FtpSocketDataProviderFileDownloadWithFileTypecode() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -352,7 +353,7 @@ class FtpSocketDataProviderFileDownload : public FtpSocketDataProvider {
   FtpSocketDataProviderFileDownload() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -378,7 +379,7 @@ class FtpSocketDataProviderFileNotFound : public FtpSocketDataProvider {
   FtpSocketDataProviderFileNotFound() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -406,7 +407,7 @@ class FtpSocketDataProviderFileDownloadWithPasvFallback
   FtpSocketDataProviderFileDownloadWithPasvFallback() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -431,7 +432,7 @@ class FtpSocketDataProviderFileDownloadZeroSize
   FtpSocketDataProviderFileDownloadZeroSize() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -455,7 +456,7 @@ class FtpSocketDataProviderVMSFileDownload : public FtpSocketDataProvider {
   FtpSocketDataProviderVMSFileDownload() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -493,7 +494,7 @@ class FtpSocketDataProviderEscaping : public FtpSocketDataProviderFileDownload {
   FtpSocketDataProviderEscaping() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -521,7 +522,7 @@ class FtpSocketDataProviderFileDownloadTransferStarting
   FtpSocketDataProviderFileDownloadTransferStarting() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -545,7 +546,7 @@ class FtpSocketDataProviderDirectoryListingTransferStarting
   FtpSocketDataProviderDirectoryListingTransferStarting() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -570,7 +571,7 @@ class FtpSocketDataProviderFileDownloadInvalidResponse
   FtpSocketDataProviderFileDownloadInvalidResponse() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -604,7 +605,7 @@ class FtpSocketDataProviderEvilEpsv : public FtpSocketDataProviderFileDownload {
         epsv_response_length_(epsv_response_length),
         expected_state_(expected_state) {}
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -633,7 +634,7 @@ class FtpSocketDataProviderEvilPasv
         expected_state_(expected_state) {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -658,7 +659,7 @@ class FtpSocketDataProviderEvilSize : public FtpSocketDataProviderFileDownload {
         expected_state_(expected_state) {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -685,7 +686,7 @@ class FtpSocketDataProviderEvilLogin
         expected_password_(expected_password) {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
@@ -712,7 +713,7 @@ class FtpSocketDataProviderCloseConnection : public FtpSocketDataProvider {
   FtpSocketDataProviderCloseConnection() {
   }
 
-  virtual MockWriteResult OnWrite(const std::string& data) {
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
