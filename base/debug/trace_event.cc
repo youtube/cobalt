@@ -12,6 +12,7 @@
 #include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
+#include "base/stl_util.h"
 #include "base/time.h"
 
 #define USE_UNRELIABLE_NOW
@@ -170,9 +171,9 @@ TraceEvent::TraceEvent(unsigned long process_id,
     alloc_size += GetAllocLength(arg2_val.as_string());
 
   if (alloc_size) {
-    parameter_copy_storage_ = new RefCountedBytes;
-    parameter_copy_storage_->data.resize(alloc_size);
-    char* ptr = reinterpret_cast<char*>(&parameter_copy_storage_->data[0]);
+    parameter_copy_storage_ = new base::RefCountedString;
+    parameter_copy_storage_->data().resize(alloc_size);
+    char* ptr = string_as_array(&parameter_copy_storage_->data());
     const char* end = ptr + alloc_size;
     if (copy) {
       CopyTraceEventParameter(&ptr, &name_, end);
