@@ -395,6 +395,24 @@
       ],
     },
     {
+      'target_name': 'dbus',
+      'type': 'settings',
+      'direct_dependent_settings': {
+        'cflags': [
+          '<!@(<(pkg-config) --cflags dbus-1)',
+        ],
+      },
+      'link_settings': {
+        'ldflags': [
+          '<!@(<(pkg-config) --libs-only-L --libs-only-other dbus-1)',
+        ],
+        'libraries': [
+          '<!@(<(pkg-config) --libs-only-l dbus-1)',
+        ],
+      },
+    },
+    {
+      # TODO(satorux): Remove this once dbus-glib clients are gone.
       'target_name': 'dbus-glib',
       'type': 'settings',
       'direct_dependent_settings': {
