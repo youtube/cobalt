@@ -33,6 +33,8 @@
 
 #if defined(OS_WIN)
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_SHARED
+#elif defined(__LB_PS3__)
+#define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_FILE
 #else
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_STATIC
 #endif
@@ -86,7 +88,38 @@ bool Initialize() {
   // Mac/Linux bundle the ICU data in.
   return true;
 #elif (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
-#if !defined(OS_MACOSX)
+#if defined(__LB_PS3__)
+  // __LB_PS3__FIX_ME__ consider making this suck less.
+  // rather than try to have udata access the ICU tables as a memory-mapped
+  // file, or a dll, or the myriad other unsupported data formats on the PS3,
+  // we simply use the Chrome API to access the file, load it synchronously 
+  // right here, and supply it to ICU via udata_setAppData().
+  // also note that we are leaking this memory although would really only
+  // need to unload it at program exit
+  FilePath data_path;
+  bool ok = PathService::Get(base::DIR_EXE, &data_path);
+  DCHECK(ok);
+  data_path = data_path.Append("icudt46b");
+  // set this as the data directory.
+  u_setDataDirectory(data_path.value().c_str());
+  UErrorCode err = U_ZERO_ERROR;
+  // access files first, since we don't have packages built..
+  udata_setFileAccess(UDATA_FILES_FIRST, &err);
+  return err == U_ZERO_ERROR;
+/*
+  // get the file size
+  int64 icu_file_size64;
+  ok = file_util::GetFileSize(data_path, &icu_file_size64);
+  DCHECK(ok);
+  int icu_data_size = (int)icu_file_size64;
+  void * icu_data = malloc(icu_data_size);
+  int read_bytes = file_util::ReadFile(data_path, (char*)icu_data, icu_data_size);
+  DCHECK(read_bytes == icu_data_size);
+  UErrorCode err = U_ZERO_ERROR;
+  udata_setAppData("icudt46b.dat", icu_data, &err);
+  return err == U_ZERO_ERROR;
+*/
+#elif !defined(OS_MACOSX)
   // For now, expect the data file to be alongside the executable.
   // This is sufficient while we work on unit tests, but will eventually
   // likely live in a data directory.
