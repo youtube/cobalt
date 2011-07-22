@@ -24,12 +24,12 @@ class NET_TEST SyncHostResolverBridge : public SyncHostResolver {
 
   // SyncHostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses);
+                      AddressList* addresses) OVERRIDE;
 
   // The Shutdown() method should be called prior to destruction, from
   // |host_resolver_loop_|. It aborts any in progress synchronous resolves, to
   // prevent deadlocks from happening.
-  virtual void Shutdown();
+  virtual void Shutdown() OVERRIDE;
 
  private:
   class Core;

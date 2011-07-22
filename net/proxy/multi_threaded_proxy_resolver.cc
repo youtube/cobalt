@@ -188,7 +188,7 @@ class MultiThreadedProxyResolver::SetPacScriptJob
   }
 
   // Runs on the worker thread.
-  virtual void Run(scoped_refptr<base::MessageLoopProxy> origin_loop) {
+  virtual void Run(scoped_refptr<base::MessageLoopProxy> origin_loop) OVERRIDE {
     ProxyResolver* resolver = executor()->resolver();
     int rv = resolver->SetPacScript(script_data_, NULL);
 
@@ -232,13 +232,13 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
 
   BoundNetLog* net_log() { return &net_log_; }
 
-  virtual void WaitingForThread() {
+  virtual void WaitingForThread() OVERRIDE {
     was_waiting_for_thread_ = true;
     net_log_.BeginEvent(
         NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD, NULL);
   }
 
-  virtual void FinishedWaitingForThread() {
+  virtual void FinishedWaitingForThread() OVERRIDE {
     DCHECK(executor());
 
     if (was_waiting_for_thread_) {
@@ -253,7 +253,7 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
   }
 
   // Runs on the worker thread.
-  virtual void Run(scoped_refptr<base::MessageLoopProxy> origin_loop) {
+  virtual void Run(scoped_refptr<base::MessageLoopProxy> origin_loop) OVERRIDE {
     ProxyResolver* resolver = executor()->resolver();
     int rv = resolver->GetProxyForURL(
         url_, &results_buf_, NULL, NULL, net_log_);

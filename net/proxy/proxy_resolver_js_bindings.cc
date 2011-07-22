@@ -4,6 +4,7 @@
 
 #include "net/proxy/proxy_resolver_js_bindings.h"
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/values.h"
@@ -31,7 +32,7 @@ class ErrorNetlogParams : public NetLog::EventParameters {
         message_(message) {
   }
 
-  virtual Value* ToValue() const {
+  virtual Value* ToValue() const OVERRIDE {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetInteger("line_number", line_number_);
     dict->SetString("message", message_);
@@ -51,7 +52,7 @@ class AlertNetlogParams : public NetLog::EventParameters {
   explicit AlertNetlogParams(const string16& message) : message_(message) {
   }
 
-  virtual Value* ToValue() const {
+  virtual Value* ToValue() const OVERRIDE {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetString("message", message_);
     return dict;
@@ -75,7 +76,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   }
 
   // Handler for "alert(message)".
-  virtual void Alert(const string16& message) {
+  virtual void Alert(const string16& message) OVERRIDE {
     VLOG(1) << "PAC-alert: " << message;
 
     // Send to the NetLog.
@@ -86,7 +87,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   // Handler for "myIpAddress()".
   // TODO(eroman): Perhaps enumerate the interfaces directly, using
   // getifaddrs().
-  virtual bool MyIpAddress(std::string* first_ip_address) {
+  virtual bool MyIpAddress(std::string* first_ip_address) OVERRIDE {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
                              NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS,
                              NULL);
@@ -100,7 +101,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   }
 
   // Handler for "myIpAddressEx()".
-  virtual bool MyIpAddressEx(std::string* ip_address_list) {
+  virtual bool MyIpAddressEx(std::string* ip_address_list) OVERRIDE {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
                              NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX,
                              NULL);
@@ -115,7 +116,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
   // Handler for "dnsResolve(host)".
   virtual bool DnsResolve(const std::string& host,
-                          std::string* first_ip_address) {
+                          std::string* first_ip_address) OVERRIDE {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
                              NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE,
                              NULL);
@@ -130,7 +131,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
   // Handler for "dnsResolveEx(host)".
   virtual bool DnsResolveEx(const std::string& host,
-                            std::string* ip_address_list) {
+                            std::string* ip_address_list) OVERRIDE {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
                              NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX,
                              NULL);
@@ -144,7 +145,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   }
 
   // Handler for when an error is encountered. |line_number| may be -1.
-  virtual void OnError(int line_number, const string16& message) {
+  virtual void OnError(int line_number, const string16& message) OVERRIDE {
     // Send to the chrome log.
     if (line_number == -1)
       VLOG(1) << "PAC-error: " << message;
@@ -160,7 +161,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
       error_observer_->OnPACScriptError(line_number, message);
   }
 
-  virtual void Shutdown() {
+  virtual void Shutdown() OVERRIDE {
     host_resolver_->Shutdown();
   }
 
