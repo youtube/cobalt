@@ -237,6 +237,7 @@ static const ssl3HelloExtensionHandler clientHelloHandlers[] = {
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ServerHandleNextProtoNegoXtn },
     { ssl_cached_info_xtn,        &ssl3_ServerHandleCachedInfoXtn },
+    { ssl_ob_cert_xtn,            &ssl3_ServerHandleOBCertXtn },
     { -1, NULL }
 };
 
