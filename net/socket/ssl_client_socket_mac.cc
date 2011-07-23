@@ -783,6 +783,13 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
           << cert_request_info->client_certs.size() << " client certs...";
 }
 
+int SSLClientSocketMac::ExportKeyingMaterial(const base::StringPiece& label,
+                                             const base::StringPiece& context,
+                                             unsigned char *out,
+                                             unsigned int outlen) {
+  return ERR_NOT_IMPLEMENTED;
+}
+
 SSLClientSocket::NextProtoStatus
 SSLClientSocketMac::GetNextProto(std::string* proto) {
   proto->clear();

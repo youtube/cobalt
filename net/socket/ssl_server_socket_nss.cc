@@ -126,6 +126,24 @@ int SSLServerSocketNSS::Handshake(CompletionCallback* callback) {
   return rv > OK ? OK : rv;
 }
 
+int SSLServerSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
+                                             const base::StringPiece& context,
+                                             unsigned char *out,
+                                             unsigned int outlen) {
+  if (!IsConnected())
+    return ERR_SOCKET_NOT_CONNECTED;
+  std::string label_string(label.data(), label.length());
+  SECStatus result = SSL_ExportKeyingMaterial(
+      nss_fd_, label_string.c_str(),
+      reinterpret_cast<const unsigned char*>(context.data()),
+      context.length(), out, outlen);
+  if (result != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_ExportKeyingMaterial", "");
+    return MapNSSError(PORT_GetError());
+  }
+  return OK;
+}
+
 int SSLServerSocketNSS::Connect(CompletionCallback* callback) {
   NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;

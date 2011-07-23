@@ -252,6 +252,9 @@ NET_ERROR(PROTOCOL_SWITCHED, -146)
 // Returned when attempting to bind an address that is already in use.
 NET_ERROR(ADDRESS_IN_USE, -147)
 
+// An operation failed because the SSL handshake has not completed.
+NET_ERROR(SSL_HANDSHAKE_NOT_COMPLETED, -148)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.

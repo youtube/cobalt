@@ -48,6 +48,10 @@ class SSLClientSocketWin : public SSLClientSocket {
   // SSLClientSocket methods:
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
+  virtual int ExportKeyingMaterial(const base::StringPiece& label,
+                                   const base::StringPiece& context,
+                                   unsigned char *out,
+                                   unsigned int outlen);
   virtual NextProtoStatus GetNextProto(std::string* proto);
 
   // StreamSocket methods:
