@@ -679,6 +679,14 @@ void MockClientSocket::GetSSLCertRequestInfo(
     net::SSLCertRequestInfo* cert_request_info) {
 }
 
+int MockClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
+                                           const base::StringPiece& context,
+                                           unsigned char *out,
+                                           unsigned int outlen) {
+  NOTREACHED();
+  return ERR_NOT_IMPLEMENTED;
+}
+
 SSLClientSocket::NextProtoStatus
 MockClientSocket::GetNextProto(std::string* proto) {
   proto->clear();

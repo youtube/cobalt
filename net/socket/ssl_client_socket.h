@@ -13,6 +13,10 @@
 #include "net/base/net_errors.h"
 #include "net/socket/stream_socket.h"
 
+namespace base {
+class StringPiece;
+}  // namespace base
+
 namespace net {
 
 class CertVerifier;
@@ -109,6 +113,14 @@ class NET_API SSLClientSocket : public StreamSocket {
   // with ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) = 0;
+
+  // Exports data derived from the SSL master-secret (see RFC 5705).
+  // The call will fail with an error if the socket is not connected, or the
+  // SSL implementation does not support the operation.
+  virtual int ExportKeyingMaterial(const base::StringPiece& label,
+                                   const base::StringPiece& context,
+                                   unsigned char *out,
+                                   unsigned int outlen) = 0;
 
   // Get the application level protocol that we negotiated with the server.
   // *proto is set to the resulting protocol (n.b. that the string may have
