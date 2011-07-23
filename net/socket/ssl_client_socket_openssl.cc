@@ -596,6 +596,12 @@ void SSLClientSocketOpenSSL::GetSSLCertRequestInfo(
   cert_request_info->client_certs = client_certs_;
 }
 
+int SSLClientSocketOpenSSL::ExportKeyingMaterial(
+    const base::StringPiece& label, const base::StringPiece& context,
+    unsigned char *out, unsigned int outlen) {
+  return ERR_NOT_IMPLEMENTED;
+}
+
 SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
     std::string* proto) {
   *proto = npn_proto_;

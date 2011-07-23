@@ -327,9 +327,9 @@ TEST_F(SSLServerSocketTest, Handshake) {
   Initialize();
 
   TestCompletionCallback connect_callback;
-  TestCompletionCallback accept_callback;
+  TestCompletionCallback handshake_callback;
 
-  int server_ret = server_socket_->Handshake(&accept_callback);
+  int server_ret = server_socket_->Handshake(&handshake_callback);
   EXPECT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
   int client_ret = client_socket_->Connect(&connect_callback);
@@ -339,7 +339,7 @@ TEST_F(SSLServerSocketTest, Handshake) {
     EXPECT_EQ(net::OK, connect_callback.WaitForResult());
   }
   if (server_ret == net::ERR_IO_PENDING) {
-    EXPECT_EQ(net::OK, accept_callback.WaitForResult());
+    EXPECT_EQ(net::OK, handshake_callback.WaitForResult());
   }
 
   // Make sure the cert status is expected.
@@ -352,20 +352,20 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   Initialize();
 
   TestCompletionCallback connect_callback;
-  TestCompletionCallback accept_callback;
+  TestCompletionCallback handshake_callback;
 
   // Establish connection.
   int client_ret = client_socket_->Connect(&connect_callback);
   ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
 
-  int server_ret = server_socket_->Handshake(&accept_callback);
+  int server_ret = server_socket_->Handshake(&handshake_callback);
   ASSERT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
   if (client_ret == net::ERR_IO_PENDING) {
     ASSERT_EQ(net::OK, connect_callback.WaitForResult());
   }
   if (server_ret == net::ERR_IO_PENDING) {
-    ASSERT_EQ(net::OK, accept_callback.WaitForResult());
+    ASSERT_EQ(net::OK, handshake_callback.WaitForResult());
   }
 
   const int kReadBufSize = 1024;
@@ -405,6 +405,50 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
     EXPECT_GT(write_callback.WaitForResult(), 0);
   }
   EXPECT_EQ(0, memcmp(write_buf->data(), read_buf->data(), write_buf->size()));
+}
+
+// This test executes ExportKeyingMaterial() on the client and server sockets,
+// after connecting them, and verifies that the results match.
+// This test will fail if False Start is enabled (see crbug.com/90208).
+TEST_F(SSLServerSocketTest, ExportKeyingMaterial) {
+  Initialize();
+
+  TestCompletionCallback connect_callback;
+  TestCompletionCallback handshake_callback;
+
+  int client_ret = client_socket_->Connect(&connect_callback);
+  ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
+
+  int server_ret = server_socket_->Handshake(&handshake_callback);
+  ASSERT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
+
+  if (client_ret == net::ERR_IO_PENDING) {
+    ASSERT_EQ(net::OK, connect_callback.WaitForResult());
+  }
+  if (server_ret == net::ERR_IO_PENDING) {
+    ASSERT_EQ(net::OK, handshake_callback.WaitForResult());
+  }
+
+  const int kKeyingMaterialSize = 32;
+  const char* kKeyingLabel = "EXPERIMENTAL-server-socket-test";
+  const char* kKeyingContext = "";
+  unsigned char server_out[kKeyingMaterialSize];
+  int rv = server_socket_->ExportKeyingMaterial(kKeyingLabel, kKeyingContext,
+                                                server_out, sizeof(server_out));
+  ASSERT_EQ(rv, net::OK);
+
+  unsigned char client_out[kKeyingMaterialSize];
+  rv = client_socket_->ExportKeyingMaterial(kKeyingLabel, kKeyingContext,
+                                            client_out, sizeof(client_out));
+  ASSERT_EQ(rv, net::OK);
+  EXPECT_TRUE(memcmp(server_out, client_out, sizeof(server_out)) == 0);
+
+  const char* kKeyingLabelBad = "EXPERIMENTAL-server-socket-test-bad";
+  unsigned char client_bad[kKeyingMaterialSize];
+  rv = client_socket_->ExportKeyingMaterial(kKeyingLabelBad, kKeyingContext,
+                                            client_bad, sizeof(client_bad));
+  ASSERT_EQ(rv, net::OK);
+  EXPECT_TRUE(memcmp(server_out, client_bad, sizeof(server_out)) != 0);
 }
 #endif
 
