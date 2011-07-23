@@ -523,6 +523,24 @@ void SSLClientSocketNSS::GetSSLCertRequestInfo(
   LeaveFunction(cert_request_info->client_certs.size());
 }
 
+int SSLClientSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
+                                             const base::StringPiece& context,
+                                             unsigned char *out,
+                                             unsigned int outlen) {
+  if (!IsConnected())
+    return ERR_SOCKET_NOT_CONNECTED;
+  std::string label_string(label.data(), label.length());
+  SECStatus result = SSL_ExportKeyingMaterial(
+      nss_fd_, label_string.c_str(),
+      reinterpret_cast<const unsigned char*>(context.data()),
+      context.length(), out, outlen);
+  if (result != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_ExportKeyingMaterial", "");
+    return MapNSSError(PORT_GetError());
+  }
+  return OK;
+}
+
 SSLClientSocket::NextProtoStatus
 SSLClientSocketNSS::GetNextProto(std::string* proto) {
 #if defined(SSL_NEXT_PROTO_NEGOTIATED)

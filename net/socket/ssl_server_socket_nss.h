@@ -33,6 +33,10 @@ class SSLServerSocketNSS : public SSLServerSocket {
 
   // SSLServerSocket interface.
   virtual int Handshake(CompletionCallback* callback);
+  virtual int ExportKeyingMaterial(const base::StringPiece& label,
+                                   const base::StringPiece& context,
+                                   unsigned char *out,
+                                   unsigned int outlen);
 
   // Socket interface (via StreamSocket).
   virtual int Read(IOBuffer* buf, int buf_len,
