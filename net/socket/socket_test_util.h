@@ -605,6 +605,10 @@ class MockClientSocket : public net::SSLClientSocket {
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(
       net::SSLCertRequestInfo* cert_request_info);
+  virtual int ExportKeyingMaterial(const base::StringPiece& label,
+                                   const base::StringPiece& context,
+                                   unsigned char *out,
+                                   unsigned int outlen);
   virtual NextProtoStatus GetNextProto(std::string* proto);
 
  protected:
