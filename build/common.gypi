@@ -477,6 +477,13 @@
       'vi', 'zh-CN', 'zh-TW',
     ],
 
+    # Pseudo locales are special locales which are used for testing and
+    # debugging. They don't get copied to the final app. For more info,
+    # check out https://sites.google.com/a/chromium.org/dev/Home/fake-bidi
+    'pseudo_locales': [
+      'fake-bidi',
+    ],
+
     'grit_defines': [],
 
     # Use Harfbuzz-NG instead of Harfbuzz.
