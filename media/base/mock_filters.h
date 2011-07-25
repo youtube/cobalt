@@ -136,11 +136,10 @@ class MockDemuxerFactory : public DemuxerFactory {
   virtual ~MockDemuxerFactory();
 
   void SetError(PipelineStatus error);
-  void RunBuildCallback(const std::string& url, BuildCallback* callback);
-  void DestroyBuildCallback(const std::string& url, BuildCallback* callback);
+  void RunBuildCallback(const std::string& url, const BuildCB& cb);
 
   // DemuxerFactory methods.
-  MOCK_METHOD2(Build, void(const std::string& url, BuildCallback* callback));
+  MOCK_METHOD2(Build, void(const std::string& url, const BuildCB& cb));
   virtual DemuxerFactory* Clone() const;
 
  private:
