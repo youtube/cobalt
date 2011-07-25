@@ -1092,8 +1092,9 @@ void PipelineImpl::InitializeDemuxer() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
-  filter_collection_->GetDemuxerFactory()->Build(url_,
-      NewCallback(this, &PipelineImpl::OnDemuxerBuilt));
+  filter_collection_->GetDemuxerFactory()->Build(
+      url_,
+      base::Bind(&PipelineImpl::OnDemuxerBuilt, this));
 }
 
 void PipelineImpl::OnDemuxerBuilt(PipelineStatus status, Demuxer* demuxer) {
