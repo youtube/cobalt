@@ -15,6 +15,7 @@
 #include "base/time.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
+#include "net/base/cookie_store.h"
 #include "net/http/http_request_info.h"
 #include "net/url_request/url_request_job.h"
 #include "net/url_request/url_request_throttler_entry_interface.h"
@@ -160,6 +161,14 @@ class URLRequestHttpJob : public URLRequestJob {
 
   void RecordPerfHistograms(CompletionCause reason);
   void DoneWithRequest(CompletionCause reason);
+
+  // Callback functions for Cookie Monster
+  void OnCookiesLoaded(
+      std::string* cookie_line,
+      std::vector<CookieStore::CookieInfo>* cookie_infos);
+  void DoStartTransaction();
+  void OnCookieSaved(bool cookie_status);
+  void CookieHandled();
 
   // Some servers send the body compressed, but specify the content length as
   // the uncompressed size. If this is the case, we return true in order
