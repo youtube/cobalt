@@ -1223,6 +1223,10 @@
           # Make inline functions have hidden visiblity by default.
           # Surprisingly, not covered by -fvisibility=hidden.
           '-fvisibility-inlines-hidden',
+          # GCC turns on -Wsign-compare for C++ under -Wall, but clang doesn't,
+          # so we specify it explicitly.
+          # TODO(fischman): remove this if http://llvm.org/PR10448 obsoletes it.
+          '-Wsign-compare',
         ],
         'ldflags': [
           '-pthread', '-Wl,-z,noexecstack',
