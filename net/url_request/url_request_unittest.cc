@@ -25,6 +25,7 @@
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/cookie_monster.h"
+#include "net/base/cookie_store_test_helpers.h"
 #include "net/base/load_flags.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
@@ -1628,6 +1629,43 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
     // Make sure we sent the cookie in the restarted transaction.
     EXPECT_TRUE(d.data_received().find("Cookie: got_challenged=true")
         != std::string::npos);
+  }
+}
+
+TEST_F(URLRequestTest, DelayedCookieCallback) {
+  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  ASSERT_TRUE(test_server.Start());
+
+  scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+  scoped_refptr<DelayedCookieMonster> delayed_cm =
+      new DelayedCookieMonster();
+  scoped_refptr<CookieStore> cookie_store = delayed_cm;
+  context->set_cookie_store(delayed_cm);
+
+  // Set up a cookie.
+  {
+    TestDelegate d;
+    URLRequest req(test_server.GetURL("set-cookie?CookieToNotSend=1"), &d);
+    req.set_context(context);
+    req.Start();
+    MessageLoop::current()->Run();
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(1, d.set_cookie_count());
+  }
+
+  // Verify that the cookie is set.
+  {
+    TestDelegate d;
+    TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
+    req.set_context(context);
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_TRUE(d.data_received().find("CookieToNotSend=1")
+                != std::string::npos);
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 }
 
