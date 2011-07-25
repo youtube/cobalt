@@ -880,6 +880,11 @@
               # This is off by default in gcc but on in Ubuntu's gcc(!).
               '-Wno-format',
             ],
+            'cflags_cc!': [
+              # TODO(fischman): remove this.
+              # http://code.google.com/p/chromium/issues/detail?id=90453
+              '-Wsign-compare',
+            ]
           }],
           [ 'OS=="win"', {
             'defines': [
@@ -1226,6 +1231,7 @@
           # GCC turns on -Wsign-compare for C++ under -Wall, but clang doesn't,
           # so we specify it explicitly.
           # TODO(fischman): remove this if http://llvm.org/PR10448 obsoletes it.
+          # http://code.google.com/p/chromium/issues/detail?id=90453
           '-Wsign-compare',
         ],
         'ldflags': [
