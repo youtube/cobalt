@@ -331,7 +331,7 @@ void FFmpegDemuxer::set_host(FilterHost* filter_host) {
 }
 
 void FFmpegDemuxer::Initialize(DataSource* data_source,
-                               PipelineStatusCallback* callback) {
+                               const PipelineStatusCB& callback) {
   message_loop_->PostTask(
       FROM_HERE,
       NewRunnableMethod(this,
@@ -426,9 +426,8 @@ MessageLoop* FFmpegDemuxer::message_loop() {
 }
 
 void FFmpegDemuxer::InitializeTask(DataSource* data_source,
-                                   PipelineStatusCallback* callback) {
+                                   const PipelineStatusCB& callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  scoped_ptr<PipelineStatusCallback> callback_deleter(callback);
 
   data_source_ = data_source;
   if (host())
@@ -446,7 +445,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   FFmpegGlue::GetInstance()->RemoveProtocol(this);
 
   if (result < 0) {
-    callback->Run(DEMUXER_ERROR_COULD_NOT_OPEN);
+    callback.Run(DEMUXER_ERROR_COULD_NOT_OPEN);
     return;
   }
 
@@ -456,7 +455,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   // Fully initialize AVFormatContext by parsing the stream a little.
   result = av_find_stream_info(format_context_);
   if (result < 0) {
-    callback->Run(DEMUXER_ERROR_COULD_NOT_PARSE);
+    callback.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
 
@@ -497,7 +496,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
     }
   }
   if (no_supported_streams) {
-    callback->Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
+    callback.Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     return;
   }
   if (format_context_->duration != static_cast<int64_t>(AV_NOPTS_VALUE)) {
@@ -523,7 +522,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   if (host())
     host()->SetDuration(max_duration);
   max_duration_ = max_duration;
-  callback->Run(PIPELINE_OK);
+  callback.Run(PIPELINE_OK);
 }
 
 void FFmpegDemuxer::SeekTask(base::TimeDelta time, const FilterStatusCB& cb) {
