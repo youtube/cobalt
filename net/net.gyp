@@ -1189,6 +1189,8 @@
         'base/cert_test_util.h',
         'base/cookie_monster_store_test.cc',
         'base/cookie_monster_store_test.h',
+        'base/cookie_store_test_helpers.cc',
+        'base/cookie_store_test_helpers.h',
         'base/net_test_suite.cc',
         'base/net_test_suite.h',
         'base/test_completion_callback.cc',

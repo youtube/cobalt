@@ -4,6 +4,7 @@
 
 #include "net/url_request/url_request_http_job.h"
 
+#include "base/bind.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
@@ -16,7 +17,7 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "net/base/cert_status_flags.h"
-#include "net/base/cookie_store.h"
+#include "net/base/cookie_monster.h"
 #include "net/base/filter.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
@@ -521,17 +522,27 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
   if (request_->context()->cookie_store() && allow) {
     CookieOptions options;
     options.set_include_httponly();
-    std::string cookie_line;
-    std::vector<CookieStore::CookieInfo> cookie_infos;
-    request_->context()->cookie_store()->GetCookiesWithInfo(
-        request_->url(), options, &cookie_line, &cookie_infos);
-    if (!cookie_line.empty()) {
-      request_info_.extra_headers.SetHeader(
-          HttpRequestHeaders::kCookie, cookie_line);
-    }
-    if (URLRequest::AreMacCookiesEnabled())
-      AddAuthorizationHeader(cookie_infos, &request_info_);
+    request_->context()->cookie_store()->GetCookiesWithInfoAsync(
+        request_->url(), options,
+        base::Bind(&URLRequestHttpJob::OnCookiesLoaded, this));
+  } else {
+    DoStartTransaction();
   }
+}
+
+void URLRequestHttpJob::OnCookiesLoaded(
+    std::string* cookie_line,
+    std::vector<net::CookieStore::CookieInfo>* cookie_infos) {
+  if (!cookie_line->empty()) {
+    request_info_.extra_headers.SetHeader(
+        HttpRequestHeaders::kCookie, *cookie_line);
+  }
+  if (URLRequest::AreMacCookiesEnabled())
+    AddAuthorizationHeader(*cookie_infos, &request_info_);
+  DoStartTransaction();
+}
+
+void URLRequestHttpJob::DoStartTransaction() {
   // We may have been canceled within CanGetCookies.
   if (GetStatus().is_success()) {
     StartTransaction();
@@ -575,12 +586,20 @@ void URLRequestHttpJob::SaveNextCookie() {
     options.set_include_httponly();
     if (CanSetCookie(
         response_cookies_[response_cookies_save_index_], &options)) {
-      request_->context()->cookie_store()->SetCookieWithOptions(
+      request_->context()->cookie_store()->SetCookieWithOptionsAsync(
           request_->url(), response_cookies_[response_cookies_save_index_],
-          options);
+          options, base::Bind(&URLRequestHttpJob::OnCookieSaved, this));
+      return;
     }
   }
+  CookieHandled();
+}
 
+void URLRequestHttpJob::OnCookieSaved(bool cookie_status) {
+  CookieHandled();
+}
+
+void URLRequestHttpJob::CookieHandled() {
   response_cookies_save_index_++;
   // We may have been canceled within OnSetCookie.
   if (GetStatus().is_success()) {
