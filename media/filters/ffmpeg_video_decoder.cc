@@ -47,6 +47,14 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   DCHECK(!demuxer_stream_);
   DCHECK(!initialize_callback_.get());
 
+  if (!demuxer_stream) {
+    host()->SetError(PIPELINE_ERROR_DECODE);
+    callback->Run();
+    delete callback;
+    delete stats_callback;
+    return;
+  }
+
   demuxer_stream_ = demuxer_stream;
   initialize_callback_.reset(callback);
   statistics_callback_.reset(stats_callback);
