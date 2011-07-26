@@ -646,6 +646,8 @@ bool TransportSecurityState::IsPreloadedSTS(
     {13, true, "\010uprotect\002it", true, 0 },
     {14, false, "\010squareup\003com", true, 0 },
     {9, true, "\004cert\002se", true, 0 },
+    {11, true, "\006crypto\002is", true, 0 },
+    {20, true, "\005simon\007butcher\004name", true, 0 },
 #if defined(OS_CHROMEOS)
     {13, false, "\007twitter\003com", true, 0 },
     {17, false, "\003www\007twitter\003com", true, 0 },
