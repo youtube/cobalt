@@ -39,7 +39,6 @@
 #include "ssl.h"
 #include "sslimpl.h"
 #include "sslproto.h"
-#include "pk11func.h"
 
 static const char *
 ssl_GetCompressionMethodName(SSLCompressionMethod compression)
@@ -318,12 +317,14 @@ SSL_IsExportCipherSuite(PRUint16 cipherSuite)
     return PR_FALSE;
 }
 
-/* Export keying material according to draft-ietf-tls-extractor-06.
+/* Export keying material according to RFC 5705.
 ** fd must correspond to a TLS 1.0 or higher socket, out must
 ** be already allocated.
 */
 SECStatus
-SSL_ExportKeyingMaterial(PRFileDesc *fd, const char *label,
+SSL_ExportKeyingMaterial(PRFileDesc *fd,
+			 const char *label,
+			 unsigned int labelLen,
 			 const unsigned char *context,
 			 unsigned int contextLen,
 			 unsigned char *out,
@@ -343,11 +344,6 @@ SSL_ExportKeyingMaterial(PRFileDesc *fd, const char *label,
 
     if (ss->version < SSL_LIBRARY_VERSION_3_1_TLS) {
 	PORT_SetError(SSL_ERROR_UNSUPPORTED_VERSION);
-	return SECFailure;
-    }
-
-    if (ss->ssl3.hs.ws != idle_handshake) {
-	PORT_SetError(SSL_ERROR_HANDSHAKE_NOT_COMPLETED);
 	return SECFailure;
     }
 
@@ -371,11 +367,16 @@ SSL_ExportKeyingMaterial(PRFileDesc *fd, const char *label,
     PORT_Assert(i == valLen);
 
     ssl_GetSpecReadLock(ss);
-    rv = ssl3_TLSPRFWithMasterSecret(ss->ssl3.crSpec, label, strlen(label), val, valLen, out, outLen);
+    if (!ss->ssl3.cwSpec->master_secret && !ss->ssl3.cwSpec->msItem.len) {
+	PORT_SetError(SSL_ERROR_HANDSHAKE_NOT_COMPLETED);
+	rv = SECFailure;
+    } else {
+	rv = ssl3_TLSPRFWithMasterSecret(ss->ssl3.cwSpec, label, labelLen, val,
+					 valLen, out, outLen);
+    }
     ssl_ReleaseSpecReadLock(ss);
 
-    if (val != NULL)
-	PORT_ZFree(val, valLen);
+    PORT_ZFree(val, valLen);
     return rv;
 }
 

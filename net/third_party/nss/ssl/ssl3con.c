@@ -8452,13 +8452,14 @@ ssl3_TLSPRFWithMasterSecret(ssl3CipherSpec *spec, const char *label,
     unsigned char *out, unsigned int outLen)
 {
     SECStatus rv = SECSuccess;
-    unsigned int retLen;
 
     if (spec->master_secret && !spec->bypassCiphers) {
 	SECItem      param       = {siBuffer, NULL, 0};
 	PK11Context *prf_context =
 	    PK11_CreateContextBySymKey(CKM_TLS_PRF_GENERAL, CKA_SIGN, 
 				       spec->master_secret, &param);
+	unsigned int retLen;
+
 	if (!prf_context)
 	    return SECFailure;
 
@@ -8494,10 +8495,12 @@ ssl3_ComputeTLSFinished(ssl3CipherSpec *spec,
 {
     const char * label;
     SECStatus    rv;
+    unsigned int len;
 
     label = isServer ? "server finished" : "client finished";
+    len = 15;
 
-    rv = ssl3_TLSPRFWithMasterSecret(spec, label, 15, hashes->md5,
+    rv = ssl3_TLSPRFWithMasterSecret(spec, label, len, hashes->md5,
 	sizeof *hashes, tlsFinished->verify_data,
 	sizeof tlsFinished->verify_data);
 
