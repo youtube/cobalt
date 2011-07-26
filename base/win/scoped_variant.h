@@ -38,7 +38,7 @@ class BASE_API ScopedVariant {
   explicit ScopedVariant(const wchar_t* str);
 
   // Creates a new VT_BSTR variant of a specified length.
-  explicit ScopedVariant(const wchar_t* str, UINT length);
+  ScopedVariant(const wchar_t* str, UINT length);
 
   // Creates a new integral type variant and assigns the value to
   // VARIANT.lVal (32 bit sized field).

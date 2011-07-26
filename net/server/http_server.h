@@ -58,7 +58,7 @@ private:
     static int lastId_;
     friend class HttpServer;
 
-    explicit Connection(HttpServer* server, ListenSocket* sock);
+    Connection(HttpServer* server, ListenSocket* sock);
     ~Connection();
 
     void DetachSocket();

@@ -15,9 +15,7 @@ namespace {
 // Implementation of FileIOCallback for the tests.
 class FileCallbackTest: public disk_cache::FileIOCallback {
  public:
-  explicit FileCallbackTest(int id,
-                            MessageLoopHelper* helper,
-                            int* max_id)
+  FileCallbackTest(int id, MessageLoopHelper* helper, int* max_id)
       : id_(id),
         helper_(helper),
         max_id_(max_id) {
