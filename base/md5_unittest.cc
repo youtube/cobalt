@@ -120,7 +120,8 @@ TEST(MD5, ContextWithLongData) {
     if (len > length - total)
       len = length - total;
 
-    MD5Update(&ctx, data.get() + total, len);
+    MD5Update(&ctx,
+              StringPiece(reinterpret_cast<char*>(data.get() + total), len));
     total += len;
   }
 
@@ -185,6 +186,21 @@ TEST(MD5, MD5StringTestSuite7) {
                                  "12345678901234567890"
                                  "12345678901234567890");
   std::string expected = "57edf4a22be3c955ac49da2e2107b67a";
+  EXPECT_EQ(expected, actual);
+}
+
+TEST(MD5, ContextWithStringData) {
+  MD5Context ctx;
+  MD5Init(&ctx);
+
+  MD5Update(&ctx, "abc");
+
+  MD5Digest digest;
+  MD5Final(&digest, &ctx);
+
+  std::string actual = MD5DigestToBase16(digest);
+  std::string expected = "900150983cd24fb0d6963f7d28e17f72";
+
   EXPECT_EQ(expected, actual);
 }
 
