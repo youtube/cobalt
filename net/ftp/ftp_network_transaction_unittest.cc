@@ -628,8 +628,7 @@ class FtpSocketDataProviderEvilEpsv : public FtpSocketDataProviderFileDownload {
 class FtpSocketDataProviderEvilPasv
     : public FtpSocketDataProviderFileDownloadWithPasvFallback {
  public:
-  explicit FtpSocketDataProviderEvilPasv(const char* pasv_response,
-                                         State expected_state)
+  FtpSocketDataProviderEvilPasv(const char* pasv_response, State expected_state)
       : pasv_response_(pasv_response),
         expected_state_(expected_state) {
   }
