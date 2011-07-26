@@ -228,6 +228,8 @@ class NET_API SocketStream : public base::RefCountedThreadSafe<SocketStream> {
     STATE_READ_TUNNEL_HEADERS_COMPLETE,
     STATE_SOCKS_CONNECT,
     STATE_SOCKS_CONNECT_COMPLETE,
+    STATE_SECURE_PROXY_CONNECT,
+    STATE_SECURE_PROXY_CONNECT_COMPLETE,
     STATE_SSL_CONNECT,
     STATE_SSL_CONNECT_COMPLETE,
     STATE_READ_WRITE,
@@ -255,6 +257,7 @@ class NET_API SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   // notifications will be sent to delegate.
   void Finish(int result);
 
+  int DidEstablishSSL(int result);
   int DidEstablishConnection();
   int DidReceiveData(int result);
   int DidSendData(int result);
@@ -279,6 +282,8 @@ class NET_API SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   int DoReadTunnelHeadersComplete(int result);
   int DoSOCKSConnect();
   int DoSOCKSConnectComplete(int result);
+  int DoSecureProxyConnect();
+  int DoSecureProxyConnectComplete(int result);
   int DoSSLConnect();
   int DoSSLConnectComplete(int result);
   int DoReadWrite(int result);
