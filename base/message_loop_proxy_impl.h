@@ -25,12 +25,24 @@ class BASE_API MessageLoopProxyImpl : public MessageLoopProxy,
   virtual bool PostTask(const tracked_objects::Location& from_here,
                         Task* task);
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
-                               Task* task, int64 delay_ms);
+                               Task* task,
+                               int64 delay_ms);
   virtual bool PostNonNestableTask(const tracked_objects::Location& from_here,
                                    Task* task);
   virtual bool PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here,
       Task* task,
+      int64 delay_ms);
+  virtual bool PostTask(const tracked_objects::Location& from_here,
+                        const base::Closure& task);
+  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
+                               const base::Closure& task,
+                               int64 delay_ms);
+  virtual bool PostNonNestableTask(const tracked_objects::Location& from_here,
+                                   const base::Closure& task);
+  virtual bool PostNonNestableDelayedTask(
+      const tracked_objects::Location& from_here,
+      const base::Closure& task,
       int64 delay_ms);
   virtual bool BelongsToCurrentThread();
 
@@ -44,8 +56,15 @@ class BASE_API MessageLoopProxyImpl : public MessageLoopProxy,
 
  private:
   MessageLoopProxyImpl();
+  // TODO(ajwong): Remove this after we've fully migrated to base::Closure.
   bool PostTaskHelper(const tracked_objects::Location& from_here,
-                      Task* task, int64 delay_ms, bool nestable);
+                      Task* task,
+                      int64 delay_ms,
+                      bool nestable);
+  bool PostTaskHelper(const tracked_objects::Location& from_here,
+                      const base::Closure& task,
+                      int64 delay_ms,
+                      bool nestable);
 
   // For the factory method to work
   friend class MessageLoopProxy;
@@ -60,4 +79,3 @@ class BASE_API MessageLoopProxyImpl : public MessageLoopProxy,
 }  // namespace base
 
 #endif  // BASE_MESSAGE_LOOP_PROXY_IMPL_H_
-
