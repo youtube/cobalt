@@ -13,7 +13,6 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/net_api.h"
 #include "net/base/net_log.h"
@@ -45,10 +44,6 @@ class NET_API URLRequestContext
       NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   URLRequestContext();
-
-  base::WeakPtr<URLRequestContext> GetWeakPtr() {
-    return weak_factory_.GetWeakPtr();
-  }
 
   // Copies the state from |other| into this context.
   void CopyFrom(URLRequestContext* other);
@@ -193,8 +188,6 @@ class NET_API URLRequestContext
   virtual ~URLRequestContext();
 
  private:
-  base::WeakPtrFactory<URLRequestContext> weak_factory_;
-
   // ---------------------------------------------------------------------------
   // Important: When adding any new members below, consider whether they need to
   // be added to CopyFrom.
