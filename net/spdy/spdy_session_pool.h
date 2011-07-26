@@ -40,8 +40,8 @@ class NET_API SpdySessionPool
       public SSLConfigService::Observer,
       public CertDatabase::Observer {
  public:
-  explicit SpdySessionPool(HostResolver* host_resolver,
-                           SSLConfigService* ssl_config_service);
+  SpdySessionPool(HostResolver* host_resolver,
+                  SSLConfigService* ssl_config_service);
   virtual ~SpdySessionPool();
 
   // Either returns an existing SpdySession or creates a new SpdySession for

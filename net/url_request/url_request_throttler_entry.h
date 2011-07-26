@@ -71,8 +71,8 @@ class NET_API URLRequestThrottlerEntry
   static const char kExponentialThrottlingDisableValue[];
 
   // The manager object's lifetime must enclose the lifetime of this object.
-  explicit URLRequestThrottlerEntry(URLRequestThrottlerManager* manager,
-                                    const std::string& url_id);
+  URLRequestThrottlerEntry(URLRequestThrottlerManager* manager,
+                           const std::string& url_id);
 
   // The life span of instances created with this constructor is set to
   // infinite, and the number of initial errors to ignore is set to 0.
