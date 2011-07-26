@@ -621,6 +621,20 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "foo.cert.se",
                                        false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "crypto.is",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "foo.crypto.is",
+                                       false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "simon.butcher.name",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "foo.simon.butcher.name",
+                                       false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
