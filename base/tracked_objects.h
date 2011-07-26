@@ -496,6 +496,13 @@ class BASE_API ThreadData {
   // Find a place to record a death on this thread.
   void TallyADeath(const Births& lifetimes, const base::TimeDelta& duration);
 
+  // Helper methods to only tally if the current thread has tracking active.
+  //
+  // TallyABirthIfActive will returns NULL if the birth cannot be tallied.
+  static Births* TallyABirthIfActive(const Location& location);
+  static void TallyADeathIfActive(const Births* lifetimes,
+                                  const base::TimeDelta& duration);
+
   // (Thread safe) Get start of list of instances.
   static ThreadData* first();
   // Iterate through the null terminated list of instances.
