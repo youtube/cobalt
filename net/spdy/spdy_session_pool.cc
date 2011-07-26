@@ -157,10 +157,8 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
   // direct connection.
   if (g_enable_ip_pooling  && host_port_proxy_pair.second.is_direct()) {
     AddressList addresses;
-    if (connection->socket()->GetPeerAddress(&addresses) == OK) {
-      const addrinfo* address = addresses.head();
-      AddAlias(address, host_port_proxy_pair);
-    }
+    if (connection->socket()->GetPeerAddress(&addresses) == OK)
+      AddAlias(addresses.head(), host_port_proxy_pair);
   }
 
   // Now we can initialize the session with the SSL socket.

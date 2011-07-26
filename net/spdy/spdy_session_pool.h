@@ -163,7 +163,7 @@ class NET_API SpdySessionPool
   bool LookupAddresses(const HostPortProxyPair& pair,
                        AddressList* addresses) const;
 
-  // Add |endpoint| as an IP-equivalent address for |pair|.
+  // Add |address| as an IP-equivalent address for |pair|.
   void AddAlias(const addrinfo* address, const HostPortProxyPair& pair);
 
   // Remove all aliases for |pair| from the aliases table.
