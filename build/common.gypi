@@ -879,6 +879,9 @@
               # Don't warn about printf format problems.
               # This is off by default in gcc but on in Ubuntu's gcc(!).
               '-Wno-format',
+              # Don't warn about ignoring the return value from e.g. close().
+              # This is off by default in some gccs but on by default in others.
+              '-Wno-unused-result',
             ],
             'cflags_cc!': [
               # TODO(fischman): remove this.
