@@ -56,17 +56,6 @@ Value* NetLog::Source::ToValue() const {
   return dict;
 }
 
-NetLog::ThreadSafeObserver::ThreadSafeObserver(LogLevel log_level)
-    : log_level_(log_level) {
-}
-
-NetLog::ThreadSafeObserver::~ThreadSafeObserver() {
-}
-
-NetLog::LogLevel NetLog::ThreadSafeObserver::log_level() const {
-  return log_level_;
-}
-
 // static
 std::string NetLog::TickCountToString(const base::TimeTicks& time) {
   int64 delta_time = (time - base::TimeTicks()).InMilliseconds();
