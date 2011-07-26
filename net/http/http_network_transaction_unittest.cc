@@ -8704,35 +8704,32 @@ TEST_F(HttpNetworkTransactionTest, ClientAuthCertCache_Proxy_Fail) {
   }
 }
 
-void IPPoolingPreloadHostCache(MockCachingHostResolver* host_resolver,
-                               SpdySessionPoolPeer* pool_peer) {
-  const int kTestPort = 443;
-  struct TestHosts {
-    std::string name;
-    std::string iplist;
-  } test_hosts[] = {
-    { "www.google.com", "127.0.0.1"},
-  };
+void IPPoolingAddAlias(MockCachingHostResolver* host_resolver,
+                       SpdySessionPoolPeer* pool_peer,
+                       std::string host,
+                       int port,
+                       std::string iplist) {
+  // Create a host resolver dependency that returns address |iplist| for
+  // resolutions of |host|.
+  host_resolver->rules()->AddIPLiteralRule(host, iplist, "");
 
-  // Preload cache entries into HostCache.
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_hosts); i++) {
-    host_resolver->rules()->AddIPLiteralRule(test_hosts[i].name,
-        test_hosts[i].iplist, "");
+  // Setup a HostPortProxyPair.
+  HostPortPair host_port_pair(host, port);
+  HostPortProxyPair pair = HostPortProxyPair(host_port_pair,
+                                             ProxyServer::Direct());
 
-    AddressList addresses;
-    // This test requires that the HostResolver cache be populated.  Normal
-    // code would have done this already, but we do it manually.
-    HostResolver::RequestInfo info(HostPortPair(test_hosts[i].name, kTestPort));
-    host_resolver->Resolve(
-        info, &addresses, NULL, NULL, BoundNetLog());
+  // Resolve the host and port.
+  AddressList addresses;
+  HostResolver::RequestInfo info(host_port_pair);
+  host_resolver->Resolve(info, &addresses, NULL, NULL, BoundNetLog());
 
-    // Setup a HostPortProxyPair
-    HostPortProxyPair pair = HostPortProxyPair(
-        HostPortPair(test_hosts[i].name, kTestPort), ProxyServer::Direct());
-
-    const addrinfo* address = addresses.head();
-    pool_peer->AddAlias(address, pair);
-  }
+  // Add the first address as an alias. It would have been better to call
+  // MockClientSocket::GetPeerAddress but that returns 192.0.2.33 whereas
+  // MockHostResolver returns 127.0.0.1 (MockHostResolverBase::Reset). So we use
+  // the first address (127.0.0.1) returned by MockHostResolver as an alias for
+  // the |pair|.
+  const addrinfo* address = addresses.head();
+  pool_peer->AddAlias(address, pair);
 }
 
 TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
@@ -8813,7 +8810,11 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   AddressList ignored;
   host_resolver.Resolve(resolve_info, &ignored, NULL, NULL, BoundNetLog());
 
-  IPPoolingPreloadHostCache(&host_resolver, &pool_peer);
+  // MockHostResolver returns 127.0.0.1, port 443 for https://www.google.com/
+  // and https://www.gmail.com/. Add 127.0.0.1 as alias for host_port_pair:
+  // (www.google.com, 443).
+  IPPoolingAddAlias(&host_resolver, &pool_peer, "www.google.com", 443,
+                    "127.0.0.1");
 
   HttpRequestInfo request2;
   request2.method = "GET";
@@ -8967,7 +8968,11 @@ TEST_F(HttpNetworkTransactionTest,
   request2.load_flags = 0;
   HttpNetworkTransaction trans2(session);
 
-  IPPoolingPreloadHostCache(host_resolver.GetMockHostResolver(), &pool_peer);
+  // MockHostResolver returns 127.0.0.1, port 443 for https://www.google.com/
+  // and https://www.gmail.com/. Add 127.0.0.1 as alias for host_port_pair:
+  // (www.google.com, 443).
+  IPPoolingAddAlias(host_resolver.GetMockHostResolver(), &pool_peer,
+                    "www.google.com", 443, "127.0.0.1");
 
   rv = trans2.Start(&request2, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
