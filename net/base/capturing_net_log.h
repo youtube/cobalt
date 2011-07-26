@@ -10,7 +10,6 @@
 
 #include "base/atomicops.h"
 #include "base/basictypes.h"
-#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
@@ -61,11 +60,9 @@ class NET_API CapturingNetLog : public NetLog {
                         const base::TimeTicks& time,
                         const Source& source,
                         EventPhase phase,
-                        EventParameters* extra_parameters) OVERRIDE;
-  virtual uint32 NextID() OVERRIDE;
-  virtual LogLevel GetLogLevel() const OVERRIDE;
-  virtual void AddThreadSafeObserver(ThreadSafeObserver* observer) OVERRIDE;
-  virtual void RemoveThreadSafeObserver(ThreadSafeObserver* observer) OVERRIDE;
+                        EventParameters* extra_parameters);
+  virtual uint32 NextID();
+  virtual LogLevel GetLogLevel() const;
 
  private:
   // Needs to be "mutable" so can use it in GetEntries().
@@ -118,3 +115,4 @@ class NET_TEST CapturingBoundNetLog {
 }  // namespace net
 
 #endif  // NET_BASE_CAPTURING_NET_LOG_H_
+
