@@ -4,7 +4,6 @@
 
 #include "net/url_request/url_request_context.h"
 
-#include "base/compiler_specific.h"
 #include "base/string_util.h"
 #include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
@@ -14,8 +13,7 @@
 namespace net {
 
 URLRequestContext::URLRequestContext()
-    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
-      net_log_(NULL),
+    : net_log_(NULL),
       host_resolver_(NULL),
       cert_verifier_(NULL),
       origin_bound_cert_service_(NULL),
