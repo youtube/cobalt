@@ -120,7 +120,7 @@ void HttpVaryData::AddField(const HttpRequestInfo& request_info,
   // For example, "foo: 12\nbar: 3" looks like "foo: 1\nbar: 23" otherwise.
   request_value.append(1, '\n');
 
-  base::MD5Update(ctx, request_value.data(), request_value.size());
+  base::MD5Update(ctx, request_value);
 }
 
 }  // namespace net
