@@ -44,15 +44,15 @@ class NET_TEST URLRequestTestJob : public URLRequestJob {
 
   // Constructs a job to return one of the canned responses depending on the
   // request url, optionally with auto advance enabled.
-  explicit URLRequestTestJob(URLRequest* request, bool auto_advance);
+  URLRequestTestJob(URLRequest* request, bool auto_advance);
 
   // Constructs a job to return the given response regardless of the request
   // url. The headers should include the HTTP status line and be formatted as
   // expected by HttpResponseHeaders.
-  explicit URLRequestTestJob(URLRequest* request,
-                             const std::string& response_headers,
-                             const std::string& response_data,
-                             bool auto_advance);
+  URLRequestTestJob(URLRequest* request,
+                    const std::string& response_headers,
+                    const std::string& response_data,
+                    bool auto_advance);
 
   // The three canned URLs this handler will respond to without having been
   // explicitly initialized with response headers and data.
