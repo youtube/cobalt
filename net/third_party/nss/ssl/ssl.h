@@ -688,14 +688,16 @@ SSL_IMPORT SECItem *SSL_GetNegotiatedHostInfo(PRFileDesc *fd);
 
 /* Export keying material according to RFC 5705.
 ** fd must correspond to a TLS 1.0 or higher socket and out must
-** already be allocated.
+** already be allocated. If contextLen is zero it uses the no-context
+** construction from the RFC.
 */
 SSL_IMPORT SECStatus SSL_ExportKeyingMaterial(PRFileDesc *fd,
                                               const char *label,
+                                              unsigned int labelLen,
                                               const unsigned char *context,
-                                              unsigned int contextlen,
+                                              unsigned int contextLen,
                                               unsigned char *out,
-                                              unsigned int outlen);
+                                              unsigned int outLen);
 
 /*
 ** Return a new reference to the certificate that was most recently sent
