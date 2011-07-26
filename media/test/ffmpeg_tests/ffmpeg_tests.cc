@@ -316,8 +316,12 @@ int main(int argc, const char** argv) {
           if (hash_djb2) {
             hash_value = DJB2Hash(u8_samples, size_out, hash_value);
           }
-          if (hash_md5)
-            base::MD5Update(&ctx, u8_samples, size_out);
+          if (hash_md5) {
+            base::MD5Update(
+                &ctx,
+                base::StringPiece(
+                    reinterpret_cast<const char*>(u8_samples), size_out));
+          }
         }
       } else if (target_codec == AVMEDIA_TYPE_VIDEO) {
         int got_picture = 0;
@@ -377,8 +381,10 @@ int main(int argc, const char** argv) {
             }
             if (hash_md5) {
               for (size_t i = 0; i < copy_lines; ++i) {
-                base::MD5Update(&ctx, reinterpret_cast<const uint8*>(source),
-                                bytes_per_line);
+                base::MD5Update(
+                    &ctx,
+                    base::StringPiece(reinterpret_cast<const char*>(source),
+                                bytes_per_line));
                 source += source_stride;
               }
             }
@@ -497,4 +503,3 @@ int main(int argc, const char** argv) {
   CommandLine::Reset();
   return 0;
 }
-
