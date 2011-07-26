@@ -8,6 +8,7 @@
 
 #include "base/base_api.h"
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/task.h"
 
@@ -34,13 +35,34 @@ class BASE_API MessageLoopProxy
   virtual bool PostTask(const tracked_objects::Location& from_here,
                         Task* task) = 0;
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
-                               Task* task, int64 delay_ms) = 0;
+                               Task* task,
+                               int64 delay_ms) = 0;
   virtual bool PostNonNestableTask(const tracked_objects::Location& from_here,
                                    Task* task) = 0;
   virtual bool PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here,
       Task* task,
       int64 delay_ms) = 0;
+
+  // TODO(ajwong): Remove the functions above once the Task -> Closure migration
+  // is complete.
+  //
+  // There are 2 sets of Post*Task functions, one which takes the older Task*
+  // function object representation, and one that takes the newer base::Closure.
+  // We have this overload to allow a staged transition between the two systems.
+  // Once the transition is done, the functions above should be deleted.
+  virtual bool PostTask(const tracked_objects::Location& from_here,
+                        const base::Closure& task) = 0;
+  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
+                               const base::Closure& task,
+                               int64 delay_ms) = 0;
+  virtual bool PostNonNestableTask(const tracked_objects::Location& from_here,
+                                   const base::Closure& task) = 0;
+  virtual bool PostNonNestableDelayedTask(
+      const tracked_objects::Location& from_here,
+      const base::Closure& task,
+      int64 delay_ms) = 0;
+
   // A method which checks if the caller is currently running in the thread that
   // this proxy represents.
   virtual bool BelongsToCurrentThread() = 0;

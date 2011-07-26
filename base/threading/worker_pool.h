@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/base_api.h"
+#include "base/callback.h"
 #include "base/tracked.h"
 
 class Task;
@@ -27,8 +28,13 @@ class BASE_API WorkerPool {
   // should be used for tasks that will take a long time to execute.  Returns
   // false if |task| could not be posted to a worker thread.  Regardless of
   // return value, ownership of |task| is transferred to the worker pool.
+  //
+  // TODO(ajwong): Remove the Task* based overload once we've finishsed the
+  // Task -> Closure migration.
   static bool PostTask(const tracked_objects::Location& from_here,
                        Task* task, bool task_is_slow);
+  static bool PostTask(const tracked_objects::Location& from_here,
+                       const base::Closure& task, bool task_is_slow);
 };
 
 }  // namespace base

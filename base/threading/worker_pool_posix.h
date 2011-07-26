@@ -29,11 +29,13 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
+#include "base/tracked.h"
 
 class Task;
 
@@ -43,6 +45,19 @@ class BASE_API PosixDynamicThreadPool
     : public RefCountedThreadSafe<PosixDynamicThreadPool> {
  public:
   class PosixDynamicThreadPoolPeer;
+
+  struct PendingTask {
+    PendingTask(const tracked_objects::Location& posted_from,
+                const base::Closure& task);
+    ~PendingTask();
+    // TODO(ajwong): After we figure out why Mac's ~AtExitManager dies when
+    // destructing the lock, add in extra info so we can call
+    // tracked_objects::TallyADeathIfActive() and
+    // tracked_objects::TallyABirthIfActive correctly.
+
+    // The task to run.
+    base::Closure task;
+  };
 
   // All worker threads will share the same |name_prefix|.  They will exit after
   // |idle_seconds_before_exit|.
@@ -56,14 +71,25 @@ class BASE_API PosixDynamicThreadPool
 
   // Adds |task| to the thread pool.  PosixDynamicThreadPool assumes ownership
   // of |task|.
-  void PostTask(Task* task);
+  //
+  // TODO(ajwong): Remove this compatibility API once the Task -> Closure
+  // migration is finished.
+  void PostTask(const tracked_objects::Location& from_here, Task* task);
+
+  // Adds |task| to the thread pool.
+  void PostTask(const tracked_objects::Location& from_here,
+                const base::Closure& task);
 
   // Worker thread method to wait for up to |idle_seconds_before_exit| for more
   // work from the thread pool.  Returns NULL if no work is available.
-  Task* WaitForTask();
+  PendingTask WaitForTask();
 
  private:
   friend class PosixDynamicThreadPoolPeer;
+
+  // Adds pending_task to the thread pool.  This function will clear
+  // |pending_task->task|.
+  void AddTask(PendingTask* pending_task);
 
   const std::string name_prefix_;
   const int idle_seconds_before_exit_;
@@ -73,9 +99,9 @@ class BASE_API PosixDynamicThreadPool
   // Signal()s worker threads to let them know more tasks are available.
   // Also used for Broadcast()'ing to worker threads to let them know the pool
   // is being deleted and they can exit.
-  ConditionVariable tasks_available_cv_;
+  ConditionVariable pending_tasks_available_cv_;
   int num_idle_threads_;
-  std::queue<Task*> tasks_;
+  std::queue<PendingTask> pending_tasks_;
   bool terminated_;
   // Only used for tests to ensure correct thread ordering.  It will always be
   // NULL in non-test code.

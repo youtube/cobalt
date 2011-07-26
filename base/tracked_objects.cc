@@ -277,6 +277,26 @@ void ThreadData::TallyADeath(const Births& lifetimes,
 }
 
 // static
+Births* ThreadData::TallyABirthIfActive(const Location& location) {
+  if (IsActive()) {
+    ThreadData* current_thread_data = current();
+    if (current_thread_data) {
+      return current_thread_data->TallyABirth(location);
+    }
+  }
+
+  return NULL;
+}
+
+// static
+void ThreadData::TallyADeathIfActive(const Births* the_birth,
+                                     const base::TimeDelta& duration) {
+  if (IsActive() && the_birth) {
+    current()->TallyADeath(*the_birth, duration);
+  }
+}
+
+// static
 ThreadData* ThreadData::first() {
   base::AutoLock lock(list_lock_);
   return first_;

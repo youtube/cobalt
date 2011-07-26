@@ -85,40 +85,6 @@ const base::LinearHistogram::DescriptionPair event_descriptions_[] = {
 
 bool enable_histogrammer_ = false;
 
-// TODO(ajwong): This is one use case for having a Owned() tag that behaves
-// like a "Unique" pointer.  If we had that, and Tasks were always safe to
-// delete on MessageLoop shutdown, this class could just be a function.
-class TaskClosureAdapter : public base::RefCounted<TaskClosureAdapter> {
- public:
-  // |should_leak_task| points to a flag variable that can be used to determine
-  // if this class should leak the Task on destruction.  This is important
-  // at MessageLoop shutdown since not all tasks can be safely deleted without
-  // running.  See MessageLoop::DeletePendingTasks() for the exact behavior
-  // of when a Task should be deleted. It is subtle.
-  TaskClosureAdapter(Task* task, bool* should_leak_task)
-      : task_(task),
-        should_leak_task_(should_leak_task) {
-  }
-
-  void Run() {
-    task_->Run();
-    delete task_;
-    task_ = NULL;
-  }
-
- private:
-  friend class base::RefCounted<TaskClosureAdapter>;
-
-  ~TaskClosureAdapter() {
-    if (!*should_leak_task_) {
-      delete task_;
-    }
-  }
-
-  Task* task_;
-  bool* should_leak_task_;
-};
-
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -271,8 +237,9 @@ void MessageLoop::PostTask(
     const tracked_objects::Location& from_here, Task* task) {
   CHECK(task);
   PendingTask pending_task(
-      base::Bind(&TaskClosureAdapter::Run,
-                 new TaskClosureAdapter(task, &should_leak_tasks_)),
+      base::Bind(
+          &base::subtle::TaskClosureAdapter::Run,
+          new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
       from_here,
       CalculateDelayedRuntime(0), true);
   AddToIncomingQueue(&pending_task);
@@ -282,8 +249,9 @@ void MessageLoop::PostDelayedTask(
     const tracked_objects::Location& from_here, Task* task, int64 delay_ms) {
   CHECK(task);
   PendingTask pending_task(
-      base::Bind(&TaskClosureAdapter::Run,
-                 new TaskClosureAdapter(task, &should_leak_tasks_)),
+      base::Bind(
+          &base::subtle::TaskClosureAdapter::Run,
+          new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
       from_here,
       CalculateDelayedRuntime(delay_ms), true);
   AddToIncomingQueue(&pending_task);
@@ -293,8 +261,9 @@ void MessageLoop::PostNonNestableTask(
     const tracked_objects::Location& from_here, Task* task) {
   CHECK(task);
   PendingTask pending_task(
-      base::Bind(&TaskClosureAdapter::Run,
-                 new TaskClosureAdapter(task, &should_leak_tasks_)),
+      base::Bind(
+          &base::subtle::TaskClosureAdapter::Run,
+          new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
       from_here,
       CalculateDelayedRuntime(0), false);
   AddToIncomingQueue(&pending_task);
@@ -304,8 +273,9 @@ void MessageLoop::PostNonNestableDelayedTask(
     const tracked_objects::Location& from_here, Task* task, int64 delay_ms) {
   CHECK(task);
   PendingTask pending_task(
-      base::Bind(&TaskClosureAdapter::Run,
-                 new TaskClosureAdapter(task, &should_leak_tasks_)),
+      base::Bind(
+          &base::subtle::TaskClosureAdapter::Run,
+          new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
       from_here,
       CalculateDelayedRuntime(delay_ms), false);
   AddToIncomingQueue(&pending_task);
@@ -486,11 +456,9 @@ void MessageLoop::RunTask(const PendingTask& pending_task) {
                     DidProcessTask(pending_task.time_posted));
 
 #if defined(TRACK_ALL_TASK_OBJECTS)
-  if (tracked_objects::ThreadData::IsActive() && pending_task.post_births) {
-    tracked_objects::ThreadData::current()->TallyADeath(
-        *pending_task.post_births,
-        TimeTicks::Now() - pending_task.time_posted);
-  }
+  tracked_objects::ThreadData::TallyADeathIfActive(
+      pending_task.post_births,
+      TimeTicks::Now() - pending_task.time_posted);
 #endif  // defined(TRACK_ALL_TASK_OBJECTS)
 
   nestable_tasks_allowed_ = true;
@@ -780,14 +748,7 @@ MessageLoop::PendingTask::PendingTask(
       nestable(nestable),
       birth_program_counter(posted_from.program_counter()) {
 #if defined(TRACK_ALL_TASK_OBJECTS)
-  post_births = NULL;
-  if (tracked_objects::ThreadData::IsActive()) {
-    tracked_objects::ThreadData* current_thread_data =
-        tracked_objects::ThreadData::current();
-    if (current_thread_data) {
-      post_births = current_thread_data->TallyABirth(posted_from);
-    }
-  }
+  post_births = tracked_objects::ThreadData::TallyABirthIfActive(posted_from);
 #endif  // defined(TRACK_ALL_TASK_OBJECTS)
 }
 
