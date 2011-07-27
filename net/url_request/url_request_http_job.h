@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/string16.h"
 #include "base/task.h"
 #include "base/time.h"
@@ -216,6 +217,7 @@ class URLRequestHttpJob : public URLRequestJob {
 
   scoped_ptr<HttpFilterContext> filter_context_;
   ScopedRunnableMethodFactory<URLRequestHttpJob> method_factory_;
+  base::WeakPtrFactory<URLRequestHttpJob> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
 };

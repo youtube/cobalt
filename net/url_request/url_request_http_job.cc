@@ -270,7 +270,8 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       observed_packet_count_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           filter_context_(new HttpFilterContext(this))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
+      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
   ResetTimer();
 }
 
@@ -524,7 +525,8 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
     options.set_include_httponly();
     request_->context()->cookie_store()->GetCookiesWithInfoAsync(
         request_->url(), options,
-        base::Bind(&URLRequestHttpJob::OnCookiesLoaded, this));
+        base::Bind(&URLRequestHttpJob::OnCookiesLoaded,
+                   weak_ptr_factory_.GetWeakPtr()));
   } else {
     DoStartTransaction();
   }
@@ -588,7 +590,8 @@ void URLRequestHttpJob::SaveNextCookie() {
         response_cookies_[response_cookies_save_index_], &options)) {
       request_->context()->cookie_store()->SetCookieWithOptionsAsync(
           request_->url(), response_cookies_[response_cookies_save_index_],
-          options, base::Bind(&URLRequestHttpJob::OnCookieSaved, this));
+          options, base::Bind(&URLRequestHttpJob::OnCookieSaved,
+                              weak_ptr_factory_.GetWeakPtr()));
       return;
     }
   }
@@ -878,6 +881,7 @@ void URLRequestHttpJob::Kill() {
   if (!transaction_.get())
     return;
 
+  weak_ptr_factory_.InvalidateWeakPtrs();
   DestroyTransaction();
   URLRequestJob::Kill();
 }
