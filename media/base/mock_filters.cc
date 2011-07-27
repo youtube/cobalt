@@ -48,10 +48,12 @@ void MockDemuxerFactory::SetError(PipelineStatus error) {
 }
 
 void MockDemuxerFactory::RunBuildCallback(const std::string& url,
-                                          const BuildCB& cb) {
-  EXPECT_FALSE(cb.is_null());
+                                          BuildCallback* callback) {
+  scoped_ptr<BuildCallback> cb(callback);
+
   if (!demuxer_.get()) {
-    cb.Run(PIPELINE_ERROR_REQUIRED_FILTER_MISSING, NULL);
+    cb->Run(PIPELINE_ERROR_REQUIRED_FILTER_MISSING,
+            static_cast<Demuxer*>(NULL));
     return;
   }
 
@@ -59,11 +61,16 @@ void MockDemuxerFactory::RunBuildCallback(const std::string& url,
   demuxer_ = NULL;
 
   if (status_ == PIPELINE_OK) {
-    cb.Run(PIPELINE_OK, demuxer.get());
+    cb->Run(PIPELINE_OK, demuxer.get());
     return;
   }
 
-  cb.Run(status_, NULL);
+  cb->Run(status_, static_cast<Demuxer*>(NULL));
+}
+
+void MockDemuxerFactory::DestroyBuildCallback(const std::string& url,
+                                              BuildCallback* callback) {
+  delete callback;
 }
 
 DemuxerFactory* MockDemuxerFactory::Clone() const {
@@ -139,12 +146,15 @@ FilterCollection* MockFilterCollection::filter_collection(
     demuxer_factory->SetError(build_status);
 
   if (run_build_callback) {
-    ON_CALL(*demuxer_factory, Build(_, _)).WillByDefault(Invoke(
+    ON_CALL(*demuxer_factory, Build(_, NotNull())).WillByDefault(Invoke(
         demuxer_factory, &MockDemuxerFactory::RunBuildCallback));
+  } else {
+    ON_CALL(*demuxer_factory, Build(_, NotNull())).WillByDefault(Invoke(
+        demuxer_factory, &MockDemuxerFactory::DestroyBuildCallback));
   }
 
   if (run_build)
-    EXPECT_CALL(*demuxer_factory, Build(_, _));
+    EXPECT_CALL(*demuxer_factory, Build(_, NotNull()));
 
   collection->SetDemuxerFactory(demuxer_factory);
   collection->AddVideoDecoder(video_decoder_);
