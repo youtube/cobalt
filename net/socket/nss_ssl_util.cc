@@ -161,6 +161,8 @@ int MapNSSError(PRErrorCode err) {
 
     case SEC_ERROR_INVALID_ARGS:
       return ERR_INVALID_ARGUMENT;
+    case SEC_ERROR_NO_MEMORY:
+      return ERR_OUT_OF_MEMORY;
     case SEC_ERROR_NO_KEY:
       return ERR_SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY;
     case SEC_ERROR_INVALID_KEY:
@@ -191,6 +193,17 @@ int MapNSSError(PRErrorCode err) {
       return ERR_SSL_WEAK_SERVER_EPHEMERAL_DH_KEY;
     case SSL_ERROR_HANDSHAKE_NOT_COMPLETED:
       return ERR_SSL_HANDSHAKE_NOT_COMPLETED;
+    case SEC_ERROR_BAD_KEY:
+    case SSL_ERROR_EXTRACT_PUBLIC_KEY_FAILURE:
+    // TODO(wtc): the following errors may also occur in contexts unrelated
+    // to the peer's public key.  We should add new error codes for them, or
+    // map them to ERR_SSL_BAD_PEER_PUBLIC_KEY only in the right context.
+    // General unsupported/unknown key algorithm error.
+    case SEC_ERROR_UNSUPPORTED_KEYALG:
+    // General DER decoding errors.
+    case SEC_ERROR_BAD_DER:
+    case SEC_ERROR_EXTRA_INPUT:
+      return ERR_SSL_BAD_PEER_PUBLIC_KEY;
 
     default: {
       if (IS_SSL_ERROR(err)) {
