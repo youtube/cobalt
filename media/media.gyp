@@ -74,6 +74,8 @@
         'audio/win/wavein_input_win.h',
         'audio/win/waveout_output_win.cc',
         'audio/win/waveout_output_win.h',
+        'base/async_filter_factory_base.cc',
+        'base/async_filter_factory_base.h',
         'base/audio_decoder_config.h',
         'base/bitstream_buffer.h',
         'base/buffers.cc',
