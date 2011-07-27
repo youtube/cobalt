@@ -879,15 +879,24 @@
               # Don't warn about printf format problems.
               # This is off by default in gcc but on in Ubuntu's gcc(!).
               '-Wno-format',
-              # Don't warn about ignoring the return value from e.g. close().
-              # This is off by default in some gccs but on by default in others.
-              '-Wno-unused-result',
             ],
             'cflags_cc!': [
               # TODO(fischman): remove this.
               # http://code.google.com/p/chromium/issues/detail?id=90453
               '-Wsign-compare',
             ]
+          }],
+          [ 'os_posix==1 and OS!="mac" and chromeos==0', {
+            'cflags': [
+              # Don't warn about ignoring the return value from e.g. close().
+              # This is off by default in some gccs but on by default in others.
+              # Currently this option is not set for Chrome OS build because
+              # the current version of gcc (4.3.4) used for building Chrome in
+              # Chrome OS chroot doesn't support this option.
+              # TODO(mazda): remove the conditional for Chrome OS when gcc
+              # version is upgraded.
+              '-Wno-unused-result',
+            ],
           }],
           [ 'OS=="win"', {
             'defines': [
