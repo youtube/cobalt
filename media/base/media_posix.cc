@@ -36,9 +36,10 @@ namespace media {
 #define AVUTIL_VERSION STRINGIZE(LIBAVUTIL_VERSION_MAJOR)
 
 #if defined(OS_MACOSX)
+// TODO(evan): should be using .so like ffmepgsumo here.
 #define DSO_NAME(MODULE, VERSION) ("lib" MODULE "." VERSION ".dylib")
 static const FilePath::CharType sumo_name[] =
-    FILE_PATH_LITERAL("libffmpegsumo.dylib");
+    FILE_PATH_LITERAL("ffmpegsumo.so");
 #elif defined(OS_POSIX)
 #define DSO_NAME(MODULE, VERSION) ("lib" MODULE ".so." VERSION)
 static const FilePath::CharType sumo_name[] =
