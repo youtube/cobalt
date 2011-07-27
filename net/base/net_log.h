@@ -104,6 +104,50 @@ class NET_API NetLog {
     LOG_BASIC,
   };
 
+  // An observer, that must ensure its own thread safety, for events
+  // being added to a NetLog.
+  class NET_API ThreadSafeObserver {
+   public:
+    // Constructs an observer that wants to see network events, with
+    // the specified minimum event granularity.  A ThreadSafeObserver can only
+    // observe a single NetLog at a time.
+    //
+    // Typical observers should specify LOG_BASIC.
+    //
+    // Observers that need to see the full granularity of events can
+    // specify LOG_ALL. However doing so will have performance consequences.
+    //
+    // Observers will be called on the same thread an entry is added on,
+    // and are responsible for ensuring their own thread safety.
+    explicit ThreadSafeObserver(LogLevel log_level);
+    virtual ~ThreadSafeObserver();
+
+    // Returns the minimum log level for events this observer wants to
+    // receive.
+    LogLevel log_level() const;
+
+    // This method will be called on the thread that the event occurs on.  It
+    // is the responsibility of the observer to handle it in a thread safe
+    // manner.
+    //
+    // It is illegal for an Observer to call any NetLog or
+    // NetLog::Observer functions in response to a call to OnAddEntry.
+    virtual void OnAddEntry(EventType type,
+                            const base::TimeTicks& time,
+                            const Source& source,
+                            EventPhase phase,
+                            EventParameters* params) = 0;
+
+   protected:
+    // Subclasses should only ever modify this if they somehow
+    // collaborate with concrete implementations of NetLog to enable
+    // modification.
+    LogLevel log_level_;
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(ThreadSafeObserver);
+  };
+
   NetLog() {}
   virtual ~NetLog() {}
 
@@ -129,6 +173,14 @@ class NET_API NetLog {
   // Returns the logging level for this NetLog. This is used to avoid computing
   // and saving expensive log entries.
   virtual LogLevel GetLogLevel() const = 0;
+
+  // Adds an observer. Each observer may be added only once and must
+  // be removed via |RemoveObserver()| before this object goes out of
+  // scope.
+  virtual void AddThreadSafeObserver(ThreadSafeObserver* observer) = 0;
+
+  // Removes an observer.
+  virtual void RemoveThreadSafeObserver(ThreadSafeObserver* observer) = 0;
 
   // Converts a time to the string format that the NetLog uses to represent
   // times.  Strings are used since integers may overflow.
