@@ -268,6 +268,7 @@
         '../chrome/chrome.gyp:performance_ui_tests',
         '../chrome/chrome.gyp:plugin_tests',
         '../chrome/chrome.gyp:startup_tests',
+        '../chrome/chrome.gyp:sync_performance_tests',
         '../chrome/chrome.gyp:tab_switching_test',
         '../chrome/chrome.gyp:ui_tests', # needed for dromaeo, sunspider, v8
         '../chrome/chrome.gyp:url_fetch_test',
