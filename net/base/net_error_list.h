@@ -255,6 +255,9 @@ NET_ERROR(ADDRESS_IN_USE, -147)
 // An operation failed because the SSL handshake has not completed.
 NET_ERROR(SSL_HANDSHAKE_NOT_COMPLETED, -148)
 
+// SSL peer's public key is invalid.
+NET_ERROR(SSL_BAD_PEER_PUBLIC_KEY, -149)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
