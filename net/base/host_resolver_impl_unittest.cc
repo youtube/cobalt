@@ -356,41 +356,6 @@ class HostResolverImplTest : public testing::Test {
   }
 };
 
-TEST_F(HostResolverImplTest, SynchronousLookup) {
-  AddressList addrlist;
-  const int kPortnum = 80;
-
-  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
-      new RuleBasedHostResolverProc(NULL));
-  resolver_proc->AddRule("just.testing", "192.168.1.42");
-
-  scoped_ptr<HostResolver> host_resolver(
-      CreateHostResolverImpl(resolver_proc));
-
-  HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
-  int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, log.bound());
-  EXPECT_EQ(OK, err);
-
-  CapturingNetLog::EntryList entries;
-  log.GetEntries(&entries);
-
-  EXPECT_EQ(2u, entries.size());
-  EXPECT_TRUE(LogContainsBeginEvent(
-      entries, 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
-  EXPECT_TRUE(LogContainsEndEvent(
-      entries, 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
-
-  const struct addrinfo* ainfo = addrlist.head();
-  EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
-  EXPECT_EQ(sizeof(struct sockaddr_in), ainfo->ai_addrlen);
-
-  const struct sockaddr* sa = ainfo->ai_addr;
-  const struct sockaddr_in* sa_in = (const struct sockaddr_in*) sa;
-  EXPECT_TRUE(htons(kPortnum) == sa_in->sin_port);
-  EXPECT_TRUE(htonl(0xc0a8012a) == sa_in->sin_addr.s_addr);
-}
-
 TEST_F(HostResolverImplTest, AsynchronousLookup) {
   AddressList addrlist;
   const int kPortnum = 80;
@@ -570,7 +535,8 @@ TEST_F(HostResolverImplTest, EmptyHost) {
   AddressList addrlist;
   const int kPortnum = 5555;
   HostResolver::RequestInfo info(HostPortPair("", kPortnum));
-  int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, BoundNetLog());
+  int err = host_resolver->Resolve(info, &addrlist, NULL, NULL,
+                                   BoundNetLog());
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
 }
 
@@ -990,7 +956,11 @@ TEST_F(HostResolverImplTest, Observers) {
   // Resolve "host1".
   HostResolver::RequestInfo info1(HostPortPair("host1", 70));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
-  int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log.bound());
+  TestCompletionCallback callback;
+  int rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL,
+                                  log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
 
   CapturingNetLog::EntryList entries;
@@ -1012,7 +982,6 @@ TEST_F(HostResolverImplTest, Observers) {
 
   // Resolve "host1" again -- this time it  will be served from cache, but it
   // should still notify of completion.
-  TestCompletionCallback callback;
   rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, BoundNetLog());
   ASSERT_EQ(OK, rv);  // Should complete synchronously.
 
@@ -1027,7 +996,9 @@ TEST_F(HostResolverImplTest, Observers) {
   // Resolve "host2", setting referrer to "http://foobar.com"
   HostResolver::RequestInfo info2(HostPortPair("host2", 70));
   info2.set_referrer(GURL("http://foobar.com"));
-  rv = host_resolver->Resolve(info2, &addrlist, NULL, NULL, BoundNetLog());
+  rv = host_resolver->Resolve(info2, &addrlist, &callback, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
 
   EXPECT_EQ(3U, observer.start_log.size());
@@ -1043,7 +1014,7 @@ TEST_F(HostResolverImplTest, Observers) {
 
   // Resolve "host3"
   HostResolver::RequestInfo info3(HostPortPair("host3", 70));
-  host_resolver->Resolve(info3, &addrlist, NULL, NULL, BoundNetLog());
+  host_resolver->Resolve(info3, &addrlist, &callback, NULL, BoundNetLog());
 
   // No effect this time, since observer was removed.
   EXPECT_EQ(3U, observer.start_log.size());
@@ -1648,61 +1619,6 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv6) {
   EXPECT_EQ("192.2.104.1", NetAddressToString(addrlist[2].head()));
 }
 
-// This tests that the default address family is respected for synchronous
-// resolutions.
-TEST_F(HostResolverImplTest, SetDefaultAddressFamily_Synchronous) {
-  scoped_refptr<CapturingHostResolverProc> resolver_proc(
-      new CapturingHostResolverProc(new EchoingHostResolverProc));
-
-  scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, HostCache::CreateDefaultCache(), kMaxJobs,
-      kMaxRetryAttempts, NULL));
-
-  host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV4);
-
-  // Unblock the resolver thread so the requests can run.
-  resolver_proc->Signal();
-
-  HostResolver::RequestInfo req[] = {
-      CreateResolverRequestForAddressFamily("b", MEDIUM,
-                                            ADDRESS_FAMILY_UNSPECIFIED),
-      CreateResolverRequestForAddressFamily("b", MEDIUM, ADDRESS_FAMILY_IPV6),
-      CreateResolverRequestForAddressFamily("b", MEDIUM,
-                                            ADDRESS_FAMILY_UNSPECIFIED),
-      CreateResolverRequestForAddressFamily("b", MEDIUM, ADDRESS_FAMILY_IPV4),
-  };
-  AddressList addrlist[arraysize(req)];
-
-  // Start and run all of the requests synchronously.
-  for (size_t i = 0; i < arraysize(req); ++i) {
-    int rv = host_resolver->Resolve(req[i], &addrlist[i],
-                                    NULL, NULL, BoundNetLog());
-    EXPECT_EQ(OK, rv) << i;
-  }
-
-  // We should have sent 2 requests to the resolver --
-  // one for (b, IPv4), and one for (b, IPv6).
-  CapturingHostResolverProc::CaptureList capture_list =
-      resolver_proc->GetCaptureList();
-  ASSERT_EQ(2u, capture_list.size());
-
-  EXPECT_EQ("b", capture_list[0].hostname);
-  EXPECT_EQ(ADDRESS_FAMILY_IPV4, capture_list[0].address_family);
-
-  EXPECT_EQ("b", capture_list[1].hostname);
-  EXPECT_EQ(ADDRESS_FAMILY_IPV6, capture_list[1].address_family);
-
-  // Now check that the correct resolved IP addresses were returned.
-  // Addresses take the form: 192.x.y.z
-  //    x = length of hostname
-  //    y = ASCII value of hostname[0]
-  //    z = value of address family
-  EXPECT_EQ("192.1.98.1", NetAddressToString(addrlist[0].head()));
-  EXPECT_EQ("192.1.98.2", NetAddressToString(addrlist[1].head()));
-  EXPECT_EQ("192.1.98.1", NetAddressToString(addrlist[2].head()));
-  EXPECT_EQ("192.1.98.1", NetAddressToString(addrlist[3].head()));
-}
-
 TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
   AddressList addrlist;
   const int kPortnum = 80;
@@ -1723,7 +1639,10 @@ TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
 
   // This time, we fetch normally.
   info.set_only_use_cached_response(false);
-  err = host_resolver->Resolve(info, &addrlist, NULL, NULL, log.bound());
+  TestCompletionCallback callback;
+  err = host_resolver->Resolve(info, &addrlist, &callback, NULL, log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, err);
+  err = callback.WaitForResult();
   EXPECT_EQ(OK, err);
 
   // Now we should be able to fetch from the cache.
