@@ -5833,20 +5833,21 @@ void BypassHostCacheOnRefreshHelper(int load_flags) {
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
       CreateSession(&session_deps)));
 
-  // Warm up the host cache so it has an entry for "www.google.com" (by doing
-  // a synchronous lookup.)
+  // Warm up the host cache so it has an entry for "www.google.com".
   AddressList addrlist;
+  TestCompletionCallback callback;
   int rv = session_deps.host_resolver->Resolve(
       HostResolver::RequestInfo(HostPortPair("www.google.com", 80)), &addrlist,
-      NULL, NULL, BoundNetLog());
+      &callback, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
 
   // Verify that it was added to host cache, by doing a subsequent async lookup
   // and confirming it completes synchronously.
-  TestCompletionCallback resolve_callback;
   rv = session_deps.host_resolver->Resolve(
       HostResolver::RequestInfo(HostPortPair("www.google.com", 80)), &addrlist,
-      &resolve_callback, NULL, BoundNetLog());
+      &callback, NULL, BoundNetLog());
   ASSERT_EQ(OK, rv);
 
   // Inject a failure the next time that "www.google.com" is resolved. This way
@@ -5861,7 +5862,6 @@ void BypassHostCacheOnRefreshHelper(int load_flags) {
   session_deps.socket_factory.AddSocketDataProvider(&data);
 
   // Run the request.
-  TestCompletionCallback callback;
   rv = trans->Start(&request, &callback, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
@@ -8721,7 +8721,12 @@ void IPPoolingAddAlias(MockCachingHostResolver* host_resolver,
   // Resolve the host and port.
   AddressList addresses;
   HostResolver::RequestInfo info(host_port_pair);
-  host_resolver->Resolve(info, &addresses, NULL, NULL, BoundNetLog());
+  TestCompletionCallback callback;
+  int rv = host_resolver->Resolve(info, &addresses, &callback, NULL,
+                                  BoundNetLog());
+  if (rv == ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  DCHECK_EQ(OK, rv);
 
   // Add the first address as an alias. It would have been better to call
   // MockClientSocket::GetPeerAddress but that returns 192.0.2.33 whereas
@@ -8808,7 +8813,11 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   HostPortPair host_port("www.gmail.com", 443);
   HostResolver::RequestInfo resolve_info(host_port);
   AddressList ignored;
-  host_resolver.Resolve(resolve_info, &ignored, NULL, NULL, BoundNetLog());
+  rv = host_resolver.Resolve(resolve_info, &ignored, &callback, NULL,
+                             BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
 
   // MockHostResolver returns 127.0.0.1, port 443 for https://www.google.com/
   // and https://www.gmail.com/. Add 127.0.0.1 as alias for host_port_pair:
@@ -8960,7 +8969,11 @@ TEST_F(HttpNetworkTransactionTest,
   // Preload cache entries into HostCache.
   HostResolver::RequestInfo resolve_info(HostPortPair("www.gmail.com", 443));
   AddressList ignored;
-  host_resolver.Resolve(resolve_info, &ignored, NULL, NULL, BoundNetLog());
+  rv = host_resolver.Resolve(resolve_info, &ignored, &callback, NULL,
+                             BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
 
   HttpRequestInfo request2;
   request2.method = "GET";

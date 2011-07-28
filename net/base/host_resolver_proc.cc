@@ -122,21 +122,8 @@ int SystemHostResolverProc(const std::string& host,
                            HostResolverFlags host_resolver_flags,
                            AddressList* addrlist,
                            int* os_error) {
-  static const size_t kMaxHostLength = 4096;
-
   if (os_error)
     *os_error = 0;
-
-  // The result of |getaddrinfo| for empty hosts is inconsistent across systems.
-  // On Windows it gives the default interface's address, whereas on Linux it
-  // gives an error. We will make it fail on all platforms for consistency.
-  if (host.empty())
-    return ERR_NAME_NOT_RESOLVED;
-
-  // Limit the size of hostnames that will be resolved to combat issues in some
-  // platform's resolvers.
-  if (host.size() > kMaxHostLength)
-    return ERR_NAME_NOT_RESOLVED;
 
   struct addrinfo* ai = NULL;
   struct addrinfo hints = {0};
