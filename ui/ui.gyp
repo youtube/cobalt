@@ -403,13 +403,13 @@
           ],
         }],
         ['toolkit_views==0', {
-          'sources/': [
-            ['exclude', '^gfx/render_text.cc'],
-            ['exclude', '^gfx/render_text.h'],
-            ['exclude', '^gfx/render_text_linux.cc'],
-            ['exclude', '^gfx/render_text_linux.h'],
-            ['exclude', '^gfx/render_text_win.cc'],
-            ['exclude', '^gfx/render_text_win.h'],
+          'sources!': [
+            'gfx/render_text.cc',
+            'gfx/render_text.h',
+            'gfx/render_text_linux.cc',
+            'gfx/render_text_linux.h',
+            'gfx/render_text_win.cc',
+            'gfx/render_text_win.h',
           ],
         }],
       ],
