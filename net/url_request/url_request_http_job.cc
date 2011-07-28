@@ -366,8 +366,6 @@ void URLRequestHttpJob::NotifyBeforeSendHeadersCallback(int result) {
   if (result == OK) {
     StartTransactionInternal();
   } else {
-    // TODO(battre): Allow passing information of the extension that canceled
-    // the event.
     request_->net_log().AddEvent(NetLog::TYPE_CANCELLED,
         make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
     NotifyCanceled();
