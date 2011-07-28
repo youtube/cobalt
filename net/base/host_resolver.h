@@ -148,13 +148,16 @@ class NET_API HostResolver {
   // the sin(6)_port field of the sockaddr_in{6} struct.  Returns OK if
   // successful or an error code upon failure.
   //
-  // When callback is null, the operation completes synchronously.
-  //
-  // When callback is non-null, the operation may be performed asynchronously.
   // If the operation cannnot be completed synchronously, ERR_IO_PENDING will
   // be returned and the real result code will be passed to the completion
   // callback.  Otherwise the result code is returned immediately from this
   // call.
+  //
+  // When |callback| is null, there are two possibilities: either an IP
+  // address literal is being resolved or lookup should be performed from
+  // cache only, meaning info.only_use_cached_response() should be true; in
+  // both cases operation should complete synchronously.
+  //
   // If |out_req| is non-NULL, then |*out_req| will be filled with a handle to
   // the async request. This handle is not valid after the request has
   // completed.
