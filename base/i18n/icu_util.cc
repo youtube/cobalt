@@ -99,7 +99,7 @@ bool Initialize() {
   FilePath data_path;
   bool ok = PathService::Get(base::DIR_EXE, &data_path);
   DCHECK(ok);
-  data_path = data_path.Append("icudt46b");
+  data_path = data_path.Append("icu/icudt46b");
   // set this as the data directory.
   u_setDataDirectory(data_path.value().c_str());
   UErrorCode err = U_ZERO_ERROR;
