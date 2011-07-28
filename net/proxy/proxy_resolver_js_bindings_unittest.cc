@@ -14,6 +14,7 @@
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
+#include "net/base/test_completion_callback.h"
 #include "net/proxy/proxy_resolver_request_context.h"
 #include "net/proxy/sync_host_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -91,6 +92,10 @@ class MockFailingHostResolver : public SyncHostResolver {
 
 class MockSyncHostResolver : public SyncHostResolver {
  public:
+  MockSyncHostResolver() {
+    resolver_.set_synchronous_mode(true);
+  }
+
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses) OVERRIDE {
     return resolver_.Resolve(info, addresses, NULL, NULL, BoundNetLog());
