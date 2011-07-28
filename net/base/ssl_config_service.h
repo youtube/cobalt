@@ -158,8 +158,7 @@ class NET_API SSLConfigService
   static void EnableCachedInfo();
   static bool cached_info_enabled();
 
-  // Enables the TLS origin bound cert extension, which allows the replacement
-  // of login cookies by self-signed certificates.
+  // Enables the TLS origin bound cert extension.
   static void EnableOriginBoundCerts();
   static bool origin_bound_certs_enabled();
 
