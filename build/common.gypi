@@ -90,6 +90,8 @@
       'toolkit_views%': '<(toolkit_views)',
       'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
       'views_compositor%': '<(views_compositor)',
+      # Whether to build for Wayland display server
+      'use_wayland%': 0,
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -211,6 +213,9 @@
           'toolkit_uses_gtk%': 0,
           'use_x11%': 0,
         }, {
+          # TODO(dnicoara) Wayland build should have these disabled, but
+          # currently GTK and X is too spread and it's hard to completely
+          # remove every dependency.
           'toolkit_uses_gtk%': 1,
           'use_x11%': 1,
         }],
@@ -291,6 +296,7 @@
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
     'enable_smooth_scrolling%': '<(enable_smooth_scrolling)',
+    'use_wayland%': '<(use_wayland)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
@@ -731,6 +737,9 @@
       }],
       ['touchui==1', {
         'defines': ['TOUCH_UI=1'],
+      }],
+      ['use_wayland==1', {
+        'defines': ['USE_WAYLAND=1', 'WL_EGL_PLATFORM=1'],
       }],
       ['file_manager_extension==1', {
         'defines': ['FILE_MANAGER_EXTENSION=1'],

@@ -463,5 +463,29 @@
         }],
       ],
     },
+    {
+      'target_name': 'wayland',
+      'type': 'settings',
+      'conditions': [
+        ['use_wayland == 1', {
+          'cflags': [
+            '<!@(<(pkg-config) --cflags cairo wayland-client wayland-egl xkbcommon)',
+          ],
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(<(pkg-config) --cflags cairo wayland-client wayland-egl xkbcommon)',
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other wayland-client wayland-egl xkbcommon)',
+            ],
+            'libraries': [
+              '<!@(<(pkg-config) --libs-only-l wayland-client wayland-egl xkbcommon)',
+            ],
+          },
+        }],
+      ],
+    },
   ],
 }
