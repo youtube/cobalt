@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -98,18 +98,16 @@ Time Time::LocalMidnight() const {
 }
 
 // static
-bool Time::FromString(const char* time_string, Time* parsed_time) {
+bool Time::FromString(const wchar_t* time_string, Time* parsed_time) {
   DCHECK((time_string != NULL) && (parsed_time != NULL));
-
-  if (time_string[0] == '\0')
+  std::string ascii_time_string = SysWideToUTF8(time_string);
+  if (ascii_time_string.length() == 0)
     return false;
-
   PRTime result_time = 0;
-  PRStatus result = PR_ParseTimeString(time_string, PR_FALSE,
+  PRStatus result = PR_ParseTimeString(ascii_time_string.c_str(), PR_FALSE,
                                        &result_time);
   if (PR_SUCCESS != result)
     return false;
-
   result_time += kTimeTToMicrosecondsOffset;
   *parsed_time = Time(result_time);
   return true;
