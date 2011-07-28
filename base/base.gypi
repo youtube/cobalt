@@ -94,7 +94,6 @@
           'files/file_path_watcher_linux.cc',
           'files/file_path_watcher_mac.cc',
           'files/file_path_watcher_win.cc',
-          'fix_wp64.h',
           'float_util.h',
           'global_descriptors_posix.cc',
           'global_descriptors_posix.h',
