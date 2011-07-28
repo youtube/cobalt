@@ -415,8 +415,6 @@ void URLRequest::BeforeRequestComplete(int error) {
 
   net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
   if (error != OK) {
-    // TODO(battre): Allow passing information of the extension that canceled
-    // the event.
     net_log_.AddEvent(NetLog::TYPE_CANCELLED,
         make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
     StartJob(new URLRequestErrorJob(this, error));
