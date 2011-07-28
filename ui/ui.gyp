@@ -176,6 +176,7 @@
         'base/text/text_elider.h',
         'base/theme_provider.cc',
         'base/theme_provider.h',
+        'base/ui_base_exports.cc',
         'base/ui_base_paths.cc',
         'base/ui_base_paths.h',
         'base/ui_base_switches.cc',
@@ -273,6 +274,7 @@
         'gfx/skia_utils_gtk.h',
         'gfx/transform.h',
         'gfx/transform.cc',
+        'ui_api.h',
       ],
       'conditions': [
         ['toolkit_uses_gtk == 1', {
