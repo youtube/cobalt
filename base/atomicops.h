@@ -35,11 +35,7 @@
 namespace base {
 namespace subtle {
 
-// Bug 1308991.  We need this for /Wp64, to mark it safe for AtomicWord casting.
-#ifndef OS_WIN
-#define __w64
-#endif
-typedef __w64 int32 Atomic32;
+typedef int32 Atomic32;
 #ifdef ARCH_CPU_64_BITS
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
 // means Atomic64 and AtomicWord should be the same type on 64-bit.
