@@ -29,7 +29,7 @@ class BASE_API MessagePumpWin : public MessagePump {
   //
   // NOTE: An Observer implementation should be extremely fast!
   //
-  class Observer {
+  class BASE_API Observer {
    public:
     virtual ~Observer() {}
 
@@ -50,7 +50,7 @@ class BASE_API MessagePumpWin : public MessagePump {
   //
   // The nested loop is exited by either posting a quit, or returning false
   // from Dispatch.
-  class Dispatcher {
+  class BASE_API Dispatcher {
    public:
     virtual ~Dispatcher() {}
     // Dispatches the event. If true is returned processing continues as
