@@ -797,6 +797,7 @@ void URLRequest::NotifyRequestCompleted() {
   if (has_notified_completion_)
     return;
 
+  is_pending_ = false;
   has_notified_completion_ = true;
   if (context_ && context_->network_delegate())
     context_->network_delegate()->NotifyCompleted(this);
