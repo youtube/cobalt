@@ -126,9 +126,6 @@
         'base/mime_sniffer.h',
         'base/mime_util.cc',
         'base/mime_util.h',
-        # TODO(eroman): move this into its own test-support target.
-        'base/mock_host_resolver.cc',
-        'base/mock_host_resolver.h',
         'base/net_api.h',
         'base/net_error_list.h',
         'base/net_errors.cc',
@@ -1191,6 +1188,8 @@
         'base/cookie_monster_store_test.h',
         'base/cookie_store_test_helpers.cc',
         'base/cookie_store_test_helpers.h',
+        'base/mock_host_resolver.cc',
+        'base/mock_host_resolver.h',
         'base/net_test_suite.cc',
         'base/net_test_suite.h',
         'base/test_completion_callback.cc',
