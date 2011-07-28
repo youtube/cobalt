@@ -11,7 +11,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
-#include "net/base/test_completion_callback.h"
 
 namespace net {
 
@@ -101,13 +100,8 @@ int MockHostResolverBase::Resolve(const RequestInfo& info,
                                   RequestHandle* out_req,
                                   const BoundNetLog& net_log) {
   if (synchronous_mode_) {
-    TestCompletionCallback sync_callback;
-    int rv = impl_->Resolve(info, addresses, &sync_callback, out_req, net_log);
-    if (rv == ERR_IO_PENDING) {
-      MessageLoop::ScopedNestableTaskAllower nestable(MessageLoop::current());
-      return sync_callback.WaitForResult();
-    }
-    return rv;
+    callback = NULL;
+    out_req = NULL;
   }
   return impl_->Resolve(info, addresses, callback, out_req, net_log);
 }
