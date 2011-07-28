@@ -1047,8 +1047,7 @@ bool HttpResponseHeaders::GetTimeValuedHeader(const std::string& name,
   if (!EnumerateHeader(NULL, name, &value))
     return false;
 
-  std::wstring value_wide(value.begin(), value.end());  // inflate ascii
-  return Time::FromString(value_wide.c_str(), result);
+  return Time::FromString(value.c_str(), result);
 }
 
 bool HttpResponseHeaders::IsKeepAlive() const {
