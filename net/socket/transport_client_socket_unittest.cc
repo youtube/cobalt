@@ -122,10 +122,7 @@ void TransportClientSocketTest::SetUp() {
                                HostResolver::kDefaultRetryAttempts,
                                NULL));
   HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));
-  TestCompletionCallback callback;
-  int rv = resolver->Resolve(info, &addr, &callback, NULL, BoundNetLog());
-  CHECK_EQ(ERR_IO_PENDING, rv);
-  rv = callback.WaitForResult();
+  int rv = resolver->Resolve(info, &addr, NULL, NULL, BoundNetLog());
   CHECK_EQ(rv, OK);
   sock_.reset(
       socket_factory_->CreateTransportClientSocket(addr,
