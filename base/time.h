@@ -317,7 +317,7 @@ class BASE_API Time {
   // in the input string, we assume local time.
   // TODO(iyengar) Move the FromString/FromTimeT/ToTimeT/FromFileTime to
   // a new time converter class.
-  static bool FromString(const char* time_string, Time* parsed_time);
+  static bool FromString(const wchar_t* time_string, Time* parsed_time);
 
   // For serializing, use FromInternalValue to reconstitute. Please don't use
   // this and do arithmetic on it, as it is more error prone than using the
