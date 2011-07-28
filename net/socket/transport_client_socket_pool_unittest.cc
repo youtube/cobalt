@@ -1055,7 +1055,6 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   };
 
   client_socket_factory_.set_client_socket_types(case_types, 2);
-  client_socket_factory_.set_delay_ms(5000);
 
   EXPECT_EQ(0, pool_.IdleSocketCount());
 

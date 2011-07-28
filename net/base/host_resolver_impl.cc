@@ -44,10 +44,6 @@ namespace net {
 
 namespace {
 
-// Limit the size of hostnames that will be resolved to combat issues in
-// some platform's resolvers.
-const size_t kMaxHostLength = 4096;
-
 // Helper to mutate the linked list contained by AddressList to the given
 // port. Note that in general this is dangerous since the AddressList's
 // data might be shared (and you should use AddressList::SetPort).
@@ -1147,19 +1143,6 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   // Update the net log and notify registered observers.
   OnStartRequest(source_net_log, request_net_log, request_id, info);
 
-  // The result of |getaddrinfo| for empty hosts is inconsistent across systems.
-  // On Windows it gives the default interface's address, whereas on Linux it
-  // gives an error. We will make it fail on all platforms for consistency.
-  if (info.hostname().empty() || info.hostname().size() > kMaxHostLength) {
-    OnFinishRequest(source_net_log,
-                    request_net_log,
-                    request_id,
-                    info,
-                    ERR_NAME_NOT_RESOLVED,
-                    0);
-    return ERR_NAME_NOT_RESOLVED;
-  }
-
   // Build a key that identifies the request in the cache and in the
   // outstanding jobs map.
   Key key = GetEffectiveKeyForRequest(info);
@@ -1186,13 +1169,6 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
                     net_error, 0  /* os_error (unknown since from cache) */);
     return net_error;
   }
-
-  // Sanity check -- it shouldn't be the case that allow_cached_response is
-  // false while only_use_cached_response is true.
-  DCHECK(info.allow_cached_response() || !info.only_use_cached_response());
-
-  // If callback is NULL, we must be doing cache-only lookup.
-  DCHECK(callback || info.only_use_cached_response());
 
   // If we have an unexpired cache entry, use it.
   if (info.allow_cached_response() && cache_.get()) {
@@ -1225,7 +1201,30 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
     return ERR_NAME_NOT_RESOLVED;
   }
 
-   // Create a handle for this request, and pass it back to the user if they
+  // If no callback was specified, do a synchronous resolution.
+  if (!callback) {
+    AddressList addrlist;
+    int os_error = 0;
+    int error = ResolveAddrInfo(
+        effective_resolver_proc(), key.hostname, key.address_family,
+        key.host_resolver_flags, &addrlist, &os_error);
+    if (error == OK) {
+      MutableSetPort(info.port(), &addrlist);
+      *addresses = addrlist;
+    }
+
+    // Write to cache.
+    if (cache_.get())
+      cache_->Set(key, error, addrlist, base::TimeTicks::Now());
+
+    // Update the net log and notify registered observers.
+    OnFinishRequest(source_net_log, request_net_log, request_id, info, error,
+                    os_error);
+
+    return error;
+  }
+
+  // Create a handle for this request, and pass it back to the user if they
   // asked for it (out_req != NULL).
   Request* req = new Request(source_net_log, request_net_log, request_id, info,
                              callback, addresses);
