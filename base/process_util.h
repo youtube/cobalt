@@ -675,7 +675,7 @@ BASE_API void EnableTerminationOnHeapCorruption();
 BASE_API void EnableTerminationOnOutOfMemory();
 #if defined(OS_MACOSX)
 // Exposed for testing.
-malloc_zone_t* GetPurgeableZone();
+BASE_API malloc_zone_t* GetPurgeableZone();
 #endif
 #endif
 
