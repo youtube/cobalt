@@ -221,6 +221,10 @@ TEST(HMACTest, NSSFIPSPowerUpSelfTest) {
       message_data,
       base::StringPiece(reinterpret_cast<const char*>(kKnownHMACSHA1),
                         kSHA1DigestSize)));
+  EXPECT_TRUE(hmac.VerifyTruncated(
+      message_data,
+      base::StringPiece(reinterpret_cast<const char*>(kKnownHMACSHA1),
+                        kSHA1DigestSize / 2)));
 
   crypto::HMAC hmac2(crypto::HMAC::SHA256);
   ASSERT_TRUE(hmac2.Init(kKnownSecretKey, kKnownSecretKeySize));

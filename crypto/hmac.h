@@ -59,10 +59,15 @@ class CRYPTO_API HMAC {
   // supplied to the Init method. Use of this method is strongly recommended
   // over using Sign() with a manual comparison (such as memcmp), as such
   // comparisons may result in side-channel disclosures, such as timing, that
-  // undermine the cryptographic integrity. This method does not support
-  // comparing truncated HMACs.
+  // undermine the cryptographic integrity. |digest| must be exactly
+  // |DigestLength()| bytes long.
   bool Verify(const base::StringPiece& data,
               const base::StringPiece& digest) const;
+
+  // Verifies a truncated HMAC, behaving identical to Verify(), except
+  // that |digest| is allowed to be smaller than |DigestLength()|.
+  bool VerifyTruncated(const base::StringPiece& data,
+                       const base::StringPiece& digest) const;
 
  private:
   HashAlgorithm hash_alg_;
