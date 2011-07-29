@@ -25,9 +25,9 @@ class BitstreamBuffer {
   size_t size() const { return size_; }
 
  private:
-  const int32 id_;
-  const base::SharedMemoryHandle handle_;
-  const size_t size_;
+  int32 id_;
+  base::SharedMemoryHandle handle_;
+  size_t size_;
 
   // Allow compiler-generated copy & assign constructors.
 };
