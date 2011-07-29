@@ -62,25 +62,25 @@ BASE_API std::string SysWideToMultiByte(const std::wstring& wide,
 
 // Creates a string, and returns it with a refcount of 1. You are responsible
 // for releasing it. Returns NULL on failure.
-CFStringRef SysUTF8ToCFStringRef(const std::string& utf8);
-CFStringRef SysUTF16ToCFStringRef(const string16& utf16);
-CFStringRef SysWideToCFStringRef(const std::wstring& wide);
+BASE_API CFStringRef SysUTF8ToCFStringRef(const std::string& utf8);
+BASE_API CFStringRef SysUTF16ToCFStringRef(const string16& utf16);
+BASE_API CFStringRef SysWideToCFStringRef(const std::wstring& wide);
 
 // Same, but returns an autoreleased NSString.
-NSString* SysUTF8ToNSString(const std::string& utf8);
-NSString* SysUTF16ToNSString(const string16& utf16);
-NSString* SysWideToNSString(const std::wstring& wide);
+BASE_API NSString* SysUTF8ToNSString(const std::string& utf8);
+BASE_API NSString* SysUTF16ToNSString(const string16& utf16);
+BASE_API NSString* SysWideToNSString(const std::wstring& wide);
 
 // Converts a CFStringRef to an STL string. Returns an empty string on failure.
-std::string SysCFStringRefToUTF8(CFStringRef ref);
-string16 SysCFStringRefToUTF16(CFStringRef ref);
-std::wstring SysCFStringRefToWide(CFStringRef ref);
+BASE_API std::string SysCFStringRefToUTF8(CFStringRef ref);
+BASE_API string16 SysCFStringRefToUTF16(CFStringRef ref);
+BASE_API std::wstring SysCFStringRefToWide(CFStringRef ref);
 
 // Same, but accepts NSString input. Converts nil NSString* to the appropriate
 // string type of length 0.
-std::string SysNSStringToUTF8(NSString* ref);
-string16 SysNSStringToUTF16(NSString* ref);
-std::wstring SysNSStringToWide(NSString* ref);
+BASE_API std::string SysNSStringToUTF8(NSString* ref);
+BASE_API string16 SysNSStringToUTF16(NSString* ref);
+BASE_API std::wstring SysNSStringToWide(NSString* ref);
 
 #endif  // defined(OS_MACOSX)
 
