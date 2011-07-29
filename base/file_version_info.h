@@ -60,7 +60,7 @@ class FileVersionInfo {
 #else
   // Creates a FileVersionInfo for the current module. Returns NULL in case
   // of error. The returned object should be deleted when you are done with it.
-  static FileVersionInfo* CreateFileVersionInfoForCurrentModule();
+  BASE_API static FileVersionInfo* CreateFileVersionInfoForCurrentModule();
 #endif  // OS_WIN
 
   // Accessors to the different version properties.
