@@ -164,6 +164,7 @@ class URLRequestHttpJob : public URLRequestJob {
   void DoneWithRequest(CompletionCause reason);
 
   // Callback functions for Cookie Monster
+  void CheckCookiePolicyAndLoad(const CookieList& cookie_list);
   void OnCookiesLoaded(
       std::string* cookie_line,
       std::vector<CookieStore::CookieInfo>* cookie_infos);

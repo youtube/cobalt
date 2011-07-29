@@ -78,6 +78,7 @@ class BlobURLRequestJobTest;
 
 namespace net {
 
+class CookieList;
 class CookieOptions;
 class HostPortPair;
 class IOBuffer;
@@ -273,14 +274,15 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     // Called when reading cookies to allow the delegate to block access to the
     // cookie. This method will never be invoked when LOAD_DO_NOT_SEND_COOKIES
     // is specified.
-    virtual bool CanGetCookies(URLRequest* request);
+    virtual bool CanGetCookies(const URLRequest* request,
+                               const CookieList& cookie_list) const;
 
     // Called when a cookie is set to allow the delegate to block access to the
     // cookie. This method will never be invoked when LOAD_DO_NOT_SAVE_COOKIES
     // is specified.
-    virtual bool CanSetCookie(URLRequest* request,
+    virtual bool CanSetCookie(const URLRequest* request,
                               const std::string& cookie_line,
-                              CookieOptions* options);
+                              CookieOptions* options) const;
 
     // After calling Start(), the delegate will receive an OnResponseStarted
     // callback when the request has completed.  If an error occurred, the
@@ -708,8 +710,9 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   void NotifyAuthRequired(AuthChallengeInfo* auth_info);
   void NotifyCertificateRequested(SSLCertRequestInfo* cert_request_info);
   void NotifySSLCertificateError(int cert_error, X509Certificate* cert);
-  bool CanGetCookies();
-  bool CanSetCookie(const std::string& cookie_line, CookieOptions* options);
+  bool CanGetCookies(const CookieList& cookie_list) const;
+  bool CanSetCookie(const std::string& cookie_line,
+                    CookieOptions* options) const;
   void NotifyReadCompleted(int bytes_read);
 
   // Contextual information used for this request (can be NULL). This contains

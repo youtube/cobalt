@@ -230,15 +230,15 @@ void URLRequestJob::NotifySSLCertificateError(int cert_error,
   request_->NotifySSLCertificateError(cert_error, cert);
 }
 
-bool URLRequestJob::CanGetCookies() {
+bool URLRequestJob::CanGetCookies(const CookieList& cookie_list) const {
   if (!request_)
     return false;  // The request was destroyed, so there is no more work to do.
 
-  return request_->CanGetCookies();
+  return request_->CanGetCookies(cookie_list);
 }
 
 bool URLRequestJob::CanSetCookie(const std::string& cookie_line,
-                                 CookieOptions* options) {
+                                 CookieOptions* options) const {
   if (!request_)
     return false;  // The request was destroyed, so there is no more work to do.
 
