@@ -105,6 +105,7 @@
             }],
           ],
           'dependencies': [
+            '../aura/aura.gyp:*',
             '../breakpad/breakpad.gyp:*',
             '../chrome/app/locales/locales.gyp:*',
             '../chrome_frame/chrome_frame.gyp:*',
