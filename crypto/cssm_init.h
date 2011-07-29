@@ -9,32 +9,33 @@
 #include <Security/cssm.h>
 
 #include "base/basictypes.h"
+#include "crypto/crypto_api.h"
 
 namespace crypto {
 
 // Initialize CSSM if it isn't already initialized.  This must be called before
 // any other CSSM functions.  This function is thread-safe, and CSSM will only
 // ever be initialized once.  CSSM will be properly shut down on program exit.
-void EnsureCSSMInit();
+CRYPTO_API void EnsureCSSMInit();
 
 // Returns the shared CSP handle used by CSSM functions.
 CSSM_CSP_HANDLE GetSharedCSPHandle();
 
 // Returns the shared CL handle used by CSSM functions.
-CSSM_CL_HANDLE GetSharedCLHandle();
+CRYPTO_API CSSM_CL_HANDLE GetSharedCLHandle();
 
 // Returns the shared TP handle used by CSSM functions.
-CSSM_TP_HANDLE GetSharedTPHandle();
+CRYPTO_API CSSM_TP_HANDLE GetSharedTPHandle();
 
 // Set of pointers to memory function wrappers that are required for CSSM
 extern const CSSM_API_MEMORY_FUNCS kCssmMemoryFunctions;
 
 // Utility function to log an error message including the error name.
-void LogCSSMError(const char *function_name, CSSM_RETURN err);
+CRYPTO_API void LogCSSMError(const char *function_name, CSSM_RETURN err);
 
 // Utility functions to allocate and release CSSM memory.
 void* CSSMMalloc(CSSM_SIZE size);
-void CSSMFree(void* ptr);
+CRYPTO_API void CSSMFree(void* ptr);
 
 // Wrapper class for CSSM_DATA type. This should only be used when using the
 // CL/TP/CSP handles from above, since that's the only time we're guaranteed (or
