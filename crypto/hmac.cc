@@ -4,6 +4,8 @@
 
 #include "crypto/hmac.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
 
 namespace crypto {
@@ -43,12 +45,21 @@ bool HMAC::Verify(const base::StringPiece& data,
                   const base::StringPiece& digest) const {
   if (digest.size() != DigestLength())
     return false;
+  return VerifyTruncated(data, digest);
+}
+
+bool HMAC::VerifyTruncated(const base::StringPiece& data,
+                           const base::StringPiece& digest) const {
+  if (digest.empty())
+    return false;
+  size_t digest_length = DigestLength();
   scoped_array<unsigned char> computed_digest(
-      new unsigned char[digest.size()]);
-  if (!Sign(data, computed_digest.get(), static_cast<int>(digest.size())))
+      new unsigned char[digest_length]);
+  if (!Sign(data, computed_digest.get(), static_cast<int>(digest_length)))
     return false;
 
-  return SecureMemcmp(digest.data(), computed_digest.get(), digest.size());
+  return SecureMemcmp(digest.data(), computed_digest.get(),
+                      std::min(digest.size(), digest_length));
 }
 
 }  // namespace crypto
