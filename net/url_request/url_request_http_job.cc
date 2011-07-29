@@ -512,13 +512,27 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
   if (!request_)
     return;
 
+  CookieStore* cookie_store =
+      request_->context()->cookie_store();
+  if (cookie_store) {
+    cookie_store->GetCookieMonster()->GetAllCookiesForURLAsync(
+        request_->url(),
+        base::Bind(&URLRequestHttpJob::CheckCookiePolicyAndLoad,
+                   weak_ptr_factory_.GetWeakPtr()));
+  } else {
+    DoStartTransaction();
+  }
+}
+
+void URLRequestHttpJob::CheckCookiePolicyAndLoad(
+    const CookieList& cookie_list) {
   bool allow = true;
   if ((request_info_.load_flags & LOAD_DO_NOT_SEND_COOKIES) ||
-      !CanGetCookies()) {
+      !CanGetCookies(cookie_list)) {
     allow = false;
   }
 
-  if (request_->context()->cookie_store() && allow) {
+  if (allow) {
     CookieOptions options;
     options.set_include_httponly();
     request_->context()->cookie_store()->GetCookiesWithInfoAsync(
@@ -543,7 +557,7 @@ void URLRequestHttpJob::OnCookiesLoaded(
 }
 
 void URLRequestHttpJob::DoStartTransaction() {
-  // We may have been canceled within CanGetCookies.
+  // We may have been canceled while retrieving cookies.
   if (GetStatus().is_success()) {
     StartTransaction();
   } else {
