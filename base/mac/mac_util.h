@@ -10,6 +10,7 @@
 #include <Carbon/Carbon.h>
 #include <string>
 
+#include "base/base_api.h"
 #include "base/logging.h"
 
 // TODO(rohitrao): Clean up sites that include mac_util.h and remove this line.
@@ -39,22 +40,22 @@ enum FullScreenMode {
   kFullScreenModeNormal = 10,
 };
 
-std::string PathFromFSRef(const FSRef& ref);
-bool FSRefFromPath(const std::string& path, FSRef* ref);
+BASE_API std::string PathFromFSRef(const FSRef& ref);
+BASE_API bool FSRefFromPath(const std::string& path, FSRef* ref);
 
 // Returns an sRGB color space.  The return value is a static value; do not
 // release it!
-CGColorSpaceRef GetSRGBColorSpace();
+BASE_API CGColorSpaceRef GetSRGBColorSpace();
 
 // Returns the color space being used by the main display.  The return value
 // is a static value; do not release it!
-CGColorSpaceRef GetSystemColorSpace();
+BASE_API CGColorSpaceRef GetSystemColorSpace();
 
 // Add a full screen request for the given |mode|.  Must be paired with a
 // ReleaseFullScreen() call for the same |mode|.  This does not by itself create
 // a fullscreen window; rather, it manages per-application state related to
 // hiding the dock and menubar.  Must be called on the main thread.
-void RequestFullScreen(FullScreenMode mode);
+BASE_API void RequestFullScreen(FullScreenMode mode);
 
 // Release a request for full screen mode.  Must be matched with a
 // RequestFullScreen() call for the same |mode|.  As with RequestFullScreen(),
@@ -62,44 +63,45 @@ void RequestFullScreen(FullScreenMode mode);
 // state.  For example, if there are no other outstanding
 // |kFullScreenModeAutoHideAll| requests, this will reshow the menu bar.  Must
 // be called on main thread.
-void ReleaseFullScreen(FullScreenMode mode);
+BASE_API void ReleaseFullScreen(FullScreenMode mode);
 
 // Convenience method to switch the current fullscreen mode.  This has the same
 // net effect as a ReleaseFullScreen(from_mode) call followed immediately by a
 // RequestFullScreen(to_mode).  Must be called on the main thread.
-void SwitchFullScreenModes(FullScreenMode from_mode, FullScreenMode to_mode);
+BASE_API void SwitchFullScreenModes(FullScreenMode from_mode,
+                                    FullScreenMode to_mode);
 
 // Set the visibility of the cursor.
-void SetCursorVisibility(bool visible);
+BASE_API void SetCursorVisibility(bool visible);
 
 // Should windows miniaturize on a double-click (on the title bar)?
-bool ShouldWindowsMiniaturizeOnDoubleClick();
+BASE_API bool ShouldWindowsMiniaturizeOnDoubleClick();
 
 // Activates the process with the given PID.
-void ActivateProcess(pid_t pid);
+BASE_API void ActivateProcess(pid_t pid);
 
 // Returns true if this process is in the foreground, meaning that it's the
 // frontmost process, the one whose menu bar is shown at the top of the main
 // display.
-bool AmIForeground();
+BASE_API bool AmIForeground();
 
 // Excludes the file given by |file_path| from being backed up by Time Machine.
-bool SetFileBackupExclusion(const FilePath& file_path);
+BASE_API bool SetFileBackupExclusion(const FilePath& file_path);
 
 // Sets the process name as displayed in Activity Monitor to process_name.
-void SetProcessName(CFStringRef process_name);
+BASE_API void SetProcessName(CFStringRef process_name);
 
 // Converts a NSImage to a CGImageRef.  Normally, the system frameworks can do
 // this fine, especially on 10.6.  On 10.5, however, CGImage cannot handle
 // converting a PDF-backed NSImage into a CGImageRef.  This function will
 // rasterize the PDF into a bitmap CGImage.  The caller is responsible for
 // releasing the return value.
-CGImageRef CopyNSImageToCGImage(NSImage* image);
+BASE_API CGImageRef CopyNSImageToCGImage(NSImage* image);
 
 // Checks if the current application is set as a Login Item, so it will launch
 // on Login. If a non-NULL pointer to is_hidden is passed, the Login Item also
 // is queried for the 'hide on launch' flag.
-bool CheckLoginItemStatus(bool* is_hidden);
+BASE_API bool CheckLoginItemStatus(bool* is_hidden);
 
 // Adds current application to the set of Login Items with specified "hide"
 // flag. This has the same effect as adding/removing the application in
@@ -107,14 +109,14 @@ bool CheckLoginItemStatus(bool* is_hidden);
 // as "Options->Open on Login".
 // Does nothing if the application is already set up as Login Item with
 // specified hide flag.
-void AddToLoginItems(bool hide_on_startup);
+BASE_API void AddToLoginItems(bool hide_on_startup);
 
 // Removes the current application from the list Of Login Items.
-void RemoveFromLoginItems();
+BASE_API void RemoveFromLoginItems();
 
 // Returns true if the current process was automatically launched as a
 // 'Login Item' with 'hide on startup' flag. Used to suppress opening windows.
-bool WasLaunchedAsHiddenLoginItem();
+BASE_API bool WasLaunchedAsHiddenLoginItem();
 
 // Run-time OS version checks. Use these instead of
 // base::SysInfo::OperatingSystemVersionNumbers. Prefer the "OrEarlier" and
@@ -122,22 +124,22 @@ bool WasLaunchedAsHiddenLoginItem();
 // know for sure that you need to check for a specific version.
 
 // Leopard is Mac OS X 10.5, Darwin 9.
-bool IsOSLeopard();
-bool IsOSLeopardOrEarlier();
+BASE_API bool IsOSLeopard();
+BASE_API bool IsOSLeopardOrEarlier();
 
 // Snow Leopard is Mac OS X 10.6, Darwin 10.
-bool IsOSSnowLeopard();
-bool IsOSSnowLeopardOrEarlier();
-bool IsOSSnowLeopardOrLater();
+BASE_API bool IsOSSnowLeopard();
+BASE_API bool IsOSSnowLeopardOrEarlier();
+BASE_API bool IsOSSnowLeopardOrLater();
 
 // Lion is Mac OS X 10.7, Darwin 11.
-bool IsOSLion();
-bool IsOSLionOrLater();
+BASE_API bool IsOSLion();
+BASE_API bool IsOSLionOrLater();
 
 // This should be infrequently used. It only makes sense to use this to avoid
 // codepaths that are very likely to break on future (unreleased, untested,
 // unborn) OS releases.
-bool IsOSLaterThanLion();
+BASE_API bool IsOSLaterThanLion();
 
 // When the deployment target is set, the code produced cannot run on earlier
 // OS releases. That enables some of the IsOS* family to be implemented as
