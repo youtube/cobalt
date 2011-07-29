@@ -6,6 +6,8 @@
 #define CRYPTO_MAC_SECURITY_SERVICES_LOCK_H_
 #pragma once
 
+#include "crypto/crypto_api.h"
+
 namespace base {
 class Lock;
 }
@@ -18,7 +20,7 @@ namespace crypto {
 // problematic.
 //
 // http://developer.apple.com/mac/library/documentation/Security/Reference/certifkeytrustservices/Reference/reference.html
-base::Lock& GetMacSecurityServicesLock();
+CRYPTO_API base::Lock& GetMacSecurityServicesLock();
 
 }  // namespace crypto
 
