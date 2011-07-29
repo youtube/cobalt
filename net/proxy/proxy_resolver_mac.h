@@ -8,6 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/net_api.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_resolver.h"
 
@@ -15,7 +16,7 @@ namespace net {
 
 // Implementation of ProxyResolver that uses the Mac CFProxySupport to implement
 // proxies.
-class ProxyResolverMac : public ProxyResolver {
+class NET_API ProxyResolverMac : public ProxyResolver {
  public:
   ProxyResolverMac();
   virtual ~ProxyResolverMac();
