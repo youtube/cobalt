@@ -13,6 +13,7 @@
 
 #include <CoreServices/CoreServices.h>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 //==============================================================================
@@ -138,7 +139,7 @@ class MachMsgPortDescriptor : public mach_msg_port_descriptor_t {
 //  A MachMessage object is used by ReceivePort::WaitForMessage
 //  and MachPortSender::SendMessage
 //
-class MachMessage {
+class BASE_API MachMessage {
  public:
   static const size_t kEmptyMessageSize;
 
@@ -244,7 +245,7 @@ class MachReceiveMessage : public MachMessage {
 };
 
 //==============================================================================
-class MachSendMessage : public MachMessage {
+class BASE_API MachSendMessage : public MachMessage {
  public:
   explicit MachSendMessage(int32_t message_id);
   MachSendMessage(void *storage, size_t storage_length, int32_t message_id);
@@ -257,7 +258,7 @@ class MachSendMessage : public MachMessage {
 
 //==============================================================================
 // Represents a Mach port for which we have receive rights
-class ReceivePort {
+class BASE_API ReceivePort {
  public:
   // Creates a new Mach port for receiving messages and registers a name for it
   explicit ReceivePort(const char *receive_port_name);
@@ -288,7 +289,7 @@ class ReceivePort {
 
 //==============================================================================
 // Represents a Mach port for which we have send rights
-class MachPortSender {
+class BASE_API MachPortSender {
  public:
   // get a port with send rights corresponding to a named registered service
   explicit MachPortSender(const char *receive_port_name);
