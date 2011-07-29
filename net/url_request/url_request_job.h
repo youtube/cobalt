@@ -24,6 +24,7 @@
 namespace net {
 
 class AuthChallengeInfo;
+class CookieList;
 class CookieOptions;
 class HttpRequestHeaders;
 class HttpResponseInfo;
@@ -199,10 +200,11 @@ class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
   void NotifySSLCertificateError(int cert_error, X509Certificate* cert);
 
   // Delegates to URLRequest::Delegate.
-  bool CanGetCookies();
+  bool CanGetCookies(const CookieList& cookie_list) const;
 
   // Delegates to URLRequest::Delegate.
-  bool CanSetCookie(const std::string& cookie_line, CookieOptions* options);
+  bool CanSetCookie(const std::string& cookie_line,
+                    CookieOptions* options) const;
 
   // Notifies the job that headers have been received.
   void NotifyHeadersComplete();
