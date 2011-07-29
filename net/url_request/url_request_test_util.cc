@@ -153,8 +153,6 @@ TestDelegate::TestDelegate()
       cancel_in_rs_(false),
       cancel_in_rd_(false),
       cancel_in_rd_pending_(false),
-      cancel_in_getcookiesblocked_(false),
-      cancel_in_setcookieblocked_(false),
       quit_on_complete_(true),
       quit_on_redirect_(false),
       allow_certificate_errors_(false),
@@ -207,23 +205,22 @@ void TestDelegate::OnSSLCertificateError(net::URLRequest* request,
     request->Cancel();
 }
 
-bool TestDelegate::CanGetCookies(net::URLRequest* request) {
+bool TestDelegate::CanGetCookies(const net::URLRequest* request,
+                                 const net::CookieList& cookie_list) const {
   bool allow = true;
   if (cookie_options_bit_mask_ & NO_GET_COOKIES)
     allow = false;
 
   if (!allow) {
     blocked_get_cookies_count_++;
-    if (cancel_in_getcookiesblocked_)
-      request->Cancel();
   }
 
   return allow;
 }
 
-bool TestDelegate::CanSetCookie(net::URLRequest* request,
+bool TestDelegate::CanSetCookie(const net::URLRequest* request,
                                 const std::string& cookie_line,
-                                net::CookieOptions* options) {
+                                net::CookieOptions* options) const {
   bool allow = true;
   if (cookie_options_bit_mask_ & NO_SET_COOKIE)
     allow = false;
@@ -234,8 +231,6 @@ bool TestDelegate::CanSetCookie(net::URLRequest* request,
 
   if (!allow) {
     blocked_set_cookie_count_++;
-    if (cancel_in_setcookieblocked_)
-      request->Cancel();
   } else {
     set_cookie_count_++;
   }

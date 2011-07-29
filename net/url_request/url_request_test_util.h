@@ -100,12 +100,6 @@ class TestDelegate : public net::URLRequest::Delegate {
   void set_cancel_in_received_data_pending(bool val) {
     cancel_in_rd_pending_ = val;
   }
-  void set_cancel_in_get_cookies_blocked(bool val) {
-    cancel_in_getcookiesblocked_ = val;
-  }
-  void set_cancel_in_set_cookie_blocked(bool val) {
-    cancel_in_setcookieblocked_ = val;
-  }
   void set_quit_on_complete(bool val) { quit_on_complete_ = val; }
   void set_quit_on_redirect(bool val) { quit_on_redirect_ = val; }
   void set_allow_certificate_errors(bool val) {
@@ -137,10 +131,11 @@ class TestDelegate : public net::URLRequest::Delegate {
   virtual void OnSSLCertificateError(net::URLRequest* request,
                                      int cert_error,
                                      net::X509Certificate* cert) OVERRIDE;
-  virtual bool CanGetCookies(net::URLRequest* request) OVERRIDE;
-  virtual bool CanSetCookie(net::URLRequest* request,
+  virtual bool CanGetCookies(const net::URLRequest* request,
+                             const net::CookieList& cookie_list) const OVERRIDE;
+  virtual bool CanSetCookie(const net::URLRequest* request,
                             const std::string& cookie_line,
-                            net::CookieOptions* options) OVERRIDE;
+                            net::CookieOptions* options) const OVERRIDE;
   virtual void OnResponseStarted(net::URLRequest* request) OVERRIDE;
   virtual void OnReadCompleted(net::URLRequest* request,
                                int bytes_read) OVERRIDE;
@@ -155,8 +150,6 @@ class TestDelegate : public net::URLRequest::Delegate {
   bool cancel_in_rs_;
   bool cancel_in_rd_;
   bool cancel_in_rd_pending_;
-  bool cancel_in_getcookiesblocked_;
-  bool cancel_in_setcookieblocked_;
   bool quit_on_complete_;
   bool quit_on_redirect_;
   bool allow_certificate_errors_;
@@ -169,9 +162,9 @@ class TestDelegate : public net::URLRequest::Delegate {
   int response_started_count_;
   int received_bytes_count_;
   int received_redirect_count_;
-  int blocked_get_cookies_count_;
-  int blocked_set_cookie_count_;
-  int set_cookie_count_;
+  mutable int blocked_get_cookies_count_;
+  mutable int blocked_set_cookie_count_;
+  mutable int set_cookie_count_;
   bool received_data_before_response_;
   bool request_failed_;
   bool have_certificate_errors_;
