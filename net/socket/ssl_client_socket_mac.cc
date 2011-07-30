@@ -722,10 +722,8 @@ bool SSLClientSocketMac::SetSendBufferSize(int32 size) {
 
 void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
-  if (!server_cert_) {
-    NOTREACHED();
+  if (!server_cert_)
     return;
-  }
 
   ssl_info->cert = server_cert_;
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
@@ -1148,6 +1146,7 @@ int SSLClientSocketMac::DoVerifyCert() {
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;
     server_cert_verify_result_.Reset();
     server_cert_verify_result_.cert_status = cert_status;
+    server_cert_verify_result_.verified_cert = server_cert_;
     return OK;
   }
 
