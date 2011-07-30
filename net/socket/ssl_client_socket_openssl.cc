@@ -826,6 +826,7 @@ int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;
     server_cert_verify_result_.Reset();
     server_cert_verify_result_.cert_status = cert_status;
+    server_cert_verify_result_.verified_cert = server_cert_;
     return OK;
   }
 

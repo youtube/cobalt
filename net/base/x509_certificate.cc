@@ -592,6 +592,7 @@ bool X509Certificate::VerifyHostname(
 int X509Certificate::Verify(const std::string& hostname, int flags,
                             CertVerifyResult* verify_result) const {
   verify_result->Reset();
+  verify_result->verified_cert = const_cast<X509Certificate*>(this);
 
   if (IsBlacklisted()) {
     verify_result->cert_status |= CERT_STATUS_REVOKED;
