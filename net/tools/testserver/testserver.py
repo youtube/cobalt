@@ -1404,7 +1404,8 @@ class SyncPageHandler(BasePageHandler):
 
   def __init__(self, request, client_address, sync_http_server):
     get_handlers = [self.ChromiumSyncMigrationOpHandler,
-                    self.ChromiumSyncTimeHandler]
+                    self.ChromiumSyncTimeHandler,
+                    self.ChromiumSyncBirthdayErrorOpHandler]
     post_handlers = [self.ChromiumSyncCommandHandler,
                      self.ChromiumSyncTimeHandler]
     BasePageHandler.__init__(self, request, client_address,
@@ -1466,6 +1467,18 @@ class SyncPageHandler(BasePageHandler):
     self.end_headers()
     self.wfile.write(raw_reply)
     return True
+
+  def ChromiumSyncBirthdayErrorOpHandler(self):
+    test_name = "/chromiumsync/birthdayerror"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+    result, raw_reply = self.server._sync_handler.HandleCreateBirthdayError()
+    self.send_response(result)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True;
 
 
 def MakeDataDir():
