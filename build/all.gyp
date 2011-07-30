@@ -79,6 +79,7 @@
           'dependencies': [
             '../breakpad/breakpad.gyp:*',
             '../courgette/courgette.gyp:*',
+            '../dbus/dbus.gyp:*',
             '../sandbox/sandbox.gyp:*',
             '../cloud_print/virtual_driver/virtual_driver_linux.gyp:*',
           ],
