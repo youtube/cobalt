@@ -255,15 +255,6 @@ class NET_API X509Certificate
   // |*policy| and ownership transferred to the caller.
   static OSStatus CreateSSLClientPolicy(SecPolicyRef* policy);
 
-  // Creates a security policy for certificates used by SSL servers.
-  // |hostname| is an optionally-supplied string indicating the name to verify
-  // the server certificate as; if it is empty, no hostname verification will
-  // happen.
-  // If a policy is successfully created, it will be stored in |*policy| and
-  // ownership transferred to the caller.
-  static OSStatus CreateSSLServerPolicy(const std::string& hostname,
-                                        SecPolicyRef* policy);
-
   // Creates a security policy for basic X.509 validation. If the policy is
   // successfully created, it will be stored in |*policy| and ownership
   // transferred to the caller.
