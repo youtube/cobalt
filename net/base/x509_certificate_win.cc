@@ -940,11 +940,8 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
   OSCertHandle cert_handle = NULL;
   if (!CertAddEncodedCertificateToStore(
-      NULL,  // the cert won't be persisted in any cert store
-      X509_ASN_ENCODING,
-      reinterpret_cast<const BYTE*>(data), length,
-      CERT_STORE_ADD_USE_EXISTING,
-      &cert_handle))
+      cert_store(), X509_ASN_ENCODING, reinterpret_cast<const BYTE*>(data),
+      length, CERT_STORE_ADD_USE_EXISTING, &cert_handle))
     return NULL;
 
   return cert_handle;
@@ -1011,8 +1008,7 @@ X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
 
   OSCertHandle cert_handle = NULL;
   if (!CertAddSerializedElementToStore(
-          NULL,  // the cert won't be persisted in any cert store
-          reinterpret_cast<const BYTE*>(data), length,
+          cert_store(), reinterpret_cast<const BYTE*>(data), length,
           CERT_STORE_ADD_USE_EXISTING, 0, CERT_STORE_CERTIFICATE_CONTEXT_FLAG,
           NULL, reinterpret_cast<const void **>(&cert_handle))) {
     return NULL;
