@@ -75,9 +75,11 @@ void AddAuthorizationHeader(
     }
     if (!signature.AddHttpInfo(method, request_uri, host, port))
       continue;
-    request_info->extra_headers.SetHeader(
-        HttpRequestHeaders::kAuthorization,
-        signature.GenerateAuthorizationHeader());
+    std::string authorization_header;
+    if (!signature.GenerateAuthorizationHeader(&authorization_header))
+      continue;
+    request_info->extra_headers.SetHeader(HttpRequestHeaders::kAuthorization,
+                                          authorization_header);
     return;  // Only add the first valid header.
   }
 }
