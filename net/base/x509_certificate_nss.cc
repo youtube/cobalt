@@ -168,19 +168,27 @@ int MapCertErrorToCertStatus(int err) {
 // Saves some information about the certificate chain cert_list in
 // *verify_result.  The caller MUST initialize *verify_result before calling
 // this function.
-// Note that cert_list[0] is the end entity certificate and cert_list doesn't
-// contain the root CA certificate.
+// Note that cert_list[0] is the end entity certificate.
 void GetCertChainInfo(CERTCertList* cert_list,
+                      CERTCertificate* root_cert,
                       CertVerifyResult* verify_result) {
   // NOTE: Using a NSS library before 3.12.3.1 will crash below.  To see the
   // NSS version currently in use:
   // 1. use ldd on the chrome executable for NSS's location (ie. libnss3.so*)
   // 2. use ident libnss3.so* for the library's version
   DCHECK(cert_list);
+
+  CERTCertificate* verified_cert = NULL;
+  std::vector<CERTCertificate*> verified_chain;
   int i = 0;
   for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
        !CERT_LIST_END(node, cert_list);
-       node = CERT_LIST_NEXT(node), i++) {
+       node = CERT_LIST_NEXT(node), ++i) {
+    if (i == 0) {
+      verified_cert = node->cert;
+    } else {
+      verified_chain.push_back(node->cert);
+    }
     SECAlgorithmID& signature = node->cert->signature;
     SECOidTag oid_tag = SECOID_FindOIDTag(&signature.algorithm);
     switch (oid_tag) {
@@ -201,6 +209,11 @@ void GetCertChainInfo(CERTCertList* cert_list,
         break;
     }
   }
+
+  if (root_cert)
+    verified_chain.push_back(root_cert);
+  verify_result->verified_cert =
+      X509Certificate::CreateFromHandle(verified_cert, verified_chain);
 }
 
 // IsKnownRoot returns true if the given certificate is one that we believe
@@ -811,6 +824,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   }
 
   GetCertChainInfo(cvout[cvout_cert_list_index].value.pointer.chain,
+                   cvout[cvout_trust_anchor_index].value.pointer.cert,
                    verify_result);
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);

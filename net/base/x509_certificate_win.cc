@@ -296,9 +296,15 @@ bool CertSubjectCommonNameHasNull(PCCERT_CONTEXT cert) {
 // this function.
 void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
                       CertVerifyResult* verify_result) {
+  if (chain_context->cChain == 0)
+    return;
+
   PCERT_SIMPLE_CHAIN first_chain = chain_context->rgpChain[0];
   int num_elements = first_chain->cElement;
   PCERT_CHAIN_ELEMENT* element = first_chain->rgpElement;
+
+  PCCERT_CONTEXT verified_cert = NULL;
+  std::vector<PCCERT_CONTEXT> verified_chain;
 
   // Each chain starts with the end entity certificate (i = 0) and ends with
   // the root CA certificate (i = num_elements - 1).  Do not inspect the
@@ -306,6 +312,12 @@ void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
   // the trust anchor is not important.
   for (int i = 0; i < num_elements - 1; ++i) {
     PCCERT_CONTEXT cert = element[i]->pCertContext;
+    if (i == 0) {
+      verified_cert = cert;
+    } else {
+      verified_chain.push_back(cert);
+    }
+
     const char* algorithm = cert->pCertInfo->SignatureAlgorithm.pszObjId;
     if (strcmp(algorithm, szOID_RSA_MD5RSA) == 0) {
       // md5WithRSAEncryption: 1.2.840.113549.1.1.4
@@ -321,6 +333,14 @@ void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
       // md4WithRSAEncryption: 1.2.840.113549.1.1.3
       verify_result->has_md4 = true;
     }
+  }
+
+  if (verified_cert) {
+    // Add the root certificate, if present, as it was not added above.
+    if (num_elements > 1)
+      verified_chain.push_back(element[num_elements - 1]->pCertContext);
+    verify_result->verified_cert =
+          X509Certificate::CreateFromHandle(verified_cert, verified_chain);
   }
 }
 
