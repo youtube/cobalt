@@ -462,8 +462,16 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     return MapCertStatusToNetError(verify_result->cert_status);
 
   STACK_OF(X509)* chain = X509_STORE_CTX_get_chain(ctx.get());
+  X509* verified_cert = NULL;
+  std::vector<X509*> verified_chain;
   for (int i = 0; i < sk_X509_num(chain); ++i) {
     X509* cert = sk_X509_value(chain, i);
+    if (i == 0) {
+      verified_cert = cert;
+    } else {
+      verified_chain.push_back(verified_cert);
+    }
+
     DERCache der_cache;
     if (!GetDERAndCacheIfNeeded(cert, &der_cache))
       continue;
@@ -478,6 +486,11 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     base::SHA1HashBytes(reinterpret_cast<const uint8*>(spki_bytes.data()),
                         spki_bytes.size(), hash.data);
     verify_result->public_key_hashes.push_back(hash);
+  }
+
+  if (verified_cert) {
+    verify_result->verified_cert = CreateFromHandle(verified_cert,
+                                                    verified_chain);
   }
 
   // Currently we only ues OpenSSL's default root CA paths, so treat all

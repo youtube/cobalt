@@ -39,3 +39,8 @@ unit tests.
      key in unittest.key.bin. The common name is "unittest".
 
 - unittest.key.bin : private key stored unencrypted.
+
+- x509_verify_results.chain.pem : A simple certificate chain used to test that
+    the correctly ordered, filtered certificate chain is returned during
+    verification, regardless of the order in which the intermediate/root CA
+    certificates are provided.

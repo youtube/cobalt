@@ -477,7 +477,6 @@ void SSLClientSocketNSS::ClearSessionCache() {
 void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   EnterFunction("");
   ssl_info->Reset();
-
   if (!server_cert_nss_)
     return;
 
@@ -1527,6 +1526,7 @@ int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
                                            host_and_port_.port());
   if (r == DNSVR_SUCCESS) {
     local_server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
+    local_server_cert_verify_result_.verified_cert = server_cert_;
     server_cert_verify_result_ = &local_server_cert_verify_result_;
     GotoState(STATE_VERIFY_CERT_COMPLETE);
     return OK;
@@ -1557,6 +1557,7 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
     server_cert_verify_result_ = &local_server_cert_verify_result_;
     local_server_cert_verify_result_.Reset();
     local_server_cert_verify_result_.cert_status = cert_status;
+    local_server_cert_verify_result_.verified_cert = server_cert_;
     return OK;
   }
 

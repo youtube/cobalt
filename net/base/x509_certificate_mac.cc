@@ -832,6 +832,23 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     return NetErrorFromOSStatus(status);
   ScopedCFTypeRef<CFArrayRef> scoped_completed_chain(completed_chain);
 
+  SecCertificateRef verified_cert = NULL;
+  std::vector<SecCertificateRef> verified_chain;
+  for (CFIndex i = 0, count = CFArrayGetCount(completed_chain);
+       i < count; ++i) {
+    SecCertificateRef chain_cert = reinterpret_cast<SecCertificateRef>(
+        const_cast<void*>(CFArrayGetValueAtIndex(completed_chain, i)));
+    if (i == 0) {
+      verified_cert = chain_cert;
+    } else {
+      verified_chain.push_back(chain_cert);
+    }
+  }
+  if (verified_cert) {
+    verify_result->verified_cert = CreateFromHandle(verified_cert,
+                                                    verified_chain);
+  }
+
   // Evaluate the results
   OSStatus cssm_result;
   switch (trust_result) {
