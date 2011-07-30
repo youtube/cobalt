@@ -427,7 +427,6 @@ SSLClientSocketWin::~SSLClientSocketWin() {
 
 void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
-
   if (!server_cert_)
     return;
 
@@ -1163,6 +1162,7 @@ int SSLClientSocketWin::DoVerifyCert() {
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;
     server_cert_verify_result_.Reset();
     server_cert_verify_result_.cert_status = cert_status;
+    server_cert_verify_result_.verified_cert = server_cert_;
     return OK;
   }
 
