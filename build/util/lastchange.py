@@ -13,21 +13,22 @@ import os
 import subprocess
 import sys
 
+_GIT_SVN_ID_REGEX = re.compile(r'.*git-svn-id:\s*([^@]*)@([0-9]+)', re.DOTALL)
+
 class VersionInfo(object):
-  def __init__(self, url, root, revision):
+  def __init__(self, url, revision):
     self.url = url
-    self.root = root
     self.revision = revision
 
 
-def FetchSVNRevision(directory):
+def FetchSVNRevision(directory, svn_url_regex):
   """
   Fetch the Subversion branch and revision for a given directory.
 
   Errors are swallowed.
 
   Returns:
-    a VersionInfo object or None on error.
+    A VersionInfo object or None on error.
   """
   try:
     proc = subprocess.Popen(['svn', 'info'],
@@ -50,13 +51,16 @@ def FetchSVNRevision(directory):
     attrs[key] = val
 
   try:
-    url = attrs['URL']
-    root = attrs['Repository Root']
+    match = svn_url_regex.search(attrs['URL'])
+    if match:
+      url = match.group(2)
+    else:
+      url = ''
     revision = attrs['Revision']
   except KeyError:
     return None
 
-  return VersionInfo(url, root, revision)
+  return VersionInfo(url, revision)
 
 
 def RunGitCommand(directory, command):
@@ -66,7 +70,7 @@ def RunGitCommand(directory, command):
   Errors are swallowed.
 
   Returns:
-    process object or None.
+    A process object or None.
   """
   command = ['git'] + command
   # Force shell usage under cygwin & win32. This is a workaround for
@@ -92,140 +96,101 @@ def FetchGitRevision(directory):
   Errors are swallowed.
 
   Returns:
-    a VersionInfo object or None on error.
+    A VersionInfo object or None on error.
   """
   proc = RunGitCommand(directory, ['rev-parse', 'HEAD'])
   if proc:
     output = proc.communicate()[0].strip()
     if proc.returncode == 0 and output:
-      return VersionInfo('git', 'git', output[:7])
+      return VersionInfo('git', output[:7])
   return None
 
 
-def IsGitSVN(directory):
+def FetchGitSVNURLAndRevision(directory, svn_url_regex):
   """
-  Checks whether git-svn has been set up.
+  Fetch the Subversion URL and revision through Git.
 
   Errors are swallowed.
 
   Returns:
-    whether git-svn has been set up.
+    A tuple containing the Subversion URL and revision.
   """
-  # To test whether git-svn has been set up, query the config for any
-  # svn-related configuration.  This command exits with an error code
-  # if there aren't any matches, so ignore its output.
-  proc = RunGitCommand(directory, ['config', '--get-regexp', '^svn'])
+  proc = RunGitCommand(directory, ['log', '-1',
+                                   '--grep=git-svn-id', '--format=%b'])
   if proc:
-    return (proc.wait() == 0)
-  return False
-
-
-def FetchGitSVNURL(directory):
-  """
-  Fetch URL of SVN repository bound to git.
-
-  Errors are swallowed.
-
-  Returns:
-    SVN URL.
-  """
-  if IsGitSVN(directory):
-    proc = RunGitCommand(directory, ['svn', 'info', '--url'])
-    if proc:
-      output = proc.communicate()[0].strip()
-      if proc.returncode == 0:
-        match = re.search(r'^\w+://.*$', output, re.M)
-        if match:
-          return match.group(0)
-  return ''
-
-
-def FetchGitSVNRoot(directory):
-  """
-  Fetch root of SVN repository bound to git.
-
-  Errors are swallowed.
-
-  Returns:
-    SVN root repository.
-  """
-  if IsGitSVN(directory):
-    git_command = ['config', '--get-regexp', '^svn-remote.svn.url$']
-    proc = RunGitCommand(directory, git_command)
-    if proc:
-      output = proc.communicate()[0].strip()
-      if proc.returncode == 0:
-        # Zero return code implies presence of requested configuration variable.
-        # Its value is second (last) field of output.
-        match = re.search(r'\S+$', output)
-        if match:
-          return match.group(0)
-  return ''
-
-
-def LookupGitSVNRevision(directory, depth):
-  """
-  Fetch the Git-SVN identifier for the local tree.
-  Parses first |depth| commit messages.
-
-  Errors are swallowed.
-  """
-  if not IsGitSVN(directory):
-    return None
-  git_re = re.compile(r'^\s*git-svn-id:\s+(\S+)@(\d+)')
-  proc = RunGitCommand(directory, ['log', '-' + str(depth)])
-  if proc:
-    for line in proc.stdout:
-      match = git_re.match(line)
+    output = proc.communicate()[0].strip()
+    if proc.returncode == 0 and output:
+      # Extract the latest SVN revision and the SVN URL.
+      # The target line is the last "git-svn-id: ..." line like this:
+      # git-svn-id: svn://svn.chromium.org/chrome/trunk/src@85528 0039d316....
+      match = _GIT_SVN_ID_REGEX.search(output)
       if match:
-        id = match.group(2)
-        if id:
-          proc.stdout.close()  # Cut pipe for fast exit.
-          return id
-  return None
+        revision = match.group(2)
+        url_match = svn_url_regex.search(match.group(1))
+        if url_match:
+          url = url_match.group(2)
+        else:
+          url = ''
+        return url, revision
+  return None, None
 
 
 def IsGitSVNDirty(directory):
   """
-  Checks whether our git-svn tree contains clean trunk or some branch.
+  Checks whether our git-svn tree contains clean trunk or any local changes.
 
   Errors are swallowed.
   """
-  # For git branches the last commit message is either
-  # some local commit or a merge.
-  return LookupGitSVNRevision(directory, 1) is None
+  proc = RunGitCommand(directory, ['log', '-1'])
+  if proc:
+    output = proc.communicate()[0].strip()
+    if proc.returncode == 0 and output:
+      # Extract the latest SVN revision and the SVN URL.
+      # The target line is the last "git-svn-id: ..." line like this:
+      # git-svn-id: svn://svn.chromium.org/chrome/trunk/src@85528 0039d316....
+      match = _GIT_SVN_ID_REGEX.search(output)
+      if match:
+        # Check if there are any local uncommitted changes.
+        proc = RunGitCommand(directory, ['checkout'])
+        if proc:
+          output = proc.communicate()[0].strip()
+          if proc.returncode == 0 and not output:
+            return False
+  return True
 
 
-def FetchGitSVNRevision(directory):
+def FetchGitSVNRevision(directory, svn_url_regex):
   """
   Fetch the Git-SVN identifier for the local tree.
 
   Errors are swallowed.
   """
-  # We assume that at least first 999 commit messages contain svn evidence.
-  revision = LookupGitSVNRevision(directory, 999)
-  if not revision:
-    return None
-  if IsGitSVNDirty(directory):
-    revision = revision + '-dirty'
-  url = FetchGitSVNURL(directory)
-  root = FetchGitSVNRoot(directory)
-  return VersionInfo(url, root, revision)
+  url, revision = FetchGitSVNURLAndRevision(directory, svn_url_regex)
+  if url and revision:
+    if IsGitSVNDirty(directory):
+      revision = revision + '-dirty'
+    return VersionInfo(url, revision)
+  return None
 
 
-def FetchVersionInfo(default_lastchange, directory=None):
+def FetchVersionInfo(default_lastchange, directory=None,
+                     directory_regex_prior_to_src_url='chrome|svn'):
   """
   Returns the last change (in the form of a branch, revision tuple),
   from some appropriate revision control system.
   """
-  version_info = (FetchSVNRevision(directory) or
-      FetchGitSVNRevision(directory) or FetchGitRevision(directory))
+  svn_url_regex = re.compile(
+      r'.*/(' + directory_regex_prior_to_src_url + r')(/.*)')
+
+  version_info = (FetchSVNRevision(directory, svn_url_regex) or
+                  FetchGitSVNRevision(directory, svn_url_regex) or
+                  FetchGitRevision(directory))
   if not version_info:
     if default_lastchange and os.path.exists(default_lastchange):
       revision = open(default_lastchange, 'r').read().strip()
-      version_info = VersionInfo(None, None, revision)
+      version_info = VersionInfo(None, revision)
     else:
-      version_info = VersionInfo('unknown', '', '0')
+      version_info = VersionInfo(None, None)
   return version_info
 
 
@@ -269,6 +234,9 @@ def main(argv=None):
     sys.exit(2)
 
   version_info = FetchVersionInfo(opts.default_lastchange)
+
+  if version_info.revision == None:
+    version_info.revision = '0'
 
   if opts.revision_only:
     print version_info.revision
