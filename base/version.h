@@ -31,6 +31,12 @@ class BASE_API Version {
   // Returns true if the object contains a valid version number.
   bool IsValid() const;
 
+  // Commonly used pattern. Given a valid version object, compare if a
+  // |version_str| results in a newer version. Returns true if the
+  // string represents valid version and if the version is greater than
+  // than the version of this object.
+  bool IsOlderThan(const std::string& version_str) const;
+
   // Returns NULL if the string is not in the proper format.
   // Caller is responsible for freeing the Version object once done.
   // DO NOT USE FOR NEWER CODE.
