@@ -562,8 +562,7 @@ const size_t kMemCacheIndex = 10;
 
 }  // namespace
 
-bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
-                         int* mem_cache, int* shmem) {
+size_t GetSystemCommitCharge() {
   // Synchronously reading files in /proc is safe.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
@@ -572,7 +571,7 @@ bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
   std::string meminfo_data;
   if (!file_util::ReadFileToString(meminfo_file, &meminfo_data)) {
     LOG(WARNING) << "Failed to open /proc/meminfo.";
-    return false;
+    return 0;
   }
   std::vector<std::string> meminfo_fields;
   SplitStringAlongWhitespace(meminfo_data, &meminfo_fields);
@@ -580,7 +579,7 @@ bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
   if (meminfo_fields.size() < kMemCacheIndex) {
     LOG(WARNING) << "Failed to parse /proc/meminfo.  Only found " <<
       meminfo_fields.size() << " fields.";
-    return false;
+    return 0;
   }
 
   DCHECK_EQ(meminfo_fields[kMemTotalIndex-1], "MemTotal:");
@@ -588,30 +587,13 @@ bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
   DCHECK_EQ(meminfo_fields[kMemBuffersIndex-1], "Buffers:");
   DCHECK_EQ(meminfo_fields[kMemCacheIndex-1], "Cached:");
 
-  base::StringToInt(meminfo_fields[kMemTotalIndex], mem_total);
-  base::StringToInt(meminfo_fields[kMemFreeIndex], mem_free);
-  base::StringToInt(meminfo_fields[kMemBuffersIndex], mem_buffers);
-  base::StringToInt(meminfo_fields[kMemCacheIndex], mem_cache);
-#if defined(OS_CHROMEOS)
-  // Chrome OS has a tweaked kernel that allows us to query Shmem, which is
-  // usually video memory otherwise invisible to the OS.  Unfortunately, the
-  // meminfo format varies on different hardware so we have to search for the
-  // string.  It always appears after "Cached:".
-  for (size_t i = kMemCacheIndex+2; i < meminfo_fields.size(); i += 3) {
-    if (meminfo_fields[i] == "Shmem:") {
-      base::StringToInt(meminfo_fields[i+1], shmem);
-      break;
-    }
-  }
-#endif
-  return true;
-}
+  int mem_total, mem_free, mem_buffers, mem_cache;
+  base::StringToInt(meminfo_fields[kMemTotalIndex], &mem_total);
+  base::StringToInt(meminfo_fields[kMemFreeIndex], &mem_free);
+  base::StringToInt(meminfo_fields[kMemBuffersIndex], &mem_buffers);
+  base::StringToInt(meminfo_fields[kMemCacheIndex], &mem_cache);
 
-size_t GetSystemCommitCharge() {
-  int total, free, buffers, cache, shmem;
-  if (!GetSystemMemoryInfo(&total, &free, &buffers, &cache, &shmem))
-    return 0;
-  return total - free - buffers - cache;
+  return mem_total - mem_free - mem_buffers - mem_cache;
 }
 
 namespace {
