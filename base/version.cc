@@ -45,6 +45,13 @@ bool Version::IsValid() const {
   return (!components_.empty());
 }
 
+bool Version::IsOlderThan(const std::string& version_str) const {
+  Version proposed_ver(version_str);
+  if (!proposed_ver.IsValid())
+    return false;
+  return (CompareTo(proposed_ver) < 0);
+}
+
 // TODO(cpu): remove this method.
 Version* Version::GetVersionFromString(const std::string& version_str) {
   Version* vers = new Version(version_str);
