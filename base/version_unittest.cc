@@ -85,5 +85,7 @@ TEST_F(VersionTest, Compare) {
     scoped_ptr<Version> rhs(Version::GetVersionFromString(cases[i].rhs));
     EXPECT_EQ(lhs->CompareTo(*rhs), cases[i].expected) <<
           cases[i].lhs << " ? " << cases[i].rhs;
+
+    EXPECT_EQ(lhs->IsOlderThan(cases[i].rhs), (cases[i].expected == -1));
   }
 }
