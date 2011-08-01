@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/weak_ptr.h"
 #include "base/string16.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
@@ -88,12 +89,15 @@ class NET_API WebSocketJob
 
   bool SendHandshakeRequest(const char* data, int len);
   void AddCookieHeaderAndSend();
+  void LoadCookieCallback(const std::string& cookie);
 
   void OnSentHandshakeRequest(SocketStream* socket, int amount_sent);
   void OnReceivedHandshakeResponse(
       SocketStream* socket, const char* data, int len);
   void SaveCookiesAndNotifyHeaderComplete();
   void SaveNextCookie();
+  void SaveCookieCallback(bool cookie_status);
+  void DoSendData();
 
   GURL GetURLForCookies() const;
 
@@ -134,6 +138,7 @@ class NET_API WebSocketJob
   std::string challenge_;
 
   ScopedRunnableMethodFactory<WebSocketJob> method_factory_;
+  base::WeakPtrFactory<WebSocketJob> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(WebSocketJob);
 };
