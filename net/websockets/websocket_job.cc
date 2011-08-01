@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
 #include "base/lazy_instance.h"
 #include "base/string_tokenizer.h"
 #include "googleurl/src/gurl.h"
@@ -83,7 +84,8 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
       response_cookies_save_index_(0),
       send_frame_handler_(new WebSocketFrameHandler),
       receive_frame_handler_(new WebSocketFrameHandler),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
+      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
 }
 
 WebSocketJob::~WebSocketJob() {
@@ -166,6 +168,7 @@ void WebSocketJob::DetachDelegate() {
   WebSocketThrottle::GetInstance()->WakeupSocketIfNecessary();
 
   scoped_refptr<WebSocketJob> protect(this);
+  weak_ptr_factory_.InvalidateWeakPtrs();
 
   delegate_ = NULL;
   if (socket_)
@@ -269,6 +272,7 @@ void WebSocketJob::OnClose(SocketStream* socket) {
   WebSocketThrottle::GetInstance()->WakeupSocketIfNecessary();
 
   scoped_refptr<WebSocketJob> protect(this);
+  weak_ptr_factory_.InvalidateWeakPtrs();
 
   SocketStream::Delegate* delegate = delegate_;
   delegate_ = NULL;
@@ -369,8 +373,6 @@ bool WebSocketJob::SendHandshakeRequest(const char* data, int len) {
   handshake_response_->set_protocol_version(
       handshake_request_->protocol_version());
   AddCookieHeaderAndSend();
-  // Just buffered in |handshake_request_|.
-  started_to_send_handshake_request_ = true;
   return true;
 }
 
@@ -382,36 +384,45 @@ void WebSocketJob::AddCookieHeaderAndSend() {
   if (socket_ && delegate_ && state_ == CONNECTING) {
     handshake_request_->RemoveHeaders(
         kCookieHeaders, arraysize(kCookieHeaders));
-    if (allow) {
+    if (allow && socket_->context()->cookie_store()) {
       // Add cookies, including HttpOnly cookies.
-      if (socket_->context()->cookie_store()) {
-        CookieOptions cookie_options;
-        cookie_options.set_include_httponly();
-        std::string cookie =
-            socket_->context()->cookie_store()->GetCookiesWithOptions(
-                GetURLForCookies(), cookie_options);
-        if (!cookie.empty())
-          handshake_request_->AppendHeaderIfMissing("Cookie", cookie);
-      }
-    }
-
-    if (spdy_websocket_stream_.get()) {
-      linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
-      handshake_request_->GetRequestHeaderBlock(
-          socket_->url(), headers.get(), &challenge_);
-      spdy_websocket_stream_->SendRequest(headers);
+      CookieOptions cookie_options;
+      cookie_options.set_include_httponly();
+      socket_->context()->cookie_store()->GetCookiesWithOptionsAsync(
+          GetURLForCookies(), cookie_options,
+          base::Bind(&WebSocketJob::LoadCookieCallback,
+                     weak_ptr_factory_.GetWeakPtr()));
     } else {
-      const std::string& handshake_request =
-          handshake_request_->GetRawRequest();
-      handshake_request_sent_ = 0;
-      socket_->net_log()->AddEvent(
-          NetLog::TYPE_WEB_SOCKET_SEND_REQUEST_HEADERS,
-          make_scoped_refptr(
-              new NetLogWebSocketHandshakeParameter(handshake_request)));
-      socket_->SendData(handshake_request.data(),
-                        handshake_request.size());
+      DoSendData();
     }
   }
+}
+
+void WebSocketJob::LoadCookieCallback(const std::string& cookie) {
+  if (!cookie.empty())
+    handshake_request_->AppendHeaderIfMissing("Cookie", cookie);
+  DoSendData();
+}
+
+void WebSocketJob::DoSendData() {
+  if (spdy_websocket_stream_.get()) {
+    linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
+    handshake_request_->GetRequestHeaderBlock(
+        socket_->url(), headers.get(), &challenge_);
+    spdy_websocket_stream_->SendRequest(headers);
+  } else {
+    const std::string& handshake_request =
+        handshake_request_->GetRawRequest();
+    handshake_request_sent_ = 0;
+    socket_->net_log()->AddEvent(
+        NetLog::TYPE_WEB_SOCKET_SEND_REQUEST_HEADERS,
+        make_scoped_refptr(
+            new NetLogWebSocketHandshakeParameter(handshake_request)));
+    socket_->SendData(handshake_request.data(),
+                      handshake_request.size());
+  }
+  // Just buffered in |handshake_request_|.
+  started_to_send_handshake_request_ = true;
 }
 
 void WebSocketJob::OnSentHandshakeRequest(
@@ -511,14 +522,21 @@ void WebSocketJob::SaveNextCookie() {
     allow = false;
 
   if (socket_ && delegate_ && state_ == CONNECTING) {
+    response_cookies_save_index_++;
     if (allow && socket_->context()->cookie_store()) {
       options.set_include_httponly();
-      socket_->context()->cookie_store()->SetCookieWithOptions(
-          url, cookie, options);
+      socket_->context()->cookie_store()->SetCookieWithOptionsAsync(
+          url, cookie, options,
+          base::Bind(&WebSocketJob::SaveCookieCallback,
+                     weak_ptr_factory_.GetWeakPtr()));
+    } else {
+      SaveNextCookie();
     }
-    response_cookies_save_index_++;
-    SaveNextCookie();
   }
+}
+
+void WebSocketJob::SaveCookieCallback(bool cookie_status) {
+  SaveNextCookie();
 }
 
 GURL WebSocketJob::GetURLForCookies() const {
