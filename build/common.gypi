@@ -187,6 +187,9 @@
       # Enable navigator.registerProtocolHandler and supporting UI.
       'enable_register_protocol_handler%': 1,
 
+      # Enable Web Intents and supporting UI.
+      'enable_web_intents%': 0,
+
       # Smooth scrolling is disabled by default.
       'enable_smooth_scrolling%': 0,
 
