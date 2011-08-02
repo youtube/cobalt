@@ -115,6 +115,11 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 
   static void EnableHistogrammer(bool enable_histogrammer);
 
+  typedef base::MessagePump* (MessagePumpFactory)();
+  // Using the given base::MessagePumpForUIFactory to override the default
+  // MessagePump implementation for 'TYPE_UI'.
+  static void InitMessagePumpForUIFactory(MessagePumpFactory* factory);
+
   // A DestructionObserver is notified when the current MessageLoop is being
   // destroyed.  These obsevers are notified prior to MessageLoop::current()
   // being changed to return NULL.  This gives interested parties the chance to
@@ -368,11 +373,16 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
     // once it becomes idle.
     bool quit_received;
 
-#if !defined(OS_MACOSX)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
     Dispatcher* dispatcher;
 #endif
   };
 
+#if defined(OS_ANDROID)
+  // Android Java process manages the UI thread message loop. So its
+  // MessagePumpForUI needs to keep the RunState.
+ public:
+#endif
   class BASE_API AutoRunState : RunState {
    public:
     explicit AutoRunState(MessageLoop* loop);
@@ -381,6 +391,9 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
     MessageLoop* loop_;
     RunState* previous_state_;
   };
+#if defined(OS_ANDROID)
+ protected:
+#endif
 
   // This structure is copied around by value.
   struct PendingTask {
@@ -583,7 +596,12 @@ class BASE_API MessageLoopForUI : public MessageLoop {
   void DidProcessMessage(const MSG& message);
 #endif  // defined(OS_WIN)
 
-#if !defined(OS_MACOSX)
+#if defined(OS_ANDROID)
+  // On Android, the UI message loop is handled by Java side. So Run() should
+  // never be called. Instead use Start(), which will forward all the native UI
+  // events to the Java message loop.
+  void Start();
+#elif !defined(OS_MACOSX)
   // Please see message_pump_win/message_pump_glib for definitions of these
   // methods.
   void AddObserver(Observer* observer);

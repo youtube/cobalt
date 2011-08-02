@@ -6,12 +6,18 @@
 
 #include <unistd.h>
 
+#include "base/android/jni_android.h"
+#include "base/android/path_utils.h"
+#include "base/file_path.h"
 #include "base/logging.h"
-#include "base/android_os.h"
 
-namespace base {
+namespace {
 
 const char kSelfExe[] = "/proc/self/exe";
+
+}  // namespace
+
+namespace base {
 
 bool PathProviderAndroid(int key, FilePath* result) {
   switch (key) {
@@ -27,14 +33,12 @@ bool PathProviderAndroid(int key, FilePath* result) {
       return true;
     }
     case base::FILE_MODULE:
-      // TODO(port): Find out whether we can use dladdr to implement this, and
-      // then use DIR_MODULE's default implementation in base_file.cc.
+      // dladdr didn't work in Android as only the file name was returned.
       NOTIMPLEMENTED();
       return false;
     case base::DIR_MODULE: {
-      AndroidOS* aos = AndroidOS::GetSharedInstance();
-      DCHECK(aos);
-      *result = aos->GetLibDirectory();
+      *result = FilePath(base::android::GetDataDirectory()).DirName()
+          .Append("lib");
       return true;
     }
     case base::DIR_SOURCE_ROOT:
@@ -42,12 +46,12 @@ bool PathProviderAndroid(int key, FilePath* result) {
       // to the device via test script.
       *result = FilePath(FILE_PATH_LITERAL("/data/local/tmp/"));
       return true;
-    case base::DIR_CACHE: {
-      AndroidOS* aos = AndroidOS::GetSharedInstance();
-      DCHECK(aos);
-      *result = aos->GetCacheDirectory();
+    case base::DIR_CACHE:
+      *result = FilePath(base::android::GetCacheDirectory());
       return true;
-    }
+    case base::DIR_ANDROID_APP_DATA:
+      *result = FilePath(base::android::GetDataDirectory());
+      return true;
     default:
       // Note: the path system expects this function to override the default
       // behavior. So no need to log an error if we don't support a given
