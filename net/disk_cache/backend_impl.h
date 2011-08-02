@@ -79,6 +79,7 @@ class NET_TEST BackendImpl : public Backend {
   int SyncOpenNextEntry(void** iter, Entry** next_entry);
   int SyncOpenPrevEntry(void** iter, Entry** prev_entry);
   void SyncEndEnumeration(void* iter);
+  void SyncOnExternalCacheHit(const std::string& key);
 
   // Open or create an entry for the given |key| or |iter|.
   EntryImpl* OpenEntryImpl(const std::string& key);
@@ -263,6 +264,7 @@ class NET_TEST BackendImpl : public Backend {
                             CompletionCallback* callback);
   virtual void EndEnumeration(void** iter);
   virtual void GetStats(StatsItems* stats);
+  virtual void OnExternalCacheHit(const std::string& key);
 
  private:
   typedef base::hash_map<CacheAddr, EntryImpl*> EntriesMap;
