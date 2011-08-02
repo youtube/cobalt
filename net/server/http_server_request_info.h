@@ -20,6 +20,9 @@ class HttpServerRequestInfo {
   HttpServerRequestInfo();
   ~HttpServerRequestInfo();
 
+  // Returns header value for given header name.
+  std::string GetHeaderValue(const std::string& header_name) const;
+
   // Request method.
   std::string method;
 

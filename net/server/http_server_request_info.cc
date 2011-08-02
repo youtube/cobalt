@@ -10,4 +10,13 @@ HttpServerRequestInfo::HttpServerRequestInfo() {}
 
 HttpServerRequestInfo::~HttpServerRequestInfo() {}
 
+std::string HttpServerRequestInfo::GetHeaderValue(
+    const std::string& header_name) const {
+  HttpServerRequestInfo::HeadersMap::const_iterator it =
+      headers.find(header_name);
+  if (it != headers.end())
+    return it->second;
+  return "";
+}
+
 }  // namespace net
