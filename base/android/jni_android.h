@@ -27,6 +27,7 @@ void InitVM(JavaVM* vm);
 // TODO: We might combine InitVM() and InitApplicationContext() into one method.
 void InitApplicationContext(jobject context);
 
+// Returns the application context assigned by InitApplicationContext().
 jobject GetApplicationContext();
 
 // Get the method ID for a method. Will clear the pending Java
@@ -42,4 +43,5 @@ bool CheckException(JNIEnv* env);
 
 }  // namespace android
 }  // namespace base
-#endif
+
+#endif  // BASE_ANDROID_JNI_ANDROID_H_
