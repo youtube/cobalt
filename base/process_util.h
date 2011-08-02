@@ -653,7 +653,14 @@ class BASE_API ProcessMetrics {
   DISALLOW_COPY_AND_ASSIGN(ProcessMetrics);
 };
 
-// Returns the memory commited by the system in KBytes.
+#if defined(OS_LINUX)
+// Retrieves data from /proc/meminfo about system-wide memory consumption.
+// Values are in KB. Returns true on success.
+BASE_API bool GetSystemMemoryInfo(int* total_kb, int* free_kb, int* buffers_kb,
+                                  int* cache_kb, int* shmem_kb);
+#endif
+
+// Returns the memory committed by the system in KBytes.
 // Returns 0 if it can't compute the commit charge.
 BASE_API size_t GetSystemCommitCharge();
 
