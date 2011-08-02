@@ -8256,7 +8256,7 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     }
 
     ss->sec.ci.sid->peerCert = CERT_DupCertificate(ss->sec.peerCert);
-    ssl3_CopyPeerCertsToSID(certs, ss->sec.ci.sid);
+    ssl3_CopyPeerCertsToSID(ss->ssl3.peerCertChain, ss->sec.ci.sid);
 
     if (!ss->sec.isServer) {
 	/* set the server authentication and key exchange types and sizes
