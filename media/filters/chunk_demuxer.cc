@@ -283,6 +283,12 @@ ChunkDemuxer::~ChunkDemuxer() {
 
   DestroyAVFormatContext(format_context_);
   format_context_ = NULL;
+
+  if (url_protocol_.get()) {
+    FFmpegGlue::GetInstance()->RemoveProtocol(url_protocol_.get());
+    url_protocol_.reset();
+    url_protocol_buffer_.reset();
+  }
 }
 
 void ChunkDemuxer::Init(PipelineStatusCB cb) {
@@ -565,13 +571,17 @@ bool ChunkDemuxer::ParseInfoAndTracks_Locked(const uint8* data, int size) {
 }
 
 AVFormatContext* ChunkDemuxer::CreateFormatContext(const uint8* data,
-                                                   int size) const {
+                                                   int size) {
+  DCHECK(!url_protocol_.get());
+  DCHECK(!url_protocol_buffer_.get());
+
   int segment_size = size + sizeof(kEmptyCluster);
   int buf_size = sizeof(kWebMHeader) + segment_size;
-  scoped_array<uint8> buf(new uint8[buf_size]);
-  memcpy(buf.get(), kWebMHeader, sizeof(kWebMHeader));
-  memcpy(buf.get() + sizeof(kWebMHeader), data, size);
-  memcpy(buf.get() + sizeof(kWebMHeader) + size, kEmptyCluster,
+  url_protocol_buffer_.reset(new uint8[buf_size]);
+  uint8* buf = url_protocol_buffer_.get();
+  memcpy(buf, kWebMHeader, sizeof(kWebMHeader));
+  memcpy(buf + sizeof(kWebMHeader), data, size);
+  memcpy(buf + sizeof(kWebMHeader) + size, kEmptyCluster,
          sizeof(kEmptyCluster));
 
   // Update the segment size in the buffer.
@@ -581,15 +591,12 @@ AVFormatContext* ChunkDemuxer::CreateFormatContext(const uint8* data,
     buf[kSegmentSizeOffset + i] = (tmp >> (8 * (7 - i))) & 0xff;
   }
 
-  InMemoryUrlProtocol imup(buf.get(), buf_size, true);
-  std::string key = FFmpegGlue::GetInstance()->AddProtocol(&imup);
+  url_protocol_.reset(new InMemoryUrlProtocol(buf, buf_size, true));
+  std::string key = FFmpegGlue::GetInstance()->AddProtocol(url_protocol_.get());
 
   // Open FFmpeg AVFormatContext.
   AVFormatContext* context = NULL;
   int result = av_open_input_file(&context, key.c_str(), NULL, 0, NULL);
-
-  // Remove ourself from protocol list.
-  FFmpegGlue::GetInstance()->RemoveProtocol(&imup);
 
   if (result < 0)
     return NULL;
