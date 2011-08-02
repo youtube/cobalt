@@ -463,6 +463,18 @@ void HttpCache::CloseAllConnections() {
     session->CloseAllConnections();
 }
 
+void HttpCache::OnExternalCacheHit(const GURL& url,
+                                   const std::string& http_method) {
+  if (!disk_cache_.get())
+    return;
+
+  HttpRequestInfo request_info;
+  request_info.url = url;
+  request_info.method = http_method;
+  std::string key = GenerateCacheKey(&request_info);
+  disk_cache_->OnExternalCacheHit(key);
+}
+
 int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   // Do lazy initialization of disk cache if needed.
   if (!disk_cache_.get())

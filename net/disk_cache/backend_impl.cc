@@ -682,6 +682,18 @@ void BackendImpl::SyncEndEnumeration(void* iter) {
       reinterpret_cast<Rankings::Iterator*>(iter));
 }
 
+void BackendImpl::SyncOnExternalCacheHit(const std::string& key) {
+  uint32 hash = Hash(key);
+  bool error;
+  EntryImpl* cache_entry = MatchEntry(key, hash, false, Addr(), &error);
+  if (cache_entry) {
+    if (ENTRY_NORMAL == cache_entry->entry()->Data()->state) {
+      UpdateRank(cache_entry, false);
+    }
+    cache_entry->Release();
+  }
+}
+
 EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
   if (disabled_)
     return NULL;
@@ -1354,6 +1366,10 @@ void BackendImpl::GetStats(StatsItems* stats) {
   stats->push_back(item);
 
   stats_.GetItems(stats);
+}
+
+void BackendImpl::OnExternalCacheHit(const std::string& key) {
+  background_queue_.OnExternalCacheHit(key);
 }
 
 // ------------------------------------------------------------------------

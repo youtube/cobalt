@@ -179,6 +179,10 @@ class NET_API HttpCache : public HttpTransactionFactory,
   // immediately, but they will not be reusable. This is for debugging.
   void CloseAllConnections();
 
+  // Called whenever an external cache in the system reuses the resource
+  // referred to by |url| and |http_method|.
+  void OnExternalCacheHit(const GURL& url, const std::string& http_method);
+
   // HttpTransactionFactory implementation:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
   virtual HttpCache* GetCache();
@@ -344,7 +348,6 @@ class NET_API HttpCache : public HttpTransactionFactory,
 
   // Processes the backend creation notification.
   void OnBackendCreated(int result, PendingOp* pending_op);
-
 
   // Variables ----------------------------------------------------------------
 
