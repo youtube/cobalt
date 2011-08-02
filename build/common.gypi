@@ -129,9 +129,6 @@
        # Disable file manager component extension by default.
       'file_manager_extension%': 0,
 
-      # Disable WebUI TaskManager by default.
-      'webui_task_manager%': 0,
-
       # Python version.
       'python_ver%': '2.6',
 
@@ -255,13 +252,6 @@
           'file_manager_extension%': 0,
         }],
         
-        # Enable WebUI TaskManager only on Chrome OS and Touch UI.
-        ['chromeos==1 or touchui==1', {
-          'webui_task_manager%': 1,
-        }, {
-          'webui_task_manager%': 0,
-        }],
-
         # Enable smooth scrolling for Linux and ChromeOS
         ['OS=="linux"', {
           'enable_smooth_scrolling%': 1,
@@ -291,7 +281,6 @@
     'touchui%': '<(touchui)',
     'webui_certificate_viewer%': '<(webui_certificate_viewer)',
     'file_manager_extension%': '<(file_manager_extension)',
-    'webui_task_manager%': '<(webui_task_manager)',
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
     'python_ver%': '<(python_ver)',
@@ -650,9 +639,6 @@
       ['file_manager_extension==1', {
         'grit_defines': ['-D', 'file_manager_extension'],
       }],
-      ['webui_task_manager==1', {
-        'grit_defines': ['-D', 'webui_task_manager'],
-      }],
       ['remoting==1', {
         'grit_defines': ['-D', 'remoting'],
       }],
@@ -760,9 +746,6 @@
       }],
       ['file_manager_extension==1', {
         'defines': ['FILE_MANAGER_EXTENSION=1'],
-      }],
-      ['webui_task_manager==1', {
-        'defines': ['WEBUI_TASK_MANAGER=1'],
       }],
       ['profiling==1', {
         'defines': ['ENABLE_PROFILING=1'],
