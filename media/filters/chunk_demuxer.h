@@ -17,6 +17,7 @@ namespace media {
 
 class ChunkDemuxerClient;
 class ChunkDemuxerStream;
+class FFmpegURLProtocol;
 
 // Demuxer implementation that allows chunks of WebM media data to be passed
 // from JavaScript to the media stack.
@@ -64,7 +65,7 @@ class ChunkDemuxer : public Demuxer {
 
   // Generates an AVFormatContext for the INFO & TRACKS elements contained
   // in |data|. Returns NULL if parsing |data| fails.
-  AVFormatContext* CreateFormatContext(const uint8* data, int size) const;
+  AVFormatContext* CreateFormatContext(const uint8* data, int size);
 
   // Sets up |audio_| & |video_| DemuxerStreams based on the data in
   // |format_context_|. Returns false if no valid audio or video stream were
@@ -88,6 +89,15 @@ class ChunkDemuxer : public Demuxer {
   scoped_refptr<ChunkDemuxerStream> audio_;
   scoped_refptr<ChunkDemuxerStream> video_;
 
+  // Backing buffer for |url_protocol_|.
+  scoped_array<uint8> url_protocol_buffer_;
+
+  // Protocol used by |format_context_|. It must outlive the context object.
+  scoped_ptr<FFmpegURLProtocol> url_protocol_;
+
+  // FFmpeg format context for this demuxer. It is created by
+  // av_open_input_file() during demuxer initialization and cleaned up with
+  // DestroyAVFormatContext() in the destructor.
   AVFormatContext* format_context_;
 
   int64 buffered_bytes_;
