@@ -186,6 +186,8 @@
         'video/capture/linux/video_capture_device_linux.h',
         'video/capture/video_capture.h',
         'video/capture/video_capture_device.h',
+        'video/capture/video_capture_proxy.cc',
+        'video/capture/video_capture_proxy.h',
         'video/capture/win/filter_base_win.cc',
         'video/capture/win/filter_base_win.h',
         'video/capture/win/pin_base_win.cc',
