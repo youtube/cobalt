@@ -25,8 +25,10 @@
 #if defined(OS_POSIX)
 #include "base/message_pump_libevent.h"
 #endif
-
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(OS_ANDROID)
+#include "base/message_pump_android.h"
+#endif
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #if defined(TOUCH_UI)
@@ -84,6 +86,8 @@ const base::LinearHistogram::DescriptionPair event_descriptions_[] = {
 };
 
 bool enable_histogrammer_ = false;
+
+MessageLoop::MessagePumpFactory* message_pump_for_ui_factory_ = NULL;
 
 }  // namespace
 
@@ -143,6 +147,9 @@ MessageLoop::MessageLoop(Type type)
 #elif defined(OS_MACOSX)
 #define MESSAGE_PUMP_UI base::MessagePumpMac::Create()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
+#elif defined(OS_ANDROID)
+#define MESSAGE_PUMP_UI new base::MessagePumpForUI()
+#define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
 #elif defined(TOUCH_UI)
 #define MESSAGE_PUMP_UI new base::MessagePumpX()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
@@ -159,7 +166,10 @@ MessageLoop::MessageLoop(Type type)
 #endif
 
   if (type_ == TYPE_UI) {
-    pump_ = MESSAGE_PUMP_UI;
+    if (message_pump_for_ui_factory_)
+      pump_ = message_pump_for_ui_factory_();
+    else
+      pump_ = MESSAGE_PUMP_UI;
   } else if (type_ == TYPE_IO) {
     pump_ = MESSAGE_PUMP_IO;
   } else {
@@ -219,6 +229,12 @@ MessageLoop* MessageLoop::current() {
 // static
 void MessageLoop::EnableHistogrammer(bool enable) {
   enable_histogrammer_ = enable;
+}
+
+// static
+void MessageLoop::InitMessagePumpForUIFactory(MessagePumpFactory* factory) {
+  DCHECK(!message_pump_for_ui_factory_);
+  message_pump_for_ui_factory_ = factory;
 }
 
 void MessageLoop::AddDestructionObserver(
@@ -410,7 +426,7 @@ void MessageLoop::RunInternal() {
 
   StartHistogrammer();
 
-#if !defined(OS_MACOSX)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
   if (state_->dispatcher && type() == TYPE_UI) {
     static_cast<base::MessagePumpForUI*>(pump_.get())->
         RunWithDispatcher(this, state_->dispatcher);
@@ -724,7 +740,7 @@ MessageLoop::AutoRunState::AutoRunState(MessageLoop* loop) : loop_(loop) {
 
   // Initialize the other fields:
   quit_received = false;
-#if !defined(OS_MACOSX)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
   dispatcher = NULL;
 #endif
 }
@@ -780,7 +796,14 @@ void MessageLoopForUI::DidProcessMessage(const MSG& message) {
 }
 #endif  // defined(OS_WIN)
 
-#if !defined(OS_MACOSX) && !defined(OS_NACL)
+#if defined(OS_ANDROID)
+void MessageLoopForUI::Start() {
+  // No Histogram support for UI message loop as it is managed by Java side
+  static_cast<base::MessagePumpForUI*>(pump_.get())->Start(this);
+}
+#endif
+
+#if !defined(OS_MACOSX) && !defined(OS_NACL) && !defined(OS_ANDROID)
 void MessageLoopForUI::AddObserver(Observer* observer) {
   pump_ui()->AddObserver(observer);
 }
@@ -794,7 +817,7 @@ void MessageLoopForUI::Run(Dispatcher* dispatcher) {
   state_->dispatcher = dispatcher;
   RunHandler();
 }
-#endif  // !defined(OS_MACOSX) && !defined(OS_NACL)
+#endif  //  !defined(OS_MACOSX) && !defined(OS_NACL) && !defined(OS_ANDROID)
 
 //------------------------------------------------------------------------------
 // MessageLoopForIO
