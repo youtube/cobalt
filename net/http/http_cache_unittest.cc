@@ -72,13 +72,13 @@ class MockDiskEntry : public disk_cache::Entry,
                       public base::RefCounted<MockDiskEntry> {
  public:
   MockDiskEntry()
-      : test_mode_(0), doomed_(false), sparse_(false), fail_requests_(false),
-        busy_(false), delayed_(false) {
+      : test_mode_(0), doomed_(false), sparse_(false),
+        fail_requests_(false), busy_(false), delayed_(false) {
   }
 
   explicit MockDiskEntry(const std::string& key)
-      : key_(key), doomed_(false), sparse_(false), fail_requests_(false),
-        busy_(false), delayed_(false) {
+      : key_(key), doomed_(false), sparse_(false),
+        fail_requests_(false), busy_(false), delayed_(false) {
     test_mode_ = GetTestModeForEntry(key);
   }
 
@@ -486,6 +486,8 @@ class MockDiskCache : public disk_cache::Backend {
   virtual void GetStats(
       std::vector<std::pair<std::string, std::string> >* stats) {
   }
+
+  virtual void OnExternalCacheHit(const std::string& key) {}
 
   // returns number of times a cache entry was successfully opened
   int open_count() const { return open_count_; }
