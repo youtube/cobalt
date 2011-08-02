@@ -32,16 +32,6 @@ namespace net {
 
 namespace {
 
-// Returns true if this cert fingerprint is the null (all zero) fingerprint.
-// We use this as a bogus fingerprint value.
-bool IsNullFingerprint(const SHA1Fingerprint& fingerprint) {
-  for (size_t i = 0; i < arraysize(fingerprint.data); ++i) {
-    if (fingerprint.data[i] != 0)
-      return false;
-  }
-  return true;
-}
-
 // Indicates the order to use when trying to decode binary data, which is
 // based on (speculation) as to what will be most common -> least common
 const X509Certificate::Format kFormatDecodePriority[] = {
