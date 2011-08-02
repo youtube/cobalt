@@ -5,23 +5,39 @@
 
 # This script will check out llvm and clang into third_party/llvm and build it.
 
-CLANG_REVISION=136602
-
 THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}"/../../../third_party/llvm
 CLANG_DIR="${LLVM_DIR}"/tools/clang
+DEPS_FILE="${THIS_DIR}"/../../../DEPS
 
 # Die if any command dies.
 set -e
 
+# Since people need to run this script anyway to compile clang, let it check out
+# clang as well if it's not in DEPS, so that people don't have to change their
+# DEPS if they just want to give clang a try.
+CLANG_REVISION=$(grep 'clang_revision":' "${DEPS_FILE}" | egrep -o [[:digit:]]+)
+
+if grep -q 'src/third_party/llvm":' "${DEPS_FILE}"; then
+  echo LLVM pulled in through DEPS, skipping LLVM update step
+else
+  echo Getting LLVM r"${CLANG_REVISION}" in "${LLVM_DIR}"
+  svn co --force \
+    http://llvm.org/svn/llvm-project/llvm/trunk@"${CLANG_REVISION}" \
+    "${LLVM_DIR}"
+fi
+
+if grep -q 'src/third_party/llvm/tools/clang":' "${DEPS_FILE}"; then
+  echo clang pulled in through DEPS, skipping clang update step
+else
+  echo Getting clang r"${CLANG_REVISION}" in "${CLANG_DIR}"
+  svn co --force \
+    http://llvm.org/svn/llvm-project/cfe/trunk@"${CLANG_REVISION}" \
+    "${CLANG_DIR}"
+fi
+
 # Echo all commands.
 set -x
-
-# Check out.
-svn co --force http://llvm.org/svn/llvm-project/llvm/trunk@"${CLANG_REVISION}" \
-  "${LLVM_DIR}"
-svn co --force http://llvm.org/svn/llvm-project/cfe/trunk@"${CLANG_REVISION}" \
-  "${CLANG_DIR}"
 
 # Build clang (in a separate directory).
 # The clang bots have this path hardcoded in built/scripts/slave/compile.py,
