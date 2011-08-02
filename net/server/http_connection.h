@@ -30,7 +30,7 @@ class HttpConnection {
   void Shift(int num_bytes);
 
   const std::string& recv_data() const { return recv_data_; }
-  const int id() const { return id_; }
+  int id() const { return id_; }
 
  private:
   friend class HttpServer;
