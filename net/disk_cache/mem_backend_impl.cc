@@ -188,6 +188,13 @@ void MemBackendImpl::EndEnumeration(void** iter) {
   *iter = NULL;
 }
 
+void MemBackendImpl::OnExternalCacheHit(const std::string& key) {
+  EntryMap::iterator it = entries_.find(key);
+  if (it != entries_.end()) {
+    UpdateRank(it->second);
+  }
+}
+
 bool MemBackendImpl::OpenEntry(const std::string& key, Entry** entry) {
   EntryMap::iterator it = entries_.find(key);
   if (it == entries_.end())

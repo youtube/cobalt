@@ -137,6 +137,10 @@ class NET_API Backend {
   // Return a list of cache statistics.
   virtual void GetStats(
       std::vector<std::pair<std::string, std::string> >* stats) = 0;
+
+  // Called whenever an external cache in the system reuses the resource
+  // referred to by |key|.
+  virtual void OnExternalCacheHit(const std::string& key) = 0;
 };
 
 // This interface represents an entry in the disk cache.

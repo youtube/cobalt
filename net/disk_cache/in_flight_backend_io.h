@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,6 +55,7 @@ class BackendIO : public BackgroundIO {
   void OpenNextEntry(void** iter, Entry** next_entry);
   void OpenPrevEntry(void** iter, Entry** prev_entry);
   void EndEnumeration(void* iterator);
+  void OnExternalCacheHit(const std::string& key);
   void CloseEntryImpl(EntryImpl* entry);
   void DoomEntryImpl(EntryImpl* entry);
   void FlushQueue();  // Dummy operation.
@@ -89,6 +90,7 @@ class BackendIO : public BackgroundIO {
     OP_OPEN_NEXT,
     OP_OPEN_PREV,
     OP_END_ENUMERATION,
+    OP_ON_EXTERNAL_CACHE_HIT,
     OP_CLOSE_ENTRY,
     OP_DOOM_ENTRY,
     OP_FLUSH_QUEUE,
@@ -159,6 +161,7 @@ class InFlightBackendIO : public InFlightIO {
   void OpenPrevEntry(void** iter, Entry** prev_entry,
                      net::CompletionCallback* callback);
   void EndEnumeration(void* iterator);
+  void OnExternalCacheHit(const std::string& key);
   void CloseEntryImpl(EntryImpl* entry);
   void DoomEntryImpl(EntryImpl* entry);
   void FlushQueue(net::CompletionCallback* callback);
