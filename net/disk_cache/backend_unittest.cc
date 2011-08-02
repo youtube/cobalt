@@ -2118,3 +2118,26 @@ TEST_F(DiskCacheBackendTest, FileSharing) {
 
   EXPECT_TRUE(disk_cache::DeleteCacheFile(name));
 }
+
+TEST_F(DiskCacheBackendTest, UpdateRankForExternalCacheHit) {
+  SetDirectMode();
+  InitCache();
+
+  disk_cache::Entry* entry;
+
+  for (int i = 0; i < 2; ++i) {
+    std::string key = StringPrintf("key%d", i);
+    ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+    entry->Close();
+  }
+
+  // Ping the oldest entry.
+  cache_->OnExternalCacheHit("key0");
+
+  TrimForTest(false);
+
+  // Make sure the older key remains.
+  EXPECT_EQ(1, cache_->GetEntryCount());
+  ASSERT_EQ(net::OK, OpenEntry("key0", &entry));
+  entry->Close();
+}
