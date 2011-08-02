@@ -1316,10 +1316,14 @@
         '../testing/gtest.gyp:gtest',
       ],
       'sources': [
+        'server/http_connection.cc',
+        'server/http_connection.h',
         'server/http_server.cc',
         'server/http_server.h',
         'server/http_server_request_info.cc',
         'server/http_server_request_info.h',
+        'server/web_socket.cc',
+        'server/web_socket.h',
       ],
     },
     {
