@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -69,8 +69,6 @@
     defined(OS_OPENBSD) || defined(OS_SOLARIS) || defined(OS_ANDROID) ||  \
     defined(OS_NACL)
 #define OS_POSIX 1
-// Use base::DataPack for name/value pairs.
-#define USE_BASE_DATA_PACK 1
 #endif
 
 // Use tcmalloc
