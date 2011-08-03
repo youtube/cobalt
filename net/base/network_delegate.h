@@ -24,6 +24,7 @@ namespace net {
 // NOTE: It is not okay to add any compile-time dependencies on symbols outside
 // of net/base here, because we have a net_base library. Forward declarations
 // are ok.
+class AuthChallengeInfo;
 class HostPortPair;
 class HttpRequestHeaders;
 class URLRequest;
@@ -52,6 +53,8 @@ class NetworkDelegate : public base::NonThreadSafe {
   void NotifyCompleted(URLRequest* request);
   void NotifyURLRequestDestroyed(URLRequest* request);
   void NotifyPACScriptError(int line_number, const string16& error);
+  void NotifyAuthRequired(URLRequest* request,
+                          const AuthChallengeInfo& auth_info);
 
  private:
   // This is the interface for subclasses of NetworkDelegate to implement. This
@@ -99,6 +102,10 @@ class NetworkDelegate : public base::NonThreadSafe {
 
   // Corresponds to ProxyResolverJSBindings::OnError.
   virtual void OnPACScriptError(int line_number, const string16& error) = 0;
+
+  // Corresponds to URLRequest::Delegate::OnAuthRequired.
+  virtual void OnAuthRequired(URLRequest* reqest,
+                              const AuthChallengeInfo& auth_info) = 0;
 };
 
 }  // namespace net

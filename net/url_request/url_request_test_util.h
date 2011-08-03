@@ -207,6 +207,8 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   virtual net::URLRequestJob* OnMaybeCreateURLRequestJob(
       net::URLRequest* request);
   virtual void OnPACScriptError(int line_number, const string16& error);
+  virtual void OnAuthRequired(net::URLRequest* request,
+                              const net::AuthChallengeInfo& auth_info);
 
   void InitRequestStatesIfNew(int request_id);
 

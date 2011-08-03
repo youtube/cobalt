@@ -748,6 +748,8 @@ void URLRequest::NotifyAuthRequired(AuthChallengeInfo* auth_info) {
   // URLRequestTestHTTP.BasicAuthWithCookies. In both cases we observe a
   // call sequence of OnBeforeSendHeaders -> OnSendHeaders ->
   // OnBeforeSendHeaders.
+  if (context_ && context_->network_delegate())
+    context_->network_delegate()->NotifyAuthRequired(this, *auth_info);
 
   if (delegate_)
     delegate_->OnAuthRequired(this, auth_info);
