@@ -106,7 +106,7 @@ TEST(FtpUtilTest, VMSPathToUnix) {
 
 TEST(FtpUtilTest, LsDateListingToTime) {
   base::Time mock_current_time;
-  ASSERT_TRUE(base::Time::FromString(L"Tue, 15 Nov 1994 12:45:26 GMT",
+  ASSERT_TRUE(base::Time::FromString("Tue, 15 Nov 1994 12:45:26 GMT",
                                      &mock_current_time));
 
   const struct {
