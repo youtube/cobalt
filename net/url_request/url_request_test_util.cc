@@ -456,3 +456,8 @@ net::URLRequestJob* TestNetworkDelegate::OnMaybeCreateURLRequestJob(
 void TestNetworkDelegate::OnPACScriptError(int line_number,
                                            const string16& error) {
 }
+
+void TestNetworkDelegate::OnAuthRequired(
+    net::URLRequest* reqest,
+    const net::AuthChallengeInfo& auth_info) {
+}

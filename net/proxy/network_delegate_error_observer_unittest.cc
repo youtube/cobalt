@@ -49,6 +49,8 @@ class TestNetworkDelegate : public net::NetworkDelegate {
                                 const string16& error) OVERRIDE {
     got_pac_error_ = true;
   }
+  virtual void OnAuthRequired(URLRequest* request,
+                              const AuthChallengeInfo& auth_info) OVERRIDE {}
 
   bool got_pac_error_;
 };
