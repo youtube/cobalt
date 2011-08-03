@@ -404,7 +404,8 @@ X509Certificate* X509Certificate::CreateSelfSigned(
     const std::string& subject,
     uint32 serial_number,
     base::TimeDelta valid_duration) {
-  // TODO(port): Implement.
+  // TODO(port): Implement. See http://crbug.com/91512.
+  NOTIMPLEMENTED();
   return NULL;
 }
 
@@ -469,7 +470,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     if (i == 0) {
       verified_cert = cert;
     } else {
-      verified_chain.push_back(verified_cert);
+      verified_chain.push_back(cert);
     }
 
     DERCache der_cache;
