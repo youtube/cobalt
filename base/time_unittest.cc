@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,8 +13,42 @@ using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
 
+// Specialized test fixture allowing time strings without timezones to be
+// tested by comparing them to a known time in the local zone.
+// See also pr_time_unittests.cc
+class TimeTest : public testing::Test {
+ protected:
+  virtual void SetUp() {
+    // Use mktime to get a time_t, and turn it into a PRTime by converting
+    // seconds to microseconds.  Use 15th Oct 2007 12:45:00 local.  This
+    // must be a time guaranteed to be outside of a DST fallback hour in
+    // any timezone.
+    struct tm local_comparison_tm = {
+      0,            // second
+      45,           // minute
+      12,           // hour
+      15,           // day of month
+      10 - 1,       // month
+      2007 - 1900,  // year
+      0,            // day of week (ignored, output only)
+      0,            // day of year (ignored, output only)
+      -1            // DST in effect, -1 tells mktime to figure it out
+    };
+
+    time_t converted_time = mktime(&local_comparison_tm);
+    ASSERT_GT(converted_time, 0);
+    comparison_time_local_ = Time::FromTimeT(converted_time);
+
+    // time_t representation of 15th Oct 2007 12:45:00 PDT
+    comparison_time_pdt_ = Time::FromTimeT(1192477500);
+  }
+
+  Time comparison_time_local_;
+  Time comparison_time_pdt_;
+};
+
 // Test conversions to/from time_t and exploding/unexploding.
-TEST(Time, TimeT) {
+TEST_F(TimeTest, TimeT) {
   // C library time and exploded time.
   time_t now_t_1 = time(NULL);
   struct tm tms;
@@ -52,7 +86,7 @@ TEST(Time, TimeT) {
   EXPECT_EQ(0, Time::FromTimeT(0).ToInternalValue());
 }
 
-TEST(Time, FromExplodedWithMilliseconds) {
+TEST_F(TimeTest, FromExplodedWithMilliseconds) {
   // Some platform implementations of FromExploded are liable to drop
   // milliseconds if we aren't careful.
   Time now = Time::NowFromSystemTime();
@@ -65,14 +99,14 @@ TEST(Time, FromExplodedWithMilliseconds) {
   EXPECT_EQ(exploded1.millisecond, exploded2.millisecond);
 }
 
-TEST(Time, ZeroIsSymmetric) {
+TEST_F(TimeTest, ZeroIsSymmetric) {
   Time zero_time(Time::FromTimeT(0));
   EXPECT_EQ(0, zero_time.ToTimeT());
 
   EXPECT_EQ(0.0, zero_time.ToDoubleT());
 }
 
-TEST(Time, LocalExplode) {
+TEST_F(TimeTest, LocalExplode) {
   Time a = Time::Now();
   Time::Exploded exploded;
   a.LocalExplode(&exploded);
@@ -85,7 +119,7 @@ TEST(Time, LocalExplode) {
   EXPECT_TRUE((a - b) < TimeDelta::FromSeconds(1));
 }
 
-TEST(Time, UTCExplode) {
+TEST_F(TimeTest, UTCExplode) {
   Time a = Time::Now();
   Time::Exploded exploded;
   a.UTCExplode(&exploded);
@@ -94,13 +128,184 @@ TEST(Time, UTCExplode) {
   EXPECT_TRUE((a - b) < TimeDelta::FromSeconds(1));
 }
 
-TEST(Time, LocalMidnight) {
+TEST_F(TimeTest, LocalMidnight) {
   Time::Exploded exploded;
   Time::Now().LocalMidnight().LocalExplode(&exploded);
   EXPECT_EQ(0, exploded.hour);
   EXPECT_EQ(0, exploded.minute);
   EXPECT_EQ(0, exploded.second);
   EXPECT_EQ(0, exploded.millisecond);
+}
+
+TEST_F(TimeTest, ParseTimeTest1) {
+  time_t current_time = 0;
+  time(&current_time);
+
+  const int BUFFER_SIZE = 64;
+  struct tm local_time = {0};
+  char time_buf[BUFFER_SIZE] = {0};
+#if defined(OS_WIN)
+  localtime_s(&local_time, &current_time);
+  asctime_s(time_buf, arraysize(time_buf), &local_time);
+#elif defined(OS_POSIX)
+  localtime_r(&current_time, &local_time);
+  asctime_r(&local_time, time_buf);
+#endif
+
+  Time parsed_time;
+  EXPECT_TRUE(Time::FromString(time_buf, &parsed_time));
+  EXPECT_EQ(current_time, parsed_time.ToTimeT());
+}
+
+TEST_F(TimeTest, ParseTimeTest2) {
+  Time parsed_time;
+  EXPECT_TRUE(Time::FromString("Mon, 15 Oct 2007 19:45:00 GMT", &parsed_time));
+  EXPECT_EQ(comparison_time_pdt_, parsed_time);
+}
+
+TEST_F(TimeTest, ParseTimeTest3) {
+  Time parsed_time;
+  EXPECT_TRUE(Time::FromString("15 Oct 07 12:45:00", &parsed_time));
+  EXPECT_EQ(comparison_time_local_, parsed_time);
+}
+
+TEST_F(TimeTest, ParseTimeTest4) {
+  Time parsed_time;
+  EXPECT_TRUE(Time::FromString("15 Oct 07 19:45 GMT", &parsed_time));
+  EXPECT_EQ(comparison_time_pdt_, parsed_time);
+}
+
+TEST_F(TimeTest, ParseTimeTest5) {
+  Time parsed_time;
+  EXPECT_TRUE(Time::FromString("Mon Oct 15 12:45 PDT 2007", &parsed_time));
+  EXPECT_EQ(comparison_time_pdt_, parsed_time);
+}
+
+TEST_F(TimeTest, ParseTimeTest6) {
+  Time parsed_time;
+  EXPECT_TRUE(Time::FromString("Monday, Oct 15, 2007 12:45 PM", &parsed_time));
+  EXPECT_EQ(comparison_time_local_, parsed_time);
+}
+
+TEST_F(TimeTest, ParseTimeTest7) {
+  Time parsed_time;
+  EXPECT_TRUE(Time::FromString("10/15/07 12:45:00 PM", &parsed_time));
+  EXPECT_EQ(comparison_time_local_, parsed_time);
+}
+
+TEST_F(TimeTest, ParseTimeTest8) {
+  Time parsed_time;
+  EXPECT_TRUE(Time::FromString("15-OCT-2007 12:45pm", &parsed_time));
+  EXPECT_EQ(comparison_time_local_, parsed_time);
+}
+
+TEST_F(TimeTest, ParseTimeTest9) {
+  Time parsed_time;
+  EXPECT_TRUE(Time::FromString("16 Oct 2007 4:45-JST (Tuesday)", &parsed_time));
+  EXPECT_EQ(comparison_time_pdt_, parsed_time);
+}
+
+TEST_F(TimeTest, ParseTimeTest10) {
+  Time parsed_time;
+  EXPECT_TRUE(Time::FromString("15/10/07 12:45", &parsed_time));
+  EXPECT_EQ(parsed_time, comparison_time_local_);
+}
+
+// Test some of edge cases around epoch, etc.
+TEST_F(TimeTest, ParseTimeTestEpoch0) {
+  Time parsed_time;
+
+  // time_t == epoch == 0
+  EXPECT_TRUE(Time::FromString("Thu Jan 01 01:00:00 +0100 1970",
+                               &parsed_time));
+  EXPECT_EQ(0, parsed_time.ToTimeT());
+  EXPECT_TRUE(Time::FromString("Thu Jan 01 00:00:00 GMT 1970",
+                               &parsed_time));
+  EXPECT_EQ(0, parsed_time.ToTimeT());
+}
+
+TEST_F(TimeTest, ParseTimeTestEpoch1) {
+  Time parsed_time;
+
+  // time_t == 1 second after epoch == 1
+  EXPECT_TRUE(Time::FromString("Thu Jan 01 01:00:01 +0100 1970",
+                               &parsed_time));
+  EXPECT_EQ(1, parsed_time.ToTimeT());
+  EXPECT_TRUE(Time::FromString("Thu Jan 01 00:00:01 GMT 1970",
+                               &parsed_time));
+  EXPECT_EQ(1, parsed_time.ToTimeT());
+}
+
+TEST_F(TimeTest, ParseTimeTestEpoch2) {
+  Time parsed_time;
+
+  // time_t == 2 seconds after epoch == 2
+  EXPECT_TRUE(Time::FromString("Thu Jan 01 01:00:02 +0100 1970",
+                               &parsed_time));
+  EXPECT_EQ(2, parsed_time.ToTimeT());
+  EXPECT_TRUE(Time::FromString("Thu Jan 01 00:00:02 GMT 1970",
+                               &parsed_time));
+  EXPECT_EQ(2, parsed_time.ToTimeT());
+}
+
+TEST_F(TimeTest, ParseTimeTestEpochNeg1) {
+  Time parsed_time;
+
+  // time_t == 1 second before epoch == -1
+  EXPECT_TRUE(Time::FromString("Thu Jan 01 00:59:59 +0100 1970",
+                               &parsed_time));
+  EXPECT_EQ(-1, parsed_time.ToTimeT());
+  EXPECT_TRUE(Time::FromString("Wed Dec 31 23:59:59 GMT 1969",
+                               &parsed_time));
+  EXPECT_EQ(-1, parsed_time.ToTimeT());
+}
+
+// If time_t is 32 bits, a date after year 2038 will overflow time_t and
+// cause timegm() to return -1.  The parsed time should not be 1 second
+// before epoch.
+TEST_F(TimeTest, ParseTimeTestEpochNotNeg1) {
+  Time parsed_time;
+
+  EXPECT_TRUE(Time::FromString("Wed Dec 31 23:59:59 GMT 2100",
+                               &parsed_time));
+  EXPECT_NE(-1, parsed_time.ToTimeT());
+}
+
+TEST_F(TimeTest, ParseTimeTestEpochNeg2) {
+  Time parsed_time;
+
+  // time_t == 2 seconds before epoch == -2
+  EXPECT_TRUE(Time::FromString("Thu Jan 01 00:59:58 +0100 1970",
+                               &parsed_time));
+  EXPECT_EQ(-2, parsed_time.ToTimeT());
+  EXPECT_TRUE(Time::FromString("Wed Dec 31 23:59:58 GMT 1969",
+                               &parsed_time));
+  EXPECT_EQ(-2, parsed_time.ToTimeT());
+}
+
+TEST_F(TimeTest, ParseTimeTestEpoch1960) {
+  Time parsed_time;
+
+  // time_t before Epoch, in 1960
+  EXPECT_TRUE(Time::FromString("Wed Jun 29 19:40:01 +0100 1960",
+                               &parsed_time));
+  EXPECT_EQ(-299999999, parsed_time.ToTimeT());
+  EXPECT_TRUE(Time::FromString("Wed Jun 29 18:40:01 GMT 1960",
+                               &parsed_time));
+  EXPECT_EQ(-299999999, parsed_time.ToTimeT());
+  EXPECT_TRUE(Time::FromString("Wed Jun 29 17:40:01 GMT 1960",
+                               &parsed_time));
+  EXPECT_EQ(-300003599, parsed_time.ToTimeT());
+}
+
+TEST_F(TimeTest, ParseTimeTestEmpty) {
+  Time parsed_time;
+  EXPECT_FALSE(Time::FromString("", &parsed_time));
+}
+
+TEST_F(TimeTest, ParseTimeTestInvalidString) {
+  Time parsed_time;
+  EXPECT_FALSE(Time::FromString("Monday morning 2000", &parsed_time));
 }
 
 TEST(TimeTicks, Deltas) {
