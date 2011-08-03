@@ -69,4 +69,10 @@ void NetworkDelegate::NotifyPACScriptError(int line_number,
   OnPACScriptError(line_number, error);
 }
 
+void NetworkDelegate::NotifyAuthRequired(URLRequest* request,
+                                         const AuthChallengeInfo& auth_info) {
+  DCHECK(CalledOnValidThread());
+  OnAuthRequired(request, auth_info);
+}
+
 }  // namespace net
