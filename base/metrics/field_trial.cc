@@ -157,8 +157,7 @@ FieldTrial::~FieldTrial() {}
 Time FieldTrial::GetBuildTime() {
   Time integral_build_time;
   const char* kDateTime = __DATE__ " " __TIME__;
-  bool result = Time::FromString(ASCIIToWide(kDateTime).c_str(),
-                                 &integral_build_time);
+  bool result = Time::FromString(kDateTime, &integral_build_time);
   DCHECK(result);
   return integral_build_time;
 }
