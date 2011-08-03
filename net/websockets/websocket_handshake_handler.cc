@@ -371,8 +371,7 @@ size_t WebSocketHandshakeResponseHandler::ParseRawResponse(
   DCHECK_GT(length, 0);
   if (HasResponse()) {
     DCHECK(!status_line_.empty());
-    DCHECK(!headers_.empty());
-    DCHECK_EQ(GetResponseKeySize(), key_.size());
+    // headers_ might be empty for wrong response from server.
     return 0;
   }
 
@@ -507,8 +506,9 @@ void WebSocketHandshakeResponseHandler::GetHeaders(
     std::vector<std::string>* values) {
   DCHECK(HasResponse());
   DCHECK(!status_line_.empty());
-  DCHECK(!headers_.empty());
-  DCHECK_EQ(GetResponseKeySize(), key_.size());
+  // headers_ might be empty for wrong response from server.
+  if (headers_.empty())
+    return;
 
   FetchHeaders(headers_, headers_to_get, headers_to_get_len, values);
 }
@@ -518,8 +518,9 @@ void WebSocketHandshakeResponseHandler::RemoveHeaders(
     size_t headers_to_remove_len) {
   DCHECK(HasResponse());
   DCHECK(!status_line_.empty());
-  DCHECK(!headers_.empty());
-  DCHECK_EQ(GetResponseKeySize(), key_.size());
+  // headers_ might be empty for wrong response from server.
+  if (headers_.empty())
+    return;
 
   headers_ = FilterHeaders(headers_, headers_to_remove, headers_to_remove_len);
 }
