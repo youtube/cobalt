@@ -283,6 +283,9 @@
             'message_pump_libevent_unittest.cc',
           ],
         }, {  # OS != "win"
+          'dependencies': [
+            '../third_party/libevent/libevent.gyp:libevent'
+          ],
           'sources/': [
             ['exclude', '^win/'],
           ],
