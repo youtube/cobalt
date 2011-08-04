@@ -471,8 +471,5 @@ using base::FundamentalValue;
 using base::ListValue;
 using base::StringValue;
 using base::Value;
-using base::ValueMap;
-using base::ValueSerializer;
-using base::ValueVector;
 
 #endif  // BASE_VALUES_H_
