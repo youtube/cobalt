@@ -5,9 +5,8 @@
 #ifndef MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_
 #define MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_
 
-#include "media/filters/ffmpeg_glue.h"
-
 #include "base/basictypes.h"
+#include "media/filters/ffmpeg_glue.h"
 
 namespace media {
 
@@ -16,7 +15,7 @@ namespace media {
 //       buffer pointer passed into the constructor
 //       needs to remain valid for the entire lifetime of
 //       this object.
-class InMemoryUrlProtocol : public FFmpegURLProtocol {
+class MEDIA_EXPORT InMemoryUrlProtocol : public FFmpegURLProtocol {
  public:
   InMemoryUrlProtocol(const uint8* buf, int64 size, bool streaming);
   virtual ~InMemoryUrlProtocol();

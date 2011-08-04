@@ -15,7 +15,7 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
-class FakeAudioOutputStream : public AudioOutputStream {
+class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
  public:
   static AudioOutputStream* MakeFakeStream(const AudioParameters& params);
   static FakeAudioOutputStream* GetLastFakeStream();
