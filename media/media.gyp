@@ -9,7 +9,7 @@
   'targets': [
     {
       'target_name': 'media',
-      'type': '<(component)',
+      'type': 'static_library',
       'dependencies': [
         'yuv_convert',
         '../base/base.gyp:base',
