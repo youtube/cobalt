@@ -323,17 +323,22 @@ void ChunkDemuxer::Stop(FilterCallback* callback) {
 void ChunkDemuxer::Seek(base::TimeDelta time, const FilterStatusCB&  cb) {
   VLOG(1) << "Seek(" << time.InSecondsF() << ")";
 
+  PipelineStatus status = PIPELINE_ERROR_INVALID_STATE;
   {
     base::AutoLock auto_lock(lock_);
 
-    if (seek_waits_for_data_) {
-      VLOG(1) << "Seek() : waiting for more data to arrive.";
-      seek_cb_ = cb;
-      return;
+    if (state_ == INITIALIZED || state_ == ENDED) {
+      if (seek_waits_for_data_) {
+        VLOG(1) << "Seek() : waiting for more data to arrive.";
+        seek_cb_ = cb;
+        return;
+      }
+
+      status = PIPELINE_OK;
     }
   }
 
-  cb.Run(PIPELINE_OK);
+  cb.Run(status);
 }
 
 void ChunkDemuxer::OnAudioRendererDisabled() {
@@ -394,7 +399,7 @@ bool ChunkDemuxer::AppendData(const uint8* data, unsigned length) {
       case INITIALIZING:
         if (!ParseInfoAndTracks_Locked(data, length)) {
           VLOG(1) << "AppendData(): parsing info & tracks failed";
-          return false;
+          ReportError_Locked(DEMUXER_ERROR_COULD_NOT_OPEN);
         }
         return true;
         break;
@@ -402,17 +407,17 @@ bool ChunkDemuxer::AppendData(const uint8* data, unsigned length) {
       case INITIALIZED:
         if (!ParseAndAppendData_Locked(data, length)) {
           VLOG(1) << "AppendData(): parsing data failed";
-          return false;
+          ReportError_Locked(PIPELINE_ERROR_DECODE);
+          return true;
         }
         break;
 
       case WAITING_FOR_INIT:
       case ENDED:
-      case INIT_ERROR:
+      case PARSE_ERROR:
       case SHUTDOWN:
         VLOG(1) << "AppendData(): called in unexpected state " << state_;
         return false;
-        break;
     }
 
     seek_waits_for_data_ = false;
@@ -454,21 +459,21 @@ bool ChunkDemuxer::AppendData(const uint8* data, unsigned length) {
 void ChunkDemuxer::EndOfStream(PipelineStatus status) {
   VLOG(1) << "EndOfStream(" << status << ")";
   base::AutoLock auto_lock(lock_);
-  DCHECK((state_ == INITIALIZING) || (state_ == INITIALIZED) ||
-         (state_ == SHUTDOWN));
+  DCHECK_NE(state_, WAITING_FOR_INIT);
+  DCHECK_NE(state_, ENDED);
 
-  if (state_ == SHUTDOWN)
+  if (state_ == SHUTDOWN || state_ == PARSE_ERROR)
     return;
 
   if (state_ == INITIALIZING) {
-    InitFailed_Locked();
+    ReportError_Locked(DEMUXER_ERROR_COULD_NOT_OPEN);
     return;
   }
 
   ChangeState(ENDED);
 
   if (status != PIPELINE_OK) {
-    host()->SetError(status);
+    ReportError_Locked(status);
     return;
   }
 
@@ -487,7 +492,6 @@ bool ChunkDemuxer::HasEnded() {
   base::AutoLock auto_lock(lock_);
   return (state_ == ENDED);
 }
-
 
 void ChunkDemuxer::Shutdown() {
   VLOG(1) << "Shutdown()";
@@ -531,10 +535,8 @@ bool ChunkDemuxer::ParseInfoAndTracks_Locked(const uint8* data, int size) {
   WebMInfoParser info_parser;
   int res = info_parser.Parse(cur, cur_size);
 
-  if (res <= 0) {
-    InitFailed_Locked();
+  if (res <= 0)
     return false;
-  }
 
   cur += res;
   cur_size -= res;
@@ -542,10 +544,8 @@ bool ChunkDemuxer::ParseInfoAndTracks_Locked(const uint8* data, int size) {
   WebMTracksParser tracks_parser(info_parser.timecode_scale());
   res = tracks_parser.Parse(cur, cur_size);
 
-  if (res <= 0) {
-    InitFailed_Locked();
+  if (res <= 0)
     return false;
-  }
 
   double mult = info_parser.timecode_scale() / 1000.0;
   duration_ = base::TimeDelta::FromMicroseconds(info_parser.duration() * mult);
@@ -560,7 +560,6 @@ bool ChunkDemuxer::ParseInfoAndTracks_Locked(const uint8* data, int size) {
   format_context_ = CreateFormatContext(data, size);
 
   if (!format_context_ || !SetupStreams()) {
-    InitFailed_Locked();
     return false;
   }
 
@@ -677,11 +676,34 @@ bool ChunkDemuxer::ParseAndAppendData_Locked(const uint8* data, int length) {
   return true;
 }
 
-void ChunkDemuxer::InitFailed_Locked() {
-  ChangeState(INIT_ERROR);
+void ChunkDemuxer::ReportError_Locked(PipelineStatus error) {
+  DCHECK_NE(error, PIPELINE_OK);
+
+  ChangeState(PARSE_ERROR);
+
   PipelineStatusCB cb;
-  std::swap(cb, init_cb_);
-  cb.Run(DEMUXER_ERROR_COULD_NOT_OPEN);
+
+  if (!init_cb_.is_null()) {
+    std::swap(cb, init_cb_);
+  } else {
+    if (!seek_cb_.is_null())
+      std::swap(cb, seek_cb_);
+
+    if (audio_.get())
+      audio_->Shutdown();
+
+    if (video_.get())
+      video_->Shutdown();
+  }
+
+  {
+    base::AutoUnlock auto_unlock(lock_);
+    if (cb.is_null()) {
+      host()->SetError(error);
+      return;
+    }
+    cb.Run(error);
+  }
 }
 
 }  // namespace media
