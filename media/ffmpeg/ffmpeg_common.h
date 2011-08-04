@@ -12,6 +12,7 @@
 #include "base/memory/singleton.h"
 #include "base/time.h"
 #include "media/base/channel_layout.h"
+#include "media/base/media_export.h"
 #include "media/video/video_decode_engine.h"
 
 // Include FFmpeg header files.
@@ -54,15 +55,15 @@ class ScopedPtrAVFreePacket {
 // For example if |timestamp| equals 11025 and |time_base| equals {1, 44100}
 // then the return value will be a base::TimeDelta for 0.25 seconds since that
 // is how much time 11025/44100ths of a second represents.
-base::TimeDelta ConvertFromTimeBase(const AVRational& time_base,
-                                    int64 timestamp);
+MEDIA_EXPORT base::TimeDelta ConvertFromTimeBase(const AVRational& time_base,
+                                                 int64 timestamp);
 
 // Converts a base::TimeDelta into an int64 timestamp in |time_base| units.
 // For example if |timestamp| is 0.5 seconds and |time_base| is {1, 44100}, then
 // the return value will be 22050 since that is how many 1/44100ths of a second
 // represent 0.5 seconds.
-int64 ConvertToTimeBase(const AVRational& time_base,
-                        const base::TimeDelta& timestamp);
+MEDIA_EXPORT int64 ConvertToTimeBase(const AVRational& time_base,
+                                     const base::TimeDelta& timestamp);
 
 VideoCodec CodecIDToVideoCodec(CodecID codec_id);
 CodecID VideoCodecToCodecID(VideoCodec video_codec);
@@ -80,9 +81,9 @@ base::TimeDelta GetFrameDuration(AVStream* stream);
 // Returns true if a valid seek point was found after |timestamp| and
 // |seek_time| was set. Returns false if a seek point could not be
 // found or the parameters are invalid.
-bool GetSeekTimeAfter(AVStream* stream,
-                      const base::TimeDelta& timestamp,
-                      base::TimeDelta* seek_time);
+MEDIA_EXPORT bool GetSeekTimeAfter(AVStream* stream,
+                                   const base::TimeDelta& timestamp,
+                                   base::TimeDelta* seek_time);
 
 // Get the number of bytes required to play the stream over a specified
 // time range. This is an estimate based on the available index data.
@@ -97,12 +98,12 @@ bool GetSeekTimeAfter(AVStream* stream,
 // |range_end| - The end time for the range covered by |bytes|. This may be
 //               different than |end_time| if the index doesn't have data for
 //               that exact time. |range_end| >= |end_time|
-bool GetStreamByteCountOverRange(AVStream* stream,
-                                 const base::TimeDelta& start_time,
-                                 const base::TimeDelta& end_time,
-                                 int64* bytes,
-                                 base::TimeDelta* range_start,
-                                 base::TimeDelta* range_end);
+MEDIA_EXPORT bool GetStreamByteCountOverRange(AVStream* stream,
+                                              const base::TimeDelta& start_time,
+                                              const base::TimeDelta& end_time,
+                                              int64* bytes,
+                                              base::TimeDelta* range_start,
+                                              base::TimeDelta* range_end);
 
 // Calculates the width and height of the video surface using the video's
 // encoded dimensions and sample_aspect_ratio.

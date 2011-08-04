@@ -33,7 +33,7 @@
 class AudioOutputStream;
 class MessageLoop;
 
-class AudioOutputDispatcher
+class MEDIA_EXPORT AudioOutputDispatcher
     : public base::RefCountedThreadSafe<AudioOutputDispatcher> {
  public:
   // |close_delay_ms| specifies delay after the stream is paused until
