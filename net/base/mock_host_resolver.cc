@@ -112,6 +112,12 @@ int MockHostResolverBase::Resolve(const RequestInfo& info,
   return impl_->Resolve(info, addresses, callback, out_req, net_log);
 }
 
+int MockHostResolverBase::ResolveFromCache(const RequestInfo& info,
+                                           AddressList* addresses,
+                                           const BoundNetLog& net_log) {
+  return impl_->ResolveFromCache(info, addresses, net_log);
+}
+
 void MockHostResolverBase::CancelRequest(RequestHandle req) {
   impl_->CancelRequest(req);
 }
