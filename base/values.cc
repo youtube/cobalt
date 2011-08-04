@@ -59,6 +59,8 @@ Value* CopyWithoutEmptyChildren(Value* node) {
 
 }  // namespace
 
+namespace base {
+
 ///////////////////// Value ////////////////////
 
 Value::~Value() {
@@ -906,3 +908,5 @@ bool ListValue::Equals(const Value* other) const {
 
 ValueSerializer::~ValueSerializer() {
 }
+
+}  // namespace base
