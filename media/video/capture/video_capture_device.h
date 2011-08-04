@@ -16,10 +16,11 @@
 #include <string>
 
 #include "base/time.h"
+#include "media/base/media_export.h"
 
 namespace media {
 
-class VideoCaptureDevice {
+class MEDIA_EXPORT VideoCaptureDevice {
  public:
 
   struct Name {

@@ -15,7 +15,7 @@ namespace media {
 
 // Basic data source that treats the URL as a file path, and uses the file
 // system to read data for a media pipeline.
-class FileDataSource : public DataSource {
+class MEDIA_EXPORT FileDataSource : public DataSource {
  public:
   FileDataSource();
   virtual ~FileDataSource();

@@ -9,7 +9,7 @@
   'targets': [
     {
       'target_name': 'media',
-      'type': 'static_library',
+      'type': '<(component)',
       'dependencies': [
         'yuv_convert',
         '../base/base.gyp:base',
@@ -17,6 +17,10 @@
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
         '../third_party/openmax/openmax.gyp:il',
+        '../ui/ui.gyp:ui',
+      ],
+      'defines': [
+        'MEDIA_IMPLEMENTATION',
       ],
       'include_dirs': [
         '..',
@@ -104,6 +108,7 @@
         'base/h264_bitstream_converter.cc',
         'base/h264_bitstream_converter.h',
         'base/media.h',
+        'base/media_export.h',
         'base/media_posix.cc',
         'base/media_switches.cc',
         'base/media_switches.h',
@@ -389,6 +394,7 @@
       'dependencies': [
         'media',
         'media_test_support',
+        'yuv_convert',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_base',
@@ -497,6 +503,7 @@
       'type': 'executable',
       'dependencies': [
         'media',
+        'yuv_convert',
         '../base/base.gyp:base',
         '../skia/skia.gyp:skia',
       ],
@@ -543,7 +550,9 @@
           'type': 'executable',
           'dependencies': [
             'media',
+            'yuv_convert',
             '../base/base.gyp:base',
+            '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
           ],
           'include_dirs': [
             '<(DEPTH)/third_party/wtl/include',
@@ -595,6 +604,7 @@
           'type': 'executable',
           'dependencies': [
             'media',
+            'yuv_convert',
             '../base/base.gyp:base',
           ],
           'include_dirs': [
@@ -620,6 +630,7 @@
           'type': 'executable',
           'dependencies': [
             'media',
+            'yuv_convert',
             '../base/base.gyp:base',
             '../ui/gfx/gl/gl.gyp:gl',
           ],

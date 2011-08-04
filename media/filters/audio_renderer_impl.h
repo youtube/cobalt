@@ -24,7 +24,7 @@
 
 namespace media {
 
-class AudioRendererImpl
+class MEDIA_EXPORT AudioRendererImpl
     : public AudioRendererBase,
       public AudioOutputStream::AudioSourceCallback {
  public:
