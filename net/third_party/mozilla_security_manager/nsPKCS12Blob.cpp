@@ -197,28 +197,45 @@ nsPKCS12Blob_ImportHelper(const char* pkcs12_data,
     CK_BBOOL attribute_data = CK_FALSE;
     attribute_value.data = &attribute_data;
     attribute_value.len = sizeof(attribute_data);
-    CERTCertList* cert_list = SEC_PKCS12DecoderGetCerts(dcx);
 
-    // Iterate through each certificate in the chain and mark corresponding
-    // private key as unextractable.
-    for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
-         !CERT_LIST_END(node, cert_list); node = CERT_LIST_NEXT(node)) {
-      SECKEYPrivateKey* privKey =  PK11_FindKeyByDERCert(slot,
-                                                         node->cert,
-                                                         NULL);  // wincx
+    srv = SEC_PKCS12DecoderIterateInit(dcx);
+    if (srv) goto finish;
+
+    const SEC_PKCS12DecoderItem* decoder_item = NULL;
+    // Iterate through all the imported PKCS12 items and mark any accompanying
+    // private keys as unextractable.
+    while (SEC_PKCS12DecoderIterateNext(dcx, &decoder_item) == SECSuccess) {
+      if (decoder_item->type != SEC_OID_PKCS12_V1_CERT_BAG_ID)
+        continue;
+      if (!decoder_item->hasKey)
+        continue;
+
+      // Once we have determined that the imported certificate has an
+      // associated private key too, only then can we mark the key as
+      // unextractable.
+      CERTCertificate* cert = PK11_FindCertFromDERCertItem(
+          slot, decoder_item->der,
+          NULL);  // wincx
+      if (!cert) {
+        LOG(ERROR) << "Could not grab a handle to the certificate in the slot "
+                   << "from the corresponding PKCS#12 DER certificate.";
+        continue;
+      }
+      SECKEYPrivateKey* privKey = PK11_FindPrivateKeyFromCert(slot, cert,
+                                                              NULL);  // wincx
+      CERT_DestroyCertificate(cert);
       if (privKey) {
         // Mark the private key as unextractable.
         srv = PK11_WriteRawAttribute(PK11_TypePrivKey, privKey, CKA_EXTRACTABLE,
                                      &attribute_value);
         SECKEY_DestroyPrivateKey(privKey);
         if (srv) {
-          LOG(ERROR) << "Couldn't set CKA_EXTRACTABLE attribute on private "
+          LOG(ERROR) << "Could not set CKA_EXTRACTABLE attribute on private "
                      << "key.";
           break;
         }
       }
     }
-    CERT_DestroyCertList(cert_list);
     if (srv) goto finish;
   }
 
