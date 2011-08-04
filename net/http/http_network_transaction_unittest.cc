@@ -8861,26 +8861,29 @@ class OneTimeCachingHostResolver : public net::HostResolver {
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log) {
-    int rv = host_resolver_.Resolve(
+                      const BoundNetLog& net_log) OVERRIDE {
+    return host_resolver_.Resolve(
         info, addresses, callback, out_req, net_log);
-    if (rv == OK && info.only_use_cached_response() &&
-        info.host_port_pair().Equals(host_port_)) {
-      // Discard cache.
+  }
+
+  virtual int ResolveFromCache(const RequestInfo& info,
+                               AddressList* addresses,
+                               const BoundNetLog& net_log) OVERRIDE {
+    int rv = host_resolver_.ResolveFromCache(info, addresses, net_log);
+    if (rv == OK && info.host_port_pair().Equals(host_port_))
       host_resolver_.Reset(NULL);
-    }
     return rv;
   }
 
-  virtual void CancelRequest(RequestHandle req) {
+  virtual void CancelRequest(RequestHandle req) OVERRIDE {
     host_resolver_.CancelRequest(req);
   }
 
-  virtual void AddObserver(Observer* observer) {
+  virtual void AddObserver(Observer* observer) OVERRIDE {
     return host_resolver_.AddObserver(observer);
   }
 
-  virtual void RemoveObserver(Observer* observer) {
+  virtual void RemoveObserver(Observer* observer) OVERRIDE{
     return host_resolver_.RemoveObserver(observer);
   }
 
