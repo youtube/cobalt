@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,15 +45,6 @@ bool EnsureEndsWithSeparator(FilePath* path) {
   path_str.append(&FilePath::kSeparators[0], 1);
 
   return true;
-}
-
-FilePath::StringType GetFileExtensionFromPath(const FilePath& path) {
-  FilePath::StringType file_name = path.BaseName().value();
-  const FilePath::StringType::size_type last_dot =
-      file_name.rfind(kExtensionSeparator);
-  return FilePath::StringType(last_dot == FilePath::StringType::npos ?
-                              FILE_PATH_LITERAL("") :
-                              file_name, last_dot+1);
 }
 
 void InsertBeforeExtension(FilePath* path, const FilePath::StringType& suffix) {
@@ -382,9 +373,10 @@ bool Delete(const std::wstring& path, bool recursive) {
   return Delete(FilePath::FromWStringHack(path), recursive);
 }
 std::wstring GetFileExtensionFromPath(const std::wstring& path) {
-  FilePath::StringType extension =
-      GetFileExtensionFromPath(FilePath::FromWStringHack(path));
-  return extension;
+  std::wstring file_name = FilePath(path).BaseName().value();
+  const std::wstring::size_type last_dot = file_name.rfind(kExtensionSeparator);
+  return std::wstring(last_dot == std::wstring::npos ? L""
+                                                     : file_name, last_dot + 1);
 }
 FILE* OpenFile(const std::wstring& filename, const char* mode) {
   return OpenFile(FilePath::FromWStringHack(filename), mode);
