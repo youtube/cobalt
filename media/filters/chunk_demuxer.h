@@ -41,6 +41,9 @@ class ChunkDemuxer : public Demuxer {
 
   // Methods used by an external object to control this demuxer.
   void FlushData();
+
+  // Appends media data to the stream. Returns false if this method
+  // is called in an invalid state.
   bool AppendData(const uint8* data, unsigned length);
   void EndOfStream(PipelineStatus status);
   bool HasEnded();
@@ -52,7 +55,7 @@ class ChunkDemuxer : public Demuxer {
     INITIALIZING,
     INITIALIZED,
     ENDED,
-    INIT_ERROR,
+    PARSE_ERROR,
     SHUTDOWN,
   };
 
@@ -76,8 +79,9 @@ class ChunkDemuxer : public Demuxer {
   // contain one or more WebM Clusters. Returns false if parsing the data fails.
   bool ParseAndAppendData_Locked(const uint8* data, int length);
 
-  // Called when initialization fails. Handles calling & clearing init_cb_.
-  void InitFailed_Locked();
+  // Reports an error and puts the demuxer in a state where it won't accept more
+  // data.
+  void ReportError_Locked(PipelineStatus error);
 
   base::Lock lock_;
   State state_;
