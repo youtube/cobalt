@@ -1613,10 +1613,6 @@
                 # is fixed.
                 '-Wno-parentheses',
               ],
-              'OTHER_CFLAGS': [
-                # TODO(thakis): Causes many warnings - http://crbug.com/75001
-                '-fobjc-exceptions',
-              ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
               'OTHER_CFLAGS': [
