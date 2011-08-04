@@ -479,8 +479,10 @@ TEST_F(HostResolverImplTest, NumericIPv4Address) {
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
   const int kPortnum = 5555;
+  TestCompletionCallback callback;
   HostResolver::RequestInfo info(HostPortPair("127.1.2.3", kPortnum));
-  int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, BoundNetLog());
+  int err = host_resolver->Resolve(info, &addrlist, &callback, NULL,
+                                   BoundNetLog());
   EXPECT_EQ(OK, err);
 
   const struct addrinfo* ainfo = addrlist.head();
@@ -504,8 +506,10 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
   const int kPortnum = 5555;
+  TestCompletionCallback callback;
   HostResolver::RequestInfo info(HostPortPair("2001:db8::1", kPortnum));
-  int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, BoundNetLog());
+  int err = host_resolver->Resolve(info, &addrlist, &callback, NULL,
+                                   BoundNetLog());
   EXPECT_EQ(OK, err);
 
   const struct addrinfo* ainfo = addrlist.head();
@@ -534,8 +538,9 @@ TEST_F(HostResolverImplTest, EmptyHost) {
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
   const int kPortnum = 5555;
+  TestCompletionCallback callback;
   HostResolver::RequestInfo info(HostPortPair("", kPortnum));
-  int err = host_resolver->Resolve(info, &addrlist, NULL, NULL,
+  int err = host_resolver->Resolve(info, &addrlist, &callback, NULL,
                                    BoundNetLog());
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
 }
@@ -550,8 +555,10 @@ TEST_F(HostResolverImplTest, LongHost) {
   AddressList addrlist;
   const int kPortnum = 5555;
   std::string hostname(4097, 'a');
+  TestCompletionCallback callback;
   HostResolver::RequestInfo info(HostPortPair(hostname, kPortnum));
-  int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, BoundNetLog());
+  int err = host_resolver->Resolve(info, &addrlist, &callback, NULL,
+                                   BoundNetLog());
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
 }
 
@@ -1632,13 +1639,11 @@ TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
 
   // First hit will miss the cache.
   HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
-  info.set_only_use_cached_response(true);
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
-  int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, log.bound());
-  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
+  int err = host_resolver->ResolveFromCache(info, &addrlist, log.bound());
+  EXPECT_EQ(ERR_DNS_CACHE_MISS, err);
 
   // This time, we fetch normally.
-  info.set_only_use_cached_response(false);
   TestCompletionCallback callback;
   err = host_resolver->Resolve(info, &addrlist, &callback, NULL, log.bound());
   EXPECT_EQ(ERR_IO_PENDING, err);
@@ -1646,8 +1651,7 @@ TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
   EXPECT_EQ(OK, err);
 
   // Now we should be able to fetch from the cache.
-  info.set_only_use_cached_response(true);
-  err = host_resolver->Resolve(info, &addrlist, NULL, NULL, log.bound());
+  err = host_resolver->ResolveFromCache(info, &addrlist, log.bound());
   EXPECT_EQ(OK, err);
 
   const struct addrinfo* ainfo = addrlist.head();
