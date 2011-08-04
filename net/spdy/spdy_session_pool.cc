@@ -342,12 +342,9 @@ void SpdySessionPool::RemoveSessionList(
 bool SpdySessionPool::LookupAddresses(const HostPortProxyPair& pair,
                                       AddressList* addresses) const {
   net::HostResolver::RequestInfo resolve_info(pair.first);
-  resolve_info.set_only_use_cached_response(true);
-  int rv = resolver_->Resolve(resolve_info,
-                              addresses,
-                              NULL,
-                              NULL,
-                              net::BoundNetLog());
+  int rv = resolver_->ResolveFromCache(resolve_info,
+                                       addresses,
+                                       net::BoundNetLog());
   DCHECK_NE(ERR_IO_PENDING, rv);
   return rv == OK;
 }

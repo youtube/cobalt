@@ -27,6 +27,8 @@ int SingleRequestHostResolver::Resolve(const HostResolver::RequestInfo& info,
                                        AddressList* addresses,
                                        CompletionCallback* callback,
                                        const BoundNetLog& net_log) {
+  DCHECK(addresses);
+  DCHECK(callback);
   DCHECK(!cur_request_callback_) << "resolver already in use";
 
   HostResolver::RequestHandle request = NULL;

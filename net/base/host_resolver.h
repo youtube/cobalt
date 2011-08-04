@@ -65,9 +65,6 @@ class NET_API HostResolver {
     bool allow_cached_response() const { return allow_cached_response_; }
     void set_allow_cached_response(bool b) { allow_cached_response_ = b; }
 
-    bool only_use_cached_response() const { return only_use_cached_response_; }
-    void set_only_use_cached_response(bool b) { only_use_cached_response_ = b; }
-
     bool is_speculative() const { return is_speculative_; }
     void set_is_speculative(bool b) { is_speculative_ = b; }
 
@@ -89,9 +86,6 @@ class NET_API HostResolver {
 
     // Whether it is ok to return a result from the host cache.
     bool allow_cached_response_;
-
-    // Whether the response will only use the cache.
-    bool only_use_cached_response_;
 
     // Whether this request was started by the DNS prefetcher.
     bool is_speculative_;
@@ -146,17 +140,15 @@ class NET_API HostResolver {
   // Resolves the given hostname (or IP address literal), filling out the
   // |addresses| object upon success.  The |info.port| parameter will be set as
   // the sin(6)_port field of the sockaddr_in{6} struct.  Returns OK if
-  // successful or an error code upon failure.
+  // successful or an error code upon failure.  Returns
+  // ERR_NAME_NOT_RESOLVED if hostname is invalid, or if it is an
+  // incompatible IP literal (e.g. IPv6 is disabled and it is an IPv6
+  // literal).
   //
   // If the operation cannnot be completed synchronously, ERR_IO_PENDING will
   // be returned and the real result code will be passed to the completion
   // callback.  Otherwise the result code is returned immediately from this
   // call.
-  //
-  // When |callback| is null, there are two possibilities: either an IP
-  // address literal is being resolved or lookup should be performed from
-  // cache only, meaning info.only_use_cached_response() should be true; in
-  // both cases operation should complete synchronously.
   //
   // If |out_req| is non-NULL, then |*out_req| will be filled with a handle to
   // the async request. This handle is not valid after the request has
@@ -168,6 +160,14 @@ class NET_API HostResolver {
                       CompletionCallback* callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) = 0;
+
+  // Resolves the given hostname (or IP address literal) out of cache
+  // only.  This is guaranteed to complete synchronously.  This acts like
+  // |Resolve()| if the hostname is IP literal or cached value exists.
+  // Otherwise, ERR_DNS_CACHE_MISS is returned.
+  virtual int ResolveFromCache(const RequestInfo& info,
+                               AddressList* addresses,
+                               const BoundNetLog& net_log) = 0;
 
   // Cancels the specified request. |req| is the handle returned by Resolve().
   // After a request is cancelled, its completion callback will not be called.

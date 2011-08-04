@@ -63,10 +63,13 @@ class MockHostResolverBase : public HostResolver {
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log);
-  virtual void CancelRequest(RequestHandle req);
-  virtual void AddObserver(Observer* observer);
-  virtual void RemoveObserver(Observer* observer);
+                      const BoundNetLog& net_log) OVERRIDE;
+  virtual int ResolveFromCache(const RequestInfo& info,
+                               AddressList* addresses,
+                               const BoundNetLog& net_log) OVERRIDE;
+  virtual void CancelRequest(RequestHandle req) OVERRIDE;
+  virtual void AddObserver(Observer* observer) OVERRIDE;
+  virtual void RemoveObserver(Observer* observer) OVERRIDE;
 
  protected:
   MockHostResolverBase(bool use_caching);
