@@ -179,11 +179,11 @@ Changes from Chrome:
    fillInUnixFile(), which will be made static again as soon as a
    WebKit patch using the new function lands.
  - From mac_time_machine.patch:
-   When __APPLE__ and when creating a -journal file, determine if the database
-   for which the journal is being created has been excluded from being backed
-   up using Apple's Time Machine and if so then also exclude the journal. These
-   changes were made in pager.c with includes of Apple interfaces being made in
-   sqliteInt.h. In order to eliminate a symbol conflict with an Apple library
-   after amalgamation it was also necessary to rename fts3_porter.c's 'cType'
-   to 'vOrCType'.
+   When __APPLE__ and when creating a -journal file with any unix-type vfs,
+   determine if the database for which the journal is being created has been
+   excluded from being backed up using Apple's Time Machine and if so then also
+   exclude the journal. These changes were made in pager.c with includes of
+   Apple interfaces being made in sqliteInt.h. In order to eliminate a symbol
+   conflict with an Apple library after amalgamation it was also necessary to
+   rename fts3_porter.c's 'cType' to 'vOrCType'.
  - fts3_85522.patch allows fts3 to work if PRAGMA is not authorized.

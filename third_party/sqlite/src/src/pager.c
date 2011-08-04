@@ -5205,9 +5205,12 @@ static int pager_open_journal(Pager *pPager){
   #endif
 #if defined(__APPLE__)
         /* Set the TimeMachine exclusion metadata for the journal if it has
-        ** been set for the database. */
+        ** been set for the database. Only do this for unix-type vfs
+        ** implementations. */
         if( rc==SQLITE_OK && pPager->zFilename!=NULL
-         && strlen(pPager->zFilename)>0 ){
+         && strlen(pPager->zFilename)>0
+         && memcmp(pVfs->zName, "unix", 4)==0
+         && ( pVfs->zName[4]=='-' || pVfs->zName[4]=='\0' ) ){
           CFURLRef database = create_cfurl_from_cstring(pPager->zFilename);
           if( CSBackupIsItemExcluded(database, NULL) ){
             CFURLRef journal = create_cfurl_from_cstring(pPager->zJournal);
