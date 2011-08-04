@@ -137,16 +137,19 @@ class NET_API HostResolverImpl
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& source_net_log);
-  virtual void CancelRequest(RequestHandle req);
-  virtual void AddObserver(HostResolver::Observer* observer);
-  virtual void RemoveObserver(HostResolver::Observer* observer);
+                      const BoundNetLog& source_net_log) OVERRIDE;
+  virtual int ResolveFromCache(const RequestInfo& info,
+                               AddressList* addresses,
+                               const BoundNetLog& source_net_log) OVERRIDE;
+  virtual void CancelRequest(RequestHandle req) OVERRIDE;
+  virtual void AddObserver(HostResolver::Observer* observer) OVERRIDE;
+  virtual void RemoveObserver(HostResolver::Observer* observer) OVERRIDE;
 
   // Set address family, and disable IPv6 probe support.
-  virtual void SetDefaultAddressFamily(AddressFamily address_family);
-  virtual AddressFamily GetDefaultAddressFamily() const;
+  virtual void SetDefaultAddressFamily(AddressFamily address_family) OVERRIDE;
+  virtual AddressFamily GetDefaultAddressFamily() const OVERRIDE;
 
-  virtual HostResolverImpl* GetAsHostResolverImpl();
+  virtual HostResolverImpl* GetAsHostResolverImpl() OVERRIDE;
 
  private:
   // Allow tests to access our innards for testing purposes.
@@ -163,6 +166,33 @@ class NET_API HostResolverImpl
   typedef HostCache::Key Key;
   typedef std::map<Key, scoped_refptr<Job> > JobMap;
   typedef std::vector<HostResolver::Observer*> ObserversList;
+
+  // Helper used by |Resolve()| and |ResolveFromCache()|.  Performs IP
+  // literal and cache lookup, returns OK if successfull,
+  // ERR_NAME_NOT_RESOLVED if either hostname is invalid or IP literal is
+  // incompatible, ERR_DNS_CACHE_MISS if entry was not found in cache.
+  int ResolveHelper(int request_id,
+                    const Key& key,
+                    const RequestInfo& info,
+                    AddressList* addresses,
+                    const BoundNetLog& request_net_log,
+                    const BoundNetLog& source_net_log);
+
+  // Tries to resolve |key| as an IP, returns true and sets |net_error| if
+  // succeeds, returns false otherwise.
+  bool ResolveAsIP(const Key& key,
+                   const RequestInfo& info,
+                   int* net_error,
+                   AddressList* addresses);
+
+  // If |key| is not found in cache returns false, otherwise returns
+  // true, sets |net_error| to the cached error code and fills |addresses|
+  // if it is a positive entry.
+  bool ServeFromCache(const Key& key,
+                      const RequestInfo& info,
+                      const BoundNetLog& request_net_log,
+                      int* net_error,
+                      AddressList* addresses);
 
   // Returns the HostResolverProc to use for this instance.
   HostResolverProc* effective_resolver_proc() const {

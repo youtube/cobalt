@@ -47,6 +47,13 @@ class BlockableHostResolver : public HostResolver {
     return ERR_IO_PENDING;
   }
 
+  virtual int ResolveFromCache(const RequestInfo& info,
+                               AddressList* addresses,
+                               const BoundNetLog& net_log) OVERRIDE {
+    NOTIMPLEMENTED();
+    return ERR_UNEXPECTED;
+  }
+
   virtual void CancelRequest(RequestHandle req) OVERRIDE {
     EXPECT_EQ(reinterpret_cast<RequestHandle*>(1), req);
     was_request_cancelled_ = true;
