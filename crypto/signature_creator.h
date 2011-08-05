@@ -21,7 +21,7 @@ struct SGNContextStr;
 #include <vector>
 
 #include "base/basictypes.h"
-#include "crypto/crypto_api.h"
+#include "crypto/crypto_export.h"
 #include "crypto/rsa_private_key.h"
 
 #if defined(OS_WIN)
@@ -32,7 +32,7 @@ namespace crypto {
 
 // Signs data using a bare private key (as opposed to a full certificate).
 // Currently can only sign data using SHA-1 with RSA encryption.
-class CRYPTO_API SignatureCreator {
+class CRYPTO_EXPORT SignatureCreator {
  public:
   ~SignatureCreator();
 

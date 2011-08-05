@@ -12,7 +12,7 @@
 #include "base/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "build/build_config.h"
-#include "crypto/crypto_api.h"
+#include "crypto/crypto_export.h"
 
 #if defined(USE_NSS)
 #include "crypto/scoped_nss_types.h"
@@ -24,7 +24,7 @@ namespace crypto {
 
 class SymmetricKey;
 
-class CRYPTO_API Encryptor {
+class CRYPTO_EXPORT Encryptor {
  public:
   enum Mode {
     CBC,
