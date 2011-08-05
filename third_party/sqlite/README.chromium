@@ -70,6 +70,7 @@ attach-integer.patch
 webdb.patch
 test.patch
 mac_time_machine.patch
+system-sqlite.patch
 
 So, e.g. you could do this to apply all our patches to vanilla SQLite:
 
@@ -83,6 +84,7 @@ patch -p0 < ../sqlite/icu-shell.patch
 patch -p0 < ../sqlite/webdb.patch
 patch -p0 < ../sqlite/test.patch
 patch -p0 < ../sqlite/mac_time_machine.patch
+patch -p0 < ../sqlite/system-sqlite.patch
 
 This will only be the case if all changes we make also update the corresponding
 patch files. Therefore please remember to do that whenever you make a change!
