@@ -513,6 +513,7 @@
                 '../chrome_frame/chrome_frame.gyp:npchrome_frame',
                 '../courgette/courgette.gyp:courgette',
                 '../courgette/courgette.gyp:courgette64',
+                '../remoting/remoting.gyp:webapp_it2me',
                 '../third_party/adobe/flash/flash_player.gyp:flash_player',
               ],
               'conditions': [
