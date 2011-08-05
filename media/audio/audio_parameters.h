@@ -7,11 +7,10 @@
 
 #include "base/basictypes.h"
 #include "media/base/audio_decoder_config.h"
-#include "media/base/media_export.h"
 
-struct MEDIA_EXPORT AudioParameters {
+struct AudioParameters {
   // Compare is useful when AudioParameters is used as a key in std::map.
-  class MEDIA_EXPORT Compare {
+  class Compare {
    public:
     bool operator()(const AudioParameters& a, const AudioParameters& b) const;
   };

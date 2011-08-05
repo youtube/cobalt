@@ -7,7 +7,6 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
-#include "media/base/media_export.h"
 
 namespace media {
 
@@ -26,7 +25,7 @@ enum VideoCodec {
   // that uses said codec in the same CL.
 };
 
-class MEDIA_EXPORT VideoDecoderConfig {
+class VideoDecoderConfig {
  public:
   VideoDecoderConfig(VideoCodec codec, int width, int height,
                      int surface_width, int surface_height,

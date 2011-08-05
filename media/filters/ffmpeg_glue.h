@@ -31,11 +31,10 @@
 
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
-#include "media/base/media_export.h"
 
 namespace media {
 
-class MEDIA_EXPORT FFmpegURLProtocol {
+class FFmpegURLProtocol {
  public:
   FFmpegURLProtocol() {
   }
@@ -65,7 +64,7 @@ class MEDIA_EXPORT FFmpegURLProtocol {
   DISALLOW_COPY_AND_ASSIGN(FFmpegURLProtocol);
 };
 
-class MEDIA_EXPORT FFmpegGlue {
+class FFmpegGlue {
  public:
   // Returns the singleton instance.
   static FFmpegGlue* GetInstance();
