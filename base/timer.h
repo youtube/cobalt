@@ -47,7 +47,7 @@
 // because they're flaky on the buildbot, but when you run them locally you
 // should be able to tell the difference.
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/logging.h"
 #include "base/task.h"
 #include "base/time.h"
@@ -62,7 +62,7 @@ namespace base {
 //
 // This class exists to share code between BaseTimer<T> template instantiations.
 //
-class BASE_API BaseTimer_Helper {
+class BASE_EXPORT BaseTimer_Helper {
  public:
   // Stops the timer.
   ~BaseTimer_Helper() {

@@ -8,7 +8,7 @@
 
 #include <windows.h>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/message_loop.h"
 
 namespace base {
@@ -42,9 +42,9 @@ namespace win {
 // scope, the watcher_ will be destroyed, and there is no need to worry about
 // OnObjectSignaled being called on a deleted MyClass pointer.  Easy!
 //
-class BASE_API ObjectWatcher : public MessageLoop::DestructionObserver {
+class BASE_EXPORT ObjectWatcher : public MessageLoop::DestructionObserver {
  public:
-  class BASE_API Delegate {
+  class BASE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
     // Called from the MessageLoop when a signaled object is detected.  To

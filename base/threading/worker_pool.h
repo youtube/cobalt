@@ -6,7 +6,7 @@
 #define BASE_THREADING_WORKER_POOL_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/callback.h"
 #include "base/tracked.h"
 
@@ -22,7 +22,7 @@ namespace base {
 // inside the pool must be extremely careful about other objects they access
 // (MessageLoops, Singletons, etc). During shutdown these object may no longer
 // exist.
-class BASE_API WorkerPool {
+class BASE_EXPORT WorkerPool {
  public:
   // This function posts |task| to run on a worker thread.  |task_is_slow|
   // should be used for tasks that will take a long time to execute.  Returns

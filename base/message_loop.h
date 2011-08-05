@@ -9,7 +9,7 @@
 #include <queue>
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
@@ -75,7 +75,7 @@ class Births;
 // Please be SURE your task is reentrant (nestable) and all global variables
 // are stable and accessible before calling SetNestableTasksAllowed(true).
 //
-class BASE_API MessageLoop : public base::MessagePump::Delegate {
+class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
  public:
 #if defined(OS_WIN)
   typedef base::MessagePumpWin::Dispatcher Dispatcher;
@@ -128,7 +128,7 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   // NOTE: Any tasks posted to the MessageLoop during this notification will
   // not be run.  Instead, they will be deleted.
   //
-  class BASE_API DestructionObserver {
+  class BASE_EXPORT DestructionObserver {
    public:
     virtual void WillDestroyCurrentMessageLoop() = 0;
 
@@ -317,7 +317,7 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   // MessageLoop.
   //
   // NOTE: A TaskObserver implementation should be extremely fast!
-  class BASE_API TaskObserver {
+  class BASE_EXPORT TaskObserver {
    public:
     TaskObserver();
 
@@ -383,7 +383,7 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   // MessagePumpForUI needs to keep the RunState.
  public:
 #endif
-  class BASE_API AutoRunState : RunState {
+  class BASE_EXPORT AutoRunState : RunState {
    public:
     explicit AutoRunState(MessageLoop* loop);
     ~AutoRunState();
@@ -580,7 +580,7 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 // This class is typically used like so:
 //   MessageLoopForUI::current()->...call some method...
 //
-class BASE_API MessageLoopForUI : public MessageLoop {
+class BASE_EXPORT MessageLoopForUI : public MessageLoop {
  public:
   MessageLoopForUI() : MessageLoop(TYPE_UI) {
   }
@@ -629,7 +629,7 @@ COMPILE_ASSERT(sizeof(MessageLoop) == sizeof(MessageLoopForUI),
 // This class is typically used like so:
 //   MessageLoopForIO::current()->...call some method...
 //
-class BASE_API MessageLoopForIO : public MessageLoop {
+class BASE_EXPORT MessageLoopForIO : public MessageLoop {
  public:
 #if defined(OS_WIN)
   typedef base::MessagePumpForIO::IOHandler IOHandler;

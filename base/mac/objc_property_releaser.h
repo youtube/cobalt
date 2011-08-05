@@ -8,7 +8,7 @@
 
 #import <Foundation/Foundation.h>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 
 namespace base {
 namespace mac {
@@ -83,7 +83,7 @@ namespace mac {
 // will only operate on instance variables in the immediate object in which
 // the property releaser is placed.
 
-class BASE_API ObjCPropertyReleaser {
+class BASE_EXPORT ObjCPropertyReleaser {
  public:
   // ObjCPropertyReleaser can only be owned by an Objective-C object, so its
   // memory is always guaranteed to be 0-initialized. Not defining the default
