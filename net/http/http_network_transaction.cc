@@ -964,16 +964,16 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
 
   base::TimeDelta total_duration = response_.response_time - start_time_;
 
-  UMA_HISTOGRAM_CLIPPED_TIMES(
-      "Net.Transaction_Connected_Under_10",
+  UMA_HISTOGRAM_CUSTOM_TIMES(
+      "Net.Transaction_Connected",
       total_duration,
       base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
       100);
 
   bool reused_socket = stream_->IsConnectionReused();
   if (!reused_socket) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        "Net.Transaction_Connected_New",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        "Net.Transaction_Connected_New_b",
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
@@ -981,8 +981,8 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
   static const bool use_conn_impact_histogram =
       base::FieldTrialList::TrialExists("ConnCountImpact");
   if (use_conn_impact_histogram) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        base::FieldTrial::MakeName("Net.Transaction_Connected_New",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        base::FieldTrial::MakeName("Net.Transaction_Connected_New_b",
             "ConnCountImpact"),
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
@@ -993,15 +993,15 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
   static const bool use_spdy_histogram =
       base::FieldTrialList::TrialExists("SpdyImpact");
   if (use_spdy_histogram && response_.was_npn_negotiated) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-      base::FieldTrial::MakeName("Net.Transaction_Connected_Under_10",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+      base::FieldTrial::MakeName("Net.Transaction_Connected",
                                  "SpdyImpact"),
         total_duration, base::TimeDelta::FromMilliseconds(1),
         base::TimeDelta::FromMinutes(10), 100);
 
     if (!reused_socket) {
-      UMA_HISTOGRAM_CLIPPED_TIMES(
-          base::FieldTrial::MakeName("Net.Transaction_Connected_New",
+      UMA_HISTOGRAM_CUSTOM_TIMES(
+          base::FieldTrial::MakeName("Net.Transaction_Connected_New_b",
                                      "SpdyImpact"),
           total_duration, base::TimeDelta::FromMilliseconds(1),
           base::TimeDelta::FromMinutes(10), 100);
@@ -1012,14 +1012,14 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
   // types.  This will change when we also prioritize certain subresources like
   // css, js, etc.
   if (request_->priority) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        "Net.Priority_High_Latency",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        "Net.Priority_High_Latency_b",
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
   } else {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        "Net.Priority_Low_Latency",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        "Net.Priority_Low_Latency_b",
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
@@ -1034,18 +1034,17 @@ void HttpNetworkTransaction::LogTransactionMetrics() const {
 
   base::TimeDelta total_duration = base::Time::Now() - start_time_;
 
-  UMA_HISTOGRAM_LONG_TIMES("Net.Transaction_Latency", duration);
-  UMA_HISTOGRAM_CLIPPED_TIMES("Net.Transaction_Latency_Under_10", duration,
-                              base::TimeDelta::FromMilliseconds(1),
-                              base::TimeDelta::FromMinutes(10),
-                              100);
-  UMA_HISTOGRAM_CLIPPED_TIMES("Net.Transaction_Latency_Total_Under_10",
-                              total_duration,
-                              base::TimeDelta::FromMilliseconds(1),
-                              base::TimeDelta::FromMinutes(10), 100);
+  UMA_HISTOGRAM_CUSTOM_TIMES("Net.Transaction_Latency_b", duration,
+                             base::TimeDelta::FromMilliseconds(1),
+                             base::TimeDelta::FromMinutes(10),
+                             100);
+  UMA_HISTOGRAM_CUSTOM_TIMES("Net.Transaction_Latency_Total",
+                             total_duration,
+                             base::TimeDelta::FromMilliseconds(1),
+                             base::TimeDelta::FromMinutes(10), 100);
   if (!stream_->IsConnectionReused()) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        "Net.Transaction_Latency_Total_New_Connection_Under_10",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        "Net.Transaction_Latency_Total_New_Connection",
         total_duration, base::TimeDelta::FromMilliseconds(1),
         base::TimeDelta::FromMinutes(10), 100);
   }

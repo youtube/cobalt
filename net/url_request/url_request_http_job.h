@@ -198,9 +198,6 @@ class URLRequestHttpJob : public URLRequestJob {
   // those packets may possibly have had their time of arrival recorded).
   int64 bytes_observed_in_packets_;
 
-  // Arrival times for some of the first few packets.
-  std::vector<base::Time> packet_times_;
-
   // The request time may not be available when we are being destroyed, so we
   // snapshot it early on.
   base::Time request_time_snapshot_;
@@ -211,10 +208,6 @@ class URLRequestHttpJob : public URLRequestJob {
 
   // The start time for the job, ignoring re-starts.
   base::TimeTicks start_time_;
-
-  // The count of the number of packets, some of which may not have been timed.
-  // We're ignoring overflow, as 1430 x 2^31 is a LOT of bytes.
-  int observed_packet_count_;
 
   scoped_ptr<HttpFilterContext> filter_context_;
   ScopedRunnableMethodFactory<URLRequestHttpJob> method_factory_;
