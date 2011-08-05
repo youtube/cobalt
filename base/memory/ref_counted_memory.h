@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 
@@ -19,7 +19,7 @@
 // A generic interface to memory. This object is reference counted because one
 // of its two subclasses own the data they carry, and we need to have
 // heterogeneous containers of these two types of memory.
-class BASE_API RefCountedMemory
+class BASE_EXPORT RefCountedMemory
     : public base::RefCountedThreadSafe<RefCountedMemory> {
  public:
   // Retrieves a pointer to the beginning of the data we point to. If the data
@@ -37,7 +37,7 @@ class BASE_API RefCountedMemory
 
 // An implementation of RefCountedMemory, where the ref counting does not
 // matter.
-class BASE_API RefCountedStaticMemory : public RefCountedMemory {
+class BASE_EXPORT RefCountedStaticMemory : public RefCountedMemory {
  public:
   RefCountedStaticMemory()
       : data_(NULL), length_(0) {}
@@ -57,7 +57,7 @@ class BASE_API RefCountedStaticMemory : public RefCountedMemory {
 
 // An implementation of RefCountedMemory, where we own our the data in a
 // vector.
-class BASE_API RefCountedBytes : public RefCountedMemory {
+class BASE_EXPORT RefCountedBytes : public RefCountedMemory {
  public:
   RefCountedBytes();
 
@@ -89,7 +89,7 @@ namespace base {
 
 // An implementation of RefCountedMemory, where the bytes are stored in an STL
 // string. Use this if your data naturally arrives in that format.
-class BASE_API RefCountedString : public RefCountedMemory {
+class BASE_EXPORT RefCountedString : public RefCountedMemory {
  public:
   RefCountedString();
 

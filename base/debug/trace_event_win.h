@@ -9,7 +9,7 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/debug/trace_event.h"
 #include "base/win/event_trace_provider.h"
 
@@ -22,7 +22,7 @@ namespace debug {
 
 // This EtwTraceProvider subclass implements ETW logging
 // for the macros above on Windows.
-class BASE_API TraceEventETWProvider : public base::win::EtwTraceProvider {
+class BASE_EXPORT TraceEventETWProvider : public base::win::EtwTraceProvider {
  public:
   // Start logging trace events.
   // This is a noop in this implementation.
@@ -93,13 +93,13 @@ class BASE_API TraceEventETWProvider : public base::win::EtwTraceProvider {
 };
 
 // The ETW trace provider GUID.
-BASE_API extern const GUID kChromeTraceProviderName;
+BASE_EXPORT extern const GUID kChromeTraceProviderName;
 
 // The ETW event class GUID for 32 bit events.
-BASE_API extern const GUID kTraceEventClass32;
+BASE_EXPORT extern const GUID kTraceEventClass32;
 
 // The ETW event class GUID for 64 bit events.
-BASE_API extern const GUID kTraceEventClass64;
+BASE_EXPORT extern const GUID kTraceEventClass64;
 
 // The ETW event types, IDs 0x00-0x09 are reserved, so start at 0x10.
 const base::win::EtwEventType kTraceEventTypeBegin = 0x10;

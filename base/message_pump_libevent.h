@@ -21,7 +21,7 @@ namespace base {
 
 // Class to monitor sockets and issue callbacks when sockets are ready for I/O
 // TODO(dkegel): add support for background file IO somehow
-class BASE_API MessagePumpLibevent : public MessagePump {
+class BASE_EXPORT MessagePumpLibevent : public MessagePump {
  public:
   class IOObserver {
    public:

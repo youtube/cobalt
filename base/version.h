@@ -9,13 +9,13 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 
 // Version represents a dotted version number, like "1.2.3.4", supporting
 // parsing and comparison.
-class BASE_API Version {
+class BASE_EXPORT Version {
  public:
   // The only thing you can legally do to a default constructed
   // Version object is assign to it.

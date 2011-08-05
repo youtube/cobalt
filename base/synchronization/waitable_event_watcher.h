@@ -15,7 +15,7 @@
 #include "base/synchronization/waitable_event.h"
 #endif
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 
 namespace base {
 
@@ -60,7 +60,7 @@ class WaitableEvent;
 // it with a Watcher. It will act as if the event was never signaled.
 // -----------------------------------------------------------------------------
 
-class BASE_API WaitableEventWatcher
+class BASE_EXPORT WaitableEventWatcher
 #if defined(OS_POSIX)
     : public MessageLoop::DestructionObserver
 #endif

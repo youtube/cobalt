@@ -52,7 +52,7 @@
 #define BASE_MEMORY_WEAK_PTR_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
@@ -63,7 +63,7 @@ namespace internal {
 // These classes are part of the WeakPtr implementation.
 // DO NOT USE THESE CLASSES DIRECTLY YOURSELF.
 
-class BASE_API WeakReference {
+class BASE_EXPORT WeakReference {
  public:
   // While Flag is bound to a specific thread, it may be deleted from another
   // via base::WeakPtr::~WeakPtr().
@@ -95,7 +95,7 @@ class BASE_API WeakReference {
   scoped_refptr<Flag> flag_;
 };
 
-class BASE_API WeakReferenceOwner {
+class BASE_EXPORT WeakReferenceOwner {
  public:
   WeakReferenceOwner();
   ~WeakReferenceOwner();
@@ -121,7 +121,7 @@ class BASE_API WeakReferenceOwner {
 // constructor by avoiding the need for a public accessor for ref_.  A
 // WeakPtr<T> cannot access the private members of WeakPtr<U>, so this
 // base class gives us a way to access ref_ in a protected fashion.
-class BASE_API WeakPtrBase {
+class BASE_EXPORT WeakPtrBase {
  public:
   WeakPtrBase();
   ~WeakPtrBase();

@@ -41,7 +41,7 @@ class MessagePumpDispatcher {
 };
 
 // This class implements a message-pump for dispatching GTK events.
-class BASE_API MessagePumpGtk : public MessagePumpGlib {
+class BASE_EXPORT MessagePumpGtk : public MessagePumpGlib {
  public:
   MessagePumpGtk();
   virtual ~MessagePumpGtk();

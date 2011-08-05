@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/string16.h"
 #include "build/build_config.h"
@@ -52,7 +52,7 @@ typedef std::map<std::string, Value*> ValueMap;
 // The Value class is the base class for Values.  A Value can be
 // instantiated via the Create*Value() factory methods, or by directly
 // creating instances of the subclasses.
-class BASE_API Value {
+class BASE_EXPORT Value {
  public:
   enum ValueType {
     TYPE_NULL = 0,
@@ -131,7 +131,7 @@ class BASE_API Value {
 };
 
 // FundamentalValue represents the simple fundamental types of values.
-class BASE_API FundamentalValue : public Value {
+class BASE_EXPORT FundamentalValue : public Value {
  public:
   explicit FundamentalValue(bool in_value);
   explicit FundamentalValue(int in_value);
@@ -155,7 +155,7 @@ class BASE_API FundamentalValue : public Value {
   DISALLOW_COPY_AND_ASSIGN(FundamentalValue);
 };
 
-class BASE_API StringValue : public Value {
+class BASE_EXPORT StringValue : public Value {
  public:
   // Initializes a StringValue with a UTF-8 narrow character string.
   explicit StringValue(const std::string& in_value);
@@ -177,7 +177,7 @@ class BASE_API StringValue : public Value {
   DISALLOW_COPY_AND_ASSIGN(StringValue);
 };
 
-class BASE_API BinaryValue: public Value {
+class BASE_EXPORT BinaryValue: public Value {
  public:
   virtual ~BinaryValue();
 
@@ -214,7 +214,7 @@ class BASE_API BinaryValue: public Value {
 // DictionaryValue provides a key-value dictionary with (optional) "path"
 // parsing for recursive access; see the comment at the top of the file. Keys
 // are |std::string|s and should be UTF-8 encoded.
-class BASE_API DictionaryValue : public Value {
+class BASE_EXPORT DictionaryValue : public Value {
  public:
   DictionaryValue();
   virtual ~DictionaryValue();
@@ -357,7 +357,7 @@ class BASE_API DictionaryValue : public Value {
 };
 
 // This type of Value represents a list of other Value values.
-class BASE_API ListValue : public Value {
+class BASE_EXPORT ListValue : public Value {
  public:
   typedef ValueVector::iterator iterator;
   typedef ValueVector::const_iterator const_iterator;
@@ -447,7 +447,7 @@ class BASE_API ListValue : public Value {
 
 // This interface is implemented by classes that know how to serialize and
 // deserialize Value objects.
-class BASE_API ValueSerializer {
+class BASE_EXPORT ValueSerializer {
  public:
   virtual ~ValueSerializer();
 

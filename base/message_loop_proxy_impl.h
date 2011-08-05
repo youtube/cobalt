@@ -6,7 +6,7 @@
 #define BASE_MESSAGE_LOOP_PROXY_IMPL_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/synchronization/lock.h"
@@ -16,8 +16,9 @@ namespace base {
 // A stock implementation of MessageLoopProxy that takes in a MessageLoop
 // and keeps track of its lifetime using the MessageLoop DestructionObserver.
 // For now a MessageLoopProxyImpl can only be created for the current thread.
-class BASE_API MessageLoopProxyImpl : public MessageLoopProxy,
-                                      public MessageLoop::DestructionObserver {
+class BASE_EXPORT MessageLoopProxyImpl
+    : public MessageLoopProxy,
+      public MessageLoop::DestructionObserver {
  public:
   virtual ~MessageLoopProxyImpl();
 

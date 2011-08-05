@@ -26,7 +26,7 @@
           'atomicops.h',
           'atomicops_internals_x86_gcc.cc',
           'atomicops_internals_x86_msvc.h',
-          'base_api.h',
+          'base_export.h',
           'base_paths.cc',
           'base_paths.h',
           'base_paths_mac.h',
