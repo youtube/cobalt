@@ -56,13 +56,18 @@ Patches:
     record in order to randomize the IV in a backwards compatible manner.
     patches/cbcrandomiv.patch
 
-  * Support origin bound certificates (http://balfanz.github.com/tls-obc-spec/draft-balfanz-tls-obc-00.txt)
+  * Support origin bound certificates.
+    http://balfanz.github.com/tls-obc-spec/draft-balfanz-tls-obc-00.txt
     patches/origin_bound_certs.patch
 
   * Add a function to implement RFC 5705: Keying Material Exporters for TLS
     This is a reworked version of the patch from
     https://bugzilla.mozilla.org/show_bug.cgi?id=507359
     patches/secret_exporter.patch
+
+  * Send saved write data in the SSL socket in SSL_ForceHandshake.
+    patches/handshakeshortwrite.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=676729
 
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
