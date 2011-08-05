@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/environment.h"
