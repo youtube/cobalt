@@ -6,7 +6,7 @@
 #define BASE_WIN_WINDOWS_VERSION_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/memory/singleton.h"
 
 typedef void* HANDLE;
@@ -29,7 +29,7 @@ enum Version {
 
 // A Singleton that can be used to query various pieces of information about the
 // OS and process state.
-class BASE_API OSInfo {
+class BASE_EXPORT OSInfo {
  public:
   struct VersionNumber {
     int major;
@@ -98,7 +98,7 @@ class BASE_API OSInfo {
 
 // Because this is by far the most commonly-requested value from the above
 // singleton, we add a global-scope accessor here as syntactic sugar.
-BASE_API Version GetVersion();
+BASE_EXPORT Version GetVersion();
 
 }  // namespace win
 }  // namespace base

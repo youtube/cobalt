@@ -8,12 +8,12 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 
 namespace base {
 
 // Query information about the processor.
-class BASE_API CPU {
+class BASE_EXPORT CPU {
  public:
   // Constructor
   CPU();

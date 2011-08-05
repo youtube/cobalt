@@ -302,7 +302,7 @@ enum TraceEventPhase {
 // Simple union of values. This is much lighter weight than base::Value, which
 // requires dynamic allocation and a vtable. To keep the trace runtime overhead
 // low, we want constant size storage here.
-class BASE_API TraceValue {
+class BASE_EXPORT TraceValue {
  public:
   enum Type {
     TRACE_TYPE_UNDEFINED,
@@ -442,7 +442,7 @@ class TraceEvent {
 };
 
 
-class BASE_API TraceLog {
+class BASE_EXPORT TraceLog {
  public:
   static TraceLog* GetInstance();
 
@@ -527,7 +527,7 @@ class BASE_API TraceLog {
 namespace internal {
 
 // Used by TRACE_EVENTx macro. Do not use directly.
-class BASE_API TraceEndOnScopeClose {
+class BASE_EXPORT TraceEndOnScopeClose {
  public:
   TraceEndOnScopeClose() : p_data_(NULL) {}
   ~TraceEndOnScopeClose() {
@@ -556,7 +556,7 @@ class BASE_API TraceEndOnScopeClose {
 };
 
 // Used by TRACE_EVENTx macro. Do not use directly.
-class BASE_API TraceEndOnScopeCloseThreshold {
+class BASE_EXPORT TraceEndOnScopeCloseThreshold {
  public:
   TraceEndOnScopeCloseThreshold() : p_data_(NULL) {}
   ~TraceEndOnScopeCloseThreshold() {

@@ -6,7 +6,7 @@
 #define BASE_MESSAGE_LOOP_PROXY_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
@@ -20,7 +20,7 @@ struct MessageLoopProxyTraits;
 // of a message loop. This class can outlive the target message loop. You can
 // obtain a MessageLoopProxy via Thread::message_loop_proxy() or
 // MessageLoopProxy::CreateForCurrentThread().
-class BASE_API MessageLoopProxy
+class BASE_EXPORT MessageLoopProxy
     : public base::RefCountedThreadSafe<MessageLoopProxy,
                                         MessageLoopProxyTraits> {
  public:

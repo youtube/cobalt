@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/logging.h"
 
 #if defined(__OBJC__)
@@ -36,25 +36,25 @@ namespace base {
 namespace mac {
 
 // Returns true if the application is running from a bundle
-BASE_API bool AmIBundled();
-BASE_API void SetOverrideAmIBundled(bool value);
+BASE_EXPORT bool AmIBundled();
+BASE_EXPORT void SetOverrideAmIBundled(bool value);
 
 // Returns true if this process is marked as a "Background only process".
-BASE_API bool IsBackgroundOnlyProcess();
+BASE_EXPORT bool IsBackgroundOnlyProcess();
 
 // Returns the main bundle or the override, used for code that needs
 // to fetch resources from bundles, but work within a unittest where we
 // aren't a bundle.
-BASE_API NSBundle* MainAppBundle();
-BASE_API FilePath MainAppBundlePath();
+BASE_EXPORT NSBundle* MainAppBundle();
+BASE_EXPORT FilePath MainAppBundlePath();
 
 // Returns the path to a resource within the MainAppBundle.
 FilePath PathForMainAppBundleResource(CFStringRef resourceName);
 
 // Set the bundle that MainAppBundle will return, overriding the default value
 // (Restore the default by calling SetOverrideAppBundle(nil)).
-BASE_API void SetOverrideAppBundle(NSBundle* bundle);
-BASE_API void SetOverrideAppBundlePath(const FilePath& file_path);
+BASE_EXPORT void SetOverrideAppBundle(NSBundle* bundle);
+BASE_EXPORT void SetOverrideAppBundlePath(const FilePath& file_path);
 
 // Returns the creator code associated with the CFBundleRef at bundle.
 OSType CreatorCodeForCFBundleRef(CFBundleRef bundle);
@@ -65,7 +65,7 @@ OSType CreatorCodeForCFBundleRef(CFBundleRef bundle);
 // does not respect the override app bundle because it's based on CFBundle
 // instead of NSBundle, and because callers probably don't want the override
 // app bundle's creator code anyway.
-BASE_API OSType CreatorCodeForApplication();
+BASE_EXPORT OSType CreatorCodeForApplication();
 
 // Searches for directories for the given key in only the given |domain_mask|.
 // If found, fills result (which must always be non-NULL) with the
@@ -77,34 +77,34 @@ bool GetSearchPathDirectory(NSSearchPathDirectory directory,
 // Searches for directories for the given key in only the local domain.
 // If found, fills result (which must always be non-NULL) with the
 // first found directory and returns true.  Otherwise, returns false.
-BASE_API bool GetLocalDirectory(NSSearchPathDirectory directory,
-                                FilePath* result);
+BASE_EXPORT bool GetLocalDirectory(NSSearchPathDirectory directory,
+                                   FilePath* result);
 
 // Searches for directories for the given key in only the user domain.
 // If found, fills result (which must always be non-NULL) with the
 // first found directory and returns true.  Otherwise, returns false.
-BASE_API bool GetUserDirectory(NSSearchPathDirectory directory,
-                               FilePath* result);
+BASE_EXPORT bool GetUserDirectory(NSSearchPathDirectory directory,
+                                  FilePath* result);
 
 // Returns the ~/Library directory.
-BASE_API FilePath GetUserLibraryPath();
+BASE_EXPORT FilePath GetUserLibraryPath();
 
 // Takes a path to an (executable) binary and tries to provide the path to an
 // application bundle containing it. It takes the outermost bundle that it can
 // find (so for "/Foo/Bar.app/.../Baz.app/..." it produces "/Foo/Bar.app").
 //   |exec_name| - path to the binary
 //   returns - path to the application bundle, or empty on error
-BASE_API FilePath GetAppBundlePath(const FilePath& exec_name);
+BASE_EXPORT FilePath GetAppBundlePath(const FilePath& exec_name);
 
 // Utility function to pull out a value from a dictionary, check its type, and
 // return it.  Returns NULL if the key is not present or of the wrong type.
-BASE_API CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
-                                          CFStringRef key,
-                                          CFTypeID expected_type);
+BASE_EXPORT CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
+                                             CFStringRef key,
+                                             CFTypeID expected_type);
 
 // Retain/release calls for memory management in C++.
-BASE_API void NSObjectRetain(void* obj);
-BASE_API void NSObjectRelease(void* obj);
+BASE_EXPORT void NSObjectRetain(void* obj);
+BASE_EXPORT void NSObjectRelease(void* obj);
 
 // CFTypeRefToNSObjectAutorelease transfers ownership of a Core Foundation
 // object (one derived from CFTypeRef) to the Foundation memory management
@@ -123,16 +123,16 @@ BASE_API void NSObjectRelease(void* obj);
 // returned NSObject.
 //
 // Returns an id, typed here for C++'s sake as a void*.
-BASE_API void* CFTypeRefToNSObjectAutorelease(CFTypeRef cf_object);
+BASE_EXPORT void* CFTypeRefToNSObjectAutorelease(CFTypeRef cf_object);
 
 // Returns the base bundle ID, which can be set by SetBaseBundleID but
 // defaults to a reasonable string. This never returns NULL. BaseBundleID
 // returns a pointer to static storage that must not be freed.
-BASE_API const char* BaseBundleID();
+BASE_EXPORT const char* BaseBundleID();
 
 // Sets the base bundle ID to override the default. The implementation will
 // make its own copy of new_base_bundle_id.
-BASE_API void SetBaseBundleID(const char* new_base_bundle_id);
+BASE_EXPORT void SetBaseBundleID(const char* new_base_bundle_id);
 
 }  // namespace mac
 }  // namespace base
@@ -161,8 +161,8 @@ OBJC_CPP_CLASS_DECL(TypeNS) \
 \
 namespace base { \
 namespace mac { \
-BASE_API TypeNS* CFToNSCast(TypeCF##Ref cf_val); \
-BASE_API TypeCF##Ref NSToCFCast(TypeNS* ns_val); \
+BASE_EXPORT TypeNS* CFToNSCast(TypeCF##Ref cf_val); \
+BASE_EXPORT TypeCF##Ref NSToCFCast(TypeNS* ns_val); \
 } \
 } \
 
@@ -172,8 +172,8 @@ OBJC_CPP_CLASS_DECL(NSMutable##name) \
 \
 namespace base { \
 namespace mac { \
-BASE_API NSMutable##name* CFToNSCast(CFMutable##name##Ref cf_val); \
-BASE_API CFMutable##name##Ref NSToCFCast(NSMutable##name* ns_val); \
+BASE_EXPORT NSMutable##name* CFToNSCast(CFMutable##name##Ref cf_val); \
+BASE_EXPORT CFMutable##name##Ref NSToCFCast(NSMutable##name* ns_val); \
 } \
 } \
 
@@ -203,8 +203,9 @@ CF_TO_NS_CAST_DECL(CFURL, NSURL);
 // e.g. LOG(INFO) << base::mac::NSToCFCast(@"foo");
 // Operator << can not be overloaded for ObjectiveC types as the compiler
 // can not distinguish between overloads for id with overloads for void*.
-BASE_API extern std::ostream& operator<<(std::ostream& o, const CFErrorRef err);
-BASE_API extern std::ostream& operator<<(std::ostream& o,
-                                         const CFStringRef str);
+BASE_EXPORT extern std::ostream& operator<<(std::ostream& o,
+                                            const CFErrorRef err);
+BASE_EXPORT extern std::ostream& operator<<(std::ostream& o,
+                                            const CFStringRef str);
 
 #endif  // BASE_MAC_FOUNDATION_UTIL_H_

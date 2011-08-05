@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/base_paths.h"
 #include "build/build_config.h"
 
@@ -17,7 +17,7 @@ class FilePath;
 // The path service is a global table mapping keys to file system paths.  It is
 // OK to use this service from multiple threads.
 //
-class BASE_API PathService {
+class BASE_EXPORT PathService {
  public:
   // Retrieves a path to a special directory or file and places it into the
   // string pointed to by 'path'. If you ask for a directory it is guaranteed

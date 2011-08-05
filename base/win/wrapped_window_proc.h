@@ -13,7 +13,7 @@
 
 #include <windows.h>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 
 namespace base {
 namespace win {
@@ -28,11 +28,11 @@ typedef int (__cdecl *WinProcExceptionFilter)(EXCEPTION_POINTERS* info);
 // Sets the filter to deal with exceptions inside a WindowProc. Returns the old
 // exception filter, if any.
 // This function should be called before any window is created.
-BASE_API WinProcExceptionFilter SetWinProcExceptionFilter(
+BASE_EXPORT WinProcExceptionFilter SetWinProcExceptionFilter(
     WinProcExceptionFilter filter);
 
 // Calls the registered exception filter.
-BASE_API int CallExceptionFilter(EXCEPTION_POINTERS* info);
+BASE_EXPORT int CallExceptionFilter(EXCEPTION_POINTERS* info);
 
 // Wrapper that supplies a standard exception frame for the provided WindowProc.
 // The normal usage is something like this:

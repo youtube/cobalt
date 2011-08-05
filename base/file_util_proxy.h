@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/callback_old.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -21,7 +21,7 @@ class MessageLoopProxy;
 class Time;
 
 // This class provides asynchronous access to common file routines.
-class BASE_API FileUtilProxy {
+class BASE_EXPORT FileUtilProxy {
  public:
   // Holds metadata for file or directory entry. Used by ReadDirectoryCallback.
   struct Entry {

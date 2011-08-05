@@ -7,14 +7,14 @@
 #pragma once
 
 #include "base/atomic_ref_count.h"
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/threading/thread_collision_warner.h"
 
 namespace base {
 
 namespace subtle {
 
-class BASE_API RefCountedBase {
+class BASE_EXPORT RefCountedBase {
  public:
   static bool ImplementsThreadSafeReferenceCounting() { return false; }
 
@@ -40,7 +40,7 @@ class BASE_API RefCountedBase {
   DISALLOW_COPY_AND_ASSIGN(RefCountedBase);
 };
 
-class BASE_API RefCountedThreadSafeBase {
+class BASE_EXPORT RefCountedThreadSafeBase {
  public:
   static bool ImplementsThreadSafeReferenceCounting() { return true; }
 

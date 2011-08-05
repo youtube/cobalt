@@ -74,7 +74,7 @@
 #include <pthread.h>
 #endif
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/synchronization/lock.h"
 
@@ -82,7 +82,7 @@ namespace base {
 
 class TimeDelta;
 
-class BASE_API ConditionVariable {
+class BASE_EXPORT ConditionVariable {
  public:
   // Construct a cv for use with ONLY one user lock.
   explicit ConditionVariable(Lock* user_lock);
