@@ -30,7 +30,6 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/string16.h"
-#include "build/build_config.h"
 
 // This file declares "using base::Value", etc. at the bottom, so that
 // current code can use these classes without the base namespace. In
@@ -49,9 +48,9 @@ class Value;
 typedef std::vector<Value*> ValueVector;
 typedef std::map<std::string, Value*> ValueMap;
 
-// The Value class is the base class for Values.  A Value can be
-// instantiated via the Create*Value() factory methods, or by directly
-// creating instances of the subclasses.
+// The Value class is the base class for Values. A Value can be instantiated
+// via the Create*Value() factory methods, or by directly creating instances of
+// the subclasses.
 class BASE_EXPORT Value {
  public:
   enum ValueType {
@@ -465,7 +464,6 @@ class BASE_EXPORT ValueSerializer {
 }  // namespace base
 
 // http://crbug.com/88666
-using base::BinaryValue;
 using base::DictionaryValue;
 using base::FundamentalValue;
 using base::ListValue;
