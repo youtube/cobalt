@@ -1,0 +1,48 @@
+This is a backport of http://sqlite.org/src/ci/9109128cb5,
+which is needed for experiments with using unpatched sqlite.
+If you hit a merge conflict on this file it is most likely
+that you've upgraded to version of sqlite that includes this patch.
+Index: src/os_unix.c
+===================================================================
+--- src/os_unix.c
++++ src/os_unix.c
+@@ -4787,11 +4787,11 @@
+   ** ignored and -1 is returned. The caller will try to open a new file
+   ** descriptor on the same path, fail, and return an error to SQLite.
+   **
+   ** Even if a subsequent open() call does succeed, the consequences of
+   ** not searching for a resusable file descriptor are not dire.  */
+-  if( 0==stat(zPath, &sStat) ){
++  if( 0==osStat(zPath, &sStat) ){
+     unixInodeInfo *pInode;
+ 
+     unixEnterMutex();
+     pInode = inodeList;
+     while( pInode && (pInode->fileId.dev!=sStat.st_dev
+@@ -4863,11 +4863,11 @@
+     while( nDb>0 && zPath[nDb]!='-' ) nDb--;
+     if( nDb==0 ) return SQLITE_OK;
+     memcpy(zDb, zPath, nDb);
+     zDb[nDb] = '\0';
+ 
+-    if( 0==stat(zDb, &sStat) ){
++    if( 0==osStat(zDb, &sStat) ){
+       *pMode = sStat.st_mode & 0777;
+     }else{
+       rc = SQLITE_IOERR_FSTAT;
+     }
+   }else if( flags & SQLITE_OPEN_DELETEONCLOSE ){
+@@ -5208,11 +5208,11 @@
+       assert(!"Invalid flags argument");
+   }
+   *pResOut = (osAccess(zPath, amode)==0);
+   if( flags==SQLITE_ACCESS_EXISTS && *pResOut ){
+     struct stat buf;
+-    if( 0==stat(zPath, &buf) && buf.st_size==0 ){
++    if( 0==osStat(zPath, &buf) && buf.st_size==0 ){
+       *pResOut = 0;
+     }
+   }
+   return SQLITE_OK;
+ }
+
