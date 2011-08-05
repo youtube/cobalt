@@ -9,7 +9,7 @@
 #include <windows.h>
 #include <wincrypt.h>
 
-#include "crypto/crypto_api.h"
+#include "crypto/crypto_export.h"
 
 namespace crypto {
 
@@ -23,11 +23,11 @@ namespace crypto {
 // "The CryptAcquireContext function is generally thread safe unless
 // CRYPT_NEWKEYSET or CRYPT_DELETEKEYSET is specified in the dwFlags
 // parameter."
-CRYPTO_API BOOL CryptAcquireContextLocked(HCRYPTPROV* prov,
-                                          LPCWSTR container,
-                                          LPCWSTR provider,
-                                          DWORD prov_type,
-                                          DWORD flags);
+CRYPTO_EXPORT BOOL CryptAcquireContextLocked(HCRYPTPROV* prov,
+                                             LPCWSTR container,
+                                             LPCWSTR provider,
+                                             DWORD prov_type,
+                                             DWORD flags);
 
 }  // namespace crypto
 

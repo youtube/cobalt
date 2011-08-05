@@ -113,7 +113,7 @@
       'sources': [
         'capi_util.cc',
         'capi_util.h',
-        'crypto_api.h',
+        'crypto_export.h',
         'crypto_module_blocking_password_delegate.h',
         'cssm_init.cc',
         'cssm_init.h',

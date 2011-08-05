@@ -23,7 +23,7 @@ struct SECKEYPublicKeyStr;
 #include <vector>
 
 #include "base/basictypes.h"
-#include "crypto/crypto_api.h"
+#include "crypto/crypto_export.h"
 
 #if defined(OS_WIN)
 #include "crypto/scoped_capi_types.h"
@@ -171,7 +171,7 @@ class PrivateKeyInfoCodec {
 // Encapsulates an RSA private key. Can be used to generate new keys, export
 // keys to other formats, or to extract a public key.
 // TODO(hclam): This class should be ref-counted so it can be reused easily.
-class CRYPTO_API RSAPrivateKey {
+class CRYPTO_EXPORT RSAPrivateKey {
  public:
   ~RSAPrivateKey();
 

@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/string_piece.h"
-#include "crypto/crypto_api.h"
+#include "crypto/crypto_export.h"
 
 namespace crypto {
 
@@ -20,7 +20,7 @@ namespace crypto {
 //
 // Likewise, the output of this can be decrypted on the command line with:
 //    gpg < input
-class CRYPTO_API OpenPGPSymmetricEncrytion {
+class CRYPTO_EXPORT OpenPGPSymmetricEncrytion {
  public:
   enum Result {
     OK,
