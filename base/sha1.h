@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 
 namespace base {
 
@@ -20,12 +20,12 @@ enum {
 
 // Computes the SHA-1 hash of the input string |str| and returns the full
 // hash.
-BASE_API std::string SHA1HashString(const std::string& str);
+BASE_EXPORT std::string SHA1HashString(const std::string& str);
 
 // Computes the SHA-1 hash of the |len| bytes in |data| and puts the hash
 // in |hash|. |hash| must be SHA1_LENGTH bytes long.
-BASE_API void SHA1HashBytes(const unsigned char* data, size_t len,
-                            unsigned char* hash);
+BASE_EXPORT void SHA1HashBytes(const unsigned char* data, size_t len,
+                               unsigned char* hash);
 
 }  // namespace base
 

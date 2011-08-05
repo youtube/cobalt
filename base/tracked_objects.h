@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/synchronization/lock.h"
 #include "base/tracked.h"
 #include "base/threading/thread_local_storage.h"
@@ -157,7 +157,7 @@ namespace tracked_objects {
 // For a specific thread, and a specific birth place, the collection of all
 // death info (with tallies for each death thread, to prevent access conflicts).
 class ThreadData;
-class BASE_API BirthOnThread {
+class BASE_EXPORT BirthOnThread {
  public:
   explicit BirthOnThread(const Location& location);
 
@@ -180,7 +180,7 @@ class BASE_API BirthOnThread {
 //------------------------------------------------------------------------------
 // A class for accumulating counts of births (without bothering with a map<>).
 
-class BASE_API Births: public BirthOnThread {
+class BASE_EXPORT Births: public BirthOnThread {
  public:
   explicit Births(const Location& location);
 
@@ -208,7 +208,7 @@ class BASE_API Births: public BirthOnThread {
 // birthplace (fixed Location).  Used both on specific threads, and also used
 // in snapshots when integrating assembled data.
 
-class BASE_API DeathData {
+class BASE_EXPORT DeathData {
  public:
   // Default initializer.
   DeathData() : count_(0), square_duration_(0) {}
@@ -249,7 +249,7 @@ class BASE_API DeathData {
 // The source of this data was collected on many threads, and is asynchronously
 // changing.  The data in this instance is not asynchronously changing.
 
-class BASE_API Snapshot {
+class BASE_EXPORT Snapshot {
  public:
   // When snapshotting a full life cycle set (birth-to-death), use this:
   Snapshot(const BirthOnThread& birth_on_thread, const ThreadData& death_thread,
@@ -285,7 +285,7 @@ class BASE_API Snapshot {
 // items.  It protects the gathering under locks, so that it could be called via
 // Posttask on any threads, or passed to all the target threads in parallel.
 
-class BASE_API DataCollector {
+class BASE_EXPORT DataCollector {
  public:
   typedef std::vector<Snapshot> Collection;
 
@@ -332,7 +332,7 @@ class BASE_API DataCollector {
 // Aggregation contains summaries (totals and subtotals) of groups of Snapshot
 // instances to provide printing of these collections on a single line.
 
-class BASE_API Aggregation: public DeathData {
+class BASE_EXPORT Aggregation: public DeathData {
  public:
   Aggregation();
   ~Aggregation();
@@ -364,7 +364,7 @@ class BASE_API Aggregation: public DeathData {
 // instances within the groups (for detailed rendering of the instances in an
 // aggregation).
 
-class BASE_API Comparator {
+class BASE_EXPORT Comparator {
  public:
   // Selector enum is the token identifier for each parsed keyword, most of
   // which specify a sort order.
@@ -465,7 +465,7 @@ class BASE_API Comparator {
 // For each thread, we have a ThreadData that stores all tracking info generated
 // on this thread.  This prevents the need for locking as data accumulates.
 
-class BASE_API ThreadData {
+class BASE_EXPORT ThreadData {
  public:
   typedef std::map<Location, Births*> BirthMap;
   typedef std::map<const Births*, DeathData> DeathMap;
@@ -638,7 +638,7 @@ class BASE_API ThreadData {
 // only allow the tracking system to be started up at most once, and shutdown
 // at most once.  See bug 31344 for an example.
 
-class BASE_API AutoTracking {
+class BASE_EXPORT AutoTracking {
  public:
   AutoTracking() {
     if (state_ != kNeverBeenRun)

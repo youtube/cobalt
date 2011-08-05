@@ -6,7 +6,7 @@
 #define BASE_MAC_SCOPED_NSEXCEPTION_ENABLER_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 namespace base {
@@ -24,7 +24,7 @@ namespace mac {
 // top-level event loop, things are cleared in -reportException:.  If
 // the exception is caught at a lower level, a higher level scoper
 // should eventually reset things.
-class BASE_API ScopedNSExceptionEnabler {
+class BASE_EXPORT ScopedNSExceptionEnabler {
  public:
   ScopedNSExceptionEnabler();
   ~ScopedNSExceptionEnabler();
@@ -38,8 +38,8 @@ class BASE_API ScopedNSExceptionEnabler {
 // Access the exception setting for the current thread.  This is for
 // the support code in BrowserCrApplication, other code should use
 // the scoper.
-BASE_API bool GetNSExceptionsAllowed();
-BASE_API void SetNSExceptionsAllowed(bool allowed);
+BASE_EXPORT bool GetNSExceptionsAllowed();
+BASE_EXPORT void SetNSExceptionsAllowed(bool allowed);
 
 }  // namespace mac
 }  // namespace base

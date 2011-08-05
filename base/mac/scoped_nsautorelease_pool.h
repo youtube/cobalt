@@ -6,7 +6,7 @@
 #define BASE_MAC_SCOPED_NSAUTORELEASE_POOL_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 #if defined(OS_MACOSX)
@@ -28,7 +28,7 @@ namespace mac {
 // On other platforms, ScopedNSAutoreleasePool is an empty object with no
 // effects.  This allows it to be used directly in cross-platform code without
 // ugly #ifdefs.
-class BASE_API ScopedNSAutoreleasePool {
+class BASE_EXPORT ScopedNSAutoreleasePool {
  public:
 #if !defined(OS_MACOSX)
   ScopedNSAutoreleasePool() {}
