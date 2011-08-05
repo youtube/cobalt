@@ -388,6 +388,18 @@ SSL_ForceHandshake(PRFileDesc *fd)
     if (!ss->opt.useSecurity) 
     	return SECSuccess;
 
+    if (!ssl_SocketIsBlocking(ss)) {
+	ssl_GetXmitBufLock(ss);
+	if (ss->pendingBuf.len != 0) {
+	    rv = ssl_SendSavedWriteData(ss);
+	    if ((rv < 0) && (PORT_GetError() != PR_WOULD_BLOCK_ERROR)) {
+		ssl_ReleaseXmitBufLock(ss);
+		return SECFailure;
+	    }
+	}
+	ssl_ReleaseXmitBufLock(ss);
+    }
+
     ssl_Get1stHandshakeLock(ss);
 
     if (ss->version >= SSL_LIBRARY_VERSION_3_0) {
@@ -1128,7 +1140,6 @@ ssl_SecureRecv(sslSocket *ss, unsigned char *buf, int len, int flags)
 		ssl_ReleaseXmitBufLock(ss);
 		return SECFailure;
 	    }
-	    /* XXX short write? */
 	}
 	ssl_ReleaseXmitBufLock(ss);
     }
