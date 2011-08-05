@@ -266,10 +266,8 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       packet_timing_enabled_(false),
       done_(false),
       bytes_observed_in_packets_(0),
-      packet_times_(),
       request_time_snapshot_(),
       final_packet_time_(),
-      observed_packet_count_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           filter_context_(new HttpFilterContext(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
@@ -1299,22 +1297,10 @@ void URLRequestHttpJob::UpdatePacketReadTimes() {
     return;  // No new bytes have arrived.
   }
 
+  final_packet_time_ = base::Time::Now();
   if (!bytes_observed_in_packets_)
     request_time_snapshot_ = request_ ? request_->request_time() : base::Time();
 
-  final_packet_time_ = base::Time::Now();
-  const size_t kTypicalPacketSize = 1430;
-  while (filter_input_byte_count() > bytes_observed_in_packets_) {
-    ++observed_packet_count_;
-    if (packet_times_.size() < kSdchPacketHistogramCount) {
-      packet_times_.push_back(final_packet_time_);
-      DCHECK_EQ(static_cast<size_t>(observed_packet_count_),
-                packet_times_.size());
-    }
-    bytes_observed_in_packets_ += kTypicalPacketSize;
-  }
-  // Since packets may not be full, we'll remember the number of bytes we've
-  // accounted for in packets thus far.
   bytes_observed_in_packets_ = filter_input_byte_count();
 }
 
@@ -1326,116 +1312,28 @@ void URLRequestHttpJob::RecordPacketStats(
   base::TimeDelta duration = final_packet_time_ - request_time_snapshot_;
   switch (statistic) {
     case FilterContext::SDCH_DECODE: {
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_Latency_F_a", duration,
-                                  base::TimeDelta::FromMilliseconds(20),
-                                  base::TimeDelta::FromMinutes(10), 100);
-      UMA_HISTOGRAM_COUNTS_100("Sdch3.Network_Decode_Packets_b",
-                               static_cast<int>(observed_packet_count_));
       UMA_HISTOGRAM_CUSTOM_COUNTS("Sdch3.Network_Decode_Bytes_Processed_b",
           static_cast<int>(bytes_observed_in_packets_), 500, 100000, 100);
-      if (packet_times_.empty())
-        return;
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_1st_To_Last_a",
-                                  final_packet_time_ - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(20),
-                                  base::TimeDelta::FromMinutes(10), 100);
-
-      DCHECK_GT(kSdchPacketHistogramCount, 4u);
-      if (packet_times_.size() <= 4)
-        return;
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_1st_To_2nd_c",
-                                  packet_times_[1] - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_2nd_To_3rd_c",
-                                  packet_times_[2] - packet_times_[1],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_3rd_To_4th_c",
-                                  packet_times_[3] - packet_times_[2],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_4th_To_5th_c",
-                                  packet_times_[4] - packet_times_[3],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
       return;
     }
     case FilterContext::SDCH_PASSTHROUGH: {
       // Despite advertising a dictionary, we handled non-sdch compressed
       // content.
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_Latency_F_a",
-                                  duration,
-                                  base::TimeDelta::FromMilliseconds(20),
-                                  base::TimeDelta::FromMinutes(10), 100);
-      UMA_HISTOGRAM_COUNTS_100("Sdch3.Network_Pass-through_Packets_b",
-                               observed_packet_count_);
-      if (packet_times_.empty())
-        return;
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_1st_To_Last_a",
-                                  final_packet_time_ - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(20),
-                                  base::TimeDelta::FromMinutes(10), 100);
-      DCHECK_GT(kSdchPacketHistogramCount, 4u);
-      if (packet_times_.size() <= 4)
-        return;
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_1st_To_2nd_c",
-                                  packet_times_[1] - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_2nd_To_3rd_c",
-                                  packet_times_[2] - packet_times_[1],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_3rd_To_4th_c",
-                                  packet_times_[3] - packet_times_[2],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_4th_To_5th_c",
-                                  packet_times_[4] - packet_times_[3],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
       return;
     }
 
     case FilterContext::SDCH_EXPERIMENT_DECODE: {
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Decode",
+      UMA_HISTOGRAM_CUSTOM_TIMES("Sdch3.Experiment2_Decode",
                                   duration,
                                   base::TimeDelta::FromMilliseconds(20),
                                   base::TimeDelta::FromMinutes(10), 100);
-      // We already provided interpacket histograms above in the SDCH_DECODE
-      // case, so we don't need them here.
       return;
     }
     case FilterContext::SDCH_EXPERIMENT_HOLDBACK: {
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback",
+      UMA_HISTOGRAM_CUSTOM_TIMES("Sdch3.Experiment2_Holdback",
                                   duration,
                                   base::TimeDelta::FromMilliseconds(20),
                                   base::TimeDelta::FromMinutes(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback_1st_To_Last_a",
-                                  final_packet_time_ - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(20),
-                                  base::TimeDelta::FromMinutes(10), 100);
-
-      DCHECK_GT(kSdchPacketHistogramCount, 4u);
-      if (packet_times_.size() <= 4)
-        return;
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback_1st_To_2nd_c",
-                                  packet_times_[1] - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback_2nd_To_3rd_c",
-                                  packet_times_[2] - packet_times_[1],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback_3rd_To_4th_c",
-                                  packet_times_[3] - packet_times_[2],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback_4th_To_5th_c",
-                                  packet_times_[4] - packet_times_[3],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
       return;
     }
     default:
