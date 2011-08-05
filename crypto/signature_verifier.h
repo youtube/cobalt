@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "crypto/crypto_api.h"
+#include "crypto/crypto_export.h"
 
 #if defined(OS_WIN)
 #include "crypto/scoped_capi_types.h"
@@ -27,7 +27,7 @@ namespace crypto {
 
 // The SignatureVerifier class verifies a signature using a bare public key
 // (as opposed to a certificate).
-class CRYPTO_API SignatureVerifier {
+class CRYPTO_EXPORT SignatureVerifier {
  public:
   SignatureVerifier();
   ~SignatureVerifier();
