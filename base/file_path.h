@@ -104,7 +104,7 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "base/hash_tables.h"
 #include "base/string16.h"
@@ -124,7 +124,7 @@ class Pickle;
 
 // An abstraction to isolate users from the differences between native
 // pathnames on different platforms.
-class BASE_API FilePath {
+class BASE_EXPORT FilePath {
  public:
 #if defined(OS_POSIX)
   // On most platforms, native pathnames are char arrays, and the encoding

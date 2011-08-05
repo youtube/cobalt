@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/metrics/stats_table.h"
 #include "base/time.h"
 
@@ -75,7 +75,7 @@ namespace base {
 
 //------------------------------------------------------------------------------
 // StatsCounter represents a counter in the StatsTable class.
-class BASE_API StatsCounter {
+class BASE_EXPORT StatsCounter {
  public:
   // Create a StatsCounter object.
   explicit StatsCounter(const std::string& name);
@@ -129,7 +129,7 @@ class BASE_API StatsCounter {
 // A StatsCounterTimer is a StatsCounter which keeps a timer during
 // the scope of the StatsCounterTimer.  On destruction, it will record
 // its time measurement.
-class BASE_API StatsCounterTimer : protected StatsCounter {
+class BASE_EXPORT StatsCounterTimer : protected StatsCounter {
  public:
   // Constructs and starts the timer.
   explicit StatsCounterTimer(const std::string& name);
@@ -158,7 +158,7 @@ class BASE_API StatsCounterTimer : protected StatsCounter {
 // A StatsRate is a timer that keeps a count of the number of intervals added so
 // that several statistics can be produced:
 //    min, max, avg, count, total
-class BASE_API StatsRate : public StatsCounterTimer {
+class BASE_EXPORT StatsRate : public StatsCounterTimer {
  public:
   // Constructs and starts the timer.
   explicit StatsRate(const std::string& name);

@@ -6,7 +6,7 @@
 #define BASE_SYS_INFO_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 #include <string>
@@ -15,7 +15,7 @@ class FilePath;
 
 namespace base {
 
-class BASE_API SysInfo {
+class BASE_EXPORT SysInfo {
  public:
   // Return the number of logical processors/cores on the current machine.
   static int NumberOfProcessors();

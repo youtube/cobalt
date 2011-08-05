@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 
 // The Profiler functions allow usage of the underlying sampling based
 // profiler. If the application has not been built with the necessary
@@ -20,16 +20,16 @@ namespace debug {
 // Start profiling with the supplied name.
 // {pid} will be replaced by the process' pid and {count} will be replaced
 // by the count of the profile run (starts at 1 with each process).
-BASE_API void StartProfiling(const std::string& name);
+BASE_EXPORT void StartProfiling(const std::string& name);
 
 // Stop profiling and write out data.
-BASE_API void StopProfiling();
+BASE_EXPORT void StopProfiling();
 
 // Force data to be written to file.
-BASE_API void FlushProfiling();
+BASE_EXPORT void FlushProfiling();
 
 // Returns true if process is being profiled.
-BASE_API bool BeingProfiled();
+BASE_EXPORT bool BeingProfiled();
 
 }  // namespace debug
 }  // namespace base

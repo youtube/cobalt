@@ -9,7 +9,7 @@
 #include <windows.h>
 #include <oleauto.h>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 namespace base {
@@ -21,7 +21,7 @@ namespace win {
 // Instead of inheriting from VARIANT, we take the containment approach
 // in order to have more control over the usage of the variant and guard
 // against memory leaks.
-class BASE_API ScopedVariant {
+class BASE_EXPORT ScopedVariant {
  public:
   // Declaration of a global variant variable that's always VT_EMPTY
   static const VARIANT kEmptyVariant;
