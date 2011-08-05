@@ -33,7 +33,7 @@ namespace media {
 // the callback to get fired and call status() to see what the callback's
 // argument was.  This object is for one-time use; call |Callback()| exactly
 // once.
-class MEDIA_EXPORT PipelineStatusNotification {
+class PipelineStatusNotification {
  public:
   PipelineStatusNotification();
   ~PipelineStatusNotification();
@@ -91,7 +91,7 @@ class MEDIA_EXPORT PipelineStatusNotification {
 // If any error ever happens, this object will transition to the "Error" state
 // from any state. If Stop() is ever called, this object will transition to
 // "Stopped" state.
-class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
+class PipelineImpl : public Pipeline, public FilterHost {
  public:
   explicit PipelineImpl(MessageLoop* message_loop);
 
