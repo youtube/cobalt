@@ -10,6 +10,9 @@ LLVM_DIR="${THIS_DIR}"/../../../third_party/llvm
 CLANG_DIR="${LLVM_DIR}"/tools/clang
 DEPS_FILE="${THIS_DIR}"/../../../DEPS
 
+# ${A:-a} returns $A if it's set, a else.
+LLVM_REPO_URL=${LLVM_URL:-http://llvm.org/svn/llvm-project}
+
 # Die if any command dies.
 set -e
 
@@ -22,18 +25,14 @@ if grep -q 'src/third_party/llvm":' "${DEPS_FILE}"; then
   echo LLVM pulled in through DEPS, skipping LLVM update step
 else
   echo Getting LLVM r"${CLANG_REVISION}" in "${LLVM_DIR}"
-  svn co --force \
-    http://llvm.org/svn/llvm-project/llvm/trunk@"${CLANG_REVISION}" \
-    "${LLVM_DIR}"
+  svn co --force "${LLVM_REPO_URL}"/llvm/trunk@"${CLANG_REVISION}" "${LLVM_DIR}"
 fi
 
 if grep -q 'src/third_party/llvm/tools/clang":' "${DEPS_FILE}"; then
   echo clang pulled in through DEPS, skipping clang update step
 else
   echo Getting clang r"${CLANG_REVISION}" in "${CLANG_DIR}"
-  svn co --force \
-    http://llvm.org/svn/llvm-project/cfe/trunk@"${CLANG_REVISION}" \
-    "${CLANG_DIR}"
+  svn co --force "${LLVM_REPO_URL}"/cfe/trunk@"${CLANG_REVISION}" "${CLANG_DIR}"
 fi
 
 # Echo all commands.
