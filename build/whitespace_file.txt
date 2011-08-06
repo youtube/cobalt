@@ -7,4 +7,6 @@ any modification below this line.
 
 =======================================================================
 
-will it blend?
+Let's make a story. Add one sentence for each commit:
+
+Joe was wondering: will it blend?
