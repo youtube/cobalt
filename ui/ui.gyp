@@ -181,6 +181,7 @@
         'base/ui_base_paths.h',
         'base/ui_base_switches.cc',
         'base/ui_base_switches.h',
+        'base/ui_export.h',
         'base/view_prop.cc',
         'base/view_prop.h',
         'base/win/hwnd_util.cc',
@@ -274,7 +275,6 @@
         'gfx/skia_utils_gtk.h',
         'gfx/transform.h',
         'gfx/transform.cc',
-        'ui_api.h',
       ],
       'conditions': [
         ['toolkit_uses_gtk == 1', {
