@@ -229,7 +229,7 @@ class VideoDecodeAccelerator
   //  |config| is the configuration on which the decoder should be initialized.
   //
   // Returns true when command successfully accepted. Otherwise false.
-  virtual bool Initialize(const std::vector<uint32>& config) = 0;
+  virtual bool Initialize(const std::vector<int32>& config) = 0;
 
   // Decodes given bitstream buffer. Once decoder is done with processing
   // |bitstream_buffer| it will call NotifyEndOfBitstreamBuffer() with the
