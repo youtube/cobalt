@@ -28,7 +28,7 @@ namespace gfx {
 
 class Insets;
 
-class UI_API Rect {
+class UI_EXPORT Rect {
  public:
   Rect();
   Rect(int width, int height);
@@ -177,7 +177,7 @@ class UI_API Rect {
   gfx::Size size_;
 };
 
-UI_API std::ostream& operator<<(std::ostream& out, const gfx::Rect& r);
+UI_EXPORT std::ostream& operator<<(std::ostream& out, const gfx::Rect& r);
 
 }  // namespace gfx
 
