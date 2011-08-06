@@ -9,7 +9,7 @@
 #include <iosfwd>
 
 #include "build/build_config.h"
-#include "ui/ui_api.h"
+#include "ui/base/ui_export.h"
 
 #if defined(OS_WIN)
 typedef struct tagSIZE SIZE;
@@ -20,7 +20,7 @@ typedef struct tagSIZE SIZE;
 namespace gfx {
 
 // A size has width and height values.
-class UI_API Size {
+class UI_EXPORT Size {
  public:
   Size() : width_(0), height_(0) {}
   Size(int width, int height);
@@ -76,7 +76,7 @@ class UI_API Size {
   int height_;
 };
 
-UI_API std::ostream& operator<<(std::ostream& out, const gfx::Size& s);
+UI_EXPORT std::ostream& operator<<(std::ostream& out, const gfx::Size& s);
 
 }  // namespace gfx
 
