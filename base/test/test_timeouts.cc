@@ -44,7 +44,7 @@ bool TestTimeouts::initialized_ = false;
 // static
 int TestTimeouts::tiny_timeout_ms_ = 100;
 int TestTimeouts::action_timeout_ms_ = 2000;
-int TestTimeouts::action_max_timeout_ms_ = 25000;
+int TestTimeouts::action_max_timeout_ms_ = 29000;
 int TestTimeouts::large_test_timeout_ms_ = 3 * 60 * 1000;
 int TestTimeouts::huge_test_timeout_ms_ = 10 * 60 * 1000;
 
