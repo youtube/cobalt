@@ -45,6 +45,7 @@
 #include <string>
 #include <vector>
 
+#include "base/atomicops.h"
 #include "base/base_export.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
@@ -55,6 +56,79 @@ class Pickle;
 namespace base {
 
 class Lock;
+//------------------------------------------------------------------------------
+// Histograms are often put in areas where they are called many many times, and
+// performance is critical.  As a result, they are designed to have a very low
+// recurring cost of executing (adding additional samples).  Toward that end,
+// the macros declare a static pointer to the histogram in question, and only
+// take a "slow path" to construct (or find) the histogram on the first run
+// through the macro.  We leak the histograms at shutdown time so that we don't
+// have to validate using the pointers at any time during the running of the
+// process.
+
+// The following code is generally what a thread-safe static pointer
+// initializaion looks like for a histogram (after a macro is expanded).  This
+// sample is an expansion (with comments) of the code for
+// HISTOGRAM_CUSTOM_COUNTS().
+
+/*
+  do {
+    // The pointer's presence indicates the initialization is complete.
+    // Initialization is idempotent, so it can safely be atomically repeated.
+    static base::subtle::AtomicWord atomic_histogram_pointer = 0;
+
+    // Acquire_Load() ensures that we acquire visibility to the pointed-to data
+    // in the histogrom.
+    base::Histogram* histogram_pointer(reinterpret_cast<base::Histogram*>(
+        base::subtle::Acquire_Load(&atomic_histogram_pointer)));
+
+    if (!histogram_pointer) {
+      // This is the slow path, which will construct OR find the matching
+      // histogram.  FactoryGet includes locks on a global histogram name map
+      // and is completely thread safe.
+      histogram_pointer = base::Histogram::FactoryGet(
+          name, min, max, bucket_count, base::Histogram::kNoFlags);
+
+      // Use Release_Store to ensure that the histogram data is made available
+      // globally before we make the pointer visible.
+      // Several threads may perform this store, but the same value will be
+      // stored in all cases (for a given named/spec'ed histogram).
+      // We could do this without any barrier, since FactoryGet entered and
+      // exited a lock after construction, but this barrier makes things clear.
+      base::subtle::Release_Store(&atomic_histogram_pointer,
+          reinterpret_cast<base::subtle::AtomicWord>(histogram_pointer));
+    }
+
+    // Ensure calling contract is upheld, and the name does NOT vary.
+    DCHECK(histogram_pointer->histogram_name() == constant_histogram_name);
+
+    histogram_pointer->Add(sample);
+  } while (0);
+*/
+
+// The above pattern is repeated in several macros.  The only elements that
+// vary are the invocation of the Add(sample) vs AddTime(sample), and the choice
+// of which FactoryGet method to use.  The different FactoryGet methods have
+// various argument lists, so the function with its argument list is provided as
+// a macro argument here.  The name is only used in a DCHECK, to assure that
+// callers don't try to vary the name of the histogram (which would tend to be
+// ignored by the one-time initialization of the histogtram_pointer).
+#define STATIC_HISTOGRAM_POINTER_BLOCK(constant_histogram_name, \
+                                       histogram_add_method_invocation, \
+                                       histogram_factory_get_invocation) \
+  do { \
+    static base::subtle::AtomicWord atomic_histogram_pointer = 0; \
+    base::Histogram* histogram_pointer(reinterpret_cast<base::Histogram*>( \
+        base::subtle::Acquire_Load(&atomic_histogram_pointer))); \
+    if (!histogram_pointer) { \
+      histogram_pointer = histogram_factory_get_invocation; \
+      base::subtle::Release_Store(&atomic_histogram_pointer, \
+          reinterpret_cast<base::subtle::AtomicWord>(histogram_pointer)); \
+    } \
+    DCHECK(histogram_pointer->histogram_name() == constant_histogram_name); \
+    histogram_pointer->histogram_add_method_invocation; \
+  } while (0)
+
 
 //------------------------------------------------------------------------------
 // Provide easy general purpose histogram in a macro, just like stats counters.
@@ -73,63 +147,36 @@ class Lock;
 #define HISTOGRAM_COUNTS_10000(name, sample) HISTOGRAM_CUSTOM_COUNTS( \
     name, sample, 1, 10000, 50)
 
-#define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::Histogram::FactoryGet(name, min, max, bucket_count, \
-                                            base::Histogram::kNoFlags); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    counter->Add(sample); \
-  } while (0)
+#define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
+    STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
+        base::Histogram::FactoryGet(name, min, max, bucket_count, \
+                                    base::Histogram::kNoFlags))
 
 #define HISTOGRAM_PERCENTAGE(name, under_one_hundred) \
     HISTOGRAM_ENUMERATION(name, under_one_hundred, 101)
 
 // For folks that need real specific times, use this to select a precise range
 // of times you want plotted, and the number of buckets you want used.
-#define HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
-                                                base::Histogram::kNoFlags); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    counter->AddTime(sample); \
-  } while (0)
-
-// DO NOT USE THIS.  It is being phased out, in favor of HISTOGRAM_CUSTOM_TIMES.
-#define HISTOGRAM_CLIPPED_TIMES(name, sample, min, max, bucket_count) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
-                                                base::Histogram::kNoFlags); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    if ((sample) < (max)) counter->AddTime(sample); \
-  } while (0)
+#define HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) \
+    STATIC_HISTOGRAM_POINTER_BLOCK(name, AddTime(sample), \
+        base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
+                                        base::Histogram::kNoFlags))
 
 // Support histograming of an enumerated value.  The samples should always be
 // less than boundary_value.
-#define HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
-          boundary_value + 1, base::Histogram::kNoFlags); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    counter->Add(sample); \
-  } while (0)
+#define HISTOGRAM_ENUMERATION(name, sample, boundary_value) \
+    STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
+        base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
+            boundary_value + 1, base::Histogram::kNoFlags))
 
 // Support histograming of an enumerated value. Samples should be one of the
 // std::vector<int> list provided via |custom_ranges|. You can use the helper
 // function |base::CustomHistogram::ArrayToCustomRanges(samples, num_samples)|
 // to transform a C-style array of valid sample values to a std::vector<int>.
-#define HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::CustomHistogram::FactoryGet(name, custom_ranges, \
-                                                  base::Histogram::kNoFlags); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    counter->Add(sample); \
-  } while (0)
-
+#define HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) \
+    STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
+        base::CustomHistogram::FactoryGet(name, custom_ranges, \
+                                          base::Histogram::kNoFlags))
 
 //------------------------------------------------------------------------------
 // Define Debug vs non-debug flavors of macros.
@@ -186,24 +233,10 @@ class Lock;
     name, sample, base::TimeDelta::FromMilliseconds(1), \
     base::TimeDelta::FromHours(1), 50)
 
-#define UMA_HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
-            base::Histogram::kUmaTargetedHistogramFlag); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    counter->AddTime(sample); \
-  } while (0)
-
-// DO NOT USE THIS.  It is being phased out, in favor of HISTOGRAM_CUSTOM_TIMES.
-#define UMA_HISTOGRAM_CLIPPED_TIMES(name, sample, min, max, bucket_count) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
-           base::Histogram::kUmaTargetedHistogramFlag); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    if ((sample) < (max)) counter->AddTime(sample); \
-  } while (0)
+#define UMA_HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) \
+    STATIC_HISTOGRAM_POINTER_BLOCK(name, AddTime(sample), \
+        base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
+            base::Histogram::kUmaTargetedHistogramFlag))
 
 #define UMA_HISTOGRAM_COUNTS(name, sample) UMA_HISTOGRAM_CUSTOM_COUNTS( \
     name, sample, 1, 1000000, 50)
@@ -214,14 +247,10 @@ class Lock;
 #define UMA_HISTOGRAM_COUNTS_10000(name, sample) UMA_HISTOGRAM_CUSTOM_COUNTS( \
     name, sample, 1, 10000, 50)
 
-#define UMA_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::Histogram::FactoryGet(name, min, max, bucket_count, \
-          base::Histogram::kUmaTargetedHistogramFlag); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    counter->Add(sample); \
-  } while (0)
+#define UMA_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
+    STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
+        base::Histogram::FactoryGet(name, min, max, bucket_count, \
+            base::Histogram::kUmaTargetedHistogramFlag))
 
 #define UMA_HISTOGRAM_MEMORY_KB(name, sample) UMA_HISTOGRAM_CUSTOM_COUNTS( \
     name, sample, 1000, 500000, 50)
@@ -232,32 +261,20 @@ class Lock;
 #define UMA_HISTOGRAM_PERCENTAGE(name, under_one_hundred) \
     UMA_HISTOGRAM_ENUMERATION(name, under_one_hundred, 101)
 
-#define UMA_HISTOGRAM_BOOLEAN(name, sample) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::BooleanHistogram::FactoryGet(name, \
-          base::Histogram::kUmaTargetedHistogramFlag); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    counter->AddBoolean(sample); \
-  } while (0)
+#define UMA_HISTOGRAM_BOOLEAN(name, sample) \
+    STATIC_HISTOGRAM_POINTER_BLOCK(name, AddBoolean(sample), \
+        base::BooleanHistogram::FactoryGet(name, \
+            base::Histogram::kUmaTargetedHistogramFlag))
 
-#define UMA_HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
-          boundary_value + 1, base::Histogram::kUmaTargetedHistogramFlag); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    counter->Add(sample); \
-  } while (0)
+#define UMA_HISTOGRAM_ENUMERATION(name, sample, boundary_value) \
+    STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
+        base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
+            boundary_value + 1, base::Histogram::kUmaTargetedHistogramFlag))
 
-#define UMA_HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) do { \
-    static base::Histogram* counter(NULL); \
-    if (!counter) \
-      counter = base::CustomHistogram::FactoryGet(name, custom_ranges, \
-          base::Histogram::kUmaTargetedHistogramFlag); \
-    DCHECK_EQ(name, counter->histogram_name()); \
-    counter->Add(sample); \
-  } while (0)
+#define UMA_HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) \
+    STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
+        base::CustomHistogram::FactoryGet(name, custom_ranges, \
+            base::Histogram::kUmaTargetedHistogramFlag))
 
 //------------------------------------------------------------------------------
 
