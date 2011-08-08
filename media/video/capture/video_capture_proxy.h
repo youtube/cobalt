@@ -25,8 +25,7 @@ namespace media {
 // state from the "main thread" is fundamentally racy. Instead this class keeps
 // track of the state every time it is called by the VideoCapture (on the VC
 // thread), and forwards that information to the main thread.
-class MEDIA_EXPORT VideoCaptureHandlerProxy
-    : public VideoCapture::EventHandler {
+class VideoCaptureHandlerProxy : public VideoCapture::EventHandler {
  public:
   struct VideoCaptureState {
     VideoCaptureState() : started(false), width(0), height(0), frame_rate(0) {}

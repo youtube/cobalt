@@ -10,14 +10,13 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop_proxy.h"
-#include "media/base/media_export.h"
 
 class MessageLoop;
 
 namespace media {
 
 // Factory object that manages named MessageLoops.
-class MEDIA_EXPORT MessageLoopFactory {
+class MessageLoopFactory {
  public:
   // Get the message loop associated with |name|. A new MessageLoop
   // is created if the factory doesn't have one associated with |name|.

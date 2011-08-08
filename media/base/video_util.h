@@ -6,7 +6,6 @@
 #define MEDIA_BASE_VIDEO_UTIL_H_
 
 #include "base/basictypes.h"
-#include "media/base/media_export.h"
 
 namespace media {
 
@@ -16,12 +15,9 @@ class VideoFrame;
 // source and destinations dimensions.
 //
 // NOTE: rows is *not* the same as height!
-MEDIA_EXPORT void CopyYPlane(const uint8* source, int stride, int rows,
-                             VideoFrame* frame);
-MEDIA_EXPORT void CopyUPlane(const uint8* source, int stride, int rows,
-                             VideoFrame* frame);
-MEDIA_EXPORT void CopyVPlane(const uint8* source, int stride, int rows,
-                             VideoFrame* frame);
+void CopyYPlane(const uint8* source, int stride, int rows, VideoFrame* frame);
+void CopyUPlane(const uint8* source, int stride, int rows, VideoFrame* frame);
+void CopyVPlane(const uint8* source, int stride, int rows, VideoFrame* frame);
 
 }  // namespace media
 
