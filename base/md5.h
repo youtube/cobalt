@@ -67,7 +67,4 @@ BASE_EXPORT std::string MD5String(const StringPiece& str);
 
 }  // namespace base
 
-// TODO(tfarina): Fix third_party/hunspell then remove this hack.
-using base::MD5Digest;
-
 #endif  // BASE_MD5_H_
