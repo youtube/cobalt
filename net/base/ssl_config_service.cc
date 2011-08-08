@@ -52,7 +52,7 @@ SSLConfigService::SSLConfigService()
 // static
 bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
     const std::string& hostname) {
-  return SSLFalseStartBlacklist::IsMember(hostname);
+  return SSLFalseStartBlacklist::IsMember(hostname.c_str());
 }
 
 static bool g_cached_info_enabled = false;

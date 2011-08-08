@@ -7,7 +7,6 @@
     {
       'target_name': 'dynamic_annotations',
       'type': 'static_library',
-      'toolsets': ['host', 'target'],
       'include_dirs': [
         '../../../',
       ],
