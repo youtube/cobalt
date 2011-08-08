@@ -1154,7 +1154,16 @@
             ],
           },
           'VCLinkerTool': {
+            # LinkIncremental is a tri-state boolean, where 0 means default
+            # (i.e., inherit from parent solution), 1 means false, and
+            # 2 means true.
             'LinkIncremental': '1',
+            # This corresponds to the /PROFILE flag which ensures the PDB
+            # file contains FIXUP information (growing the PDB file by about
+            # 5%) but does not otherwise alter the output binary. This
+            # information is used by the Syzygy optimization tool when
+            # decomposing the release image.
+            'Profile': 'true',
           },
         },
         'conditions': [
