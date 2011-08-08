@@ -49,7 +49,7 @@ class Task;
 //
 namespace media {
 
-class AudioOutputController
+class MEDIA_EXPORT AudioOutputController
     : public base::RefCountedThreadSafe<AudioOutputController>,
       public AudioOutputStream::AudioSourceCallback {
  public:

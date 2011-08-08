@@ -15,7 +15,7 @@ namespace media {
 
 // This is a collection of Filter objects used to form a media playback
 // pipeline. See src/media/base/pipeline.h for more information.
-class FilterCollection {
+class MEDIA_EXPORT FilterCollection {
  public:
   FilterCollection();
   ~FilterCollection();

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,8 @@
 
 #ifndef MEDIA_BASE_MEDIA_H_
 #define MEDIA_BASE_MEDIA_H_
+
+#include "media/base/media_export.h"
 
 class FilePath;
 
@@ -23,11 +25,11 @@ namespace media {
 // of the process.
 //
 // Returns true if everything was successfully initialized, false otherwise.
-bool InitializeMediaLibrary(const FilePath& module_dir);
+MEDIA_EXPORT bool InitializeMediaLibrary(const FilePath& module_dir);
 
 // Use this if you need to check whether the media library is initialized
 // for the this process, without actually trying to initialize it.
-bool IsMediaLibraryInitialized();
+MEDIA_EXPORT bool IsMediaLibraryInitialized();
 
 // Attempts to initialize OpenMAX library.
 //
