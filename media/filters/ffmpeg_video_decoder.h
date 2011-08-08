@@ -19,7 +19,7 @@ namespace media {
 
 class VideoDecodeEngine;
 
-class FFmpegVideoDecoder
+class MEDIA_EXPORT FFmpegVideoDecoder
     : public VideoDecoder,
       public VideoDecodeEngine::EventHandler {
  public:

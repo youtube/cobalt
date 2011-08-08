@@ -7,10 +7,11 @@
 
 #include "base/basictypes.h"
 #include "media/base/audio_decoder_config.h"
+#include "media/base/media_export.h"
 
-struct AudioParameters {
+struct MEDIA_EXPORT AudioParameters {
   // Compare is useful when AudioParameters is used as a key in std::map.
-  class Compare {
+  class MEDIA_EXPORT Compare {
    public:
     bool operator()(const AudioParameters& a, const AudioParameters& b) const;
   };
@@ -19,7 +20,7 @@ struct AudioParameters {
     AUDIO_PCM_LINEAR = 0,     // PCM is 'raw' amplitude samples.
     AUDIO_PCM_LOW_LATENCY,    // Linear PCM, low latency requested.
     AUDIO_MOCK,               // Creates a dummy AudioOutputStream object.
-    AUDIO_LAST_FORMAT         // Only used for validation of format.
+    AUDIO_LAST_FORMAT         // Only used for validation of format.y
   };
 
   // Telephone quality sample rate, mostly for speech-only audio.

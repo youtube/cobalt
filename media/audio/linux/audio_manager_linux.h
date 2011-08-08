@@ -14,7 +14,7 @@
 class AlsaPcmOutputStream;
 class AlsaWrapper;
 
-class AudioManagerLinux : public AudioManagerBase {
+class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
  public:
   AudioManagerLinux();
 
