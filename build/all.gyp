@@ -420,7 +420,6 @@
             '../chrome/chrome.gyp:performance_ui_tests',
             '../chrome/chrome.gyp:plugin_tests',
             '../chrome/chrome.gyp:safe_browsing_tests',
-            '../chrome/chrome.gyp:selenium_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
             '../chrome/chrome.gyp:sync_unit_tests',
             '../chrome/chrome.gyp:ui_tests',
