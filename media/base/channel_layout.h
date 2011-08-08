@@ -5,8 +5,6 @@
 #ifndef MEDIA_BASE_CHANNEL_LAYOUT_H_
 #define MEDIA_BASE_CHANNEL_LAYOUT_H_
 
-#include "media/base/media_export.h"
-
 enum ChannelLayout {
   CHANNEL_LAYOUT_NONE = 0,
   CHANNEL_LAYOUT_UNSUPPORTED,
@@ -86,6 +84,6 @@ enum Channels {
 extern const int kChannelOrderings[CHANNEL_LAYOUT_MAX][CHANNELS_MAX];
 
 // Returns the number of channels in a given ChannelLayout.
-MEDIA_EXPORT int ChannelLayoutToChannelCount(ChannelLayout layout);
+int ChannelLayoutToChannelCount(ChannelLayout layout);
 
 #endif  // MEDIA_BASE_CHANNEL_LAYOUT_H_

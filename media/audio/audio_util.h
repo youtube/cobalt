@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "media/base/media_export.h"
 
 namespace media {
 
@@ -27,11 +26,11 @@ namespace media {
 // formats.
 // The buffer is modified in-place to avoid memory management, as this
 // function may be called in performance critical code.
-MEDIA_EXPORT bool AdjustVolume(void* buf,
-                               size_t buflen,
-                               int channels,
-                               int bytes_per_sample,
-                               float volume);
+bool AdjustVolume(void* buf,
+                  size_t buflen,
+                  int channels,
+                  int bytes_per_sample,
+                  float volume);
 
 // FoldChannels() does a software multichannel folding down to stereo.
 // Channel order is assumed to be 5.1 Dolby standard which is
@@ -46,11 +45,11 @@ MEDIA_EXPORT bool AdjustVolume(void* buf,
 // volume.
 // The buffer is modified in-place to avoid memory management, as this
 // function may be called in performance critical code.
-MEDIA_EXPORT bool FoldChannels(void* buf,
-                               size_t buflen,
-                               int channels,
-                               int bytes_per_sample,
-                               float volume);
+bool FoldChannels(void* buf,
+                  size_t buflen,
+                  int channels,
+                  int bytes_per_sample,
+                  float volume);
 
 // DeinterleaveAudioChannel() takes interleaved audio buffer |source|
 // of the given |sample_fmt| and |number_of_channels| and extracts
@@ -71,12 +70,12 @@ bool DeinterleaveAudioChannel(void* source,
 // The size of the |source| vector determines the number of channels.
 // The |destination| buffer is assumed to be large enough to hold the
 // result. Thus it must be at least size: number_of_frames * source.size()
-MEDIA_EXPORT void InterleaveFloatToInt16(const std::vector<float*>& source,
-                                         int16* destination,
-                                         size_t number_of_frames);
+void InterleaveFloatToInt16(const std::vector<float*>& source,
+                            int16* destination,
+                            size_t number_of_frames);
 
 // Returns the default audio hardware sample-rate.
-MEDIA_EXPORT double GetAudioHardwareSampleRate();
+double GetAudioHardwareSampleRate();
 
 }  // namespace media
 

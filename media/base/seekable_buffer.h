@@ -41,7 +41,7 @@
 
 namespace media {
 
-class MEDIA_EXPORT SeekableBuffer {
+class SeekableBuffer {
  public:
   // Constructs an instance with |forward_capacity| and |backward_capacity|.
   // The values are in bytes.

@@ -125,7 +125,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerStream);
 };
 
-class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
+class FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
  public:
   explicit FFmpegDemuxer(MessageLoop* message_loop);
   virtual ~FFmpegDemuxer();
