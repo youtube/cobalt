@@ -19,6 +19,8 @@
           'third_party/icu/icu_utf.h',
           'third_party/nspr/prtime.cc',
           'third_party/nspr/prtime.h',
+          'android/scoped_java_global_reference.h',
+          'android/scoped_java_reference.h',
           'at_exit.cc',
           'at_exit.h',
           'atomic_ref_count.h',
@@ -408,6 +410,10 @@
           ],
           ['OS != "win"', {
               'sources/': [ ['exclude', '^win/'] ],
+            },
+          ],
+          ['OS != "android"', {
+              'sources/': [ ['exclude', '^android/'] ],
             },
           ],
           [ 'OS == "win"', {
