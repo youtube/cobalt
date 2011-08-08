@@ -6,6 +6,7 @@
 
 #include "base/atomic_sequence_num.h"
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
 
 namespace media {
 
@@ -55,6 +56,8 @@ MediaLogEvent* MediaLog::CreateEvent(MediaLogEvent::Type type) {
   return event;
 }
 
-void MediaLog::AddEvent(MediaLogEvent* event) {}
+void MediaLog::AddEvent(MediaLogEvent* event) {
+  scoped_ptr<MediaLogEvent> e(event);
+}
 
 }  //namespace media
