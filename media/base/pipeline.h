@@ -21,7 +21,7 @@ class TimeDelta;
 
 namespace media {
 
-MEDIA_EXPORT extern const char kRawMediaScheme[];
+extern const char kRawMediaScheme[];
 
 struct PipelineStatistics {
   PipelineStatistics() :
@@ -39,7 +39,7 @@ struct PipelineStatistics {
 
 class FilterCollection;
 
-class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
+class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
   // Initializes pipeline. Pipeline takes ownership of all callbacks passed
   // into this method.

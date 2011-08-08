@@ -9,7 +9,7 @@
 
 namespace media {
 
-class MEDIA_EXPORT VideoFrame : public StreamSample {
+class VideoFrame : public StreamSample {
  public:
   static const size_t kMaxPlanes = 3;
 
