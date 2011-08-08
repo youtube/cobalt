@@ -7,11 +7,12 @@
 #pragma once
 
 #include "base/memory/ref_counted.h"
+#include "media/base/media_export.h"
 #include "media/base/media_log_event.h"
 
 namespace media {
 
-class MediaLog : public base::RefCountedThreadSafe<MediaLog> {
+class MEDIA_EXPORT MediaLog : public base::RefCountedThreadSafe<MediaLog> {
  public:
 
   // Return a string to represent an EventType.

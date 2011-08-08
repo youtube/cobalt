@@ -46,7 +46,7 @@ class AlsaWrapper;
 class AudioManagerLinux;
 class MessageLoop;
 
-class AlsaPcmOutputStream : public AudioOutputStream {
+class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
  public:
   // String for the generic "default" ALSA device that has the highest
   // compatibility and chance of working.
@@ -218,5 +218,8 @@ class AlsaPcmOutputStream : public AudioOutputStream {
 
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmOutputStream);
 };
+
+MEDIA_EXPORT std::ostream& operator<<(std::ostream& os,
+                                      AlsaPcmOutputStream::InternalState);
 
 #endif  // MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_
