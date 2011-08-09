@@ -170,12 +170,6 @@ NET_API std::string GetHeaderParamValue(const std::string& header,
 //
 // This function does not do any escaping and callers are responsible for
 // escaping 'unsafe' characters (e.g. (back)slash, colon) as they see fit.
-//
-// TODO(jungshik): revisit this issue. At the moment, the only caller
-// net_util::GetSuggestedFilename and it calls ReplaceIllegalCharacters.  The
-// other caller is a unit test. Need to figure out expose this function only to
-// net_util_unittest.
-//
 NET_TEST std::string GetFileNameFromCD(const std::string& header,
                                        const std::string& referrer_charset);
 
@@ -260,6 +254,39 @@ NET_API string16 GetSuggestedFilename(const GURL& url,
                                       const std::string& referrer_charset,
                                       const std::string& suggested_name,
                                       const string16& default_name);
+
+// Generate a filename based on a HTTP request.
+//
+// The |url|, |content_disposition|, |referrer_charset|, |suggested_name|, and
+// |default_name| parameters will be used with GetSuggestedFilename() to
+// generate a filename.  The resulting filename will be passed in along with the
+// |mime_type| to GenerateSafeFileName() to generate the returned filename.
+NET_API FilePath GenerateFileName(const GURL& url,
+                                  const std::string& content_disposition,
+                                  const std::string& referrer_charset,
+                                  const std::string& suggested_name,
+                                  const std::string& mime_type,
+                                  const string16& default_name);
+
+// Ensures that the filename and extension is safe to use in the filesystem.
+//
+// Assumes that |file_path| already contains a valid path or file name.  On
+// Windows if the extension causes the file to have an unsafe interaction with
+// the shell (see net_util::IsShellIntegratedExtension()), then it will be
+// replaced by the string 'download'.  If |file_path| doesn't contain an
+// extension and |mime_type| is non-empty, the preferred extension for
+// |mime_type| will be used as the extension.
+//
+// On Windows, the filename will be checked against a set of reserved names, and
+// if so, an underscore will be prepended to the name.
+//
+// |file_name| can either be just the file name or it can be a full path to a
+// file.
+//
+// Note: |mime_type| should only be non-empty if this function is called from a
+// thread that allows IO.
+NET_API void GenerateSafeFileName(const std::string& mime_type,
+                                  FilePath* file_path);
 
 // Checks the given port against a list of ports which are restricted by
 // default.  Returns true if the port is allowed, false if it is restricted.
