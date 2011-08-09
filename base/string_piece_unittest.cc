@@ -5,6 +5,7 @@
 #include <string>
 
 #include "base/string_piece.h"
+#include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -538,6 +539,236 @@ TEST(StringPieceTest, StringCompareNotAmbiguous) {
 TEST(StringPieceTest, HeterogenousStringPieceEquals) {
   ASSERT_TRUE(StringPiece("hello") == std::string("hello"));
   ASSERT_TRUE("hello" == StringPiece("hello"));
+}
+
+TEST(StringPiece16Test, CheckComparisonOperators) {
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("")) ==
+              StringPiece16(ASCIIToUTF16("")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) ==
+              StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) ==
+              StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) ==
+               StringPiece16(ASCIIToUTF16("")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("")) ==
+               StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) ==
+               StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) ==
+               StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) ==
+               StringPiece16(ASCIIToUTF16("a")));
+
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("")) !=
+               StringPiece16(ASCIIToUTF16("")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) !=
+               StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) !=
+               StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) !=
+              StringPiece16(ASCIIToUTF16("")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("")) !=
+              StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) !=
+              StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) !=
+              StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) !=
+              StringPiece16(ASCIIToUTF16("a")));
+
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <
+              StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <
+              StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <
+              StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <
+              StringPiece16(ASCIIToUTF16("bb")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) <
+               StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <
+               StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) <
+               StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <
+               StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("bb")) <
+               StringPiece16(ASCIIToUTF16("aa")));
+
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
+              StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
+              StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
+              StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <=
+              StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <=
+              StringPiece16(ASCIIToUTF16("bb")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <=
+               StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) <=
+               StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <=
+               StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("bb")) <=
+               StringPiece16(ASCIIToUTF16("aa")));
+
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
+              StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
+              StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
+              StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <=
+              StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <=
+              StringPiece16(ASCIIToUTF16("bb")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <=
+               StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) <=
+               StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <=
+               StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("bb")) <=
+               StringPiece16(ASCIIToUTF16("aa")));
+
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) >=
+               StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) >=
+               StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) >=
+               StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) >=
+               StringPiece16(ASCIIToUTF16("bb")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) >=
+              StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("b")) >=
+              StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) >=
+              StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("b")) >=
+              StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("bb")) >=
+              StringPiece16(ASCIIToUTF16("aa")));
+
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) >
+               StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) >
+               StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) >
+               StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) >
+               StringPiece16(ASCIIToUTF16("b")));
+  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) >
+               StringPiece16(ASCIIToUTF16("bb")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("b")) >
+              StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) >
+              StringPiece16(ASCIIToUTF16("a")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("b")) >
+              StringPiece16(ASCIIToUTF16("aa")));
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("bb")) >
+              StringPiece16(ASCIIToUTF16("aa")));
+
+  string16 x;
+  for (int i = 0; i < 256; i++) {
+    x += 'a';
+    string16 y = x;
+    ASSERT_EQ(StringPiece16(x), StringPiece16(y));
+    for (int j = 0; j < i; j++) {
+      string16 z = x;
+      z[j] = 'b';       // Differs in position 'j'
+      ASSERT_NE(StringPiece16(x), StringPiece16(z));
+    }
+  }
+}
+
+TEST(StringPiece16Test, CheckSTL) {
+  string16 first = ASCIIToUTF16("abcdefghijklmnopqrstuvwxyz");
+  StringPiece16 a(first);
+  string16 second = ASCIIToUTF16("abc");
+  StringPiece16 b(second.c_str());
+  string16 third = ASCIIToUTF16("xyz");
+  StringPiece16 c(third.c_str(), third.size());
+  string16 fourth = ASCIIToUTF16("foobarrandomstuff");
+  StringPiece16 d(fourth.c_str(), 6);
+  StringPiece16 e;
+  // Check some non-ascii characters.
+  string16 fifth(ASCIIToUTF16("123"));
+  fifth.push_back(0x0000);
+  fifth.push_back(0xd8c5);
+  fifth.push_back(0xdffe);
+  StringPiece16 f(fifth);
+
+  ASSERT_EQ(a[6], 'g');
+  ASSERT_EQ(b[0], 'a');
+  ASSERT_EQ(c[2], 'z');
+  ASSERT_EQ(f[3], '\0');
+  ASSERT_EQ(f[5], static_cast<char16>(0xdffe));
+
+  ASSERT_EQ(*d.data(), 'f');
+  ASSERT_EQ(d.data()[5], 'r');
+  ASSERT_TRUE(e.data() == NULL);
+
+  ASSERT_EQ(*a.begin(), 'a');
+  ASSERT_EQ(*(b.begin() + 2), 'c');
+  ASSERT_EQ(*(c.end() - 1), 'z');
+
+  ASSERT_EQ(*a.rbegin(), 'z');
+  ASSERT_EQ(*(b.rbegin() + 2), 'a');
+  ASSERT_EQ(*(c.rend() - 1), 'x');
+  ASSERT_TRUE(a.rbegin() + 26 == a.rend());
+
+  ASSERT_EQ(a.size(), 26U);
+  ASSERT_EQ(b.size(), 3U);
+  ASSERT_EQ(c.size(), 3U);
+  ASSERT_EQ(d.size(), 6U);
+  ASSERT_EQ(e.size(), 0U);
+  ASSERT_EQ(f.size(), 6U);
+
+  ASSERT_TRUE(!d.empty());
+  ASSERT_TRUE(d.begin() != d.end());
+  ASSERT_TRUE(d.begin() + 6 == d.end());
+
+  ASSERT_TRUE(e.empty());
+  ASSERT_TRUE(e.begin() == e.end());
+
+  d.clear();
+  ASSERT_EQ(d.size(), 0U);
+  ASSERT_TRUE(d.empty());
+  ASSERT_TRUE(d.data() == NULL);
+  ASSERT_TRUE(d.begin() == d.end());
+
+  ASSERT_GE(a.max_size(), a.capacity());
+  ASSERT_GE(a.capacity(), a.size());
+}
+
+TEST(StringPiece16Test, CheckNULL) {
+  StringPiece16 s(NULL);
+  ASSERT_EQ(s.data(), (const char16*)NULL);
+  ASSERT_EQ(s.size(), 0U);
+
+  s.set(NULL);
+  ASSERT_EQ(s.data(), (const char16*)NULL);
+  ASSERT_EQ(s.size(), 0U);
+
+  string16 str = s.as_string16();
+  ASSERT_EQ(s.data(), (const char16*)NULL);
+  ASSERT_EQ(s.size(), 0U);
+}
+
+TEST(StringPiece16Test, HeterogenousStringPieceEquals) {
+  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("hello")) == ASCIIToUTF16("hello"));
+}
+
+TEST(StringPiece16Test, CheckConversion) {
+  // Make sure that we can convert from UTF8 to UTF16 and back. We use a two
+  // byte character (G clef) to test this.
+  ASSERT_EQ(
+      UTF16ToUTF8(
+          StringPiece16(UTF8ToUTF16("\xf0\x9d\x84\x9e")).as_string16()),
+      "\xf0\x9d\x84\x9e");
 }
 
 }  // namespace base
