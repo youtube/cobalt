@@ -9,6 +9,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
@@ -154,7 +155,7 @@ bool IsStringInDict(const char* string_to_match, DictionaryValue* dict) {
 }
 
 DictionaryValue* FindTraceEntry(const ListValue& trace_parsed,
-                                const char *string_to_match,
+                                const char* string_to_match,
                                 DictionaryValue* match_after_this_item = NULL) {
   // Scan all items
   size_t trace_parsed_count = trace_parsed.GetSize();
@@ -176,7 +177,25 @@ DictionaryValue* FindTraceEntry(const ListValue& trace_parsed,
   return NULL;
 }
 
-void DataCapturedCallTraces(WaitableEvent* task_complete_event) {
+std::vector<DictionaryValue*> FindTraceEntries(
+    const ListValue& trace_parsed,
+    const char* string_to_match) {
+  std::vector<DictionaryValue*> hits;
+  size_t trace_parsed_count = trace_parsed.GetSize();
+  for (size_t i = 0; i < trace_parsed_count; i++) {
+    Value* value = NULL;
+    trace_parsed.Get(i, &value);
+    if (!value || value->GetType() != Value::TYPE_DICTIONARY)
+      continue;
+    DictionaryValue* dict = static_cast<DictionaryValue*>(value);
+
+    if (IsStringInDict(string_to_match, dict))
+      hits.push_back(dict);
+  }
+  return hits;
+}
+
+void TraceWithAllMacroVariants(WaitableEvent* task_complete_event) {
   {
     TRACE_EVENT_BEGIN_ETW("TRACE_EVENT_BEGIN_ETW call", 1122, "extrastring1");
     TRACE_EVENT_END_ETW("TRACE_EVENT_END_ETW call", 3344, "extrastring2");
@@ -212,7 +231,7 @@ void DataCapturedCallTraces(WaitableEvent* task_complete_event) {
     task_complete_event->Signal();
 }
 
-void DataCapturedValidateTraces(const ListValue& trace_parsed,
+void ValidateAllTraceMacrosCreatedData(const ListValue& trace_parsed,
                                  const std::string& trace_string) {
   DictionaryValue* item = NULL;
 
@@ -275,6 +294,57 @@ void DataCapturedValidateTraces(const ListValue& trace_parsed,
   EXPECT_SUB_FIND_("value2");
 }
 
+void TraceManyInstantEvents(int thread_id, int num_events,
+                                 WaitableEvent* task_complete_event) {
+  for (int i = 0; i < num_events; i++) {
+    TRACE_EVENT_INSTANT2("all", "multi thread event",
+                         "thread", thread_id,
+                         "event", i);
+  }
+
+  if (task_complete_event)
+    task_complete_event->Signal();
+}
+
+void ValidateInstantEventPresentOnEveryThread(const ListValue& trace_parsed,
+                                     const std::string& trace_string,
+                                     int num_threads, int num_events) {
+  std::map<int, std::map<int, bool> > results;
+
+  size_t trace_parsed_count = trace_parsed.GetSize();
+  for (size_t i = 0; i < trace_parsed_count; i++) {
+    Value* value = NULL;
+    trace_parsed.Get(i, &value);
+    if (!value || value->GetType() != Value::TYPE_DICTIONARY)
+      continue;
+    DictionaryValue* dict = static_cast<DictionaryValue*>(value);
+    std::string name;
+    dict->GetString("name", &name);
+    if (name != "multi thread event")
+      continue;
+
+    int thread = 0;
+    int event = 0;
+    EXPECT_TRUE(dict->GetInteger("args.thread", &thread));
+    EXPECT_TRUE(dict->GetInteger("args.event", &event));
+    results[thread][event] = true;
+  }
+
+  EXPECT_FALSE(results[-1][-1]);
+  for (int thread = 0; thread < num_threads; thread++) {
+    for (int event = 0; event < num_events; event++) {
+      EXPECT_TRUE(results[thread][event]);
+    }
+  }
+}
+
+void TraceCallsWithCachedCategoryPointersPointers(const char* name_str) {
+  TRACE_EVENT0("category name1", name_str);
+  TRACE_EVENT_INSTANT0("category name2", name_str);
+  TRACE_EVENT_BEGIN0("category name3", name_str);
+  TRACE_EVENT_END0("category name4", name_str);
+}
+
 }  // namespace
 
 // Simple Test for emitting data and validating it was received.
@@ -282,11 +352,11 @@ TEST_F(TraceEventTestFixture, DataCaptured) {
   ManualTestSetUp();
   TraceLog::GetInstance()->SetEnabled(true);
 
-  DataCapturedCallTraces(NULL);
+  TraceWithAllMacroVariants(NULL);
 
   TraceLog::GetInstance()->SetEnabled(false);
 
-  DataCapturedValidateTraces(trace_parsed_, trace_string_);
+  ValidateAllTraceMacrosCreatedData(trace_parsed_, trace_string_);
 }
 
 // Simple Test for time threshold events.
@@ -402,62 +472,14 @@ TEST_F(TraceEventTestFixture, DataCapturedOnThread) {
   thread.Start();
 
   thread.message_loop()->PostTask(
-    FROM_HERE, NewRunnableFunction(&DataCapturedCallTraces,
+    FROM_HERE, NewRunnableFunction(&TraceWithAllMacroVariants,
                                    &task_complete_event));
   task_complete_event.Wait();
 
   TraceLog::GetInstance()->SetEnabled(false);
   thread.Stop();
-  DataCapturedValidateTraces(trace_parsed_, trace_string_);
+  ValidateAllTraceMacrosCreatedData(trace_parsed_, trace_string_);
 }
-
-namespace {
-
-void DataCapturedCallManyTraces(int thread_id, int num_events,
-                                 WaitableEvent* task_complete_event) {
-  for (int i = 0; i < num_events; i++) {
-    TRACE_EVENT_INSTANT2("all", "multi thread event",
-                         "thread", thread_id,
-                         "event", i);
-  }
-
-  if (task_complete_event)
-    task_complete_event->Signal();
-}
-
-void DataCapturedValidateManyTraces(const ListValue& trace_parsed,
-                                     const std::string& trace_string,
-                                     int num_threads, int num_events) {
-  std::map<int, std::map<int, bool> > results;
-
-  size_t trace_parsed_count = trace_parsed.GetSize();
-  for (size_t i = 0; i < trace_parsed_count; i++) {
-    Value* value = NULL;
-    trace_parsed.Get(i, &value);
-    if (!value || value->GetType() != Value::TYPE_DICTIONARY)
-      continue;
-    DictionaryValue* dict = static_cast<DictionaryValue*>(value);
-    std::string name;
-    dict->GetString("name", &name);
-    if (name != "multi thread event")
-      continue;
-
-    int thread = 0;
-    int event = 0;
-    EXPECT_TRUE(dict->GetInteger("args.thread", &thread));
-    EXPECT_TRUE(dict->GetInteger("args.event", &event));
-    results[thread][event] = true;
-  }
-
-  EXPECT_FALSE(results[-1][-1]);
-  for (int thread = 0; thread < num_threads; thread++) {
-    for (int event = 0; event < num_events; event++) {
-      EXPECT_TRUE(results[thread][event]);
-    }
-  }
-}
-
-}  // namespace
 
 // Test that data sent from multiple threads is gathered
 TEST_F(TraceEventTestFixture, DataCapturedManyThreads) {
@@ -473,7 +495,7 @@ TEST_F(TraceEventTestFixture, DataCapturedManyThreads) {
     task_complete_events[i] = new WaitableEvent(false, false);
     threads[i]->Start();
     threads[i]->message_loop()->PostTask(
-      FROM_HERE, NewRunnableFunction(&DataCapturedCallManyTraces,
+      FROM_HERE, NewRunnableFunction(&TraceManyInstantEvents,
                                      i, num_events, task_complete_events[i]));
   }
 
@@ -489,16 +511,77 @@ TEST_F(TraceEventTestFixture, DataCapturedManyThreads) {
     delete task_complete_events[i];
   }
 
-  DataCapturedValidateManyTraces(trace_parsed_, trace_string_,
-                                  num_threads, num_events);
+  ValidateInstantEventPresentOnEveryThread(trace_parsed_, trace_string_,
+                                           num_threads, num_events);
 }
 
-void TraceCallsWithCachedCategoryPointersPointers(const char* name_str) {
-  TRACE_EVENT0("category name1", name_str);
-  TRACE_EVENT_INSTANT0("category name2", name_str);
-  TRACE_EVENT_BEGIN0("category name3", name_str);
-  TRACE_EVENT_END0("category name4", name_str);
+// Test that thread and process names show up in the trace
+TEST_F(TraceEventTestFixture, ThreadNames) {
+  ManualTestSetUp();
+
+  // Create threads before we enable tracing to make sure
+  // that tracelog still captures them.
+  const int num_threads = 4;
+  const int num_events = 10;
+  Thread* threads[num_threads];
+  PlatformThreadId thread_ids[num_threads];
+  for (int i = 0; i < num_threads; i++)
+    threads[i] = new Thread(StringPrintf("Thread %d", i).c_str());
+
+  // Enable tracing.
+  TraceLog::GetInstance()->SetEnabled(true);
+
+  // Now run some trace code on these threads.
+  WaitableEvent* task_complete_events[num_threads];
+  for (int i = 0; i < num_threads; i++) {
+    task_complete_events[i] = new WaitableEvent(false, false);
+    threads[i]->Start();
+    thread_ids[i] = threads[i]->thread_id();
+    threads[i]->message_loop()->PostTask(
+      FROM_HERE, NewRunnableFunction(&TraceManyInstantEvents,
+                                     i, num_events, task_complete_events[i]));
+  }
+  for (int i = 0; i < num_threads; i++) {
+    task_complete_events[i]->Wait();
+  }
+
+  // Shut things down.
+  TraceLog::GetInstance()->SetEnabled(false);
+  for (int i = 0; i < num_threads; i++) {
+    threads[i]->Stop();
+    delete threads[i];
+    delete task_complete_events[i];
+  }
+
+  std::string tmp;
+  int tmp_int;
+  DictionaryValue* item;
+
+  // Make sure we get thread name metadata.
+  // Note, the test suite may have created a ton of threads.
+  // So, we'll have thread names for threads we didn't create.
+  std::vector<DictionaryValue*> items =
+      FindTraceEntries(trace_parsed_, "thread_name");
+  for (int i = 0; i < static_cast<int>(items.size()); i++) {
+    item = items[i];
+    EXPECT_TRUE(item);
+    EXPECT_TRUE(item->GetInteger("tid", &tmp_int));
+
+    // See if this thread name is one of the threads we just created
+    for (int j = 0; j < num_threads; j++) {
+      if(static_cast<int>(thread_ids[j]) != tmp_int)
+        continue;
+
+      std::string expected_name = StringPrintf("Thread %d", j).c_str();
+      EXPECT_TRUE(item->GetString("ph", &tmp) && tmp == "M");
+      EXPECT_TRUE(item->GetInteger("pid", &tmp_int) &&
+                  tmp_int == static_cast<int>(base::GetCurrentProcId()));
+      EXPECT_TRUE(item->GetString("args.name", &tmp) &&
+                  tmp == expected_name);
+    }
+  }
 }
+
 
 // Test trace calls made after tracing singleton shut down.
 //

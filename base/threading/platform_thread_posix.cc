@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/safe_strerror_posix.h"
+#include "base/threading/thread_local.h"
 #include "base/threading/thread_restrictions.h"
 
 #if defined(OS_MACOSX)
@@ -40,6 +41,8 @@ void InitThreading();
 #endif
 
 namespace {
+
+static ThreadLocalPointer<char> current_thread_name;
 
 struct ThreadParams {
   PlatformThread::Delegate* delegate;
@@ -168,6 +171,10 @@ void PlatformThread::Sleep(int duration_ms) {
 #if 0 && defined(OS_LINUX)
 // static
 void PlatformThread::SetName(const char* name) {
+  // have to cast away const because ThreadLocalPointer does not support const
+  // void*
+  current_thread_name.Set(const_cast<char*>(name));
+
   // http://0pointer.de/blog/projects/name-your-threads.html
 
   // glibc recently added support for pthread_setname_np, but it's not
@@ -198,13 +205,24 @@ void PlatformThread::SetName(const char* name) {
 // Mac is implemented in platform_thread_mac.mm.
 #else
 // static
-void PlatformThread::SetName(const char* /*name*/) {
-  // Leave it unimplemented.
+void PlatformThread::SetName(const char* name) {
+  // have to cast away const because ThreadLocalPointer does not support const
+  // void*
+  current_thread_name.Set(const_cast<char*>(name));
 
   // (This should be relatively simple to implement for the BSDs; I
   // just don't have one handy to test the code on.)
 }
 #endif  // defined(OS_LINUX)
+
+
+#if !defined(OS_MACOSX)
+// Mac is implemented in platform_thread_mac.mm.
+// static
+const char* PlatformThread::GetName() {
+  return current_thread_name.Get();
+}
+#endif
 
 // static
 bool PlatformThread::Create(size_t stack_size, Delegate* delegate,
