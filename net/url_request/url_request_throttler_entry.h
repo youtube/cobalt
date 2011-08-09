@@ -97,7 +97,7 @@ class NET_API URLRequestThrottlerEntry
   void DetachManager();
 
   // Implementation of URLRequestThrottlerEntryInterface.
-  virtual bool IsDuringExponentialBackoff() const;
+  virtual bool ShouldRejectRequest(int load_flags) const;
   virtual int64 ReserveSendingTimeForNextRequest(
       const base::TimeTicks& earliest_time);
   virtual base::TimeTicks GetExponentialBackoffReleaseTime() const;
@@ -133,6 +133,11 @@ class NET_API URLRequestThrottlerEntry
   // unit testing seam for dependency injection in tests.
   virtual const BackoffEntry* GetBackoffEntry() const;
   virtual BackoffEntry* GetBackoffEntry();
+
+  // Returns true if |load_flags| contains a flag that indicates an
+  // explicit request by the user to load the resource. We never
+  // throttle requests with such load flags.
+  static bool ExplicitUserRequest(const int load_flags);
 
   // Used by tests.
   base::TimeTicks sliding_window_release_time() const {
