@@ -23,8 +23,6 @@ patch -p6 < $patches_dir/cachedinfo.patch
 
 patch -p6 < $patches_dir/didhandshakeresume.patch
 
-patch -p6 < $patches_dir/cbcrandomiv.patch
-
 patch -p6 < $patches_dir/origin_bound_certs.patch
 
 patch -p6 < $patches_dir/secret_exporter.patch
