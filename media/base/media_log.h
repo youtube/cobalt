@@ -13,26 +13,21 @@ namespace media {
 
 class MediaLog : public base::RefCountedThreadSafe<MediaLog> {
  public:
-
   // Return a string to represent an EventType.
   static const char* EventTypeToString(MediaLogEvent::Type type);
 
   MediaLog();
-
-  // Methods called by loggers when events occur. These generate appropriate
-  // event parameters so the caller need not worry about them.
-  void Load(const std::string& url);
 
   // Add an event to this log. Overriden by inheritors to actually do something
   // with it.
   // Takes ownership of |event|.
   virtual void AddEvent(MediaLogEvent* event);
 
-  // Convenience method for adding an event with no parameters.
-  void AddEventOfType(MediaLogEvent::Type type);
-
-  // Convenience method for filling in common fields of a new event.
+  // Helper methods to create events and their parameters.
   MediaLogEvent* CreateEvent(MediaLogEvent::Type type);
+  MediaLogEvent* CreateLoadEvent(const std::string& url);
+  MediaLogEvent* CreateBufferedExtentsChangedEvent(size_t start, size_t current,
+                                                   size_t end);
 
  protected:
   friend class base::RefCountedThreadSafe<MediaLog>;

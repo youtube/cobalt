@@ -26,6 +26,8 @@ const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
       return "PLAY";
     case MediaLogEvent::PAUSE:
       return "PAUSE";
+    case MediaLogEvent::BUFFERED_EXTENTS_CHANGED:
+      return "BUFFERED_EXTENTS_CHANGED";
   }
   NOTREACHED();
   return NULL;
@@ -37,27 +39,32 @@ MediaLog::MediaLog() {
 
 MediaLog::~MediaLog() {}
 
-void MediaLog::Load(const std::string& url) {
-  MediaLogEvent* event = CreateEvent(MediaLogEvent::LOAD);
-  event->params.SetString("url", url);
-  AddEvent(event);
-}
-
-void MediaLog::AddEventOfType(MediaLogEvent::Type type) {
-  MediaLogEvent* event = CreateEvent(type);
-  AddEvent(event);
+void MediaLog::AddEvent(MediaLogEvent* event) {
+  scoped_ptr<MediaLogEvent> e(event);
 }
 
 MediaLogEvent* MediaLog::CreateEvent(MediaLogEvent::Type type) {
-  MediaLogEvent* event = new MediaLogEvent;
+  scoped_ptr<MediaLogEvent> event(new MediaLogEvent);
   event->id = id_;
   event->type = type;
   event->time = base::Time::Now();
-  return event;
+  return event.release();
 }
 
-void MediaLog::AddEvent(MediaLogEvent* event) {
-  scoped_ptr<MediaLogEvent> e(event);
+MediaLogEvent* MediaLog::CreateLoadEvent(const std::string& url) {
+  scoped_ptr<MediaLogEvent> event(CreateEvent(MediaLogEvent::LOAD));
+  event->params.SetString("url", url);
+  return event.release();
+}
+
+MediaLogEvent* MediaLog::CreateBufferedExtentsChangedEvent(
+    size_t start, size_t current, size_t end) {
+  scoped_ptr<MediaLogEvent> event(
+      CreateEvent(MediaLogEvent::BUFFERED_EXTENTS_CHANGED));
+  event->params.SetInteger("buffer_start", start);
+  event->params.SetInteger("buffer_current", current);
+  event->params.SetInteger("buffer_end", end);
+  return event.release();
 }
 
 }  //namespace media
