@@ -17,6 +17,7 @@
 #include "base/synchronization/condition_variable.h"
 #include "media/base/clock.h"
 #include "media/base/filter_collection.h"
+#include "media/base/media_log.h"
 
 namespace media {
 
@@ -62,13 +63,17 @@ class PipelineImpl::PipelineInitState {
   scoped_refptr<CompositeFilter> composite_;
 };
 
-PipelineImpl::PipelineImpl(MessageLoop* message_loop)
+PipelineImpl::PipelineImpl(MessageLoop* message_loop, MediaLog* media_log)
     : message_loop_(message_loop),
+      media_log_(media_log),
       clock_(new Clock(&base::Time::Now)),
       waiting_for_clock_update_(false),
       state_(kCreated),
       current_bytes_(0) {
+  media_log_->AddEvent(media_log_->CreatePipelineStateChangedEvent(kCreated));
   ResetState();
+  media_log_->AddEvent(
+      media_log_->CreateEvent(MediaLogEvent::PIPELINE_CREATED));
 }
 
 PipelineImpl::~PipelineImpl() {
@@ -76,6 +81,9 @@ PipelineImpl::~PipelineImpl() {
   DCHECK(!running_) << "Stop() must complete before destroying object";
   DCHECK(!stop_pending_);
   DCHECK(!seek_pending_);
+
+  media_log_->AddEvent(
+      media_log_->CreateEvent(MediaLogEvent::PIPELINE_DESTROYED));
 }
 
 void PipelineImpl::Init(PipelineStatusCallback* ended_callback,
@@ -381,8 +389,9 @@ void PipelineImpl::ResetState() {
   clock_->SetTime(kZero);
 }
 
-void PipelineImpl::set_state(State next_state) {
+void PipelineImpl::SetState(State next_state) {
   state_ = next_state;
+  media_log_->AddEvent(media_log_->CreatePipelineStateChangedEvent(next_state));
 }
 
 bool PipelineImpl::IsPipelineOk() {
@@ -621,10 +630,10 @@ void PipelineImpl::StartTask(FilterCollection* filter_collection,
   bool raw_media = (base::strncasecmp(url.c_str(), kRawMediaScheme,
                                       strlen(kRawMediaScheme)) == 0);
   if (raw_media) {
-    set_state(kInitVideoDecoder);
+    SetState(kInitVideoDecoder);
     InitializeVideoDecoder(NULL);
   } else {
-    set_state(kInitDemuxer);
+    SetState(kInitDemuxer);
     InitializeDemuxer();
   }
 }
@@ -662,7 +671,7 @@ void PipelineImpl::InitializeTask() {
 
   // Demuxer created, create audio decoder.
   if (state_ == kInitDemuxer) {
-    set_state(kInitAudioDecoder);
+    SetState(kInitAudioDecoder);
     // If this method returns false, then there's no audio stream.
     if (InitializeAudioDecoder(demuxer_))
       return;
@@ -670,7 +679,8 @@ void PipelineImpl::InitializeTask() {
 
   // Assuming audio decoder was created, create audio renderer.
   if (state_ == kInitAudioDecoder) {
-    set_state(kInitAudioRenderer);
+    SetState(kInitAudioRenderer);
+
     // Returns false if there's no audio stream.
     if (InitializeAudioRenderer(pipeline_init_state_->audio_decoder_)) {
       base::AutoLock auto_lock(lock_);
@@ -682,14 +692,14 @@ void PipelineImpl::InitializeTask() {
   // Assuming audio renderer was created, create video decoder.
   if (state_ == kInitAudioRenderer) {
     // Then perform the stage of initialization, i.e. initialize video decoder.
-    set_state(kInitVideoDecoder);
+    SetState(kInitVideoDecoder);
     if (InitializeVideoDecoder(demuxer_))
       return;
   }
 
   // Assuming video decoder was created, create video renderer.
   if (state_ == kInitVideoDecoder) {
-    set_state(kInitVideoRenderer);
+    SetState(kInitVideoRenderer);
     if (InitializeVideoRenderer(pipeline_init_state_->video_decoder_)) {
       base::AutoLock auto_lock(lock_);
       has_video_ = true;
@@ -725,7 +735,7 @@ void PipelineImpl::InitializeTask() {
 
     // Fire the seek request to get the filters to preroll.
     seek_pending_ = true;
-    set_state(kSeeking);
+    SetState(kSeeking);
     if (demuxer_)
       seek_timestamp_ = demuxer_->GetStartTime();
     else
@@ -864,7 +874,7 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
   //   kSeeking (for each filter)
   //   kStarting (for each filter)
   //   kStarted
-  set_state(kPausing);
+  SetState(kPausing);
   seek_timestamp_ = time;
   seek_callback_.reset(seek_callback);
 
@@ -908,7 +918,7 @@ void PipelineImpl::NotifyEndedTask() {
   }
 
   // Transition to ended, executing the callback if present.
-  set_state(kEnded);
+  SetState(kEnded);
   if (ended_callback_.get()) {
     ended_callback_->Run(status_);
   }
@@ -958,7 +968,7 @@ void PipelineImpl::FilterStateTransitionTask() {
 
   // Decrement the number of remaining transitions, making sure to transition
   // to the next state if needed.
-  set_state(FindNextState(state_));
+  SetState(FindNextState(state_));
   if (state_ == kSeeking) {
     base::AutoLock auto_lock(lock_);
     clock_->SetTime(seek_timestamp_);
@@ -1018,16 +1028,16 @@ void PipelineImpl::TeardownStateTransitionTask() {
   DCHECK(IsPipelineTearingDown());
   switch (state_) {
     case kStopping:
-      set_state(error_caused_teardown_ ? kError : kStopped);
+      SetState(error_caused_teardown_ ? kError : kStopped);
       FinishDestroyingFiltersTask();
       break;
     case kPausing:
-      set_state(kFlushing);
+      SetState(kFlushing);
       pipeline_filter_->Flush(
           NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
       break;
     case kFlushing:
-      set_state(kStopping);
+      SetState(kStopping);
       pipeline_filter_->Stop(
           NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
       break;
@@ -1254,7 +1264,7 @@ void PipelineImpl::TearDownPipeline() {
   switch (state_) {
     case kCreated:
     case kError:
-      set_state(kStopped);
+      SetState(kStopped);
       // Need to put this in the message loop to make sure that it comes
       // after any pending callback tasks that are already queued.
       message_loop_->PostTask(FROM_HERE,
@@ -1271,7 +1281,7 @@ void PipelineImpl::TearDownPipeline() {
       pipeline_init_state_.reset();
       filter_collection_.reset();
 
-      set_state(kStopping);
+      SetState(kStopping);
       pipeline_filter_->Stop(
           NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
 
@@ -1282,7 +1292,7 @@ void PipelineImpl::TearDownPipeline() {
     case kSeeking:
     case kFlushing:
     case kStarting:
-      set_state(kStopping);
+      SetState(kStopping);
       pipeline_filter_->Stop(
           NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
 
@@ -1295,7 +1305,7 @@ void PipelineImpl::TearDownPipeline() {
 
     case kStarted:
     case kEnded:
-      set_state(kPausing);
+      SetState(kPausing);
       pipeline_filter_->Pause(
           NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
       break;

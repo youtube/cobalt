@@ -27,6 +27,8 @@
 
 namespace media {
 
+class MediaLog;
+
 // Adapter for using asynchronous Pipeline methods in code that wants to run
 // synchronously.  To use, construct an instance of this class and pass the
 // |Callback()| to the Pipeline method requiring a callback.  Then Wait() for
@@ -93,7 +95,7 @@ class PipelineStatusNotification {
 // "Stopped" state.
 class PipelineImpl : public Pipeline, public FilterHost {
  public:
-  explicit PipelineImpl(MessageLoop* message_loop);
+  explicit PipelineImpl(MessageLoop* message_loop, MediaLog* media_log);
 
   // Pipeline implementation.
   virtual void Init(PipelineStatusCallback* ended_callback,
@@ -128,6 +130,8 @@ class PipelineImpl : public Pipeline, public FilterHost {
   void SetClockForTesting(Clock* clock);
 
  private:
+  friend class MediaLog;
+
   // Pipeline states, as described above.
   enum State {
     kCreated,
@@ -154,7 +158,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   void ResetState();
 
   // Updates |state_|. All state transitions should use this call.
-  void set_state(State next_state);
+  void SetState(State next_state);
 
   // Simple method used to make sure the pipeline is running normally.
   bool IsPipelineOk();
@@ -313,6 +317,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Message loop used to execute pipeline tasks.
   MessageLoop* message_loop_;
+
+  // MediaLog to which to log events.
+  scoped_refptr<MediaLog> media_log_;
 
   // Lock used to serialize access for the following data members.
   mutable base::Lock lock_;
