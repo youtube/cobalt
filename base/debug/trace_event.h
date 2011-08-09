@@ -90,6 +90,7 @@
 #include <vector>
 
 #include "base/callback.h"
+#include "base/hash_tables.h"
 #include "base/memory/singleton.h"
 #include "base/string_util.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
@@ -296,7 +297,8 @@ const size_t kTraceMaxNumArgs = 2;
 enum TraceEventPhase {
   TRACE_EVENT_PHASE_BEGIN,
   TRACE_EVENT_PHASE_END,
-  TRACE_EVENT_PHASE_INSTANT
+  TRACE_EVENT_PHASE_INSTANT,
+  TRACE_EVENT_PHASE_METADATA
 };
 
 // Simple union of values. This is much lighter weight than base::Value, which
@@ -512,6 +514,7 @@ class BASE_EXPORT TraceLog {
   TraceLog();
   ~TraceLog();
   const TraceCategory* GetCategoryInternal(const char* name);
+  void AddCurrentMetadataEvents();
 
   // TODO(nduca): switch to per-thread trace buffers to reduce thread
   // synchronization.
@@ -520,6 +523,8 @@ class BASE_EXPORT TraceLog {
   OutputCallback output_callback_;
   BufferFullCallback buffer_full_callback_;
   std::vector<TraceEvent> logged_events_;
+
+  base::hash_map<PlatformThreadId, std::string> thread_names_;
 
   DISALLOW_COPY_AND_ASSIGN(TraceLog);
 };
