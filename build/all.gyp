@@ -261,6 +261,14 @@
       ],
     }, # target_name: chromium_2010_builder_tests
     {
+      'target_name': 'chromium_builder_nacl_win_integration',
+      'type': 'none',
+      'dependencies': [
+        'chromium_builder_qa', # needed for pyauto
+        'chromium_builder_tests',
+      ],
+    }, # target_name: chromium_builder_nacl_win_integration
+    {
       'target_name': 'chromium_builder_perf',
       'type': 'none',
       'dependencies': [
