@@ -415,11 +415,11 @@ void URLRequestHttpJob::AddExtraHeaders() {
   // to filter and analyze the streams to assure that a proxy has not damaged
   // these headers.  Some proxies deliberately corrupt Accept-Encoding headers.
   if (!advertise_sdch) {
-#endif
+//#endif // __LB_PS3__FIX_ME__ gzip support broken for now, advertise NOTHING
     // Tell the server what compression formats we support (other than SDCH).
     request_info_.extra_headers.SetHeader(
         HttpRequestHeaders::kAcceptEncoding, "gzip,deflate");
-#if !defined(__LB_PS3__)
+//#if !defined(__LB_PS3__)
   } else {
     // Include SDCH in acceptable list.
     request_info_.extra_headers.SetHeader(
