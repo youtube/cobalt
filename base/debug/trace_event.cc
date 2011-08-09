@@ -4,6 +4,8 @@
 
 #include "base/debug/trace_event.h"
 
+#include <algorithm>
+
 #if defined(OS_WIN)
 #include "base/debug/trace_event_win.h"
 #endif
@@ -11,6 +13,7 @@
 #include "base/memory/ref_counted_memory.h"
 #include "base/process_util.h"
 #include "base/stringprintf.h"
+#include "base/threading/thread_local.h"
 #include "base/utf_string_conversions.h"
 #include "base/stl_util.h"
 #include "base/time.h"
@@ -30,13 +33,20 @@ const size_t kTraceEventBatchSize = 1000;
 static TraceCategory g_categories[TRACE_EVENT_MAX_CATEGORIES] = {
   { "tracing already shutdown", false },
   { "tracing categories exhausted; must increase TRACE_EVENT_MAX_CATEGORIES",
+    false },
+  { "__metadata",
     false }
 };
 static const TraceCategory* const g_category_already_shutdown =
     &g_categories[0];
 static const TraceCategory* const g_category_categories_exhausted =
     &g_categories[1];
-static int g_category_index = 2; // skip initial 2 error categories
+static const TraceCategory* const g_category_metadata =
+    &g_categories[2];
+static int g_category_index = 3; // skip initial 3 categories
+
+// Flag to indicate whether we captured the current thread name
+static ThreadLocalBoolean g_current_thread_name_captured;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -104,6 +114,8 @@ const char* GetPhaseStr(TraceEventPhase phase) {
       return "I";
     case TRACE_EVENT_PHASE_END:
       return "E";
+    case TRACE_EVENT_PHASE_METADATA:
+      return "M";
     default:
       NOTREACHED() << "Invalid phase argument";
       return "?";
@@ -294,9 +306,13 @@ void TraceLog::SetEnabled(bool enabled) {
       // check GetCategoryInternal creation code that users TraceLog::enabled_
       g_categories[i].enabled = enabled;
     }
+
+    if (!enabled)
+      AddCurrentMetadataEvents();
   } // release lock
-  if (!enabled)
+  if (!enabled) {
     Flush();
+  }
 }
 
 float TraceLog::GetBufferPercentFull() const {
@@ -361,6 +377,33 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
       return -1;
     if (logged_events_.size() >= kTraceEventBufferSize)
       return -1;
+
+    PlatformThreadId thread_id = PlatformThread::CurrentId();
+
+    // Record the name of the calling thread, if not done already.
+    if (!g_current_thread_name_captured.Get()) {
+      const char* cur_name = PlatformThread::GetName();
+      base::hash_map<PlatformThreadId, std::string>::iterator existing_name =
+          thread_names_.find(thread_id);
+      if (existing_name == thread_names_.end()) {
+        // This is a new thread id, and a new name.
+        thread_names_[thread_id] = cur_name ? cur_name : "";
+      } else if(cur_name != NULL) {
+        // This is a thread id that we've seen before, but potentially with a
+        // new name.
+        std::vector<std::string> existing_names;
+        Tokenize(existing_name->second, std::string(","), &existing_names);
+        bool found = std::find(existing_names.begin(),
+                               existing_names.end(),
+                               cur_name) != existing_names.end();
+        if (!found) {
+          existing_names.push_back(cur_name);
+          thread_names_[thread_id] =
+              JoinString(existing_names, ',');
+        }
+      }
+    }
+
     if (threshold_begin_id > -1) {
       DCHECK(phase == base::debug::TRACE_EVENT_PHASE_END);
       size_t begin_i = static_cast<size_t>(threshold_begin_id);
@@ -380,7 +423,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
     ret_begin_id = static_cast<int>(logged_events_.size());
     logged_events_.push_back(
         TraceEvent(static_cast<unsigned long>(base::GetCurrentProcId()),
-                   PlatformThread::CurrentId(),
+                   thread_id,
                    now, phase, category, name,
                    arg1_name, arg1_val,
                    arg2_name, arg2_val,
@@ -416,6 +459,24 @@ void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
                             "id", id,
                             "extra", extra ? extra : "",
                             -1, 0, false);
+  }
+}
+
+void TraceLog::AddCurrentMetadataEvents() {
+  lock_.AssertAcquired();
+  for(base::hash_map<PlatformThreadId, std::string>::iterator it =
+          thread_names_.begin();
+      it != thread_names_.end();
+      it++) {
+    if (!it->second.empty())
+      logged_events_.push_back(
+          TraceEvent(static_cast<unsigned long>(base::GetCurrentProcId()),
+                     it->first,
+                     TimeTicks(), base::debug::TRACE_EVENT_PHASE_METADATA,
+                     g_category_metadata, "thread_name",
+                     "name", it->second.c_str(),
+                     NULL, 0,
+                     false));
   }
 }
 

@@ -5,12 +5,16 @@
 #include "base/threading/platform_thread.h"
 
 #include "base/logging.h"
+#include "base/threading/thread_local.h"
 #include "base/threading/thread_restrictions.h"
+
 #include "base/win/windows_version.h"
 
 namespace base {
 
 namespace {
+
+static ThreadLocalPointer<char> current_thread_name;
 
 // The information on how to set the thread name comes from
 // a MSDN article: http://msdn2.microsoft.com/en-us/library/xcb2z8hs.aspx
@@ -94,6 +98,8 @@ void PlatformThread::Sleep(int duration_ms) {
 
 // static
 void PlatformThread::SetName(const char* name) {
+  current_thread_name.Set(const_cast<char*>(name));
+
   // The debugger needs to be around to catch the name in the exception.  If
   // there isn't a debugger, we are just needlessly throwing an exception.
   if (!::IsDebuggerPresent())
@@ -110,6 +116,11 @@ void PlatformThread::SetName(const char* name) {
                    reinterpret_cast<DWORD_PTR*>(&info));
   } __except(EXCEPTION_CONTINUE_EXECUTION) {
   }
+}
+
+// static
+const char* PlatformThread::GetName() {
+  return current_thread_name.Get();
 }
 
 // static
