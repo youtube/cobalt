@@ -26,6 +26,12 @@ struct MediaLogEvent {
     // params: none.
     PLAY,
     PAUSE,
+
+    // The extents of the sliding buffer have changed.
+    // params: "buffer_start": <first buffered byte>.
+    //         "buffer_current": <current offset>.
+    //         "buffer_end": <last buffered byte>.
+    BUFFERED_EXTENTS_CHANGED,
   };
 
   int32 id;
