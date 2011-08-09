@@ -33,7 +33,7 @@ bool LooksLikeUnixPermission(const string16& text) {
 }
 
 bool LooksLikeUnixPermissionsListing(const string16& text) {
-  if (text.length() < 10)
+  if (text.length() < 7)
     return false;
 
   // Do not check the first character (entry type). There are many weird
@@ -44,9 +44,11 @@ bool LooksLikeUnixPermissionsListing(const string16& text) {
   // separate this column from the next column (number of links), resulting
   // in additional characters at the end. Also, sometimes there is a "+"
   // sign at the end indicating the file has ACLs set.
+
+  // In fact, we don't even expect three "rwx" triplets of permission
+  // listing, as some FTP servers like Hylafax only send two.
   return (LooksLikeUnixPermission(text.substr(1, 3)) &&
-          LooksLikeUnixPermission(text.substr(4, 3)) &&
-          LooksLikeUnixPermission(text.substr(7, 3)));
+          LooksLikeUnixPermission(text.substr(4, 3)));
 }
 
 bool LooksLikePermissionDeniedError(const string16& text) {

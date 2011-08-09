@@ -108,6 +108,11 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "ar-xr-xr-x   2 none     none         512 Apr 26 17:52 plan9",
       FtpDirectoryListingEntry::FILE, "plan9", 512,
       1994, 4, 26, 17, 52 },
+
+    // Hylafax sends a shorter permission listing.
+    { "drwxrwx   2       10     4096 Jul 28 02:41 tmp",
+      FtpDirectoryListingEntry::DIRECTORY, "tmp", -1,
+      1994, 7, 28, 2, 41 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
@@ -153,13 +158,11 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     " foo",
     "garbage",
     "-rw-r--r-- ftp ftp",
-    "-rw-r--rgb ftp ftp 528 Nov 01 2007 README",
     "-rw-rgbr-- ftp ftp 528 Nov 01 2007 README",
     "qrwwr--r-- ftp ftp 528 Nov 01 2007 README",
     "-rw-r--r-- ftp ftp -528 Nov 01 2007 README",
     "-rw-r--r-- ftp ftp 528 Foo 01 2007 README",
     "-rw-r--r-- 1 ftp ftp",
-    "-rw-r--rgb 1 ftp ftp 528 Nov 01 2007 README",
     "-rw-rgbr-- 1 ftp ftp 528 Nov 01 2007 README",
     "qrwwr--r-- 1 ftp ftp 528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp -528 Nov 01 2007 README",
