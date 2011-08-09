@@ -11,7 +11,6 @@
 
 #include <string>
 
-#include "base/callback.h"
 #include "media/base/filters.h"
 #include "media/base/pipeline_status.h"
 
@@ -46,9 +45,9 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // |ended_callback| will be executed when the media reaches the end.
   // |error_callback_| will be executed upon an error in the pipeline.
   // |network_callback_| will be executed when there's a network event.
-  virtual void Init(PipelineStatusCallback* ended_callback,
-                    PipelineStatusCallback* error_callback,
-                    PipelineStatusCallback* network_callback) = 0;
+  virtual void Init(const PipelineStatusCB& ended_callback,
+                    const PipelineStatusCB& error_callback,
+                    const PipelineStatusCB& network_callback) = 0;
 
   // Build a pipeline to render the given URL using the given filter collection
   // to construct a filter chain.  Returns true if successful, false otherwise
@@ -63,7 +62,7 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // pipeline initialization completes.
   virtual bool Start(FilterCollection* filter_collection,
                      const std::string& url,
-                     PipelineStatusCallback* start_callback) = 0;
+                     const PipelineStatusCB& start_callback) = 0;
 
   // Asynchronously stops the pipeline and resets it to an uninitialized state.
   // If provided, |stop_callback| will be executed when the pipeline has been
@@ -75,7 +74,7 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   //
   // TODO(scherkus): ideally clients would destroy the pipeline after calling
   // Stop() and create a new pipeline as needed.
-  virtual void Stop(PipelineStatusCallback* stop_callback) = 0;
+  virtual void Stop(const PipelineStatusCB& stop_callback) = 0;
 
   // Attempt to seek to the position specified by time.  |seek_callback| will be
   // executed when the all filters in the pipeline have processed the seek.
@@ -83,7 +82,7 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // Clients are expected to call GetCurrentTime() to check whether the seek
   // succeeded.
   virtual void Seek(base::TimeDelta time,
-                    PipelineStatusCallback* seek_callback) = 0;
+                    const PipelineStatusCB& seek_callback) = 0;
 
   // Returns true if the pipeline has been started via Start().  If IsRunning()
   // returns true, it is expected that Stop() will be called before destroying

@@ -34,7 +34,6 @@ enum PipelineStatus {
   DATASOURCE_ERROR_URL_NOT_SUPPORTED,
 };
 
-typedef Callback1<media::PipelineStatus>::Type PipelineStatusCallback;
 typedef base::Callback<void(PipelineStatus)> PipelineStatusCB;
 
 }  // namespace media

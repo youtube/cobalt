@@ -134,7 +134,7 @@ class FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual void PostDemuxTask();
 
   void Initialize(
-      DataSource* data_source, PipelineStatusCallback* callback);
+      DataSource* data_source, const PipelineStatusCB& callback);
 
   // Filter implementation.
   virtual void Stop(FilterCallback* callback);
@@ -168,7 +168,7 @@ class FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
 
   // Carries out initialization on the demuxer thread.
   void InitializeTask(
-      DataSource* data_source, PipelineStatusCallback* callback);
+      DataSource* data_source, const PipelineStatusCB& callback);
 
   // Carries out a seek on the demuxer thread.
   void SeekTask(base::TimeDelta time, const FilterStatusCB& cb);
