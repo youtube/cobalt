@@ -13,19 +13,32 @@ namespace media {
 
 struct MediaLogEvent {
   enum Type {
-    // A media player is being created or destroyed.
+    // A WebMediaPlayer is being created or destroyed.
     // params: none.
-    CREATING,
-    DESTROYING,
+    WEBMEDIAPLAYER_CREATED,
+    WEBMEDIAPLAYER_DESTROYED,
+
+    // A PipelineImpl is being created or destroyed.
+    // params: none.
+    PIPELINE_CREATED,
+    PIPELINE_DESTROYED,
 
     // A media player is loading a resource.
     // params: "url": <URL of the resource>.
     LOAD,
 
+    // A media player has started seeking.
+    // params: "seek_target": <number of seconds to which to seek>.
+    SEEK,
+
     // A media player has been told to play or pause.
     // params: none.
     PLAY,
     PAUSE,
+
+    // The state of PipelineImpl has changed.
+    // params: "pipeline_state": <string name of the state>.
+    PIPELINE_STATE_CHANGED,
 
     // The extents of the sliding buffer have changed.
     // params: "buffer_start": <first buffered byte>.

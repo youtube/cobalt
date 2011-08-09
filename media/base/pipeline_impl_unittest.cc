@@ -7,9 +7,10 @@
 #include "base/callback.h"
 #include "base/stl_util.h"
 #include "base/threading/simple_thread.h"
-#include "media/base/pipeline_impl.h"
-#include "media/base/filters.h"
 #include "media/base/filter_host.h"
+#include "media/base/filters.h"
+#include "media/base/media_log.h"
+#include "media/base/pipeline_impl.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -61,7 +62,7 @@ class CallbackHelper {
 class PipelineImplTest : public ::testing::Test {
  public:
   PipelineImplTest()
-      : pipeline_(new PipelineImpl(&message_loop_)) {
+      : pipeline_(new PipelineImpl(&message_loop_, new MediaLog())) {
     pipeline_->Init(
         NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                     &CallbackHelper::OnEnded),
