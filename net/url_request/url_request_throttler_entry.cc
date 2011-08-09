@@ -12,6 +12,7 @@
 #include "base/rand_util.h"
 #include "base/string_number_conversions.h"
 #include "base/values.h"
+#include "net/base/load_flags.h"
 #include "net/base/net_log.h"
 #include "net/url_request/url_request_throttler_header_interface.h"
 #include "net/url_request/url_request_throttler_manager.h"
@@ -178,9 +179,10 @@ void URLRequestThrottlerEntry::DetachManager() {
   manager_ = NULL;
 }
 
-bool URLRequestThrottlerEntry::IsDuringExponentialBackoff() const {
+bool URLRequestThrottlerEntry::ShouldRejectRequest(int load_flags) const {
   bool reject_request = false;
-  if (!is_backoff_disabled_ && GetBackoffEntry()->ShouldRejectRequest()) {
+  if (!is_backoff_disabled_ && !ExplicitUserRequest(load_flags) &&
+      GetBackoffEntry()->ShouldRejectRequest()) {
     int num_failures = GetBackoffEntry()->failure_count();
     int release_after_ms =
         (GetBackoffEntry()->GetReleaseTime() - base::TimeTicks::Now())
@@ -442,6 +444,11 @@ const BackoffEntry* URLRequestThrottlerEntry::GetBackoffEntry() const {
 
 BackoffEntry* URLRequestThrottlerEntry::GetBackoffEntry() {
   return &backoff_entry_;
+}
+
+// static
+bool URLRequestThrottlerEntry::ExplicitUserRequest(const int load_flags) {
+  return (load_flags & LOAD_MAYBE_USER_GESTURE) != 0;
 }
 
 }  // namespace net

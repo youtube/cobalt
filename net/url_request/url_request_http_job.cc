@@ -397,7 +397,7 @@ void URLRequestHttpJob::StartTransactionInternal() {
         &transaction_);
     if (rv == OK) {
       if (!URLRequestThrottlerManager::GetInstance()->enforce_throttling() ||
-          !throttling_entry_->IsDuringExponentialBackoff()) {
+          !throttling_entry_->ShouldRejectRequest(request_info_.load_flags)) {
         rv = transaction_->Start(
             &request_info_, &start_callback_, request_->net_log());
         start_time_ = base::TimeTicks::Now();
