@@ -402,7 +402,7 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
   // memio circular buffer (4k bytes) in SSLClientSocketNSS to wrap around.
   // This tests the fix for http://crbug.com/29815.
   std::string request_text = "GET / HTTP/1.1\r\nUser-Agent: long browser name ";
-  for (int i = 0; i < 3768; ++i)
+  for (int i = 0; i < 3800; ++i)
     request_text.push_back('*');
   request_text.append("\r\n\r\n");
   scoped_refptr<net::IOBuffer> request_buffer(
