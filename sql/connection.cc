@@ -376,6 +376,12 @@ bool Connection::OpenInternal(const std::string& file_name) {
       NOTREACHED() << "Could not set cache size: " << GetErrorMessage();
   }
 
+  if (!ExecuteWithTimeout("PRAGMA secure_delete=ON", kBusyTimeout)) {
+    NOTREACHED() << "Could not enable secure_delete: " << GetErrorMessage();
+    Close();
+    return false;
+  }
+
   return true;
 }
 
