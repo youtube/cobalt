@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/callback.h"
 #include "base/stl_util.h"
 #include "base/threading/simple_thread.h"
@@ -64,11 +65,9 @@ class PipelineImplTest : public ::testing::Test {
   PipelineImplTest()
       : pipeline_(new PipelineImpl(&message_loop_, new MediaLog())) {
     pipeline_->Init(
-        NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                    &CallbackHelper::OnEnded),
-        NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                    &CallbackHelper::OnError),
-        static_cast<PipelineStatusCallback*>(NULL));
+        base::Bind(&CallbackHelper::OnEnded, base::Unretained(&callbacks_)),
+        base::Bind(&CallbackHelper::OnError, base::Unretained(&callbacks_)),
+        PipelineStatusCB());
     mocks_.reset(new MockFilterCollection());
 
     // InitializeDemuxer adds overriding expectations for expected non-NULL
@@ -88,8 +87,8 @@ class PipelineImplTest : public ::testing::Test {
 
     // Expect a stop callback if we were started.
     EXPECT_CALL(callbacks_, OnStop(PIPELINE_OK));
-    pipeline_->Stop(NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                                &CallbackHelper::OnStop));
+    pipeline_->Stop(base::Bind(&CallbackHelper::OnStop,
+                               base::Unretained(&callbacks_)));
     message_loop_.RunAllPending();
 
     mocks_.reset();
@@ -214,8 +213,8 @@ class PipelineImplTest : public ::testing::Test {
                                                run_build,
                                                build_status),
                      url,
-                     NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                                 &CallbackHelper::OnStart));
+                     base::Bind(&CallbackHelper::OnStart,
+                                base::Unretained(&callbacks_)));
 
     message_loop_.RunAllPending();
   }
@@ -261,8 +260,8 @@ class PipelineImplTest : public ::testing::Test {
 
   void DoSeek(const base::TimeDelta& seek_time) {
     pipeline_->Seek(seek_time,
-                    NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                                &CallbackHelper::OnSeek));
+                    base::Bind(&CallbackHelper::OnSeek,
+                               base::Unretained(&callbacks_)));
 
     // We expect the time to be updated only after the seek has completed.
     EXPECT_NE(seek_time, pipeline_->GetCurrentTime());
@@ -289,11 +288,11 @@ TEST_F(PipelineImplTest, NotStarted) {
 
   // StrictMock<> will ensure these never get called, and valgrind/purify will
   // make sure the callbacks are instantly deleted.
-  pipeline_->Stop(NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                              &CallbackHelper::OnStop));
+  pipeline_->Stop(base::Bind(&CallbackHelper::OnStop,
+                             base::Unretained(&callbacks_)));
   pipeline_->Seek(kZero,
-                  NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                              &CallbackHelper::OnSeek));
+                  base::Bind(&CallbackHelper::OnSeek,
+                             base::Unretained(&callbacks_)));
 
   EXPECT_FALSE(pipeline_->IsRunning());
   EXPECT_FALSE(pipeline_->IsInitialized());
@@ -338,8 +337,8 @@ TEST_F(PipelineImplTest, NeverInitializes) {
                                              true,
                                              PIPELINE_OK),
                    "",
-                   NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                               &CallbackHelper::OnStart));
+                   base::Bind(&CallbackHelper::OnStart,
+                              base::Unretained(&callbacks_)));
   message_loop_.RunAllPending();
 
   EXPECT_FALSE(pipeline_->IsInitialized());
@@ -366,8 +365,8 @@ TEST_F(PipelineImplTest, RequiredFilterMissing) {
                                 true,
                                 PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
   pipeline_->Start(collection, "",
-                   NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                               &CallbackHelper::OnStart));
+                   base::Bind(&CallbackHelper::OnStart,
+                              base::Unretained(&callbacks_)));
   message_loop_.RunAllPending();
 
   EXPECT_FALSE(pipeline_->IsInitialized());
@@ -800,8 +799,8 @@ TEST_F(PipelineImplTest, ErrorDuringSeek) {
   EXPECT_CALL(*mocks_->demuxer(), Seek(seek_time, _))
       .WillOnce(Invoke(&SendReadErrorToCB));
 
-  pipeline_->Seek(seek_time, NewCallback(
-      reinterpret_cast<CallbackHelper*>(&callbacks_), &CallbackHelper::OnSeek));
+  pipeline_->Seek(seek_time,base::Bind(&CallbackHelper::OnSeek,
+                                       base::Unretained(&callbacks_)));
   EXPECT_CALL(callbacks_, OnSeek(PIPELINE_ERROR_READ));
   EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_READ));
   message_loop_.RunAllPending();
@@ -851,23 +850,23 @@ TEST_F(PipelineImplTest, StartTimeIsNonZero) {
 class FlexibleCallbackRunner : public base::DelegateSimpleThread::Delegate {
  public:
   FlexibleCallbackRunner(int delayInMs, PipelineStatus status,
-                         PipelineStatusCallback* callback)
+                         const PipelineStatusCB& callback)
       : delayInMs_(delayInMs), status_(status), callback_(callback) {
     if (delayInMs_ < 0) {
-      callback_->Run(status_);
+      callback_.Run(status_);
       return;
     }
   }
   virtual void Run() {
     if (delayInMs_ < 0) return;
     base::PlatformThread::Sleep(delayInMs_);
-    callback_->Run(status_);
+    callback_.Run(status_);
   }
 
  private:
   int delayInMs_;
   PipelineStatus status_;
-  scoped_ptr<PipelineStatusCallback> callback_;
+  PipelineStatusCB callback_;
 };
 
 void TestPipelineStatusNotification(int delayInMs) {

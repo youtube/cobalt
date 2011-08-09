@@ -147,7 +147,7 @@ class FFmpegDemuxerTest : public testing::Test {
     EXPECT_CALL(host_, SetDuration(expected_duration));
 
     demuxer_->Initialize(data_source_.get(),
-                         NewExpectedStatusCallback(PIPELINE_OK));
+                         NewExpectedStatusCB(PIPELINE_OK));
     message_loop_.RunAllPending();
   }
 
@@ -187,7 +187,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
       .WillOnce(Return(-1));
 
   demuxer_->Initialize(data_source_.get(),
-                       NewExpectedStatusCallback(DEMUXER_ERROR_COULD_NOT_OPEN));
+                       NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
   message_loop_.RunAllPending();
 }
 
@@ -201,7 +201,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_ParseFails) {
 
   demuxer_->Initialize(
       data_source_.get(),
-      NewExpectedStatusCallback(DEMUXER_ERROR_COULD_NOT_PARSE));
+      NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_PARSE));
   message_loop_.RunAllPending();
 }
 
@@ -215,7 +215,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
 
   demuxer_->Initialize(
       data_source_.get(),
-      NewExpectedStatusCallback(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
+      NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   message_loop_.RunAllPending();
 }
 
@@ -230,7 +230,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_DataStreamOnly) {
 
   demuxer_->Initialize(
       data_source_.get(),
-      NewExpectedStatusCallback(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
+      NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   message_loop_.RunAllPending();
 }
 
