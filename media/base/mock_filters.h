@@ -312,8 +312,7 @@ class MockFilterCollection {
 // the Initialize() and Seek() methods.
 void RunFilterCallback(::testing::Unused, FilterCallback* callback);
 void RunFilterStatusCB(::testing::Unused, const FilterStatusCB& cb);
-void RunPipelineStatusCallback(PipelineStatus status,
-                               PipelineStatusCallback* callback);
+void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb);
 void RunFilterCallback3(::testing::Unused, FilterCallback* callback,
                         ::testing::Unused);
 

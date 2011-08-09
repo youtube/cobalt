@@ -173,10 +173,8 @@ void RunFilterStatusCB(::testing::Unused, const FilterStatusCB& cb) {
   cb.Run(PIPELINE_OK);
 }
 
-void RunPipelineStatusCallback(
-    PipelineStatus status, PipelineStatusCallback* callback) {
-  callback->Run(status);
-  delete callback;
+void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb) {
+  cb.Run(status);
 }
 
 void RunFilterCallback3(::testing::Unused, FilterCallback* callback,
