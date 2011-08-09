@@ -61,10 +61,9 @@ class ThreadSafeDisrupter : public Foo {
   Foo* doomed_;
 };
 
-template <typename ObserverListType>
 class AddInObserve : public Foo {
  public:
-  explicit AddInObserve(ObserverListType* observer_list)
+  explicit AddInObserve(ObserverList<Foo>* observer_list)
       : added(false),
         observer_list(observer_list),
         adder(1) {
@@ -77,10 +76,13 @@ class AddInObserve : public Foo {
   }
 
   bool added;
-  ObserverListType* observer_list;
+  ObserverList<Foo>* observer_list;
   Adder adder;
 };
 
+
+class ObserverListThreadSafeTest : public testing::Test {
+};
 
 static const int kThreadRunTime = 2000;  // ms to run the multi-threaded test.
 
@@ -355,22 +357,10 @@ TEST(ObserverListThreadSafeTest, CrossThreadNotifications) {
   ThreadSafeObserverHarness(3, true);
 }
 
-TEST(ObserverListThreadSafeTest, OutlivesMessageLoop) {
-  MessageLoop* loop = new MessageLoop;
-  scoped_refptr<ObserverListThreadSafe<Foo> > observer_list(
-      new ObserverListThreadSafe<Foo>);
-
-  Adder a(1);
-  observer_list->AddObserver(&a);
-  delete loop;
-  // Test passes if we don't crash here.
-  observer_list->Notify(&Foo::Observe, 1);
-}
-
 TEST(ObserverListTest, Existing) {
   ObserverList<Foo> observer_list(ObserverList<Foo>::NOTIFY_EXISTING_ONLY);
   Adder a(1);
-  AddInObserve<ObserverList<Foo> > b(&observer_list);
+  AddInObserve b(&observer_list);
 
   observer_list.AddObserver(&a);
   observer_list.AddObserver(&b);
@@ -384,31 +374,6 @@ TEST(ObserverListTest, Existing) {
 
   // Notify again to make sure b's adder is notified.
   FOR_EACH_OBSERVER(Foo, observer_list, Observe(1));
-  EXPECT_EQ(1, b.adder.total);
-}
-
-// Same as above, but for ObserverListThreadSafe
-TEST(ObserverListThreadSafeTest, Existing) {
-  MessageLoop loop;
-  scoped_refptr<ObserverListThreadSafe<Foo> > observer_list(
-      new ObserverListThreadSafe<Foo>(ObserverList<Foo>::NOTIFY_EXISTING_ONLY));
-  Adder a(1);
-  AddInObserve<ObserverListThreadSafe<Foo> > b(observer_list.get());
-
-  observer_list->AddObserver(&a);
-  observer_list->AddObserver(&b);
-
-  observer_list->Notify(&Foo::Observe, 1);
-  loop.RunAllPending();
-
-  EXPECT_TRUE(b.added);
-  // B's adder should not have been notified because it was added during
-  // notificaiton.
-  EXPECT_EQ(0, b.adder.total);
-
-  // Notify again to make sure b's adder is notified.
-  observer_list->Notify(&Foo::Observe, 1);
-  loop.RunAllPending();
   EXPECT_EQ(1, b.adder.total);
 }
 
