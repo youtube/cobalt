@@ -7,6 +7,7 @@
 #include "base/atomic_sequence_num.h"
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "base/values.h"
 
 namespace media {
 
@@ -16,18 +17,63 @@ static base::AtomicSequenceNumber media_log_count(base::LINKER_INITIALIZED);
 
 const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
   switch (type) {
-    case MediaLogEvent::CREATING:
-      return "CREATING";
-    case MediaLogEvent::DESTROYING:
-      return "DESTROYING";
+    case MediaLogEvent::WEBMEDIAPLAYER_CREATED:
+      return "WEBMEDIAPLAYER_CREATED";
+    case MediaLogEvent::WEBMEDIAPLAYER_DESTROYED:
+      return "WEBMEDIAPLAYER_DESTROYED";
+    case MediaLogEvent::PIPELINE_CREATED:
+      return "PIPELINE_CREATED";
+    case MediaLogEvent::PIPELINE_DESTROYED:
+      return "PIPELINE_DESTROYED";
     case MediaLogEvent::LOAD:
       return "LOAD";
+    case MediaLogEvent::SEEK:
+      return "SEEK";
     case MediaLogEvent::PLAY:
       return "PLAY";
     case MediaLogEvent::PAUSE:
       return "PAUSE";
+    case MediaLogEvent::PIPELINE_STATE_CHANGED:
+      return "PIPELINE_STATE_CHANGED";
     case MediaLogEvent::BUFFERED_EXTENTS_CHANGED:
       return "BUFFERED_EXTENTS_CHANGED";
+  }
+  NOTREACHED();
+  return NULL;
+}
+
+const char* MediaLog::PipelineStateToString(PipelineImpl::State state) {
+  switch (state) {
+    case PipelineImpl::kCreated:
+      return "created";
+    case PipelineImpl::kInitDemuxer:
+      return "initDemuxer";
+    case PipelineImpl::kInitAudioDecoder:
+      return "initAudioDecoder";
+    case PipelineImpl::kInitAudioRenderer:
+      return "initAudioRenderer";
+    case PipelineImpl::kInitVideoDecoder:
+      return "initVideoDecoder";
+    case PipelineImpl::kInitVideoRenderer:
+      return "initVideoRenderer";
+    case PipelineImpl::kPausing:
+      return "pausing";
+    case PipelineImpl::kSeeking:
+      return "seeking";
+    case PipelineImpl::kFlushing:
+      return "flushing";
+    case PipelineImpl::kStarting:
+      return "starting";
+    case PipelineImpl::kStarted:
+      return "started";
+    case PipelineImpl::kEnded:
+      return "ended";
+    case PipelineImpl::kStopping:
+      return "stopping";
+    case PipelineImpl::kStopped:
+      return "stopped";
+    case PipelineImpl::kError:
+      return "error";
   }
   NOTREACHED();
   return NULL;
@@ -54,6 +100,20 @@ MediaLogEvent* MediaLog::CreateEvent(MediaLogEvent::Type type) {
 MediaLogEvent* MediaLog::CreateLoadEvent(const std::string& url) {
   scoped_ptr<MediaLogEvent> event(CreateEvent(MediaLogEvent::LOAD));
   event->params.SetString("url", url);
+  return event.release();
+}
+
+MediaLogEvent* MediaLog::CreateSeekEvent(float seconds) {
+  scoped_ptr<MediaLogEvent> event(CreateEvent(MediaLogEvent::SEEK));
+  event->params.SetDouble("seek_target", seconds);
+  return event.release();
+}
+
+MediaLogEvent* MediaLog::CreatePipelineStateChangedEvent(
+    PipelineImpl::State state) {
+  scoped_ptr<MediaLogEvent> event(
+      CreateEvent(MediaLogEvent::PIPELINE_STATE_CHANGED));
+  event->params.SetString("pipeline_state", PipelineStateToString(state));
   return event.release();
 }
 

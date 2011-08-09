@@ -8,13 +8,15 @@
 
 #include "base/memory/ref_counted.h"
 #include "media/base/media_log_event.h"
+#include "media/base/pipeline_impl.h"
 
 namespace media {
 
 class MediaLog : public base::RefCountedThreadSafe<MediaLog> {
  public:
-  // Return a string to represent an EventType.
+  // Convert various enums to strings.
   static const char* EventTypeToString(MediaLogEvent::Type type);
+  static const char* PipelineStateToString(PipelineImpl::State);
 
   MediaLog();
 
@@ -26,6 +28,8 @@ class MediaLog : public base::RefCountedThreadSafe<MediaLog> {
   // Helper methods to create events and their parameters.
   MediaLogEvent* CreateEvent(MediaLogEvent::Type type);
   MediaLogEvent* CreateLoadEvent(const std::string& url);
+  MediaLogEvent* CreateSeekEvent(float seconds);
+  MediaLogEvent* CreatePipelineStateChangedEvent(PipelineImpl::State state);
   MediaLogEvent* CreateBufferedExtentsChangedEvent(size_t start, size_t current,
                                                    size_t end);
 
