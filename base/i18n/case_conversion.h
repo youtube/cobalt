@@ -6,16 +6,16 @@
 #define BASE_I18N_CASE_CONVERSION_H_
 #pragma once
 
-#include "base/string16.h"
+#include "base/string_piece.h"
 
 namespace base {
 namespace i18n {
 
 // Returns the lower case equivalent of string. Uses ICU's default locale.
-string16 ToLower(const string16& string);
+string16 ToLower(const StringPiece16& string);
 
 // Returns the upper case equivalent of string. Uses ICU's default locale.
-string16 ToUpper(const string16& string);
+string16 ToUpper(const StringPiece16& string);
 
 }  // namespace i18n
 }  // namespace base
