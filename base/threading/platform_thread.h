@@ -74,8 +74,13 @@ class BASE_EXPORT PlatformThread {
   // Sleeps for the specified duration (units are milliseconds).
   static void Sleep(int duration_ms);
 
-  // Sets the thread name visible to a debugger.  This has no effect otherwise.
+  // Sets the thread name visible to debuggers/tools. This has no effect
+  // otherwise. This name pointer is not copied internally. Thus, it must stay
+  // valid until the thread ends.
   static void SetName(const char* name);
+
+  // Gets the thread name, if previously set by SetName.
+  static const char* GetName();
 
   // Creates a new thread.  The |stack_size| parameter can be 0 to indicate
   // that the default stack size should be used.  Upon success,
