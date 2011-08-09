@@ -114,3 +114,7 @@ LOAD_FLAG(IGNORE_LIMITS, 1 << 25)
 // default credentials may still be used for authentication.
 LOAD_FLAG(DO_NOT_PROMPT_FOR_LOGIN, 1 << 26)
 
+// Indicates that the operation is somewhat likely to be due to an
+// explicit user action. This can be used as a hint to treat the
+// request with higher priority.
+LOAD_FLAG(MAYBE_USER_GESTURE, 1 << 27)
