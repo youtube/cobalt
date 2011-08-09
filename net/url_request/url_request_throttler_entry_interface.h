@@ -24,10 +24,13 @@ class NET_API URLRequestThrottlerEntryInterface
   URLRequestThrottlerEntryInterface() {}
 
   // Returns true when we have encountered server errors and are doing
-  // exponential back-off.
+  // exponential back-off, unless the request has |load_flags| (from
+  // net/base/load_flags.h) that mean it is likely to be
+  // user-initiated.
+  //
   // URLRequestHttpJob checks this method prior to every request; it
   // cancels requests if this method returns true.
-  virtual bool IsDuringExponentialBackoff() const = 0;
+  virtual bool ShouldRejectRequest(int load_flags) const = 0;
 
   // Calculates a recommended sending time for the next request and reserves it.
   // The sending time is not earlier than the current exponential back-off
