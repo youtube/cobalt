@@ -65,6 +65,7 @@ v8.log
 /data
 /googleurl
 /gpu/gles2_conform_test
+/gyp-mac-tool
 /native_client
 /net/Debug
 /net/Release
