@@ -75,6 +75,8 @@ bool GetNetworkList(NetworkInterfaceList* networks) {
   }
 
   for (ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+    if (!ifa->ifa_addr)
+      continue; // Interface has no IP addresses, so skip it.
     int family = ifa->ifa_addr->sa_family;
     if (family == AF_INET || family == AF_INET6) {
       IPEndPoint address;
