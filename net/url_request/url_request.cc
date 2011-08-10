@@ -141,6 +141,7 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       final_upload_progress_(0),
       priority_(LOWEST),
       identifier_(GenerateURLRequestIdentifier()),
+      blocked_on_delegate_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           before_request_callback_(this, &URLRequest::BeforeRequestComplete)),
       has_notified_completion_(false) {
@@ -254,8 +255,13 @@ void URLRequest::SetExtraRequestHeaders(
   // for request headers are implemented.
 }
 
-LoadState URLRequest::GetLoadState() const {
-  return job_ ? job_->GetLoadState() : LOAD_STATE_IDLE;
+LoadStateWithParam URLRequest::GetLoadState() const {
+  if (blocked_on_delegate_) {
+    return LoadStateWithParam(LOAD_STATE_WAITING_FOR_DELEGATE,
+                              load_state_param_);
+  }
+  return LoadStateWithParam(job_ ? job_->GetLoadState() : LOAD_STATE_IDLE,
+                            string16());
 }
 
 uint64 URLRequest::GetUploadProgress() const {
@@ -400,7 +406,7 @@ void URLRequest::Start() {
     if (context_->network_delegate()->NotifyBeforeURLRequest(
             this, &before_request_callback_, &delegate_redirect_url_) ==
             net::ERR_IO_PENDING) {
-      net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+      SetBlockedOnDelegate();
       return;  // paused
     }
   }
@@ -414,7 +420,7 @@ void URLRequest::BeforeRequestComplete(int error) {
   DCHECK(!job_);
   DCHECK_NE(ERR_IO_PENDING, error);
 
-  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+  SetUnblockedOnDelegate();
   if (error != OK) {
     net_log_.AddEvent(NetLog::TYPE_CANCELLED,
         make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
@@ -802,6 +808,17 @@ void URLRequest::NotifyRequestCompleted() {
   has_notified_completion_ = true;
   if (context_ && context_->network_delegate())
     context_->network_delegate()->NotifyCompleted(this);
+}
+
+void URLRequest::SetBlockedOnDelegate() {
+  blocked_on_delegate_ = true;
+  net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+}
+
+void URLRequest::SetUnblockedOnDelegate() {
+  blocked_on_delegate_ = false;
+  load_state_param_.clear();
+  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
 }
 
 }  // namespace net

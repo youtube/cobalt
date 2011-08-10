@@ -431,8 +431,13 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     return extra_request_headers_;
   }
 
-  // Returns the current load state for the request.
-  LoadState GetLoadState() const;
+  // Returns the current load state for the request. |param| is an optional
+  // parameter describing details related to the load state. Not all load states
+  // have a parameter.
+  LoadStateWithParam GetLoadState() const;
+  void SetLoadStateParam(const string16& param) {
+    load_state_param_ = param;
+  }
 
   // Returns the current upload progress in bytes.
   uint64 GetUploadProgress() const;
@@ -715,6 +720,11 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
                     CookieOptions* options) const;
   void NotifyReadCompleted(int bytes_read);
 
+  // Called when the delegate blocks or unblocks this request when intercepting
+  // certain requests.
+  void SetBlockedOnDelegate();
+  void SetUnblockedOnDelegate();
+
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
   // cookie store, socket pool, etc.)
@@ -774,6 +784,14 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // identifier should be deleted here. http://crbug.com/89321
   // A globally unique identifier for this request.
   const uint64 identifier_;
+
+  // True if this request is blocked waiting for the network delegate to resume
+  // it.
+  bool blocked_on_delegate_;
+
+  // An optional parameter that provides additional information about the load
+  // state. Only used with the LOAD_STATE_WAITING_FOR_DELEGATE state.
+  string16 load_state_param_;
 
   base::debug::LeakTracker<URLRequest> leak_tracker_;
 
