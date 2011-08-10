@@ -351,8 +351,7 @@ void URLRequestHttpJob::StartTransaction() {
     // If an extension blocks the request, we rely on the callback to
     // StartTransactionInternal().
     if (rv == ERR_IO_PENDING) {
-      request_->net_log().BeginEvent(
-          NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+      SetBlockedOnDelegate();
       return;
     }
   }
@@ -360,8 +359,7 @@ void URLRequestHttpJob::StartTransaction() {
 }
 
 void URLRequestHttpJob::NotifyBeforeSendHeadersCallback(int result) {
-  request_->net_log().EndEvent(
-      NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+  SetUnblockedOnDelegate();
 
   if (result == OK) {
     StartTransactionInternal();
