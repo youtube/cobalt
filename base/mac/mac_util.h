@@ -115,6 +115,10 @@ BASE_EXPORT void AddToLoginItems(bool hide_on_startup);
 BASE_EXPORT void RemoveFromLoginItems();
 
 // Returns true if the current process was automatically launched as a
+// 'Login Item' or via Lion's Resume. Used to suppress opening windows.
+BASE_EXPORT bool WasLaunchedAsLoginOrResumeItem();
+
+// Returns true if the current process was automatically launched as a
 // 'Login Item' with 'hide on startup' flag. Used to suppress opening windows.
 BASE_EXPORT bool WasLaunchedAsHiddenLoginItem();
 
