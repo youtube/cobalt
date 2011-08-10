@@ -56,28 +56,6 @@ void SetUIMode() {
     SetSystemUIMode(desired_mode, desired_options);
 }
 
-bool WasLaunchedAsLoginItem() {
-  ProcessSerialNumber psn = { 0, kCurrentProcess };
-
-  scoped_nsobject<NSDictionary> process_info(
-      CFToNSCast(ProcessInformationCopyDictionary(&psn,
-                     kProcessDictionaryIncludeAllInformationMask)));
-
-  long long temp = [[process_info objectForKey:@"ParentPSN"] longLongValue];
-  ProcessSerialNumber parent_psn =
-      { (temp >> 32) & 0x00000000FFFFFFFFLL, temp & 0x00000000FFFFFFFFLL };
-
-  scoped_nsobject<NSDictionary> parent_info(
-      CFToNSCast(ProcessInformationCopyDictionary(&parent_psn,
-                     kProcessDictionaryIncludeAllInformationMask)));
-
-  // Check that creator process code is that of loginwindow.
-  BOOL result =
-      [[parent_info objectForKey:@"FileCreator"] isEqualToString:@"lgnw"];
-
-  return result == YES;
-}
-
 // Looks into Shared File Lists corresponding to Login Items for the item
 // representing the current application. If such an item is found, returns a
 // retained reference to it. Caller is responsible for releasing the reference.
@@ -472,13 +450,40 @@ void RemoveFromLoginItems() {
   LSSharedFileListItemRemove(login_items, item);
 }
 
+bool WasLaunchedAsLoginOrResumeItem() {
+  ProcessSerialNumber psn = { 0, kCurrentProcess };
+
+  scoped_nsobject<NSDictionary> process_info(
+      CFToNSCast(ProcessInformationCopyDictionary(&psn,
+                     kProcessDictionaryIncludeAllInformationMask)));
+
+  long long temp = [[process_info objectForKey:@"ParentPSN"] longLongValue];
+  ProcessSerialNumber parent_psn =
+      { (temp >> 32) & 0x00000000FFFFFFFFLL, temp & 0x00000000FFFFFFFFLL };
+
+  scoped_nsobject<NSDictionary> parent_info(
+      CFToNSCast(ProcessInformationCopyDictionary(&parent_psn,
+                     kProcessDictionaryIncludeAllInformationMask)));
+
+  // Check that creator process code is that of loginwindow.
+  BOOL result =
+      [[parent_info objectForKey:@"FileCreator"] isEqualToString:@"lgnw"];
+
+  return result == YES;
+}
+
 bool WasLaunchedAsHiddenLoginItem() {
-  if (!WasLaunchedAsLoginItem())
+  if (!WasLaunchedAsLoginOrResumeItem())
     return false;
 
   ScopedCFTypeRef<LSSharedFileListItemRef> item(GetLoginItemForApp());
   if (!item.get()) {
-    LOG(ERROR) << "Process launched at Login but can't access Login Item List.";
+    // Lion can launch items for the resume feature.  So log an error only for
+    // Snow Leopard or earlier.
+    if (IsOSSnowLeopardOrEarlier())
+      LOG(ERROR) <<
+          "Process launched at Login but can't access Login Item List.";
+
     return false;
   }
   return IsHiddenLoginItem(item);
