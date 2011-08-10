@@ -988,6 +988,13 @@
               ['exclude', '(^|/)(gtk|x11)_[^/]*\\.(h|cc)$'],
             ],
           }],
+          ['use_wayland!=1', {
+            'sources/': [
+              ['exclude', '_(wayland)(_unittest)?\\.(h|cc)$'],
+              ['exclude', '(^|/)wayland/'],
+              ['exclude', '(^|/)(wayland)_[^/]*\\.(h|cc)$'],
+            ],
+          }],
           ['OS!="linux"', {
             'sources/': [
               ['exclude', '_linux(_unittest)?\\.(h|cc)$'],
