@@ -1509,24 +1509,21 @@
               }]]
           }],
           ['clang==1', {
-            'target_conditions': [
-              ['_toolset=="target"', {
-                'cflags': [
-                  '-Wheader-hygiene',
-                  # Clang spots more unused functions.
-                  '-Wno-unused-function',
-                  # Don't die on dtoa code that uses a char as an array index.
-                  '-Wno-char-subscripts',
-                  # Survive EXPECT_EQ(unnamed_enum, unsigned int) -- see
-                  # http://code.google.com/p/googletest/source/detail?r=446 .
-                  # TODO(thakis): Use -isystem instead (http://crbug.com/58751 )
-                  '-Wno-unnamed-type-template-args',
-                ],
-                'cflags!': [
-                  # Clang doesn't seem to know know this flag.
-                  '-mfpmath=sse',
-                ],
-              }]],
+            'cflags': [
+              '-Wheader-hygiene',
+              # Clang spots more unused functions.
+              '-Wno-unused-function',
+              # Don't die on dtoa code that uses a char as an array index.
+              '-Wno-char-subscripts',
+              # Survive EXPECT_EQ(unnamed_enum, unsigned int) -- see
+              # http://code.google.com/p/googletest/source/detail?r=446 .
+              # TODO(thakis): Use -isystem instead (http://crbug.com/58751 )
+              '-Wno-unnamed-type-template-args',
+            ],
+            'cflags!': [
+              # Clang doesn't seem to know know this flag.
+              '-mfpmath=sse',
+            ],
           }],
           ['clang==1 and clang_use_chrome_plugins==1', {
             'target_conditions': [
