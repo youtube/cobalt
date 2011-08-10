@@ -557,6 +557,14 @@
           ['branding=="Chrome" and buildtype=="Official"', {
             'mac_breakpad%': 1,
             'mac_keystone%': 1,
+
+            # Official builds use clang, but only on m15+. Since there's just
+            # one buildbot config for the builder for m13, m14, and m15, this
+            # can't be defined in the buildbot config but is instead defined
+            # here (it was added after the m14 branch was cut). This is in the
+            # buildtype=="Official" section so that developers don't see it
+            # for their local builds.
+            'clang%': 1,
           }, { # else: branding!="Chrome" or buildtype!="Official"
             'mac_breakpad%': 0,
             'mac_keystone%': 0,
