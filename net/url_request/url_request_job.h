@@ -234,6 +234,11 @@ class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
   // Should only be called if the job has not started a resposne.
   void NotifyRestartRequired();
 
+  // Called when the delegate blocks or unblocks this request when intercepting
+  // certain requests.
+  void SetBlockedOnDelegate();
+  void SetUnblockedOnDelegate();
+
   // Called to read raw (pre-filtered) data from this Job.
   // If returning true, data was read from the job.  buf will contain
   // the data, and bytes_read will receive the number of bytes read.
