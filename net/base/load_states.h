@@ -6,6 +6,8 @@
 #define NET_BASE_LOAD_STATES_H__
 #pragma once
 
+#include "base/string16.h"
+
 namespace net {
 
 // These states correspond to the lengthy periods of time that a resource load
@@ -16,6 +18,13 @@ enum LoadState {
   // to move things along (e.g., the consumer of an URLRequest may not have
   // called Read yet).
   LOAD_STATE_IDLE,
+
+  // This state indicates that the URLRequest delegate has chosen to block this
+  // request before it was sent over the network. When in this state, the
+  // delegate should set a load state parameter on the URLRequest describing
+  // the nature of the delay (i.e. "Waiting for <description given by
+  // delegate>").
+  LOAD_STATE_WAITING_FOR_DELEGATE,
 
   // This state corresponds to a resource load that is blocked waiting for
   // access to a resource in the cache.  If multiple requests are made for the
@@ -67,6 +76,17 @@ enum LoadState {
   // the response body has been downloaded.  (NOTE: This state only applies for
   // an URLRequest while there is an outstanding Read operation.)
   LOAD_STATE_READING_RESPONSE,
+};
+
+// Some states, like LOAD_STATE_WAITING_FOR_DELEGATE, are associated with extra
+// data that describes more precisely what the delegate (for example) is doing.
+// This class provides an easy way to hold a load state with an extra parameter.
+struct LoadStateWithParam {
+  LoadState state;
+  string16 param;
+  LoadStateWithParam() {}
+  LoadStateWithParam(LoadState state, const string16& param)
+      : state(state), param(param) {}
 };
 
 }  // namespace net

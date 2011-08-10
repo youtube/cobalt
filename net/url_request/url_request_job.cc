@@ -439,6 +439,14 @@ void URLRequestJob::NotifyRestartRequired() {
     request_->Restart();
 }
 
+void URLRequestJob::SetBlockedOnDelegate() {
+  request_->SetBlockedOnDelegate();
+}
+
+void URLRequestJob::SetUnblockedOnDelegate() {
+  request_->SetUnblockedOnDelegate();
+}
+
 bool URLRequestJob::ReadRawData(IOBuffer* buf, int buf_size,
                                 int *bytes_read) {
   DCHECK(bytes_read);
