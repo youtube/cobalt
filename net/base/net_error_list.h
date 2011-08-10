@@ -574,6 +574,18 @@ NET_ERROR(PKCS12_IMPORT_INVALID_FILE, -708)
 // PKCS #12 import failed due to unsupported features.
 NET_ERROR(PKCS12_IMPORT_UNSUPPORTED, -709)
 
+// Key generation failed.
+NET_ERROR(KEY_GENERATION_FAILED, -710)
+
+// Origin-bound certificate generation failed.
+NET_ERROR(ORIGIN_BOUND_CERT_GENERATION_FAILED, -711)
+
+// Failure to export private key.
+NET_ERROR(PRIVATE_KEY_EXPORT_FAILED, -712)
+
+// Failure to get certificate bytes.
+NET_ERROR(GET_CERT_BYTES_FAILED, -713)
+
 // DNS error codes.
 
 // DNS resolver received a malformed response.
