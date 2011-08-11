@@ -1533,21 +1533,15 @@
             ],
           }],
           ['clang==1 and clang_use_chrome_plugins==1', {
-            'target_conditions': [
-              ['_toolset=="target"', {
-                'cflags': [
-                  '<(clang_chrome_plugins_flags)',
-                ],
-              }]],
+            'cflags': [
+              '<(clang_chrome_plugins_flags)',
+            ],
           }],
           ['clang==1 and clang_load!="" and clang_add_plugin!=""', {
-            'target_conditions': [
-              ['_toolset=="target"', {
-                'cflags': [
-                  '-Xclang', '-load', '-Xclang', '<(clang_load)',
-                  '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
-                ],
-              }]],
+            'cflags': [
+              '-Xclang', '-load', '-Xclang', '<(clang_load)',
+              '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
+            ],
           }],
           ['no_strict_aliasing==1', {
             'cflags': [
