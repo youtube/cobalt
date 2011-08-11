@@ -175,6 +175,47 @@ TEST(FtpUtilTest, LsDateListingToTime) {
   }
 }
 
+TEST(FtpUtilTest, WindowsDateListingToTime) {
+  const struct {
+    // Input.
+    const char* date;
+    const char* time;
+
+    // Expected output.
+    int expected_year;
+    int expected_month;
+    int expected_day_of_month;
+    int expected_hour;
+    int expected_minute;
+  } kTestCases[] = {
+    { "11-01-07", "12:42", 2007, 11, 1, 12, 42 },
+    { "11-01-07", "12:42AM", 2007, 11, 1, 0, 42 },
+    { "11-01-07", "12:42PM", 2007, 11, 1, 12, 42 },
+
+    { "11-01-2007", "12:42", 2007, 11, 1, 12, 42 },
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kTestCases); i++) {
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s %s", i,
+                                    kTestCases[i].date, kTestCases[i].time));
+
+    base::Time time;
+    ASSERT_TRUE(net::FtpUtil::WindowsDateListingToTime(
+                    UTF8ToUTF16(kTestCases[i].date),
+                    UTF8ToUTF16(kTestCases[i].time),
+                    &time));
+
+    base::Time::Exploded time_exploded;
+    time.LocalExplode(&time_exploded);
+    EXPECT_EQ(kTestCases[i].expected_year, time_exploded.year);
+    EXPECT_EQ(kTestCases[i].expected_month, time_exploded.month);
+    EXPECT_EQ(kTestCases[i].expected_day_of_month, time_exploded.day_of_month);
+    EXPECT_EQ(kTestCases[i].expected_hour, time_exploded.hour);
+    EXPECT_EQ(kTestCases[i].expected_minute, time_exploded.minute);
+    EXPECT_EQ(0, time_exploded.second);
+    EXPECT_EQ(0, time_exploded.millisecond);
+  }
+}
+
 TEST(FtpUtilTest, GetStringPartAfterColumns) {
   const struct {
     const char* text;
