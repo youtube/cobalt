@@ -341,7 +341,7 @@ TEST(ValuesTest, DeepCopy) {
 
   char* original_buffer = new char[42];
   memset(original_buffer, '!', 42);
-  BinaryValue* original_binary = Value::CreateBinaryValue(original_buffer, 42);
+  BinaryValue* original_binary = BinaryValue::Create(original_buffer, 42);
   original_dict.Set("binary", original_binary);
 
   ListValue* original_list = new ListValue();
@@ -533,7 +533,7 @@ TEST(ValuesTest, DeepCopyCovariantReturnTypes) {
 
   char* original_buffer = new char[42];
   memset(original_buffer, '!', 42);
-  BinaryValue* original_binary = Value::CreateBinaryValue(original_buffer, 42);
+  BinaryValue* original_binary = BinaryValue::Create(original_buffer, 42);
   original_dict.Set("binary", original_binary);
 
   ListValue* original_list = new ListValue();
