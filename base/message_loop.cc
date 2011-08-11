@@ -31,11 +31,6 @@
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
-#if defined(TOUCH_UI)
-#include "base/message_pump_x.h"
-#else
-#include "base/message_pump_gtk.h"
-#endif  // defined(TOUCH_UI)
 #endif  // defined(OS_POSIX) && !defined(OS_MACOSX)
 
 using base::TimeDelta;
@@ -149,6 +144,9 @@ MessageLoop::MessageLoop(Type type)
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
 #elif defined(OS_ANDROID)
 #define MESSAGE_PUMP_UI new base::MessagePumpForUI()
+#define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
+#elif defined(USE_WAYLAND)
+#define MESSAGE_PUMP_UI new base::MessagePumpWayland()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
 #elif defined(TOUCH_UI)
 #define MESSAGE_PUMP_UI new base::MessagePumpX()
