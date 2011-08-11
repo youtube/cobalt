@@ -58,7 +58,7 @@ void RunSingleRoundAuthTest(HandlerRunMode run_mode,
   HttpAuthHandlerMock* auth_handler = new HttpAuthHandlerMock();
   auth_handler->SetGenerateExpectation((run_mode == RUN_HANDLER_ASYNC),
                                        handler_rv);
-  auth_handler_factory.set_mock_handler(auth_handler, HttpAuth::AUTH_PROXY);
+  auth_handler_factory.AddMockHandler(auth_handler, HttpAuth::AUTH_PROXY);
   auth_handler_factory.set_do_init_from_challenge(true);
 
   scoped_refptr<HttpAuthController> controller(

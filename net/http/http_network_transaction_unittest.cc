@@ -7433,26 +7433,27 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
   };
 
   SessionDependencies session_deps;
-  HttpAuthHandlerMock::Factory* auth_factory(
-      new HttpAuthHandlerMock::Factory());
-  session_deps.http_auth_handler_factory.reset(auth_factory);
-
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_configs); ++i) {
+    HttpAuthHandlerMock::Factory* auth_factory(
+        new HttpAuthHandlerMock::Factory());
+    session_deps.http_auth_handler_factory.reset(auth_factory);
     const TestConfig& test_config = test_configs[i];
 
     // Set up authentication handlers as necessary.
     if (test_config.proxy_auth_timing != AUTH_NONE) {
-      HttpAuthHandlerMock* auth_handler(new HttpAuthHandlerMock());
-      std::string auth_challenge = "Mock realm=proxy";
-      GURL origin(test_config.proxy_url);
-      HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
-                                             auth_challenge.end());
-      auth_handler->InitFromChallenge(&tokenizer, HttpAuth::AUTH_PROXY,
-                                      origin, BoundNetLog());
-      auth_handler->SetGenerateExpectation(
-          test_config.proxy_auth_timing == AUTH_ASYNC,
-          test_config.proxy_auth_rv);
-      auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_PROXY);
+      for (int n = 0; n < 2; n++) {
+        HttpAuthHandlerMock* auth_handler(new HttpAuthHandlerMock());
+        std::string auth_challenge = "Mock realm=proxy";
+        GURL origin(test_config.proxy_url);
+        HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
+                                               auth_challenge.end());
+        auth_handler->InitFromChallenge(&tokenizer, HttpAuth::AUTH_PROXY,
+                                        origin, BoundNetLog());
+        auth_handler->SetGenerateExpectation(
+            test_config.proxy_auth_timing == AUTH_ASYNC,
+            test_config.proxy_auth_rv);
+        auth_factory->AddMockHandler(auth_handler, HttpAuth::AUTH_PROXY);
+      }
     }
     if (test_config.server_auth_timing != AUTH_NONE) {
       HttpAuthHandlerMock* auth_handler(new HttpAuthHandlerMock());
@@ -7465,7 +7466,7 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
       auth_handler->SetGenerateExpectation(
           test_config.server_auth_timing == AUTH_ASYNC,
           test_config.server_auth_rv);
-      auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_SERVER);
+      auth_factory->AddMockHandler(auth_handler, HttpAuth::AUTH_SERVER);
     }
     if (test_config.proxy_url) {
       session_deps.proxy_service.reset(
@@ -7559,7 +7560,7 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
                                          auth_challenge.end());
   auth_handler->InitFromChallenge(&tokenizer, HttpAuth::AUTH_SERVER,
                                   origin, BoundNetLog());
-  auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_SERVER);
+  auth_factory->AddMockHandler(auth_handler, HttpAuth::AUTH_SERVER);
 
   int rv = OK;
   const HttpResponseInfo* response = NULL;
@@ -7953,7 +7954,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   HttpAuthHandlerMock::Factory* auth_factory =
       new HttpAuthHandlerMock::Factory();
   HttpAuthHandlerMock* auth_handler = new HttpAuthHandlerMock();
-  auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_PROXY);
+  auth_factory->AddMockHandler(auth_handler, HttpAuth::AUTH_PROXY);
   auth_factory->set_do_init_from_challenge(true);
   session_deps.http_auth_handler_factory.reset(auth_factory);
 
