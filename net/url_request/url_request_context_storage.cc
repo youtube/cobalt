@@ -11,6 +11,7 @@
 #include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/network_delegate.h"
+#include "net/base/origin_bound_cert_service.h"
 #include "net/ftp/ftp_transaction_factory.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_transaction_factory.h"
@@ -41,6 +42,12 @@ void URLRequestContextStorage::set_host_resolver(HostResolver* host_resolver) {
 void URLRequestContextStorage::set_cert_verifier(CertVerifier* cert_verifier) {
   context_->set_cert_verifier(cert_verifier);
   cert_verifier_.reset(cert_verifier);
+}
+
+void URLRequestContextStorage::set_origin_bound_cert_service(
+    OriginBoundCertService* origin_bound_cert_service) {
+  context_->set_origin_bound_cert_service(origin_bound_cert_service);
+  origin_bound_cert_service_.reset(origin_bound_cert_service);
 }
 
 void URLRequestContextStorage::set_dnsrr_resolver(
