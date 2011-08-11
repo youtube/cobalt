@@ -27,11 +27,15 @@
 #elif defined(OS_POSIX)
 #include "base/message_pump_libevent.h"
 #if !defined(OS_MACOSX)
-#if defined(TOUCH_UI)
+
+#if defined(USE_WAYLAND)
+#include "base/message_pump_wayland.h"
+#elif defined(TOUCH_UI)
 #include "base/message_pump_x.h"
 #else
 #include "base/message_pump_gtk.h"
 #endif
+
 #endif
 #endif
 
