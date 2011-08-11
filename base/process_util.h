@@ -657,11 +657,23 @@ class BASE_EXPORT ProcessMetrics {
 };
 
 #if defined(OS_LINUX)
+// Data from /proc/meminfo about system-wide memory consumption.
+// Values are in KB.
+struct SystemMemoryInfoKB {
+  SystemMemoryInfoKB() : total(0), free(0), buffers(0), cached(0),
+      active_anon(0), inactive_anon(0), shmem(0) {}
+  int total;
+  int free;
+  int buffers;
+  int cached;
+  int active_anon;
+  int inactive_anon;
+  int shmem;
+};
 // Retrieves data from /proc/meminfo about system-wide memory consumption.
-// Values are in KB. Returns true on success.
-BASE_EXPORT bool GetSystemMemoryInfo(int* total_kb, int* free_kb,
-                                     int* buffers_kb, int* cache_kb,
-                                     int* shmem_kb);
+// Fills in the provided |meminfo| structure. Returns true on success.
+// Exposed for memory debugging widget.
+BASE_EXPORT bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo);
 #endif
 
 // Returns the memory committed by the system in KBytes.
