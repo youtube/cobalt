@@ -53,6 +53,7 @@ class HttpResponseInfo;
 class IOBuffer;
 class NetLog;
 class NetworkDelegate;
+class OriginBoundCertService;
 class ProxyService;
 class SSLConfigService;
 class ViewCacheHelper;
@@ -120,6 +121,7 @@ class NET_API HttpCache : public HttpTransactionFactory,
   // The HttpCache takes ownership of the |backend_factory|.
   HttpCache(HostResolver* host_resolver,
             CertVerifier* cert_verifier,
+            OriginBoundCertService* origin_bound_cert_service,
             DnsRRResolver* dnsrr_resolver,
             DnsCertProvenanceChecker* dns_cert_checker,
             ProxyService* proxy_service,
