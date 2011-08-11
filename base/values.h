@@ -465,7 +465,6 @@ class BASE_EXPORT ValueSerializer {
 
 // http://crbug.com/88666
 using base::DictionaryValue;
-using base::FundamentalValue;
 using base::ListValue;
 using base::StringValue;
 using base::Value;
