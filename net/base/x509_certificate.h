@@ -295,6 +295,12 @@ class NET_API X509Certificate
   static HCERTSTORE cert_store();
 #endif
 
+#if defined(OS_ANDROID)
+  // |chain_bytes| will contain the chain (including this certificate) encoded
+  // using GetChainDEREncodedBytes below.
+  void GetChainDEREncodedBytes(std::vector<std::string>* chain_bytes) const;
+#endif
+
 #if defined(USE_OPENSSL)
   // Returns a handle to a global, in-memory certificate store. We
   // use it for test code, e.g. importing the test server's certificate.
