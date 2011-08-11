@@ -1666,6 +1666,23 @@
           ['_mac_bundle', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-ObjC']},
           }],
+          ['_type=="executable"', {
+            'postbuilds': [
+              {
+                # Arranges for data (heap) pages to be protected against
+                # code execution when running on Mac OS X 10.7 ("Lion").
+                'variables': {
+                  # Define make_heap_non_executable in a variable ending in
+                  # _path so that gyp understands it's a path and performs
+                  # proper relativization during dict merging.
+                  'make_heap_non_executable_path':
+                      'mac/make_heap_non_executable_from_xcode.sh',
+                },
+                'postbuild_name': 'Make Heap Non-Executable',
+                'action': ['<(make_heap_non_executable_path)'],
+              },
+            ],
+          }],
           ['_type=="executable" and release_valgrind_build==0', {
             # Turn on position-independence (ASLR) for executables. When PIE
             # is on for the Chrome executables, the framework will also be
