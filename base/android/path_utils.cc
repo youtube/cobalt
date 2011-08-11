@@ -4,9 +4,9 @@
 
 #include "base/android/path_utils.h"
 
-#include "base/android/auto_jobject.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
+#include "base/android/scoped_java_reference.h"
 
 #include "jni/path_utils_jni.h"
 
@@ -15,20 +15,16 @@ namespace android {
 
 std::string GetDataDirectory() {
   JNIEnv* env = AttachCurrentThread();
-  AutoJObject path = AutoJObject::FromLocalRef(
-      env, Java_PathUtils_getDataDirectory(
-          env, base::android::GetApplicationContext()));
-  return base::android::ConvertJavaStringToUTF8(
-      env, static_cast<jstring>(path.obj()));
+  ScopedJavaReference<jstring> path(env, Java_PathUtils_getDataDirectory(
+      env, base::android::GetApplicationContext()));
+  return base::android::ConvertJavaStringToUTF8(env, path.obj());
 }
 
 std::string GetCacheDirectory() {
   JNIEnv* env = AttachCurrentThread();
-  AutoJObject path = AutoJObject::FromLocalRef(
-      env, Java_PathUtils_getCacheDirectory(
-          env, base::android::GetApplicationContext()));
-  return base::android::ConvertJavaStringToUTF8(
-      env, static_cast<jstring>(path.obj()));
+  ScopedJavaReference<jstring> path(env, Java_PathUtils_getCacheDirectory(
+      env, base::android::GetApplicationContext()));
+  return base::android::ConvertJavaStringToUTF8(env, path.obj());
 }
 
 bool RegisterPathUtils(JNIEnv* env) {

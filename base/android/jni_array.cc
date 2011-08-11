@@ -1,10 +1,11 @@
-// Copyright 2011 Google Inc. All Rights Reserved.
-// Author: michaelbai@google.com (Tao Bai)
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "base/android/jni_array.h"
 
-#include "base/android/auto_jobject.h"
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_reference.h"
 #include "base/logging.h"
 
 namespace base {
@@ -37,7 +38,7 @@ jobjectArray ToJavaArrayOfByteArray(JNIEnv* env,
     return NULL;
 
   for (size_t i = 0; i < count; ++i) {
-    AutoJObject byte_array = AutoJObject::FromLocalRef(env, ToJavaByteArray(env,
+    ScopedJavaReference<jobject> byte_array(env, ToJavaByteArray(env,
             reinterpret_cast<const uint8*>(v[i].data()), v[i].length()));
     if (!byte_array.obj()) {
       env->DeleteLocalRef(joa);

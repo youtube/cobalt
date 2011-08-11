@@ -4,7 +4,6 @@
 
 #include "base/android/jni_android.h"
 
-#include "base/android/auto_jobject.h"
 #include "base/logging.h"
 
 namespace {
