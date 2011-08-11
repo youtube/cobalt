@@ -96,11 +96,6 @@ StringValue* Value::CreateStringValue(const string16& in_value) {
   return new StringValue(in_value);
 }
 
-// static
-BinaryValue* Value::CreateBinaryValue(char* buffer, size_t size) {
-  return BinaryValue::Create(buffer, size);
-}
-
 bool Value::GetAsBoolean(bool* out_value) const {
   return false;
 }
