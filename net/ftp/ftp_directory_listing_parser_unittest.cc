@@ -139,6 +139,7 @@ const char* kTestFiles[] = {
 
   "dir-listing-netware-1",
   "dir-listing-netware-2",
+  "dir-listing-os2-1",
   "dir-listing-vms-1",
   "dir-listing-vms-2",
   "dir-listing-vms-3",

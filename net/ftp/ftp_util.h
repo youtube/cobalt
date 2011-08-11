@@ -43,6 +43,11 @@ class NET_TEST FtpUtil {
                                   const base::Time& current_time,
                                   base::Time* result);
 
+  // Converts a Windows date listing to time. Returns true on success.
+  static bool WindowsDateListingToTime(const string16& date,
+                                       const string16& time,
+                                       base::Time* result);
+
   // Skips |columns| columns from |text| (whitespace-delimited), and returns the
   // remaining part, without leading/trailing whitespace.
   static string16 GetStringPartAfterColumns(const string16& text, int columns);

@@ -27,6 +27,8 @@ enum FtpServerType {
 
   // Types 13-14 are RESERVED (were earlier used for MLSD listings).
 
+  SERVER_OS2 = 15,      // Server using OS/2 listing style.
+
   NUM_OF_SERVER_TYPES
 };
 
