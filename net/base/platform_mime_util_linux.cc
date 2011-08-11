@@ -6,9 +6,24 @@
 
 #include <string>
 
+#include "build/build_config.h"
+
+#if defined(OS_ANDROID)
+#include "net/android/network_library.h"
+#else
 #include "base/mime_util.h"
+#endif
 
 namespace net {
+
+#if defined(OS_ANDROID)
+
+bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
+    const FilePath::StringType& ext, std::string* result) const {
+  return android::GetMimeTypeFromExtension(ext, result);
+}
+
+#else
 
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const FilePath::StringType& ext, std::string* result) const {
@@ -38,6 +53,8 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
   *result = out;
   return true;
 }
+
+#endif  // defined(OS_ANDROID)
 
 struct MimeToExt {
   const char* mime_type;
