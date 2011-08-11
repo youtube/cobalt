@@ -1,7 +1,6 @@
 *.Makefile
 *.mk
 *.ncb
-*.ninja
 *.props
 *.pyc
 *.rules
@@ -70,7 +69,6 @@ v8.log
 /net/Debug
 /net/Release
 /net/testserver.log
-/ninja
 /out
 /out_*
 /rlz
