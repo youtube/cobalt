@@ -558,12 +558,13 @@ namespace {
 const size_t kMemTotalIndex = 1;
 const size_t kMemFreeIndex = 4;
 const size_t kMemBuffersIndex = 7;
-const size_t kMemCacheIndex = 10;
+const size_t kMemCachedIndex = 10;
+const size_t kMemActiveAnonIndex = 22;
+const size_t kMemInactiveAnonIndex = 25;
 
 }  // namespace
 
-bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
-                         int* mem_cache, int* shmem) {
+bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
   // Synchronously reading files in /proc is safe.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
@@ -577,7 +578,7 @@ bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
   std::vector<std::string> meminfo_fields;
   SplitStringAlongWhitespace(meminfo_data, &meminfo_fields);
 
-  if (meminfo_fields.size() < kMemCacheIndex) {
+  if (meminfo_fields.size() < kMemCachedIndex) {
     LOG(WARNING) << "Failed to parse /proc/meminfo.  Only found " <<
       meminfo_fields.size() << " fields.";
     return false;
@@ -586,20 +587,25 @@ bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
   DCHECK_EQ(meminfo_fields[kMemTotalIndex-1], "MemTotal:");
   DCHECK_EQ(meminfo_fields[kMemFreeIndex-1], "MemFree:");
   DCHECK_EQ(meminfo_fields[kMemBuffersIndex-1], "Buffers:");
-  DCHECK_EQ(meminfo_fields[kMemCacheIndex-1], "Cached:");
+  DCHECK_EQ(meminfo_fields[kMemCachedIndex-1], "Cached:");
+  DCHECK_EQ(meminfo_fields[kMemActiveAnonIndex-1], "Active(anon):");
+  DCHECK_EQ(meminfo_fields[kMemInactiveAnonIndex-1], "Inactive(anon):");
 
-  base::StringToInt(meminfo_fields[kMemTotalIndex], mem_total);
-  base::StringToInt(meminfo_fields[kMemFreeIndex], mem_free);
-  base::StringToInt(meminfo_fields[kMemBuffersIndex], mem_buffers);
-  base::StringToInt(meminfo_fields[kMemCacheIndex], mem_cache);
+  base::StringToInt(meminfo_fields[kMemTotalIndex], &meminfo->total);
+  base::StringToInt(meminfo_fields[kMemFreeIndex], &meminfo->free);
+  base::StringToInt(meminfo_fields[kMemBuffersIndex], &meminfo->buffers);
+  base::StringToInt(meminfo_fields[kMemCachedIndex], &meminfo->cached);
+  base::StringToInt(meminfo_fields[kMemActiveAnonIndex], &meminfo->active_anon);
+  base::StringToInt(meminfo_fields[kMemInactiveAnonIndex],
+                    &meminfo->inactive_anon);
 #if defined(OS_CHROMEOS)
   // Chrome OS has a tweaked kernel that allows us to query Shmem, which is
   // usually video memory otherwise invisible to the OS.  Unfortunately, the
   // meminfo format varies on different hardware so we have to search for the
   // string.  It always appears after "Cached:".
-  for (size_t i = kMemCacheIndex+2; i < meminfo_fields.size(); i += 3) {
+  for (size_t i = kMemCachedIndex+2; i < meminfo_fields.size(); i += 3) {
     if (meminfo_fields[i] == "Shmem:") {
-      base::StringToInt(meminfo_fields[i+1], shmem);
+      base::StringToInt(meminfo_fields[i+1], &meminfo->shmem);
       break;
     }
   }
@@ -608,10 +614,10 @@ bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
 }
 
 size_t GetSystemCommitCharge() {
-  int total, free, buffers, cache, shmem;
-  if (!GetSystemMemoryInfo(&total, &free, &buffers, &cache, &shmem))
+  SystemMemoryInfoKB meminfo;
+  if (!GetSystemMemoryInfo(&meminfo))
     return 0;
-  return total - free - buffers - cache;
+  return meminfo.total - meminfo.free - meminfo.buffers - meminfo.cached;
 }
 
 namespace {
