@@ -425,6 +425,8 @@ X509_STORE* X509Certificate::cert_store() {
   return X509InitSingleton::GetInstance()->store();
 }
 
+#if !defined(OS_ANDROID)
+
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
                                     CertVerifyResult* verify_result) const {
@@ -503,6 +505,8 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
 
   return OK;
 }
+
+#endif  // !defined(OS_ANDROID)
 
 bool X509Certificate::GetDEREncoded(std::string* encoded) {
   DERCache der_cache;
