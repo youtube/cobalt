@@ -4,6 +4,7 @@
 
 #include "base/threading/platform_thread.h"
 
+#include "base/debug/alias.h"
 #include "base/logging.h"
 #include "base/threading/thread_local.h"
 #include "base/threading/thread_restrictions.h"
@@ -33,6 +34,14 @@ struct ThreadParams {
 };
 
 DWORD __stdcall ThreadFunc(void* params) {
+  // TODO(apatrick): Remove this ASAP. This ensures that if the
+  // TerminateProcess entry point has been patched to point into a third party
+  // DLL, this is visible on the stack and the DLL in question can be
+  // determined.
+  typedef BOOL (WINAPI *TerminateProcessPtr)(HANDLE, UINT);
+  TerminateProcessPtr terminate_process = TerminateProcess;
+  base::debug::Alias(&terminate_process);
+
   ThreadParams* thread_params = static_cast<ThreadParams*>(params);
   PlatformThread::Delegate* delegate = thread_params->delegate;
   if (!thread_params->joinable)
