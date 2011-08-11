@@ -80,6 +80,7 @@ class NET_API URLRequestContext
   OriginBoundCertService* origin_bound_cert_service() const {
     return origin_bound_cert_service_;
   }
+
   void set_origin_bound_cert_service(
       OriginBoundCertService* origin_bound_cert_service) {
     origin_bound_cert_service_ = origin_bound_cert_service;
