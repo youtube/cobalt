@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -142,10 +142,9 @@ HttpAuthHandlerMock::Factory::Factory()
 HttpAuthHandlerMock::Factory::~Factory() {
 }
 
-void HttpAuthHandlerMock::Factory::set_mock_handler(
+void HttpAuthHandlerMock::Factory::AddMockHandler(
     HttpAuthHandler* handler, HttpAuth::Target target) {
-  EXPECT_TRUE(handlers_[target].get() == NULL);
-  handlers_[target].reset(handler);
+  handlers_[target].push_back(handler);
 }
 
 int HttpAuthHandlerMock::Factory::CreateAuthHandler(
@@ -156,9 +155,11 @@ int HttpAuthHandlerMock::Factory::CreateAuthHandler(
     int nonce_count,
     const BoundNetLog& net_log,
     scoped_ptr<HttpAuthHandler>* handler) {
-  if (!handlers_[target].get())
+  if (handlers_[target].empty())
     return ERR_UNEXPECTED;
-  scoped_ptr<HttpAuthHandler> tmp_handler(handlers_[target].release());
+  scoped_ptr<HttpAuthHandler> tmp_handler(handlers_[target][0]);
+  std::vector<HttpAuthHandler*>& handlers = handlers_[target].get();
+  handlers.erase(handlers.begin());
   if (do_init_from_challenge_ &&
       !tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
     return ERR_INVALID_RESPONSE;
