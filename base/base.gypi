@@ -368,6 +368,12 @@
           '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework/Frameworks',
         ],
         'conditions': [
+          [ 'use_wayland == 1', {
+            'sources!': [
+              'message_pump_gtk.cc',
+              'message_pump_x.cc',
+            ],
+          }],
           [ 'toolkit_uses_gtk==0', {
               'sources/': [
                 ['exclude', '^nix/'],
@@ -581,6 +587,8 @@
         'message_pump_libevent.h',
         'message_pump_mac.h',
         'message_pump_mac.mm',
+        'message_pump_wayland.cc',
+        'message_pump_wayland.h',
         'metrics/field_trial.cc',
         'metrics/field_trial.h',
         'string16.cc',
