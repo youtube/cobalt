@@ -76,10 +76,6 @@ class BASE_EXPORT Value {
   static StringValue* CreateStringValue(const std::string& in_value);
   static StringValue* CreateStringValue(const string16& in_value);
 
-  // This one can return NULL if the input isn't valid.  If the return value
-  // is non-null, the new object has taken ownership of the buffer pointer.
-  static BinaryValue* CreateBinaryValue(char* buffer, size_t size);
-
   // Returns the type of the value stored by the current Value object.
   // Each type will be implemented by only one subclass of Value, so it's
   // safe to use the ValueType to determine whether you can cast from
