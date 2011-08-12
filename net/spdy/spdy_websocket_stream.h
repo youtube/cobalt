@@ -21,11 +21,11 @@ namespace net {
 // The SpdyWebSocketStream is a WebSocket-specific type of stream known to a
 // SpdySession. WebSocket's opening handshake is converted to SPDY's
 // SYN_STREAM/SYN_REPLY. WebSocket frames are encapsulated as SPDY data frames.
-class NET_TEST SpdyWebSocketStream
+class NET_EXPORT_PRIVATE SpdyWebSocketStream
     : public SpdyStream::Delegate {
  public:
   // Delegate handles asynchronous events.
-  class NET_TEST Delegate {
+  class NET_EXPORT_PRIVATE Delegate {
    public:
     // Called when InitializeStream() finishes asynchronously. This delegate is
     // called if InitializeStream() returns ERR_IO_PENDING. |status| indicates

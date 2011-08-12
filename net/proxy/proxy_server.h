@@ -14,13 +14,13 @@
 
 #include <string>
 #include "net/base/host_port_pair.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 // ProxyServer encodes the {type, host, port} of a proxy server.
 // ProxyServer is immutable.
-class NET_API ProxyServer {
+class NET_EXPORT ProxyServer {
  public:
   // The type of proxy. These are defined as bit flags so they can be ORed
   // together to pass as the |scheme_bit_field| argument to

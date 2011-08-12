@@ -10,7 +10,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -19,7 +19,7 @@ class FtpRequestInfo;
 class BoundNetLog;
 
 // Represents a single FTP transaction.
-class NET_TEST FtpTransaction {
+class NET_EXPORT_PRIVATE FtpTransaction {
  public:
   // Stops any pending IO and destroys the transaction object.
   virtual ~FtpTransaction() {}

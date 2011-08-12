@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/proxy/proxy_retry_info.h"
 
 namespace net {
@@ -19,7 +19,7 @@ class ProxyServer;
 // This class is used to hold a list of proxies returned by GetProxyForUrl or
 // manually configured. It handles proxy fallback if multiple servers are
 // specified.
-class NET_TEST ProxyList {
+class NET_EXPORT_PRIVATE ProxyList {
  public:
   ProxyList();
   ~ProxyList();

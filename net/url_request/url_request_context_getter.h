@@ -8,7 +8,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/task.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace base {
 class MessageLoopProxy;
@@ -21,7 +21,7 @@ class URLRequestContext;
 struct URLRequestContextGetterTraits;
 
 // Interface for retrieving an net::URLRequestContext.
-class NET_API URLRequestContextGetter
+class NET_EXPORT URLRequestContextGetter
     : public base::RefCountedThreadSafe<URLRequestContextGetter,
                                         URLRequestContextGetterTraits> {
  public:

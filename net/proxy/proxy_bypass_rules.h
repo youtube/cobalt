@@ -10,17 +10,17 @@
 #include <vector>
 
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 // ProxyBypassRules describes the set of URLs that should bypass the proxy
 // settings, as a list of rules. A URL is said to match the bypass rules
 // if it matches any one of these rules.
-class NET_API ProxyBypassRules {
+class NET_EXPORT ProxyBypassRules {
  public:
   // Interface for an individual proxy bypass rule.
-  class NET_API Rule {
+  class NET_EXPORT Rule {
    public:
     Rule();
     virtual ~Rule();

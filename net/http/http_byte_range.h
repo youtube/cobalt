@@ -7,14 +7,14 @@
 #pragma once
 
 #include "base/basictypes.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 // A container class that represents a "range" specified for range request
 // specified by RFC 2616 Section 14.35.1.
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.1
-class NET_API HttpByteRange {
+class NET_EXPORT HttpByteRange {
  public:
   HttpByteRange();
 

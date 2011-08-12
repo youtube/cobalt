@@ -20,7 +20,7 @@ class NetworkDelegate;
 
 // An implementation of ProxyResolverErrorObserver that forwards PAC script
 // errors to a NetworkDelegate object on the thread it lives on.
-class NET_TEST NetworkDelegateErrorObserver
+class NET_EXPORT_PRIVATE NetworkDelegateErrorObserver
     : public ProxyResolverErrorObserver {
  public:
   NetworkDelegateErrorObserver(NetworkDelegate* network_delegate,

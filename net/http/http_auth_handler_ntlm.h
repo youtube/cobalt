@@ -35,7 +35,7 @@ namespace net {
 class URLSecurityManager;
 
 // Code for handling HTTP NTLM authentication.
-class NET_TEST HttpAuthHandlerNTLM : public HttpAuthHandler {
+class NET_EXPORT_PRIVATE HttpAuthHandlerNTLM : public HttpAuthHandler {
  public:
   class Factory : public HttpAuthHandlerFactory {
    public:

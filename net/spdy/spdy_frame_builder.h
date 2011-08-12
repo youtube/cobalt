@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/sys_byteorder.h"
 #include "net/spdy/spdy_protocol.h"
 
@@ -26,7 +26,7 @@ namespace spdy {
 // When reading from a SpdyFrameBuilder the consumer must know what value types
 // to read and in what order to read them as the SpdyFrameBuilder does not keep
 // track of the type of data written to it.
-class NET_TEST SpdyFrameBuilder {
+class NET_EXPORT_PRIVATE SpdyFrameBuilder {
  public:
   SpdyFrameBuilder();
 

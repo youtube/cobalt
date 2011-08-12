@@ -10,7 +10,7 @@
 
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace disk_cache {
 class Backend;
@@ -21,7 +21,7 @@ namespace net {
 
 class URLRequestContext;
 
-class NET_API ViewCacheHelper {
+class NET_EXPORT ViewCacheHelper {
  public:
   ViewCacheHelper();
   ~ViewCacheHelper();

@@ -10,7 +10,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "net/base/address_family.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -23,7 +23,7 @@ class AddressList;
 //
 // Note that implementations of HostResolverProc *MUST BE THREADSAFE*, since
 // the HostResolver implementation using them can be multi-threaded.
-class NET_API HostResolverProc
+class NET_EXPORT HostResolverProc
     : public base::RefCountedThreadSafe<HostResolverProc> {
  public:
   explicit HostResolverProc(HostResolverProc* previous);
@@ -85,11 +85,12 @@ class NET_API HostResolverProc
 // |addrlist| with a list of socket addresses. Otherwise returns a
 // network error code, and fills |os_error| with a more specific errir if it
 // was non-NULL.
-NET_TEST int SystemHostResolverProc(const std::string& host,
-                                    AddressFamily address_family,
-                                    HostResolverFlags host_resolver_flags,
-                                    AddressList* addrlist,
-                                    int* os_error);
+NET_EXPORT_PRIVATE int SystemHostResolverProc(
+    const std::string& host,
+    AddressFamily address_family,
+    HostResolverFlags host_resolver_flags,
+    AddressList* addrlist,
+    int* os_error);
 
 }  // namespace net
 

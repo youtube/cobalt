@@ -32,8 +32,9 @@ class HttpStreamRequest;
 class IOBuffer;
 struct HttpRequestInfo;
 
-class NET_TEST HttpNetworkTransaction : public HttpTransaction,
-                                        public HttpStreamRequest::Delegate {
+class NET_EXPORT_PRIVATE HttpNetworkTransaction
+    : public HttpTransaction,
+      public HttpStreamRequest::Delegate {
  public:
   explicit HttpNetworkTransaction(HttpNetworkSession* session);
 

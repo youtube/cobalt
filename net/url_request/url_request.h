@@ -19,7 +19,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_request_headers.h"
@@ -104,7 +104,7 @@ typedef std::vector<std::string> ResponseCookies;
 //
 // NOTE: All usage of all instances of this class should be on the same thread.
 //
-class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
+class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // Callback function implemented by protocol handlers to create new jobs.
   // The factory may return NULL to indicate an error, which will cause other
@@ -131,7 +131,7 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   // This class handles network interception.  Use with
   // (Un)RegisterRequestInterceptor.
-  class NET_API Interceptor {
+  class NET_EXPORT Interceptor {
   public:
     virtual ~Interceptor() {}
 
@@ -163,7 +163,7 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Deprecated interfaces in net::URLRequest. They have been moved to
   // URLRequest's private section to prevent new uses. Existing uses are
   // explicitly friended here and should be removed over time.
-  class NET_API Deprecated {
+  class NET_EXPORT Deprecated {
    private:
     // TODO(willchan): Kill off these friend declarations.
     friend class ::AutoUpdateInterceptor;
@@ -220,7 +220,7 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // if an error occurred, or if the IO is just pending.  When Read() returns
   // true with zero bytes read, it indicates the end of the response.
   //
-  class NET_API Delegate {
+  class NET_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 

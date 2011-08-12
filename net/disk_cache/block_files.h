@@ -13,7 +13,7 @@
 #include "base/file_path.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/disk_cache/addr.h"
 #include "net/disk_cache/mapped_file.h"
 
@@ -24,7 +24,7 @@ class ThreadChecker;
 namespace disk_cache {
 
 // This class handles the set of block-files open by the disk cache.
-class NET_TEST BlockFiles {
+class NET_EXPORT_PRIVATE BlockFiles {
  public:
   explicit BlockFiles(const FilePath& path);
   ~BlockFiles();

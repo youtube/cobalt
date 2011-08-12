@@ -25,8 +25,8 @@ class URLRequestContext;
 
 // Implementation of ProxyScriptFetcher that downloads scripts using the
 // specified request context.
-class NET_API ProxyScriptFetcherImpl : public ProxyScriptFetcher,
-                                       public URLRequest::Delegate {
+class NET_EXPORT ProxyScriptFetcherImpl : public ProxyScriptFetcher,
+                                          public URLRequest::Delegate {
  public:
   // Creates a ProxyScriptFetcher that issues requests through
   // |url_request_context|. |url_request_context| must remain valid for the

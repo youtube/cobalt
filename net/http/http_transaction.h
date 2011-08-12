@@ -9,7 +9,7 @@
 #include "base/string16.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -23,7 +23,7 @@ class SSLHostInfo;
 // Represents a single HTTP transaction (i.e., a single request/response pair).
 // HTTP redirects are not followed and authentication challenges are not
 // answered.  Cookies are assumed to be managed by the caller.
-class NET_TEST HttpTransaction {
+class NET_EXPORT_PRIVATE HttpTransaction {
  public:
   // Stops any pending IO and destroys the transaction object.
   virtual ~HttpTransaction() {}

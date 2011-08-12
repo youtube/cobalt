@@ -17,7 +17,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "net/base/completion_callback.h"
 #include "net/base/ip_endpoint.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/rand_callback.h"
 
@@ -31,14 +31,15 @@ class DnsResponse;
 // Performs (with fixed retries) a single asynchronous DNS transaction,
 // which consists of sending out a DNS query, waiting for response, and
 // parsing and returning the IP addresses that it matches.
-class NET_TEST DnsTransaction : NON_EXPORTED_BASE(public base::NonThreadSafe) {
+class NET_EXPORT_PRIVATE DnsTransaction :
+    NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   typedef std::pair<std::string, uint16> Key;
 
   // Interface that should implemented by DnsTransaction consumer and
   // passed to |Start| method to be notified when the transaction has
   // completed.
-  class NET_TEST Delegate {
+  class NET_EXPORT_PRIVATE Delegate {
    public:
     Delegate();
     virtual ~Delegate();

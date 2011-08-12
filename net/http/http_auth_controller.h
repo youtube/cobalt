@@ -16,7 +16,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/http/http_auth.h"
 
@@ -29,7 +29,7 @@ class HttpAuthCache;
 class HttpRequestHeaders;
 struct HttpRequestInfo;
 
-class NET_TEST HttpAuthController
+class NET_EXPORT_PRIVATE HttpAuthController
     : public base::RefCounted<HttpAuthController>,
       NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:

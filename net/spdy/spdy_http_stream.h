@@ -29,7 +29,8 @@ class UploadData;
 class UploadDataStream;
 
 // The SpdyHttpStream is a HTTP-specific type of stream known to a SpdySession.
-class NET_TEST SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
+class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
+                                          public HttpStream {
  public:
   SpdyHttpStream(SpdySession* spdy_session, bool direct);
   virtual ~SpdyHttpStream();

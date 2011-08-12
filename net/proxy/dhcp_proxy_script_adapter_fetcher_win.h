@@ -13,7 +13,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "base/timer.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "googleurl/src/gurl.h"
 
 namespace base {
@@ -27,7 +27,7 @@ class URLRequestContext;
 
 // For a given adapter, this class takes care of first doing a DHCP lookup
 // to get the PAC URL, then if there is one, trying to fetch it.
-class NET_TEST DhcpProxyScriptAdapterFetcher
+class NET_EXPORT_PRIVATE DhcpProxyScriptAdapterFetcher
     : public base::SupportsWeakPtr<DhcpProxyScriptAdapterFetcher>,
       NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
@@ -114,7 +114,7 @@ class NET_TEST DhcpProxyScriptAdapterFetcher
   //
   // TODO(joi): Replace with PostTaskAndReply once http://crbug.com/86301
   // has been implemented.
-  class NET_TEST WorkerThread
+  class NET_EXPORT_PRIVATE WorkerThread
       : public base::RefCountedThreadSafe<WorkerThread> {
    public:
     // Creates and initializes (but does not start) the worker thread.
