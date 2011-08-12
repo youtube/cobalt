@@ -54,7 +54,7 @@ typedef std::map<std::string, Value*> ValueMap;
 // the subclasses.
 class BASE_EXPORT Value {
  public:
-  enum ValueType {
+  enum Type {
     TYPE_NULL = 0,
     TYPE_BOOLEAN,
     TYPE_INTEGER,
@@ -79,13 +79,13 @@ class BASE_EXPORT Value {
 
   // Returns the type of the value stored by the current Value object.
   // Each type will be implemented by only one subclass of Value, so it's
-  // safe to use the ValueType to determine whether you can cast from
+  // safe to use the Type to determine whether you can cast from
   // Value* to (Implementing Class)*.  Also, a Value object never changes
   // its type after construction.
-  ValueType GetType() const { return type_; }
+  Type GetType() const { return type_; }
 
   // Returns true if the current object represents a given type.
-  bool IsType(ValueType type) const { return type == type_; }
+  bool IsType(Type type) const { return type == type_; }
 
   // These methods allow the convenient retrieval of settings.
   // If the current setting object can be converted into the given type,
@@ -116,12 +116,12 @@ class BASE_EXPORT Value {
  protected:
   // This isn't safe for end-users (they should use the Create*Value()
   // static methods above), but it's useful for subclasses.
-  explicit Value(ValueType type);
+  explicit Value(Type type);
 
  private:
   Value();
 
-  ValueType type_;
+  Type type_;
 
   DISALLOW_COPY_AND_ASSIGN(Value);
 };
