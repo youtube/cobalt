@@ -1,6 +1,7 @@
 *.Makefile
 *.mk
 *.ncb
+*.ninja
 *.props
 *.pyc
 *.rules
