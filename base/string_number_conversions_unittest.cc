@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -306,6 +306,7 @@ TEST(StringNumberConversionsTest, HexStringToInt) {
     {"100000000", -1, false},  // don't care about |output|, just |success|
     {"-", 0, false},
     {"", 0, false},
+    {"0x", 0, false},
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
