@@ -7,7 +7,7 @@
 #pragma once
 
 #include "build/build_config.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 #if defined(OS_WIN)
 #include "net/socket/tcp_client_socket_win.h"
@@ -26,7 +26,7 @@ typedef TCPClientSocketLibevent TCPClientSocket;
 
 // Enable/disable experimental TCP FastOpen option.
 // Not thread safe.  Must be called during initialization/startup only.
-NET_API void set_tcp_fastopen_enabled(bool value);
+NET_EXPORT void set_tcp_fastopen_enabled(bool value);
 
 // Check if the TCP FastOpen option is enabled.
 bool is_tcp_fastopen_enabled();

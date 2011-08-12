@@ -79,7 +79,7 @@ struct SSLClientSocketContext {
 // connection is established.  If a SSL error occurs during the handshake,
 // Connect will fail.
 //
-class NET_API SSLClientSocket : public StreamSocket {
+class NET_EXPORT SSLClientSocket : public StreamSocket {
  public:
   SSLClientSocket();
 

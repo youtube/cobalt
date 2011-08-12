@@ -40,7 +40,8 @@ struct RRResponse;
 
 // SSLSocketParams only needs the socket params for the transport socket
 // that will be used (denoted by |proxy|).
-class NET_TEST SSLSocketParams : public base::RefCounted<SSLSocketParams> {
+class NET_EXPORT_PRIVATE SSLSocketParams
+    : public base::RefCounted<SSLSocketParams> {
  public:
   SSLSocketParams(const scoped_refptr<TransportSocketParams>& transport_params,
                   const scoped_refptr<SOCKSSocketParams>& socks_params,
@@ -165,8 +166,9 @@ class SSLConnectJob : public ConnectJob {
   DISALLOW_COPY_AND_ASSIGN(SSLConnectJob);
 };
 
-class NET_TEST SSLClientSocketPool : public ClientSocketPool,
-                                     public SSLConfigService::Observer {
+class NET_EXPORT_PRIVATE SSLClientSocketPool
+    : public ClientSocketPool,
+      public SSLConfigService::Observer {
  public:
   // Only the pools that will be used are required. i.e. if you never
   // try to create an SSL over SOCKS socket, |socks_pool| may be NULL.

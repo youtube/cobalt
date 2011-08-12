@@ -8,7 +8,7 @@
 
 #include <vector>
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/x509_cert_types.h"
 
@@ -17,7 +17,7 @@ namespace net {
 class X509Certificate;
 
 // The result of certificate verification.
-class NET_API CertVerifyResult {
+class NET_EXPORT CertVerifyResult {
  public:
   CertVerifyResult();
   ~CertVerifyResult();

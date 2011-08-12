@@ -13,7 +13,7 @@ namespace net {
 // This class represents the task of resolving a hostname (or IP address
 // literal) to an AddressList object.  It wraps HostResolver to resolve only a
 // single hostname at a time and cancels this request when going out of scope.
-class NET_API SingleRequestHostResolver {
+class NET_EXPORT SingleRequestHostResolver {
  public:
   // |resolver| must remain valid for the lifetime of |this|.
   explicit SingleRequestHostResolver(HostResolver* resolver);

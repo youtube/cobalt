@@ -20,8 +20,8 @@ namespace net {
 class BoundNetLog;
 
 // A client socket that uses TCP as the transport layer.
-class NET_TEST TCPClientSocketLibevent : public StreamSocket,
-                                         public base::NonThreadSafe {
+class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
+                                                   public base::NonThreadSafe {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a

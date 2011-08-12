@@ -13,7 +13,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "net/base/host_port_pair.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_response_info.h"
 #include "net/http/proxy_client_socket.h"
@@ -37,7 +37,7 @@ class TransportSocketParams;
 // types.  The other param must be NULL.  When using an HTTP Proxy,
 // |transport_params| must be set.  When using an HTTPS Proxy, |ssl_params|
 // must be set.
-class NET_TEST HttpProxySocketParams
+class NET_EXPORT_PRIVATE HttpProxySocketParams
     : public base::RefCounted<HttpProxySocketParams> {
  public:
   HttpProxySocketParams(
@@ -167,7 +167,7 @@ class HttpProxyConnectJob : public ConnectJob {
   DISALLOW_COPY_AND_ASSIGN(HttpProxyConnectJob);
 };
 
-class NET_TEST HttpProxyClientSocketPool : public ClientSocketPool {
+class NET_EXPORT_PRIVATE HttpProxyClientSocketPool : public ClientSocketPool {
  public:
   HttpProxyClientSocketPool(
       int max_sockets,

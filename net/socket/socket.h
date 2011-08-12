@@ -7,14 +7,14 @@
 #pragma once
 
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 class IOBuffer;
 
 // Represents a read/write socket.
-class NET_API Socket {
+class NET_EXPORT Socket {
  public:
   virtual ~Socket() {}
 

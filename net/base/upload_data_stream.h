@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/memory/scoped_ptr.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/upload_data.h"
 
 namespace net {
@@ -15,7 +15,7 @@ namespace net {
 class FileStream;
 class IOBuffer;
 
-class NET_API UploadDataStream {
+class NET_EXPORT UploadDataStream {
  public:
   ~UploadDataStream();
 

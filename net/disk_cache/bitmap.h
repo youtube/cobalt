@@ -7,12 +7,12 @@
 #pragma once
 
 #include "base/basictypes.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace disk_cache {
 
 // This class provides support for simple maps of bits.
-class NET_TEST Bitmap {
+class NET_EXPORT_PRIVATE Bitmap {
  public:
   Bitmap() : map_(NULL), num_bits_(0), array_size_(0), alloc_(false) {}
 

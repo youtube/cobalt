@@ -15,7 +15,7 @@ namespace net {
 class AddressList;
 class IPEndPoint;
 
-class NET_TEST StreamSocket : public Socket {
+class NET_EXPORT_PRIVATE StreamSocket : public Socket {
  public:
   virtual ~StreamSocket() {}
 

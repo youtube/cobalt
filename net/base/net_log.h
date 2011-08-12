@@ -11,7 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace base {
 class Value;
@@ -32,7 +32,7 @@ namespace net {
 // is usually accessed through a BoundNetLog, which will always pass in a
 // specific source ID.
 //
-class NET_API NetLog {
+class NET_EXPORT NetLog {
  public:
   enum EventType {
 #define EVENT_TYPE(label) TYPE_ ## label,
@@ -58,7 +58,7 @@ class NET_API NetLog {
   // Identifies the entity that generated this log. The |id| field should
   // uniquely identify the source, and is used by log observers to infer
   // message groupings. Can use NetLog::NextID() to create unique IDs.
-  struct NET_API Source {
+  struct NET_EXPORT Source {
     static const uint32 kInvalidId = 0;
 
     Source() : type(SOURCE_NONE), id(kInvalidId) {}
@@ -75,7 +75,7 @@ class NET_API NetLog {
   // Base class for associating additional parameters with an event. Log
   // observers need to know what specific derivations of EventParameters a
   // particular EventType uses, in order to get at the individual components.
-  class NET_API EventParameters
+  class NET_EXPORT EventParameters
       : public base::RefCountedThreadSafe<EventParameters> {
    public:
     EventParameters() {}
@@ -106,7 +106,7 @@ class NET_API NetLog {
 
   // An observer, that must ensure its own thread safety, for events
   // being added to a NetLog.
-  class NET_API ThreadSafeObserver {
+  class NET_EXPORT ThreadSafeObserver {
    public:
     // Constructs an observer that wants to see network events, with
     // the specified minimum event granularity.  A ThreadSafeObserver can only
@@ -213,7 +213,7 @@ class NET_API NetLog {
 
 // Helper that binds a Source to a NetLog, and exposes convenience methods to
 // output log messages without needing to pass in the source.
-class NET_API BoundNetLog {
+class NET_EXPORT BoundNetLog {
  public:
   BoundNetLog() : net_log_(NULL) {}
 
@@ -315,7 +315,7 @@ class NetLogIntegerParameter : public NetLog::EventParameters {
 
 // NetLogSourceParameter is a subclass of EventParameters that encapsulates a
 // single NetLog::Source parameter.
-class NET_API NetLogSourceParameter : public NetLog::EventParameters {
+class NET_EXPORT NetLogSourceParameter : public NetLog::EventParameters {
  public:
   // |name| must be a string literal.
   NetLogSourceParameter(const char* name, const NetLog::Source& value)
@@ -334,7 +334,7 @@ class NET_API NetLogSourceParameter : public NetLog::EventParameters {
 
 // ScopedNetLogEvent logs a begin event on creation, and the corresponding end
 // event on destruction.
-class NET_TEST ScopedNetLogEvent {
+class NET_EXPORT_PRIVATE ScopedNetLogEvent {
  public:
   ScopedNetLogEvent(const BoundNetLog& net_log,
                     NetLog::EventType event_type,

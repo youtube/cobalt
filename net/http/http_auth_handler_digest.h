@@ -12,19 +12,19 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string16.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 
 namespace net {
 
 // Code for handling http digest authentication.
-class NET_TEST HttpAuthHandlerDigest : public HttpAuthHandler {
+class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
  public:
   // A NonceGenerator is a simple interface for generating client nonces.
   // Unit tests can override the default client nonce behavior with fixed
   // nonce generation to get reproducible results.
-  class NET_TEST NonceGenerator {
+  class NET_EXPORT_PRIVATE NonceGenerator {
    public:
     NonceGenerator();
     virtual ~NonceGenerator();
@@ -47,7 +47,7 @@ class NET_TEST HttpAuthHandlerDigest : public HttpAuthHandler {
 
   // FixedNonceGenerator always uses the same string specified at
   // construction time as the client nonce.
-  class NET_TEST FixedNonceGenerator : public NonceGenerator {
+  class NET_EXPORT_PRIVATE FixedNonceGenerator : public NonceGenerator {
    public:
     explicit FixedNonceGenerator(const std::string& nonce);
 
@@ -58,7 +58,7 @@ class NET_TEST HttpAuthHandlerDigest : public HttpAuthHandler {
     DISALLOW_COPY_AND_ASSIGN(FixedNonceGenerator);
   };
 
-  class NET_TEST Factory : public HttpAuthHandlerFactory {
+  class NET_EXPORT_PRIVATE Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
     virtual ~Factory();

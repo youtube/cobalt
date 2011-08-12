@@ -16,7 +16,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/observer_list.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_server.h"
@@ -25,7 +25,7 @@ namespace net {
 
 // Implementation of ProxyConfigService that retrieves the system proxy
 // settings from environment variables, gconf, gsettings, or kioslaverc (KDE).
-class NET_TEST ProxyConfigServiceLinux : public ProxyConfigService {
+class NET_EXPORT_PRIVATE ProxyConfigServiceLinux : public ProxyConfigService {
  public:
 
   // Forward declaration of Delegate.

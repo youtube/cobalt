@@ -13,7 +13,7 @@ namespace net {
 class HttpStream;
 class HttpResponseInfo;
 
-class NET_TEST ProxyClientSocket : public StreamSocket {
+class NET_EXPORT_PRIVATE ProxyClientSocket : public StreamSocket {
  public:
   ProxyClientSocket() {}
   virtual ~ProxyClientSocket() {}

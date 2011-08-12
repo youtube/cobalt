@@ -8,7 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 class GURL;
 
@@ -18,7 +18,7 @@ class HttpAuthFilter;
 
 // The URL security manager controls the policies (allow, deny, prompt user)
 // regarding URL actions (e.g., sending the default credentials to a server).
-class NET_API URLSecurityManager {
+class NET_EXPORT URLSecurityManager {
  public:
   URLSecurityManager() {}
   virtual ~URLSecurityManager() {}

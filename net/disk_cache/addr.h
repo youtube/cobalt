@@ -9,7 +9,7 @@
 #define NET_DISK_CACHE_ADDR_H_
 #pragma once
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/disk_cache/disk_format.h"
 
 namespace disk_cache {
@@ -48,7 +48,7 @@ const int kFirstAdditionalBlockFile = 4;
 //   0000 0011 0000 0000 0000 0000 0000 0000 : number of contiguous blocks 1-4
 //   0000 0000 1111 1111 0000 0000 0000 0000 : file selector 0 - 255
 //   0000 0000 0000 0000 1111 1111 1111 1111 : block#  0 - 65,535 (2^16)
-class NET_TEST Addr {
+class NET_EXPORT_PRIVATE Addr {
  public:
   Addr() : value_(0) {}
   explicit Addr(CacheAddr address) : value_(address) {}

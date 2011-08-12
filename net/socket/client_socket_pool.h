@@ -16,7 +16,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/host_resolver.h"
 #include "net/base/load_states.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/request_priority.h"
 
 namespace base {
@@ -32,7 +32,7 @@ class StreamSocket;
 // A ClientSocketPool is used to restrict the number of sockets open at a time.
 // It also maintains a list of idle persistent sockets.
 //
-class NET_API ClientSocketPool {
+class NET_EXPORT ClientSocketPool {
  public:
   // Requests a connected socket for a group_name.
   //

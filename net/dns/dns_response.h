@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/memory/ref_counted.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_util.h"
 
 namespace net{
@@ -17,7 +17,7 @@ class IOBufferWithSize;
 
 // Represents on-the-wire DNS response as an object; allows extracting
 // records.
-class NET_TEST DnsResponse {
+class NET_EXPORT_PRIVATE DnsResponse {
  public:
   // Constructs an object with an IOBuffer large enough to read
   // one byte more than largest possible response, to detect malformed
