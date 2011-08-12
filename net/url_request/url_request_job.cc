@@ -61,7 +61,7 @@ void URLRequestJob::DetachRequest() {
 bool URLRequestJob::Read(IOBuffer* buf, int buf_size, int *bytes_read) {
   bool rv = false;
 
-  DCHECK_LT(buf_size, 1000000);  // sanity check
+  DCHECK_LT(buf_size, 1000000);  // Sanity check.
   DCHECK(buf);
   DCHECK(bytes_read);
   DCHECK(filtered_read_buffer_ == NULL);
@@ -69,7 +69,7 @@ bool URLRequestJob::Read(IOBuffer* buf, int buf_size, int *bytes_read) {
 
   *bytes_read = 0;
 
-  // Skip Filter if not present
+  // Skip Filter if not present.
   if (!filter_.get()) {
     rv = ReadRawDataHelper(buf, buf_size, bytes_read);
   } else {
@@ -79,9 +79,15 @@ bool URLRequestJob::Read(IOBuffer* buf, int buf_size, int *bytes_read) {
     filtered_read_buffer_len_ = buf_size;
 
     if (ReadFilteredData(bytes_read)) {
-      rv = true;   // we have data to return
+      rv = true;   // We have data to return.
+
+      // It is fine to call DoneReading even if ReadFilteredData receives 0
+      // bytes from the net, but we avoid making that call if we know for
+      // sure that's the case (ReadRawDataHelper path).
+      if (*bytes_read == 0)
+        DoneReading();
     } else {
-      rv = false;  // error, or a new IO is pending
+      rv = false;  // Error, or a new IO is pending.
     }
   }
   if (rv && *bytes_read == 0)
@@ -358,6 +364,8 @@ void URLRequestJob::NotifyReadComplete(int bytes_read) {
     // Filter the data.
     int filter_bytes_read = 0;
     if (ReadFilteredData(&filter_bytes_read)) {
+      if (!filter_bytes_read)
+        DoneReading();
       request_->NotifyReadCompleted(filter_bytes_read);
     }
   } else {
@@ -452,6 +460,10 @@ bool URLRequestJob::ReadRawData(IOBuffer* buf, int buf_size,
   DCHECK(bytes_read);
   *bytes_read = 0;
   return true;
+}
+
+void URLRequestJob::DoneReading() {
+  // Do nothing.
 }
 
 void URLRequestJob::FilteredDataRead(int bytes_read) {
