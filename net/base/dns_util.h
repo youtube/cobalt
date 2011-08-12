@@ -10,7 +10,7 @@
 
 #include "base/basictypes.h"
 #include "base/string_piece.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -19,17 +19,18 @@ namespace net {
 //
 //   dotted: a string in dotted form: "www.google.com"
 //   out: a result in DNS form: "\x03www\x06google\x03com\x00"
-NET_TEST bool DNSDomainFromDot(const std::string& dotted, std::string* out);
+NET_EXPORT_PRIVATE bool DNSDomainFromDot(const std::string& dotted,
+                                         std::string* out);
 
 // DNSDomainToString coverts a domain in DNS format to a dotted string.
-NET_TEST std::string DNSDomainToString(const std::string& domain);
+NET_EXPORT_PRIVATE std::string DNSDomainToString(const std::string& domain);
 
 // Returns true iff the given character is in the set of valid DNS label
 // characters as given in RFC 3490, 4.1, 3(a)
-NET_TEST bool IsSTD3ASCIIValidCharacter(char c);
+NET_EXPORT_PRIVATE bool IsSTD3ASCIIValidCharacter(char c);
 
 // Returns the hostname by trimming the ending dot, if one exists.
-NET_API std::string TrimEndingDot(const std::string& host);
+NET_EXPORT std::string TrimEndingDot(const std::string& host);
 
 // DNS class types.
 static const uint16 kClassIN = 1;

@@ -12,7 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string_tokenizer.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_byte_range.h"
 
 // This is a macro to support extending this string literal at compile time.
@@ -23,7 +23,7 @@ namespace net {
 
 class UploadDataStream;
 
-class NET_API HttpUtil {
+class NET_EXPORT HttpUtil {
  public:
   // Returns the absolute path of the URL, to be used for the http request.
   // The absolute path starts with a '/' and may contain a query.
@@ -171,7 +171,7 @@ class NET_API HttpUtil {
   // over the values in a multi-value header, use ValuesIterator.
   // See AssembleRawHeaders for joining line continuations (this iterator
   // does not expect any).
-  class NET_API HeadersIterator {
+  class NET_EXPORT HeadersIterator {
    public:
     HeadersIterator(std::string::const_iterator headers_begin,
                     std::string::const_iterator headers_end,
@@ -234,7 +234,7 @@ class NET_API HttpUtil {
   // This iterator is careful to skip over delimiters found inside an HTTP
   // quoted string.
   //
-  class NET_TEST ValuesIterator {
+  class NET_EXPORT_PRIVATE ValuesIterator {
    public:
     ValuesIterator(std::string::const_iterator values_begin,
                    std::string::const_iterator values_end,
@@ -268,7 +268,7 @@ class NET_API HttpUtil {
   //
   // String iterators returned from this class' methods may be invalidated upon
   // calls to GetNext() or after the NameValuePairsIterator is destroyed.
-  class NET_API NameValuePairsIterator {
+  class NET_EXPORT NameValuePairsIterator {
    public:
     NameValuePairsIterator(std::string::const_iterator begin,
                            std::string::const_iterator end,

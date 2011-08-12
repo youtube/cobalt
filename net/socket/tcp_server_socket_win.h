@@ -18,7 +18,7 @@ namespace net {
 
 class IPEndPoint;
 
-class NET_TEST TCPServerSocketWin
+class NET_EXPORT_PRIVATE TCPServerSocketWin
     : public ServerSocket,
       NON_EXPORTED_BASE(public base::NonThreadSafe),
       public base::win::ObjectWatcher::Delegate  {

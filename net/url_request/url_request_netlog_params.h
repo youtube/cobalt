@@ -10,14 +10,15 @@
 
 #include "base/basictypes.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 
 namespace net {
 
 // Holds the parameters to emit to the NetLog when starting a URLRequest.
-class NET_API URLRequestStartEventParameters : public NetLog::EventParameters {
+class NET_EXPORT URLRequestStartEventParameters
+    : public NetLog::EventParameters {
  public:
   URLRequestStartEventParameters(const GURL& url,
                                  const std::string& method,

@@ -9,16 +9,16 @@
 #include <string>
 
 #include "base/string16.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 
 namespace net {
 
 // Code for handling http basic authentication.
-class NET_TEST HttpAuthHandlerBasic : public HttpAuthHandler {
+class NET_EXPORT_PRIVATE HttpAuthHandlerBasic : public HttpAuthHandler {
  public:
-  class NET_TEST Factory : public HttpAuthHandlerFactory {
+  class NET_EXPORT_PRIVATE Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
     virtual ~Factory();

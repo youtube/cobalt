@@ -9,14 +9,14 @@
 #include <string>
 
 #include "base/task.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/url_request/url_request_job.h"
 
 namespace net {
 
 class URLRequest;
 
-class NET_API URLRequestSimpleJob : public URLRequestJob {
+class NET_EXPORT URLRequestSimpleJob : public URLRequestJob {
  public:
   explicit URLRequestSimpleJob(URLRequest* request);
 

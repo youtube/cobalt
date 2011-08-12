@@ -11,7 +11,7 @@
 #include "base/string16.h"
 #include "build/build_config.h"
 #include "net/base/address_list.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 
@@ -32,7 +32,7 @@ class URLSecurityManager;
 // See http://tools.ietf.org/html/rfc4178 and http://tools.ietf.org/html/rfc4559
 // for more information about the protocol.
 
-class NET_TEST HttpAuthHandlerNegotiate : public HttpAuthHandler {
+class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
  public:
 #if defined(OS_WIN)
   typedef SSPILibrary AuthLibrary;
@@ -42,7 +42,7 @@ class NET_TEST HttpAuthHandlerNegotiate : public HttpAuthHandler {
   typedef HttpAuthGSSAPI AuthSystem;
 #endif
 
-  class NET_TEST Factory : public HttpAuthHandlerFactory {
+  class NET_EXPORT_PRIVATE Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
     virtual ~Factory();

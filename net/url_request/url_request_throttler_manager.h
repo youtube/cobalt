@@ -16,7 +16,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "base/threading/platform_thread.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
 #include "net/url_request/url_request_throttler_entry.h"
 
@@ -38,7 +38,7 @@ class NetLog;
 // NOTE: All usage of this singleton object must be on the same thread,
 // although to allow it to be used as a singleton, construction and destruction
 // can occur on a separate thread.
-class NET_API URLRequestThrottlerManager
+class NET_EXPORT URLRequestThrottlerManager
     : NON_EXPORTED_BASE(public base::NonThreadSafe),
       public NetworkChangeNotifier::IPAddressObserver,
       public NetworkChangeNotifier::OnlineStateObserver {

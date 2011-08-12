@@ -6,7 +6,7 @@
 #define NET_SPDY_SPDY_HTTP_UTILS_H_
 #pragma once
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/request_priority.h"
 #include "net/spdy/spdy_framer.h"
 
@@ -31,7 +31,8 @@ void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
                                       spdy::SpdyHeaderBlock* headers,
                                       bool direct);
 
-NET_TEST int ConvertRequestPriorityToSpdyPriority(RequestPriority priority);
+NET_EXPORT_PRIVATE int ConvertRequestPriorityToSpdyPriority(
+    RequestPriority priority);
 
 }  // namespace net
 

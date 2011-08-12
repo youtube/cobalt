@@ -11,14 +11,14 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 class URLRequestThrottlerHeaderInterface;
 
 // Interface provided on entries of the URL request throttler manager.
-class NET_API URLRequestThrottlerEntryInterface
+class NET_EXPORT URLRequestThrottlerEntryInterface
     : public base::RefCountedThreadSafe<URLRequestThrottlerEntryInterface> {
  public:
   URLRequestThrottlerEntryInterface() {}

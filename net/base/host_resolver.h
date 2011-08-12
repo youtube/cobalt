@@ -13,7 +13,7 @@
 #include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_util.h"
 #include "net/base/request_priority.h"
 
@@ -34,11 +34,11 @@ class NetLog;
 // request at a time is to create a SingleRequestHostResolver wrapper around
 // HostResolver (which will automatically cancel the single request when it
 // goes out of scope).
-class NET_API HostResolver {
+class NET_EXPORT HostResolver {
  public:
   // The parameters for doing a Resolve(). A hostname and port are required,
   // the rest are optional (and have reasonable defaults).
-  class NET_API RequestInfo {
+  class NET_EXPORT RequestInfo {
    public:
     explicit RequestInfo(const HostPortPair& host_port_pair);
 
@@ -209,15 +209,16 @@ class NET_API HostResolver {
 // |max_retry_attempts| is the maximum number of times we will retry for host
 // resolution. Pass HostResolver::kDefaultRetryAttempts to choose a default
 // value.
-NET_API HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
-                                               size_t max_retry_attempts,
-                                               NetLog* net_log);
+NET_EXPORT HostResolver* CreateSystemHostResolver(
+    size_t max_concurrent_resolves,
+    size_t max_retry_attempts,
+    NetLog* net_log);
 
 // Creates a HostResolver implementation that sends actual DNS queries to
 // the specified DNS server and parses response and returns results.
-NET_API HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
-                                              const IPAddressNumber& dns_ip,
-                                              NetLog* net_log);
+NET_EXPORT HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
+                                                 const IPAddressNumber& dns_ip,
+                                                 NetLog* net_log);
 }  // namespace net
 
 #endif  // NET_BASE_HOST_RESOLVER_H_

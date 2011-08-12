@@ -57,7 +57,7 @@
 #pragma once
 
 #include "base/basictypes.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace disk_cache {
 
@@ -80,7 +80,7 @@ struct LruData {
 };
 
 // Header for the master index file.
-struct NET_TEST IndexHeader {
+struct NET_EXPORT_PRIVATE IndexHeader {
   IndexHeader();
 
   uint32      magic;
@@ -174,7 +174,7 @@ typedef uint32 AllocBitmap[kMaxBlocks / 32];
 // where did we find the last entry of that type (to avoid searching the bitmap
 // from the beginning every time).
 // This Structure is the header of a block-file:
-struct NET_TEST BlockFileHeader {
+struct NET_EXPORT_PRIVATE BlockFileHeader {
   BlockFileHeader();
 
   uint32          magic;

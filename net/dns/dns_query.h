@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/rand_callback.h"
 
 namespace net {
@@ -17,7 +17,7 @@ namespace net {
 class IOBufferWithSize;
 
 // Represents on-the-wire DNS query message as an object.
-class NET_TEST DnsQuery {
+class NET_EXPORT_PRIVATE DnsQuery {
  public:
   // Constructs a query message from |qname| which *MUST* be in a valid
   // DNS name format, and |qtype| which must be either kDNS_A or kDNS_AAAA.

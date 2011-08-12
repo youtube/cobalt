@@ -30,7 +30,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -55,7 +55,7 @@ class SdchFetcher {
 
 //------------------------------------------------------------------------------
 
-class NET_API SdchManager {
+class NET_EXPORT SdchManager {
  public:
   // A list of errors that appeared and were either resolved, or used to turn
   // off sdch encoding.
@@ -162,7 +162,7 @@ class NET_API SdchManager {
 
   // There is one instance of |Dictionary| for each memory-cached SDCH
   // dictionary.
-  class NET_TEST Dictionary : public base::RefCounted<Dictionary> {
+  class NET_EXPORT_PRIVATE Dictionary : public base::RefCounted<Dictionary> {
    public:
     // Sdch filters can get our text to use in decoding compressed data.
     const std::string& text() const { return text_; }

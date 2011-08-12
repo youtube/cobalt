@@ -15,7 +15,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string_piece.h"
 #include "base/time.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/x509_cert_types.h"
 
 #if defined(OS_WIN)
@@ -52,7 +52,7 @@ typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 // particular identity or end-entity certificate, such as an SSL server
 // identity or an SSL client certificate, and zero or more intermediate
 // certificates that may be used to build a path to a root certificate.
-class NET_API X509Certificate
+class NET_EXPORT X509Certificate
     : public base::RefCountedThreadSafe<X509Certificate> {
  public:
   // A handle to the certificate object in the underlying crypto library.
@@ -74,7 +74,7 @@ class NET_API X509Certificate
   typedef std::vector<OSCertHandle> OSCertHandles;
 
   // Predicate functor used in maps when X509Certificate is used as the key.
-  class NET_API LessThan {
+  class NET_EXPORT LessThan {
    public:
     bool operator() (X509Certificate* lhs,  X509Certificate* rhs) const;
   };

@@ -39,7 +39,7 @@ enum BackendFlags {
 
 // This class implements the Backend interface. An object of this
 // class handles the operations of the cache for a particular profile.
-class NET_TEST BackendImpl : public Backend {
+class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   friend class Eviction;
  public:
   BackendImpl(const FilePath& path, base::MessageLoopProxy* cache_thread,
@@ -383,7 +383,7 @@ class NET_TEST BackendImpl : public Backend {
 };
 
 // Returns the prefered max cache size given the available disk space.
-NET_TEST int PreferedCacheSize(int64 available);
+NET_EXPORT_PRIVATE int PreferedCacheSize(int64 available);
 
 }  // namespace disk_cache
 

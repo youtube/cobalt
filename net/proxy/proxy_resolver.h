@@ -11,7 +11,7 @@
 #include "base/string16.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/proxy/proxy_resolver_script_data.h"
 
 namespace net {
@@ -23,7 +23,7 @@ class ProxyInfo;
 // to use for a particular URL. Generally the backend for a ProxyResolver is
 // a PAC script, but it doesn't need to be. ProxyResolver can service multiple
 // requests at a time.
-class NET_TEST ProxyResolver {
+class NET_EXPORT_PRIVATE ProxyResolver {
  public:
   // Opaque pointer type, to return a handle to cancel outstanding requests.
   typedef void* RequestHandle;
