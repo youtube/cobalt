@@ -220,7 +220,7 @@ class IteratorRangeToNumber {
 
       // Note: no performance difference was found when using template
       // specialization to remove this check in bases other than 16
-      if (traits::kBase == 16 && end - begin >= 2 && *begin == '0' &&
+      if (traits::kBase == 16 && end - begin > 2 && *begin == '0' &&
           (*(begin + 1) == 'x' || *(begin + 1) == 'X')) {
         begin += 2;
       }
