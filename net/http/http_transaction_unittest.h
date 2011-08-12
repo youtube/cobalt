@@ -147,13 +147,15 @@ class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
 //-----------------------------------------------------------------------------
 // mock network layer
 
+class MockNetworkLayer;
+
 // This transaction class inspects the available set of mock transactions to
 // find data for the request URL.  It supports IO operations that complete
 // synchronously or asynchronously to help exercise different code paths in the
 // HttpCache implementation.
 class MockNetworkTransaction : public net::HttpTransaction {
  public:
-  MockNetworkTransaction();
+  explicit MockNetworkTransaction(MockNetworkLayer* factory);
   virtual ~MockNetworkTransaction();
 
   virtual int Start(const net::HttpRequestInfo* request,
@@ -176,6 +178,8 @@ class MockNetworkTransaction : public net::HttpTransaction {
 
   virtual void StopCaching();
 
+  virtual void DoneReading();
+
   virtual const net::HttpResponseInfo* GetResponseInfo() const;
 
   virtual net::LoadState GetLoadState() const;
@@ -191,14 +195,18 @@ class MockNetworkTransaction : public net::HttpTransaction {
   std::string data_;
   int data_cursor_;
   int test_mode_;
+  base::WeakPtr<MockNetworkLayer> transaction_factory_;
 };
 
-class MockNetworkLayer : public net::HttpTransactionFactory {
+class MockNetworkLayer : public net::HttpTransactionFactory,
+                         public base::SupportsWeakPtr<MockNetworkLayer> {
  public:
   MockNetworkLayer();
   virtual ~MockNetworkLayer();
 
   int transaction_count() const { return transaction_count_; }
+  bool done_reading_called() const { return done_reading_called_; }
+  void TransactionDoneReading();
 
   // net::HttpTransactionFactory:
   virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans);
@@ -207,6 +215,7 @@ class MockNetworkLayer : public net::HttpTransactionFactory {
 
  private:
   int transaction_count_;
+  bool done_reading_called_;
 };
 
 //-----------------------------------------------------------------------------
