@@ -1201,6 +1201,12 @@ void URLRequestHttpJob::StopCaching() {
     transaction_->StopCaching();
 }
 
+void URLRequestHttpJob::DoneReading() {
+  if (transaction_.get())
+    transaction_->DoneReading();
+  DoneWithRequest(FINISHED);
+}
+
 HostPortPair URLRequestHttpJob::GetSocketAddress() const {
   return response_info_ ? response_info_->socket_address : HostPortPair();
 }

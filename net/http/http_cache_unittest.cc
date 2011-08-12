@@ -5101,3 +5101,37 @@ TEST(HttpCache, ReadMetadata) {
   EXPECT_EQ(4, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 }
+
+// Tests that we don't mark entries as truncated when a filter detects the end
+// of the stream.
+TEST(HttpCache, FilterCompletion) {
+  MockHttpCache cache;
+  TestCompletionCallback callback;
+
+  {
+    scoped_ptr<net::HttpTransaction> trans;
+    int rv = cache.http_cache()->CreateTransaction(&trans);
+    EXPECT_EQ(net::OK, rv);
+
+    MockHttpRequest request(kSimpleGET_Transaction);
+    rv = trans->Start(&request, &callback, net::BoundNetLog());
+    EXPECT_EQ(net::OK, callback.GetResult(rv));
+
+    scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(256));
+    rv = trans->Read(buf, 256, &callback);
+    EXPECT_GT(callback.GetResult(rv), 0);
+
+    // Now make sure that the entry is preserved.
+    trans->DoneReading();
+  }
+
+  // Make sure that teh ActiveEntry is gone.
+  MessageLoop::current()->RunAllPending();
+
+  // Read from the cache.
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+}

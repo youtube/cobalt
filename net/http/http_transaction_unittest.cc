@@ -212,8 +212,10 @@ void TestTransactionConsumer::RunWithParams(const Tuple1<int>& params) {
 }
 
 
-MockNetworkTransaction::MockNetworkTransaction() :
-    ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)), data_cursor_(0) {
+MockNetworkTransaction::MockNetworkTransaction(MockNetworkLayer* factory)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
+      data_cursor_(0),
+      transaction_factory_(factory->AsWeakPtr()) {
 }
 
 MockNetworkTransaction::~MockNetworkTransaction() {}
@@ -295,6 +297,11 @@ int MockNetworkTransaction::Read(net::IOBuffer* buf, int buf_len,
 
 void MockNetworkTransaction::StopCaching() {}
 
+void MockNetworkTransaction::DoneReading() {
+  if (transaction_factory_)
+    transaction_factory_->TransactionDoneReading();
+}
+
 const net::HttpResponseInfo* MockNetworkTransaction::GetResponseInfo() const {
   return &response_;
 }
@@ -320,14 +327,19 @@ void MockNetworkTransaction::RunCallback(net::CompletionCallback* callback,
   callback->Run(result);
 }
 
-MockNetworkLayer::MockNetworkLayer() : transaction_count_(0) {}
+MockNetworkLayer::MockNetworkLayer()
+    : transaction_count_(0), done_reading_called_(false) {}
 
 MockNetworkLayer::~MockNetworkLayer() {}
+
+void MockNetworkLayer::TransactionDoneReading() {
+  done_reading_called_ = true;
+}
 
 int MockNetworkLayer::CreateTransaction(
     scoped_ptr<net::HttpTransaction>* trans) {
   transaction_count_++;
-  trans->reset(new MockNetworkTransaction());
+  trans->reset(new MockNetworkTransaction(this));
   return net::OK;
 }
 

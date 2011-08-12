@@ -251,6 +251,10 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
   // info.
   virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
 
+  // Called to tell the job that a filter has successfully reached the end of
+  // the stream.
+  virtual void DoneReading();
+
   // Informs the filter that data has been read into its buffer
   void FilteredDataRead(int bytes_read);
 
