@@ -145,7 +145,7 @@ bool Value::Equals(const Value* a, const Value* b) {
   return a->Equals(b);
 }
 
-Value::Value(ValueType type) : type_(type) {
+Value::Value(Type type) : type_(type) {
 }
 
 ///////////////////// FundamentalValue ////////////////////
