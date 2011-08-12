@@ -23,7 +23,7 @@
 #include "base/basictypes.h"
 #include "base/string16.h"
 #include "net/base/escape.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 struct addrinfo;
 class FilePath;
@@ -60,33 +60,33 @@ class QuoteRule {
 };
 
 // Nothing is ommitted.
-NET_API extern const FormatUrlType kFormatUrlOmitNothing;
+NET_EXPORT extern const FormatUrlType kFormatUrlOmitNothing;
 
 // If set, any username and password are removed.
-NET_API extern const FormatUrlType kFormatUrlOmitUsernamePassword;
+NET_EXPORT extern const FormatUrlType kFormatUrlOmitUsernamePassword;
 
 // If the scheme is 'http://', it's removed.
-NET_API extern const FormatUrlType kFormatUrlOmitHTTP;
+NET_EXPORT extern const FormatUrlType kFormatUrlOmitHTTP;
 
 // Omits the path if it is just a slash and there is no query or ref.  This is
 // meaningful for non-file "standard" URLs.
-NET_API extern const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname;
+NET_EXPORT extern const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname;
 
 // Convenience for omitting all unecessary types.
-NET_API extern const FormatUrlType kFormatUrlOmitAll;
+NET_EXPORT extern const FormatUrlType kFormatUrlOmitAll;
 
 // Holds a list of ports that should be accepted despite bans.
-NET_TEST extern std::multiset<int> explicitly_allowed_ports;
+NET_EXPORT_PRIVATE extern std::multiset<int> explicitly_allowed_ports;
 
 // Given the full path to a file name, creates a file: URL. The returned URL
 // may not be valid if the input is malformed.
-NET_API GURL FilePathToFileURL(const FilePath& path);
+NET_EXPORT GURL FilePathToFileURL(const FilePath& path);
 
 // Converts a file: URL back to a filename that can be passed to the OS. The
 // file URL must be well-formed (GURL::is_valid() must return true); we don't
 // handle degenerate cases here. Returns true on success, false if it isn't a
 // valid file URL. On failure, *file_path will be empty.
-NET_API bool FileURLToFilePath(const GURL& url, FilePath* file_path);
+NET_EXPORT bool FileURLToFilePath(const GURL& url, FilePath* file_path);
 
 // Splits an input of the form <host>[":"<port>] into its consitituent parts.
 // Saves the result into |*host| and |*port|. If the input did not have
@@ -94,59 +94,61 @@ NET_API bool FileURLToFilePath(const GURL& url, FilePath* file_path);
 // Returns true if the parsing was successful, false otherwise.
 // The returned host is NOT canonicalized, and may be invalid. If <host> is
 // an IPv6 literal address, the returned host includes the square brackets.
-NET_TEST bool ParseHostAndPort(std::string::const_iterator host_and_port_begin,
-                               std::string::const_iterator host_and_port_end,
-                               std::string* host,
-                               int* port);
-NET_TEST bool ParseHostAndPort(const std::string& host_and_port,
-                               std::string* host,
-                               int* port);
+NET_EXPORT_PRIVATE bool ParseHostAndPort(
+    std::string::const_iterator host_and_port_begin,
+    std::string::const_iterator host_and_port_end,
+    std::string* host,
+    int* port);
+NET_EXPORT_PRIVATE bool ParseHostAndPort(
+    const std::string& host_and_port,
+    std::string* host,
+    int* port);
 
 // Returns a host:port string for the given URL.
-NET_API std::string GetHostAndPort(const GURL& url);
+NET_EXPORT std::string GetHostAndPort(const GURL& url);
 
 // Returns a host[:port] string for the given URL, where the port is omitted
 // if it is the default for the URL's scheme.
-NET_TEST std::string GetHostAndOptionalPort(const GURL& url);
+NET_EXPORT_PRIVATE std::string GetHostAndOptionalPort(const GURL& url);
 
 // Returns the string representation of an address, like "192.168.0.1".
 // Returns empty string on failure.
-NET_API std::string NetAddressToString(const struct addrinfo* net_address);
-NET_API std::string NetAddressToString(const struct sockaddr* net_address,
-                                       socklen_t address_len);
+NET_EXPORT std::string NetAddressToString(const struct addrinfo* net_address);
+NET_EXPORT std::string NetAddressToString(const struct sockaddr* net_address,
+                                          socklen_t address_len);
 
 // Same as NetAddressToString, but additionally includes the port number. For
 // example: "192.168.0.1:99" or "[::1]:80".
-NET_API std::string NetAddressToStringWithPort(
+NET_EXPORT std::string NetAddressToStringWithPort(
     const struct addrinfo* net_address);
-NET_API std::string NetAddressToStringWithPort(
+NET_EXPORT std::string NetAddressToStringWithPort(
     const struct sockaddr* net_address,
     socklen_t address_len);
 
 // Returns the hostname of the current system. Returns empty string on failure.
-NET_API std::string GetHostName();
+NET_EXPORT std::string GetHostName();
 
 // Extracts the unescaped username/password from |url|, saving the results
 // into |*username| and |*password|.
-NET_TEST void GetIdentityFromURL(const GURL& url,
+NET_EXPORT_PRIVATE void GetIdentityFromURL(const GURL& url,
                         string16* username,
                         string16* password);
 
 // Returns either the host from |url|, or, if the host is empty, the full spec.
-NET_API std::string GetHostOrSpecFromURL(const GURL& url);
+NET_EXPORT std::string GetHostOrSpecFromURL(const GURL& url);
 
 // Return the value of the HTTP response header with name 'name'.  'headers'
 // should be in the format that URLRequest::GetResponseHeaders() returns.
 // Returns the empty string if the header is not found.
-NET_API std::string GetSpecificHeader(const std::string& headers,
-                                      const std::string& name);
+NET_EXPORT std::string GetSpecificHeader(const std::string& headers,
+                                         const std::string& name);
 
 // Return the value of the HTTP response header field's parameter named
 // 'param_name'.  Returns the empty string if the parameter is not found or is
 // improperly formatted.
-NET_API std::string GetHeaderParamValue(const std::string& header,
-                                        const std::string& param_name,
-                                        QuoteRule::Type quote_rule);
+NET_EXPORT std::string GetHeaderParamValue(const std::string& header,
+                                           const std::string& param_name,
+                                           QuoteRule::Type quote_rule);
 
 // Return the filename extracted from Content-Disposition header. The following
 // formats are tried in order listed below:
@@ -170,8 +172,9 @@ NET_API std::string GetHeaderParamValue(const std::string& header,
 //
 // This function does not do any escaping and callers are responsible for
 // escaping 'unsafe' characters (e.g. (back)slash, colon) as they see fit.
-NET_TEST std::string GetFileNameFromCD(const std::string& header,
-                                       const std::string& referrer_charset);
+NET_EXPORT_PRIVATE std::string GetFileNameFromCD(
+    const std::string& header,
+    const std::string& referrer_charset);
 
 // Converts the given host name to unicode characters. This can be called for
 // any host name, if the input is not IDN or is invalid in some way, we'll just
@@ -188,13 +191,13 @@ NET_TEST std::string GetFileNameFromCD(const std::string& header,
 // Latin letters in the ASCII range can be mixed with a limited set of
 // script-language pairs (currently Han, Kana and Hangul for zh,ja and ko).
 // When |languages| is empty, even that mixing is not allowed.
-NET_API string16 IDNToUnicode(const std::string& host,
-                              const std::string& languages);
+NET_EXPORT string16 IDNToUnicode(const std::string& host,
+                                 const std::string& languages);
 
 // Canonicalizes |host| and returns it.  Also fills |host_info| with
 // IP address information.  |host_info| must not be NULL.
-NET_API std::string CanonicalizeHost(const std::string& host,
-                                     url_canon::CanonHostInfo* host_info);
+NET_EXPORT std::string CanonicalizeHost(const std::string& host,
+                                        url_canon::CanonHostInfo* host_info);
 
 // Returns true if |host| is not an IP address and is compliant with a set of
 // rules based on RFC 1738 and tweaked to be compatible with the real world.
@@ -212,12 +215,12 @@ NET_API std::string CanonicalizeHost(const std::string& host,
 //
 // NOTE: You should only pass in hosts that have been returned from
 // CanonicalizeHost(), or you may not get accurate results.
-NET_API bool IsCanonicalizedHostCompliant(const std::string& host,
-                                          const std::string& desired_tld);
+NET_EXPORT bool IsCanonicalizedHostCompliant(const std::string& host,
+                                             const std::string& desired_tld);
 
 // Call these functions to get the html snippet for a directory listing.
 // The return values of both functions are in UTF-8.
-NET_API std::string GetDirectoryListingHeader(const string16& title);
+NET_EXPORT std::string GetDirectoryListingHeader(const string16& title);
 
 // Given the name of a file in a directory (ftp or local) and
 // other information (is_dir, size, modification time), it returns
@@ -231,14 +234,14 @@ NET_API std::string GetDirectoryListingHeader(const string16& title);
 // will be used.
 //
 // Both |name| and |raw_bytes| are escaped internally.
-NET_API std::string GetDirectoryListingEntry(const string16& name,
-                                             const std::string& raw_bytes,
-                                             bool is_dir, int64 size,
-                                             base::Time modified);
+NET_EXPORT std::string GetDirectoryListingEntry(const string16& name,
+                                                const std::string& raw_bytes,
+                                                bool is_dir, int64 size,
+                                                base::Time modified);
 
 // If text starts with "www." it is removed, otherwise text is returned
 // unmodified.
-NET_API string16 StripWWW(const string16& text);
+NET_EXPORT string16 StripWWW(const string16& text);
 
 // Gets the filename in the following order:
 // 1) the raw Content-Disposition header (as read from the network).
@@ -249,11 +252,11 @@ NET_API string16 StripWWW(const string16& text);
 // 3) the last path component name or hostname from |url|
 // 4) the given |default_name|
 // 5) the hard-coded name "download", as the last resort
-NET_API string16 GetSuggestedFilename(const GURL& url,
-                                      const std::string& content_disposition,
-                                      const std::string& referrer_charset,
-                                      const std::string& suggested_name,
-                                      const string16& default_name);
+NET_EXPORT string16 GetSuggestedFilename(const GURL& url,
+                                         const std::string& content_disposition,
+                                         const std::string& referrer_charset,
+                                         const std::string& suggested_name,
+                                         const string16& default_name);
 
 // Generate a filename based on a HTTP request.
 //
@@ -261,12 +264,12 @@ NET_API string16 GetSuggestedFilename(const GURL& url,
 // |default_name| parameters will be used with GetSuggestedFilename() to
 // generate a filename.  The resulting filename will be passed in along with the
 // |mime_type| to GenerateSafeFileName() to generate the returned filename.
-NET_API FilePath GenerateFileName(const GURL& url,
-                                  const std::string& content_disposition,
-                                  const std::string& referrer_charset,
-                                  const std::string& suggested_name,
-                                  const std::string& mime_type,
-                                  const string16& default_name);
+NET_EXPORT FilePath GenerateFileName(const GURL& url,
+                                     const std::string& content_disposition,
+                                     const std::string& referrer_charset,
+                                     const std::string& suggested_name,
+                                     const std::string& mime_type,
+                                     const string16& default_name);
 
 // Ensures that the filename and extension is safe to use in the filesystem.
 //
@@ -285,8 +288,8 @@ NET_API FilePath GenerateFileName(const GURL& url,
 //
 // Note: |mime_type| should only be non-empty if this function is called from a
 // thread that allows IO.
-NET_API void GenerateSafeFileName(const std::string& mime_type,
-                                  FilePath* file_path);
+NET_EXPORT void GenerateSafeFileName(const std::string& mime_type,
+                                     FilePath* file_path);
 
 // Checks the given port against a list of ports which are restricted by
 // default.  Returns true if the port is allowed, false if it is restricted.
@@ -302,13 +305,13 @@ bool IsPortAllowedByFtp(int port);
 bool IsPortAllowedByOverride(int port);
 
 // Set socket to non-blocking mode
-NET_API int SetNonBlocking(int fd);
+NET_EXPORT int SetNonBlocking(int fd);
 
 // Formats the host in |url| and appends it to |output|.  The host formatter
 // takes the same accept languages component as ElideURL().
-NET_API void AppendFormattedHost(const GURL& url,
-                                 const std::string& languages,
-                                 string16* output);
+NET_EXPORT void AppendFormattedHost(const GURL& url,
+                                    const std::string& languages,
+                                    string16* output);
 
 // Creates a string representation of |url|. The IDN host name may be in Unicode
 // if |languages| accepts the Unicode representation. |format_type| is a bitmask
@@ -331,14 +334,14 @@ NET_API void AppendFormattedHost(const GURL& url,
 // into the middle of a component that was entirely removed, past the end of the
 // string, or into the middle of an encoding sequence), it will be set to
 // string16::npos.
-NET_API string16 FormatUrl(const GURL& url,
-                           const std::string& languages,
-                           FormatUrlTypes format_types,
-                           UnescapeRule::Type unescape_rules,
-                           url_parse::Parsed* new_parsed,
-                           size_t* prefix_end,
-                           size_t* offset_for_adjustment);
-NET_API string16 FormatUrlWithOffsets(
+NET_EXPORT string16 FormatUrl(const GURL& url,
+                              const std::string& languages,
+                              FormatUrlTypes format_types,
+                              UnescapeRule::Type unescape_rules,
+                              url_parse::Parsed* new_parsed,
+                              size_t* prefix_end,
+                              size_t* offset_for_adjustment);
+NET_EXPORT string16 FormatUrlWithOffsets(
     const GURL& url,
     const std::string& languages,
     FormatUrlTypes format_types,
@@ -358,16 +361,16 @@ inline string16 FormatUrl(const GURL& url, const std::string& languages) {
 
 // Returns whether FormatUrl() would strip a trailing slash from |url|, given a
 // format flag including kFormatUrlOmitTrailingSlashOnBareHostname.
-NET_API bool CanStripTrailingSlash(const GURL& url);
+NET_EXPORT bool CanStripTrailingSlash(const GURL& url);
 
 // Strip the portions of |url| that aren't core to the network request.
 //   - user name / password
 //   - reference section
-NET_TEST GURL SimplifyUrlForRequest(const GURL& url);
+NET_EXPORT_PRIVATE GURL SimplifyUrlForRequest(const GURL& url);
 
-NET_API void SetExplicitlyAllowedPorts(const std::string& allowed_ports);
+NET_EXPORT void SetExplicitlyAllowedPorts(const std::string& allowed_ports);
 
-class NET_API ScopedPortException {
+class NET_EXPORT ScopedPortException {
  public:
   ScopedPortException(int port);
   ~ScopedPortException();
@@ -381,7 +384,7 @@ class NET_API ScopedPortException {
 // Perform a simplistic test to see if IPv6 is supported by trying to create an
 // IPv6 socket.
 // TODO(jar): Make test more in-depth as needed.
-NET_API bool IPv6Supported();
+NET_EXPORT bool IPv6Supported();
 
 // Returns true if it can determine that only loopback addresses are configured.
 // i.e. if only 127.0.0.1 and ::1 are routable.
@@ -400,12 +403,12 @@ static const size_t kIPv6AddressSize = 16;
 
 // Parses an IP address literal (either IPv4 or IPv6) to its numeric value.
 // Returns true on success and fills |ip_number| with the numeric value.
-NET_TEST bool ParseIPLiteralToNumber(const std::string& ip_literal,
-                                     IPAddressNumber* ip_number);
+NET_EXPORT_PRIVATE bool ParseIPLiteralToNumber(const std::string& ip_literal,
+                                               IPAddressNumber* ip_number);
 
 // Converts an IPv4 address to an IPv4-mapped IPv6 address.
 // For example 192.168.0.1 would be converted to ::ffff:192.168.0.1.
-NET_TEST IPAddressNumber ConvertIPv4NumberToIPv6Number(
+NET_EXPORT_PRIVATE IPAddressNumber ConvertIPv4NumberToIPv6Number(
     const IPAddressNumber& ipv4_number);
 
 // Parses an IP block specifier from CIDR notation to an
@@ -418,9 +421,9 @@ NET_TEST IPAddressNumber ConvertIPv4NumberToIPv6Number(
 //    10.10.3.1/20
 //    a:b:c::/46
 //    ::1/128
-NET_API bool ParseCIDRBlock(const std::string& cidr_literal,
-                            IPAddressNumber* ip_number,
-                            size_t* prefix_length_in_bits);
+NET_EXPORT bool ParseCIDRBlock(const std::string& cidr_literal,
+                               IPAddressNumber* ip_number,
+                               size_t* prefix_length_in_bits);
 
 // Compares an IP address to see if it falls within the specified IP block.
 // Returns true if it does, false otherwise.
@@ -432,9 +435,9 @@ NET_API bool ParseCIDRBlock(const std::string& cidr_literal,
 // In cases when an IPv4 address is being compared to an IPv6 address prefix
 // and vice versa, the IPv4 addresses will be converted to IPv4-mapped
 // (IPv6) addresses.
-NET_TEST bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
-                                    const IPAddressNumber& ip_prefix,
-                                    size_t prefix_length_in_bits);
+NET_EXPORT_PRIVATE bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
+                                              const IPAddressNumber& ip_prefix,
+                                              size_t prefix_length_in_bits);
 
 // Makes a copy of |info|. The dynamically-allocated parts are copied as well.
 // If |recursive| is true, chained entries via ai_next are copied too.
@@ -456,12 +459,13 @@ uint16 GetPortFromAddrinfo(const struct addrinfo* info);
 // Same except for struct sockaddr.
 const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
                                        socklen_t address_len);
-NET_TEST int GetPortFromSockaddr(const struct sockaddr* address,
-                                 socklen_t address_len);
+NET_EXPORT_PRIVATE int GetPortFromSockaddr(const struct sockaddr* address,
+                                           socklen_t address_len);
 
 // Sets every addrinfo in the linked list |head| as having a port field of
 // |port|.
-NET_TEST void SetPortForAllAddrinfos(struct addrinfo* head, uint16 port);
+NET_EXPORT_PRIVATE void SetPortForAllAddrinfos(struct addrinfo* head,
+                                               uint16 port);
 
 // Returns true if |host| is one of the names (e.g. "localhost") or IP
 // addresses (IPv4 127.0.0.0/8 or IPv6 ::1) that indicate a loopback.
@@ -469,11 +473,11 @@ NET_TEST void SetPortForAllAddrinfos(struct addrinfo* head, uint16 port);
 // Note that this function does not check for IP addresses other than
 // the above, although other IP addresses may point to the local
 // machine.
-NET_TEST bool IsLocalhost(const std::string& host);
+NET_EXPORT_PRIVATE bool IsLocalhost(const std::string& host);
 
 // struct that is used by GetNetworkList() to represent a network
 // interface.
-struct NET_API NetworkInterface {
+struct NET_EXPORT NetworkInterface {
   NetworkInterface();
   NetworkInterface(const std::string& name, const IPAddressNumber& address);
   ~NetworkInterface();
@@ -488,7 +492,7 @@ typedef std::vector<NetworkInterface> NetworkInterfaceList;
 // interface has more than one address, a separate entry is added to
 // the list for each address.
 // Can be called only on a thread that allows IO.
-NET_API bool GetNetworkList(NetworkInterfaceList* networks);
+NET_EXPORT bool GetNetworkList(NetworkInterfaceList* networks);
 
 }  // namespace net
 

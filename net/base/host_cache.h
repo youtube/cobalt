@@ -15,12 +15,12 @@
 #include "base/time.h"
 #include "net/base/address_family.h"
 #include "net/base/address_list.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 // Cache used by HostResolver to map hostnames to their resolved result.
-class NET_API HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
+class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // Stores the latest address list that was looked up for a hostname.
   struct Entry : public base::RefCounted<Entry> {

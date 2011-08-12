@@ -13,7 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 
 namespace net {
@@ -26,7 +26,7 @@ namespace net {
 //   - the last auth handler used (contains realm and authentication scheme)
 //   - the list of paths which used this realm
 // Entries can be looked up by either (origin, realm, scheme) or (origin, path).
-class NET_TEST HttpAuthCache {
+class NET_EXPORT_PRIVATE HttpAuthCache {
  public:
   class Entry;
 
@@ -109,7 +109,7 @@ class NET_TEST HttpAuthCache {
 };
 
 // An authentication realm entry.
-class NET_TEST HttpAuthCache::Entry {
+class NET_EXPORT_PRIVATE HttpAuthCache::Entry {
  public:
   ~Entry();
 

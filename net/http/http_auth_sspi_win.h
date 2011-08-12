@@ -18,7 +18,7 @@
 #include <string>
 
 #include "base/string16.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 
 namespace net {
@@ -122,7 +122,7 @@ class SSPILibraryDefault : public SSPILibrary {
   }
 };
 
-class NET_TEST HttpAuthSSPI {
+class NET_EXPORT_PRIVATE HttpAuthSSPI {
  public:
   HttpAuthSSPI(SSPILibrary* sspi_library,
                const std::string& scheme,
@@ -181,9 +181,9 @@ class NET_TEST HttpAuthSSPI {
 // If |combined| is of form "bar", |domain| will be empty and |user| will
 // contain "bar".
 // |domain| and |user| must be non-NULL.
-NET_TEST void SplitDomainAndUser(const string16& combined,
-                                 string16* domain,
-                                 string16* user);
+NET_EXPORT_PRIVATE void SplitDomainAndUser(const string16& combined,
+                                           string16* domain,
+                                           string16* user);
 
 // Determines the maximum token length in bytes for a particular SSPI package.
 //
@@ -199,9 +199,9 @@ NET_TEST void SplitDomainAndUser(const string16& combined,
 // If the return value is ERR_UNEXPECTED, there was an unanticipated problem
 // in the underlying SSPI call. The details are logged, and |*max_token_length|
 // is not changed.
-NET_TEST int DetermineMaxTokenLength(SSPILibrary* library,
-                                     const std::wstring& package,
-                                     ULONG* max_token_length);
+NET_EXPORT_PRIVATE int DetermineMaxTokenLength(SSPILibrary* library,
+                                               const std::wstring& package,
+                                               ULONG* max_token_length);
 
 }  // namespace net
 

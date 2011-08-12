@@ -8,14 +8,14 @@
 
 #include <string.h>  // for memcpy().
 #include <algorithm>
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 // This is a class for generating an infinite stream of data which can be
 // verified independently to be the correct stream of data.
 
 namespace net {
 
-class NET_API TestDataStream {
+class NET_EXPORT TestDataStream {
  public:
   TestDataStream();
 

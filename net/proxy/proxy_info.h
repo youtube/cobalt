@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_list.h"
 #include "net/proxy/proxy_retry_info.h"
@@ -17,7 +17,7 @@
 namespace net {
 
 // This object holds proxy information returned by ResolveProxy.
-class NET_API ProxyInfo {
+class NET_EXPORT ProxyInfo {
  public:
   ProxyInfo();
   ~ProxyInfo();

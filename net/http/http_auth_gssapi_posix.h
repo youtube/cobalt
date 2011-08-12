@@ -11,7 +11,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/native_library.h"
 #include "base/string16.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 
 #define GSS_USE_FUNCTION_POINTERS
@@ -19,15 +19,15 @@
 
 namespace net {
 
-NET_TEST extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X;
-NET_TEST extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE;
-NET_TEST extern gss_OID CHROME_GSS_KRB5_MECH_OID_DESC;
+NET_EXPORT_PRIVATE extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X;
+NET_EXPORT_PRIVATE extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE;
+NET_EXPORT_PRIVATE extern gss_OID CHROME_GSS_KRB5_MECH_OID_DESC;
 
 // GSSAPILibrary is introduced so unit tests can mock the calls to the GSSAPI
 // library. The default implementation attempts to load one of the standard
 // GSSAPI library implementations, then simply passes the arguments on to
 // that implementation.
-class NET_TEST GSSAPILibrary {
+class NET_EXPORT_PRIVATE GSSAPILibrary {
  public:
   virtual ~GSSAPILibrary() {}
 
@@ -99,7 +99,7 @@ class NET_TEST GSSAPILibrary {
 };
 
 // GSSAPISharedLibrary class is defined here so that unit tests can access it.
-class NET_TEST GSSAPISharedLibrary : public GSSAPILibrary {
+class NET_EXPORT_PRIVATE GSSAPISharedLibrary : public GSSAPILibrary {
  public:
   // If |gssapi_library_name| is empty, hard-coded default library names are
   // used.
@@ -214,7 +214,7 @@ class ScopedSecurityContext {
 
 
 // TODO(ahendrickson): Share code with HttpAuthSSPI.
-class NET_TEST HttpAuthGSSAPI {
+class NET_EXPORT_PRIVATE HttpAuthGSSAPI {
  public:
   HttpAuthGSSAPI(GSSAPILibrary* library,
                  const std::string& scheme,

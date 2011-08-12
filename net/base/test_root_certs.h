@@ -8,7 +8,7 @@
 
 #include "base/lazy_instance.h"
 #include "build/build_config.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
@@ -30,7 +30,7 @@ class X509Certificate;
 // TestRootCerts is a helper class for unit tests that is used to
 // artificially mark a certificate as trusted, independent of the local
 // machine configuration.
-class NET_TEST TestRootCerts {
+class NET_EXPORT_PRIVATE TestRootCerts {
  public:
   // Obtains the Singleton instance to the trusted certificates.
   static TestRootCerts* GetInstance();

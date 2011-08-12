@@ -9,13 +9,13 @@
 #include <string>
 #include <vector>
 #include "base/basictypes.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 class HostPortPair;
 
-class NET_TEST HostMappingRules {
+class NET_EXPORT_PRIVATE HostMappingRules {
  public:
   HostMappingRules();
   ~HostMappingRules();

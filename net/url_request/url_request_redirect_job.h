@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/task.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/url_request/url_request_job.h"
 
 class GURL;
@@ -17,7 +17,7 @@ namespace net {
 // A URLRequestJob that will redirect the request to the specified
 // URL.  This is useful to restart a request at a different URL based
 // on the result of another job.
-class NET_API URLRequestRedirectJob : public URLRequestJob {
+class NET_EXPORT URLRequestRedirectJob : public URLRequestJob {
  public:
   // Constructs a job that redirects to the specified URL.
   URLRequestRedirectJob(URLRequest* request, const GURL& redirect_destination);

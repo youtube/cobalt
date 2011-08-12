@@ -12,13 +12,13 @@
 #include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
 #include "base/string_piece.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
 
 // A collection of SSL-related configuration settings.
-struct NET_API SSLConfig {
+struct NET_EXPORT SSLConfig {
   // Default to revocation checking.
   // Default to SSL 3.0 on and TLS 1.0 on.
   SSLConfig();
@@ -72,7 +72,7 @@ struct NET_API SSLConfig {
   // TODO(wtc): move the following members to a new SSLParams structure.  They
   // are not SSL configuration settings.
 
-  struct NET_API CertAndStatus {
+  struct NET_EXPORT CertAndStatus {
     CertAndStatus();
     ~CertAndStatus();
 
@@ -109,11 +109,11 @@ struct NET_API SSLConfig {
 // does not cover setting the SSL configuration, as on some systems, the
 // SSLConfigService objects may not have direct access to the configuration, or
 // live longer than the configuration preferences.
-class NET_API SSLConfigService
+class NET_EXPORT SSLConfigService
     : public base::RefCountedThreadSafe<SSLConfigService> {
  public:
   // Observer is notified when SSL config settings have changed.
-  class NET_API Observer {
+  class NET_EXPORT Observer {
    public:
     // Notify observers if SSL settings have changed.  We don't check all of the
     // data in SSLConfig, just those that qualify as a user config change.

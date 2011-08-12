@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/rand_callback.h"
 #include "net/udp/datagram_socket.h"
@@ -30,7 +30,7 @@ class StreamSocket;
 
 // An interface used to instantiate StreamSocket objects.  Used to facilitate
 // testing code with mock socket implementations.
-class NET_API ClientSocketFactory {
+class NET_EXPORT ClientSocketFactory {
  public:
   virtual ~ClientSocketFactory() {}
 

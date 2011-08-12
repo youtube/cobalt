@@ -11,7 +11,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_network_session.h"
 
 namespace net {
@@ -19,7 +19,7 @@ namespace net {
 class HttpStream;
 class IOBuffer;
 
-class NET_TEST HttpResponseBodyDrainer {
+class NET_EXPORT_PRIVATE HttpResponseBodyDrainer {
  public:
   // The size in bytes of the buffer we use to drain the response body that
   // we want to throw away.  The response body is typically a small page just a

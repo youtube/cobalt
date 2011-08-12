@@ -16,7 +16,7 @@ namespace net {
 class BoundNetLog;
 
 // A client socket that uses UDP as the transport layer.
-class NET_TEST UDPClientSocket : public DatagramClientSocket {
+class NET_EXPORT_PRIVATE UDPClientSocket : public DatagramClientSocket {
  public:
   UDPClientSocket(DatagramSocket::BindType bind_type,
                   const RandIntCallback& rand_int_cb,

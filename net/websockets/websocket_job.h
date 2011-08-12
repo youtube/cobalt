@@ -31,7 +31,7 @@ class WebSocketHandshakeResponseHandler;
 // see HttpOnly cookies, so it injects cookie header in handshake request and
 // strips set-cookie headers in handshake response.
 // TODO(ukai): refactor websocket.cc to use this.
-class NET_API WebSocketJob
+class NET_EXPORT WebSocketJob
     : public SocketStreamJob,
       public SocketStream::Delegate,
       public SpdyWebSocketStream::Delegate {

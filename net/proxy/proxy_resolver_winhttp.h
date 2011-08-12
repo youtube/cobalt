@@ -16,7 +16,7 @@ namespace net {
 
 // An implementation of ProxyResolver that uses WinHTTP and the system
 // proxy settings.
-class NET_TEST ProxyResolverWinHttp : public ProxyResolver {
+class NET_EXPORT_PRIVATE ProxyResolverWinHttp : public ProxyResolver {
  public:
   ProxyResolverWinHttp();
   virtual ~ProxyResolverWinHttp();

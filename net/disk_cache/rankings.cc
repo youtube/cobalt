@@ -15,7 +15,7 @@ using base::TimeTicks;
 
 namespace disk_cache {
 // This is used by crash_cache.exe to generate unit test files.
-NET_TEST RankCrashes g_rankings_crash = NO_CRASH;
+NET_EXPORT_PRIVATE RankCrashes g_rankings_crash = NO_CRASH;
 }
 
 namespace {

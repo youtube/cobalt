@@ -13,7 +13,7 @@
 #include "base/task.h"
 #include "net/base/completion_callback.h"
 #include "net/base/file_stream.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_byte_range.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
@@ -25,7 +25,7 @@ struct FileInfo;
 namespace net {
 
 // A request job that handles reading file URLs
-class NET_API URLRequestFileJob : public URLRequestJob {
+class NET_EXPORT URLRequestFileJob : public URLRequestJob {
  public:
   URLRequestFileJob(URLRequest* request, const FilePath& file_path);
 

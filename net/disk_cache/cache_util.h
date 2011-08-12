@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/basictypes.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 class FilePath;
 
@@ -19,14 +19,15 @@ namespace disk_cache {
 // for the cache directory.  Returns true if successful.  On ChromeOS,
 // this moves the cache contents, and leaves the empty cache
 // directory.
-NET_TEST bool MoveCache(const FilePath& from_path, const FilePath& to_path);
+NET_EXPORT_PRIVATE bool MoveCache(const FilePath& from_path,
+                                  const FilePath& to_path);
 
 // Deletes the cache files stored on |path|, and optionally also attempts to
 // delete the folder itself.
-NET_TEST void DeleteCache(const FilePath& path, bool remove_folder);
+NET_EXPORT_PRIVATE void DeleteCache(const FilePath& path, bool remove_folder);
 
 // Deletes a cache file.
-NET_TEST bool DeleteCacheFile(const FilePath& name);
+NET_EXPORT_PRIVATE bool DeleteCacheFile(const FilePath& name);
 
 }  // namespace disk_cache
 

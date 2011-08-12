@@ -6,7 +6,7 @@
 #define NET_BASE_SSL_CONFIG_SERVICE_DEFAULTS_H_
 #pragma once
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/ssl_config_service.h"
 
 namespace net {
@@ -14,7 +14,7 @@ namespace net {
 // This SSLConfigService always returns the default SSLConfig settings.  It is
 // mainly useful for unittests, or for platforms that do not have a native
 // implementation of SSLConfigService yet.
-class NET_API SSLConfigServiceDefaults : public SSLConfigService {
+class NET_EXPORT SSLConfigServiceDefaults : public SSLConfigService {
  public:
   SSLConfigServiceDefaults();
 

@@ -10,7 +10,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/platform_file.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 class FilePath;
 
@@ -27,7 +27,7 @@ class FileIOCallback {
 };
 
 // Simple wrapper around a file that allows asynchronous operations.
-class NET_TEST File : public base::RefCounted<File> {
+class NET_EXPORT_PRIVATE File : public base::RefCounted<File> {
   friend class base::RefCounted<File>;
  public:
   File();

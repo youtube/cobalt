@@ -18,7 +18,7 @@
 
 #include "base/basictypes.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -31,7 +31,7 @@ class SSLCertRequestInfo;
 class SSLInfo;
 class UploadDataStream;
 
-class NET_TEST HttpStream {
+class NET_EXPORT_PRIVATE HttpStream {
  public:
   HttpStream() {}
   virtual ~HttpStream() {}
