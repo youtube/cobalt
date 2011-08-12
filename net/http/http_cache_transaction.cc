@@ -365,6 +365,15 @@ int HttpCache::Transaction::Read(IOBuffer* buf, int buf_len,
 void HttpCache::Transaction::StopCaching() {
 }
 
+void HttpCache::Transaction::DoneReading() {
+  if (cache_ && entry_) {
+    DCHECK(reading_);
+    DCHECK_NE(mode_, UPDATE);
+    if (mode_ & WRITE)
+      DoneWritingToEntry(true);
+  }
+}
+
 const HttpResponseInfo* HttpCache::Transaction::GetResponseInfo() const {
   // Null headers means we encountered an error or haven't a response yet
   if (auth_response_.headers)

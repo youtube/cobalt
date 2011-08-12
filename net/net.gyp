@@ -1030,6 +1030,7 @@
         'tools/dump_cache/url_utilities_unittest.cc',
         'udp/udp_socket_unittest.cc',
         'url_request/url_request_job_factory_unittest.cc',
+        'url_request/url_request_job_unittest.cc',
         'url_request/url_request_throttler_simulation_unittest.cc',
         'url_request/url_request_throttler_test_support.cc',
         'url_request/url_request_throttler_test_support.h',

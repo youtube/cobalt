@@ -109,6 +109,7 @@ class HttpCache::Transaction : public HttpTransaction {
   virtual bool IsReadyToRestartForAuth();
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
   virtual void StopCaching();
+  virtual void DoneReading();
   virtual const HttpResponseInfo* GetResponseInfo() const;
   virtual LoadState GetLoadState() const;
   virtual uint64 GetUploadProgress(void) const;
