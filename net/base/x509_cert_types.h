@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "build/build_config.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 #if defined(OS_MACOSX)
 #include <Security/x509defs.h>
@@ -46,7 +46,7 @@ class SHA1FingerprintLessThan {
 };
 
 // CertPrincipal represents the issuer or subject field of an X.509 certificate.
-struct NET_API CertPrincipal {
+struct NET_EXPORT CertPrincipal {
   CertPrincipal();
   explicit CertPrincipal(const std::string& name);
   ~CertPrincipal();
@@ -85,7 +85,7 @@ struct NET_API CertPrincipal {
 
 // This class is useful for maintaining policies about which certificates are
 // permitted or forbidden for a particular purpose.
-class NET_API CertPolicy {
+class NET_EXPORT CertPolicy {
  public:
   // The judgments this policy can reach.
   enum Judgment {

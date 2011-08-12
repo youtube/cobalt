@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -18,7 +18,7 @@ class X509Certificate;
 
 // The SSLCertRequestInfo class contains the info that allows a user to
 // select a certificate to send to the SSL server for client authentication.
-class NET_API SSLCertRequestInfo
+class NET_EXPORT SSLCertRequestInfo
     : public base::RefCountedThreadSafe<SSLCertRequestInfo> {
  public:
   SSLCertRequestInfo();

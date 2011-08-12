@@ -9,7 +9,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -19,7 +19,7 @@ namespace net {
 //
 // This is thread-safe so it can be used by multi-threaded implementations of
 // ProxyResolver to share the data between threads.
-class NET_TEST ProxyResolverScriptData
+class NET_EXPORT_PRIVATE ProxyResolverScriptData
     : public base::RefCountedThreadSafe<ProxyResolverScriptData> {
  public:
   enum Type {

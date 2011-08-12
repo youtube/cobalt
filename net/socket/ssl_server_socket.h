@@ -7,7 +7,7 @@
 
 #include "base/basictypes.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/socket/stream_socket.h"
 
 namespace base {
@@ -54,7 +54,7 @@ class SSLServerSocket : public StreamSocket {
 //
 // The caller starts the SSL server handshake by calling Handshake on the
 // returned socket.
-NET_API SSLServerSocket* CreateSSLServerSocket(
+NET_EXPORT SSLServerSocket* CreateSSLServerSocket(
     StreamSocket* socket,
     X509Certificate* certificate,
     crypto::RSAPrivateKey* key,

@@ -7,13 +7,13 @@
 #pragma once
 
 #include "net/base/host_resolver.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 // Interface used by ProxyResolverJSBindings to abstract a synchronous host
 // resolver module (which includes a Shutdown method).
-class NET_TEST SyncHostResolver {
+class NET_EXPORT_PRIVATE SyncHostResolver {
  public:
   virtual ~SyncHostResolver() {}
 

@@ -30,7 +30,7 @@
 #include "net/base/cache_type.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_transaction_factory.h"
 
 class GURL;
@@ -58,9 +58,9 @@ class ProxyService;
 class SSLConfigService;
 class ViewCacheHelper;
 
-class NET_API HttpCache : public HttpTransactionFactory,
-                          public base::SupportsWeakPtr<HttpCache>,
-                          NON_EXPORTED_BASE(public base::NonThreadSafe) {
+class NET_EXPORT HttpCache : public HttpTransactionFactory,
+                             public base::SupportsWeakPtr<HttpCache>,
+                             NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // The cache mode of operation.
   enum Mode {
@@ -77,7 +77,7 @@ class NET_API HttpCache : public HttpTransactionFactory,
   };
 
   // A BackendFactory creates a backend object to be used by the HttpCache.
-  class NET_API BackendFactory {
+  class NET_EXPORT BackendFactory {
    public:
     virtual ~BackendFactory() {}
 
@@ -93,7 +93,7 @@ class NET_API HttpCache : public HttpTransactionFactory,
   };
 
   // A default backend factory for the common use cases.
-  class NET_API DefaultBackend : public BackendFactory {
+  class NET_EXPORT DefaultBackend : public BackendFactory {
    public:
     // |path| is the destination for any files used by the backend, and
     // |cache_thread| is the thread where disk operations should take place. If

@@ -27,7 +27,7 @@ class ClientSocketHandle;
 class BoundNetLog;
 
 // The SOCKS client socket implementation
-class NET_TEST SOCKSClientSocket : public StreamSocket {
+class NET_EXPORT_PRIVATE SOCKSClientSocket : public StreamSocket {
  public:
   // Takes ownership of the |transport_socket|, which should already be
   // connected by the time Connect() is called.

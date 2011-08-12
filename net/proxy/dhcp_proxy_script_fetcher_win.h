@@ -23,7 +23,7 @@ class DhcpProxyScriptAdapterFetcher;
 class URLRequestContext;
 
 // Windows-specific implementation.
-class NET_TEST DhcpProxyScriptFetcherWin
+class NET_EXPORT_PRIVATE DhcpProxyScriptFetcherWin
     : public DhcpProxyScriptFetcher,
       public base::SupportsWeakPtr<DhcpProxyScriptFetcherWin>,
       NON_EXPORTED_BASE(public base::NonThreadSafe) {
@@ -56,7 +56,7 @@ class NET_TEST DhcpProxyScriptFetcherWin
   //
   // TODO(joi): Replace with PostTaskAndReply once http://crbug.com/86301
   // has been implemented.
-  class NET_TEST WorkerThread
+  class NET_EXPORT_PRIVATE WorkerThread
       : public base::RefCountedThreadSafe<WorkerThread> {
    public:
     // Creates and initializes (but does not start) the worker thread.

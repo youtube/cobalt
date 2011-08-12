@@ -23,7 +23,7 @@ class MemEntryImpl;
 
 // This class implements the Backend interface. An object of this class handles
 // the operations of the cache without writing to disk.
-class NET_TEST MemBackendImpl : public Backend {
+class NET_EXPORT_PRIVATE MemBackendImpl : public Backend {
  public:
   explicit MemBackendImpl(net::NetLog* net_log);
   virtual ~MemBackendImpl();

@@ -9,7 +9,7 @@
 #include <list>
 #include <string>
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 #include "net/proxy/proxy_bypass_rules.h"
 
@@ -19,7 +19,7 @@ namespace net {
 
 // |HttpAuthFilter|s determine whether an authentication scheme should be
 // allowed for a particular peer.
-class NET_TEST HttpAuthFilter {
+class NET_EXPORT_PRIVATE HttpAuthFilter {
  public:
   virtual ~HttpAuthFilter() {}
 
@@ -33,7 +33,7 @@ class NET_TEST HttpAuthFilter {
 //
 // Uses the ProxyBypassRules class to do whitelisting for servers.
 // All proxies are allowed.
-class NET_API HttpAuthFilterWhitelist : public HttpAuthFilter {
+class NET_EXPORT HttpAuthFilterWhitelist : public HttpAuthFilter {
  public:
   explicit HttpAuthFilterWhitelist(const std::string& server_whitelist);
   virtual ~HttpAuthFilterWhitelist();

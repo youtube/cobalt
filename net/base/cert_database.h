@@ -13,7 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
 #include "net/base/cert_type.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -30,7 +30,7 @@ typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 // for all operations that manipulate the underlying system
 // certificate store.
 
-class NET_API CertDatabase {
+class NET_EXPORT CertDatabase {
  public:
 
   // A CertDatabase::Observer will be notified on certificate database changes.
@@ -38,7 +38,7 @@ class NET_API CertDatabase {
   // a certificate is changed.  Observers can register themselves
   // via CertDatabase::AddObserver, and can un-register with
   // CertDatabase::RemoveObserver.
-  class NET_API Observer {
+  class NET_EXPORT Observer {
    public:
     virtual ~Observer() {}
 
@@ -58,7 +58,7 @@ class NET_API CertDatabase {
   };
 
   // Stores per-certificate error codes for import failures.
-  struct NET_API ImportCertFailure {
+  struct NET_EXPORT ImportCertFailure {
    public:
     ImportCertFailure(X509Certificate* cert, int err);
     ~ImportCertFailure();

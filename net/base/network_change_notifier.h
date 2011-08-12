@@ -8,7 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/observer_list_threadsafe.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -17,9 +17,9 @@ class NetworkChangeNotifierFactory;
 // NetworkChangeNotifier monitors the system for network changes, and notifies
 // registered observers of those events.  Observers may register on any thread,
 // and will be called back on the thread from which they registered.
-class NET_API NetworkChangeNotifier {
+class NET_EXPORT NetworkChangeNotifier {
  public:
-  class NET_API IPAddressObserver {
+  class NET_EXPORT IPAddressObserver {
    public:
     virtual ~IPAddressObserver() {}
 
@@ -34,7 +34,7 @@ class NET_API NetworkChangeNotifier {
     DISALLOW_COPY_AND_ASSIGN(IPAddressObserver);
   };
 
-  class NET_API OnlineStateObserver {
+  class NET_EXPORT OnlineStateObserver {
    public:
     virtual ~OnlineStateObserver() {}
 

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/memory/ref_counted.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -20,7 +20,7 @@ class SOCKSClientSocketPool;
 class SSLClientSocketPool;
 class TransportClientSocketPool;
 
-class NET_TEST HttpNetworkSessionPeer {
+class NET_EXPORT_PRIVATE HttpNetworkSessionPeer {
  public:
   explicit HttpNetworkSessionPeer(
       const scoped_refptr<HttpNetworkSession>& session);

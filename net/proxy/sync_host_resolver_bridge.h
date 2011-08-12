@@ -15,7 +15,7 @@ namespace net {
 
 // Wrapper around HostResolver to give a sync API while running the resolver
 // in async mode on |host_resolver_loop|.
-class NET_TEST SyncHostResolverBridge : public SyncHostResolver {
+class NET_EXPORT_PRIVATE SyncHostResolverBridge : public SyncHostResolver {
  public:
   SyncHostResolverBridge(HostResolver* host_resolver,
                          MessageLoop* host_resolver_loop);

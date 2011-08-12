@@ -19,8 +19,8 @@ namespace net {
 
 class BoundNetLog;
 
-class NET_API TCPClientSocketWin : public StreamSocket,
-                                   NON_EXPORTED_BASE(base::NonThreadSafe) {
+class NET_EXPORT TCPClientSocketWin : public StreamSocket,
+                                      NON_EXPORTED_BASE(base::NonThreadSafe) {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a

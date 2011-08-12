@@ -38,8 +38,8 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
-#include "net/base/net_api.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/request_priority.h"
@@ -51,18 +51,18 @@ namespace net {
 class ClientSocketHandle;
 
 // Returns the client socket reuse policy.
-NET_TEST int GetSocketReusePolicy();
+NET_EXPORT_PRIVATE int GetSocketReusePolicy();
 
 // Sets the client socket reuse policy.
 // NOTE: 'policy' should be a valid ClientSocketReusePolicy enum value.
-NET_API void SetSocketReusePolicy(int policy);
+NET_EXPORT void SetSocketReusePolicy(int policy);
 
 // ConnectJob provides an abstract interface for "connecting" a socket.
 // The connection may involve host resolution, tcp connection, ssl connection,
 // etc.
-class NET_TEST ConnectJob {
+class NET_EXPORT_PRIVATE ConnectJob {
  public:
-  class NET_TEST Delegate {
+  class NET_EXPORT_PRIVATE Delegate {
    public:
     Delegate() {}
     virtual ~Delegate() {}
@@ -162,7 +162,7 @@ namespace internal {
 // ClientSocketPoolBase adds templated definitions built on top of
 // ClientSocketPoolBaseHelper.  This class is not for external use, please use
 // ClientSocketPoolBase instead.
-class NET_TEST ClientSocketPoolBaseHelper
+class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     : public ConnectJob::Delegate,
       public NetworkChangeNotifier::IPAddressObserver {
  public:
@@ -185,7 +185,7 @@ class NET_TEST ClientSocketPoolBaseHelper
     USE_LAST_ACCESSED_SOCKET = 2,
   };
 
-  class NET_TEST Request {
+  class NET_EXPORT_PRIVATE Request {
    public:
     Request(ClientSocketHandle* handle,
             CompletionCallback* callback,

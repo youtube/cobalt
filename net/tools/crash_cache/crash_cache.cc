@@ -20,8 +20,8 @@
 #include "base/string_util.h"
 #include "base/threading/thread.h"
 #include "base/utf_string_conversions.h"
-#include "net/base/net_api.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_export.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache.h"
@@ -80,7 +80,7 @@ int MasterCode() {
 // -----------------------------------------------------------------------
 
 namespace disk_cache {
-NET_TEST extern RankCrashes g_rankings_crash;
+NET_EXPORT_PRIVATE extern RankCrashes g_rankings_crash;
 }
 
 const char* kCrashEntryName = "the first key";
