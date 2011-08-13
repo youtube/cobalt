@@ -818,21 +818,19 @@ bool ListValue::Remove(size_t index, Value** out_value) {
   return true;
 }
 
-int ListValue::Remove(const Value& value) {
+bool ListValue::Remove(const Value& value, size_t* index) {
   for (ValueVector::iterator i(list_.begin()); i != list_.end(); ++i) {
     if ((*i)->Equals(&value)) {
-      size_t index = i - list_.begin();
+      size_t previous_index = i - list_.begin();
       delete *i;
       list_.erase(i);
 
-      // TODO(anyone): Returning a signed int type here is just wrong.
-      // Change this interface to return a size_t.
-      DCHECK(index <= INT_MAX);
-      int return_index = static_cast<int>(index);
-      return return_index;
+      if (index)
+        *index = previous_index;
+      return true;
     }
   }
-  return -1;
+  return false;
 }
 
 void ListValue::Append(Value* in_value) {
