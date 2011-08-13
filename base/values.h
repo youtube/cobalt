@@ -402,8 +402,9 @@ class BASE_EXPORT ListValue : public Value {
   bool Remove(size_t index, Value** out_value);
 
   // Removes the first instance of |value| found in the list, if any, and
-  // deletes it.  Returns the index that it was located at (-1 for not present).
-  int Remove(const Value& value);
+  // deletes it. |index| is the location where |value| was found. Returns false
+  // if not found.
+  bool Remove(const Value& value, size_t* index);
 
   // Appends a Value to the end of the list.
   void Append(Value* in_value);
