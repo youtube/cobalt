@@ -236,7 +236,9 @@ TEST(ValuesTest, ListRemoval) {
     DeletionTestValue* value = new DeletionTestValue(&deletion_flag);
     list.Append(value);
     EXPECT_FALSE(deletion_flag);
-    EXPECT_EQ(0, list.Remove(*value));
+    size_t index = 0;
+    list.Remove(*value, &index);
+    EXPECT_EQ(0U, index);
     EXPECT_TRUE(deletion_flag);
     EXPECT_EQ(0U, list.GetSize());
   }
