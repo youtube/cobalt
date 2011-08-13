@@ -1754,6 +1754,7 @@
           'WIN32',
           '_WINDOWS',
           'NOMINMAX',
+          'PSAPI_VERSION=1',
           '_CRT_RAND_S',
           'CERT_CHAIN_PARA_HAS_EXTRA_FIELDS',
           'WIN32_LEAN_AND_MEAN',
