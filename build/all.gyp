@@ -575,6 +575,7 @@
             '../chrome/chrome.gyp:unit_tests',
             '../content/content.gyp:content_unittests',
             '../crypto/crypto.gyp:crypto_unittests',
+            '../dbus/dbus.gyp:dbus_unittests',
             '../ui/ui.gyp:gfx_unittests',
             '../ipc/ipc.gyp:ipc_tests',
             '../jingle/jingle.gyp:jingle_unittests',
