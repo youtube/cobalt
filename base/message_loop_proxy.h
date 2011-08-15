@@ -17,9 +17,12 @@ namespace base {
 struct MessageLoopProxyTraits;
 
 // This class provides a thread-safe refcounted interface to the Post* methods
-// of a message loop. This class can outlive the target message loop. You can
-// obtain a MessageLoopProxy via Thread::message_loop_proxy() or
-// MessageLoopProxy::CreateForCurrentThread().
+// of a message loop. This class can outlive the target message loop.
+// MessageLoopProxy objects are constructed automatically for all MessageLoops.
+// So, to access them, you can use any of the following:
+//   Thread::message_loop_proxy()
+//   MessageLoop::current()->message_loop_proxy()
+//   MessageLoopProxy::current()
 class BASE_EXPORT MessageLoopProxy
     : public base::RefCountedThreadSafe<MessageLoopProxy,
                                         MessageLoopProxyTraits> {
@@ -78,9 +81,9 @@ class BASE_EXPORT MessageLoopProxy
     return PostNonNestableTask(from_here, new ReleaseTask<T>(object));
   }
 
-  // Factory method for creating an implementation of MessageLoopProxy
-  // for the current thread.
-  static scoped_refptr<MessageLoopProxy> CreateForCurrentThread();
+  // Gets the MessageLoopProxy for the current message loop, creating one if
+  // needed.
+  static scoped_refptr<MessageLoopProxy> current();
 
  protected:
   friend class RefCountedThreadSafe<MessageLoopProxy, MessageLoopProxyTraits>;

@@ -370,7 +370,7 @@ bool FilePathWatcherImpl::Watch(const FilePath& path,
   DCHECK(target_.empty());
   DCHECK(MessageLoopForIO::current());
 
-  set_message_loop(base::MessageLoopProxy::CreateForCurrentThread());
+  set_message_loop(base::MessageLoopProxy::current());
   delegate_ = delegate;
   target_ = path;
   MessageLoop::current()->AddDestructionObserver(this);

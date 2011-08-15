@@ -113,7 +113,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // is gone.
   // TODO(sanjeevr): Look into merging MessageLoop and MessageLoopProxy.
   scoped_refptr<MessageLoopProxy> message_loop_proxy() const {
-    return message_loop_proxy_;
+    return message_loop_->message_loop_proxy();
   }
 
   // Set the name of this thread (for display in debugger too).
@@ -174,10 +174,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // The thread's message loop.  Valid only while the thread is alive.  Set
   // by the created thread.
   MessageLoop* message_loop_;
-
-  // A MessageLoopProxy implementation that targets this thread. This can
-  // outlive the thread.
-  scoped_refptr<MessageLoopProxy> message_loop_proxy_;
 
   // Our thread's ID.
   PlatformThreadId thread_id_;

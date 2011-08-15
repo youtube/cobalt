@@ -427,7 +427,7 @@ bool FilePathWatcherImpl::Watch(const FilePath& path,
   target_ = path;
 
   MessageLoop::current()->AddDestructionObserver(this);
-  io_message_loop_ = base::MessageLoopProxy::CreateForCurrentThread();
+  io_message_loop_ = base::MessageLoopProxy::current();
 
   kqueue_ = kqueue();
   if (kqueue_ == -1) {
