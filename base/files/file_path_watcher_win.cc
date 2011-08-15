@@ -81,7 +81,7 @@ bool FilePathWatcherImpl::Watch(const FilePath& path,
                                 FilePathWatcher::Delegate* delegate) {
   DCHECK(target_.value().empty());  // Can only watch one path.
 
-  set_message_loop(base::MessageLoopProxy::CreateForCurrentThread());
+  set_message_loop(base::MessageLoopProxy::current());
   delegate_ = delegate;
   target_ = path;
   MessageLoop::current()->AddDestructionObserver(this);

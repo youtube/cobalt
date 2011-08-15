@@ -266,7 +266,7 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
     disk_cache::Backend* cache;
     int rv = disk_cache::BackendImpl::CreateBackend(
                  path, false, 0, net::DISK_CACHE, disk_cache::kNoRandom,
-                 base::MessageLoopProxy::CreateForCurrentThread(), NULL,
+                 base::MessageLoopProxy::current(), NULL,
                  &cache, &cb);
     ASSERT_EQ(net::OK, cb.GetResult(rv));
 
@@ -1818,7 +1818,7 @@ TEST_F(DiskCacheTest, Backend_UsageStats) {
   ASSERT_TRUE(DeleteCache(path));
   scoped_ptr<disk_cache::BackendImpl> cache;
   cache.reset(new disk_cache::BackendImpl(
-                  path, base::MessageLoopProxy::CreateForCurrentThread(),
+                  path, base::MessageLoopProxy::current(),
                   NULL));
   ASSERT_TRUE(NULL != cache.get());
   cache->SetUnitTestMode();

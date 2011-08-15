@@ -112,7 +112,7 @@ GURL DhcpProxyScriptAdapterFetcher::GetPacURL() const {
 DhcpProxyScriptAdapterFetcher::WorkerThread::WorkerThread(
     const base::WeakPtr<DhcpProxyScriptAdapterFetcher>& owner)
         : owner_(owner),
-          origin_loop_(base::MessageLoopProxy::CreateForCurrentThread()) {
+          origin_loop_(base::MessageLoopProxy::current()) {
 }
 
 DhcpProxyScriptAdapterFetcher::WorkerThread::~WorkerThread() {

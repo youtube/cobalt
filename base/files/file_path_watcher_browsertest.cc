@@ -41,7 +41,7 @@ class NotificationCollector
     : public base::RefCountedThreadSafe<NotificationCollector> {
  public:
   NotificationCollector()
-      : loop_(base::MessageLoopProxy::CreateForCurrentThread()) {}
+      : loop_(base::MessageLoopProxy::current()) {}
 
   // Called from the file thread by the delegates.
   void OnChange(TestDelegate* delegate) {
