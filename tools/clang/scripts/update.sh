@@ -44,7 +44,10 @@ set -x
 mkdir -p "${LLVM_DIR}"/../llvm-build
 cd "${LLVM_DIR}"/../llvm-build
 if [ ! -f ./config.status ]; then
-  ../llvm/configure --enable-optimized
+  ../llvm/configure \
+      --enable-optimized \
+      --without-llvmgcc \
+      --without-llvmgxx
 fi
 
 NUM_JOBS=3
