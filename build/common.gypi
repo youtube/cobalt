@@ -181,6 +181,11 @@
       # Has no effect if 'clang' is not set as well.
       'clang_use_chrome_plugins%': 0,
 
+      # Enable building with ASAN (Clang's -fasan option).
+      # -fasan only works with clang, but asan=1 implies clang=1
+      # See https://sites.google.com/a/chromium.org/dev/developers/testing/addresssanitizer
+      'asan%': 0,
+
       # Set to 1 compile with -fPIC cflag on linux. This is a must for shared
       # libraries on linux x86-64 and arm, plus ASLR.
       'linux_fpic%': 1,
@@ -306,6 +311,7 @@
     'configuration_policy%': '<(configuration_policy)',
     'safe_browsing%': '<(safe_browsing)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
+    'asan%': '<(asan)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
     'enable_smooth_scrolling%': '<(enable_smooth_scrolling)',
     # Whether to build for Wayland display server
@@ -689,6 +695,10 @@
 
       ['enable_register_protocol_handler==1', {
         'grit_defines': ['-D', 'enable_register_protocol_handler'],
+      }],
+
+      ['asan==1', {
+        'clang%': 1,
       }],
     ],
   },
@@ -1541,6 +1551,16 @@
             'cflags': [
               '-Xclang', '-load', '-Xclang', '<(clang_load)',
               '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
+            ],
+          }],
+          ['asan==1', {
+            # Only in the linux section for now, since ASAN doesn't
+            # work on Mac yet.
+            'cflags': [
+              '-fasan -w',
+            ],
+            'ldflags': [
+              '-fasan',
             ],
           }],
           ['no_strict_aliasing==1', {
