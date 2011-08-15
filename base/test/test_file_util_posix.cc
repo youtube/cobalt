@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,14 +6,14 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include <string>
 
-#include "base/logging.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/logging.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 
@@ -49,8 +49,8 @@ bool CopyRecursiveDirNoCache(const FilePath& source_dir,
     return false;
 
   bool success = true;
-  FileEnumerator::FILE_TYPE traverse_type =
-      static_cast<FileEnumerator::FILE_TYPE>(FileEnumerator::FILES |
+  FileEnumerator::FileType traverse_type =
+      static_cast<FileEnumerator::FileType>(FileEnumerator::FILES |
       FileEnumerator::SHOW_SYM_LINKS | FileEnumerator::DIRECTORIES);
   FileEnumerator traversal(source_dir, true, traverse_type);
 

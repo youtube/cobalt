@@ -112,8 +112,8 @@ bool DeleteReparsePoint(HANDLE source) {
 
 const wchar_t bogus_content[] = L"I'm cannon fodder.";
 
-const file_util::FileEnumerator::FILE_TYPE FILES_AND_DIRECTORIES =
-    static_cast<file_util::FileEnumerator::FILE_TYPE>(
+const file_util::FileEnumerator::FileType FILES_AND_DIRECTORIES =
+    static_cast<file_util::FileEnumerator::FileType>(
         file_util::FileEnumerator::FILES |
         file_util::FileEnumerator::DIRECTORIES);
 
@@ -1611,7 +1611,7 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
 
   // Test an empty directory, non-recursively, including "..".
   file_util::FileEnumerator f0_dotdot(temp_dir_.path(), false,
-      static_cast<file_util::FileEnumerator::FILE_TYPE>(
+      static_cast<file_util::FileEnumerator::FileType>(
           FILES_AND_DIRECTORIES | file_util::FileEnumerator::INCLUDE_DOT_DOT));
   EXPECT_EQ(temp_dir_.path().Append(FILE_PATH_LITERAL("..")).value(),
             f0_dotdot.Next().value());
@@ -1669,7 +1669,7 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   // Only enumerate directories, non-recursively, including "..".
   file_util::FileEnumerator f2_dotdot(
       temp_dir_.path(), false,
-      static_cast<file_util::FileEnumerator::FILE_TYPE>(
+      static_cast<file_util::FileEnumerator::FileType>(
           file_util::FileEnumerator::DIRECTORIES |
           file_util::FileEnumerator::INCLUDE_DOT_DOT));
   FindResultCollector c2_dotdot(f2_dotdot);
