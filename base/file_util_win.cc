@@ -17,14 +17,14 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
-#include "base/win/pe_image.h"
-#include "base/win/scoped_handle.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
+#include "base/win/pe_image.h"
 #include "base/win/scoped_comptr.h"
+#include "base/win/scoped_handle.h"
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
 
@@ -848,7 +848,7 @@ bool SetCurrentDirectory(const FilePath& directory) {
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileEnumerator::FILE_TYPE file_type)
+                               FileType file_type)
     : recursive_(recursive),
       file_type_(file_type),
       has_find_data_(false),
@@ -860,7 +860,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileEnumerator::FILE_TYPE file_type,
+                               FileType file_type,
                                const FilePath::StringType& pattern)
     : recursive_(recursive),
       file_type_(file_type),
