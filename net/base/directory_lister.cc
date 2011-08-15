@@ -171,7 +171,7 @@ DirectoryLister::Core::Core(const FilePath& dir,
 DirectoryLister::Core::~Core() {}
 
 bool DirectoryLister::Core::Start() {
-  origin_loop_ = base::MessageLoopProxy::CreateForCurrentThread();
+  origin_loop_ = base::MessageLoopProxy::current();
 
   return base::WorkerPool::PostTask(
       FROM_HERE, NewRunnableMethod(this, &Core::StartInternal), true);

@@ -12,6 +12,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop_proxy_impl.h"
 #include "base/message_pump_default.h"
 #include "base/metrics/histogram.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
@@ -135,6 +136,8 @@ MessageLoop::MessageLoop(Type type)
   DCHECK(!current()) << "should only have one message loop per thread";
   lazy_tls_ptr.Pointer()->Set(this);
 
+  message_loop_proxy_ = new base::MessageLoopProxyImpl();
+
 // TODO(rvargas): Get rid of the OS guards.
 #if defined(OS_WIN)
 #define MESSAGE_PUMP_UI new base::MessagePumpForUI()
@@ -201,6 +204,11 @@ MessageLoop::~MessageLoop() {
   // Let interested parties have one last shot at accessing this.
   FOR_EACH_OBSERVER(DestructionObserver, destruction_observers_,
                     WillDestroyCurrentMessageLoop());
+
+  // Tell the message_loop_proxy that we are dying.
+  static_cast<base::MessageLoopProxyImpl*>(message_loop_proxy_.get())->
+      WillDestroyCurrentMessageLoop();
+  message_loop_proxy_ = NULL;
 
   // OK, now make it so that no one can find us.
   lazy_tls_ptr.Pointer()->Set(NULL);

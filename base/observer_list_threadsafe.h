@@ -185,7 +185,7 @@ class ObserverListThreadSafe
 
   struct ObserverListContext {
     explicit ObserverListContext(NotificationType type)
-        : loop(base::MessageLoopProxy::CreateForCurrentThread()),
+        : loop(base::MessageLoopProxy::current()),
           list(type) {
     }
 

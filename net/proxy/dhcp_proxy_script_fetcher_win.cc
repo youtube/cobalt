@@ -371,7 +371,7 @@ DhcpProxyScriptFetcherWin::WorkerThread::WorkerThread() {
 void DhcpProxyScriptFetcherWin::WorkerThread::Init(
     const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner) {
   owner_ = owner;
-  origin_loop_ = base::MessageLoopProxy::CreateForCurrentThread();
+  origin_loop_ = base::MessageLoopProxy::current();
 }
 
 bool DhcpProxyScriptFetcherWin::WorkerThread::ImplGetCandidateAdapterNames(
