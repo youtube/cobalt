@@ -439,7 +439,7 @@ class RelayReadDirectory : public MessageLoopRelay {
     }
 
     file_util::FileEnumerator file_enum(
-        file_path_, false, static_cast<file_util::FileEnumerator::FILE_TYPE>(
+        file_path_, false, static_cast<file_util::FileEnumerator::FileType>(
         file_util::FileEnumerator::FILES |
         file_util::FileEnumerator::DIRECTORIES));
     FilePath current;

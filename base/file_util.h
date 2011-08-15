@@ -423,7 +423,7 @@ class BASE_EXPORT FileEnumerator {
   } FindInfo;
 #endif
 
-  enum FILE_TYPE {
+  enum FileType {
     FILES                 = 1 << 0,
     DIRECTORIES           = 1 << 1,
     INCLUDE_DOT_DOT       = 1 << 2,
@@ -454,10 +454,10 @@ class BASE_EXPORT FileEnumerator {
   // TODO(erikkay): Fix the pattern matching to work at all levels.
   FileEnumerator(const FilePath& root_path,
                  bool recursive,
-                 FileEnumerator::FILE_TYPE file_type);
+                 FileType file_type);
   FileEnumerator(const FilePath& root_path,
                  bool recursive,
-                 FileEnumerator::FILE_TYPE file_type,
+                 FileType file_type,
                  const FilePath::StringType& pattern);
   ~FileEnumerator();
 
@@ -503,7 +503,7 @@ class BASE_EXPORT FileEnumerator {
 
   FilePath root_path_;
   bool recursive_;
-  FILE_TYPE file_type_;
+  FileType file_type_;
   FilePath::StringType pattern_;  // Empty when we want to find everything.
 
   // A stack that keeps track of which subdirectories we still need to
