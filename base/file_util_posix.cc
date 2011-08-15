@@ -172,7 +172,7 @@ bool Delete(const FilePath& path, bool recursive) {
   bool success = true;
   std::stack<std::string> directories;
   directories.push(path.value());
-  FileEnumerator traversal(path, true, static_cast<FileEnumerator::FILE_TYPE>(
+  FileEnumerator traversal(path, true, static_cast<FileEnumerator::FileType>(
         FileEnumerator::FILES | FileEnumerator::DIRECTORIES |
         FileEnumerator::SHOW_SYM_LINKS));
   for (FilePath current = traversal.Next(); success && !current.empty();
@@ -260,11 +260,11 @@ bool CopyDirectory(const FilePath& from_path,
     return false;
 
   bool success = true;
-  FileEnumerator::FILE_TYPE traverse_type =
-      static_cast<FileEnumerator::FILE_TYPE>(FileEnumerator::FILES |
+  FileEnumerator::FileType traverse_type =
+      static_cast<FileEnumerator::FileType>(FileEnumerator::FILES |
       FileEnumerator::SHOW_SYM_LINKS);
   if (recursive)
-    traverse_type = static_cast<FileEnumerator::FILE_TYPE>(
+    traverse_type = static_cast<FileEnumerator::FileType>(
         traverse_type | FileEnumerator::DIRECTORIES);
   FileEnumerator traversal(from_path, recursive, traverse_type);
 
@@ -642,7 +642,7 @@ bool SetCurrentDirectory(const FilePath& path) {
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileEnumerator::FILE_TYPE file_type)
+                               FileType file_type)
     : current_directory_entry_(0),
       root_path_(root_path),
       recursive_(recursive),
@@ -654,7 +654,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileEnumerator::FILE_TYPE file_type,
+                               FileType file_type,
                                const FilePath::StringType& pattern)
     : current_directory_entry_(0),
       root_path_(root_path),

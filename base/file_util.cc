@@ -160,7 +160,7 @@ bool ReadFileToString(const FilePath& path, std::string* contents) {
 
 bool IsDirectoryEmpty(const FilePath& dir_path) {
   FileEnumerator files(dir_path, false,
-      static_cast<FileEnumerator::FILE_TYPE>(
+      static_cast<FileEnumerator::FileType>(
           FileEnumerator::FILES | FileEnumerator::DIRECTORIES));
   if (files.Next().value().empty())
     return true;
