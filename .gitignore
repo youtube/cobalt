@@ -133,6 +133,8 @@ v8.log
 /third_party/snappy/src
 /third_party/speex
 /third_party/swig
+/third_party/syzygy/binaries
+/third_party/v8-i18n
 /third_party/valgrind
 /third_party/webdriver/python
 /third_party/webgl_conformance
