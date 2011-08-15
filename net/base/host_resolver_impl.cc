@@ -364,7 +364,7 @@ class HostResolverImpl::Job
      : id_(id),
        key_(key),
        resolver_(resolver),
-       origin_loop_(base::MessageLoopProxy::CreateForCurrentThread()),
+       origin_loop_(base::MessageLoopProxy::current()),
        resolver_proc_(resolver->effective_resolver_proc()),
        unresponsive_delay_(resolver->unresponsive_delay()),
        attempt_number_(0),
@@ -825,7 +825,7 @@ class HostResolverImpl::IPv6ProbeJob
  public:
   explicit IPv6ProbeJob(HostResolverImpl* resolver)
       : resolver_(resolver),
-        origin_loop_(base::MessageLoopProxy::CreateForCurrentThread()) {
+        origin_loop_(base::MessageLoopProxy::current()) {
     DCHECK(resolver);
   }
 

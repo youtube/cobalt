@@ -13,12 +13,11 @@
 
 namespace base {
 
-// A stock implementation of MessageLoopProxy that takes in a MessageLoop
-// and keeps track of its lifetime using the MessageLoop DestructionObserver.
-// For now a MessageLoopProxyImpl can only be created for the current thread.
+// A stock implementation of MessageLoopProxy that is created and managed by a
+// MessageLoop. For now a MessageLoopProxyImpl can only be created as part of a
+// MessageLoop.
 class BASE_EXPORT MessageLoopProxyImpl
-    : public MessageLoopProxy,
-      public MessageLoop::DestructionObserver {
+    : public MessageLoopProxy {
  public:
   virtual ~MessageLoopProxyImpl();
 
@@ -47,9 +46,6 @@ class BASE_EXPORT MessageLoopProxyImpl
       int64 delay_ms);
   virtual bool BelongsToCurrentThread();
 
-  // MessageLoop::DestructionObserver implementation
-  virtual void WillDestroyCurrentMessageLoop();
-
  protected:
   // Override OnDestruct so that we can delete the object on the target message
   // loop if it still exists.
@@ -57,6 +53,11 @@ class BASE_EXPORT MessageLoopProxyImpl
 
  private:
   MessageLoopProxyImpl();
+
+  // Called directly by MessageLoop::~MessageLoop.
+  virtual void WillDestroyCurrentMessageLoop();
+
+
   // TODO(ajwong): Remove this after we've fully migrated to base::Closure.
   bool PostTaskHelper(const tracked_objects::Location& from_here,
                       Task* task,
@@ -67,8 +68,8 @@ class BASE_EXPORT MessageLoopProxyImpl
                       int64 delay_ms,
                       bool nestable);
 
-  // For the factory method to work
-  friend class MessageLoopProxy;
+  // Allow the messageLoop to create a MessageLoopProxyImpl.
+  friend class ::MessageLoop;
 
   // The lock that protects access to target_message_loop_.
   mutable base::Lock message_loop_lock_;

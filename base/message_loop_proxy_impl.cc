@@ -8,13 +8,6 @@
 namespace base {
 
 MessageLoopProxyImpl::~MessageLoopProxyImpl() {
-  AutoLock lock(message_loop_lock_);
-  // If the target message loop still exists, the d'tor WILL execute on the
-  // target loop.
-  if (target_message_loop_) {
-    DCHECK(MessageLoop::current() == target_message_loop_);
-    MessageLoop::current()->RemoveDestructionObserver(this);
-  }
 }
 
   // MessageLoopProxy implementation
@@ -102,7 +95,6 @@ void MessageLoopProxyImpl::OnDestruct() const {
 
 MessageLoopProxyImpl::MessageLoopProxyImpl()
     : target_message_loop_(MessageLoop::current()) {
-  target_message_loop_->AddDestructionObserver(this);
 }
 
 bool MessageLoopProxyImpl::PostTaskHelper(
@@ -143,9 +135,11 @@ bool MessageLoopProxyImpl::PostTaskHelper(
 }
 
 scoped_refptr<MessageLoopProxy>
-MessageLoopProxy::CreateForCurrentThread() {
-  scoped_refptr<MessageLoopProxy> ret(new MessageLoopProxyImpl());
-  return ret;
+MessageLoopProxy::current() {
+  MessageLoop* cur_loop = MessageLoop::current();
+  if (!cur_loop)
+    return NULL;
+  return cur_loop->message_loop_proxy();
 }
 
 }  // namespace base
