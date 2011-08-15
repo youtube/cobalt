@@ -14,15 +14,38 @@ void Process::Close() {
   if (!process_)
     return;
   // Don't call CloseHandle on a pseudo-handle.
-  if (process_ != ::GetCurrentProcess())
-    ::CloseHandle(process_);
+  if (process_ != ::GetCurrentProcess()) {
+    // TODO(apatrick): Call NtCloseHandle directly, without going through the
+    // import table to determine if CloseHandle is being hooked.
+    // http://crbug.com/81449.
+    HMODULE module = GetModuleHandle(L"ntdll.dll");
+    typedef UINT (WINAPI *CloseHandlePtr)(HANDLE handle);
+    CloseHandlePtr close_handle = reinterpret_cast<CloseHandlePtr>(
+        GetProcAddress(module, "NtClose"));
+    close_handle(process_);
+
+    // It used to look like this:
+    // ::CloseHandle(process_);
+  }
+
   process_ = NULL;
 }
 
 void Process::Terminate(int result_code) {
   if (!process_)
     return;
-  ::TerminateProcess(process_, result_code);
+
+  // TODO(apatrick): Call NtTerminateProcess directly, without going through the
+  // import table to determine if TerminateProcess is being hooked.
+  // http://crbug.com/81449.
+  HMODULE module = GetModuleHandle(L"ntdll.dll");
+  typedef UINT (WINAPI *TerminateProcessPtr)(HANDLE handle, UINT code);
+  TerminateProcessPtr terminate_process = reinterpret_cast<TerminateProcessPtr>(
+      GetProcAddress(module, "NtTerminateProcess"));
+  terminate_process(process_, result_code);
+
+  // It used to look like this:
+  // ::TerminateProcess(process_, result_code);
 }
 
 bool Process::IsProcessBackgrounded() const {
