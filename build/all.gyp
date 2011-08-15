@@ -65,6 +65,7 @@
         ['OS=="mac" or OS=="linux"', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',
+            '../cloud_print/virtual_driver/virtual_driver_posix.gyp:*',
            ],
         }],
         ['OS=="mac" or OS=="win"', {
@@ -83,7 +84,6 @@
             '../courgette/courgette.gyp:*',
             '../dbus/dbus.gyp:*',
             '../sandbox/sandbox.gyp:*',
-            '../cloud_print/virtual_driver/virtual_driver_linux.gyp:*',
           ],
           'conditions': [
             ['branding=="Chrome"', {
