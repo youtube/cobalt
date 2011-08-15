@@ -49,6 +49,8 @@ v8.log
 /chrome/installer/linux
 /chrome/installer/mac/internal
 /chrome/installer/mac/third_party/xz/xz
+/chrome/test/chromeos/autotest/files/client/deps/chrome_test/test_src/
+/chrome/test/chromeos/autotest/files/client/deps/pyauto_dep/test_src/
 /chrome/test/data/extensions/api_test/permissions/nacl_enabled/bin
 /chrome/test/data/firefox2_profile/searchplugins
 /chrome/test/data/firefox2_searchplugins
