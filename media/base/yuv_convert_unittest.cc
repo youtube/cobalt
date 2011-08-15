@@ -302,7 +302,7 @@ TEST(YUVConvertTest, RGB24ToYUV) {
 
   uint32 rgb_hash = DJB2Hash(yuv_converted_bytes.get(), kYUV12Size,
                              kDJB2HashSeed);
-  EXPECT_EQ(1802801079u, rgb_hash);
+  EXPECT_EQ(320824432u, rgb_hash);
 }
 
 TEST(YUVConvertTest, YUY2ToYUV) {
