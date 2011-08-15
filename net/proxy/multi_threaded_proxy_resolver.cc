@@ -321,7 +321,7 @@ void MultiThreadedProxyResolver::Executor::StartJob(Job* job) {
   thread_->message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(job, &Job::Run,
-                        base::MessageLoopProxy::CreateForCurrentThread()));
+                        base::MessageLoopProxy::current()));
 }
 
 void MultiThreadedProxyResolver::Executor::OnJobCompleted(Job* job) {

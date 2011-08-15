@@ -428,7 +428,7 @@ ProxyService* ProxyService::CreateUsingV8ProxyResolver(
       new ProxyResolverFactoryForV8(
           host_resolver,
           MessageLoop::current(),
-          base::MessageLoopProxy::CreateForCurrentThread(),
+          base::MessageLoopProxy::current(),
           net_log,
           network_delegate);
 

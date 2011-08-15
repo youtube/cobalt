@@ -136,7 +136,7 @@ class PollingProxyConfigService::Core
     //               UI thread so we can't cache the IO thread for the purpose
     //               of DCHECKs until the first call is made.
     if (!have_initialized_origin_loop_) {
-      origin_loop_proxy_ = base::MessageLoopProxy::CreateForCurrentThread();
+      origin_loop_proxy_ = base::MessageLoopProxy::current();
       have_initialized_origin_loop_ = true;
     }
   }

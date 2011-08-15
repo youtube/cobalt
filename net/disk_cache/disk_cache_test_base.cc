@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -250,7 +250,7 @@ void DiskCacheTestWithCache::InitDiskCache() {
     return InitDiskCacheImpl(path);
 
   scoped_refptr<base::MessageLoopProxy> thread =
-      use_current_thread_ ? base::MessageLoopProxy::CreateForCurrentThread() :
+      use_current_thread_ ? base::MessageLoopProxy::current() :
                             cache_thread_.message_loop_proxy();
 
   TestCompletionCallback cb;
@@ -262,7 +262,7 @@ void DiskCacheTestWithCache::InitDiskCache() {
 
 void DiskCacheTestWithCache::InitDiskCacheImpl(const FilePath& path) {
   scoped_refptr<base::MessageLoopProxy> thread =
-      use_current_thread_ ? base::MessageLoopProxy::CreateForCurrentThread() :
+      use_current_thread_ ? base::MessageLoopProxy::current() :
                             cache_thread_.message_loop_proxy();
   if (mask_)
     cache_impl_ = new disk_cache::BackendImpl(path, mask_, thread, NULL);

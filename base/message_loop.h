@@ -13,6 +13,7 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/message_loop_proxy.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
 #include "base/synchronization/lock.h"
@@ -270,6 +271,11 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
     thread_name_ = thread_name;
   }
   const std::string& thread_name() const { return thread_name_; }
+
+  // Gets the message loop proxy associated with this message loop proxy
+  scoped_refptr<base::MessageLoopProxy> message_loop_proxy() {
+    return message_loop_proxy_.get();
+  }
 
   // Enables or disables the recursive task processing. This happens in the case
   // of recursive message loops. Some unwanted message loop may occurs when
@@ -572,6 +578,9 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   int next_sequence_num_;
 
   ObserverList<TaskObserver> task_observers_;
+
+  // The message loop proxy associated with this message loop, if one exists.
+  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MessageLoop);

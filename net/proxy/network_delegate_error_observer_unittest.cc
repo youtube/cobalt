@@ -65,7 +65,7 @@ TEST(NetworkDelegateErrorObserverTest, CallOnThread) {
   TestNetworkDelegate network_delegate;
   NetworkDelegateErrorObserver
       observer(&network_delegate,
-               base::MessageLoopProxy::CreateForCurrentThread());
+               base::MessageLoopProxy::current());
   thread.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(&observer,
@@ -81,7 +81,7 @@ TEST(NetworkDelegateErrorObserverTest, NoDelegate) {
   base::Thread thread("test_thread");
   thread.Start();
   NetworkDelegateErrorObserver
-      observer(NULL, base::MessageLoopProxy::CreateForCurrentThread());
+      observer(NULL, base::MessageLoopProxy::current());
   thread.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(&observer,
