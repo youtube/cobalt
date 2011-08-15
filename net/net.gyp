@@ -5,6 +5,8 @@
 {
   'variables': {
     'chromium_code': 1,
+
+    'use_kerberos%': 1,
   },
   'targets': [
     {
@@ -700,6 +702,18 @@
              'proxy/proxy_config_service_linux.h',
           ],
         }],
+        ['use_kerberos==1', {
+          'defines': [
+            'USE_KERBEROS',
+          ],
+        }, { # use_kerberos == 0
+          'sources!': [
+            'http/http_auth_gssapi_posix.cc',
+            'http/http_auth_gssapi_posix.h',
+            'http/http_auth_handler_negotiate.h',
+            'http/http_auth_handler_negotiate.cc',
+          ],
+        }],
         ['use_openssl==1', {
             'sources!': [
               'base/cert_database_nss.cc',
@@ -1068,6 +1082,18 @@
                 '../base/allocator/allocator.gyp:allocator',
               ],
             }],
+          ],
+        }],
+        [ 'use_kerberos==1', {
+          'defines': [
+            'USE_KERBEROS',
+          ],
+        }, { # use_kerberos == 0
+          'sources!': [
+            'http/http_auth_gssapi_posix_unittest.cc',
+            'http/http_auth_handler_negotiate_unittest.cc',
+            'http/mock_gssapi_library_posix.cc',
+            'http/mock_gssapi_library_posix.h',
           ],
         }],
         [ 'use_openssl==1', {
