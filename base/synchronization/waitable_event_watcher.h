@@ -70,7 +70,7 @@ class BASE_EXPORT WaitableEventWatcher
   WaitableEventWatcher();
   virtual ~WaitableEventWatcher();
 
-  class Delegate {
+  class BASE_EXPORT Delegate {
    public:
     virtual ~Delegate() { }
 
