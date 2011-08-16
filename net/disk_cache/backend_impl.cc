@@ -683,6 +683,9 @@ void BackendImpl::SyncEndEnumeration(void* iter) {
 }
 
 void BackendImpl::SyncOnExternalCacheHit(const std::string& key) {
+  if (disabled_)
+    return;
+
   uint32 hash = Hash(key);
   bool error;
   EntryImpl* cache_entry = MatchEntry(key, hash, false, Addr(), &error);
