@@ -10,6 +10,7 @@
 #include "media/base/data_buffer.h"
 #include "media/base/filters.h"
 #include "media/base/mock_callback.h"
+#include "media/base/mock_ffmpeg.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
 #include "media/base/mock_task.h"
@@ -219,6 +220,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   AVCodec codec_;
   AVFrame yuv_frame_;
   scoped_refptr<VideoFrame> video_frame_;
+  StrictMock<MockFFmpeg> mock_ffmpeg_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecoderTest);

@@ -4,6 +4,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "media/base/mock_ffmpeg.h"
 #include "media/base/mock_filters.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_glue.h"
@@ -35,20 +36,16 @@ class MockProtocol : public FFmpegURLProtocol {
 
 class FFmpegGlueTest : public ::testing::Test {
  public:
-  FFmpegGlueTest() : protocol_(NULL) {}
-
-  static void SetUpTestCase() {
-    // Singleton should initialize FFmpeg.
-    CHECK(FFmpegGlue::GetInstance());
-  }
+  FFmpegGlueTest() {}
 
   virtual void SetUp() {
+    // Singleton should initialize FFmpeg.
+    CHECK(FFmpegGlue::GetInstance());
+
     // Assign our static copy of URLProtocol for the rest of the tests.
-    protocol_ = FFmpegGlue::url_protocol();
+    protocol_ = MockFFmpeg::protocol();
     CHECK(protocol_);
   }
-
-  MOCK_METHOD1(CheckPoint, void(int val));
 
   // Helper to open a URLContext pointing to the given mocked protocol.
   // Callers are expected to close the context at the end of their test.
@@ -65,11 +62,14 @@ class FFmpegGlueTest : public ::testing::Test {
 
  protected:
   // Fixture members.
-  URLProtocol* protocol_;
+  MockFFmpeg mock_ffmpeg_;
+  static URLProtocol* protocol_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FFmpegGlueTest);
 };
+
+URLProtocol* FFmpegGlueTest::protocol_ = NULL;
 
 TEST_F(FFmpegGlueTest, InitializeFFmpeg) {
   // Make sure URLProtocol was filled out correctly.
@@ -118,7 +118,7 @@ TEST_F(FFmpegGlueTest, AddRemoveGetProtocol) {
   InSequence s;
   EXPECT_CALL(*protocol_a, OnDestroy());
   EXPECT_CALL(*protocol_b, OnDestroy());
-  EXPECT_CALL(*this, CheckPoint(0));
+  EXPECT_CALL(mock_ffmpeg_, CheckPoint(0));
 
   glue->RemoveProtocol(protocol_a.get());
   glue->GetProtocol(key_a, &protocol_c);
@@ -132,7 +132,7 @@ TEST_F(FFmpegGlueTest, AddRemoveGetProtocol) {
   protocol_b.reset();
 
   // Data sources should be deleted by this point.
-  CheckPoint(0);
+  mock_ffmpeg_.CheckPoint(0);
 }
 
 TEST_F(FFmpegGlueTest, OpenClose) {
@@ -162,22 +162,22 @@ TEST_F(FFmpegGlueTest, OpenClose) {
   // held by FFmpeg.  Once we close the URLContext, the protocol should be
   // destroyed.
   InSequence s;
-  EXPECT_CALL(*this, CheckPoint(0));
-  EXPECT_CALL(*this, CheckPoint(1));
+  EXPECT_CALL(mock_ffmpeg_, CheckPoint(0));
+  EXPECT_CALL(mock_ffmpeg_, CheckPoint(1));
   EXPECT_CALL(*protocol, OnDestroy());
-  EXPECT_CALL(*this, CheckPoint(2));
+  EXPECT_CALL(mock_ffmpeg_, CheckPoint(2));
 
   // Remove the protocol from the glue layer, releasing a reference.
   glue->RemoveProtocol(protocol.get());
-  CheckPoint(0);
+  mock_ffmpeg_.CheckPoint(0);
 
   // Remove our own reference -- URLContext should maintain a reference.
-  CheckPoint(1);
+  mock_ffmpeg_.CheckPoint(1);
   protocol.reset();
 
   // Close the URLContext, which should release the final reference.
   EXPECT_EQ(0, protocol_->url_close(&context));
-  CheckPoint(2);
+  mock_ffmpeg_.CheckPoint(2);
 }
 
 TEST_F(FFmpegGlueTest, Write) {
@@ -309,11 +309,11 @@ TEST_F(FFmpegGlueTest, Destroy) {
   // We should expect the protocol to get destroyed when the unit test
   // exits.
   InSequence s;
-  EXPECT_CALL(*this, CheckPoint(0));
+  EXPECT_CALL(mock_ffmpeg_, CheckPoint(0));
   EXPECT_CALL(*protocol, OnDestroy());
 
   // Remove our own reference, we shouldn't be destroyed yet.
-  CheckPoint(0);
+  mock_ffmpeg_.CheckPoint(0);
   protocol.reset();
 
   // ~FFmpegGlue() will be called when this unit test finishes execution.  By

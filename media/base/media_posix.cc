@@ -92,12 +92,6 @@ bool InitializeMediaLibrary(const FilePath& module_dir) {
   return g_media_library_is_initialized;
 }
 
-void InitializeMediaLibraryForTesting() {
-  FilePath file_path;
-  CHECK(PathService::Get(base::DIR_EXE, &file_path));
-  CHECK(InitializeMediaLibrary(file_path));
-}
-
 bool IsMediaLibraryInitialized() {
   return g_media_library_is_initialized;
 }
