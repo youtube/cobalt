@@ -557,7 +557,7 @@ GSettings* (*g_settings_new)(const gchar* schema);
   bool SchemaExists(const char* schema_name) {
     const gchar* const* schemas = g_settings_list_schemas();
     while (*schemas) {
-      if (strcmp(schema_name, reinterpret_cast<const char*>(schemas)) == 0)
+      if (strcmp(schema_name, static_cast<const char*>(*schemas)) == 0)
         return true;
       schemas++;
     }
