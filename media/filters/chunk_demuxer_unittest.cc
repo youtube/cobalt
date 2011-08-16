@@ -2,14 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/base_paths.h"
 #include "base/bind.h"
-#include "base/file_util.h"
-#include "base/path_service.h"
-#include "media/base/media.h"
 #include "media/base/mock_callback.h"
-#include "media/base/mock_ffmpeg.h"
 #include "media/base/mock_filter_host.h"
+#include "media/base/test_data_util.h"
 #include "media/filters/chunk_demuxer.h"
 #include "media/filters/chunk_demuxer_client.h"
 #include "media/webm/cluster_builder.h"
@@ -58,45 +54,10 @@ class ChunkDemuxerTest : public testing::Test{
   ChunkDemuxerTest()
       : client_(new MockChunkDemuxerClient()),
         demuxer_(new ChunkDemuxer(client_.get())) {
-    memset(&format_context_, 0, sizeof(format_context_));
-    memset(&streams_, 0, sizeof(streams_));
-    memset(&codecs_, 0, sizeof(codecs_));
-
-    codecs_[VIDEO].codec_type = AVMEDIA_TYPE_VIDEO;
-    codecs_[VIDEO].codec_id = CODEC_ID_VP8;
-    codecs_[VIDEO].width = 320;
-    codecs_[VIDEO].height = 240;
-
-    codecs_[AUDIO].codec_type = AVMEDIA_TYPE_AUDIO;
-    codecs_[AUDIO].codec_id = CODEC_ID_VORBIS;
-    codecs_[AUDIO].channels = 2;
-    codecs_[AUDIO].sample_rate = 44100;
   }
 
   virtual ~ChunkDemuxerTest() {
     ShutdownDemuxer();
-  }
-
-  void ReadFile(const std::string& name, scoped_array<uint8>* buffer,
-                int* size) {
-    FilePath file_path;
-    EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
-    file_path = file_path.Append(FILE_PATH_LITERAL("media"))
-        .Append(FILE_PATH_LITERAL("test"))
-        .Append(FILE_PATH_LITERAL("data"))
-        .AppendASCII(name);
-
-    int64 tmp = 0;
-    EXPECT_TRUE(file_util::GetFileSize(file_path, &tmp));
-    EXPECT_LT(tmp, 32768);
-    int file_size = static_cast<int>(tmp);
-
-    buffer->reset(new uint8[file_size]);
-    EXPECT_EQ(file_size,
-              file_util::ReadFile(file_path,
-                                  reinterpret_cast<char*>(buffer->get()),
-                                  file_size));
-    *size = file_size;
   }
 
   void CreateInfoTracks(bool has_audio, bool has_video,
@@ -108,11 +69,11 @@ class ChunkDemuxerTest : public testing::Test{
     scoped_array<uint8> video_track_entry;
     int video_track_entry_size = 0;
 
-    ReadFile("webm_info_element", &info, &info_size);
-    ReadFile("webm_vorbis_track_entry", &audio_track_entry,
-             &audio_track_entry_size);
-    ReadFile("webm_vp8_track_entry", &video_track_entry,
-             &video_track_entry_size);
+    ReadTestDataFile("webm_info_element", &info, &info_size);
+    ReadTestDataFile("webm_vorbis_track_entry", &audio_track_entry,
+                     &audio_track_entry_size);
+    ReadTestDataFile("webm_vp8_track_entry", &video_track_entry,
+                     &video_track_entry_size);
 
     int tracks_element_size = 0;
 
@@ -159,23 +120,9 @@ class ChunkDemuxerTest : public testing::Test{
   }
 
   void AppendInfoTracks(bool has_audio, bool has_video) {
-    EXPECT_CALL(mock_ffmpeg_, AVOpenInputFile(_, _, NULL, 0, NULL))
-        .WillOnce(DoAll(SetArgumentPointee<0>(&format_context_),
-                        Return(0)));
-
-    EXPECT_CALL(mock_ffmpeg_, AVFindStreamInfo(&format_context_))
-        .WillOnce(Return(0));
-
-    EXPECT_CALL(mock_ffmpeg_, AVCloseInputFile(&format_context_));
-
-    EXPECT_CALL(mock_ffmpeg_, AVRegisterLockManager(_))
-        .WillRepeatedly(Return(0));
-
     scoped_array<uint8> info_tracks;
     int info_tracks_size = 0;
     CreateInfoTracks(has_audio, has_video, &info_tracks, &info_tracks_size);
-
-    SetupAVFormatContext(has_audio, has_video);
 
     AppendData(info_tracks.get(), info_tracks_size);
   }
@@ -211,12 +158,6 @@ class ChunkDemuxerTest : public testing::Test{
       EXPECT_CALL(*client_, DemuxerClosed());
       demuxer_->Shutdown();
     }
-
-    if (format_context_.streams) {
-      delete[] format_context_.streams;
-      format_context_.streams = NULL;
-      format_context_.nb_streams = 0;
-    }
   }
 
   void AddSimpleBlock(ClusterBuilder* cb, int track_num, int64 timecode) {
@@ -226,41 +167,12 @@ class ChunkDemuxerTest : public testing::Test{
 
   MOCK_METHOD1(Checkpoint, void(int id));
 
-  MockFFmpeg mock_ffmpeg_;
   MockFilterHost mock_filter_host_;
-
-  AVFormatContext format_context_;
-  AVCodecContext codecs_[MAX_CODECS_INDEX];
-  AVStream streams_[MAX_CODECS_INDEX];
 
   scoped_ptr<MockChunkDemuxerClient> client_;
   scoped_refptr<ChunkDemuxer> demuxer_;
 
  private:
-  void SetupAVFormatContext(bool has_audio, bool has_video) {
-    int i = 0;
-    format_context_.streams = new AVStream*[MAX_CODECS_INDEX];
-    if (has_audio) {
-      format_context_.streams[i] = &streams_[i];
-      streams_[i].codec = &codecs_[AUDIO];
-      streams_[i].duration = 100;
-      streams_[i].time_base.den = base::Time::kMicrosecondsPerSecond;
-      streams_[i].time_base.num = 1;
-      i++;
-    }
-
-    if (has_video) {
-      format_context_.streams[i] = &streams_[i];
-      streams_[i].codec = &codecs_[VIDEO];
-      streams_[i].duration = 100;
-      streams_[i].time_base.den = base::Time::kMicrosecondsPerSecond;
-      streams_[i].time_base.num = 1;
-      i++;
-    }
-
-    format_context_.nb_streams = i;
-  }
-
   DISALLOW_COPY_AND_ASSIGN(ChunkDemuxerTest);
 };
 
