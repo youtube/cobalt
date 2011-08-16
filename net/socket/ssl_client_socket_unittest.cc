@@ -14,6 +14,7 @@
 #include "net/base/ssl_config_service.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/client_socket_factory.h"
+#include "net/socket/client_socket_handle.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/test/test_server.h"
@@ -704,4 +705,40 @@ TEST_F(SSLClientSocketTest, CipherSuiteDisables) {
   // rather than the last entry.
   EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1) ||
               LogContainsSSLConnectEndEvent(entries, -2));
+}
+
+// When creating an SSLClientSocket, it is allowed to pass in a
+// ClientSocketHandle that is not obtained from a client socket pool.
+// Here we verify that such a simple ClientSocketHandle, not associated with any
+// client socket pool, can be destroyed safely.
+TEST_F(SSLClientSocketTest, ClientSocketHandleNotFromPool) {
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
+  ASSERT_TRUE(test_server.Start());
+
+  net::AddressList addr;
+  ASSERT_TRUE(test_server.GetAddressList(&addr));
+
+  TestCompletionCallback callback;
+  net::StreamSocket* transport = new net::TCPClientSocket(
+      addr, NULL, net::NetLog::Source());
+  int rv = transport->Connect(&callback);
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(net::OK, rv);
+
+  net::ClientSocketHandle* socket_handle = new net::ClientSocketHandle();
+  socket_handle->set_socket(transport);
+
+  net::SSLClientSocketContext context;
+  context.cert_verifier = cert_verifier_.get();
+  scoped_ptr<net::SSLClientSocket> ssl_socket(
+      socket_factory_->CreateSSLClientSocket(
+          socket_handle, test_server.host_port_pair(), kDefaultSSLConfig,
+          NULL, context));
+
+  EXPECT_FALSE(ssl_socket->IsConnected());
+  rv = ssl_socket->Connect(&callback);
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(net::OK, rv);
 }
