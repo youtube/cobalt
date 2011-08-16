@@ -422,6 +422,9 @@
     # See http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html
     'profiling%': '0',
 
+    # Enable strict glibc debug mode.
+    'glibcxx_debug%': 0,
+
     # Override whether we should use Breakpad on Linux. I.e. for Chrome bot.
     'linux_breakpad%': 0,
     # And if we want to dump symbols for Breakpad-enabled builds.
@@ -784,6 +787,11 @@
       }],
       ['profiling==1', {
         'defines': ['ENABLE_PROFILING=1'],
+      }],
+      ['OS=="linux" and glibcxx_debug==1', {
+        'defines': ['_GLIBCXX_DEBUG=1',],
+        'cflags_cc!': ['-fno-rtti'],
+        'cflags_cc+': ['-frtti', '-g'],
       }],
       ['remoting==1', {
         'defines': ['ENABLE_REMOTING=1'],
