@@ -374,6 +374,7 @@
           'link_settings': {
             'libraries': [
               '-limm32.lib',
+              '-ld2d1.lib',
               '-loleacc.lib',
             ],
           },
