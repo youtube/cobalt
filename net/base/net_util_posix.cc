@@ -19,6 +19,8 @@
 #if !defined(OS_ANDROID)
 #include <ifaddrs.h>
 #endif
+#include <net/if.h>
+#include <netinet/in.h>
 
 namespace net {
 
@@ -68,28 +70,52 @@ bool GetNetworkList(NetworkInterfaceList* networks) {
   // getifaddrs() may require IO operations.
   base::ThreadRestrictions::AssertIOAllowed();
 
-  ifaddrs *ifaddr;
-  if (getifaddrs(&ifaddr) < 0) {
+  ifaddrs *interfaces;
+  if (getifaddrs(&interfaces) < 0) {
     PLOG(ERROR) << "getifaddrs";
     return false;
   }
 
-  for (ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-    if (!ifa->ifa_addr)
-      continue; // Interface has no IP addresses, so skip it.
-    int family = ifa->ifa_addr->sa_family;
-    if (family == AF_INET || family == AF_INET6) {
-      IPEndPoint address;
-      std::string name = ifa->ifa_name;
-      if (address.FromSockAddr(ifa->ifa_addr,
-                               sizeof(ifa->ifa_addr)) &&
-          name.substr(0, 2) != "lo") {
-        networks->push_back(NetworkInterface(name, address.address()));
-      }
+  // Enumerate the addresses assigned to network interfaces which are up.
+  for (ifaddrs *interface = interfaces;
+       interface != NULL;
+       interface = interface->ifa_next) {
+    // Skip loopback interfaces, and ones which are down.
+    if (!(IFF_UP & interface->ifa_flags))
+      continue;
+    if (IFF_LOOPBACK & interface->ifa_flags)
+      continue;
+    // Skip interfaces with no address configured.
+    struct sockaddr* addr = interface->ifa_addr;
+    if (!addr)
+      continue;
+    // Skip loopback addresses configured on non-loopback interfaces.
+    int addr_size = 0;
+    if (addr->sa_family == AF_INET6) {
+      struct sockaddr_in6* addr_in6 =
+          reinterpret_cast<struct sockaddr_in6*>(addr);
+      struct in6_addr* sin6_addr = &addr_in6->sin6_addr;
+      addr_size = sizeof(*addr_in6);
+      if (IN6_IS_ADDR_LOOPBACK(sin6_addr))
+        continue;
+    } else if (addr->sa_family == AF_INET) {
+      struct sockaddr_in* addr_in =
+          reinterpret_cast<struct sockaddr_in*>(addr);
+      addr_size = sizeof(*addr_in);
+      if (addr_in->sin_addr.s_addr == INADDR_LOOPBACK)
+        continue;
+    } else {
+      // Skip non-IP addresses.
+      continue;
+    }
+    IPEndPoint address;
+    std::string name = interface->ifa_name;
+    if (address.FromSockAddr(addr, addr_size)) {
+      networks->push_back(NetworkInterface(name, address.address()));
     }
   }
 
-  freeifaddrs(ifaddr);
+  freeifaddrs(interfaces);
 
   return true;
 #endif
