@@ -47,6 +47,9 @@ class NET_EXPORT ClientSocketFactory {
       NetLog* net_log,
       const NetLog::Source& source) = 0;
 
+  // It is allowed to pass in a |transport_socket| that is not obtained from a
+  // socket pool. The caller could create a ClientSocketHandle directly and call
+  // set_socket() on it to set a valid StreamSocket instance.
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,
