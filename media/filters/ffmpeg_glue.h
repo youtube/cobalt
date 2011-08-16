@@ -32,15 +32,15 @@
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
 
+struct URLProtocol;
+
 namespace media {
 
 class FFmpegURLProtocol {
  public:
-  FFmpegURLProtocol() {
-  }
+  FFmpegURLProtocol() {}
 
-  virtual ~FFmpegURLProtocol() {
-  }
+  virtual ~FFmpegURLProtocol() {}
 
   // Read the given amount of bytes into data, returns the number of bytes read
   // if successful, kReadError otherwise.
@@ -98,6 +98,9 @@ class FFmpegGlue {
   // Map between keys and FFmpegProtocol references.
   typedef std::map<std::string, FFmpegURLProtocol*> ProtocolMap;
   ProtocolMap protocols_;
+
+  friend class FFmpegGlueTest;
+  static URLProtocol* url_protocol();
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegGlue);
 };

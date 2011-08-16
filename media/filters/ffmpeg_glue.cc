@@ -146,6 +146,11 @@ FFmpegGlue* FFmpegGlue::GetInstance() {
   return Singleton<FFmpegGlue>::get();
 }
 
+// static
+URLProtocol* FFmpegGlue::url_protocol() {
+  return &kFFmpegURLProtocol;
+}
+
 std::string FFmpegGlue::AddProtocol(FFmpegURLProtocol* protocol) {
   base::AutoLock auto_lock(lock_);
   std::string key = GetProtocolKey(protocol);
