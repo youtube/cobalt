@@ -101,6 +101,7 @@ v8.log
 /third_party/hunspell
 /third_party/hunspell_dictionaries
 /third_party/icu
+/third_party/leveldatabase/src
 /third_party/leveldb
 /third_party/libjingle/source
 /third_party/libjpeg_turbo
