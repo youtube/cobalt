@@ -3,8 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""This is a simple HTTP/FTP/SYNC/TCP ECHO/UDP ECHO/ server used for testing
-Chrome.
+"""This is a simple HTTP/FTP/SYNC/TCP/UDP/ server used for testing Chrome.
 
 It supports several test URLs, as specified by the handlers in TestPageHandler.
 By default, it listens on an ephemeral port and sends the port number back to
@@ -21,6 +20,7 @@ import cgi
 import errno
 import optparse
 import os
+import random
 import re
 import select
 import simplejson
@@ -36,6 +36,7 @@ import zlib
 # Ignore deprecation warnings, they make our output more cluttered.
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+import echo_message
 import pyftpdlib.ftpserver
 import tlslite
 import tlslite.api
@@ -1521,10 +1522,19 @@ class TCPEchoHandler(SocketServer.BaseRequestHandler):
   """
 
   def handle(self):
-    data = self.request.recv(65536)
-    if not data:
+    """Handles the request from the client and constructs a response."""
+
+    data = self.request.recv(65536).strip()
+    # Verify the "echo request" message received from the client. Send back
+    # "echo response" message if "echo request" message is valid.
+    try:
+      return_data = echo_message.GetEchoResponseData(data)
+      if not return_data:
         return
-    self.request.send(data)
+    except ValueError:
+      return
+
+    self.request.send(return_data)
 
 
 class UDPEchoHandler(SocketServer.BaseRequestHandler):
@@ -1535,9 +1545,19 @@ class UDPEchoHandler(SocketServer.BaseRequestHandler):
   """
 
   def handle(self):
+    """Handles the request from the client and constructs a response."""
+
     data = self.request[0].strip()
     socket = self.request[1]
-    socket.sendto(data, self.client_address)
+    # Verify the "echo request" message received from the client. Send back
+    # "echo response" message if "echo request" message is valid.
+    try:
+      return_data = echo_message.GetEchoResponseData(data)
+      if not return_data:
+        return
+    except ValueError:
+      return
+    socket.sendto(return_data, self.client_address)
 
 
 class FileMultiplexer:
@@ -1604,10 +1624,16 @@ def main(options, args):
     server_data['port'] = server.server_port
     server_data['xmpp_port'] = server.xmpp_port
   elif options.server_type == SERVER_TCP_ECHO:
+    # Used for generating the key (randomly) that encodes the "echo request"
+    # message.
+    random.seed()
     server = TCPEchoServer(('127.0.0.1', port), TCPEchoHandler)
     print 'Echo TCP server started on port %d...' % server.server_port
     server_data['port'] = server.server_port
   elif options.server_type == SERVER_UDP_ECHO:
+    # Used for generating the key (randomly) that encodes the "echo request"
+    # message.
+    random.seed()
     server = UDPEchoServer(('127.0.0.1', port), UDPEchoHandler)
     print 'Echo UDP server started on port %d...' % server.server_port
     server_data['port'] = server.server_port
