@@ -35,8 +35,10 @@
           # Disable touch support by default.
           'touchui%': 0,
 
-          # Disable webui certificate viewer until it is complete.
-          'webui_certificate_viewer%': 0,
+          # Disable webui dialog replacements for native dialogs by default.
+          # TODO(flackr): Change this to a runtime flag triggered by
+          #     --pure-views so that these dialogs can be easily tested. 
+          'webui_dialogs%': 0,
 
           # Whether the compositor is enabled on views.
           'views_compositor%': 0,
@@ -45,7 +47,7 @@
         'chromeos%': '<(chromeos)',
         'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
         'touchui%': '<(touchui)',
-        'webui_certificate_viewer%': '<(webui_certificate_viewer)',
+        'webui_dialogs%': '<(webui_dialogs)',
         'views_compositor%': '<(views_compositor)',
 
         # Compute the architecture that we're building on.
@@ -75,9 +77,9 @@
             'toolkit_uses_pure_views%': 0,
           }],
 
-          # Use WebUI certificate viewer in Touch case
+          # Use WebUI dialogs in TouchUI builds.
           ['touchui==1', {
-            'webui_certificate_viewer%': 1
+            'webui_dialogs%': 1,
           }],
         ],
       },
@@ -85,7 +87,7 @@
       # Copy conditionally-set variables out one scope.
       'chromeos%': '<(chromeos)',
       'touchui%': '<(touchui)',
-      'webui_certificate_viewer%': '<(webui_certificate_viewer)',
+      'webui_dialogs%': '<(webui_dialogs)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
       'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
@@ -292,7 +294,7 @@
     'enable_flapper_hacks%': '<(enable_flapper_hacks)',
     'chromeos%': '<(chromeos)',
     'touchui%': '<(touchui)',
-    'webui_certificate_viewer%': '<(webui_certificate_viewer)',
+    'webui_dialogs%': '<(webui_dialogs)',
     'file_manager_extension%': '<(file_manager_extension)',
     'webui_task_manager%': '<(webui_task_manager)',
     'inside_chromium_build%': '<(inside_chromium_build)',
@@ -661,8 +663,8 @@
       ['touchui==1', {
         'grit_defines': ['-D', 'touchui'],
       }],
-      ['webui_certificate_viewer==1', {
-        'grit_defines': ['-D', 'webui_certificate_viewer'],
+      ['webui_dialogs==1', {
+        'grit_defines': ['-D', 'webui_dialogs'],
       }],
       ['file_manager_extension==1', {
         'grit_defines': ['-D', 'file_manager_extension'],
