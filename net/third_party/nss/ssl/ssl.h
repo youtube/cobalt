@@ -236,6 +236,11 @@ SSL_IMPORT SECStatus SSL_ForceHandshake(PRFileDesc *fd);
 SSL_IMPORT SECStatus SSL_ForceHandshakeWithTimeout(PRFileDesc *fd,
                                                    PRIntervalTime timeout);
 
+SSL_IMPORT SECStatus SSL_RestartHandshakeAfterCertReq(PRFileDesc *fd,
+					    CERTCertificate *cert,
+					    SECKEYPrivateKey *key,
+					    CERTCertificateList *certChain);
+
 /*
 ** Query security status of socket. *on is set to one if security is
 ** enabled. *keySize will contain the stream key size used. *issuer will
