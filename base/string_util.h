@@ -20,11 +20,6 @@
 #include "base/string16.h"
 #include "base/string_piece.h"  // For implicit conversions.
 
-// TODO(brettw) remove this dependency. Previously StringPrintf lived in this
-// file. We need to convert the callers over to using stringprintf.h instead
-// and then remove this.
-#include "base/stringprintf.h"
-
 // Safe standard library wrappers for all platforms.
 
 namespace base {
