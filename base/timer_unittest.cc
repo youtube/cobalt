@@ -289,7 +289,7 @@ TEST(TimerTest, OneShotTimer_Cancel) {
 }
 
 // If underline timer does not handle properly, we will crash or fail
-// in full page heap or purify environment.
+// in full page heap environment.
 TEST(TimerTest, OneShotSelfDeletingTimer) {
   RunTest_OneShotSelfDeletingTimer(MessageLoop::TYPE_DEFAULT);
   RunTest_OneShotSelfDeletingTimer(MessageLoop::TYPE_UI);
@@ -337,7 +337,7 @@ TEST(TimerTest, MessageLoopShutdown) {
   // This test is designed to verify that shutdown of the
   // message loop does not cause crashes if there were pending
   // timers not yet fired.  It may only trigger exceptions
-  // if debug heap checking (or purify) is enabled.
+  // if debug heap checking is enabled.
   bool did_run = false;
   {
     OneShotTimerTester a(&did_run);
