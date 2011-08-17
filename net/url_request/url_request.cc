@@ -714,7 +714,12 @@ void URLRequest::set_context(const URLRequestContext* context) {
 
   // If the context this request belongs to has changed, update the tracker.
   if (prev_context != context) {
-    net_log_.EndEvent(NetLog::TYPE_REQUEST_ALIVE, NULL);
+    int net_error = OK;
+    // Log error only on failure, not cancellation, as even successful requests
+    // are "cancelled" on destruction.
+    if (status_.status() == URLRequestStatus::FAILED)
+      net_error = status_.os_error();
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_REQUEST_ALIVE, net_error);
     net_log_ = BoundNetLog();
 
     if (context) {
