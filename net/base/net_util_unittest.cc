@@ -4,6 +4,8 @@
 
 #include "net/base/net_util.h"
 
+#include <string.h>
+
 #include <algorithm>
 
 #include "base/file_path.h"
@@ -2828,6 +2830,78 @@ TEST(NetUtilTest, FormatUrlParsed) {
       formatted.substr(parsed.host.begin, parsed.host.len));
   EXPECT_EQ(WideToUTF16(L"/"),
       formatted.substr(parsed.path.begin, parsed.path.len));
+}
+
+// Make sure that calling FormatUrl on a GURL and then converting back to a GURL
+// results in the original GURL, for each ASCII character in the path.
+TEST(NetUtilTest, FormatUrlRoundTripPathASCII) {
+  for (unsigned char test_char = 32; test_char < 128; ++test_char) {
+    GURL url(std::string("http://www.google.com/") +
+             static_cast<char>(test_char));
+    size_t prefix_len;
+    string16 formatted = FormatUrl(
+        url, "", kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL, NULL,
+        &prefix_len, NULL);
+    EXPECT_EQ(url.spec(), GURL(formatted).spec());
+  }
+}
+
+// Make sure that calling FormatUrl on a GURL and then converting back to a GURL
+// results in the original GURL, for each escaped ASCII character in the path.
+TEST(NetUtilTest, FormatUrlRoundTripPathEscaped) {
+  for (unsigned char test_char = 32; test_char < 128; ++test_char) {
+    std::string original_url("http://www.google.com/");
+    original_url.push_back('%');
+    original_url.append(base::HexEncode(&test_char, 1));
+
+    GURL url(original_url);
+    size_t prefix_len;
+    string16 formatted = FormatUrl(
+        url, "", kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL, NULL,
+        &prefix_len, NULL);
+    EXPECT_EQ(url.spec(), GURL(formatted).spec());
+  }
+}
+
+// Make sure that calling FormatUrl on a GURL and then converting back to a GURL
+// results in the original GURL, for each ASCII character in the query.
+TEST(NetUtilTest, FormatUrlRoundTripQueryASCII) {
+  for (unsigned char test_char = 32; test_char < 128; ++test_char) {
+    GURL url(std::string("http://www.google.com/?") +
+             static_cast<char>(test_char));
+    size_t prefix_len;
+    string16 formatted = FormatUrl(
+        url, "", kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL, NULL,
+        &prefix_len, NULL);
+    EXPECT_EQ(url.spec(), GURL(formatted).spec());
+  }
+}
+
+// Make sure that calling FormatUrl on a GURL and then converting back to a GURL
+// only results in a different GURL for certain characters.
+TEST(NetUtilTest, FormatUrlRoundTripQueryEscaped) {
+  // A full list of characters which FormatURL should unescape and GURL should
+  // not escape again, when they appear in a query string.
+  const char* kUnescapedCharacters =
+      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_~";
+  for (unsigned char test_char = 0; test_char < 128; ++test_char) {
+    std::string original_url("http://www.google.com/?");
+    original_url.push_back('%');
+    original_url.append(base::HexEncode(&test_char, 1));
+
+    GURL url(original_url);
+    size_t prefix_len;
+    string16 formatted = FormatUrl(
+        url, "", kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL, NULL,
+        &prefix_len, NULL);
+
+    if (test_char &&
+        strchr(kUnescapedCharacters, static_cast<char>(test_char))) {
+      EXPECT_NE(url.spec(), GURL(formatted).spec());
+    } else {
+      EXPECT_EQ(url.spec(), GURL(formatted).spec());
+    }
+  }
 }
 
 TEST(NetUtilTest, FormatUrlWithOffsets) {
