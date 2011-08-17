@@ -4,6 +4,7 @@
 
 #include "base/values.h"
 
+#include "base/float_util.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -160,6 +161,8 @@ FundamentalValue::FundamentalValue(int in_value)
 
 FundamentalValue::FundamentalValue(double in_value)
     : Value(TYPE_DOUBLE), double_value_(in_value) {
+  // JSON doesn't support NaN or positive or negative infinity.
+  DCHECK(IsFinite(in_value));
 }
 
 FundamentalValue::~FundamentalValue() {
