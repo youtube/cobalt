@@ -8,6 +8,7 @@
 
 #include "base/process_util.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 
 #if defined(ENABLE_PROFILING) && !defined(NO_TCMALLOC)
 #include "third_party/tcmalloc/chromium/src/google/profiler.h"
@@ -62,4 +63,3 @@ bool BeingProfiled() {
 
 }  // namespace debug
 }  // namespace base
-
