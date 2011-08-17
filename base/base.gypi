@@ -133,8 +133,6 @@
           'mach_ipc_mac.h',
           'mach_ipc_mac.mm',
           'memory/linked_ptr.h',
-          'memory/memory_debug.cc',
-          'memory/memory_debug.h',
           'memory/mru_cache.h',
           'memory/raw_scoped_refptr_mismatch_checker.h',
           'memory/ref_counted.cc',
@@ -542,7 +540,6 @@
         [ 'OS != "win"', {
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
             'sources!': [
-              'third_party/purify/pure_api.c',
               'event_recorder.cc',
               'resource_util.cc',
             ],
@@ -561,8 +558,6 @@
         'third_party/nspr/prcpucfg.h',
         'third_party/nspr/prcpucfg_win.h',
         'third_party/nspr/prtypes.h',
-        'third_party/purify/pure.h',
-        'third_party/purify/pure_api.c',
         'third_party/xdg_user_dirs/xdg_user_dir_lookup.cc',
         'third_party/xdg_user_dirs/xdg_user_dir_lookup.h',
         'auto_reset.h',

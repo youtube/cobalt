@@ -1221,24 +1221,6 @@
           }],
         ],
       },
-      'Purify_Base': {
-        'abstract': 1,
-        'defines': [
-          'PURIFY',
-          'NO_TCMALLOC',
-        ],
-        'msvs_settings': {
-          'VCCLCompilerTool': {
-            'Optimization': '0',
-            'RuntimeLibrary': '0',
-            'BufferSecurityCheck': 'false',
-          },
-          'VCLinkerTool': {
-            'EnableCOMDATFolding': '1',
-            'LinkIncremental': '1',
-          },
-        },
-      },
       #
       # Concrete configurations
       #
@@ -1256,17 +1238,11 @@
       'conditions': [
         [ 'OS=="win"', {
           # TODO(bradnelson): add a gyp mechanism to make this more graceful.
-          'Purify': {
-            'inherit_from': ['Common_Base', 'x86_Base', 'Release_Base', 'Purify'],
-          },
           'Debug_x64': {
             'inherit_from': ['Common_Base', 'x64_Base', 'Debug_Base'],
           },
           'Release_x64': {
             'inherit_from': ['Common_Base', 'x64_Base', 'Release_Base'],
-          },
-          'Purify_x64': {
-            'inherit_from': ['Common_Base', 'x64_Base', 'Release_Base', 'Purify_Base'],
           },
         }],
       ],
