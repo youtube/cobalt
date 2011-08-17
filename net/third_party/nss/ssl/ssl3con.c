@@ -5703,9 +5703,10 @@ done:
  *		reference count.  The caller should drop its reference
  *		without calling CERT_DestroyCert after calling this function.
  *
- *	key	Private key associated with cert.  This function makes a
- *		copy of the private key, so the caller remains responsible
- *		for destroying its copy after this function returns.
+ *	key	Private key associated with cert.  This function takes
+ *		ownership of the private key, so the caller should drop its
+ *		reference without destroying the private key after this
+ *		function returns.
  *
  *	certChain  DER-encoded certs, client cert and its signers.
  *		Note: ssl takes this reference, and does not copy the chain.
@@ -5734,12 +5735,27 @@ ssl3_RestartHandshakeAfterCertReq(sslSocket *         ss,
 	if (ss->handshake != 0) {
 	    ss->handshake               = ssl_GatherRecord1stHandshake;
 	    ss->ssl3.clientCertificate = cert;
+	    ss->ssl3.clientPrivateKey  = key;
 	    ss->ssl3.clientCertChain   = certChain;
-	    if (key == NULL) {
-		(void)SSL3_SendAlert(ss, alert_warning, no_certificate);
-		ss->ssl3.clientPrivateKey = NULL;
-	    } else {
-		ss->ssl3.clientPrivateKey = SECKEY_CopyPrivateKey(key);
+            if (!cert || !key || !certChain) {
+                /* we are missing the key, cert, or cert chain */
+                if (ss->ssl3.clientCertificate) {
+                    CERT_DestroyCertificate(ss->ssl3.clientCertificate);
+                    ss->ssl3.clientCertificate = NULL;
+                }
+                if (ss->ssl3.clientPrivateKey) {
+                    SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
+                    ss->ssl3.clientPrivateKey = NULL;
+                }
+                if (ss->ssl3.clientCertChain != NULL) {
+                    CERT_DestroyCertificateList(ss->ssl3.clientCertChain);
+                    ss->ssl3.clientCertChain = NULL;
+                }
+                if (ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0) {
+                    ss->ssl3.sendEmptyCert = PR_TRUE;
+                } else {
+                    (void)SSL3_SendAlert(ss, alert_warning, no_certificate);
+                }
 	    }
 	    ssl_GetRecvBufLock(ss);
 	    if (ss->ssl3.hs.msgState.buf != NULL) {

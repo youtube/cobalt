@@ -1382,10 +1382,6 @@ extern  SECStatus ssl3_MasterKeyDeriveBypass( ssl3CipherSpec * pwSpec,
 
 extern int ssl2_SendErrorMessage(struct sslSocketStr *ss, int error);
 extern int SSL_RestartHandshakeAfterServerCert(struct sslSocketStr *ss);
-extern int SSL_RestartHandshakeAfterCertReq(struct sslSocketStr *ss,
-					    CERTCertificate *cert,
-					    SECKEYPrivateKey *key,
-					    CERTCertificateList *certChain);
 extern sslSocket *ssl_FindSocket(PRFileDesc *fd);
 extern void ssl_FreeSocket(struct sslSocketStr *ssl);
 extern SECStatus SSL3_SendAlert(sslSocket *ss, SSL3AlertLevel level,
