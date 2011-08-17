@@ -407,8 +407,15 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
     // an error, we do not change the status back to success.  To
     // enforce this, only set the status if the job is so far
     // successful.
-    if (request_->status().is_success())
+    if (request_->status().is_success()) {
+      if (status.status() == URLRequestStatus::FAILED) {
+        request_->net_log().AddEvent(
+            NetLog::TYPE_FAILED,
+            make_scoped_refptr(new NetLogIntegerParameter("net_error",
+                                                          status.os_error())));
+      }
       request_->set_status(status);
+    }
   }
 
   // Complete this notification later.  This prevents us from re-entering the

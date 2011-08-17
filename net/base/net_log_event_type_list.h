@@ -5,6 +5,10 @@
 // NOTE: No header guards are used, since this file is intended to be expanded
 // directly into net_log.h. DO NOT include this file anywhere else.
 
+// In the event of a failure, a many end events will have a |net_error|
+// parameter with the integer error code associated with the failure.  Most
+// of these parameters are not individually documented.
+
 // --------------------------------------------------------------------------
 // General pseudo-events
 // --------------------------------------------------------------------------
@@ -12,6 +16,15 @@
 // Something got cancelled (we determine what is cancelled based on the
 // log context around it.)
 EVENT_TYPE(CANCELLED)
+
+// Something failed (we determine what failed based on the log context
+// around it.)
+// The event has the following parameters:
+//
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//   }
+EVENT_TYPE(FAILED)
 
 // Marks the creation/destruction of a request (net::URLRequest or
 // SocketStream).
