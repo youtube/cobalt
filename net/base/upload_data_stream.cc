@@ -6,6 +6,7 @@
 
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/threading/thread_restrictions.h"
 #include "net/base/file_stream.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -108,6 +109,8 @@ int UploadDataStream::FillBuf() {
           static_cast<int>(std::min(next_element_remaining_,
                                     static_cast<uint64>(size_remaining)));
       if (count > 0) {
+        // Temporarily allow until fix: http://crbug.com/72001.
+        base::ThreadRestrictions::ScopedAllowIO allow_io;
         if (next_element_stream_.get())
           rv = next_element_stream_->Read(buf_->data() + buf_len_, count, NULL);
         if (rv <= 0) {
