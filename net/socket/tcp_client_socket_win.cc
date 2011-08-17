@@ -8,7 +8,6 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/memory_debug.h"
 #include "base/metrics/stats_counters.h"
 #include "base/string_util.h"
 #include "base/win/object_watcher.h"
@@ -690,13 +689,6 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
                    &core_->read_overlapped_, NULL);
   if (rv == 0) {
     if (ResetEventIfSignaled(core_->read_overlapped_.hEvent)) {
-      // Because of how WSARecv fills memory when used asynchronously, Purify
-      // isn't able to detect that it's been initialized, so it scans for 0xcd
-      // in the buffer and reports UMRs (uninitialized memory reads) for those
-      // individual bytes. We override that in PURIFY builds to avoid the
-      // false error reports.
-      // See bug 5297.
-      base::MemoryDebug::MarkAsInitialized(core_->read_buffer_.buf, num);
       base::StatsCounter read_bytes("tcp.read_bytes");
       read_bytes.Add(num);
       num_bytes_read_ += num;

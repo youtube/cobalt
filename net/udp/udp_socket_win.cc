@@ -8,7 +8,6 @@
 
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
-#include "base/memory/memory_debug.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
 #include "base/rand_util.h"
@@ -324,13 +323,6 @@ int UDPSocketWin::InternalRecvFrom(IOBuffer* buf, int buf_len,
                        &recv_addr_len_, &read_overlapped_, NULL);
   if (rv == 0) {
     if (ResetEventIfSignaled(read_overlapped_.hEvent)) {
-      // Because of how WSARecv fills memory when used asynchronously, Purify
-      // isn't able to detect that it's been initialized, so it scans for 0xcd
-      // in the buffer and reports UMRs (uninitialized memory reads) for those
-      // individual bytes. We override that in PURIFY builds to avoid the
-      // false error reports.
-      // See bug 5297.
-      base::MemoryDebug::MarkAsInitialized(read_buffer.buf, num);
       if (!ProcessSuccessfulRead(num, address))
         return ERR_FAILED;
       return static_cast<int>(num);

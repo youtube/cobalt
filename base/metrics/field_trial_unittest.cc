@@ -40,7 +40,7 @@ class FieldTrialTest : public testing::Test {
 };
 
 // Test registration, and also check that destructors are called for trials
-// (and that Purify doesn't catch us leaking).
+// (and that Valgrind doesn't catch us leaking).
 TEST_F(FieldTrialTest, Registration) {
   const char* name1 = "name 1 test";
   const char* name2 = "name 2 test";
