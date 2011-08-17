@@ -168,6 +168,7 @@ class BASE_EXPORT FileUtilProxy {
   // Writes to a file. If |offset| is greater than the length of the file,
   // |false| is returned. On success, the file pointer is moved to position
   // |offset + bytes_to_write| in the file. The callback can be NULL.
+  // |bytes_to_write| must be greater than zero.
   static bool Write(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
