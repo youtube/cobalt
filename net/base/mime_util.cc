@@ -258,6 +258,9 @@ static const char* const supported_media_types[] = {
 //
 // Refer to http://wiki.whatwg.org/wiki/Video_type_parameters#Browser_Support
 // for more information.
+//
+// The codecs for WAV are integers as defined in Appendix A of RFC2361:
+// http://tools.ietf.org/html/rfc2361
 static const char* const supported_media_codecs[] = {
 #if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
   "avc1",
@@ -268,7 +271,7 @@ static const char* const supported_media_codecs[] = {
 #endif
   "vorbis",
   "vp8",
-  "1"  // PCM for WAV.
+  "1"  // WAVE_FORMAT_PCM.
 };
 
 // Note: does not include javascript types list (see supported_javascript_types)
