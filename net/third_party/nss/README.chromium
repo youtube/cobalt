@@ -64,6 +64,9 @@ Patches:
     patches/handshakeshortwrite.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=676729
 
+  * Add a function to restart a handshake after a client certificate request.
+    patches/restartclientauth.patch
+
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
 
