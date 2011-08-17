@@ -868,6 +868,8 @@ bool FileUtilProxy::Write(
     const char* buffer,
     int bytes_to_write,
     WriteCallback* callback) {
+  if (bytes_to_write <= 0)
+    return false;
   return Start(FROM_HERE, message_loop_proxy,
                new RelayWrite(file, offset, buffer, bytes_to_write, callback));
 }
