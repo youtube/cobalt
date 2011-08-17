@@ -361,17 +361,17 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   int server_ret = server_socket_->Handshake(&handshake_callback);
   ASSERT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
-  if (client_ret == net::ERR_IO_PENDING) {
-    ASSERT_EQ(net::OK, connect_callback.WaitForResult());
-  }
-  if (server_ret == net::ERR_IO_PENDING) {
-    ASSERT_EQ(net::OK, handshake_callback.WaitForResult());
-  }
+  client_ret = connect_callback.GetResult(client_ret);
+  ASSERT_EQ(net::OK, client_ret);
+  server_ret = handshake_callback.GetResult(server_ret);
+  ASSERT_EQ(net::OK, server_ret);
 
   const int kReadBufSize = 1024;
   scoped_refptr<net::StringIOBuffer> write_buf =
       new net::StringIOBuffer("testing123");
-  scoped_refptr<net::IOBuffer> read_buf = new net::IOBuffer(kReadBufSize);
+  scoped_refptr<net::DrainableIOBuffer> read_buf =
+      new net::DrainableIOBuffer(new net::IOBuffer(kReadBufSize),
+                                 kReadBufSize);
 
   // Write then read.
   TestCompletionCallback write_callback;
@@ -379,31 +379,53 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   server_ret = server_socket_->Write(write_buf, write_buf->size(),
                                      &write_callback);
   EXPECT_TRUE(server_ret > 0 || server_ret == net::ERR_IO_PENDING);
-  client_ret = client_socket_->Read(read_buf, kReadBufSize, &read_callback);
+  client_ret = client_socket_->Read(read_buf, read_buf->BytesRemaining(),
+                                    &read_callback);
   EXPECT_TRUE(client_ret > 0 || client_ret == net::ERR_IO_PENDING);
 
-  if (server_ret == net::ERR_IO_PENDING) {
-    EXPECT_GT(write_callback.WaitForResult(), 0);
+  server_ret = write_callback.GetResult(server_ret);
+  EXPECT_GT(server_ret, 0);
+  client_ret = read_callback.GetResult(client_ret);
+  ASSERT_GT(client_ret, 0);
+
+  read_buf->DidConsume(client_ret);
+  while (read_buf->BytesConsumed() < write_buf->size()) {
+    client_ret = client_socket_->Read(read_buf, read_buf->BytesRemaining(),
+                                      &read_callback);
+    EXPECT_TRUE(client_ret > 0 || client_ret == net::ERR_IO_PENDING);
+    client_ret = read_callback.GetResult(client_ret);
+    ASSERT_GT(client_ret, 0);
+    read_buf->DidConsume(client_ret);
   }
-  if (client_ret == net::ERR_IO_PENDING) {
-    EXPECT_GT(read_callback.WaitForResult(), 0);
-  }
+  EXPECT_EQ(write_buf->size(), read_buf->BytesConsumed());
+  read_buf->SetOffset(0);
   EXPECT_EQ(0, memcmp(write_buf->data(), read_buf->data(), write_buf->size()));
 
   // Read then write.
   write_buf = new net::StringIOBuffer("hello123");
-  server_ret = server_socket_->Read(read_buf, kReadBufSize, &read_callback);
+  server_ret = server_socket_->Read(read_buf, read_buf->BytesRemaining(),
+                                    &read_callback);
   EXPECT_TRUE(server_ret > 0 || server_ret == net::ERR_IO_PENDING);
   client_ret = client_socket_->Write(write_buf, write_buf->size(),
                                      &write_callback);
   EXPECT_TRUE(client_ret > 0 || client_ret == net::ERR_IO_PENDING);
 
-  if (server_ret == net::ERR_IO_PENDING) {
-    EXPECT_GT(read_callback.WaitForResult(), 0);
+  server_ret = read_callback.GetResult(server_ret);
+  ASSERT_GT(server_ret, 0);
+  client_ret = write_callback.GetResult(client_ret);
+  EXPECT_GT(client_ret, 0);
+
+  read_buf->DidConsume(server_ret);
+  while (read_buf->BytesConsumed() < write_buf->size()) {
+    server_ret = server_socket_->Read(read_buf, read_buf->BytesRemaining(),
+                                      &read_callback);
+    EXPECT_TRUE(server_ret > 0 || server_ret == net::ERR_IO_PENDING);
+    server_ret = read_callback.GetResult(server_ret);
+    ASSERT_GT(server_ret, 0);
+    read_buf->DidConsume(server_ret);
   }
-  if (client_ret == net::ERR_IO_PENDING) {
-    EXPECT_GT(write_callback.WaitForResult(), 0);
-  }
+  EXPECT_EQ(write_buf->size(), read_buf->BytesConsumed());
+  read_buf->SetOffset(0);
   EXPECT_EQ(0, memcmp(write_buf->data(), read_buf->data(), write_buf->size()));
 }
 
