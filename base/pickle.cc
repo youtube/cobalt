@@ -394,7 +394,7 @@ char* Pickle::BeginWrite(size_t length) {
 }
 
 void Pickle::EndWrite(char* dest, int length) {
-  // Zero-pad to keep tools like purify from complaining about uninitialized
+  // Zero-pad to keep tools like valgrind from complaining about uninitialized
   // memory.
   if (length % sizeof(uint32))
     memset(dest + length, 0, sizeof(uint32) - (length % sizeof(uint32)));

@@ -532,12 +532,11 @@ void MessageLoop::ReloadWorkQueue() {
 bool MessageLoop::DeletePendingTasks() {
   bool did_work = !work_queue_.empty();
   // TODO(darin): Delete all tasks once it is safe to do so.
-  // Until it is totally safe, just do it when running Purify or
-  // Valgrind.
+  // Until it is totally safe, just do it when running Valgrind.
   //
   // See http://crbug.com/61131
   //
-#if defined(PURIFY) || defined(USE_HEAPCHECKER)
+#if defined(USE_HEAPCHECKER)
   should_leak_tasks_ = false;
 #else
       if (RunningOnValgrind())
