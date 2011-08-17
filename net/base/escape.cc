@@ -80,7 +80,11 @@ std::string Escape(const std::string& text, const Charmap& charmap,
 // you could get different behavior if you copy and paste the URL, or press
 // enter in the URL bar. The list of characters that fall into this category
 // are the ones labeled PASS (allow either escaped or unescaped) in the big
-// lookup table at the top of googleurl/src/url_canon_path.cc
+// lookup table at the top of googleurl/src/url_canon_path.cc.  Also, characters
+// that have CHAR_QUERY set in googleurl/src/url_canon_internal.cc but are not
+// allowed in query strings according to http://www.ietf.org/rfc/rfc3261.txt are
+// not unescaped, to avoid turning a valid url according to spec into an
+// invalid one.
 const char kUrlUnescape[128] = {
 //   NULL, control chars...
      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -92,11 +96,11 @@ const char kUrlUnescape[128] = {
 //   @  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O
      0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 //   P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _
-     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
+     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1,
 //   `  a  b  c  d  e  f  g  h  i  j  k  l  m  n  o
-     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 //   p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~  <NBSP>
-     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
+     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0
 };
 
 template<typename STR>
