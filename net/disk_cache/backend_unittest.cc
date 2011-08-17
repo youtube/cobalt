@@ -584,10 +584,9 @@ void DiskCacheBackendTest::BackendInvalidEntry() {
 }
 
 // This and the other intentionally leaky tests below are excluded from
-// purify and valgrind runs by naming them in the files
-//   net/data/purify/net_unittests.exe.gtest.txt and
+// valgrind runs by naming them in the files
 //   net/data/valgrind/net_unittests.gtest.txt
-// The scripts tools/{purify,valgrind}/chrome_tests.sh
+// The scripts tools/valgrind/chrome_tests.sh
 // read those files and pass the appropriate --gtest_filter to net_unittests.
 TEST_F(DiskCacheBackendTest, InvalidEntry) {
   BackendInvalidEntry();

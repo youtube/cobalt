@@ -286,7 +286,7 @@ class PipelineImplTest : public ::testing::Test {
 TEST_F(PipelineImplTest, NotStarted) {
   const base::TimeDelta kZero;
 
-  // StrictMock<> will ensure these never get called, and valgrind/purify will
+  // StrictMock<> will ensure these never get called, and valgrind will
   // make sure the callbacks are instantly deleted.
   pipeline_->Stop(base::Bind(&CallbackHelper::OnStop,
                              base::Unretained(&callbacks_)));
