@@ -9,6 +9,7 @@
 #include "base/memory/ref_counted.h"
 #include "media/base/media_log_event.h"
 #include "media/base/pipeline_impl.h"
+#include "media/base/pipeline_status.h"
 
 namespace media {
 
@@ -17,6 +18,7 @@ class MediaLog : public base::RefCountedThreadSafe<MediaLog> {
   // Convert various enums to strings.
   static const char* EventTypeToString(MediaLogEvent::Type type);
   static const char* PipelineStateToString(PipelineImpl::State);
+  static const char* PipelineStatusToString(PipelineStatus);
 
   MediaLog();
 
@@ -27,9 +29,17 @@ class MediaLog : public base::RefCountedThreadSafe<MediaLog> {
 
   // Helper methods to create events and their parameters.
   MediaLogEvent* CreateEvent(MediaLogEvent::Type type);
+  MediaLogEvent* CreateBooleanEvent(MediaLogEvent::Type type,
+                                    const char* property, bool value);
+  MediaLogEvent* CreateIntegerEvent(MediaLogEvent::Type type,
+                                    const char* property, int64 value);
+  MediaLogEvent* CreateTimeEvent(MediaLogEvent::Type type,
+                                 const char* property, base::TimeDelta value);
   MediaLogEvent* CreateLoadEvent(const std::string& url);
   MediaLogEvent* CreateSeekEvent(float seconds);
   MediaLogEvent* CreatePipelineStateChangedEvent(PipelineImpl::State state);
+  MediaLogEvent* CreatePipelineErrorEvent(PipelineStatus error);
+  MediaLogEvent* CreateVideoSizeSetEvent(size_t width, size_t height);
   MediaLogEvent* CreateBufferedExtentsChangedEvent(size_t start, size_t current,
                                                    size_t end);
 

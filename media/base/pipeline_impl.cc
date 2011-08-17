@@ -469,6 +469,8 @@ void PipelineImpl::SetError(PipelineStatus error) {
 
   message_loop_->PostTask(FROM_HERE,
      NewRunnableMethod(this, &PipelineImpl::ErrorChangedTask, error));
+
+  media_log_->AddEvent(media_log_->CreatePipelineErrorEvent(error));
 }
 
 base::TimeDelta PipelineImpl::GetTime() const {
@@ -500,6 +502,10 @@ void PipelineImpl::SetTime(base::TimeDelta time) {
 
 void PipelineImpl::SetDuration(base::TimeDelta duration) {
   DCHECK(IsRunning());
+  media_log_->AddEvent(
+      media_log_->CreateTimeEvent(
+          MediaLogEvent::DURATION_SET, "duration", duration));
+
   base::AutoLock auto_lock(lock_);
   duration_ = duration;
 }
@@ -512,6 +518,10 @@ void PipelineImpl::SetBufferedTime(base::TimeDelta buffered_time) {
 
 void PipelineImpl::SetTotalBytes(int64 total_bytes) {
   DCHECK(IsRunning());
+  media_log_->AddEvent(
+      media_log_->CreateIntegerEvent(
+          MediaLogEvent::TOTAL_BYTES_SET, "total_bytes", total_bytes));
+
   base::AutoLock auto_lock(lock_);
   total_bytes_ = total_bytes;
 }
@@ -528,6 +538,8 @@ void PipelineImpl::SetBufferedBytes(int64 buffered_bytes) {
 
 void PipelineImpl::SetVideoSize(size_t width, size_t height) {
   DCHECK(IsRunning());
+  media_log_->AddEvent(media_log_->CreateVideoSizeSetEvent(width, height));
+
   base::AutoLock auto_lock(lock_);
   video_width_ = width;
   video_height_ = height;
@@ -535,6 +547,10 @@ void PipelineImpl::SetVideoSize(size_t width, size_t height) {
 
 void PipelineImpl::SetStreaming(bool streaming) {
   DCHECK(IsRunning());
+  media_log_->AddEvent(
+      media_log_->CreateBooleanEvent(
+          MediaLogEvent::STREAMING_SET, "streaming", streaming));
+
   base::AutoLock auto_lock(lock_);
   streaming_ = streaming;
 }
@@ -543,10 +559,15 @@ void PipelineImpl::NotifyEnded() {
   DCHECK(IsRunning());
   message_loop_->PostTask(FROM_HERE,
       NewRunnableMethod(this, &PipelineImpl::NotifyEndedTask));
+  media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::ENDED));
 }
 
 void PipelineImpl::SetLoaded(bool loaded) {
   DCHECK(IsRunning());
+  media_log_->AddEvent(
+      media_log_->CreateBooleanEvent(
+          MediaLogEvent::LOADED_SET, "loaded", loaded));
+
   base::AutoLock auto_lock(lock_);
   loaded_ = loaded;
 }
@@ -559,6 +580,10 @@ void PipelineImpl::SetNetworkActivity(bool network_activity) {
   }
   message_loop_->PostTask(FROM_HERE,
       NewRunnableMethod(this, &PipelineImpl::NotifyNetworkEventTask));
+  media_log_->AddEvent(
+      media_log_->CreateBooleanEvent(
+          MediaLogEvent::NETWORK_ACTIVITY_SET,
+          "network_activity", network_activity));
 }
 
 void PipelineImpl::DisableAudioRenderer() {
@@ -567,6 +592,8 @@ void PipelineImpl::DisableAudioRenderer() {
   // Disable renderer on the message loop.
   message_loop_->PostTask(FROM_HERE,
       NewRunnableMethod(this, &PipelineImpl::DisableAudioRendererTask));
+  media_log_->AddEvent(
+      media_log_->CreateEvent(MediaLogEvent::AUDIO_RENDERER_DISABLED));
 }
 
 // Called from any thread.
