@@ -1460,11 +1460,13 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERTCertDBHandle *dbHandle)
  *	cert	Client cert chosen by application.
  *		Note: ssl takes this reference, and does not bump the 
  *		reference count.  The caller should drop its reference
- *		without calling CERT_DestroyCert after calling this function.
+ *		without calling CERT_DestroyCertificate after calling this
+ *		function.
  *
- *	key	Private key associated with cert.  This function makes a 
- *		copy of the private key, so the caller remains responsible 
- *		for destroying its copy after this function returns.
+ *	key	Private key associated with cert.  This function takes
+ *		ownership of the private key, so the caller should drop its
+ *		reference without destroying the private key after this
+ *		function returns.
  *
  *	certChain  Chain of signers for cert.  
  *		Note: ssl takes this reference, and does not copy the chain.
@@ -1476,19 +1478,29 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERTCertDBHandle *dbHandle)
  * XXX This code only works on the initial handshake on a connection, XXX
  *     It does not work on a subsequent handshake (redo).
  */
-int
-SSL_RestartHandshakeAfterCertReq(sslSocket *         ss,
+SECStatus
+SSL_RestartHandshakeAfterCertReq(PRFileDesc *        fd,
 				CERTCertificate *    cert, 
 				SECKEYPrivateKey *   key,
 				CERTCertificateList *certChain)
 {
-    int              ret;
+    sslSocket *   ss = ssl_FindSocket(fd);
+    SECStatus     ret;
+
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_RestartHandshakeAfterCertReq",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
 
     ssl_Get1stHandshakeLock(ss);   /************************************/
 
     if (ss->version >= SSL_LIBRARY_VERSION_3_0) {
 	ret = ssl3_RestartHandshakeAfterCertReq(ss, cert, key, certChain);
     } else {
+	if (certChain != NULL) {
+	    CERT_DestroyCertificateList(certChain);
+	}
     	ret = ssl2_RestartHandshakeAfterCertReq(ss, cert, key);
     }
 
