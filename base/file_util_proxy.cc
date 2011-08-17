@@ -854,6 +854,8 @@ bool FileUtilProxy::Read(
     int64 offset,
     int bytes_to_read,
     ReadCallback* callback) {
+  if (bytes_to_read < 0)
+    return false;
   return Start(FROM_HERE, message_loop_proxy,
                new RelayRead(file, offset, bytes_to_read, callback));
 }
