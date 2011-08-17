@@ -40,6 +40,32 @@ struct MediaLogEvent {
     // params: "pipeline_state": <string name of the state>.
     PIPELINE_STATE_CHANGED,
 
+    // An error has occurred in the pipeline.
+    // params: "pipeline_error": <string name of the error>.
+    PIPELINE_ERROR,
+
+    // The size of the video has been determined.
+    // params: "width": <integral width of the video>.
+    //         "height": <integral height of the video>.
+    VIDEO_SIZE_SET,
+
+    // A property of the pipeline has been set by a filter.
+    // These take a single parameter based upon the name of the event and of
+    // the appropriate type. e.g. DURATION_SET: "duration" of type TimeDelta.
+    DURATION_SET,
+    TOTAL_BYTES_SET,
+    STREAMING_SET,
+    LOADED_SET,
+    NETWORK_ACTIVITY_SET,
+
+    // Playback has ended.
+    // params: none.
+    ENDED,
+
+    // The audio renderer has been disabled.
+    // params: none.
+    AUDIO_RENDERER_DISABLED,
+
     // The extents of the sliding buffer have changed.
     // params: "buffer_start": <first buffered byte>.
     //         "buffer_current": <current offset>.

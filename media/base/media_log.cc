@@ -35,6 +35,24 @@ const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
       return "PAUSE";
     case MediaLogEvent::PIPELINE_STATE_CHANGED:
       return "PIPELINE_STATE_CHANGED";
+    case MediaLogEvent::PIPELINE_ERROR:
+      return "PIPELINE_ERROR";
+    case MediaLogEvent::VIDEO_SIZE_SET:
+      return "VIDEO_SIZE_SET";
+    case MediaLogEvent::DURATION_SET:
+      return "DURATION_SET";
+    case MediaLogEvent::TOTAL_BYTES_SET:
+      return "TOTAL_BYTES_SET";
+    case MediaLogEvent::STREAMING_SET:
+      return "STREAMING_SET";
+    case MediaLogEvent::LOADED_SET:
+      return "LOADED_SET";
+    case MediaLogEvent::NETWORK_ACTIVITY_SET:
+      return "NETWORK_ACTIVITY_SET";
+    case MediaLogEvent::ENDED:
+      return "ENDED";
+    case MediaLogEvent::AUDIO_RENDERER_DISABLED:
+      return "AUDIO_RENDERER_DISABLED";
     case MediaLogEvent::BUFFERED_EXTENTS_CHANGED:
       return "BUFFERED_EXTENTS_CHANGED";
   }
@@ -79,6 +97,49 @@ const char* MediaLog::PipelineStateToString(PipelineImpl::State state) {
   return NULL;
 }
 
+const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
+  switch (status) {
+    case PIPELINE_OK:
+      return "pipeline: ok";
+    case PIPELINE_ERROR_URL_NOT_FOUND:
+      return "pipeline: url not found";
+    case PIPELINE_ERROR_NETWORK:
+      return "pipeline: network error";
+    case PIPELINE_ERROR_DECODE:
+      return "pipeline: decode error";
+    case PIPELINE_ERROR_ABORT:
+      return "pipeline: abort";
+    case PIPELINE_ERROR_INITIALIZATION_FAILED:
+      return "pipeline: initialization failed";
+    case PIPELINE_ERROR_REQUIRED_FILTER_MISSING:
+      return "pipeline: required filter missing";
+    case PIPELINE_ERROR_OUT_OF_MEMORY:
+      return "pipeline: out of memory";
+    case PIPELINE_ERROR_COULD_NOT_RENDER:
+      return "pipeline: could not render";
+    case PIPELINE_ERROR_READ:
+      return "pipeline: read error";
+    case PIPELINE_ERROR_AUDIO_HARDWARE:
+      return "pipeline: audio hardware error";
+    case PIPELINE_ERROR_OPERATION_PENDING:
+      return "pipeline: operation pending";
+    case PIPELINE_ERROR_INVALID_STATE:
+      return "pipeline: invalid state";
+    case DEMUXER_ERROR_COULD_NOT_OPEN:
+      return "demuxer: could not open";
+    case DEMUXER_ERROR_COULD_NOT_PARSE:
+      return "dumuxer: could not parse";
+    case DEMUXER_ERROR_NO_SUPPORTED_STREAMS:
+      return "demuxer: no supported streams";
+    case DEMUXER_ERROR_COULD_NOT_CREATE_THREAD:
+      return "demuxer: could not create thread";
+    case DATASOURCE_ERROR_URL_NOT_SUPPORTED:
+      return "data source: url not supported";
+  }
+  NOTREACHED();
+  return NULL;
+}
+
 MediaLog::MediaLog() {
   id_ = media_log_count.GetNext();
 }
@@ -94,6 +155,28 @@ MediaLogEvent* MediaLog::CreateEvent(MediaLogEvent::Type type) {
   event->id = id_;
   event->type = type;
   event->time = base::Time::Now();
+  return event.release();
+}
+
+MediaLogEvent* MediaLog::CreateBooleanEvent(MediaLogEvent::Type type,
+                                            const char* property, bool value) {
+  scoped_ptr<MediaLogEvent> event(CreateEvent(type));
+  event->params.SetBoolean(property, value);
+  return event.release();
+}
+
+MediaLogEvent* MediaLog::CreateIntegerEvent(MediaLogEvent::Type type,
+                                            const char* property, int64 value) {
+  scoped_ptr<MediaLogEvent> event(CreateEvent(type));
+  event->params.SetInteger(property, value);
+  return event.release();
+}
+
+MediaLogEvent* MediaLog::CreateTimeEvent(MediaLogEvent::Type type,
+                                         const char* property,
+                                         base::TimeDelta value) {
+  scoped_ptr<MediaLogEvent> event(CreateEvent(type));
+  event->params.SetDouble(property, value.InSecondsF());
   return event.release();
 }
 
@@ -114,6 +197,19 @@ MediaLogEvent* MediaLog::CreatePipelineStateChangedEvent(
   scoped_ptr<MediaLogEvent> event(
       CreateEvent(MediaLogEvent::PIPELINE_STATE_CHANGED));
   event->params.SetString("pipeline_state", PipelineStateToString(state));
+  return event.release();
+}
+
+MediaLogEvent* MediaLog::CreatePipelineErrorEvent(PipelineStatus error) {
+  scoped_ptr<MediaLogEvent> event(CreateEvent(MediaLogEvent::PIPELINE_ERROR));
+  event->params.SetString("pipeline_error", PipelineStatusToString(error));
+  return event.release();
+}
+
+MediaLogEvent* MediaLog::CreateVideoSizeSetEvent(size_t width, size_t height) {
+  scoped_ptr<MediaLogEvent> event(CreateEvent(MediaLogEvent::VIDEO_SIZE_SET));
+  event->params.SetInteger("width", width);
+  event->params.SetInteger("height", height);
   return event.release();
 }
 
