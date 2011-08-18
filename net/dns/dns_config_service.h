@@ -6,8 +6,6 @@
 #define NET_DNS_DNS_CONFIG_SERVICE_H_
 #pragma once
 
-#include <list>
-#include <map>
 #include <string>
 #include <vector>
 
@@ -88,4 +86,3 @@ class NET_EXPORT_PRIVATE DnsConfigService {
 }  // namespace net
 
 #endif  // NET_DNS_DNS_CONFIG_SERVICE_H_
-
