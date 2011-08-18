@@ -27,14 +27,14 @@ void CompareConfig(const struct __res_state &res, const DnsConfig& config) {
   EXPECT_EQ(config.attempts, res.retry);
 
   // Compare nameservers. IPv6 precede IPv4.
-#if OS_LINUX
+#if defined(OS_LINUX)
   size_t nscount6 = res._u._ext.nscount6;
 #else
   size_t nscount6 = 0;
 #endif
   size_t nscount4 = res.nscount;
   ASSERT_EQ(config.nameservers.size(), nscount6 + nscount4);
-#if OS_LINUX
+#if defined(OS_LINUX)
   for (size_t i = 0; i < nscount6; ++i) {
     IPEndPoint ipe;
     EXPECT_TRUE(ipe.FromSockAddr(
@@ -86,7 +86,7 @@ void InitializeResState(res_state res, int generation) {
   }
   res->nscount = 3;
 
-#if OS_LINUX
+#if defined(OS_LINUX)
   const char* ip6addr[2] = {
       "2001:db8:0::42",
       "::FFFF:129.144.52.38",
@@ -106,7 +106,7 @@ void InitializeResState(res_state res, int generation) {
 }
 
 void CloseResState(res_state res) {
-#if OS_LINUX
+#if defined(OS_LINUX)
   for (int i = 0; i < res->_u._ext.nscount6; ++i) {
     ASSERT_TRUE(res->_u._ext.nsaddrs[i] != NULL);
     free(res->_u._ext.nsaddrs[i]);
