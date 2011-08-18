@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
@@ -35,7 +35,7 @@ class CRYPTO_EXPORT Encryptor {
   // Only 128-bits counter is supported in this class.
   class Counter {
    public:
-    Counter(const base::StringPiece& counter);
+    explicit Counter(const base::StringPiece& counter);
     ~Counter();
 
     // Increment the counter value.
