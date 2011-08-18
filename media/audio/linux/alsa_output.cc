@@ -41,6 +41,7 @@
 
 #include <algorithm>
 
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/stl_util.h"
@@ -856,6 +857,8 @@ AlsaPcmOutputStream::InternalState AlsaPcmOutputStream::state() {
 uint32 AlsaPcmOutputStream::RunDataCallback(uint8* dest,
                                             uint32 max_size,
                                             AudioBuffersState buffers_state) {
+  TRACE_EVENT0("audio", "AlsaPcmOutputStream::RunDataCallback");
+
   if (source_callback_) {
     return source_callback_->OnMoreData(this, dest, max_size, buffers_state);
   }
