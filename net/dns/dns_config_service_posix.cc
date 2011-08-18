@@ -4,15 +4,17 @@
 
 #include "net/dns/dns_config_service_posix.h"
 
+#include <string>
+
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/files/file_path_watcher.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/observer_list.h"
-#include "base/scoped_ptr.h"
 #include "base/threading/worker_pool.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
@@ -228,7 +230,7 @@ bool ConvertResToConfig(const struct __res_state& res, DnsConfig* dns_config) {
 
   dns_config->nameservers.clear();
 
-#if OS_LINUX
+#if defined(OS_LINUX)
   // Initially, glibc stores IPv6 in _ext.nsaddrs and IPv4 in nsaddr_list.
   // Next (res_send.c::__libc_res_nsend), it copies nsaddr_list after nsaddrs.
   // If RES_ROTATE is enabled, the list is shifted left after each res_send.
@@ -274,4 +276,3 @@ bool ConvertResToConfig(const struct __res_state& res, DnsConfig* dns_config) {
 }
 
 }  // namespace net
-
