@@ -536,6 +536,9 @@
               '$(SDKROOT)/System/Library/Frameworks/Security.framework',
             ],
           },
+          'dependencies': [
+            '../third_party/mach_override/mach_override.gyp:mach_override',
+          ],
         }],
         [ 'OS != "win"', {
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
