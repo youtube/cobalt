@@ -2321,6 +2321,8 @@ ssl3_SendApplicationData(sslSocket *ss, const unsigned char *in,
 {
     PRInt32   totalSent	= 0;
     PRInt32   discarded = 0;
+    PRBool    isBlockCipher;
+    int       recordIndex;
 
     PORT_Assert( ss->opt.noLocks || ssl_HaveXmitBufLock(ss) );
     if (len < 0 || !in) {
@@ -2345,7 +2347,12 @@ ssl3_SendApplicationData(sslSocket *ss, const unsigned char *in,
 	len--;
 	discarded = 1;
     }
-    while (len > totalSent) {
+
+    ssl_GetSpecReadLock(ss);
+    isBlockCipher = ss->ssl3.cwSpec->cipher_def->type == type_block;
+    ssl_ReleaseSpecReadLock(ss);
+
+    for (recordIndex = 0; len > totalSent; recordIndex++) {
 	PRInt32   sent, toSend;
 
 	if (totalSent > 0) {
@@ -2360,6 +2367,28 @@ ssl3_SendApplicationData(sslSocket *ss, const unsigned char *in,
 	    ssl_GetXmitBufLock(ss);
 	}
 	toSend = PR_MIN(len - totalSent, MAX_FRAGMENT_LENGTH);
+	if (isBlockCipher &&
+	    ss->ssl3.cwSpec->version <= SSL_LIBRARY_VERSION_3_1_TLS) {
+	    /*
+	     * We assume that block ciphers are used in CBC mode and send
+	     * only one byte in the first record.  This effectively
+	     * randomizes the IV in a backward compatible way.
+	     *
+	     * We get back to the MAX_FRAGMENT_LENGTH record boundary in
+	     * the second record.  So for a large amount of data, we send
+	     *     1
+	     *     MAX_FRAGMENT_LENGTH - 1
+	     *     MAX_FRAGMENT_LENGTH
+	     *     MAX_FRAGMENT_LENGTH
+	     *     ...
+	     */
+	    if (recordIndex == 0) {
+		toSend = 1;
+	    } else if (recordIndex == 1 &&
+		       len - totalSent > MAX_FRAGMENT_LENGTH) {
+		toSend--;
+	    }
+	}
 	sent = ssl3_SendRecord(ss, content_application_data, 
 	                       in + totalSent, toSend, flags);
 	if (sent < 0) {
