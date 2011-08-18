@@ -397,6 +397,10 @@
     # Needed for some of the largest modules.
     'msvs_debug_link_nonincremental%': '1',
 
+    # Turn on Use Library Dependency Inputs for linking chrome.dll on Windows
+    # to get incremental linking to be faster in debug builds.
+    'incremental_chrome_dll%': 0,
+
     # This is the location of the sandbox binary. Chrome looks for this before
     # running the zygote process. If found, and SUID, it will be used to
     # sandbox the zygote process and, thus, all renderer processes.
