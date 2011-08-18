@@ -656,10 +656,6 @@ bool LaunchProcess(const CommandLine& cmdline,
 
 ProcessMetrics::~ProcessMetrics() { }
 
-void EnableTerminationOnHeapCorruption() {
-  // On POSIX, there nothing to do AFAIK.
-}
-
 bool EnableInProcessStackDumping() {
   // When running in an application, our code typically expects SIGPIPE
   // to be ignored.  Therefore, when testing that same code, it should run
