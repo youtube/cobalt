@@ -675,13 +675,13 @@ void LogMessage::Init(const char* file, int line) {
 #if _MSC_VER >= 1400
     localtime_s(&local_time, &t);
 #elif defined(__LB_PS3__)
-	CellRtcDateTime clock;
+    CellRtcDateTime clock;
     cellRtcGetCurrentClockLocalTime(&clock);
-	local_time.tm_mon = clock.month - 1;
-	local_time.tm_mday = clock.day;
-	local_time.tm_hour = clock.hour;
-	local_time.tm_min = clock.minute;
-	local_time.tm_sec = clock.second;
+    local_time.tm_mon = clock.month - 1;
+    local_time.tm_mday = clock.day;
+    local_time.tm_hour = clock.hour;
+    local_time.tm_min = clock.minute;
+    local_time.tm_sec = clock.second;
 #else
     localtime_r(&t, &local_time);
 #endif
@@ -813,8 +813,8 @@ void RawLog(int level, const char* message) {
     while (bytes_written < message_len) {
 #if defined(__LB_PS3__)
     // The PS3 syscalls can't return EINTR
-	rv = write(STDERR_FILENO, message + bytes_written,
-               message_len - bytes_written);
+      rv = write(STDERR_FILENO, message + bytes_written,
+                 message_len - bytes_written);
 #else
       rv = HANDLE_EINTR(
           write(STDERR_FILENO, message + bytes_written,
@@ -832,7 +832,7 @@ void RawLog(int level, const char* message) {
       do {
 #if defined(__LB_PS3__)
     // The PS3 syscalls can't return EINTR
-	rv = write(STDERR_FILENO, "\n", 1);
+        rv = write(STDERR_FILENO, "\n", 1);
 #else
         rv = HANDLE_EINTR(write(STDERR_FILENO, "\n", 1));
 #endif
