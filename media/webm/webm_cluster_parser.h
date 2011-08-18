@@ -6,8 +6,9 @@
 #define MEDIA_WEBM_WEBM_CLUSTER_PARSER_H_
 
 #include <deque>
+#include <string>
 
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/base/buffers.h"
 #include "media/webm/webm_parser.h"
 
@@ -44,8 +45,8 @@ class WebMClusterParser : public WebMParserClient {
   virtual bool OnSimpleBlock(int track_num, int timecode, int flags,
                              const uint8* data, int size);
 
-  double timecode_multiplier_; // Multiplier used to convert timecodes into
-                               // microseconds.
+  double timecode_multiplier_;  // Multiplier used to convert timecodes into
+                                // microseconds.
   int audio_track_num_;
   base::TimeDelta audio_default_duration_;
   int video_track_num_;
@@ -62,4 +63,4 @@ class WebMClusterParser : public WebMParserClient {
 
 }  // namespace media
 
-#endif // MEDIA_WEBM_WEBM_CLUSTER_PARSER_H_
+#endif  // MEDIA_WEBM_WEBM_CLUSTER_PARSER_H_
