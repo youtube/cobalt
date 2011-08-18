@@ -12,6 +12,8 @@
 #include <mach/mach_vm.h>
 #include <mach/shared_region.h>
 #include <mach/task.h>
+#include <mach-o/dyld.h>
+#include <mach-o/nlist.h>
 #include <malloc/malloc.h>
 #import <objc/runtime.h>
 #include <spawn.h>
@@ -34,6 +36,7 @@
 #include "base/time.h"
 #include "third_party/apple_apsl/CFBase.h"
 #include "third_party/apple_apsl/malloc.h"
+#include "third_party/mach_override/mach_override.h"
 
 namespace base {
 
@@ -481,6 +484,88 @@ size_t GetSystemCommitCharge() {
   }
 
   return (data.active_count * page_size) / 1024;
+}
+
+namespace {
+
+// Finds the library path for malloc() and thus the libC part of libSystem,
+// which in Lion is in a separate image.
+const char* LookUpLibCPath() {
+  const void* addr = reinterpret_cast<void*>(&malloc);
+
+  Dl_info info;
+  if (dladdr(addr, &info))
+    return info.dli_fname;
+
+  LOG(WARNING) << "Could not find image path for malloc()";
+  return NULL;
+}
+
+typedef void(*malloc_error_break_t)(void);
+malloc_error_break_t g_original_malloc_error_break = NULL;
+
+// Returns the function pointer for malloc_error_break. This symbol is declared
+// as __private_extern__ and cannot be dlsym()ed. Instead, use nlist() to
+// get it.
+malloc_error_break_t LookUpMallocErrorBreak() {
+#if ARCH_CPU_32_BITS
+  const char* lib_c_path = LookUpLibCPath();
+  if (!lib_c_path)
+    return NULL;
+
+  // Only need to look up two symbols, but nlist() requires a NULL-terminated
+  // array and takes no count.
+  struct nlist nl[3];
+  bzero(&nl, sizeof(nl));
+
+  // The symbol to find.
+  nl[0].n_un.n_name = const_cast<char*>("_malloc_error_break");
+
+  // A reference symbol by which the address of the desired symbol will be
+  // calculated.
+  nl[1].n_un.n_name = const_cast<char*>("_malloc");
+
+  int rv = nlist(lib_c_path, nl);
+  if (rv != 0 || nl[0].n_type == N_UNDF || nl[1].n_type == N_UNDF) {
+    return NULL;
+  }
+
+  // nlist() returns addresses as offsets in the image, not the instruction
+  // pointer in memory. Use the known in-memory address of malloc()
+  // to compute the offset for malloc_error_break().
+  uintptr_t reference_addr = reinterpret_cast<uintptr_t>(&malloc);
+  reference_addr -= nl[1].n_value;
+  reference_addr += nl[0].n_value;
+
+  return reinterpret_cast<malloc_error_break_t>(reference_addr);
+#endif  // ARCH_CPU_32_BITS
+
+  return NULL;
+}
+
+void CrMallocErrorBreak() {
+  g_original_malloc_error_break();
+  LOG(ERROR) <<
+      "Terminating process due to a potential for future heap corruption";
+  base::debug::BreakDebugger();
+}
+
+}  // namespace
+
+void EnableTerminationOnHeapCorruption() {
+  malloc_error_break_t malloc_error_break = LookUpMallocErrorBreak();
+  if (!malloc_error_break) {
+    LOG(WARNING) << "Could not find malloc_error_break";
+    return;
+  }
+
+  mach_error_t err = mach_override_ptr(
+     (void*)malloc_error_break,
+     (void*)&CrMallocErrorBreak,
+     (void**)&g_original_malloc_error_break);
+
+  if (err != err_none)
+    LOG(WARNING) << "Could not override malloc_error_break; error = " << err;
 }
 
 // ------------------------------------------------------------------------
