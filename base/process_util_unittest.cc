@@ -397,6 +397,20 @@ TEST_F(ProcessUtilTest, LaunchAsUser) {
 
 #endif  // defined(OS_WIN)
 
+#if defined(OS_MACOSX)
+
+TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
+  // Note that base::EnableTerminationOnHeapCorruption() is called as part of
+  // test suite setup and does not need to be done again, else mach_override
+  // will fail.
+
+  char buf[3];
+  ASSERT_DEATH(free(buf), "pointer being freed was not allocated.*"
+      "Terminating process due to a potential for future heap corruption");
+}
+
+#endif  // defined(OS_MACOSX)
+
 #if defined(OS_POSIX)
 
 namespace {
