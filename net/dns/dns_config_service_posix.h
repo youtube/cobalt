@@ -11,8 +11,8 @@
 #include "base/compiler_specific.h"
 #include "base/files/file_path_watcher.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/observer_list.h"
-#include "base/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_config_service.h"
@@ -112,4 +112,3 @@ bool NET_EXPORT_PRIVATE ConvertResToConfig(const struct __res_state& res,
 }  // namespace net
 
 #endif  // NET_DNS_DNS_CONFIG_SERVICE_POSIX_H_
-
