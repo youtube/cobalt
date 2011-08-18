@@ -51,6 +51,12 @@ Patches:
     previous session.
     patches/didhandshakeresume.patch
 
+  * Start each set of CBC encrypted application data records, resulting from
+    a single call to ssl3_SendApplicationData, with a one-byte application
+    data record in order to randomize the IV in a backward compatible manner.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=665814
+    patches/cbcrandomiv.patch
+
   * Support origin bound certificates.
     http://balfanz.github.com/tls-obc-spec/draft-balfanz-tls-obc-00.txt
     patches/origin_bound_certs.patch
