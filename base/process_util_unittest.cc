@@ -405,7 +405,8 @@ TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
   // will fail.
 
   char buf[3];
-  ASSERT_DEATH(free(buf), "pointer being freed was not allocated.*"
+  ASSERT_DEATH(free(buf), "being freed.*"
+      "\\*\\*\\* set a breakpoint in malloc_error_break to debug.*"
       "Terminating process due to a potential for future heap corruption");
 }
 
