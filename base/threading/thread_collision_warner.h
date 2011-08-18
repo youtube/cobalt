@@ -79,7 +79,7 @@
 //
 //
 // Example: Class that has to be contructed/destroyed on same thread, it has
-//          a "shareable" method (with external syncronization) and a not
+//          a "shareable" method (with external synchronization) and a not
 //          shareable method (even with external synchronization).
 //
 //          In this case 3 Critical sections have to be defined
