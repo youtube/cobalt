@@ -4,9 +4,11 @@
 
 #include "media/base/media_log.h"
 
+#include <string>
+
 #include "base/atomic_sequence_num.h"
 #include "base/logging.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/values.h"
 
 namespace media {
