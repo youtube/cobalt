@@ -290,6 +290,10 @@
         'disk_cache/trace.h',
         'dns/async_host_resolver.cc',
         'dns/async_host_resolver.h',
+        'dns/dns_config_service.cc',
+        'dns/dns_config_service.h',
+        'dns/dns_config_service_posix.cc',
+        'dns/dns_config_service_posix.h',
         'dns/dns_query.cc',
         'dns/dns_query.h',
         'dns/dns_response.cc',
@@ -941,6 +945,7 @@
         'disk_cache/mapped_file_unittest.cc',
         'disk_cache/storage_block_unittest.cc',
         'dns/async_host_resolver_unittest.cc',
+        'dns/dns_config_service_posix_unittest.cc',
         'dns/dns_query_unittest.cc',
         'dns/dns_response_unittest.cc',
         'dns/dns_transaction_unittest.cc',
@@ -1108,6 +1113,7 @@
         ],
         [ 'OS == "win"', {
             'sources!': [
+              'dns/dns_config_service_posix_unittest.cc',
               'http/http_auth_gssapi_posix_unittest.cc',
             ],
             # This is needed to trigger the dll copy step on windows.
