@@ -6,7 +6,6 @@
 #define MEDIA_VIDEO_PICTURE_H_
 
 #include "base/basictypes.h"
-#include "ui/gfx/gl/gl_context.h"
 #include "ui/gfx/size.h"
 
 namespace media {
