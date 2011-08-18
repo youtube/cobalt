@@ -272,7 +272,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   }
   const std::string& thread_name() const { return thread_name_; }
 
-  // Gets the message loop proxy associated with this message loop proxy
+  // Gets the message loop proxy associated with this message loop.
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy() {
     return message_loop_proxy_.get();
   }
