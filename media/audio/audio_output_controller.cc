@@ -4,6 +4,7 @@
 
 #include "media/audio/audio_output_controller.h"
 
+#include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 
 namespace media {
@@ -268,6 +269,8 @@ void AudioOutputController::DoReportError(int code) {
 uint32 AudioOutputController::OnMoreData(
     AudioOutputStream* stream, uint8* dest,
     uint32 max_size, AudioBuffersState buffers_state) {
+  TRACE_EVENT0("audio", "AudioOutputController::OnMoreData");
+
   // If regular latency mode is used.
   if (!sync_reader_) {
     base::AutoLock auto_lock(lock_);
