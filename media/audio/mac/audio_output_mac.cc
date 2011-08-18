@@ -5,6 +5,7 @@
 #include "media/audio/mac/audio_output_mac.h"
 
 #include "base/basictypes.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/audio/audio_util.h"
@@ -384,6 +385,8 @@ bool PCMQueueOutAudioOutputStream::CheckForAdjustedLayout(
 void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
                                                   AudioQueueRef queue,
                                                   AudioQueueBufferRef buffer) {
+  TRACE_EVENT0("audio", "PCMQueueOutAudioOutputStream::RenderCallback");
+
   PCMQueueOutAudioOutputStream* audio_stream =
       static_cast<PCMQueueOutAudioOutputStream*>(p_this);
   // Call the audio source to fill the free buffer with data. Not having a

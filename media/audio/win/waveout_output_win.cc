@@ -9,6 +9,7 @@
 #pragma comment(lib, "winmm.lib")
 
 #include "base/basictypes.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_util.h"
@@ -309,6 +310,8 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
 void PCMWaveOutAudioOutputStream::WaveCallback(HWAVEOUT hwo, UINT msg,
                                                DWORD_PTR instance,
                                                DWORD_PTR param1, DWORD_PTR) {
+  TRACE_EVENT0("audio", "PCMWaveOutAudioOutputStream::WaveCallback");
+
   PCMWaveOutAudioOutputStream* obj =
       reinterpret_cast<PCMWaveOutAudioOutputStream*>(instance);
 
