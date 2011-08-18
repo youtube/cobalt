@@ -5,7 +5,6 @@ include_rules = [
   "+third_party/libevent",
   "+third_party/dmg_fp",
   "+third_party/GTM",
-  "+third_party/mach_override",
   "+third_party/modp_b64",
   "+third_party/tcmalloc",
 
