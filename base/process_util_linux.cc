@@ -718,6 +718,10 @@ int posix_memalign(void** ptr, size_t alignment, size_t size) {
 #endif  // !defined(USE_TCMALLOC)
 }  // extern C
 
+void EnableTerminationOnHeapCorruption() {
+  // On Linux, there nothing to do AFAIK.
+}
+
 void EnableTerminationOnOutOfMemory() {
 #if defined(OS_ANDROID)
   // Android doesn't support setting a new handler.
