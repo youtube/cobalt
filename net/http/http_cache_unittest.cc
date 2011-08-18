@@ -5125,7 +5125,7 @@ TEST(HttpCache, FilterCompletion) {
     trans->DoneReading();
   }
 
-  // Make sure that teh ActiveEntry is gone.
+  // Make sure that the ActiveEntry is gone.
   MessageLoop::current()->RunAllPending();
 
   // Read from the cache.
@@ -5134,4 +5134,49 @@ TEST(HttpCache, FilterCompletion) {
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
+}
+
+// Tests that we detect truncated rersources from the net when there is
+// a Content-Length header.
+TEST(HttpCache, TruncatedByContentLength) {
+  MockHttpCache cache;
+  TestCompletionCallback callback;
+
+  MockTransaction transaction(kSimpleGET_Transaction);
+  AddMockTransaction(&transaction);
+  transaction.response_headers = "Cache-Control: max-age=10000\n"
+                                 "Content-Length: 100\n";
+  RunTransactionTest(cache.http_cache(), transaction);
+  RemoveMockTransaction(&transaction);
+
+  // Read from the cache.
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
+}
+
+// Tests that we actually flag entries as truncated when we detect an error
+// from the net.
+TEST(HttpCache, TruncatedByContentLength2) {
+  MockHttpCache cache;
+  TestCompletionCallback callback;
+
+  MockTransaction transaction(kSimpleGET_Transaction);
+  AddMockTransaction(&transaction);
+  transaction.response_headers = "Cache-Control: max-age=10000\n"
+                                 "Content-Length: 100\n"
+                                 "Etag: foo\n";
+  RunTransactionTest(cache.http_cache(), transaction);
+  RemoveMockTransaction(&transaction);
+
+  // Verify that the entry is marked as incomplete.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.OpenBackendEntry(kSimpleGET_Transaction.url, &entry));
+  net::HttpResponseInfo response;
+  bool truncated = false;
+  EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_TRUE(truncated);
+  entry->Close();
 }
