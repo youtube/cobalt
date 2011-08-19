@@ -854,8 +854,10 @@ bool FileUtilProxy::Read(
     int64 offset,
     int bytes_to_read,
     ReadCallback* callback) {
-  if (bytes_to_read < 0)
+  if (bytes_to_read < 0) {
+    delete callback;
     return false;
+  }
   return Start(FROM_HERE, message_loop_proxy,
                new RelayRead(file, offset, bytes_to_read, callback));
 }
@@ -868,8 +870,10 @@ bool FileUtilProxy::Write(
     const char* buffer,
     int bytes_to_write,
     WriteCallback* callback) {
-  if (bytes_to_write <= 0)
+  if (bytes_to_write <= 0) {
+    delete callback;
     return false;
+  }
   return Start(FROM_HERE, message_loop_proxy,
                new RelayWrite(file, offset, buffer, bytes_to_write, callback));
 }
