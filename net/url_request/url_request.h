@@ -178,7 +178,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     friend class appcache::AppCacheInterceptor;
     friend class appcache::AppCacheRequestHandlerTest;
     friend class appcache::AppCacheURLRequestJobTest;
-    friend class chrome_browser_net::ConnectInterceptor;
     friend class fileapi::FileSystemDirURLRequestJobTest;
     friend class fileapi::FileSystemOperationWriteTest;
     friend class fileapi::FileSystemURLRequestJobTest;
