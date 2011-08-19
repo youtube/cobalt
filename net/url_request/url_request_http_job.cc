@@ -1260,27 +1260,6 @@ void URLRequestHttpJob::RecordTimer() {
                                    "Prefetch"),
         to_start);
   }
-
-  const bool is_prerender = !!(request_info_.load_flags & LOAD_PRERENDERING);
-  if (is_prerender) {
-    UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte_Prerender",
-                               to_start);
-    if (use_prefetch_histogram) {
-      UMA_HISTOGRAM_MEDIUM_TIMES(
-          base::FieldTrial::MakeName("Net.HttpTimeToFirstByte_Prerender",
-                                     "Prefetch"),
-          to_start);
-    }
-  } else {
-    UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte_NonPrerender",
-                               to_start);
-    if (use_prefetch_histogram) {
-      UMA_HISTOGRAM_MEDIUM_TIMES(
-          base::FieldTrial::MakeName("Net.HttpTimeToFirstByte_NonPrerender",
-                                     "Prefetch"),
-          to_start);
-    }
-  }
 }
 
 void URLRequestHttpJob::ResetTimer() {
