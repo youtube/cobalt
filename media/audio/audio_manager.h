@@ -8,6 +8,7 @@
 #include "base/basictypes.h"
 #include "base/string16.h"
 #include "base/task.h"
+#include "media/audio/audio_device_name.h"
 #include "media/audio/audio_parameters.h"
 
 class AudioInputStream;
@@ -45,6 +46,12 @@ class AudioManager {
   // threads to avoid blocking the rest of the application.
   virtual void ShowAudioInputSettings() = 0;
 
+  // Appends a list of available input devices. It is not guaranteed that
+  // all the devices in the list support all formats and sample rates for
+  // recording.
+  virtual void GetAudioInputDeviceNames(
+      media::AudioDeviceNames* device_names) = 0;
+
   // Factory for all the supported stream formats. |params| defines parameters
   // of the audio stream to be created.
   //
@@ -63,7 +70,8 @@ class AudioManager {
   //    available.
   //
   // Do not free the returned AudioOutputStream. It is owned by AudioManager.
-  virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params) = 0;
+  virtual AudioOutputStream* MakeAudioOutputStream(
+      const AudioParameters& params) = 0;
 
   // Creates new audio output proxy. A proxy implements
   // AudioOutputStream interface, but unlike regular output stream
@@ -84,7 +92,8 @@ class AudioManager {
   //
   // Do not free the returned AudioInputStream. It is owned by AudioManager.
   // When you are done with it, call |Stop()| and |Close()| to release it.
-  virtual AudioInputStream* MakeAudioInputStream(AudioParameters params) = 0;
+  virtual AudioInputStream* MakeAudioInputStream(
+      const AudioParameters& params) = 0;
 
   // Muting continues playback but effectively the volume is set to zero.
   // Un-muting returns the volume to the previous level.

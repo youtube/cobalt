@@ -40,13 +40,18 @@ class NET_API SpdySessionPool
       public SSLConfigService::Observer,
       public CertDatabase::Observer {
  public:
-  explicit SpdySessionPool(HostResolver* host_resolver,
-                           SSLConfigService* ssl_config_service);
+  SpdySessionPool(HostResolver* host_resolver,
+                  SSLConfigService* ssl_config_service);
   virtual ~SpdySessionPool();
 
   // Either returns an existing SpdySession or creates a new SpdySession for
   // use.
   scoped_refptr<SpdySession> Get(
+      const HostPortProxyPair& host_port_proxy_pair,
+      const BoundNetLog& net_log);
+
+  // Only returns a SpdySession if it already exists.
+  scoped_refptr<SpdySession> GetIfExists(
       const HostPortProxyPair& host_port_proxy_pair,
       const BoundNetLog& net_log);
 
@@ -75,7 +80,10 @@ class NET_API SpdySessionPool
       bool is_secure);
 
   // TODO(willchan): Consider renaming to HasReusableSession, since perhaps we
-  // should be creating a new session.
+  // should be creating a new session. WARNING: Because of IP connection pooling
+  // using the HostCache, if HasSession() returns true at one point, it does not
+  // imply the SpdySessionPool will still have a matching session in the near
+  // future, since the HostCache's entry may have expired.
   bool HasSession(const HostPortProxyPair& host_port_proxy_pair) const;
 
   // Close all SpdySessions, including any new ones created in the process of
@@ -91,7 +99,7 @@ class NET_API SpdySessionPool
 
   // Creates a Value summary of the state of the spdy session pool. The caller
   // responsible for deleting the returned value.
-  Value* SpdySessionPoolInfoToValue() const;
+  base::Value* SpdySessionPoolInfoToValue() const;
 
   SpdySettingsStorage* mutable_spdy_settings() { return &spdy_settings_; }
   const SpdySettingsStorage& spdy_settings() const { return spdy_settings_; }
@@ -128,6 +136,11 @@ class NET_API SpdySessionPool
   typedef std::map<HostPortProxyPair, SpdySessionList*> SpdySessionsMap;
   typedef std::map<IPEndPoint, HostPortProxyPair> SpdyAliasMap;
 
+
+  scoped_refptr<SpdySession> GetInternal(
+      const HostPortProxyPair& host_port_proxy_pair,
+      const BoundNetLog& net_log,
+      bool only_use_existing_sessions);
   scoped_refptr<SpdySession> GetExistingSession(
       SpdySessionList* list,
       const BoundNetLog& net_log) const;
@@ -150,8 +163,8 @@ class NET_API SpdySessionPool
   bool LookupAddresses(const HostPortProxyPair& pair,
                        AddressList* addresses) const;
 
-  // Add a set of |addresses| as IP-equivalent addresses for |pair|.
-  void AddAliases(const AddressList& addresses, const HostPortProxyPair& pair);
+  // Add |address| as an IP-equivalent address for |pair|.
+  void AddAlias(const addrinfo* address, const HostPortProxyPair& pair);
 
   // Remove all aliases for |pair| from the aliases table.
   void RemoveAliases(const HostPortProxyPair& pair);
@@ -168,7 +181,10 @@ class NET_API SpdySessionPool
   static bool g_enable_ip_pooling;
 
   const scoped_refptr<SSLConfigService> ssl_config_service_;
-  HostResolver* resolver_;
+  HostResolver* const resolver_;
+
+  // Defaults to true. May be controlled via SpdySessionPoolPeer for tests.
+  bool verify_domain_authentication_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdySessionPool);
 };

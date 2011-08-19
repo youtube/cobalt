@@ -20,13 +20,13 @@ bool AudioManagerOpenBSD::HasAudioInputDevices() {
 }
 
 AudioOutputStream* AudioManagerOpenBSD::MakeAudioOutputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   NOTIMPLEMENTED();
   return NULL;
 }
 
 AudioInputStream* AudioManagerOpenBSD::MakeAudioInputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   NOTIMPLEMENTED();
   return NULL;
 }

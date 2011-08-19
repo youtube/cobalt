@@ -5,6 +5,7 @@
 #ifndef MEDIA_BASE_PIPELINE_STATUS_H_
 #define MEDIA_BASE_PIPELINE_STATUS_H_
 
+#include "base/callback.h"
 #include "base/callback_old.h"
 
 namespace media {
@@ -34,6 +35,7 @@ enum PipelineStatus {
 };
 
 typedef Callback1<media::PipelineStatus>::Type PipelineStatusCallback;
+typedef base::Callback<void(PipelineStatus)> PipelineStatusCB;
 
 }  // namespace media
 

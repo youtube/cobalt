@@ -53,6 +53,17 @@ TEST(TemplateUtilTest, IsConvertible) {
   EXPECT_FALSE( (is_convertible<void*, int*>::value) );
 }
 
+TEST(TemplateUtilTest, IsSame) {
+  EXPECT_FALSE( (is_same<Child, Parent>::value) );
+  EXPECT_FALSE( (is_same<Parent, Child>::value) );
+  EXPECT_TRUE( (is_same<Parent, Parent>::value) );
+
+  EXPECT_TRUE( (is_same<int*, int*>::value) );
+  EXPECT_TRUE( (is_same<int, int>::value) );
+  EXPECT_TRUE( (is_same<void, void>::value) );
+  EXPECT_FALSE( (is_same<int, double>::value) );
+}
+
 TEST(TemplateUtilTest, IsClass) {
   EXPECT_TRUE(is_class<AStruct>::value);
   EXPECT_TRUE(is_class<AClass>::value);

@@ -12,6 +12,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/metrics/histogram.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/auth.h"
 #include "net/base/capturing_net_log.h"
@@ -115,7 +116,13 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
 }
 
 class HttpNetworkTransactionTest : public PlatformTest {
- public:
+ protected:
+  struct SimpleGetHelperResult {
+    int rv;
+    std::string status_line;
+    std::string response_data;
+  };
+
   virtual void SetUp() {
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
     MessageLoop::current()->RunAllPending();
@@ -133,14 +140,7 @@ class HttpNetworkTransactionTest : public PlatformTest {
     MessageLoop::current()->RunAllPending();
   }
 
- protected:
   void KeepAliveConnectionResendRequestTest(const MockRead& read_failure);
-
-  struct SimpleGetHelperResult {
-    int rv;
-    std::string status_line;
-    std::string response_data;
-  };
 
   SimpleGetHelperResult SimpleGetHelper(MockRead data_reads[],
                                         size_t reads_count) {
@@ -321,7 +321,7 @@ CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
     HostResolver* host_resolver,
     CertVerifier* cert_verifier)
     : SSLClientSocketPool(0, 0, NULL, host_resolver, cert_verifier, NULL, NULL,
-                          NULL, NULL, NULL, NULL, NULL, NULL, NULL) {}
+                          NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) {}
 
 //-----------------------------------------------------------------------------
 
@@ -332,6 +332,34 @@ static const char kExpectedNPNString[] = "\x08http/1.1\x06spdy/2";
 // This is the expected return from a current server advertising SPDY.
 static const char kAlternateProtocolHttpHeader[] =
     "Alternate-Protocol: 443:npn-spdy/2\r\n\r\n";
+
+TEST_F(HttpNetworkTransactionTest, LogNumRttVsBytesMetrics_WarmestSocket) {
+  MockRead data_reads[1000];
+  data_reads[0] = MockRead("HTTP/1.0 200 OK\r\n\r\n");
+  for (int i = 1; i < 999; i++) {
+    data_reads[i] = MockRead("Gagan is a good boy!");
+  }
+  data_reads[999] = MockRead(false, OK);
+
+  net::SetSocketReusePolicy(0);
+  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                              arraysize(data_reads));
+
+  base::Histogram* histogram = NULL;
+  base::StatisticsRecorder::FindHistogram(
+      "Net.Num_RTT_vs_KB_warmest_socket_15KB", &histogram);
+  CHECK(histogram);
+
+  base::Histogram::SampleSet sample_set;
+  histogram->SnapshotSample(&sample_set);
+  EXPECT_EQ(1, sample_set.TotalCount());
+
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.0 200 OK", out.status_line);
+}
+
+// TODO(gagansingh): Add test for LogNumRttVsBytesMetrics_LastAccessSocket once
+// it is possible to clear histograms from previous tests.
 
 TEST_F(HttpNetworkTransactionTest, Basic) {
   SessionDependencies session_deps;
@@ -4910,7 +4938,8 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_Referer) {
   request.method = "GET";
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
-  request.referrer = GURL("http://the.previous.site.com/");
+  request.extra_headers.SetHeader(HttpRequestHeaders::kReferer,
+                                  "http://the.previous.site.com/");
 
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
@@ -5187,6 +5216,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeadersStripped) {
     MockWrite("GET / HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Connection: keep-alive\r\n"
+              "referer: www.foo.com\r\n"
               "hEllo: Kitty\r\n"
               "FoO: bar\r\n\r\n"),
   };
@@ -5757,8 +5787,9 @@ TEST_F(HttpNetworkTransactionTest, ResolveMadeWithReferrer) {
   // Issue a request, containing an HTTP referrer.
   HttpRequestInfo request;
   request.method = "GET";
-  request.referrer = referrer;
   request.url = GURL("http://www.google.com/");
+  request.extra_headers.SetHeader(HttpRequestHeaders::kReferer,
+                                  referrer.spec());
 
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
@@ -5802,20 +5833,21 @@ void BypassHostCacheOnRefreshHelper(int load_flags) {
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
       CreateSession(&session_deps)));
 
-  // Warm up the host cache so it has an entry for "www.google.com" (by doing
-  // a synchronous lookup.)
+  // Warm up the host cache so it has an entry for "www.google.com".
   AddressList addrlist;
+  TestCompletionCallback callback;
   int rv = session_deps.host_resolver->Resolve(
       HostResolver::RequestInfo(HostPortPair("www.google.com", 80)), &addrlist,
-      NULL, NULL, BoundNetLog());
+      &callback, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
 
   // Verify that it was added to host cache, by doing a subsequent async lookup
   // and confirming it completes synchronously.
-  TestCompletionCallback resolve_callback;
   rv = session_deps.host_resolver->Resolve(
       HostResolver::RequestInfo(HostPortPair("www.google.com", 80)), &addrlist,
-      &resolve_callback, NULL, BoundNetLog());
+      &callback, NULL, BoundNetLog());
   ASSERT_EQ(OK, rv);
 
   // Inject a failure the next time that "www.google.com" is resolved. This way
@@ -5830,7 +5862,6 @@ void BypassHostCacheOnRefreshHelper(int load_flags) {
   session_deps.socket_factory.AddSocketDataProvider(&data);
 
   // Run the request.
-  TestCompletionCallback callback;
   rv = trans->Start(&request, &callback, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
@@ -7067,9 +7098,11 @@ TEST_F(HttpNetworkTransactionTest,
   SSLConfig ssl_config;
   session->ssl_config_service()->GetSSLConfig(&ssl_config);
   scoped_ptr<ClientSocketHandle> ssl_connection(new ClientSocketHandle);
+  SSLClientSocketContext context;
+  context.cert_verifier = session_deps.cert_verifier.get();
   ssl_connection->set_socket(session_deps.socket_factory.CreateSSLClientSocket(
       connection.release(), HostPortPair("" , 443), ssl_config,
-      NULL /* ssl_host_info */, session_deps.cert_verifier.get(), NULL));
+      NULL /* ssl_host_info */, context));
   EXPECT_EQ(ERR_IO_PENDING, ssl_connection->socket()->Connect(&callback));
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -8669,6 +8702,309 @@ TEST_F(HttpNetworkTransactionTest, ClientAuthCertCache_Proxy_Fail) {
     ASSERT_FALSE(session->ssl_client_auth_cache()->Lookup("www.example.com:443",
                                                           &client_cert));
   }
+}
+
+void IPPoolingAddAlias(MockCachingHostResolver* host_resolver,
+                       SpdySessionPoolPeer* pool_peer,
+                       std::string host,
+                       int port,
+                       std::string iplist) {
+  // Create a host resolver dependency that returns address |iplist| for
+  // resolutions of |host|.
+  host_resolver->rules()->AddIPLiteralRule(host, iplist, "");
+
+  // Setup a HostPortProxyPair.
+  HostPortPair host_port_pair(host, port);
+  HostPortProxyPair pair = HostPortProxyPair(host_port_pair,
+                                             ProxyServer::Direct());
+
+  // Resolve the host and port.
+  AddressList addresses;
+  HostResolver::RequestInfo info(host_port_pair);
+  TestCompletionCallback callback;
+  int rv = host_resolver->Resolve(info, &addresses, &callback, NULL,
+                                  BoundNetLog());
+  if (rv == ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  DCHECK_EQ(OK, rv);
+
+  // Add the first address as an alias. It would have been better to call
+  // MockClientSocket::GetPeerAddress but that returns 192.0.2.33 whereas
+  // MockHostResolver returns 127.0.0.1 (MockHostResolverBase::Reset). So we use
+  // the first address (127.0.0.1) returned by MockHostResolver as an alias for
+  // the |pair|.
+  const addrinfo* address = addresses.head();
+  pool_peer->AddAlias(address, pair);
+}
+
+TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::set_next_protos(kExpectedNPNString);
+
+  // Set up a special HttpNetworkSession with a MockCachingHostResolver.
+  SessionDependencies session_deps;
+  MockCachingHostResolver host_resolver;
+  net::HttpNetworkSession::Params params;
+  params.client_socket_factory = &session_deps.socket_factory;
+  params.host_resolver = &host_resolver;
+  params.cert_verifier = session_deps.cert_verifier.get();
+  params.proxy_service = session_deps.proxy_service.get();
+  params.ssl_config_service = session_deps.ssl_config_service;
+  params.http_auth_handler_factory =
+      session_deps.http_auth_handler_factory.get();
+  params.net_log = session_deps.net_log;
+  scoped_refptr<HttpNetworkSession> session(new HttpNetworkSession(params));
+  SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
+  pool_peer.DisableDomainAuthenticationVerification();
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  ssl.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  scoped_ptr<spdy::SpdyFrame> host1_req(ConstructSpdyGet(
+      "https://www.google.com", false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> host2_req(ConstructSpdyGet(
+      "https://www.gmail.com", false, 3, LOWEST));
+  MockWrite spdy_writes[] = {
+    CreateMockWrite(*host1_req, 1),
+    CreateMockWrite(*host2_req, 4),
+  };
+  scoped_ptr<spdy::SpdyFrame> host1_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> host1_resp_body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame> host2_resp(ConstructSpdyGetSynReply(NULL, 0, 3));
+  scoped_ptr<spdy::SpdyFrame> host2_resp_body(ConstructSpdyBodyFrame(3, true));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*host1_resp, 2),
+    CreateMockRead(*host1_resp_body, 3),
+    CreateMockRead(*host2_resp, 5),
+    CreateMockRead(*host2_resp_body, 6),
+    MockRead(true, 0, 7),
+  };
+
+  scoped_refptr<OrderedSocketData> spdy_data(
+      new OrderedSocketData(
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  TestCompletionCallback callback;
+  HttpRequestInfo request1;
+  request1.method = "GET";
+  request1.url = GURL("https://www.google.com/");
+  request1.load_flags = 0;
+  HttpNetworkTransaction trans1(session);
+
+  int rv = trans1.Start(&request1, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans1.GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(&trans1, &response_data));
+  EXPECT_EQ("hello!", response_data);
+
+  // Preload www.gmail.com into HostCache.
+  HostPortPair host_port("www.gmail.com", 443);
+  HostResolver::RequestInfo resolve_info(host_port);
+  AddressList ignored;
+  rv = host_resolver.Resolve(resolve_info, &ignored, &callback, NULL,
+                             BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  // MockHostResolver returns 127.0.0.1, port 443 for https://www.google.com/
+  // and https://www.gmail.com/. Add 127.0.0.1 as alias for host_port_pair:
+  // (www.google.com, 443).
+  IPPoolingAddAlias(&host_resolver, &pool_peer, "www.google.com", 443,
+                    "127.0.0.1");
+
+  HttpRequestInfo request2;
+  request2.method = "GET";
+  request2.url = GURL("https://www.gmail.com/");
+  request2.load_flags = 0;
+  HttpNetworkTransaction trans2(session);
+
+  rv = trans2.Start(&request2, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  response = trans2.GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  EXPECT_TRUE(response->was_npn_negotiated);
+  ASSERT_EQ(OK, ReadTransaction(&trans2, &response_data));
+  EXPECT_EQ("hello!", response_data);
+
+  HttpStreamFactory::set_next_protos("");
+  HttpStreamFactory::set_use_alternate_protocols(false);
+}
+
+class OneTimeCachingHostResolver : public net::HostResolver {
+ public:
+  explicit OneTimeCachingHostResolver(const HostPortPair& host_port)
+      : host_port_(host_port) {}
+  virtual ~OneTimeCachingHostResolver() {}
+
+  RuleBasedHostResolverProc* rules() { return host_resolver_.rules(); }
+
+  // HostResolver methods:
+  virtual int Resolve(const RequestInfo& info,
+                      AddressList* addresses,
+                      CompletionCallback* callback,
+                      RequestHandle* out_req,
+                      const BoundNetLog& net_log) OVERRIDE {
+    return host_resolver_.Resolve(
+        info, addresses, callback, out_req, net_log);
+  }
+
+  virtual int ResolveFromCache(const RequestInfo& info,
+                               AddressList* addresses,
+                               const BoundNetLog& net_log) OVERRIDE {
+    int rv = host_resolver_.ResolveFromCache(info, addresses, net_log);
+    if (rv == OK && info.host_port_pair().Equals(host_port_))
+      host_resolver_.Reset(NULL);
+    return rv;
+  }
+
+  virtual void CancelRequest(RequestHandle req) OVERRIDE {
+    host_resolver_.CancelRequest(req);
+  }
+
+  virtual void AddObserver(Observer* observer) OVERRIDE {
+    return host_resolver_.AddObserver(observer);
+  }
+
+  virtual void RemoveObserver(Observer* observer) OVERRIDE{
+    return host_resolver_.RemoveObserver(observer);
+  }
+
+  MockCachingHostResolver* GetMockHostResolver() {
+    return &host_resolver_;
+  }
+
+ private:
+  MockCachingHostResolver host_resolver_;
+  const HostPortPair host_port_;
+};
+
+TEST_F(HttpNetworkTransactionTest,
+       UseIPConnectionPoolingWithHostCacheExpiration) {
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::set_next_protos(kExpectedNPNString);
+
+  // Set up a special HttpNetworkSession with a OneTimeCachingHostResolver.
+  SessionDependencies session_deps;
+  OneTimeCachingHostResolver host_resolver(HostPortPair("www.gmail.com", 443));
+  net::HttpNetworkSession::Params params;
+  params.client_socket_factory = &session_deps.socket_factory;
+  params.host_resolver = &host_resolver;
+  params.cert_verifier = session_deps.cert_verifier.get();
+  params.proxy_service = session_deps.proxy_service.get();
+  params.ssl_config_service = session_deps.ssl_config_service;
+  params.http_auth_handler_factory =
+      session_deps.http_auth_handler_factory.get();
+  params.net_log = session_deps.net_log;
+  scoped_refptr<HttpNetworkSession> session(new HttpNetworkSession(params));
+  SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
+  pool_peer.DisableDomainAuthenticationVerification();
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  ssl.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  scoped_ptr<spdy::SpdyFrame> host1_req(ConstructSpdyGet(
+      "https://www.google.com", false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> host2_req(ConstructSpdyGet(
+      "https://www.gmail.com", false, 3, LOWEST));
+  MockWrite spdy_writes[] = {
+    CreateMockWrite(*host1_req, 1),
+    CreateMockWrite(*host2_req, 4),
+  };
+  scoped_ptr<spdy::SpdyFrame> host1_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> host1_resp_body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame> host2_resp(ConstructSpdyGetSynReply(NULL, 0, 3));
+  scoped_ptr<spdy::SpdyFrame> host2_resp_body(ConstructSpdyBodyFrame(3, true));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*host1_resp, 2),
+    CreateMockRead(*host1_resp_body, 3),
+    CreateMockRead(*host2_resp, 5),
+    CreateMockRead(*host2_resp_body, 6),
+    MockRead(true, 0, 7),
+  };
+
+  scoped_refptr<OrderedSocketData> spdy_data(
+      new OrderedSocketData(
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  TestCompletionCallback callback;
+  HttpRequestInfo request1;
+  request1.method = "GET";
+  request1.url = GURL("https://www.google.com/");
+  request1.load_flags = 0;
+  HttpNetworkTransaction trans1(session);
+
+  int rv = trans1.Start(&request1, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans1.GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(&trans1, &response_data));
+  EXPECT_EQ("hello!", response_data);
+
+  // Preload cache entries into HostCache.
+  HostResolver::RequestInfo resolve_info(HostPortPair("www.gmail.com", 443));
+  AddressList ignored;
+  rv = host_resolver.Resolve(resolve_info, &ignored, &callback, NULL,
+                             BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  HttpRequestInfo request2;
+  request2.method = "GET";
+  request2.url = GURL("https://www.gmail.com/");
+  request2.load_flags = 0;
+  HttpNetworkTransaction trans2(session);
+
+  // MockHostResolver returns 127.0.0.1, port 443 for https://www.google.com/
+  // and https://www.gmail.com/. Add 127.0.0.1 as alias for host_port_pair:
+  // (www.google.com, 443).
+  IPPoolingAddAlias(host_resolver.GetMockHostResolver(), &pool_peer,
+                    "www.google.com", 443, "127.0.0.1");
+
+  rv = trans2.Start(&request2, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  response = trans2.GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  EXPECT_TRUE(response->was_npn_negotiated);
+  ASSERT_EQ(OK, ReadTransaction(&trans2, &response_data));
+  EXPECT_EQ("hello!", response_data);
+
+  HttpStreamFactory::set_next_protos("");
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 }  // namespace net

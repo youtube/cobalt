@@ -144,7 +144,7 @@ class NET_API HttpCache : public HttpTransactionFactory,
             NetLog* net_log,
             BackendFactory* backend_factory);
 
-  ~HttpCache();
+  virtual ~HttpCache();
 
   HttpTransactionFactory* network_layer() { return network_layer_.get(); }
 
@@ -178,6 +178,10 @@ class NET_API HttpCache : public HttpTransactionFactory,
   // recycled connections.  For sockets currently in use, they may not close
   // immediately, but they will not be reusable. This is for debugging.
   void CloseAllConnections();
+
+  // Called whenever an external cache in the system reuses the resource
+  // referred to by |url| and |http_method|.
+  void OnExternalCacheHit(const GURL& url, const std::string& http_method);
 
   // HttpTransactionFactory implementation:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
@@ -344,7 +348,6 @@ class NET_API HttpCache : public HttpTransactionFactory,
 
   // Processes the backend creation notification.
   void OnBackendCreated(int result, PendingOp* pending_op);
-
 
   // Variables ----------------------------------------------------------------
 

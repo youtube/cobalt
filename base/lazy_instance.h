@@ -39,7 +39,7 @@
 #include <new>  // For placement new.
 
 #include "base/atomicops.h"
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_restrictions.h"
@@ -81,7 +81,7 @@ void (*LeakyLazyInstanceTraits<Type>::Delete)(void* instance) = NULL;
 
 // We pull out some of the functionality into a non-templated base, so that we
 // can implement the more complicated pieces out of line in the .cc file.
-class BASE_API LazyInstanceHelper {
+class BASE_EXPORT LazyInstanceHelper {
  protected:
   enum {
     STATE_EMPTY    = 0,

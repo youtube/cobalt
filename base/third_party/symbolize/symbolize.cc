@@ -99,7 +99,6 @@ _END_GOOGLE_NAMESPACE_
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <link.h>  // For ElfW() macro.
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

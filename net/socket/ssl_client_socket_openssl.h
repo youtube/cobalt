@@ -39,7 +39,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   SSLClientSocketOpenSSL(ClientSocketHandle* transport_socket,
                          const HostPortPair& host_and_port,
                          const SSLConfig& ssl_config,
-                         CertVerifier* cert_verifier);
+                         const SSLClientSocketContext& context);
   ~SSLClientSocketOpenSSL();
 
   const HostPortPair& host_and_port() const { return host_and_port_; }
@@ -55,6 +55,10 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   // SSLClientSocket methods:
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
+  virtual int ExportKeyingMaterial(const base::StringPiece& label,
+                                   const base::StringPiece& context,
+                                   unsigned char *out,
+                                   unsigned int outlen);
   virtual NextProtoStatus GetNextProto(std::string* proto);
 
   // StreamSocket methods:
@@ -69,6 +73,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   virtual void SetOmniboxSpeculation();
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
+  virtual int64 NumBytesRead() const;
+  virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);

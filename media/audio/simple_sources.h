@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -56,8 +56,9 @@ class PushAudioOutput {
 // a pull model provider AudioSourceCallback. Fundamentally it manages a series
 // of audio buffers and is unaware of the actual audio format.
 // Note that the PushSource is not thread safe and user need to provide locking.
-class PushSource : public AudioOutputStream::AudioSourceCallback,
-                   public PushAudioOutput {
+class PushSource
+    : public AudioOutputStream::AudioSourceCallback,
+      public PushAudioOutput {
  public:
   PushSource();
   virtual ~PushSource();

@@ -10,12 +10,19 @@
 
 namespace net {
 
+class BoundNetLog;
 class IPEndPoint;
 
 // A datagram socket is an interface to a protocol which exchanges
 // datagrams, like UDP.
 class NET_TEST DatagramSocket {
  public:
+  // Type of source port binding to use.
+  enum BindType {
+    RANDOM_BIND,
+    DEFAULT_BIND,
+  };
+
   virtual ~DatagramSocket() {}
 
   // Close the socket.
@@ -27,6 +34,9 @@ class NET_TEST DatagramSocket {
   // Copy the local udp address into |address| and return a network error code.
   // (similar to getsockname)
   virtual int GetLocalAddress(IPEndPoint* address) const = 0;
+
+  // Gets the NetLog for this socket.
+  virtual const BoundNetLog& NetLog() const = 0;
 };
 
 }  // namespace net

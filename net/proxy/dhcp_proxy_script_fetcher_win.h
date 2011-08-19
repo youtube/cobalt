@@ -11,7 +11,9 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
+#include "base/message_loop_proxy.h"
 #include "base/threading/non_thread_safe.h"
+#include "base/time.h"
 #include "base/timer.h"
 #include "net/proxy/dhcp_proxy_script_fetcher.h"
 
@@ -23,6 +25,7 @@ class URLRequestContext;
 // Windows-specific implementation.
 class NET_TEST DhcpProxyScriptFetcherWin
     : public DhcpProxyScriptFetcher,
+      public base::SupportsWeakPtr<DhcpProxyScriptFetcherWin>,
       NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // Creates a DhcpProxyScriptFetcherWin that issues requests through
@@ -43,16 +46,78 @@ class NET_TEST DhcpProxyScriptFetcherWin
   static bool GetCandidateAdapterNames(std::set<std::string>* adapter_names);
 
  protected:
-  // Event/state transition handlers
-  void OnFetcherDone(int result);
-  void OnWaitTimer();
-  void TransitionToDone();
+  int num_pending_fetchers() const;
+
+  URLRequestContext* url_request_context() const;
+
+  // This inner class is used to encapsulate a worker thread that calls
+  // GetCandidateAdapterNames as it can take a couple of hundred
+  // milliseconds.
+  //
+  // TODO(joi): Replace with PostTaskAndReply once http://crbug.com/86301
+  // has been implemented.
+  class NET_TEST WorkerThread
+      : public base::RefCountedThreadSafe<WorkerThread> {
+   public:
+    // Creates and initializes (but does not start) the worker thread.
+    explicit WorkerThread(
+        const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner);
+    virtual ~WorkerThread();
+
+    // Starts the worker thread.
+    void Start();
+
+   protected:
+    WorkerThread();  // To override in unit tests only.
+    void Init(const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner);
+
+    // Virtual method introduced to allow unit testing.
+    virtual bool ImplGetCandidateAdapterNames(
+        std::set<std::string>* adapter_names);
+
+    // Callback for ThreadFunc; this executes back on the main thread,
+    // not the worker thread. May be overridden by unit tests.
+    virtual void OnThreadDone();
+
+   private:
+    // This is the method that runs on the worker thread.
+    void ThreadFunc();
+
+    // All work except ThreadFunc and (sometimes) destruction should occur
+    // on the thread that constructs the object.
+    base::ThreadChecker thread_checker_;
+
+    // May only be accessed on the thread that constructs the object.
+    base::WeakPtr<DhcpProxyScriptFetcherWin> owner_;
+
+    // Used by worker thread to post a message back to the original
+    // thread.  Fine to use a proxy since in the case where the original
+    // thread has gone away, that would mean the |owner_| object is gone
+    // anyway, so there is nobody to receive the result.
+    scoped_refptr<base::MessageLoopProxy> origin_loop_;
+
+    // This is constructed on the originating thread, then used on the
+    // worker thread, then used again on the originating thread only when
+    // the task has completed on the worker thread. No locking required.
+    std::set<std::string> adapter_names_;
+
+    DISALLOW_COPY_AND_ASSIGN(WorkerThread);
+  };
 
   // Virtual methods introduced to allow unit testing.
   virtual DhcpProxyScriptAdapterFetcher* ImplCreateAdapterFetcher();
-  virtual bool ImplGetCandidateAdapterNames(
-      std::set<std::string>* adapter_names);
+  virtual WorkerThread* ImplCreateWorkerThread(
+      const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner);
   virtual int ImplGetMaxWaitMs();
+
+ private:
+  // Event/state transition handlers
+  void CancelImpl();
+  void OnGetCandidateAdapterNamesDone(
+      const std::set<std::string>& adapter_names);
+  void OnFetcherDone(int result);
+  void OnWaitTimer();
+  void TransitionToDone();
 
   // This is the outer state machine for fetching PAC configuration from
   // DHCP.  It relies for sub-states on the state machine of the
@@ -66,7 +131,9 @@ class NET_TEST DhcpProxyScriptFetcherWin
   //    it has completed for the fastest adapter, return the PAC file
   //    available for the most preferred network adapter, if any.
   //
-  // The state machine goes from START->NO_RESULTS when it creates
+  // The state machine goes from START->WAIT_ADAPTERS when it starts a
+  // worker thread to get the list of adapters with DHCP enabled.
+  // It then goes from WAIT_ADAPTERS->NO_RESULTS when it creates
   // and starts an DhcpProxyScriptAdapterFetcher for each adapter.  It goes
   // from NO_RESULTS->SOME_RESULTS when it gets the first result; at this
   // point a wait timer is started.  It goes from SOME_RESULTS->DONE in
@@ -81,6 +148,7 @@ class NET_TEST DhcpProxyScriptFetcherWin
   // allowed to be outstanding at any given time.
   enum State {
     STATE_START,
+    STATE_WAIT_ADAPTERS,
     STATE_NO_RESULTS,
     STATE_SOME_RESULTS,
     STATE_DONE,
@@ -114,6 +182,11 @@ class NET_TEST DhcpProxyScriptFetcherWin
   base::OneShotTimer<DhcpProxyScriptFetcherWin> wait_timer_;
 
   scoped_refptr<URLRequestContext> url_request_context_;
+
+  scoped_refptr<WorkerThread> worker_thread_;
+
+  // Time |Fetch()| was last called, 0 if never.
+  base::TimeTicks fetch_start_time_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(DhcpProxyScriptFetcherWin);
 };

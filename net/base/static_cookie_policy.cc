@@ -31,9 +31,9 @@ int StaticCookiePolicy::CanGetCookies(
   }
 }
 
-int StaticCookiePolicy::CanSetCookie(const GURL& url,
-                                     const GURL& first_party_for_cookies,
-                                     const std::string& cookie_line) const {
+int StaticCookiePolicy::CanSetCookie(
+    const GURL& url,
+    const GURL& first_party_for_cookies) const {
   switch (type_) {
     case StaticCookiePolicy::ALLOW_ALL_COOKIES:
       return OK;

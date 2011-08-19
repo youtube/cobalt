@@ -7,11 +7,12 @@
 using base::Time;
 using base::TimeDelta;
 
-AudioInputStream* FakeAudioInputStream::MakeFakeStream(AudioParameters params) {
+AudioInputStream* FakeAudioInputStream::MakeFakeStream(
+    const AudioParameters& params) {
   return new FakeAudioInputStream(params);
 }
 
-FakeAudioInputStream::FakeAudioInputStream(AudioParameters params)
+FakeAudioInputStream::FakeAudioInputStream(const AudioParameters& params)
     : callback_(NULL),
       buffer_size_((params.channels * params.bits_per_sample *
                     params.samples_per_packet) / 8),

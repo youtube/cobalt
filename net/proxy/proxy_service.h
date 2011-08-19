@@ -292,12 +292,12 @@ class NET_API ProxyService : public NetworkChangeNotifier::IPAddressObserver,
 
   // NetworkChangeNotifier::IPAddressObserver
   // When this is called, we re-fetch PAC scripts and re-run WPAD.
-  virtual void OnIPAddressChanged();
+  virtual void OnIPAddressChanged() OVERRIDE;
 
   // ProxyConfigService::Observer
   virtual void OnProxyConfigChanged(
       const ProxyConfig& config,
-      ProxyConfigService::ConfigAvailability availability);
+      ProxyConfigService::ConfigAvailability availability) OVERRIDE;
 
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;
@@ -362,7 +362,7 @@ class NET_API ProxyService : public NetworkChangeNotifier::IPAddressObserver,
 };
 
 // Wrapper for invoking methods on a ProxyService synchronously.
-class SyncProxyServiceHelper
+class NET_API SyncProxyServiceHelper
     : public base::RefCountedThreadSafe<SyncProxyServiceHelper> {
  public:
   SyncProxyServiceHelper(MessageLoop* io_message_loop,

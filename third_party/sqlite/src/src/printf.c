@@ -5,8 +5,6 @@
 ** an historical reference.  Most of the "enhancements" have been backed
 ** out so that the functionality is now the same as standard printf().
 **
-** $Id: printf.c,v 1.104 2009/06/03 01:24:54 drh Exp $
-**
 **************************************************************************
 **
 ** The following modules is an enhanced replacement for the "printf" subroutines
@@ -402,7 +400,11 @@ void sqlite3VXPrintf(
             v = va_arg(ap,int);
           }
           if( v<0 ){
-            longvalue = -v;
+            if( v==SMALLEST_INT64 ){
+              longvalue = ((u64)1)<<63;
+            }else{
+              longvalue = -v;
+            }
             prefix = '-';
           }else{
             longvalue = v;
@@ -462,7 +464,9 @@ void sqlite3VXPrintf(
       case etEXP:
       case etGENERIC:
         realvalue = va_arg(ap,double);
-#ifndef SQLITE_OMIT_FLOATING_POINT
+#ifdef SQLITE_OMIT_FLOATING_POINT
+        length = 0;
+#else
         if( precision<0 ) precision = 6;         /* Set default precision */
         if( precision>etBUFSIZE/2-10 ) precision = etBUFSIZE/2-10;
         if( realvalue<0.0 ){
@@ -608,7 +612,7 @@ void sqlite3VXPrintf(
           while( nPad-- ) bufpt[i++] = '0';
           length = width;
         }
-#endif
+#endif /* !defined(SQLITE_OMIT_FLOATING_POINT) */
         break;
       case etSIZE:
         *(va_arg(ap,int*)) = pAccum->nChar;
@@ -647,14 +651,15 @@ void sqlite3VXPrintf(
       case etSQLESCAPE:
       case etSQLESCAPE2:
       case etSQLESCAPE3: {
-        int i, j, n, isnull;
+        int i, j, k, n, isnull;
         int needQuote;
         char ch;
         char q = ((xtype==etSQLESCAPE3)?'"':'\'');   /* Quote character */
         char *escarg = va_arg(ap,char*);
         isnull = escarg==0;
         if( isnull ) escarg = (xtype==etSQLESCAPE2 ? "NULL" : "(NULL)");
-        for(i=n=0; (ch=escarg[i])!=0; i++){
+        k = precision;
+        for(i=n=0; k!=0 && (ch=escarg[i])!=0; i++, k--){
           if( ch==q )  n++;
         }
         needQuote = !isnull && xtype==etSQLESCAPE2;
@@ -670,15 +675,17 @@ void sqlite3VXPrintf(
         }
         j = 0;
         if( needQuote ) bufpt[j++] = q;
-        for(i=0; (ch=escarg[i])!=0; i++){
-          bufpt[j++] = ch;
+        k = i;
+        for(i=0; i<k; i++){
+          bufpt[j++] = ch = escarg[i];
           if( ch==q ) bufpt[j++] = ch;
         }
         if( needQuote ) bufpt[j++] = q;
         bufpt[j] = 0;
         length = j;
-        /* The precision is ignored on %q and %Q */
-        /* if( precision>=0 && precision<length ) length = precision; */
+        /* The precision in %q and %Q means how many input characters to
+        ** consume, not the length of the output...
+        ** if( precision>=0 && precision<length ) length = precision; */
         break;
       }
       case etTOKEN: {
@@ -760,6 +767,7 @@ void sqlite3StrAccumAppend(StrAccum *p, const char *z, int N){
         return;
       }
     }else{
+      char *zOld = (p->zText==p->zBase ? 0 : p->zText);
       i64 szNew = p->nChar;
       szNew += N + 1;
       if( szNew > p->mxAlloc ){
@@ -769,10 +777,13 @@ void sqlite3StrAccumAppend(StrAccum *p, const char *z, int N){
       }else{
         p->nAlloc = (int)szNew;
       }
-      zNew = sqlite3DbMallocRaw(p->db, p->nAlloc );
+      if( p->useMalloc==1 ){
+        zNew = sqlite3DbRealloc(p->db, zOld, p->nAlloc);
+      }else{
+        zNew = sqlite3_realloc(zOld, p->nAlloc);
+      }
       if( zNew ){
-        memcpy(zNew, p->zText, p->nChar);
-        sqlite3StrAccumReset(p);
+        if( zOld==0 ) memcpy(zNew, p->zText, p->nChar);
         p->zText = zNew;
       }else{
         p->mallocFailed = 1;
@@ -794,7 +805,11 @@ char *sqlite3StrAccumFinish(StrAccum *p){
   if( p->zText ){
     p->zText[p->nChar] = 0;
     if( p->useMalloc && p->zText==p->zBase ){
-      p->zText = sqlite3DbMallocRaw(p->db, p->nChar+1 );
+      if( p->useMalloc==1 ){
+        p->zText = sqlite3DbMallocRaw(p->db, p->nChar+1 );
+      }else{
+        p->zText = sqlite3_malloc(p->nChar+1);
+      }
       if( p->zText ){
         memcpy(p->zText, p->zBase, p->nChar+1);
       }else{
@@ -810,7 +825,11 @@ char *sqlite3StrAccumFinish(StrAccum *p){
 */
 void sqlite3StrAccumReset(StrAccum *p){
   if( p->zText!=p->zBase ){
-    sqlite3DbFree(p->db, p->zText);
+    if( p->useMalloc==1 ){
+      sqlite3DbFree(p->db, p->zText);
+    }else{
+      sqlite3_free(p->zText);
+    }
   }
   p->zText = 0;
 }
@@ -892,6 +911,7 @@ char *sqlite3_vmprintf(const char *zFormat, va_list ap){
   if( sqlite3_initialize() ) return 0;
 #endif
   sqlite3StrAccumInit(&acc, zBase, sizeof(zBase), SQLITE_MAX_LENGTH);
+  acc.useMalloc = 2;
   sqlite3VXPrintf(&acc, 0, zFormat, ap);
   z = sqlite3StrAccumFinish(&acc);
   return z;
@@ -918,22 +938,61 @@ char *sqlite3_mprintf(const char *zFormat, ...){
 ** current locale settings.  This is important for SQLite because we
 ** are not able to use a "," as the decimal point in place of "." as
 ** specified by some locales.
+**
+** Oops:  The first two arguments of sqlite3_snprintf() are backwards
+** from the snprintf() standard.  Unfortunately, it is too late to change
+** this without breaking compatibility, so we just have to live with the
+** mistake.
+**
+** sqlite3_vsnprintf() is the varargs version.
 */
+char *sqlite3_vsnprintf(int n, char *zBuf, const char *zFormat, va_list ap){
+  StrAccum acc;
+  if( n<=0 ) return zBuf;
+  sqlite3StrAccumInit(&acc, zBuf, n, 0);
+  acc.useMalloc = 0;
+  sqlite3VXPrintf(&acc, 0, zFormat, ap);
+  return sqlite3StrAccumFinish(&acc);
+}
 char *sqlite3_snprintf(int n, char *zBuf, const char *zFormat, ...){
   char *z;
   va_list ap;
-  StrAccum acc;
-
-  if( n<=0 ){
-    return zBuf;
-  }
-  sqlite3StrAccumInit(&acc, zBuf, n, 0);
-  acc.useMalloc = 0;
   va_start(ap,zFormat);
-  sqlite3VXPrintf(&acc, 0, zFormat, ap);
+  z = sqlite3_vsnprintf(n, zBuf, zFormat, ap);
   va_end(ap);
-  z = sqlite3StrAccumFinish(&acc);
   return z;
+}
+
+/*
+** This is the routine that actually formats the sqlite3_log() message.
+** We house it in a separate routine from sqlite3_log() to avoid using
+** stack space on small-stack systems when logging is disabled.
+**
+** sqlite3_log() must render into a static buffer.  It cannot dynamically
+** allocate memory because it might be called while the memory allocator
+** mutex is held.
+*/
+static void renderLogMsg(int iErrCode, const char *zFormat, va_list ap){
+  StrAccum acc;                          /* String accumulator */
+  char zMsg[SQLITE_PRINT_BUF_SIZE*3];    /* Complete log message */
+
+  sqlite3StrAccumInit(&acc, zMsg, sizeof(zMsg), 0);
+  acc.useMalloc = 0;
+  sqlite3VXPrintf(&acc, 0, zFormat, ap);
+  sqlite3GlobalConfig.xLog(sqlite3GlobalConfig.pLogArg, iErrCode,
+                           sqlite3StrAccumFinish(&acc));
+}
+
+/*
+** Format and write a message to the log if logging is enabled.
+*/
+void sqlite3_log(int iErrCode, const char *zFormat, ...){
+  va_list ap;                             /* Vararg list */
+  if( sqlite3GlobalConfig.xLog ){
+    va_start(ap, zFormat);
+    renderLogMsg(iErrCode, zFormat, ap);
+    va_end(ap);
+  }
 }
 
 #if defined(SQLITE_DEBUG)
@@ -954,5 +1013,17 @@ void sqlite3DebugPrintf(const char *zFormat, ...){
   sqlite3StrAccumFinish(&acc);
   fprintf(stdout,"%s", zBuf);
   fflush(stdout);
+}
+#endif
+
+#ifndef SQLITE_OMIT_TRACE
+/*
+** variable-argument wrapper around sqlite3VXPrintf().
+*/
+void sqlite3XPrintf(StrAccum *p, const char *zFormat, ...){
+  va_list ap;
+  va_start(ap,zFormat);
+  sqlite3VXPrintf(p, 1, zFormat, ap);
+  va_end(ap);
 }
 #endif

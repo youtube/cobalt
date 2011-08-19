@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -160,27 +160,9 @@ SyncHostResolverBridge::~SyncHostResolverBridge() {
   DCHECK(core_->HasShutdown());
 }
 
-int SyncHostResolverBridge::Resolve(const RequestInfo& info,
-                                    AddressList* addresses,
-                                    CompletionCallback* callback,
-                                    RequestHandle* out_req,
-                                    const BoundNetLog& net_log) {
-  DCHECK(!callback);
-  DCHECK(!out_req);
-
+int SyncHostResolverBridge::Resolve(const HostResolver::RequestInfo& info,
+                                    AddressList* addresses) {
   return core_->ResolveSynchronously(info, addresses);
-}
-
-void SyncHostResolverBridge::CancelRequest(RequestHandle req) {
-  NOTREACHED();
-}
-
-void SyncHostResolverBridge::AddObserver(Observer* observer) {
-  NOTREACHED();
-}
-
-void SyncHostResolverBridge::RemoveObserver(Observer* observer) {
-  NOTREACHED();
 }
 
 void SyncHostResolverBridge::Shutdown() {

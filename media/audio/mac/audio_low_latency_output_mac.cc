@@ -11,7 +11,22 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
-using media::SwizzleCoreAudioLayout5_1;
+// Reorder PCM from AAC layout to Core Audio 5.1 layout.
+// TODO(fbarchard): Switch layout when ffmpeg is updated.
+template<class Format>
+static void SwizzleCoreAudioLayout5_1(Format* b, uint32 filled) {
+  static const int kNumSurroundChannels = 6;
+  Format aac[kNumSurroundChannels];
+  for (uint32 i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
+    memcpy(aac, b, sizeof(aac));
+    b[0] = aac[1];  // L
+    b[1] = aac[2];  // R
+    b[2] = aac[0];  // C
+    b[3] = aac[5];  // LFE
+    b[4] = aac[3];  // Ls
+    b[5] = aac[4];  // Rs
+  }
+}
 
 // Overview of operation:
 // 1) An object of AUAudioOutputStream is created by the AudioManager
@@ -28,7 +43,7 @@ using media::SwizzleCoreAudioLayout5_1;
 // and notify the audio manager, which likely will destroy this object.
 
 AUAudioOutputStream::AUAudioOutputStream(
-    AudioManagerMac* manager, AudioParameters params)
+    AudioManagerMac* manager, const AudioParameters& params)
     : manager_(manager),
       source_(NULL),
       output_unit_(0),
@@ -47,6 +62,7 @@ AUAudioOutputStream::AUAudioOutputStream(
   format_.mFramesPerPacket = 1;
   format_.mBytesPerPacket = (format_.mBitsPerChannel * params.channels) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
+  format_.mReserved = 0;
 
   // Calculate the number of sample frames per callback.
   number_of_frames_ = params.GetPacketSize() / format_.mBytesPerPacket;

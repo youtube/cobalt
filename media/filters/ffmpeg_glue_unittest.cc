@@ -150,7 +150,7 @@ TEST_F(FFmpegGlueTest, OpenClose) {
   memset(&context, 0, sizeof(context));
 
   // Test opening a URLContext with a protocol that doesn't exist.
-  EXPECT_EQ(AVERROR_IO, protocol_->url_open(&context, "foobar", 0));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_open(&context, "foobar", 0));
 
   // Test opening a URLContext with our protocol.
   EXPECT_EQ(0, protocol_->url_open(&context, key.c_str(), 0));
@@ -190,9 +190,9 @@ TEST_F(FFmpegGlueTest, Write) {
   uint8 buffer[kBufferSize];
 
   // Writing should always fail and never call the protocol.
-  EXPECT_EQ(AVERROR_IO, protocol_->url_write(&context, NULL, 0));
-  EXPECT_EQ(AVERROR_IO, protocol_->url_write(&context, buffer, 0));
-  EXPECT_EQ(AVERROR_IO, protocol_->url_write(&context, buffer, kBufferSize));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_write(&context, NULL, 0));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_write(&context, buffer, 0));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_write(&context, buffer, kBufferSize));
 
   // Destroy the protocol.
   protocol_->url_close(&context);
@@ -218,7 +218,7 @@ TEST_F(FFmpegGlueTest, Read) {
 
   EXPECT_EQ(0, protocol_->url_read(&context, buffer, 0));
   EXPECT_EQ(kBufferSize, protocol_->url_read(&context, buffer, kBufferSize));
-  EXPECT_EQ(AVERROR_IO, protocol_->url_read(&context, buffer, kBufferSize));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_read(&context, buffer, kBufferSize));
 
   // Destroy the protocol.
   protocol_->url_close(&context);
@@ -241,7 +241,7 @@ TEST_F(FFmpegGlueTest, Seek) {
   EXPECT_CALL(*protocol, GetPosition(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(8), Return(true)));
 
-  EXPECT_EQ(AVERROR_IO, protocol_->url_seek(&context, -16, SEEK_SET));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, -16, SEEK_SET));
   EXPECT_EQ(8, protocol_->url_seek(&context, 16, SEEK_SET));
 
   // SEEK_CUR should call GetPosition() first, and if it succeeds add the offset
@@ -261,8 +261,8 @@ TEST_F(FFmpegGlueTest, Seek) {
   EXPECT_CALL(*protocol, GetPosition(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(16), Return(true)));
 
-  EXPECT_EQ(AVERROR_IO, protocol_->url_seek(&context, 8, SEEK_CUR));
-  EXPECT_EQ(AVERROR_IO, protocol_->url_seek(&context, 8, SEEK_CUR));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, 8, SEEK_CUR));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, 8, SEEK_CUR));
   EXPECT_EQ(16, protocol_->url_seek(&context, 8, SEEK_CUR));
 
   // SEEK_END should call GetSize() first, and if it succeeds add the offset
@@ -282,8 +282,8 @@ TEST_F(FFmpegGlueTest, Seek) {
   EXPECT_CALL(*protocol, GetPosition(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(8), Return(true)));
 
-  EXPECT_EQ(AVERROR_IO, protocol_->url_seek(&context, -8, SEEK_END));
-  EXPECT_EQ(AVERROR_IO, protocol_->url_seek(&context, -8, SEEK_END));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, -8, SEEK_END));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, -8, SEEK_END));
   EXPECT_EQ(8, protocol_->url_seek(&context, -8, SEEK_END));
 
   // AVSEEK_SIZE should be a straight-through call to GetSize().
@@ -293,7 +293,7 @@ TEST_F(FFmpegGlueTest, Seek) {
   EXPECT_CALL(*protocol, GetSize(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(16), Return(true)));
 
-  EXPECT_EQ(AVERROR_IO, protocol_->url_seek(&context, 0, AVSEEK_SIZE));
+  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, 0, AVSEEK_SIZE));
   EXPECT_EQ(16, protocol_->url_seek(&context, 0, AVSEEK_SIZE));
 
   // Destroy the protocol.

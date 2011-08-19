@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
+#include "base/string_piece.h"
 #include "net/base/net_api.h"
 #include "net/base/x509_certificate.h"
 
@@ -28,26 +29,31 @@ struct NET_API SSLConfig {
   // be NULL if user doesn't care about the cert status.
   bool IsAllowedBadCert(X509Certificate* cert, int* cert_status) const;
 
+  // Same as above except works with DER encoded certificates instead
+  // of X509Certificate.
+  bool IsAllowedBadCert(const base::StringPiece& der_cert,
+                        int* cert_status) const;
+
   bool rev_checking_enabled;  // True if server certificate revocation
                               // checking is enabled.
   // SSL 2.0 is not supported.
   bool ssl3_enabled;  // True if SSL 3.0 is enabled.
   bool tls1_enabled;  // True if TLS 1.0 is enabled.
-  bool dnssec_enabled;  // True if we'll accept DNSSEC chains in certificates.
   // True if we'll do async checks for certificate provenance using DNS.
   bool dns_cert_provenance_checking_enabled;
 
-  // Cipher suites which should be explicitly prevented from being used in
-  // addition to those disabled by the net built-in policy -- by default, all
-  // cipher suites supported by the underlying SSL implementation will be
-  // enabled except for:
+  // Presorted list of cipher suites which should be explicitly prevented from
+  // being used in addition to those disabled by the net built-in policy.
+  //
+  // By default, all cipher suites supported by the underlying SSL
+  // implementation will be enabled except for:
   // - Null encryption cipher suites.
   // - Weak cipher suites: < 80 bits of security strength.
   // - FORTEZZA cipher suites (obsolete).
   // - IDEA cipher suites (RFC 5469 explains why).
   // - Anonymous cipher suites.
   // The ciphers listed in |disabled_cipher_suites| will be removed in addition
-  // to the above statically defined disable list.
+  // to the above list.
   //
   // Though cipher suites are sent in TLS as "uint8 CipherSuite[2]", in
   // big-endian form, they should be declared in host byte order, with the
@@ -55,9 +61,12 @@ struct NET_API SSLConfig {
   // Ex: To disable TLS_RSA_WITH_RC4_128_MD5, specify 0x0004, while to
   // disable TLS_ECDH_ECDSA_WITH_RC4_128_SHA, specify 0xC002.
   //
-  // TODO(rsleevi): Not implemented when using Schannel.
+  // Note: Not implemented when using Schannel/SSLClientSocketWin.
   std::vector<uint16> disabled_cipher_suites;
 
+  bool cached_info_enabled;  // True if TLS cached info extension is enabled.
+  bool origin_bound_certs_enabled;  // True if TLS origin bound cert extension
+                                    // is enabled.
   bool false_start_enabled;  // True if we'll use TLS False Start.
 
   // TODO(wtc): move the following members to a new SSLParams structure.  They
@@ -67,7 +76,7 @@ struct NET_API SSLConfig {
     CertAndStatus();
     ~CertAndStatus();
 
-    scoped_refptr<X509Certificate> cert;
+    std::string der_cert;
     int cert_status;
   };
 
@@ -112,6 +121,7 @@ class NET_API SSLConfigService
     //     rev_checking_enabled
     //     ssl3_enabled
     //     tls1_enabled
+    //     disabled_cipher_suites
     virtual void OnSSLConfigChanged() = 0;
 
    protected:
@@ -134,11 +144,6 @@ class NET_API SSLConfigService
   // False Start.
   static bool IsKnownFalseStartIncompatibleServer(const std::string& hostname);
 
-  // Enables the acceptance of self-signed certificates which contain an
-  // embedded DNSSEC chain proving their validity.
-  static void EnableDNSSEC();
-  static bool dnssec_enabled();
-
   // Disables False Start in SSL connections.
   static void DisableFalseStart();
   // True if we use False Start for SSL and TLS.
@@ -147,6 +152,15 @@ class NET_API SSLConfigService
   // Enables DNS side checks for certificates.
   static void EnableDNSCertProvenanceChecking();
   static bool dns_cert_provenance_checking_enabled();
+
+  // Enables the TLS cached info extension, which allows the server to send
+  // just a digest of its certificate chain.
+  static void EnableCachedInfo();
+  static bool cached_info_enabled();
+
+  // Enables the TLS origin bound cert extension.
+  static void EnableOriginBoundCerts();
+  static bool origin_bound_certs_enabled();
 
   // Is SNI available in this configuration?
   static bool IsSNIAvailable(SSLConfigService* service);

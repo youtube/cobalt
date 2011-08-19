@@ -34,7 +34,7 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 // Chromium and Chromium OS check out gtest to different places, so we're
@@ -43,11 +43,11 @@
 #define FRIEND_TEST(test_case_name, test_name)\
 friend class test_case_name##_##test_name##_Test
 
-class Value;
-
 namespace base {
 
-class BASE_API JSONReader {
+class Value;
+
+class BASE_EXPORT JSONReader {
  public:
   // A struct to hold a JS token.
   class Token {

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_HTTP_HTTP_VARY_DATA_H__
-#define NET_HTTP_HTTP_VARY_DATA_H__
+#ifndef NET_HTTP_HTTP_VARY_DATA_H_
+#define NET_HTTP_HTTP_VARY_DATA_H_
 #pragma once
 
 #include "base/md5.h"
@@ -72,10 +72,10 @@ class NET_TEST HttpVaryData {
   // Append to the MD5 context for the given request header.
   static void AddField(const HttpRequestInfo& request_info,
                        const std::string& request_header,
-                       MD5Context* context);
+                       base::MD5Context* context);
 
   // A digested version of the request headers corresponding to the Vary header.
-  MD5Digest request_digest_;
+  base::MD5Digest request_digest_;
 
   // True when request_digest_ contains meaningful data.
   bool is_valid_;
@@ -83,4 +83,4 @@ class NET_TEST HttpVaryData {
 
 }  // namespace net
 
-#endif  // NET_HTTP_HTTP_VARY_DATA_H__
+#endif  // NET_HTTP_HTTP_VARY_DATA_H_

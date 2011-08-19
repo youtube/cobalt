@@ -18,6 +18,7 @@
 
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
+#include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
 #include "base/dir_reader_posix.h"
 #include "base/eintr_wrapper.h"
@@ -27,6 +28,7 @@
 #include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
@@ -34,7 +36,6 @@
 #if defined(OS_MACOSX)
 #include <crt_externs.h>
 #include <sys/event.h>
-#define environ (*_NSGetEnviron())
 #else
 extern char** environ;
 #endif
@@ -42,6 +43,26 @@ extern char** environ;
 namespace base {
 
 namespace {
+
+// Get the process's "environment" (i.e. the thing that setenv/getenv
+// work with).
+char** GetEnvironment() {
+#if defined(OS_MACOSX)
+  return *_NSGetEnviron();
+#else
+  return environ;
+#endif
+}
+
+// Set the process's "environment" (i.e. the thing that setenv/getenv
+// work with).
+void SetEnvironment(char** env) {
+#if defined(OS_MACOSX)
+  *_NSGetEnviron() = env;
+#else
+  environ = env;
+#endif
+}
 
 int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
                        bool* success) {
@@ -104,7 +125,12 @@ int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
   return status;
 }
 
+// Android has built-in crash handling.
+#if !defined(OS_ANDROID)
 void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
+  if (debug::BeingDebugged())
+    debug::BreakDebugger();
+
   LOG(ERROR) << "Received signal " << signal;
   debug::StackTrace().PrintBacktrace();
 
@@ -152,6 +178,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
 #endif  // defined(OS_MACOSX)
   _exit(1);
 }
+#endif  // !defined(OS_ANDROID)
 
 void ResetChildSignalHandlersToDefaults() {
   // The previous signal handlers are likely to be meaningless in the child's
@@ -223,6 +250,13 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
 
   if (result && wait) {
     int tries = 60;
+
+    if (RunningOnValgrind()) {
+      // Wait for some extra time when running under Valgrind since the child
+      // processes may take some time doing leak checking.
+      tries *= 2;
+    }
+
     // The process may not end immediately due to pending I/O
     bool exited = false;
     while (tries-- > 0) {
@@ -291,6 +325,9 @@ typedef scoped_ptr_malloc<DIR, ScopedDIRClose> ScopedDIR;
 #elif defined(OS_OPENBSD)
   static const rlim_t kSystemDefaultMaxFds = 256;
   static const char kFDDir[] = "/dev/fd";
+#elif defined(OS_ANDROID)
+  static const rlim_t kSystemDefaultMaxFds = 1024;
+  static const char kFDDir[] = "/proc/self/fd";
 #endif
 
 void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
@@ -490,21 +527,30 @@ char** AlterEnvironment(const environment_vector& changes,
   return ret;
 }
 
-bool LaunchAppImpl(
-    const std::vector<std::string>& argv,
-    const environment_vector& env_changes,
-    const file_handle_mapping_vector& fds_to_remap,
-    bool wait,
-    ProcessHandle* process_handle,
-    bool start_new_process_group) {
+bool LaunchProcess(const std::vector<std::string>& argv,
+                   const LaunchOptions& options,
+                   ProcessHandle* process_handle) {
   pid_t pid;
   InjectiveMultimap fd_shuffle1, fd_shuffle2;
-  fd_shuffle1.reserve(fds_to_remap.size());
-  fd_shuffle2.reserve(fds_to_remap.size());
+  if (options.fds_to_remap) {
+    fd_shuffle1.reserve(options.fds_to_remap->size());
+    fd_shuffle2.reserve(options.fds_to_remap->size());
+  }
   scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
-  scoped_array<char*> new_environ(AlterEnvironment(env_changes, environ));
+  scoped_array<char*> new_environ;
+  if (options.environ)
+    new_environ.reset(AlterEnvironment(*options.environ, GetEnvironment()));
 
-  pid = fork();
+  if (options.clone_flags) {
+#if defined(OS_LINUX)
+    pid = syscall(__NR_clone, options.clone_flags, 0, 0, 0);
+#else
+    pid = -1;  // hygiene; prevent clang warnings
+    NOTREACHED() << "Tried to use clone() on non-Linux system";
+#endif
+  } else {
+    pid = fork();
+  }
   if (pid < 0) {
     PLOG(ERROR) << "fork";
     return false;
@@ -534,7 +580,7 @@ bool LaunchAppImpl(
       _exit(127);
     }
 
-    if (start_new_process_group) {
+    if (options.new_process_group) {
       // Instead of inheriting the process group ID of the parent, the child
       // starts off a new process group with pgid equal to its process ID.
       if (setpgid(0, 0) < 0) {
@@ -560,13 +606,17 @@ bool LaunchAppImpl(
     // DANGER: no calls to malloc are allowed from now on:
     // http://crbug.com/36678
 
-    for (file_handle_mapping_vector::const_iterator
-        it = fds_to_remap.begin(); it != fds_to_remap.end(); ++it) {
-      fd_shuffle1.push_back(InjectionArc(it->first, it->second, false));
-      fd_shuffle2.push_back(InjectionArc(it->first, it->second, false));
+    if (options.fds_to_remap) {
+      for (file_handle_mapping_vector::const_iterator
+               it = options.fds_to_remap->begin();
+           it != options.fds_to_remap->end(); ++it) {
+        fd_shuffle1.push_back(InjectionArc(it->first, it->second, false));
+        fd_shuffle2.push_back(InjectionArc(it->first, it->second, false));
+      }
     }
 
-    environ = new_environ.get();
+    if (options.environ)
+      SetEnvironment(new_environ.get());
 
     // fd_shuffle1 is mutated by this call because it cannot malloc.
     if (!ShuffleFileDescriptors(&fd_shuffle1))
@@ -578,12 +628,12 @@ bool LaunchAppImpl(
       argv_cstr[i] = const_cast<char*>(argv[i].c_str());
     argv_cstr[argv.size()] = NULL;
     execvp(argv_cstr[0], argv_cstr.get());
-    RAW_LOG(ERROR, "LaunchApp: failed to execvp:");
+    RAW_LOG(ERROR, "LaunchProcess: failed to execvp:");
     RAW_LOG(ERROR, argv_cstr[0]);
     _exit(127);
   } else {
     // Parent process
-    if (wait) {
+    if (options.wait) {
       // While this isn't strictly disk IO, waiting for another process to
       // finish is the sort of thing ThreadRestrictions is trying to prevent.
       base::ThreadRestrictions::AssertIOAllowed();
@@ -598,38 +648,10 @@ bool LaunchAppImpl(
   return true;
 }
 
-bool LaunchApp(
-    const std::vector<std::string>& argv,
-    const environment_vector& env_changes,
-    const file_handle_mapping_vector& fds_to_remap,
-    bool wait,
-    ProcessHandle* process_handle) {
-  return LaunchAppImpl(argv, env_changes, fds_to_remap,
-                       wait, process_handle, false);
-}
-
-bool LaunchAppInNewProcessGroup(
-    const std::vector<std::string>& argv,
-    const environment_vector& env_changes,
-    const file_handle_mapping_vector& fds_to_remap,
-    bool wait,
-    ProcessHandle* process_handle) {
-  return LaunchAppImpl(argv, env_changes, fds_to_remap, wait,
-                       process_handle, true);
-}
-
-bool LaunchApp(const std::vector<std::string>& argv,
-               const file_handle_mapping_vector& fds_to_remap,
-               bool wait, ProcessHandle* process_handle) {
-  base::environment_vector no_env;
-  return LaunchApp(argv, no_env, fds_to_remap, wait, process_handle);
-}
-
-bool LaunchApp(const CommandLine& cl,
-               bool wait, bool start_hidden,
-               ProcessHandle* process_handle) {
-  file_handle_mapping_vector no_files;
-  return LaunchApp(cl.argv(), no_files, wait, process_handle);
+bool LaunchProcess(const CommandLine& cmdline,
+                   const LaunchOptions& options,
+                   ProcessHandle* process_handle) {
+  return LaunchProcess(cmdline.argv(), options, process_handle);
 }
 
 ProcessMetrics::~ProcessMetrics() { }
@@ -648,6 +670,8 @@ bool EnableInProcessStackDumping() {
   sigemptyset(&action.sa_mask);
   bool success = (sigaction(SIGPIPE, &action, NULL) == 0);
 
+  // Android has built-in crash handling, so no need to hook the signals.
+#if !defined(OS_ANDROID)
   sig_t handler = reinterpret_cast<sig_t>(&StackDumpSignalHandler);
   success &= (signal(SIGILL, handler) != SIG_ERR);
   success &= (signal(SIGABRT, handler) != SIG_ERR);
@@ -655,6 +679,7 @@ bool EnableInProcessStackDumping() {
   success &= (signal(SIGBUS, handler) != SIG_ERR);
   success &= (signal(SIGSEGV, handler) != SIG_ERR);
   success &= (signal(SIGSYS, handler) != SIG_ERR);
+#endif
 
   return success;
 }
@@ -837,18 +862,40 @@ int64 TimeValToMicroseconds(const struct timeval& tv) {
   return ret;
 }
 
+// Return value used by GetAppOutputInternal to encapsulate the various exit
+// scenarios from the function.
+enum GetAppOutputInternalResult {
+  EXECUTE_FAILURE,
+  EXECUTE_SUCCESS,
+  GOT_MAX_OUTPUT,
+};
+
 // Executes the application specified by |cl| and wait for it to exit. Stores
 // the output (stdout) in |output|. If |do_search_path| is set, it searches the
 // path for the application; in that case, |envp| must be null, and it will use
 // the current environment. If |do_search_path| is false, |cl| should fully
 // specify the path of the application, and |envp| will be used as the
-// environment. Redirects stderr to /dev/null. Returns true on success
-// (application launched and exited cleanly, with exit code indicating success).
-static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
-                                 std::string* output, size_t max_output,
-                                 bool do_search_path) {
+// environment. Redirects stderr to /dev/null.
+// If we successfully start the application and get all requested output, we
+// return GOT_MAX_OUTPUT, or if there is a problem starting or exiting
+// the application we return RUN_FAILURE. Otherwise we return EXECUTE_SUCCESS.
+// The GOT_MAX_OUTPUT return value exists so a caller that asks for limited
+// output can treat this as a success, despite having an exit code of SIG_PIPE
+// due to us closing the output pipe.
+// In the case of EXECUTE_SUCCESS, the application exit code will be returned
+// in |*exit_code|, which should be checked to determine if the application
+// ran successfully.
+static GetAppOutputInternalResult GetAppOutputInternal(const CommandLine& cl,
+                                                       char* const envp[],
+                                                       std::string* output,
+                                                       size_t max_output,
+                                                       bool do_search_path,
+                                                       int* exit_code) {
   // Doing a blocking wait for another command to finish counts as IO.
   base::ThreadRestrictions::AssertIOAllowed();
+  // exit_code must be supplied so calling function can determine success.
+  DCHECK(exit_code);
+  *exit_code = EXIT_FAILURE;
 
   int pipe_fd[2];
   pid_t pid;
@@ -864,13 +911,13 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
   DCHECK(!do_search_path ^ !envp);
 
   if (pipe(pipe_fd) < 0)
-    return false;
+    return EXECUTE_FAILURE;
 
   switch (pid = fork()) {
     case -1:  // error
       close(pipe_fd[0]);
       close(pipe_fd[1]);
-      return false;
+      return EXECUTE_FAILURE;
     case 0:  // child
       {
 #if defined(OS_MACOSX)
@@ -934,26 +981,28 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
         }
         close(pipe_fd[0]);
 
-        // Always wait for exit code (even if we know we'll declare success).
-        int exit_code = EXIT_FAILURE;
-        bool success = WaitForExitCode(pid, &exit_code);
+        // Always wait for exit code (even if we know we'll declare
+        // GOT_MAX_OUTPUT).
+        bool success = WaitForExitCode(pid, exit_code);
 
-        // If we stopped because we read as much as we wanted, we always declare
-        // success (because the child may exit due to |SIGPIPE|).
-        if (output_buf_left || bytes_read <= 0) {
-          if (!success || exit_code != EXIT_SUCCESS)
-            return false;
-        }
-
-        return true;
+        // If we stopped because we read as much as we wanted, we return
+        // GOT_MAX_OUTPUT (because the child may exit due to |SIGPIPE|).
+        if (!output_buf_left && bytes_read > 0)
+          return GOT_MAX_OUTPUT;
+        else if (success)
+          return EXECUTE_SUCCESS;
+        return EXECUTE_FAILURE;
       }
   }
 }
 
 bool GetAppOutput(const CommandLine& cl, std::string* output) {
   // Run |execve()| with the current environment and store "unlimited" data.
-  return GetAppOutputInternal(cl, NULL, output,
-                              std::numeric_limits<std::size_t>::max(), true);
+  int exit_code;
+  GetAppOutputInternalResult result = GetAppOutputInternal(
+      cl, NULL, output, std::numeric_limits<std::size_t>::max(), true,
+      &exit_code);
+  return result == EXECUTE_SUCCESS && exit_code == EXIT_SUCCESS;
 }
 
 // TODO(viettrungluu): Conceivably, we should have a timeout as well, so we
@@ -962,7 +1011,22 @@ bool GetAppOutputRestricted(const CommandLine& cl,
                             std::string* output, size_t max_output) {
   // Run |execve()| with the empty environment.
   char* const empty_environ = NULL;
-  return GetAppOutputInternal(cl, &empty_environ, output, max_output, false);
+  int exit_code;
+  GetAppOutputInternalResult result = GetAppOutputInternal(cl, &empty_environ,
+                                                           output, max_output,
+                                                           false, &exit_code);
+  return result == GOT_MAX_OUTPUT || (result == EXECUTE_SUCCESS &&
+                                      exit_code == EXIT_SUCCESS);
+}
+
+bool GetAppOutputWithExitCode(const CommandLine& cl,
+                              std::string* output,
+                              int* exit_code) {
+  // Run |execve()| with the current environment and store "unlimited" data.
+  GetAppOutputInternalResult result = GetAppOutputInternal(
+      cl, NULL, output, std::numeric_limits<std::size_t>::max(), true,
+      exit_code);
+  return result == EXECUTE_SUCCESS;
 }
 
 bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
@@ -982,7 +1046,7 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
       break;
     }
     base::PlatformThread::Sleep(100);
-  } while ((base::Time::Now() - end_time) > base::TimeDelta());
+  } while ((end_time - base::Time::Now()) > base::TimeDelta());
 
   return result;
 }

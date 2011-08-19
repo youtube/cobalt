@@ -37,7 +37,7 @@ SignatureCreator* SignatureCreator::Create(RSAPrivateKey* key) {
   return result.release();
 }
 
-SignatureCreator::SignatureCreator() : sig_handle_(0) {
+SignatureCreator::SignatureCreator() : key_(NULL), sig_handle_(0) {
   EnsureCSSMInit();
 }
 

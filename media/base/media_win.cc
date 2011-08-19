@@ -12,14 +12,6 @@
 #include "base/native_library.h"
 #include "base/path_service.h"
 
-// Enable timing code by turning on TESTING macro.
-//#define TESTING 1
-
-#ifdef TESTING
-#include "base/string_util.h"
-#include "base/time.h"
-#endif
-
 namespace media {
 
 enum FFmpegDLLKeys {
@@ -33,11 +25,11 @@ static FilePath::CharType* GetDLLName(FFmpegDLLKeys dll_key) {
   // TODO(ajwong): Do we want to lock to a specific ffmpeg version?
   switch (dll_key) {
     case FILE_LIBAVCODEC:
-      return FILE_PATH_LITERAL("avcodec-52.dll");
+      return FILE_PATH_LITERAL("avcodec-53.dll");
     case FILE_LIBAVFORMAT:
-      return FILE_PATH_LITERAL("avformat-52.dll");
+      return FILE_PATH_LITERAL("avformat-53.dll");
     case FILE_LIBAVUTIL:
-      return FILE_PATH_LITERAL("avutil-50.dll");
+      return FILE_PATH_LITERAL("avutil-51.dll");
     default:
       LOG(DFATAL) << "Invalid DLL key requested: " << dll_key;
       return FILE_PATH_LITERAL("");
@@ -61,9 +53,6 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
 
   for (size_t i = 0; i < arraysize(path_keys); ++i) {
     FilePath path = base_path.Append(GetDLLName(path_keys[i]));
-#ifdef TESTING
-    base::TimeTicks dll_loadtime_start = base::TimeTicks::HighResNow();
-#endif
 
     // Use alternate DLL search path so we don't load dependencies from the
     // system path.  Refer to http://crbug.com/35857
@@ -71,19 +60,12 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
     libs[i] = LoadLibraryEx(cpath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
     if (!libs[i])
       break;
-#ifdef TESTING
-    base::TimeTicks dll_loadtime_end = base::TimeTicks::HighResNow();
-    std::wstring outputbuf = StringPrintf(L"DLL loadtime %5.2f ms, %ls\n",
-        (dll_loadtime_end - dll_loadtime_start).InMillisecondsF(),
-        cpath);
-    OutputDebugStringW(outputbuf.c_str());
-#endif
   }
 
   // Check that we loaded all libraries successfully.  We only need to check the
   // last array element because the loop above will break without initializing
   // it on any prior error.
-  g_media_library_is_initialized = (libs[arraysize(libs)-1] != NULL);
+  g_media_library_is_initialized = (libs[arraysize(libs) - 1] != NULL);
 
   if (!g_media_library_is_initialized) {
     // Free any loaded libraries if we weren't successful.

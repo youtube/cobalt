@@ -18,6 +18,7 @@ namespace net {
 
 struct FtpDirectoryListingEntry {
   enum Type {
+    UNKNOWN,
     FILE,
     DIRECTORY,
     SYMLINK,

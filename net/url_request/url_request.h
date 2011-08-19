@@ -26,14 +26,59 @@
 #include "net/http/http_response_info.h"
 #include "net/url_request/url_request_status.h"
 
+class FilePath;
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+class AutoUpdateInterceptor;
+class ChildProcessSecurityPolicyTest;
+class ComponentUpdateInterceptor;
+class ResourceDispatcherHostTest;
+class TestAutomationProvider;
+class URLRequestAutomationJob;
+class UserScriptListenerTest;
+
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace appcache {
+class AppCacheInterceptor;
+class AppCacheRequestHandlerTest;
+class AppCacheURLRequestJobTest;
+}
+
 namespace base {
 class Time;
 }  // namespace base
 
-class FilePath;
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace chrome_browser_net {
+class ConnectInterceptor;
+}
+
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace fileapi {
+class FileSystemDirURLRequestJobTest;
+class FileSystemOperationWriteTest;
+class FileSystemURLRequestJobTest;
+class FileWriterDelegateTest;
+}
+
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace policy {
+class CannedResponseInterceptor;
+}
+
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace webkit_blob {
+class BlobURLRequestJobTest;
+}
 
 namespace net {
 
+class CookieList;
 class CookieOptions;
 class HostPortPair;
 class IOBuffer;
@@ -115,6 +160,43 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request);
   };
 
+  // Deprecated interfaces in net::URLRequest. They have been moved to
+  // URLRequest's private section to prevent new uses. Existing uses are
+  // explicitly friended here and should be removed over time.
+  class NET_API Deprecated {
+   private:
+    // TODO(willchan): Kill off these friend declarations.
+    friend class ::AutoUpdateInterceptor;
+    friend class ::ChildProcessSecurityPolicyTest;
+    friend class ::ComponentUpdateInterceptor;
+    friend class ::ResourceDispatcherHostTest;
+    friend class ::TestAutomationProvider;
+    friend class ::UserScriptListenerTest;
+    friend class ::URLRequestAutomationJob;
+    friend class TestInterceptor;
+    friend class URLRequestFilter;
+    friend class appcache::AppCacheInterceptor;
+    friend class appcache::AppCacheRequestHandlerTest;
+    friend class appcache::AppCacheURLRequestJobTest;
+    friend class chrome_browser_net::ConnectInterceptor;
+    friend class fileapi::FileSystemDirURLRequestJobTest;
+    friend class fileapi::FileSystemOperationWriteTest;
+    friend class fileapi::FileSystemURLRequestJobTest;
+    friend class fileapi::FileWriterDelegateTest;
+    friend class policy::CannedResponseInterceptor;
+    friend class webkit_blob::BlobURLRequestJobTest;
+
+    // Use URLRequestJobFactory::ProtocolHandler instead.
+    static ProtocolFactory* RegisterProtocolFactory(const std::string& scheme,
+                                                    ProtocolFactory* factory);
+
+    // Use URLRequestJobFactory::Interceptor instead.
+    static void RegisterRequestInterceptor(Interceptor* interceptor);
+    static void UnregisterRequestInterceptor(Interceptor* interceptor);
+
+    DISALLOW_IMPLICIT_CONSTRUCTORS(Deprecated);
+  };
+
   // The delegate's methods are called from the message loop of the thread
   // on which the request's Start() method is called. See above for the
   // ordering of callbacks.
@@ -192,14 +274,15 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     // Called when reading cookies to allow the delegate to block access to the
     // cookie. This method will never be invoked when LOAD_DO_NOT_SEND_COOKIES
     // is specified.
-    virtual bool CanGetCookies(URLRequest* request);
+    virtual bool CanGetCookies(const URLRequest* request,
+                               const CookieList& cookie_list) const;
 
     // Called when a cookie is set to allow the delegate to block access to the
     // cookie. This method will never be invoked when LOAD_DO_NOT_SAVE_COOKIES
     // is specified.
-    virtual bool CanSetCookie(URLRequest* request,
+    virtual bool CanSetCookie(const URLRequest* request,
                               const std::string& cookie_line,
-                              CookieOptions* options);
+                              CookieOptions* options) const;
 
     // After calling Start(), the delegate will receive an OnResponseStarted
     // callback when the request has completed.  If an error occurred, the
@@ -233,27 +316,6 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // delete the object if it is changed or the request is destroyed.
   UserData* GetUserData(const void* key) const;
   void SetUserData(const void* key, UserData* data);
-
-  // Registers a new protocol handler for the given scheme. If the scheme is
-  // already handled, this will overwrite the given factory. To delete the
-  // protocol factory, use NULL for the factory BUT this WILL NOT put back
-  // any previously registered protocol factory. It will have returned
-  // the previously registered factory (or NULL if none is registered) when
-  // the scheme was first registered so that the caller can manually put it
-  // back if desired.
-  //
-  // The scheme must be all-lowercase ASCII. See the ProtocolFactory
-  // declaration for its requirements.
-  //
-  // The registered protocol factory may return NULL, which will cause the
-  // regular "built-in" protocol factory to be used.
-  //
-  static ProtocolFactory* RegisterProtocolFactory(const std::string& scheme,
-                                                  ProtocolFactory* factory);
-
-  // Registers or unregisters a network interception class.
-  static void RegisterRequestInterceptor(Interceptor* interceptor);
-  static void UnregisterRequestInterceptor(Interceptor* interceptor);
 
   // Returns true if the scheme can be handled by URLRequest. False otherwise.
   static bool IsHandledProtocol(const std::string& scheme);
@@ -306,10 +368,9 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Returns the referrer header with potential username and password removed.
   GURL GetSanitizedReferrer() const;
 
-  // The delegate of the request.  This value may be changed at any time,
+  // Sets the delegate of the request.  This value may be changed at any time,
   // and it is permissible for it to be null.
-  Delegate* delegate() const { return delegate_; }
-  void set_delegate(Delegate* delegate) { delegate_ = delegate; }
+  void set_delegate(Delegate* delegate);
 
   // The data comprising the request message body is specified as a sequence of
   // data segments and/or files containing data to upload.  These methods may
@@ -545,8 +606,8 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   void ContinueDespiteLastError();
 
   // Used to specify the context (cookie store, cache) for this request.
-  URLRequestContext* context() const;
-  void set_context(URLRequestContext* context);
+  const URLRequestContext* context() const;
+  void set_context(const URLRequestContext* context);
 
   const BoundNetLog& net_log() const { return net_log_; }
 
@@ -561,9 +622,9 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     priority_ = priority;
   }
 
-#ifdef UNIT_TEST
+  // This method is intended only for unit tests, but it is being used by
+  // unit tests outside of net :(.
   URLRequestJob* job() { return job_; }
-#endif
 
  protected:
   // Allow the URLRequestJob class to control the is_pending() flag.
@@ -577,11 +638,7 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   int Redirect(const GURL& location, int http_status_code);
 
   // Called by URLRequestJob to allow interception when a redirect occurs.
-  void ReceivedRedirect(const GURL& location, bool* defer_redirect);
-
-  // Called by URLRequestJob to allow interception when the final response
-  // occurs.
-  void ResponseStarted();
+  void NotifyReceivedRedirect(const GURL& location, bool* defer_redirect);
 
   // Allow an interceptor's URLRequestJob to restart this request.
   // Should only be called if the original job has not started a response.
@@ -589,7 +646,29 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
  private:
   friend class URLRequestJob;
+
   typedef std::map<const void*, linked_ptr<UserData> > UserDataMap;
+
+  // Registers a new protocol handler for the given scheme. If the scheme is
+  // already handled, this will overwrite the given factory. To delete the
+  // protocol factory, use NULL for the factory BUT this WILL NOT put back
+  // any previously registered protocol factory. It will have returned
+  // the previously registered factory (or NULL if none is registered) when
+  // the scheme was first registered so that the caller can manually put it
+  // back if desired.
+  //
+  // The scheme must be all-lowercase ASCII. See the ProtocolFactory
+  // declaration for its requirements.
+  //
+  // The registered protocol factory may return NULL, which will cause the
+  // regular "built-in" protocol factory to be used.
+  //
+  static ProtocolFactory* RegisterProtocolFactory(const std::string& scheme,
+                                                  ProtocolFactory* factory);
+
+  // Registers or unregisters a network interception class.
+  static void RegisterRequestInterceptor(Interceptor* interceptor);
+  static void UnregisterRequestInterceptor(Interceptor* interceptor);
 
   // Resumes or blocks a request paused by the NetworkDelegate::OnBeforeRequest
   // handler. If |blocked| is true, the request is blocked and an error page is
@@ -614,10 +693,32 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // passed values.
   void DoCancel(int os_error, const SSLInfo& ssl_info);
 
+  // Notifies the network delegate that the request has been completed.
+  // This does not imply a successful completion. Also a canceled request is
+  // considered completed.
+  void NotifyRequestCompleted();
+
+  // Called by URLRequestJob to allow interception when the final response
+  // occurs.
+  void NotifyResponseStarted();
+
+  bool has_delegate() const { return delegate_ != NULL; }
+
+  // These functions delegate to |delegate_| and may only be used if
+  // |delegate_| is not NULL. See URLRequest::Delegate for the meaning
+  // of these functions.
+  void NotifyAuthRequired(AuthChallengeInfo* auth_info);
+  void NotifyCertificateRequested(SSLCertRequestInfo* cert_request_info);
+  void NotifySSLCertificateError(int cert_error, X509Certificate* cert);
+  bool CanGetCookies(const CookieList& cookie_list) const;
+  bool CanSetCookie(const std::string& cookie_line,
+                    CookieOptions* options) const;
+  void NotifyReadCompleted(int bytes_read);
+
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
   // cookie store, socket pool, etc.)
-  scoped_refptr<URLRequestContext> context_;
+  scoped_refptr<const URLRequestContext> context_;
 
   // Tracks the time spent in various load states throughout this request.
   BoundNetLog net_log_;
@@ -633,6 +734,8 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   int load_flags_;  // Flags indicating the request type for the load;
                     // expected values are LOAD_* enums above.
 
+  // Never access methods of the |delegate_| directly. Always use the
+  // Notify... methods for this.
   Delegate* delegate_;
 
   // Current error status of the job. When no error has been encountered, this
@@ -663,6 +766,12 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // this to determine which URLRequest to allocate sockets to first.
   RequestPriority priority_;
 
+  // TODO(battre): The only consumer of the identifier_ is currently the
+  // web request API. We need to match identifiers of requests between the
+  // web request API and the web navigation API. As the URLRequest does not
+  // exist when the web navigation API is triggered, the tracking probably
+  // needs to be done outside of the URLRequest anyway. Therefore, this
+  // identifier should be deleted here. http://crbug.com/89321
   // A globally unique identifier for this request.
   const uint64 identifier_;
 
@@ -671,6 +780,11 @@ class NET_API URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Callback passed to the network delegate to notify us when a blocked request
   // is ready to be resumed or canceled.
   CompletionCallbackImpl<URLRequest> before_request_callback_;
+
+  // Safe-guard to ensure that we do not send multiple "I am completed"
+  // messages to network delegate.
+  // TODO(battre): Remove this. http://crbug.com/89049
+  bool has_notified_completion_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,10 +22,12 @@ class PosixDynamicThreadPool::PosixDynamicThreadPoolPeer {
       : pool_(pool) {}
 
   Lock* lock() { return &pool_->lock_; }
-  ConditionVariable* tasks_available_cv() {
-    return &pool_->tasks_available_cv_;
+  ConditionVariable* pending_tasks_available_cv() {
+    return &pool_->pending_tasks_available_cv_;
   }
-  const std::queue<Task*>& tasks() const { return pool_->tasks_; }
+  const std::queue<PendingTask>& pending_tasks() const {
+    return pool_->pending_tasks_;
+  }
   int num_idle_threads() const { return pool_->num_idle_threads_; }
   ConditionVariable* num_idle_threads_cv() {
     return pool_->num_idle_threads_cv_.get();
@@ -180,10 +182,10 @@ class PosixDynamicThreadPoolTest : public testing::Test {
 TEST_F(PosixDynamicThreadPoolTest, Basic) {
   EXPECT_EQ(0, peer_.num_idle_threads());
   EXPECT_EQ(0U, unique_threads_.size());
-  EXPECT_EQ(0U, peer_.tasks().size());
+  EXPECT_EQ(0U, peer_.pending_tasks().size());
 
   // Add one task and wait for it to be completed.
-  pool_->PostTask(CreateNewIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewIncrementingTask());
 
   WaitForIdleThreads(1);
 
@@ -195,13 +197,13 @@ TEST_F(PosixDynamicThreadPoolTest, Basic) {
 
 TEST_F(PosixDynamicThreadPoolTest, ReuseIdle) {
   // Add one task and wait for it to be completed.
-  pool_->PostTask(CreateNewIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewIncrementingTask());
 
   WaitForIdleThreads(1);
 
   // Add another 2 tasks.  One should reuse the existing worker thread.
-  pool_->PostTask(CreateNewBlockingIncrementingTask());
-  pool_->PostTask(CreateNewBlockingIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
 
   WaitForTasksToStart(2);
   start_.Signal();
@@ -214,8 +216,8 @@ TEST_F(PosixDynamicThreadPoolTest, ReuseIdle) {
 
 TEST_F(PosixDynamicThreadPoolTest, TwoActiveTasks) {
   // Add two blocking tasks.
-  pool_->PostTask(CreateNewBlockingIncrementingTask());
-  pool_->PostTask(CreateNewBlockingIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
 
   EXPECT_EQ(0, counter_) << "Blocking tasks should not have started yet.";
 
@@ -230,14 +232,14 @@ TEST_F(PosixDynamicThreadPoolTest, TwoActiveTasks) {
 
 TEST_F(PosixDynamicThreadPoolTest, Complex) {
   // Add two non blocking tasks and wait for them to finish.
-  pool_->PostTask(CreateNewIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewIncrementingTask());
 
   WaitForIdleThreads(1);
 
   // Add two blocking tasks, start them simultaneously, and wait for them to
   // finish.
-  pool_->PostTask(CreateNewBlockingIncrementingTask());
-  pool_->PostTask(CreateNewBlockingIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
 
   WaitForTasksToStart(2);
   start_.Signal();
@@ -251,13 +253,13 @@ TEST_F(PosixDynamicThreadPoolTest, Complex) {
   {
     base::AutoLock locked(*peer_.lock());
     while (peer_.num_idle_threads() > 0) {
-      peer_.tasks_available_cv()->Signal();
+      peer_.pending_tasks_available_cv()->Signal();
       peer_.num_idle_threads_cv()->Wait();
     }
   }
 
   // Add another non blocking task.  There are no threads to reuse.
-  pool_->PostTask(CreateNewIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewIncrementingTask());
   WaitForIdleThreads(1);
 
   EXPECT_EQ(3U, unique_threads_.size());

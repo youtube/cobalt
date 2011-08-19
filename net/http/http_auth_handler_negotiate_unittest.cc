@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -100,21 +100,21 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest {
         "\x69\xE3\x55\xF9\x30\xD3\xD4\x08\xC8\xCA\x62\xF8\x64\xEC\x9B\x92"
         "\x1A\xF1\x03\x2E\xCC\xDC\xEB\x17\xDE\x09\xAC\xA9\x58\x86";
     test::GssContextMockImpl context1(
-        "localhost",                    // Source name
-        "example.com",                  // Target name
-        23,                             // Lifetime
-        *GSS_C_NT_HOSTBASED_SERVICE,    // Mechanism
-        0,                              // Context flags
-        1,                              // Locally initiated
-        0);                             // Open
+        "localhost",                         // Source name
+        "example.com",                       // Target name
+        23,                                  // Lifetime
+        *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+        0,                                   // Context flags
+        1,                                   // Locally initiated
+        0);                                  // Open
     test::GssContextMockImpl context2(
-        "localhost",                    // Source name
-        "example.com",                  // Target name
-        23,                             // Lifetime
-        *GSS_C_NT_HOSTBASED_SERVICE,    // Mechanism
-        0,                              // Context flags
-        1,                              // Locally initiated
-        1);                             // Open
+        "localhost",                         // Source name
+        "example.com",                       // Target name
+        23,                                  // Lifetime
+        *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+        0,                                   // Context flags
+        1,                                   // Locally initiated
+        1);                                  // Open
     test::MockGSSAPILibrary::SecurityContextQuery queries[] = {
     test::MockGSSAPILibrary::SecurityContextQuery(
         "Negotiate",                    // Package name
@@ -313,9 +313,8 @@ TEST_F(HttpAuthHandlerNegotiateTest, CnameAsync) {
 
 #if defined(OS_POSIX)
 
-// These tests are only for GSSAPI, as we can't use explicit credentials with
+// This test is only for GSSAPI, as we can't use explicit credentials with
 // that library.
-
 TEST_F(HttpAuthHandlerNegotiateTest, ServerNotInKerberosDatabase) {
   SetupErrorMocks(AuthLibrary(), GSS_S_FAILURE, 0x96C73A07);  // No server
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
@@ -330,6 +329,8 @@ TEST_F(HttpAuthHandlerNegotiateTest, ServerNotInKerberosDatabase) {
   EXPECT_EQ(ERR_MISSING_AUTH_CREDENTIALS, callback.WaitForResult());
 }
 
+// This test is only for GSSAPI, as we can't use explicit credentials with
+// that library.
 TEST_F(HttpAuthHandlerNegotiateTest, NoKerberosCredentials) {
   SetupErrorMocks(AuthLibrary(), GSS_S_FAILURE, 0x96C73AC3);  // No credentials
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
@@ -342,6 +343,28 @@ TEST_F(HttpAuthHandlerNegotiateTest, NoKerberosCredentials) {
   EXPECT_EQ(ERR_IO_PENDING, auth_handler->GenerateAuthToken(
       NULL, NULL, &request_info, &callback, &token));
   EXPECT_EQ(ERR_MISSING_AUTH_CREDENTIALS, callback.WaitForResult());
+}
+
+TEST_F(HttpAuthHandlerNegotiateTest, MissingGSSAPI) {
+  scoped_ptr<HostResolver> host_resolver(new MockHostResolver());
+  MockAllowURLSecurityManager url_security_manager;
+  scoped_ptr<HttpAuthHandlerNegotiate::Factory> negotiate_factory(
+      new HttpAuthHandlerNegotiate::Factory());
+  negotiate_factory->set_host_resolver(host_resolver.get());
+  negotiate_factory->set_url_security_manager(&url_security_manager);
+  negotiate_factory->set_library(
+      new GSSAPISharedLibrary("/this/library/does/not/exist"));
+
+  GURL gurl("http://www.example.com");
+  scoped_ptr<HttpAuthHandler> generic_handler;
+  int rv = negotiate_factory->CreateAuthHandlerFromString(
+      "Negotiate",
+      HttpAuth::AUTH_SERVER,
+      gurl,
+      BoundNetLog(),
+      &generic_handler);
+  EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME, rv);
+  EXPECT_TRUE(generic_handler.get() == NULL);
 }
 
 #endif  // defined(OS_POSIX)

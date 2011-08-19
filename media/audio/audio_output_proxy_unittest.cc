@@ -33,7 +33,7 @@ class MockAudioOutputStream : public AudioOutputStream {
 
 class MockAudioManager : public AudioManager {
  public:
-  MockAudioManager() { };
+  MockAudioManager() {}
 
   MOCK_METHOD0(Init, void());
   MOCK_METHOD0(Cleanup, void());
@@ -41,16 +41,18 @@ class MockAudioManager : public AudioManager {
   MOCK_METHOD0(HasAudioInputDevices, bool());
   MOCK_METHOD0(GetAudioInputDeviceModel, string16());
   MOCK_METHOD1(MakeAudioOutputStream, AudioOutputStream*(
-      AudioParameters params));
+      const AudioParameters& params));
   MOCK_METHOD1(MakeAudioOutputStreamProxy, AudioOutputStream*(
       const AudioParameters& params));
   MOCK_METHOD1(MakeAudioInputStream, AudioInputStream*(
-      AudioParameters params));
+      const AudioParameters& params));
   MOCK_METHOD0(MuteAll, void());
   MOCK_METHOD0(UnMuteAll, void());
   MOCK_METHOD0(CanShowAudioInputSettings, bool());
   MOCK_METHOD0(ShowAudioInputSettings, void());
   MOCK_METHOD0(GetMessageLoop, MessageLoop*());
+  MOCK_METHOD1(GetAudioInputDeviceNames, void(
+      media::AudioDeviceNames* device_name));
 };
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {

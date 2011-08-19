@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -42,7 +42,8 @@ HttpProxyClientSocket::HttpProxyClientSocket(
       endpoint_(endpoint),
       auth_(tunnel ?
           new HttpAuthController(HttpAuth::AUTH_PROXY,
-                                 GURL("http://" + proxy_server.ToString()),
+                                 GURL((is_https_proxy ? "https://" : "http://")
+                                      + proxy_server.ToString()),
                                  http_auth_cache,
                                  http_auth_handler_factory)
           : NULL),
@@ -163,6 +164,22 @@ bool HttpProxyClientSocket::UsingTCPFastOpen() const {
   }
   NOTREACHED();
   return false;
+}
+
+int64 HttpProxyClientSocket::NumBytesRead() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->NumBytesRead();
+  }
+  NOTREACHED();
+  return -1;
+}
+
+base::TimeDelta HttpProxyClientSocket::GetConnectTimeMicros() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetConnectTimeMicros();
+  }
+  NOTREACHED();
+  return base::TimeDelta::FromMicroseconds(-1);
 }
 
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,

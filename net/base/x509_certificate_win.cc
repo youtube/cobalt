@@ -296,9 +296,15 @@ bool CertSubjectCommonNameHasNull(PCCERT_CONTEXT cert) {
 // this function.
 void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
                       CertVerifyResult* verify_result) {
+  if (chain_context->cChain == 0)
+    return;
+
   PCERT_SIMPLE_CHAIN first_chain = chain_context->rgpChain[0];
   int num_elements = first_chain->cElement;
   PCERT_CHAIN_ELEMENT* element = first_chain->rgpElement;
+
+  PCCERT_CONTEXT verified_cert = NULL;
+  std::vector<PCCERT_CONTEXT> verified_chain;
 
   // Each chain starts with the end entity certificate (i = 0) and ends with
   // the root CA certificate (i = num_elements - 1).  Do not inspect the
@@ -306,6 +312,12 @@ void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
   // the trust anchor is not important.
   for (int i = 0; i < num_elements - 1; ++i) {
     PCCERT_CONTEXT cert = element[i]->pCertContext;
+    if (i == 0) {
+      verified_cert = cert;
+    } else {
+      verified_chain.push_back(cert);
+    }
+
     const char* algorithm = cert->pCertInfo->SignatureAlgorithm.pszObjId;
     if (strcmp(algorithm, szOID_RSA_MD5RSA) == 0) {
       // md5WithRSAEncryption: 1.2.840.113549.1.1.4
@@ -321,6 +333,14 @@ void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
       // md4WithRSAEncryption: 1.2.840.113549.1.1.3
       verify_result->has_md4 = true;
     }
+  }
+
+  if (verified_cert) {
+    // Add the root certificate, if present, as it was not added above.
+    if (num_elements > 1)
+      verified_chain.push_back(element[num_elements - 1]->pCertContext);
+    verify_result->verified_cert =
+          X509Certificate::CreateFromHandle(verified_cert, verified_chain);
   }
 }
 
@@ -605,32 +625,42 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   if (!cert_handle)
     return NULL;
 
-  X509Certificate* cert = CreateFromHandle(cert_handle,
-                                           SOURCE_LONE_CERT_IMPORT,
-                                           OSCertHandles());
+  X509Certificate* cert = CreateFromHandle(cert_handle, OSCertHandles());
   FreeOSCertHandle(cert_handle);
   return cert;
 }
 
-void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
-  dns_names->clear();
-  if (cert_handle_) {
-    scoped_ptr_malloc<CERT_ALT_NAME_INFO> alt_name_info;
-    GetCertSubjectAltName(cert_handle_, &alt_name_info);
-    CERT_ALT_NAME_INFO* alt_name = alt_name_info.get();
-    if (alt_name) {
-      int num_entries = alt_name->cAltEntry;
-      for (int i = 0; i < num_entries; i++) {
-        // dNSName is an ASN.1 IA5String representing a string of ASCII
-        // characters, so we can use WideToASCII here.
-        if (alt_name->rgAltEntry[i].dwAltNameChoice == CERT_ALT_NAME_DNS_NAME)
-          dns_names->push_back(
-              WideToASCII(alt_name->rgAltEntry[i].pwszDNSName));
+void X509Certificate::GetSubjectAltName(
+    std::vector<std::string>* dns_names,
+    std::vector<std::string>* ip_addrs) const {
+  if (dns_names)
+    dns_names->clear();
+  if (ip_addrs)
+    ip_addrs->clear();
+
+  if (!cert_handle_)
+    return;
+
+  scoped_ptr_malloc<CERT_ALT_NAME_INFO> alt_name_info;
+  GetCertSubjectAltName(cert_handle_, &alt_name_info);
+  CERT_ALT_NAME_INFO* alt_name = alt_name_info.get();
+  if (alt_name) {
+    int num_entries = alt_name->cAltEntry;
+    for (int i = 0; i < num_entries; i++) {
+      // dNSName is an ASN.1 IA5String representing a string of ASCII
+      // characters, so we can use WideToASCII here.
+      const CERT_ALT_NAME_ENTRY& entry = alt_name->rgAltEntry[i];
+
+      if (dns_names && entry.dwAltNameChoice == CERT_ALT_NAME_DNS_NAME) {
+        dns_names->push_back(WideToASCII(entry.pwszDNSName));
+      } else if (ip_addrs &&
+                 entry.dwAltNameChoice == CERT_ALT_NAME_IP_ADDRESS) {
+        ip_addrs->push_back(std::string(
+            reinterpret_cast<const char*>(entry.IPAddress.pbData),
+            entry.IPAddress.cbData));
       }
     }
   }
-  if (dns_names->empty())
-    dns_names->push_back(subject_.common_name);
 }
 
 class GlobalCertStore {
@@ -655,28 +685,22 @@ class GlobalCertStore {
   DISALLOW_COPY_AND_ASSIGN(GlobalCertStore);
 };
 
-static base::LazyInstance<GlobalCertStore> g_cert_store(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<GlobalCertStore,
+                          base::LeakyLazyInstanceTraits<GlobalCertStore> >
+    g_cert_store(base::LINKER_INITIALIZED);
 
 // static
 HCERTSTORE X509Certificate::cert_store() {
   return g_cert_store.Get().cert_store();
 }
 
-int X509Certificate::Verify(const std::string& hostname,
-                            int flags,
-                            CertVerifyResult* verify_result) const {
-  verify_result->Reset();
+int X509Certificate::VerifyInternal(const std::string& hostname,
+                                    int flags,
+                                    CertVerifyResult* verify_result) const {
   if (!cert_handle_)
     return ERR_UNEXPECTED;
 
-  if (IsBlacklisted()) {
-    verify_result->cert_status |= CERT_STATUS_REVOKED;
-    return ERR_CERT_REVOKED;
-  }
-
   // Build and validate certificate chain.
-
   CERT_CHAIN_PARA chain_para;
   memset(&chain_para, 0, sizeof(chain_para));
   chain_para.cbSize = sizeof(chain_para);
@@ -921,14 +945,6 @@ bool X509Certificate::CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
   return metadata->HasEVPolicyOID(fingerprint, policy_oid);
 }
 
-bool X509Certificate::VerifyEV() const {
-  // We don't call this private method, but we do need to implement it because
-  // it's defined in x509_certificate.h. We perform EV checking in the
-  // Verify() above.
-  NOTREACHED();
-  return false;
-}
-
 // static
 bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
                                    X509Certificate::OSCertHandle b) {
@@ -944,11 +960,8 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
   OSCertHandle cert_handle = NULL;
   if (!CertAddEncodedCertificateToStore(
-      NULL,  // the cert won't be persisted in any cert store
-      X509_ASN_ENCODING,
-      reinterpret_cast<const BYTE*>(data), length,
-      CERT_STORE_ADD_USE_EXISTING,
-      &cert_handle))
+      cert_store(), X509_ASN_ENCODING, reinterpret_cast<const BYTE*>(data),
+      length, CERT_STORE_ADD_USE_EXISTING, &cert_handle))
     return NULL;
 
   return cert_handle;
@@ -1015,8 +1028,7 @@ X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
 
   OSCertHandle cert_handle = NULL;
   if (!CertAddSerializedElementToStore(
-          NULL,  // the cert won't be persisted in any cert store
-          reinterpret_cast<const BYTE*>(data), length,
+          cert_store(), reinterpret_cast<const BYTE*>(data), length,
           CERT_STORE_ADD_USE_EXISTING, 0, CERT_STORE_CERTIFICATE_CONTEXT_FLAG,
           NULL, reinterpret_cast<const void **>(&cert_handle))) {
     return NULL;

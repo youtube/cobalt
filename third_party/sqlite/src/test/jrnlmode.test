@@ -132,7 +132,7 @@ ifcapable attach {
     execsql {
       PRAGMA journal_mode;
     }
-  } {persist}
+  } {off}
   do_test jrnlmode-1.12 {
     execsql {
       ATTACH ':memory:' as aux2;
@@ -317,9 +317,10 @@ ifcapable pragma {
   do_test jrnlmode-5.3 {
     execsql { 
       ATTACH 'test2.db' AS aux;
+      PRAGMA aux.journal_mode=persist;
       PRAGMA aux.journal_size_limit;
     }
-  } {-1}
+  } {persist -1}
   do_test jrnlmode-5.4.1 {
     execsql { PRAGMA aux.journal_size_limit = 999999999999 }
   } {999999999999}
@@ -337,8 +338,11 @@ ifcapable pragma {
   } {10240}
 
   do_test jrnlmode-5.8 {
-    execsql { ATTACH 'test3.db' AS aux2 }
-  } {}
+    execsql {
+      ATTACH 'test3.db' AS aux2;
+      PRAGMA aux2.journal_mode=persist;
+    }
+  } {persist}
 
   do_test jrnlmode-5.9 {
     execsql {
@@ -454,7 +458,7 @@ ifcapable pragma {
 ifcapable pragma {
   # These tests are not run as part of the "journaltest" permutation,
   # as the test_journal.c layer is incompatible with in-memory journaling.
-  if {[catch {set ::permutations_test_prefix} z] || $z ne "journaltest"} {
+  if {[permutation] ne "journaltest"} {
 
     do_test jrnlmode-6.1 {
       execsql {
@@ -484,7 +488,7 @@ ifcapable pragma {
           INSERT INTO t4 VALUES(3, 4);
       }
       file exists test.db-journal
-    } {1}
+    } {0}
     do_test jrnlmode-6.7 {
       execsql {
         COMMIT;
@@ -493,15 +497,62 @@ ifcapable pragma {
     } {1 2 3 4}
     do_test jrnlmode-6.8 {
       file exists test.db-journal
-    } {1}
+    } {0}
     do_test jrnlmode-6.9 {
       execsql {
         PRAGMA journal_mode = DELETE;
-        BEGIN IMMEDIATE; COMMIT;
+        BEGIN IMMEDIATE; INSERT INTO t4 VALUES(1,2); COMMIT;
       }
       file exists test.db-journal
     } {0}
   }
 }
+
+ifcapable pragma {
+  catch { db close }
+  do_test jrnlmode-7.1 {
+    foreach f [glob -nocomplain test.db*] { file delete -force $f }
+    sqlite3 db test.db
+    execsql {
+      PRAGMA journal_mode = memory;
+      PRAGMA auto_vacuum = 0;
+      PRAGMA page_size = 1024;
+      PRAGMA user_version = 5;
+      PRAGMA user_version;
+    }
+  } {memory 5}
+  do_test jrnlmode-7.2 { file size test.db } {1024}
+}
+
+do_execsql_test jrnlmode-8.1  { PRAGMA locking_mode=EXCLUSIVE } {exclusive}
+do_execsql_test jrnlmode-8.2  { CREATE TABLE t1(x) }            {}
+do_execsql_test jrnlmode-8.3  { INSERT INTO t1 VALUES(123) }    {}
+do_execsql_test jrnlmode-8.4  { SELECT * FROM t1 }              {123}
+do_execsql_test jrnlmode-8.5  { PRAGMA journal_mode=PERSIST }   {persist}
+do_execsql_test jrnlmode-8.6  { PRAGMA journal_mode=DELETE }    {delete}
+do_execsql_test jrnlmode-8.7  { PRAGMA journal_mode=TRUNCATE }  {truncate}
+do_execsql_test jrnlmode-8.8  { PRAGMA journal_mode=DELETE }    {delete}
+do_execsql_test jrnlmode-8.9  { CREATE TABLE t2(y) }            {}
+do_execsql_test jrnlmode-8.10 { INSERT INTO t2 VALUES(456) }    {}
+do_execsql_test jrnlmode-8.11 { SELECT * FROM t1, t2 }          {123 456}
+do_execsql_test jrnlmode-8.12 { PRAGMA locking_mode=NORMAL }    {normal}
+do_execsql_test jrnlmode-8.13 { PRAGMA journal_mode=PERSIST }   {persist}
+do_execsql_test jrnlmode-8.14 { PRAGMA journal_mode=TRUNCATE }  {truncate}
+do_execsql_test jrnlmode-8.15 { PRAGMA journal_mode=PERSIST }   {persist}
+do_execsql_test jrnlmode-8.16 { PRAGMA journal_mode=DELETE }    {delete}
+do_execsql_test jrnlmode-8.17 { PRAGMA journal_mode=TRUNCATE }  {truncate}
+do_execsql_test jrnlmode-8.18 { PRAGMA locking_mode=EXCLUSIVE } {exclusive}
+do_execsql_test jrnlmode-8.19 { CREATE TABLE t3(z) }            {}
+do_execsql_test jrnlmode-8.20 { BEGIN IMMEDIATE }               {}
+do_execsql_test jrnlmode-8.21 { PRAGMA journal_mode=DELETE }    {delete}
+do_execsql_test jrnlmode-8.22 { COMMIT }                        {}
+do_execsql_test jrnlmode-8.23 { PRAGMA journal_mode=DELETE }    {delete}
+do_execsql_test jrnlmode-8.24 { PRAGMA journal_mode=TRUNCATE }  {truncate}
+do_execsql_test jrnlmode-8.25 { PRAGMA locking_mode=NORMAL }    {normal}
+do_execsql_test jrnlmode-8.26 { CREATE TABLE t4(w) }            {}
+do_execsql_test jrnlmode-8.27 { BEGIN IMMEDIATE }               {}
+do_execsql_test jrnlmode-8.28 { PRAGMA journal_mode=DELETE }    {delete}
+do_execsql_test jrnlmode-8.29 { COMMIT }                        {}
+do_execsql_test jrnlmode-8.30 { PRAGMA journal_mode=DELETE }    {delete}
 
 finish_test

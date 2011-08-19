@@ -13,9 +13,11 @@
 #include "base/threading/non_thread_safe.h"
 #include "base/win/object_watcher.h"
 #include "net/base/completion_callback.h"
+#include "net/base/rand_callback.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
+#include "net/udp/datagram_socket.h"
 
 namespace net {
 
@@ -23,7 +25,9 @@ class BoundNetLog;
 
 class UDPSocketWin : public base::NonThreadSafe {
  public:
-  UDPSocketWin(net::NetLog* net_log,
+  UDPSocketWin(DatagramSocket::BindType bind_type,
+               const RandIntCallback& rand_int_cb,
+               net::NetLog* net_log,
                const net::NetLog::Source& source);
   virtual ~UDPSocketWin();
 
@@ -95,6 +99,8 @@ class UDPSocketWin : public base::NonThreadSafe {
   // Returns true if the socket is already connected or bound.
   bool is_connected() const { return socket_ != INVALID_SOCKET; }
 
+  const BoundNetLog& NetLog() const { return net_log_; }
+
  private:
   class ReadDelegate : public base::win::ObjectWatcher::Delegate {
    public:
@@ -141,7 +147,17 @@ class UDPSocketWin : public base::NonThreadSafe {
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 
+  int DoBind(const IPEndPoint& address);
+  int RandomBind(const IPEndPoint& address);
+
   SOCKET socket_;
+
+  // How to do source port binding, used only when UDPSocket is part of
+  // UDPClientSocket, since UDPServerSocket provides Bind.
+  DatagramSocket::BindType bind_type_;
+
+  // PRNG function for generating port numbers.
+  RandIntCallback rand_int_cb_;
 
   // These are mutable since they're just cached copies to make
   // GetPeerAddress/GetLocalAddress smarter.

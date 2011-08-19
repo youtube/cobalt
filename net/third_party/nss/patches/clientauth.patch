@@ -1,16 +1,14 @@
-Index: mozilla/security/nss/lib/ssl/ssl.h
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl.h,v
-retrieving revision 1.38
-diff -p -u -8 -r1.38 ssl.h
---- mozilla/security/nss/lib/ssl/ssl.h	17 Feb 2010 02:29:07 -0000	1.38
-+++ mozilla/security/nss/lib/ssl/ssl.h	16 Feb 2011 23:30:37 -0000
-@@ -275,16 +275,49 @@ typedef SECStatus (PR_CALLBACK *SSLGetCl
-  * and certificate.
-  *	fd - the file descriptor for the connection in question
-  *	f - the application's callback that delivers the key and cert
-  *	a - application specific data
-  */
+commit 33952cd5de867c82987e1e9eb9bc8edd56938daa
+Author: Adam Langley <agl@chromium.org>
+Date:   Mon Jun 20 16:19:32 2011 -0400
+
+    clientauth.patch
+
+diff --git a/mozilla/security/nss/lib/ssl/ssl.h b/mozilla/security/nss/lib/ssl/ssl.h
+index 221fe2d..563cfd5 100644
+--- a/mozilla/security/nss/lib/ssl/ssl.h
++++ b/mozilla/security/nss/lib/ssl/ssl.h
+@@ -332,6 +332,39 @@ typedef SECStatus (PR_CALLBACK *SSLGetClientAuthData)(void *arg,
  SSL_IMPORT SECStatus SSL_GetClientAuthDataHook(PRFileDesc *fd, 
  			                       SSLGetClientAuthData f, void *a);
  
@@ -50,24 +48,11 @@ diff -p -u -8 -r1.38 ssl.h
  
  /*
  ** SNI extension processing callback function.
- ** It is called when SSL socket receives SNI extension in ClientHello message.
- ** Upon this callback invocation, application is responsible to reconfigure the
- ** socket with the data for a particular server name.
- ** There are three potential outcomes of this function invocation:
- **    * application does not recognize the name or the type and wants the
-Index: mozilla/security/nss/lib/ssl/ssl3con.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3con.c,v
-retrieving revision 1.142
-diff -p -u -8 -r1.142 ssl3con.c
---- mozilla/security/nss/lib/ssl/ssl3con.c	24 Jun 2010 19:53:20 -0000	1.142
-+++ mozilla/security/nss/lib/ssl/ssl3con.c	16 Feb 2011 23:30:37 -0000
-@@ -2007,16 +2007,19 @@ ssl3_ComputeRecordMAC(
-     	rv = SECFailure;
- 	ssl_MapLowLevelError(SSL_ERROR_MAC_COMPUTATION_FAILURE);
-     }
-     return rv;
- }
+diff --git a/mozilla/security/nss/lib/ssl/ssl3con.c b/mozilla/security/nss/lib/ssl/ssl3con.c
+index ca2793f..0997e18 100644
+--- a/mozilla/security/nss/lib/ssl/ssl3con.c
++++ b/mozilla/security/nss/lib/ssl/ssl3con.c
+@@ -2014,6 +2014,9 @@ ssl3_ComputeRecordMAC(
  
  static PRBool
  ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
@@ -77,35 +62,15 @@ diff -p -u -8 -r1.142 ssl3con.c
      PK11SlotInfo *slot = NULL;
      PRBool isPresent = PR_TRUE;
  
-     /* we only care if we are doing client auth */
-     if (!sid || !sid->u.ssl3.clAuthValid) {
- 	return PR_TRUE;
-     }
- 
-@@ -2030,16 +2033,17 @@ ssl3_ClientAuthTokenPresent(sslSessionID
- 	sid->u.ssl3.clAuthModuleID   != PK11_GetModuleID(slot)   ||
- 	(PK11_NeedLogin(slot) && !PK11_IsLoggedIn(slot, NULL))) {
- 	isPresent = PR_FALSE;
-     } 
-     if (slot) {
+@@ -2037,6 +2040,7 @@ ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
  	PK11_FreeSlot(slot);
      }
      return isPresent;
 +#endif /* NSS_PLATFORM_CLIENT_AUTH */
  }
  
- SECStatus
- ssl3_CompressMACEncryptRecord(sslSocket *        ss,
-                               SSL3ContentType    type,
- 		              const SSL3Opaque * pIn,
- 		              PRUint32           contentLen)
- {
-@@ -4812,40 +4816,41 @@ ssl3_SendCertificateVerify(sslSocket *ss
-     ssl_GetSpecReadLock(ss);
-     rv = ssl3_ComputeHandshakeHashes(ss, ss->ssl3.pwSpec, &hashes, 0);
-     ssl_ReleaseSpecReadLock(ss);
-     if (rv != SECSuccess) {
- 	goto done;	/* err code was set by ssl3_ComputeHandshakeHashes */
+ static SECStatus
+@@ -4823,6 +4827,12 @@ ssl3_SendCertificateVerify(sslSocket *ss)
      }
  
      isTLS = (PRBool)(ss->ssl3.pwSpec->version > SSL_LIBRARY_VERSION_3_0);
@@ -118,16 +83,7 @@ diff -p -u -8 -r1.142 ssl3con.c
      rv = ssl3_SignHashes(&hashes, ss->ssl3.clientPrivateKey, &buf, isTLS);
      if (rv == SECSuccess) {
  	PK11SlotInfo * slot;
- 	sslSessionID * sid   = ss->sec.ci.sid;
- 
-     	/* Remember the info about the slot that did the signing.
- 	** Later, when doing an SSL restart handshake, verify this.
- 	** These calls are mere accessors, and can't fail.
- 	*/
- 	slot = PK11_GetSlotFromPrivateKey(ss->ssl3.clientPrivateKey);
- 	sid->u.ssl3.clAuthSeries     = PK11_GetSlotSeries(slot);
- 	sid->u.ssl3.clAuthSlotID     = PK11_GetSlotID(slot);
- 	sid->u.ssl3.clAuthModuleID   = PK11_GetModuleID(slot);
+@@ -4839,14 +4849,9 @@ ssl3_SendCertificateVerify(sslSocket *ss)
  	sid->u.ssl3.clAuthValid      = PR_TRUE;
  	PK11_FreeSlot(slot);
      }
@@ -145,17 +101,7 @@ diff -p -u -8 -r1.142 ssl3con.c
      if (rv != SECSuccess) {
  	goto done;	/* err code was set by ssl3_SignHashes */
      }
- 
-     rv = ssl3_AppendHandshakeHeader(ss, certificate_verify, buf.len + 2);
-     if (rv != SECSuccess) {
- 	goto done;	/* error code set by AppendHandshake */
-     }
-@@ -4890,16 +4895,36 @@ ssl3_HandleServerHello(sslSocket *ss, SS
- 	goto alert_loser;
-     }
-     if (ss->ssl3.hs.ws != wait_server_hello) {
-         errCode = SSL_ERROR_RX_UNEXPECTED_SERVER_HELLO;
- 	desc    = unexpected_message;
+@@ -4901,6 +4906,26 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  	goto alert_loser;
      }
  
@@ -182,17 +128,7 @@ diff -p -u -8 -r1.142 ssl3con.c
      temp = ssl3_ConsumeHandshakeNumber(ss, 2, &b, &length);
      if (temp < 0) {
      	goto loser; 	/* alert has been sent */
-     }
-     version = (SSL3ProtocolVersion)temp;
- 
-     /* this is appropriate since the negotiation is complete, and we only
-     ** know SSL 3.x.
-@@ -5430,42 +5455,39 @@ ssl3_HandleCertificateRequest(sslSocket 
-     PRBool               isTLS       = PR_FALSE;
-     int                  i;
-     int                  errCode     = SSL_ERROR_RX_MALFORMED_CERT_REQUEST;
-     int                  nnames      = 0;
-     SECStatus            rv;
+@@ -5444,6 +5469,10 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
      SSL3AlertDescription desc        = illegal_parameter;
      SECItem              cert_types  = {siBuffer, NULL, 0};
      CERTDistNames        ca_list;
@@ -203,13 +139,7 @@ diff -p -u -8 -r1.142 ssl3con.c
  
      SSL_TRC(3, ("%d: SSL3[%d]: handle certificate_request handshake",
  		SSL_GETPID(), ss->fd));
-     PORT_Assert( ss->opt.noLocks || ssl_HaveRecvBufLock(ss) );
-     PORT_Assert( ss->opt.noLocks || ssl_HaveSSL3HandshakeLock(ss) );
- 
-     if (ss->ssl3.hs.ws != wait_cert_request &&
-     	ss->ssl3.hs.ws != wait_server_key) {
- 	desc    = unexpected_message;
- 	errCode = SSL_ERROR_RX_UNEXPECTED_CERT_REQUEST;
+@@ -5457,19 +5486,12 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  	goto alert_loser;
      }
  
@@ -235,17 +165,7 @@ diff -p -u -8 -r1.142 ssl3con.c
  
      isTLS = (PRBool)(ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0);
      rv = ssl3_ConsumeHandshakeVariable(ss, &cert_types, 1, &b, &length);
-     if (rv != SECSuccess)
-     	goto loser;		/* malformed, alert has been sent */
- 
-     arena = ca_list.arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
-     if (arena == NULL)
-@@ -5522,31 +5544,82 @@ ssl3_HandleCertificateRequest(sslSocket 
-     }
- 
-     if (length != 0)
-         goto alert_loser;   	/* malformed */
- 
+@@ -5536,6 +5558,18 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
      desc = no_certificate;
      ss->ssl3.hs.ws = wait_hello_done;
  
@@ -264,9 +184,7 @@ diff -p -u -8 -r1.142 ssl3con.c
      if (ss->getClientAuthData == NULL) {
  	rv = SECFailure; /* force it to send a no_certificate alert */
      } else {
- 	/* XXX Should pass cert_types in this call!! */
- 	rv = (SECStatus)(*ss->getClientAuthData)(ss->getClientAuthDataArg,
- 						 ss->fd, &ca_list,
+@@ -5545,12 +5579,51 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  						 &ss->ssl3.clientCertificate,
  						 &ss->ssl3.clientPrivateKey);
      }
@@ -318,17 +236,7 @@ diff -p -u -8 -r1.142 ssl3con.c
          /* check what the callback function returned */
          if ((!ss->ssl3.clientCertificate) || (!ss->ssl3.clientPrivateKey)) {
              /* we are missing either the key or cert */
-             if (ss->ssl3.clientCertificate) {
-                 /* got a cert, but no key - free it */
-                 CERT_DestroyCertificate(ss->ssl3.clientCertificate);
-                 ss->ssl3.clientCertificate = NULL;
-             }
-@@ -5569,16 +5642,17 @@ ssl3_HandleCertificateRequest(sslSocket 
- 		ss->ssl3.clientCertificate = NULL;
- 	    }
- 	    if (ss->ssl3.clientPrivateKey != NULL) {
- 		SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
- 		ss->ssl3.clientPrivateKey = NULL;
+@@ -5583,6 +5656,7 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  	    }
  	    goto send_no_certificate;
  	}
@@ -336,17 +244,7 @@ diff -p -u -8 -r1.142 ssl3con.c
  	break;	/* not an error */
  
      case SECFailure:
-     default:
- send_no_certificate:
- 	if (isTLS) {
- 	    ss->ssl3.sendEmptyCert = PR_TRUE;
- 	} else {
-@@ -5599,16 +5673,20 @@ alert_loser:
-     	desc = decode_error;
-     (void)SSL3_SendAlert(ss, alert_fatal, desc);
- loser:
-     PORT_SetError(errCode);
-     rv = SECFailure;
+@@ -5613,6 +5687,10 @@ loser:
  done:
      if (arena != NULL)
      	PORT_FreeArena(arena, PR_FALSE);
@@ -357,17 +255,7 @@ diff -p -u -8 -r1.142 ssl3con.c
      return rv;
  }
  
- /*
-  * attempt to restart the handshake after asynchronously handling
-  * a request for the client's certificate.
-  *
-  * inputs:
-@@ -5697,24 +5775,35 @@ ssl3_HandleServerHelloDone(sslSocket *ss
-     if (ss->ssl3.sendEmptyCert) {
- 	ss->ssl3.sendEmptyCert = PR_FALSE;
- 	rv = ssl3_SendEmptyCertificate(ss);
- 	/* Don't send verify */
- 	if (rv != SECSuccess) {
+@@ -5721,6 +5799,16 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
  	    goto loser;	/* error code is set. */
      	}
      } else
@@ -384,8 +272,7 @@ diff -p -u -8 -r1.142 ssl3con.c
      if (ss->ssl3.clientCertChain  != NULL &&
  	ss->ssl3.clientPrivateKey != NULL) {
  	send_verify = PR_TRUE;
- 	rv = ssl3_SendCertificate(ss);
- 	if (rv != SECSuccess) {
+@@ -5729,6 +5817,7 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
  	    goto loser;	/* error code is set. */
      	}
      }
@@ -393,17 +280,7 @@ diff -p -u -8 -r1.142 ssl3con.c
  
      rv = ssl3_SendClientKeyExchange(ss);
      if (rv != SECSuccess) {
-     	goto loser;	/* err is set. */
-     }
- 
-     if (send_verify) {
- 	rv = ssl3_SendCertificateVerify(ss);
-@@ -9426,16 +9515,20 @@ void
- ssl3_DestroySSL3Info(sslSocket *ss)
- {
- 
-     if (ss->ssl3.clientCertificate != NULL)
- 	CERT_DestroyCertificate(ss->ssl3.clientCertificate);
+@@ -9657,6 +9746,10 @@ ssl3_DestroySSL3Info(sslSocket *ss)
  
      if (ss->ssl3.clientPrivateKey != NULL)
  	SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
@@ -414,24 +291,11 @@ diff -p -u -8 -r1.142 ssl3con.c
  
      if (ss->ssl3.peerCertArena != NULL)
  	ssl3_CleanupPeerCerts(ss);
- 
-     if (ss->ssl3.clientCertChain != NULL) {
-        CERT_DestroyCertificateList(ss->ssl3.clientCertChain);
-        ss->ssl3.clientCertChain = NULL;
-     }
-Index: mozilla/security/nss/lib/ssl/ssl3ext.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3ext.c,v
-retrieving revision 1.14
-diff -p -u -8 -r1.14 ssl3ext.c
---- mozilla/security/nss/lib/ssl/ssl3ext.c	3 Apr 2010 19:19:07 -0000	1.14
-+++ mozilla/security/nss/lib/ssl/ssl3ext.c	16 Feb 2011 23:30:37 -0000
-@@ -41,18 +41,18 @@
-  * ***** END LICENSE BLOCK ***** */
- 
- /* TLS extension code moved here from ssl3ecc.c */
- /* $Id: ssl3ext.c,v 1.14 2010/04/03 19:19:07 nelson%bolyard.com Exp $ */
- 
+diff --git a/mozilla/security/nss/lib/ssl/ssl3ext.c b/mozilla/security/nss/lib/ssl/ssl3ext.c
+index 4e3d9cc..94dab58 100644
+--- a/mozilla/security/nss/lib/ssl/ssl3ext.c
++++ b/mozilla/security/nss/lib/ssl/ssl3ext.c
+@@ -46,8 +46,8 @@
  #include "nssrenam.h"
  #include "nss.h"
  #include "ssl.h"
@@ -441,24 +305,11 @@ diff -p -u -8 -r1.14 ssl3ext.c
  #include "pk11pub.h"
  #include "blapi.h"
  #include "prinit.h"
- 
- static unsigned char  key_name[SESS_TICKET_KEY_NAME_LEN];
- static PK11SymKey    *session_ticket_enc_key_pkcs11 = NULL;
- static PK11SymKey    *session_ticket_mac_key_pkcs11 = NULL;
- 
-Index: mozilla/security/nss/lib/ssl/sslauth.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslauth.c,v
-retrieving revision 1.16
-diff -p -u -8 -r1.16 sslauth.c
---- mozilla/security/nss/lib/ssl/sslauth.c	20 Apr 2006 00:20:45 -0000	1.16
-+++ mozilla/security/nss/lib/ssl/sslauth.c	16 Feb 2011 23:30:37 -0000
-@@ -204,16 +204,38 @@ SSL_GetClientAuthDataHook(PRFileDesc *s,
- 	return SECFailure;
-     }
- 
-     ss->getClientAuthData = func;
-     ss->getClientAuthDataArg = arg;
+diff --git a/mozilla/security/nss/lib/ssl/sslauth.c b/mozilla/security/nss/lib/ssl/sslauth.c
+index df40f30..447aaf8 100644
+--- a/mozilla/security/nss/lib/ssl/sslauth.c
++++ b/mozilla/security/nss/lib/ssl/sslauth.c
+@@ -252,6 +252,28 @@ SSL_GetClientAuthDataHook(PRFileDesc *s, SSLGetClientAuthData func,
      return SECSuccess;
  }
  
@@ -487,24 +338,11 @@ diff -p -u -8 -r1.16 sslauth.c
  /* NEED LOCKS IN HERE.  */
  SECStatus 
  SSL_SetPKCS11PinArg(PRFileDesc *s, void *arg)
- {
-     sslSocket *ss;
- 
-     ss = ssl_FindSocket(s);
-     if (!ss) {
-Index: mozilla/security/nss/lib/ssl/sslimpl.h
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslimpl.h,v
-retrieving revision 1.77
-diff -p -u -8 -r1.77 sslimpl.h
---- mozilla/security/nss/lib/ssl/sslimpl.h	10 Feb 2010 00:33:50 -0000	1.77
-+++ mozilla/security/nss/lib/ssl/sslimpl.h	16 Feb 2011 23:30:37 -0000
-@@ -60,16 +60,25 @@
- #if defined(XP_UNIX) || defined(XP_BEOS)
- #include "unistd.h"
- #endif
- #include "nssrwlk.h"
- #include "prthread.h"
+diff --git a/mozilla/security/nss/lib/ssl/sslimpl.h b/mozilla/security/nss/lib/ssl/sslimpl.h
+index 8e2bd14..2e1364e 100644
+--- a/mozilla/security/nss/lib/ssl/sslimpl.h
++++ b/mozilla/security/nss/lib/ssl/sslimpl.h
+@@ -65,6 +65,15 @@
  
  #include "sslt.h" /* for some formerly private types, now public */
  
@@ -520,17 +358,7 @@ diff -p -u -8 -r1.77 sslimpl.h
  /* to make some of these old enums public without namespace pollution,
  ** it was necessary to prepend ssl_ to the names.
  ** These #defines preserve compatibility with the old code here in libssl.
- */
- typedef SSLKEAType      SSL3KEAType;
- typedef SSLMACAlgorithm SSL3MACAlgorithm;
- typedef SSLSignType     SSL3SignType;
- 
-@@ -450,16 +459,26 @@ typedef SECStatus (*SSLCipher)(void *   
- typedef SECStatus (*SSLCompressor)(void *               context,
-                                    unsigned char *      out,
-                                    int *                outlen,
-                                    int                  maxout,
-                                    const unsigned char *in,
+@@ -462,6 +471,16 @@ typedef SECStatus (*SSLCompressor)(void *               context,
                                     int                  inlen);
  typedef SECStatus (*SSLDestroy)(void *context, PRBool freeit);
  
@@ -547,17 +375,7 @@ diff -p -u -8 -r1.77 sslimpl.h
  
  
  /*
- ** ssl3State and CipherSpec structs
- */
- 
- /* The SSL bulk cipher definition */
- typedef enum {
-@@ -805,16 +824,19 @@ struct ssl3StateStr {
-     */
-     ssl3CipherSpec *     crSpec; 	/* current read spec. */
-     ssl3CipherSpec *     prSpec; 	/* pending read spec. */
-     ssl3CipherSpec *     cwSpec; 	/* current write spec. */
-     ssl3CipherSpec *     pwSpec; 	/* pending write spec. */
+@@ -829,6 +848,9 @@ struct ssl3StateStr {
  
      CERTCertificate *    clientCertificate;  /* used by client */
      SECKEYPrivateKey *   clientPrivateKey;   /* used by client */
@@ -567,17 +385,7 @@ diff -p -u -8 -r1.77 sslimpl.h
      CERTCertificateList *clientCertChain;    /* used by client */
      PRBool               sendEmptyCert;      /* used by client */
  
-     int                  policy;
- 			/* This says what cipher suites we can do, and should 
- 			 * be either SSL_ALLOWED or SSL_RESTRICTED 
- 			 */
-     PRArenaPool *        peerCertArena;  
-@@ -1045,16 +1067,20 @@ const unsigned char *  preferredCipher;
- 
-     ssl3KeyPair *         stepDownKeyPair;	/* RSA step down keys */
- 
-     /* Callbacks */
-     SSLAuthCertificate        authCertificate;
+@@ -1079,6 +1101,10 @@ const unsigned char *  preferredCipher;
      void                     *authCertificateArg;
      SSLGetClientAuthData      getClientAuthData;
      void                     *getClientAuthDataArg;
@@ -588,17 +396,7 @@ diff -p -u -8 -r1.77 sslimpl.h
      SSLSNISocketConfig        sniSocketConfig;
      void                     *sniSocketConfigArg;
      SSLBadCertHandler         handleBadCert;
-     void                     *badCertArg;
-     SSLHandshakeCallback      handshakeCallback;
-     void                     *handshakeCallbackData;
-     void                     *pkcs11PinArg;
- 
-@@ -1587,16 +1613,36 @@ extern SECStatus SSL3_ShutdownServerCach
- extern SECStatus ssl_InitSymWrapKeysLock(void);
- 
- extern SECStatus ssl_FreeSymWrapKeysLock(void);
- 
- extern SECStatus ssl_InitSessionCacheLocks(PRBool lazyInit);
+@@ -1635,6 +1661,26 @@ extern SECStatus ssl_InitSessionCacheLocks(PRBool lazyInit);
  
  extern SECStatus ssl_FreeSessionCacheLocks(void);
  
@@ -625,24 +423,416 @@ diff -p -u -8 -r1.77 sslimpl.h
  
  /********************** misc calls *********************/
  
- extern int ssl_MapLowLevelError(int hiLevelError);
- 
- extern PRUint32 ssl_Time(void);
- 
- extern void SSL_AtomicIncrementLong(long * x);
-Index: mozilla/security/nss/lib/ssl/sslsock.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslsock.c,v
-retrieving revision 1.67
-diff -p -u -8 -r1.67 sslsock.c
---- mozilla/security/nss/lib/ssl/sslsock.c	25 Apr 2010 23:37:38 -0000	1.67
-+++ mozilla/security/nss/lib/ssl/sslsock.c	16 Feb 2011 23:30:37 -0000
-@@ -329,16 +329,20 @@ ssl_DupSocket(sslSocket *os)
- /*
-  * XXX the preceding CERT_ and SECKEY_ functions can fail and return NULL.
-  * XXX We should detect this, and not just march on with NULL pointers.
-  */
- 	    ss->authCertificate       = os->authCertificate;
+diff --git a/mozilla/security/nss/lib/ssl/sslplatf.c b/mozilla/security/nss/lib/ssl/sslplatf.c
+new file mode 100644
+index 0000000..208956f
+--- /dev/null
++++ b/mozilla/security/nss/lib/ssl/sslplatf.c
+@@ -0,0 +1,399 @@
++/*
++ * Platform specific crypto wrappers
++ *
++ * ***** BEGIN LICENSE BLOCK *****
++ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License. You may obtain a copy of the License at
++ * http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * The Original Code is the Netscape security libraries.
++ *
++ * The Initial Developer of the Original Code is
++ * Netscape Communications Corporation.
++ * Portions created by the Initial Developer are Copyright (C) 1994-2000
++ * the Initial Developer. All Rights Reserved.
++ *
++ * Contributor(s):
++ *   Ryan Sleevi <ryan.sleevi@gmail.com>
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPL"), or
++ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
++ * in which case the provisions of the GPL or the LGPL are applicable instead
++ * of those above. If you wish to allow use of your version of this file only
++ * under the terms of either the GPL or the LGPL, and not to allow others to
++ * use your version of this file under the terms of the MPL, indicate your
++ * decision by deleting the provisions above and replace them with the notice
++ * and other provisions required by the GPL or the LGPL. If you do not delete
++ * the provisions above, a recipient may use your version of this file under
++ * the terms of any one of the MPL, the GPL or the LGPL.
++ *
++ * ***** END LICENSE BLOCK ***** */
++/* $Id$ */
++#include "ssl.h"
++#include "certt.h"
++#include "keythi.h"
++#include "sslimpl.h"
++#include "cryptohi.h"
++#include "secitem.h"
++
++#ifdef NSS_PLATFORM_CLIENT_AUTH
++CERTCertificateList*
++hack_NewCertificateListFromCertList(CERTCertList* list)
++{
++    CERTCertificateList * chain = NULL;
++    PRArenaPool * arena = NULL;
++    CERTCertListNode * node;
++    int len;
++
++    if (CERT_LIST_EMPTY(list))
++        goto loser;
++
++    arena = PORT_NewArena(4096);
++    if (arena == NULL)
++        goto loser;
++
++    for (len = 0, node = CERT_LIST_HEAD(list); !CERT_LIST_END(node, list);
++        len++, node = CERT_LIST_NEXT(node)) {
++    }
++
++    chain = PORT_ArenaNew(arena, CERTCertificateList);
++    if (chain == NULL)
++        goto loser;
++
++    chain->certs = PORT_ArenaNewArray(arena, SECItem, len);
++    if (!chain->certs)
++        goto loser;
++    chain->len = len;
++
++    for (len = 0, node = CERT_LIST_HEAD(list); !CERT_LIST_END(node, list);
++        len++, node = CERT_LIST_NEXT(node)) {
++        // Check to see if the last cert to be sent is a self-signed cert,
++        // and if so, omit it from the list of certificates. However, if
++        // there is only one cert (len == 0), include the cert, as it means
++        // the EE cert is self-signed.
++        if (len > 0 && (len == chain->len - 1) && node->cert->isRoot) {
++            chain->len = len;
++            break;
++        }
++        SECITEM_CopyItem(arena, &chain->certs[len], &node->cert->derCert);
++    }
++
++    chain->arena = arena;
++    return chain;
++
++loser:
++    if (arena) {
++        PORT_FreeArena(arena, PR_FALSE);
++    }
++    return NULL;
++}
++
++#if defined(XP_WIN32)
++void
++ssl_FreePlatformKey(PlatformKey key)
++{
++    if (key) {
++        if (key->dwKeySpec != CERT_NCRYPT_KEY_SPEC)
++            CryptReleaseContext(key->hCryptProv, 0);
++        /* FIXME(rsleevi): Close CNG keys. */
++        PORT_Free(key);
++    }
++}
++
++SECStatus
++ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf, 
++                        PRBool isTLS)
++{
++    SECStatus    rv             = SECFailure;
++    PRBool       doDerEncode    = PR_FALSE;
++    SECItem      hashItem;
++    HCRYPTKEY    hKey           = 0;
++    DWORD        argLen         = 0;
++    ALG_ID       keyAlg         = 0;
++    DWORD        signatureLen   = 0;
++    ALG_ID       hashAlg        = 0;
++    HCRYPTHASH   hHash          = 0;
++    DWORD        hashLen        = 0;
++    unsigned int i              = 0;
++
++    buf->data = NULL;
++    if (!CryptGetUserKey(key->hCryptProv, key->dwKeySpec, &hKey)) {
++        if (GetLastError() == NTE_NO_KEY) {
++            PORT_SetError(SEC_ERROR_NO_KEY);
++        } else {
++            PORT_SetError(SEC_ERROR_INVALID_KEY);
++        }
++        goto done;
++    }
++
++    argLen = sizeof(keyAlg);
++    if (!CryptGetKeyParam(hKey, KP_ALGID, (BYTE*)&keyAlg, &argLen, 0)) {
++        PORT_SetError(SEC_ERROR_INVALID_KEY);
++        goto done;
++    }
++
++    switch (keyAlg) {
++        case CALG_RSA_KEYX:
++        case CALG_RSA_SIGN:
++            hashAlg       = CALG_SSL3_SHAMD5;
++            hashItem.data = hash->md5;
++            hashItem.len  = sizeof(SSL3Hashes);
++            break;
++        case CALG_DSS_SIGN:
++        case CALG_ECDSA:
++            if (keyAlg == CALG_ECDSA) {
++                doDerEncode = PR_TRUE;
++            } else {
++                doDerEncode = isTLS;
++            }
++            hashAlg       = CALG_SHA1;
++            hashItem.data = hash->sha;
++            hashItem.len  = sizeof(hash->sha);
++            break;
++        default:
++            PORT_SetError(SEC_ERROR_INVALID_KEY);
++            goto done;
++    }
++    PRINT_BUF(60, (NULL, "hash(es) to be signed", hashItem.data, hashItem.len));
++
++    if (!CryptCreateHash(key->hCryptProv, hashAlg, 0, 0, &hHash)) {
++        PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
++        goto done;    
++    }
++    argLen = sizeof(hashLen);
++    if (!CryptGetHashParam(hHash, HP_HASHSIZE, (BYTE*)&hashLen, &argLen, 0)) {
++        PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
++        goto done;
++    }
++    if (hashLen != hashItem.len) {
++        PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
++        goto done;
++    }
++    if (!CryptSetHashParam(hHash, HP_HASHVAL, (BYTE*)hashItem.data, 0)) {
++        PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
++        goto done;
++    }
++    if (!CryptSignHash(hHash, key->dwKeySpec, NULL, 0,
++                       NULL, &signatureLen) || signatureLen == 0) {
++        PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
++        goto done;
++    }
++    buf->data = (unsigned char *)PORT_Alloc(signatureLen);
++    if (!buf->data)
++        goto done;    /* error code was set. */
++
++    if (!CryptSignHash(hHash, key->dwKeySpec, NULL, 0,
++                       (BYTE*)buf->data, &signatureLen)) {
++        PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
++        goto done;
++    }
++    buf->len = signatureLen;
++
++    /* CryptoAPI signs in little-endian, so reverse */
++    for (i = 0; i < buf->len / 2; ++i) {
++        unsigned char tmp = buf->data[i];
++        buf->data[i] = buf->data[buf->len - 1 - i];
++        buf->data[buf->len - 1 - i] = tmp;
++    }
++    if (doDerEncode) {
++        SECItem   derSig = {siBuffer, NULL, 0};
++
++        /* This also works for an ECDSA signature */
++        rv = DSAU_EncodeDerSigWithLen(&derSig, buf, buf->len);
++        if (rv == SECSuccess) {
++            PORT_Free(buf->data);     /* discard unencoded signature. */
++            *buf = derSig;            /* give caller encoded signature. */
++        } else if (derSig.data) {
++            PORT_Free(derSig.data);
++        }
++    } else {
++        rv = SECSuccess;
++    }
++
++    PRINT_BUF(60, (NULL, "signed hashes", buf->data, buf->len));
++done:
++    if (hHash)
++        CryptDestroyHash(hHash);
++    if (hKey)
++        CryptDestroyKey(hKey);
++    if (rv != SECSuccess && buf->data) {
++        PORT_Free(buf->data);
++        buf->data = NULL;
++    }
++    return rv;
++}
++
++#elif defined(XP_MACOSX)
++#include <Security/cssm.h>
++
++void
++ssl_FreePlatformKey(PlatformKey key)
++{
++    CFRelease(key);
++}
++
++SECStatus
++ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf, 
++                        PRBool isTLS)
++{
++    SECStatus       rv                  = SECFailure;
++    PRBool          doDerEncode         = PR_FALSE;
++    unsigned int    signatureLen;
++    OSStatus        status              = noErr;
++    CSSM_CSP_HANDLE cspHandle           = 0;
++    const CSSM_KEY *cssmKey             = NULL;
++    CSSM_ALGORITHMS sigAlg;
++    const CSSM_ACCESS_CREDENTIALS * cssmCreds = NULL;
++    CSSM_RETURN     cssmRv;
++    CSSM_DATA       hashData;
++    CSSM_DATA       signatureData;
++    CSSM_CC_HANDLE  cssmSignature       = 0;
++
++    buf->data = NULL;
++
++    status = SecKeyGetCSPHandle(key, &cspHandle);
++    if (status != noErr) {
++        PORT_SetError(SEC_ERROR_INVALID_KEY);
++        goto done;
++    }
++
++    status = SecKeyGetCSSMKey(key, &cssmKey);
++    if (status != noErr || !cssmKey) {
++        PORT_SetError(SEC_ERROR_NO_KEY);
++        goto done;
++    }
++
++    /* SecKeyGetBlockSize wasn't addeded until OS X 10.6 - but the
++     * needed information is readily available on the key itself.
++     */
++    signatureLen = (cssmKey->KeyHeader.LogicalKeySizeInBits + 7) / 8;
++    
++    if (signatureLen == 0) {
++        PORT_SetError(SEC_ERROR_INVALID_KEY);
++        goto done;
++    }
++
++    buf->data = (unsigned char *)PORT_Alloc(signatureLen);
++    if (!buf->data)
++        goto done;    /* error code was set. */
++
++    sigAlg = cssmKey->KeyHeader.AlgorithmId;
++    switch (sigAlg) {
++        case CSSM_ALGID_RSA:
++            hashData.Data   = hash->md5;
++            hashData.Length = sizeof(SSL3Hashes);
++            break;
++        case CSSM_ALGID_ECDSA:
++        case CSSM_ALGID_DSA:
++            if (sigAlg == CSSM_ALGID_ECDSA) {
++                doDerEncode = PR_TRUE;
++            } else {
++                doDerEncode = isTLS;
++            }
++            hashData.Data   = hash->sha;
++            hashData.Length = sizeof(hash->sha);
++            break;
++        default:
++            PORT_SetError(SEC_ERROR_INVALID_KEY);
++            goto done;
++    }
++    PRINT_BUF(60, (NULL, "hash(es) to be signed", hashData.Data, hashData.Length));
++
++    /* TODO(rsleevi): Should it be kSecCredentialTypeNoUI? In Win32, at least,
++     * you can prevent the UI by setting the provider handle on the
++     * certificate to be opened with CRYPT_SILENT, but is there an equivalent?
++     */
++    status = SecKeyGetCredentials(key, CSSM_ACL_AUTHORIZATION_SIGN,
++                                  kSecCredentialTypeDefault, &cssmCreds);
++    if (status != noErr) {
++        PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
++        goto done;
++    }
++
++    signatureData.Length = signatureLen;
++    signatureData.Data   = (uint8*)buf->data;
++    
++    cssmRv = CSSM_CSP_CreateSignatureContext(cspHandle, sigAlg, cssmCreds,
++                                             cssmKey, &cssmSignature);
++    if (cssmRv) {
++        PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
++        goto done;
++    }
++
++    /* See "Apple Cryptographic Service Provider Functional Specification" */
++    if (cssmKey->KeyHeader.AlgorithmId == CSSM_ALGID_RSA) {
++        /* To set RSA blinding for RSA keys */
++        CSSM_CONTEXT_ATTRIBUTE blindingAttr;
++        blindingAttr.AttributeType   = CSSM_ATTRIBUTE_RSA_BLINDING;
++        blindingAttr.AttributeLength = sizeof(uint32);
++        blindingAttr.Attribute.Uint32 = 1;
++        cssmRv = CSSM_UpdateContextAttributes(cssmSignature, 1, &blindingAttr);
++        if (cssmRv) {
++            PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
++            goto done;
++        }
++    }
++
++    cssmRv = CSSM_SignData(cssmSignature, &hashData, 1, CSSM_ALGID_NONE,
++                           &signatureData);
++    if (cssmRv) {
++        PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
++        goto done;
++    }
++    buf->len = signatureData.Length;
++
++    if (doDerEncode) {
++        SECItem derSig = {siBuffer, NULL, 0};
++
++        /* This also works for an ECDSA signature */
++        rv = DSAU_EncodeDerSigWithLen(&derSig, buf, buf->len);
++        if (rv == SECSuccess) {
++            PORT_Free(buf->data);     /* discard unencoded signature. */
++            *buf = derSig;            /* give caller encoded signature. */
++        } else if (derSig.data) {
++            PORT_Free(derSig.data);
++        }
++    } else {
++        rv = SECSuccess;
++    }
++
++    PRINT_BUF(60, (NULL, "signed hashes", buf->data, buf->len));
++done:
++    /* cspHandle, cssmKey, and cssmCreds are owned by the SecKeyRef and
++     * should not be freed. When the PlatformKey is freed, they will be
++     * released.
++     */
++    if (cssmSignature)
++        CSSM_DeleteContext(cssmSignature);
++
++    if (rv != SECSuccess && buf->data) {
++        PORT_Free(buf->data);
++        buf->data = NULL;
++    }
++    return rv;
++}
++#else
++void
++ssl_FreePlatformKey(PlatformKey key)
++{
++}
++
++SECStatus
++ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
++                        PRBool isTLS)
++{
++    PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
++    return SECFailure;
++}
++#endif
++
++#endif /* NSS_PLATFORM_CLIENT_AUTH */
+diff --git a/mozilla/security/nss/lib/ssl/sslsock.c b/mozilla/security/nss/lib/ssl/sslsock.c
+index 4c4df3f..1bb211e 100644
+--- a/mozilla/security/nss/lib/ssl/sslsock.c
++++ b/mozilla/security/nss/lib/ssl/sslsock.c
+@@ -337,6 +337,10 @@ ssl_DupSocket(sslSocket *os)
  	    ss->authCertificateArg    = os->authCertificateArg;
  	    ss->getClientAuthData     = os->getClientAuthData;
  	    ss->getClientAuthDataArg  = os->getClientAuthDataArg;
@@ -653,17 +843,7 @@ diff -p -u -8 -r1.67 sslsock.c
              ss->sniSocketConfig       = os->sniSocketConfig;
              ss->sniSocketConfigArg    = os->sniSocketConfigArg;
  	    ss->handleBadCert         = os->handleBadCert;
- 	    ss->badCertArg            = os->badCertArg;
- 	    ss->handshakeCallback     = os->handshakeCallback;
- 	    ss->handshakeCallbackData = os->handshakeCallbackData;
- 	    ss->pkcs11PinArg          = os->pkcs11PinArg;
-     
-@@ -1338,16 +1342,22 @@ SSL_ReconfigFD(PRFileDesc *model, PRFile
-     if (sm->authCertificate)
-         ss->authCertificate       = sm->authCertificate;
-     if (sm->authCertificateArg)
-         ss->authCertificateArg    = sm->authCertificateArg;
-     if (sm->getClientAuthData)
+@@ -1446,6 +1450,12 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
          ss->getClientAuthData     = sm->getClientAuthData;
      if (sm->getClientAuthDataArg)
          ss->getClientAuthDataArg  = sm->getClientAuthDataArg;
@@ -676,17 +856,7 @@ diff -p -u -8 -r1.67 sslsock.c
      if (sm->sniSocketConfig)
          ss->sniSocketConfig       = sm->sniSocketConfig;
      if (sm->sniSocketConfigArg)
-         ss->sniSocketConfigArg    = sm->sniSocketConfigArg;
-     if (sm->handleBadCert)
-         ss->handleBadCert         = sm->handleBadCert;
-     if (sm->badCertArg)
-         ss->badCertArg            = sm->badCertArg;
-@@ -2350,16 +2360,20 @@ ssl_NewSocket(PRBool makeLocks)
- 	ss->dbHandle           = CERT_GetDefaultCertDB();
- 
- 	/* Provide default implementation of hooks */
- 	ss->authCertificate    = SSL_AuthCertificate;
- 	ss->authCertificateArg = (void *)ss->dbHandle;
+@@ -2489,6 +2499,10 @@ ssl_NewSocket(PRBool makeLocks)
          ss->sniSocketConfig    = NULL;
          ss->sniSocketConfigArg = NULL;
  	ss->getClientAuthData  = NULL;
@@ -697,8 +867,3 @@ diff -p -u -8 -r1.67 sslsock.c
  	ss->handleBadCert      = NULL;
  	ss->badCertArg         = NULL;
  	ss->pkcs11PinArg       = NULL;
- 
- 	ssl_ChooseOps(ss);
- 	ssl2_InitSocketPolicy(ss);
- 	ssl3_InitSocketPolicy(ss);
- 

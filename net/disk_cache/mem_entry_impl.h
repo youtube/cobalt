@@ -120,7 +120,7 @@ class MemEntryImpl : public Entry {
     NUM_STREAMS = 3
   };
 
-  ~MemEntryImpl();
+  virtual ~MemEntryImpl();
 
   // Do all the work for corresponding public functions.  Implemented as
   // separate functions to make logging of results simpler.

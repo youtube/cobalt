@@ -142,8 +142,6 @@ class HttpCache::Transaction : public HttpTransaction {
     STATE_DOOM_ENTRY_COMPLETE,
     STATE_ADD_TO_ENTRY,
     STATE_ADD_TO_ENTRY_COMPLETE,
-    STATE_NOTIFY_BEFORE_SEND_HEADERS,
-    STATE_NOTIFY_BEFORE_SEND_HEADERS_COMPLETE,
     STATE_START_PARTIAL_CACHE_VALIDATION,
     STATE_COMPLETE_PARTIAL_CACHE_VALIDATION,
     STATE_UPDATE_CACHED_RESPONSE,
@@ -198,8 +196,6 @@ class HttpCache::Transaction : public HttpTransaction {
   int DoDoomEntryComplete(int result);
   int DoAddToEntry();
   int DoAddToEntryComplete(int result);
-  int DoNotifyBeforeSendHeaders();
-  int DoNotifyBeforeSendHeadersComplete(int result);
   int DoStartPartialCacheValidation();
   int DoCompletePartialCacheValidation(int result);
   int DoUpdateCachedResponse();
@@ -243,7 +239,7 @@ class HttpCache::Transaction : public HttpTransaction {
 
   // Validates the entry headers against the requested range and continues with
   // the validation of the rest of the entry.  Returns a network error code.
-  int ValidateEntryHeadersAndContinue(bool byte_range_requested);
+  int ValidateEntryHeadersAndContinue();
 
   // Called to start requests which were given an "if-modified-since" or
   // "if-none-match" validation header by the caller (NOT when the request was
@@ -272,9 +268,9 @@ class HttpCache::Transaction : public HttpTransaction {
   bool ConditionalizeRequest();
 
   // Makes sure that a 206 response is expected.  Returns true on success.
-  // On success, |partial_content| will be set to true if we are processing a
+  // On success, handling_206_ will be set to true if we are processing a
   // partial entry.
-  bool ValidatePartialResponse(bool* partial_content);
+  bool ValidatePartialResponse();
 
   // Handles a response validation error by bypassing the cache.
   void IgnoreRangeRequest();
@@ -351,7 +347,8 @@ class HttpCache::Transaction : public HttpTransaction {
   bool invalid_range_;  // We may bypass the cache for this request.
   bool truncated_;  // We don't have all the response data.
   bool is_sparse_;  // The data is stored in sparse byte ranges.
-  bool server_responded_206_;
+  bool range_requested_;  // The user requested a byte range.
+  bool handling_206_;  // We must deal with this 206 response.
   bool cache_pending_;  // We are waiting for the HttpCache.
   bool done_reading_;
   scoped_refptr<IOBuffer> read_buf_;

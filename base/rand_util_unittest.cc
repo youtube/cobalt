@@ -61,3 +61,63 @@ TEST(RandUtilTest, RandGeneratorForRandomShuffle) {
   EXPECT_LE(std::numeric_limits<ptrdiff_t>::max(),
             std::numeric_limits<int64>::max());
 }
+
+TEST(RandUtilTest, RandGeneratorIsUniform) {
+  // Verify that RandGenerator has a uniform distribution. This is a
+  // regression test that consistently failed when RandGenerator was
+  // implemented this way:
+  //
+  //   return base::RandUint64() % max;
+  //
+  // A degenerate case for such an implementation is e.g. a top of
+  // range that is 2/3rds of the way to MAX_UINT64, in which case the
+  // bottom half of the range would be twice as likely to occur as the
+  // top half. A bit of calculus care of jar@ shows that the largest
+  // measurable delta is when the top of the range is 3/4ths of the
+  // way, so that's what we use in the test.
+  const uint64 kTopOfRange = (std::numeric_limits<uint64>::max() / 4ULL) * 3ULL;
+  const uint64 kExpectedAverage = kTopOfRange / 2ULL;
+  const uint64 kAllowedVariance = kExpectedAverage / 50ULL;  // +/- 2%
+  const int kMinAttempts = 1000;
+  const int kMaxAttempts = 1000000;
+
+  double cumulative_average = 0.0;
+  int count = 0;
+  while (count < kMaxAttempts) {
+    uint64 value = base::RandGenerator(kTopOfRange);
+    cumulative_average = (count * cumulative_average + value) / (count + 1);
+
+    // Don't quit too quickly for things to start converging, or we may have
+    // a false positive.
+    if (count > kMinAttempts &&
+        kExpectedAverage - kAllowedVariance < cumulative_average &&
+        cumulative_average < kExpectedAverage + kAllowedVariance) {
+      break;
+    }
+
+    ++count;
+  }
+
+  ASSERT_LT(count, kMaxAttempts) << "Expected average was " <<
+      kExpectedAverage << ", average ended at " << cumulative_average;
+}
+
+TEST(RandUtilTest, RandUint64ProducesBothValuesOfAllBits) {
+  // This tests to see that our underlying random generator is good
+  // enough, for some value of good enough.
+  uint64 kAllZeros = 0ULL;
+  uint64 kAllOnes = ~kAllZeros;
+  uint64 found_ones = kAllZeros;
+  uint64 found_zeros = kAllOnes;
+
+  for (size_t i = 0; i < 1000; ++i) {
+    uint64 value = base::RandUint64();
+    found_ones |= value;
+    found_zeros &= value;
+
+    if (found_zeros == kAllZeros && found_ones == kAllOnes)
+      return;
+  }
+
+  FAIL() << "Didn't achieve all bit values in maximum number of tries.";
+}

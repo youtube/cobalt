@@ -9,6 +9,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
+#include "base/timer.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager.h"
 
@@ -86,12 +87,12 @@ class AudioInputController
   // handler will receive a OnCreated() call.
   static scoped_refptr<AudioInputController> Create(
       EventHandler* event_handler,
-      AudioParameters params);
+      const AudioParameters& params);
 
   // Factory method for creating a low latency audio stream.
   static scoped_refptr<AudioInputController> CreateLowLatency(
       EventHandler* event_handler,
-      AudioParameters params,
+      const AudioParameters& params,
       // External synchronous reader for audio controller.
       SyncWriter* sync_writer);
 
@@ -100,6 +101,7 @@ class AudioInputController
   // AudioInputController being created directly.
 #if defined(UNIT_TEST)
   static void set_factory(Factory* factory) { factory_ = factory; }
+  AudioInputStream* stream() { return stream_; }
 #endif
 
   // Starts recording in this audio input stream.
@@ -134,13 +136,21 @@ class AudioInputController
   AudioInputController(EventHandler* handler, SyncWriter* sync_writer);
 
   // The following methods are executed on the audio controller thread.
-  void DoCreate(AudioParameters params);
+  void DoCreate(const AudioParameters& params);
   void DoRecord();
   void DoClose();
   void DoReportError(int code);
+  void DoReportNoDataError();
+  void DoResetNoDataTimer();
 
   EventHandler* handler_;
   AudioInputStream* stream_;
+
+  // |no_data_timer_| is used to call DoReportNoDataError when we stop
+  // receiving OnData calls without an OnClose call. This can occur when an
+  // audio input device is unplugged whilst recording on Windows.
+  // See http://crbug.com/79936 for details.
+  base::DelayTimer<AudioInputController> no_data_timer_;
 
   // |state_| is written on the audio input controller thread and is read on
   // the hardware audio thread. These operations need to be locked. But lock

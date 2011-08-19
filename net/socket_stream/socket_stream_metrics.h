@@ -32,7 +32,14 @@ class NET_TEST SocketStreamMetrics {
     TUNNEL_CONNECTION,
     SOCKS_CONNECTION,
     SSL_CONNECTION,
+    SECURE_PROXY_CONNECTION,
     NUM_CONNECTION_TYPES,
+  };
+
+  enum WireProtocolType {
+    WIRE_PROTOCOL_WEBSOCKET,
+    WIRE_PROTOCOL_SPDY,
+    NUM_WIRE_PROTOCOL_TYPES,
   };
 
   explicit SocketStreamMetrics(const GURL& url);
@@ -40,18 +47,14 @@ class NET_TEST SocketStreamMetrics {
 
   void OnWaitConnection();
   void OnStartConnection();
-  void OnTunnelProxy();
-  void OnSOCKSProxy();
-  void OnSSLConnection();
   void OnConnected();
   void OnRead(int len);
   void OnWrite(int len);
   void OnClose();
+  void OnCountConnectionType(ConnectionType type);
+  void OnCountWireProtocolType(WireProtocolType type);
 
  private:
-  void CountProtocolType(ProtocolType protocol_type);
-  void CountConnectionType(ConnectionType connection_type);
-
   base::TimeTicks wait_start_time_;
   base::TimeTicks connect_start_time_;
   base::TimeTicks connect_establish_time_;

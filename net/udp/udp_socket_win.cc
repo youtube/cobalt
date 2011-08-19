@@ -11,6 +11,7 @@
 #include "base/memory/memory_debug.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
+#include "base/rand_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
@@ -18,6 +19,14 @@
 #include "net/base/net_util.h"
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
+
+namespace {
+
+static const int kBindRetries = 10;
+static const int kPortStart = 1024;
+static const int kPortEnd = 65535;
+
+}  // namespace net
 
 namespace net {
 
@@ -31,9 +40,13 @@ void UDPSocketWin::WriteDelegate::OnObjectSignaled(HANDLE object) {
   socket_->DidCompleteWrite();
 }
 
-UDPSocketWin::UDPSocketWin(net::NetLog* net_log,
+UDPSocketWin::UDPSocketWin(DatagramSocket::BindType bind_type,
+                           const RandIntCallback& rand_int_cb,
+                           net::NetLog* net_log,
                            const net::NetLog::Source& source)
     : socket_(INVALID_SOCKET),
+      bind_type_(bind_type),
+      rand_int_cb_(rand_int_cb),
       ALLOW_THIS_IN_INITIALIZER_LIST(read_delegate_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(write_delegate_(this)),
       recv_from_address_(NULL),
@@ -49,6 +62,8 @@ UDPSocketWin::UDPSocketWin(net::NetLog* net_log,
   read_overlapped_.hEvent = WSACreateEvent();
   memset(&write_overlapped_, 0, sizeof(write_overlapped_));
   write_overlapped_.hEvent = WSACreateEvent();
+  if (bind_type == DatagramSocket::RANDOM_BIND)
+    DCHECK(!rand_int_cb.is_null());
 }
 
 UDPSocketWin::~UDPSocketWin() {
@@ -184,6 +199,13 @@ int UDPSocketWin::Connect(const IPEndPoint& address) {
   if (rv < 0)
     return rv;
 
+  if (bind_type_ == DatagramSocket::RANDOM_BIND)
+    rv = RandomBind(address);
+  // else connect() does the DatagramSocket::DEFAULT_BIND
+
+  if (rv < 0)
+    return rv;
+
   struct sockaddr_storage addr_storage;
   size_t addr_len = sizeof(addr_storage);
   struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
@@ -200,21 +222,12 @@ int UDPSocketWin::Connect(const IPEndPoint& address) {
 
 int UDPSocketWin::Bind(const IPEndPoint& address) {
   DCHECK(!is_connected());
-  DCHECK(!local_address_.get());
   int rv = CreateSocket(address);
   if (rv < 0)
     return rv;
-
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
-    return ERR_FAILED;
-
-  rv = bind(socket_, addr, addr_len);
+  rv = DoBind(address);
   if (rv < 0)
-    return MapSystemError(WSAGetLastError());
-
+    return rv;
   local_address_.reset();
   return rv;
 }
@@ -368,6 +381,30 @@ int UDPSocketWin::InternalSendTo(IOBuffer* buf, int buf_len,
 
   write_watcher_.StartWatching(write_overlapped_.hEvent, &write_delegate_);
   return ERR_IO_PENDING;
+}
+
+int UDPSocketWin::DoBind(const IPEndPoint& address) {
+  struct sockaddr_storage addr_storage;
+  size_t addr_len = sizeof(addr_storage);
+  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+  if (!address.ToSockAddr(addr, &addr_len))
+    return ERR_UNEXPECTED;
+  int rv = bind(socket_, addr, addr_len);
+  return rv < 0 ? MapSystemError(WSAGetLastError()) : rv;
+}
+
+int UDPSocketWin::RandomBind(const IPEndPoint& address) {
+  DCHECK(bind_type_ == DatagramSocket::RANDOM_BIND && !rand_int_cb_.is_null());
+
+  // Construct IPAddressNumber of appropriate size (IPv4 or IPv6) of 0s.
+  IPAddressNumber ip(address.address().size());
+
+  for (int i = 0; i < kBindRetries; ++i) {
+    int rv = DoBind(IPEndPoint(ip, rand_int_cb_.Run(kPortStart, kPortEnd)));
+    if (rv == OK || rv != ERR_ADDRESS_IN_USE)
+      return rv;
+  }
+  return DoBind(IPEndPoint(ip, 0));
 }
 
 }  // namespace net

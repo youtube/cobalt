@@ -36,9 +36,10 @@ namespace media {
 #define AVUTIL_VERSION STRINGIZE(LIBAVUTIL_VERSION_MAJOR)
 
 #if defined(OS_MACOSX)
+// TODO(evan): should be using .so like ffmepgsumo here.
 #define DSO_NAME(MODULE, VERSION) ("lib" MODULE "." VERSION ".dylib")
 static const FilePath::CharType sumo_name[] =
-    FILE_PATH_LITERAL("libffmpegsumo.dylib");
+    FILE_PATH_LITERAL("ffmpegsumo.so");
 #elif defined(OS_POSIX)
 #define DSO_NAME(MODULE, VERSION) ("lib" MODULE ".so." VERSION)
 static const FilePath::CharType sumo_name[] =
@@ -54,11 +55,11 @@ static std::string GetDSOName(tp_ffmpeg::StubModules stub_key) {
   // TODO(ajwong): Remove this once mac is migrated. Either that, or have GYP
   // set a constant that we can switch implementations based off of.
   switch (stub_key) {
-    case tp_ffmpeg::kModuleAvcodec52:
+    case tp_ffmpeg::kModuleAvcodec53:
       return FILE_PATH_LITERAL(DSO_NAME("avcodec", AVCODEC_VERSION));
-    case tp_ffmpeg::kModuleAvformat52:
+    case tp_ffmpeg::kModuleAvformat53:
       return FILE_PATH_LITERAL(DSO_NAME("avformat", AVFORMAT_VERSION));
-    case tp_ffmpeg::kModuleAvutil50:
+    case tp_ffmpeg::kModuleAvutil51:
       return FILE_PATH_LITERAL(DSO_NAME("avutil", AVUTIL_VERSION));
     default:
       LOG(DFATAL) << "Invalid stub module requested: " << stub_key;

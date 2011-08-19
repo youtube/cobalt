@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -61,7 +62,8 @@ template <typename ObserverType>
 class ObserverListThreadSafe;
 
 template <class ObserverType>
-class ObserverListBase {
+class ObserverListBase
+    : public base::SupportsWeakPtr<ObserverListBase<ObserverType> > {
  public:
   // Enumeration of which observers are notified.
   enum NotificationType {
@@ -79,21 +81,23 @@ class ObserverListBase {
   class Iterator {
    public:
     Iterator(ObserverListBase<ObserverType>& list)
-        : list_(list),
+        : list_(list.AsWeakPtr()),
           index_(0),
           max_index_(list.type_ == NOTIFY_ALL ?
                      std::numeric_limits<size_t>::max() :
                      list.observers_.size()) {
-      ++list_.notify_depth_;
+      ++list_->notify_depth_;
     }
 
     ~Iterator() {
-      if (--list_.notify_depth_ == 0)
-        list_.Compact();
+      if (list_ && --list_->notify_depth_ == 0)
+        list_->Compact();
     }
 
     ObserverType* GetNext() {
-      ListType& observers = list_.observers_;
+      if (!list_)
+        return NULL;
+      ListType& observers = list_->observers_;
       // Advance if the current element is null
       size_t max_index = std::min(max_index_, observers.size());
       while (index_ < max_index && !observers[index_])
@@ -102,7 +106,7 @@ class ObserverListBase {
     }
 
    private:
-    ObserverListBase<ObserverType>& list_;
+    base::WeakPtr<ObserverListBase<ObserverType> > list_;
     size_t index_;
     size_t max_index_;
   };
@@ -111,14 +115,18 @@ class ObserverListBase {
   explicit ObserverListBase(NotificationType type)
       : notify_depth_(0), type_(type) {}
 
-  // Add an observer to the list.
+  // Add an observer to the list.  An observer should not be added to
+  // the same list more than once.
   void AddObserver(ObserverType* obs) {
-    DCHECK(find(observers_.begin(), observers_.end(), obs) == observers_.end())
-        << "Observers can only be added once!";
+    if (std::find(observers_.begin(), observers_.end(), obs)
+        != observers_.end()) {
+      NOTREACHED() << "Observers can only be added once!";
+      return;
+    }
     observers_.push_back(obs);
   }
 
-  // Remove an observer from the list.
+  // Remove an observer from the list if it is in the list.
   void RemoveObserver(ObserverType* obs) {
     typename ListType::iterator it =
       std::find(observers_.begin(), observers_.end(), obs);

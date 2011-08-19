@@ -96,13 +96,13 @@ class NET_TEST MultiThreadedProxyResolver
                              ProxyInfo* results,
                              CompletionCallback* callback,
                              RequestHandle* request,
-                             const BoundNetLog& net_log);
-  virtual void CancelRequest(RequestHandle request);
-  virtual void CancelSetPacScript();
-  virtual void PurgeMemory();
+                             const BoundNetLog& net_log) OVERRIDE;
+  virtual void CancelRequest(RequestHandle request) OVERRIDE;
+  virtual void CancelSetPacScript() OVERRIDE;
+  virtual void PurgeMemory() OVERRIDE;
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback);
+      CompletionCallback* callback) OVERRIDE;
 
  private:
   class Executor;

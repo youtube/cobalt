@@ -7,6 +7,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "net/base/host_port_pair.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
 namespace net {
@@ -23,12 +24,21 @@ int MappedHostResolver::Resolve(const RequestInfo& info,
                                 CompletionCallback* callback,
                                 RequestHandle* out_req,
                                 const BoundNetLog& net_log) {
+  DCHECK(addresses);
+  DCHECK(callback);
   // Modify the request before forwarding it to |impl_|.
   RequestInfo modified_info = info;
   HostPortPair host_port(info.host_port_pair());
   if (rules_.RewriteHost(&host_port))
     modified_info.set_host_port_pair(host_port);
   return impl_->Resolve(modified_info, addresses, callback, out_req, net_log);
+}
+
+int MappedHostResolver::ResolveFromCache(const RequestInfo& info,
+                                         AddressList* addresses,
+                                         const BoundNetLog& net_log) {
+  NOTIMPLEMENTED();
+  return ERR_UNEXPECTED;
 }
 
 void MappedHostResolver::CancelRequest(RequestHandle req) {

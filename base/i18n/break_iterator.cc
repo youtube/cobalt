@@ -14,7 +14,7 @@ namespace i18n {
 
 const size_t npos = -1;
 
-BreakIterator::BreakIterator(const string16* str, BreakType break_type)
+BreakIterator::BreakIterator(const string16& str, BreakType break_type)
     : iter_(NULL),
       string_(str),
       break_type_(break_type),
@@ -43,7 +43,7 @@ bool BreakIterator::Init() {
       return false;
   }
   iter_ = ubrk_open(break_type, NULL,
-                    string_->data(), static_cast<int32_t>(string_->size()),
+                    string_.data(), static_cast<int32_t>(string_.size()),
                     &status);
   if (U_FAILURE(status)) {
     NOTREACHED() << "ubrk_open failed";
@@ -71,9 +71,8 @@ bool BreakIterator::Advance() {
     case BREAK_NEWLINE:
       do {
         pos = ubrk_next(static_cast<UBreakIterator*>(iter_));
-        if (pos == UBRK_DONE) {
+        if (pos == UBRK_DONE)
           break;
-        }
         pos_ = static_cast<size_t>(pos);
         status = ubrk_getRuleStatus(static_cast<UBreakIterator*>(iter_));
       } while (status >= UBRK_LINE_SOFT && status < UBRK_LINE_SOFT_LIMIT);
@@ -89,14 +88,13 @@ bool BreakIterator::Advance() {
 }
 
 bool BreakIterator::IsWord() const {
-  return (break_type_ == BREAK_WORD &&
-          ubrk_getRuleStatus(static_cast<UBreakIterator*>(iter_)) !=
-          UBRK_WORD_NONE);
+  int32_t status = ubrk_getRuleStatus(static_cast<UBreakIterator*>(iter_));
+  return (break_type_ == BREAK_WORD && status != UBRK_WORD_NONE);
 }
 
 string16 BreakIterator::GetString() const {
   DCHECK(prev_ != npos && pos_ != npos);
-  return string_->substr(prev_, pos_ - prev_);
+  return string_.substr(prev_, pos_ - prev_);
 }
 
 }  // namespace i18n

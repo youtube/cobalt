@@ -46,7 +46,7 @@ int TCPServerSocketWin::Listen(const IPEndPoint& address, int backlog) {
     return ERR_FAILED;
   }
 
-  socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  socket_ = socket(address.GetFamily(), SOCK_STREAM, IPPROTO_TCP);
   if (socket_ < 0) {
     PLOG(ERROR) << "socket() returned an error";
     return MapSystemError(WSAGetLastError());
@@ -126,8 +126,8 @@ int TCPServerSocketWin::AcceptInternal(scoped_ptr<StreamSocket>* socket) {
   socklen_t addr_len = sizeof(addr_storage);
   struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
 
-  int result = accept(socket_, addr, &addr_len);
-  if (result < 0) {
+  int new_socket = accept(socket_, addr, &addr_len);
+  if (new_socket < 0) {
     int net_error = MapSystemError(WSAGetLastError());
     if (net_error != ERR_IO_PENDING)
       net_log_.EndEventWithNetErrorCode(NetLog::TYPE_TCP_ACCEPT, net_error);
@@ -137,16 +137,22 @@ int TCPServerSocketWin::AcceptInternal(scoped_ptr<StreamSocket>* socket) {
   IPEndPoint address;
   if (!address.FromSockAddr(addr, addr_len)) {
     NOTREACHED();
-    if (closesocket(result) < 0)
+    if (closesocket(new_socket) < 0)
       PLOG(ERROR) << "closesocket";
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_TCP_ACCEPT, ERR_FAILED);
     return ERR_FAILED;
   }
-  TCPClientSocket* tcp_socket = new TCPClientSocket(
+  scoped_ptr<TCPClientSocket> tcp_socket(new TCPClientSocket(
       AddressList::CreateFromIPAddress(address.address(), address.port()),
-      net_log_.net_log(), net_log_.source());
-  tcp_socket->AdoptSocket(result);
-  socket->reset(tcp_socket);
+      net_log_.net_log(), net_log_.source()));
+  int adopt_result = tcp_socket->AdoptSocket(new_socket);
+  if (adopt_result != OK) {
+    if (closesocket(new_socket) < 0)
+      PLOG(ERROR) << "closesocket";
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_TCP_ACCEPT, adopt_result);
+    return adopt_result;
+  }
+  socket->reset(tcp_socket.release());
   net_log_.EndEvent(NetLog::TYPE_TCP_ACCEPT,
                     make_scoped_refptr(new NetLogStringParameter(
                         "address", address.ToString())));

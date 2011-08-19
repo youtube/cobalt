@@ -25,6 +25,10 @@
 #include <unistd.h>
 #endif
 
+#if defined(OS_ANDROID)
+#include "base/android/jni_android.h"
+#endif
+
 #if defined(OS_NACL)
 #include <sys/nacl_syscalls.h>
 #endif
@@ -54,6 +58,9 @@ void* ThreadFunc(void* params) {
     base::ThreadRestrictions::SetSingletonAllowed(false);
   delete thread_params;
   delegate->ThreadMain();
+#if defined(OS_ANDROID)
+  base::android::DetachFromVM();
+#endif
   return NULL;
 }
 
@@ -138,10 +145,12 @@ PlatformThreadId PlatformThread::CurrentId() {
   return mach_thread_self();
 #elif defined(OS_LINUX)
   return syscall(__NR_gettid);
+#elif defined(OS_ANDROID)
+  return gettid();
 #elif defined(OS_FREEBSD)
   // TODO(BSD): find a better thread ID
   return reinterpret_cast<int64>(pthread_self());
-#elif defined(OS_NACL) || defined(__LB_PS3__)
+#elif defined(OS_NACL) || defined(OS_SOLARIS) || defined(__LB_PS3__)
   return pthread_self();
 #endif
 }

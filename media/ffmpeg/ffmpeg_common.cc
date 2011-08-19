@@ -185,4 +185,51 @@ bool GetStreamByteCountOverRange(AVStream* stream,
   return true;
 }
 
+int GetSurfaceHeight(AVStream* stream) {
+  return stream->codec->coded_height;
+}
+
+int GetSurfaceWidth(AVStream* stream) {
+  double aspect_ratio;
+
+  if (stream->sample_aspect_ratio.num)
+    aspect_ratio = av_q2d(stream->sample_aspect_ratio);
+  else if (stream->codec->sample_aspect_ratio.num)
+    aspect_ratio = av_q2d(stream->codec->sample_aspect_ratio);
+  else
+    aspect_ratio = 1.0;
+
+  int width = floor(stream->codec->coded_width * aspect_ratio + 0.5);
+
+  // An even width makes things easier for YV12 and appears to be the behavior
+  // expected by WebKit layout tests.
+  return width & ~1;
+}
+
+void DestroyAVFormatContext(AVFormatContext* format_context) {
+  DCHECK(format_context);
+
+  // Iterate each stream and destroy each one of them.
+  if (format_context->streams) {
+    int streams = format_context->nb_streams;
+    for (int i = 0; i < streams; ++i) {
+      AVStream* stream = format_context->streams[i];
+
+      // The conditions for calling avcodec_close():
+      // 1. AVStream is alive.
+      // 2. AVCodecContext in AVStream is alive.
+      // 3. AVCodec in AVCodecContext is alive.
+      // Notice that closing a codec context without prior avcodec_open() will
+      // result in a crash in FFmpeg.
+      if (stream && stream->codec && stream->codec->codec) {
+        stream->discard = AVDISCARD_ALL;
+        avcodec_close(stream->codec);
+      }
+    }
+  }
+
+  // Then finally cleanup the format context.
+  av_close_input_file(format_context);
+}
+
 }  // namespace media

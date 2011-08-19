@@ -103,6 +103,16 @@ bool GetStreamByteCountOverRange(AVStream* stream,
                                  int64* bytes,
                                  base::TimeDelta* range_start,
                                  base::TimeDelta* range_end);
+
+// Calculates the width and height of the video surface using the video's
+// encoded dimensions and sample_aspect_ratio.
+int GetSurfaceHeight(AVStream* stream);
+int GetSurfaceWidth(AVStream* stream);
+
+// Closes & destroys all AVStreams in the context and then closes &
+// destroys the AVFormatContext.
+void DestroyAVFormatContext(AVFormatContext* format_context);
+
 }  // namespace media
 
 #endif  // MEDIA_FFMPEG_FFMPEG_COMMON_H_

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,7 +34,7 @@ class BlockableHostResolver : public HostResolver {
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log) {
+                      const BoundNetLog& net_log) OVERRIDE {
     EXPECT_TRUE(callback);
     EXPECT_TRUE(out_req);
     *out_req = reinterpret_cast<RequestHandle*>(1);  // Magic value.
@@ -47,16 +47,23 @@ class BlockableHostResolver : public HostResolver {
     return ERR_IO_PENDING;
   }
 
-  virtual void CancelRequest(RequestHandle req) {
+  virtual int ResolveFromCache(const RequestInfo& info,
+                               AddressList* addresses,
+                               const BoundNetLog& net_log) OVERRIDE {
+    NOTIMPLEMENTED();
+    return ERR_UNEXPECTED;
+  }
+
+  virtual void CancelRequest(RequestHandle req) OVERRIDE {
     EXPECT_EQ(reinterpret_cast<RequestHandle*>(1), req);
     was_request_cancelled_ = true;
   }
 
-  virtual void AddObserver(Observer* observer) {
+  virtual void AddObserver(Observer* observer) OVERRIDE {
     NOTREACHED();
   }
 
-  virtual void RemoveObserver(Observer* observer) {
+  virtual void RemoveObserver(Observer* observer) OVERRIDE {
     NOTREACHED();
   }
 
@@ -93,29 +100,28 @@ class SyncProxyResolver : public ProxyResolver {
     // Do a synchronous host resolve.
     HostResolver::RequestInfo info(HostPortPair::FromURL(url));
     AddressList addresses;
-    int rv =
-        host_resolver_->Resolve(info, &addresses, NULL, NULL, BoundNetLog());
+    int rv = host_resolver_->Resolve(info, &addresses);
 
     EXPECT_EQ(ERR_ABORTED, rv);
 
     return rv;
   }
 
-  virtual void CancelRequest(RequestHandle request) {
+  virtual void CancelRequest(RequestHandle request) OVERRIDE {
     NOTREACHED();
   }
 
-  virtual void Shutdown() {
+  virtual void Shutdown() OVERRIDE {
     host_resolver_->Shutdown();
   }
 
-  virtual void CancelSetPacScript() {
+  virtual void CancelSetPacScript() OVERRIDE {
     NOTREACHED();
   }
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback) {
+      CompletionCallback* callback) OVERRIDE {
     return OK;
   }
 
@@ -131,7 +137,7 @@ class SyncProxyResolverFactory : public ProxyResolverFactory {
         sync_host_resolver_(sync_host_resolver) {
   }
 
-  virtual ProxyResolver* CreateProxyResolver() {
+  virtual ProxyResolver* CreateProxyResolver() OVERRIDE {
     return new SyncProxyResolver(sync_host_resolver_.get());
   }
 
@@ -155,7 +161,7 @@ class IOThread : public base::Thread {
   }
 
  protected:
-  virtual void Init() {
+  virtual void Init() OVERRIDE {
     async_resolver_.reset(new BlockableHostResolver());
 
     // Create a synchronous host resolver that operates the async host
@@ -180,7 +186,7 @@ class IOThread : public base::Thread {
                                     &callback_, &request_, BoundNetLog());
   }
 
-  virtual void CleanUp() {
+  virtual void CleanUp() OVERRIDE {
     // Cancel the outstanding request (note however that this will not
     // unblock the PAC thread though).
     proxy_resolver_->CancelRequest(request_);

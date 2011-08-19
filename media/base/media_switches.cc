@@ -6,22 +6,15 @@
 
 namespace switches {
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_SOLARIS)
 // The Alsa device to use when opening an audio stream.
 const char kAlsaOutputDevice[] = "alsa-output-device";
 // The Alsa device to use when opening an audio input stream.
 const char kAlsaInputDevice[] = "alsa-input-device";
 #endif
 
-// Enable hardware decoding through gpu process.
-const char kEnableAcceleratedDecoding[]  = "enable-accelerated-decoding";
-
 // Enable x-adaptive URL scheme.
 const char kEnableAdaptive[] = "enable-adaptive";
-
-// Enable hardware decoding using OpenMax API.
-// In practice this is for ChromeOS ARM.
-const char kEnableOpenMax[] = "enable-openmax";
 
 // Set number of threads to use for video decoding.
 const char kVideoThreads[] = "video-threads";
