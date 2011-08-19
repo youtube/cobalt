@@ -73,6 +73,8 @@
 #include "base/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
+#include "crypto/rsa_private_key.h"
+#include "crypto/scoped_nss_types.h"
 #include "net/base/address_list.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verifier.h"
@@ -447,7 +449,9 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       ssl_connection_status_(0),
       client_auth_cert_needed_(false),
       cert_verifier_(context.cert_verifier),
+      ob_cert_xtn_negotiated_(false),
       origin_bound_cert_service_(context.origin_bound_cert_service),
+      ob_cert_request_handle_(NULL),
       handshake_callback_called_(false),
       completed_handshake_(false),
       eset_mitm_detected_(false),
@@ -634,6 +638,11 @@ void SSLClientSocketNSS::Disconnect() {
   verifier_.reset();
   transport_->socket()->Disconnect();
 
+  if (ob_cert_request_handle_ != NULL) {
+    origin_bound_cert_service_->CancelRequest(ob_cert_request_handle_);
+    ob_cert_request_handle_ = NULL;
+  }
+
   // TODO(wtc): Send SSL close_notify alert.
   if (nss_fd_ != NULL) {
     PR_Close(nss_fd_);
@@ -666,6 +675,7 @@ void SSLClientSocketNSS::Disconnect() {
   nss_bufs_              = NULL;
   client_certs_.clear();
   client_auth_cert_needed_ = false;
+  ob_cert_xtn_negotiated_ = false;
 
   LeaveFunction("");
 }
@@ -1265,6 +1275,9 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
       case STATE_HANDSHAKE:
         rv = DoHandshake();
         break;
+      case STATE_GET_OB_CERT_COMPLETE:
+        rv = DoGetOBCertComplete(rv);
+        break;
       case STATE_VERIFY_DNSSEC:
         rv = DoVerifyDNSSEC(rv);
         break;
@@ -1399,17 +1412,27 @@ int SSLClientSocketNSS::DoHandshake() {
   int net_error = net::OK;
   SECStatus rv = SSL_ForceHandshake(nss_fd_);
 
+  // TODO(rkn): Handle the case in which origin-bound cert generation takes
+  // too long and the server has closed the connection. Report some new error
+  // code so that the higher level code will attempt to delete the socket and
+  // redo the handshake.
+
   if (client_auth_cert_needed_) {
-    net_error = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
-    net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                      make_scoped_refptr(new SSLErrorParams(net_error, 0)));
-    // If the handshake already succeeded (because the server requests but
-    // doesn't require a client cert), we need to invalidate the SSL session
-    // so that we won't try to resume the non-client-authenticated session in
-    // the next handshake.  This will cause the server to ask for a client
-    // cert again.
-    if (rv == SECSuccess && SSL_InvalidateSession(nss_fd_) != SECSuccess) {
-      LOG(WARNING) << "Couldn't invalidate SSL session: " << PR_GetError();
+    if (ob_cert_xtn_negotiated_) {
+      GotoState(STATE_GET_OB_CERT_COMPLETE);
+      net_error = ERR_IO_PENDING;
+    } else {
+      net_error = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+      net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
+                        make_scoped_refptr(new SSLErrorParams(net_error, 0)));
+      // If the handshake already succeeded (because the server requests but
+      // doesn't require a client cert), we need to invalidate the SSL session
+      // so that we won't try to resume the non-client-authenticated session in
+      // the next handshake.  This will cause the server to ask for a client
+      // cert again.
+      if (rv == SECSuccess && SSL_InvalidateSession(nss_fd_) != SECSuccess) {
+        LOG(WARNING) << "Couldn't invalidate SSL session: " << PR_GetError();
+      }
     }
   } else if (rv == SECSuccess) {
     if (handshake_callback_called_) {
@@ -1512,6 +1535,78 @@ int SSLClientSocketNSS::DoHandshake() {
   LeaveFunction("");
   return net_error;
 }
+
+#if defined(NSS_PLATFORM_CLIENT_AUTH)
+int SSLClientSocketNSS::ImportOBCertAndKey(CERTCertificate** cert,
+                                           SECKEYPrivateKey** key) {
+  NOTREACHED();
+  return ERR_NOT_IMPLEMENTED;
+}
+#else
+int SSLClientSocketNSS::ImportOBCertAndKey(CERTCertificate** cert,
+                                           SECKEYPrivateKey** key) {
+  // Set the certificate.
+  SECItem cert_item;
+  cert_item.data = (unsigned char*) ob_cert_.data();
+  cert_item.len = ob_cert_.size();
+  *cert = CERT_NewTempCertificate(CERT_GetDefaultCertDB(),
+                                  &cert_item,
+                                  NULL,
+                                  PR_FALSE,
+                                  PR_TRUE);
+  if (*cert == NULL)
+    return MapNSSError(PORT_GetError());
+
+  // Set the private key.
+  SECItem der_private_key_info;
+  der_private_key_info.data = (unsigned char*)ob_private_key_.data();
+  der_private_key_info.len = ob_private_key_.size();
+  const unsigned int key_usage = KU_DIGITAL_SIGNATURE;
+  crypto::ScopedPK11Slot slot(PK11_GetInternalSlot());
+  SECStatus rv = PK11_ImportDERPrivateKeyInfoAndReturnKey(
+      slot.get(), &der_private_key_info, NULL, NULL, PR_FALSE, PR_FALSE,
+      key_usage, key, NULL);
+
+  if (rv != SECSuccess) {
+    delete *cert;
+    *cert = NULL;
+    return MapNSSError(PORT_GetError());
+  }
+
+  return OK;
+}
+#endif
+
+#if defined(NSS_PLATFORM_CLIENT_AUTH)
+int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
+  NOTREACHED();
+  return ERR_NOT_IMPLEMENTED;
+}
+#else
+int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
+  ob_cert_request_handle_ = NULL;
+
+  if (result != OK)
+    return result;
+
+  CERTCertificate* cert;
+  SECKEYPrivateKey* key;
+  int error = ImportOBCertAndKey(&cert, &key);
+  if (error != OK)
+    return error;
+
+  CERTCertificateList* cert_chain = CERT_CertChainFromCert(cert,
+                                                           certUsageSSLClient,
+                                                           PR_FALSE);
+  SECStatus rv;
+  rv = SSL_RestartHandshakeAfterCertReq(nss_fd_, cert, key, cert_chain);
+  if (rv != SECSuccess)
+    return MapNSSError(PORT_GetError());
+
+  GotoState(STATE_HANDSHAKE);
+  return OK;
+}
+#endif
 
 int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
   if (ssl_config_.dns_cert_provenance_checking_enabled &&
@@ -2231,6 +2326,46 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
     SECKEYPrivateKey** result_private_key) {
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
+  // Check if an origin-bound certificate is requested.
+  PRBool xtn_negotiated;
+  SECStatus rv = SSL_HandshakeNegotiatedExtension(
+      socket, ssl_ob_cert_xtn, &xtn_negotiated);
+  // TODO(rkn): Patch SSL_HandshakeNegotiatedExtension so that it can be called
+  // before the handshake is done. Then add "DCHECK_EQ(SECSuccess, rv);".
+  if (rv != SECSuccess)
+    xtn_negotiated = PR_FALSE;
+  that->ob_cert_xtn_negotiated_ = xtn_negotiated ? true : false;
+
+  if (that->ob_cert_xtn_negotiated_) {
+    // We have negotiated the origin-bound certificate extension.
+    std::string origin = "https://" + that->host_and_port_.ToString();
+    int error = that->origin_bound_cert_service_->GetOriginBoundCert(
+        origin,
+        &that->ob_private_key_,
+        &that->ob_cert_,
+        &that->handshake_io_callback_,
+        &that->ob_cert_request_handle_);
+
+    if (error == OK) {
+      // Synchronous success.
+      int result = that->ImportOBCertAndKey(result_certificate,
+                                            result_private_key);
+      if (result != OK)
+        return SECFailure;
+
+      return SECSuccess;
+    }
+
+    if (error == ERR_IO_PENDING) {
+      // Asynchronous case
+      that->client_auth_cert_needed_ = true;
+      return SECWouldBlock;
+    }
+
+    return SECFailure;  // Synchronous failure.
+  }
+
+  // Regular client certificate requested.
   that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
   void* wincx  = SSL_RevealPinArg(socket);
 

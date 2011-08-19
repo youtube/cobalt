@@ -24,6 +24,7 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/net_log.h"
 #include "net/base/nss_memio.h"
+#include "net/base/origin_bound_cert_service.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/x509_certificate.h"
 #include "net/socket/ssl_client_socket.h"
@@ -93,6 +94,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
     STATE_NONE,
     STATE_LOAD_SSL_HOST_INFO,
     STATE_HANDSHAKE,
+    STATE_GET_OB_CERT_COMPLETE,
     STATE_VERIFY_DNSSEC,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
@@ -121,8 +123,17 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   bool LoadSSLHostInfo();
   int DoLoadSSLHostInfo();
+
   int DoHandshake();
 
+  // ImportOBCertAndKey is a helper function for turning a DER-encoded cert and
+  // key into a CERTCertificate and SECKEYPrivateKey. Returns OK upon success
+  // and an error code otherwise.
+  // Requires |ob_private_key_| and |ob_cert_| to have been set by a call to
+  // OriginBoundCertService->GetOriginBoundCert. The caller takes ownership of
+  // the |*cert| and |*key|.
+  int ImportOBCertAndKey(CERTCertificate** cert, SECKEYPrivateKey** key);
+  int DoGetOBCertComplete(int result);
   int DoVerifyDNSSEC(int result);
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
@@ -218,8 +229,12 @@ class SSLClientSocketNSS : public SSLClientSocket {
   CertVerifier* const cert_verifier_;
   scoped_ptr<SingleRequestCertVerifier> verifier_;
 
-  // For the use of origin bound certificates for client auth.
+  // For origin bound certificates in client auth.
+  bool ob_cert_xtn_negotiated_;
   OriginBoundCertService* origin_bound_cert_service_;
+  std::string ob_private_key_;
+  std::string ob_cert_;
+  OriginBoundCertService::RequestHandle ob_cert_request_handle_;
 
   // True if NSS has called HandshakeCallback.
   bool handshake_callback_called_;
