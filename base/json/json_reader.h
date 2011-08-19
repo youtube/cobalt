@@ -190,7 +190,7 @@ class BASE_EXPORT JSONReader {
   bool EatComment();
 
   // Checks if |json_pos_| matches str.
-  bool NextStringMatch(const std::wstring& str);
+  bool NextStringMatch(const wchar_t* str, size_t length);
 
   // Sets the error code that will be returned to the caller. The current
   // line and column are determined and added into the final message.

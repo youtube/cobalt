@@ -13,12 +13,20 @@
 #include "base/utf_string_conversions.h"
 #include "base/values.h"
 
+namespace {
+
+const wchar_t kNullString[] = L"null";
+const wchar_t kTrueString[] = L"true";
+const wchar_t kFalseString[] = L"false";
+
+const int kStackLimit = 100;
+
+}  // namespace
+
 namespace base {
 
 static const JSONReader::Token kInvalidToken(JSONReader::Token::INVALID_TOKEN,
                                              0, 0);
-static const int kStackLimit = 100;
-
 namespace {
 
 // A helper method for ParseNumberToken.  It reads an int from the end of
@@ -63,7 +71,7 @@ bool ReadHexDigits(JSONReader::Token& token, int digits) {
   return true;
 }
 
-}  // anonymous namespace
+}  // namespace
 
 const char* JSONReader::kBadRootElementType =
     "Root value must be an array or object.";
@@ -509,10 +517,6 @@ Value* JSONReader::DecodeString(const Token& token) {
 }
 
 JSONReader::Token JSONReader::ParseToken() {
-  static const std::wstring kNullString(L"null");
-  static const std::wstring kTrueString(L"true");
-  static const std::wstring kFalseString(L"false");
-
   EatWhitespaceAndComments();
 
   Token token(Token::INVALID_TOKEN, 0, 0);
@@ -522,17 +526,17 @@ JSONReader::Token JSONReader::ParseToken() {
       break;
 
     case 'n':
-      if (NextStringMatch(kNullString))
+      if (NextStringMatch(kNullString, arraysize(kNullString) - 1))
         token = Token(Token::NULL_TOKEN, json_pos_, 4);
       break;
 
     case 't':
-      if (NextStringMatch(kTrueString))
+      if (NextStringMatch(kTrueString, arraysize(kTrueString) - 1))
         token = Token(Token::BOOL_TRUE, json_pos_, 4);
       break;
 
     case 'f':
-      if (NextStringMatch(kFalseString))
+      if (NextStringMatch(kFalseString, arraysize(kFalseString) - 1))
         token = Token(Token::BOOL_FALSE, json_pos_, 5);
       break;
 
@@ -636,14 +640,8 @@ bool JSONReader::EatComment() {
   return true;
 }
 
-bool JSONReader::NextStringMatch(const std::wstring& str) {
-  for (size_t i = 0; i < str.length(); ++i) {
-    if ('\0' == *json_pos_)
-      return false;
-    if (*(json_pos_ + i) != str[i])
-      return false;
-  }
-  return true;
+bool JSONReader::NextStringMatch(const wchar_t* str, size_t length) {
+  return wcsncmp(json_pos_, str, length) == 0;
 }
 
 void JSONReader::SetErrorCode(JsonParseError error,
