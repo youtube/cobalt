@@ -491,32 +491,10 @@ TEST(StringUtilTest, LowerCaseEqualsASCII) {
   }
 }
 
-TEST(StringUtilTest, GetByteDisplayUnits) {
+TEST(StringUtilTest, FormatBytesUnlocalized) {
   static const struct {
     int64 bytes;
-    DataUnits expected;
-  } cases[] = {
-    {0, DATA_UNITS_BYTE},
-    {512, DATA_UNITS_BYTE},
-    {10*1024, DATA_UNITS_KIBIBYTE},
-    {10*1024*1024, DATA_UNITS_MEBIBYTE},
-    {10LL*1024*1024*1024, DATA_UNITS_GIBIBYTE},
-    {~(1LL<<63), DATA_UNITS_GIBIBYTE},
-#ifdef NDEBUG
-    {-1, DATA_UNITS_BYTE},
-#endif
-  };
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i)
-    EXPECT_EQ(cases[i].expected, GetByteDisplayUnits(cases[i].bytes));
-}
-
-TEST(StringUtilTest, FormatBytes) {
-  static const struct {
-    int64 bytes;
-    DataUnits units;
     const char* expected;
-    const char* expected_with_units;
   } cases[] = {
     // Expected behavior: we show one post-decimal digit when we have
     // under two pre-decimal digits, except in cases where it makes no
@@ -524,39 +502,29 @@ TEST(StringUtilTest, FormatBytes) {
     // Since we switch units once we cross the 1000 mark, this keeps
     // the display of file sizes or bytes consistently around three
     // digits.
-    {0, DATA_UNITS_BYTE, "0", "0 B"},
-    {512, DATA_UNITS_BYTE, "512", "512 B"},
-    {512, DATA_UNITS_KIBIBYTE, "0.5", "0.5 kB"},
-    {1024*1024, DATA_UNITS_KIBIBYTE, "1024", "1024 kB"},
-    {1024*1024, DATA_UNITS_MEBIBYTE, "1.0", "1.0 MB"},
-    {1024*1024*1024, DATA_UNITS_GIBIBYTE, "1.0", "1.0 GB"},
-    {10LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, "10.0", "10.0 GB"},
-    {99LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, "99.0", "99.0 GB"},
-    {105LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, "105", "105 GB"},
-    {105LL*1024*1024*1024 + 500LL*1024*1024, DATA_UNITS_GIBIBYTE,
-     "105", "105 GB"},
-    {~(1LL<<63), DATA_UNITS_GIBIBYTE, "8589934592", "8589934592 GB"},
+    {0, "0 B"},
+    {512, "512 B"},
+    {1024*1024, "1.0 MB"},
+    {1024*1024*1024, "1.0 GB"},
+    {10LL*1024*1024*1024, "10.0 GB"},
+    {99LL*1024*1024*1024, "99.0 GB"},
+    {105LL*1024*1024*1024, "105 GB"},
+    {105LL*1024*1024*1024 + 500LL*1024*1024, "105 GB"},
+    {~(1LL<<63), "8192 PB"},
 
-    {99*1024 + 103, DATA_UNITS_KIBIBYTE, "99.1", "99.1 kB"},
-    {1024*1024 + 103, DATA_UNITS_KIBIBYTE, "1024", "1024 kB"},
-    {1024*1024 + 205 * 1024, DATA_UNITS_MEBIBYTE, "1.2", "1.2 MB"},
-    {1024*1024*1024 + (927 * 1024*1024), DATA_UNITS_GIBIBYTE,
-     "1.9", "1.9 GB"},
-    {10LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, "10.0", "10.0 GB"},
-    {100LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, "100", "100 GB"},
-#ifdef NDEBUG
-    {-1, DATA_UNITS_BYTE, "", ""},
-#endif
+    {99*1024 + 103, "99.1 kB"},
+    {1024*1024 + 103, "1.0 MB"},
+    {1024*1024 + 205 * 1024, "1.2 MB"},
+    {1024*1024*1024 + (927 * 1024*1024), "1.9 GB"},
+    {10LL*1024*1024*1024, "10.0 GB"},
+    {100LL*1024*1024*1024, "100 GB"},
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
     EXPECT_EQ(ASCIIToUTF16(cases[i].expected),
-              FormatBytes(cases[i].bytes, cases[i].units, false));
-    EXPECT_EQ(ASCIIToUTF16(cases[i].expected_with_units),
-              FormatBytes(cases[i].bytes, cases[i].units, true));
+              FormatBytesUnlocalized(cases[i].bytes));
   }
 }
-
 TEST(StringUtilTest, ReplaceSubstringsAfterOffset) {
   static const struct {
     const char* str;
@@ -864,6 +832,21 @@ TEST(StringUtilTest, GetStringFWithOffsets) {
   offsets.clear();
 }
 
+TEST(StringUtilTest, ReplaceStringPlaceholdersTooFew) {
+  // Test whether replacestringplaceholders works as expected when there
+  // are fewer inputs than outputs.
+  std::vector<string16> subst;
+  subst.push_back(ASCIIToUTF16("9a"));
+  subst.push_back(ASCIIToUTF16("8b"));
+  subst.push_back(ASCIIToUTF16("7c"));
+
+  string16 formatted =
+      ReplaceStringPlaceholders(
+          ASCIIToUTF16("$1a,$2b,$3c,$4d,$5e,$6f,$1g,$2h,$3i"), subst, NULL);
+
+  EXPECT_EQ(formatted, ASCIIToUTF16("9aa,8bb,7cc,d,e,f,9ag,8bh,7ci"));
+}
+
 TEST(StringUtilTest, ReplaceStringPlaceholders) {
   std::vector<string16> subst;
   subst.push_back(ASCIIToUTF16("9a"));
@@ -883,19 +866,30 @@ TEST(StringUtilTest, ReplaceStringPlaceholders) {
   EXPECT_EQ(formatted, ASCIIToUTF16("9aa,8bb,7cc,6dd,5ee,4ff,3gg,2hh,1ii"));
 }
 
-TEST(StringUtilTest, ReplaceStringPlaceholdersTooFew) {
-  // Test whether replacestringplaceholders works as expected when there
-  // are fewer inputs than outputs.
+TEST(StringUtilTest, ReplaceStringPlaceholdersMoreThan9Replacements) {
   std::vector<string16> subst;
   subst.push_back(ASCIIToUTF16("9a"));
   subst.push_back(ASCIIToUTF16("8b"));
   subst.push_back(ASCIIToUTF16("7c"));
+  subst.push_back(ASCIIToUTF16("6d"));
+  subst.push_back(ASCIIToUTF16("5e"));
+  subst.push_back(ASCIIToUTF16("4f"));
+  subst.push_back(ASCIIToUTF16("3g"));
+  subst.push_back(ASCIIToUTF16("2h"));
+  subst.push_back(ASCIIToUTF16("1i"));
+  subst.push_back(ASCIIToUTF16("0j"));
+  subst.push_back(ASCIIToUTF16("-1k"));
+  subst.push_back(ASCIIToUTF16("-2l"));
+  subst.push_back(ASCIIToUTF16("-3m"));
+  subst.push_back(ASCIIToUTF16("-4n"));
 
   string16 formatted =
       ReplaceStringPlaceholders(
-          ASCIIToUTF16("$1a,$2b,$3c,$4d,$5e,$6f,$1g,$2h,$3i"), subst, NULL);
+          ASCIIToUTF16("$1a,$2b,$3c,$4d,$5e,$6f,$7g,$8h,$9i,"
+                       "$10j,$11k,$12l,$13m,$14n,$1"), subst, NULL);
 
-  EXPECT_EQ(formatted, ASCIIToUTF16("9aa,8bb,7cc,d,e,f,9ag,8bh,7ci"));
+  EXPECT_EQ(formatted, ASCIIToUTF16("9aa,8bb,7cc,6dd,5ee,4ff,3gg,2hh,"
+                                    "1ii,0jj,-1kk,-2ll,-3mm,-4nn,9a"));
 }
 
 TEST(StringUtilTest, StdStringReplaceStringPlaceholders) {

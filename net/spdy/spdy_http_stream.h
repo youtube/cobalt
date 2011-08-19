@@ -68,6 +68,7 @@ class NET_TEST SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) OVERRIDE;
   virtual bool IsSpdyHttpStream() const OVERRIDE;
+  virtual void LogNumRttVsBytesMetrics() const OVERRIDE {}
 
   // SpdyStream::Delegate methods:
   virtual bool OnSendHeadersComplete(int status) OVERRIDE;

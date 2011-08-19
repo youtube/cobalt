@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,13 +17,14 @@ SocketStreamMetrics::SocketStreamMetrics(const GURL& url)
       received_counts_(0),
       sent_bytes_(0),
       sent_counts_(0) {
-  ProtocolType proto_type = PROTOCOL_UNKNOWN;
+  ProtocolType protocol_type = PROTOCOL_UNKNOWN;
   if (url.SchemeIs("ws"))
-    proto_type = PROTOCOL_WEBSOCKET;
+    protocol_type = PROTOCOL_WEBSOCKET;
   else if (url.SchemeIs("wss"))
-    proto_type = PROTOCOL_WEBSOCKET_SECURE;
+    protocol_type = PROTOCOL_WEBSOCKET_SECURE;
 
-  CountProtocolType(proto_type);
+  UMA_HISTOGRAM_ENUMERATION("Net.SocketStream.ProtocolType",
+                            protocol_type, NUM_PROTOCOL_TYPES);
 }
 
 SocketStreamMetrics::~SocketStreamMetrics() {}
@@ -37,19 +38,7 @@ void SocketStreamMetrics::OnStartConnection() {
   if (!wait_start_time_.is_null())
     UMA_HISTOGRAM_TIMES("Net.SocketStream.ConnectionLatency",
                         connect_start_time_ - wait_start_time_);
-  CountConnectionType(ALL_CONNECTIONS);
-}
-
-void SocketStreamMetrics::OnTunnelProxy() {
-  CountConnectionType(TUNNEL_CONNECTION);
-}
-
-void SocketStreamMetrics::OnSOCKSProxy() {
-  CountConnectionType(SOCKS_CONNECTION);
-}
-
-void SocketStreamMetrics::OnSSLConnection() {
-  CountConnectionType(SSL_CONNECTION);
+  OnCountConnectionType(ALL_CONNECTIONS);
 }
 
 void SocketStreamMetrics::OnConnected() {
@@ -84,15 +73,14 @@ void SocketStreamMetrics::OnClose() {
   }
 }
 
-void SocketStreamMetrics::CountProtocolType(ProtocolType protocol_type) {
-  UMA_HISTOGRAM_ENUMERATION("Net.SocketStream.ProtocolType",
-       protocol_type, NUM_PROTOCOL_TYPES);
+void SocketStreamMetrics::OnCountConnectionType(ConnectionType type) {
+  UMA_HISTOGRAM_ENUMERATION("Net.SocketStream.ConnectionType", type,
+                            NUM_CONNECTION_TYPES);
 }
 
-void SocketStreamMetrics::CountConnectionType(ConnectionType connection_type) {
-  UMA_HISTOGRAM_ENUMERATION("Net.SocketStream.ConnectionType",
-       connection_type, NUM_CONNECTION_TYPES);
+void SocketStreamMetrics::OnCountWireProtocolType(WireProtocolType type) {
+  UMA_HISTOGRAM_ENUMERATION("Net.SocketStream.WireProtocolType", type,
+                            NUM_WIRE_PROTOCOL_TYPES);
 }
-
 
 }  // namespace net

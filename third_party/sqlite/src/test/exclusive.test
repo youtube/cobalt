@@ -212,7 +212,7 @@ do_test exclusive-2.8 {
     ROLLBACK;
   } db2
 } {}
-sqlite3_soft_heap_limit $soft_limit
+sqlite3_soft_heap_limit $cmdlinearg(soft-heap-limit)
 
 do_test exclusive-2.9 {
   # Write the database to establish the exclusive lock with connection 'db.
@@ -253,6 +253,11 @@ db2 close
 # from being inspected externally.
 #
 if {$tcl_platform(platform) != "windows"} {
+
+  # Return a list of two booleans (either 0 or 1). The first is true
+  # if the named file exists. The second is true only if the file
+  # exists and the first 28 bytes contain at least one non-zero byte.
+  #
   proc filestate {fname} {
     set exists 0
     set content 0
@@ -263,6 +268,7 @@ if {$tcl_platform(platform) != "windows"} {
     }
     list $exists $content
   }
+
   do_test exclusive-3.0 {
     filestate test.db-journal
   } {0 0}
@@ -390,7 +396,7 @@ do_test exclusive-4.5 {
 # longer active.
 #
 db close
-sqlite db test.db
+sqlite3 db test.db
 
 # if we're using proxy locks, we use 3 filedescriptors for a db
 # that is open but NOT writing changes, normally
@@ -463,4 +469,41 @@ do_test exclusive-5.7 {
   expr $sqlite_open_file_count-$extrafds
 } {1}
 
+#-------------------------------------------------------------------------
+
+do_execsql_test exclusive-6.1 {
+  CREATE TABLE t4(a, b);
+  INSERT INTO t4 VALUES('Eden', 1955);
+  BEGIN;
+    INSERT INTO t4 VALUES('Macmillan', 1957);
+    INSERT INTO t4 VALUES('Douglas-Home', 1963);
+    INSERT INTO t4 VALUES('Wilson', 1964);
+}
+do_test exclusive-6.2 {
+  forcedelete test2.db test2.db-journal
+  file copy test.db test2.db
+  file copy test.db-journal test2.db-journal
+  sqlite3 db test2.db
+} {}
+
+do_execsql_test exclusive-6.3 {
+  PRAGMA locking_mode = EXCLUSIVE;
+  SELECT * FROM t4;
+} {exclusive Eden 1955}
+
+do_test exclusive-6.4 {
+  db close
+  forcedelete test.db test.db-journal
+  set fd [open test.db-journal w]
+  puts $fd x
+  close $fd
+  sqlite3 db test.db
+} {}
+
+do_execsql_test exclusive-6.5 {
+  PRAGMA locking_mode = EXCLUSIVE;
+  SELECT * FROM sqlite_master;
+} {exclusive}
+
 finish_test
+

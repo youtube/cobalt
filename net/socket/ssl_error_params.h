@@ -16,7 +16,7 @@ class SSLErrorParams : public NetLog::EventParameters {
   SSLErrorParams(int net_error, int ssl_lib_error);
   virtual ~SSLErrorParams();
 
-  virtual Value* ToValue() const;
+  virtual base::Value* ToValue() const;
 
  private:
   const int net_error_;

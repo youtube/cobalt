@@ -57,6 +57,7 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   SpdySession(const HostPortProxyPair& host_port_proxy_pair,
               SpdySessionPool* spdy_session_pool,
               SpdySettingsStorage* spdy_settings,
+              bool verify_domain_authentication,
               NetLog* net_log);
 
   const HostPortPair& host_port_pair() const {
@@ -171,7 +172,7 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
 
   // Retrieves information on the current state of the SPDY session as a
   // Value.  Caller takes possession of the returned value.
-  Value* GetInfoAsValue() const;
+  base::Value* GetInfoAsValue() const;
 
   // Indicates whether the session is being reused after having successfully
   // used to send/receive data in the past.
@@ -432,6 +433,9 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
 
   BoundNetLog net_log_;
 
+  // Outside of tests, this should always be true.
+  bool verify_domain_authentication_;
+
   static bool use_ssl_;
   static bool use_flow_control_;
   static size_t max_concurrent_stream_limit_;
@@ -448,7 +452,7 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
     return headers_;
   }
 
-  virtual Value* ToValue() const;
+  virtual base::Value* ToValue() const;
 
  private:
   virtual ~NetLogSpdySynParameter();

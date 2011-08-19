@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -177,7 +177,6 @@ bool UrlToFilenameEncoder::Decode(const string& encoded_filename,
     kEscapeDot
   };
   State state = kStart;
-  int char_code = 0;
   char hex_buffer[3];
   hex_buffer[2] = '\0';
   for (size_t i = 0; i < encoded_filename.size(); ++i) {
@@ -215,7 +214,6 @@ bool UrlToFilenameEncoder::Decode(const string& encoded_filename,
           hex_buffer[1] = ch;
           uint64 hex_value = ParseLeadingHex64Value(hex_buffer, 0);
           decoded_url->append(1, static_cast<char>(hex_value));
-          char_code = 0;
           state = kStart;
         } else {
           return false;

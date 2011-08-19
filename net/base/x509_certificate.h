@@ -48,7 +48,10 @@ class CertVerifyResult;
 
 typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 
-// X509Certificate represents an X.509 certificate used by SSL.
+// X509Certificate represents a X.509 certificate, which is comprised a
+// particular identity or end-entity certificate, such as an SSL server
+// identity or an SSL client certificate, and zero or more intermediate
+// certificates that may be used to build a path to a root certificate.
 class NET_API X509Certificate
     : public base::RefCountedThreadSafe<X509Certificate> {
  public:
@@ -71,21 +74,9 @@ class NET_API X509Certificate
   typedef std::vector<OSCertHandle> OSCertHandles;
 
   // Predicate functor used in maps when X509Certificate is used as the key.
-  class LessThan {
+  class NET_API LessThan {
    public:
     bool operator() (X509Certificate* lhs,  X509Certificate* rhs) const;
-  };
-
-  // Where the certificate comes from.  The enumeration constants are
-  // listed in increasing order of preference.
-  enum Source {
-    SOURCE_UNUSED = 0,            // The source_ member is not used.
-    SOURCE_LONE_CERT_IMPORT = 1,  // From importing a certificate without
-                                  // any intermediate CA certificates.
-    SOURCE_FROM_CACHE = 2,        // From the disk cache - which contains
-                                  // intermediate CA certificates, but may be
-                                  // stale.
-    SOURCE_FROM_NETWORK = 3,      // From the network.
   };
 
   enum VerifyFlags {
@@ -136,22 +127,16 @@ class NET_API X509Certificate
                   base::Time start_date, base::Time expiration_date);
 
   // Create an X509Certificate from a handle to the certificate object in the
-  // underlying crypto library. |source| specifies where |cert_handle| comes
-  // from.  Given two certificate handles for the same certificate, our
-  // certificate cache prefers the handle from the network because our HTTP
-  // cache isn't caching the corresponding intermediate CA certificates yet
-  // (http://crbug.com/7065).
-  // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
+  // underlying crypto library. The returned pointer must be stored in a
+  // scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromHandle(OSCertHandle cert_handle,
-                                           Source source,
                                            const OSCertHandles& intermediates);
 
   // Create an X509Certificate from a chain of DER encoded certificates. The
   // first certificate in the chain is the end-entity certificate to which a
   // handle is returned. The other certificates in the chain are intermediate
-  // certificates. See the comment for |CreateFromHandle| about the |source|
-  // argument.
-  // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
+  // certificates. The returned pointer must be stored in a
+  // scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromDERCertChain(
       const std::vector<base::StringPiece>& der_certs);
 
@@ -230,6 +215,13 @@ class NET_API X509Certificate
   // Otherwise, it gets the common name in the subject field.
   void GetDNSNames(std::vector<std::string>* dns_names) const;
 
+  // Gets the subjectAltName extension field from the certificate, if any.
+  // For future extension; currently this only returns those name types that
+  // are required for HTTP certificate name verification - see VerifyHostname.
+  // Unrequired parameters may be passed as NULL.
+  void GetSubjectAltName(std::vector<std::string>* dns_names,
+                         std::vector<std::string>* ip_addrs) const;
+
   // Convenience method that returns whether this certificate has expired as of
   // now.
   bool HasExpired() const;
@@ -257,15 +249,32 @@ class NET_API X509Certificate
   // Do any of the given issuer names appear in this cert's chain of trust?
   bool IsIssuedBy(const std::vector<CertPrincipal>& valid_issuers);
 
-  // Creates a security policy for SSL client certificates.
-  static OSStatus CreateSSLClientPolicy(SecPolicyRef* outPolicy);
+  // Creates a security policy for certificates used as client certificates
+  // in SSL.
+  // If a policy is successfully created, it will be stored in
+  // |*policy| and ownership transferred to the caller.
+  static OSStatus CreateSSLClientPolicy(SecPolicyRef* policy);
+
+  // Creates a security policy for basic X.509 validation. If the policy is
+  // successfully created, it will be stored in |*policy| and ownership
+  // transferred to the caller.
+  static OSStatus CreateBasicX509Policy(SecPolicyRef* policy);
+
+  // Creates security policies to control revocation checking (OCSP and CRL).
+  // If |enable_revocation_checking| is false, the policies returned will be
+  // explicitly disabled from accessing the network or the cache. This may be
+  // used to override system settings regarding revocation checking.
+  // If the policies are successfully created, they will be appended to
+  // |policies|.
+  static OSStatus CreateRevocationPolicies(bool enable_revocation_checking,
+                                           CFMutableArrayRef policies);
 
   // Adds all available SSL client identity certs to the given vector.
   // |server_domain| is a hint for which domain the cert is to be sent to
   // (a cert previously specified as the default for that domain will be given
   // precedence and returned first in the output vector.)
-  // If valid_issuers is non-empty, only certs that were transitively issued by
-  // one of the given names will be included in the list.
+  // If valid_issuers is non-empty, only certs that were transitively issued
+  // by one of the given names will be included in the list.
   static bool GetSSLClientCertificates(
       const std::string& server_domain,
       const std::vector<CertPrincipal>& valid_issuers,
@@ -313,10 +322,6 @@ class NET_API X509Certificate
   // Does not verify that the certificate is valid, only that the certificate
   // matches this host.
   // Returns true if it matches.
-  //
-  // WARNING:  This function may return false negatives (for example, if
-  //           |hostname| is an IP address literal) on some platforms.  Only
-  //           use in cases where some false-positives are acceptible.
   bool VerifyNameMatch(const std::string& hostname) const;
 
   // This method returns the DER encoded certificate.
@@ -345,6 +350,10 @@ class NET_API X509Certificate
   // Frees (or releases a reference to) an OS certificate handle.
   static void FreeOSCertHandle(OSCertHandle cert_handle);
 
+  // Calculates the SHA-1 fingerprint of the certificate.  Returns an empty
+  // (all zero) fingerprint on failure.
+  static SHA1Fingerprint CalculateFingerprint(OSCertHandle cert_handle);
+
  private:
   friend class base::RefCountedThreadSafe<X509Certificate>;
   friend class TestRootCerts;  // For unit tests
@@ -355,7 +364,7 @@ class NET_API X509Certificate
 
   // Construct an X509Certificate from a handle to the certificate object
   // in the underlying crypto library.
-  X509Certificate(OSCertHandle cert_handle, Source source,
+  X509Certificate(OSCertHandle cert_handle,
                   const OSCertHandles& intermediates);
 
   ~X509Certificate();
@@ -371,27 +380,36 @@ class NET_API X509Certificate
 #if defined(OS_MACOSX)
   static bool IsIssuedByKnownRoot(CFArrayRef chain);
 #endif
+#if defined(USE_NSS)
   bool VerifyEV() const;
-
+#endif
 #if defined(USE_OPENSSL)
   // Resets the store returned by cert_store() to default state. Used by
   // TestRootCerts to undo modifications.
   static void ResetCertStore();
 #endif
 
-  // Calculates the SHA-1 fingerprint of the certificate.  Returns an empty
-  // (all zero) fingerprint on failure.
-  static SHA1Fingerprint CalculateFingerprint(OSCertHandle cert_handle);
-
-  // Verifies that |hostname| matches one of the names in |cert_names|, based on
-  // TLS name matching rules, specifically following http://tools.ietf.org/html/draft-saintandre-tls-server-id-check-09#section-4.4.3
-  // The members of |cert_names| must have been extracted from the Subject CN or
-  // SAN fields of a certificate.
-  // WARNING:  This function may return false negatives (for example, if
-  //           |hostname| is an IP address literal) on some platforms.  Only
-  //           use in cases where some false-positives are acceptible.
+  // Verifies that |hostname| matches one of the certificate names or IP
+  // addresses supplied, based on TLS name matching rules - specifically,
+  // following http://tools.ietf.org/html/rfc6125.
+  // |cert_common_name| is the Subject CN, e.g. from X509Certificate::subject().
+  // The members of |cert_san_dns_names| and |cert_san_ipaddrs| must be filled
+  // from the dNSName and iPAddress components of the subject alternative name
+  // extension, if present. Note these IP addresses are NOT ascii-encoded:
+  // they must be 4 or 16 bytes of network-ordered data, for IPv4 and IPv6
+  // addresses, respectively.
   static bool VerifyHostname(const std::string& hostname,
-                             const std::vector<std::string>& cert_names);
+                             const std::string& cert_common_name,
+                             const std::vector<std::string>& cert_san_dns_names,
+                             const std::vector<std::string>& cert_san_ip_addrs);
+
+  // Performs the platform-dependent part of the Verify() method, verifiying
+  // this certificate against the platform's root CA certificates.
+  //
+  // Parameters and return value are as per Verify().
+  int VerifyInternal(const std::string& hostname,
+                     int flags,
+                     CertVerifyResult* verify_result) const;
 
   // The serial number, DER encoded.
   // NOTE: keep this method private, used by IsBlacklisted only.  To simplify
@@ -451,9 +469,6 @@ class NET_API X509Certificate
   // (Marked mutable because it's used in a const method.)
   mutable base::Lock verification_lock_;
 #endif
-
-  // Where the certificate comes from.
-  Source source_;
 
   DISALLOW_COPY_AND_ASSIGN(X509Certificate);
 };

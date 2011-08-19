@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/atomicops.h"
 
 // A helper class alongside macros to be used to verify assumptions about thread
@@ -131,17 +131,17 @@ namespace base {
 // AsserterBase is the interfaces and DCheckAsserter is the default asserter
 // used. During the unit tests is used another class that doesn't "DCHECK"
 // in case of collision (check thread_collision_warner_unittests.cc)
-struct BASE_API AsserterBase {
+struct BASE_EXPORT AsserterBase {
   virtual ~AsserterBase() {}
   virtual void warn() = 0;
 };
 
-struct BASE_API DCheckAsserter : public AsserterBase {
+struct BASE_EXPORT DCheckAsserter : public AsserterBase {
   virtual ~DCheckAsserter() {}
   virtual void warn();
 };
 
-class BASE_API ThreadCollisionWarner {
+class BASE_EXPORT ThreadCollisionWarner {
  public:
   // The parameter asserter is there only for test purpose
   ThreadCollisionWarner(AsserterBase* asserter = new DCheckAsserter())
@@ -158,7 +158,7 @@ class BASE_API ThreadCollisionWarner {
   // it doesn't leave the critical section, as opposed to ScopedCheck,
   // because the critical section being pinned is allowed to be used only
   // from one thread
-  class BASE_API Check {
+  class BASE_EXPORT Check {
    public:
     explicit Check(ThreadCollisionWarner* warner)
         : warner_(warner) {
@@ -175,7 +175,7 @@ class BASE_API ThreadCollisionWarner {
 
   // This class is meant to be used through the macro
   // DFAKE_SCOPED_LOCK
-  class BASE_API ScopedCheck {
+  class BASE_EXPORT ScopedCheck {
    public:
     explicit ScopedCheck(ThreadCollisionWarner* warner)
         : warner_(warner) {
@@ -194,7 +194,7 @@ class BASE_API ThreadCollisionWarner {
 
   // This class is meant to be used through the macro
   // DFAKE_SCOPED_RECURSIVE_LOCK
-  class BASE_API ScopedRecursiveCheck {
+  class BASE_EXPORT ScopedRecursiveCheck {
    public:
     explicit ScopedRecursiveCheck(ThreadCollisionWarner* warner)
         : warner_(warner) {

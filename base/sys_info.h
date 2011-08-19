@@ -6,7 +6,7 @@
 #define BASE_SYS_INFO_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 #include <string>
@@ -15,7 +15,7 @@ class FilePath;
 
 namespace base {
 
-class BASE_API SysInfo {
+class BASE_EXPORT SysInfo {
  public:
   // Return the number of logical processors/cores on the current machine.
   static int NumberOfProcessors();
@@ -41,6 +41,11 @@ class BASE_API SysInfo {
   // Retrieves detailed numeric values for the OS version.
   // TODO(port): Implement a Linux version of this method and enable the
   // corresponding unit test.
+  // DON'T USE THIS ON THE MAC OR WINDOWS to determine the current OS release
+  // for OS version-specific feature checks and workarounds. If you must use
+  // an OS version check instead of a feature check, use the base::mac::IsOS*
+  // family from base/mac/mac_util.h, or base::win::GetVersion from
+  // base/win/windows_version.h.
   static void OperatingSystemVersionNumbers(int32* major_version,
                                             int32* minor_version,
                                             int32* bugfix_version);
@@ -48,13 +53,6 @@ class BASE_API SysInfo {
   // Returns the CPU architecture of the system. Exact return value may differ
   // across platforms.
   static std::string CPUArchitecture();
-
-  // Returns the pixel dimensions of the primary display via the
-  // width and height parameters.
-  static void GetPrimaryDisplayDimensions(int* width, int* height);
-
-  // Return the number of displays.
-  static int DisplayCount();
 
   // Return the smallest amount of memory (in bytes) which the VM system will
   // allocate.

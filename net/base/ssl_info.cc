@@ -9,20 +9,12 @@
 
 namespace net {
 
-SSLInfo::SSLInfo()
-    : cert_status(0),
-      security_bits(-1),
-      connection_status(0),
-      is_issued_by_known_root(false) {
+SSLInfo::SSLInfo() {
+  Reset();
 }
 
-SSLInfo::SSLInfo(const SSLInfo& info)
-    : cert(info.cert),
-      cert_status(info.cert_status),
-      security_bits(info.security_bits),
-      connection_status(info.connection_status),
-      is_issued_by_known_root(info.is_issued_by_known_root),
-      public_key_hashes(info.public_key_hashes) {
+SSLInfo::SSLInfo(const SSLInfo& info) {
+  *this = info;
 }
 
 SSLInfo::~SSLInfo() {
@@ -35,6 +27,7 @@ SSLInfo& SSLInfo::operator=(const SSLInfo& info) {
   connection_status = info.connection_status;
   public_key_hashes = info.public_key_hashes;
   is_issued_by_known_root = info.is_issued_by_known_root;
+  handshake_type = info.handshake_type;
   return *this;
 }
 
@@ -45,6 +38,7 @@ void SSLInfo::Reset() {
   connection_status = 0;
   is_issued_by_known_root = false;
   public_key_hashes.clear();
+  handshake_type = HANDSHAKE_UNKNOWN;
 }
 
 void SSLInfo::SetCertError(int error) {

@@ -15,6 +15,7 @@
 #include "base/process_util.h"
 #include "base/test/multiprocess_test.h"
 #include "base/test/test_timeouts.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/platform_thread.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,6 +25,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include <glib.h>
+#include <sched.h>
 #endif
 #if defined(OS_POSIX)
 #include <dlfcn.h>
@@ -59,9 +61,6 @@ const int kExpectedKilledExitCode = 1;
 const int kExpectedStillRunningExitCode = 0;
 #endif
 
-// The longest we'll wait for a process, in milliseconds.
-const int kMaxWaitTimeMs = TestTimeouts::action_max_timeout_ms();
-
 // Sleeps until file filename is created.
 void WaitToDie(const char* filename) {
   FILE *fp;
@@ -94,7 +93,7 @@ base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
     base::PlatformThread::Sleep(kIntervalMs);
     waited += kIntervalMs;
   } while (status == base::TERMINATION_STATUS_STILL_RUNNING &&
-           waited < kMaxWaitTimeMs);
+           waited < TestTimeouts::action_max_timeout_ms());
 
   return status;
 }
@@ -116,7 +115,8 @@ MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
 TEST_F(ProcessUtilTest, SpawnChild) {
   base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
-  EXPECT_TRUE(base::WaitForSingleProcess(handle, kMaxWaitTimeMs));
+  EXPECT_TRUE(base::WaitForSingleProcess(
+                  handle, TestTimeouts::action_max_timeout_ms()));
   base::CloseProcessHandle(handle);
 }
 
@@ -130,7 +130,8 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
   base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
   SignalChildren(kSignalFileSlow);
-  EXPECT_TRUE(base::WaitForSingleProcess(handle, kMaxWaitTimeMs));
+  EXPECT_TRUE(base::WaitForSingleProcess(
+                  handle, TestTimeouts::action_max_timeout_ms()));
   base::CloseProcessHandle(handle);
   remove(kSignalFileSlow);
 }
@@ -388,8 +389,10 @@ TEST_F(ProcessUtilTest, LaunchAsUser) {
   base::UserTokenHandle token;
   ASSERT_TRUE(OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &token));
   std::wstring cmdline =
-      this->MakeCmdLine("SimpleChildProcess", false).command_line_string();
-  EXPECT_TRUE(base::LaunchAppAsUser(token, cmdline, false, NULL));
+      this->MakeCmdLine("SimpleChildProcess", false).GetCommandLineString();
+  base::LaunchOptions options;
+  options.as_user = token;
+  EXPECT_TRUE(base::LaunchProcess(cmdline, options, NULL));
 }
 
 #endif  // defined(OS_WIN)
@@ -496,10 +499,10 @@ TEST_F(ProcessUtilTest, FDRemapping) {
 
 namespace {
 
-std::string TestLaunchApp(const base::environment_vector& env_changes) {
+std::string TestLaunchProcess(const base::environment_vector& env_changes,
+                              const int clone_flags) {
   std::vector<std::string> args;
   base::file_handle_mapping_vector fds_to_remap;
-  base::ProcessHandle handle;
 
   args.push_back("bash");
   args.push_back("-c");
@@ -509,8 +512,12 @@ std::string TestLaunchApp(const base::environment_vector& env_changes) {
   PCHECK(pipe(fds) == 0);
 
   fds_to_remap.push_back(std::make_pair(fds[1], 1));
-  EXPECT_TRUE(base::LaunchApp(args, env_changes, fds_to_remap,
-                              true /* wait for exit */, &handle));
+  base::LaunchOptions options;
+  options.wait = true;
+  options.environ = &env_changes;
+  options.fds_to_remap = &fds_to_remap;
+  options.clone_flags = clone_flags;
+  EXPECT_TRUE(base::LaunchProcess(args, options, NULL));
   PCHECK(HANDLE_EINTR(close(fds[1])) == 0);
 
   char buf[512];
@@ -533,31 +540,41 @@ const char kLargeString[] =
 
 }  // namespace
 
-TEST_F(ProcessUtilTest, LaunchApp) {
+TEST_F(ProcessUtilTest, LaunchProcess) {
   base::environment_vector env_changes;
+  const int no_clone_flags = 0;
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
                                        std::string("bar")));
-  EXPECT_EQ("bar\n", TestLaunchApp(env_changes));
+  EXPECT_EQ("bar\n", TestLaunchProcess(env_changes, no_clone_flags));
   env_changes.clear();
 
   EXPECT_EQ(0, setenv("BASE_TEST", "testing", 1 /* override */));
-  EXPECT_EQ("testing\n", TestLaunchApp(env_changes));
+  EXPECT_EQ("testing\n", TestLaunchProcess(env_changes, no_clone_flags));
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
                                        std::string("")));
-  EXPECT_EQ("\n", TestLaunchApp(env_changes));
+  EXPECT_EQ("\n", TestLaunchProcess(env_changes, no_clone_flags));
 
   env_changes[0].second = "foo";
-  EXPECT_EQ("foo\n", TestLaunchApp(env_changes));
+  EXPECT_EQ("foo\n", TestLaunchProcess(env_changes, no_clone_flags));
 
   env_changes.clear();
   EXPECT_EQ(0, setenv("BASE_TEST", kLargeString, 1 /* override */));
-  EXPECT_EQ(std::string(kLargeString) + "\n", TestLaunchApp(env_changes));
+  EXPECT_EQ(std::string(kLargeString) + "\n",
+            TestLaunchProcess(env_changes, no_clone_flags));
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
                                        std::string("wibble")));
-  EXPECT_EQ("wibble\n", TestLaunchApp(env_changes));
+  EXPECT_EQ("wibble\n", TestLaunchProcess(env_changes, no_clone_flags));
+
+#if defined(OS_LINUX)
+  // Test a non-trival value for clone_flags.
+  // Don't test on Valgrind as it has limited support for clone().
+  if (!RunningOnValgrind()) {
+    EXPECT_EQ("wibble\n", TestLaunchProcess(env_changes, CLONE_FS | SIGCHLD));
+  }
+#endif
 }
 
 TEST_F(ProcessUtilTest, AlterEnvironment) {
@@ -661,6 +678,21 @@ TEST_F(ProcessUtilTest, GetAppOutputRestricted) {
   EXPECT_STREQ("", output.c_str());
 }
 
+#if !(OS_MACOSX)
+// TODO(benwells): GetAppOutputRestricted should terminate applications
+// with SIGPIPE when we have enough output. http://crbug.com/88502
+TEST_F(ProcessUtilTest, GetAppOutputRestrictedSIGPIPE) {
+  std::vector<std::string> argv;
+  std::string output;
+
+  argv.push_back("/bin/sh");
+  argv.push_back("-c");
+  argv.push_back("yes");
+  EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 10));
+  EXPECT_STREQ("y\ny\ny\ny\ny\n", output.c_str());
+}
+#endif
+
 TEST_F(ProcessUtilTest, GetAppOutputRestrictedNoZombies) {
   std::vector<std::string> argv;
   argv.push_back("/bin/sh");  // argv[0]
@@ -681,6 +713,29 @@ TEST_F(ProcessUtilTest, GetAppOutputRestrictedNoZombies) {
     EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 10));
     EXPECT_STREQ("1234567890", output.c_str());
   }
+}
+
+TEST_F(ProcessUtilTest, GetAppOutputWithExitCode) {
+  // Test getting output from a successful application.
+  std::vector<std::string> argv;
+  std::string output;
+  int exit_code;
+  argv.push_back("/bin/sh");  // argv[0]
+  argv.push_back("-c");       // argv[1]
+  argv.push_back("echo foo"); // argv[2];
+  EXPECT_TRUE(base::GetAppOutputWithExitCode(CommandLine(argv), &output,
+                                             &exit_code));
+  EXPECT_STREQ("foo\n", output.c_str());
+  EXPECT_EQ(exit_code, 0);
+
+  // Test getting output from an application which fails with a specific exit
+  // code.
+  output.clear();
+  argv[2] = "echo foo; exit 2";
+  EXPECT_TRUE(base::GetAppOutputWithExitCode(CommandLine(argv), &output,
+                                             &exit_code));
+  EXPECT_STREQ("foo\n", output.c_str());
+  EXPECT_EQ(exit_code, 2);
 }
 
 TEST_F(ProcessUtilTest, GetParentProcessId) {

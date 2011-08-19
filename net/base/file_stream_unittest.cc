@@ -646,7 +646,7 @@ TEST_F(FileStreamTest, BasicAsyncWriteRead) {
 
 class TestWriteReadCompletionCallback : public Callback1<int>::Type {
  public:
-  explicit TestWriteReadCompletionCallback(
+  TestWriteReadCompletionCallback(
       FileStream* stream,
       int* total_bytes_written,
       int* total_bytes_read,
@@ -776,8 +776,7 @@ TEST_F(FileStreamTest, AsyncWriteRead) {
 
 class TestWriteCloseCompletionCallback : public Callback1<int>::Type {
  public:
-  explicit TestWriteCloseCompletionCallback(FileStream* stream,
-                                            int* total_bytes_written)
+  TestWriteCloseCompletionCallback(FileStream* stream, int* total_bytes_written)
       : result_(0),
         have_result_(false),
         waiting_for_result_(false),

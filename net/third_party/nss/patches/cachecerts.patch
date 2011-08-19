@@ -1,10 +1,13 @@
-Index: mozilla/security/nss/lib/ssl/ssl3con.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3con.c,v
-retrieving revision 1.142
-diff -p -u -r1.142 ssl3con.c
---- mozilla/security/nss/lib/ssl/ssl3con.c	24 Jun 2010 19:53:20 -0000	1.142
-+++ mozilla/security/nss/lib/ssl/ssl3con.c	21 Oct 2010 02:24:18 -0000
+commit 107c49e2efd15ef547b2055af14952610e0e7afa
+Author: Adam Langley <agl@chromium.org>
+Date:   Mon Jun 20 15:52:55 2011 -0400
+
+    cachecerts.patch
+
+diff --git a/mozilla/security/nss/lib/ssl/ssl3con.c b/mozilla/security/nss/lib/ssl/ssl3con.c
+index 455a532..9830e65 100644
+--- a/mozilla/security/nss/lib/ssl/ssl3con.c
++++ b/mozilla/security/nss/lib/ssl/ssl3con.c
 @@ -72,6 +72,7 @@
  #endif
  
@@ -13,7 +16,7 @@ diff -p -u -r1.142 ssl3con.c
  static PK11SymKey *ssl3_GenerateRSAPMS(sslSocket *ss, ssl3CipherSpec *spec,
                                         PK11SlotInfo * serverKeySlot);
  static SECStatus ssl3_DeriveMasterSecret(sslSocket *ss, PK11SymKey *pms);
-@@ -5136,6 +5137,7 @@ ssl3_HandleServerHello(sslSocket *ss, SS
+@@ -5141,6 +5142,7 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  	/* copy the peer cert from the SID */
  	if (sid->peerCert != NULL) {
  	    ss->sec.peerCert = CERT_DupCertificate(sid->peerCert);
@@ -21,7 +24,7 @@ diff -p -u -r1.142 ssl3con.c
  	}
  
  
-@@ -6364,6 +6366,7 @@ compression_found:
+@@ -6393,6 +6395,7 @@ compression_found:
  	ss->sec.ci.sid = sid;
  	if (sid->peerCert != NULL) {
  	    ss->sec.peerCert = CERT_DupCertificate(sid->peerCert);
@@ -29,7 +32,7 @@ diff -p -u -r1.142 ssl3con.c
  	}
  
  	/*
-@@ -7732,6 +7735,44 @@ ssl3_CleanupPeerCerts(sslSocket *ss)
+@@ -7761,6 +7764,44 @@ ssl3_CleanupPeerCerts(sslSocket *ss)
      ss->ssl3.peerCertChain = NULL;
  }
  
@@ -74,7 +77,7 @@ diff -p -u -r1.142 ssl3con.c
  /* Called from ssl3_HandleHandshakeMessage() when it has deciphered a complete
   * ssl3 Certificate message.
   * Caller must hold Handshake and RecvBuf locks.
-@@ -7740,6 +7781,7 @@ static SECStatus
+@@ -7769,6 +7810,7 @@ static SECStatus
  ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  {
      ssl3CertNode *   c;
@@ -82,7 +85,7 @@ diff -p -u -r1.142 ssl3con.c
      ssl3CertNode *   certs 	= NULL;
      PRArenaPool *    arena 	= NULL;
      CERTCertificate *cert;
-@@ -7867,8 +7909,13 @@ ssl3_HandleCertificate(sslSocket *ss, SS
+@@ -7896,8 +7938,13 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  	if (c->cert->trust)
  	    trusted = PR_TRUE;
  
@@ -98,7 +101,7 @@ diff -p -u -r1.142 ssl3con.c
      }
  
      if (remaining != 0)
-@@ -7918,6 +7965,7 @@ ssl3_HandleCertificate(sslSocket *ss, SS
+@@ -7947,6 +7994,7 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
      }
  
      ss->sec.ci.sid->peerCert = CERT_DupCertificate(ss->sec.peerCert);
@@ -106,7 +109,7 @@ diff -p -u -r1.142 ssl3con.c
  
      if (!ss->sec.isServer) {
  	/* set the server authentication and key exchange types and sizes
-@@ -8089,6 +8137,8 @@ ssl3_RestartHandshakeAfterServerCert(ssl
+@@ -8118,6 +8166,8 @@ ssl3_RestartHandshakeAfterServerCert(sslSocket *ss)
      if (ss->handshake != NULL) {
  	ss->handshake = ssl_GatherRecord1stHandshake;
  	ss->sec.ci.sid->peerCert = CERT_DupCertificate(ss->sec.peerCert);
@@ -115,14 +118,11 @@ diff -p -u -r1.142 ssl3con.c
  
  	ssl_GetRecvBufLock(ss);
  	if (ss->ssl3.hs.msgState.buf != NULL) {
-Index: mozilla/security/nss/lib/ssl/sslimpl.h
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslimpl.h,v
-retrieving revision 1.77
-diff -p -u -r1.77 sslimpl.h
---- mozilla/security/nss/lib/ssl/sslimpl.h	10 Feb 2010 00:33:50 -0000	1.77
-+++ mozilla/security/nss/lib/ssl/sslimpl.h	21 Oct 2010 02:24:18 -0000
-@@ -563,10 +563,13 @@ typedef enum {	never_cached, 
+diff --git a/mozilla/security/nss/lib/ssl/sslimpl.h b/mozilla/security/nss/lib/ssl/sslimpl.h
+index d1c1181..48d6d83 100644
+--- a/mozilla/security/nss/lib/ssl/sslimpl.h
++++ b/mozilla/security/nss/lib/ssl/sslimpl.h
+@@ -569,10 +569,13 @@ typedef enum {	never_cached,
  		invalid_cache		/* no longer in any cache. */
  } Cached;
  
@@ -136,13 +136,10 @@ diff -p -u -r1.77 sslimpl.h
      const char *          peerID;     /* client only */
      const char *          urlSvrName; /* client only */
      CERTCertificate *     localCert;
-Index: mozilla/security/nss/lib/ssl/sslnonce.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslnonce.c,v
-retrieving revision 1.25
-diff -p -u -r1.25 sslnonce.c
---- mozilla/security/nss/lib/ssl/sslnonce.c	10 Mar 2008 00:01:28 -0000	1.25
-+++ mozilla/security/nss/lib/ssl/sslnonce.c	21 Oct 2010 02:24:18 -0000
+diff --git a/mozilla/security/nss/lib/ssl/sslnonce.c b/mozilla/security/nss/lib/ssl/sslnonce.c
+index 63dc5a2..64adc1f 100644
+--- a/mozilla/security/nss/lib/ssl/sslnonce.c
++++ b/mozilla/security/nss/lib/ssl/sslnonce.c
 @@ -197,6 +197,7 @@ lock_cache(void)
  static void
  ssl_DestroySID(sslSessionID *sid)

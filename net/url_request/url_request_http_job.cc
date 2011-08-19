@@ -4,6 +4,7 @@
 
 #include "net/url_request/url_request_http_job.h"
 
+#include "base/bind.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
@@ -16,13 +17,14 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "net/base/cert_status_flags.h"
-#include "net/base/cookie_store.h"
+#include "net/base/cookie_monster.h"
 #include "net/base/filter.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
 #include "net/base/mime_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/base/network_delegate.h"
 #if !defined(__LB_PS3__)
 #include "net/base/sdch_manager.h"
 #endif
@@ -75,9 +77,11 @@ void AddAuthorizationHeader(
     }
     if (!signature.AddHttpInfo(method, request_uri, host, port))
       continue;
-    request_info->extra_headers.SetHeader(
-        HttpRequestHeaders::kAuthorization,
-        signature.GenerateAuthorizationHeader());
+    std::string authorization_header;
+    if (!signature.GenerateAuthorizationHeader(&authorization_header))
+      continue;
+    request_info->extra_headers.SetHeader(HttpRequestHeaders::kAuthorization,
+                                          authorization_header);
     return;  // Only add the first valid header.
   }
 }
@@ -250,6 +254,8 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
           this, &URLRequestHttpJob::OnStartCompleted)),
       ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_(
           this, &URLRequestHttpJob::OnReadCompleted)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(notify_before_headers_sent_callback_(
+          this, &URLRequestHttpJob::NotifyBeforeSendHeadersCallback)),
       read_in_progress_(false),
       transaction_(NULL),
       throttling_entry_(URLRequestThrottlerManager::GetInstance()->
@@ -260,14 +266,14 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       is_cached_content_(false),
       request_creation_time_(),
       packet_timing_enabled_(false),
+      done_(false),
       bytes_observed_in_packets_(0),
-      packet_times_(),
       request_time_snapshot_(),
       final_packet_time_(),
-      observed_packet_count_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           filter_context_(new HttpFilterContext(this))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
+      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
   ResetTimer();
 }
 
@@ -316,6 +322,10 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   // notified of the headers completion so that we can update the cookie store.
   if (transaction_->IsReadyToRestartForAuth()) {
     DCHECK(!response_info_->auth_challenge.get());
+    // TODO(battre): This breaks the webrequest API for
+    // URLRequestTestHTTP.BasicAuthWithCookies
+    // where OnBeforeSendHeaders -> OnSendHeaders -> OnBeforeSendHeaders
+    // occurs.
     RestartTransactionWithAuth(string16(), string16());
     return;
   }
@@ -324,25 +334,60 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
 }
 
 void URLRequestHttpJob::NotifyDone(const URLRequestStatus& status) {
-  RecordCompressionHistograms();
+  DoneWithRequest(FINISHED);
   URLRequestJob::NotifyDone(status);
 }
 
 void URLRequestHttpJob::DestroyTransaction() {
   DCHECK(transaction_.get());
 
+  DoneWithRequest(ABORTED);
   transaction_.reset();
   response_info_ = NULL;
   context_ = NULL;
 }
 
 void URLRequestHttpJob::StartTransaction() {
+  if (request_->context() && request_->context()->network_delegate()) {
+    int rv = request_->context()->network_delegate()->NotifyBeforeSendHeaders(
+        request_, &notify_before_headers_sent_callback_,
+        &request_info_.extra_headers);
+    // If an extension blocks the request, we rely on the callback to
+    // StartTransactionInternal().
+    if (rv == ERR_IO_PENDING) {
+      request_->net_log().BeginEvent(
+          NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+      return;
+    }
+  }
+  StartTransactionInternal();
+}
+
+void URLRequestHttpJob::NotifyBeforeSendHeadersCallback(int result) {
+  request_->net_log().EndEvent(
+      NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+
+  if (result == OK) {
+    StartTransactionInternal();
+  } else {
+    request_->net_log().AddEvent(NetLog::TYPE_CANCELLED,
+        make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
+    NotifyCanceled();
+  }
+}
+
+void URLRequestHttpJob::StartTransactionInternal() {
   // NOTE: This method assumes that request_info_ is already setup properly.
 
   // If we already have a transaction, then we should restart the transaction
   // with auth provided by username_ and password_.
 
   int rv;
+
+  if (request_->context() && request_->context()->network_delegate()) {
+    request_->context()->network_delegate()->NotifySendHeaders(
+        request_, request_info_.extra_headers);
+  }
 
   if (transaction_.get()) {
     rv = transaction_->RestartWithAuth(username_, password_, &start_callback_);
@@ -359,6 +404,7 @@ void URLRequestHttpJob::StartTransaction() {
           !throttling_entry_->IsDuringExponentialBackoff()) {
         rv = transaction_->Start(
             &request_info_, &start_callback_, request_->net_log());
+        start_time_ = base::TimeTicks::Now();
       } else {
         // Special error code for the exponential back-off module.
         rv = ERR_TEMPORARILY_THROTTLED;
@@ -382,63 +428,71 @@ void URLRequestHttpJob::StartTransaction() {
 
 void URLRequestHttpJob::AddExtraHeaders() {
 #if !defined(__LB_PS3__)
-  // TODO(jar): Consider optimizing away SDCH advertising bytes when the URL is
-  // probably an img or such (and SDCH encoding is not likely).
-  bool advertise_sdch = SdchManager::Global() &&
-      SdchManager::Global()->IsInSupportedDomain(request_->url());
-  std::string avail_dictionaries;
-  if (advertise_sdch) {
-    SdchManager::Global()->GetAvailDictionaryList(request_->url(),
-                                                  &avail_dictionaries);
+  // Supply Accept-Encoding field only if it is not already provided.
+  // It should be provided IF the content is known to have restrictions on
+  // potential encoding, such as streaming multi-media.
+  // For details see bug 47381.
+  // TODO(jar, enal): jpeg files etc. should set up a request header if
+  // possible. Right now it is done only by buffered_resource_loader and
+  // simple_data_source.
+  if (!request_info_.extra_headers.HasHeader(
+      HttpRequestHeaders::kAcceptEncoding)) {
+    bool advertise_sdch = SdchManager::Global() &&
+        SdchManager::Global()->IsInSupportedDomain(request_->url());
+    std::string avail_dictionaries;
+    if (advertise_sdch) {
+      SdchManager::Global()->GetAvailDictionaryList(request_->url(),
+                                                    &avail_dictionaries);
 
-    // The AllowLatencyExperiment() is only true if we've successfully done a
-    // full SDCH compression recently in this browser session for this host.
-    // Note that for this path, there might be no applicable dictionaries, and
-    // hence we can't participate in the experiment.
-    if (!avail_dictionaries.empty() &&
-        SdchManager::Global()->AllowLatencyExperiment(request_->url())) {
-      // We are participating in the test (or control), and hence we'll
-      // eventually record statistics via either SDCH_EXPERIMENT_DECODE or
-      // SDCH_EXPERIMENT_HOLDBACK, and we'll need some packet timing data.
-      packet_timing_enabled_ = true;
-      if (base::RandDouble() < .01) {
-        sdch_test_control_ = true;  // 1% probability.
-        advertise_sdch = false;
-      } else {
-        sdch_test_activated_ = true;
+      // The AllowLatencyExperiment() is only true if we've successfully done a
+      // full SDCH compression recently in this browser session for this host.
+      // Note that for this path, there might be no applicable dictionaries,
+      // and hence we can't participate in the experiment.
+      if (!avail_dictionaries.empty() &&
+          SdchManager::Global()->AllowLatencyExperiment(request_->url())) {
+        // We are participating in the test (or control), and hence we'll
+        // eventually record statistics via either SDCH_EXPERIMENT_DECODE or
+        // SDCH_EXPERIMENT_HOLDBACK, and we'll need some packet timing data.
+        packet_timing_enabled_ = true;
+        if (base::RandDouble() < .01) {
+          sdch_test_control_ = true;  // 1% probability.
+          advertise_sdch = false;
+        } else {
+          sdch_test_activated_ = true;
+        }
       }
     }
-  }
 
-  // Supply Accept-Encoding headers first so that it is more likely that they
-  // will be in the first transmitted packet.  This can sometimes make it easier
-  // to filter and analyze the streams to assure that a proxy has not damaged
-  // these headers.  Some proxies deliberately corrupt Accept-Encoding headers.
-  if (!advertise_sdch) {
-//#endif // __LB_PS3__FIX_ME__ gzip support broken for now, advertise NOTHING
-    // Tell the server what compression formats we support (other than SDCH).
-    request_info_.extra_headers.SetHeader(
-        HttpRequestHeaders::kAcceptEncoding, "gzip,deflate");
-//#if !defined(__LB_PS3__)
-  } else {
-    // Include SDCH in acceptable list.
-    request_info_.extra_headers.SetHeader(
-        HttpRequestHeaders::kAcceptEncoding, "gzip,deflate,sdch");
-    if (!avail_dictionaries.empty()) {
+    // Supply Accept-Encoding headers first so that it is more likely that they
+    // will be in the first transmitted packet.  This can sometimes make it
+    // easier to filter and analyze the streams to assure that a proxy has not
+    // damaged these headers.  Some proxies deliberately corrupt Accept-Encoding
+    // headers.
+    if (!advertise_sdch) {
+      // Tell the server what compression formats we support (other than SDCH).
       request_info_.extra_headers.SetHeader(
-          kAvailDictionaryHeader,
-          avail_dictionaries);
-      sdch_dictionary_advertised_ = true;
-      // Since we're tagging this transaction as advertising a dictionary, we'll
-      // definitely employ an SDCH filter (or tentative sdch filter) when we get
-      // a response.  When done, we'll record histograms via SDCH_DECODE or
-      // SDCH_PASSTHROUGH.  Hence we need to record packet arrival times.
-      packet_timing_enabled_ = true;
+          HttpRequestHeaders::kAcceptEncoding, "gzip,deflate");
+    } else {
+      // Include SDCH in acceptable list.
+      request_info_.extra_headers.SetHeader(
+          HttpRequestHeaders::kAcceptEncoding, "gzip,deflate,sdch");
+      if (!avail_dictionaries.empty()) {
+        request_info_.extra_headers.SetHeader(
+            kAvailDictionaryHeader,
+            avail_dictionaries);
+        sdch_dictionary_advertised_ = true;
+        // Since we're tagging this transaction as advertising a dictionary,
+        // we'll definitely employ an SDCH filter (or tentative sdch filter)
+        // when we get a response.  When done, we'll record histograms via
+        // SDCH_DECODE or SDCH_PASSTHROUGH.  Hence we need to record packet
+        // arrival times.
+        packet_timing_enabled_ = true;
+      }
     }
   }
 #endif
 
-  URLRequestContext* context = request_->context();
+  const URLRequestContext* context = request_->context();
   if (context) {
     // Only add default Accept-Language and Accept-Charset if the request
     // didn't have them specified.
@@ -464,28 +518,52 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
   if (!request_)
     return;
 
+  CookieStore* cookie_store =
+      request_->context()->cookie_store();
+  if (cookie_store) {
+    cookie_store->GetCookieMonster()->GetAllCookiesForURLAsync(
+        request_->url(),
+        base::Bind(&URLRequestHttpJob::CheckCookiePolicyAndLoad,
+                   weak_ptr_factory_.GetWeakPtr()));
+  } else {
+    DoStartTransaction();
+  }
+}
+
+void URLRequestHttpJob::CheckCookiePolicyAndLoad(
+    const CookieList& cookie_list) {
   bool allow = true;
-  if (request_info_.load_flags & LOAD_DO_NOT_SEND_COOKIES ||
-      (request_->delegate() &&
-       !request_->delegate()->CanGetCookies(request_))) {
+  if ((request_info_.load_flags & LOAD_DO_NOT_SEND_COOKIES) ||
+      !CanGetCookies(cookie_list)) {
     allow = false;
   }
 
-  if (request_->context()->cookie_store() && allow) {
+  if (allow) {
     CookieOptions options;
     options.set_include_httponly();
-    std::string cookie_line;
-    std::vector<CookieStore::CookieInfo> cookie_infos;
-    request_->context()->cookie_store()->GetCookiesWithInfo(
-        request_->url(), options, &cookie_line, &cookie_infos);
-    if (!cookie_line.empty()) {
-      request_info_.extra_headers.SetHeader(
-          HttpRequestHeaders::kCookie, cookie_line);
-    }
-    if (URLRequest::AreMacCookiesEnabled())
-      AddAuthorizationHeader(cookie_infos, &request_info_);
+    request_->context()->cookie_store()->GetCookiesWithInfoAsync(
+        request_->url(), options,
+        base::Bind(&URLRequestHttpJob::OnCookiesLoaded,
+                   weak_ptr_factory_.GetWeakPtr()));
+  } else {
+    DoStartTransaction();
   }
-  // We may have been canceled within CanGetCookies.
+}
+
+void URLRequestHttpJob::OnCookiesLoaded(
+    std::string* cookie_line,
+    std::vector<net::CookieStore::CookieInfo>* cookie_infos) {
+  if (!cookie_line->empty()) {
+    request_info_.extra_headers.SetHeader(
+        HttpRequestHeaders::kCookie, *cookie_line);
+  }
+  if (URLRequest::AreMacCookiesEnabled())
+    AddAuthorizationHeader(*cookie_infos, &request_info_);
+  DoStartTransaction();
+}
+
+void URLRequestHttpJob::DoStartTransaction() {
+  // We may have been canceled while retrieving cookies.
   if (GetStatus().is_success()) {
     StartTransaction();
   } else {
@@ -521,22 +599,28 @@ void URLRequestHttpJob::SaveNextCookie() {
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  bool allow = true;
   CookieOptions options;
-  if (request_info_.load_flags & LOAD_DO_NOT_SAVE_COOKIES) {
-    allow = false;
-  } else if (request_->delegate() && request_->context()->cookie_store()) {
+  if (!(request_info_.load_flags & LOAD_DO_NOT_SAVE_COOKIES) &&
+      request_->context()->cookie_store()) {
     CookieOptions options;
     options.set_include_httponly();
-    if (request_->delegate()->CanSetCookie(
-            request_,
-            response_cookies_[response_cookies_save_index_], &options)) {
-      request_->context()->cookie_store()->SetCookieWithOptions(
+    if (CanSetCookie(
+        response_cookies_[response_cookies_save_index_], &options)) {
+      request_->context()->cookie_store()->SetCookieWithOptionsAsync(
           request_->url(), response_cookies_[response_cookies_save_index_],
-          options);
+          options, base::Bind(&URLRequestHttpJob::OnCookieSaved,
+                              weak_ptr_factory_.GetWeakPtr()));
+      return;
     }
   }
+  CookieHandled();
+}
 
+void URLRequestHttpJob::OnCookieSaved(bool cookie_status) {
+  CookieHandled();
+}
+
+void URLRequestHttpJob::CookieHandled() {
   response_cookies_save_index_++;
   // We may have been canceled within OnSetCookie.
   if (GetStatus().is_success()) {
@@ -562,7 +646,7 @@ void URLRequestHttpJob::FetchResponseCookies(
 void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   DCHECK(response_info_);
 
-  URLRequestContext* ctx = request_->context();
+  const URLRequestContext* ctx = request_->context();
   if (!ctx || !ctx->transport_security_state())
     return;
 
@@ -651,7 +735,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   RecordTimer();
 
   // If the request was destroyed, then there is no more work to do.
-  if (!request_ || !request_->delegate())
+  if (!request_)
     return;
 
   // If the transaction was destroyed, then the job was cancelled, and
@@ -694,11 +778,11 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
     // what we should do.
     // TODO(wtc): also pass ssl_info.cert_status, or just pass the whole
     // ssl_info.
-    request_->delegate()->OnSSLCertificateError(
-        request_, result, transaction_->GetResponseInfo()->ssl_info.cert);
+    NotifySSLCertificateError(
+        result, transaction_->GetResponseInfo()->ssl_info.cert);
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
-    request_->delegate()->OnCertificateRequested(
-        request_, transaction_->GetResponseInfo()->cert_request_info);
+    NotifyCertificateRequested(
+        transaction_->GetResponseInfo()->cert_request_info);
   } else {
     NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, result));
   }
@@ -706,6 +790,9 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
 
 void URLRequestHttpJob::OnReadCompleted(int result) {
   read_in_progress_ = false;
+
+  if (ShouldFixMismatchedContentLength(result))
+    result = 0;
 
   if (result == 0) {
     NotifyDone(URLRequestStatus());
@@ -781,11 +868,22 @@ void URLRequestHttpJob::Start() {
   GURL referrer(request_->GetSanitizedReferrer());
 
   request_info_.url = request_->url();
-  request_info_.referrer = referrer;
   request_info_.method = request_->method();
   request_info_.load_flags = request_->load_flags();
   request_info_.priority = request_->priority();
   request_info_.request_id = request_->identifier();
+
+  // Strip Referer from request_info_.extra_headers to prevent, e.g., plugins
+  // from overriding headers that are controlled using other means. Otherwise a
+  // plugin could set a referrer although sending the referrer is inhibited.
+  request_info_.extra_headers.RemoveHeader(HttpRequestHeaders::kReferer);
+
+  // Our consumer should have made sure that this is a safe referrer.  See for
+  // instance WebCore::FrameLoader::HideReferrer.
+  if (referrer.is_valid()) {
+    request_info_.extra_headers.SetHeader(HttpRequestHeaders::kReferer,
+                                          referrer.spec());
+  }
 
   if (request_->context()) {
     request_info_.extra_headers.SetHeaderIfMissing(
@@ -801,6 +899,7 @@ void URLRequestHttpJob::Kill() {
   if (!transaction_.get())
     return;
 
+  weak_ptr_factory_.InvalidateWeakPtrs();
   DestroyTransaction();
   URLRequestJob::Kill();
 }
@@ -1055,6 +1154,28 @@ void URLRequestHttpJob::ContinueDespiteLastError() {
           &URLRequestHttpJob::OnStartCompleted, rv));
 }
 
+bool URLRequestHttpJob::ShouldFixMismatchedContentLength(int rv) const {
+  // Some servers send the body compressed, but specify the content length as
+  // the uncompressed size.  Although this violates the HTTP spec we want to
+  // support it (as IE and FireFox do), but *only* for an exact match.
+  // See http://crbug.com/79694.
+  if (rv == net::ERR_CONNECTION_CLOSED) {
+    if (request_ && request_->response_headers()) {
+      int64 expected_length = request_->response_headers()->GetContentLength();
+      VLOG(1) << __FUNCTION__ << "() "
+              << "\"" << request_->url().spec() << "\""
+              << " content-length = " << expected_length
+              << " pre total = " << prefilter_bytes_read()
+              << " post total = " << postfilter_bytes_read();
+      if (postfilter_bytes_read() == expected_length) {
+        // Clear the error.
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool URLRequestHttpJob::ReadRawData(IOBuffer* buf, int buf_size,
                                     int *bytes_read) {
   DCHECK_NE(buf_size, 0);
@@ -1062,8 +1183,14 @@ bool URLRequestHttpJob::ReadRawData(IOBuffer* buf, int buf_size,
   DCHECK(!read_in_progress_);
 
   int rv = transaction_->Read(buf, buf_size, &read_callback_);
+
+  if (ShouldFixMismatchedContentLength(rv))
+    rv = 0;
+
   if (rv >= 0) {
     *bytes_read = rv;
+    if (!rv)
+      DoneWithRequest(FINISHED);
     return true;
   }
 
@@ -1087,6 +1214,7 @@ HostPortPair URLRequestHttpJob::GetSocketAddress() const {
 }
 
 URLRequestHttpJob::~URLRequestHttpJob() {
+#if !defined(__LB_PS3__)
   DCHECK(!sdch_test_control_ || !sdch_test_activated_);
   if (!is_cached_content_) {
     if (sdch_test_control_)
@@ -1098,7 +1226,6 @@ URLRequestHttpJob::~URLRequestHttpJob() {
   // filter_context_ is still alive.
   DestroyFilters();
 
-#if !defined(__LB_PS3__)
   if (sdch_dictionary_url_.is_valid()) {
     // Prior to reaching the destructor, request_ has been set to a NULL
     // pointer, so request_->url() is no longer valid in the destructor, and we
@@ -1114,6 +1241,7 @@ URLRequestHttpJob::~URLRequestHttpJob() {
       manager->FetchDictionary(request_info_.url, sdch_dictionary_url_);
   }
 #endif
+  DoneWithRequest(ABORTED);
 }
 
 void URLRequestHttpJob::RecordTimer() {
@@ -1137,7 +1265,7 @@ void URLRequestHttpJob::RecordTimer() {
         to_start);
   }
 
-  const bool is_prerender = !!(request_info_.load_flags & LOAD_PRERENDER);
+  const bool is_prerender = !!(request_info_.load_flags & LOAD_PRERENDERING);
   if (is_prerender) {
     UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte_Prerender",
                                to_start);
@@ -1177,22 +1305,10 @@ void URLRequestHttpJob::UpdatePacketReadTimes() {
     return;  // No new bytes have arrived.
   }
 
+  final_packet_time_ = base::Time::Now();
   if (!bytes_observed_in_packets_)
     request_time_snapshot_ = request_ ? request_->request_time() : base::Time();
 
-  final_packet_time_ = base::Time::Now();
-  const size_t kTypicalPacketSize = 1430;
-  while (filter_input_byte_count() > bytes_observed_in_packets_) {
-    ++observed_packet_count_;
-    if (packet_times_.size() < kSdchPacketHistogramCount) {
-      packet_times_.push_back(final_packet_time_);
-      DCHECK_EQ(static_cast<size_t>(observed_packet_count_),
-                packet_times_.size());
-    }
-    bytes_observed_in_packets_ += kTypicalPacketSize;
-  }
-  // Since packets may not be full, we'll remember the number of bytes we've
-  // accounted for in packets thus far.
   bytes_observed_in_packets_ = filter_input_byte_count();
 }
 
@@ -1204,116 +1320,28 @@ void URLRequestHttpJob::RecordPacketStats(
   base::TimeDelta duration = final_packet_time_ - request_time_snapshot_;
   switch (statistic) {
     case FilterContext::SDCH_DECODE: {
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_Latency_F_a", duration,
-                                  base::TimeDelta::FromMilliseconds(20),
-                                  base::TimeDelta::FromMinutes(10), 100);
-      UMA_HISTOGRAM_COUNTS_100("Sdch3.Network_Decode_Packets_b",
-                               static_cast<int>(observed_packet_count_));
       UMA_HISTOGRAM_CUSTOM_COUNTS("Sdch3.Network_Decode_Bytes_Processed_b",
           static_cast<int>(bytes_observed_in_packets_), 500, 100000, 100);
-      if (packet_times_.empty())
-        return;
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_1st_To_Last_a",
-                                  final_packet_time_ - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(20),
-                                  base::TimeDelta::FromMinutes(10), 100);
-
-      DCHECK_GT(kSdchPacketHistogramCount, 4u);
-      if (packet_times_.size() <= 4)
-        return;
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_1st_To_2nd_c",
-                                  packet_times_[1] - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_2nd_To_3rd_c",
-                                  packet_times_[2] - packet_times_[1],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_3rd_To_4th_c",
-                                  packet_times_[3] - packet_times_[2],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_4th_To_5th_c",
-                                  packet_times_[4] - packet_times_[3],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
       return;
     }
     case FilterContext::SDCH_PASSTHROUGH: {
       // Despite advertising a dictionary, we handled non-sdch compressed
       // content.
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_Latency_F_a",
-                                  duration,
-                                  base::TimeDelta::FromMilliseconds(20),
-                                  base::TimeDelta::FromMinutes(10), 100);
-      UMA_HISTOGRAM_COUNTS_100("Sdch3.Network_Pass-through_Packets_b",
-                               observed_packet_count_);
-      if (packet_times_.empty())
-        return;
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_1st_To_Last_a",
-                                  final_packet_time_ - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(20),
-                                  base::TimeDelta::FromMinutes(10), 100);
-      DCHECK_GT(kSdchPacketHistogramCount, 4u);
-      if (packet_times_.size() <= 4)
-        return;
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_1st_To_2nd_c",
-                                  packet_times_[1] - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_2nd_To_3rd_c",
-                                  packet_times_[2] - packet_times_[1],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_3rd_To_4th_c",
-                                  packet_times_[3] - packet_times_[2],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_4th_To_5th_c",
-                                  packet_times_[4] - packet_times_[3],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
       return;
     }
 
     case FilterContext::SDCH_EXPERIMENT_DECODE: {
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Decode",
+      UMA_HISTOGRAM_CUSTOM_TIMES("Sdch3.Experiment2_Decode",
                                   duration,
                                   base::TimeDelta::FromMilliseconds(20),
                                   base::TimeDelta::FromMinutes(10), 100);
-      // We already provided interpacket histograms above in the SDCH_DECODE
-      // case, so we don't need them here.
       return;
     }
     case FilterContext::SDCH_EXPERIMENT_HOLDBACK: {
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback",
+      UMA_HISTOGRAM_CUSTOM_TIMES("Sdch3.Experiment2_Holdback",
                                   duration,
                                   base::TimeDelta::FromMilliseconds(20),
                                   base::TimeDelta::FromMinutes(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback_1st_To_Last_a",
-                                  final_packet_time_ - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(20),
-                                  base::TimeDelta::FromMinutes(10), 100);
-
-      DCHECK_GT(kSdchPacketHistogramCount, 4u);
-      if (packet_times_.size() <= 4)
-        return;
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback_1st_To_2nd_c",
-                                  packet_times_[1] - packet_times_[0],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback_2nd_To_3rd_c",
-                                  packet_times_[2] - packet_times_[1],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback_3rd_To_4th_c",
-                                  packet_times_[3] - packet_times_[2],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
-      UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback_4th_To_5th_c",
-                                  packet_times_[4] - packet_times_[3],
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromSeconds(10), 100);
       return;
     }
     default:
@@ -1402,6 +1430,65 @@ bool URLRequestHttpJob::IsCompressibleContent() const {
   return GetMimeType(&mime_type) &&
       (IsSupportedJavascriptMimeType(mime_type.c_str()) ||
        IsSupportedNonImageMimeType(mime_type.c_str()));
+}
+
+void URLRequestHttpJob::RecordPerfHistograms(CompletionCause reason) {
+  if (start_time_.is_null())
+    return;
+
+  base::TimeDelta total_time = base::TimeTicks::Now() - start_time_;
+  UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTime", total_time);
+
+  if (reason == FINISHED) {
+    UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTimeSuccess", total_time);
+  } else {
+    UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTimeCancel", total_time);
+  }
+
+  static bool cache_experiment = false;
+  if (!cache_experiment)
+    cache_experiment = base::FieldTrialList::TrialExists("CacheListSize");
+  if (cache_experiment) {
+    UMA_HISTOGRAM_TIMES(
+        base::FieldTrial::MakeName("Net.HttpJob.TotalTime", "CacheListSize"),
+        total_time);
+    if (reason == FINISHED) {
+      UMA_HISTOGRAM_TIMES(
+          base::FieldTrial::MakeName("Net.HttpJob.TotalTimeSuccess",
+                                     "CacheListSize"),
+          total_time);
+    } else {
+      UMA_HISTOGRAM_TIMES(
+          base::FieldTrial::MakeName("Net.HttpJob.TotalTimeCancel",
+                                     "CacheListSize"),
+          total_time);
+    }
+    if (response_info_) {
+      if (response_info_->was_cached) {
+        UMA_HISTOGRAM_TIMES(
+            base::FieldTrial::MakeName("Net.HttpJob.TotalTimeCached",
+                                       "CacheListSize"),
+            total_time);
+      } else  {
+        UMA_HISTOGRAM_TIMES(
+            base::FieldTrial::MakeName("Net.HttpJob.TotalTimeNotCached",
+                                       "CacheListSize"),
+            total_time);
+      }
+    }
+  }
+
+  start_time_ = base::TimeTicks();
+}
+
+void URLRequestHttpJob::DoneWithRequest(CompletionCause reason) {
+  if (done_)
+    return;
+  done_ = true;
+
+  RecordPerfHistograms(reason);
+  if (reason == FINISHED)
+    RecordCompressionHistograms();
 }
 
 }  // namespace net

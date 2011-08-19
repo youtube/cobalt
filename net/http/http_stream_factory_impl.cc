@@ -5,7 +5,7 @@
 #include "net/http/http_stream_factory_impl.h"
 
 #include "base/string_number_conversions.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
@@ -38,7 +38,9 @@ HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
 
 HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(request_map_.empty());
+#if !defined(__LB_PS3__)
   DCHECK(spdy_session_request_map_.empty());
+#endif
 
   std::set<const Job*> tmp_job_set;
   tmp_job_set.swap(orphaned_job_set_);

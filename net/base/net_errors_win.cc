@@ -38,10 +38,16 @@ Error MapSystemError(int os_error) {
       return ERR_ADDRESS_UNREACHABLE;
     case WSAEADDRNOTAVAIL:
       return ERR_ADDRESS_INVALID;
+    case WSAEMSGSIZE:
+      return ERR_MSG_TOO_BIG;
     case WSAENOTCONN:
       return ERR_SOCKET_NOT_CONNECTED;
     case WSAEAFNOSUPPORT:
       return ERR_ADDRESS_UNREACHABLE;
+    case WSAEINVAL:
+      return ERR_INVALID_ARGUMENT;
+    case WSAEADDRINUSE:
+      return ERR_ADDRESS_IN_USE;
     case ERROR_SUCCESS:
       return OK;
     default:

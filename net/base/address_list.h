@@ -28,6 +28,11 @@ class NET_API AddressList {
   ~AddressList();
   AddressList& operator=(const AddressList& addresslist);
 
+  // Creates an address list for a list of IP literals.
+  static AddressList CreateFromIPAddressList(
+      const IPAddressList& addresses,
+      uint16 port);
+
   // Creates an address list for a single IP literal.
   static AddressList CreateFromIPAddress(
       const IPAddressNumber& address,
@@ -105,6 +110,11 @@ class NET_API AddressList {
 
   scoped_refptr<Data> data_;
 };
+
+// Helper to create an AddressList that has a particular port. It has an
+// optimization to avoid allocating a new address linked list when the
+// port is already what we want.
+AddressList CreateAddressListUsingPort(const AddressList& src, int port);
 
 }  // namespace net
 

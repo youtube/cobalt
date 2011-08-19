@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,10 +36,10 @@ class EVRootCAMetadata {
 
   static EVRootCAMetadata* GetInstance();
 
-  // If the root CA cert has an EV policy OID, returns true and stores the
-  // policy OID in *policy_oid.  Otherwise, returns false.
-  bool GetPolicyOID(const SHA1Fingerprint& fingerprint,
-                    PolicyOID* policy_oid) const;
+  // If the root CA cert has an EV policy OID, returns true and appends the
+  // policy OIDs to |*policy_oids|.  Otherwise, returns false.
+  bool GetPolicyOIDsForCA(const SHA1Fingerprint& fingerprint,
+                          std::vector<PolicyOID>* policy_oids) const;
 
   const PolicyOID* GetPolicyOIDs() const { return &policy_oids_[0]; }
 #if defined(OS_WIN)
@@ -59,7 +59,7 @@ class EVRootCAMetadata {
  private:
   friend struct base::DefaultLazyInstanceTraits<EVRootCAMetadata>;
 
-  typedef std::map<SHA1Fingerprint, PolicyOID,
+  typedef std::map<SHA1Fingerprint, std::vector<PolicyOID>,
                    SHA1FingerprintLessThan> PolicyOidMap;
 
   EVRootCAMetadata();

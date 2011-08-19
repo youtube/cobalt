@@ -6,6 +6,7 @@
 #define NET_SOCKET_STREAM_SOCKET_H_
 #pragma once
 
+#include "base/time.h"
 #include "net/base/net_log.h"
 #include "net/socket/socket.h"
 
@@ -79,6 +80,12 @@ class NET_TEST StreamSocket : public Socket {
   // TCP FastOpen is an experiment with sending data in the TCP SYN packet.
   virtual bool UsingTCPFastOpen() const = 0;
 
+  // Returns the number of bytes successfully read from this socket.
+  virtual int64 NumBytesRead() const = 0;
+
+  // Returns the connection setup time of this socket.
+  virtual base::TimeDelta GetConnectTimeMicros() const = 0;
+
  protected:
   // The following class is only used to gather statistics about the history of
   // a socket.  It is only instantiated and used in basic sockets, such as
@@ -120,12 +127,6 @@ class NET_TEST StreamSocket : public Socket {
     bool subresource_speculation_;
     DISALLOW_COPY_AND_ASSIGN(UseHistory);
   };
-
-  // Logs a SOCKET_BYTES_RECEIVED or SOCKET_BYTES_SENT event to the NetLog.
-  // Determines whether to log the received bytes or not, based on the current
-  // logging level.
-  void LogByteTransfer(const BoundNetLog& net_log, NetLog::EventType event_type,
-                       int byte_count, char* bytes) const;
 };
 
 }  // namespace net

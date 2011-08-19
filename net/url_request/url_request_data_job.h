@@ -27,7 +27,7 @@ class URLRequestDataJob : public URLRequestSimpleJob {
                        std::string* data) const;
 
  private:
-  ~URLRequestDataJob();
+  virtual ~URLRequestDataJob();
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestDataJob);
 };

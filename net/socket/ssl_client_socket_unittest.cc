@@ -36,11 +36,13 @@ class SSLClientSocketTest : public PlatformTest {
       net::StreamSocket* transport_socket,
       const net::HostPortPair& host_and_port,
       const net::SSLConfig& ssl_config) {
+    net::SSLClientSocketContext context;
+    context.cert_verifier = cert_verifier_.get();
     return socket_factory_->CreateSSLClientSocket(transport_socket,
                                                   host_and_port,
                                                   ssl_config,
                                                   NULL,
-                                                  cert_verifier_.get());
+                                                  context);
   }
 
   net::ClientSocketFactory* socket_factory_;
@@ -79,10 +81,12 @@ TEST_F(SSLClientSocketTest, Connect) {
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
+  net::SSLClientSocketContext context;
+  context.cert_verifier = cert_verifier_.get();
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
           transport, test_server.host_port_pair(), kDefaultSSLConfig,
-          NULL, cert_verifier_.get()));
+          NULL, context));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -374,10 +378,12 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
+  net::SSLClientSocketContext context;
+  context.cert_verifier = cert_verifier_.get();
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
           transport, test_server.host_port_pair(), kDefaultSSLConfig,
-          NULL, cert_verifier_.get()));
+          NULL, context));
 
   rv = sock->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -396,7 +402,7 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
   // memio circular buffer (4k bytes) in SSLClientSocketNSS to wrap around.
   // This tests the fix for http://crbug.com/29815.
   std::string request_text = "GET / HTTP/1.1\r\nUser-Agent: long browser name ";
-  for (int i = 0; i < 3800; ++i)
+  for (int i = 0; i < 3768; ++i)
     request_text.push_back('*');
   request_text.append("\r\n\r\n");
   scoped_refptr<net::IOBuffer> request_buffer(

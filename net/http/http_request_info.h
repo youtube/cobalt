@@ -33,9 +33,6 @@ struct NET_API HttpRequestInfo {
   // The requested URL.
   GURL url;
 
-  // The referring URL (if any).
-  GURL referrer;
-
   // The method to use (GET, POST, etc.).
   std::string method;
 

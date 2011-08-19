@@ -157,8 +157,7 @@ FieldTrial::~FieldTrial() {}
 Time FieldTrial::GetBuildTime() {
   Time integral_build_time;
   const char* kDateTime = __DATE__ " " __TIME__;
-  bool result = Time::FromString(ASCIIToWide(kDateTime).c_str(),
-                                 &integral_build_time);
+  bool result = Time::FromString(kDateTime, &integral_build_time);
   DCHECK(result);
   return integral_build_time;
 }
@@ -189,14 +188,14 @@ double FieldTrial::HashClientId(const std::string& client_id,
 FieldTrialList* FieldTrialList::global_ = NULL;
 
 // static
-bool FieldTrialList::register_without_global_ = false;
+bool FieldTrialList::used_without_global_ = false;
 
 FieldTrialList::FieldTrialList(const std::string& client_id)
     : application_start_time_(TimeTicks::Now()),
       client_id_(client_id),
       observer_list_(ObserverList<Observer>::NOTIFY_EXISTING_ONLY) {
   DCHECK(!global_);
-  DCHECK(!register_without_global_);
+  DCHECK(!used_without_global_);
   global_ = this;
 
   Time::Exploded exploded;
@@ -220,7 +219,7 @@ FieldTrialList::~FieldTrialList() {
 // static
 void FieldTrialList::Register(FieldTrial* trial) {
   if (!global_) {
-    register_without_global_ = true;
+    used_without_global_ = true;
     return;
   }
   AutoLock auto_lock(global_->lock_);
@@ -369,9 +368,10 @@ size_t FieldTrialList::GetFieldTrialCount() {
 
 // static
 bool FieldTrialList::IsOneTimeRandomizationEnabled() {
-  DCHECK(global_);
-  if (!global_)
+  if (!global_) {
+    used_without_global_ = true;
     return false;
+  }
 
   return !global_->client_id_.empty();
 }

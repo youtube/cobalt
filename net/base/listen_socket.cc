@@ -11,18 +11,13 @@
 #elif defined(OS_POSIX)
 #include <errno.h>
 #include <netinet/in.h>
+#if defined(__LB_PS3__)
+// sony SDK requires <sys/types.h> included before <sys/socket.h> to compile
+#include <sys/types.h>
+#endif
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include "net/base/net_errors.h"
-#if defined(USE_SYSTEM_LIBEVENT)
-#include <event.h>
-#elif defined(__LB_PS3__)
-// __LB_PS3__FIX_ME__
-#include <sys/types.h>
-#include <sys/socket.h>
-#else
-#include "third_party/libevent/event.h"
-#endif
 #endif
 
 #include "base/eintr_wrapper.h"
@@ -33,6 +28,8 @@
 #if defined(OS_WIN)
 typedef int socklen_t;
 #endif  // defined(OS_WIN)
+
+namespace net {
 
 namespace {
 
@@ -95,6 +92,8 @@ ListenSocket::ListenSocket(SOCKET s, ListenSocketDelegate *del)
   socket_event_ = WSACreateEvent();
   // TODO(ibrar): error handling in case of socket_event_ == WSA_INVALID_EVENT
   WatchSocket(NOT_WAITING);
+#elif defined(OS_POSIX)
+  wait_state_ = NOT_WAITING;
 #endif
 }
 
@@ -139,7 +138,7 @@ SOCKET ListenSocket::Accept(SOCKET s) {
   SOCKET conn =
       HANDLE_EINTR(accept(s, reinterpret_cast<sockaddr*>(&from), &from_len));
   if (conn != kInvalidSocket) {
-    net::SetNonBlocking(conn);
+    SetNonBlocking(conn);
   }
   return conn;
 }
@@ -241,10 +240,11 @@ void ListenSocket::Read() {
 
 void ListenSocket::Close() {
 #if defined(OS_POSIX)
-  if (wait_state_ == WAITING_CLOSE)
+  if (wait_state_ == NOT_WAITING)
     return;
-  wait_state_ = WAITING_CLOSE;
+  wait_state_ = NOT_WAITING;
 #endif
+  UnwatchSocket();
   socket_delegate_->DidClose(this);
 }
 
@@ -318,19 +318,21 @@ void ListenSocket::OnObjectSignaled(HANDLE object) {
 }
 #elif defined(OS_POSIX)
 void ListenSocket::OnFileCanReadWithoutBlocking(int fd) {
-  if (wait_state_ == WAITING_ACCEPT) {
-    Accept();
-  }
-  if (wait_state_ == WAITING_READ) {
-    if (reads_paused_) {
-      has_pending_reads_ = true;
-    } else {
-      Read();
-    }
-  }
-  if (wait_state_ == WAITING_CLOSE) {
-    // Close() is called by Read() in the Linux case.
-    // TODO(erikkay): this seems to get hit multiple times after the close
+  switch (wait_state_) {
+    case WAITING_ACCEPT:
+      Accept();
+      break;
+    case WAITING_READ:
+      if (reads_paused_) {
+        has_pending_reads_ = true;
+      } else {
+        Read();
+      }
+      break;
+    default:
+      // Close() is called by Read() in the Linux case.
+      NOTREACHED();
+      break;
   }
 }
 
@@ -341,3 +343,5 @@ void ListenSocket::OnFileCanWriteWithoutBlocking(int fd) {
 }
 
 #endif
+
+}  // namespace net

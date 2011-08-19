@@ -21,12 +21,12 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "build/build_config.h"
 
 class FilePath;
 
-class BASE_API CommandLine {
+class BASE_EXPORT CommandLine {
  public:
 #if defined(OS_WIN)
   // The native command line string type.
@@ -79,8 +79,7 @@ class BASE_API CommandLine {
 
   // Constructs and returns the represented command line string.
   // CAUTION! This should be avoided because quoting behavior is unclear.
-  // TODO(msw): Rename GetCommandLineString.
-  StringType command_line_string() const;
+  StringType GetCommandLineString() const;
 
   // Returns the original command line string as a vector of strings.
   const StringVector& argv() const { return argv_; }
@@ -98,10 +97,6 @@ class BASE_API CommandLine {
   std::string GetSwitchValueASCII(const std::string& switch_string) const;
   FilePath GetSwitchValuePath(const std::string& switch_string) const;
   StringType GetSwitchValueNative(const std::string& switch_string) const;
-
-  // Get the number of switches in this process.
-  // TODO(msw): Remove unnecessary API.
-  size_t GetSwitchCount() const;
 
   // Get a copy of all switches, along with their values.
   const SwitchMap& GetSwitches() const { return switches_; }
@@ -122,8 +117,7 @@ class BASE_API CommandLine {
                         size_t count);
 
   // Get the remaining arguments to the command.
-  // TODO(msw): Rename GetArgs.
-  StringVector args() const;
+  StringVector GetArgs() const;
 
   // Append an argument to the command line. Note that the argument is quoted
   // properly such that it is interpreted as one argument to the target command.

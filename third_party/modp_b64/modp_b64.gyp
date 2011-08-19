@@ -7,7 +7,6 @@
     {
       'target_name': 'modp_b64',
       'type': 'static_library',
-      'msvs_guid': '7100F41F-868D-4E99-80A2-AF8E6574749D',
       'sources': [
         'modp_b64.cc',
         'modp_b64.h',
@@ -19,9 +18,3 @@
     },
   ],
 }
-
-# Local Variables:
-# tab-width:2
-# indent-tabs-mode:nil
-# End:
-# vim: set expandtab tabstop=2 shiftwidth=2:

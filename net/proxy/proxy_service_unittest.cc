@@ -40,15 +40,16 @@ class MockProxyConfigService: public ProxyConfigService {
         config_(ProxyConfig::CreateFromCustomPacURL(GURL(pac_url))) {
   }
 
-  virtual void AddObserver(Observer* observer) {
+  virtual void AddObserver(Observer* observer) OVERRIDE {
     observers_.AddObserver(observer);
   }
 
-  virtual void RemoveObserver(Observer* observer) {
+  virtual void RemoveObserver(Observer* observer) OVERRIDE {
     observers_.RemoveObserver(observer);
   }
 
-  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* results) {
+  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* results)
+      OVERRIDE {
     if (availability_ == CONFIG_VALID)
       *results = config_;
     return availability_;

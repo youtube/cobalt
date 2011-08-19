@@ -135,6 +135,10 @@ class NET_TEST HttpStream {
   // the HttpStream implementation. This is just a quick hack.
   virtual bool IsSpdyHttpStream() const = 0;
 
+  // Record histogram of number of round trips taken to download the full
+  // response body vs bytes transferred.
+  virtual void LogNumRttVsBytesMetrics() const = 0;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(HttpStream);
 };

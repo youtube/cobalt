@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -103,6 +103,11 @@ void BackendIO::OpenPrevEntry(void** iter, Entry** prev_entry) {
 void BackendIO::EndEnumeration(void* iterator) {
   operation_ = OP_END_ENUMERATION;
   iter_ = iterator;
+}
+
+void BackendIO::OnExternalCacheHit(const std::string& key) {
+  operation_ = OP_ON_EXTERNAL_CACHE_HIT;
+  key_ = key;
 }
 
 void BackendIO::CloseEntryImpl(EntryImpl* entry) {
@@ -216,6 +221,10 @@ void BackendIO::ExecuteBackendOperation() {
       break;
     case OP_END_ENUMERATION:
       backend_->SyncEndEnumeration(iter_);
+      result_ = net::OK;
+      break;
+    case OP_ON_EXTERNAL_CACHE_HIT:
+      backend_->SyncOnExternalCacheHit(key_);
       result_ = net::OK;
       break;
     case OP_CLOSE_ENTRY:
@@ -355,6 +364,12 @@ void InFlightBackendIO::OpenPrevEntry(void** iter, Entry** prev_entry,
 void InFlightBackendIO::EndEnumeration(void* iterator) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, NULL));
   operation->EndEnumeration(iterator);
+  PostOperation(operation);
+}
+
+void InFlightBackendIO::OnExternalCacheHit(const std::string& key) {
+  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, NULL));
+  operation->OnExternalCacheHit(key);
   PostOperation(operation);
 }
 

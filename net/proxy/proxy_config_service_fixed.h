@@ -6,6 +6,7 @@
 #define NET_PROXY_PROXY_CONFIG_SERVICE_FIXED_H_
 #pragma once
 
+#include "base/compiler_specific.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service.h"
@@ -19,9 +20,9 @@ class NET_API ProxyConfigServiceFixed : public ProxyConfigService {
   virtual ~ProxyConfigServiceFixed();
 
   // ProxyConfigService methods:
-  virtual void AddObserver(Observer* observer) {}
-  virtual void RemoveObserver(Observer* observer) {}
-  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config);
+  virtual void AddObserver(Observer* observer) OVERRIDE {}
+  virtual void RemoveObserver(Observer* observer) OVERRIDE {}
+  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config) OVERRIDE;
 
  private:
   ProxyConfig pc_;

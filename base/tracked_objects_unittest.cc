@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -60,10 +60,12 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
     return;
 
   // Instigate tracking on a single tracked object, or our thread.
+  const Location& location = FROM_HERE;
   NoopTracked tracked;
+  tracked.SetBirthPlace(location);
 
   const ThreadData* data = ThreadData::first();
-  EXPECT_TRUE(data);
+  ASSERT_TRUE(data);
   EXPECT_TRUE(!data->next());
   EXPECT_EQ(data, ThreadData::current());
   ThreadData::BirthMap birth_map;
@@ -76,7 +78,9 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
 
 
   // Now instigate a birth, and a death.
-  delete new NoopTracked;
+  NoopTracked* new_tracked = new NoopTracked;
+  new_tracked->SetBirthPlace(location);
+  delete new_tracked;
 
   birth_map.clear();
   data->SnapshotBirthMap(&birth_map);

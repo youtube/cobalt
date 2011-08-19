@@ -5,10 +5,12 @@
 {
   'variables': {
     'conditions': [
-      [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+      # __LB_PS3__FIX_ME__ remove our dependency on libpng and revert
+      # this file to upstream!
+      [ 'os_posix == 1 and OS != "mac" and OS != "cell_lv2"', {
         # Link to system .so since we already use it due to GTK.
         'use_system_libpng%': 1,
-      }, {  # OS!="linux" and OS!="freebsd" and OS!="openbsd"
+      }, {  # os_posix != 1 or OS == "mac"
         'use_system_libpng%': 0,
       }],
     ],
@@ -26,7 +28,6 @@
             'CHROME_PNG_WRITE_SUPPORT',
             'PNG_USER_CONFIG',
           ],
-          'msvs_guid': 'C564F145-9172-42C3-BFCB-6014CA97DBCD',
           'sources': [
             'png.c',
             'png.h',
@@ -74,6 +75,14 @@
                 ],
               },          
             }],
+            ['OS=="cell_lv2"', {
+            # __LB_PS3__FIX_ME__ we want to go to using the libpng code on
+            # the console.  For now we aren't picking up the corect include
+            # dirs for zlib
+              'include_dirs': [
+                '../zlib'
+              ]
+            }],
           ],
         },
       ]
@@ -117,9 +126,3 @@
     }],
   ],
 }
-
-# Local Variables:
-# tab-width:2
-# indent-tabs-mode:nil
-# End:
-# vim: set expandtab tabstop=2 shiftwidth=2:

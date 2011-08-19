@@ -11,6 +11,10 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#if defined(OS_SOLARIS)
+#include <sys/filio.h>
+#endif
+
 #include "base/file_util.h"
 #include "base/logging.h"
 

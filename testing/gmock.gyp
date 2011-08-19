@@ -7,7 +7,6 @@
     {
       'target_name': 'gmock',
       'type': 'static_library',
-      'msvs_guid': 'F9D886ED-B09F-4B74-932F-D8E4691E6B7F',
       'dependencies': [
         'gtest.gyp:gtest',
       ],
@@ -61,9 +60,3 @@
     },
   ],
 }
-
-# Local Variables:
-# tab-width:2
-# indent-tabs-mode:nil
-# End:
-# vim: set expandtab tabstop=2 shiftwidth=2:

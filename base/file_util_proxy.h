@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/callback_old.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -21,12 +21,14 @@ class MessageLoopProxy;
 class Time;
 
 // This class provides asynchronous access to common file routines.
-class BASE_API FileUtilProxy {
+class BASE_EXPORT FileUtilProxy {
  public:
   // Holds metadata for file or directory entry. Used by ReadDirectoryCallback.
   struct Entry {
     FilePath::StringType name;
     bool is_directory;
+    int64 size;
+    base::Time last_modified_time;
   };
 
   // This callback is used by methods that report only an error code.  It is
@@ -64,9 +66,16 @@ class BASE_API FileUtilProxy {
                            CreateOrOpenCallback* callback);
 
   // Creates a temporary file for writing.  The path and an open file handle
-  // are returned.  It is invalid to pass NULL for the callback.
+  // are returned.  It is invalid to pass NULL for the callback.  The additional
+  // file flags will be added on top of the default file flags which are:
+  //   base::PLATFORM_FILE_CREATE_ALWAYS
+  //   base::PLATFORM_FILE_WRITE
+  //   base::PLATFORM_FILE_TEMPORARY.
+  // Set |additional_file_flags| to 0 for synchronous writes and set to
+  // base::PLATFORM_FILE_ASYNC to support asynchronous file operations.
   static bool CreateTemporary(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      int additional_file_flags,
       CreateTemporaryCallback* callback);
 
   // Close the given file handle.

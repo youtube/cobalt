@@ -11,7 +11,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "crypto/openssl_util.h"
 
 namespace crypto {
@@ -40,7 +40,7 @@ HMAC::~HMAC() {
   STLClearObject(&plat_->key);
 }
 
-bool HMAC::Sign(const std::string& data,
+bool HMAC::Sign(const base::StringPiece& data,
                 unsigned char* digest,
                 int digest_length) const {
   DCHECK_GE(digest_length, 0);

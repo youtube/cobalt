@@ -4,6 +4,7 @@
 
 #include "base/threading/worker_pool_posix.h"
 
+#include "base/bind.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -11,6 +12,7 @@
 #include "base/task.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/worker_pool.h"
+#include "base/tracked_objects.h"
 
 namespace base {
 
@@ -28,6 +30,8 @@ class WorkerPoolImpl {
 
   void PostTask(const tracked_objects::Location& from_here, Task* task,
                 bool task_is_slow);
+  void PostTask(const tracked_objects::Location& from_here,
+                const base::Closure& task, bool task_is_slow);
 
  private:
   scoped_refptr<base::PosixDynamicThreadPool> pool_;
@@ -44,25 +48,27 @@ WorkerPoolImpl::~WorkerPoolImpl() {
 
 void WorkerPoolImpl::PostTask(const tracked_objects::Location& from_here,
                               Task* task, bool task_is_slow) {
-  task->SetBirthPlace(from_here);
-  pool_->PostTask(task);
+  pool_->PostTask(from_here, task);
+}
+
+void WorkerPoolImpl::PostTask(const tracked_objects::Location& from_here,
+                              const base::Closure& task, bool task_is_slow) {
+  pool_->PostTask(from_here, task);
 }
 
 base::LazyInstance<WorkerPoolImpl> g_lazy_worker_pool(base::LINKER_INITIALIZED);
 
 class WorkerThread : public PlatformThread::Delegate {
  public:
-  WorkerThread(const std::string& name_prefix, int idle_seconds_before_exit,
+  WorkerThread(const std::string& name_prefix,
                base::PosixDynamicThreadPool* pool)
       : name_prefix_(name_prefix),
-        idle_seconds_before_exit_(idle_seconds_before_exit),
         pool_(pool) {}
 
   virtual void ThreadMain();
 
  private:
   const std::string name_prefix_;
-  const int idle_seconds_before_exit_;
   scoped_refptr<base::PosixDynamicThreadPool> pool_;
 
   DISALLOW_COPY_AND_ASSIGN(WorkerThread);
@@ -74,11 +80,10 @@ void WorkerThread::ThreadMain() {
   PlatformThread::SetName(name.c_str());
 
   for (;;) {
-    Task* task = pool_->WaitForTask();
-    if (!task)
+    PosixDynamicThreadPool::PendingTask pending_task = pool_->WaitForTask();
+    if (pending_task.task.is_null())
       break;
-    task->Run();
-    delete task;
+    pending_task.task.Run();
   }
 
   // The WorkerThread is non-joinable, so it deletes itself.
@@ -93,21 +98,35 @@ bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
   return true;
 }
 
+bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
+                          const base::Closure& task, bool task_is_slow) {
+  g_lazy_worker_pool.Pointer()->PostTask(from_here, task, task_is_slow);
+  return true;
+}
+
+PosixDynamicThreadPool::PendingTask::PendingTask(
+    const tracked_objects::Location& posted_from,
+    const base::Closure& task)
+    : task(task) {
+}
+
+PosixDynamicThreadPool::PendingTask::~PendingTask() {
+}
+
 PosixDynamicThreadPool::PosixDynamicThreadPool(
     const std::string& name_prefix,
     int idle_seconds_before_exit)
     : name_prefix_(name_prefix),
       idle_seconds_before_exit_(idle_seconds_before_exit),
-      tasks_available_cv_(&lock_),
+      pending_tasks_available_cv_(&lock_),
       num_idle_threads_(0),
       terminated_(false),
       num_idle_threads_cv_(NULL) {}
 
 PosixDynamicThreadPool::~PosixDynamicThreadPool() {
-  while (!tasks_.empty()) {
-    Task* task = tasks_.front();
-    tasks_.pop();
-    delete task;
+  while (!pending_tasks_.empty()) {
+    PendingTask pending_task = pending_tasks_.front();
+    pending_tasks_.pop();
   }
 }
 
@@ -117,53 +136,76 @@ void PosixDynamicThreadPool::Terminate() {
     DCHECK(!terminated_) << "Thread pool is already terminated.";
     terminated_ = true;
   }
-  tasks_available_cv_.Broadcast();
+  pending_tasks_available_cv_.Broadcast();
 }
 
-void PosixDynamicThreadPool::PostTask(Task* task) {
+void PosixDynamicThreadPool::PostTask(
+    const tracked_objects::Location& from_here,
+    Task* task) {
+  PendingTask pending_task(from_here,
+                           base::Bind(&subtle::TaskClosureAdapter::Run,
+                                      new subtle::TaskClosureAdapter(task)));
+  // |pending_task| and AddTask() work in conjunction here to ensure that after
+  // a successful AddTask(), the TaskClosureAdapter object is deleted on the
+  // worker thread. In AddTask(), the reference |pending_task.task| is handed
+  // off in a destructive manner to ensure that the local copy of
+  // |pending_task| doesn't keep a ref on the Closure causing the
+  // TaskClosureAdapter to be deleted on the wrong thread.
+  AddTask(&pending_task);
+}
+
+void PosixDynamicThreadPool::PostTask(
+    const tracked_objects::Location& from_here,
+    const base::Closure& task) {
+  PendingTask pending_task(from_here, task);
+  AddTask(&pending_task);
+}
+
+void PosixDynamicThreadPool::AddTask(PendingTask* pending_task) {
   AutoLock locked(lock_);
   DCHECK(!terminated_) <<
       "This thread pool is already terminated.  Do not post new tasks.";
 
-  tasks_.push(task);
+  pending_tasks_.push(*pending_task);
+  pending_task->task.Reset();
 
   // We have enough worker threads.
-  if (static_cast<size_t>(num_idle_threads_) >= tasks_.size()) {
-    tasks_available_cv_.Signal();
+  if (static_cast<size_t>(num_idle_threads_) >= pending_tasks_.size()) {
+    pending_tasks_available_cv_.Signal();
   } else {
     // The new PlatformThread will take ownership of the WorkerThread object,
     // which will delete itself on exit.
     WorkerThread* worker =
-        new WorkerThread(name_prefix_, idle_seconds_before_exit_, this);
+        new WorkerThread(name_prefix_, this);
     PlatformThread::CreateNonJoinable(kWorkerThreadStackSize, worker);
   }
 }
 
-Task* PosixDynamicThreadPool::WaitForTask() {
+PosixDynamicThreadPool::PendingTask PosixDynamicThreadPool::WaitForTask() {
   AutoLock locked(lock_);
 
   if (terminated_)
-    return NULL;
+    return PendingTask(FROM_HERE, base::Closure());
 
-  if (tasks_.empty()) {  // No work available, wait for work.
+  if (pending_tasks_.empty()) {  // No work available, wait for work.
     num_idle_threads_++;
     if (num_idle_threads_cv_.get())
       num_idle_threads_cv_->Signal();
-    tasks_available_cv_.TimedWait(
-        TimeDelta::FromSeconds(kIdleSecondsBeforeExit));
+    pending_tasks_available_cv_.TimedWait(
+        TimeDelta::FromSeconds(idle_seconds_before_exit_));
     num_idle_threads_--;
     if (num_idle_threads_cv_.get())
       num_idle_threads_cv_->Signal();
-    if (tasks_.empty()) {
+    if (pending_tasks_.empty()) {
       // We waited for work, but there's still no work.  Return NULL to signal
       // the thread to terminate.
-      return NULL;
+      return PendingTask(FROM_HERE, base::Closure());
     }
   }
 
-  Task* task = tasks_.front();
-  tasks_.pop();
-  return task;
+  PendingTask pending_task = pending_tasks_.front();
+  pending_tasks_.pop();
+  return pending_task;
 }
 
 }  // namespace base

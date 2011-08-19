@@ -11,7 +11,6 @@
     {
       'target_name': 'googleurl',
       'type': '<(component)',
-      'msvs_guid': 'EF5E94AB-B646-4E5B-A058-52EF07B8351C',
       'dependencies': [
         '../../base/base.gyp:base',
         '../../third_party/icu/icu.gyp:icudata',
@@ -108,9 +107,3 @@
     },
   ],
 }
-
-# Local Variables:
-# tab-width:2
-# indent-tabs-mode:nil
-# End:
-# vim: set expandtab tabstop=2 shiftwidth=2:

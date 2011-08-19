@@ -226,9 +226,7 @@ HttpRequestInfo WebSocketHandshakeRequestHandler::GetRequestInfo(
     const GURL& url, std::string* challenge) {
   HttpRequestInfo request_info;
   request_info.url = url;
-  base::StringPiece method = status_line_.data();
-  size_t method_end = base::StringPiece(
-      status_line_.data(), status_line_.size()).find_first_of(" ");
+  size_t method_end = base::StringPiece(status_line_).find_first_of(" ");
   if (method_end != base::StringPiece::npos)
     request_info.method = std::string(status_line_.data(), method_end);
 
@@ -373,8 +371,7 @@ size_t WebSocketHandshakeResponseHandler::ParseRawResponse(
   DCHECK_GT(length, 0);
   if (HasResponse()) {
     DCHECK(!status_line_.empty());
-    DCHECK(!headers_.empty());
-    DCHECK_EQ(GetResponseKeySize(), key_.size());
+    // headers_ might be empty for wrong response from server.
     return 0;
   }
 
@@ -437,8 +434,8 @@ bool WebSocketHandshakeResponseHandler::ParseResponseInfo(
   response_message += "\r\n";
 
   if (protocol_version_ < kMinVersionOfHybiNewHandshake) {
-    MD5Digest digest;
-    MD5Sum(challenge.data(), challenge.size(), &digest);
+    base::MD5Digest digest;
+    base::MD5Sum(challenge.data(), challenge.size(), &digest);
 
     const char* digest_data = reinterpret_cast<char*>(digest.a);
     response_message.append(digest_data, sizeof(digest.a));
@@ -492,8 +489,8 @@ bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
   response_message += "\r\n";
 
   if (protocol_version_ < kMinVersionOfHybiNewHandshake) {
-    MD5Digest digest;
-    MD5Sum(challenge.data(), challenge.size(), &digest);
+    base::MD5Digest digest;
+    base::MD5Sum(challenge.data(), challenge.size(), &digest);
 
     const char* digest_data = reinterpret_cast<char*>(digest.a);
     response_message.append(digest_data, sizeof(digest.a));
@@ -509,8 +506,9 @@ void WebSocketHandshakeResponseHandler::GetHeaders(
     std::vector<std::string>* values) {
   DCHECK(HasResponse());
   DCHECK(!status_line_.empty());
-  DCHECK(!headers_.empty());
-  DCHECK_EQ(GetResponseKeySize(), key_.size());
+  // headers_ might be empty for wrong response from server.
+  if (headers_.empty())
+    return;
 
   FetchHeaders(headers_, headers_to_get, headers_to_get_len, values);
 }
@@ -520,8 +518,9 @@ void WebSocketHandshakeResponseHandler::RemoveHeaders(
     size_t headers_to_remove_len) {
   DCHECK(HasResponse());
   DCHECK(!status_line_.empty());
-  DCHECK(!headers_.empty());
-  DCHECK_EQ(GetResponseKeySize(), key_.size());
+  // headers_ might be empty for wrong response from server.
+  if (headers_.empty())
+    return;
 
   headers_ = FilterHeaders(headers_, headers_to_remove, headers_to_remove_len);
 }

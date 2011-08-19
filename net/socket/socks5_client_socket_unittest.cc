@@ -67,8 +67,11 @@ void SOCKS5ClientSocketTest::SetUp() {
 
   // Resolve the "localhost" AddressList used by the TCP connection to connect.
   HostResolver::RequestInfo info(HostPortPair("www.socks-proxy.com", 1080));
-  int rv = host_resolver_->Resolve(info, &address_list_, NULL, NULL,
+  TestCompletionCallback callback;
+  int rv = host_resolver_->Resolve(info, &address_list_, &callback, NULL,
                                    BoundNetLog());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
   ASSERT_EQ(OK, rv);
 }
 

@@ -1,5 +1,8 @@
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 // The original file was copied from sqlite, and was in the public domain.
-// Modifications Copyright 2006 Google Inc. All Rights Reserved
 
 /*
  * This code implements the MD5 message-digest algorithm.
@@ -18,11 +21,11 @@
  * will fill a supplied 16-byte array with the digest.
  */
 
-#include <string>
-
 #include "base/md5.h"
 
 #include "base/basictypes.h"
+
+namespace {
 
 struct Context {
   uint32 buf[4];
@@ -33,7 +36,7 @@ struct Context {
 /*
  * Note: this code is harmless on little-endian machines.
  */
-static void byteReverse(unsigned char *buf, unsigned longs){
+void byteReverse(unsigned char *buf, unsigned longs) {
         uint32 t;
         do {
                 t = (uint32)((unsigned)buf[3]<<8 | buf[2]) << 16 |
@@ -42,6 +45,7 @@ static void byteReverse(unsigned char *buf, unsigned longs){
                 buf += 4;
         } while (--longs);
 }
+
 /* The four core functions - F1 is optimized somewhat */
 
 /* #define F1(x, y, z) (x & y | ~x & z) */
@@ -59,7 +63,7 @@ static void byteReverse(unsigned char *buf, unsigned longs){
  * reflect the addition of 16 longwords of new data.  MD5Update blocks
  * the data and converts bytes into longwords for this routine.
  */
-static void MD5Transform(uint32 buf[4], const uint32 in[16]){
+void MD5Transform(uint32 buf[4], const uint32 in[16]) {
         register uint32 a, b, c, d;
 
         a = buf[0];
@@ -141,12 +145,16 @@ static void MD5Transform(uint32 buf[4], const uint32 in[16]){
         buf[3] += d;
 }
 
+}  // namespace
+
+namespace base {
+
 /*
  * Start MD5 accumulation.  Set bit count to 0 and buffer to mysterious
  * initialization constants.
  */
-void MD5Init(MD5Context *pCtx){
-        struct Context *ctx = (struct Context *)pCtx;
+void MD5Init(MD5Context* context) {
+        struct Context *ctx = (struct Context *)context;
         ctx->buf[0] = 0x67452301;
         ctx->buf[1] = 0xefcdab89;
         ctx->buf[2] = 0x98badcfe;
@@ -159,8 +167,10 @@ void MD5Init(MD5Context *pCtx){
  * Update context to reflect the concatenation of another buffer full
  * of bytes.
  */
-void MD5Update(MD5Context *pCtx, const void *inbuf, size_t len){
-        struct Context *ctx = (struct Context *)pCtx;
+void MD5Update(MD5Context* context, const StringPiece& data) {
+        const unsigned char* inbuf = (const unsigned char*)data.data();
+        size_t len = data.size();
+        struct Context *ctx = (struct Context *)context;
         const unsigned char* buf = (const unsigned char*)inbuf;
         uint32 t;
 
@@ -209,8 +219,8 @@ void MD5Update(MD5Context *pCtx, const void *inbuf, size_t len){
  * Final wrapup - pad to 64-byte boundary with the bit pattern
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
-void MD5Final(MD5Digest* digest, MD5Context *pCtx){
-        struct Context *ctx = (struct Context *)pCtx;
+void MD5Final(MD5Digest* digest, MD5Context* context) {
+        struct Context *ctx = (struct Context *)context;
         unsigned count;
         unsigned char *p;
 
@@ -247,10 +257,10 @@ void MD5Final(MD5Digest* digest, MD5Context *pCtx){
         MD5Transform(ctx->buf, (uint32 *)ctx->in);
         byteReverse((unsigned char *)ctx->buf, 4);
         memcpy(digest->a, ctx->buf, 16);
-        memset(ctx, 0, sizeof(ctx));    /* In case it's sensitive */
+        memset(ctx, 0, sizeof(*ctx));    /* In case it's sensitive */
 }
 
-std::string MD5DigestToBase16(const MD5Digest& digest){
+std::string MD5DigestToBase16(const MD5Digest& digest) {
   static char const zEncode[] = "0123456789abcdef";
 
   std::string ret;
@@ -268,12 +278,15 @@ std::string MD5DigestToBase16(const MD5Digest& digest){
 void MD5Sum(const void* data, size_t length, MD5Digest* digest) {
   MD5Context ctx;
   MD5Init(&ctx);
-  MD5Update(&ctx, static_cast<const unsigned char*>(data), length);
+  MD5Update(&ctx,
+            StringPiece(reinterpret_cast<const char*>(data), length));
   MD5Final(digest, &ctx);
 }
 
-std::string MD5String(const std::string& str) {
+std::string MD5String(const StringPiece& str) {
   MD5Digest digest;
   MD5Sum(str.data(), str.length(), &digest);
   return MD5DigestToBase16(digest);
 }
+
+}  // namespace base

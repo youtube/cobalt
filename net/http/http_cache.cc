@@ -17,7 +17,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
 #include "base/pickle.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -383,6 +383,10 @@ HttpCache::~HttpCache() {
 
   STLDeleteElements(&doomed_entries_);
 
+  // Before deleting pending_ops_, we have to make sure that the disk cache is
+  // done with said operations, or it will attempt to use deleted data.
+  disk_cache_.reset();
+
   PendingOpsMap::iterator pending_it = pending_ops_.begin();
   for (; pending_it != pending_ops_.end(); ++pending_it) {
     // We are not notifying the transactions about the cache going away, even
@@ -457,6 +461,18 @@ void HttpCache::CloseAllConnections() {
   HttpNetworkSession* session = network->GetSession();
   if (session)
     session->CloseAllConnections();
+}
+
+void HttpCache::OnExternalCacheHit(const GURL& url,
+                                   const std::string& http_method) {
+  if (!disk_cache_.get())
+    return;
+
+  HttpRequestInfo request_info;
+  request_info.url = url;
+  request_info.method = http_method;
+  std::string key = GenerateCacheKey(&request_info);
+  disk_cache_->OnExternalCacheHit(key);
 }
 
 int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
