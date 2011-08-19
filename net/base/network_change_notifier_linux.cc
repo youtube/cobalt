@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -132,7 +132,7 @@ int NetworkChangeNotifierLinux::Thread::ReadNotificationMessage(
     size_t len) {
   DCHECK_NE(len, 0u);
   DCHECK(buf);
-  memset(buf, 0, sizeof(buf));
+  memset(buf, 0, len);
   int rv = recv(netlink_fd_, buf, len, 0);
   if (rv > 0)
     return rv;

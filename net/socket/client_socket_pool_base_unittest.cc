@@ -12,6 +12,7 @@
 #include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "base/threading/platform_thread.h"
+#include "base/values.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
@@ -45,12 +46,14 @@ typedef ClientSocketPoolBase<TestSocketParams> TestClientSocketPoolBase;
 
 class MockClientSocket : public StreamSocket {
  public:
-  MockClientSocket() : connected_(false), was_used_to_convey_data_(false) {}
+  MockClientSocket() : connected_(false), was_used_to_convey_data_(false),
+                       num_bytes_read_(0) {}
 
   // Socket methods:
   virtual int Read(
-      IOBuffer* /* buf */, int /* len */, CompletionCallback* /* callback */) {
-    return ERR_UNEXPECTED;
+      IOBuffer* /* buf */, int len, CompletionCallback* /* callback */) {
+    num_bytes_read_ += len;
+    return len;
   }
 
   virtual int Write(
@@ -86,13 +89,22 @@ class MockClientSocket : public StreamSocket {
 
   virtual void SetSubresourceSpeculation() {}
   virtual void SetOmniboxSpeculation() {}
-  virtual bool WasEverUsed() const { return was_used_to_convey_data_; }
+  virtual bool WasEverUsed() const {
+    return was_used_to_convey_data_ || num_bytes_read_ > 0;
+  }
   virtual bool UsingTCPFastOpen() const { return false; }
+  virtual int64 NumBytesRead() const { return num_bytes_read_; }
+  virtual base::TimeDelta GetConnectTimeMicros() const {
+    static const base::TimeDelta kDummyConnectTimeMicros =
+        base::TimeDelta::FromMicroseconds(10);
+    return kDummyConnectTimeMicros;  // Dummy value.
+  }
 
  private:
   bool connected_;
   BoundNetLog net_log_;
   bool was_used_to_convey_data_;
+  int num_bytes_read_;
 
   DISALLOW_COPY_AND_ASSIGN(MockClientSocket);
 };
@@ -102,6 +114,15 @@ class TestConnectJob;
 class MockClientSocketFactory : public ClientSocketFactory {
  public:
   MockClientSocketFactory() : allocation_count_(0) {}
+
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
+      NetLog* net_log,
+      const NetLog::Source& source) {
+    NOTREACHED();
+    return NULL;
+  }
 
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
@@ -116,8 +137,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      CertVerifier* cert_verifier,
-      DnsCertProvenanceChecker* dns_cert_checker) {
+      const SSLClientSocketContext& context) {
     NOTIMPLEMENTED();
     delete ssl_host_info;
     return NULL;
@@ -596,6 +616,71 @@ class ClientSocketPoolBaseTest : public testing::Test {
   scoped_ptr<TestClientSocketPool> pool_;
   ClientSocketPoolTest test_base_;
 };
+
+TEST_F(ClientSocketPoolBaseTest, AssignIdleSocketToGroup_WarmestSocket) {
+  CreatePool(4, 4);
+  net::SetSocketReusePolicy(0);
+
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+
+  std::map<int, StreamSocket*> sockets_;
+  for (size_t i = 0; i < test_base_.requests_size(); i++) {
+    TestSocketRequest* req = test_base_.request(i);
+    StreamSocket* s = req->handle()->socket();
+    MockClientSocket* sock = static_cast<MockClientSocket*>(s);
+    CHECK(sock);
+    sockets_[i] = sock;
+    sock->Read(NULL, 1024 - i, NULL);
+  }
+
+  ReleaseAllConnections(ClientSocketPoolTest::KEEP_ALIVE);
+
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  TestSocketRequest* req = test_base_.request(test_base_.requests_size() - 1);
+
+  // First socket is warmest.
+  EXPECT_EQ(sockets_[0], req->handle()->socket());
+
+  // Test that NumBytes are as expected.
+  EXPECT_EQ(1024, sockets_[0]->NumBytesRead());
+  EXPECT_EQ(1023, sockets_[1]->NumBytesRead());
+  EXPECT_EQ(1022, sockets_[2]->NumBytesRead());
+  EXPECT_EQ(1021, sockets_[3]->NumBytesRead());
+
+  ReleaseAllConnections(ClientSocketPoolTest::NO_KEEP_ALIVE);
+}
+
+TEST_F(ClientSocketPoolBaseTest, AssignIdleSocketToGroup_LastAccessedSocket) {
+  CreatePool(4, 4);
+  net::SetSocketReusePolicy(2);
+
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+
+  std::map<int, StreamSocket*> sockets_;
+  for (size_t i = 0; i < test_base_.requests_size(); i++) {
+    TestSocketRequest* req = test_base_.request(i);
+    StreamSocket* s = req->handle()->socket();
+    MockClientSocket* sock = static_cast<MockClientSocket*>(s);
+    CHECK(sock);
+    sockets_[i] = sock;
+    sock->Read(NULL, 1024 - i, NULL);
+  }
+
+  ReleaseAllConnections(ClientSocketPoolTest::KEEP_ALIVE);
+
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  TestSocketRequest* req = test_base_.request(test_base_.requests_size() - 1);
+
+  // Last socket is most recently accessed.
+  EXPECT_EQ(sockets_[3], req->handle()->socket());
+  ReleaseAllConnections(ClientSocketPoolTest::NO_KEEP_ALIVE);
+}
 
 // Even though a timeout is specified, it doesn't time out on a synchronous
 // completion.
@@ -3130,7 +3215,7 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectClosesIdleSocketRemovesGroup) {
   EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("b"));
 }
 
-TEST_F(ClientSocketPoolBaseTest, PreconnectWithoutBackupTimer) {
+TEST_F(ClientSocketPoolBaseTest, PreconnectWithoutBackupJob) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
   pool_->EnableConnectBackupJobs();
 
@@ -3141,17 +3226,18 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectWithoutBackupTimer) {
   pool_->RequestSockets("a", &params_, 1, BoundNetLog());
   EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
   EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
-  MessageLoop::current()->RunAllPending();
 
-  // Make sure the backup timer doesn't fire, by making it a pending job instead
-  // of a waiting job, so it *would* complete if the timer fired.
+  // Verify the backup timer doesn't create a backup job, by making
+  // the backup job a pending job instead of a waiting job, so it
+  // *would* complete if it were created.
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  base::PlatformThread::Sleep(1000);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->PostDelayedTask(FROM_HERE,
+                                          new MessageLoop::QuitTask(), 1000);
+  MessageLoop::current()->Run();
   EXPECT_FALSE(pool_->HasGroup("a"));
 }
 
-TEST_F(ClientSocketPoolBaseTest, PreconnectWithBackupTimer) {
+TEST_F(ClientSocketPoolBaseTest, PreconnectWithBackupJob) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
   pool_->EnableConnectBackupJobs();
 
@@ -3172,7 +3258,7 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectWithBackupTimer) {
                                         &callback,
                                         pool_.get(),
                                         BoundNetLog()));
-  // Timer has started, but the other connect job shouldn't be created yet.
+  // Timer has started, but the backup connect job shouldn't be created yet.
   EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
   EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
   EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("a"));

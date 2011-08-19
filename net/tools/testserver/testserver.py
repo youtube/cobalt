@@ -3,7 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""This is a simple HTTP server used for testing Chrome.
+"""This is a simple HTTP/FTP/SYNC/TCP ECHO/UDP ECHO/ server used for testing
+Chrome.
 
 It supports several test URLs, as specified by the handlers in TestPageHandler.
 By default, it listens on an ephemeral port and sends the port number back to
@@ -30,6 +31,7 @@ import struct
 import time
 import urlparse
 import warnings
+import zlib
 
 # Ignore deprecation warnings, they make our output more cluttered.
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -51,6 +53,8 @@ if sys.platform == 'win32':
 SERVER_HTTP = 0
 SERVER_FTP = 1
 SERVER_SYNC = 2
+SERVER_TCP_ECHO = 3
+SERVER_UDP_ECHO = 4
 
 # Using debug() seems to cause hangs on XP: see http://crbug.com/64515 .
 debug_output = sys.stderr
@@ -208,6 +212,42 @@ class SyncHTTPServer(StoppableHTTPServer):
                          asyncore.dispatcher.handle_expt_event)
 
 
+class TCPEchoServer(SocketServer.TCPServer):
+  """A TCP echo server that echoes back what it has received."""
+
+  def server_bind(self):
+    """Override server_bind to store the server name."""
+    SocketServer.TCPServer.server_bind(self)
+    host, port = self.socket.getsockname()[:2]
+    self.server_name = socket.getfqdn(host)
+    self.server_port = port
+
+  def serve_forever(self):
+    self.stop = False
+    self.nonce_time = None
+    while not self.stop:
+      self.handle_request()
+    self.socket.close()
+
+
+class UDPEchoServer(SocketServer.UDPServer):
+  """A UDP echo server that echoes back what it has received."""
+
+  def server_bind(self):
+    """Override server_bind to store the server name."""
+    SocketServer.UDPServer.server_bind(self)
+    host, port = self.socket.getsockname()[:2]
+    self.server_name = socket.getfqdn(host)
+    self.server_port = port
+
+  def serve_forever(self):
+    self.stop = False
+    self.nonce_time = None
+    while not self.stop:
+      self.handle_request()
+    self.socket.close()
+
+
 class BasePageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
   def __init__(self, request, client_address, socket_server,
@@ -280,6 +320,7 @@ class TestPageHandler(BasePageHandler):
       self.EchoHeader,
       self.EchoHeaderCache,
       self.EchoAllHandler,
+      self.ZipFileHandler,
       self.FileHandler,
       self.SetCookieHandler,
       self.AuthBasicHandler,
@@ -746,6 +787,72 @@ class TestPageHandler(BasePageHandler):
       new_text = base64.urlsafe_b64decode(new_text_b64)
       data = data.replace(old_text, new_text)
     return data
+
+  def ZipFileHandler(self):
+    """This handler sends the contents of the requested file in compressed form.
+    Can pass in a parameter that specifies that the content length be
+    C - the compressed size (OK),
+    U - the uncompressed size (Non-standard, but handled),
+    S - less than compressed (OK because we keep going),
+    M - larger than compressed but less than uncompressed (an error),
+    L - larger than uncompressed (an error)
+    Example: compressedfiles/Picture_1.doc?C
+    """
+
+    prefix = "/compressedfiles/"
+    if not self.path.startswith(prefix):
+      return False
+
+    # Consume a request body if present.
+    if self.command == 'POST' or self.command == 'PUT' :
+      self.ReadRequestBody()
+
+    _, _, url_path, _, query, _ = urlparse.urlparse(self.path)
+
+    if not query in ('C', 'U', 'S', 'M', 'L'):
+      return False
+
+    sub_path = url_path[len(prefix):]
+    entries = sub_path.split('/')
+    file_path = os.path.join(self.server.data_dir, *entries)
+    if os.path.isdir(file_path):
+      file_path = os.path.join(file_path, 'index.html')
+
+    if not os.path.isfile(file_path):
+      print "File not found " + sub_path + " full path:" + file_path
+      self.send_error(404)
+      return True
+
+    f = open(file_path, "rb")
+    data = f.read()
+    uncompressed_len = len(data)
+    f.close()
+
+    # Compress the data.
+    data = zlib.compress(data)
+    compressed_len = len(data)
+
+    content_length = compressed_len
+    if query == 'U':
+      content_length = uncompressed_len
+    elif query == 'S':
+      content_length = compressed_len / 2
+    elif query == 'M':
+      content_length = (compressed_len + uncompressed_len) / 2
+    elif query == 'L':
+      content_length = compressed_len + uncompressed_len
+
+    self.send_response(200)
+    self.send_header('Content-type', 'application/msword')
+    self.send_header('Content-encoding', 'deflate')
+    self.send_header('Connection', 'close')
+    self.send_header('Content-Length', content_length)
+    self.send_header('ETag', '\'' + file_path + '\'')
+    self.end_headers()
+
+    self.wfile.write(data)
+
+    return True
 
   def FileHandler(self):
     """This handler sends the contents of the requested file.  Wow, it's like
@@ -1297,7 +1404,8 @@ class SyncPageHandler(BasePageHandler):
 
   def __init__(self, request, client_address, sync_http_server):
     get_handlers = [self.ChromiumSyncMigrationOpHandler,
-                    self.ChromiumSyncTimeHandler]
+                    self.ChromiumSyncTimeHandler,
+                    self.ChromiumSyncBirthdayErrorOpHandler]
     post_handlers = [self.ChromiumSyncCommandHandler,
                      self.ChromiumSyncTimeHandler]
     BasePageHandler.__init__(self, request, client_address,
@@ -1360,6 +1468,18 @@ class SyncPageHandler(BasePageHandler):
     self.wfile.write(raw_reply)
     return True
 
+  def ChromiumSyncBirthdayErrorOpHandler(self):
+    test_name = "/chromiumsync/birthdayerror"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+    result, raw_reply = self.server._sync_handler.HandleCreateBirthdayError()
+    self.send_response(result)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True;
+
 
 def MakeDataDir():
   if options.data_dir:
@@ -1377,6 +1497,34 @@ def MakeDataDir():
     #i.e my_data_dir = FindUpward(my_data_dir, "test", "data")
 
   return my_data_dir
+
+
+class TCPEchoHandler(SocketServer.BaseRequestHandler):
+  """The RequestHandler class for TCP echo server.
+
+  It is instantiated once per connection to the server, and overrides the
+  handle() method to implement communication to the client.
+  """
+
+  def handle(self):
+    data = self.request.recv(65536)
+    if not data:
+        return
+    self.request.send(data)
+
+
+class UDPEchoHandler(SocketServer.BaseRequestHandler):
+  """The RequestHandler class for UDP echo server.
+
+  It is instantiated once per connection to the server, and overrides the
+  handle() method to implement communication to the client.
+  """
+
+  def handle(self):
+    data = self.request[0].strip()
+    socket = self.request[1]
+    socket.sendto(data, self.client_address)
+
 
 class FileMultiplexer:
   def __init__(self, fd1, fd2) :
@@ -1441,6 +1589,14 @@ def main(options, args):
     print 'Sync XMPP server started on port %d...' % server.xmpp_port
     server_data['port'] = server.server_port
     server_data['xmpp_port'] = server.xmpp_port
+  elif options.server_type == SERVER_TCP_ECHO:
+    server = TCPEchoServer(('127.0.0.1', port), TCPEchoHandler)
+    print 'Echo TCP server started on port %d...' % server.server_port
+    server_data['port'] = server.server_port
+  elif options.server_type == SERVER_UDP_ECHO:
+    server = UDPEchoServer(('127.0.0.1', port), UDPEchoHandler)
+    print 'Echo UDP server started on port %d...' % server.server_port
+    server_data['port'] = server.server_port
   # means FTP Server
   else:
     my_data_dir = MakeDataDir()
@@ -1503,6 +1659,14 @@ if __name__ == '__main__':
                            const=SERVER_SYNC, default=SERVER_HTTP,
                            dest='server_type',
                            help='start up a sync server.')
+  option_parser.add_option('', '--tcp-echo', action='store_const',
+                           const=SERVER_TCP_ECHO, default=SERVER_HTTP,
+                           dest='server_type',
+                           help='start up a tcp echo server.')
+  option_parser.add_option('', '--udp-echo', action='store_const',
+                           const=SERVER_UDP_ECHO, default=SERVER_HTTP,
+                           dest='server_type',
+                           help='start up a udp echo server.')
   option_parser.add_option('', '--log-to-console', action='store_const',
                            const=True, default=False,
                            dest='log_to_console',

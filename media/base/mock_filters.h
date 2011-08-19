@@ -77,7 +77,6 @@ class MockDataSource : public DataSource {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // DataSource implementation.
-  MOCK_METHOD0(media_format, const MediaFormat&());
   MOCK_METHOD4(Read, void(int64 position, size_t size, uint8* data,
                           DataSource::ReadCallback* callback));
   MOCK_METHOD1(GetSize, bool(int64* size_out));
@@ -113,6 +112,7 @@ class MockDemuxer : public Demuxer {
   MOCK_METHOD2(Initialize, void(DataSource* data_source,
                                 FilterCallback* callback));
   MOCK_METHOD1(GetStream, scoped_refptr<DemuxerStream>(DemuxerStream::Type));
+  MOCK_CONST_METHOD0(GetStartTime, base::TimeDelta());
 
   // Sets the TotalBytes, BufferedBytes, & Duration values to be sent to host()
   // when set_host() is called.
@@ -156,7 +156,6 @@ class MockDemuxerStream : public DemuxerStream {
 
   // DemuxerStream implementation.
   MOCK_METHOD0(type, Type());
-  MOCK_METHOD0(media_format, const MediaFormat&());
   MOCK_METHOD1(Read, void(const ReadCallback& read_callback));
   MOCK_METHOD0(GetAVStream, AVStream*());
   MOCK_METHOD0(EnableBitstreamConverter, void());
@@ -165,8 +164,6 @@ class MockDemuxerStream : public DemuxerStream {
   virtual ~MockDemuxerStream();
 
  private:
-  MediaFormat media_format_;
-
   DISALLOW_COPY_AND_ASSIGN(MockDemuxerStream);
 };
 
@@ -184,9 +181,9 @@ class MockVideoDecoder : public VideoDecoder {
   MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
                                 FilterCallback* callback,
                                 StatisticsCallback* stats_callback));
-  MOCK_METHOD0(media_format, const MediaFormat&());
   MOCK_METHOD1(ProduceVideoFrame, void(scoped_refptr<VideoFrame>));
-  MOCK_METHOD0(ProvidesBuffer, bool());
+  MOCK_METHOD0(width, int());
+  MOCK_METHOD0(height, int());
 
   void VideoFrameReadyForTest(scoped_refptr<VideoFrame> frame) {
     VideoDecoder::VideoFrameReady(frame);

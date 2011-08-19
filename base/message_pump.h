@@ -6,18 +6,18 @@
 #define BASE_MESSAGE_PUMP_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/memory/ref_counted.h"
 
 namespace base {
 
 class TimeTicks;
 
-class BASE_API MessagePump : public RefCountedThreadSafe<MessagePump> {
+class BASE_EXPORT MessagePump : public RefCountedThreadSafe<MessagePump> {
  public:
   // Please see the comments above the Run method for an illustration of how
   // these delegate methods are used.
-  class BASE_API Delegate {
+  class BASE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 

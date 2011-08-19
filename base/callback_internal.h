@@ -11,7 +11,7 @@
 
 #include <stddef.h>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/memory/ref_counted.h"
 
 namespace base {
@@ -54,7 +54,7 @@ InvokerStorageHolder<T> MakeInvokerStorageHolder(T* o) {
 
 // Holds the Callback methods that don't require specialization to reduce
 // template bloat.
-class BASE_API CallbackBase {
+class BASE_EXPORT CallbackBase {
  public:
   // Returns true if Callback is null (doesn't refer to anything).
   bool is_null() const;

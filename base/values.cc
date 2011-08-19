@@ -59,6 +59,8 @@ Value* CopyWithoutEmptyChildren(Value* node) {
 
 }  // namespace
 
+namespace base {
+
 ///////////////////// Value ////////////////////
 
 Value::~Value() {
@@ -120,6 +122,10 @@ bool Value::GetAsString(string16* out_value) const {
 }
 
 bool Value::GetAsList(ListValue** out_value) {
+  return false;
+}
+
+bool Value::GetAsList(const ListValue** out_value) const {
   return false;
 }
 
@@ -866,6 +872,12 @@ bool ListValue::GetAsList(ListValue** out_value) {
   return true;
 }
 
+bool ListValue::GetAsList(const ListValue** out_value) const {
+  if (out_value)
+    *out_value = this;
+  return true;
+}
+
 ListValue* ListValue::DeepCopy() const {
   ListValue* result = new ListValue;
 
@@ -896,3 +908,5 @@ bool ListValue::Equals(const Value* other) const {
 
 ValueSerializer::~ValueSerializer() {
 }
+
+}  // namespace base

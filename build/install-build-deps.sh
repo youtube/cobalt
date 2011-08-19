@@ -46,9 +46,9 @@ install_gold() {
     return
   fi
 
-  BINUTILS=binutils-2.21
+  BINUTILS=binutils-2.21.1
   BINUTILS_URL=http://ftp.gnu.org/gnu/binutils/$BINUTILS.tar.bz2
-  BINUTILS_SHA1=ef93235588eb443e4c4a77f229a8d131bccaecc6
+  BINUTILS_SHA1=f188490772cc902ec44a76545887bff60dbfa22d
 
   test -f $BINUTILS.tar.bz2 || wget $BINUTILS_URL
   if test "`sha1sum $BINUTILS.tar.bz2|cut -d' ' -f1`" != "$BINUTILS_SHA1"
@@ -59,56 +59,6 @@ install_gold() {
 
   tar -xjvf $BINUTILS.tar.bz2
   cd $BINUTILS
-  patch -p1 <<EOF
-diff -u -r1.103 -r1.103.2.1
---- src/gold/object.h	2010/09/08 23:54:51	1.103
-+++ src/gold/object.h	2011/02/10 01:15:28	1.103.2.1
-@@ -1,6 +1,6 @@
- // object.h -- support for an object file for linking in gold  -*- C++ -*-
- 
--// Copyright 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
-+// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
- // Written by Ian Lance Taylor <iant@google.com>.
- 
- // This file is part of gold.
-@@ -2165,15 +2165,6 @@
- 		      Output_symtab_xindex*,
- 		      Output_symtab_xindex*);
- 
--  // Clear the local symbol information.
--  void
--  clear_local_symbols()
--  {
--    this->local_values_.clear();
--    this->local_got_offsets_.clear();
--    this->local_plt_offsets_.clear();
--  }
--
-   // Record a mapping from discarded section SHNDX to the corresponding
-   // kept section.
-   void
-diff -u -r1.60 -r1.60.2.1
---- src/gold/reloc.cc	2010/10/14 22:10:22	1.60
-+++ src/gold/reloc.cc	2011/02/10 01:15:28	1.60.2.1
-@@ -1,6 +1,6 @@
- // reloc.cc -- relocate input files for gold.
- 
--// Copyright 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
-+// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
- // Written by Ian Lance Taylor <iant@google.com>.
- 
- // This file is part of gold.
-@@ -685,9 +685,6 @@
-   // Write out the local symbols.
-   this->write_local_symbols(of, layout->sympool(), layout->dynpool(),
- 			    layout->symtab_xindex(), layout->dynsym_xindex());
--
--  // We should no longer need the local symbol values.
--  this->clear_local_symbols();
- }
- 
- // Sort a Read_multiple vector by file offset.
-EOF
   ./configure --prefix=/usr/local/gold --enable-gold --enable-threads
   make maybe-all-binutils maybe-all-gold -j4
   if sudo make maybe-install-binutils maybe-install-gold
@@ -151,16 +101,16 @@ fi
 chromeos_dev_list="libpulse-dev"
 
 # Packages need for development
-dev_list="apache2.2-bin bison fakeroot flex g++ gperf libapache2-mod-php5
-          libasound2-dev libbz2-dev libcairo2-dev libcups2-dev
-          libdbus-glib-1-dev libgconf2-dev
+dev_list="apache2.2-bin bison fakeroot flex g++ gperf language-pack-fr
+          libapache2-mod-php5 libasound2-dev libbz2-dev libcairo2-dev
+          libcups2-dev libdbus-glib-1-dev libgconf2-dev
           libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev libgnome-keyring-dev
           libgtk2.0-dev libjpeg62-dev libnspr4-dev libnss3-dev libpam0g-dev
           libsctp-dev libsqlite3-dev libxslt1-dev libxss-dev libxtst-dev
-          mesa-common-dev msttcorefonts patch perl php5-cgi pkg-config python
-          python-dev rpm subversion ttf-dejavu-core ttf-kochi-gothic
-          ttf-kochi-mincho wdiff libcurl4-gnutls-dev ttf-indic-fonts
-          ttf-thai-tlwg
+          mesa-common-dev msttcorefonts patch perl libwww-perl php5-cgi
+          pkg-config python python-dev rpm subversion ttf-dejavu-core
+          ttf-kochi-gothic ttf-kochi-mincho wdiff libcurl4-gnutls-dev
+          ttf-indic-fonts ttf-thai-tlwg
           $chromeos_dev_list"
 
 # Run-time libraries required by chromeos only

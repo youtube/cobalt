@@ -13,8 +13,6 @@
 ** using the lemon parser generator to generate C code that runs
 ** the parser.  Lemon will also generate a header file containing
 ** numeric codes for all of the tokens.
-**
-** @(#) $Id: parse.y,v 1.286 2009/08/10 03:57:58 shane Exp $
 */
 
 // All token codes are small integers with #defines that begin with "TK_"
@@ -196,9 +194,9 @@ id(A) ::= INDEXED(X).    {A = X;}
 // This obviates the need for the "id" nonterminal.
 //
 %fallback ID
-  ABORT AFTER ANALYZE ASC ATTACH BEFORE BEGIN BY CASCADE CAST COLUMNKW CONFLICT
-  DATABASE DEFERRED DESC DETACH EACH END EXCLUSIVE EXPLAIN FAIL FOR
-  IGNORE IMMEDIATE INITIALLY INSTEAD LIKE_KW MATCH PLAN
+  ABORT ACTION AFTER ANALYZE ASC ATTACH BEFORE BEGIN BY CASCADE CAST COLUMNKW
+  CONFLICT DATABASE DEFERRED DESC DETACH EACH END EXCLUSIVE EXPLAIN FAIL FOR
+  IGNORE IMMEDIATE INITIALLY INSTEAD LIKE_KW MATCH NO PLAN
   QUERY KEY OF OFFSET PRAGMA RAISE RELEASE REPLACE RESTRICT ROW ROLLBACK
   SAVEPOINT TEMP TRIGGER VACUUM VIEW VIRTUAL
 %ifdef SQLITE_OMIT_COMPOUND_SELECT
@@ -230,7 +228,7 @@ id(A) ::= INDEXED(X).    {A = X;}
 %left STAR SLASH REM.
 %left CONCAT.
 %left COLLATE.
-%right UMINUS UPLUS BITNOT.
+%right BITNOT.
 
 // And "ids" is an identifer-or-string.
 //
@@ -314,20 +312,21 @@ autoinc(X) ::= AUTOINCR.  {X = 1;}
 // check fails.
 //
 %type refargs {int}
-refargs(A) ::= .                     { A = OE_Restrict * 0x010101; }
+refargs(A) ::= .                  { A = OE_None*0x0101; /* EV: R-19803-45884 */}
 refargs(A) ::= refargs(X) refarg(Y). { A = (X & ~Y.mask) | Y.value; }
 %type refarg {struct {int value; int mask;}}
 refarg(A) ::= MATCH nm.              { A.value = 0;     A.mask = 0x000000; }
+refarg(A) ::= ON INSERT refact.      { A.value = 0;     A.mask = 0x000000; }
 refarg(A) ::= ON DELETE refact(X).   { A.value = X;     A.mask = 0x0000ff; }
 refarg(A) ::= ON UPDATE refact(X).   { A.value = X<<8;  A.mask = 0x00ff00; }
-refarg(A) ::= ON INSERT refact(X).   { A.value = X<<16; A.mask = 0xff0000; }
 %type refact {int}
-refact(A) ::= SET NULL.              { A = OE_SetNull; }
-refact(A) ::= SET DEFAULT.           { A = OE_SetDflt; }
-refact(A) ::= CASCADE.               { A = OE_Cascade; }
-refact(A) ::= RESTRICT.              { A = OE_Restrict; }
+refact(A) ::= SET NULL.              { A = OE_SetNull;  /* EV: R-33326-45252 */}
+refact(A) ::= SET DEFAULT.           { A = OE_SetDflt;  /* EV: R-33326-45252 */}
+refact(A) ::= CASCADE.               { A = OE_Cascade;  /* EV: R-33326-45252 */}
+refact(A) ::= RESTRICT.              { A = OE_Restrict; /* EV: R-33326-45252 */}
+refact(A) ::= NO ACTION.             { A = OE_None;     /* EV: R-33326-45252 */}
 %type defer_subclause {int}
-defer_subclause(A) ::= NOT DEFERRABLE init_deferred_pred_opt(X).  {A = X;}
+defer_subclause(A) ::= NOT DEFERRABLE init_deferred_pred_opt.     {A = 0;}
 defer_subclause(A) ::= DEFERRABLE init_deferred_pred_opt(X).      {A = X;}
 %type init_deferred_pred_opt {int}
 init_deferred_pred_opt(A) ::= .                       {A = 0;}
@@ -781,7 +780,7 @@ expr(A) ::= VARIABLE(X).     {
   spanSet(&A, &X, &X);
 }
 expr(A) ::= expr(E) COLLATE ids(C). {
-  A.pExpr = sqlite3ExprSetColl(pParse, E.pExpr, &C);
+  A.pExpr = sqlite3ExprSetCollByToken(pParse, E.pExpr, &C);
   A.zStart = E.zStart;
   A.zEnd = &C.z[C.n];
 }
@@ -849,21 +848,25 @@ likeop(A) ::= LIKE_KW(X).     {A.eOperator = X; A.not = 0;}
 likeop(A) ::= NOT LIKE_KW(X). {A.eOperator = X; A.not = 1;}
 likeop(A) ::= MATCH(X).       {A.eOperator = X; A.not = 0;}
 likeop(A) ::= NOT MATCH(X).   {A.eOperator = X; A.not = 1;}
-%type escape {ExprSpan}
-%destructor escape {sqlite3ExprDelete(pParse->db, $$.pExpr);}
-escape(X) ::= ESCAPE expr(A). [ESCAPE] {X = A;}
-escape(X) ::= .               [ESCAPE] {memset(&X,0,sizeof(X));}
-expr(A) ::= expr(X) likeop(OP) expr(Y) escape(E).  [LIKE_KW]  {
+expr(A) ::= expr(X) likeop(OP) expr(Y).  [LIKE_KW]  {
   ExprList *pList;
   pList = sqlite3ExprListAppend(pParse,0, Y.pExpr);
   pList = sqlite3ExprListAppend(pParse,pList, X.pExpr);
-  if( E.pExpr ){
-    pList = sqlite3ExprListAppend(pParse,pList, E.pExpr);
-  }
   A.pExpr = sqlite3ExprFunction(pParse, pList, &OP.eOperator);
   if( OP.not ) A.pExpr = sqlite3PExpr(pParse, TK_NOT, A.pExpr, 0, 0);
   A.zStart = X.zStart;
   A.zEnd = Y.zEnd;
+  if( A.pExpr ) A.pExpr->flags |= EP_InfixFunc;
+}
+expr(A) ::= expr(X) likeop(OP) expr(Y) ESCAPE expr(E).  [LIKE_KW]  {
+  ExprList *pList;
+  pList = sqlite3ExprListAppend(pParse,0, Y.pExpr);
+  pList = sqlite3ExprListAppend(pParse,pList, X.pExpr);
+  pList = sqlite3ExprListAppend(pParse,pList, E.pExpr);
+  A.pExpr = sqlite3ExprFunction(pParse, pList, &OP.eOperator);
+  if( OP.not ) A.pExpr = sqlite3PExpr(pParse, TK_NOT, A.pExpr, 0, 0);
+  A.zStart = X.zStart;
+  A.zEnd = E.zEnd;
   if( A.pExpr ) A.pExpr->flags |= EP_InfixFunc;
 }
 
@@ -884,10 +887,35 @@ expr(A) ::= expr(X) likeop(OP) expr(Y) escape(E).  [LIKE_KW]  {
 }
 
 expr(A) ::= expr(X) ISNULL|NOTNULL(E).   {spanUnaryPostfix(&A,pParse,@E,&X,&E);}
-expr(A) ::= expr(X) IS NULL(E).   {spanUnaryPostfix(&A,pParse,TK_ISNULL,&X,&E);}
 expr(A) ::= expr(X) NOT NULL(E). {spanUnaryPostfix(&A,pParse,TK_NOTNULL,&X,&E);}
-expr(A) ::= expr(X) IS NOT NULL(E).
-                                 {spanUnaryPostfix(&A,pParse,TK_NOTNULL,&X,&E);}
+
+%include {
+  /* A routine to convert a binary TK_IS or TK_ISNOT expression into a
+  ** unary TK_ISNULL or TK_NOTNULL expression. */
+  static void binaryToUnaryIfNull(Parse *pParse, Expr *pY, Expr *pA, int op){
+    sqlite3 *db = pParse->db;
+    if( db->mallocFailed==0 && pY->op==TK_NULL ){
+      pA->op = (u8)op;
+      sqlite3ExprDelete(db, pA->pRight);
+      pA->pRight = 0;
+    }
+  }
+}
+
+//    expr1 IS expr2
+//    expr1 IS NOT expr2
+//
+// If expr2 is NULL then code as TK_ISNULL or TK_NOTNULL.  If expr2
+// is any other expression, code as TK_IS or TK_ISNOT.
+// 
+expr(A) ::= expr(X) IS expr(Y).     {
+  spanBinaryExpr(&A,pParse,TK_IS,&X,&Y);
+  binaryToUnaryIfNull(pParse, Y.pExpr, A.pExpr, TK_ISNULL);
+}
+expr(A) ::= expr(X) IS NOT expr(Y). {
+  spanBinaryExpr(&A,pParse,TK_ISNOT,&X,&Y);
+  binaryToUnaryIfNull(pParse, Y.pExpr, A.pExpr, TK_NOTNULL);
+}
 
 %include {
   /* Construct an expression node for a unary prefix operator
@@ -909,9 +937,9 @@ expr(A) ::= expr(X) IS NOT NULL(E).
 
 expr(A) ::= NOT(B) expr(X).    {spanUnaryPrefix(&A,pParse,@B,&X,&B);}
 expr(A) ::= BITNOT(B) expr(X). {spanUnaryPrefix(&A,pParse,@B,&X,&B);}
-expr(A) ::= MINUS(B) expr(X). [UMINUS]
+expr(A) ::= MINUS(B) expr(X). [BITNOT]
                                {spanUnaryPrefix(&A,pParse,TK_UMINUS,&X,&B);}
-expr(A) ::= PLUS(B) expr(X). [UPLUS]
+expr(A) ::= PLUS(B) expr(X). [BITNOT]
                                {spanUnaryPrefix(&A,pParse,TK_UPLUS,&X,&B);}
 
 %type between_op {int}
@@ -935,14 +963,27 @@ expr(A) ::= expr(W) between_op(N) expr(X) AND expr(Y). [BETWEEN] {
   in_op(A) ::= IN.      {A = 0;}
   in_op(A) ::= NOT IN.  {A = 1;}
   expr(A) ::= expr(X) in_op(N) LP exprlist(Y) RP(E). [IN] {
-    A.pExpr = sqlite3PExpr(pParse, TK_IN, X.pExpr, 0, 0);
-    if( A.pExpr ){
-      A.pExpr->x.pList = Y;
-      sqlite3ExprSetHeight(pParse, A.pExpr);
+    if( Y==0 ){
+      /* Expressions of the form
+      **
+      **      expr1 IN ()
+      **      expr1 NOT IN ()
+      **
+      ** simplify to constants 0 (false) and 1 (true), respectively,
+      ** regardless of the value of expr1.
+      */
+      A.pExpr = sqlite3PExpr(pParse, TK_INTEGER, 0, 0, &sqlite3IntTokens[N]);
+      sqlite3ExprDelete(pParse->db, X.pExpr);
     }else{
-      sqlite3ExprListDelete(pParse->db, Y);
+      A.pExpr = sqlite3PExpr(pParse, TK_IN, X.pExpr, 0, 0);
+      if( A.pExpr ){
+        A.pExpr->x.pList = Y;
+        sqlite3ExprSetHeight(pParse, A.pExpr);
+      }else{
+        sqlite3ExprListDelete(pParse->db, Y);
+      }
+      if( N ) A.pExpr = sqlite3PExpr(pParse, TK_NOT, A.pExpr, 0, 0);
     }
-    if( N ) A.pExpr = sqlite3PExpr(pParse, TK_NOT, A.pExpr, 0, 0);
     A.zStart = X.zStart;
     A.zEnd = &E.z[E.n];
   }
@@ -1067,7 +1108,7 @@ idxlist(A) ::= idxlist(X) COMMA nm(Y) collate(C) sortorder(Z).  {
   Expr *p = 0;
   if( C.n>0 ){
     p = sqlite3Expr(pParse->db, TK_COLUMN, 0);
-    sqlite3ExprSetColl(pParse, p, &C);
+    sqlite3ExprSetCollByToken(pParse, p, &C);
   }
   A = sqlite3ExprListAppend(pParse,X, p);
   sqlite3ExprListSetName(pParse,A,&Y,1);
@@ -1078,7 +1119,7 @@ idxlist(A) ::= nm(Y) collate(C) sortorder(Z). {
   Expr *p = 0;
   if( C.n>0 ){
     p = sqlite3PExpr(pParse, TK_COLUMN, 0, 0, 0);
-    sqlite3ExprSetColl(pParse, p, &C);
+    sqlite3ExprSetCollByToken(pParse, p, &C);
   }
   A = sqlite3ExprListAppend(pParse,0, p);
   sqlite3ExprListSetName(pParse, A, &Y, 1);

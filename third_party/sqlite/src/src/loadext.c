@@ -11,8 +11,6 @@
 *************************************************************************
 ** This file contains code used to dynamically load extensions into
 ** the SQLite library.
-**
-** $Id: loadext.c,v 1.60 2009/06/03 01:24:54 drh Exp $
 */
 
 #ifndef SQLITE_CORE
@@ -71,6 +69,11 @@
 #ifdef SQLITE_OMIT_COMPLETE
 # define sqlite3_complete 0
 # define sqlite3_complete16 0
+#endif
+
+#ifdef SQLITE_OMIT_DECLTYPE
+# define sqlite3_column_decltype16      0
+# define sqlite3_column_decltype        0
 #endif
 
 #ifdef SQLITE_OMIT_PROGRESS_CALLBACK
@@ -329,6 +332,46 @@ static const sqlite3_api_routines sqlite3Apis = {
   sqlite3_next_stmt,
   sqlite3_sql,
   sqlite3_status,
+
+  /*
+  ** Added for 3.7.4
+  */
+  sqlite3_backup_finish,
+  sqlite3_backup_init,
+  sqlite3_backup_pagecount,
+  sqlite3_backup_remaining,
+  sqlite3_backup_step,
+#ifndef SQLITE_OMIT_COMPILEOPTION_DIAGS
+  sqlite3_compileoption_get,
+  sqlite3_compileoption_used,
+#else
+  0,
+  0,
+#endif
+  sqlite3_create_function_v2,
+  sqlite3_db_config,
+  sqlite3_db_mutex,
+  sqlite3_db_status,
+  sqlite3_extended_errcode,
+  sqlite3_log,
+  sqlite3_soft_heap_limit64,
+  sqlite3_sourceid,
+  sqlite3_stmt_status,
+  sqlite3_strnicmp,
+#ifdef SQLITE_ENABLE_UNLOCK_NOTIFY
+  sqlite3_unlock_notify,
+#else
+  0,
+#endif
+#ifndef SQLITE_OMIT_WAL
+  sqlite3_wal_autocheckpoint,
+  sqlite3_wal_checkpoint,
+  sqlite3_wal_hook,
+#else
+  0,
+  0,
+  0,
+#endif
 };
 
 /*
@@ -378,13 +421,11 @@ static int sqlite3LoadExtension(
   handle = sqlite3OsDlOpen(pVfs, zFile);
   if( handle==0 ){
     if( pzErrMsg ){
-      zErrmsg = sqlite3StackAllocZero(db, nMsg);
+      *pzErrMsg = zErrmsg = sqlite3_malloc(nMsg);
       if( zErrmsg ){
         sqlite3_snprintf(nMsg, zErrmsg, 
             "unable to open shared library [%s]", zFile);
         sqlite3OsDlError(pVfs, nMsg-1, zErrmsg);
-        *pzErrMsg = sqlite3DbStrDup(0, zErrmsg);
-        sqlite3StackFree(db, zErrmsg);
       }
     }
     return SQLITE_ERROR;
@@ -393,13 +434,11 @@ static int sqlite3LoadExtension(
                    sqlite3OsDlSym(pVfs, handle, zProc);
   if( xInit==0 ){
     if( pzErrMsg ){
-      zErrmsg = sqlite3StackAllocZero(db, nMsg);
+      *pzErrMsg = zErrmsg = sqlite3_malloc(nMsg);
       if( zErrmsg ){
         sqlite3_snprintf(nMsg, zErrmsg,
             "no entry point [%s] in shared library [%s]", zProc,zFile);
         sqlite3OsDlError(pVfs, nMsg-1, zErrmsg);
-        *pzErrMsg = sqlite3DbStrDup(0, zErrmsg);
-        sqlite3StackFree(db, zErrmsg);
       }
       sqlite3OsDlClose(pVfs, handle);
     }

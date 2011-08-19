@@ -28,6 +28,9 @@ class MimeUtil : public PlatformMimeUtil {
   bool GetMimeTypeFromFile(const FilePath& file_path,
                            std::string* mime_type) const;
 
+  bool GetWellKnownMimeTypeFromExtension(const FilePath::StringType& ext,
+                                         std::string* mime_type) const;
+
   bool IsSupportedImageMimeType(const char* mime_type) const;
   bool IsSupportedMediaMimeType(const char* mime_type) const;
   bool IsSupportedNonImageMimeType(const char* mime_type) const;
@@ -58,6 +61,10 @@ class MimeUtil : public PlatformMimeUtil {
 
   // For faster lookup, keep hash sets.
   void InitializeMimeTypeMaps();
+
+  bool GetMimeTypeFromExtensionHelper(
+      const FilePath::StringType& ext, bool include_platform_types,
+      std::string* mime_type) const;
 
   typedef base::hash_set<std::string> MimeMappings;
   MimeMappings image_map_;
@@ -95,7 +102,8 @@ static const MimeInfo primary_mappings[] = {
   { "audio/webm", "webm" },
   { "audio/wav", "wav" },
   { "application/xhtml+xml", "xhtml,xht" },
-  { "application/x-chrome-extension", "crx" }
+  { "application/x-chrome-extension", "crx" },
+  { "multipart/related", "mhtml,mht" }
 };
 
 static const MimeInfo secondary_mappings[] = {
@@ -117,7 +125,9 @@ static const MimeInfo secondary_mappings[] = {
   { "application/rdf+xml", "rdf" },
   { "text/xml", "xsl,xbl" },
   { "application/vnd.mozilla.xul+xml", "xul" },
-  { "application/x-shockwave-flash", "swf,swl" }
+  { "application/x-shockwave-flash", "swf,swl" },
+  { "application/pkcs7-mime", "p7m,p7c,p7z" },
+  { "application/pkcs7-signature", "p7s" }
 };
 
 static const char* FindMimeType(const MimeInfo* mappings,
@@ -143,6 +153,25 @@ static const char* FindMimeType(const MimeInfo* mappings,
 
 bool MimeUtil::GetMimeTypeFromExtension(const FilePath::StringType& ext,
                                         string* result) const {
+  return GetMimeTypeFromExtensionHelper(ext, true, result);
+}
+
+bool MimeUtil::GetWellKnownMimeTypeFromExtension(
+    const FilePath::StringType& ext, string* result) const {
+  return GetMimeTypeFromExtensionHelper(ext, false, result);
+}
+
+bool MimeUtil::GetMimeTypeFromFile(const FilePath& file_path,
+                                   string* result) const {
+  FilePath::StringType file_name_str = file_path.Extension();
+  if (file_name_str.empty())
+    return false;
+  return GetMimeTypeFromExtension(file_name_str.substr(1), result);
+}
+
+bool MimeUtil::GetMimeTypeFromExtensionHelper(
+    const FilePath::StringType& ext, bool include_platform_types,
+    string* result) const {
   // Avoids crash when unable to handle a long file path. See crbug.com/48733.
   const unsigned kMaxFilePathSize = 65536;
   if (ext.length() > kMaxFilePathSize)
@@ -168,7 +197,7 @@ bool MimeUtil::GetMimeTypeFromExtension(const FilePath::StringType& ext,
     return true;
   }
 
-  if (GetPlatformMimeTypeFromExtension(ext, result))
+  if (include_platform_types && GetPlatformMimeTypeFromExtension(ext, result))
     return true;
 
   mime_type = FindMimeType(secondary_mappings, arraysize(secondary_mappings),
@@ -179,14 +208,6 @@ bool MimeUtil::GetMimeTypeFromExtension(const FilePath::StringType& ext,
   }
 
   return false;
-}
-
-bool MimeUtil::GetMimeTypeFromFile(const FilePath& file_path,
-                                   string* result) const {
-  FilePath::StringType file_name_str = file_path.Extension();
-  if (file_name_str.empty())
-    return false;
-  return GetMimeTypeFromExtension(file_name_str.substr(1), result);
 }
 
 // From WebKit's WebCore/platform/MIMETypeRegistry.cpp:
@@ -206,10 +227,14 @@ static const char* const supported_image_types[] = {
 // A list of media types: http://en.wikipedia.org/wiki/Internet_media_type
 // A comprehensive mime type list: http://plugindoc.mozdev.org/winmime.php
 static const char* const supported_media_types[] = {
+#if defined(ENABLE_MEDIA_TYPE_OGG)
   // Ogg.
   "video/ogg",
   "audio/ogg",
   "application/ogg",
+#endif
+
+  // WebM.
   "video/webm",
   "audio/webm",
   "audio/wav",
@@ -238,7 +263,9 @@ static const char* const supported_media_codecs[] = {
   "avc1",
   "mp4a",
 #endif
+#if defined(ENABLE_MEDIA_CODEC_THEORA)
   "theora",
+#endif
   "vorbis",
   "vp8",
   "1"  // PCM for WAV.
@@ -266,12 +293,11 @@ static const char* const supported_non_image_types[] = {
   "application/atom+xml",
   "application/json",
   "application/x-x509-user-cert",
+  "multipart/related",  // For MHTML support.
   "multipart/x-mixed-replace"
   // Note: ADDING a new type here will probably render it AS HTML. This can
   // result in cross site scripting.
 };
-COMPILE_ASSERT(arraysize(supported_non_image_types) == 16,
-               supported_non_images_types_must_equal_16);
 
 //  Mozilla 1.8 and WinIE 7 both accept text/javascript and text/ecmascript.
 //  Mozilla 1.8 accepts application/javascript, application/ecmascript, and
@@ -482,6 +508,11 @@ bool GetMimeTypeFromExtension(const FilePath::StringType& ext,
 
 bool GetMimeTypeFromFile(const FilePath& file_path, std::string* mime_type) {
   return g_mime_util.Get().GetMimeTypeFromFile(file_path, mime_type);
+}
+
+bool GetWellKnownMimeTypeFromExtension(const FilePath::StringType& ext,
+                                       std::string* mime_type) {
+  return g_mime_util.Get().GetWellKnownMimeTypeFromExtension(ext, mime_type);
 }
 
 bool GetPreferredExtensionForMimeType(const std::string& mime_type,

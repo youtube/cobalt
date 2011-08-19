@@ -252,9 +252,14 @@ bool FindProcessHoldingSocket(pid_t* pid_out, ino_t socket_inode) {
   return already_found;
 }
 
-pid_t FindThreadIDWithSyscall(pid_t pid, const std::string& expected_data) {
+pid_t FindThreadIDWithSyscall(pid_t pid, const std::string& expected_data,
+                              bool* syscall_supported) {
   char buf[256];
   snprintf(buf, sizeof(buf), "/proc/%d/task", pid);
+
+  if (syscall_supported != NULL)
+    *syscall_supported = false;
+
   DIR* task = opendir(buf);
   if (!task) {
     LOG(WARNING) << "Cannot open " << buf;
@@ -280,6 +285,8 @@ pid_t FindThreadIDWithSyscall(pid_t pid, const std::string& expected_data) {
     int fd = open(buf, O_RDONLY);
     if (fd < 0)
       continue;
+    if (syscall_supported != NULL)
+      *syscall_supported = true;
     bool read_ret =
         file_util::ReadFromFD(fd, syscall_data.get(), expected_data.length());
     close(fd);

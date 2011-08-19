@@ -16,8 +16,6 @@
 ** command of TCL to do a lot of this, but there are some issues
 ** with historical versions of the "binary" command.  So it seems
 ** easier and safer to build our own mechanism.
-**
-** $Id: test_hexio.c,v 1.7 2008/05/12 16:17:42 drh Exp $
 */
 #include "sqliteInt.h"
 #include "tcl.h"
@@ -314,7 +312,54 @@ static int utf8_to_utf8(
   sqlite3TestBinToHex(z,nOut);
   Tcl_AppendResult(interp, (char*)z, 0);
   sqlite3_free(z);
+  return TCL_OK;
+#else
+  Tcl_AppendResult(interp, 
+      "[utf8_to_utf8] unavailable - SQLITE_DEBUG not defined", 0
+  );
+  return TCL_ERROR;
 #endif
+}
+
+static int getFts3Varint(const char *p, sqlite_int64 *v){
+  const unsigned char *q = (const unsigned char *) p;
+  sqlite_uint64 x = 0, y = 1;
+  while( (*q & 0x80) == 0x80 ){
+    x += y * (*q++ & 0x7f);
+    y <<= 7;
+  }
+  x += y * (*q++);
+  *v = (sqlite_int64) x;
+  return (int) (q - (unsigned char *)p);
+}
+
+
+/*
+** USAGE:  read_fts3varint BLOB VARNAME
+**
+** Read a varint from the start of BLOB. Set variable VARNAME to contain
+** the interpreted value. Return the number of bytes of BLOB consumed.
+*/
+static int read_fts3varint(
+  void * clientData,
+  Tcl_Interp *interp,
+  int objc,
+  Tcl_Obj *CONST objv[]
+){
+  int nBlob;
+  unsigned char *zBlob;
+  sqlite3_int64 iVal;
+  int nVal;
+
+  if( objc!=3 ){
+    Tcl_WrongNumArgs(interp, 1, objv, "BLOB VARNAME");
+    return TCL_ERROR;
+  }
+  zBlob = Tcl_GetByteArrayFromObj(objv[1], &nBlob);
+
+  nVal = getFts3Varint((char*)zBlob, (sqlite3_int64 *)(&iVal));
+  Tcl_ObjSetVar2(interp, objv[2], 0, Tcl_NewWideIntObj(iVal), 0);
+  Tcl_SetObjResult(interp, Tcl_NewIntObj(nVal));
   return TCL_OK;
 }
 
@@ -333,6 +378,7 @@ int Sqlitetest_hexio_Init(Tcl_Interp *interp){
      { "hexio_render_int16",           hexio_render_int16    },
      { "hexio_render_int32",           hexio_render_int32    },
      { "utf8_to_utf8",                 utf8_to_utf8          },
+     { "read_fts3varint",              read_fts3varint       },
   };
   int i;
   for(i=0; i<sizeof(aObjCmd)/sizeof(aObjCmd[0]); i++){

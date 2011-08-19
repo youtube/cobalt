@@ -28,11 +28,7 @@ static const int64 kMaxSleepMilliseconds = 60;
 static const int kIdleMilliseconds = 10;
 
 VideoRendererBase::VideoRendererBase()
-    : width_(0),
-      height_(0),
-      surface_format_(VideoFrame::INVALID),
-      surface_type_(VideoFrame::TYPE_SYSTEM_MEMORY),
-      frame_available_(&lock_),
+    : frame_available_(&lock_),
       state_(kUninitialized),
       thread_(base::kNullThreadHandle),
       pending_reads_(0),
@@ -44,34 +40,6 @@ VideoRendererBase::VideoRendererBase()
 VideoRendererBase::~VideoRendererBase() {
   base::AutoLock auto_lock(lock_);
   DCHECK(state_ == kUninitialized || state_ == kStopped);
-}
-
-// static
-bool VideoRendererBase::ParseMediaFormat(
-    const MediaFormat& media_format,
-    VideoFrame::SurfaceType* surface_type_out,
-    VideoFrame::Format* surface_format_out,
-    int* width_out, int* height_out) {
-  int surface_type;
-  if (!media_format.GetAsInteger(MediaFormat::kSurfaceType, &surface_type))
-    return false;
-  if (surface_type_out)
-    *surface_type_out = static_cast<VideoFrame::SurfaceType>(surface_type);
-
-  int surface_format;
-  if (!media_format.GetAsInteger(MediaFormat::kSurfaceFormat, &surface_format))
-    return false;
-  if (surface_format_out)
-    *surface_format_out = static_cast<VideoFrame::Format>(surface_format);
-
-  int width, height;
-  if (!media_format.GetAsInteger(MediaFormat::kWidth, &width))
-    return false;
-  if (!media_format.GetAsInteger(MediaFormat::kHeight, &height))
-    return false;
-  if (width_out) *width_out = width;
-  if (height_out) *height_out = height;
-  return true;
 }
 
 void VideoRendererBase::Play(FilterCallback* callback) {
@@ -101,12 +69,13 @@ void VideoRendererBase::Flush(FilterCallback* callback) {
 }
 
 void VideoRendererBase::Stop(FilterCallback* callback) {
-  DCHECK_EQ(pending_reads_, 0);
-
   base::PlatformThreadHandle old_thread_handle = base::kNullThreadHandle;
   {
     base::AutoLock auto_lock(lock_);
     state_ = kStopped;
+
+    if (!pending_paint_ && !pending_paint_with_last_available_)
+      DoStopOrErrorFlush_Locked();
 
     // Clean up our thread if present.
     if (thread_) {
@@ -180,14 +149,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
                  base::Unretained(this)));
 
   // Notify the pipeline of the video dimensions.
-  if (!ParseMediaFormat(decoder->media_format(),
-                        &surface_type_,
-                        &surface_format_,
-                        &width_, &height_)) {
-    EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    return;
-  }
-  host()->SetVideoSize(width_, height_);
+  host()->SetVideoSize(decoder_->width(), decoder_->height());
 
   // Initialize the subclass.
   // TODO(scherkus): do we trust subclasses not to do something silly while
@@ -348,12 +310,11 @@ void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
   base::AutoLock auto_lock(lock_);
   DCHECK(!pending_paint_ && !pending_paint_with_last_available_);
 
-  if (!current_frame_.get() || current_frame_->IsEndOfStream()) {
-    if (!last_available_frame_.get() ||
-        last_available_frame_->IsEndOfStream()) {
-      *frame_out = NULL;
-      return;
-    }
+  if ((!current_frame_.get() || current_frame_->IsEndOfStream()) &&
+      (!last_available_frame_.get() ||
+       last_available_frame_->IsEndOfStream())) {
+    *frame_out = NULL;
+    return;
   }
 
   // We should have initialized and have the current frame.
@@ -390,8 +351,11 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
   // frame is timed-out. We will wake up our main thread to advance the current
   // frame when this is true.
   frame_available_.Signal();
-  if (state_ == kFlushing)
+  if (state_ == kFlushing) {
     FlushBuffers();
+  } else if (state_ == kError || state_ == kStopped) {
+    DoStopOrErrorFlush_Locked();
+  }
 }
 
 void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
@@ -485,10 +449,6 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
   }
 }
 
-VideoDecoder* VideoRendererBase::GetDecoder() {
-  return decoder_.get();
-}
-
 void VideoRendererBase::ReadInput(scoped_refptr<VideoFrame> frame) {
   // We should never return empty frames or EOS frame.
   DCHECK(frame.get() && !frame->IsEndOfStream());
@@ -526,23 +486,16 @@ void VideoRendererBase::FlushBuffers() {
   }
   current_frame_ = NULL;
 
-  if (decoder_->ProvidesBuffer()) {
-    // Flush all buffers out to decoder;
-    ScheduleRead_Locked();
-  }
+  // Flush all buffers out to decoder.
+  ScheduleRead_Locked();
 
-  if (pending_reads_ == 0)
+  if (pending_reads_ == 0 && state_ == kFlushing)
     OnFlushDone();
 }
 
 void VideoRendererBase::OnFlushDone() {
   // Check all buffers are return to owners.
-  if (decoder_->ProvidesBuffer()) {
-    DCHECK_EQ(frames_queue_done_.size(), 0u);
-  } else {
-    DCHECK_EQ(frames_queue_done_.size(),
-              static_cast<size_t>(Limits::kMaxVideoFrames));
-  }
+  DCHECK_EQ(frames_queue_done_.size(), 0u);
   DCHECK(!current_frame_.get());
   DCHECK(frames_queue_ready_.empty());
 
@@ -589,6 +542,11 @@ void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
   State old_state = state_;
   state_ = kError;
 
+  // Flush frames if we aren't in the middle of a paint. If we
+  // are painting then flushing will happen when the paint completes.
+  if (!pending_paint_ && !pending_paint_with_last_available_)
+    DoStopOrErrorFlush_Locked();
+
   switch (old_state) {
     case kUninitialized:
     case kPrerolled:
@@ -621,6 +579,15 @@ void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
 
   if (callback.get())
     callback->Run();
+}
+
+void VideoRendererBase::DoStopOrErrorFlush_Locked() {
+  DCHECK(!pending_paint_);
+  DCHECK(!pending_paint_with_last_available_);
+  lock_.AssertAcquired();
+  FlushBuffers();
+  last_available_frame_ = NULL;
+  DCHECK_EQ(pending_reads_, 0);
 }
 
 }  // namespace media

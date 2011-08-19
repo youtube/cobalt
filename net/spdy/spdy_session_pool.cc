@@ -42,7 +42,8 @@ bool SpdySessionPool::g_enable_ip_pooling = true;
 SpdySessionPool::SpdySessionPool(HostResolver* resolver,
                                  SSLConfigService* ssl_config_service)
     : ssl_config_service_(ssl_config_service),
-      resolver_(resolver) {
+      resolver_(resolver),
+      verify_domain_authentication_(true) {
   NetworkChangeNotifier::AddIPAddressObserver(this);
   if (ssl_config_service_)
     ssl_config_service_->AddObserver(this);
@@ -61,6 +62,19 @@ SpdySessionPool::~SpdySessionPool() {
 scoped_refptr<SpdySession> SpdySessionPool::Get(
     const HostPortProxyPair& host_port_proxy_pair,
     const BoundNetLog& net_log) {
+  return GetInternal(host_port_proxy_pair, net_log, false);
+}
+
+scoped_refptr<SpdySession> SpdySessionPool::GetIfExists(
+    const HostPortProxyPair& host_port_proxy_pair,
+    const BoundNetLog& net_log) {
+  return GetInternal(host_port_proxy_pair, net_log, true);
+}
+
+scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
+    const HostPortProxyPair& host_port_proxy_pair,
+    const BoundNetLog& net_log,
+    bool only_use_existing_sessions) {
   scoped_refptr<SpdySession> spdy_session;
   SpdySessionList* list = GetSessionList(host_port_proxy_pair);
   if (!list) {
@@ -75,6 +89,8 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
           make_scoped_refptr(new NetLogSourceParameter(
           "session", spdy_session->net_log().source())));
       return spdy_session;
+    } else if (only_use_existing_sessions) {
+      return NULL;
     }
     list = AddSessionList(host_port_proxy_pair);
   }
@@ -92,7 +108,10 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
     return spdy_session;
   }
 
+  DCHECK(!only_use_existing_sessions);
+
   spdy_session = new SpdySession(host_port_proxy_pair, this, &spdy_settings_,
+                                 verify_domain_authentication_,
                                  net_log.net_log());
   UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionGet",
                             CREATED_NEW,
@@ -118,6 +137,7 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
                             SPDY_SESSION_GET_MAX);
   // Create the SPDY session and add it to the pool.
   *spdy_session = new SpdySession(host_port_proxy_pair, this, &spdy_settings_,
+                                  verify_domain_authentication_,
                                   net_log.net_log());
   SpdySessionList* list = GetSessionList(host_port_proxy_pair);
   if (!list)
@@ -129,6 +149,17 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
       NetLog::TYPE_SPDY_SESSION_POOL_IMPORTED_SESSION_FROM_SOCKET,
       make_scoped_refptr(new NetLogSourceParameter(
           "session", (*spdy_session)->net_log().source())));
+
+  // We have a new session.  Lookup the IP address for this session so that we
+  // can match future Sessions (potentially to different domains) which can
+  // potentially be pooled with this one. Because GetPeerAddress() reports the
+  // proxy's address instead of the origin server, check to see if this is a
+  // direct connection.
+  if (g_enable_ip_pooling  && host_port_proxy_pair.second.is_direct()) {
+    AddressList addresses;
+    if (connection->socket()->GetPeerAddress(&addresses) == OK)
+      AddAlias(addresses.head(), host_port_proxy_pair);
+  }
 
   // Now we can initialize the session with the SSL socket.
   return (*spdy_session)->InitializeWithSocket(connection, is_secure,
@@ -163,7 +194,6 @@ void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
 Value* SpdySessionPool::SpdySessionPoolInfoToValue() const {
   ListValue* list = new ListValue();
 
-  SpdySessionsMap::const_iterator spdy_session_pool_it = sessions_.begin();
   for (SpdySessionsMap::const_iterator it = sessions_.begin();
        it != sessions_.end(); ++it) {
     SpdySessionList* sessions = it->second;
@@ -177,6 +207,7 @@ Value* SpdySessionPool::SpdySessionPoolInfoToValue() const {
 
 void SpdySessionPool::OnIPAddressChanged() {
   CloseCurrentSessions();
+  spdy_settings_.Clear();
 }
 
 void SpdySessionPool::OnSSLConfigChanged() {
@@ -282,16 +313,6 @@ SpdySessionPool::SpdySessionList*
   DCHECK(sessions_.find(pair) == sessions_.end());
   SpdySessionPool::SpdySessionList* list = new SpdySessionList();
   sessions_[pair] = list;
-
-  // We have a new session.  Lookup the IP addresses for this session so that
-  // we can match future Sessions (potentially to different domains) which can
-  // potentially be pooled with this one.
-  if (g_enable_ip_pooling) {
-    AddressList addresses;
-    if (LookupAddresses(host_port_proxy_pair, &addresses))
-      AddAliases(addresses, host_port_proxy_pair);
-  }
-
   return list;
 }
 
@@ -321,36 +342,20 @@ void SpdySessionPool::RemoveSessionList(
 bool SpdySessionPool::LookupAddresses(const HostPortProxyPair& pair,
                                       AddressList* addresses) const {
   net::HostResolver::RequestInfo resolve_info(pair.first);
-  resolve_info.set_only_use_cached_response(true);
-  int rv = resolver_->Resolve(resolve_info,
-                              addresses,
-                              NULL,
-                              NULL,
-                              net::BoundNetLog());
+  int rv = resolver_->ResolveFromCache(resolve_info,
+                                       addresses,
+                                       net::BoundNetLog());
   DCHECK_NE(ERR_IO_PENDING, rv);
   return rv == OK;
 }
 
-void SpdySessionPool::AddAliases(const AddressList& addresses,
-                                 const HostPortProxyPair& pair) {
-  // Note:  it is possible to think of strange overlapping sets of ip addresses
-  // for hosts such that a new session can override the alias for an IP
-  // address that was previously aliased to a different host.  This is probably
-  // undesirable, but seemingly unlikely and complicated to fix.
-  //    Example:
-  //      host1 = 1.1.1.1, 1.1.1.4
-  //      host2 = 1.1.1.4, 1.1.1.5
-  //      host3 = 1.1.1.3, 1.1.1.5
-  //      Creating session1 (to host1), creates an alias for host2 to host1.
-  //      Creating session2 (to host3), overrides the alias for host2 to host3.
-
-  const addrinfo* address = addresses.head();
-  while (address) {
-    IPEndPoint endpoint;
-    endpoint.FromSockAddr(address->ai_addr, address->ai_addrlen);
-    aliases_[endpoint] = pair;
-    address = address->ai_next;
-  }
+void SpdySessionPool::AddAlias(const addrinfo* address,
+                               const HostPortProxyPair& pair) {
+  DCHECK(g_enable_ip_pooling);
+  DCHECK(address);
+  IPEndPoint endpoint;
+  endpoint.FromSockAddr(address->ai_addr, address->ai_addrlen);
+  aliases_[endpoint] = pair;
 }
 
 void SpdySessionPool::RemoveAliases(const HostPortProxyPair& pair) {

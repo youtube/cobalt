@@ -13,7 +13,9 @@
 #include "net/proxy/proxy_bypass_rules.h"
 #include "net/proxy/proxy_server.h"
 
+namespace base {
 class Value;
+}
 
 namespace net {
 
@@ -131,7 +133,7 @@ class NET_API ProxyConfig {
 
   // Creates a Value dump of this configuration. The caller is responsible for
   // deleting the returned value.
-  Value* ToValue() const;
+  base::Value* ToValue() const;
 
   ProxyRules& proxy_rules() {
     return proxy_rules_;

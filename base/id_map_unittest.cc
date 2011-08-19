@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -165,11 +165,9 @@ TEST_F(IDMapTest, OwningPointersDeletesThemOnDestruct) {
 
   int external_del_count = 0;
   DestructorCounter* external_obj[kCount];
-  int map_external_ids[kCount];
 
   int owned_del_count = 0;
   DestructorCounter* owned_obj[kCount];
-  int map_owned_ids[kCount];
 
   {
     IDMap<DestructorCounter> map_external;
@@ -177,10 +175,10 @@ TEST_F(IDMapTest, OwningPointersDeletesThemOnDestruct) {
 
     for (int i = 0; i < kCount; ++i) {
       external_obj[i] = new DestructorCounter(&external_del_count);
-      map_external_ids[i] = map_external.Add(external_obj[i]);
+      map_external.Add(external_obj[i]);
 
       owned_obj[i] = new DestructorCounter(&owned_del_count);
-      map_owned_ids[i] = map_owned.Add(owned_obj[i]);
+      map_owned.Add(owned_obj[i]);
     }
   }
 

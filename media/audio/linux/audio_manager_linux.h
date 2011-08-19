@@ -5,11 +5,9 @@
 #ifndef MEDIA_AUDIO_LINUX_AUDIO_MANAGER_LINUX_H_
 #define MEDIA_AUDIO_LINUX_AUDIO_MANAGER_LINUX_H_
 
-#include <map>
+#include <set>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 #include "media/audio/audio_manager_base.h"
 
@@ -26,10 +24,12 @@ class AudioManagerLinux : public AudioManagerBase {
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices();
   virtual bool HasAudioInputDevices();
-  virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params);
-  virtual AudioInputStream* MakeAudioInputStream(AudioParameters params);
+  virtual AudioOutputStream* MakeAudioOutputStream(
+      const AudioParameters& params);
+  virtual AudioInputStream* MakeAudioInputStream(const AudioParameters& params);
   virtual bool CanShowAudioInputSettings();
   virtual void ShowAudioInputSettings();
+  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names);
 
   virtual void MuteAll();
   virtual void UnMuteAll();
@@ -40,11 +40,12 @@ class AudioManagerLinux : public AudioManagerBase {
   virtual ~AudioManagerLinux();
 
  private:
+  // Helper method to query if there is any valid input device
+  bool HasAnyValidAudioInputDevice(void** hint);
+
   scoped_ptr<AlsaWrapper> wrapper_;
 
-  base::Lock lock_;
-  std::map<AlsaPcmOutputStream*, scoped_refptr<AlsaPcmOutputStream> >
-      active_streams_;
+  std::set<AlsaPcmOutputStream*> active_streams_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerLinux);
 };

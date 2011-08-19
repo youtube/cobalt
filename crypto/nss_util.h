@@ -8,6 +8,7 @@
 
 #include <string>
 #include "base/basictypes.h"
+#include "crypto/crypto_export.h"
 
 #if defined(USE_NSS)
 class FilePath;
@@ -27,17 +28,17 @@ namespace crypto {
 // EarlySetupForNSSInit performs lightweight setup which must occur before the
 // process goes multithreaded. This does not initialise NSS. For test, see
 // EnsureNSSInit.
-void EarlySetupForNSSInit();
+CRYPTO_EXPORT void EarlySetupForNSSInit();
 #endif
 
 // Initialize NRPR if it isn't already initialized.  This function is
 // thread-safe, and NSPR will only ever be initialized once.
-void EnsureNSPRInit();
+CRYPTO_EXPORT void EnsureNSPRInit();
 
 // Initialize NSS if it isn't already initialized.  This must be called before
 // any other NSS functions.  This function is thread-safe, and NSS will only
 // ever be initialized once.
-void EnsureNSSInit();
+CRYPTO_EXPORT void EnsureNSSInit();
 
 // Call this before calling EnsureNSSInit() will force NSS to initialize
 // without a persistent DB.  This is used for the special case where access of
@@ -54,7 +55,7 @@ void EnsureNSSInit();
 // Calling this method only has effect on Linux.
 //
 // WARNING: Use this with caution.
-void ForceNSSNoDBInit();
+CRYPTO_EXPORT void ForceNSSNoDBInit();
 
 // This methods is used to disable checks in NSS when used in a forked process.
 // NSS checks whether it is running a forked process to avoid problems when
@@ -65,7 +66,7 @@ void ForceNSSNoDBInit();
 // This method must be called before EnsureNSSInit() to take effect.
 //
 // WARNING: Use this with caution.
-void DisableNSSForkCheck();
+CRYPTO_EXPORT void DisableNSSForkCheck();
 
 // Load NSS library files. This function has no effect on Mac and Windows.
 // This loads the necessary NSS library files so that NSS can be initialized
@@ -74,7 +75,7 @@ void DisableNSSForkCheck();
 //
 // Note that this does not load libnssckbi.so which contains the root
 // certificates.
-void LoadNSSLibraries();
+CRYPTO_EXPORT void LoadNSSLibraries();
 
 // Check if the current NSS version is greater than or equals to |version|.
 // A sample version string is "3.12.3".
@@ -84,15 +85,25 @@ bool CheckNSSVersion(const char* version);
 // Open the r/w nssdb that's stored inside the user's encrypted home
 // directory.  This is the default slot returned by
 // GetPublicNSSKeySlot().
-void OpenPersistentNSSDB();
+CRYPTO_EXPORT void OpenPersistentNSSDB();
 
-// A delegate class that we can use it to access the cros API for
+// A delegate class that we can use to access the cros API for
 // communication with cryptohomed and the TPM.
-class TPMTokenInfoDelegate {
+class CRYPTO_EXPORT TPMTokenInfoDelegate {
  public:
   TPMTokenInfoDelegate();
   virtual ~TPMTokenInfoDelegate();
+
+  // Returns true if the hardware supports a TPM Token and the TPM is enabled.
+  virtual bool IsTokenAvailable() const = 0;
+
+  // Returns true if the TPM and PKCS#11 token slot is ready to be used.
+  // If IsTokenAvailable() is false this should return false.
+  // If IsTokenAvailable() is true, this should eventually return true.
   virtual bool IsTokenReady() const = 0;
+
+  // Fetches token properties. TODO(stevenjb): make this interface asynchronous
+  // so that the implementation does not have to be blocking.
   virtual void GetTokenInfo(std::string* token_name,
                             std::string* user_pin) const = 0;
 };
@@ -102,30 +113,38 @@ class TPMTokenInfoDelegate {
 // GetPrivateNSSKeySlot() will return the TPM slot if one was found.
 // Takes ownership of the passed-in delegate object so it can access
 // the cros library to talk to cryptohomed.
-void EnableTPMTokenForNSS(TPMTokenInfoDelegate* delegate);
+CRYPTO_EXPORT void EnableTPMTokenForNSS(TPMTokenInfoDelegate* delegate);
 
 // Get name and user PIN for the built-in TPM token on ChromeOS.
 // Either one can safely be NULL.  Should only be called after
 // EnableTPMTokenForNSS has been called with a non-null delegate.
-void GetTPMTokenInfo(std::string* token_name, std::string* user_pin);
+CRYPTO_EXPORT void GetTPMTokenInfo(std::string* token_name,
+                                   std::string* user_pin);
+
+// Returns true if the machine has a TPM and it can be used to store tokens.
+CRYPTO_EXPORT bool IsTPMTokenAvailable();
 
 // Returns true if the TPM is owned and PKCS#11 initialized with the
 // user and security officer PINs, and has been enabled in NSS by
 // calling EnableTPMForNSS, and opencryptoki has been successfully
 // loaded into NSS.
-bool IsTPMTokenReady();
+CRYPTO_EXPORT bool IsTPMTokenReady();
+
+// Same as IsTPMTokenReady() except this attempts to initialize the token
+// if necessary.
+CRYPTO_EXPORT bool EnsureTPMTokenReady();
 #endif
 
 // Convert a NSS PRTime value into a base::Time object.
 // We use a int64 instead of PRTime here to avoid depending on NSPR headers.
-base::Time PRTimeToBaseTime(int64 prtime);
+CRYPTO_EXPORT base::Time PRTimeToBaseTime(int64 prtime);
 
 #if defined(USE_NSS)
 // Exposed for unittests only.  |path| should be an existing directory under
 // which the DB files will be placed.  |description| is a user-visible name for
 // the DB, as a utf8 string, which will be truncated at 32 bytes.
-bool OpenTestNSSDB(const FilePath& path, const char* description);
-void CloseTestNSSDB();
+CRYPTO_EXPORT bool OpenTestNSSDB(const FilePath& path, const char* description);
+CRYPTO_EXPORT void CloseTestNSSDB();
 
 // NSS has a bug which can cause a deadlock or stall in some cases when writing
 // to the certDB and keyDB. It also has a bug which causes concurrent key pair
@@ -139,7 +158,7 @@ base::Lock* GetNSSWriteLock();
 
 // A helper class that acquires the NSS write Lock while the AutoNSSWriteLock
 // is in scope.
-class AutoNSSWriteLock {
+class CRYPTO_EXPORT AutoNSSWriteLock {
  public:
   AutoNSSWriteLock();
   ~AutoNSSWriteLock();

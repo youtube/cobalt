@@ -14,6 +14,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_api.h"
+#include "net/base/net_util.h"
 #include "net/base/request_priority.h"
 
 namespace net {
@@ -64,9 +65,6 @@ class NET_API HostResolver {
     bool allow_cached_response() const { return allow_cached_response_; }
     void set_allow_cached_response(bool b) { allow_cached_response_ = b; }
 
-    bool only_use_cached_response() const { return only_use_cached_response_; }
-    void set_only_use_cached_response(bool b) { only_use_cached_response_ = b; }
-
     bool is_speculative() const { return is_speculative_; }
     void set_is_speculative(bool b) { is_speculative_ = b; }
 
@@ -88,9 +86,6 @@ class NET_API HostResolver {
 
     // Whether it is ok to return a result from the host cache.
     bool allow_cached_response_;
-
-    // Whether the response will only use the cache.
-    bool only_use_cached_response_;
 
     // Whether this request was started by the DNS prefetcher.
     bool is_speculative_;
@@ -145,15 +140,16 @@ class NET_API HostResolver {
   // Resolves the given hostname (or IP address literal), filling out the
   // |addresses| object upon success.  The |info.port| parameter will be set as
   // the sin(6)_port field of the sockaddr_in{6} struct.  Returns OK if
-  // successful or an error code upon failure.
+  // successful or an error code upon failure.  Returns
+  // ERR_NAME_NOT_RESOLVED if hostname is invalid, or if it is an
+  // incompatible IP literal (e.g. IPv6 is disabled and it is an IPv6
+  // literal).
   //
-  // When callback is null, the operation completes synchronously.
-  //
-  // When callback is non-null, the operation may be performed asynchronously.
   // If the operation cannnot be completed synchronously, ERR_IO_PENDING will
   // be returned and the real result code will be passed to the completion
   // callback.  Otherwise the result code is returned immediately from this
   // call.
+  //
   // If |out_req| is non-NULL, then |*out_req| will be filled with a handle to
   // the async request. This handle is not valid after the request has
   // completed.
@@ -164,6 +160,14 @@ class NET_API HostResolver {
                       CompletionCallback* callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) = 0;
+
+  // Resolves the given hostname (or IP address literal) out of cache
+  // only.  This is guaranteed to complete synchronously.  This acts like
+  // |Resolve()| if the hostname is IP literal or cached value exists.
+  // Otherwise, ERR_DNS_CACHE_MISS is returned.
+  virtual int ResolveFromCache(const RequestInfo& info,
+                               AddressList* addresses,
+                               const BoundNetLog& net_log) = 0;
 
   // Cancels the specified request. |req| is the handle returned by Resolve().
   // After a request is cancelled, its completion callback will not be called.
@@ -189,56 +193,11 @@ class NET_API HostResolver {
   // additional functionality on the about:net-internals page.
   virtual HostResolverImpl* GetAsHostResolverImpl();
 
-  // Does additional cleanup prior to destruction.
-  virtual void Shutdown() {}
-
  protected:
   HostResolver();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HostResolver);
-};
-
-// This class represents the task of resolving a hostname (or IP address
-// literal) to an AddressList object.  It wraps HostResolver to resolve only a
-// single hostname at a time and cancels this request when going out of scope.
-class SingleRequestHostResolver {
- public:
-  // |resolver| must remain valid for the lifetime of |this|.
-  explicit SingleRequestHostResolver(HostResolver* resolver);
-
-  // If a completion callback is pending when the resolver is destroyed, the
-  // host resolution is cancelled, and the completion callback will not be
-  // called.
-  ~SingleRequestHostResolver();
-
-  // Resolves the given hostname (or IP address literal), filling out the
-  // |addresses| object upon success. See HostResolver::Resolve() for details.
-  int Resolve(const HostResolver::RequestInfo& info,
-              AddressList* addresses,
-              CompletionCallback* callback,
-              const BoundNetLog& net_log);
-
-  // Cancels the in-progress request, if any. This prevents the callback
-  // from being invoked. Resolve() can be called again after cancelling.
-  void Cancel();
-
- private:
-  // Callback for when the request to |resolver_| completes, so we dispatch
-  // to the user's callback.
-  void OnResolveCompletion(int result);
-
-  // The actual host resolver that will handle the request.
-  HostResolver* const resolver_;
-
-  // The current request (if any).
-  HostResolver::RequestHandle cur_request_;
-  CompletionCallback* cur_request_callback_;
-
-  // Completion callback for when request to |resolver_| completes.
-  CompletionCallbackImpl<SingleRequestHostResolver> callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(SingleRequestHostResolver);
 };
 
 // Creates a HostResolver implementation that queries the underlying system.
@@ -254,6 +213,11 @@ NET_API HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
                                                size_t max_retry_attempts,
                                                NetLog* net_log);
 
+// Creates a HostResolver implementation that sends actual DNS queries to
+// the specified DNS server and parses response and returns results.
+NET_API HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
+                                              const IPAddressNumber& dns_ip,
+                                              NetLog* net_log);
 }  // namespace net
 
 #endif  // NET_BASE_HOST_RESOLVER_H_

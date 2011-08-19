@@ -115,7 +115,7 @@ bool AudioManagerWin::HasAudioInputDevices() {
 // - PCMWaveOutAudioOutputStream: Based on the waveOutWrite API (in progress)
 // - PCMDXSoundAudioOutputStream: Based on DirectSound or XAudio (future work).
 AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   if (!params.IsValid() || (params.channels > kWinMaxChannels))
     return NULL;
 
@@ -139,7 +139,7 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
 
 // Factory for the implementations of AudioInputStream.
 AudioInputStream* AudioManagerWin::MakeAudioInputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   if (!params.IsValid() || (params.channels > kWinMaxInputChannels))
     return NULL;
 
@@ -250,7 +250,21 @@ void AudioManagerWin::ShowAudioInputSettings() {
   path = path.Append(program);
   CommandLine command_line(path);
   command_line.AppendArg(argument);
-  base::LaunchApp(command_line, false, false, NULL);
+  base::LaunchProcess(command_line, base::LaunchOptions(), NULL);
+}
+
+void AudioManagerWin::GetAudioInputDeviceNames(
+    media::AudioDeviceNames* device_names) {
+  // TODO(xians): query a full list of valid devices.
+  if (HasAudioInputDevices()) {
+    // Add the default device to the list.
+    // We use index 0 to make up the unique_id to identify the
+    // default devices.
+    media::AudioDeviceName name;
+    name.device_name = AudioManagerBase::kDefaultDeviceName;
+    name.unique_id = "0";
+    device_names->push_back(name);
+  }
 }
 
 // static

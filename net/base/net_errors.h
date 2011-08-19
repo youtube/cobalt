@@ -6,12 +6,15 @@
 #define NET_BASE_NET_ERRORS_H__
 #pragma once
 
+#include <vector>
+
 #include "base/basictypes.h"
+#include "net/base/net_api.h"
 
 namespace net {
 
 // Error domain of the net module's error codes.
-extern const char kErrorDomain[];
+NET_API extern const char kErrorDomain[];
 
 // Error values are negative.
 enum Error {
@@ -27,7 +30,7 @@ enum Error {
 };
 
 // Returns a textual representation of the error code for logging purposes.
-const char* ErrorToString(int error);
+NET_API const char* ErrorToString(int error);
 
 // Returns true if |error| is a certificate error code.
 inline bool IsCertificateError(int error) {
@@ -37,7 +40,16 @@ inline bool IsCertificateError(int error) {
 }
 
 // Map system error code to Error.
-Error MapSystemError(int os_error);
+NET_API Error MapSystemError(int os_error);
+
+// Returns a list of all the possible net error codes (not counting OK). This
+// is intended for use with UMA histograms that are reporting the result of
+// an action that is represented as a net error code.
+//
+// Note that the error codes are all positive (since histograms expect positive
+// sample values). Also note that a guard bucket is created after any valid
+// error code that is not followed immediately by a valid error code.
+std::vector<int> GetAllErrorCodesForUma();
 
 }  // namespace net
 

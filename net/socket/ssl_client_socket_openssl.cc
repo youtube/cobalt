@@ -381,7 +381,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
     ClientSocketHandle* transport_socket,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
-    CertVerifier* cert_verifier)
+    const SSLClientSocketContext& context)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLClientSocketOpenSSL::BufferSendComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(buffer_recv_callback_(
@@ -393,7 +393,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       user_write_callback_(NULL),
       completed_handshake_(false),
       client_auth_cert_needed_(false),
-      cert_verifier_(cert_verifier),
+      cert_verifier_(context.cert_verifier),
       ALLOW_THIS_IN_INITIALIZER_LIST(handshake_io_callback_(
           this, &SSLClientSocketOpenSSL::OnHandshakeIOComplete)),
       ssl_(NULL),
@@ -594,6 +594,12 @@ void SSLClientSocketOpenSSL::GetSSLCertRequestInfo(
     SSLCertRequestInfo* cert_request_info) {
   cert_request_info->host_and_port = host_and_port_.ToString();
   cert_request_info->client_certs = client_certs_;
+}
+
+int SSLClientSocketOpenSSL::ExportKeyingMaterial(
+    const base::StringPiece& label, const base::StringPiece& context,
+    unsigned char *out, unsigned int outlen) {
+  return ERR_NOT_IMPLEMENTED;
 }
 
 SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
@@ -820,6 +826,7 @@ int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;
     server_cert_verify_result_.Reset();
     server_cert_verify_result_.cert_status = cert_status;
+    server_cert_verify_result_.verified_cert = server_cert_;
     return OK;
   }
 
@@ -869,8 +876,7 @@ X509Certificate* SSLClientSocketOpenSSL::UpdateServerCert() {
     for (int i = 0; i < sk_X509_num(chain); ++i)
       intermediates.push_back(sk_X509_value(chain, i));
   }
-  server_cert_ = X509Certificate::CreateFromHandle(
-      cert.get(), X509Certificate::SOURCE_FROM_NETWORK, intermediates);
+  server_cert_ = X509Certificate::CreateFromHandle(cert.get(), intermediates);
   DCHECK(server_cert_);
 
   return server_cert_;
@@ -1094,6 +1100,22 @@ bool SSLClientSocketOpenSSL::UsingTCPFastOpen() const {
   return false;
 }
 
+int64 SSLClientSocketOpenSSL::NumBytesRead() const {
+  if (transport_.get() && transport_->socket())
+    return transport_->socket()->NumBytesRead();
+
+  NOTREACHED();
+  return -1;
+}
+
+base::TimeDelta SSLClientSocketOpenSSL::GetConnectTimeMicros() const {
+  if (transport_.get() && transport_->socket())
+    return transport_->socket()->GetConnectTimeMicros();
+
+  NOTREACHED();
+  return base::TimeDelta::FromMicroseconds(-1);
+}
+
 // Socket methods
 
 int SSLClientSocketOpenSSL::Read(IOBuffer* buf,
@@ -1177,8 +1199,8 @@ int SSLClientSocketOpenSSL::DoPayloadRead() {
     return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
 
   if (rv >= 0) {
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, rv,
-                    user_read_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, rv,
+                                  user_read_buf_->data());
     return rv;
   }
 
@@ -1191,8 +1213,8 @@ int SSLClientSocketOpenSSL::DoPayloadWrite() {
   int rv = SSL_write(ssl_, user_write_buf_->data(), user_write_buf_len_);
 
   if (rv >= 0) {
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
-                    user_write_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
+                                  user_write_buf_->data());
     return rv;
   }
 

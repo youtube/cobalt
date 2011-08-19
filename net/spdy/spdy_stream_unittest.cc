@@ -9,23 +9,9 @@
 #include "net/spdy/spdy_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace net {
-
 // TODO(ukai): factor out common part with spdy_http_stream_unittest.cc
-class SpdySessionPoolPeer {
- public:
-  explicit SpdySessionPoolPeer(SpdySessionPool* pool)
-      : pool_(pool) {}
-
-  void RemoveSpdySession(const scoped_refptr<SpdySession>& session) {
-    pool_->Remove(session);
-  }
-
- private:
-  SpdySessionPool* const pool_;
-
-  DISALLOW_COPY_AND_ASSIGN(SpdySessionPoolPeer);
-};
+//
+namespace net {
 
 namespace {
 

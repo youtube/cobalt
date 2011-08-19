@@ -12,19 +12,18 @@
 #pragma once
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/net_api.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
-#if !defined(__LB_PS3__)
-#include "net/ftp/ftp_auth_cache.h"
-#else
-// this and including headers rely on picking up 
-// this include from the auth_cache header
+#if defined(__LB_PS3__)
 #include "googleurl/src/gurl.h"
+#else
+#include "net/ftp/ftp_auth_cache.h"
 #endif
-#include "net/socket/dns_cert_provenance_checker.h"
 
 namespace net {
 class CertVerifier;
@@ -36,8 +35,8 @@ class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpTransactionFactory;
 class NetworkDelegate;
+class OriginBoundCertService;
 class ProxyService;
-class SSLConfigService;
 class URLRequest;
 class URLRequestJobFactory;
 
@@ -50,6 +49,10 @@ class NET_API URLRequestContext
       NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   URLRequestContext();
+
+  base::WeakPtr<URLRequestContext> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
 
   // Copies the state from |other| into this context.
   void CopyFrom(URLRequestContext* other);
@@ -76,6 +79,14 @@ class NET_API URLRequestContext
 
   void set_cert_verifier(CertVerifier* cert_verifier) {
     cert_verifier_ = cert_verifier;
+  }
+
+  OriginBoundCertService* origin_bound_cert_service() const {
+    return origin_bound_cert_service_;
+  }
+  void set_origin_bound_cert_service(
+      OriginBoundCertService* origin_bound_cert_service) {
+    origin_bound_cert_service_ = origin_bound_cert_service;
   }
 
   DnsRRResolver* dnsrr_resolver() const {
@@ -124,7 +135,7 @@ class NET_API URLRequestContext
 
 #if !defined(__LB_PS3__)
   // Gets the ftp transaction factory for this context.
-  FtpTransactionFactory* ftp_transaction_factory() {
+  FtpTransactionFactory* ftp_transaction_factory() const {
     return ftp_transaction_factory_;
   }
   void set_ftp_transaction_factory(FtpTransactionFactory* factory) {
@@ -152,7 +163,7 @@ class NET_API URLRequestContext
 
 #if !defined(__LB_PS3__)
   // Gets the FTP authentication cache for this context.
-  FtpAuthCache* ftp_auth_cache() { return &ftp_auth_cache_; }
+  FtpAuthCache* ftp_auth_cache() const { return ftp_auth_cache_.get(); }
 #endif
 
   // Gets the value of 'Accept-Charset' header field.
@@ -190,6 +201,8 @@ class NET_API URLRequestContext
   virtual ~URLRequestContext();
 
  private:
+  base::WeakPtrFactory<URLRequestContext> weak_factory_;
+
   // ---------------------------------------------------------------------------
   // Important: When adding any new members below, consider whether they need to
   // be added to CopyFrom.
@@ -200,6 +213,7 @@ class NET_API URLRequestContext
   NetLog* net_log_;
   HostResolver* host_resolver_;
   CertVerifier* cert_verifier_;
+  OriginBoundCertService* origin_bound_cert_service_;
   DnsRRResolver* dnsrr_resolver_;
   DnsCertProvenanceChecker* dns_cert_checker_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
@@ -209,7 +223,7 @@ class NET_API URLRequestContext
   scoped_refptr<CookieStore> cookie_store_;
   scoped_refptr<TransportSecurityState> transport_security_state_;
 #if !defined(__LB_PS3__)
-  FtpAuthCache ftp_auth_cache_;
+  scoped_ptr<FtpAuthCache> ftp_auth_cache_;
 #endif
   std::string accept_language_;
   std::string accept_charset_;

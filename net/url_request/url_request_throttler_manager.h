@@ -14,11 +14,16 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/threading/non_thread_safe.h"
+#include "base/threading/platform_thread.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_api.h"
+#include "net/base/network_change_notifier.h"
 #include "net/url_request/url_request_throttler_entry.h"
 
 namespace net {
+
+class BoundNetLog;
+class NetLog;
 
 // Class that registers URL request throttler entries for URLs being accessed
 // in order to supervise traffic. URL requests for HTTP contents should
@@ -34,7 +39,9 @@ namespace net {
 // although to allow it to be used as a singleton, construction and destruction
 // can occur on a separate thread.
 class NET_API URLRequestThrottlerManager
-    : NON_EXPORTED_BASE(public base::NonThreadSafe) {
+    : NON_EXPORTED_BASE(public base::NonThreadSafe),
+      public NetworkChangeNotifier::IPAddressObserver,
+      public NetworkChangeNotifier::OnlineStateObserver {
  public:
   static URLRequestThrottlerManager* GetInstance();
 
@@ -71,9 +78,19 @@ class NET_API URLRequestThrottlerManager
   void set_enforce_throttling(bool enforce);
   bool enforce_throttling();
 
+  // Sets the NetLog instance to use.
+  void set_net_log(NetLog* net_log);
+  NetLog* net_log() const;
+
+  // IPAddressObserver interface.
+  virtual void OnIPAddressChanged() OVERRIDE;
+
+  // OnlineStateObserver interface.
+  virtual void OnOnlineStateChanged(bool online) OVERRIDE;
+
  protected:
   URLRequestThrottlerManager();
-  ~URLRequestThrottlerManager();
+  virtual ~URLRequestThrottlerManager();
 
   // Method that allows us to transform a URL into an ID that can be used in our
   // map. Resulting IDs will be lowercase and consist of the scheme, host, port
@@ -89,6 +106,15 @@ class NET_API URLRequestThrottlerManager
 
   // Method that does the actual work of garbage collecting.
   void GarbageCollectEntries();
+
+  // When we switch from online to offline or change IP addresses, we
+  // clear all back-off history. This is a precaution in case the change in
+  // online state now lets us communicate without error with servers that
+  // we were previously getting 500 or 503 responses from (perhaps the
+  // responses are from a badly-written proxy that should have returned a
+  // 502 or 504 because it's upstream connection was down or it had no route
+  // to the server).
+  void OnNetworkChange();
 
   // Used by tests.
   int GetNumberOfEntriesForTests() const { return url_entries_.size(); }
@@ -135,6 +161,16 @@ class NET_API URLRequestThrottlerManager
   // TODO(joi): See if we can fix the offending unit tests and remove this
   // workaround.
   bool enable_thread_checks_;
+
+  // Initially false, switches to true once we have logged because of back-off
+  // being disabled for localhost.
+  bool logged_for_localhost_disabled_;
+
+  // NetLog to use, or NULL if none configured.
+  scoped_ptr<BoundNetLog> net_log_;
+
+  // Valid once we've registered for network notifications.
+  base::PlatformThreadId registered_from_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerManager);
 };

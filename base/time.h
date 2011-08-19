@@ -26,7 +26,7 @@
 #include <time.h>
 
 #include "base/atomicops.h"
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 #if defined(OS_POSIX)
@@ -47,7 +47,7 @@ class TimeTicks;
 
 // TimeDelta ------------------------------------------------------------------
 
-class BASE_API TimeDelta {
+class BASE_EXPORT TimeDelta {
  public:
   TimeDelta() : delta_(0) {
   }
@@ -177,7 +177,7 @@ inline TimeDelta operator*(int64 a, TimeDelta td) {
 // Time -----------------------------------------------------------------------
 
 // Represents a wall clock time.
-class BASE_API Time {
+class BASE_EXPORT Time {
  public:
   static const int64 kMillisecondsPerSecond = 1000;
   static const int64 kMicrosecondsPerMillisecond = 1000;
@@ -203,7 +203,7 @@ class BASE_API Time {
   // Represents an exploded time that can be formatted nicely. This is kind of
   // like the Win32 SYSTEMTIME structure or the Unix "struct tm" with a few
   // additions and changes to prevent errors.
-  struct BASE_API Exploded {
+  struct BASE_EXPORT Exploded {
     int year;          // Four digit year "2007"
     int month;         // 1-based month (values 1 = January, etc.)
     int day_of_week;   // 0-based day of week (0 = Sunday, etc.)
@@ -317,7 +317,7 @@ class BASE_API Time {
   // in the input string, we assume local time.
   // TODO(iyengar) Move the FromString/FromTimeT/ToTimeT/FromFileTime to
   // a new time converter class.
-  static bool FromString(const wchar_t* time_string, Time* parsed_time);
+  static bool FromString(const char* time_string, Time* parsed_time);
 
   // For serializing, use FromInternalValue to reconstitute. Please don't use
   // this and do arithmetic on it, as it is more error prone than using the
@@ -457,7 +457,7 @@ inline Time TimeDelta::operator+(Time t) const {
 
 // TimeTicks ------------------------------------------------------------------
 
-class BASE_API TimeTicks {
+class BASE_EXPORT TimeTicks {
  public:
   TimeTicks() : ticks_(0) {
   }

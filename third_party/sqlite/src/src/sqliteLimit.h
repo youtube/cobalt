@@ -11,8 +11,6 @@
 *************************************************************************
 ** 
 ** This file defines various limits of what SQLite can process.
-**
-** @(#) $Id: sqliteLimit.h,v 1.10 2009/01/10 16:15:09 danielk1977 Exp $
 */
 
 /*
@@ -111,8 +109,16 @@
 #endif
 
 /*
+** The default number of frames to accumulate in the log file before
+** checkpointing the database in WAL mode.
+*/
+#ifndef SQLITE_DEFAULT_WAL_AUTOCHECKPOINT
+# define SQLITE_DEFAULT_WAL_AUTOCHECKPOINT  1000
+#endif
+
+/*
 ** The maximum number of attached databases.  This must be between 0
-** and 30.  The upper bound on 30 is because a 32-bit integer bitmap
+** and 62.  The upper bound on 62 is because a 64-bit integer bitmap
 ** is used internally to track attached databases.
 */
 #ifndef SQLITE_MAX_ATTACHED
@@ -127,20 +133,21 @@
 # define SQLITE_MAX_VARIABLE_NUMBER 999
 #endif
 
-/* Maximum page size.  The upper bound on this value is 32768.  This a limit
-** imposed by the necessity of storing the value in a 2-byte unsigned integer
-** and the fact that the page size must be a power of 2.
+/* Maximum page size.  The upper bound on this value is 65536.  This a limit
+** imposed by the use of 16-bit offsets within each page.
 **
-** If this limit is changed, then the compiled library is technically
-** incompatible with an SQLite library compiled with a different limit. If
-** a process operating on a database with a page-size of 65536 bytes 
-** crashes, then an instance of SQLite compiled with the default page-size 
-** limit will not be able to rollback the aborted transaction. This could
-** lead to database corruption.
+** Earlier versions of SQLite allowed the user to change this value at
+** compile time. This is no longer permitted, on the grounds that it creates
+** a library that is technically incompatible with an SQLite library 
+** compiled with a different limit. If a process operating on a database 
+** with a page-size of 65536 bytes crashes, then an instance of SQLite 
+** compiled with the default page-size limit will not be able to rollback 
+** the aborted transaction. This could lead to database corruption.
 */
-#ifndef SQLITE_MAX_PAGE_SIZE
-# define SQLITE_MAX_PAGE_SIZE 32768
+#ifdef SQLITE_MAX_PAGE_SIZE
+# undef SQLITE_MAX_PAGE_SIZE
 #endif
+#define SQLITE_MAX_PAGE_SIZE 65536
 
 
 /*
@@ -191,11 +198,11 @@
 
 /*
 ** Maximum depth of recursion for triggers.
+**
+** A value of 1 means that a trigger program will not be able to itself
+** fire any triggers. A value of 0 means that no trigger programs at all 
+** may be executed.
 */
 #ifndef SQLITE_MAX_TRIGGER_DEPTH
-#if defined(SQLITE_SMALL_STACK)
-# define SQLITE_MAX_TRIGGER_DEPTH 10
-#else
 # define SQLITE_MAX_TRIGGER_DEPTH 1000
-#endif
 #endif

@@ -366,7 +366,7 @@ int main(int argc, const char* argv[]) {
     return 0;
   }
 
-  const std::vector<CommandLine::StringType>& args = parsed_command_line.args();
+  const CommandLine::StringVector& args = parsed_command_line.GetArgs();
   if (parsed_command_line.HasSwitch(kOptionGenerateDiff)) {
     if (args.size() == 3) {
       return DiffImages(FilePath(args[0]),

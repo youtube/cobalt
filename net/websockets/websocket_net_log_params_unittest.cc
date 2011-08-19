@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/websockets/websocket_net_log_params.h"
+
 #include <string>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/values.h"
-#include "net/websockets/websocket_net_log_params.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(NetLogWebSocketHandshakeParameterTest, ToValue) {

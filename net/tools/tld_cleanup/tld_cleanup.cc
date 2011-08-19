@@ -52,7 +52,7 @@ typedef std::set<std::string> RuleSet;
 // Writes the list of domain rules contained in the 'rules' set to the
 // 'outfile', with each rule terminated by a LF.  The file must already have
 // been created with write access.
-bool WriteRules(const RuleMap& rules, FilePath outfile) {
+bool WriteRules(const RuleMap& rules, const FilePath& outfile) {
   std::string data;
   data.append(
       "%{\n"

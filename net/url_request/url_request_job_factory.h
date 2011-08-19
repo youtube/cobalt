@@ -20,17 +20,17 @@ namespace net {
 class URLRequest;
 class URLRequestJob;
 
-class NET_TEST URLRequestJobFactory
+class NET_API URLRequestJobFactory
     : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
-  class NET_TEST ProtocolHandler {
+  class NET_API ProtocolHandler {
    public:
     virtual ~ProtocolHandler();
 
     virtual URLRequestJob* MaybeCreateJob(URLRequest* request) const = 0;
   };
 
-  class NET_TEST Interceptor {
+  class NET_API Interceptor {
    public:
     virtual ~Interceptor();
 
@@ -59,6 +59,13 @@ class NET_TEST URLRequestJobFactory
     // returned.
     virtual URLRequestJob* MaybeInterceptResponse(
         URLRequest* request) const = 0;
+
+    // Returns true if this interceptor handles requests for URLs with the
+    // given protocol. Returning false does not imply that this interceptor
+    // can't or won't handle requests with the given protocol.
+    virtual bool WillHandleProtocol(const std::string& protocol) const {
+        return false;
+    }
   };
 
   URLRequestJobFactory();
@@ -78,6 +85,11 @@ class NET_TEST URLRequestJobFactory
 
   URLRequestJob* MaybeCreateJobWithProtocolHandler(const std::string& scheme,
                                                    URLRequest* request) const;
+
+  URLRequestJob* MaybeInterceptRedirect(const GURL& location,
+                                        URLRequest* request) const;
+
+  URLRequestJob* MaybeInterceptResponse(URLRequest* request) const;
 
   bool IsHandledProtocol(const std::string& scheme) const;
 

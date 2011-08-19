@@ -77,20 +77,6 @@ std::string SysInfo::CPUArchitecture() {
 }
 
 // static
-void SysInfo::GetPrimaryDisplayDimensions(int* width, int* height) {
-  if (width)
-    *width = GetSystemMetrics(SM_CXSCREEN);
-
-  if (height)
-    *height = GetSystemMetrics(SM_CYSCREEN);
-}
-
-// static
-int SysInfo::DisplayCount() {
-  return GetSystemMetrics(SM_CMONITORS);
-}
-
-// static
 size_t SysInfo::VMAllocationGranularity() {
   return win::OSInfo::GetInstance()->allocation_granularity();
 }

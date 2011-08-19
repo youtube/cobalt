@@ -5,7 +5,7 @@
 #include "net/base/host_cache.h"
 
 #include "base/format_macros.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "net/base/net_errors.h"

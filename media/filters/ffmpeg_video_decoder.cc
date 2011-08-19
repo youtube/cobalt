@@ -12,7 +12,6 @@
 #include "media/base/filters.h"
 #include "media/base/filter_host.h"
 #include "media/base/limits.h"
-#include "media/base/media_format.h"
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/video/ffmpeg_video_decode_engine.h"
@@ -29,8 +28,7 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(MessageLoop* message_loop,
   memset(&info_, 0, sizeof(info_));
 }
 
-FFmpegVideoDecoder::~FFmpegVideoDecoder() {
-}
+FFmpegVideoDecoder::~FFmpegVideoDecoder() {}
 
 void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
                                     FilterCallback* callback,
@@ -49,6 +47,14 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   DCHECK(!demuxer_stream_);
   DCHECK(!initialize_callback_.get());
 
+  if (!demuxer_stream) {
+    host()->SetError(PIPELINE_ERROR_DECODE);
+    callback->Run();
+    delete callback;
+    delete stats_callback;
+    return;
+  }
+
   demuxer_stream_ = demuxer_stream;
   initialize_callback_.reset(callback);
   statistics_callback_.reset(stats_callback);
@@ -64,9 +70,13 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   int width = av_stream->codec->coded_width;
   int height = av_stream->codec->coded_height;
-  if (width > Limits::kMaxDimension ||
-      height > Limits::kMaxDimension ||
-      (width * height) > Limits::kMaxCanvas) {
+
+  int surface_width = GetSurfaceWidth(av_stream);
+  int surface_height = GetSurfaceHeight(av_stream);
+
+  if (surface_width > Limits::kMaxDimension ||
+      surface_height > Limits::kMaxDimension ||
+      (surface_width * surface_height) > Limits::kMaxCanvas) {
     VideoCodecInfo info = {0};
     OnInitializeComplete(info);
     return;
@@ -74,6 +84,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   VideoDecoderConfig config(CodecIDToVideoCodec(av_stream->codec->codec_id),
                             width, height,
+                            surface_width, surface_height,
                             av_stream->r_frame_rate.num,
                             av_stream->r_frame_rate.den,
                             av_stream->codec->extradata,
@@ -83,7 +94,6 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 }
 
 void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
-  // TODO(scherkus): Dedup this from OmxVideoDecoder::OnInitializeComplete.
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(initialize_callback_.get());
 
@@ -91,16 +101,6 @@ void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
   AutoCallbackRunner done_runner(initialize_callback_.release());
 
   if (info.success) {
-    media_format_.SetAsInteger(MediaFormat::kWidth,
-                               info.stream_info.surface_width);
-    media_format_.SetAsInteger(MediaFormat::kHeight,
-                               info.stream_info.surface_height);
-    media_format_.SetAsInteger(
-        MediaFormat::kSurfaceType,
-        static_cast<int>(info.stream_info.surface_type));
-    media_format_.SetAsInteger(
-        MediaFormat::kSurfaceFormat,
-        static_cast<int>(info.stream_info.surface_format));
     state_ = kNormal;
   } else {
     host()->SetError(PIPELINE_ERROR_DECODE);
@@ -210,10 +210,6 @@ void FFmpegVideoDecoder::OnError() {
   VideoFrameReady(NULL);
 }
 
-void FFmpegVideoDecoder::OnFormatChange(VideoStreamInfo stream_info) {
-  NOTIMPLEMENTED();
-}
-
 void FFmpegVideoDecoder::OnReadComplete(Buffer* buffer_in) {
   scoped_refptr<Buffer> buffer(buffer_in);
   message_loop_->PostTask(
@@ -271,10 +267,6 @@ void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
   decode_engine_->ConsumeVideoSample(buffer);
 }
 
-const MediaFormat& FFmpegVideoDecoder::media_format() {
-  return media_format_;
-}
-
 void FFmpegVideoDecoder::ProduceVideoFrame(
     scoped_refptr<VideoFrame> video_frame) {
   if (MessageLoop::current() != message_loop_) {
@@ -293,9 +285,7 @@ void FFmpegVideoDecoder::ProduceVideoFrame(
   // If the decoding is finished, we just always return empty frames.
   if (state_ == kDecodeFinished) {
     // Signal VideoRenderer the end of the stream event.
-    scoped_refptr<VideoFrame> empty_frame;
-    VideoFrame::CreateEmptyFrame(&empty_frame);
-    VideoFrameReady(empty_frame);
+    VideoFrameReady(VideoFrame::CreateEmptyFrame());
 
     // Fall through, because we still need to keep record of this frame.
   }
@@ -334,9 +324,7 @@ void FFmpegVideoDecoder::ConsumeVideoFrame(
       state_ = kDecodeFinished;
 
       // Signal VideoRenderer the end of the stream event.
-      scoped_refptr<VideoFrame> video_frame;
-      VideoFrame::CreateEmptyFrame(&video_frame);
-      VideoFrameReady(video_frame);
+      VideoFrameReady(VideoFrame::CreateEmptyFrame());
     }
   }
 }
@@ -350,9 +338,14 @@ void FFmpegVideoDecoder::ProduceVideoSample(
                                    this));
 }
 
-bool FFmpegVideoDecoder::ProvidesBuffer() {
+int FFmpegVideoDecoder::width() {
   DCHECK(info_.success);
-  return info_.provides_buffers;
+  return info_.surface_width;
+}
+
+int FFmpegVideoDecoder::height() {
+  DCHECK(info_.success);
+  return info_.surface_height;
 }
 
 void FFmpegVideoDecoder::FlushBuffers() {
@@ -361,12 +354,8 @@ void FFmpegVideoDecoder::FlushBuffers() {
     video_frame = frame_queue_flushed_.front();
     frame_queue_flushed_.pop_front();
 
-    // Depends on who own the buffers, we either return it to the renderer
-    // or return it to the decode engine.
-    if (ProvidesBuffer())
-      decode_engine_->ProduceVideoFrame(video_frame);
-    else
-      VideoFrameReady(video_frame);
+    // Return frames back to the decode engine.
+    decode_engine_->ProduceVideoFrame(video_frame);
   }
 }
 

@@ -11,6 +11,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
+#include "net/base/test_completion_callback.h"
 
 #if defined(__LB_PS3__)
 #include "net/base/dns_addrinfo_ps3.h"
@@ -67,7 +68,13 @@ void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
   // At the root of the chain, map everything to localhost.
   scoped_refptr<RuleBasedHostResolverProc> catchall(
       new RuleBasedHostResolverProc(NULL));
+#if defined(OS_ANDROID)
+  // In Android emulator, the development machine's '127.0.0.1' is mapped to
+  // '10.0.2.2'.
+  catchall->AddRule("*", "10.0.2.2");
+#else
   catchall->AddRule("*", "127.0.0.1");
+#endif
 
   // Next add a rules-based layer the use controls.
   rules_ = new RuleBasedHostResolverProc(catchall);
@@ -98,10 +105,21 @@ int MockHostResolverBase::Resolve(const RequestInfo& info,
                                   RequestHandle* out_req,
                                   const BoundNetLog& net_log) {
   if (synchronous_mode_) {
-    callback = NULL;
-    out_req = NULL;
+    TestCompletionCallback sync_callback;
+    int rv = impl_->Resolve(info, addresses, &sync_callback, out_req, net_log);
+    if (rv == ERR_IO_PENDING) {
+      MessageLoop::ScopedNestableTaskAllower nestable(MessageLoop::current());
+      return sync_callback.WaitForResult();
+    }
+    return rv;
   }
   return impl_->Resolve(info, addresses, callback, out_req, net_log);
+}
+
+int MockHostResolverBase::ResolveFromCache(const RequestInfo& info,
+                                           AddressList* addresses,
+                                           const BoundNetLog& net_log) {
+  return impl_->ResolveFromCache(info, addresses, net_log);
 }
 
 void MockHostResolverBase::CancelRequest(RequestHandle req) {

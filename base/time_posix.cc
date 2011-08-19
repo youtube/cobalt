@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <limits>
 
@@ -109,7 +110,7 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
   timestruct.tm_wday   = exploded.day_of_week;  // mktime/timegm ignore this
   timestruct.tm_yday   = 0;     // mktime/timegm ignore this
   timestruct.tm_isdst  = -1;    // attempt to figure it out
-#if !defined(OS_NACL)
+#if !defined(OS_NACL) && !defined(OS_SOLARIS)
   timestruct.tm_gmtoff = 0;     // not a POSIX field, so mktime/timegm ignore
   timestruct.tm_zone   = NULL;  // not a POSIX field, so mktime/timegm ignore
 #endif
@@ -162,7 +163,7 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
 // FreeBSD 6 has CLOCK_MONOLITHIC but defines _POSIX_MONOTONIC_CLOCK to -1.
 #if (defined(OS_POSIX) &&                                               \
      defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
-     defined(OS_FREEBSD) || defined(OS_OPENBSD)
+     defined(OS_FREEBSD) || defined(OS_OPENBSD) || defined(OS_ANDROID)
 
 // static
 TimeTicks TimeTicks::Now() {

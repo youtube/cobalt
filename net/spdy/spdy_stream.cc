@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -379,6 +379,10 @@ void SpdyStream::Cancel() {
   cancelled_ = true;
   if (session_->IsStreamActive(stream_id_))
     session_->ResetStream(stream_id_, spdy::CANCEL);
+}
+
+void SpdyStream::Close() {
+  session_->CloseStream(stream_id_, net::OK);
 }
 
 int SpdyStream::SendRequest(bool has_upload_data) {

@@ -5,10 +5,10 @@
 {
   'variables': {
     'conditions': [
-      [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+      [ 'os_posix == 1 and OS != "mac" and OS != "cell_lv2"', {
         # Link to system .so since we already use it due to GTK.
         'use_system_libjpeg%': 1,
-      }, {  # OS!="linux" and OS!="freebsd" and OS!="openbsd"
+      }, {  # os_posix != 1 or OS == "mac"
         'use_system_libjpeg%': 0,
       }],
     ],
@@ -19,7 +19,6 @@
         {
           'target_name': 'libjpeg',
           'type': 'static_library',
-          'msvs_guid': '238CE175-76CE-4A25-A676-69D115885601',
           'sources': [
             'jcapimin.c',
             'jcapistd.c',
@@ -106,9 +105,3 @@
     }],
   ],
 }
-
-# Local Variables:
-# tab-width:2
-# indent-tabs-mode:nil
-# End:
-# vim: set expandtab tabstop=2 shiftwidth=2:

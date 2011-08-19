@@ -8,10 +8,11 @@
 
 namespace net {
 
-UDPClientSocket::UDPClientSocket(
-    net::NetLog* net_log,
-    const net::NetLog::Source& source)
-    : socket_(net_log, source) {
+UDPClientSocket::UDPClientSocket(DatagramSocket::BindType bind_type,
+                                 const RandIntCallback& rand_int_cb,
+                                 net::NetLog* net_log,
+                                 const net::NetLog::Source& source)
+    : socket_(bind_type, rand_int_cb, net_log, source) {
 }
 
 UDPClientSocket::~UDPClientSocket() {
@@ -51,6 +52,10 @@ bool UDPClientSocket::SetReceiveBufferSize(int32 size) {
 
 bool UDPClientSocket::SetSendBufferSize(int32 size) {
   return true;
+}
+
+const BoundNetLog& UDPClientSocket::NetLog() const {
+  return socket_.NetLog();
 }
 
 }  // namespace net

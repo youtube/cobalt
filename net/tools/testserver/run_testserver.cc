@@ -9,6 +9,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/test/test_timeouts.h"
 #include "base/utf_string_conversions.h"
 #include "net/test/test_server.h"
 
@@ -35,8 +36,9 @@ int main(int argc, const char* argv[]) {
     return -1;
   }
 
-  if (command_line->GetSwitchCount() == 0 ||
-      command_line->HasSwitch("help")) {
+  TestTimeouts::Initialize();
+
+  if (command_line->GetSwitches().empty() || command_line->HasSwitch("help")) {
     PrintUsage();
     return -1;
   }

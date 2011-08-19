@@ -47,8 +47,10 @@ TEST(SystemMonitor, PowerNotifications) {
 
   // Initialize a message loop for this to run on.
   MessageLoop loop;
-  // Initialize time() since it registers as a SystemMonitor observer.
-  base::Time now = base::Time::Now();
+
+#if defined(OS_MACOSX)
+  SystemMonitor::AllocateSystemIOPorts();
+#endif
 
   SystemMonitor system_monitor;
   PowerTest test[kObservers];

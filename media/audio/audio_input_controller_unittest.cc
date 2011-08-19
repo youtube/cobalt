@@ -92,8 +92,55 @@ TEST(AudioInputControllerTest, RecordAndClose) {
   event.Wait();
   event.Reset();
 
-  // Play and then wait for the event to be signaled.
+  // Record and then wait for the event to be signaled.
   controller->Record();
+  event.Wait();
+
+  controller->Close();
+}
+
+// Test that the AudioInputController reports an error when the input stream
+// stops without an OnClose callback.
+TEST(AudioInputControllerTest, RecordAndError) {
+  MockAudioInputControllerEventHandler event_handler;
+  base::WaitableEvent event(false, false);
+  int count = 0;
+
+  // If OnCreated is called then signal the event.
+  EXPECT_CALL(event_handler, OnCreated(NotNull()))
+      .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
+
+  // OnRecording() will be called only once.
+  EXPECT_CALL(event_handler, OnRecording(NotNull()))
+      .Times(Exactly(1));
+
+  // If OnData is called enough then signal the event.
+  EXPECT_CALL(event_handler, OnData(NotNull(), NotNull(), _))
+      .Times(AtLeast(10))
+      .WillRepeatedly(CheckCountAndSignalEvent(&count, 10, &event));
+
+  // OnError will be called after the data stream stops.
+  EXPECT_CALL(event_handler, OnError(NotNull(), 0))
+      .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
+
+  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
+                         kSampleRate, kBitsPerSample, kSamplesPerPacket);
+  scoped_refptr<AudioInputController> controller =
+      AudioInputController::Create(&event_handler, params);
+  ASSERT_TRUE(controller.get());
+
+  // Wait for OnCreated() to be called.
+  event.Wait();
+  event.Reset();
+
+  // Record and then wait for the event to be signaled.
+  controller->Record();
+  event.Wait();
+  event.Reset();
+
+  // Wait for the stream to be stopped.
+  AudioInputStream* stream = controller->stream();
+  stream->Stop();
   event.Wait();
 
   controller->Close();

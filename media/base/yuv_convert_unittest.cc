@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,9 @@ static const int kBpp = 4;
 // Surface sizes.
 static const size_t kYUV12Size = kSourceYSize * 12 / 8;
 static const size_t kYUV16Size = kSourceYSize * 16 / 8;
+static const size_t kYUY2Size =  kSourceYSize * 16 / 8;
 static const size_t kRGBSize = kSourceYSize * kBpp;
+static const size_t kRGB24Size = kSourceYSize * 3;
 static const size_t kRGBSizeConverted = kSourceYSize * kBpp;
 
 TEST(YUVConvertTest, YV12) {
@@ -268,4 +270,66 @@ TEST(YUVConvertTest, Clamp) {
 
   int expected_test = memcmp(rgb, expected, sizeof(expected));
   EXPECT_EQ(0, expected_test);
+}
+
+TEST(YUVConvertTest, RGB24ToYUV) {
+  // Allocate all surfaces.
+  scoped_array<uint8> rgb_bytes(new uint8[kRGB24Size]);
+  scoped_array<uint8> yuv_converted_bytes(new uint8[kYUV12Size]);
+
+  // Read RGB24 reference data from file.
+  FilePath rgb_url;
+  EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &rgb_url));
+  rgb_url = rgb_url.Append(FILE_PATH_LITERAL("media"))
+                   .Append(FILE_PATH_LITERAL("test"))
+                   .Append(FILE_PATH_LITERAL("data"))
+                   .Append(FILE_PATH_LITERAL("bali_640x360_RGB24.rgb"));
+  EXPECT_EQ(static_cast<int>(kRGB24Size),
+            file_util::ReadFile(rgb_url,
+                                reinterpret_cast<char*>(rgb_bytes.get()),
+                                static_cast<int>(kRGB24Size)));
+
+
+  // Convert to I420.
+  media::ConvertRGB24ToYUV(rgb_bytes.get(),
+                           yuv_converted_bytes.get(),
+                           yuv_converted_bytes.get() + kSourceYSize,
+                           yuv_converted_bytes.get() + kSourceYSize * 5 / 4,
+                           kSourceWidth, kSourceHeight,        // Dimensions
+                           kSourceWidth * 3,                   // RGBStride
+                           kSourceWidth,                       // YStride
+                           kSourceWidth / 2);                  // UVStride
+
+  uint32 rgb_hash = DJB2Hash(yuv_converted_bytes.get(), kYUV12Size,
+                             kDJB2HashSeed);
+  EXPECT_EQ(1802801079u, rgb_hash);
+}
+
+TEST(YUVConvertTest, YUY2ToYUV) {
+  // Allocate all surfaces.
+  scoped_array<uint8> yuy_bytes(new uint8[kYUY2Size]);
+  scoped_array<uint8> yuv_converted_bytes(new uint8[kYUV12Size]);
+
+  // Read YUY reference data from file.
+  FilePath yuy_url;
+  EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &yuy_url));
+  yuy_url = yuy_url.Append(FILE_PATH_LITERAL("media"))
+                   .Append(FILE_PATH_LITERAL("test"))
+                   .Append(FILE_PATH_LITERAL("data"))
+                   .Append(FILE_PATH_LITERAL("bali_640x360_YUY2.yuv"));
+  EXPECT_EQ(static_cast<int>(kYUY2Size),
+            file_util::ReadFile(yuy_url,
+                                reinterpret_cast<char*>(yuy_bytes.get()),
+                                static_cast<int>(kYUY2Size)));
+
+  // Convert to I420.
+  media::ConvertYUY2ToYUV(yuy_bytes.get(),
+                          yuv_converted_bytes.get(),
+                          yuv_converted_bytes.get() + kSourceYSize,
+                          yuv_converted_bytes.get() + kSourceYSize * 5 / 4,
+                          kSourceWidth, kSourceHeight);
+
+  uint32 yuy_hash = DJB2Hash(yuv_converted_bytes.get(), kYUV12Size,
+                             kDJB2HashSeed);
+  EXPECT_EQ(666823187u, yuy_hash);
 }

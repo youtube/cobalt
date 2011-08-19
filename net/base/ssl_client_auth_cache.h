@@ -27,7 +27,7 @@ class X509Certificate;
 class NET_TEST SSLClientAuthCache : public CertDatabase::Observer {
  public:
   SSLClientAuthCache();
-  ~SSLClientAuthCache();
+  virtual ~SSLClientAuthCache();
 
   // Checks for a client certificate preference for SSL server at |server|.
   // Returns true if a preference is found, and sets |*certificate| to the

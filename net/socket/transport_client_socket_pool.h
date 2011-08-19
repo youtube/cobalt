@@ -15,6 +15,7 @@
 #include "base/timer.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/host_resolver.h"
+#include "net/base/single_request_host_resolver.h"
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool.h"
@@ -175,9 +176,10 @@ class NET_TEST TransportClientSocketPool : public ClientSocketPool {
   virtual LoadState GetLoadState(const std::string& group_name,
                                  const ClientSocketHandle* handle) const;
 
-  virtual DictionaryValue* GetInfoAsValue(const std::string& name,
-                                          const std::string& type,
-                                          bool include_nested_pools) const;
+  virtual base::DictionaryValue* GetInfoAsValue(
+      const std::string& name,
+      const std::string& type,
+      bool include_nested_pools) const;
 
   virtual base::TimeDelta ConnectionTimeout() const;
 

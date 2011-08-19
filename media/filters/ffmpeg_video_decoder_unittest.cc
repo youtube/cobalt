@@ -111,10 +111,8 @@ class DecoderPrivateMock : public FFmpegVideoDecoder {
 ACTION_P2(EngineInitialize, engine, success) {
   engine->event_handler_ = arg1;
   engine->info_.success = success;
-  engine->info_.stream_info.surface_type = VideoFrame::TYPE_SYSTEM_MEMORY;
-  engine->info_.stream_info.surface_format = VideoFrame::YV12;
-  engine->info_.stream_info.surface_width = kWidth;
-  engine->info_.stream_info.surface_height = kHeight;
+  engine->info_.surface_width = kWidth;
+  engine->info_.surface_height = kHeight;
   engine->event_handler_->OnInitializeComplete(engine->info_);
 }
 
@@ -159,9 +157,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
     memset(&codec_, 0, sizeof(codec_));
     memset(&yuv_frame_, 0, sizeof(yuv_frame_));
     base::TimeDelta zero;
-    VideoFrame::CreateFrame(VideoFrame::YV12, kWidth, kHeight,
-                            zero, zero, &video_frame_);
-
+    video_frame_ = VideoFrame::CreateFrame(VideoFrame::YV12, kWidth, kHeight,
+                                           zero, zero);
     stream_.codec = &codec_context_;
     codec_context_.width = kWidth;
     codec_context_.height = kHeight;
@@ -259,15 +256,10 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_EngineFails) {
 TEST_F(FFmpegVideoDecoderTest, Initialize_Successful) {
   InitializeDecoderSuccessfully();
 
-  // Test that the output media format is an uncompressed video surface that
-  // matches the dimensions specified by FFmpeg.
-  const MediaFormat& media_format = decoder_->media_format();
-  int width = 0;
-  int height = 0;
-  EXPECT_TRUE(media_format.GetAsInteger(MediaFormat::kWidth, &width));
-  EXPECT_EQ(kWidth, width);
-  EXPECT_TRUE(media_format.GetAsInteger(MediaFormat::kHeight, &height));
-  EXPECT_EQ(kHeight, height);
+  // Test that the uncompressed video surface matches the dimensions
+  // specified by FFmpeg.
+  EXPECT_EQ(kWidth, decoder_->width());
+  EXPECT_EQ(kHeight, decoder_->height());
 }
 
 TEST_F(FFmpegVideoDecoderTest, OnError) {

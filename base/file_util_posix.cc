@@ -25,7 +25,7 @@
 #if defined(OS_MACOSX)
 #include <AvailabilityMacros.h>
 #include "base/mac/foundation_util.h"
-#else
+#elif !defined(OS_ANDROID)
 #include <glib.h>
 #endif
 
@@ -43,6 +43,10 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
+
+#if defined(OS_ANDROID)
+#include "base/os_compat_android.h"
+#endif
 
 namespace file_util {
 
@@ -106,7 +110,7 @@ int CountFilesCreatedAfter(const FilePath& path,
   DIR* dir = opendir(path.value().c_str());
   if (dir) {
 #if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD) && \
-    !defined(OS_OPENBSD) && !defined(OS_SOLARIS)
+    !defined(OS_OPENBSD) && !defined(OS_SOLARIS) && !defined(OS_ANDROID)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
@@ -522,6 +526,21 @@ bool CreateDirectory(const FilePath& full_path) {
   return true;
 }
 
+// TODO(rkc): Refactor GetFileInfo and FileEnumerator to handle symlinks
+// correctly. http://code.google.com/p/chromium-os/issues/detail?id=15948
+bool IsLink(const FilePath& file_path) {
+  struct stat st;
+  // If we can't lstat the file, it's safe to assume that the file won't at
+  // least be a 'followable' link.
+  if (lstat(file_path.value().c_str(), &st) != 0)
+    return false;
+
+  if (S_ISLNK(st.st_mode))
+    return true;
+  else
+    return false;
+}
+
 bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* results) {
   stat_wrapper_t file_info;
   if (CallStat(file_path.value().c_str(), &file_info) != 0)
@@ -716,6 +735,16 @@ FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
   return FilePath(find_info.filename);
 }
 
+// static
+int64 FileEnumerator::GetFilesize(const FindInfo& find_info) {
+  return find_info.stat.st_size;
+}
+
+// static
+base::Time FileEnumerator::GetLastModifiedTime(const FindInfo& find_info) {
+  return base::Time::FromTimeT(find_info.stat.st_mtime);
+}
+
 bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
                                    const FilePath& source, bool show_links) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -724,7 +753,7 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
     return false;
 
 #if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD) && \
-    !defined(OS_OPENBSD) && !defined(OS_SOLARIS)
+    !defined(OS_OPENBSD) && !defined(OS_SOLARIS) && !defined(OS_ANDROID)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
@@ -824,26 +853,36 @@ bool GetTempDir(FilePath* path) {
   if (tmp)
     *path = FilePath(tmp);
   else
+#if defined(OS_ANDROID)
+    *path = FilePath("/data/local/tmp");
+#else
     *path = FilePath("/tmp");
+#endif
   return true;
 }
 
+#if !defined(OS_ANDROID)
 bool GetShmemTempDir(FilePath* path) {
   *path = FilePath("/dev/shm");
   return true;
 }
+#endif
 
 FilePath GetHomeDir() {
   const char* home_dir = getenv("HOME");
   if (home_dir && home_dir[0])
     return FilePath(home_dir);
 
+#if defined(OS_ANDROID)
+  LOG(WARNING) << "OS_ANDROID: Home directory lookup not yet implemented.";
+#else
   // g_get_home_dir calls getpwent, which can fall through to LDAP calls.
   base::ThreadRestrictions::AssertIOAllowed();
 
   home_dir = g_get_home_dir();
   if (home_dir && home_dir[0])
     return FilePath(home_dir);
+#endif
 
   FilePath rv;
   if (file_util::GetTempDir(&rv))

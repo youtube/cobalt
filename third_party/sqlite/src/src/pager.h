@@ -12,8 +12,6 @@
 ** This header file defines the interface that the sqlite page cache
 ** subsystem.  The page cache subsystem reads and writes a file a page
 ** at a time and provides a journal for rollback.
-**
-** @(#) $Id: pager.h,v 1.104 2009/07/24 19:01:19 drh Exp $
 */
 
 #ifndef _PAGER_H_
@@ -61,6 +59,7 @@ typedef struct PgHdr DbPage;
 */
 #define PAGER_OMIT_JOURNAL  0x0001    /* Do not use a rollback journal */
 #define PAGER_NO_READLOCK   0x0002    /* Omit readlocks on readonly files */
+#define PAGER_MEMORY        0x0004    /* In-memory database */
 
 /*
 ** Valid values for the second argument to sqlite3PagerLockingMode().
@@ -70,14 +69,15 @@ typedef struct PgHdr DbPage;
 #define PAGER_LOCKINGMODE_EXCLUSIVE   1
 
 /*
-** Valid values for the second argument to sqlite3PagerJournalMode().
+** Numeric constants that encode the journalmode.  
 */
-#define PAGER_JOURNALMODE_QUERY      -1
+#define PAGER_JOURNALMODE_QUERY     (-1)  /* Query the value of journalmode */
 #define PAGER_JOURNALMODE_DELETE      0   /* Commit by deleting journal file */
 #define PAGER_JOURNALMODE_PERSIST     1   /* Commit by zeroing journal header */
 #define PAGER_JOURNALMODE_OFF         2   /* Journal omitted.  */
 #define PAGER_JOURNALMODE_TRUNCATE    3   /* Commit by truncating journal */
 #define PAGER_JOURNALMODE_MEMORY      4   /* In-memory journal file */
+#define PAGER_JOURNALMODE_WAL         5   /* Use write-ahead logging */
 
 /*
 ** The remainder of this file contains the declarations of the functions
@@ -100,12 +100,14 @@ int sqlite3PagerReadFileheader(Pager*, int, unsigned char*);
 
 /* Functions used to configure a Pager object. */
 void sqlite3PagerSetBusyhandler(Pager*, int(*)(void *), void *);
-int sqlite3PagerSetPagesize(Pager*, u16*, int);
+int sqlite3PagerSetPagesize(Pager*, u32*, int);
 int sqlite3PagerMaxPageCount(Pager*, int);
 void sqlite3PagerSetCachesize(Pager*, int);
-void sqlite3PagerSetSafetyLevel(Pager*,int,int);
+void sqlite3PagerSetSafetyLevel(Pager*,int,int,int);
 int sqlite3PagerLockingMode(Pager *, int);
-int sqlite3PagerJournalMode(Pager *, int);
+int sqlite3PagerSetJournalMode(Pager *, int);
+int sqlite3PagerGetJournalMode(Pager*);
+int sqlite3PagerOkToChangeJournalMode(Pager*);
 i64 sqlite3PagerJournalSizeLimit(Pager *, i64);
 sqlite3_backup **sqlite3PagerBackupPtr(Pager*);
 
@@ -125,9 +127,10 @@ void *sqlite3PagerGetData(DbPage *);
 void *sqlite3PagerGetExtra(DbPage *); 
 
 /* Functions used to manage pager transactions and savepoints. */
-int sqlite3PagerPagecount(Pager*, int*);
+void sqlite3PagerPagecount(Pager*, int*);
 int sqlite3PagerBegin(Pager*, int exFlag, int);
 int sqlite3PagerCommitPhaseOne(Pager*,const char *zMaster, int);
+int sqlite3PagerExclusiveLock(Pager*);
 int sqlite3PagerSync(Pager *pPager);
 int sqlite3PagerCommitPhaseTwo(Pager*);
 int sqlite3PagerRollback(Pager*);
@@ -135,9 +138,16 @@ int sqlite3PagerOpenSavepoint(Pager *pPager, int n);
 int sqlite3PagerSavepoint(Pager *pPager, int op, int iSavepoint);
 int sqlite3PagerSharedLock(Pager *pPager);
 
+int sqlite3PagerCheckpoint(Pager *pPager, int, int*, int*);
+int sqlite3PagerWalSupported(Pager *pPager);
+int sqlite3PagerWalCallback(Pager *pPager);
+int sqlite3PagerOpenWal(Pager *pPager, int *pisOpen);
+int sqlite3PagerCloseWal(Pager *pPager);
+
 /* Functions used to query pager state and configuration. */
 u8 sqlite3PagerIsreadonly(Pager*);
 int sqlite3PagerRefcount(Pager*);
+int sqlite3PagerMemUsed(Pager*);
 const char *sqlite3PagerFilename(Pager*);
 const sqlite3_vfs *sqlite3PagerVfs(Pager*);
 sqlite3_file *sqlite3PagerFile(Pager*);
@@ -150,6 +160,10 @@ int sqlite3PagerIsMemdb(Pager*);
 
 /* Functions used to truncate the database file. */
 void sqlite3PagerTruncateImage(Pager*,Pgno);
+
+#if defined(SQLITE_HAS_CODEC) && !defined(SQLITE_OMIT_WAL)
+void *sqlite3PagerCodec(DbPage *);
+#endif
 
 /* Functions to support testing and debugging. */
 #if !defined(NDEBUG) || defined(SQLITE_TEST)

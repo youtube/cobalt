@@ -47,7 +47,7 @@ class NET_API DhcpProxyScriptFetcherFactory {
   // Attempts to enable/disable the DHCP WPAD feature.  Does nothing
   // if |IsSupported()| returns false.
   //
-  // The current default is |enabled() == false|.
+  // The default is |enabled() == true|.
   void set_enabled(bool enabled);
 
   // Returns true if the DHCP WPAD feature is enabled.  Always returns
@@ -58,7 +58,7 @@ class NET_API DhcpProxyScriptFetcherFactory {
   // operating system.
   static bool IsSupported();
 
- protected:
+ private:
   bool feature_enabled_;
 
   DISALLOW_COPY_AND_ASSIGN(DhcpProxyScriptFetcherFactory);

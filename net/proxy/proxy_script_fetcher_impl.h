@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string16.h"
@@ -41,7 +42,7 @@ class NET_API ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   base::TimeDelta SetTimeoutConstraint(base::TimeDelta timeout);
   size_t SetSizeConstraint(size_t size_bytes);
 
-  virtual void OnResponseCompleted(URLRequest* request);
+  void OnResponseCompleted(URLRequest* request);
 
   // ProxyScriptFetcher methods:
   virtual int Fetch(const GURL& url, string16* text,
@@ -51,11 +52,11 @@ class NET_API ProxyScriptFetcherImpl : public ProxyScriptFetcher,
 
   // URLRequest::Delegate methods:
   virtual void OnAuthRequired(URLRequest* request,
-                              AuthChallengeInfo* auth_info);
+                              AuthChallengeInfo* auth_info) OVERRIDE;
   virtual void OnSSLCertificateError(URLRequest* request, int cert_error,
-                                     X509Certificate* cert);
-  virtual void OnResponseStarted(URLRequest* request);
-  virtual void OnReadCompleted(URLRequest* request, int num_bytes);
+                                     X509Certificate* cert) OVERRIDE;
+  virtual void OnResponseStarted(URLRequest* request) OVERRIDE;
+  virtual void OnReadCompleted(URLRequest* request, int num_bytes) OVERRIDE;
 
  private:
   enum { kBufSize = 4096 };

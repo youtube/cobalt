@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/file_version_info.h"
 #include "base/memory/scoped_ptr.h"
@@ -18,8 +18,8 @@ typedef tagVS_FIXEDFILEINFO VS_FIXEDFILEINFO;
 
 class FileVersionInfoWin : public FileVersionInfo {
  public:
-  BASE_API FileVersionInfoWin(void* data, int language, int code_page);
-  BASE_API ~FileVersionInfoWin();
+  BASE_EXPORT FileVersionInfoWin(void* data, int language, int code_page);
+  BASE_EXPORT ~FileVersionInfoWin();
 
   // Accessors to the different version properties.
   // Returns an empty string if the property is not found.
@@ -41,11 +41,11 @@ class FileVersionInfoWin : public FileVersionInfo {
   virtual bool is_official_build();
 
   // Lets you access other properties not covered above.
-  BASE_API bool GetValue(const wchar_t* name, std::wstring* value);
+  BASE_EXPORT bool GetValue(const wchar_t* name, std::wstring* value);
 
   // Similar to GetValue but returns a wstring (empty string if the property
   // does not exist).
-  BASE_API std::wstring GetStringValue(const wchar_t* name);
+  BASE_EXPORT std::wstring GetStringValue(const wchar_t* name);
 
   // Get the fixed file info if it exists. Otherwise NULL
   VS_FIXEDFILEINFO* fixed_file_info() { return fixed_file_info_; }

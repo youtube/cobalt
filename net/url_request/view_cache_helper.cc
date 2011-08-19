@@ -15,7 +15,9 @@
 #include "net/url_request/url_request_context.h"
 
 #define VIEW_CACHE_HEAD \
-  "<html><body><table>"
+  "<html><meta charset=\"utf-8\"><meta http-equiv=\"X-WebKit-CSP\" " \
+  "content=\"object-src 'none'; script-src 'none' 'unsafe-eval'\">" \
+  "<body><table>"
 
 #define VIEW_CACHE_TAIL \
   "</table></body></html>"
@@ -23,43 +25,6 @@
 namespace net {
 
 namespace {
-
-void HexDump(const char *buf, size_t buf_len, std::string* result) {
-  const size_t kMaxRows = 16;
-  int offset = 0;
-
-  const unsigned char *p;
-  while (buf_len) {
-    base::StringAppendF(result, "%08x:  ", offset);
-    offset += kMaxRows;
-
-    p = (const unsigned char *) buf;
-
-    size_t i;
-    size_t row_max = std::min(kMaxRows, buf_len);
-
-    // print hex codes:
-    for (i = 0; i < row_max; ++i)
-      base::StringAppendF(result, "%02x  ", *p++);
-    for (i = row_max; i < kMaxRows; ++i)
-      result->append("    ");
-
-    // print ASCII glyphs if possible:
-    p = (const unsigned char *) buf;
-    for (i = 0; i < row_max; ++i, ++p) {
-      if (*p < 0x7F && *p > 0x1F) {
-        AppendEscapedCharForHTML(*p, result);
-      } else {
-        result->push_back('.');
-      }
-    }
-
-    result->push_back('\n');
-
-    buf += row_max;
-    buf_len -= row_max;
-  }
-}
 
 std::string FormatEntryInfo(disk_cache::Entry* entry,
                             const std::string& url_prefix) {
@@ -98,23 +63,62 @@ ViewCacheHelper::~ViewCacheHelper() {
 }
 
 int ViewCacheHelper::GetEntryInfoHTML(const std::string& key,
-                                      URLRequestContext* context,
+                                      const URLRequestContext* context,
                                       std::string* out,
                                       CompletionCallback* callback) {
   return GetInfoHTML(key, context, std::string(), out, callback);
 }
 
-int ViewCacheHelper::GetContentsHTML(URLRequestContext* context,
+int ViewCacheHelper::GetContentsHTML(const URLRequestContext* context,
                                      const std::string& url_prefix,
                                      std::string* out,
                                      CompletionCallback* callback) {
   return GetInfoHTML(std::string(), context, url_prefix, out, callback);
 }
 
+// static
+void ViewCacheHelper::HexDump(const char *buf, size_t buf_len,
+                              std::string* result) {
+  const size_t kMaxRows = 16;
+  int offset = 0;
+
+  const unsigned char *p;
+  while (buf_len) {
+    base::StringAppendF(result, "%08x:  ", offset);
+    offset += kMaxRows;
+
+    p = (const unsigned char *) buf;
+
+    size_t i;
+    size_t row_max = std::min(kMaxRows, buf_len);
+
+    // print hex codes:
+    for (i = 0; i < row_max; ++i)
+      base::StringAppendF(result, "%02x  ", *p++);
+    for (i = row_max; i < kMaxRows; ++i)
+      result->append("    ");
+
+    // print ASCII glyphs if possible:
+    p = (const unsigned char *) buf;
+    for (i = 0; i < row_max; ++i, ++p) {
+      if (*p < 0x7F && *p > 0x1F) {
+        AppendEscapedCharForHTML(*p, result);
+      } else {
+        result->push_back('.');
+      }
+    }
+
+    result->push_back('\n');
+
+    buf += row_max;
+    buf_len -= row_max;
+  }
+}
+
 //-----------------------------------------------------------------------------
 
 int ViewCacheHelper::GetInfoHTML(const std::string& key,
-                                 URLRequestContext* context,
+                                 const URLRequestContext* context,
                                  const std::string& url_prefix,
                                  std::string* out,
                                  CompletionCallback* callback) {

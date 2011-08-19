@@ -15,8 +15,9 @@ SSLConfig::CertAndStatus::~CertAndStatus() {}
 
 SSLConfig::SSLConfig()
     : rev_checking_enabled(true), ssl3_enabled(true),
-      tls1_enabled(true), dnssec_enabled(false),
-      dns_cert_provenance_checking_enabled(false),
+      tls1_enabled(true),
+      dns_cert_provenance_checking_enabled(false), cached_info_enabled(false),
+      origin_bound_certs_enabled(false),
       false_start_enabled(true),
       send_client_cert(false), verify_ev_cert(false), ssl3_fallback(false) {
 }
@@ -26,8 +27,16 @@ SSLConfig::~SSLConfig() {
 
 bool SSLConfig::IsAllowedBadCert(X509Certificate* cert,
                                  int* cert_status) const {
+  std::string der_cert;
+  if (!cert->GetDEREncoded(&der_cert))
+    return false;
+  return IsAllowedBadCert(der_cert, cert_status);
+}
+
+bool SSLConfig::IsAllowedBadCert(const base::StringPiece& der_cert,
+                                 int* cert_status) const {
   for (size_t i = 0; i < allowed_bad_certs.size(); ++i) {
-    if (cert->Equals(allowed_bad_certs[i].cert)) {
+    if (der_cert == allowed_bad_certs[i].der_cert) {
       if (cert_status)
         *cert_status = allowed_bad_certs[i].cert_status;
       return true;
@@ -46,19 +55,10 @@ bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
   return SSLFalseStartBlacklist::IsMember(hostname.c_str());
 }
 
-static bool g_dnssec_enabled = false;
+static bool g_cached_info_enabled = false;
+static bool g_origin_bound_certs_enabled = false;
 static bool g_false_start_enabled = true;
 static bool g_dns_cert_provenance_checking = false;
-
-// static
-void SSLConfigService::EnableDNSSEC() {
-  g_dnssec_enabled = true;
-}
-
-// static
-bool SSLConfigService::dnssec_enabled() {
-  return g_dnssec_enabled;
-}
 
 // static
 void SSLConfigService::DisableFalseStart() {
@@ -80,6 +80,26 @@ bool SSLConfigService::dns_cert_provenance_checking_enabled() {
   return g_dns_cert_provenance_checking;
 }
 
+// static
+void SSLConfigService::EnableCachedInfo() {
+  g_cached_info_enabled = true;
+}
+
+// static
+bool SSLConfigService::cached_info_enabled() {
+  return g_cached_info_enabled;
+}
+
+// static
+void SSLConfigService::EnableOriginBoundCerts() {
+  g_origin_bound_certs_enabled = true;
+}
+
+// static
+bool SSLConfigService::origin_bound_certs_enabled() {
+  return g_origin_bound_certs_enabled;
+}
+
 void SSLConfigService::AddObserver(Observer* observer) {
   observer_list_.AddObserver(observer);
 }
@@ -93,19 +113,28 @@ SSLConfigService::~SSLConfigService() {
 
 // static
 void SSLConfigService::SetSSLConfigFlags(SSLConfig* ssl_config) {
-  ssl_config->dnssec_enabled = g_dnssec_enabled;
   ssl_config->false_start_enabled = g_false_start_enabled;
   ssl_config->dns_cert_provenance_checking_enabled =
       g_dns_cert_provenance_checking;
+  ssl_config->cached_info_enabled = g_cached_info_enabled;
+  ssl_config->origin_bound_certs_enabled = g_origin_bound_certs_enabled;
 }
 
 void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
                                            const SSLConfig& new_config) {
-  if (orig_config.rev_checking_enabled != new_config.rev_checking_enabled ||
-      orig_config.ssl3_enabled != new_config.ssl3_enabled ||
-      orig_config.tls1_enabled != new_config.tls1_enabled) {
-    FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());
+  bool config_changed =
+      (orig_config.rev_checking_enabled != new_config.rev_checking_enabled) ||
+      (orig_config.ssl3_enabled != new_config.ssl3_enabled) ||
+      (orig_config.tls1_enabled != new_config.tls1_enabled) ||
+      (orig_config.disabled_cipher_suites.size() !=
+       new_config.disabled_cipher_suites.size());
+  if (!config_changed) {
+    config_changed = (orig_config.disabled_cipher_suites !=
+        new_config.disabled_cipher_suites);
   }
+
+  if (config_changed)
+    FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());
 }
 
 // static

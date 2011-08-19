@@ -40,62 +40,22 @@ class VideoFrame : public StreamSample {
     I420,        // 12bpp YVU planar 1x1 Y, 2x2 UV samples.
   };
 
-  enum SurfaceType {
-    // Video frame is backed by system memory. The memory can be allocated by
-    // this object or be provided externally.
-    TYPE_SYSTEM_MEMORY,
-
-    // Video frame is stored in GL texture(s).
-    TYPE_GL_TEXTURE,
-  };
-
-  // Defines a new type for GL texture so we don't include OpenGL headers.
-  typedef unsigned int GlTexture;
-
-  // Get the number of planes for a video frame format.
-  static size_t GetNumberOfPlanes(VideoFrame::Format format);
-
   // Creates a new frame in system memory with given parameters. Buffers for
   // the frame are allocated but not initialized.
-  static void CreateFrame(Format format,
-                          size_t width,
-                          size_t height,
-                          base::TimeDelta timestamp,
-                          base::TimeDelta duration,
-                          scoped_refptr<VideoFrame>* frame_out);
-
-  // Creates a new frame with given parameters. Buffers for the frame are
-  // provided externally. Reference to the buffers and strides are copied
-  // from |data| and |strides| respectively.
-  static void CreateFrameExternal(SurfaceType type,
-                                  Format format,
-                                  size_t width,
-                                  size_t height,
-                                  size_t planes,
-                                  uint8* const data[kMaxPlanes],
-                                  const int32 strides[kMaxPlanes],
-                                  base::TimeDelta timestamp,
-                                  base::TimeDelta duration,
-                                  void* private_buffer,
-                                  scoped_refptr<VideoFrame>* frame_out);
-
-  // Creates a new frame with GL textures.
-  static void CreateFrameGlTexture(Format format,
-                                   size_t width,
-                                   size_t height,
-                                   GlTexture const textures[kMaxPlanes],
-                                   scoped_refptr<VideoFrame>* frame_out);
+  static scoped_refptr<VideoFrame> CreateFrame(
+      Format format,
+      size_t width,
+      size_t height,
+      base::TimeDelta timestamp,
+      base::TimeDelta duration);
 
   // Creates a frame with format equals to VideoFrame::EMPTY, width, height
   // timestamp and duration are all 0.
-  static void CreateEmptyFrame(scoped_refptr<VideoFrame>* frame_out);
+  static scoped_refptr<VideoFrame> CreateEmptyFrame();
 
   // Allocates YV12 frame based on |width| and |height|, and sets its data to
   // the YUV equivalent of RGB(0,0,0).
-  static void CreateBlackFrame(int width, int height,
-                               scoped_refptr<VideoFrame>* frame_out);
-
-  SurfaceType type() const { return type_; }
+  static scoped_refptr<VideoFrame> CreateBlackFrame(int width, int height);
 
   Format format() const { return format_; }
 
@@ -105,39 +65,39 @@ class VideoFrame : public StreamSample {
 
   size_t planes() const { return planes_;  }
 
-  int32 stride(size_t plane) const { return strides_[plane]; }
+  int stride(size_t plane) const;
+
+  // Returns the number of bytes per row and number of rows for a given plane.
+  //
+  // As opposed to stride(), row_bytes() refers to the bytes representing
+  // visible pixels.
+  int row_bytes(size_t plane) const;
+  int rows(size_t plane) const;
 
   // Returns pointer to the buffer for a given plane. The memory is owned by
   // VideoFrame object and must not be freed by the caller.
-  // TODO(hclam): Use union together with |gl_texture| and |d3d_texture|.
-  uint8* data(size_t plane) const { return data_[plane]; }
-
-  // Returns the GL texture for a given plane.
-  GlTexture gl_texture(size_t plane) const { return gl_textures_[plane]; }
-
-  void* private_buffer() const { return private_buffer_; }
+  uint8* data(size_t plane) const;
 
   // StreamSample interface.
   virtual bool IsEndOfStream() const;
 
  protected:
   // Clients must use the static CreateFrame() method to create a new frame.
-  VideoFrame(SurfaceType type,
-             Format format,
+  VideoFrame(Format format,
              size_t video_width,
              size_t video_height);
 
   virtual ~VideoFrame();
 
   // Used internally by CreateFrame().
-  bool AllocateRGB(size_t bytes_per_pixel);
-  bool AllocateYUV();
+  void AllocateRGB(size_t bytes_per_pixel);
+  void AllocateYUV();
+
+  // Used to DCHECK() plane parameters.
+  bool IsValidPlane(size_t plane) const;
 
   // Frame format.
   Format format_;
-
-  // Surface type.
-  SurfaceType type_;
 
   // Width and height of surface.
   size_t width_;
@@ -154,16 +114,6 @@ class VideoFrame : public StreamSample {
 
   // Array of data pointers to each plane.
   uint8* data_[kMaxPlanes];
-
-  // Array fo GL textures.
-  GlTexture gl_textures_[kMaxPlanes];
-
-  // True of memory referenced by |data_| is provided externally and shouldn't
-  // be deleted.
-  bool external_memory_;
-
-  // Private buffer pointer, can be used for EGLImage.
-  void* private_buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoFrame);
 };

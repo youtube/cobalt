@@ -17,7 +17,7 @@
 //   500-599 ?
 //   600-699 FTP errors
 //   700-799 Certificate manager errors
-//
+//   800-899 DNS resolver errors
 
 // An asynchronous IO operation is not yet complete.  This usually does not
 // indicate a fatal error.  Typically this error will be generated as a
@@ -187,6 +187,7 @@ NET_ERROR(MANDATORY_PROXY_CONFIGURATION_FAILED, -131)
 // We detected an ESET product intercepting our HTTPS connections. Since these
 // products are False Start intolerant, we return this error so that we can
 // give the user a helpful error message rather than have the connection hang.
+// See also: KASPERSKY_ANTI_VIRUS_SSL_INTERCEPTION
 NET_ERROR(ESET_ANTI_VIRUS_SSL_INTERCEPTION, -132)
 
 // We've hit the max socket limit for the socket pool while preconnecting.  We
@@ -230,6 +231,32 @@ NET_ERROR(SSL_CLIENT_AUTH_SIGNATURE_FAILED, -141)
 // The message was too large for the transport.  (for example a UDP message
 // which exceeds size threshold).
 NET_ERROR(MSG_TOO_BIG, -142)
+
+// We detected a Kaspersky product intercepting our HTTPS connections. This
+// interacts badly with our SSL stack for unknown reasons (disabling False
+// Start doesn't help). We return this error so that we can give the user a
+// helpful error message rather than have the connection hang.
+// See also: ESET_ANTI_VIRUS_SSL_INTERCEPTION
+NET_ERROR(KASPERSKY_ANTI_VIRUS_SSL_INTERCEPTION, -143)
+
+// Violation of limits (e.g. imposed to prevent DoS).
+NET_ERROR(LIMIT_VIOLATION, -144)
+
+// WebSocket protocol error occurred.
+NET_ERROR(WS_PROTOCOL_ERROR, -145)
+
+// Connection was aborted for switching to another ptotocol.
+// WebSocket abort SocketStream connection when alternate protocol is found.
+NET_ERROR(PROTOCOL_SWITCHED, -146)
+
+// Returned when attempting to bind an address that is already in use.
+NET_ERROR(ADDRESS_IN_USE, -147)
+
+// An operation failed because the SSL handshake has not completed.
+NET_ERROR(SSL_HANDSHAKE_NOT_COMPLETED, -148)
+
+// SSL peer's public key is invalid.
+NET_ERROR(SSL_BAD_PEER_PUBLIC_KEY, -149)
 
 // Certificate error codes
 //
@@ -457,7 +484,8 @@ NET_ERROR(CACHE_MISS, -400)
 // Unable to read from the disk cache.
 NET_ERROR(CACHE_READ_FAILURE, -401)
 
-// ****NOTE THAT code -402 is available****
+// Unable to write to the disk cache.
+NET_ERROR(CACHE_WRITE_FAILURE, -402)
 
 // The operation is not supported for this entry.
 NET_ERROR(CACHE_OPERATION_NOT_SUPPORTED, -403)
@@ -536,3 +564,37 @@ NET_ERROR(IMPORT_CA_CERT_FAILED, -705)
 
 // Server certificate import failed due to some internal error.
 NET_ERROR(IMPORT_SERVER_CERT_FAILED, -706)
+
+// PKCS #12 import failed due to invalid MAC.
+NET_ERROR(PKCS12_IMPORT_INVALID_MAC, -707)
+
+// PKCS #12 import failed due to invalid/corrupt file.
+NET_ERROR(PKCS12_IMPORT_INVALID_FILE, -708)
+
+// PKCS #12 import failed due to unsupported features.
+NET_ERROR(PKCS12_IMPORT_UNSUPPORTED, -709)
+
+// DNS error codes.
+
+// DNS resolver received a malformed response.
+NET_ERROR(DNS_MALFORMED_RESPONSE, -800)
+
+// DNS server requires TCP
+NET_ERROR(DNS_SERVER_REQUIRES_TCP, -801)
+
+// DNS server failed.  This error is returned for all of the following
+// error conditions:
+// 1 - Format error - The name server was unable to interpret the query.
+// 2 - Server failure - The name server was unable to process this query
+//     due to a problem with the name server.
+// 4 - Not Implemented - The name server does not support the requested
+//     kind of query.
+// 5 - Refused - The name server refuses to perform the specified
+//     operation for policy reasons.
+NET_ERROR(DNS_SERVER_FAILED, -802)
+
+// DNS transaction timed out.
+NET_ERROR(DNS_TIMED_OUT, -803)
+
+// The entry was not found in cache, for cache-only lookups.
+NET_ERROR(DNS_CACHE_MISS, -804)

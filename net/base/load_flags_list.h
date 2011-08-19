@@ -51,9 +51,9 @@ LOAD_FLAG(IGNORE_CERT_DATE_INVALID, 1 << 9)
 // (The default behavior is to trigger an OnSSLCertificateError callback).
 LOAD_FLAG(IGNORE_CERT_AUTHORITY_INVALID, 1 << 10)
 
-// If present, ignores certificate revocation
-// (The default behavior is to trigger an OnSSLCertificateError callback).
-LOAD_FLAG(IGNORE_CERT_REVOCATION, 1 << 11)
+// If present, causes certificate revocation checks to be skipped on secure
+// connections.
+LOAD_FLAG(DISABLE_CERT_REVOCATION_CHECKING, 1 << 11)
 
 // If present, ignores wrong key usage of the certificate
 // (The default behavior is to trigger an OnSSLCertificateError callback).
@@ -104,7 +104,7 @@ LOAD_FLAG(PREFETCH, 1 << 23)
 
 // Indicates that this load was requested by a page that is currently
 // prerendering.
-LOAD_FLAG(PRERENDER, 1 << 24)
+LOAD_FLAG(PRERENDERING, 1 << 24)
 
 // Indicates that this is a load that ignores limits and should complete
 // immediately.
@@ -113,3 +113,4 @@ LOAD_FLAG(IGNORE_LIMITS, 1 << 25)
 // Suppress login prompts for this request. Cached credentials or
 // default credentials may still be used for authentication.
 LOAD_FLAG(DO_NOT_PROMPT_FOR_LOGIN, 1 << 26)
+

@@ -30,12 +30,12 @@ class StatsHistogram : public base::Histogram {
     }
   };
 
-  explicit StatsHistogram(const std::string& name, Sample minimum,
-                          Sample maximum, size_t bucket_count)
+  StatsHistogram(const std::string& name, Sample minimum,
+                 Sample maximum, size_t bucket_count)
       : Histogram(name, minimum, maximum, bucket_count), init_(false) {}
-  ~StatsHistogram();
+  virtual ~StatsHistogram();
 
-  static StatsHistogram* StatsHistogramFactoryGet(const std::string& name);
+  static StatsHistogram* FactoryGet(const std::string& name);
 
   // We'll be reporting data from the given set of cache stats.
   bool Init(const Stats* stats);

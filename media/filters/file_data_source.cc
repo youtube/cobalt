@@ -37,8 +37,6 @@ PipelineStatus FileDataSource::Initialize(const std::string& url) {
     file_size_ = 0;
     return PIPELINE_ERROR_URL_NOT_FOUND;
   }
-  media_format_.SetAsString(MediaFormat::kURL, url);
-
   if (host()) {
     host()->SetTotalBytes(file_size_);
     host()->SetBufferedBytes(file_size_);
@@ -66,10 +64,6 @@ void FileDataSource::Stop(FilterCallback* callback) {
     callback->Run();
     delete callback;
   }
-}
-
-const MediaFormat& FileDataSource::media_format() {
-  return media_format_;
 }
 
 void FileDataSource::Read(int64 position, size_t size, uint8* data,

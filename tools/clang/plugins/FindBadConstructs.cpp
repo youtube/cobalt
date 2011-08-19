@@ -136,6 +136,27 @@ class FindBadConstructsConsumer : public ChromeClassTester {
     }
   }
 
+  void CheckVirtualMethod(const CXXMethodDecl *method) {
+    SourceLocation loc = method->getTypeSpecStartLoc();
+    if (isa<CXXDestructorDecl>(method))
+      loc = method->getInnerLocStart();
+
+    if (method->isVirtual() && !method->isVirtualAsWritten())
+      emitWarning(loc, "Overridden method must have \"virtual\" keyword.");
+
+    // Virtual methods should not have inline definitions beyond "{}".
+    if (method->isVirtual() && method->hasBody() && method->hasInlineBody()) {
+      if (CompoundStmt* cs = dyn_cast<CompoundStmt>(method->getBody())) {
+        if (cs->size()) {
+          emitWarning(
+              cs->getLBracLoc(),
+              "virtual methods with non-empty bodies shouldn't be "
+              "declared inline.");
+        }
+      }
+    }
+  }
+
   // Makes sure there is a "virtual" keyword on virtual methods and that there
   // are no inline function bodies on them (but "{}" is allowed).
   //
@@ -162,28 +183,11 @@ class FindBadConstructsConsumer : public ChromeClassTester {
       if (it->isCopyAssignmentOperator() ||
           dyn_cast<CXXConstructorDecl>(*it)) {
         // Ignore constructors and assignment operators.
-      } else if (dyn_cast<CXXDestructorDecl>(*it)) {
-        // TODO: I'd love to handle this case, but
-        // CXXDestructorDecl::isImplicitlyDefined() asserts if I call it
-        // here, and against my better judgment, I don't want to *always*
-        // disallow implicit destructors.
+      } else if (dyn_cast<CXXDestructorDecl>(*it) &&
+          !record->hasUserDeclaredDestructor()) {
+        // Ignore non-userdeclared destructors.
       } else {
-        if (it->isVirtual() && !it->isVirtualAsWritten()) {
-          emitWarning(it->getTypeSpecStartLoc(),
-                      "Overridden method must have \"virtual\" keyword.");
-        }
-
-        // Virtual methods should not have inline definitions beyond "{}".
-        if (it->isVirtual() && it->hasBody() && it->hasInlineBody()) {
-          if (CompoundStmt* cs = dyn_cast<CompoundStmt>(it->getBody())) {
-            if (cs->size()) {
-              emitWarning(
-                  cs->getLBracLoc(),
-                  "virtual methods with non-empty bodies shouldn't be "
-                  "declared inline.");
-            }
-          }
-        }
+        CheckVirtualMethod(*it);
       }
     }
   }

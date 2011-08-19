@@ -20,6 +20,10 @@ namespace {
 
 struct NumberFormatWrapper {
   NumberFormatWrapper() {
+    Reset();
+  }
+
+  void Reset() {
     // There's no ICU call to destroy a NumberFormat object other than
     // operator delete, so use the default Delete, which calls operator delete.
     // This can cause problems if a different allocator is used by this file
@@ -32,12 +36,14 @@ struct NumberFormatWrapper {
   scoped_ptr<icu::NumberFormat> number_format;
 };
 
+LazyInstance<NumberFormatWrapper> g_number_format_int(LINKER_INITIALIZED);
+LazyInstance<NumberFormatWrapper> g_number_format_float(LINKER_INITIALIZED);
+
 }  // namespace
 
-static LazyInstance<NumberFormatWrapper> g_number_format(LINKER_INITIALIZED);
-
 string16 FormatNumber(int64 number) {
-  icu::NumberFormat* number_format = g_number_format.Get().number_format.get();
+  icu::NumberFormat* number_format =
+      g_number_format_int.Get().number_format.get();
 
   if (!number_format) {
     // As a fallback, just return the raw number in a string.
@@ -48,5 +54,30 @@ string16 FormatNumber(int64 number) {
 
   return string16(ustr.getBuffer(), static_cast<size_t>(ustr.length()));
 }
+
+string16 FormatDouble(double number, int fractional_digits) {
+  icu::NumberFormat* number_format =
+      g_number_format_float.Get().number_format.get();
+
+  if (!number_format) {
+    // As a fallback, just return the raw number in a string.
+    return UTF8ToUTF16(StringPrintf("%f", number));
+  }
+  number_format->setMaximumFractionDigits(fractional_digits);
+  number_format->setMinimumFractionDigits(fractional_digits);
+  icu::UnicodeString ustr;
+  number_format->format(number, ustr);
+
+  return string16(ustr.getBuffer(), static_cast<size_t>(ustr.length()));
+}
+
+namespace testing {
+
+void ResetFormatters() {
+  g_number_format_int.Get().Reset();
+  g_number_format_float.Get().Reset();
+}
+
+}  // namespace testing
 
 }  // namespace base

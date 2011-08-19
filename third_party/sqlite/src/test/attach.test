@@ -152,14 +152,16 @@ do_test attach-1.18 {
     ATTACH 'test.db' as db11;
   }
 } {0 {}}
-do_test attach-1.19 {
-  catchsql {
-    ATTACH 'test.db' as db12;
-  }
-} {1 {too many attached databases - max 10}}
-do_test attach-1.19.1 {
-  db errorcode
-} {1}
+if {$SQLITE_MAX_ATTACHED==10} {
+  do_test attach-1.19 {
+    catchsql {
+      ATTACH 'test.db' as db12;
+    }
+  } {1 {too many attached databases - max 10}}
+  do_test attach-1.19.1 {
+    db errorcode
+  } {1}
+}
 do_test attach-1.20.1 {
   execsql {
     DETACH db5;
@@ -179,14 +181,16 @@ do_test attach-1.21 {
     ATTACH 'test.db' as db12;
   }
 } {0 {}}
-do_test attach-1.22 {
-  catchsql {
-    ATTACH 'test.db' as db13;
-  }
-} {1 {too many attached databases - max 10}}
-do_test attach-1.22.1 {
-  db errorcode
-} {1}
+if {$SQLITE_MAX_ATTACHED==10} {
+  do_test attach-1.22 {
+    catchsql {
+      ATTACH 'test.db' as db13;
+    }
+  } {1 {too many attached databases - max 10}}
+  do_test attach-1.22.1 {
+    db errorcode
+  } {1}
+}
 do_test attach-1.23 {
   catchsql {
     DETACH "db14";
@@ -787,5 +791,53 @@ do_test attach-8.4 {
 db2 close
 file delete -force test2.db
 
+# Test that it is possible to attach the same database more than
+# once when not in shared-cache mode. That this is not possible in
+# shared-cache mode is tested in shared7.test.
+do_test attach-9.1 {
+  file delete -force test4.db
+  execsql {
+    ATTACH 'test4.db' AS aux1;
+    CREATE TABLE aux1.t1(a, b);
+    INSERT INTO aux1.t1 VALUES(1, 2);
+    ATTACH 'test4.db' AS aux2;
+    SELECT * FROM aux2.t1;
+  }
+} {1 2}
+do_test attach-9.2 {
+  catchsql {
+    BEGIN;
+      INSERT INTO aux1.t1 VALUES(3, 4);
+      INSERT INTO aux2.t1 VALUES(5, 6);
+  }
+} {1 {database is locked}}
+do_test attach-9.3 {
+  execsql {
+    COMMIT;
+    SELECT * FROM aux2.t1;
+  }
+} {1 2 3 4}
+
+# Ticket [abe728bbc311d81334dae9762f0db87c07a98f79].
+# Multi-database commit on an attached TEMP database.
+#
+do_test attach-10.1 {
+  execsql {
+    ATTACH '' AS noname;
+    ATTACH ':memory:' AS inmem;
+    BEGIN;
+    CREATE TABLE noname.noname(x);
+    CREATE TABLE inmem.inmem(y);
+    CREATE TABLE main.main(z);
+    COMMIT;
+    SELECT name FROM noname.sqlite_master;
+    SELECT name FROM inmem.sqlite_master;
+  }
+} {noname inmem}
+do_test attach-10.2 {
+  lrange [execsql {
+    PRAGMA database_list;
+  }] 9 end
+} {4 noname {} 5 inmem {}}
 
 finish_test

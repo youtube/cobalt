@@ -6,7 +6,8 @@
 #define BASE_THREADING_WORKER_POOL_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
+#include "base/callback.h"
 #include "base/tracked.h"
 
 class Task;
@@ -21,14 +22,19 @@ namespace base {
 // inside the pool must be extremely careful about other objects they access
 // (MessageLoops, Singletons, etc). During shutdown these object may no longer
 // exist.
-class BASE_API WorkerPool {
+class BASE_EXPORT WorkerPool {
  public:
   // This function posts |task| to run on a worker thread.  |task_is_slow|
   // should be used for tasks that will take a long time to execute.  Returns
   // false if |task| could not be posted to a worker thread.  Regardless of
   // return value, ownership of |task| is transferred to the worker pool.
+  //
+  // TODO(ajwong): Remove the Task* based overload once we've finishsed the
+  // Task -> Closure migration.
   static bool PostTask(const tracked_objects::Location& from_here,
                        Task* task, bool task_is_slow);
+  static bool PostTask(const tracked_objects::Location& from_here,
+                       const base::Closure& task, bool task_is_slow);
 };
 
 }  // namespace base

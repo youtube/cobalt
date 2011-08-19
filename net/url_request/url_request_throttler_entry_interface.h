@@ -6,6 +6,8 @@
 #define NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_INTERFACE_H_
 #pragma once
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
@@ -49,9 +51,10 @@ class NET_API URLRequestThrottlerEntryInterface
 
   // Lets higher-level modules, that know how to parse particular response
   // bodies, notify of receiving malformed content for the given URL. This will
-  // be handled by the throttler as if an HTTP 5xx response had been received to
-  // the request, i.e. it will count as a failure.
-  virtual void ReceivedContentWasMalformed() = 0;
+  // be handled by the throttler as if an HTTP 503 response had been received to
+  // the request, i.e. it will count as a failure, unless the HTTP response code
+  // indicated is already one of those that will be counted as an error.
+  virtual void ReceivedContentWasMalformed(int response_code) = 0;
 
  protected:
   friend class base::RefCountedThreadSafe<URLRequestThrottlerEntryInterface>;

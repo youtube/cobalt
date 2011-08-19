@@ -11,16 +11,13 @@
 
 namespace switches {
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_SOLARIS)
 extern const char kAlsaOutputDevice[];
 extern const char kAlsaInputDevice[];
 #endif
 
-extern const char kEnableAcceleratedDecoding[];
 extern const char kEnableAdaptive[];
-extern const char kEnableOpenMax[];
 extern const char kVideoThreads[];
-
 
 }  // namespace switches
 

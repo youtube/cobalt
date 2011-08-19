@@ -139,16 +139,10 @@ SSL_IMPORT PRFileDesc *SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd);
 /* occur on RSA or DH ciphersuites where the cipher's key length is >= 80   */
 /* bits. The advantage of False Start is that it saves a round trip for     */
 /* client-speaks-first protocols when performing a full handshake.          */
-#define SSL_ENABLE_SNAP_START          23 /* Enable SSL snap start (off by  */
-                                          /* default, applies only to       */
-                                          /* clients). Snap start is a way  */
-/* of performing TLS handshakes with no round trips. The client's entire    */
-/* handshake is included in the first handshake message, along with         */
-/* optional application data. In order to do this, information from a       */
-/* previous connection to the same server is required. See                  */
-/* SSL_GetPredictedServerHelloData, SSL_SetPredictedPeerCertificates and    */
-/* SSL_SetSnapStartApplicationData.                                         */
-#define SSL_ENABLE_OCSP_STAPLING       24 /* Request OCSP stapling (client) */
+#define SSL_ENABLE_OCSP_STAPLING       23 /* Request OCSP stapling (client) */
+#define SSL_ENABLE_CACHED_INFO         24 /* Enable TLS cached information  */
+                                          /* extension, off by default.     */
+#define SSL_ENABLE_OB_CERTS            25 /* Enable origin bound certs.     */
 
 #ifdef SSL_DEPRECATED_FUNCTION 
 /* Old deprecated function names */
@@ -265,6 +259,12 @@ SSL_IMPORT SECStatus SSL_SecurityStatus(PRFileDesc *fd, int *on, char **cipher,
 #define SSL_SECURITY_STATUS_FORTEZZA	3 /* NO LONGER SUPPORTED */
 
 /*
+** Returns true if the server's Certificate message contained a hash of the
+** certificate chain due to the TLS cached info extension.
+*/
+SSL_IMPORT PRBool SSL_CertChainDigestReceived(PRFileDesc *fd);
+
+/*
 ** Return the certificate for our SSL peer. If the client calls this
 ** it will always return the server's certificate. If the server calls
 ** this, it may return NULL if client authentication is not enabled or
@@ -283,6 +283,13 @@ SSL_IMPORT CERTCertificate *SSL_PeerCertificate(PRFileDesc *fd);
 */
 SSL_IMPORT SECStatus SSL_PeerCertificateChain(
 	PRFileDesc *fd, CERTCertificate **certs, unsigned int *certs_size);
+
+/*
+** Set the predicted cert chain to be used in the cached info extension.
+*/
+SSL_IMPORT SECStatus SSL_SetPredictedPeerCertificates(PRFileDesc *fd,
+						      CERTCertificate **certs,
+						      unsigned int len);
 
 /* SSL_GetStapledOCSPResponse returns the OCSP response that was provided by
  * the TLS server. The resulting data is copied to |out_data|. On entry, |*len|
@@ -447,47 +454,15 @@ SSL_IMPORT SECStatus SSL_BadCertHook(PRFileDesc *fd, SSLBadCertHandler f,
 				     void *arg);
 
 /*
-** Set the predicted chain of certificates for the peer. This is used for the
-** TLS Snap Start extension. Note that the SSL_ENABLE_SNAP_START option must
-** be set for this to occur.
-**
-** This function takes a reference to each of the given certificates.
-*/
-SSL_IMPORT SECStatus SSL_SetPredictedPeerCertificates(
-	PRFileDesc *fd, CERTCertificate **certs,
-	unsigned int numCerts);
-
-/*
-** Get the data needed to predict the server's hello message in the future. On
-** return, |*data| will either be NULL (in which case no data is available and
-** |*data_len| will be zero) or it will point to a buffer within the internal
-** data of |fd| and |*data_len| will contain the number of bytes available. If
-** non-NULL, |*data| will persist at least until the next handshake on |fd|.
-*/
-SSL_IMPORT SECStatus SSL_GetPredictedServerHelloData(
-	PRFileDesc *fd, const unsigned char **data,
-	unsigned int *data_len);
-
-/*
-** Set the predicted server hello data. This is used for the TLS Snap Start
-** extension. Note that the SSL_ENABLE_SNAP_START option must be set for this
-** to occur.
-*/
-SSL_IMPORT SECStatus SSL_SetPredictedServerHelloData(
-	PRFileDesc *fd, const unsigned char *data, unsigned int data_len);
-
-/* Set the application data which will be transmitted in a Snap Start
-** handshake. If the Snap Start handshake fails, this data will be
-* retransmitted automatically. */
-SSL_IMPORT SECStatus SSL_SetSnapStartApplicationData(
-	PRFileDesc *fd, const unsigned char *data, unsigned int data_len);
-
-/* Get the result of a Snap Start handshake. It's valid to call then even if
-** SSL_ENABLE_SNAP_START hasn't been set, although the result will always be
-** SSL_SNAP_START_NONE.
-*/
-SSL_IMPORT SECStatus SSL_GetSnapStartResult(PRFileDesc* socket,
-                                            SSLSnapStartResult* result);
+ ** Set the predicted chain of certificates for the peer. This is used for the
+ ** TLS Cached Info extension. Note that the SSL_ENABLE_CACHED_INFO option must
+ ** be set for this to occur.
+ **
+ ** This function takes a reference to each of the given certificates.
+ */
+ SSL_IMPORT SECStatus SSL_SetPredictedPeerCertificates(
+         PRFileDesc *fd, CERTCertificate **certs,
+         unsigned int numCerts);
 
 /*
 ** Configure SSL socket for running a secure server. Needs the
@@ -711,6 +686,19 @@ SSL_IMPORT SECStatus SSL_GetCipherSuiteInfo(PRUint16 cipherSuite,
 /* Returnes negotiated through SNI host info. */
 SSL_IMPORT SECItem *SSL_GetNegotiatedHostInfo(PRFileDesc *fd);
 
+/* Export keying material according to RFC 5705.
+** fd must correspond to a TLS 1.0 or higher socket and out must
+** already be allocated. If contextLen is zero it uses the no-context
+** construction from the RFC.
+*/
+SSL_IMPORT SECStatus SSL_ExportKeyingMaterial(PRFileDesc *fd,
+                                              const char *label,
+                                              unsigned int labelLen,
+                                              const unsigned char *context,
+                                              unsigned int contextLen,
+                                              unsigned char *out,
+                                              unsigned int outLen);
+
 /*
 ** Return a new reference to the certificate that was most recently sent
 ** to the peer on this SSL/TLS connection, or NULL if none has been sent.
@@ -755,6 +743,10 @@ SSL_IMPORT SECStatus SSL_CanBypass(CERTCertificate *cert,
 SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
                                                       SSLExtensionType extId,
                                                       PRBool *yes);
+
+SSL_IMPORT SECStatus SSL_HandshakeResumedSession(PRFileDesc *fd,
+                                                 PRBool *last_handshake_resumed);
+
 
 SEC_END_PROTOS
 

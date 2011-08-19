@@ -11,8 +11,8 @@
 #include "base/memory/memory_debug.h"
 #include "base/metrics/stats_counters.h"
 #include "base/string_util.h"
-#include "base/sys_info.h"
 #include "base/win/object_watcher.h"
+#include "base/win/windows_version.h"
 #include "net/base/address_list_net_log_param.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
@@ -28,6 +28,106 @@
 namespace net {
 
 namespace {
+
+bool SetSocketReceiveBufferSize(SOCKET socket, int32 size) {
+  int rv = setsockopt(socket, SOL_SOCKET, SO_RCVBUF,
+                      reinterpret_cast<const char*>(&size), sizeof(size));
+  DCHECK(!rv) << "Could not set socket receive buffer size: " << GetLastError();
+  return rv == 0;
+}
+
+bool SetSocketSendBufferSize(SOCKET socket, int32 size) {
+  int rv = setsockopt(socket, SOL_SOCKET, SO_SNDBUF,
+                      reinterpret_cast<const char*>(&size), sizeof(size));
+  DCHECK(!rv) << "Could not set socket send buffer size: " << GetLastError();
+  return rv == 0;
+}
+
+// Sets socket parameters. Returns the OS error code (or 0 on
+// success).
+int SetupSocket(SOCKET socket) {
+  // Increase the socket buffer sizes from the default sizes for WinXP.  In
+  // performance testing, there is substantial benefit by increasing from 8KB
+  // to 64KB.
+  // See also:
+  //    http://support.microsoft.com/kb/823764/EN-US
+  // On Vista, if we manually set these sizes, Vista turns off its receive
+  // window auto-tuning feature.
+  //    http://blogs.msdn.com/wndp/archive/2006/05/05/Winhec-blog-tcpip-2.aspx
+  // Since Vista's auto-tune is better than any static value we can could set,
+  // only change these on pre-vista machines.
+  if (base::win::GetVersion() < base::win::VERSION_VISTA) {
+    const int32 kSocketBufferSize = 64 * 1024;
+    SetSocketReceiveBufferSize(socket, kSocketBufferSize);
+    SetSocketSendBufferSize(socket, kSocketBufferSize);
+  }
+
+  // Disable Nagle.
+  // The Nagle implementation on windows is governed by RFC 896.  The idea
+  // behind Nagle is to reduce small packets on the network.  When Nagle is
+  // enabled, if a partial packet has been sent, the TCP stack will disallow
+  // further *partial* packets until an ACK has been received from the other
+  // side.  Good applications should always strive to send as much data as
+  // possible and avoid partial-packet sends.  However, in most real world
+  // applications, there are edge cases where this does not happen, and two
+  // partil packets may be sent back to back.  For a browser, it is NEVER
+  // a benefit to delay for an RTT before the second packet is sent.
+  //
+  // As a practical example in Chromium today, consider the case of a small
+  // POST.  I have verified this:
+  //     Client writes 649 bytes of header  (partial packet #1)
+  //     Client writes 50 bytes of POST data (partial packet #2)
+  // In the above example, with Nagle, a RTT delay is inserted between these
+  // two sends due to nagle.  RTTs can easily be 100ms or more.  The best
+  // fix is to make sure that for POSTing data, we write as much data as
+  // possible and minimize partial packets.  We will fix that.  But disabling
+  // Nagle also ensure we don't run into this delay in other edge cases.
+  // See also:
+  //    http://technet.microsoft.com/en-us/library/bb726981.aspx
+  const BOOL kDisableNagle = TRUE;
+  int rv = setsockopt(socket, IPPROTO_TCP, TCP_NODELAY,
+                      reinterpret_cast<const char*>(&kDisableNagle),
+                      sizeof(kDisableNagle));
+  DCHECK(!rv) << "Could not disable nagle";
+
+  // Enable TCP Keep-Alive to prevent NAT routers from timing out TCP
+  // connections. See http://crbug.com/27400 for details.
+
+  struct tcp_keepalive keepalive_vals = {
+    1, // TCP keep-alive on.
+    45000,  // Wait 45s until sending first TCP keep-alive packet.
+    45000,  // Wait 45s between sending TCP keep-alive packets.
+  };
+  DWORD bytes_returned = 0xABAB;
+  rv = WSAIoctl(socket, SIO_KEEPALIVE_VALS, &keepalive_vals,
+                sizeof(keepalive_vals), NULL, 0,
+                &bytes_returned, NULL, NULL);
+  DCHECK(!rv) << "Could not enable TCP Keep-Alive for socket: " << socket
+              << " [error: " << WSAGetLastError() << "].";
+
+  // Disregard any failure in disabling nagle or enabling TCP Keep-Alive.
+  return 0;
+}
+
+// Creates a new socket and sets default parameters for it. Returns
+// the OS error code (or 0 on success).
+int CreateSocket(int family, SOCKET* socket) {
+  *socket = WSASocket(family, SOCK_STREAM, IPPROTO_TCP, NULL, 0,
+                      WSA_FLAG_OVERLAPPED);
+  if (*socket == INVALID_SOCKET) {
+    int os_error = WSAGetLastError();
+    LOG(ERROR) << "WSASocket failed: " << os_error;
+    return os_error;
+  }
+  int error = SetupSocket(*socket);
+  if (error) {
+    if (closesocket(*socket) < 0)
+      PLOG(ERROR) << "closesocket";
+    *socket = INVALID_SOCKET;
+    return error;
+  }
+  return 0;
+}
 
 int MapConnectError(int os_error) {
   switch (os_error) {
@@ -213,6 +313,7 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
                                        net::NetLog* net_log,
                                        const net::NetLog::Source& source)
     : socket_(INVALID_SOCKET),
+      bound_socket_(INVALID_SOCKET),
       addresses_(addresses),
       current_ai_(NULL),
       waiting_read_(false),
@@ -222,7 +323,8 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)),
-      previously_disconnected_(false) {
+      previously_disconnected_(false),
+      num_bytes_read_(0) {
   scoped_refptr<NetLog::EventParameters> params;
   if (source.is_valid())
     params = new NetLogSourceParameter("source_dependency", source);
@@ -235,15 +337,51 @@ TCPClientSocketWin::~TCPClientSocketWin() {
   net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
 }
 
-void TCPClientSocketWin::AdoptSocket(SOCKET socket) {
+int TCPClientSocketWin::AdoptSocket(SOCKET socket) {
   DCHECK_EQ(socket_, INVALID_SOCKET);
+
+  int error = SetupSocket(socket);
+  if (error)
+    return MapSystemError(error);
+
   socket_ = socket;
-  int error = SetupSocket();
-  DCHECK_EQ(0, error);
   core_ = new Core(this);
   current_ai_ = addresses_.head();
   use_history_.set_was_ever_connected();
+
+  return OK;
 }
+
+int TCPClientSocketWin::Bind(const IPEndPoint& address) {
+  if (current_ai_ != NULL || bind_address_.get()) {
+    // Cannot bind the socket if we are already connected or connecting.
+    return ERR_UNEXPECTED;
+  }
+
+  sockaddr_storage addr_storage;
+  sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+  size_t addr_len = sizeof(addr_storage);
+  if (!address.ToSockAddr(addr, &addr_len))
+    return ERR_INVALID_ARGUMENT;
+
+  // Create |bound_socket_| and try to bound it to |address|.
+  int error = CreateSocket(address.GetFamily(), &bound_socket_);
+  if (error)
+    return MapSystemError(error);
+
+  if (bind(bound_socket_, addr, addr_len)) {
+    error = errno;
+    if (closesocket(bound_socket_) < 0)
+      PLOG(ERROR) << "closesocket";
+    bound_socket_ = INVALID_SOCKET;
+    return MapSystemError(error);
+  }
+
+  bind_address_.reset(new IPEndPoint(address));
+
+  return 0;
+}
+
 
 int TCPClientSocketWin::Connect(CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
@@ -316,9 +454,25 @@ int TCPClientSocketWin::DoConnect() {
 
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
-  connect_os_error_ = CreateSocket(ai);
-  if (connect_os_error_ != 0)
-    return MapSystemError(connect_os_error_);
+  if (bound_socket_ != INVALID_SOCKET) {
+    DCHECK(bind_address_.get());
+    socket_ = bound_socket_;
+    bound_socket_ = INVALID_SOCKET;
+  } else {
+    connect_os_error_ = CreateSocket(ai->ai_family, &socket_);
+    if (connect_os_error_ != 0)
+      return MapSystemError(connect_os_error_);
+
+    if (bind_address_.get()) {
+      sockaddr_storage addr_storage;
+      sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+      size_t addr_len = sizeof(addr_storage);
+      if (!bind_address_->ToSockAddr(addr, &addr_len))
+        return ERR_INVALID_ARGUMENT;
+      if (bind(socket_, addr, addr_len))
+        return MapSystemError(errno);
+    }
+  }
 
   DCHECK(!core_);
   core_ = new Core(this);
@@ -331,6 +485,7 @@ int TCPClientSocketWin::DoConnect() {
 
   core_->write_overlapped_.hEvent = WSACreateEvent();
 
+  connect_start_time_ = base::TimeTicks::Now();
   if (!connect(socket_, ai->ai_addr, static_cast<int>(ai->ai_addrlen))) {
     // Connected without waiting!
     //
@@ -369,6 +524,7 @@ int TCPClientSocketWin::DoConnectComplete(int result) {
   net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT, params);
 
   if (result == OK) {
+    connect_time_micros_ = base::TimeTicks::Now() - connect_start_time_;
     use_history_.set_was_ever_connected();
     return OK;  // Done!
   }
@@ -505,6 +661,14 @@ bool TCPClientSocketWin::UsingTCPFastOpen() const {
   return false;
 }
 
+int64 TCPClientSocketWin::NumBytesRead() const {
+  return num_bytes_read_;
+}
+
+base::TimeDelta TCPClientSocketWin::GetConnectTimeMicros() const {
+  return connect_time_micros_;
+}
+
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
                              CompletionCallback* callback) {
@@ -535,10 +699,11 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
       base::MemoryDebug::MarkAsInitialized(core_->read_buffer_.buf, num);
       base::StatsCounter read_bytes("tcp.read_bytes");
       read_bytes.Add(num);
+      num_bytes_read_ += num;
       if (num > 0)
         use_history_.set_was_used_to_convey_data();
-      LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_RECEIVED, num,
-                      core_->read_buffer_.buf);
+      net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED, num,
+                                    core_->read_buffer_.buf);
       return static_cast<int>(num);
     }
   } else {
@@ -589,8 +754,8 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
       write_bytes.Add(rv);
       if (rv > 0)
         use_history_.set_was_used_to_convey_data();
-      LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_SENT, rv,
-                      core_->write_buffer_.buf);
+      net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_SENT, rv,
+                                    core_->write_buffer_.buf);
       return rv;
     }
   } else {
@@ -607,96 +772,12 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
 
 bool TCPClientSocketWin::SetReceiveBufferSize(int32 size) {
   DCHECK(CalledOnValidThread());
-  int rv = setsockopt(socket_, SOL_SOCKET, SO_RCVBUF,
-                      reinterpret_cast<const char*>(&size), sizeof(size));
-  DCHECK(!rv) << "Could not set socket receive buffer size: " << GetLastError();
-  return rv == 0;
+  return SetSocketReceiveBufferSize(socket_, size);
 }
 
 bool TCPClientSocketWin::SetSendBufferSize(int32 size) {
   DCHECK(CalledOnValidThread());
-  int rv = setsockopt(socket_, SOL_SOCKET, SO_SNDBUF,
-                      reinterpret_cast<const char*>(&size), sizeof(size));
-  DCHECK(!rv) << "Could not set socket send buffer size: " << GetLastError();
-  return rv == 0;
-}
-
-int TCPClientSocketWin::CreateSocket(const struct addrinfo* ai) {
-  socket_ = WSASocket(ai->ai_family, ai->ai_socktype, ai->ai_protocol, NULL, 0,
-                      WSA_FLAG_OVERLAPPED);
-  if (socket_ == INVALID_SOCKET) {
-    int os_error = WSAGetLastError();
-    LOG(ERROR) << "WSASocket failed: " << os_error;
-    return os_error;
-  }
-  return SetupSocket();
-}
-
-int TCPClientSocketWin::SetupSocket() {
-  // Increase the socket buffer sizes from the default sizes for WinXP.  In
-  // performance testing, there is substantial benefit by increasing from 8KB
-  // to 64KB.
-  // See also:
-  //    http://support.microsoft.com/kb/823764/EN-US
-  // On Vista, if we manually set these sizes, Vista turns off its receive
-  // window auto-tuning feature.
-  //    http://blogs.msdn.com/wndp/archive/2006/05/05/Winhec-blog-tcpip-2.aspx
-  // Since Vista's auto-tune is better than any static value we can could set,
-  // only change these on pre-vista machines.
-  int32 major_version, minor_version, fix_version;
-  base::SysInfo::OperatingSystemVersionNumbers(&major_version, &minor_version,
-    &fix_version);
-  if (major_version < 6) {
-    const int32 kSocketBufferSize = 64 * 1024;
-    SetReceiveBufferSize(kSocketBufferSize);
-    SetSendBufferSize(kSocketBufferSize);
-  }
-
-  // Disable Nagle.
-  // The Nagle implementation on windows is governed by RFC 896.  The idea
-  // behind Nagle is to reduce small packets on the network.  When Nagle is
-  // enabled, if a partial packet has been sent, the TCP stack will disallow
-  // further *partial* packets until an ACK has been received from the other
-  // side.  Good applications should always strive to send as much data as
-  // possible and avoid partial-packet sends.  However, in most real world
-  // applications, there are edge cases where this does not happen, and two
-  // partil packets may be sent back to back.  For a browser, it is NEVER
-  // a benefit to delay for an RTT before the second packet is sent.
-  //
-  // As a practical example in Chromium today, consider the case of a small
-  // POST.  I have verified this:
-  //     Client writes 649 bytes of header  (partial packet #1)
-  //     Client writes 50 bytes of POST data (partial packet #2)
-  // In the above example, with Nagle, a RTT delay is inserted between these
-  // two sends due to nagle.  RTTs can easily be 100ms or more.  The best
-  // fix is to make sure that for POSTing data, we write as much data as
-  // possible and minimize partial packets.  We will fix that.  But disabling
-  // Nagle also ensure we don't run into this delay in other edge cases.
-  // See also:
-  //    http://technet.microsoft.com/en-us/library/bb726981.aspx
-  const BOOL kDisableNagle = TRUE;
-  int rv = setsockopt(socket_, IPPROTO_TCP, TCP_NODELAY,
-                      reinterpret_cast<const char*>(&kDisableNagle),
-                      sizeof(kDisableNagle));
-  DCHECK(!rv) << "Could not disable nagle";
-
-  // Enable TCP Keep-Alive to prevent NAT routers from timing out TCP
-  // connections. See http://crbug.com/27400 for details.
-
-  struct tcp_keepalive keepalive_vals = {
-    1, // TCP keep-alive on.
-    45000,  // Wait 45s until sending first TCP keep-alive packet.
-    45000,  // Wait 45s between sending TCP keep-alive packets.
-  };
-  DWORD bytes_returned = 0xABAB;
-  rv = WSAIoctl(socket_, SIO_KEEPALIVE_VALS, &keepalive_vals,
-                sizeof(keepalive_vals), NULL, 0,
-                &bytes_returned, NULL, NULL);
-  DCHECK(!rv) << "Could not enable TCP Keep-Alive for socket: " << socket_
-              << " [error: " << WSAGetLastError() << "].";
-
-  // Disregard any failure in disabling nagle or enabling TCP Keep-Alive.
-  return 0;
+  return SetSocketSendBufferSize(socket_, size);
 }
 
 void TCPClientSocketWin::LogConnectCompletion(int net_error) {
@@ -789,10 +870,11 @@ void TCPClientSocketWin::DidCompleteRead() {
   if (ok) {
     base::StatsCounter read_bytes("tcp.read_bytes");
     read_bytes.Add(num_bytes);
+    num_bytes_read_ += num_bytes;
     if (num_bytes > 0)
       use_history_.set_was_used_to_convey_data();
-    LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_RECEIVED, num_bytes,
-                    core_->read_buffer_.buf);
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
+                                  num_bytes, core_->read_buffer_.buf);
   }
   DoReadCallback(ok ? num_bytes : MapSystemError(WSAGetLastError()));
 }
@@ -822,8 +904,8 @@ void TCPClientSocketWin::DidCompleteWrite() {
       write_bytes.Add(num_bytes);
       if (num_bytes > 0)
         use_history_.set_was_used_to_convey_data();
-      LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_SENT, num_bytes,
-                      core_->write_buffer_.buf);
+      net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_SENT, num_bytes,
+                                    core_->write_buffer_.buf);
     }
   }
   core_->write_iobuffer_ = NULL;
