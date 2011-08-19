@@ -11,7 +11,6 @@
 #include "base/threading/thread.h"
 #include "media/audio/audio_manager_base.h"
 
-class AlsaPcmOutputStream;
 class AlsaWrapper;
 
 class AudioManagerLinux : public AudioManagerBase {
@@ -34,7 +33,7 @@ class AudioManagerLinux : public AudioManagerBase {
   virtual void MuteAll();
   virtual void UnMuteAll();
 
-  virtual void ReleaseOutputStream(AlsaPcmOutputStream* stream);
+  virtual void ReleaseOutputStream(AudioOutputStream* stream);
 
  protected:
   virtual ~AudioManagerLinux();
@@ -45,7 +44,7 @@ class AudioManagerLinux : public AudioManagerBase {
 
   scoped_ptr<AlsaWrapper> wrapper_;
 
-  std::set<AlsaPcmOutputStream*> active_streams_;
+  std::set<AudioOutputStream*> active_streams_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerLinux);
 };
