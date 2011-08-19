@@ -5,6 +5,8 @@
 {
   'variables': {
     'chromium_code': 1,
+    # Override to dynamically link the PulseAudio library.
+    'use_pulseaudio%': 0,
   },
   'targets': [
     {
@@ -56,6 +58,8 @@
         'audio/linux/alsa_util.h',
         'audio/linux/alsa_wrapper.cc',
         'audio/linux/alsa_wrapper.h',
+        'audio/linux/pulse_output.cc',
+        'audio/linux/pulse_output.h',
         'audio/openbsd/audio_manager_openbsd.cc',
         'audio/openbsd/audio_manager_openbsd.h',
         'audio/mac/audio_input_mac.cc',
@@ -197,7 +201,7 @@
         'video/capture/win/pin_base_win.h',
         'video/capture/win/sink_filter_observer_win.h',
         'video/capture/win/sink_filter_win.cc',
-        'video/capture/win/sink_filter_win.h',        
+        'video/capture/win/sink_filter_win.h',
         'video/capture/win/sink_input_pin_win.cc',
         'video/capture/win/sink_input_pin_win.h',
         'video/capture/win/video_capture_device_win.cc',
@@ -228,12 +232,33 @@
         ],
       },
       'conditions': [
-        ['OS == "linux" or OS == "freebsd" or OS == "solaris"', {
+        ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
           'link_settings': {
             'libraries': [
               '-lasound',
             ],
           },
+          'conditions': [
+            ['OS=="linux"', {
+              'conditions': [
+                ['use_pulseaudio == 1', {
+                  'link_settings': {
+                    'libraries': [
+                      '-lpulse',
+                    ],
+                  },
+                  'defines': [
+                    'USE_PULSEAUDIO',
+                  ],
+                }, {  # else: use_pulseaudio == 0
+                  'sources!': [
+                    'audio/linux/pulse_output.cc',
+                    'audio/linux/pulse_output.h',
+                  ],
+                }],
+              ],
+            }],
+          ],
         }],
         ['OS=="openbsd"', {
           'sources/': [ ['exclude', 'alsa_' ],

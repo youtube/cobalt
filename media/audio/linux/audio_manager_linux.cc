@@ -16,6 +16,9 @@
 #include "media/audio/linux/alsa_input.h"
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
+#if defined(USE_PULSEAUDIO)
+#include "media/audio/linux/pulse_output.h"
+#endif
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 
@@ -99,15 +102,23 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
     return NULL;
   }
 
-  std::string device_name = AlsaPcmOutputStream::kAutoSelectDevice;
-  if (CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kAlsaOutputDevice)) {
-    device_name = CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-        switches::kAlsaOutputDevice);
+  AudioOutputStream* stream;
+#if defined(USE_PULSEAUDIO)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUsePulseAudio)) {
+    stream = new PulseAudioOutputStream(params, this, GetMessageLoop());
+  } else {
+#endif
+    std::string device_name = AlsaPcmOutputStream::kAutoSelectDevice;
+    if (CommandLine::ForCurrentProcess()->HasSwitch(
+            switches::kAlsaOutputDevice)) {
+      device_name = CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kAlsaOutputDevice);
+    }
+    stream = new AlsaPcmOutputStream(device_name, params, wrapper_.get(), this,
+                                     GetMessageLoop());
+#if defined(USE_PULSEAUDIO)
   }
-  AlsaPcmOutputStream* stream =
-      new AlsaPcmOutputStream(device_name, params, wrapper_.get(), this,
-                              GetMessageLoop());
+#endif
   active_streams_.insert(stream);
   return stream;
 }
@@ -170,7 +181,7 @@ void AudioManagerLinux::UnMuteAll() {
   NOTIMPLEMENTED();
 }
 
-void AudioManagerLinux::ReleaseOutputStream(AlsaPcmOutputStream* stream) {
+void AudioManagerLinux::ReleaseOutputStream(AudioOutputStream* stream) {
   if (stream) {
     active_streams_.erase(stream);
     delete stream;

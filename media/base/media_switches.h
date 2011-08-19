@@ -17,6 +17,7 @@ extern const char kAlsaInputDevice[];
 #endif
 
 extern const char kEnableAdaptive[];
+extern const char kUsePulseAudio[];
 extern const char kVideoThreads[];
 
 }  // namespace switches

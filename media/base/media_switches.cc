@@ -16,6 +16,9 @@ const char kAlsaInputDevice[] = "alsa-input-device";
 // Enable x-adaptive URL scheme.
 const char kEnableAdaptive[] = "enable-adaptive";
 
+// Use PulseAudio instead of ALSA on Linux.
+const char kUsePulseAudio[] = "use-pulseaudio";
+
 // Set number of threads to use for video decoding.
 const char kVideoThreads[] = "video-threads";
 
