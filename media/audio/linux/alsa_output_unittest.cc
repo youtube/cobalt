@@ -85,7 +85,7 @@ class MockAudioManagerLinux : public AudioManagerLinux {
   MOCK_METHOD0(MuteAll, void());
   MOCK_METHOD0(UnMuteAll, void());
 
-  MOCK_METHOD1(ReleaseOutputStream, void(AlsaPcmOutputStream* stream));
+  MOCK_METHOD1(ReleaseOutputStream, void(AudioOutputStream* stream));
 };
 
 class AlsaPcmOutputStreamTest : public testing::Test {
