@@ -4,8 +4,11 @@
 
 // Test of Histogram class
 
+#include <algorithm>
+#include <vector>
+
+#include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
-#include "base/scoped_ptr.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

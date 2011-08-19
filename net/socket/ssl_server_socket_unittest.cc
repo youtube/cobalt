@@ -15,10 +15,14 @@
 
 #include "net/socket/ssl_server_socket.h"
 
+#include <stdlib.h>
+
 #include <queue>
 
+#include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "crypto/nss_util.h"
 #include "crypto/rsa_private_key.h"
@@ -46,7 +50,10 @@ namespace {
 
 class FakeDataChannel {
  public:
-  FakeDataChannel() : read_callback_(NULL), read_buf_len_(0) {
+  FakeDataChannel()
+      : read_callback_(NULL),
+        read_buf_len_(0),
+        ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
   }
 
   virtual int Read(IOBuffer* buf, int buf_len,
@@ -63,13 +70,15 @@ class FakeDataChannel {
   virtual int Write(IOBuffer* buf, int buf_len,
                     CompletionCallback* callback) {
     data_.push(new net::DrainableIOBuffer(buf, buf_len));
-    DoReadCallback();
+    MessageLoop::current()->PostTask(
+        FROM_HERE, task_factory_.NewRunnableMethod(
+            &FakeDataChannel::DoReadCallback));
     return buf_len;
   }
 
  private:
   void DoReadCallback() {
-    if (!read_callback_)
+    if (!read_callback_ || data_.empty())
       return;
 
     int copied = PropogateData(read_buf_, read_buf_len_);
@@ -97,6 +106,8 @@ class FakeDataChannel {
 
   std::queue<scoped_refptr<net::DrainableIOBuffer> > data_;
 
+  ScopedRunnableMethodFactory<FakeDataChannel> task_factory_;
+
   DISALLOW_COPY_AND_ASSIGN(FakeDataChannel);
 };
 
@@ -109,16 +120,19 @@ class FakeSocket : public StreamSocket {
   }
 
   virtual ~FakeSocket() {
-
   }
 
   virtual int Read(IOBuffer* buf, int buf_len,
                    CompletionCallback* callback) {
+    // Read random number of bytes.
+    buf_len = rand() % buf_len + 1;
     return incoming_->Read(buf, buf_len, callback);
   }
 
   virtual int Write(IOBuffer* buf, int buf_len,
                     CompletionCallback* callback) {
+    // Write random number of bytes.
+    buf_len = rand() % buf_len + 1;
     return outgoing_->Write(buf, buf_len, callback);
   }
 
@@ -171,6 +185,14 @@ class FakeSocket : public StreamSocket {
     return false;
   }
 
+  virtual int64 NumBytesRead() const {
+    return -1;
+  }
+
+  virtual base::TimeDelta GetConnectTimeMicros() const {
+    return base::TimeDelta::FromMicroseconds(-1);
+  }
+
  private:
   net::BoundNetLog net_log_;
   FakeDataChannel* incoming_;
@@ -196,17 +218,28 @@ TEST(FakeSocketTest, DataTransfer) {
   scoped_refptr<net::IOBuffer> read_buf = new net::IOBuffer(kReadBufSize);
 
   // Write then read.
-  EXPECT_EQ(kTestDataSize, server.Write(write_buf, kTestDataSize, NULL));
-  EXPECT_EQ(kTestDataSize, client.Read(read_buf, kReadBufSize, NULL));
-  EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), kTestDataSize));
+  int written = server.Write(write_buf, kTestDataSize, NULL);
+  EXPECT_GT(written, 0);
+  EXPECT_LE(written, kTestDataSize);
+
+  int read = client.Read(read_buf, kReadBufSize, NULL);
+  EXPECT_GT(read, 0);
+  EXPECT_LE(read, written);
+  EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), read));
 
   // Read then write.
   TestCompletionCallback callback;
   EXPECT_EQ(net::ERR_IO_PENDING,
             server.Read(read_buf, kReadBufSize, &callback));
-  EXPECT_EQ(kTestDataSize, client.Write(write_buf, kTestDataSize, NULL));
-  EXPECT_EQ(kTestDataSize, callback.WaitForResult());
-  EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), kTestDataSize));
+
+  written = client.Write(write_buf, kTestDataSize, NULL);
+  EXPECT_GT(written, 0);
+  EXPECT_LE(written, kTestDataSize);
+
+  read = callback.WaitForResult();
+  EXPECT_GT(read, 0);
+  EXPECT_LE(read, written);
+  EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), read));
 }
 
 class SSLServerSocketTest : public PlatformTest {
@@ -246,21 +279,24 @@ class SSLServerSocketTest : public PlatformTest {
         crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(key_vector));
 
     net::SSLConfig ssl_config;
+    ssl_config.cached_info_enabled = false;
     ssl_config.false_start_enabled = false;
+    ssl_config.origin_bound_certs_enabled = false;
     ssl_config.ssl3_enabled = true;
     ssl_config.tls1_enabled = true;
 
     // Certificate provided by the host doesn't need authority.
     net::SSLConfig::CertAndStatus cert_and_status;
     cert_and_status.cert_status = CERT_STATUS_AUTHORITY_INVALID;
-    cert_and_status.cert = cert;
+    cert_and_status.der_cert = cert_der;
     ssl_config.allowed_bad_certs.push_back(cert_and_status);
 
     net::HostPortPair host_and_pair("unittest", 0);
+    net::SSLClientSocketContext context;
+    context.cert_verifier = &cert_verifier_;
     client_socket_.reset(
         socket_factory_->CreateSSLClientSocket(
-            fake_client_socket, host_and_pair, ssl_config, NULL,
-            &cert_verifier_));
+            fake_client_socket, host_and_pair, ssl_config, NULL, context));
     server_socket_.reset(net::CreateSSLServerSocket(fake_server_socket,
                                                     cert, private_key.get(),
                                                     net::SSLConfig()));
@@ -284,16 +320,16 @@ TEST_F(SSLServerSocketTest, Initialize) {
   Initialize();
 }
 
-// This test executes Connect() of SSLClientSocket and Accept() of
-// SSLServerSocket to make sure handshaking between the two sockets are
+// This test executes Connect() on SSLClientSocket and Handshake() on
+// SSLServerSocket to make sure handshaking between the two sockets is
 // completed successfully.
 TEST_F(SSLServerSocketTest, Handshake) {
   Initialize();
 
   TestCompletionCallback connect_callback;
-  TestCompletionCallback accept_callback;
+  TestCompletionCallback handshake_callback;
 
-  int server_ret = server_socket_->Accept(&accept_callback);
+  int server_ret = server_socket_->Handshake(&handshake_callback);
   EXPECT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
   int client_ret = client_socket_->Connect(&connect_callback);
@@ -303,7 +339,7 @@ TEST_F(SSLServerSocketTest, Handshake) {
     EXPECT_EQ(net::OK, connect_callback.WaitForResult());
   }
   if (server_ret == net::ERR_IO_PENDING) {
-    EXPECT_EQ(net::OK, accept_callback.WaitForResult());
+    EXPECT_EQ(net::OK, handshake_callback.WaitForResult());
   }
 
   // Make sure the cert status is expected.
@@ -316,20 +352,20 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   Initialize();
 
   TestCompletionCallback connect_callback;
-  TestCompletionCallback accept_callback;
+  TestCompletionCallback handshake_callback;
 
   // Establish connection.
   int client_ret = client_socket_->Connect(&connect_callback);
   ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
 
-  int server_ret = server_socket_->Accept(&accept_callback);
+  int server_ret = server_socket_->Handshake(&handshake_callback);
   ASSERT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
   if (client_ret == net::ERR_IO_PENDING) {
     ASSERT_EQ(net::OK, connect_callback.WaitForResult());
   }
   if (server_ret == net::ERR_IO_PENDING) {
-    ASSERT_EQ(net::OK, accept_callback.WaitForResult());
+    ASSERT_EQ(net::OK, handshake_callback.WaitForResult());
   }
 
   const int kReadBufSize = 1024;
@@ -369,6 +405,50 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
     EXPECT_GT(write_callback.WaitForResult(), 0);
   }
   EXPECT_EQ(0, memcmp(write_buf->data(), read_buf->data(), write_buf->size()));
+}
+
+// This test executes ExportKeyingMaterial() on the client and server sockets,
+// after connecting them, and verifies that the results match.
+// This test will fail if False Start is enabled (see crbug.com/90208).
+TEST_F(SSLServerSocketTest, ExportKeyingMaterial) {
+  Initialize();
+
+  TestCompletionCallback connect_callback;
+  TestCompletionCallback handshake_callback;
+
+  int client_ret = client_socket_->Connect(&connect_callback);
+  ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
+
+  int server_ret = server_socket_->Handshake(&handshake_callback);
+  ASSERT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
+
+  if (client_ret == net::ERR_IO_PENDING) {
+    ASSERT_EQ(net::OK, connect_callback.WaitForResult());
+  }
+  if (server_ret == net::ERR_IO_PENDING) {
+    ASSERT_EQ(net::OK, handshake_callback.WaitForResult());
+  }
+
+  const int kKeyingMaterialSize = 32;
+  const char* kKeyingLabel = "EXPERIMENTAL-server-socket-test";
+  const char* kKeyingContext = "";
+  unsigned char server_out[kKeyingMaterialSize];
+  int rv = server_socket_->ExportKeyingMaterial(kKeyingLabel, kKeyingContext,
+                                                server_out, sizeof(server_out));
+  ASSERT_EQ(rv, net::OK);
+
+  unsigned char client_out[kKeyingMaterialSize];
+  rv = client_socket_->ExportKeyingMaterial(kKeyingLabel, kKeyingContext,
+                                            client_out, sizeof(client_out));
+  ASSERT_EQ(rv, net::OK);
+  EXPECT_TRUE(memcmp(server_out, client_out, sizeof(server_out)) == 0);
+
+  const char* kKeyingLabelBad = "EXPERIMENTAL-server-socket-test-bad";
+  unsigned char client_bad[kKeyingMaterialSize];
+  rv = client_socket_->ExportKeyingMaterial(kKeyingLabelBad, kKeyingContext,
+                                            client_bad, sizeof(client_bad));
+  ASSERT_EQ(rv, net::OK);
+  EXPECT_TRUE(memcmp(server_out, client_bad, sizeof(server_out)) != 0);
 }
 #endif
 

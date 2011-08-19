@@ -15,7 +15,7 @@ namespace base {
 class MessagePumpDefault : public MessagePump {
  public:
   MessagePumpDefault();
-  ~MessagePumpDefault() {}
+  virtual ~MessagePumpDefault() {}
 
   // MessagePump methods:
   virtual void Run(Delegate* delegate);

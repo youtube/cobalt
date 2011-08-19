@@ -27,10 +27,16 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/string16.h"
-#include "build/build_config.h"
+
+// This file declares "using base::Value", etc. at the bottom, so that
+// current code can use these classes without the base namespace. In
+// new code, please always use base::Value, etc. or add your own
+// "using" declaration.
+// http://crbug.com/88666
+namespace base {
 
 class BinaryValue;
 class DictionaryValue;
@@ -42,10 +48,10 @@ class Value;
 typedef std::vector<Value*> ValueVector;
 typedef std::map<std::string, Value*> ValueMap;
 
-// The Value class is the base class for Values.  A Value can be
-// instantiated via the Create*Value() factory methods, or by directly
-// creating instances of the subclasses.
-class BASE_API Value {
+// The Value class is the base class for Values. A Value can be instantiated
+// via the Create*Value() factory methods, or by directly creating instances of
+// the subclasses.
+class BASE_EXPORT Value {
  public:
   enum ValueType {
     TYPE_NULL = 0,
@@ -94,6 +100,7 @@ class BASE_API Value {
   virtual bool GetAsString(std::string* out_value) const;
   virtual bool GetAsString(string16* out_value) const;
   virtual bool GetAsList(ListValue** out_value);
+  virtual bool GetAsList(const ListValue** out_value) const;
 
   // This creates a deep copy of the entire Value tree, and returns a pointer
   // to the copy.  The caller gets ownership of the copy, of course.
@@ -123,7 +130,7 @@ class BASE_API Value {
 };
 
 // FundamentalValue represents the simple fundamental types of values.
-class BASE_API FundamentalValue : public Value {
+class BASE_EXPORT FundamentalValue : public Value {
  public:
   explicit FundamentalValue(bool in_value);
   explicit FundamentalValue(int in_value);
@@ -147,7 +154,7 @@ class BASE_API FundamentalValue : public Value {
   DISALLOW_COPY_AND_ASSIGN(FundamentalValue);
 };
 
-class BASE_API StringValue : public Value {
+class BASE_EXPORT StringValue : public Value {
  public:
   // Initializes a StringValue with a UTF-8 narrow character string.
   explicit StringValue(const std::string& in_value);
@@ -169,7 +176,7 @@ class BASE_API StringValue : public Value {
   DISALLOW_COPY_AND_ASSIGN(StringValue);
 };
 
-class BASE_API BinaryValue: public Value {
+class BASE_EXPORT BinaryValue: public Value {
  public:
   virtual ~BinaryValue();
 
@@ -206,7 +213,7 @@ class BASE_API BinaryValue: public Value {
 // DictionaryValue provides a key-value dictionary with (optional) "path"
 // parsing for recursive access; see the comment at the top of the file. Keys
 // are |std::string|s and should be UTF-8 encoded.
-class BASE_API DictionaryValue : public Value {
+class BASE_EXPORT DictionaryValue : public Value {
  public:
   DictionaryValue();
   virtual ~DictionaryValue();
@@ -349,13 +356,13 @@ class BASE_API DictionaryValue : public Value {
 };
 
 // This type of Value represents a list of other Value values.
-class BASE_API ListValue : public Value {
+class BASE_EXPORT ListValue : public Value {
  public:
   typedef ValueVector::iterator iterator;
   typedef ValueVector::const_iterator const_iterator;
 
   ListValue();
-  ~ListValue();
+  virtual ~ListValue();
 
   // Clears the contents of this ListValue
   void Clear();
@@ -427,6 +434,7 @@ class BASE_API ListValue : public Value {
 
   // Overridden from Value:
   virtual bool GetAsList(ListValue** out_value);
+  virtual bool GetAsList(const ListValue** out_value) const;
   virtual ListValue* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
@@ -438,7 +446,7 @@ class BASE_API ListValue : public Value {
 
 // This interface is implemented by classes that know how to serialize and
 // deserialize Value objects.
-class BASE_API ValueSerializer {
+class BASE_EXPORT ValueSerializer {
  public:
   virtual ~ValueSerializer();
 
@@ -452,5 +460,14 @@ class BASE_API ValueSerializer {
   // error message including the location of the error if appropriate.
   virtual Value* Deserialize(int* error_code, std::string* error_str) = 0;
 };
+
+}  // namespace base
+
+// http://crbug.com/88666
+using base::DictionaryValue;
+using base::FundamentalValue;
+using base::ListValue;
+using base::StringValue;
+using base::Value;
 
 #endif  // BASE_VALUES_H_

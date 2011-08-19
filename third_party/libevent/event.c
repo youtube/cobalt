@@ -778,8 +778,6 @@ int
 event_del(struct event *ev)
 {
 	struct event_base *base;
-	const struct eventop *evsel;
-	void *evbase;
 
 	event_debug(("event_del: %p, callback %p",
 		 ev, ev->ev_callback));
@@ -789,8 +787,6 @@ event_del(struct event *ev)
 		return (-1);
 
 	base = ev->ev_base;
-	evsel = base->evsel;
-	evbase = base->evbase;
 
 	assert(!(ev->ev_flags & ~EVLIST_ALL));
 
@@ -808,7 +804,7 @@ event_del(struct event *ev)
 
 	if (ev->ev_flags & EVLIST_INSERTED) {
 		event_queue_remove(base, ev, EVLIST_INSERTED);
-		return (evsel->del(evbase, ev));
+		return (base->evsel->del(base->evbase, ev));
 	}
 
 	return (0);

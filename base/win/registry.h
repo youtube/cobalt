@@ -9,7 +9,7 @@
 #include <windows.h>
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 namespace base {
@@ -22,7 +22,7 @@ namespace win {
 // Note:
 // ReadValue family of functions guarantee that the return arguments
 // are not touched in case of failure.
-class BASE_API RegKey {
+class BASE_EXPORT RegKey {
  public:
   RegKey();
   RegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access);
@@ -99,7 +99,7 @@ class BASE_API RegKey {
 // For this application I happen to know I wont need data size larger
 // than MAX_PATH, but in real life this wouldn't neccessarily be
 // adequate.
-class BASE_API RegistryValueIterator {
+class BASE_EXPORT RegistryValueIterator {
  public:
   RegistryValueIterator(HKEY root_key, const wchar_t* folder_key);
 
@@ -139,7 +139,7 @@ class BASE_API RegistryValueIterator {
   DISALLOW_COPY_AND_ASSIGN(RegistryValueIterator);
 };
 
-class BASE_API RegistryKeyIterator {
+class BASE_EXPORT RegistryKeyIterator {
  public:
   RegistryKeyIterator(HKEY root_key, const wchar_t* folder_key);
 

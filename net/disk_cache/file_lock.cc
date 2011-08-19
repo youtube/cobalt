@@ -12,6 +12,10 @@ FileLock::FileLock(BlockFileHeader* header) {
   acquired_ = true;
 }
 
+FileLock::~FileLock() {
+  Unlock();
+}
+
 void FileLock::Lock() {
   if (acquired_)
     return;

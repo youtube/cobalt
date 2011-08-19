@@ -11,11 +11,9 @@
 #
 # The focus of this file is testing the r-tree extension.
 #
-# $Id: rtree2.test,v 1.4 2008/07/14 15:37:01 danielk1977 Exp $
-#
 
 if {![info exists testdir]} {
-  set testdir [file join [file dirname $argv0] .. .. test]
+  set testdir [file join [file dirname [info script]] .. .. test]
 } 
 source [file join [file dirname [info script]] rtree_util.tcl]
 source $testdir/tester.tcl
@@ -29,7 +27,7 @@ set ::NROW   1000
 set ::NDEL     10
 set ::NSELECT 100
 
-if {[info exists ISQUICK] && $ISQUICK} {
+if {[info exists G(isquick)] && $G(isquick)} {
   set ::NROW 100
   set ::NSELECT 10
 }

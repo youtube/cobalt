@@ -6,7 +6,7 @@
 #define BASE_SYNCHRONIZATION_LOCK_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/synchronization/lock_impl.h"
 #include "base/threading/platform_thread.h"
 
@@ -15,7 +15,7 @@ namespace base {
 // A convenient wrapper for an OS specific critical section.  The only real
 // intelligence in this class is in debug mode for the support for the
 // AssertAcquired() method.
-class BASE_API Lock {
+class BASE_EXPORT Lock {
  public:
 #if defined(NDEBUG)             // Optimized wrapper implementation
   Lock() : lock_() {}

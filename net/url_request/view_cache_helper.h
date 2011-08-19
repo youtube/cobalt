@@ -31,7 +31,7 @@ class NET_API ViewCacheHelper {
   // operation completes. |out| must remain valid until this operation completes
   // or the object is destroyed.
   int GetEntryInfoHTML(const std::string& key,
-                       URLRequestContext* context,
+                       const URLRequestContext* context,
                        std::string* out,
                        CompletionCallback* callback);
 
@@ -40,10 +40,15 @@ class NET_API ViewCacheHelper {
   // operation completes. |out| must remain valid until this operation completes
   // or the object is destroyed. |url_prefix| will be prepended to each entry
   // key as a link to the entry.
-  int GetContentsHTML(URLRequestContext* context,
+  int GetContentsHTML(const URLRequestContext* context,
                       const std::string& url_prefix,
                       std::string* out,
                       CompletionCallback* callback);
+
+  // Lower-level helper to produce a textual representation of binary data.
+  // The results are appended to |result| and can be used in HTML pages
+  // provided the dump is contained within <pre></pre> tags.
+  static void HexDump(const char *buf, size_t buf_len, std::string* result);
 
  private:
   enum State {
@@ -62,7 +67,7 @@ class NET_API ViewCacheHelper {
 
   // Implements GetEntryInfoHTML and GetContentsHTML.
   int GetInfoHTML(const std::string& key,
-                  URLRequestContext* context,
+                  const URLRequestContext* context,
                   const std::string& url_prefix,
                   std::string* out,
                   CompletionCallback* callback);
@@ -94,7 +99,7 @@ class NET_API ViewCacheHelper {
   // Called to signal completion of asynchronous IO.
   void OnIOComplete(int result);
 
-  scoped_refptr<URLRequestContext> context_;
+  scoped_refptr<const URLRequestContext> context_;
   disk_cache::Backend* disk_cache_;
   disk_cache::Entry* entry_;
   void* iter_;

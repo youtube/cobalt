@@ -23,7 +23,7 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/hash_tables.h"
 #include "base/synchronization/lock.h"
@@ -31,7 +31,7 @@
 
 namespace base {
 
-class BASE_API StatsTable {
+class BASE_EXPORT StatsTable {
  public:
   // Create a new StatsTable.
   // If a StatsTable already exists with the specified name, this StatsTable

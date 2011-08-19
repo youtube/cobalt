@@ -6,7 +6,7 @@
 #define BASE_THREADING_THREAD_LOCAL_STORAGE_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 #if defined(OS_POSIX)
@@ -17,7 +17,7 @@ namespace base {
 
 // Wrapper for thread local storage.  This class doesn't do much except provide
 // an API for portability.
-class BASE_API ThreadLocalStorage {
+class BASE_EXPORT ThreadLocalStorage {
  public:
 
   // Prototype for the TLS destructor function, which can be optionally used to
@@ -26,7 +26,7 @@ class BASE_API ThreadLocalStorage {
   typedef void (*TLSDestructorFunc)(void* value);
 
   // A key representing one value stored in TLS.
-  class BASE_API Slot {
+  class BASE_EXPORT Slot {
    public:
     explicit Slot(TLSDestructorFunc destructor = NULL);
 

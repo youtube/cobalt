@@ -13,8 +13,6 @@
 ** This file contains routines used for walking the parser tree and
 ** resolve all identifiers by associating them with a particular
 ** table and column.
-**
-** $Id: resolve.c,v 1.30 2009/06/15 23:15:59 drh Exp $
 */
 #include "sqliteInt.h"
 #include <stdlib.h>
@@ -89,7 +87,13 @@ static void resolveAlias(
     pDup->pColl = pExpr->pColl;
     pDup->flags |= EP_ExpCollate;
   }
-  sqlite3ExprClear(db, pExpr);
+
+  /* Before calling sqlite3ExprDelete(), set the EP_Static flag. This 
+  ** prevents ExprDelete() from deleting the Expr structure itself,
+  ** allowing it to be repopulated by the memcpy() on the following line.
+  */
+  ExprSetProperty(pExpr, EP_Static);
+  sqlite3ExprDelete(db, pExpr);
   memcpy(pExpr, pDup, sizeof(*pExpr));
   sqlite3DbFree(db, pDup);
 }
@@ -239,18 +243,17 @@ static int lookupName(
         int iCol;
         pSchema = pTab->pSchema;
         cntTab++;
-        if( sqlite3IsRowid(zCol) ){
-          iCol = -1;
-        }else{
-          for(iCol=0; iCol<pTab->nCol; iCol++){
-            Column *pCol = &pTab->aCol[iCol];
-            if( sqlite3StrICmp(pCol->zName, zCol)==0 ){
-              if( iCol==pTab->iPKey ){
-                iCol = -1;
-              }
-              break;
+        for(iCol=0; iCol<pTab->nCol; iCol++){
+          Column *pCol = &pTab->aCol[iCol];
+          if( sqlite3StrICmp(pCol->zName, zCol)==0 ){
+            if( iCol==pTab->iPKey ){
+              iCol = -1;
             }
+            break;
           }
+        }
+        if( iCol>=pTab->nCol && sqlite3IsRowid(zCol) ){
+          iCol = -1;        /* IMP: R-44911-55124 */
         }
         if( iCol<pTab->nCol ){
           cnt++;
@@ -260,6 +263,10 @@ static int lookupName(
             testcase( iCol==31 );
             testcase( iCol==32 );
             pParse->oldmask |= (iCol>=32 ? 0xffffffff : (((u32)1)<<iCol));
+          }else{
+            testcase( iCol==31 );
+            testcase( iCol==32 );
+            pParse->newmask |= (iCol>=32 ? 0xffffffff : (((u32)1)<<iCol));
           }
           pExpr->iColumn = (i16)iCol;
           pExpr->pTab = pTab;
@@ -274,7 +281,7 @@ static int lookupName(
     */
     if( cnt==0 && cntTab==1 && sqlite3IsRowid(zCol) ){
       cnt = 1;
-      pExpr->iColumn = -1;
+      pExpr->iColumn = -1;     /* IMP: R-44911-55124 */
       pExpr->affinity = SQLITE_AFF_INTEGER;
     }
 
@@ -350,6 +357,7 @@ static int lookupName(
     }else{
       sqlite3ErrorMsg(pParse, "%s: %s", zErr, zCol);
     }
+    pParse->checkSchema = 1;
     pTopNC->nErr++;
   }
 
@@ -392,6 +400,29 @@ lookupname_end:
   } else {
     return WRC_Abort;
   }
+}
+
+/*
+** Allocate and return a pointer to an expression to load the column iCol
+** from datasource iSrc in SrcList pSrc.
+*/
+Expr *sqlite3CreateColumnExpr(sqlite3 *db, SrcList *pSrc, int iSrc, int iCol){
+  Expr *p = sqlite3ExprAlloc(db, TK_COLUMN, 0, 0);
+  if( p ){
+    struct SrcList_item *pItem = &pSrc->a[iSrc];
+    p->pTab = pItem->pTab;
+    p->iTable = pItem->iCursor;
+    if( p->pTab->iPKey==iCol ){
+      p->iColumn = -1;
+    }else{
+      p->iColumn = (ynVar)iCol;
+      testcase( iCol==BMS );
+      testcase( iCol==BMS-1 );
+      pItem->colUsed |= ((Bitmask)1)<<(iCol>=BMS ? BMS-1 : iCol);
+    }
+    ExprSetProperty(p, EP_Resolved);
+  }
+  return p;
 }
 
 /*
@@ -636,6 +667,9 @@ static int resolveOrderByTermToExprList(
   int i;             /* Loop counter */
   ExprList *pEList;  /* The columns of the result set */
   NameContext nc;    /* Name context for resolving pE */
+  sqlite3 *db;       /* Database connection */
+  int rc;            /* Return code from subprocedures */
+  u8 savedSuppErr;   /* Saved value of db->suppressErr */
 
   assert( sqlite3ExprIsInteger(pE, &i)==0 );
   pEList = pSelect->pEList;
@@ -648,17 +682,19 @@ static int resolveOrderByTermToExprList(
   nc.pEList = pEList;
   nc.allowAgg = 1;
   nc.nErr = 0;
-  if( sqlite3ResolveExprNames(&nc, pE) ){
-    sqlite3ErrorClear(pParse);
-    return 0;
-  }
+  db = pParse->db;
+  savedSuppErr = db->suppressErr;
+  db->suppressErr = 1;
+  rc = sqlite3ResolveExprNames(&nc, pE);
+  db->suppressErr = savedSuppErr;
+  if( rc ) return 0;
 
   /* Try to match the ORDER BY expression against an expression
   ** in the result set.  Return an 1-based index of the matching
   ** result-set entry.
   */
   for(i=0; i<pEList->nExpr; i++){
-    if( sqlite3ExprCompare(pEList->a[i].pExpr, pE) ){
+    if( sqlite3ExprCompare(pEList->a[i].pExpr, pE)<2 ){
       return i+1;
     }
   }

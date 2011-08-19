@@ -13,10 +13,19 @@
 #include "net/base/net_errors.h"
 #include "net/socket/stream_socket.h"
 
+namespace base {
+class StringPiece;
+}  // namespace base
+
 namespace net {
 
+class CertVerifier;
+class DnsCertProvenanceChecker;
+class DnsRRResolver;
+class OriginBoundCertService;
 class SSLCertRequestInfo;
 class SSLHostInfo;
+class SSLHostInfoFactory;
 class SSLInfo;
 struct RRResponse;
 
@@ -34,6 +43,34 @@ class DNSSECProvider {
 
  private:
   ~DNSSECProvider() {}
+};
+
+// This struct groups together several fields which are used by various
+// classes related to SSLClientSocket.
+struct SSLClientSocketContext {
+  SSLClientSocketContext()
+      : cert_verifier(NULL),
+        origin_bound_cert_service(NULL),
+        dnsrr_resolver(NULL),
+        dns_cert_checker(NULL),
+        ssl_host_info_factory(NULL) {}
+
+  SSLClientSocketContext(CertVerifier* cert_verifier_arg,
+                         OriginBoundCertService* origin_bound_cert_service_arg,
+                         DnsRRResolver* dnsrr_resolver_arg,
+                         DnsCertProvenanceChecker* dns_cert_checker_arg,
+                         SSLHostInfoFactory* ssl_host_info_factory_arg)
+      : cert_verifier(cert_verifier_arg),
+        origin_bound_cert_service(origin_bound_cert_service_arg),
+        dnsrr_resolver(dnsrr_resolver_arg),
+        dns_cert_checker(dns_cert_checker_arg),
+        ssl_host_info_factory(ssl_host_info_factory_arg) {}
+
+  CertVerifier* cert_verifier;
+  OriginBoundCertService* origin_bound_cert_service;
+  DnsRRResolver* dnsrr_resolver;
+  DnsCertProvenanceChecker* dns_cert_checker;
+  SSLHostInfoFactory* ssl_host_info_factory;
 };
 
 // A client socket that uses SSL as the transport layer.
@@ -76,6 +113,14 @@ class NET_API SSLClientSocket : public StreamSocket {
   // with ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) = 0;
+
+  // Exports data derived from the SSL master-secret (see RFC 5705).
+  // The call will fail with an error if the socket is not connected, or the
+  // SSL implementation does not support the operation.
+  virtual int ExportKeyingMaterial(const base::StringPiece& label,
+                                   const base::StringPiece& context,
+                                   unsigned char *out,
+                                   unsigned int outlen) = 0;
 
   // Get the application level protocol that we negotiated with the server.
   // *proto is set to the resulting protocol (n.b. that the string may have

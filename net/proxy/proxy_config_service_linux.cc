@@ -23,6 +23,7 @@
 
 #include <map>
 
+#include "base/compiler_specific.h"
 #include "base/environment.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -199,7 +200,7 @@ const int kDebounceTimeoutMilliseconds = 250;
 class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
  public:
   SettingGetterImplGConf()
-      : client_(NULL), notify_delegate_(NULL), loop_(NULL) {}
+      : this_(this), client_(NULL), notify_delegate_(NULL), loop_(NULL) {}
 
   virtual ~SettingGetterImplGConf() {
     // client_ should have been released before now, from
@@ -225,7 +226,7 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
   }
 
   virtual bool Init(MessageLoop* glib_default_loop,
-                    MessageLoopForIO* file_loop) {
+                    MessageLoopForIO* file_loop) OVERRIDE {
     DCHECK(MessageLoop::current() == glib_default_loop);
     DCHECK(!client_);
     DCHECK(!loop_);
@@ -291,15 +292,15 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     return true;
   }
 
-  virtual MessageLoop* GetNotificationLoop() {
+  virtual MessageLoop* GetNotificationLoop() OVERRIDE {
     return loop_;
   }
 
-  virtual const char* GetDataSource() {
+  virtual const char* GetDataSource() OVERRIDE {
     return "gconf";
   }
 
-  virtual bool GetString(StringSetting key, std::string* result) {
+  virtual bool GetString(StringSetting key, std::string* result) OVERRIDE {
     switch (key) {
       case PROXY_MODE:
         return GetStringByPath("/system/proxy/mode", result);
@@ -316,7 +317,7 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     }
     return false;  // Placate compiler.
   }
-  virtual bool GetBool(BoolSetting key, bool* result) {
+  virtual bool GetBool(BoolSetting key, bool* result) OVERRIDE {
     switch (key) {
       case PROXY_USE_HTTP_PROXY:
         return GetBoolByPath("/system/http_proxy/use_http_proxy", result);
@@ -327,7 +328,7 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     }
     return false;  // Placate compiler.
   }
-  virtual bool GetInt(IntSetting key, int* result) {
+  virtual bool GetInt(IntSetting key, int* result) OVERRIDE {
     switch (key) {
       case PROXY_HTTP_PORT:
         return GetIntByPath("/system/http_proxy/port", result);
@@ -341,7 +342,7 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     return false;  // Placate compiler.
   }
   virtual bool GetStringList(StringListSetting key,
-                             std::vector<std::string>* result) {
+                             std::vector<std::string>* result) OVERRIDE {
     switch (key) {
       case PROXY_IGNORE_HOSTS:
         return GetStringListByPath("/system/http_proxy/ignore_hosts", result);
@@ -349,12 +350,12 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     return false;  // Placate compiler.
   }
 
-  virtual bool BypassListIsReversed() {
+  virtual bool BypassListIsReversed() OVERRIDE {
     // This is a KDE-specific setting.
     return false;
   }
 
-  virtual bool MatchHostsUsingSuffixMatching() {
+  virtual bool MatchHostsUsingSuffixMatching() OVERRIDE {
     return false;
   }
 
@@ -446,6 +447,9 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
   }
 
   void OnChangeNotification() {
+    // See below. This check is to try and track bugs 75508 and 84673.
+    // TODO(mdm): remove this check once it gives us some results.
+    CHECK(this_ == this);
     // We don't use Reset() because the timer may not yet be running.
     // (In that case Stop() is a no-op.)
     debounce_timer_.Stop();
@@ -465,6 +469,12 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     setting_getter->OnChangeNotification();
   }
 
+  // See bugs 75508 and 84673. I kind of suspect we're getting bogus pointers to
+  // this object somehow in callbacks from GConf; this pointer is always set to
+  // |this| on construction and should help verify whether this object has been
+  // scribbled upon or if we have a stray pointer somehow.
+  SettingGetterImplGConf* this_;
+
   GConfClient* client_;
   ProxyConfigServiceLinux::Delegate* notify_delegate_;
   base::OneShotTimer<SettingGetterImplGConf> debounce_timer_;
@@ -483,11 +493,36 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
 class SettingGetterImplGSettings
     : public ProxyConfigServiceLinux::SettingGetter {
  public:
-  SettingGetterImplGSettings()
-      : client_(NULL), notify_delegate_(NULL), loop_(NULL) {
-#if defined(DLOPEN_GSETTINGS)
-    gio_handle_ = NULL;
+#if 0
+GSettings* (*g_settings_new)(const gchar* schema);
+  GSettings* (*g_settings_get_child)(GSettings* settings, const gchar* name);
+  gboolean (*g_settings_get_boolean)(GSettings* settings, const gchar* key);
+  gchar* (*g_settings_get_string)(GSettings* settings, const gchar* key);
+  gint (*g_settings_get_int)(GSettings* settings, const gchar* key);
+  gchar** (*g_settings_get_strv)(GSettings* settings, const gchar* key);
+  const gchar* const* (*g_settings_list_schemas)();
+
+  // The library handle.
+  void* gio_handle_;
 #endif
+  SettingGetterImplGSettings() :
+#if defined(DLOPEN_GSETTINGS)
+    g_settings_new(NULL),
+    g_settings_get_child(NULL),
+    g_settings_get_boolean(NULL),
+    g_settings_get_string(NULL),
+    g_settings_get_int(NULL),
+    g_settings_get_strv(NULL),
+    g_settings_list_schemas(NULL),
+    gio_handle_(NULL),
+#endif
+    client_(NULL),
+    http_client_(NULL),
+    https_client_(NULL),
+    ftp_client_(NULL),
+    socks_client_(NULL),
+    notify_delegate_(NULL),
+    loop_(NULL) {
   }
 
   virtual ~SettingGetterImplGSettings() {
@@ -533,7 +568,7 @@ class SettingGetterImplGSettings
   bool LoadAndCheckVersion(base::Environment* env);
 
   virtual bool Init(MessageLoop* glib_default_loop,
-                    MessageLoopForIO* file_loop) {
+                    MessageLoopForIO* file_loop) OVERRIDE {
     DCHECK(MessageLoop::current() == glib_default_loop);
     DCHECK(!client_);
     DCHECK(!loop_);
@@ -591,15 +626,15 @@ class SettingGetterImplGSettings
     return true;
   }
 
-  virtual MessageLoop* GetNotificationLoop() {
+  virtual MessageLoop* GetNotificationLoop() OVERRIDE {
     return loop_;
   }
 
-  virtual const char* GetDataSource() {
+  virtual const char* GetDataSource() OVERRIDE {
     return "gsettings";
   }
 
-  virtual bool GetString(StringSetting key, std::string* result) {
+  virtual bool GetString(StringSetting key, std::string* result) OVERRIDE {
     DCHECK(client_);
     switch (key) {
       case PROXY_MODE:
@@ -617,7 +652,7 @@ class SettingGetterImplGSettings
     }
     return false;  // Placate compiler.
   }
-  virtual bool GetBool(BoolSetting key, bool* result) {
+  virtual bool GetBool(BoolSetting key, bool* result) OVERRIDE {
     DCHECK(client_);
     switch (key) {
       case PROXY_USE_HTTP_PROXY:
@@ -635,7 +670,7 @@ class SettingGetterImplGSettings
     }
     return false;  // Placate compiler.
   }
-  virtual bool GetInt(IntSetting key, int* result) {
+  virtual bool GetInt(IntSetting key, int* result) OVERRIDE {
     DCHECK(client_);
     switch (key) {
       case PROXY_HTTP_PORT:
@@ -650,7 +685,7 @@ class SettingGetterImplGSettings
     return false;  // Placate compiler.
   }
   virtual bool GetStringList(StringListSetting key,
-                             std::vector<std::string>* result) {
+                             std::vector<std::string>* result) OVERRIDE {
     DCHECK(client_);
     switch (key) {
       case PROXY_IGNORE_HOSTS:
@@ -659,12 +694,12 @@ class SettingGetterImplGSettings
     return false;  // Placate compiler.
   }
 
-  virtual bool BypassListIsReversed() {
+  virtual bool BypassListIsReversed() OVERRIDE {
     // This is a KDE-specific setting.
     return false;
   }
 
-  virtual bool MatchHostsUsingSuffixMatching() {
+  virtual bool MatchHostsUsingSuffixMatching() OVERRIDE {
     return false;
   }
 
@@ -933,7 +968,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
   }
 
   virtual bool Init(MessageLoop* glib_default_loop,
-                    MessageLoopForIO* file_loop) {
+                    MessageLoopForIO* file_loop) OVERRIDE {
     // This has to be called on the UI thread (http://crbug.com/69057).
     base::ThreadRestrictions::ScopedAllowIO allow_io;
     DCHECK(inotify_fd_ < 0);
@@ -985,7 +1020,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     return true;
   }
 
-  virtual MessageLoop* GetNotificationLoop() {
+  virtual MessageLoop* GetNotificationLoop() OVERRIDE {
     return file_loop_;
   }
 
@@ -999,27 +1034,27 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     NOTREACHED();
   }
 
-  virtual const char* GetDataSource() {
+  virtual const char* GetDataSource() OVERRIDE {
     return "KDE";
   }
 
-  virtual bool GetString(StringSetting key, std::string* result) {
+  virtual bool GetString(StringSetting key, std::string* result) OVERRIDE {
     string_map_type::iterator it = string_table_.find(key);
     if (it == string_table_.end())
       return false;
     *result = it->second;
     return true;
   }
-  virtual bool GetBool(BoolSetting key, bool* result) {
+  virtual bool GetBool(BoolSetting key, bool* result) OVERRIDE {
     // We don't ever have any booleans.
     return false;
   }
-  virtual bool GetInt(IntSetting key, int* result) {
+  virtual bool GetInt(IntSetting key, int* result) OVERRIDE {
     // We don't ever have any integers. (See AddProxy() below about ports.)
     return false;
   }
   virtual bool GetStringList(StringListSetting key,
-                             std::vector<std::string>* result) {
+                             std::vector<std::string>* result) OVERRIDE {
     strings_map_type::iterator it = strings_table_.find(key);
     if (it == strings_table_.end())
       return false;
@@ -1027,11 +1062,11 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     return true;
   }
 
-  virtual bool BypassListIsReversed() {
+  virtual bool BypassListIsReversed() OVERRIDE {
     return reversed_bypass_list_;
   }
 
-  virtual bool MatchHostsUsingSuffixMatching() {
+  virtual bool MatchHostsUsingSuffixMatching() OVERRIDE {
     return true;
   }
 

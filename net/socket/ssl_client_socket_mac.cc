@@ -438,8 +438,8 @@ X509Certificate* GetServerCert(SSLContextRef ssl_context) {
 
   SecCertificateRef server_cert = static_cast<SecCertificateRef>(
       const_cast<void*>(CFArrayGetValueAtIndex(certs, 0)));
-  return X509Certificate::CreateFromHandle(
-      server_cert, X509Certificate::SOURCE_FROM_NETWORK, intermediate_ca_certs);
+  return X509Certificate::CreateFromHandle(server_cert,
+                                           intermediate_ca_certs);
 }
 
 // Dynamically look up a pointer to a function exported by a bundle.
@@ -521,7 +521,7 @@ EnabledCipherSuites::EnabledCipherSuites() {
 SSLClientSocketMac::SSLClientSocketMac(ClientSocketHandle* transport_socket,
                                        const HostPortPair& host_and_port,
                                        const SSLConfig& ssl_config,
-                                       CertVerifier* cert_verifier)
+                                       const SSLClientSocketContext& context)
     : handshake_io_callback_(this, &SSLClientSocketMac::OnHandshakeIOComplete),
       transport_read_callback_(this,
                                &SSLClientSocketMac::OnTransportReadComplete),
@@ -536,7 +536,7 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocketHandle* transport_socket,
       user_read_buf_len_(0),
       user_write_buf_len_(0),
       next_handshake_state_(STATE_NONE),
-      cert_verifier_(cert_verifier),
+      cert_verifier_(context.cert_verifier),
       renegotiating_(false),
       client_cert_requested_(false),
       ssl_context_(NULL),
@@ -658,6 +658,22 @@ bool SSLClientSocketMac::UsingTCPFastOpen() const {
   return false;
 }
 
+int64 SSLClientSocketMac::NumBytesRead() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->NumBytesRead();
+  }
+  NOTREACHED();
+  return -1;
+}
+
+base::TimeDelta SSLClientSocketMac::GetConnectTimeMicros() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetConnectTimeMicros();
+  }
+  NOTREACHED();
+  return base::TimeDelta::FromMicroseconds(-1);
+}
+
 int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   DCHECK(completed_handshake());
@@ -706,10 +722,8 @@ bool SSLClientSocketMac::SetSendBufferSize(int32 size) {
 
 void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
-  if (!server_cert_) {
-    NOTREACHED();
+  if (!server_cert_)
     return;
-  }
 
   ssl_info->cert = server_cert_;
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
@@ -765,6 +779,13 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
                                             &cert_request_info->client_certs);
   VLOG(1) << "Asking user to choose between "
           << cert_request_info->client_certs.size() << " client certs...";
+}
+
+int SSLClientSocketMac::ExportKeyingMaterial(const base::StringPiece& label,
+                                             const base::StringPiece& context,
+                                             unsigned char *out,
+                                             unsigned int outlen) {
+  return ERR_NOT_IMPLEMENTED;
 }
 
 SSLClientSocket::NextProtoStatus
@@ -1125,6 +1146,7 @@ int SSLClientSocketMac::DoVerifyCert() {
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;
     server_cert_verify_result_.Reset();
     server_cert_verify_result_.cert_status = cert_status;
+    server_cert_verify_result_.verified_cert = server_cert_;
     return OK;
   }
 
@@ -1195,8 +1217,8 @@ int SSLClientSocketMac::DoPayloadRead() {
   // which otherwise would get out of sync with the SSLContextRef's internal
   // state machine.
   if (processed > 0) {
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED,
-                    processed, user_read_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED,
+                                  processed, user_read_buf_->data());
     return processed;
   }
 
@@ -1224,8 +1246,8 @@ int SSLClientSocketMac::DoPayloadWrite() {
                              &processed);
 
   if (processed > 0) {
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, processed,
-                    user_write_buf_->data());
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_SENT, processed,
+                                  user_write_buf_->data());
     return processed;
   }
 

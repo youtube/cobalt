@@ -111,6 +111,9 @@ class NET_API HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Note that this map may contain expired entries.
   const EntryMap& entries() const;
 
+  // Creates a default cache.
+  static HostCache* CreateDefaultCache();
+
  private:
   FRIEND_TEST_ALL_PREFIXES(HostCacheTest, Compact);
   FRIEND_TEST_ALL_PREFIXES(HostCacheTest, NoCache);

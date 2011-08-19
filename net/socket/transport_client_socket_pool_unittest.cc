@@ -85,6 +85,10 @@ class MockClientSocket : public StreamSocket {
   virtual void SetOmniboxSpeculation() {}
   virtual bool WasEverUsed() const { return false; }
   virtual bool UsingTCPFastOpen() const { return false; }
+  virtual int64 NumBytesRead() const { return -1; }
+  virtual base::TimeDelta GetConnectTimeMicros() const {
+    return base::TimeDelta::FromMicroseconds(-1);
+  }
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len,
@@ -135,6 +139,10 @@ class MockFailingClientSocket : public StreamSocket {
   virtual void SetOmniboxSpeculation() {}
   virtual bool WasEverUsed() const { return false; }
   virtual bool UsingTCPFastOpen() const { return false; }
+  virtual int64 NumBytesRead() const { return -1; }
+  virtual base::TimeDelta GetConnectTimeMicros() const {
+    return base::TimeDelta::FromMicroseconds(-1);
+  }
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len,
@@ -209,6 +217,10 @@ class MockPendingClientSocket : public StreamSocket {
   virtual void SetOmniboxSpeculation() {}
   virtual bool WasEverUsed() const { return false; }
   virtual bool UsingTCPFastOpen() const { return false; }
+  virtual int64 NumBytesRead() const { return -1; }
+  virtual base::TimeDelta GetConnectTimeMicros() const {
+    return base::TimeDelta::FromMicroseconds(-1);
+  }
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len,
@@ -265,6 +277,15 @@ class MockClientSocketFactory : public ClientSocketFactory {
         client_socket_index_max_(0),
         delay_ms_(ClientSocketPool::kMaxConnectRetryIntervalMs) {}
 
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
+      NetLog* net_log,
+      const NetLog::Source& source) {
+    NOTREACHED();
+    return NULL;
+  }
+
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* /* net_log */,
@@ -301,8 +322,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      CertVerifier* cert_verifier,
-      DnsCertProvenanceChecker* dns_cert_checker) {
+      const SSLClientSocketContext& context) {
     NOTIMPLEMENTED();
     delete ssl_host_info;
     return NULL;
@@ -973,7 +993,15 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 // Test the case where a socket took long enough to start the creation
 // of the backup socket and never completes, and then the backup
 // connection fails.
-TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterStall) {
+//
+// Flaky on Mac + Linux - http://crbug.com/86550
+// Flaky on ChromeOS - http://crbug.com/89273
+#if defined(OS_MACOSX) || defined(OS_CHROMEOS) || defined(OS_LINUX)
+#define MAYBE_BackupSocketFailAfterStall FLAKY_BackupSocketFailAfterStall
+#else
+#define MAYBE_BackupSocketFailAfterStall BackupSocketFailAfterStall
+#endif
+TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterStall) {
   MockClientSocketFactory::ClientSocketType case_types[] = {
     // The first socket will not connect.
     MockClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET,
@@ -1027,6 +1055,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   };
 
   client_socket_factory_.set_client_socket_types(case_types, 2);
+  client_socket_factory_.set_delay_ms(5000);
 
   EXPECT_EQ(0, pool_.IdleSocketCount());
 

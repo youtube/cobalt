@@ -1,12 +1,13 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/network_change_notifier.h"
+#include "net/base/network_change_notifier_factory.h"
 #include "build/build_config.h"
 #if defined(OS_WIN)
 #include "net/base/network_change_notifier_win.h"
-#elif defined(OS_LINUX)
+#elif defined(OS_LINUX) || defined(OS_ANDROID)
 #include "net/base/network_change_notifier_linux.h"
 #elif defined(OS_MACOSX)
 #include "net/base/network_change_notifier_mac.h"
@@ -22,6 +23,9 @@ namespace {
 // anyway.)
 NetworkChangeNotifier* g_network_change_notifier = NULL;
 
+// Class factory singleton.
+NetworkChangeNotifierFactory* g_network_change_notifier_factory = NULL;
+
 class MockNetworkChangeNotifier : public NetworkChangeNotifier {
  public:
   virtual bool IsCurrentlyOffline() const { return false; }
@@ -34,10 +38,25 @@ NetworkChangeNotifier::~NetworkChangeNotifier() {
   g_network_change_notifier = NULL;
 }
 
+// static
+void NetworkChangeNotifier::SetFactory(
+    NetworkChangeNotifierFactory* factory) {
+  CHECK(!g_network_change_notifier_factory);
+  g_network_change_notifier_factory = factory;
+}
+
+// static
 NetworkChangeNotifier* NetworkChangeNotifier::Create() {
+  if (g_network_change_notifier_factory)
+    return g_network_change_notifier_factory->CreateInstance();
+
 #if defined(OS_WIN)
   return new NetworkChangeNotifierWin();
-#elif defined(OS_LINUX)
+#elif defined(OS_CHROMEOS)
+  // ChromeOS builds MUST use its own class factory.
+  CHECK(false);
+  return NULL;
+#elif defined(OS_LINUX) || defined(OS_ANDROID)
   return new NetworkChangeNotifierLinux();
 #elif defined(OS_MACOSX)
   return new NetworkChangeNotifierMac();
@@ -106,8 +125,10 @@ void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
 }
 
 void NetworkChangeNotifier::NotifyObserversOfOnlineStateChange() {
-  online_state_observer_list_->Notify(
-      &OnlineStateObserver::OnOnlineStateChanged, !IsOffline());
+  if (g_network_change_notifier) {
+    g_network_change_notifier->online_state_observer_list_->Notify(
+        &OnlineStateObserver::OnOnlineStateChanged, !IsOffline());
+  }
 }
 
 }  // namespace net

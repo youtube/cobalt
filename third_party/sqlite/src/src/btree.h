@@ -12,8 +12,6 @@
 ** This header file defines the interface that the sqlite B-Tree file
 ** subsystem.  See comments in the source code for a detailed description
 ** of what each interface routine does.
-**
-** @(#) $Id: btree.h,v 1.120 2009/07/22 00:35:24 drh Exp $
 */
 #ifndef _BTREE_H_
 #define _BTREE_H_
@@ -41,18 +39,6 @@
 typedef struct Btree Btree;
 typedef struct BtCursor BtCursor;
 typedef struct BtShared BtShared;
-typedef struct BtreeMutexArray BtreeMutexArray;
-
-/*
-** This structure records all of the Btrees that need to hold
-** a mutex before we enter sqlite3VdbeExec().  The Btrees are
-** are placed in aBtree[] in order of aBtree[]->pBt.  That way,
-** we can always lock and unlock them all quickly.
-*/
-struct BtreeMutexArray {
-  int nMutex;
-  Btree *aBtree[SQLITE_MAX_ATTACHED+1];
-};
 
 
 int sqlite3BtreeOpen(
@@ -69,26 +55,27 @@ int sqlite3BtreeOpen(
 ** NOTE:  These values must match the corresponding PAGER_ values in
 ** pager.h.
 */
-#define BTREE_OMIT_JOURNAL  1  /* Do not use journal.  No argument */
+#define BTREE_OMIT_JOURNAL  1  /* Do not create or use a rollback journal */
 #define BTREE_NO_READLOCK   2  /* Omit readlocks on readonly files */
-#define BTREE_MEMORY        4  /* In-memory DB.  No argument */
-#define BTREE_READONLY      8  /* Open the database in read-only mode */
-#define BTREE_READWRITE    16  /* Open for both reading and writing */
-#define BTREE_CREATE       32  /* Create the database if it does not exist */
+#define BTREE_MEMORY        4  /* This is an in-memory DB */
+#define BTREE_SINGLE        8  /* The file contains at most 1 b-tree */
+#define BTREE_UNORDERED    16  /* Use of a hash implementation is OK */
 
 int sqlite3BtreeClose(Btree*);
 int sqlite3BtreeSetCacheSize(Btree*,int);
-int sqlite3BtreeSetSafetyLevel(Btree*,int,int);
+int sqlite3BtreeSetSafetyLevel(Btree*,int,int,int);
 int sqlite3BtreeSyncDisabled(Btree*);
 int sqlite3BtreeSetPageSize(Btree *p, int nPagesize, int nReserve, int eFix);
 int sqlite3BtreeGetPageSize(Btree*);
 int sqlite3BtreeMaxPageCount(Btree*,int);
+u32 sqlite3BtreeLastPage(Btree*);
+int sqlite3BtreeSecureDelete(Btree*,int);
 int sqlite3BtreeGetReserve(Btree*);
 int sqlite3BtreeSetAutoVacuum(Btree *, int);
 int sqlite3BtreeGetAutoVacuum(Btree *);
 int sqlite3BtreeBeginTrans(Btree*,int);
 int sqlite3BtreeCommitPhaseOne(Btree*, const char *zMaster);
-int sqlite3BtreeCommitPhaseTwo(Btree*);
+int sqlite3BtreeCommitPhaseTwo(Btree*, int);
 int sqlite3BtreeCommit(Btree*);
 int sqlite3BtreeRollback(Btree*);
 int sqlite3BtreeBeginStmt(Btree*,int);
@@ -108,11 +95,17 @@ int sqlite3BtreeCopyFile(Btree *, Btree *);
 int sqlite3BtreeIncrVacuum(Btree *);
 
 /* The flags parameter to sqlite3BtreeCreateTable can be the bitwise OR
-** of the following flags:
+** of the flags shown below.
+**
+** Every SQLite table must have either BTREE_INTKEY or BTREE_BLOBKEY set.
+** With BTREE_INTKEY, the table key is a 64-bit integer and arbitrary data
+** is stored in the leaves.  (BTREE_INTKEY is used for SQL tables.)  With
+** BTREE_BLOBKEY, the key is an arbitrary BLOB and no content is stored
+** anywhere - the key is the content.  (BTREE_BLOBKEY is used for SQL
+** indices.)
 */
 #define BTREE_INTKEY     1    /* Table has only 64-bit signed integer keys */
-#define BTREE_ZERODATA   2    /* Table has keys only - no data */
-#define BTREE_LEAFDATA   4    /* Data stored in leaves only.  Implies INTKEY */
+#define BTREE_BLOBKEY    2    /* Table has keys only - no data */
 
 int sqlite3BtreeDropTable(Btree*, int, int*);
 int sqlite3BtreeClearTable(Btree*, int, int*);
@@ -150,6 +143,7 @@ int sqlite3BtreeCursor(
   BtCursor *pCursor                    /* Space to write cursor structure */
 );
 int sqlite3BtreeCursorSize(void);
+void sqlite3BtreeCursorZero(BtCursor*);
 
 int sqlite3BtreeCloseCursor(BtCursor*);
 int sqlite3BtreeMovetoUnpacked(
@@ -185,6 +179,8 @@ int sqlite3BtreePutData(BtCursor*, u32 offset, u32 amt, void*);
 void sqlite3BtreeCacheOverflow(BtCursor *);
 void sqlite3BtreeClearCursor(BtCursor *);
 
+int sqlite3BtreeSetVersion(Btree *pBt, int iVersion);
+
 #ifndef NDEBUG
 int sqlite3BtreeCursorIsValid(BtCursor*);
 #endif
@@ -196,6 +192,10 @@ int sqlite3BtreeCount(BtCursor *, i64 *);
 #ifdef SQLITE_TEST
 int sqlite3BtreeCursorInfo(BtCursor*, int*, int);
 void sqlite3BtreeCursorList(Btree*);
+#endif
+
+#ifndef SQLITE_OMIT_WAL
+  int sqlite3BtreeCheckpoint(Btree*, int, int *, int *);
 #endif
 
 /*
@@ -212,30 +212,28 @@ void sqlite3BtreeCursorList(Btree*);
 #endif
 
 #if !defined(SQLITE_OMIT_SHARED_CACHE) && SQLITE_THREADSAFE
+  int sqlite3BtreeSharable(Btree*);
   void sqlite3BtreeLeave(Btree*);
   void sqlite3BtreeEnterCursor(BtCursor*);
   void sqlite3BtreeLeaveCursor(BtCursor*);
   void sqlite3BtreeLeaveAll(sqlite3*);
-  void sqlite3BtreeMutexArrayEnter(BtreeMutexArray*);
-  void sqlite3BtreeMutexArrayLeave(BtreeMutexArray*);
-  void sqlite3BtreeMutexArrayInsert(BtreeMutexArray*, Btree*);
 #ifndef NDEBUG
   /* These routines are used inside assert() statements only. */
   int sqlite3BtreeHoldsMutex(Btree*);
   int sqlite3BtreeHoldsAllMutexes(sqlite3*);
+  int sqlite3SchemaMutexHeld(sqlite3*,int,Schema*);
 #endif
 #else
 
+# define sqlite3BtreeSharable(X) 0
 # define sqlite3BtreeLeave(X)
 # define sqlite3BtreeEnterCursor(X)
 # define sqlite3BtreeLeaveCursor(X)
 # define sqlite3BtreeLeaveAll(X)
-# define sqlite3BtreeMutexArrayEnter(X)
-# define sqlite3BtreeMutexArrayLeave(X)
-# define sqlite3BtreeMutexArrayInsert(X,Y)
 
 # define sqlite3BtreeHoldsMutex(X) 1
 # define sqlite3BtreeHoldsAllMutexes(X) 1
+# define sqlite3SchemaMutexHeld(X,Y,Z) 1
 #endif
 
 

@@ -10,7 +10,7 @@
 #include "base/message_loop.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/stats_counters.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -213,6 +213,7 @@ size_t SpdySession::max_concurrent_stream_limit_ = 256;
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          SpdySessionPool* spdy_session_pool,
                          SpdySettingsStorage* spdy_settings,
+                         bool verify_domain_authentication,
                          NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           read_callback_(this, &SpdySession::OnReadComplete)),
@@ -244,7 +245,8 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       stalled_streams_(0),
       initial_send_window_size_(spdy::kSpdyStreamInitialWindowSize),
       initial_recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
-      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)) {
+      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)),
+      verify_domain_authentication_(verify_domain_authentication) {
   DCHECK(HttpStreamFactory::spdy_enabled());
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
@@ -303,6 +305,9 @@ net::Error SpdySession::InitializeWithSocket(
 }
 
 bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
+  if (!verify_domain_authentication_)
+    return true;
+
   if (state_ != CONNECTED)
     return false;
 

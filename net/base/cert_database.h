@@ -113,11 +113,14 @@ class NET_API CertDatabase {
   void ListModules(CryptoModuleList* modules, bool need_rw) const;
 
   // Import certificates and private keys from PKCS #12 blob into the module.
+  // If |is_extractable| is false, mark the private key as being unextractable
+  // from the module.
   // Returns OK or a network error code such as ERR_PKCS12_IMPORT_BAD_PASSWORD
   // or ERR_PKCS12_IMPORT_ERROR.
   int ImportFromPKCS12(CryptoModule* module,
                        const std::string& data,
-                       const string16& password);
+                       const string16& password,
+                       bool is_extractable);
 
   // Export the given certificates and private keys into a PKCS #12 blob,
   // storing into |output|.

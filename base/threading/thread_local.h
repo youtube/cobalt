@@ -49,7 +49,7 @@
 #define BASE_THREADING_THREAD_LOCAL_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 #if defined(OS_POSIX)
@@ -61,7 +61,7 @@ namespace base {
 namespace internal {
 
 // Helper functions that abstract the cross-platform APIs.  Do not use directly.
-struct BASE_API ThreadLocalPlatform {
+struct BASE_EXPORT ThreadLocalPlatform {
 #if defined(OS_WIN)
   typedef unsigned long SlotType;
 #elif defined(OS_POSIX)

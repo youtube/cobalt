@@ -34,6 +34,7 @@ class BoundNetLog;
 class CertVerifier;
 class ClientSocketHandle;
 class DnsCertProvenanceChecker;
+class OriginBoundCertService;
 class SingleRequestCertVerifier;
 class SSLHostInfo;
 class X509Certificate;
@@ -51,9 +52,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
                      const HostPortPair& host_and_port,
                      const SSLConfig& ssl_config,
                      SSLHostInfo* ssl_host_info,
-                     CertVerifier* cert_verifier,
-                     DnsCertProvenanceChecker* dnsrr_resolver);
-  ~SSLClientSocketNSS();
+                     const SSLClientSocketContext& context);
+  virtual ~SSLClientSocketNSS();
 
   // For tests
   static void ClearSessionCache();
@@ -61,8 +61,11 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // SSLClientSocket methods:
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
+  virtual int ExportKeyingMaterial(const base::StringPiece& label,
+                                   const base::StringPiece& context,
+                                   unsigned char *out,
+                                   unsigned int outlen);
   virtual NextProtoStatus GetNextProto(std::string* proto);
-  virtual void UseDNSSEC(DNSSECProvider* provider);
 
   // StreamSocket methods:
   virtual int Connect(CompletionCallback* callback);
@@ -76,6 +79,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual void SetOmniboxSpeculation();
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
+  virtual int64 NumBytesRead() const;
+  virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
@@ -86,9 +91,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
  private:
   enum State {
     STATE_NONE,
+    STATE_LOAD_SSL_HOST_INFO,
     STATE_HANDSHAKE,
     STATE_VERIFY_DNSSEC,
-    STATE_VERIFY_DNSSEC_COMPLETE,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
   };
@@ -101,7 +106,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // Initializes the socket peer name in SSL.  Returns a net error code.
   int InitializeSSLPeerName();
 
-  X509Certificate* UpdateServerCert();
+  void UpdateServerCert();
   void UpdateConnectionStatus();
   void DoReadCallback(int result);
   void DoWriteCallback(int result);
@@ -114,10 +119,11 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoReadLoop(int result);
   int DoWriteLoop(int result);
 
+  bool LoadSSLHostInfo();
+  int DoLoadSSLHostInfo();
   int DoHandshake();
 
   int DoVerifyDNSSEC(int result);
-  int DoVerifyDNSSECComplete(int result);
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
   int DoPayloadRead();
@@ -212,6 +218,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   CertVerifier* const cert_verifier_;
   scoped_ptr<SingleRequestCertVerifier> verifier_;
 
+  // For the use of origin bound certificates for client auth.
+  OriginBoundCertService* origin_bound_cert_service_;
+
   // True if NSS has called HandshakeCallback.
   bool handshake_callback_called_;
 
@@ -221,16 +230,14 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // True iff we believe that the user has an ESET product intercepting our
   // HTTPS connections.
   bool eset_mitm_detected_;
+  // True iff we believe that the user has a Kaspersky product intercepting our
+  // HTTPS connections.
+  bool kaspersky_mitm_detected_;
 
   // True iff |ssl_host_info_| contained a predicted certificate chain and
   // that we found the prediction to be correct.
   bool predicted_cert_chain_correct_;
 
-  // True if the peer name has been initialized.
-  bool peername_initialized_;
-
-  // This pointer is owned by the caller of UseDNSSEC.
-  DNSSECProvider* dnssec_provider_;
   // The time when we started waiting for DNSSEC records.
   base::Time dnssec_wait_start_time_;
 

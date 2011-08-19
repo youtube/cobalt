@@ -35,6 +35,7 @@ class NET_API UDPServerSocket : public DatagramServerSocket {
   virtual void Close();
   virtual int GetPeerAddress(IPEndPoint* address) const;
   virtual int GetLocalAddress(IPEndPoint* address) const;
+  virtual const BoundNetLog& NetLog() const;
 
  private:
   UDPSocket socket_;

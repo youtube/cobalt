@@ -360,11 +360,11 @@ EVENT_TYPE(SOCKS_UNEXPECTED_AUTH)
 //   }
 EVENT_TYPE(SOCKS_UNKNOWN_ADDRESS_TYPE)
 
-// The start/end of a SSL connect().
+// The start/end of an SSL "connect" (aka client handshake).
 EVENT_TYPE(SSL_CONNECT)
 
-// The start/end of a SSL accept().
-EVENT_TYPE(SSL_ACCEPT)
+// The start/end of an SSL server handshake (aka "accept").
+EVENT_TYPE(SSL_SERVER_HANDSHAKE)
 
 // An SSL error occurred while trying to do the indicated activity.
 // The following parameters are attached to the event:
@@ -537,9 +537,20 @@ EVENT_TYPE(URL_REQUEST_START_JOB)
 //   }
 EVENT_TYPE(URL_REQUEST_REDIRECTED)
 
-// Measures the time a net::URLRequest is blocked waiting for an extension to
-// respond to the onBefoteRequest extension event.
-EVENT_TYPE(URL_REQUEST_BLOCKED_ON_EXTENSION)
+// Measures the time a net::URLRequest is blocked waiting for a delegate
+// (usually an extension) to respond to the onBeforeRequest extension event.
+EVENT_TYPE(URL_REQUEST_BLOCKED_ON_DELEGATE)
+
+// The specified number of bytes were read from the net::URLRequest.
+// The filtered event is used when the bytes were passed through a filter before
+// being read.  This event is only present when byte logging is enabled.
+// The following parameters are attached:
+//   {
+//     "byte_count": <Number of bytes that were just sent>,
+//     "hex_encoded_bytes": <The exact bytes sent, as a hexadecimal string>,
+//   }
+EVENT_TYPE(URL_REQUEST_JOB_BYTES_READ)
+EVENT_TYPE(URL_REQUEST_JOB_FILTERED_BYTES_READ)
 
 // ------------------------------------------------------------------------
 // HttpCache
@@ -1019,3 +1030,144 @@ EVENT_TYPE(APPCACHE_DELIVERING_ERROR_RESPONSE)
 // This event is emitted whenever NetworkChangeNotifier determines that the
 // underlying network has changed.
 EVENT_TYPE(NETWORK_IP_ADDRESSES_CHANGED)
+
+// ------------------------------------------------------------------------
+// Exponential back-off throttling events
+// ------------------------------------------------------------------------
+
+// Emitted when back-off is disabled for a given host, or the first time
+// a localhost URL is used (back-off is always disabled for localhost).
+//   {
+//     "host": <The hostname back-off was disabled for>
+//   }
+EVENT_TYPE(THROTTLING_DISABLED_FOR_HOST)
+
+// Emitted when a request is denied due to exponential back-off throttling.
+//   {
+//     "url":              <URL that was being requested>,
+//     "num_failures":     <Failure count for the URL>,
+//     "release_after_ms": <Number of milliseconds until URL will be unblocked>
+//   }
+EVENT_TYPE(THROTTLING_REJECTED_REQUEST)
+
+// Emitted when throttling entry receives an X-Retry-After header.
+//   {
+//     "url":               <URL that was being requested>,
+//     "retry_after_ms":    <Milliseconds until retry-after expires>
+//   }
+EVENT_TYPE(THROTTLING_GOT_CUSTOM_RETRY_AFTER)
+
+// ------------------------------------------------------------------------
+// DnsTransaction
+// ------------------------------------------------------------------------
+
+// The start/end of a DnsTransaction.
+//
+// The BEGIN phase contains the following parameters:
+//
+// {
+//   "dns_server": <IP of the DNS server to which queries are sent>,
+//   "hostname": <The hostname it is trying to resolve>,
+//   "query_type": <Type of the query>,
+//   "source_dependency":  <Source id, if any, of what created the
+//                          transaction>,
+// }
+//
+// The END phase contains the following parameters:
+//
+// {
+//   "net_error": <The net error code for the failure>,
+//   "ip_address_list": <The result of the resolution process,
+//                       an IPAddressList>
+// }
+EVENT_TYPE(DNS_TRANSACTION)
+
+// This event is created when DnsTransaction creates a new UDP socket and
+// tries to resolve the hostname.
+//
+// It has a single parameter:
+//
+//   {
+//     "attempt_number": <current attempt number at resolving hostname>
+//     "source_dependency": <Source id of the UDP socket that caused the
+//                           attempt>,
+//   }
+EVENT_TYPE(DNS_TRANSACTION_ATTEMPT_STARTED)
+
+// ------------------------------------------------------------------------
+// AsyncHostResolver
+// ------------------------------------------------------------------------
+
+// The start/end of waiting on a host resolve (DNS) request.
+// The BEGIN phase contains the following parameters:
+//
+//   {
+//     "source_dependency": <Source id of the request being waited on>,
+//   }
+EVENT_TYPE(ASYNC_HOST_RESOLVER)
+
+// The start/end of a host resolve (DNS) request.
+//
+// The BEGIN phase contains the following parameters:
+//
+//   {
+//     "hostname": <Hostname associated with the request>,
+//     "address_family": <Address family of the request>,
+//     "allow_cached_response": <Whether to allow cached response>,
+//     "only_use_cached_response": <Use cached results only>,
+//     "is_speculative": <Whether the lookup is speculative>,
+//     "priority": <Priority of the request>,
+//     "source_dependency": <Source id, if any, of what created the request>,
+//   }
+//
+// If an error occurred, the END phase will contain this parameter:
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//   }
+EVENT_TYPE(ASYNC_HOST_RESOLVER_REQUEST)
+
+// This event is created when a new DnsTransaction is about to be created
+// for a request.
+EVENT_TYPE(ASYNC_HOST_RESOLVER_CREATE_DNS_TRANSACTION)
+
+// This event is logged when a request is handled by a cache entry.
+EVENT_TYPE(ASYNC_HOST_RESOLVER_CACHE_HIT)
+
+// ------------------------------------------------------------------------
+// ChromeExtension
+// ------------------------------------------------------------------------
+
+// TODO(eroman): This is a layering violation. Fix this in the context
+// of http://crbug.com/90674.
+
+// This event is created when a Chrome extension aborts a request.
+//
+//  {
+//    "extension_id": <Extension ID that caused the abortion>
+//  }
+EVENT_TYPE(CHROME_EXTENSION_ABORTED_REQUEST)
+
+// This event is created when a Chrome extension redirects a request.
+//
+//  {
+//    "extension_id": <Extension ID that caused the redirection>
+//  }
+EVENT_TYPE(CHROME_EXTENSION_REDIRECTED_REQUEST)
+
+// This event is created when a Chrome extension modifieds the headers of a
+// request.
+//
+//  {
+//    "extension_id":     <Extension ID that caused the modification>,
+//    "modified_headers": [ "<header>: <value>", ... ],
+//    "deleted_headers":  [ "<header>", ... ]
+//  }
+EVENT_TYPE(CHROME_EXTENSION_MODIFIED_HEADERS)
+
+// This event is created when a Chrome extension tried to modify a request
+// but was ignored due to a conflict.
+//
+//  {
+//    "extension_id": <Extension ID that was ignored>
+//  }
+EVENT_TYPE(CHROME_EXTENSION_IGNORED_DUE_TO_CONFLICT)

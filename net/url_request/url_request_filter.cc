@@ -33,7 +33,8 @@ void URLRequestFilter::AddHostnameHandler(const std::string& scheme,
   hostname_handler_map_[make_pair(scheme, hostname)] = factory;
 
   // Register with the ProtocolFactory.
-  URLRequest::RegisterProtocolFactory(scheme, &URLRequestFilter::Factory);
+  URLRequest::Deprecated::RegisterProtocolFactory(
+      scheme, &URLRequestFilter::Factory);
 
 #ifndef NDEBUG
   // Check to see if we're masking URLs in the url_handler_map_.
@@ -69,8 +70,8 @@ bool URLRequestFilter::AddUrlHandler(
   url_handler_map_[url.spec()] = factory;
 
   // Register with the ProtocolFactory.
-  URLRequest::RegisterProtocolFactory(url.scheme(),
-                                           &URLRequestFilter::Factory);
+  URLRequest::Deprecated::RegisterProtocolFactory(url.scheme(),
+                                                  &URLRequestFilter::Factory);
 #ifndef NDEBUG
   // Check to see if this URL is masked by a hostname handler.
   HostnameHandlerMap::iterator host_it =
@@ -106,7 +107,7 @@ void URLRequestFilter::ClearHandlers() {
   }
   for (std::set<std::string>::const_iterator scheme = schemes.begin();
        scheme != schemes.end(); ++scheme) {
-    URLRequest::RegisterProtocolFactory(*scheme, NULL);
+    URLRequest::Deprecated::RegisterProtocolFactory(*scheme, NULL);
   }
 
   url_handler_map_.clear();

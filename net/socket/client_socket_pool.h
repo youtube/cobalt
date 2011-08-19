@@ -19,7 +19,9 @@
 #include "net/base/net_api.h"
 #include "net/base/request_priority.h"
 
+namespace base {
 class DictionaryValue;
+}
 
 namespace net {
 
@@ -125,9 +127,10 @@ class NET_API ClientSocketPool {
   // DictionaryValue.  Caller takes possession of the returned value.
   // If |include_nested_pools| is true, the states of any nested
   // ClientSocketPools will be included.
-  virtual DictionaryValue* GetInfoAsValue(const std::string& name,
-                                          const std::string& type,
-                                          bool include_nested_pools) const = 0;
+  virtual base::DictionaryValue* GetInfoAsValue(
+      const std::string& name,
+      const std::string& type,
+      bool include_nested_pools) const = 0;
 
   // Returns the maximum amount of time to wait before retrying a connect.
   static const int kMaxConnectRetryIntervalMs = 250;

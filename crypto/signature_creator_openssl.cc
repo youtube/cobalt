@@ -8,7 +8,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "crypto/openssl_util.h"
 
 namespace crypto {

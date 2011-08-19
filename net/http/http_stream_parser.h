@@ -37,7 +37,7 @@ class HttpStreamParser  : public ChunkCallback {
                    const HttpRequestInfo* request,
                    GrowableIOBuffer* read_buffer,
                    const BoundNetLog& net_log);
-  ~HttpStreamParser();
+  virtual ~HttpStreamParser();
 
   // These functions implement the interface described in HttpStream with
   // some additional functionality

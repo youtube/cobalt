@@ -11,6 +11,7 @@
 
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/win/object_watcher.h"
 #include "net/proxy/polling_proxy_config_service.h"
@@ -47,7 +48,7 @@ class NET_TEST ProxyConfigServiceWin
   virtual ~ProxyConfigServiceWin();
 
   // Overrides a function from PollingProxyConfigService.
-  virtual void AddObserver(Observer* observer);
+  virtual void AddObserver(Observer* observer) OVERRIDE;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ProxyConfigServiceWinTest, SetFromIEConfig);
@@ -63,7 +64,7 @@ class NET_TEST ProxyConfigServiceWin
 
   // ObjectWatcher::Delegate methods:
   // This is called whenever one of the registry keys we are watching change.
-  virtual void OnObjectSignaled(HANDLE object);
+  virtual void OnObjectSignaled(HANDLE object) OVERRIDE;
 
   static void GetCurrentProxyConfig(ProxyConfig* config);
 

@@ -8,7 +8,7 @@
 
 #include <iosfwd>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -21,7 +21,7 @@ namespace debug {
 // A stacktrace can be helpful in debugging. For example, you can include a
 // stacktrace member in a object (probably around #ifndef NDEBUG) so that you
 // can later see where the given object was created from.
-class BASE_API StackTrace {
+class BASE_EXPORT StackTrace {
  public:
   // Creates a stacktrace from the current location.
   StackTrace();

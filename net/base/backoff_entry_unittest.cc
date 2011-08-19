@@ -25,7 +25,7 @@ class TestBackoffEntry : public BackoffEntry {
 
   virtual ~TestBackoffEntry() {}
 
-  virtual TimeTicks GetTimeNow() const {
+  virtual TimeTicks ImplGetTimeNow() const OVERRIDE {
     return now_;
   }
 
@@ -108,29 +108,30 @@ TEST(BackoffEntryTest, ReleaseTimeCalculation) {
 
   // With zero errors, should return "now".
   TimeTicks result = entry.GetReleaseTime();
-  EXPECT_EQ(entry.GetTimeNow(), result);
+  EXPECT_EQ(entry.ImplGetTimeNow(), result);
 
   // 1 error.
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
-  EXPECT_EQ(entry.GetTimeNow() + TimeDelta::FromMilliseconds(1000), result);
+  EXPECT_EQ(entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(1000), result);
 
   // 2 errors.
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
-  EXPECT_EQ(entry.GetTimeNow() + TimeDelta::FromMilliseconds(2000), result);
+  EXPECT_EQ(entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(2000), result);
 
   // 3 errors.
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
-  EXPECT_EQ(entry.GetTimeNow() + TimeDelta::FromMilliseconds(4000), result);
+  EXPECT_EQ(entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(4000), result);
 
   // 6 errors (to check it doesn't pass maximum).
   entry.InformOfRequest(false);
   entry.InformOfRequest(false);
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
-  EXPECT_EQ(entry.GetTimeNow() + TimeDelta::FromMilliseconds(20000), result);
+  EXPECT_EQ(
+      entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(20000), result);
 }
 
 TEST(BackoffEntryTest, ReleaseTimeCalculationWithJitter) {
@@ -144,8 +145,10 @@ TEST(BackoffEntryTest, ReleaseTimeCalculationWithJitter) {
     entry.InformOfRequest(false);
     entry.InformOfRequest(false);
     TimeTicks result = entry.GetReleaseTime();
-    EXPECT_LE(entry.GetTimeNow() + TimeDelta::FromMilliseconds(3200), result);
-    EXPECT_GE(entry.GetTimeNow() + TimeDelta::FromMilliseconds(4000), result);
+    EXPECT_LE(
+        entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(3200), result);
+    EXPECT_GE(
+        entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(4000), result);
   }
 }
 

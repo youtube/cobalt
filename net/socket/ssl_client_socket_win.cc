@@ -9,7 +9,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/synchronization/lock.h"
 #include "base/utf_string_conversions.h"
@@ -384,7 +384,7 @@ static const int kRecvBufferSize = (5 + 16*1024 + 64);
 SSLClientSocketWin::SSLClientSocketWin(ClientSocketHandle* transport_socket,
                                        const HostPortPair& host_and_port,
                                        const SSLConfig& ssl_config,
-                                       CertVerifier* cert_verifier)
+                                       const SSLClientSocketContext& context)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
         handshake_io_callback_(this,
                                &SSLClientSocketWin::OnHandshakeIOComplete)),
@@ -401,7 +401,7 @@ SSLClientSocketWin::SSLClientSocketWin(ClientSocketHandle* transport_socket,
       user_write_callback_(NULL),
       user_write_buf_len_(0),
       next_state_(STATE_NONE),
-      cert_verifier_(cert_verifier),
+      cert_verifier_(context.cert_verifier),
       creds_(NULL),
       isc_status_(SEC_E_OK),
       payload_send_buffer_len_(0),
@@ -427,7 +427,6 @@ SSLClientSocketWin::~SSLClientSocketWin() {
 
 void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
-
   if (!server_cert_)
     return;
 
@@ -531,8 +530,7 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
       continue;
     }
     scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
-        cert_context2, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-        X509Certificate::OSCertHandles());
+        cert_context2, X509Certificate::OSCertHandles());
     cert_request_info->client_certs.push_back(cert);
     CertFreeCertificateContext(cert_context2);
   }
@@ -541,6 +539,13 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
 
   BOOL ok = CertCloseStore(my_cert_store, CERT_CLOSE_STORE_CHECK_FLAG);
   DCHECK(ok);
+}
+
+int SSLClientSocketWin::ExportKeyingMaterial(const base::StringPiece& label,
+                                             const base::StringPiece& context,
+                                             unsigned char *out,
+                                             unsigned int outlen) {
+  return ERR_NOT_IMPLEMENTED;
 }
 
 SSLClientSocket::NextProtoStatus
@@ -731,6 +736,22 @@ bool SSLClientSocketWin::UsingTCPFastOpen() const {
   return false;
 }
 
+int64 SSLClientSocketWin::NumBytesRead() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->NumBytesRead();
+  }
+  NOTREACHED();
+  return -1;
+}
+
+base::TimeDelta SSLClientSocketWin::GetConnectTimeMicros() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetConnectTimeMicros();
+  }
+  NOTREACHED();
+  return base::TimeDelta::FromMicroseconds(-1);
+}
+
 int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   DCHECK(completed_handshake());
@@ -740,8 +761,8 @@ int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
   // reading more ciphertext from the transport socket.
   if (bytes_decrypted_ != 0) {
     int len = std::min(buf_len, bytes_decrypted_);
-    LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, len,
-                    decrypted_ptr_);
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, len,
+                                  decrypted_ptr_);
     memcpy(buf->data(), decrypted_ptr_, len);
     decrypted_ptr_ += len;
     bytes_decrypted_ -= len;
@@ -1141,6 +1162,7 @@ int SSLClientSocketWin::DoVerifyCert() {
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;
     server_cert_verify_result_.Reset();
     server_cert_verify_result_.cert_status = cert_status;
+    server_cert_verify_result_.verified_cert = server_cert_;
     return OK;
   }
 
@@ -1361,8 +1383,8 @@ int SSLClientSocketWin::DoPayloadDecrypt() {
   // mistaken for EOF.  Continue decrypting or read more.
   if (len == 0)
     return DoPayloadRead();
-  LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, len,
-                  user_read_buf_->data());
+  net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, len,
+                                user_read_buf_->data());
   return len;
 }
 
@@ -1380,8 +1402,8 @@ int SSLClientSocketWin::DoPayloadEncrypt() {
   payload_send_buffer_.reset(new char[alloc_len]);
   memcpy(&payload_send_buffer_[stream_sizes_.cbHeader],
          user_write_buf_->data(), message_len);
-  LogByteTransfer(net_log_, NetLog::TYPE_SSL_SOCKET_BYTES_SENT, message_len,
-                  user_write_buf_->data());
+  net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_SENT, message_len,
+                                user_write_buf_->data());
 
   SecBuffer buffers[4];
   buffers[0].pvBuffer = payload_send_buffer_.get();
@@ -1498,8 +1520,7 @@ int SSLClientSocketWin::DidCompleteHandshake() {
     DidCompleteRenegotiation();
   } else {
     server_cert_ = X509Certificate::CreateFromHandle(
-        server_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-        X509Certificate::OSCertHandles());
+        server_cert_handle, X509Certificate::OSCertHandles());
 
     next_state_ = STATE_VERIFY_CERT;
   }

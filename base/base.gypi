@@ -26,7 +26,7 @@
           'atomicops.h',
           'atomicops_internals_x86_gcc.cc',
           'atomicops_internals_x86_msvc.h',
-          'base_api.h',
+          'base_export.h',
           'base_paths.cc',
           'base_paths.h',
           'base_paths_mac.h',
@@ -96,7 +96,6 @@
           'files/file_path_watcher_linux.cc',
           'files/file_path_watcher_mac.cc',
           'files/file_path_watcher_win.cc',
-          'fix_wp64.h',
           'float_util.h',
           'getenv_ps3.cc',
           'global_descriptors_posix.cc',
@@ -130,6 +129,8 @@
           'mac/scoped_cftyperef.h',
           'mac/scoped_nsautorelease_pool.h',
           'mac/scoped_nsautorelease_pool.mm',
+          'mac/scoped_nsexception_enabler.h',
+          'mac/scoped_nsexception_enabler.mm',
           'mach_ipc_mac.h',
           'mach_ipc_mac.mm',
           'memory/linked_ptr.h',
@@ -166,8 +167,6 @@
           'message_pump_ps3.h',
           'metrics/histogram.cc',
           'metrics/histogram.h',
-          'metrics/nacl_histogram.cc',
-          'metrics/nacl_histogram.h',
           'metrics/stats_counters.cc',
           'metrics/stats_counters.h',
           'metrics/stats_table.cc',
@@ -223,7 +222,7 @@
           'shared_memory_win.cc',
           'spin_wait.h',
           'stack_container.h',
-          'stl_util-inl.h',
+          'stl_util.h',
           'string_number_conversions.cc',
           'string_number_conversions.h',
           'string_piece.cc',
@@ -329,6 +328,8 @@
           'version.h',
           'vlog.cc',
           'vlog.h',
+          'nix/xdg_util.cc',
+          'nix/xdg_util.h',
           'win/event_trace_consumer.h',
           'win/event_trace_controller.cc',
           'win/event_trace_controller.h',
@@ -336,12 +337,15 @@
           'win/event_trace_provider.h',
           'win/i18n.cc',
           'win/i18n.h',
+          'win/iat_patch_function.cc',
+          'win/iat_patch_function.h',
           'win/object_watcher.cc',
           'win/object_watcher.h',
           'win/registry.cc',
           'win/registry.h',
           'win/scoped_bstr.cc',
           'win/scoped_bstr.h',
+          'win/scoped_com_initializer.h',
           'win/scoped_comptr.h',
           'win/scoped_gdi_object.h',
           'win/scoped_handle.h',
@@ -349,14 +353,15 @@
           'win/scoped_hglobal.h',
           'win/scoped_variant.cc',
           'win/scoped_variant.h',
-          'win/win_util.cc',
-          'win/win_util.h',
           'win/windows_version.cc',
           'win/windows_version.h',
+          'win/win_util.cc',
+          'win/win_util.h',
           'win/wrapped_window_proc.cc',
           'win/wrapped_window_proc.h',
-          'nix/xdg_util.h',
-          'nix/xdg_util.cc',
+        ],
+        'defines': [
+          'BASE_IMPLEMENTATION',
         ],
         'include_dirs': [
           '..',
@@ -376,7 +381,8 @@
               'sources!': [
                 'atomicops_internals_x86_gcc.cc',
                 'message_pump_glib.cc',
-                'message_pump_glib_x.cc',
+                'message_pump_gtk.cc',
+                'message_pump_x.cc',
               ],
           }], 
           [ 'OS=="cell_lv2"', {
@@ -421,6 +427,11 @@
               ['exclude', 'ps3']
             ]
           }],
+          [ 'touchui==0', {
+            'sources!' : [ 'message_pump_x.cc', ],
+          }, {
+            'sources!' : [ 'message_pump_gtk.cc', ],
+          }],
           [ 'OS != "linux"', {
               'sources!': [
                 # Not automatically excluded by the *linux.cc rules.
@@ -432,7 +443,7 @@
           ],
           [ 'OS != "mac"', {
               'sources!': [
-                'scoped_aedesc.h'
+                'mac/scoped_aedesc.h'
               ],
           }],
           # For now, just test the *BSD platforms enough to exclude them.
@@ -479,16 +490,12 @@
     {
       'target_name': 'base',
       'type': '<(component)',
-      'msvs_guid': '1832A374-8A74-4F9E-B536-69A699B3E165',
       'variables': {
         'base_target': 1,
       },
       'dependencies': [
         'base_static',
         '../third_party/modp_b64/modp_b64.gyp:modp_b64',
-        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-      ],
-      'export_dependent_settings': [
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
       # TODO(gregoryd): direct_dependent_settings should be shared with the
@@ -574,36 +581,16 @@
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
             'sources!': [
               'third_party/purify/pure_api.c',
-              'base_drag_source.cc',
-              'base_drop_target.cc',
               'event_recorder.cc',
-              'file_version_info.cc',
-              'registry.cc',
               'resource_util.cc',
-              'win_util.cc',
             ],
         },],
         [ 'component=="shared_library"', {
-          'defines': [
-            'BASE_DLL',
-            'BASE_IMPLEMENTATION=1',
-          ],
           'conditions': [
             ['OS=="win"', {
-              'msvs_disabled_warnings': [
-                4251,
-              ],
               'sources!': [
                 'debug/debug_on_start_win.cc',
               ],
-              'direct_dependent_settings': {
-                'defines': [
-                  'BASE_DLL',
-                ],
-                'msvs_disabled_warnings': [
-                  4251,
-                ],
-              },
             }],
           ],
         }],
@@ -645,9 +632,10 @@
         'md5.h',
         'message_pump_glib.cc',
         'message_pump_glib.h',
-        'message_pump_glib_x.cc',
-        'message_pump_glib_x.h',
-        'message_pump_glib_x_dispatch.h',
+        'message_pump_gtk.cc',
+        'message_pump_gtk.h',
+        'message_pump_x.cc',
+        'message_pump_x.h',
         'message_pump_libevent.cc',
         'message_pump_libevent.h',
         'message_pump_mac.h',
@@ -669,8 +657,7 @@
       'targets': [
         {
           'target_name': 'base_nacl_win64',
-          'type': 'static_library',
-          'msvs_guid': 'CEE1F794-DC70-4FED-B7C4-4C12986672FE',
+          'type': '<(component)',
           'variables': {
             'base_target': 1,
           },
@@ -687,6 +674,38 @@
           },
           'defines': [
             '<@(nacl_win64_defines)',
+          ],
+          'sources': [
+            'i18n/icu_util_nacl_win64.cc',
+          ],
+          'configurations': {
+            'Common_Base': {
+              'msvs_target_platform': 'x64',
+            },
+          },
+          'conditions': [
+            [ 'component == "shared_library"', {
+              'sources!': [
+                'debug/debug_on_start_win.cc',
+              ],
+            }],
+          ],
+        },
+        {
+          'target_name': 'base_i18n_nacl_win64',
+          'type': 'static_library',
+          # TODO(gregoryd): direct_dependent_settings should be shared with the
+          # 32-bit target, but it doesn't work due to a bug in gyp
+          'direct_dependent_settings': {
+            'include_dirs': [
+              '..',
+            ],
+          },
+          'defines': [
+            '<@(nacl_win64_defines)',
+          ],
+          'include_dirs': [
+            '..',
           ],
           'sources': [
             'i18n/icu_util_nacl_win64.cc',

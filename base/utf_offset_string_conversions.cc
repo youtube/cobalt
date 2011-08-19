@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "base/utf_string_conversion_utils.h"
 

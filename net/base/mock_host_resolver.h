@@ -11,7 +11,6 @@
 #include "base/synchronization/waitable_event.h"
 #include "net/base/host_resolver_impl.h"
 #include "net/base/host_resolver_proc.h"
-#include "net/base/net_api.h"
 
 namespace net {
 
@@ -38,7 +37,7 @@ class RuleBasedHostResolverProc;
 // re-map one hostname to another as well.
 
 // Base class shared by MockHostResolver and MockCachingHostResolver.
-class NET_TEST MockHostResolverBase : public HostResolver {
+class MockHostResolverBase : public HostResolver {
  public:
   virtual ~MockHostResolverBase();
 
@@ -64,10 +63,13 @@ class NET_TEST MockHostResolverBase : public HostResolver {
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log);
-  virtual void CancelRequest(RequestHandle req);
-  virtual void AddObserver(Observer* observer);
-  virtual void RemoveObserver(Observer* observer);
+                      const BoundNetLog& net_log) OVERRIDE;
+  virtual int ResolveFromCache(const RequestInfo& info,
+                               AddressList* addresses,
+                               const BoundNetLog& net_log) OVERRIDE;
+  virtual void CancelRequest(RequestHandle req) OVERRIDE;
+  virtual void AddObserver(Observer* observer) OVERRIDE;
+  virtual void RemoveObserver(Observer* observer) OVERRIDE;
 
  protected:
   MockHostResolverBase(bool use_caching);
@@ -95,14 +97,14 @@ class MockHostResolver : public MockHostResolverBase {
 class MockCachingHostResolver : public MockHostResolverBase {
  public:
   MockCachingHostResolver() : MockHostResolverBase(true /*use_caching*/) {}
-  ~MockCachingHostResolver() {}
+  virtual ~MockCachingHostResolver() {}
 };
 
 // RuleBasedHostResolverProc applies a set of rules to map a host string to
 // a replacement host string. It then uses the system host resolver to return
 // a socket address. Generally the replacement should be an IPv4 literal so
 // there is no network dependency.
-class NET_TEST RuleBasedHostResolverProc : public HostResolverProc {
+class RuleBasedHostResolverProc : public HostResolverProc {
  public:
   explicit RuleBasedHostResolverProc(HostResolverProc* previous);
 
@@ -147,13 +149,13 @@ class NET_TEST RuleBasedHostResolverProc : public HostResolverProc {
   struct Rule;
   typedef std::list<Rule> RuleList;
 
-  ~RuleBasedHostResolverProc();
+  virtual ~RuleBasedHostResolverProc();
 
   RuleList rules_;
 };
 
 // Using WaitingHostResolverProc you can simulate very long lookups.
-class NET_TEST WaitingHostResolverProc : public HostResolverProc {
+class WaitingHostResolverProc : public HostResolverProc {
  public:
   explicit WaitingHostResolverProc(HostResolverProc* previous);
 
@@ -181,7 +183,7 @@ class NET_TEST WaitingHostResolverProc : public HostResolverProc {
 //
 // NOTE: Only use this as a catch-all safety net. Individual tests should use
 // MockHostResolver.
-class NET_TEST ScopedDefaultHostResolverProc {
+class ScopedDefaultHostResolverProc {
  public:
   ScopedDefaultHostResolverProc();
   explicit ScopedDefaultHostResolverProc(HostResolverProc* proc);

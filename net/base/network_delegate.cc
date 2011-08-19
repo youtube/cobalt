@@ -17,21 +17,19 @@ int NetworkDelegate::NotifyBeforeURLRequest(URLRequest* request,
   return OnBeforeURLRequest(request, callback, new_url);
 }
 
-int NetworkDelegate::NotifyBeforeSendHeaders(uint64 request_id,
+int NetworkDelegate::NotifyBeforeSendHeaders(URLRequest* request,
                                              CompletionCallback* callback,
                                              HttpRequestHeaders* headers) {
   DCHECK(CalledOnValidThread());
   DCHECK(headers);
   DCHECK(callback);
-  return OnBeforeSendHeaders(request_id, callback, headers);
+  return OnBeforeSendHeaders(request, callback, headers);
 }
 
-void NetworkDelegate::NotifyRequestSent(
-    uint64 request_id,
-    const HostPortPair& socket_address,
-    const HttpRequestHeaders& headers) {
+void NetworkDelegate::NotifySendHeaders(URLRequest* request,
+                                        const HttpRequestHeaders& headers) {
   DCHECK(CalledOnValidThread());
-  OnRequestSent(request_id, socket_address, headers);
+  OnSendHeaders(request, headers);
 }
 
 void NetworkDelegate::NotifyResponseStarted(URLRequest* request) {
@@ -65,15 +63,16 @@ void NetworkDelegate::NotifyURLRequestDestroyed(URLRequest* request) {
   OnURLRequestDestroyed(request);
 }
 
-void NetworkDelegate::NotifyHttpTransactionDestroyed(uint64 request_id) {
-  DCHECK(CalledOnValidThread());
-  OnHttpTransactionDestroyed(request_id);
-}
-
 void NetworkDelegate::NotifyPACScriptError(int line_number,
                                            const string16& error) {
   DCHECK(CalledOnValidThread());
   OnPACScriptError(line_number, error);
+}
+
+void NetworkDelegate::NotifyAuthRequired(URLRequest* request,
+                                         const AuthChallengeInfo& auth_info) {
+  DCHECK(CalledOnValidThread());
+  OnAuthRequired(request, auth_info);
 }
 
 }  // namespace net

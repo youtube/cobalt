@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,6 +17,8 @@
 // A set of macros to use for platform detection.
 #if defined(__APPLE__)
 #define OS_MACOSX 1
+#elif defined(ANDROID)
+#define OS_ANDROID 1
 #elif defined(__native_client__)
 #define OS_NACL 1
 #elif defined(__linux__)
@@ -50,11 +52,13 @@
 #endif
 
 #if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_OPENBSD) || \
-    defined(OS_SOLARIS)
+    defined(OS_SOLARIS) || defined(OS_ANDROID)
 #if !defined(USE_OPENSSL)
 #define USE_NSS 1  // Default to use NSS for crypto, unless OpenSSL is chosen.
 #endif
+#ifndef OS_ANDROID
 #define USE_X11 1  // Use X for graphics.
+#endif
 #endif
 
 #if defined(USE_OPENSSL) && defined(USE_NSS)
@@ -63,12 +67,10 @@
 
 // For access to standard POSIXish features, use OS_POSIX instead of a
 // more specific macro.
-#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD) || \
-    defined(OS_OPENBSD) || defined(OS_SOLARIS) || defined(OS_NACL) || \
-    defined(__LB_PS3__)
+#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD) ||     \
+    defined(OS_OPENBSD) || defined(OS_SOLARIS) || defined(OS_ANDROID) ||  \
+    defined(OS_NACL) || defined(__LB_PS3__)
 #define OS_POSIX 1
-// Use base::DataPack for name/value pairs.
-#define USE_BASE_DATA_PACK 1
 #endif
 
 // Use tcmalloc
@@ -98,17 +100,22 @@
 #define ARCH_CPU_X86_FAMILY 1
 #define ARCH_CPU_X86_64 1
 #define ARCH_CPU_64_BITS 1
-#elif (defined(_M_IX86) || defined(__i386__)) && !defined(__LB_PS3__)
+#define ARCH_CPU_LITTLE_ENDIAN 1
+#elif defined(__LB_PS3__)
+#define ARCH_CPU_64_BITS 1
+#define ARCH_CPU_BIG_ENDIAN 1
+#define ARCH_CPU_PPC_FAMILY 1
+#elif (defined(_M_IX86) || defined(__i386__))
 #define ARCH_CPU_X86_FAMILY 1
 #define ARCH_CPU_X86 1
 #define ARCH_CPU_32_BITS 1
+#define ARCH_CPU_LITTLE_ENDIAN 1
 #elif defined(__ARMEL__)
 #define ARCH_CPU_ARM_FAMILY 1
 #define ARCH_CPU_ARMEL 1
 #define ARCH_CPU_32_BITS 1
+#define ARCH_CPU_LITTLE_ENDIAN 1
 #define WCHAR_T_IS_UNSIGNED 1
-#elif defined (__LB_PS3__)
-#define ARCH_CPU_64_BITS 1
 #else
 #error Please add support for your architecture in build/build_config.h
 #endif
@@ -136,6 +143,15 @@
 // Single define to trigger whether CrOS fonts have BCI on.
 // In that case font sizes/deltas should be adjusted.
 //define CROS_FONTS_USING_BCI
+#endif
+
+#if defined(OS_ANDROID)
+// The compiler thinks std::string::const_iterator and "const char*" are
+// equivalent types.
+#define STD_STRING_ITERATOR_IS_CHAR_POINTER
+// The compiler thinks base::string16::const_iterator and "char16*" are
+// equivalent types.
+#define BASE_STRING16_ITERATOR_IS_CHAR16_POINTER
 #endif
 
 #endif  // BUILD_BUILD_CONFIG_H_

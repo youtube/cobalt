@@ -148,7 +148,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
   VLOG(1) << "done.";
 
   if (!privateKey) {
-    VLOG(1) << "Generation of Keypair failed!";
+    LOG(ERROR) << "Generation of Keypair failed!";
     isSuccess = false;
     goto failure;
   }

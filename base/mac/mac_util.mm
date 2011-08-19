@@ -5,11 +5,15 @@
 #include "base/mac/mac_util.h"
 
 #import <Cocoa/Cocoa.h>
+#include <string.h>
+#include <sys/utsname.h>
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/mac/foundation_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_nsobject.h"
+#include "base/string_number_conversions.h"
 #include "base/sys_string_conversions.h"
 
 namespace base {
@@ -238,47 +242,47 @@ void ActivateProcess(pid_t pid) {
   }
 }
 
-bool SetFileBackupExclusion(const FilePath& file_path, bool exclude) {
-  NSString* filePath =
-      [NSString stringWithUTF8String:file_path.value().c_str()];
-
-  // If being asked to exclude something in a tmp directory, just lie and say it
-  // was done.  TimeMachine will already ignore tmp directories.  This keeps the
-  // temporary profiles used by unittests from being added to the exclude list.
-  // Otherwise, as /Library/Preferences/com.apple.TimeMachine.plist grows the
-  // bots slow down due to reading/writing all the temporary profiles used over
-  // time.
-
-  NSString* tmpDir = NSTemporaryDirectory();
-  // Make sure the temp dir is terminated with a slash
-  if (tmpDir && ![tmpDir hasSuffix:@"/"])
-    tmpDir = [tmpDir stringByAppendingString:@"/"];
-  // '/var' is a link to '/private/var', make sure to check both forms.
-  NSString* privateTmpDir = nil;
-  if ([tmpDir hasPrefix:@"/var/"])
-    privateTmpDir = [@"/private" stringByAppendingString:tmpDir];
-
-  if ((tmpDir && [filePath hasPrefix:tmpDir]) ||
-      (privateTmpDir && [filePath hasPrefix:privateTmpDir]) ||
-      [filePath hasPrefix:@"/tmp/"] ||
-      [filePath hasPrefix:@"/var/tmp/"] ||
-      [filePath hasPrefix:@"/private/tmp/"] ||
-      [filePath hasPrefix:@"/private/var/tmp/"]) {
-    return true;
+bool AmIForeground() {
+  ProcessSerialNumber foreground_psn = { 0 };
+  OSErr err = GetFrontProcess(&foreground_psn);
+  if (err != noErr) {
+    LOG(WARNING) << "GetFrontProcess: " << err;
+    return false;
   }
 
-  NSURL* url = [NSURL fileURLWithPath:filePath];
-  // Note that we always set CSBackupSetItemExcluded's excludeByPath param
-  // to true.  This prevents a problem with toggling the setting: if the file
-  // is excluded with excludeByPath set to true then excludeByPath must
-  // also be true when un-excluding the file, otherwise the un-excluding
-  // will be ignored.
-  bool success =
-      CSBackupSetItemExcluded((CFURLRef)url, exclude, true) == noErr;
-  if (!success)
+  ProcessSerialNumber my_psn = { 0, kCurrentProcess };
+
+  Boolean result = FALSE;
+  err = SameProcess(&foreground_psn, &my_psn, &result);
+  if (err != noErr) {
+    LOG(WARNING) << "SameProcess: " << err;
+    return false;
+  }
+
+  return result;
+}
+
+bool SetFileBackupExclusion(const FilePath& file_path) {
+  NSString* file_path_ns =
+      [NSString stringWithUTF8String:file_path.value().c_str()];
+  NSURL* file_url = [NSURL fileURLWithPath:file_path_ns];
+
+  // When excludeByPath is true the application must be running with root
+  // privileges (admin for 10.6 and earlier) but the URL does not have to
+  // already exist. When excludeByPath is false the URL must already exist but
+  // can be used in non-root (or admin as above) mode. We use false so that
+  // non-root (or admin) users don't get their TimeMachine drive filled up with
+  // unnecessary backups.
+  OSStatus os_err =
+      CSBackupSetItemExcluded(base::mac::NSToCFCast(file_url), TRUE, FALSE);
+  if (os_err != noErr) {
     LOG(WARNING) << "Failed to set backup exclusion for file '"
-                 << file_path.value().c_str() << "'.  Continuing.";
-  return success;
+                 << file_path.value().c_str() << "' with error "
+                 << os_err << " (" << GetMacOSStatusErrorString(os_err)
+                 << ": " << GetMacOSStatusCommentString(os_err)
+                 << ").  Continuing.";
+  }
+  return os_err == noErr;
 }
 
 void SetProcessName(CFStringRef process_name) {
@@ -479,6 +483,135 @@ bool WasLaunchedAsHiddenLoginItem() {
   }
   return IsHiddenLoginItem(item);
 }
+
+namespace {
+
+// Returns the running system's Darwin major version. Don't call this, it's
+// an implementation detail and its result is meant to be cached by
+// MacOSXMinorVersion.
+int DarwinMajorVersionInternal() {
+  // base::OperatingSystemVersionNumbers calls Gestalt, which is a
+  // higher-level operation than is needed. It might perform unnecessary
+  // operations. On 10.6, it was observed to be able to spawn threads (see
+  // http://crbug.com/53200). It might also read files or perform other
+  // blocking operations. Actually, nobody really knows for sure just what
+  // Gestalt might do, or what it might be taught to do in the future.
+  //
+  // uname, on the other hand, is implemented as a simple series of sysctl
+  // system calls to obtain the relevant data from the kernel. The data is
+  // compiled right into the kernel, so no threads or blocking or other
+  // funny business is necessary.
+
+  struct utsname uname_info;
+  if (uname(&uname_info) != 0) {
+    PLOG(ERROR) << "uname";
+    return 0;
+  }
+
+  if (strcmp(uname_info.sysname, "Darwin") != 0) {
+    LOG(ERROR) << "unexpected uname sysname " << uname_info.sysname;
+    return 0;
+  }
+
+  int darwin_major_version = 0;
+  char* dot = strchr(uname_info.release, '.');
+  if (dot) {
+    if (!base::StringToInt(uname_info.release, dot, &darwin_major_version)) {
+      dot = NULL;
+    }
+  }
+
+  if (!dot) {
+    LOG(ERROR) << "could not parse uname release " << uname_info.release;
+    return 0;
+  }
+
+  return darwin_major_version;
+}
+
+// Returns the running system's Mac OS X minor version. This is the |y| value
+// in 10.y or 10.y.z. Don't call this, it's an implementation detail and the
+// result is meant to be cached by MacOSXMinorVersion.
+int MacOSXMinorVersionInternal() {
+  int darwin_major_version = DarwinMajorVersionInternal();
+
+  // The Darwin major version is always 4 greater than the Mac OS X minor
+  // version for Darwin versions beginning with 6, corresponding to Mac OS X
+  // 10.2. Since this correspondence may change in the future, warn when
+  // encountering a version higher than anything seen before. Older Darwin
+  // versions, or versions that can't be determined, result in
+  // immediate death.
+  CHECK(darwin_major_version >= 6);
+  int mac_os_x_minor_version = darwin_major_version - 4;
+  LOG_IF(WARNING, darwin_major_version > 11) << "Assuming Darwin "
+      << base::IntToString(darwin_major_version) << " is Mac OS X 10."
+      << base::IntToString(mac_os_x_minor_version);
+
+  return mac_os_x_minor_version;
+}
+
+// Returns the running system's Mac OS X minor version. This is the |y| value
+// in 10.y or 10.y.z.
+int MacOSXMinorVersion() {
+  static int mac_os_x_minor_version = MacOSXMinorVersionInternal();
+  return mac_os_x_minor_version;
+}
+
+enum {
+  LEOPARD_MINOR_VERSION = 5,
+  SNOW_LEOPARD_MINOR_VERSION = 6,
+  LION_MINOR_VERSION = 7
+};
+
+}  // namespace
+
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_6)
+bool IsOSLeopard() {
+  return MacOSXMinorVersion() == LEOPARD_MINOR_VERSION;
+}
+#endif
+
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_6)
+bool IsOSLeopardOrEarlier() {
+  return MacOSXMinorVersion() <= LEOPARD_MINOR_VERSION;
+}
+#endif
+
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7)
+bool IsOSSnowLeopard() {
+  return MacOSXMinorVersion() == SNOW_LEOPARD_MINOR_VERSION;
+}
+#endif
+
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7)
+bool IsOSSnowLeopardOrEarlier() {
+  return MacOSXMinorVersion() <= SNOW_LEOPARD_MINOR_VERSION;
+}
+#endif
+
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_6)
+bool IsOSSnowLeopardOrLater() {
+  return MacOSXMinorVersion() >= SNOW_LEOPARD_MINOR_VERSION;
+}
+#endif
+
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GT_10_7)
+bool IsOSLion() {
+  return MacOSXMinorVersion() == LION_MINOR_VERSION;
+}
+#endif
+
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7)
+bool IsOSLionOrLater() {
+  return MacOSXMinorVersion() >= LION_MINOR_VERSION;
+}
+#endif
+
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GT_10_7)
+bool IsOSLaterThanLion() {
+  return MacOSXMinorVersion() > LION_MINOR_VERSION;
+}
+#endif
 
 }  // namespace mac
 }  // namespace base

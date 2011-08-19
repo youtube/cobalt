@@ -5,8 +5,8 @@
 #ifndef NET_SOCKET_TCP_SERVER_SOCKET_LIBEVENT_H_
 #define NET_SOCKET_TCP_SERVER_SOCKET_LIBEVENT_H_
 
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
-#include "base/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
@@ -16,13 +16,13 @@ namespace net {
 
 class IPEndPoint;
 
-class TCPServerSocketLibevent : public ServerSocket,
-                                public base::NonThreadSafe,
-                                public MessageLoopForIO::Watcher {
+class NET_TEST TCPServerSocketLibevent : public ServerSocket,
+                                         public base::NonThreadSafe,
+                                         public MessageLoopForIO::Watcher {
  public:
   TCPServerSocketLibevent(net::NetLog* net_log,
                           const net::NetLog::Source& source);
-  ~TCPServerSocketLibevent();
+  virtual ~TCPServerSocketLibevent();
 
   // net::ServerSocket implementation.
   virtual int Listen(const net::IPEndPoint& address, int backlog);

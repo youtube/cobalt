@@ -186,6 +186,8 @@ static sslOptions ssl_defaults = {
     PR_FALSE,   /* requireSafeNegotiation */
     PR_FALSE,   /* enableFalseStart   */
     PR_FALSE,   /* enableOCSPStapling */
+    PR_FALSE,   /* enableCachedInfo */
+    PR_TRUE,    /* enableOBCerts */
 };
 
 sslSessionIDLookupFunc  ssl_sid_lookup;
@@ -743,12 +745,16 @@ SSL_OptionSet(PRFileDesc *fd, PRInt32 which, PRBool on)
 	ss->opt.enableFalseStart = on;
 	break;
 
-      case SSL_ENABLE_SNAP_START:
-	ss->opt.enableSnapStart = on;
-	break;
-
       case SSL_ENABLE_OCSP_STAPLING:
 	ss->opt.enableOCSPStapling = on;
+	break;
+
+      case SSL_ENABLE_CACHED_INFO:
+	ss->opt.enableCachedInfo = on;
+	break;
+
+      case SSL_ENABLE_OB_CERTS:
+	ss->opt.enableOBCerts = on;
 	break;
 
       default:
@@ -815,8 +821,9 @@ SSL_OptionGet(PRFileDesc *fd, PRInt32 which, PRBool *pOn)
     case SSL_REQUIRE_SAFE_NEGOTIATION: 
                                   on = ss->opt.requireSafeNegotiation; break;
     case SSL_ENABLE_FALSE_START:  on = ss->opt.enableFalseStart;   break;
-    case SSL_ENABLE_SNAP_START:   on = ss->opt.enableSnapStart;    break;
     case SSL_ENABLE_OCSP_STAPLING: on = ss->opt.enableOCSPStapling; break;
+    case SSL_ENABLE_CACHED_INFO:  on = ss->opt.enableCachedInfo;   break;
+    case SSL_ENABLE_OB_CERTS:     on = ss->opt.enableOBCerts;      break;
 
     default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -868,10 +875,11 @@ SSL_OptionGetDefault(PRInt32 which, PRBool *pOn)
                                   on = ssl_defaults.requireSafeNegotiation; 
 				  break;
     case SSL_ENABLE_FALSE_START:  on = ssl_defaults.enableFalseStart;   break;
-    case SSL_ENABLE_SNAP_START:   on = ssl_defaults.enableSnapStart;   break;
     case SSL_ENABLE_OCSP_STAPLING:
 	on = ssl_defaults.enableOCSPStapling;
 	break;
+    case SSL_ENABLE_CACHED_INFO:  on = ssl_defaults.enableCachedInfo;   break;
+    case SSL_ENABLE_OB_CERTS:     on = ssl_defaults.enableOBCerts;      break;
 
     default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -1019,12 +1027,16 @@ SSL_OptionSetDefault(PRInt32 which, PRBool on)
 	ssl_defaults.enableFalseStart = on;
 	break;
 
-      case SSL_ENABLE_SNAP_START:
-	ssl_defaults.enableSnapStart = on;
-	break;
-
       case SSL_ENABLE_OCSP_STAPLING:
 	ssl_defaults.enableOCSPStapling = on;
+	break;
+
+      case SSL_ENABLE_CACHED_INFO:
+	ssl_defaults.enableCachedInfo = on;
+	break;
+
+      case SSL_ENABLE_OB_CERTS:
+	ssl_defaults.enableOBCerts = on;
 	break;
 
       default:
@@ -1513,6 +1525,20 @@ SSL_GetStapledOCSPResponse(PRFileDesc *fd, unsigned char *out_data,
     ssl_ReleaseSSL3HandshakeLock(ss);
     ssl_Release1stHandshakeLock(ss);
 
+    return SECSuccess;
+}
+
+SECStatus
+SSL_HandshakeResumedSession(PRFileDesc *fd, PRBool *handshake_resumed) {
+    sslSocket *ss = ssl_FindSocket(fd);
+
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_HandshakeResumedSession",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    *handshake_resumed = ss->ssl3.hs.isResuming;
     return SECSuccess;
 }
 
