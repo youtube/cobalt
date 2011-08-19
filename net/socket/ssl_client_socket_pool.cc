@@ -45,7 +45,8 @@ SSLSocketParams::SSLSocketParams(
       ssl_config_(ssl_config),
       load_flags_(load_flags),
       force_spdy_over_ssl_(force_spdy_over_ssl),
-      want_spdy_over_npn_(want_spdy_over_npn) {
+      want_spdy_over_npn_(want_spdy_over_npn),
+      ignore_limits_(false) {
   switch (proxy_) {
     case ProxyServer::SCHEME_DIRECT:
       DCHECK(transport_params_.get() != NULL);
@@ -84,23 +85,19 @@ SSLSocketParams::~SSLSocketParams() {}
 // Timeout for the SSL handshake portion of the connect.
 static const int kSSLHandshakeTimeoutInSeconds = 30;
 
-SSLConnectJob::SSLConnectJob(
-    const std::string& group_name,
-    const scoped_refptr<SSLSocketParams>& params,
-    const base::TimeDelta& timeout_duration,
-    TransportClientSocketPool* transport_pool,
+SSLConnectJob::SSLConnectJob(const std::string& group_name,
+                             const scoped_refptr<SSLSocketParams>& params,
+                             const base::TimeDelta& timeout_duration,
+                             TransportClientSocketPool* transport_pool,
 #if !defined(__LB_PS3__)
-    SOCKSClientSocketPool* socks_pool,
+                             SOCKSClientSocketPool* socks_pool,
 #endif
-    HttpProxyClientSocketPool* http_proxy_pool,
-    ClientSocketFactory* client_socket_factory,
-    HostResolver* host_resolver,
-    CertVerifier* cert_verifier,
-    DnsRRResolver* dnsrr_resolver,
-    DnsCertProvenanceChecker* dns_cert_checker,
-    SSLHostInfoFactory* ssl_host_info_factory,
-    Delegate* delegate,
-    NetLog* net_log)
+                             HttpProxyClientSocketPool* http_proxy_pool,
+                             ClientSocketFactory* client_socket_factory,
+                             HostResolver* host_resolver,
+                             const SSLClientSocketContext& context,
+                             Delegate* delegate,
+                             NetLog* net_log)
     : ConnectJob(group_name, timeout_duration, delegate,
                  BoundNetLog::Make(net_log, NetLog::SOURCE_CONNECT_JOB)),
       params_(params),
@@ -111,10 +108,7 @@ SSLConnectJob::SSLConnectJob(
       http_proxy_pool_(http_proxy_pool),
       client_socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
-      cert_verifier_(cert_verifier),
-      dnsrr_resolver_(dnsrr_resolver),
-      dns_cert_checker_(dns_cert_checker),
-      ssl_host_info_factory_(ssl_host_info_factory),
+      context_(context),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           callback_(this, &SSLConnectJob::OnIOComplete)) {}
 
@@ -210,18 +204,19 @@ int SSLConnectJob::DoLoop(int result) {
 int SSLConnectJob::DoTransportConnect() {
   DCHECK(transport_pool_);
 
-  if (ssl_host_info_factory_) {
+  if (context_.ssl_host_info_factory) {
       ssl_host_info_.reset(
-          ssl_host_info_factory_->GetForHost(params_->host_and_port().host(),
-                                             params_->ssl_config()));
+          context_.ssl_host_info_factory->GetForHost(
+              params_->host_and_port().host(),
+              params_->ssl_config()));
   }
 
   if (ssl_host_info_.get()) {
-    if (dnsrr_resolver_)
-      ssl_host_info_->StartDnsLookup(dnsrr_resolver_);
+    if (context_.dnsrr_resolver)
+      ssl_host_info_->StartDnsLookup(context_.dnsrr_resolver);
 
-    // This starts fetching the SSL host info from the disk cache for Snap
-    // Start.
+    // This starts fetching the SSL host info from the disk cache for early
+    // certificate verification and the TLS cached information extension.
     ssl_host_info_->Start();
   }
 
@@ -303,8 +298,7 @@ int SSLConnectJob::DoSSLConnect() {
 
   ssl_socket_.reset(client_socket_factory_->CreateSSLClientSocket(
       transport_socket_handle_.release(), params_->host_and_port(),
-      params_->ssl_config(), ssl_host_info_.release(), cert_verifier_,
-      dns_cert_checker_));
+      params_->ssl_config(), ssl_host_info_.release(), context_));
   return ssl_socket_->Connect(&callback_);
 }
 
@@ -349,34 +343,54 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
                                  base::TimeDelta::FromMilliseconds(1),
                                  base::TimeDelta::FromMinutes(10),
                                  100);
-    } else {
-      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency",
+    }
+
+    UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency",
+                               connect_duration,
+                               base::TimeDelta::FromMilliseconds(1),
+                               base::TimeDelta::FromMinutes(10),
+                               100);
+
+    SSLInfo ssl_info;
+    ssl_socket_->GetSSLInfo(&ssl_info);
+
+    if (ssl_info.handshake_type == SSLInfo::HANDSHAKE_RESUME) {
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Resume_Handshake",
+                                 connect_duration,
+                                 base::TimeDelta::FromMilliseconds(1),
+                                 base::TimeDelta::FromMinutes(1),
+                                 100);
+    } else if (ssl_info.handshake_type == SSLInfo::HANDSHAKE_FULL) {
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Full_Handshake",
+                                 connect_duration,
+                                 base::TimeDelta::FromMilliseconds(1),
+                                 base::TimeDelta::FromMinutes(1),
+                                 100);
+    }
+
+    const std::string& host = params_->host_and_port().host();
+    bool is_google = host == "google.com" ||
+                     (host.size() > 11 &&
+                      host.rfind(".google.com") == host.size() - 11);
+    if (is_google) {
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Google",
                                  connect_duration,
                                  base::TimeDelta::FromMilliseconds(1),
                                  base::TimeDelta::FromMinutes(10),
                                  100);
-
-      const std::string& host = params_->host_and_port().host();
-      bool is_google = host == "google.com" ||
-                       (host.size() > 11 &&
-                        host.rfind(".google.com") == host.size() - 11);
-      if (is_google) {
-        UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Google",
+      if (ssl_info.handshake_type == SSLInfo::HANDSHAKE_RESUME) {
+        UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Google_"
+                                       "Resume_Handshake",
                                    connect_duration,
                                    base::TimeDelta::FromMilliseconds(1),
-                                   base::TimeDelta::FromMinutes(10),
+                                   base::TimeDelta::FromMinutes(1),
                                    100);
-      }
-
-      static const bool false_start_trial =
-          base::FieldTrialList::TrialExists("SSLFalseStart");
-      if (false_start_trial) {
-        UMA_HISTOGRAM_CUSTOM_TIMES(base::FieldTrial::MakeName(
-                                       "Net.SSL_Connection_Latency",
-                                       "SSLFalseStart"),
+      } else if (ssl_info.handshake_type == SSLInfo::HANDSHAKE_FULL) {
+        UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Google_"
+                                       "Full_Handshake",
                                    connect_duration,
                                    base::TimeDelta::FromMilliseconds(1),
-                                   base::TimeDelta::FromMinutes(10),
+                                   base::TimeDelta::FromMinutes(1),
                                    100);
       }
     }
@@ -420,10 +434,7 @@ SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
     HttpProxyClientSocketPool* http_proxy_pool,
     ClientSocketFactory* client_socket_factory,
     HostResolver* host_resolver,
-    CertVerifier* cert_verifier,
-    DnsRRResolver* dnsrr_resolver,
-    DnsCertProvenanceChecker* dns_cert_checker,
-    SSLHostInfoFactory* ssl_host_info_factory,
+    const SSLClientSocketContext& context,
     NetLog* net_log)
     : transport_pool_(transport_pool),
 #if !defined(__LB_PS3__)
@@ -432,10 +443,7 @@ SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
       http_proxy_pool_(http_proxy_pool),
       client_socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
-      cert_verifier_(cert_verifier),
-      dnsrr_resolver_(dnsrr_resolver),
-      dns_cert_checker_(dns_cert_checker),
-      ssl_host_info_factory_(ssl_host_info_factory),
+      context_(context),
       net_log_(net_log) {
   base::TimeDelta max_transport_timeout = base::TimeDelta();
   base::TimeDelta pool_timeout;
@@ -463,6 +471,7 @@ SSLClientSocketPool::SSLClientSocketPool(
     ClientSocketPoolHistograms* histograms,
     HostResolver* host_resolver,
     CertVerifier* cert_verifier,
+    OriginBoundCertService* origin_bound_cert_service,
     DnsRRResolver* dnsrr_resolver,
     DnsCertProvenanceChecker* dns_cert_checker,
     SSLHostInfoFactory* ssl_host_info_factory,
@@ -490,10 +499,12 @@ SSLClientSocketPool::SSLClientSocketPool(
                                      http_proxy_pool,
                                      client_socket_factory,
                                      host_resolver,
-                                     cert_verifier,
-                                     dnsrr_resolver,
-                                     dns_cert_checker,
-                                     ssl_host_info_factory,
+                                     SSLClientSocketContext(
+                                         cert_verifier,
+                                         origin_bound_cert_service,
+                                         dnsrr_resolver,
+                                         dns_cert_checker,
+                                         ssl_host_info_factory),
                                      net_log)),
       ssl_config_service_(ssl_config_service) {
   if (ssl_config_service_)
@@ -516,8 +527,7 @@ ConnectJob* SSLClientSocketPool::SSLConnectJobFactory::NewConnectJob(
 #endif
                            http_proxy_pool_,
                            client_socket_factory_, host_resolver_,
-                           cert_verifier_, dnsrr_resolver_, dns_cert_checker_,
-                           ssl_host_info_factory_, delegate, net_log_);
+                           context_, delegate, net_log_);
 }
 
 int SSLClientSocketPool::RequestSocket(const std::string& group_name,

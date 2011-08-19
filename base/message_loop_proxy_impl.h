@@ -6,7 +6,7 @@
 #define BASE_MESSAGE_LOOP_PROXY_IMPL_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/synchronization/lock.h"
@@ -16,8 +16,9 @@ namespace base {
 // A stock implementation of MessageLoopProxy that takes in a MessageLoop
 // and keeps track of its lifetime using the MessageLoop DestructionObserver.
 // For now a MessageLoopProxyImpl can only be created for the current thread.
-class BASE_API MessageLoopProxyImpl : public MessageLoopProxy,
-                                      public MessageLoop::DestructionObserver {
+class BASE_EXPORT MessageLoopProxyImpl
+    : public MessageLoopProxy,
+      public MessageLoop::DestructionObserver {
  public:
   virtual ~MessageLoopProxyImpl();
 
@@ -25,12 +26,24 @@ class BASE_API MessageLoopProxyImpl : public MessageLoopProxy,
   virtual bool PostTask(const tracked_objects::Location& from_here,
                         Task* task);
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
-                               Task* task, int64 delay_ms);
+                               Task* task,
+                               int64 delay_ms);
   virtual bool PostNonNestableTask(const tracked_objects::Location& from_here,
                                    Task* task);
   virtual bool PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here,
       Task* task,
+      int64 delay_ms);
+  virtual bool PostTask(const tracked_objects::Location& from_here,
+                        const base::Closure& task);
+  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
+                               const base::Closure& task,
+                               int64 delay_ms);
+  virtual bool PostNonNestableTask(const tracked_objects::Location& from_here,
+                                   const base::Closure& task);
+  virtual bool PostNonNestableDelayedTask(
+      const tracked_objects::Location& from_here,
+      const base::Closure& task,
       int64 delay_ms);
   virtual bool BelongsToCurrentThread();
 
@@ -44,8 +57,15 @@ class BASE_API MessageLoopProxyImpl : public MessageLoopProxy,
 
  private:
   MessageLoopProxyImpl();
+  // TODO(ajwong): Remove this after we've fully migrated to base::Closure.
   bool PostTaskHelper(const tracked_objects::Location& from_here,
-                      Task* task, int64 delay_ms, bool nestable);
+                      Task* task,
+                      int64 delay_ms,
+                      bool nestable);
+  bool PostTaskHelper(const tracked_objects::Location& from_here,
+                      const base::Closure& task,
+                      int64 delay_ms,
+                      bool nestable);
 
   // For the factory method to work
   friend class MessageLoopProxy;
@@ -60,4 +80,3 @@ class BASE_API MessageLoopProxyImpl : public MessageLoopProxy,
 }  // namespace base
 
 #endif  // BASE_MESSAGE_LOOP_PROXY_IMPL_H_
-

@@ -21,12 +21,12 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 namespace base {
 
-class BASE_API StringPiece {
+class BASE_EXPORT StringPiece {
  public:
   // standard STL container boilerplate
   typedef size_t size_type;
@@ -164,7 +164,7 @@ class BASE_API StringPiece {
   size_type     length_;
 };
 
-BASE_API bool operator==(const StringPiece& x, const StringPiece& y);
+BASE_EXPORT bool operator==(const StringPiece& x, const StringPiece& y);
 
 inline bool operator!=(const StringPiece& x, const StringPiece& y) {
   return !(x == y);

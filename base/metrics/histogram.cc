@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <string>
 
+#include "base/debug/leak_annotations.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "base/stringprintf.h"
@@ -523,6 +524,7 @@ void Histogram::Accumulate(Sample value, Count count, size_t index) {
 
 void Histogram::SetBucketRange(size_t i, Sample value) {
   DCHECK_GT(bucket_count_, i);
+  DCHECK_GE(value, 0);
   ranges_[i] = value;
 }
 
@@ -940,6 +942,21 @@ Histogram::ClassType CustomHistogram::histogram_type() const {
   return CUSTOM_HISTOGRAM;
 }
 
+// static
+std::vector<Histogram::Sample> CustomHistogram::ArrayToCustomRanges(
+    const Sample* values, size_t num_values) {
+  std::vector<Sample> all_values;
+  for (size_t i = 0; i < num_values; ++i) {
+    Sample value = values[i];
+    all_values.push_back(value);
+
+    // Ensure that a guard bucket is added. If we end up with duplicate
+    // values, FactoryGet will take care of removing them.
+    all_values.push_back(value + 1);
+  }
+  return all_values;
+}
+
 CustomHistogram::CustomHistogram(const std::string& name,
                                  const std::vector<Sample>& custom_ranges)
     : Histogram(name, custom_ranges[1], custom_ranges.back(),
@@ -1014,17 +1031,27 @@ bool StatisticsRecorder::IsActive() {
 }
 
 Histogram* StatisticsRecorder::RegisterOrDeleteDuplicate(Histogram* histogram) {
+  // As per crbug.com/79322 the histograms are intentionally leaked, so we need
+  // to annotate them. Because ANNOTATE_LEAKING_OBJECT_PTR may be used only once
+  // for an object, the duplicates should not be annotated.
+  // Callers are responsible for not calling RegisterOrDeleteDuplicate(ptr)
+  // twice if (lock_ == NULL) || (!histograms_).
   DCHECK(histogram->HasValidRangeChecksum());
-  if (lock_ == NULL)
+  if (lock_ == NULL) {
+    ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
     return histogram;
+  }
   base::AutoLock auto_lock(*lock_);
-  if (!histograms_)
+  if (!histograms_) {
+    ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
     return histogram;
+  }
   const std::string name = histogram->histogram_name();
   HistogramMap::iterator it = histograms_->find(name);
   // Avoid overwriting a previous registration.
   if (histograms_->end() == it) {
     (*histograms_)[name] = histogram;
+    ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
   } else {
     delete histogram;  // We already have one by this name.
     histogram = it->second;
@@ -1037,13 +1064,6 @@ void StatisticsRecorder::WriteHTMLGraph(const std::string& query,
                                         std::string* output) {
   if (!IsActive())
     return;
-  output->append("<html><head><title>About Histograms");
-  if (!query.empty())
-    output->append(" - " + query);
-  output->append("</title>"
-                 // We'd like the following no-cache... but it doesn't work.
-                 // "<META HTTP-EQUIV=\"Pragma\" CONTENT=\"no-cache\">"
-                 "</head><body>");
 
   Histograms snapshot;
   GetSnapshot(query, &snapshot);
@@ -1053,7 +1073,6 @@ void StatisticsRecorder::WriteHTMLGraph(const std::string& query,
     (*it)->WriteHTMLGraph(output);
     output->append("<br><hr><br>");
   }
-  output->append("</body></html>");
 }
 
 // static

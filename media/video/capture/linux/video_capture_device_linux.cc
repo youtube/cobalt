@@ -82,7 +82,10 @@ void VideoCaptureDevice::GetDeviceNames(Names* device_names) {
 
 VideoCaptureDevice* VideoCaptureDevice::Create(const Name& device_name) {
   VideoCaptureDeviceLinux* self = new VideoCaptureDeviceLinux(device_name);
-  if (!self || self->Init() != true) {
+  if (!self)
+    return NULL;
+  if (self->Init() != true) {
+    delete self;
     return NULL;
   }
   return self;

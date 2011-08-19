@@ -45,7 +45,7 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
 #include "base/time.h"
@@ -108,7 +108,6 @@ class Lock;
 
 // Support histograming of an enumerated value.  The samples should always be
 // less than boundary_value.
-
 #define HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
     static base::Histogram* counter(NULL); \
     if (!counter) \
@@ -118,6 +117,10 @@ class Lock;
     counter->Add(sample); \
   } while (0)
 
+// Support histograming of an enumerated value. Samples should be one of the
+// std::vector<int> list provided via |custom_ranges|. You can use the helper
+// function |base::CustomHistogram::ArrayToCustomRanges(samples, num_samples)|
+// to transform a C-style array of valid sample values to a std::vector<int>.
 #define HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) do { \
     static base::Histogram* counter(NULL); \
     if (!counter) \
@@ -263,7 +266,7 @@ class CustomHistogram;
 class Histogram;
 class LinearHistogram;
 
-class BASE_API Histogram {
+class BASE_EXPORT Histogram {
  public:
   typedef int Sample;  // Used for samples (and ranges of samples).
   typedef int Count;  // Used to count samples in a bucket.
@@ -322,7 +325,7 @@ class BASE_API Histogram {
   //----------------------------------------------------------------------------
   // Statistic values, developed over the life of the histogram.
 
-  class BASE_API SampleSet {
+  class BASE_EXPORT SampleSet {
    public:
     explicit SampleSet();
     ~SampleSet();
@@ -581,7 +584,7 @@ class BASE_API Histogram {
 
 // LinearHistogram is a more traditional histogram, with evenly spaced
 // buckets.
-class BASE_API LinearHistogram : public Histogram {
+class BASE_EXPORT LinearHistogram : public Histogram {
  public:
   virtual ~LinearHistogram();
 
@@ -637,7 +640,7 @@ class BASE_API LinearHistogram : public Histogram {
 //------------------------------------------------------------------------------
 
 // BooleanHistogram is a histogram for booleans.
-class BASE_API BooleanHistogram : public LinearHistogram {
+class BASE_EXPORT BooleanHistogram : public LinearHistogram {
  public:
   static Histogram* FactoryGet(const std::string& name, Flags flags);
 
@@ -654,7 +657,7 @@ class BASE_API BooleanHistogram : public LinearHistogram {
 //------------------------------------------------------------------------------
 
 // CustomHistogram is a histogram for a set of custom integers.
-class BASE_API CustomHistogram : public Histogram {
+class BASE_EXPORT CustomHistogram : public Histogram {
  public:
 
   static Histogram* FactoryGet(const std::string& name,
@@ -663,6 +666,14 @@ class BASE_API CustomHistogram : public Histogram {
 
   // Overridden from Histogram:
   virtual ClassType histogram_type() const;
+
+  // Helper method for transforming an array of valid enumeration values
+  // to the std::vector<int> expected by HISTOGRAM_CUSTOM_ENUMERATION.
+  // This function ensures that a guard bucket exists right after any
+  // valid sample value (unless the next higher sample is also a valid value),
+  // so that invalid samples never fall into the same bucket as valid samples.
+  static std::vector<Sample> ArrayToCustomRanges(const Sample* values,
+                                                 size_t num_values);
 
  protected:
   CustomHistogram(const std::string& name,
@@ -680,7 +691,7 @@ class BASE_API CustomHistogram : public Histogram {
 // general place for histograms to register, and supports a global API for
 // accessing (i.e., dumping, or graphing) the data in all the histograms.
 
-class BASE_API StatisticsRecorder {
+class BASE_EXPORT StatisticsRecorder {
  public:
   typedef std::vector<Histogram*> Histograms;
 

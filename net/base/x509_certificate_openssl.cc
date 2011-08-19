@@ -22,11 +22,9 @@
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
-#include "net/base/x509_openssl_util.h"
+#include "net/base/x509_util_openssl.h"
 
 namespace net {
-
-namespace nxou = net::x509_openssl_util;
 
 namespace {
 
@@ -63,7 +61,7 @@ void ParsePrincipalValues(X509_NAME* name,
   for (int index = -1;
        (index = X509_NAME_get_index_by_NID(name, nid, index)) != -1;) {
     std::string field;
-    if (!nxou::ParsePrincipalValueByIndex(name, index, &field))
+    if (!x509_util::ParsePrincipalValueByIndex(name, index, &field))
       break;
     fields->push_back(field);
   }
@@ -84,18 +82,20 @@ void ParsePrincipal(X509Certificate::OSCertHandle cert,
   ParsePrincipalValues(x509_name, NID_domainComponent,
                        &principal->domain_components);
 
-  nxou::ParsePrincipalValueByNID(x509_name, NID_commonName,
-                                 &principal->common_name);
-  nxou::ParsePrincipalValueByNID(x509_name, NID_localityName,
-                                 &principal->locality_name);
-  nxou::ParsePrincipalValueByNID(x509_name, NID_stateOrProvinceName,
-                                 &principal->state_or_province_name);
-  nxou::ParsePrincipalValueByNID(x509_name, NID_countryName,
-                                 &principal->country_name);
+  x509_util::ParsePrincipalValueByNID(x509_name, NID_commonName,
+                                      &principal->common_name);
+  x509_util::ParsePrincipalValueByNID(x509_name, NID_localityName,
+                                      &principal->locality_name);
+  x509_util::ParsePrincipalValueByNID(x509_name, NID_stateOrProvinceName,
+                                      &principal->state_or_province_name);
+  x509_util::ParsePrincipalValueByNID(x509_name, NID_countryName,
+                                      &principal->country_name);
 }
 
-void ParseSubjectAltNames(X509Certificate::OSCertHandle cert,
-                          std::vector<std::string>* dns_names) {
+void ParseSubjectAltName(X509Certificate::OSCertHandle cert,
+                         std::vector<std::string>* dns_names,
+                         std::vector<std::string>* ip_addresses) {
+  DCHECK(dns_names || ip_addresses);
   int index = X509_get_ext_by_NID(cert, NID_subject_alt_name, -1);
   X509_EXTENSION* alt_name_ext = X509_get_ext(cert, index);
   if (!alt_name_ext)
@@ -108,13 +108,27 @@ void ParseSubjectAltNames(X509Certificate::OSCertHandle cert,
 
   for (int i = 0; i < sk_GENERAL_NAME_num(alt_names.get()); ++i) {
     const GENERAL_NAME* name = sk_GENERAL_NAME_value(alt_names.get(), i);
-    if (name->type == GEN_DNS) {
-      unsigned char* dns_name = ASN1_STRING_data(name->d.dNSName);
+    if (name->type == GEN_DNS && dns_names) {
+      const unsigned char* dns_name = ASN1_STRING_data(name->d.dNSName);
       if (!dns_name)
         continue;
       int dns_name_len = ASN1_STRING_length(name->d.dNSName);
       dns_names->push_back(
-          std::string(reinterpret_cast<char*>(dns_name), dns_name_len));
+          std::string(reinterpret_cast<const char*>(dns_name), dns_name_len));
+    } else if (name->type == GEN_IPADD && ip_addresses) {
+      const unsigned char* ip_addr = name->d.iPAddress->data;
+      if (!ip_addr)
+        continue;
+      int ip_addr_len = name->d.iPAddress->length;
+      if (ip_addr_len != 4 && ip_addr_len != 8) {
+        // http://www.ietf.org/rfc/rfc3280.txt requires subjectAltName iPAddress
+        // to have 4 or 16 bytes, whereas in a name constraint it includes a
+        // net mask hence 8 or 32 bytes. Logging to help diagnose any mixup.
+        LOG(WARNING) << "Bad sized IP Address in cert: " << ip_addr_len;
+        continue;
+      }
+      ip_addresses->push_back(
+          std::string(reinterpret_cast<const char*>(ip_addr), ip_addr_len));
     }
   }
 }
@@ -325,8 +339,8 @@ void X509Certificate::Initialize() {
 
   ParsePrincipal(cert_handle_, X509_get_subject_name(cert_handle_), &subject_);
   ParsePrincipal(cert_handle_, X509_get_issuer_name(cert_handle_), &issuer_);
-  nxou::ParseDate(X509_get_notBefore(cert_handle_), &valid_start_);
-  nxou::ParseDate(X509_get_notAfter(cert_handle_), &valid_expiry_);
+  x509_util::ParseDate(X509_get_notBefore(cert_handle_), &valid_start_);
+  x509_util::ParseDate(X509_get_notAfter(cert_handle_), &valid_expiry_);
 }
 
 // static
@@ -390,17 +404,20 @@ X509Certificate* X509Certificate::CreateSelfSigned(
     const std::string& subject,
     uint32 serial_number,
     base::TimeDelta valid_duration) {
-  // TODO(port): Implement.
+  // TODO(port): Implement. See http://crbug.com/91512.
+  NOTIMPLEMENTED();
   return NULL;
 }
 
-void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
-  dns_names->clear();
+void X509Certificate::GetSubjectAltName(
+    std::vector<std::string>* dns_names,
+    std::vector<std::string>* ip_addrs) const {
+  if (dns_names)
+    dns_names->clear();
+  if (ip_addrs)
+    ip_addrs->clear();
 
-  ParseSubjectAltNames(cert_handle_, dns_names);
-
-  if (dns_names->empty())
-    dns_names->push_back(subject_.common_name);
+  ParseSubjectAltName(cert_handle_, dns_names, ip_addrs);
 }
 
 // static
@@ -408,22 +425,10 @@ X509_STORE* X509Certificate::cert_store() {
   return X509InitSingleton::GetInstance()->store();
 }
 
-int X509Certificate::Verify(const std::string& hostname,
-                            int flags,
-                            CertVerifyResult* verify_result) const {
-  verify_result->Reset();
-
-  if (IsBlacklisted()) {
-    verify_result->cert_status |= CERT_STATUS_REVOKED;
-    return ERR_CERT_REVOKED;
-  }
-
-  // TODO(joth): We should fetch the subjectAltNames directly rather than via
-  // GetDNSNames, so we can apply special handling for IP addresses vs DNS
-  // names, etc. See http://crbug.com/62973.
-  std::vector<std::string> cert_names;
-  GetDNSNames(&cert_names);
-  if (!VerifyHostname(hostname, cert_names))
+int X509Certificate::VerifyInternal(const std::string& hostname,
+                                    int flags,
+                                    CertVerifyResult* verify_result) const {
+  if (!VerifyNameMatch(hostname))
     verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
   crypto::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
@@ -458,8 +463,16 @@ int X509Certificate::Verify(const std::string& hostname,
     return MapCertStatusToNetError(verify_result->cert_status);
 
   STACK_OF(X509)* chain = X509_STORE_CTX_get_chain(ctx.get());
+  X509* verified_cert = NULL;
+  std::vector<X509*> verified_chain;
   for (int i = 0; i < sk_X509_num(chain); ++i) {
     X509* cert = sk_X509_value(chain, i);
+    if (i == 0) {
+      verified_cert = cert;
+    } else {
+      verified_chain.push_back(cert);
+    }
+
     DERCache der_cache;
     if (!GetDERAndCacheIfNeeded(cert, &der_cache))
       continue;
@@ -474,6 +487,11 @@ int X509Certificate::Verify(const std::string& hostname,
     base::SHA1HashBytes(reinterpret_cast<const uint8*>(spki_bytes.data()),
                         spki_bytes.size(), hash.data);
     verify_result->public_key_hashes.push_back(hash);
+  }
+
+  if (verified_cert) {
+    verify_result->verified_cert = CreateFromHandle(verified_cert,
+                                                    verified_chain);
   }
 
   // Currently we only ues OpenSSL's default root CA paths, so treat all
@@ -537,4 +555,4 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
       der_cache.data_length);
 }
 
-} // namespace net
+}  // namespace net

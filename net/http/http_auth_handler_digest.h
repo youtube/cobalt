@@ -122,7 +122,7 @@ class NET_TEST HttpAuthHandlerDigest : public HttpAuthHandler {
   // the handler. The lifetime of the |nonce_generator| must exceed that of this
   // handler.
   HttpAuthHandlerDigest(int nonce_count, const NonceGenerator* nonce_generator);
-  ~HttpAuthHandlerDigest();
+  virtual ~HttpAuthHandlerDigest();
 
   // Parse the challenge, saving the results into this instance.
   // Returns true on success.

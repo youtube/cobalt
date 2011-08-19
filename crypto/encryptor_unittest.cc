@@ -35,6 +35,74 @@ TEST(EncryptorTest, EncryptDecrypt) {
   EXPECT_EQ(plaintext, decypted);
 }
 
+// CTR mode encryption is only implemented using NSS.
+#if defined(USE_NSS)
+
+TEST(EncryptorTest, EncryptDecryptCTR) {
+  scoped_ptr<crypto::SymmetricKey> key(
+      crypto::SymmetricKey::GenerateRandomKey(
+          crypto::SymmetricKey::AES, 128));
+
+  EXPECT_TRUE(NULL != key.get());
+  const std::string kInitialCounter = "0000000000000000";
+
+  crypto::Encryptor encryptor;
+  EXPECT_TRUE(encryptor.Init(key.get(), crypto::Encryptor::CTR, ""));
+  EXPECT_TRUE(encryptor.SetCounter(kInitialCounter));
+
+  std::string plaintext("normal plaintext of random length");
+  std::string ciphertext;
+  EXPECT_TRUE(encryptor.Encrypt(plaintext, &ciphertext));
+  EXPECT_LT(0U, ciphertext.size());
+
+  std::string decypted;
+  EXPECT_TRUE(encryptor.SetCounter(kInitialCounter));
+  EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decypted));
+  EXPECT_EQ(plaintext, decypted);
+
+  plaintext = "0123456789012345";
+  EXPECT_TRUE(encryptor.SetCounter(kInitialCounter));
+  EXPECT_TRUE(encryptor.Encrypt(plaintext, &ciphertext));
+  EXPECT_LT(0U, ciphertext.size());
+
+  EXPECT_TRUE(encryptor.SetCounter(kInitialCounter));
+  EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decypted));
+  EXPECT_EQ(plaintext, decypted);
+}
+
+TEST(EncryptorTest, CTRCounter) {
+  const int kCounterSize = 16;
+  const char kTest1[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  uint8 buf[16];
+
+  // Increment 10 times.
+  crypto::Encryptor::Counter counter1(std::string(kTest1, kCounterSize));
+  for (int i = 0; i < 10; ++i)
+    counter1.Increment();
+  counter1.Write(buf);
+  EXPECT_EQ(0, memcmp(buf, kTest1, 15));
+  EXPECT_TRUE(buf[15] == 10);
+
+  // Check corner cases.
+  const char kTest2[] = {0, 0, 0, 0, 0, 0, 0, 0,
+                         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+  const char kExpect2[] = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+  crypto::Encryptor::Counter counter2(std::string(kTest2, kCounterSize));
+  counter2.Increment();
+  counter2.Write(buf);
+  EXPECT_EQ(0, memcmp(buf, kExpect2, kCounterSize));
+
+  const char kTest3[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+  const char kExpect3[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  crypto::Encryptor::Counter counter3(std::string(kTest3, kCounterSize));
+  counter3.Increment();
+  counter3.Write(buf);
+  EXPECT_EQ(0, memcmp(buf, kExpect3, kCounterSize));
+}
+
+#endif
+
 // TODO(wtc): add more known-answer tests.  Test vectors are available from
 // http://www.ietf.org/rfc/rfc3602
 // http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf

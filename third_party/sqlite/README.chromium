@@ -1,13 +1,13 @@
 Name: sqlite
 License File: src/LICENSE
 URL: http://sqlite.org/
-Version: 3.6.18
+Version: 3.7.6.3
 Included In Release: Yes
 Security Critical: Yes
 
 Instructions for importing a new release of SQLite from sqlite.org.
 
-Note: our current base version is 3.6.18.
+Note: our current base version is 3.7.6.3.
 
 First, you need to be on Linux.
 
@@ -18,14 +18,16 @@ First, you need to be on Linux.
 # Note - this is just an example. Always refer to the version above for our
 # real current version.
 # Set some variables to remember the versions, e.g.:
-BASE=3.6.18
-LATEST=3.6.22
+BASE=3.7.6.3
+LATEST=3.7.6.4
 
 # Get to the src/third_party directory in your Chromium client:
 cd src/third_party
 
 # Download the .tar.gz files for the releases:
 # (If the URL changes you might need to find the new one.)
+# TODO(shess): Rewrite this to track the new naming format.  Meanwhile,
+# manually navigate to www.sqlite.org and find downloads, use "legacy" version.
 wget http://www.sqlite.org/sqlite-$BASE.tar.gz
 wget http://www.sqlite.org/sqlite-$LATEST.tar.gz
 
@@ -42,8 +44,8 @@ kdiff3 -m sqlite-$BASE sqlite-$LATEST sqlite
 # Change to the sqlite directory:
 cd sqlite
 
-# Run the google_generate_preprocessed.sh script:
-./google_generate_preprocessed.sh
+# Run the google_generate_amalgamation.sh script:
+./google_generate_amalgamation.sh
 
 # Find a sucker.  Send review.
 # TODO(shess) Describe an appropriate comment style.  Seems like it
@@ -61,25 +63,28 @@ preload-cache.patch
 safe-tolower.patch
 fts2.patch
 fts3.patch
+fts3_85522.patch
 icu-regexp.patch
 icu-shell.patch
 attach-integer.patch
 webdb.patch
 test.patch
+mac_time_machine.patch
+system-sqlite.patch
 
 So, e.g. you could do this to apply all our patches to vanilla SQLite:
 
 cd sqlite-$LATEST
 patch -p0 < ../sqlite/misc.patch
 patch -p0 < ../sqlite/preload-cache.patch
-patch -p0 < ../sqlite/safe-tolower.patch
 patch -p0 < ../sqlite/fts2.patch
 patch -p0 < ../sqlite/fts3.patch
-patch -p0 < ../sqlite/icu-regexp.patch
+patch -p0 < ../sqlite/fts3_85522.patch
 patch -p0 < ../sqlite/icu-shell.patch
-patch -p0 < ../sqlite/attach-integer.patch
 patch -p0 < ../sqlite/webdb.patch
 patch -p0 < ../sqlite/test.patch
+patch -p0 < ../sqlite/mac_time_machine.patch
+patch -p0 < ../sqlite/system-sqlite.patch
 
 This will only be the case if all changes we make also update the corresponding
 patch files. Therefore please remember to do that whenever you make a change!
@@ -175,3 +180,12 @@ Changes from Chrome:
    chromium_sqlite3_fill_in_unix_sqlite3_file() function that calls
    fillInUnixFile(), which will be made static again as soon as a
    WebKit patch using the new function lands.
+ - From mac_time_machine.patch:
+   When __APPLE__ and when creating a -journal file with any unix-type vfs,
+   determine if the database for which the journal is being created has been
+   excluded from being backed up using Apple's Time Machine and if so then also
+   exclude the journal. These changes were made in pager.c with includes of
+   Apple interfaces being made in sqliteInt.h. In order to eliminate a symbol
+   conflict with an Apple library after amalgamation it was also necessary to
+   rename fts3_porter.c's 'cType' to 'vOrCType'.
+ - fts3_85522.patch allows fts3 to work if PRAGMA is not authorized.

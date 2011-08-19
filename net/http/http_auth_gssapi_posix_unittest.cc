@@ -51,13 +51,13 @@ const char kInitialAuthResponse[] = "Mary had a little lamb";
 
 void EstablishInitialContext(test::MockGSSAPILibrary* library) {
   test::GssContextMockImpl context_info(
-      "localhost",                    // Source name
-      "example.com",                  // Target name
-      23,                             // Lifetime
-      *GSS_C_NT_HOSTBASED_SERVICE,    // Mechanism
-      0,                              // Context flags
-      1,                              // Locally initiated
-      0);                             // Open
+      "localhost",                         // Source name
+      "example.com",                       // Target name
+      23,                                  // Lifetime
+      *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+      0,                                   // Context flags
+      1,                                   // Locally initiated
+      0);                                  // Open
   gss_buffer_desc in_buffer = {0, NULL};
   gss_buffer_desc out_buffer = {arraysize(kInitialAuthResponse),
                                 const_cast<char*>(kInitialAuthResponse)};
@@ -78,13 +78,13 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPIStartup) {
   // functions we want.
   scoped_ptr<GSSAPILibrary> gssapi(new GSSAPISharedLibrary(""));
   DCHECK(gssapi.get());
-  DCHECK(gssapi.get()->Init());
+  EXPECT_TRUE(gssapi.get()->Init());
 }
 
 TEST(HttpAuthGSSAPIPOSIXTest, GSSAPILoadCustomLibrary) {
   scoped_ptr<GSSAPILibrary> gssapi(
       new GSSAPISharedLibrary("/this/library/does/not/exist"));
-  DCHECK(!gssapi.get()->Init());
+  EXPECT_FALSE(gssapi.get()->Init());
 }
 
 TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
@@ -93,21 +93,21 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
   mock_library->Init();
   const char kAuthResponse[] = "Mary had a little lamb";
   test::GssContextMockImpl context1(
-      "localhost",                    // Source name
-      "example.com",                  // Target name
-      23,                             // Lifetime
-      *GSS_C_NT_HOSTBASED_SERVICE,    // Mechanism
-      0,                              // Context flags
-      1,                              // Locally initiated
-      0);                             // Open
+      "localhost",                         // Source name
+      "example.com",                       // Target name
+      23,                                  // Lifetime
+      *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+      0,                                   // Context flags
+      1,                                   // Locally initiated
+      0);                                  // Open
   test::GssContextMockImpl context2(
-      "localhost",                    // Source name
-      "example.com",                  // Target name
-      23,                             // Lifetime
-      *GSS_C_NT_HOSTBASED_SERVICE,    // Mechanism
-      0,                              // Context flags
-      1,                              // Locally initiated
-      1);                             // Open
+      "localhost",                         // Source name
+      "example.com",                       // Target name
+      23,                                  // Lifetime
+      *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+      0,                                   // Context flags
+      1,                                   // Locally initiated
+      1);                                  // Open
   test::MockGSSAPILibrary::SecurityContextQuery queries[] = {
     test::MockGSSAPILibrary::SecurityContextQuery(
         "Negotiate",            // Package name
@@ -162,6 +162,7 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
                                                   &output_token,
                                                   &ret_flags,
                                                   &time_rec);
+    EXPECT_EQ(queries[i].response_code, major_status);
     CopyBuffer(&input_token, &output_token);
     ClearBuffer(&output_token);
   }
@@ -169,6 +170,7 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
   major_status = mock_library->delete_sec_context(&minor_status,
                                                   &context_handle,
                                                   GSS_C_NO_BUFFER);
+  EXPECT_EQ(static_cast<OM_uint32>(GSS_S_COMPLETE), major_status);
 }
 
 TEST(HttpAuthGSSAPITest, ParseChallenge_FirstRound) {

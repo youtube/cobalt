@@ -18,6 +18,7 @@
 #include "net/base/host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
+#include "net/base/single_request_host_resolver.h"
 #include "net/socket/stream_socket.h"
 
 namespace net {
@@ -57,6 +58,8 @@ class NET_TEST SOCKSClientSocket : public StreamSocket {
   virtual void SetOmniboxSpeculation();
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
+  virtual int64 NumBytesRead() const;
+  virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);

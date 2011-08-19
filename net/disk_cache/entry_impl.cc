@@ -584,10 +584,24 @@ bool EntryImpl::SanityCheck() {
     return false;
 
   Addr key_addr(stored->long_key);
-  if (stored->key_len <= kMaxInternalKeyLength && key_addr.is_initialized())
+  if ((stored->key_len <= kMaxInternalKeyLength && key_addr.is_initialized()) ||
+      (stored->key_len > kMaxInternalKeyLength && !key_addr.is_initialized()))
     return false;
 
   if (!key_addr.SanityCheck())
+    return false;
+
+  if (key_addr.is_initialized() &&
+      ((stored->key_len <= kMaxBlockSize && key_addr.is_separate_file()) ||
+       (stored->key_len > kMaxBlockSize && key_addr.is_block_file())))
+    return false;
+
+  int num_blocks = NumBlocksForEntry(stored->key_len);
+  if (entry_.address().num_blocks() != num_blocks)
+    return false;
+
+  // The key must be NULL terminated.
+  if (!key_addr.is_initialized() && stored->key[stored->key_len])
     return false;
 
   if (stored->hash != Hash(GetKey()))
@@ -663,6 +677,20 @@ const net::BoundNetLog& EntryImpl::net_log() const {
   return net_log_;
 }
 
+// static
+int EntryImpl::NumBlocksForEntry(int key_size) {
+  // The longest key that can be stored using one block.
+  int key1_len =
+      static_cast<int>(sizeof(EntryStore) - offsetof(EntryStore, key));
+
+  if (key_size < key1_len || key_size > kMaxInternalKeyLength)
+    return 1;
+
+  return ((key_size - key1_len) / 256 + 2);
+}
+
+// ------------------------------------------------------------------------
+
 void EntryImpl::Doom() {
   backend_->background_queue()->DoomEntryImpl(this);
 }
@@ -673,7 +701,8 @@ void EntryImpl::Close() {
 
 std::string EntryImpl::GetKey() const {
   CacheEntryBlock* entry = const_cast<CacheEntryBlock*>(&entry_);
-  if (entry->Data()->key_len <= kMaxInternalKeyLength)
+  int key_len = entry->Data()->key_len;
+  if (key_len <= kMaxInternalKeyLength)
     return std::string(entry->Data()->key);
 
   // We keep a copy of the key so that we can always return it, even if the
@@ -691,9 +720,11 @@ std::string EntryImpl::GetKey() const {
   File* key_file = const_cast<EntryImpl*>(this)->GetBackingFile(address,
                                                                 kKeyFileIndex);
 
+  if (!offset && key_file->GetLength() != static_cast<size_t>(key_len + 1))
+    return std::string();
+
   if (!key_file ||
-      !key_file->Read(WriteInto(&key_, entry->Data()->key_len + 1),
-                      entry->Data()->key_len + 1, offset))
+      !key_file->Read(WriteInto(&key_, key_len + 1), key_len + 1, offset))
     key_.clear();
   return key_;
 }

@@ -20,7 +20,7 @@ static int OpenContext(URLContext* h, const char* filename, int flags) {
   FFmpegURLProtocol* protocol;
   FFmpegGlue::GetInstance()->GetProtocol(filename, &protocol);
   if (!protocol)
-    return AVERROR_IO;
+    return AVERROR(EIO);
 
   h->priv_data = protocol;
   h->flags = URL_RDONLY;
@@ -32,7 +32,7 @@ static int ReadContext(URLContext* h, unsigned char* buf, int size) {
   FFmpegURLProtocol* protocol = ToProtocol(h->priv_data);
   int result = protocol->Read(size, buf);
   if (result < 0)
-    result = AVERROR_IO;
+    result = AVERROR(EIO);
   return result;
 }
 
@@ -42,12 +42,12 @@ static int WriteContext(URLContext* h, const unsigned char* buf, int size) {
 static int WriteContext(URLContext* h, unsigned char* buf, int size) {
 #endif
   // We don't support writing.
-  return AVERROR_IO;
+  return AVERROR(EIO);
 }
 
 static int64 SeekContext(URLContext* h, int64 offset, int whence) {
   FFmpegURLProtocol* protocol = ToProtocol(h->priv_data);
-  int64 new_offset = AVERROR_IO;
+  int64 new_offset = AVERROR(EIO);
   switch (whence) {
     case SEEK_SET:
       if (protocol->SetPosition(offset))
@@ -78,7 +78,7 @@ static int64 SeekContext(URLContext* h, int64 offset, int whence) {
       NOTREACHED();
   }
   if (new_offset < 0)
-    new_offset = AVERROR_IO;
+    new_offset = AVERROR(EIO);
   return new_offset;
 }
 

@@ -24,13 +24,15 @@
 #pragma comment(lib, "iphlpapi.lib")
 #elif defined(OS_POSIX)
 #include <fcntl.h>
+#if !defined(OS_ANDROID) && !defined(__LB_PS3__)
+#include <ifaddrs.h>
+#endif
+#include <netdb.h>
 #if defined(__LB_PS3__)
 #include "net/base/dns_addrinfo_ps3.h"
 #else
-#include <ifaddrs.h>
 #include <net/if.h>
 #endif
-#include <netdb.h>
 #include <netinet/in.h>
 #endif
 
@@ -47,7 +49,7 @@
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
 #include "base/path_service.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_split.h"
@@ -958,6 +960,9 @@ GURL FilePathToFileURL(const FilePath& path) {
   ReplaceSubstringsAfterOffset(&url_string, 0,
       FILE_PATH_LITERAL("#"), FILE_PATH_LITERAL("%23"));
 
+  ReplaceSubstringsAfterOffset(&url_string, 0,
+      FILE_PATH_LITERAL("?"), FILE_PATH_LITERAL("%3F"));
+
 #if defined(OS_POSIX)
   ReplaceSubstringsAfterOffset(&url_string, 0,
       FILE_PATH_LITERAL("\\"), FILE_PATH_LITERAL("%5C"));
@@ -982,7 +987,7 @@ std::string GetSpecificHeader(const std::string& headers,
   std::string match('\n' + name + ':');
 
   std::string::const_iterator begin =
-      search(headers.begin(), headers.end(), match.begin(), match.end(),
+      std::search(headers.begin(), headers.end(), match.begin(), match.end(),
              base::CaseInsensitiveCompareASCII<char>());
 
   if (begin == headers.end())
@@ -991,8 +996,8 @@ std::string GetSpecificHeader(const std::string& headers,
   begin += match.length();
 
   std::string ret;
-  TrimWhitespace(std::string(begin, find(begin, headers.end(), '\n')), TRIM_ALL,
-                 &ret);
+  TrimWhitespace(std::string(begin, std::find(begin, headers.end(), '\n')),
+                 TRIM_ALL, &ret);
   return ret;
 }
 
@@ -1075,8 +1080,8 @@ std::string GetHeaderParamValue(const std::string& header,
                                 QuoteRule::Type quote_rule) {
   // This assumes args are formatted exactly like "bla; arg1=value; arg2=value".
   std::string::const_iterator param_begin =
-      search(header.begin(), header.end(), param_name.begin(), param_name.end(),
-             base::CaseInsensitiveCompareASCII<char>());
+      std::search(header.begin(), header.end(), param_name.begin(),
+                  param_name.end(), base::CaseInsensitiveCompareASCII<char>());
 
   if (param_begin == header.end())
     return std::string();
@@ -1100,13 +1105,13 @@ std::string GetHeaderParamValue(const std::string& header,
   std::string::const_iterator param_end;
   if (*param_begin == '"' && quote_rule == QuoteRule::REMOVE_OUTER_QUOTES) {
     ++param_begin;  // skip past the quote.
-    param_end = find(param_begin, header.end(), '"');
+    param_end = std::find(param_begin, header.end(), '"');
     // If the closing quote is missing, we will treat the rest of the
     // string as the parameter.  We can't set |param_end| to the
     // location of the separator (';'), since the separator is
     // technically quoted. See: http://crbug.com/58840
   } else {
-    param_end = find(param_begin + 1, header.end(), ';');
+    param_end = std::find(param_begin + 1, header.end(), ';');
   }
 
   return std::string(param_begin, param_end);
@@ -1182,7 +1187,8 @@ bool IsCanonicalizedHostCompliant(const std::string& host,
     const char c = *i;
     if (!in_component) {
       most_recent_component_started_alpha = IsHostCharAlpha(c);
-      if (!most_recent_component_started_alpha && !IsHostCharDigit(c))
+      if (!most_recent_component_started_alpha && !IsHostCharDigit(c) &&
+          (c != '-'))
         return false;
       in_component = true;
     } else {
@@ -1225,10 +1231,7 @@ std::string GetDirectoryListingEntry(const string16& name,
     result.append(",0,");
   }
 
-  base::JsonDoubleQuote(
-      FormatBytes(size, GetByteDisplayUnits(size), true),
-      true,
-      &result);
+  base::JsonDoubleQuote(FormatBytesUnlocalized(size), true, &result);
 
   result.append(",");
 
@@ -1831,7 +1834,13 @@ static void IPv6SupportResults(IPv6SupportStatus result) {
 // to do a test resolution, and a test connection, to REALLY verify support.
 // static
 bool IPv6Supported() {
-#if defined(OS_POSIX) && !defined(__LB_PS3__)
+#if defined(OS_ANDROID)
+  // TODO: We should fully implement IPv6 probe once 'getifaddrs' API available;
+  // Another approach is implementing the similar feature by
+  // java.net.NetworkInterface through JNI.
+  NOTIMPLEMENTED();
+  return true;
+#elif defined(OS_POSIX) && !defined(__LB_PS3__)
   int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
   if (test_socket == -1) {
     IPv6SupportResults(IPV6_CANNOT_CREATE_SOCKETS);
@@ -1946,7 +1955,7 @@ bool IPv6Supported() {
 }
 
 bool HaveOnlyLoopbackAddresses() {
-#if defined(OS_POSIX) && !defined(__LB_PS3__)
+#if defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(__LB_PS3__)
   struct ifaddrs* interface_addr = NULL;
   int rv = getifaddrs(&interface_addr);
   if (rv != 0) {

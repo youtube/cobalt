@@ -6,6 +6,8 @@
 #define NET_BASE_SSL_CIPHER_SUITE_NAMES_H_
 #pragma once
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "net/base/net_api.h"
 
@@ -33,6 +35,21 @@ NET_API void SSLCompressionToString(const char** name,
 // net/base/ssl_connection_status_flags.h.
 // If the version is unknown, |name| is set to "???".
 NET_API void SSLVersionToString(const char** name, int ssl_version);
+
+// Parses a string literal that represents a SSL/TLS cipher suite.
+//
+// Supported literal forms:
+//   0xAABB, where AA is cipher_suite[0] and BB is cipher_suite[1], as
+//     defined in RFC 2246, Section 7.4.1.2. Unrecognized but parsable cipher
+//     suites in this form will not return an error.
+//
+// Returns true if the cipher suite was successfully parsed, storing the
+// result in |cipher_suite|.
+//
+// TODO(rsleevi): Support the full strings defined in the IANA TLS parameters
+// list.
+NET_API bool ParseSSLCipherString(const std::string& cipher_string,
+                                  uint16* cipher_suite);
 
 }  // namespace net
 

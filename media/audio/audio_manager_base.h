@@ -15,6 +15,9 @@ class AudioOutputDispatcher;
 // AudioManagerBase provides AudioManager functions common for all platforms.
 class AudioManagerBase : public AudioManager {
  public:
+  // Name of the generic "default" device.
+  static const char kDefaultDeviceName[];
+
   AudioManagerBase();
 
   virtual void Init();
@@ -26,6 +29,8 @@ class AudioManagerBase : public AudioManager {
 
   virtual bool CanShowAudioInputSettings();
   virtual void ShowAudioInputSettings();
+
+  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names);
 
   virtual AudioOutputStream* MakeAudioOutputStreamProxy(
       const AudioParameters& params);

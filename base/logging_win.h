@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/win/event_trace_provider.h"
 #include "base/logging.h"
@@ -50,7 +50,7 @@ enum LogMessageTypes {
 
 // Trace provider class to drive log control and transport
 // with Event Tracing for Windows.
-class BASE_API LogEventProvider : public base::win::EtwTraceProvider {
+class BASE_EXPORT LogEventProvider : public base::win::EtwTraceProvider {
  public:
   static LogEventProvider* GetInstance();
 

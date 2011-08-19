@@ -914,6 +914,7 @@ void DiskCacheBackendTest::BackendEnumerations2() {
   entry1->Close();
   ASSERT_EQ(net::OK, CreateEntry(second, &entry2));
   entry2->Close();
+  FlushQueueForTest();
 
   // Make sure that the timestamp is not the same.
   base::PlatformThread::Sleep(20);
@@ -1084,13 +1085,13 @@ TEST_F(DiskCacheBackendTest, NewEvictionFixEnumerators) {
 
 void DiskCacheBackendTest::BackendDoomRecent() {
   InitCache();
-  Time initial = Time::Now();
 
   disk_cache::Entry *entry;
   ASSERT_EQ(net::OK, CreateEntry("first", &entry));
   entry->Close();
   ASSERT_EQ(net::OK, CreateEntry("second", &entry));
   entry->Close();
+  FlushQueueForTest();
 
   base::PlatformThread::Sleep(20);
   Time middle = Time::Now();
@@ -1099,6 +1100,7 @@ void DiskCacheBackendTest::BackendDoomRecent() {
   entry->Close();
   ASSERT_EQ(net::OK, CreateEntry("fourth", &entry));
   entry->Close();
+  FlushQueueForTest();
 
   base::PlatformThread::Sleep(20);
   Time final = Time::Now();
@@ -1130,11 +1132,11 @@ TEST_F(DiskCacheBackendTest, MemoryOnlyDoomRecent) {
 
 void DiskCacheBackendTest::BackendDoomBetween() {
   InitCache();
-  Time initial = Time::Now();
 
   disk_cache::Entry *entry;
   ASSERT_EQ(net::OK, CreateEntry("first", &entry));
   entry->Close();
+  FlushQueueForTest();
 
   base::PlatformThread::Sleep(20);
   Time middle_start = Time::Now();
@@ -1143,6 +1145,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   entry->Close();
   ASSERT_EQ(net::OK, CreateEntry("third", &entry));
   entry->Close();
+  FlushQueueForTest();
 
   base::PlatformThread::Sleep(20);
   Time middle_end = Time::Now();
@@ -1151,6 +1154,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   entry->Close();
   ASSERT_EQ(net::OK, OpenEntry("fourth", &entry));
   entry->Close();
+  FlushQueueForTest();
 
   base::PlatformThread::Sleep(20);
   Time final = Time::Now();
@@ -1827,7 +1831,6 @@ TEST_F(DiskCacheTest, Backend_UsageStats) {
 
 void DiskCacheBackendTest::BackendDoomAll() {
   InitCache();
-  Time initial = Time::Now();
 
   disk_cache::Entry *entry1, *entry2;
   ASSERT_EQ(net::OK, CreateEntry("first", &entry1));
@@ -2114,4 +2117,27 @@ TEST_F(DiskCacheBackendTest, FileSharing) {
   EXPECT_EQ(0, memcmp(buffer1, buffer2, kSize));
 
   EXPECT_TRUE(disk_cache::DeleteCacheFile(name));
+}
+
+TEST_F(DiskCacheBackendTest, UpdateRankForExternalCacheHit) {
+  SetDirectMode();
+  InitCache();
+
+  disk_cache::Entry* entry;
+
+  for (int i = 0; i < 2; ++i) {
+    std::string key = StringPrintf("key%d", i);
+    ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+    entry->Close();
+  }
+
+  // Ping the oldest entry.
+  cache_->OnExternalCacheHit("key0");
+
+  TrimForTest(false);
+
+  // Make sure the older key remains.
+  EXPECT_EQ(1, cache_->GetEntryCount());
+  ASSERT_EQ(net::OK, OpenEntry("key0", &entry));
+  entry->Close();
 }

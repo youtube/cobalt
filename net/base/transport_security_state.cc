@@ -578,7 +578,6 @@ bool TransportSecurityState::IsPreloadedSTS(
     {19, true, "\006health\006google\003com", true, kGoogleAcceptableCerts },
     {21, true, "\010checkout\006google\003com", true, kGoogleAcceptableCerts },
     {19, true, "\006chrome\006google\003com", true, kGoogleAcceptableCerts },
-    {26, false, "\006latest\006chrome\006google\003com", true, 0 },
     {17, true, "\004docs\006google\003com", true, kGoogleAcceptableCerts },
     {18, true, "\005sites\006google\003com", true, kGoogleAcceptableCerts },
     {25, true, "\014spreadsheets\006google\003com", true,
@@ -591,11 +590,14 @@ bool TransportSecurityState::IsPreloadedSTS(
     {17, true, "\004mail\006google\003com", true, kGoogleAcceptableCerts },
     {23, true, "\012talkgadget\006google\003com", true,
      kGoogleAcceptableCerts },
+    {17, true, "\004talk\006google\003com", true, kGoogleAcceptableCerts },
+    {29, true, "\020hostedtalkgadget\006google\003com", true,
+     kGoogleAcceptableCerts },
+    {17, true, "\004plus\006google\003com", true, kGoogleAcceptableCerts },
     // Other Google-related domains that must use HTTPS.
     {20, true, "\006market\007android\003com", true, kGoogleAcceptableCerts },
     {26, true, "\003ssl\020google-analytics\003com", true,
      kGoogleAcceptableCerts },
-    {17, true, "\003ssl\007gstatic\003com", true, kGoogleAcceptableCerts },
     // Other Google-related domains that must use an acceptable certificate
     // iff using SSL.
     {11, true, "\005ytimg\003com", false, kGoogleAcceptableCerts },
@@ -607,6 +609,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {13, true, "\007appspot\003com", false, kGoogleAcceptableCerts },
     {23, true, "\021googlesyndication\003com", false, kGoogleAcceptableCerts },
     {17, true, "\013doubleclick\003net", false, kGoogleAcceptableCerts },
+    {17, true, "\003ssl\007gstatic\003com", false, kGoogleAcceptableCerts },
     // Exclude the learn.doubleclick.net subdomain because it uses a different
     // CA.
     {23, true, "\005learn\013doubleclick\003net", false, 0 },
@@ -640,6 +643,11 @@ bool TransportSecurityState::IsPreloadedSTS(
     {15, true, "\005login\004sapo\002pt", true, 0 },
     {19, true, "\015mattmccutchen\003net", true, 0 },
     {11, true, "\006betnet\002fr", true, 0 },
+    {13, true, "\010uprotect\002it", true, 0 },
+    {14, false, "\010squareup\003com", true, 0 },
+    {9, true, "\004cert\002se", true, 0 },
+    {11, true, "\006crypto\002is", true, 0 },
+    {20, true, "\005simon\007butcher\004name", true, 0 },
 #if defined(OS_CHROMEOS)
     {13, false, "\007twitter\003com", true, 0 },
     {17, false, "\003www\007twitter\003com", true, 0 },

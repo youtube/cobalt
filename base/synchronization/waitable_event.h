@@ -6,7 +6,7 @@
 #define BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 #if defined(OS_WIN)
@@ -42,7 +42,7 @@ class TimeDelta;
 // by a Windows event object.  This is intentional.  If you are writing Windows
 // specific code and you need other features of a Windows event, then you might
 // be better off just using an Windows event directly.
-class BASE_API WaitableEvent {
+class BASE_EXPORT WaitableEvent {
  public:
   // If manual_reset is true, then to set the event state to non-signaled, a
   // consumer must call the Reset method.  If this parameter is false, then the

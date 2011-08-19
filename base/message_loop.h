@@ -9,15 +9,9 @@
 #include <queue>
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
-#ifdef __LB_PS3__
-// __LB_PS3__FIX_ME
-// Should work with ""
-#include <base/callback.h>
-#else
 #include "base/callback.h"
-#endif // __LB_PS3__
 #include "base/memory/ref_counted.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
@@ -30,21 +24,23 @@
 // We need this to declare base::MessagePumpWin::Dispatcher, which we should
 // really just eliminate.
 #include "base/message_pump_win.h"
-#elif defined(OS_POSIX) && !defined(__LB_PS3__)
-#include "base/message_pump_libevent.h"
-#if !defined(OS_MACOSX) 
-#include "base/message_pump_glib.h"
-typedef struct _XDisplay Display;
-#endif
 #elif defined(__LB_PS3__)
 #include "base/message_pump_ps3.h"
+// __LB_PS3__FIX_ME__ do we still need the #defines?
 // there may be a more elegant way to do this..
 #define MessagePumpForUI MessagePumpForPS3
 #define MessagePumpForIO MessagePumpForPS3
-#endif
+#elif defined(OS_POSIX)
+#include "base/message_pump_libevent.h"
+#if !defined(OS_MACOSX)
 #if defined(TOUCH_UI)
-#include "base/message_pump_glib_x_dispatch.h"
+#include "base/message_pump_x.h"
+#else
+#include "base/message_pump_gtk.h"
 #endif
+#endif
+#endif
+
 
 namespace base {
 class Histogram;
@@ -86,20 +82,17 @@ class Births;
 // Please be SURE your task is reentrant (nestable) and all global variables
 // are stable and accessible before calling SetNestableTasksAllowed(true).
 //
-class BASE_API MessageLoop : public base::MessagePump::Delegate {
+class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
  public:
 #if defined(OS_WIN)
   typedef base::MessagePumpWin::Dispatcher Dispatcher;
   typedef base::MessagePumpForUI::Observer Observer;
-#elif defined(TOUCH_UI)
-  typedef base::MessagePumpGlibXDispatcher Dispatcher;
-  typedef base::MessagePumpXObserver Observer;
-#elif !defined(OS_MACOSX) && !defined(__LB_PS3__)
-  typedef base::MessagePumpForUI::Dispatcher Dispatcher;
-  typedef base::MessagePumpForUI::Observer Observer;
 #elif defined(__LB_PS3__)
   typedef base::MessagePumpForPS3::Dispatcher Dispatcher;
   typedef base::MessagePumpForPS3::Observer Observer;
+#elif !defined(OS_MACOSX)
+  typedef base::MessagePumpDispatcher Dispatcher;
+  typedef base::MessagePumpObserver Observer;
 #endif
 
   // A MessageLoop has a particular type, which indicates the set of
@@ -125,12 +118,17 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   // Normally, it is not necessary to instantiate a MessageLoop.  Instead, it
   // is typical to make use of the current thread's MessageLoop instance.
   explicit MessageLoop(Type type = TYPE_DEFAULT);
-  ~MessageLoop();
+  virtual ~MessageLoop();
 
   // Returns the MessageLoop object for the current thread, or null if none.
   static MessageLoop* current();
 
   static void EnableHistogrammer(bool enable_histogrammer);
+
+  typedef base::MessagePump* (MessagePumpFactory)();
+  // Using the given base::MessagePumpForUIFactory to override the default
+  // MessagePump implementation for 'TYPE_UI'.
+  static void InitMessagePumpForUIFactory(MessagePumpFactory* factory);
 
   // A DestructionObserver is notified when the current MessageLoop is being
   // destroyed.  These obsevers are notified prior to MessageLoop::current()
@@ -140,7 +138,7 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   // NOTE: Any tasks posted to the MessageLoop during this notification will
   // not be run.  Instead, they will be deleted.
   //
-  class BASE_API DestructionObserver {
+  class BASE_EXPORT DestructionObserver {
    public:
     virtual void WillDestroyCurrentMessageLoop() = 0;
 
@@ -329,7 +327,7 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
   // MessageLoop.
   //
   // NOTE: A TaskObserver implementation should be extremely fast!
-  class BASE_API TaskObserver {
+  class BASE_EXPORT TaskObserver {
    public:
     TaskObserver();
 
@@ -385,12 +383,17 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
     // once it becomes idle.
     bool quit_received;
 
-#if !defined(OS_MACOSX)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
     Dispatcher* dispatcher;
 #endif
   };
 
-  class BASE_API AutoRunState : RunState {
+#if defined(OS_ANDROID)
+  // Android Java process manages the UI thread message loop. So its
+  // MessagePumpForUI needs to keep the RunState.
+ public:
+#endif
+  class BASE_EXPORT AutoRunState : RunState {
    public:
     explicit AutoRunState(MessageLoop* loop);
     ~AutoRunState();
@@ -398,6 +401,9 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
     MessageLoop* loop_;
     RunState* previous_state_;
   };
+#if defined(OS_ANDROID)
+ protected:
+#endif
 
   // This structure is copied around by value.
   struct PendingTask {
@@ -584,7 +590,7 @@ class BASE_API MessageLoop : public base::MessagePump::Delegate {
 // This class is typically used like so:
 //   MessageLoopForUI::current()->...call some method...
 //
-class BASE_API MessageLoopForUI : public MessageLoop {
+class BASE_EXPORT MessageLoopForUI : public MessageLoop {
  public:
   MessageLoopForUI() : MessageLoop(TYPE_UI) {
   }
@@ -600,19 +606,12 @@ class BASE_API MessageLoopForUI : public MessageLoop {
   void DidProcessMessage(const MSG& message);
 #endif  // defined(OS_WIN)
 
-#if defined(USE_X11)
-  // Returns the Xlib Display that backs the MessagePump for this MessageLoop.
-  //
-  // This allows for raw access to the X11 server in situations where our
-  // abstractions do not provide enough power.
-  //
-  // Be careful how this is used. The MessagePump in general expects
-  // exclusive access to the Display. Calling things like XNextEvent() will
-  // likely break things in subtle, hard to detect, ways.
-  Display* GetDisplay();
-#endif  // defined(OS_X11)
-
-#if !defined(OS_MACOSX)
+#if defined(OS_ANDROID)
+  // On Android, the UI message loop is handled by Java side. So Run() should
+  // never be called. Instead use Start(), which will forward all the native UI
+  // events to the Java message loop.
+  void Start();
+#elif !defined(OS_MACOSX)
   // Please see message_pump_win/message_pump_glib for definitions of these
   // methods.
   void AddObserver(Observer* observer);
@@ -640,7 +639,7 @@ COMPILE_ASSERT(sizeof(MessageLoop) == sizeof(MessageLoopForUI),
 // This class is typically used like so:
 //   MessageLoopForIO::current()->...call some method...
 //
-class BASE_API MessageLoopForIO : public MessageLoop {
+class BASE_EXPORT MessageLoopForIO : public MessageLoop {
  public:
 #if defined(OS_WIN)
   typedef base::MessagePumpForIO::IOHandler IOHandler;

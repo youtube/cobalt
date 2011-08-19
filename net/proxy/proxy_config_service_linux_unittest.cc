@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/format_macros.h"
@@ -106,7 +107,7 @@ class MockEnvironment : public base::Environment {
   }
 
   // Begin base::Environment implementation.
-  virtual bool GetVar(const char* variable_name, std::string* result) {
+  virtual bool GetVar(const char* variable_name, std::string* result) OVERRIDE {
     std::map<std::string, const char**>::iterator it =
         table.find(variable_name);
     if (it != table.end() && *(it->second) != NULL) {
@@ -117,12 +118,13 @@ class MockEnvironment : public base::Environment {
     return false;
   }
 
-  virtual bool SetVar(const char* variable_name, const std::string& new_value) {
+  virtual bool SetVar(const char* variable_name, const std::string& new_value)
+      OVERRIDE {
     ADD_FAILURE();
     return false;
   }
 
-  virtual bool UnSetVar(const char* variable_name) {
+  virtual bool UnSetVar(const char* variable_name) OVERRIDE {
     ADD_FAILURE();
     return false;
   }
@@ -174,25 +176,26 @@ class MockSettingGetter
   }
 
   virtual bool Init(MessageLoop* glib_default_loop,
-                    MessageLoopForIO* file_loop) {
+                    MessageLoopForIO* file_loop) OVERRIDE {
     return true;
   }
 
-  virtual void ShutDown() {}
+  virtual void ShutDown() OVERRIDE {}
 
-  virtual bool SetUpNotifications(ProxyConfigServiceLinux::Delegate* delegate) {
+  virtual bool SetUpNotifications(ProxyConfigServiceLinux::Delegate* delegate)
+      OVERRIDE {
     return true;
   }
 
-  virtual MessageLoop* GetNotificationLoop() {
+  virtual MessageLoop* GetNotificationLoop() OVERRIDE {
     return NULL;
   }
 
-  virtual const char* GetDataSource() {
+  virtual const char* GetDataSource() OVERRIDE {
     return "test";
   }
 
-  virtual bool GetString(StringSetting key, std::string* result) {
+  virtual bool GetString(StringSetting key, std::string* result) OVERRIDE {
     const char* value = strings_table.Get(key);
     if (value) {
       *result = value;
@@ -201,7 +204,7 @@ class MockSettingGetter
     return false;
   }
 
-  virtual bool GetBool(BoolSetting key, bool* result) {
+  virtual bool GetBool(BoolSetting key, bool* result) OVERRIDE {
     BoolSettingValue value = bools_table.Get(key);
     switch (value) {
     case UNSET:
@@ -215,24 +218,24 @@ class MockSettingGetter
     return true;
   }
 
-  virtual bool GetInt(IntSetting key, int* result) {
+  virtual bool GetInt(IntSetting key, int* result) OVERRIDE {
     // We don't bother to distinguish unset keys from 0 values.
     *result = ints_table.Get(key);
     return true;
   }
 
   virtual bool GetStringList(StringListSetting key,
-                             std::vector<std::string>* result) {
+                             std::vector<std::string>* result) OVERRIDE {
     *result = string_lists_table.Get(key);
     // We don't bother to distinguish unset keys from empty lists.
     return !result->empty();
   }
 
-  virtual bool BypassListIsReversed() {
+  virtual bool BypassListIsReversed() OVERRIDE {
     return false;
   }
 
-  virtual bool MatchHostsUsingSuffixMatching() {
+  virtual bool MatchHostsUsingSuffixMatching() OVERRIDE {
     return false;
   }
 
@@ -349,7 +352,7 @@ namespace net {
 // must use the same test fixture class (also "ProxyConfigServiceLinuxTest").
 class ProxyConfigServiceLinuxTest : public PlatformTest {
  protected:
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     PlatformTest::SetUp();
     // Set up a temporary KDE home directory.
     std::string prefix("ProxyConfigServiceLinuxTest_user_home");
@@ -366,7 +369,7 @@ class ProxyConfigServiceLinuxTest : public PlatformTest {
     kioslaverc4_ = kde4_config_.Append(FILE_PATH_LITERAL("kioslaverc"));
   }
 
-  virtual void TearDown() {
+  virtual void TearDown() OVERRIDE {
     // Delete the temporary KDE home directory.
     file_util::Delete(user_home_, true);
     PlatformTest::TearDown();

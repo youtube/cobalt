@@ -383,6 +383,7 @@ TEST_F(SharedMemoryProcessTest, MAYBE_Tasks) {
   ProcessHandle handles[kNumTasks];
   for (int index = 0; index < kNumTasks; ++index) {
     handles[index] = SpawnChild("SharedMemoryTestMain", false);
+    ASSERT_TRUE(handles[index]);
   }
 
   int exit_code = 0;

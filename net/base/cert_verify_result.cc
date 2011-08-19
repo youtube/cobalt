@@ -4,6 +4,8 @@
 
 #include "net/base/cert_verify_result.h"
 
+#include "net/base/x509_certificate.h"
+
 namespace net {
 
 CertVerifyResult::CertVerifyResult() {
@@ -14,6 +16,7 @@ CertVerifyResult::~CertVerifyResult() {
 }
 
 void CertVerifyResult::Reset() {
+  verified_cert = NULL;
   cert_status = 0;
   has_md5 = false;
   has_md2 = false;

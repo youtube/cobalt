@@ -47,7 +47,7 @@ class NET_TEST BackendImpl : public Backend {
   // mask can be used to limit the usable size of the hash table, for testing.
   BackendImpl(const FilePath& path, uint32 mask,
               base::MessageLoopProxy* cache_thread, net::NetLog* net_log);
-  ~BackendImpl();
+  virtual ~BackendImpl();
 
   // Returns a new backend with the desired flags. See the declaration of
   // CreateCacheBackend().
@@ -79,6 +79,7 @@ class NET_TEST BackendImpl : public Backend {
   int SyncOpenNextEntry(void** iter, Entry** next_entry);
   int SyncOpenPrevEntry(void** iter, Entry** prev_entry);
   void SyncEndEnumeration(void* iter);
+  void SyncOnExternalCacheHit(const std::string& key);
 
   // Open or create an entry for the given |key| or |iter|.
   EntryImpl* OpenEntryImpl(const std::string& key);
@@ -263,6 +264,7 @@ class NET_TEST BackendImpl : public Backend {
                             CompletionCallback* callback);
   virtual void EndEnumeration(void** iter);
   virtual void GetStats(StatsItems* stats);
+  virtual void OnExternalCacheHit(const std::string& key);
 
  private:
   typedef base::hash_map<CacheAddr, EntryImpl*> EntriesMap;

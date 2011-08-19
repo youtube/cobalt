@@ -104,7 +104,7 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "base/hash_tables.h"
 #include "base/string16.h"
@@ -124,7 +124,7 @@ class Pickle;
 
 // An abstraction to isolate users from the differences between native
 // pathnames on different platforms.
-class BASE_API FilePath {
+class BASE_EXPORT FilePath {
  public:
 #if defined(OS_POSIX)
   // On most platforms, native pathnames are char arrays, and the encoding
@@ -312,12 +312,6 @@ class BASE_API FilePath {
   //   ever use the result of that again as a path.
   static FilePath FromWStringHack(const std::wstring& wstring);
 
-  // Static helper method to write a StringType to a pickle.
-  static void WriteStringTypeToPickle(Pickle* pickle,
-                                      const FilePath::StringType& path);
-  static bool ReadStringTypeFromPickle(Pickle* pickle, void** iter,
-                                       FilePath::StringType* path);
-
   void WriteToPickle(Pickle* pickle);
   bool ReadFromPickle(Pickle* pickle, void** iter);
 
@@ -386,8 +380,8 @@ class BASE_API FilePath {
 
 // Provide a hash function so that hash_sets and maps can contain FilePath
 // objects.
+namespace BASE_HASH_NAMESPACE {
 #if defined(COMPILER_GCC) && !defined(__LB_PS3__)
-namespace __gnu_cxx {
 
 template<>
 struct hash<FilePath> {
@@ -396,15 +390,14 @@ struct hash<FilePath> {
   }
 };
 
-}  // namespace __gnu_cxx
 #elif defined(COMPILER_MSVC) || defined(__LB_PS3__)
-namespace stdext {
 
 inline size_t hash_value(const FilePath& f) {
   return hash_value(f.value());
 }
 
-}  // namespace stdext
 #endif  // COMPILER
+
+}  // namespace BASE_HASH_NAMESPACE
 
 #endif  // BASE_FILE_PATH_H_

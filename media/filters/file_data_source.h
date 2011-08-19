@@ -27,7 +27,6 @@ class FileDataSource : public DataSource {
   virtual void Stop(FilterCallback* callback);
 
   // Implementation of DataSource.
-  virtual const MediaFormat& media_format();
   virtual void Read(int64 position, size_t size, uint8* data,
                     ReadCallback* read_callback);
   virtual bool GetSize(int64* size_out);
@@ -48,9 +47,6 @@ class FileDataSource : public DataSource {
 
   // Size of the file in bytes.
   int64 file_size_;
-
-  // Media format handed out by the DataSource::GetMediaFormat method.
-  MediaFormat media_format_;
 
   // Critical section that protects all of the DataSource methods to prevent
   // a Stop from happening while in the middle of a file I/O operation.

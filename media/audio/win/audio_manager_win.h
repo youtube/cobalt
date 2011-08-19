@@ -22,13 +22,16 @@ class AudioManagerWin : public AudioManagerBase {
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices();
   virtual bool HasAudioInputDevices();
-  virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params);
-  virtual AudioInputStream* MakeAudioInputStream(AudioParameters params);
+  virtual AudioOutputStream* MakeAudioOutputStream(
+      const AudioParameters& params);
+  virtual AudioInputStream* MakeAudioInputStream(
+      const AudioParameters& params);
   virtual void MuteAll();
   virtual void UnMuteAll();
   virtual string16 GetAudioInputDeviceModel();
   virtual bool CanShowAudioInputSettings();
   virtual void ShowAudioInputSettings();
+  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names);
 
   // Windows-only methods to free a stream created in MakeAudioStream. These
   // are called internally by the audio stream when it has been closed.

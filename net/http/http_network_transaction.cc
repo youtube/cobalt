@@ -13,7 +13,7 @@
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/stats_counters.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -25,7 +25,6 @@
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
-#include "net/base/network_delegate.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/upload_data_stream.h"
@@ -114,11 +113,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
 }
 
 HttpNetworkTransaction::~HttpNetworkTransaction() {
-  if (request_ && session_->network_delegate()) {
-    session_->network_delegate()->NotifyHttpTransactionDestroyed(
-        request_->request_id);
-  }
-
   if (stream_.get()) {
     HttpResponseHeaders* headers = GetResponseHeaders();
     // TODO(mbelshe): The stream_ should be able to compute whether or not the
@@ -161,6 +155,9 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
   net_log_ = net_log;
   request_ = request_info;
   start_time_ = base::Time::Now();
+
+  if (request_->load_flags & LOAD_DISABLE_CERT_REVOCATION_CHECKING)
+    ssl_config_.rev_checking_enabled = false;
 
   next_state_ = STATE_CREATE_STREAM;
   int rv = DoLoop(OK);
@@ -692,13 +689,6 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
     request_headers_.SetHeader(HttpRequestHeaders::kConnection, "keep-alive");
   }
 
-  // Our consumer should have made sure that this is a safe referrer.  See for
-  // instance WebCore::FrameLoader::HideReferrer.
-  if (request_->referrer.is_valid()) {
-    request_headers_.SetHeader(HttpRequestHeaders::kReferer,
-                               request_->referrer.spec());
-  }
-
   // Add a content length header?
   if (request_body_.get()) {
     if (request_body_->is_chunked()) {
@@ -733,20 +723,7 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
     auth_controllers_[HttpAuth::AUTH_SERVER]->AddAuthorizationHeader(
         &request_headers_);
 
-  // Headers that will be stripped from request_->extra_headers to prevent,
-  // e.g., plugins from overriding headers that are controlled using other
-  // means. Otherwise a plugin could set a referrer although sending the
-  // referrer is inhibited.
-  // TODO(jochen): check whether also other headers should be stripped.
-  static const char* const kExtraHeadersToBeStripped[] = {
-    "Referer"
-  };
-
-  HttpRequestHeaders stripped_extra_headers;
-  stripped_extra_headers.CopyFrom(request_->extra_headers);
-  for (size_t i = 0; i < arraysize(kExtraHeadersToBeStripped); ++i)
-    stripped_extra_headers.RemoveHeader(kExtraHeadersToBeStripped[i]);
-  request_headers_.MergeFrom(stripped_extra_headers);
+  request_headers_.MergeFrom(request_->extra_headers);
 }
 
 int HttpNetworkTransaction::DoBuildRequest() {
@@ -770,11 +747,6 @@ int HttpNetworkTransaction::DoBuildRequest() {
     BuildRequestHeaders(using_proxy);
   }
 
-  if (session_->network_delegate()) {
-    return session_->network_delegate()->NotifyBeforeSendHeaders(
-        request_->request_id, &io_callback_, &request_headers_);
-  }
-
   return OK;
 }
 
@@ -792,11 +764,6 @@ int HttpNetworkTransaction::DoSendRequest() {
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
-  if (session_->network_delegate()) {
-    session_->network_delegate()->NotifyRequestSent(
-        request_->request_id, response_.socket_address, request_headers_);
-  }
-
   if (result < 0)
     return HandleIOError(result);
   next_state_ = STATE_READ_HEADERS;
@@ -937,6 +904,7 @@ int HttpNetworkTransaction::DoReadBodyComplete(int result) {
   // Clean up connection if we are done.
   if (done) {
     LogTransactionMetrics();
+    stream_->LogNumRttVsBytesMetrics();
     stream_->Close(!keep_alive);
     // Note: we don't reset the stream here.  We've closed it, but we still
     // need it around so that callers can call methods such as
@@ -996,16 +964,16 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
 
   base::TimeDelta total_duration = response_.response_time - start_time_;
 
-  UMA_HISTOGRAM_CLIPPED_TIMES(
-      "Net.Transaction_Connected_Under_10",
+  UMA_HISTOGRAM_CUSTOM_TIMES(
+      "Net.Transaction_Connected",
       total_duration,
       base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
       100);
 
   bool reused_socket = stream_->IsConnectionReused();
   if (!reused_socket) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        "Net.Transaction_Connected_New",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        "Net.Transaction_Connected_New_b",
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
@@ -1013,8 +981,8 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
   static const bool use_conn_impact_histogram =
       base::FieldTrialList::TrialExists("ConnCountImpact");
   if (use_conn_impact_histogram) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        base::FieldTrial::MakeName("Net.Transaction_Connected_New",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        base::FieldTrial::MakeName("Net.Transaction_Connected_New_b",
             "ConnCountImpact"),
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
@@ -1025,15 +993,15 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
   static const bool use_spdy_histogram =
       base::FieldTrialList::TrialExists("SpdyImpact");
   if (use_spdy_histogram && response_.was_npn_negotiated) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-      base::FieldTrial::MakeName("Net.Transaction_Connected_Under_10",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+      base::FieldTrial::MakeName("Net.Transaction_Connected",
                                  "SpdyImpact"),
         total_duration, base::TimeDelta::FromMilliseconds(1),
         base::TimeDelta::FromMinutes(10), 100);
 
     if (!reused_socket) {
-      UMA_HISTOGRAM_CLIPPED_TIMES(
-          base::FieldTrial::MakeName("Net.Transaction_Connected_New",
+      UMA_HISTOGRAM_CUSTOM_TIMES(
+          base::FieldTrial::MakeName("Net.Transaction_Connected_New_b",
                                      "SpdyImpact"),
           total_duration, base::TimeDelta::FromMilliseconds(1),
           base::TimeDelta::FromMinutes(10), 100);
@@ -1044,14 +1012,14 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
   // types.  This will change when we also prioritize certain subresources like
   // css, js, etc.
   if (request_->priority) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        "Net.Priority_High_Latency",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        "Net.Priority_High_Latency_b",
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
   } else {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        "Net.Priority_Low_Latency",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        "Net.Priority_Low_Latency_b",
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
@@ -1066,18 +1034,17 @@ void HttpNetworkTransaction::LogTransactionMetrics() const {
 
   base::TimeDelta total_duration = base::Time::Now() - start_time_;
 
-  UMA_HISTOGRAM_LONG_TIMES("Net.Transaction_Latency", duration);
-  UMA_HISTOGRAM_CLIPPED_TIMES("Net.Transaction_Latency_Under_10", duration,
-                              base::TimeDelta::FromMilliseconds(1),
-                              base::TimeDelta::FromMinutes(10),
-                              100);
-  UMA_HISTOGRAM_CLIPPED_TIMES("Net.Transaction_Latency_Total_Under_10",
-                              total_duration,
-                              base::TimeDelta::FromMilliseconds(1),
-                              base::TimeDelta::FromMinutes(10), 100);
+  UMA_HISTOGRAM_CUSTOM_TIMES("Net.Transaction_Latency_b", duration,
+                             base::TimeDelta::FromMilliseconds(1),
+                             base::TimeDelta::FromMinutes(10),
+                             100);
+  UMA_HISTOGRAM_CUSTOM_TIMES("Net.Transaction_Latency_Total",
+                             total_duration,
+                             base::TimeDelta::FromMilliseconds(1),
+                             base::TimeDelta::FromMinutes(10), 100);
   if (!stream_->IsConnectionReused()) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        "Net.Transaction_Latency_Total_New_Connection_Under_10",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        "Net.Transaction_Latency_Total_New_Connection",
         total_duration, base::TimeDelta::FromMilliseconds(1),
         base::TimeDelta::FromMinutes(10), 100);
   }

@@ -40,6 +40,9 @@ enum {
                 // This is $XDG_CACHE_HOME on Linux and
                 // ~/Library/Caches on Mac.
 #endif
+#if defined(OS_ANDROID)
+  DIR_ANDROID_APP_DATA,  // Directory where to put android app's data.
+#endif
 
   PATH_END
 };

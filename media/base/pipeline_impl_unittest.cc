@@ -5,10 +5,9 @@
 #include <string>
 
 #include "base/callback.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/threading/simple_thread.h"
 #include "media/base/pipeline_impl.h"
-#include "media/base/media_format.h"
 #include "media/base/filters.h"
 #include "media/base/filter_host.h"
 #include "media/base/mock_callback.h"
@@ -34,7 +33,7 @@ static const int kTotalBytes = 1024;
 static const int kBufferedBytes = 1024;
 
 // Test url for raw video pipeline.
-static const std::string kUrlMedia = "media://raw_video_stream";
+static const char kUrlRawVideo[] = "://raw_video_stream";
 
 // Used for setting expectations on pipeline callbacks.  Using a StrictMock
 // also lets us test for missing callbacks.
@@ -76,6 +75,9 @@ class PipelineImplTest : public ::testing::Test {
     DemuxerStream* null_pointer = NULL;
     EXPECT_CALL(*mocks_->demuxer(), GetStream(_))
         .WillRepeatedly(Return(null_pointer));
+
+    EXPECT_CALL(*mocks_->demuxer(), GetStartTime())
+        .WillRepeatedly(Return(base::TimeDelta()));
   }
 
   virtual ~PipelineImplTest() {
@@ -101,7 +103,7 @@ class PipelineImplTest : public ::testing::Test {
         kTotalBytes, kBufferedBytes, duration);
     EXPECT_CALL(*mocks_->demuxer(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->demuxer(), SetPreload(AUTO));
-    EXPECT_CALL(*mocks_->demuxer(), Seek(base::TimeDelta(), _))
+    EXPECT_CALL(*mocks_->demuxer(), Seek(mocks_->demuxer()->GetStartTime(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
     EXPECT_CALL(*mocks_->demuxer(), Stop(NotNull()))
         .WillOnce(Invoke(&RunStopFilterCallback));
@@ -128,7 +130,8 @@ class PipelineImplTest : public ::testing::Test {
                 Initialize(stream, NotNull(), NotNull()))
         .WillOnce(DoAll(Invoke(&RunFilterCallback3), DeleteArg<2>()));
     EXPECT_CALL(*mocks_->video_decoder(), SetPlaybackRate(0.0f));
-    EXPECT_CALL(*mocks_->video_decoder(), Seek(base::TimeDelta(), _))
+    EXPECT_CALL(*mocks_->video_decoder(),
+                Seek(mocks_->demuxer()->GetStartTime(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
     EXPECT_CALL(*mocks_->video_decoder(), Stop(NotNull()))
         .WillOnce(Invoke(&RunStopFilterCallback));
@@ -152,7 +155,8 @@ class PipelineImplTest : public ::testing::Test {
                 Initialize(mocks_->video_decoder(), NotNull(), NotNull()))
         .WillOnce(DoAll(Invoke(&RunFilterCallback3), DeleteArg<2>()));
     EXPECT_CALL(*mocks_->video_renderer(), SetPlaybackRate(0.0f));
-    EXPECT_CALL(*mocks_->video_renderer(), Seek(base::TimeDelta(), _))
+    EXPECT_CALL(*mocks_->video_renderer(),
+                Seek(mocks_->demuxer()->GetStartTime(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
     EXPECT_CALL(*mocks_->video_renderer(), Stop(NotNull()))
         .WillOnce(Invoke(&RunStopFilterCallback));
@@ -201,8 +205,8 @@ class PipelineImplTest : public ::testing::Test {
     EXPECT_CALL(callbacks_, OnStart(start_status));
 
     bool run_build = true;
-    if (url.compare(kUrlMedia) == 0)
-        run_build = false;
+    if (url.find(kRawMediaScheme) == 0)
+      run_build = false;
 
     pipeline_->Start(mocks_->filter_collection(true,
                                                true,
@@ -425,7 +429,8 @@ TEST_F(PipelineImplTest, RawVideoStream) {
   InitializeVideoDecoder(NULL);
   InitializeVideoRenderer();
 
-  InitializePipeline(PIPELINE_OK, PIPELINE_OK, kUrlMedia);
+  InitializePipeline(PIPELINE_OK, PIPELINE_OK,
+      std::string(kRawMediaScheme).append(kUrlRawVideo));
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_FALSE(pipeline_->HasAudio());
   EXPECT_TRUE(pipeline_->HasVideo());
@@ -799,6 +804,47 @@ TEST_F(PipelineImplTest, ErrorDuringSeek) {
   EXPECT_CALL(callbacks_, OnSeek(PIPELINE_ERROR_READ));
   EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_READ));
   message_loop_.RunAllPending();
+}
+
+TEST_F(PipelineImplTest, StartTimeIsZero) {
+  CreateVideoStream();
+  MockDemuxerStreamVector streams;
+  streams.push_back(video_stream());
+
+  const base::TimeDelta kDuration = base::TimeDelta::FromSeconds(100);
+  InitializeDemuxer(&streams, kDuration);
+  InitializeVideoDecoder(video_stream());
+  InitializeVideoRenderer();
+
+  InitializePipeline(PIPELINE_OK);
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_FALSE(pipeline_->HasAudio());
+  EXPECT_TRUE(pipeline_->HasVideo());
+
+  EXPECT_EQ(base::TimeDelta(), pipeline_->GetCurrentTime());
+}
+
+TEST_F(PipelineImplTest, StartTimeIsNonZero) {
+  const base::TimeDelta kStartTime = base::TimeDelta::FromSeconds(4);
+  const base::TimeDelta kDuration = base::TimeDelta::FromSeconds(100);
+
+  EXPECT_CALL(*mocks_->demuxer(), GetStartTime())
+      .WillRepeatedly(Return(kStartTime));
+
+  CreateVideoStream();
+  MockDemuxerStreamVector streams;
+  streams.push_back(video_stream());
+
+  InitializeDemuxer(&streams, kDuration);
+  InitializeVideoDecoder(video_stream());
+  InitializeVideoRenderer();
+
+  InitializePipeline(PIPELINE_OK);
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_FALSE(pipeline_->HasAudio());
+  EXPECT_TRUE(pipeline_->HasVideo());
+
+  EXPECT_EQ(kStartTime, pipeline_->GetCurrentTime());
 }
 
 class FlexibleCallbackRunner : public base::DelegateSimpleThread::Delegate {

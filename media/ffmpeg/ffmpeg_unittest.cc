@@ -173,10 +173,10 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
           << "Could not open AVCodecContext with CodecID "
           << av_codec_context->codec_id;
 
-      if (av_codec->type == CODEC_TYPE_AUDIO) {
+      if (av_codec->type == AVMEDIA_TYPE_AUDIO) {
         EXPECT_EQ(-1, audio_stream_index_) << "Found multiple audio streams.";
         audio_stream_index_ = static_cast<int>(i);
-      } else if (av_codec->type == CODEC_TYPE_VIDEO) {
+      } else if (av_codec->type == AVMEDIA_TYPE_VIDEO) {
         EXPECT_EQ(-1, video_stream_index_) << "Found multiple video streams.";
         video_stream_index_ = static_cast<int>(i);
       } else {

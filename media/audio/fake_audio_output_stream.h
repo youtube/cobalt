@@ -17,7 +17,7 @@
 
 class FakeAudioOutputStream : public AudioOutputStream {
  public:
-  static AudioOutputStream* MakeFakeStream(AudioParameters params);
+  static AudioOutputStream* MakeFakeStream(const AudioParameters& params);
   static FakeAudioOutputStream* GetLastFakeStream();
 
   virtual bool Open();
@@ -31,7 +31,7 @@ class FakeAudioOutputStream : public AudioOutputStream {
   double volume() { return volume_; }
 
  private:
-  explicit FakeAudioOutputStream(AudioParameters params);
+  explicit FakeAudioOutputStream(const AudioParameters& params);
   virtual ~FakeAudioOutputStream();
 
   static void DestroyLastFakeStream(void* param);

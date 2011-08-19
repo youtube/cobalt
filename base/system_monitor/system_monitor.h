@@ -6,7 +6,7 @@
 #define BASE_SYSTEM_MONITOR_SYSTEM_MONITOR_H_
 #pragma once
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "build/build_config.h"
 
@@ -33,7 +33,7 @@ namespace base {
 // Class for monitoring various system-related subsystems
 // such as power management, network status, etc.
 // TODO(mbelshe):  Add support beyond just power management.
-class BASE_API SystemMonitor {
+class BASE_EXPORT SystemMonitor {
  public:
   // Normalized list of power events.
   enum PowerEvent {
@@ -49,6 +49,14 @@ class BASE_API SystemMonitor {
 
   // Get the application-wide SystemMonitor (if not present, returns NULL).
   static SystemMonitor* Get();
+
+#if defined(OS_MACOSX)
+  // Allocate system resources needed by the SystemMonitor class.
+  //
+  // This function must be called before instantiating an instance of the class
+  // and before the Sandbox is initialized.
+  static void AllocateSystemIOPorts();
+#endif
 
   //
   // Power-related APIs
@@ -66,7 +74,7 @@ class BASE_API SystemMonitor {
   // are finished. Observers should implement quick callback functions; if
   // lengthy operations are needed, the observer should take care to invoke
   // the operation on an appropriate thread.
-  class PowerObserver {
+  class BASE_EXPORT PowerObserver {
    public:
     // Notification of a change in power status of the computer, such
     // as from switching between battery and A/C power.
@@ -128,11 +136,6 @@ class BASE_API SystemMonitor {
 
 #if defined(ENABLE_BATTERY_MONITORING)
   base::OneShotTimer<SystemMonitor> delayed_battery_check_;
-#endif
-
-#if defined(OS_MACOSX)
-  IONotificationPortRef notification_port_ref_;
-  io_object_t notifier_object_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(SystemMonitor);

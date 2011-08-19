@@ -31,9 +31,8 @@ namespace disk_cache {
 class NET_TEST FileLock {
  public:
   explicit FileLock(BlockFileHeader* header);
-  virtual ~FileLock() {
-    Unlock();
-  }
+  virtual ~FileLock();
+
   // Virtual to make sure the compiler never inlines the calls.
   virtual void Lock();
   virtual void Unlock();

@@ -21,7 +21,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/task.h"
 #include "base/threading/worker_pool.h"
@@ -48,17 +48,9 @@ namespace net {
 
 namespace {
 
-// Helper to create an AddressList that has a particular port. It has an
-// optimization to avoid allocating a new address linked list when the
-// port is already what we want.
-AddressList CreateAddressListUsingPort(const AddressList& src, int port) {
-  if (src.GetPort() == port)
-    return src;
-
-  AddressList out = src;
-  out.SetPort(port);
-  return out;
-}
+// Limit the size of hostnames that will be resolved to combat issues in
+// some platform's resolvers.
+const size_t kMaxHostLength = 4096;
 
 // Helper to mutate the linked list contained by AddressList to the given
 // port. Note that in general this is dangerous since the AddressList's
@@ -86,15 +78,52 @@ const char kOSErrorsForGetAddrinfoHistogramName[] =
     "Net.OSErrorsForGetAddrinfo";
 #endif
 
-HostCache* CreateDefaultCache() {
-  static const size_t kMaxHostCacheEntries = 100;
+// Gets a list of the likely error codes that getaddrinfo() can return
+// (non-exhaustive). These are the error codes that we will track via
+// a histogram.
+std::vector<int> GetAllGetAddrinfoOSErrors() {
+  int os_errors[] = {
+#if defined(OS_POSIX)
+#if !defined(OS_FREEBSD)
+#if !defined(OS_ANDROID) && !defined(__LB_PS3__)
+    // EAI_ADDRFAMILY has been declared obsolete in Android's netdb.h.
+    EAI_ADDRFAMILY,
+#endif
+    EAI_NODATA,
+#endif
+    EAI_AGAIN,
+    EAI_BADFLAGS,
+    EAI_FAIL,
+    EAI_FAMILY,
+    EAI_MEMORY,
+    EAI_NONAME,
+    EAI_SERVICE,
+    EAI_SOCKTYPE,
+    EAI_SYSTEM,
+#elif defined(OS_WIN)
+    // See: http://msdn.microsoft.com/en-us/library/ms738520(VS.85).aspx
+    WSA_NOT_ENOUGH_MEMORY,
+    WSAEAFNOSUPPORT,
+    WSAEINVAL,
+    WSAESOCKTNOSUPPORT,
+    WSAHOST_NOT_FOUND,
+    WSANO_DATA,
+    WSANO_RECOVERY,
+    WSANOTINITIALISED,
+    WSATRY_AGAIN,
+    WSATYPE_NOT_FOUND,
+    // The following are not in doc, but might be to appearing in results :-(.
+    WSA_INVALID_HANDLE,
+#endif
+  };
 
-  HostCache* cache = new HostCache(
-      kMaxHostCacheEntries,
-      base::TimeDelta::FromMinutes(1),
-      base::TimeDelta::FromSeconds(0));  // Disable caching of failed DNS.
+  // Ensure all errors are positive, as histogram only tracks positive values.
+  for (size_t i = 0; i < arraysize(os_errors); ++i) {
+    os_errors[i] = std::abs(os_errors[i]);
+  }
 
-  return cache;
+  return base::CustomHistogram::ArrayToCustomRanges(os_errors,
+                                                    arraysize(os_errors));
 }
 
 }  // anonymous namespace
@@ -113,8 +142,8 @@ HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
     max_concurrent_resolves = kDefaultMaxJobs;
 
   HostResolverImpl* resolver =
-      new HostResolverImpl(NULL, CreateDefaultCache(), max_concurrent_resolves,
-                           max_retry_attempts, net_log);
+      new HostResolverImpl(NULL, HostCache::CreateDefaultCache(),
+          max_concurrent_resolves, max_retry_attempts, net_log);
 
   return resolver;
 }
@@ -197,8 +226,6 @@ class RequestInfoParameters : public NetLog::EventParameters {
     dict->SetInteger("address_family",
                      static_cast<int>(info_.address_family()));
     dict->SetBoolean("allow_cached_response", info_.allow_cached_response());
-    dict->SetBoolean("only_use_cached_response",
-                     info_.only_use_cached_response());
     dict->SetBoolean("is_speculative", info_.is_speculative());
     dict->SetInteger("priority", info_.priority());
 
@@ -231,58 +258,6 @@ class JobCreationParameters : public NetLog::EventParameters {
   const NetLog::Source source_;
 };
 
-// Gets a list of the likely error codes that getaddrinfo() can return
-// (non-exhaustive). These are the error codes that we will track via
-// a histogram.
-std::vector<int> GetAllGetAddrinfoOSErrors() {
-  int os_errors[] = {
-#if defined(OS_POSIX) && !defined(__LB_PS3__)
-    EAI_ADDRFAMILY,
-    EAI_AGAIN,
-    EAI_BADFLAGS,
-    EAI_FAIL,
-    EAI_FAMILY,
-    EAI_MEMORY,
-    EAI_NODATA,
-    EAI_NONAME,
-    EAI_SERVICE,
-    EAI_SOCKTYPE,
-    EAI_SYSTEM,
-#elif defined(__LB_PS3__)
-    NETDB_INTERNAL,
-    HOST_NOT_FOUND,
-    TRY_AGAIN,
-    NO_RECOVERY,
-    NO_DATA,
-    NO_ADDRESS
-#elif defined(OS_WIN)
-    // See: http://msdn.microsoft.com/en-us/library/ms738520(VS.85).aspx
-    WSA_NOT_ENOUGH_MEMORY,
-    WSAEAFNOSUPPORT,
-    WSAEINVAL,
-    WSAESOCKTNOSUPPORT,
-    WSAHOST_NOT_FOUND,
-    WSANO_DATA,
-    WSANO_RECOVERY,
-    WSANOTINITIALISED,
-    WSATRY_AGAIN,
-    WSATYPE_NOT_FOUND,
-    // The following are not in doc, but might be to appearing in results :-(.
-    WSA_INVALID_HANDLE,
-#endif
-  };
-
-  // Histogram enumerations require positive numbers.
-  std::vector<int> errors;
-  for (size_t i = 0; i < arraysize(os_errors); ++i) {
-    errors.push_back(std::abs(os_errors[i]));
-    // Also add N+1 for each error, so the bucket that contains our expected
-    // error is of size 1. That way if we get unexpected error codes, they
-    // won't fall into the same buckets as the expected ones.
-    errors.push_back(std::abs(os_errors[i]) + 1);
-  }
-  return errors;
-}
 
 //-----------------------------------------------------------------------------
 
@@ -630,6 +605,12 @@ class HostResolverImpl::Job
     if (was_cancelled())
       return;
 
+    if (was_retry_attempt) {
+      // If retry attempt finishes before 1st attempt, then get stats on how
+      // much time is saved by having spawned an extra attempt.
+      retry_attempt_finished_time_ = base::TimeTicks::Now();
+    }
+
     scoped_refptr<NetLog::EventParameters> params;
     if (error != OK) {
       params = new HostResolveFailedParams(0, error, os_error);
@@ -672,6 +653,20 @@ class HostResolverImpl::Job
         category = RESOLVE_SPECULATIVE_SUCCESS;
         DNS_HISTOGRAM("DNS.ResolveSpeculativeSuccess", duration);
       }
+
+      // Log DNS lookups based on address_family.  This will help us determine
+      // if IPv4 or IPv4/6 lookups are faster or slower.
+      switch(key_.address_family) {
+        case ADDRESS_FAMILY_IPV4:
+          DNS_HISTOGRAM("DNS.ResolveSuccess_FAMILY_IPV4", duration);
+          break;
+        case ADDRESS_FAMILY_IPV6:
+          DNS_HISTOGRAM("DNS.ResolveSuccess_FAMILY_IPV6", duration);
+          break;
+        case ADDRESS_FAMILY_UNSPECIFIED:
+          DNS_HISTOGRAM("DNS.ResolveSuccess_FAMILY_UNSPEC", duration);
+          break;
+      }
     } else {
       if (had_non_speculative_request_) {
         category = RESOLVE_FAIL;
@@ -679,6 +674,19 @@ class HostResolverImpl::Job
       } else {
         category = RESOLVE_SPECULATIVE_FAIL;
         DNS_HISTOGRAM("DNS.ResolveSpeculativeFail", duration);
+      }
+      // Log DNS lookups based on address_family.  This will help us determine
+      // if IPv4 or IPv4/6 lookups are faster or slower.
+      switch(key_.address_family) {
+        case ADDRESS_FAMILY_IPV4:
+          DNS_HISTOGRAM("DNS.ResolveFail_FAMILY_IPV4", duration);
+          break;
+        case ADDRESS_FAMILY_IPV6:
+          DNS_HISTOGRAM("DNS.ResolveFail_FAMILY_IPV6", duration);
+          break;
+        case ADDRESS_FAMILY_UNSPECIFIED:
+          DNS_HISTOGRAM("DNS.ResolveFail_FAMILY_UNSPEC", duration);
+          break;
       }
       UMA_HISTOGRAM_CUSTOM_ENUMERATION(kOSErrorsForGetAddrinfoHistogramName,
                                        std::abs(os_error),
@@ -718,6 +726,7 @@ class HostResolverImpl::Job
                                const int os_error) const {
     bool first_attempt_to_complete =
         completed_attempt_number_ == attempt_number;
+    bool is_first_attempt = (attempt_number == 1);
 
     if (first_attempt_to_complete) {
       // If this was first attempt to complete, then record the resolution
@@ -735,6 +744,13 @@ class HostResolverImpl::Job
       UMA_HISTOGRAM_ENUMERATION("DNS.AttemptSuccess", attempt_number, 100);
     else
       UMA_HISTOGRAM_ENUMERATION("DNS.AttemptFailure", attempt_number, 100);
+
+    // If first attempt didn't finish before retry attempt, then calculate stats
+    // on how much time is saved by having spawned an extra attempt.
+    if (!first_attempt_to_complete && is_first_attempt && !was_cancelled()) {
+      DNS_HISTOGRAM("DNS.AttemptTimeSavedByRetry",
+                    base::TimeTicks::Now() - retry_attempt_finished_time_);
+    }
 
     if (was_cancelled() || !first_attempt_to_complete) {
       // Count those attempts which completed after the job was already canceled
@@ -788,6 +804,9 @@ class HostResolverImpl::Job
 
   // The result (a net error code) from the first attempt to complete.
   int completed_attempt_error_;
+
+  // The time when retry attempt was finished.
+  base::TimeTicks retry_attempt_finished_time_;
 
   // True if a non-speculative request was ever attached to this job
   // (regardless of whether or not it was later cancelled.
@@ -1053,7 +1072,6 @@ HostResolverImpl::HostResolverImpl(
       next_job_id_(0),
       resolver_proc_(resolver_proc),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
-      shutdown_(false),
       ipv6_probe_monitoring_(false),
       additional_resolver_flags_(0),
       net_log_(net_log) {
@@ -1072,7 +1090,7 @@ HostResolverImpl::HostResolverImpl(
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
   if (HaveOnlyLoopbackAddresses())
     additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
 #endif
@@ -1120,10 +1138,9 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
                               CompletionCallback* callback,
                               RequestHandle* out_req,
                               const BoundNetLog& source_net_log) {
+  DCHECK(addresses);
+  DCHECK(callback);
   DCHECK(CalledOnValidThread());
-
-  if (shutdown_)
-    return ERR_UNEXPECTED;
 
   // Choose a unique ID number for observers to see.
   int request_id = next_request_id_++;
@@ -1139,84 +1156,16 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   // outstanding jobs map.
   Key key = GetEffectiveKeyForRequest(info);
 
-  // Check for IP literal.
-  IPAddressNumber ip_number;
-  if (ParseIPLiteralToNumber(info.hostname(), &ip_number)) {
-    DCHECK_EQ(key.host_resolver_flags &
-                  ~(HOST_RESOLVER_CANONNAME | HOST_RESOLVER_LOOPBACK_ONLY |
-                    HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6),
-              0) << " Unhandled flag";
-    bool ipv6_disabled = default_address_family_ == ADDRESS_FAMILY_IPV4 &&
-        !ipv6_probe_monitoring_;
-    int net_error = OK;
-    if (ip_number.size() == 16 && ipv6_disabled) {
-      net_error = ERR_NAME_NOT_RESOLVED;
-    } else {
-      *addresses = AddressList::CreateFromIPAddressWithCname(
-          ip_number, info.port(),
-          (key.host_resolver_flags & HOST_RESOLVER_CANONNAME));
-    }
-    // Update the net log and notify registered observers.
+  int rv = ResolveHelper(request_id, key, info, addresses,
+                         source_net_log, request_net_log);
+  if (rv != ERR_DNS_CACHE_MISS) {
     OnFinishRequest(source_net_log, request_net_log, request_id, info,
-                    net_error, 0  /* os_error (unknown since from cache) */);
-    return net_error;
+                    rv,
+                    0  /* os_error (unknown since from cache) */);
+    return rv;
   }
 
-  // If we have an unexpired cache entry, use it.
-  if (info.allow_cached_response() && cache_.get()) {
-    const HostCache::Entry* cache_entry = cache_->Lookup(
-        key, base::TimeTicks::Now());
-    if (cache_entry) {
-      request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CACHE_HIT, NULL);
-      int net_error = cache_entry->error;
-      if (net_error == OK) {
-        *addresses = CreateAddressListUsingPort(
-            cache_entry->addrlist, info.port());
-      }
-
-      // Update the net log and notify registered observers.
-      OnFinishRequest(source_net_log, request_net_log, request_id, info,
-                      net_error,
-                      0  /* os_error (unknown since from cache) */);
-
-      return net_error;
-    }
-  }
-
-  if (info.only_use_cached_response()) {  // Not allowed to do a real lookup.
-    OnFinishRequest(source_net_log,
-                    request_net_log,
-                    request_id,
-                    info,
-                    ERR_NAME_NOT_RESOLVED,
-                    0);
-    return ERR_NAME_NOT_RESOLVED;
-  }
-
-  // If no callback was specified, do a synchronous resolution.
-  if (!callback) {
-    AddressList addrlist;
-    int os_error = 0;
-    int error = ResolveAddrInfo(
-        effective_resolver_proc(), key.hostname, key.address_family,
-        key.host_resolver_flags, &addrlist, &os_error);
-    if (error == OK) {
-      MutableSetPort(info.port(), &addrlist);
-      *addresses = addrlist;
-    }
-
-    // Write to cache.
-    if (cache_.get())
-      cache_->Set(key, error, addrlist, base::TimeTicks::Now());
-
-    // Update the net log and notify registered observers.
-    OnFinishRequest(source_net_log, request_net_log, request_id, info, error,
-                    os_error);
-
-    return error;
-  }
-
-  // Create a handle for this request, and pass it back to the user if they
+   // Create a handle for this request, and pass it back to the user if they
   // asked for it (out_req != NULL).
   Request* req = new Request(source_net_log, request_net_log, request_id, info,
                              callback, addresses);
@@ -1245,18 +1194,58 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   return ERR_IO_PENDING;
 }
 
+int HostResolverImpl::ResolveHelper(int request_id,
+                                    const Key& key,
+                                    const RequestInfo& info,
+                                    AddressList* addresses,
+                                    const BoundNetLog& request_net_log,
+                                    const BoundNetLog& source_net_log) {
+  // The result of |getaddrinfo| for empty hosts is inconsistent across systems.
+  // On Windows it gives the default interface's address, whereas on Linux it
+  // gives an error. We will make it fail on all platforms for consistency.
+  if (info.hostname().empty() || info.hostname().size() > kMaxHostLength)
+    return ERR_NAME_NOT_RESOLVED;
+
+  int net_error = ERR_UNEXPECTED;
+  if (ResolveAsIP(key, info, &net_error, addresses))
+    return net_error;
+  net_error = ERR_DNS_CACHE_MISS;
+  ServeFromCache(key, info, request_net_log, &net_error, addresses);
+  return net_error;
+}
+
+int HostResolverImpl::ResolveFromCache(const RequestInfo& info,
+                                       AddressList* addresses,
+                                       const BoundNetLog& source_net_log) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(addresses);
+
+  // Choose a unique ID number for observers to see.
+  int request_id = next_request_id_++;
+
+  // Make a log item for the request.
+  BoundNetLog request_net_log = BoundNetLog::Make(net_log_,
+      NetLog::SOURCE_HOST_RESOLVER_IMPL_REQUEST);
+
+  // Update the net log and notify registered observers.
+  OnStartRequest(source_net_log, request_net_log, request_id, info);
+
+  // Build a key that identifies the request in the cache and in the
+  // outstanding jobs map.
+  Key key = GetEffectiveKeyForRequest(info);
+
+  int rv = ResolveHelper(request_id, key, info, addresses, request_net_log,
+                         source_net_log);
+  OnFinishRequest(source_net_log, request_net_log, request_id, info,
+                  rv,
+                  0  /* os_error (unknown since from cache) */);
+  return rv;
+}
+
 // See OnJobComplete(Job*) for why it is important not to clean out
 // cancelled requests from Job::requests_.
 void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
   DCHECK(CalledOnValidThread());
-  if (shutdown_) {
-    // TODO(eroman): temp hack for: http://crbug.com/18373
-    // Because we destroy outstanding requests during Shutdown(),
-    // |req_handle| is already cancelled.
-    LOG(ERROR) << "Called HostResolverImpl::CancelRequest() after Shutdown().";
-    base::debug::StackTrace().PrintBacktrace();
-    return;
-  }
   Request* req = reinterpret_cast<Request*>(req_handle);
   DCHECK(req);
 
@@ -1312,14 +1301,54 @@ HostResolverImpl* HostResolverImpl::GetAsHostResolverImpl() {
   return this;
 }
 
-void HostResolverImpl::Shutdown() {
-  DCHECK(CalledOnValidThread());
 
-  // Cancel the outstanding jobs.
-  CancelAllJobs();
-  DiscardIPv6ProbeJob();
+bool HostResolverImpl::ResolveAsIP(const Key& key,
+                                   const RequestInfo& info,
+                                   int* net_error,
+                                   AddressList* addresses) {
+  DCHECK(addresses);
+  DCHECK(net_error);
+  IPAddressNumber ip_number;
+  if (!ParseIPLiteralToNumber(key.hostname, &ip_number))
+    return false;
 
-  shutdown_ = true;
+  DCHECK_EQ(key.host_resolver_flags &
+      ~(HOST_RESOLVER_CANONNAME | HOST_RESOLVER_LOOPBACK_ONLY |
+        HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6),
+            0) << " Unhandled flag";
+  bool ipv6_disabled = default_address_family_ == ADDRESS_FAMILY_IPV4 &&
+    !ipv6_probe_monitoring_;
+  *net_error = OK;
+  if (ip_number.size() == 16 && ipv6_disabled) {
+    *net_error = ERR_NAME_NOT_RESOLVED;
+  } else {
+    *addresses = AddressList::CreateFromIPAddressWithCname(
+        ip_number, info.port(),
+        (key.host_resolver_flags & HOST_RESOLVER_CANONNAME));
+  }
+  return true;
+}
+
+bool HostResolverImpl::ServeFromCache(const Key& key,
+                                      const RequestInfo& info,
+                                      const BoundNetLog& request_net_log,
+                                      int* net_error,
+                                      AddressList* addresses) {
+  DCHECK(addresses);
+  DCHECK(net_error);
+  if (!info.allow_cached_response() || !cache_.get())
+    return false;
+
+  const HostCache::Entry* cache_entry = cache_->Lookup(
+      key, base::TimeTicks::Now());
+  if (!cache_entry)
+    return false;
+
+  request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CACHE_HIT, NULL);
+  *net_error = cache_entry->error;
+  if (*net_error == OK)
+    *addresses = CreateAddressListUsingPort(cache_entry->addrlist, info.port());
+  return true;
 }
 
 void HostResolverImpl::AddOutstandingJob(Job* job) {
@@ -1605,14 +1634,11 @@ void HostResolverImpl::OnIPAddressChanged() {
   if (cache_.get())
     cache_->clear();
   if (ipv6_probe_monitoring_) {
-    DCHECK(!shutdown_);
-    if (shutdown_)
-      return;
     DiscardIPv6ProbeJob();
     ipv6_probe_job_ = new IPv6ProbeJob(this);
     ipv6_probe_job_->Start();
   }
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
   if (HaveOnlyLoopbackAddresses()) {
     additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
   } else {

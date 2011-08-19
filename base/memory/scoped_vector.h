@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 
 // ScopedVector wraps a vector deleting the elements from its
 // destructor.

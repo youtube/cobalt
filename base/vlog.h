@@ -10,14 +10,14 @@
 #include <string>
 #include <vector>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/string_piece.h"
 
 namespace logging {
 
 // A helper class containing all the settings for vlogging.
-class BASE_API VlogInfo {
+class BASE_EXPORT VlogInfo {
  public:
   static const int kDefaultVlogLevel;
 
@@ -71,8 +71,8 @@ class BASE_API VlogInfo {
 //   "kh*n" matches "khn", "khan", or even "khaaaaan"
 //   "/foo\bar" matches "/foo/bar", "\foo\bar", or "/foo\bar"
 //     (disregarding C escaping rules)
-BASE_API bool MatchVlogPattern(const base::StringPiece& string,
-                               const base::StringPiece& vlog_pattern);
+BASE_EXPORT bool MatchVlogPattern(const base::StringPiece& string,
+                                  const base::StringPiece& vlog_pattern);
 
 }  // namespace logging
 

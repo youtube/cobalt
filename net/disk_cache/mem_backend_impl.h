@@ -26,7 +26,7 @@ class MemEntryImpl;
 class NET_TEST MemBackendImpl : public Backend {
  public:
   explicit MemBackendImpl(net::NetLog* net_log);
-  ~MemBackendImpl();
+  virtual ~MemBackendImpl();
 
   // Returns an instance of a Backend implemented only in memory. The returned
   // object should be deleted when not needed anymore. max_bytes is the maximum
@@ -80,6 +80,7 @@ class NET_TEST MemBackendImpl : public Backend {
   virtual void EndEnumeration(void** iter);
   virtual void GetStats(
       std::vector<std::pair<std::string, std::string> >* stats) {}
+  virtual void OnExternalCacheHit(const std::string& key);
 
  private:
   typedef base::hash_map<std::string, MemEntryImpl*> EntryMap;

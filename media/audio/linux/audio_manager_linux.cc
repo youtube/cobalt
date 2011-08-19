@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "base/nix/xdg_util.h"
 #include "base/process_util.h"
+#include "base/stl_util.h"
 #include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
@@ -23,6 +24,30 @@ static const size_t kMaxOutputStreams = 50;
 
 static const int kMaxInputChannels = 2;
 
+// Since "default", "pulse" and "dmix" devices are virtual devices mapped to
+// real devices, we remove them from the list to avoiding duplicate counting.
+// In addition, note that we support no more than 2 channels for recording,
+// hence surround devices are not stored in the list.
+static const char* kInvalidAudioInputDevices[] = {
+  "default",
+  "null",
+  "pulse",
+  "dmix",
+  "surround",
+};
+
+static bool IsValidAudioInputDevice(const char* device_name) {
+  if (!device_name)
+    return false;
+
+  for (size_t i = 0; i < arraysize(kInvalidAudioInputDevices); ++i) {
+    if (strcmp(kInvalidAudioInputDevices[i], device_name) == 0)
+      return false;
+  }
+
+  return true;
+}
+
 // Implementation of AudioManager.
 bool AudioManagerLinux::HasAudioOutputDevices() {
   // TODO(ajwong): Make this actually query audio devices.
@@ -30,12 +55,35 @@ bool AudioManagerLinux::HasAudioOutputDevices() {
 }
 
 bool AudioManagerLinux::HasAudioInputDevices() {
-  // TODO(satish): Make this actually query audio devices.
-  return true;
+  if (!initialized()) {
+    return false;
+  }
+
+  // Constants specified by the ALSA API for device hints.
+  static const int kGetAllDevices = -1;
+  static const char kPcmInterfaceName[] = "pcm";
+  bool has_device = false;
+  void** hints = NULL;
+
+  // Use the same approach to find the devices as in
+  // AlsaPcmOutputStream::FindDeviceForChannels
+  // Get Alsa device hints.
+  int error = wrapper_->DeviceNameHint(kGetAllDevices,
+                                       kPcmInterfaceName,
+                                       &hints);
+  if (error == 0) {
+    has_device = HasAnyValidAudioInputDevice(hints);
+  } else {
+    LOG(ERROR) << "Unable to get device hints: " << wrapper_->StrError(error);
+  }
+
+  // Destroy the hint now that we're done with it.
+  wrapper_->DeviceNameFreeHint(hints);
+  return has_device;
 }
 
 AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   // Early return for testing hook.  Do this before checking for
   // |initialized_|.
   if (params.format == AudioParameters::AUDIO_MOCK) {
@@ -60,14 +108,12 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
   AlsaPcmOutputStream* stream =
       new AlsaPcmOutputStream(device_name, params, wrapper_.get(), this,
                               GetMessageLoop());
-
-  base::AutoLock l(lock_);
-  active_streams_[stream] = scoped_refptr<AlsaPcmOutputStream>(stream);
+  active_streams_.insert(stream);
   return stream;
 }
 
 AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
-    AudioParameters params) {
+    const AudioParameters& params) {
   if (!params.IsValid() || params.channels > kMaxInputChannels)
     return NULL;
 
@@ -96,8 +142,8 @@ AudioManagerLinux::AudioManagerLinux() {
 }
 
 AudioManagerLinux::~AudioManagerLinux() {
-  // Make sure we stop the thread first. If we let the default destructor to
-  // destruct the members, we may destroy audio streams before stopping the
+  // Make sure we stop the thread first. If we allow the default destructor to
+  // destroy the members, we may destroy audio streams before stopping the
   // thread, resulting an unexpected behavior.
   // This way we make sure activities of the audio streams are all stopped
   // before we destroy them.
@@ -106,7 +152,9 @@ AudioManagerLinux::~AudioManagerLinux() {
   // Free output dispatchers, closing all remaining open streams.
   output_dispatchers_.clear();
 
-  active_streams_.clear();
+  // Delete all the streams. Have to do it manually, we don't have ScopedSet<>,
+  // and we are not using ScopedVector<> because search there is slow.
+  STLDeleteElements(&active_streams_);
 }
 
 void AudioManagerLinux::Init() {
@@ -124,8 +172,8 @@ void AudioManagerLinux::UnMuteAll() {
 
 void AudioManagerLinux::ReleaseOutputStream(AlsaPcmOutputStream* stream) {
   if (stream) {
-    base::AutoLock l(lock_);
     active_streams_.erase(stream);
+    delete stream;
   }
 }
 
@@ -144,7 +192,44 @@ void AudioManagerLinux::ShowAudioInputSettings() {
       env.get());
   std::string command((desktop == base::nix::DESKTOP_ENVIRONMENT_GNOME) ?
                       "gnome-volume-control" : "kmix");
-  base::LaunchApp(CommandLine(FilePath(command)), false, false, NULL);
+  base::LaunchProcess(CommandLine(FilePath(command)), base::LaunchOptions(),
+                      NULL);
+}
+
+void AudioManagerLinux::GetAudioInputDeviceNames(
+    media::AudioDeviceNames* device_names) {
+  // TODO(xians): query a full list of valid devices.
+  if (HasAudioInputDevices()) {
+    // Add the default device to the list.
+    // We use index 0 to make up the unique_id to identify the
+    // default devices.
+    media::AudioDeviceName name;
+    name.device_name = AudioManagerBase::kDefaultDeviceName;
+    name.unique_id = "0";
+    device_names->push_back(name);
+  }
+}
+
+bool AudioManagerLinux::HasAnyValidAudioInputDevice(void** hints) {
+  static const char kIoHintName[] = "IOID";
+  static const char kNameHintName[] = "NAME";
+  static const char kOutputDevice[] = "Output";
+
+  for (void** hint_iter = hints; *hint_iter != NULL; hint_iter++) {
+    // Only examine devices that are input capable.  Valid values are
+    // "Input", "Output", and NULL which means both input and output.
+    scoped_ptr_malloc<char> io(wrapper_->DeviceNameGetHint(*hint_iter,
+                                                           kIoHintName));
+    if (io != NULL && strcmp(kOutputDevice, io.get()) == 0)
+      continue;
+
+    scoped_ptr_malloc<char> hint_device_name(
+        wrapper_->DeviceNameGetHint(*hint_iter, kNameHintName));
+    if (IsValidAudioInputDevice(hint_device_name.get()))
+      return true;
+  }
+
+  return false;
 }
 
 // static

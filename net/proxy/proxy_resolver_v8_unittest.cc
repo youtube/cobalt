@@ -1,7 +1,8 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/compiler_specific.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/string_util.h"
@@ -25,37 +26,38 @@ class MockJSBindings : public ProxyResolverJSBindings {
  public:
   MockJSBindings() : my_ip_address_count(0), my_ip_address_ex_count(0) {}
 
-  virtual void Alert(const string16& message) {
+  virtual void Alert(const string16& message) OVERRIDE {
     VLOG(1) << "PAC-alert: " << message;  // Helpful when debugging.
     alerts.push_back(UTF16ToUTF8(message));
   }
 
-  virtual bool MyIpAddress(std::string* ip_address) {
+  virtual bool MyIpAddress(std::string* ip_address) OVERRIDE {
     my_ip_address_count++;
     *ip_address = my_ip_address_result;
     return !my_ip_address_result.empty();
   }
 
-  virtual bool MyIpAddressEx(std::string* ip_address_list) {
+  virtual bool MyIpAddressEx(std::string* ip_address_list) OVERRIDE {
     my_ip_address_ex_count++;
     *ip_address_list = my_ip_address_ex_result;
     return !my_ip_address_ex_result.empty();
   }
 
-  virtual bool DnsResolve(const std::string& host, std::string* ip_address) {
+  virtual bool DnsResolve(const std::string& host, std::string* ip_address)
+      OVERRIDE {
     dns_resolves.push_back(host);
     *ip_address = dns_resolve_result;
     return !dns_resolve_result.empty();
   }
 
   virtual bool DnsResolveEx(const std::string& host,
-                            std::string* ip_address_list) {
+                            std::string* ip_address_list) OVERRIDE {
     dns_resolves_ex.push_back(host);
     *ip_address_list = dns_resolve_ex_result;
     return !dns_resolve_ex_result.empty();
   }
 
-  virtual void OnError(int line_number, const string16& message) {
+  virtual void OnError(int line_number, const string16& message) OVERRIDE {
     // Helpful when debugging.
     VLOG(1) << "PAC-error: [" << line_number << "] " << message;
 
@@ -63,7 +65,7 @@ class MockJSBindings : public ProxyResolverJSBindings {
     errors_line_number.push_back(line_number);
   }
 
-  virtual void Shutdown() {}
+  virtual void Shutdown() OVERRIDE {}
 
   // Mock values to return.
   std::string my_ip_address_result;

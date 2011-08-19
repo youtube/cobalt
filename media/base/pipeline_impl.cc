@@ -12,14 +12,15 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
+#include "base/string_util.h"
 #include "base/synchronization/condition_variable.h"
-#include "media/filters/rtc_video_decoder.h"
 #include "media/base/clock.h"
 #include "media/base/filter_collection.h"
-#include "media/base/media_format.h"
 
 namespace media {
+
+const char kRawMediaScheme[] = "x-raw-media";
 
 PipelineStatusNotification::PipelineStatusNotification()
     : cv_(&lock_), status_(PIPELINE_OK), notified_(false) {
@@ -617,7 +618,9 @@ void PipelineImpl::StartTask(FilterCollection* filter_collection,
   pipeline_init_state_->composite_ = new CompositeFilter(message_loop_);
   pipeline_init_state_->composite_->set_host(this);
 
-  if (RTCVideoDecoder::IsUrlSupported(url)) {
+  bool raw_media = (base::strncasecmp(url.c_str(), kRawMediaScheme,
+                                      strlen(kRawMediaScheme)) == 0);
+  if (raw_media) {
     set_state(kInitVideoDecoder);
     InitializeVideoDecoder(NULL);
   } else {
@@ -723,7 +726,11 @@ void PipelineImpl::InitializeTask() {
     // Fire the seek request to get the filters to preroll.
     seek_pending_ = true;
     set_state(kSeeking);
-    seek_timestamp_ = base::TimeDelta();
+    if (demuxer_)
+      seek_timestamp_ = demuxer_->GetStartTime();
+    else
+      seek_timestamp_ = base::TimeDelta();
+
     pipeline_filter_->Seek(
         seek_timestamp_,
         base::Bind(&PipelineImpl::OnFilterStateTransitionWithStatus, this));
@@ -1113,6 +1120,14 @@ void PipelineImpl::OnDemuxerBuilt(PipelineStatus status, Demuxer* demuxer) {
     return;
 
   demuxer_ = demuxer;
+
+  {
+    base::AutoLock auto_lock(lock_);
+    // We do not want to start the clock running. We only want to set the base
+    // media time so our timestamp calculations will be correct.
+    clock_->SetTime(demuxer_->GetStartTime());
+  }
+
   OnFilterInitialize();
 }
 

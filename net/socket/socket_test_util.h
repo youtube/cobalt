@@ -32,6 +32,7 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/transport_client_socket_pool.h"
+#include "net/udp/datagram_client_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -45,6 +46,7 @@ enum {
   ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ = -10000,
 };
 
+class AsyncSocket;
 class MockClientSocket;
 class SSLClientSocket;
 class SSLHostInfo;
@@ -139,24 +141,36 @@ class SocketDataProvider {
 
   // Returns the buffer and result code for the next simulated read.
   // If the |MockRead.result| is ERR_IO_PENDING, it informs the caller
-  // that it will be called via the MockClientSocket::OnReadComplete()
+  // that it will be called via the AsyncSocket::OnReadComplete()
   // function at a later time.
   virtual MockRead GetNextRead() = 0;
   virtual MockWriteResult OnWrite(const std::string& data) = 0;
   virtual void Reset() = 0;
 
   // Accessor for the socket which is using the SocketDataProvider.
-  MockClientSocket* socket() { return socket_; }
-  void set_socket(MockClientSocket* socket) { socket_ = socket; }
+  AsyncSocket* socket() { return socket_; }
+  void set_socket(AsyncSocket* socket) { socket_ = socket; }
 
   MockConnect connect_data() const { return connect_; }
   void set_connect_data(const MockConnect& connect) { connect_ = connect; }
 
  private:
   MockConnect connect_;
-  MockClientSocket* socket_;
+  AsyncSocket* socket_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketDataProvider);
+};
+
+// The AsyncSocket is an interface used by the SocketDataProvider to
+// complete the asynchronous read operation.
+class AsyncSocket {
+ public:
+  // If an async IO is pending because the SocketDataProvider returned
+  // ERR_IO_PENDING, then the AsyncSocket waits until this OnReadComplete
+  // is called to complete the asynchronous read operation.
+  // data.async is ignored, and this read is completed synchronously as
+  // part of this call.
+  virtual void OnReadComplete(const MockRead& data) = 0;
 };
 
 // SocketDataProvider which responds based on static tables of mock reads and
@@ -281,7 +295,7 @@ class DelayedSocketData : public StaticSocketDataProvider,
   DelayedSocketData(const MockConnect& connect, int write_delay,
                     MockRead* reads, size_t reads_count,
                     MockWrite* writes, size_t writes_count);
-  ~DelayedSocketData();
+  virtual ~DelayedSocketData();
 
   void ForceNextRead();
 
@@ -500,6 +514,7 @@ class SocketDataProviderArray {
   std::vector<T*> data_providers_;
 };
 
+class MockUDPClientSocket;
 class MockTCPClientSocket;
 class MockSSLClientSocket;
 
@@ -531,8 +546,16 @@ class MockClientSocketFactory : public ClientSocketFactory {
   std::vector<MockTCPClientSocket*>& tcp_client_sockets() {
     return tcp_client_sockets_;
   }
+  std::vector<MockUDPClientSocket*>& udp_client_sockets() {
+    return udp_client_sockets_;
+  }
 
   // ClientSocketFactory
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
+      NetLog* net_log,
+      const NetLog::Source& source);
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
@@ -542,8 +565,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      CertVerifier* cert_verifier,
-      DnsCertProvenanceChecker* dns_cert_checker);
+      const SSLClientSocketContext& context);
   virtual void ClearSSLSessionCache();
 
  private:
@@ -551,6 +573,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
   SocketDataProviderArray<SSLSocketDataProvider> mock_ssl_data_;
 
   // Store pointers to handed out sockets in case the test wants to get them.
+  std::vector<MockUDPClientSocket*> udp_client_sockets_;
   std::vector<MockTCPClientSocket*> tcp_client_sockets_;
   std::vector<MockSSLClientSocket*> ssl_client_sockets_;
 };
@@ -558,13 +581,6 @@ class MockClientSocketFactory : public ClientSocketFactory {
 class MockClientSocket : public net::SSLClientSocket {
  public:
   explicit MockClientSocket(net::NetLog* net_log);
-
-  // If an async IO is pending because the SocketDataProvider returned
-  // ERR_IO_PENDING, then the MockClientSocket waits until this OnReadComplete
-  // is called to complete the asynchronous read operation.
-  // data.async is ignored, and this read is completed synchronously as
-  // part of this call.
-  virtual void OnReadComplete(const MockRead& data) = 0;
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
@@ -589,6 +605,10 @@ class MockClientSocket : public net::SSLClientSocket {
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(
       net::SSLCertRequestInfo* cert_request_info);
+  virtual int ExportKeyingMaterial(const base::StringPiece& label,
+                                   const base::StringPiece& context,
+                                   unsigned char *out,
+                                   unsigned int outlen);
   virtual NextProtoStatus GetNextProto(std::string* proto);
 
  protected:
@@ -604,7 +624,7 @@ class MockClientSocket : public net::SSLClientSocket {
   net::BoundNetLog net_log_;
 };
 
-class MockTCPClientSocket : public MockClientSocket {
+class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
  public:
   MockTCPClientSocket(const net::AddressList& addresses, net::NetLog* net_log,
                       net::SocketDataProvider* socket);
@@ -625,8 +645,10 @@ class MockTCPClientSocket : public MockClientSocket {
   virtual int GetPeerAddress(AddressList* address) const;
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
+  virtual int64 NumBytesRead() const;
+  virtual base::TimeDelta GetConnectTimeMicros() const;
 
-  // MockClientSocket:
+  // AsyncSocket:
   virtual void OnReadComplete(const MockRead& data);
 
  private:
@@ -636,6 +658,7 @@ class MockTCPClientSocket : public MockClientSocket {
 
   net::SocketDataProvider* data_;
   int read_offset_;
+  int num_bytes_read_;
   net::MockRead read_data_;
   bool need_read_data_;
 
@@ -652,6 +675,7 @@ class MockTCPClientSocket : public MockClientSocket {
 };
 
 class DeterministicMockTCPClientSocket : public MockClientSocket,
+    public AsyncSocket,
     public base::SupportsWeakPtr<DeterministicMockTCPClientSocket> {
  public:
   DeterministicMockTCPClientSocket(net::NetLog* net_log,
@@ -677,8 +701,10 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   virtual bool IsConnectedAndIdle() const;
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
+  virtual int64 NumBytesRead() const;
+  virtual base::TimeDelta GetConnectTimeMicros() const;
 
-  // MockClientSocket:
+  // AsyncSocket:
   virtual void OnReadComplete(const MockRead& data);
 
  private:
@@ -696,7 +722,7 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   bool was_used_to_convey_data_;
 };
 
-class MockSSLClientSocket : public MockClientSocket {
+class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
  public:
   MockSSLClientSocket(
       net::ClientSocketHandle* transport_socket,
@@ -718,6 +744,8 @@ class MockSSLClientSocket : public MockClientSocket {
   virtual bool IsConnected() const;
   virtual bool WasEverUsed() const;
   virtual bool UsingTCPFastOpen() const;
+  virtual int64 NumBytesRead() const;
+  virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // SSLClientSocket methods:
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
@@ -738,6 +766,56 @@ class MockSSLClientSocket : public MockClientSocket {
   bool is_npn_state_set_;
   bool new_npn_value_;
   bool was_used_to_convey_data_;
+};
+
+class MockUDPClientSocket : public DatagramClientSocket,
+    public AsyncSocket {
+ public:
+  MockUDPClientSocket(SocketDataProvider* data, net::NetLog* net_log);
+  virtual ~MockUDPClientSocket();
+
+  // Socket interface
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   net::CompletionCallback* callback);
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    net::CompletionCallback* callback);
+  virtual bool SetReceiveBufferSize(int32 size);
+  virtual bool SetSendBufferSize(int32 size);
+
+  // DatagramSocket interface
+  virtual void Close();
+  virtual int GetPeerAddress(IPEndPoint* address) const;
+  virtual int GetLocalAddress(IPEndPoint* address) const;
+  virtual const BoundNetLog& NetLog() const;
+
+  // DatagramClientSocket interface
+  virtual int Connect(const IPEndPoint& address);
+
+  // AsyncSocket interface
+  virtual void OnReadComplete(const MockRead& data);
+
+ private:
+  int CompleteRead();
+
+  void RunCallbackAsync(net::CompletionCallback* callback, int result);
+  void RunCallback(net::CompletionCallback* callback, int result);
+
+  bool connected_;
+  SocketDataProvider* data_;
+  int read_offset_;
+  net::MockRead read_data_;
+  bool need_read_data_;
+
+  // While an asynchronous IO is pending, we save our user-buffer state.
+  net::IOBuffer* pending_buf_;
+  int pending_buf_len_;
+  net::CompletionCallback* pending_callback_;
+
+  BoundNetLog net_log_;
+
+  ScopedRunnableMethodFactory<MockUDPClientSocket> method_factory_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockUDPClientSocket);
 };
 
 class TestSocketRequest : public CallbackRunner< Tuple1<int> > {
@@ -891,6 +969,11 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
   }
 
   // ClientSocketFactory
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
+      NetLog* net_log,
+      const NetLog::Source& source);
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
@@ -900,8 +983,7 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      CertVerifier* cert_verifier,
-      DnsCertProvenanceChecker* dns_cert_checker);
+      const SSLClientSocketContext& context);
   virtual void ClearSSLSessionCache();
 
  private:

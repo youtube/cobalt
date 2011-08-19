@@ -682,6 +682,18 @@ void BackendImpl::SyncEndEnumeration(void* iter) {
       reinterpret_cast<Rankings::Iterator*>(iter));
 }
 
+void BackendImpl::SyncOnExternalCacheHit(const std::string& key) {
+  uint32 hash = Hash(key);
+  bool error;
+  EntryImpl* cache_entry = MatchEntry(key, hash, false, Addr(), &error);
+  if (cache_entry) {
+    if (ENTRY_NORMAL == cache_entry->entry()->Data()->state) {
+      UpdateRank(cache_entry, false);
+    }
+    cache_entry->Release();
+  }
+}
+
 EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
   if (disabled_)
     return NULL;
@@ -742,14 +754,7 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
     }
   }
 
-  int num_blocks;
-  size_t key1_len = sizeof(EntryStore) - offsetof(EntryStore, key);
-  if (key.size() < key1_len ||
-      key.size() > static_cast<size_t>(kMaxInternalKeyLength))
-    num_blocks = 1;
-  else
-    num_blocks = static_cast<int>((key.size() - key1_len) / 256 + 2);
-
+  int num_blocks = EntryImpl::NumBlocksForEntry(key.size());
   if (!block_files_.CreateBlock(BLOCK_256, num_blocks, &entry_address)) {
     LOG(ERROR) << "Create entry failed " << key.c_str();
     stats_.OnEvent(Stats::CREATE_ERROR);
@@ -1361,6 +1366,10 @@ void BackendImpl::GetStats(StatsItems* stats) {
   stats->push_back(item);
 
   stats_.GetItems(stats);
+}
+
+void BackendImpl::OnExternalCacheHit(const std::string& key) {
+  background_queue_.OnExternalCacheHit(key);
 }
 
 // ------------------------------------------------------------------------

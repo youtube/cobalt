@@ -6,7 +6,7 @@
 #include "base/command_line.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/time.h"
 #include "media/base/filter_host.h"
@@ -59,15 +59,16 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
     : demuxer_(demuxer),
       stream_(stream),
       type_(UNKNOWN),
+      discontinuous_(false),
       stopped_(false) {
   DCHECK(demuxer_);
 
   // Determine our media format.
   switch (stream->codec->codec_type) {
-    case CODEC_TYPE_AUDIO:
+    case AVMEDIA_TYPE_AUDIO:
       type_ = AUDIO;
       break;
-    case CODEC_TYPE_VIDEO:
+    case AVMEDIA_TYPE_VIDEO:
       type_ = VIDEO;
       break;
     default:
@@ -146,10 +147,6 @@ base::TimeDelta FFmpegDemuxerStream::duration() {
 
 DemuxerStream::Type FFmpegDemuxerStream::type() {
   return type_;
-}
-
-const MediaFormat& FFmpegDemuxerStream::media_format() {
-  return media_format_;
 }
 
 void FFmpegDemuxerStream::Read(const ReadCallback& read_callback) {
@@ -265,7 +262,8 @@ FFmpegDemuxer::FFmpegDemuxer(MessageLoop* message_loop)
       read_position_(0),
       max_duration_(base::TimeDelta::FromMicroseconds(-1)),
       deferred_status_(PIPELINE_OK),
-      first_seek_hack_(true) {
+      first_seek_hack_(true),
+      start_time_(kNoTimestamp) {
   DCHECK(message_loop_);
 }
 
@@ -278,25 +276,7 @@ FFmpegDemuxer::~FFmpegDemuxer() {
   if (!format_context_)
     return;
 
-  // Iterate each stream and destroy each one of them.
-  int streams = format_context_->nb_streams;
-  for (int i = 0; i < streams; ++i) {
-    AVStream* stream = format_context_->streams[i];
-
-    // The conditions for calling avcodec_close():
-    // 1. AVStream is alive.
-    // 2. AVCodecContext in AVStream is alive.
-    // 3. AVCodec in AVCodecContext is alive.
-    // Notice that closing a codec context without prior avcodec_open() will
-    // result in a crash in FFmpeg.
-    if (stream && stream->codec && stream->codec->codec) {
-      stream->discard = AVDISCARD_ALL;
-      avcodec_close(stream->codec);
-    }
-  }
-
-  // Then finally cleanup the format context.
-  av_close_input_file(format_context_);
+  DestroyAVFormatContext(format_context_);
   format_context_ = NULL;
 }
 
@@ -367,13 +347,17 @@ scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(
   return streams_[type];
 }
 
+base::TimeDelta FFmpegDemuxer::GetStartTime() const {
+  return start_time_;
+}
+
 int FFmpegDemuxer::Read(int size, uint8* data) {
   DCHECK(data_source_);
 
   // If read has ever failed, return with an error.
   // TODO(hclam): use a more meaningful constant as error.
   if (read_has_failed_)
-    return AVERROR_IO;
+    return AVERROR(EIO);
 
   // Even though FFmpeg defines AVERROR_EOF, it's not to be used with I/O
   // routines.  Instead return 0 for any read at or past EOF.
@@ -397,7 +381,7 @@ int FFmpegDemuxer::Read(int size, uint8* data) {
 
     // Returns with a negative number to signal an error to FFmpeg.
     read_has_failed_ = true;
-    return AVERROR_IO;
+    return AVERROR(EIO);
   }
   read_position_ += last_read_bytes;
 
@@ -416,9 +400,10 @@ bool FFmpegDemuxer::SetPosition(int64 position) {
   DCHECK(data_source_);
 
   int64 file_size;
-  if (!data_source_->GetSize(&file_size) || position >= file_size ||
-      position < 0)
+  if ((data_source_->GetSize(&file_size) && position >= file_size) ||
+      position < 0) {
     return false;
+  }
 
   read_position_ = position;
   return true;
@@ -482,8 +467,8 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   bool no_supported_streams = true;
   for (size_t i = 0; i < format_context_->nb_streams; ++i) {
     AVCodecContext* codec_context = format_context_->streams[i]->codec;
-    CodecType codec_type = codec_context->codec_type;
-    if (codec_type == CODEC_TYPE_AUDIO || codec_type == CODEC_TYPE_VIDEO) {
+    AVMediaType codec_type = codec_context->codec_type;
+    if (codec_type == AVMEDIA_TYPE_AUDIO || codec_type == AVMEDIA_TYPE_VIDEO) {
       AVStream* stream = format_context_->streams[i];
       // WebM is currently strictly VP8 and Vorbis.
       if (kDemuxerIsWebm && (stream->codec->codec_id != CODEC_ID_VP8 &&
@@ -498,6 +483,13 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
         no_supported_streams = false;
         streams_[demuxer_stream->type()] = demuxer_stream;
         max_duration = std::max(max_duration, demuxer_stream->duration());
+
+        if (stream->first_dts != static_cast<int64_t>(AV_NOPTS_VALUE)) {
+          const base::TimeDelta first_dts = ConvertFromTimeBase(
+            stream->time_base, stream->first_dts);
+          if (start_time_ == kNoTimestamp || first_dts < start_time_)
+            start_time_ = first_dts;
+        }
       }
       packet_streams_.push_back(demuxer_stream);
     } else {
@@ -522,6 +514,11 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
         Limits::kMaxTimeInMicroseconds);
   }
 
+  // Some demuxers, like WAV, do not put timestamps on their frames. We
+  // assume the the start time is 0.
+  if (start_time_ == kNoTimestamp)
+    start_time_ = base::TimeDelta();
+
   // Good to go: set the duration and notify we're done initializing.
   if (host())
     host()->SetDuration(max_duration);
@@ -536,8 +533,11 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, const FilterStatusCB& cb) {
   // Preroll() states (i.e., the implicit Seek(0) should really be a Preroll()).
   if (first_seek_hack_) {
     first_seek_hack_ = false;
-    cb.Run(PIPELINE_OK);
-    return;
+
+    if (time == start_time_) {
+      cb.Run(PIPELINE_OK);
+      return;
+    }
   }
 
   // Tell streams to flush buffers due to seeking.
@@ -643,7 +643,7 @@ void FFmpegDemuxer::DisableAudioStreamTask() {
     // look for such reference, and this will result in deleting the
     // audio packets after they are demuxed.
     if (packet_streams_[i]->GetAVStream()->codec->codec_type ==
-        CODEC_TYPE_AUDIO) {
+        AVMEDIA_TYPE_AUDIO) {
       packet_streams_[i] = NULL;
     }
   }

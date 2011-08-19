@@ -82,15 +82,15 @@ class FFmpegDemuxerTest : public testing::Test {
     memset(&codecs_, 0, sizeof(codecs_));
 
     // Initialize AVCodecContext structures.
-    codecs_[AV_STREAM_DATA].codec_type = CODEC_TYPE_DATA;
+    codecs_[AV_STREAM_DATA].codec_type = AVMEDIA_TYPE_DATA;
     codecs_[AV_STREAM_DATA].codec_id = CODEC_ID_NONE;
 
-    codecs_[AV_STREAM_VIDEO].codec_type = CODEC_TYPE_VIDEO;
+    codecs_[AV_STREAM_VIDEO].codec_type = AVMEDIA_TYPE_VIDEO;
     codecs_[AV_STREAM_VIDEO].codec_id = CODEC_ID_THEORA;
     codecs_[AV_STREAM_VIDEO].width = kWidth;
     codecs_[AV_STREAM_VIDEO].height = kHeight;
 
-    codecs_[AV_STREAM_AUDIO].codec_type = CODEC_TYPE_AUDIO;
+    codecs_[AV_STREAM_AUDIO].codec_type = AVMEDIA_TYPE_AUDIO;
     codecs_[AV_STREAM_AUDIO].codec_id = CODEC_ID_VORBIS;
     codecs_[AV_STREAM_AUDIO].channels = kChannels;
     codecs_[AV_STREAM_AUDIO].sample_rate = kSampleRate;
@@ -101,6 +101,7 @@ class FFmpegDemuxerTest : public testing::Test {
     // Initialize AVStream and AVFormatContext structures.  We set the time base
     // of the streams such that duration is reported in microseconds.
     format_context_.nb_streams = AV_STREAM_MAX;
+    format_context_.streams = new AVStream*[AV_STREAM_MAX];
     for (size_t i = 0; i < AV_STREAM_MAX; ++i) {
       format_context_.streams[i] = &streams_[i];
       streams_[i].codec = &codecs_[i];
@@ -116,9 +117,14 @@ class FFmpegDemuxerTest : public testing::Test {
 
     // Finish up any remaining tasks.
     message_loop_.RunAllPending();
-
     // Release the reference to the demuxer.
     demuxer_ = NULL;
+
+    if (format_context_.streams) {
+      delete[] format_context_.streams;
+      format_context_.streams = NULL;
+      format_context_.nb_streams = 0;
+    }
   }
 
   // Sets up MockFFmpeg to allow FFmpegDemuxer to successfully initialize.
@@ -190,7 +196,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_ParseFails) {
   EXPECT_CALL(mock_ffmpeg_, AVOpenInputFile(_, _, NULL, 0, NULL))
       .WillOnce(DoAll(SetArgumentPointee<0>(&format_context_), Return(0)));
   EXPECT_CALL(mock_ffmpeg_, AVFindStreamInfo(&format_context_))
-      .WillOnce(Return(AVERROR_IO));
+      .WillOnce(Return(AVERROR(EIO)));
   EXPECT_CALL(mock_ffmpeg_, AVCloseInputFile(&format_context_));
 
   demuxer_->Initialize(
@@ -266,7 +272,7 @@ TEST_F(FFmpegDemuxerTest, Read_DiscardUninteresting) {
   EXPECT_CALL(mock_ffmpeg_, AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacketNoCount(AV_STREAM_DATA, kNullData, 0));
   EXPECT_CALL(mock_ffmpeg_, AVReadFrame(&format_context_, _))
-      .WillOnce(Return(AVERROR_IO));
+      .WillOnce(Return(AVERROR(EIO)));
 
   // Attempt a read from the audio stream and run the message loop until done.
   scoped_refptr<DemuxerStream> audio =
@@ -345,6 +351,122 @@ TEST_F(FFmpegDemuxerTest, Read_Video) {
                       reader->buffer()->GetDataSize()));
 }
 
+TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
+  // Test the start time is the first timestamp of the video and audio stream.
+  const int64 kStartTime = 60000;
+  // Set the audio and video stream's first timestamp.
+  streams_[AV_STREAM_AUDIO].first_dts = kStartTime;
+  streams_[AV_STREAM_VIDEO].first_dts = kStartTime;
+  {
+    SCOPED_TRACE("");
+    InitializeDemuxer();
+  }
+
+  // Ignore all AVFreePacket() calls.  We check this via valgrind.
+  EXPECT_CALL(mock_ffmpeg_, AVFreePacket(_)).Times(AnyNumber());
+
+  const base::TimeDelta kExpectedTimestamp =
+      base::TimeDelta::FromMicroseconds(kStartTime);
+
+  // Simulate a successful frame read.
+  EXPECT_CALL(mock_ffmpeg_, AVReadFrame(&format_context_, _))
+      .WillOnce(CreatePacketTimeNoCount(AV_STREAM_VIDEO,
+                                        kVideoData,
+                                        kDataSize,
+                                        kStartTime));
+  EXPECT_CALL(mock_ffmpeg_, AVDupPacket(_))
+      .WillOnce(Return(0));
+
+  // Attempt a read from the video stream and run the message loop until done.
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
+  reader->Read(video);
+  message_loop_.RunAllPending();
+
+  EXPECT_TRUE(reader->called());
+  ASSERT_TRUE(reader->buffer());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(kExpectedTimestamp, reader->buffer()->GetTimestamp());
+  EXPECT_EQ(0, memcmp(kVideoData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
+
+  EXPECT_EQ(kExpectedTimestamp, demuxer_->GetStartTime());
+}
+
+TEST_F(FFmpegDemuxerTest, CheckMinStartTime) {
+  // Test the start time is minimum timestamp of all streams.
+  const int64 kAudioStartTime = 5000000;
+  const int64 kVideoStartTime = 5033000;
+  // Set the audio and video stream's first timestamp.
+  streams_[AV_STREAM_AUDIO].first_dts = kAudioStartTime;
+  streams_[AV_STREAM_VIDEO].first_dts = kVideoStartTime;
+  {
+    SCOPED_TRACE("");
+    InitializeDemuxer();
+  }
+
+  // Ignore all AVFreePacket() calls.  We check this via valgrind.
+  EXPECT_CALL(mock_ffmpeg_, AVFreePacket(_)).Times(AnyNumber());
+
+  // Expect all calls in sequence.
+  InSequence s;
+
+  const base::TimeDelta kExpectedAudioTimestamp =
+      base::TimeDelta::FromMicroseconds(kAudioStartTime);
+  const base::TimeDelta kExpectedVideoTimestamp =
+      base::TimeDelta::FromMicroseconds(kVideoStartTime);
+
+  // First read a video packet, then an audio packet.
+  EXPECT_CALL(mock_ffmpeg_, AVReadFrame(&format_context_, _))
+      .WillOnce(CreatePacketTimeNoCount(AV_STREAM_AUDIO,
+                                        kAudioData,
+                                        kDataSize,
+                                        kAudioStartTime));
+  EXPECT_CALL(mock_ffmpeg_, AVDupPacket(_))
+      .WillOnce(Return(0));
+  EXPECT_CALL(mock_ffmpeg_, AVReadFrame(&format_context_, _))
+      .WillOnce(CreatePacketTimeNoCount(AV_STREAM_VIDEO,
+                                        kVideoData,
+                                        kDataSize,
+                                        kVideoStartTime));
+  EXPECT_CALL(mock_ffmpeg_, AVDupPacket(_))
+      .WillOnce(Return(0));
+
+  // Attempt a read from the video stream and run the message loop until done.
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  ASSERT_TRUE(video);
+  ASSERT_TRUE(audio);
+
+  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
+  reader->Read(video);
+  message_loop_.RunAllPending();
+
+  EXPECT_TRUE(reader->called());
+  ASSERT_TRUE(reader->buffer());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(kExpectedVideoTimestamp, reader->buffer()->GetTimestamp());
+  EXPECT_EQ(0, memcmp(kVideoData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
+
+  EXPECT_EQ(kExpectedAudioTimestamp, demuxer_->GetStartTime());
+
+  reader->Reset();
+  reader->Read(audio);
+  message_loop_.RunAllPending();
+  EXPECT_TRUE(reader->called());
+  ASSERT_TRUE(reader->buffer());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(kExpectedAudioTimestamp, reader->buffer()->GetTimestamp());
+  EXPECT_EQ(0, memcmp(kAudioData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
+
+  EXPECT_EQ(kExpectedAudioTimestamp, demuxer_->GetStartTime());
+}
+
 TEST_F(FFmpegDemuxerTest, Read_EndOfStream) {
   // On end of stream, a new, empty, AVPackets are created without any data for
   // each stream and enqueued into the Buffer stream.  Verify that these are
@@ -358,7 +480,7 @@ TEST_F(FFmpegDemuxerTest, Read_EndOfStream) {
   EXPECT_CALL(mock_ffmpeg_, AVFreePacket(_)).Times(AnyNumber());
 
   EXPECT_CALL(mock_ffmpeg_, AVReadFrame(&format_context_, _))
-      .WillOnce(Return(AVERROR_IO));
+      .WillOnce(Return(AVERROR(EIO)));
 
   // We should now expect an end of stream buffer.
   scoped_refptr<DemuxerStream> audio =
@@ -601,7 +723,7 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
 
   // Then an end-of-stream packet is read.
   EXPECT_CALL(mock_ffmpeg_, AVReadFrame(&format_context_, _))
-      .WillOnce(Return(AVERROR_IO));
+      .WillOnce(Return(AVERROR(EIO)));
 
   // Get our streams.
   scoped_refptr<DemuxerStream> video =

@@ -7,11 +7,16 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/utf_string_conversions.h"
+
+#if defined(OS_ANDROID)
+#include "base/os_compat_android.h"
+#endif
 
 namespace base {
 
@@ -44,11 +49,18 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     open_flags = O_CREAT | O_TRUNC;
   }
 
+  if (flags & PLATFORM_FILE_OPEN_TRUNCATED) {
+    DCHECK(!open_flags);
+    DCHECK(flags & PLATFORM_FILE_WRITE);
+    open_flags = O_TRUNC;
+  }
+
   if (!open_flags && !(flags & PLATFORM_FILE_OPEN) &&
       !(flags & PLATFORM_FILE_OPEN_ALWAYS)) {
     NOTREACHED();
     errno = EOPNOTSUPP;
-    *error_code = error_code ? PLATFORM_FILE_ERROR_FAILED : PLATFORM_FILE_OK;
+    if (error_code)
+      *error_code = PLATFORM_FILE_ERROR_FAILED;
     return kInvalidPlatformFileValue;
   }
 
@@ -60,11 +72,6 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
              !(flags & PLATFORM_FILE_WRITE_ATTRIBUTES) &&
              !(flags & PLATFORM_FILE_OPEN_ALWAYS)) {
     NOTREACHED();
-  }
-
-  if (flags & PLATFORM_FILE_TRUNCATE) {
-    DCHECK(flags & PLATFORM_FILE_WRITE);
-    open_flags |= O_TRUNC;
   }
 
   COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);

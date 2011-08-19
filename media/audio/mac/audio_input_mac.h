@@ -19,7 +19,7 @@ class PCMQueueInAudioInputStream : public AudioInputStream {
  public:
   // Parameters as per AudioManager::MakeAudioInputStream.
   PCMQueueInAudioInputStream(AudioManagerMac* manager,
-                             AudioParameters params);
+                             const AudioParameters& params);
   virtual ~PCMQueueInAudioInputStream();
 
   // Implementation of AudioInputStream.

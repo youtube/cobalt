@@ -92,6 +92,7 @@ void ChromeClassTester::BuildBannedLists() {
   banned_directories_.push_back("llvm");
   banned_directories_.push_back("ninja");
   banned_directories_.push_back("xcodebuild");
+  banned_directories_.push_back("clang");
 
   // You are standing in a mazy of twisty dependencies, all resolved by
   // putting everything in the header.
@@ -113,7 +114,6 @@ void ChromeClassTester::BuildBannedLists() {
   ignored_record_names_.insert("Validators");
 
   // RAII class that's simple enough (media/base/callback.h).
-  ignored_record_names_.insert("AutoTaskRunner");
   ignored_record_names_.insert("AutoCallbackRunner");
 
   // Has a UNIT_TEST only constructor. Isn't *terribly* complex...
@@ -127,7 +127,7 @@ void ChromeClassTester::BuildBannedLists() {
   // non-pod class member. Probably harmless.
   ignored_record_names_.insert("MockTransaction");
 
-  // Used heavily in app_unittests and once in views_unittests. Fixing this
+  // Used heavily in ui_unittests and once in views_unittests. Fixing this
   // isn't worth the overhead of an additional library.
   ignored_record_names_.insert("TestAnimationDelegate");
 

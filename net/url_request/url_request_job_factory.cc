@@ -4,7 +4,7 @@
 
 #include "net/url_request/url_request_job_factory.h"
 
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/load_flags.h"
 #include "net/url_request/url_request_job_manager.h"
@@ -76,8 +76,46 @@ URLRequestJob* URLRequestJobFactory::MaybeCreateJobWithProtocolHandler(
   return it->second->MaybeCreateJob(request);
 }
 
+URLRequestJob* URLRequestJobFactory::MaybeInterceptRedirect(
+    const GURL& location,
+    URLRequest* request) const {
+  DCHECK(CalledOnValidThread());
+  URLRequestJob* job = NULL;
+
+  if (!(request->load_flags() & LOAD_DISABLE_INTERCEPT)) {
+    InterceptorList::const_iterator i;
+    for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
+      job = (*i)->MaybeInterceptRedirect(location, request);
+      if (job)
+        return job;
+    }
+  }
+  return NULL;
+}
+
+URLRequestJob* URLRequestJobFactory::MaybeInterceptResponse(
+    URLRequest* request) const {
+  DCHECK(CalledOnValidThread());
+  URLRequestJob* job = NULL;
+
+  if (!(request->load_flags() & LOAD_DISABLE_INTERCEPT)) {
+    InterceptorList::const_iterator i;
+    for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
+      job = (*i)->MaybeInterceptResponse(request);
+      if (job)
+        return job;
+    }
+  }
+  return NULL;
+}
+
 bool URLRequestJobFactory::IsHandledProtocol(const std::string& scheme) const {
   DCHECK(CalledOnValidThread());
+  InterceptorList::const_iterator i;
+  for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
+    if ((*i)->WillHandleProtocol(scheme))
+      return true;
+  }
   return ContainsKey(protocol_handler_map_, scheme) ||
       URLRequestJobManager::GetInstance()->SupportsScheme(scheme);
 }

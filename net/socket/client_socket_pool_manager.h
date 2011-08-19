@@ -14,14 +14,20 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/stl_util-inl.h"
+#include "base/stl_util.h"
 #include "base/template_util.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/cert_database.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_api.h"
+#include "net/base/request_priority.h"
 #include "net/socket/client_socket_pool_histograms.h"
 
+class GURL;
+
+namespace base {
 class Value;
+}
 
 namespace net {
 
@@ -33,10 +39,12 @@ class ClientSocketPoolHistograms;
 class DnsCertProvenanceChecker;
 class DnsRRResolver;
 class HttpNetworkSession;
+class HttpRequestHeaders;
 class HostPortPair;
 class HttpProxyClientSocketPool;
 class HostResolver;
 class NetLog;
+class OriginBoundCertService;
 class ProxyInfo;
 class ProxyService;
 #if !defined(__LB_PS3__)
@@ -47,8 +55,11 @@ class SSLConfigService;
 class SSLHostInfoFactory;
 class TransportClientSocketPool;
 
-struct HttpRequestInfo;
 struct SSLConfig;
+
+// This should rather be a simple constant but Windows shared libs doesn't
+// really offer much flexiblity in exporting contants.
+enum DefaultMaxValues { kDefaultMaxSocketsPerProxyServer = 32 };
 
 namespace internal {
 
@@ -75,12 +86,13 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
                           ClientSocketFactory* socket_factory,
                           HostResolver* host_resolver,
                           CertVerifier* cert_verifier,
+                          OriginBoundCertService* origin_bound_cert_service,
                           DnsRRResolver* dnsrr_resolver,
                           DnsCertProvenanceChecker* dns_cert_checker,
                           SSLHostInfoFactory* ssl_host_info_factory,
                           ProxyService* proxy_service,
                           SSLConfigService* ssl_config_service);
-  ~ClientSocketPoolManager();
+  virtual ~ClientSocketPoolManager();
 
   void FlushSocketPools();
   void CloseIdleSockets();
@@ -102,16 +114,19 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   SSLClientSocketPool* GetSocketPoolForSSLWithProxy(
       const HostPortPair& proxy_server);
 
-  static int max_sockets_per_group();
-  static void set_max_sockets_per_group(int socket_count);
-  static void set_max_sockets_per_proxy_server(int socket_count);
+  NET_API static int max_sockets_per_group();
+  NET_API static void set_max_sockets_per_group(int socket_count);
+  NET_API static void set_max_sockets_per_proxy_server(int socket_count);
 
   // A helper method that uses the passed in proxy information to initialize a
   // ClientSocketHandle with the relevant socket pool. Use this method for
   // HTTP/HTTPS requests. |ssl_config_for_origin| is only used if the request
   // uses SSL and |ssl_config_for_proxy| is used if the proxy server is HTTPS.
   static int InitSocketHandleForHttpRequest(
-      const HttpRequestInfo& request_info,
+      const GURL& request_url,
+      const HttpRequestHeaders& request_extra_headers,
+      int request_load_flags,
+      RequestPriority request_priority,
       HttpNetworkSession* session,
       const ProxyInfo& proxy_info,
       bool force_spdy_over_ssl,
@@ -126,7 +141,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   // ClientSocketHandle with the relevant socket pool. Use this method for
   // a raw socket connection to a host-port pair (that needs to tunnel through
   // the proxies).
-  static int InitSocketHandleForRawConnect(
+  NET_API static int InitSocketHandleForRawConnect(
       const HostPortPair& host_port_pair,
       HttpNetworkSession* session,
       const ProxyInfo& proxy_info,
@@ -139,7 +154,10 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   // Similar to InitSocketHandleForHttpRequest except that it initiates the
   // desired number of preconnect streams from the relevant socket pool.
   static int PreconnectSocketsForHttpRequest(
-      const HttpRequestInfo& request_info,
+      const GURL& request_url,
+      const HttpRequestHeaders& request_extra_headers,
+      int request_load_flags,
+      RequestPriority request_priority,
       HttpNetworkSession* session,
       const ProxyInfo& proxy_info,
       bool force_spdy_over_ssl,
@@ -151,7 +169,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
 
   // Creates a Value summary of the state of the socket pools. The caller is
   // responsible for deleting the returned value.
-  Value* SocketPoolInfoToValue() const;
+  base::Value* SocketPoolInfoToValue() const;
 
   // CertDatabase::Observer methods:
   virtual void OnUserCertAdded(const X509Certificate* cert);
@@ -175,6 +193,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   ClientSocketFactory* const socket_factory_;
   HostResolver* const host_resolver_;
   CertVerifier* const cert_verifier_;
+  OriginBoundCertService* const origin_bound_cert_service_;
   DnsRRResolver* const dnsrr_resolver_;
   DnsCertProvenanceChecker* const dns_cert_checker_;
   SSLHostInfoFactory* const ssl_host_info_factory_;

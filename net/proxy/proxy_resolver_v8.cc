@@ -8,6 +8,7 @@
 #include "net/proxy/proxy_resolver_v8.h"
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
@@ -91,11 +92,11 @@ class V8ExternalStringFromScriptData
       const scoped_refptr<ProxyResolverScriptData>& script_data)
       : script_data_(script_data) {}
 
-  virtual const uint16_t* data() const {
+  virtual const uint16_t* data() const OVERRIDE {
     return reinterpret_cast<const uint16*>(script_data_->utf16().data());
   }
 
-  virtual size_t length() const {
+  virtual size_t length() const OVERRIDE {
     return script_data_->utf16().size();
   }
 
@@ -114,11 +115,11 @@ class V8ExternalASCIILiteral : public v8::String::ExternalAsciiStringResource {
     DCHECK(IsStringASCII(ascii));
   }
 
-  virtual const char* data() const {
+  virtual const char* data() const OVERRIDE {
     return ascii_;
   }
 
-  virtual size_t length() const {
+  virtual size_t length() const OVERRIDE {
     return length_;
   }
 

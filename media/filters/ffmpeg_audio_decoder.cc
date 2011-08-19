@@ -4,7 +4,6 @@
 
 #include "media/filters/ffmpeg_audio_decoder.h"
 
-#include "media/base/callback.h"
 #include "media/base/data_buffer.h"
 #include "media/base/limits.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -40,7 +39,7 @@ FFmpegAudioDecoder::~FFmpegAudioDecoder() {
 void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
                                       bool* success,
                                       Task* done_cb) {
-  AutoTaskRunner done_runner(done_cb);
+  base::ScopedTaskRunner done_runner(done_cb);
   *success = false;
 
   AVStream* av_stream = demuxer_stream->GetAVStream();

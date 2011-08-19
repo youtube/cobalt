@@ -475,7 +475,6 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
   intermediates.push_back(intermediate_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert_chain =
       X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
-                                        X509Certificate::SOURCE_FROM_NETWORK,
                                         intermediates);
 
   int flags = 0;
@@ -484,6 +483,42 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0, verify_result.cert_status);
   root_certs->Clear();
+}
+
+// Test for bug 58437.
+// This certificate will expire on 2011-12-21. The test will still
+// pass if error == ERR_CERT_DATE_INVALID.
+// This test is DISABLED because it appears that we cannot do
+// certificate revocation checking when running all of the net unit tests.
+// This test passes when run individually, but when run with all of the net
+// unit tests, the call to PKIXVerifyCert returns the NSS error -8180, which is
+// SEC_ERROR_REVOKED_CERTIFICATE. This indicates a lack of revocation
+// status, i.e. that the revocation check is failing for some reason.
+TEST(X509CertificateTest, DISABLED_GlobalSignR3EVTest) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> server_cert =
+      ImportCertFromFile(certs_dir, "2029_globalsign_com_cert.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), server_cert);
+
+  scoped_refptr<X509Certificate> intermediate_cert =
+      ImportCertFromFile(certs_dir, "globalsign_ev_sha256_ca_cert.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
+                                        intermediates);
+
+  CertVerifyResult verify_result;
+  int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
+              X509Certificate::VERIFY_EV_CERT;
+  int error = cert_chain->Verify("2029.globalsign.com", flags, &verify_result);
+  if (error == OK)
+    EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_IS_EV);
+  else
+    EXPECT_EQ(ERR_CERT_DATE_INVALID, error);
 }
 
 TEST(X509CertificateTest, TestKnownRoot) {
@@ -502,7 +537,6 @@ TEST(X509CertificateTest, TestKnownRoot) {
   intermediates.push_back(intermediate_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert_chain =
       X509Certificate::CreateFromHandle(cert->os_cert_handle(),
-                                        X509Certificate::SOURCE_FROM_NETWORK,
                                         intermediates);
 
   int flags = 0;
@@ -539,6 +573,25 @@ TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
   EXPECT_TRUE(0 == memcmp(hash, nistSPKIHash, sizeof(hash)));
 }
 
+TEST(X509CertificateTest, ExtractCRLURLsFromDERCert) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir, "nist.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
+
+  std::string derBytes;
+  EXPECT_TRUE(cert->GetDEREncoded(&derBytes));
+
+  std::vector<base::StringPiece> crl_urls;
+  EXPECT_TRUE(asn1::ExtractCRLURLsFromDERCert(derBytes, &crl_urls));
+
+  EXPECT_EQ(1u, crl_urls.size());
+  if (crl_urls.size() > 0) {
+    EXPECT_EQ("http://SVRSecure-G3-crl.verisign.com/SVRSecureG3.crl",
+              crl_urls[0].as_string());
+  }
+}
+
 TEST(X509CertificateTest, PublicKeyHashes) {
   FilePath certs_dir = GetTestCertsDirectory();
   // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
@@ -559,7 +612,6 @@ TEST(X509CertificateTest, PublicKeyHashes) {
   intermediates.push_back(intermediate_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert_chain =
       X509Certificate::CreateFromHandle(cert->os_cert_handle(),
-                                        X509Certificate::SOURCE_FROM_NETWORK,
                                         intermediates);
 
   int flags = 0;
@@ -607,66 +659,54 @@ TEST(X509CertificateTest, InvalidKeyUsage) {
 #endif
 }
 
-// Tests X509Certificate::Cache via X509Certificate::CreateFromHandle.  We
+// Tests X509CertificateCache via X509Certificate::CreateFromHandle.  We
 // call X509Certificate::CreateFromHandle several times and observe whether
-// it returns a cached or new X509Certificate object.
-//
-// All the OS certificate handles in this test are actually from the same
-// source (the bytes of a lone certificate), but we pretend that some of them
-// come from the network.
+// it returns a cached or new OSCertHandle.
 TEST(X509CertificateTest, Cache) {
   X509Certificate::OSCertHandle google_cert_handle;
+  X509Certificate::OSCertHandle thawte_cert_handle;
 
-  // Add a certificate from the source SOURCE_LONE_CERT_IMPORT to our
-  // certificate cache.
+  // Add a single certificate to the certificate cache.
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
   scoped_refptr<X509Certificate> cert1(X509Certificate::CreateFromHandle(
-      google_cert_handle, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-      X509Certificate::OSCertHandles()));
+      google_cert_handle, X509Certificate::OSCertHandles()));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
 
-  // Add a certificate from the same source (SOURCE_LONE_CERT_IMPORT).  This
-  // should return the cached certificate (cert1).
+  // Add the same certificate, but as a new handle.
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
   scoped_refptr<X509Certificate> cert2(X509Certificate::CreateFromHandle(
-      google_cert_handle, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-      X509Certificate::OSCertHandles()));
+      google_cert_handle, X509Certificate::OSCertHandles()));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
 
-  EXPECT_EQ(cert1, cert2);
+  // A new X509Certificate should be returned.
+  EXPECT_NE(cert1.get(), cert2.get());
+  // But both instances should share the underlying OS certificate handle.
+  EXPECT_EQ(cert1->os_cert_handle(), cert2->os_cert_handle());
+  EXPECT_EQ(0u, cert1->GetIntermediateCertificates().size());
+  EXPECT_EQ(0u, cert2->GetIntermediateCertificates().size());
 
-  // Add a certificate from the network.  This should kick out the original
-  // cached certificate (cert1) and return a new certificate.
+  // Add the same certificate, but this time with an intermediate. This
+  // should result in the intermediate being cached. Note that this is not
+  // a legitimate chain, but is suitable for testing.
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
+  thawte_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
+      reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der));
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(thawte_cert_handle);
   scoped_refptr<X509Certificate> cert3(X509Certificate::CreateFromHandle(
-      google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-      X509Certificate::OSCertHandles()));
+      google_cert_handle, intermediates));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
+  X509Certificate::FreeOSCertHandle(thawte_cert_handle);
 
-  EXPECT_NE(cert1, cert3);
-
-  // Add one certificate from each source.  Both should return the new cached
-  // certificate (cert3).
-  google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  scoped_refptr<X509Certificate> cert4(X509Certificate::CreateFromHandle(
-      google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-      X509Certificate::OSCertHandles()));
-  X509Certificate::FreeOSCertHandle(google_cert_handle);
-
-  EXPECT_EQ(cert3, cert4);
-
-  google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  scoped_refptr<X509Certificate> cert5(X509Certificate::CreateFromHandle(
-      google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-      X509Certificate::OSCertHandles()));
-  X509Certificate::FreeOSCertHandle(google_cert_handle);
-
-  EXPECT_EQ(cert3, cert5);
+  // Test that the new certificate, even with intermediates, results in the
+  // same underlying handle being used.
+  EXPECT_EQ(cert1->os_cert_handle(), cert3->os_cert_handle());
+  // Though they use the same OS handle, the intermediates should be different.
+  EXPECT_NE(cert1->GetIntermediateCertificates().size(),
+      cert3->GetIntermediateCertificates().size());
 }
 
 TEST(X509CertificateTest, Pickle) {
@@ -679,13 +719,8 @@ TEST(X509CertificateTest, Pickle) {
 
   X509Certificate::OSCertHandles intermediates;
   intermediates.push_back(thawte_cert_handle);
-  // Faking SOURCE_LONE_CERT_IMPORT so that when the pickled certificate is
-  // read, it successfully evicts |cert| from the X509Certificate::Cache.
-  // This will be fixed when http://crbug.com/49377 is fixed.
   scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
-      google_cert_handle,
-      X509Certificate::SOURCE_LONE_CERT_IMPORT,
-      intermediates);
+      google_cert_handle, intermediates);
   ASSERT_NE(static_cast<X509Certificate*>(NULL), cert.get());
 
   X509Certificate::FreeOSCertHandle(google_cert_handle);
@@ -699,7 +734,6 @@ TEST(X509CertificateTest, Pickle) {
       X509Certificate::CreateFromPickle(
           pickle, &iter, X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN);
   ASSERT_NE(static_cast<X509Certificate*>(NULL), cert_from_pickle);
-  EXPECT_NE(cert.get(), cert_from_pickle.get());
   EXPECT_TRUE(X509Certificate::IsSameOSCert(
       cert->os_cert_handle(), cert_from_pickle->os_cert_handle()));
   EXPECT_TRUE(cert->HasIntermediateCertificates(
@@ -742,7 +776,6 @@ TEST(X509CertificateTest, Policy) {
   EXPECT_TRUE(policy.HasDeniedCert());
 }
 
-#if defined(OS_MACOSX) || defined(OS_WIN)
 TEST(X509CertificateTest, IntermediateCertificates) {
   scoped_refptr<X509Certificate> webkit_cert(
       X509Certificate::CreateFromBytes(
@@ -763,8 +796,7 @@ TEST(X509CertificateTest, IntermediateCertificates) {
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
   X509Certificate::OSCertHandles intermediates1;
   scoped_refptr<X509Certificate> cert1;
-  cert1 = X509Certificate::CreateFromHandle(
-      google_handle, X509Certificate::SOURCE_FROM_NETWORK, intermediates1);
+  cert1 = X509Certificate::CreateFromHandle(google_handle, intermediates1);
   EXPECT_TRUE(cert1->HasIntermediateCertificates(intermediates1));
   EXPECT_FALSE(cert1->HasIntermediateCertificate(
       webkit_cert->os_cert_handle()));
@@ -774,11 +806,7 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   intermediates2.push_back(webkit_cert->os_cert_handle());
   intermediates2.push_back(thawte_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert2;
-  cert2 = X509Certificate::CreateFromHandle(
-      google_handle, X509Certificate::SOURCE_FROM_NETWORK, intermediates2);
-
-  // The cache should have stored cert2 'cause it has more intermediates:
-  EXPECT_NE(cert1, cert2);
+  cert2 = X509Certificate::CreateFromHandle(google_handle, intermediates2);
 
   // Verify it has all the intermediates:
   EXPECT_TRUE(cert2->HasIntermediateCertificate(
@@ -788,20 +816,151 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   EXPECT_FALSE(cert2->HasIntermediateCertificate(
       paypal_cert->os_cert_handle()));
 
-  // Create object with 1 intermediate:
-  X509Certificate::OSCertHandles intermediates3;
-  intermediates2.push_back(thawte_cert->os_cert_handle());
-  scoped_refptr<X509Certificate> cert3;
-  cert3 = X509Certificate::CreateFromHandle(
-      google_handle, X509Certificate::SOURCE_FROM_NETWORK, intermediates3);
-
-  // The cache should have returned cert2 'cause it has more intermediates:
-  EXPECT_EQ(cert3, cert2);
-
   // Cleanup
   X509Certificate::FreeOSCertHandle(google_handle);
 }
-#endif
+
+// Basic test for returning the chain in CertVerifyResult. Note that the
+// returned chain may just be a reflection of the originally supplied chain;
+// that is, if any errors occur, the default chain returned is an exact copy
+// of the certificate to be verified. The remaining VerifyReturn* tests are
+// used to ensure that the actual, verified chain is being returned by
+// Verify().
+TEST(X509CertificateTest, VerifyReturnChainBasic) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  CertificateList certs = CreateCertificateListFromFile(
+      certs_dir, "x509_verify_results.chain.pem",
+      X509Certificate::FORMAT_AUTO);
+  ASSERT_EQ(3U, certs.size());
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(certs[1]->os_cert_handle());
+  intermediates.push_back(certs[2]->os_cert_handle());
+
+  TestRootCerts::GetInstance()->Add(certs[2]);
+
+  scoped_refptr<X509Certificate> google_full_chain =
+      X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
+                                        intermediates);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), google_full_chain);
+  ASSERT_EQ(2U, google_full_chain->GetIntermediateCertificates().size());
+
+  CertVerifyResult verify_result;
+  EXPECT_EQ(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
+  int error = google_full_chain->Verify("127.0.0.1", 0, &verify_result);
+  EXPECT_EQ(OK, error);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
+
+  EXPECT_NE(google_full_chain, verify_result.verified_cert);
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(
+      google_full_chain->os_cert_handle(),
+      verify_result.verified_cert->os_cert_handle()));
+  const X509Certificate::OSCertHandles& return_intermediates =
+      verify_result.verified_cert->GetIntermediateCertificates();
+  ASSERT_EQ(2U, return_intermediates.size());
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(return_intermediates[0],
+                                            certs[1]->os_cert_handle()));
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(return_intermediates[1],
+                                            certs[2]->os_cert_handle()));
+
+  TestRootCerts::GetInstance()->Clear();
+}
+
+// Test that the certificate returned in CertVerifyResult is able to reorder
+// certificates that are not ordered from end-entity to root. While this is
+// a protocol violation if sent during a TLS handshake, if multiple sources
+// of intermediate certificates are combined, it's possible that order may
+// not be maintained.
+TEST(X509CertificateTest, VerifyReturnChainProperlyOrdered) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  CertificateList certs = CreateCertificateListFromFile(
+      certs_dir, "x509_verify_results.chain.pem",
+      X509Certificate::FORMAT_AUTO);
+  ASSERT_EQ(3U, certs.size());
+
+  // Construct the chain out of order.
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(certs[2]->os_cert_handle());
+  intermediates.push_back(certs[1]->os_cert_handle());
+
+  TestRootCerts::GetInstance()->Add(certs[2]);
+
+  scoped_refptr<X509Certificate> google_full_chain =
+      X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
+                                        intermediates);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), google_full_chain);
+  ASSERT_EQ(2U, google_full_chain->GetIntermediateCertificates().size());
+
+  CertVerifyResult verify_result;
+  EXPECT_EQ(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
+  int error = google_full_chain->Verify("127.0.0.1", 0, &verify_result);
+  EXPECT_EQ(OK, error);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
+
+  EXPECT_NE(google_full_chain, verify_result.verified_cert);
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(
+      google_full_chain->os_cert_handle(),
+      verify_result.verified_cert->os_cert_handle()));
+  const X509Certificate::OSCertHandles& return_intermediates =
+      verify_result.verified_cert->GetIntermediateCertificates();
+  ASSERT_EQ(2U, return_intermediates.size());
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(return_intermediates[0],
+                                            certs[1]->os_cert_handle()));
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(return_intermediates[1],
+                                            certs[2]->os_cert_handle()));
+
+  TestRootCerts::GetInstance()->Clear();
+}
+
+// Test that Verify() filters out certificates which are not related to
+// or part of the certificate chain being verified.
+TEST(X509CertificateTest, VerifyReturnChainFiltersUnrelatedCerts) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  CertificateList certs = CreateCertificateListFromFile(
+      certs_dir, "x509_verify_results.chain.pem",
+      X509Certificate::FORMAT_AUTO);
+  ASSERT_EQ(3U, certs.size());
+  TestRootCerts::GetInstance()->Add(certs[2]);
+
+  scoped_refptr<X509Certificate> unrelated_dod_certificate =
+      ImportCertFromFile(certs_dir, "dod_ca_17_cert.der");
+  scoped_refptr<X509Certificate> unrelated_dod_certificate2 =
+      ImportCertFromFile(certs_dir, "dod_root_ca_2_cert.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), unrelated_dod_certificate);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), unrelated_dod_certificate2);
+
+  // Interject unrelated certificates into the list of intermediates.
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(unrelated_dod_certificate->os_cert_handle());
+  intermediates.push_back(certs[1]->os_cert_handle());
+  intermediates.push_back(unrelated_dod_certificate2->os_cert_handle());
+  intermediates.push_back(certs[2]->os_cert_handle());
+
+  scoped_refptr<X509Certificate> google_full_chain =
+      X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
+                                        intermediates);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), google_full_chain);
+  ASSERT_EQ(4U, google_full_chain->GetIntermediateCertificates().size());
+
+  CertVerifyResult verify_result;
+  EXPECT_EQ(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
+  int error = google_full_chain->Verify("127.0.0.1", 0, &verify_result);
+  EXPECT_EQ(OK, error);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
+
+  EXPECT_NE(google_full_chain, verify_result.verified_cert);
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(
+      google_full_chain->os_cert_handle(),
+      verify_result.verified_cert->os_cert_handle()));
+  const X509Certificate::OSCertHandles& return_intermediates =
+      verify_result.verified_cert->GetIntermediateCertificates();
+  ASSERT_EQ(2U, return_intermediates.size());
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(return_intermediates[0],
+                                            certs[1]->os_cert_handle()));
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(return_intermediates[1],
+                                            certs[2]->os_cert_handle()));
+  TestRootCerts::GetInstance()->Clear();
+}
 
 #if defined(OS_MACOSX)
 TEST(X509CertificateTest, IsIssuedBy) {
@@ -1026,9 +1185,14 @@ struct CertificateNameVerifyTestData {
   bool expected;
   // The hostname to match.
   const char* hostname;
-  // '/' separated list of certificate names to match against. Any occurrence
+  // Common name, may be used if |dns_names| or |ip_addrs| are empty.
+  const char* common_name;
+  // Comma separated list of certificate names to match against. Any occurrence
   // of '#' will be replaced with a null character before processing.
-  const char* cert_names;
+  const char* dns_names;
+  // Comma separated list of certificate IP Addresses to match against. Each
+  // address is x prefixed 16 byte hex code for v6 or dotted-decimals for v4.
+  const char* ip_addrs;
 };
 
 // Required by valgrind on mac, otherwise it complains when using its default
@@ -1041,8 +1205,13 @@ struct CertificateNameVerifyTestData {
 // testing::internal2::TypeWithoutFormatter
 // ...
 void PrintTo(const CertificateNameVerifyTestData& data, std::ostream* os) {
-  *os << " expected: " << data.expected << ", hostname: "
-      << data.hostname << ", cert_names: " << data.cert_names;
+  ASSERT_TRUE(data.hostname && data.common_name);
+  // Using StringPiece to allow for optional fields being NULL.
+  *os << " expected: " << data.expected
+      << "; hostname: " << data.hostname
+      << "; common_name: " << data.common_name
+      << "; dns_names: " << base::StringPiece(data.dns_names)
+      << "; ip_addrs: " << base::StringPiece(data.ip_addrs);
 }
 
 const CertificateNameVerifyTestData kNameVerifyTestData[] = {
@@ -1050,51 +1219,104 @@ const CertificateNameVerifyTestData kNameVerifyTestData[] = {
     { true, "foo.com", "foo.com." },
     { true, "f", "f" },
     { true, "f", "f." },
+    { false, "h", "i" },
     { true, "bar.foo.com", "*.foo.com" },
     { true, "www-3.bar.foo.com", "*.bar.foo.com." },
-    { true, "www.test.fr", "*.test.com/*.test.co.uk/*.test.de/*.test.fr" },
-    { true, "wwW.tESt.fr", "//*.*/*.test.de/*.test.FR/www" },
+    { true, "www.test.fr", "common.name",
+        "*.test.com,*.test.co.uk,*.test.de,*.test.fr" },
+    { true, "wwW.tESt.fr",  "common.name",
+        ",*.*,*.test.de,*.test.FR,www" },
     { false, "foo.com", "*.com" },
     { false, "f.uk", ".uk" },
     { true,  "h.co.uk", "*.co.uk" },
-    { false, "192.168.1.11", "*.168.1.11" },
     { false, "foo.us", "*.us" },
-    { false, "www.bar.foo.com",
-      "*.foo.com/*.*.foo.com/*.*.bar.foo.com/*w*.bar.foo.com/*..bar.foo.com" },
     { false, "w.bar.foo.com", "?.bar.foo.com" },
     { false, "www.foo.com", "(www|ftp).foo.com" },
-    { false, "www.foo.com", "www.foo.com#*.foo.com/#" },  // # = null char.
+    { false, "www.foo.com", "www.foo.com#" }, // # = null char.
+    { false, "www.foo.com", "", "www.foo.com#*.foo.com,#,#" },
     { false, "foo", "*" },
     { false, "foo.", "*." },
-    { false, "test.org", "www.test.org/*.test.org/*.org" },
-    { false, "1.2.3.4.5.6", "*.2.3.4.5.6" },
+    { false, "www.house.example", "ww.house.example" },
+    { false, "test.org", "", "www.test.org,*.test.org,*.org" },
+    { false, "w.bar.foo.com", "w*.bar.foo.com" },
+    { false, "www.bar.foo.com", "ww*ww.bar.foo.com" },
+    { false, "wwww.bar.foo.com", "ww*ww.bar.foo.com" },
+    { true, "wwww.bar.foo.com", "w*w.bar.foo.com" },
+    { false, "wwww.bar.foo.com", "w*w.bar.foo.c0m" },
+    { true, "WALLY.bar.foo.com", "wa*.bar.foo.com" },
+    { true, "wally.bar.foo.com", "*Ly.bar.foo.com" },
+    { true, "ww%57.foo.com", "", "www.foo.com" },
+    { true, "www&.foo.com", "www%26.foo.com" },
+    // Common name must not be used if subject alternative name was provided.
+    { false, "www.test.co.jp",  "www.test.co.jp",
+        "*.test.de,*.jp,www.test.co.uk,www.*.co.jp" },
+    { false, "www.bar.foo.com", "www.bar.foo.com",
+      "*.foo.com,*.*.foo.com,*.*.bar.foo.com,*..bar.foo.com," },
+    { false, "www.bath.org", "www.bath.org", "", "20.30.40.50" },
+    { false, "66.77.88.99", "www.bath.org", "www.bath.org" },
     // IDN tests
     { true, "xn--poema-9qae5a.com.br", "xn--poema-9qae5a.com.br" },
     { true, "www.xn--poema-9qae5a.com.br", "*.xn--poema-9qae5a.com.br" },
-    { false, "xn--poema-9qae5a.com.br", "*.xn--poema-9qae5a.com.br" },
-    // The following are adapted from the examples in
-    // http://tools.ietf.org/html/draft-saintandre-tls-server-id-check-09#section-4.4.3
+    { false, "xn--poema-9qae5a.com.br", "", "*.xn--poema-9qae5a.com.br,"
+                                            "xn--poema-*.com.br,"
+                                            "xn--*-9qae5a.com.br,"
+                                            "*--poema-9qae5a.com.br" },
+    { true, "xn--poema-9qae5a.com.br", "*.com.br" },
+    // The following are adapted from the  examples quoted from
+    // http://tools.ietf.org/html/rfc6125#section-6.4.3
+    //  (e.g., *.example.com would match foo.example.com but
+    //   not bar.foo.example.com or example.com).
     { true, "foo.example.com", "*.example.com" },
     { false, "bar.foo.example.com", "*.example.com" },
     { false, "example.com", "*.example.com" },
-    { false, "baz1.example.net", "baz*.example.net" },
-    { false, "baz2.example.net", "baz*.example.net" },
-    { false, "bar.*.example.net", "bar.*.example.net" },
-    { false, "bar.f*o.example.net", "bar.f*o.example.net" },
-    // IP addresses currently not supported, except for the localhost.
+    //   (e.g., baz*.example.net and *baz.example.net and b*z.example.net would
+    //   be taken to match baz1.example.net and foobaz.example.net and
+    //   buzz.example.net, respectively
+    { true, "baz1.example.net", "baz*.example.net" },
+    { true, "foobaz.example.net", "*baz.example.net" },
+    { true, "buzz.example.net", "b*z.example.net" },
+    // IP addresses in common name; IPv4 only.
     { true, "127.0.0.1", "127.0.0.1" },
-    { false, "192.168.1.1", "192.168.1.1" },
-    { false, "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210",
-      "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210" },
-    { false, "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210", "*.]" },
-    { false, "::192.9.5.5", "::192.9.5.5" },
+    { true, "192.168.1.1", "192.168.1.1" },
+    { true,  "676768", "0.10.83.160" },
+    { true,  "1.2.3", "1.2.0.3" },
+    { false, "192.169.1.1", "192.168.1.1" },
+    { false, "12.19.1.1", "12.19.1.1/255.255.255.0" },
+    { false, "FEDC:ba98:7654:3210:FEDC:BA98:7654:3210",
+      "FEDC:BA98:7654:3210:FEDC:ba98:7654:3210" },
+    { false, "1111:2222:3333:4444:5555:6666:7777:8888",
+      "1111:2222:3333:4444:5555:6666:7777:8888" },
+    { false, "::192.9.5.5", "[::192.9.5.5]" },
+    // No wildcard matching in valid IP addresses
     { false, "::192.9.5.5", "*.9.5.5" },
     { false, "2010:836B:4179::836B:4179", "*:836B:4179::836B:4179" },
+    { false, "192.168.1.11", "*.168.1.11" },
+    { false, "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210", "*.]" },
+    // IP addresses in subject alternative name (common name ignored)
+    { true, "10.1.2.3", "", "", "10.1.2.3" },
+    { true,  "14.15", "", "", "14.0.0.15" },
+    { false, "10.1.2.7", "10.1.2.7", "", "10.1.2.6,10.1.2.8" },
+    { false, "10.1.2.8", "10.20.2.8", "foo" },
+    { true, "::4.5.6.7", "", "", "x00000000000000000000000004050607" },
+    { false, "::6.7.8.9", "::6.7.8.9", "::6.7.8.9",
+        "x00000000000000000000000006070808,x0000000000000000000000000607080a,"
+        "xff000000000000000000000006070809,6.7.8.9" },
+    { true, "FE80::200:f8ff:fe21:67cf", "no.common.name", "",
+        "x00000000000000000000000006070808,xfe800000000000000200f8fffe2167cf,"
+        "xff0000000000000000000000060708ff,10.0.0.1" },
+    // Numeric only hostnames (none of these are considered valid IP addresses).
+    { false,  "12345.6", "12345.6" },
+    { false, "121.2.3.512", "", "1*1.2.3.512,*1.2.3.512,1*.2.3.512,*.2.3.512",
+        "121.2.3.0"},
+    { false, "1.2.3.4.5.6", "*.2.3.4.5.6" },
+    { true, "1.2.3.4.5", "", "1.2.3.4.5" },
     // Invalid host names.
-    { false, "www%26.foo.com", "www%26.foo.com" },
+    { false, "junk)(£)$*!@~#", "junk)(£)$*!@~#" },
     { false, "www.*.com", "www.*.com" },
     { false, "w$w.f.com", "w$w.f.com" },
+    { false, "nocolonallowed:example", "", "nocolonallowed:example" },
     { false, "www-1.[::FFFF:129.144.52.38]", "*.[::FFFF:129.144.52.38]" },
+    { false, "[::4.5.6.9]", "", "", "x00000000000000000000000004050609" },
 };
 
 class X509CertificateNameVerifyTest
@@ -1104,15 +1326,54 @@ class X509CertificateNameVerifyTest
 TEST_P(X509CertificateNameVerifyTest, VerifyHostname) {
   CertificateNameVerifyTestData test_data = GetParam();
 
-  std::string cert_name_line(test_data.cert_names);
-  std::replace(cert_name_line.begin(), cert_name_line.end(), '#', '\0');
-  std::vector<std::string> cert_names;
-  base::SplitString(cert_name_line, '/', &cert_names);
+  std::string common_name(test_data.common_name);
+  ASSERT_EQ(std::string::npos, common_name.find(','));
+  std::replace(common_name.begin(), common_name.end(), '#', '\0');
 
-  EXPECT_EQ(test_data.expected,
-            X509Certificate::VerifyHostname(test_data.hostname, cert_names))
-      << "Host [" << test_data.hostname
-      << "], cert name [" << test_data.cert_names << "]";
+  std::vector<std::string> dns_names, ip_addressses;
+  if (test_data.dns_names) {
+    // Build up the certificate DNS names list.
+    std::string dns_name_line(test_data.dns_names);
+    std::replace(dns_name_line.begin(), dns_name_line.end(), '#', '\0');
+    base::SplitString(dns_name_line, ',', &dns_names);
+  }
+
+  if (test_data.ip_addrs) {
+    // Build up the certificate IP address list.
+    std::string ip_addrs_line(test_data.ip_addrs);
+    std::vector<std::string> ip_addressses_ascii;
+    base::SplitString(ip_addrs_line, ',', &ip_addressses_ascii);
+    for (size_t i = 0; i < ip_addressses_ascii.size(); ++i) {
+      std::string& addr_ascii = ip_addressses_ascii[i];
+      ASSERT_NE(0U, addr_ascii.length());
+      if (addr_ascii[0] == 'x') { // Hex encoded address
+        addr_ascii.erase(0, 1);
+        std::vector<uint8> bytes;
+        EXPECT_TRUE(base::HexStringToBytes(addr_ascii, &bytes))
+            << "Could not parse hex address " << addr_ascii << " i = " << i;
+        ip_addressses.push_back(std::string(reinterpret_cast<char*>(&bytes[0]),
+                                            bytes.size()));
+        ASSERT_EQ(16U, ip_addressses.back().size()) << i;
+      } else {  // Decimal groups
+        std::vector<std::string> decimals_ascii;
+        base::SplitString(addr_ascii, '.', &decimals_ascii);
+        EXPECT_EQ(4U, decimals_ascii.size()) << i;
+        std::string addr_bytes;
+        for (size_t j = 0; j < decimals_ascii.size(); ++j) {
+          int decimal_value;
+          EXPECT_TRUE(base::StringToInt(decimals_ascii[j], &decimal_value));
+          EXPECT_GE(decimal_value, 0);
+          EXPECT_LE(decimal_value, 255);
+          addr_bytes.push_back(static_cast<char>(decimal_value));
+        }
+        ip_addressses.push_back(addr_bytes);
+        ASSERT_EQ(4U, ip_addressses.back().size()) << i;
+      }
+    }
+  }
+
+  EXPECT_EQ(test_data.expected, X509Certificate::VerifyHostname(
+      test_data.hostname, common_name, dns_names, ip_addressses));
 }
 
 INSTANTIATE_TEST_CASE_P(, X509CertificateNameVerifyTest,

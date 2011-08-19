@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
@@ -31,7 +31,7 @@
 // space is controlled by the header_size parameter passed to the Pickle
 // constructor.
 //
-class BASE_API Pickle {
+class BASE_EXPORT Pickle {
  public:
   // Initialize a Pickle object using the default header size.
   Pickle();

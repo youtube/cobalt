@@ -26,7 +26,9 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
-#if !defined(__LB_PS3__)
+#if defined(__LB_PS3__)
+#include "net/base/single_request_host_resolver.h"
+#else
 #include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
 #endif
@@ -55,6 +57,7 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       next_state_(STATE_NONE),
       host_resolver_(NULL),
       cert_verifier_(NULL),
+      origin_bound_cert_service_(NULL),
       http_auth_handler_factory_(NULL),
       factory_(ClientSocketFactory::GetDefaultFactory()),
       proxy_mode_(kDirectConnection),
@@ -123,6 +126,7 @@ void SocketStream::set_context(URLRequestContext* context) {
   if (context_) {
     host_resolver_ = context_->host_resolver();
     cert_verifier_ = context_->cert_verifier();
+    origin_bound_cert_service_ = context_->origin_bound_cert_service();
     http_auth_handler_factory_ = context_->http_auth_handler_factory();
   }
 }
@@ -236,6 +240,10 @@ void SocketStream::DetachDelegate() {
   Close();
 }
 
+const ProxyServer& SocketStream::proxy_server() const {
+  return proxy_info_.proxy_server();
+}
+
 void SocketStream::SetHostResolver(HostResolver* host_resolver) {
   DCHECK(host_resolver);
   host_resolver_ = host_resolver;
@@ -259,9 +267,10 @@ void SocketStream::CopyAddrInfo(struct addrinfo* head) {
 
 void SocketStream::DoClose() {
   closing_ = true;
-  // If next_state_ is STATE_TCP_CONNECT, it's waiting other socket establishing
-  // connection.  If next_state_ is STATE_AUTH_REQUIRED, it's waiting for
-  // restarting.  In these states, we'll close the SocketStream now.
+  // If next_state_ is STATE_TCP_CONNECT, it's waiting other socket
+  // establishing connection.  If next_state_ is STATE_AUTH_REQUIRED, it's
+  // waiting for restarting.  In these states, we'll close the SocketStream
+  // now.
   if (next_state_ == STATE_TCP_CONNECT || next_state_ == STATE_AUTH_REQUIRED) {
     DoLoop(ERR_ABORTED);
     return;
@@ -287,16 +296,59 @@ void SocketStream::Finish(int result) {
     result = ERR_CONNECTION_CLOSED;
   DCHECK_EQ(next_state_, STATE_NONE);
   DVLOG(1) << "Finish result=" << ErrorToString(result);
-  if (delegate_)
-    delegate_->OnError(this, result);
 
   metrics_->OnClose();
   Delegate* delegate = delegate_;
   delegate_ = NULL;
   if (delegate) {
-    delegate->OnClose(this);
+    delegate->OnError(this, result);
+    if (result != ERR_PROTOCOL_SWITCHED)
+      delegate->OnClose(this);
   }
   Release();
+}
+
+int SocketStream::DidEstablishSSL(int result) {
+  if (IsCertificateError(result)) {
+    if (socket_->IsConnectedAndIdle()) {
+      result = HandleCertificateError(result);
+    } else {
+      // SSLClientSocket for Mac will report socket is not connected,
+      // if it returns cert verification error.  It didn't perform
+      // SSLHandshake yet.
+      // So, we should restart establishing connection with the
+      // certificate in allowed bad certificates in |ssl_config_|.
+      // See also net/http/http_network_transaction.cc
+      //  HandleCertificateError() and RestartIgnoringLastError().
+      SSLClientSocket* ssl_socket =
+        reinterpret_cast<SSLClientSocket*>(socket_.get());
+      SSLInfo ssl_info;
+      ssl_socket->GetSSLInfo(&ssl_info);
+      if (ssl_info.cert == NULL ||
+          ssl_config_.IsAllowedBadCert(ssl_info.cert, NULL)) {
+        // If we already have the certificate in the set of allowed bad
+        // certificates, we did try it and failed again, so we should not
+        // retry again: the connection should fail at last.
+        next_state_ = STATE_CLOSE;
+        return result;
+      }
+      // Add the bad certificate to the set of allowed certificates in the
+      // SSL config object.
+      SSLConfig::CertAndStatus bad_cert;
+      if (!ssl_info.cert->GetDEREncoded(&bad_cert.der_cert)) {
+        next_state_ = STATE_CLOSE;
+        return result;
+      }
+      bad_cert.cert_status = ssl_info.cert_status;
+      ssl_config_.allowed_bad_certs.push_back(bad_cert);
+      // Restart connection ignoring the bad certificate.
+      socket_->Disconnect();
+      socket_.reset();
+      next_state_ = STATE_TCP_CONNECT;
+      return OK;
+    }
+  }
+  return result;
 }
 
 int SocketStream::DidEstablishConnection() {
@@ -402,6 +454,12 @@ void SocketStream::DoLoop(int result) {
       case STATE_RESOLVE_HOST_COMPLETE:
         result = DoResolveHostComplete(result);
         break;
+      case STATE_RESOLVE_PROTOCOL:
+        result = DoResolveProtocol(result);
+        break;
+      case STATE_RESOLVE_PROTOCOL_COMPLETE:
+        result = DoResolveProtocolComplete(result);
+        break;
       case STATE_TCP_CONNECT:
         result = DoTcpConnect(result);
         break;
@@ -429,6 +487,13 @@ void SocketStream::DoLoop(int result) {
       case STATE_SOCKS_CONNECT_COMPLETE:
         result = DoSOCKSConnectComplete(result);
         break;
+      case STATE_SECURE_PROXY_CONNECT:
+        DCHECK_EQ(OK, result);
+        result = DoSecureProxyConnect();
+        break;
+      case STATE_SECURE_PROXY_CONNECT_COMPLETE:
+        result = DoSecureProxyConnectComplete(result);
+        break;
       case STATE_SSL_CONNECT:
         DCHECK_EQ(OK, result);
         result = DoSSLConnect();
@@ -453,10 +518,11 @@ void SocketStream::DoLoop(int result) {
         Finish(result);
         return;
     }
+    if (state == STATE_RESOLVE_PROTOCOL && result == ERR_PROTOCOL_SWITCHED)
+      continue;
     // If the connection is not established yet and had actual errors,
-    // close the connection.
+    // record the error.  In next iteration, it will close the connection.
     if (state != STATE_READ_WRITE && result < ERR_IO_PENDING) {
-      DCHECK_EQ(next_state_, STATE_CLOSE);
       net_log_.EndEventWithNetErrorCode(
           NetLog::TYPE_SOCKET_STREAM_CONNECT, result);
     }
@@ -471,6 +537,14 @@ int SocketStream::DoResolveProxy() {
     next_state_ = STATE_CLOSE;
     return ERR_INVALID_ARGUMENT;
   }
+
+  // TODO(toyoshim): Check server advertisement of SPDY through the HTTP
+  // Alternate-Protocol header, then switch to SPDY if SPDY is available.
+  // Usually we already have a session to the SPDY server because JavaScript
+  // running WebSocket itself would be served by SPDY. But, in some situation
+  // (E.g. Used by Chrome Extensions or used for cross origin connection), this
+  // connection might be the first one. At that time, we should check
+  // Alternate-Protocol header here for ws:// or TLS NPN extension for wss:// .
 
   return proxy_service()->ResolveProxy(
       proxy_url_, &proxy_info_, &io_callback_, &pac_request_, net_log_);
@@ -538,15 +612,39 @@ int SocketStream::DoResolveHost() {
 }
 
 int SocketStream::DoResolveHostComplete(int result) {
-  if (result == OK && delegate_) {
+  if (result == OK && delegate_)
+    next_state_ = STATE_RESOLVE_PROTOCOL;
+  else
+    next_state_ = STATE_CLOSE;
+  // TODO(ukai): if error occured, reconsider proxy after error.
+  return result;
+}
+
+int SocketStream::DoResolveProtocol(int result) {
+  DCHECK_EQ(OK, result);
+  next_state_ = STATE_RESOLVE_PROTOCOL_COMPLETE;
+  result = delegate_->OnStartOpenConnection(this, &io_callback_);
+  if (result == ERR_IO_PENDING)
+    metrics_->OnWaitConnection();
+  else if (result != OK && result != ERR_PROTOCOL_SWITCHED)
+    next_state_ = STATE_CLOSE;
+  return result;
+}
+
+int SocketStream::DoResolveProtocolComplete(int result) {
+  DCHECK_NE(ERR_IO_PENDING, result);
+
+  if (result == ERR_PROTOCOL_SWITCHED) {
+    next_state_ = STATE_CLOSE;
+    metrics_->OnCountWireProtocolType(
+        SocketStreamMetrics::WIRE_PROTOCOL_SPDY);
+  } else if (result == OK) {
     next_state_ = STATE_TCP_CONNECT;
-    result = delegate_->OnStartOpenConnection(this, &io_callback_);
-    if (result == ERR_IO_PENDING)
-      metrics_->OnWaitConnection();
+    metrics_->OnCountWireProtocolType(
+        SocketStreamMetrics::WIRE_PROTOCOL_WEBSOCKET);
   } else {
     next_state_ = STATE_CLOSE;
   }
-  // TODO(ukai): if error occured, reconsider proxy after error.
   return result;
 }
 
@@ -571,11 +669,14 @@ int SocketStream::DoTcpConnectComplete(int result) {
     return result;
   }
 
-  if (proxy_mode_ == kTunnelProxy)
-    next_state_ = STATE_WRITE_TUNNEL_HEADERS;
-  else if (proxy_mode_ == kSOCKSProxy)
+  if (proxy_mode_ == kTunnelProxy) {
+    if (proxy_info_.is_https())
+      next_state_ = STATE_SECURE_PROXY_CONNECT;
+    else
+      next_state_ = STATE_WRITE_TUNNEL_HEADERS;
+  } else if (proxy_mode_ == kSOCKSProxy) {
     next_state_ = STATE_SOCKS_CONNECT;
-  else if (is_secure()) {
+  } else if (is_secure()) {
     next_state_ = STATE_SSL_CONNECT;
   } else {
     result = DidEstablishConnection();
@@ -589,7 +690,7 @@ int SocketStream::DoWriteTunnelHeaders() {
   next_state_ = STATE_WRITE_TUNNEL_HEADERS_COMPLETE;
 
   if (!tunnel_request_headers_.get()) {
-    metrics_->OnTunnelProxy();
+    metrics_->OnCountConnectionType(SocketStreamMetrics::TUNNEL_CONNECTION);
     tunnel_request_headers_ = new RequestHeaders();
     tunnel_request_headers_bytes_sent_ = 0;
   }
@@ -788,7 +889,7 @@ int SocketStream::DoSOCKSConnect() {
   else
     s = new SOCKSClientSocket(s, req_info, host_resolver_);
   socket_.reset(s);
-  metrics_->OnSOCKSProxy();
+  metrics_->OnCountConnectionType(SocketStreamMetrics::SOCKS_CONNECTION);
   return socket_->Connect(&io_callback_);
 #else
   return ERR_NOT_IMPLEMENTED;
@@ -809,55 +910,59 @@ int SocketStream::DoSOCKSConnectComplete(int result) {
   return result;
 }
 
+int SocketStream::DoSecureProxyConnect() {
+  DCHECK(factory_);
+  SSLClientSocketContext ssl_context;
+  ssl_context.cert_verifier = cert_verifier_;
+  ssl_context.origin_bound_cert_service = origin_bound_cert_service_;
+  // TODO(agl): look into plumbing SSLHostInfo here.
+  socket_.reset(factory_->CreateSSLClientSocket(
+      socket_.release(),
+      proxy_info_.proxy_server().host_port_pair(),
+      ssl_config_,
+      NULL /* ssl_host_info */,
+      ssl_context));
+  next_state_ = STATE_SECURE_PROXY_CONNECT_COMPLETE;
+  metrics_->OnCountConnectionType(SocketStreamMetrics::SECURE_PROXY_CONNECTION);
+  return socket_->Connect(&io_callback_);
+}
+
+int SocketStream::DoSecureProxyConnectComplete(int result) {
+  DCHECK_EQ(STATE_NONE, next_state_);
+  result = DidEstablishSSL(result);
+  if (next_state_ != STATE_NONE)
+    return result;
+  if (result == OK)
+    next_state_ = STATE_WRITE_TUNNEL_HEADERS;
+  else
+    next_state_ = STATE_CLOSE;
+  return result;
+}
+
 int SocketStream::DoSSLConnect() {
   DCHECK(factory_);
+  SSLClientSocketContext ssl_context;
+  ssl_context.cert_verifier = cert_verifier_;
+  ssl_context.origin_bound_cert_service = origin_bound_cert_service_;
   // TODO(agl): look into plumbing SSLHostInfo here.
   socket_.reset(factory_->CreateSSLClientSocket(socket_.release(),
                                                 HostPortPair::FromURL(url_),
                                                 ssl_config_,
                                                 NULL /* ssl_host_info */,
-                                                cert_verifier_));
+                                                ssl_context));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
-  metrics_->OnSSLConnection();
+  metrics_->OnCountConnectionType(SocketStreamMetrics::SSL_CONNECTION);
   return socket_->Connect(&io_callback_);
 }
 
 int SocketStream::DoSSLConnectComplete(int result) {
-  if (IsCertificateError(result)) {
-    if (socket_->IsConnectedAndIdle()) {
-      result = HandleCertificateError(result);
-    } else {
-      // SSLClientSocket for Mac will report socket is not connected,
-      // if it returns cert verification error.  It didn't perform
-      // SSLHandshake yet.
-      // So, we should restart establishing connection with the
-      // certificate in allowed bad certificates in |ssl_config_|.
-      // See also net/http/http_network_transaction.cc
-      //  HandleCertificateError() and RestartIgnoringLastError().
-      SSLClientSocket* ssl_socket =
-        reinterpret_cast<SSLClientSocket*>(socket_.get());
-      SSLInfo ssl_info;
-      ssl_socket->GetSSLInfo(&ssl_info);
-      if (ssl_config_.IsAllowedBadCert(ssl_info.cert, NULL)) {
-        // If we already have the certificate in the set of allowed bad
-        // certificates, we did try it and failed again, so we should not
-        // retry again: the connection should fail at last.
-        next_state_ = STATE_CLOSE;
-        return result;
-      }
-      // Add the bad certificate to the set of allowed certificates in the
-      // SSL config object.
-      SSLConfig::CertAndStatus bad_cert;
-      bad_cert.cert = ssl_info.cert;
-      bad_cert.cert_status = ssl_info.cert_status;
-      ssl_config_.allowed_bad_certs.push_back(bad_cert);
-      // Restart connection ignoring the bad certificate.
-      socket_->Disconnect();
-      socket_.reset();
-      next_state_ = STATE_TCP_CONNECT;
-      return OK;
-    }
-  }
+  DCHECK_EQ(STATE_NONE, next_state_);
+  result = DidEstablishSSL(result);
+  if (next_state_ != STATE_NONE)
+    return result;
+  // TODO(toyoshim): Upgrade to SPDY through TLS NPN extension if possible.
+  // If we use HTTPS and this is the first connection to the SPDY server,
+  // we should take care of TLS NPN extension here.
 
   if (result == OK)
     result = DidEstablishConnection();

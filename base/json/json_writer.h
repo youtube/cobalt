@@ -8,14 +8,14 @@
 
 #include <string>
 
-#include "base/base_api.h"
+#include "base/base_export.h"
 #include "base/basictypes.h"
-
-class Value;
 
 namespace base {
 
-class BASE_API JSONWriter {
+class Value;
+
+class BASE_EXPORT JSONWriter {
  public:
   // Given a root node, generates a JSON string and puts it into |json|.
   // If |pretty_print| is true, return a slightly nicer formated json string

@@ -31,7 +31,6 @@
 #include "media/base/buffers.h"
 #include "media/base/filters.h"
 #include "media/base/pipeline.h"
-#include "media/base/media_format.h"
 #include "media/filters/ffmpeg_glue.h"
 
 // FFmpeg forward declarations.
@@ -73,7 +72,6 @@ class FFmpegDemuxerStream : public DemuxerStream {
 
   // DemuxerStream implementation.
   virtual Type type();
-  virtual const MediaFormat& media_format();
 
   // If |buffer_queue_| is not empty will execute on caller's thread, otherwise
   // will post ReadTask to execute on demuxer's thread. Read will acquire
@@ -104,7 +102,6 @@ class FFmpegDemuxerStream : public DemuxerStream {
   FFmpegDemuxer* demuxer_;
   AVStream* stream_;
   Type type_;
-  MediaFormat media_format_;
   base::TimeDelta duration_;
   bool discontinuous_;
   bool stopped_;
@@ -128,8 +125,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerStream);
 };
 
-class FFmpegDemuxer : public Demuxer,
-                      public FFmpegURLProtocol {
+class FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
  public:
   explicit FFmpegDemuxer(MessageLoop* message_loop);
   virtual ~FFmpegDemuxer();
@@ -150,6 +146,7 @@ class FFmpegDemuxer : public Demuxer,
 
   // Demuxer implementation.
   virtual scoped_refptr<DemuxerStream> GetStream(DemuxerStream::Type type);
+  virtual base::TimeDelta GetStartTime() const;
 
   // FFmpegProtocol implementation.
   virtual int Read(int size, uint8* data);
@@ -252,6 +249,11 @@ class FFmpegDemuxer : public Demuxer,
   // Used to skip the implicit "first seek" to avoid resetting FFmpeg's internal
   // state.
   bool first_seek_hack_;
+
+  // The first timestamp of the opened media file. This is used to set the
+  // starting clock value to match the timestamps in the media file. Default
+  // is 0.
+  base::TimeDelta start_time_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };

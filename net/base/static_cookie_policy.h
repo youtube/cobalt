@@ -6,8 +6,6 @@
 #define NET_BASE_STATIC_COOKIE_POLICY_H_
 #pragma once
 
-#include <string>
-
 #include "base/basictypes.h"
 #include "net/base/net_api.h"
 
@@ -52,8 +50,7 @@ class NET_API StaticCookiePolicy {
   // Consults the user's third-party cookie blocking preferences to determine
   // whether the URL's cookies can be set.
   int CanSetCookie(const GURL& url,
-                   const GURL& first_party_for_cookies,
-                   const std::string& cookie_line) const;
+                   const GURL& first_party_for_cookies) const;
 
  private:
   Type type_;

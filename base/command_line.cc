@@ -168,7 +168,13 @@ CommandLine::~CommandLine() {
 
 // static
 void CommandLine::Init(int argc, const char* const* argv) {
-  delete current_process_commandline_;
+  if (current_process_commandline_) {
+    // If this is intentional, Reset() must be called first. If we are using
+    // the shared build mode, we have to share a single object across multiple
+    // shared libraries.
+    return;
+  }
+
   current_process_commandline_ = new CommandLine(NO_PROGRAM);
 #if defined(OS_WIN)
   current_process_commandline_->ParseFromString(::GetCommandLineW());
@@ -214,7 +220,7 @@ void CommandLine::InitFromArgv(const StringVector& argv) {
   AppendSwitchesAndArguments(*this, argv);
 }
 
-CommandLine::StringType CommandLine::command_line_string() const {
+CommandLine::StringType CommandLine::GetCommandLineString() const {
   StringType string(argv_[0]);
 #if defined(OS_WIN)
   string = QuoteForCommandLineToArgvW(string);
@@ -284,10 +290,6 @@ CommandLine::StringType CommandLine::GetSwitchValueNative(
   return result == switches_.end() ? StringType() : result->second;
 }
 
-size_t CommandLine::GetSwitchCount() const {
-  return switches_.size();
-}
-
 void CommandLine::AppendSwitch(const std::string& switch_string) {
   AppendSwitchNative(switch_string, StringType());
 }
@@ -334,7 +336,7 @@ void CommandLine::CopySwitchesFrom(const CommandLine& source,
   }
 }
 
-CommandLine::StringVector CommandLine::args() const {
+CommandLine::StringVector CommandLine::GetArgs() const {
   // Gather all arguments after the last switch (may include kSwitchTerminator).
   StringVector args(argv_.begin() + begin_args_, argv_.end());
   // Erase only the first kSwitchTerminator (maybe "--" is a legitimate page?)

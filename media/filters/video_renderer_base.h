@@ -29,21 +29,12 @@ namespace media {
 
 // TODO(scherkus): to avoid subclasses, consider using a peer/delegate interface
 // and pass in a reference to the constructor.
-class VideoRendererBase : public VideoRenderer,
-                          public base::PlatformThread::Delegate {
+class VideoRendererBase
+    : public VideoRenderer,
+      public base::PlatformThread::Delegate {
  public:
   VideoRendererBase();
   virtual ~VideoRendererBase();
-
-  // Helper method to parse out video-related information from a MediaFormat.
-  // Returns true all the required parameters are existent in |media_format|.
-  // |surface_type_out|, |surface_format_out|, |width_out|, |height_out| can
-  // be NULL where the result is not needed.
-  static bool ParseMediaFormat(
-      const MediaFormat& media_format,
-      VideoFrame::SurfaceType* surface_type_out,
-      VideoFrame::Format* surface_format_out,
-      int* width_out, int* height_out);
 
   // Filter implementation.
   virtual void Play(FilterCallback* callback);
@@ -76,7 +67,7 @@ class VideoRendererBase : public VideoRenderer,
   // class takes place.
   //
   // Implementors typically use the media format of |decoder| to create their
-  // output surfaces.  Implementors should NOT call InitializationComplete().
+  // output surfaces.
   virtual bool OnInitialize(VideoDecoder* decoder) = 0;
 
   // Subclass interface.  Called after all other stopping actions take place.
@@ -96,13 +87,6 @@ class VideoRendererBase : public VideoRenderer,
   // different from the thread OnInitialize(), OnStop(), and the rest of the
   // class executes on.
   virtual void OnFrameAvailable() = 0;
-
-  virtual VideoDecoder* GetDecoder();
-
-  int width() { return width_; }
-  int height() { return height_; }
-  VideoFrame::Format surface_format() { return surface_format_; }
-  VideoFrame::SurfaceType surface_type() { return surface_type_; }
 
   void ReadInput(scoped_refptr<VideoFrame> frame);
 
@@ -134,15 +118,13 @@ class VideoRendererBase : public VideoRenderer,
   // Safely handles entering to an error state.
   void EnterErrorState_Locked(PipelineStatus status);
 
+  // Helper function that flushes the buffers when a Stop() or error occurs.
+  void DoStopOrErrorFlush_Locked();
+
   // Used for accessing data members.
   base::Lock lock_;
 
   scoped_refptr<VideoDecoder> decoder_;
-
-  int width_;
-  int height_;
-  VideoFrame::Format surface_format_;
-  VideoFrame::SurfaceType surface_type_;
 
   // Queue of incoming frames as well as the current frame since the last time
   // OnFrameAvailable() was called.
