@@ -17,19 +17,7 @@
 
 namespace net {
 
-class CertVerifier;
-class ClientSocketFactory;
-class DnsCertProvenanceChecker;
-class DnsRRResolver;
-class HostResolver;
-class HttpAuthHandlerFactory;
 class HttpNetworkSession;
-class NetLog;
-class NetworkDelegate;
-class ProxyService;
-class SpdySessionPool;
-class SSLConfigService;
-class SSLHostInfoFactory;
 
 class NET_EXPORT HttpNetworkLayer
     : public HttpTransactionFactory,
