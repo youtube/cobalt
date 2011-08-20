@@ -243,27 +243,42 @@ NET_EXPORT std::string GetDirectoryListingEntry(const string16& name,
 // unmodified.
 NET_EXPORT string16 StripWWW(const string16& text);
 
-// Gets the filename in the following order:
-// 1) the raw Content-Disposition header (as read from the network).
-//    |referrer_charset| is used as one of charsets to interpret a raw 8bit
-//    string in C-D header (after interpreting as UTF-8 fails).
-//    See the comment for GetFilenameFromCD for more details.
-// 2) the suggested name
-// 3) the last path component name or hostname from |url|
-// 4) the given |default_name|
-// 5) the hard-coded name "download", as the last resort
+// Generates a filename using the first successful method from the following (in
+// order):
+//
+// 1) The raw Content-Disposition header in |content_disposition| (as read from
+//    the network.  |referrer_charset| is used as described in the comment for
+//    GetFileNameFromCD().
+// 2) |suggested_name| if specified.  |suggested_name| is assumed to be in
+//    UTF-8.
+// 3) The filename extracted from the |url|.  |referrer_charset| will be used to
+//    interpret the URL if there are non-ascii characters.
+// 4) |default_name|.  If non-empty, |default_name| is assumed to be a filename
+//    and shouldn't contain a path.  |default_name| is not subject to validation
+//    or sanitization, and therefore shouldn't be a user supplied string.
+// 5) The hostname portion from the |url|
+//
+// Then, leading and trailing '.'s will be removed.  On Windows, trailing spaces
+// are also removed.  The string "download" is the final fallback if no filename
+// is found or the filename is empty.
+//
+// Any illegal characters in the filename will be replaced by '-'.  If the
+// filename doesn't contain an extension, and a |mime_type| is specified, the
+// preferred extension for the |mime_type| will be appended to the filename.
+// The resulting filename is then checked against a list of reserved names on
+// Windows.  If the name is reserved, an underscore will be prepended to the
+// filename.
+//
+// Note: |mime_type| should only be specified if this function is called from a
+// thread that allows IO.
 NET_EXPORT string16 GetSuggestedFilename(const GURL& url,
                                          const std::string& content_disposition,
                                          const std::string& referrer_charset,
                                          const std::string& suggested_name,
+                                         const std::string& mime_type,
                                          const string16& default_name);
 
-// Generate a filename based on a HTTP request.
-//
-// The |url|, |content_disposition|, |referrer_charset|, |suggested_name|, and
-// |default_name| parameters will be used with GetSuggestedFilename() to
-// generate a filename.  The resulting filename will be passed in along with the
-// |mime_type| to GenerateSafeFileName() to generate the returned filename.
+// Similar to GetSuggestedFilename(), but returns a FilePath.
 NET_EXPORT FilePath GenerateFileName(const GURL& url,
                                      const std::string& content_disposition,
                                      const std::string& referrer_charset,
