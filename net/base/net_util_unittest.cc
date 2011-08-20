@@ -1407,15 +1407,14 @@ TEST(NetUtilTest, GenerateFileName) {
       L"default",
       L"default"
     },
-    { // C-D specified filename disappears.  Should use last component of URL
-      // instead.
+    { // C-D specified filename disappears.  Failover to final filename.
       "http://www.google.com/test.html",
       "Content-disposition: attachment; filename=\"..\"",
       "",
       "",
       "",
-      L"download",
-      L"test.html"
+      L"default",
+      L"default"
     },
     // Below is a small subset of cases taken from GetFileNameFromCD test above.
     {
