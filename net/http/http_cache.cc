@@ -430,7 +430,7 @@ int HttpCache::GetBackend(disk_cache::Backend** backend,
   return CreateBackend(backend, callback);
 }
 
-disk_cache::Backend* HttpCache::GetCurrentBackend() {
+disk_cache::Backend* HttpCache::GetCurrentBackend() const {
   return disk_cache_.get();
 }
 
