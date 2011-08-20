@@ -83,6 +83,8 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
   DCHECK(address);
   switch (address->sa_family) {
     case AF_INET: {
+      if (address_length < sizeof(struct sockaddr_in))
+        return false;
       const struct sockaddr_in* addr =
           reinterpret_cast<const struct sockaddr_in*>(address);
       port_ = ntohs(addr->sin_port);
@@ -91,6 +93,8 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
       break;
     }
     case AF_INET6: {
+      if (address_length < sizeof(struct sockaddr_in6))
+        return false;
       const struct sockaddr_in6* addr =
           reinterpret_cast<const struct sockaddr_in6*>(address);
       port_ = ntohs(addr->sin6_port);
