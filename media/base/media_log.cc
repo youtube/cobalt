@@ -57,6 +57,8 @@ const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
       return "AUDIO_RENDERER_DISABLED";
     case MediaLogEvent::BUFFERED_EXTENTS_CHANGED:
       return "BUFFERED_EXTENTS_CHANGED";
+    case MediaLogEvent::STATISTICS_UPDATED:
+      return "STATISTICS_UPDATED";
   }
   NOTREACHED();
   return NULL;
@@ -144,6 +146,7 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
 
 MediaLog::MediaLog() {
   id_ = media_log_count.GetNext();
+  stats_update_pending_ = false;
 }
 
 MediaLog::~MediaLog() {}
@@ -223,6 +226,34 @@ MediaLogEvent* MediaLog::CreateBufferedExtentsChangedEvent(
   event->params.SetInteger("buffer_current", current);
   event->params.SetInteger("buffer_end", end);
   return event.release();
+}
+
+void MediaLog::QueueStatisticsUpdatedEvent(PipelineStatistics stats) {
+  base::AutoLock auto_lock(stats_lock_);
+  last_statistics_ = stats;
+
+  if (!stats_update_pending_) {
+    stats_update_pending_ = true;
+    MessageLoop::current()->PostDelayedTask(FROM_HERE,
+        NewRunnableMethod(this, &media::MediaLog::AddStatisticsUpdatedEvent),
+        500);
+  }
+}
+
+void MediaLog::AddStatisticsUpdatedEvent() {
+  base::AutoLock auto_lock(stats_lock_);
+  scoped_ptr<MediaLogEvent> event(
+      CreateEvent(MediaLogEvent::STATISTICS_UPDATED));
+  event->params.SetInteger("audio_bytes_decoded",
+                           last_statistics_.audio_bytes_decoded);
+  event->params.SetInteger("video_bytes_decoded",
+                           last_statistics_.video_bytes_decoded);
+  event->params.SetInteger("video_frames_decoded",
+                           last_statistics_.video_frames_decoded);
+  event->params.SetInteger("video_frames_dropped",
+                           last_statistics_.video_frames_dropped);
+  AddEvent(event.release());
+  stats_update_pending_ = false;
 }
 
 }  //namespace media
