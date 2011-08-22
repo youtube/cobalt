@@ -16,8 +16,6 @@
 const char kPythonPathEnv[] = "PYTHONPATH";
 
 void AppendToPythonPath(const FilePath& dir) {
-  CHECK(file_util::DirectoryExists(dir));
-
   scoped_ptr<base::Environment> env(base::Environment::Create());
   std::string old_path;
   std::string dir_path;
