@@ -569,11 +569,19 @@ bool TransportSecurityState::IsPreloadedSTS(
     0,
   };
 
+  // kTestAcceptableCerts doesn't actually match any public keys and is used
+  // with "pinningtest.appspot.com", below, to test if pinning is active.
+  static const char* kTestAcceptableCerts[] = {
+    "sha1/AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+  };
+
   // In the medium term this list is likely to just be hardcoded here. This,
   // slightly odd, form removes the need for additional relocations records.
   static const struct HSTSPreload kPreloadedSTS[] = {
     // (*.)google.com, iff using SSL must use an acceptable certificate.
     {12, true, "\006google\003com", false, kGoogleAcceptableCerts },
+    {25, true, "\013pinningtest\007appspot\003com", false,
+     kTestAcceptableCerts },
     // Now we force HTTPS for subtrees of google.com.
     {19, true, "\006health\006google\003com", true, kGoogleAcceptableCerts },
     {21, true, "\010checkout\006google\003com", true, kGoogleAcceptableCerts },
