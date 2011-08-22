@@ -1,10 +1,16 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/process_util.h"
 
 namespace base {
+
+#if defined(OS_LINUX)
+// Definition for exported constant defined in header.  This is used
+// to pass the oom score to the setuid sandbox.
+const char kAdjustOOMScoreSwitch[] = "--adjust-oom-score";
+#endif
 
 #if defined(OS_POSIX)
 ProcessEntry::ProcessEntry() : pid_(0), ppid_(0), gid_(0) {}
