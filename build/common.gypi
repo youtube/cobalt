@@ -578,8 +578,7 @@
             # here (it was added after the m14 branch was cut). This is in the
             # buildtype=="Official" section so that developers don't see it
             # for their local builds.
-            # TODO(thakis): Reenable once breakpad issues are sorted out.
-            #'clang%': 1,
+            'clang%': 1,
           }, { # else: branding!="Chrome" or buildtype!="Official"
             'mac_breakpad%': 0,
             'mac_keystone%': 0,
