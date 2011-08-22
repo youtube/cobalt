@@ -769,58 +769,89 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
 // our own children using wait.
 static bool WaitForSingleNonChildProcess(ProcessHandle handle,
                                          int64 wait_milliseconds) {
+  DCHECK_GT(handle, 0);
+  DCHECK(wait_milliseconds == base::kNoTimeout || wait_milliseconds > 0);
+
   int kq = kqueue();
   if (kq == -1) {
     PLOG(ERROR) << "kqueue";
     return false;
   }
+  file_util::ScopedFD kq_closer(&kq);
 
-  struct kevent change = { 0 };
+  struct kevent change = {0};
   EV_SET(&change, handle, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
+  int result = HANDLE_EINTR(kevent(kq, &change, 1, NULL, 0, NULL));
+  if (result == -1) {
+    if (errno == ESRCH) {
+      // If the process wasn't found, it must be dead.
+      return true;
+    }
 
-  struct timespec spec;
-  struct timespec *spec_ptr;
-  if (wait_milliseconds != base::kNoTimeout) {
-    time_t sec = static_cast<time_t>(wait_milliseconds / 1000);
-    wait_milliseconds = wait_milliseconds - (sec * 1000);
-    spec.tv_sec = sec;
-    spec.tv_nsec = wait_milliseconds * 1000000L;
-    spec_ptr = &spec;
-  } else {
-    spec_ptr = NULL;
+    PLOG(ERROR) << "kevent (setup " << handle << ")";
+    return false;
   }
 
-  while(true) {
-    struct kevent event = { 0 };
-    int event_count = HANDLE_EINTR(kevent(kq, &change, 1, &event, 1, spec_ptr));
-    if (close(kq) != 0) {
-      PLOG(ERROR) << "close";
-    }
-    if (event_count < 0) {
-      PLOG(ERROR) << "kevent";
-      return false;
-    } else if (event_count == 0) {
-      if (wait_milliseconds != base::kNoTimeout) {
-        // Timed out.
-        return false;
-      }
-    } else if ((event_count == 1) &&
-               (handle == static_cast<pid_t>(event.ident)) &&
-               (event.filter == EVFILT_PROC)) {
-      if (event.fflags == NOTE_EXIT) {
-        return true;
-      } else if (event.flags == EV_ERROR) {
-        LOG(ERROR) << "kevent error " << event.data;
-        return false;
-      } else {
-        NOTREACHED();
-        return false;
-      }
+  // Keep track of the elapsed time to be able to restart kevent if it's
+  // interrupted.
+  bool wait_forever = wait_milliseconds == base::kNoTimeout;
+  base::TimeDelta remaining_delta;
+  base::Time deadline;
+  if (!wait_forever) {
+    remaining_delta = base::TimeDelta::FromMilliseconds(wait_milliseconds);
+    deadline = base::Time::Now() + remaining_delta;
+  }
+
+  result = -1;
+  struct kevent event = {0};
+
+  while (wait_forever || remaining_delta.InMilliseconds() > 0) {
+    struct timespec remaining_timespec;
+    struct timespec* remaining_timespec_ptr;
+    if (wait_forever) {
+      remaining_timespec_ptr = NULL;
     } else {
-      NOTREACHED();
-      return false;
+      remaining_timespec = remaining_delta.ToTimeSpec();
+      remaining_timespec_ptr = &remaining_timespec;
+    }
+
+    result = kevent(kq, NULL, 0, &event, 1, remaining_timespec_ptr);
+
+    if (result == -1 && errno == EINTR) {
+      if (!wait_forever) {
+        remaining_delta = deadline - base::Time::Now();
+      }
+      result = 0;
+    } else {
+      break;
     }
   }
+
+  if (result < 0) {
+    PLOG(ERROR) << "kevent (wait " << handle << ")";
+    return false;
+  } else if (result > 1) {
+    LOG(ERROR) << "kevent (wait " << handle << "): unexpected result "
+               << result;
+    return false;
+  } else if (result == 0) {
+    // Timed out.
+    return false;
+  }
+
+  DCHECK_EQ(result, 1);
+
+  if (event.filter != EVFILT_PROC ||
+      (event.fflags & NOTE_EXIT) == 0 ||
+      event.ident != static_cast<uintptr_t>(handle)) {
+    LOG(ERROR) << "kevent (wait " << handle
+               << "): unexpected event: filter=" << event.filter
+               << ", fflags=" << event.fflags
+               << ", ident=" << event.ident;
+    return false;
+  }
+
+  return true;
 }
 #endif  // OS_MACOSX
 
@@ -836,12 +867,14 @@ bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
     NOTIMPLEMENTED();
 #endif  // OS_MACOSX
   }
+
   bool waitpid_success;
-  int status;
+  int status = -1;
   if (wait_milliseconds == base::kNoTimeout)
     waitpid_success = (HANDLE_EINTR(waitpid(handle, &status, 0)) != -1);
   else
     status = WaitpidWithTimeout(handle, wait_milliseconds, &waitpid_success);
+
   if (status != -1) {
     DCHECK(waitpid_success);
     return WIFEXITED(status);
