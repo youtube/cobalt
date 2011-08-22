@@ -45,11 +45,7 @@ bool TestTimeouts::initialized_ = false;
 int TestTimeouts::tiny_timeout_ms_ = 100;
 int TestTimeouts::action_timeout_ms_ = 2000;
 int TestTimeouts::action_max_timeout_ms_ = 45000;
-int TestTimeouts::large_test_timeout_ms_ = 3 * 60 * 1000;
-int TestTimeouts::huge_test_timeout_ms_ = 10 * 60 * 1000;
-
-// static
-int TestTimeouts::live_operation_timeout_ms_ = 45000;
+int TestTimeouts::large_test_timeout_ms_ = 10 * 60 * 1000;
 
 // static
 void TestTimeouts::Initialize() {
@@ -68,17 +64,15 @@ void TestTimeouts::Initialize() {
                     &action_max_timeout_ms_);
   // TODO(phajdan.jr): Fix callers and remove kTestTerminateTimeout.
   InitializeTimeout(switches::kTestTerminateTimeout, &action_max_timeout_ms_);
+  // TODO(phajdan.jr): Fix callers and remove kLiveOperationTimeout.
+  InitializeTimeout(switches::kLiveOperationTimeout, &action_max_timeout_ms_);
   InitializeTimeout(switches::kTestLargeTimeout, action_max_timeout_ms_,
                     &large_test_timeout_ms_);
-  InitializeTimeout(switches::kUiTestTimeout, large_test_timeout_ms_,
-                    &huge_test_timeout_ms_);
+  // TODO(phajdan.jr): Fix callers and remove kUITestTimeout.
+  InitializeTimeout(switches::kUiTestTimeout, &large_test_timeout_ms_);
 
   // The timeout values should be increasing in the right order.
   CHECK(tiny_timeout_ms_ <= action_timeout_ms_);
   CHECK(action_timeout_ms_ <= action_max_timeout_ms_);
   CHECK(action_max_timeout_ms_ <= large_test_timeout_ms_);
-  CHECK(large_test_timeout_ms_ <= huge_test_timeout_ms_);
-
-  InitializeTimeout(switches::kLiveOperationTimeout,
-                    &live_operation_timeout_ms_);
 }
