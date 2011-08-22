@@ -684,8 +684,8 @@
       ['use_third_party_translations==1', {
         'grit_defines': ['-D', 'use_third_party_translations'],
         'locales': [
-          'ast', 'bs', 'ca@valencia', 'en-AU', 'eo', 'eu', 'gl', 'hy', 'ia', 'ka',
-          'ku', 'kw', 'ug',
+          'ast', 'bs', 'ca@valencia', 'en-AU', 'eo', 'eu', 'gl', 'hy', 'ia',
+          'ka', 'ku', 'kw', 'ms', 'ug'
         ],
       }],
 
