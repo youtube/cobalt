@@ -738,7 +738,12 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   // Clear the IO_PENDING status
   SetStatus(URLRequestStatus());
 
+#if defined(OFFICIAL_BUILD) && !defined(ANDROID)
   // Take care of any mandates for public key pinning.
+  //
+  // Pinning is only enabled for official builds to make sure that others don't
+  // end up with pins that cannot be easily updated.
+  //
   // TODO(agl): we might have an issue here where a request for foo.example.com
   // merges into a SPDY connection to www.example.com, and gets a different
   // certificate.
@@ -762,6 +767,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
       }
     }
   }
+#endif
 
   if (result == OK) {
     SaveCookiesAndNotifyHeadersComplete();
