@@ -113,8 +113,6 @@
         'base/gtk/gtk_signal_registrar.h',
         'base/gtk/gtk_windowing.cc',
         'base/gtk/gtk_windowing.h',
-        'base/gtk/owned_widget_gtk.cc',
-        'base/gtk/owned_widget_gtk.h',
         'base/ime/composition_text.cc',
         'base/ime/composition_text.h',
         'base/ime/composition_underline.h',
