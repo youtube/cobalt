@@ -543,7 +543,6 @@
         [ 'OS != "win"', {
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
             'sources!': [
-              'event_recorder.cc',
               'resource_util.cc',
             ],
         },],
@@ -566,9 +565,9 @@
         'auto_reset.h',
         'base64.cc',
         'base64.h',
-        'event_recorder.cc',
         'event_recorder.h',
         'event_recorder_stubs.cc',
+        'event_recorder_win.cc',
         'file_descriptor_shuffle.cc',
         'file_descriptor_shuffle.h',
         'linux_util.cc',
