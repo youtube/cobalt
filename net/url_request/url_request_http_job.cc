@@ -755,7 +755,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
                 context_->ssl_config_service()))) {
       if (!domain_state.IsChainOfPublicKeysPermitted(
               ssl_info.public_key_hashes)) {
-        result = ERR_CERT_INVALID;
+        result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
         UMA_HISTOGRAM_BOOLEAN("Net.CertificatePinSuccess", false);
       } else {
         UMA_HISTOGRAM_BOOLEAN("Net.CertificatePinSuccess", true);
