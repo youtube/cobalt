@@ -27,6 +27,10 @@
 
 namespace {
 
+// Max score for the old oom_adj range.  Used for conversion of new
+// values to old values.
+const int kMaxOldOomScore = 15;
+
 enum ParsingState {
   KEY_NAME,
   KEY_VALUE
@@ -734,20 +738,41 @@ void EnableTerminationOnOutOfMemory() {
 #endif
 }
 
+// NOTE: This is not the only version of this function in the source:
+// the setuid sandbox (in process_util_linux.c, in the sandbox source)
+// also has it's own C version.
 bool AdjustOOMScore(ProcessId process, int score) {
-  if (score < 0 || score > 15)
+  if (score < 0 || score > kMaxOomScore)
     return false;
 
-  FilePath oom_adj("/proc");
-  oom_adj = oom_adj.Append(base::Int64ToString(process));
-  oom_adj = oom_adj.AppendASCII("oom_adj");
+  FilePath oom_path("/proc");
+  oom_path = oom_path.Append(base::Int64ToString(process));
 
-  if (!file_util::PathExists(oom_adj))
-    return false;
+  // Attempt to write the newer oom_score_adj file first.
+  FilePath oom_file = oom_path.AppendASCII("oom_score_adj");
+  if (file_util::PathExists(oom_file)) {
+    std::string score_str = base::IntToString(score);
+    VLOG(1) << "Adjusting oom_score_adj of " << process << " to " << score_str;
+    int score_len = static_cast<int>(score_str.length());
+    return (score_len == file_util::WriteFile(oom_file,
+                                              score_str.c_str(),
+                                              score_len));
+  }
 
-  std::string score_str = base::IntToString(score);
-  return (static_cast<int>(score_str.length()) ==
-          file_util::WriteFile(oom_adj, score_str.c_str(), score_str.length()));
+  // If the oom_score_adj file doesn't exist, then we write the old
+  // style file and translate the oom_adj score to the range 0-15.
+  oom_file = oom_path.AppendASCII("oom_adj");
+  if (file_util::PathExists(oom_file)) {
+    std::string score_str = base::IntToString(
+        score * kMaxOldOomScore / kMaxOomScore);
+    VLOG(1) << "Adjusting oom_adj of " << process << " to " << score_str;
+    int score_len = static_cast<int>(score_str.length());
+    return (score_len == file_util::WriteFile(oom_file,
+                                              score_str.c_str(),
+                                              score_len));
+  }
+
+  return false;
 }
 
 }  // namespace base
