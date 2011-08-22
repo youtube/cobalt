@@ -181,6 +181,7 @@
         'base/ui_base_paths.h',
         'base/ui_base_switches.cc',
         'base/ui_base_switches.h',
+        'base/ui_base_types.h',
         'base/ui_export.h',
         'base/view_prop.cc',
         'base/view_prop.h',
