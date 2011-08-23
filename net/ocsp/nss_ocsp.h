@@ -17,13 +17,6 @@ class URLRequestContext;
 // control the message loop for OCSP.
 NET_EXPORT void SetMessageLoopForOCSP();
 
-// Disables OCSP for the current process.  This is needed to run SSL
-// code in the renderer process.  After this method is called all
-// calls to EnsureOCSPInit() and ShutdownOCSP() are ignored.  When
-// OCSP is disabled SetMessageLoopForOCSP() and
-// SetURLRequestContextForOCSP() are useless and should not be called.
-NET_EXPORT void DisableOCSP();
-
 // Initializes OCSP handlers for NSS.  This must be called before any
 // certificate verification functions.  This function is thread-safe, and OCSP
 // handlers will only ever be initialized once.  ShutdownOCSP() must be called
