@@ -65,6 +65,7 @@ namespace base {
 ///////////////////// Value ////////////////////
 
 Value::~Value() {
+  CHECK(!check_on_delete_);
 }
 
 // static
@@ -146,7 +147,7 @@ bool Value::Equals(const Value* a, const Value* b) {
   return a->Equals(b);
 }
 
-Value::Value(Type type) : type_(type) {
+Value::Value(Type type) : type_(type), check_on_delete_(false) {
 }
 
 ///////////////////// FundamentalValue ////////////////////
