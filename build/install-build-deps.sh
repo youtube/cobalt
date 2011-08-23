@@ -135,6 +135,9 @@ dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg
           libxfixes3-dbg libxi6-dbg libxinerama1-dbg libxrandr2-dbg
           libxrender1-dbg libxtst6-dbg zlib1g-dbg"
 
+# Plugin lists needed for tests.
+plugin_list="flashplugin-installer"
+
 # Some NSS packages were renamed in Natty.
 if egrep -q 'Ubuntu (10\.04|10\.10)' /etc/issue; then
   dbg_list="${dbg_list} libnspr4-0d-dbg libnss3-1d-dbg"
@@ -205,7 +208,7 @@ sudo apt-get update
 # without accidentally promoting any packages from "auto" to "manual".
 # We then re-run "apt-get" with just the list of missing packages.
 echo "Finding missing packages..."
-packages="${dev_list} ${lib_list} ${dbg_list}"
+packages="${dev_list} ${lib_list} ${dbg_list} ${plugin_list}"
 # Intentially leaving $packages unquoted so it's more readable.
 echo "Packages required: " $packages
 echo
