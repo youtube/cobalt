@@ -240,27 +240,34 @@ OSStatus CreatePolicy(const CSSM_OID* policy_OID,
 }
 
 // Creates a series of SecPolicyRefs to be added to a SecTrustRef used to
-// validate a certificate for an SSL server. Hostname verification is not
-// performed and is the responsibility of the caller. |flags| is a bitwise-OR
-// of VerifyFlags that can further alter how trust is validated, such as how
-// revocation is checked. If successful, returns noErr, and stores the
-// resultant array of SecPolicyRefs in |policies|.
-OSStatus CreateTrustPolicies(int flags,
+// validate a certificate for an SSL server. |hostname| contains the name of
+// the SSL server that the certificate should be verified against. |flags| is
+// a bitwise-OR of VerifyFlags that can further alter how trust is validated,
+// such as how revocation is checked. If successful, returns noErr, and
+// stores the resultant array of SecPolicyRefs in |policies|.
+OSStatus CreateTrustPolicies(const std::string& hostname,
+                             int flags,
                              ScopedCFTypeRef<CFArrayRef>* policies) {
   ScopedCFTypeRef<CFMutableArrayRef> local_policies(
       CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
   if (!local_policies)
     return memFullErr;
 
-  // Create an SSL server policy. Certificate name validation is not performed
-  // using SecTrustEvalute(), as it contains several limitations that are not
-  // desirable:
+  // Create an SSL server policy. While certificate name validation will be
+  // performed by SecTrustEvaluate(), it has the following limitations:
   // - Doesn't support IP addresses in dotted-quad literals (127.0.0.1)
   // - Doesn't support IPv6 addresses
   // - Doesn't support the iPAddress subjectAltName
+  // Providing the hostname is necessary in order to locate certain user or
+  // system trust preferences, such as those created by Safari. Preferences
+  // created by Keychain Access do not share this requirement.
   CSSM_APPLE_TP_SSL_OPTIONS tp_ssl_options;
   memset(&tp_ssl_options, 0, sizeof(tp_ssl_options));
   tp_ssl_options.Version = CSSM_APPLE_TP_SSL_OPTS_VERSION;
+  if (!hostname.empty()) {
+    tp_ssl_options.ServerName = hostname.data();
+    tp_ssl_options.ServerNameLen = hostname.size();
+  }
 
   SecPolicyRef ssl_policy;
   OSStatus status = CreatePolicy(&CSSMOID_APPLE_TP_SSL, &tp_ssl_options,
@@ -724,7 +731,6 @@ void X509Certificate::GetSubjectAltName(
         ip_addrs->push_back(std::string(
             reinterpret_cast<const char*>(name_data.Data),
             name_data.Length));
-
       }
     }
   }
@@ -734,7 +740,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
                                     CertVerifyResult* verify_result) const {
   ScopedCFTypeRef<CFArrayRef> trust_policies;
-  OSStatus status = CreateTrustPolicies(flags, &trust_policies);
+  OSStatus status = CreateTrustPolicies(hostname, flags, &trust_policies);
   if (status)
     return NetErrorFromOSStatus(status);
 
@@ -911,7 +917,9 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
       break;
   }
 
-  // Perform hostname verification independent of SecTrustEvaluate.
+  // Perform hostname verification independent of SecTrustEvaluate. In order to
+  // do so, mask off any reported name errors first.
+  verify_result->cert_status &= ~CERT_STATUS_COMMON_NAME_INVALID;
   if (!VerifyNameMatch(hostname))
     verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
