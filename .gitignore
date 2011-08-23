@@ -84,6 +84,7 @@ v8.log
 /third_party/WebKit
 /third_party/adobe/flash/binaries
 /third_party/angle
+/third_party/asan
 /third_party/bidichecker
 /third_party/cacheinvalidation/files
 /third_party/chromeos_login_manager
