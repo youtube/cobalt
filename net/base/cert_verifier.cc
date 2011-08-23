@@ -59,13 +59,13 @@ namespace net {
 // On a cache hit, CertVerifier::Verify() returns synchronously without
 // posting a task to a worker thread.
 
-// The number of CachedCertVerifyResult objects that we'll cache.
-static const unsigned kMaxCacheEntries = 256;
+namespace {
+
+// The default value of max_cache_entries_.
+const unsigned kMaxCacheEntries = 256;
 
 // The number of seconds for which we'll cache a cache entry.
-static const unsigned kTTLSecs = 1800;  // 30 minutes.
-
-namespace {
+const unsigned kTTLSecs = 1800;  // 30 minutes.
 
 class DefaultTimeService : public CertVerifier::TimeService {
  public:
@@ -283,6 +283,7 @@ class CertVerifierJob {
 
 CertVerifier::CertVerifier()
     : time_service_(new DefaultTimeService),
+      max_cache_entries_(kMaxCacheEntries),
       requests_(0),
       cache_hits_(0),
       inflight_joins_(0) {
@@ -291,6 +292,7 @@ CertVerifier::CertVerifier()
 
 CertVerifier::CertVerifier(TimeService* time_service)
     : time_service_(time_service),
+      max_cache_entries_(kMaxCacheEntries),
       requests_(0),
       cache_hits_(0),
       inflight_joins_(0) {
@@ -403,9 +405,9 @@ void CertVerifier::HandleResult(X509Certificate* cert,
 
   const RequestParams key = {cert->fingerprint(), hostname, flags};
 
-  DCHECK_GE(kMaxCacheEntries, 1u);
-  DCHECK_LE(cache_.size(), kMaxCacheEntries);
-  if (cache_.size() == kMaxCacheEntries) {
+  DCHECK_GE(max_cache_entries_, 1u);
+  DCHECK_LE(cache_.size(), max_cache_entries_);
+  if (cache_.size() == max_cache_entries_) {
     // Need to remove an element of the cache.
     std::map<RequestParams, CachedCertVerifyResult>::iterator i, cur;
     for (i = cache_.begin(); i != cache_.end(); ) {
@@ -414,7 +416,7 @@ void CertVerifier::HandleResult(X509Certificate* cert,
         cache_.erase(cur);
     }
   }
-  if (cache_.size() == kMaxCacheEntries) {
+  if (cache_.size() == max_cache_entries_) {
     // If we didn't clear out any expired entries, we just remove the first
     // element. Crummy but simple.
     cache_.erase(cache_.begin());
