@@ -9,6 +9,10 @@
 
 #include "base/basictypes.h"
 
+namespace base {
+class SharedMemory;
+}
+
 namespace media {
 
 // For all audio functions 3 audio formats are supported:
@@ -76,6 +80,17 @@ void InterleaveFloatToInt16(const std::vector<float*>& source,
 
 // Returns the default audio hardware sample-rate.
 double GetAudioHardwareSampleRate();
+
+// Functions that handle data buffer passed between processes in the shared
+// memory. Called on both IPC sides.
+
+uint32 TotalSharedMemorySizeInBytes(uint32 packet_size);
+uint32 PacketSizeSizeInBytes(uint32 shared_memory_created_size);
+uint32 GetActualDataSizeInBytes(base::SharedMemory* shared_memory,
+                                uint32 shared_memory_size);
+void SetActualDataSizeInBytes(base::SharedMemory* shared_memory,
+                              uint32 shared_memory_size,
+                              uint32 actual_data_size);
 
 }  // namespace media
 

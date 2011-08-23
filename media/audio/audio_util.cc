@@ -8,12 +8,18 @@
 // Implemented as templates to allow 8, 16 and 32 bit implementations.
 // 8 bit is unsigned and biased by 128.
 
+#include <algorithm>
+
+#include "base/atomicops.h"
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/shared_memory.h"
 #include "media/audio/audio_util.h"
 #if defined(OS_MACOSX)
 #include "media/audio/mac/audio_low_latency_output_mac.h"
 #endif
+
+using base::subtle::Atomic32;
 
 namespace media {
 
@@ -232,6 +238,40 @@ double GetAudioHardwareSampleRate()
     // TODO(crogers) : return correct value in rare non-48KHz cases.
     return 48000.0;
 #endif
+}
+
+// When transferring data in the shared memory, first word is size of data
+// in bytes. Actual data starts immediately after it.
+
+uint32 TotalSharedMemorySizeInBytes(uint32 packet_size) {
+  // Need to reserve extra 4 bytes for size of data.
+  return packet_size + sizeof(Atomic32);
+}
+
+uint32 PacketSizeSizeInBytes(uint32 shared_memory_created_size) {
+  return shared_memory_created_size - sizeof(Atomic32);
+}
+
+uint32 GetActualDataSizeInBytes(base::SharedMemory* shared_memory,
+                                uint32 shared_memory_size) {
+  char* ptr = static_cast<char*>(shared_memory->memory()) + shared_memory_size;
+  DCHECK_EQ(0u, reinterpret_cast<size_t>(ptr) & 3);
+
+  // Actual data size stored in the beginning of the buffer.
+  uint32 actual_data_size =
+      base::subtle::Acquire_Load(reinterpret_cast<volatile Atomic32*>(ptr));
+  return std::min(actual_data_size, shared_memory_size);
+}
+
+void SetActualDataSizeInBytes(base::SharedMemory* shared_memory,
+                              uint32 shared_memory_size,
+                              uint32 actual_data_size) {
+  char* ptr = static_cast<char*>(shared_memory->memory()) + shared_memory_size;
+  DCHECK_EQ(0u, reinterpret_cast<size_t>(ptr) & 3);
+
+  // Set actual data size in the beginning of the buffer.
+  base::subtle::Release_Store(reinterpret_cast<volatile Atomic32*>(ptr),
+                              actual_data_size);
 }
 
 }  // namespace media
