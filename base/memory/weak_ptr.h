@@ -7,15 +7,6 @@
 // bound to the lifetime of the referrers.  In other words, this is useful when
 // reference counting is not a good fit.
 //
-// Thread-safety notes:
-// When you get a WeakPtr (from a WeakPtrFactory or SupportsWeakPtr),
-// the WeakPtr becomes bound to the current thread. You may only
-// dereference the WeakPtr on that thread. However, it is safe to
-// destroy the WeakPtr object on another thread.
-// Since a WeakPtr object may be destroyed on a background thread,
-// querying WeakPtrFactory's HasWeakPtrs() method can be racy.
-//
-//
 // A common alternative to weak pointers is to have the shared object hold a
 // list of all referrers, and then when the shared object is destroyed, it
 // calls a method on the referrers to tell them to drop their references.  This
@@ -54,6 +45,8 @@
 // dereferencing the Controller back pointer after the Controller has been
 // destroyed.
 //
+// WARNING: weak pointers are not threadsafe!!!  You must only use a WeakPtr
+// instance on thread where it was created.
 
 #ifndef BASE_MEMORY_WEAK_PTR_H_
 #define BASE_MEMORY_WEAK_PTR_H_
@@ -76,7 +69,7 @@ class BASE_EXPORT WeakReference {
   // via base::WeakPtr::~WeakPtr().
   class Flag : public RefCountedThreadSafe<Flag> {
    public:
-    Flag();
+    explicit Flag(Flag** handle);
 
     void Invalidate();
     bool IsValid() const;
@@ -89,17 +82,17 @@ class BASE_EXPORT WeakReference {
     ~Flag();
 
     ThreadChecker thread_checker_;
-    bool is_valid_;
+    Flag** handle_;
   };
 
   WeakReference();
-  explicit WeakReference(const Flag* flag);
+  WeakReference(Flag* flag);
   ~WeakReference();
 
   bool is_valid() const;
 
  private:
-  scoped_refptr<const Flag> flag_;
+  scoped_refptr<Flag> flag_;
 };
 
 class BASE_EXPORT WeakReferenceOwner {
@@ -110,7 +103,7 @@ class BASE_EXPORT WeakReferenceOwner {
   WeakReference GetRef() const;
 
   bool HasRefs() const {
-    return flag_.get() && !flag_->HasOneRef();
+    return flag_ != NULL;
   }
 
   void Invalidate();
@@ -121,7 +114,7 @@ class BASE_EXPORT WeakReferenceOwner {
   }
 
  private:
-  mutable scoped_refptr<WeakReference::Flag> flag_;
+  mutable WeakReference::Flag* flag_;
 };
 
 // This class simplifies the implementation of WeakPtr's type conversion
