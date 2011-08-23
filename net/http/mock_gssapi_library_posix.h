@@ -6,12 +6,13 @@
 #define NET_HTTP_MOCK_GSSAPI_LIBRARY_POSIX_H_
 #pragma once
 
+#include <gssapi.h>
+
 #include <list>
 #include <string>
 
 #include "base/gtest_prod_util.h"
 #include "net/http/http_auth_gssapi_posix.h"
-#include "net/third_party/gssapi/gssapi.h"
 
 namespace net {
 
