@@ -30,7 +30,7 @@ class VideoDecoderConfig {
   VideoDecoderConfig(VideoCodec codec, int width, int height,
                      int surface_width, int surface_height,
                      int frame_rate_numerator, int frame_rate_denominator,
-                     uint8* extra_data, size_t extra_data_size);
+                     const uint8* extra_data, size_t extra_data_size);
   ~VideoDecoderConfig();
 
   VideoCodec codec() const;

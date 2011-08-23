@@ -43,6 +43,8 @@ VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
 
 CodecID VideoCodecToCodecID(VideoCodec video_codec) {
   switch (video_codec) {
+    case kUnknown:
+      return CODEC_ID_NONE;
     case kCodecVC1:
       return CODEC_ID_VC1;
     case kCodecH264:
