@@ -41,8 +41,6 @@ namespace {
 pthread_mutex_t g_request_context_lock = PTHREAD_MUTEX_INITIALIZER;
 static net::URLRequestContext* g_request_context = NULL;
 
-static bool g_disable_ocsp = false;
-
 class OCSPRequestSession;
 
 class OCSPIOLoop {
@@ -911,9 +909,6 @@ char* GetAlternateOCSPAIAInfo(CERTCertificate *cert) {
 namespace net {
 
 void SetMessageLoopForOCSP() {
-  // Must not be called when OCSP is disabled.
-  DCHECK(!g_disable_ocsp);
-
   // Must have a MessageLoopForIO.
   DCHECK(MessageLoopForIO::current());
 
@@ -923,27 +918,17 @@ void SetMessageLoopForOCSP() {
   DCHECK(!used);
 }
 
-void DisableOCSP() {
-  g_disable_ocsp = true;
-}
-
 void EnsureOCSPInit() {
-  if (!g_disable_ocsp) {
-    g_ocsp_io_loop.Get().StartUsing();
-    g_ocsp_nss_initialization.Get();
-  }
+  g_ocsp_io_loop.Get().StartUsing();
+  g_ocsp_nss_initialization.Get();
 }
 
 void ShutdownOCSP() {
-  if (!g_disable_ocsp)
-    g_ocsp_io_loop.Get().Shutdown();
+  g_ocsp_io_loop.Get().Shutdown();
 }
 
 // This function would be called before NSS initialization.
 void SetURLRequestContextForOCSP(URLRequestContext* request_context) {
-  // Must not be called when OCSP is disabled.
-  DCHECK(!g_disable_ocsp);
-
   pthread_mutex_lock(&g_request_context_lock);
   if (request_context) {
     DCHECK(!g_request_context);
