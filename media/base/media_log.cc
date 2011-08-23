@@ -232,7 +232,10 @@ void MediaLog::QueueStatisticsUpdatedEvent(PipelineStatistics stats) {
   base::AutoLock auto_lock(stats_lock_);
   last_statistics_ = stats;
 
-  if (!stats_update_pending_) {
+  // Sadly, this function can get dispatched on threads not running a message
+  // loop.  Happily, this is pretty rare (only VideoRendererBase at this time)
+  // so we simply leave stats updating for another call to trigger.
+  if (!stats_update_pending_ && MessageLoop::current()) {
     stats_update_pending_ = true;
     MessageLoop::current()->PostDelayedTask(FROM_HERE,
         NewRunnableMethod(this, &media::MediaLog::AddStatisticsUpdatedEvent),
