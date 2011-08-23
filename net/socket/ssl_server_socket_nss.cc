@@ -762,12 +762,6 @@ int SSLServerSocketNSS::Init() {
   EnsureNSSSSLInit();
   if (!NSS_IsInitialized())
     return ERR_UNEXPECTED;
-#if !defined(OS_MACOSX) && !defined(OS_WIN)
-  // We must call EnsureOCSPInit() here, on the IO thread, to get the IO loop
-  // by MessageLoopForIO::current().
-  // X509Certificate::Verify() runs on a worker thread of CertVerifier.
-  EnsureOCSPInit();
-#endif
 
   return OK;
 }
