@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,6 +24,11 @@ namespace media {
 //
 // Returns true if everything was successfully initialized, false otherwise.
 bool InitializeMediaLibrary(const FilePath& module_dir);
+
+// Helper function for unit tests to avoid boiler plate code everywhere. This
+// function will crash if it fails to load the media library. This ensures tests
+// fail if the media library is not available.
+void InitializeMediaLibraryForTesting();
 
 // Use this if you need to check whether the media library is initialized
 // for the this process, without actually trying to initialize it.

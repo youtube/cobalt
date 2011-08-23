@@ -15,7 +15,7 @@ VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
                                        int surface_height,
                                        int frame_rate_numerator,
                                        int frame_rate_denominator,
-                                       uint8* extra_data,
+                                       const uint8* extra_data,
                                        size_t extra_data_size)
     : codec_(codec),
       width_(width),
