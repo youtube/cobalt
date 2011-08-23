@@ -162,8 +162,11 @@ FundamentalValue::FundamentalValue(int in_value)
 
 FundamentalValue::FundamentalValue(double in_value)
     : Value(TYPE_DOUBLE), double_value_(in_value) {
-  // JSON doesn't support NaN or positive or negative infinity.
-  DCHECK(IsFinite(in_value));
+  if (!IsFinite(double_value_)) {
+    NOTREACHED() << "Non-finite (i.e. NaN or positive/negative infinity) "
+                 << "values cannot be represented in JSON";
+    double_value_ = 0.0;
+  }
 }
 
 FundamentalValue::~FundamentalValue() {
