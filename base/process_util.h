@@ -173,13 +173,18 @@ BASE_EXPORT FilePath GetProcessExecutablePath(ProcessHandle process);
 // Exposed for testing.
 BASE_EXPORT int ParseProcStatCPU(const std::string& input);
 
-static const char kAdjustOOMScoreSwitch[] = "--adjust-oom-score";
+// The maximum allowed value for the OOM score.
+const int kMaxOomScore = 1000;
 
-// This adjusts /proc/process/oom_adj so the Linux OOM killer will prefer
-// certain process types over others. The range for the adjustment is
-// [-17,15], with [0,15] being user accessible.
+// This adjusts /proc/<pid>/oom_score_adj so the Linux OOM killer will
+// prefer to kill certain process types over others. The range for the
+// adjustment is [-1000, 1000], with [0, 1000] being user accessible.
+// If the Linux system doesn't support the newer oom_score_adj range
+// of [0, 1000], then we revert to using the older oom_adj, and
+// translate the given value into [0, 15].  Some aliasing of values
+// may occur in that case, of course.
 BASE_EXPORT bool AdjustOOMScore(ProcessId process, int score);
-#endif
+#endif  // defined(OS_LINUX)
 
 #if defined(OS_POSIX)
 // Returns the ID for the parent of the given process.
@@ -189,7 +194,7 @@ BASE_EXPORT ProcessId GetParentProcessId(ProcessHandle process);
 // given multimap. Only call this function in a child process where you know
 // that there aren't any other threads.
 BASE_EXPORT void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
-#endif
+#endif  // defined(OS_POSIX)
 
 // TODO(evan): rename these to use StudlyCaps.
 typedef std::vector<std::pair<std::string, std::string> > environment_vector;
@@ -205,7 +210,7 @@ struct LaunchOptions {
 #else
                     environ(NULL), fds_to_remap(NULL), new_process_group(false),
                     clone_flags(0)
-#endif
+#endif  // !defined(OS_WIN)
       {}
 
   // If true, wait for the process to complete.
@@ -248,7 +253,7 @@ struct LaunchOptions {
 
   // If non-zero, start the process using clone(), using flags as provided.
   int clone_flags;
-#endif
+#endif   // !defined(OS_WIN)
 };
 
 // Launch a process via the command line |cmdline|.
@@ -335,7 +340,7 @@ BASE_EXPORT bool GetAppOutputRestricted(const CommandLine& cl,
 // |*exit_code|.
 BASE_EXPORT bool GetAppOutputWithExitCode(const CommandLine& cl,
                                           std::string* output, int* exit_code);
-#endif
+#endif  // defined(OS_POSIX)
 
 // Used to filter processes by process ID.
 class ProcessFilter {
@@ -372,12 +377,12 @@ BASE_EXPORT bool KillProcess(ProcessHandle process, int exit_code, bool wait);
 // Attempts to kill the process group identified by |process_group_id|. Returns
 // true on success.
 BASE_EXPORT bool KillProcessGroup(ProcessHandle process_group_id);
-#endif
+#endif  // defined(OS_POSIX)
 
 #if defined(OS_WIN)
 BASE_EXPORT bool KillProcessById(ProcessId process_id, int exit_code,
                                  bool wait);
-#endif
+#endif  // defined(OS_WIN)
 
 // Get the termination status of the process by interpreting the
 // circumstances of the child process' death. |exit_code| is set to
@@ -632,7 +637,7 @@ class BASE_EXPORT ProcessMetrics {
   explicit ProcessMetrics(ProcessHandle process);
 #else
   ProcessMetrics(ProcessHandle process, PortProvider* port_provider);
-#endif  // !defined(OS_MACOSX)
+#endif  // defined(OS_MACOSX)
 
   ProcessHandle process_;
 
@@ -651,7 +656,7 @@ class BASE_EXPORT ProcessMetrics {
 #elif defined(OS_POSIX)
   // Jiffie count at the last_time_ we updated.
   int last_cpu_;
-#endif  // defined(OS_MACOSX)
+#endif  // defined(OS_POSIX)
 
   DISALLOW_COPY_AND_ASSIGN(ProcessMetrics);
 };
@@ -674,7 +679,7 @@ struct SystemMemoryInfoKB {
 // Fills in the provided |meminfo| structure. Returns true on success.
 // Exposed for memory debugging widget.
 BASE_EXPORT bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo);
-#endif
+#endif  // defined(OS_LINUX)
 
 // Returns the memory committed by the system in KBytes.
 // Returns 0 if it can't compute the commit charge.
@@ -699,8 +704,8 @@ BASE_EXPORT void EnableTerminationOnOutOfMemory();
 #if defined(OS_MACOSX)
 // Exposed for testing.
 BASE_EXPORT malloc_zone_t* GetPurgeableZone();
-#endif
-#endif
+#endif  // defined(OS_MACOSX)
+#endif  // !defined(OS_WIN)
 
 // Enables stack dump to console output on exception and signals.
 // When enabled, the process will quit immediately. This is meant to be used in
