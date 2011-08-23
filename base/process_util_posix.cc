@@ -183,8 +183,9 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
 void ResetChildSignalHandlersToDefaults() {
   // The previous signal handlers are likely to be meaningless in the child's
   // context so we reset them to the defaults for now. http://crbug.com/44953
-  // These signal handlers are set up at least in browser_main.cc:BrowserMain
-  // and process_util_posix.cc:EnableInProcessStackDumping.
+  // These signal handlers are set up at least in browser_main_posix.cc:
+  // BrowserMainPartsPosix::PreEarlyInitialization and process_util_posix.cc:
+  // EnableInProcessStackDumping.
   signal(SIGHUP, SIG_DFL);
   signal(SIGINT, SIG_DFL);
   signal(SIGILL, SIG_DFL);
