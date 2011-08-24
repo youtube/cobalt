@@ -16,7 +16,9 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/ssl_cert_request_info.h"
+#include "net/base/ssl_config_service.h"
 #include "net/disk_cache/disk_cache.h"
+#include "net/http/disk_cache_based_ssl_host_info.h"
 #include "net/http/http_byte_range.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
@@ -1038,7 +1040,7 @@ struct Context {
 
 
 //-----------------------------------------------------------------------------
-// tests
+// HttpCache tests
 
 TEST(HttpCache, CreateThenDestroy) {
   MockHttpCache cache;
@@ -5179,4 +5181,42 @@ TEST(HttpCache, TruncatedByContentLength2) {
   EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_TRUE(truncated);
   entry->Close();
+}
+
+//-----------------------------------------------------------------------------
+// DiskCacheBasedSSLHostInfo tests
+
+class DeleteSSLHostInfoCompletionCallback : public TestCompletionCallback {
+ public:
+  explicit DeleteSSLHostInfoCompletionCallback(net::SSLHostInfo* ssl_host_info)
+      : ssl_host_info_(ssl_host_info) {}
+
+  virtual void RunWithParams(const Tuple1<int>& params) {
+    delete ssl_host_info_;
+    TestCompletionCallback::RunWithParams(params);
+  }
+
+ private:
+  net::SSLHostInfo* ssl_host_info_;
+};
+
+// Tests that we can delete a DiskCacheBasedSSLHostInfo object in a
+// completion callback for DiskCacheBasedSSLHostInfo::WaitForDataReady.
+TEST(DiskCacheBasedSSLHostInfo, DeleteInCallback) {
+  net::CertVerifier cert_verifier;
+  // Use the blocking mock backend factory to force asynchronous completion
+  // of ssl_host_info->WaitForDataReady(), so that the callback will run.
+  MockBlockingBackendFactory* factory = new MockBlockingBackendFactory();
+  MockHttpCache cache(factory);
+  net::SSLConfig ssl_config;
+  net::SSLHostInfo* ssl_host_info =
+      new net::DiskCacheBasedSSLHostInfo("https://www.verisign.com", ssl_config,
+                                         &cert_verifier, cache.http_cache());
+  ssl_host_info->Start();
+  DeleteSSLHostInfoCompletionCallback callback(ssl_host_info);
+  int rv = ssl_host_info->WaitForDataReady(&callback);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+  // Now complete the backend creation and let the callback run.
+  factory->FinishCreation();
+  EXPECT_EQ(net::OK, callback.GetResult(rv));
 }
