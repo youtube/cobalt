@@ -113,28 +113,15 @@ class BASE_EXPORT Value {
   // NULLs are considered equal but different from Value::CreateNullValue().
   static bool Equals(const Value* a, const Value* b);
 
-#if !defined(OS_CHROMEOS)
-  // NOTE: We pass Value from libcros tp Chrome, so changing the size of Value
-  // breaks it. TODO(stevenjb): Eliminate that dependency (crosbug.com/19576).
-  // TODO(sky) bug 91396: remove this when we figure out 91396.
-  // If true crash when deleted.
-  void set_check_on_delete(bool value) { check_on_delete_ = value; }
-#else
-  void set_check_on_delete(bool value) {}
-#endif
-
  protected:
   // This isn't safe for end-users (they should use the Create*Value()
   // static methods above), but it's useful for subclasses.
   explicit Value(Type type);
 
  private:
-  Type type_;
+  Value();
 
-#if !defined(OS_CHROMEOS)
-  // See description above setter.
-  bool check_on_delete_;
-#endif
+  Type type_;
 
   DISALLOW_COPY_AND_ASSIGN(Value);
 };
