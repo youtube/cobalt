@@ -43,22 +43,21 @@ double BitsToOpenEndedUnitInterval(uint64 bits) {
   return result;
 }
 
-uint64 RandGenerator(uint64 max) {
-  DCHECK_GT(max, 0ULL);
-
+uint64 RandGenerator(uint64 range) {
+  DCHECK_GT(range, 0u);
   // We must discard random results above this number, as they would
   // make the random generator non-uniform (consider e.g. if
-  // MAX_UINT64 was 4 and max was 3, then a result of 1 would be twice
-  // as likely as a result of 0 or 2).
+  // MAX_UINT64 was 7 and |range| was 5, then a result of 1 would be twice
+  // as likely as a result of 3 or 4).
   uint64 max_acceptable_value =
-      (std::numeric_limits<uint64>::max() / max) * max;
+      (std::numeric_limits<uint64>::max() / range) * range - 1;
 
   uint64 value;
   do {
     value = base::RandUint64();
-  } while (value >= max_acceptable_value);
+  } while (value > max_acceptable_value);
 
-  return value % max;
+  return value % range;
 }
 
 void RandBytes(void* output, size_t output_length) {

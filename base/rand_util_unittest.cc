@@ -4,6 +4,7 @@
 
 #include "base/rand_util.h"
 
+#include <algorithm>
 #include <limits>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -29,16 +30,14 @@ TEST(RandUtilTest, RandDouble) {
 }
 
 TEST(RandUtilTest, RandBytes) {
-  const size_t buffer_size = 145;
+  const size_t buffer_size = 50;
   char buffer[buffer_size];
   memset(buffer, 0, buffer_size);
   base::RandBytes(buffer, buffer_size);
-  char accumulator = 0;
-  for(size_t i = 0; i < buffer_size; ++i)
-    accumulator |= buffer[i];
-  // In theory this test can fail, but it won't before the universe dies of
-  // heat death.
-  EXPECT_NE(0, accumulator);
+  std::sort(buffer, buffer + buffer_size);
+  // Probability of occurrence of less than 25 unique bytes in 50 random bytes
+  // is below 10^-25.
+  EXPECT_GT(std::unique(buffer, buffer + buffer_size) - buffer, 25);
 }
 
 TEST(RandUtilTest, RandBytesAsString) {
