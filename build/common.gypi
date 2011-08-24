@@ -316,6 +316,7 @@
     'asan%': '<(asan)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
     'enable_smooth_scrolling%': '<(enable_smooth_scrolling)',
+    'enable_web_intents%': '<(enable_web_intents)',
     # Whether to build for Wayland display server
     'use_wayland%': 0,
 
@@ -705,6 +706,10 @@
         'grit_defines': ['-D', 'enable_register_protocol_handler'],
       }],
 
+      ['enable_web_intents==1', {
+        'grit_defines': ['-D', 'enable_web_intents'],
+      }],
+
       ['asan==1', {
         'clang%': 1,
       }],
@@ -919,6 +924,11 @@
       ['enable_register_protocol_handler==1', {
         'defines': [
           'ENABLE_REGISTER_PROTOCOL_HANDLER=1',
+        ],
+      }],
+      ['enable_web_intents==1', {
+        'defines': [
+          'ENABLE_INTENTS=1',
         ],
       }],
     ],  # conditions for 'target_defaults'
