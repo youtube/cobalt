@@ -1688,10 +1688,24 @@
                   # relativization during dict merging.
                   'change_mach_o_flags_path':
                       'mac/change_mach_o_flags_from_xcode.sh',
+                  'change_mach_o_flags_options': [
+                  ],
+                  'target_conditions': [
+                    ['release_valgrind_build==1', {
+                      'change_mach_o_flags_options': [
+                        # Turn off PIE when building for Valgrind because
+                        # Valgrind doesn't understand slide. TODO: Make
+                        # Valgrind on Mac OS X understand slide, and get rid
+                        # of the Valgrind check.
+                        '--no-pie',
+                      ],
+                    }],
+                  ],
                 },
                 'postbuild_name': 'Change Mach-O Flags',
                 'action': [
                   '<(change_mach_o_flags_path)',
+                  '>@(change_mach_o_flags_options)',
                 ],
               },
             ],
