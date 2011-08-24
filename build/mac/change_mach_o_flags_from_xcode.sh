@@ -11,4 +11,5 @@
 set -e
 
 exec "$(dirname "${0}")/change_mach_o_flags.py" \
+     "${@}" \
      "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}"
