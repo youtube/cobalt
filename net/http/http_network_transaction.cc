@@ -1042,6 +1042,25 @@ void HttpNetworkTransaction::LogTransactionMetrics() const {
                              total_duration,
                              base::TimeDelta::FromMilliseconds(1),
                              base::TimeDelta::FromMinutes(10), 100);
+
+  static const bool use_warm_socket_impact_histogram =
+      base::FieldTrialList::TrialExists("WarmSocketImpact");
+  if (use_warm_socket_impact_histogram) {
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        base::FieldTrial::MakeName("Net.Transaction_Latency_b",
+                                   "WarmSocketImpact"),
+        duration,
+        base::TimeDelta::FromMilliseconds(1),
+        base::TimeDelta::FromMinutes(10),
+        100);
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        base::FieldTrial::MakeName("Net.Transaction_Latency_Total",
+                                   "WarmSocketImpact"),
+        total_duration,
+        base::TimeDelta::FromMilliseconds(1),
+        base::TimeDelta::FromMinutes(10), 100);
+  }
+
   if (!stream_->IsConnectionReused()) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
         "Net.Transaction_Latency_Total_New_Connection",
