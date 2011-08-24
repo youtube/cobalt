@@ -42,6 +42,9 @@
 
           # Whether the compositor is enabled on views.
           'views_compositor%': 0,
+          
+          # Whether or not we are building with the Aura window manager.
+          'aura_wm%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
@@ -49,6 +52,7 @@
         'touchui%': '<(touchui)',
         'webui_dialogs%': '<(webui_dialogs)',
         'views_compositor%': '<(views_compositor)',
+        'aura_wm%': '<(aura_wm)',
 
         # Compute the architecture that we're building on.
         'conditions': [
@@ -81,6 +85,11 @@
           ['touchui==1', {
             'webui_dialogs%': 1,
           }],
+          
+          # Use the views compositor when using the Aura window manager.
+          ['aura_wm==1', {
+            'views_compositor%': 1,
+          }],
         ],
       },
 
@@ -92,6 +101,7 @@
       'toolkit_views%': '<(toolkit_views)',
       'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
       'views_compositor%': '<(views_compositor)',
+      'aura_wm%': '<(aura_wm)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -285,6 +295,7 @@
     'toolkit_views%': '<(toolkit_views)',
     'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
     'views_compositor%': '<(views_compositor)',
+    'aura_wm%': '<(aura_wm)',
     'os_posix%': '<(os_posix)',
     'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',
     'use_skia%': '<(use_skia)',
@@ -774,6 +785,9 @@
       }],
       ['views_compositor==1', {
         'defines': ['VIEWS_COMPOSITOR=1'],
+      }],
+      ['aura_wm==1', {
+        'defines': ['AURA_WM=1'],
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
