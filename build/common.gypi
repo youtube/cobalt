@@ -1679,16 +1679,20 @@
             'postbuilds': [
               {
                 # Arranges for data (heap) pages to be protected against
-                # code execution when running on Mac OS X 10.7 ("Lion").
+                # code execution when running on Mac OS X 10.7 ("Lion"), and
+                # ensures that the position-independent executable (PIE) bit
+                # is set for ASLR when running on Mac OS X 10.5 ("Leopard").
                 'variables': {
-                  # Define make_heap_non_executable in a variable ending in
-                  # _path so that gyp understands it's a path and performs
-                  # proper relativization during dict merging.
-                  'make_heap_non_executable_path':
-                      'mac/make_heap_non_executable_from_xcode.sh',
+                  # Define change_mach_o_flags in a variable ending in _path
+                  # so that GYP understands it's a path and performs proper
+                  # relativization during dict merging.
+                  'change_mach_o_flags_path':
+                      'mac/change_mach_o_flags_from_xcode.sh',
                 },
-                'postbuild_name': 'Make Heap Non-Executable',
-                'action': ['<(make_heap_non_executable_path)'],
+                'postbuild_name': 'Change Mach-O Flags',
+                'action': [
+                  '<(change_mach_o_flags_path)',
+                ],
               },
             ],
           }],
