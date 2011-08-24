@@ -299,7 +299,6 @@
             'gfx/gtk_util.h',
             'gfx/native_theme_linux.cc',
             'gfx/native_theme_linux.h',
-            'gfx/native_widget_types_gtk.cc',
           ],
           'link_settings': {
             'libraries': [
