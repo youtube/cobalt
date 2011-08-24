@@ -158,6 +158,18 @@ static const int kAllowedFtpPorts[] = {
   22,   // ssh
 };
 
+std::string::size_type CountTrailingChars(
+    const std::string input,
+    const std::string::value_type trailing_chars[]) {
+  const std::string::size_type last_good_char =
+      input.find_last_not_of(trailing_chars);
+
+  if (last_good_char == std::string::npos)
+    return input.length();
+  else
+    return input.length() - last_good_char - 1;
+}
+
 // Similar to Base64Decode. Decodes a Q-encoded string to a sequence
 // of bytes. If input is invalid, return false.
 bool QPDecode(const std::string& input, std::string* output) {
@@ -1458,15 +1470,32 @@ string16 GetSuggestedFilename(const GURL& url,
     filename = url.host();
   }
 
+#if defined(OS_WIN)
+  std::string::size_type trimmed_trailing_character_count =
+      CountTrailingChars(filename, " .");
+#endif
   SanitizeGeneratedFileName(filename);
   // Sanitization can cause the filename to disappear (e.g.: if the filename
   // consisted entirely of spaces and '.'s), in which case we use the default.
-  if (filename.empty() && default_name.empty())
-    filename = kFinalFallbackName;
+  if (filename.empty()) {
+#if defined(OS_WIN)
+    trimmed_trailing_character_count = 0;
+#endif
+    if (default_name.empty())
+      filename = kFinalFallbackName;
+  }
 
 #if defined(OS_WIN)
   string16 path = (filename.empty())? default_name : UTF8ToUTF16(filename);
+  // On Windows we want to preserve or replace all characters including
+  // whitespace to prevent file extension obfuscation on trusted websites
+  // e.g. Gmail might think evil.exe. is safe, so we don't want it to become
+  // evil.exe when we download it
+  std::wstring::size_type path_length_before_trim = path.length();
+  TrimWhitespace(path, TRIM_TRAILING, &path);
+  trimmed_trailing_character_count += path_length_before_trim - path.length();
   file_util::ReplaceIllegalCharactersInPath(&path, '-');
+  path.append(trimmed_trailing_character_count, '-');
   FilePath result(path);
   GenerateSafeFileName(mime_type, &result);
   return result.value();

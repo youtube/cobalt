@@ -1858,7 +1858,7 @@ TEST(NetUtilTest, GenerateFileName) {
       "",
       "binary/octet-stream",
       L"download",
-      L"evil.exe"
+      L"evil.exe-"
     },
     {
       "http://www.goodguy.com/evil.exe.",
@@ -1867,7 +1867,7 @@ TEST(NetUtilTest, GenerateFileName) {
       "",
       "binary/octet-stream",
       L"download",
-      L"evil.exe"
+      L"evil.exe-"
     },
     {
       "http://www.goodguy.com/evil.exe.  .  .",
@@ -1876,7 +1876,7 @@ TEST(NetUtilTest, GenerateFileName) {
       "",
       "binary/octet-stream",
       L"download",
-      L"evil.exe"
+      L"evil.exe-------"
     },
     {
       "http://www.goodguy.com/evil.",
@@ -1885,7 +1885,7 @@ TEST(NetUtilTest, GenerateFileName) {
       "",
       "binary/octet-stream",
       L"download",
-      L"evil"
+      L"evil-"
     },
     {
       "http://www.goodguy.com/. . . . .",
@@ -1895,6 +1895,15 @@ TEST(NetUtilTest, GenerateFileName) {
       "binary/octet-stream",
       L"download",
       L"download"
+    },
+    {
+      "http://www.badguy.com/attachment?name=meh.exe%C2%A0",
+      "attachment; filename=\"meh.exe\xC2\xA0\"",
+      "",
+      "",
+      "binary/octet-stream",
+      L"",
+      L"meh.exe-"
     },
 #endif  // OS_WIN
     {
@@ -1994,7 +2003,11 @@ TEST(NetUtilTest, GenerateFileName) {
       "",
       "dance/party",
       L"download",
+#if defined(OS_WIN)
+      L"trailing-"
+#else
       L"trailing"
+#endif //OS_WIN
     },
     {
       "http://www.evil.com/trailing.",
@@ -2003,7 +2016,11 @@ TEST(NetUtilTest, GenerateFileName) {
       "",
       "text/plain",
       L"download",
+#if defined(OS_WIN)
+      L"trailing-" TXT_EXT
+#else
       L"trailing" TXT_EXT
+#endif //OS_WIN
     },
     {
       "http://www.evil.com/.",
