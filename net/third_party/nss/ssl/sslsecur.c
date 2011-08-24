@@ -1490,6 +1490,15 @@ SSL_RestartHandshakeAfterCertReq(PRFileDesc *        fd,
     if (!ss) {
 	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_RestartHandshakeAfterCertReq",
 		 SSL_GETPID(), fd));
+	if (cert) {
+	    CERT_DestroyCertificate(cert);
+	}
+	if (key) {
+	    SECKEY_DestroyPrivateKey(key);
+	}
+	if (certChain) {
+	    CERT_DestroyCertificateList(certChain);
+	}
 	return SECFailure;
     }
 
