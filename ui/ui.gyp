@@ -106,6 +106,8 @@
         'base/gtk/event_synthesis_gtk.h',
         'base/gtk/g_object_destructor_filo.cc',
         'base/gtk/g_object_destructor_filo.h',
+        'base/gtk/gtk_floating_container.cc',
+        'base/gtk/gtk_floating_container.h',
         'base/gtk/gtk_im_context_util.cc',
         'base/gtk/gtk_im_context_util.h',
         'base/gtk/gtk_signal.h',
