@@ -188,7 +188,7 @@ bool GetStreamByteCountOverRange(AVStream* stream,
 }
 
 int GetSurfaceHeight(AVStream* stream) {
-  return stream->codec->coded_height;
+  return stream->codec->height;
 }
 
 int GetSurfaceWidth(AVStream* stream) {
@@ -201,7 +201,7 @@ int GetSurfaceWidth(AVStream* stream) {
   else
     aspect_ratio = 1.0;
 
-  int width = floor(stream->codec->coded_width * aspect_ratio + 0.5);
+  int width = floor(stream->codec->width * aspect_ratio + 0.5);
 
   // An even width makes things easier for YV12 and appears to be the behavior
   // expected by WebKit layout tests.
