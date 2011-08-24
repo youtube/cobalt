@@ -6,7 +6,16 @@
   'variables': {
     'chromium_code': 1,
 
-    'use_kerberos%': 1,
+    'linux_link_kerberos%': 0,
+    'conditions': [
+      ['chromeos==1', {
+        # Disable Kerberos on ChromeOS, at least for now.
+        # It needs configuration (krb5.conf and so on).
+        'use_kerberos%': 0,
+      }, {  # chromeos == 0
+        'use_kerberos%': 1,
+      }],
+    ],
   },
   'targets': [
     {
@@ -709,6 +718,19 @@
         ['use_kerberos==1', {
           'defines': [
             'USE_KERBEROS',
+          ],
+          'conditions': [
+            ['linux_link_kerberos==1', {
+              'link_settings': {
+                'ldflags': [
+                  '<!@(krb5-config --libs gssapi)',
+                ],
+              },
+            }, { # linux_link_kerberos==0
+              'defines': [
+                'DLOPEN_KERBEROS',
+              ],
+            }],
           ],
         }, { # use_kerberos == 0
           'sources!': [

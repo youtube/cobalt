@@ -15,7 +15,6 @@
 #include "net/http/mock_sspi_library_win.h"
 #elif defined(OS_POSIX)
 #include "net/http/mock_gssapi_library_posix.h"
-#include "net/third_party/gssapi/gssapi.h"
 #endif
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -25,7 +24,6 @@ typedef net::MockSSPILibrary MockAuthLibrary;
 #elif defined(OS_POSIX)
 typedef net::test::MockGSSAPILibrary MockAuthLibrary;
 #endif
-
 
 namespace net {
 
@@ -345,6 +343,7 @@ TEST_F(HttpAuthHandlerNegotiateTest, NoKerberosCredentials) {
   EXPECT_EQ(ERR_MISSING_AUTH_CREDENTIALS, callback.WaitForResult());
 }
 
+#if defined(DLOPEN_KERBEROS)
 TEST_F(HttpAuthHandlerNegotiateTest, MissingGSSAPI) {
   scoped_ptr<HostResolver> host_resolver(new MockHostResolver());
   MockAllowURLSecurityManager url_security_manager;
@@ -366,6 +365,7 @@ TEST_F(HttpAuthHandlerNegotiateTest, MissingGSSAPI) {
   EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME, rv);
   EXPECT_TRUE(generic_handler.get() == NULL);
 }
+#endif  // defined(DLOPEN_KERBEROS)
 
 #endif  // defined(OS_POSIX)
 
