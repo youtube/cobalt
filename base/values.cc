@@ -65,7 +65,9 @@ namespace base {
 ///////////////////// Value ////////////////////
 
 Value::~Value() {
+#if !defined(OS_CHROMEOS)
   CHECK(!check_on_delete_);
+#endif
 }
 
 // static
@@ -147,7 +149,12 @@ bool Value::Equals(const Value* a, const Value* b) {
   return a->Equals(b);
 }
 
-Value::Value(Type type) : type_(type), check_on_delete_(false) {
+Value::Value(Type type)
+    : type_(type)
+#if !defined(OS_CHROMEOS)
+    , check_on_delete_(false)
+#endif
+{
 }
 
 ///////////////////// FundamentalValue ////////////////////
