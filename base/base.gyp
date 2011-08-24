@@ -342,6 +342,8 @@
         'test/test_file_util_mac.cc',
         'test/test_file_util_posix.cc',
         'test/test_file_util_win.cc',
+        'test/test_reg_util_win.cc',
+        'test/test_reg_util_win.h',
         'test/test_suite.cc',
         'test/test_suite.h',
         'test/test_switches.cc',
