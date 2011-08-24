@@ -21,8 +21,6 @@
 
 namespace media {
 
-const char kRawMediaScheme[] = "x-raw-media";
-
 PipelineStatusNotification::PipelineStatusNotification()
     : cv_(&lock_), status_(PIPELINE_OK), notified_(false) {
 }
@@ -651,15 +649,8 @@ void PipelineImpl::StartTask(FilterCollection* filter_collection,
   pipeline_init_state_->composite_ = new CompositeFilter(message_loop_);
   pipeline_init_state_->composite_->set_host(this);
 
-  bool raw_media = (base::strncasecmp(url.c_str(), kRawMediaScheme,
-                                      strlen(kRawMediaScheme)) == 0);
-  if (raw_media) {
-    SetState(kInitVideoDecoder);
-    InitializeVideoDecoder(NULL);
-  } else {
-    SetState(kInitDemuxer);
-    InitializeDemuxer();
-  }
+  SetState(kInitDemuxer);
+  InitializeDemuxer();
 }
 
 // Main initialization method called on the pipeline thread.  This code attempts
