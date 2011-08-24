@@ -115,6 +115,7 @@
           'dependencies': [
             '../aura/aura.gyp:*',
             '../breakpad/breakpad.gyp:*',
+            '../chrome/app/locales/locales.gyp:*',
             '../chrome_frame/chrome_frame.gyp:*',
             '../cloud_print/virtual_driver/virtual_driver.gyp:*',
             '../courgette/courgette.gyp:*',
@@ -524,6 +525,7 @@
               'target_name': 'chrome_official_builder',
               'type': 'none',
               'dependencies': [
+                '../chrome/app/locales/locales.gyp:*',
                 '../chrome/chrome.gyp:chromedriver',
                 '../chrome/chrome.gyp:crash_service',
                 '../chrome/chrome.gyp:crash_service_win64',
