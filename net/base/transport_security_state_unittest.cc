@@ -642,6 +642,13 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "foo.linx.net",
                                        false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "dropcam.com",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "foo.dropcam.com",
+                                       false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
