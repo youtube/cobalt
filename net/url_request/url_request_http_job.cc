@@ -1256,10 +1256,19 @@ void URLRequestHttpJob::RecordTimer() {
   base::TimeDelta to_start = base::Time::Now() - request_creation_time_;
   request_creation_time_ = base::Time();
 
+  UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte", to_start);
+
+  static const bool use_warm_socket_impact_histogram =
+      base::FieldTrialList::TrialExists("WarmSocketImpact");
+  if (use_warm_socket_impact_histogram) {
+    UMA_HISTOGRAM_MEDIUM_TIMES(
+        base::FieldTrial::MakeName("Net.HttpTimeToFirstByte",
+                                   "WarmSocketImpact"),
+        to_start);
+  }
+
   static const bool use_prefetch_histogram =
       base::FieldTrialList::TrialExists("Prefetch");
-
-  UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte", to_start);
   if (use_prefetch_histogram) {
     UMA_HISTOGRAM_MEDIUM_TIMES(
         base::FieldTrial::MakeName("Net.HttpTimeToFirstByte",
