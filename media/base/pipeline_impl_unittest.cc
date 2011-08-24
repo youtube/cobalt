@@ -34,9 +34,6 @@ static const int kTotalBytes = 1024;
 // Buffered bytes of the data source.
 static const int kBufferedBytes = 1024;
 
-// Test url for raw video pipeline.
-static const char kUrlRawVideo[] = "://raw_video_stream";
-
 // Used for setting expectations on pipeline callbacks.  Using a StrictMock
 // also lets us test for missing callbacks.
 class CallbackHelper {
@@ -195,24 +192,14 @@ class PipelineImplTest : public ::testing::Test {
   // But some tests require different statuses in build & Start.
   void InitializePipeline(PipelineStatus build_status,
                           PipelineStatus start_status) {
-    InitializePipeline(build_status, start_status, "");
-  }
-
-  void InitializePipeline(PipelineStatus build_status,
-                          PipelineStatus start_status,
-                          const std::string& url) {
     // Expect an initialization callback.
     EXPECT_CALL(callbacks_, OnStart(start_status));
 
-    bool run_build = true;
-    if (url.find(kRawMediaScheme) == 0)
-      run_build = false;
-
     pipeline_->Start(mocks_->filter_collection(true,
                                                true,
-                                               run_build,
+                                               true,
                                                build_status),
-                     url,
+                     "",
                      base::Bind(&CallbackHelper::OnStart,
                                 base::Unretained(&callbacks_)));
 
@@ -420,17 +407,6 @@ TEST_F(PipelineImplTest, VideoStream) {
   InitializeVideoRenderer();
 
   InitializePipeline(PIPELINE_OK);
-  EXPECT_TRUE(pipeline_->IsInitialized());
-  EXPECT_FALSE(pipeline_->HasAudio());
-  EXPECT_TRUE(pipeline_->HasVideo());
-}
-
-TEST_F(PipelineImplTest, RawVideoStream) {
-  InitializeVideoDecoder(NULL);
-  InitializeVideoRenderer();
-
-  InitializePipeline(PIPELINE_OK, PIPELINE_OK,
-      std::string(kRawMediaScheme).append(kUrlRawVideo));
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_FALSE(pipeline_->HasAudio());
   EXPECT_TRUE(pipeline_->HasVideo());
