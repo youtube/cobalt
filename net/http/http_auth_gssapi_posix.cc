@@ -17,6 +17,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
+#if defined(DLOPEN_KERBEROS)
 // These are defined for the GSSAPI library:
 // Paraphrasing the comments from gssapi.h:
 // "The implementation must reserve static storage for a
@@ -62,6 +63,7 @@ gss_OID GSS_C_NT_HOSTBASED_SERVICE_X = &GSS_C_NT_HOSTBASED_SERVICE_X_VAL;
 gss_OID GSS_C_NT_HOSTBASED_SERVICE = &GSS_C_NT_HOSTBASED_SERVICE_VAL;
 gss_OID GSS_C_NT_ANONYMOUS = &GSS_C_NT_ANONYMOUS_VAL;
 gss_OID GSS_C_NT_EXPORT_NAME = &GSS_C_NT_EXPORT_NAME_VAL;
+#endif  // defined(DLOPEN_KERBEROS)
 
 namespace net {
 
@@ -410,9 +412,11 @@ bool GSSAPISharedLibrary::Init() {
 
 bool GSSAPISharedLibrary::InitImpl() {
   DCHECK(!initialized_);
+#if defined(DLOPEN_KERBEROS)
   gssapi_library_ = LoadSharedLibrary();
   if (gssapi_library_ == NULL)
     return false;
+#endif  // defined(DLOPEN_KERBEROS)
   initialized_ = true;
   return true;
 }
@@ -459,17 +463,20 @@ base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
   return NULL;
 }
 
+#if defined(DLOPEN_KERBEROS)
 #define BIND(lib, x)                                                    \
+  DCHECK(lib);                                                          \
   gss_##x##_type x = reinterpret_cast<gss_##x##_type>(                  \
       base::GetFunctionPointerFromNativeLibrary(lib, "gss_" #x));       \
   if (x == NULL) {                                                      \
     LOG(WARNING) << "Unable to bind function \"" << "gss_" #x << "\"";  \
     return false;                                                       \
   }
+#else
+#define BIND(lib, x) gss_##x##_type x = gss_##x
+#endif
 
 bool GSSAPISharedLibrary::BindMethods(base::NativeLibrary lib) {
-  DCHECK(lib != NULL);
-
   BIND(lib, import_name);
   BIND(lib, release_name);
   BIND(lib, release_buffer);
