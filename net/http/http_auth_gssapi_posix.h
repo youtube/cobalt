@@ -6,8 +6,6 @@
 #define NET_HTTP_HTTP_AUTH_GSSAPI_POSIX_H_
 #pragma once
 
-#include <gssapi.h>
-
 #include <string>
 
 #include "base/gtest_prod_util.h"
@@ -15,6 +13,9 @@
 #include "base/string16.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth.h"
+
+#define GSS_USE_FUNCTION_POINTERS
+#include "net/third_party/gssapi/gssapi.h"
 
 namespace net {
 
@@ -167,16 +168,6 @@ class NET_EXPORT_PRIVATE GSSAPISharedLibrary : public GSSAPILibrary {
       int* open);
 
  private:
-  typedef typeof(&gss_import_name) gss_import_name_type;
-  typedef typeof(&gss_release_name) gss_release_name_type;
-  typedef typeof(&gss_release_buffer) gss_release_buffer_type;
-  typedef typeof(&gss_display_name) gss_display_name_type;
-  typedef typeof(&gss_display_status) gss_display_status_type;
-  typedef typeof(&gss_init_sec_context) gss_init_sec_context_type;
-  typedef typeof(&gss_wrap_size_limit) gss_wrap_size_limit_type;
-  typedef typeof(&gss_delete_sec_context) gss_delete_sec_context_type;
-  typedef typeof(&gss_inquire_context) gss_inquire_context_type;
-
   FRIEND_TEST_ALL_PREFIXES(HttpAuthGSSAPIPOSIXTest, GSSAPIStartup);
 
   bool InitImpl();

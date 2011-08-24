@@ -7,7 +7,6 @@
     'chromium_code': 1,
 
     'use_kerberos%': 1,
-    'linux_link_kerberos%': 0,
   },
   'targets': [
     {
@@ -710,19 +709,6 @@
         ['use_kerberos==1', {
           'defines': [
             'USE_KERBEROS',
-          ],
-          'conditions': [
-            ['linux_link_kerberos==1', {
-              'link_settings': {
-                'ldflags': [
-                  '<!@(krb5-config --libs gssapi)',
-                ],
-              },
-            }, { # linux_link_kerberos==0
-              'defines': [
-                'DLOPEN_KERBEROS',
-              ],
-            }],
           ],
         }, { # use_kerberos == 0
           'sources!': [
