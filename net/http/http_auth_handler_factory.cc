@@ -10,11 +10,10 @@
 #include "net/http/http_auth_filter.h"
 #include "net/http/http_auth_handler_basic.h"
 #include "net/http/http_auth_handler_digest.h"
-#include "net/http/http_auth_handler_ntlm.h"
-
 #if defined(USE_KERBEROS)
 #include "net/http/http_auth_handler_negotiate.h"
 #endif
+#include "net/http/http_auth_handler_ntlm.h"
 
 namespace net {
 

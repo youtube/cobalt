@@ -81,13 +81,11 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPIStartup) {
   EXPECT_TRUE(gssapi.get()->Init());
 }
 
-#if defined(DLOPEN_KERBEROS)
 TEST(HttpAuthGSSAPIPOSIXTest, GSSAPILoadCustomLibrary) {
   scoped_ptr<GSSAPILibrary> gssapi(
       new GSSAPISharedLibrary("/this/library/does/not/exist"));
   EXPECT_FALSE(gssapi.get()->Init());
 }
-#endif  // defined(DLOPEN_KERBEROS)
 
 TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
   scoped_ptr<test::MockGSSAPILibrary> mock_library(new test::MockGSSAPILibrary);
