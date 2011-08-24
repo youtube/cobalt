@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "net/third_party/gssapi/gssapi.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -278,7 +279,7 @@ OM_uint32 MockGSSAPILibrary::import_name(
   // Save the data.
   output->name = BufferToString(input_name_buffer);
   CopyOid(&output->name_type, input_name_type);
-  *output_name = reinterpret_cast<gss_name_t>(output);
+  *output_name = output;
 
   return GSS_S_COMPLETE;
 }
