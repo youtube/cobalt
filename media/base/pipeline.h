@@ -20,8 +20,6 @@ class TimeDelta;
 
 namespace media {
 
-extern const char kRawMediaScheme[];
-
 struct PipelineStatistics {
   PipelineStatistics() :
       audio_bytes_decoded(0),
