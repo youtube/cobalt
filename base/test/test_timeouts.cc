@@ -62,14 +62,8 @@ void TestTimeouts::Initialize() {
                     &action_timeout_ms_);
   InitializeTimeout(switches::kUiTestActionMaxTimeout, action_timeout_ms_,
                     &action_max_timeout_ms_);
-  // TODO(phajdan.jr): Fix callers and remove kTestTerminateTimeout.
-  InitializeTimeout(switches::kTestTerminateTimeout, &action_max_timeout_ms_);
-  // TODO(phajdan.jr): Fix callers and remove kLiveOperationTimeout.
-  InitializeTimeout(switches::kLiveOperationTimeout, &action_max_timeout_ms_);
   InitializeTimeout(switches::kTestLargeTimeout, action_max_timeout_ms_,
                     &large_test_timeout_ms_);
-  // TODO(phajdan.jr): Fix callers and remove kUITestTimeout.
-  InitializeTimeout(switches::kUiTestTimeout, &large_test_timeout_ms_);
 
   // The timeout values should be increasing in the right order.
   CHECK(tiny_timeout_ms_ <= action_timeout_ms_);
