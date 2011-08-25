@@ -32,3 +32,5 @@ patch -p6 < $patches_dir/secret_exporter.patch
 patch -p5 < $patches_dir/handshakeshortwrite.patch
 
 patch -p5 < $patches_dir/restartclientauth.patch
+
+patch -p5 < $patches_dir/negotiatedextension.patch
