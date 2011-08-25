@@ -20,11 +20,6 @@
 #include "net/base/x509_certificate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(USE_NSS)
-#include <cert.h>
-#include <secoid.h>
-#endif
-
 // Unit tests aren't allowed to access external resources. Unfortunately, to
 // properly verify the EV-ness of a cert, we need to check for its revocation
 // through online servers. If you're manually running unit tests, feel free to
@@ -1136,84 +1131,6 @@ TEST(X509CertificateTest, GetDEREncoded) {
   EXPECT_FALSE(der_cert.empty());
 }
 #endif
-
-#if defined(USE_NSS)
-// This test creates an origin-bound cert from a private key and
-// then verifies the content of the certificate.
-TEST(X509CertificateTest, CreateOriginBound) {
-  // Origin Bound Cert OID.
-  static const char oid_string[] = "1.3.6.1.4.1.11129.2.1.6";
-
-  // Create a sample ASCII weborigin.
-  std::string origin = "http://weborigin.com:443";
-
-  // Create object neccissary for extension lookup call.
-  SECItem extension_object = {
-    siAsciiString,
-    (unsigned char*)origin.data(),
-    origin.size()
-  };
-
-  scoped_ptr<crypto::RSAPrivateKey> private_key(
-      crypto::RSAPrivateKey::Create(1024));
-  scoped_refptr<X509Certificate> cert =
-      X509Certificate::CreateOriginBound(private_key.get(),
-                                         origin, 1,
-                                         base::TimeDelta::FromDays(1));
-
-  EXPECT_EQ("anonymous.invalid", cert->subject().GetDisplayName());
-  EXPECT_FALSE(cert->HasExpired());
-
-  // IA5Encode and arena allocate SECItem.
-  PLArenaPool* arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
-  SECItem* expected = SEC_ASN1EncodeItem(arena,
-                                         NULL,
-                                         &extension_object,
-                                         SEC_ASN1_GET(SEC_IA5StringTemplate));
-
-  ASSERT_NE(static_cast<SECItem*>(NULL), expected);
-
-  // Create OID SECItem.
-  SECItem ob_cert_oid = { siDEROID, NULL, 0 };
-  SECStatus ok = SEC_StringToOID(arena, &ob_cert_oid,
-                                 oid_string, NULL);
-
-  ASSERT_EQ(SECSuccess, ok);
-
-  SECOidTag ob_cert_oid_tag = SECOID_FindOIDTag(&ob_cert_oid);
-
-  ASSERT_NE(SEC_OID_UNKNOWN, ob_cert_oid_tag);
-
-  // Lookup Origin Bound Cert extension in generated cert.
-  SECItem actual = { siBuffer, NULL, 0 };
-  ok = CERT_FindCertExtension(cert->os_cert_handle(),
-                              ob_cert_oid_tag,
-                              &actual);
-  ASSERT_EQ(SECSuccess, ok);
-
-  // Compare expected and actual extension values.
-  PRBool result = SECITEM_ItemsAreEqual(expected, &actual);
-  ASSERT_TRUE(result);
-
-  // Do Cleanup.
-  SECITEM_FreeItem(&actual, PR_FALSE);
-  PORT_FreeArena(arena, PR_FALSE);
-}
-#else  // defined(USE_NSS)
-// On other platforms, X509Certificate::CreateOriginBound() is not implemented
-// and should return NULL.  This unit test ensures that a stub implementation
-// is present.
-TEST(X509CertificateTest, CreateOriginBoundNotImplemented) {
-  std::string origin = "http://weborigin.com:443";
-  scoped_ptr<crypto::RSAPrivateKey> private_key(
-      crypto::RSAPrivateKey::Create(1024));
-  scoped_refptr<X509Certificate> cert =
-      X509Certificate::CreateOriginBound(private_key.get(),
-                                         origin, 2,
-                                         base::TimeDelta::FromDays(1));
-  EXPECT_FALSE(cert);
-}
-#endif  // defined(USE_NSS)
 
 class X509CertificateParseTest
     : public testing::TestWithParam<CertificateFormatTestData> {
