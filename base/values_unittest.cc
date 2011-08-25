@@ -429,8 +429,8 @@ TEST(ValuesTest, DeepCopy) {
   ASSERT_TRUE(copy_dict->Get("list", &copy_value));
   ASSERT_TRUE(copy_value);
   ASSERT_NE(copy_value, original_list);
-  ASSERT_TRUE(copy_value->IsType(Value::TYPE_LIST));
-  ListValue* copy_list = static_cast<ListValue*>(copy_value);
+  ListValue* copy_list = copy_value->AsList();
+  ASSERT_TRUE(copy_list != NULL);
   ASSERT_EQ(2U, copy_list->GetSize());
 
   Value* copy_list_element_0;

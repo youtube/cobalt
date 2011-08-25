@@ -97,6 +97,10 @@ StringValue* Value::CreateStringValue(const string16& in_value) {
   return new StringValue(in_value);
 }
 
+ListValue* Value::AsList() {
+  return NULL;
+}
+
 bool Value::GetAsBoolean(bool* out_value) const {
   return false;
 }
@@ -511,7 +515,7 @@ bool DictionaryValue::GetList(const std::string& path,
                               ListValue** out_value) const {
   Value* value;
   bool result = Get(path, &value);
-  if (!result || !value->IsType(TYPE_LIST))
+  if (!result || !value->AsList())
     return false;
 
   if (out_value)
@@ -589,7 +593,7 @@ bool DictionaryValue::GetListWithoutPathExpansion(const std::string& key,
                                                   ListValue** out_value) const {
   Value* value;
   bool result = GetWithoutPathExpansion(key, &value);
-  if (!result || !value->IsType(TYPE_LIST))
+  if (!result || !value->AsList())
     return false;
 
   if (out_value)
@@ -802,7 +806,7 @@ bool ListValue::GetDictionary(size_t index, DictionaryValue** out_value) const {
 bool ListValue::GetList(size_t index, ListValue** out_value) const {
   Value* value;
   bool result = Get(index, &value);
-  if (!result || !value->IsType(TYPE_LIST))
+  if (!result || !value->AsList())
     return false;
 
   if (out_value)
@@ -863,6 +867,10 @@ bool ListValue::Insert(size_t index, Value* in_value) {
 
   list_.insert(list_.begin() + index, in_value);
   return true;
+}
+
+ListValue* ListValue::AsList() {
+  return this;
 }
 
 bool ListValue::GetAsList(ListValue** out_value) {
