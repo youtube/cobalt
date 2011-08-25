@@ -87,6 +87,7 @@ class BASE_EXPORT Value {
   // Returns true if the current object represents a given type.
   bool IsType(Type type) const { return type == type_; }
 
+  virtual BinaryValue* AsBinary();
   virtual ListValue* AsList();
 
   // These methods allow the convenient retrieval of settings.
@@ -195,6 +196,7 @@ class BASE_EXPORT BinaryValue: public Value {
   const char* GetBuffer() const { return buffer_; }
 
   // Overridden from Value:
+  virtual BinaryValue* AsBinary() OVERRIDE;
   virtual BinaryValue* DeepCopy() const OVERRIDE;
   virtual bool Equals(const Value* other) const OVERRIDE;
 

@@ -416,14 +416,13 @@ TEST(ValuesTest, DeepCopy) {
   ASSERT_TRUE(copy_dict->Get("binary", &copy_binary));
   ASSERT_TRUE(copy_binary);
   ASSERT_NE(copy_binary, original_binary);
-  ASSERT_TRUE(copy_binary->IsType(Value::TYPE_BINARY));
-  ASSERT_NE(original_binary->GetBuffer(),
-    static_cast<BinaryValue*>(copy_binary)->GetBuffer());
-  ASSERT_EQ(original_binary->GetSize(),
-    static_cast<BinaryValue*>(copy_binary)->GetSize());
+  BinaryValue* binary_value = copy_binary->AsBinary();
+  ASSERT_TRUE(binary_value);
+  ASSERT_NE(original_binary->GetBuffer(), binary_value->GetBuffer());
+  ASSERT_EQ(original_binary->GetSize(), binary_value->GetSize());
   ASSERT_EQ(0, memcmp(original_binary->GetBuffer(),
-               static_cast<BinaryValue*>(copy_binary)->GetBuffer(),
-               original_binary->GetSize()));
+                      binary_value->GetBuffer(),
+                      original_binary->GetSize()));
 
   Value* copy_value = NULL;
   ASSERT_TRUE(copy_dict->Get("list", &copy_value));

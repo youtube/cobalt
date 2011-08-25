@@ -18,7 +18,7 @@ Value* CopyWithoutEmptyChildren(Value* node) {
   DCHECK(node);
   switch (node->GetType()) {
     case Value::TYPE_LIST: {
-      ListValue* list = static_cast<ListValue*>(node);
+      ListValue* list = node->AsList();
       ListValue* copy = new ListValue;
       for (ListValue::const_iterator it = list->begin(); it != list->end();
            ++it) {
@@ -95,6 +95,10 @@ StringValue* Value::CreateStringValue(const std::string& in_value) {
 // static
 StringValue* Value::CreateStringValue(const string16& in_value) {
   return new StringValue(in_value);
+}
+
+BinaryValue* Value::AsBinary() {
+  return NULL;
 }
 
 ListValue* Value::AsList() {
@@ -301,6 +305,10 @@ BinaryValue* BinaryValue::CreateWithCopiedBuffer(const char* buffer,
   return new BinaryValue(buffer_copy, size);
 }
 
+BinaryValue* BinaryValue::AsBinary() {
+  return this;
+}
+
 BinaryValue* BinaryValue::DeepCopy() const {
   return CreateWithCopiedBuffer(buffer_, size_);
 }
@@ -489,11 +497,11 @@ bool DictionaryValue::GetBinary(const std::string& path,
                                 BinaryValue** out_value) const {
   Value* value;
   bool result = Get(path, &value);
-  if (!result || !value->IsType(TYPE_BINARY))
+  if (!result || !value->AsBinary())
     return false;
 
   if (out_value)
-    *out_value = static_cast<BinaryValue*>(value);
+    *out_value = value->AsBinary();
 
   return true;
 }
@@ -519,7 +527,7 @@ bool DictionaryValue::GetList(const std::string& path,
     return false;
 
   if (out_value)
-    *out_value = static_cast<ListValue*>(value);
+    *out_value = value->AsList();
 
   return true;
 }
@@ -597,7 +605,7 @@ bool DictionaryValue::GetListWithoutPathExpansion(const std::string& key,
     return false;
 
   if (out_value)
-    *out_value = static_cast<ListValue*>(value);
+    *out_value = value->AsList();
 
   return true;
 }
@@ -810,7 +818,7 @@ bool ListValue::GetList(size_t index, ListValue** out_value) const {
     return false;
 
   if (out_value)
-    *out_value = static_cast<ListValue*>(value);
+    *out_value = value->AsList();
 
   return true;
 }
