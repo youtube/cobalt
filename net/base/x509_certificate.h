@@ -187,18 +187,6 @@ class NET_EXPORT X509Certificate
                                            uint32 serial_number,
                                            base::TimeDelta valid_duration);
 
-  // Create an origin bound certificate containing the public key in |key|.
-  // Web origin, serial number and validity period are given as
-  // parameters. The certificate is signed by the private key in |key|.
-  // The hashing algorithm for the signature is SHA-1.
-  //
-  // See Internet Draft draft-balfanz-tls-obc-00 for more details:
-  // http://balfanz.github.com/tls-obc-spec/draft-balfanz-tls-obc-00.html
-  static X509Certificate* CreateOriginBound(crypto::RSAPrivateKey* key,
-                                            const std::string& origin,
-                                            uint32 serial_number,
-                                            base::TimeDelta valid_duration);
-
   // Appends a representation of this object to the given pickle.
   void Persist(Pickle* pickle);
 
