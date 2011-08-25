@@ -58,14 +58,13 @@ void VideoRendererBase::Pause(FilterCallback* callback) {
 }
 
 void VideoRendererBase::Flush(FilterCallback* callback) {
-  DCHECK_EQ(state_, kPaused);
-
   base::AutoLock auto_lock(lock_);
+  DCHECK_EQ(state_, kPaused);
   flush_callback_.reset(callback);
   state_ = kFlushing;
 
-  if (pending_paint_ == false)
-    FlushBuffers();
+  if (!pending_paint_)
+    FlushBuffers_Locked();
 }
 
 void VideoRendererBase::Stop(FilterCallback* callback) {
@@ -108,7 +107,7 @@ void VideoRendererBase::Seek(base::TimeDelta time, const FilterStatusCB&  cb) {
     // is called on us. so we do the following:
     // kFlushed => ( Receive first buffer or Seek() ) => kSeeking and
     // kSeeking => ( Receive enough buffers) => kPrerolled. )
-    DCHECK(kPrerolled == state_ || kFlushed == state_ || kSeeking == state_);
+    DCHECK(state_ == kPrerolled || state_ == kFlushed || state_ == kSeeking);
     DCHECK(!cb.is_null());
     DCHECK(seek_cb_.is_null());
 
@@ -261,47 +260,53 @@ void VideoRendererBase::ThreadMain() {
       continue;
     }
 
-    if (next_frame->GetTimestamp() <= host()->GetTime() + kIdleTimeDelta ||
-        current_frame_.get() == NULL ||
-        current_frame_->GetTimestamp() > host()->GetDuration()) {
-      // 1. either next frame's time-stamp is already current.
-      // 2. or we do not have any current frame yet anyway.
-      // 3. or a special case when the stream is badly formatted that
-      // we get video frame with time-stamp greater than the duration.
-      // In this case we should proceed anyway and try to obtain the
-      // end-of-stream packet.
-      scoped_refptr<VideoFrame> timeout_frame;
-      bool new_frame_available = false;
-      if (!pending_paint_) {
-        // In this case, current frame could be recycled.
-        timeout_frame = current_frame_;
-        current_frame_ = frames_queue_ready_.front();
+    // Normally we're ready to loop again at this point, but there are
+    // exceptions that cause us to drop a frame and/or consider painting a
+    // "next" frame.
+    if (next_frame->GetTimestamp() > host()->GetTime() + kIdleTimeDelta &&
+        current_frame_ &&
+        current_frame_->GetTimestamp() <= host()->GetDuration()) {
+      continue;
+    }
+
+    // If we got here then:
+    // 1. next frame's timestamp is already current; or
+    // 2. we do not have any current frame yet anyway; or
+    // 3. a special case when the stream is badly formatted and
+    //    we got a frame with timestamp greater than overall duration.
+    //    In this case we should proceed anyway and try to obtain the
+    //    end-of-stream packet.
+    scoped_refptr<VideoFrame> timeout_frame;
+    bool new_frame_available = false;
+    if (!pending_paint_) {
+      // In this case, current frame could be recycled.
+      timeout_frame = current_frame_;
+      current_frame_ = frames_queue_ready_.front();
+      frames_queue_ready_.pop_front();
+      new_frame_available = true;
+    } else if (pending_paint_ && frames_queue_ready_.size() >= 2 &&
+               !frames_queue_ready_[1]->IsEndOfStream()) {
+      // Painter could be really slow, therefore we had to skip frames if
+      // 1. We had not reached end of stream.
+      // 2. The next frame of current frame is also out-dated.
+      base::TimeDelta next_remaining_time =
+          frames_queue_ready_[1]->GetTimestamp() - host()->GetTime();
+      if (next_remaining_time.InMicroseconds() <= 0) {
+        // Since the current frame is still hold by painter/compositor, and
+        // the next frame is already timed-out, we should skip the next frame
+        // which is the first frame in the queue.
+        timeout_frame = frames_queue_ready_.front();
         frames_queue_ready_.pop_front();
-        new_frame_available = true;
-      } else if (pending_paint_ && frames_queue_ready_.size() >= 2 &&
-                 !frames_queue_ready_[1]->IsEndOfStream()) {
-        // Painter could be really slow, therefore we had to skip frames if
-        // 1. We had not reached end of stream.
-        // 2. The next frame of current frame is also out-dated.
-        base::TimeDelta next_remaining_time =
-            frames_queue_ready_[1]->GetTimestamp() - host()->GetTime();
-        if (next_remaining_time.InMicroseconds() <= 0) {
-          // Since the current frame is still hold by painter/compositor, and
-          // the next frame is already timed-out, we should skip the next frame
-          // which is the first frame in the queue.
-          timeout_frame = frames_queue_ready_.front();
-          frames_queue_ready_.pop_front();
-          ++frames_dropped;
-        }
+        ++frames_dropped;
       }
-      if (timeout_frame.get()) {
-        frames_queue_done_.push_back(timeout_frame);
-        ScheduleRead_Locked();
-      }
-      if (new_frame_available) {
-        base::AutoUnlock auto_unlock(lock_);
-        OnFrameAvailable();
-      }
+    }
+    if (timeout_frame.get()) {
+      frames_queue_done_.push_back(timeout_frame);
+      ScheduleRead_Locked();
+    }
+    if (new_frame_available) {
+      base::AutoUnlock auto_unlock(lock_);
+      OnFrameAvailable();
     }
   }
 }
@@ -342,6 +347,7 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
     pending_paint_ = false;
   } else if (pending_paint_with_last_available_) {
     DCHECK(last_available_frame_.get() == frame.get());
+    DCHECK(!pending_paint_);
     pending_paint_with_last_available_ = false;
   } else {
     DCHECK(frame.get() == NULL);
@@ -352,7 +358,7 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
   // frame when this is true.
   frame_available_.Signal();
   if (state_ == kFlushing) {
-    FlushBuffers();
+    FlushBuffers_Locked();
   } else if (state_ == kError || state_ == kStopped) {
     DoStopOrErrorFlush_Locked();
   }
@@ -374,7 +380,7 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
 
   // Decoder could reach seek state before our Seek() get called.
   // We will enter kSeeking
-  if (kFlushed == state_)
+  if (state_ == kFlushed)
     state_ = kSeeking;
 
   // Synchronous flush between filters should prevent this from happening.
@@ -395,7 +401,7 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
     // transfer out-bounding buffer. We do not flush buffer when Compositor
     // hold reference to our video frame either.
     if (state_ == kFlushing && pending_paint_ == false)
-      FlushBuffers();
+      FlushBuffers_Locked();
 
     return;
   }
@@ -440,7 +446,7 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
       }
     }
   } else if (state_ == kFlushing && pending_reads_ == 0 && !pending_paint_) {
-    OnFlushDone();
+    OnFlushDone_Locked();
   }
 
   if (new_frame_available) {
@@ -470,7 +476,8 @@ void VideoRendererBase::ScheduleRead_Locked() {
   }
 }
 
-void VideoRendererBase::FlushBuffers() {
+void VideoRendererBase::FlushBuffers_Locked() {
+  lock_.AssertAcquired();
   DCHECK(!pending_paint_);
 
   // We should never put EOF frame into "done queue".
@@ -490,11 +497,12 @@ void VideoRendererBase::FlushBuffers() {
   ScheduleRead_Locked();
 
   if (pending_reads_ == 0 && state_ == kFlushing)
-    OnFlushDone();
+    OnFlushDone_Locked();
 }
 
-void VideoRendererBase::OnFlushDone() {
-  // Check all buffers are return to owners.
+void VideoRendererBase::OnFlushDone_Locked() {
+  lock_.AssertAcquired();
+  // Check all buffers are returned to owners.
   DCHECK_EQ(frames_queue_done_.size(), 0u);
   DCHECK(!current_frame_.get());
   DCHECK(frames_queue_ready_.empty());
@@ -585,7 +593,7 @@ void VideoRendererBase::DoStopOrErrorFlush_Locked() {
   DCHECK(!pending_paint_);
   DCHECK(!pending_paint_with_last_available_);
   lock_.AssertAcquired();
-  FlushBuffers();
+  FlushBuffers_Locked();
   last_available_frame_ = NULL;
   DCHECK_EQ(pending_reads_, 0);
 }
