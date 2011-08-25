@@ -265,6 +265,7 @@
         'gfx/render_text_win.cc',
         'gfx/render_text_win.h',
         'gfx/screen.h',
+        'gfx/screen_aura.cc',
         'gfx/screen_gtk.cc',
         'gfx/screen_wayland.cc',
         'gfx/screen_win.cc',
@@ -285,6 +286,11 @@
         'gfx/transform.cc',
       ],
       'conditions': [
+        ['use_aura==1', {
+          'sources/': [
+            ['exclude', 'gfx/screen_win.cc'],
+          ],
+        }],
         ['toolkit_uses_gtk == 1', {
           'dependencies': [
             # font_gtk.cc uses fontconfig.
