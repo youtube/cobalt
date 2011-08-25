@@ -197,8 +197,6 @@
           'rand_util.h',
           'rand_util_posix.cc',
           'rand_util_win.cc',
-          'resource_util.cc',
-          'resource_util.h',
           'safe_strerror_posix.cc',
           'safe_strerror_posix.h',
           'scoped_ptr.h',
@@ -335,6 +333,8 @@
           'win/object_watcher.h',
           'win/registry.cc',
           'win/registry.h',
+          'win/resource_util.cc',
+          'win/resource_util.h',
           'win/scoped_bstr.cc',
           'win/scoped_bstr.h',
           'win/scoped_com_initializer.h',
@@ -542,9 +542,6 @@
         }],
         [ 'OS != "win"', {
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
-            'sources!': [
-              'resource_util.cc',
-            ],
         },],
         [ 'component=="shared_library"', {
           'conditions': [
