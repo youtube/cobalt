@@ -611,7 +611,7 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
     return rv;
   }
 
-  if (ssl_config_.cached_info_enabled && ssl_host_info_.get()) {
+  if (ssl_host_info_.get()) {
     GotoState(STATE_LOAD_SSL_HOST_INFO);
   } else {
     GotoState(STATE_HANDSHAKE);
@@ -1362,7 +1362,7 @@ bool SSLClientSocketNSS::LoadSSLHostInfo() {
   const SSLHostInfo::State& state(ssl_host_info_->state());
 
   if (state.certs.empty())
-    return false;
+    return true;
 
   SECStatus rv;
   const std::vector<std::string>& certs_in = state.certs;
@@ -1391,14 +1391,12 @@ bool SSLClientSocketNSS::LoadSSLHostInfo() {
 }
 
 int SSLClientSocketNSS::DoLoadSSLHostInfo() {
-  int rv;
-
   EnterFunction("");
-  rv = ssl_host_info_->WaitForDataReady(&handshake_io_callback_);
+  int rv = ssl_host_info_->WaitForDataReady(&handshake_io_callback_);
   GotoState(STATE_HANDSHAKE);
 
   if (rv == OK) {
-    if (!LoadSSLHostInfo())
+    if (ssl_config_.cached_info_enabled && !LoadSSLHostInfo())
       LOG(WARNING) << "LoadSSLHostInfo failed: " << host_and_port_.ToString();
   } else {
     DCHECK_EQ(ERR_IO_PENDING, rv);
