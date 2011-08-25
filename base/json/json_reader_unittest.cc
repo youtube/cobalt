@@ -222,8 +222,8 @@ TEST(JSONReaderTest, Reading) {
   // Basic array
   root.reset(JSONReader::Read("[true, false, null]", false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_LIST));
-  ListValue* list = static_cast<ListValue*>(root.get());
+  ListValue* list = root->AsList();
+  ASSERT_TRUE(list);
   ASSERT_EQ(3U, list->GetSize());
 
   // Test with trailing comma.  Should be parsed the same as above.
@@ -234,16 +234,16 @@ TEST(JSONReaderTest, Reading) {
   // Empty array
   root.reset(JSONReader::Read("[]", false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_LIST));
-  list = static_cast<ListValue*>(root.get());
+  list = root->AsList();
+  ASSERT_TRUE(list);
   ASSERT_EQ(0U, list->GetSize());
 
   // Nested arrays
   root.reset(JSONReader::Read("[[true], [], [false, [], [null]], null]",
                               false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_LIST));
-  list = static_cast<ListValue*>(root.get());
+  list = root->AsList();
+  ASSERT_TRUE(list);
   ASSERT_EQ(4U, list->GetSize());
 
   // Lots of trailing commas.
@@ -272,8 +272,8 @@ TEST(JSONReaderTest, Reading) {
   // Valid if we set |allow_trailing_comma| to true.
   root.reset(JSONReader::Read("[true,]", true));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_LIST));
-  list = static_cast<ListValue*>(root.get());
+  list = root->AsList();
+  ASSERT_TRUE(list);
   EXPECT_EQ(1U, list->GetSize());
   Value* tmp_value = NULL;
   ASSERT_TRUE(list->Get(0, &tmp_value));
@@ -435,8 +435,8 @@ TEST(JSONReaderTest, Reading) {
   not_evil.append("[]]");
   root.reset(JSONReader::Read(not_evil, false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_LIST));
-  list = static_cast<ListValue*>(root.get());
+  list = root->AsList();
+  ASSERT_TRUE(list);
   ASSERT_EQ(5001U, list->GetSize());
 
   // Test utf8 encoded input

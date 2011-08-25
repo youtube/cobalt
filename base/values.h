@@ -87,6 +87,8 @@ class BASE_EXPORT Value {
   // Returns true if the current object represents a given type.
   bool IsType(Type type) const { return type == type_; }
 
+  virtual ListValue* AsList();
+
   // These methods allow the convenient retrieval of settings.
   // If the current setting object can be converted into the given type,
   // the value is returned through the |out_value| parameter and true is
@@ -431,6 +433,7 @@ class BASE_EXPORT ListValue : public Value {
   const_iterator end() const { return list_.end(); }
 
   // Overridden from Value:
+  virtual ListValue* AsList() OVERRIDE;
   virtual bool GetAsList(ListValue** out_value) OVERRIDE;
   virtual bool GetAsList(const ListValue** out_value) const OVERRIDE;
   virtual ListValue* DeepCopy() const OVERRIDE;
