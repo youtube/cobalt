@@ -24,6 +24,10 @@ typedef struct tagRECT RECT;
 typedef struct _GdkRectangle GdkRectangle;
 #endif
 
+#if defined(USE_WAYLAND)
+typedef struct _cairo_rectangle_int cairo_rectangle_int_t;
+#endif
+
 namespace gfx {
 
 class Insets;
@@ -40,6 +44,9 @@ class UI_EXPORT Rect {
 #elif defined(USE_X11)
   explicit Rect(const GdkRectangle& r);
 #endif
+#if defined(USE_WAYLAND)
+  explicit Rect(const cairo_rectangle_int_t& r);
+#endif
   explicit Rect(const gfx::Size& size);
   Rect(const gfx::Point& origin, const gfx::Size& size);
 
@@ -51,6 +58,9 @@ class UI_EXPORT Rect {
   Rect& operator=(const CGRect& r);
 #elif defined(USE_X11)
   Rect& operator=(const GdkRectangle& r);
+#endif
+#if defined(USE_WAYLAND)
+  Rect& operator=(const cairo_rectangle_int_t& r);
 #endif
 
   int x() const { return origin_.x(); }
@@ -118,6 +128,9 @@ class UI_EXPORT Rect {
 #elif defined(OS_MACOSX)
   // Construct an equivalent CoreGraphics object.
   CGRect ToCGRect() const;
+#endif
+#if defined(USE_WAYLAND)
+  cairo_rectangle_int_t ToCairoRectangle() const;
 #endif
 
   // Returns true if the point identified by point_x and point_y falls inside
