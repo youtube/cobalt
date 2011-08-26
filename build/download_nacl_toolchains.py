@@ -20,6 +20,9 @@ def Main(args):
                      'nativeclient-archive2/special_chromeos'),
       '--x86-version', '6561',
     ]
+    print 'NOTE: Special handling for chromeos'
+    print 'Running with these argument instead:'
+    print args
   script_dir = os.path.dirname(os.path.abspath(__file__))
   src_dir = os.path.dirname(script_dir)
   nacl_dir = os.path.join(src_dir, 'native_client')
