@@ -37,6 +37,14 @@ typedef _tagpropertykey PROPERTYKEY;
 namespace base {
 namespace win {
 
+// A Windows message reflected from other windows. This message is sent
+// with the following arguments:
+// hWnd - Target window
+// uMsg - kReflectedMessage
+// wParam - Should be 0
+// lParam - Pointer to MSG struct containing the original message.
+const int kReflectedMessage = WM_APP + 3;
+
 BASE_EXPORT void GetNonClientMetrics(NONCLIENTMETRICS* metrics);
 
 // Returns the string representing the current user sid.
