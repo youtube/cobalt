@@ -34,11 +34,37 @@ fi
 # To always force a new build if someone interrupts their build half way.
 rm -f "${STAMP_FILE}"
 
+# Check if there's a prebuilt binary and if so just fetch that. That's faster,
+# and goma relies on having matching binary hashes on client and server too.
+CDS_URL=http://commondatastorage.googleapis.com/chromium-browser-clang
+CDS_FILE="clang-${CLANG_REVISION}.tgz"
+echo Trying to download prebuilt clang
+if [ "$(uname -s)" = "Linux" ]; then
+  wget "${CDS_URL}/Linux_x64/${CDS_FILE}" || rm -f "${CDS_FILE}"
+elif [ "$(uname -s)" = "Darwin" ]; then
+  curl -L --fail -O "${CDS_URL}/Mac/${CDS_FILE}" || rm -f "${CDS_FILE}"
+fi
+if [ -f "${CDS_FILE}" ]; then
+  rm -rf "${LLVM_BUILD_DIR}/Release+Asserts"
+  mkdir -p "${LLVM_BUILD_DIR}/Release+Asserts"
+  tar -xzf "${CDS_FILE}" -C "${LLVM_BUILD_DIR}/Release+Asserts"
+  echo clang "${CLANG_REVISION}" unpacked
+  echo "${CLANG_REVISION}" > "${STAMP_FILE}"
+  exit 0
+else
+  echo Did not find prebuilt clang at r"${CLANG_REVISION}", building
+fi
+
 if grep -q 'src/third_party/llvm":' "${DEPS_FILE}"; then
   echo LLVM pulled in through DEPS, skipping LLVM update step
 else
   echo Getting LLVM r"${CLANG_REVISION}" in "${LLVM_DIR}"
-  svn co --force "${LLVM_REPO_URL}/llvm/trunk@${CLANG_REVISION}" "${LLVM_DIR}"
+  if ! svn co --force "${LLVM_REPO_URL}/llvm/trunk@${CLANG_REVISION}" \
+                      "${LLVM_DIR}"; then
+    echo Checkout failed, retrying
+    rm -rf "${LLVM_DIR}"
+    svn co --force "${LLVM_REPO_URL}/llvm/trunk@${CLANG_REVISION}" "${LLVM_DIR}"
+  fi
 fi
 
 if grep -q 'src/third_party/llvm/tools/clang":' "${DEPS_FILE}"; then
@@ -59,6 +85,8 @@ cd "${LLVM_BUILD_DIR}"
 if [ ! -f ./config.status ]; then
   ../llvm/configure \
       --enable-optimized \
+      --disable-threads \
+      --disable-pthreads \
       --without-llvmgcc \
       --without-llvmgxx
 fi
