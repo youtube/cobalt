@@ -18,7 +18,7 @@ Value* CopyWithoutEmptyChildren(Value* node) {
   DCHECK(node);
   switch (node->GetType()) {
     case Value::TYPE_LIST: {
-      ListValue* list = node->AsList();
+      ListValue* list = static_cast<ListValue*>(node);
       ListValue* copy = new ListValue;
       for (ListValue::const_iterator it = list->begin(); it != list->end();
            ++it) {
@@ -95,14 +95,6 @@ StringValue* Value::CreateStringValue(const std::string& in_value) {
 // static
 StringValue* Value::CreateStringValue(const string16& in_value) {
   return new StringValue(in_value);
-}
-
-BinaryValue* Value::AsBinary() {
-  return NULL;
-}
-
-ListValue* Value::AsList() {
-  return NULL;
 }
 
 bool Value::GetAsBoolean(bool* out_value) const {
@@ -305,10 +297,6 @@ BinaryValue* BinaryValue::CreateWithCopiedBuffer(const char* buffer,
   return new BinaryValue(buffer_copy, size);
 }
 
-BinaryValue* BinaryValue::AsBinary() {
-  return this;
-}
-
 BinaryValue* BinaryValue::DeepCopy() const {
   return CreateWithCopiedBuffer(buffer_, size_);
 }
@@ -497,11 +485,11 @@ bool DictionaryValue::GetBinary(const std::string& path,
                                 BinaryValue** out_value) const {
   Value* value;
   bool result = Get(path, &value);
-  if (!result || !value->AsBinary())
+  if (!result || !value->IsType(TYPE_BINARY))
     return false;
 
   if (out_value)
-    *out_value = value->AsBinary();
+    *out_value = static_cast<BinaryValue*>(value);
 
   return true;
 }
@@ -523,11 +511,11 @@ bool DictionaryValue::GetList(const std::string& path,
                               ListValue** out_value) const {
   Value* value;
   bool result = Get(path, &value);
-  if (!result || !value->AsList())
+  if (!result || !value->IsType(TYPE_LIST))
     return false;
 
   if (out_value)
-    *out_value = value->AsList();
+    *out_value = static_cast<ListValue*>(value);
 
   return true;
 }
@@ -601,11 +589,11 @@ bool DictionaryValue::GetListWithoutPathExpansion(const std::string& key,
                                                   ListValue** out_value) const {
   Value* value;
   bool result = GetWithoutPathExpansion(key, &value);
-  if (!result || !value->AsList())
+  if (!result || !value->IsType(TYPE_LIST))
     return false;
 
   if (out_value)
-    *out_value = value->AsList();
+    *out_value = static_cast<ListValue*>(value);
 
   return true;
 }
@@ -814,11 +802,11 @@ bool ListValue::GetDictionary(size_t index, DictionaryValue** out_value) const {
 bool ListValue::GetList(size_t index, ListValue** out_value) const {
   Value* value;
   bool result = Get(index, &value);
-  if (!result || !value->AsList())
+  if (!result || !value->IsType(TYPE_LIST))
     return false;
 
   if (out_value)
-    *out_value = value->AsList();
+    *out_value = static_cast<ListValue*>(value);
 
   return true;
 }
@@ -875,10 +863,6 @@ bool ListValue::Insert(size_t index, Value* in_value) {
 
   list_.insert(list_.begin() + index, in_value);
   return true;
-}
-
-ListValue* ListValue::AsList() {
-  return this;
 }
 
 bool ListValue::GetAsList(ListValue** out_value) {
