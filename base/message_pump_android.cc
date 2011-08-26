@@ -10,7 +10,7 @@
 #include "base/logging.h"
 #include "jni/system_message_handler_jni.h"
 
-using base::android::AutoJObject;
+using base::android::ScopedJavaReference;
 
 namespace {
 
@@ -81,13 +81,13 @@ void MessagePumpForUI::Start(Delegate* delegate) {
   DCHECK(env);
 
   jclass clazz = env->FindClass(kClassPathName);
-  DCHECK(!clazz);
+  DCHECK(clazz);
 
   jmethodID constructor = base::android::GetMethodID(env, clazz, "<init>",
                                                      "(I)V");
-  AutoJObject client = AutoJObject::FromLocalRef(
-      env, env->NewObject(clazz, constructor, delegate));
-  DCHECK(!client.obj());
+  ScopedJavaReference<jobject> client(env, env->NewObject(clazz, constructor,
+                                                          delegate));
+  DCHECK(client.obj());
 
   g_system_message_handler_obj = env->NewGlobalRef(client.obj());
 

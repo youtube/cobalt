@@ -13,7 +13,15 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 
+#if defined(OS_ANDROID)
+#include "base/os_compat_android.h"
+#endif
+
 namespace base {
+
+#if defined(OS_ANDROID)
+#define _POSIX_MONOTONIC_CLOCK 1
+#endif
 
 struct timespec TimeDelta::ToTimeSpec() const {
   int64 microseconds = InMicroseconds();
