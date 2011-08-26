@@ -197,6 +197,8 @@
         'base/win/hwnd_util.h',
         'base/win/ime_input.cc',
         'base/win/ime_input.h',
+        'base/win/mouse_wheel_util.cc',
+        'base/win/mouse_wheel_util.h',
         'base/win/shell.cc',
         'base/win/shell.h',
         'base/win/window_impl.cc',
