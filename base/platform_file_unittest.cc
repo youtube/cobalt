@@ -37,23 +37,7 @@ int ReadFully(base::PlatformFile file, int64 offset, char* data, int size) {
 // Returns the number of bytes written.
 int WriteFully(base::PlatformFile file, int64 offset,
                const char* data, int size) {
-  int total_bytes_written = 0;
-  int bytes_written;
-  while (total_bytes_written < size) {
-    bytes_written = base::WritePlatformFile(
-        file, offset + total_bytes_written, &data[total_bytes_written],
-        size - total_bytes_written);
-
-    if ((bytes_written == 0) && (size == 0))
-      return 0;
-
-    if ((bytes_written <= 0) || (bytes_written > size - total_bytes_written))
-      return -1;
-
-    total_bytes_written += bytes_written;
-  }
-
-  return total_bytes_written;
+  return base::WritePlatformFile(file, offset, data, size);
 }
 
 } // namespace
