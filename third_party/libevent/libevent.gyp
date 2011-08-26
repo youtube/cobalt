@@ -66,6 +66,7 @@
         {
           'target_name': 'libevent',
           'type': 'settings',
+          'toolsets': ['host', 'target'],
           'direct_dependent_settings': {
             'defines': [
               'USE_SYSTEM_LIBEVENT',
