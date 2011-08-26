@@ -123,7 +123,8 @@ BASE_EXPORT int ReadPlatformFile(PlatformFile file, int64 offset,
 
 // Writes the given buffer into the file at the given offset, overwritting any
 // data that was previously there. Returns the number of bytes written, or -1
-// on error.
+// on error. Note that this function makes a best effort to write all data on
+// all platforms.
 BASE_EXPORT int WritePlatformFile(PlatformFile file, int64 offset,
                                   const char* data, int size);
 
