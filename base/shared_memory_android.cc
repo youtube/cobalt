@@ -39,9 +39,9 @@ bool SharedMemory::CreateNamed(const std::string& name,
 }
 
 bool SharedMemory::Delete(const std::string& name) {
-  // ashmem doesn't support name mapping
-  NOTIMPLEMENTED();
-  return false;
+  // Like on Windows, this is intentionally returning true as ashmem will
+  // automatically releases the resource when all FDs on it are closed.
+  return true;
 }
 
 bool SharedMemory::Open(const std::string& name, bool read_only) {
