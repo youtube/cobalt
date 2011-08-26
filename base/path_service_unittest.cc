@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,6 +51,10 @@ typedef PlatformTest PathServiceTest;
 // correct value while returning false.)
 TEST_F(PathServiceTest, Get) {
   for (int key = base::DIR_CURRENT; key < base::PATH_END; ++key) {
+#if defined(OS_ANDROID)
+    if (key == base::FILE_MODULE)
+      continue;  // Android doesn't implement FILE_MODULE;
+#endif
     EXPECT_PRED1(ReturnsValidPath, key);
   }
 #if defined(OS_WIN)
