@@ -9,7 +9,17 @@ import os
 import sys
 
 
-def Main():
+def Main(args):
+  # Handle chromeos=1 specially (until its building its own toolchain).
+  if 'chromeos=1' in os.environ.get('GYP_DEFINES', ''):
+    args = [
+      '--nacl-newlib-only',
+      '--file-hash', 'linux_x86_newlib',
+           '8337d5ec327d857a49b500723ec9b792f4973abc',
+      '--base-url', ('https://commondatastorage.googleapis.com/'
+                     'nativeclient-archive2/special_chromeos'),
+      '--x86-version', '6561',
+    ]
   script_dir = os.path.dirname(os.path.abspath(__file__))
   src_dir = os.path.dirname(script_dir)
   nacl_dir = os.path.join(src_dir, 'native_client')
@@ -22,8 +32,8 @@ def Main():
     sys.exit(0)
   sys.path.insert(0, nacl_build_dir)
   import download_toolchains
-  download_toolchains.Main()
+  download_toolchains.Main(args)
 
 
 if __name__ == '__main__':
-  Main()
+  Main(sys.argv[1:])
