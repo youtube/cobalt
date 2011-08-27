@@ -133,6 +133,9 @@ class SyncHTTPServer(StoppableHTTPServer):
       self._xmpp_socket_map, ('localhost', 0))
     self.xmpp_port = self._xmpp_server.getsockname()[1]
 
+  def GetXmppServer(self):
+    return self._xmpp_server
+
   def HandleCommand(self, query, raw_request):
     return self._sync_handler.HandleCommand(query, raw_request)
 
@@ -1406,6 +1409,9 @@ class SyncPageHandler(BasePageHandler):
   def __init__(self, request, client_address, sync_http_server):
     get_handlers = [self.ChromiumSyncMigrationOpHandler,
                     self.ChromiumSyncTimeHandler,
+                    self.ChromiumSyncDisableNotificationsOpHandler,
+                    self.ChromiumSyncEnableNotificationsOpHandler,
+                    self.ChromiumSyncSendNotificationOpHandler,
                     self.ChromiumSyncBirthdayErrorOpHandler,
                     self.ChromiumSyncTransientErrorOpHandler,
                     self.ChromiumSyncSyncTabsOpHandler]
@@ -1457,8 +1463,6 @@ class SyncPageHandler(BasePageHandler):
     return True
 
   def ChromiumSyncMigrationOpHandler(self):
-    """Handle a chromiumsync test-op command arriving via http.
-    """
     test_name = "/chromiumsync/migrate"
     if not self._ShouldHandleRequest(test_name):
       return False
@@ -1471,6 +1475,61 @@ class SyncPageHandler(BasePageHandler):
     self.end_headers()
     self.wfile.write(raw_reply)
     return True
+
+  def ChromiumSyncDisableNotificationsOpHandler(self):
+    test_name = "/chromiumsync/disablenotifications"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+    self.server.GetXmppServer().DisableNotifications()
+    result = 200
+    raw_reply = ('<html><title>Notifications disabled</title>'
+                 '<H1>Notifications disabled</H1></html>')
+    self.send_response(result)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True;
+
+  def ChromiumSyncEnableNotificationsOpHandler(self):
+    test_name = "/chromiumsync/enablenotifications"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+    self.server.GetXmppServer().EnableNotifications()
+    result = 200
+    raw_reply = ('<html><title>Notifications enabled</title>'
+                 '<H1>Notifications enabled</H1></html>')
+    self.send_response(result)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True;
+
+  def ChromiumSyncSendNotificationOpHandler(self):
+    test_name = "/chromiumsync/sendnotification"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+    query = urlparse.urlparse(self.path)[4]
+    query_params = urlparse.parse_qs(query)
+    channel = ''
+    data = ''
+    if 'channel' in query_params:
+      channel = query_params['channel'][0]
+    if 'data' in query_params:
+      data = query_params['data'][0]
+    self.server.GetXmppServer().SendNotification(channel, data)
+    result = 200
+    raw_reply = ('<html><title>Notification sent</title>'
+                 '<H1>Notification sent with channel "%s" '
+                 'and data "%s"</H1></html>'
+                 % (channel, data))
+    self.send_response(result)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True;
 
   def ChromiumSyncBirthdayErrorOpHandler(self):
     test_name = "/chromiumsync/birthdayerror"
