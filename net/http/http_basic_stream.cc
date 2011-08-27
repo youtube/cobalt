@@ -127,43 +127,7 @@ bool HttpBasicStream::IsSpdyHttpStream() const {
 }
 
 void HttpBasicStream::LogNumRttVsBytesMetrics() const {
-  int socket_reuse_policy = GetSocketReusePolicy();
-  if (socket_reuse_policy > 2 || socket_reuse_policy < 0) {
-    return;
-  }
-
-  int64 total_bytes_read = connection_->socket()->NumBytesRead();
-  int64 bytes_received = total_bytes_read - bytes_read_offset_;
-  int64 num_kb = bytes_received / 1024;
-  double rtt = connection_->socket()->GetConnectTimeMicros().ToInternalValue();
-  rtt /= 1000.0;
-
-  if (num_kb < 1024 && rtt > 0) {  // Ignore responses > 1MB
-    base::TimeDelta duration = base::Time::Now() -
-                               response_->request_time;
-    double num_rtt = static_cast<double>(duration.InMilliseconds()) / rtt;
-    int64 num_rtt_scaled = (4 * num_rtt);
-
-    static const char* const kGroups[] = {
-      "warmest_socket", "warm_socket", "last_accessed_socket"
-    };
-    int bucket = (num_kb / 5) * 5;
-    const std::string histogram(StringPrintf("Net.Num_RTT_vs_KB_%s_%dKB",
-                                             kGroups[socket_reuse_policy],
-                                             bucket));
-    base::Histogram* counter = base::Histogram::FactoryGet(
-        histogram, 0, 1000, 2, base::Histogram::kUmaTargetedHistogramFlag);
-    DCHECK_EQ(histogram, counter->histogram_name());
-    counter->Add(num_rtt_scaled);
-
-    VLOG(2) << StringPrintf("%s\nrtt = %f\tnum_rtt = %f\t"
-                            "num_kb = %" PRId64 "\t"
-                            "total bytes = %" PRId64 "\t"
-                            "histogram = %s",
-                            request_line_.data(),
-                            rtt, num_rtt, num_kb, total_bytes_read,
-                            histogram.data());
-  }
+  // Log rtt metrics here.
 }
 
 }  // namespace net
