@@ -135,10 +135,23 @@ class SymbolContext {
 
 }  // namespace
 
+// Disable optimizations for the StackTrace::StackTrace function. It is
+// important to disable at least frame pointer optimization ("y"), since
+// that breaks CaptureStackBackTrace() and prevents StackTrace from working
+// in Release builds (it may still be janky if other frames are using FPO,
+// but at least it will make it further).
+#if defined(COMPILER_MSVC)
+#pragma optimize("", off)
+#endif
+
 StackTrace::StackTrace() {
   // When walking our own stack, use CaptureStackBackTrace().
   count_ = CaptureStackBackTrace(0, arraysize(trace_), trace_, NULL);
 }
+
+#if defined(COMPILER_MSVC)
+#pragma optimize("", on)
+#endif
 
 StackTrace::StackTrace(EXCEPTION_POINTERS* exception_pointers) {
   // When walking an exception stack, we need to use StackWalk64().
