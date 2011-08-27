@@ -333,34 +333,6 @@ static const char kExpectedNPNString[] = "\x08http/1.1\x06spdy/2";
 static const char kAlternateProtocolHttpHeader[] =
     "Alternate-Protocol: 443:npn-spdy/2\r\n\r\n";
 
-TEST_F(HttpNetworkTransactionTest, LogNumRttVsBytesMetrics_WarmestSocket) {
-  MockRead data_reads[1000];
-  data_reads[0] = MockRead("HTTP/1.0 200 OK\r\n\r\n");
-  for (int i = 1; i < 999; i++) {
-    data_reads[i] = MockRead("Gagan is a good boy!");
-  }
-  data_reads[999] = MockRead(false, OK);
-
-  net::SetSocketReusePolicy(0);
-  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
-                                              arraysize(data_reads));
-
-  base::Histogram* histogram = NULL;
-  base::StatisticsRecorder::FindHistogram(
-      "Net.Num_RTT_vs_KB_warmest_socket_15KB", &histogram);
-  CHECK(histogram);
-
-  base::Histogram::SampleSet sample_set;
-  histogram->SnapshotSample(&sample_set);
-  EXPECT_EQ(1, sample_set.TotalCount());
-
-  EXPECT_EQ(OK, out.rv);
-  EXPECT_EQ("HTTP/1.0 200 OK", out.status_line);
-}
-
-// TODO(gagansingh): Add test for LogNumRttVsBytesMetrics_LastAccessSocket once
-// it is possible to clear histograms from previous tests.
-
 TEST_F(HttpNetworkTransactionTest, Basic) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
