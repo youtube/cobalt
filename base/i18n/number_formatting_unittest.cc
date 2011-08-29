@@ -55,7 +55,10 @@ TEST(NumberFormattingTest, FormatDouble) {
     const char* expected_german;
   } cases[] = {
     {0.0, 0, "0", "0"},
+#if !defined(OS_ANDROID)
+    // Bionic can't printf negative zero correctly.
     {-0.0, 4, "-0.0000", "-0,0000"},
+#endif
     {1024.2, 0, "1,024", "1.024"},
     {-1024.223, 2, "-1,024.22", "-1.024,22"},
     {std::numeric_limits<double>::max(), 6,
