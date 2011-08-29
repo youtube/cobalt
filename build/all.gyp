@@ -18,7 +18,6 @@
         '../ui/ui.gyp:*',
         '../gpu/gpu.gyp:*',
         '../gpu/demos/demos.gyp:*',
-        '../gpu/tools/tools.gyp:*',
         '../ipc/ipc.gyp:*',
         '../jingle/jingle.gyp:*',
         '../media/media.gyp:*',
