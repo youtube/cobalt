@@ -1241,6 +1241,8 @@
         'base/cookie_monster_store_test.h',
         'base/cookie_store_test_helpers.cc',
         'base/cookie_store_test_helpers.h',
+        'base/mock_file_stream.cc',
+        'base/mock_file_stream.h',
         'base/mock_host_resolver.cc',
         'base/mock_host_resolver.h',
         'base/net_test_suite.cc',
