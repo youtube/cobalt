@@ -14,7 +14,8 @@ namespace media {
 // Forward declaration for scoped_ptr_malloc.
 class ScopedPtrAVFree;
 
-class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
+class MEDIA_EXPORT FFmpegAudioDecoder
+    : public DecoderBase<AudioDecoder, Buffer> {
  public:
   explicit FFmpegAudioDecoder(MessageLoop* message_loop);
   virtual ~FFmpegAudioDecoder();

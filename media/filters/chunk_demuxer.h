@@ -21,7 +21,7 @@ class FFmpegURLProtocol;
 
 // Demuxer implementation that allows chunks of WebM media data to be passed
 // from JavaScript to the media stack.
-class ChunkDemuxer : public Demuxer {
+class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
  public:
   explicit ChunkDemuxer(ChunkDemuxerClient* client);
   virtual ~ChunkDemuxer();

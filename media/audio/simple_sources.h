@@ -11,7 +11,8 @@
 #include "media/base/seekable_buffer.h"
 
 // An audio source that produces a pure sinusoidal tone.
-class SineWaveAudioSource : public AudioOutputStream::AudioSourceCallback {
+class MEDIA_EXPORT SineWaveAudioSource
+    : public AudioOutputStream::AudioSourceCallback {
  public:
   enum Format {
     FORMAT_8BIT_LINEAR_PCM,
@@ -39,7 +40,7 @@ class SineWaveAudioSource : public AudioOutputStream::AudioSourceCallback {
 
 // Defines an interface for pushing audio output. In contrast, the interfaces
 // defined by AudioSourceCallback are pull model only.
-class PushAudioOutput {
+class MEDIA_EXPORT PushAudioOutput {
  public:
   virtual ~PushAudioOutput() {}
 
@@ -56,7 +57,7 @@ class PushAudioOutput {
 // a pull model provider AudioSourceCallback. Fundamentally it manages a series
 // of audio buffers and is unaware of the actual audio format.
 // Note that the PushSource is not thread safe and user need to provide locking.
-class PushSource
+class MEDIA_EXPORT PushSource
     : public AudioOutputStream::AudioSourceCallback,
       public PushAudioOutput {
  public:

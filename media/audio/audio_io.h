@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,13 +45,13 @@
 // as the data is written to the audio device. Size of each packet is determined
 // by |samples_per_packet| specified in AudioParameters  when the stream is
 // created.
-class AudioOutputStream {
+class MEDIA_EXPORT AudioOutputStream {
  public:
   // Audio sources must implement AudioSourceCallback. This interface will be
   // called in a random thread which very likely is a high priority thread. Do
   // not rely on using this thread TLS or make calls that alter the thread
   // itself such as creating Windows or initializing COM.
-  class AudioSourceCallback {
+  class MEDIA_EXPORT AudioSourceCallback {
    public:
     virtual ~AudioSourceCallback() {}
 
@@ -104,7 +104,7 @@ class AudioOutputStream {
 // Models an audio sink receiving recorded audio from the audio driver.
 class AudioInputStream {
  public:
-  class AudioInputCallback {
+  class MEDIA_EXPORT AudioInputCallback {
    public:
     virtual ~AudioInputCallback() {}
 
