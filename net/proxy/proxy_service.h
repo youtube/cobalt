@@ -97,6 +97,11 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
                                 PacRequest** pac_request,
                                 const BoundNetLog& net_log);
 
+  // Called to report that the last proxy connection succeeded.  If |proxy_info|
+  // has a non empty proxy_retry_info map, the proxies that have been tried (and
+  // failed) for this request will be marked as bad.
+  void ReportSuccess(const ProxyInfo& proxy_info);
+
   // Call this method with a non-null |pac_request| to cancel the PAC request.
   void CancelPacRequest(PacRequest* pac_request);
 

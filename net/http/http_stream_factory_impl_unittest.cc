@@ -16,6 +16,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_session_peer.h"
 #include "net/http/http_request_info.h"
+#include "net/http/http_stream.h"
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/socket_test_util.h"
@@ -53,6 +54,62 @@ class MockHttpStreamFactoryImpl : public HttpStreamFactoryImpl {
 
   bool preconnect_done_;
   bool waiting_for_preconnect_;
+};
+
+class StreamRequestWaiter : public HttpStreamRequest::Delegate {
+ public:
+  StreamRequestWaiter()
+      : waiting_for_stream_(false),
+        stream_done_(false) {}
+
+  // HttpStreamRequest::Delegate
+
+  virtual void OnStreamReady(
+      const SSLConfig& used_ssl_config,
+      const ProxyInfo& used_proxy_info,
+      HttpStream* stream) OVERRIDE {
+    stream_done_ = true;
+    if (waiting_for_stream_)
+      MessageLoop::current()->Quit();
+    stream_.reset(stream);
+  }
+
+  virtual void OnStreamFailed(
+      int status,
+      const SSLConfig& used_ssl_config) OVERRIDE {}
+
+  virtual void OnCertificateError(
+      int status,
+      const SSLConfig& used_ssl_config,
+      const SSLInfo& ssl_info) OVERRIDE {}
+
+  virtual void OnNeedsProxyAuth(const HttpResponseInfo& proxy_response,
+                                const SSLConfig& used_ssl_config,
+                                const ProxyInfo& used_proxy_info,
+                                HttpAuthController* auth_controller) OVERRIDE {}
+
+  virtual void OnNeedsClientAuth(const SSLConfig& used_ssl_config,
+                                 SSLCertRequestInfo* cert_info) OVERRIDE {}
+
+  virtual void OnHttpsProxyTunnelResponse(const HttpResponseInfo& response_info,
+                                          const SSLConfig& used_ssl_config,
+                                          const ProxyInfo& used_proxy_info,
+                                          HttpStream* stream) OVERRIDE {}
+
+  void WaitForStream() {
+    while (!stream_done_) {
+      waiting_for_stream_ = true;
+      MessageLoop::current()->Run();
+      waiting_for_stream_ = false;
+    }
+  }
+
+ private:
+  bool waiting_for_stream_;
+  bool stream_done_;
+  scoped_ptr<HttpStream> stream_;
+
+  DISALLOW_COPY_AND_ASSIGN(StreamRequestWaiter);
 };
 
 struct SessionDependencies {
@@ -313,6 +370,48 @@ TEST(HttpStreamFactoryTest, PreconnectDirectWithExistingSpdySession) {
     else
       EXPECT_EQ(kTests[i].num_streams, transport_conn_pool->last_num_streams());
   }
+}
+
+TEST(HttpStreamFactoryTest, JobNotifiesProxy) {
+  const char* kProxyString = "PROXY bad:99; PROXY maybe:80; DIRECT";
+  SessionDependencies session_deps(
+      ProxyService::CreateFixedFromPacResult(kProxyString));
+
+  // First connection attempt fails
+  StaticSocketDataProvider socket_data1;
+  socket_data1.set_connect_data(MockConnect(true, ERR_ADDRESS_UNREACHABLE));
+  session_deps.socket_factory.AddSocketDataProvider(&socket_data1);
+
+  // Second connection attempt succeeds
+  StaticSocketDataProvider socket_data2;
+  socket_data2.set_connect_data(MockConnect(true, OK));
+  session_deps.socket_factory.AddSocketDataProvider(&socket_data2);
+
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  EXPECT_TRUE(log.bound().IsLoggingAllEvents());
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  // Now request a stream.  It should succeed using the second proxy in the
+  // list.
+  HttpRequestInfo request_info;
+  request_info.method = "GET";
+  request_info.url = GURL("http://www.google.com");
+  request_info.load_flags = 0;
+
+  SSLConfig ssl_config;
+  StreamRequestWaiter waiter;
+  scoped_ptr<HttpStreamRequest> request(
+      session->http_stream_factory()->RequestStream(request_info, ssl_config,
+                                                    &waiter, log.bound()));
+  waiter.WaitForStream();
+
+  // The proxy that failed should now be known to the proxy_service as bad.
+  const ProxyRetryInfoMap& retry_info =
+      session->proxy_service()->proxy_retry_info();
+  EXPECT_EQ(1u, retry_info.size());
+  ProxyRetryInfoMap::const_iterator iter = retry_info.find("bad:99");
+  EXPECT_TRUE(iter != retry_info.end());
 }
 
 }  // namespace
