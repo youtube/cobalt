@@ -285,7 +285,7 @@ class scoped_ptr_malloc {
 
   // Destructor.  If there is a C object, call the Free functor.
   ~scoped_ptr_malloc() {
-    free_(ptr_);
+    reset();
   }
 
   // Reset.  Calls the Free functor on the current owned object, if any.
@@ -293,7 +293,8 @@ class scoped_ptr_malloc {
   // this->reset(this->get()) works.
   void reset(C* p = NULL) {
     if (ptr_ != p) {
-      free_(ptr_);
+      FreeProc free_proc;
+      free_proc(ptr_);
       ptr_ = p;
     }
   }
@@ -355,15 +356,10 @@ class scoped_ptr_malloc {
   template <class C2, class GP>
   bool operator!=(scoped_ptr_malloc<C2, GP> const& p) const;
 
-  static FreeProc const free_;
-
   // Disallow evil constructors
   scoped_ptr_malloc(const scoped_ptr_malloc&);
   void operator=(const scoped_ptr_malloc&);
 };
-
-template<class C, class FP>
-FP const scoped_ptr_malloc<C, FP>::free_ = FP();
 
 template<class C, class FP> inline
 void swap(scoped_ptr_malloc<C, FP>& a, scoped_ptr_malloc<C, FP>& b) {
