@@ -94,12 +94,12 @@ NET_EXPORT bool FileURLToFilePath(const GURL& url, FilePath* file_path);
 // Returns true if the parsing was successful, false otherwise.
 // The returned host is NOT canonicalized, and may be invalid. If <host> is
 // an IPv6 literal address, the returned host includes the square brackets.
-NET_EXPORT_PRIVATE bool ParseHostAndPort(
+NET_EXPORT bool ParseHostAndPort(
     std::string::const_iterator host_and_port_begin,
     std::string::const_iterator host_and_port_end,
     std::string* host,
     int* port);
-NET_EXPORT_PRIVATE bool ParseHostAndPort(
+NET_EXPORT bool ParseHostAndPort(
     const std::string& host_and_port,
     std::string* host,
     int* port);
