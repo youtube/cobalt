@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "net/base/net_export.h"
+#include "net/base/net_log.h"
 #include "net/proxy/proxy_retry_info.h"
 
 namespace net {
@@ -61,7 +62,8 @@ class NET_EXPORT_PRIVATE ProxyList {
   // Marks the current proxy server as bad and deletes it from the list.  The
   // list of known bad proxies is given by proxy_retry_info.  Returns true if
   // there is another server available in the list.
-  bool Fallback(ProxyRetryInfoMap* proxy_retry_info);
+  bool Fallback(ProxyRetryInfoMap* proxy_retry_info,
+                const BoundNetLog& net_log);
 
  private:
   // List of proxies.

@@ -220,6 +220,28 @@ EVENT_TYPE(PROXY_SERVICE_RESOLVED_PROXY_LIST)
 // proxy settings (since there wasn't a previous value).
 EVENT_TYPE(PROXY_CONFIG_CHANGED)
 
+// Emitted when a list of bad proxies is reported to the proxy service.
+//
+// Parameters:
+//   {
+//     "bad_proxy_list": <List of bad proxies>,
+//   }
+EVENT_TYPE(BAD_PROXY_LIST_REPORTED)
+
+// ------------------------------------------------------------------------
+// ProxyList
+// ------------------------------------------------------------------------
+
+// Emitted when the first proxy server in a list is being marked as
+// bad and proxy resolution is going to failover to the next one in
+// the list.  The fallback is local to the request.
+//
+// Parameters:
+//   {
+//     "bad_proxy": <URI representation of the failed proxy server>,
+//   }
+EVENT_TYPE(PROXY_LIST_FALLBACK)
+
 // ------------------------------------------------------------------------
 // Proxy Resolver
 // ------------------------------------------------------------------------
