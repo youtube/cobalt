@@ -40,31 +40,31 @@ class NET_EXPORT FileStream {
   // is destructed.
   FileStream(base::PlatformFile file, int flags);
 
-  ~FileStream();
+  virtual ~FileStream();
 
   // Call this method to close the FileStream.  It is OK to call Close
   // multiple times.  Redundant calls are ignored.
   // Note that if there are any pending async operations, they'll be aborted.
-  void Close();
+  virtual void Close();
 
   // Call this method to open the FileStream.  The remaining methods
   // cannot be used unless this method returns OK.  If the file cannot be
   // opened then an error code is returned.
   // open_flags is a bitfield of base::PlatformFileFlags
-  int Open(const FilePath& path, int open_flags);
+  virtual int Open(const FilePath& path, int open_flags);
 
   // Returns true if Open succeeded and Close has not been called.
-  bool IsOpen() const;
+  virtual bool IsOpen() const;
 
   // Adjust the position from where data is read.  Upon success, the stream
   // position relative to the start of the file is returned.  Otherwise, an
   // error code is returned.  It is not valid to call Seek while a Read call
   // has a pending completion.
-  int64 Seek(Whence whence, int64 offset);
+  virtual int64 Seek(Whence whence, int64 offset);
 
   // Returns the number of bytes available to read from the current stream
   // position until the end of the file.  Otherwise, an error code is returned.
-  int64 Available();
+  virtual int64 Available();
 
   // Call this method to read data from the current stream position.  Up to
   // buf_len bytes will be copied into buf.  (In other words, partial reads are
@@ -85,14 +85,14 @@ class NET_EXPORT FileStream {
   // This method should not be called if the stream was opened WRITE_ONLY.
   //
   // You can pass NULL as the callback for synchronous I/O.
-  int Read(char* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(char* buf, int buf_len, CompletionCallback* callback);
 
   // Performs the same as Read, but ensures that exactly buf_len bytes
   // are copied into buf.  A partial read may occur, but only as a result of
   // end-of-file or fatal error.  Returns the number of bytes copied into buf,
   // 0 if at end-of-file and no bytes have been read into buf yet,
   // or an error code if the operation could not be performed.
-  int ReadUntilComplete(char *buf, int buf_len);
+  virtual int ReadUntilComplete(char *buf, int buf_len);
 
   // Call this method to write data at the current stream position.  Up to
   // buf_len bytes will be written from buf. (In other words, partial writes are
@@ -113,14 +113,14 @@ class NET_EXPORT FileStream {
   // This method should not be called if the stream was opened READ_ONLY.
   //
   // You can pass NULL as the callback for synchronous I/O.
-  int Write(const char* buf, int buf_len, CompletionCallback* callback);
+  virtual int Write(const char* buf, int buf_len, CompletionCallback* callback);
 
   // Truncates the file to be |bytes| length. This is only valid for writable
   // files. After truncation the file stream is positioned at |bytes|. The new
   // position is retured, or a value < 0 on error.
   // WARNING: one may not truncate a file beyond its current length on any
   //   platform with this call.
-  int64 Truncate(int64 bytes);
+  virtual int64 Truncate(int64 bytes);
 
   // Forces out a filesystem sync on this file to make sure that the file was
   // written out to disk and is not currently sitting in the buffer. This does
@@ -130,7 +130,7 @@ class NET_EXPORT FileStream {
   /// Returns an error code if the operation could not be performed.
   //
   // This method should not be called if the stream was opened READ_ONLY.
-  int Flush();
+  virtual int Flush();
 
  private:
   class AsyncContext;
