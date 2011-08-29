@@ -836,6 +836,7 @@ int HttpStreamFactoryImpl::Job::DoCreateStreamComplete(int result) {
   if (result < 0)
     return result;
 
+  session_->proxy_service()->ReportSuccess(proxy_info_);
   next_state_ = STATE_NONE;
   return OK;
 }

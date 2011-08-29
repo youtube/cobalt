@@ -541,6 +541,9 @@ TEST(ProxyServiceTest, ProxyFallback) {
 
   // The second proxy should be specified.
   EXPECT_EQ("foopy2:9090", info.proxy_server().ToURI());
+  // Report back that the second proxy worked.  This will globally mark the
+  // first proxy as bad.
+  service.ReportSuccess(info);
 
   TestCompletionCallback callback3;
   rv = service.ResolveProxy(url, &info, &callback3, NULL, BoundNetLog());
@@ -583,6 +586,25 @@ TEST(ProxyServiceTest, ProxyFallback) {
   EXPECT_EQ(ERR_FAILED, rv);
   EXPECT_FALSE(info.is_direct());
   EXPECT_TRUE(info.is_empty());
+
+  // Look up proxies again
+  TestCompletionCallback callback7;
+  rv = service.ResolveProxy(url, &info, &callback7, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(url, resolver->pending_requests()[0]->url());
+
+  // This time, the first 3 results have been found to be bad, but only the
+  // first proxy has been confirmed ...
+  resolver->pending_requests()[0]->results()->UseNamedProxy(
+      "foopy1:8080;foopy3:7070;foopy2:9090;foopy4:9091");
+  resolver->pending_requests()[0]->CompleteNow(OK);
+
+  // ... therefore, we should see the second proxy first.
+  EXPECT_EQ(OK, callback7.WaitForResult());
+  EXPECT_FALSE(info.is_direct());
+  EXPECT_EQ("foopy3:7070", info.proxy_server().ToURI());
 
   // TODO(nsylvain): Test that the proxy can be retried after the delay.
 }
