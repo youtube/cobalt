@@ -293,6 +293,8 @@
         ['use_aura==1', {
           'sources/': [
             ['exclude', 'gfx/screen_win.cc'],
+            ['exclude', 'base/win/mouse_wheel_util.cc'],
+            ['exclude', 'base/win/mouse_wheel_util.h'],            
           ],
         }],
         ['toolkit_uses_gtk == 1', {
