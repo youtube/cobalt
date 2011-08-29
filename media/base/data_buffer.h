@@ -15,7 +15,7 @@
 
 namespace media {
 
-class DataBuffer : public Buffer {
+class MEDIA_EXPORT DataBuffer : public Buffer {
  public:
   // Takes ownership of the passed |buffer|, assumes valid data of size
   // |buffer_size|.

@@ -139,7 +139,7 @@ TEST(AudioInputControllerTest, RecordAndError) {
   event.Reset();
 
   // Wait for the stream to be stopped.
-  AudioInputStream* stream = controller->stream();
+  AudioInputStream* stream = controller->stream_for_testing();
   stream->Stop();
   event.Wait();
 

@@ -9,8 +9,9 @@
 #include <alsa/asoundlib.h>
 
 #include "base/basictypes.h"
+#include "media/base/media_export.h"
 
-class AlsaWrapper {
+class MEDIA_EXPORT AlsaWrapper {
  public:
   AlsaWrapper();
   virtual ~AlsaWrapper();

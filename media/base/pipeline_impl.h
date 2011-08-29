@@ -35,7 +35,7 @@ class MediaLog;
 // the callback to get fired and call status() to see what the callback's
 // argument was.  This object is for one-time use; call |Callback()| exactly
 // once.
-class PipelineStatusNotification {
+class MEDIA_EXPORT PipelineStatusNotification {
  public:
   PipelineStatusNotification();
   ~PipelineStatusNotification();
@@ -93,7 +93,7 @@ class PipelineStatusNotification {
 // If any error ever happens, this object will transition to the "Error" state
 // from any state. If Stop() is ever called, this object will transition to
 // "Stopped" state.
-class PipelineImpl : public Pipeline, public FilterHost {
+class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
  public:
   explicit PipelineImpl(MessageLoop* message_loop, MediaLog* media_log);
 

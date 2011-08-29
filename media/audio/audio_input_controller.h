@@ -35,7 +35,7 @@
 //
 namespace media {
 
-class AudioInputController
+class MEDIA_EXPORT AudioInputController
     : public base::RefCountedThreadSafe<AudioInputController>,
       public AudioInputStream::AudioInputCallback {
  public:
@@ -99,10 +99,8 @@ class AudioInputController
   // Sets the factory used by the static method Create. AudioInputController
   // does not take ownership of |factory|. A value of NULL results in an
   // AudioInputController being created directly.
-#if defined(UNIT_TEST)
-  static void set_factory(Factory* factory) { factory_ = factory; }
-  AudioInputStream* stream() { return stream_; }
-#endif
+  static void set_factory_for_testing(Factory* factory) { factory_ = factory; }
+  AudioInputStream* stream_for_testing() { return stream_; }
 
   // Starts recording in this audio input stream.
   virtual void Record();

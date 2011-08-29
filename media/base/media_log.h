@@ -8,13 +8,14 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
+#include "media/base/media_export.h"
 #include "media/base/media_log_event.h"
 #include "media/base/pipeline_impl.h"
 #include "media/base/pipeline_status.h"
 
 namespace media {
 
-class MediaLog : public base::RefCountedThreadSafe<MediaLog> {
+class MEDIA_EXPORT MediaLog : public base::RefCountedThreadSafe<MediaLog> {
  public:
   // Convert various enums to strings.
   static const char* EventTypeToString(MediaLogEvent::Type type);

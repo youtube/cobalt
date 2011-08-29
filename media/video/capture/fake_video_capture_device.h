@@ -16,7 +16,7 @@
 
 namespace media {
 
-class FakeVideoCaptureDevice : public VideoCaptureDevice {
+class MEDIA_EXPORT FakeVideoCaptureDevice : public VideoCaptureDevice {
  public:
   static VideoCaptureDevice* Create(const Name& device_name);
   virtual ~FakeVideoCaptureDevice();
