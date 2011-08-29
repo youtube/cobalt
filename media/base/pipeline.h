@@ -36,7 +36,7 @@ struct PipelineStatistics {
 
 class FilterCollection;
 
-class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
+class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
   // Initializes pipeline. Pipeline takes ownership of all callbacks passed
   // into this method.

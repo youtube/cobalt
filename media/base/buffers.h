@@ -30,13 +30,15 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
+#include "media/base/media_export.h"
 
 namespace media {
 
 // Indicates an invalid or missing timestamp.
-extern const base::TimeDelta kNoTimestamp;
+MEDIA_EXPORT extern const base::TimeDelta kNoTimestamp;
 
-class StreamSample : public base::RefCountedThreadSafe<StreamSample> {
+class MEDIA_EXPORT StreamSample
+    : public base::RefCountedThreadSafe<StreamSample> {
  public:
   // Returns the timestamp of this buffer in microseconds.
   base::TimeDelta GetTimestamp() const {
@@ -76,7 +78,7 @@ class StreamSample : public base::RefCountedThreadSafe<StreamSample> {
 };
 
 
-class Buffer : public StreamSample {
+class MEDIA_EXPORT Buffer : public StreamSample {
  public:
   // Returns a read only pointer to the buffer data.
   virtual const uint8* GetData() const = 0;

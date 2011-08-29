@@ -8,6 +8,8 @@
 #ifndef MEDIA_BASE_MEDIA_H_
 #define MEDIA_BASE_MEDIA_H_
 
+#include "media/base/media_export.h"
+
 class FilePath;
 
 namespace media {
@@ -23,16 +25,16 @@ namespace media {
 // of the process.
 //
 // Returns true if everything was successfully initialized, false otherwise.
-bool InitializeMediaLibrary(const FilePath& module_dir);
+MEDIA_EXPORT bool InitializeMediaLibrary(const FilePath& module_dir);
 
 // Helper function for unit tests to avoid boiler plate code everywhere. This
 // function will crash if it fails to load the media library. This ensures tests
 // fail if the media library is not available.
-void InitializeMediaLibraryForTesting();
+MEDIA_EXPORT void InitializeMediaLibraryForTesting();
 
 // Use this if you need to check whether the media library is initialized
 // for the this process, without actually trying to initialize it.
-bool IsMediaLibraryInitialized();
+MEDIA_EXPORT bool IsMediaLibraryInitialized();
 
 // Attempts to initialize OpenMAX library.
 //

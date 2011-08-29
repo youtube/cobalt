@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define MEDIA_BASE_DJB2_H_
 
 #include "base/basictypes.h"
+#include "media/base/media_export.h"
 
 // DJB2 is a hash algorithm with excellent distribution and speed
 // on many different sets.
@@ -34,7 +35,7 @@ static const uint32 kDJB2HashSeed = 5381u;
 
 // For the given buffer of data, compute the DJB2 hash of
 // the data. You can call this any number of times during the computation.
-uint32 DJB2Hash(const void* buf, size_t len, uint32 seed);
+MEDIA_EXPORT uint32 DJB2Hash(const void* buf, size_t len, uint32 seed);
 
 #endif  // MEDIA_BASE_DJB2_H_
 

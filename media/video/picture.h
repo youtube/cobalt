@@ -6,13 +6,14 @@
 #define MEDIA_VIDEO_PICTURE_H_
 
 #include "base/basictypes.h"
+#include "media/base/media_export.h"
 #include "ui/gfx/size.h"
 
 namespace media {
 
 // A picture buffer that is composed of a GLES2 texture.
 // This is the media-namespace equivalent of PP_PictureBuffer_Dev.
-class PictureBuffer {
+class MEDIA_EXPORT PictureBuffer {
  public:
   PictureBuffer(int32 id, gfx::Size size, uint32 texture_id);
 
@@ -41,7 +42,7 @@ class PictureBuffer {
 
 // A decoded picture frame.
 // This is the media-namespace equivalent of PP_Picture_Dev.
-class Picture {
+class MEDIA_EXPORT Picture {
  public:
   Picture(int32 picture_buffer_id, int32 bitstream_buffer_id);
 

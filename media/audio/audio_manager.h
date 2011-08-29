@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,7 @@ class MessageLoop;
 // Manages all audio resources. In particular it owns the AudioOutputStream
 // objects. Provides some convenience functions that avoid the need to provide
 // iterators over the existing streams.
-class AudioManager {
+class MEDIA_EXPORT AudioManager {
  public:
   // Returns true if the OS reports existence of audio devices. This does not
   // guarantee that the existing devices support all formats and sample rates.
