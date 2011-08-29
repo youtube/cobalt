@@ -4,6 +4,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/test/test_timeouts.h"
 #include "base/threading/thread.h"
 #include "media/video/capture/fake_video_capture_device.h"
 #include "media/video/capture/video_capture_device.h"
@@ -16,7 +17,6 @@ using ::testing::Return;
 using ::testing::AtLeast;
 
 namespace media {
-const int kWaitTime = 3000;
 
 class MockFrameObserver: public media::VideoCaptureDevice::EventHandler {
  public:
@@ -69,9 +69,10 @@ TEST_F(VideoCaptureDeviceTest, OpenInvalidDevice) {
   EXPECT_TRUE(device == NULL);
 }
 
-TEST_F(VideoCaptureDeviceTest, CaptureVGA) {
+// TODO(perkj): This test is disabled due to stability problem with certain
+// cameras. http://www.crbug.com/94134
+TEST_F(VideoCaptureDeviceTest, DISABLED_CaptureVGA) {
   VideoCaptureDevice::GetDeviceNames(&names_);
-    // Make sure there are more than 0 cameras.
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
     return;
@@ -91,15 +92,16 @@ TEST_F(VideoCaptureDeviceTest, CaptureVGA) {
   device->Allocate(640, 480, 30, frame_observer_.get());
   device->Start();
   // Wait for 3s or for captured frame.
-  EXPECT_TRUE(wait_event_.TimedWait(
-      base::TimeDelta::FromMilliseconds(kWaitTime)));
+  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
+      TestTimeouts::action_max_timeout_ms())));
   device->Stop();
   device->DeAllocate();
 }
 
-TEST_F(VideoCaptureDeviceTest, Capture720p) {
+// TODO(perkj): This test is disabled due to stability problem with certain
+// cameras. http://www.crbug.com/94134
+TEST_F(VideoCaptureDeviceTest, DISABLED_Capture720p) {
   VideoCaptureDevice::GetDeviceNames(&names_);
-    // Make sure there are more than 0 cameras.
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
     return;
@@ -121,13 +123,15 @@ TEST_F(VideoCaptureDeviceTest, Capture720p) {
   device->Allocate(1280, 720, 30, frame_observer_.get());
   device->Start();
   // Get captured video frames.
-  EXPECT_TRUE(wait_event_.TimedWait(
-      base::TimeDelta::FromMilliseconds(kWaitTime)));
+  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
+      TestTimeouts::action_max_timeout_ms())));
   device->Stop();
   device->DeAllocate();
 }
 
-TEST_F(VideoCaptureDeviceTest, AllocateSameCameraTwice) {
+// TODO(perkj): This test is disabled due to stability problem with certain
+// cameras. http://www.crbug.com/94134
+TEST_F(VideoCaptureDeviceTest, DISABLED_AllocateSameCameraTwice) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -154,7 +158,9 @@ TEST_F(VideoCaptureDeviceTest, AllocateSameCameraTwice) {
   device2->DeAllocate();
 }
 
-TEST_F(VideoCaptureDeviceTest, AllocateBadSize) {
+// TODO(perkj): This test is disabled due to stability problem with certain
+// cameras. http://www.crbug.com/94134
+TEST_F(VideoCaptureDeviceTest, DISABLED_AllocateBadSize) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -175,7 +181,9 @@ TEST_F(VideoCaptureDeviceTest, AllocateBadSize) {
   device->DeAllocate();
 }
 
-TEST_F(VideoCaptureDeviceTest, ReAllocateCamera) {
+// TODO(perkj): This test is disabled due to stability problem with certain
+// cameras. http://www.crbug.com/94134
+TEST_F(VideoCaptureDeviceTest, DISABLED_ReAllocateCamera) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -201,13 +209,15 @@ TEST_F(VideoCaptureDeviceTest, ReAllocateCamera) {
 
   device->Start();
   // Get captured video frames.
-  EXPECT_TRUE(wait_event_.TimedWait(
-      base::TimeDelta::FromMilliseconds(kWaitTime)));
+  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
+      TestTimeouts::action_max_timeout_ms())));
   device->Stop();
   device->DeAllocate();
 }
 
-TEST_F(VideoCaptureDeviceTest, DeAllocateCameraWhileRunning) {
+// TODO(perkj): This test is disabled due to stability problem with certain
+// cameras. http://www.crbug.com/94134
+TEST_F(VideoCaptureDeviceTest, DISABLED_DeAllocateCameraWhileRunning) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -226,8 +236,8 @@ TEST_F(VideoCaptureDeviceTest, DeAllocateCameraWhileRunning) {
 
   device->Start();
   // Get captured video frames.
-  EXPECT_TRUE(wait_event_.TimedWait(
-      base::TimeDelta::FromMilliseconds(kWaitTime)));
+  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
+      TestTimeouts::action_max_timeout_ms())));
   device->DeAllocate();
 }
 
@@ -252,8 +262,8 @@ TEST_F(VideoCaptureDeviceTest, TestFakeCapture) {
   device->Allocate(640, 480, 30, frame_observer_.get());
 
   device->Start();
-  EXPECT_TRUE(wait_event_.TimedWait(
-      base::TimeDelta::FromMilliseconds(kWaitTime)));
+  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
+      TestTimeouts::action_max_timeout_ms())));
   device->Stop();
   device->DeAllocate();
 }
