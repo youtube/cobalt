@@ -57,7 +57,7 @@ void SetUIMode() {
 }
 
 // Looks into Shared File Lists corresponding to Login Items for the item
-// representing the current application. If such an item is found, returns a
+// representing the current application.  If such an item is found, returns a
 // retained reference to it. Caller is responsible for releasing the reference.
 LSSharedFileListItemRef GetLoginItemForApp() {
   ScopedCFTypeRef<LSSharedFileListRef> login_items(LSSharedFileListCreate(
