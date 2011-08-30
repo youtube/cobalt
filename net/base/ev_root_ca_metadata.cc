@@ -89,13 +89,6 @@ static const EVMetadata ev_root_ca_metadata[] = {
         0x4c, 0x9a, 0xe6, 0xd3, 0x8f, 0x1a, 0x61, 0xc7, 0xdc, 0x25 } },
     {"2.16.840.1.114412.2.1", NULL},
   },
-  // DigiNotar Root CA
-  // https://www.evssl.nl
-  // https://www.polisdirect.nl
-  { { { 0xc0, 0x60, 0xed, 0x44, 0xcb, 0xd8, 0x81, 0xbd, 0x0e, 0xf8,
-        0x6c, 0x0b, 0xa2, 0x87, 0xdd, 0xcf, 0x81, 0x67, 0x47, 0x8c } },
-    {"2.16.528.1.1001.1.1.1.12.6.1.1.1", NULL},
-  },
   // Entrust.net Secure Server Certification Authority
   // https://www.entrust.net/
   { { { 0x99, 0xa6, 0x9b, 0xe6, 0x1a, 0xfe, 0x88, 0x6b, 0x4d, 0x2b,
@@ -283,7 +276,6 @@ const EVRootCAMetadata::PolicyOID EVRootCAMetadata::policy_oids_[] = {
   "1.3.6.1.4.1.6449.1.2.1.5.1",
   "1.3.6.1.4.1.782.1.2.1.8.1",
   "1.3.6.1.4.1.8024.0.2.100.1.2",
-  "2.16.528.1.1001.1.1.1.12.6.1.1.1",
   "2.16.756.1.89.1.2.1.1",
   "2.16.840.1.113733.1.7.23.6",
   "2.16.840.1.113733.1.7.48.1",

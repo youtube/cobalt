@@ -591,7 +591,13 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
 
   int rv = VerifyInternal(hostname, flags, verify_result);
 
-  // If needed, do any post-validation here.
+  // This check is done after VerifyInternal so that VerifyInternal can fill in
+  // the list of public key hashes.
+  if (IsPublicKeyBlacklisted(verify_result->public_key_hashes)) {
+    verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
+    rv = MapCertStatusToNetError(verify_result->cert_status);
+  }
+
   return rv;
 }
 
@@ -682,6 +688,27 @@ bool X509Certificate::IsBlacklisted() const {
         UMA_HISTOGRAM_ENUMERATION("Net.SSLCertBlacklisted", i, kNumSerials);
         return true;
       }
+    }
+  }
+
+  return false;
+}
+
+// static
+bool X509Certificate::IsPublicKeyBlacklisted(
+    const std::vector<SHA1Fingerprint>& public_key_hashes) {
+  static const unsigned kNumHashes = 1;
+  static const uint8 kHashes[kNumHashes][base::SHA1_LENGTH] = {
+    // CN=DigiNotar Root CA
+    {0x41, 0x0f, 0x36, 0x36, 0x32, 0x58, 0xf3, 0x0b, 0x34, 0x7d,
+     0x12, 0xce, 0x48, 0x63, 0xe4, 0x33, 0x43, 0x78, 0x06, 0xa8},
+  };
+
+  for (unsigned i = 0; i < kNumHashes; i++) {
+    for (std::vector<SHA1Fingerprint>::const_iterator
+         j = public_key_hashes.begin(); j != public_key_hashes.end(); ++j) {
+      if (memcmp(j->data, kHashes[i], base::SHA1_LENGTH) == 0)
+        return true;
     }
   }
 
