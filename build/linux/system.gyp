@@ -31,6 +31,7 @@
     {
       'target_name': 'gtk',
       'type': 'settings',
+      'toolsets': ['host', 'target'],
       'conditions': [
         ['_toolset=="target"', {
           'direct_dependent_settings': {
@@ -46,12 +47,27 @@
               '<!@(<(pkg-config) --libs-only-l gtk+-2.0 gthread-2.0)',
             ],
           },
-      }],
-      [ 'chromeos==1', {
-        'link_settings': {
-          'libraries': [ '-lXtst' ]
-        }
-      }]]
+        }, {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(pkg-config --cflags gtk+-2.0 gthread-2.0)',
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(pkg-config --libs-only-L --libs-only-other gtk+-2.0 gthread-2.0)',
+            ],
+            'libraries': [
+              '<!@(pkg-config --libs-only-l gtk+-2.0 gthread-2.0)',
+            ],
+          },
+        }],
+        ['chromeos==1', {
+          'link_settings': {
+            'libraries': [ '-lXtst' ]
+          }
+        }],
+      ],
     },
     {
       'target_name': 'gtkprint',
@@ -71,7 +87,8 @@
               '<!@(<(pkg-config) --libs-only-l gtk+-unix-print-2.0)',
             ],
           },
-      }]]
+        }],
+      ],
     },
     {
       'target_name': 'ssl',
@@ -148,7 +165,8 @@
               '<!@(<(pkg-config) --libs-only-l freetype2)',
             ],
           },
-      }]]
+        }],
+      ],
     },
     {
       'target_name': 'fontconfig',
@@ -168,7 +186,8 @@
               '<!@(<(pkg-config) --libs-only-l fontconfig)',
             ],
           },
-      }]]
+        }],
+      ],
     },
     {
       'target_name': 'gdk',
@@ -188,7 +207,8 @@
               '<!@(<(pkg-config) --libs-only-l gdk-2.0)',
             ],
           },
-      }]]
+        }],
+      ],
     },
     {
       'target_name': 'gconf',
@@ -211,7 +231,8 @@
               '<!@(<(pkg-config) --libs-only-l gconf-2.0)',
             ],
           },
-      }]]
+        }],
+      ],
     },
     {
       'target_name': 'gio',
@@ -246,11 +267,13 @@
               }],
             ],
           },
-      }]]
+        }],
+      ],
     },
     {
       'target_name': 'x11',
       'type': 'settings',
+      'toolsets': ['host', 'target'],
       'conditions': [
         ['_toolset=="target"', {
           'direct_dependent_settings': {
@@ -266,7 +289,21 @@
               '<!@(<(pkg-config) --libs-only-l x11 xi)',
             ],
           },
-      }],
+        }, {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(pkg-config --cflags x11)',
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(pkg-config --libs-only-L --libs-only-other x11 xi)',
+            ],
+            'libraries': [
+              '<!@(pkg-config --libs-only-l x11 xi)',
+            ],
+          },
+        }],
       ],
     },
     {
@@ -287,7 +324,8 @@
               '<!@(<(pkg-config) --libs-only-l xext)',
             ],
           },
-      }]]
+        }],
+      ],
     },
     {
       'target_name': 'libgcrypt',
@@ -304,7 +342,8 @@
               '<!@(libgcrypt-config --libs)',
             ],
           },
-      }]]
+        }],
+      ],
     },
     {
       'target_name': 'selinux',
@@ -316,7 +355,8 @@
               '-lselinux',
             ],
           },
-      }]]
+        }],
+      ],
     },
     {
       'target_name': 'gnome_keyring',
