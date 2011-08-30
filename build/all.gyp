@@ -292,6 +292,7 @@
       'type': 'none',
       'dependencies': [
         '../chrome/chrome.gyp:gpu_tests',
+        '../chrome/chrome.gyp:performance_ui_tests',
         '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:DumpRenderTree',
       ],
     }, # target_name: chromium_gpu_builder
