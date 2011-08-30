@@ -521,6 +521,36 @@ TEST(X509CertificateTest, DISABLED_GlobalSignR3EVTest) {
     EXPECT_EQ(ERR_CERT_DATE_INVALID, error);
 }
 
+// Test for bug 94673.
+TEST(X509CertificateTest, GoogleDigiNotarTest) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> server_cert =
+      ImportCertFromFile(certs_dir, "google_diginotar.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), server_cert);
+
+  scoped_refptr<X509Certificate> intermediate_cert =
+      ImportCertFromFile(certs_dir, "diginotar_public_ca_2025.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
+                                        intermediates);
+
+  CertVerifyResult verify_result;
+  int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED;
+  int error = cert_chain->Verify("mail.google.com", flags, &verify_result);
+  EXPECT_NE(OK, error);
+
+  // Now turn off revocation checking.  Certificate verification should still
+  // fail.
+  flags = 0;
+  error = cert_chain->Verify("mail.google.com", flags, &verify_result);
+  EXPECT_NE(OK, error);
+}
+
 TEST(X509CertificateTest, TestKnownRoot) {
   FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> cert =

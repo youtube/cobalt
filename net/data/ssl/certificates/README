@@ -47,3 +47,7 @@ unit tests.
     the correctly ordered, filtered certificate chain is returned during
     verification, regardless of the order in which the intermediate/root CA
     certificates are provided.
+
+- google_diginotar.pem
+- diginotar_public_ca_2025.pem : A certificate chain for the regression test
+      of http://crbug.com/94673
