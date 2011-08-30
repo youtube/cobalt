@@ -4,8 +4,21 @@
 
 #include "base/debug/stack_trace.h"
 
+#include "base/basictypes.h"
+
+#include <string.h>
+
+#include <algorithm>
+
 namespace base {
 namespace debug {
+
+StackTrace::StackTrace(const void* const* trace, size_t count) {
+  count = std::min(count, arraysize(trace_));
+  if (count)
+    memcpy(trace_, trace, count * sizeof(trace_[0]));
+  count_ = static_cast<int>(count);
+}
 
 StackTrace::~StackTrace() {
 }
