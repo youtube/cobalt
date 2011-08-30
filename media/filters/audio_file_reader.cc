@@ -90,7 +90,15 @@ bool AudioFileReader::Open() {
       return false;
     }
 
-    result = av_seek_frame(format_context_, 0, 0, 0);
+    if ((result = av_seek_frame(format_context_, 0, 0, 0)) < 0) {
+      DLOG(WARNING) << "AudioFileReader::Open() : could not seek frame -"
+          << " result: " << result;
+      return false;
+    }
+  } else {
+      DLOG(WARNING) << "AudioFileReader::Open() : could not find codec -"
+          << " result: " << result;
+      return false;
   }
 
   return true;
@@ -116,8 +124,8 @@ bool AudioFileReader::Read(const std::vector<float*>& audio_data,
   if (audio_data.size() != channels)
     return false;
 
-  DCHECK(format_context_ && codec_context_);
-  if (!format_context_ || !codec_context_) {
+  DCHECK(format_context_ && codec_context_ && codec_);
+  if (!format_context_ || !codec_context_ || !codec_) {
     DLOG(WARNING) << "AudioFileReader::Read() : reader is not opened!";
     return false;
   }
