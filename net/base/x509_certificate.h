@@ -428,6 +428,11 @@ class NET_EXPORT X509Certificate
   // IsBlacklisted returns true if this certificate is explicitly blacklisted.
   bool IsBlacklisted() const;
 
+  // IsPublicKeyBlacklisted returns true iff one of |public_key_hashes| (which
+  // are SHA1 hashes of SubjectPublicKeyInfo structures) is explicitly blocked.
+  static bool IsPublicKeyBlacklisted(
+      const std::vector<SHA1Fingerprint>& public_key_hashes);
+
   // IsSHA1HashInSortedArray returns true iff |hash| is in |array|, a sorted
   // array of SHA1 hashes.
   static bool IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
