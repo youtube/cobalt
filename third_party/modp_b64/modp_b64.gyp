@@ -7,6 +7,7 @@
     {
       'target_name': 'modp_b64',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'sources': [
         'modp_b64.cc',
         'modp_b64.h',
