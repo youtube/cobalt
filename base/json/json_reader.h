@@ -24,9 +24,6 @@
 // TODO(tc): Add a parsing option to to relax object keys being wrapped in
 //   double quotes
 // TODO(tc): Add an option to disable comment stripping
-// TODO(aa): Consider making the constructor public and the static Read() method
-// only a convenience for the common uses with more complex configuration going
-// on the instance.
 
 #ifndef BASE_JSON_JSON_READER_H_
 #define BASE_JSON_JSON_READER_H_
