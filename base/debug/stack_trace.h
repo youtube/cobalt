@@ -26,6 +26,11 @@ class BASE_EXPORT StackTrace {
   // Creates a stacktrace from the current location.
   StackTrace();
 
+  // Creates a stacktrace from an existing array of instruction
+  // pointers (such as returned by Addresses()).  |count| will be
+  // trimmed to |kMaxTraces|.
+  StackTrace(const void* const* trace, size_t count);
+
 #if defined(OS_WIN)
   // Creates a stacktrace for an exception.
   // Note: this function will throw an import not found (StackWalk64) exception
