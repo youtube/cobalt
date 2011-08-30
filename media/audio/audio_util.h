@@ -62,12 +62,12 @@ MEDIA_EXPORT bool FoldChannels(void* buf,
 // puts it in the floating point |destination|.
 // It returns |true| on success, or |false| if the |sample_fmt| is
 // not recognized.
-bool DeinterleaveAudioChannel(void* source,
-                              float* destination,
-                              int channels,
-                              int channel_index,
-                              int bytes_per_sample,
-                              size_t number_of_frames);
+MEDIA_EXPORT bool DeinterleaveAudioChannel(void* source,
+                                           float* destination,
+                                           int channels,
+                                           int channel_index,
+                                           int bytes_per_sample,
+                                           size_t number_of_frames);
 
 // InterleaveFloatToInt16 scales, clips, and interleaves the planar
 // floating-point audio contained in |source| to the int16 |destination|.
