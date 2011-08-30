@@ -17,7 +17,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
-#if defined(DLOPEN_KERBEROS)
 // These are defined for the GSSAPI library:
 // Paraphrasing the comments from gssapi.h:
 // "The implementation must reserve static storage for a
@@ -63,7 +62,6 @@ gss_OID GSS_C_NT_HOSTBASED_SERVICE_X = &GSS_C_NT_HOSTBASED_SERVICE_X_VAL;
 gss_OID GSS_C_NT_HOSTBASED_SERVICE = &GSS_C_NT_HOSTBASED_SERVICE_VAL;
 gss_OID GSS_C_NT_ANONYMOUS = &GSS_C_NT_ANONYMOUS_VAL;
 gss_OID GSS_C_NT_EXPORT_NAME = &GSS_C_NT_EXPORT_NAME_VAL;
-#endif  // defined(DLOPEN_KERBEROS)
 
 namespace net {
 
