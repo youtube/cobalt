@@ -464,4 +464,147 @@ TEST_F(ChunkDemuxerTest, TestNetworkErrorEndOfStream) {
   demuxer_->EndOfStream(PIPELINE_ERROR_NETWORK);
 }
 
+// Helper class to reduce duplicate code when testing end of stream
+// Read() behavior.
+class EndOfStreamHelper {
+ public:
+  EndOfStreamHelper(const scoped_refptr<Demuxer> demuxer)
+      : demuxer_(demuxer),
+        audio_read_done_(false),
+        video_read_done_(false) {
+  }
+
+  // Request a read on the audio and video streams.
+  void RequestReads() {
+    EXPECT_FALSE(audio_read_done_);
+    EXPECT_FALSE(video_read_done_);
+
+    scoped_refptr<DemuxerStream> audio =
+        demuxer_->GetStream(DemuxerStream::AUDIO);
+    scoped_refptr<DemuxerStream> video =
+        demuxer_->GetStream(DemuxerStream::VIDEO);
+
+    audio->Read(base::Bind(&OnEndOfStreamReadDone,
+                           &audio_read_done_));
+
+    video->Read(base::Bind(&OnEndOfStreamReadDone,
+                           &video_read_done_));
+  }
+
+  // Check to see if |audio_read_done_| and |video_read_done_| variables
+  // match |expected|.
+  void CheckIfReadDonesWereCalled(bool expected) {
+    EXPECT_EQ(expected, audio_read_done_);
+    EXPECT_EQ(expected, video_read_done_);
+  }
+
+ private:
+  static void OnEndOfStreamReadDone(bool* called, Buffer* buffer) {
+    EXPECT_TRUE(buffer->IsEndOfStream());
+    *called = true;
+  }
+
+  scoped_refptr<Demuxer> demuxer_;
+  bool audio_read_done_;
+  bool video_read_done_;
+
+  DISALLOW_COPY_AND_ASSIGN(EndOfStreamHelper);
+};
+
+// Make sure that all pending reads that we don't have media data for get an
+// "end of stream" buffer when EndOfStream() is called.
+TEST_F(ChunkDemuxerTest, TestEndOfStreamWithPendingReads) {
+  InitDemuxer(true, true);
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  bool audio_read_done_1 = false;
+  bool video_read_done_1 = false;
+  EndOfStreamHelper end_of_stream_helper_1(demuxer_);
+  EndOfStreamHelper end_of_stream_helper_2(demuxer_);
+
+  audio->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(32),
+                         &audio_read_done_1));
+
+  video->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(123),
+                         &video_read_done_1));
+
+  end_of_stream_helper_1.RequestReads();
+  end_of_stream_helper_2.RequestReads();
+
+  ClusterBuilder cb;
+  cb.SetClusterTimecode(0);
+  AddSimpleBlock(&cb, kAudioTrackNum, 32);
+  AddSimpleBlock(&cb, kVideoTrackNum, 123);
+  scoped_ptr<Cluster> cluster(cb.Finish());
+
+  AppendData(cluster->data(), cluster->size());
+
+  EXPECT_TRUE(audio_read_done_1);
+  EXPECT_TRUE(video_read_done_1);
+  end_of_stream_helper_1.CheckIfReadDonesWereCalled(false);
+  end_of_stream_helper_2.CheckIfReadDonesWereCalled(false);
+
+  demuxer_->EndOfStream(PIPELINE_OK);
+
+  end_of_stream_helper_1.CheckIfReadDonesWereCalled(true);
+  end_of_stream_helper_2.CheckIfReadDonesWereCalled(true);
+}
+
+// Make sure that all Read() calls after we get an EndOfStream()
+// call return an "end of stream" buffer.
+TEST_F(ChunkDemuxerTest, TestReadsAfterEndOfStream) {
+  InitDemuxer(true, true);
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  bool audio_read_done_1 = false;
+  bool video_read_done_1 = false;
+  EndOfStreamHelper end_of_stream_helper_1(demuxer_);
+  EndOfStreamHelper end_of_stream_helper_2(demuxer_);
+  EndOfStreamHelper end_of_stream_helper_3(demuxer_);
+
+  audio->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(32),
+                         &audio_read_done_1));
+
+  video->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(123),
+                         &video_read_done_1));
+
+  end_of_stream_helper_1.RequestReads();
+
+  ClusterBuilder cb;
+  cb.SetClusterTimecode(0);
+  AddSimpleBlock(&cb, kAudioTrackNum, 32);
+  AddSimpleBlock(&cb, kVideoTrackNum, 123);
+  scoped_ptr<Cluster> cluster(cb.Finish());
+
+  AppendData(cluster->data(), cluster->size());
+
+  EXPECT_TRUE(audio_read_done_1);
+  EXPECT_TRUE(video_read_done_1);
+  end_of_stream_helper_1.CheckIfReadDonesWereCalled(false);
+
+  demuxer_->EndOfStream(PIPELINE_OK);
+
+  end_of_stream_helper_1.CheckIfReadDonesWereCalled(true);
+
+  // Request a few more reads and make sure we immediately get
+  // end of stream buffers.
+  end_of_stream_helper_2.RequestReads();
+  end_of_stream_helper_2.CheckIfReadDonesWereCalled(true);
+
+  end_of_stream_helper_3.RequestReads();
+  end_of_stream_helper_3.CheckIfReadDonesWereCalled(true);
+}
+
 }  // namespace media
