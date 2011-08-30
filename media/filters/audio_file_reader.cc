@@ -96,9 +96,9 @@ bool AudioFileReader::Open() {
       return false;
     }
   } else {
-      DLOG(WARNING) << "AudioFileReader::Open() : could not find codec -"
-          << " result: " << result;
-      return false;
+    DLOG(WARNING) << "AudioFileReader::Open() : could not find codec -"
+        << " result: " << result;
+    return false;
   }
 
   return true;
