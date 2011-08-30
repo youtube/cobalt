@@ -91,6 +91,7 @@ class ChunkDemuxerStream : public DemuxerStream {
   ReadCBQueue read_cbs_;
   BufferQueue buffers_;
   bool shutdown_called_;
+  bool received_end_of_stream_;
 
   // Keeps track of the timestamp of the last buffer we have
   // added to |buffers_|. This is used to enforce buffers with strictly
@@ -104,6 +105,7 @@ ChunkDemuxerStream::ChunkDemuxerStream(Type type, AVStream* stream)
     : type_(type),
       av_stream_(stream),
       shutdown_called_(false),
+      received_end_of_stream_(false),
       last_buffer_timestamp_(kNoTimestamp) {
 }
 
@@ -113,6 +115,7 @@ void ChunkDemuxerStream::Flush() {
   VLOG(1) << "Flush()";
   base::AutoLock auto_lock(lock_);
   buffers_.clear();
+  received_end_of_stream_ = false;
   last_buffer_timestamp_ = kNoTimestamp;
 }
 
@@ -139,8 +142,21 @@ void ChunkDemuxerStream::AddBuffers(const BufferQueue& buffers) {
 
     for (BufferQueue::const_iterator itr = buffers.begin();
          itr != buffers.end(); itr++) {
+      // Make sure we aren't trying to add a buffer after we have received and
+      // "end of stream" buffer.
+      DCHECK(!received_end_of_stream_);
 
-      if (!(*itr)->IsEndOfStream()) {
+      if ((*itr)->IsEndOfStream()) {
+        received_end_of_stream_ = true;
+
+        // Push enough EOS buffers to satisfy outstanding Read() requests.
+        if (read_cbs_.size() > buffers_.size()) {
+          size_t pending_read_without_data = read_cbs_.size() - buffers_.size();
+          for (size_t i = 0; i <= pending_read_without_data; ++i) {
+            buffers_.push_back(*itr);
+          }
+        }
+      } else {
         base::TimeDelta current_ts = (*itr)->GetTimestamp();
         if (last_buffer_timestamp_ != kNoTimestamp) {
           DCHECK_GT(current_ts.ToInternalValue(),
@@ -148,9 +164,8 @@ void ChunkDemuxerStream::AddBuffers(const BufferQueue& buffers) {
         }
 
         last_buffer_timestamp_ = current_ts;
+        buffers_.push_back(*itr);
       }
-
-      buffers_.push_back(*itr);
     }
 
     while (!buffers_.empty() && !read_cbs_.empty()) {
@@ -230,7 +245,7 @@ void ChunkDemuxerStream::Read(const ReadCallback& read_callback) {
   {
     base::AutoLock auto_lock(lock_);
 
-    if (shutdown_called_) {
+    if (shutdown_called_ || (received_end_of_stream_ && buffers_.empty())) {
       buffer = CreateEOSBuffer();
     } else {
       if (buffers_.empty()) {
