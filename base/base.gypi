@@ -450,6 +450,7 @@
     {
       'target_name': 'base',
       'type': '<(component)',
+      'toolsets': ['host', 'target'],
       'variables': {
         'base_target': 1,
       },
@@ -666,6 +667,7 @@
         {
           'target_name': 'symbolize',
           'type': 'static_library',
+          'toolsets': ['host', 'target'],
           'variables': {
             'chromium_code': 0,
           },
@@ -691,6 +693,7 @@
         {
           'target_name': 'xdg_mime',
           'type': 'static_library',
+          'toolsets': ['host', 'target'],
           'variables': {
             'chromium_code': 0,
           },
