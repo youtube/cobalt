@@ -618,9 +618,6 @@
           'defines': [
             '<@(nacl_win64_defines)',
           ],
-          'sources': [
-            'i18n/icu_util_nacl_win64.cc',
-          ],
           'configurations': {
             'Common_Base': {
               'msvs_target_platform': 'x64',
@@ -636,7 +633,7 @@
         },
         {
           'target_name': 'base_i18n_nacl_win64',
-          'type': 'static_library',
+          'type': '<(component)',
           # TODO(gregoryd): direct_dependent_settings should be shared with the
           # 32-bit target, but it doesn't work due to a bug in gyp
           'direct_dependent_settings': {
@@ -646,6 +643,7 @@
           },
           'defines': [
             '<@(nacl_win64_defines)',
+            'BASE_I18N_IMPLEMENTATION',
           ],
           'include_dirs': [
             '..',
