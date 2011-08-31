@@ -103,7 +103,7 @@ chromeos_dev_list="libpulse-dev"
 # Packages need for development
 dev_list="apache2.2-bin bison fakeroot flex g++ gperf language-pack-fr
           libapache2-mod-php5 libasound2-dev libbz2-dev libcairo2-dev
-          libcups2-dev libdbus-glib-1-dev libgconf2-dev
+          libcups2-dev libdbus-glib-1-dev libelf-dev libgconf2-dev
           libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev libgnome-keyring-dev
           libgtk2.0-dev libjpeg62-dev libkrb5-dev libnspr4-dev libnss3-dev
           libpam0g-dev libsctp-dev libsqlite3-dev libxslt1-dev libxss-dev
