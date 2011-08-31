@@ -658,6 +658,8 @@ bool TransportSecurityState::IsPreloadedSTS(
     {20, true, "\005simon\007butcher\004name", true, 0 },
     {10, true, "\004linx\003net", true, 0 },
     {13, true, "\007dropcam\003com", true, 0 },
+    {30, true, "\010ebanking\014indovinabank\003com\002vn", true, 0 },
+    {13, false, "\007epoxate\003com", true, 0 },
 #if defined(OS_CHROMEOS)
     {13, false, "\007twitter\003com", true, 0 },
     {17, false, "\003www\007twitter\003com", true, 0 },
