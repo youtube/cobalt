@@ -109,7 +109,7 @@ dev_list="apache2.2-bin bison fakeroot flex g++ gperf language-pack-fr
           libpam0g-dev libsctp-dev libsqlite3-dev libxslt1-dev libxss-dev
           libxtst-dev mesa-common-dev msttcorefonts patch perl libwww-perl
           php5-cgi pkg-config python python-dev rpm subversion ttf-dejavu-core
-          ttf-kochi-gothic ttf-kochi-mincho wdiff libcurl4-gnutls-dev
+          ttf-kochi-gothic ttf-kochi-mincho wdiff ruby libcurl4-gnutls-dev
           ttf-indic-fonts ttf-thai-tlwg
           $chromeos_dev_list"
 
