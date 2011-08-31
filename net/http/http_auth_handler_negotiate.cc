@@ -182,6 +182,10 @@ bool HttpAuthHandlerNegotiate::AllowsDefaultCredentials() {
   return url_security_manager_->CanUseDefaultCredentials(origin_);
 }
 
+bool HttpAuthHandlerNegotiate::AllowsExplicitCredentials() {
+  return auth_system_.AllowsExplicitCredentials();
+}
+
 // The Negotiate challenge header looks like:
 //   WWW-Authenticate: NEGOTIATE auth-data
 bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {

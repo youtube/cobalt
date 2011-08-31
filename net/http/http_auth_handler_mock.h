@@ -75,14 +75,24 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
     connection_based_ = connection_based;
   }
 
+  void set_allows_default_credentials(bool allows_default_credentials) {
+    allows_default_credentials_ = allows_default_credentials;
+  }
+
+  void set_allows_explicit_credentials(bool allows_explicit_credentials) {
+    allows_explicit_credentials_ = allows_explicit_credentials;
+  }
+
   const GURL& request_url() const {
     return request_url_;
   }
 
   // HttpAuthHandler:
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge);
-  virtual bool NeedsIdentity();
+      HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
+  virtual bool NeedsIdentity() OVERRIDE;
+  virtual bool AllowsDefaultCredentials() OVERRIDE;
+  virtual bool AllowsExplicitCredentials() OVERRIDE;
 
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
@@ -106,6 +116,8 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   std::string* auth_token_;
   bool first_round_;
   bool connection_based_;
+  bool allows_default_credentials_;
+  bool allows_explicit_credentials_;
   GURL request_url_;
 };
 

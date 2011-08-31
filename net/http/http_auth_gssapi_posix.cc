@@ -674,6 +674,10 @@ bool HttpAuthGSSAPI::NeedsIdentity() const {
   return decoded_server_auth_token_.empty();
 }
 
+bool HttpAuthGSSAPI::AllowsExplicitCredentials() const {
+  return false;
+}
+
 void HttpAuthGSSAPI::Delegate() {
   can_delegate_ = true;
 }

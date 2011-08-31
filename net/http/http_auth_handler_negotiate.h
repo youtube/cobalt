@@ -108,9 +108,10 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
   // HttpAuthHandler:
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge);
-  virtual bool NeedsIdentity();
-  virtual bool AllowsDefaultCredentials();
+      HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
+  virtual bool NeedsIdentity() OVERRIDE;
+  virtual bool AllowsDefaultCredentials() OVERRIDE;
+  virtual bool AllowsExplicitCredentials() OVERRIDE;
 
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
