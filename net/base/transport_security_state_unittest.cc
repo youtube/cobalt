@@ -620,34 +620,48 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
                                       false));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "foo.cert.se",
-                                       false));
+                                      false));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "crypto.is",
                                       false));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "foo.crypto.is",
-                                       false));
+                                      false));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "simon.butcher.name",
                                       false));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "foo.simon.butcher.name",
-                                       false));
+                                      false));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "linx.net",
                                       false));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "foo.linx.net",
-                                       false));
+                                      false));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "dropcam.com",
                                       false));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "foo.dropcam.com",
+                                      false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "ebanking.indovinabank.com.vn",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "foo.ebanking.indovinabank.com.vn",
+                                      false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "epoxate.com",
+                                      false));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "foo.epoxate.com",
                                        false));
 }
 
