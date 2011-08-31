@@ -94,6 +94,15 @@ void AttachToConsole() {
   std::ios::sync_with_stdio();
 }
 
+void OnNoMemory() {
+  // Kill the process. This is important for security, since WebKit doesn't
+  // NULL-check many memory allocations. If a malloc fails, returns NULL, and
+  // the buffer is then used, it provides a handy mapping of memory starting at
+  // address 0 for an attacker to utilize.
+  __debugbreak();
+  _exit(1);
+}
+
 }  // namespace
 
 ProcessId GetCurrentProcId() {
@@ -820,6 +829,10 @@ bool EnableLowFragmentationHeap() {
 void EnableTerminationOnHeapCorruption() {
   // Ignore the result code. Supported on XP SP3 and Vista.
   HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
+}
+
+void EnableTerminationOnOutOfMemory() {
+  std::set_new_handler(&OnNoMemory);
 }
 
 bool EnableInProcessStackDumping() {

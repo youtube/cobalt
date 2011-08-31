@@ -697,15 +697,13 @@ BASE_EXPORT bool EnableLowFragmentationHeap();
 // overflow. Has no effect if the OS doesn't provide the necessary facility.
 BASE_EXPORT void EnableTerminationOnHeapCorruption();
 
-#if !defined(OS_WIN)
-// Turns on process termination if memory runs out. This is handled on Windows
-// inside RegisterInvalidParamHandler().
+// Turns on process termination if memory runs out.
 BASE_EXPORT void EnableTerminationOnOutOfMemory();
+
 #if defined(OS_MACOSX)
 // Exposed for testing.
 BASE_EXPORT malloc_zone_t* GetPurgeableZone();
 #endif  // defined(OS_MACOSX)
-#endif  // !defined(OS_WIN)
 
 // Enables stack dump to console output on exception and signals.
 // When enabled, the process will quit immediately. This is meant to be used in
