@@ -47,6 +47,9 @@ const int k64kEntriesStore = 240 * 1000 * 1000;
 const int kBaseTableLen = 64 * 1024;
 const int kDefaultCacheSize = 80 * 1024 * 1024;
 
+// Avoid trimming the cache for the first 5 minutes (10 timer ticks).
+const int kTrimDelay = 10;
+
 int DesiredIndexTableLen(int32 storage_size) {
   if (storage_size <= k64kEntriesStore)
     return kBaseTableLen;
@@ -366,7 +369,7 @@ BackendImpl::BackendImpl(const FilePath& path,
       block_files_(path),
       mask_(0),
       max_size_(0),
-      io_delay_(0),
+      up_ticks_(0),
       cache_type_(net::DISK_CACHE),
       uma_report_(0),
       user_flags_(0),
@@ -392,7 +395,7 @@ BackendImpl::BackendImpl(const FilePath& path,
       block_files_(path),
       mask_(mask),
       max_size_(0),
-      io_delay_(0),
+      up_ticks_(0),
       cache_type_(net::DISK_CACHE),
       uma_report_(0),
       user_flags_(kMask),
@@ -975,7 +978,8 @@ void BackendImpl::OnEntryDestroyBegin(Addr address) {
 
 void BackendImpl::OnEntryDestroyEnd() {
   DecreaseNumRefs();
-  if (data_->header.num_bytes > max_size_ && !read_only_)
+  if (data_->header.num_bytes > max_size_ && !read_only_ &&
+      (up_ticks_ > kTrimDelay || user_flags_ & disk_cache::kNoRandom))
     eviction_.TrimCache(false);
 }
 
@@ -1190,6 +1194,7 @@ void BackendImpl::OnStatsTimer() {
   CACHE_UMA(COUNTS, "ByteIORate", 0, byte_count_ / 1024);
   entry_count_ = 0;
   byte_count_ = 0;
+  up_ticks_++;
 
   if (!data_)
     first_timer_ = false;
