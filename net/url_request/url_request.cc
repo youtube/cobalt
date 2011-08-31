@@ -403,11 +403,17 @@ void URLRequest::Start() {
 
   // Only notify the delegate for the initial request.
   if (context_ && context_->network_delegate()) {
-    if (context_->network_delegate()->NotifyBeforeURLRequest(
-            this, &before_request_callback_, &delegate_redirect_url_) ==
-            net::ERR_IO_PENDING) {
-      SetBlockedOnDelegate();
-      return;  // paused
+    int error = context_->network_delegate()->NotifyBeforeURLRequest(
+        this, &before_request_callback_, &delegate_redirect_url_);
+    if (error != net::OK) {
+      if (error == net::ERR_IO_PENDING) {
+        // Paused on the delegate, will invoke |before_request_callback_| later.
+        SetBlockedOnDelegate();
+      } else {
+        // The delegate immediately returned some error code.
+        BeforeRequestComplete(error);
+      }
+      return;
     }
   }
 
@@ -420,7 +426,8 @@ void URLRequest::BeforeRequestComplete(int error) {
   DCHECK(!job_);
   DCHECK_NE(ERR_IO_PENDING, error);
 
-  SetUnblockedOnDelegate();
+  if (blocked_on_delegate_)
+    SetUnblockedOnDelegate();
   if (error != OK) {
     net_log_.AddEvent(NetLog::TYPE_CANCELLED,
         make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
