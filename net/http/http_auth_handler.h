@@ -135,6 +135,11 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   // TODO(cbentzel): Add a pointer to Firefox documentation about risk.
   virtual bool AllowsDefaultCredentials();
 
+  // Returns whether explicit credentials can be used with this handler.  If
+  // true the user may be prompted for credentials if an implicit identity
+  // cannot be determined.
+  virtual bool AllowsExplicitCredentials();
+
  protected:
   enum Property {
     ENCRYPTS_IDENTITY = 1 << 0,

@@ -316,53 +316,68 @@ int HttpAuthController::HandleAuthChallenge(
 
   bool can_send_auth = (target_ != HttpAuth::AUTH_SERVER ||
                         !do_not_send_server_auth);
-  if (!handler_.get() && can_send_auth) {
-    // Find the best authentication challenge that we support.
-    HttpAuth::ChooseBestChallenge(http_auth_handler_factory_,
-                                  headers, target_, auth_origin_,
-                                  disabled_schemes_, net_log,
-                                  &handler_);
-    if (handler_.get())
-      HistogramAuthEvent(handler_.get(), AUTH_EVENT_START);
-  }
 
-  if (!handler_.get()) {
-    if (establishing_tunnel) {
-      LOG(ERROR) << "Can't perform auth to the "
-                 << HttpAuth::GetAuthTargetString(target_) << " "
-                 << auth_origin_ << " when establishing a tunnel"
-                 << AuthChallengeLogMessage(headers.get());
-
-      // We are establishing a tunnel, we can't show the error page because an
-      // active network attacker could control its contents.  Instead, we just
-      // fail to establish the tunnel.
-      DCHECK(target_ == HttpAuth::AUTH_PROXY);
-      return ERR_PROXY_AUTH_UNSUPPORTED;
+  do {
+    if (!handler_.get() && can_send_auth) {
+      // Find the best authentication challenge that we support.
+      HttpAuth::ChooseBestChallenge(http_auth_handler_factory_,
+                                    headers, target_, auth_origin_,
+                                    disabled_schemes_, net_log,
+                                    &handler_);
+      if (handler_.get())
+        HistogramAuthEvent(handler_.get(), AUTH_EVENT_START);
     }
-    // We found no supported challenge -- let the transaction continue
-    // so we end up displaying the error page.
-    return OK;
-  }
 
-  if (handler_->NeedsIdentity()) {
-    // Pick a new auth identity to try, by looking to the URL and auth cache.
-    // If an identity to try is found, it is saved to identity_.
-    SelectNextAuthIdentityToTry();
-  } else {
-    // Proceed with the existing identity or a null identity.
-    identity_.invalid = false;
-  }
+    if (!handler_.get()) {
+      if (establishing_tunnel) {
+        LOG(ERROR) << "Can't perform auth to the "
+                   << HttpAuth::GetAuthTargetString(target_) << " "
+                   << auth_origin_ << " when establishing a tunnel"
+                   << AuthChallengeLogMessage(headers.get());
 
-  // From this point on, we are restartable.
+        // We are establishing a tunnel, we can't show the error page because an
+        // active network attacker could control its contents.  Instead, we just
+        // fail to establish the tunnel.
+        DCHECK(target_ == HttpAuth::AUTH_PROXY);
+        return ERR_PROXY_AUTH_UNSUPPORTED;
+      }
+      // We found no supported challenge -- let the transaction continue so we
+      // end up displaying the error page.
+      return OK;
+    }
 
-  if (identity_.invalid) {
-    // We have exhausted all identity possibilities, all we can do now is
-    // pass the challenge information back to the client.
-    PopulateAuthChallenge();
-  } else {
-    auth_info_ = NULL;
-  }
+    if (handler_->NeedsIdentity()) {
+      // Pick a new auth identity to try, by looking to the URL and auth cache.
+      // If an identity to try is found, it is saved to identity_.
+      SelectNextAuthIdentityToTry();
+    } else {
+      // Proceed with the existing identity or a null identity.
+      identity_.invalid = false;
+    }
 
+    // From this point on, we are restartable.
+
+    if (identity_.invalid) {
+      // We have exhausted all identity possibilities.
+      if (!handler_->AllowsExplicitCredentials()) {
+        // If the handler doesn't accept explicit credentials, then we need to
+        // choose a different auth scheme.
+        HistogramAuthEvent(handler_.get(), AUTH_EVENT_REJECT);
+        InvalidateCurrentHandler(INVALIDATE_HANDLER_AND_DISABLE_SCHEME);
+      } else {
+        // Pass the challenge information back to the client.
+        PopulateAuthChallenge();
+      }
+    } else {
+      auth_info_ = NULL;
+    }
+
+    // If we get here and we don't have a handler_, that's because we
+    // invalidated it due to not having any viable identities to use with it. Go
+    // back and try again.
+    // TODO(asanka): Instead we should create a priority list of
+    //     <handler,identity> and iterate through that.
+  } while(!handler_.get());
   return OK;
 }
 
@@ -419,9 +434,12 @@ bool HttpAuthController::HaveAuth() const {
 void HttpAuthController::InvalidateCurrentHandler(
     InvalidateHandlerAction action) {
   DCHECK(CalledOnValidThread());
+  DCHECK(handler_.get());
 
   if (action == INVALIDATE_HANDLER_AND_CACHED_CREDENTIALS)
     InvalidateRejectedAuthFromCache();
+  if (action == INVALIDATE_HANDLER_AND_DISABLE_SCHEME)
+    DisableAuthScheme(handler_->auth_scheme());
   handler_.reset();
   identity_ = HttpAuth::Identity();
 }

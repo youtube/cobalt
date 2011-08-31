@@ -234,6 +234,8 @@ class NET_EXPORT_PRIVATE HttpAuthGSSAPI {
 
   bool NeedsIdentity() const;
 
+  bool AllowsExplicitCredentials() const;
+
   HttpAuth::AuthorizationResult ParseChallenge(
       HttpAuth::ChallengeTokenizer* tok);
 
