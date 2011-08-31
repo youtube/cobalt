@@ -18,7 +18,9 @@ HttpAuthHandlerMock::HttpAuthHandlerMock()
     generate_async_(false), generate_rv_(OK),
     auth_token_(NULL),
     first_round_(true),
-    connection_based_(false) {
+    connection_based_(false),
+    allows_default_credentials_(false),
+    allows_explicit_credentials_(true) {
 }
 
 HttpAuthHandlerMock::~HttpAuthHandlerMock() {
@@ -73,7 +75,9 @@ void HttpAuthHandlerMock::SetGenerateExpectation(bool async, int rv) {
 
 HttpAuth::AuthorizationResult HttpAuthHandlerMock::HandleAnotherChallenge(
     HttpAuth::ChallengeTokenizer* challenge) {
-  if (!is_connection_based())
+  // If we receive an empty challenge for a connection based scheme, or a second
+  // challenge for a non connection based scheme, assume it's a rejection.
+  if (!is_connection_based() || challenge->base64_param().empty())
     return HttpAuth::AUTHORIZATION_RESULT_REJECT;
   if (!LowerCaseEqualsASCII(challenge->scheme(), "mock"))
     return HttpAuth::AUTHORIZATION_RESULT_INVALID;
@@ -82,6 +86,14 @@ HttpAuth::AuthorizationResult HttpAuthHandlerMock::HandleAnotherChallenge(
 
 bool HttpAuthHandlerMock::NeedsIdentity() {
   return first_round_;
+}
+
+bool HttpAuthHandlerMock::AllowsDefaultCredentials() {
+  return allows_default_credentials_;
+}
+
+bool HttpAuthHandlerMock::AllowsExplicitCredentials() {
+  return allows_explicit_credentials_;
 }
 
 bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {

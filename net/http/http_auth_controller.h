@@ -78,6 +78,7 @@ class NET_EXPORT_PRIVATE HttpAuthController
   // Actions for InvalidateCurrentHandler()
   enum InvalidateHandlerAction {
     INVALIDATE_HANDLER_AND_CACHED_CREDENTIALS,
+    INVALIDATE_HANDLER_AND_DISABLE_SCHEME,
     INVALIDATE_HANDLER
   };
 
