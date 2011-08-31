@@ -357,7 +357,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   int entry_count_;  // Number of entries accessed lately.
   int byte_count_;  // Number of bytes read/written lately.
   int buffer_bytes_;  // Total size of the temporary entries' buffers.
-  int io_delay_;  // Average time (ms) required to complete some IO operations.
+  int up_ticks_;  // The number of timer ticks received (OnStatsTimer).
   net::CacheType cache_type_;
   int uma_report_;  // Controls transmision of UMA data.
   uint32 user_flags_;  // Flags set by the user.
