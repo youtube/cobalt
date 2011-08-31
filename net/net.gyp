@@ -205,7 +205,6 @@
         'base/ssl_config_service_defaults.cc',
         'base/ssl_config_service_defaults.h',
         'base/ssl_false_start_blacklist.cc',
-        'base/ssl_false_start_blacklist.h',
         'base/ssl_info.cc',
         'base/ssl_info.h',
         'base/static_cookie_policy.cc',
@@ -1394,16 +1393,11 @@
       'target_name': 'ssl_false_start_blacklist_process',
       'type': 'executable',
       'toolsets': ['host'],
-      'dependencies': [
-        '../base/base.gyp:base',
-        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-      ],
       'include_dirs': [
         '..',
       ],
       'sources': [
         'base/ssl_false_start_blacklist_process.cc',
-        'base/ssl_false_start_blacklist.h',
       ],
     },
   ],
@@ -1418,7 +1412,7 @@
            ],
            'dependencies': [
              '../base/base.gyp:base',
-             'net',
+             'net.gyp:net',
              '../third_party/openssl/openssl.gyp:openssl',
            ],
            'sources': [
@@ -1480,7 +1474,7 @@
            'type': 'static_library',
            'dependencies': [
              '../base/base.gyp:base',
-             'net',
+             'net.gyp:net',
            ],
            'sources': [
              'curvecp/circular_buffer.cc',
@@ -1515,8 +1509,8 @@
            'type': 'executable',
            'dependencies': [
              '../base/base.gyp:base',
-             'curvecp',
-             'net',
+             'net.gyp:curvecp',
+             'net.gyp:net',
              'net_test_support',
              '../testing/gmock.gyp:gmock',
              '../testing/gtest.gyp:gtest',
