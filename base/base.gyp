@@ -12,9 +12,10 @@
   'targets': [
     {
       'target_name': 'base_i18n',
-      'type': 'static_library',
+      'type': '<(component)',
       'dependencies': [
         'base',
+        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
       ],
@@ -29,7 +30,11 @@
       'export_dependent_settings': [
         'base',
       ],
+      'defines': [
+        'BASE_I18N_IMPLEMENTATION',
+      ],
       'sources': [
+        'i18n/base_i18n_export.h',
         'i18n/bidi_line_iterator.cc',
         'i18n/bidi_line_iterator.h',
         'i18n/break_iterator.cc',
