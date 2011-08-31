@@ -123,9 +123,11 @@ void CheckSSLInfo(const SSLInfo& ssl_info) {
 class BlockingNetworkDelegate : public TestNetworkDelegate {
  public:
   BlockingNetworkDelegate()
-      : callback_retval_(net::OK),
+      : retval_(net::ERR_IO_PENDING),
+        callback_retval_(net::OK),
         ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
 
+  void set_retval(int retval) { retval_ = retval; }
   void set_callback_retval(int retval) { callback_retval_ = retval; }
   void set_redirect_url(const GURL& url) { redirect_url_ = url; }
 
@@ -143,6 +145,10 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
 
     if (!redirect_url_.is_empty())
       *new_url = redirect_url_;
+
+    if (retval_ != net::ERR_IO_PENDING)
+      return retval_;
+
     MessageLoop::current()->PostTask(
         FROM_HERE,
         method_factory_.NewRunnableMethod(&BlockingNetworkDelegate::DoCallback,
@@ -154,6 +160,7 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
     callback->Run(callback_retval_);
   }
 
+  int retval_;
   int callback_retval_;
   GURL redirect_url_;
   ScopedRunnableMethodFactory<BlockingNetworkDelegate> method_factory_;
@@ -322,6 +329,34 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequest) {
   TestDelegate d;
   BlockingNetworkDelegate network_delegate;
   network_delegate.set_callback_retval(ERR_EMPTY_RESPONSE);
+
+  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
+  context->SetProxyFromString(test_server_.host_port_pair().ToString());
+  context->set_network_delegate(&network_delegate);
+  context->Init();
+
+  {
+    TestURLRequest r(test_server_.GetURL(""), &d);
+    r.set_context(context);
+
+    r.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
+    EXPECT_EQ(ERR_EMPTY_RESPONSE, r.status().os_error());
+    EXPECT_EQ(1, network_delegate.created_requests());
+    EXPECT_EQ(0, network_delegate.destroyed_requests());
+  }
+  EXPECT_EQ(1, network_delegate.destroyed_requests());
+}
+
+// Tests that the network delegate can cancel a request synchronously.
+TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestSynchronously) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  BlockingNetworkDelegate network_delegate;
+  network_delegate.set_retval(ERR_EMPTY_RESPONSE);
 
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
   context->SetProxyFromString(test_server_.host_port_pair().ToString());
