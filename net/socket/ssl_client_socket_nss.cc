@@ -1568,9 +1568,10 @@ int SSLClientSocketNSS::ImportOBCertAndKey(CERTCertificate** cert,
       key_usage, key, NULL);
 
   if (rv != SECSuccess) {
-    delete *cert;
+    int error = MapNSSError(PORT_GetError());
+    CERT_DestroyCertificate(*cert);
     *cert = NULL;
-    return MapNSSError(PORT_GetError());
+    return error;
   }
 
   return OK;
