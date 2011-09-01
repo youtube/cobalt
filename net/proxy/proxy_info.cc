@@ -8,7 +8,7 @@
 
 namespace net {
 
-ProxyInfo::ProxyInfo() : config_id_(ProxyConfig::INVALID_ID) {
+ProxyInfo::ProxyInfo() : config_id_(ProxyConfig::kInvalidConfigID) {
 }
 
 ProxyInfo::~ProxyInfo() {
