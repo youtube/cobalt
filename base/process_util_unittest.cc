@@ -136,7 +136,14 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
   remove(kSignalFileSlow);
 }
 
-TEST_F(ProcessUtilTest, GetTerminationStatusExit) {
+// Times out on Linux.  http://crbug.com/95058
+#if defined(OS_LINUX)
+#define MAYBE_GetTerminationStatusExit DISABLED_GetTerminationStatusExit
+#else
+#define MAYBE_GetTerminationStatusExit GetTerminationStatusExit
+#endif
+
+TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusExit) {
   remove(kSignalFileSlow);
   base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
