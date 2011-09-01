@@ -147,6 +147,25 @@ bool ClosePlatformFile(PlatformFile file) {
 }
 
 int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
+  if (file < 0 || size < 0)
+    return -1;
+
+  int bytes_read = 0;
+  int rv;
+  do {
+    rv = HANDLE_EINTR(pread(file, data + bytes_read,
+                            size - bytes_read, offset + bytes_read));
+    if (rv <= 0)
+      break;
+
+    bytes_read += rv;
+  } while (bytes_read < size);
+
+  return bytes_read ? bytes_read : rv;
+}
+
+int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
+                                 char* data, int size) {
   if (file < 0)
     return -1;
 

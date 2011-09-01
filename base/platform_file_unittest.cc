@@ -13,24 +13,7 @@ namespace {
 // Reads from a file the given number of bytes, or until EOF is reached.
 // Returns the number of bytes read.
 int ReadFully(base::PlatformFile file, int64 offset, char* data, int size) {
-  int total_bytes_read = 0;
-  int bytes_read;
-  while (total_bytes_read < size) {
-    bytes_read = base::ReadPlatformFile(
-        file, offset + total_bytes_read, &data[total_bytes_read],
-        size - total_bytes_read);
-
-    // If we reached EOF, bytes_read will be 0.
-    if (bytes_read == 0)
-      return total_bytes_read;
-
-    if ((bytes_read < 0) || (bytes_read > size - total_bytes_read))
-      return -1;
-
-    total_bytes_read += bytes_read;
-  }
-
-  return total_bytes_read;
+  return base::ReadPlatformFile(file, offset, data, size);
 }
 
 // Writes the given number of bytes to a file.
@@ -189,6 +172,13 @@ TEST(PlatformFile, ReadWritePlatformFile) {
   // Read the entire file.
   bytes_read = ReadFully(file, 0, data_read_1, kTestDataSize);
   EXPECT_EQ(kTestDataSize, bytes_read);
+  for (int i = 0; i < bytes_read; i++)
+    EXPECT_EQ(data_to_write[i], data_read_1[i]);
+
+  // Read again, but using the trivial native wrapper.
+  bytes_read = base::ReadPlatformFileNoBestEffort(file, 0, data_read_1,
+                                                  kTestDataSize);
+  EXPECT_LE(bytes_read, kTestDataSize);
   for (int i = 0; i < bytes_read; i++)
     EXPECT_EQ(data_to_write[i], data_read_1[i]);
 
