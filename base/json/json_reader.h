@@ -64,12 +64,17 @@ class BASE_EXPORT JSONReader {
      END_OF_INPUT,
      INVALID_TOKEN,
     };
+
     Token(Type t, const wchar_t* b, int len)
-      : type(t), begin(b), length(len) {}
+        : type(t), begin(b), length(len) {}
 
     // Get the character that's one past the end of this token.
     wchar_t NextChar() {
       return *(begin + length);
+    }
+
+    static Token CreateInvalidToken() {
+      return Token(INVALID_TOKEN, 0, 0);
     }
 
     Type type;
