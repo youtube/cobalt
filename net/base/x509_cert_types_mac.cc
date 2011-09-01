@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,11 +36,7 @@ const CSSM_OID* kOIDs[] = {
 // BER DistinguishedName structure.
 
 struct KeyValuePair {
-  CSSM_OID key;
-  int value_type;
-  CSSM_DATA value;
-
-  enum {
+  enum ValueType {
     kTypeOther = 0,
     kTypePrintableString,
     kTypeIA5String,
@@ -49,6 +45,10 @@ struct KeyValuePair {
     kTypeBMPString,
     kTypeUniversalString,
   };
+
+  CSSM_OID key;
+  ValueType value_type;
+  CSSM_DATA value;
 };
 
 const SecAsn1Template kStringValueTemplate[] = {

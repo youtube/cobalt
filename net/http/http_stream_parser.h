@@ -94,16 +94,16 @@ class HttpStreamParser  : public ChunkCallback {
 
   // The number of bytes by which the header buffer is grown when it reaches
   // capacity.
-  enum { kHeaderBufInitialSize = 4096 };
+  static const int kHeaderBufInitialSize = 4 * 1024;  // 4K
 
   // |kMaxHeaderBufSize| is the number of bytes that the response headers can
   // grow to. If the body start is not found within this range of the
   // response, the transaction will fail with ERR_RESPONSE_HEADERS_TOO_BIG.
   // Note: |kMaxHeaderBufSize| should be a multiple of |kHeaderBufInitialSize|.
-  enum { kMaxHeaderBufSize = 256 * 1024 };  // 256 kilobytes.
+  static const int kMaxHeaderBufSize = kHeaderBufInitialSize * 64;  // 256K
 
   // The maximum sane buffer size.
-  enum { kMaxBufSize = 2 * 1024 * 1024 };  // 2 megabytes.
+  static const int kMaxBufSize = 2 * 1024 * 1024;  // 2M
 
   // Handle callbacks.
   void OnIOComplete(int result);
