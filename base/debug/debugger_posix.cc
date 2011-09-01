@@ -30,7 +30,7 @@
 #include <sys/sysctl.h>
 #endif
 
-#include <iostream>
+#include <ostream>
 
 #include "base/basictypes.h"
 #include "base/eintr_wrapper.h"

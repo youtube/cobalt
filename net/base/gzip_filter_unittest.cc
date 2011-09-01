@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include <fstream>
-#include <iostream>
+#include <ostream>
 
 #if defined(USE_SYSTEM_ZLIB)
 #include <zlib.h>
