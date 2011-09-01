@@ -134,6 +134,11 @@ int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
   return -1;
 }
 
+int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
+                                 char* data, int size) {
+  return ReadPlatformFile(file, offset, data, size);
+}
+
 int WritePlatformFile(PlatformFile file, int64 offset,
                       const char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
