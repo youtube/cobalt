@@ -445,6 +445,7 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "docs.google.com", true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "sites.google.com", true));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "drive.google.com", true));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "spreadsheets.google.com",
                                       true));
@@ -727,6 +728,7 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   EXPECT_TRUE(state->HasPinsForHost(&domain_state, "docs.google.com", true));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state, "1.docs.google.com", true));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state, "sites.google.com", true));
+  EXPECT_TRUE(state->HasPinsForHost(&domain_state, "drive.google.com", true));
   EXPECT_TRUE(state->HasPinsForHost(&domain_state,
                                     "spreadsheets.google.com",
                                     true));
