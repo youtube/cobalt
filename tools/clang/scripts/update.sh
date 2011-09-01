@@ -9,6 +9,7 @@ THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
 LLVM_BUILD_DIR="${LLVM_DIR}/../llvm-build"
 CLANG_DIR="${LLVM_DIR}/tools/clang"
+LLDB_DIR="${LLVM_DIR}/tools/lldb"
 DEPS_FILE="${THIS_DIR}/../../../DEPS"
 STAMP_FILE="${LLVM_BUILD_DIR}/cr_build_revision"
 
@@ -17,6 +18,24 @@ LLVM_REPO_URL=${LLVM_URL:-http://llvm.org/svn/llvm-project}
 
 # Die if any command dies.
 set -e
+
+# Parse command line options.
+use_lldb=
+while [[ $# > 0 ]]; do
+  case $1 in
+    --lldb)
+      use_lldb=yes
+      ;;
+    --help)
+      echo "usage: $0 [--lldb]"
+      echo "If --lldb is passed, check out lldb as well."
+      echo "(Once lldb is checked out once, it will implicitly be updated and"
+      echo "built on further updates.)"
+      exit 1
+      ;;
+  esac
+  shift
+done
 
 # Since people need to run this script anyway to compile clang, let it check out
 # clang as well if it's not in DEPS, so that people don't have to change their
@@ -72,6 +91,16 @@ if grep -q 'src/third_party/llvm/tools/clang":' "${DEPS_FILE}"; then
 else
   echo Getting clang r"${CLANG_REVISION}" in "${CLANG_DIR}"
   svn co --force "${LLVM_REPO_URL}/cfe/trunk@${CLANG_REVISION}" "${CLANG_DIR}"
+fi
+
+# Update lldb either if the flag is passed or we have a previous checkout.
+if [ -n "$use_lldb" -o -d "${LLDB_DIR}" ]; then
+  if grep -q 'src/third_party/llvm/tools/lldb":' "${DEPS_FILE}"; then
+    echo lldb pulled in through DEPS, skipping lldb update step
+  else
+    echo Getting lldb r"${CLANG_REVISION}" in "${LLDB_DIR}"
+    svn co --force "${LLVM_REPO_URL}/lldb/trunk@${CLANG_REVISION}" "${LLDB_DIR}"
+  fi
 fi
 
 # Echo all commands.
