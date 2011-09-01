@@ -110,7 +110,7 @@ class NET_EXPORT ProxyConfig {
   typedef int ID;
 
   // Indicates an invalid proxy config.
-  enum { INVALID_ID = 0 };
+  static const ID kInvalidConfigID = 0;
 
   ProxyConfig();
   ProxyConfig(const ProxyConfig& config);
@@ -120,7 +120,7 @@ class NET_EXPORT ProxyConfig {
   // Used to numerically identify this configuration.
   ID id() const { return id_; }
   void set_id(int id) { id_ = id; }
-  bool is_valid() const { return id_ != INVALID_ID; }
+  bool is_valid() const { return id_ != kInvalidConfigID; }
 
   // Returns true if the given config is equivalent to this config.
   bool Equals(const ProxyConfig& other) const;

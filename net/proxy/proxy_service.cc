@@ -308,7 +308,7 @@ class ProxyService::PacRequest
         results_(results),
         url_(url),
         resolve_job_(NULL),
-        config_id_(ProxyConfig::INVALID_ID),
+        config_id_(ProxyConfig::kInvalidConfigID),
         net_log_(net_log) {
     DCHECK(user_callback);
   }
@@ -375,7 +375,7 @@ class ProxyService::PacRequest
 
     // Reset the state associated with in-progress-resolve.
     resolve_job_ = NULL;
-    config_id_ = ProxyConfig::INVALID_ID;
+    config_id_ = ProxyConfig::kInvalidConfigID;
 
     return service_->DidFinishResolvingProxy(results_, result_code, net_log_);
   }
@@ -599,7 +599,7 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
   if (current_state_ != STATE_READY)
     return ERR_IO_PENDING;  // Still initializing.
 
-  DCHECK_NE(config_.id(), ProxyConfig::INVALID_ID);
+  DCHECK_NE(config_.id(), ProxyConfig::kInvalidConfigID);
 
   // If it was impossible to fetch or parse the PAC script, we cannot complete
   // the request here and bail out.
