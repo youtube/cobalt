@@ -25,6 +25,7 @@ struct Limits {
   // OGG vorbis was initially limited to 96 Khz, but recent tools are unlimited.
   // 192 Khz is also the limit on most PC audio hardware.
   static const int kMaxSampleRate = 192000;
+  static const int kMinSampleRate = 8000;
   static const int kMaxChannels = 32;
   static const int kMaxBitsPerSample = 64;
   static const int kMaxSamplesPerPacket = kMaxSampleRate;
