@@ -117,9 +117,18 @@ BASE_EXPORT PlatformFile CreatePlatformFile(const FilePath& name,
 BASE_EXPORT bool ClosePlatformFile(PlatformFile file);
 
 // Reads the given number of bytes (or until EOF is reached) starting with the
-// given offset. Returns the number of bytes read, or -1 on error.
+// given offset. Returns the number of bytes read, or -1 on error. Note that
+// this function makes a best effort to read all data on all platforms, so it is
+// not intended for stream oriented files but instead for cases when the normal
+// expectation is that actually |size| bytes are read unless there is an error.
 BASE_EXPORT int ReadPlatformFile(PlatformFile file, int64 offset,
                                  char* data, int size);
+
+// Reads the given number of bytes (or until EOF is reached) starting with the
+// given offset, but does not make any effort to read all data on all platforms.
+// Returns the number of bytes read, or -1 on error.
+BASE_EXPORT int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
+                                             char* data, int size);
 
 // Writes the given buffer into the file at the given offset, overwritting any
 // data that was previously there. Returns the number of bytes written, or -1
