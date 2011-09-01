@@ -200,6 +200,13 @@ BASE_EXPORT void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
 typedef std::vector<std::pair<std::string, std::string> > environment_vector;
 typedef std::vector<std::pair<int, int> > file_handle_mapping_vector;
 
+#if defined(OS_MACOSX)
+// Used with LaunchOptions::synchronize and LaunchSynchronize, a
+// LaunchSynchronizationHandle is an opaque value that LaunchProcess will
+// create and set, and that LaunchSynchronize will consume and destroy.
+typedef int* LaunchSynchronizationHandle;
+#endif  // defined(OS_MACOSX)
+
 // Options for launching a subprocess that are passed to LaunchProcess().
 // The default constructor constructs the object with default options.
 struct LaunchOptions {
@@ -208,8 +215,13 @@ struct LaunchOptions {
                     start_hidden(false), inherit_handles(false), as_user(NULL),
                     empty_desktop_name(false)
 #else
-                    environ(NULL), fds_to_remap(NULL), new_process_group(false),
-                    clone_flags(0)
+                    environ(NULL), fds_to_remap(NULL), new_process_group(false)
+#if defined(OS_LINUX)
+                  , clone_flags(0)
+#endif  // OS_LINUX
+#if defined(OS_MACOSX)
+                  , synchronize(NULL)
+#endif  // defined(OS_MACOSX)
 #endif  // !defined(OS_WIN)
       {}
 
@@ -251,9 +263,33 @@ struct LaunchOptions {
   // will be the same as its pid.
   bool new_process_group;
 
+#if defined(OS_LINUX)
   // If non-zero, start the process using clone(), using flags as provided.
   int clone_flags;
-#endif   // !defined(OS_WIN)
+#endif  // defined(OS_LINUX)
+
+#if defined(OS_MACOSX)
+  // When non-NULL, a new LaunchSynchronizationHandle will be created and
+  // stored in *synchronize whenever LaunchProcess returns true in the parent
+  // process. The child process will have been created (with fork) but will
+  // be waiting (before exec) for the parent to call LaunchSynchronize with
+  // this handle. Only when LaunchSynchronize is called will the child be
+  // permitted to continue execution and call exec. LaunchSynchronize
+  // destroys the handle created by LaunchProcess.
+  //
+  // When synchronize is non-NULL, the parent must call LaunchSynchronize
+  // whenever LaunchProcess returns true. No exceptions.
+  //
+  // Synchronization is useful when the parent process needs to guarantee that
+  // it can take some action (such as recording the newly-forked child's
+  // process ID) before the child does something (such as using its process ID
+  // to communicate with its parent).
+  //
+  // |synchronize| and |wait| must not both be set simultaneously.
+  LaunchSynchronizationHandle* synchronize;
+#endif  // defined(OS_MACOSX)
+
+#endif  // !defined(OS_WIN)
 };
 
 // Launch a process via the command line |cmdline|.
@@ -265,8 +301,11 @@ struct LaunchOptions {
 // Otherwise, the process handle will be implicitly closed.
 //
 // Unix-specific notes:
-// - Before launching, all FDs open in the parent process will be marked as
-//   close-on-exec.
+// - All file descriptors open in the parent process will be closed in the
+//   child process except for any preserved by options::fds_to_remap, and
+//   stdin, stdout, and stderr. If not remapped by options::fds_to_remap,
+//   stdin is reopened as /dev/null, and the child is allowed to inherit its
+//   parent's stdout and stderr.
 // - If the first argument on the command line does not contain a slash,
 //   PATH will be searched.  (See man execvp.)
 BASE_EXPORT bool LaunchProcess(const CommandLine& cmdline,
@@ -319,6 +358,15 @@ BASE_EXPORT bool LaunchProcess(const std::vector<std::string>& argv,
 // The returned array is allocated using new[] and must be freed by the caller.
 BASE_EXPORT char** AlterEnvironment(const environment_vector& changes,
                                     const char* const* const env);
+
+#if defined(OS_MACOSX)
+
+// After a successful call to LaunchProcess with LaunchOptions::synchronize
+// set, the parent process must call LaunchSynchronize to allow the child
+// process to proceed, and to destroy the LaunchSynchronizationHandle.
+BASE_EXPORT void LaunchSynchronize(LaunchSynchronizationHandle handle);
+
+#endif  // defined(OS_MACOSX)
 #endif  // defined(OS_POSIX)
 
 // Executes the application specified by |cl| and wait for it to exit. Stores
