@@ -1280,8 +1280,7 @@ std::string GetHeaderParamValue(const std::string& header,
 
 string16 IDNToUnicode(const std::string& host,
                       const std::string& languages) {
-  std::vector<size_t> offsets;
-  return IDNToUnicodeWithOffsets(host, languages, &offsets);
+  return IDNToUnicodeWithOffsets(host, languages, NULL);
 }
 
 std::string CanonicalizeHost(const std::string& host,
