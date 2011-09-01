@@ -782,7 +782,8 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   tp_action_data.Version = CSSM_APPLE_TP_ACTION_VERSION;
   // Allow CSSM to download any missing intermediate certificates if an
   // authorityInfoAccess extension or issuerAltName extension is present.
-  tp_action_data.ActionFlags = CSSM_TP_ACTION_FETCH_CERT_FROM_NET;
+  tp_action_data.ActionFlags = CSSM_TP_ACTION_FETCH_CERT_FROM_NET |
+                               CSSM_TP_ACTION_TRUST_SETTINGS;
 
   if (flags & VERIFY_REV_CHECKING_ENABLED) {
     // Require a positive result from an OCSP responder or a CRL (or both)
