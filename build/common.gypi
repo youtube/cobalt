@@ -1548,9 +1548,11 @@
               '-Wno-unused-function',
               # Don't die on dtoa code that uses a char as an array index.
               '-Wno-char-subscripts',
-              # Survive EXPECT_EQ(unnamed_enum, unsigned int) -- see
-              # http://code.google.com/p/googletest/source/detail?r=446 .
-              # TODO(thakis): Use -isystem instead (http://crbug.com/58751 )
+              # Especially needed for gtest macros using enum values from Mac
+              # system headers.
+              # TODO(pkasting): In C++11 this is legal, so this should be
+              # removed when we change to that.  (This is also why we don't
+              # bother fixing all these cases today.)
               '-Wno-unnamed-type-template-args',
             ],
             'cflags!': [
@@ -1673,9 +1675,7 @@
                 '-Wno-char-subscripts',
                 # Clang spots more unused functions.
                 '-Wno-unused-function',
-                # Survive EXPECT_EQ(unnamed_enum, unsigned int) -- see
-                # http://code.google.com/p/googletest/source/detail?r=446 .
-                # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
+                # See comments on this flag higher up in this file.
                 '-Wno-unnamed-type-template-args',
                 # TODO(thakis): Reenable once the one instance this warns on
                 # is fixed.
