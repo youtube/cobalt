@@ -2053,7 +2053,7 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
 
   if (false_start && !that->handshake_callback_called_) {
     that->corked_ = true;
-    that->uncork_timer_.Start(FROM_HERE,
+    that->uncork_timer_.Start(
         base::TimeDelta::FromMilliseconds(kCorkTimeoutMs),
         that, &SSLClientSocketNSS::UncorkAfterTimeout);
   }

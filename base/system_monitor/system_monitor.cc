@@ -27,7 +27,7 @@ SystemMonitor::SystemMonitor()
 
   DCHECK(MessageLoop::current());
 #if defined(ENABLE_BATTERY_MONITORING)
-  delayed_battery_check_.Start(FROM_HERE,
+  delayed_battery_check_.Start(
       base::TimeDelta::FromMilliseconds(kDelayedBatteryCheckMs), this,
       &SystemMonitor::BatteryCheck);
 #endif  // defined(ENABLE_BATTERY_MONITORING)
