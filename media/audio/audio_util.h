@@ -92,10 +92,6 @@ MEDIA_EXPORT uint32 GetActualDataSizeInBytes(base::SharedMemory* shared_memory,
 MEDIA_EXPORT void SetActualDataSizeInBytes(base::SharedMemory* shared_memory,
                                            uint32 shared_memory_size,
                                            uint32 actual_data_size);
-MEDIA_EXPORT void SetUnknownDataSize(base::SharedMemory* shared_memory,
-                                     uint32 shared_memory_size);
-MEDIA_EXPORT bool IsUnknownDataSize(base::SharedMemory* shared_memory,
-                                    uint32 shared_memory_size);
 
 }  // namespace media
 
