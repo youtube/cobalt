@@ -90,7 +90,7 @@ void ConnectJob::Initialize(bool is_preconnect) {
 
 int ConnectJob::Connect() {
   if (timeout_duration_ != base::TimeDelta())
-    timer_.Start(timeout_duration_, this, &ConnectJob::OnTimeout);
+    timer_.Start(FROM_HERE, timeout_duration_, this, &ConnectJob::OnTimeout);
 
   idle_ = false;
 
@@ -131,7 +131,7 @@ void ConnectJob::NotifyDelegateOfCompletion(int rv) {
 
 void ConnectJob::ResetTimer(base::TimeDelta remaining_time) {
   timer_.Stop();
-  timer_.Start(remaining_time, this, &ConnectJob::OnTimeout);
+  timer_.Start(FROM_HERE, remaining_time, this, &ConnectJob::OnTimeout);
 }
 
 void ConnectJob::LogConnectStart() {
@@ -697,7 +697,7 @@ void ClientSocketPoolBaseHelper::EnableConnectBackupJobs() {
 
 void ClientSocketPoolBaseHelper::IncrementIdleCount() {
   if (++idle_socket_count_ == 1)
-    timer_.Start(TimeDelta::FromSeconds(kCleanupInterval), this,
+    timer_.Start(FROM_HERE, TimeDelta::FromSeconds(kCleanupInterval), this,
                  &ClientSocketPoolBaseHelper::OnCleanupTimerFired);
 }
 
