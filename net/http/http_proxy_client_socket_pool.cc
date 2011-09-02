@@ -11,6 +11,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
+#include "net/base/ssl_cert_request_info.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/socket/client_socket_factory.h"
@@ -214,6 +215,7 @@ int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
   if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     error_response_info_ = transport_socket_handle_->ssl_error_response_info();
     DCHECK(error_response_info_.cert_request_info.get());
+    error_response_info_.cert_request_info->is_proxy = true;
     return result;
   }
   if (IsCertificateError(result)) {

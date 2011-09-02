@@ -28,6 +28,10 @@ class NET_EXPORT SSLCertRequestInfo
   // The host and port of the SSL server that requested client authentication.
   std::string host_and_port;
 
+  // True if the server that issues this request was the HTTPS proxy used in
+  // the request.  False, if the server was the origin server.
+  bool is_proxy;
+
   // A list of client certificates that match the server's criteria in the
   // SSL CertificateRequest message.  In TLS 1.0, the CertificateRequest
   // message is defined as:
