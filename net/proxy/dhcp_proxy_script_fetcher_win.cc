@@ -169,7 +169,7 @@ void DhcpProxyScriptFetcherWin::OnFetcherDone(int result) {
   // for the rest of the results.
   if (state_ == STATE_NO_RESULTS) {
     state_ = STATE_SOME_RESULTS;
-    wait_timer_.Start(
+    wait_timer_.Start(FROM_HERE,
         base::TimeDelta::FromMilliseconds(ImplGetMaxWaitMs()),
         this, &DhcpProxyScriptFetcherWin::OnWaitTimer);
   }
