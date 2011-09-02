@@ -19,6 +19,21 @@
 
 namespace file_util {
 
+namespace {
+
+// Deny |permission| on the file |path|.
+bool DenyFilePermission(const FilePath& path, mode_t permission) {
+  struct stat stat_buf;
+  if (stat(path.value().c_str(), &stat_buf) != 0)
+    return false;
+  stat_buf.st_mode &= ~permission;
+
+  int rv = HANDLE_EINTR(chmod(path.value().c_str(), stat_buf.st_mode));
+  return rv == 0;
+}
+
+}  // namespace
+
 bool DieFileDie(const FilePath& file, bool recurse) {
   // There is no need to workaround Windows problems on POSIX.
   // Just pass-through.
@@ -115,6 +130,14 @@ std::wstring FilePathAsWString(const FilePath& path) {
 }
 FilePath WStringAsFilePath(const std::wstring& path) {
   return FilePath(WideToUTF8(path));
+}
+
+bool MakeFileUnreadable(const FilePath& path) {
+  return DenyFilePermission(path, S_IRUSR | S_IRGRP | S_IROTH);
+}
+
+bool MakeFileUnwritable(const FilePath& path) {
+  return DenyFilePermission(path, S_IWUSR | S_IWGRP | S_IWOTH);
 }
 
 }  // namespace file_util
