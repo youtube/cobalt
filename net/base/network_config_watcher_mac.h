@@ -27,6 +27,10 @@ class NetworkConfigWatcherMac {
    public:
     virtual ~Delegate() {}
 
+    // Called to let the delegate do any setup work the must be run on the
+    // notifier thread immediately after it starts.
+    virtual void Init() {}
+
     // Called to register the notification keys on |store|.
     // Implementors are expected to call SCDynamicStoreSetNotificationKeys().
     // Will be called on the notifier thread.
