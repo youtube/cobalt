@@ -243,7 +243,11 @@ TraceLog* TraceLog::GetInstance() {
 }
 
 TraceLog::TraceLog()
+#if DEFINED(__LB_PS3__)
+    : enabled_(true) {
+#else
     : enabled_(false) {
+#endif
 }
 
 TraceLog::~TraceLog() {
@@ -394,6 +398,10 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
 
   if (!buffer_full_callback_copy.is_null())
     buffer_full_callback_copy.Run();
+
+#if defined(__LB_PS3__)
+  Flush();
+#endif
 
   return ret_begin_id;
 }
