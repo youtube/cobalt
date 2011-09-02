@@ -223,7 +223,7 @@ int TransportConnectJob::DoTransportConnect() {
   int rv = transport_socket_->Connect(&callback_);
   if (rv == ERR_IO_PENDING &&
       AddressListStartsWithIPv6AndHasAnIPv4Addr(addresses_)) {
-    fallback_timer_.Start(
+    fallback_timer_.Start(FROM_HERE,
         base::TimeDelta::FromMilliseconds(kIPv6FallbackTimerInMs),
         this, &TransportConnectJob::DoIPv6FallbackTransportConnect);
   }
