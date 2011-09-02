@@ -65,6 +65,8 @@ void NetworkConfigWatcherMacThread::Init() {
   // not perform blocking operations.
   base::ThreadRestrictions::SetIOAllowed(false);
 
+  delegate_->Init();
+
   // TODO(willchan): Look to see if there's a better signal for when it's ok to
   // initialize this, rather than just delaying it by a fixed time.
   const int kInitializationDelayMS = 1000;
