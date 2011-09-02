@@ -2328,13 +2328,10 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
   // Check if an origin-bound certificate is requested.
-  PRBool xtn_negotiated;
+  PRBool xtn_negotiated = PR_FALSE;
   SECStatus rv = SSL_HandshakeNegotiatedExtension(
       socket, ssl_ob_cert_xtn, &xtn_negotiated);
-  // TODO(rkn): Patch SSL_HandshakeNegotiatedExtension so that it can be called
-  // before the handshake is done. Then add "DCHECK_EQ(SECSuccess, rv);".
-  if (rv != SECSuccess)
-    xtn_negotiated = PR_FALSE;
+  DCHECK_EQ(SECSuccess, rv);
   that->ob_cert_xtn_negotiated_ = xtn_negotiated ? true : false;
 
   if (that->ob_cert_xtn_negotiated_) {
