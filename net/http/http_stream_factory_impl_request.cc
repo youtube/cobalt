@@ -241,7 +241,7 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
   }
 
   // Cache these values in case the job gets deleted.
-  const SSLConfig used_ssl_config = job->ssl_config();
+  const SSLConfig used_ssl_config = job->server_ssl_config();
   const ProxyInfo used_proxy_info = job->proxy_info();
   const bool was_npn_negotiated = job->was_npn_negotiated();
   const bool using_spdy = job->using_spdy();
@@ -256,7 +256,7 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
 
   bool use_relative_url = direct || url().SchemeIs("https");
   delegate_->OnStreamReady(
-      job->ssl_config(),
+      job->server_ssl_config(),
       job->proxy_info(),
       new SpdyHttpStream(spdy_session, use_relative_url));
   // |this| may be deleted after this point.

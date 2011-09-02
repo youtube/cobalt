@@ -27,13 +27,15 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl : public HttpStreamFactory {
   // HttpStreamFactory Interface
   virtual HttpStreamRequest* RequestStream(
       const HttpRequestInfo& info,
-      const SSLConfig& ssl_config,
+      const SSLConfig& server_ssl_config,
+      const SSLConfig& proxy_ssl_config,
       HttpStreamRequest::Delegate* delegate,
       const BoundNetLog& net_log);
 
   virtual void PreconnectStreams(int num_streams,
                                  const HttpRequestInfo& info,
-                                 const SSLConfig& ssl_config,
+                                 const SSLConfig& server_ssl_config,
+                                 const SSLConfig& proxy_ssl_config,
                                  const BoundNetLog& net_log);
   virtual void AddTLSIntolerantServer(const HostPortPair& server);
   virtual bool IsTLSIntolerantServer(const HostPortPair& server) const;

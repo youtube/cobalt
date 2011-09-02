@@ -176,7 +176,7 @@ void PreconnectHelper(const TestCase& test,
   TestCompletionCallback callback;
 
   session->http_stream_factory()->PreconnectStreams(
-      test.num_streams, request, ssl_config, BoundNetLog());
+      test.num_streams, request, ssl_config, ssl_config, BoundNetLog());
   mock_factory->WaitForPreconnects();
 };
 
@@ -403,7 +403,8 @@ TEST(HttpStreamFactoryTest, JobNotifiesProxy) {
   StreamRequestWaiter waiter;
   scoped_ptr<HttpStreamRequest> request(
       session->http_stream_factory()->RequestStream(request_info, ssl_config,
-                                                    &waiter, log.bound()));
+                                                    ssl_config, &waiter,
+                                                    log.bound()));
   waiter.WaitForStream();
 
   // The proxy that failed should now be known to the proxy_service as bad.
