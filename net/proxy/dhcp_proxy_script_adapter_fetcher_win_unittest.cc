@@ -53,7 +53,7 @@ class MockDhcpProxyScriptAdapterFetcher
     // the caller.
     fetcher_ = new MockProxyScriptFetcher();
     if (fetcher_delay_ms_ != -1) {
-      fetcher_timer_.Start(FROM_HERE,
+      fetcher_timer_.Start(
           base::TimeDelta::FromMilliseconds(fetcher_delay_ms_),
           this, &MockDhcpProxyScriptAdapterFetcher::OnFetcherTimer);
     }

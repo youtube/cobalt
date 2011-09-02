@@ -453,7 +453,7 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     // We don't use Reset() because the timer may not yet be running.
     // (In that case Stop() is a no-op.)
     debounce_timer_.Stop();
-    debounce_timer_.Start(FROM_HERE,
+    debounce_timer_.Start(
         base::TimeDelta::FromMilliseconds(kDebounceTimeoutMilliseconds),
         this, &SettingGetterImplGConf::OnDebouncedNotification);
   }
@@ -781,7 +781,7 @@ GSettings* (*g_settings_new)(const gchar* schema);
     // We don't use Reset() because the timer may not yet be running.
     // (In that case Stop() is a no-op.)
     debounce_timer_.Stop();
-    debounce_timer_.Start(FROM_HERE,
+    debounce_timer_.Start(
         base::TimeDelta::FromMilliseconds(kDebounceTimeoutMilliseconds),
         this, &SettingGetterImplGSettings::OnDebouncedNotification);
   }
@@ -1341,7 +1341,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
       // We don't use Reset() because the timer may not yet be running.
       // (In that case Stop() is a no-op.)
       debounce_timer_.Stop();
-      debounce_timer_.Start(FROM_HERE, base::TimeDelta::FromMilliseconds(
+      debounce_timer_.Start(base::TimeDelta::FromMilliseconds(
           kDebounceTimeoutMilliseconds), this,
           &SettingGetterImplKDE::OnDebouncedNotification);
     }

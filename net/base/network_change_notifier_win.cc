@@ -153,7 +153,7 @@ void NetworkChangeNotifierWin::OnObjectSignaled(HANDLE object) {
   // The one second delay chosen here was determined experimentally
   // by adamk on Windows 7.
   timer_.Stop();  // cancel any already waiting notification
-  timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(1), this,
+  timer_.Start(base::TimeDelta::FromSeconds(1), this,
                &NetworkChangeNotifierWin::NotifyParentOfOnlineStateChange);
 
   // Start watching for the next address change.
