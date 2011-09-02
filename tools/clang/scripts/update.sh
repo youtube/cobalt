@@ -9,7 +9,6 @@ THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
 LLVM_BUILD_DIR="${LLVM_DIR}/../llvm-build"
 CLANG_DIR="${LLVM_DIR}/tools/clang"
-LLDB_DIR="${LLVM_DIR}/tools/lldb"
 DEPS_FILE="${THIS_DIR}/../../../DEPS"
 STAMP_FILE="${LLVM_BUILD_DIR}/cr_build_revision"
 
@@ -20,22 +19,29 @@ LLVM_REPO_URL=${LLVM_URL:-http://llvm.org/svn/llvm-project}
 set -e
 
 # Parse command line options.
-use_lldb=
+force_local_build=
+mac_only=
 while [[ $# > 0 ]]; do
   case $1 in
-    --lldb)
-      use_lldb=yes
+    --force-local-build)
+      force_local_build=yes
+      ;;
+    --mac-only)
+      mac_only=yes
       ;;
     --help)
-      echo "usage: $0 [--lldb]"
-      echo "If --lldb is passed, check out lldb as well."
-      echo "(Once lldb is checked out once, it will implicitly be updated and"
-      echo "built on further updates.)"
+      echo "usage: $0 [--force-local-build] [--mac-only] "
+      echo "--force-local-build: Don't try to download prebuilt binaries."
+      echo "--mac-only: Do nothing on non-Mac systems."
       exit 1
       ;;
   esac
   shift
 done
+
+if [ "$mac_only" -a "$(uname -s)" != "Darwin" ]; then
+  exit 0
+fi
 
 # Since people need to run this script anyway to compile clang, let it check out
 # clang as well if it's not in DEPS, so that people don't have to change their
@@ -45,7 +51,8 @@ CLANG_REVISION=$(grep 'clang_revision":' "${DEPS_FILE}" | egrep -o [[:digit:]]+)
 # Check if there's anything to be done, exit early if not.
 if [ -f "${STAMP_FILE}" ]; then
   PREVIOUSLY_BUILT_REVISON=$(cat "${STAMP_FILE}")
-  if [ "${PREVIOUSLY_BUILT_REVISON}" = "${CLANG_REVISION}" ]; then
+  if [ -z "$force_local_build" -a \
+       "${PREVIOUSLY_BUILT_REVISON}" = "${CLANG_REVISION}" ]; then
     echo "Clang already at ${CLANG_REVISION}"
     exit 0
   fi
@@ -53,25 +60,27 @@ fi
 # To always force a new build if someone interrupts their build half way.
 rm -f "${STAMP_FILE}"
 
-# Check if there's a prebuilt binary and if so just fetch that. That's faster,
-# and goma relies on having matching binary hashes on client and server too.
-CDS_URL=http://commondatastorage.googleapis.com/chromium-browser-clang
-CDS_FILE="clang-${CLANG_REVISION}.tgz"
-echo Trying to download prebuilt clang
-if [ "$(uname -s)" = "Linux" ]; then
-  wget "${CDS_URL}/Linux_x64/${CDS_FILE}" || rm -f "${CDS_FILE}"
-elif [ "$(uname -s)" = "Darwin" ]; then
-  curl -L --fail -O "${CDS_URL}/Mac/${CDS_FILE}" || rm -f "${CDS_FILE}"
-fi
-if [ -f "${CDS_FILE}" ]; then
-  rm -rf "${LLVM_BUILD_DIR}/Release+Asserts"
-  mkdir -p "${LLVM_BUILD_DIR}/Release+Asserts"
-  tar -xzf "${CDS_FILE}" -C "${LLVM_BUILD_DIR}/Release+Asserts"
-  echo clang "${CLANG_REVISION}" unpacked
-  echo "${CLANG_REVISION}" > "${STAMP_FILE}"
-  exit 0
-else
-  echo Did not find prebuilt clang at r"${CLANG_REVISION}", building
+if [ -z "$force_local_build" ]; then
+  # Check if there's a prebuilt binary and if so just fetch that. That's faster,
+  # and goma relies on having matching binary hashes on client and server too.
+  CDS_URL=http://commondatastorage.googleapis.com/chromium-browser-clang
+  CDS_FILE="clang-${CLANG_REVISION}.tgz"
+  echo Trying to download prebuilt clang
+  if [ "$(uname -s)" = "Linux" ]; then
+    wget "${CDS_URL}/Linux_x64/${CDS_FILE}" || rm -f "${CDS_FILE}"
+  elif [ "$(uname -s)" = "Darwin" ]; then
+    curl -L --fail -O "${CDS_URL}/Mac/${CDS_FILE}" || rm -f "${CDS_FILE}"
+  fi
+  if [ -f "${CDS_FILE}" ]; then
+    rm -rf "${LLVM_BUILD_DIR}/Release+Asserts"
+    mkdir -p "${LLVM_BUILD_DIR}/Release+Asserts"
+    tar -xzf "${CDS_FILE}" -C "${LLVM_BUILD_DIR}/Release+Asserts"
+    echo clang "${CLANG_REVISION}" unpacked
+    echo "${CLANG_REVISION}" > "${STAMP_FILE}"
+    exit 0
+  else
+    echo Did not find prebuilt clang at r"${CLANG_REVISION}", building
+  fi
 fi
 
 if grep -q 'src/third_party/llvm":' "${DEPS_FILE}"; then
@@ -91,16 +100,6 @@ if grep -q 'src/third_party/llvm/tools/clang":' "${DEPS_FILE}"; then
 else
   echo Getting clang r"${CLANG_REVISION}" in "${CLANG_DIR}"
   svn co --force "${LLVM_REPO_URL}/cfe/trunk@${CLANG_REVISION}" "${CLANG_DIR}"
-fi
-
-# Update lldb either if the flag is passed or we have a previous checkout.
-if [ -n "$use_lldb" -o -d "${LLDB_DIR}" ]; then
-  if grep -q 'src/third_party/llvm/tools/lldb":' "${DEPS_FILE}"; then
-    echo lldb pulled in through DEPS, skipping lldb update step
-  else
-    echo Getting lldb r"${CLANG_REVISION}" in "${LLDB_DIR}"
-    svn co --force "${LLVM_REPO_URL}/lldb/trunk@${CLANG_REVISION}" "${LLDB_DIR}"
-  fi
 fi
 
 # Echo all commands.
