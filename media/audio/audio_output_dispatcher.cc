@@ -18,7 +18,7 @@ AudioOutputDispatcher::AudioOutputDispatcher(
       pause_delay_milliseconds_(2 * params.samples_per_packet *
           base::Time::kMillisecondsPerSecond / params.sample_rate),
       paused_proxies_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(close_timer_(
+      ALLOW_THIS_IN_INITIALIZER_LIST(close_timer_(FROM_HERE,
           base::TimeDelta::FromMilliseconds(close_delay_ms),
           this, &AudioOutputDispatcher::ClosePendingStreams)) {
 }
