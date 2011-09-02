@@ -225,7 +225,7 @@ bool ChromeClassTester::InBannedDirectory(SourceLocation loc) {
     // remove our known srcroot from it if needed.
     char resolvedPath[MAXPATHLEN];
     if (realpath(b.c_str(), resolvedPath)) {
-      std::string resolved = resolvedPath;
+      b = resolvedPath;
     }
 
     for (std::vector<std::string>::const_iterator it =
