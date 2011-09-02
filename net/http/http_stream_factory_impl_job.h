@@ -37,7 +37,8 @@ class HttpStreamFactoryImpl::Job {
   Job(HttpStreamFactoryImpl* stream_factory,
       HttpNetworkSession* session,
       const HttpRequestInfo& request_info,
-      const SSLConfig& ssl_config,
+      const SSLConfig& server_ssl_config,
+      const SSLConfig& proxy_ssl_config,
       const BoundNetLog& net_log);
   ~Job();
 
@@ -73,7 +74,8 @@ class HttpStreamFactoryImpl::Job {
   bool using_spdy() const;
   const BoundNetLog& net_log() const { return net_log_; }
 
-  const SSLConfig& ssl_config() const;
+  const SSLConfig& server_ssl_config() const;
+  const SSLConfig& proxy_ssl_config() const;
   const ProxyInfo& proxy_info() const;
 
   // Indicates whether or not this job is performing a preconnect.
@@ -205,7 +207,8 @@ class HttpStreamFactoryImpl::Job {
 
   const HttpRequestInfo request_info_;
   ProxyInfo proxy_info_;
-  SSLConfig ssl_config_;
+  SSLConfig server_ssl_config_;
+  SSLConfig proxy_ssl_config_;
   const BoundNetLog net_log_;
 
   CompletionCallbackImpl<Job> io_callback_;

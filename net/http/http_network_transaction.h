@@ -248,7 +248,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   // responses.
   bool logged_response_time_;
 
-  SSLConfig ssl_config_;
+  SSLConfig server_ssl_config_;
+  SSLConfig proxy_ssl_config_;
 
   HttpRequestHeaders request_headers_;
 

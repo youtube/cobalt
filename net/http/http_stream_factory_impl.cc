@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,7 +51,8 @@ HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
 
 HttpStreamRequest* HttpStreamFactoryImpl::RequestStream(
     const HttpRequestInfo& request_info,
-    const SSLConfig& ssl_config,
+    const SSLConfig& server_ssl_config,
+    const SSLConfig& proxy_ssl_config,
     HttpStreamRequest::Delegate* delegate,
     const BoundNetLog& net_log) {
   Request* request = new Request(request_info.url, this, delegate, net_log);
@@ -64,12 +65,14 @@ HttpStreamRequest* HttpStreamFactoryImpl::RequestStream(
     HttpRequestInfo alternate_request_info = request_info;
     alternate_request_info.url = alternate_url;
     alternate_job =
-        new Job(this, session_, alternate_request_info, ssl_config, net_log);
+        new Job(this, session_, alternate_request_info, server_ssl_config,
+                proxy_ssl_config, net_log);
     request->AttachJob(alternate_job);
     alternate_job->MarkAsAlternate(request_info.url);
   }
 
-  Job* job = new Job(this, session_, request_info, ssl_config, net_log);
+  Job* job = new Job(this, session_, request_info, server_ssl_config,
+                     proxy_ssl_config, net_log);
   request->AttachJob(job);
   if (alternate_job) {
     job->WaitFor(alternate_job);
@@ -88,7 +91,8 @@ HttpStreamRequest* HttpStreamFactoryImpl::RequestStream(
 void HttpStreamFactoryImpl::PreconnectStreams(
     int num_streams,
     const HttpRequestInfo& request_info,
-    const SSLConfig& ssl_config,
+    const SSLConfig& server_ssl_config,
+    const SSLConfig& proxy_ssl_config,
     const BoundNetLog& net_log) {
   GURL alternate_url;
   bool has_alternate_protocol =
@@ -97,10 +101,12 @@ void HttpStreamFactoryImpl::PreconnectStreams(
   if (has_alternate_protocol) {
     HttpRequestInfo alternate_request_info = request_info;
     alternate_request_info.url = alternate_url;
-    job = new Job(this, session_, alternate_request_info, ssl_config, net_log);
+    job = new Job(this, session_, alternate_request_info, server_ssl_config,
+                  proxy_ssl_config, net_log);
     job->MarkAsAlternate(request_info.url);
   } else {
-    job = new Job(this, session_, request_info, ssl_config, net_log);
+    job = new Job(this, session_, request_info, server_ssl_config,
+                  proxy_ssl_config, net_log);
   }
   preconnect_job_set_.insert(job);
   job->Preconnect(num_streams);
