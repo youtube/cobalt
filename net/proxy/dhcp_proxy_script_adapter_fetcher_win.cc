@@ -58,7 +58,7 @@ void DhcpProxyScriptAdapterFetcher::Fetch(
   state_ = STATE_WAIT_DHCP;
   callback_ = callback;
 
-  wait_timer_.Start(ImplGetTimeout(),
+  wait_timer_.Start(FROM_HERE, ImplGetTimeout(),
                     this, &DhcpProxyScriptAdapterFetcher::OnTimeout);
   worker_thread_ = ImplCreateWorkerThread(AsWeakPtr());
   worker_thread_->Start(adapter_name);
