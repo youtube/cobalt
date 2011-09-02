@@ -11,6 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/mac/scoped_cftyperef.h"
+#include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_config_watcher_mac.h"
@@ -26,6 +27,12 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   virtual bool IsCurrentlyOffline() const;
 
  private:
+  enum OnlineState {
+    UNINITIALIZED = -1,
+    OFFLINE = 0,
+    ONLINE = 1
+  };
+
   // Forwarder just exists to keep the NetworkConfigWatcherMac API out of
   // NetworkChangeNotifierMac's public API.
   class Forwarder : public NetworkConfigWatcherMac::Delegate {
@@ -34,6 +41,9 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
         : net_config_watcher_(net_config_watcher) {}
 
     // NetworkConfigWatcherMac::Delegate implementation:
+    virtual void Init() {
+      net_config_watcher_->SetInitialState();
+    }
     virtual void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store) {
       net_config_watcher_->SetDynamicStoreNotificationKeys(store);
     }
@@ -50,16 +60,25 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store);
   void OnNetworkConfigChange(CFArrayRef changed_keys);
 
+  void SetInitialState();
+
   static void ReachabilityCallback(SCNetworkReachabilityRef target,
                                    SCNetworkConnectionFlags flags,
                                    void* notifier);
 
-  Forwarder forwarder_;
-  const NetworkConfigWatcherMac config_watcher_;
-  base::mac::ScopedCFTypeRef<CFRunLoopRef> run_loop_;
+  // These must be constructed before config_watcher_ to ensure
+  // the lock is in a valid state when Forwarder::Init is called.
+  OnlineState online_state_;
+  mutable base::Lock online_state_lock_;
+  mutable base::ConditionVariable initial_state_cv_;
   base::mac::ScopedCFTypeRef<SCNetworkReachabilityRef> reachability_;
-  bool network_reachable_;
-  mutable base::Lock network_reachable_lock_;
+  base::mac::ScopedCFTypeRef<CFRunLoopRef> run_loop_;
+
+  Forwarder forwarder_;
+
+  // config_watcher_ should be the last data member, to ensure the rest
+  // of the object is constructed by the time its constructor runs.
+  const NetworkConfigWatcherMac config_watcher_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };
