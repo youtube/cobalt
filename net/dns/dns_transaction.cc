@@ -306,7 +306,7 @@ int DnsTransaction::DoReadResponseComplete(int rv) {
 }
 
 void DnsTransaction::StartTimer(base::TimeDelta delay) {
-  timer_.Start(FROM_HERE, delay, this, &DnsTransaction::OnTimeout);
+  timer_.Start(delay, this, &DnsTransaction::OnTimeout);
 }
 
 void DnsTransaction::RevokeTimer() {

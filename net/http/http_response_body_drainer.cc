@@ -30,8 +30,7 @@ void HttpResponseBodyDrainer::Start(HttpNetworkSession* session) {
   int rv = DoLoop(OK);
 
   if (rv == ERR_IO_PENDING) {
-    timer_.Start(FROM_HERE,
-                 base::TimeDelta::FromSeconds(kTimeoutInSeconds),
+    timer_.Start(base::TimeDelta::FromSeconds(kTimeoutInSeconds),
                  this,
                  &HttpResponseBodyDrainer::OnTimerFired);
     session_ = session;
