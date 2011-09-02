@@ -13,9 +13,6 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
-#if defined(UNIT_TEST)
-#include <aclapi.h>
-#endif
 #elif defined(OS_POSIX)
 #include <sys/stat.h>
 #include <unistd.h>
@@ -576,58 +573,6 @@ BASE_EXPORT bool RenameFileAndResetSecurityDescriptor(
 BASE_EXPORT bool HasFileBeenModifiedSince(
     const FileEnumerator::FindInfo& find_info,
     const base::Time& cutoff_time);
-
-#ifdef UNIT_TEST
-
-inline bool MakeFileUnreadable(const FilePath& path) {
-#if defined(OS_POSIX)
-  struct stat stat_buf;
-  if (stat(path.value().c_str(), &stat_buf) != 0)
-    return false;
-  stat_buf.st_mode &= ~(S_IRUSR | S_IRGRP | S_IROTH);
-
-  return chmod(path.value().c_str(), stat_buf.st_mode) == 0;
-
-#elif defined(OS_WIN)
-  PACL old_dacl;
-  PSECURITY_DESCRIPTOR security_descriptor;
-  if (GetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
-                           SE_FILE_OBJECT,
-                           DACL_SECURITY_INFORMATION, NULL, NULL, &old_dacl,
-                           NULL, &security_descriptor) != ERROR_SUCCESS)
-    return false;
-
-  // Deny Read access for the current user.
-  EXPLICIT_ACCESS change;
-  change.grfAccessPermissions = GENERIC_READ;
-  change.grfAccessMode = DENY_ACCESS;
-  change.grfInheritance = 0;
-  change.Trustee.pMultipleTrustee = NULL;
-  change.Trustee.MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
-  change.Trustee.TrusteeForm = TRUSTEE_IS_NAME;
-  change.Trustee.TrusteeType = TRUSTEE_IS_USER;
-  change.Trustee.ptstrName = L"CURRENT_USER";
-
-  PACL new_dacl;
-  if (SetEntriesInAcl(1, &change, old_dacl, &new_dacl) != ERROR_SUCCESS) {
-    LocalFree(security_descriptor);
-    return false;
-  }
-
-  DWORD rc = SetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
-                                  SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
-                                  NULL, NULL, new_dacl, NULL);
-  LocalFree(security_descriptor);
-  LocalFree(new_dacl);
-
-  return rc == ERROR_SUCCESS;
-#else
-  NOTIMPLEMENTED();
-  return false;
-#endif
-}
-
-#endif  // UNIT_TEST
 
 #if defined(OS_WIN)
   // Loads the file passed in as an image section and touches pages to avoid
