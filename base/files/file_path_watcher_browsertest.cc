@@ -24,6 +24,7 @@
 #include "base/stl_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/test/test_file_util.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"

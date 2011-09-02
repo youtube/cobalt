@@ -4,6 +4,7 @@
 
 #include "base/test/test_file_util.h"
 
+#include <aclapi.h>
 #include <shlwapi.h>
 #include <windows.h>
 
@@ -19,6 +20,46 @@
 namespace file_util {
 
 static const ptrdiff_t kOneMB = 1024 * 1024;
+
+namespace {
+
+// Deny |permission| on the file |path|, for the current user.
+bool DenyFilePermission(const FilePath& path, DWORD permission) {
+  PACL old_dacl;
+  PSECURITY_DESCRIPTOR security_descriptor;
+  if (GetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
+                           SE_FILE_OBJECT,
+                           DACL_SECURITY_INFORMATION, NULL, NULL, &old_dacl,
+                           NULL, &security_descriptor) != ERROR_SUCCESS) {
+    return false;
+  }
+
+  EXPLICIT_ACCESS change;
+  change.grfAccessPermissions = permission;
+  change.grfAccessMode = DENY_ACCESS;
+  change.grfInheritance = 0;
+  change.Trustee.pMultipleTrustee = NULL;
+  change.Trustee.MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
+  change.Trustee.TrusteeForm = TRUSTEE_IS_NAME;
+  change.Trustee.TrusteeType = TRUSTEE_IS_USER;
+  change.Trustee.ptstrName = L"CURRENT_USER";
+
+  PACL new_dacl;
+  if (SetEntriesInAcl(1, &change, old_dacl, &new_dacl) != ERROR_SUCCESS) {
+    LocalFree(security_descriptor);
+    return false;
+  }
+
+  DWORD rc = SetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
+                                  SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
+                                  NULL, NULL, new_dacl, NULL);
+  LocalFree(security_descriptor);
+  LocalFree(new_dacl);
+
+  return rc == ERROR_SUCCESS;
+}
+
+}  // namespace
 
 bool DieFileDie(const FilePath& file, bool recurse) {
   // It turns out that to not induce flakiness a long timeout is needed.
@@ -225,6 +266,14 @@ std::wstring FilePathAsWString(const FilePath& path) {
 }
 FilePath WStringAsFilePath(const std::wstring& path) {
   return FilePath(path);
+}
+
+bool MakeFileUnreadable(const FilePath& path) {
+  return DenyFilePermission(path, GENERIC_READ);
+}
+
+bool MakeFileUnwritable(const FilePath& path) {
+  return DenyFilePermission(path, GENERIC_WRITE);
 }
 
 }  // namespace file_util
