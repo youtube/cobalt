@@ -1736,6 +1736,16 @@
                 ],
               },
             ],
+            'conditions': [
+              ['asan==1', {
+                'variables': {
+                 'asan_saves_file': 'asan.saves',
+                },
+                'xcode_settings': {
+                  'CHROMIUM_STRIP_SAVE_FILE': '<(asan_saves_file)'
+                },
+              }],
+            ],
           }],
           ['_type=="executable" and release_valgrind_build==0', {
             # Turn on position-independence (ASLR) for executables. When PIE
