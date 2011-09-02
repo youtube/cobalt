@@ -13,6 +13,7 @@
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
+#include "base/test/test_file_util.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/auth.h"
 #include "net/base/capturing_net_log.h"
