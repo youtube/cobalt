@@ -53,7 +53,7 @@ class RealFetchTester {
             completion_callback_(this, &RealFetchTester::OnCompletion)),
         on_completion_is_error_(false) {
     // Make sure the test ends.
-    timeout_.Start(
+    timeout_.Start(FROM_HERE,
         base::TimeDelta::FromSeconds(5), this, &RealFetchTester::OnTimeout);
   }
 
@@ -72,7 +72,7 @@ class RealFetchTester {
     // Put the cancellation into the queue before even running the
     // test to avoid the chance of one of the adapter fetcher worker
     // threads completing before cancellation.  See http://crbug.com/86756.
-    cancel_timer_.Start(base::TimeDelta::FromMilliseconds(0),
+    cancel_timer_.Start(FROM_HERE, base::TimeDelta::FromMilliseconds(0),
                         this, &RealFetchTester::OnCancelTimer);
     RunTest();
   }
@@ -225,7 +225,7 @@ class DummyDhcpProxyScriptAdapterFetcher
   void Fetch(const std::string& adapter_name,
              CompletionCallback* callback) OVERRIDE {
     client_callback_ = callback;
-    timer_.Start(base::TimeDelta::FromMilliseconds(fetch_delay_ms_),
+    timer_.Start(FROM_HERE, base::TimeDelta::FromMilliseconds(fetch_delay_ms_),
                  this, &DummyDhcpProxyScriptAdapterFetcher::OnTimer);
   }
 
