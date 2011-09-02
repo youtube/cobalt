@@ -159,14 +159,16 @@ class NET_EXPORT HttpStreamFactory {
   // Will callback to the HttpStreamRequestDelegate upon completion.
   virtual HttpStreamRequest* RequestStream(
       const HttpRequestInfo& info,
-      const SSLConfig& ssl_config,
+      const SSLConfig& server_ssl_config,
+      const SSLConfig& proxy_ssl_config,
       HttpStreamRequest::Delegate* delegate,
       const BoundNetLog& net_log) = 0;
 
   // Requests that enough connections for |num_streams| be opened.
   virtual void PreconnectStreams(int num_streams,
                                  const HttpRequestInfo& info,
-                                 const SSLConfig& ssl_config,
+                                 const SSLConfig& server_ssl_config,
+                                 const SSLConfig& proxy_ssl_config,
                                  const BoundNetLog& net_log) = 0;
 
   virtual void AddTLSIntolerantServer(const HostPortPair& server) = 0;
