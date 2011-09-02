@@ -21,7 +21,7 @@ AudioInputController::AudioInputController(EventHandler* handler,
                                            SyncWriter* sync_writer)
     : handler_(handler),
       stream_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(no_data_timer_(FROM_HERE,
+      ALLOW_THIS_IN_INITIALIZER_LIST(no_data_timer_(
           base::TimeDelta::FromSeconds(kTimerResetInterval),
           this,
           &AudioInputController::DoReportNoDataError)),

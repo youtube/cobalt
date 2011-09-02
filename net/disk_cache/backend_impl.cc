@@ -472,7 +472,7 @@ int BackendImpl::SyncInit() {
     trace_object_ = TraceObject::GetTraceObject();
     // Create a recurrent timer of 30 secs.
     int timer_delay = unit_test_ ? 1000 : 30000;
-    timer_.Start(FROM_HERE, TimeDelta::FromMilliseconds(timer_delay), this,
+    timer_.Start(TimeDelta::FromMilliseconds(timer_delay), this,
                  &BackendImpl::OnStatsTimer);
   }
 
