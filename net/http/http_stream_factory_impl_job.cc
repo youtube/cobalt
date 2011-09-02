@@ -61,11 +61,13 @@ Value* HttpStreamJobParameters::ToValue() const {
 HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
                                 HttpNetworkSession* session,
                                 const HttpRequestInfo& request_info,
-                                const SSLConfig& ssl_config,
+                                const SSLConfig& server_ssl_config,
+                                const SSLConfig& proxy_ssl_config,
                                 const BoundNetLog& net_log)
     : request_(NULL),
       request_info_(request_info),
-      ssl_config_(ssl_config),
+      server_ssl_config_(server_ssl_config),
+      proxy_ssl_config_(proxy_ssl_config),
       net_log_(BoundNetLog::Make(net_log.net_log(),
                                  NetLog::SOURCE_HTTP_STREAM_JOB)),
       ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(this, &Job::OnIOComplete)),
@@ -191,8 +193,12 @@ bool HttpStreamFactoryImpl::Job::using_spdy() const {
   return using_spdy_;
 }
 
-const SSLConfig& HttpStreamFactoryImpl::Job::ssl_config() const {
-  return ssl_config_;
+const SSLConfig& HttpStreamFactoryImpl::Job::server_ssl_config() const {
+  return server_ssl_config_;
+}
+
+const SSLConfig& HttpStreamFactoryImpl::Job::proxy_ssl_config() const {
+  return proxy_ssl_config_;
 }
 
 const ProxyInfo& HttpStreamFactoryImpl::Job::proxy_info() const {
@@ -217,7 +223,8 @@ void HttpStreamFactoryImpl::Job::OnStreamReadyCallback() {
     request_->Complete(was_npn_negotiated(),
                        using_spdy(),
                        net_log_.source());
-    request_->OnStreamReady(this, ssl_config_, proxy_info_, stream_.release());
+    request_->OnStreamReady(this, server_ssl_config_, proxy_info_,
+                            stream_.release());
   }
   // |this| may be deleted after this call.
 }
@@ -231,7 +238,7 @@ void HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback() {
   new_spdy_session_ = NULL;
   if (IsOrphaned()) {
     stream_factory_->OnSpdySessionReady(
-        spdy_session, spdy_session_direct_, ssl_config_, proxy_info_,
+        spdy_session, spdy_session_direct_, server_ssl_config_, proxy_info_,
         was_npn_negotiated(), using_spdy(), net_log_.source());
     stream_factory_->OnOrphanedJobComplete(this);
   } else {
@@ -245,7 +252,7 @@ void HttpStreamFactoryImpl::Job::OnStreamFailedCallback(int result) {
   if (IsOrphaned())
     stream_factory_->OnOrphanedJobComplete(this);
   else
-    request_->OnStreamFailed(this, result, ssl_config_);
+    request_->OnStreamFailed(this, result, server_ssl_config_);
   // |this| may be deleted after this call.
 }
 
@@ -255,7 +262,7 @@ void HttpStreamFactoryImpl::Job::OnCertificateErrorCallback(
   if (IsOrphaned())
     stream_factory_->OnOrphanedJobComplete(this);
   else
-    request_->OnCertificateError(this, result, ssl_config_, ssl_info);
+    request_->OnCertificateError(this, result, server_ssl_config_, ssl_info);
   // |this| may be deleted after this call.
 }
 
@@ -267,7 +274,7 @@ void HttpStreamFactoryImpl::Job::OnNeedsProxyAuthCallback(
     stream_factory_->OnOrphanedJobComplete(this);
   else
     request_->OnNeedsProxyAuth(
-        this, response, ssl_config_, proxy_info_, auth_controller);
+        this, response, server_ssl_config_, proxy_info_, auth_controller);
   // |this| may be deleted after this call.
 }
 
@@ -277,7 +284,7 @@ void HttpStreamFactoryImpl::Job::OnNeedsClientAuthCallback(
   if (IsOrphaned())
     stream_factory_->OnOrphanedJobComplete(this);
   else
-    request_->OnNeedsClientAuth(this, ssl_config_, cert_info);
+    request_->OnNeedsClientAuth(this, server_ssl_config_, cert_info);
   // |this| may be deleted after this call.
 }
 
@@ -289,7 +296,7 @@ void HttpStreamFactoryImpl::Job::OnHttpsProxyTunnelResponseCallback(
     stream_factory_->OnOrphanedJobComplete(this);
   else
     request_->OnHttpsProxyTunnelResponse(
-        this, response_info, ssl_config_, proxy_info_, stream);
+        this, response_info, server_ssl_config_, proxy_info_, stream);
   // |this| may be deleted after this call.
 }
 
@@ -297,7 +304,7 @@ void HttpStreamFactoryImpl::Job::OnPreconnectsComplete() {
   DCHECK(!request_);
   if (new_spdy_session_) {
     stream_factory_->OnSpdySessionReady(
-        new_spdy_session_, spdy_session_direct_, ssl_config_,
+        new_spdy_session_, spdy_session_direct_, server_ssl_config_,
         proxy_info_, was_npn_negotiated(), using_spdy(), net_log_.source());
   }
   stream_factory_->OnPreconnectsComplete(this);
@@ -595,13 +602,12 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
 
   bool want_spdy_over_npn = original_url_.get() ? true : false;
 
-  SSLConfig ssl_config_for_proxy = ssl_config_;
   if (proxy_info_.is_https()) {
     InitSSLConfig(proxy_info_.proxy_server().host_port_pair(),
-                  &ssl_config_for_proxy);
+                  &proxy_ssl_config_);
   }
   if (using_ssl_) {
-    InitSSLConfig(origin_, &ssl_config_);
+    InitSSLConfig(origin_, &server_ssl_config_);
   }
 
   if (IsPreconnecting()) {
@@ -614,8 +620,8 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
         proxy_info_,
         ShouldForceSpdySSL(),
         want_spdy_over_npn,
-        ssl_config_,
-        ssl_config_for_proxy,
+        server_ssl_config_,
+        proxy_ssl_config_,
         net_log_,
         num_streams_);
   } else {
@@ -628,8 +634,8 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
         proxy_info_,
         ShouldForceSpdySSL(),
         want_spdy_over_npn,
-        ssl_config_,
-        ssl_config_for_proxy,
+        server_ssl_config_,
+        proxy_ssl_config_,
         net_log_,
         connection_.get(),
         &io_callback_);
@@ -973,7 +979,7 @@ int HttpStreamFactoryImpl::Job::ReconsiderProxyAfterError(int error) {
     return error;
   }
 
-  if (proxy_info_.is_https() && ssl_config_.send_client_cert) {
+  if (proxy_info_.is_https() && proxy_ssl_config_.send_client_cert) {
     session_->ssl_client_auth_cache()->Remove(
         proxy_info_.proxy_server().host_port_pair().ToString());
   }
@@ -1022,7 +1028,7 @@ int HttpStreamFactoryImpl::Job::HandleCertificateError(int error) {
       !ssl_info_.cert->GetDEREncoded(&bad_cert.der_cert))
     return error;
   bad_cert.cert_status = ssl_info_.cert_status;
-  ssl_config_.allowed_bad_certs.push_back(bad_cert);
+  server_ssl_config_.allowed_bad_certs.push_back(bad_cert);
 
   int load_flags = request_info_.load_flags;
   if (HttpStreamFactory::ignore_certificate_errors())
