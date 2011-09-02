@@ -60,9 +60,18 @@ class BASE_EXPORT TimeDelta {
   static TimeDelta FromMilliseconds(int64 ms);
   static TimeDelta FromMicroseconds(int64 us);
 
+  // Converts an integer value representing TimeDelta to a class. This is used
+  // when deserializing a |TimeDelta| structure, using a value known to be
+  // compatible. It is not provided as a constructor because the integer type
+  // may be unclear from the perspective of a caller.
+  static TimeDelta FromInternalValue(int64 delta) {
+    return TimeDelta(delta);
+  }
+
   // Returns the internal numeric value of the TimeDelta object. Please don't
   // use this and do arithmetic on it, as it is more error prone than using the
   // provided operators.
+  // For serializing, use FromInternalValue to reconstitute.
   int64 ToInternalValue() const {
     return delta_;
   }
@@ -487,7 +496,16 @@ class BASE_EXPORT TimeTicks {
     return ticks_ == 0;
   }
 
+  // Converts an integer value representing TimeTicks to a class. This is used
+  // when deserializing a |TimeTicks| structure, using a value known to be
+  // compatible. It is not provided as a constructor because the integer type
+  // may be unclear from the perspective of a caller.
+  static TimeTicks FromInternalValue(int64 ticks) {
+    return TimeTicks(ticks);
+  }
+
   // Returns the internal numeric value of the TimeTicks object.
+  // For serializing, use FromInternalValue to reconstitute.
   int64 ToInternalValue() const {
     return ticks_;
   }
