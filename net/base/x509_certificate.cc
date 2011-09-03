@@ -958,7 +958,7 @@ bool X509Certificate::IsBlacklisted() const {
 // static
 bool X509Certificate::IsPublicKeyBlacklisted(
     const std::vector<SHA1Fingerprint>& public_key_hashes) {
-  static const unsigned kNumHashes = 3;
+  static const unsigned kNumHashes = 5;
   static const uint8 kHashes[kNumHashes][base::SHA1_LENGTH] = {
     // Subject: CN=DigiNotar Root CA
     // Issuer: CN=Entrust.net x2 and self-signed
@@ -972,6 +972,14 @@ bool X509Certificate::IsPublicKeyBlacklisted(
     // Issuer: CN=Entrust.net
     {0xe2, 0x3b, 0x8d, 0x10, 0x5f, 0x87, 0x71, 0x0a, 0x68, 0xd9,
      0x24, 0x80, 0x50, 0xeb, 0xef, 0xc6, 0x27, 0xbe, 0x4c, 0xa6},
+    // Subject: CN=DigiNotar PKIoverheid CA Organisatie - G2
+    // Issuer: CN=Staat der Nederlanden Organisatie CA - G2
+    {0x7b, 0x2e, 0x16, 0xbc, 0x39, 0xbc, 0xd7, 0x2b, 0x45, 0x6e,
+     0x9f, 0x05, 0x5d, 0x1d, 0xe6, 0x15, 0xb7, 0x49, 0x45, 0xdb},
+    // Subject: CN=DigiNotar PKIoverheid CA Overheid en Bedrijven
+    // Issuer: CN=Staat der Nederlanden Overheid CA
+    {0xe8, 0xf9, 0x12, 0x00, 0xc6, 0x5c, 0xee, 0x16, 0xe0, 0x39,
+     0xb9, 0xf8, 0x83, 0x84, 0x16, 0x61, 0x63, 0x5f, 0x81, 0xc5},
   };
 
   for (unsigned i = 0; i < kNumHashes; i++) {
