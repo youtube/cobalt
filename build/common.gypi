@@ -277,8 +277,8 @@
           'webui_task_manager%': 0,
         }],
 
-        # Enable smooth scrolling for Mac, Linux and ChromeOS
-        ['OS=="linux" or OS=="mac"', {
+        # Enable smooth scrolling for Mac, Win, Linux and ChromeOS
+        ['OS=="linux" or OS=="mac" or OS=="win"', {
           'enable_smooth_scrolling%': 1,
         }, {
           'enable_smooth_scrolling%': 0,
