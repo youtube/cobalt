@@ -611,7 +611,7 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
     return rv;
   }
 
-  if (ssl_host_info_.get()) {
+  if (ssl_config_.cached_info_enabled && ssl_host_info_.get()) {
     GotoState(STATE_LOAD_SSL_HOST_INFO);
   } else {
     GotoState(STATE_HANDSHAKE);
@@ -1396,7 +1396,7 @@ int SSLClientSocketNSS::DoLoadSSLHostInfo() {
   GotoState(STATE_HANDSHAKE);
 
   if (rv == OK) {
-    if (ssl_config_.cached_info_enabled && !LoadSSLHostInfo())
+    if (!LoadSSLHostInfo())
       LOG(WARNING) << "LoadSSLHostInfo failed: " << host_and_port_.ToString();
   } else {
     DCHECK_EQ(ERR_IO_PENDING, rv);
