@@ -1206,3 +1206,13 @@ EVENT_TYPE(CHROME_EXTENSION_MODIFIED_HEADERS)
 //    "extension_id": <Extension ID that was ignored>
 //  }
 EVENT_TYPE(CHROME_EXTENSION_IGNORED_DUE_TO_CONFLICT)
+
+// ------------------------------------------------------------------------
+// HostBlacklistManager
+// ------------------------------------------------------------------------
+
+// TODO(joaodasilva): Layering violation, see comment above.
+// http://crbug.com/90674.
+
+// This event is created when a request is blocked by a policy.
+EVENT_TYPE(CHROME_POLICY_ABORTED_REQUEST)
