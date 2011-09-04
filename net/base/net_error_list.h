@@ -69,6 +69,18 @@ NET_ERROR(UPLOAD_FILE_CHANGED, -14)
 // The socket is not connected.
 NET_ERROR(SOCKET_NOT_CONNECTED, -15)
 
+// The file already exists.
+NET_ERROR(FILE_EXISTS, -16)
+
+// The path or file name is too long.
+NET_ERROR(FILE_PATH_TOO_LONG, -17)
+
+// Not enough room left on the disk.
+NET_ERROR(FILE_NO_SPACE, -18)
+
+// The file has a virus.
+NET_ERROR(FILE_VIRUS_INFECTED, -19)
+
 // A connection was closed (corresponding to a TCP FIN).
 NET_ERROR(CONNECTION_CLOSED, -100)
 
