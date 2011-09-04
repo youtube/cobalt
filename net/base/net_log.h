@@ -277,7 +277,7 @@ class NET_EXPORT BoundNetLog {
 
 // NetLogStringParameter is a subclass of EventParameters that encapsulates a
 // single std::string parameter.
-class NetLogStringParameter : public NetLog::EventParameters {
+class NET_EXPORT NetLogStringParameter : public NetLog::EventParameters {
  public:
   // |name| must be a string literal.
   NetLogStringParameter(const char* name, const std::string& value);
