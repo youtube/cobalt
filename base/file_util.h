@@ -563,12 +563,6 @@ class BASE_EXPORT MemoryMappedFile {
   DISALLOW_COPY_AND_ASSIGN(MemoryMappedFile);
 };
 
-// Renames a file using the SHFileOperation API to ensure that the target file
-// gets the correct default security descriptor in the new path.
-BASE_EXPORT bool RenameFileAndResetSecurityDescriptor(
-    const FilePath& source_file_path,
-    const FilePath& target_file_path);
-
 // Returns whether the file has been modified since a particular date.
 BASE_EXPORT bool HasFileBeenModifiedSince(
     const FileEnumerator::FindInfo& find_info,
