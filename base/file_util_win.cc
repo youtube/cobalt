@@ -795,30 +795,6 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
   return -1;
 }
 
-bool RenameFileAndResetSecurityDescriptor(const FilePath& source_file_path,
-                                          const FilePath& target_file_path) {
-  base::ThreadRestrictions::AssertIOAllowed();
-
-  // The parameters to SHFileOperation must be terminated with 2 NULL chars.
-  std::wstring source = source_file_path.value();
-  std::wstring target = target_file_path.value();
-
-  source.append(1, L'\0');
-  target.append(1, L'\0');
-
-  SHFILEOPSTRUCT move_info = {0};
-  move_info.wFunc = FO_MOVE;
-  move_info.pFrom = source.c_str();
-  move_info.pTo = target.c_str();
-  move_info.fFlags = FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI |
-                     FOF_NOCONFIRMMKDIR | FOF_NOCOPYSECURITYATTRIBS;
-
-  if (0 != SHFileOperation(&move_info))
-    return false;
-
-  return true;
-}
-
 // Gets the current working directory for the process.
 bool GetCurrentDirectory(FilePath* dir) {
   base::ThreadRestrictions::AssertIOAllowed();
