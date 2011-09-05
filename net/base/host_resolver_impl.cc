@@ -30,7 +30,6 @@
 #include "base/values.h"
 #include "net/base/address_list.h"
 #include "net/base/address_list_net_log_param.h"
-#include "net/base/dns_reloader.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/host_resolver_proc.h"
 #include "net/base/net_errors.h"
@@ -1091,10 +1090,6 @@ HostResolverImpl::HostResolverImpl(
     additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
 #endif
   NetworkChangeNotifier::AddIPAddressObserver(this);
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
-  EnsureDnsReloaderInit();
-  NetworkChangeNotifier::AddDNSObserver(this);
-#endif
 }
 
 HostResolverImpl::~HostResolverImpl() {
@@ -1109,9 +1104,6 @@ HostResolverImpl::~HostResolverImpl() {
     cur_completing_job_->Cancel();
 
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
-  NetworkChangeNotifier::RemoveDNSObserver(this);
-#endif
 
   // Delete the job pools.
   for (size_t i = 0u; i < arraysize(job_pools_); ++i)
@@ -1648,19 +1640,6 @@ void HostResolverImpl::OnIPAddressChanged() {
     additional_resolver_flags_ &= ~HOST_RESOLVER_LOOPBACK_ONLY;
   }
 #endif
-  AbortAllInProgressJobs();
-  // |this| may be deleted inside AbortAllInProgressJobs().
-}
-
-void HostResolverImpl::OnDNSChanged() {
-  // If the DNS server has changed, existing cached info could be wrong so we
-  // have to drop our internal cache :( Note that OS level DNS caches, such
-  // as NSCD's cache should be dropped automatically by the OS when
-  // resolv.conf changes so we don't need to do anything to clear that cache.
-  if (cache_.get())
-    cache_->clear();
-  // Existing jobs will have been sent to the original server so they need to
-  // be aborted. TODO(Craig): Should these jobs be restarted?
   AbortAllInProgressJobs();
   // |this| may be deleted inside AbortAllInProgressJobs().
 }
