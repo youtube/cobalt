@@ -90,13 +90,6 @@ void NetworkChangeNotifier::AddOnlineStateObserver(
   }
 }
 
-void NetworkChangeNotifier::AddDNSObserver(DNSObserver* observer) {
-  if (g_network_change_notifier) {
-    g_network_change_notifier->resolver_state_observer_list_->AddObserver(
-        observer);
-  }
-}
-
 void NetworkChangeNotifier::RemoveIPAddressObserver(
     IPAddressObserver* observer) {
   if (g_network_change_notifier) {
@@ -113,23 +106,13 @@ void NetworkChangeNotifier::RemoveOnlineStateObserver(
   }
 }
 
-void NetworkChangeNotifier::RemoveDNSObserver(DNSObserver* observer) {
-  if (g_network_change_notifier) {
-    g_network_change_notifier->resolver_state_observer_list_->RemoveObserver(
-        observer);
-  }
-}
-
 NetworkChangeNotifier::NetworkChangeNotifier()
     : ip_address_observer_list_(
         new ObserverListThreadSafe<IPAddressObserver>(
             ObserverListBase<IPAddressObserver>::NOTIFY_EXISTING_ONLY)),
       online_state_observer_list_(
         new ObserverListThreadSafe<OnlineStateObserver>(
-            ObserverListBase<OnlineStateObserver>::NOTIFY_EXISTING_ONLY)),
-      resolver_state_observer_list_(
-        new ObserverListThreadSafe<DNSObserver>(
-            ObserverListBase<DNSObserver>::NOTIFY_EXISTING_ONLY)) {
+            ObserverListBase<OnlineStateObserver>::NOTIFY_EXISTING_ONLY)) {
   DCHECK(!g_network_change_notifier);
   g_network_change_notifier = this;
 }
@@ -138,13 +121,6 @@ void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
   if (g_network_change_notifier) {
     g_network_change_notifier->ip_address_observer_list_->Notify(
         &IPAddressObserver::OnIPAddressChanged);
-  }
-}
-
-void NetworkChangeNotifier::NotifyObserversOfDNSChange() {
-  if (g_network_change_notifier) {
-    g_network_change_notifier->resolver_state_observer_list_->Notify(
-        &DNSObserver::OnDNSChanged);
   }
 }
 
