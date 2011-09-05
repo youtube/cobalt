@@ -119,7 +119,8 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
 
   // Inotify watches are installed for all directory components of |target_|. A
   // WatchEntry instance holds the watch descriptor for a component and the
-  // subdirectory for that identifies the next component.
+  // subdirectory for that identifies the next component. If a symbolic link
+  // is being watched, the target of the link is also kept.
   struct WatchEntry {
     WatchEntry(InotifyReader::Watch watch, const FilePath::StringType& subdir)
         : watch_(watch),
@@ -127,6 +128,7 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
 
     InotifyReader::Watch watch_;
     FilePath::StringType subdir_;
+    FilePath::StringType linkname_;
   };
   typedef std::vector<WatchEntry> WatchVector;
 
@@ -328,41 +330,47 @@ void FilePathWatcherImpl::OnFilePathChanged(
   // Find the entry in |watches_| that corresponds to |fired_watch|.
   WatchVector::const_iterator watch_entry(watches_.begin());
   for ( ; watch_entry != watches_.end(); ++watch_entry) {
-    if (fired_watch == watch_entry->watch_)
-      break;
+    if (fired_watch == watch_entry->watch_) {
+      // Check whether a path component of |target_| changed.
+      bool change_on_target_path = child.empty() ||
+          ((child == watch_entry->subdir_) && watch_entry->linkname_.empty()) ||
+          (child == watch_entry->linkname_);
+
+      // Check whether the change references |target_| or a direct child.
+      DCHECK(watch_entry->subdir_.empty() ||
+          (watch_entry + 1) != watches_.end());
+      bool target_changed =
+          (watch_entry->subdir_.empty() && (child == watch_entry->linkname_)) ||
+          (watch_entry->subdir_.empty() && watch_entry->linkname_.empty()) ||
+          (watch_entry->subdir_ == child && (watch_entry + 1)->subdir_.empty());
+
+      // Update watches if a directory component of the |target_| path
+      // (dis)appears. Note that we don't add the additional restriction
+      // of checking is_directory here as changes to symlinks on the
+      // target path will not have is_directory set but as a result we
+      // may sometimes call UpdateWatches unnecessarily.
+      if (change_on_target_path && !UpdateWatches()) {
+        delegate_->OnFilePathError(target_);
+        return;
+      }
+
+      // Report the following events:
+      //  - The target or a direct child of the target got changed (in case the
+      //    watched path refers to a directory).
+      //  - One of the parent directories got moved or deleted, since the target
+      //    disappears in this case.
+      //  - One of the parent directories appears. The event corresponding to
+      //    the target appearing might have been missed in this case, so
+      //    recheck.
+      if (target_changed ||
+          (change_on_target_path && !created) ||
+          (change_on_target_path && file_util::PathExists(target_))) {
+        delegate_->OnFilePathChanged(target_);
+        return;
+      }
+    }
   }
 
-  // If this notification is from a previous generation of watches or the watch
-  // has been cancelled (|watches_| is empty then), bail out.
-  if (watch_entry == watches_.end())
-    return;
-
-  // Check whether a path component of |target_| changed.
-  bool change_on_target_path = child.empty() || child == watch_entry->subdir_;
-
-  // Check whether the change references |target_| or a direct child.
-  DCHECK(watch_entry->subdir_.empty() || (watch_entry + 1) != watches_.end());
-  bool target_changed = watch_entry->subdir_.empty() ||
-      (watch_entry->subdir_ == child && (++watch_entry)->subdir_.empty());
-
-  // Update watches if a directory component of the |target_| path (dis)appears.
-  if (is_directory && change_on_target_path && !UpdateWatches()) {
-    delegate_->OnFilePathError(target_);
-    return;
-  }
-
-  // Report the following events:
-  //  - The target or a direct child of the target got changed (in case the
-  //    watched path refers to a directory).
-  //  - One of the parent directories got moved or deleted, since the target
-  //    disappears in this case.
-  //  - One of the parent directories appears. The event corresponding to the
-  //    target appearing might have been missed in this case, so recheck.
-  if (target_changed ||
-      (change_on_target_path && !created) ||
-      (change_on_target_path && file_util::PathExists(target_))) {
-    delegate_->OnFilePathChanged(target_);
-  }
 }
 
 bool FilePathWatcherImpl::Watch(const FilePath& path,
@@ -438,6 +446,28 @@ bool FilePathWatcherImpl::UpdateWatches() {
     InotifyReader::Watch old_watch = watch_entry->watch_;
     if (path_valid) {
       watch_entry->watch_ = g_inotify_reader.Get().AddWatch(path, this);
+      if ((watch_entry->watch_ == InotifyReader::kInvalidWatch) &&
+          file_util::IsLink(path)) {
+        FilePath link;
+        file_util::ReadSymbolicLink(path, &link);
+        if (!link.IsAbsolute())
+          link = path.DirName().Append(link);
+        // Try watching symlink target directory. If the link target is "/",
+        // then we shouldn't get here in normal situations and if we do, we'd
+        // watch "/" for changes to a component "/" which is harmless so no
+        // special treatment of this case is required.
+        watch_entry->watch_ =
+            g_inotify_reader.Get().AddWatch(link.DirName(), this);
+        if (watch_entry->watch_ != InotifyReader::kInvalidWatch) {
+          watch_entry->linkname_ = link.BaseName().value();
+        } else {
+          DPLOG(WARNING) << "Watch failed for "  << link.DirName().value();
+          // TODO(craig) Symlinks only work if the parent directory
+          // for the target exist. Ideally we should make sure we've
+          // watched all the components of the symlink path for
+          // changes. See crbug.com/91561 for details.
+        }
+      }
       if (watch_entry->watch_ == InotifyReader::kInvalidWatch) {
         path_valid = false;
       }
