@@ -857,6 +857,14 @@
               'debug_extra_cflags': '-g0',
             },
           }],
+          ['OS=="mac"', {
+            'xcode_settings': {
+              # Goma needs to ship all symbol information over the wire.
+              # <(debug_extra_cflags) will still generate -g1 STABS information,
+              # which is smaller than -gdwarf-2 information.
+              'GCC_GENERATE_DEBUGGING_SYMBOLS': 'NO',
+            },
+          }],
         ],  # conditions for fastbuild.
       }],  # fastbuild!=0
       ['selinux==1', {
