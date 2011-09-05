@@ -166,6 +166,10 @@ class FilePathWatcherTest : public testing::Test {
     return temp_dir_.path().AppendASCII("FilePathWatcherTest");
   }
 
+  FilePath test_link() {
+    return temp_dir_.path().AppendASCII("FilePathWatcherTest.lnk");
+  }
+
   // Write |content| to |file|. Returns true on success.
   bool WriteFile(const FilePath& file, const std::string& content) {
     int write_size = file_util::WriteFile(file, content.c_str(),
@@ -494,6 +498,166 @@ TEST_F(FilePathWatcherTest, FileAttributesChanged) {
 }
 
 #endif  // !OS_LINUX
+
+#if defined(OS_LINUX)
+
+// Verify that creating a symlink is caught.
+TEST_F(FilePathWatcherTest, CreateLink) {
+  FilePathWatcher watcher;
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // Note that we are watching the symlink
+  ASSERT_TRUE(SetupWatch(test_link(), &watcher, delegate.get()));
+
+  // Now make sure we get notified if the link is created.
+  // Note that test_file() doesn't have to exist.
+  ASSERT_TRUE(file_util::CreateSymbolicLink(test_file(), test_link()));
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that deleting a symlink is caught.
+TEST_F(FilePathWatcherTest, DeleteLink) {
+  // Unfortunately this test case only works if the link target exists.
+  // TODO(craig) fix this as part of crbug.com/91561.
+  ASSERT_TRUE(WriteFile(test_file(), "content"));
+  ASSERT_TRUE(file_util::CreateSymbolicLink(test_file(), test_link()));
+  FilePathWatcher watcher;
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  ASSERT_TRUE(SetupWatch(test_link(), &watcher, delegate.get()));
+
+  // Now make sure we get notified if the link is deleted.
+  ASSERT_TRUE(file_util::Delete(test_link(), false));
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that modifying a target file that a link is pointing to
+// when we are watching the link is caught.
+TEST_F(FilePathWatcherTest, ModifiedLinkedFile) {
+  ASSERT_TRUE(WriteFile(test_file(), "content"));
+  ASSERT_TRUE(file_util::CreateSymbolicLink(test_file(), test_link()));
+  FilePathWatcher watcher;
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // Note that we are watching the symlink.
+  ASSERT_TRUE(SetupWatch(test_link(), &watcher, delegate.get()));
+
+  // Now make sure we get notified if the file is modified.
+  ASSERT_TRUE(WriteFile(test_file(), "new content"));
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that creating a target file that a link is pointing to
+// when we are watching the link is caught.
+TEST_F(FilePathWatcherTest, CreateTargetLinkedFile) {
+  ASSERT_TRUE(file_util::CreateSymbolicLink(test_file(), test_link()));
+  FilePathWatcher watcher;
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // Note that we are watching the symlink.
+  ASSERT_TRUE(SetupWatch(test_link(), &watcher, delegate.get()));
+
+  // Now make sure we get notified if the target file is created.
+  ASSERT_TRUE(WriteFile(test_file(), "content"));
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that deleting a target file that a link is pointing to
+// when we are watching the link is caught.
+TEST_F(FilePathWatcherTest, DeleteTargetLinkedFile) {
+  ASSERT_TRUE(WriteFile(test_file(), "content"));
+  ASSERT_TRUE(file_util::CreateSymbolicLink(test_file(), test_link()));
+  FilePathWatcher watcher;
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // Note that we are watching the symlink.
+  ASSERT_TRUE(SetupWatch(test_link(), &watcher, delegate.get()));
+
+  // Now make sure we get notified if the target file is deleted.
+  ASSERT_TRUE(file_util::Delete(test_file(), false));
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that watching a file whose parent directory is a link that
+// doesn't exist yet works if the symlink is created eventually.
+TEST_F(FilePathWatcherTest, LinkedDirectoryPart1) {
+  FilePathWatcher watcher;
+  FilePath dir(temp_dir_.path().AppendASCII("dir"));
+  FilePath link_dir(temp_dir_.path().AppendASCII("dir.lnk"));
+  FilePath file(dir.AppendASCII("file"));
+  FilePath linkfile(link_dir.AppendASCII("file"));
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // dir/file should exist.
+  ASSERT_TRUE(file_util::CreateDirectory(dir));
+  ASSERT_TRUE(WriteFile(file, "content"));
+  // Note that we are watching dir.lnk/file which doesn't exist yet.
+  ASSERT_TRUE(SetupWatch(linkfile, &watcher, delegate.get()));
+
+  ASSERT_TRUE(file_util::CreateSymbolicLink(dir, link_dir));
+  VLOG(1) << "Waiting for link creation";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(WriteFile(file, "content v2"));
+  VLOG(1) << "Waiting for file change";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(file_util::Delete(file, false));
+  VLOG(1) << "Waiting for file deletion";
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that watching a file whose parent directory is a
+// dangling symlink works if the directory is created eventually.
+TEST_F(FilePathWatcherTest, LinkedDirectoryPart2) {
+  FilePathWatcher watcher;
+  FilePath dir(temp_dir_.path().AppendASCII("dir"));
+  FilePath link_dir(temp_dir_.path().AppendASCII("dir.lnk"));
+  FilePath file(dir.AppendASCII("file"));
+  FilePath linkfile(link_dir.AppendASCII("file"));
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // Now create the link from dir.lnk pointing to dir but
+  // neither dir nor dir/file exist yet.
+  ASSERT_TRUE(file_util::CreateSymbolicLink(dir, link_dir));
+  // Note that we are watching dir.lnk/file.
+  ASSERT_TRUE(SetupWatch(linkfile, &watcher, delegate.get()));
+
+  ASSERT_TRUE(file_util::CreateDirectory(dir));
+  ASSERT_TRUE(WriteFile(file, "content"));
+  VLOG(1) << "Waiting for dir/file creation";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(WriteFile(file, "content v2"));
+  VLOG(1) << "Waiting for file change";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(file_util::Delete(file, false));
+  VLOG(1) << "Waiting for file deletion";
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that watching a file with a symlink on the path
+// to the file works.
+TEST_F(FilePathWatcherTest, LinkedDirectoryPart3) {
+  FilePathWatcher watcher;
+  FilePath dir(temp_dir_.path().AppendASCII("dir"));
+  FilePath link_dir(temp_dir_.path().AppendASCII("dir.lnk"));
+  FilePath file(dir.AppendASCII("file"));
+  FilePath linkfile(link_dir.AppendASCII("file"));
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  ASSERT_TRUE(file_util::CreateDirectory(dir));
+  ASSERT_TRUE(file_util::CreateSymbolicLink(dir, link_dir));
+  // Note that we are watching dir.lnk/file but the file doesn't exist yet.
+  ASSERT_TRUE(SetupWatch(linkfile, &watcher, delegate.get()));
+
+  ASSERT_TRUE(WriteFile(file, "content"));
+  VLOG(1) << "Waiting for file creation";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(WriteFile(file, "content v2"));
+  VLOG(1) << "Waiting for file change";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(file_util::Delete(file, false));
+  VLOG(1) << "Waiting for file deletion";
+  ASSERT_TRUE(WaitForEvents());
+}
+
+#endif  // OS_LINUX
 
 enum Permission {
   Read,
