@@ -62,7 +62,8 @@ namespace net {
 class NET_EXPORT HostResolverImpl
     : public HostResolver,
       NON_EXPORTED_BASE(public base::NonThreadSafe),
-      public NetworkChangeNotifier::IPAddressObserver {
+      public NetworkChangeNotifier::IPAddressObserver,
+      public NetworkChangeNotifier::DNSObserver {
  public:
   // The index into |job_pools_| for the various job pools. Pools with a higher
   // index have lower priority.
@@ -303,6 +304,9 @@ class NET_EXPORT HostResolverImpl
   void set_retry_factor(const uint32 retry_factor) {
     retry_factor_ = retry_factor;
   }
+
+  // NetworkChangeNotifier::OnDNSChanged methods:
+  virtual void OnDNSChanged();
 
   // Cache of host resolution results.
   scoped_ptr<HostCache> cache_;

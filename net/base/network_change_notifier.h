@@ -50,6 +50,22 @@ class NET_EXPORT NetworkChangeNotifier {
     DISALLOW_COPY_AND_ASSIGN(OnlineStateObserver);
   };
 
+  class NET_EXPORT DNSObserver {
+   public:
+    virtual ~DNSObserver() {}
+
+    // Will be called when the DNS resolver of the system may have changed.
+    // This is only used on Linux currently and watches /etc/resolv.conf
+    // and /etc/hosts
+    virtual void OnDNSChanged() = 0;
+
+   protected:
+    DNSObserver() {}
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(DNSObserver);
+  };
+
   virtual ~NetworkChangeNotifier();
 
   // See the description of NetworkChangeNotifier::IsOffline().
@@ -89,6 +105,7 @@ class NET_EXPORT NetworkChangeNotifier {
   // thread), in which case it will simply do nothing.
   static void AddIPAddressObserver(IPAddressObserver* observer);
   static void AddOnlineStateObserver(OnlineStateObserver* observer);
+  static void AddDNSObserver(DNSObserver* observer);
 
   // Unregisters |observer| from receiving notifications.  This must be called
   // on the same thread on which AddObserver() was called.  Like AddObserver(),
@@ -99,6 +116,7 @@ class NET_EXPORT NetworkChangeNotifier {
   // there's no reason to use the API in this risky way, so don't do it.
   static void RemoveIPAddressObserver(IPAddressObserver* observer);
   static void RemoveOnlineStateObserver(OnlineStateObserver* observer);
+  static void RemoveDNSObserver(DNSObserver* observer);
 
   // Allow unit tests to trigger notifications.
   static void NotifyObserversOfIPAddressChangeForTests() {
@@ -113,12 +131,15 @@ class NET_EXPORT NetworkChangeNotifier {
   // tests.
   static void NotifyObserversOfIPAddressChange();
   static void NotifyObserversOfOnlineStateChange();
+  static void NotifyObserversOfDNSChange();
 
  private:
   const scoped_refptr<ObserverListThreadSafe<IPAddressObserver> >
       ip_address_observer_list_;
   const scoped_refptr<ObserverListThreadSafe<OnlineStateObserver> >
       online_state_observer_list_;
+  const scoped_refptr<ObserverListThreadSafe<DNSObserver> >
+      resolver_state_observer_list_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifier);
 };
