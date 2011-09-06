@@ -83,9 +83,10 @@ void TraceValue::AppendAsJSON(std::string* out) const {
       *out += temp_string;
       break;
     case TRACE_TYPE_STRING:
+    case TRACE_TYPE_STATIC_STRING:
       *out += "\"";
       start_pos = out->size();
-      *out += as_string();
+      *out += as_string() ? as_string() : "NULL";
       // replace " character with '
       while ((start_pos = out->find_first_of('\"', start_pos)) !=
              std::string::npos)
@@ -176,10 +177,15 @@ TraceEvent::TraceEvent(unsigned long process_id,
     alloc_size += GetAllocLength(arg1_name);
     alloc_size += GetAllocLength(arg2_name);
   }
-  // We always take a copy of string arg_vals, even if |copy| was not set.
-  if (arg1_val.type() == TraceValue::TRACE_TYPE_STRING)
+
+  bool arg1_is_copy = (arg1_val.type() == TraceValue::TRACE_TYPE_STRING);
+  bool arg2_is_copy = (arg2_val.type() == TraceValue::TRACE_TYPE_STRING);
+
+  // We only take a copy of arg_vals if they are of type string (not static
+  // string), regardless of the |copy| flag.
+  if (arg1_is_copy)
     alloc_size += GetAllocLength(arg1_val.as_string());
-  if (arg2_val.type() == TraceValue::TRACE_TYPE_STRING)
+  if (arg2_is_copy)
     alloc_size += GetAllocLength(arg2_val.as_string());
 
   if (alloc_size) {
@@ -192,9 +198,9 @@ TraceEvent::TraceEvent(unsigned long process_id,
       CopyTraceEventParameter(&ptr, &arg_names_[0], end);
       CopyTraceEventParameter(&ptr, &arg_names_[1], end);
     }
-    if (arg_values_[0].type() == TraceValue::TRACE_TYPE_STRING)
+    if (arg1_is_copy)
       CopyTraceEventParameter(&ptr, arg_values_[0].as_assignable_string(), end);
-    if (arg_values_[1].type() == TraceValue::TRACE_TYPE_STRING)
+    if (arg2_is_copy)
       CopyTraceEventParameter(&ptr, arg_values_[1].as_assignable_string(), end);
     DCHECK_EQ(end, ptr) << "Overrun by " << ptr - end;
   }
@@ -362,7 +368,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
                             const char* arg2_name, TraceValue arg2_val,
                             int threshold_begin_id,
                             int64 threshold,
-                            bool copy) {
+                            EventFlags flags) {
   DCHECK(name);
 #ifdef USE_UNRELIABLE_NOW
   TimeTicks now = TimeTicks::HighResNow();
@@ -427,7 +433,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
                    now, phase, category, name,
                    arg1_name, arg1_val,
                    arg2_name, arg2_val,
-                   copy));
+                   flags & EVENT_FLAG_COPY));
 
     if (logged_events_.size() == kTraceEventBufferSize) {
       buffer_full_callback_copy = buffer_full_callback_;
@@ -444,22 +450,25 @@ void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
                                 const char* name,
                                 const void* id,
                                 const char* extra) {
-  // Legacy trace points on windows called to ETW
 #if defined(OS_WIN)
   TraceEventETWProvider::Trace(name, phase, id, extra);
 #endif
+  INTERNAL_TRACE_EVENT_ADD(phase,
+      "ETW Trace Event", name, "id", id, "extra", TRACE_STR_COPY(extra),
+      base::debug::TraceLog::EVENT_FLAG_NONE);
+}
 
-  // Also add new trace event behavior
-  static const TraceCategory* category = GetCategory("ETW Trace Event");
-  if (category->enabled) {
-    TraceLog* tracelog = TraceLog::GetInstance();
-    if (!tracelog)
-      return;
-    tracelog->AddTraceEvent(phase, category, name,
-                            "id", id,
-                            "extra", extra ? extra : "",
-                            -1, 0, false);
-  }
+void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
+                                const char* name,
+                                const void* id,
+                                const std::string& extra)
+{
+#if defined(OS_WIN)
+  TraceEventETWProvider::Trace(name, phase, id, extra);
+#endif
+  INTERNAL_TRACE_EVENT_ADD(phase,
+      "ETW Trace Event", name, "id", id, "extra", extra,
+      base::debug::TraceLog::EVENT_FLAG_NONE);
 }
 
 void TraceLog::AddCurrentMetadataEvents() {
@@ -474,7 +483,7 @@ void TraceLog::AddCurrentMetadataEvents() {
                      it->first,
                      TimeTicks(), base::debug::TRACE_EVENT_PHASE_METADATA,
                      g_category_metadata, "thread_name",
-                     "name", it->second.c_str(),
+                     "name", it->second,
                      NULL, 0,
                      false));
   }
@@ -501,7 +510,7 @@ void TraceEndOnScopeClose::AddEventIfEnabled() {
         p_data_->category,
         p_data_->name,
         NULL, 0, NULL, 0,
-        -1, 0, false);
+        -1, 0, TraceLog::EVENT_FLAG_NONE);
   }
 }
 
@@ -524,7 +533,8 @@ void TraceEndOnScopeCloseThreshold::AddEventIfEnabled() {
         p_data_->category,
         p_data_->name,
         NULL, 0, NULL, 0,
-        p_data_->threshold_begin_id, p_data_->threshold, false);
+        p_data_->threshold_begin_id, p_data_->threshold,
+        TraceLog::EVENT_FLAG_NONE);
   }
 }
 
