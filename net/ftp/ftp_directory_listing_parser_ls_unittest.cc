@@ -133,6 +133,7 @@ TEST_F(FtpDirectoryListingParserLsTest, Ignored) {
 
     "ftpd: .: Permission denied",
     "ftpd-BSD: .: Permission denied",
+    "ls: .: EDC5111I Permission denied.",
 
     // Tests important for security: verify that after we detect the column
     // offset we don't try to access invalid memory on malformed input.
