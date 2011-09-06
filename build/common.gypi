@@ -2016,7 +2016,7 @@
       'make_global_settings': [
         ['CC', 'third_party/llvm-build/Release+Asserts/bin/clang'],
         ['CXX', 'third_party/llvm-build/Release+Asserts/bin/clang++'],
-        ['LINK', 'third_party/llvm-build/Release+Asserts/bin/clang++'],
+        ['LINK', '$(CXX)'],
         ['CC.host', '$(CC)'],
         ['CXX.host', '$(CXX)'],
         ['LINK.host', '$(LINK)'],
