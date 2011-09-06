@@ -63,7 +63,7 @@ bool LooksLikePermissionDeniedError(const string16& text) {
   if (parts.size() != 3)
     return false;
 
-  return parts[2] == ASCIIToUTF16("Permission denied");
+  return parts[2].find(ASCIIToUTF16("Permission denied")) != string16::npos;
 }
 
 // Returns the column index of the end of the date listing and detected
