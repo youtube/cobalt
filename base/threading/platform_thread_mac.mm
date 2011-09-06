@@ -68,13 +68,16 @@ namespace {
 
 void SetPriorityNormal(mach_port_t mach_thread_id) {
   // Make thread standard policy.
+  // Please note that this call could fail in rare cases depending
+  // on runtime conditions.
   thread_standard_policy policy;
   kern_return_t result = thread_policy_set(mach_thread_id,
                                            THREAD_STANDARD_POLICY,
                                            (thread_policy_t)&policy,
                                            THREAD_STANDARD_POLICY_COUNT);
 
-  DCHECK_EQ(KERN_SUCCESS, result);
+  if (result != KERN_SUCCESS)
+    VLOG(1) << "thread_policy_set() failure: " << result;
 }
 
 // Enables time-contraint policy and priority suitable for low-latency,
@@ -84,6 +87,11 @@ void SetPriorityRealtimeAudio(mach_port_t mach_thread_id) {
 
   // Increase thread priority to real-time.
 
+  // Please note that the thread_policy_set() calls may fail in
+  // rare cases if the kernel decides the system is under heavy load
+  // and is unable to handle boosting the thread priority.
+  // In these cases we just return early and go on with life.
+
   // Make thread fixed priority.
   thread_extended_policy_data_t policy;
   policy.timeshare = 0;  // Set to 1 for a non-fixed thread.
@@ -91,8 +99,10 @@ void SetPriorityRealtimeAudio(mach_port_t mach_thread_id) {
                              THREAD_EXTENDED_POLICY,
                              (thread_policy_t)&policy,
                              THREAD_EXTENDED_POLICY_COUNT);
-
-  DCHECK_EQ(KERN_SUCCESS, result);
+  if (result != KERN_SUCCESS) {
+    VLOG(1) << "thread_policy_set() failure: " << result;
+    return;
+  }
 
   // Set to relatively high priority.
   thread_precedence_policy_data_t precedence;
@@ -101,7 +111,10 @@ void SetPriorityRealtimeAudio(mach_port_t mach_thread_id) {
                              THREAD_PRECEDENCE_POLICY,
                              (thread_policy_t)&precedence,
                              THREAD_PRECEDENCE_POLICY_COUNT);
-  DCHECK_EQ(KERN_SUCCESS, result);
+  if (result != KERN_SUCCESS) {
+    VLOG(1) << "thread_policy_set() failure: " << result;
+    return;
+  }
 
   // Most important, set real-time constraints.
 
@@ -142,7 +155,10 @@ void SetPriorityRealtimeAudio(mach_port_t mach_thread_id) {
                              THREAD_TIME_CONSTRAINT_POLICY,
                              (thread_policy_t)&time_constraints,
                              THREAD_TIME_CONSTRAINT_POLICY_COUNT);
-  DCHECK_EQ(KERN_SUCCESS, result);
+  if (result != KERN_SUCCESS)
+    VLOG(1) << "thread_policy_set() failure: " << result;
+
+  return;
 }
 
 }  // anonymous namespace
