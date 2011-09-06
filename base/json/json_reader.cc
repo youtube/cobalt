@@ -53,10 +53,8 @@ bool ReadHexDigits(base::JSONReader::Token& token, int digits) {
     wchar_t c = *(token.begin + token.length + i);
     if ('\0' == c)
       return false;
-    if (!(('0' <= c && c <= '9') || ('a' <= c && c <= 'f') ||
-          ('A' <= c && c <= 'F'))) {
+    if (!IsHexDigit(c))
       return false;
-    }
   }
 
   token.length += digits;
