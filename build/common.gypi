@@ -1668,6 +1668,9 @@
                                  {'GCC_PRECOMPILE_PREFIX_HEADER': 'NO'}
             ],
             ['clang==1', {
+              'CC': '$(SOURCE_ROOT)/<(clang_dir)/clang',
+              'LDPLUSPLUS': '$(SOURCE_ROOT)/<(clang_dir)/clang++',
+              'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'WARNING_CFLAGS': [
                 '-Wheader-hygiene',
                 # Don't die on dtoa code that uses a char as an array index.
@@ -1695,6 +1698,13 @@
             }],
           ],
         },
+        'conditions': [
+          ['clang==1', {
+            'variables': {
+              'clang_dir': '../third_party/llvm-build/Release+Asserts/bin',
+            },
+          }],
+        ],
         'target_conditions': [
           ['_type!="static_library"', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-search_paths_first']},
@@ -2001,6 +2011,16 @@
           'ENABLE_NEW_NPDEVICE_API',
         ],
       },
+    }],
+    ['clang==1', {
+      'make_global_settings': [
+        ['CC', 'third_party/llvm-build/Release+Asserts/bin/clang'],
+        ['CXX', 'third_party/llvm-build/Release+Asserts/bin/clang++'],
+        ['LINK', 'third_party/llvm-build/Release+Asserts/bin/clang++'],
+        ['CC.host', '$(CC)'],
+        ['CXX.host', '$(CXX)'],
+        ['LINK.host', '$(LINK)'],
+      ],
     }],
   ],
   'xcode_settings': {
