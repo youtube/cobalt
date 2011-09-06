@@ -20,7 +20,7 @@
 #include "base/synchronization/lock.h"
 #include "base/task.h"
 #include "base/threading/worker_pool.h"
-#include "net/base/dns_reload_timer.h"
+#include "net/base/dns_reloader.h"
 #include "net/base/dns_util.h"
 #include "net/base/net_errors.h"
 
@@ -184,26 +184,18 @@ class RRResolverWorker {
     }
 
     bool r = true;
+#if defined(OS_MACOSX) || defined(OS_OPENBSD)
     if ((_res.options & RES_INIT) == 0) {
       if (res_ninit(&_res) != 0)
         r = false;
     }
+#else
+    DnsReloaderMaybeReload();
+#endif
 
     if (r) {
       unsigned long saved_options = _res.options;
       r = Do();
-
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
-      if (!r && DnsReloadTimerHasExpired()) {
-        // When there's no network connection, _res may not be initialized by
-        // getaddrinfo. Therefore, we call res_nclose only when there are ns
-        // entries.
-        if (_res.nscount > 0)
-          res_nclose(&_res);
-        if (res_ninit(&_res) == 0)
-          r = Do();
-      }
-#endif
       _res.options = saved_options;
     }
 
