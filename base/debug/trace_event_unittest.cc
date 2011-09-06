@@ -8,6 +8,7 @@
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/process_util.h"
 #include "base/stringprintf.h"
@@ -462,6 +463,59 @@ TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
   EXPECT_NOT_FIND_BE_("4thresholdlong2");
 }
 
+// Test that static strings are not copied.
+TEST_F(TraceEventTestFixture, StaticStringVsString) {
+  ManualTestSetUp();
+  TraceLog* tracer = TraceLog::GetInstance();
+  // Make sure old events are flushed:
+  tracer->SetEnabled(false);
+  EXPECT_EQ(0u, tracer->GetEventsSize());
+
+  {
+    tracer->SetEnabled(true);
+    // Test that string arguments are copied.
+    TRACE_EVENT2("cat", "name1",
+                 "arg1", std::string("argval"), "arg2", std::string("argval"));
+    // Test that static TRACE_STR_COPY string arguments are copied.
+    TRACE_EVENT2("cat", "name2",
+                 "arg1", TRACE_STR_COPY("argval"),
+                 "arg2", TRACE_STR_COPY("argval"));
+    size_t num_events = tracer->GetEventsSize();
+    EXPECT_GT(num_events, 1u);
+    const TraceEvent& event1 = tracer->GetEventAt(num_events - 2);
+    const TraceEvent& event2 = tracer->GetEventAt(num_events - 1);
+    EXPECT_STREQ("name1", event1.name());
+    EXPECT_STREQ("name2", event2.name());
+    EXPECT_TRUE(event1.parameter_copy_storage() != NULL);
+    EXPECT_TRUE(event2.parameter_copy_storage() != NULL);
+    EXPECT_GT(event1.parameter_copy_storage()->size(), 0u);
+    EXPECT_GT(event2.parameter_copy_storage()->size(), 0u);
+    tracer->SetEnabled(false);
+  }
+
+  {
+    tracer->SetEnabled(true);
+    // Test that static literal string arguments are not copied.
+    TRACE_EVENT2("cat", "name1",
+                 "arg1", "argval", "arg2", "argval");
+    // Test that static TRACE_STR_COPY NULL string arguments are not copied.
+    const char* str1 = NULL;
+    const char* str2 = NULL;
+    TRACE_EVENT2("cat", "name2",
+                 "arg1", TRACE_STR_COPY(str1),
+                 "arg2", TRACE_STR_COPY(str2));
+    size_t num_events = tracer->GetEventsSize();
+    EXPECT_GT(num_events, 1u);
+    const TraceEvent& event1 = tracer->GetEventAt(num_events - 2);
+    const TraceEvent& event2 = tracer->GetEventAt(num_events - 1);
+    EXPECT_STREQ("name1", event1.name());
+    EXPECT_STREQ("name2", event2.name());
+    EXPECT_TRUE(event1.parameter_copy_storage() == NULL);
+    EXPECT_TRUE(event2.parameter_copy_storage() == NULL);
+    tracer->SetEnabled(false);
+  }
+}
+
 // Test that data sent from other threads is gathered
 TEST_F(TraceEventTestFixture, DataCapturedOnThread) {
   ManualTestSetUp();
@@ -684,8 +738,8 @@ TEST_F(TraceEventTestFixture, DeepCopy) {
   TRACE_EVENT_COPY_BEGIN1("category", name2.c_str(),
                           arg1.c_str(), 5);
   TRACE_EVENT_COPY_END2("category", name3.c_str(),
-                        arg1.c_str(), val1.c_str(),
-                        arg2.c_str(), val2.c_str());
+                        arg1.c_str(), val1,
+                        arg2.c_str(), val2);
 
   // As per NormallyNoDeepCopy, modify the strings in place.
   name1[0] = name2[0] = name3[0] = arg1[0] = arg2[0] = val1[0] = val2[0] = '@';
