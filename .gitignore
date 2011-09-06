@@ -117,6 +117,7 @@ v8.log
 /third_party/llvm-build
 /third_party/mingw-w64
 /third_party/mkl
+/third_party/mozc
 /third_party/nss
 /third_party/openssl
 /third_party/ots
