@@ -71,6 +71,11 @@ class CRYPTO_EXPORT SymmetricKey {
   // carefully.
   bool GetRawKey(std::string* raw_key);
 
+#if defined(OS_CHROMEOS)
+  // Creates symmetric key from NSS key. Takes over the ownership of |key|.
+  static SymmetricKey* CreateFromKey(PK11SymKey* key);
+#endif
+
  private:
 #if defined(USE_OPENSSL)
   SymmetricKey() {}
