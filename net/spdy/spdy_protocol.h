@@ -133,7 +133,7 @@ const int kSpdyProtocolVersion = 2;
 const size_t kSpdyStreamInitialWindowSize = 64 * 1024;  // 64 KBytes
 
 // Maximum window size for a Spdy stream
-const size_t kSpdyStreamMaximumWindowSize = std::numeric_limits<int32>::max();
+const size_t kSpdyStreamMaximumWindowSize = 0x7FFFFFFF;  // Max signed 32bit int
 
 // HTTP-over-SPDY header constants
 const char kMethod[] = "method";
