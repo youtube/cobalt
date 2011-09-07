@@ -248,6 +248,8 @@
         'gfx/native_theme.cc',
         'gfx/native_theme.h',
         'gfx/native_widget_types.h',
+        'gfx/pango_util.h',
+        'gfx/pango_util.cc',
         'gfx/path.cc',
         'gfx/path.h',
         'gfx/path_gtk.cc',
@@ -380,6 +382,10 @@
             'gfx/win_util.cc',
             'gfx/win_util.h',
           ],
+          'sources!': [
+            'gfx/pango_util.h',
+            'gfx/pango_util.cc',
+          ],
           'include_dirs': [
             '../',
             '../third_party/wtl/include',
@@ -419,6 +425,10 @@
           ],
         }],
         ['OS=="mac"', {
+          'sources!': [
+            'gfx/pango_util.h',
+            'gfx/pango_util.cc',
+          ],
           'link_settings': {
             'libraries': [
               '$(SDKROOT)/System/Library/Frameworks/Accelerate.framework',
