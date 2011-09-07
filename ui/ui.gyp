@@ -294,9 +294,11 @@
       'conditions': [
         ['use_aura==1', {
           'sources/': [
+            ['exclude', 'gfx/gtk_'],
+            ['exclude', 'gfx/screen_gtk.cc'],
             ['exclude', 'gfx/screen_win.cc'],
             ['exclude', 'base/win/mouse_wheel_util.cc'],
-            ['exclude', 'base/win/mouse_wheel_util.h'],            
+            ['exclude', 'base/win/mouse_wheel_util.h'],
           ],
         }],
         ['toolkit_uses_gtk == 1', {
@@ -315,6 +317,8 @@
             'gfx/gtk_preserve_window.h',
             'gfx/gtk_util.cc',
             'gfx/gtk_util.h',
+            'gfx/linux_util.cc',
+            'gfx/linux_util.h',
             'gfx/native_theme_linux.cc',
             'gfx/native_theme_linux.h',
           ],
@@ -360,6 +364,8 @@
             ['include', 'gfx/path_gtk.cc'],
             ['include', 'gfx/platform_font_gtk.cc'],
             ['include', 'gfx/platform_font_gtk.h'],
+            ['include', 'gfx/linux_util.cc'],
+            ['include', 'gfx/linux_util.h'],
           ],
         }],
         ['OS=="win"', {
