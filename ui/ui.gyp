@@ -112,7 +112,6 @@
         'base/gtk/gtk_floating_container.h',
         'base/gtk/gtk_im_context_util.cc',
         'base/gtk/gtk_im_context_util.h',
-        'base/gtk/gtk_hig_constants.cc',
         'base/gtk/gtk_hig_constants.h',
         'base/gtk/gtk_signal.h',
         'base/gtk/gtk_signal_registrar.cc',
