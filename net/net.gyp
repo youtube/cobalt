@@ -17,6 +17,9 @@
       }],
     ],
   },
+  'includes': [
+    '../build/win_precompile.gypi',
+  ],
   'targets': [
     {
       'target_name': 'net',
