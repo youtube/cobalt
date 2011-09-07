@@ -87,10 +87,13 @@ void TraceValue::AppendAsJSON(std::string* out) const {
       *out += "\"";
       start_pos = out->size();
       *out += as_string() ? as_string() : "NULL";
-      // replace " character with '
-      while ((start_pos = out->find_first_of('\"', start_pos)) !=
-             std::string::npos)
-        (*out)[start_pos] = '\'';
+      // insert backslash before special characters for proper json format.
+      while ((start_pos = out->find_first_of("\\\"", start_pos)) !=
+             std::string::npos) {
+        out->insert(start_pos, 1, '\\');
+        // skip inserted escape character and following character.
+        start_pos += 2;
+      }
       *out += "\"";
       break;
     default:
