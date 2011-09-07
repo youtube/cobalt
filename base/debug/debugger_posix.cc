@@ -211,7 +211,11 @@ bool BeingDebugged() {
 void BreakDebugger() {
   DEBUG_BREAK();
 #if defined(NDEBUG)
+#if defined(__LB_PS3__)
+  exit(1);
+#else
   _exit(1);
+#endif
 #endif
 }
 
