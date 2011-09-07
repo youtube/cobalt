@@ -24,6 +24,8 @@ class Time;
 // initialization functions.
 namespace crypto {
 
+class SymmetricKey;
+
 #if defined(USE_NSS)
 // EarlySetupForNSSInit performs lightweight setup which must occur before the
 // process goes multithreaded. This does not initialise NSS. For test, see
@@ -133,6 +135,14 @@ CRYPTO_EXPORT bool IsTPMTokenReady();
 // Same as IsTPMTokenReady() except this attempts to initialize the token
 // if necessary.
 CRYPTO_EXPORT bool EnsureTPMTokenReady();
+
+// Gets supplemental user key. Creates one in NSS database if it does not exist.
+// The supplemental user key is used for AES encryption of user data that is
+// stored and protected by cryptohome. This additional layer of encryption of
+// provided to ensure that sensitive data wouldn't be exposed in plain text in
+// case when an attacker would somehow gain access to all content within
+// cryptohome.
+CRYPTO_EXPORT SymmetricKey* GetSupplementalUserKey();
 #endif
 
 // Convert a NSS PRTime value into a base::Time object.

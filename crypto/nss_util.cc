@@ -31,6 +31,10 @@
 #include "base/threading/thread_restrictions.h"
 #include "crypto/scoped_nss_types.h"
 
+#if defined(OS_CHROMEOS)
+#include "crypto/symmetric_key.h"
+#endif
+
 // USE_NSS means we use NSS for everything crypto-related.  If USE_NSS is not
 // defined, such as on Mac and Windows, we use NSS for SSL only -- we don't
 // use NSS for crypto or certificate verification, and we don't use the NSS
@@ -82,6 +86,15 @@ FilePath GetDefaultConfigDirectory() {
   }
   return dir;
 }
+
+#if defined(OS_CHROMEOS)
+// Supplemental user key id.
+unsigned char kSupplementalUserKeyId[] = {
+  0xCC, 0x13, 0x19, 0xDE, 0x75, 0x5E, 0xFE, 0xFA,
+  0x5E, 0x71, 0xD4, 0xA6, 0xFB, 0x00, 0x00, 0xCC
+};
+#endif  // defined(OS_CHROMEOS)
+
 
 // On non-chromeos platforms, return the default config directory.
 // On chromeos, return a read-only directory with fake root CA certs for testing
@@ -288,6 +301,40 @@ class NSSInitSingleton {
     return FindSlotWithTokenName(token_name);
   }
 
+  SymmetricKey* GetSupplementalUserKey() {
+    DCHECK(chromeos_user_logged_in_);
+
+    PK11SlotInfo* slot = NULL;
+    PK11SymKey* key = NULL;
+    SECItem keyID;
+    CK_MECHANISM_TYPE type = CKM_AES_ECB;
+
+    slot = GetPublicNSSKeySlot();
+    if (!slot)
+      goto done;
+
+    if (PK11_Authenticate(slot, PR_TRUE, NULL) != SECSuccess)
+      goto done;
+
+    keyID.type = siBuffer;
+    keyID.data = kSupplementalUserKeyId;
+    keyID.len = static_cast<int>(sizeof(kSupplementalUserKeyId));
+
+    // Find/generate AES key.
+    key = PK11_FindFixedKey(slot, type, &keyID, NULL);
+    if (!key) {
+      const int kKeySizeInBytes = 32;
+      key = PK11_TokenKeyGen(slot, type, NULL,
+                             kKeySizeInBytes,
+                             &keyID, PR_TRUE, NULL);
+    }
+
+  done:
+    if (slot)
+      PK11_FreeSlot(slot);
+
+    return key ? SymmetricKey::CreateFromKey(key) : NULL;
+  }
 #endif  // defined(OS_CHROMEOS)
 
 
@@ -702,6 +749,9 @@ bool EnsureTPMTokenReady() {
   return g_nss_singleton.Get().EnsureTPMTokenReady();
 }
 
+SymmetricKey* GetSupplementalUserKey() {
+  return g_nss_singleton.Get().GetSupplementalUserKey();
+}
 #endif  // defined(OS_CHROMEOS)
 
 // TODO(port): Implement this more simply.  We can convert by subtracting an
