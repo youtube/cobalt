@@ -383,7 +383,7 @@
                 'message_pump_x.cc',
               ],
           }],
-          [ 'touchui==0', {
+          [ 'touchui==0 and use_aura==0', {
             'sources!' : [ 'message_pump_x.cc', ],
           }, {
             'sources!' : [ 'message_pump_gtk.cc', ],
