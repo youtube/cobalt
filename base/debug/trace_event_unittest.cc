@@ -206,8 +206,8 @@ void TraceWithAllMacroVariants(WaitableEvent* task_complete_event) {
     TRACE_EVENT0("all", "TRACE_EVENT0 call");
     TRACE_EVENT1("all", "TRACE_EVENT1 call", "name1", "value1");
     TRACE_EVENT2("all", "TRACE_EVENT2 call",
-                 "name1", "value1",
-                 "name2", "value2");
+                 "name1", "\"value1\"",
+                 "name2", "value\\2");
 
     TRACE_EVENT_INSTANT0("all", "TRACE_EVENT_INSTANT0 call");
     TRACE_EVENT_INSTANT1("all", "TRACE_EVENT_INSTANT1 call", "name1", "value1");
@@ -269,9 +269,9 @@ void ValidateAllTraceMacrosCreatedData(const ListValue& trace_parsed,
   EXPECT_FIND_("TRACE_EVENT1 call");
   EXPECT_FIND_("TRACE_EVENT2 call");
   EXPECT_SUB_FIND_("name1");
-  EXPECT_SUB_FIND_("value1");
+  EXPECT_SUB_FIND_("\"value1\"");
   EXPECT_SUB_FIND_("name2");
-  EXPECT_SUB_FIND_("value2");
+  EXPECT_SUB_FIND_("value\\2");
   EXPECT_FIND_("TRACE_EVENT_INSTANT0 call");
   EXPECT_FIND_("TRACE_EVENT_INSTANT1 call");
   EXPECT_FIND_("TRACE_EVENT_INSTANT2 call");
