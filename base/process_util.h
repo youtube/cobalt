@@ -213,7 +213,7 @@ struct LaunchOptions {
   LaunchOptions() : wait(false),
 #if defined(OS_WIN)
                     start_hidden(false), inherit_handles(false), as_user(NULL),
-                    empty_desktop_name(false)
+                    empty_desktop_name(false), job_handle(NULL)
 #else
                     environ(NULL), fds_to_remap(NULL), new_process_group(false)
 #if defined(OS_LINUX)
@@ -245,6 +245,9 @@ struct LaunchOptions {
 
   // If true, use an empty string for the desktop name.
   bool empty_desktop_name;
+
+  // If non-NULL, launches the application in that job object.
+  HANDLE job_handle;
 #else
   // If non-NULL, set/unset environment variables.
   // See documentation of AlterEnvironment().
