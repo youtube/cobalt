@@ -120,6 +120,13 @@ bool SymmetricKey::GetRawKey(std::string* raw_key) {
   return true;
 }
 
+#if defined(OS_CHROMEOS)
+// static
+SymmetricKey* SymmetricKey::CreateFromKey(PK11SymKey* key) {
+  return new SymmetricKey(key);
+}
+#endif
+
 SymmetricKey::SymmetricKey(PK11SymKey* key) : key_(key) {
   DCHECK(key);
 }
