@@ -569,6 +569,25 @@ bool TransportSecurityState::IsPreloadedSTS(
     0,
   };
 
+  static const char kCertRapidSSL[] =
+    "sha1/m9lHYJYke9k0GtVZ+bXSQYE8nDI=";
+  static const char kCertDigiCertEVRoot[] =
+    "sha1/gzF+YoVCU9bXeDGQ7JGQVumRueM=";
+  static const char kCertTor1[] =
+    "sha1/juNxSTv9UANmpC9kF5GKpmWNx3Y=";
+  static const char kCertTor2[] =
+    "sha1/lia43lPolzSPVIq34Dw57uYcLD8=";
+  static const char kCertTor3[] =
+    "sha1/rzEyQIKOh77j87n5bjWUNguXF8Y=";
+  static const char* kTorAcceptableCerts[] = {
+    kCertRapidSSL,
+    kCertDigiCertEVRoot,
+    kCertTor1,
+    kCertTor2,
+    kCertTor3,
+    0,
+  };
+
   // kTestAcceptableCerts doesn't actually match any public keys and is used
   // with "pinningtest.appspot.com", below, to test if pinning is active.
   static const char* kTestAcceptableCerts[] = {
@@ -661,6 +680,10 @@ bool TransportSecurityState::IsPreloadedSTS(
     {13, true, "\007dropcam\003com", true, 0 },
     {30, true, "\010ebanking\014indovinabank\003com\002vn", true, 0 },
     {13, false, "\007epoxate\003com", true, 0 },
+    {16, false, "\012torproject\003org", true, kTorAcceptableCerts },
+    {21, true, "\004blog\012torproject\003org", true, kTorAcceptableCerts },
+    {22, true, "\005check\012torproject\003org", true, kTorAcceptableCerts },
+    {20, true, "\003www\012torproject\003org", true, kTorAcceptableCerts },
 #if defined(OS_CHROMEOS)
     {13, false, "\007twitter\003com", true, 0 },
     {17, false, "\003www\007twitter\003com", true, 0 },

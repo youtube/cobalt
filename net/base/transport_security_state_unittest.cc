@@ -664,6 +664,27 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
                                        "foo.epoxate.com",
                                        false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "torproject.org",
+                                      false));
+  EXPECT_TRUE(domain_state.public_key_hashes.size() != 0);
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "www.torproject.org",
+                                      false));
+  EXPECT_TRUE(domain_state.public_key_hashes.size() != 0);
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "check.torproject.org",
+                                      false));
+  EXPECT_TRUE(domain_state.public_key_hashes.size() != 0);
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "blog.torproject.org",
+                                      false));
+  EXPECT_TRUE(domain_state.public_key_hashes.size() != 0);
+
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "foo.torproject.org",
+                                       false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
