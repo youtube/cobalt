@@ -237,8 +237,19 @@ bool LaunchProcess(const string16& cmdline,
   startup_info.wShowWindow = options.start_hidden ? SW_HIDE : SW_SHOW;
   PROCESS_INFORMATION process_info;
 
+  DWORD flags = 0;
+
+  if (options.job_handle) {
+    flags |= CREATE_SUSPENDED;
+
+    // If this code is run under a debugger, the launched process is
+    // automatically associated with a job object created by the debugger.
+    // The CREATE_BREAKAWAY_FROM_JOB flag is used to prevent this.
+    flags |= CREATE_BREAKAWAY_FROM_JOB;
+  }
+
   if (options.as_user) {
-    DWORD flags = CREATE_UNICODE_ENVIRONMENT;
+    flags |= CREATE_UNICODE_ENVIRONMENT;
     void* enviroment_block = NULL;
 
     if (!CreateEnvironmentBlock(&enviroment_block, options.as_user, FALSE))
@@ -256,10 +267,21 @@ bool LaunchProcess(const string16& cmdline,
   } else {
     if (!CreateProcess(NULL,
                        const_cast<wchar_t*>(cmdline.c_str()), NULL, NULL,
-                       options.inherit_handles, 0, NULL, NULL,
+                       options.inherit_handles, flags, NULL, NULL,
                        &startup_info, &process_info)) {
       return false;
     }
+  }
+
+  if (options.job_handle) {
+    if (0 == AssignProcessToJobObject(options.job_handle,
+                                      process_info.hProcess)) {
+      LOG(ERROR) << "Could not AssignProcessToObject.";
+      KillProcess(process_info.hProcess, kProcessKilledExitCode, true);
+      return false;
+    }
+
+    ResumeThread(process_info.hThread);
   }
 
   // Handles must be closed or they will leak.
