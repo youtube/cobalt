@@ -6,8 +6,10 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "media/base/cpu_features.h"
 #include "media/base/djb2.h"
 #include "media/base/yuv_convert.h"
+#include "media/base/yuv_convert_internal.h"
 #include "media/base/yuv_row.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -15,6 +17,8 @@
 static const int kSourceWidth = 640;
 static const int kSourceHeight = 360;
 static const int kSourceYSize = kSourceWidth * kSourceHeight;
+static const int kSourceUOffset = kSourceYSize;
+static const int kSourceVOffset = kSourceYSize * 5 / 4;
 static const int kScaledWidth = 1024;
 static const int kScaledHeight = 768;
 static const int kBpp = 4;
@@ -79,8 +83,8 @@ TEST(YUVConvertTest, YV12) {
 
   // Convert a frame of YUV to 32 bit ARGB.
   media::ConvertYUVToRGB32(yuv_bytes.get(),
-                           yuv_bytes.get() + kSourceYSize,
-                           yuv_bytes.get() + kSourceYSize * 5 / 4,
+                           yuv_bytes.get() + kSourceUOffset,
+                           yuv_bytes.get() + kSourceVOffset,
                            rgb_converted_bytes.get(),            // RGB output
                            kSourceWidth, kSourceHeight,          // Dimensions
                            kSourceWidth,                         // YStride
@@ -104,7 +108,7 @@ TEST(YUVConvertTest, YV16) {
 
   // Convert a frame of YUV to 32 bit ARGB.
   media::ConvertYUVToRGB32(yuv_bytes.get(),                        // Y
-                           yuv_bytes.get() + kSourceYSize,         // U
+                           yuv_bytes.get() + kSourceUOffset,       // U
                            yuv_bytes.get() + kSourceYSize * 3 / 2, // V
                            rgb_converted_bytes.get(),              // RGB output
                            kSourceWidth, kSourceHeight,            // Dimensions
@@ -151,7 +155,7 @@ class YUVScaleTest : public ::testing::TestWithParam<YUVScaleTestData> {
   uint8* v_plane() {
     switch (GetParam().yuv_type) {
       case media::YV12:
-        return yuv_bytes_.get() + kSourceYSize * 5 / 4;
+        return yuv_bytes_.get() + kSourceVOffset;
       case media::YV16:
         return yuv_bytes_.get() + kSourceYSize * 3 / 2;
     }
@@ -263,8 +267,8 @@ TEST(YUVConvertTest, RGB24ToYUV) {
   // Convert to I420.
   media::ConvertRGB24ToYUV(rgb_bytes.get(),
                            yuv_converted_bytes.get(),
-                           yuv_converted_bytes.get() + kSourceYSize,
-                           yuv_converted_bytes.get() + kSourceYSize * 5 / 4,
+                           yuv_converted_bytes.get() + kSourceUOffset,
+                           yuv_converted_bytes.get() + kSourceVOffset,
                            kSourceWidth, kSourceHeight,        // Dimensions
                            kSourceWidth * 3,                   // RGBStride
                            kSourceWidth,                       // YStride
@@ -273,6 +277,70 @@ TEST(YUVConvertTest, RGB24ToYUV) {
   uint32 rgb_hash = DJB2Hash(yuv_converted_bytes.get(), kYUV12Size,
                              kDJB2HashSeed);
   EXPECT_EQ(320824432u, rgb_hash);
+}
+
+TEST(YUVConvertTest, RGB32ToYUV) {
+  // Allocate all surfaces.
+  scoped_array<uint8> yuv_bytes(new uint8[kYUV12Size]);
+  scoped_array<uint8> rgb_bytes(new uint8[kRGBSize]);
+  scoped_array<uint8> yuv_converted_bytes(new uint8[kYUV12Size]);
+  scoped_array<uint8> rgb_converted_bytes(new uint8[kRGBSize]);
+
+  // Read YUV reference data from file.
+  FilePath yuv_url;
+  EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &yuv_url));
+  yuv_url = yuv_url.Append(FILE_PATH_LITERAL("media"))
+                   .Append(FILE_PATH_LITERAL("test"))
+                   .Append(FILE_PATH_LITERAL("data"))
+                   .Append(FILE_PATH_LITERAL("bali_640x360_P420.yuv"));
+  EXPECT_EQ(static_cast<int>(kYUV12Size),
+            file_util::ReadFile(yuv_url,
+                                reinterpret_cast<char*>(yuv_bytes.get()),
+                                static_cast<int>(kYUV12Size)));
+
+  // Convert a frame of YUV to 32 bit ARGB.
+  media::ConvertYUVToRGB32(yuv_bytes.get(),
+                           yuv_bytes.get() + kSourceUOffset,
+                           yuv_bytes.get() + kSourceVOffset,
+                           rgb_bytes.get(),            // RGB output
+                           kSourceWidth, kSourceHeight,          // Dimensions
+                           kSourceWidth,                         // YStride
+                           kSourceWidth / 2,                     // UVStride
+                           kSourceWidth * kBpp,                  // RGBStride
+                           media::YV12);
+
+  // Convert RGB32 to YV12.
+  media::ConvertRGB32ToYUV(rgb_bytes.get(),
+                           yuv_converted_bytes.get(),
+                           yuv_converted_bytes.get() + kSourceUOffset,
+                           yuv_converted_bytes.get() + kSourceVOffset,
+                           kSourceWidth, kSourceHeight,        // Dimensions
+                           kSourceWidth * 4,                   // RGBStride
+                           kSourceWidth,                       // YStride
+                           kSourceWidth / 2);                  // UVStride
+
+  // Convert YV12 back to RGB32.
+  media::ConvertYUVToRGB32(yuv_converted_bytes.get(),
+                           yuv_converted_bytes.get() + kSourceUOffset,
+                           yuv_converted_bytes.get() + kSourceVOffset,
+                           rgb_converted_bytes.get(),            // RGB output
+                           kSourceWidth, kSourceHeight,          // Dimensions
+                           kSourceWidth,                         // YStride
+                           kSourceWidth / 2,                     // UVStride
+                           kSourceWidth * kBpp,                  // RGBStride
+                           media::YV12);
+
+  int error = 0;
+  for (int i = 0; i < kRGBSize; ++i) {
+    int diff = rgb_converted_bytes[i] - rgb_bytes[i];
+    if (diff < 0)
+      diff = -diff;
+    error += diff;
+  }
+
+  // Make sure error is within bound.
+  LOG(INFO) << "Average error per channel: " << error / kRGBSize;
+  EXPECT_GT(5, error / kRGBSize);
 }
 
 TEST(YUVConvertTest, YUY2ToYUV) {
@@ -286,11 +354,109 @@ TEST(YUVConvertTest, YUY2ToYUV) {
   // Convert to I420.
   media::ConvertYUY2ToYUV(yuy_bytes.get(),
                           yuv_converted_bytes.get(),
-                          yuv_converted_bytes.get() + kSourceYSize,
-                          yuv_converted_bytes.get() + kSourceYSize * 5 / 4,
+                          yuv_converted_bytes.get() + kSourceUOffset,
+                          yuv_converted_bytes.get() + kSourceVOffset,
                           kSourceWidth, kSourceHeight);
 
   uint32 yuy_hash = DJB2Hash(yuv_converted_bytes.get(), kYUV12Size,
                              kDJB2HashSeed);
   EXPECT_EQ(666823187u, yuy_hash);
 }
+
+#if !defined(ARCH_CPU_ARM_FAMILY)
+TEST(YUVConvertTest, RGB32ToYUV_SSE2_MatchReference) {
+  if (!media::hasSSE2()) {
+    LOG(WARNING) << "System doesn't support SSE2, test not executed.";
+    return;
+  }
+
+  // Allocate all surfaces.
+  scoped_array<uint8> yuv_bytes(new uint8[kYUV12Size]);
+  scoped_array<uint8> rgb_bytes(new uint8[kRGBSize]);
+  scoped_array<uint8> yuv_converted_bytes(new uint8[kYUV12Size]);
+  scoped_array<uint8> yuv_reference_bytes(new uint8[kYUV12Size]);
+
+  // Read YUV reference data from file.
+  FilePath yuv_url;
+  EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &yuv_url));
+  yuv_url = yuv_url.Append(FILE_PATH_LITERAL("media"))
+                   .Append(FILE_PATH_LITERAL("test"))
+                   .Append(FILE_PATH_LITERAL("data"))
+                   .Append(FILE_PATH_LITERAL("bali_640x360_P420.yuv"));
+  EXPECT_EQ(static_cast<int>(kYUV12Size),
+            file_util::ReadFile(yuv_url,
+                                reinterpret_cast<char*>(yuv_bytes.get()),
+                                static_cast<int>(kYUV12Size)));
+
+  // Convert a frame of YUV to 32 bit ARGB.
+  media::ConvertYUVToRGB32(
+      yuv_bytes.get(),
+      yuv_bytes.get() + kSourceUOffset,
+      yuv_bytes.get() + kSourceVOffset,
+      rgb_bytes.get(),            // RGB output
+      kSourceWidth, kSourceHeight,          // Dimensions
+      kSourceWidth,                         // YStride
+      kSourceWidth / 2,                     // UVStride
+      kSourceWidth * kBpp,                  // RGBStride
+      media::YV12);
+
+  // Convert RGB32 to YV12 with SSE2 version.
+  media::ConvertRGB32ToYUV_SSE2(
+      rgb_bytes.get(),
+      yuv_converted_bytes.get(),
+      yuv_converted_bytes.get() + kSourceUOffset,
+      yuv_converted_bytes.get() + kSourceVOffset,
+      kSourceWidth, kSourceHeight,        // Dimensions
+      kSourceWidth * 4,                   // RGBStride
+      kSourceWidth,                       // YStride
+      kSourceWidth / 2);                  // UVStride
+
+  // Convert RGB32 to YV12 with reference version.
+  media::ConvertRGB32ToYUV_SSE2_Reference(
+      rgb_bytes.get(),
+      yuv_reference_bytes.get(),
+      yuv_reference_bytes.get() + kSourceUOffset,
+      yuv_reference_bytes.get() + kSourceVOffset,
+      kSourceWidth, kSourceHeight,        // Dimensions
+      kSourceWidth * 4,                   // RGBStride
+      kSourceWidth,                       // YStride
+      kSourceWidth / 2);                  // UVStride
+
+  // Now convert a odd width and height, this overrides part of the buffer
+  // generated above but that is fine because the point of this test is to
+  // match the result with the reference code.
+
+  // Convert RGB32 to YV12 with SSE2 version.
+  media::ConvertRGB32ToYUV_SSE2(
+      rgb_bytes.get(),
+      yuv_converted_bytes.get(),
+      yuv_converted_bytes.get() + kSourceUOffset,
+      yuv_converted_bytes.get() + kSourceVOffset,
+      7, 7,                               // Dimensions
+      kSourceWidth * 4,                   // RGBStride
+      kSourceWidth,                       // YStride
+      kSourceWidth / 2);                  // UVStride
+
+  // Convert RGB32 to YV12 with reference version.
+  media::ConvertRGB32ToYUV_SSE2_Reference(
+      rgb_bytes.get(),
+      yuv_reference_bytes.get(),
+      yuv_reference_bytes.get() + kSourceUOffset,
+      yuv_reference_bytes.get() + kSourceVOffset,
+      7, 7,                               // Dimensions
+      kSourceWidth * 4,                   // RGBStride
+      kSourceWidth,                       // YStride
+      kSourceWidth / 2);                  // UVStride
+
+  int error = 0;
+  for (int i = 0; i < kYUV12Size; ++i) {
+    int diff = yuv_reference_bytes[i] - yuv_converted_bytes[i];
+    if (diff < 0)
+      diff = -diff;
+    error += diff;
+  }
+
+  // Make sure there's no difference from the reference.
+  EXPECT_EQ(0, error);
+}
+#endif
