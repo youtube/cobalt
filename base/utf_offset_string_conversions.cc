@@ -11,6 +11,7 @@
 #include "base/utf_string_conversion_utils.h"
 
 using base::PrepareForUTF16Or32Output;
+using base::PrepareForUTF8Output;
 using base::ReadUnicodeCharacter;
 using base::WriteUnicodeCharacter;
 
@@ -18,14 +19,15 @@ using base::WriteUnicodeCharacter;
 // Unicode character type as a STL string. The given input buffer and size
 // determine the source, and the given output STL string will be replaced by
 // the result.
-bool ConvertUnicode(const char* src,
+template<typename SrcChar, typename DestStdString>
+bool ConvertUnicode(const SrcChar* src,
                     size_t src_len,
-                    string16* output,
+                    DestStdString* output,
                     std::vector<size_t>* offsets_for_adjustment) {
   if (offsets_for_adjustment) {
     std::for_each(offsets_for_adjustment->begin(),
                   offsets_for_adjustment->end(),
-                  LimitOffset<string16>(src_len));
+                  LimitOffset<DestStdString>(src_len));
   }
 
   // ICU requires 32-bit numbers.
@@ -95,6 +97,27 @@ string16 UTF8ToUTF16AndAdjustOffsets(
   string16 result;
   UTF8ToUTF16AndAdjustOffsets(utf8.data(), utf8.length(), &result,
                               offsets_for_adjustment);
+  return result;
+}
+
+std::string UTF16ToUTF8AndAdjustOffset(
+    const base::StringPiece16& utf16,
+    size_t* offset_for_adjustment) {
+  std::vector<size_t> offsets;
+  if (offset_for_adjustment)
+    offsets.push_back(*offset_for_adjustment);
+  std::string result = UTF16ToUTF8AndAdjustOffsets(utf16, &offsets);
+  if (offset_for_adjustment)
+    *offset_for_adjustment = offsets[0];
+  return result;
+}
+
+std::string UTF16ToUTF8AndAdjustOffsets(
+    const base::StringPiece16& utf16,
+    std::vector<size_t>* offsets_for_adjustment) {
+  std::string result;
+  PrepareForUTF8Output(utf16.data(), utf16.length(), &result);
+  ConvertUnicode(utf16.data(), utf16.length(), &result, offsets_for_adjustment);
   return result;
 }
 
