@@ -22,10 +22,6 @@ class VideoCaptureDeviceLinux : public VideoCaptureDevice {
   explicit VideoCaptureDeviceLinux(const Name& device_name);
   virtual ~VideoCaptureDeviceLinux();
 
-  // Opens the device driver for this device.
-  // This function is used by the static VideoCaptureDevice::Create function.
-  bool Init();
-
   // VideoCaptureDevice implementation.
   virtual void Allocate(int width,
                         int height,
