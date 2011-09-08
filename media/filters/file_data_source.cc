@@ -16,7 +16,14 @@ namespace media {
 
 FileDataSource::FileDataSource()
     : file_(NULL),
-      file_size_(0) {
+      file_size_(0),
+      disable_file_size_(false) {
+}
+
+FileDataSource::FileDataSource(bool disable_file_size)
+    : file_(NULL),
+      file_size_(0),
+      disable_file_size_(disable_file_size) {
 }
 
 FileDataSource::~FileDataSource() {
@@ -37,17 +44,18 @@ PipelineStatus FileDataSource::Initialize(const std::string& url) {
     file_size_ = 0;
     return PIPELINE_ERROR_URL_NOT_FOUND;
   }
-  if (host()) {
-    host()->SetTotalBytes(file_size_);
-    host()->SetBufferedBytes(file_size_);
-  }
+  UpdateHostBytes();
 
   return PIPELINE_OK;
 }
 
 void FileDataSource::set_host(FilterHost* filter_host) {
   DataSource::set_host(filter_host);
-  if (file_) {
+  UpdateHostBytes();
+}
+
+void FileDataSource::UpdateHostBytes() {
+  if (host() && file_) {
     host()->SetTotalBytes(file_size_);
     host()->SetBufferedBytes(file_size_);
   }
@@ -103,13 +111,17 @@ bool FileDataSource::GetSize(int64* size_out) {
   DCHECK(file_);
   base::AutoLock l(lock_);
   *size_out = file_size_;
-  return (NULL != file_);
+  return (NULL != file_ && !disable_file_size_);
 }
 
 bool FileDataSource::IsStreaming() {
   return false;
 }
 
-void FileDataSource::SetPreload(Preload preload) {}
+void FileDataSource::SetPreload(Preload preload) {
+}
+
+void FileDataSource::SetBitrate(int bitrate) {
+}
 
 }  // namespace media
