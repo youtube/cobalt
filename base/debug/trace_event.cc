@@ -243,11 +243,7 @@ TraceLog* TraceLog::GetInstance() {
 }
 
 TraceLog::TraceLog()
-#if defined(__LB_PS3__)
-    : enabled_(true) {
-#else
     : enabled_(false) {
-#endif
 }
 
 TraceLog::~TraceLog() {
