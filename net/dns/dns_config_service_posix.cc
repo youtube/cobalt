@@ -35,7 +35,11 @@ class DnsConfigServicePosix::DnsConfigReader : public WatchingFileReader {
       // Note: res_ninit in glibc always returns 0 and sets RES_INIT.
       success_ = false;
     }
+#if defined(OS_MACOSX)
+    res_ndestroy(&res);
+#else
     res_nclose(&res);
+#endif
   }
 
   void OnReadFinished() OVERRIDE {
