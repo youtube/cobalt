@@ -412,7 +412,7 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
         request_->net_log().AddEvent(
             NetLog::TYPE_FAILED,
             make_scoped_refptr(new NetLogIntegerParameter("net_error",
-                                                          status.os_error())));
+                                                          status.error())));
       }
       request_->set_status(status);
     }
