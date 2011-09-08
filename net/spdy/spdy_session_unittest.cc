@@ -150,6 +150,112 @@ class StreamReleaserCallback : public CallbackRunner<Tuple1<int> > {
   TestCompletionCallback callback_;
 };
 
+// TODO(kristianm): Could also test with more sessions where some are idle,
+// and more than one session to a HostPortPair.
+TEST_F(SpdySessionTest, CloseIdleSessions) {
+  SpdySessionDependencies session_deps;
+  scoped_refptr<HttpNetworkSession> http_session(
+  SpdySessionDependencies::SpdyCreateSession(&session_deps));
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+
+  // Set up session 1
+  const std::string kTestHost1("http://www.a.com");
+  HostPortPair test_host_port_pair1(kTestHost1, 80);
+  HostPortProxyPair pair1(test_host_port_pair1, ProxyServer::Direct());
+  scoped_refptr<SpdySession> session1 =
+      spdy_session_pool->Get(pair1, BoundNetLog());
+  scoped_refptr<SpdyStream> spdy_stream1;
+  TestCompletionCallback callback1;
+  GURL url1(kTestHost1);
+  EXPECT_EQ(OK, session1->CreateStream(url1,
+                                      MEDIUM, /* priority, not important */
+                                      &spdy_stream1,
+                                      BoundNetLog(),
+                                      &callback1));
+
+  // Set up session 2
+  const std::string kTestHost2("http://www.b.com");
+  HostPortPair test_host_port_pair2(kTestHost2, 80);
+  HostPortProxyPair pair2(test_host_port_pair2, ProxyServer::Direct());
+  scoped_refptr<SpdySession> session2 =
+      spdy_session_pool->Get(pair2, BoundNetLog());
+  scoped_refptr<SpdyStream> spdy_stream2;
+  TestCompletionCallback callback2;
+  GURL url2(kTestHost2);
+  EXPECT_EQ(OK, session2->CreateStream(url2,
+                                      MEDIUM, /* priority, not important */
+                                      &spdy_stream2,
+                                      BoundNetLog(),
+                                      &callback2));
+
+  // Set up session 3
+  const std::string kTestHost3("http://www.c.com");
+  HostPortPair test_host_port_pair3(kTestHost3, 80);
+  HostPortProxyPair pair3(test_host_port_pair3, ProxyServer::Direct());
+  scoped_refptr<SpdySession> session3 =
+      spdy_session_pool->Get(pair3, BoundNetLog());
+  scoped_refptr<SpdyStream> spdy_stream3;
+  TestCompletionCallback callback3;
+  GURL url3(kTestHost3);
+  EXPECT_EQ(OK, session3->CreateStream(url3,
+                                      MEDIUM, /* priority, not important */
+                                      &spdy_stream3,
+                                      BoundNetLog(),
+                                      &callback3));
+
+  // All sessions are active and not closed
+  EXPECT_TRUE(session1->is_active());
+  EXPECT_FALSE(session1->IsClosed());
+  EXPECT_TRUE(session2->is_active());
+  EXPECT_FALSE(session2->IsClosed());
+  EXPECT_TRUE(session3->is_active());
+  EXPECT_FALSE(session3->IsClosed());
+
+  // Should not do anything, all are active
+  spdy_session_pool->CloseIdleSessions();
+  EXPECT_TRUE(session1->is_active());
+  EXPECT_FALSE(session1->IsClosed());
+  EXPECT_TRUE(session2->is_active());
+  EXPECT_FALSE(session2->IsClosed());
+  EXPECT_TRUE(session3->is_active());
+  EXPECT_FALSE(session3->IsClosed());
+
+  // Make sessions 1 and 3 inactive, but keep them open.
+  // Session 2 still open and active
+  session1->CloseStream(spdy_stream1->stream_id(), OK);
+  session3->CloseStream(spdy_stream3->stream_id(), OK);
+  EXPECT_FALSE(session1->is_active());
+  EXPECT_FALSE(session1->IsClosed());
+  EXPECT_TRUE(session2->is_active());
+  EXPECT_FALSE(session2->IsClosed());
+  EXPECT_FALSE(session3->is_active());
+  EXPECT_FALSE(session3->IsClosed());
+
+  // Should close session 1 and 3, 2 should be left open
+  spdy_session_pool->CloseIdleSessions();
+  EXPECT_FALSE(session1->is_active());
+  EXPECT_TRUE(session1->IsClosed());
+  EXPECT_TRUE(session2->is_active());
+  EXPECT_FALSE(session2->IsClosed());
+  EXPECT_FALSE(session3->is_active());
+  EXPECT_TRUE(session3->IsClosed());
+
+  // Should not do anything
+  spdy_session_pool->CloseIdleSessions();
+  EXPECT_TRUE(session2->is_active());
+  EXPECT_FALSE(session2->IsClosed());
+
+  // Make 2 not active
+  session2->CloseStream(spdy_stream2->stream_id(), OK);
+  EXPECT_FALSE(session2->is_active());
+  EXPECT_FALSE(session2->IsClosed());
+
+  // This should close session 2
+  spdy_session_pool->CloseIdleSessions();
+  EXPECT_FALSE(session2->is_active());
+  EXPECT_TRUE(session2->IsClosed());
+}
+
 // Start with max concurrent streams set to 1.  Request two streams.  Receive a
 // settings frame setting max concurrent streams to 2.  Have the callback
 // release the stream, which releases its reference (the last) to the session.
