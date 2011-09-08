@@ -40,7 +40,6 @@
 
 namespace net {
 
-#if defined(OS_WIN)
 class URLRequestFileJob::AsyncResolver
     : public base::RefCountedThreadSafe<URLRequestFileJob::AsyncResolver> {
  public:
@@ -80,7 +79,6 @@ class URLRequestFileJob::AsyncResolver
   base::Lock lock_;
   MessageLoop* owner_loop_;
 };
-#endif
 
 URLRequestFileJob::URLRequestFileJob(URLRequest* request,
                                      const FilePath& file_path)
@@ -148,45 +146,22 @@ bool URLRequestFileJob::AccessDisabled(const FilePath& file_path) {
   }
   return true;
 }
-#endif
+#endif  // OS_CHROMEOS
 
 void URLRequestFileJob::Start() {
-#if defined(OS_WIN)
-  // Resolve UNC paths on a background thread.
-  if (!file_path_.value().compare(0, 2, L"\\\\")) {
-    DCHECK(!async_resolver_);
-    async_resolver_ = new AsyncResolver(this);
-    base::WorkerPool::PostTask(FROM_HERE, NewRunnableMethod(
-        async_resolver_.get(), &AsyncResolver::Resolve, file_path_), true);
-    return;
-  }
-#endif
-
-  // URL requests should not block on the disk!
-  //   http://code.google.com/p/chromium/issues/detail?id=59849
-  bool exists;
-  base::PlatformFileInfo file_info;
-  {
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-    exists = file_util::GetFileInfo(file_path_, &file_info);
-  }
-
-  // Continue asynchronously.
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestFileJob::DidResolve, exists, file_info));
+  DCHECK(!async_resolver_);
+  async_resolver_ = new AsyncResolver(this);
+  base::WorkerPool::PostTask(FROM_HERE, NewRunnableMethod(
+      async_resolver_.get(), &AsyncResolver::Resolve, file_path_), true);
 }
 
 void URLRequestFileJob::Kill() {
   stream_.Close();
 
-#if defined(OS_WIN)
   if (async_resolver_) {
     async_resolver_->Cancel();
     async_resolver_ = NULL;
   }
-#endif
 
   URLRequestJob::Kill();
   method_factory_.RevokeAll();
@@ -300,16 +275,12 @@ void URLRequestFileJob::SetExtraRequestHeaders(
 }
 
 URLRequestFileJob::~URLRequestFileJob() {
-#if defined(OS_WIN)
   DCHECK(!async_resolver_);
-#endif
 }
 
 void URLRequestFileJob::DidResolve(
     bool exists, const base::PlatformFileInfo& file_info) {
-#if defined(OS_WIN)
   async_resolver_ = NULL;
-#endif
 
   // We may have been orphaned...
   if (!request_)
