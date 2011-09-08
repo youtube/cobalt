@@ -103,6 +103,11 @@ class MEDIA_EXPORT SeekableBuffer {
     forward_capacity_ = new_forward_capacity;
   }
 
+  // Sets the backward_capacity to |new_backward_capacity| bytes.
+  void set_backward_capacity(size_t new_backward_capacity) {
+    backward_capacity_ = new_backward_capacity;
+  }
+
   // Returns the maximum number of bytes that should be kept in the forward
   // direction.
   size_t forward_capacity() const { return forward_capacity_; }

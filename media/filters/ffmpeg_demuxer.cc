@@ -507,8 +507,8 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
         std::max(max_duration,
                  ConvertFromTimeBase(av_time_base, format_context_->duration));
   } else {
-    // If the duration is not a valid value. Assume that this is a live stream
-    // and we set duration to the maximum int64 number to represent infinity.
+    // The duration is not a valid value. Assume that this is a live stream
+    // and set duration to the maximum int64 number to represent infinity.
     max_duration = base::TimeDelta::FromMicroseconds(
         Limits::kMaxTimeInMicroseconds);
   }
@@ -518,11 +518,46 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   if (start_time_ == kNoTimestamp)
     start_time_ = base::TimeDelta();
 
-  // Good to go: set the duration and notify we're done initializing.
+  // Good to go: set the duration and bitrate and notify we're done
+  // initializing.
   if (host())
     host()->SetDuration(max_duration);
   max_duration_ = max_duration;
+
+  int bitrate = GetBitrate();
+  if (bitrate > 0)
+    data_source_->SetBitrate(bitrate);
+
   callback.Run(PIPELINE_OK);
+}
+
+int FFmpegDemuxer::GetBitrate() {
+  DCHECK(format_context_);
+
+  // If there is a bitrate set on the container, use it.
+  if (format_context_->bit_rate > 0)
+    return format_context_->bit_rate;
+
+  // Then try to sum the bitrates individually per stream.
+  int bitrate = 0;
+  for (size_t i = 0; i < format_context_->nb_streams; ++i) {
+    AVCodecContext* codec_context = format_context_->streams[i]->codec;
+    bitrate += codec_context->bit_rate;
+  }
+  if (bitrate > 0)
+    return bitrate;
+
+  // If there isn't a bitrate set in the container or streams, but there is a
+  // valid duration, approximate the bitrate using the duration.
+  if (max_duration_.InMilliseconds() > 0 &&
+      max_duration_.InMicroseconds() < Limits::kMaxTimeInMicroseconds) {
+    int64 filesize_in_bytes;
+    if (GetSize(&filesize_in_bytes))
+      return 8000 * filesize_in_bytes / max_duration_.InMilliseconds();
+  }
+
+  // Bitrate could not be determined.
+  return 0;
 }
 
 void FFmpegDemuxer::SeekTask(base::TimeDelta time, const FilterStatusCB& cb) {

@@ -18,6 +18,7 @@ namespace media {
 class MEDIA_EXPORT FileDataSource : public DataSource {
  public:
   FileDataSource();
+  FileDataSource(bool disable_file_size);
   virtual ~FileDataSource();
 
   PipelineStatus Initialize(const std::string& url);
@@ -32,6 +33,7 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
   virtual bool GetSize(int64* size_out);
   virtual bool IsStreaming();
   virtual void SetPreload(Preload preload);
+  virtual void SetBitrate(int bitrate);
 
  private:
   // Only allow factories and tests to create this object.
@@ -42,11 +44,18 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
   FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, ReadData);
   FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, Seek);
 
+  // Informs the host of changes in total and buffered bytes.
+  void UpdateHostBytes();
+
   // File handle.  NULL if not initialized or an error occurs.
   FILE* file_;
 
   // Size of the file in bytes.
   int64 file_size_;
+
+  // True if the FileDataSource should ignore its set file size, false
+  // otherwise.
+  bool disable_file_size_;
 
   // Critical section that protects all of the DataSource methods to prevent
   // a Stop from happening while in the middle of a file I/O operation.

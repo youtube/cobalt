@@ -81,6 +81,7 @@ class MockDataSource : public DataSource {
                           DataSource::ReadCallback* callback));
   MOCK_METHOD1(GetSize, bool(int64* size_out));
   MOCK_METHOD1(SetPreload, void(Preload preload));
+  MOCK_METHOD1(SetBitrate, void(int bitrate));
   MOCK_METHOD0(IsStreaming, bool());
 
   // Sets the TotalBytes & BufferedBytes values to be sent to host() when
