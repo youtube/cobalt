@@ -51,7 +51,10 @@ class NET_EXPORT URLRequestFileJob : public URLRequestJob {
   FilePath file_path_;
 
  private:
+  // Callback after fetching file info on a background thread.
   void DidResolve(bool exists, const base::PlatformFileInfo& file_info);
+
+  // Callback after data is asynchronously read from the file.
   void DidRead(int result);
 
   CompletionCallbackImpl<URLRequestFileJob> io_callback_;
@@ -61,11 +64,11 @@ class NET_EXPORT URLRequestFileJob : public URLRequestJob {
   HttpByteRange byte_range_;
   int64 remaining_bytes_;
 
-#if defined(OS_WIN)
+  // The initial file metadata is fetched on a background thread.
+  // AsyncResolver runs that task.
   class AsyncResolver;
   friend class AsyncResolver;
   scoped_refptr<AsyncResolver> async_resolver_;
-#endif
 
   ScopedRunnableMethodFactory<URLRequestFileJob> method_factory_;
 
