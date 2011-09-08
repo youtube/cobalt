@@ -79,7 +79,7 @@
  "mac-release/sizes/ChromiumFramework/ChromiumFramework": {"reva": 90999, "revb": 91310, "type": "absolute", "improve": 57344937, "regress": 63464390, "sha1": "82a40879"},
  "vista-release-dual-core/dhtml/times/t": {"reva": 76712, "revb": 77859, "improve": -22, "regress": 255, "sha1": "c691ad5a"},
  "vista-release-dual-core/intl1/times/t": {"reva": 68696, "revb": 69048, "improve": -361, "regress": 1064, "sha1": "523889d9"},
- "vista-release-dual-core/intl2/times/t": {"improve": -180, "regress": 215, "sha1": "5ed79b52"},
+ "vista-release-dual-core/intl2/times/t": {"reva": 99590, "revb": 100044, "improve": -22, "regress": 449, "sha1": "fd47cb16"},
  "vista-release-dual-core/morejs/times/t": {"reva": 99583, "revb": 100012, "improve": -93, "regress": 371, "sha1": "bf629d5e"},
  "vista-release-dual-core/moz/times/t": {"reva": 68696, "revb": 69048, "improve": -188, "regress": 545, "sha1": "b4d5a41c"},
  "vista-release-dual-core/startup/times/t": {"improve": -15, "regress": 15, "sha1": "6deee0f6"},
