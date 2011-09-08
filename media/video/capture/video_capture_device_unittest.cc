@@ -69,9 +69,7 @@ TEST_F(VideoCaptureDeviceTest, OpenInvalidDevice) {
   EXPECT_TRUE(device == NULL);
 }
 
-// TODO(perkj): This test is disabled due to stability problem with certain
-// cameras. http://www.crbug.com/94134
-TEST_F(VideoCaptureDeviceTest, DISABLED_CaptureVGA) {
+TEST_F(VideoCaptureDeviceTest, CaptureVGA) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -98,9 +96,7 @@ TEST_F(VideoCaptureDeviceTest, DISABLED_CaptureVGA) {
   device->DeAllocate();
 }
 
-// TODO(perkj): This test is disabled due to stability problem with certain
-// cameras. http://www.crbug.com/94134
-TEST_F(VideoCaptureDeviceTest, DISABLED_Capture720p) {
+TEST_F(VideoCaptureDeviceTest, Capture720p) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -129,9 +125,7 @@ TEST_F(VideoCaptureDeviceTest, DISABLED_Capture720p) {
   device->DeAllocate();
 }
 
-// TODO(perkj): This test is disabled due to stability problem with certain
-// cameras. http://www.crbug.com/94134
-TEST_F(VideoCaptureDeviceTest, DISABLED_AllocateSameCameraTwice) {
+TEST_F(VideoCaptureDeviceTest, AllocateSameCameraTwice) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -158,9 +152,7 @@ TEST_F(VideoCaptureDeviceTest, DISABLED_AllocateSameCameraTwice) {
   device2->DeAllocate();
 }
 
-// TODO(perkj): This test is disabled due to stability problem with certain
-// cameras. http://www.crbug.com/94134
-TEST_F(VideoCaptureDeviceTest, DISABLED_AllocateBadSize) {
+TEST_F(VideoCaptureDeviceTest, AllocateBadSize) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -181,9 +173,7 @@ TEST_F(VideoCaptureDeviceTest, DISABLED_AllocateBadSize) {
   device->DeAllocate();
 }
 
-// TODO(perkj): This test is disabled due to stability problem with certain
-// cameras. http://www.crbug.com/94134
-TEST_F(VideoCaptureDeviceTest, DISABLED_ReAllocateCamera) {
+TEST_F(VideoCaptureDeviceTest, ReAllocateCamera) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -215,9 +205,7 @@ TEST_F(VideoCaptureDeviceTest, DISABLED_ReAllocateCamera) {
   device->DeAllocate();
 }
 
-// TODO(perkj): This test is disabled due to stability problem with certain
-// cameras. http://www.crbug.com/94134
-TEST_F(VideoCaptureDeviceTest, DISABLED_DeAllocateCameraWhileRunning) {
+TEST_F(VideoCaptureDeviceTest, DeAllocateCameraWhileRunning) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
