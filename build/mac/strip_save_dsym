@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright (c) 2008 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -283,8 +283,6 @@ def strip_and_make_fake_dsym(macho):
         strip_path = "/usr/bin"
       strip_path = os.path.join(strip_path, "strip")
       strip_cmdline = [strip_path] + sys.argv[1:]
-      # Print the strip invocation so that it's obvious something is happening
-      print " ".join(strip_cmdline)
       strip_cmd = subprocess.Popen(strip_cmdline)
       if strip_cmd.wait() == 0:
         remove_dsym = False
