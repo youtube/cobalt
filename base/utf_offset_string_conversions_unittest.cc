@@ -36,6 +36,30 @@ TEST(UTFOffsetStringConversionsTest, AdjustOffset) {
     UTF8ToUTF16AndAdjustOffset(utf8_to_utf16_cases[i].utf8, &offset);
     EXPECT_EQ(utf8_to_utf16_cases[i].output_offset, offset);
   }
+
+  struct UTF16ToUTF8Case {
+    char16 utf16[10];
+    size_t input_offset;
+    size_t output_offset;
+  } utf16_to_utf8_cases[] = {
+      {{}, 0, kNpos},
+      // Converted to 3-byte utf-8 sequences
+      {{0x5909, 0x63DB}, 2, kNpos},
+      {{0x5909, 0x63DB}, 1, 3},
+      // Converted to 2-byte utf-8 sequences
+      {{'A', 0x00bc, 0x00be, 'z'}, 1, 1},
+      {{'A', 0x00bc, 0x00be, 'z'}, 2, 3},
+      {{'A', 0x00bc, 0x00be, 'z'}, 3, 5},
+      // Surrogate pair
+      {{'A', 0xd800, 0xdf00, 'z'}, 1, 1},
+      {{'A', 0xd800, 0xdf00, 'z'}, 2, kNpos},
+      {{'A', 0xd800, 0xdf00, 'z'}, 3, 5},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(utf16_to_utf8_cases); ++i) {
+    size_t offset = utf16_to_utf8_cases[i].input_offset;
+    UTF16ToUTF8AndAdjustOffset(utf16_to_utf8_cases[i].utf16, &offset);
+    EXPECT_EQ(utf16_to_utf8_cases[i].output_offset, offset);
+  }
 }
 
 TEST(UTFOffsetStringConversionsTest, LimitOffsets) {
