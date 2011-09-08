@@ -161,6 +161,10 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // For testing purposes.
   void disable_first_seek_hack_for_testing() { first_seek_hack_ = false; }
 
+  // Returns the bitrate of media file. May be obtained from container or
+  // approximated. Returns 0 if it is unknown.
+  int GetBitrate();
+
  private:
   // Only allow a factory to create this class.
   friend class MockFFmpegDemuxer;

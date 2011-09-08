@@ -60,7 +60,12 @@ class FFmpegDemuxerTest : public testing::Test {
     demuxer_ = NULL;
   }
 
-  scoped_refptr<DataSource> CreateDataSource(const std::string& name) {
+  scoped_refptr<FileDataSource> CreateDataSource(const std::string& name) {
+    return CreateDataSource(name, false);
+  }
+
+  scoped_refptr<FileDataSource> CreateDataSource(const std::string& name,
+                                                 bool disable_file_size) {
     FilePath file_path;
     EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
 
@@ -69,7 +74,8 @@ class FFmpegDemuxerTest : public testing::Test {
         .Append(FILE_PATH_LITERAL("data"))
         .AppendASCII(name);
 
-    scoped_refptr<FileDataSource> data_source = new FileDataSource();
+    scoped_refptr<FileDataSource> data_source = new FileDataSource(
+        disable_file_size);
 
     EXPECT_EQ(PIPELINE_OK, data_source->Initialize(file_path.MaybeAsASCII()));
 
@@ -99,6 +105,18 @@ class FFmpegDemuxerTest : public testing::Test {
     EXPECT_EQ(size, buffer->GetDataSize());
     EXPECT_EQ(base::TimeDelta::FromMicroseconds(timestampInMicroseconds),
               buffer->GetTimestamp());
+  }
+
+  // Creates a data source with the given |file_name|. If |disable_file_size|
+  // then the data source pretends it does not know the file size (e.g. often
+  // when streaming video). Uses this data source to initialize a demuxer, then
+  // returns true if the bitrate is valid, false otherwise.
+  bool VideoHasValidBitrate(
+      const std::string& file_name, bool disable_file_size) {
+    scoped_refptr<FileDataSource> data_source =
+        CreateDataSource(file_name, disable_file_size);
+    InitializeDemuxer(data_source);
+    return demuxer_->GetBitrate() > 0;
   }
 
   // Fixture members.
@@ -496,6 +514,22 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   EXPECT_CALL(*demuxer, SignalReadCompleted(DataSource::kReadError));
   demuxer->Stop(NewExpectedCallback());
   message_loop_.RunAllPending();
+}
+
+TEST_F(FFmpegDemuxerTest, GetBitrate_SetInContainer) {
+  EXPECT_TRUE(VideoHasValidBitrate("bear.ogv", false));
+}
+
+TEST_F(FFmpegDemuxerTest, GetBitrate_UnsetInContainer_KnownSize) {
+  EXPECT_TRUE(VideoHasValidBitrate("bear-320x240.webm", false));
+}
+
+TEST_F(FFmpegDemuxerTest, GetBitrate_SetInContainer_NoFileSize) {
+  EXPECT_TRUE(VideoHasValidBitrate("bear.ogv", true));
+}
+
+TEST_F(FFmpegDemuxerTest, GetBitrate_UnsetInContainer_NoFileSize) {
+  EXPECT_FALSE(VideoHasValidBitrate("bear-320x240.webm", true));
 }
 
 TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {
