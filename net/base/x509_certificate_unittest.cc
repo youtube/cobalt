@@ -1184,7 +1184,7 @@ TEST(X509CertificateTest, CreateOriginBound) {
   // Create OID SECItem.
   SECItem ob_cert_oid = { siDEROID, NULL, 0 };
   SECStatus ok = SEC_StringToOID(arena, &ob_cert_oid,
-                                 oid_string, NULL);
+                                 oid_string, 0);
 
   ASSERT_EQ(SECSuccess, ok);
 
