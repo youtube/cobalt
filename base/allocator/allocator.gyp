@@ -17,6 +17,7 @@
         '<(tcmalloc_dir)/src',
         '../..',
       ],
+      'defines': ['TCMALLOC_USE_DOUBLYLINKED_FREELIST',],
       'direct_dependent_settings': {
         'configurations': {
           'Common_Base': {
@@ -94,6 +95,8 @@
         '<(tcmalloc_dir)/src/common.cc',
         '<(tcmalloc_dir)/src/common.h',
         '<(tcmalloc_dir)/src/debugallocation.cc',
+        '<(tcmalloc_dir)/src/free_list.cc',
+        '<(tcmalloc_dir)/src/free_list.h',
         '<(tcmalloc_dir)/src/getpc.h',
         '<(tcmalloc_dir)/src/google/heap-checker.h',
         '<(tcmalloc_dir)/src/google/heap-profiler.h',
