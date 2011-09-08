@@ -483,27 +483,27 @@ void URLRequest::Cancel() {
   DoCancel(ERR_ABORTED, SSLInfo());
 }
 
-void URLRequest::SimulateError(int os_error) {
-  DoCancel(os_error, SSLInfo());
+void URLRequest::SimulateError(int error) {
+  DoCancel(error, SSLInfo());
 }
 
-void URLRequest::SimulateSSLError(int os_error, const SSLInfo& ssl_info) {
+void URLRequest::SimulateSSLError(int error, const SSLInfo& ssl_info) {
   // This should only be called on a started request.
   if (!is_pending_ || !job_ || job_->has_response_started()) {
     NOTREACHED();
     return;
   }
-  DoCancel(os_error, ssl_info);
+  DoCancel(error, ssl_info);
 }
 
-void URLRequest::DoCancel(int os_error, const SSLInfo& ssl_info) {
-  DCHECK(os_error < 0);
+void URLRequest::DoCancel(int error, const SSLInfo& ssl_info) {
+  DCHECK(error < 0);
 
   // If the URL request already has an error status, then canceling is a no-op.
   // Plus, we don't want to change the error status once it has been set.
   if (status_.is_success()) {
     status_.set_status(URLRequestStatus::CANCELED);
-    status_.set_os_error(os_error);
+    status_.set_error(error);
     response_info_.ssl_info = ssl_info;
   }
 
@@ -568,7 +568,7 @@ void URLRequest::NotifyReceivedRedirect(const GURL& location,
 void URLRequest::NotifyResponseStarted() {
   scoped_refptr<NetLog::EventParameters> params;
   if (!status_.is_success())
-    params = new NetLogIntegerParameter("net_error", status_.os_error());
+    params = new NetLogIntegerParameter("net_error", status_.error());
   net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_START_JOB, params);
 
   URLRequestJob* job =
@@ -725,7 +725,7 @@ void URLRequest::set_context(const URLRequestContext* context) {
     // Log error only on failure, not cancellation, as even successful requests
     // are "cancelled" on destruction.
     if (status_.status() == URLRequestStatus::FAILED)
-      net_error = status_.os_error();
+      net_error = status_.error();
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_REQUEST_ALIVE, net_error);
     net_log_ = BoundNetLog();
 

@@ -16,7 +16,7 @@ namespace net {
 class URLRequestStatus {
  public:
   enum Status {
-    // Request succeeded, os_error() will be 0.
+    // Request succeeded, |error_| will be 0.
     SUCCESS = 0,
 
     // An IO request is pending, and the caller will be informed when it is
@@ -25,24 +25,24 @@ class URLRequestStatus {
 
     // Request was successful but was handled by an external program, so there
     // is no response data. This usually means the current page should not be
-    // navigated, but no error should be displayed. os_error will be 0.
+    // navigated, but no error should be displayed. |error_| will be 0.
     HANDLED_EXTERNALLY,
 
     // Request was cancelled programatically.
     CANCELED,
 
-    // The request failed for some reason. os_error may have more information.
+    // The request failed for some reason. |error_| may have more information.
     FAILED,
   };
 
-  URLRequestStatus() : status_(SUCCESS), os_error_(0) {}
-  URLRequestStatus(Status s, int e) : status_(s), os_error_(e) {}
+  URLRequestStatus() : status_(SUCCESS), error_(0) {}
+  URLRequestStatus(Status s, int e) : status_(s), error_(e) {}
 
   Status status() const { return status_; }
   void set_status(Status s) { status_ = s; }
 
-  int os_error() const { return os_error_; }
-  void set_os_error(int e) { os_error_ = e; }
+  int error() const { return error_; }
+  void set_error(int e) { error_ = e; }
 
   // Returns true if the status is success, which makes some calling code more
   // convenient because this is the most common test. Note that we do NOT treat
@@ -58,12 +58,11 @@ class URLRequestStatus {
   }
 
  private:
-  // Application level status
+  // Application level status.
   Status status_;
 
-  // Error code from the operating system network layer if an error was
-  // encountered
-  int os_error_;
+  // Error code from the network layer if an error was encountered.
+  int error_;
 };
 
 }  // namespace net
