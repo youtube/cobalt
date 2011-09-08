@@ -86,6 +86,8 @@
         'base/clipboard/clipboard_win.cc',
         'base/clipboard/scoped_clipboard_writer.cc',
         'base/clipboard/scoped_clipboard_writer.h',
+        'base/cocoa/base_view.h',
+        'base/cocoa/base_view.mm',
         'base/dragdrop/drag_drop_types_gtk.cc',
         'base/dragdrop/drag_drop_types.h',
         'base/dragdrop/drag_drop_types_win.cc',
