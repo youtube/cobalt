@@ -402,28 +402,6 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
 #endif
 }
 
-// A certificate whose AIA extension contains an LDAP URL without a host name.
-// This certificate will expire on 2011-09-08.
-TEST(X509CertificateTest, UnoSoftCertParsing) {
-  FilePath certs_dir = GetTestCertsDirectory();
-  scoped_refptr<X509Certificate> unosoft_hu_cert(
-      ImportCertFromFile(certs_dir, "unosoft_hu_cert.der"));
-
-  ASSERT_NE(static_cast<X509Certificate*>(NULL), unosoft_hu_cert);
-
-  const SHA1Fingerprint& fingerprint =
-      unosoft_hu_cert->fingerprint();
-  for (size_t i = 0; i < 20; ++i)
-    EXPECT_EQ(unosoft_hu_fingerprint[i], fingerprint.data[i]);
-
-  int flags = 0;
-  CertVerifyResult verify_result;
-  int error = unosoft_hu_cert->Verify("www.unosoft.hu", flags,
-                                      &verify_result);
-  EXPECT_EQ(ERR_CERT_AUTHORITY_INVALID, error);
-  EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
-}
-
 TEST(X509CertificateTest, SerialNumbers) {
   scoped_refptr<X509Certificate> google_cert(
       X509Certificate::CreateFromBytes(
