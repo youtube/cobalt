@@ -465,6 +465,14 @@ void HttpCache::CloseAllConnections() {
   HttpNetworkSession* session = network->GetSession();
   if (session)
     session->CloseAllConnections();
+  }
+
+void HttpCache::CloseIdleConnections() {
+  net::HttpNetworkLayer* network =
+      static_cast<net::HttpNetworkLayer*>(network_layer_.get());
+  HttpNetworkSession* session = network->GetSession();
+  if (session)
+    session->CloseIdleConnections();
 }
 
 void HttpCache::OnExternalCacheHit(const GURL& url,

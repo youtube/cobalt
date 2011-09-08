@@ -92,6 +92,8 @@ class NET_EXPORT SpdySessionPool
   // Close only the currently existing SpdySessions. Let any new ones created
   // continue to live.
   void CloseCurrentSessions();
+  // Close only the idle SpdySessions.
+  void CloseIdleSessions();
 
   // Removes a SpdySession from the SpdySessionPool. This should only be called
   // by SpdySession, because otherwise session->state_ is not set to CLOSED.
