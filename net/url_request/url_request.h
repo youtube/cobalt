@@ -548,15 +548,15 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // during the call to Cancel itself.
   void Cancel();
 
-  // Cancels the request and sets the error to |os_error| (see net_error_list.h
+  // Cancels the request and sets the error to |error| (see net_error_list.h
   // for values).
-  void SimulateError(int os_error);
+  void SimulateError(int error);
 
-  // Cancels the request and sets the error to |os_error| (see net_error_list.h
+  // Cancels the request and sets the error to |error| (see net_error_list.h
   // for values) and attaches |ssl_info| as the SSLInfo for that request.  This
   // is useful to attach a certificate and certificate error to a canceled
   // request.
-  void SimulateSSLError(int os_error, const SSLInfo& ssl_info);
+  void SimulateSSLError(int error, const SSLInfo& ssl_info);
 
   // Read initiates an asynchronous read from the response, and must only
   // be called after the OnResponseStarted callback is received with a
@@ -696,7 +696,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   // Cancels the request and set the error and ssl info for this request to the
   // passed values.
-  void DoCancel(int os_error, const SSLInfo& ssl_info);
+  void DoCancel(int error, const SSLInfo& ssl_info);
 
   // Notifies the network delegate that the request has been completed.
   // This does not imply a successful completion. Also a canceled request is

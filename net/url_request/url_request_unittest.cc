@@ -224,7 +224,7 @@ class URLRequestTestHTTP : public URLRequestTest {
       MessageLoop::current()->Run();
 
       ASSERT_EQ(1, d.response_started_count()) << "request failed: " <<
-          (int) r.status().status() << ", os error: " << r.status().os_error();
+          (int) r.status().status() << ", os error: " << r.status().error();
 
       EXPECT_FALSE(d.received_data_before_response());
       EXPECT_EQ(uploadBytes, d.data_received());
@@ -249,7 +249,7 @@ class URLRequestTestHTTP : public URLRequestTest {
         "abcdthis is a longer chunk than before.\r\n\r\n02323";
 
     ASSERT_EQ(1, d->response_started_count()) << "request failed: " <<
-        (int) r->status().status() << ", os error: " << r->status().os_error();
+        (int) r->status().status() << ", os error: " << r->status().error();
 
     EXPECT_FALSE(d->received_data_before_response());
 
@@ -284,7 +284,7 @@ TEST_F(URLRequestTestHTTP, ProxyTunnelRedirectTest) {
     MessageLoop::current()->Run();
 
     EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
-    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, r.status().os_error());
+    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, r.status().error());
     EXPECT_EQ(1, d.response_started_count());
     // We should not have followed the redirect.
     EXPECT_EQ(0, d.received_redirect_count());
@@ -312,13 +312,13 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateTunnelConnectionFailed) {
     MessageLoop::current()->Run();
 
     EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
-    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, r.status().os_error());
+    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, r.status().error());
     EXPECT_EQ(1, d.response_started_count());
     // We should not have followed the redirect.
     EXPECT_EQ(0, d.received_redirect_count());
 
     EXPECT_EQ(1, network_delegate.error_count());
-    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, network_delegate.last_os_error());
+    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, network_delegate.last_error());
   }
 }
 
@@ -343,7 +343,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequest) {
     MessageLoop::current()->Run();
 
     EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
-    EXPECT_EQ(ERR_EMPTY_RESPONSE, r.status().os_error());
+    EXPECT_EQ(ERR_EMPTY_RESPONSE, r.status().error());
     EXPECT_EQ(1, network_delegate.created_requests());
     EXPECT_EQ(0, network_delegate.destroyed_requests());
   }
@@ -371,7 +371,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestSynchronously) {
     MessageLoop::current()->Run();
 
     EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
-    EXPECT_EQ(ERR_EMPTY_RESPONSE, r.status().os_error());
+    EXPECT_EQ(ERR_EMPTY_RESPONSE, r.status().error());
     EXPECT_EQ(1, network_delegate.created_requests());
     EXPECT_EQ(0, network_delegate.destroyed_requests());
   }
@@ -402,7 +402,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequest) {
     MessageLoop::current()->Run();
 
     EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
-    EXPECT_EQ(0, r.status().os_error());
+    EXPECT_EQ(0, r.status().error());
     EXPECT_EQ(redirect_url, r.url());
     EXPECT_EQ(original_url, r.original_url());
     EXPECT_EQ(2U, r.url_chain().size());
@@ -435,7 +435,7 @@ TEST_F(URLRequestTestHTTP, UnexpectedServerAuthTest) {
     MessageLoop::current()->Run();
 
     EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
-    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, r.status().os_error());
+    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, r.status().error());
   }
 }
 
@@ -528,13 +528,13 @@ TEST_F(URLRequestTestHTTP, GetZippedTest) {
       EXPECT_FALSE(d.received_data_before_response());
       VLOG(1) << " Received " << d.bytes_received() << " bytes"
               << " status = " << r.status().status()
-              << " os_error = " << r.status().os_error();
+              << " error = " << r.status().error();
       if (test_expect_success[i]) {
         EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status())
             << " Parameter = \"" << test_file << "\"";
       } else {
         EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
-        EXPECT_EQ(-100, r.status().os_error())
+        EXPECT_EQ(-100, r.status().error())
             << " Parameter = \"" << test_file << "\"";
       }
     }
@@ -904,7 +904,7 @@ TEST_F(URLRequestTestHTTP, PostEmptyTest) {
     MessageLoop::current()->Run();
 
     ASSERT_EQ(1, d.response_started_count()) << "request failed: " <<
-        (int) r.status().status() << ", os error: " << r.status().os_error();
+        (int) r.status().status() << ", error: " << r.status().error();
 
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_TRUE(d.data_received().empty());
@@ -951,7 +951,7 @@ TEST_F(URLRequestTestHTTP, PostFileTest) {
     ASSERT_EQ(size, size_read);
 
     ASSERT_EQ(1, d.response_started_count()) << "request failed: " <<
-        (int) r.status().status() << ", os error: " << r.status().os_error();
+        (int) r.status().status() << ", error: " << r.status().error();
 
     EXPECT_FALSE(d.received_data_before_response());
 
@@ -1413,7 +1413,7 @@ TEST_F(URLRequestTestHTTP, RestrictRedirects) {
   MessageLoop::current()->Run();
 
   EXPECT_EQ(URLRequestStatus::FAILED, req.status().status());
-  EXPECT_EQ(ERR_UNSAFE_REDIRECT, req.status().os_error());
+  EXPECT_EQ(ERR_UNSAFE_REDIRECT, req.status().error());
 }
 
 TEST_F(URLRequestTestHTTP, RedirectToInvalidURL) {
@@ -1427,7 +1427,7 @@ TEST_F(URLRequestTestHTTP, RedirectToInvalidURL) {
   MessageLoop::current()->Run();
 
   EXPECT_EQ(URLRequestStatus::FAILED, req.status().status());
-  EXPECT_EQ(ERR_INVALID_URL, req.status().os_error());
+  EXPECT_EQ(ERR_INVALID_URL, req.status().error());
 }
 
 TEST_F(URLRequestTestHTTP, NoUserPassInReferrer) {
@@ -2610,10 +2610,10 @@ TEST_F(URLRequestTest, NetworkDelegateProxyError) {
   // Check we see a failed request.
   EXPECT_FALSE(req.status().is_success());
   EXPECT_EQ(URLRequestStatus::FAILED, req.status().status());
-  EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, req.status().os_error());
+  EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, req.status().error());
 
   EXPECT_EQ(1, network_delegate.error_count());
-  EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, network_delegate.last_os_error());
+  EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, network_delegate.last_error());
   EXPECT_EQ(1, network_delegate.completed_requests());
 }
 

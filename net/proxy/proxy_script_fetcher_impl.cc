@@ -110,7 +110,7 @@ void ProxyScriptFetcherImpl::OnResponseCompleted(URLRequest* request) {
   // Use |result_code_| as the request's error if we have already set it to
   // something specific.
   if (result_code_ == OK && !request->status().is_success())
-    result_code_ = request->status().os_error();
+    result_code_ = request->status().error();
 
   FetchCompleted();
 }
