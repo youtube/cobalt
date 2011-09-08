@@ -17,6 +17,7 @@
 #include "base/string16.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
+#include "googleurl/src/url_util.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/cookie_monster.h"
 #include "net/base/host_resolver.h"
@@ -29,12 +30,11 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
+#include "net/proxy/proxy_service.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_storage.h"
-#include "net/proxy/proxy_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "googleurl/src/url_util.h"
 
 using base::TimeDelta;
 
@@ -181,7 +181,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   TestNetworkDelegate();
   virtual ~TestNetworkDelegate();
 
-  int last_os_error() const { return last_os_error_; }
+  int last_error() const { return last_error_; }
   int error_count() const { return error_count_; }
   int created_requests() const { return created_requests_; }
   int destroyed_requests() const { return destroyed_requests_; }
@@ -212,7 +212,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
 
   void InitRequestStatesIfNew(int request_id);
 
-  int last_os_error_;
+  int last_error_;
   int error_count_;
   int created_requests_;
   int destroyed_requests_;
