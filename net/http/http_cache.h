@@ -181,6 +181,9 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   // immediately, but they will not be reusable. This is for debugging.
   void CloseAllConnections();
 
+  // Close all idle connections. Will close all sockets not in active use.
+  void CloseIdleConnections();
+
   // Called whenever an external cache in the system reuses the resource
   // referred to by |url| and |http_method|.
   void OnExternalCacheHit(const GURL& url, const std::string& http_method);

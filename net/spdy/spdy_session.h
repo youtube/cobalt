@@ -190,6 +190,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     spdy_session_pool_ = NULL;
   }
 
+  // Returns true if session is not currently active
+  bool is_active() const {
+    return !active_streams_.empty();
+  }
+
   // Access to the number of active and pending streams.  These are primarily
   // available for testing and diagnostics.
   size_t num_active_streams() const { return active_streams_.size(); }
