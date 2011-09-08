@@ -14,6 +14,7 @@
 
 namespace base {
 class StringPiece;
+class StringPiece16;
 }
 
 // Like the conversions in utf_string_conversions.h, but also takes one or more
@@ -36,6 +37,13 @@ BASE_EXPORT string16 UTF8ToUTF16AndAdjustOffset(const base::StringPiece& utf8,
                                                 size_t* offset_for_adjustment);
 BASE_EXPORT string16 UTF8ToUTF16AndAdjustOffsets(
     const base::StringPiece& utf8,
+    std::vector<size_t>* offsets_for_adjustment);
+
+BASE_EXPORT std::string UTF16ToUTF8AndAdjustOffset(
+    const base::StringPiece16& utf16,
+    size_t* offset_for_adjustment);
+BASE_EXPORT std::string UTF16ToUTF8AndAdjustOffsets(
+    const base::StringPiece16& utf16,
     std::vector<size_t>* offsets_for_adjustment);
 
 // Limiting function callable by std::for_each which will replace any value
