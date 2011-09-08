@@ -94,6 +94,7 @@ void HttpNetworkSession::CloseAllConnections() {
 
 void HttpNetworkSession::CloseIdleConnections() {
   socket_pool_manager_.CloseIdleSockets();
+  spdy_session_pool_.CloseIdleSessions();
 }
 
 }  //  namespace net
