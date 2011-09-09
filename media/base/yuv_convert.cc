@@ -371,9 +371,7 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
     convert_proc = &ConvertRGB32ToYUV_C;
 #else
     // For x86 processors, check if SSSE3 (or SSE2) is supported.
-    if (hasSSSE3())
-      convert_proc = &ConvertRGB32ToYUV_SSSE3;
-    else if (hasSSE2())
+    if (hasSSE2())
       convert_proc = &ConvertRGB32ToYUV_SSE2;
     else
       convert_proc = &ConvertRGB32ToYUV_C;
