@@ -111,6 +111,7 @@
         'test/run_all_unittests.cc',
 
         # Tests.
+        'android/scoped_java_ref_unittest.cc',
         'at_exit_unittest.cc',
         'atomicops_unittest.cc',
         'base64_unittest.cc',
