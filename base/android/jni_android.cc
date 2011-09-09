@@ -56,6 +56,16 @@ jmethodID GetMethodID(JNIEnv* env,
   return id;
 }
 
+jmethodID GetStaticMethodID(JNIEnv* env,
+                            jclass clazz,
+                            const char* const method,
+                            const char* const jni_signature) {
+  jmethodID id = env->GetStaticMethodID(clazz, method, jni_signature);
+  DCHECK(id) << method;
+  CheckException(env);
+  return id;
+}
+
 bool CheckException(JNIEnv* env) {
   if (env->ExceptionCheck() == JNI_FALSE)
     return false;
