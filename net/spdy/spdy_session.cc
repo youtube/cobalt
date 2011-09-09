@@ -823,8 +823,8 @@ void SpdySession::CloseAllStreams(net::Error status) {
     ActiveStreamMap::iterator it = active_streams_.begin();
     const scoped_refptr<SpdyStream>& stream = it->second;
     DCHECK(stream);
-    LOG(WARNING) << "ABANDONED (stream_id=" << stream->stream_id()
-                 << "): " << stream->path();
+    VLOG(1) << "ABANDONED (stream_id=" << stream->stream_id()
+            << "): " << stream->path();
     DeleteStream(stream->stream_id(), status);
   }
 
