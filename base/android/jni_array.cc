@@ -5,7 +5,8 @@
 #include "base/android/jni_array.h"
 
 #include "base/android/jni_android.h"
-#include "base/android/scoped_java_reference.h"
+#include "base/android/jni_string.h"
+#include "base/android/scoped_java_ref.h"
 #include "base/logging.h"
 
 namespace base {
@@ -15,12 +16,10 @@ jbyteArray ToJavaByteArray(JNIEnv* env,
                            const unsigned char* bytes,
                            size_t len) {
   jbyteArray byte_array = env->NewByteArray(len);
-  if (!byte_array) {
-    return NULL;
-  }
+  CheckException(env);
+  CHECK(byte_array);
 
   jbyte* elements = env->GetByteArrayElements(byte_array, NULL);
-  DCHECK(elements);
   memcpy(elements, bytes, len);
   env->ReleaseByteArrayElements(byte_array, elements, 0);
   CheckException(env);
@@ -30,21 +29,30 @@ jbyteArray ToJavaByteArray(JNIEnv* env,
 
 jobjectArray ToJavaArrayOfByteArray(JNIEnv* env,
                                     const std::vector<std::string>& v) {
-  size_t count = v.size();
-  DCHECK_GT(count, 0U);
-  jclass byte_array_class = env->FindClass("[B");
-  jobjectArray joa = env->NewObjectArray(count, byte_array_class, NULL);
-  if (joa == NULL)
-    return NULL;
+  ScopedJavaLocalRef<jclass> byte_array_clazz(env, env->FindClass("[B"));
+  jobjectArray joa = env->NewObjectArray(v.size(),
+                                         byte_array_clazz.obj(), NULL);
+  CheckException(env);
 
-  for (size_t i = 0; i < count; ++i) {
-    ScopedJavaReference<jobject> byte_array(env, ToJavaByteArray(env,
+  for (size_t i = 0; i < v.size(); ++i) {
+    ScopedJavaLocalRef<jobject> byte_array(env, ToJavaByteArray(env,
             reinterpret_cast<const uint8*>(v[i].data()), v[i].length()));
-    if (!byte_array.obj()) {
-      env->DeleteLocalRef(joa);
-      return NULL;
-    }
     env->SetObjectArrayElement(joa, i, byte_array.obj());
+  }
+  return joa;
+}
+
+jobjectArray ToJavaArrayOfStrings(JNIEnv* env,
+                                  const std::vector<std::string>& v) {
+  ScopedJavaLocalRef<jclass> string_clazz(env,
+                                          env->FindClass("java/lang/String"));
+  jobjectArray joa = env->NewObjectArray(v.size(), string_clazz.obj(), NULL);
+  CheckException(env);
+
+  for (size_t i = 0; i < v.size(); ++i) {
+    ScopedJavaLocalRef<jstring> item(env,
+                                     ConvertUTF8ToJavaString(env, v[i]));
+    env->SetObjectArrayElement(joa, i, item.obj());
   }
   return joa;
 }

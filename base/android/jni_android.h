@@ -37,6 +37,13 @@ jmethodID GetMethodID(JNIEnv* env,
                       const char* const method,
                       const char* const jni_signature);
 
+// Get the method ID for a class static method. Will clear the pending Java
+// exception and return 0 if the method is not found.
+jmethodID GetStaticMethodID(JNIEnv* env,
+                            jclass clazz,
+                            const char* const method,
+                            const char* const jni_signature);
+
 // Returns true if an exception is pending in the provided JNIEnv*.
 // If an exception is pending, it is printed.
 bool CheckException(JNIEnv* env);

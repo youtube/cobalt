@@ -1048,6 +1048,12 @@
               ['exclude', '(^|/)linux/'],
             ],
           }],
+          ['OS!="android"', {
+            'sources/': [
+              ['exclude', '_android(_unittest)?\\.cc$'],
+              ['exclude', '(^|/)android/'],
+            ],
+          }],
           # We use "POSIX" to refer to all non-Windows operating systems.
           ['OS=="win"', {
             'sources/': [ ['exclude', '_posix\\.(h|cc)$'] ],
