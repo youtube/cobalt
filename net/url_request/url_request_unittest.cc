@@ -13,7 +13,6 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/file_util.h"
 #include "base/format_macros.h"
@@ -2018,13 +2017,6 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
   }
 }
 
-void CheckCookiePolicyCallback(bool* was_run, const CookieList& cookies) {
-  EXPECT_EQ(1U, cookies.size());
-  EXPECT_FALSE(cookies[0].IsPersistent());
-  *was_run = true;
-  MessageLoop::current()->PostTask(FROM_HERE, new MessageLoop::QuitTask());
-}
-
 TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
   TestServer test_server(TestServer::TYPE_HTTP, FilePath());
   ASSERT_TRUE(test_server.Start());
@@ -2045,11 +2037,10 @@ TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
   }
 
   // Now, check the cookie store.
-  bool was_run = false;
-  default_context_->cookie_store()->GetCookieMonster()->GetAllCookiesAsync(
-      base::Bind(&CheckCookiePolicyCallback, &was_run));
-  MessageLoop::current()->RunAllPending();
-  DCHECK(was_run);
+  CookieList cookies =
+      default_context_->cookie_store()->GetCookieMonster()->GetAllCookies();
+  EXPECT_EQ(1U, cookies.size());
+  EXPECT_FALSE(cookies[0].IsPersistent());
 }
 
 // In this test, we do a POST which the server will 302 redirect.
