@@ -684,6 +684,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {21, true, "\004blog\012torproject\003org", true, kTorAcceptableCerts },
     {22, true, "\005check\012torproject\003org", true, kTorAcceptableCerts },
     {20, true, "\003www\012torproject\003org", true, kTorAcceptableCerts },
+    {22, true, "\003www\014moneybookers\003com", true, 0 },
 #if defined(OS_CHROMEOS)
     {13, false, "\007twitter\003com", true, 0 },
     {17, false, "\003www\007twitter\003com", true, 0 },

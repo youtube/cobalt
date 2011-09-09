@@ -685,6 +685,14 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
                                        "foo.torproject.org",
                                        false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "www.moneybookers.com",
+                                      false));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                      "moneybookers.com",
+                                      false));
+
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
