@@ -60,6 +60,7 @@ class AlsaPcmInputStream : public AudioInputStream {
   snd_pcm_t* device_handle_;  // Handle to the ALSA PCM recording device.
   ScopedRunnableMethodFactory<AlsaPcmInputStream> task_factory_;
   scoped_array<uint8> audio_packet_;  // Buffer used for reading audio data.
+  bool read_callback_behind_schedule_;
 
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmInputStream);
 };

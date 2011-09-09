@@ -34,7 +34,8 @@ AlsaPcmInputStream::AlsaPcmInputStream(const std::string& device_name,
           params.sample_rate),
       callback_(NULL),
       device_handle_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
+      read_callback_behind_schedule_(false) {
 }
 
 AlsaPcmInputStream::~AlsaPcmInputStream() {}
@@ -143,6 +144,12 @@ void AlsaPcmInputStream::ReadAudio() {
   if (frames < params_.samples_per_packet) {
     // Not enough data yet or error happened. In both cases wait for a very
     // small duration before checking again.
+    // Even Though read callback was behind schedule, there is no data, so
+    // reset the next_read_time_.
+    if (read_callback_behind_schedule_) {
+      next_read_time_ = base::Time::Now();
+      read_callback_behind_schedule_ = false;
+    }
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
         task_factory_.NewRunnableMethod(&AlsaPcmInputStream::ReadAudio),
@@ -151,6 +158,7 @@ void AlsaPcmInputStream::ReadAudio() {
   }
 
   int num_packets = frames / params_.samples_per_packet;
+  int num_packets_read = num_packets;
   while (num_packets--) {
     int frames_read = wrapper_->PcmReadi(device_handle_, audio_packet_.get(),
                                          params_.samples_per_packet);
@@ -163,11 +171,15 @@ void AlsaPcmInputStream::ReadAudio() {
     }
   }
 
-  next_read_time_ += base::TimeDelta::FromMilliseconds(packet_duration_ms_);
+  next_read_time_ += base::TimeDelta::FromMilliseconds(
+      packet_duration_ms_ * num_packets_read);
   int64 delay_ms = (next_read_time_ - base::Time::Now()).InMilliseconds();
   if (delay_ms < 0) {
     LOG(WARNING) << "Audio read callback behind schedule by "
                  << (packet_duration_ms_ - delay_ms) << " (ms).";
+    // Read callback is behind schedule. Assuming there is data pending in
+    // the soundcard, invoke the read callback immediate in order to catch up.
+    read_callback_behind_schedule_ = true;
     delay_ms = 0;
   }
 
