@@ -514,7 +514,6 @@
         'base/pts_stream_unittest.cc',
         'base/run_all_unittests.cc',
         'base/seekable_buffer_unittest.cc',
-        'base/simd/convert_rgb_to_yuv_unittest.cc',
         'base/state_matrix_unittest.cc',
         'base/test_data_util.cc',
         'base/test_data_util.h',
@@ -547,6 +546,11 @@
                 '../base/allocator/allocator.gyp:allocator',
               ],
             }],
+          ],
+        }],
+        [ 'target_arch=="ia32" or target_arch=="x64"', {
+          'sources': [
+            'base/simd/convert_rgb_to_yuv_unittest.cc',
           ],
         }],
       ],
