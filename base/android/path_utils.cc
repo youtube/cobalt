@@ -6,7 +6,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "base/android/scoped_java_reference.h"
+#include "base/android/scoped_java_ref.h"
 
 #include "jni/path_utils_jni.h"
 
@@ -15,14 +15,14 @@ namespace android {
 
 std::string GetDataDirectory() {
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaReference<jstring> path(env, Java_PathUtils_getDataDirectory(
+  ScopedJavaLocalRef<jstring> path(env, Java_PathUtils_getDataDirectory(
       env, base::android::GetApplicationContext()));
   return base::android::ConvertJavaStringToUTF8(env, path.obj());
 }
 
 std::string GetCacheDirectory() {
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaReference<jstring> path(env, Java_PathUtils_getCacheDirectory(
+  ScopedJavaLocalRef<jstring> path(env, Java_PathUtils_getCacheDirectory(
       env, base::android::GetApplicationContext()));
   return base::android::ConvertJavaStringToUTF8(env, path.obj());
 }
