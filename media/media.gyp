@@ -380,9 +380,63 @@
              },
           },
         }],
+        [ 'target_arch=="ia32" or target_arch=="x64"', {
+          'sources': [
+            'base/simd/convert_rgb_to_yuv_ssse3.asm',
+          ],
+        }],
+        [ 'OS=="win"', {
+          'variables': {
+            'yasm_flags': [
+              '-DWIN32',
+              '-DMSVC',
+              '-DCHROMIUM',
+              '-Isimd',
+            ],
+          },
+        }],
+        [ 'OS=="mac"', {
+          'variables': {
+            'yasm_flags': [
+              '-DPREFIX',
+              '-DMACHO',
+              '-DCHROMIUM',
+              '-Isimd',
+            ],
+          },
+        }],
+        [ 'OS=="linux"', {
+          'variables': {
+            'conditions': [
+              [ 'target_arch=="ia32"', {
+                'yasm_flags': [
+                  '-DX86_32',
+                  '-DELF',
+                  '-DCHROMIUM',
+                  '-Isimd',
+                ],
+              }, {
+                'yasm_flags': [
+                  '-DARCH_X86_64',
+                  '-DELF',
+                  '-DPIC',
+                  '-DCHROMIUM',
+                  '-Isimd',
+                ],
+              }],
+            ],
+          },
+        }],
       ],
       'sources': [
         'base/yuv_convert_sse2.cc',
+        'base/simd/convert_rgb_to_yuv.cc',
+      ],
+      'variables': {
+        'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/media',
+      },
+      'includes': [
+        '../third_party/yasm/yasm_compile.gypi',
       ],
     },
     {
@@ -460,6 +514,7 @@
         'base/pts_stream_unittest.cc',
         'base/run_all_unittests.cc',
         'base/seekable_buffer_unittest.cc',
+        'base/simd/convert_rgb_to_yuv_unittest.cc',
         'base/state_matrix_unittest.cc',
         'base/test_data_util.cc',
         'base/test_data_util.h',
