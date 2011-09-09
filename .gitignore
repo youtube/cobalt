@@ -137,6 +137,7 @@ v8.log
 /third_party/scons-2.0.1
 /third_party/sfntly
 /third_party/skia
+/third_party/smhasher
 /third_party/snappy/src
 /third_party/speex
 /third_party/swig
