@@ -17,10 +17,15 @@ std::string ConvertJavaStringToUTF8(JNIEnv* env, jstring str) {
   return UTF16ToUTF8(ConvertJavaStringToUTF16(env, str));
 }
 
-jstring ConvertUTF8ToJavaString(JNIEnv* env, const std::string& str) {
-  jstring result = env->NewStringUTF(str.c_str());
-  CheckException(env);
-  return result;
+jstring ConvertUTF8ToJavaString(JNIEnv* env, const base::StringPiece& str) {
+  // JNI's NewStringUTF expects "modified" UTF8 so instead create the string
+  // via our own UTF16 conversion utility.
+  // Further, Dalvik requires the string passed into NewStringUTF() to come from
+  // a trusted source. We can't guarantee that all UTF8 will be sanitized before
+  // it gets here, so constructing via UTF16 side-steps this issue.
+  // (Dalvik stores strings internally as UTF16 anyway, so there shouldn't be
+  // a significant performance hit by doing it this way).
+  return ConvertUTF16ToJavaString(env, UTF8ToUTF16(str));
 }
 
 string16 ConvertJavaStringToUTF16(JNIEnv* env, jstring str) {

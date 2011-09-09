@@ -19,6 +19,9 @@ jbyteArray ToJavaByteArray(JNIEnv* env, const unsigned char* bytes, size_t len);
 jobjectArray ToJavaArrayOfByteArray(JNIEnv* env,
                                     const std::vector<std::string>& v);
 
+jobjectArray ToJavaArrayOfStrings(JNIEnv* env,
+                                  const std::vector<std::string>& v);
+
 }  // namespace android
 }  // namespace base
 
