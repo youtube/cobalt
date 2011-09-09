@@ -543,14 +543,14 @@ void URLRequestHttpJob::CheckCookiePolicyAndLoad(
 }
 
 void URLRequestHttpJob::OnCookiesLoaded(
-    const std::string& cookie_line,
-    const std::vector<net::CookieStore::CookieInfo>& cookie_infos) {
-  if (!cookie_line.empty()) {
+    std::string* cookie_line,
+    std::vector<net::CookieStore::CookieInfo>* cookie_infos) {
+  if (!cookie_line->empty()) {
     request_info_.extra_headers.SetHeader(
-        HttpRequestHeaders::kCookie, cookie_line);
+        HttpRequestHeaders::kCookie, *cookie_line);
   }
   if (URLRequest::AreMacCookiesEnabled())
-    AddAuthorizationHeader(cookie_infos, &request_info_);
+    AddAuthorizationHeader(*cookie_infos, &request_info_);
   DoStartTransaction();
 }
 
