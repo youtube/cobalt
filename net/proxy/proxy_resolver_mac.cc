@@ -25,6 +25,11 @@ net::ProxyServer::Scheme GetProxyServerScheme(CFStringRef proxy_type) {
     return net::ProxyServer::SCHEME_DIRECT;
   if (CFEqual(proxy_type, kCFProxyTypeHTTP))
     return net::ProxyServer::SCHEME_HTTP;
+  if (CFEqual(proxy_type, kCFProxyTypeHTTPS)) {
+    // The "HTTPS" on the Mac side here means "proxy applies to https://" URLs;
+    // the proxy itself is still expected to be an HTTP proxy.
+    return net::ProxyServer::SCHEME_HTTP;
+  }
   if (CFEqual(proxy_type, kCFProxyTypeSOCKS)) {
     // We can't tell whether this was v4 or v5. We will assume it is
     // v5 since that is the only version OS X supports.
