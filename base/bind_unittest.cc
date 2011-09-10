@@ -251,6 +251,7 @@ TEST_F(BindTest, ArityTest) {
 
 // Function type support.
 //   - Normal function.
+//   - Normal function bound with non-refcounted first argument.
 //   - Method bound to non-const object.
 //   - Const method bound to non-const object.
 //   - Const method bound to const object.
@@ -265,12 +266,16 @@ TEST_F(BindTest, FunctionTypeSupport) {
   EXPECT_CALL(has_ref_, VoidConstMethod0()).Times(2);
 
   Closure normal_cb = Bind(&VoidFunc0);
+  Callback<NoRef*(void)> normal_non_refcounted_cb =
+      Bind(&PolymorphicIdentity<NoRef*>, &no_ref_);
+  normal_cb.Run();
+  EXPECT_EQ(&no_ref_, normal_non_refcounted_cb.Run());
+
   Closure method_cb = Bind(&HasRef::VoidMethod0, &has_ref_);
   Closure const_method_nonconst_obj_cb = Bind(&HasRef::VoidConstMethod0,
                                               &has_ref_);
   Closure const_method_const_obj_cb = Bind(&HasRef::VoidConstMethod0,
                                            const_has_ref_ptr_);
-  normal_cb.Run();
   method_cb.Run();
   const_method_nonconst_obj_cb.Run();
   const_method_const_obj_cb.Run();
@@ -579,107 +584,6 @@ TEST_F(BindTest, ArgumentCopies) {
 //   - Assignment from other callback should only cause one ref
 //
 // TODO(ajwong): Is there actually a way to test this?
-
-// No-compile tests. These should not compile. If they do, we are allowing
-// error-prone, or incorrect behavior in the callback system.  Uncomment the
-// tests to check.
-TEST_F(BindTest, NoCompile) {
-  // - Method bound to const-object.
-  //
-  // Only const methods should be allowed to work with const objects.
-  //
-  // Callback<void(void)> method_to_const_cb =
-  //     Bind(&HasRef::VoidMethod0, const_has_ref_ptr_);
-  // method_to_const_cb.Run();
-
-  // - Method bound to non-refcounted object.
-  // - Const Method bound to non-refcounted object.
-  //
-  // We require refcounts unless you have Unretained().
-  //
-  // Callback<void(void)> no_ref_cb =
-  //     Bind(&NoRef::VoidMethod0, &no_ref_);
-  // no_ref_cb.Run();
-  // Callback<void(void)> no_ref_const_cb =
-  //     Bind(&NoRef::VoidConstMethod0, &no_ref_);
-  // no_ref_const_cb.Run();
-
-  // - Unretained() used with a refcounted object.
-  //
-  // If the object supports refcounts, unretaining it in the callback is a
-  // memory management contract break.
-  // Callback<void(void)> unretained_cb =
-  //     Bind(&HasRef::VoidConstMethod0, Unretained(&has_ref_));
-  // unretained_cb.Run();
-
-  // - Const argument used with non-const pointer parameter of same type.
-  // - Const argument used with non-const pointer parameter of super type.
-  //
-  // This is just a const-correctness check.
-  //
-  // const Parent* const_parent_ptr;
-  // const Child* const_child_ptr;
-  // Callback<Parent*(void)> pointer_same_cb =
-  //     Bind(&PolymorphicIdentity<Parent*>, const_parent_ptr);
-  // pointer_same_cb.Run();
-  // Callback<Parent*(void)> pointer_super_cb =
-  //     Bind(&PolymorphicIdentity<Parent*>, const_child_ptr);
-  // pointer_super_cb.Run();
-
-  // - Construction of Callback<A> from Callback<B> if A is supertype of B.
-  //   Specific example: Callback<void(void)> a; Callback<int(void)> b; a = b;
-  //
-  // While this is technically safe, most people aren't used to it when coding
-  // C++ so if this is happening, it is almost certainly an error.
-  //
-  // Callback<int(void)> cb_a0 = Bind(&Identity, 1);
-  // Callback<void(void)> cb_b0 = cb_a0;
-
-  // - Assignment of Callback<A> from Callback<B> if A is supertype of B.
-  // See explanation above.
-  //
-  // Callback<int(void)> cb_a1 = Bind(&Identity, 1);
-  // Callback<void(void)> cb_b1;
-  // cb_a1 = cb_b1;
-
-  // - Functions with reference parameters, unsupported.
-  //
-  // First, non-const reference parameters are disallowed by the Google
-  // style guide. Seconds, since we are doing argument forwarding it becomes
-  // very tricky to avoid copies, maintain const correctness, and not
-  // accidentally have the function be modifying a temporary, or a copy.
-  //
-  // NoRefParent p;
-  // Callback<int(Parent&)> ref_arg_cb = Bind(&UnwrapNoRefParentRef);
-  // ref_arg_cb.Run(p);
-  // Callback<int(void)> ref_cb = Bind(&UnwrapNoRefParentRef, p);
-  // ref_cb.Run();
-
-  // - A method should not be bindable with an array of objects.
-  //
-  // This is likely not wanted behavior. We specifically check for it though
-  // because it is possible, depending on how you implement prebinding, to
-  // implicitly convert an array type to a pointer type.
-  //
-  // HasRef p[10];
-  // Callback<void(void)> method_bound_to_array_cb =
-  //     Bind(&HasRef::VoidConstMethod0, p);
-  // method_bound_to_array_cb.Run();
-
-  // - Refcounted types should not be bound as a raw pointer.
-  // HasRef for_raw_ptr;
-  // Callback<void(void)> ref_count_as_raw_ptr =
-  //     Bind(&VoidPolymorphic1<HasRef*>, &for_raw_ptr);
-
-  // - WeakPtrs cannot be bound to methods with return types.
-  // HasRef for_raw_ptr;
-  // WeakPtrFactory<NoRef> weak_factory(&no_ref_);
-  // Callback<int(void)> weak_ptr_with_non_void_return_type =
-  //     Bind(&NoRef::IntMethod0, weak_factory.GetWeakPtr());
-
-  // - Bind result cannot be assigned to Callbacks with a mismatching type.
-  // Closure callback_mismatches_bind_type = Bind(&VoidPolymorphic1<int>);
-}
 
 #if defined(OS_WIN)
 int __fastcall FastCallFunc(int n) {
