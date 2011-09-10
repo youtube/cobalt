@@ -274,6 +274,10 @@ $for ARG , [[typename internal::ParamTraits<A$(ARG)>::ForwardType]]);
                    callback_type_does_not_match_bind_result);
   }
 
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
+  }
+
   R Run($for ARG ,
         [[typename internal::ParamTraits<A$(ARG)>::ForwardType a$(ARG)]]) const {
     PolymorphicInvoke f =
