@@ -80,27 +80,6 @@ void WontCompile() {
   method_to_const_cb.Run();
 }
 
-#elif defined(NCTEST_CONSTRUCTION_FROM_SUBTYPE)  // [r"conversion from 'base::Callback<int\(\)>' to non-scalar type 'base::Callback<void\(\)>'"]
-
-// Construction of Callback<A> from Callback<B> if A is supertype of B.
-//
-// While this is technically safe, most people aren't used to it when coding
-// C++ so if this is happening, it is almost certainly an error.
-void WontCompile() {
-  Callback<int(void)> cb_a = Bind(&PolymorphicIdentity<int>, 1);
-  Callback<void(void)> cb_b = cb_a;
-}
-
-#elif defined(NCTEST_ASSIGNMENT_FROM_SUBTYPE)  // [r"no match for 'operator=' in 'cb_a = cb_b'"]
-
-// Assignment of Callback<A> from Callback<B> if A is supertype of B.
-// See explanation for NCTEST_CONSTRUCTION_FROM_SUBTYPE
-void WontCompile() {
-  Callback<int(void)> cb_a = Bind(&PolymorphicIdentity<int>, 1);
-  Callback<void(void)> cb_b;
-  cb_a = cb_b;
-}
-
 #elif defined(NCTEST_METHOD_BIND_NEEDS_REFCOUNTED_OBJECT)  // [r"has no member named 'AddRef'"]
 
 // Method bound to non-refcounted object.
