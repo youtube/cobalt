@@ -258,6 +258,10 @@ class Callback<R(void)> : public internal::CallbackBase {
                    callback_type_does_not_match_bind_result);
   }
 
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
+  }
+
   R Run() const {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
@@ -290,6 +294,10 @@ class Callback<R(A1)> : public internal::CallbackBase {
     COMPILE_ASSERT((is_same<PolymorphicInvoke,
                     typename T::Invoker::DoInvokeType>::value),
                    callback_type_does_not_match_bind_result);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1) const {
@@ -325,6 +333,10 @@ class Callback<R(A1, A2)> : public internal::CallbackBase {
     COMPILE_ASSERT((is_same<PolymorphicInvoke,
                     typename T::Invoker::DoInvokeType>::value),
                    callback_type_does_not_match_bind_result);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1,
@@ -363,6 +375,10 @@ class Callback<R(A1, A2, A3)> : public internal::CallbackBase {
     COMPILE_ASSERT((is_same<PolymorphicInvoke,
                     typename T::Invoker::DoInvokeType>::value),
                    callback_type_does_not_match_bind_result);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1,
@@ -404,6 +420,10 @@ class Callback<R(A1, A2, A3, A4)> : public internal::CallbackBase {
     COMPILE_ASSERT((is_same<PolymorphicInvoke,
                     typename T::Invoker::DoInvokeType>::value),
                    callback_type_does_not_match_bind_result);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1,
@@ -449,6 +469,10 @@ class Callback<R(A1, A2, A3, A4, A5)> : public internal::CallbackBase {
     COMPILE_ASSERT((is_same<PolymorphicInvoke,
                     typename T::Invoker::DoInvokeType>::value),
                    callback_type_does_not_match_bind_result);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1,
@@ -497,6 +521,10 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
     COMPILE_ASSERT((is_same<PolymorphicInvoke,
                     typename T::Invoker::DoInvokeType>::value),
                    callback_type_does_not_match_bind_result);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
   }
 
   R Run(typename internal::ParamTraits<A1>::ForwardType a1,
