@@ -116,6 +116,7 @@
         'atomicops_unittest.cc',
         'base64_unittest.cc',
         'bind_unittest.cc',
+        'bind_unittest.nc',
         'bits_unittest.cc',
         'callback_unittest.cc',
         'command_line_unittest.cc',
@@ -245,6 +246,11 @@
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
       ],
+      'includes': ['../build/nocompile.gypi'],
+      'variables': {
+         # TODO(ajwong): Is there a way to autodetect this?
+        'module_dir': 'base'
+      },
       'conditions': [
         ['toolkit_uses_gtk==1', {
           'sources!': [
