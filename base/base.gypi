@@ -124,6 +124,8 @@
           'logging_win.cc',
           'logging_win.h',
           'mac/cocoa_protocols.h',
+          'mac/crash_logging.h',
+          'mac/crash_logging.mm',
           'mac/foundation_util.h',
           'mac/foundation_util.mm',
           'mac/mac_util.h',
