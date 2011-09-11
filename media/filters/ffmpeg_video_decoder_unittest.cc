@@ -53,19 +53,6 @@ static const TimeTuple kTestPts3 =
       base::TimeDelta::FromMicroseconds(60) };
 static const PipelineStatistics kStatistics;
 
-class MockFFmpegDemuxerStream : public MockDemuxerStream {
- public:
-  MockFFmpegDemuxerStream() {}
-
-  MOCK_METHOD0(GetAVStream, AVStream*());
-
- protected:
-  virtual ~MockFFmpegDemuxerStream() {}
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MockFFmpegDemuxerStream);
-};
-
 // TODO(hclam): Share this in a separate file.
 class MockVideoDecodeEngine : public VideoDecodeEngine {
  public:
@@ -148,7 +135,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
         base::Bind(&MockVideoRenderer::ConsumeVideoFrame,
                    base::Unretained(renderer_.get())));
     decoder_->SetVideoDecodeEngineForTest(engine_);
-    demuxer_ = new StrictMock<MockFFmpegDemuxerStream>();
+    demuxer_ = new StrictMock<MockDemuxerStream>();
 
     // Initialize FFmpeg fixtures.
     memset(&stream_, 0, sizeof(stream_));
@@ -206,7 +193,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   MockVideoDecodeEngine* engine_;  // Owned by |decoder_|.
   scoped_refptr<DecoderPrivateMock> decoder_;
   scoped_refptr<MockVideoRenderer> renderer_;
-  scoped_refptr<StrictMock<MockFFmpegDemuxerStream> > demuxer_;
+  scoped_refptr<StrictMock<MockDemuxerStream> > demuxer_;
   scoped_refptr<DataBuffer> buffer_;
   scoped_refptr<DataBuffer> end_of_stream_buffer_;
   MockStatisticsCallback stats_callback_object_;
