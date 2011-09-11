@@ -17,7 +17,6 @@
         '<(tcmalloc_dir)/src',
         '../..',
       ],
-      'defines': ['TCMALLOC_USE_DOUBLYLINKED_FREELIST',],
       'direct_dependent_settings': {
         'configurations': {
           'Common_Base': {
@@ -267,6 +266,10 @@
         },
       },
       'configurations': {
+        'Debug': {
+          'defines': 
+          ['TCMALLOC_USE_DOUBLYLINKED_FREELIST'],
+        },
         'Debug_Base': {
           'msvs_settings': {
             'VCCLCompilerTool': {
