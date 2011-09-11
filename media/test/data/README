@@ -14,3 +14,6 @@ vp8-I-frame-320x240 - The first I frame of bear-320x240.webm.
 vp8-I-frame-320x480 - The first I frame of a 320x480 reencode of bear-320x240.webm.
 vp8-I-frame-640x240 - The first I frame of a 640x240 reencode of bear-320x240.webm.
 vp8-corrupt-I-frame - A copy of vp8-I-frame-320x240 w/ all bytes XORed w/ 0xA5.
+
+vorbis-extradata - Vorbis extradata section (44100 Hz, 16 bits, stereo)
+vorbis-packet-N  - Vorbis packets (44100 Hz, 16 bits, stereo)
