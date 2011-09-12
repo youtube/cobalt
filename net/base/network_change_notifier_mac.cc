@@ -5,12 +5,6 @@
 #include "net/base/network_change_notifier_mac.h"
 
 #include <netinet/in.h>
-#include <SystemConfiguration/SCDynamicStoreKey.h>
-#include <SystemConfiguration/SCNetworkReachability.h>
-#include <SystemConfiguration/SCSchemaDefinitions.h>
-
-#include "base/mac/scoped_cftyperef.h"
-#include "base/synchronization/lock.h"
 
 namespace net {
 
@@ -23,11 +17,19 @@ static bool CalculateReachability(SCNetworkConnectionFlags flags) {
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
     : online_state_(UNINITIALIZED),
       initial_state_cv_(&online_state_lock_),
-      forwarder_(this),
-      config_watcher_(&forwarder_) {
+      forwarder_(this) {
+  // Must be initialized after the rest of this object, as it may call back into
+  // SetInitialState().
+  config_watcher_.reset(new NetworkConfigWatcherMac(&forwarder_));
 }
 
 NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
+  // Delete the ConfigWatcher to join the notifier thread, ensuring that
+  // SetDynamicStoreNotificationKeys() has an opportunity to run to completion.
+  config_watcher_.reset();
+
+  // Now that SetDynamicStoreNotificationKeys has either run to completion or
+  // never run at all, unschedule reachability_ if it was previously scheduled.
   if (reachability_.get() && run_loop_.get()) {
     SCNetworkReachabilityUnscheduleFromRunLoop(reachability_.get(),
                                                run_loop_.get(),
