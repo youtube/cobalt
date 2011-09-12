@@ -12,6 +12,7 @@
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 
 #if defined(OS_ANDROID)
@@ -25,11 +26,13 @@ namespace base {
      MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
 typedef struct stat stat_wrapper_t;
 static int CallFstat(int fd, stat_wrapper_t *sb) {
+  base::ThreadRestrictions::AssertIOAllowed();
   return fstat(fd, sb);
 }
 #else
 typedef struct stat64 stat_wrapper_t;
 static int CallFstat(int fd, stat_wrapper_t *sb) {
+  base::ThreadRestrictions::AssertIOAllowed();
   return fstat64(fd, sb);
 }
 #endif
@@ -37,6 +40,8 @@ static int CallFstat(int fd, stat_wrapper_t *sb) {
 // TODO(erikkay): does it make sense to support PLATFORM_FILE_EXCLUSIVE_* here?
 PlatformFile CreatePlatformFile(const FilePath& name, int flags,
                                 bool* created, PlatformFileError* error_code) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   int open_flags = 0;
   if (flags & PLATFORM_FILE_CREATE)
     open_flags = O_CREAT | O_EXCL;
@@ -143,10 +148,12 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
 }
 
 bool ClosePlatformFile(PlatformFile file) {
+  base::ThreadRestrictions::AssertIOAllowed();
   return !HANDLE_EINTR(close(file));
 }
 
 int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
   if (file < 0 || size < 0)
     return -1;
 
@@ -166,6 +173,7 @@ int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
 
 int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
                                  char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
   if (file < 0)
     return -1;
 
@@ -174,6 +182,7 @@ int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
 
 int WritePlatformFile(PlatformFile file, int64 offset,
                       const char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
   if (file < 0 || size < 0)
     return -1;
 
@@ -192,15 +201,18 @@ int WritePlatformFile(PlatformFile file, int64 offset,
 }
 
 bool TruncatePlatformFile(PlatformFile file, int64 length) {
+  base::ThreadRestrictions::AssertIOAllowed();
   return ((file >= 0) && !HANDLE_EINTR(ftruncate(file, length)));
 }
 
 bool FlushPlatformFile(PlatformFile file) {
+  base::ThreadRestrictions::AssertIOAllowed();
   return !HANDLE_EINTR(fsync(file));
 }
 
 bool TouchPlatformFile(PlatformFile file, const base::Time& last_access_time,
                        const base::Time& last_modified_time) {
+  base::ThreadRestrictions::AssertIOAllowed();
   if (file < 0)
     return false;
 
