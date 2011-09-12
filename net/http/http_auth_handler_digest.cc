@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
 #include "base/md5.h"
 #include "base/rand_util.h"
@@ -114,19 +115,19 @@ HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallenge(
     return HttpAuth::AUTHORIZATION_RESULT_INVALID;
 
   HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
-  std::string realm;
 
   // Try to find the "stale" value, and also keep track of the realm
   // for the new challenge.
+  std::string original_realm;
   while (parameters.GetNext()) {
     if (LowerCaseEqualsASCII(parameters.name(), "stale")) {
       if (LowerCaseEqualsASCII(parameters.value(), "true"))
         return HttpAuth::AUTHORIZATION_RESULT_STALE;
     } else if (LowerCaseEqualsASCII(parameters.name(), "realm")) {
-      realm = parameters.value();
+      original_realm = parameters.value();
     }
   }
-  return (realm_ != realm) ?
+  return (original_realm_ != original_realm) ?
       HttpAuth::AUTHORIZATION_RESULT_DIFFERENT_REALM :
       HttpAuth::AUTHORIZATION_RESULT_REJECT;
 }
@@ -198,7 +199,7 @@ bool HttpAuthHandlerDigest::ParseChallenge(
   stale_ = false;
   algorithm_ = ALGORITHM_UNSPECIFIED;
   qop_ = QOP_UNSPECIFIED;
-  realm_ = nonce_ = domain_ = opaque_ = std::string();
+  realm_ = original_realm_ = nonce_ = domain_ = opaque_ = std::string();
 
   // FAIL -- Couldn't match auth-scheme.
   if (!LowerCaseEqualsASCII(challenge->scheme(), "digest"))
@@ -228,7 +229,11 @@ bool HttpAuthHandlerDigest::ParseChallenge(
 bool HttpAuthHandlerDigest::ParseChallengeProperty(const std::string& name,
                                                    const std::string& value) {
   if (LowerCaseEqualsASCII(name, "realm")) {
-    realm_ = value;
+    std::string realm;
+    if (!base::ConvertToUtf8AndNormalize(value, base::kCodepageLatin1, &realm))
+      return false;
+    realm_ = realm;
+    original_realm_ = value;
   } else if (LowerCaseEqualsASCII(name, "nonce")) {
     nonce_ = value;
   } else if (LowerCaseEqualsASCII(name, "domain")) {
@@ -321,7 +326,8 @@ std::string HttpAuthHandlerDigest::AssembleResponseDigest(
     const std::string& nc) const {
   // ha1 = MD5(A1)
   // TODO(eroman): is this the right encoding?
-  std::string ha1 = base::MD5String(UTF16ToUTF8(username) + ":" + realm_ + ":" +
+  std::string ha1 = base::MD5String(UTF16ToUTF8(username) + ":" +
+                                    original_realm_ + ":" +
                                     UTF16ToUTF8(password));
   if (algorithm_ == HttpAuthHandlerDigest::ALGORITHM_MD5_SESS)
     ha1 = base::MD5String(ha1 + ":" + nonce_ + ":" + cnonce);
@@ -351,7 +357,7 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
   // TODO(eroman): is this the right encoding?
   std::string authorization = (std::string("Digest username=") +
                                HttpUtil::Quote(UTF16ToUTF8(username)));
-  authorization += ", realm=" + HttpUtil::Quote(realm_);
+  authorization += ", realm=" + HttpUtil::Quote(original_realm_);
   authorization += ", nonce=" + HttpUtil::Quote(nonce_);
   authorization += ", uri=" + HttpUtil::Quote(path);
 

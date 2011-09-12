@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/base64.h"
+#include "base/i18n/icu_string_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
@@ -14,6 +15,11 @@
 
 namespace net {
 
+namespace {
+
+// Parses a realm from an auth challenge, and converts to UTF8-encoding.
+// Returns whether the realm is invalid or the parameters are invalid.
+//
 // Note that if a realm was not specified, we will default it to "";
 // so specifying 'Basic realm=""' is equivalent to 'Basic'.
 //
@@ -22,6 +28,29 @@ namespace net {
 //
 // We allow it to be compatibility with certain embedded webservers that don't
 // include a realm (see http://crbug.com/20984.)
+//
+// The over-the-wire realm is encoded as ISO-8859-1 (aka Latin-1).
+//
+// TODO(cbentzel): Realm may need to be decoded using RFC 2047 rules as
+// well, see http://crbug.com/25790.
+bool ParseRealm(const HttpAuth::ChallengeTokenizer& tokenizer,
+                std::string* realm) {
+  CHECK(realm);
+  realm->clear();
+  HttpUtil::NameValuePairsIterator parameters = tokenizer.param_pairs();
+  while (parameters.GetNext()) {
+    if (!LowerCaseEqualsASCII(parameters.name(), "realm"))
+      continue;
+
+    if (!base::ConvertToUtf8AndNormalize(
+            parameters.value(), base::kCodepageLatin1, realm))
+      return false;
+  }
+  return parameters.valid();
+}
+
+}  // namespace
+
 bool HttpAuthHandlerBasic::Init(HttpAuth::ChallengeTokenizer* challenge) {
   auth_scheme_ = HttpAuth::AUTH_SCHEME_BASIC;
   score_ = 1;
@@ -35,16 +64,8 @@ bool HttpAuthHandlerBasic::ParseChallenge(
   if (!LowerCaseEqualsASCII(challenge->scheme(), "basic"))
     return false;
 
-  HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
-
-  // Extract the realm (may be missing).
   std::string realm;
-  while (parameters.GetNext()) {
-    if (LowerCaseEqualsASCII(parameters.name(), "realm"))
-      realm = parameters.value();
-  }
-
-  if (!parameters.valid())
+  if (!ParseRealm(*challenge, &realm))
     return false;
 
   realm_ = realm;
@@ -56,12 +77,9 @@ HttpAuth::AuthorizationResult HttpAuthHandlerBasic::HandleAnotherChallenge(
   // Basic authentication is always a single round, so any responses
   // should be treated as a rejection.  However, if the new challenge
   // is for a different realm, then indicate the realm change.
-  HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
   std::string realm;
-  while (parameters.GetNext()) {
-    if (LowerCaseEqualsASCII(parameters.name(), "realm"))
-      realm = parameters.value();
-  }
+  if (!ParseRealm(*challenge, &realm))
+    return HttpAuth::AUTHORIZATION_RESULT_INVALID;
   return (realm_ != realm)?
       HttpAuth::AUTHORIZATION_RESULT_DIFFERENT_REALM:
       HttpAuth::AUTHORIZATION_RESULT_REJECT;

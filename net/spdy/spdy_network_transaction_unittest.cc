@@ -4927,10 +4927,11 @@ TEST_P(SpdyNetworkTransactionTest, SpdyBasicAuth) {
   ASSERT_TRUE(response_start->headers != NULL);
   EXPECT_EQ(401, response_start->headers->response_code());
   EXPECT_TRUE(response_start->was_fetched_via_spdy);
-  ASSERT_TRUE(response_start->auth_challenge.get() != NULL);
-  EXPECT_FALSE(response_start->auth_challenge->is_proxy);
-  EXPECT_EQ(L"basic", response_start->auth_challenge->scheme);
-  EXPECT_EQ(L"MyRealm", response_start->auth_challenge->realm);
+  AuthChallengeInfo* auth_challenge = response_start->auth_challenge.get();
+  ASSERT_TRUE(auth_challenge != NULL);
+  EXPECT_FALSE(auth_challenge->is_proxy);
+  EXPECT_EQ("basic", auth_challenge->scheme);
+  EXPECT_EQ("MyRealm", auth_challenge->realm);
 
   // Restart with a username/password.
   const string16 kFoo(ASCIIToUTF16("foo"));
