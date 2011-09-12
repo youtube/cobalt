@@ -43,7 +43,7 @@ bool TestTimeouts::initialized_ = false;
 // The timeout values should increase in the order they appear in this block.
 // static
 int TestTimeouts::tiny_timeout_ms_ = 100;
-int TestTimeouts::action_timeout_ms_ = 2000;
+int TestTimeouts::action_timeout_ms_ = 10000;
 int TestTimeouts::action_max_timeout_ms_ = 45000;
 int TestTimeouts::large_test_timeout_ms_ = 10 * 60 * 1000;
 
