@@ -10,6 +10,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -21,17 +22,21 @@ class NET_EXPORT AuthChallengeInfo :
  public:
   AuthChallengeInfo();
 
-  bool operator==(const AuthChallengeInfo& that) const;
+  // Determines whether two AuthChallengeInfo's are equivalent.
+  bool Equals(const AuthChallengeInfo& other) const;
 
-  bool operator!=(const AuthChallengeInfo& that) const {
-    return !(*this == that);
-  }
+  // Whether this came from a server or a proxy.
+  bool is_proxy;
 
-  bool is_proxy;  // true for Proxy-Authenticate, false for WWW-Authenticate.
-  std::wstring host_and_port;  // <host>:<port> of the server asking for auth
-                               // (could be the proxy).
-  std::wstring scheme;  // "Basic", "Digest", or whatever other method is used.
-  std::wstring realm;  // the realm provided by the server, if there is one.
+  // The service issuing the challenge.
+  HostPortPair challenger;
+
+  // The authentication scheme used, such as "basic" or "digest". If the
+  // |source| is FTP_SERVER, this is an empty string. The encoding is ASCII.
+  std::string scheme;
+
+  // The realm of the challenge. May be empty. The encoding is UTF-8.
+  std::string realm;
 
  private:
   friend class base::RefCountedThreadSafe<AuthChallengeInfo>;
@@ -49,7 +54,6 @@ enum AuthState {
 class AuthData : public base::RefCountedThreadSafe<AuthData> {
  public:
   AuthState state;  // whether we need, have, or gave up on authentication.
-  std::wstring scheme;  // the authentication scheme.
   string16 username;  // the username supplied to us for auth.
   string16 password;  // the password supplied to us for auth.
 

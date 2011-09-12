@@ -171,6 +171,14 @@ TEST(HttpAuthHandlerBasicTest, InitFromChallenge) {
       OK,
       "bar",
     },
+
+    // Handle ISO-8859-1 character as part of the realm. The realm is converted
+    // to UTF-8.
+    {
+      "Basic realm=\"foo-\xE5\"",
+      OK,
+      "foo-\xC3\xA5",
+    },
   };
   HttpAuthHandlerBasic::Factory factory;
   GURL origin("http://www.example.com");

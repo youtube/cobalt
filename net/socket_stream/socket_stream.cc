@@ -851,11 +851,10 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
         DCHECK(!proxy_info_.is_empty());
         auth_info_ = new AuthChallengeInfo;
         auth_info_->is_proxy = true;
-        auth_info_->host_and_port =
-            ASCIIToWide(proxy_info_.proxy_server().host_port_pair().ToString());
-        auth_info_->scheme = ASCIIToWide(
-            HttpAuth::SchemeToString(auth_handler_->auth_scheme()));
-        auth_info_->realm = ASCIIToWide(auth_handler_->realm());
+        auth_info_->challenger = proxy_info_.proxy_server().host_port_pair();
+        auth_info_->scheme = HttpAuth::SchemeToString(
+            auth_handler_->auth_scheme());
+        auth_info_->realm = auth_handler_->realm();
         // Wait until RestartWithAuth or Close is called.
         MessageLoop::current()->PostTask(
             FROM_HERE,
