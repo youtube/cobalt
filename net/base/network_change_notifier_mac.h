@@ -6,11 +6,11 @@
 #define NET_BASE_NETWORK_CHANGE_NOTIFIER_MAC_H_
 #pragma once
 
-#include <SystemConfiguration/SCDynamicStore.h>
-#include <SystemConfiguration/SCNetworkReachability.h>
+#include <SystemConfiguration/SystemConfiguration.h>
 
 #include "base/basictypes.h"
 #include "base/mac/scoped_cftyperef.h"
+#include "base/scoped_ptr.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "net/base/network_change_notifier.h"
@@ -75,10 +75,7 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   base::mac::ScopedCFTypeRef<CFRunLoopRef> run_loop_;
 
   Forwarder forwarder_;
-
-  // config_watcher_ should be the last data member, to ensure the rest
-  // of the object is constructed by the time its constructor runs.
-  const NetworkConfigWatcherMac config_watcher_;
+  scoped_ptr<const NetworkConfigWatcherMac> config_watcher_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };
