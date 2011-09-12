@@ -23,9 +23,15 @@ namespace debug {
 
 namespace {
 
+enum CompareOp {
+  IS_EQUAL,
+  IS_NOT_EQUAL,
+};
+
 struct JsonKeyValue {
   const char* key;
   const char* value;
+  CompareOp op;
 };
 
 class TraceEventTestFixture : public testing::Test {
@@ -37,6 +43,14 @@ class TraceEventTestFixture : public testing::Test {
       scoped_refptr<TraceLog::RefCountedString> json_events_str);
   bool FindMatchingTraceEntry(const JsonKeyValue* key_values);
   bool FindNamePhase(const char* name, const char* phase);
+  bool FindMatchingValue(const char* key,
+                         const char* value);
+  bool FindNonMatchingValue(const char* key,
+                            const char* value);
+  void Clear() {
+    trace_string_.clear();
+    trace_parsed_.Clear();
+  }
 
   std::string trace_string_;
   ListValue trace_parsed_;
@@ -75,13 +89,27 @@ void TraceEventTestFixture::OnTraceDataCollected(
   }
 }
 
+static bool CompareJsonValues(const std::string& lhs,
+                              const std::string& rhs,
+                              CompareOp op) {
+  switch (op) {
+    case IS_EQUAL:
+      return lhs == rhs;
+    case IS_NOT_EQUAL:
+      return lhs != rhs;
+    default:
+      CHECK(0);
+  }
+  return false;
+}
+
 static bool IsKeyValueInDict(const JsonKeyValue* key_value,
                              DictionaryValue* dict) {
   Value* value = NULL;
   std::string value_str;
   if (dict->Get(key_value->key, &value) &&
       value->GetAsString(&value_str) &&
-      value_str == key_value->value)
+      CompareJsonValues(value_str, key_value->value, key_value->op))
     return true;
 
   // Recurse to test arguments
@@ -123,9 +151,27 @@ bool TraceEventTestFixture::FindMatchingTraceEntry(
 
 bool TraceEventTestFixture::FindNamePhase(const char* name, const char* phase) {
   JsonKeyValue key_values[] = {
-    {"name", name},
-    {"ph", phase},
-    {0, 0}
+    {"name", name, IS_EQUAL},
+    {"ph", phase, IS_EQUAL},
+    {0, 0, IS_EQUAL}
+  };
+  return FindMatchingTraceEntry(key_values);
+}
+
+bool TraceEventTestFixture::FindMatchingValue(const char* key,
+                                              const char* value) {
+  JsonKeyValue key_values[] = {
+    {key, value, IS_EQUAL},
+    {0, 0, IS_EQUAL}
+  };
+  return FindMatchingTraceEntry(key_values);
+}
+
+bool TraceEventTestFixture::FindNonMatchingValue(const char* key,
+                                                 const char* value) {
+  JsonKeyValue key_values[] = {
+    {key, value, IS_NOT_EQUAL},
+    {0, 0, IS_EQUAL}
   };
   return FindMatchingTraceEntry(key_values);
 }
@@ -358,6 +404,113 @@ TEST_F(TraceEventTestFixture, DataCaptured) {
   TraceLog::GetInstance()->SetEnabled(false);
 
   ValidateAllTraceMacrosCreatedData(trace_parsed_, trace_string_);
+}
+
+// Test that categories work.
+TEST_F(TraceEventTestFixture, Categories) {
+  ManualTestSetUp();
+
+  // Test that categories that are used can be retrieved whether trace was
+  // enabled or disabled when the trace event was encountered.
+  TRACE_EVENT_INSTANT0("c1", "name");
+  TRACE_EVENT_INSTANT0("c2", "name");
+  TraceLog::GetInstance()->SetEnabled(true);
+  TRACE_EVENT_INSTANT0("c3", "name");
+  TRACE_EVENT_INSTANT0("c4", "name");
+  TraceLog::GetInstance()->SetEnabled(false);
+  std::vector<std::string> cats;
+  TraceLog::GetInstance()->GetKnownCategories(&cats);
+  EXPECT_TRUE(std::find(cats.begin(), cats.end(), "c1") != cats.end());
+  EXPECT_TRUE(std::find(cats.begin(), cats.end(), "c2") != cats.end());
+  EXPECT_TRUE(std::find(cats.begin(), cats.end(), "c3") != cats.end());
+  EXPECT_TRUE(std::find(cats.begin(), cats.end(), "c4") != cats.end());
+
+  const std::vector<std::string> empty_categories;
+  std::vector<std::string> included_categories;
+  std::vector<std::string> excluded_categories;
+
+  // Test that category filtering works.
+
+  // Include nonexistent category -> no events
+  Clear();
+  included_categories.clear();
+  included_categories.push_back("not_found823564786");
+  TraceLog::GetInstance()->SetEnabled(included_categories, empty_categories);
+  TRACE_EVENT_INSTANT0("cat1", "name");
+  TRACE_EVENT_INSTANT0("cat2", "name");
+  TraceLog::GetInstance()->SetDisabled();
+  EXPECT_TRUE(trace_parsed_.empty());
+
+  // Include existent category -> only events of that category
+  Clear();
+  included_categories.clear();
+  included_categories.push_back("inc");
+  TraceLog::GetInstance()->SetEnabled(included_categories, empty_categories);
+  TRACE_EVENT_INSTANT0("inc", "name");
+  TRACE_EVENT_INSTANT0("inc2", "name");
+  TraceLog::GetInstance()->SetDisabled();
+  EXPECT_TRUE(FindMatchingValue("cat", "inc"));
+  EXPECT_FALSE(FindNonMatchingValue("cat", "inc"));
+
+  // Include existent wildcard -> all categories matching wildcard
+  Clear();
+  included_categories.clear();
+  included_categories.push_back("inc_wildcard_*");
+  included_categories.push_back("inc_wildchar_?_end");
+  TraceLog::GetInstance()->SetEnabled(included_categories, empty_categories);
+  TRACE_EVENT_INSTANT0("inc_wildcard_abc", "included");
+  TRACE_EVENT_INSTANT0("inc_wildcard_", "included");
+  TRACE_EVENT_INSTANT0("inc_wildchar_x_end", "included");
+  TRACE_EVENT_INSTANT0("inc_wildchar_bla_end", "not_inc");
+  TRACE_EVENT_INSTANT0("cat1", "not_inc");
+  TRACE_EVENT_INSTANT0("cat2", "not_inc");
+  TraceLog::GetInstance()->SetDisabled();
+  EXPECT_TRUE(FindMatchingValue("cat", "inc_wildcard_abc"));
+  EXPECT_TRUE(FindMatchingValue("cat", "inc_wildcard_"));
+  EXPECT_TRUE(FindMatchingValue("cat", "inc_wildchar_x_end"));
+  EXPECT_FALSE(FindMatchingValue("name", "not_inc"));
+
+  included_categories.clear();
+
+  // Exclude nonexistent category -> all events
+  Clear();
+  excluded_categories.clear();
+  excluded_categories.push_back("not_found823564786");
+  TraceLog::GetInstance()->SetEnabled(empty_categories, excluded_categories);
+  TRACE_EVENT_INSTANT0("cat1", "name");
+  TRACE_EVENT_INSTANT0("cat2", "name");
+  TraceLog::GetInstance()->SetDisabled();
+  EXPECT_TRUE(FindMatchingValue("cat", "cat1"));
+  EXPECT_TRUE(FindMatchingValue("cat", "cat2"));
+
+  // Exclude existent category -> only events of other categories
+  Clear();
+  excluded_categories.clear();
+  excluded_categories.push_back("inc");
+  TraceLog::GetInstance()->SetEnabled(empty_categories, excluded_categories);
+  TRACE_EVENT_INSTANT0("inc", "name");
+  TRACE_EVENT_INSTANT0("inc2", "name");
+  TraceLog::GetInstance()->SetDisabled();
+  EXPECT_TRUE(FindMatchingValue("cat", "inc2"));
+  EXPECT_FALSE(FindMatchingValue("cat", "inc"));
+
+  // Exclude existent wildcard -> all categories not matching wildcard
+  Clear();
+  excluded_categories.clear();
+  excluded_categories.push_back("inc_wildcard_*");
+  excluded_categories.push_back("inc_wildchar_?_end");
+  TraceLog::GetInstance()->SetEnabled(empty_categories, excluded_categories);
+  TRACE_EVENT_INSTANT0("inc_wildcard_abc", "not_inc");
+  TRACE_EVENT_INSTANT0("inc_wildcard_", "not_inc");
+  TRACE_EVENT_INSTANT0("inc_wildchar_x_end", "not_inc");
+  TRACE_EVENT_INSTANT0("inc_wildchar_bla_end", "included");
+  TRACE_EVENT_INSTANT0("cat1", "included");
+  TRACE_EVENT_INSTANT0("cat2", "included");
+  TraceLog::GetInstance()->SetDisabled();
+  EXPECT_TRUE(FindMatchingValue("cat", "inc_wildchar_bla_end"));
+  EXPECT_TRUE(FindMatchingValue("cat", "cat1"));
+  EXPECT_TRUE(FindMatchingValue("cat", "cat2"));
+  EXPECT_FALSE(FindMatchingValue("name", "not_inc"));
 }
 
 // Simple Test for time threshold events.

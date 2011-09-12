@@ -28,7 +28,7 @@ namespace debug {
 const size_t kTraceEventBufferSize = 500000;
 const size_t kTraceEventBatchSize = 1000;
 
-#define TRACE_EVENT_MAX_CATEGORIES 42
+#define TRACE_EVENT_MAX_CATEGORIES 100
 
 static TraceCategory g_categories[TRACE_EVENT_MAX_CATEGORIES] = {
   { "tracing already shutdown", false },
@@ -279,9 +279,31 @@ const TraceCategory* TraceLog::GetCategory(const char* name) {
   return tracelog->GetCategoryInternal(name);
 }
 
+static void EnableMatchingCategory(int category_index,
+                                   const std::vector<std::string>& patterns,
+                                   bool is_included) {
+  std::vector<std::string>::const_iterator ci = patterns.begin();
+  bool is_match = false;
+  for (; ci != patterns.end(); ++ci) {
+    is_match = MatchPattern(g_categories[category_index].name, ci->c_str());
+    if (is_match)
+      break;
+  }
+  g_categories[category_index].enabled = is_match? is_included : !is_included;
+}
+
+// Enable/disable each category based on the category filters in |patterns|.
+// If the category name matches one of the patterns, its enabled status is set
+// to |is_included|. Otherwise its enabled status is set to !|is_included|.
+static void EnableMatchingCategories(const std::vector<std::string>& patterns,
+                                     bool is_included) {
+  for (int i = 0; i < g_category_index; i++)
+    EnableMatchingCategory(i, patterns, is_included);
+}
+
 const TraceCategory* TraceLog::GetCategoryInternal(const char* name) {
   AutoLock lock(lock_);
-  DCHECK(!strchr(name, '"')) << "Names may not contain double quote char";
+  DCHECK(!strchr(name, '"')) << "Category names may not contain double quote";
 
   // Search for pre-existing category matching this name
   for (int i = 0; i < g_category_index; i++) {
@@ -296,32 +318,65 @@ const TraceCategory* TraceLog::GetCategoryInternal(const char* name) {
     int new_index = g_category_index++;
     g_categories[new_index].name = name;
     DCHECK(!g_categories[new_index].enabled);
-    g_categories[new_index].enabled = enabled_;
+    if (enabled_) {
+      // Note that if both included and excluded_categories are empty, the else
+      // clause below excludes nothing, thereby enabling this category.
+      if (!included_categories_.empty())
+        EnableMatchingCategory(new_index, included_categories_, true);
+      else
+        EnableMatchingCategory(new_index, excluded_categories_, false);
+    } else {
+      g_categories[new_index].enabled = false;
+    }
     return &g_categories[new_index];
   } else {
     return g_category_categories_exhausted;
   }
 }
 
-void TraceLog::SetEnabled(bool enabled) {
+void TraceLog::GetKnownCategories(std::vector<std::string>* categories) {
+  AutoLock lock(lock_);
+  for (int i = 0; i < g_category_index; i++)
+    categories->push_back(g_categories[i].name);
+}
+
+void TraceLog::SetEnabled(const std::vector<std::string>& included_categories,
+                          const std::vector<std::string>& excluded_categories) {
+  AutoLock lock(lock_);
+  if (enabled_)
+    return;
+  logged_events_.reserve(1024);
+  enabled_ = true;
+  included_categories_ = included_categories;
+  excluded_categories_ = excluded_categories;
+  // Note that if both included and excluded_categories are empty, the else
+  // clause below excludes nothing, thereby enabling all categories.
+  if (!included_categories_.empty())
+    EnableMatchingCategories(included_categories_, true);
+  else
+    EnableMatchingCategories(excluded_categories_, false);
+}
+
+void TraceLog::SetDisabled() {
   {
     AutoLock lock(lock_);
-    if (enabled == enabled_)
+    if (!enabled_)
       return;
-    logged_events_.reserve(1024);
-    enabled_ = enabled;
-    for (int i = 0; i < g_category_index; i++) {
-      //TODO(scheib): If changed to enable specific categories instead of all
-      // check GetCategoryInternal creation code that users TraceLog::enabled_
-      g_categories[i].enabled = enabled;
-    }
+    enabled_ = false;
+    included_categories_.clear();
+    excluded_categories_.clear();
+    for (int i = 0; i < g_category_index; i++)
+      g_categories[i].enabled = false;
+    AddCurrentMetadataEvents();
+  }  // release lock
+  Flush();
+}
 
-    if (!enabled)
-      AddCurrentMetadataEvents();
-  } // release lock
-  if (!enabled) {
-    Flush();
-  }
+void TraceLog::SetEnabled(bool enabled) {
+  if (enabled)
+    SetEnabled(std::vector<std::string>(), std::vector<std::string>());
+  else
+    SetDisabled();
 }
 
 float TraceLog::GetBufferPercentFull() const {
@@ -346,7 +401,7 @@ void TraceLog::Flush() {
     AutoLock lock(lock_);
     previous_logged_events.swap(logged_events_);
     output_callback_copy = output_callback_;
-  } // release lock
+  }  // release lock
 
   if (output_callback_copy.is_null())
     return;
@@ -382,7 +437,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
   int ret_begin_id = -1;
   {
     AutoLock lock(lock_);
-    if (!enabled_ || !category->enabled)
+    if (!category->enabled)
       return -1;
     if (logged_events_.size() >= kTraceEventBufferSize)
       return -1;
@@ -441,7 +496,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
     if (logged_events_.size() == kTraceEventBufferSize) {
       buffer_full_callback_copy = buffer_full_callback_;
     }
-  } // release lock
+  }  // release lock
 
   if (!buffer_full_callback_copy.is_null())
     buffer_full_callback_copy.Run();
@@ -541,7 +596,7 @@ void TraceEndOnScopeCloseThreshold::AddEventIfEnabled() {
   }
 }
 
-} // namespace internal
+}  // namespace internal
 
 }  // namespace debug
 }  // namespace base
