@@ -64,6 +64,7 @@ class PipelineImpl::PipelineInitState {
 PipelineImpl::PipelineImpl(MessageLoop* message_loop, MediaLog* media_log)
     : message_loop_(message_loop),
       media_log_(media_log),
+      network_activity_(false),
       clock_(new Clock(&base::Time::Now)),
       waiting_for_clock_update_(false),
       state_(kCreated),
