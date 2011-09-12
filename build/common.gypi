@@ -37,12 +37,12 @@
 
           # Disable webui dialog replacements for native dialogs by default.
           # TODO(flackr): Change this to a runtime flag triggered by
-          #     --pure-views so that these dialogs can be easily tested. 
+          #     --pure-views so that these dialogs can be easily tested.
           'webui_dialogs%': 0,
 
           # Whether the compositor is enabled on views.
           'views_compositor%': 0,
-          
+
           # Whether or not we are building with the Aura window manager.
           'use_aura%': 0,
         },
@@ -85,7 +85,7 @@
           ['touchui==1', {
             'webui_dialogs%': 1,
           }],
-          
+
           # Use the views compositor when using the Aura window manager.
           ['use_aura==1', {
             'views_compositor%': 1,
@@ -269,7 +269,7 @@
         }, {
           'file_manager_extension%': 0,
         }],
-        
+
         # Enable WebUI TaskManager only on Chrome OS and Touch UI.
         ['chromeos==1 or touchui==1', {
           'webui_task_manager%': 1,
@@ -368,10 +368,6 @@
     # project file called "coverage".
     # Currently ignored on Windows.
     'coverage%': 0,
-
-    # Overridable specification for potential use of alternative
-    # JavaScript engines.
-    'javascript_engine%': 'v8',
 
     # Although base/allocator lets you select a heap library via an
     # environment variable, the libcmt shim it uses sometimes gets in
