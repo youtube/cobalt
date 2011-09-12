@@ -1212,7 +1212,7 @@ TEST(NetUtilTest, GenerateSafeFileName) {
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(safe_tests); ++i) {
     FilePath file_path(safe_tests[i].filename);
-    GenerateSafeFileName(safe_tests[i].mime_type, &file_path);
+    GenerateSafeFileName(safe_tests[i].mime_type, false, &file_path);
     EXPECT_EQ(safe_tests[i].expected_filename, file_path.value())
         << "Iteration " << i;
   }
@@ -2288,6 +2288,33 @@ TEST(NetUtilTest, GenerateFileName) {
       L"download",
       L"bar.sh"
     },
+    { // http://crbug.com/61571
+      "http://www.example.com/npdf.php?fn=foobar.pdf",
+      "",
+      "",
+      "",
+      "application/pdf",
+      L"download",
+      L"npdf.pdf"
+    },
+    { // Shouldn't overwrite C-D specified extension.
+      "http://www.example.com/npdf.php?fn=foobar.pdf",
+      "Content-Disposition: filename=foobar.jpg",
+      "",
+      "",
+      "application/pdf",
+      L"download",
+      L"foobar.jpg"
+    },
+    { // http://crbug.com/87719
+      "http://www.example.com/image.aspx?id=blargh",
+      "",
+      "",
+      "",
+      "image/jpeg",
+      L"download",
+      L"image" JPEG_EXT
+    }
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(selection_tests); ++i)
