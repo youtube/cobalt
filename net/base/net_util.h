@@ -292,8 +292,8 @@ NET_EXPORT FilePath GenerateFileName(const GURL& url,
 // Windows if the extension causes the file to have an unsafe interaction with
 // the shell (see net_util::IsShellIntegratedExtension()), then it will be
 // replaced by the string 'download'.  If |file_path| doesn't contain an
-// extension and |mime_type| is non-empty, the preferred extension for
-// |mime_type| will be used as the extension.
+// extension or |ignore_extension| is true then the preferred extension, if one
+// exists, for |mime_type| will be used as the extension.
 //
 // On Windows, the filename will be checked against a set of reserved names, and
 // if so, an underscore will be prepended to the name.
@@ -304,6 +304,7 @@ NET_EXPORT FilePath GenerateFileName(const GURL& url,
 // Note: |mime_type| should only be non-empty if this function is called from a
 // thread that allows IO.
 NET_EXPORT void GenerateSafeFileName(const std::string& mime_type,
+                                     bool ignore_extension,
                                      FilePath* file_path);
 
 // Checks the given port against a list of ports which are restricted by
