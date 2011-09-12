@@ -16,3 +16,5 @@ static library using GYP.
    being installed.
 4) The directories WIN32-Code and WIN32-Prj are not included.
 5) Apply r87338.
+6) The configs for android were copied from Linux's which were very close to
+   android one with the exception of HAVE_FD_MASK and HAVE_STRLCPY.

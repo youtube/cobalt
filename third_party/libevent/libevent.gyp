@@ -50,6 +50,13 @@
                 ],
               },
             }],
+            [ 'OS == "android"', {
+              # On android, epoll_create(), epoll_ctl(), epoll_wait() and
+              # clock_gettime() are all in libc.so, so no need to add
+              # epoll_sub.c and link librt.
+              'sources': [ 'epoll.c' ],
+              'include_dirs': [ 'android' ],
+            }],
             [ 'OS == "mac" or OS == "freebsd" or OS == "openbsd"', {
               'sources': [ 'kqueue.c' ],
               'include_dirs': [ 'mac' ]
