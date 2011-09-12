@@ -194,10 +194,10 @@ void URLRequestFtpJob::GetAuthChallengeInfo(
          (server_auth_->state == AUTH_STATE_NEED_AUTH));
   scoped_refptr<AuthChallengeInfo> auth_info(new AuthChallengeInfo);
   auth_info->is_proxy = false;
-  auth_info->host_and_port = ASCIIToWide(
-      GetHostAndPort(request_->url()));
-  auth_info->scheme = L"";
-  auth_info->realm = L"";
+  auth_info->challenger = HostPortPair::FromURL(request_->url());
+  // scheme and realm are kept empty.
+  DCHECK(auth_info->scheme.empty());
+  DCHECK(auth_info->realm.empty());
   result->swap(auth_info);
 }
 

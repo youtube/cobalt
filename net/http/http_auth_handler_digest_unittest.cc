@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -144,6 +144,20 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
       false,
       HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
       HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    // Handle ISO-8859-1 character as part of the realm. The realm is converted
+    // to UTF-8. However, the credentials will still use the original encoding.
+    {
+      "Digest nonce=\"xyz\", realm=\"foo-\xE5\"",
+      true,
+      "foo-\xC3\xA5",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED,
     },
 
     { // At a minimum, a nonce must be provided.
