@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,9 @@ namespace net {
 AuthChallengeInfo::AuthChallengeInfo() : is_proxy(false) {
 }
 
-bool AuthChallengeInfo::operator==(const AuthChallengeInfo& that) const {
+bool AuthChallengeInfo::Equals(const AuthChallengeInfo& that) const {
   return (this->is_proxy == that.is_proxy &&
-          this->host_and_port == that.host_and_port &&
+          this->challenger.Equals(that.challenger) &&
           this->scheme == that.scheme &&
           this->realm == that.realm);
 }
