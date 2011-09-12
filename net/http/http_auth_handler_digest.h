@@ -169,6 +169,11 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
   DigestAlgorithm algorithm_;
   QualityOfProtection qop_;
 
+  // The realm as initially encoded over-the-wire. This is used in the
+  // challenge text, rather than |realm_| which has been converted to
+  // UTF-8.
+  std::string original_realm_;
+
   int nonce_count_;
   const NonceGenerator* nonce_generator_;
 };

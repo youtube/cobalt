@@ -81,7 +81,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
     return auth_scheme_;
   }
 
-  // The realm value that was parsed during Init().
+  // The realm, encoded as UTF-8. This may be empty.
   const std::string& realm() const {
     return realm_;
   }
@@ -166,7 +166,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   // The auth-scheme as an enumerated value.
   HttpAuth::Scheme auth_scheme_;
 
-  // The realm.  Used by "basic" and "digest".
+  // The realm, encoded as UTF-8. Used by "basic" and "digest".
   std::string realm_;
 
   // The auth challenge.

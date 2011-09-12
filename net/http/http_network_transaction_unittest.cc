@@ -334,6 +334,48 @@ static const char kExpectedNPNString[] = "\x08http/1.1\x06spdy/2";
 static const char kAlternateProtocolHttpHeader[] =
     "Alternate-Protocol: 443:npn-spdy/2\r\n\r\n";
 
+// Helper functions for validating that AuthChallengeInfo's are correctly
+// configured for common cases.
+bool CheckBasicServerAuth(const AuthChallengeInfo* auth_challenge) {
+  if (!auth_challenge)
+    return false;
+  EXPECT_FALSE(auth_challenge->is_proxy);
+  EXPECT_EQ("www.google.com:80", auth_challenge->challenger.ToString());
+  EXPECT_EQ("MyRealm1", auth_challenge->realm);
+  EXPECT_EQ("basic", auth_challenge->scheme);
+  return true;
+}
+
+bool CheckBasicProxyAuth(const AuthChallengeInfo* auth_challenge) {
+  if (!auth_challenge)
+    return false;
+  EXPECT_TRUE(auth_challenge->is_proxy);
+  EXPECT_EQ("myproxy:70", auth_challenge->challenger.ToString());
+  EXPECT_EQ("MyRealm1", auth_challenge->realm);
+  EXPECT_EQ("basic", auth_challenge->scheme);
+  return true;
+}
+
+bool CheckDigestServerAuth(const AuthChallengeInfo* auth_challenge) {
+  if (!auth_challenge)
+    return false;
+  EXPECT_FALSE(auth_challenge->is_proxy);
+  EXPECT_EQ("www.google.com:80", auth_challenge->challenger.ToString());
+  EXPECT_EQ("digestive", auth_challenge->realm);
+  EXPECT_EQ("digest", auth_challenge->scheme);
+  return true;
+}
+
+bool CheckNTLMServerAuth(const AuthChallengeInfo* auth_challenge) {
+  if (!auth_challenge)
+    return false;
+  EXPECT_FALSE(auth_challenge->is_proxy);
+  EXPECT_EQ("172.22.68.17:80", auth_challenge->challenger.ToString());
+  EXPECT_EQ(std::string(), auth_challenge->realm);
+  EXPECT_EQ("ntlm", auth_challenge->scheme);
+  return true;
+}
+
 TEST_F(HttpNetworkTransactionTest, Basic) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
@@ -1091,14 +1133,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuth) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -1216,14 +1252,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -1297,14 +1327,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveNoBody) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -1386,14 +1410,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveLargeBody) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -1477,14 +1495,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveImpatientServer) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -1576,16 +1588,10 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyNoKeepAlive) {
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
   ASSERT_FALSE(response == NULL);
-
+  ASSERT_FALSE(response->headers == NULL);
   EXPECT_EQ(407, response->headers->response_code());
   EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
-
-  // The password prompt info should have been set in response->auth_challenge.
-  ASSERT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"myproxy:70", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -1681,19 +1687,13 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
       NetLog::PHASE_NONE);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
+  ASSERT_FALSE(response == NULL);
+  ASSERT_FALSE(response->headers == NULL);
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(407, response->headers->response_code());
   EXPECT_EQ(10, response->headers->GetContentLength());
   EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"myproxy:70", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -1705,19 +1705,13 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
+  ASSERT_FALSE(response == NULL);
+  ASSERT_FALSE(response->headers == NULL);
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(407, response->headers->response_code());
   EXPECT_EQ(10, response->headers->GetContentLength());
   EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"myproxy:70", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
 
   // Flush the idle socket before the NetLog and HttpNetworkTransaction go
   // out of scope.
@@ -2005,9 +1999,9 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyGetWithProxyAuth) {
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
 
-  // Configure against https proxy server "proxy:70".
+  // Configure against https proxy server "myproxy:70".
   SessionDependencies session_deps(
-      ProxyService::CreateFixed("https://proxy:70"));
+      ProxyService::CreateFixed("https://myproxy:70"));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
@@ -2080,13 +2074,7 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyGetWithProxyAuth) {
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ(407, response->headers->response_code());
   EXPECT_TRUE(response->was_fetched_via_spdy);
-
-  // The password prompt info should have been set in response->auth_challenge.
-  ASSERT_TRUE(response->auth_challenge.get() != NULL);
-  EXPECT_TRUE(response->auth_challenge->is_proxy);
-  EXPECT_EQ(L"proxy:70", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -2326,8 +2314,9 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxyAuthRetry) {
   // when the no authentication data flag is set.
   request.load_flags = net::LOAD_DO_NOT_SEND_AUTH_DATA;
 
-  // Configure against https proxy server "proxy:70".
-  SessionDependencies session_deps(ProxyService::CreateFixed("https://proxy:70"));
+  // Configure against https proxy server "myproxy:70".
+  SessionDependencies session_deps(
+      ProxyService::CreateFixed("https://myproxy:70"));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
@@ -2379,16 +2368,10 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxyAuthRetry) {
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
   ASSERT_FALSE(response == NULL);
-
+  ASSERT_FALSE(response->headers == NULL);
   EXPECT_EQ(407, response->headers->response_code());
   EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
-
-  // The password prompt info should have been set in response->auth_challenge.
-  ASSERT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"proxy:70", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -2713,14 +2696,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"myproxy:70", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -2731,12 +2708,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback3;
 
@@ -2856,15 +2829,8 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_TRUE(response != NULL);
-
-  // The password prompt info should have been set in
-  // response->auth_challenge.
-  ASSERT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"172.22.68.17:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"", response->auth_challenge->realm);
-  EXPECT_EQ(L"ntlm", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckNTLMServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -2878,7 +2844,6 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
 
   response = trans->GetResponseInfo();
   ASSERT_TRUE(response != NULL);
-
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
 
   TestCompletionCallback callback3;
@@ -3043,14 +3008,8 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"172.22.68.17:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"", response->auth_challenge->realm);
-  EXPECT_EQ(L"ntlm", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckNTLMServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -3070,14 +3029,8 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   response = trans->GetResponseInfo();
-  ASSERT_TRUE(response != NULL);
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"172.22.68.17:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"", response->auth_challenge->realm);
-  EXPECT_EQ(L"ntlm", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckNTLMServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback4;
 
@@ -3725,13 +3678,8 @@ TEST_F(HttpNetworkTransactionTest, WrongAuthIdentityInURL) {
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback3;
   rv = trans->RestartWithAuth(kFoo, kBar, &callback3);
@@ -3810,15 +3758,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_EQ(OK, rv);
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    EXPECT_FALSE(response == NULL);
-
-    // The password prompt info should have been set in
-    // response->auth_challenge.
-    EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-    EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-    EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-    EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+    ASSERT_FALSE(response == NULL);
+    EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
     TestCompletionCallback callback2;
 
@@ -3895,15 +3836,13 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_EQ(OK, rv);
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    EXPECT_FALSE(response == NULL);
-
-    // The password prompt info should have been set in
-    // response->auth_challenge.
-    EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-    EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-    EXPECT_EQ(L"MyRealm2", response->auth_challenge->realm);
-    EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+    ASSERT_FALSE(response == NULL);
+    ASSERT_TRUE(response->auth_challenge.get());
+    EXPECT_FALSE(response->auth_challenge->is_proxy);
+    EXPECT_EQ("www.google.com:80",
+              response->auth_challenge->challenger.ToString());
+    EXPECT_EQ("MyRealm2", response->auth_challenge->realm);
+    EXPECT_EQ("basic", response->auth_challenge->scheme);
 
     TestCompletionCallback callback2;
 
@@ -4119,15 +4058,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    EXPECT_FALSE(response == NULL);
-
-    // The password prompt info should have been set in
-    // response->auth_challenge.
-    EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-    EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-    EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-    EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+    ASSERT_FALSE(response == NULL);
+    EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
     TestCompletionCallback callback3;
 
@@ -4212,14 +4144,7 @@ TEST_F(HttpNetworkTransactionTest, DigestPreAuthNonceCount) {
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
     ASSERT_FALSE(response == NULL);
-
-    // The password prompt info should have been set in
-    // response->auth_challenge.
-    ASSERT_FALSE(response->auth_challenge.get() == NULL);
-
-    EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-    EXPECT_EQ(L"digestive", response->auth_challenge->realm);
-    EXPECT_EQ(L"digest", response->auth_challenge->scheme);
+    EXPECT_TRUE(CheckDigestServerAuth(response->auth_challenge.get()));
 
     TestCompletionCallback callback2;
 
@@ -5990,14 +5915,8 @@ TEST_F(HttpNetworkTransactionTest, DrainResetOK) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
 
@@ -6254,15 +6173,10 @@ TEST_F(HttpNetworkTransactionTest, UnreadableUploadFileAfterAuthRestart) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_TRUE(response != NULL);
-  EXPECT_TRUE(response->headers != NULL);
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 401 Unauthorized", response->headers->GetStatusLine());
-
-  // The password prompt info should have been set in response->auth_challenge.
-  EXPECT_TRUE(response->auth_challenge.get() != NULL);
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   // Now make the file unreadable and try again.
   ASSERT_TRUE(file_util::MakeFileUnreadable(temp_file));
@@ -6381,10 +6295,12 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   EXPECT_EQ(OK, rv);
   const HttpResponseInfo* response = trans->GetResponseInfo();
   ASSERT_FALSE(response == NULL);
-  ASSERT_FALSE(response->auth_challenge.get() == NULL);
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"first_realm", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  const AuthChallengeInfo* challenge = response->auth_challenge.get();
+  ASSERT_FALSE(challenge == NULL);
+  EXPECT_FALSE(challenge->is_proxy);
+  EXPECT_EQ("www.google.com:80", challenge->challenger.ToString());
+  EXPECT_EQ("first_realm", challenge->realm);
+  EXPECT_EQ("basic", challenge->scheme);
 
   // Issue the second request with an incorrect password. There should be a
   // password prompt for second_realm waiting to be filled in after the
@@ -6396,10 +6312,12 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   EXPECT_EQ(OK, rv);
   response = trans->GetResponseInfo();
   ASSERT_FALSE(response == NULL);
-  ASSERT_FALSE(response->auth_challenge.get() == NULL);
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"second_realm", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  challenge = response->auth_challenge.get();
+  ASSERT_FALSE(challenge == NULL);
+  EXPECT_FALSE(challenge->is_proxy);
+  EXPECT_EQ("www.google.com:80", challenge->challenger.ToString());
+  EXPECT_EQ("second_realm", challenge->realm);
+  EXPECT_EQ("basic", challenge->scheme);
 
   // Issue the third request with another incorrect password. There should be
   // a password prompt for first_realm waiting to be filled in. If the password
@@ -6412,10 +6330,12 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   EXPECT_EQ(OK, rv);
   response = trans->GetResponseInfo();
   ASSERT_FALSE(response == NULL);
-  ASSERT_FALSE(response->auth_challenge.get() == NULL);
-  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
-  EXPECT_EQ(L"first_realm", response->auth_challenge->realm);
-  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+  challenge = response->auth_challenge.get();
+  ASSERT_FALSE(challenge == NULL);
+  EXPECT_FALSE(challenge->is_proxy);
+  EXPECT_EQ("www.google.com:80", challenge->challenger.ToString());
+  EXPECT_EQ("first_realm", challenge->realm);
+  EXPECT_EQ("basic", challenge->scheme);
 
   // Issue the fourth request with the correct password and username.
   TestCompletionCallback callback4;
