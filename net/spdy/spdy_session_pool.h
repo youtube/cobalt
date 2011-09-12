@@ -14,6 +14,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/threading/non_thread_safe.h"
 #include "net/base/cert_database.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
@@ -38,7 +39,8 @@ class SpdySession;
 class NET_EXPORT SpdySessionPool
     : public NetworkChangeNotifier::IPAddressObserver,
       public SSLConfigService::Observer,
-      public CertDatabase::Observer {
+      public CertDatabase::Observer,
+      public base::NonThreadSafe {
  public:
   SpdySessionPool(HostResolver* host_resolver,
                   SSLConfigService* ssl_config_service);
