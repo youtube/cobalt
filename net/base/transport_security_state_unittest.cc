@@ -693,6 +693,25 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
                                       "moneybookers.com",
                                       false));
 
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "ledgerscope.net",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "www.ledgerscope.net",
+                                      false));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "status.ledgerscope.net",
+                                       false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "kyps.net",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "www.kyps.net",
+                                      false));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "foo.kyps.net",
+                                       false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
