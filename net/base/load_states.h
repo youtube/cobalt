@@ -84,7 +84,7 @@ enum LoadState {
 struct LoadStateWithParam {
   LoadState state;
   string16 param;
-  LoadStateWithParam() {}
+  LoadStateWithParam() : state(LOAD_STATE_IDLE) {}
   LoadStateWithParam(LoadState state, const string16& param)
       : state(state), param(param) {}
 };
