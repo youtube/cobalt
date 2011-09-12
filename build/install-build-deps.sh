@@ -14,6 +14,8 @@ usage() {
   echo "--[no-]syms: enable or disable installation of debugging symbols"
   echo "--[no-]gold: enable or disable installation of gold linker"
   echo "--[no-]lib32: enable or disable installation of 32 bit libraries"
+  echo "--[no-]restore-usr-bin-ld: enable or disable restoring /usr/bin/ld to"
+  echo "                           ld.bfd if it is currently gold"
   echo "Script will prompt interactively if options not given."
   exit 1
 }
@@ -21,12 +23,14 @@ usage() {
 while test "$1" != ""
 do
   case "$1" in
-  --syms)     do_inst_syms=1;;
-  --no-syms)  do_inst_syms=0;;
-  --gold)     do_inst_gold=1;;
-  --no-gold)  do_inst_gold=0;;
-  --lib32)    do_inst_lib32=1;;
-  --no-lib32) do_inst_lib32=0;;
+  --syms)                   do_inst_syms=1;;
+  --no-syms)                do_inst_syms=0;;
+  --gold)                   do_inst_gold=1;;
+  --no-gold)                do_inst_gold=0;;
+  --lib32)                  do_inst_lib32=1;;
+  --no-lib32)               do_inst_lib32=0;;
+  --restore-usr-bin-ld)     do_restore_usr_bin_ld=1;;
+  --no-restore-usr-bin-ld)  do_restore_usr_bin_ld=0;;
   *) usage;;
   esac
   shift
@@ -59,20 +63,17 @@ install_gold() {
 
   tar -xjvf $BINUTILS.tar.bz2
   cd $BINUTILS
-  ./configure --prefix=/usr/local/gold --enable-gold --enable-threads
-  make maybe-all-binutils maybe-all-gold -j4
-  if sudo make maybe-install-binutils maybe-install-gold
+  ./configure --prefix=/usr/local/gold --enable-gold=default --enable-threads \
+    --enable-bfd=yes
+  NCPU=`cat /proc/cpuinfo |grep ^processor|wc -l`
+  make maybe-all-binutils maybe-all-gold maybe-all-ld -j${NCPU}
+  if sudo make maybe-install-binutils maybe-install-gold maybe-install-ld
   then
     # Still need to figure out graceful way of pointing gyp to use
     # /usr/local/gold/bin/ld without requiring him to set environment
-    # variables.  That will go into bootstrap-linux.sh when it's ready.
-    echo "Installing gold as /usr/bin/ld."
-    echo "To uninstall, do 'cd /usr/bin; sudo rm ld; sudo mv ld.orig ld'"
-    test -f /usr/bin/ld && test ! -f /usr/bin/ld.orig && \
-        sudo mv /usr/bin/ld /usr/bin/ld.orig
-    sudo strip /usr/local/gold/bin/ld
-    sudo ln -fs /usr/local/gold/bin/ld /usr/bin/ld.gold
-    sudo ln -fs /usr/bin/ld.gold /usr/bin/ld
+    # variables.
+    sudo strip /usr/local/gold/bin/ld.gold
+    sudo strip /usr/local/gold/bin/ld.bfd
   else
     echo "make install failed, not installing gold"
   fi
@@ -252,13 +253,58 @@ fi
 # So install from source if we don't have a good version.
 
 case `ld --version` in
+*gold*2.2[1-9].*)
+  echo "*** Warning ***"
+  echo "If the default linker is gold, linking may fail for:"
+  echo "the Linux kernel, kernel modules, Valgrind, and Wine."
+  echo "If you previously installed gold as the default linker,"
+  echo "you can restore the original linker by running:"
+  echo "'cd /usr/bin; sudo rm ld; sudo mv ld.orig ld'"
+  echo
+  if [ "$do_restore_usr_bin_ld" = "" ]
+  then
+    echo -n "Restore /usr/bin/ld to the original linker? (Y/n) "
+    if yes_no 0
+    then
+      do_restore_usr_bin_ld=1
+    fi
+    echo
+  fi
+  if [ "$do_restore_usr_bin_ld" = "1" ]
+  then
+    if sudo mv /usr/bin/ld.orig /usr/bin/ld
+    then
+      echo "Restored /usr/bin/ld.orig as /usr/bin/ld"
+    else
+      echo "Failed to restore /usr/bin/ld.orig as /usr/bin/ld"
+    fi
+    echo
+  fi
+  ;;
+esac
+
+# Check the gold version first.
+gold_up_to_date="1"
+case `/usr/local/gold/bin/ld --version` in
 *gold*2.2[1-9].*) ;;
 * )
+  gold_up_to_date="0"
+esac
+
+# Then check and make sure ld.bfd exists.
+if [ "$gold_up_to_date" = "1" ] && [ ! -x "/usr/local/gold/bin/ld.bfd" ]
+then
+  gold_up_to_date="0"
+fi
+
+if [ "$gold_up_to_date" = "0" ]
+then
   if test "$do_inst_gold" = ""
   then
-    echo "Gold is a new linker that links Chrome 5x faster than ld."
-    echo "Don't use it if you need to link other apps (e.g. valgrind, wine)"
-    echo -n "REPLACE SYSTEM LINKER ld with gold and back up ld? (y/N) "
+    echo "Gold is a new linker that links Chrome 5x faster than GNU ld."
+    echo -n "*** To use the gold linker, "
+    echo "you must pass -B/usr/local/gold/bin/ to g++ ***"
+    echo -n "Install the gold linker? (y/N) "
     if yes_no 1; then
       do_inst_gold=1
     fi
@@ -270,14 +316,13 @@ case `ld --version` in
       echo "Installing binutils-gold. Backing up ld as ld.single."
       sudo apt-get install binutils-gold
     else
-      # FIXME: avoid installing as /usr/bin/ld
-      echo "Building binutils. Backing up ld as ld.orig."
+      echo "Building binutils with gold..."
       install_gold || exit 99
     fi
   else
     echo "Not installing gold."
   fi
-esac
+fi
 
 # Install 32bit backwards compatibility support for 64bit systems
 if [ "$(uname -m)" = "x86_64" ]; then
