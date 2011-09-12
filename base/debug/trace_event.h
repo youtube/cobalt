@@ -509,9 +509,23 @@ class BASE_EXPORT TraceLog {
 
   static TraceLog* GetInstance();
 
-  // Global enable of tracing. Currently enables all categories or not.
-  // TODO(scheib): Replace with an Enable/DisableCategory() that
-  // implicitly controls the global logging state.
+  // Get set of known categories. This can change as new code paths are reached.
+  // The known categories are inserted into |categories|.
+  void GetKnownCategories(std::vector<std::string>* categories);
+
+  // Enable tracing for provided list of categories. If tracing is already
+  // enabled, this method does nothing -- changing categories during trace is
+  // not supported.
+  // If both included_categories and excluded_categories are empty,
+  //   all categories are traced.
+  // Else if included_categories is non-empty, only those are traced.
+  // Else if excluded_categories is non-empty, everything but those are traced.
+  // Wildcards * and ? are supported (see MatchPattern in string_util.h).
+  void SetEnabled(const std::vector<std::string>& included_categories,
+                  const std::vector<std::string>& excluded_categories);
+  // Disable tracing for all categories.
+  void SetDisabled();
+  // Helper method to enable/disable tracing for all categories.
   void SetEnabled(bool enabled);
   bool IsEnabled() { return enabled_; }
 
@@ -590,6 +604,8 @@ class BASE_EXPORT TraceLog {
   OutputCallback output_callback_;
   BufferFullCallback buffer_full_callback_;
   std::vector<TraceEvent> logged_events_;
+  std::vector<std::string> included_categories_;
+  std::vector<std::string> excluded_categories_;
 
   base::hash_map<PlatformThreadId, std::string> thread_names_;
 
