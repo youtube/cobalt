@@ -51,6 +51,7 @@
         '../third_party/sqlite/sqlite.gyp:*',
         '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
+        '../v8/tools/gyp/v8.gyp:*',
         '../webkit/support/webkit_support.gyp:*',
         '../webkit/webkit.gyp:*',
         'util/build_util.gyp:*',
@@ -58,11 +59,6 @@
         '<(libjpeg_gyp_path):*',
       ],
       'conditions': [
-        ['javascript_engine=="v8"', {
-          'dependencies': [
-            '../v8/tools/gyp/v8.gyp:*',
-          ],
-        }],
         ['OS=="mac" or OS=="linux"', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',

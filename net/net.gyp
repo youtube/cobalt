@@ -34,6 +34,7 @@
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
         '../third_party/zlib/zlib.gyp:zlib',
+        '../v8/tools/gyp/v8.gyp:v8',
         'net_resources',
         'ssl_false_start_blacklist_process#host',
       ],
@@ -711,11 +712,6 @@
         },
       ],
       'conditions': [
-        ['javascript_engine=="v8"', {
-          'dependencies': [
-            '../v8/tools/gyp/v8.gyp:v8',
-          ],
-        }],
         ['chromeos==1', {
           'sources!': [
              'proxy/proxy_config_service_linux.cc',
