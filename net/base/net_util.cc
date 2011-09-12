@@ -955,8 +955,14 @@ void SanitizeGeneratedFileName(std::string& filename) {
   }
 }
 
+// Returns the filename determined from the last component of the path portion
+// of the URL.  Returns an empty string if the URL doesn't have a path or is
+// invalid. If the generated filename is not reliable,
+// |should_overwrite_extension| will be set to true, in which case a better
+// extension should be determined based on the content type.
 std::string GetFileNameFromURL(const GURL& url,
-                               const std::string& referrer_charset) {
+                               const std::string& referrer_charset,
+                               bool* should_overwrite_extension) {
   // about: and data: URLs don't have file names, but esp. data: URLs may
   // contain parts that look like ones (i.e., contain a slash).  Therefore we
   // don't attempt to divine a file name out of them.
@@ -976,6 +982,9 @@ std::string GetFileNameFromURL(const GURL& url,
     DecodeWord(unescaped_url_filename, referrer_charset, &ignore,
                &decoded_filename);
   }
+  // If the URL contains a (possibly empty) query, assume it is a generator, and
+  // allow the determined extension to be overwritten.
+  *should_overwrite_extension = !decoded_filename.empty() && url.has_query();
 
   return decoded_filename;
 }
@@ -1047,20 +1056,39 @@ bool IsReservedName(const string16& filename) {
 }
 #endif  // OS_WIN
 
-void GenerateSafeExtension(const std::string& mime_type, FilePath* file_name) {
-  // We're worried about two things here:
-  //
-  // 1) Usability.  If the site fails to provide a file extension, we want to
-  //    guess a reasonable file extension based on the content type.
-  //
-  // 2) Shell integration.  Some file extensions automatically integrate with
-  //    the shell.  We block these extensions to prevent a malicious web site
-  //    from integrating with the user's shell.
-
+// Examines the current extension in |file_name| and modifies it if necessary in
+// order to ensure the filename is safe.  If |file_name| doesn't contain an
+// extension or if |ignore_extension| is true, then a new extension will be
+// constructed based on the |mime_type|.
+//
+// We're addressing two things here:
+//
+// 1) Usability.  If there is no reliable file extension, we want to guess a
+//    reasonable file extension based on the content type.
+//
+// 2) Shell integration.  Some file extensions automatically integrate with the
+//    shell.  We block these extensions to prevent a malicious web site from
+//    integrating with the user's shell.
+void EnsureSafeExtension(const std::string& mime_type,
+                         bool ignore_extension,
+                         FilePath* file_name) {
   // See if our file name already contains an extension.
   FilePath::StringType extension = file_name->Extension();
   if (!extension.empty())
     extension.erase(extension.begin());  // Erase preceding '.'.
+
+  if ((ignore_extension || extension.empty()) && !mime_type.empty()) {
+    FilePath::StringType mime_extension;
+    // The GetPreferredExtensionForMimeType call will end up going to disk.  Do
+    // this on another thread to avoid slowing the IO thread.
+    // http://crbug.com/61827
+    // TODO(asanka): Remove this ScopedAllowIO once all callers have switched
+    // over to IO safe threads.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    net::GetPreferredExtensionForMimeType(mime_type, &mime_extension);
+    if (!mime_extension.empty())
+      extension = mime_extension;
+  }
 
 #if defined(OS_WIN)
   static const FilePath::CharType default_extension[] =
@@ -1072,16 +1100,6 @@ void GenerateSafeExtension(const std::string& mime_type, FilePath* file_name) {
   if (IsShellIntegratedExtension(extension))
     extension.assign(default_extension);
 #endif
-
-  if (extension.empty() && !mime_type.empty()) {
-    // The GetPreferredExtensionForMimeType call will end up going to disk.  Do
-    // this on another thread to avoid slowing the IO thread.
-    // http://crbug.com/61827
-    // TODO(asanka): Remove this ScopedAllowIO once all callers have switched
-    // over to IO safe threads.
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-    net::GetPreferredExtensionForMimeType(mime_type, &extension);
-  }
 
   *file_name = file_name->ReplaceExtension(extension);
 }
@@ -1412,9 +1430,11 @@ string16 StripWWW(const string16& text) {
   return StartsWith(text, www, true) ? text.substr(www.length()) : text;
 }
 
-void GenerateSafeFileName(const std::string& mime_type, FilePath* file_path) {
+void GenerateSafeFileName(const std::string& mime_type,
+                          bool ignore_extension,
+                          FilePath* file_path) {
   // Make sure we get the right file extension
-  GenerateSafeExtension(mime_type, file_path);
+  EnsureSafeExtension(mime_type, ignore_extension, file_path);
 
 #if defined(OS_WIN)
   // Prepend "_" to the file name if it's a reserved name
@@ -1445,6 +1465,7 @@ string16 GetSuggestedFilename(const GURL& url,
   // needed, the caller should provide localized fallback in |default_name|.
   static const char* kFinalFallbackName = "download";
   std::string filename;  // In UTF-8
+  bool overwrite_extension = false;
 
   // Try to extract a filename from content-disposition first.
   if (!content_disposition.empty())
@@ -1458,7 +1479,7 @@ string16 GetSuggestedFilename(const GURL& url,
   // looks at the last component of the URL and doesn't return the hostname as a
   // failover.
   if (filename.empty())
-    filename = GetFileNameFromURL(url, referrer_charset);
+    filename = GetFileNameFromURL(url, referrer_charset, &overwrite_extension);
 
   // Finally try the URL hostname, but only if there's no default specified in
   // |default_name|.  Some schemes (e.g.: file:, about:, data:) do not have a
@@ -1480,6 +1501,7 @@ string16 GetSuggestedFilename(const GURL& url,
 #if defined(OS_WIN)
     trimmed_trailing_character_count = 0;
 #endif
+    overwrite_extension = false;
     if (default_name.empty())
       filename = kFinalFallbackName;
   }
@@ -1496,13 +1518,13 @@ string16 GetSuggestedFilename(const GURL& url,
   file_util::ReplaceIllegalCharactersInPath(&path, '-');
   path.append(trimmed_trailing_character_count, '-');
   FilePath result(path);
-  GenerateSafeFileName(mime_type, &result);
+  GenerateSafeFileName(mime_type, overwrite_extension, &result);
   return result.value();
 #else
   std::string path = (filename.empty())? UTF16ToUTF8(default_name) : filename;
   file_util::ReplaceIllegalCharactersInPath(&path, '-');
   FilePath result(path);
-  GenerateSafeFileName(mime_type, &result);
+  GenerateSafeFileName(mime_type, overwrite_extension, &result);
   return UTF8ToUTF16(result.value());
 #endif
 }
