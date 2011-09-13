@@ -534,6 +534,40 @@ TEST(X509CertificateTest, GoogleDigiNotarTest) {
   EXPECT_NE(OK, error);
 }
 
+TEST(X509CertificateTest, DigiNotarCerts) {
+  static const char* const kDigiNotarFilenames[] = {
+    "diginotar_root_ca.pem",
+    "diginotar_cyber_ca.pem",
+    "diginotar_services_1024_ca.pem",
+    "diginotar_pkioverheid.pem",
+    "diginotar_pkioverheid_g2.pem",
+    NULL,
+  };
+
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  for (size_t i = 0; kDigiNotarFilenames[i]; i++) {
+    scoped_refptr<X509Certificate> diginotar_cert =
+        ImportCertFromFile(certs_dir, kDigiNotarFilenames[i]);
+    std::string der_bytes;
+    ASSERT_TRUE(diginotar_cert->GetDEREncoded(&der_bytes));
+
+    base::StringPiece spki;
+    ASSERT_TRUE(asn1::ExtractSPKIFromDERCert(der_bytes, &spki));
+
+    std::string spki_sha1 = base::SHA1HashString(spki.as_string());
+
+    std::vector<SHA1Fingerprint> public_keys;
+    SHA1Fingerprint fingerprint;
+    ASSERT_EQ(sizeof(fingerprint.data), spki_sha1.size());
+    memcpy(fingerprint.data, spki_sha1.data(), spki_sha1.size());
+    public_keys.push_back(fingerprint);
+
+    EXPECT_TRUE(X509Certificate::IsPublicKeyBlacklisted(public_keys)) <<
+        "Public key not blocked for " << kDigiNotarFilenames[i];
+  }
+}
+
 TEST(X509CertificateTest, TestKnownRoot) {
   FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> cert =

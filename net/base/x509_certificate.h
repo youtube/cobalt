@@ -378,6 +378,7 @@ class NET_EXPORT X509Certificate
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, Cache);
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, IntermediateCertificates);
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, SerialNumbers);
+  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, DigiNotarCerts);
   FRIEND_TEST_ALL_PREFIXES(X509CertificateNameVerifyTest, VerifyHostname);
 
   // Construct an X509Certificate from a handle to the certificate object
