@@ -15,6 +15,7 @@
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/synchronization/condition_variable.h"
+#include "media/base/callback.h"
 #include "media/base/clock.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
@@ -740,6 +741,7 @@ void PipelineImpl::InitializeTask() {
     if (audio_disabled_) {
       // Audio was disabled at some point during initialization. Notify
       // the pipeline filter now that it has been initialized.
+      demuxer_->OnAudioRendererDisabled();
       pipeline_filter_->OnAudioRendererDisabled();
     }
 
@@ -752,14 +754,8 @@ void PipelineImpl::InitializeTask() {
     // Fire the seek request to get the filters to preroll.
     seek_pending_ = true;
     SetState(kSeeking);
-    if (demuxer_)
-      seek_timestamp_ = demuxer_->GetStartTime();
-    else
-      seek_timestamp_ = base::TimeDelta();
-
-    pipeline_filter_->Seek(
-        seek_timestamp_,
-        base::Bind(&PipelineImpl::OnFilterStateTransitionWithStatus, this));
+    seek_timestamp_ = demuxer_->GetStartTime();
+    DoSeek(seek_timestamp_);
   }
 }
 
@@ -846,6 +842,8 @@ void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
   // hasn't completed yet, the playback rate will be set when initialization
   // completes.
   if (pipeline_filter_) {
+    DCHECK(demuxer_);
+    demuxer_->SetPlaybackRate(playback_rate);
     pipeline_filter_->SetPlaybackRate(playback_rate);
   }
 }
@@ -956,6 +954,8 @@ void PipelineImpl::DisableAudioRendererTask() {
   // initialized yet, OnAudioRendererDisabled() will be called when
   // initialization is complete.
   if (pipeline_filter_) {
+    DCHECK(demuxer_);
+    demuxer_->OnAudioRendererDisabled();
     pipeline_filter_->OnAudioRendererDisabled();
   }
 }
@@ -997,14 +997,12 @@ void PipelineImpl::FilterStateTransitionTask() {
       pipeline_filter_->Flush(
           NewCallback(this, &PipelineImpl::OnFilterStateTransition));
     } else if (state_ == kSeeking) {
-      pipeline_filter_->Seek(seek_timestamp_,
-          base::Bind(&PipelineImpl::OnFilterStateTransitionWithStatus, this));
+      DoSeek(seek_timestamp_);
     } else if (state_ == kStarting) {
       pipeline_filter_->Play(
           NewCallback(this, &PipelineImpl::OnFilterStateTransition));
     } else if (state_ == kStopping) {
-      pipeline_filter_->Stop(
-          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+      DoStop(NewCallback(this, &PipelineImpl::OnFilterStateTransition));
     } else {
       NOTREACHED() << "Unexpected state: " << state_;
     }
@@ -1052,8 +1050,7 @@ void PipelineImpl::TeardownStateTransitionTask() {
       break;
     case kFlushing:
       SetState(kStopping);
-      pipeline_filter_->Stop(
-          NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+      DoStop(NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
       break;
 
     case kCreated:
@@ -1141,10 +1138,8 @@ void PipelineImpl::OnDemuxerBuilt(PipelineStatus status, Demuxer* demuxer) {
     return;
   }
 
-  if (!PrepareFilter(demuxer))
-    return;
-
   demuxer_ = demuxer;
+  demuxer_->set_host(this);
 
   {
     base::AutoLock auto_lock(lock_);
@@ -1297,8 +1292,7 @@ void PipelineImpl::TearDownPipeline() {
       filter_collection_.reset();
 
       SetState(kStopping);
-      pipeline_filter_->Stop(
-          NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+      DoStop(NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
 
       FinishInitialization();
       break;
@@ -1308,8 +1302,7 @@ void PipelineImpl::TearDownPipeline() {
     case kFlushing:
     case kStarting:
       SetState(kStopping);
-      pipeline_filter_->Stop(
-          NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+      DoStop(NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
 
       if (seek_pending_) {
         seek_pending_ = false;
@@ -1332,6 +1325,54 @@ void PipelineImpl::TearDownPipeline() {
     // default: intentionally left out to force new states to cause compiler
     // errors.
   };
+}
+
+void PipelineImpl::DoStop(FilterCallback* callback) {
+  if (demuxer_) {
+    demuxer_->Stop(NewCallbackForClosure(
+        base::Bind(&PipelineImpl::OnDemuxerStopDone, this, callback)));
+    return;
+  }
+
+  OnDemuxerStopDone(callback);
+}
+
+void PipelineImpl::OnDemuxerStopDone(FilterCallback* callback) {
+  if (pipeline_filter_) {
+    pipeline_filter_->Stop(callback);
+    return;
+  }
+
+  callback->Run();
+  delete callback;
+}
+
+void PipelineImpl::DoSeek(base::TimeDelta seek_timestamp) {
+  // TODO(acolwell) : We might be able to convert this if (demuxer_) into a
+  // DCHECK(). Further investigation is needed to make sure this won't introduce
+  // a bug.
+  if (demuxer_) {
+    demuxer_->Seek(seek_timestamp,
+                   base::Bind(&PipelineImpl::OnDemuxerSeekDone,
+                              this,
+                              seek_timestamp));
+    return;
+  }
+
+  OnDemuxerSeekDone(seek_timestamp, PIPELINE_OK);
+}
+
+void PipelineImpl::OnDemuxerSeekDone(base::TimeDelta seek_timestamp,
+                                     PipelineStatus status) {
+  PipelineStatusCB done_cb =
+      base::Bind(&PipelineImpl::OnFilterStateTransitionWithStatus, this);
+
+  if (status == PIPELINE_OK && pipeline_filter_) {
+    pipeline_filter_->Seek(seek_timestamp, done_cb);
+    return;
+  }
+
+  done_cb.Run(status);
 }
 
 }  // namespace media

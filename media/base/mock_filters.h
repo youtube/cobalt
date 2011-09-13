@@ -15,6 +15,7 @@
 
 #include <string>
 
+#include "media/base/demuxer.h"
 #include "media/base/filters.h"
 #include "media/base/filter_collection.h"
 #include "media/base/pipeline.h"

@@ -29,7 +29,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "media/base/buffers.h"
-#include "media/base/filters.h"
+#include "media/base/demuxer.h"
 #include "media/base/pipeline.h"
 #include "media/filters/ffmpeg_glue.h"
 
@@ -37,7 +37,6 @@
 struct AVFormatContext;
 struct AVPacket;
 struct AVRational;
-struct AVStream;
 
 namespace media {
 
@@ -136,24 +135,23 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   void Initialize(
       DataSource* data_source, const PipelineStatusCB& callback);
 
-  // Filter implementation.
-  virtual void Stop(FilterCallback* callback);
-  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb);
-  virtual void OnAudioRendererDisabled();
-  virtual void set_host(FilterHost* filter_host);
-  virtual void SetPlaybackRate(float playback_rate);
-  virtual void SetPreload(Preload preload);
-
   // Demuxer implementation.
-  virtual scoped_refptr<DemuxerStream> GetStream(DemuxerStream::Type type);
-  virtual base::TimeDelta GetStartTime() const;
+  virtual void Stop(FilterCallback* callback) OVERRIDE;
+  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb) OVERRIDE;
+  virtual void OnAudioRendererDisabled() OVERRIDE;
+  virtual void set_host(FilterHost* filter_host) OVERRIDE;
+  virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
+  virtual scoped_refptr<DemuxerStream> GetStream(
+      DemuxerStream::Type type) OVERRIDE;
+  virtual void SetPreload(Preload preload) OVERRIDE;
+  virtual base::TimeDelta GetStartTime() const OVERRIDE;
 
   // FFmpegProtocol implementation.
-  virtual int Read(int size, uint8* data);
-  virtual bool GetPosition(int64* position_out);
-  virtual bool SetPosition(int64 position);
-  virtual bool GetSize(int64* size_out);
-  virtual bool IsStreaming();
+  virtual int Read(int size, uint8* data) OVERRIDE;
+  virtual bool GetPosition(int64* position_out) OVERRIDE;
+  virtual bool SetPosition(int64 position) OVERRIDE;
+  virtual bool GetSize(int64* size_out) OVERRIDE;
+  virtual bool IsStreaming() OVERRIDE;
 
   // Provide access to FFmpegDemuxerStream.
   MessageLoop* message_loop();
