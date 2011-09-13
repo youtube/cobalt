@@ -114,6 +114,13 @@ int MapHttpResponseCode(int code) {
   return 0;
 }
 
+void CheckDoesNotHaveEmbededNulls(const std::string& str) {
+  // Care needs to be taken when adding values to the raw headers string to
+  // make sure it does not contain embeded NULLs. Any embeded '\0' may be
+  // understood as line terminators and change how header lines get tokenized.
+  CHECK(str.find('\0') == std::string::npos);
+}
+
 }  // namespace
 
 struct HttpResponseHeaders::ParsedHeader {
@@ -300,6 +307,7 @@ void HttpResponseHeaders::RemoveHeader(const std::string& name) {
 }
 
 void HttpResponseHeaders::AddHeader(const std::string& header) {
+  CheckDoesNotHaveEmbededNulls(header);
   DCHECK_EQ('\0', raw_headers_[raw_headers_.size() - 2]);
   DCHECK_EQ('\0', raw_headers_[raw_headers_.size() - 1]);
   // Don't copy the last null.
@@ -315,6 +323,7 @@ void HttpResponseHeaders::AddHeader(const std::string& header) {
 }
 
 void HttpResponseHeaders::ReplaceStatusLine(const std::string& new_status) {
+  CheckDoesNotHaveEmbededNulls(new_status);
   // Copy up to the null byte.  This just copies the status line.
   std::string new_raw_headers(new_status);
   new_raw_headers.push_back('\0');

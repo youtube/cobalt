@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -195,7 +195,7 @@ TEST(HttpUtilTest, LocateEndOfHeaders) {
 
 TEST(HttpUtilTest, AssembleRawHeaders) {
   struct {
-    const char* input;
+    const char* input;  // with '|' representing '\0'
     const char* expected_result;  // with '\0' changed to '|'
   } tests[] = {
     { "HTTP/1.0 200 OK\r\nFoo: 1\r\nBar: 2\r\n\r\n",
@@ -482,12 +482,26 @@ TEST(HttpUtilTest, AssembleRawHeaders) {
       "Bar: 2||",
     },
 
+    // Embed NULLs in the status line. They should not be understood
+    // as line separators.
+    {
+      "HTTP/1.0 200 OK|Bar2:0|Baz2:1\r\nFoo: 1\r\nBar: 2\r\n\r\n",
+      "HTTP/1.0 200 OKBar2:0Baz2:1|Foo: 1|Bar: 2||"
+    },
+
+    // Embed NULLs in a header line. They should not be understood as
+    // line separators.
+    {
+      "HTTP/1.0 200 OK\nFoo: 1|Foo2: 3\nBar: 2\n\n",
+      "HTTP/1.0 200 OK|Foo: 1Foo2: 3|Bar: 2||"
+    },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    int input_len = static_cast<int>(strlen(tests[i].input));
-    std::string raw = HttpUtil::AssembleRawHeaders(tests[i].input, input_len);
+    std::string input = tests[i].input;
+    std::replace(input.begin(), input.end(), '|', '\0');
+    std::string raw = HttpUtil::AssembleRawHeaders(input.data(), input.size());
     std::replace(raw.begin(), raw.end(), '\0', '|');
-    EXPECT_TRUE(raw == tests[i].expected_result);
+    EXPECT_EQ(tests[i].expected_result, raw);
   }
 }
 
