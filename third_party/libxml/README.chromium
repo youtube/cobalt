@@ -16,9 +16,8 @@ Modifications:
 - Import follow-on for above commit: http://git.gnome.org/browse/libxml2/commit/?id=ea90b894146030c214a7df6d8375310174f134b9
 - Import additional XPath fix http://git.gnome.org/browse/libxml2/commit/?id=df83c17e5a2646bd923f75e5e507bc80d73c9722
 - Import follow-on fix for above commit: http://git.gnome.org/browse/libxml2/commit/?id=fec31bcd452e77c10579467ca87a785b41115de6
-- And a follow-on fix to the previous two fixes, committed upstream: http://git.gnome.org/browse/libxml2/commit/?id=f5048b3e71fc30ad096970b8df6e7af073bae4cb (slightly differently, but we can drop our local fix on the next roll).
+- And a follow-on fix to the previous two fixes, commit upstream is pending.
 - Add a fix for handling of unknown namespaces, commit upstream is pending.
-- Add fixes for ending the parse properly if a SAX callback calls xmlStopParser(), commit upstream is pending.
 
 To import a new snapshot of libxml:
 
