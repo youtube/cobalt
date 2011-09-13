@@ -9,6 +9,7 @@
 #include "base/bind.h"
 #include "base/task.h"
 #include "media/base/callback.h"
+#include "media/base/demuxer_stream.h"
 #include "media/base/filters.h"
 #include "media/base/filter_host.h"
 #include "media/base/limits.h"

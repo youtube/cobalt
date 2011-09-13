@@ -319,7 +319,6 @@ void ChunkDemuxer::Init(PipelineStatusCB cb) {
   client_->DemuxerOpened(this);
 }
 
-// Filter implementation.
 void ChunkDemuxer::set_host(FilterHost* filter_host) {
   Demuxer::set_host(filter_host);
   filter_host->SetDuration(duration_);
@@ -335,7 +334,7 @@ void ChunkDemuxer::Stop(FilterCallback* callback) {
   delete callback;
 }
 
-void ChunkDemuxer::Seek(base::TimeDelta time, const FilterStatusCB&  cb) {
+void ChunkDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
   VLOG(1) << "Seek(" << time.InSecondsF() << ")";
 
   PipelineStatus status = PIPELINE_ERROR_INVALID_STATE;
@@ -407,7 +406,7 @@ bool ChunkDemuxer::AppendData(const uint8* data, unsigned length) {
   int64 buffered_bytes = 0;
   base::TimeDelta buffered_ts = base::TimeDelta::FromSeconds(-1);
 
-  FilterStatusCB cb;
+  PipelineStatusCB cb;
   {
     base::AutoLock auto_lock(lock_);
     switch(state_) {
@@ -510,7 +509,7 @@ bool ChunkDemuxer::HasEnded() {
 
 void ChunkDemuxer::Shutdown() {
   VLOG(1) << "Shutdown()";
-  FilterStatusCB cb;
+  PipelineStatusCB cb;
   {
     base::AutoLock auto_lock(lock_);
 
