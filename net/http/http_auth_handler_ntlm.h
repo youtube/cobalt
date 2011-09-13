@@ -50,14 +50,12 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNTLM : public HttpAuthHandler {
                                   const BoundNetLog& net_log,
                                   scoped_ptr<HttpAuthHandler>* handler);
 #if defined(NTLM_SSPI)
-    // Set the SSPILibrary to use. Typically the only callers which need to
-    // use this are unit tests which pass in a mocked-out version of the
-    // SSPI library.
-    // The caller is responsible for managing the lifetime of |*sspi_library|,
-    // and the lifetime must exceed that of this Factory object and all
-    // HttpAuthHandler's that this Factory object creates.
+    // Set the SSPILibrary to use. Typically the only callers which need to use
+    // this are unit tests which pass in a mocked-out version of the SSPI
+    // library.  After the call |sspi_library| will be owned by this Factory and
+    // will be destroyed when the Factory is destroyed.
     void set_sspi_library(SSPILibrary* sspi_library) {
-      sspi_library_ = sspi_library;
+      sspi_library_.reset(sspi_library);
     }
 #endif  // defined(NTLM_SSPI)
    private:
@@ -65,7 +63,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNTLM : public HttpAuthHandler {
     ULONG max_token_length_;
     bool first_creation_;
     bool is_unsupported_;
-    SSPILibrary* sspi_library_;
+    scoped_ptr<SSPILibrary> sspi_library_;
 #endif  // defined(NTLM_SSPI)
   };
 
