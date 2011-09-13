@@ -111,7 +111,7 @@
  "xp-release-single-core/morejs/times/t": {"reva": 98602, "revb": 99994, "improve": -238, "regress": 221, "sha1": "6d1b1e56"},
  "xp-release-single-core/moz/times/t": {"reva": 75758, "revb": 76221, "improve": -1705, "regress": 3304, "sha1": "b615a416"},
  "xp-release-single-core/startup/times/t": {"improve": -9, "regress": 9, "sha1": "b1bf03da"},
- "xp-release/sizes/chrome.dll/chrome.dll": {"reva": 91883, "revb": 91888, "type": "absolute", "improve": 33471129, "regress": 36994407, "sha1": "ec2939e2"},
+ "xp-release/sizes/chrome.dll/chrome.dll": {"reva": 100820, "revb": 100961, "type": "absolute", "improve": 35191526, "regress": 38926004, "sha1": "94524a77"},
  "xp-release/sizes/chrome.exe/chrome.exe": {"reva": 81814, "revb": 82805, "type": "absolute", "improve": 1068134, "regress": 1180570, "sha1": "e56118d2"},
  "xp-release/sizes/mini_installer.exe/mini_installer.exe": {"reva": 84829, "revb": 85049, "type": "absolute", "improve": 18061977, "regress": 20016999, "sha1": "aca62812"},
  "xp-release/sizes/setup.exe/setup.exe": {"reva": 81852, "revb": 82805, "type": "absolute", "improve": 1138662, "regress": 1258522, "sha1": "f1de9ae7"},
