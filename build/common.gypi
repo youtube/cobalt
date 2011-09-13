@@ -25,12 +25,8 @@
           # or if it must only use GTK (the default at the moment).
           # This is an intermediate step until all of Views is 'Pure',
           # at which point we plan to remove those switches.
-          # This turns on the TOOLKIT_USES_PURE_VIEWS macro which is used
-          # to replace the corresponding GTK implementation in such a way
-          # that GTK and PureViews can coexist. This intermediate solution
-          # allow us to switch the view implementations using
-          # --use-pure-views, without breaking exiting gtk implementation.
-          'toolkit_uses_pure_views%': 0,
+          # This turns on the USE_ONLY_PURE_VIEWS macro.
+          'use_only_pure_views%': 0,
 
           # Disable touch support by default.
           'touchui%': 0,
@@ -48,7 +44,7 @@
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
-        'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
+        'use_only_pure_views%': '<(use_only_pure_views)',
         'touchui%': '<(touchui)',
         'webui_dialogs%': '<(webui_dialogs)',
         'views_compositor%': '<(views_compositor)',
@@ -66,23 +62,23 @@
               '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
           }],
 
-          # Set default value of toolkit_views on for Windows, Chrome OS
-          # and the touch UI.
-          ['OS=="win" or chromeos==1 or touchui==1 or toolkit_uses_pure_views==1', {
+          # Set default value of toolkit_views on for Windows, Chrome OS,
+          # Touch and PureView.
+          ['OS=="win" or chromeos==1 or touchui==1 or use_only_pure_views==1', {
             'toolkit_views%': 1,
           }, {
             'toolkit_views%': 0,
           }],
 
-          # Views are always Pure in Touch case
+          # Views are always Pure in Touch case.
           ['touchui==1', {
-            'toolkit_uses_pure_views%': 1,
+            'use_only_pure_views%': 1,
           }, {
-            'toolkit_uses_pure_views%': 0,
+            'use_only_pure_views%': 0,
           }],
 
-          # Use WebUI dialogs in TouchUI builds.
-          ['touchui==1', {
+          # Use WebUI dialogs in TouchUI and PureView builds.
+          ['touchui==1 or use_only_pure_views==1', {
             'webui_dialogs%': 1,
           }],
 
@@ -99,7 +95,7 @@
       'webui_dialogs%': '<(webui_dialogs)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
-      'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
+      'use_only_pure_views%': '<(use_only_pure_views)',
       'views_compositor%': '<(views_compositor)',
       'use_aura%': '<(use_aura)',
 
@@ -270,8 +266,8 @@
           'file_manager_extension%': 0,
         }],
 
-        # Enable WebUI TaskManager only on Chrome OS and Touch UI.
-        ['chromeos==1 or touchui==1', {
+        # Enable WebUI TaskManager only on Chrome OS, Touch or PureView.
+        ['chromeos==1 or touchui==1 or use_only_pure_views==1', {
           'webui_task_manager%': 1,
         }, {
           'webui_task_manager%': 0,
@@ -293,7 +289,7 @@
     'host_arch%': '<(host_arch)',
     'library%': 'static_library',
     'toolkit_views%': '<(toolkit_views)',
-    'toolkit_uses_pure_views%': '<(toolkit_uses_pure_views)',
+    'use_only_pure_views%': '<(use_only_pure_views)',
     'views_compositor%': '<(views_compositor)',
     'use_aura%': '<(use_aura)',
     'os_posix%': '<(os_posix)',
@@ -668,8 +664,8 @@
       ['toolkit_views==1', {
         'grit_defines': ['-D', 'toolkit_views'],
       }],
-      ['toolkit_uses_pure_views==1', {
-        'grit_defines': ['-D', 'toolkit_uses_pure_views'],
+      ['use_only_pure_views==1', {
+        'grit_defines': ['-D', 'use_only_pure_views'],
       }],
       ['touchui==1', {
         'grit_defines': ['-D', 'touchui'],
@@ -781,8 +777,8 @@
       ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
       }],
-      ['toolkit_uses_pure_views==1', {
-        'defines': ['TOOLKIT_USES_PURE_VIEWS=1'],
+      ['use_only_pure_views==1', {
+        'defines': ['USE_ONLY_PURE_VIEWS=1'],
       }],
       ['views_compositor==1', {
         'defines': ['VIEWS_COMPOSITOR=1'],
