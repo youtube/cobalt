@@ -1532,16 +1532,16 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry) {
     return 0;
   }
 
-  scoped_refptr<EntryImpl> cache_entry(
-      new EntryImpl(this, address, read_only_));
-  IncreaseNumRefs();
-  *entry = NULL;
-
   if (!address.is_initialized() || address.is_separate_file() ||
       address.file_type() != BLOCK_256) {
     LOG(WARNING) << "Wrong entry address.";
     return ERR_INVALID_ADDRESS;
   }
+
+  scoped_refptr<EntryImpl> cache_entry(
+      new EntryImpl(this, address, read_only_));
+  IncreaseNumRefs();
+  *entry = NULL;
 
   TimeTicks start = TimeTicks::Now();
   if (!cache_entry->entry()->Load())
