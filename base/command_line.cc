@@ -37,7 +37,7 @@ const CommandLine::CharType* const kSwitchPrefixes[] = {"--", "-"};
 size_t GetSwitchPrefixLength(const CommandLine::StringType& string) {
   for (size_t i = 0; i < arraysize(kSwitchPrefixes); ++i) {
     CommandLine::StringType prefix(kSwitchPrefixes[i]);
-    if (string.find(prefix) == 0)
+    if (string.compare(0, prefix.length(), prefix) == 0)
       return prefix.length();
   }
   return 0;
