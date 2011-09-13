@@ -131,6 +131,14 @@ class NET_EXPORT HttpUtil {
   // handling HTTP line continuations (i.e., lines starting with LWS are
   // continuations of the previous line).  |buf_len| indicates the position of
   // the end-of-headers marker as defined by LocateEndOfHeaders.
+  // If a \0 appears within the headers themselves, it will be stripped. This
+  // is a workaround to avoid later code from incorrectly interpreting it as
+  // a line terminator.
+  //
+  // TODO(eroman): we should use \n as the canonical line separator rather than
+  //               \0 to avoid this problem. Unfortunately the persistence layer
+  //               is already dependent on newlines being replaced by NULL so
+  //               this is hard to change without breaking things.
   static std::string AssembleRawHeaders(const char* buf, int buf_len);
 
   // Converts assembled "raw headers" back to the HTTP response format. That is
