@@ -83,7 +83,7 @@ MockDemuxer::MockDemuxer()
 MockDemuxer::~MockDemuxer() {}
 
 void MockDemuxer::set_host(FilterHost* filter_host) {
-  Filter::set_host(filter_host);
+  Demuxer::set_host(filter_host);
 
   if (total_bytes_ > 0)
     host()->SetTotalBytes(total_bytes_);

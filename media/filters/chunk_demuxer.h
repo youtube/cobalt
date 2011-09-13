@@ -8,7 +8,7 @@
 #include <list>
 
 #include "base/synchronization/lock.h"
-#include "media/base/filters.h"
+#include "media/base/demuxer.h"
 #include "media/webm/webm_cluster_parser.h"
 
 struct AVFormatContext;
@@ -28,16 +28,14 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   void Init(PipelineStatusCB cb);
 
-  // Filter implementation.
-  virtual void set_host(FilterHost* filter_host);
-  virtual void Stop(FilterCallback* callback);
-  virtual void Seek(base::TimeDelta time, const FilterStatusCB&  cb);
-  virtual void OnAudioRendererDisabled();
-  virtual void SetPreload(Preload preload);
-
   // Demuxer implementation.
+  virtual void set_host(FilterHost* filter_host) OVERRIDE;
+  virtual void Stop(FilterCallback* callback) OVERRIDE;
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB&  cb) OVERRIDE;
+  virtual void OnAudioRendererDisabled() OVERRIDE;
   virtual scoped_refptr<DemuxerStream> GetStream(DemuxerStream::Type type);
-  virtual base::TimeDelta GetStartTime() const;
+  virtual void SetPreload(Preload preload) OVERRIDE;
+  virtual base::TimeDelta GetStartTime() const OVERRIDE;
 
   // Methods used by an external object to control this demuxer.
   void FlushData();
@@ -88,7 +86,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   ChunkDemuxerClient* client_;
   PipelineStatusCB init_cb_;
-  FilterStatusCB seek_cb_;
+  PipelineStatusCB seek_cb_;
 
   scoped_refptr<ChunkDemuxerStream> audio_;
   scoped_refptr<ChunkDemuxerStream> video_;

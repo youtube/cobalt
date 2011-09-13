@@ -22,6 +22,7 @@
 #include "base/time.h"
 #include "media/base/clock.h"
 #include "media/base/composite_filter.h"
+#include "media/base/demuxer.h"
 #include "media/base/filter_host.h"
 #include "media/base/pipeline.h"
 
@@ -314,6 +315,22 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   // Compute the current time. Assumes that the lock has been acquired by the
   // caller.
   base::TimeDelta GetCurrentTime_Locked() const;
+
+  // Initiates a Stop() on |demuxer_| & |pipeline_filter_|. |callback|
+  // is called once both objects have been stopped.
+  void DoStop(FilterCallback* callback);
+
+  // Called when |demuxer_| has stopped. This method calls Stop()
+  // on |pipeline_filter_|.
+  void OnDemuxerStopDone(FilterCallback* callback);
+
+  // Initiates a Seek() on the |demuxer_| & |pipeline_filter_|.
+  void DoSeek(base::TimeDelta seek_timestamp);
+
+  // Called when |demuxer_| finishes seeking. If seeking was successful,
+  // then Seek() is called on |pipeline_filter_|.
+  void OnDemuxerSeekDone(base::TimeDelta seek_timestamp,
+                         PipelineStatus status);
 
   // Message loop used to execute pipeline tasks.
   MessageLoop* message_loop_;
