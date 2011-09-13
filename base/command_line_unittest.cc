@@ -34,6 +34,7 @@ TEST(CommandLineTest, CommandLineConstructor) {
       FILE_PATH_LITERAL("-spaetzle=Crepe"),
       FILE_PATH_LITERAL("-=loosevalue"),
       FILE_PATH_LITERAL("FLAN"),
+      FILE_PATH_LITERAL("a"),
       FILE_PATH_LITERAL("--input-translation=45--output-rotation"),
       FILE_PATH_LITERAL("--"),
       FILE_PATH_LITERAL("--"),
@@ -74,12 +75,14 @@ TEST(CommandLineTest, CommandLineConstructor) {
   EXPECT_EQ("45--output-rotation", cl.GetSwitchValueASCII("input-translation"));
 
   const CommandLine::StringVector& args = cl.GetArgs();
-  ASSERT_EQ(6U, args.size());
+  ASSERT_EQ(7U, args.size());
 
   std::vector<CommandLine::StringType>::const_iterator iter = args.begin();
   EXPECT_EQ(FILE_PATH_LITERAL("flim"), *iter);
   ++iter;
   EXPECT_EQ(FILE_PATH_LITERAL("FLAN"), *iter);
+  ++iter;
+  EXPECT_EQ(FILE_PATH_LITERAL("a"), *iter);
   ++iter;
   EXPECT_EQ(FILE_PATH_LITERAL("--"), *iter);
   ++iter;
