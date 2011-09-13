@@ -547,7 +547,7 @@ std::string HttpUtil::AssembleRawHeaders(const char* input_begin,
       raw_headers.append(FindFirstNonLWS(line_begin, line_end), line_end);
     } else {
       // Terminate the previous line.
-      raw_headers.push_back('\0');
+      raw_headers.push_back('\n');
 
       // Copy the raw data to output.
       raw_headers.append(line_begin, line_end);
@@ -557,7 +557,15 @@ std::string HttpUtil::AssembleRawHeaders(const char* input_begin,
     }
   }
 
-  raw_headers.append("\0\0", 2);
+  raw_headers.append("\n\n", 2);
+
+  // Use '\0' as the canonical line terminator. If the input already contained
+  // any embeded '\0' characters we will strip them first to avoid interpreting
+  // them as line breaks.
+  raw_headers.erase(std::remove(raw_headers.begin(), raw_headers.end(), '\0'),
+                    raw_headers.end());
+  std::replace(raw_headers.begin(), raw_headers.end(), '\n', '\0');
+
   return raw_headers;
 }
 
