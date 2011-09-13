@@ -297,10 +297,7 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
     // TODO(hclam): Implement a NEON version.
     convert_proc = &ConvertRGB32ToYUV_C;
 #else
-    // For x86 processors, check if SSSE3 (or SSE2) is supported.
-    if (hasSSSE3())
-      convert_proc = &ConvertRGB32ToYUV_SSSE3;
-    else if (hasSSE2())
+    if (hasSSE2())
       convert_proc = &ConvertRGB32ToYUV_SSE2;
     else
       convert_proc = &ConvertRGB32ToYUV_C;
@@ -320,21 +317,8 @@ void ConvertRGB24ToYUV(const uint8* rgbframe,
                        int rgbstride,
                        int ystride,
                        int uvstride) {
-#if defined(ARCH_CPU_ARM_FAMILY)
   ConvertRGB24ToYUV_C(rgbframe, yplane, uplane, vplane, width, height,
                       rgbstride, ystride, uvstride);
-#else
-  static void (*convert_proc)(const uint8*, uint8*, uint8*, uint8*,
-                              int, int, int, int, int) = NULL;
-  if (!convert_proc) {
-    if (hasSSSE3())
-      convert_proc = &ConvertRGB24ToYUV_SSSE3;
-    else
-      convert_proc = &ConvertRGB24ToYUV_C;
-  }
-  convert_proc(rgbframe, yplane, uplane, vplane, width, height,
-               rgbstride, ystride, uvstride);
-#endif
 }
 
 void ConvertYUY2ToYUV(const uint8* src,
