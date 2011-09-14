@@ -835,8 +835,9 @@ void SparseControl::DoUserCallback() {
   user_buf_ = NULL;
   pending_ = false;
   operation_ = kNoOperation;
+  int rv = result_;
   entry_->Release();  // Don't touch object after this line.
-  c->Run(result_);
+  c->Run(rv);
 }
 
 void SparseControl::DoAbortCallbacks() {
