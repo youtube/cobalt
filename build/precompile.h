@@ -22,6 +22,10 @@
 // The Windows header needs to come before almost all the other
 // Windows-specific headers.
 #include <Windows.h>
+#include <dwmapi.h>
+#include <shellapi.h>
+#include <wincrypt.h>  // 4
+#include <wtypes.h>  // 2
 
 // TODO(joi): Defines in atlbase.h cause conflicts; need to figure out
 // if/how this family of headers can be included in the PCH; several
@@ -38,27 +42,31 @@
 #include <atlwin.h>  // 2
 */
 
-#include <commctrl.h>  // 2
-#include <commdlg.h>  // 3
-#include <cryptuiapi.h>  // 2
-#include <dwmapi.h>
-#include <Objbase.h>  // 2
-#include <objidl.h>  // 1
-#include <ole2.h>  // 1
-#include <oleacc.h>  // 2
-#include <oleauto.h>  // 1
-#include <oleidl.h>  // 1
-#include <propkey.h>  // 2
-#include <propvarutil.h>  // 2
-#include <pstore.h>  // 2
-#include <shellapi.h>
-#include <shlguid.h>  // 1
-//#include <shlobj.h>  TODO(joi): Caused conflicts, see if they can be resolved.
-#include <shlwapi.h>  // 1
-#include <shobjidl.h>  // 4
-#include <urlhist.h>  // 2
-#include <wincrypt.h>  // 4
-#include <wtypes.h>  // 2
+// TODO(joi): Objbase.h and other files that rely on it bring in
+// [ #define interface struct ] which can cause problems in a
+// multi-platform build like Chrome's. Tried #undef-ing it, but
+// there are currently 118 targets that break if we do this, so
+// leaving out of the precompiled header for now.
+//#include <commctrl.h>  // 2
+//#include <commdlg.h>  // 3
+//#include <cryptuiapi.h>  // 2
+//#include <Objbase.h>  // 2
+//#include <objidl.h>  // 1
+//#include <ole2.h>  // 1
+//#include <oleacc.h>  // 2
+//#include <oleauto.h>  // 1
+//#include <oleidl.h>  // 1
+//#include <propkey.h>  // 2
+//#include <propvarutil.h>  // 2
+//#include <pstore.h>  // 2
+//#include <shlguid.h>  // 1
+//#include <shlwapi.h>  // 1
+//#include <shobjidl.h>  // 4
+//#include <urlhist.h>  // 2
+
+// TODO(joi): Caused other conflicts in addition to the 'interface' issue
+// above, see if they can be resolved.
+//#include <shlobj.h>
 
 #include <errno.h>
 #include <fcntl.h>
