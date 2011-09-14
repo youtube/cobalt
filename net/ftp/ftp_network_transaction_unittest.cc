@@ -451,6 +451,28 @@ class FtpSocketDataProviderFileDownloadZeroSize
   DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderFileDownloadZeroSize);
 };
 
+class FtpSocketDataProviderFileDownloadCWD451
+    : public FtpSocketDataProviderFileDownload {
+ public:
+  FtpSocketDataProviderFileDownloadCWD451() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_CWD:
+        return Verify("CWD /file\r\n", data, PRE_RETR,
+                      "451 not a directory\r\n");
+      default:
+        return FtpSocketDataProviderFileDownload::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderFileDownloadCWD451);
+};
+
 class FtpSocketDataProviderVMSFileDownload : public FtpSocketDataProvider {
  public:
   FtpSocketDataProviderVMSFileDownload() {
@@ -958,6 +980,11 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionShortReads5) {
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionZeroSize) {
   FtpSocketDataProviderFileDownloadZeroSize ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionCWD451) {
+  FtpSocketDataProviderFileDownloadCWD451 ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
 }
 
