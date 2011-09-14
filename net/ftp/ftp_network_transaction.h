@@ -175,6 +175,7 @@ class NET_EXPORT_PRIVATE FtpNetworkTransaction : public FtpTransaction {
   int ProcessResponseSIZE(const FtpCtrlResponse& response);
   int DoCtrlWriteCWD();
   int ProcessResponseCWD(const FtpCtrlResponse& response);
+  int ProcessResponseCWDNotADirectory();
   int DoCtrlWriteLIST();
   int ProcessResponseLIST(const FtpCtrlResponse& response);
   int DoCtrlWriteQUIT();

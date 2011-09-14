@@ -1098,29 +1098,39 @@ int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
+      // Some FTP servers send response 451 (not a valid CWD response according
+      // to RFC 959) instead of 550.
+      if (response.status_code == 451)
+        return ProcessResponseCWDNotADirectory();
+
       return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
-      if (response.status_code == 550) {
-        if (resource_type_ == RESOURCE_TYPE_DIRECTORY) {
-          // We're assuming that the resource is a directory, but the server
-          // says it's not true. The most probable interpretation is that it
-          // doesn't exist (with FTP we can't be sure).
-          return Stop(ERR_FILE_NOT_FOUND);
-        }
-
-        // We are here because SIZE failed and we are not sure what the resource
-        // type is. It could still be file, and SIZE could fail because of
-        // an access error (http://crbug.com/56734). Try RETR just to be sure.
-        resource_type_ = RESOURCE_TYPE_FILE;
-        next_state_ = STATE_CTRL_WRITE_RETR;
-        return OK;
-      }
+      if (response.status_code == 550)
+        return ProcessResponseCWDNotADirectory();
 
       return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
   }
+
+  return OK;
+}
+
+int FtpNetworkTransaction::ProcessResponseCWDNotADirectory() {
+  if (resource_type_ == RESOURCE_TYPE_DIRECTORY) {
+    // We're assuming that the resource is a directory, but the server
+    // says it's not true. The most probable interpretation is that it
+    // doesn't exist (with FTP we can't be sure).
+    return Stop(ERR_FILE_NOT_FOUND);
+  }
+
+  // We are here because SIZE failed and we are not sure what the resource
+  // type is. It could still be file, and SIZE could fail because of
+  // an access error (http://crbug.com/56734). Try RETR just to be sure.
+  resource_type_ = RESOURCE_TYPE_FILE;
+  next_state_ = STATE_CTRL_WRITE_RETR;
+
   return OK;
 }
 
