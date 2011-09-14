@@ -21,3 +21,11 @@
 ;                             int source_dx);
 %define SYMBOL ScaleYUVToRGB32Row_SSE
 %include "scale_yuv_to_rgb_mmx.inc"
+
+; void LinearScaleYUVToRGB32Row_SSE(const uint8* y_buf,
+;                                   const uint8* u_buf,
+;                                   const uint8* v_buf,
+;                                   uint8* rgb_buf,
+;                                   int width,
+;                                   int source_dx);
+
