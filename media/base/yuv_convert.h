@@ -94,6 +94,10 @@ void ConvertYUY2ToYUV(const uint8* src,
                       int width,
                       int height);
 
+// Empty SIMD register state after calling optimized scaler functions.
+// This method is only used in unit test after calling SIMD functions.
+void EmptyRegisterState();
+
 }  // namespace media
 
 #endif  // MEDIA_BASE_YUV_CONVERT_H_
