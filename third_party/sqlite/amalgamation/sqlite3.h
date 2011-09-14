@@ -6477,3 +6477,18 @@ struct sqlite3_rtree_geometry {
 
 #endif  /* ifndef _SQLITE3RTREE_H_ */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Fault in page cache for db.  See http://crbug.com/95527 .
+** *pnTouched will accumulate the number of bytes represented by the
+** touched pages. */
+int sqlite3_95527(sqlite3 *db, unsigned int *pnTouched);
+
+/* Let our code know that it's safe to call the function. */
+#define HAS_SQLITE3_95527
+
+#ifdef __cplusplus
+}  /* end of the 'extern "C"' block */
+#endif
