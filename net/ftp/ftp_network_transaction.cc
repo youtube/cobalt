@@ -7,6 +7,7 @@
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
+#include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/address_list.h"
@@ -20,11 +21,6 @@
 #include "net/ftp/ftp_util.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/stream_socket.h"
-
-// TODO(ibrar): Try to avoid sscanf.
-#if !defined(COMPILER_MSVC)
-#define sscanf_s sscanf
-#endif
 
 const char kCRLF[] = "\r\n";
 
@@ -151,25 +147,51 @@ bool ExtractPortFromPASVResponse(const net::FtpCtrlResponse& response,
                                  int* port) {
   if (response.lines.size() != 1)
     return false;
-  const char* ptr = response.lines[0].c_str();
-  while (*ptr && *ptr != '(')  // Try with bracket.
-    ++ptr;
-  if (*ptr) {
-    ++ptr;
+
+  std::string line(response.lines[0]);
+  if (!IsStringASCII(line))
+    return false;
+  if (line.length() < 2)
+    return false;
+
+  size_t paren_pos = line.find('(');
+  if (paren_pos == std::string::npos) {
+    // Find the first comma and use it to locate the beginning
+    // of the response data.
+    size_t comma_pos = line.find(',');
+    if (comma_pos == std::string::npos)
+      return false;
+
+    size_t space_pos = line.rfind(' ', comma_pos);
+    if (space_pos != std::string::npos)
+      line = line.substr(space_pos + 1);
   } else {
-    ptr = response.lines[0].c_str();  // Try without bracket.
-    while (*ptr && *ptr != ',')
-      ++ptr;
-    while (*ptr && *ptr != ' ')
-      --ptr;
+    // Remove the parentheses and use the text inside them.
+    size_t closing_paren_pos = line.rfind(')');
+    if (closing_paren_pos == std::string::npos)
+      return false;
+    if (closing_paren_pos <= paren_pos)
+      return false;
+
+    line = line.substr(paren_pos + 1, closing_paren_pos - paren_pos - 1);
   }
-  int i0, i1, i2, i3, p0, p1;
-  if (sscanf_s(ptr, "%d,%d,%d,%d,%d,%d", &i0, &i1, &i2, &i3, &p0, &p1) != 6)
+
+  // Split the line into comma-separated pieces and extract
+  // the last two.
+  std::vector<std::string> pieces;
+  base::SplitString(line, ',', &pieces);
+  if (pieces.size() != 6)
     return false;
 
   // Ignore the IP address supplied in the response. We are always going
   // to connect back to the same server to prevent FTP PASV port scanning.
+  int p0, p1;
+  if (!base::StringToInt(pieces[4], &p0))
+    return false;
+  if (!base::StringToInt(pieces[5], &p1))
+    return false;
   *port = (p0 << 8) + p1;
+
   return true;
 }
 
