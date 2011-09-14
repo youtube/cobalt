@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "base/scoped_ptr.h"
-#include "base/stringprintf.h"
 #include "media/base/cpu_features.h"
 #include "media/base/simd/convert_rgb_to_yuv.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -82,6 +81,7 @@ TEST(YUVConvertTest, SideBySideRGB) {
     else
       convert = media::ConvertRGB32ToYUV_SSSE3;
 
+    int total_error = 0;
     for (int r = 0; r < kWidth; ++r) {
       for (int g = 0; g < kWidth; ++g) {
 
@@ -101,24 +101,26 @@ TEST(YUVConvertTest, SideBySideRGB) {
         // Check the output Y pixels.
         for (int i = 0; i < kWidth; ++i) {
           const uint8* p = &rgb[i * size];
-          SCOPED_TRACE(base::StringPrintf("r=%d,g=%d,b=%d", p[2], p[1], p[0]));
-          EXPECT_EQ(ConvertRGBToY(p), y[i]);
+          int error = ConvertRGBToY(p) - y[i];
+          total_error += error > 0 ? error : -error;
         }
 
         // Check the output U pixels.
         for (int i = 0; i < kWidth / 2; ++i) {
           const uint8* p = &rgb[i * 2 * size];
-          SCOPED_TRACE(base::StringPrintf("r=%d,g=%d,b=%d", p[2], p[1], p[0]));
-          EXPECT_EQ(ConvertRGBToU(p, size, kSubsampling), u[i]);
+          int error = ConvertRGBToU(p, size, kSubsampling) - u[i];
+          total_error += error > 0 ? error : -error;
         }
 
         // Check the output V pixels.
         for (int i = 0; i < kWidth / 2; ++i) {
           const uint8* p = &rgb[i * 2 * size];
-          SCOPED_TRACE(base::StringPrintf("r=%d,g=%d,b=%d", p[2], p[1], p[0]));
-          EXPECT_EQ(ConvertRGBToV(p, size, kSubsampling), v[i]);
+          int error = ConvertRGBToV(p, size, kSubsampling) - v[i];
+          total_error += error > 0 ? error : -error;
         }
       }
     }
+
+    EXPECT_EQ(0, total_error);
   }
 }
