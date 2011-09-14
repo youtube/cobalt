@@ -1428,73 +1428,77 @@
           },
         },
         'conditions': [
-          [ 'target_arch=="ia32"', {
-            'asflags': [
-              # Needed so that libs with .s files (e.g. libicudata.a)
-              # are compatible with the general 32-bit-ness.
-              '-32',
-            ],
-            # All floating-point computations on x87 happens in 80-bit
-            # precision.  Because the C and C++ language standards allow
-            # the compiler to keep the floating-point values in higher
-            # precision than what's specified in the source and doing so
-            # is more efficient than constantly rounding up to 64-bit or
-            # 32-bit precision as specified in the source, the compiler,
-            # especially in the optimized mode, tries very hard to keep
-            # values in x87 floating-point stack (in 80-bit precision)
-            # as long as possible. This has important side effects, that
-            # the real value used in computation may change depending on
-            # how the compiler did the optimization - that is, the value
-            # kept in 80-bit is different than the value rounded down to
-            # 64-bit or 32-bit. There are possible compiler options to make
-            # this behavior consistent (e.g. -ffloat-store would keep all
-            # floating-values in the memory, thus force them to be rounded
-            # to its original precision) but they have significant runtime
-            # performance penalty.
-            #
-            # -mfpmath=sse -msse2 makes the compiler use SSE instructions
-            # which keep floating-point values in SSE registers in its
-            # native precision (32-bit for single precision, and 64-bit for
-            # double precision values). This means the floating-point value
-            # used during computation does not change depending on how the
-            # compiler optimized the code, since the value is always kept
-            # in its specified precision.
-            'conditions': [
-              ['branding=="Chromium" and disable_sse2==0', {
+          ['target_arch=="ia32"', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'asflags': [
+                  # Needed so that libs with .s files (e.g. libicudata.a)
+                  # are compatible with the general 32-bit-ness.
+                  '-32',
+                ],
+                # All floating-point computations on x87 happens in 80-bit
+                # precision.  Because the C and C++ language standards allow
+                # the compiler to keep the floating-point values in higher
+                # precision than what's specified in the source and doing so
+                # is more efficient than constantly rounding up to 64-bit or
+                # 32-bit precision as specified in the source, the compiler,
+                # especially in the optimized mode, tries very hard to keep
+                # values in x87 floating-point stack (in 80-bit precision)
+                # as long as possible. This has important side effects, that
+                # the real value used in computation may change depending on
+                # how the compiler did the optimization - that is, the value
+                # kept in 80-bit is different than the value rounded down to
+                # 64-bit or 32-bit. There are possible compiler options to
+                # make this behavior consistent (e.g. -ffloat-store would keep
+                # all floating-values in the memory, thus force them to be
+                # rounded to its original precision) but they have significant
+                # runtime performance penalty.
+                #
+                # -mfpmath=sse -msse2 makes the compiler use SSE instructions
+                # which keep floating-point values in SSE registers in its
+                # native precision (32-bit for single precision, and 64-bit
+                # for double precision values). This means the floating-point
+                # value used during computation does not change depending on
+                # how the compiler optimized the code, since the value is
+                # always kept in its specified precision.
+                'conditions': [
+                  ['branding=="Chromium" and disable_sse2==0', {
+                    'cflags': [
+                      '-march=pentium4',
+                      '-msse2',
+                      '-mfpmath=sse',
+                    ],
+                  }],
+                  # ChromeOS targets Pinetrail, which is sse3, but most of the
+                  # benefit comes from sse2 so this setting allows ChromeOS
+                  # to build on other CPUs.  In the future -march=atom would
+                  # help but requires a newer compiler.
+                  ['chromeos==1 and disable_sse2==0', {
+                    'cflags': [
+                      '-msse2',
+                    ],
+                  }],
+                  # Install packages have started cropping up with
+                  # different headers between the 32-bit and 64-bit
+                  # versions, so we have to shadow those differences off
+                  # and make sure a 32-bit-on-64-bit build picks up the
+                  # right files.
+                  ['host_arch!="ia32"', {
+                    'include_dirs+': [
+                      '/usr/include32',
+                    ],
+                  }],
+                ],
+                # -mmmx allows mmintrin.h to be used for mmx intrinsics.
+                # video playback is mmx and sse2 optimized.
                 'cflags': [
-                  '-march=pentium4',
-                  '-msse2',
-                  '-mfpmath=sse',
+                  '-m32',
+                  '-mmmx',
+                ],
+                'ldflags': [
+                  '-m32',
                 ],
               }],
-              # ChromeOS targets Pinetrail, which is sse3, but most of the
-              # benefit comes from sse2 so this setting allows ChromeOS
-              # to build on other CPUs.  In the future -march=atom would help
-              # but requires a newer compiler.
-              ['chromeos==1 and disable_sse2==0', {
-                'cflags': [
-                  '-msse2',
-                ],
-              }],
-              # Install packages have started cropping up with
-              # different headers between the 32-bit and 64-bit
-              # versions, so we have to shadow those differences off
-              # and make sure a 32-bit-on-64-bit build picks up the
-              # right files.
-              ['host_arch!="ia32"', {
-                'include_dirs+': [
-                  '/usr/include32',
-                ],
-              }],
-            ],
-            # -mmmx allows mmintrin.h to be used for mmx intrinsics.
-            # video playback is mmx and sse2 optimized.
-            'cflags': [
-              '-m32',
-              '-mmmx',
-            ],
-            'ldflags': [
-              '-m32',
             ],
           }],
           ['target_arch=="arm"', {
