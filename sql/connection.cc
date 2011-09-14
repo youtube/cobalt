@@ -111,6 +111,20 @@ void Connection::Close() {
   statement_cache_.clear();
   DCHECK(open_statements_.empty());
   if (db_) {
+    // TODO(shess): Some additional code to debug http://crbug.com/95527 .
+    // If you are reading this due to link errors or something, it can
+    // be safely removed.
+#if defined(HAS_SQLITE3_95527)
+    unsigned int nTouched = 0;
+    sqlite3_95527(db_, &nTouched);
+
+    // If a VERY large amount of memory was touched, crash.  This
+    // should never happen.
+    // TODO(shess): Pull this in.  It should be page_size * page_cache
+    // or something like that, 4M or 16M.  For now it's just to
+    // prevent optimization.
+    CHECK_LT(nTouched, 1000*1000*1000U);
+#endif
     sqlite3_close(db_);
     db_ = NULL;
   }
