@@ -110,7 +110,6 @@
             }],
           ],
           'dependencies': [
-            '../aura/aura.gyp:*',
             '../breakpad/breakpad.gyp:*',
             '../chrome_frame/chrome_frame.gyp:*',
             '../cloud_print/virtual_driver/virtual_driver.gyp:*',
@@ -122,6 +121,7 @@
             '../third_party/bspatch/bspatch.gyp:*',
             '../third_party/gles2_book/gles2_book.gyp:*',
             '../tools/memory_watcher/memory_watcher.gyp:*',
+            '../ui/aura/aura.gyp:*',
           ],
         }, {
           'dependencies': [
