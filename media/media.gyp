@@ -345,12 +345,7 @@
       'conditions': [
         [ 'target_arch == "ia32" or target_arch == "x64"', {
           'dependencies': [
-            'yuv_convert_simd_x86',
-          ],
-        }],
-        [ 'target_arch == "arm"', {
-          'dependencies': [
-            'yuv_convert_simd_arm',
+            'yuv_convert_sse2',
           ],
         }],
       ],
@@ -366,45 +361,15 @@
       ],
     },
     {
-      'target_name': 'yuv_convert_simd_x86',
+      'target_name': 'yuv_convert_sse2',
       'type': 'static_library',
       'include_dirs': [
         '..',
       ],
-      'sources': [
-        'base/yuv_convert_sse2.cc',
-        'base/simd/convert_rgb_to_yuv_x86.cc',
-        'base/simd/convert_rgb_to_yuv_ssse3.asm',
-        'base/simd/convert_rgb_to_yuv_ssse3.inc',
-        'base/simd/convert_yuv_to_rgb_c.cc',
-        'base/simd/convert_yuv_to_rgb_x86.cc',
-        'base/simd/convert_yuv_to_rgb_mmx.asm',
-        'base/simd/convert_yuv_to_rgb_mmx.inc',
-        'base/simd/convert_yuv_to_rgb_sse.asm',
-        'base/simd/filter_yuv.h',
-        'base/simd/filter_yuv_c.cc',
-        'base/simd/filter_yuv_mmx.cc',
-        'base/simd/filter_yuv_sse2.cc',
-        'base/simd/linear_scale_yuv_to_rgb_mmx.asm',
-        'base/simd/linear_scale_yuv_to_rgb_mmx.inc',
-        'base/simd/linear_scale_yuv_to_rgb_sse.asm',
-        'base/simd/scale_yuv_to_rgb_mmx.asm',
-        'base/simd/scale_yuv_to_rgb_mmx.inc',
-        'base/simd/scale_yuv_to_rgb_sse.asm',
-      ],
       'conditions': [
-        [ 'target_arch == "x64"', {
-          # Source files optimized for X64 systems.
-          'sources': [
-            'base/simd/linear_scale_yuv_to_rgb_mmx_x64.asm',
-            'base/simd/scale_yuv_to_rgb_sse2_x64.asm',
-          ],
-        }],
         [ 'os_posix == 1 and OS != "mac"', {
           'cflags': [
             '-msse2',
-            '-msse3',
-            '-mssse3',
           ],
         }],
         [ 'OS == "mac"', {
@@ -467,23 +432,15 @@
           },
         }],
       ],
+      'sources': [
+        'base/yuv_convert_sse2.cc',
+        'base/simd/convert_rgb_to_yuv.cc',
+      ],
       'variables': {
         'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/media',
       },
       'includes': [
         '../third_party/yasm/yasm_compile.gypi',
-      ],
-    },
-    {
-      'target_name': 'yuv_convert_simd_arm',
-      'type': 'static_library',
-      'include_dirs': [
-        '..',
-      ],
-      'sources': [
-        'base/simd/convert_yuv_to_rgb_c.cc',
-        'base/simd/filter_yuv.h',
-        'base/simd/filter_yuv_c.cc',
       ],
     },
     {

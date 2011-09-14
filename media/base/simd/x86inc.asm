@@ -95,13 +95,10 @@
 %ifdef WIN64
     %define PIC
 %elifndef ARCH_X86_64
-; For chromium we may build PIC code even for 32 bits system.
-%ifndef CHROMIUM
 ; x86_32 doesn't require PIC.
 ; Some distros prefer shared objects to be PIC, but nothing breaks if
 ; the code contains a few textrels, so we'll skip that complexity.
     %undef PIC
-%endif
 %endif
 %ifdef PIC
     default rel
@@ -950,11 +947,6 @@ AVX_INSTR pfmul, 1, 0
 ;=============================================================================
 
 %ifdef CHROMIUM
-; Always build PIC code on Mac for Chromium.
-%ifdef MACHO
-%define PIC
-%endif
-
 ;
 ; LOAD_SYM %1 (reg), %2 (sym)
 ; Copies the address to a local symbol to the specified register.
