@@ -18,6 +18,8 @@ LLVM_REPO_URL=${LLVM_URL:-http://llvm.org/svn/llvm-project}
 # Die if any command dies.
 set -e
 
+OS="$(uname -s)"
+
 # Parse command line options.
 force_local_build=
 mac_only=
@@ -39,9 +41,26 @@ while [[ $# > 0 ]]; do
   shift
 done
 
-if [ "$mac_only" -a "$(uname -s)" != "Darwin" ]; then
+if [[ -n "$mac_only" ]] && [[ "${OS}" != "Darwin" ]]; then
   exit 0
 fi
+
+# Xcode and clang don't get along when predictive compilation is enabled.
+# http://crbug.com/96315
+if [[ "${OS}" = "Darwin" ]] && xcodebuild -version | grep -q 'Xcode 3.2' ; then
+  XCONF=com.apple.Xcode
+  if [ "$(defaults read "${XCONF}" EnablePredictiveCompilation)" != "0" ]; then
+    echo
+    echo "          HEARKEN!"
+    echo "You're using Xcode3 and you have 'Predictive Compilation' enabled."
+    echo "This does not work well with clang (http://crbug.com/96315)."
+    echo "Disable it in Preferences->Building (lower right), or run"
+    echo "    defaults write ${XCONF} EnablePredictiveCompilation -boolean NO"
+    echo "while Xcode is not running."
+    echo
+  fi
+fi
+
 
 # Since people need to run this script anyway to compile clang, let it check out
 # clang as well if it's not in DEPS, so that people don't have to change their
@@ -51,8 +70,8 @@ CLANG_REVISION=$(grep 'clang_revision":' "${DEPS_FILE}" | egrep -o [[:digit:]]+)
 # Check if there's anything to be done, exit early if not.
 if [ -f "${STAMP_FILE}" ]; then
   PREVIOUSLY_BUILT_REVISON=$(cat "${STAMP_FILE}")
-  if [ -z "$force_local_build" -a \
-       "${PREVIOUSLY_BUILT_REVISON}" = "${CLANG_REVISION}" ]; then
+  if [[ -z "$force_local_build" ]] && \
+       [[ "${PREVIOUSLY_BUILT_REVISON}" = "${CLANG_REVISION}" ]]; then
     echo "Clang already at ${CLANG_REVISION}"
     exit 0
   fi
@@ -66,9 +85,9 @@ if [ -z "$force_local_build" ]; then
   CDS_URL=http://commondatastorage.googleapis.com/chromium-browser-clang
   CDS_FILE="clang-${CLANG_REVISION}.tgz"
   echo Trying to download prebuilt clang
-  if [ "$(uname -s)" = "Linux" ]; then
+  if [ "${OS}" = "Linux" ]; then
     wget "${CDS_URL}/Linux_x64/${CDS_FILE}" || rm -f "${CDS_FILE}"
-  elif [ "$(uname -s)" = "Darwin" ]; then
+  elif [ "${OS}" = "Darwin" ]; then
     curl -L --fail -O "${CDS_URL}/Mac/${CDS_FILE}" || rm -f "${CDS_FILE}"
   fi
   if [ -f "${CDS_FILE}" ]; then
@@ -120,9 +139,9 @@ if [ ! -f ./config.status ]; then
 fi
 
 NUM_JOBS=3
-if [ "$(uname -s)" = "Linux" ]; then
+if [ "${OS}" = "Linux" ]; then
   NUM_JOBS="$(grep -c "^processor" /proc/cpuinfo)"
-elif [ "$(uname -s)" = "Darwin" ]; then
+elif [ "${OS}" = "Darwin" ]; then
   NUM_JOBS="$(sysctl -n hw.ncpu)"
 fi
 make -j"${NUM_JOBS}"
