@@ -136,11 +136,11 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
   remove(kSignalFileSlow);
 }
 
-// Times out on Linux.  http://crbug.com/95058
+// Times out on Linux, flakes on other platforms.  http://crbug.com/95058
 #if defined(OS_LINUX)
 #define MAYBE_GetTerminationStatusExit DISABLED_GetTerminationStatusExit
 #else
-#define MAYBE_GetTerminationStatusExit GetTerminationStatusExit
+#define MAYBE_GetTerminationStatusExit FLAKY_GetTerminationStatusExit
 #endif
 
 TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusExit) {
