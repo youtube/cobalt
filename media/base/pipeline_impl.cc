@@ -872,7 +872,7 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
     // TODO(scherkus): should we run the callback?  I'm tempted to say the API
     // will only execute the first Seek() request.
     VLOG(1) << "Media pipeline has not started, ignoring seek to "
-              << time.InMicroseconds();
+            << time.InMicroseconds();
     return;
   }
 
