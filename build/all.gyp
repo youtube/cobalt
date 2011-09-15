@@ -122,6 +122,7 @@
             '../third_party/gles2_book/gles2_book.gyp:*',
             '../tools/memory_watcher/memory_watcher.gyp:*',
             '../ui/aura/aura.gyp:*',
+            '../ui/aura_shell/aura_shell.gyp:*',
           ],
         }, {
           'dependencies': [
