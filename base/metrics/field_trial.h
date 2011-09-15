@@ -54,7 +54,7 @@
 
 // HISTOGRAM_COUNTS("Memory.RendererTotal", count);  // The original histogram.
 // static const bool memory_renderer_total_trial_exists =
-//     FieldTrialList::TrialExists("Memory.RendererTotal");
+//     FieldTrialList::TrialExists("MemoryExperiment");
 // if (memory_renderer_total_trial_exists) {
 //   HISTOGRAM_COUNTS(FieldTrial::MakeName("Memory.RendererTotal",
 //                                         "MemoryExperiment"), count);
@@ -120,9 +120,6 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // Changes the field trial to use one-time randomization, i.e. produce the
   // same result for the current trial on every run of this client. Must be
   // called right after construction.
-  //
-  // Before using this method, |FieldTrialList::EnableOneTimeRandomization()|
-  // must be called exactly once.
   void UseOneTimeRandomization();
 
   // Disables this trial, meaning it always determines the default group
