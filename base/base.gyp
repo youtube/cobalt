@@ -66,6 +66,7 @@
       # base depends on base_static.
       'target_name': 'base_static',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'sources': [
         'base_switches.cc',
         'base_switches.h',
