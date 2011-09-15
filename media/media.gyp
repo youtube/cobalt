@@ -10,14 +10,6 @@
     {
       'target_name': 'media',
       'type': 'static_library',
-      'dependencies': [
-        'yuv_convert',
-        '../base/base.gyp:base',
-        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-        '../third_party/openmax/openmax.gyp:il',
-      ],
       'include_dirs': [
         '..',
       ],
@@ -225,6 +217,26 @@
         ],
       },
       'conditions': [
+        ['OS == "cell_lv2"', {
+          'sources/': [
+            ['exclude', '.*'],
+            ['include', 'base/seekable_buffer.cc'],
+            ['include', 'base/seekable_buffer.h'],
+            ['include', 'base/data_buffer.cc'],
+            ['include', 'base/data_buffer.h'],
+            ['include', 'base/buffers.cc'],
+            ['include', 'base/buffers.h'],
+          ]
+        }, { #else OS != "cell_lv2"
+          'dependencies': [
+            'yuv_convert',
+            '../base/base.gyp:base',
+            '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+            '../third_party/openmax/openmax.gyp:il'
+          ],
+        }],
         ['OS == "linux" or OS == "freebsd" or OS == "solaris"', {
           'link_settings': {
             'libraries': [
@@ -351,20 +363,33 @@
     {
       'target_name': 'ffmpeg_unittests',
       'type': 'executable',
-      'dependencies': [
-        'media',
-        'media_test_support',
-        '../base/base.gyp:base',
-        '../base/base.gyp:base_i18n',
-        '../base/base.gyp:test_support_base',
-        '../base/base.gyp:test_support_perf',
-        '../testing/gtest.gyp:gtest',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
       'sources': [
         'ffmpeg/ffmpeg_unittest.cc',
       ],
       'conditions': [
+        ['OS == "cell_lv2"', {
+          'sources/': [
+            ['exclude', '.*']
+          ]
+        }, { #else OS != "cell_lv2"
+          'dependencies': [
+            'media',
+            'media_test_support',
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../base/base.gyp:test_support_base',
+            '../base/base.gyp:test_support_perf',
+            '../testing/gtest.gyp:gtest',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+        }],
+        ['OS == "linux" or OS == "freebsd" or OS == "solaris"', {
+          'link_settings': {
+            'libraries': [
+              '-lasound',
+            ],
+          },
+        }],
         ['toolkit_uses_gtk == 1', {
           'dependencies': [
             # Needed for the following #include chain:
@@ -386,16 +411,6 @@
     {
       'target_name': 'media_unittests',
       'type': 'executable',
-      'dependencies': [
-        'media',
-        'media_test_support',
-        '../base/base.gyp:base',
-        '../base/base.gyp:base_i18n',
-        '../base/base.gyp:test_support_base',
-        '../testing/gmock.gyp:gmock',
-        '../testing/gtest.gyp:gtest',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
       'sources': [
         'audio/audio_input_controller_unittest.cc',
         'audio/audio_input_device_unittest.cc',
@@ -447,6 +462,22 @@
         'webm/cluster_builder.h',
       ],
       'conditions': [
+        ['OS == "cell_lv2"', {
+          'sources/': [
+            ['exclude', '.*']
+          ]
+        }, { #else OS != "cell_lv2"
+          'dependencies': [
+            'media',
+            'media_test_support',
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../base/base.gyp:test_support_base',
+            '../testing/gmock.gyp:gmock',
+            '../testing/gtest.gyp:gtest',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+        }],
         ['os_posix==1 and OS!="mac"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
@@ -483,14 +514,22 @@
     {
       'target_name': 'media_bench',
       'type': 'executable',
-      'dependencies': [
-        'media',
-        '../base/base.gyp:base',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
       'sources': [
         'tools/media_bench/media_bench.cc',
       ],
+      'conditions': [
+        ['OS == "cell_lv2"', {
+          'sources/': [
+            ['exclude', '.*']
+          ]
+        }, { #else OS != "cell_lv2"
+          'dependencies': [
+            'media',
+            '../base/base.gyp:base',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+        }]
+      ]
     },
     {
       'target_name': 'scaler_bench',
@@ -507,14 +546,22 @@
     {
       'target_name': 'ffmpeg_tests',
       'type': 'executable',
-      'dependencies': [
-        'media',
-        '../base/base.gyp:base',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
       'sources': [
         'test/ffmpeg_tests/ffmpeg_tests.cc',
       ],
+      'conditions': [
+        ['OS == "cell_lv2"', {
+          'sources/': [
+            ['exclude', '.*']
+          ]
+        }, { #else OS != "cell_lv2"
+          'dependencies': [
+            'media',
+            '../base/base.gyp:base',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+        }]
+      ]
     },
     {
       'target_name': 'wav_ola_test',
