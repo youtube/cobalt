@@ -82,6 +82,11 @@ MEDIA_EXPORT void InterleaveFloatToInt16(const std::vector<float*>& source,
 // Returns the default audio hardware sample-rate.
 MEDIA_EXPORT double GetAudioHardwareSampleRate();
 
+// Returns the optimal low-latency buffer size for the audio hardware.
+// This is the smallest buffer size the system can comfortably render
+// at without glitches.  The buffer size is in sample-frames.
+MEDIA_EXPORT size_t GetAudioHardwareBufferSize();
+
 // Functions that handle data buffer passed between processes in the shared
 // memory. Called on both IPC sides.
 
