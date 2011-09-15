@@ -63,25 +63,29 @@ bool AudioManagerLinux::HasAudioInputDevices() {
   }
 
   // Constants specified by the ALSA API for device hints.
-  static const int kGetAllDevices = -1;
   static const char kPcmInterfaceName[] = "pcm";
   bool has_device = false;
   void** hints = NULL;
+  int card = -1;
 
-  // Use the same approach to find the devices as in
-  // AlsaPcmOutputStream::FindDeviceForChannels
-  // Get Alsa device hints.
-  int error = wrapper_->DeviceNameHint(kGetAllDevices,
-                                       kPcmInterfaceName,
-                                       &hints);
-  if (error == 0) {
-    has_device = HasAnyValidAudioInputDevice(hints);
-  } else {
-    LOG(ERROR) << "Unable to get device hints: " << wrapper_->StrError(error);
+  // Loop through the sound cards to get Alsa device hints.
+  // Don't use snd_device_name_hint(-1,..) since there is a access violation
+  // inside this ALSA API with libasound.so.2.0.0.
+  while (!wrapper_->CardNext(&card) && (card >= 0) && !has_device) {
+    int error = wrapper_->DeviceNameHint(card,
+                                         kPcmInterfaceName,
+                                         &hints);
+    if (error == 0) {
+      has_device = HasAnyValidAudioInputDevice(hints);
+
+      // Destroy the hints now that we're done with it.
+      wrapper_->DeviceNameFreeHint(hints);
+      hints = NULL;
+    } else {
+      LOG(ERROR) << "Unable to get device hints: " << wrapper_->StrError(error);
+    }
   }
 
-  // Destroy the hint now that we're done with it.
-  wrapper_->DeviceNameFreeHint(hints);
   return has_device;
 }
 
