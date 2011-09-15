@@ -242,6 +242,23 @@ double GetAudioHardwareSampleRate()
 #endif
 }
 
+size_t GetAudioHardwareBufferSize() {
+  // The sizes here were determined by experimentation and are roughly
+  // the lowest value (for low latency) that still allowed glitch-free
+  // audio under high loads.
+  //
+  // For Mac OS X the chromium audio backend uses a low-latency
+  // CoreAudio API, so a low buffer size is possible.  For other OSes,
+  // further tuning may be needed.
+#if defined(OS_MACOSX)
+  return 128;
+#elif defined(OS_LINUX)
+  return 2048;
+#else
+  return 2048;
+#endif
+}
+
 // When transferring data in the shared memory, first word is size of data
 // in bytes. Actual data starts immediately after it.
 
