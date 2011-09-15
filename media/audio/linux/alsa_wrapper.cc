@@ -29,6 +29,10 @@ int AlsaWrapper::DeviceNameFreeHint(void** hints) {
   return snd_device_name_free_hint(hints);
 }
 
+int AlsaWrapper::CardNext(int* rcard) {
+  return snd_card_next(rcard);
+}
+
 int AlsaWrapper::PcmClose(snd_pcm_t* handle) {
   return snd_pcm_close(handle);
 }
