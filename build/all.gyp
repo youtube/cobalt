@@ -503,6 +503,16 @@
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
+        {
+          'target_name': 'webkit_builder_win',
+          'type': 'none',
+          'dependencies': [
+            '../webkit/webkit.gyp:test_shell',
+            '../webkit/webkit.gyp:test_shell_tests',
+            '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
+            '../webkit/webkit.gyp:pull_in_DumpRenderTree',
+          ],
+        },
       ],  # targets
       'conditions': [
         ['branding=="Chrome"', {
