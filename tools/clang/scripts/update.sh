@@ -79,6 +79,24 @@ fi
 # To always force a new build if someone interrupts their build half way.
 rm -f "${STAMP_FILE}"
 
+# Clobber pch files, since they only work with the compiler version that
+# created them.
+if [[ "${OS}" = "Darwin" ]]; then
+  XCODEBUILD_DIR="${THIS_DIR}/../../../xcodebuild"
+  MAKE_DIR="${THIS_DIR}/../../../out"
+  for CONFIG in Debug Release; do
+    if [[ -d "${MAKE_DIR}/${CONFIG}/obj.target" ]]; then
+      echo "Clobbering ${CONFIG} PCH files for make build"
+      find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.gch' -exec rm {} +
+    fi
+
+    if [[ -d "${XCODEBUILD_DIR}/${CONFIG}/SharedPrecompiledHeaders" ]]; then
+      echo "Clobbering ${CONFIG} PCH files for Xcode build"
+      rm -rf "${XCODEBUILD_DIR}/${CONFIG}/SharedPrecompiledHeaders"
+    fi
+  done
+fi
+
 if [ -z "$force_local_build" ]; then
   # Check if there's a prebuilt binary and if so just fetch that. That's faster,
   # and goma relies on having matching binary hashes on client and server too.
