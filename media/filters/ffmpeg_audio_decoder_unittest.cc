@@ -141,9 +141,9 @@ class FFmpegAudioDecoderTest : public testing::Test {
 TEST_F(FFmpegAudioDecoderTest, Initialize) {
   Initialize();
 
-  EXPECT_EQ(16, decoder_->config().bits_per_channel);
-  EXPECT_EQ(CHANNEL_LAYOUT_STEREO, decoder_->config().channel_layout);
-  EXPECT_EQ(44100, decoder_->config().sample_rate);
+  EXPECT_EQ(16, decoder_->bits_per_channel());
+  EXPECT_EQ(CHANNEL_LAYOUT_STEREO, decoder_->channel_layout());
+  EXPECT_EQ(44100, decoder_->sample_rate());
 
   Stop();
 }

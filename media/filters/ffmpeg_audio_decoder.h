@@ -21,8 +21,10 @@ class MEDIA_EXPORT FFmpegAudioDecoder
   virtual ~FFmpegAudioDecoder();
 
   // AudioDecoder implementation.
-  virtual AudioDecoderConfig config();
   virtual void ProduceAudioSamples(scoped_refptr<Buffer> output);
+  virtual int bits_per_channel();
+  virtual ChannelLayout channel_layout();
+  virtual int sample_rate();
 
  protected:
   virtual void DoInitialize(DemuxerStream* demuxer_stream, bool* success,
@@ -41,7 +43,10 @@ class MEDIA_EXPORT FFmpegAudioDecoder
   // is initialized in OnInitialize().
   AVCodecContext* codec_context_;
 
-  AudioDecoderConfig config_;
+  // Decoded audio format.
+  int bits_per_channel_;
+  ChannelLayout channel_layout_;
+  int sample_rate_;
 
   // Estimated timestamp for next packet. Useful for packets without timestamps.
   base::TimeDelta estimated_next_timestamp_;

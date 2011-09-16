@@ -15,15 +15,6 @@ AudioParameters::AudioParameters()
       channels(0) {
 }
 
-AudioParameters::AudioParameters(const media::AudioDecoderConfig& config)
-    : format(AUDIO_PCM_LINEAR),
-      channel_layout(config.channel_layout),
-      sample_rate(config.sample_rate),
-      bits_per_sample(config.bits_per_channel),
-      samples_per_packet(0),
-      channels(ChannelLayoutToChannelCount(config.channel_layout)) {
-}
-
 AudioParameters::AudioParameters(Format format, ChannelLayout channel_layout,
                                  int sample_rate, int bits_per_sample,
                                  int samples_per_packet)
