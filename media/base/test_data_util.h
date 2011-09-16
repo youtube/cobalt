@@ -23,7 +23,7 @@ void ReadTestDataFile(const std::string& name,
                       scoped_array<uint8>* buffer,
                       int* size);
 
-// Reads a test file from media/test/data directory and stored it in
+// Reads a test file from media/test/data directory and stores it in
 // a Buffer.
 //
 //  |name| - The name of the file.
