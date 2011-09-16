@@ -105,10 +105,10 @@ MEDIA_EXPORT bool GetStreamByteCountOverRange(AVStream* stream,
                                               base::TimeDelta* range_start,
                                               base::TimeDelta* range_end);
 
-// Calculates the natural width and height of the video using the video's
+// Calculates the width and height of the video surface using the video's
 // encoded dimensions and sample_aspect_ratio.
-int GetNaturalHeight(AVStream* stream);
-int GetNaturalWidth(AVStream* stream);
+int GetSurfaceHeight(AVStream* stream);
+int GetSurfaceWidth(AVStream* stream);
 
 // Closes & destroys all AVStreams in the context and then closes &
 // destroys the AVFormatContext.

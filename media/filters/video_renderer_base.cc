@@ -148,7 +148,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
                  base::Unretained(this)));
 
   // Notify the pipeline of the video dimensions.
-  host()->SetNaturalVideoSize(decoder_->natural_size());
+  host()->SetVideoSize(decoder_->width(), decoder_->height());
 
   // Initialize the subclass.
   // TODO(scherkus): do we trust subclasses not to do something silly while
