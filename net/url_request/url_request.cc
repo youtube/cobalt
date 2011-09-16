@@ -243,7 +243,11 @@ void URLRequest::SetExtraRequestHeaderByName(const string& name,
                                              const string& value,
                                              bool overwrite) {
   DCHECK(!is_pending_);
-  NOTREACHED() << "implement me!";
+  if (overwrite) {
+    extra_request_headers_.SetHeader(name, value);
+  } else {
+    extra_request_headers_.SetHeaderIfMissing(name, value);
+  }
 }
 
 void URLRequest::SetExtraRequestHeaders(

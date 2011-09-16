@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "base/basictypes.h"
+#include "base/string_util.h"
 #include "net/http/http_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -12,6 +13,84 @@ using net::HttpUtil;
 
 namespace {
 class HttpUtilTest : public testing::Test {};
+}
+
+TEST(HttpUtilTest, IsSafeHeader) {
+  static const char* unsafe_headers[] = {
+    "sec-",
+    "sEc-",
+    "sec-foo",
+    "sEc-FoO",
+    "proxy-",
+    "pRoXy-",
+    "proxy-foo",
+    "pRoXy-FoO",
+    "accept-charset",
+    "accept-encoding",
+    "connection",
+    "content-length",
+    "cookie",
+    "cookie2",
+    "content-transfer-encoding",
+    "date",
+    "expect",
+    "host",
+    "keep-alive",
+    "origin",
+    "referer",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "user-agent",
+    "via",
+  };
+  for (size_t i = 0; i < arraysize(unsafe_headers); ++i) {
+    EXPECT_FALSE(HttpUtil::IsSafeHeader(unsafe_headers[i]))
+      << unsafe_headers[i];
+    EXPECT_FALSE(HttpUtil::IsSafeHeader(StringToUpperASCII(std::string(
+        unsafe_headers[i])))) << unsafe_headers[i];
+  }
+  static const char* safe_headers[] = {
+    "foo",
+    "x-",
+    "x-foo",
+    "content-disposition",
+    "update",
+    "accept-charseta",
+    "accept_charset",
+    "accept-encodinga",
+    "accept_encoding",
+    "connectiona",
+    "content-lengtha",
+    "content_length",
+    "cookiea",
+    "cookie2a",
+    "cookie3",
+    "content-transfer-encodinga",
+    "content_transfer_encoding",
+    "datea",
+    "expecta",
+    "hosta",
+    "keep-alivea",
+    "keep_alive",
+    "origina",
+    "referera",
+    "referrer",
+    "tea",
+    "trailera",
+    "transfer-encodinga",
+    "transfer_encoding",
+    "upgradea",
+    "user-agenta",
+    "user_agent",
+    "viaa",
+  };
+  for (size_t i = 0; i < arraysize(safe_headers); ++i) {
+    EXPECT_TRUE(HttpUtil::IsSafeHeader(safe_headers[i])) << safe_headers[i];
+    EXPECT_TRUE(HttpUtil::IsSafeHeader(StringToUpperASCII(std::string(
+        safe_headers[i])))) << safe_headers[i];
+  }
 }
 
 TEST(HttpUtilTest, HasHeader) {
