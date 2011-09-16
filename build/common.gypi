@@ -662,6 +662,9 @@
       ['use_only_pure_views==1', {
         'grit_defines': ['-D', 'use_only_pure_views'],
       }],
+      ['use_aura==1', {
+        'grit_defines': ['-D', 'use_aura'],
+      }],
       ['touchui==1', {
         'grit_defines': ['-D', 'touchui'],
       }],
