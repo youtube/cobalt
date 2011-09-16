@@ -145,6 +145,6 @@ void LinearScaleYUVToRGB32Row_MMX_X64(const uint8* y_buf,
                                       int width,
                                       int source_dx);
 
-}
+}  // extern "C"
 
 #endif  // MEDIA_BASE_SIMD_CONVERT_YUV_TO_RGB_H_

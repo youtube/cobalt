@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 #include "media/base/simd/convert_yuv_to_rgb.h"
-// TODO(hclam): Shouldn't depend on yuv_row.h.
-#include "media/base/yuv_row.h"
+#include "media/base/simd/yuv_to_rgb_table.h"
 
 #define packuswb(x) ((x) < 0 ? 0 : ((x) > 255 ? 255 : (x)))
 #define paddsw(x, y) (((x) + (y)) < -32768 ? -32768 : \

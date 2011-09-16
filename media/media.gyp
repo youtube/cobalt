@@ -357,12 +357,6 @@
       'sources': [
         'base/yuv_convert.cc',
         'base/yuv_convert.h',
-        'base/yuv_convert_internal.h',
-        'base/yuv_convert_c.cc',
-        'base/yuv_row_win.cc',
-        'base/yuv_row_posix.cc',
-        'base/yuv_row_table.cc',
-        'base/yuv_row.h',
       ],
     },
     {
@@ -372,9 +366,10 @@
         '..',
       ],
       'sources': [
-        'base/yuv_convert_sse2.cc',
-        'base/simd/convert_rgb_to_yuv_x86.cc',
+        'base/simd/convert_rgb_to_yuv_c.cc',
+        'base/simd/convert_rgb_to_yuv_sse2.cc',
         'base/simd/convert_rgb_to_yuv_ssse3.asm',
+        'base/simd/convert_rgb_to_yuv_ssse3.cc',
         'base/simd/convert_rgb_to_yuv_ssse3.inc',
         'base/simd/convert_yuv_to_rgb_c.cc',
         'base/simd/convert_yuv_to_rgb_x86.cc',
@@ -391,6 +386,8 @@
         'base/simd/scale_yuv_to_rgb_mmx.asm',
         'base/simd/scale_yuv_to_rgb_mmx.inc',
         'base/simd/scale_yuv_to_rgb_sse.asm',
+	'base/simd/yuv_to_rgb_table.cc',
+	'base/simd/yuv_to_rgb_table.h',
       ],
       'conditions': [
         [ 'target_arch == "x64"', {
@@ -481,9 +478,14 @@
         '..',
       ],
       'sources': [
+        'base/simd/convert_rgb_to_yuv_c.cc',
+	'base/simd/convert_rgb_to_yuv.h',
         'base/simd/convert_yuv_to_rgb_c.cc',
+	'base/simd/convert_yuv_to_rgb.h',
         'base/simd/filter_yuv.h',
         'base/simd/filter_yuv_c.cc',
+	'base/simd/yuv_to_rgb_table.cc',
+	'base/simd/yuv_to_rgb_table.h',
       ],
     },
     {
