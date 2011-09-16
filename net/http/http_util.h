@@ -70,6 +70,10 @@ class NET_EXPORT HttpUtil {
   // TODO(darin): kill this
   static bool HasHeader(const std::string& headers, const char* name);
 
+  // Returns true if it is safe to allow users and scripts to specify the header
+  // named |name|.
+  static bool IsSafeHeader(const std::string& name);
+
   // Strips all header lines from |headers| whose name matches
   // |headers_to_remove|. |headers_to_remove| is a list of null-terminated
   // lower-case header names, with array length |headers_to_remove_len|.

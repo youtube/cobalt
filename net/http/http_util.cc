@@ -302,6 +302,46 @@ bool HttpUtil::HasHeader(const std::string& headers, const char* name) {
   return true;
 }
 
+namespace {
+// A header string containing any of the following fields will cause
+// an error. The list comes from the XMLHttpRequest standard.
+// http://www.w3.org/TR/XMLHttpRequest/#the-setrequestheader-method
+const char* const kForbiddenHeaderFields[] = {
+  "accept-charset",
+  "accept-encoding",
+  "connection",
+  "content-length",
+  "cookie",
+  "cookie2",
+  "content-transfer-encoding",
+  "date",
+  "expect",
+  "host",
+  "keep-alive",
+  "origin",
+  "referer",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+  "user-agent",
+  "via",
+};
+}  // anonymous namespace
+
+// static
+bool HttpUtil::IsSafeHeader(const std::string& name) {
+  std::string lower_name(StringToLowerASCII(name));
+  if (StartsWithASCII(lower_name, "proxy-", true) ||
+      StartsWithASCII(lower_name, "sec-", true))
+    return false;
+  for (size_t i = 0; i < arraysize(kForbiddenHeaderFields); ++i) {
+    if (lower_name == kForbiddenHeaderFields[i])
+      return false;
+  }
+  return true;
+}
+
 // static
 std::string HttpUtil::StripHeaders(const std::string& headers,
                                    const char* const headers_to_remove[],
