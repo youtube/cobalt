@@ -58,7 +58,8 @@ class VideoRendererBaseTest : public ::testing::Test {
     EXPECT_CALL(*decoder_, ProduceVideoFrame(_))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::EnqueueCallback));
 
-    EXPECT_CALL(*decoder_, natural_size()).WillRepeatedly(Return(kNaturalSize));
+    EXPECT_CALL(*decoder_, width()).WillRepeatedly(Return(kWidth));
+    EXPECT_CALL(*decoder_, height()).WillRepeatedly(Return(kHeight));
 
     EXPECT_CALL(stats_callback_object_, OnStatistics(_))
         .Times(AnyNumber());
@@ -91,7 +92,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     InSequence s;
 
     // We expect the video size to be set.
-    EXPECT_CALL(host_, SetNaturalVideoSize(kNaturalSize));
+    EXPECT_CALL(host_, SetVideoSize(kWidth, kHeight));
 
     // Then our subclass will be asked to initialize.
     EXPECT_CALL(*renderer_, OnInitialize(_))
@@ -147,8 +148,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   void CreateFrame(int64 timestamp, int64 duration) {
     const base::TimeDelta kZero;
     scoped_refptr<VideoFrame> frame =
-        VideoFrame::CreateFrame(VideoFrame::RGB32, kNaturalSize.width(),
-                                kNaturalSize.height(),
+        VideoFrame::CreateFrame(VideoFrame::RGB32, kWidth, kHeight,
                                 base::TimeDelta::FromMicroseconds(timestamp),
                                 base::TimeDelta::FromMicroseconds(duration));
     decoder_->VideoFrameReadyForTest(frame);
@@ -162,7 +162,8 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
  protected:
-  static const gfx::Size kNaturalSize;
+  static const size_t kWidth;
+  static const size_t kHeight;
   static const int64 kDuration;
 
   StatisticsCallback* NewStatisticsCallback() {
@@ -195,7 +196,8 @@ class VideoRendererBaseTest : public ::testing::Test {
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBaseTest);
 };
 
-const gfx::Size VideoRendererBaseTest::kNaturalSize(16u, 16u);
+const size_t VideoRendererBaseTest::kWidth = 16u;
+const size_t VideoRendererBaseTest::kHeight = 16u;
 const int64 VideoRendererBaseTest::kDuration = 10;
 
 // Test initialization where the subclass failed for some reason.
@@ -203,7 +205,7 @@ TEST_F(VideoRendererBaseTest, Initialize_Failed) {
   InSequence s;
 
   // We expect the video size to be set.
-  EXPECT_CALL(host_, SetNaturalVideoSize(kNaturalSize));
+  EXPECT_CALL(host_, SetVideoSize(kWidth, kHeight));
 
   // Our subclass will fail when asked to initialize.
   EXPECT_CALL(*renderer_, OnInitialize(_))
