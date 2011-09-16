@@ -184,8 +184,7 @@ class MockVideoDecoder : public VideoDecoder {
                                 FilterCallback* callback,
                                 StatisticsCallback* stats_callback));
   MOCK_METHOD1(ProduceVideoFrame, void(scoped_refptr<VideoFrame>));
-  MOCK_METHOD0(width, int());
-  MOCK_METHOD0(height, int());
+  MOCK_METHOD0(natural_size, gfx::Size());
 
   void VideoFrameReadyForTest(scoped_refptr<VideoFrame> frame) {
     VideoDecoder::VideoFrameReady(frame);
