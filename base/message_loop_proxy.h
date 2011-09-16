@@ -87,7 +87,7 @@ class BASE_EXPORT MessageLoopProxy
   // };
   //
   //
-  // class DataLoader : public SupportsWeakPtr<ReadToBuffer> {
+  // class DataLoader : public SupportsWeakPtr<DataLoader> {
   //  public:
   //    void GetData() {
   //      scoped_refptr<DataBuffer> buffer = new DataBuffer();
