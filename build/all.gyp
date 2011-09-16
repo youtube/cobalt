@@ -90,7 +90,7 @@
             }],
           ],
         }],
-        ['use_wayland == 1', {
+        ['use_wayland==1', {
           'dependencies': [
             '../ui/wayland/wayland.gyp:*',
           ],
@@ -121,7 +121,6 @@
             '../third_party/bspatch/bspatch.gyp:*',
             '../third_party/gles2_book/gles2_book.gyp:*',
             '../tools/memory_watcher/memory_watcher.gyp:*',
-            '../ui/aura/aura.gyp:*',
           ],
         }, {
           'dependencies': [
@@ -131,6 +130,12 @@
         ['toolkit_views==1', {
           'dependencies': [
             '../views/views.gyp:*',
+          ],
+        }],
+        ['use_aura==1', {
+          'dependencies': [
+            '../ui/aura/aura.gyp:*',
+            '../ui/aura_shell/aura_shell.gyp:*',
           ],
         }],
         ['remoting==1', {
