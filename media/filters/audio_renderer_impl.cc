@@ -72,9 +72,11 @@ void AudioRendererImpl::OnError(AudioOutputStream* stream, int code) {
   NOTIMPLEMENTED();
 }
 
-bool AudioRendererImpl::OnInitialize(const AudioDecoderConfig& config) {
-  AudioParameters params(config);
-  params.samples_per_packet = kSamplesPerBuffer;
+bool AudioRendererImpl::OnInitialize(int bits_per_channel,
+                                     ChannelLayout channel_layout,
+                                     int sample_rate) {
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, channel_layout,
+                         sample_rate, bits_per_channel, kSamplesPerBuffer);
 
   bytes_per_second_ = params.GetBytesPerSecond();
 

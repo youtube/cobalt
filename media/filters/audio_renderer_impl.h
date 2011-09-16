@@ -45,7 +45,9 @@ class MEDIA_EXPORT AudioRendererImpl
 
  protected:
   // AudioRendererBase implementation.
-  virtual bool OnInitialize(const AudioDecoderConfig& config);
+  virtual bool OnInitialize(int bits_per_channel,
+                            ChannelLayout channel_layout,
+                            int sample_rate);
   virtual void OnStop();
 
  private:
