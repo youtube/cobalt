@@ -214,9 +214,10 @@
       'enable_webrtc%': 1,
 
       'conditions': [
-        # Use Skia as WebKit renderer on Mac
         ['OS=="mac"', {
           'use_skia%': 0,
+          # Mac uses clang by default, so turn on the plugin as well.
+          'clang_use_chrome_plugins%': 1,
         }, {
           'use_skia%': 1,
         }],
