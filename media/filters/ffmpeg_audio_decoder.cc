@@ -29,7 +29,9 @@ const size_t FFmpegAudioDecoder::kOutputBufferSize =
 FFmpegAudioDecoder::FFmpegAudioDecoder(MessageLoop* message_loop)
     : DecoderBase<AudioDecoder, Buffer>(message_loop),
       codec_context_(NULL),
-      config_(0, CHANNEL_LAYOUT_NONE, 0),
+      bits_per_channel_(0),
+      channel_layout_(CHANNEL_LAYOUT_NONE),
+      sample_rate_(0),
       estimated_next_timestamp_(kNoTimestamp) {
 }
 
@@ -70,12 +72,11 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
     return;
   }
 
-  config_.bits_per_channel =
-      av_get_bits_per_sample_fmt(codec_context_->sample_fmt);
-  config_.channel_layout =
+  bits_per_channel_ = av_get_bits_per_sample_fmt(codec_context_->sample_fmt);
+  channel_layout_ =
       ChannelLayoutToChromeChannelLayout(codec_context_->channel_layout,
                                          codec_context_->channels);
-  config_.sample_rate = codec_context_->sample_rate;
+  sample_rate_ = codec_context_->sample_rate;
 
   // Prepare the output buffer.
   output_buffer_.reset(static_cast<uint8*>(av_malloc(kOutputBufferSize)));
@@ -86,12 +87,20 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
   *success = true;
 }
 
-AudioDecoderConfig FFmpegAudioDecoder::config() {
-  return config_;
-}
-
 void FFmpegAudioDecoder::ProduceAudioSamples(scoped_refptr<Buffer> output) {
   DecoderBase<AudioDecoder, Buffer>::PostReadTaskHack(output);
+}
+
+int FFmpegAudioDecoder::bits_per_channel() {
+  return bits_per_channel_;
+}
+
+ChannelLayout FFmpegAudioDecoder::channel_layout() {
+  return channel_layout_;
+}
+
+int FFmpegAudioDecoder::sample_rate() {
+  return sample_rate_;
 }
 
 void FFmpegAudioDecoder::DoSeek(base::TimeDelta time, Task* done_cb) {

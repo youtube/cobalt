@@ -6,7 +6,7 @@
 #define MEDIA_AUDIO_AUDIO_PARAMETERS_H_
 
 #include "base/basictypes.h"
-#include "media/base/audio_decoder_config.h"
+#include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
 
 struct MEDIA_EXPORT AudioParameters {
@@ -31,9 +31,6 @@ struct MEDIA_EXPORT AudioParameters {
   static const uint32 kAudioDATSampleRate = 48000;
 
   AudioParameters();
-
-  explicit AudioParameters(const media::AudioDecoderConfig& config);
-
   AudioParameters(Format format, ChannelLayout channel_layout, int sample_rate,
                   int bits_per_sample, int samples_per_packet);
 
