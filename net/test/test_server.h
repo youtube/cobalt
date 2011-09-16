@@ -206,6 +206,9 @@ class TestServer {
   // Has the server been started?
   bool started_;
 
+  // Enables logging of the server to the console.
+  bool log_to_console_;
+
   DISALLOW_COPY_AND_ASSIGN(TestServer);
 };
 
