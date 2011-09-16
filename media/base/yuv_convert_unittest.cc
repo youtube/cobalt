@@ -8,10 +8,9 @@
 #include "base/path_service.h"
 #include "media/base/cpu_features.h"
 #include "media/base/djb2.h"
+#include "media/base/simd/convert_rgb_to_yuv.h"
 #include "media/base/simd/convert_yuv_to_rgb.h"
 #include "media/base/yuv_convert.h"
-#include "media/base/yuv_convert_internal.h"
-#include "media/base/yuv_row.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Size of raw image.

@@ -23,8 +23,6 @@
 #include "media/base/simd/convert_rgb_to_yuv.h"
 #include "media/base/simd/convert_yuv_to_rgb.h"
 #include "media/base/simd/filter_yuv.h"
-#include "media/base/yuv_convert_internal.h"
-#include "media/base/yuv_row.h"
 
 #if defined(ARCH_CPU_X86_FAMILY)
 #if defined(COMPILER_MSVC)
@@ -326,7 +324,24 @@ void ConvertYUY2ToYUV(const uint8* src,
                       uint8* vplane,
                       int width,
                       int height) {
-  ConvertYUY2ToYUV_C(src, yplane, uplane, vplane, width, height);
+  for (int i = 0; i < height / 2; ++i) {
+    for (int j = 0; j < (width / 2); ++j) {
+      yplane[0] = src[0];
+      *uplane = src[1];
+      yplane[1] = src[2];
+      *vplane = src[3];
+      src += 4;
+      yplane += 2;
+      uplane++;
+      vplane++;
+    }
+    for (int j = 0; j < (width / 2); ++j) {
+      yplane[0] = src[0];
+      yplane[1] = src[2];
+      src += 4;
+      yplane += 2;
+    }
+  }
 }
 
 void ConvertYUVToRGB32(const uint8* yplane,
