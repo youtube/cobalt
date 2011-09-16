@@ -712,6 +712,23 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
                                        "foo.kyps.net",
                                        false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "foo.app.recurly.com",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "foo.api.recurly.com",
+                                      false));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "greplin.com",
+                                      false));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "www.greplin.com",
+                                      false));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state,
+                                       "foo.greplin.com",
+                                       false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
