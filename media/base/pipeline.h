@@ -147,9 +147,10 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // determined or can not be determined, this value is 0.
   virtual int64 GetTotalBytes() const = 0;
 
-  // Gets the size of the video output in pixel units.  If there is no video
-  // or the video has not been rendered yet, the width and height will be 0.
-  virtual void GetVideoSize(size_t* width_out, size_t* height_out) const = 0;
+  // Gets the natural size of the video output in pixel units.  If there is no
+  // video or the video has not been rendered yet, the width and height will
+  // be 0.
+  virtual void GetNaturalVideoSize(gfx::Size* out_size) const = 0;
 
   // If this method returns true, that means the data source is a streaming
   // data source. Seeking may not be possible.

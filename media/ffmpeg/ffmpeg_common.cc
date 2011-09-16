@@ -187,11 +187,11 @@ bool GetStreamByteCountOverRange(AVStream* stream,
   return true;
 }
 
-int GetSurfaceHeight(AVStream* stream) {
+int GetNaturalHeight(AVStream* stream) {
   return stream->codec->height;
 }
 
-int GetSurfaceWidth(AVStream* stream) {
+int GetNaturalWidth(AVStream* stream) {
   double aspect_ratio;
 
   if (stream->sample_aspect_ratio.num)

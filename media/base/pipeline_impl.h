@@ -25,6 +25,7 @@
 #include "media/base/demuxer.h"
 #include "media/base/filter_host.h"
 #include "media/base/pipeline.h"
+#include "ui/gfx/size.h"
 
 namespace media {
 
@@ -101,32 +102,32 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   // Pipeline implementation.
   virtual void Init(const PipelineStatusCB& ended_callback,
                     const PipelineStatusCB& error_callback,
-                    const PipelineStatusCB& network_callback);
+                    const PipelineStatusCB& network_callback) OVERRIDE;
   virtual bool Start(FilterCollection* filter_collection,
                      const std::string& uri,
-                     const PipelineStatusCB& start_callback);
-  virtual void Stop(const PipelineStatusCB& stop_callback);
+                     const PipelineStatusCB& start_callback) OVERRIDE;
+  virtual void Stop(const PipelineStatusCB& stop_callback) OVERRIDE;
   virtual void Seek(base::TimeDelta time,
-                    const PipelineStatusCB& seek_callback);
-  virtual bool IsRunning() const;
-  virtual bool IsInitialized() const;
-  virtual bool IsNetworkActive() const;
-  virtual bool HasAudio() const;
-  virtual bool HasVideo() const;
-  virtual float GetPlaybackRate() const;
-  virtual void SetPlaybackRate(float playback_rate);
-  virtual float GetVolume() const;
-  virtual void SetVolume(float volume);
-  virtual void SetPreload(Preload preload);
-  virtual base::TimeDelta GetCurrentTime() const;
-  virtual base::TimeDelta GetBufferedTime();
-  virtual base::TimeDelta GetMediaDuration() const;
-  virtual int64 GetBufferedBytes() const;
-  virtual int64 GetTotalBytes() const;
-  virtual void GetVideoSize(size_t* width_out, size_t* height_out) const;
-  virtual bool IsStreaming() const;
-  virtual bool IsLoaded() const;
-  virtual PipelineStatistics GetStatistics() const;
+                    const PipelineStatusCB& seek_callback) OVERRIDE;
+  virtual bool IsRunning() const OVERRIDE;
+  virtual bool IsInitialized() const OVERRIDE;
+  virtual bool IsNetworkActive() const OVERRIDE;
+  virtual bool HasAudio() const OVERRIDE;
+  virtual bool HasVideo() const OVERRIDE;
+  virtual float GetPlaybackRate() const OVERRIDE;
+  virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
+  virtual float GetVolume() const OVERRIDE;
+  virtual void SetVolume(float volume) OVERRIDE;
+  virtual void SetPreload(Preload preload) OVERRIDE;
+  virtual base::TimeDelta GetCurrentTime() const OVERRIDE;
+  virtual base::TimeDelta GetBufferedTime() OVERRIDE;
+  virtual base::TimeDelta GetMediaDuration() const OVERRIDE;
+  virtual int64 GetBufferedBytes() const OVERRIDE;
+  virtual int64 GetTotalBytes() const OVERRIDE;
+  virtual void GetNaturalVideoSize(gfx::Size* out_size) const OVERRIDE;
+  virtual bool IsStreaming() const OVERRIDE;
+  virtual bool IsLoaded() const OVERRIDE;
+  virtual PipelineStatistics GetStatistics() const OVERRIDE;
 
   void SetClockForTesting(Clock* clock);
 
@@ -190,22 +191,22 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   State FindNextState(State current);
 
   // FilterHost implementation.
-  virtual void SetError(PipelineStatus error);
-  virtual base::TimeDelta GetTime() const;
-  virtual base::TimeDelta GetDuration() const;
-  virtual void SetTime(base::TimeDelta time);
-  virtual void SetDuration(base::TimeDelta duration);
-  virtual void SetBufferedTime(base::TimeDelta buffered_time);
-  virtual void SetTotalBytes(int64 total_bytes);
-  virtual void SetBufferedBytes(int64 buffered_bytes);
-  virtual void SetVideoSize(size_t width, size_t height);
-  virtual void SetStreaming(bool streamed);
-  virtual void SetLoaded(bool loaded);
-  virtual void SetNetworkActivity(bool network_activity);
-  virtual void NotifyEnded();
-  virtual void DisableAudioRenderer();
-  virtual void SetCurrentReadPosition(int64 offset);
-  virtual int64 GetCurrentReadPosition();
+  virtual void SetError(PipelineStatus error) OVERRIDE;
+  virtual base::TimeDelta GetTime() const OVERRIDE;
+  virtual base::TimeDelta GetDuration() const OVERRIDE;
+  virtual void SetTime(base::TimeDelta time) OVERRIDE;
+  virtual void SetDuration(base::TimeDelta duration) OVERRIDE;
+  virtual void SetBufferedTime(base::TimeDelta buffered_time) OVERRIDE;
+  virtual void SetTotalBytes(int64 total_bytes) OVERRIDE;
+  virtual void SetBufferedBytes(int64 buffered_bytes) OVERRIDE;
+  virtual void SetNaturalVideoSize(const gfx::Size& size) OVERRIDE;
+  virtual void SetStreaming(bool streamed) OVERRIDE;
+  virtual void SetLoaded(bool loaded) OVERRIDE;
+  virtual void SetNetworkActivity(bool network_activity) OVERRIDE;
+  virtual void NotifyEnded() OVERRIDE;
+  virtual void DisableAudioRenderer() OVERRIDE;
+  virtual void SetCurrentReadPosition(int64 offset) OVERRIDE;
+  virtual int64 GetCurrentReadPosition() OVERRIDE;
 
   // Callback executed by filters upon completing initialization.
   void OnFilterInitialize();
@@ -371,9 +372,8 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   // Total size of the media.  Set by filters.
   int64 total_bytes_;
 
-  // Video width and height.  Set by filters.
-  size_t video_width_;
-  size_t video_height_;
+  // Video's natural width and height.  Set by filters.
+  gfx::Size natural_size_;
 
   // Sets by the filters to indicate whether the data source is a streaming
   // source.
