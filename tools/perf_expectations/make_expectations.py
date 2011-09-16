@@ -23,7 +23,7 @@ except ImportError:
 
 __version__ = '1.0'
 DEFAULT_CONFIG_FILE = 'chromium_perf_expectations.cfg'
-DEFAULT_VARIANCE = 0.05
+DEFAULT_TOLERANCE = 0.05
 USAGE = ''
 
 
@@ -82,8 +82,8 @@ def GetRowData(data, key):
   for subkey in ['type']:
     if subkey in data[key]:
       rowdata.append('"%s": "%s"' % (subkey, data[key][subkey]))
-  # Finally improve/regress numbers come last.
-  for subkey in ['improve', 'regress']:
+  # Finally the main numbers come last.
+  for subkey in ['improve', 'regress', 'tolerance']:
     if subkey in data[key]:
       rowdata.append('"%s": %s' % (subkey, data[key][subkey]))
   return rowdata
@@ -159,7 +159,7 @@ def Main(args):
   write_new_expectations = False
   for key in perfkeys:
     value = perf[key]
-    variance = DEFAULT_VARIANCE
+    tolerance = value.get('tolerance', DEFAULT_TOLERANCE)
 
     # Verify the checksum.
     original_checksum = value.get('sha1', '')
@@ -276,11 +276,11 @@ def Main(args):
       regress = improve
       improve = temp
     if regress < improve:
-      regress = int(math.floor(regress - abs(regress*variance)))
-      improve = int(math.ceil(improve + abs(improve*variance)))
+      regress = int(math.floor(regress - abs(regress*tolerance)))
+      improve = int(math.ceil(improve + abs(improve*tolerance)))
     else:
-      improve = int(math.floor(improve - abs(improve*variance)))
-      regress = int(math.ceil(regress + abs(regress*variance)))
+      improve = int(math.floor(improve - abs(improve*tolerance)))
+      regress = int(math.ceil(regress + abs(regress*tolerance)))
 
     # Calculate the new checksum to test if this is the only thing that may have
     # changed.
