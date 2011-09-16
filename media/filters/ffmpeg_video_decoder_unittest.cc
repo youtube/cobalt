@@ -33,9 +33,8 @@ using ::testing::Invoke;
 
 namespace media {
 
-static const gfx::Size kCodedSize(1280, 720);
-static const gfx::Rect kVisibleRect(1280, 720);
-static const gfx::Size kNaturalSize(1280, 720);
+static const int kWidth = 1280;
+static const int kHeight = 720;
 
 // Holds timestamp and duration data needed for properly enqueuing a frame.
 struct TimeTuple {
@@ -98,7 +97,8 @@ class DecoderPrivateMock : public FFmpegVideoDecoder {
 ACTION_P2(EngineInitialize, engine, success) {
   engine->event_handler_ = arg1;
   engine->info_.success = success;
-  engine->info_.natural_size = kNaturalSize;
+  engine->info_.surface_width = kWidth;
+  engine->info_.surface_height = kHeight;
   engine->event_handler_->OnInitializeComplete(engine->info_);
 }
 
@@ -143,13 +143,11 @@ class FFmpegVideoDecoderTest : public testing::Test {
     memset(&codec_, 0, sizeof(codec_));
     memset(&yuv_frame_, 0, sizeof(yuv_frame_));
     base::TimeDelta zero;
-    video_frame_ = VideoFrame::CreateFrame(VideoFrame::YV12,
-                                           kVisibleRect.width(),
-                                           kVisibleRect.height(),
+    video_frame_ = VideoFrame::CreateFrame(VideoFrame::YV12, kWidth, kHeight,
                                            zero, zero);
     stream_.codec = &codec_context_;
-    codec_context_.width = kVisibleRect.width();
-    codec_context_.height = kVisibleRect.height();
+    codec_context_.width = kWidth;
+    codec_context_.height = kHeight;
     codec_context_.codec_id = CODEC_ID_H264;
     stream_.r_frame_rate.num = 1;
     stream_.r_frame_rate.den = 1;
@@ -245,7 +243,8 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_Successful) {
 
   // Test that the uncompressed video surface matches the dimensions
   // specified by FFmpeg.
-  EXPECT_EQ(kNaturalSize, decoder_->natural_size());
+  EXPECT_EQ(kWidth, decoder_->width());
+  EXPECT_EQ(kHeight, decoder_->height());
 }
 
 TEST_F(FFmpegVideoDecoderTest, OnError) {

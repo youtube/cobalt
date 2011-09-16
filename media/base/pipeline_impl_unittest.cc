@@ -308,10 +308,11 @@ TEST_F(PipelineImplTest, NotStarted) {
   EXPECT_EQ(0, pipeline_->GetTotalBytes());
 
   // Should always get set to zero.
-  gfx::Size size(1, 1);
-  pipeline_->GetNaturalVideoSize(&size);
-  EXPECT_EQ(0, size.width());
-  EXPECT_EQ(0, size.height());
+  size_t width = 1u;
+  size_t height = 1u;
+  pipeline_->GetVideoSize(&width, &height);
+  EXPECT_EQ(0u, width);
+  EXPECT_EQ(0u, height);
 }
 
 TEST_F(PipelineImplTest, NeverInitializes) {

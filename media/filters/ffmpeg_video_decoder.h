@@ -39,7 +39,8 @@ class MEDIA_EXPORT FFmpegVideoDecoder
                           StatisticsCallback* stats_callback) OVERRIDE;
   virtual void ProduceVideoFrame(
       scoped_refptr<VideoFrame> video_frame) OVERRIDE;
-  virtual gfx::Size natural_size() OVERRIDE;
+  virtual int width() OVERRIDE;
+  virtual int height() OVERRIDE;
 
  private:
   // VideoDecodeEngine::EventHandler interface.
