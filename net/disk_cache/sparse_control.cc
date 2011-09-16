@@ -673,7 +673,7 @@ void SparseControl::DoChildrenIO() {
       entry_->net_log().EndEvent(GetSparseEventType(operation_), NULL);
     }
     if (pending_)
-      DoUserCallback();
+      DoUserCallback();  // Don't touch this object after this point.
   }
 }
 
@@ -819,8 +819,14 @@ void SparseControl::OnChildIOCompleted(int result) {
       entry_->net_log().AddEvent(net::NetLog::TYPE_CANCELLED, NULL);
       entry_->net_log().EndEvent(GetSparseEventType(operation_), NULL);
     }
+    // We have an indirect reference to this object for every callback so if
+    // there is only one callback, we may delete this object before reaching
+    // DoAbortCallbacks.
+    bool has_abort_callbacks = !abort_callbacks_.empty();
     DoUserCallback();
-    return DoAbortCallbacks();
+    if (has_abort_callbacks)
+      DoAbortCallbacks();
+    return;
   }
 
   // We are running a callback from the message loop. It's time to restart what
