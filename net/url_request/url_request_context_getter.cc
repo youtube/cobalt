@@ -21,11 +21,10 @@ void URLRequestContextGetter::OnDestruct() const {
       GetIOMessageLoopProxy();
   DCHECK(io_message_loop_proxy);
   if (io_message_loop_proxy) {
-    if (io_message_loop_proxy->BelongsToCurrentThread()) {
+    if (io_message_loop_proxy->BelongsToCurrentThread())
       delete this;
-    } else {
+    else
       io_message_loop_proxy->DeleteSoon(FROM_HERE, this);
-    }
   }
   // If no IO message loop proxy was available, we will just leak memory.
   // This is also true if the IO thread is gone.
