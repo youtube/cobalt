@@ -574,6 +574,7 @@
         'filters/bitstream_converter_unittest.cc',
         'filters/chunk_demuxer_unittest.cc',
         'filters/decoder_base_unittest.cc',
+        'filters/ffmpeg_audio_decoder_unittest.cc',
         'filters/ffmpeg_demuxer_unittest.cc',
         'filters/ffmpeg_glue_unittest.cc',
         'filters/ffmpeg_h264_bitstream_converter_unittest.cc',

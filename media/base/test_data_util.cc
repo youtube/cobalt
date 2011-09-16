@@ -7,6 +7,7 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "media/ffmpeg/ffmpeg_common.h"
 
 namespace media {
 
@@ -24,8 +25,11 @@ void ReadTestDataFile(const std::string& name, scoped_array<uint8>* buffer,
   CHECK(file_util::GetFileSize(file_path, &tmp))
       << "Failed to get file size for '" << name << "'";
 
+  // Why FF_INPUT_BUFFER_PADDING_SIZE? FFmpeg assumes all input buffers are
+  // padded. Since most of our test data is passed to FFmpeg, it makes sense
+  // to do the padding here instead of scattering it around test code.
   int file_size = static_cast<int>(tmp);
-  buffer->reset(new uint8[file_size]);
+  buffer->reset(new uint8[file_size + FF_INPUT_BUFFER_PADDING_SIZE]);
 
   CHECK(file_size == file_util::ReadFile(file_path,
                                          reinterpret_cast<char*>(buffer->get()),
