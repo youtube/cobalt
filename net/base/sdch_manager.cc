@@ -23,7 +23,10 @@ const size_t SdchManager::kMaxDictionarySize = 1000000;
 const size_t SdchManager::kMaxDictionaryCount = 20;
 
 // static
-SdchManager* SdchManager::global_;
+SdchManager* SdchManager::global_ = NULL;
+
+// static
+bool SdchManager::g_sdch_enabled_ = true;
 
 //------------------------------------------------------------------------------
 SdchManager::Dictionary::Dictionary(const std::string& dictionary_text,
@@ -201,7 +204,7 @@ bool SdchManager::Dictionary::DomainMatch(const GURL& gurl,
 }
 
 //------------------------------------------------------------------------------
-SdchManager::SdchManager() : sdch_enabled_(false) {
+SdchManager::SdchManager() {
   DCHECK(!global_);
   global_ = this;
 }
@@ -218,6 +221,7 @@ SdchManager::~SdchManager() {
 
 // static
 void SdchManager::Shutdown() {
+  EnableSdchSupport(false);
   if (!global_ )
     return;
   global_->fetcher_.reset(NULL);
@@ -233,10 +237,9 @@ void SdchManager::SdchErrorRecovery(ProblemCodes problem) {
   UMA_HISTOGRAM_ENUMERATION("Sdch3.ProblemCodes_4", problem, MAX_PROBLEM_CODE);
 }
 
-void SdchManager::EnableSdchSupport(const std::string& domain) {
-  // We presume that there is a SDCH manager instance.
-  global_->supported_domain_ = domain;
-  global_->sdch_enabled_ = true;
+// static
+void SdchManager::EnableSdchSupport(bool enabled) {
+  g_sdch_enabled_ = enabled;
 }
 
 // static
@@ -298,11 +301,8 @@ int SdchManager::BlacklistDomainExponential(const std::string& domain) {
 }
 
 bool SdchManager::IsInSupportedDomain(const GURL& url) {
-  if (!sdch_enabled_ )
+  if (!g_sdch_enabled_ )
     return false;
-  if (!supported_domain_.empty() &&
-      !url.DomainIs(supported_domain_.data(), supported_domain_.size()))
-     return false;  // It is not the singular supported domain.
 
   if (blacklisted_domains_.empty())
     return true;
