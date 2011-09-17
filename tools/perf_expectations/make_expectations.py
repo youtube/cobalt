@@ -270,7 +270,8 @@ def Main(args):
     # At this point, regress > improve.  If regress == improve, we adjust
     # improve so it is just a little less than regress.  I'm picking on improve
     # so we keep the sizes assumptions in place for now.
-    improve = float(regress * 0.99)
+    if regress == improve:
+      improve = float(regress * 0.99)
 
     # If the existing values assume regressions are low deltas relative to
     # improvements, swap our regress and improve.  This value must be a
