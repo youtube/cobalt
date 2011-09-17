@@ -7,6 +7,7 @@
 #include <deque>
 
 #include "base/bind.h"
+#include "base/message_loop.h"
 #include "base/task.h"
 #include "media/base/callback.h"
 #include "media/base/demuxer_stream.h"

@@ -5,6 +5,7 @@
 #include <deque>
 
 #include "base/bind.h"
+#include "base/message_loop.h"
 #include "base/memory/singleton.h"
 #include "base/string_util.h"
 #include "media/base/data_buffer.h"

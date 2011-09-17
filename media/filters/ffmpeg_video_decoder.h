@@ -12,7 +12,6 @@
 #include "media/base/filters.h"
 #include "media/base/pts_stream.h"
 #include "media/base/video_frame.h"
-#include "media/filters/decoder_base.h"
 #include "media/video/video_decode_engine.h"
 
 namespace media {
