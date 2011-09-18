@@ -21,6 +21,9 @@
           # Whether we're building a ChromeOS build.
           'chromeos%': 0,
 
+          # Whether we are using Views Toolkit
+          'toolkit_views%': 0,
+
           # Whether the Views toolkit can use its Pure form when available
           # or if it must only use GTK (the default at the moment).
           # This is an intermediate step until all of Views is 'Pure',
@@ -64,21 +67,21 @@
 
           # Set default value of toolkit_views on for Windows, Chrome OS,
           # Touch and PureView.
-          ['OS=="win" or chromeos==1 or touchui==1 or use_only_pure_views==1', {
+          ['OS=="win" or chromeos==1 or touchui==1 or use_only_pure_views==1 or use_aura==1', {
             'toolkit_views%': 1,
           }, {
             'toolkit_views%': 0,
           }],
 
-          # Views are always Pure in Touch case.
-          ['touchui==1', {
+          # Views are always Pure in Touch and Aura case.
+          ['touchui==1 or use_aura==1', {
             'use_only_pure_views%': 1,
           }, {
             'use_only_pure_views%': 0,
           }],
 
           # Use WebUI dialogs in TouchUI and PureView builds.
-          ['touchui==1 or use_only_pure_views==1', {
+          ['touchui==1 or use_only_pure_views==1 or use_aura==1', {
             'webui_dialogs%': 1,
           }],
 
@@ -271,7 +274,7 @@
         }],
 
         # Enable WebUI TaskManager only on Chrome OS, Touch or PureView.
-        ['chromeos==1 or touchui==1 or use_only_pure_views==1', {
+        ['chromeos==1 or touchui==1 or use_only_pure_views==1 or use_aura==1', {
           'webui_task_manager%': 1,
         }, {
           'webui_task_manager%': 0,
