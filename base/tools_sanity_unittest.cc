@@ -84,7 +84,8 @@ TEST(ToolsSanityTest, ArrayDeletedWithoutBraces) {
   if (!RunningOnValgrind())
     return;
 
-  int *foo = new int[10];
+  // Without the |volatile|, clang optimizes away the next two lines.
+  int* volatile foo = new int[10];
   delete foo;
 }
 
@@ -93,7 +94,8 @@ TEST(ToolsSanityTest, SingleElementDeletedWithBraces) {
   if (!RunningOnValgrind())
     return;
 
-  int *foo = new int;
+  // Without the |volatile|, clang optimizes away the next two lines.
+  int* volatile foo = new int;
   delete [] foo;
 }
 
