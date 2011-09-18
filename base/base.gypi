@@ -209,7 +209,6 @@
           'rand_util_win.cc',
           'safe_strerror_posix.cc',
           'safe_strerror_posix.h',
-          'scoped_ptr.h',
           'scoped_native_library.cc',
           'scoped_native_library.h',
           'scoped_temp_dir.cc',
