@@ -15,7 +15,10 @@ namespace {
 const base::subtle::Atomic32 kMagicValue = 42;
 
 void ReadUninitializedValue(char *ptr) {
-  if (*ptr == '\0') {
+  // The || in the conditional is to prevent clang from optimizing away the
+  // jump -- valgrind only catches jumps and conditional moves, but clang uses
+  // the borrow flag if the condition is just `*ptr == '\0'`.
+  if (*ptr == '\0' || *ptr == 64) {
     (*ptr)++;
   } else {
     (*ptr)--;
