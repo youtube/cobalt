@@ -298,11 +298,13 @@
         ['use_aura==1', {
           'sources/': [
             ['exclude', 'gfx/gtk_'],
+            ['exclude', 'gfx/gtk_util.cc'],
+            ['exclude', 'gfx/gtk_util.h'],
             ['exclude', 'gfx/screen_gtk.cc'],
             ['exclude', 'gfx/screen_win.cc'],
             ['exclude', 'base/win/mouse_wheel_util.cc'],
             ['exclude', 'base/win/mouse_wheel_util.h'],
-          ],
+           ],
         }],
         ['toolkit_uses_gtk == 1', {
           'dependencies': [
