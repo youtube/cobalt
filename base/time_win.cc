@@ -363,12 +363,7 @@ class HighResNowSingleton {
     if (!IsUsingHighResClock())
       return 0;
 
-    // The static_cast<long> is needed as a hint to VS 2008 to tell it
-    // which version of abs() to use. Other compilers don't seem to
-    // need it, including VS 2010, but to keep code identical we use it
-    // everywhere.
-    // TODO(joi): Remove the hint if/when we no longer support VS 2008.
-    return abs(static_cast<long>((UnreliableNow() - ReliableNow()) - skew_));
+    return abs((UnreliableNow() - ReliableNow()) - skew_);
   }
 
  private:
