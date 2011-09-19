@@ -218,11 +218,23 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
         VLOG(1) << "~SettingGetterImplGConf: releasing gconf client";
         ShutDown();
       } else {
-        LOG(WARNING) << "~SettingGetterImplGConf: leaking gconf client";
-        client_ = NULL;
+        // This is very bad! We are deleting the setting getter but we're not on
+        // the UI thread. This is not supposed to happen: the setting getter is
+        // owned by the proxy config service's delegate, which is supposed to be
+        // destroyed on the UI thread only. We will get change notifications to
+        // a deleted object if we continue here, so fail now.
+        LOG(FATAL) << "~SettingGetterImplGConf: deleting on wrong thread!";
       }
     }
     DCHECK(!client_);
+    // Invert the bits of |this_|. This seems like a pretty unlikely coincidence
+    // for stray memory corruption, so if we see this later, it's a pretty sure
+    // bet that we have a use-after-free issue rather than external corruption.
+    // (Note that we will still have the original value of |this| in that case.)
+    // See below. This is to try and track bugs 75508 and 84673.
+    // TODO(mdm): remove this once it gives us some results.
+    this_ = reinterpret_cast<SettingGetterImplGConf*>(
+        ~reinterpret_cast<uintptr_t>(this));
   }
 
   virtual bool Init(MessageLoop* glib_default_loop,
@@ -448,7 +460,9 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
 
   void OnChangeNotification() {
     // See below. This check is to try and track bugs 75508 and 84673.
-    // TODO(mdm): remove this check once it gives us some results.
+    // TODO(mdm): remove these checks once they give us some results.
+    CHECK(this_ != reinterpret_cast<SettingGetterImplGConf*>(
+        ~reinterpret_cast<uintptr_t>(this)));
     CHECK(this_ == this);
     // We don't use Reset() because the timer may not yet be running.
     // (In that case Stop() is a no-op.)
