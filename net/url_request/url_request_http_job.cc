@@ -36,7 +36,6 @@
 #include "net/http/http_transaction.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
-#include "net/url_request/https_prober.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_error_job.h"
@@ -83,40 +82,6 @@ void AddAuthorizationHeader(
     return;  // Only add the first valid header.
   }
 }
-
-class HTTPSProberDelegateImpl : public HTTPSProberDelegate {
- public:
-  HTTPSProberDelegateImpl(const std::string& host, int max_age,
-                          bool include_subdomains,
-                          TransportSecurityState* sts)
-      : host_(host),
-        max_age_(max_age),
-        include_subdomains_(include_subdomains),
-        sts_(sts) { }
-
-  virtual void ProbeComplete(bool result) {
-    if (result) {
-      base::Time current_time(base::Time::Now());
-      base::TimeDelta max_age_delta = base::TimeDelta::FromSeconds(max_age_);
-
-      TransportSecurityState::DomainState domain_state;
-      domain_state.expiry = current_time + max_age_delta;
-      domain_state.mode =
-          TransportSecurityState::DomainState::MODE_OPPORTUNISTIC;
-      domain_state.include_subdomains = include_subdomains_;
-
-      sts_->EnableHost(host_, domain_state);
-    }
-
-    delete this;
-  }
-
- private:
-  const std::string host_;
-  const int max_age_;
-  const bool include_subdomains_;
-  scoped_refptr<TransportSecurityState> sts_;
-};
 
 }  // namespace
 
@@ -233,8 +198,6 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
                              url_parse::Component(0, strlen(kNewScheme)));
       GURL new_location = request->url().ReplaceComponents(replacements);
       return new URLRequestRedirectJob(request, new_location);
-    } else {
-      // TODO(agl): implement opportunistic HTTPS upgrade.
     }
   }
 
@@ -673,54 +636,6 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
     ctx->transport_security_state()->EnableHost(request_info_.url.host(),
                                                 domain_state);
   }
-
-  // TODO(agl): change this over when we have fixed things at the server end.
-  // The string should be "Opportunistic-Transport-Security";
-  name = "X-Bodge-Transport-Security";
-
-  while (response_info_->headers->EnumerateHeader(&iter, name, &value)) {
-    const bool ok = TransportSecurityState::ParseHeader(
-        value, &max_age, &include_subdomains);
-    if (!ok)
-      continue;
-    // If we saw an opportunistic request over HTTPS, then clearly we can make
-    // HTTPS connections to the host so we should remember this.
-    if (https) {
-      base::Time current_time(base::Time::Now());
-      base::TimeDelta max_age_delta = base::TimeDelta::FromSeconds(max_age);
-
-      TransportSecurityState::DomainState domain_state;
-      domain_state.expiry = current_time + max_age_delta;
-      domain_state.mode =
-          TransportSecurityState::DomainState::MODE_SPDY_ONLY;
-      domain_state.include_subdomains = include_subdomains;
-
-      ctx->transport_security_state()->EnableHost(request_info_.url.host(),
-                                                  domain_state);
-      continue;
-    }
-
-    if (!request())
-      break;
-
-    // At this point, we have a request for opportunistic encryption over HTTP.
-    // In this case we need to probe to check that we can make HTTPS
-    // connections to that host.
-    HTTPSProber* const prober = HTTPSProber::GetInstance();
-    if (prober->HaveProbed(request_info_.url.host()) ||
-        prober->InFlight(request_info_.url.host())) {
-      continue;
-    }
-
-    HTTPSProberDelegateImpl* delegate =
-        new HTTPSProberDelegateImpl(request_info_.url.host(), max_age,
-                                    include_subdomains,
-                                    ctx->transport_security_state());
-    if (!prober->ProbeHost(request_info_.url.host(), request()->context(),
-                           delegate)) {
-      delete delegate;
-    }
-  }
 }
 
 void URLRequestHttpJob::OnStartCompleted(int result) {
@@ -818,13 +733,11 @@ bool URLRequestHttpJob::ShouldTreatAsCertificateError(int result) {
     return true;
 
   TransportSecurityState::DomainState domain_state;
-  // TODO(agl): don't ignore opportunistic mode.
   const bool r = context_->transport_security_state()->IsEnabledForHost(
       &domain_state, request_info_.url.host(),
       SSLConfigService::IsSNIAvailable(context_->ssl_config_service()));
 
-  return !r || domain_state.mode ==
-               TransportSecurityState::DomainState::MODE_OPPORTUNISTIC;
+  return !r;
 }
 
 void URLRequestHttpJob::RestartTransactionWithAuth(
