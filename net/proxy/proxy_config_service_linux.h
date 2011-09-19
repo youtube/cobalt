@@ -194,10 +194,11 @@ class NET_EXPORT_PRIVATE ProxyConfigServiceLinux : public ProxyConfigService {
     ProxyConfigService::ConfigAvailability GetLatestProxyConfig(
         ProxyConfig* config);
 
-    // Posts a call to OnDestroy() to the UI thread. Called from
-    // ProxyConfigServiceLinux's destructor.
+    // Posts a call to OnDestroy() to the UI or FILE thread, depending on the
+    // setting getter in use. Called from ProxyConfigServiceLinux's destructor.
     void PostDestroyTask();
-    // Safely stops change notifications. Posted to the UI thread.
+    // Safely stops change notifications. Posted to either the UI or FILE
+    // thread, depending on the setting getter in use.
     void OnDestroy();
 
    private:
