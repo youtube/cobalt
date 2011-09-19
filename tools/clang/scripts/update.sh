@@ -108,7 +108,7 @@ fi
 if [ -z "$force_local_build" ]; then
   # Check if there's a prebuilt binary and if so just fetch that. That's faster,
   # and goma relies on having matching binary hashes on client and server too.
-  CDS_URL=http://commondatastorage.googleapis.com/chromium-browser-clang
+  CDS_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
   CDS_FILE="clang-${CLANG_REVISION}.tgz"
   echo Trying to download prebuilt clang
   if [ "${OS}" = "Linux" ]; then
