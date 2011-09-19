@@ -534,6 +534,7 @@
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+        '../ui/ui.gyp:ui',
       ],
       'sources': [
         'audio/audio_input_controller_unittest.cc',
@@ -691,6 +692,7 @@
             'yuv_convert',
             '../base/base.gyp:base',
             '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+            '../ui/ui.gyp:ui',
           ],
           'include_dirs': [
             '<(DEPTH)/third_party/wtl/include',
