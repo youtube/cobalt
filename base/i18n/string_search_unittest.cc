@@ -13,16 +13,13 @@
 namespace base {
 namespace i18n {
 
-class StringSearchTest : public testing::Test {
-};
-
 // Note on setting default locale for testing: The current default locale on
 // the Mac trybot is en_US_POSIX, with which primary-level collation strength
 // string search is case-sensitive, when normally it should be
 // case-insensitive. In other locales (including en_US which English speakers
 // in the U.S. use), this search would be case-insensitive as expected.
 
-TEST_F(StringSearchTest, ASCII) {
+TEST(StringSearchTest, ASCII) {
   std::string default_locale(uloc_getDefault());
   bool locale_is_posix = (default_locale == "en_US_POSIX");
   if (locale_is_posix)
@@ -50,7 +47,7 @@ TEST_F(StringSearchTest, ASCII) {
     SetICUDefaultLocale(default_locale.data());
 }
 
-TEST_F(StringSearchTest, UnicodeLocaleIndependent) {
+TEST(StringSearchTest, UnicodeLocaleIndependent) {
   // Base characters
   const string16 e_base = WideToUTF16(L"e");
   const string16 E_base = WideToUTF16(L"E");
@@ -130,7 +127,7 @@ TEST_F(StringSearchTest, UnicodeLocaleIndependent) {
     SetICUDefaultLocale(default_locale.data());
 }
 
-TEST_F(StringSearchTest, UnicodeLocaleDependent) {
+TEST(StringSearchTest, UnicodeLocaleDependent) {
   // Base characters
   const string16 a_base = WideToUTF16(L"a");
 
