@@ -494,7 +494,7 @@
           ],
           'dependencies': [
             'symbolize',
-            '../build/util/build_util.gyp:lastchange',
+            '../build/util/build_util.gyp:lastchange#target',
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:x11',
             'xdg_mime',
