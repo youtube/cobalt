@@ -93,6 +93,15 @@ TEST(ValuesTest, List) {
   ASSERT_EQ(88.8, double_value);
   ASSERT_TRUE(mixed_list->GetString(3, &string_value));
   ASSERT_EQ("foo", string_value);
+
+  // Try searching in the mixed list.
+  scoped_ptr<Value> sought_value(Value::CreateIntegerValue(42));
+  scoped_ptr<Value> not_found_value(Value::CreateBooleanValue(false));
+
+  ASSERT_NE(mixed_list->end(), mixed_list->Find(*sought_value));
+  ASSERT_TRUE((*mixed_list->Find(*sought_value))->GetAsInteger(&int_value));
+  ASSERT_EQ(42, int_value);
+  ASSERT_EQ(mixed_list->end(), mixed_list->Find(*not_found_value));
 }
 
 TEST(ValuesTest, BinaryValue) {

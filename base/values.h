@@ -418,6 +418,11 @@ class BASE_EXPORT ListValue : public Value {
   // Returns true if successful, or false if the index was out of range.
   bool Insert(size_t index, Value* in_value);
 
+  // Searches for the first instance of |value| in the list using the Equals
+  // method of the Value type.
+  // Returns a const_iterator to the found item or to end() if none exists.
+  const_iterator Find(const Value& value) const;
+
   // Swaps contents with the |other| list.
   void Swap(ListValue* other) {
     list_.swap(other->list_);
