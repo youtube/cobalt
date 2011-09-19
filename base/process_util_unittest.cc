@@ -136,8 +136,8 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
   remove(kSignalFileSlow);
 }
 
-// Times out on Linux, flakes on other platforms.  http://crbug.com/95058
-#if defined(OS_LINUX)
+// Times out on Linux and Win, flakes on other platforms, http://crbug.com/95058
+#if defined(OS_LINUX) || defined(OS_WIN)
 #define MAYBE_GetTerminationStatusExit DISABLED_GetTerminationStatusExit
 #else
 #define MAYBE_GetTerminationStatusExit FLAKY_GetTerminationStatusExit
