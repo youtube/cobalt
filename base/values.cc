@@ -4,6 +4,8 @@
 
 #include "base/values.h"
 
+#include <algorithm>
+
 #include "base/float_util.h"
 #include "base/logging.h"
 #include "base/string_util.h"
@@ -57,6 +59,22 @@ Value* CopyWithoutEmptyChildren(Value* node) {
       return node->DeepCopy();
   }
 }
+
+// A small functor for comparing Values for std::find_if and similar.
+class ValueEquals {
+ public:
+  // Pass the value against which all consecutive calls of the () operator will
+  // compare their argument to. This Value object must not be destroyed while
+  // the ValueEquals is  in use.
+  ValueEquals(const Value* first) : first_(first) { }
+
+  bool operator ()(const Value* second) const {
+    return first_->Equals(second);
+  }
+
+ private:
+  const Value* first_;
+};
 
 }  // namespace
 
@@ -863,6 +881,10 @@ bool ListValue::Insert(size_t index, Value* in_value) {
 
   list_.insert(list_.begin() + index, in_value);
   return true;
+}
+
+ListValue::const_iterator ListValue::Find(const Value& value) const {
+  return std::find_if(list_.begin(), list_.end(), ValueEquals(&value));
 }
 
 bool ListValue::GetAsList(ListValue** out_value) {
