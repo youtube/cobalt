@@ -27,7 +27,9 @@ bool CollationSensitiveStringSearch(const string16& find_this,
   ucol_setStrength(collator, strength);
   usearch_reset(search);
 
-  return usearch_first(search, &status) != USEARCH_DONE;
+  bool result = usearch_first(search, &status) != USEARCH_DONE;
+  usearch_close(search);
+  return result;
 }
 
 }  // namespace
@@ -42,4 +44,3 @@ bool StringSearchIgnoringCaseAndAccents(const string16& find_this,
 
 }  // namespace i18n
 }  // namespace base
-
