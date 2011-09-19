@@ -244,29 +244,6 @@ TEST_F(TransportSecurityStateTest, Serialise2) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "com", true));
 }
 
-TEST_F(TransportSecurityStateTest, Serialise3) {
-  scoped_refptr<TransportSecurityState> state(
-      new TransportSecurityState(std::string()));
-
-  TransportSecurityState::DomainState domain_state;
-  const base::Time current_time(base::Time::Now());
-  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
-
-  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "yahoo.com", true));
-  domain_state.mode = TransportSecurityState::DomainState::MODE_OPPORTUNISTIC;
-  domain_state.expiry = expiry;
-  state->EnableHost("yahoo.com", domain_state);
-
-  std::string output;
-  bool dirty;
-  state->Serialise(&output);
-  EXPECT_TRUE(state->LoadEntries(output, &dirty));
-
-  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "yahoo.com", true));
-  EXPECT_EQ(domain_state.mode,
-            TransportSecurityState::DomainState::MODE_OPPORTUNISTIC);
-}
-
 TEST_F(TransportSecurityStateTest, DeleteSince) {
   scoped_refptr<TransportSecurityState> state(
       new TransportSecurityState(std::string()));

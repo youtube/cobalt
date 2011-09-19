@@ -39,10 +39,8 @@ class NET_EXPORT TransportSecurityState :
       //   * We generate internal redirects from HTTP -> HTTPS.
       //   * Certificate issues are fatal.
       MODE_STRICT = 0,
-      // Opportunistic mode implies:
-      //   * We'll request HTTP URLs over HTTPS
-      //   * Certificate issues are ignored.
-      MODE_OPPORTUNISTIC = 1,
+      // This used to be opportunistic HTTPS, but we removed support.
+      MODE_OPPORTUNISTIC_REMOVED = 1,
       // SPDY_ONLY (aka X-Bodge-Transport-Security) is a hopefully temporary
       // measure. It implies:
       //   * We'll request HTTP URLs over HTTPS iff we have SPDY support.

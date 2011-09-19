@@ -313,9 +313,6 @@ bool TransportSecurityState::Serialise(std::string* output) {
       case DomainState::MODE_STRICT:
         state->SetString("mode", "strict");
         break;
-      case DomainState::MODE_OPPORTUNISTIC:
-        state->SetString("mode", "opportunistic");
-        break;
       case DomainState::MODE_SPDY_ONLY:
         state->SetString("mode", "spdy-only");
         break;
@@ -410,8 +407,6 @@ bool TransportSecurityState::Deserialise(
     DomainState::Mode mode;
     if (mode_string == "strict") {
       mode = DomainState::MODE_STRICT;
-    } else if (mode_string == "opportunistic") {
-      mode = DomainState::MODE_OPPORTUNISTIC;
     } else if (mode_string == "spdy-only") {
       mode = DomainState::MODE_SPDY_ONLY;
     } else if (mode_string == "none") {
