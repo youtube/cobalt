@@ -18,6 +18,7 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/video/ffmpeg_video_decode_engine.h"
 #include "media/video/video_decode_context.h"
+#include "ui/gfx/rect.h"
 
 namespace media {
 
@@ -70,23 +71,25 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   pts_stream_.Initialize(GetFrameDuration(av_stream));
 
-  int width = av_stream->codec->coded_width;
-  int height = av_stream->codec->coded_height;
+  gfx::Size coded_size(
+      av_stream->codec->coded_width, av_stream->codec->coded_height);
+  // TODO(vrk): This assumes decoded frame data starts at (0, 0), which is true
+  // for now, but may not always be true forever. Fix this in the future.
+  gfx::Rect visible_rect(
+      av_stream->codec->width, av_stream->codec->height);
+  gfx::Size natural_size(
+      GetNaturalWidth(av_stream), GetNaturalHeight(av_stream));
 
-  int surface_width = GetSurfaceWidth(av_stream);
-  int surface_height = GetSurfaceHeight(av_stream);
-
-  if (surface_width > Limits::kMaxDimension ||
-      surface_height > Limits::kMaxDimension ||
-      (surface_width * surface_height) > Limits::kMaxCanvas) {
+  if (natural_size.width() > Limits::kMaxDimension ||
+      natural_size.height() > Limits::kMaxDimension ||
+      natural_size.GetArea() > Limits::kMaxCanvas) {
     VideoCodecInfo info = {0};
     OnInitializeComplete(info);
     return;
   }
 
   VideoDecoderConfig config(CodecIDToVideoCodec(av_stream->codec->codec_id),
-                            width, height,
-                            surface_width, surface_height,
+                            coded_size, visible_rect, natural_size,
                             av_stream->r_frame_rate.num,
                             av_stream->r_frame_rate.den,
                             av_stream->codec->extradata,
@@ -340,14 +343,9 @@ void FFmpegVideoDecoder::ProduceVideoSample(
                                    this));
 }
 
-int FFmpegVideoDecoder::width() {
+gfx::Size FFmpegVideoDecoder::natural_size() {
   DCHECK(info_.success);
-  return info_.surface_width;
-}
-
-int FFmpegVideoDecoder::height() {
-  DCHECK(info_.success);
-  return info_.surface_height;
+  return info_.natural_size;
 }
 
 void FFmpegVideoDecoder::FlushBuffers() {
