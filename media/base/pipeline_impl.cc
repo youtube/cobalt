@@ -310,12 +310,10 @@ int64 PipelineImpl::GetTotalBytes() const {
   return total_bytes_;
 }
 
-void PipelineImpl::GetVideoSize(size_t* width_out, size_t* height_out) const {
-  CHECK(width_out);
-  CHECK(height_out);
+void PipelineImpl::GetNaturalVideoSize(gfx::Size* out_size) const {
+  CHECK(out_size);
   base::AutoLock auto_lock(lock_);
-  *width_out = video_width_;
-  *height_out = video_height_;
+  *out_size = natural_size_;
 }
 
 bool PipelineImpl::IsStreaming() const {
@@ -371,8 +369,7 @@ void PipelineImpl::ResetState() {
   streaming_        = false;
   loaded_           = false;
   total_bytes_      = 0;
-  video_width_      = 0;
-  video_height_     = 0;
+  natural_size_.SetSize(0, 0);
   volume_           = 1.0f;
   preload_          = AUTO;
   playback_rate_    = 0.0f;
@@ -536,13 +533,13 @@ void PipelineImpl::SetBufferedBytes(int64 buffered_bytes) {
   buffered_bytes_ = buffered_bytes;
 }
 
-void PipelineImpl::SetVideoSize(size_t width, size_t height) {
+void PipelineImpl::SetNaturalVideoSize(const gfx::Size& size) {
   DCHECK(IsRunning());
-  media_log_->AddEvent(media_log_->CreateVideoSizeSetEvent(width, height));
+  media_log_->AddEvent(media_log_->CreateVideoSizeSetEvent(
+      size.width(), size.height()));
 
   base::AutoLock auto_lock(lock_);
-  video_width_ = width;
-  video_height_ = height;
+  natural_size_ = size;
 }
 
 void PipelineImpl::SetStreaming(bool streaming) {

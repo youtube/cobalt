@@ -8,6 +8,8 @@
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
+#include "ui/gfx/rect.h"
+#include "ui/gfx/size.h"
 
 namespace media {
 
@@ -28,17 +30,17 @@ enum VideoCodec {
 
 class MEDIA_EXPORT VideoDecoderConfig {
  public:
-  VideoDecoderConfig(VideoCodec codec, int width, int height,
-                     int surface_width, int surface_height,
+  VideoDecoderConfig(VideoCodec codec, const gfx::Size& coded_size,
+                     const gfx::Rect& visible_rect,
+                     const gfx::Size& natural_size,
                      int frame_rate_numerator, int frame_rate_denominator,
                      const uint8* extra_data, size_t extra_data_size);
   ~VideoDecoderConfig();
 
   VideoCodec codec() const;
-  int width() const;
-  int height() const;
-  int surface_width() const;
-  int surface_height() const;
+  gfx::Size coded_size() const;
+  gfx::Rect visible_rect() const;
+  gfx::Size natural_size() const;
   int frame_rate_numerator() const;
   int frame_rate_denominator() const;
   uint8* extra_data() const;
@@ -47,13 +49,16 @@ class MEDIA_EXPORT VideoDecoderConfig {
  private:
   VideoCodec codec_;
 
-  // Container's concept of width and height of this video.
-  int width_;
-  int height_;
+  // Width and height of video frame immediately post-decode. Not all pixels
+  // in this region are valid.
+  gfx::Size coded_size_;
 
-  // Width and height of the display surface for this video.
-  int surface_width_;
-  int surface_height_;
+  // Region of |coded_size_| that is visible.
+  gfx::Rect visible_rect_;
+
+  // Natural width and height of the video, i.e. the visible dimensions
+  // after aspect ratio is applied.
+  gfx::Size natural_size_;
 
   // Frame rate in seconds expressed as a fraction.
   // TODO(scherkus): fairly certain decoders don't require frame rates.

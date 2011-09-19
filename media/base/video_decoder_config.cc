@@ -9,19 +9,17 @@
 namespace media {
 
 VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
-                                       int width,
-                                       int height,
-                                       int surface_width,
-                                       int surface_height,
+                                       const gfx::Size& coded_size,
+                                       const gfx::Rect& visible_rect,
+                                       const gfx::Size& natural_size,
                                        int frame_rate_numerator,
                                        int frame_rate_denominator,
                                        const uint8* extra_data,
                                        size_t extra_data_size)
     : codec_(codec),
-      width_(width),
-      height_(height),
-      surface_width_(surface_width),
-      surface_height_(surface_height),
+      coded_size_(coded_size),
+      visible_rect_(visible_rect),
+      natural_size_(natural_size),
       frame_rate_numerator_(frame_rate_numerator),
       frame_rate_denominator_(frame_rate_denominator),
       extra_data_size_(extra_data_size) {
@@ -38,20 +36,16 @@ VideoCodec VideoDecoderConfig::codec() const {
   return codec_;
 }
 
-int VideoDecoderConfig::width() const {
-  return width_;
+gfx::Size VideoDecoderConfig::coded_size() const {
+  return coded_size_;
 }
 
-int VideoDecoderConfig::height() const {
-  return height_;
+gfx::Rect VideoDecoderConfig::visible_rect() const {
+  return visible_rect_;
 }
 
-int VideoDecoderConfig::surface_width() const {
-  return surface_width_;
-}
-
-int VideoDecoderConfig::surface_height() const {
-  return surface_height_;
+gfx::Size VideoDecoderConfig::natural_size() const {
+  return natural_size_;
 }
 
 int VideoDecoderConfig::frame_rate_numerator() const {
