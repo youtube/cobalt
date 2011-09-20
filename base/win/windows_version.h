@@ -25,6 +25,8 @@ enum Version {
   VERSION_VISTA,
   VERSION_SERVER_2008,
   VERSION_WIN7,
+  VERSION_WIN8,
+  VERSION_WIN_LAST,  // Indicates error condition.
 };
 
 // A singleton that can be used to query various pieces of information about the
