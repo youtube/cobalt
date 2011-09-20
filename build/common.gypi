@@ -135,6 +135,9 @@
       # compilation.
       'fastbuild%': 0,
 
+      # Set to 1 to enable dcheck in release without having to use the flag.
+      'dcheck_always_on%': 0,
+
        # Disable file manager component extension by default.
       'file_manager_extension%': 0,
 
@@ -318,6 +321,7 @@
     'webui_task_manager%': '<(webui_task_manager)',
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
+    'dcheck_always_on%': '<(dcheck_always_on)',
     'python_ver%': '<(python_ver)',
     'armv7%': '<(armv7)',
     'arm_neon%': '<(arm_neon)',
@@ -931,6 +935,9 @@
           }],
         ],  # conditions for fastbuild.
       }],  # fastbuild!=0
+      ['dcheck_always_on!=0', {
+        'defines': ['DCHECK_ALWAYS_ON=1'],
+      }],  # dcheck_always_on!=0
       ['selinux==1', {
         'defines': ['CHROMIUM_SELINUX=1'],
       }],
