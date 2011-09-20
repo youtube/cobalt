@@ -4,7 +4,6 @@
 
 #include "base/message_pump_glib.h"
 
-#include <gtk/gtk.h>
 #include <math.h>
 
 #include <algorithm>
@@ -14,6 +13,10 @@
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if defined(TOOLKIT_USES_GTK)
+#include <gtk/gtk.h>
+#endif
 
 namespace {
 
@@ -395,6 +398,7 @@ TEST_F(MessagePumpGLibTest, TestDrainingGLib) {
 
 namespace {
 
+#if defined(TOOLKIT_USES_GTK)
 void AddEventsAndDrainGtk(EventInjector* injector) {
   // Add a couple of dummy events
   injector->AddEvent(0, NULL);
@@ -411,9 +415,11 @@ void AddEventsAndDrainGtk(EventInjector* injector) {
     gtk_main_iteration();
   }
 }
+#endif
 
 }  // namespace
 
+#if defined(TOOLKIT_USES_GTK)
 TEST_F(MessagePumpGLibTest, TestDrainingGtk) {
   // Tests that draining events using Gtk works.
   loop()->PostTask(
@@ -422,6 +428,7 @@ TEST_F(MessagePumpGLibTest, TestDrainingGtk) {
 
   EXPECT_EQ(3, injector()->processed_events());
 }
+#endif
 
 namespace {
 
@@ -436,10 +443,16 @@ class GLibLoopRunner : public base::RefCounted<GLibLoopRunner> {
     }
   }
 
-  void RunGtk() {
+  void RunLoop() {
+#if defined(TOOLKIT_USES_GTK)
     while (!quit_) {
       gtk_main_iteration();
     }
+#else
+    while (!quit_) {
+      g_main_context_iteration(NULL, TRUE);
+    }
+#endif
   }
 
   void Quit() {
@@ -513,7 +526,7 @@ void TestGtkLoopInternal(EventInjector* injector) {
       FROM_HERE, NewRunnableMethod(runner.get(), &GLibLoopRunner::Quit), 40);
 
   // Run a nested, straight Gtk message loop.
-  runner->RunGtk();
+  runner->RunLoop();
 
   ASSERT_EQ(3, task_count);
   EXPECT_EQ(4, injector->processed_events());
