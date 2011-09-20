@@ -111,6 +111,15 @@ class NET_EXPORT TransportSecurityState :
                           int* max_age,
                           bool* include_subdomains);
 
+  // ParseSidePin attempts to parse a side pin from |side_info| which signs the
+  // SubjectPublicKeyInfo in |leaf_spki|. A side pin is a way for a site to
+  // sign their public key with a key that is offline but still controlled by
+  // them. If successful, the hash of the public key used to sign |leaf_spki|
+  // is put into |out_pub_key_hash|.
+  static bool ParseSidePin(const base::StringPiece& leaf_spki,
+                           const base::StringPiece& side_info,
+                           std::vector<SHA1Fingerprint> *out_pub_key_hash);
+
   class Delegate {
    public:
     // This function may not block and may be called with internal locks held.
