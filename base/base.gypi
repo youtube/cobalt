@@ -398,7 +398,7 @@
             'sources!' : [ 'message_pump_x.cc', ],
           }, {
             'sources!' : [ 'message_pump_gtk.cc', ],
-            'sources/' : [ [ 'include', 'message_pump_x.cc', ] ],
+            'sources' : [ 'message_pump_x.cc', ],
           }],
           [ 'OS != "linux"', {
               'sources!': [
