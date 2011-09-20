@@ -14,9 +14,10 @@
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace net {
 namespace {
 
-static const size_t kNpos = string16::npos;
+const size_t kNpos = string16::npos;
 
 struct EscapeCase {
   const char* input;
@@ -58,8 +59,6 @@ struct EscapeForHTMLCase {
   const char* input;
   const char* expected_output;
 };
-
-}  // namespace
 
 TEST(EscapeTest, EscapeTextForFormSubmission) {
   const EscapeCase escape_cases[] = {
@@ -416,10 +415,10 @@ TEST(EscapeTest, AdjustEncodingOffset) {
   std::vector<size_t> offsets;
   for (size_t t = 0; t < 9; ++t)
     offsets.push_back(t);
-  AdjustEncodingOffset::Adjustments adjustments;
+  internal::AdjustEncodingOffset::Adjustments adjustments;
   adjustments.push_back(3);
   std::for_each(offsets.begin(), offsets.end(),
-                AdjustEncodingOffset(adjustments));
+                internal::AdjustEncodingOffset(adjustments));
   size_t expected_1[] = {0, 1, 2, 3, kNpos, kNpos, 4, 5, 6};
   EXPECT_EQ(offsets.size(), arraysize(expected_1));
   for (size_t i = 0; i < arraysize(expected_1); ++i)
@@ -436,10 +435,13 @@ TEST(EscapeTest, AdjustEncodingOffset) {
   adjustments.push_back(9);
   adjustments.push_back(15);
   std::for_each(offsets.begin(), offsets.end(),
-                AdjustEncodingOffset(adjustments));
+                internal::AdjustEncodingOffset(adjustments));
   size_t expected_2[] = {0, kNpos, kNpos, 1, 2, 3, 4, kNpos, kNpos, 5, kNpos,
                          kNpos, 6, 7, 8, 9, kNpos, kNpos};
   EXPECT_EQ(offsets.size(), arraysize(expected_2));
   for (size_t i = 0; i < arraysize(expected_2); ++i)
     EXPECT_EQ(expected_2[i], offsets[i]);
 }
+
+}  // namespace
+}  // namespace net
