@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/observer_list.h"
 #include "net/base/network_config_watcher_mac.h"
 #include "net/proxy/proxy_config.h"
@@ -62,7 +63,7 @@ class ProxyConfigServiceMac : public ProxyConfigService {
   void OnProxyConfigChanged(const ProxyConfig& new_config);
 
   Forwarder forwarder_;
-  const NetworkConfigWatcherMac config_watcher_;
+  scoped_ptr<const NetworkConfigWatcherMac> config_watcher_;
 
   ObserverList<Observer> observers_;
 
