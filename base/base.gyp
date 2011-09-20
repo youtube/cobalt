@@ -144,7 +144,7 @@
         'i18n/icu_string_conversions_unittest.cc',
         'i18n/number_formatting_unittest.cc',
         'i18n/rtl_unittest.cc',
-        'i18n/string_search_unittest.cc',
+	'i18n/string_search_unittest.cc',
         'i18n/time_formatting_unittest.cc',
         'json/json_reader_unittest.cc',
         'json/json_writer_unittest.cc',
@@ -257,9 +257,12 @@
         'module_dir': 'base'
       },
       'conditions': [
-        ['use_glib==1', {
+        ['toolkit_uses_gtk==1', {
           'sources!': [
             'file_version_info_unittest.cc',
+          ],
+          'sources': [
+            'nix/xdg_util_unittest.cc',
           ],
           'conditions': [
             [ 'linux_use_tcmalloc==1', {
@@ -275,21 +278,13 @@
                 '-fno-strict-aliasing',
               ],
             }],
-            [ 'toolkit_uses_gtk==1', {
-              'sources': [
-                'nix/xdg_util_unittest.cc',
-              ],
-              'dependencies': [
-                '../build/linux/system.gyp:gtk',
-              ]
-            }],
           ],
           'dependencies': [
-            '../build/linux/system.gyp:glib',
+            '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:ssl',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:xdisplaycheck',
           ],
-        }, {  # use_glib!=1
+        }, {  # toolkit_uses_gtk!=1
           'sources!': [
             'message_pump_glib_unittest.cc',
           ]
