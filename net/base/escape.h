@@ -137,10 +137,14 @@ NET_EXPORT bool EscapeQueryParamValue(const string16& text,
                                       bool use_plus,
                                       string16* escaped);
 
+namespace net {
+
 // A specialized version of EscapeQueryParamValue for string16s that
 // assumes the codepage is UTF8.  This is provided as a convenience.
 NET_EXPORT string16 EscapeQueryParamValueUTF8(const string16& text,
                                               bool use_plus);
+
+namespace internal {
 
 // Private Functions (Exposed for Unit Testing) --------------------------------
 
@@ -154,5 +158,9 @@ struct NET_EXPORT_PRIVATE AdjustEncodingOffset {
 
   const Adjustments& adjustments;
 };
+
+}  // namespace internal
+
+}  // namespace net
 
 #endif  // NET_BASE_ESCAPE_H_
