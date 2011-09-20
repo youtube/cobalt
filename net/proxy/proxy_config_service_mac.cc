@@ -187,17 +187,19 @@ class ProxyConfigServiceMac::Helper
 
 ProxyConfigServiceMac::ProxyConfigServiceMac(MessageLoop* io_loop)
     : forwarder_(this),
-      config_watcher_(&forwarder_),
       has_fetched_config_(false),
       helper_(new Helper(this)),
       io_loop_(io_loop) {
   DCHECK(io_loop);
+  config_watcher_.reset(new NetworkConfigWatcherMac(&forwarder_));
 }
 
 ProxyConfigServiceMac::~ProxyConfigServiceMac() {
   DCHECK_EQ(io_loop_, MessageLoop::current());
+  // Delete the config_watcher_ to ensure the notifier thread finishes before
+  // this object is destroyed.
+  config_watcher_.reset();
   helper_->Orphan();
-  io_loop_ = NULL;
 }
 
 void ProxyConfigServiceMac::AddObserver(Observer* observer) {
