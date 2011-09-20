@@ -234,20 +234,13 @@
 
         # Flags to use Gtk and X11 on non-Mac POSIX platforms
         ['OS=="win" or OS=="mac" or OS=="android"', {
-          'use_glib%': 0,
           'toolkit_uses_gtk%': 0,
           'use_x11%': 0,
         }, {
           # TODO(dnicoara) Wayland build should have these disabled, but
           # currently GTK and X is too spread and it's hard to completely
           # remove every dependency.
-          'use_glib%': 1,
           'toolkit_uses_gtk%': 1,
-          'use_x11%': 1,
-        }],
-        ['use_aura==1', {
-          'use_glib%': 1,
-          'toolkit_uses_gtk%': 0,
           'use_x11%': 1,
         }],
 
@@ -312,7 +305,6 @@
     'views_compositor%': '<(views_compositor)',
     'use_aura%': '<(use_aura)',
     'os_posix%': '<(os_posix)',
-    'use_glib%': '<(use_glib)',
     'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',
     'use_skia%': '<(use_skia)',
     'use_x11%': '<(use_x11)',
