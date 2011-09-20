@@ -418,7 +418,7 @@ void SocketStream::OnReadCompleted(int result) {
 }
 
 void SocketStream::OnWriteCompleted(int result) {
-  if (result >= 0 && write_buf_) {
+  if (result > 0 && write_buf_) {
     result = DidSendData(result);
   }
   DoLoop(result);
