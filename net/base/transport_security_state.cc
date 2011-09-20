@@ -4,6 +4,21 @@
 
 #include "net/base/transport_security_state.h"
 
+#include <nspr.h>
+
+#include <cryptohi.h>
+#include <hasht.h>
+#include <keyhi.h>
+#include <pk11pub.h>
+
+// NSS leaks #defines from its headers which will upset base/sha1.h.
+#if defined(SHA1_LENGTH)
+#undef SHA1_LENGTH
+#endif
+#if defined(SHA256_LENGTH)
+#undef SHA256_LENGTH
+#endif
+
 #include "base/base64.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -273,6 +288,220 @@ bool TransportSecurityState::ParseHeader(const std::string& value,
       NOTREACHED();
       return false;
   }
+}
+
+// Side pinning and superfluous certificates:
+//
+// In SSLClientSocketNSS::DoVerifyCertComplete we look for certificates with a
+// Subject of CN=meta. When we find one we'll currently try and parse side
+// pinned key from it.
+//
+// A side pin is a key which can be pinned to, but also can be kept offline and
+// still held by the site owner. The CN=meta certificate is just a backwards
+// compatiable method of carrying a lump of bytes to the client. (We could use
+// a TLS extension just as well, but it's a lot easier for admins to add extra
+// certificates to the chain.)
+
+// A TagMap represents the simple key-value structure that we use. Keys are
+// 32-bit ints. Values are byte strings.
+typedef std::map<uint32, base::StringPiece> TagMap;
+
+// ParseTags parses a list of key-value pairs from |in| to |out| and advances
+// |in| past the data. The key-value pair data is:
+//   u16le num_tags
+//   u32le tag[num_tags]
+//   u16le lengths[num_tags]
+//   ...data...
+static bool ParseTags(base::StringPiece* in, TagMap *out) {
+  // Many part of Chrome already assume little-endian. This is just to help
+  // anyone who should try to port it in the future.
+#if defined(__BYTE_ORDER)
+  // Linux check
+  COMPILE_ASSERT(__BYTE_ORDER == __LITTLE_ENDIAN, assumes_little_endian);
+#elif defined(__BIG_ENDIAN__)
+  // Mac check
+  #error assumes little endian
+#endif
+
+  if (in->size() < sizeof(uint16))
+    return false;
+
+  uint16 num_tags_16;
+  memcpy(&num_tags_16, in->data(), sizeof(uint16));
+  in->remove_prefix(sizeof(uint16));
+  unsigned num_tags = num_tags_16;
+
+  if (in->size() < 6 * num_tags)
+    return false;
+
+  const uint32* tags = reinterpret_cast<const uint32*>(in->data());
+  const uint16* lens = reinterpret_cast<const uint16*>(
+      in->data() + 4*num_tags);
+  in->remove_prefix(6*num_tags);
+
+  uint32 prev_tag = 0;
+  for (unsigned i = 0; i < num_tags; i++) {
+    size_t len = lens[i];
+    uint32 tag = tags[i];
+
+    if (in->size() < len)
+      return false;
+    // tags must be in ascending order.
+    if (i > 0 && prev_tag >= tag)
+      return false;
+    (*out)[tag] = base::StringPiece(in->data(), len);
+    in->remove_prefix(len);
+    prev_tag = tag;
+  }
+
+  return true;
+}
+
+// GetTag extracts the data associated with |tag| in |tags|.
+static bool GetTag(uint32 tag, const TagMap& tags, base::StringPiece* out) {
+  TagMap::const_iterator i = tags.find(tag);
+  if (i == tags.end())
+    return false;
+
+  *out = i->second;
+  return true;
+}
+
+// kP256SubjectPublicKeyInfoPrefix can be prepended onto a P256 elliptic curve
+// point in X9.62 format in order to make a valid SubjectPublicKeyInfo. The
+// ASN.1 interpretation of these bytes is:
+//
+//     0:d=0  hl=2 l=  89 cons: SEQUENCE
+//     2:d=1  hl=2 l=  19 cons: SEQUENCE
+//     4:d=2  hl=2 l=   7 prim: OBJECT            :id-ecPublicKey
+//    13:d=2  hl=2 l=   8 prim: OBJECT            :prime256v1
+//    23:d=1  hl=2 l=  66 prim: BIT STRING
+static const uint8 kP256SubjectPublicKeyInfoPrefix[] = {
+  0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86,
+  0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a,
+  0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+  0x42, 0x00,
+};
+
+// DecodeX962P256PublicKey parses an uncompressed, X9.62 format, P256 elliptic
+// curve point from |pubkey_bytes| and returns it as a SECKEYPublicKey.
+static SECKEYPublicKey* DecodeX962P256PublicKey(
+    const base::StringPiece& pubkey_bytes) {
+  // The public key is an X9.62 encoded P256 point.
+  if (pubkey_bytes.size() != 1 + 2*32)
+    return NULL;
+
+  std::string pubkey_spki(
+      reinterpret_cast<const char*>(kP256SubjectPublicKeyInfoPrefix),
+      sizeof(kP256SubjectPublicKeyInfoPrefix));
+  pubkey_spki += pubkey_bytes.as_string();
+
+  SECItem der;
+  memset(&der, 0, sizeof(der));
+  der.data = reinterpret_cast<uint8*>(const_cast<char*>(pubkey_spki.data()));
+  der.len = pubkey_spki.size();
+
+  CERTSubjectPublicKeyInfo* spki = SECKEY_DecodeDERSubjectPublicKeyInfo(&der);
+  if (!spki)
+    return NULL;
+  SECKEYPublicKey* public_key = SECKEY_ExtractPublicKey(spki);
+  SECKEY_DestroySubjectPublicKeyInfo(spki);
+
+  return public_key;
+}
+
+// These are the tag values that we use. Tags are little-endian on the wire and
+// these values correspond to the ASCII of the name.
+static const uint32 kTagALGO = 0x4f474c41;
+static const uint32 kTagP256 = 0x36353250;
+static const uint32 kTagPUBK = 0x4b425550;
+static const uint32 kTagSIG = 0x474953;
+static const uint32 kTagSPIN = 0x4e495053;
+
+// static
+bool TransportSecurityState::ParseSidePin(
+    const base::StringPiece& leaf_spki,
+    const base::StringPiece& in_side_info,
+    std::vector<SHA1Fingerprint> *out_pub_key_hash) {
+  base::StringPiece side_info(in_side_info);
+
+  TagMap outer;
+  if (!ParseTags(&side_info, &outer))
+    return false;
+  // trailing data is not allowed
+  if (side_info.size())
+    return false;
+
+  base::StringPiece side_pin_bytes;
+  if (!GetTag(kTagSPIN, outer, &side_pin_bytes))
+    return false;
+
+  bool have_parsed_a_key = false;
+  uint8 leaf_spki_hash[crypto::SHA256_LENGTH];
+  bool have_leaf_spki_hash = false;
+
+  while (side_pin_bytes.size() > 0) {
+    TagMap side_pin;
+    if (!ParseTags(&side_pin_bytes, &side_pin))
+      return false;
+
+    base::StringPiece algo, pubkey, sig;
+    if (!GetTag(kTagALGO, side_pin, &algo) ||
+        !GetTag(kTagPUBK, side_pin, &pubkey) ||
+        !GetTag(kTagSIG, side_pin, &sig)) {
+      return false;
+    }
+
+    if (algo.size() != sizeof(kTagP256) ||
+        0 != memcmp(algo.data(), &kTagP256, sizeof(kTagP256))) {
+      // We don't support anything but P256 at the moment.
+      continue;
+    }
+
+    if (!have_leaf_spki_hash) {
+      crypto::SHA256HashString(
+          leaf_spki.as_string(), leaf_spki_hash, sizeof(leaf_spki_hash));
+      have_leaf_spki_hash = true;
+    }
+    SECItem hashitem;
+    memset(&hashitem, 0, sizeof(hashitem));
+    hashitem.data = leaf_spki_hash;
+    hashitem.len = sizeof(leaf_spki_hash);
+
+    SECKEYPublicKey* secpubkey = DecodeX962P256PublicKey(pubkey);
+    if (!secpubkey)
+      continue;
+
+    SECItem sigitem;
+    memset(&sigitem, 0, sizeof(sigitem));
+    sigitem.data = reinterpret_cast<uint8*>(const_cast<char*>(sig.data()));
+    sigitem.len = sig.size();
+
+    // |decoded_sigitem| is newly allocated, as is the data that it points to.
+    SECItem* decoded_sigitem = DSAU_DecodeDerSigToLen(
+        &sigitem, SECKEY_SignatureLen(secpubkey));
+
+    if (!decoded_sigitem) {
+      SECKEY_DestroyPublicKey(secpubkey);
+      continue;
+    }
+
+    SECStatus rv = PK11_Verify(secpubkey, decoded_sigitem, &hashitem, NULL);
+    SECKEY_DestroyPublicKey(secpubkey);
+    SECITEM_FreeItem(decoded_sigitem, PR_TRUE);
+
+    if (rv == SECSuccess) {
+      SHA1Fingerprint fpr;
+      base::SHA1HashBytes(
+          reinterpret_cast<const uint8*>(pubkey.data()),
+          pubkey.size(),
+          fpr.data);
+      out_pub_key_hash->push_back(fpr);
+      have_parsed_a_key = true;
+    }
+  }
+
+  return have_parsed_a_key;
 }
 
 void TransportSecurityState::SetDelegate(
