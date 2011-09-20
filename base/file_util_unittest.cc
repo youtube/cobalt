@@ -223,7 +223,7 @@ TEST_F(FileUtilTest, AppendToPath) {
     EXPECT_EQ(value.result, result);
   }
 
-#ifdef NDEBUG
+#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
   file_util::AppendToPath(NULL, L"path");  // asserts in debug mode
 #endif
 }

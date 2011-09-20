@@ -619,15 +619,28 @@ enum { DEBUG_MODE = ENABLE_DLOG };
 
 #if defined(NDEBUG)
 
+BASE_EXPORT extern DcheckState g_dcheck_state;
+
+#if defined(DCHECK_ALWAYS_ON)
+
+#define DCHECK_IS_ON() true
+#define COMPACT_GOOGLE_LOG_EX_DCHECK(ClassName, ...) \
+  COMPACT_GOOGLE_LOG_EX_FATAL(ClassName , ##__VA_ARGS__)
+#define COMPACT_GOOGLE_LOG_DCHECK COMPACT_GOOGLE_LOG_FATAL
+const LogSeverity LOG_DCHECK = LOG_FATAL;
+
+#else
+
 #define COMPACT_GOOGLE_LOG_EX_DCHECK(ClassName, ...) \
   COMPACT_GOOGLE_LOG_EX_ERROR_REPORT(ClassName , ##__VA_ARGS__)
 #define COMPACT_GOOGLE_LOG_DCHECK COMPACT_GOOGLE_LOG_ERROR_REPORT
 const LogSeverity LOG_DCHECK = LOG_ERROR_REPORT;
-BASE_EXPORT extern DcheckState g_dcheck_state;
 #define DCHECK_IS_ON()                                                  \
   ((::logging::g_dcheck_state ==                                        \
     ::logging::ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS) &&        \
    LOG_IS_ON(DCHECK))
+
+#endif  // defined(DCHECK_ALWAYS_ON)
 
 #else  // defined(NDEBUG)
 

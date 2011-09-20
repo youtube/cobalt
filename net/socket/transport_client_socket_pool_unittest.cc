@@ -797,7 +797,13 @@ class RequestSocketCallback : public CallbackRunner< Tuple1<int> > {
   TestCompletionCallback callback_;
 };
 
-TEST_F(TransportClientSocketPoolTest, RequestTwice) {
+// Disabled in release with dcheck : http://crbug.com/94501
+#if defined(DCHECK_ALWAYS_ON)
+#define MAYBE_RequestTwice DISABLED_RequestTwice
+#else
+#define MAYBE_RequestTwice RequestTwice
+#endif
+TEST_F(TransportClientSocketPoolTest, MAYBE_RequestTwice) {
   ClientSocketHandle handle;
   RequestSocketCallback callback(&handle, &pool_);
   scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
@@ -996,8 +1002,11 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 //
 // Flaky on Mac + Linux - http://crbug.com/86550
 // Flaky on ChromeOS - http://crbug.com/89273
+// Disabled in release with dcheck : http://crbug.com/94501
 #if defined(OS_MACOSX) || defined(OS_CHROMEOS) || defined(OS_LINUX)
 #define MAYBE_BackupSocketFailAfterStall FLAKY_BackupSocketFailAfterStall
+#elif defined(DCHECK_ALWAYS_ON)
+#define MAYBE_BackupSocketFailAfterStall DISABLED_BackupSocketFailAfterStall
 #else
 #define MAYBE_BackupSocketFailAfterStall BackupSocketFailAfterStall
 #endif
@@ -1046,7 +1055,13 @@ TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterStall) {
 // Test the case where a socket took long enough to start the creation
 // of the backup socket and eventually completes, but the backup socket
 // fails.
-TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
+// Disabled in release with dcheck : http://crbug.com/94501
+#if defined(DCHECK_ALWAYS_ON)
+#define MAYBE_BackupSocketFailAfterDelay DISABLED_BackupSocketFailAfterDelay
+#else
+#define MAYBE_BackupSocketFailAfterDelay BackupSocketFailAfterDelay
+#endif
+TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterDelay) {
   MockClientSocketFactory::ClientSocketType case_types[] = {
     // The first socket will connect, although delayed.
     MockClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET,
