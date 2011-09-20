@@ -54,7 +54,7 @@ namespace mozilla_security_manager {
 // Based on nsNSSCertificateDB::handleCACertDownload, minus the UI bits.
 bool ImportCACerts(const net::CertificateList& certificates,
                    net::X509Certificate* root,
-                   unsigned int trustBits,
+                   net::CertDatabase::TrustBits trustBits,
                    net::CertDatabase::ImportCertFailureList* not_imported) {
   crypto::ScopedPK11Slot slot(crypto::GetPublicNSSKeySlot());
   if (!slot.get()) {
@@ -200,7 +200,7 @@ bool ImportServerCert(const net::CertificateList& certificates,
 bool
 SetCertTrust(const net::X509Certificate* cert,
              net::CertType type,
-             unsigned int trusted)
+             net::CertDatabase::TrustBits trustBits)
 {
   SECStatus srv;
   nsNSSCertTrust trust;
@@ -208,16 +208,16 @@ SetCertTrust(const net::X509Certificate* cert,
   if (type == net::CA_CERT) {
     // always start with untrusted and move up
     trust.SetValidCA();
-    trust.AddCATrust(trusted & net::CertDatabase::TRUSTED_SSL,
-                     trusted & net::CertDatabase::TRUSTED_EMAIL,
-                     trusted & net::CertDatabase::TRUSTED_OBJ_SIGN);
+    trust.AddCATrust(trustBits & net::CertDatabase::TRUSTED_SSL,
+                     trustBits & net::CertDatabase::TRUSTED_EMAIL,
+                     trustBits & net::CertDatabase::TRUSTED_OBJ_SIGN);
     srv = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(),
                                nsscert,
                                trust.GetTrust());
   } else if (type == net::SERVER_CERT) {
     // always start with untrusted and move up
     trust.SetValidPeer();
-    trust.AddPeerTrust(trusted & net::CertDatabase::TRUSTED_SSL, 0, 0);
+    trust.AddPeerTrust(trustBits & net::CertDatabase::TRUSTED_SSL, 0, 0);
     srv = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(),
                                nsscert,
                                trust.GetTrust());
