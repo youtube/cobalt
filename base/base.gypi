@@ -381,21 +381,24 @@
               'message_pump_x.cc',
             ],
           }],
-          [ 'toolkit_uses_gtk==0', {
+          [ 'use_glib==0', {
               'sources/': [
                 ['exclude', '^nix/'],
               ],
               'sources!': [
                 'atomicops_internals_x86_gcc.cc',
                 'message_pump_glib.cc',
-                'message_pump_gtk.cc',
                 'message_pump_x.cc',
               ],
+          }],
+          [ 'toolkit_uses_gtk==0', {
+            'sources!': [ 'message_pump_gtk.cc', ],
           }],
           [ 'touchui==0 and use_aura==0', {
             'sources!' : [ 'message_pump_x.cc', ],
           }, {
             'sources!' : [ 'message_pump_gtk.cc', ],
+            'sources' : [ 'message_pump_x.cc', ],
           }],
           [ 'OS != "linux"', {
               'sources!': [
@@ -474,7 +477,7 @@
         ],
       },
       'conditions': [
-        [ 'toolkit_uses_gtk==1', {
+        [ 'use_glib==1', {
           'conditions': [
             [ 'chromeos==1', {
                 'sources/': [ ['include', '_chromeos\\.cc$'] ]
@@ -491,11 +494,19 @@
                 },
               },
             ],
+            [ 'toolkit_uses_gtk==1', {
+              'dependencies': [
+                '../build/linux/system.gyp:gtk',
+              ],
+              'export_dependent_settings': [
+                '../build/linux/system.gyp:gtk',
+              ],
+            }],
           ],
           'dependencies': [
             'symbolize',
             '../build/util/build_util.gyp:lastchange#target',
-            '../build/linux/system.gyp:gtk',
+            '../build/linux/system.gyp:glib',
             '../build/linux/system.gyp:x11',
             'xdg_mime',
           ],
@@ -506,10 +517,10 @@
             '-Wno-write-strings',
           ],
           'export_dependent_settings': [
-            '../build/linux/system.gyp:gtk',
+            '../build/linux/system.gyp:glib',
             '../build/linux/system.gyp:x11',
           ],
-        }, {  # toolkit_uses_gtk!=1
+        }, {  # use_glib!=1
             'sources/': [
               ['exclude', '/xdg_user_dirs/'],
               ['exclude', '_nss\.cc$'],
