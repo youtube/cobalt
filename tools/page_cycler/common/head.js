@@ -76,7 +76,7 @@ function __ontimeout() {
 function __onload() {
   if (__results) {
     // Set a variable to indicate that the result report page is loaded.
-    document.cookie = " __navigated_to_report=1; path=/";
+    document.cookie = "__navigated_to_report=1; path=/";
     return;
   }
   var unused = document.body.offsetHeight;  // force layout
