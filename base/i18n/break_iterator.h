@@ -88,6 +88,12 @@ class BASE_I18N_EXPORT BreakIterator {
   // this distinction doesn't apply and it always retuns false.
   bool IsWord() const;
 
+  // Under BREAK_WORD mode, returns true if |position| is at the end of word or
+  // at the start of word. It always retuns false under BREAK_LINE and
+  // BREAK_NEWLINE modes.
+  bool IsEndOfWord(size_t position) const;
+  bool IsStartOfWord(size_t position) const;
+
   // Returns the string between prev() and pos().
   // Advance() must have been called successfully at least once for pos() to
   // have advanced to somewhere useful.
