@@ -54,7 +54,7 @@ namespace mozilla_security_manager {
 
 bool ImportCACerts(const net::CertificateList& certificates,
                    net::X509Certificate* root,
-                   unsigned int trustBits,
+                   net::CertDatabase::TrustBits trustBits,
                    net::CertDatabase::ImportCertFailureList* not_imported);
 
 bool ImportServerCert(const net::CertificateList& certificates,
@@ -62,7 +62,7 @@ bool ImportServerCert(const net::CertificateList& certificates,
 
 bool SetCertTrust(const net::X509Certificate* cert,
                   net::CertType type,
-                  unsigned int trusted);
+                  net::CertDatabase::TrustBits trustBits);
 
 }  // namespace mozilla_security_manager
 

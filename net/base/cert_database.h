@@ -77,6 +77,9 @@ class NET_EXPORT CertDatabase {
   // trusted as a server.
   // For EMAIL_CERT, only TRUSTED_EMAIL makes sense, and specifies the cert is
   // trusted for email.
+  // NOTE: The actual constants are defined using an enum instead of static
+  // consts due to compilation/linkage constraints with template functions.
+  typedef uint32 TrustBits;
   enum {
     UNTRUSTED        =      0,
     TRUSTED_SSL      = 1 << 0,
@@ -142,7 +145,7 @@ class NET_EXPORT CertDatabase {
   // |not_imported| should be checked for any certificates that were not
   // imported.
   bool ImportCACerts(const CertificateList& certificates,
-                     unsigned int trust_bits,
+                     TrustBits trust_bits,
                      ImportCertFailureList* not_imported);
 
   // Import server certificate.  The first cert should be the server cert.  Any
@@ -157,13 +160,13 @@ class NET_EXPORT CertDatabase {
                         ImportCertFailureList* not_imported);
 
   // Get trust bits for certificate.
-  unsigned int GetCertTrust(const X509Certificate* cert, CertType type) const;
+  TrustBits GetCertTrust(const X509Certificate* cert, CertType type) const;
 
   // Set trust values for certificate.
   // Returns true on success or false on failure.
   bool SetCertTrust(const X509Certificate* cert,
                     CertType type,
-                    unsigned int trust_bits);
+                    TrustBits trust_bits);
 
   // Delete certificate and associated private key (if one exists).
   // Returns true on success or false on failure.
