@@ -233,7 +233,7 @@
         }],
 
         # Flags to use Gtk and X11 on non-Mac POSIX platforms
-        ['OS=="win" or OS=="mac"', {
+        ['OS=="win" or OS=="mac" or OS=="android"', {
           'use_glib%': 0,
           'toolkit_uses_gtk%': 0,
           'use_x11%': 0,
@@ -285,6 +285,11 @@
           'webui_task_manager%': 1,
         }, {
           'webui_task_manager%': 0,
+        }],
+
+        ['OS=="android"', {
+          'proprietary_codecs%': 1,
+          'enable_webrtc%': 0,
         }],
 
         # Enable smooth scrolling for Mac, Win, Linux and ChromeOS
@@ -444,6 +449,9 @@
     'clang_load%': '',
     'clang_add_plugin%': '',
 
+    # The default type of gtest.
+    'gtest_target_type%': 'executable',
+
     # Enable sampling based profiler.
     # See http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html
     'profiling%': '0',
@@ -550,7 +558,7 @@
     'icu_src_dir': '../third_party/icu',
 
     'conditions': [
-      ['os_posix==1 and OS!="mac"', {
+      ['os_posix==1 and OS!="mac" and OS!="android"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
         'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
@@ -566,8 +574,73 @@
             'linux_dump_symbols%': 1,
           }],
         ],
-      }],  # os_posix==1 and OS!="mac"
+      }],  # os_posix==1 and OS!="mac" and OS!="android"
+      ['OS=="android"', {
+        # Location of Android NDK.
+        'variables': {
+          'variables': {
+            'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
+            'android_target_arch%': 'arm',  # target_arch in android terms.
 
+            # Switch between different build types, currently only '0' is
+            # supported.
+            'android_build_type%': 0,
+          },
+          'android_ndk_root%': '<(android_ndk_root)',
+          'android_ndk_sysroot': '<(android_ndk_root)/platforms/android-9/arch-<(android_target_arch)',
+          'android_build_type%': '<(android_build_type)',
+        },
+        'android_ndk_root%': '<(android_ndk_root)',
+        'android_ndk_sysroot': '<(android_ndk_sysroot)',
+        'android_ndk_include': '<(android_ndk_sysroot)/usr/include',
+        'android_ndk_lib': '<(android_ndk_sysroot)/usr/lib',
+
+        # Uses Android's crash report system
+        'linux_breakpad%': 0,
+
+        # Always uses openssl.
+        'use_openssl%': 1,
+
+        'proprietary_codecs%': '<(proprietary_codecs)',
+        'safe_browsing%': 0,
+        'configuration_policy%': 0,
+
+        # Builds the gtest targets as a shared_library.
+        # TODO(michaelbai): Use the fixed value 'shared_library' once it
+        # is fully supported.
+        'gtest_target_type%': '<(gtest_target_type)',
+
+        # Uses system APIs for decoding audio and video.
+        'use_libffmpeg%': '0',
+
+        # Always use the chromium skia. The use_system_harfbuzz needs to
+        # match use_system_skia.
+        'use_system_skia%': '0',
+        'use_system_harfbuzz%': '0',
+
+        # Use the system icu.
+        'use_system_icu%': 1,
+
+        # Choose static link by build type.
+        'conditions': [
+          ['android_build_type==0', {
+            'static_link_system_icu%': 1,
+          }, {
+            'static_link_system_icu%': 0,
+          }],
+        ],
+        # Enable to use system sqlite.
+        'use_system_sqlite%': '<(android_build_type)',
+        # Enable to use system libjpeg. 
+        'use_system_libjpeg%': '<(android_build_type)',
+        # Enable to use the system libexpat.
+        'use_system_libexpat%': '<(android_build_type)',
+        # Enable to use the system stlport, otherwise statically
+        # link the NDK one?
+        'use_system_stlport%': '<(android_build_type)',
+        # Copy it out one scope.
+        'android_build_type%': '<(android_build_type)',
+      }],  # OS=="android"
       ['OS=="mac"', {
         # Enable clang on mac by default!
         'clang%': 1,
@@ -701,7 +774,9 @@
           'ka', 'ku', 'kw', 'ms', 'ug'
         ],
       }],
-
+      ['OS=="android"', {
+        'grit_defines': ['-D', 'android'],
+      }],
       ['clang_use_chrome_plugins==1', {
         'clang_chrome_plugins_flags':
             '<!(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)',
@@ -910,7 +985,7 @@
               }],
             ],
           }],
-          ['OS=="linux"', {
+          ['OS=="linux" or OS=="android"', {
             'cflags': [ '-ftest-coverage',
                         '-fprofile-arcs' ],
             'link_settings': { 'libraries': [ '-lgcov' ] },
@@ -1351,6 +1426,29 @@
               '-O>(debug_optimize)',
               '-g',
             ],
+            'conditions' : [
+              ['OS=="android"', {
+                'cflags': [
+                  '-fno-omit-frame-pointer',
+                ],
+              }],
+            ],
+            'target_conditions' : [
+              ['_toolset=="target"', {
+                'conditions': [
+                  ['OS=="android" and debug_optimize==0', {
+                    'cflags': [
+                      '-mlong-calls',  # Needed when compiling with -O0
+                    ],
+                  }],
+                  ['arm_thumb==1', {
+                    'cflags': [
+                      '-marm',
+                    ],
+                  }],
+                 ],
+              }],
+            ],
           },
           'Release_Base': {
             'variables': {
@@ -1387,6 +1485,11 @@
               ['no_gc_sections==0', {
                 'ldflags': [
                   '-Wl,--gc-sections',
+                ],
+              }],
+              ['OS=="android"', {
+                'cflags': [
+                  '-fomit-frame-pointer',
                 ],
               }],
               ['clang==1', {
@@ -1517,7 +1620,7 @@
                   '-Wno-abi',
                 ],
                 'conditions': [
-                  ['arm_thumb == 1', {
+                  ['arm_thumb==1', {
                     'cflags': [
                     '-mthumb',
                     ]
@@ -1534,6 +1637,30 @@
                       }, {
                         'cflags': [ '-mfpu=<(arm_fpu)', ],
                       }]
+                    ],
+                  }],
+                  ['OS=="android"', {
+                    # The following flags are derived from what Android uses
+                    # by default when building for arm.
+                    'cflags': [ '-Wno-psabi', ],
+                    'conditions': [
+                      ['arm_thumb == 1', {
+                        # Android toolchain doesn't support -mimplicit-it=thumb
+                        'cflags!': [ '-Wa,-mimplicit-it=thumb', ],
+                        'cflags': [ '-mthumb-interwork', ],
+                      }],
+                      ['armv7==0', {
+                        # Flags suitable for Android emulator
+                        'cflags': [
+                          '-march=armv5te',
+                          '-mtune=xscale',
+                          '-msoft-float',
+                          '-D__ARM_ARCH_5__',
+                          '-D__ARM_ARCH_5T__',
+                          '-D__ARM_ARCH_5E__',
+                          '-D__ARM_ARCH_5TE__',
+                        ],
+                      }],
                     ],
                   }],
                 ],
@@ -1627,6 +1754,217 @@
       'target_defaults': {
         'ldflags': [
           '-Wl,--no-keep-memory',
+        ],
+      },
+    }],
+    # Android-specific options; note that most are set above with Linux.
+    ['OS=="android"', {
+      'variables': {
+        'android_target_arch%': 'arm',  # target_arch in android terms.
+        'conditions': [
+          # Android uses x86 instead of ia32 for their target_arch designation.
+          ['target_arch=="ia32"', {
+            'android_target_arch%': 'x86',
+          }],
+          # Use shared stlport library when system one used.
+          # Figure this out early since it needs symbols from libgcc.a, so it
+          # has to be before that in the set of libraries.
+          ['use_system_stlport==1', {
+            'android_stlport_library': 'stlport',
+          }, {
+            'android_stlport_library': 'stlport_static',
+          }],
+        ],
+
+        # Placing this variable here prevents from forking libvpx, used
+        # by remoting.  Remoting is off, so it needn't built,
+        # so forking it's deps seems like overkill.
+        # But this variable need defined to properly run gyp.
+        # A proper solution is to have an OS==android conditional
+        # in third_party/libvpx/libvpx.gyp to define it.
+        'libvpx_path': 'lib/linux/arm',
+      },
+      'target_defaults': {
+        # Build a Release build by default to match Android build behavior.
+        # This is typical with Android because Debug builds tend to be much
+        # larger and run very slowly on constrained devices. It is still
+        # possible to do a Debug build by specifying BUILDTYPE=Debug on the
+        # 'make' command line.
+        'default_configuration': 'Release',
+
+        'variables': {
+          'release_extra_cflags%': '',
+         },
+
+        'target_conditions': [
+          # Settings for building device targets using Android's toolchain.
+          # These are based on the setup.mk file from the Android NDK.
+          #
+          # The NDK Android executable link step looks as follows:
+          #  $LDFLAGS
+          #  $(TARGET_CRTBEGIN_DYNAMIC_O)  <-- crtbegin.o
+          #  $(PRIVATE_OBJECTS)            <-- The .o that we built
+          #  $(PRIVATE_STATIC_LIBRARIES)   <-- The .a that we built
+          #  $(TARGET_LIBGCC)              <-- libgcc.a
+          #  $(PRIVATE_SHARED_LIBRARIES)   <-- The .so that we built
+          #  $(PRIVATE_LDLIBS)             <-- System .so
+          #  $(TARGET_CRTEND_O)            <-- crtend.o
+          #
+          # For now the above are approximated for executables by adding
+          # crtbegin.o to the end of the ldflags and 'crtend.o' to the end
+          # of 'libraries'.
+          #
+          # The NDK Android shared library link step looks as follows:
+          #  $LDFLAGS
+          #  $(PRIVATE_OBJECTS)            <-- The .o that we built
+          #  -l,--whole-archive
+          #  $(PRIVATE_WHOLE_STATIC_LIBRARIES)
+          #  -l,--no-whole-archive
+          #  $(PRIVATE_STATIC_LIBRARIES)   <-- The .a that we built
+          #  $(TARGET_LIBGCC)              <-- libgcc.a
+          #  $(PRIVATE_SHARED_LIBRARIES)   <-- The .so that we built
+          #  $(PRIVATE_LDLIBS)             <-- System .so
+          #
+          # For now, assume not need any whole static libs.
+          #
+          # For both executables and shared libraries, add the proper
+          # libgcc.a to the start of libraries which puts it in the
+          # proper spot after .o and .a files get linked in.
+          #
+          # TODO: The proper thing to do longer-tem would be proper gyp
+          # support for a custom link command line.
+          ['_toolset=="target"', {
+            'cflags!': [
+              '-pthread',  # Not supported by Android toolchain.
+            ],
+            'cflags': [
+              '-U__linux__',  # Don't allow toolchain to claim -D__linux__
+              '-ffunction-sections',
+              '-funwind-tables',
+              '-g',
+              '-fstack-protector',
+              '-fno-short-enums',
+              '-finline-limit=64',
+              '-Wa,--noexecstack',
+              '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
+              '<@(release_extra_cflags)',
+              # Note: This include is in cflags to ensure that it comes after
+              # all of the includes.
+              '-I<(android_ndk_include)',
+            ],
+            'defines': [
+              'ANDROID',
+              '__GNU_SOURCE=1',  # Necessary for clone()
+              'USE_STLPORT=1',
+              '_STLP_USE_PTR_SPECIALIZATIONS=1',
+              'HAVE_OFF64_T',
+              'HAVE_SYS_UIO_H',
+              'ANDROID_BINSIZE_HACK', # Enable temporary hacks to reduce binsize.
+            ],
+            'ldflags!': [
+              '-pthread',  # Not supported by Android toolchain.
+            ],
+            'ldflags': [
+              '-nostdlib',
+              '-Wl,--no-undefined',
+              '-Wl,--icf=safe',  # Enable identical code folding to reduce size
+              # Don't export symbols from statically linked libraries.
+              '-Wl,--exclude-libs=ALL',
+            ],
+            'libraries!': [
+               '-lrt',  # librt is built into Bionic.
+               # Not supported by Android toolchain.
+               # Where do these come from?  Can't find references in
+               # any Chromium gyp or gypi file.  Maybe they come from
+               # gyp itself?
+               '-lpthread', '-lnss3', '-lnssutil3', '-lsmime3', '-lplds4', '-lplc4', '-lnspr4',
+             ],
+             'libraries': [
+               '-l<(android_stlport_library)',
+               # Manually link the libgcc.a that the cross compiler uses.
+               '<!($CROSS_CC -print-libgcc-file-name)',
+               '-lc',
+               '-ldl',
+               '-lstdc++',
+               '-lm',
+            ],
+            'conditions': [
+              ['android_build_type==0', {
+                'ldflags': [
+                  '-Wl,-rpath-link=<(android_ndk_lib)',
+                  '-L<(android_ndk_lib)',
+                ],
+              }],
+              # NOTE: The stlport header include paths below are specified in
+              # cflags rather than include_dirs because they need to come
+              # after include_dirs. Think of them like system headers, but
+              # don't use '-isystem' because the arm-linux-androideabi-4.4.3
+              # toolchain (circa Gingerbread) will exhibit strange errors.
+              # The include ordering here is important; change with caution.
+              ['use_system_stlport==0', {
+                'cflags': [
+                  '-I<(android_ndk_root)/sources/cxx-stl/stlport/stlport',
+                ],
+                'conditions': [
+                  ['target_arch=="arm" and armv7==1', {
+                    'ldflags': [
+                      '-L<(android_ndk_root)/sources/cxx-stl/stlport/libs/armeabi-v7a',
+                    ],
+                  }],
+                  ['target_arch=="arm" and armv7==0', {
+                    'ldflags': [
+                      '-L<(android_ndk_root)/sources/cxx-stl/stlport/libs/armeabi',
+                    ],
+                  }],
+                  ['target_arch=="ia32"', {
+                    'ldflags': [
+                      '-L<(android_ndk_root)/sources/cxx-stl/stlport/libs/x86',
+                    ],
+                  }],
+                ],
+              }],
+              ['target_arch=="ia32"', {
+                # The x86 toolchain currently has problems with stack-protector.
+                'cflags!': [
+                  '-fstack-protector',
+                ],
+                'cflags': [
+                  '-fno-stack-protector',
+                ],
+              }],
+            ],
+            'target_conditions': [
+              ['_type=="executable"', {
+                'ldflags': [
+                  '-Bdynamic',
+                  '-Wl,-dynamic-linker,/system/bin/linker',
+                  '-Wl,--gc-sections',
+                  '-Wl,-z,nocopyreloc',
+                  # crtbegin_dynamic.o should be the last item in ldflags.
+                  '<(android_ndk_lib)/crtbegin_dynamic.o',
+                ],
+                'libraries': [
+                  # crtend_android.o needs to be the last item in libraries.
+                  # Do not add any libraries after this!
+                  '<(android_ndk_lib)/crtend_android.o',
+                ],
+              }],
+              ['_type=="shared_library"', {
+                'ldflags': [
+                  '-Wl,-shared,-Bsymbolic',
+                ],
+              }],
+            ],
+          }],
+          # Settings for building host targets using the system toolchain.
+          ['_toolset=="host"', {
+            'ldflags!': [
+              '-Wl,-z,noexecstack',
+              '-Wl,--gc-sections',
+              '-Wl,-O1',
+              '-Wl,--as-needed',
+            ],
+          }],
         ],
       },
     }],
