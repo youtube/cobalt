@@ -76,12 +76,14 @@
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_nss_types.h"
 #include "net/base/address_list.h"
+#include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/dns_util.h"
 #include "net/base/dnsrr_resolver.h"
 #include "net/base/dnssec_chain_verifier.h"
+#include "net/base/transport_security_state.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -488,6 +490,11 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->cert = server_cert_;
   ssl_info->connection_status = ssl_connection_status_;
   ssl_info->public_key_hashes = server_cert_verify_result_->public_key_hashes;
+  for (std::vector<SHA1Fingerprint>::const_iterator
+       i = side_pinned_public_keys_.begin();
+       i != side_pinned_public_keys_.end(); i++) {
+    ssl_info->public_key_hashes.push_back(*i);
+  }
   ssl_info->is_issued_by_known_root =
       server_cert_verify_result_->is_issued_by_known_root;
 
@@ -1711,6 +1718,56 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
         UMA_HISTOGRAM_TIMES("Net.SSLCertVerificationTime", verify_time);
     else
         UMA_HISTOGRAM_TIMES("Net.SSLCertVerificationTimeError", verify_time);
+  }
+
+  PeerCertificateChain chain(nss_fd_);
+  for (unsigned i = 1; i < chain.size(); i++) {
+    if (strcmp(chain[i]->subjectName, "CN=meta") != 0)
+      continue;
+
+    base::StringPiece leaf_der(
+        reinterpret_cast<char*>(server_cert_nss_->derCert.data),
+        server_cert_nss_->derCert.len);
+    base::StringPiece leaf_spki;
+    if (!asn1::ExtractSPKIFromDERCert(leaf_der, &leaf_spki))
+      break;
+
+    static SECOidTag side_data_tag;
+    static bool side_data_tag_valid;
+    if (!side_data_tag_valid) {
+      // It's harmless if multiple threads enter this block concurrently.
+      static const uint8 kSideDataOID[] =
+          // 1.3.6.1.4.1.11129.2.1.4
+          // (iso.org.dod.internet.private.enterprises.google.googleSecurity.
+          //  certificateExtensions.sideData)
+          {0x2b, 0x06, 0x01, 0x04, 0x01, 0xd6, 0x79, 0x02, 0x01, 0x05};
+      SECOidData oid_data;
+      memset(&oid_data, 0, sizeof(oid_data));
+      oid_data.oid.data = const_cast<uint8*>(kSideDataOID);
+      oid_data.oid.len = sizeof(kSideDataOID);
+      oid_data.desc = "Certificate side data";
+      oid_data.supportedExtension = SUPPORTED_CERT_EXTENSION;
+      side_data_tag = SECOID_AddEntry(&oid_data);
+      DCHECK_NE(SEC_OID_UNKNOWN, side_data_tag);
+      side_data_tag_valid = true;
+    }
+
+    SECItem side_data_item;
+    SECStatus rv = CERT_FindCertExtension(chain[i],
+        side_data_tag, &side_data_item);
+    if (rv != SECSuccess)
+      continue;
+
+    base::StringPiece side_data(
+        reinterpret_cast<char*>(side_data_item.data),
+        side_data_item.len);
+
+    if (!TransportSecurityState::ParseSidePin(
+             leaf_spki, side_data, &side_pinned_public_keys_)) {
+      LOG(WARNING) << "Side pinning data failed to parse: "
+                   << host_and_port_.host();
+    }
+    break;
   }
 
   // We used to remember the intermediate CA certs in the NSS database
