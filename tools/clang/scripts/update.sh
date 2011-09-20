@@ -115,10 +115,10 @@ if [ -z "$force_local_build" ]; then
   echo Trying to download prebuilt clang
   if [ "${OS}" = "Linux" ]; then
     wget "${CDS_URL}/Linux_x64/${CDS_FILE}" -O "${CDS_OUTPUT}" || \
-        rm -f "${CDS_OUT_DIR}"
+        rm -rf "${CDS_OUT_DIR}"
   elif [ "${OS}" = "Darwin" ]; then
     curl -L --fail "${CDS_URL}/Mac/${CDS_FILE}" -o "${CDS_OUTPUT}" || \
-        rm -f "${CDS_OUT_DIR}"
+        rm -rf "${CDS_OUT_DIR}"
   fi
   if [ -f "${CDS_OUTPUT}" ]; then
     rm -rf "${LLVM_BUILD_DIR}/Release+Asserts"
