@@ -468,7 +468,6 @@
     {
       'target_name': 'glib',
       'type': 'settings',
-      'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'cflags': [
           '<!@(<(pkg-config) --cflags glib-2.0)',
