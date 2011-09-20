@@ -186,7 +186,14 @@ MULTIPROCESS_TEST_MAIN(CrashingChildProcess) {
   return 1;
 }
 
-TEST_F(ProcessUtilTest, GetTerminationStatusCrash) {
+// This test intentionally crashes, so we don't need to run it under
+// AddressSanitizer.
+#if defined(ADDRESS_SANITIZER)
+#define MAYBE_GetTerminationStatusCrash DISABLED_GetTerminationStatusCrash
+#else
+#define MAYBE_GetTerminationStatusCrash GetTerminationStatusCrash
+#endif
+TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusCrash) {
   remove(kSignalFileCrash);
   base::ProcessHandle handle = this->SpawnChild("CrashingChildProcess",
                                                 false);
