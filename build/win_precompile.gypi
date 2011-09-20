@@ -3,18 +3,26 @@
 # found in the LICENSE file.
 
 # Include this file to make targets in your .gyp use the default
-# precompiled header on Windows.
+# precompiled header on Windows, in debug builds only as the official
+# builders blow up (out of memory) if precompiled headers are used for
+# release builds.
 
 {
   'conditions': [
-    # Restricted to VS 2010 until GYP also supports suppressing
-    # precompiled headers on .c files in VS 2008.
-    ['OS=="win" and (MSVS_VERSION=="2010" or MSVS_VERSION=="2010e")', {
-      'target_defaults': {
-        'msvs_precompiled_header': '<(DEPTH)/build/precompile.h',
-        'msvs_precompiled_source': '<(DEPTH)/build/precompile.cc',
-        'sources': ['<(DEPTH)/build/precompile.cc'],
-      },
-    }],
+    ['OS=="win"', {
+        'target_defaults': {
+          'configurations': {
+            'Debug': {
+              'msvs_precompiled_header': '<(DEPTH)/build/precompile.h',
+              'msvs_precompiled_source': '<(DEPTH)/build/precompile.cc',
+            },
+          },
+
+          # Sources can't be specified inside the 'Debug'
+          # configuration. Since precompile.cc only contains
+          # comments, it won't have any effect for 'Release' builds.
+          'sources': ['<(DEPTH)/build/precompile.cc'],
+        }
+      }],
   ],
 }
