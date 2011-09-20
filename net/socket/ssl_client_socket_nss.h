@@ -219,6 +219,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // we used an SSLHostInfo's verification.
   const CertVerifyResult* server_cert_verify_result_;
   CertVerifyResult local_server_cert_verify_result_;
+  std::vector<SHA1Fingerprint> side_pinned_public_keys_;
   int ssl_connection_status_;
 
   // Stores client authentication information between ClientAuthHandler and
