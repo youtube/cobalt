@@ -239,13 +239,21 @@ TEST(SpdyProtocolDeathTest, TestDataFrame) {
   frame.set_stream_id(0);
   // TODO(mbelshe):  implement EXPECT_DEBUG_DEATH on windows.
 #ifndef WIN32
+#if !defined(DCHECK_ALWAYS_ON)
   EXPECT_DEBUG_DEATH(frame.set_stream_id(~0), "");
+#else
+  EXPECT_DEATH(frame.set_stream_id(~0), "");
+#endif
 #endif
   EXPECT_FALSE(frame.is_control_frame());
 
   frame.set_flags(0);
 #ifndef WIN32
+#if !defined(DCHECK_ALWAYS_ON)
   EXPECT_DEBUG_DEATH(frame.set_length(~0), "");
+#else
+  EXPECT_DEATH(frame.set_length(~0), "");
+#endif
 #endif
   EXPECT_EQ(0, frame.flags());
 }
