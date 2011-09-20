@@ -10,8 +10,8 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
-#include "base/utf_string_conversions.h"
 #include "base/utf_offset_string_conversions.h"
+#include "base/utf_string_conversions.h"
 
 namespace {
 
@@ -122,7 +122,8 @@ STR UnescapeURLWithOffsetsImpl(const STR& escaped_text,
   STR result;
   result.reserve(escaped_text.length());
 
-  AdjustEncodingOffset::Adjustments adjustments;  // Locations of adjusted text.
+  // Locations of adjusted text.
+  net::internal::AdjustEncodingOffset::Adjustments adjustments;
   for (size_t i = 0, max = escaped_text.size(); i < max; ++i) {
     if (static_cast<unsigned char>(escaped_text[i]) >= 128) {
       // Non ASCII character, append as is.
@@ -176,7 +177,7 @@ STR UnescapeURLWithOffsetsImpl(const STR& escaped_text,
   if (offsets_for_adjustment && !adjustments.empty()) {
     std::for_each(offsets_for_adjustment->begin(),
                    offsets_for_adjustment->end(),
-                   AdjustEncodingOffset(adjustments));
+                   net::internal::AdjustEncodingOffset(adjustments));
   }
 
   return result;
@@ -192,13 +193,6 @@ static const Charmap kQueryCharmap(
 
 std::string EscapeQueryParamValue(const std::string& text, bool use_plus) {
   return Escape(text, kQueryCharmap, use_plus);
-}
-
-// Convert the string to a sequence of bytes and then % escape anything
-// except alphanumerics and !'()*-._~
-string16 EscapeQueryParamValueUTF8(const string16& text,
-                                   bool use_plus) {
-  return UTF8ToUTF16(Escape(UTF16ToUTF8(text), kQueryCharmap, use_plus));
 }
 
 // non-printable, non-7bit, and (including space)  "#%:<>?[\]^`{|}
@@ -368,6 +362,16 @@ string16 UnescapeForHTML(const string16& input) {
   return text;
 }
 
+namespace net {
+
+// Convert the string to a sequence of bytes and then % escape anything
+// except alphanumerics and !'()*-._~
+string16 EscapeQueryParamValueUTF8(const string16& text, bool use_plus) {
+  return UTF8ToUTF16(Escape(UTF16ToUTF8(text), kQueryCharmap, use_plus));
+}
+
+namespace internal {
+
 AdjustEncodingOffset::AdjustEncodingOffset(const Adjustments& adjustments)
   : adjustments(adjustments) {}
 
@@ -391,3 +395,7 @@ void AdjustEncodingOffset::operator()(size_t& offset) {
   }
   offset = adjusted_offset;
 }
+
+}  // namespace internal
+
+}  // namespace net
