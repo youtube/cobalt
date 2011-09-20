@@ -197,7 +197,7 @@ X509Certificate* CertDatabase::FindRootInList(
 }
 
 bool CertDatabase::ImportCACerts(const CertificateList& certificates,
-                                 unsigned int trust_bits,
+                                 TrustBits trust_bits,
                                  ImportCertFailureList* not_imported) {
   X509Certificate* root = FindRootInList(certificates);
   bool success = psm::ImportCACerts(certificates, root, trust_bits,
@@ -213,8 +213,8 @@ bool CertDatabase::ImportServerCert(const CertificateList& certificates,
   return psm::ImportServerCert(certificates, not_imported);
 }
 
-unsigned int CertDatabase::GetCertTrust(
-    const X509Certificate* cert, CertType type) const {
+CertDatabase::TrustBits CertDatabase::GetCertTrust(const X509Certificate* cert,
+                                                   CertType type) const {
   CERTCertTrust nsstrust;
   SECStatus srv = CERT_GetCertTrust(cert->os_cert_handle(), &nsstrust);
   if (srv != SECSuccess) {
@@ -238,8 +238,8 @@ unsigned int CertDatabase::GetCertTrust(
 
 bool CertDatabase::SetCertTrust(const X509Certificate* cert,
                                 CertType type,
-                                unsigned int trusted) {
-  bool success = psm::SetCertTrust(cert, type, trusted);
+                                TrustBits trust_bits) {
+  bool success = psm::SetCertTrust(cert, type, trust_bits);
   if (success)
     CertDatabase::NotifyObserversOfCertTrustChanged(cert);
 
