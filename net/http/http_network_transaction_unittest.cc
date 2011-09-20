@@ -171,9 +171,12 @@ class HttpNetworkTransactionTest : public PlatformTest {
       return out;
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    EXPECT_TRUE(response != NULL);
-
-    EXPECT_TRUE(response->headers != NULL);
+    // Can't use ASSERT_* inside helper functions like this, so
+    // return an error.
+    if (response == NULL || response->headers == NULL) {
+      out.rv = ERR_UNEXPECTED;
+      return out;
+    }
     out.status_line = response->headers->GetStatusLine();
 
     EXPECT_EQ("192.0.2.33", response->socket_address.host());
@@ -648,7 +651,7 @@ TEST_F(HttpNetworkTransactionTest, Head) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   // Check that the headers got parsed.
   EXPECT_TRUE(response->headers != NULL);
@@ -705,7 +708,7 @@ TEST_F(HttpNetworkTransactionTest, ReuseConnection) {
     EXPECT_EQ(OK, rv);
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    EXPECT_TRUE(response != NULL);
+    ASSERT_TRUE(response != NULL);
 
     EXPECT_TRUE(response->headers != NULL);
     EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
@@ -747,7 +750,7 @@ TEST_F(HttpNetworkTransactionTest, Ignores100) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_TRUE(response != NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.0 200 OK", response->headers->GetStatusLine());
@@ -789,7 +792,7 @@ TEST_F(HttpNetworkTransactionTest, Ignores1xx) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_TRUE(response != NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
@@ -900,7 +903,7 @@ void HttpNetworkTransactionTest::KeepAliveConnectionResendRequestTest(
     EXPECT_EQ(OK, rv);
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    EXPECT_TRUE(response != NULL);
+    ASSERT_TRUE(response != NULL);
 
     EXPECT_TRUE(response->headers != NULL);
     EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
@@ -1133,7 +1136,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuth) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
@@ -1145,7 +1148,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuth) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(100, response->headers->GetContentLength());
 }
@@ -1187,7 +1190,7 @@ TEST_F(HttpNetworkTransactionTest, DoNotSendAuth) {
   EXPECT_EQ(0, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
 }
 
@@ -1252,7 +1255,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
@@ -1264,7 +1267,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(5, response->headers->GetContentLength());
 }
@@ -1327,7 +1330,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveNoBody) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
@@ -1339,7 +1342,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveNoBody) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(5, response->headers->GetContentLength());
 }
@@ -1410,7 +1413,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveLargeBody) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
@@ -1422,7 +1425,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveLargeBody) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(5, response->headers->GetContentLength());
 }
@@ -1495,7 +1498,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveImpatientServer) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
@@ -1507,7 +1510,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveImpatientServer) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(5, response->headers->GetContentLength());
 }
@@ -1587,7 +1590,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyNoKeepAlive) {
       NetLog::PHASE_NONE);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   ASSERT_FALSE(response->headers == NULL);
   EXPECT_EQ(407, response->headers->response_code());
   EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
@@ -1602,7 +1605,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyNoKeepAlive) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(200, response->headers->response_code());
@@ -1687,7 +1690,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
       NetLog::PHASE_NONE);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   ASSERT_FALSE(response->headers == NULL);
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(407, response->headers->response_code());
@@ -1705,7 +1708,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   ASSERT_FALSE(response->headers == NULL);
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(407, response->headers->response_code());
@@ -1761,7 +1764,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyCancelTunnel) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(407, response->headers->response_code());
@@ -1922,7 +1925,7 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxyGet) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(200, response->headers->response_code());
@@ -2302,7 +2305,7 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectFailure) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_EQ(500, response->headers->response_code());
 }
 
@@ -2367,7 +2370,7 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxyAuthRetry) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   ASSERT_FALSE(response->headers == NULL);
   EXPECT_EQ(407, response->headers->response_code());
   EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
@@ -2382,7 +2385,7 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxyAuthRetry) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(200, response->headers->response_code());
@@ -2696,7 +2699,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
@@ -2708,7 +2711,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback3;
@@ -2855,7 +2858,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(13, response->headers->GetContentLength());
 }
@@ -3008,7 +3011,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(CheckNTLMServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
@@ -3190,7 +3193,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocket) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_TRUE(response != NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers != NULL);
   std::string status_line = response->headers->GetStatusLine();
@@ -3401,7 +3404,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocketAfterZeroContentLength) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_TRUE(response != NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers != NULL);
   std::string status_line = response->headers->GetStatusLine();
@@ -3497,7 +3500,7 @@ TEST_F(HttpNetworkTransactionTest, ResendRequestOnWriteBodyError) {
     EXPECT_EQ(OK, rv);
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    EXPECT_TRUE(response != NULL);
+    ASSERT_TRUE(response != NULL);
 
     EXPECT_TRUE(response->headers != NULL);
     EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
@@ -3580,7 +3583,7 @@ TEST_F(HttpNetworkTransactionTest, AuthIdentityInURL) {
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   // There is no challenge info, since the identity in URL worked.
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
@@ -3678,7 +3681,7 @@ TEST_F(HttpNetworkTransactionTest, WrongAuthIdentityInURL) {
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback3;
@@ -3689,7 +3692,7 @@ TEST_F(HttpNetworkTransactionTest, WrongAuthIdentityInURL) {
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   // There is no challenge info, since the identity worked.
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
@@ -3758,7 +3761,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_EQ(OK, rv);
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    ASSERT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
     TestCompletionCallback callback2;
@@ -3770,7 +3773,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_EQ(OK, rv);
 
     response = trans->GetResponseInfo();
-    EXPECT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     EXPECT_TRUE(response->auth_challenge.get() == NULL);
     EXPECT_EQ(100, response->headers->GetContentLength());
   }
@@ -3836,7 +3839,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_EQ(OK, rv);
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    ASSERT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     ASSERT_TRUE(response->auth_challenge.get());
     EXPECT_FALSE(response->auth_challenge->is_proxy);
     EXPECT_EQ("www.google.com:80",
@@ -3853,7 +3856,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_EQ(OK, rv);
 
     response = trans->GetResponseInfo();
-    EXPECT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     EXPECT_TRUE(response->auth_challenge.get() == NULL);
     EXPECT_EQ(100, response->headers->GetContentLength());
   }
@@ -3899,7 +3902,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_EQ(OK, rv);
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    EXPECT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
 
     EXPECT_TRUE(response->auth_challenge.get() == NULL);
     EXPECT_EQ(100, response->headers->GetContentLength());
@@ -3969,7 +3972,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    EXPECT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     EXPECT_TRUE(response->auth_challenge.get() == NULL);
     EXPECT_EQ(100, response->headers->GetContentLength());
   }
@@ -4058,7 +4061,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    ASSERT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
     TestCompletionCallback callback3;
@@ -4070,7 +4073,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_EQ(OK, rv);
 
     response = trans->GetResponseInfo();
-    EXPECT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     EXPECT_TRUE(response->auth_challenge.get() == NULL);
     EXPECT_EQ(100, response->headers->GetContentLength());
   }
@@ -4143,7 +4146,7 @@ TEST_F(HttpNetworkTransactionTest, DigestPreAuthNonceCount) {
     EXPECT_EQ(OK, rv);
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    ASSERT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     EXPECT_TRUE(CheckDigestServerAuth(response->auth_challenge.get()));
 
     TestCompletionCallback callback2;
@@ -4155,7 +4158,7 @@ TEST_F(HttpNetworkTransactionTest, DigestPreAuthNonceCount) {
     EXPECT_EQ(OK, rv);
 
     response = trans->GetResponseInfo();
-    ASSERT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     EXPECT_TRUE(response->auth_challenge.get() == NULL);
   }
 
@@ -4204,7 +4207,7 @@ TEST_F(HttpNetworkTransactionTest, DigestPreAuthNonceCount) {
     EXPECT_EQ(OK, rv);
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
-    ASSERT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     EXPECT_TRUE(response->auth_challenge.get() == NULL);
   }
 }
@@ -4303,7 +4306,7 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificate) {
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
 
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_EQ(100, response->headers->GetContentLength());
 }
 
@@ -4380,7 +4383,7 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaProxy) {
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
 
-    EXPECT_FALSE(response == NULL);
+    ASSERT_TRUE(response != NULL);
     EXPECT_EQ(100, response->headers->GetContentLength());
   }
 }
@@ -4433,7 +4436,7 @@ TEST_F(HttpNetworkTransactionTest, HTTPSViaHttpsProxy) {
   EXPECT_EQ(OK, rv);
   const HttpResponseInfo* response = trans->GetResponseInfo();
 
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(200, response->headers->response_code());
@@ -4483,7 +4486,7 @@ TEST_F(HttpNetworkTransactionTest, RedirectOfHttpsConnectViaHttpsProxy) {
   EXPECT_EQ(OK, rv);
   const HttpResponseInfo* response = trans->GetResponseInfo();
 
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_EQ(302, response->headers->response_code());
   std::string url;
@@ -4544,7 +4547,7 @@ TEST_F(HttpNetworkTransactionTest, RedirectOfHttpsConnectViaSpdyProxy) {
   EXPECT_EQ(OK, rv);
   const HttpResponseInfo* response = trans->GetResponseInfo();
 
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_EQ(302, response->headers->response_code());
   std::string url;
@@ -4594,7 +4597,7 @@ TEST_F(HttpNetworkTransactionTest, ErrorResponseTofHttpsConnectViaHttpsProxy) {
   EXPECT_EQ(OK, rv);
   const HttpResponseInfo* response = trans->GetResponseInfo();
 
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_EQ(404, response->headers->response_code());
   EXPECT_EQ(23, response->headers->GetContentLength());
@@ -4663,7 +4666,7 @@ TEST_F(HttpNetworkTransactionTest, ErrorResponseTofHttpsConnectViaSpdyProxy) {
   EXPECT_EQ(OK, rv);
   const HttpResponseInfo* response = trans->GetResponseInfo();
 
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_EQ(404, response->headers->response_code());
   EXPECT_FALSE(response->ssl_info.is_valid());
@@ -4750,7 +4753,7 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaHttpsProxy) {
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
 
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_EQ(100, response->headers->GetContentLength());
 }
 
@@ -5183,7 +5186,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_HTTP_GET) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   std::string response_text;
   rv = ReadTransaction(trans.get(), &response_text);
@@ -5239,7 +5242,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_SSL_GET) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   std::string response_text;
   rv = ReadTransaction(trans.get(), &response_text);
@@ -5304,7 +5307,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS5_HTTP_GET) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   std::string response_text;
   rv = ReadTransaction(trans.get(), &response_text);
@@ -5374,7 +5377,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS5_SSL_GET) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   std::string response_text;
   rv = ReadTransaction(trans.get(), &response_text);
@@ -5842,7 +5845,7 @@ TEST_F(HttpNetworkTransactionTest, ConnectionClosedAfterStartOfHeaders) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_TRUE(response != NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.0 200 OK", response->headers->GetStatusLine());
@@ -5915,7 +5918,7 @@ TEST_F(HttpNetworkTransactionTest, DrainResetOK) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
 
   TestCompletionCallback callback2;
@@ -5927,7 +5930,7 @@ TEST_F(HttpNetworkTransactionTest, DrainResetOK) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(100, response->headers->GetContentLength());
 }
@@ -5992,7 +5995,7 @@ TEST_F(HttpNetworkTransactionTest, LargeContentLengthThenClose) {
   EXPECT_EQ(OK, callback.WaitForResult());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_TRUE(response != NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.0 200 OK", response->headers->GetStatusLine());
@@ -6042,7 +6045,7 @@ TEST_F(HttpNetworkTransactionTest, UploadFileSmallerThanLength) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_TRUE(response != NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.0 200 OK", response->headers->GetStatusLine());
@@ -6105,7 +6108,7 @@ TEST_F(HttpNetworkTransactionTest, UploadUnreadableFile) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_TRUE(response != NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.0 200 OK", response->headers->GetStatusLine());
 
@@ -6190,7 +6193,7 @@ TEST_F(HttpNetworkTransactionTest, UnreadableUploadFileAfterAuthRestart) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
-  EXPECT_TRUE(response != NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->headers != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
@@ -6294,7 +6297,7 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   const AuthChallengeInfo* challenge = response->auth_challenge.get();
   ASSERT_FALSE(challenge == NULL);
   EXPECT_FALSE(challenge->is_proxy);
@@ -6311,7 +6314,7 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   rv = callback2.WaitForResult();
   EXPECT_EQ(OK, rv);
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   challenge = response->auth_challenge.get();
   ASSERT_FALSE(challenge == NULL);
   EXPECT_FALSE(challenge->is_proxy);
@@ -6329,7 +6332,7 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   rv = callback3.WaitForResult();
   EXPECT_EQ(OK, rv);
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   challenge = response->auth_challenge.get();
   ASSERT_FALSE(challenge == NULL);
   EXPECT_FALSE(challenge->is_proxy);
@@ -6344,7 +6347,7 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   rv = callback4.WaitForResult();
   EXPECT_EQ(OK, rv);
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
 }
 
@@ -7420,7 +7423,7 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
       EXPECT_EQ(read_write_round.expected_rv, rv);
       const HttpResponseInfo* response = trans.GetResponseInfo();
       if (read_write_round.expected_rv == OK) {
-        EXPECT_FALSE(response == NULL);
+        ASSERT_TRUE(response != NULL);
       } else {
         EXPECT_TRUE(response == NULL);
         EXPECT_EQ(round + 1, test_config.num_auth_rounds);
@@ -7540,7 +7543,7 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
     rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_FALSE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(0, transport_pool->IdleSocketCountInGroup(kSocketGroup));
 
@@ -7563,7 +7566,7 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
     rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(0, transport_pool->IdleSocketCountInGroup(kSocketGroup));
 
@@ -7574,7 +7577,7 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
     rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(0, transport_pool->IdleSocketCountInGroup(kSocketGroup));
 
@@ -7585,7 +7588,7 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
     rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
   response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(0, transport_pool->IdleSocketCountInGroup(kSocketGroup));
 
@@ -7967,7 +7970,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback_2.WaitForResult());
   const HttpResponseInfo* response = trans_2->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
   ASSERT_FALSE(response->auth_challenge.get() == NULL);
 
   // Restart with auth. Tunnel should work and response received.
@@ -8064,7 +8067,7 @@ TEST_F(HttpNetworkTransactionTest, ProxyGet) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(200, response->headers->response_code());
@@ -8130,7 +8133,7 @@ TEST_F(HttpNetworkTransactionTest, ProxyTunnelGet) {
       NetLog::PHASE_NONE);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   EXPECT_TRUE(response->headers->IsKeepAlive());
   EXPECT_EQ(200, response->headers->response_code());
