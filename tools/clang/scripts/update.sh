@@ -110,18 +110,23 @@ if [ -z "$force_local_build" ]; then
   # and goma relies on having matching binary hashes on client and server too.
   CDS_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
   CDS_FILE="clang-${CLANG_REVISION}.tgz"
+  CDS_OUT_DIR=$(mktemp -d -t clang_download.XXXXXX)
+  CDS_OUTPUT="${CDS_OUT_DIR}/${CDS_FILE}"
   echo Trying to download prebuilt clang
   if [ "${OS}" = "Linux" ]; then
-    wget "${CDS_URL}/Linux_x64/${CDS_FILE}" || rm -f "${CDS_FILE}"
+    wget "${CDS_URL}/Linux_x64/${CDS_FILE}" -O "${CDS_OUTPUT}" || \
+        rm -f "${CDS_OUT_DIR}"
   elif [ "${OS}" = "Darwin" ]; then
-    curl -L --fail -O "${CDS_URL}/Mac/${CDS_FILE}" || rm -f "${CDS_FILE}"
+    curl -L --fail "${CDS_URL}/Mac/${CDS_FILE}" -o "${CDS_OUTPUT}" || \
+        rm -f "${CDS_OUT_DIR}"
   fi
-  if [ -f "${CDS_FILE}" ]; then
+  if [ -f "${CDS_OUTPUT}" ]; then
     rm -rf "${LLVM_BUILD_DIR}/Release+Asserts"
     mkdir -p "${LLVM_BUILD_DIR}/Release+Asserts"
-    tar -xzf "${CDS_FILE}" -C "${LLVM_BUILD_DIR}/Release+Asserts"
+    tar -xzf "${CDS_OUTPUT}" -C "${LLVM_BUILD_DIR}/Release+Asserts"
     echo clang "${CLANG_REVISION}" unpacked
     echo "${CLANG_REVISION}" > "${STAMP_FILE}"
+    rm -rf "${CDS_OUT_DIR}"
     exit 0
   else
     echo Did not find prebuilt clang at r"${CLANG_REVISION}", building
