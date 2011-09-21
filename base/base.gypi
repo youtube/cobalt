@@ -394,7 +394,7 @@
           [ 'toolkit_uses_gtk==0', {
             'sources!': [ 'message_pump_gtk.cc', ],
           }],
-          [ 'touchui==0 and use_aura==0', {
+          [ '(touchui==0 and use_aura==0) or OS == "win"', {
             'sources!' : [ 'message_pump_x.cc', ],
           }, {
             'sources!' : [ 'message_pump_gtk.cc', ],
