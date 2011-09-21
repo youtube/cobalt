@@ -790,10 +790,9 @@
             ],
           },
         ],
-        [ 'toolkit_uses_gtk == 1', {
+        [ 'use_glib == 1', {
             'dependencies': [
               '../build/linux/system.gyp:gconf',
-              '../build/linux/system.gyp:gdk',
               '../build/linux/system.gyp:gio',
               '../build/linux/system.gyp:libresolv',
             ],
@@ -837,6 +836,11 @@
             ],
           },
         ],
+        [ 'toolkit_uses_gtk == 1', {
+          'dependencies': [
+            '../build/linux/system.gyp:gdk',
+          ],
+        }],
         [ 'OS == "win"', {
             'sources!': [
               'http/http_auth_handler_ntlm_portable.cc',
@@ -1095,17 +1099,21 @@
              'proxy/proxy_config_service_linux_unittest.cc',
           ],
         }],
-        [ 'toolkit_uses_gtk == 1', {
+        [ 'use_glib == 1', {
             'dependencies': [
-              '../build/linux/system.gyp:gtk',
               '../build/linux/system.gyp:ssl',
             ],
-          },
-          {  # else: OS is not in the above list
+          }, {  # else: OS is not in the above list
             'sources!': [
               'base/cert_database_nss_unittest.cc',
             ],
-          }
+          },
+        ],
+        [ 'toolkit_uses_gtk == 1', {
+            'dependencies': [
+              '../build/linux/system.gyp:gtk',
+            ],
+          },
         ],
         [ 'os_posix == 1 and OS != "mac"', {
           'conditions': [
