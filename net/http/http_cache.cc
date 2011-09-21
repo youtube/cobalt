@@ -14,6 +14,7 @@
 
 #include "base/callback.h"
 #include "base/format_macros.h"
+#include "base/location.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
 #include "base/pickle.h"

@@ -4,6 +4,7 @@
 
 #include "net/disk_cache/in_flight_io.h"
 
+#include "base/location.h"
 #include "base/logging.h"
 
 namespace disk_cache {

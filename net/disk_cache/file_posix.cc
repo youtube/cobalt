@@ -6,6 +6,7 @@
 
 #include <fcntl.h>
 
+#include "base/location.h"
 #include "base/logging.h"
 #include "base/threading/worker_pool.h"
 #include "net/base/net_errors.h"
