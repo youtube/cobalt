@@ -237,7 +237,7 @@
           'use_x11%': 1,
         }],
         ['use_aura==1 and OS!="win"', {
-          'toolkit_uses_gtk%': 0,
+          'toolkit_uses_gtk%': 1,
         }],
 
         # A flag to enable or disable our compile-time dependency
