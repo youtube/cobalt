@@ -12,6 +12,7 @@
 #include <windns.h>
 #endif
 
+#include "base/location.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/message_loop.h"

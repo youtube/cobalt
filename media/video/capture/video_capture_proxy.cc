@@ -4,6 +4,7 @@
 
 #include "media/video/capture/video_capture_proxy.h"
 
+#include "base/location.h"
 #include "base/message_loop_proxy.h"
 
 namespace {

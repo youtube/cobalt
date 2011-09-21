@@ -4,6 +4,7 @@
 
 #include "base/synchronization/waitable_event_watcher.h"
 
+#include "base/location.h"
 #include "base/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"

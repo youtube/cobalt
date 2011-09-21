@@ -4,6 +4,7 @@
 
 #include "net/proxy/network_delegate_error_observer.h"
 
+#include "base/location.h"
 #include "base/message_loop_proxy.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_delegate.h"
