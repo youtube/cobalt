@@ -468,19 +468,43 @@
     {
       'target_name': 'glib',
       'type': 'settings',
-      'direct_dependent_settings': {
-        'cflags': [
-          '<!@(<(pkg-config) --cflags glib-2.0)',
-        ],
-      },
-      'link_settings': {
-        'ldflags': [
-          '<!@(<(pkg-config) --libs-only-L --libs-only-other glib-2.0)',
-        ],
-        'libraries': [
-          '<!@(<(pkg-config) --libs-only-l glib-2.0)',
-        ],
-      },
+      'toolsets': ['host', 'target'],
+      'conditions': [
+        ['_toolset=="target"', {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(<(pkg-config) --cflags glib-2.0)',
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other glib-2.0)',
+            ],
+            'libraries': [
+              '<!@(<(pkg-config) --libs-only-l glib-2.0)',
+            ],
+          },
+        }, {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(pkg-config --cflags glib-2.0)',
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(pkg-config --libs-only-L --libs-only-other glib-2.0)',
+            ],
+            'libraries': [
+              '<!@(pkg-config --libs-only-l glib-2.0)',
+            ],
+          },
+        }],
+        ['chromeos==1', {
+          'link_settings': {
+            'libraries': [ '-lXtst' ]
+          }
+        }],
+      ],
     },
     {
       'target_name': 'libresolv',

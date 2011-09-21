@@ -45,7 +45,7 @@
 
 // A flag derived from the above flags, used to cover GTK code in
 // both TOOLKIT_GTK and TOOLKIT_VIEWS.
-#if defined(TOOLKIT_GTK) || (defined(TOOLKIT_VIEWS) && !defined(OS_WIN))
+#if defined(TOOLKIT_GTK) || (defined(TOOLKIT_VIEWS) && !defined(OS_WIN) && !defined(USE_AURA))
 #define TOOLKIT_USES_GTK 1
 #endif
 
