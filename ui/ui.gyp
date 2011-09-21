@@ -360,6 +360,9 @@
             'gfx/gtk_util.cc',
             'gfx/gtk_util.h',
           ],
+          'sources!': [
+            'base/clipboard/clipboard_aura.cc',
+          ],
         }],
         ['use_wayland == 1', {
           'sources/': [
@@ -396,6 +399,7 @@
             'gfx/win_util.h',
           ],
           'sources!': [
+            'base/clipboard/clipboard_aura.cc',
             'gfx/pango_util.h',
             'gfx/pango_util.cc',
             'gfx/platform_font_pango.cc',
