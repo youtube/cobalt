@@ -24,6 +24,9 @@ namespace net {
 // Tracks which hosts have enabled *-Transport-Security. This object manages
 // the in-memory store. A separate object must register itself with this object
 // in order to persist the state to disk.
+//
+// TODO(phajdan.jr): Convert this to non-thread-safe non-ref-counted
+// for simplicity.
 class NET_EXPORT TransportSecurityState :
     public base::RefCountedThreadSafe<TransportSecurityState> {
  public:
