@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/logging.h"
 #include "build/build_config.h"
 
 #if defined(OS_ANDROID)
@@ -17,14 +18,17 @@
 namespace net {
 
 #if defined(OS_ANDROID)
-
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const FilePath::StringType& ext, std::string* result) const {
   return android::GetMimeTypeFromExtension(ext, result);
 }
-
+#elif defined(USE_AURA)
+bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
+    const FilePath::StringType& ext, std::string* result) const {
+  NOTIMPLEMENTED();
+  return false;
+}
 #else
-
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const FilePath::StringType& ext, std::string* result) const {
   // TODO(thestig) This is a temporary hack until we can fix this
