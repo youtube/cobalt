@@ -11,8 +11,9 @@
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/location.h"
+#include "base/time.h"
 #include "base/synchronization/lock.h"
-#include "base/tracked.h"
 #include "base/threading/thread_local_storage.h"
 
 // TrackedObjects provides a database of stats about objects (generally Tasks)
@@ -57,23 +58,24 @@
 // freely accessed by any thread at any time (i.e., only the statistic needs to
 // be handled carefully, and it is ONLY read or written by the birth thread).
 //
-// Having now either constructed or found the Births instance described above, a
-// pointer to the Births instance is then embedded in a base class of the
-// instance we're tracking (usually a Task). This fact alone is very useful in
+// For Tasks, having now either constructed or found the Births instance
+// described above, a pointer to the Births instance is then recorded into the
+// PendingTask structure in MessageLoop.  This fact alone is very useful in
 // debugging, when there is a question of where an instance came from.  In
-// addition, the birth time is also embedded in the base class Tracked (see
-// tracked.h), and used to later evaluate the lifetime duration.
-// As a result of the above embedding, we can (for any tracked instance) find
-// out its location of birth, and thread of birth, without using any locks, as
-// all that data is constant across the life of the process.
+// addition, the birth time is also recorded and used to later evaluate the
+// lifetime duration of the whole Task.  As a result of the above embedding, we
+// can find out a Task's location of birth, and thread of birth, without using
+// any locks, as all that data is constant across the life of the process.
+//
+// This can also be done for any other object as well by calling
+// TallyABirthIfActive() and TallyADeathIfActive() as appropriate.
 //
 // The amount of memory used in the above data structures depends on how many
 // threads there are, and how many Locations of construction there are.
 // Fortunately, we don't use memory that is the product of those two counts, but
 // rather we only need one Births instance for each thread that constructs an
-// instance at a Location. In many cases, instances (such as Tasks) are only
-// created on one thread, so the memory utilization is actually fairly
-// restrained.
+// instance at a Location. In many cases, instances are only created on one
+// thread, so the memory utilization is actually fairly restrained.
 //
 // Lastly, when an instance is deleted, the final tallies of statistics are
 // carefully accumulated.  That tallying wrties into slots (members) in a
@@ -147,9 +149,8 @@
 // are 64bit quantities, and are not atomicly accessed (reset or incremented
 // etc.).  For basic profiling, this will work "most of the time," and should be
 // sufficient... but storing away DataCollections is the "right way" to do this.
-//
-class MessageLoop;
 
+class MessageLoop;
 
 namespace tracked_objects {
 

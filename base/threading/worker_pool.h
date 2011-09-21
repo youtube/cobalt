@@ -8,9 +8,12 @@
 
 #include "base/base_export.h"
 #include "base/callback.h"
-#include "base/tracked.h"
 
 class Task;
+
+namespace tracked_objects {
+class Location;
+}  // namespace tracked_objects
 
 namespace base {
 
