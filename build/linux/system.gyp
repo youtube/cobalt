@@ -507,6 +507,42 @@
       ],
     },
     {
+      'target_name': 'pangocairo',
+      'type': 'settings',
+      'toolsets': ['host', 'target'],
+      'conditions': [
+        ['_toolset=="target"', {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(<(pkg-config) --cflags pangocairo)',
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other pangocairo)',
+            ],
+            'libraries': [
+              '<!@(<(pkg-config) --libs-only-l pangocairo)',
+            ],
+          },
+        }, {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(pkg-config --cflags pangocairo)',
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(pkg-config --libs-only-L --libs-only-other pangocairo)',
+            ],
+            'libraries': [
+              '<!@(pkg-config --libs-only-l pangocairo)',
+            ],
+          },
+        }],
+      ],
+    },
+    {
       'target_name': 'libresolv',
       'type': 'settings',
       'link_settings': {
