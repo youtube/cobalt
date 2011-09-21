@@ -4,6 +4,7 @@
 
 #include "net/url_request/url_request_context_getter.h"
 
+#include "base/location.h"
 #include "base/message_loop_proxy.h"
 #include "net/url_request/url_request_context.h"
 

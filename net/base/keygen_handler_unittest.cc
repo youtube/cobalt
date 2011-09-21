@@ -8,6 +8,7 @@
 
 #include "build/build_config.h"
 #include "base/base64.h"
+#include "base/location.h"
 #include "base/logging.h"
 #include "base/task.h"
 #include "base/threading/worker_pool.h"
