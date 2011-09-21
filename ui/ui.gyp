@@ -277,6 +277,7 @@
         'gfx/screen.h',
         'gfx/screen_aura.cc',
         'gfx/screen_gtk.cc',
+        'gfx/screen_mac.mm',
         'gfx/screen_wayland.cc',
         'gfx/screen_win.cc',
         'gfx/scoped_cg_context_save_gstate_mac.h',
