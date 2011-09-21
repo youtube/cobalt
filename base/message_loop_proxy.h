@@ -12,6 +12,10 @@
 #include "base/memory/ref_counted.h"
 #include "base/task.h"
 
+namespace tracked_objects {
+class Location;
+} // namespace tracked_objects
+
 namespace base {
 
 struct MessageLoopProxyTraits;

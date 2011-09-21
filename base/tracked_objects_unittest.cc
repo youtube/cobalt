@@ -7,6 +7,7 @@
 #include "base/tracked_objects.h"
 
 #include "base/message_loop.h"
+#include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace tracked_objects {
@@ -52,17 +53,13 @@ TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
   ThreadData::ShutdownSingleThreadedCleanup();
 }
 
-class NoopTracked : public tracked_objects::Tracked {
-};
-
 TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
   if (!ThreadData::StartTracking(true))
     return;
 
   // Instigate tracking on a single tracked object, or our thread.
   const Location& location = FROM_HERE;
-  NoopTracked tracked;
-  tracked.SetBirthPlace(location);
+  ThreadData::TallyABirthIfActive(location);
 
   const ThreadData* data = ThreadData::first();
   ASSERT_TRUE(data);
@@ -78,9 +75,10 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
 
 
   // Now instigate a birth, and a death.
-  NoopTracked* new_tracked = new NoopTracked;
-  new_tracked->SetBirthPlace(location);
-  delete new_tracked;
+  const Births* second_birth = ThreadData::TallyABirthIfActive(location);
+  ThreadData::TallyADeathIfActive(
+      second_birth,
+      base::TimeDelta::FromSeconds(1) /* Bogus duration. */);
 
   birth_map.clear();
   data->SnapshotBirthMap(&birth_map);

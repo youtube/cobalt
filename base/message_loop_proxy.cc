@@ -5,6 +5,7 @@
 #include "base/message_loop_proxy.h"
 
 #include "base/bind.h"
+#include "base/location.h"
 
 namespace base {
 

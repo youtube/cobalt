@@ -48,6 +48,7 @@
 // should be able to tell the difference.
 
 #include "base/base_export.h"
+#include "base/location.h"
 #include "base/logging.h"
 #include "base/task.h"
 #include "base/time.h"

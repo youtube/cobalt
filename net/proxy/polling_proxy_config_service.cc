@@ -4,6 +4,7 @@
 
 #include "net/proxy/polling_proxy_config_service.h"
 
+#include "base/location.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/observer_list.h"

@@ -4,6 +4,8 @@
 
 #include "base/test/thread_test_helper.h"
 
+#include "base/location.h"
+
 namespace base {
 
 ThreadTestHelper::ThreadTestHelper(MessageLoopProxy* target_thread)
