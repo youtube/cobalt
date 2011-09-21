@@ -79,7 +79,8 @@
         'base/animation/tween.h',
         'base/clipboard/clipboard.cc',
         'base/clipboard/clipboard.h',
-        'base/clipboard/clipboard_linux.cc',
+        'base/clipboard/clipboard_aura.cc',
+        'base/clipboard/clipboard_gtk.cc',
         'base/clipboard/clipboard_mac.mm',
         'base/clipboard/clipboard_util_win.cc',
         'base/clipboard/clipboard_util_win.h',
@@ -257,8 +258,8 @@
         'gfx/path_gtk.cc',
         'gfx/path_win.cc',
         'gfx/platform_font.h',
-        'gfx/platform_font_gtk.h',
-        'gfx/platform_font_gtk.cc',
+        'gfx/platform_font_pango.h',
+        'gfx/platform_font_pango.cc',
         'gfx/platform_font_mac.h',
         'gfx/platform_font_mac.mm',
         'gfx/platform_font_win.h',
@@ -306,22 +307,16 @@
             ['exclude', 'base/win/mouse_wheel_util.h'],
            ],
         }],
-        ['toolkit_uses_gtk == 1', {
+        ['use_glib == 1', {
           'dependencies': [
             # font_gtk.cc uses fontconfig.
-            # TODO(evanm): I think this is wrong; it should just use GTK.
             '../build/linux/system.gyp:fontconfig',
-            '../build/linux/system.gyp:gtk',
+            '../build/linux/system.gyp:glib',
+            '../build/linux/system.gyp:pangocairo',
             '../build/linux/system.gyp:x11',
             '../build/linux/system.gyp:xext',
           ],
           'sources': [
-            'gfx/gtk_native_view_id_manager.cc',
-            'gfx/gtk_native_view_id_manager.h',
-            'gfx/gtk_preserve_window.cc',
-            'gfx/gtk_preserve_window.h',
-            'gfx/gtk_util.cc',
-            'gfx/gtk_util.h',
             'gfx/linux_util.cc',
             'gfx/linux_util.h',
             'gfx/native_theme_linux.cc',
@@ -352,6 +347,19 @@
             }],
           ],
         }],
+        ['toolkit_uses_gtk == 1', {
+          'dependencies': [
+            '../build/linux/system.gyp:gtk',
+          ],
+          'sources': [
+            'gfx/gtk_native_view_id_manager.cc',
+            'gfx/gtk_native_view_id_manager.h',
+            'gfx/gtk_preserve_window.cc',
+            'gfx/gtk_preserve_window.h',
+            'gfx/gtk_util.cc',
+            'gfx/gtk_util.h',
+          ],
+        }],
         ['use_wayland == 1', {
           'sources/': [
             ['exclude', '_(gtk|x)\\.cc$'],
@@ -367,8 +375,8 @@
             ['include', 'gfx/gtk_util.cc'],
             ['include', 'gfx/gtk_util.h'],
             ['include', 'gfx/path_gtk.cc'],
-            ['include', 'gfx/platform_font_gtk.cc'],
-            ['include', 'gfx/platform_font_gtk.h'],
+            ['include', 'gfx/platform_font_pango.cc'],
+            ['include', 'gfx/platform_font_pango.h'],
             ['include', 'gfx/linux_util.cc'],
             ['include', 'gfx/linux_util.h'],
           ],
@@ -389,6 +397,8 @@
           'sources!': [
             'gfx/pango_util.h',
             'gfx/pango_util.cc',
+            'gfx/platform_font_pango.cc',
+            'gfx/platform_font_pango.h',
           ],
           'include_dirs': [
             '../',
@@ -432,6 +442,8 @@
           'sources!': [
             'gfx/pango_util.h',
             'gfx/pango_util.cc',
+            'gfx/platform_font_pango.h',
+            'gfx/platform_font_pango.cc',
           ],
           'link_settings': {
             'libraries': [
