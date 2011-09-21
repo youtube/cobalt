@@ -80,12 +80,14 @@ class ChunkDemuxerStream : public DemuxerStream {
   virtual Type type();
   virtual void EnableBitstreamConverter();
   virtual AVStream* GetAVStream();
+  virtual const AudioDecoderConfig& audio_decoder_config();
 
  private:
   static void RunCallback(ReadCallback cb, scoped_refptr<Buffer> buffer);
 
   Type type_;
   AVStream* av_stream_;
+  AudioDecoderConfig audio_config_;
 
   mutable base::Lock lock_;
   ReadCBQueue read_cbs_;
@@ -107,6 +109,9 @@ ChunkDemuxerStream::ChunkDemuxerStream(Type type, AVStream* stream)
       shutdown_called_(false),
       received_end_of_stream_(false),
       last_buffer_timestamp_(kNoTimestamp) {
+  if (type_ == AUDIO) {
+    AVCodecContextToAudioDecoderConfig(stream->codec, &audio_config_);
+  }
 }
 
 ChunkDemuxerStream::~ChunkDemuxerStream() {}
@@ -280,6 +285,11 @@ DemuxerStream::Type ChunkDemuxerStream::type() { return type_; }
 void ChunkDemuxerStream::EnableBitstreamConverter() {}
 
 AVStream* ChunkDemuxerStream::GetAVStream() { return av_stream_; }
+
+const AudioDecoderConfig& ChunkDemuxerStream::audio_decoder_config() {
+  CHECK_EQ(type_, AUDIO);
+  return audio_config_;
+}
 
 ChunkDemuxer::ChunkDemuxer(ChunkDemuxerClient* client)
     : state_(WAITING_FOR_INIT),

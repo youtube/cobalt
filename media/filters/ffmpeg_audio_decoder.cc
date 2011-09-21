@@ -8,7 +8,6 @@
 #include "media/base/data_buffer.h"
 #include "media/base/demuxer.h"
 #include "media/base/filter_host.h"
-#include "media/base/limits.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 
 namespace media {
@@ -50,7 +49,7 @@ FFmpegAudioDecoder::FFmpegAudioDecoder(MessageLoop* message_loop)
       codec_context_(NULL),
       bits_per_channel_(0),
       channel_layout_(CHANNEL_LAYOUT_NONE),
-      sample_rate_(0),
+      samples_per_second_(0),
       decoded_audio_size_(AVCODEC_MAX_AUDIO_FRAME_SIZE),
       decoded_audio_(static_cast<uint8*>(av_malloc(decoded_audio_size_))),
       pending_reads_(0) {
@@ -58,6 +57,14 @@ FFmpegAudioDecoder::FFmpegAudioDecoder(MessageLoop* message_loop)
 
 FFmpegAudioDecoder::~FFmpegAudioDecoder() {
   av_free(decoded_audio_);
+
+  // XXX: should we require Stop() to be called? this might end up getting
+  // called on a random thread due to refcounting.
+  if (codec_context_) {
+    av_free(codec_context_->extradata);
+    avcodec_close(codec_context_);
+    av_free(codec_context_);
+  }
 }
 
 void FFmpegAudioDecoder::Flush(FilterCallback* callback) {
@@ -94,8 +101,8 @@ ChannelLayout FFmpegAudioDecoder::channel_layout() {
   return channel_layout_;
 }
 
-int FFmpegAudioDecoder::sample_rate() {
-  return sample_rate_;
+int FFmpegAudioDecoder::samples_per_second() {
+  return samples_per_second_;
 }
 
 void FFmpegAudioDecoder::DoInitialize(
@@ -105,48 +112,41 @@ void FFmpegAudioDecoder::DoInitialize(
   scoped_ptr<FilterCallback> c(callback);
 
   demuxer_stream_ = stream;
-  AVStream* av_stream = demuxer_stream_->GetAVStream();
-  CHECK(av_stream);
-
+  const AudioDecoderConfig& config = stream->audio_decoder_config();
   stats_callback_.reset(stats_callback);
 
-  // Grab the AVStream's codec context and make sure we have sensible values.
-  codec_context_ = av_stream->codec;
-  int bps = av_get_bits_per_sample_fmt(codec_context_->sample_fmt);
-  if (codec_context_->channels <= 0 ||
-      codec_context_->channels > Limits::kMaxChannels ||
-      (codec_context_->channel_layout == 0 && codec_context_->channels > 2) ||
-      bps <= 0 || bps > Limits::kMaxBitsPerSample ||
-      codec_context_->sample_rate <= 0 ||
-      codec_context_->sample_rate > Limits::kMaxSampleRate) {
+  // TODO(scherkus): this check should go in PipelineImpl prior to creating
+  // decoder objects.
+  if (!config.IsValidConfig()) {
     DLOG(ERROR) << "Invalid audio stream -"
-                << " channels: " << codec_context_->channels
-                << " channel layout:" << codec_context_->channel_layout
-                << " bps: " << bps
-                << " sample rate: " << codec_context_->sample_rate;
+                << " codec: " << config.codec()
+                << " channel layout: " << config.channel_layout()
+                << " bits per channel: " << config.bits_per_channel()
+                << " samples per second: " << config.samples_per_second();
 
-    host()->SetError(PIPELINE_ERROR_DECODE);
+    host()->SetError(DECODER_ERROR_NOT_SUPPORTED);
     callback->Run();
     return;
   }
 
-  // Serialize calls to avcodec_open().
+  // Initialize AVCodecContext structure.
+  codec_context_ = avcodec_alloc_context();
+  AudioDecoderConfigToAVCodecContext(config, codec_context_);
+
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
   if (!codec || avcodec_open(codec_context_, codec) < 0) {
     DLOG(ERROR) << "Could not initialize audio decoder: "
                 << codec_context_->codec_id;
 
-    host()->SetError(PIPELINE_ERROR_DECODE);
+    host()->SetError(DECODER_ERROR_NOT_SUPPORTED);
     callback->Run();
     return;
   }
 
   // Success!
-  bits_per_channel_ = av_get_bits_per_sample_fmt(codec_context_->sample_fmt);
-  channel_layout_ =
-      ChannelLayoutToChromeChannelLayout(codec_context_->channel_layout,
-                                         codec_context_->channels);
-  sample_rate_ = codec_context_->sample_rate;
+  bits_per_channel_ = config.bits_per_channel();
+  channel_layout_ = config.channel_layout();
+  samples_per_second_ = config.samples_per_second();
 
   callback->Run();
 }
@@ -286,7 +286,7 @@ void FFmpegAudioDecoder::UpdateDurationAndTimestamp(
 
 base::TimeDelta FFmpegAudioDecoder::CalculateDuration(int size) {
   int64 denominator = ChannelLayoutToChannelCount(channel_layout_) *
-      bits_per_channel_ / 8 * sample_rate_;
+      bits_per_channel_ / 8 * samples_per_second_;
   double microseconds = size /
       (denominator / static_cast<double>(base::Time::kMicrosecondsPerSecond));
   return base::TimeDelta::FromMicroseconds(static_cast<int64>(microseconds));

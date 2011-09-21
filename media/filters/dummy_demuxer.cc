@@ -18,6 +18,11 @@ DemuxerStream::Type DummyDemuxerStream::type() {
   return type_;
 }
 
+const AudioDecoderConfig& DummyDemuxerStream::audio_decoder_config() {
+  CHECK_EQ(type_, AUDIO);
+  return audio_config_;
+}
+
 void DummyDemuxerStream::Read(const ReadCallback& read_callback) {}
 
 void DummyDemuxerStream::EnableBitstreamConverter() {}

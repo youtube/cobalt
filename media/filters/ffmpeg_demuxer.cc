@@ -67,6 +67,7 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
   switch (stream->codec->codec_type) {
     case AVMEDIA_TYPE_AUDIO:
       type_ = AUDIO;
+      AVCodecContextToAudioDecoderConfig(stream->codec, &audio_config_);
       break;
     case AVMEDIA_TYPE_VIDEO:
       type_ = VIDEO;
@@ -239,6 +240,11 @@ void FFmpegDemuxerStream::EnableBitstreamConverter() {
 
 AVStream* FFmpegDemuxerStream::GetAVStream() {
   return stream_;
+}
+
+const AudioDecoderConfig& FFmpegDemuxerStream::audio_decoder_config() {
+  CHECK_EQ(type_, AUDIO);
+  return audio_config_;
 }
 
 // static

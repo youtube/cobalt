@@ -11,6 +11,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/singleton.h"
 #include "base/time.h"
+#include "media/base/audio_decoder_config.h"
 #include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
 #include "media/video/video_decode_engine.h"
@@ -64,6 +65,13 @@ MEDIA_EXPORT base::TimeDelta ConvertFromTimeBase(const AVRational& time_base,
 // represent 0.5 seconds.
 MEDIA_EXPORT int64 ConvertToTimeBase(const AVRational& time_base,
                                      const base::TimeDelta& timestamp);
+
+void AVCodecContextToAudioDecoderConfig(
+    const AVCodecContext* codec_context,
+    AudioDecoderConfig* config);
+void AudioDecoderConfigToAVCodecContext(
+    const AudioDecoderConfig& config,
+    AVCodecContext* codec_context);
 
 VideoCodec CodecIDToVideoCodec(CodecID codec_id);
 CodecID VideoCodecToCodecID(VideoCodec video_codec);

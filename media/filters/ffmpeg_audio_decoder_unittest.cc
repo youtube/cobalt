@@ -16,7 +16,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
-using ::testing::Return;
+using ::testing::ReturnRef;
+using ::testing::StrictMock;
 
 namespace media {
 
@@ -28,8 +29,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
  public:
   FFmpegAudioDecoderTest()
       : decoder_(new FFmpegAudioDecoder(&message_loop_)),
-        demuxer_(new MockDemuxerStream()),
-        codec_context_(avcodec_alloc_context()) {
+        demuxer_(new StrictMock<MockDemuxerStream>()) {
     CHECK(FFmpegGlue::GetInstance());
 
     ReadTestDataFile("vorbis-extradata",
@@ -58,31 +58,19 @@ class FFmpegAudioDecoderTest : public testing::Test {
         base::Bind(&FFmpegAudioDecoderTest::DecodeFinished,
                    base::Unretained(this)));
 
-    memset(&stream_, 0, sizeof(stream_));
-
-    stream_.codec = codec_context_;
-    codec_context_->codec_id = CODEC_ID_VORBIS;
-    codec_context_->codec_type = AVMEDIA_TYPE_AUDIO;
-    codec_context_->channels = 2;
-    codec_context_->channel_layout = AV_CH_LAYOUT_STEREO;
-    codec_context_->sample_fmt = AV_SAMPLE_FMT_S16;
-    codec_context_->sample_rate = 44100;
-    codec_context_->extradata = vorbis_extradata_.get();
-    codec_context_->extradata_size = vorbis_extradata_size_;
+    config_.Initialize(kCodecVorbis,
+                       16,
+                       CHANNEL_LAYOUT_STEREO,
+                       44100,
+                       vorbis_extradata_.get(),
+                       vorbis_extradata_size_);
   }
 
-  virtual ~FFmpegAudioDecoderTest() {
-    // TODO(scherkus): currently FFmpegAudioDecoder assumes FFmpegDemuxer will
-    // call avcodec_close().
-    if (codec_context_->codec) {
-      avcodec_close(codec_context_);
-    }
-    av_free(codec_context_);
-  }
+  virtual ~FFmpegAudioDecoderTest() {}
 
   void Initialize() {
-    EXPECT_CALL(*demuxer_, GetAVStream())
-        .WillOnce(Return(&stream_));
+    EXPECT_CALL(*demuxer_, audio_decoder_config())
+        .WillOnce(ReturnRef(config_));
 
     decoder_->Initialize(demuxer_,
                          NewExpectedCallback(),
@@ -125,7 +113,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
 
   MessageLoop message_loop_;
   scoped_refptr<FFmpegAudioDecoder> decoder_;
-  scoped_refptr<MockDemuxerStream> demuxer_;
+  scoped_refptr<StrictMock<MockDemuxerStream> > demuxer_;
   MockStatisticsCallback statistics_callback_;
 
   scoped_array<uint8> vorbis_extradata_;
@@ -134,8 +122,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
   std::deque<scoped_refptr<Buffer> > encoded_audio_;
   std::deque<scoped_refptr<Buffer> > decoded_audio_;
 
-  AVStream stream_;
-  AVCodecContext* codec_context_;  // Allocated via avcodec_alloc_context().
+  AudioDecoderConfig config_;
 };
 
 TEST_F(FFmpegAudioDecoderTest, Initialize) {
@@ -143,7 +130,7 @@ TEST_F(FFmpegAudioDecoderTest, Initialize) {
 
   EXPECT_EQ(16, decoder_->bits_per_channel());
   EXPECT_EQ(CHANNEL_LAYOUT_STEREO, decoder_->channel_layout());
-  EXPECT_EQ(44100, decoder_->sample_rate());
+  EXPECT_EQ(44100, decoder_->samples_per_second());
 
   Stop();
 }

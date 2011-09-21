@@ -30,7 +30,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   virtual void ProduceAudioSamples(scoped_refptr<Buffer> output) OVERRIDE;
   virtual int bits_per_channel() OVERRIDE;
   virtual ChannelLayout channel_layout() OVERRIDE;
-  virtual int sample_rate() OVERRIDE;
+  virtual int samples_per_second() OVERRIDE;
 
  private:
   // Methods running on decoder thread.
@@ -62,7 +62,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   // Decoded audio format.
   int bits_per_channel_;
   ChannelLayout channel_layout_;
-  int sample_rate_;
+  int samples_per_second_;
 
   base::TimeDelta estimated_next_timestamp_;
 
