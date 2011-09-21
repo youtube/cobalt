@@ -11,6 +11,7 @@
 
 #include <vector>
 
+#include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer.h"
 
 namespace media {
@@ -22,12 +23,14 @@ class DummyDemuxerStream : public DemuxerStream {
   // DemuxerStream implementation.
   virtual void Read(const ReadCallback& read_callback) OVERRIDE;
   virtual Type type() OVERRIDE;
+  virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
 
  private:
   virtual ~DummyDemuxerStream();
 
   Type type_;
+  AudioDecoderConfig audio_config_;
 
   DISALLOW_COPY_AND_ASSIGN(DummyDemuxerStream);
 };

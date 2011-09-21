@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/bind.h"
+#include "media/base/audio_decoder_config.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/test_data_util.h"
@@ -185,16 +186,37 @@ TEST_F(ChunkDemuxerTest, TestInit) {
     client_.reset(new MockChunkDemuxerClient());
     demuxer_ = new ChunkDemuxer(client_.get());
     InitDemuxer(has_audio, has_video);
-    EXPECT_EQ(demuxer_->GetStream(DemuxerStream::AUDIO).get() != NULL,
-              has_audio);
-    EXPECT_EQ(demuxer_->GetStream(DemuxerStream::VIDEO).get() != NULL,
-              has_video);
+
+    scoped_refptr<DemuxerStream> audio_stream =
+        demuxer_->GetStream(DemuxerStream::AUDIO);
+    if (has_audio) {
+      EXPECT_TRUE(audio_stream);
+
+      const AudioDecoderConfig& config = audio_stream->audio_decoder_config();
+      EXPECT_EQ(kCodecVorbis, config.codec());
+      EXPECT_EQ(16, config.bits_per_channel());
+      EXPECT_EQ(CHANNEL_LAYOUT_STEREO, config.channel_layout());
+      EXPECT_EQ(44100, config.samples_per_second());
+      EXPECT_TRUE(config.extra_data());
+      EXPECT_GT(config.extra_data_size(), 0u);
+    } else {
+      EXPECT_FALSE(audio_stream);
+    }
+
+    scoped_refptr<DemuxerStream> video_stream =
+        demuxer_->GetStream(DemuxerStream::VIDEO);
+    if (has_video) {
+      EXPECT_TRUE(video_stream);
+    } else {
+      EXPECT_FALSE(video_stream);
+    }
+
     ShutdownDemuxer();
     demuxer_ = NULL;
   }
 }
 
-// Makes sure that  Seek() reports an error if Shutdown()
+// Makes sure that Seek() reports an error if Shutdown()
 // is called before the first cluster is passed to the demuxer.
 TEST_F(ChunkDemuxerTest, TestShutdownBeforeFirstSeekCompletes) {
   InitDemuxer(true, true);

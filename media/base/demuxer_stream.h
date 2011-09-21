@@ -13,6 +13,7 @@ struct AVStream;
 
 namespace media {
 
+class AudioDecoderConfig;
 class Buffer;
 
 class MEDIA_EXPORT DemuxerStream
@@ -33,6 +34,10 @@ class MEDIA_EXPORT DemuxerStream
 
   // Returns an |AVStream*| if supported, or NULL.
   virtual AVStream* GetAVStream();
+
+  // Returns the audio decoder configuration. It is an error to call this method
+  // if type() != AUDIO.
+  virtual const AudioDecoderConfig& audio_decoder_config() = 0;
 
   // Returns the type of stream.
   virtual Type type() = 0;

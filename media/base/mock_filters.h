@@ -15,6 +15,7 @@
 
 #include <string>
 
+#include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer.h"
 #include "media/base/filters.h"
 #include "media/base/filter_collection.h"
@@ -160,6 +161,7 @@ class MockDemuxerStream : public DemuxerStream {
   MOCK_METHOD0(type, Type());
   MOCK_METHOD1(Read, void(const ReadCallback& read_callback));
   MOCK_METHOD0(GetAVStream, AVStream*());
+  MOCK_METHOD0(audio_decoder_config, const AudioDecoderConfig&());
   MOCK_METHOD0(EnableBitstreamConverter, void());
 
  protected:
@@ -214,7 +216,7 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD1(ProduceAudioSamples, void(scoped_refptr<Buffer>));
   MOCK_METHOD0(bits_per_channel, int(void));
   MOCK_METHOD0(channel_layout, ChannelLayout(void));
-  MOCK_METHOD0(sample_rate, int(void));
+  MOCK_METHOD0(samples_per_second, int(void));
 
   void ConsumeAudioSamplesForTest(scoped_refptr<Buffer> buffer) {
     AudioDecoder::ConsumeAudioSamples(buffer);

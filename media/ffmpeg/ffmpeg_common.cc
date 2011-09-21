@@ -21,6 +21,113 @@ int64 ConvertToTimeBase(const AVRational& time_base,
   return av_rescale_q(timestamp.InMicroseconds(), kMicrosBase, time_base);
 }
 
+static AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
+  switch (codec_id) {
+    case CODEC_ID_AAC:
+      return kCodecAAC;
+    case CODEC_ID_MP3:
+      return kCodecMP3;
+    case CODEC_ID_VORBIS:
+      return kCodecVorbis;
+    case CODEC_ID_PCM_U8:
+    case CODEC_ID_PCM_S16LE:
+    case CODEC_ID_PCM_S32LE:
+      return kCodecPCM;
+    default:
+      NOTREACHED();
+  }
+  return kUnknownAudioCodec;
+}
+
+static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
+                                   int bits_per_channel) {
+  switch (audio_codec) {
+    case kUnknownAudioCodec:
+      return CODEC_ID_NONE;
+    case kCodecAAC:
+      return CODEC_ID_AAC;
+    case kCodecMP3:
+      return CODEC_ID_MP3;
+    case kCodecPCM:
+      switch (bits_per_channel) {
+        case 8:
+          return CODEC_ID_PCM_U8;
+        case 16:
+          return CODEC_ID_PCM_S16LE;
+        case 32:
+          return CODEC_ID_PCM_S32LE;
+        default:
+          NOTREACHED() << "Unsupported bits_per_channel: " << bits_per_channel;
+      }
+    case kCodecVorbis:
+      return CODEC_ID_VORBIS;
+    default:
+      NOTREACHED();
+  }
+  return CODEC_ID_NONE;
+}
+
+void AVCodecContextToAudioDecoderConfig(
+    const AVCodecContext* codec_context,
+    AudioDecoderConfig* config) {
+  DCHECK_EQ(codec_context->codec_type, AVMEDIA_TYPE_AUDIO);
+
+  AudioCodec codec = CodecIDToAudioCodec(codec_context->codec_id);
+  int bits_per_channel = av_get_bits_per_sample_fmt(codec_context->sample_fmt);
+  ChannelLayout channel_layout =
+      ChannelLayoutToChromeChannelLayout(codec_context->channel_layout,
+                                         codec_context->channels);
+  int samples_per_second = codec_context->sample_rate;
+
+  config->Initialize(codec,
+                     bits_per_channel,
+                     channel_layout,
+                     samples_per_second,
+                     codec_context->extradata,
+                     codec_context->extradata_size);
+}
+
+void AudioDecoderConfigToAVCodecContext(const AudioDecoderConfig& config,
+                                        AVCodecContext* codec_context) {
+  codec_context->codec_type = AVMEDIA_TYPE_AUDIO;
+  codec_context->codec_id = AudioCodecToCodecID(config.codec(),
+                                                config.bits_per_channel());
+
+  switch (config.bits_per_channel()) {
+    case 8:
+      codec_context->sample_fmt = AV_SAMPLE_FMT_U8;
+      break;
+    case 16:
+      codec_context->sample_fmt = AV_SAMPLE_FMT_S16;
+      break;
+    case 32:
+      codec_context->sample_fmt = AV_SAMPLE_FMT_S32;
+      break;
+    default:
+      NOTIMPLEMENTED() << "TODO(scherkus): DO SOMETHING BETTER HERE?";
+      codec_context->sample_fmt = AV_SAMPLE_FMT_NONE;
+  }
+
+  // TODO(scherkus): should we set |channel_layout|? I'm not sure if FFmpeg uses
+  // said information to decode.
+  codec_context->channels =
+      ChannelLayoutToChannelCount(config.channel_layout());
+  codec_context->sample_rate = config.samples_per_second();
+
+  if (config.extra_data()) {
+    codec_context->extradata_size = config.extra_data_size();
+    codec_context->extradata = reinterpret_cast<uint8_t*>(
+        av_malloc(config.extra_data_size() + FF_INPUT_BUFFER_PADDING_SIZE));
+    memcpy(codec_context->extradata, config.extra_data(),
+           config.extra_data_size());
+    memset(codec_context->extradata + config.extra_data_size(), '\0',
+           FF_INPUT_BUFFER_PADDING_SIZE);
+  } else {
+    codec_context->extradata = NULL;
+    codec_context->extradata_size = 0;
+  }
+}
+
 VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
   switch (codec_id) {
     case CODEC_ID_VC1:
@@ -38,12 +145,12 @@ VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
     default:
       NOTREACHED();
   }
-  return kUnknown;
+  return kUnknownVideoCodec;
 }
 
 CodecID VideoCodecToCodecID(VideoCodec video_codec) {
   switch (video_codec) {
-    case kUnknown:
+    case kUnknownVideoCodec:
       return CODEC_ID_NONE;
     case kCodecVC1:
       return CODEC_ID_VC1;
