@@ -262,8 +262,8 @@
           'enable_flapper_hacks%': 0,
         }],
 
-        # Enable file manager extension by default on Chrome OS.
-        ['chromeos==1', {
+        # Enable file manager extension on Chrome OS, Touch, PureView, Aura.
+        ['chromeos==1 or touchui==1 or use_only_pure_views==1 or use_aura==1', {
           'file_manager_extension%': 1,
         }, {
           'file_manager_extension%': 0,
