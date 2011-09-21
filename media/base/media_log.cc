@@ -137,6 +137,8 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
       return "demuxer: no supported streams";
     case DEMUXER_ERROR_COULD_NOT_CREATE_THREAD:
       return "demuxer: could not create thread";
+    case DECODER_ERROR_NOT_SUPPORTED:
+      return "decoder: not supported";
     case DATASOURCE_ERROR_URL_NOT_SUPPORTED:
       return "data source: url not supported";
   }

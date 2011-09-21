@@ -170,18 +170,27 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
 TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
   InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
 
-  // First stream should be video and support the FFmpegDemuxerStream interface.
+  // Video stream should be present.
   scoped_refptr<DemuxerStream> stream =
       demuxer_->GetStream(DemuxerStream::VIDEO);
   ASSERT_TRUE(stream);
   EXPECT_EQ(DemuxerStream::VIDEO, stream->type());
   ASSERT_TRUE(stream->GetAVStream());
 
-  // Other stream should be audio and support the FFmpegDemuxerStream interface.
+  // Audio stream should be present.
   stream = demuxer_->GetStream(DemuxerStream::AUDIO);
   ASSERT_TRUE(stream);
   EXPECT_EQ(DemuxerStream::AUDIO, stream->type());
   ASSERT_TRUE(stream->GetAVStream());
+
+  // FFmpegDemuxer's audio streams support AudioDecoderConfig structs.
+  const AudioDecoderConfig& config = stream->audio_decoder_config();
+  EXPECT_EQ(kCodecVorbis, config.codec());
+  EXPECT_EQ(16, config.bits_per_channel());
+  EXPECT_EQ(CHANNEL_LAYOUT_STEREO, config.channel_layout());
+  EXPECT_EQ(44100, config.samples_per_second());
+  EXPECT_TRUE(config.extra_data());
+  EXPECT_GT(config.extra_data_size(), 0u);
 }
 
 TEST_F(FFmpegDemuxerTest, Read_Audio) {
