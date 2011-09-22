@@ -56,7 +56,7 @@ int NetErrorFromOSStatus(OSStatus status) {
   }
 }
 
-int CertStatusFromOSStatus(OSStatus status) {
+CertStatus CertStatusFromOSStatus(OSStatus status) {
   switch (status) {
     case noErr:
       return 0;
