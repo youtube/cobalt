@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "net/base/cert_status_flags.h"
 #include "net/base/net_export.h"
 #include "net/base/x509_cert_types.h"
 
@@ -46,7 +47,7 @@ class NET_EXPORT SSLInfo {
   // Bitmask of status info of |cert|, representing, for example, known errors
   // and extended validation (EV) status.
   // See cert_status_flags.h for values.
-  int cert_status;
+  CertStatus cert_status;
 
   // The security strength, in bits, of the SSL cipher suite.
   // 0 means the connection is not encrypted.
