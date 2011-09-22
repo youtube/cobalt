@@ -49,7 +49,7 @@
 
         # Compute the architecture that we're building on.
         'conditions': [
-          [ 'OS=="win" or OS=="mac"', {
+          ['OS=="win" or OS=="mac"', {
             'host_arch%': 'ia32',
           }, {
             # This handles the Unix platforms for which there is some support.
@@ -1969,7 +1969,22 @@
           # different targets, like these.
           'mac_pie': 1,        # Most executables can be position-independent.
           'mac_real_dsym': 0,  # Fake .dSYMs are fine in most cases.
-          'mac_strip': 1,      # Strip debugging symbols from the target.
+          # TODO(bradchen): switch back to the following once we have enough
+          # results.
+          #'mac_strip': 1,      # Strip debugging symbols from the target.
+          'conditions': [
+            ['OS=="mac"', {
+              'conditions': [
+                ['"<!(uname -n)"=="xserve6-m1.golo.chromium.org"', {
+                  'mac_strip': 0,
+                },{
+                  'mac_strip': 1,
+                }],
+              ],
+            },{
+              'mac_strip': 1,
+            }],
+          ],
         },
         'mac_bundle': 0,
         'xcode_settings': {
