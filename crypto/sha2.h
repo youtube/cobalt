@@ -16,9 +16,7 @@ namespace crypto {
 //
 // Functions for SHA-384 and SHA-512 can be added when the need arises.
 
-enum {
-  SHA256_LENGTH = 32  // length in bytes of a SHA-256 hash
-};
+static const size_t kSHA256Length = 32;  // length in bytes of a SHA-256 hash
 
 // Computes the SHA-256 hash of the input string 'str' and stores the first
 // 'len' bytes of the hash in the output buffer 'output'.  If 'len' > 32,
