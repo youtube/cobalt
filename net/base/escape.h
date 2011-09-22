@@ -122,6 +122,8 @@ NET_EXPORT string16 UnescapeAndDecodeUTF8URLComponentWithOffsets(
 // &lt; &gt; &amp; &quot; &#39;
 NET_EXPORT string16 UnescapeForHTML(const string16& text);
 
+namespace net {
+
 // Deprecated ------------------------------------------------------------------
 
 // Escapes characters in text suitable for use as a query parameter value.
@@ -136,8 +138,6 @@ NET_EXPORT bool EscapeQueryParamValue(const string16& text,
                                       const char* codepage,
                                       bool use_plus,
                                       string16* escaped);
-
-namespace net {
 
 // A specialized version of EscapeQueryParamValue for string16s that
 // assumes the codepage is UTF8.  This is provided as a convenience.
