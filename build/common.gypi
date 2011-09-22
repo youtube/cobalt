@@ -237,7 +237,7 @@
           'use_x11%': 1,
         }],
         ['use_aura==1 and OS!="win"', {
-          'toolkit_uses_gtk%': 1,
+          'toolkit_uses_gtk%': 0,
         }],
 
         # A flag to enable or disable our compile-time dependency
@@ -855,6 +855,9 @@
       }],
       ['use_aura==1', {
         'defines': ['USE_AURA=1'],
+      }],
+      ['toolkit_uses_gtk==1', {
+        'defines': ['TOOLKIT_USES_GTK=1'],
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
