@@ -15,9 +15,6 @@
 #if defined(SHA1_LENGTH)
 #undef SHA1_LENGTH
 #endif
-#if defined(SHA256_LENGTH)
-#undef SHA256_LENGTH
-#endif
 
 #include "base/base64.h"
 #include "base/json/json_reader.h"
@@ -437,7 +434,7 @@ bool TransportSecurityState::ParseSidePin(
     return false;
 
   bool have_parsed_a_key = false;
-  uint8 leaf_spki_hash[crypto::SHA256_LENGTH];
+  uint8 leaf_spki_hash[crypto::kSHA256Length];
   bool have_leaf_spki_hash = false;
 
   while (side_pin_bytes.size() > 0) {
