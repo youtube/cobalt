@@ -134,7 +134,7 @@ void ParseSubjectAltName(X509Certificate::OSCertHandle cert,
 }
 
 // Maps X509_STORE_CTX_get_error() return values to our cert status flags.
-CertStatus MapCertErrorToCertStatus(int err) {
+int MapCertErrorToCertStatus(int err) {
   switch (err) {
     case X509_V_ERR_SUBJECT_ISSUER_MISMATCH:
       return CERT_STATUS_COMMON_NAME_INVALID;
@@ -463,7 +463,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
 
   if (X509_verify_cert(ctx.get()) != 1) {
     int x509_error = X509_STORE_CTX_get_error(ctx.get());
-    CertStatus cert_status = MapCertErrorToCertStatus(x509_error);
+    int cert_status = MapCertErrorToCertStatus(x509_error);
     LOG(ERROR) << "X509 Verification error "
         << X509_verify_cert_error_string(x509_error)
         << " : " << x509_error

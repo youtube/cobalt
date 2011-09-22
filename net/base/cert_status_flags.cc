@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 
 namespace net {
 
-CertStatus MapNetErrorToCertStatus(int error) {
+int MapNetErrorToCertStatus(int error) {
   switch (error) {
     case ERR_CERT_COMMON_NAME_INVALID:
       return CERT_STATUS_COMMON_NAME_INVALID;
@@ -40,7 +40,7 @@ CertStatus MapNetErrorToCertStatus(int error) {
   }
 }
 
-int MapCertStatusToNetError(CertStatus cert_status) {
+int MapCertStatusToNetError(int cert_status) {
   // A certificate may have multiple errors.  We report the most
   // serious error.
 

@@ -12,7 +12,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
 #include "base/string_piece.h"
-#include "net/base/cert_status_flags.h"
 #include "net/base/net_export.h"
 #include "net/base/x509_certificate.h"
 
@@ -28,12 +27,12 @@ struct NET_EXPORT SSLConfig {
   // Returns true if |cert| is one of the certs in |allowed_bad_certs|.
   // The expected cert status is written to |cert_status|. |*cert_status| can
   // be NULL if user doesn't care about the cert status.
-  bool IsAllowedBadCert(X509Certificate* cert, CertStatus* cert_status) const;
+  bool IsAllowedBadCert(X509Certificate* cert, int* cert_status) const;
 
   // Same as above except works with DER encoded certificates instead
   // of X509Certificate.
   bool IsAllowedBadCert(const base::StringPiece& der_cert,
-                        CertStatus* cert_status) const;
+                        int* cert_status) const;
 
   bool rev_checking_enabled;  // True if server certificate revocation
                               // checking is enabled.
@@ -78,7 +77,7 @@ struct NET_EXPORT SSLConfig {
     ~CertAndStatus();
 
     std::string der_cert;
-    CertStatus cert_status;
+    int cert_status;
   };
 
   // Add any known-bad SSL certificate (with its cert status) to
