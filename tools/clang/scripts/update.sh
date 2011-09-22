@@ -45,6 +45,12 @@ if [[ -n "$mac_only" ]] && [[ "${OS}" != "Darwin" ]]; then
   exit 0
 fi
 
+# TODO(thakis): Remove this after Sept 29 2011. http://crbug.com/96722
+for rev in 138188 138417 139029 139473 139990; do
+  rm -f clang-$rev.tgz
+  rm -rf clang-$rev
+done
+
 # Xcode and clang don't get along when predictive compilation is enabled.
 # http://crbug.com/96315
 if [[ "${OS}" = "Darwin" ]] && xcodebuild -version | grep -q 'Xcode 3.2' ; then
