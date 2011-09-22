@@ -162,6 +162,11 @@ class NET_EXPORT CertDatabase {
   // Get trust bits for certificate.
   TrustBits GetCertTrust(const X509Certificate* cert, CertType type) const;
 
+  // IsUntrusted returns true if |cert| is specifically untrusted. These
+  // certificates are stored in the database for the specific purpose of
+  // rejecting them.
+  bool IsUntrusted(const X509Certificate* cert) const;
+
   // Set trust values for certificate.
   // Returns true on success or false on failure.
   bool SetCertTrust(const X509Certificate* cert,
