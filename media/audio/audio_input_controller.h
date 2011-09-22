@@ -41,7 +41,7 @@ class MEDIA_EXPORT AudioInputController
  public:
   // An event handler that receives events from the AudioInputController. The
   // following methods are called on the audio input controller thread.
-  class EventHandler {
+  class MEDIA_EXPORT EventHandler {
    public:
     virtual ~EventHandler() {}
     virtual void OnCreated(AudioInputController* controller) = 0;
