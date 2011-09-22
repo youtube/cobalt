@@ -1414,7 +1414,8 @@ class SyncPageHandler(BasePageHandler):
                     self.ChromiumSyncSendNotificationOpHandler,
                     self.ChromiumSyncBirthdayErrorOpHandler,
                     self.ChromiumSyncTransientErrorOpHandler,
-                    self.ChromiumSyncSyncTabsOpHandler]
+                    self.ChromiumSyncSyncTabsOpHandler,
+                    self.ChromiumSyncErrorOpHandler]
 
     post_handlers = [self.ChromiumSyncCommandHandler,
                      self.ChromiumSyncTimeHandler]
@@ -1548,6 +1549,19 @@ class SyncPageHandler(BasePageHandler):
     if not self._ShouldHandleRequest(test_name):
       return False
     result, raw_reply = self.server._sync_handler.HandleSetTransientError()
+    self.send_response(result)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True;
+
+  def ChromiumSyncErrorOpHandler(self):
+    test_name = "/chromiumsync/error"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+    result, raw_reply = self.server._sync_handler.HandleSetInducedError(
+        self.path)
     self.send_response(result)
     self.send_header('Content-Type', 'text/html')
     self.send_header('Content-Length', len(raw_reply))
