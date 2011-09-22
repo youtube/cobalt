@@ -1653,7 +1653,7 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
   base::StringPiece der_cert(
       reinterpret_cast<char*>(server_cert_nss_->derCert.data),
       server_cert_nss_->derCert.len);
-  int cert_status;
+  CertStatus cert_status;
   if (ssl_config_.IsAllowedBadCert(der_cert, &cert_status)) {
     DCHECK(start_cert_verification_time_.is_null());
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;

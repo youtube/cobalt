@@ -151,8 +151,8 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
       return false;
   }
   if (flags & RESPONSE_INFO_HAS_CERT_STATUS) {
-    int cert_status;
-    if (!pickle.ReadInt(&iter, &cert_status))
+    CertStatus cert_status;
+    if (!pickle.ReadUInt32(&iter, &cert_status))
       return false;
     ssl_info.cert_status = cert_status;
   }
@@ -244,7 +244,7 @@ void HttpResponseInfo::Persist(Pickle* pickle,
 
   if (ssl_info.is_valid()) {
     ssl_info.cert->Persist(pickle);
-    pickle->WriteInt(ssl_info.cert_status);
+    pickle->WriteUInt32(ssl_info.cert_status);
     if (ssl_info.security_bits != -1)
       pickle->WriteInt(ssl_info.security_bits);
     if (ssl_info.connection_status != 0)
