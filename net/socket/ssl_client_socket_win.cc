@@ -1157,7 +1157,7 @@ int SSLClientSocketWin::DoVerifyCert() {
   next_state_ = STATE_VERIFY_CERT_COMPLETE;
 
   DCHECK(server_cert_);
-  CertStatus cert_status;
+  int cert_status;
   if (ssl_config_.IsAllowedBadCert(server_cert_, &cert_status)) {
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;
     server_cert_verify_result_.Reset();

@@ -4227,7 +4227,7 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
   // Setup state in response_
   HttpResponseInfo* response = &trans->response_;
   response->auth_challenge = new AuthChallengeInfo();
-  response->ssl_info.cert_status = static_cast<CertStatus>(-1);  // Nonsensical.
+  response->ssl_info.cert_status = -15;
   response->response_time = base::Time::Now();
   response->was_cached = true;  // (Wouldn't ever actually be true...)
 
