@@ -95,7 +95,7 @@ int MapSecurityError(SECURITY_STATUS err) {
 // Map the errors in the chain_context->TrustStatus.dwErrorStatus returned by
 // CertGetCertificateChain to our certificate status flags.
 int MapCertChainErrorStatusToCertStatus(DWORD error_status) {
-  CertStatus cert_status = 0;
+  int cert_status = 0;
 
   // We don't include CERT_TRUST_IS_NOT_TIME_NESTED because it's obsolete and
   // we wouldn't consider it an error anyway

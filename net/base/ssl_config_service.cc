@@ -26,7 +26,7 @@ SSLConfig::~SSLConfig() {
 }
 
 bool SSLConfig::IsAllowedBadCert(X509Certificate* cert,
-                                 CertStatus* cert_status) const {
+                                 int* cert_status) const {
   std::string der_cert;
   if (!cert->GetDEREncoded(&der_cert))
     return false;
@@ -34,7 +34,7 @@ bool SSLConfig::IsAllowedBadCert(X509Certificate* cert,
 }
 
 bool SSLConfig::IsAllowedBadCert(const base::StringPiece& der_cert,
-                                 CertStatus* cert_status) const {
+                                 int* cert_status) const {
   for (size_t i = 0; i < allowed_bad_certs.size(); ++i) {
     if (der_cert == allowed_bad_certs[i].der_cert) {
       if (cert_status)
