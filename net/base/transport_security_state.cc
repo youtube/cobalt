@@ -47,7 +47,7 @@ TransportSecurityState::TransportSecurityState(const std::string& hsts_hosts)
 }
 
 static std::string HashHost(const std::string& canonicalized_host) {
-  char hashed[crypto::SHA256_LENGTH];
+  char hashed[crypto::kSHA256Length];
   crypto::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
   return std::string(hashed, sizeof(hashed));
 }
@@ -522,7 +522,7 @@ static std::string HashedDomainToExternalString(const std::string& hashed) {
 static std::string ExternalStringToHashedDomain(const std::string& external) {
   std::string out;
   if (!base::Base64Decode(external, &out) ||
-      out.size() != crypto::SHA256_LENGTH) {
+      out.size() != crypto::kSHA256Length) {
     return std::string();
   }
 
