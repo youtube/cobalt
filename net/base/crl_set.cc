@@ -152,10 +152,10 @@ static const int kCurrentFileVersion = 0;
 
 static bool ReadCRL(base::StringPiece* data, std::string* out_parent_spki_hash,
                     std::vector<std::string>* out_serials) {
-  if (data->size() < crypto::SHA256_LENGTH)
+  if (data->size() < crypto::kSHA256Length)
     return false;
-  *out_parent_spki_hash = std::string(data->data(), crypto::SHA256_LENGTH);
-  data->remove_prefix(crypto::SHA256_LENGTH);
+  *out_parent_spki_hash = std::string(data->data(), crypto::kSHA256Length);
+  data->remove_prefix(crypto::kSHA256Length);
 
   if (data->size() < sizeof(uint32))
     return false;

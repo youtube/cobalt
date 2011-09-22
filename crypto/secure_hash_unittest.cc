@@ -21,7 +21,7 @@ TEST(SecureHashTest, TestUpdate) {
                       0x04, 0x6d, 0x39, 0xcc,
                       0xc7, 0x11, 0x2c, 0xd0 };
 
-  uint8 output3[crypto::SHA256_LENGTH];
+  uint8 output3[crypto::kSHA256Length];
 
   scoped_ptr<crypto::SecureHash> ctx(crypto::SecureHash::Create(
       crypto::SecureHash::SHA256));
@@ -29,6 +29,6 @@ TEST(SecureHashTest, TestUpdate) {
   ctx->Update(input3.data(), input3.size());
 
   ctx->Finish(output3, sizeof(output3));
-  for (size_t i = 0; i < crypto::SHA256_LENGTH; i++)
+  for (size_t i = 0; i < crypto::kSHA256Length; i++)
     EXPECT_EQ(expected3[i], static_cast<int>(output3[i]));
 }
