@@ -20,7 +20,7 @@
       'target_name': 'libxml',
       'conditions': [
         ['os_posix == 1 and OS != "mac" and use_system_libxml', {
-          'type': 'settings',
+          'type': 'none',
           'direct_dependent_settings': {
             'cflags': [
               '<!@(pkg-config --cflags libxml-2.0)',
