@@ -54,7 +54,6 @@ void ChromeClassTester::BuildBannedLists() {
   banned_directories_.push_back("llvm/");
   banned_directories_.push_back("ninja/");
   banned_directories_.push_back("xcodebuild/");
-  banned_directories_.push_back("clang/");
 
   // You are standing in a mazy of twisty dependencies, all resolved by
   // putting everything in the header.
@@ -233,8 +232,14 @@ bool ChromeClassTester::InBannedDirectory(SourceLocation loc) {
          it != banned_directories_.end(); ++it) {
       // If we can find any of the banned path components in this path, then
       // this file is rejected.
-      if (b.find(*it) != std::string::npos)
-        return true;
+      size_t index = b.find(*it);
+      if (index != std::string::npos) {
+        bool matches_full_dir_name = index == 0 || b[index - 1] == '/';
+        if ((*it)[0] == '/')
+          matches_full_dir_name = true;
+        if (matches_full_dir_name)
+          return true;
+      }
     }
   }
 
