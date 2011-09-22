@@ -191,10 +191,6 @@ static const Charmap kQueryCharmap(
   0xffffffffL, 0xfc00987dL, 0x78000001L, 0xb8000001L,
   0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL);
 
-std::string EscapeQueryParamValue(const std::string& text, bool use_plus) {
-  return Escape(text, kQueryCharmap, use_plus);
-}
-
 // non-printable, non-7bit, and (including space)  "#%:<>?[\]^`{|}
 static const Charmap kPathCharmap(
   0xffffffffL, 0xd400002dL, 0x78000000L, 0xb8000001L,
@@ -363,6 +359,10 @@ string16 UnescapeForHTML(const string16& input) {
 }
 
 namespace net {
+
+std::string EscapeQueryParamValue(const std::string& text, bool use_plus) {
+  return Escape(text, kQueryCharmap, use_plus);
+}
 
 // Convert the string to a sequence of bytes and then % escape anything
 // except alphanumerics and !'()*-._~
