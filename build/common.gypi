@@ -903,8 +903,8 @@
       ['fastbuild!=0', {
 
         'conditions': [
-          # For Windows, we don't genererate debug information.
-          ['OS=="win"', {
+          # For Windows and Mac, we don't genererate debug information.
+          ['OS=="win" or OS=="mac"', {
             'msvs_settings': {
               'VCLinkerTool': {
                 'GenerateDebugInformation': 'false',
@@ -912,7 +912,10 @@
               'VCCLCompilerTool': {
                 'DebugInformationFormat': '0',
               }
-            }
+            },
+            'xcode_settings': {
+              'GCC_GENERATE_DEBUGGING_SYMBOLS': 'NO',
+            },
           }, { # else: OS != "win", generate less debug information.
             'variables': {
               'debug_extra_cflags': '-g1',
