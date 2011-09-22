@@ -30,7 +30,7 @@
   'targets': [
     {
       'target_name': 'gtk',
-      'type': 'settings',
+      'type': 'none',
       'toolsets': ['host', 'target'],
       'conditions': [
         ['_toolset=="target"', {
@@ -71,7 +71,7 @@
     },
     {
       'target_name': 'gtkprint',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['_toolset=="target"', {
           'direct_dependent_settings': {
@@ -92,7 +92,7 @@
     },
     {
       'target_name': 'ssl',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['_toolset=="target"', {
           'conditions': [
@@ -149,7 +149,7 @@
     },
     {
       'target_name': 'freetype2',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['_toolset=="target"', {
           'direct_dependent_settings': {
@@ -170,7 +170,7 @@
     },
     {
       'target_name': 'fontconfig',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['_toolset=="target"', {
           'direct_dependent_settings': {
@@ -191,7 +191,7 @@
     },
     {
       'target_name': 'gdk',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['_toolset=="target"', {
           'direct_dependent_settings': {
@@ -212,7 +212,7 @@
     },
     {
       'target_name': 'gconf',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['use_gconf==1 and _toolset=="target"', {
           'direct_dependent_settings': {
@@ -236,7 +236,7 @@
     },
     {
       'target_name': 'gio',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['use_gio==1 and _toolset=="target"', {
           'direct_dependent_settings': {
@@ -308,7 +308,7 @@
     },
     {
       'target_name': 'xext',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['_toolset=="target"', {
           'direct_dependent_settings': {
@@ -329,7 +329,7 @@
     },
     {
       'target_name': 'libgcrypt',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['_toolset=="target" and use_cups==1', {
           'direct_dependent_settings': {
@@ -347,7 +347,7 @@
     },
     {
       'target_name': 'selinux',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['_toolset=="target"', {
           'link_settings': {
@@ -360,7 +360,7 @@
     },
     {
       'target_name': 'gnome_keyring',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['use_gnome_keyring==1', {
           'direct_dependent_settings': {
@@ -403,7 +403,7 @@
       # link directly in this version of the target to allow this.
       # *** Do not use this target in the main binary! ***
       'target_name': 'gnome_keyring_direct',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['use_gnome_keyring==1', {
           'direct_dependent_settings': {
@@ -432,7 +432,7 @@
     },
     {
       'target_name': 'dbus',
-      'type': 'settings',
+      'type': 'none',
       'direct_dependent_settings': {
         'cflags': [
           '<!@(<(pkg-config) --cflags dbus-1)',
@@ -450,7 +450,7 @@
     {
       # TODO(satorux): Remove this once dbus-glib clients are gone.
       'target_name': 'dbus-glib',
-      'type': 'settings',
+      'type': 'none',
       'direct_dependent_settings': {
         'cflags': [
           '<!@(<(pkg-config) --cflags dbus-glib-1)',
@@ -467,7 +467,7 @@
     },
     {
       'target_name': 'glib',
-      'type': 'settings',
+      'type': 'none',
       'toolsets': ['host', 'target'],
       'conditions': [
         ['_toolset=="target"', {
@@ -544,7 +544,7 @@
     },
     {
       'target_name': 'libresolv',
-      'type': 'settings',
+      'type': 'none',
       'link_settings': {
         'libraries': [
           '-lresolv',
@@ -553,7 +553,7 @@
     },
     {
       'target_name': 'ibus',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['use_ibus==1', {
           'variables': {
@@ -578,7 +578,7 @@
     },
     {
       'target_name': 'wayland',
-      'type': 'settings',
+      'type': 'none',
       'conditions': [
         ['use_wayland == 1', {
           'cflags': [
