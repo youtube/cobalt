@@ -64,7 +64,7 @@
       'targets': [
         {
           'target_name': 'libwebp',
-          'type': 'settings',
+          'type': 'none',
           'direct_dependent_settings': {
             'defines': [
               'ENABLE_WEBP',
