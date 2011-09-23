@@ -172,7 +172,7 @@ int MapSecurityError(int err) {
 }
 
 // Map PORT_GetError() return values to our cert status flags.
-int MapCertErrorToCertStatus(int err) {
+CertStatus MapCertErrorToCertStatus(int err) {
   switch (err) {
     case SSL_ERROR_BAD_CERT_DOMAIN:
       return CERT_STATUS_COMMON_NAME_INVALID;
@@ -952,9 +952,9 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     // CERT_PKIXVerifyCert rerports the wrong error code for
     // expired certificates (NSS bug 491174)
     if (err == SEC_ERROR_CERT_NOT_VALID &&
-        (verify_result->cert_status & CERT_STATUS_DATE_INVALID) != 0)
+        (verify_result->cert_status & CERT_STATUS_DATE_INVALID))
       err = SEC_ERROR_EXPIRED_CERTIFICATE;
-    int cert_status = MapCertErrorToCertStatus(err);
+    CertStatus cert_status = MapCertErrorToCertStatus(err);
     if (cert_status) {
       verify_result->cert_status |= cert_status;
       return MapCertStatusToNetError(verify_result->cert_status);
