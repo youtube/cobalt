@@ -272,7 +272,7 @@
     },
     {
       'target_name': 'x11',
-      'type': 'settings',
+      'type': 'none',
       'toolsets': ['host', 'target'],
       'conditions': [
         ['_toolset=="target"', {
@@ -508,7 +508,7 @@
     },
     {
       'target_name': 'pangocairo',
-      'type': 'settings',
+      'type': 'none',
       'toolsets': ['host', 'target'],
       'conditions': [
         ['_toolset=="target"', {
