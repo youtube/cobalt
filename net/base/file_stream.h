@@ -132,6 +132,9 @@ class NET_EXPORT FileStream {
   // This method should not be called if the stream was opened READ_ONLY.
   virtual int Flush();
 
+  // Turns on UMA error statistics gathering.
+  void EnableErrorStatistics();
+
  private:
   class AsyncContext;
   friend class AsyncContext;
@@ -143,6 +146,7 @@ class NET_EXPORT FileStream {
   base::PlatformFile file_;
   int open_flags_;
   bool auto_closed_;
+  bool record_uma_;
 
   DISALLOW_COPY_AND_ASSIGN(FileStream);
 };
