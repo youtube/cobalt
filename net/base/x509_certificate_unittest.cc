@@ -236,7 +236,7 @@ void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
   int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
                 X509Certificate::VERIFY_EV_CERT;
   EXPECT_EQ(OK, google_cert->Verify("www.google.com", flags, &verify_result));
-  EXPECT_EQ(0, verify_result.cert_status & CERT_STATUS_IS_EV);
+  EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_EV);
 #endif
 }
 
@@ -302,7 +302,7 @@ TEST(X509CertificateTest, WebkitCertParsing) {
                 X509Certificate::VERIFY_EV_CERT;
   CertVerifyResult verify_result;
   EXPECT_EQ(OK, webkit_cert->Verify("webkit.org", flags, &verify_result));
-  EXPECT_EQ(0, verify_result.cert_status & CERT_STATUS_IS_EV);
+  EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_EV);
 #endif
 
   // Test that the wildcard cert matches properly.
@@ -365,12 +365,12 @@ TEST(X509CertificateTest, ThawteCertParsing) {
   CertVerifyResult verify_result;
   // EV cert verification requires revocation checking.
   EXPECT_EQ(OK, thawte_cert->Verify("www.thawte.com", flags, &verify_result));
-  EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_IS_EV);
+  EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_EV);
   // Consequently, if we don't have revocation checking enabled, we can't claim
   // any cert is EV.
   flags = X509Certificate::VERIFY_EV_CERT;
   EXPECT_EQ(OK, thawte_cert->Verify("www.thawte.com", flags, &verify_result));
-  EXPECT_EQ(0, verify_result.cert_status & CERT_STATUS_IS_EV);
+  EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_EV);
 #endif
 }
 
@@ -402,8 +402,8 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
   // name mismatch, or our certificate blacklist should cause us to report an
   // invalid certificate.
 #if !defined(OS_MACOSX) && !defined(USE_OPENSSL)
-  EXPECT_NE(0, verify_result.cert_status &
-            (CERT_STATUS_COMMON_NAME_INVALID | CERT_STATUS_INVALID));
+  EXPECT_TRUE(verify_result.cert_status &
+              (CERT_STATUS_COMMON_NAME_INVALID | CERT_STATUS_INVALID));
 #endif
 }
 
@@ -464,7 +464,7 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
   CertVerifyResult verify_result;
   int error = cert_chain->Verify("www.us.army.mil", flags, &verify_result);
   EXPECT_EQ(OK, error);
-  EXPECT_EQ(0, verify_result.cert_status);
+  EXPECT_EQ(0U, verify_result.cert_status);
   root_certs->Clear();
 }
 
@@ -499,7 +499,7 @@ TEST(X509CertificateTest, DISABLED_GlobalSignR3EVTest) {
               X509Certificate::VERIFY_EV_CERT;
   int error = cert_chain->Verify("2029.globalsign.com", flags, &verify_result);
   if (error == OK)
-    EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_IS_EV);
+    EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_EV);
   else
     EXPECT_EQ(ERR_CERT_DATE_INVALID, error);
 }
@@ -592,7 +592,7 @@ TEST(X509CertificateTest, TestKnownRoot) {
   // against agl. Also see PublicKeyHashes in this file.
   int error = cert_chain->Verify("www.nist.gov", flags, &verify_result);
   EXPECT_EQ(OK, error);
-  EXPECT_EQ(0, verify_result.cert_status);
+  EXPECT_EQ(0U, verify_result.cert_status);
   EXPECT_TRUE(verify_result.is_issued_by_known_root);
 }
 
@@ -666,7 +666,7 @@ TEST(X509CertificateTest, PublicKeyHashes) {
 
   int error = cert_chain->Verify("www.nist.gov", flags, &verify_result);
   EXPECT_EQ(OK, error);
-  EXPECT_EQ(0, verify_result.cert_status);
+  EXPECT_EQ(0U, verify_result.cert_status);
   ASSERT_LE(2u, verify_result.public_key_hashes.size());
   EXPECT_EQ(HexEncode(nistSPKIHash, base::SHA1_LENGTH),
             HexEncode(verify_result.public_key_hashes[0].data, SHA1_LENGTH));
@@ -696,13 +696,13 @@ TEST(X509CertificateTest, InvalidKeyUsage) {
   EXPECT_EQ(ERR_CERT_AUTHORITY_INVALID, error);
 #else
   EXPECT_EQ(ERR_CERT_INVALID, error);
-  EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_INVALID);
+  EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_INVALID);
 #endif
   // TODO(wtc): fix http://crbug.com/75520 to get all the certificate errors
   // from NSS.
 #if !defined(USE_NSS)
   // The certificate is issued by an unknown CA.
-  EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
+  EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
 #endif
 }
 
