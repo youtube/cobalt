@@ -41,6 +41,7 @@ class MockFileStream : public net::FileStream {
 
   void set_forced_error(int error) { forced_error_ = error; }
   void clear_forced_error() { forced_error_ = net::OK; }
+  int forced_error() const { return forced_error_; }
   const FilePath& get_path() const { return path_; }
 
  private:
