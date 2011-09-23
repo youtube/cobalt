@@ -245,6 +245,45 @@
         ],
       },
       'conditions': [
+        # Android doesn't use ffmpeg, so make the dependency conditional
+        # and exclude the sources which depend on ffmpeg.
+        ['OS=="android"', {
+          'dependencies!': [
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources!': [
+            'base/media_posix.cc',
+            'ffmpeg/ffmpeg_common.cc',
+            'ffmpeg/ffmpeg_common.h',
+            'ffmpeg/file_protocol.cc',
+            'ffmpeg/file_protocol.h',
+            'filters/adaptive_demuxer.cc',
+            'filters/adaptive_demuxer.h',
+            'filters/audio_file_reader.cc',
+            'filters/audio_file_reader.h',
+            'filters/bitstream_converter.cc',
+            'filters/bitstream_converter.h',
+            'filters/chunk_demuxer.cc',
+            'filters/chunk_demuxer.h',
+            'filters/chunk_demuxer_client.h',
+            'filters/chunk_demuxer_factory.cc',
+            'filters/chunk_demuxer_factory.h',
+            'filters/ffmpeg_audio_decoder.cc',
+            'filters/ffmpeg_audio_decoder.h',
+            'filters/ffmpeg_demuxer.cc',
+            'filters/ffmpeg_demuxer.h',
+            'filters/ffmpeg_demuxer_factory.cc',
+            'filters/ffmpeg_demuxer_factory.h',
+            'filters/ffmpeg_h264_bitstream_converter.cc',
+            'filters/ffmpeg_h264_bitstream_converter.h',
+            'filters/ffmpeg_glue.cc',
+            'filters/ffmpeg_glue.h',
+            'filters/ffmpeg_video_decoder.cc',
+            'filters/ffmpeg_video_decoder.h',
+            'video/ffmpeg_video_decode_engine.cc',
+            'video/ffmpeg_video_decode_engine.h',
+          ],
+        }],
         ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
           'link_settings': {
             'libraries': [
@@ -386,8 +425,8 @@
         'base/simd/scale_yuv_to_rgb_mmx.asm',
         'base/simd/scale_yuv_to_rgb_mmx.inc',
         'base/simd/scale_yuv_to_rgb_sse.asm',
-	'base/simd/yuv_to_rgb_table.cc',
-	'base/simd/yuv_to_rgb_table.h',
+        'base/simd/yuv_to_rgb_table.cc',
+        'base/simd/yuv_to_rgb_table.h',
       ],
       'conditions': [
         [ 'target_arch == "x64"', {
@@ -479,48 +518,13 @@
       ],
       'sources': [
         'base/simd/convert_rgb_to_yuv_c.cc',
-	'base/simd/convert_rgb_to_yuv.h',
+        'base/simd/convert_rgb_to_yuv.h',
         'base/simd/convert_yuv_to_rgb_c.cc',
-	'base/simd/convert_yuv_to_rgb.h',
+        'base/simd/convert_yuv_to_rgb.h',
         'base/simd/filter_yuv.h',
         'base/simd/filter_yuv_c.cc',
-	'base/simd/yuv_to_rgb_table.cc',
-	'base/simd/yuv_to_rgb_table.h',
-      ],
-    },
-    {
-      'target_name': 'ffmpeg_unittests',
-      'type': 'executable',
-      'dependencies': [
-        'media',
-        'media_test_support',
-        '../base/base.gyp:base',
-        '../base/base.gyp:base_i18n',
-        '../base/base.gyp:test_support_base',
-        '../base/base.gyp:test_support_perf',
-        '../testing/gtest.gyp:gtest',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
-      'sources': [
-        'ffmpeg/ffmpeg_unittest.cc',
-      ],
-      'conditions': [
-        ['toolkit_uses_gtk == 1', {
-          'dependencies': [
-            # Needed for the following #include chain:
-            #   base/run_all_unittests.cc
-            #   ../base/test_suite.h
-            #   gtk/gtk.h
-            '../build/linux/system.gyp:gtk',
-          ],
-          'conditions': [
-            ['linux_use_tcmalloc==1', {
-              'dependencies': [
-                '../base/allocator/allocator.gyp:allocator',
-              ],
-            }],
-          ],
-        }],
+        'base/simd/yuv_to_rgb_table.cc',
+        'base/simd/yuv_to_rgb_table.h',
       ],
     },
     {
@@ -598,6 +602,23 @@
             }],
           ],
         }],
+        ['OS=="android"', {
+          'dependencies!': [
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources!': [
+            'ffmpeg/ffmpeg_common_unittest.cc',
+            'filters/ffmpeg_audio_decoder_unittest.cc',
+            'filters/adaptive_demuxer_unittest.cc',
+            'filters/bitstream_converter_unittest.cc',
+            'filters/chunk_demuxer_unittest.cc',
+            'filters/ffmpeg_demuxer_unittest.cc',
+            'filters/ffmpeg_glue_unittest.cc',
+            'filters/ffmpeg_h264_bitstream_converter_unittest.cc',
+            'filters/ffmpeg_video_decoder_unittest.cc',
+            'video/ffmpeg_video_decode_engine_unittest.cc',
+          ],
+        }],
         [ 'target_arch=="ia32" or target_arch=="x64"', {
           'sources': [
             'base/simd/convert_rgb_to_yuv_unittest.cc',
@@ -628,18 +649,6 @@
       ],
     },
     {
-      'target_name': 'media_bench',
-      'type': 'executable',
-      'dependencies': [
-        'media',
-        '../base/base.gyp:base',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
-      'sources': [
-        'tools/media_bench/media_bench.cc',
-      ],
-    },
-    {
       'target_name': 'scaler_bench',
       'type': 'executable',
       'dependencies': [
@@ -650,18 +659,6 @@
       ],
       'sources': [
         'tools/scaler_bench/scaler_bench.cc',
-      ],
-    },
-    {
-      'target_name': 'ffmpeg_tests',
-      'type': 'executable',
-      'dependencies': [
-        'media',
-        '../base/base.gyp:base',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
-      'sources': [
-        'test/ffmpeg_tests/ffmpeg_tests.cc',
       ],
     },
     {
@@ -861,5 +858,69 @@
         },
       ],
     }],
+    # Android does not use ffmpeg, so disable the targets which require it.
+    ['OS!="android"', {
+      'targets': [
+        {
+          'target_name': 'ffmpeg_unittests',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            'media_test_support',
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../base/base.gyp:test_support_base',
+            '../base/base.gyp:test_support_perf',
+            '../testing/gtest.gyp:gtest',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources': [
+            'ffmpeg/ffmpeg_unittest.cc',
+          ],
+          'conditions': [
+            ['toolkit_uses_gtk == 1', {
+              'dependencies': [
+                # Needed for the following #include chain:
+                #   base/run_all_unittests.cc
+                #   ../base/test_suite.h
+                #   gtk/gtk.h
+                '../build/linux/system.gyp:gtk',
+              ],
+              'conditions': [
+                ['linux_use_tcmalloc==1', {
+                  'dependencies': [
+                    '../base/allocator/allocator.gyp:allocator',
+                  ],
+                }],
+              ],
+            }],
+          ],
+        },
+        {
+          'target_name': 'ffmpeg_tests',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            '../base/base.gyp:base',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources': [
+            'test/ffmpeg_tests/ffmpeg_tests.cc',
+          ],
+        },
+        {
+          'target_name': 'media_bench',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            '../base/base.gyp:base',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources': [
+            'tools/media_bench/media_bench.cc',
+          ],
+        },
+      ],
+    }]
   ],
 }
