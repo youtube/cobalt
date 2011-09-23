@@ -1141,7 +1141,7 @@ int SSLClientSocketMac::DoVerifyCert() {
   DCHECK(server_cert_);
 
   VLOG(1) << "DoVerifyCert...";
-  int cert_status;
+  CertStatus cert_status;
   if (ssl_config_.IsAllowedBadCert(server_cert_, &cert_status)) {
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;
     server_cert_verify_result_.Reset();
