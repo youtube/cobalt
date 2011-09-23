@@ -9,7 +9,7 @@
 
 namespace net {
 
-int MapNetErrorToCertStatus(int error) {
+CertStatus MapNetErrorToCertStatus(int error) {
   switch (error) {
     case ERR_CERT_COMMON_NAME_INVALID:
       return CERT_STATUS_COMMON_NAME_INVALID;
@@ -40,7 +40,7 @@ int MapNetErrorToCertStatus(int error) {
   }
 }
 
-int MapCertStatusToNetError(int cert_status) {
+int MapCertStatusToNetError(CertStatus cert_status) {
   // A certificate may have multiple errors.  We report the most
   // serious error.
 

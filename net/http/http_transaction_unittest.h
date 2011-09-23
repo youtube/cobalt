@@ -62,7 +62,7 @@ struct MockTransaction {
   const char* data;
   int test_mode;
   MockTransactionHandler handler;
-  int cert_status;
+  net::CertStatus cert_status;
 };
 
 extern const MockTransaction kSimpleGET_Transaction;
