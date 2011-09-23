@@ -12,6 +12,9 @@ namespace net {
 
 // Map winsock and system errors to Chromium errors.
 Error MapSystemError(int os_error) {
+  if (os_error != 0)
+    DVLOG(2) << "Error " << os_error;
+
   // There are numerous Winsock error codes, but these are the ones we thus far
   // find interesting.
   switch (os_error) {
