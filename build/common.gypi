@@ -1103,11 +1103,17 @@
                           ['exclude', '(^|/)(cocoa|mac)/'],
                           ['exclude', '\\.mm?$' ] ],
           }],
+          ['use_x11!=1', {
+            'sources/': [
+              ['exclude', '_(chromeos|x|x11)(_unittest)?\\.(h|cc)$'],
+              ['exclude', '(^|/)x11_[^/]*\\.(h|cc)$'],
+            ],
+          }],
           ['toolkit_uses_gtk!=1', {
             'sources/': [
-              ['exclude', '_(chromeos|gtk|x|x11|xdg)(_unittest)?\\.(h|cc)$'],
+              ['exclude', '_(gtk|xdg)(_unittest)?\\.(h|cc)$'],
               ['exclude', '(^|/)gtk/'],
-              ['exclude', '(^|/)(gtk|x11)_[^/]*\\.(h|cc)$'],
+              ['exclude', '(^|/)gtk_[^/]*\\.(h|cc)$'],
             ],
           }],
           ['use_wayland!=1', {
