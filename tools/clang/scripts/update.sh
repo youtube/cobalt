@@ -118,13 +118,20 @@ if [ -z "$force_local_build" ]; then
   CDS_FILE="clang-${CLANG_REVISION}.tgz"
   CDS_OUT_DIR=$(mktemp -d -t clang_download.XXXXXX)
   CDS_OUTPUT="${CDS_OUT_DIR}/${CDS_FILE}"
-  echo Trying to download prebuilt clang
   if [ "${OS}" = "Linux" ]; then
-    wget "${CDS_URL}/Linux_x64/${CDS_FILE}" -O "${CDS_OUTPUT}" || \
-        rm -rf "${CDS_OUT_DIR}"
+    CDS_FULL_URL="${CDS_URL}/Linux_x64/${CDS_FILE}"
   elif [ "${OS}" = "Darwin" ]; then
-    curl -L --fail "${CDS_URL}/Mac/${CDS_FILE}" -o "${CDS_OUTPUT}" || \
+    CDS_FULL_URL="${CDS_URL}/Mac/${CDS_FILE}"
+  fi
+  echo Trying to download prebuilt clang
+  if which -s curl; then
+    curl -L --fail "${CDS_FULL_URL}" -o "${CDS_OUTPUT}" || \
         rm -rf "${CDS_OUT_DIR}"
+  elif which -s wget; then
+    wget "${CDS_FULL_URL}" -O "${CDS_OUTPUT}" || rm -rf "${CDS_OUT_DIR}"
+  else
+    echo "Neither curl nor wget found. Please install one of these."
+    exit 1
   fi
   if [ -f "${CDS_OUTPUT}" ]; then
     rm -rf "${LLVM_BUILD_DIR}/Release+Asserts"
