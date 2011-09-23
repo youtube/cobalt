@@ -132,6 +132,7 @@ class SyncHTTPServer(StoppableHTTPServer):
     self._xmpp_server = xmppserver.XmppServer(
       self._xmpp_socket_map, ('localhost', 0))
     self.xmpp_port = self._xmpp_server.getsockname()[1]
+    self.authenticated = True
 
   def GetXmppServer(self):
     return self._xmpp_server
@@ -154,6 +155,12 @@ class SyncHTTPServer(StoppableHTTPServer):
       except:
         self.handle_error(request, client_address)
         self.close_request(request)
+
+  def SetAuthenticated(self, auth_valid):
+    self.authenticated = auth_valid
+
+  def GetAuthenticated(self):
+    return self.authenticated
 
   def serve_forever(self):
     """This is a merge of asyncore.loop() and SocketServer.serve_forever().
@@ -1415,13 +1422,15 @@ class SyncPageHandler(BasePageHandler):
                     self.ChromiumSyncBirthdayErrorOpHandler,
                     self.ChromiumSyncTransientErrorOpHandler,
                     self.ChromiumSyncSyncTabsOpHandler,
-                    self.ChromiumSyncErrorOpHandler]
+                    self.ChromiumSyncErrorOpHandler,
+                    self.ChromiumSyncCredHandler]
 
     post_handlers = [self.ChromiumSyncCommandHandler,
                      self.ChromiumSyncTimeHandler]
     BasePageHandler.__init__(self, request, client_address,
                              sync_http_server, [], get_handlers,
                              post_handlers, [])
+
 
   def ChromiumSyncTimeHandler(self):
     """Handle Chromium sync .../time requests.
@@ -1455,10 +1464,19 @@ class SyncPageHandler(BasePageHandler):
 
     length = int(self.headers.getheader('content-length'))
     raw_request = self.rfile.read(length)
+    http_response = 200
+    raw_reply = None
+    if not self.server.GetAuthenticated():
+      http_response = 401
+      challenge = 'GoogleLogin realm="http://127.0.0.1", service="chromiumsync"'
+    else:
+      http_response, raw_reply = self.server.HandleCommand(
+          self.path, raw_request)
 
-    http_response, raw_reply = self.server.HandleCommand(
-        self.path, raw_request)
+    ### Now send the response to the client. ###
     self.send_response(http_response)
+    if http_response == 401:
+      self.send_header('www-Authenticate', challenge)
     self.end_headers()
     self.wfile.write(raw_reply)
     return True
@@ -1470,6 +1488,29 @@ class SyncPageHandler(BasePageHandler):
 
     http_response, raw_reply = self.server._sync_handler.HandleMigrate(
         self.path)
+    self.send_response(http_response)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True
+
+  def ChromiumSyncCredHandler(self):
+    test_name = "/chromiumsync/cred"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+    try:
+      query = urlparse.urlparse(self.path)[4]
+      cred_valid = urlparse.parse_qs(query)['valid']
+      if cred_valid[0] == 'True':
+        self.server.SetAuthenticated(True)
+      else:
+        self.server.SetAuthenticated(False)
+    except:
+      self.server.SetAuthenticated(False)
+
+    http_response = 200
+    raw_reply = 'Authenticated: %s ' % self.server.GetAuthenticated()
     self.send_response(http_response)
     self.send_header('Content-Type', 'text/html')
     self.send_header('Content-Length', len(raw_reply))
