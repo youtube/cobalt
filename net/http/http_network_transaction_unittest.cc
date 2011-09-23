@@ -4227,7 +4227,7 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
   // Setup state in response_
   HttpResponseInfo* response = &trans->response_;
   response->auth_challenge = new AuthChallengeInfo();
-  response->ssl_info.cert_status = -15;
+  response->ssl_info.cert_status = static_cast<CertStatus>(-1);  // Nonsensical.
   response->response_time = base::Time::Now();
   response->was_cached = true;  // (Wouldn't ever actually be true...)
 
@@ -4251,7 +4251,7 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_TRUE(response->headers.get() == NULL);
   EXPECT_FALSE(response->was_cached);
-  EXPECT_EQ(0, response->ssl_info.cert_status);
+  EXPECT_EQ(0U, response->ssl_info.cert_status);
   EXPECT_FALSE(response->vary_data.is_valid());
 }
 
