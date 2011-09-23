@@ -306,6 +306,8 @@
             ['exclude', 'gfx/screen_win.cc'],
             ['exclude', 'base/win/mouse_wheel_util.cc'],
             ['exclude', 'base/win/mouse_wheel_util.h'],
+            ['exclude', 'base/x/active_window_watcher_x.cc'],
+            ['exclude', 'base/x/active_window_watcher_x.h'],
            ],
         }],
         ['use_glib == 1', {
