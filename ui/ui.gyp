@@ -100,6 +100,7 @@
         'base/dragdrop/gtk_dnd_util.h',
         'base/dragdrop/os_exchange_data.cc',
         'base/dragdrop/os_exchange_data.h',
+        'base/dragdrop/os_exchange_data_provider_aura.cc',
         'base/dragdrop/os_exchange_data_provider_gtk.cc',
         'base/dragdrop/os_exchange_data_provider_gtk.h',
         'base/dragdrop/os_exchange_data_provider_win.cc',
