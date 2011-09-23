@@ -200,17 +200,10 @@ void SplitStringAlongWhitespaceT(const STR& str, std::vector<STR>* result) {
   }
 }
 
-void SplitStringAlongWhitespace(const std::wstring& str,
-                                std::vector<std::wstring>* result) {
-  SplitStringAlongWhitespaceT(str, result);
-}
-
-#if !defined(WCHAR_T_IS_UTF16)
 void SplitStringAlongWhitespace(const string16& str,
                                 std::vector<string16>* result) {
   SplitStringAlongWhitespaceT(str, result);
 }
-#endif
 
 void SplitStringAlongWhitespace(const std::string& str,
                                 std::vector<std::string>* result) {
