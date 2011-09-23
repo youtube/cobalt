@@ -152,7 +152,7 @@ v8.log
 /third_party/yasm/binaries
 /third_party/yasm/source/patched-yasm
 /tools/distcc
-/tools/grit/grit/test/data
+/tools/grit
 /tools/gyp
 /tools/histograms
 /tools/page_cycler/acid3
