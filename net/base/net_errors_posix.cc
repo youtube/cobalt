@@ -5,12 +5,19 @@
 #include "net/base/net_errors.h"
 
 #include <errno.h>
+#include <stdlib.h>
+#include <string>
+#include <unistd.h>
 
 #include "base/logging.h"
+#include "base/stringprintf.h"
 
 namespace net {
 
 Error MapSystemError(int os_error) {
+  if (os_error != 0)
+    DVLOG(2) << "Error " << os_error;
+
   // There are numerous posix error codes, but these are the ones we thus far
   // find interesting.
   switch (os_error) {
@@ -97,6 +104,8 @@ Error MapSystemError(int os_error) {
     case ETXTBSY:  // Text file busy.
       return ERR_ACCESS_DENIED;
     case EUSERS:  // Too many users.
+      return ERR_INSUFFICIENT_RESOURCES;
+    case EMFILE:  // Too many open files.
       return ERR_INSUFFICIENT_RESOURCES;
 
     case 0:
