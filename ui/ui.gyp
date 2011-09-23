@@ -311,6 +311,11 @@
             ['exclude', 'base/x/active_window_watcher_x.h'],
            ],
         }],
+        ['use_aura==1 and OS=="win"', {
+          'sources/': [
+            ['exclude', 'base/dragdrop/os_exchange_data_provider_aura.cc'],
+          ],
+        }],
         ['use_glib == 1', {
           'dependencies': [
             # font_gtk.cc uses fontconfig.
