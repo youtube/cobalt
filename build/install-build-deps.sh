@@ -340,8 +340,8 @@ if [ "$(uname -m)" = "x86_64" ]; then
     echo "/usr/lib/debug/usr/lib32. If you ever need to uninstall these files,"
     echo "look for packages named *-ia32.deb."
     echo "Do you want me to download all packages needed to build new 32bit"
-    echo -n "package files (Y/n) "
-    if yes_no 0; then
+    echo -n "package files (y/N) "
+    if yes_no 1; then
       do_inst_lib32=1
     fi
   fi
