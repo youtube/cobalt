@@ -42,7 +42,7 @@
  "linux-release-lowmem/v8_benchmark/score/score": {"reva": 81069, "revb": 81884, "improve": 1196, "regress": -2933, "sha1": "9e618ede"},
  "linux-release/dhtml/times/t": {"reva": 99393, "revb": 100034, "improve": -21, "regress": 145, "sha1": "6cb344a1"},
  "linux-release/intl1/times/t": {"reva": 99393, "revb": 100034, "improve": 8, "regress": 350, "sha1": "e12bff42"},
- "linux-release/intl2/times/t": {"reva": 99393, "revb": 100034, "improve": -46, "regress": 117, "sha1": "99a6bf16"},
+ "linux-release/intl2/times/t": {"reva": 101660, "revb": 102665, "improve": 19, "regress": 167, "sha1": "bc1703d6"},
  "linux-release/morejs/times/t": {"reva": 99393, "revb": 100034, "improve": -46, "regress": 63, "sha1": "1209e4ac"},
  "linux-release/moz/times/t": {"reva": 99393, "revb": 100034, "improve": -40, "regress": 172, "sha1": "2cf4039f"},
  "linux-release/sizes/chrome-bss/bss": {"reva": 91085, "revb": 91326, "type": "absolute", "improve": 328321, "regress": 362950, "sha1": "6718b4cc"},
