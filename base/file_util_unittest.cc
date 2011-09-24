@@ -1892,7 +1892,14 @@ class VerifyPathControlledByUserTest : public FileUtilTest {
   gid_t gid_;
 };
 
-TEST_F(VerifyPathControlledByUserTest, BadPaths) {
+#if defined(OS_MACOSX)
+// http://crbug.com/97876
+#define MAYBE_BadPaths FAILS_BadPaths
+#else
+#define MAYBE_BadPaths BadPaths
+#endif
+
+TEST_F(VerifyPathControlledByUserTest, MAYBE_BadPaths) {
   // File does not exist.
   FilePath does_not_exist = base_dir_.AppendASCII("does")
                                      .AppendASCII("not")
@@ -1915,6 +1922,13 @@ TEST_F(VerifyPathControlledByUserTest, BadPaths) {
   EXPECT_TRUE(
       file_util::VerifyPathControlledByUser(base_dir_, sub_dir_, uid_, gid_));
 }
+
+#if defined(OS_MACOSX)
+// http://crbug.com/97876
+#define MAYBE_Symlinks FAILS_Symlinks
+#else
+#define MAYBE_Symlinks Symlinks
+#endif
 
 TEST_F(VerifyPathControlledByUserTest, Symlinks) {
   // Symlinks in the path should cause failure.
@@ -1951,7 +1965,14 @@ TEST_F(VerifyPathControlledByUserTest, Symlinks) {
           file_path_with_link, file_path_with_link, uid_, gid_));
 }
 
-TEST_F(VerifyPathControlledByUserTest, OwnershipChecks) {
+#if defined(OS_MACOSX)
+// http://crbug.com/97876
+#define MAYBE_OwnershipChecks FAILS_OwnershipChecks
+#else
+#define MAYBE_OwnershipChecks OwnershipChecks
+#endif
+
+TEST_F(VerifyPathControlledByUserTest, MAYBE_OwnershipChecks) {
   // Get a uid that is not the uid of files we create.
   uid_t bad_uid = uid_ + 1;
 
@@ -1997,7 +2018,14 @@ TEST_F(VerifyPathControlledByUserTest, OwnershipChecks) {
           sub_dir_, text_file_, uid_, bad_gid));
 }
 
-TEST_F(VerifyPathControlledByUserTest, WriteBitChecks) {
+#if defined(OS_MACOSX)
+// http://crbug.com/97876
+#define MAYBE_WriteBitChecks FAILS_WriteBitChecks
+#else
+#define MAYBE_WriteBitChecks WriteBitChecks
+#endif
+
+TEST_F(VerifyPathControlledByUserTest, MAYBE_WriteBitChecks) {
   // Make all files and directories non-world-writable.
   ASSERT_NO_FATAL_FAILURE(
       ChangePosixFilePermissions(base_dir_, 0u, S_IWOTH));
