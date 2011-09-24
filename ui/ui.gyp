@@ -499,6 +499,14 @@
             'gfx/render_text_win.h',
           ],
         }],
+        ['OS=="android"', {
+          'sources!': [
+            'gfx/pango_util.h',
+            'gfx/pango_util.cc',
+            'gfx/platform_font_pango.cc',
+            'gfx/platform_font_pango.h',
+          ],
+        }],
       ],
     },
     {
