@@ -207,6 +207,12 @@
       # Webrtc compilation is enabled by default. Set to 0 to disable.
       'enable_webrtc%': 1,
 
+      # XInput2 multitouch support is disabled by default (use_xi2_mt=0).
+      # Setting to non-zero value enables XI2 MT. When XI2 MT is enabled,
+      # the input value also defines the required XI2 minor minimum version.
+      # For example, use_xi2_mt=2 means XI2.2 or above version is required.
+      'use_xi2_mt%': 0,
+
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
         # the 'conditions' clause.  Initial attempts resulted in chromium and
@@ -313,6 +319,7 @@
     'enable_flapper_hacks%': '<(enable_flapper_hacks)',
     'chromeos%': '<(chromeos)',
     'touchui%': '<(touchui)',
+    'use_xi2_mt%':'<(use_xi2_mt)',
     'file_manager_extension%': '<(file_manager_extension)',
     'webui_task_manager%': '<(webui_task_manager)',
     'inside_chromium_build%': '<(inside_chromium_build)',
@@ -867,6 +874,9 @@
       }],
       ['touchui==1', {
         'defines': ['TOUCH_UI=1'],
+      }],
+      ['use_xi2_mt!=0', {
+        'defines': ['USE_XI2_MT=<(use_xi2_mt)'],
       }],
       ['use_wayland==1', {
         'defines': ['USE_WAYLAND=1', 'WL_EGL_PLATFORM=1'],
