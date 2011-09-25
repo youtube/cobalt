@@ -230,40 +230,6 @@ std::string EscapeExternalHandlerValue(const std::string& text) {
   return Escape(text, kExternalHandlerCharmap, false);
 }
 
-string16 UnescapeAndDecodeUTF8URLComponentWithOffsets(
-    const std::string& text,
-    UnescapeRule::Type rules,
-    std::vector<size_t>* offsets_for_adjustment) {
-  string16 result;
-  std::vector<size_t> original_offsets;
-  if (offsets_for_adjustment)
-    original_offsets = *offsets_for_adjustment;
-  std::string unescaped_url(
-      UnescapeURLWithOffsetsImpl(text, rules, offsets_for_adjustment));
-  if (UTF8ToUTF16AndAdjustOffsets(unescaped_url.data(), unescaped_url.length(),
-                                  &result, offsets_for_adjustment))
-    return result;  // Character set looks like it's valid.
-
-  // Not valid.  Return the escaped version.  Undo our changes to
-  // |offset_for_adjustment| since we haven't changed the string after all.
-  if (offsets_for_adjustment)
-    *offsets_for_adjustment = original_offsets;
-  return UTF8ToUTF16AndAdjustOffsets(text, offsets_for_adjustment);
-}
-
-string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
-                                           UnescapeRule::Type rules,
-                                           size_t* offset_for_adjustment) {
-  std::vector<size_t> offsets;
-  if (offset_for_adjustment)
-    offsets.push_back(*offset_for_adjustment);
-  string16 result =
-      UnescapeAndDecodeUTF8URLComponentWithOffsets(text, rules, &offsets);
-  if (offset_for_adjustment)
-    *offset_for_adjustment = offsets[0];
-  return result;
-}
-
 std::string UnescapeURLComponent(const std::string& escaped_text,
                                  UnescapeRule::Type rules) {
   return UnescapeURLWithOffsetsImpl(escaped_text, rules, NULL);
@@ -323,6 +289,42 @@ string16 EscapeForHTML(const string16& input) {
   return EscapeForHTMLImpl(input);
 }
 
+namespace net {
+
+string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
+                                           UnescapeRule::Type rules,
+                                           size_t* offset_for_adjustment) {
+  std::vector<size_t> offsets;
+  if (offset_for_adjustment)
+    offsets.push_back(*offset_for_adjustment);
+  string16 result =
+      UnescapeAndDecodeUTF8URLComponentWithOffsets(text, rules, &offsets);
+  if (offset_for_adjustment)
+    *offset_for_adjustment = offsets[0];
+  return result;
+}
+
+string16 UnescapeAndDecodeUTF8URLComponentWithOffsets(
+    const std::string& text,
+    UnescapeRule::Type rules,
+    std::vector<size_t>* offsets_for_adjustment) {
+  string16 result;
+  std::vector<size_t> original_offsets;
+  if (offsets_for_adjustment)
+    original_offsets = *offsets_for_adjustment;
+  std::string unescaped_url(
+      UnescapeURLWithOffsetsImpl(text, rules, offsets_for_adjustment));
+  if (UTF8ToUTF16AndAdjustOffsets(unescaped_url.data(), unescaped_url.length(),
+                                  &result, offsets_for_adjustment))
+    return result;  // Character set looks like it's valid.
+
+  // Not valid.  Return the escaped version.  Undo our changes to
+  // |offset_for_adjustment| since we haven't changed the string after all.
+  if (offsets_for_adjustment)
+    *offsets_for_adjustment = original_offsets;
+  return UTF8ToUTF16AndAdjustOffsets(text, offsets_for_adjustment);
+}
+
 string16 UnescapeForHTML(const string16& input) {
   static const struct {
     const char* ampersand_code;
@@ -357,8 +359,6 @@ string16 UnescapeForHTML(const string16& input) {
   }
   return text;
 }
-
-namespace net {
 
 std::string EscapeQueryParamValue(const std::string& text, bool use_plus) {
   return Escape(text, kQueryCharmap, use_plus);

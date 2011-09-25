@@ -100,6 +100,8 @@ NET_EXPORT std::string UnescapeURLComponent(const std::string& escaped_text,
 NET_EXPORT string16 UnescapeURLComponent(const string16& escaped_text,
                                          UnescapeRule::Type rules);
 
+namespace net {
+
 // Unescapes the given substring as a URL, and then tries to interpret the
 // result as being encoded as UTF-8. If the result is convertable into UTF-8, it
 // will be returned as converted. If it is not, the original escaped string will
@@ -121,8 +123,6 @@ NET_EXPORT string16 UnescapeAndDecodeUTF8URLComponentWithOffsets(
 // Unescape the following ampersand character codes from |text|:
 // &lt; &gt; &amp; &quot; &#39;
 NET_EXPORT string16 UnescapeForHTML(const string16& text);
-
-namespace net {
 
 // Deprecated ------------------------------------------------------------------
 
