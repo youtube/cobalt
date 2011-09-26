@@ -17,6 +17,7 @@ namespace base {
 enum {
   SHA1_LENGTH = 20  // Length in bytes of a SHA-1 hash.
 };
+static const size_t kSHA1Length = 20;  // TODO(pkasting): Replace above w/this
 
 // Computes the SHA-1 hash of the input string |str| and returns the full
 // hash.
