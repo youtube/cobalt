@@ -61,8 +61,27 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // Called if an error is detected in the SpdyFrame protocol.
   virtual void OnError(SpdyFramer* framer) = 0;
 
-  // Called when a Control Frame is received.
+  // Called when a control frame is received.
   virtual void OnControl(const SpdyControlFrame* frame) = 0;
+
+  // Called when a chunk of header data is available. This is called
+  // after OnControl() is called with the control frame associated with the
+  // header data being delivered here.
+  // |stream_id| The stream receiving the header data.
+  // |header_data| A buffer containing the header data chunk received.
+  // |len| The length of the header data buffer. A length of zero indicates
+  //       that the header data block has been completely sent.
+  // When this function returns true the visitor indicates that it accepted
+  // all of the data. Returning false indicates that that an unrecoverable
+  // error has occurred, such as bad header data or resource exhaustion.
+  virtual bool OnControlFrameHeaderData(SpdyStreamId stream_id,
+                                        const char* header_data,
+                                        size_t len) = 0;
+
+  // Called when a data frame header is received. The frame's data
+  // payload will be provided via subsequent calls to
+  // OnStreamFrameData().
+  virtual void OnDataFrameHeader(const SpdyDataFrame* frame) = 0;
 
   // Called when data is received.
   // |stream_id| The stream receiving data.
@@ -89,7 +108,9 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER,
     SPDY_CONTROL_FRAME_PAYLOAD,
     SPDY_IGNORE_REMAINING_PAYLOAD,
-    SPDY_FORWARD_STREAM_FRAME
+    SPDY_FORWARD_STREAM_FRAME,
+    SPDY_CONTROL_FRAME_BEFORE_HEADER_BLOCK,
+    SPDY_CONTROL_FRAME_HEADER_BLOCK,
   };
 
   // SPDY error codes.
@@ -104,6 +125,14 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
     LAST_ERROR,  // Must be the last entry in the enum.
   };
+
+  // Constant for invalid (or unknown) stream IDs.
+  static const SpdyStreamId kInvalidStream;
+
+  // The maximum size of header data chunks delivered to the framer visitor
+  // through OnControlFrameHeaderData. (It is exposed here for unit test
+  // purposes.)
+  static const size_t kHeaderDataChunkMaxSize;
 
   // Create a new Framer.
   SpdyFramer();
@@ -141,6 +170,14 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Returns true if successfully parsed, false otherwise.
   bool ParseHeaderBlock(const SpdyFrame* frame, SpdyHeaderBlock* block);
 
+  // Given a buffer containing a decompressed header block in SPDY
+  // serialized format, parse out a SpdyHeaderBlock, putting the results
+  // in the given header block.
+  // Returns true if successfully parsed, false otherwise.
+  static bool ParseHeaderBlockInBuffer(const char* header_data,
+                                       size_t header_length,
+                                       SpdyHeaderBlock* block);
+
   // Create a SpdySynStreamControlFrame.
   // |stream_id| is the id for this stream.
   // |associated_stream_id| is the associated stream id for this stream.
@@ -154,7 +191,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
                                              int priority,
                                              SpdyControlFlags flags,
                                              bool compressed,
-                                             SpdyHeaderBlock* headers);
+                                             const SpdyHeaderBlock* headers);
 
   // Create a SpdySynReplyControlFrame.
   // |stream_id| is the stream for this frame.
@@ -165,7 +202,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   SpdySynReplyControlFrame* CreateSynReply(SpdyStreamId stream_id,
                                            SpdyControlFlags flags,
                                            bool compressed,
-                                           SpdyHeaderBlock* headers);
+                                           const SpdyHeaderBlock* headers);
 
   static SpdyRstStreamControlFrame* CreateRstStream(SpdyStreamId stream_id,
                                                     SpdyStatusCodes status);
@@ -175,7 +212,11 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // TODO(mbelshe): add the name/value pairs!!
   static SpdySettingsControlFrame* CreateSettings(const SpdySettings& values);
 
-  static SpdyControlFrame* CreateNopFrame();
+  static SpdyNoOpControlFrame* CreateNopFrame();
+
+  // Creates an instance of SpdyPingControlFrame. The unique_id is used to
+  // identify the ping request/response.
+  static SpdyPingControlFrame* CreatePingFrame(uint32 unique_id);
 
   // Creates an instance of SpdyGoAwayControlFrame. The GOAWAY frame is used
   // prior to the shutting down of the TCP connection, and includes the
@@ -190,7 +231,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   SpdyHeadersControlFrame* CreateHeaders(SpdyStreamId stream_id,
                                          SpdyControlFlags flags,
                                          bool compressed,
-                                         SpdyHeaderBlock* headers);
+                                         const SpdyHeaderBlock* headers);
 
   // Creates an instance of SpdyWindowUpdateControlFrame. The WINDOW_UPDATE
   // frame is used to implement per stream flow control in SPDY.
@@ -245,9 +286,29 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Returns true if a frame could be compressed.
   bool IsCompressible(const SpdyFrame& frame) const;
 
+  // Get the minimum size of the control frame for the given control frame
+  // type. This is useful for validating frame blocks.
+  static size_t GetMinimumControlFrameSize(SpdyControlType type);
+
+  // Get the stream ID for the given control frame (SYN_STREAM, SYN_REPLY, and
+  // HEADERS). If the control frame is NULL or of another type, this
+  // function returns kInvalidStream.
+  static SpdyStreamId GetControlFrameStreamId(
+      const SpdyControlFrame* control_frame);
+
+  // For ease of testing and experimentation we can tweak compression on/off.
+  void set_enable_compression(bool value);
+
+  // SPDY will by default validate the length of incoming control
+  // frames. Set validation to false if you do not want this behavior.
+  void set_validate_control_frame_sizes(bool value);
+  static void set_enable_compression_default(bool value);
+
   // For debugging.
   static const char* StateToString(int state);
   static const char* ErrorCodeToString(int error_code);
+  static const char* StatusCodeToString(int status_code);
+  static const char* ControlTypeToString(SpdyControlType type);
   static void set_protocol_version(int version) { spdy_version_= version; }
   static int protocol_version() { return spdy_version_; }
 
@@ -276,14 +337,11 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   friend void test::FramerSetEnableCompressionHelper(SpdyFramer* framer,
                                                      bool compress);
 
-  // For ease of testing we can tweak compression on/off.
-  void set_enable_compression(bool value);
-  static void set_enable_compression_default(bool value);
-
-
   // The initial size of the control frame buffer; this is used internally
   // as we parse through control frames. (It is exposed here for unit test
   // purposes.)
+  // This is only used when compression is enabled; otherwise,
+  // kUncompressedControlFrameBufferInitialSize is used.
   static size_t kControlFrameBufferInitialSize;
 
   // The maximum size of the control frame buffer that we support.
@@ -298,6 +356,11 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   size_t ProcessCommonHeader(const char* data, size_t len);
   void ProcessControlFrameHeader();
   size_t ProcessControlFramePayload(const char* data, size_t len);
+  size_t ProcessControlFrameBeforeHeaderBlock(const char* data, size_t len);
+  // TODO(hkhalil): Rename to ProcessControlFrameHeaderBlock once said flag is
+  // removed, replacing the old method.
+  size_t NewProcessControlFrameHeaderBlock(const char* data, size_t len);
+  size_t ProcessControlFrameHeaderBlock(const char* data, size_t len);
   size_t ProcessDataFramePayload(const char* data, size_t len);
 
   // Get (and lazily initialize) the ZLib state.
@@ -322,6 +385,36 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Not used (yet)
   size_t BytesSafeToRead() const;
 
+  // Deliver the given control frame's compressed headers block to the visitor
+  // in decompressed form, in chunks. Returns true if the visitor has
+  // accepted all of the chunks.
+  bool IncrementallyDecompressControlFrameHeaderData(
+      const SpdyControlFrame* frame);
+
+  // Deliver the given control frame's compressed headers block to the visitor
+  // in decompressed form, in chunks. Returns true if the visitor has
+  // accepted all of the chunks.
+  bool IncrementallyDecompressControlFrameHeaderData(
+      const SpdyControlFrame* frame,
+      const char* data,
+      size_t len);
+
+  // Deliver the given control frame's uncompressed headers block to the
+  // visitor in chunks. Returns true if the visitor has accepted all of the
+  // chunks.
+  bool IncrementallyDeliverControlFrameHeaderData(const SpdyControlFrame* frame,
+                                                  const char* data,
+                                                  size_t len);
+
+  // Utility to copy the given data block to the current frame buffer, up
+  // to the given maximum number of bytes, and update the buffer
+  // data (pointer and length). Returns the number of bytes
+  // read, and:
+  //   *data is advanced the number of bytes read.
+  //   *len is reduced by the number of bytes read.
+  size_t UpdateCurrentFrameBuffer(const char** data, size_t* len,
+                                  size_t max_bytes);
+
   // Set the error code and moves the framer into the error state.
   void set_error(SpdyError error);
 
@@ -336,15 +429,38 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   int num_stream_compressors() const { return stream_compressors_.size(); }
   int num_stream_decompressors() const { return stream_decompressors_.size(); }
 
+  // The initial size of the control frame buffer when compression is disabled.
+  // This exists because we don't do stream (de)compressed control frame data to
+  // our visitor; we instead buffer the entirety of the control frame and then
+  // decompress in one fell swoop.
+  // Since this is only used for control frame headers, the maximum control
+  // frame header size (18B) is sufficient; all remaining control frame data is
+  // streamed to the visitor.
+  // In addition to the maximum control frame header size, we account for any
+  // LOAS checksumming (16B) that may occur in the VTL case.
+  static const size_t kUncompressedControlFrameBufferInitialSize = 18 + 16;
+
+  // The size of the buffer into which compressed frames are inflated.
+  static const size_t kDecompressionBufferSize = 8 * 1024;
+
   SpdyState state_;
   SpdyError error_code_;
-  size_t remaining_payload_;
+  size_t remaining_data_;
+
+  // The number of bytes remaining to read from the current control frame's
+  // payload.
   size_t remaining_control_payload_;
+
+  // The number of bytes remaining to read from the current control frame's
+  // headers. Note that header data blocks (for control types that have them)
+  // are part of the frame's payload, and not the frame's headers.
+  size_t remaining_control_header_;
 
   char* current_frame_buffer_;
   size_t current_frame_len_;  // Number of bytes read into the current_frame_.
   size_t current_frame_capacity_;
 
+  bool validate_control_frame_sizes_;
   bool enable_compression_;  // Controls all compression
   // SPDY header compressors.
   scoped_ptr<z_stream> header_compressor_;
