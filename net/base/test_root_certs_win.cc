@@ -10,6 +10,8 @@
 #include "base/basictypes.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/win/win_util.h"
+#include "base/win/windows_version.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
@@ -172,6 +174,12 @@ HCERTCHAINENGINE TestRootCerts::GetChainEngine() const {
   if (IsEmpty())
     return NULL;  // Default chain engine will suffice.
 
+  // Windows versions before 7 don't accept the struct size for later versions.
+  // We report the size of the old struct since we don't need the new members.
+  static const DWORD kSizeofCertChainEngineConfig =
+      SIZEOF_STRUCT_WITH_SPECIFIED_LAST_MEMBER(
+          CERT_CHAIN_ENGINE_CONFIG, CycleDetectionModulus);
+
   // Each HCERTCHAINENGINE caches both the configured system stores and
   // information about each chain that has been built. In order to ensure
   // that changes to |temporary_roots_| are properly propagated and that the
@@ -180,7 +188,7 @@ HCERTCHAINENGINE TestRootCerts::GetChainEngine() const {
   // should re-open the root store, ensuring the most recent changes are
   // visible.
   CERT_CHAIN_ENGINE_CONFIG engine_config = {
-    sizeof(engine_config)
+    kSizeofCertChainEngineConfig
   };
   engine_config.dwFlags =
       CERT_CHAIN_ENABLE_CACHE_AUTO_UPDATE |
