@@ -226,6 +226,7 @@
             ['include', 'base/data_buffer.h'],
             ['include', 'base/buffers.cc'],
             ['include', 'base/buffers.h'],
+            ['include', 'base/pipeline_status.h'],
           ]
         }, { #else OS != "cell_lv2"
           'dependencies': [
