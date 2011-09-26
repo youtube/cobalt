@@ -16,10 +16,6 @@
         ['exclude', 'views/'],
       ]}],
       ['touchui==0', {'sources/': [
-        ['exclude', 'event_x.cc$'],
-        ['exclude', 'native_menu_x.cc$'],
-        ['exclude', 'native_menu_x.h$'],
-        ['exclude', 'touchui/'],
         ['exclude', '_(touch)\\.cc$'],
       ]}],
     ],
@@ -189,6 +185,8 @@
         'base/text/text_elider.h',
         'base/theme_provider.cc',
         'base/theme_provider.h',
+        'base/touch/touch_factory.cc',
+        'base/touch/touch_factory.h',
         'base/ui_base_exports.cc',
         'base/ui_base_paths.cc',
         'base/ui_base_paths.h',
@@ -198,6 +196,8 @@
         'base/ui_export.h',
         'base/view_prop.cc',
         'base/view_prop.h',
+        'base/wayland/events_wayland.cc',
+        'base/win/events_win.cc',
         'base/win/hwnd_util.cc',
         'base/win/hwnd_util.h',
         'base/win/ime_input.cc',
@@ -210,6 +210,7 @@
         'base/win/window_impl.h',
         'base/x/active_window_watcher_x.cc',
         'base/x/active_window_watcher_x.h',
+        'base/x/events_x.cc',
         'base/x/x11_util.cc',
         'base/x/x11_util.h',
         'base/x/x11_util_internal.h',
@@ -409,6 +410,8 @@
           ],
           'sources!': [
             'base/clipboard/clipboard_aura.cc',
+            'base/touch/touch_factory.cc',
+            'base/touch/touch_factory.h',
             'gfx/pango_util.h',
             'gfx/pango_util.cc',
             'gfx/platform_font_pango.cc',
@@ -454,6 +457,8 @@
         }],
         ['OS=="mac"', {
           'sources!': [
+            'base/touch/touch_factory.cc',
+            'base/touch/touch_factory.h',
             'gfx/pango_util.h',
             'gfx/pango_util.cc',
             'gfx/platform_font_pango.h',
@@ -482,6 +487,12 @@
           'sources!': [
             'base/keycodes/keyboard_code_conversion_x.cc',
             'base/keycodes/keyboard_code_conversion_x.h',
+            'base/x/active_window_watcher_x.cc',
+            'base/x/active_window_watcher_x.h',
+            'base/x/events_x.cc',
+            'base/x/x11_util.cc',
+            'base/x/x11_util.h',
+            'base/x/x11_util_internal.h',
           ],
         }],
         ['chromeos==1', {
