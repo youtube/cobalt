@@ -87,6 +87,13 @@ BASE_EXPORT bool ReadCommandFromAutoRun(HKEY root_key,
                                         const string16& name,
                                         string16* command);
 
+// Get the size of a struct up to and including the specified member.
+// This is necessary to set compatible struct sizes for different versions
+// of certain Windows APIs (e.g. SystemParametersInfo).
+#define SIZEOF_STRUCT_WITH_SPECIFIED_LAST_MEMBER(struct_name, member) \
+    offsetof(struct_name, member) + \
+    (sizeof static_cast<struct_name*>(NULL)->member)
+
 }  // namespace win
 }  // namespace base
 
