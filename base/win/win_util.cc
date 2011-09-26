@@ -23,9 +23,6 @@
 namespace base {
 namespace win {
 
-#define SIZEOF_STRUCT_WITH_SPECIFIED_LAST_MEMBER(struct_name, member) \
-    offsetof(struct_name, member) + \
-    (sizeof static_cast<struct_name*>(NULL)->member)
 #define NONCLIENTMETRICS_SIZE_PRE_VISTA \
     SIZEOF_STRUCT_WITH_SPECIFIED_LAST_MEMBER(NONCLIENTMETRICS, lfMessageFont)
 
