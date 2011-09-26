@@ -336,6 +336,12 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
                                  size_t len);
   virtual void OnControl(const spdy::SpdyControlFrame* frame);
 
+  virtual bool OnControlFrameHeaderData(spdy::SpdyStreamId stream_id,
+                                        const char* header_data,
+                                        size_t len);
+
+  virtual void OnDataFrameHeader(const spdy::SpdyDataFrame* frame);
+
   // Callbacks for the Spdy session.
   CompletionCallbackImpl<SpdySession> read_callback_;
   CompletionCallbackImpl<SpdySession> write_callback_;

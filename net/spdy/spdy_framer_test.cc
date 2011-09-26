@@ -142,6 +142,17 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
       ++fin_flag_count_;
   }
 
+  bool OnControlFrameHeaderData(SpdyStreamId stream_id,
+                                const char* header_data,
+                                size_t len) {
+    DCHECK(false);
+    return false;
+  }
+
+  void OnDataFrameHeader(const SpdyDataFrame* frame) {
+    DCHECK(false);
+  }
+
   // Convenience function which runs a framer simulation with particular input.
   void SimulateInFramer(const unsigned char* input, size_t size) {
     framer_.set_enable_compression(false);

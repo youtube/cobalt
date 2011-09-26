@@ -1255,6 +1255,17 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
   }
 }
 
+bool SpdySession::OnControlFrameHeaderData(spdy::SpdyStreamId stream_id,
+                                           const char* header_data,
+                                           size_t len) {
+  DCHECK(false);
+  return false;
+}
+
+void SpdySession::OnDataFrameHeader(const spdy::SpdyDataFrame* frame) {
+  DCHECK(false);
+}
+
 void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
 
