@@ -232,6 +232,7 @@
         'gfx/color_analysis.h',
         'gfx/color_utils.cc',
         'gfx/color_utils.h',
+        'gfx/favicon_size.cc',
         'gfx/favicon_size.h',
         'gfx/font.h',
         'gfx/font.cc',
