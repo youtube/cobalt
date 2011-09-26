@@ -191,8 +191,10 @@ enum SpdySettingsFlags {
 enum SpdySettingsIds {
   SETTINGS_UPLOAD_BANDWIDTH = 0x1,
   SETTINGS_DOWNLOAD_BANDWIDTH = 0x2,
+  // Network round trip time in milliseconds.
   SETTINGS_ROUND_TRIP_TIME = 0x3,
   SETTINGS_MAX_CONCURRENT_STREAMS = 0x4,
+  // TCP congestion window in packets.
   SETTINGS_CURRENT_CWND = 0x5,
   // Downstream byte retransmission rate in percentage.
   SETTINGS_DOWNLOAD_RETRANS_RATE = 0x6,
@@ -278,6 +280,15 @@ struct SpdySettingsControlFrameBlock : SpdyFrameBlock {
   // Variable data here.
 };
 
+// A NOOP Control Frame structure.
+struct SpdyNoopControlFrameBlock : SpdyFrameBlock {
+};
+
+// A PING Control Frame structure.
+struct SpdyPingControlFrameBlock : SpdyFrameBlock {
+  uint32 unique_id_;
+};
+
 // A GOAWAY Control Frame structure.
 struct SpdyGoAwayControlFrameBlock : SpdyFrameBlock {
   SpdyStreamId last_accepted_stream_id_;
@@ -297,6 +308,7 @@ struct SpdyWindowUpdateControlFrameBlock : SpdyFrameBlock {
 
 // A structure for the 8 bit flags and 24 bit ID fields.
 union SettingsFlagsAndId {
+  // Sets both flags and id to the value for flags-and-id as sent over the wire
   SettingsFlagsAndId(uint32 val) : id_(val) {}
   uint8 flags() const { return flags_[0]; }
   void set_flags(uint8 flags) { flags_[0] = flags; }
@@ -450,9 +462,24 @@ class SpdyControlFrame : public SpdyFrame {
     mutable_block()->control_.type_ = htons(type);
   }
 
+  // Returns true if this control frame is of a type that has a header block,
+  // otherwise it returns false.
+  bool has_header_block() const {
+    return type() == SYN_STREAM || type() == SYN_REPLY || type() == HEADERS;
+  }
+
   // Returns the size of the SpdyFrameBlock structure.
   // Note: this is not the size of the SpdyControlFrame class.
   static size_t size() { return sizeof(SpdyFrameBlock); }
+
+  // The size of the 'Number of Name/Value pairs' field in a Name/Value block.
+  static const size_t kNumNameValuePairsSize = 2;
+
+  // The size of the 'Length of a name' field in a Name/Value block.
+  static const size_t kLengthOfNameSize = 2;
+
+  // The size of the 'Length of a value' field in a Name/Value block.
+  static const size_t kLengthOfValueSize = 2;
 
  private:
   const struct SpdyFrameBlock* block() const {
@@ -567,7 +594,12 @@ class SpdyRstStreamControlFrame : public SpdyControlFrame {
   }
 
   SpdyStatusCodes status() const {
-    return static_cast<SpdyStatusCodes>(ntohl(block()->status_));
+    SpdyStatusCodes status =
+        static_cast<SpdyStatusCodes>(ntohl(block()->status_));
+    if (status < INVALID || status >= NUM_STATUS_CODES) {
+      status = INVALID;
+    }
+    return status;
   }
   void set_status(SpdyStatusCodes status) {
     mutable_block()->status_ = htonl(static_cast<uint32>(status));
@@ -621,6 +653,40 @@ class SpdySettingsControlFrame : public SpdyControlFrame {
     return static_cast<SpdySettingsControlFrameBlock*>(frame_);
   }
   DISALLOW_COPY_AND_ASSIGN(SpdySettingsControlFrame);
+};
+
+class SpdyNoOpControlFrame : public SpdyControlFrame {
+ public:
+  SpdyNoOpControlFrame() : SpdyControlFrame(size()) {}
+  SpdyNoOpControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+
+  static size_t size() { return sizeof(SpdyNoopControlFrameBlock); }
+};
+
+class SpdyPingControlFrame : public SpdyControlFrame {
+ public:
+  SpdyPingControlFrame() : SpdyControlFrame(size()) {}
+  SpdyPingControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+
+  uint32 unique_id() const {
+    return ntohl(block()->unique_id_);
+  }
+
+  void set_unique_id(uint32 unique_id) {
+    mutable_block()->unique_id_ = htonl(unique_id);
+  }
+
+  static size_t size() { return sizeof(SpdyPingControlFrameBlock); }
+
+ private:
+  const struct SpdyPingControlFrameBlock* block() const {
+    return static_cast<SpdyPingControlFrameBlock*>(frame_);
+  }
+  struct SpdyPingControlFrameBlock* mutable_block() {
+    return static_cast<SpdyPingControlFrameBlock*>(frame_);
+  }
 };
 
 class SpdyGoAwayControlFrame : public SpdyControlFrame {
