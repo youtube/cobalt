@@ -1863,9 +1863,12 @@ class VerifyPathControlledByUserTest : public FileUtilTest {
     text_file_ = sub_dir_.AppendASCII("file.txt");
     CreateTextFile(text_file_, L"This text file has some text in it.");
 
-    // Our user and group id.
-    uid_ = getuid();
-    gid_ = getgid();
+    // Get the user and group files are created with from |base_dir_|.
+    struct stat stat_buf;
+    ASSERT_EQ(0, stat(base_dir_.value().c_str(), &stat_buf));
+    uid_ = stat_buf.st_uid;
+    gid_ = stat_buf.st_gid;
+    ASSERT_EQ(uid_, getuid());  // This process should be the owner.
 
     // To ensure that umask settings do not cause the initial state
     // of permissions to be different from what we expect, explicitly
@@ -1892,14 +1895,7 @@ class VerifyPathControlledByUserTest : public FileUtilTest {
   gid_t gid_;
 };
 
-#if defined(OS_MACOSX)
-// http://crbug.com/97876
-#define MAYBE_BadPaths FAILS_BadPaths
-#else
-#define MAYBE_BadPaths BadPaths
-#endif
-
-TEST_F(VerifyPathControlledByUserTest, MAYBE_BadPaths) {
+TEST_F(VerifyPathControlledByUserTest, BadPaths) {
   // File does not exist.
   FilePath does_not_exist = base_dir_.AppendASCII("does")
                                      .AppendASCII("not")
@@ -1922,13 +1918,6 @@ TEST_F(VerifyPathControlledByUserTest, MAYBE_BadPaths) {
   EXPECT_TRUE(
       file_util::VerifyPathControlledByUser(base_dir_, sub_dir_, uid_, gid_));
 }
-
-#if defined(OS_MACOSX)
-// http://crbug.com/97876
-#define MAYBE_Symlinks FAILS_Symlinks
-#else
-#define MAYBE_Symlinks Symlinks
-#endif
 
 TEST_F(VerifyPathControlledByUserTest, Symlinks) {
   // Symlinks in the path should cause failure.
@@ -1965,14 +1954,7 @@ TEST_F(VerifyPathControlledByUserTest, Symlinks) {
           file_path_with_link, file_path_with_link, uid_, gid_));
 }
 
-#if defined(OS_MACOSX)
-// http://crbug.com/97876
-#define MAYBE_OwnershipChecks FAILS_OwnershipChecks
-#else
-#define MAYBE_OwnershipChecks OwnershipChecks
-#endif
-
-TEST_F(VerifyPathControlledByUserTest, MAYBE_OwnershipChecks) {
+TEST_F(VerifyPathControlledByUserTest, OwnershipChecks) {
   // Get a uid that is not the uid of files we create.
   uid_t bad_uid = uid_ + 1;
 
@@ -2018,14 +2000,7 @@ TEST_F(VerifyPathControlledByUserTest, MAYBE_OwnershipChecks) {
           sub_dir_, text_file_, uid_, bad_gid));
 }
 
-#if defined(OS_MACOSX)
-// http://crbug.com/97876
-#define MAYBE_WriteBitChecks FAILS_WriteBitChecks
-#else
-#define MAYBE_WriteBitChecks WriteBitChecks
-#endif
-
-TEST_F(VerifyPathControlledByUserTest, MAYBE_WriteBitChecks) {
+TEST_F(VerifyPathControlledByUserTest, WriteBitChecks) {
   // Make all files and directories non-world-writable.
   ASSERT_NO_FATAL_FAILURE(
       ChangePosixFilePermissions(base_dir_, 0u, S_IWOTH));
