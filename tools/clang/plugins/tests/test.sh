@@ -8,6 +8,9 @@
 # and compares the output with golden result files.
 
 E_BADARGS=65
+E_FAILEDTEST=1
+
+failed_any_test=
 
 # Prints usage information.
 usage() {
@@ -27,6 +30,7 @@ do_testcase() {
   if [ "${diffout}" = "" ]; then
     echo "PASS: ${1}"
   else
+    failed_any_test=yes
     echo "FAIL: ${1}"
     echo "Output of compiler:"
     echo "${output}"
@@ -57,3 +61,7 @@ fi
 for input in *.cpp; do
   do_testcase "${input}" "${input%cpp}txt"
 done
+
+if [[ "${failed_any_test}" ]]; then
+  exit ${E_FAILEDTEST}
+fi
