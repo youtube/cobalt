@@ -223,7 +223,19 @@ class WebSocketHybi10 : public WebSocket {
     op_code_ = first_byte & kOpCodeMask;
     masked_ = second_byte & kMaskBit;
 
-    CHECK_EQ(kOpCodeText, op_code_);
+    switch (op_code_) {
+    case kOpCodeClose:
+      closed_ = true;
+      break;
+    case kOpCodeText:
+      break;
+    case kOpCodeBinary: // We don't support binary frames yet.
+    case kOpCodeContinuation: // We don't support binary frames yet.
+    case kOpCodePing: // We don't support binary frames yet.
+    case kOpCodePong: // We don't support binary frames yet.
+    default:
+      return FRAME_ERROR;
+    }
 
     uint64 payload_length64 = second_byte & kPayloadLengthMask;
     if (payload_length64 > kMaxSingleBytePayloadLength) {
@@ -271,10 +283,14 @@ class WebSocketHybi10 : public WebSocket {
     size_t pos = p + masking_key_length + payload_length_ -
         connection_->recv_data().c_str();
     connection_->Shift(pos);
-    return FRAME_OK;
+
+    return closed_ ? FRAME_CLOSE : FRAME_OK;
   }
 
   virtual void Send(const std::string& message) {
+    if (closed_)
+      return;
+
     std::vector<char> frame;
     OpCode op_code = kOpCodeText;
     size_t data_length = message.length();
@@ -331,7 +347,8 @@ class WebSocketHybi10 : public WebSocket {
       masked_(false),
       payload_(0),
       payload_length_(0),
-      frame_end_(0) {
+      frame_end_(0),
+      closed_(false) {
   }
 
   OpCode op_code_;
@@ -343,6 +360,7 @@ class WebSocketHybi10 : public WebSocket {
   const char* payload_;
   size_t payload_length_;
   const char* frame_end_;
+  bool closed_;
 
   DISALLOW_COPY_AND_ASSIGN(WebSocketHybi10);
 };

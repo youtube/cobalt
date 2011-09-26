@@ -80,7 +80,9 @@ void HttpServer::Close(int connection_id)
   if (connection == NULL)
     return;
 
-  connection->DetachSocket();
+  // Initiating close from server-side does not lead to the DidClose call.
+  // Do it manually here.
+  DidClose(connection->socket_);
 }
 
 //
@@ -237,7 +239,8 @@ void HttpServer::DidRead(ListenSocket* socket,
       if (result == WebSocket::FRAME_INCOMPLETE)
         break;
 
-      if (result == WebSocket::FRAME_ERROR) {
+      if (result == WebSocket::FRAME_CLOSE ||
+          result == WebSocket::FRAME_ERROR) {
         Close(connection->id());
         break;
       }
