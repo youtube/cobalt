@@ -193,8 +193,8 @@ void TestDelegate::OnAuthRequired(net::URLRequest* request,
 }
 
 void TestDelegate::OnSSLCertificateError(net::URLRequest* request,
-                                         int cert_error,
-                                         net::X509Certificate* cert) {
+                                         const net::SSLInfo& ssl_info,
+                                         bool is_hsts_host) {
   // The caller can control whether it needs all SSL requests to go through,
   // independent of any possible errors, or whether it wants SSL errors to
   // cancel the request.

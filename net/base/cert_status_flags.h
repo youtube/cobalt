@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -48,7 +49,7 @@ CertStatus MapNetErrorToCertStatus(int error);
 
 // Maps the most serious certificate error in the certificate status flags
 // to the equivalent network error code.
-int MapCertStatusToNetError(CertStatus cert_status);
+NET_EXPORT int MapCertStatusToNetError(CertStatus cert_status);
 
 }  // namespace net
 
