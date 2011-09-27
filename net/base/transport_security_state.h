@@ -12,7 +12,7 @@
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/ref_counted.h"
+#include "base/threading/non_thread_safe.h"
 #include "base/time.h"
 #include "net/base/net_export.h"
 #include "net/base/x509_cert_types.h"
@@ -24,16 +24,13 @@ namespace net {
 // Tracks which hosts have enabled *-Transport-Security. This object manages
 // the in-memory store. A separate object must register itself with this object
 // in order to persist the state to disk.
-//
-// TODO(phajdan.jr): Convert this to non-thread-safe non-ref-counted
-// for simplicity.
-class NET_EXPORT TransportSecurityState :
-    public base::RefCountedThreadSafe<TransportSecurityState> {
+class NET_EXPORT TransportSecurityState : public base::NonThreadSafe {
  public:
   // If non-empty, |hsts_hosts| is a JSON-formatted string to treat as if it
   // were a built-in entry (same format as persisted metadata in the
   // TransportSecurityState file).
   explicit TransportSecurityState(const std::string& hsts_hosts);
+  ~TransportSecurityState();
 
   // A DomainState is the information that we persist about a given domain.
   struct NET_EXPORT DomainState {
@@ -73,6 +70,18 @@ class NET_EXPORT TransportSecurityState :
     bool preloaded;  // is this a preloaded entry?
     std::string domain;  // the domain which matched
   };
+
+  class Delegate {
+   public:
+    // This function may not block and may be called with internal locks held.
+    // Thus it must not reenter the TransportSecurityState object.
+    virtual void StateIsDirty(TransportSecurityState* state) = 0;
+
+   protected:
+    virtual ~Delegate() {}
+  };
+
+  void SetDelegate(Delegate*);
 
   // Enable TransportSecurity for |host|.
   void EnableHost(const std::string& host, const DomainState& state);
@@ -123,18 +132,6 @@ class NET_EXPORT TransportSecurityState :
                            const base::StringPiece& side_info,
                            std::vector<SHA1Fingerprint> *out_pub_key_hash);
 
-  class Delegate {
-   public:
-    // This function may not block and may be called with internal locks held.
-    // Thus it must not reenter the TransportSecurityState object.
-    virtual void StateIsDirty(TransportSecurityState* state) = 0;
-
-   protected:
-    virtual ~Delegate() {}
-  };
-
-  void SetDelegate(Delegate*);
-
   bool Serialise(std::string* output);
   // Existing non-preloaded entries are cleared and repopulated from the
   // passed JSON string.
@@ -144,10 +141,7 @@ class NET_EXPORT TransportSecurityState :
   static const long int kMaxHSTSAgeSecs;
 
  private:
-  friend class base::RefCountedThreadSafe<TransportSecurityState>;
   FRIEND_TEST_ALL_PREFIXES(TransportSecurityStateTest, IsPreloaded);
-
-  ~TransportSecurityState();
 
   // If we have a callback configured, call it to let our serialiser know that
   // our state is dirty.

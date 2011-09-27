@@ -49,8 +49,15 @@ static std::string HashHost(const std::string& canonicalized_host) {
   return std::string(hashed, sizeof(hashed));
 }
 
+void TransportSecurityState::SetDelegate(
+    TransportSecurityState::Delegate* delegate) {
+  delegate_ = delegate;
+}
+
 void TransportSecurityState::EnableHost(const std::string& host,
                                         const DomainState& state) {
+  DCHECK(CalledOnValidThread());
+
   const std::string canonicalized_host = CanonicalizeHost(host);
   if (canonicalized_host.empty())
     return;
@@ -79,6 +86,8 @@ void TransportSecurityState::EnableHost(const std::string& host,
 }
 
 bool TransportSecurityState::DeleteHost(const std::string& host) {
+  DCHECK(CalledOnValidThread());
+
   const std::string canonicalized_host = CanonicalizeHost(host);
   if (canonicalized_host.empty())
     return false;
@@ -96,6 +105,8 @@ bool TransportSecurityState::DeleteHost(const std::string& host) {
 bool TransportSecurityState::HasPinsForHost(DomainState* result,
                                             const std::string& host,
                                             bool sni_available) {
+  DCHECK(CalledOnValidThread());
+
   return HasMetadata(result, host, sni_available) &&
          !result->public_key_hashes.empty();
 }
@@ -103,6 +114,8 @@ bool TransportSecurityState::HasPinsForHost(DomainState* result,
 bool TransportSecurityState::IsEnabledForHost(DomainState* result,
                                               const std::string& host,
                                               bool sni_available) {
+  DCHECK(CalledOnValidThread());
+
   return HasMetadata(result, host, sni_available) &&
          result->mode != DomainState::MODE_NONE;
 }
@@ -110,6 +123,8 @@ bool TransportSecurityState::IsEnabledForHost(DomainState* result,
 bool TransportSecurityState::HasMetadata(DomainState* result,
                                          const std::string& host,
                                          bool sni_available) {
+  DCHECK(CalledOnValidThread());
+
   *result = DomainState();
 
   const std::string canonicalized_host = CanonicalizeHost(host);
@@ -154,6 +169,8 @@ bool TransportSecurityState::HasMetadata(DomainState* result,
 }
 
 void TransportSecurityState::DeleteSince(const base::Time& time) {
+  DCHECK(CalledOnValidThread());
+
   bool dirtied = false;
 
   std::map<std::string, DomainState>::iterator i = enabled_hosts_.begin();
@@ -190,6 +207,8 @@ static bool MaxAgeToInt(std::string::const_iterator begin,
 
 // "Strict-Transport-Security" ":"
 //     "max-age" "=" delta-seconds [ ";" "includeSubDomains" ]
+//
+// static
 bool TransportSecurityState::ParseHeader(const std::string& value,
                                          int* max_age,
                                          bool* include_subdomains) {
@@ -501,11 +520,6 @@ bool TransportSecurityState::ParseSidePin(
   return have_parsed_a_key;
 }
 
-void TransportSecurityState::SetDelegate(
-    TransportSecurityState::Delegate* delegate) {
-  delegate_ = delegate;
-}
-
 // This function converts the binary hashes, which we store in
 // |enabled_hosts_|, to a base64 string which we can include in a JSON file.
 static std::string HashedDomainToExternalString(const std::string& hashed) {
@@ -527,6 +541,8 @@ static std::string ExternalStringToHashedDomain(const std::string& external) {
 }
 
 bool TransportSecurityState::Serialise(std::string* output) {
+  DCHECK(CalledOnValidThread());
+
   DictionaryValue toplevel;
   for (std::map<std::string, DomainState>::const_iterator
        i = enabled_hosts_.begin(); i != enabled_hosts_.end(); ++i) {
@@ -569,6 +585,8 @@ bool TransportSecurityState::Serialise(std::string* output) {
 
 bool TransportSecurityState::LoadEntries(const std::string& input,
                                          bool* dirty) {
+  DCHECK(CalledOnValidThread());
+
   enabled_hosts_.clear();
   return Deserialise(input, dirty, &enabled_hosts_);
 }
@@ -683,6 +701,8 @@ TransportSecurityState::~TransportSecurityState() {
 }
 
 void TransportSecurityState::DirtyNotify() {
+  DCHECK(CalledOnValidThread());
+
   if (delegate_)
     delegate_->StateIsDirty(this);
 }
@@ -766,6 +786,8 @@ bool TransportSecurityState::IsPreloadedSTS(
     const std::string& canonicalized_host,
     bool sni_available,
     DomainState* out) {
+  DCHECK(CalledOnValidThread());
+
   out->preloaded = true;
   out->mode = DomainState::MODE_STRICT;
   out->include_subdomains = false;
