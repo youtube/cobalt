@@ -68,6 +68,10 @@ void VideoCaptureHandlerProxy::OnError(VideoCapture* capture, int error_code) {
       error_code));
 }
 
+void VideoCaptureHandlerProxy::OnRemoved(VideoCapture* capture) {
+  // TODO(vtl): add logic when this event handler is removed.
+}
+
 void VideoCaptureHandlerProxy::OnBufferReady(
     VideoCapture* capture,
     scoped_refptr<VideoCapture::VideoFrameBuffer> buffer) {
