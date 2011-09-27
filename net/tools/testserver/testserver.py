@@ -343,6 +343,7 @@ class TestPageHandler(BasePageHandler):
       self.ServerRedirectHandler,
       self.ClientRedirectHandler,
       self.MultipartHandler,
+      self.MultipartSlowHandler,
       self.DefaultResponseHandler]
     post_handlers = [
       self.EchoTitleHandler,
@@ -1290,7 +1291,7 @@ class TestPageHandler(BasePageHandler):
 
   def MultipartHandler(self):
     """Send a multipart response (10 text/html pages)."""
-    test_name = "/multipart"
+    test_name = '/multipart'
     if not self._ShouldHandleRequest(test_name):
       return False
 
@@ -1306,6 +1307,34 @@ class TestPageHandler(BasePageHandler):
       self.wfile.write('Content-type: text/html\r\n\r\n')
       self.wfile.write('<title>page ' + str(i) + '</title>')
       self.wfile.write('page ' + str(i))
+
+    self.wfile.write('--' + bound + '--')
+    return True
+
+  def MultipartSlowHandler(self):
+    """Send a multipart response (3 text/html pages) with a slight delay
+    between each page.  This is similar to how some pages show status using
+    multipart."""
+    test_name = '/multipart-slow'
+    if not self._ShouldHandleRequest(test_name):
+      return False
+
+    num_frames = 3
+    bound = '12345'
+    self.send_response(200)
+    self.send_header('Content-type',
+                     'multipart/x-mixed-replace;boundary=' + bound)
+    self.end_headers()
+
+    for i in xrange(num_frames):
+      self.wfile.write('--' + bound + '\r\n')
+      self.wfile.write('Content-type: text/html\r\n\r\n')
+      time.sleep(0.25)
+      if i == 2:
+        self.wfile.write('<title>PASS</title>')
+      else:
+        self.wfile.write('<title>page ' + str(i) + '</title>')
+      self.wfile.write('page ' + str(i) + '<!-- ' + ('x' * 2048) + '-->')
 
     self.wfile.write('--' + bound + '--')
     return True
