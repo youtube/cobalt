@@ -83,7 +83,7 @@ class NET_EXPORT URLRequestContextStorage {
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_ptr<NetworkDelegate> network_delegate_;
   scoped_refptr<CookieStore> cookie_store_;
-  scoped_refptr<TransportSecurityState> transport_security_state_;
+  scoped_ptr<TransportSecurityState> transport_security_state_;
 
   scoped_ptr<HttpTransactionFactory> http_transaction_factory_;
   scoped_ptr<FtpTransactionFactory> ftp_transaction_factory_;

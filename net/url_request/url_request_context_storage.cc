@@ -93,7 +93,7 @@ void URLRequestContextStorage::set_cookie_store(CookieStore* cookie_store) {
 void URLRequestContextStorage::set_transport_security_state(
     TransportSecurityState* transport_security_state) {
   context_->set_transport_security_state(transport_security_state);
-  transport_security_state_ = transport_security_state;
+  transport_security_state_.reset(transport_security_state);
 }
 
 void URLRequestContextStorage::set_http_transaction_factory(

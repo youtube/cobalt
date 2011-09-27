@@ -214,7 +214,7 @@ class NET_EXPORT URLRequestContext
   scoped_refptr<SSLConfigService> ssl_config_service_;
   NetworkDelegate* network_delegate_;
   scoped_refptr<CookieStore> cookie_store_;
-  scoped_refptr<TransportSecurityState> transport_security_state_;
+  TransportSecurityState* transport_security_state_;
   scoped_ptr<FtpAuthCache> ftp_auth_cache_;
   std::string accept_language_;
   std::string accept_charset_;
