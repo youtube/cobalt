@@ -1543,13 +1543,6 @@ int SSLClientSocketNSS::DoHandshake() {
   return net_error;
 }
 
-#if defined(NSS_PLATFORM_CLIENT_AUTH)
-int SSLClientSocketNSS::ImportOBCertAndKey(CERTCertificate** cert,
-                                           SECKEYPrivateKey** key) {
-  NOTREACHED();
-  return ERR_NOT_IMPLEMENTED;
-}
-#else
 int SSLClientSocketNSS::ImportOBCertAndKey(CERTCertificate** cert,
                                            SECKEYPrivateKey** key) {
   // Set the certificate.
@@ -1583,14 +1576,7 @@ int SSLClientSocketNSS::ImportOBCertAndKey(CERTCertificate** cert,
 
   return OK;
 }
-#endif
 
-#if defined(NSS_PLATFORM_CLIENT_AUTH)
-int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
-  NOTREACHED();
-  return ERR_NOT_IMPLEMENTED;
-}
-#else
 int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
   ob_cert_request_handle_ = NULL;
 
@@ -1614,7 +1600,6 @@ int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
   GotoState(STATE_HANDSHAKE);
   return OK;
 }
-#endif
 
 int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
   if (ssl_config_.dns_cert_provenance_checking_enabled &&
@@ -2120,6 +2105,49 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
   return SECSuccess;
 }
 
+// static
+bool SSLClientSocketNSS::OriginBoundCertNegotiated(PRFileDesc* socket) {
+  PRBool xtn_negotiated = PR_FALSE;
+  SECStatus rv = SSL_HandshakeNegotiatedExtension(
+      socket, ssl_ob_cert_xtn, &xtn_negotiated);
+  DCHECK_EQ(SECSuccess, rv);
+
+  return xtn_negotiated ? true : false;
+}
+
+SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
+    CERTCertificate** result_certificate,
+    SECKEYPrivateKey** result_private_key) {
+  ob_cert_xtn_negotiated_ = true;
+
+  // We have negotiated the origin-bound certificate extension.
+  std::string origin = "https://" + host_and_port_.ToString();
+  int error = origin_bound_cert_service_->GetOriginBoundCert(
+      origin,
+      &ob_private_key_,
+      &ob_cert_,
+      &handshake_io_callback_,
+      &ob_cert_request_handle_);
+
+  if (error == OK) {
+    // Synchronous success.
+    int result = ImportOBCertAndKey(result_certificate,
+                                    result_private_key);
+    if (result != OK)
+      return SECFailure;
+
+    return SECSuccess;
+  }
+
+  if (error == ERR_IO_PENDING) {
+    // Asynchronous case.
+    client_auth_cert_needed_ = true;
+    return SECWouldBlock;
+  }
+
+  return SECFailure;  // Synchronous failure.
+}
+
 #if defined(NSS_PLATFORM_CLIENT_AUTH)
 // static
 // NSS calls this if a client certificate is needed.
@@ -2128,8 +2156,16 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     PRFileDesc* socket,
     CERTDistNames* ca_names,
     CERTCertList** result_certs,
-    void** result_private_key) {
+    void** result_private_key,
+    CERTCertificate** result_nss_certificate,
+    SECKEYPrivateKey** result_nss_private_key) {
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+
+  // Check if an origin-bound certificate is requested.
+  if (OriginBoundCertNegotiated(socket)) {
+    return that->OriginBoundClientAuthHandler(
+        result_nss_certificate, result_nss_private_key);
+  }
 
   that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
 #if defined(OS_WIN)
@@ -2385,39 +2421,9 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
   // Check if an origin-bound certificate is requested.
-  PRBool xtn_negotiated = PR_FALSE;
-  SECStatus rv = SSL_HandshakeNegotiatedExtension(
-      socket, ssl_ob_cert_xtn, &xtn_negotiated);
-  DCHECK_EQ(SECSuccess, rv);
-  that->ob_cert_xtn_negotiated_ = xtn_negotiated ? true : false;
-
-  if (that->ob_cert_xtn_negotiated_) {
-    // We have negotiated the origin-bound certificate extension.
-    std::string origin = "https://" + that->host_and_port_.ToString();
-    int error = that->origin_bound_cert_service_->GetOriginBoundCert(
-        origin,
-        &that->ob_private_key_,
-        &that->ob_cert_,
-        &that->handshake_io_callback_,
-        &that->ob_cert_request_handle_);
-
-    if (error == OK) {
-      // Synchronous success.
-      int result = that->ImportOBCertAndKey(result_certificate,
-                                            result_private_key);
-      if (result != OK)
-        return SECFailure;
-
-      return SECSuccess;
-    }
-
-    if (error == ERR_IO_PENDING) {
-      // Asynchronous case
-      that->client_auth_cert_needed_ = true;
-      return SECWouldBlock;
-    }
-
-    return SECFailure;  // Synchronous failure.
+  if (OriginBoundCertNegotiated(socket)) {
+    return that->OriginBoundClientAuthHandler(
+        result_certificate, result_private_key);
   }
 
   // Regular client certificate requested.

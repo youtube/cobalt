@@ -1,21 +1,20 @@
-commit 33952cd5de867c82987e1e9eb9bc8edd56938daa
-Author: Adam Langley <agl@chromium.org>
-Date:   Mon Jun 20 16:19:32 2011 -0400
-
-    clientauth.patch
-
-diff --git a/mozilla/security/nss/lib/ssl/ssl.h b/mozilla/security/nss/lib/ssl/ssl.h
-index 221fe2d..563cfd5 100644
---- a/mozilla/security/nss/lib/ssl/ssl.h
-+++ b/mozilla/security/nss/lib/ssl/ssl.h
-@@ -332,6 +332,39 @@ typedef SECStatus (PR_CALLBACK *SSLGetClientAuthData)(void *arg,
+Index: security/nss/lib/ssl/ssl.h
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl.h,v
+retrieving revision 1.38.2.1
+diff -u -r1.38.2.1 ssl.h
+--- security/nss/lib/ssl/ssl.h	31 Jul 2010 04:33:52 -0000	1.38.2.1
++++ security/nss/lib/ssl/ssl.h	22 Sep 2011 00:21:33 -0000
+@@ -291,6 +291,45 @@
  SSL_IMPORT SECStatus SSL_GetClientAuthDataHook(PRFileDesc *fd, 
  			                       SSLGetClientAuthData f, void *a);
  
 +/*
 + * Prototype for SSL callback to get client auth data from the application,
-+ * when using the underlying platform's cryptographic primitives. Returning
-+ * SECFailure will cause the socket to send no client certificate.
++ * optionally using the underlying platform's cryptographic primitives.
++ * To use the platform cryptographic primitives, caNames and pRetCerts
++ * should be set.  To use NSS, pRetNSSCert and pRetNSSKey should be set.
++ * Returning SECFailure will cause the socket to send no client certificate.
 + *	arg - application passed argument
 + *	caNames - pointer to distinguished names of CAs that the server likes
 + *	pRetCerts - pointer to pointer to list of certs, with the first being
@@ -28,12 +27,16 @@ index 221fe2d..563cfd5 100644
 + *                     PORT_Free().
 + *          - Mac OS X: A pointer to a SecKeyRef. Ownership is
 + *                      transferred to NSS, which will free via CFRelease().
++ *	pRetNSSCert - pointer to pointer to NSS cert, for return of cert.
++ *	pRetNSSKey - pointer to NSS key pointer, for return of key.
 + */
 +typedef SECStatus (PR_CALLBACK *SSLGetPlatformClientAuthData)(void *arg,
 +                                PRFileDesc *fd,
 +                                CERTDistNames *caNames,
 +                                CERTCertList **pRetCerts,/*return */
-+                                void **pRetKey);/* return */
++                                void **pRetKey,/* return */
++                                CERTCertificate **pRetNSSCert,/*return */
++                                SECKEYPrivateKey **pRetNSSKey);/* return */
 +
 +/*
 + * Set the client side callback for SSL to retrieve user's private key
@@ -48,60 +51,75 @@ index 221fe2d..563cfd5 100644
  
  /*
  ** SNI extension processing callback function.
-diff --git a/mozilla/security/nss/lib/ssl/ssl3con.c b/mozilla/security/nss/lib/ssl/ssl3con.c
-index ca2793f..0997e18 100644
---- a/mozilla/security/nss/lib/ssl/ssl3con.c
-+++ b/mozilla/security/nss/lib/ssl/ssl3con.c
-@@ -2014,6 +2014,9 @@ ssl3_ComputeRecordMAC(
- 
- static PRBool
- ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
-+#ifdef NSS_PLATFORM_CLIENT_AUTH
-+    return PR_TRUE;
-+#else
-     PK11SlotInfo *slot = NULL;
+Index: security/nss/lib/ssl/ssl3con.c
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3con.c,v
+retrieving revision 1.142.2.4
+diff -u -r1.142.2.4 ssl3con.c
+--- security/nss/lib/ssl/ssl3con.c	1 Sep 2010 19:47:11 -0000	1.142.2.4
++++ security/nss/lib/ssl/ssl3con.c	22 Sep 2011 00:21:33 -0000
+@@ -2016,6 +2016,9 @@
      PRBool isPresent = PR_TRUE;
  
-@@ -2037,6 +2040,7 @@ ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
- 	PK11_FreeSlot(slot);
+     /* we only care if we are doing client auth */
++    /* If NSS_PLATFORM_CLIENT_AUTH is defined and a platformClientKey is being
++     * used, u.ssl3.clAuthValid will be false and this function will always
++     * return PR_TRUE. */
+     if (!sid || !sid->u.ssl3.clAuthValid) {
+ 	return PR_TRUE;
      }
-     return isPresent;
-+#endif /* NSS_PLATFORM_CLIENT_AUTH */
- }
- 
- static SECStatus
-@@ -4823,6 +4827,12 @@ ssl3_SendCertificateVerify(sslSocket *ss)
+@@ -4821,27 +4824,30 @@
      }
  
      isTLS = (PRBool)(ss->ssl3.pwSpec->version > SSL_LIBRARY_VERSION_3_0);
+-    rv = ssl3_SignHashes(&hashes, ss->ssl3.clientPrivateKey, &buf, isTLS);
+-    if (rv == SECSuccess) {
+-	PK11SlotInfo * slot;
+-	sslSessionID * sid   = ss->sec.ci.sid;
++    if (ss->ssl3.platformClientKey) {
 +#ifdef NSS_PLATFORM_CLIENT_AUTH
-+    rv = ssl3_PlatformSignHashes(&hashes, ss->ssl3.platformClientKey,
-+                                 &buf, isTLS);
-+    ssl_FreePlatformKey(ss->ssl3.platformClientKey);
-+    ss->ssl3.platformClientKey = (PlatformKey)NULL;
-+#else /* NSS_PLATFORM_CLIENT_AUTH */
-     rv = ssl3_SignHashes(&hashes, ss->ssl3.clientPrivateKey, &buf, isTLS);
-     if (rv == SECSuccess) {
- 	PK11SlotInfo * slot;
-@@ -4839,14 +4849,9 @@ ssl3_SendCertificateVerify(sslSocket *ss)
- 	sid->u.ssl3.clAuthValid      = PR_TRUE;
- 	PK11_FreeSlot(slot);
-     }
++	rv = ssl3_PlatformSignHashes(&hashes, ss->ssl3.platformClientKey,
++				     &buf, isTLS);
++	ssl_FreePlatformKey(ss->ssl3.platformClientKey);
++	ss->ssl3.platformClientKey = (PlatformKey)NULL;
++#endif /* NSS_PLATFORM_CLIENT_AUTH */
++    } else {
++	rv = ssl3_SignHashes(&hashes, ss->ssl3.clientPrivateKey, &buf, isTLS);
++	if (rv == SECSuccess) {
++	    PK11SlotInfo * slot;
++	    sslSessionID * sid   = ss->sec.ci.sid;
+ 
+-    	/* Remember the info about the slot that did the signing.
+-	** Later, when doing an SSL restart handshake, verify this.
+-	** These calls are mere accessors, and can't fail.
+-	*/
+-	slot = PK11_GetSlotFromPrivateKey(ss->ssl3.clientPrivateKey);
+-	sid->u.ssl3.clAuthSeries     = PK11_GetSlotSeries(slot);
+-	sid->u.ssl3.clAuthSlotID     = PK11_GetSlotID(slot);
+-	sid->u.ssl3.clAuthModuleID   = PK11_GetModuleID(slot);
+-	sid->u.ssl3.clAuthValid      = PR_TRUE;
+-	PK11_FreeSlot(slot);
+-    }
 -    /* If we're doing RSA key exchange, we're all done with the private key
 -     * here.  Diffie-Hellman key exchanges need the client's
 -     * private key for the key exchange.
 -     */
 -    if (ss->ssl3.hs.kea_def->exchKeyType == kt_rsa) {
--	SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
--	ss->ssl3.clientPrivateKey = NULL;
--    }
-+    SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
-+    ss->ssl3.clientPrivateKey = NULL;
-+#endif /* NSS_PLATFORM_CLIENT_AUTH */
-     if (rv != SECSuccess) {
- 	goto done;	/* err code was set by ssl3_SignHashes */
++	    /* Remember the info about the slot that did the signing.
++	    ** Later, when doing an SSL restart handshake, verify this.
++	    ** These calls are mere accessors, and can't fail.
++	    */
++	    slot = PK11_GetSlotFromPrivateKey(ss->ssl3.clientPrivateKey);
++	    sid->u.ssl3.clAuthSeries     = PK11_GetSlotSeries(slot);
++	    sid->u.ssl3.clAuthSlotID     = PK11_GetSlotID(slot);
++	    sid->u.ssl3.clAuthModuleID   = PK11_GetModuleID(slot);
++	    sid->u.ssl3.clAuthValid      = PR_TRUE;
++	    PK11_FreeSlot(slot);
++	}
+ 	SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
+ 	ss->ssl3.clientPrivateKey = NULL;
      }
-@@ -4901,6 +4906,26 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
+@@ -4899,6 +4905,26 @@
  	goto alert_loser;
      }
  
@@ -128,7 +146,7 @@ index ca2793f..0997e18 100644
      temp = ssl3_ConsumeHandshakeNumber(ss, 2, &b, &length);
      if (temp < 0) {
      	goto loser; 	/* alert has been sent */
-@@ -5444,6 +5469,10 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
+@@ -5441,6 +5467,10 @@
      SSL3AlertDescription desc        = illegal_parameter;
      SECItem              cert_types  = {siBuffer, NULL, 0};
      CERTDistNames        ca_list;
@@ -139,7 +157,7 @@ index ca2793f..0997e18 100644
  
      SSL_TRC(3, ("%d: SSL3[%d]: handle certificate_request handshake",
  		SSL_GETPID(), ss->fd));
-@@ -5457,19 +5486,12 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
+@@ -5454,19 +5484,10 @@
  	goto alert_loser;
      }
  
@@ -159,13 +177,11 @@ index ca2793f..0997e18 100644
 +    PORT_Assert(ss->ssl3.clientCertChain == NULL);
 +    PORT_Assert(ss->ssl3.clientCertificate == NULL);
 +    PORT_Assert(ss->ssl3.clientPrivateKey == NULL);
-+#ifdef NSS_PLATFORM_CLIENT_AUTH
 +    PORT_Assert(ss->ssl3.platformClientKey == (PlatformKey)NULL);
-+#endif  /* NSS_PLATFORM_CLIENT_AUTH */
  
      isTLS = (PRBool)(ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0);
      rv = ssl3_ConsumeHandshakeVariable(ss, &cert_types, 1, &b, &length);
-@@ -5536,6 +5558,18 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
+@@ -5533,6 +5554,20 @@
      desc = no_certificate;
      ss->ssl3.hs.ws = wait_hello_done;
  
@@ -178,13 +194,15 @@ index ca2793f..0997e18 100644
 +                                        ss->getPlatformClientAuthDataArg,
 +                                        ss->fd, &ca_list,
 +                                        &platform_cert_list,
-+                                        (void**)&ss->ssl3.platformClientKey);
++                                        (void**)&ss->ssl3.platformClientKey,
++                                        &ss->ssl3.clientCertificate,
++                                        &ss->ssl3.clientPrivateKey);
 +    }
 +#else
      if (ss->getClientAuthData == NULL) {
  	rv = SECFailure; /* force it to send a no_certificate alert */
      } else {
-@@ -5545,12 +5579,51 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
+@@ -5542,12 +5577,52 @@
  						 &ss->ssl3.clientCertificate,
  						 &ss->ssl3.clientPrivateKey);
      }
@@ -206,45 +224,38 @@ index ca2793f..0997e18 100644
 +                ssl_FreePlatformKey(ss->ssl3.platformClientKey);
 +                ss->ssl3.platformClientKey = (PlatformKey)NULL;
 +            }
-+            goto send_no_certificate;
-+        }
++	    /* Fall through to NSS client auth check */
++        } else {
++	    certNode = CERT_LIST_HEAD(platform_cert_list);
++	    ss->ssl3.clientCertificate = CERT_DupCertificate(certNode->cert);
 +
-+        certNode = CERT_LIST_HEAD(platform_cert_list);
-+        ss->ssl3.clientCertificate = CERT_DupCertificate(certNode->cert);
-+
-+        /* Setting ssl3.clientCertChain non-NULL will cause
-+         * ssl3_HandleServerHelloDone to call SendCertificate.
-+         * Note: clientCertChain should include the EE cert as
-+         * clientCertificate is ignored during the actual sending
-+         */
-+        ss->ssl3.clientCertChain =
-+            hack_NewCertificateListFromCertList(platform_cert_list);
-+        CERT_DestroyCertList(platform_cert_list);
-+        platform_cert_list = NULL;
-+        if (ss->ssl3.clientCertChain == NULL) {
-+            if (ss->ssl3.clientCertificate != NULL) {
-+                CERT_DestroyCertificate(ss->ssl3.clientCertificate);
-+                ss->ssl3.clientCertificate = NULL;
-+            }
-+            if (ss->ssl3.platformClientKey) {
-+                ssl_FreePlatformKey(ss->ssl3.platformClientKey);
-+                ss->ssl3.platformClientKey = (PlatformKey)NULL;
-+            }
-+            goto send_no_certificate;
-+        } 
-+#else
++	    /* Setting ssl3.clientCertChain non-NULL will cause
++	     * ssl3_HandleServerHelloDone to call SendCertificate.
++	     * Note: clientCertChain should include the EE cert as
++	     * clientCertificate is ignored during the actual sending
++	     */
++	    ss->ssl3.clientCertChain =
++		    hack_NewCertificateListFromCertList(platform_cert_list);
++	    CERT_DestroyCertList(platform_cert_list);
++	    platform_cert_list = NULL;
++	    if (ss->ssl3.clientCertChain == NULL) {
++		if (ss->ssl3.clientCertificate != NULL) {
++		    CERT_DestroyCertificate(ss->ssl3.clientCertificate);
++		    ss->ssl3.clientCertificate = NULL;
++		}
++		if (ss->ssl3.platformClientKey) {
++		    ssl_FreePlatformKey(ss->ssl3.platformClientKey);
++		    ss->ssl3.platformClientKey = (PlatformKey)NULL;
++		}
++		goto send_no_certificate;
++	    }
++	    break;  /* not an error */
++	}
++#endif   /* NSS_PLATFORM_CLIENT_AUTH */
          /* check what the callback function returned */
          if ((!ss->ssl3.clientCertificate) || (!ss->ssl3.clientPrivateKey)) {
              /* we are missing either the key or cert */
-@@ -5583,6 +5656,7 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
- 	    }
- 	    goto send_no_certificate;
- 	}
-+#endif   /* NSS_PLATFORM_CLIENT_AUTH */
- 	break;	/* not an error */
- 
-     case SECFailure:
-@@ -5613,6 +5687,10 @@ loser:
+@@ -5610,6 +5685,10 @@
  done:
      if (arena != NULL)
      	PORT_FreeArena(arena, PR_FALSE);
@@ -255,32 +266,28 @@ index ca2793f..0997e18 100644
      return rv;
  }
  
-@@ -5721,6 +5799,16 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
+@@ -5717,9 +5796,17 @@
+ 	if (rv != SECSuccess) {
  	    goto loser;	/* error code is set. */
      	}
-     } else
+-    } else
+-    if (ss->ssl3.clientCertChain  != NULL &&
+-	ss->ssl3.clientPrivateKey != NULL) {
++    } else if (ss->ssl3.clientCertChain != NULL &&
++               ss->ssl3.platformClientKey) {
 +#ifdef NSS_PLATFORM_CLIENT_AUTH
-+    if (ss->ssl3.clientCertChain != NULL &&
-+        ss->ssl3.platformClientKey) {
 +        send_verify = PR_TRUE;
 +        rv = ssl3_SendCertificate(ss);
 +        if (rv != SECSuccess) {
 +            goto loser; /* error code is set. */
 +        }
-+    }
-+#else
-     if (ss->ssl3.clientCertChain  != NULL &&
- 	ss->ssl3.clientPrivateKey != NULL) {
- 	send_verify = PR_TRUE;
-@@ -5729,6 +5817,7 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
- 	    goto loser;	/* error code is set. */
-     	}
-     }
 +#endif /* NSS_PLATFORM_CLIENT_AUTH */
- 
-     rv = ssl3_SendClientKeyExchange(ss);
-     if (rv != SECSuccess) {
-@@ -9657,6 +9746,10 @@ ssl3_DestroySSL3Info(sslSocket *ss)
++    } else if (ss->ssl3.clientCertChain  != NULL &&
++               ss->ssl3.clientPrivateKey != NULL) {
+ 	send_verify = PR_TRUE;
+ 	rv = ssl3_SendCertificate(ss);
+ 	if (rv != SECSuccess) {
+@@ -9453,6 +9540,10 @@
  
      if (ss->ssl3.clientPrivateKey != NULL)
  	SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
@@ -291,10 +298,13 @@ index ca2793f..0997e18 100644
  
      if (ss->ssl3.peerCertArena != NULL)
  	ssl3_CleanupPeerCerts(ss);
-diff --git a/mozilla/security/nss/lib/ssl/ssl3ext.c b/mozilla/security/nss/lib/ssl/ssl3ext.c
-index 4e3d9cc..94dab58 100644
---- a/mozilla/security/nss/lib/ssl/ssl3ext.c
-+++ b/mozilla/security/nss/lib/ssl/ssl3ext.c
+Index: security/nss/lib/ssl/ssl3ext.c
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3ext.c,v
+retrieving revision 1.14
+diff -u -r1.14 ssl3ext.c
+--- security/nss/lib/ssl/ssl3ext.c	3 Apr 2010 19:19:07 -0000	1.14
++++ security/nss/lib/ssl/ssl3ext.c	22 Sep 2011 00:21:33 -0000
 @@ -46,8 +46,8 @@
  #include "nssrenam.h"
  #include "nss.h"
@@ -305,11 +315,14 @@ index 4e3d9cc..94dab58 100644
  #include "pk11pub.h"
  #include "blapi.h"
  #include "prinit.h"
-diff --git a/mozilla/security/nss/lib/ssl/sslauth.c b/mozilla/security/nss/lib/ssl/sslauth.c
-index df40f30..447aaf8 100644
---- a/mozilla/security/nss/lib/ssl/sslauth.c
-+++ b/mozilla/security/nss/lib/ssl/sslauth.c
-@@ -252,6 +252,28 @@ SSL_GetClientAuthDataHook(PRFileDesc *s, SSLGetClientAuthData func,
+Index: security/nss/lib/ssl/sslauth.c
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslauth.c,v
+retrieving revision 1.16.66.1
+diff -u -r1.16.66.1 sslauth.c
+--- security/nss/lib/ssl/sslauth.c	3 Aug 2010 18:52:13 -0000	1.16.66.1
++++ security/nss/lib/ssl/sslauth.c	22 Sep 2011 00:21:33 -0000
+@@ -216,6 +216,28 @@
      return SECSuccess;
  }
  
@@ -338,10 +351,13 @@ index df40f30..447aaf8 100644
  /* NEED LOCKS IN HERE.  */
  SECStatus 
  SSL_SetPKCS11PinArg(PRFileDesc *s, void *arg)
-diff --git a/mozilla/security/nss/lib/ssl/sslimpl.h b/mozilla/security/nss/lib/ssl/sslimpl.h
-index 8e2bd14..2e1364e 100644
---- a/mozilla/security/nss/lib/ssl/sslimpl.h
-+++ b/mozilla/security/nss/lib/ssl/sslimpl.h
+Index: security/nss/lib/ssl/sslimpl.h
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslimpl.h,v
+retrieving revision 1.77.2.1
+diff -u -r1.77.2.1 sslimpl.h
+--- security/nss/lib/ssl/sslimpl.h	31 Jul 2010 04:33:52 -0000	1.77.2.1
++++ security/nss/lib/ssl/sslimpl.h	22 Sep 2011 00:21:33 -0000
 @@ -65,6 +65,15 @@
  
  #include "sslt.h" /* for some formerly private types, now public */
@@ -358,34 +374,33 @@ index 8e2bd14..2e1364e 100644
  /* to make some of these old enums public without namespace pollution,
  ** it was necessary to prepend ssl_ to the names.
  ** These #defines preserve compatibility with the old code here in libssl.
-@@ -462,6 +471,16 @@ typedef SECStatus (*SSLCompressor)(void *               context,
+@@ -456,6 +465,14 @@
                                     int                  inlen);
  typedef SECStatus (*SSLDestroy)(void *context, PRBool freeit);
  
-+#ifdef NSS_PLATFORM_CLIENT_AUTH
-+#if defined(XP_WIN32)
++#if defined(NSS_PLATFORM_CLIENT_AUTH) && defined(XP_WIN32)
 +typedef PCERT_KEY_CONTEXT PlatformKey;
-+#elif defined(XP_MACOSX)
++#elif defined(NSS_PLATFORM_CLIENT_AUTH) && defined(XP_MACOSX)
 +typedef SecKeyRef PlatformKey;
 +#else
 +typedef void *PlatformKey;
-+#endif
 +#endif
 +
  
  
  /*
-@@ -829,6 +848,9 @@ struct ssl3StateStr {
+@@ -811,6 +828,10 @@
  
      CERTCertificate *    clientCertificate;  /* used by client */
      SECKEYPrivateKey *   clientPrivateKey;   /* used by client */
-+#ifdef NSS_PLATFORM_CLIENT_AUTH
++    /* platformClientKey is present even when NSS_PLATFORM_CLIENT_AUTH is not
++     * defined in order to allow cleaner conditional code.
++     * At most one of clientPrivateKey and platformClientKey may be set. */
 +    PlatformKey          platformClientKey;  /* used by client */
-+#endif  /* NSS_PLATFORM_CLIENT_AUTH */
      CERTCertificateList *clientCertChain;    /* used by client */
      PRBool               sendEmptyCert;      /* used by client */
  
-@@ -1079,6 +1101,10 @@ const unsigned char *  preferredCipher;
+@@ -1051,6 +1072,10 @@
      void                     *authCertificateArg;
      SSLGetClientAuthData      getClientAuthData;
      void                     *getClientAuthDataArg;
@@ -396,7 +411,7 @@ index 8e2bd14..2e1364e 100644
      SSLSNISocketConfig        sniSocketConfig;
      void                     *sniSocketConfigArg;
      SSLBadCertHandler         handleBadCert;
-@@ -1635,6 +1661,26 @@ extern SECStatus ssl_InitSessionCacheLocks(PRBool lazyInit);
+@@ -1595,6 +1620,26 @@
  
  extern SECStatus ssl_FreeSessionCacheLocks(void);
  
@@ -423,11 +438,12 @@ index 8e2bd14..2e1364e 100644
  
  /********************** misc calls *********************/
  
-diff --git a/mozilla/security/nss/lib/ssl/sslplatf.c b/mozilla/security/nss/lib/ssl/sslplatf.c
-new file mode 100644
-index 0000000..208956f
---- /dev/null
-+++ b/mozilla/security/nss/lib/ssl/sslplatf.c
+Index: security/nss/lib/ssl/sslplatf.c
+===================================================================
+RCS file: security/nss/lib/ssl/sslplatf.c
+diff -N security/nss/lib/ssl/sslplatf.c
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ security/nss/lib/ssl/sslplatf.c	22 Sep 2011 00:21:33 -0000
 @@ -0,0 +1,399 @@
 +/*
 + * Platform specific crypto wrappers
@@ -828,11 +844,14 @@ index 0000000..208956f
 +#endif
 +
 +#endif /* NSS_PLATFORM_CLIENT_AUTH */
-diff --git a/mozilla/security/nss/lib/ssl/sslsock.c b/mozilla/security/nss/lib/ssl/sslsock.c
-index 4c4df3f..1bb211e 100644
---- a/mozilla/security/nss/lib/ssl/sslsock.c
-+++ b/mozilla/security/nss/lib/ssl/sslsock.c
-@@ -337,6 +337,10 @@ ssl_DupSocket(sslSocket *os)
+Index: security/nss/lib/ssl/sslsock.c
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslsock.c,v
+retrieving revision 1.67.2.1
+diff -u -r1.67.2.1 sslsock.c
+--- security/nss/lib/ssl/sslsock.c	31 Jul 2010 04:33:52 -0000	1.67.2.1
++++ security/nss/lib/ssl/sslsock.c	22 Sep 2011 00:21:33 -0000
+@@ -335,6 +335,10 @@
  	    ss->authCertificateArg    = os->authCertificateArg;
  	    ss->getClientAuthData     = os->getClientAuthData;
  	    ss->getClientAuthDataArg  = os->getClientAuthDataArg;
@@ -843,7 +862,7 @@ index 4c4df3f..1bb211e 100644
              ss->sniSocketConfig       = os->sniSocketConfig;
              ss->sniSocketConfigArg    = os->sniSocketConfigArg;
  	    ss->handleBadCert         = os->handleBadCert;
-@@ -1446,6 +1450,12 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
+@@ -1354,6 +1358,12 @@
          ss->getClientAuthData     = sm->getClientAuthData;
      if (sm->getClientAuthDataArg)
          ss->getClientAuthDataArg  = sm->getClientAuthDataArg;
@@ -856,7 +875,7 @@ index 4c4df3f..1bb211e 100644
      if (sm->sniSocketConfig)
          ss->sniSocketConfig       = sm->sniSocketConfig;
      if (sm->sniSocketConfigArg)
-@@ -2489,6 +2499,10 @@ ssl_NewSocket(PRBool makeLocks)
+@@ -2366,6 +2376,10 @@
          ss->sniSocketConfig    = NULL;
          ss->sniSocketConfigArg = NULL;
  	ss->getClientAuthData  = NULL;
