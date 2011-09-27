@@ -6,7 +6,7 @@
 #define UI_GFX_SIZE_H_
 #pragma once
 
-#include <iosfwd>
+#include <string>
 
 #include "build/build_config.h"
 #include "ui/base/ui_export.h"
@@ -22,7 +22,7 @@ namespace gfx {
 // A size has width and height values.
 class UI_EXPORT Size {
  public:
-  Size() : width_(0), height_(0) {}
+  Size();
   Size(int width, int height);
 #if defined(OS_MACOSX)
   explicit Size(const CGSize& s);
@@ -71,12 +71,12 @@ class UI_EXPORT Size {
   CGSize ToCGSize() const;
 #endif
 
+  std::string ToString() const;
+
  private:
   int width_;
   int height_;
 };
-
-UI_EXPORT std::ostream& operator<<(std::ostream& out, const gfx::Size& s);
 
 }  // namespace gfx
 
