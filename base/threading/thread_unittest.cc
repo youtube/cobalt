@@ -43,7 +43,11 @@ class SleepSome : public Task {
 
 class SleepInsideInitThread : public Thread {
  public:
-  SleepInsideInitThread() : Thread("none") { init_called_ = false; }
+  SleepInsideInitThread() : Thread("none") {
+    init_called_ = false;
+    ANNOTATE_BENIGN_RACE(
+        this, "Benign test-only data race on vptr - http://crbug.com/98219");
+  }
   virtual ~SleepInsideInitThread() { }
 
   virtual void Init() {
