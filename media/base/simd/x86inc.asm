@@ -950,8 +950,11 @@ AVX_INSTR pfmul, 1, 0
 ;=============================================================================
 
 %ifdef CHROMIUM
-; Always build PIC code on Mac for Chromium.
+; Always build PIC code on Mac or Linux for Chromium.
 %ifdef MACHO
+%define PIC
+%endif
+%ifdef ELF
 %define PIC
 %endif
 
@@ -962,7 +965,7 @@ AVX_INSTR pfmul, 1, 0
 
 %macro LOAD_SYM 2
 
-%ifdef MACHO
+%ifdef PIC
   call      %%geteip
   add       %1, %2 - $
   jmp       %%end
