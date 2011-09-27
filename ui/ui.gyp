@@ -513,6 +513,8 @@
         }],
         ['OS=="android"', {
           'sources!': [
+            'base/touch/touch_factory.cc',
+            'base/touch/touch_factory.h',
             'gfx/pango_util.h',
             'gfx/pango_util.cc',
             'gfx/platform_font_pango.cc',
