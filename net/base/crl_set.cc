@@ -67,7 +67,7 @@ CRLSet::~CRLSet() {
 // header_bytes consists of a JSON dictionary with the following keys:
 //   Version (int): currently 0
 //   ContentType (string): "CRLSet" or "CRLSetDelta" (magic value)
-//   DeltaFrom (int): if this is a delta update (see below), then this contains
+//   DeltaFrom (int32): if this is a delta update (see below), then this contains
 //       the sequence number of the base CRLSet.
 //   NextUpdate (int64, epoch seconds): the time at which an update is
 //       availible.
@@ -114,8 +114,8 @@ CRLSet::~CRLSet() {
 //
 // A delta CRLSet applies to a specific CRL set as given in the
 // header's "DeltaFrom" value. The delta describes the changes to each CRL
-// in turn with a zlib compressed array of options: either the CRL is the case,
-// a new CRL is inserted, the CRL is deleted or the CRL is updated. In the same
+// in turn with a zlib compressed array of options: either the CRL is the same,
+// a new CRL is inserted, the CRL is deleted or the CRL is updated. In the case
 // of an update, the serials in the CRL are considered in the same fashion
 // except there is no delta update of a serial number: they are either
 // inserted, deleted or left the same.
@@ -208,10 +208,10 @@ bool CRLSet::Parse(base::StringPiece data, scoped_refptr<CRLSet>* out_crl_set) {
     return false;
   }
 
-  double next_update, window_secs;
+  double next_update, update_window;
   int sequence;
   if (!header_dict->GetDouble("NextUpdate", &next_update) ||
-      !header_dict->GetDouble("WindowSecs", &window_secs) ||
+      !header_dict->GetDouble("WindowSecs", &update_window) ||
       !header_dict->GetInteger("Sequence", &sequence)) {
     return false;
   }
@@ -219,7 +219,7 @@ bool CRLSet::Parse(base::StringPiece data, scoped_refptr<CRLSet>* out_crl_set) {
   scoped_refptr<CRLSet> crl_set(new CRLSet);
   crl_set->next_update_ = base::Time::FromDoubleT(next_update);
   crl_set->update_window_ =
-      base::TimeDelta::FromSeconds(static_cast<int64>(window_secs));
+      base::TimeDelta::FromSeconds(static_cast<int64>(update_window));
   crl_set->sequence_ = static_cast<uint32>(sequence);
 
   for (size_t crl_index = 0; !data.empty(); crl_index++) {
@@ -416,7 +416,7 @@ CRLSet::Result CRLSet::CheckCertificate(
 
   for (std::vector<std::string>::const_iterator i = serials.begin();
        i != serials.end(); ++i) {
-    if (*i == serial_number.as_string())
+    if (base::StringPiece(*i) == serial_number)
       return REVOKED;
   }
 
