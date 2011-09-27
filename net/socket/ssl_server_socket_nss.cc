@@ -369,6 +369,10 @@ int SSLServerSocketNSS::InitializeSSLOptions() {
   // Parse into a CERTCertificate structure.
   CERTCertificate* cert = CERT_NewTempCertificate(
       CERT_GetDefaultCertDB(), &der_cert, NULL, PR_FALSE, PR_TRUE);
+  if (!cert) {
+    LogFailedNSSFunction(net_log_, "CERT_NewTempCertificate", "");
+    return MapNSSError(PORT_GetError());
+  }
 
   // Get a key of SECKEYPrivateKey* structure.
   std::vector<uint8> key_vector;
