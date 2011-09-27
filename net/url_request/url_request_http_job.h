@@ -59,6 +59,8 @@ class URLRequestHttpJob : public URLRequestJob {
   void OnReadCompleted(int result);
   void NotifyBeforeSendHeadersCallback(int result);
 
+  bool ShouldTreatAsCertificateError(int result);
+
   void RestartTransactionWithAuth(const string16& username,
                                   const string16& password);
 

@@ -686,18 +686,13 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
 
   if (result == OK) {
     SaveCookiesAndNotifyHeadersComplete();
-  } else if (IsCertificateError(result)) {
+  } else if (ShouldTreatAsCertificateError(result)) {
     // We encountered an SSL certificate error.  Ask our delegate to decide
     // what we should do.
-
-    TransportSecurityState::DomainState domain_state;
-    const bool is_hsts_host =
-        context_->transport_security_state() &&
-        context_->transport_security_state()->IsEnabledForHost(
-            &domain_state, request_info_.url.host(),
-            SSLConfigService::IsSNIAvailable(context_->ssl_config_service()));
-    NotifySSLCertificateError(transaction_->GetResponseInfo()->ssl_info,
-                              is_hsts_host);
+    // TODO(wtc): also pass ssl_info.cert_status, or just pass the whole
+    // ssl_info.
+    NotifySSLCertificateError(
+        result, transaction_->GetResponseInfo()->ssl_info.cert);
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     NotifyCertificateRequested(
         transaction_->GetResponseInfo()->cert_request_info);
@@ -722,6 +717,27 @@ void URLRequestHttpJob::OnReadCompleted(int result) {
   }
 
   NotifyReadComplete(result);
+}
+
+bool URLRequestHttpJob::ShouldTreatAsCertificateError(int result) {
+  if (!IsCertificateError(result))
+    return false;
+
+  // Revocation check failures are always certificate errors, even if the host
+  // is using Strict-Transport-Security.
+  if (result == ERR_CERT_UNABLE_TO_CHECK_REVOCATION)
+    return true;
+
+  // Check whether our context is using Strict-Transport-Security.
+  if (!context_->transport_security_state())
+    return true;
+
+  TransportSecurityState::DomainState domain_state;
+  const bool r = context_->transport_security_state()->IsEnabledForHost(
+      &domain_state, request_info_.url.host(),
+      SSLConfigService::IsSNIAvailable(context_->ssl_config_service()));
+
+  return !r;
 }
 
 void URLRequestHttpJob::RestartTransactionWithAuth(

@@ -129,8 +129,8 @@ class TestDelegate : public net::URLRequest::Delegate {
   virtual void OnAuthRequired(net::URLRequest* request,
                               net::AuthChallengeInfo* auth_info) OVERRIDE;
   virtual void OnSSLCertificateError(net::URLRequest* request,
-                                     const net::SSLInfo& ssl_info,
-                                     bool is_hsts_host) OVERRIDE;
+                                     int cert_error,
+                                     net::X509Certificate* cert) OVERRIDE;
   virtual bool CanGetCookies(const net::URLRequest* request,
                              const net::CookieList& cookie_list) const OVERRIDE;
   virtual bool CanSetCookie(const net::URLRequest* request,
