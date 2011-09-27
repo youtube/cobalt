@@ -225,7 +225,7 @@
         # the 'conditions' clause.  Initial attempts resulted in chromium and
         # webkit disagreeing on its setting.
         ['OS=="mac"', {
-          'use_skia%': 1,
+          'use_skia%': 0,
           # Mac uses clang by default, so turn on the plugin as well.
           'clang_use_chrome_plugins%': 1,
         }, {
