@@ -2014,13 +2014,13 @@ ssl3_ComputeRecordMAC(
 
 static PRBool
 ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
-#ifdef NSS_PLATFORM_CLIENT_AUTH
-    return PR_TRUE;
-#else
     PK11SlotInfo *slot = NULL;
     PRBool isPresent = PR_TRUE;
 
     /* we only care if we are doing client auth */
+    /* If NSS_PLATFORM_CLIENT_AUTH is defined and a platformClientKey is being
+     * used, u.ssl3.clAuthValid will be false and this function will always
+     * return PR_TRUE. */
     if (!sid || !sid->u.ssl3.clAuthValid) {
 	return PR_TRUE;
     }
@@ -2040,7 +2040,6 @@ ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
 	PK11_FreeSlot(slot);
     }
     return isPresent;
-#endif /* NSS_PLATFORM_CLIENT_AUTH */
 }
 
 static SECStatus
@@ -4856,31 +4855,33 @@ ssl3_SendCertificateVerify(sslSocket *ss)
     }
 
     isTLS = (PRBool)(ss->ssl3.pwSpec->version > SSL_LIBRARY_VERSION_3_0);
+    if (ss->ssl3.platformClientKey) {
 #ifdef NSS_PLATFORM_CLIENT_AUTH
-    rv = ssl3_PlatformSignHashes(&hashes, ss->ssl3.platformClientKey,
-                                 &buf, isTLS);
-    ssl_FreePlatformKey(ss->ssl3.platformClientKey);
-    ss->ssl3.platformClientKey = (PlatformKey)NULL;
-#else /* NSS_PLATFORM_CLIENT_AUTH */
-    rv = ssl3_SignHashes(&hashes, ss->ssl3.clientPrivateKey, &buf, isTLS);
-    if (rv == SECSuccess) {
-	PK11SlotInfo * slot;
-	sslSessionID * sid   = ss->sec.ci.sid;
-
-    	/* Remember the info about the slot that did the signing.
-	** Later, when doing an SSL restart handshake, verify this.
-	** These calls are mere accessors, and can't fail.
-	*/
-	slot = PK11_GetSlotFromPrivateKey(ss->ssl3.clientPrivateKey);
-	sid->u.ssl3.clAuthSeries     = PK11_GetSlotSeries(slot);
-	sid->u.ssl3.clAuthSlotID     = PK11_GetSlotID(slot);
-	sid->u.ssl3.clAuthModuleID   = PK11_GetModuleID(slot);
-	sid->u.ssl3.clAuthValid      = PR_TRUE;
-	PK11_FreeSlot(slot);
-    }
-    SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
-    ss->ssl3.clientPrivateKey = NULL;
+	rv = ssl3_PlatformSignHashes(&hashes, ss->ssl3.platformClientKey,
+				     &buf, isTLS);
+	ssl_FreePlatformKey(ss->ssl3.platformClientKey);
+	ss->ssl3.platformClientKey = (PlatformKey)NULL;
 #endif /* NSS_PLATFORM_CLIENT_AUTH */
+    } else {
+	rv = ssl3_SignHashes(&hashes, ss->ssl3.clientPrivateKey, &buf, isTLS);
+	if (rv == SECSuccess) {
+	    PK11SlotInfo * slot;
+	    sslSessionID * sid   = ss->sec.ci.sid;
+
+	    /* Remember the info about the slot that did the signing.
+	    ** Later, when doing an SSL restart handshake, verify this.
+	    ** These calls are mere accessors, and can't fail.
+	    */
+	    slot = PK11_GetSlotFromPrivateKey(ss->ssl3.clientPrivateKey);
+	    sid->u.ssl3.clAuthSeries     = PK11_GetSlotSeries(slot);
+	    sid->u.ssl3.clAuthSlotID     = PK11_GetSlotID(slot);
+	    sid->u.ssl3.clAuthModuleID   = PK11_GetModuleID(slot);
+	    sid->u.ssl3.clAuthValid      = PR_TRUE;
+	    PK11_FreeSlot(slot);
+	}
+	SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
+	ss->ssl3.clientPrivateKey = NULL;
+    }
     if (rv != SECSuccess) {
 	goto done;	/* err code was set by ssl3_SignHashes */
     }
@@ -5517,9 +5518,7 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     PORT_Assert(ss->ssl3.clientCertChain == NULL);
     PORT_Assert(ss->ssl3.clientCertificate == NULL);
     PORT_Assert(ss->ssl3.clientPrivateKey == NULL);
-#ifdef NSS_PLATFORM_CLIENT_AUTH
     PORT_Assert(ss->ssl3.platformClientKey == (PlatformKey)NULL);
-#endif  /* NSS_PLATFORM_CLIENT_AUTH */
 
     isTLS = (PRBool)(ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0);
     rv = ssl3_ConsumeHandshakeVariable(ss, &cert_types, 1, &b, &length);
@@ -5595,7 +5594,9 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
                                         ss->getPlatformClientAuthDataArg,
                                         ss->fd, &ca_list,
                                         &platform_cert_list,
-                                        (void**)&ss->ssl3.platformClientKey);
+                                        (void**)&ss->ssl3.platformClientKey,
+                                        &ss->ssl3.clientCertificate,
+                                        &ss->ssl3.clientPrivateKey);
     }
 #else
     if (ss->getClientAuthData == NULL) {
@@ -5625,33 +5626,34 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
                 ssl_FreePlatformKey(ss->ssl3.platformClientKey);
                 ss->ssl3.platformClientKey = (PlatformKey)NULL;
             }
-            goto send_no_certificate;
-        }
+	    /* Fall through to NSS client auth check */
+        } else {
+	    certNode = CERT_LIST_HEAD(platform_cert_list);
+	    ss->ssl3.clientCertificate = CERT_DupCertificate(certNode->cert);
 
-        certNode = CERT_LIST_HEAD(platform_cert_list);
-        ss->ssl3.clientCertificate = CERT_DupCertificate(certNode->cert);
-
-        /* Setting ssl3.clientCertChain non-NULL will cause
-         * ssl3_HandleServerHelloDone to call SendCertificate.
-         * Note: clientCertChain should include the EE cert as
-         * clientCertificate is ignored during the actual sending
-         */
-        ss->ssl3.clientCertChain =
-            hack_NewCertificateListFromCertList(platform_cert_list);
-        CERT_DestroyCertList(platform_cert_list);
-        platform_cert_list = NULL;
-        if (ss->ssl3.clientCertChain == NULL) {
-            if (ss->ssl3.clientCertificate != NULL) {
-                CERT_DestroyCertificate(ss->ssl3.clientCertificate);
-                ss->ssl3.clientCertificate = NULL;
-            }
-            if (ss->ssl3.platformClientKey) {
-                ssl_FreePlatformKey(ss->ssl3.platformClientKey);
-                ss->ssl3.platformClientKey = (PlatformKey)NULL;
-            }
-            goto send_no_certificate;
-        } 
-#else
+	    /* Setting ssl3.clientCertChain non-NULL will cause
+	     * ssl3_HandleServerHelloDone to call SendCertificate.
+	     * Note: clientCertChain should include the EE cert as
+	     * clientCertificate is ignored during the actual sending
+	     */
+	    ss->ssl3.clientCertChain =
+		    hack_NewCertificateListFromCertList(platform_cert_list);
+	    CERT_DestroyCertList(platform_cert_list);
+	    platform_cert_list = NULL;
+	    if (ss->ssl3.clientCertChain == NULL) {
+		if (ss->ssl3.clientCertificate != NULL) {
+		    CERT_DestroyCertificate(ss->ssl3.clientCertificate);
+		    ss->ssl3.clientCertificate = NULL;
+		}
+		if (ss->ssl3.platformClientKey) {
+		    ssl_FreePlatformKey(ss->ssl3.platformClientKey);
+		    ss->ssl3.platformClientKey = (PlatformKey)NULL;
+		}
+		goto send_no_certificate;
+	    }
+	    break;  /* not an error */
+	}
+#endif   /* NSS_PLATFORM_CLIENT_AUTH */
         /* check what the callback function returned */
         if ((!ss->ssl3.clientCertificate) || (!ss->ssl3.clientPrivateKey)) {
             /* we are missing either the key or cert */
@@ -5684,7 +5686,6 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	    }
 	    goto send_no_certificate;
 	}
-#endif   /* NSS_PLATFORM_CLIENT_AUTH */
 	break;	/* not an error */
 
     case SECFailure:
@@ -5850,26 +5851,23 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
 	if (rv != SECSuccess) {
 	    goto loser;	/* error code is set. */
     	}
-    } else
+    } else if (ss->ssl3.clientCertChain != NULL &&
+               ss->ssl3.platformClientKey) {
 #ifdef NSS_PLATFORM_CLIENT_AUTH
-    if (ss->ssl3.clientCertChain != NULL &&
-        ss->ssl3.platformClientKey) {
         send_verify = PR_TRUE;
         rv = ssl3_SendCertificate(ss);
         if (rv != SECSuccess) {
             goto loser; /* error code is set. */
         }
-    }
-#else
-    if (ss->ssl3.clientCertChain  != NULL &&
-	ss->ssl3.clientPrivateKey != NULL) {
+#endif /* NSS_PLATFORM_CLIENT_AUTH */
+    } else if (ss->ssl3.clientCertChain  != NULL &&
+               ss->ssl3.clientPrivateKey != NULL) {
 	send_verify = PR_TRUE;
 	rv = ssl3_SendCertificate(ss);
 	if (rv != SECSuccess) {
 	    goto loser;	/* error code is set. */
     	}
     }
-#endif /* NSS_PLATFORM_CLIENT_AUTH */
 
     rv = ssl3_SendClientKeyExchange(ss);
     if (rv != SECSuccess) {

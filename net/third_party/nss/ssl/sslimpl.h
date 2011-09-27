@@ -473,14 +473,12 @@ typedef SECStatus (*SSLCompressor)(void *               context,
                                    int                  inlen);
 typedef SECStatus (*SSLDestroy)(void *context, PRBool freeit);
 
-#ifdef NSS_PLATFORM_CLIENT_AUTH
-#if defined(XP_WIN32)
+#if defined(NSS_PLATFORM_CLIENT_AUTH) && defined(XP_WIN32)
 typedef PCERT_KEY_CONTEXT PlatformKey;
-#elif defined(XP_MACOSX)
+#elif defined(NSS_PLATFORM_CLIENT_AUTH) && defined(XP_MACOSX)
 typedef SecKeyRef PlatformKey;
 #else
 typedef void *PlatformKey;
-#endif
 #endif
 
 
@@ -855,9 +853,10 @@ struct ssl3StateStr {
 
     CERTCertificate *    clientCertificate;  /* used by client */
     SECKEYPrivateKey *   clientPrivateKey;   /* used by client */
-#ifdef NSS_PLATFORM_CLIENT_AUTH
+    /* platformClientKey is present even when NSS_PLATFORM_CLIENT_AUTH is not
+     * defined in order to allow cleaner conditional code.
+     * At most one of clientPrivateKey and platformClientKey may be set. */
     PlatformKey          platformClientKey;  /* used by client */
-#endif  /* NSS_PLATFORM_CLIENT_AUTH */
     CERTCertificateList *clientCertChain;    /* used by client */
     PRBool               sendEmptyCert;      /* used by client */
 
