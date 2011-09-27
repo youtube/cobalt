@@ -24,7 +24,8 @@ namespace net {
 // Tracks which hosts have enabled *-Transport-Security. This object manages
 // the in-memory store. A separate object must register itself with this object
 // in order to persist the state to disk.
-class NET_EXPORT TransportSecurityState : public base::NonThreadSafe {
+class NET_EXPORT TransportSecurityState
+    : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // If non-empty, |hsts_hosts| is a JSON-formatted string to treat as if it
   // were a built-in entry (same format as persisted metadata in the
