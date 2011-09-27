@@ -9,18 +9,10 @@
 
 {
   'conditions': [
-    ['OS=="win"', {
+    ['OS=="win" and chromium_win_pch==1', {
         'target_defaults': {
-          'configurations': {
-            'Debug': {
-              'msvs_precompiled_header': '<(DEPTH)/build/precompile.h',
-              'msvs_precompiled_source': '<(DEPTH)/build/precompile.cc',
-            },
-          },
-
-          # Sources can't be specified inside the 'Debug'
-          # configuration. Since precompile.cc only contains
-          # comments, it won't have any effect for 'Release' builds.
+          'msvs_precompiled_header': '<(DEPTH)/build/precompile.h',
+          'msvs_precompiled_source': '<(DEPTH)/build/precompile.cc',
           'sources': ['<(DEPTH)/build/precompile.cc'],
         }
       }],

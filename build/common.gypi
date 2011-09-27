@@ -213,6 +213,13 @@
       # For example, use_xi2_mt=2 means XI2.2 or above version is required.
       'use_xi2_mt%': 0,
 
+      # Use of precompiled headers on Windows is off by default
+      # because of complications that it can cause with our
+      # infrastructure (trybots etc.).  Enable by setting to 1 in
+      # ~/.gyp/include.gypi or via the GYP command line for ~20-25%
+      # faster builds.
+      'chromium_win_pch%': 0,
+
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
         # the 'conditions' clause.  Initial attempts resulted in chromium and
@@ -336,6 +343,7 @@
     'remoting%': '<(remoting)',
     'use_threaded_compositing%': '<(use_threaded_compositing)',
     'enable_webrtc%': '<(enable_webrtc)',
+    'chromium_win_pch%': '<(chromium_win_pch)',
     'p2p_apis%': '<(p2p_apis)',
     'configuration_policy%': '<(configuration_policy)',
     'safe_browsing%': '<(safe_browsing)',
@@ -630,7 +638,7 @@
         ],
         # Enable to use system sqlite.
         'use_system_sqlite%': '<(android_build_type)',
-        # Enable to use system libjpeg. 
+        # Enable to use system libjpeg.
         'use_system_libjpeg%': '<(android_build_type)',
         # Enable to use the system libexpat.
         'use_system_libexpat%': '<(android_build_type)',
