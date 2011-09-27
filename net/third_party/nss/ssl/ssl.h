@@ -355,8 +355,10 @@ SSL_IMPORT SECStatus SSL_GetClientAuthDataHook(PRFileDesc *fd,
 
 /*
  * Prototype for SSL callback to get client auth data from the application,
- * when using the underlying platform's cryptographic primitives. Returning
- * SECFailure will cause the socket to send no client certificate.
+ * optionally using the underlying platform's cryptographic primitives.
+ * To use the platform cryptographic primitives, caNames and pRetCerts
+ * should be set.  To use NSS, pRetNSSCert and pRetNSSKey should be set.
+ * Returning SECFailure will cause the socket to send no client certificate.
  *	arg - application passed argument
  *	caNames - pointer to distinguished names of CAs that the server likes
  *	pRetCerts - pointer to pointer to list of certs, with the first being
@@ -369,12 +371,16 @@ SSL_IMPORT SECStatus SSL_GetClientAuthDataHook(PRFileDesc *fd,
  *                     PORT_Free().
  *          - Mac OS X: A pointer to a SecKeyRef. Ownership is
  *                      transferred to NSS, which will free via CFRelease().
+ *	pRetNSSCert - pointer to pointer to NSS cert, for return of cert.
+ *	pRetNSSKey - pointer to NSS key pointer, for return of key.
  */
 typedef SECStatus (PR_CALLBACK *SSLGetPlatformClientAuthData)(void *arg,
                                 PRFileDesc *fd,
                                 CERTDistNames *caNames,
                                 CERTCertList **pRetCerts,/*return */
-                                void **pRetKey);/* return */
+                                void **pRetKey,/* return */
+                                CERTCertificate **pRetNSSCert,/*return */
+                                SECKEYPrivateKey **pRetNSSKey);/* return */
 
 /*
  * Set the client side callback for SSL to retrieve user's private key

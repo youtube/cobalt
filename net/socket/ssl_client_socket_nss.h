@@ -157,14 +157,27 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // argument.
   static SECStatus OwnAuthCertHandler(void* arg, PRFileDesc* socket,
                                       PRBool checksig, PRBool is_server);
-  // NSS calls this when client authentication is requested.
+  // Returns true if connection negotiated the origin bound cert extension.
+  static bool OriginBoundCertNegotiated(PRFileDesc* socket);
+  // Origin bound cert client auth handler.
+  // Returns the value the ClientAuthHandler function should return.
+  SECStatus OriginBoundClientAuthHandler(CERTCertificate** result_certificate,
+                                         SECKEYPrivateKey** result_private_key);
 #if defined(NSS_PLATFORM_CLIENT_AUTH)
-  static SECStatus PlatformClientAuthHandler(void* arg,
-                                             PRFileDesc* socket,
-                                             CERTDistNames* ca_names,
-                                             CERTCertList** result_certs,
-                                             void** result_private_key);
+  // On platforms where we use the native certificate store, NSS calls this
+  // instead when client authentication is requested.  At most one of
+  // (result_certs, result_private_key) or
+  // (result_nss_certificate, result_nss_private_key) should be set.
+  static SECStatus PlatformClientAuthHandler(
+      void* arg,
+      PRFileDesc* socket,
+      CERTDistNames* ca_names,
+      CERTCertList** result_certs,
+      void** result_private_key,
+      CERTCertificate** result_nss_certificate,
+      SECKEYPrivateKey** result_nss_private_key);
 #else
+  // NSS calls this when client authentication is requested.
   static SECStatus ClientAuthHandler(void* arg,
                                      PRFileDesc* socket,
                                      CERTDistNames* ca_names,
