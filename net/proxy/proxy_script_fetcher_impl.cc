@@ -9,7 +9,6 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
-#include "net/base/cert_status_flags.h"
 #include "net/base/data_url.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
@@ -191,12 +190,12 @@ void ProxyScriptFetcherImpl::OnAuthRequired(URLRequest* request,
 }
 
 void ProxyScriptFetcherImpl::OnSSLCertificateError(URLRequest* request,
-                                                   const SSLInfo& ssl_info,
-                                                   bool is_hsts_host) {
+                                                   int cert_error,
+                                                   X509Certificate* cert) {
   DCHECK_EQ(request, cur_request_.get());
   LOG(WARNING) << "SSL certificate error when fetching PAC script, aborting.";
   // Certificate errors are in same space as net errors.
-  result_code_ = MapCertStatusToNetError(ssl_info.cert_status);
+  result_code_ = cert_error;
   request->Cancel();
 }
 

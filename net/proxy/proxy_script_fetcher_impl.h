@@ -53,9 +53,8 @@ class NET_EXPORT ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   // URLRequest::Delegate methods:
   virtual void OnAuthRequired(URLRequest* request,
                               AuthChallengeInfo* auth_info) OVERRIDE;
-  virtual void OnSSLCertificateError(URLRequest* request,
-                                     const SSLInfo& ssl_info,
-                                     bool is_hsts_ok) OVERRIDE;
+  virtual void OnSSLCertificateError(URLRequest* request, int cert_error,
+                                     X509Certificate* cert) OVERRIDE;
   virtual void OnResponseStarted(URLRequest* request) OVERRIDE;
   virtual void OnReadCompleted(URLRequest* request, int num_bytes) OVERRIDE;
 

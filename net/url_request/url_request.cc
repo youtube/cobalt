@@ -112,8 +112,8 @@ void URLRequest::Delegate::OnCertificateRequested(
 }
 
 void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
-                                                 const SSLInfo& ssl_info,
-                                                 bool is_hsts_ok) {
+                                                 int cert_error,
+                                                 X509Certificate* cert) {
   request->Cancel();
 }
 
@@ -783,10 +783,10 @@ void URLRequest::NotifyCertificateRequested(
     delegate_->OnCertificateRequested(this, cert_request_info);
 }
 
-void URLRequest::NotifySSLCertificateError(const SSLInfo& ssl_info,
-                                           bool is_hsts_host) {
+void URLRequest::NotifySSLCertificateError(int cert_error,
+                                           X509Certificate* cert) {
   if (delegate_)
-    delegate_->OnSSLCertificateError(this, ssl_info, is_hsts_host);
+    delegate_->OnSSLCertificateError(this, cert_error, cert);
 }
 
 bool URLRequest::CanGetCookies(const CookieList& cookie_list) const {

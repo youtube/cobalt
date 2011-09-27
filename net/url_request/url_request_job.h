@@ -30,7 +30,6 @@ class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
 class SSLCertRequestInfo;
-class SSLInfo;
 class URLRequest;
 class UploadData;
 class URLRequestStatus;
@@ -198,8 +197,7 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
   void NotifyCertificateRequested(SSLCertRequestInfo* cert_request_info);
 
   // Notifies the job about an SSL certificate error.
-  void NotifySSLCertificateError(const SSLInfo& ssl_info,
-                                 bool is_hsts_host);
+  void NotifySSLCertificateError(int cert_error, X509Certificate* cert);
 
   // Delegates to URLRequest::Delegate.
   bool CanGetCookies(const CookieList& cookie_list) const;
