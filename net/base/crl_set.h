@@ -40,7 +40,8 @@ class NET_EXPORT_PRIVATE CRLSet : public base::RefCounted<CRLSet> {
   // CheckCertificate returns the information contained in the set for a given
   // certificate:
   //   serial_number: the serial number of the certificate
-  //   issuer_spki_hash: the SubjectPublicKeyInfo of the CRL signer
+  //   issuer_spki_hash: the SHA256 of the SubjectPublicKeyInfo of the CRL
+  //       signer
   //
   // This does not check that the CRLSet is timely. See |next_update|.
   Result CheckCertificate(
@@ -55,7 +56,7 @@ class NET_EXPORT_PRIVATE CRLSet : public base::RefCounted<CRLSet> {
   // next_update returns the time at which a new CRLSet may be availible.
   base::Time next_update() const;
 
-  // update_window returns the number of seconds in the update window. Once the
+  // update_window returns the length of the update window. Once the
   // |next_update| time has occured, the client should schedule a fetch,
   // uniformly at random, within |update_window|. This aims to smooth the load
   // on the server.
