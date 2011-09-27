@@ -51,6 +51,7 @@ class MEDIA_EXPORT VideoCaptureHandlerProxy
   virtual void OnStopped(VideoCapture* capture) OVERRIDE;
   virtual void OnPaused(VideoCapture* capture) OVERRIDE;
   virtual void OnError(VideoCapture* capture, int error_code) OVERRIDE;
+  virtual void OnRemoved(VideoCapture* capture) OVERRIDE;
   virtual void OnBufferReady(
       VideoCapture* capture,
       scoped_refptr<VideoCapture::VideoFrameBuffer> buffer) OVERRIDE;
