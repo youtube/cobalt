@@ -2173,24 +2173,19 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     if (that->ssl_config_.client_cert) {
       PCCERT_CONTEXT cert_context =
           that->ssl_config_.client_cert->os_cert_handle();
-      PCERT_KEY_CONTEXT key_context = reinterpret_cast<PCERT_KEY_CONTEXT>(
-          PORT_ZAlloc(sizeof(CERT_KEY_CONTEXT)));
-      if (!key_context)
-        return SECFailure;
-      key_context->cbSize = sizeof(*key_context);
 
+      HCRYPTPROV_OR_NCRYPT_KEY_HANDLE crypt_prov = 0;
+      DWORD key_spec = 0;
       BOOL must_free = FALSE;
       BOOL acquired_key = CryptAcquireCertificatePrivateKey(
           cert_context, CRYPT_ACQUIRE_CACHE_FLAG, NULL,
-          &key_context->hCryptProv, &key_context->dwKeySpec, &must_free);
-      if (acquired_key && key_context->hCryptProv) {
-        DCHECK_NE(key_context->dwKeySpec, CERT_NCRYPT_KEY_SPEC);
+          &crypt_prov, &key_spec, &must_free);
 
-        // The certificate cache may have been updated/used, in which case,
-        // duplicate the existing handle, since NSS will free it when no
-        // longer in use.
-        if (!must_free)
-          CryptContextAddRef(key_context->hCryptProv, NULL, 0);
+      if (acquired_key) {
+        // Since we passed CRYPT_ACQUIRE_CACHE_FLAG, |must_free| must be false
+        // according to the MSDN documentation.
+        CHECK_EQ(must_free, FALSE);
+        DCHECK_NE(key_spec, CERT_NCRYPT_KEY_SPEC);
 
         SECItem der_cert;
         der_cert.type = siDERCertBuffer;
@@ -2198,11 +2193,16 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
         der_cert.len  = cert_context->cbCertEncoded;
 
         // TODO(rsleevi): Error checking for NSS allocation errors.
-        *result_certs = CERT_NewCertList();
         CERTCertDBHandle* db_handle = CERT_GetDefaultCertDB();
         CERTCertificate* user_cert = CERT_NewTempCertificate(
             db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
-        CERT_AddCertToListTail(*result_certs, user_cert);
+        if (!user_cert) {
+          // Importing the certificate can fail for reasons including a serial
+          // number collision. See crbug.com/97355.
+          return SECFailure;
+        }
+        CERTCertList* cert_chain = CERT_NewCertList();
+        CERT_AddCertToListTail(cert_chain, user_cert);
 
         // Add the intermediates.
         X509Certificate::OSCertHandles intermediates =
@@ -2214,12 +2214,26 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
 
           CERTCertificate* intermediate = CERT_NewTempCertificate(
               db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
-          CERT_AddCertToListTail(*result_certs, intermediate);
+          if (!intermediate) {
+            CERT_DestroyCertList(cert_chain);
+            return SECFailure;
+          }
+          CERT_AddCertToListTail(cert_chain, intermediate);
         }
+        PCERT_KEY_CONTEXT key_context = reinterpret_cast<PCERT_KEY_CONTEXT>(
+            PORT_ZAlloc(sizeof(CERT_KEY_CONTEXT)));
+        key_context->cbSize = sizeof(*key_context);
+        // NSS will free this context when no longer in use, but the
+        // |must_free| result from CryptAcquireCertificatePrivateKey was false
+        // so we increment the refcount to negate NSS's future decrement.
+        CryptContextAddRef(crypt_prov, NULL, 0);
+        key_context->hCryptProv = crypt_prov;
+        key_context->dwKeySpec = key_spec;
         *result_private_key = key_context;
+        *result_certs = cert_chain;
+
         return SECSuccess;
       }
-      PORT_Free(key_context);
       LOG(WARNING) << "Client cert found without private key";
     }
     // Send no client certificate.
@@ -2356,6 +2370,12 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
           der_cert.len = cert_data.Length;
           CERTCertificate* nss_cert = CERT_NewTempCertificate(
               CERT_GetDefaultCertDB(), &der_cert, NULL, PR_FALSE, PR_TRUE);
+          if (!nss_cert) {
+            // In the event of an NSS error we make up an OS error and reuse
+            // the error handling, below.
+            os_error = errSecCreateChainFailed;
+            break;
+          }
           CERT_AddCertToListTail(*result_certs, nss_cert);
         }
       }
