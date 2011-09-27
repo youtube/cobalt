@@ -285,11 +285,14 @@ esac
 
 # Check the gold version first.
 gold_up_to_date="1"
-case `/usr/local/gold/bin/ld --version` in
-*gold*2.2[1-9].*) ;;
-* )
-  gold_up_to_date="0"
-esac
+if [ -x "/usr/local/gold/bin/ld" ]
+then
+  case `/usr/local/gold/bin/ld --version` in
+  *gold*2.2[1-9].*) ;;
+  * )
+    gold_up_to_date="0"
+  esac
+fi
 
 # Then check and make sure ld.bfd exists.
 if [ "$gold_up_to_date" = "1" ] && [ ! -x "/usr/local/gold/bin/ld.bfd" ]
