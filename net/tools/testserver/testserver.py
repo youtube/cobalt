@@ -1418,6 +1418,8 @@ class TestPageHandler(BasePageHandler):
                                                              self.headers,
                                                              raw_request))
     self.send_response(http_response)
+    if (http_response == 200):
+      self.send_header('Content-type', 'application/x-protobuffer')
     self.end_headers()
     self.wfile.write(raw_reply)
     return True
