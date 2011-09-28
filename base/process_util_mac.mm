@@ -547,7 +547,8 @@ void CrMallocErrorBreak() {
   g_original_malloc_error_break();
   LOG(ERROR) <<
       "Terminating process due to a potential for future heap corruption";
-  base::debug::BreakDebugger();
+  int* death_ptr = NULL;
+  *death_ptr = 0xf00bad;
 }
 
 }  // namespace
