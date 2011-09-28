@@ -74,6 +74,9 @@ class MEDIA_EXPORT VideoCaptureHandlerProxy
       VideoCapture* capture,
       const VideoCaptureState& state,
       int error_code);
+  void OnRemovedOnMainThread(
+      VideoCapture* capture,
+      const VideoCaptureState& state);
   void OnBufferReadyOnMainThread(
       VideoCapture* capture,
       const VideoCaptureState& state,

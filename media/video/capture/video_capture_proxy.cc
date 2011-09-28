@@ -69,7 +69,11 @@ void VideoCaptureHandlerProxy::OnError(VideoCapture* capture, int error_code) {
 }
 
 void VideoCaptureHandlerProxy::OnRemoved(VideoCapture* capture) {
-  // TODO(vtl): add logic when this event handler is removed.
+  main_message_loop_->PostTask(FROM_HERE, NewRunnableMethod(
+      this,
+      &VideoCaptureHandlerProxy::OnRemovedOnMainThread,
+      capture,
+      GetState(capture)));
 }
 
 void VideoCaptureHandlerProxy::OnBufferReady(
@@ -121,6 +125,13 @@ void VideoCaptureHandlerProxy::OnErrorOnMainThread(
     int error_code) {
   state_ = state;
   proxied_->OnError(capture, error_code);
+}
+
+void VideoCaptureHandlerProxy::OnRemovedOnMainThread(
+    VideoCapture* capture,
+    const VideoCaptureState& state) {
+  state_ = state;
+  proxied_->OnRemoved(capture);
 }
 
 void VideoCaptureHandlerProxy::OnBufferReadyOnMainThread(
