@@ -13,7 +13,7 @@
 #define UI_GFX_RECT_H_
 #pragma once
 
-#include <iosfwd>
+#include <string>
 
 #include "ui/gfx/point.h"
 #include "ui/gfx/size.h"
@@ -50,7 +50,7 @@ class UI_EXPORT Rect {
   explicit Rect(const gfx::Size& size);
   Rect(const gfx::Point& origin, const gfx::Size& size);
 
-  ~Rect() {}
+  ~Rect();
 
 #if defined(OS_WIN)
   Rect& operator=(const RECT& r);
@@ -185,12 +185,12 @@ class UI_EXPORT Rect {
   // same height) with the given rectangle, and the rectangles do not overlap.
   bool SharesEdgeWith(const gfx::Rect& rect) const;
 
+  std::string ToString() const;
+
  private:
   gfx::Point origin_;
   gfx::Size size_;
 };
-
-UI_EXPORT std::ostream& operator<<(std::ostream& out, const gfx::Rect& r);
 
 }  // namespace gfx
 
