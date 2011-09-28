@@ -170,7 +170,7 @@ double FieldTrial::HashClientId(const std::string& client_id,
   // and trial_name we get into something with a uniform distribution, which
   // is desirable so that we don't skew any part of the 0-100% spectrum.
   std::string input(client_id + trial_name);
-  unsigned char sha1_hash[SHA1_LENGTH];
+  unsigned char sha1_hash[kSHA1Length];
   SHA1HashBytes(reinterpret_cast<const unsigned char*>(input.c_str()),
                 input.size(),
                 sha1_hash);
