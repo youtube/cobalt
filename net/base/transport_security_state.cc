@@ -11,11 +11,6 @@
 #include <keyhi.h>
 #include <pk11pub.h>
 
-// NSS leaks #defines from its headers which will upset base/sha1.h.
-#if defined(SHA1_LENGTH)
-#undef SHA1_LENGTH
-#endif
-
 #include "base/base64.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -597,7 +592,7 @@ static bool AddHash(const std::string& type_and_base64,
   if (type_and_base64.find("sha1/") == 0 &&
       base::Base64Decode(type_and_base64.substr(5, type_and_base64.size() - 5),
                          &hash_str) &&
-      hash_str.size() == base::SHA1_LENGTH) {
+      hash_str.size() == base::kSHA1Length) {
     SHA1Fingerprint hash;
     memcpy(hash.data, hash_str.data(), sizeof(hash.data));
     out->push_back(hash);

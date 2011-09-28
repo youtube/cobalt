@@ -12,19 +12,16 @@
 
 namespace base {
 
-// This function performs SHA-1 operations.
+// These functions perform SHA-1 operations.
 
-enum {
-  SHA1_LENGTH = 20  // Length in bytes of a SHA-1 hash.
-};
-static const size_t kSHA1Length = 20;  // TODO(pkasting): Replace above w/this
+static const size_t kSHA1Length = 20;  // Length in bytes of a SHA-1 hash.
 
 // Computes the SHA-1 hash of the input string |str| and returns the full
 // hash.
 BASE_EXPORT std::string SHA1HashString(const std::string& str);
 
 // Computes the SHA-1 hash of the |len| bytes in |data| and puts the hash
-// in |hash|. |hash| must be SHA1_LENGTH bytes long.
+// in |hash|. |hash| must be kSHA1Length bytes long.
 BASE_EXPORT void SHA1HashBytes(const unsigned char* data, size_t len,
                                unsigned char* hash);
 
