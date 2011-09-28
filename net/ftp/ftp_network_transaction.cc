@@ -734,7 +734,6 @@ int FtpNetworkTransaction::ProcessResponseUSER(
       next_state_ = STATE_CTRL_WRITE_PASS;
       break;
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
       response_.needs_auth = true;
       return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
@@ -765,7 +764,6 @@ int FtpNetworkTransaction::ProcessResponsePASS(
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
       response_.needs_auth = true;
       return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
