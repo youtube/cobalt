@@ -74,8 +74,9 @@
             'use_only_pure_views%': 0,
           }],
 
-          # Use the views compositor when using the Aura window manager.
-          ['use_aura==1', {
+          # Use the views compositor when using the Aura window manager or
+          # touch.
+          ['use_aura==1 or touchui==1', {
             'views_compositor%': 1,
           }],
         ],
