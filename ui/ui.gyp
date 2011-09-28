@@ -288,6 +288,8 @@
         'gfx/scoped_ns_graphics_context_save_gstate_mac.mm',
         'gfx/scrollbar_size.cc',
         'gfx/scrollbar_size.h',
+        'gfx/selection_model.cc',
+        'gfx/selection_model.h',
         'gfx/size.cc',
         'gfx/size.h',
         'gfx/skbitmap_operations.cc',
