@@ -4,12 +4,6 @@
 
 #include "base/bind.h"
 
-#if defined(BASE_CALLBACK_H_)
-// We explicitly do not want to include callback.h so people are not tempted
-// to use bind.h in a headerfile for getting the Callback types.
-#error "base/bind.h should avoid pulling in callback.h by default."
-#endif
-
 #include "base/callback.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -315,6 +309,15 @@ TEST_F(BindTest, ReturnValues) {
   EXPECT_EQ(31337, method_cb.Run());
   EXPECT_EQ(41337, const_method_nonconst_obj_cb.Run());
   EXPECT_EQ(51337, const_method_const_obj_cb.Run());
+}
+
+// IgnoreReturn adapter test.
+//   - Function with return value, and no params can be converted to Closure.
+TEST_F(BindTest, IgnoreReturn) {
+  EXPECT_CALL(static_func_mock_, IntMethod0()).WillOnce(Return(1337));
+  Callback<int(void)> normal_cb = Bind(&IntFunc0);
+  Closure c = IgnoreReturn(normal_cb);
+  c.Run();
 }
 
 // Argument binding tests.
