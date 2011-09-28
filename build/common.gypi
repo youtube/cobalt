@@ -1185,6 +1185,12 @@
     ],  # target_conditions for 'target_defaults'
     'default_configuration': 'Debug',
     'configurations': {
+      'variables' : {
+        # Only used by Windows build for now.  Can be used to build into a
+        # differet output directory, e.g., a build_dir_prefix of VS2010_ would
+        # output files in src/build/VS2010_{Debug,Release}.
+        'build_dir_prefix%': '',
+      },
       # VCLinkerTool LinkIncremental values below:
       #   0 == default
       #   1 == /INCREMENTAL:NO
@@ -1196,7 +1202,7 @@
       'Common_Base': {
         'abstract': 1,
         'msvs_configuration_attributes': {
-          'OutputDirectory': '<(DEPTH)\\build\\$(ConfigurationName)',
+          'OutputDirectory': '<(DEPTH)\\build\\<(build_dir_prefix)$(ConfigurationName)',
           'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
           'CharacterSet': '1',
         },
