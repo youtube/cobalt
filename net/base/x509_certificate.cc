@@ -187,7 +187,7 @@ void X509CertificateCache::Remove(X509Certificate::OSCertHandle cert_handle) {
 // CompareSHA1Hashes is a helper function for using bsearch() with an array of
 // SHA1 hashes.
 int CompareSHA1Hashes(const void* a, const void* b) {
-  return memcmp(a, b, base::SHA1_LENGTH);
+  return memcmp(a, b, base::kSHA1Length);
 }
 
 // Utility to split |src| on the first occurrence of |c|, if any. |right| will
@@ -959,7 +959,7 @@ bool X509Certificate::IsBlacklisted() const {
 bool X509Certificate::IsPublicKeyBlacklisted(
     const std::vector<SHA1Fingerprint>& public_key_hashes) {
   static const unsigned kNumHashes = 5;
-  static const uint8 kHashes[kNumHashes][base::SHA1_LENGTH] = {
+  static const uint8 kHashes[kNumHashes][base::kSHA1Length] = {
     // Subject: CN=DigiNotar Root CA
     // Issuer: CN=Entrust.net x2 and self-signed
     {0x41, 0x0f, 0x36, 0x36, 0x32, 0x58, 0xf3, 0x0b, 0x34, 0x7d,
@@ -985,7 +985,7 @@ bool X509Certificate::IsPublicKeyBlacklisted(
   for (unsigned i = 0; i < kNumHashes; i++) {
     for (std::vector<SHA1Fingerprint>::const_iterator
          j = public_key_hashes.begin(); j != public_key_hashes.end(); ++j) {
-      if (memcmp(j->data, kHashes[i], base::SHA1_LENGTH) == 0)
+      if (memcmp(j->data, kHashes[i], base::kSHA1Length) == 0)
         return true;
     }
   }
@@ -997,9 +997,9 @@ bool X509Certificate::IsPublicKeyBlacklisted(
 bool X509Certificate::IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
                                               const uint8* array,
                                               size_t array_byte_len) {
-  DCHECK_EQ(0u, array_byte_len % base::SHA1_LENGTH);
-  const unsigned arraylen = array_byte_len / base::SHA1_LENGTH;
-  return NULL != bsearch(hash.data, array, arraylen, base::SHA1_LENGTH,
+  DCHECK_EQ(0u, array_byte_len % base::kSHA1Length);
+  const size_t arraylen = array_byte_len / base::kSHA1Length;
+  return NULL != bsearch(hash.data, array, arraylen, base::kSHA1Length,
                          CompareSHA1Hashes);
 }
 
