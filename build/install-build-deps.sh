@@ -314,14 +314,8 @@ then
   fi
   if test "$do_inst_gold" = "1"
   then
-    # If the system provides a good version of gold, just install it.
-    if apt-cache show binutils-gold | grep -Eq 'Version: 2.2[1-9].*'; then
-      echo "Installing binutils-gold. Backing up ld as ld.single."
-      sudo apt-get install binutils-gold
-    else
-      echo "Building binutils with gold..."
-      install_gold || exit 99
-    fi
+    echo "Building binutils with gold..."
+    install_gold || exit 99
   else
     echo "Not installing gold."
   fi
