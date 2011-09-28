@@ -6,17 +6,22 @@
 // can be used specify the refcounting and reference semantics of arguments
 // that are bound by the Bind() function in base/bind.h.
 //
-// The public functions are base::Unretained() and base::ConstRef().
+// The public functions are base::Unretained(), base::ConstRef(), and
+// base::IgnoreReturn().
+//
 // Unretained() allows Bind() to bind a non-refcounted class.
 // ConstRef() allows binding a constant reference to an argument rather
 // than a copy.
+// IgnoreReturn() is used to adapt a 0-argument Callback with a return type to
+// a Closure. This is useful if you need to PostTask with a function that has
+// a return value that you don't care about.
 //
 //
 // EXAMPLE OF Unretained():
 //
 //   class Foo {
 //    public:
-//     void func() { cout << "Foo:f" << endl;
+//     void func() { cout << "Foo:f" << endl; }
 //   };
 //
 //   // In some function somewhere.
@@ -29,7 +34,7 @@
 // to compile because Foo does not support the AddRef() and Release() methods.
 //
 //
-// EXAMPLE OF ConstRef();
+// EXAMPLE OF ConstRef():
 //   void foo(int arg) { cout << arg << endl }
 //
 //   int n = 1;
@@ -46,12 +51,21 @@
 // Note that because ConstRef() takes a reference on |n|, |n| must outlive all
 // its bound callbacks.
 //
+//
+// EXAMPLE OF IgnoreReturn():
+//   int DoSomething(int arg) { cout << arg << endl; }
+//   Callback<int(void)> cb = Bind(&DoSomething, 1);
+//   Closure c = IgnoreReturn(cb);  // Prints "1"
+//       or
+//   ml->PostTask(FROM_HERE, IgnoreReturn(cb));  // Prints "1" on |ml|
 
 #ifndef BASE_BIND_HELPERS_H_
 #define BASE_BIND_HELPERS_H_
 #pragma once
 
 #include "base/basictypes.h"
+#include "base/bind.h"
+#include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/template_util.h"
 
@@ -255,6 +269,11 @@ struct MaybeRefcount<base::true_type, WeakPtr<T> > {
   static void Release(const WeakPtr<T>&) {}
 };
 
+template <typename R>
+void VoidReturnAdapter(Callback<R(void)> callback) {
+  callback.Run();
+}
+
 }  // namespace internal
 
 template <typename T>
@@ -265,6 +284,11 @@ inline internal::UnretainedWrapper<T> Unretained(T* o) {
 template <typename T>
 inline internal::ConstRefWrapper<T> ConstRef(const T& o) {
   return internal::ConstRefWrapper<T>(o);
+}
+
+template <typename R>
+Closure IgnoreReturn(Callback<R(void)> callback) {
+  return Bind(&internal::VoidReturnAdapter<R>, callback);
 }
 
 }  // namespace base
