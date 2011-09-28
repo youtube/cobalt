@@ -37,7 +37,6 @@
 #endif
 
 using base::HexEncode;
-using base::SHA1_LENGTH;
 using base::Time;
 
 namespace net {
@@ -613,7 +612,7 @@ TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
   base::StringPiece spkiBytes;
   EXPECT_TRUE(asn1::ExtractSPKIFromDERCert(derBytes, &spkiBytes));
 
-  uint8 hash[base::SHA1_LENGTH];
+  uint8 hash[base::kSHA1Length];
   base::SHA1HashBytes(reinterpret_cast<const uint8*>(spkiBytes.data()),
                       spkiBytes.size(), hash);
 
@@ -668,10 +667,10 @@ TEST(X509CertificateTest, PublicKeyHashes) {
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
   ASSERT_LE(2u, verify_result.public_key_hashes.size());
-  EXPECT_EQ(HexEncode(nistSPKIHash, base::SHA1_LENGTH),
-            HexEncode(verify_result.public_key_hashes[0].data, SHA1_LENGTH));
+  EXPECT_EQ(HexEncode(nistSPKIHash, base::kSHA1Length),
+      HexEncode(verify_result.public_key_hashes[0].data, base::kSHA1Length));
   EXPECT_EQ("83244223D6CBF0A26FC7DE27CEBCA4BDA32612AD",
-            HexEncode(verify_result.public_key_hashes[1].data, SHA1_LENGTH));
+      HexEncode(verify_result.public_key_hashes[1].data, base::kSHA1Length));
 
   TestRootCerts::GetInstance()->Clear();
 }
