@@ -73,9 +73,6 @@ void ChromeClassTester::BuildBannedLists() {
   // weirdness. Never getting this right.
   ignored_record_names_.insert("Validators");
 
-  // RAII class that's simple enough (media/base/callback.h).
-  ignored_record_names_.insert("AutoCallbackRunner");
-
   // Has a UNIT_TEST only constructor. Isn't *terribly* complex...
   ignored_record_names_.insert("AutocompleteController");
   ignored_record_names_.insert("HistoryURLProvider");
