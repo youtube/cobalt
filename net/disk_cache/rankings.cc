@@ -300,11 +300,13 @@ void Rankings::Insert(CacheRankingsBlock* node, bool modified, List list) {
 //    2. a(x, r), r(a, r), head(x), tail(a)           WriteTail()
 //    3. a(x, a), r(a, r), head(x), tail(a)           prev.Store()
 //    4. a(x, a), r(0, 0), head(x), tail(a)           next.Store()
-void Rankings::Remove(CacheRankingsBlock* node, List list) {
+void Rankings::Remove(CacheRankingsBlock* node, List list, bool strict) {
   Trace("Remove 0x%x (0x%x 0x%x) l %d", node->address().value(),
         node->Data()->next, node->Data()->prev, list);
   DCHECK(node->HasData());
-  InvalidateIterators(node);
+  if (strict)
+    InvalidateIterators(node);
+
   Addr next_addr(node->Data()->next);
   Addr prev_addr(node->Data()->prev);
   if (!next_addr.is_initialized() || next_addr.is_separate_file() ||
@@ -388,7 +390,7 @@ void Rankings::UpdateRank(CacheRankingsBlock* node, bool modified, List list) {
   }
 
   TimeTicks start = TimeTicks::Now();
-  Remove(node, list);
+  Remove(node, list, true);
   Insert(node, modified, list);
   CACHE_UMA(AGE_MS, "UpdateRank", 0, start);
 }
@@ -487,14 +489,8 @@ int Rankings::SelfCheck() {
   return total;
 }
 
-bool Rankings::SanityCheck(CacheRankingsBlock* node, bool from_list) {
+bool Rankings::SanityCheck(CacheRankingsBlock* node, bool from_list) const {
   const RankingsNode* data = node->Data();
-  if (!data->contents)
-    return false;
-
-  // It may have never been inserted.
-  if (from_list && (!data->last_used || !data->last_modified))
-    return false;
 
   if ((!data->next && data->prev) || (data->next && !data->prev))
     return false;
@@ -520,6 +516,23 @@ bool Rankings::SanityCheck(CacheRankingsBlock* node, bool from_list) {
     return false;
 
   return true;
+}
+
+bool Rankings::DataSanityCheck(CacheRankingsBlock* node, bool from_list) const {
+  const RankingsNode* data = node->Data();
+  if (!data->contents)
+    return false;
+
+  // It may have never been inserted.
+  if (from_list && (!data->last_used || !data->last_modified))
+    return false;
+
+  return true;
+}
+
+void Rankings::SetContents(CacheRankingsBlock* node, CacheAddr address) {
+  node->Data()->contents = address;
+  node->Store();
 }
 
 void Rankings::ReadHeads() {
@@ -803,7 +816,7 @@ int Rankings::CheckList(List list) {
   return num_items;
 }
 
-bool Rankings::IsHead(CacheAddr addr, List* list) {
+bool Rankings::IsHead(CacheAddr addr, List* list) const {
   for (int i = 0; i < LAST_ELEMENT; i++) {
     if (addr == heads_[i].value()) {
       if (*list != i)
@@ -815,7 +828,7 @@ bool Rankings::IsHead(CacheAddr addr, List* list) {
   return false;
 }
 
-bool Rankings::IsTail(CacheAddr addr, List* list) {
+bool Rankings::IsTail(CacheAddr addr, List* list) const {
   for (int i = 0; i < LAST_ELEMENT; i++) {
     if (addr == tails_[i].value()) {
       if (*list != i)
