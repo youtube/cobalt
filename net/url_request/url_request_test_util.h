@@ -11,7 +11,6 @@
 #include <sstream>
 #include <string>
 
-#include "base/compiler_specific.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/string_util.h"
@@ -123,7 +122,6 @@ class TestDelegate : public net::URLRequest::Delegate {
   }
   bool request_failed() const { return request_failed_; }
   bool have_certificate_errors() const { return have_certificate_errors_; }
-  bool auth_required_called() const { return auth_required_; }
 
   // net::URLRequest::Delegate:
   virtual void OnReceivedRedirect(net::URLRequest* request, const GURL& new_url,
@@ -170,7 +168,6 @@ class TestDelegate : public net::URLRequest::Delegate {
   bool received_data_before_response_;
   bool request_failed_;
   bool have_certificate_errors_;
-  bool auth_required_;
   std::string data_received_;
 
   // our read buffer
@@ -194,26 +191,24 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   // net::NetworkDelegate:
   virtual int OnBeforeURLRequest(net::URLRequest* request,
                                  net::CompletionCallback* callback,
-                                 GURL* new_url) OVERRIDE;
+                                 GURL* new_url);
   virtual int OnBeforeSendHeaders(net::URLRequest* request,
                                   net::CompletionCallback* callback,
-                                  net::HttpRequestHeaders* headers) OVERRIDE;
+                                  net::HttpRequestHeaders* headers);
   virtual void OnSendHeaders(net::URLRequest* request,
-                             const net::HttpRequestHeaders& headers) OVERRIDE;
+                             const net::HttpRequestHeaders& headers);
   virtual void OnBeforeRedirect(net::URLRequest* request,
-                                const GURL& new_location) OVERRIDE;
-  virtual void OnResponseStarted(net::URLRequest* request) OVERRIDE;
-  virtual void OnRawBytesRead(const net::URLRequest& request,
-                              int bytes_read) OVERRIDE;
-  virtual void OnCompleted(net::URLRequest* request) OVERRIDE;
-  virtual void OnURLRequestDestroyed(net::URLRequest* request) OVERRIDE;
-  virtual void OnPACScriptError(int line_number,
-                                const string16& error) OVERRIDE;
-  virtual net::NetworkDelegate::AuthRequiredResponse OnAuthRequired(
-      net::URLRequest* request,
-      const net::AuthChallengeInfo& auth_info,
-      const AuthCallback& callback,
-      net::AuthCredentials* credentials) OVERRIDE;
+                                const GURL& new_location);
+  virtual void OnResponseStarted(net::URLRequest* request);
+  virtual void OnRawBytesRead(const net::URLRequest& request, int bytes_read);
+  virtual void OnCompleted(net::URLRequest* request);
+  virtual void OnURLRequestDestroyed(net::URLRequest* request);
+  virtual void OnHttpTransactionDestroyed(uint64 request_id);
+  virtual net::URLRequestJob* OnMaybeCreateURLRequestJob(
+      net::URLRequest* request);
+  virtual void OnPACScriptError(int line_number, const string16& error);
+  virtual void OnAuthRequired(net::URLRequest* request,
+                              const net::AuthChallengeInfo& auth_info);
 
   void InitRequestStatesIfNew(int request_id);
 
