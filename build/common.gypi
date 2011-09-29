@@ -627,7 +627,7 @@
         'use_system_harfbuzz%': '0',
 
         # Use the system icu.
-        'use_system_icu%': 1,
+        'use_system_icu%': 0,
 
         # Choose static link by build type.
         'conditions': [
@@ -2005,6 +2005,10 @@
               '-Wl,--gc-sections',
               '-Wl,-O1',
               '-Wl,--as-needed',
+            ],
+            'sources/': [
+              ['exclude', '_android(_unittest)?\\.cc$'],
+              ['exclude', '(^|/)android/']
             ],
           }],
         ],
