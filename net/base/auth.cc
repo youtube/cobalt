@@ -25,4 +25,10 @@ AuthData::AuthData() : state(AUTH_STATE_NEED_AUTH) {
 AuthData::~AuthData() {
 }
 
+AuthCredentials::AuthCredentials() {
+}
+
+AuthCredentials::~AuthCredentials() {
+}
+
 }  // namespace net

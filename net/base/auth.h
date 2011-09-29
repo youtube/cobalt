@@ -43,6 +43,26 @@ class NET_EXPORT AuthChallengeInfo :
   ~AuthChallengeInfo();
 };
 
+// Authentication Credentials for an authentication credentials.
+class NET_EXPORT AuthCredentials {
+ public:
+  AuthCredentials();
+  ~AuthCredentials();
+
+  // The username to provide, possibly empty. This should be ASCII only to
+  // minimize compatibility problems, but arbitrary UTF-16 strings are allowed
+  // and will be attempted.
+  string16 username;
+
+  // The password to provide, possibly empty. This should be ASCII only to
+  // minimize compatibility problems, but arbitrary UTF-16 strings are allowed
+  // and will be attempted.
+  string16 password;
+
+  // Intentionally allowing the implicit copy constructor and assignment
+  // operators.
+};
+
 // Authentication structures
 enum AuthState {
   AUTH_STATE_DONT_NEED_AUTH,
@@ -54,8 +74,7 @@ enum AuthState {
 class AuthData : public base::RefCountedThreadSafe<AuthData> {
  public:
   AuthState state;  // whether we need, have, or gave up on authentication.
-  string16 username;  // the username supplied to us for auth.
-  string16 password;  // the password supplied to us for auth.
+  AuthCredentials credentials; // The credentials to use for auth.
 
   // We wouldn't instantiate this class if we didn't need authentication.
   AuthData();

@@ -6,8 +6,10 @@
 #define NET_BASE_NETWORK_DELEGATE_H_
 #pragma once
 
+#include "base/callback.h"
 #include "base/string16.h"
 #include "base/threading/non_thread_safe.h"
+#include "net/base/auth.h"
 #include "net/base/completion_callback.h"
 
 class GURL;
@@ -24,7 +26,6 @@ namespace net {
 // NOTE: It is not okay to add any compile-time dependencies on symbols outside
 // of net/base here, because we have a net_base library. Forward declarations
 // are ok.
-class AuthChallengeInfo;
 class HostPortPair;
 class HttpRequestHeaders;
 class URLRequest;
@@ -32,6 +33,17 @@ class URLRequestJob;
 
 class NetworkDelegate : public base::NonThreadSafe {
  public:
+  // AuthRequiredResponse indicates how a NetworkDelegate handles an
+  // OnAuthRequired call. It's placed in this file to prevent url_request.h
+  // from having to include network_delegate.h.
+  enum AuthRequiredResponse {
+    AUTH_REQUIRED_RESPONSE_NO_ACTION,
+    AUTH_REQUIRED_RESPONSE_SET_AUTH,
+    AUTH_REQUIRED_RESPONSE_CANCEL_AUTH,
+    AUTH_REQUIRED_RESPONSE_IO_PENDING,
+  };
+  typedef base::Callback<void(AuthRequiredResponse)> AuthCallback;
+
   virtual ~NetworkDelegate() {}
 
   // Notification interface called by the network stack. Note that these
@@ -53,8 +65,10 @@ class NetworkDelegate : public base::NonThreadSafe {
   void NotifyCompleted(URLRequest* request);
   void NotifyURLRequestDestroyed(URLRequest* request);
   void NotifyPACScriptError(int line_number, const string16& error);
-  void NotifyAuthRequired(URLRequest* request,
-                          const AuthChallengeInfo& auth_info);
+  AuthRequiredResponse NotifyAuthRequired(URLRequest* request,
+                                          const AuthChallengeInfo& auth_info,
+                                          const AuthCallback& callback,
+                                          AuthCredentials* credentials);
 
  private:
   // This is the interface for subclasses of NetworkDelegate to implement. This
@@ -72,7 +86,7 @@ class NetworkDelegate : public base::NonThreadSafe {
 
   // Called right before the HTTP headers are sent. Allows the delegate to
   // read/write |headers| before they get sent out. |callback| and |headers| are
-  // valid only until OnHttpTransactionDestroyed is called for this request.
+  // valid only until OnURLRequestDestroyed is called for this request.
   // Returns a net status code.
   virtual int OnBeforeSendHeaders(URLRequest* request,
                                   CompletionCallback* callback,
@@ -103,9 +117,28 @@ class NetworkDelegate : public base::NonThreadSafe {
   // Corresponds to ProxyResolverJSBindings::OnError.
   virtual void OnPACScriptError(int line_number, const string16& error) = 0;
 
-  // Corresponds to URLRequest::Delegate::OnAuthRequired.
-  virtual void OnAuthRequired(URLRequest* reqest,
-                              const AuthChallengeInfo& auth_info) = 0;
+  // Called when a request receives an authentication challenge
+  // specified by |auth_info|, and is unable to respond using cached
+  // credentials. |callback| and |credentials| must be non-NULL, and must
+  // be valid until OnURLRequestDestroyed is called for |request|.
+  //
+  // The following return values are allowed:
+  //  - AUTH_REQUIRED_RESPONSE_NO_ACTION: |auth_info| is observed, but
+  //    no action is being taken on it.
+  //  - AUTH_REQUIRED_RESPONSE_SET_AUTH: |credentials| is filled in with
+  //    a username and password, which should be used in a response to
+  //    |auth_info|.
+  //  - AUTH_REQUIRED_RESPONSE_CANCEL_AUTH: The authentication challenge
+  //    should not be attempted.
+  //  - AUTH_REQUIRED_RESPONSE_IO_PENDING: The action will be decided
+  //    asynchronously. |callback| will be invoked when the decision is made,
+  //    and one of the other AuthRequiredResponse values will be passed in with
+  //    the same semantics as described above.
+  virtual AuthRequiredResponse OnAuthRequired(
+      URLRequest* request,
+      const AuthChallengeInfo& auth_info,
+      const AuthCallback& callback,
+      AuthCredentials* credentials) = 0;
 };
 
 }  // namespace net
