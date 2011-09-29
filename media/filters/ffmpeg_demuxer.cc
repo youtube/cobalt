@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/bind.h"
 #include "base/callback.h"
 #include "base/command_line.h"
 #include "base/memory/scoped_ptr.h"
@@ -166,8 +167,8 @@ void FFmpegDemuxerStream::Read(const ReadCallback& read_callback) {
       demuxer_->PostDemuxTask();
 
   } else {
-    demuxer_->message_loop()->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxerStream::ReadTask, read_callback));
+    demuxer_->message_loop()->PostTask(FROM_HERE, base::Bind(
+        &FFmpegDemuxerStream::ReadTask, this, read_callback));
   }
 }
 
@@ -288,25 +289,21 @@ FFmpegDemuxer::~FFmpegDemuxer() {
 
 void FFmpegDemuxer::PostDemuxTask() {
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxer::DemuxTask));
+      base::Bind(&FFmpegDemuxer::DemuxTask, this));
 }
 
-void FFmpegDemuxer::Stop(FilterCallback* callback) {
+void FFmpegDemuxer::Stop(const base::Closure& callback) {
   // Post a task to notify the streams to stop as well.
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxer::StopTask, callback));
+      base::Bind(&FFmpegDemuxer::StopTask, this, callback));
 
   // Then wakes up the thread from reading.
   SignalReadCompleted(DataSource::kReadError);
 }
 
 void FFmpegDemuxer::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
-  // TODO(hclam): by returning from this method, it is assumed that the seek
-  // operation is completed and filters behind the demuxer is good to issue
-  // more reads, but we are posting a task here, which makes the seek operation
-  // asynchronous, should change how seek works to make it fully asynchronous.
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxer::SeekTask, time, cb));
+      base::Bind(&FFmpegDemuxer::SeekTask, this, time, cb));
 }
 
 void FFmpegDemuxer::SetPlaybackRate(float playback_rate) {
@@ -321,7 +318,7 @@ void FFmpegDemuxer::SetPreload(Preload preload) {
 
 void FFmpegDemuxer::OnAudioRendererDisabled() {
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxer::DisableAudioStreamTask));
+      base::Bind(&FFmpegDemuxer::DisableAudioStreamTask, this));
 }
 
 void FFmpegDemuxer::set_host(FilterHost* filter_host) {
@@ -340,10 +337,9 @@ void FFmpegDemuxer::Initialize(DataSource* data_source,
                                const PipelineStatusCB& callback) {
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this,
-                        &FFmpegDemuxer::InitializeTask,
-                        make_scoped_refptr(data_source),
-                        callback));
+      base::Bind(&FFmpegDemuxer::InitializeTask, this,
+                 make_scoped_refptr(data_source),
+                 callback));
 }
 
 scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(
@@ -373,7 +369,7 @@ int FFmpegDemuxer::Read(int size, uint8* data) {
 
   // Asynchronous read from data source.
   data_source_->Read(read_position_, size, data,
-                     NewCallback(this, &FFmpegDemuxer::OnReadCompleted));
+                     base::Bind(&FFmpegDemuxer::OnReadCompleted, this));
 
   // TODO(hclam): The method is called on the demuxer thread and this method
   // call will block the thread. We need to implemented an additional thread to
@@ -656,7 +652,7 @@ void FFmpegDemuxer::DemuxTask() {
   }
 }
 
-void FFmpegDemuxer::StopTask(FilterCallback* callback) {
+void FFmpegDemuxer::StopTask(const base::Closure& callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   StreamVector::iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
@@ -666,8 +662,7 @@ void FFmpegDemuxer::StopTask(FilterCallback* callback) {
   if (data_source_) {
     data_source_->Stop(callback);
   } else {
-    callback->Run();
-    delete callback;
+    callback.Run();
   }
 }
 

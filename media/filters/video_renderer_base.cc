@@ -6,7 +6,6 @@
 #include "base/callback.h"
 #include "base/threading/platform_thread.h"
 #include "media/base/buffers.h"
-#include "media/base/callback.h"
 #include "media/base/filter_host.h"
 #include "media/base/limits.h"
 #include "media/base/video_frame.h"
@@ -42,32 +41,31 @@ VideoRendererBase::~VideoRendererBase() {
   DCHECK(state_ == kUninitialized || state_ == kStopped);
 }
 
-void VideoRendererBase::Play(FilterCallback* callback) {
+void VideoRendererBase::Play(const base::Closure& callback) {
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(kPrerolled, state_);
-  scoped_ptr<FilterCallback> c(callback);
   state_ = kPlaying;
-  callback->Run();
+  callback.Run();
 }
 
-void VideoRendererBase::Pause(FilterCallback* callback) {
+void VideoRendererBase::Pause(const base::Closure& callback) {
   base::AutoLock auto_lock(lock_);
   DCHECK(state_ != kUninitialized || state_ == kError);
-  AutoCallbackRunner done_runner(callback);
   state_ = kPaused;
+  callback.Run();
 }
 
-void VideoRendererBase::Flush(FilterCallback* callback) {
+void VideoRendererBase::Flush(const base::Closure& callback) {
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kPaused);
-  flush_callback_.reset(callback);
+  flush_callback_ = callback;
   state_ = kFlushing;
 
   if (!pending_paint_)
     FlushBuffers_Locked();
 }
 
-void VideoRendererBase::Stop(FilterCallback* callback) {
+void VideoRendererBase::Stop(const base::Closure& callback) {
   base::PlatformThreadHandle old_thread_handle = base::kNullThreadHandle;
   {
     base::AutoLock auto_lock(lock_);
@@ -131,17 +129,16 @@ void VideoRendererBase::Seek(base::TimeDelta time, const FilterStatusCB&  cb) {
 }
 
 void VideoRendererBase::Initialize(VideoDecoder* decoder,
-                                   FilterCallback* callback,
-                                   StatisticsCallback* stats_callback) {
+                                   const base::Closure& callback,
+                                   const StatisticsCallback& stats_callback) {
   base::AutoLock auto_lock(lock_);
   DCHECK(decoder);
-  DCHECK(callback);
-  DCHECK(stats_callback);
+  DCHECK(!callback.is_null());
+  DCHECK(!stats_callback.is_null());
   DCHECK_EQ(kUninitialized, state_);
   decoder_ = decoder;
-  AutoCallbackRunner done_runner(callback);
 
-  statistics_callback_.reset(stats_callback);
+  statistics_callback_ = stats_callback;
 
   decoder_->set_consume_video_frame_callback(
       base::Bind(&VideoRendererBase::ConsumeVideoFrame,
@@ -155,6 +152,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // we're holding the lock?
   if (!OnInitialize(decoder)) {
     EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
+    callback.Run();
     return;
   }
 
@@ -168,6 +166,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   if (!base::PlatformThread::Create(0, this, &thread_)) {
     NOTREACHED() << "Video thread creation failed";
     EnterErrorState_Locked(PIPELINE_ERROR_INITIALIZATION_FAILED);
+    callback.Run();
     return;
   }
 
@@ -176,7 +175,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // TODO(scherkus): find out if this is necessary, but it seems to help.
   ::SetThreadPriority(thread_, THREAD_PRIORITY_ABOVE_NORMAL);
 #endif  // defined(OS_WIN)
-
+  callback.Run();
 }
 
 bool VideoRendererBase::HasEnded() {
@@ -195,7 +194,7 @@ void VideoRendererBase::ThreadMain() {
     if (frames_dropped > 0) {
       PipelineStatistics statistics;
       statistics.video_frames_dropped = frames_dropped;
-      statistics_callback_->Run(statistics);
+      statistics_callback_.Run(statistics);
 
       frames_dropped = 0;
     }
@@ -368,7 +367,7 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
   if (frame) {
     PipelineStatistics statistics;
     statistics.video_frames_decoded = 1;
-    statistics_callback_->Run(statistics);
+    statistics_callback_.Run(statistics);
   }
 
   base::AutoLock auto_lock(lock_);
@@ -507,10 +506,9 @@ void VideoRendererBase::OnFlushDone_Locked() {
   DCHECK(!current_frame_.get());
   DCHECK(frames_queue_ready_.empty());
 
-  if (flush_callback_.get()) {  // This ensures callback is invoked once.
-    flush_callback_->Run();
-    flush_callback_.reset();
-  }
+  if (!flush_callback_.is_null())  // This ensures callback is invoked once.
+    ResetAndRunCB(&flush_callback_);
+
   state_ = kFlushed;
 }
 
@@ -546,7 +544,7 @@ base::TimeDelta VideoRendererBase::CalculateSleepDuration(
 void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
   lock_.AssertAcquired();
 
-  scoped_ptr<FilterCallback> callback;
+  base::Closure callback;
   State old_state = state_;
   state_ = kError;
 
@@ -565,8 +563,8 @@ void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
       break;
 
     case kFlushing:
-      CHECK(flush_callback_.get());
-      callback.swap(flush_callback_);
+      CHECK(!flush_callback_.is_null());
+      std::swap(callback, flush_callback_);
       break;
 
     case kSeeking:
@@ -585,8 +583,8 @@ void VideoRendererBase::EnterErrorState_Locked(PipelineStatus status) {
 
   host()->SetError(status);
 
-  if (callback.get())
-    callback->Run();
+  if (!callback.is_null())
+    callback.Run();
 }
 
 void VideoRendererBase::DoStopOrErrorFlush_Locked() {

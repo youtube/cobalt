@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/atomic_sequence_num.h"
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/values.h"
@@ -239,8 +240,9 @@ void MediaLog::QueueStatisticsUpdatedEvent(PipelineStatistics stats) {
   // so we simply leave stats updating for another call to trigger.
   if (!stats_update_pending_ && MessageLoop::current()) {
     stats_update_pending_ = true;
-    MessageLoop::current()->PostDelayedTask(FROM_HERE,
-        NewRunnableMethod(this, &media::MediaLog::AddStatisticsUpdatedEvent),
+    MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&media::MediaLog::AddStatisticsUpdatedEvent, this),
         500);
   }
 }

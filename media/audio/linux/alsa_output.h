@@ -34,7 +34,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -209,7 +209,7 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
 
   // Allows us to run tasks on the AlsaPcmOutputStream instance which are
   // bound by its lifetime.
-  ScopedRunnableMethodFactory<AlsaPcmOutputStream> method_factory_;
+  base::WeakPtrFactory<AlsaPcmOutputStream> weak_factory_;
 
   InternalState state_;
   float volume_;  // Volume level from 0.0 to 1.0.

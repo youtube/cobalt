@@ -5,6 +5,7 @@
 #include <string>
 
 #include "base/base_paths.h"
+#include "base/bind.h"
 #include "base/file_path.h"
 #include "base/path_service.h"
 #include "base/utf_string_conversions.h"
@@ -78,19 +79,19 @@ TEST(FileDataSourceTest, ReadData) {
 
   ReadCallbackHandler handler;
   EXPECT_CALL(handler, ReadCallback(10));
-  filter->Read(0, 10, ten_bytes,
-               NewCallback(&handler, &ReadCallbackHandler::ReadCallback));
+  filter->Read(0, 10, ten_bytes, base::Bind(
+      &ReadCallbackHandler::ReadCallback, base::Unretained(&handler)));
   EXPECT_EQ('0', ten_bytes[0]);
   EXPECT_EQ('5', ten_bytes[5]);
   EXPECT_EQ('9', ten_bytes[9]);
 
   EXPECT_CALL(handler, ReadCallback(0));
-  filter->Read(10, 10, ten_bytes,
-               NewCallback(&handler, &ReadCallbackHandler::ReadCallback));
+  filter->Read(10, 10, ten_bytes, base::Bind(
+      &ReadCallbackHandler::ReadCallback, base::Unretained(&handler)));
 
   EXPECT_CALL(handler, ReadCallback(5));
-  filter->Read(5, 10, ten_bytes,
-               NewCallback(&handler, &ReadCallbackHandler::ReadCallback));
+  filter->Read(5, 10, ten_bytes, base::Bind(
+      &ReadCallbackHandler::ReadCallback, base::Unretained(&handler)));
   EXPECT_EQ('5', ten_bytes[0]);
 
   filter->Stop(NewExpectedCallback());

@@ -103,7 +103,7 @@ class PipelineImplTest : public ::testing::Test {
     EXPECT_CALL(*mocks_->demuxer(), SetPreload(AUTO));
     EXPECT_CALL(*mocks_->demuxer(), Seek(mocks_->demuxer()->GetStartTime(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
-    EXPECT_CALL(*mocks_->demuxer(), Stop(NotNull()))
+    EXPECT_CALL(*mocks_->demuxer(), Stop(_))
         .WillOnce(Invoke(&RunStopFilterCallback));
 
     // Configure the demuxer to return the streams.
@@ -125,38 +125,37 @@ class PipelineImplTest : public ::testing::Test {
   // Sets up expectations to allow the video decoder to initialize.
   void InitializeVideoDecoder(MockDemuxerStream* stream) {
     EXPECT_CALL(*mocks_->video_decoder(),
-                Initialize(stream, NotNull(), NotNull()))
-        .WillOnce(DoAll(Invoke(&RunFilterCallback3), DeleteArg<2>()));
+                Initialize(stream, _, _))
+        .WillOnce(Invoke(&RunFilterCallback3));
     EXPECT_CALL(*mocks_->video_decoder(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->video_decoder(),
                 Seek(mocks_->demuxer()->GetStartTime(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
-    EXPECT_CALL(*mocks_->video_decoder(), Stop(NotNull()))
+    EXPECT_CALL(*mocks_->video_decoder(), Stop(_))
         .WillOnce(Invoke(&RunStopFilterCallback));
   }
 
   // Sets up expectations to allow the audio decoder to initialize.
   void InitializeAudioDecoder(MockDemuxerStream* stream) {
-    EXPECT_CALL(*mocks_->audio_decoder(),
-                Initialize(stream, NotNull(), NotNull()))
-        .WillOnce(DoAll(Invoke(&RunFilterCallback3), DeleteArg<2>()));
+    EXPECT_CALL(*mocks_->audio_decoder(), Initialize(stream, _, _))
+        .WillOnce(Invoke(&RunFilterCallback3));
     EXPECT_CALL(*mocks_->audio_decoder(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->audio_decoder(), Seek(base::TimeDelta(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
-    EXPECT_CALL(*mocks_->audio_decoder(), Stop(NotNull()))
+    EXPECT_CALL(*mocks_->audio_decoder(), Stop(_))
         .WillOnce(Invoke(&RunStopFilterCallback));
   }
 
   // Sets up expectations to allow the video renderer to initialize.
   void InitializeVideoRenderer() {
     EXPECT_CALL(*mocks_->video_renderer(),
-                Initialize(mocks_->video_decoder(), NotNull(), NotNull()))
-        .WillOnce(DoAll(Invoke(&RunFilterCallback3), DeleteArg<2>()));
+                Initialize(mocks_->video_decoder(), _, _))
+        .WillOnce(Invoke(&RunFilterCallback3));
     EXPECT_CALL(*mocks_->video_renderer(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->video_renderer(),
                 Seek(mocks_->demuxer()->GetStartTime(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
-    EXPECT_CALL(*mocks_->video_renderer(), Stop(NotNull()))
+    EXPECT_CALL(*mocks_->video_renderer(), Stop(_))
         .WillOnce(Invoke(&RunStopFilterCallback));
   }
 
@@ -164,19 +163,19 @@ class PipelineImplTest : public ::testing::Test {
   void InitializeAudioRenderer(bool disable_after_init_callback = false) {
     if (disable_after_init_callback) {
       EXPECT_CALL(*mocks_->audio_renderer(),
-                  Initialize(mocks_->audio_decoder(), NotNull()))
+                  Initialize(mocks_->audio_decoder(), _))
           .WillOnce(DoAll(Invoke(&RunFilterCallback),
                           DisableAudioRenderer(mocks_->audio_renderer())));
     } else {
       EXPECT_CALL(*mocks_->audio_renderer(),
-                  Initialize(mocks_->audio_decoder(), NotNull()))
+                  Initialize(mocks_->audio_decoder(), _))
           .WillOnce(Invoke(&RunFilterCallback));
     }
     EXPECT_CALL(*mocks_->audio_renderer(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->audio_renderer(), SetVolume(1.0f));
     EXPECT_CALL(*mocks_->audio_renderer(), Seek(base::TimeDelta(), _))
         .WillOnce(Invoke(&RunFilterStatusCB));
-    EXPECT_CALL(*mocks_->audio_renderer(), Stop(NotNull()))
+    EXPECT_CALL(*mocks_->audio_renderer(), Stop(_))
         .WillOnce(Invoke(&RunStopFilterCallback));
   }
 
@@ -373,7 +372,7 @@ TEST_F(PipelineImplTest, URLNotFound) {
 TEST_F(PipelineImplTest, NoStreams) {
   // Manually set these expectations because SetPlaybackRate() is not called if
   // we cannot fully initialize the pipeline.
-  EXPECT_CALL(*mocks_->demuxer(), Stop(NotNull()))
+  EXPECT_CALL(*mocks_->demuxer(), Stop(_))
       .WillOnce(Invoke(&RunStopFilterCallback));
   // TODO(acolwell,fischman): see TODO in URLNotFound above.
   EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_COULD_NOT_RENDER));

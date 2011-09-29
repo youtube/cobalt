@@ -4,6 +4,7 @@
 
 #include "media/audio/audio_output_dispatcher.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/time.h"
@@ -56,8 +57,8 @@ AudioOutputStream* AudioOutputDispatcher::StreamStarted() {
   close_timer_.Reset();
 
   // Schedule task to allocate streams for other proxies if we need to.
-  message_loop_->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &AudioOutputDispatcher::OpenTask));
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &AudioOutputDispatcher::OpenTask, this));
 
   return stream;
 }
@@ -73,7 +74,7 @@ void AudioOutputDispatcher::StreamStopped(AudioOutputStream* stream) {
   // Don't recycle stream until two buffers worth of time has elapsed.
   message_loop_->PostDelayedTask(
       FROM_HERE,
-      NewRunnableMethod(this, &AudioOutputDispatcher::StopStreamTask),
+      base::Bind(&AudioOutputDispatcher::StopStreamTask, this),
       pause_delay_milliseconds_);
 }
 

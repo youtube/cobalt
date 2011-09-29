@@ -10,7 +10,7 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -58,7 +58,7 @@ class AlsaPcmInputStream : public AudioInputStream {
   AudioInputCallback* callback_;  // Valid during a recording session.
   base::Time next_read_time_;  // Scheduled time for the next read callback.
   snd_pcm_t* device_handle_;  // Handle to the ALSA PCM recording device.
-  ScopedRunnableMethodFactory<AlsaPcmInputStream> task_factory_;
+  base::WeakPtrFactory<AlsaPcmInputStream> weak_factory_;
   scoped_array<uint8> audio_packet_;  // Buffer used for reading audio data.
   bool read_callback_behind_schedule_;
 
