@@ -15,6 +15,7 @@
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
+#include "net/disk_cache/entry_impl.h"
 #include "net/disk_cache/histogram_macros.h"
 #include "net/disk_cache/mapped_file.h"
 #include "net/disk_cache/mem_backend_impl.h"
@@ -51,6 +52,12 @@ class DiskCacheBackendTest : public DiskCacheTestWithCache {
   void BackendRecoverWithEviction();
   void BackendInvalidEntry2();
   void BackendInvalidEntry3();
+  void BackendInvalidEntry7();
+  void BackendInvalidEntry8();
+  void BackendInvalidEntry9(bool eviction);
+  void BackendInvalidEntry10(bool eviction);
+  void BackendInvalidEntry11(bool eviction);
+  void BackendTrimInvalidEntry12();
   void BackendNotMarkedButDirty(const std::string& name);
   void BackendDoomAll();
   void BackendDoomAll2();
@@ -1497,6 +1504,339 @@ TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntry6) {
 
   ASSERT_EQ(net::OK, OpenEntry("some other key", &entry));
   entry->Close();
+}
+
+// Tests handling of corrupt entries by keeping the rankings node around, with
+// a fatal failure.
+void DiskCacheBackendTest::BackendInvalidEntry7() {
+  SetDirectMode();
+  const int kSize = 0x3000;  // 12 kB.
+  SetMaxSize(kSize * 10);
+  InitCache();
+
+  std::string first("some key");
+  std::string second("something else");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(first, &entry));
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry(second, &entry));
+
+  // Corrupt this entry.
+  disk_cache::EntryImpl* entry_impl =
+      static_cast<disk_cache::EntryImpl*>(entry);
+
+  entry_impl->rankings()->Data()->next = 0;
+  entry_impl->rankings()->Store();
+  entry->Close();
+  FlushQueueForTest();
+  EXPECT_EQ(2, cache_->GetEntryCount());
+
+  // This should detect the bad entry.
+  EXPECT_NE(net::OK, OpenEntry(second, &entry));
+  EXPECT_EQ(1, cache_->GetEntryCount());
+
+  // We should delete the cache. The list still has a corrupt node.
+  void* iter = NULL;
+  EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry));
+  EXPECT_EQ(0, cache_->GetEntryCount());
+}
+
+TEST_F(DiskCacheBackendTest, InvalidEntry7) {
+  BackendInvalidEntry7();
+}
+
+TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntry7) {
+  SetNewEviction();
+  BackendInvalidEntry7();
+}
+
+// Tests handling of corrupt entries by keeping the rankings node around, with
+// a non fatal failure.
+void DiskCacheBackendTest::BackendInvalidEntry8() {
+  SetDirectMode();
+  const int kSize = 0x3000;  // 12 kB
+  SetMaxSize(kSize * 10);
+  InitCache();
+
+  std::string first("some key");
+  std::string second("something else");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(first, &entry));
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry(second, &entry));
+
+  // Corrupt this entry.
+  disk_cache::EntryImpl* entry_impl =
+      static_cast<disk_cache::EntryImpl*>(entry);
+
+  entry_impl->rankings()->Data()->contents = 0;
+  entry_impl->rankings()->Store();
+  entry->Close();
+  FlushQueueForTest();
+  EXPECT_EQ(2, cache_->GetEntryCount());
+
+  // This should detect the bad entry.
+  EXPECT_NE(net::OK, OpenEntry(second, &entry));
+  EXPECT_EQ(1, cache_->GetEntryCount());
+
+  // We should not delete the cache.
+  void* iter = NULL;
+  ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry));
+  entry->Close();
+  EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry));
+  EXPECT_EQ(1, cache_->GetEntryCount());
+}
+
+TEST_F(DiskCacheBackendTest, InvalidEntry8) {
+  BackendInvalidEntry8();
+}
+
+TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntry8) {
+  SetNewEviction();
+  BackendInvalidEntry8();
+}
+
+// Tests handling of corrupt entries detected by enumerations. Note that these
+// tests (xx9 to xx11) are basically just going though slightly different
+// codepaths so they are tighlty coupled with the code, but that is better than
+// not testing error handling code.
+void DiskCacheBackendTest::BackendInvalidEntry9(bool eviction) {
+  SetDirectMode();
+  const int kSize = 0x3000;  // 12 kB.
+  SetMaxSize(kSize * 10);
+  InitCache();
+
+  std::string first("some key");
+  std::string second("something else");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(first, &entry));
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry(second, &entry));
+
+  // Corrupt this entry.
+  disk_cache::EntryImpl* entry_impl =
+      static_cast<disk_cache::EntryImpl*>(entry);
+
+  entry_impl->entry()->Data()->state = 0xbad;
+  entry_impl->entry()->Store();
+  entry->Close();
+  FlushQueueForTest();
+  EXPECT_EQ(2, cache_->GetEntryCount());
+
+  if (eviction) {
+    TrimForTest(false);
+    EXPECT_EQ(1, cache_->GetEntryCount());
+    TrimForTest(false);
+    EXPECT_EQ(1, cache_->GetEntryCount());
+  } else {
+    // We should detect the problem through the list, but we should not delete
+    // the entry, just fail the iteration.
+    void* iter = NULL;
+    EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry));
+
+    // Now a full iteration will work, and return one entry.
+    ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry));
+    entry->Close();
+    EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry));
+
+    // This should detect what's left of the bad entry.
+    EXPECT_NE(net::OK, OpenEntry(second, &entry));
+    EXPECT_EQ(2, cache_->GetEntryCount());
+  }
+  DisableIntegrityCheck();
+}
+
+TEST_F(DiskCacheBackendTest, InvalidEntry9) {
+  BackendInvalidEntry9(false);
+}
+
+TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntry9) {
+  SetNewEviction();
+  BackendInvalidEntry9(false);
+}
+
+TEST_F(DiskCacheBackendTest, TrimInvalidEntry9) {
+  BackendInvalidEntry9(true);
+}
+
+TEST_F(DiskCacheBackendTest, NewEvictionTrimInvalidEntry9) {
+  SetNewEviction();
+  BackendInvalidEntry9(true);
+}
+
+// Tests handling of corrupt entries detected by enumerations.
+void DiskCacheBackendTest::BackendInvalidEntry10(bool eviction) {
+  SetDirectMode();
+  const int kSize = 0x3000;  // 12 kB.
+  SetMaxSize(kSize * 10);
+  SetNewEviction();
+  InitCache();
+
+  std::string first("some key");
+  std::string second("something else");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(first, &entry));
+  entry->Close();
+  ASSERT_EQ(net::OK, OpenEntry(first, &entry));
+  EXPECT_EQ(0, WriteData(entry, 0, 200, NULL, 0, false));
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry(second, &entry));
+
+  // Corrupt this entry.
+  disk_cache::EntryImpl* entry_impl =
+      static_cast<disk_cache::EntryImpl*>(entry);
+
+  entry_impl->entry()->Data()->state = 0xbad;
+  entry_impl->entry()->Store();
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry("third", &entry));
+  entry->Close();
+  EXPECT_EQ(3, cache_->GetEntryCount());
+
+  // We have:
+  // List 0: third -> second (bad).
+  // List 1: first.
+
+  if (eviction) {
+    // Detection order: second -> first -> third.
+    TrimForTest(false);
+    EXPECT_EQ(3, cache_->GetEntryCount());
+    TrimForTest(false);
+    EXPECT_EQ(2, cache_->GetEntryCount());
+    TrimForTest(false);
+    EXPECT_EQ(1, cache_->GetEntryCount());
+  } else {
+    // Detection order: third -> second -> first.
+    // We should detect the problem through the list, but we should not delete
+    // the entry.
+    void* iter = NULL;
+    ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry));
+    entry->Close();
+    ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry));
+    EXPECT_EQ(first, entry->GetKey());
+    entry->Close();
+    EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry));
+  }
+  DisableIntegrityCheck();
+}
+
+TEST_F(DiskCacheBackendTest, InvalidEntry10) {
+  BackendInvalidEntry10(false);
+}
+
+TEST_F(DiskCacheBackendTest, TrimInvalidEntry10) {
+  BackendInvalidEntry10(true);
+}
+
+// Tests handling of corrupt entries detected by enumerations.
+void DiskCacheBackendTest::BackendInvalidEntry11(bool eviction) {
+  SetDirectMode();
+  const int kSize = 0x3000;  // 12 kB.
+  SetMaxSize(kSize * 10);
+  SetNewEviction();
+  InitCache();
+
+  std::string first("some key");
+  std::string second("something else");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(first, &entry));
+  entry->Close();
+  ASSERT_EQ(net::OK, OpenEntry(first, &entry));
+  EXPECT_EQ(0, WriteData(entry, 0, 200, NULL, 0, false));
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry(second, &entry));
+  entry->Close();
+  ASSERT_EQ(net::OK, OpenEntry(second, &entry));
+  EXPECT_EQ(0, WriteData(entry, 0, 200, NULL, 0, false));
+
+  // Corrupt this entry.
+  disk_cache::EntryImpl* entry_impl =
+      static_cast<disk_cache::EntryImpl*>(entry);
+
+  entry_impl->entry()->Data()->state = 0xbad;
+  entry_impl->entry()->Store();
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry("third", &entry));
+  entry->Close();
+  FlushQueueForTest();
+  EXPECT_EQ(3, cache_->GetEntryCount());
+
+  // We have:
+  // List 0: third.
+  // List 1: second (bad) -> first.
+
+  if (eviction) {
+    // Detection order: third -> first -> second.
+    TrimForTest(false);
+    EXPECT_EQ(2, cache_->GetEntryCount());
+    TrimForTest(false);
+    EXPECT_EQ(1, cache_->GetEntryCount());
+    TrimForTest(false);
+    EXPECT_EQ(1, cache_->GetEntryCount());
+  } else {
+    // Detection order: third -> second.
+    // We should detect the problem through the list, but we should not delete
+    // the entry, just fail the iteration.
+    void* iter = NULL;
+    ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry));
+    entry->Close();
+    EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry));
+
+    // Now a full iteration will work, and return two entries.
+    ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry));
+    entry->Close();
+    ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry));
+    entry->Close();
+    EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry));
+  }
+  DisableIntegrityCheck();
+}
+
+TEST_F(DiskCacheBackendTest, InvalidEntry11) {
+  BackendInvalidEntry11(false);
+}
+
+TEST_F(DiskCacheBackendTest, TrimInvalidEntry11) {
+  BackendInvalidEntry11(true);
+}
+
+// Tests handling of corrupt entries in the middle of a long eviction run.
+void DiskCacheBackendTest::BackendTrimInvalidEntry12() {
+  SetDirectMode();
+  const int kSize = 0x3000;  // 12 kB
+  SetMaxSize(kSize * 10);
+  InitCache();
+
+  std::string first("some key");
+  std::string second("something else");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(first, &entry));
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry(second, &entry));
+
+  // Corrupt this entry.
+  disk_cache::EntryImpl* entry_impl =
+      static_cast<disk_cache::EntryImpl*>(entry);
+
+  entry_impl->entry()->Data()->state = 0xbad;
+  entry_impl->entry()->Store();
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry("third", &entry));
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry("fourth", &entry));
+  TrimForTest(true);
+  EXPECT_EQ(1, cache_->GetEntryCount());
+  entry->Close();
+  DisableIntegrityCheck();
+}
+
+TEST_F(DiskCacheBackendTest, TrimInvalidEntry12) {
+  BackendTrimInvalidEntry12();
+}
+
+TEST_F(DiskCacheBackendTest, NewEvictionTrimInvalidEntry12) {
+  SetNewEviction();
+  BackendTrimInvalidEntry12();
 }
 
 // We want to be able to deal with abnormal dirty entries.
