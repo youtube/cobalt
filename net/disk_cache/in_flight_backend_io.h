@@ -10,14 +10,16 @@
 #include <string>
 
 #include "base/message_loop_proxy.h"
+#include "base/time.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
-#include "net/disk_cache/entry_impl.h"
 #include "net/disk_cache/in_flight_io.h"
 
 namespace disk_cache {
 
 class BackendImpl;
+class Entry;
+class EntryImpl;
 
 // This class represents a single asynchronous disk cache IO operation while it
 // is being bounced between threads.

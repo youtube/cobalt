@@ -760,6 +760,19 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
     }
   }
 
+  // The general flow is to allocate disk space and initialize the entry data,
+  // followed by saving that to disk, then linking the entry though the index
+  // and finally through the lists. If there is a crash in this process, we may
+  // end up with:
+  // a. Used, unreferenced empty blocks on disk (basically just garbage).
+  // b. Used, unreferenced but meaningful data on disk (more garbage).
+  // c. A fully formed entry, reachable only through the index.
+  // d. A fully formed entry, also reachable through the lists, but still dirty.
+  //
+  // Anything after (b) can be automatically cleaned up. We may consider saving
+  // the current operation (as we do while manipulating the lists) so that we
+  // can detect and cleanup (a) and (b).
+
   int num_blocks = EntryImpl::NumBlocksForEntry(key.size());
   if (!block_files_.CreateBlock(BLOCK_256, num_blocks, &entry_address)) {
     LOG(ERROR) << "Create entry failed " << key.c_str();
@@ -792,17 +805,21 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
   // We are not failing the operation; let's add this to the map.
   open_entries_[entry_address.value()] = cache_entry;
 
-  if (parent.get())
-    parent->SetNextAddress(entry_address);
-
+  // Save the entry.
   block_files_.GetFile(entry_address)->Store(cache_entry->entry());
   block_files_.GetFile(node_address)->Store(cache_entry->rankings());
-
   IncreaseNumEntries();
-  eviction_.OnCreateEntry(cache_entry);
   entry_count_++;
-  if (!parent.get())
+
+  // Link this entry through the index.
+  if (parent.get()) {
+    parent->SetNextAddress(entry_address);
+  } else {
     data_->table[hash & mask_] = entry_address.value();
+  }
+
+  // Link this entry through the lists.
+  eviction_.OnCreateEntry(cache_entry);
 
   CACHE_UMA(AGE_MS, "CreateTime", GetSizeGroup(), start);
   stats_.OnEvent(Stats::CREATE_HIT);
@@ -1562,8 +1579,22 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry) {
   // Prevent overwriting the dirty flag on the destructor.
   cache_entry->SetDirtyFlag(GetCurrentEntryId());
 
-  if (!rankings_.SanityCheck(cache_entry->rankings(), false))
-    return ERR_INVALID_LINKS;
+  if (!rankings_.SanityCheck(cache_entry->rankings(), false)) {
+    cache_entry->SetDirtyFlag(0);
+    // Don't remove this from the list (it is not linked properly). Instead,
+    // break the link back to the entry because it is going away, and leave the
+    // rankings node to be deleted if we find it through a list.
+    rankings_.SetContents(cache_entry->rankings(), 0);
+  } else if (!rankings_.DataSanityCheck(cache_entry->rankings(), false)) {
+    cache_entry->SetDirtyFlag(0);
+    rankings_.SetContents(cache_entry->rankings(), address.value());
+  }
+
+  if (!cache_entry->DataSanityCheck()) {
+    LOG(WARNING) << "Messed up entry found.";
+    cache_entry->SetDirtyFlag(0);
+    cache_entry->FixForDelete();
+  }
 
   if (cache_entry->dirty()) {
     Trace("Dirty entry 0x%p 0x%x", reinterpret_cast<void*>(cache_entry.get()),
@@ -1713,7 +1744,8 @@ EntryImpl* BackendImpl::OpenFollowingEntry(bool forward, void** iter) {
           OpenFollowingEntryFromList(forward, iterator->list,
                                      &iterator->nodes[i], &temp);
       } else {
-        temp = GetEnumeratedEntry(iterator->nodes[i]);
+        temp = GetEnumeratedEntry(iterator->nodes[i],
+                                  static_cast<Rankings::List>(i));
       }
 
       entries[i].swap(&temp);  // The entry was already addref'd.
@@ -1770,7 +1802,7 @@ bool BackendImpl::OpenFollowingEntryFromList(bool forward, Rankings::List list,
   Rankings::ScopedRankingsBlock next(&rankings_, next_block);
   *from_entry = NULL;
 
-  *next_entry = GetEnumeratedEntry(next.get());
+  *next_entry = GetEnumeratedEntry(next.get(), list);
   if (!*next_entry)
     return false;
 
@@ -1778,14 +1810,19 @@ bool BackendImpl::OpenFollowingEntryFromList(bool forward, Rankings::List list,
   return true;
 }
 
-EntryImpl* BackendImpl::GetEnumeratedEntry(CacheRankingsBlock* next) {
+EntryImpl* BackendImpl::GetEnumeratedEntry(CacheRankingsBlock* next,
+                                           Rankings::List list) {
   if (!next || disabled_)
     return NULL;
 
   EntryImpl* entry;
-  if (NewEntry(Addr(next->Data()->contents), &entry)) {
-    // TODO(rvargas) bug 73102: We should remove this node from the list, and
-    // maybe do a better cleanup.
+  int rv = NewEntry(Addr(next->Data()->contents), &entry);
+  if (rv) {
+    rankings_.Remove(next, list, false);
+    if (rv == ERR_INVALID_ADDRESS) {
+      // There is nothing linked from the index. Delete the rankings node.
+      DeleteBlock(next->address(), true);
+    }
     return NULL;
   }
 
