@@ -15,16 +15,6 @@ using base::StatisticsRecorder;
 
 namespace net {
 
-TEST(SocketStreamMetricsTest, Initialize) {
-  if (!StatisticsRecorder::IsActive()) {
-    // Create the recorder if not yet started, as SocketStreamMetrics
-    // relys on the StatisticsRecorder to be present. This is useful when
-    // tests are run with --gtest_filter='SocketStreamMetricsTest*'.
-    static StatisticsRecorder *recorder = NULL;
-    recorder = new StatisticsRecorder;
-  }
-}
-
 TEST(SocketStreamMetricsTest, ProtocolType) {
   Histogram* histogram;
 
