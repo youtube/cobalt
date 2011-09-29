@@ -267,6 +267,12 @@ def Main(args):
       regress = float(trace_values[tracename]['high'])
       improve = float(trace_values[tracename]['low'])
 
+    # Check if we started with round integers so we can keep them
+    # integers in the end.
+    bounds_were_integers = False
+    if regress == int(regress) and improve == int(improve):
+      bounds_were_integers = True
+
     # At this point, regress > improve.  If regress == improve, we adjust
     # improve so it is just a little less than regress.  I'm picking on improve
     # so we keep the sizes assumptions in place for now.
@@ -282,11 +288,23 @@ def Main(args):
       regress = improve
       improve = temp
     if regress < improve:
-      regress = int(math.floor(regress - abs(regress*tolerance)))
-      improve = int(math.ceil(improve + abs(improve*tolerance)))
+      regress = regress - abs(regress*tolerance)
+      improve = improve + abs(improve*tolerance)
+      if bounds_were_integers:
+        regress = '%d' % int(math.floor(regress))
+        improve = '%d' % int(math.ceil(improve))
+      else:
+        regress = '%.4f' % regress
+        improve = '%.4f' % improve
     else:
-      improve = int(math.floor(improve - abs(improve*tolerance)))
-      regress = int(math.ceil(regress + abs(regress*tolerance)))
+      improve = improve - abs(improve*tolerance)
+      regress = regress + abs(regress*tolerance)
+      if bounds_were_integers:
+        improve = '%d' % int(math.floor(improve))
+        regress = '%d' % int(math.ceil(regress))
+      else:
+        regress = '%.4f' % regress
+        improve = '%.4f' % improve
 
     # Calculate the new checksum to test if this is the only thing that may have
     # changed.
