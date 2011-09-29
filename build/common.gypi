@@ -1759,7 +1759,8 @@
             # Only in the linux section for now, since ASAN doesn't
             # work on Mac yet.
             'cflags': [
-              '-fasan -w',
+              '-fasan',
+              '-w',
             ],
             'ldflags': [
               '-fasan',
