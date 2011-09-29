@@ -1538,6 +1538,7 @@ void DiskCacheBackendTest::BackendInvalidEntry7() {
   // We should delete the cache. The list still has a corrupt node.
   void* iter = NULL;
   EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry));
+  FlushQueueForTest();
   EXPECT_EQ(0, cache_->GetEntryCount());
 }
 
