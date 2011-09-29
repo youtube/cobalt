@@ -706,6 +706,13 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
                                       "foo.greplin.com",
                                       false));
+
+  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
+                                     "luneta.nearbuysystems.com",
+                                     false));
+  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
+                                     "foo.luneta.nearbuysystems.com",
+                                     false));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
