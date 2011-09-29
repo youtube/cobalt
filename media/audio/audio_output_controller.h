@@ -5,6 +5,7 @@
 #ifndef MEDIA_AUDIO_AUDIO_OUTPUT_CONTROLLER_H_
 #define MEDIA_AUDIO_AUDIO_OUTPUT_CONTROLLER_H_
 
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
@@ -15,7 +16,6 @@
 #include "media/audio/simple_sources.h"
 
 class MessageLoop;
-class Task;
 
 // An AudioOutputController controls an AudioOutputStream and provides data
 // to this output stream. It has an important function that it executes
@@ -142,7 +142,7 @@ class MEDIA_EXPORT AudioOutputController
   //
   // It is safe to call this method more than once. Calls after the first one
   // will have no effect.
-  void Close(Task* closed_task);
+  void Close(const base::Closure& closed_task);
 
   // Sets the volume of the audio output stream.
   void SetVolume(double volume);
@@ -169,7 +169,7 @@ class MEDIA_EXPORT AudioOutputController
   void DoPlay();
   void DoPause();
   void DoFlush();
-  void DoClose(Task* closed_task);
+  void DoClose(const base::Closure& closed_task);
   void DoSetVolume(double volume);
   void DoReportError(int code);
 

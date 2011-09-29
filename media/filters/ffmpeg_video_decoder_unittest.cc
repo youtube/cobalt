@@ -187,9 +187,9 @@ class FFmpegVideoDecoderTest : public testing::Test {
     message_loop_.RunAllPending();
   }
 
-  StatisticsCallback* NewStatisticsCallback() {
-    return NewCallback(&stats_callback_object_,
-                       &MockStatisticsCallback::OnStatistics);
+  StatisticsCallback NewStatisticsCallback() {
+    return base::Bind(&MockStatisticsCallback::OnStatistics,
+                      base::Unretained(&stats_callback_object_));
   }
 
   // Fixture members.

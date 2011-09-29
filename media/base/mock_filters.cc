@@ -48,12 +48,9 @@ void MockDemuxerFactory::SetError(PipelineStatus error) {
 }
 
 void MockDemuxerFactory::RunBuildCallback(const std::string& url,
-                                          BuildCallback* callback) {
-  scoped_ptr<BuildCallback> cb(callback);
-
+                                          const BuildCallback& callback) {
   if (!demuxer_.get()) {
-    cb->Run(PIPELINE_ERROR_REQUIRED_FILTER_MISSING,
-            static_cast<Demuxer*>(NULL));
+    callback.Run(PIPELINE_ERROR_REQUIRED_FILTER_MISSING, NULL);
     return;
   }
 
@@ -61,16 +58,11 @@ void MockDemuxerFactory::RunBuildCallback(const std::string& url,
   demuxer_ = NULL;
 
   if (status_ == PIPELINE_OK) {
-    cb->Run(PIPELINE_OK, demuxer.get());
+    callback.Run(PIPELINE_OK, demuxer.get());
     return;
   }
 
-  cb->Run(status_, static_cast<Demuxer*>(NULL));
-}
-
-void MockDemuxerFactory::DestroyBuildCallback(const std::string& url,
-                                              BuildCallback* callback) {
-  delete callback;
+  callback.Run(status_, NULL);
 }
 
 DemuxerFactory* MockDemuxerFactory::Clone() const {
@@ -146,15 +138,12 @@ FilterCollection* MockFilterCollection::filter_collection(
     demuxer_factory->SetError(build_status);
 
   if (run_build_callback) {
-    ON_CALL(*demuxer_factory, Build(_, NotNull())).WillByDefault(Invoke(
+    ON_CALL(*demuxer_factory, Build(_, _)).WillByDefault(Invoke(
         demuxer_factory, &MockDemuxerFactory::RunBuildCallback));
-  } else {
-    ON_CALL(*demuxer_factory, Build(_, NotNull())).WillByDefault(Invoke(
-        demuxer_factory, &MockDemuxerFactory::DestroyBuildCallback));
-  }
+  }  // else ignore Build calls.
 
   if (run_build)
-    EXPECT_CALL(*demuxer_factory, Build(_, NotNull()));
+    EXPECT_CALL(*demuxer_factory, Build(_, _));
 
   collection->SetDemuxerFactory(demuxer_factory);
   collection->AddVideoDecoder(video_decoder_);
@@ -164,9 +153,9 @@ FilterCollection* MockFilterCollection::filter_collection(
   return collection;
 }
 
-void RunFilterCallback(::testing::Unused, FilterCallback* callback) {
-  callback->Run();
-  delete callback;
+void RunFilterCallback(::testing::Unused, const base::Closure& callback) {
+  callback.Run();
+
 }
 
 void RunFilterStatusCB(::testing::Unused, const FilterStatusCB& cb) {
@@ -177,19 +166,14 @@ void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb) {
   cb.Run(status);
 }
 
-void RunFilterCallback3(::testing::Unused, FilterCallback* callback,
+void RunFilterCallback3(::testing::Unused, const base::Closure& callback,
                         ::testing::Unused) {
-  callback->Run();
-  delete callback;
+  callback.Run();
+
 }
 
-void DestroyFilterCallback(::testing::Unused, FilterCallback* callback) {
-  delete callback;
-}
-
-void RunStopFilterCallback(FilterCallback* callback) {
-  callback->Run();
-  delete callback;
+void RunStopFilterCallback(const base::Closure& callback) {
+  callback.Run();
 }
 
 MockFilter::MockFilter() {

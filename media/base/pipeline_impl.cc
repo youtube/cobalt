@@ -15,7 +15,6 @@
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/synchronization/condition_variable.h"
-#include "media/base/callback.h"
 #include "media/base/clock.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
@@ -116,11 +115,10 @@ bool PipelineImpl::Start(FilterCollection* collection,
   running_ = true;
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this,
-                        &PipelineImpl::StartTask,
-                        filter_collection.release(),
-                        url,
-                        start_callback));
+      base::Bind(&PipelineImpl::StartTask, this,
+                 filter_collection.release(),
+                 url,
+                 start_callback));
   return true;
 }
 
@@ -133,7 +131,7 @@ void PipelineImpl::Stop(const PipelineStatusCB& stop_callback) {
 
   // Stop the pipeline, which will set |running_| to false on behalf.
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineImpl::StopTask, stop_callback));
+      base::Bind(&PipelineImpl::StopTask, this, stop_callback));
 }
 
 void PipelineImpl::Seek(base::TimeDelta time,
@@ -145,7 +143,7 @@ void PipelineImpl::Seek(base::TimeDelta time,
   }
 
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineImpl::SeekTask, time, seek_callback));
+      base::Bind(&PipelineImpl::SeekTask, this, time, seek_callback));
 }
 
 bool PipelineImpl::IsRunning() const {
@@ -199,9 +197,8 @@ void PipelineImpl::SetPlaybackRate(float playback_rate) {
   base::AutoLock auto_lock(lock_);
   playback_rate_ = playback_rate;
   if (running_) {
-    message_loop_->PostTask(FROM_HERE,
-        NewRunnableMethod(this, &PipelineImpl::PlaybackRateChangedTask,
-                          playback_rate));
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &PipelineImpl::PlaybackRateChangedTask, this, playback_rate));
   }
 }
 
@@ -218,9 +215,8 @@ void PipelineImpl::SetVolume(float volume) {
   base::AutoLock auto_lock(lock_);
   volume_ = volume;
   if (running_) {
-    message_loop_->PostTask(FROM_HERE,
-        NewRunnableMethod(this, &PipelineImpl::VolumeChangedTask,
-                          volume));
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &PipelineImpl::VolumeChangedTask, this, volume));
   }
 }
 
@@ -233,9 +229,8 @@ void PipelineImpl::SetPreload(Preload preload) {
   base::AutoLock auto_lock(lock_);
   preload_ = preload;
   if (running_) {
-    message_loop_->PostTask(FROM_HERE,
-        NewRunnableMethod(this, &PipelineImpl::PreloadChangedTask,
-                          preload));
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &PipelineImpl::PreloadChangedTask, this, preload));
   }
 }
 
@@ -465,7 +460,7 @@ void PipelineImpl::SetError(PipelineStatus error) {
   VLOG(1) << "Media pipeline error: " << error;
 
   message_loop_->PostTask(FROM_HERE,
-     NewRunnableMethod(this, &PipelineImpl::ErrorChangedTask, error));
+     base::Bind(&PipelineImpl::ErrorChangedTask, this, error));
 
   media_log_->AddEvent(media_log_->CreatePipelineErrorEvent(error));
 }
@@ -555,7 +550,7 @@ void PipelineImpl::SetStreaming(bool streaming) {
 void PipelineImpl::NotifyEnded() {
   DCHECK(IsRunning());
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineImpl::NotifyEndedTask));
+      base::Bind(&PipelineImpl::NotifyEndedTask, this));
   media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::ENDED));
 }
 
@@ -576,7 +571,7 @@ void PipelineImpl::SetNetworkActivity(bool network_activity) {
     network_activity_ = network_activity;
   }
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineImpl::NotifyNetworkEventTask));
+      base::Bind(&PipelineImpl::NotifyNetworkEventTask, this));
   media_log_->AddEvent(
       media_log_->CreateBooleanEvent(
           MediaLogEvent::NETWORK_ACTIVITY_SET,
@@ -588,7 +583,7 @@ void PipelineImpl::DisableAudioRenderer() {
 
   // Disable renderer on the message loop.
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineImpl::DisableAudioRendererTask));
+      base::Bind(&PipelineImpl::DisableAudioRendererTask, this));
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::AUDIO_RENDERER_DISABLED));
 }
@@ -597,22 +592,22 @@ void PipelineImpl::DisableAudioRenderer() {
 void PipelineImpl::OnFilterInitialize() {
   // Continue the initialize task by proceeding to the next stage.
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineImpl::InitializeTask));
+      base::Bind(&PipelineImpl::InitializeTask, this));
 }
 
 // Called from any thread.
 void PipelineImpl::OnFilterStateTransition() {
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineImpl::FilterStateTransitionTask));
+      base::Bind(&PipelineImpl::FilterStateTransitionTask, this));
 }
 
 // Called from any thread.
-// This method makes the FilterStatusCB behave like a FilterCallback. It
+// This method makes the FilterStatusCB behave like a Closure. It
 // makes it look like a host()->SetError() call followed by a call to
 // OnFilterStateTransition() when errors occur.
 //
 // TODO: Revisit this code when SetError() is removed from FilterHost and
-//       all the FilterCallbacks are converted to FilterStatusCB.
+//       all the Closures are converted to FilterStatusCB.
 void PipelineImpl::OnFilterStateTransitionWithStatus(PipelineStatus status) {
   if (status != PIPELINE_OK)
     SetError(status);
@@ -621,7 +616,7 @@ void PipelineImpl::OnFilterStateTransitionWithStatus(PipelineStatus status) {
 
 void PipelineImpl::OnTeardownStateTransition() {
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineImpl::TeardownStateTransitionTask));
+      base::Bind(&PipelineImpl::TeardownStateTransitionTask, this));
 }
 
 // Called from any thread.
@@ -817,7 +812,7 @@ void PipelineImpl::ErrorChangedTask(PipelineStatus error) {
   // don't modify the state before TeadDownPipeline() can run.
   tearing_down_ = true;
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineImpl::TearDownPipeline));
+      base::Bind(&PipelineImpl::TearDownPipeline, this));
 }
 
 void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
@@ -895,7 +890,7 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
       clock_->Pause();
   }
   pipeline_filter_->Pause(
-      NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+      base::Bind(&PipelineImpl::OnFilterStateTransition, this));
 }
 
 void PipelineImpl::NotifyEndedTask() {
@@ -989,17 +984,17 @@ void PipelineImpl::FilterStateTransitionTask() {
   if (TransientState(state_)) {
     if (state_ == kPausing) {
       pipeline_filter_->Pause(
-          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+          base::Bind(&PipelineImpl::OnFilterStateTransition, this));
     } else if (state_ == kFlushing) {
       pipeline_filter_->Flush(
-          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+          base::Bind(&PipelineImpl::OnFilterStateTransition, this));
     } else if (state_ == kSeeking) {
       DoSeek(seek_timestamp_);
     } else if (state_ == kStarting) {
       pipeline_filter_->Play(
-          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+          base::Bind(&PipelineImpl::OnFilterStateTransition, this));
     } else if (state_ == kStopping) {
-      DoStop(NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+      DoStop(base::Bind(&PipelineImpl::OnFilterStateTransition, this));
     } else {
       NOTREACHED() << "Unexpected state: " << state_;
     }
@@ -1043,11 +1038,11 @@ void PipelineImpl::TeardownStateTransitionTask() {
     case kPausing:
       SetState(kFlushing);
       pipeline_filter_->Flush(
-          NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+          base::Bind(&PipelineImpl::OnTeardownStateTransition, this));
       break;
     case kFlushing:
       SetState(kStopping);
-      DoStop(NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+      DoStop(base::Bind(&PipelineImpl::OnTeardownStateTransition, this));
       break;
 
     case kCreated:
@@ -1111,17 +1106,16 @@ void PipelineImpl::InitializeDemuxer() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
-  filter_collection_->GetDemuxerFactory()->Build(url_,
-      NewCallback(this, &PipelineImpl::OnDemuxerBuilt));
+  filter_collection_->GetDemuxerFactory()->Build(
+      url_, base::Bind(&PipelineImpl::OnDemuxerBuilt, this));
 }
 
 void PipelineImpl::OnDemuxerBuilt(PipelineStatus status, Demuxer* demuxer) {
   if (MessageLoop::current() != message_loop_) {
     message_loop_->PostTask(FROM_HERE,
-                            NewRunnableMethod(this,
-                                              &PipelineImpl::OnDemuxerBuilt,
-                                              status,
-                                              make_scoped_refptr(demuxer)));
+                            base::Bind(&PipelineImpl::OnDemuxerBuilt, this,
+                                       status,
+                                       make_scoped_refptr(demuxer)));
     return;
   }
 
@@ -1173,8 +1167,8 @@ bool PipelineImpl::InitializeAudioDecoder(
   pipeline_init_state_->audio_decoder_ = audio_decoder;
   audio_decoder->Initialize(
       stream,
-      NewCallback(this, &PipelineImpl::OnFilterInitialize),
-      NewCallback(this, &PipelineImpl::OnUpdateStatistics));
+      base::Bind(&PipelineImpl::OnFilterInitialize, this),
+      base::Bind(&PipelineImpl::OnUpdateStatistics, this));
   return true;
 }
 
@@ -1206,8 +1200,8 @@ bool PipelineImpl::InitializeVideoDecoder(
   pipeline_init_state_->video_decoder_ = video_decoder;
   video_decoder->Initialize(
       stream,
-      NewCallback(this, &PipelineImpl::OnFilterInitialize),
-      NewCallback(this, &PipelineImpl::OnUpdateStatistics));
+      base::Bind(&PipelineImpl::OnFilterInitialize, this),
+      base::Bind(&PipelineImpl::OnUpdateStatistics, this));
   return true;
 }
 
@@ -1229,7 +1223,7 @@ bool PipelineImpl::InitializeAudioRenderer(
     return false;
 
   audio_renderer_->Initialize(
-      decoder, NewCallback(this, &PipelineImpl::OnFilterInitialize));
+      decoder, base::Bind(&PipelineImpl::OnFilterInitialize, this));
   return true;
 }
 
@@ -1252,8 +1246,8 @@ bool PipelineImpl::InitializeVideoRenderer(
 
   video_renderer_->Initialize(
       decoder,
-      NewCallback(this, &PipelineImpl::OnFilterInitialize),
-      NewCallback(this, &PipelineImpl::OnUpdateStatistics));
+      base::Bind(&PipelineImpl::OnFilterInitialize, this),
+      base::Bind(&PipelineImpl::OnUpdateStatistics, this));
   return true;
 }
 
@@ -1275,7 +1269,7 @@ void PipelineImpl::TearDownPipeline() {
       // Need to put this in the message loop to make sure that it comes
       // after any pending callback tasks that are already queued.
       message_loop_->PostTask(FROM_HERE,
-          NewRunnableMethod(this, &PipelineImpl::FinishDestroyingFiltersTask));
+          base::Bind(&PipelineImpl::FinishDestroyingFiltersTask, this));
       break;
 
     case kInitDemuxer:
@@ -1289,7 +1283,7 @@ void PipelineImpl::TearDownPipeline() {
       filter_collection_.reset();
 
       SetState(kStopping);
-      DoStop(NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+      DoStop(base::Bind(&PipelineImpl::OnTeardownStateTransition, this));
 
       FinishInitialization();
       break;
@@ -1299,7 +1293,7 @@ void PipelineImpl::TearDownPipeline() {
     case kFlushing:
     case kStarting:
       SetState(kStopping);
-      DoStop(NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+      DoStop(base::Bind(&PipelineImpl::OnTeardownStateTransition, this));
 
       if (seek_pending_) {
         seek_pending_ = false;
@@ -1312,7 +1306,7 @@ void PipelineImpl::TearDownPipeline() {
     case kEnded:
       SetState(kPausing);
       pipeline_filter_->Pause(
-          NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+          base::Bind(&PipelineImpl::OnTeardownStateTransition, this));
       break;
 
     case kStopping:
@@ -1324,24 +1318,24 @@ void PipelineImpl::TearDownPipeline() {
   };
 }
 
-void PipelineImpl::DoStop(FilterCallback* callback) {
+void PipelineImpl::DoStop(const base::Closure& callback) {
   if (demuxer_) {
-    demuxer_->Stop(NewCallbackForClosure(
-        base::Bind(&PipelineImpl::OnDemuxerStopDone, this, callback)));
+    demuxer_->Stop(base::Bind(
+        &PipelineImpl::OnDemuxerStopDone, this, callback));
     return;
   }
 
   OnDemuxerStopDone(callback);
 }
 
-void PipelineImpl::OnDemuxerStopDone(FilterCallback* callback) {
+void PipelineImpl::OnDemuxerStopDone(const base::Closure& callback) {
   if (pipeline_filter_) {
     pipeline_filter_->Stop(callback);
     return;
   }
 
-  callback->Run();
-  delete callback;
+  callback.Run();
+
 }
 
 void PipelineImpl::DoSeek(base::TimeDelta seek_timestamp) {

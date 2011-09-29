@@ -67,30 +67,30 @@ FFmpegAudioDecoder::~FFmpegAudioDecoder() {
   }
 }
 
-void FFmpegAudioDecoder::Flush(FilterCallback* callback) {
+void FFmpegAudioDecoder::Flush(const base::Closure& callback) {
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &FFmpegAudioDecoder::DoFlush, callback));
+      base::Bind(&FFmpegAudioDecoder::DoFlush, this, callback));
 }
 
 void FFmpegAudioDecoder::Initialize(
     DemuxerStream* stream,
-    FilterCallback* callback,
-    StatisticsCallback* stats_callback) {
+    const base::Closure& callback,
+    const StatisticsCallback& stats_callback) {
   // TODO(scherkus): change Initialize() signature to pass |stream| as a
   // scoped_refptr<>.
   scoped_refptr<DemuxerStream> ref_stream(stream);
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &FFmpegAudioDecoder::DoInitialize,
-                        ref_stream, callback, stats_callback));
+      base::Bind(&FFmpegAudioDecoder::DoInitialize, this,
+                 ref_stream, callback, stats_callback));
 }
 
 void FFmpegAudioDecoder::ProduceAudioSamples(scoped_refptr<Buffer> buffer) {
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &FFmpegAudioDecoder::DoProduceAudioSamples,
-                        buffer));
+      base::Bind(&FFmpegAudioDecoder::DoProduceAudioSamples, this,
+                 buffer));
 }
 
 int FFmpegAudioDecoder::bits_per_channel() {
@@ -107,13 +107,11 @@ int FFmpegAudioDecoder::samples_per_second() {
 
 void FFmpegAudioDecoder::DoInitialize(
     const scoped_refptr<DemuxerStream>& stream,
-    FilterCallback* callback,
-    StatisticsCallback* stats_callback) {
-  scoped_ptr<FilterCallback> c(callback);
-
+    const base::Closure& callback,
+    const StatisticsCallback& stats_callback) {
   demuxer_stream_ = stream;
   const AudioDecoderConfig& config = stream->audio_decoder_config();
-  stats_callback_.reset(stats_callback);
+  stats_callback_ = stats_callback;
 
   // TODO(scherkus): this check should go in PipelineImpl prior to creating
   // decoder objects.
@@ -125,7 +123,7 @@ void FFmpegAudioDecoder::DoInitialize(
                 << " samples per second: " << config.samples_per_second();
 
     host()->SetError(DECODER_ERROR_NOT_SUPPORTED);
-    callback->Run();
+    callback.Run();
     return;
   }
 
@@ -139,7 +137,7 @@ void FFmpegAudioDecoder::DoInitialize(
                 << codec_context_->codec_id;
 
     host()->SetError(DECODER_ERROR_NOT_SUPPORTED);
-    callback->Run();
+    callback.Run();
     return;
   }
 
@@ -148,15 +146,13 @@ void FFmpegAudioDecoder::DoInitialize(
   channel_layout_ = config.channel_layout();
   samples_per_second_ = config.samples_per_second();
 
-  callback->Run();
+  callback.Run();
 }
 
-void FFmpegAudioDecoder::DoFlush(FilterCallback* callback) {
+void FFmpegAudioDecoder::DoFlush(const base::Closure& callback) {
   avcodec_flush_buffers(codec_context_);
   estimated_next_timestamp_ = kNoTimestamp;
-
-  callback->Run();
-  delete callback;
+  callback.Run();
 }
 
 void FFmpegAudioDecoder::DoProduceAudioSamples(
@@ -234,7 +230,7 @@ void FFmpegAudioDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& input) {
   }
 
   // Decoding finished successfully, update stats and execute callback.
-  stats_callback_->Run(statistics);
+  stats_callback_.Run(statistics);
   if (output) {
     DCHECK_GT(output_buffers_.size(), 0u);
     output_buffers_.pop_front();
@@ -259,7 +255,7 @@ void FFmpegAudioDecoder::DecodeBuffer(Buffer* buffer) {
   scoped_refptr<Buffer> ref_buffer(buffer);
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &FFmpegAudioDecoder::DoDecodeBuffer, ref_buffer));
+      base::Bind(&FFmpegAudioDecoder::DoDecodeBuffer, this, ref_buffer));
 }
 
 void FFmpegAudioDecoder::UpdateDurationAndTimestamp(

@@ -37,17 +37,17 @@ class MEDIA_EXPORT VideoRendererBase
   virtual ~VideoRendererBase();
 
   // Filter implementation.
-  virtual void Play(FilterCallback* callback);
-  virtual void Pause(FilterCallback* callback);
-  virtual void Flush(FilterCallback* callback);
-  virtual void Stop(FilterCallback* callback);
+  virtual void Play(const base::Closure& callback);
+  virtual void Pause(const base::Closure& callback);
+  virtual void Flush(const base::Closure& callback);
+  virtual void Stop(const base::Closure& callback);
   virtual void SetPlaybackRate(float playback_rate);
   virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb);
 
   // VideoRenderer implementation.
   virtual void Initialize(VideoDecoder* decoder,
-                          FilterCallback* callback,
-                          StatisticsCallback* stats_callback);
+                          const base::Closure& callback,
+                          const StatisticsCallback& stats_callback);
   virtual bool HasEnded();
 
   // PlatformThread::Delegate implementation.
@@ -74,7 +74,7 @@ class MEDIA_EXPORT VideoRendererBase
   //
   // Implementors should perform any necessary cleanup before calling the
   // callback.
-  virtual void OnStop(FilterCallback* callback) = 0;
+  virtual void OnStop(const base::Closure& callback) = 0;
 
   // Subclass interface.  Called when a new frame is ready for display, which
   // can be accessed via GetCurrentFrame().
@@ -194,9 +194,9 @@ class MEDIA_EXPORT VideoRendererBase
   float playback_rate_;
 
   // Filter callbacks.
-  scoped_ptr<FilterCallback> flush_callback_;
+  base::Closure flush_callback_;
   FilterStatusCB seek_cb_;
-  scoped_ptr<StatisticsCallback> statistics_callback_;
+  StatisticsCallback statistics_callback_;
 
   base::TimeDelta seek_timestamp_;
 

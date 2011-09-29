@@ -1,8 +1,10 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/audio/fake_audio_input_stream.h"
+
+#include "base/bind.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -40,7 +42,7 @@ void FakeAudioInputStream::Start(AudioInputCallback* callback)  {
   thread_.Start();
   thread_.message_loop()->PostDelayedTask(
       FROM_HERE,
-      NewRunnableMethod(this, &FakeAudioInputStream::DoCallback),
+      base::Bind(&FakeAudioInputStream::DoCallback, this),
       callback_interval_ms_);
 }
 
@@ -60,7 +62,7 @@ void FakeAudioInputStream::DoCallback() {
   last_callback_time_ = now;
   thread_.message_loop()->PostDelayedTask(
       FROM_HERE,
-      NewRunnableMethod(this, &FakeAudioInputStream::DoCallback),
+      base::Bind(&FakeAudioInputStream::DoCallback, this),
       next_callback_ms);
 }
 

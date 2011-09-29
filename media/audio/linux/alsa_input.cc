@@ -5,6 +5,7 @@
 #include "media/audio/linux/alsa_input.h"
 
 #include "base/basictypes.h"
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/time.h"
@@ -34,7 +35,7 @@ AlsaPcmInputStream::AlsaPcmInputStream(const std::string& device_name,
           params.sample_rate),
       callback_(NULL),
       device_handle_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       read_callback_behind_schedule_(false) {
 }
 
@@ -102,7 +103,7 @@ void AlsaPcmInputStream::Start(AudioInputCallback* callback) {
         delay_ms);
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
-        task_factory_.NewRunnableMethod(&AlsaPcmInputStream::ReadAudio),
+        base::Bind(&AlsaPcmInputStream::ReadAudio, weak_factory_.GetWeakPtr()),
         delay_ms);
   }
 }
@@ -152,7 +153,7 @@ void AlsaPcmInputStream::ReadAudio() {
     }
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
-        task_factory_.NewRunnableMethod(&AlsaPcmInputStream::ReadAudio),
+        base::Bind(&AlsaPcmInputStream::ReadAudio, weak_factory_.GetWeakPtr()),
         kNoAudioReadAgainTimeoutMs);
     return;
   }
@@ -185,7 +186,7 @@ void AlsaPcmInputStream::ReadAudio() {
 
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      task_factory_.NewRunnableMethod(&AlsaPcmInputStream::ReadAudio),
+      base::Bind(&AlsaPcmInputStream::ReadAudio, weak_factory_.GetWeakPtr()),
       delay_ms);
 }
 
@@ -193,7 +194,7 @@ void AlsaPcmInputStream::Stop() {
   if (!device_handle_ || !callback_)
     return;
 
-  task_factory_.RevokeAll();  // Cancel the next scheduled read.
+  weak_factory_.InvalidateWeakPtrs();  // Cancel the next scheduled read.
   int error = wrapper_->PcmDrop(device_handle_);
   if (error < 0)
     HandleError("PcmDrop", error);
@@ -206,7 +207,7 @@ void AlsaPcmInputStream::Close() {
   if (!device_handle_ || !callback_)
     return;
 
-  task_factory_.RevokeAll();  // Cancel the next scheduled read.
+  weak_factory_.InvalidateWeakPtrs();  // Cancel the next scheduled read.
   int error = alsa_util::CloseDevice(wrapper_, device_handle_);
   if (error < 0)
     HandleError("PcmClose", error);

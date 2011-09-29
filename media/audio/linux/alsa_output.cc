@@ -41,6 +41,7 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -203,7 +204,7 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       playback_handle_(NULL),
       frames_per_packet_(packet_size_ / bytes_per_frame_),
       message_loop_(message_loop),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       state_(kCreated),
       volume_(1.0f),
       source_callback_(NULL) {
@@ -258,7 +259,7 @@ bool AlsaPcmOutputStream::Open() {
   TransitionTo(kIsOpened);
   message_loop_->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(&AlsaPcmOutputStream::OpenTask));
+      base::Bind(&AlsaPcmOutputStream::OpenTask, weak_factory_.GetWeakPtr()));
 
   return true;
 }
@@ -274,7 +275,7 @@ void AlsaPcmOutputStream::Close() {
 
   message_loop_->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(&AlsaPcmOutputStream::CloseTask));
+      base::Bind(&AlsaPcmOutputStream::CloseTask, weak_factory_.GetWeakPtr()));
 }
 
 void AlsaPcmOutputStream::Start(AudioSourceCallback* callback) {
@@ -286,9 +287,8 @@ void AlsaPcmOutputStream::Start(AudioSourceCallback* callback) {
 
   // Only post the task if we can enter the playing state.
   if (TransitionTo(kIsPlaying) == kIsPlaying) {
-    message_loop_->PostTask(
-        FROM_HERE,
-        method_factory_.NewRunnableMethod(&AlsaPcmOutputStream::StartTask));
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &AlsaPcmOutputStream::StartTask, weak_factory_.GetWeakPtr()));
   }
 }
 
@@ -408,7 +408,7 @@ void AlsaPcmOutputStream::CloseTask() {
   // Signal anything that might already be scheduled to stop.
   stop_stream_ = true;  // Not necessary in production, but unit tests
                         // uses the flag to verify that stream was closed.
-  method_factory_.RevokeAll();
+  weak_factory_.InvalidateWeakPtrs();
 
   // Signal to the manager that we're closed and can be removed.
   // Should be last call in the method as it deletes "this".
@@ -626,15 +626,14 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
   // Only schedule more reads/writes if we are still in the playing state.
   if (state() == kIsPlaying) {
     if (next_fill_time_ms == 0) {
-      message_loop_->PostTask(
-          FROM_HERE,
-          method_factory_.NewRunnableMethod(&AlsaPcmOutputStream::WriteTask));
+      message_loop_->PostTask(FROM_HERE, base::Bind(
+          &AlsaPcmOutputStream::WriteTask, weak_factory_.GetWeakPtr()));
     } else {
       // TODO(ajwong): Measure the reliability of the delay interval.  Use
       // base/metrics/histogram.h.
       message_loop_->PostDelayedTask(
-          FROM_HERE,
-          method_factory_.NewRunnableMethod(&AlsaPcmOutputStream::WriteTask),
+          FROM_HERE, base::Bind(
+              &AlsaPcmOutputStream::WriteTask, weak_factory_.GetWeakPtr()),
           next_fill_time_ms);
     }
   }
