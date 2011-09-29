@@ -27,7 +27,7 @@
 #include "base/message_pump_win.h"
 #elif defined(OS_POSIX)
 #include "base/message_pump_libevent.h"
-#if !defined(OS_MACOSX)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
 
 #if defined(USE_WAYLAND)
 #include "base/message_pump_wayland.h"
@@ -85,7 +85,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
 #if defined(OS_WIN)
   typedef base::MessagePumpWin::Dispatcher Dispatcher;
   typedef base::MessagePumpForUI::Observer Observer;
-#elif !defined(OS_MACOSX)
+#elif !defined(OS_MACOSX) && !defined(OS_ANDROID)
   typedef base::MessagePumpDispatcher Dispatcher;
   typedef base::MessagePumpObserver Observer;
 #endif

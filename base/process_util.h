@@ -164,7 +164,7 @@ BASE_EXPORT void CloseProcessHandle(ProcessHandle process);
 // Win XP SP1 as well.
 BASE_EXPORT ProcessId GetProcId(ProcessHandle process);
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
 // Returns the path to the executable of the given process.
 BASE_EXPORT FilePath GetProcessExecutablePath(ProcessHandle process);
 
@@ -184,7 +184,7 @@ const int kMaxOomScore = 1000;
 // translate the given value into [0, 15].  Some aliasing of values
 // may occur in that case, of course.
 BASE_EXPORT bool AdjustOOMScore(ProcessId process, int score);
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
 #if defined(OS_POSIX)
 // Returns the ID for the parent of the given process.
@@ -712,7 +712,7 @@ class BASE_EXPORT ProcessMetrics {
   DISALLOW_COPY_AND_ASSIGN(ProcessMetrics);
 };
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
 // Data from /proc/meminfo about system-wide memory consumption.
 // Values are in KB.
 struct SystemMemoryInfoKB {
@@ -730,7 +730,7 @@ struct SystemMemoryInfoKB {
 // Fills in the provided |meminfo| structure. Returns true on success.
 // Exposed for memory debugging widget.
 BASE_EXPORT bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo);
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
 // Returns the memory committed by the system in KBytes.
 // Returns 0 if it can't compute the commit charge.
