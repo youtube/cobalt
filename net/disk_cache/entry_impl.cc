@@ -496,17 +496,17 @@ void EntryImpl::DeleteEntryData(bool everything) {
   // Remove all traces of this entry.
   backend_->RemoveEntry(this);
 
+  // Note that at this point node_ and entry_ are just two blocks of data, and
+  // even if they reference each other, nobody should be referencing them.
+
   Addr address(entry_.Data()->long_key);
   DeleteData(address, kKeyFileIndex);
   backend_->ModifyStorageSize(entry_.Data()->key_len, 0);
 
-  memset(node_.buffer(), 0, node_.size());
-  memset(entry_.buffer(), 0, entry_.size());
-  node_.Store();
-  entry_.Store();
+  backend_->DeleteBlock(entry_.address(), true);
 
-  backend_->DeleteBlock(node_.address(), false);
-  backend_->DeleteBlock(entry_.address(), false);
+  if (!LeaveRankingsBehind())
+    backend_->DeleteBlock(node_.address(), true);
 }
 
 CacheAddr EntryImpl::GetNextAddress() {
@@ -551,6 +551,9 @@ void EntryImpl::SetDirtyFlag(int32 current_id) {
 
   if (node_.Data()->dirty && current_id != node_.Data()->dirty)
     dirty_ = true;
+
+  if (!current_id)
+    dirty_ = true;
 }
 
 void EntryImpl::SetPointerForInvalidEntry(int32 new_id) {
@@ -559,6 +562,14 @@ void EntryImpl::SetPointerForInvalidEntry(int32 new_id) {
   node_.Store();
 }
 
+bool EntryImpl::LeaveRankingsBehind() {
+  return !node_.Data()->contents;
+}
+
+// This only includes checks that relate to the first block of the entry (the
+// first 256 bytes), and values that should be set from the entry creation.
+// Basically, even if there is something wrong with this entry, we want to see
+// if it is possible to load the rankings node and delete them together.
 bool EntryImpl::SanityCheck() {
   EntryStore* stored = entry_.Data();
   if (!stored->rankings_node || stored->key_len <= 0)
@@ -569,7 +580,7 @@ bool EntryImpl::SanityCheck() {
 
   Addr rankings_addr(stored->rankings_node);
   if (!rankings_addr.is_initialized() || rankings_addr.is_separate_file() ||
-      rankings_addr.file_type() != RANKINGS)
+      rankings_addr.file_type() != RANKINGS || rankings_addr.num_blocks() != 1)
     return false;
 
   Addr next_addr(stored->next);
@@ -600,6 +611,13 @@ bool EntryImpl::SanityCheck() {
   if (entry_.address().num_blocks() != num_blocks)
     return false;
 
+  return true;
+}
+
+bool EntryImpl::DataSanityCheck() {
+  EntryStore* stored = entry_.Data();
+  Addr key_addr(stored->long_key);
+
   // The key must be NULL terminated.
   if (!key_addr.is_initialized() && stored->key[stored->key_len])
     return false;
@@ -623,8 +641,33 @@ bool EntryImpl::SanityCheck() {
     if (data_size > kMaxBlockSize && data_addr.is_block_file())
       return false;
   }
-
   return true;
+}
+
+void EntryImpl::FixForDelete() {
+  EntryStore* stored = entry_.Data();
+  Addr key_addr(stored->long_key);
+
+  if (!key_addr.is_initialized())
+    stored->key[stored->key_len] = '\0';
+
+  for (int i = 0; i < kNumStreams; i++) {
+    Addr data_addr(stored->data_addr[i]);
+    int data_size = stored->data_size[i];
+    if (data_addr.is_initialized()) {
+      if ((data_size <= kMaxBlockSize && data_addr.is_separate_file()) ||
+          (data_size > kMaxBlockSize && data_addr.is_block_file()) ||
+          !data_addr.SanityCheck()) {
+        // The address is weird so don't attempt to delete it.
+        stored->data_addr[i] = 0;
+        // In general, trust the stored size as it should be in sync with the
+        // total size tracked by the backend.
+      }
+    }
+    if (data_size < 0)
+      stored->data_size[i] = 0;
+  }
+  entry_.Store();
 }
 
 void EntryImpl::IncrementIoCount() {

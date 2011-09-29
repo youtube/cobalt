@@ -104,8 +104,16 @@ class NET_EXPORT_PRIVATE EntryImpl
   // Fixes this entry so it can be treated as valid (to delete it).
   void SetPointerForInvalidEntry(int32 new_id);
 
+  // Returns true if this entry is so meesed up that not everything is going to
+  // be removed.
+  bool LeaveRankingsBehind();
+
   // Returns false if the entry is clearly invalid.
   bool SanityCheck();
+  bool DataSanityCheck();
+
+  // Attempts to make this entry reachable though the key.
+  void FixForDelete();
 
   // Handle the pending asynchronous IO count.
   void IncrementIoCount();

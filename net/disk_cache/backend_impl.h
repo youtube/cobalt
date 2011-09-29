@@ -302,8 +302,8 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
                                   CacheRankingsBlock** from_entry,
                                   EntryImpl** next_entry);
 
-  // Returns the entry that is pointed by |next|.
-  EntryImpl* GetEnumeratedEntry(CacheRankingsBlock* next);
+  // Returns the entry that is pointed by |next|, from the given |list|.
+  EntryImpl* GetEnumeratedEntry(CacheRankingsBlock* next, Rankings::List list);
 
   // Re-opens an entry that was previously deleted.
   EntryImpl* ResurrectEntry(EntryImpl* deleted_entry);
