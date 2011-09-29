@@ -55,6 +55,16 @@ static gss_OID_desc GSS_C_NT_EXPORT_NAME_VAL = {
 
 }  // namespace
 
+// Heimdal >= 1.4 will define the following as preprocessor macros.
+// To avoid conflicting declarations, we have to undefine these.
+#undef GSS_C_NT_USER_NAME
+#undef GSS_C_NT_MACHINE_UID_NAME
+#undef GSS_C_NT_STRING_UID_NAME
+#undef GSS_C_NT_HOSTBASED_SERVICE_X
+#undef GSS_C_NT_HOSTBASED_SERVICE
+#undef GSS_C_NT_ANONYMOUS
+#undef GSS_C_NT_EXPORT_NAME
+
 gss_OID GSS_C_NT_USER_NAME = &GSS_C_NT_USER_NAME_VAL;
 gss_OID GSS_C_NT_MACHINE_UID_NAME = &GSS_C_NT_MACHINE_UID_NAME_VAL;
 gss_OID GSS_C_NT_STRING_UID_NAME = &GSS_C_NT_STRING_UID_NAME_VAL;
