@@ -116,7 +116,7 @@ void Eviction::TrimCache(bool empty) {
   Rankings::ScopedRankingsBlock next(rankings_,
       rankings_->GetPrev(node.get(), Rankings::NO_USE));
   int target_size = empty ? 0 : max_size_;
-  while ((header_->num_bytes > target_size && next.get()) || test_mode_) {
+  while ((header_->num_bytes > target_size || test_mode_) && next.get()) {
     // The iterator could be invalidated within EvictEntry().
     if (!next->HasData())
       break;
@@ -126,7 +126,7 @@ void Eviction::TrimCache(bool empty) {
       // This entry is not being used by anybody.
       // Do NOT use node as an iterator after this point.
       rankings_->TrackRankingsBlock(node.get(), false);
-      if (!EvictEntry(node.get(), empty) && !test_mode_)
+      if (!EvictEntry(node.get(), empty, Rankings::NO_USE) && !test_mode_)
         continue;
 
       if (!empty) {
@@ -177,7 +177,10 @@ void Eviction::OnDoomEntry(EntryImpl* entry) {
   if (new_eviction_)
     return OnDoomEntryV2(entry);
 
-  rankings_->Remove(entry->rankings(), GetListForEntry(entry));
+  if (entry->LeaveRankingsBehind())
+    return;
+
+  rankings_->Remove(entry->rankings(), GetListForEntry(entry), true);
 }
 
 void Eviction::OnDestroyEntry(EntryImpl* entry) {
@@ -254,8 +257,9 @@ Rankings::List Eviction::GetListForEntry(EntryImpl* entry) {
   return Rankings::NO_USE;
 }
 
-bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty) {
-  EntryImpl* entry = backend_->GetEnumeratedEntry(node);
+bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty,
+                          Rankings::List list) {
+  EntryImpl* entry = backend_->GetEnumeratedEntry(node, list);
   if (!entry) {
     Trace("NewEntry failed on Trim 0x%x", node->address().value());
     return false;
@@ -269,7 +273,7 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty) {
     EntryStore* info = entry->entry()->Data();
     DCHECK_EQ(ENTRY_NORMAL, info->state);
 
-    rankings_->Remove(entry->rankings(), GetListForEntryV2(entry));
+    rankings_->Remove(entry->rankings(), GetListForEntryV2(entry), true);
     info->state = ENTRY_EVICTED;
     entry->entry()->Store();
     rankings_->Insert(entry->rankings(), true, Rankings::DELETED);
@@ -315,8 +319,8 @@ void Eviction::TrimCacheV2(bool empty) {
 
   int target_size = empty ? 0 : max_size_;
   for (; list < kListsToSearch; list++) {
-    while ((header_->num_bytes > target_size && next[list].get()) ||
-           test_mode_) {
+    while ((header_->num_bytes > target_size || test_mode_) &&
+           next[list].get()) {
       // The iterator could be invalidated within EvictEntry().
       if (!next[list]->HasData())
         break;
@@ -327,7 +331,8 @@ void Eviction::TrimCacheV2(bool empty) {
         // This entry is not being used by anybody.
         // Do NOT use node as an iterator after this point.
         rankings_->TrackRankingsBlock(node.get(), false);
-        if (!EvictEntry(node.get(), empty) && !test_mode_)
+        if (!EvictEntry(node.get(), empty, static_cast<Rankings::List>(list)) &&
+            !test_mode_)
           continue;
 
         if (!empty && test_mode_)
@@ -377,11 +382,11 @@ void Eviction::OnOpenEntryV2(EntryImpl* entry) {
 
     // We may need to move this to a new list.
     if (1 == info->reuse_count) {
-      rankings_->Remove(entry->rankings(), Rankings::NO_USE);
+      rankings_->Remove(entry->rankings(), Rankings::NO_USE, true);
       rankings_->Insert(entry->rankings(), false, Rankings::LOW_USE);
       entry->entry()->Store();
     } else if (kHighUse == info->reuse_count) {
-      rankings_->Remove(entry->rankings(), Rankings::LOW_USE);
+      rankings_->Remove(entry->rankings(), Rankings::LOW_USE, true);
       rankings_->Insert(entry->rankings(), false, Rankings::HIGH_USE);
       entry->entry()->Store();
     }
@@ -407,7 +412,7 @@ void Eviction::OnCreateEntryV2(EntryImpl* entry) {
       }
       info->state = ENTRY_NORMAL;
       entry->entry()->Store();
-      rankings_->Remove(entry->rankings(), Rankings::DELETED);
+      rankings_->Remove(entry->rankings(), Rankings::DELETED, true);
       break;
     };
     default:
@@ -422,7 +427,13 @@ void Eviction::OnDoomEntryV2(EntryImpl* entry) {
   if (ENTRY_NORMAL != info->state)
     return;
 
-  rankings_->Remove(entry->rankings(), GetListForEntryV2(entry));
+  if (entry->LeaveRankingsBehind()) {
+    info->state = ENTRY_DOOMED;
+    entry->entry()->Store();
+    return;
+  }
+
+  rankings_->Remove(entry->rankings(), GetListForEntryV2(entry), true);
 
   info->state = ENTRY_DOOMED;
   entry->entry()->Store();
@@ -430,7 +441,10 @@ void Eviction::OnDoomEntryV2(EntryImpl* entry) {
 }
 
 void Eviction::OnDestroyEntryV2(EntryImpl* entry) {
-  rankings_->Remove(entry->rankings(), Rankings::DELETED);
+  if (entry->LeaveRankingsBehind())
+    return;
+
+  rankings_->Remove(entry->rankings(), Rankings::DELETED, true);
 }
 
 Rankings::List Eviction::GetListForEntryV2(EntryImpl* entry) {
@@ -458,7 +472,8 @@ void Eviction::TrimDeleted(bool empty) {
   Rankings::ScopedRankingsBlock next(rankings_,
     rankings_->GetPrev(node.get(), Rankings::DELETED));
   bool deleted = false;
-  for (int i = 0; (i < 4 || empty) && next.get(); i++) {
+  while (next.get() &&
+         (empty || (TimeTicks::Now() - start).InMilliseconds() < 20)) {
     node.reset(next.release());
     next.reset(rankings_->GetPrev(node.get(), Rankings::DELETED));
     deleted |= RemoveDeletedNode(node.get());
@@ -484,7 +499,7 @@ void Eviction::TrimDeleted(bool empty) {
 }
 
 bool Eviction::RemoveDeletedNode(CacheRankingsBlock* node) {
-  EntryImpl* entry = backend_->GetEnumeratedEntry(node);
+  EntryImpl* entry = backend_->GetEnumeratedEntry(node, Rankings::DELETED);
   if (!entry) {
     Trace("NewEntry failed on Trim 0x%x", node->address().value());
     return false;
