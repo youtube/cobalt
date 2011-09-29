@@ -4,11 +4,14 @@
 
 #include "net/url_request/url_request.h"
 
+#include "base/bind.h"
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/memory/singleton.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
 #include "base/synchronization/lock.h"
+#include "net/base/auth.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -430,8 +433,7 @@ void URLRequest::BeforeRequestComplete(int error) {
   DCHECK(!job_);
   DCHECK_NE(ERR_IO_PENDING, error);
 
-  if (blocked_on_delegate_)
-    SetUnblockedOnDelegate();
+  SetUnblockedOnDelegate();
   if (error != OK) {
     net_log_.AddEvent(NetLog::TYPE_CANCELLED,
         make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
@@ -766,20 +768,57 @@ void URLRequest::SetUserData(const void* key, UserData* data) {
 }
 
 void URLRequest::NotifyAuthRequired(AuthChallengeInfo* auth_info) {
-  // TODO(battre): We could simulate a redirection there as follows:
-  // if (context_ && context_->network_delegate()) {
-  //  // We simulate a redirection.
-  //   context_->network_delegate()->NotifyBeforeRedirect(this, url());
-  //}
-  // This fixes URLRequestTestHTTP.BasicAuth but not
-  // URLRequestTestHTTP.BasicAuthWithCookies. In both cases we observe a
-  // call sequence of OnBeforeSendHeaders -> OnSendHeaders ->
-  // OnBeforeSendHeaders.
-  if (context_ && context_->network_delegate())
-    context_->network_delegate()->NotifyAuthRequired(this, *auth_info);
+  NetworkDelegate::AuthRequiredResponse rv =
+      NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
+  auth_info_ = auth_info;
+  if (context_ && context_->network_delegate()) {
+    rv = context_->network_delegate()->NotifyAuthRequired(
+        this,
+        *auth_info,
+        base::Bind(&URLRequest::NotifyAuthRequiredComplete,
+                   base::Unretained(this)),
+        &auth_credentials_);
+  }
 
-  if (delegate_)
-    delegate_->OnAuthRequired(this, auth_info);
+  if (rv == NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING) {
+    SetBlockedOnDelegate();
+  } else {
+    NotifyAuthRequiredComplete(rv);
+  }
+}
+
+void URLRequest::NotifyAuthRequiredComplete(
+    NetworkDelegate::AuthRequiredResponse result) {
+  SetUnblockedOnDelegate();
+
+  // NotifyAuthRequired may be called multiple times, such as
+  // when an authentication attempt fails. Clear out the data
+  // so it can be reset on another round.
+  AuthCredentials credentials = auth_credentials_;
+  auth_credentials_ = AuthCredentials();
+  scoped_refptr<AuthChallengeInfo> auth_info;
+  auth_info.swap(auth_info_);
+
+  switch (result) {
+    case NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION:
+      // Defer to the URLRequest::Delegate, since the NetworkDelegate
+      // didn't take an action.
+      if (delegate_)
+        delegate_->OnAuthRequired(this, auth_info.get());
+      break;
+
+    case NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH:
+      SetAuth(credentials.username, credentials.password);
+      break;
+
+    case NetworkDelegate::AUTH_REQUIRED_RESPONSE_CANCEL_AUTH:
+      CancelAuth();
+      break;
+
+    case NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING:
+      NOTREACHED();
+      break;
+  }
 }
 
 void URLRequest::NotifyCertificateRequested(
@@ -837,6 +876,8 @@ void URLRequest::SetBlockedOnDelegate() {
 }
 
 void URLRequest::SetUnblockedOnDelegate() {
+  if (!blocked_on_delegate_)
+    return;
   blocked_on_delegate_ = false;
   load_state_param_.clear();
   net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
