@@ -13,9 +13,6 @@ const char kAlsaOutputDevice[] = "alsa-output-device";
 const char kAlsaInputDevice[] = "alsa-input-device";
 #endif
 
-// Enable x-adaptive URL scheme.
-const char kEnableAdaptive[] = "enable-adaptive";
-
 // Use PulseAudio instead of ALSA on Linux.
 const char kUsePulseAudio[] = "use-pulseaudio";
 
