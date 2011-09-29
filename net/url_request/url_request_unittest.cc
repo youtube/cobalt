@@ -47,6 +47,8 @@
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_file_dir_job.h"
 #include "net/url_request/url_request_http_job.h"
+#include "net/url_request/url_request_job_factory.h"
+#include "net/url_request/url_request_redirect_job.h"
 #include "net/url_request/url_request_test_job.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -167,6 +169,37 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
   ScopedRunnableMethodFactory<BlockingNetworkDelegate> method_factory_;
 };
 
+// A simple Interceptor that returns a pre-built URLRequestJob one time.
+class TestJobInterceptor : public URLRequestJobFactory::Interceptor {
+ public:
+  TestJobInterceptor()
+      : main_intercept_job_(NULL) {
+  }
+
+  virtual URLRequestJob* MaybeIntercept(URLRequest* request) const OVERRIDE {
+    URLRequestJob* job = main_intercept_job_;
+    main_intercept_job_ = NULL;
+    return job;
+  }
+
+  virtual URLRequestJob* MaybeInterceptRedirect(
+      const GURL& location, URLRequest* request) const OVERRIDE {
+    return NULL;
+  }
+
+  virtual URLRequestJob* MaybeInterceptResponse(
+      URLRequest* request) const OVERRIDE {
+    return NULL;
+  }
+
+  void set_main_intercept_job(URLRequestJob* job) {
+    main_intercept_job_ = job;
+  }
+
+ private:
+  mutable URLRequestJob* main_intercept_job_;
+};
+
 // Inherit PlatformTest since we require the autorelease pool on Mac OS X.f
 class URLRequestTest : public PlatformTest {
  public:
@@ -179,9 +212,18 @@ class URLRequestTest : public PlatformTest {
     URLRequest::AllowFileAccess();
   }
 
+  // Adds the TestJobInterceptor to the default context.
+  TestJobInterceptor* AddTestInterceptor() {
+    TestJobInterceptor* interceptor = new TestJobInterceptor();
+    default_context_->set_job_factory(&job_factory_);
+    job_factory_.AddInterceptor(interceptor);
+    return interceptor;
+  }
+
  protected:
   TestNetworkDelegate default_network_delegate_;  // must outlive URLRequest
   scoped_refptr<TestURLRequestContext> default_context_;
+  URLRequestJobFactory job_factory_;
 };
 
 class URLRequestTestHTTP : public URLRequestTest {
@@ -409,6 +451,48 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequest) {
     EXPECT_EQ(2U, r.url_chain().size());
     EXPECT_EQ(1, network_delegate.created_requests());
     EXPECT_EQ(0, network_delegate.destroyed_requests());
+  }
+  EXPECT_EQ(1, network_delegate.destroyed_requests());
+}
+
+// Tests that redirects caused by the network delegate preserve POST data.
+TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequestPost) {
+  ASSERT_TRUE(test_server_.Start());
+
+  const char kData[] = "hello world";
+
+  TestDelegate d;
+  BlockingNetworkDelegate network_delegate;
+  GURL redirect_url(test_server_.GetURL("echo"));
+  network_delegate.set_redirect_url(redirect_url);
+
+  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
+  context->set_network_delegate(&network_delegate);
+  context->Init();
+
+  {
+    GURL original_url(test_server_.GetURL("empty.html"));
+    TestURLRequest r(original_url, &d);
+    r.set_context(context);
+    r.set_method("POST");
+    r.set_upload(CreateSimpleUploadData(kData).get());
+    HttpRequestHeaders headers;
+    headers.SetHeader(HttpRequestHeaders::kContentLength,
+                      base::UintToString(arraysize(kData) - 1));
+    r.SetExtraRequestHeaders(headers);
+
+    r.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
+    EXPECT_EQ(0, r.status().error());
+    EXPECT_EQ(redirect_url, r.url());
+    EXPECT_EQ(original_url, r.original_url());
+    EXPECT_EQ(2U, r.url_chain().size());
+    EXPECT_EQ(1, network_delegate.created_requests());
+    EXPECT_EQ(0, network_delegate.destroyed_requests());
+    EXPECT_EQ("POST", r.method());
+    EXPECT_EQ(kData, d.data_received());
   }
   EXPECT_EQ(1, network_delegate.destroyed_requests());
 }
@@ -2113,6 +2197,57 @@ TEST_F(URLRequestTestHTTP, Post307RedirectPost) {
   headers.SetHeader(HttpRequestHeaders::kContentLength,
                     base::UintToString(arraysize(kData) - 1));
   req.SetExtraRequestHeaders(headers);
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_EQ("POST", req.method());
+  EXPECT_EQ(kData, d.data_received());
+}
+
+TEST_F(URLRequestTestHTTP, InterceptPost302RedirectGet) {
+  ASSERT_TRUE(test_server_.Start());
+
+  const char kData[] = "hello world";
+
+  TestDelegate d;
+  TestURLRequest req(test_server_.GetURL("empty.html"), &d);
+  req.set_context(default_context_);
+  req.set_method("POST");
+  req.set_upload(CreateSimpleUploadData(kData).get());
+  HttpRequestHeaders headers;
+  headers.SetHeader(HttpRequestHeaders::kContentLength,
+                    base::UintToString(arraysize(kData) - 1));
+  req.SetExtraRequestHeaders(headers);
+
+  URLRequestRedirectJob* job =
+      new URLRequestRedirectJob(&req, test_server_.GetURL("echo"));
+  AddTestInterceptor()->set_main_intercept_job(job);
+
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_EQ("GET", req.method());
+}
+
+TEST_F(URLRequestTestHTTP, InterceptPost307RedirectPost) {
+  ASSERT_TRUE(test_server_.Start());
+
+  const char kData[] = "hello world";
+
+  TestDelegate d;
+  TestURLRequest req(test_server_.GetURL("empty.html"), &d);
+  req.set_context(default_context_);
+  req.set_method("POST");
+  req.set_upload(CreateSimpleUploadData(kData).get());
+  HttpRequestHeaders headers;
+  headers.SetHeader(HttpRequestHeaders::kContentLength,
+                    base::UintToString(arraysize(kData) - 1));
+  req.SetExtraRequestHeaders(headers);
+
+  URLRequestRedirectJob* job =
+      new URLRequestRedirectJob(&req, test_server_.GetURL("echo"));
+  job->set_redirect_code(
+      URLRequestRedirectJob::REDIRECT_307_TEMPORARY_REDIRECT);
+  AddTestInterceptor()->set_main_intercept_job(job);
+
   req.Start();
   MessageLoop::current()->Run();
   EXPECT_EQ("POST", req.method());

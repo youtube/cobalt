@@ -439,7 +439,12 @@ void URLRequest::BeforeRequestComplete(int error) {
   } else if (!delegate_redirect_url_.is_empty()) {
     GURL new_url;
     new_url.Swap(&delegate_redirect_url_);
-    StartJob(new URLRequestRedirectJob(this, new_url));
+
+    URLRequestRedirectJob* job = new URLRequestRedirectJob(this, new_url);
+    // Use status code 307 to preserve the method, so POST requests work.
+    job->set_redirect_code(
+        URLRequestRedirectJob::REDIRECT_307_TEMPORARY_REDIRECT);
+    StartJob(job);
   } else {
     StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
   }
