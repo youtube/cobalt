@@ -4,12 +4,17 @@
 
 #include "net/base/transport_security_state.h"
 
+#if defined(USE_OPENSSL)
+#include <openssl/ssl.h>
+#include <openssl/ecdsa.h>
+#else  // !defined(USE_OPENSSL)
 #include <nspr.h>
 
 #include <cryptohi.h>
 #include <hasht.h>
 #include <keyhi.h>
 #include <pk11pub.h>
+#endif
 
 #include "base/base64.h"
 #include "base/json/json_reader.h"
@@ -25,6 +30,10 @@
 #include "crypto/sha2.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/dns_util.h"
+
+#if defined(USE_OPENSSL)
+#include "crypto/openssl_util.h"
+#endif
 
 namespace net {
 
@@ -394,6 +403,55 @@ static const uint8 kP256SubjectPublicKeyInfoPrefix[] = {
   0x42, 0x00,
 };
 
+// VerifySignature returns true iff |sig| is a valid signature of
+// |hash| by |pubkey|. The actual implementation is crypto library
+// specific.
+static bool VerifySignature(const base::StringPiece& pubkey,
+                            const base::StringPiece& sig,
+                            const base::StringPiece& hash);
+
+#if defined(USE_OPENSSL)
+
+static EVP_PKEY* DecodeX962P256PublicKey(
+    const base::StringPiece& pubkey_bytes) {
+  // The public key is an X9.62 encoded P256 point.
+  if (pubkey_bytes.size() != 1 + 2*32)
+    return NULL;
+
+  std::string pubkey_spki(
+      reinterpret_cast<const char*>(kP256SubjectPublicKeyInfoPrefix),
+      sizeof(kP256SubjectPublicKeyInfoPrefix));
+  pubkey_spki += pubkey_bytes.as_string();
+
+  EVP_PKEY* ret = NULL;
+  const unsigned char* der_pubkey =
+      reinterpret_cast<const unsigned char*>(pubkey_spki.data());
+  d2i_PUBKEY(&ret, &der_pubkey, pubkey_spki.size());
+  return ret;
+}
+
+static bool VerifySignature(const base::StringPiece& pubkey,
+                            const base::StringPiece& sig,
+                            const base::StringPiece& hash) {
+  crypto::ScopedOpenSSL<EVP_PKEY, EVP_PKEY_free> secpubkey(
+      DecodeX962P256PublicKey(pubkey));
+  if (!secpubkey.get())
+    return false;
+
+
+  crypto::ScopedOpenSSL<EC_KEY, EC_KEY_free> ec_key(
+    EVP_PKEY_get1_EC_KEY(secpubkey.get()));
+  if (!ec_key.get())
+    return false;
+
+  return ECDSA_verify(0, reinterpret_cast<const unsigned char*>(hash.data()),
+                      hash.size(),
+                      reinterpret_cast<const unsigned char*>(sig.data()),
+                      sig.size(), ec_key.get()) == 1;
+}
+
+#else
+
 // DecodeX962P256PublicKey parses an uncompressed, X9.62 format, P256 elliptic
 // curve point from |pubkey_bytes| and returns it as a SECKEYPublicKey.
 static SECKEYPublicKey* DecodeX962P256PublicKey(
@@ -420,6 +478,41 @@ static SECKEYPublicKey* DecodeX962P256PublicKey(
 
   return public_key;
 }
+
+static bool VerifySignature(const base::StringPiece& pubkey,
+                            const base::StringPiece& sig,
+                            const base::StringPiece& hash) {
+  SECKEYPublicKey* secpubkey = DecodeX962P256PublicKey(pubkey);
+  if (!secpubkey)
+    return false;
+
+  SECItem sigitem;
+  memset(&sigitem, 0, sizeof(sigitem));
+  sigitem.data = reinterpret_cast<uint8*>(const_cast<char*>(sig.data()));
+  sigitem.len = sig.size();
+
+  // |decoded_sigitem| is newly allocated, as is the data that it points to.
+  SECItem* decoded_sigitem = DSAU_DecodeDerSigToLen(
+      &sigitem, SECKEY_SignatureLen(secpubkey));
+
+  if (!decoded_sigitem) {
+    SECKEY_DestroyPublicKey(secpubkey);
+    return false;
+  }
+
+  SECItem hashitem;
+  memset(&hashitem, 0, sizeof(hashitem));
+  hashitem.data = reinterpret_cast<unsigned char*>(
+      const_cast<char*>(hash.data()));
+  hashitem.len = hash.size();
+
+  SECStatus rv = PK11_Verify(secpubkey, decoded_sigitem, &hashitem, NULL);
+  SECKEY_DestroyPublicKey(secpubkey);
+  SECITEM_FreeItem(decoded_sigitem, PR_TRUE);
+  return rv == SECSuccess;
+}
+
+#endif  // !defined(USE_OPENSSL)
 
 // These are the tag values that we use. Tags are little-endian on the wire and
 // these values correspond to the ASCII of the name.
@@ -474,34 +567,10 @@ bool TransportSecurityState::ParseSidePin(
           leaf_spki.as_string(), leaf_spki_hash, sizeof(leaf_spki_hash));
       have_leaf_spki_hash = true;
     }
-    SECItem hashitem;
-    memset(&hashitem, 0, sizeof(hashitem));
-    hashitem.data = leaf_spki_hash;
-    hashitem.len = sizeof(leaf_spki_hash);
 
-    SECKEYPublicKey* secpubkey = DecodeX962P256PublicKey(pubkey);
-    if (!secpubkey)
-      continue;
-
-    SECItem sigitem;
-    memset(&sigitem, 0, sizeof(sigitem));
-    sigitem.data = reinterpret_cast<uint8*>(const_cast<char*>(sig.data()));
-    sigitem.len = sig.size();
-
-    // |decoded_sigitem| is newly allocated, as is the data that it points to.
-    SECItem* decoded_sigitem = DSAU_DecodeDerSigToLen(
-        &sigitem, SECKEY_SignatureLen(secpubkey));
-
-    if (!decoded_sigitem) {
-      SECKEY_DestroyPublicKey(secpubkey);
-      continue;
-    }
-
-    SECStatus rv = PK11_Verify(secpubkey, decoded_sigitem, &hashitem, NULL);
-    SECKEY_DestroyPublicKey(secpubkey);
-    SECITEM_FreeItem(decoded_sigitem, PR_TRUE);
-
-    if (rv == SECSuccess) {
+    if (VerifySignature(pubkey, sig, base::StringPiece(
+        reinterpret_cast<const char*>(leaf_spki_hash),
+        sizeof(leaf_spki_hash)))) {
       SHA1Fingerprint fpr;
       base::SHA1HashBytes(
           reinterpret_cast<const uint8*>(pubkey.data()),
