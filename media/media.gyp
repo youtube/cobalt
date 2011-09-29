@@ -89,8 +89,6 @@
         'base/bitstream_buffer.h',
         'base/buffers.cc',
         'base/buffers.h',
-        'base/callback.cc',
-        'base/callback.h',
         'base/channel_layout.cc',
         'base/channel_layout.h',
         'base/clock.cc',
@@ -732,28 +730,31 @@
             },
           },
         },
-        {
-          'target_name': 'mfdecoder',
-          'type': 'executable',
-          'dependencies': [
-            'media',
-            'yuv_convert',
-            '../base/base.gyp:base',
-          ],
-          'include_dirs': [
-            '..',
-          ],
-          'sources': [
-            'tools/mfdecoder/main.cc',
-            'tools/mfdecoder/mfdecoder.h',
-            'tools/mfdecoder/mfdecoder.cc',
-          ],
-          'msvs_settings': {
-            'VCLinkerTool': {
-              'SubSystem': '1',         # Set /SUBSYSTEM:CONSOLE
-            },
-          },
-        },
+        # TODO(fischman): this target doesn't build w/ the new base::Bind
+        # world (media/tools/mfdecoder/main.cc:412).  Figure out how to fix it
+        # (see bug 94995) or delete the target & source files if no longer used.
+        # {
+        #   'target_name': 'mfdecoder',
+        #   'type': 'executable',
+        #   'dependencies': [
+        #     'media',
+        #     'yuv_convert',
+        #     '../base/base.gyp:base',
+        #   ],
+        #   'include_dirs': [
+        #     '..',
+        #   ],
+        #   'sources': [
+        #     'tools/mfdecoder/main.cc',
+        #     'tools/mfdecoder/mfdecoder.h',
+        #     'tools/mfdecoder/mfdecoder.cc',
+        #   ],
+        #   'msvs_settings': {
+        #     'VCLinkerTool': {
+        #       'SubSystem': '1',         # Set /SUBSYSTEM:CONSOLE
+        #     },
+        #   },
+        # },
       ],
     }],
     ['OS!="mac"', {

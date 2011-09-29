@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "base/bind.h"
+#include "base/callback.h"
 #include "base/stl_util.h"
-#include "media/base/callback.h"
 #include "media/base/data_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/mock_callback.h"
@@ -25,7 +25,7 @@ using ::testing::StrictMock;
 
 namespace media {
 ACTION(OnStop) {
-  AutoCallbackRunner auto_runner(arg0);
+  arg0.Run();
 }
 
 // Mocked subclass of VideoRendererBase for testing purposes.
@@ -36,7 +36,7 @@ class MockVideoRendererBase : public VideoRendererBase {
 
   // VideoRendererBase implementation.
   MOCK_METHOD1(OnInitialize, bool(VideoDecoder* decoder));
-  MOCK_METHOD1(OnStop, void(FilterCallback* callback));
+  MOCK_METHOD1(OnStop, void(const base::Closure& callback));
   MOCK_METHOD0(OnFrameAvailable, void());
 
   // Used for verifying check points during tests.
@@ -69,7 +69,7 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     if (renderer_.get()) {
       // Expect a call into the subclass.
-      EXPECT_CALL(*renderer_, OnStop(NotNull()))
+      EXPECT_CALL(*renderer_, OnStop(_))
           .WillOnce(DoAll(OnStop(), Return()))
           .RetiresOnSaturation();
 
@@ -165,9 +165,9 @@ class VideoRendererBaseTest : public ::testing::Test {
   static const gfx::Size kNaturalSize;
   static const int64 kDuration;
 
-  StatisticsCallback* NewStatisticsCallback() {
-    return NewCallback(&stats_callback_object_,
-                       &MockStatisticsCallback::OnStatistics);
+  StatisticsCallback NewStatisticsCallback() {
+    return base::Bind(&MockStatisticsCallback::OnStatistics,
+                      base::Unretained(&stats_callback_object_));
   }
 
   // Fixture members.
@@ -314,7 +314,7 @@ TEST_F(VideoRendererBaseTest, Error_DuringPaint) {
 TEST_F(VideoRendererBaseTest, GetCurrentFrame_AfterStop) {
   Initialize();
 
-  EXPECT_CALL(*renderer_, OnStop(NotNull()))
+  EXPECT_CALL(*renderer_, OnStop(_))
       .WillOnce(DoAll(OnStop(), Return()))
       .RetiresOnSaturation();
 

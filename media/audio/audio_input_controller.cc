@@ -4,6 +4,7 @@
 
 #include "media/audio/audio_input_controller.h"
 
+#include "base/bind.h"
 #include "base/threading/thread_restrictions.h"
 #include "media/base/limits.h"
 
@@ -50,10 +51,8 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
 
   // Start the thread and post a task to create the audio input stream.
   controller->thread_.Start();
-  controller->thread_.message_loop()->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(controller.get(), &AudioInputController::DoCreate,
-                        params));
+  controller->thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
+      &AudioInputController::DoCreate, controller.get(), params));
   return controller;
 }
 
@@ -76,18 +75,15 @@ scoped_refptr<AudioInputController> AudioInputController::CreateLowLatency(
 
   // Start the thread and post a task to create the audio input stream.
   controller->thread_.Start();
-  controller->thread_.message_loop()->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(controller.get(), &AudioInputController::DoCreate,
-                        params));
+  controller->thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
+      &AudioInputController::DoCreate, controller.get(), params));
   return controller;
 }
 
 void AudioInputController::Record() {
   DCHECK(thread_.IsRunning());
-  thread_.message_loop()->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(this, &AudioInputController::DoRecord));
+  thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
+      &AudioInputController::DoRecord, this));
 }
 
 void AudioInputController::Close() {
@@ -98,9 +94,8 @@ void AudioInputController::Close() {
   }
 
   // Wait for all tasks to complete on the audio thread.
-  thread_.message_loop()->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(this, &AudioInputController::DoClose));
+  thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
+      &AudioInputController::DoClose, this));
 
   // A ScopedAllowIO object is required to join the thread when calling Stop.
   // This is because as joining threads may be a long operation it's now
@@ -130,9 +125,8 @@ void AudioInputController::DoCreate(const AudioParameters& params) {
     return;
   }
 
-  thread_.message_loop()->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(this, &AudioInputController::DoResetNoDataTimer));
+  thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
+      &AudioInputController::DoResetNoDataTimer, this));
   state_ = kCreated;
   handler_->OnCreated(this);
 }
@@ -196,9 +190,8 @@ void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
       return;
   }
 
-  thread_.message_loop()->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(this, &AudioInputController::DoResetNoDataTimer));
+  thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
+      &AudioInputController::DoResetNoDataTimer, this));
 
   // Use SyncSocket if we are in a low-latency mode.
   if (LowLatencyMode()) {
@@ -218,9 +211,8 @@ void AudioInputController::OnClose(AudioInputStream* stream) {
 
 void AudioInputController::OnError(AudioInputStream* stream, int code) {
   // Handle error on the audio controller thread.
-  thread_.message_loop()->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(this, &AudioInputController::DoReportError, code));
+  thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
+      &AudioInputController::DoReportError, this, code));
 }
 
 }  // namespace media

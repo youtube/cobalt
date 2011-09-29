@@ -7,9 +7,9 @@
 #include <deque>
 
 #include "base/bind.h"
+#include "base/callback.h"
 #include "base/message_loop.h"
 #include "base/task.h"
-#include "media/base/callback.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/filters.h"
 #include "media/base/filter_host.h"
@@ -34,33 +34,30 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(MessageLoop* message_loop,
 FFmpegVideoDecoder::~FFmpegVideoDecoder() {}
 
 void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
-                                    FilterCallback* callback,
-                                    StatisticsCallback* stats_callback) {
+                                    const base::Closure& callback,
+                                    const StatisticsCallback& stats_callback) {
   if (MessageLoop::current() != message_loop_) {
     message_loop_->PostTask(
         FROM_HERE,
-        NewRunnableMethod(this,
-                          &FFmpegVideoDecoder::Initialize,
-                          make_scoped_refptr(demuxer_stream),
-                          callback, stats_callback));
+        base::Bind(&FFmpegVideoDecoder::Initialize, this,
+                   make_scoped_refptr(demuxer_stream),
+                   callback, stats_callback));
     return;
   }
 
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!demuxer_stream_);
-  DCHECK(!initialize_callback_.get());
+  DCHECK(initialize_callback_.is_null());
 
   if (!demuxer_stream) {
     host()->SetError(PIPELINE_ERROR_DECODE);
-    callback->Run();
-    delete callback;
-    delete stats_callback;
+    callback.Run();
     return;
   }
 
   demuxer_stream_ = demuxer_stream;
-  initialize_callback_.reset(callback);
-  statistics_callback_.reset(stats_callback);
+  initialize_callback_ = callback;
+  statistics_callback_ = stats_callback;
 
   AVStream* av_stream = demuxer_stream->GetAVStream();
   if (!av_stream) {
@@ -100,31 +97,28 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
 void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(initialize_callback_.get());
+  DCHECK(!initialize_callback_.is_null());
 
   info_ = info;
-  AutoCallbackRunner done_runner(initialize_callback_.release());
-
   if (info.success) {
     state_ = kNormal;
   } else {
     host()->SetError(PIPELINE_ERROR_DECODE);
   }
+  ResetAndRunCB(&initialize_callback_);
 }
 
-void FFmpegVideoDecoder::Stop(FilterCallback* callback) {
+void FFmpegVideoDecoder::Stop(const base::Closure& callback) {
   if (MessageLoop::current() != message_loop_) {
-    message_loop_->PostTask(FROM_HERE,
-                             NewRunnableMethod(this,
-                                               &FFmpegVideoDecoder::Stop,
-                                               callback));
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &FFmpegVideoDecoder::Stop, this, callback));
     return;
   }
 
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(!uninitialize_callback_.get());
+  DCHECK(uninitialize_callback_.is_null());
 
-  uninitialize_callback_.reset(callback);
+  uninitialize_callback_ = callback;
   if (state_ != kUnInitialized)
     decode_engine_->Uninitialize();
   else
@@ -133,65 +127,60 @@ void FFmpegVideoDecoder::Stop(FilterCallback* callback) {
 
 void FFmpegVideoDecoder::OnUninitializeComplete() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(uninitialize_callback_.get());
+  DCHECK(!uninitialize_callback_.is_null());
 
-  AutoCallbackRunner done_runner(uninitialize_callback_.release());
   state_ = kStopped;
-
   // TODO(jiesun): Destroy the decoder context.
+  ResetAndRunCB(&uninitialize_callback_);
 }
 
-void FFmpegVideoDecoder::Pause(FilterCallback* callback) {
+void FFmpegVideoDecoder::Pause(const base::Closure& callback) {
   if (MessageLoop::current() != message_loop_) {
-    message_loop_->PostTask(FROM_HERE,
-                             NewRunnableMethod(this,
-                                               &FFmpegVideoDecoder::Pause,
-                                               callback));
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &FFmpegVideoDecoder::Pause, this, callback));
     return;
   }
 
-  AutoCallbackRunner done_runner(callback);
   state_ = kPausing;
+  callback.Run();
 }
 
-void FFmpegVideoDecoder::Flush(FilterCallback* callback) {
+void FFmpegVideoDecoder::Flush(const base::Closure& callback) {
   if (MessageLoop::current() != message_loop_) {
-    message_loop_->PostTask(FROM_HERE,
-                             NewRunnableMethod(this,
-                                               &FFmpegVideoDecoder::Flush,
-                                               callback));
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &FFmpegVideoDecoder::Flush, this, callback));
     return;
   }
 
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(!flush_callback_.get());
+  DCHECK(flush_callback_.is_null());
 
   state_ = kFlushing;
 
   FlushBuffers();
 
-  flush_callback_.reset(callback);
+  flush_callback_ = callback;
 
   decode_engine_->Flush();
 }
 
 void FFmpegVideoDecoder::OnFlushComplete() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(flush_callback_.get());
-
-  AutoCallbackRunner done_runner(flush_callback_.release());
+  DCHECK(!flush_callback_.is_null());
 
   // Everything in the presentation time queue is invalid, clear the queue.
   pts_stream_.Flush();
 
   // Mark flush operation had been done.
   state_ = kNormal;
+
+  ResetAndRunCB(&flush_callback_);
 }
 
 void FFmpegVideoDecoder::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
   if (MessageLoop::current() != message_loop_) {
      message_loop_->PostTask(FROM_HERE,
-                             NewRunnableMethod(this, &FFmpegVideoDecoder::Seek,
+                             base::Bind(&FFmpegVideoDecoder::Seek, this,
                                                time, cb));
      return;
   }
@@ -217,11 +206,8 @@ void FFmpegVideoDecoder::OnError() {
 
 void FFmpegVideoDecoder::OnReadComplete(Buffer* buffer_in) {
   scoped_refptr<Buffer> buffer(buffer_in);
-  message_loop_->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(this,
-                        &FFmpegVideoDecoder::OnReadCompleteTask,
-                        buffer));
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &FFmpegVideoDecoder::OnReadCompleteTask, this, buffer));
 }
 
 void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
@@ -275,10 +261,8 @@ void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
 void FFmpegVideoDecoder::ProduceVideoFrame(
     scoped_refptr<VideoFrame> video_frame) {
   if (MessageLoop::current() != message_loop_) {
-    message_loop_->PostTask(
-        FROM_HERE,
-        NewRunnableMethod(this,
-                          &FFmpegVideoDecoder::ProduceVideoFrame, video_frame));
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &FFmpegVideoDecoder::ProduceVideoFrame, this, video_frame));
     return;
   }
 
@@ -305,7 +289,7 @@ void FFmpegVideoDecoder::ConsumeVideoFrame(
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kStopped);
 
-  statistics_callback_->Run(statistics);
+  statistics_callback_.Run(statistics);
 
   if (video_frame.get()) {
     if (kPausing == state_ || kFlushing == state_) {

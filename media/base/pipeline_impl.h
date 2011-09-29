@@ -319,11 +319,11 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
 
   // Initiates a Stop() on |demuxer_| & |pipeline_filter_|. |callback|
   // is called once both objects have been stopped.
-  void DoStop(FilterCallback* callback);
+  void DoStop(const base::Closure& callback);
 
   // Called when |demuxer_| has stopped. This method calls Stop()
   // on |pipeline_filter_|.
-  void OnDemuxerStopDone(FilterCallback* callback);
+  void OnDemuxerStopDone(const base::Closure& callback);
 
   // Initiates a Seek() on the |demuxer_| & |pipeline_filter_|.
   void DoSeek(base::TimeDelta seek_timestamp);

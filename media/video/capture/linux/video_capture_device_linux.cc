@@ -12,6 +12,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/file_util.h"
 #include "base/stringprintf.h"
 
@@ -142,8 +143,8 @@ void VideoCaptureDeviceLinux::Allocate(int width,
   v4l2_thread_.Start();
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnAllocate,
-                        width, height, frame_rate, observer));
+      base::Bind(&VideoCaptureDeviceLinux::OnAllocate, base::Unretained(this),
+                 width, height, frame_rate, observer));
 }
 
 void VideoCaptureDeviceLinux::Start() {
@@ -152,7 +153,7 @@ void VideoCaptureDeviceLinux::Start() {
   }
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnStart));
+      base::Bind(&VideoCaptureDeviceLinux::OnStart, base::Unretained(this)));
 }
 
 void VideoCaptureDeviceLinux::Stop() {
@@ -161,7 +162,7 @@ void VideoCaptureDeviceLinux::Stop() {
   }
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnStop));
+      base::Bind(&VideoCaptureDeviceLinux::OnStop, base::Unretained(this)));
 }
 
 void VideoCaptureDeviceLinux::DeAllocate() {
@@ -170,7 +171,8 @@ void VideoCaptureDeviceLinux::DeAllocate() {
   }
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnDeAllocate));
+      base::Bind(&VideoCaptureDeviceLinux::OnDeAllocate,
+                 base::Unretained(this)));
   v4l2_thread_.Stop();
 
   // Make sure no buffers are still allocated.
@@ -297,7 +299,8 @@ void VideoCaptureDeviceLinux::OnStart() {
   // Post task to start fetching frames from v4l2.
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnCaptureTask));
+      base::Bind(&VideoCaptureDeviceLinux::OnCaptureTask,
+                 base::Unretained(this)));
 }
 
 void VideoCaptureDeviceLinux::OnStop() {
@@ -342,7 +345,8 @@ void VideoCaptureDeviceLinux::OnCaptureTask() {
     }
     v4l2_thread_.message_loop()->PostDelayedTask(
         FROM_HERE,
-        NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnCaptureTask),
+        base::Bind(&VideoCaptureDeviceLinux::OnCaptureTask,
+                   base::Unretained(this)),
         kCaptureSelectWaitMs);
   }
 
@@ -368,7 +372,8 @@ void VideoCaptureDeviceLinux::OnCaptureTask() {
 
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnCaptureTask));
+      base::Bind(&VideoCaptureDeviceLinux::OnCaptureTask,
+                 base::Unretained(this)));
 }
 
 bool VideoCaptureDeviceLinux::AllocateVideoBuffers() {

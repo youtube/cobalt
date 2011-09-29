@@ -27,15 +27,15 @@ class MEDIA_EXPORT FFmpegVideoDecoder
   virtual ~FFmpegVideoDecoder();
 
   // Filter implementation.
-  virtual void Stop(FilterCallback* callback) OVERRIDE;
+  virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb) OVERRIDE;
-  virtual void Pause(FilterCallback* callback) OVERRIDE;
-  virtual void Flush(FilterCallback* callback) OVERRIDE;
+  virtual void Pause(const base::Closure& callback) OVERRIDE;
+  virtual void Flush(const base::Closure& callback) OVERRIDE;
 
   // Decoder implementation.
   virtual void Initialize(DemuxerStream* demuxer_stream,
-                          FilterCallback* callback,
-                          StatisticsCallback* stats_callback) OVERRIDE;
+                          const base::Closure& callback,
+                          const StatisticsCallback& stats_callback) OVERRIDE;
   virtual void ProduceVideoFrame(
       scoped_refptr<VideoFrame> video_frame) OVERRIDE;
   virtual gfx::Size natural_size() OVERRIDE;
@@ -74,8 +74,8 @@ class MEDIA_EXPORT FFmpegVideoDecoder
     kStopped
   };
 
-  void OnFlushComplete(FilterCallback* callback);
-  void OnSeekComplete(FilterCallback* callback);
+  void OnFlushComplete(const base::Closure& callback);
+  void OnSeekComplete(const base::Closure& callback);
   void OnReadComplete(Buffer* buffer);
 
   // TODO(jiesun): until demuxer pass scoped_refptr<Buffer>: we could not merge
@@ -96,11 +96,11 @@ class MEDIA_EXPORT FFmpegVideoDecoder
   scoped_ptr<VideoDecodeEngine> decode_engine_;
   scoped_ptr<VideoDecodeContext> decode_context_;
 
-  scoped_ptr<FilterCallback> initialize_callback_;
-  scoped_ptr<FilterCallback> uninitialize_callback_;
-  scoped_ptr<FilterCallback> flush_callback_;
+  base::Closure initialize_callback_;
+  base::Closure uninitialize_callback_;
+  base::Closure flush_callback_;
   FilterStatusCB seek_cb_;
-  scoped_ptr<StatisticsCallback> statistics_callback_;
+  StatisticsCallback statistics_callback_;
 
   // Hold video frames when flush happens.
   std::deque<scoped_refptr<VideoFrame> > frame_queue_flushed_;

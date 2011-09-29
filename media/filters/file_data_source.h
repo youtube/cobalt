@@ -25,11 +25,11 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
 
   // Implementation of Filter.
   virtual void set_host(FilterHost* filter_host);
-  virtual void Stop(FilterCallback* callback);
+  virtual void Stop(const base::Closure& callback);
 
   // Implementation of DataSource.
   virtual void Read(int64 position, size_t size, uint8* data,
-                    ReadCallback* read_callback);
+                    const DataSource::ReadCallback& read_callback);
   virtual bool GetSize(int64* size_out);
   virtual bool IsStreaming();
   virtual void SetPreload(Preload preload);

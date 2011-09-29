@@ -459,17 +459,16 @@ class MockFFmpegDemuxer : public FFmpegDemuxer {
 };
 
 // A gmock helper method to execute the callback and deletes it.
-void RunCallback(size_t size, DataSource::ReadCallback* callback) {
-  DCHECK(callback);
-  callback->RunWithParams(Tuple1<size_t>(size));
-  delete callback;
+void RunCallback(size_t size, const DataSource::ReadCallback& callback) {
+  DCHECK(!callback.is_null());
+  callback.Run(size);
 }
 
 TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   scoped_refptr<StrictMock<MockDataSource> > data_source =
       new StrictMock<MockDataSource>();
 
-  EXPECT_CALL(*data_source, Stop(NotNull()))
+  EXPECT_CALL(*data_source, Stop(_))
       .WillRepeatedly(Invoke(&RunStopFilterCallback));
 
   // Creates a demuxer.
@@ -484,7 +483,7 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   // Actions taken in the first read.
   EXPECT_CALL(*data_source, GetSize(_))
       .WillOnce(DoAll(SetArgPointee<0>(1024), Return(true)));
-  EXPECT_CALL(*data_source, Read(0, 512, kBuffer, NotNull()))
+  EXPECT_CALL(*data_source, Read(0, 512, kBuffer, _))
       .WillOnce(WithArgs<1, 3>(Invoke(&RunCallback)));
   EXPECT_CALL(*demuxer, SignalReadCompleted(512));
   EXPECT_CALL(*demuxer, WaitForRead())
@@ -494,7 +493,7 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   // Second read.
   EXPECT_CALL(*data_source, GetSize(_))
       .WillOnce(DoAll(SetArgPointee<0>(1024), Return(true)));
-  EXPECT_CALL(*data_source, Read(512, 512, kBuffer, NotNull()))
+  EXPECT_CALL(*data_source, Read(512, 512, kBuffer, _))
       .WillOnce(WithArgs<1, 3>(Invoke(&RunCallback)));
   EXPECT_CALL(*demuxer, SignalReadCompleted(512));
   EXPECT_CALL(*demuxer, WaitForRead())

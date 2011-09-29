@@ -25,11 +25,9 @@ void Demuxer::Seek(base::TimeDelta time, const PipelineStatusCB& callback) {
   callback.Run(PIPELINE_OK);
 }
 
-void Demuxer::Stop(FilterCallback* callback) {
-  DCHECK(callback);
-
-  callback->Run();
-  delete callback;
+void Demuxer::Stop(const base::Closure& callback) {
+  DCHECK(!callback.is_null());
+  callback.Run();
 }
 
 void Demuxer::OnAudioRendererDisabled() {}

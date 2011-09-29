@@ -39,9 +39,7 @@ class MEDIA_EXPORT Demuxer
 
   // The pipeline is being stopped either as a result of an error or because
   // the client called Stop().
-  //
-  // TODO(acolwell): Convert to base::Closure.
-  virtual void Stop(FilterCallback* callback);
+  virtual void Stop(const base::Closure& callback);
 
   // This method is called from the pipeline when the audio renderer
   // is disabled. Demuxers can ignore the notification if they do not

@@ -22,11 +22,11 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   virtual ~FFmpegAudioDecoder();
 
   // Filter implementation.
-  virtual void Flush(FilterCallback* callback) OVERRIDE;
+  virtual void Flush(const base::Closure& callback) OVERRIDE;
 
   // AudioDecoder implementation.
-  virtual void Initialize(DemuxerStream* stream, FilterCallback* callback,
-                          StatisticsCallback* stats_callback) OVERRIDE;
+  virtual void Initialize(DemuxerStream* stream, const base::Closure& callback,
+                          const StatisticsCallback& stats_callback) OVERRIDE;
   virtual void ProduceAudioSamples(scoped_refptr<Buffer> output) OVERRIDE;
   virtual int bits_per_channel() OVERRIDE;
   virtual ChannelLayout channel_layout() OVERRIDE;
@@ -35,9 +35,9 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
  private:
   // Methods running on decoder thread.
   void DoInitialize(const scoped_refptr<DemuxerStream>& stream,
-                    FilterCallback* callback,
-                    StatisticsCallback* stats_callback);
-  void DoFlush(FilterCallback* callback);
+                    const base::Closure& callback,
+                    const StatisticsCallback& stats_callback);
+  void DoFlush(const base::Closure& callback);
   void DoProduceAudioSamples(const scoped_refptr<Buffer>& output);
   void DoDecodeBuffer(const scoped_refptr<Buffer>& input);
 
@@ -56,7 +56,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   MessageLoop* message_loop_;
 
   scoped_refptr<DemuxerStream> demuxer_stream_;
-  scoped_ptr<StatisticsCallback> stats_callback_;
+  StatisticsCallback stats_callback_;
   AVCodecContext* codec_context_;
 
   // Decoded audio format.

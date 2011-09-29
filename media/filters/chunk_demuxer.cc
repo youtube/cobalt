@@ -233,7 +233,7 @@ static void RunOnMessageLoop(const DemuxerStream::ReadCallback& read_callback,
                              Buffer* buffer) {
   if (MessageLoop::current() != message_loop) {
     message_loop->PostTask(FROM_HERE,
-                           NewRunnableFunction(&RunOnMessageLoop,
+                           base::Bind(&RunOnMessageLoop,
                                                read_callback,
                                                message_loop,
                                                scoped_refptr<Buffer>(buffer)));
@@ -316,7 +316,7 @@ ChunkDemuxer::~ChunkDemuxer() {
   }
 }
 
-void ChunkDemuxer::Init(PipelineStatusCB cb) {
+void ChunkDemuxer::Init(const PipelineStatusCB& cb) {
   VLOG(1) << "Init()";
   {
     base::AutoLock auto_lock(lock_);
@@ -335,13 +335,10 @@ void ChunkDemuxer::set_host(FilterHost* filter_host) {
   filter_host->SetCurrentReadPosition(0);
 }
 
-void ChunkDemuxer::Stop(FilterCallback* callback) {
+void ChunkDemuxer::Stop(const base::Closure& callback) {
   VLOG(1) << "Stop()";
-
   Shutdown();
-
-  callback->Run();
-  delete callback;
+  callback.Run();
 }
 
 void ChunkDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {

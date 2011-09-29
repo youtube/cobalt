@@ -74,8 +74,8 @@ class FFmpegAudioDecoderTest : public testing::Test {
 
     decoder_->Initialize(demuxer_,
                          NewExpectedCallback(),
-                         NewCallback(&statistics_callback_,
-                                     &MockStatisticsCallback::OnStatistics));
+                         base::Bind(&MockStatisticsCallback::OnStatistics,
+                                    base::Unretained(&statistics_callback_)));
 
     message_loop_.RunAllPending();
   }

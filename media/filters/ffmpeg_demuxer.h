@@ -138,7 +138,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
       DataSource* data_source, const PipelineStatusCB& callback);
 
   // Demuxer implementation.
-  virtual void Stop(FilterCallback* callback) OVERRIDE;
+  virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb) OVERRIDE;
   virtual void OnAudioRendererDisabled() OVERRIDE;
   virtual void set_host(FilterHost* filter_host) OVERRIDE;
@@ -181,7 +181,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   void DemuxTask();
 
   // Carries out stopping the demuxer streams on the demuxer thread.
-  void StopTask(FilterCallback* callback);
+  void StopTask(const base::Closure& callback);
 
   // Carries out disabling the audio stream on the demuxer thread.
   void DisableAudioStreamTask();
