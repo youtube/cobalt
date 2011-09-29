@@ -128,27 +128,17 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
   BlockingNetworkDelegate()
       : retval_(net::ERR_IO_PENDING),
         callback_retval_(net::OK),
-        auth_retval_(NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING),
-        auth_callback_retval_(
-            NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION),
         ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
 
   void set_retval(int retval) { retval_ = retval; }
   void set_callback_retval(int retval) { callback_retval_ = retval; }
   void set_redirect_url(const GURL& url) { redirect_url_ = url; }
-  void set_auth_retval(NetworkDelegate::AuthRequiredResponse retval) {
-    auth_retval_ = retval; }
-  void set_auth_callback_retval(NetworkDelegate::AuthRequiredResponse retval) {
-    auth_callback_retval_ = retval; }
-  void set_auth_credentials(const AuthCredentials& auth_credentials) {
-    auth_credentials_ = auth_credentials;
-  }
 
  private:
   // TestNetworkDelegate:
-  virtual int OnBeforeURLRequest(URLRequest* request,
-                                 CompletionCallback* callback,
-                                 GURL* new_url) OVERRIDE {
+  virtual int OnBeforeURLRequest(net::URLRequest* request,
+                                 net::CompletionCallback* callback,
+                                 GURL* new_url) {
     if (redirect_url_ == request->url()) {
       // We've already seen this request and redirected elsewhere.
       return net::OK;
@@ -169,51 +159,13 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
     return net::ERR_IO_PENDING;
   }
 
-  virtual NetworkDelegate::AuthRequiredResponse OnAuthRequired(
-      URLRequest* request,
-      const AuthChallengeInfo& auth_info,
-      const AuthCallback& callback,
-      AuthCredentials* credentials) OVERRIDE {
-    TestNetworkDelegate::OnAuthRequired(request, auth_info, callback,
-                                        credentials);
-    switch (auth_retval_) {
-      case NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION:
-        break;
-      case NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH:
-        *credentials = auth_credentials_;
-      case NetworkDelegate::AUTH_REQUIRED_RESPONSE_CANCEL_AUTH:
-        break;
-      case NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING:
-        MessageLoop::current()->PostTask(
-            FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &BlockingNetworkDelegate::DoAuthCallback,
-                callback, credentials));
-        break;
-    }
-    return auth_retval_;
-  }
-
-  void DoCallback(CompletionCallback* callback) {
+  void DoCallback(net::CompletionCallback* callback) {
     callback->Run(callback_retval_);
   }
-
-  void DoAuthCallback(const AuthCallback& callback,
-                      AuthCredentials* credentials) {
-    if (auth_callback_retval_ ==
-        NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH) {
-      *credentials = auth_credentials_;
-    }
-    callback.Run(auth_callback_retval_);
-  }
-
 
   int retval_;
   int callback_retval_;
   GURL redirect_url_;
-  NetworkDelegate::AuthRequiredResponse auth_retval_;
-  NetworkDelegate::AuthRequiredResponse auth_callback_retval_;
-  AuthCredentials auth_credentials_;
   ScopedRunnableMethodFactory<BlockingNetworkDelegate> method_factory_;
 };
 
@@ -541,218 +493,6 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequestPost) {
     EXPECT_EQ(0, network_delegate.destroyed_requests());
     EXPECT_EQ("POST", r.method());
     EXPECT_EQ(kData, d.data_received());
-  }
-  EXPECT_EQ(1, network_delegate.destroyed_requests());
-}
-
-// Tests that the network delegate can synchronously complete OnAuthRequired
-// by taking no action. This indicates that the NetworkDelegate does not want to
-// handle the challenge, and is passing the buck along to the
-// URLRequest::Delegate.
-TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredSyncNoAction) {
-  ASSERT_TRUE(test_server_.Start());
-
-  TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
-  network_delegate.set_auth_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION);
-
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
-  context->set_network_delegate(&network_delegate);
-  context->Init();
-
-  d.set_username(kUser);
-  d.set_password(kSecret);
-
-  {
-    GURL url(test_server_.GetURL("auth-basic"));
-    TestURLRequest r(url, &d);
-    r.set_context(context);
-    r.Start();
-    MessageLoop::current()->Run();
-
-    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
-    EXPECT_EQ(0, r.status().error());
-    EXPECT_EQ(200, r.GetResponseCode());
-    EXPECT_TRUE(d.auth_required_called());
-    EXPECT_EQ(1, network_delegate.created_requests());
-    EXPECT_EQ(0, network_delegate.destroyed_requests());
-  }
-  EXPECT_EQ(1, network_delegate.destroyed_requests());
-}
-
-// Tests that the network delegate can synchronously complete OnAuthRequired
-// by setting credentials.
-TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredSyncSetAuth) {
-  ASSERT_TRUE(test_server_.Start());
-
-  TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
-  network_delegate.set_auth_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH);
-
-  AuthCredentials auth_credentials;
-  auth_credentials.username = kUser;
-  auth_credentials.password = kSecret;
-  network_delegate.set_auth_credentials(auth_credentials);
-
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
-  context->set_network_delegate(&network_delegate);
-  context->Init();
-
-  {
-    GURL url(test_server_.GetURL("auth-basic"));
-    TestURLRequest r(url, &d);
-    r.set_context(context);
-    r.Start();
-    MessageLoop::current()->Run();
-
-    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
-    EXPECT_EQ(0, r.status().error());
-    EXPECT_EQ(200, r.GetResponseCode());
-    EXPECT_FALSE(d.auth_required_called());
-    EXPECT_EQ(1, network_delegate.created_requests());
-    EXPECT_EQ(0, network_delegate.destroyed_requests());
-  }
-  EXPECT_EQ(1, network_delegate.destroyed_requests());
-}
-
-// Tests that the network delegate can synchronously complete OnAuthRequired
-// by cancelling authentication.
-TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredSyncCancel) {
-  ASSERT_TRUE(test_server_.Start());
-
-  TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
-  network_delegate.set_auth_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_CANCEL_AUTH);
-
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
-  context->set_network_delegate(&network_delegate);
-  context->Init();
-
-  {
-    GURL url(test_server_.GetURL("auth-basic"));
-    TestURLRequest r(url, &d);
-    r.set_context(context);
-    r.Start();
-    MessageLoop::current()->Run();
-
-    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
-    EXPECT_EQ(OK, r.status().error());
-    EXPECT_EQ(401, r.GetResponseCode());
-    EXPECT_FALSE(d.auth_required_called());
-    EXPECT_EQ(1, network_delegate.created_requests());
-    EXPECT_EQ(0, network_delegate.destroyed_requests());
-  }
-  EXPECT_EQ(1, network_delegate.destroyed_requests());
-}
-
-// Tests that the network delegate can asynchronously complete OnAuthRequired
-// by taking no action. This indicates that the NetworkDelegate does not want
-// to handle the challenge, and is passing the buck along to the
-// URLRequest::Delegate.
-TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredAsyncNoAction) {
-  ASSERT_TRUE(test_server_.Start());
-
-  TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
-  network_delegate.set_auth_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING);
-  network_delegate.set_auth_callback_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION);
-
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
-  context->set_network_delegate(&network_delegate);
-  context->Init();
-
-  d.set_username(kUser);
-  d.set_password(kSecret);
-
-  {
-    GURL url(test_server_.GetURL("auth-basic"));
-    TestURLRequest r(url, &d);
-    r.set_context(context);
-    r.Start();
-    MessageLoop::current()->Run();
-
-    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
-    EXPECT_EQ(0, r.status().error());
-    EXPECT_EQ(200, r.GetResponseCode());
-    EXPECT_TRUE(d.auth_required_called());
-    EXPECT_EQ(1, network_delegate.created_requests());
-    EXPECT_EQ(0, network_delegate.destroyed_requests());
-  }
-  EXPECT_EQ(1, network_delegate.destroyed_requests());
-}
-
-// Tests that the network delegate can asynchronously complete OnAuthRequired
-// by setting credentials.
-TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredAsyncSetCredentials) {
-  ASSERT_TRUE(test_server_.Start());
-
-  TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
-  network_delegate.set_auth_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING);
-  network_delegate.set_auth_callback_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH);
-
-  AuthCredentials auth_credentials;
-  auth_credentials.username = kUser;
-  auth_credentials.password = kSecret;
-  network_delegate.set_auth_credentials(auth_credentials);
-
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
-  context->set_network_delegate(&network_delegate);
-  context->Init();
-
-  {
-    GURL url(test_server_.GetURL("auth-basic"));
-    TestURLRequest r(url, &d);
-    r.set_context(context);
-    r.Start();
-    MessageLoop::current()->Run();
-
-    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
-    EXPECT_EQ(0, r.status().error());
-    EXPECT_EQ(200, r.GetResponseCode());
-    EXPECT_FALSE(d.auth_required_called());
-    EXPECT_EQ(1, network_delegate.created_requests());
-    EXPECT_EQ(0, network_delegate.destroyed_requests());
-  }
-  EXPECT_EQ(1, network_delegate.destroyed_requests());
-}
-
-// Tests that the network delegate can asynchronously complete OnAuthRequired
-// by cancelling authentication.
-TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredAsyncCancel) {
-  ASSERT_TRUE(test_server_.Start());
-
-  TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
-  network_delegate.set_auth_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING);
-  network_delegate.set_auth_callback_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_CANCEL_AUTH);
-
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
-  context->set_network_delegate(&network_delegate);
-  context->Init();
-
-  {
-    GURL url(test_server_.GetURL("auth-basic"));
-    TestURLRequest r(url, &d);
-    r.set_context(context);
-    r.Start();
-    MessageLoop::current()->Run();
-
-    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
-    EXPECT_EQ(OK, r.status().error());
-    EXPECT_EQ(401, r.GetResponseCode());
-    EXPECT_FALSE(d.auth_required_called());
-    EXPECT_EQ(1, network_delegate.created_requests());
-    EXPECT_EQ(0, network_delegate.destroyed_requests());
   }
   EXPECT_EQ(1, network_delegate.destroyed_requests());
 }
