@@ -13,6 +13,7 @@ URLRequestRedirectJob::URLRequestRedirectJob(URLRequest* request,
                                              const GURL& redirect_destination)
     : URLRequestJob(request),
       redirect_destination_(redirect_destination),
+      http_status_code_(302),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
 
 void URLRequestRedirectJob::Start() {
@@ -24,7 +25,7 @@ void URLRequestRedirectJob::Start() {
 bool URLRequestRedirectJob::IsRedirectResponse(GURL* location,
                                                int* http_status_code) {
   *location = redirect_destination_;
-  *http_status_code = 302;
+  *http_status_code = http_status_code_;
   return true;
 }
 
