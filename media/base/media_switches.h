@@ -17,7 +17,6 @@ extern const char kAlsaOutputDevice[];
 extern const char kAlsaInputDevice[];
 #endif
 
-MEDIA_EXPORT extern const char kEnableAdaptive[];
 MEDIA_EXPORT extern const char kUsePulseAudio[];
 MEDIA_EXPORT extern const char kVideoThreads[];
 
