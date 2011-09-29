@@ -6,7 +6,6 @@
 #include "build/build_config.h"
 
 #include <errno.h>
-#include <execinfo.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +16,10 @@
 
 #include <string>
 #include <vector>
+
+#if !defined(OS_ANDROID)
+#include <execinfo.h>
+#endif
 
 #if defined(__GLIBCXX__)
 #include <cxxabi.h>
@@ -45,7 +48,6 @@
 #endif
 
 #if defined(OS_ANDROID)
-#include <execinfo.h>
 #include "base/threading/platform_thread.h"
 #endif
 

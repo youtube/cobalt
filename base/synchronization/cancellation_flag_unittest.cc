@@ -26,7 +26,9 @@ class CancelTask : public Task {
  public:
   explicit CancelTask(CancellationFlag* flag) : flag_(flag) {}
   virtual void Run() {
+#if GTEST_HAS_DEATH_TEST
     ASSERT_DEBUG_DEATH(flag_->Set(), "");
+#endif
   }
  private:
   CancellationFlag* flag_;
