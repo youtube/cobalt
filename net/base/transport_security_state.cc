@@ -1000,6 +1000,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {17, true, "\003api\007recurly\003com", true, 0 },
     {13, false, "\007greplin\003com", true, 0 },
     {17, false, "\003www\007greplin\003com", true, 0 },
+    {27, true, "\006luneta\016nearbuysystems\003com", true, 0 },
 #if defined(OS_CHROMEOS)
     {13, false, "\007twitter\003com", true, 0 },
     {17, false, "\003www\007twitter\003com", true, 0 },
