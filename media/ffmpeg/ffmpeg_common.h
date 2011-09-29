@@ -85,34 +85,6 @@ ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
 // Calculates duration of one frame in the |stream| based on its frame rate.
 base::TimeDelta GetFrameDuration(AVStream* stream);
 
-// Get the timestamp of the next seek point after |timestamp|.
-// Returns true if a valid seek point was found after |timestamp| and
-// |seek_time| was set. Returns false if a seek point could not be
-// found or the parameters are invalid.
-MEDIA_EXPORT bool GetSeekTimeAfter(AVStream* stream,
-                                   const base::TimeDelta& timestamp,
-                                   base::TimeDelta* seek_time);
-
-// Get the number of bytes required to play the stream over a specified
-// time range. This is an estimate based on the available index data.
-// Returns true if input time range was valid and |bytes|, |range_start|,
-// and |range_end|, were set. Returns false if the range was invalid or we don't
-// have enough index data to make an estimate.
-//
-// |bytes| - The number of bytes in the stream for the specified range.
-// |range_start| - The start time for the range covered by |bytes|. This
-//                 may be different than |start_time| if the index doesn't
-//                 have data for that exact time. |range_start| <= |start_time|
-// |range_end| - The end time for the range covered by |bytes|. This may be
-//               different than |end_time| if the index doesn't have data for
-//               that exact time. |range_end| >= |end_time|
-MEDIA_EXPORT bool GetStreamByteCountOverRange(AVStream* stream,
-                                              const base::TimeDelta& start_time,
-                                              const base::TimeDelta& end_time,
-                                              int64* bytes,
-                                              base::TimeDelta* range_start,
-                                              base::TimeDelta* range_end);
-
 // Calculates the natural width and height of the video using the video's
 // encoded dimensions and sample_aspect_ratio.
 int GetNaturalHeight(AVStream* stream);
