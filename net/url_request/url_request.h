@@ -17,12 +17,10 @@
 #include "base/string16.h"
 #include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/auth.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
-#include "net/base/network_delegate.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_info.h"
@@ -718,7 +716,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // |delegate_| is not NULL. See URLRequest::Delegate for the meaning
   // of these functions.
   void NotifyAuthRequired(AuthChallengeInfo* auth_info);
-  void NotifyAuthRequiredComplete(NetworkDelegate::AuthRequiredResponse result);
   void NotifyCertificateRequested(SSLCertRequestInfo* cert_request_info);
   void NotifySSLCertificateError(const SSLInfo& ssl_info,
                                  bool is_hsts_host);
@@ -810,13 +807,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // messages to network delegate.
   // TODO(battre): Remove this. http://crbug.com/89049
   bool has_notified_completion_;
-
-  // Authentication data used by the NetworkDelegate for this request,
-  // if one is present. |auth_credentials_| may be filled in when calling
-  // |NotifyAuthRequired| on the NetworkDelegate. |auth_info_| holds
-  // the authentication challenge being handled by |NotifyAuthRequired|.
-  AuthCredentials auth_credentials_;
-  scoped_refptr<AuthChallengeInfo> auth_info_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };
