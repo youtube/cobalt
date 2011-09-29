@@ -4,7 +4,7 @@
 
 #include "base/os_compat_android.h"
 
-#include "base/string_util.h"
+#include "base/stringprintf.h"
 
 // There is no futimes() avaiable in Bionic, so we provide our own
 // implementation until it is there.
