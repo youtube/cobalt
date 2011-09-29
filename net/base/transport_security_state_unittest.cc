@@ -3,13 +3,25 @@
 // found in the LICENSE file.
 
 #include "base/string_piece.h"
-#include "crypto/nss_util.h"
 #include "net/base/transport_security_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if defined(USE_OPENSSL)
+#include "crypto/openssl_util.h"
+#else
+#include "crypto/nss_util.h"
+#endif
 
 namespace net {
 
 class TransportSecurityStateTest : public testing::Test {
+  virtual void SetUp() {
+#if defined(USE_NSS)
+    crypto::EnsureNSSInit();
+#elif defined(USE_OPENSSL)
+    crypto::EnsureOpenSSLInit();
+#endif
+  }
 };
 
 TEST_F(TransportSecurityStateTest, BogusHeaders) {
@@ -909,7 +921,6 @@ static const uint8 kSidePinExpectedHash[20] = {
 };
 
 TEST_F(TransportSecurityStateTest, ParseSidePins) {
-  crypto::EnsureNSSInit();
 
   base::StringPiece leaf_spki(reinterpret_cast<const char*>(kSidePinLeafSPKI),
                               sizeof(kSidePinLeafSPKI));
@@ -925,7 +936,6 @@ TEST_F(TransportSecurityStateTest, ParseSidePins) {
 }
 
 TEST_F(TransportSecurityStateTest, ParseSidePinsFailsWithBadData) {
-  crypto::EnsureNSSInit();
 
   uint8 leaf_spki_copy[sizeof(kSidePinLeafSPKI)];
   memcpy(leaf_spki_copy, kSidePinLeafSPKI, sizeof(leaf_spki_copy));
@@ -956,8 +966,6 @@ TEST_F(TransportSecurityStateTest, ParseSidePinsFailsWithBadData) {
 TEST_F(TransportSecurityStateTest, DISABLED_ParseSidePinsFuzz) {
   // Disabled because it's too slow for normal tests. Run manually when
   // changing the underlying code.
-
-  crypto::EnsureNSSInit();
 
   base::StringPiece leaf_spki(reinterpret_cast<const char*>(kSidePinLeafSPKI),
                               sizeof(kSidePinLeafSPKI));
