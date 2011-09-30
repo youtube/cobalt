@@ -13,6 +13,7 @@
 #include "base/observer_list.h"
 #include "base/string_piece.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/crl_set.h"
 #include "net/base/net_export.h"
 #include "net/base/x509_certificate.h"
 
@@ -104,6 +105,8 @@ struct NET_EXPORT SSLConfig {
   std::string next_protos;
 
   scoped_refptr<X509Certificate> client_cert;
+
+  scoped_refptr<CRLSet> crl_set;
 };
 
 // The interface for retrieving the SSL configuration.  This interface
@@ -153,6 +156,11 @@ class NET_EXPORT SSLConfigService
   // Enables DNS side checks for certificates.
   static void EnableDNSCertProvenanceChecking();
   static bool dns_cert_provenance_checking_enabled();
+
+  // Sets and gets the current, global CRL set.
+  // TODO(agl): currently unused.
+  static void SetCRLSet(scoped_refptr<CRLSet> crl_set);
+  static scoped_refptr<CRLSet> GetCRLSet();
 
   // Enables the TLS cached info extension, which allows the server to send
   // just a digest of its certificate chain.
