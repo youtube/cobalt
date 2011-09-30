@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/mac/mac_util.h"
 #include "base/mac/scoped_cftyperef.h"
+#include "base/message_loop.h"
 #include "base/sys_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_config.h"
