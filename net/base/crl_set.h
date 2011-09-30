@@ -22,7 +22,7 @@ namespace net {
 // A CRLSet is a structure that lists the serial numbers of revoked
 // certificates from a number of issuers where issuers are identified by the
 // SHA256 of their SubjectPublicKeyInfo.
-class NET_EXPORT_PRIVATE CRLSet : public base::RefCounted<CRLSet> {
+class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
  public:
   enum Result {
     REVOKED,  // the certificate should be rejected.
