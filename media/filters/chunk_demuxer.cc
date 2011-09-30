@@ -83,8 +83,6 @@ class ChunkDemuxerStream : public DemuxerStream {
   virtual const AudioDecoderConfig& audio_decoder_config();
 
  private:
-  static void RunCallback(ReadCallback cb, scoped_refptr<Buffer> buffer);
-
   Type type_;
   AVStream* av_stream_;
   AudioDecoderConfig audio_config_;
@@ -174,9 +172,7 @@ void ChunkDemuxerStream::AddBuffers(const BufferQueue& buffers) {
     }
 
     while (!buffers_.empty() && !read_cbs_.empty()) {
-      callbacks.push_back(base::Bind(&ChunkDemuxerStream::RunCallback,
-                                     read_cbs_.front(),
-                                     buffers_.front()));
+      callbacks.push_back(base::Bind(read_cbs_.front(), buffers_.front()));
       buffers_.pop_front();
       read_cbs_.pop_front();
     }
@@ -220,23 +216,14 @@ bool ChunkDemuxerStream::GetLastBufferTimestamp(
   return true;
 }
 
-// Helper function used to make Closures for ReadCallbacks.
-//static
-void ChunkDemuxerStream::RunCallback(ReadCallback cb,
-                                     scoped_refptr<Buffer> buffer) {
-  cb.Run(buffer);
-}
-
 // Helper function that makes sure |read_callback| runs on |message_loop|.
 static void RunOnMessageLoop(const DemuxerStream::ReadCallback& read_callback,
                              MessageLoop* message_loop,
                              Buffer* buffer) {
   if (MessageLoop::current() != message_loop) {
-    message_loop->PostTask(FROM_HERE,
-                           base::Bind(&RunOnMessageLoop,
-                                               read_callback,
-                                               message_loop,
-                                               scoped_refptr<Buffer>(buffer)));
+    message_loop->PostTask(FROM_HERE, base::Bind(
+        &RunOnMessageLoop, read_callback, message_loop,
+        scoped_refptr<Buffer>(buffer)));
     return;
   }
 
