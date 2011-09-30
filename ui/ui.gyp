@@ -319,7 +319,6 @@
         ['use_aura==1 and OS=="win"', {
           'sources/': [
             ['exclude', 'base/dragdrop/os_exchange_data_provider_aura.cc'],
-            ['exclude', 'gfx/path_win.cc'],
           ],
         }],
         ['use_glib == 1', {
