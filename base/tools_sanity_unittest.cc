@@ -99,6 +99,7 @@ TEST(ToolsSanityTest, SingleElementDeletedWithBraces) {
 
   // Without the |volatile|, clang optimizes away the next two lines.
   int* volatile foo = new int;
+  (void) foo;
   delete [] foo;
 }
 
