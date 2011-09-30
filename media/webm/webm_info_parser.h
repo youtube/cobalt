@@ -17,8 +17,9 @@ class WebMInfoParser : public WebMParserClient {
 
   // Parses a WebM Info element in |buf|.
   //
-  // Returns the number of bytes parsed on success. Returns -1
-  // on error.
+  // Returns -1 if the parse fails.
+  // Returns 0 if more data is needed.
+  // Returns the number of bytes parsed on success.
   int Parse(const uint8* buf, int size);
 
   int64 timecode_scale() const { return timecode_scale_; }

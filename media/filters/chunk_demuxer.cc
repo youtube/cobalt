@@ -322,7 +322,7 @@ void ChunkDemuxer::Init(const PipelineStatusCB& cb) {
     base::AutoLock auto_lock(lock_);
     DCHECK_EQ(state_, WAITING_FOR_INIT);
 
-    ChangeState(INITIALIZING);
+    ChangeState_Locked(INITIALIZING);
     init_cb_ = cb;
   }
 
@@ -402,13 +402,14 @@ void ChunkDemuxer::FlushData() {
     video_->Flush();
 
   seek_waits_for_data_ = true;
-  ChangeState(INITIALIZED);
+  ChangeState_Locked(INITIALIZED);
 }
 
-bool ChunkDemuxer::AppendData(const uint8* data, unsigned length) {
+bool ChunkDemuxer::AppendData(const uint8* data, size_t length) {
   VLOG(1) << "AppendData(" << length << ")";
-  DCHECK(data);
-  DCHECK_GT(length, 0u);
+
+  if (!data || length == 0u)
+    return false;
 
   int64 buffered_bytes = 0;
   base::TimeDelta buffered_ts = base::TimeDelta::FromSeconds(-1);
@@ -416,32 +417,62 @@ bool ChunkDemuxer::AppendData(const uint8* data, unsigned length) {
   PipelineStatusCB cb;
   {
     base::AutoLock auto_lock(lock_);
-    switch(state_) {
-      case INITIALIZING:
-        if (!ParseInfoAndTracks_Locked(data, length)) {
-          VLOG(1) << "AppendData(): parsing info & tracks failed";
-          ReportError_Locked(DEMUXER_ERROR_COULD_NOT_OPEN);
-        }
-        return true;
-        break;
 
-      case INITIALIZED:
-        if (!ParseAndAppendData_Locked(data, length)) {
-          VLOG(1) << "AppendData(): parsing data failed";
-          ReportError_Locked(PIPELINE_ERROR_DECODE);
-          return true;
-        }
-        break;
+    byte_queue_.Push(data, length);
 
-      case WAITING_FOR_INIT:
-      case ENDED:
-      case PARSE_ERROR:
-      case SHUTDOWN:
-        VLOG(1) << "AppendData(): called in unexpected state " << state_;
-        return false;
+    const uint8* cur = NULL;
+    int cur_size = 0;
+    int bytes_parsed = 0;
+    int result = -1;
+    bool parsed_a_cluster = false;
+
+    byte_queue_.Peek(&cur, &cur_size);
+
+    do {
+      switch(state_) {
+        case INITIALIZING:
+          result = ParseInfoAndTracks_Locked(cur, cur_size);
+          if (result < 0) {
+            VLOG(1) << "AppendData(): parsing info & tracks failed";
+            ReportError_Locked(DEMUXER_ERROR_COULD_NOT_OPEN);
+            return true;
+          }
+          break;
+
+        case INITIALIZED:
+          result = ParseCluster_Locked(cur, cur_size);
+          if (result < 0) {
+            VLOG(1) << "AppendData(): parsing data failed";
+            ReportError_Locked(PIPELINE_ERROR_DECODE);
+            return true;
+          }
+
+          parsed_a_cluster = (result > 0);
+          break;
+
+        case WAITING_FOR_INIT:
+        case ENDED:
+        case PARSE_ERROR:
+        case SHUTDOWN:
+          VLOG(1) << "AppendData(): called in unexpected state " << state_;
+          return false;
+      }
+
+      if (result > 0) {
+        cur += result;
+        cur_size -= result;
+        bytes_parsed += result;
+      }
+    } while (result > 0 && cur_size > 0);
+
+    byte_queue_.Pop(bytes_parsed);
+
+    if (parsed_a_cluster && seek_waits_for_data_) {
+      seek_waits_for_data_ = false;
+
+      if (!seek_cb_.is_null())
+        std::swap(cb, seek_cb_);
     }
-
-    seek_waits_for_data_ = false;
 
     base::TimeDelta tmp;
     if (audio_.get() && audio_->GetLastBufferTimestamp(&tmp) &&
@@ -455,9 +486,6 @@ bool ChunkDemuxer::AppendData(const uint8* data, unsigned length) {
     }
 
     buffered_bytes = buffered_bytes_;
-
-    if (!seek_cb_.is_null())
-      std::swap(cb, seek_cb_);
   }
 
   // Notify the host of 'network activity' because we got data.
@@ -491,7 +519,7 @@ void ChunkDemuxer::EndOfStream(PipelineStatus status) {
     return;
   }
 
-  ChangeState(ENDED);
+  ChangeState_Locked(ENDED);
 
   if (status != PIPELINE_OK) {
     ReportError_Locked(status);
@@ -531,7 +559,7 @@ void ChunkDemuxer::Shutdown() {
     if (video_.get())
       video_->Shutdown();
 
-    ChangeState(SHUTDOWN);
+    ChangeState_Locked(SHUTDOWN);
   }
 
   if (!cb.is_null())
@@ -540,12 +568,13 @@ void ChunkDemuxer::Shutdown() {
   client_->DemuxerClosed();
 }
 
-void ChunkDemuxer::ChangeState(State new_state) {
+void ChunkDemuxer::ChangeState_Locked(State new_state) {
   lock_.AssertAcquired();
   state_ = new_state;
 }
 
-bool ChunkDemuxer::ParseInfoAndTracks_Locked(const uint8* data, int size) {
+int ChunkDemuxer::ParseInfoAndTracks_Locked(const uint8* data, int size) {
+  lock_.AssertAcquired();
   DCHECK(data);
   DCHECK_GT(size, 0);
 
@@ -553,20 +582,24 @@ bool ChunkDemuxer::ParseInfoAndTracks_Locked(const uint8* data, int size) {
 
   const uint8* cur = data;
   int cur_size = size;
+  int bytes_parsed = 0;
   WebMInfoParser info_parser;
-  int res = info_parser.Parse(cur, cur_size);
+  int result = info_parser.Parse(cur, cur_size);
 
-  if (res <= 0)
-    return false;
+  if (result <= 0)
+    return result;
 
-  cur += res;
-  cur_size -= res;
+  cur += result;
+  cur_size -= result;
+  bytes_parsed += result;
 
   WebMTracksParser tracks_parser(info_parser.timecode_scale());
-  res = tracks_parser.Parse(cur, cur_size);
+  result = tracks_parser.Parse(cur, cur_size);
 
-  if (res <= 0)
-    return false;
+  if (result <= 0)
+    return result;
+
+  bytes_parsed += result;
 
   double mult = info_parser.timecode_scale() / 1000.0;
   duration_ = base::TimeDelta::FromMicroseconds(info_parser.duration() * mult);
@@ -578,16 +611,14 @@ bool ChunkDemuxer::ParseInfoAndTracks_Locked(const uint8* data, int size) {
       tracks_parser.video_track_num(),
       tracks_parser.video_default_duration()));
 
-  format_context_ = CreateFormatContext(data, size);
+  format_context_ = CreateFormatContext(data, bytes_parsed);
+  if (!format_context_ || !SetupStreams())
+    return -1;
 
-  if (!format_context_ || !SetupStreams()) {
-    return false;
-  }
-
-  ChangeState(INITIALIZED);
+  ChangeState_Locked(INITIALIZED);
   init_cb_.Run(PIPELINE_OK);
   init_cb_.Reset();
-  return true;
+  return bytes_parsed;
 }
 
 AVFormatContext* ChunkDemuxer::CreateFormatContext(const uint8* data,
@@ -656,51 +687,43 @@ bool ChunkDemuxer::SetupStreams() {
   return !no_supported_streams;
 }
 
-bool ChunkDemuxer::ParseAndAppendData_Locked(const uint8* data, int length) {
+int ChunkDemuxer::ParseCluster_Locked(const uint8* data, int size) {
+  lock_.AssertAcquired();
   if (!cluster_parser_.get())
-    return false;
+    return -1;
 
-  const uint8* cur = data;
-  int cur_size = length;
+  int bytes_parsed = cluster_parser_->Parse(data, size);
 
-  while (cur_size > 0) {
-    int res = cluster_parser_->Parse(cur, cur_size);
+  if (bytes_parsed <= 0)
+    return bytes_parsed;
 
-    if (res <= 0) {
-      VLOG(1) << "ParseAndAppendData_Locked() : cluster parsing failed.";
-      return false;
-    }
-
-    // Make sure we can add the buffers to both streams before we acutally
-    // add them. This allows us to accept all of the data or none of it.
-    if ((audio_.get() &&
-         !audio_->CanAddBuffers(cluster_parser_->audio_buffers())) ||
-        (video_.get() &&
-         !video_->CanAddBuffers(cluster_parser_->video_buffers()))) {
-      return false;
-    }
-
-    if (audio_.get())
-      audio_->AddBuffers(cluster_parser_->audio_buffers());
-
-    if (video_.get())
-      video_->AddBuffers(cluster_parser_->video_buffers());
-
-    cur += res;
-    cur_size -= res;
+  // Make sure we can add the buffers to both streams before we actutally
+  // add them. This allows us to accept all of the data or none of it.
+  if ((audio_.get() &&
+       !audio_->CanAddBuffers(cluster_parser_->audio_buffers())) ||
+      (video_.get() &&
+       !video_->CanAddBuffers(cluster_parser_->video_buffers()))) {
+    return -1;
   }
+
+  if (audio_.get())
+    audio_->AddBuffers(cluster_parser_->audio_buffers());
+
+  if (video_.get())
+    video_->AddBuffers(cluster_parser_->video_buffers());
 
   // TODO(acolwell) : make this more representative of what is actually
   // buffered.
-  buffered_bytes_ += length;
+  buffered_bytes_ += bytes_parsed;
 
-  return true;
+  return bytes_parsed;
 }
 
 void ChunkDemuxer::ReportError_Locked(PipelineStatus error) {
+  lock_.AssertAcquired();
   DCHECK_NE(error, PIPELINE_OK);
 
-  ChangeState(PARSE_ERROR);
+  ChangeState_Locked(PARSE_ERROR);
 
   PipelineStatusCB cb;
 
