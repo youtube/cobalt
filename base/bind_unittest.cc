@@ -153,6 +153,10 @@ int Sum(int a, int b, int c, int d, int e, int f) {
   return a + b + c + d + e + f;
 }
 
+void OutputSum(int* output, int a, int b, int c, int d, int e) {
+  *output = a + b + c + d + e;
+}
+
 const char* CStringIdentity(const char* s) {
   return s;
 }
@@ -241,6 +245,37 @@ TEST_F(BindTest, ArityTest) {
 
   Callback<int(int,int,int,int,int,int)> c6 = Bind(&Sum);
   EXPECT_EQ(69, c6.Run(13, 12, 11, 10, 9, 14));
+}
+
+// Bind should be able to take existing Callbacks and convert to a Closure.
+TEST_F(BindTest, CallbackBindMore) {
+  int output = 0;
+  Closure c;
+
+  Callback<void(int)> c1 = Bind(&OutputSum, &output, 16, 8, 4, 2);
+  c = Bind(c1, 10);
+  c.Run();
+  EXPECT_EQ(40, output);
+
+  Callback<void(int,int)> c2 = Bind(&OutputSum, &output, 16, 8, 4);
+  c = Bind(c2, 10, 9);
+  c.Run();
+  EXPECT_EQ(47, output);
+
+  Callback<void(int,int,int)> c3 = Bind(&OutputSum, &output, 16, 8);
+  c = Bind(c3, 10, 9, 8);
+  c.Run();
+  EXPECT_EQ(51, output);
+
+  Callback<void(int,int,int,int)> c4 = Bind(&OutputSum, &output, 16);
+  c = Bind(c4, 10, 9, 8, 7);
+  c.Run();
+  EXPECT_EQ(50, output);
+
+  Callback<void(int,int,int,int,int)> c5 = Bind(&OutputSum, &output);
+  c = Bind(c5, 10, 9, 8, 7, 6);
+  c.Run();
+  EXPECT_EQ(40, output);
 }
 
 // Function type support.
