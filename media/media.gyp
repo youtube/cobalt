@@ -555,8 +555,6 @@
         'base/filter_collection_unittest.cc',
         'base/h264_bitstream_converter_unittest.cc',
         'base/mock_reader.h',
-        'base/mock_task.cc',
-        'base/mock_task.h',
         'base/pipeline_impl_unittest.cc',
         'base/pts_heap_unittest.cc',
         'base/pts_stream_unittest.cc',

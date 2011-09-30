@@ -73,7 +73,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
         .WillOnce(ReturnRef(config_));
 
     decoder_->Initialize(demuxer_,
-                         NewExpectedCallback(),
+                         NewExpectedClosure(),
                          base::Bind(&MockStatisticsCallback::OnStatistics,
                                     base::Unretained(&statistics_callback_)));
 
@@ -81,7 +81,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
   }
 
   void Stop() {
-    decoder_->Stop(NewExpectedCallback());
+    decoder_->Stop(NewExpectedClosure());
     message_loop_.RunAllPending();
   }
 
@@ -138,7 +138,7 @@ TEST_F(FFmpegAudioDecoderTest, Initialize) {
 TEST_F(FFmpegAudioDecoderTest, Flush) {
   Initialize();
 
-  decoder_->Flush(NewExpectedCallback());
+  decoder_->Flush(NewExpectedClosure());
   message_loop_.RunAllPending();
 
   Stop();

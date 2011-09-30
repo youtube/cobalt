@@ -73,7 +73,7 @@ class VideoRendererBaseTest : public ::testing::Test {
           .WillOnce(DoAll(OnStop(), Return()))
           .RetiresOnSaturation();
 
-      renderer_->Stop(NewExpectedCallback());
+      renderer_->Stop(NewExpectedClosure());
     }
   }
 
@@ -99,7 +99,7 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     // Initialize, we shouldn't have any reads.
     renderer_->Initialize(decoder_,
-                          NewExpectedCallback(), NewStatisticsCallback());
+                          NewExpectedClosure(), NewStatisticsCallback());
     EXPECT_EQ(0u, read_queue_.size());
 
     // Now seek to trigger prerolling.
@@ -135,9 +135,9 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
   void Flush() {
-    renderer_->Pause(NewExpectedCallback());
+    renderer_->Pause(NewExpectedClosure());
 
-    renderer_->Flush(NewExpectedCallback());
+    renderer_->Flush(NewExpectedClosure());
   }
 
   void CreateError() {
@@ -214,7 +214,7 @@ TEST_F(VideoRendererBaseTest, Initialize_Failed) {
 
   // Initialize, we expect to have no reads.
   renderer_->Initialize(decoder_,
-                        NewExpectedCallback(), NewStatisticsCallback());
+                        NewExpectedClosure(), NewStatisticsCallback());
   EXPECT_EQ(0u, read_queue_.size());
 }
 
@@ -227,13 +227,13 @@ TEST_F(VideoRendererBaseTest, Initialize_Successful) {
 
 TEST_F(VideoRendererBaseTest, Play) {
   Initialize();
-  renderer_->Play(NewExpectedCallback());
+  renderer_->Play(NewExpectedClosure());
   Flush();
 }
 
 TEST_F(VideoRendererBaseTest, Error_Playing) {
   Initialize();
-  renderer_->Play(NewExpectedCallback());
+  renderer_->Play(NewExpectedClosure());
 
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
   CreateError();
@@ -276,7 +276,7 @@ TEST_F(VideoRendererBaseTest, Seek_RightAfter) {
 // decoder error.
 TEST_F(VideoRendererBaseTest, GetCurrentFrame_AfterError) {
   Initialize();
-  renderer_->Play(NewExpectedCallback());
+  renderer_->Play(NewExpectedClosure());
 
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
   CreateError();
@@ -291,7 +291,7 @@ TEST_F(VideoRendererBaseTest, GetCurrentFrame_AfterError) {
 // of a paint operation.
 TEST_F(VideoRendererBaseTest, Error_DuringPaint) {
   Initialize();
-  renderer_->Play(NewExpectedCallback());
+  renderer_->Play(NewExpectedClosure());
 
   scoped_refptr<VideoFrame> frame;
   renderer_->GetCurrentFrame(&frame);
@@ -318,7 +318,7 @@ TEST_F(VideoRendererBaseTest, GetCurrentFrame_AfterStop) {
       .WillOnce(DoAll(OnStop(), Return()))
       .RetiresOnSaturation();
 
-  renderer_->Stop(NewExpectedCallback());
+  renderer_->Stop(NewExpectedClosure());
 
   scoped_refptr<VideoFrame> frame;
   renderer_->GetCurrentFrame(&frame);

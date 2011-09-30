@@ -52,7 +52,7 @@ class FFmpegDemuxerTest : public testing::Test {
 
   virtual ~FFmpegDemuxerTest() {
     // Call Stop() to shut down internal threads.
-    demuxer_->Stop(NewExpectedCallback());
+    demuxer_->Stop(NewExpectedClosure());
 
     // Finish up any remaining tasks.
     message_loop_.RunAllPending();
@@ -388,7 +388,7 @@ TEST_F(FFmpegDemuxerTest, Stop) {
       demuxer_->GetStream(DemuxerStream::AUDIO);
   ASSERT_TRUE(audio);
 
-  demuxer_->Stop(NewExpectedCallback());
+  demuxer_->Stop(NewExpectedClosure());
 
   // Expect all calls in sequence.
   InSequence s;
@@ -520,7 +520,7 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
 
   // This read complete signal is generated when demuxer is stopped.
   EXPECT_CALL(*demuxer, SignalReadCompleted(DataSource::kReadError));
-  demuxer->Stop(NewExpectedCallback());
+  demuxer->Stop(NewExpectedClosure());
   message_loop_.RunAllPending();
 }
 
