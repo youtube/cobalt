@@ -144,8 +144,11 @@ static int ParseWebMElementHeaderField(const uint8* buf, int size,
   DCHECK(buf);
   DCHECK(num);
 
-  if (size <= 0)
+  if (size < 0)
     return -1;
+
+  if (size == 0)
+    return 0;
 
   int mask = 0x80;
   uint8 ch = buf[0];
@@ -159,8 +162,12 @@ static int ParseWebMElementHeaderField(const uint8* buf, int size,
     mask >>= 1;
   }
 
-  if ((extra_bytes == -1) || ((1 + extra_bytes) > size))
+  if (extra_bytes == -1)
     return -1;
+
+  // Return 0 if we need more data.
+  if ((1 + extra_bytes) > size)
+    return 0;
 
   int bytes_used = 1;
 
@@ -281,20 +288,20 @@ static int ParseElementList(const uint8* buf, int size,
   if (!client->OnListStart(id))
     return -1;
 
-  int res = ParseElements(list_info->id_info_,
-                          list_info->id_info_size_,
-                          buf, size,
-                          level + 1,
-                          client);
+  int result = ParseElements(list_info->id_info_,
+                             list_info->id_info_size_,
+                             buf, size,
+                             level + 1,
+                             client);
 
-  if (res < 0)
-    return -1;
+  if (result <= 0)
+    return result;
 
   if (!client->OnListEnd(id))
     return -1;
 
-  DCHECK_EQ(res, size);
-  return res;
+  DCHECK_EQ(result, size);
+  return result;
 }
 
 static int ParseUInt(const uint8* buf, int size, int id,
@@ -370,21 +377,18 @@ static int ParseElements(const ElementIdInfo* id_info,
   while (cur_size > 0) {
     int id = 0;
     int64 element_size = 0;
-    int res = ParseWebMElementHeader(cur, cur_size, &id, &element_size);
+    int result = ParseWebMElementHeader(cur, cur_size, &id, &element_size);
 
-    if (res < 0)
-      return res;
+    if (result <= 0)
+      return result;
 
-    if (res == 0)
-      break;
-
-    cur += res;
-    cur_size -= res;
-    used += res;
+    cur += result;
+    cur_size -= result;
+    used += result;
 
     // Check to see if the element is larger than the remaining data.
     if (element_size > cur_size)
-      return -1;
+      return 0;
 
     const ElementIdInfo* info = FindIdInfo(id, id_info, id_info_size);
 
@@ -452,34 +456,45 @@ static int ParseElements(const ElementIdInfo* id_info,
 // buffer points to an element that does not match |id|.
 int WebMParseListElement(const uint8* buf, int size, int id,
                          int level, WebMParserClient* client) {
-  if (size == 0)
+  if (size < 0)
     return -1;
+
+  if (size == 0)
+    return 0;
 
   const uint8* cur = buf;
   int cur_size = size;
-
+  int bytes_parsed = 0;
   int element_id = 0;
   int64 element_size = 0;
-  int res = ParseWebMElementHeader(cur, cur_size, &element_id, &element_size);
+  int result = ParseWebMElementHeader(cur, cur_size, &element_id,
+                                      &element_size);
 
-  if (res <= 0)
-    return res;
+  if (result <= 0)
+    return result;
 
-  cur += res;
-  cur_size -= res;
+  cur += result;
+  cur_size -= result;
+  bytes_parsed += result;
 
-  if (element_id != id || element_size > cur_size)
+  if (element_id != id)
     return -1;
 
-  res = ParseElementList(cur, element_size, element_id, level, client);
+  if (element_size > cur_size)
+    return 0;
 
-  if (res < 0)
-    return -1;
+  if (element_size > 0) {
+    result = ParseElementList(cur, element_size, element_id, level, client);
 
-  cur += res;
-  cur_size -= res;
+    if (result <= 0)
+      return result;
 
-  return size - cur_size;
+    cur += result;
+    cur_size -= result;
+    bytes_parsed += result;
+  }
+
+  return bytes_parsed;
 }
 
 }  // namespace media

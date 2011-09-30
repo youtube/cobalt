@@ -19,8 +19,9 @@ class WebMTracksParser : public WebMParserClient {
 
   // Parses a WebM Tracks element in |buf|.
   //
-  // Returns the number of bytes parsed on success. Returns -1
-  // on error.
+  // Returns -1 if the parse fails.
+  // Returns 0 if more data is needed.
+  // Returns the number of bytes parsed on success.
   int Parse(const uint8* buf, int size);
 
   int64 audio_track_num() const { return audio_track_num_; }

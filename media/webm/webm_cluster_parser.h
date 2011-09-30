@@ -27,8 +27,9 @@ class WebMClusterParser : public WebMParserClient {
 
   // Parses a WebM cluster element in |buf|.
   //
-  // Returns the number of bytes parsed on success. Returns -1
-  // if a parse error occurs.
+  // Returns -1 if the parse fails.
+  // Returns 0 if more data is needed.
+  // Returns the number of bytes parsed on success.
   int Parse(const uint8* buf, int size);
 
   const BufferQueue& audio_buffers() const { return audio_buffers_; }

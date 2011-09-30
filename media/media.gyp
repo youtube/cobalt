@@ -89,6 +89,8 @@
         'base/bitstream_buffer.h',
         'base/buffers.cc',
         'base/buffers.h',
+        'base/byte_queue.cc',
+        'base/byte_queue.h',
         'base/channel_layout.cc',
         'base/channel_layout.h',
         'base/clock.cc',
