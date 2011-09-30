@@ -47,6 +47,8 @@ class MessageLoop;
 //   In this mode a DataSource object is given to the AudioOutputController
 //   and AudioOutputController reads from it synchronously.
 //
+#include "media/base/media_export.h"
+
 namespace media {
 
 class MEDIA_EXPORT AudioOutputController
@@ -69,7 +71,7 @@ class MEDIA_EXPORT AudioOutputController
 
   // An event handler that receives events from the AudioOutputController. The
   // following methods are called on the audio controller thread.
-  class EventHandler {
+  class MEDIA_EXPORT EventHandler {
    public:
     virtual ~EventHandler() {}
     virtual void OnCreated(AudioOutputController* controller) = 0;

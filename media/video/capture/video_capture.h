@@ -10,12 +10,13 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
+#include "media/base/media_export.h"
 #include "media/base/video_frame.h"
 #include "media/video/capture/video_capture_types.h"
 
 namespace media {
 
-class VideoCapture {
+class MEDIA_EXPORT VideoCapture {
  public:
   // Current status of the video capture device in the browser process. Browser
   // process sends information about the current capture state and error to the

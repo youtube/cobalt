@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 
 #include "base/basictypes.h"
 #include "content/browser/speech/endpointer/energy_endpointer.h"
+#include "content/common/content_export.h"
 
 class EpStatus;
 
@@ -40,7 +41,7 @@ namespace speech_input {
 // The timeout length is speech_input_complete_silence_length until
 // long_speech_length, when it changes to
 // long_speech_input_complete_silence_length.
-class Endpointer {
+class CONTENT_EXPORT Endpointer {
  public:
   explicit Endpointer(int sample_rate);
 
