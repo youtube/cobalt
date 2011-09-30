@@ -1721,6 +1721,47 @@ struct Invoker6<true, StorageType, void(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
+// BindMoreFuncN<>
+//
+// This set of functions help in fully binding the free parameters in a
+// Callback<>.
+template <typename Sig, typename P1>
+void BindMoreFunc1(const base::Callback<Sig>& callback, const P1& p1) {
+  callback.Run(p1);
+}
+
+template <typename Sig, typename P1, typename P2>
+void BindMoreFunc2(const base::Callback<Sig>& callback, const P1& p1,
+    const P2& p2) {
+  callback.Run(p1, p2);
+}
+
+template <typename Sig, typename P1, typename P2, typename P3>
+void BindMoreFunc3(const base::Callback<Sig>& callback, const P1& p1,
+    const P2& p2, const P3& p3) {
+  callback.Run(p1, p2, p3);
+}
+
+template <typename Sig, typename P1, typename P2, typename P3, typename P4>
+void BindMoreFunc4(const base::Callback<Sig>& callback, const P1& p1,
+    const P2& p2, const P3& p3, const P4& p4) {
+  callback.Run(p1, p2, p3, p4);
+}
+
+template <typename Sig, typename P1, typename P2, typename P3, typename P4,
+    typename P5>
+void BindMoreFunc5(const base::Callback<Sig>& callback, const P1& p1,
+    const P2& p2, const P3& p3, const P4& p4, const P5& p5) {
+  callback.Run(p1, p2, p3, p4, p5);
+}
+
+template <typename Sig, typename P1, typename P2, typename P3, typename P4,
+    typename P5, typename P6>
+void BindMoreFunc6(const base::Callback<Sig>& callback, const P1& p1,
+    const P2& p2, const P3& p3, const P4& p4, const P5& p5, const P6& p6) {
+  callback.Run(p1, p2, p3, p4, p5, p6);
+}
+
 // InvokerStorageN<>
 //
 // These are the actual storage classes for the Invokers.

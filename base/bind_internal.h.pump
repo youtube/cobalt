@@ -266,6 +266,23 @@ $for M_UNBOUND_ARG , [[x$(M_UNBOUND_ARG)]]);
 ]]  $$ for ARITY
 ]]  $$ for BOUND
 
+// BindMoreFuncN<>
+//
+// This set of functions help in fully binding the free parameters in a
+// Callback<>.
+$for BOUND [[
+$range BOUND_ARG 1..BOUND
+$if BOUND != 0 [[
+
+template <typename Sig, $for BOUND_ARG , [[typename P$(BOUND_ARG)]]>
+void BindMoreFunc$(BOUND)(const base::Callback<Sig>& callback, [[]]
+$for BOUND_ARG , [[const P$(BOUND_ARG)& p$(BOUND_ARG)]]) {
+  callback.Run($for BOUND_ARG , [[p$(BOUND_ARG)]]);
+}
+
+]]  $$ if BOUND
+]]  $$ for BOUND
+
 // InvokerStorageN<>
 //
 // These are the actual storage classes for the Invokers.
