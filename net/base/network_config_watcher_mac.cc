@@ -6,10 +6,12 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/memory/weak_ptr.h"
+#include "base/message_loop.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/mac/scoped_cftyperef.h"
 
 namespace net {
 
@@ -31,8 +33,8 @@ class NetworkConfigWatcherMacThread : public base::Thread {
 
  protected:
   // base::Thread
-  virtual void Init();
-  virtual void CleanUp();
+  virtual void Init() OVERRIDE;
+  virtual void CleanUp() OVERRIDE;
 
  private:
   // The SystemConfiguration calls in this function can lead to contention early
@@ -41,7 +43,7 @@ class NetworkConfigWatcherMacThread : public base::Thread {
 
   base::mac::ScopedCFTypeRef<CFRunLoopSourceRef> run_loop_source_;
   NetworkConfigWatcherMac::Delegate* const delegate_;
-  ScopedRunnableMethodFactory<NetworkConfigWatcherMacThread> method_factory_;
+  base::WeakPtrFactory<NetworkConfigWatcherMacThread> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkConfigWatcherMacThread);
 };
@@ -50,7 +52,7 @@ NetworkConfigWatcherMacThread::NetworkConfigWatcherMacThread(
     NetworkConfigWatcherMac::Delegate* delegate)
     : base::Thread("NetworkConfigWatcher"),
       delegate_(delegate),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
 NetworkConfigWatcherMacThread::~NetworkConfigWatcherMacThread() {
   // Allow IO because Stop() calls PlatformThread::Join(), which is a blocking
@@ -72,8 +74,8 @@ void NetworkConfigWatcherMacThread::Init() {
   const int kInitializationDelayMS = 1000;
   message_loop()->PostDelayedTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &NetworkConfigWatcherMacThread::InitNotifications),
+      base::Bind(&NetworkConfigWatcherMacThread::InitNotifications,
+                 weak_factory_.GetWeakPtr()),
       kInitializationDelayMS);
 }
 
