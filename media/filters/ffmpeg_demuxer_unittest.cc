@@ -238,9 +238,6 @@ TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
   // Test the start time is the first timestamp of the video and audio stream.
   InitializeDemuxer(CreateDataSource("nonzero-start-time.webm"));
 
-  const base::TimeDelta kExpectedTimestamp =
-      base::TimeDelta::FromMicroseconds(396000);
-
   // Attempt a read from the video stream and run the message loop until done.
   scoped_refptr<DemuxerStream> video =
       demuxer_->GetStream(DemuxerStream::VIDEO);
