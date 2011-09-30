@@ -258,6 +258,7 @@
         'gfx/pango_util.cc',
         'gfx/path.cc',
         'gfx/path.h',
+        'gfx/path_aura.cc',
         'gfx/path_gtk.cc',
         'gfx/path_win.cc',
         'gfx/platform_font.h',
