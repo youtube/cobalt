@@ -145,6 +145,9 @@
       # The system root for cross-compiles. Default: none.
       'sysroot%': '',
 
+      # The system libdir used for this ABI.
+      'system_libdir%': 'lib',
+
       # On Linux, we build with sse2 for Chromium builds.
       'disable_sse2%': 0,
 
@@ -337,6 +340,7 @@
     'armv7%': '<(armv7)',
     'arm_neon%': '<(arm_neon)',
     'sysroot%': '<(sysroot)',
+    'system_libdir%': '<(system_libdir)',
     'disable_sse2%': '<(disable_sse2)',
     'component%': '<(component)',
     'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
@@ -571,7 +575,7 @@
         # This is used to tweak build flags for gcc 4.4.
         'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
         # Figure out the python architecture to decide if we build pyauto.
-        'python_arch%': '<!(<(DEPTH)/build/linux/python_arch.sh <(sysroot)/usr/lib/libpython<(python_ver).so.1.0)',
+        'python_arch%': '<!(<(DEPTH)/build/linux/python_arch.sh <(sysroot)/usr/<(system_libdir)/libpython<(python_ver).so.1.0)',
         'conditions': [
           ['branding=="Chrome"', {
             'linux_breakpad%': 1,
