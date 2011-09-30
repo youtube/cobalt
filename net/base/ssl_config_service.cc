@@ -59,7 +59,6 @@ static bool g_cached_info_enabled = false;
 static bool g_origin_bound_certs_enabled = false;
 static bool g_false_start_enabled = true;
 static bool g_dns_cert_provenance_checking = false;
-static scoped_refptr<CRLSet> g_crl_set = NULL;
 
 // static
 void SSLConfigService::DisableFalseStart() {
@@ -83,12 +82,14 @@ bool SSLConfigService::dns_cert_provenance_checking_enabled() {
 
 // static
 void SSLConfigService::SetCRLSet(scoped_refptr<CRLSet> crl_set) {
-  g_crl_set = crl_set;
+  // TODO(agl): not implemented yet.
 }
 
 // static
 scoped_refptr<CRLSet> SSLConfigService::GetCRLSet() {
-  return g_crl_set;
+  // TODO(agl): not implemented yet.
+  scoped_refptr<CRLSet> ret;
+  return ret;
 }
 
 void SSLConfigService::EnableCachedInfo() {
