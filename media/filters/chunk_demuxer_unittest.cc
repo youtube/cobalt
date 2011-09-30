@@ -113,18 +113,29 @@ class ChunkDemuxerTest : public testing::Test{
     }
   }
 
-  void AppendData(const uint8* data, unsigned length) {
+  void AppendData(const uint8* data, size_t length) {
     EXPECT_CALL(mock_filter_host_, SetBufferedBytes(_)).Times(AnyNumber());
     EXPECT_CALL(mock_filter_host_, SetBufferedTime(_)).Times(AnyNumber());
     EXPECT_CALL(mock_filter_host_, SetNetworkActivity(true)).Times(AnyNumber());
     EXPECT_TRUE(demuxer_->AppendData(data, length));
   }
 
+  void AppendDataInPieces(const uint8* data, size_t length) {
+    const uint8* start = data;
+    const uint8* end = data + length;
+    size_t default_size = 7;
+    while (start < end) {
+      size_t append_size = std::min(default_size,
+                                    static_cast<size_t>(end - start));
+      AppendData(start, append_size);
+      start += append_size;
+    }
+  }
+
   void AppendInfoTracks(bool has_audio, bool has_video) {
     scoped_array<uint8> info_tracks;
     int info_tracks_size = 0;
     CreateInfoTracks(has_audio, has_video, &info_tracks, &info_tracks_size);
-
     AppendData(info_tracks.get(), info_tracks_size);
   }
 
@@ -164,6 +175,12 @@ class ChunkDemuxerTest : public testing::Test{
   void AddSimpleBlock(ClusterBuilder* cb, int track_num, int64 timecode) {
     uint8 data[] = { 0x00 };
     cb->AddSimpleBlock(track_num, timecode, 0, data, sizeof(data));
+  }
+
+  void AddSimpleBlock(ClusterBuilder* cb, int track_num, int64 timecode,
+                      int size) {
+    scoped_array<uint8> data(new uint8[size]);
+    cb->AddSimpleBlock(track_num, timecode, 0, data.get(), size);
   }
 
   MOCK_METHOD1(Checkpoint, void(int id));
@@ -627,6 +644,80 @@ TEST_F(ChunkDemuxerTest, TestReadsAfterEndOfStream) {
 
   end_of_stream_helper_3.RequestReads();
   end_of_stream_helper_3.CheckIfReadDonesWereCalled(true);
+}
+
+// Make sure AppendData() will accept elements that span multiple calls.
+TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
+
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Init(NewExpectedStatusCB(PIPELINE_OK));
+
+  EXPECT_CALL(mock_filter_host_, SetDuration(_));
+  EXPECT_CALL(mock_filter_host_, SetCurrentReadPosition(_));
+  demuxer_->set_host(&mock_filter_host_);
+
+  scoped_array<uint8> info_tracks;
+  int info_tracks_size = 0;
+  CreateInfoTracks(true, true, &info_tracks, &info_tracks_size);
+
+  ClusterBuilder cb;
+  cb.SetClusterTimecode(0);
+  AddSimpleBlock(&cb, kAudioTrackNum, 32, 512);
+  AddSimpleBlock(&cb, kVideoTrackNum, 123, 1024);
+  scoped_ptr<Cluster> clusterA(cb.Finish());
+
+  cb.SetClusterTimecode(125);
+  AddSimpleBlock(&cb, kAudioTrackNum, 125, 2048);
+  AddSimpleBlock(&cb, kVideoTrackNum, 150, 2048);
+  scoped_ptr<Cluster> clusterB(cb.Finish());
+
+  size_t buffer_size = info_tracks_size + clusterA->size() + clusterB->size();
+  scoped_array<uint8> buffer(new uint8[buffer_size]);
+  uint8* dst = buffer.get();
+  memcpy(dst, info_tracks.get(), info_tracks_size);
+  dst += info_tracks_size;
+
+  memcpy(dst, clusterA->data(), clusterA->size());
+  dst += clusterA->size();
+
+  memcpy(dst, clusterB->data(), clusterB->size());
+  dst += clusterB->size();
+
+  AppendDataInPieces(buffer.get(), buffer_size);
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  ASSERT_TRUE(audio);
+  ASSERT_TRUE(video);
+
+  bool audio_read_done = false;
+  bool video_read_done = false;
+  audio->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(32),
+                         &audio_read_done));
+
+  video->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(123),
+                         &video_read_done));
+
+  EXPECT_TRUE(audio_read_done);
+  EXPECT_TRUE(video_read_done);
+
+  audio_read_done = false;
+  video_read_done = false;
+  audio->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(125),
+                         &audio_read_done));
+
+  video->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(150),
+                         &video_read_done));
+
+  EXPECT_TRUE(audio_read_done);
+  EXPECT_TRUE(video_read_done);
 }
 
 }  // namespace media

@@ -38,6 +38,10 @@ class WebMParserClient {
 
 // Parses a single list element that matches |id|. This method fails if the
 // buffer points to an element that does not match |id|.
+//
+// Returns -1 if the parse fails.
+// Returns 0 if more data is needed.
+// Returns the number of bytes parsed on success.
 int WebMParseListElement(const uint8* buf, int size, int id,
                          int level, WebMParserClient* client);
 
