@@ -3,6 +3,7 @@
 // DO NOT EDIT BY HAND!!!
 
 
+
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -92,6 +93,51 @@ Bind(Sig f, const P1& p1, const P2& p2, const P3& p3, const P4& p4,
   return internal::MakeInvokerStorageHolder(
       new internal::InvokerStorage6<Sig, P1, P2, P3, P4, P5, P6>(
           f, p1, p2, p3, p4, p5, p6));
+}
+
+// Specializations to allow binding all the free arguments in a
+// pre-existing base::Callback<>. This does not give full support for
+// currying, but is significantly simpler and addresses the use case
+// where a base::Callback<> needs to be invoked on another context/thread.
+template <typename Sig, typename P1>
+base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1) {
+  return base::Bind(&internal::BindMoreFunc1<Sig, P1>, callback, p1);
+}
+
+template <typename Sig, typename P1, typename P2>
+base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
+    const P2& p2) {
+  return base::Bind(&internal::BindMoreFunc2<Sig, P1, P2>, callback, p1, p2);
+}
+
+template <typename Sig, typename P1, typename P2, typename P3>
+base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
+    const P2& p2, const P3& p3) {
+  return base::Bind(&internal::BindMoreFunc3<Sig, P1, P2, P3>, callback, p1,
+      p2, p3);
+}
+
+template <typename Sig, typename P1, typename P2, typename P3, typename P4>
+base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
+    const P2& p2, const P3& p3, const P4& p4) {
+  return base::Bind(&internal::BindMoreFunc4<Sig, P1, P2, P3, P4>, callback,
+      p1, p2, p3, p4);
+}
+
+template <typename Sig, typename P1, typename P2, typename P3, typename P4,
+    typename P5>
+base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
+    const P2& p2, const P3& p3, const P4& p4, const P5& p5) {
+  return base::Bind(&internal::BindMoreFunc5<Sig, P1, P2, P3, P4, P5>,
+      callback, p1, p2, p3, p4, p5);
+}
+
+template <typename Sig, typename P1, typename P2, typename P3, typename P4,
+    typename P5, typename P6>
+base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
+    const P2& p2, const P3& p3, const P4& p4, const P5& p5, const P6& p6) {
+  return base::Bind(&internal::BindMoreFunc6<Sig, P1, P2, P3, P4, P5, P6>,
+      callback, p1, p2, p3, p4, p5, p6);
 }
 
 }  // namespace base
