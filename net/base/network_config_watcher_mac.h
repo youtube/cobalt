@@ -8,7 +8,6 @@
 #include <SystemConfiguration/SCDynamicStore.h>
 
 #include "base/basictypes.h"
-#include "base/message_loop.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_ptr.h"
 
@@ -18,7 +17,7 @@ class Thread;
 
 namespace net {
 
-// Base class for watching the Mac OS system network settings.
+// Helper class for watching the Mac OS system network settings.
 class NetworkConfigWatcherMac {
  public:
   // NOTE: The lifetime of Delegate is expected to exceed the lifetime of
@@ -42,7 +41,7 @@ class NetworkConfigWatcherMac {
   };
 
   explicit NetworkConfigWatcherMac(Delegate* delegate);
-  virtual ~NetworkConfigWatcherMac();
+  ~NetworkConfigWatcherMac();
 
  private:
   // The thread used to listen for notifications.  This relays the notification

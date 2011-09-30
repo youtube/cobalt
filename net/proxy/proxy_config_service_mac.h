@@ -15,6 +15,8 @@
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service.h"
 
+class MessageLoop;
+
 namespace net {
 
 class ProxyConfigServiceMac : public ProxyConfigService {
