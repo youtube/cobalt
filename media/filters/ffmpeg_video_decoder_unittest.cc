@@ -13,7 +13,6 @@
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
-#include "media/base/mock_task.h"
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_video_decoder.h"
@@ -168,7 +167,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
           .WillOnce(EngineUninitialize(engine_));
     }
 
-    decoder_->Stop(NewExpectedCallback());
+    decoder_->Stop(NewExpectedClosure());
 
     // Finish up any remaining tasks.
     message_loop_.RunAllPending();
@@ -183,7 +182,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
         .WillOnce(EngineInitialize(engine_, true));
 
     decoder_->Initialize(demuxer_,
-                         NewExpectedCallback(), NewStatisticsCallback());
+                         NewExpectedClosure(), NewStatisticsCallback());
     message_loop_.RunAllPending();
   }
 
@@ -221,7 +220,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_GetAVStreamFails) {
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
 
   decoder_->Initialize(demuxer_,
-                       NewExpectedCallback(), NewStatisticsCallback());
+                       NewExpectedClosure(), NewStatisticsCallback());
 
   message_loop_.RunAllPending();
 }
@@ -237,7 +236,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_EngineFails) {
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
 
   decoder_->Initialize(demuxer_,
-                       NewExpectedCallback(), NewStatisticsCallback());
+                       NewExpectedClosure(), NewStatisticsCallback());
   message_loop_.RunAllPending();
 }
 
@@ -403,7 +402,7 @@ TEST_F(FFmpegVideoDecoderTest, DoSeek) {
     // Expect a flush.
     EXPECT_CALL(*engine_, Flush())
         .WillOnce(EngineFlush(engine_));
-    decoder_->Flush(NewExpectedCallback());
+    decoder_->Flush(NewExpectedClosure());
 
     // Expect Seek and verify the results.
     EXPECT_CALL(*engine_, Seek())
