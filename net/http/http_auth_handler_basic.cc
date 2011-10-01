@@ -89,7 +89,7 @@ int HttpAuthHandlerBasic::GenerateAuthTokenImpl(
     const string16* username,
     const string16* password,
     const HttpRequestInfo*,
-    CompletionCallback*,
+    OldCompletionCallback*,
     std::string* auth_token) {
   // TODO(eroman): is this the right encoding of username/password?
   std::string base64_username_password;

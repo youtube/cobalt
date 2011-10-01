@@ -554,7 +554,7 @@ SSLClientSocketWin::GetNextProto(std::string* proto) {
   return kNextProtoUnsupported;
 }
 
-int SSLClientSocketWin::Connect(CompletionCallback* callback) {
+int SSLClientSocketWin::Connect(OldCompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(next_state_ == STATE_NONE);
   DCHECK(!user_connect_callback_);
@@ -753,7 +753,7 @@ base::TimeDelta SSLClientSocketWin::GetConnectTimeMicros() const {
 }
 
 int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
-                             CompletionCallback* callback) {
+                             OldCompletionCallback* callback) {
   DCHECK(completed_handshake());
   DCHECK(!user_read_callback_);
 
@@ -795,7 +795,7 @@ int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
 }
 
 int SSLClientSocketWin::Write(IOBuffer* buf, int buf_len,
-                              CompletionCallback* callback) {
+                              OldCompletionCallback* callback) {
   DCHECK(completed_handshake());
   DCHECK(!user_write_callback_);
 
@@ -835,7 +835,7 @@ void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
     // (which occurs because we are in the middle of a Read when the
     // renegotiation process starts).  So we complete the Read here.
     if (!user_connect_callback_) {
-      CompletionCallback* c = user_read_callback_;
+      OldCompletionCallback* c = user_read_callback_;
       user_read_callback_ = NULL;
       user_read_buf_ = NULL;
       user_read_buf_len_ = 0;
@@ -843,7 +843,7 @@ void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
       return;
     }
     net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
-    CompletionCallback* c = user_connect_callback_;
+    OldCompletionCallback* c = user_connect_callback_;
     user_connect_callback_ = NULL;
     c->Run(rv);
   }
@@ -857,7 +857,7 @@ void SSLClientSocketWin::OnReadComplete(int result) {
     result = DoPayloadDecrypt();
   if (result != ERR_IO_PENDING) {
     DCHECK(user_read_callback_);
-    CompletionCallback* c = user_read_callback_;
+    OldCompletionCallback* c = user_read_callback_;
     user_read_callback_ = NULL;
     user_read_buf_ = NULL;
     user_read_buf_len_ = 0;
@@ -871,7 +871,7 @@ void SSLClientSocketWin::OnWriteComplete(int result) {
   int rv = DoPayloadWriteComplete(result);
   if (rv != ERR_IO_PENDING) {
     DCHECK(user_write_callback_);
-    CompletionCallback* c = user_write_callback_;
+    OldCompletionCallback* c = user_write_callback_;
     user_write_callback_ = NULL;
     user_write_buf_ = NULL;
     user_write_buf_len_ = 0;

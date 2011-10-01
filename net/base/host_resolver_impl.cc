@@ -263,7 +263,7 @@ class HostResolverImpl::Request {
           const BoundNetLog& request_net_log,
           int id,
           const RequestInfo& info,
-          CompletionCallback* callback,
+          OldCompletionCallback* callback,
           AddressList* addresses)
       : source_net_log_(source_net_log),
         request_net_log_(request_net_log),
@@ -294,7 +294,7 @@ class HostResolverImpl::Request {
   void OnComplete(int error, const AddressList& addrlist) {
     if (error == OK)
       *addresses_ = CreateAddressListUsingPort(addrlist, port());
-    CompletionCallback* callback = callback_;
+    OldCompletionCallback* callback = callback_;
     MarkAsCancelled();
     callback->Run(error);
   }
@@ -337,7 +337,7 @@ class HostResolverImpl::Request {
   Job* job_;
 
   // The user's callback to invoke when the request completes.
-  CompletionCallback* callback_;
+  OldCompletionCallback* callback_;
 
   // The address list to save result into.
   AddressList* addresses_;
@@ -1138,7 +1138,7 @@ void HostResolverImpl::SetPoolConstraints(JobPoolIndex pool_index,
 
 int HostResolverImpl::Resolve(const RequestInfo& info,
                               AddressList* addresses,
-                              CompletionCallback* callback,
+                              OldCompletionCallback* callback,
                               RequestHandle* out_req,
                               const BoundNetLog& source_net_log) {
   DCHECK(addresses);

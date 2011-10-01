@@ -55,7 +55,7 @@ class PartialData {
   // error code. If this method returns ERR_IO_PENDING, the |callback| will be
   // notified when the result is ready.
   int ShouldValidateCache(disk_cache::Entry* entry,
-                          CompletionCallback* callback);
+                          OldCompletionCallback* callback);
 
   // Builds the required |headers| to perform the proper cache validation for
   // the next range to be fetched.
@@ -98,12 +98,12 @@ class PartialData {
   // operation completes, OnCacheReadCompleted() must be called with the result
   // of the operation.
   int CacheRead(disk_cache::Entry* entry, IOBuffer* data, int data_len,
-                CompletionCallback* callback);
+                OldCompletionCallback* callback);
 
   // Writes |data_len| bytes to cache. This is basically a wrapper around the
   // API of the cache that provides the right arguments for the current range.
   int CacheWrite(disk_cache::Entry* entry, IOBuffer* data, int data_len,
-                 CompletionCallback* callback);
+                 OldCompletionCallback* callback);
 
   // This method should be called when CacheRead() finishes the read, to update
   // the internal state about the current range.
@@ -136,7 +136,7 @@ class PartialData {
   bool truncated_;  // We have an incomplete 200 stored.
   bool initial_validation_;  // Only used for truncated entries.
   Core* core_;
-  CompletionCallback* callback_;
+  OldCompletionCallback* callback_;
 
   DISALLOW_COPY_AND_ASSIGN(PartialData);
 };

@@ -167,7 +167,7 @@ int32 MemEntryImpl::GetDataSize(int index) const {
 }
 
 int MemEntryImpl::ReadData(int index, int offset, net::IOBuffer* buf,
-    int buf_len, net::CompletionCallback* completion_callback) {
+    int buf_len, net::OldCompletionCallback* completion_callback) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
         net::NetLog::TYPE_ENTRY_READ_DATA,
@@ -186,7 +186,7 @@ int MemEntryImpl::ReadData(int index, int offset, net::IOBuffer* buf,
 }
 
 int MemEntryImpl::WriteData(int index, int offset, net::IOBuffer* buf,
-    int buf_len, net::CompletionCallback* completion_callback, bool truncate) {
+    int buf_len, net::OldCompletionCallback* completion_callback, bool truncate) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
         net::NetLog::TYPE_ENTRY_WRITE_DATA,
@@ -205,7 +205,7 @@ int MemEntryImpl::WriteData(int index, int offset, net::IOBuffer* buf,
 }
 
 int MemEntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                                 net::CompletionCallback* completion_callback) {
+                                 net::OldCompletionCallback* completion_callback) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
         net::NetLog::TYPE_SPARSE_READ,
@@ -219,7 +219,7 @@ int MemEntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
 }
 
 int MemEntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-    net::CompletionCallback* completion_callback) {
+    net::OldCompletionCallback* completion_callback) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(net::NetLog::TYPE_SPARSE_WRITE,
         make_scoped_refptr(
@@ -232,7 +232,7 @@ int MemEntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
 }
 
 int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
-                                    CompletionCallback* callback) {
+                                    OldCompletionCallback* callback) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
         net::NetLog::TYPE_SPARSE_GET_RANGE,
@@ -255,7 +255,7 @@ bool MemEntryImpl::CouldBeSparse() const {
 }
 
 int MemEntryImpl::ReadyForSparseIO(
-    net::CompletionCallback* completion_callback) {
+    net::OldCompletionCallback* completion_callback) {
   return net::OK;
 }
 

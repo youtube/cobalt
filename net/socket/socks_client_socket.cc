@@ -91,7 +91,7 @@ SOCKSClientSocket::~SOCKSClientSocket() {
   Disconnect();
 }
 
-int SOCKSClientSocket::Connect(CompletionCallback* callback) {
+int SOCKSClientSocket::Connect(OldCompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(transport_->socket());
   DCHECK_EQ(STATE_NONE, next_state_);
@@ -189,7 +189,7 @@ base::TimeDelta SOCKSClientSocket::GetConnectTimeMicros() const {
 // Read is called by the transport layer above to read. This can only be done
 // if the SOCKS handshake is complete.
 int SOCKSClientSocket::Read(IOBuffer* buf, int buf_len,
-                            CompletionCallback* callback) {
+                            OldCompletionCallback* callback) {
   DCHECK(completed_handshake_);
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(!user_callback_);
@@ -200,7 +200,7 @@ int SOCKSClientSocket::Read(IOBuffer* buf, int buf_len,
 // Write is called by the transport layer. This can only be done if the
 // SOCKS handshake is complete.
 int SOCKSClientSocket::Write(IOBuffer* buf, int buf_len,
-                             CompletionCallback* callback) {
+                             OldCompletionCallback* callback) {
   DCHECK(completed_handshake_);
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(!user_callback_);
@@ -222,7 +222,7 @@ void SOCKSClientSocket::DoCallback(int result) {
 
   // Since Run() may result in Read being called,
   // clear user_callback_ up front.
-  CompletionCallback* c = user_callback_;
+  OldCompletionCallback* c = user_callback_;
   user_callback_ = NULL;
   DVLOG(1) << "Finished setting up SOCKS handshake";
   c->Run(result);

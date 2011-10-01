@@ -237,12 +237,12 @@ int FtpNetworkTransaction::Stop(int error) {
 }
 
 int FtpNetworkTransaction::RestartIgnoringLastError(
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   return ERR_NOT_IMPLEMENTED;
 }
 
 int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
-                                 CompletionCallback* callback,
+                                 OldCompletionCallback* callback,
                                  const BoundNetLog& net_log) {
   net_log_ = net_log;
   request_ = request_info;
@@ -265,7 +265,7 @@ int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
 
 int FtpNetworkTransaction::RestartWithAuth(const string16& username,
                                            const string16& password,
-                                           CompletionCallback* callback) {
+                                           OldCompletionCallback* callback) {
   ResetStateForRestart();
 
   username_ = username;
@@ -280,7 +280,7 @@ int FtpNetworkTransaction::RestartWithAuth(const string16& username,
 
 int FtpNetworkTransaction::Read(IOBuffer* buf,
                                 int buf_len,
-                                CompletionCallback* callback) {
+                                OldCompletionCallback* callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
 
@@ -347,7 +347,7 @@ void FtpNetworkTransaction::DoCallback(int rv) {
   DCHECK(user_callback_);
 
   // Since Run may result in Read being called, clear callback_ up front.
-  CompletionCallback* c = user_callback_;
+  OldCompletionCallback* c = user_callback_;
   user_callback_ = NULL;
   c->Run(rv);
 }

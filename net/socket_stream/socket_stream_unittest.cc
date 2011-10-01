@@ -32,7 +32,7 @@ struct SocketStreamEvent {
                     int num,
                     const std::string& str,
                     net::AuthChallengeInfo* auth_challenge_info,
-                    net::CompletionCallback* callback,
+                    net::OldCompletionCallback* callback,
                     int error)
       : event_type(type), socket(socket_stream), number(num), data(str),
         auth_info(auth_challenge_info), error_code(error) {}
@@ -47,7 +47,7 @@ struct SocketStreamEvent {
 
 class SocketStreamEventRecorder : public net::SocketStream::Delegate {
  public:
-  explicit SocketStreamEventRecorder(net::CompletionCallback* callback)
+  explicit SocketStreamEventRecorder(net::OldCompletionCallback* callback)
       : callback_(callback) {}
   virtual ~SocketStreamEventRecorder() {}
 
@@ -79,7 +79,7 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
   }
 
   virtual int OnStartOpenConnection(net::SocketStream* socket,
-                                    net::CompletionCallback* callback) {
+                                    net::OldCompletionCallback* callback) {
     connection_callback_ = callback;
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_START_OPEN_CONNECTION,
@@ -170,8 +170,8 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
   base::Callback<void(SocketStreamEvent*)> on_close_;
   base::Callback<void(SocketStreamEvent*)> on_auth_required_;
   base::Callback<void(SocketStreamEvent*)> on_error_;
-  net::CompletionCallback* callback_;
-  net::CompletionCallback* connection_callback_;
+  net::OldCompletionCallback* callback_;
+  net::OldCompletionCallback* connection_callback_;
 
   string16 username_;
   string16 password_;
@@ -239,7 +239,7 @@ class SocketStreamTest : public PlatformTest {
   static const char kWebSocketHandshakeResponse[];
 
  protected:
-  TestCompletionCallback io_callback_;
+  TestOldCompletionCallback io_callback_;
 
  private:
   std::string handshake_request_;
@@ -272,7 +272,7 @@ const char SocketStreamTest::kWebSocketHandshakeResponse[] =
     "8jKS'y:G*Co,Wxa-";
 
 TEST_F(SocketStreamTest, CloseFlushPendingWrite) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
       new SocketStreamEventRecorder(&callback));
@@ -368,7 +368,7 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
                                  data_writes2, arraysize(data_writes2));
   mock_socket_factory.AddSocketDataProvider(&data2);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
       new SocketStreamEventRecorder(&callback));
@@ -406,7 +406,7 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
 }
 
 TEST_F(SocketStreamTest, IOPending) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
       new SocketStreamEventRecorder(&callback));
@@ -474,7 +474,7 @@ TEST_F(SocketStreamTest, IOPending) {
 }
 
 TEST_F(SocketStreamTest, SwitchToSpdy) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
       new SocketStreamEventRecorder(&callback));
@@ -503,7 +503,7 @@ TEST_F(SocketStreamTest, SwitchToSpdy) {
 }
 
 TEST_F(SocketStreamTest, SwitchAfterPending) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
       new SocketStreamEventRecorder(&callback));
@@ -558,7 +558,7 @@ TEST_F(SocketStreamTest, SecureProxyConnectError) {
   SSLSocketDataProvider ssl(false, ERR_SSL_PROTOCOL_ERROR);
   mock_socket_factory.AddSSLSocketDataProvider(&ssl);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
       new SocketStreamEventRecorder(&callback));
@@ -610,7 +610,7 @@ TEST_F(SocketStreamTest, SecureProxyConnect) {
   SSLSocketDataProvider ssl(false, OK);
   mock_socket_factory.AddSSLSocketDataProvider(&ssl);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
       new SocketStreamEventRecorder(&callback));

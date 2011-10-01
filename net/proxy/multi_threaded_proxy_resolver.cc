@@ -100,7 +100,7 @@ class MultiThreadedProxyResolver::Job
     TYPE_SET_PAC_SCRIPT_INTERNAL,
   };
 
-  Job(Type type, CompletionCallback* user_callback)
+  Job(Type type, OldCompletionCallback* user_callback)
       : type_(type),
         user_callback_(user_callback),
         executor_(NULL),
@@ -157,7 +157,7 @@ class MultiThreadedProxyResolver::Job
 
   void RunUserCallback(int result) {
     DCHECK(has_user_callback());
-    CompletionCallback* callback = user_callback_;
+    OldCompletionCallback* callback = user_callback_;
     // Null the callback so has_user_callback() will now return false.
     user_callback_ = NULL;
     callback->Run(result);
@@ -169,7 +169,7 @@ class MultiThreadedProxyResolver::Job
 
  private:
   const Type type_;
-  CompletionCallback* user_callback_;
+  OldCompletionCallback* user_callback_;
   Executor* executor_;
   bool was_cancelled_;
 };
@@ -181,7 +181,7 @@ class MultiThreadedProxyResolver::SetPacScriptJob
     : public MultiThreadedProxyResolver::Job {
  public:
   SetPacScriptJob(const scoped_refptr<ProxyResolverScriptData>& script_data,
-                  CompletionCallback* callback)
+                  OldCompletionCallback* callback)
     : Job(callback ? TYPE_SET_PAC_SCRIPT : TYPE_SET_PAC_SCRIPT_INTERNAL,
           callback),
       script_data_(script_data) {
@@ -220,7 +220,7 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
   // |results|     -- the structure to fill with proxy resolve results.
   GetProxyForURLJob(const GURL& url,
                     ProxyInfo* results,
-                    CompletionCallback* callback,
+                    OldCompletionCallback* callback,
                     const BoundNetLog& net_log)
       : Job(TYPE_GET_PROXY_FOR_URL, callback),
         results_(results),
@@ -397,7 +397,7 @@ MultiThreadedProxyResolver::~MultiThreadedProxyResolver() {
 
 int MultiThreadedProxyResolver::GetProxyForURL(const GURL& url,
                                                ProxyInfo* results,
-                                               CompletionCallback* callback,
+                                               OldCompletionCallback* callback,
                                                RequestHandle* request,
                                                const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
@@ -482,7 +482,7 @@ void MultiThreadedProxyResolver::PurgeMemory() {
 
 int MultiThreadedProxyResolver::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(callback);
 

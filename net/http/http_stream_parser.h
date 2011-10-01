@@ -44,12 +44,12 @@ class HttpStreamParser  : public ChunkCallback {
   int SendRequest(const std::string& request_line,
                   const HttpRequestHeaders& headers,
                   UploadDataStream* request_body,
-                  HttpResponseInfo* response, CompletionCallback* callback);
+                  HttpResponseInfo* response, OldCompletionCallback* callback);
 
-  int ReadResponseHeaders(CompletionCallback* callback);
+  int ReadResponseHeaders(OldCompletionCallback* callback);
 
   int ReadResponseBody(IOBuffer* buf, int buf_len,
-                       CompletionCallback* callback);
+                       OldCompletionCallback* callback);
 
   void Close(bool not_reusable);
 
@@ -175,13 +175,13 @@ class HttpStreamParser  : public ChunkCallback {
 
   // The callback to notify a user that their request or response is
   // complete or there was an error
-  CompletionCallback* user_callback_;
+  OldCompletionCallback* user_callback_;
 
   // In the client callback, the client can do anything, including
   // destroying this class, so any pending callback must be issued
   // after everything else is done.  When it is time to issue the client
   // callback, move it from |user_callback_| to |scheduled_callback_|.
-  CompletionCallback* scheduled_callback_;
+  OldCompletionCallback* scheduled_callback_;
 
   // The underlying socket.
   ClientSocketHandle* const connection_;
@@ -189,7 +189,7 @@ class HttpStreamParser  : public ChunkCallback {
   BoundNetLog net_log_;
 
   // Callback to be used when doing IO.
-  CompletionCallbackImpl<HttpStreamParser> io_callback_;
+  OldCompletionCallbackImpl<HttpStreamParser> io_callback_;
 
   // Stores an encoded chunk for chunked uploads.
   // Note: This should perhaps be improved to not create copies of the data.

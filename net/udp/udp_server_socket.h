@@ -27,11 +27,11 @@ class NET_EXPORT UDPServerSocket : public DatagramServerSocket {
   virtual int RecvFrom(IOBuffer* buf,
                        int buf_len,
                        IPEndPoint* address,
-                       CompletionCallback* callback);
+                       OldCompletionCallback* callback);
   virtual int SendTo(IOBuffer* buf,
                      int buf_len,
                      const IPEndPoint& address,
-                     CompletionCallback* callback);
+                     OldCompletionCallback* callback);
   virtual void Close();
   virtual int GetPeerAddress(IPEndPoint* address) const;
   virtual int GetLocalAddress(IPEndPoint* address) const;

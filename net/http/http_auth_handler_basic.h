@@ -41,7 +41,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerBasic : public HttpAuthHandler {
   virtual int GenerateAuthTokenImpl(const string16* username,
                                     const string16* password,
                                     const HttpRequestInfo* request,
-                                    CompletionCallback* callback,
+                                    OldCompletionCallback* callback,
                                     std::string* auth_token);
 
  private:

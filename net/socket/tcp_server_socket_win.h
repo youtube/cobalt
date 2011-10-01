@@ -31,7 +31,7 @@ class NET_EXPORT_PRIVATE TCPServerSocketWin
   virtual int Listen(const net::IPEndPoint& address, int backlog);
   virtual int GetLocalAddress(IPEndPoint* address) const;
   virtual int Accept(scoped_ptr<StreamSocket>* socket,
-                     CompletionCallback* callback);
+                     OldCompletionCallback* callback);
 
   // base::ObjectWatcher::Delegate implementation.
   virtual void OnObjectSignaled(HANDLE object);
@@ -46,7 +46,7 @@ class NET_EXPORT_PRIVATE TCPServerSocketWin
   base::win::ObjectWatcher accept_watcher_;
 
   scoped_ptr<StreamSocket>* accept_socket_;
-  CompletionCallback* accept_callback_;
+  OldCompletionCallback* accept_callback_;
 
   BoundNetLog net_log_;
 };

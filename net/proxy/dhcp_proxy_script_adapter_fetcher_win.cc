@@ -50,7 +50,7 @@ DhcpProxyScriptAdapterFetcher::~DhcpProxyScriptAdapterFetcher() {
 }
 
 void DhcpProxyScriptAdapterFetcher::Fetch(
-    const std::string& adapter_name, CompletionCallback* callback) {
+    const std::string& adapter_name, OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(state_, STATE_START);
   result_ = ERR_IO_PENDING;
@@ -202,7 +202,7 @@ void DhcpProxyScriptAdapterFetcher::OnFetcherDone(int result) {
 void DhcpProxyScriptAdapterFetcher::TransitionToFinish() {
   DCHECK(state_ == STATE_WAIT_DHCP || state_ == STATE_WAIT_URL);
   state_ = STATE_FINISH;
-  CompletionCallback* callback = callback_;
+  OldCompletionCallback* callback = callback_;
   callback_ = NULL;
 
   // Be careful not to touch any member state after this, as the client

@@ -157,7 +157,7 @@ namespace internal {
 
 ClientSocketPoolBaseHelper::Request::Request(
     ClientSocketHandle* handle,
-    CompletionCallback* callback,
+    OldCompletionCallback* callback,
     RequestPriority priority,
     bool ignore_limits,
     Flags flags,
@@ -1027,7 +1027,7 @@ bool ClientSocketPoolBaseHelper::CloseOneIdleSocketExceptInGroup(
 }
 
 void ClientSocketPoolBaseHelper::InvokeUserCallbackLater(
-    ClientSocketHandle* handle, CompletionCallback* callback, int rv) {
+    ClientSocketHandle* handle, OldCompletionCallback* callback, int rv) {
   CHECK(!ContainsKey(pending_callback_map_, handle));
   pending_callback_map_[handle] = CallbackResultPair(callback, rv);
   MessageLoop::current()->PostTask(
@@ -1046,7 +1046,7 @@ void ClientSocketPoolBaseHelper::InvokeUserCallback(
     return;
 
   CHECK(!handle->is_initialized());
-  CompletionCallback* callback = it->second.callback;
+  OldCompletionCallback* callback = it->second.callback;
   int result = it->second.result;
   pending_callback_map_.erase(it);
   callback->Run(result);

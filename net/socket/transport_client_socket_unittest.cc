@@ -75,7 +75,7 @@ class TransportClientSocketTest
   int DrainClientSocket(IOBuffer* buf,
                         uint32 buf_len,
                         uint32 bytes_to_read,
-                        TestCompletionCallback* callback);
+                        TestOldCompletionCallback* callback);
 
   void SendClientRequest();
 
@@ -122,7 +122,7 @@ void TransportClientSocketTest::SetUp() {
                                HostResolver::kDefaultRetryAttempts,
                                NULL));
   HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = resolver->Resolve(info, &addr, &callback, NULL, BoundNetLog());
   CHECK_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
@@ -135,7 +135,7 @@ void TransportClientSocketTest::SetUp() {
 
 int TransportClientSocketTest::DrainClientSocket(
     IOBuffer* buf, uint32 buf_len,
-    uint32 bytes_to_read, TestCompletionCallback* callback) {
+    uint32 bytes_to_read, TestOldCompletionCallback* callback) {
   int rv = OK;
   uint32 bytes_read = 0;
 
@@ -157,7 +157,7 @@ void TransportClientSocketTest::SendClientRequest() {
   const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
   scoped_refptr<IOBuffer> request_buffer(
       new IOBuffer(arraysize(request_text) - 1));
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv;
 
   memcpy(request_buffer->data(), request_text, arraysize(request_text) - 1);
@@ -175,7 +175,7 @@ INSTANTIATE_TEST_CASE_P(StreamSocket,
                         ::testing::Values(TCP));
 
 TEST_P(TransportClientSocketTest, Connect) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   EXPECT_FALSE(sock_->IsConnected());
 
   int rv = sock_->Connect(&callback);
@@ -203,7 +203,7 @@ TEST_P(TransportClientSocketTest, Connect) {
 
 TEST_P(TransportClientSocketTest, IsConnected) {
   scoped_refptr<IOBuffer> buf(new IOBuffer(4096));
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   uint32 bytes_read;
 
   EXPECT_FALSE(sock_->IsConnected());
@@ -260,7 +260,7 @@ TEST_P(TransportClientSocketTest, IsConnected) {
 }
 
 TEST_P(TransportClientSocketTest, Read) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
@@ -287,7 +287,7 @@ TEST_P(TransportClientSocketTest, Read) {
 }
 
 TEST_P(TransportClientSocketTest, Read_SmallChunks) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
@@ -322,7 +322,7 @@ TEST_P(TransportClientSocketTest, Read_SmallChunks) {
 }
 
 TEST_P(TransportClientSocketTest, Read_Interrupted) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
     ASSERT_EQ(ERR_IO_PENDING, rv);
@@ -347,7 +347,7 @@ TEST_P(TransportClientSocketTest, Read_Interrupted) {
 }
 
 TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
@@ -367,7 +367,7 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
   scoped_refptr<IOBuffer> request_buffer(new IOBuffer(kWriteBufLen));
   char* request_data = request_buffer->data();
   memset(request_data, 'A', kWriteBufLen);
-  TestCompletionCallback write_callback;
+  TestOldCompletionCallback write_callback;
 
   while (true) {
     rv = sock_->Write(request_buffer, kWriteBufLen, &write_callback);
@@ -389,7 +389,7 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
 }
 
 TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
     ASSERT_EQ(ERR_IO_PENDING, rv);
@@ -403,7 +403,7 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   scoped_refptr<IOBuffer> request_buffer(new IOBuffer(kWriteBufLen));
   char* request_data = request_buffer->data();
   memset(request_data, 'A', kWriteBufLen);
-  TestCompletionCallback write_callback;
+  TestOldCompletionCallback write_callback;
 
   while (true) {
     rv = sock_->Write(request_buffer, kWriteBufLen, &write_callback);

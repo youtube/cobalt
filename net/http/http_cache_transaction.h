@@ -80,7 +80,7 @@ class HttpCache::Transaction : public HttpTransaction {
   // response (or response info) must be evaluated by the caller, for instance
   // to make sure that the response_time is as expected, before calling this
   // method.
-  int WriteMetadata(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  int WriteMetadata(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
 
   // This transaction is being deleted and we are not done writing to the cache.
   // We need to indicate that the response data was truncated.  Returns true on
@@ -93,21 +93,21 @@ class HttpCache::Transaction : public HttpTransaction {
   // to the cache entry.
   LoadState GetWriterLoadState() const;
 
-  CompletionCallback* io_callback() { return &io_callback_; }
+  OldCompletionCallback* io_callback() { return &io_callback_; }
 
   const BoundNetLog& net_log() const;
 
   // HttpTransaction methods:
-  virtual int Start(const HttpRequestInfo*, CompletionCallback*,
+  virtual int Start(const HttpRequestInfo*, OldCompletionCallback*,
                     const BoundNetLog&);
-  virtual int RestartIgnoringLastError(CompletionCallback* callback);
+  virtual int RestartIgnoringLastError(OldCompletionCallback* callback);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
-                                     CompletionCallback* callback);
+                                     OldCompletionCallback* callback);
   virtual int RestartWithAuth(const string16& username,
                               const string16& password,
-                              CompletionCallback* callback);
+                              OldCompletionCallback* callback);
   virtual bool IsReadyToRestartForAuth();
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual void StopCaching();
   virtual void DoneReading();
   virtual const HttpResponseInfo* GetResponseInfo() const;
@@ -290,7 +290,7 @@ class HttpCache::Transaction : public HttpTransaction {
   // cache entry is destroyed.  Future calls to this function will just do
   // nothing without side-effect.  Returns a network error code.
   int WriteToEntry(int index, int offset, IOBuffer* data, int data_len,
-                   CompletionCallback* callback);
+                   OldCompletionCallback* callback);
 
   // Called to write response_ to the cache entry. |truncated| indicates if the
   // entry should be marked as incomplete.
@@ -299,7 +299,7 @@ class HttpCache::Transaction : public HttpTransaction {
   // Called to append response data to the cache entry.  Returns a network error
   // code.
   int AppendResponseDataToEntry(IOBuffer* data, int data_len,
-                                CompletionCallback* callback);
+                                OldCompletionCallback* callback);
 
   // Called when we are done writing to the cache entry.
   void DoneWritingToEntry(bool success);
@@ -337,7 +337,7 @@ class HttpCache::Transaction : public HttpTransaction {
   base::TimeTicks entry_lock_waiting_since_;
   HttpCache::ActiveEntry* new_entry_;
   scoped_ptr<HttpTransaction> network_trans_;
-  CompletionCallback* callback_;  // Consumer's callback.
+  OldCompletionCallback* callback_;  // Consumer's callback.
   HttpResponseInfo response_;
   HttpResponseInfo auth_response_;
   const HttpResponseInfo* new_response_;
@@ -359,9 +359,9 @@ class HttpCache::Transaction : public HttpTransaction {
   int write_len_;
   scoped_ptr<PartialData> partial_;  // We are dealing with range requests.
   uint64 final_upload_progress_;
-  CompletionCallbackImpl<Transaction> io_callback_;
-  scoped_refptr<CancelableCompletionCallback<Transaction> > cache_callback_;
-  scoped_refptr<CancelableCompletionCallback<Transaction> >
+  OldCompletionCallbackImpl<Transaction> io_callback_;
+  scoped_refptr<CancelableOldCompletionCallback<Transaction> > cache_callback_;
+  scoped_refptr<CancelableOldCompletionCallback<Transaction> >
       write_headers_callback_;
 };
 

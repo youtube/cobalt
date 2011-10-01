@@ -157,7 +157,7 @@ class NET_EXPORT HostResolver {
   // Profiling information for the request is saved to |net_log| if non-NULL.
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      OldCompletionCallback* callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) = 0;
 

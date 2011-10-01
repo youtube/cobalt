@@ -820,7 +820,7 @@ class FtpNetworkTransactionTest : public PlatformTest {
   scoped_refptr<FtpNetworkSession> session_;
   MockClientSocketFactory mock_socket_factory_;
   FtpNetworkTransaction transaction_;
-  TestCompletionCallback callback_;
+  TestOldCompletionCallback callback_;
 };
 
 TEST_F(FtpNetworkTransactionTest, FailedLookup) {

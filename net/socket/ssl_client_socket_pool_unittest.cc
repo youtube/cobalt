@@ -197,7 +197,7 @@ TEST_F(SSLClientSocketPoolTest, TCPFailAsync) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -222,7 +222,7 @@ TEST_F(SSLClientSocketPoolTest, BasicDirect) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(OK, rv);
@@ -241,7 +241,7 @@ TEST_F(SSLClientSocketPoolTest, BasicDirectAsync) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -264,7 +264,7 @@ TEST_F(SSLClientSocketPoolTest, DirectCertError) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -287,7 +287,7 @@ TEST_F(SSLClientSocketPoolTest, DirectSSLError) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -313,7 +313,7 @@ TEST_F(SSLClientSocketPoolTest, DirectWithNPN) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -340,7 +340,7 @@ TEST_F(SSLClientSocketPoolTest, DirectNoSPDY) {
                                                     true);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -366,7 +366,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
                                                     true);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -398,7 +398,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
                                                     true);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -427,7 +427,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSFail) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_CONNECTION_FAILED, rv);
@@ -446,7 +446,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSFailAsync) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -471,7 +471,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSBasic) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(OK, rv);
@@ -490,7 +490,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSBasicAsync) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -512,7 +512,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyFail) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, rv);
@@ -531,7 +531,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyFailAsync) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -568,7 +568,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyBasic) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(OK, rv);
@@ -598,7 +598,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyBasicAsync) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -633,7 +633,7 @@ TEST_F(SSLClientSocketPoolTest, NeedProxyAuth) {
                                                     false);
 
   ClientSocketHandle handle;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle.Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -698,7 +698,7 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
                                                     true);
 
   scoped_ptr<ClientSocketHandle> handle(new ClientSocketHandle());
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = handle->Init(
       "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);

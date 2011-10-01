@@ -173,7 +173,7 @@ HttpAuthController::~HttpAuthController() {
 }
 
 int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
-                                               CompletionCallback* callback,
+                                               OldCompletionCallback* callback,
                                                const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
   bool needs_auth = HaveAuth() || SelectPreemptiveAuth(net_log);
@@ -552,7 +552,7 @@ void HttpAuthController::OnIOComplete(int result) {
   if (DisableOnAuthHandlerResult(result))
     result = OK;
   if (user_callback_) {
-    CompletionCallback* c = user_callback_;
+    OldCompletionCallback* c = user_callback_;
     user_callback_ = NULL;
     c->Run(result);
   }

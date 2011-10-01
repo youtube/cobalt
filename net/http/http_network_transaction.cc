@@ -150,7 +150,7 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
 }
 
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
-                                  CompletionCallback* callback,
+                                  OldCompletionCallback* callback,
                                   const BoundNetLog& net_log) {
   SIMPLE_STATS_COUNTER("HttpNetworkTransaction.Count");
 
@@ -169,7 +169,7 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
 }
 
 int HttpNetworkTransaction::RestartIgnoringLastError(
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   DCHECK(!stream_.get());
   DCHECK(!stream_request_.get());
   DCHECK_EQ(STATE_NONE, next_state_);
@@ -184,7 +184,7 @@ int HttpNetworkTransaction::RestartIgnoringLastError(
 
 int HttpNetworkTransaction::RestartWithCertificate(
     X509Certificate* client_cert,
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   // In HandleCertificateRequest(), we always tear down existing stream
   // requests to force a new connection.  So we shouldn't have one here.
   DCHECK(!stream_request_.get());
@@ -210,7 +210,7 @@ int HttpNetworkTransaction::RestartWithCertificate(
 int HttpNetworkTransaction::RestartWithAuth(
     const string16& username,
     const string16& password,
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   HttpAuth::Target target = pending_auth_target_;
   if (target == HttpAuth::AUTH_NONE) {
     NOTREACHED();
@@ -303,7 +303,7 @@ bool HttpNetworkTransaction::IsReadyToRestartForAuth() {
 }
 
 int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
-                                 CompletionCallback* callback) {
+                                 OldCompletionCallback* callback) {
   DCHECK(buf);
   DCHECK_LT(0, buf_len);
 
@@ -476,7 +476,7 @@ void HttpNetworkTransaction::DoCallback(int rv) {
   DCHECK(user_callback_);
 
   // Since Run may result in Read being called, clear user_callback_ up front.
-  CompletionCallback* c = user_callback_;
+  OldCompletionCallback* c = user_callback_;
   user_callback_ = NULL;
   c->Run(rv);
 }

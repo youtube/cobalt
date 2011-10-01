@@ -34,16 +34,16 @@ class NET_EXPORT_PRIVATE FtpNetworkTransaction : public FtpTransaction {
   virtual ~FtpNetworkTransaction();
 
   virtual int Stop(int error);
-  virtual int RestartIgnoringLastError(CompletionCallback* callback);
+  virtual int RestartIgnoringLastError(OldCompletionCallback* callback);
 
   // FtpTransaction methods:
   virtual int Start(const FtpRequestInfo* request_info,
-                    CompletionCallback* callback,
+                    OldCompletionCallback* callback,
                     const BoundNetLog& net_log) OVERRIDE;
   virtual int RestartWithAuth(const string16& username,
                               const string16& password,
-                              CompletionCallback* callback) OVERRIDE;
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback)
+                              OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback)
       OVERRIDE;
   virtual const FtpResponseInfo* GetResponseInfo() const OVERRIDE;
   virtual LoadState GetLoadState() const OVERRIDE;
@@ -190,8 +190,8 @@ class NET_EXPORT_PRIVATE FtpNetworkTransaction : public FtpTransaction {
 
   Command command_sent_;
 
-  CompletionCallbackImpl<FtpNetworkTransaction> io_callback_;
-  CompletionCallback* user_callback_;
+  OldCompletionCallbackImpl<FtpNetworkTransaction> io_callback_;
+  OldCompletionCallback* user_callback_;
 
   scoped_refptr<FtpNetworkSession> session_;
 

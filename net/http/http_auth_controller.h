@@ -45,7 +45,7 @@ class NET_EXPORT_PRIVATE HttpAuthController
   // a token is correctly generated synchronously, as well as when no tokens
   // were necessary.
   virtual int MaybeGenerateAuthToken(const HttpRequestInfo* request,
-                                     CompletionCallback* callback,
+                                     OldCompletionCallback* callback,
                                      const BoundNetLog& net_log);
 
   // Adds either the proxy auth header, or the origin server auth header,
@@ -164,8 +164,8 @@ class NET_EXPORT_PRIVATE HttpAuthController
 
   std::set<HttpAuth::Scheme> disabled_schemes_;
 
-  CompletionCallbackImpl<HttpAuthController> io_callback_;
-  CompletionCallback* user_callback_;
+  OldCompletionCallbackImpl<HttpAuthController> io_callback_;
+  OldCompletionCallback* user_callback_;
 };
 
 }  // namespace net

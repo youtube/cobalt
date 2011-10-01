@@ -55,10 +55,10 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
                            int max_bytes, net::CacheType type,
                            uint32 flags, base::MessageLoopProxy* thread,
                            net::NetLog* net_log, Backend** backend,
-                           CompletionCallback* callback);
+                           OldCompletionCallback* callback);
 
   // Performs general initialization for this current instance of the cache.
-  int Init(CompletionCallback* callback);
+  int Init(OldCompletionCallback* callback);
 
   // Performs the actual initialization and final cleanup on destruction.
   int SyncInit();
@@ -66,7 +66,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
 
   // Same bahavior as OpenNextEntry but walks the list from back to front.
   int OpenPrevEntry(void** iter, Entry** prev_entry,
-                    CompletionCallback* callback);
+                    OldCompletionCallback* callback);
 
   // Synchronous implementation of the asynchronous interface.
   int SyncOpenEntry(const std::string& key, Entry** entry);
@@ -229,11 +229,11 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   void ClearRefCountForTest();
 
   // Sends a dummy operation through the operation queue, for unit tests.
-  int FlushQueueForTest(CompletionCallback* callback);
+  int FlushQueueForTest(OldCompletionCallback* callback);
 
   // Runs the provided task on the cache thread. The task will be automatically
   // deleted after it runs.
-  int RunTaskForTest(Task* task, CompletionCallback* callback);
+  int RunTaskForTest(Task* task, OldCompletionCallback* callback);
 
   // Trims an entry (all if |empty| is true) from the list of deleted
   // entries. This method should be called directly on the cache thread.
@@ -250,18 +250,18 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Backend interface.
   virtual int32 GetEntryCount() const;
   virtual int OpenEntry(const std::string& key, Entry** entry,
-                        CompletionCallback* callback);
+                        OldCompletionCallback* callback);
   virtual int CreateEntry(const std::string& key, Entry** entry,
-                          CompletionCallback* callback);
-  virtual int DoomEntry(const std::string& key, CompletionCallback* callback);
-  virtual int DoomAllEntries(CompletionCallback* callback);
+                          OldCompletionCallback* callback);
+  virtual int DoomEntry(const std::string& key, OldCompletionCallback* callback);
+  virtual int DoomAllEntries(OldCompletionCallback* callback);
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
-                                 CompletionCallback* callback);
+                                 OldCompletionCallback* callback);
   virtual int DoomEntriesSince(const base::Time initial_time,
-                               CompletionCallback* callback);
+                               OldCompletionCallback* callback);
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            CompletionCallback* callback);
+                            OldCompletionCallback* callback);
   virtual void EndEnumeration(void** iter);
   virtual void GetStats(StatsItems* stats);
   virtual void OnExternalCacheHit(const std::string& key);

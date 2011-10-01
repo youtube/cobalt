@@ -155,7 +155,7 @@ class HttpProxyConnectJob : public ConnectJob {
   HostResolver* const resolver_;
 
   State next_state_;
-  CompletionCallbackImpl<HttpProxyConnectJob> callback_;
+  OldCompletionCallbackImpl<HttpProxyConnectJob> callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<ProxyClientSocket> transport_socket_;
   bool using_spdy_;
@@ -185,7 +185,7 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketPool : public ClientSocketPool {
                             const void* connect_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
+                            OldCompletionCallback* callback,
                             const BoundNetLog& net_log);
 
   virtual void RequestSockets(const std::string& group_name,

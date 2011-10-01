@@ -29,7 +29,7 @@ class NET_EXPORT_PRIVATE TCPServerSocketLibevent
   virtual int Listen(const net::IPEndPoint& address, int backlog);
   virtual int GetLocalAddress(IPEndPoint* address) const;
   virtual int Accept(scoped_ptr<StreamSocket>* socket,
-                     CompletionCallback* callback);
+                     OldCompletionCallback* callback);
 
   // MessageLoopForIO::Watcher implementation.
   virtual void OnFileCanReadWithoutBlocking(int fd);
@@ -44,7 +44,7 @@ class NET_EXPORT_PRIVATE TCPServerSocketLibevent
   MessageLoopForIO::FileDescriptorWatcher accept_socket_watcher_;
 
   scoped_ptr<StreamSocket>* accept_socket_;
-  CompletionCallback* accept_callback_;
+  OldCompletionCallback* accept_callback_;
 
   BoundNetLog net_log_;
 };

@@ -45,7 +45,7 @@ class NET_EXPORT_PRIVATE DhcpProxyScriptAdapterFetcher
   // You may only call Fetch() once on a given instance of
   // DhcpProxyScriptAdapterFetcher.
   virtual void Fetch(const std::string& adapter_name,
-                     CompletionCallback* callback);
+                     OldCompletionCallback* callback);
 
   // Cancels the fetch on this adapter.
   virtual void Cancel();
@@ -181,7 +181,7 @@ class NET_EXPORT_PRIVATE DhcpProxyScriptAdapterFetcher
 
   // Callback to let our client know we're done. Invalid in states
   // START, FINISH and CANCEL.
-  CompletionCallback* callback_;
+  OldCompletionCallback* callback_;
 
   // Container for our worker thread. NULL if not currently running.
   scoped_refptr<WorkerThread> worker_thread_;
@@ -190,7 +190,7 @@ class NET_EXPORT_PRIVATE DhcpProxyScriptAdapterFetcher
   scoped_ptr<ProxyScriptFetcher> script_fetcher_;
 
   // Callback from the script fetcher.
-  CompletionCallbackImpl<DhcpProxyScriptAdapterFetcher>
+  OldCompletionCallbackImpl<DhcpProxyScriptAdapterFetcher>
       script_fetcher_callback_;
 
   // Implements a timeout on the call to the Win32 DHCP API.

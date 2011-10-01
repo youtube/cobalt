@@ -34,7 +34,7 @@ HttpBasicStream::~HttpBasicStream() {}
 
 int HttpBasicStream::InitializeStream(const HttpRequestInfo* request_info,
                                       const BoundNetLog& net_log,
-                                      CompletionCallback* callback) {
+                                      OldCompletionCallback* callback) {
   DCHECK(!parser_.get());
   request_info_ = request_info;
   parser_.reset(new HttpStreamParser(connection_.get(), request_info,
@@ -47,7 +47,7 @@ int HttpBasicStream::InitializeStream(const HttpRequestInfo* request_info,
 int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
                                  UploadDataStream* request_body,
                                  HttpResponseInfo* response,
-                                 CompletionCallback* callback) {
+                                 OldCompletionCallback* callback) {
   DCHECK(parser_.get());
   DCHECK(request_info_);
   const std::string path = using_proxy_ ?
@@ -65,7 +65,7 @@ uint64 HttpBasicStream::GetUploadProgress() const {
   return parser_->GetUploadProgress();
 }
 
-int HttpBasicStream::ReadResponseHeaders(CompletionCallback* callback) {
+int HttpBasicStream::ReadResponseHeaders(OldCompletionCallback* callback) {
   return parser_->ReadResponseHeaders(callback);
 }
 
@@ -74,7 +74,7 @@ const HttpResponseInfo* HttpBasicStream::GetResponseInfo() const {
 }
 
 int HttpBasicStream::ReadResponseBody(IOBuffer* buf, int buf_len,
-                                      CompletionCallback* callback) {
+                                      OldCompletionCallback* callback) {
   return parser_->ReadResponseBody(buf, buf_len, callback);
 }
 

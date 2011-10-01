@@ -131,7 +131,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
       const SSLConfig& ssl_config_for_proxy,
       const BoundNetLog& net_log,
       ClientSocketHandle* socket_handle,
-      CompletionCallback* callback);
+      OldCompletionCallback* callback);
 
   // A helper method that uses the passed in proxy information to initialize a
   // ClientSocketHandle with the relevant socket pool. Use this method for
@@ -145,7 +145,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
       const SSLConfig& ssl_config_for_proxy,
       const BoundNetLog& net_log,
       ClientSocketHandle* socket_handle,
-      CompletionCallback* callback);
+      OldCompletionCallback* callback);
 
   // Similar to InitSocketHandleForHttpRequest except that it initiates the
   // desired number of preconnect streams from the relevant socket pool.

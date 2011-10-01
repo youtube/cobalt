@@ -116,7 +116,7 @@ class RealFetchTester {
   scoped_ptr<DhcpProxyScriptFetcherWin> fetcher_;
   bool finished_;
   string16 pac_text_;
-  CompletionCallbackImpl<RealFetchTester> completion_callback_;
+  OldCompletionCallbackImpl<RealFetchTester> completion_callback_;
   base::OneShotTimer<RealFetchTester> timeout_;
   base::OneShotTimer<RealFetchTester> cancel_timer_;
   bool on_completion_is_error_;
@@ -223,7 +223,7 @@ class DummyDhcpProxyScriptAdapterFetcher
   }
 
   void Fetch(const std::string& adapter_name,
-             CompletionCallback* callback) OVERRIDE {
+             OldCompletionCallback* callback) OVERRIDE {
     client_callback_ = callback;
     timer_.Start(FROM_HERE, base::TimeDelta::FromMilliseconds(fetch_delay_ms_),
                  this, &DummyDhcpProxyScriptAdapterFetcher::OnTimer);
@@ -262,7 +262,7 @@ class DummyDhcpProxyScriptAdapterFetcher
   int result_;
   string16 pac_script_;
   int fetch_delay_ms_;
-  CompletionCallback* client_callback_;
+  OldCompletionCallback* client_callback_;
   base::OneShotTimer<DummyDhcpProxyScriptAdapterFetcher> timer_;
 };
 
@@ -421,7 +421,7 @@ public:
   bool finished_;
   int result_;
   string16 pac_text_;
-  CompletionCallbackImpl<FetcherClient> completion_callback_;
+  OldCompletionCallbackImpl<FetcherClient> completion_callback_;
 };
 
 // We separate out each test's logic so that we can easily implement

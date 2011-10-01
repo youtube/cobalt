@@ -38,7 +38,7 @@ class SOCKSClientSocketTest : public PlatformTest {
   scoped_ptr<SOCKSClientSocket> user_sock_;
   AddressList address_list_;
   StreamSocket* tcp_sock_;
-  TestCompletionCallback callback_;
+  TestOldCompletionCallback callback_;
   scoped_ptr<MockHostResolver> host_resolver_;
   scoped_ptr<SocketDataProvider> data_;
 };
@@ -62,7 +62,7 @@ SOCKSClientSocket* SOCKSClientSocketTest::BuildMockSocket(
     int port,
     NetLog* net_log) {
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   data_.reset(new StaticSocketDataProvider(reads, reads_count,
                                            writes, writes_count));
   tcp_sock_ = new MockTCPClientSocket(address_list_, net_log, data_.get());
@@ -87,7 +87,7 @@ class HangingHostResolver : public HostResolver {
 
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      OldCompletionCallback* callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE {
     DCHECK(addresses);

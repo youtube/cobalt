@@ -73,7 +73,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   int GenerateAuthToken(const string16* username,
                         const string16* password,
                         const HttpRequestInfo* request,
-                        CompletionCallback* callback,
+                        OldCompletionCallback* callback,
                         std::string* auth_token);
 
   // The authentication scheme as an enumerated value.
@@ -160,7 +160,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   virtual int GenerateAuthTokenImpl(const string16* username,
                                     const string16* password,
                                     const HttpRequestInfo* request,
-                                    CompletionCallback* callback,
+                                    OldCompletionCallback* callback,
                                     std::string* auth_token) = 0;
 
   // The auth-scheme as an enumerated value.
@@ -192,8 +192,8 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   void OnGenerateAuthTokenComplete(int rv);
   void FinishGenerateAuthToken();
 
-  CompletionCallback* original_callback_;
-  CompletionCallbackImpl<HttpAuthHandler> wrapper_callback_;
+  OldCompletionCallback* original_callback_;
+  OldCompletionCallbackImpl<HttpAuthHandler> wrapper_callback_;
 };
 
 }  // namespace net

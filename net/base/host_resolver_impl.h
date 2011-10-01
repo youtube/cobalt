@@ -136,7 +136,7 @@ class NET_EXPORT HostResolverImpl
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      OldCompletionCallback* callback,
                       RequestHandle* out_req,
                       const BoundNetLog& source_net_log) OVERRIDE;
   virtual int ResolveFromCache(const RequestInfo& info,

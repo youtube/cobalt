@@ -74,17 +74,17 @@ class MockHttpStream : public HttpStream {
   // HttpStream implementation:
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               CompletionCallback* callback) OVERRIDE {
+                               OldCompletionCallback* callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
-                          CompletionCallback* callback) OVERRIDE {
+                          OldCompletionCallback* callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }
   virtual uint64 GetUploadProgress() const OVERRIDE { return 0; }
-  virtual int ReadResponseHeaders(CompletionCallback* callback) OVERRIDE {
+  virtual int ReadResponseHeaders(OldCompletionCallback* callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE {
@@ -102,7 +102,7 @@ class MockHttpStream : public HttpStream {
 
   // Mocked API
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               CompletionCallback* callback) OVERRIDE;
+                               OldCompletionCallback* callback) OVERRIDE;
   virtual void Close(bool not_reusable) OVERRIDE {
     DCHECK(!closed_);
     closed_ = true;
@@ -131,7 +131,7 @@ class MockHttpStream : public HttpStream {
 
   CloseResultWaiter* const result_waiter_;
   scoped_refptr<IOBuffer> user_buf_;
-  CompletionCallback* user_callback_;
+  OldCompletionCallback* user_callback_;
   bool closed_;
   bool stall_reads_forever_;
   int num_chunks_;
@@ -140,7 +140,7 @@ class MockHttpStream : public HttpStream {
 };
 
 int MockHttpStream::ReadResponseBody(
-    IOBuffer* buf, int buf_len, CompletionCallback* callback) {
+    IOBuffer* buf, int buf_len, OldCompletionCallback* callback) {
   DCHECK(callback);
   DCHECK(!user_callback_);
   DCHECK(buf);
@@ -168,7 +168,7 @@ int MockHttpStream::ReadResponseBody(
 }
 
 void MockHttpStream::CompleteRead() {
-  CompletionCallback* callback = user_callback_;
+  OldCompletionCallback* callback = user_callback_;
   std::memset(user_buf_->data(), 1, kMagicChunkSize);
   user_buf_ = NULL;
   user_callback_ = NULL;
@@ -238,7 +238,7 @@ TEST_F(HttpResponseBodyDrainerTest, CancelledBySession) {
 }
 
 TEST_F(HttpResponseBodyDrainerTest, DrainBodyTooLarge) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int too_many_chunks =
       HttpResponseBodyDrainer::kDrainBodyBufferSize / kMagicChunkSize;
   too_many_chunks += 1;  // Now it's too large.
