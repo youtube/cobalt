@@ -15,6 +15,8 @@ using ::testing::StrictMock;
 namespace base {
 namespace {
 
+class IncompleteType;
+
 class NoRef {
  public:
   NoRef() {}
@@ -362,6 +364,7 @@ TEST_F(BindTest, IgnoreReturn) {
 //   - Argument binding to a literal string.
 //   - Argument binding with template function.
 //   - Argument binding to an object.
+//   - Argument binding to pointer to incomplete type.
 //   - Argument gets type converted.
 //   - Pointer argument gets converted.
 //   - Const Reference forces conversion.
@@ -390,6 +393,11 @@ TEST_F(BindTest, ArgumentBinding) {
   p.value = 5;
   Callback<int(void)> bind_object_cb = Bind(&UnwrapNoRefParent, p);
   EXPECT_EQ(5, bind_object_cb.Run());
+
+  IncompleteType* incomplete_ptr = reinterpret_cast<IncompleteType*>(123);
+  Callback<IncompleteType*(void)> bind_incomplete_ptr_cb =
+      Bind(&PolymorphicIdentity<IncompleteType*>, incomplete_ptr);
+  EXPECT_EQ(incomplete_ptr, bind_incomplete_ptr_cb.Run());
 
   NoRefChild c;
   c.value = 6;
