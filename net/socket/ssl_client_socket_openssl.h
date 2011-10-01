@@ -62,7 +62,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   virtual NextProtoStatus GetNextProto(std::string* proto);
 
   // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(OldCompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -77,8 +77,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // Socket methods:
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
@@ -111,16 +111,16 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   void TransportWriteComplete(int result);
   void TransportReadComplete(int result);
 
-  CompletionCallbackImpl<SSLClientSocketOpenSSL> buffer_send_callback_;
-  CompletionCallbackImpl<SSLClientSocketOpenSSL> buffer_recv_callback_;
+  OldCompletionCallbackImpl<SSLClientSocketOpenSSL> buffer_send_callback_;
+  OldCompletionCallbackImpl<SSLClientSocketOpenSSL> buffer_recv_callback_;
   bool transport_send_busy_;
   scoped_refptr<DrainableIOBuffer> send_buffer_;
   bool transport_recv_busy_;
   scoped_refptr<IOBuffer> recv_buffer_;
 
-  CompletionCallback* user_connect_callback_;
-  CompletionCallback* user_read_callback_;
-  CompletionCallback* user_write_callback_;
+  OldCompletionCallback* user_connect_callback_;
+  OldCompletionCallback* user_read_callback_;
+  OldCompletionCallback* user_write_callback_;
 
   // Used by Read function.
   scoped_refptr<IOBuffer> user_read_buf_;
@@ -142,7 +142,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
 
   CertVerifier* const cert_verifier_;
   scoped_ptr<SingleRequestCertVerifier> verifier_;
-  CompletionCallbackImpl<SSLClientSocketOpenSSL> handshake_io_callback_;
+  OldCompletionCallbackImpl<SSLClientSocketOpenSSL> handshake_io_callback_;
 
   // OpenSSL stuff
   SSL* ssl_;

@@ -30,7 +30,7 @@ class HangingHostResolver : public HostResolver {
 
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      OldCompletionCallback* callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE {
     EXPECT_FALSE(has_outstanding_request());
@@ -80,7 +80,7 @@ TEST(SingleRequestHostResolverTest, NormalResolve) {
 
   // Resolve "watsup:90" using our SingleRequestHostResolver.
   AddressList addrlist;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HostResolver::RequestInfo request(HostPortPair("watsup", 90));
   int rv = single_request_resolver.Resolve(
       request, &addrlist, &callback, BoundNetLog());
@@ -100,7 +100,7 @@ TEST(SingleRequestHostResolverTest, Cancel) {
 
     // Resolve "watsup:90" using our SingleRequestHostResolver.
     AddressList addrlist;
-    TestCompletionCallback callback;
+    TestOldCompletionCallback callback;
     HostResolver::RequestInfo request(HostPortPair("watsup", 90));
     int rv = single_request_resolver.Resolve(
         request, &addrlist, &callback, BoundNetLog());

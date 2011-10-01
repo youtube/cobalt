@@ -75,7 +75,7 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // Profiling information for the request is saved to |net_log| if non-NULL.
   int ResolveProxy(const GURL& url,
                    ProxyInfo* results,
-                   CompletionCallback* callback,
+                   OldCompletionCallback* callback,
                    PacRequest** pac_request,
                    const BoundNetLog& net_log);
 
@@ -93,7 +93,7 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // Profiling information for the request is saved to |net_log| if non-NULL.
   int ReconsiderProxyAfterError(const GURL& url,
                                 ProxyInfo* results,
-                                CompletionCallback* callback,
+                                OldCompletionCallback* callback,
                                 PacRequest** pac_request,
                                 const BoundNetLog& net_log);
 
@@ -338,7 +338,7 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   scoped_ptr<DhcpProxyScriptFetcher> dhcp_proxy_script_fetcher_;
 
   // Callback for when |init_proxy_resolver_| is done.
-  CompletionCallbackImpl<ProxyService> init_proxy_resolver_callback_;
+  OldCompletionCallbackImpl<ProxyService> init_proxy_resolver_callback_;
 
   // Helper to download the PAC script (wpad + custom) and apply fallback rules.
   //
@@ -394,7 +394,7 @@ class NET_EXPORT SyncProxyServiceHelper
   ProxyService* proxy_service_;
 
   base::WaitableEvent event_;
-  CompletionCallbackImpl<SyncProxyServiceHelper> callback_;
+  OldCompletionCallbackImpl<SyncProxyServiceHelper> callback_;
   ProxyInfo proxy_info_;
   int result_;
 };

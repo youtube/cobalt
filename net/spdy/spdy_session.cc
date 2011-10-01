@@ -351,7 +351,7 @@ int SpdySession::CreateStream(
     RequestPriority priority,
     scoped_refptr<SpdyStream>* spdy_stream,
     const BoundNetLog& stream_net_log,
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   if (!max_concurrent_streams_ ||
       active_streams_.size() < max_concurrent_streams_) {
     return CreateStreamImpl(url, priority, spdy_stream, stream_net_log);
@@ -1531,7 +1531,7 @@ void SpdySession::InvokeUserStreamCreationCallback(
   if (it == pending_callback_map_.end())
     return;
 
-  CompletionCallback* callback = it->second.callback;
+  OldCompletionCallback* callback = it->second.callback;
   int result = it->second.result;
   pending_callback_map_.erase(it);
   callback->Run(result);

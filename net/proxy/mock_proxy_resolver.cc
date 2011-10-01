@@ -13,7 +13,7 @@ MockAsyncProxyResolverBase::Request::Request(
     MockAsyncProxyResolverBase* resolver,
             const GURL& url,
             ProxyInfo* results,
-            CompletionCallback* callback)
+            OldCompletionCallback* callback)
         : resolver_(resolver),
           url_(url),
           results_(results),
@@ -22,7 +22,7 @@ MockAsyncProxyResolverBase::Request::Request(
     }
 
     void MockAsyncProxyResolverBase::Request::CompleteNow(int rv) {
-      CompletionCallback* callback = callback_;
+      OldCompletionCallback* callback = callback_;
 
       // May delete |this|.
       resolver_->RemovePendingRequest(this);
@@ -36,7 +36,7 @@ MockAsyncProxyResolverBase::Request::~Request() {}
 MockAsyncProxyResolverBase::SetPacScriptRequest::SetPacScriptRequest(
         MockAsyncProxyResolverBase* resolver,
         const scoped_refptr<ProxyResolverScriptData>& script_data,
-        CompletionCallback* callback)
+        OldCompletionCallback* callback)
         : resolver_(resolver),
           script_data_(script_data),
           callback_(callback),
@@ -46,7 +46,7 @@ MockAsyncProxyResolverBase::SetPacScriptRequest::SetPacScriptRequest(
 MockAsyncProxyResolverBase::SetPacScriptRequest::~SetPacScriptRequest() {}
 
     void MockAsyncProxyResolverBase::SetPacScriptRequest::CompleteNow(int rv) {
-       CompletionCallback* callback = callback_;
+       OldCompletionCallback* callback = callback_;
 
       // Will delete |this|.
       resolver_->RemovePendingSetPacScriptRequest(this);
@@ -58,7 +58,7 @@ MockAsyncProxyResolverBase::~MockAsyncProxyResolverBase() {}
 
 int MockAsyncProxyResolverBase::GetProxyForURL(const GURL& url,
                                                ProxyInfo* results,
-                                               CompletionCallback* callback,
+                                               OldCompletionCallback* callback,
                                                RequestHandle* request_handle,
                                                const BoundNetLog& /*net_log*/) {
   scoped_refptr<Request> request = new Request(this, url, results, callback);
@@ -79,7 +79,7 @@ void MockAsyncProxyResolverBase::CancelRequest(RequestHandle request_handle) {
 
 int MockAsyncProxyResolverBase::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   DCHECK(!pending_set_pac_script_request_.get());
   pending_set_pac_script_request_.reset(
       new SetPacScriptRequest(this, script_data, callback));

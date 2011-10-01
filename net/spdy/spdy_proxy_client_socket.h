@@ -68,7 +68,7 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   virtual HttpStream* CreateConnectResponseStream();
 
   // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(OldCompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -81,8 +81,8 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // Socket methods:
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
   virtual int GetPeerAddress(AddressList* address) const;
@@ -125,7 +125,7 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   // and returns the number of bytes read.
   int PopulateUserReadBuffer();
 
-  CompletionCallbackImpl<SpdyProxyClientSocket> io_callback_;
+  OldCompletionCallbackImpl<SpdyProxyClientSocket> io_callback_;
   State next_state_;
 
   // Pointer to the SPDY Stream that this sits on top of.
@@ -133,9 +133,9 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
 
   // Stores the callback to the layer above, called on completing Read() or
   // Connect().
-  CompletionCallback* read_callback_;
+  OldCompletionCallback* read_callback_;
   // Stores the callback to the layer above, called on completing Write().
-  CompletionCallback* write_callback_;
+  OldCompletionCallback* write_callback_;
 
   // CONNECT request and response.
   HttpRequestInfo request_;

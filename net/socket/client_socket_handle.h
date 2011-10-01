@@ -74,7 +74,7 @@ class NET_EXPORT ClientSocketHandle {
   int Init(const std::string& group_name,
            const scoped_refptr<SocketParams>& socket_params,
            RequestPriority priority,
-           CompletionCallback* callback,
+           OldCompletionCallback* callback,
            PoolType* pool,
            const BoundNetLog& net_log);
 
@@ -167,8 +167,8 @@ class NET_EXPORT ClientSocketHandle {
   scoped_ptr<StreamSocket> socket_;
   std::string group_name_;
   bool is_reused_;
-  CompletionCallbackImpl<ClientSocketHandle> callback_;
-  CompletionCallback* user_callback_;
+  OldCompletionCallbackImpl<ClientSocketHandle> callback_;
+  OldCompletionCallback* user_callback_;
   base::TimeDelta idle_time_;
   int pool_id_;  // See ClientSocketPool::ReleaseSocket() for an explanation.
   bool is_ssl_error_;
@@ -187,7 +187,7 @@ template <typename SocketParams, typename PoolType>
 int ClientSocketHandle::Init(const std::string& group_name,
                              const scoped_refptr<SocketParams>& socket_params,
                              RequestPriority priority,
-                             CompletionCallback* callback,
+                             OldCompletionCallback* callback,
                              PoolType* pool,
                              const BoundNetLog& net_log) {
   requesting_source_ = net_log.source();

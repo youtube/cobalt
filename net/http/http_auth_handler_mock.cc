@@ -46,7 +46,7 @@ bool HttpAuthHandlerMock::NeedsCanonicalName() {
 }
 
 int HttpAuthHandlerMock::ResolveCanonicalName(HostResolver* host_resolver,
-                                              CompletionCallback* callback) {
+                                              OldCompletionCallback* callback) {
   EXPECT_NE(RESOLVE_TESTED, resolve_);
   int rv = OK;
   switch (resolve_) {
@@ -106,7 +106,7 @@ bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {
 int HttpAuthHandlerMock::GenerateAuthTokenImpl(const string16* username,
                                                const string16* password,
                                                const HttpRequestInfo* request,
-                                               CompletionCallback* callback,
+                                               OldCompletionCallback* callback,
                                                std::string* auth_token) {
   first_round_ = false;
   request_url_ = request->url;
@@ -130,7 +130,7 @@ void HttpAuthHandlerMock::OnResolveCanonicalName() {
   EXPECT_EQ(RESOLVE_ASYNC, resolve_);
   EXPECT_TRUE(user_callback_ != NULL);
   resolve_ = RESOLVE_TESTED;
-  CompletionCallback* callback = user_callback_;
+  OldCompletionCallback* callback = user_callback_;
   user_callback_ = NULL;
   callback->Run(OK);
 }
@@ -141,7 +141,7 @@ void HttpAuthHandlerMock::OnGenerateAuthToken() {
   if (generate_rv_ == OK)
     *auth_token_ = "auth_token";
   auth_token_ = NULL;
-  CompletionCallback* callback = user_callback_;
+  OldCompletionCallback* callback = user_callback_;
   user_callback_ = NULL;
   callback->Run(generate_rv_);
 }

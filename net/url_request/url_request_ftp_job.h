@@ -63,8 +63,8 @@ class URLRequestFtpJob : public URLRequestJob {
   FtpRequestInfo request_info_;
   scoped_ptr<FtpTransaction> transaction_;
 
-  CompletionCallbackImpl<URLRequestFtpJob> start_callback_;
-  CompletionCallbackImpl<URLRequestFtpJob> read_callback_;
+  OldCompletionCallbackImpl<URLRequestFtpJob> start_callback_;
+  OldCompletionCallbackImpl<URLRequestFtpJob> read_callback_;
 
   bool read_in_progress_;
 

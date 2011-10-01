@@ -195,7 +195,7 @@ TEST_F(DiskCacheBackendTest, AppCacheKeying) {
 }
 
 TEST_F(DiskCacheTest, CreateBackend) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
 
   {
     FilePath path = GetCacheFilePath();
@@ -261,7 +261,7 @@ TEST_F(DiskCacheBackendTest, ExternalFiles) {
 
 // Tests that we deal with file-level pending operations at destruction time.
 TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
 
   {
     FilePath path = GetCacheFilePath();
@@ -313,7 +313,7 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
 
 // Tests that we deal with background-thread pending operations.
 TEST_F(DiskCacheTest, ShutdownWithPendingIO2) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
 
   {
     FilePath path = GetCacheFilePath();
@@ -357,7 +357,7 @@ TEST_F(DiskCacheTest, TruncatedIndex) {
   base::Thread cache_thread("CacheThread");
   ASSERT_TRUE(cache_thread.StartWithOptions(
                   base::Thread::Options(MessageLoop::TYPE_IO, 0)));
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
 
   disk_cache::Backend* backend = NULL;
   int rv = disk_cache::BackendImpl::CreateBackend(
@@ -1342,7 +1342,7 @@ TEST_F(DiskCacheTest, DeleteOld) {
   base::Thread cache_thread("CacheThread");
   ASSERT_TRUE(cache_thread.StartWithOptions(
                   base::Thread::Options(MessageLoop::TYPE_IO, 0)));
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
 
   disk_cache::Backend* cache;
   int rv = disk_cache::BackendImpl::CreateBackend(
@@ -2269,7 +2269,7 @@ TEST_F(DiskCacheTest, MultipleInstances) {
   base::Thread cache_thread("CacheThread");
   ASSERT_TRUE(cache_thread.StartWithOptions(
                   base::Thread::Options(MessageLoop::TYPE_IO, 0)));
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
 
   const int kNumberOfCaches = 2;
   disk_cache::Backend* cache[kNumberOfCaches];

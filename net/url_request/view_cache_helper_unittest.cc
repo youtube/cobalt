@@ -47,7 +47,7 @@ void WriteHeaders(disk_cache::Entry* entry, int flags, const std::string data) {
       reinterpret_cast<const char*>(pickle.data())));
   int len = static_cast<int>(pickle.size());
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->WriteData(0, 0, buf, len, &cb, true);
   ASSERT_EQ(len, cb.GetResult(rv));
 }
@@ -60,7 +60,7 @@ void WriteData(disk_cache::Entry* entry, int index, const std::string data) {
   scoped_refptr<IOBuffer> buf(new IOBuffer(len));
   memcpy(buf->data(), data.data(), data.length());
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->WriteData(index, 0, buf, len, &cb, true);
   ASSERT_EQ(len, cb.GetResult(rv));
 }
@@ -68,7 +68,7 @@ void WriteData(disk_cache::Entry* entry, int index, const std::string data) {
 void WriteToEntry(disk_cache::Backend* cache, const std::string key,
                   const std::string data0, const std::string data1,
                   const std::string data2) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   disk_cache::Entry* entry;
   int rv = cache->CreateEntry(key, &entry, &cb);
   rv = cb.GetResult(rv);
@@ -85,7 +85,7 @@ void WriteToEntry(disk_cache::Backend* cache, const std::string key,
 }
 
 void FillCache(URLRequestContext* context) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv =
       context->http_transaction_factory()->GetCache()->GetBackend(&cache, &cb);
@@ -103,7 +103,7 @@ TEST(ViewCacheHelper, EmptyCache) {
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
   ViewCacheHelper helper;
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   std::string prefix, data;
   int rv = helper.GetContentsHTML(context, prefix, &data, &cb);
   EXPECT_EQ(OK, cb.GetResult(rv));
@@ -117,7 +117,7 @@ TEST(ViewCacheHelper, ListContents) {
   FillCache(context);
 
   std::string prefix, data;
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = helper.GetContentsHTML(context, prefix, &data, &cb);
   EXPECT_EQ(OK, cb.GetResult(rv));
 
@@ -139,7 +139,7 @@ TEST(ViewCacheHelper, DumpEntry) {
   FillCache(context);
 
   std::string data;
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = helper.GetEntryInfoHTML("second", context, &data, &cb);
   EXPECT_EQ(OK, cb.GetResult(rv));
 
@@ -165,7 +165,7 @@ TEST(ViewCacheHelper, Prefix) {
 
   std::string key, data;
   std::string prefix("prefix:");
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = helper.GetContentsHTML(context, prefix, &data, &cb);
   EXPECT_EQ(OK, cb.GetResult(rv));
 
@@ -180,7 +180,7 @@ TEST(ViewCacheHelper, TruncatedFlag) {
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
   ViewCacheHelper helper;
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv =
       context->http_transaction_factory()->GetCache()->GetBackend(&cache, &cb);

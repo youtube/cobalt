@@ -32,7 +32,7 @@ class BlockableHostResolver : public HostResolver {
 
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      OldCompletionCallback* callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE {
     EXPECT_TRUE(callback);
@@ -91,7 +91,7 @@ class SyncProxyResolver : public ProxyResolver {
 
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             CompletionCallback* callback,
+                             OldCompletionCallback* callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) {
     EXPECT_FALSE(callback);
@@ -121,7 +121,7 @@ class SyncProxyResolver : public ProxyResolver {
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback) OVERRIDE {
+      OldCompletionCallback* callback) OVERRIDE {
     return OK;
   }
 
@@ -175,7 +175,7 @@ class IOThread : public base::Thread {
             1u));
 
     // Initialize the resolver.
-    TestCompletionCallback callback;
+    TestOldCompletionCallback callback;
     proxy_resolver_->SetPacScript(ProxyResolverScriptData::FromURL(GURL()),
                                   &callback);
     EXPECT_EQ(OK, callback.WaitForResult());
@@ -211,7 +211,7 @@ class IOThread : public base::Thread {
   scoped_ptr<ProxyResolver> proxy_resolver_;
 
   // Data for the outstanding request to the single threaded proxy resolver.
-  TestCompletionCallback callback_;
+  TestOldCompletionCallback callback_;
   ProxyInfo results_;
   ProxyResolver::RequestHandle request_;
 };

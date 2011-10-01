@@ -86,7 +86,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
                                      data_writes, arraysize(data_writes));
   mock_socket_factory_.AddSocketDataProvider(&data);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   HttpRequestInfo request_info;
   request_info.url = GURL("http://www.google.com/");

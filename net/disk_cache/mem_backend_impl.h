@@ -65,18 +65,18 @@ class NET_EXPORT_PRIVATE MemBackendImpl : public Backend {
   // Backend interface.
   virtual int32 GetEntryCount() const;
   virtual int OpenEntry(const std::string& key, Entry** entry,
-                        CompletionCallback* callback);
+                        OldCompletionCallback* callback);
   virtual int CreateEntry(const std::string& key, Entry** entry,
-                          CompletionCallback* callback);
-  virtual int DoomEntry(const std::string& key, CompletionCallback* callback);
-  virtual int DoomAllEntries(CompletionCallback* callback);
+                          OldCompletionCallback* callback);
+  virtual int DoomEntry(const std::string& key, OldCompletionCallback* callback);
+  virtual int DoomAllEntries(OldCompletionCallback* callback);
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
-                                 CompletionCallback* callback);
+                                 OldCompletionCallback* callback);
   virtual int DoomEntriesSince(const base::Time initial_time,
-                               CompletionCallback* callback);
+                               OldCompletionCallback* callback);
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            CompletionCallback* callback);
+                            OldCompletionCallback* callback);
   virtual void EndEnumeration(void** iter);
   virtual void GetStats(
       std::vector<std::pair<std::string, std::string> >* stats) {}

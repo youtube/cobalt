@@ -99,7 +99,7 @@ int TCPServerSocketWin::GetLocalAddress(IPEndPoint* address) const {
 }
 
 int TCPServerSocketWin::Accept(
-    scoped_ptr<StreamSocket>* socket, CompletionCallback* callback) {
+    scoped_ptr<StreamSocket>* socket, OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(socket);
   DCHECK(callback);
@@ -182,7 +182,7 @@ void TCPServerSocketWin::OnObjectSignaled(HANDLE object) {
   if (ev.lNetworkEvents & FD_ACCEPT) {
     int result = AcceptInternal(accept_socket_);
     if (result != ERR_IO_PENDING) {
-      CompletionCallback* c = accept_callback_;
+      OldCompletionCallback* c = accept_callback_;
       accept_callback_ = NULL;
       accept_socket_ = NULL;
       c->Run(result);

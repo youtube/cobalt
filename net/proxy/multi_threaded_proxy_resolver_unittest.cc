@@ -38,7 +38,7 @@ class MockProxyResolver : public ProxyResolver {
   // ProxyResolver implementation:
   virtual int GetProxyForURL(const GURL& query_url,
                              ProxyInfo* results,
-                             CompletionCallback* callback,
+                             OldCompletionCallback* callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) OVERRIDE {
     if (resolve_latency_ms_)
@@ -68,7 +68,7 @@ class MockProxyResolver : public ProxyResolver {
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback) OVERRIDE {
+      OldCompletionCallback* callback) OVERRIDE {
     CheckIsOnWorkerThread();
     last_script_data_ = script_data;
     return OK;
@@ -137,7 +137,7 @@ class BlockableProxyResolver : public MockProxyResolver {
 
   virtual int GetProxyForURL(const GURL& query_url,
                              ProxyInfo* results,
-                             CompletionCallback* callback,
+                             OldCompletionCallback* callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) OVERRIDE {
     if (should_block_) {
@@ -164,7 +164,7 @@ class ForwardingProxyResolver : public ProxyResolver {
 
   virtual int GetProxyForURL(const GURL& query_url,
                              ProxyInfo* results,
-                             CompletionCallback* callback,
+                             OldCompletionCallback* callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) OVERRIDE {
     return impl_->GetProxyForURL(
@@ -181,7 +181,7 @@ class ForwardingProxyResolver : public ProxyResolver {
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback) OVERRIDE {
+      OldCompletionCallback* callback) OVERRIDE {
     return impl_->SetPacScript(script_data, callback);
   }
 
@@ -244,7 +244,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_Basic) {
 
   // Call SetPacScriptByData() -- verify that it reaches the synchronous
   // resolver.
-  TestCompletionCallback set_script_callback;
+  TestOldCompletionCallback set_script_callback;
   rv = resolver.SetPacScript(
       ProxyResolverScriptData::FromUTF8("pac script bytes"),
       &set_script_callback);
@@ -254,7 +254,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_Basic) {
             mock->last_script_data()->utf16());
 
   // Start request 0.
-  TestCompletionCallback callback0;
+  TestOldCompletionCallback callback0;
   CapturingBoundNetLog log0(CapturingNetLog::kUnbounded);
   ProxyInfo results0;
   rv = resolver.GetProxyForURL(
@@ -278,19 +278,19 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_Basic) {
 
   // Start 3 more requests (request1 to request3).
 
-  TestCompletionCallback callback1;
+  TestOldCompletionCallback callback1;
   ProxyInfo results1;
   rv = resolver.GetProxyForURL(
       GURL("http://request1"), &results1, &callback1, NULL, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
-  TestCompletionCallback callback2;
+  TestOldCompletionCallback callback2;
   ProxyInfo results2;
   rv = resolver.GetProxyForURL(
       GURL("http://request2"), &results2, &callback2, NULL, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
-  TestCompletionCallback callback3;
+  TestOldCompletionCallback callback3;
   ProxyInfo results3;
   rv = resolver.GetProxyForURL(
       GURL("http://request3"), &results3, &callback3, NULL, BoundNetLog());
@@ -318,7 +318,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_Basic) {
   // There is no way to get a callback directly when PurgeMemory() completes, so
   // we queue up a dummy request after the PurgeMemory() call and wait until it
   // finishes to ensure PurgeMemory() has had a chance to run.
-  TestCompletionCallback dummy_callback;
+  TestOldCompletionCallback dummy_callback;
   rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("dummy"),
                              &dummy_callback);
   EXPECT_EQ(OK, dummy_callback.WaitForResult());
@@ -337,7 +337,7 @@ TEST(MultiThreadedProxyResolverTest,
   int rv;
 
   // Initialize the resolver.
-  TestCompletionCallback init_callback;
+  TestOldCompletionCallback init_callback;
   rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("foo"),
                              &init_callback);
   EXPECT_EQ(OK, init_callback.WaitForResult());
@@ -347,7 +347,7 @@ TEST(MultiThreadedProxyResolverTest,
 
   // Start request 0.
   ProxyResolver::RequestHandle request0;
-  TestCompletionCallback callback0;
+  TestOldCompletionCallback callback0;
   ProxyInfo results0;
   CapturingBoundNetLog log0(CapturingNetLog::kUnbounded);
   rv = resolver.GetProxyForURL(
@@ -356,7 +356,7 @@ TEST(MultiThreadedProxyResolverTest,
 
   // Start 2 more requests (request1 and request2).
 
-  TestCompletionCallback callback1;
+  TestOldCompletionCallback callback1;
   ProxyInfo results1;
   CapturingBoundNetLog log1(CapturingNetLog::kUnbounded);
   rv = resolver.GetProxyForURL(
@@ -364,7 +364,7 @@ TEST(MultiThreadedProxyResolverTest,
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   ProxyResolver::RequestHandle request2;
-  TestCompletionCallback callback2;
+  TestOldCompletionCallback callback2;
   ProxyInfo results2;
   CapturingBoundNetLog log2(CapturingNetLog::kUnbounded);
   rv = resolver.GetProxyForURL(
@@ -431,7 +431,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelRequest) {
   int rv;
 
   // Initialize the resolver.
-  TestCompletionCallback init_callback;
+  TestOldCompletionCallback init_callback;
   rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("foo"),
                              &init_callback);
   EXPECT_EQ(OK, init_callback.WaitForResult());
@@ -441,7 +441,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelRequest) {
 
   // Start request 0.
   ProxyResolver::RequestHandle request0;
-  TestCompletionCallback callback0;
+  TestOldCompletionCallback callback0;
   ProxyInfo results0;
   rv = resolver.GetProxyForURL(
       GURL("http://request0"), &results0, &callback0, &request0, BoundNetLog());
@@ -452,20 +452,20 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelRequest) {
 
   // Start 3 more requests (request1 : request3).
 
-  TestCompletionCallback callback1;
+  TestOldCompletionCallback callback1;
   ProxyInfo results1;
   rv = resolver.GetProxyForURL(
       GURL("http://request1"), &results1, &callback1, NULL, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   ProxyResolver::RequestHandle request2;
-  TestCompletionCallback callback2;
+  TestOldCompletionCallback callback2;
   ProxyInfo results2;
   rv = resolver.GetProxyForURL(
       GURL("http://request2"), &results2, &callback2, &request2, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
-  TestCompletionCallback callback3;
+  TestOldCompletionCallback callback3;
   ProxyInfo results3;
   rv = resolver.GetProxyForURL(
       GURL("http://request3"), &results3, &callback3, NULL, BoundNetLog());
@@ -508,7 +508,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelRequestByDeleting) {
   int rv;
 
   // Initialize the resolver.
-  TestCompletionCallback init_callback;
+  TestOldCompletionCallback init_callback;
   rv = resolver->SetPacScript(ProxyResolverScriptData::FromUTF8("foo"),
                               &init_callback);
   EXPECT_EQ(OK, init_callback.WaitForResult());
@@ -518,19 +518,19 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelRequestByDeleting) {
 
   // Start 3 requests.
 
-  TestCompletionCallback callback0;
+  TestOldCompletionCallback callback0;
   ProxyInfo results0;
   rv = resolver->GetProxyForURL(
       GURL("http://request0"), &results0, &callback0, NULL, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
-  TestCompletionCallback callback1;
+  TestOldCompletionCallback callback1;
   ProxyInfo results1;
   rv = resolver->GetProxyForURL(
       GURL("http://request1"), &results1, &callback1, NULL, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
-  TestCompletionCallback callback2;
+  TestOldCompletionCallback callback2;
   ProxyInfo results2;
   rv = resolver->GetProxyForURL(
       GURL("http://request2"), &results2, &callback2, NULL, BoundNetLog());
@@ -569,7 +569,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelSetPacScript) {
 
   int rv;
 
-  TestCompletionCallback set_pac_script_callback;
+  TestOldCompletionCallback set_pac_script_callback;
   rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("data"),
                              &set_pac_script_callback);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -578,7 +578,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelSetPacScript) {
   resolver.CancelSetPacScript();
 
   // Start another SetPacScript request
-  TestCompletionCallback set_pac_script_callback2;
+  TestOldCompletionCallback set_pac_script_callback2;
   rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("data2"),
                              &set_pac_script_callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -606,7 +606,7 @@ TEST(MultiThreadedProxyResolverTest, ThreeThreads_Basic) {
 
   // Call SetPacScriptByData() -- verify that it reaches the synchronous
   // resolver.
-  TestCompletionCallback set_script_callback;
+  TestOldCompletionCallback set_script_callback;
   rv = resolver.SetPacScript(
       ProxyResolverScriptData::FromUTF8("pac script bytes"),
       &set_script_callback);
@@ -618,7 +618,7 @@ TEST(MultiThreadedProxyResolverTest, ThreeThreads_Basic) {
             factory->resolvers()[0]->last_script_data()->utf16());
 
   const int kNumRequests = 9;
-  TestCompletionCallback callback[kNumRequests];
+  TestOldCompletionCallback callback[kNumRequests];
   ProxyInfo results[kNumRequests];
   ProxyResolver::RequestHandle request[kNumRequests];
 
@@ -675,7 +675,7 @@ TEST(MultiThreadedProxyResolverTest, ThreeThreads_Basic) {
   // We call SetPacScript again, solely to stop the current worker threads.
   // (That way we can test to see the values observed by the synchronous
   // resolvers in a non-racy manner).
-  TestCompletionCallback set_script_callback2;
+  TestOldCompletionCallback set_script_callback2;
   rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("xyz"),
                              &set_script_callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -718,7 +718,7 @@ TEST(MultiThreadedProxyResolverTest, OneThreadBlocked) {
   EXPECT_TRUE(resolver.expects_pac_bytes());
 
   // Initialize the resolver.
-  TestCompletionCallback set_script_callback;
+  TestOldCompletionCallback set_script_callback;
   rv = resolver.SetPacScript(
       ProxyResolverScriptData::FromUTF8("pac script bytes"),
       &set_script_callback);
@@ -730,7 +730,7 @@ TEST(MultiThreadedProxyResolverTest, OneThreadBlocked) {
             factory->resolvers()[0]->last_script_data()->utf16());
 
   const int kNumRequests = 4;
-  TestCompletionCallback callback[kNumRequests];
+  TestOldCompletionCallback callback[kNumRequests];
   ProxyInfo results[kNumRequests];
   ProxyResolver::RequestHandle request[kNumRequests];
 

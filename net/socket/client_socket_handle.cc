@@ -73,7 +73,7 @@ LoadState ClientSocketHandle::GetLoadState() const {
 }
 
 void ClientSocketHandle::OnIOComplete(int result) {
-  CompletionCallback* callback = user_callback_;
+  OldCompletionCallback* callback = user_callback_;
   user_callback_ = NULL;
   HandleInitCompletion(result);
   callback->Run(result);

@@ -99,19 +99,19 @@ class MemEntryImpl : public Entry {
   virtual base::Time GetLastModified() const;
   virtual int32 GetDataSize(int index) const;
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       net::CompletionCallback* completion_callback);
+                       net::OldCompletionCallback* completion_callback);
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        net::CompletionCallback* completion_callback,
+                        net::OldCompletionCallback* completion_callback,
                         bool truncate);
   virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                             net::CompletionCallback* completion_callback);
+                             net::OldCompletionCallback* completion_callback);
   virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* completion_callback);
+                              net::OldCompletionCallback* completion_callback);
   virtual int GetAvailableRange(int64 offset, int len, int64* start,
-                                CompletionCallback* callback);
+                                OldCompletionCallback* callback);
   virtual bool CouldBeSparse() const;
   virtual void CancelSparseIO() {}
-  virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback);
+  virtual int ReadyForSparseIO(net::OldCompletionCallback* completion_callback);
 
  private:
   typedef base::hash_map<int, MemEntryImpl*> EntryMap;

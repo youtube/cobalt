@@ -14,7 +14,7 @@
 namespace disk_cache {
 
 BackendIO::BackendIO(InFlightIO* controller, BackendImpl* backend,
-                     net::CompletionCallback* callback)
+                     net::OldCompletionCallback* callback)
     : BackgroundIO(controller), backend_(backend), callback_(callback),
       operation_(OP_NONE),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -299,34 +299,34 @@ InFlightBackendIO::InFlightBackendIO(BackendImpl* backend,
 InFlightBackendIO::~InFlightBackendIO() {
 }
 
-void InFlightBackendIO::Init(CompletionCallback* callback) {
+void InFlightBackendIO::Init(OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->Init();
   PostOperation(operation);
 }
 
 void InFlightBackendIO::OpenEntry(const std::string& key, Entry** entry,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->OpenEntry(key, entry);
   PostOperation(operation);
 }
 
 void InFlightBackendIO::CreateEntry(const std::string& key, Entry** entry,
-                                    CompletionCallback* callback) {
+                                    OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->CreateEntry(key, entry);
   PostOperation(operation);
 }
 
 void InFlightBackendIO::DoomEntry(const std::string& key,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomEntry(key);
   PostOperation(operation);
 }
 
-void InFlightBackendIO::DoomAllEntries(CompletionCallback* callback) {
+void InFlightBackendIO::DoomAllEntries(OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomAllEntries();
   PostOperation(operation);
@@ -334,28 +334,28 @@ void InFlightBackendIO::DoomAllEntries(CompletionCallback* callback) {
 
 void InFlightBackendIO::DoomEntriesBetween(const base::Time initial_time,
                         const base::Time end_time,
-                        CompletionCallback* callback) {
+                        OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomEntriesBetween(initial_time, end_time);
   PostOperation(operation);
 }
 
 void InFlightBackendIO::DoomEntriesSince(const base::Time initial_time,
-                                         CompletionCallback* callback) {
+                                         OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomEntriesSince(initial_time);
   PostOperation(operation);
 }
 
 void InFlightBackendIO::OpenNextEntry(void** iter, Entry** next_entry,
-                                      CompletionCallback* callback) {
+                                      OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->OpenNextEntry(iter, next_entry);
   PostOperation(operation);
 }
 
 void InFlightBackendIO::OpenPrevEntry(void** iter, Entry** prev_entry,
-                                      CompletionCallback* callback) {
+                                      OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->OpenPrevEntry(iter, prev_entry);
   PostOperation(operation);
@@ -385,13 +385,13 @@ void InFlightBackendIO::DoomEntryImpl(EntryImpl* entry) {
   PostOperation(operation);
 }
 
-void InFlightBackendIO::FlushQueue(net::CompletionCallback* callback) {
+void InFlightBackendIO::FlushQueue(net::OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->FlushQueue();
   PostOperation(operation);
 }
 
-void InFlightBackendIO::RunTask(Task* task, net::CompletionCallback* callback) {
+void InFlightBackendIO::RunTask(Task* task, net::OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->RunTask(task);
   PostOperation(operation);
@@ -399,7 +399,7 @@ void InFlightBackendIO::RunTask(Task* task, net::CompletionCallback* callback) {
 
 void InFlightBackendIO::ReadData(EntryImpl* entry, int index, int offset,
                                  net::IOBuffer* buf, int buf_len,
-                                 CompletionCallback* callback) {
+                                 OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->ReadData(entry, index, offset, buf, buf_len);
   PostOperation(operation);
@@ -408,7 +408,7 @@ void InFlightBackendIO::ReadData(EntryImpl* entry, int index, int offset,
 void InFlightBackendIO::WriteData(EntryImpl* entry, int index, int offset,
                                   net::IOBuffer* buf, int buf_len,
                                   bool truncate,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->WriteData(entry, index, offset, buf, buf_len, truncate);
   PostOperation(operation);
@@ -416,7 +416,7 @@ void InFlightBackendIO::WriteData(EntryImpl* entry, int index, int offset,
 
 void InFlightBackendIO::ReadSparseData(EntryImpl* entry, int64 offset,
                                        net::IOBuffer* buf, int buf_len,
-                                       CompletionCallback* callback) {
+                                       OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->ReadSparseData(entry, offset, buf, buf_len);
   PostOperation(operation);
@@ -424,7 +424,7 @@ void InFlightBackendIO::ReadSparseData(EntryImpl* entry, int64 offset,
 
 void InFlightBackendIO::WriteSparseData(EntryImpl* entry, int64 offset,
                                         net::IOBuffer* buf, int buf_len,
-                                        CompletionCallback* callback) {
+                                        OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->WriteSparseData(entry, offset, buf, buf_len);
   PostOperation(operation);
@@ -432,7 +432,7 @@ void InFlightBackendIO::WriteSparseData(EntryImpl* entry, int64 offset,
 
 void InFlightBackendIO::GetAvailableRange(EntryImpl* entry, int64 offset,
                                           int len, int64* start,
-                                          CompletionCallback* callback) {
+                                          OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->GetAvailableRange(entry, offset, len, start);
   PostOperation(operation);
@@ -445,7 +445,7 @@ void InFlightBackendIO::CancelSparseIO(EntryImpl* entry) {
 }
 
 void InFlightBackendIO::ReadyForSparseIO(EntryImpl* entry,
-                                         CompletionCallback* callback) {
+                                         OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->ReadyForSparseIO(entry);
   PostOperation(operation);

@@ -106,7 +106,7 @@ int TCPServerSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
 }
 
 int TCPServerSocketLibevent::Accept(
-    scoped_ptr<StreamSocket>* socket, CompletionCallback* callback) {
+    scoped_ptr<StreamSocket>* socket, OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(socket);
   DCHECK(callback);
@@ -185,7 +185,7 @@ void TCPServerSocketLibevent::OnFileCanReadWithoutBlocking(int fd) {
 
   int result = AcceptInternal(accept_socket_);
   if (result != ERR_IO_PENDING) {
-    CompletionCallback* c = accept_callback_;
+    OldCompletionCallback* c = accept_callback_;
     accept_callback_ = NULL;
     accept_socket_ = NULL;
     bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();

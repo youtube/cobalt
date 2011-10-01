@@ -50,7 +50,7 @@ ViewCacheHelper::ViewCacheHelper()
       ALLOW_THIS_IN_INITIALIZER_LIST(
           cache_callback_(this, &ViewCacheHelper::OnIOComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          entry_callback_(new CancelableCompletionCallback<ViewCacheHelper>(
+          entry_callback_(new CancelableOldCompletionCallback<ViewCacheHelper>(
               this, &ViewCacheHelper::OnIOComplete))) {
 }
 
@@ -65,14 +65,14 @@ ViewCacheHelper::~ViewCacheHelper() {
 int ViewCacheHelper::GetEntryInfoHTML(const std::string& key,
                                       const URLRequestContext* context,
                                       std::string* out,
-                                      CompletionCallback* callback) {
+                                      OldCompletionCallback* callback) {
   return GetInfoHTML(key, context, std::string(), out, callback);
 }
 
 int ViewCacheHelper::GetContentsHTML(const URLRequestContext* context,
                                      const std::string& url_prefix,
                                      std::string* out,
-                                     CompletionCallback* callback) {
+                                     OldCompletionCallback* callback) {
   return GetInfoHTML(std::string(), context, url_prefix, out, callback);
 }
 
@@ -121,7 +121,7 @@ int ViewCacheHelper::GetInfoHTML(const std::string& key,
                                  const URLRequestContext* context,
                                  const std::string& url_prefix,
                                  std::string* out,
-                                 CompletionCallback* callback) {
+                                 OldCompletionCallback* callback) {
   DCHECK(!callback_);
   DCHECK(context);
   key_ = key;
@@ -141,7 +141,7 @@ void ViewCacheHelper::DoCallback(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
   DCHECK(callback_);
 
-  CompletionCallback* c = callback_;
+  OldCompletionCallback* c = callback_;
   callback_ = NULL;
   c->Run(rv);
 }

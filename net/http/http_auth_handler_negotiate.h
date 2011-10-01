@@ -119,7 +119,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
   virtual int GenerateAuthTokenImpl(const string16* username,
                                     const string16* password,
                                     const HttpRequestInfo* request,
-                                    CompletionCallback* callback,
+                                    OldCompletionCallback* callback,
                                     std::string* auth_token);
 
  private:
@@ -144,7 +144,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
   AuthSystem auth_system_;
   bool disable_cname_lookup_;
   bool use_port_;
-  CompletionCallbackImpl<HttpAuthHandlerNegotiate> io_callback_;
+  OldCompletionCallbackImpl<HttpAuthHandlerNegotiate> io_callback_;
   HostResolver* const resolver_;
 
   // Members which are needed for DNS lookup + SPN.
@@ -159,7 +159,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
   std::wstring spn_;
 
   // Things which vary each round.
-  CompletionCallback* user_callback_;
+  OldCompletionCallback* user_callback_;
   std::string* auth_token_;
 
   State next_state_;

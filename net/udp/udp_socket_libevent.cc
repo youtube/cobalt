@@ -135,14 +135,14 @@ int UDPSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
 
 int UDPSocketLibevent::Read(IOBuffer* buf,
                             int buf_len,
-                            CompletionCallback* callback) {
+                            OldCompletionCallback* callback) {
   return RecvFrom(buf, buf_len, NULL, callback);
 }
 
 int UDPSocketLibevent::RecvFrom(IOBuffer* buf,
                                 int buf_len,
                                 IPEndPoint* address,
-                                CompletionCallback* callback) {
+                                OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
   DCHECK(!read_callback_);
@@ -170,21 +170,21 @@ int UDPSocketLibevent::RecvFrom(IOBuffer* buf,
 
 int UDPSocketLibevent::Write(IOBuffer* buf,
                              int buf_len,
-                             CompletionCallback* callback) {
+                             OldCompletionCallback* callback) {
   return SendToOrWrite(buf, buf_len, NULL, callback);
 }
 
 int UDPSocketLibevent::SendTo(IOBuffer* buf,
                               int buf_len,
                               const IPEndPoint& address,
-                              CompletionCallback* callback) {
+                              OldCompletionCallback* callback) {
   return SendToOrWrite(buf, buf_len, &address, callback);
 }
 
 int UDPSocketLibevent::SendToOrWrite(IOBuffer* buf,
                                      int buf_len,
                                      const IPEndPoint* address,
-                                     CompletionCallback* callback) {
+                                     OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
   DCHECK(!write_callback_);
@@ -262,7 +262,7 @@ void UDPSocketLibevent::DoReadCallback(int rv) {
   DCHECK(read_callback_);
 
   // since Run may result in Read being called, clear read_callback_ up front.
-  CompletionCallback* c = read_callback_;
+  OldCompletionCallback* c = read_callback_;
   read_callback_ = NULL;
   c->Run(rv);
 }
@@ -272,7 +272,7 @@ void UDPSocketLibevent::DoWriteCallback(int rv) {
   DCHECK(write_callback_);
 
   // since Run may result in Write being called, clear write_callback_ up front.
-  CompletionCallback* c = write_callback_;
+  OldCompletionCallback* c = write_callback_;
   write_callback_ = NULL;
   c->Run(rv);
 }

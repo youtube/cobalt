@@ -100,7 +100,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket1";
-  TestCompletionCallback callback_s1;
+  TestOldCompletionCallback callback_s1;
   // Trying to open connection to host1 will start without wait.
   EXPECT_EQ(OK, w1->OnStartOpenConnection(s1, &callback_s1));
 
@@ -121,7 +121,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket2";
-  TestCompletionCallback callback_s2;
+  TestOldCompletionCallback callback_s2;
   // Trying to open connection to host2 will wait for w1.
   EXPECT_EQ(ERR_IO_PENDING, w2->OnStartOpenConnection(s2, &callback_s2));
   // Now waiting queue looks like
@@ -141,7 +141,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket3";
-  TestCompletionCallback callback_s3;
+  TestOldCompletionCallback callback_s3;
   // Trying to open connection to host3 will wait for w1.
   EXPECT_EQ(ERR_IO_PENDING, w3->OnStartOpenConnection(s3, &callback_s3));
   // Address | head -> tail
@@ -161,7 +161,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket4";
-  TestCompletionCallback callback_s4;
+  TestOldCompletionCallback callback_s4;
   // Trying to open connection to host4 will wait for w1, w2.
   EXPECT_EQ(ERR_IO_PENDING, w4->OnStartOpenConnection(s4, &callback_s4));
   // Address | head -> tail
@@ -180,7 +180,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket5";
-  TestCompletionCallback callback_s5;
+  TestOldCompletionCallback callback_s5;
   // Trying to open connection to host5 will wait for w1, w4
   EXPECT_EQ(ERR_IO_PENDING, w5->OnStartOpenConnection(s5, &callback_s5));
   // Address | head -> tail
@@ -199,7 +199,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket6";
-  TestCompletionCallback callback_s6;
+  TestOldCompletionCallback callback_s6;
   // Trying to open connection to host6 will wait for w1, w4, w5
   EXPECT_EQ(ERR_IO_PENDING, w6->OnStartOpenConnection(s6, &callback_s6));
   // Address | head -> tail
@@ -311,7 +311,7 @@ TEST_F(WebSocketThrottleTest, NoThrottleForDuplicateAddress) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket1";
-  TestCompletionCallback callback_s1;
+  TestOldCompletionCallback callback_s1;
   // Trying to open connection to localhost will start without wait.
   EXPECT_EQ(OK, w1->OnStartOpenConnection(s1, &callback_s1));
 

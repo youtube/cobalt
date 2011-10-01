@@ -39,10 +39,10 @@ class NetworkDelegate : public base::NonThreadSafe {
   // checking on parameters. See the corresponding virtuals for explanations of
   // the methods and their arguments.
   int NotifyBeforeURLRequest(URLRequest* request,
-                             CompletionCallback* callback,
+                             OldCompletionCallback* callback,
                              GURL* new_url);
   int NotifyBeforeSendHeaders(URLRequest* request,
-                              CompletionCallback* callback,
+                              OldCompletionCallback* callback,
                               HttpRequestHeaders* headers);
   void NotifySendHeaders(URLRequest* request,
                          const HttpRequestHeaders& headers);
@@ -67,7 +67,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   // status code, generally either OK to continue with the request or
   // ERR_IO_PENDING if the result is not ready yet.
   virtual int OnBeforeURLRequest(URLRequest* request,
-                                 CompletionCallback* callback,
+                                 OldCompletionCallback* callback,
                                  GURL* new_url) = 0;
 
   // Called right before the HTTP headers are sent. Allows the delegate to
@@ -75,7 +75,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   // valid only until OnHttpTransactionDestroyed is called for this request.
   // Returns a net status code.
   virtual int OnBeforeSendHeaders(URLRequest* request,
-                                  CompletionCallback* callback,
+                                  OldCompletionCallback* callback,
                                   HttpRequestHeaders* headers) = 0;
 
   // Called right before the HTTP request(s) are being sent to the network.

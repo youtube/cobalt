@@ -100,8 +100,8 @@ class SpdyProxyClientSocketTest : public PlatformTest {
   }
 
   scoped_ptr<SpdyProxyClientSocket> sock_;
-  TestCompletionCallback read_callback_;
-  TestCompletionCallback write_callback_;
+  TestOldCompletionCallback read_callback_;
+  TestOldCompletionCallback write_callback_;
   scoped_refptr<DeterministicSocketData> data_;
 
  private:

@@ -30,7 +30,7 @@ TEST(HttpAuthHandlerTest, NetLog) {
     for (int j = 0; j < 2; ++j) {
       int rv = (j == 0) ? OK : ERR_UNEXPECTED;
       for (int k = 0; k < 2; ++k) {
-        TestCompletionCallback test_callback;
+        TestOldCompletionCallback test_callback;
         HttpAuth::Target target =
             (k == 0) ? HttpAuth::AUTH_PROXY : HttpAuth::AUTH_SERVER;
         NetLog::EventType event_type =

@@ -55,7 +55,7 @@ class SSLClientSocketWin : public SSLClientSocket {
   virtual NextProtoStatus GetNextProto(std::string* proto);
 
   // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(OldCompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -70,8 +70,8 @@ class SSLClientSocketWin : public SSLClientSocket {
   virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // Socket methods:
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
 
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
@@ -111,24 +111,24 @@ class SSLClientSocketWin : public SSLClientSocket {
   void FreeSendBuffer();
 
   // Internal callbacks as async operations complete.
-  CompletionCallbackImpl<SSLClientSocketWin> handshake_io_callback_;
-  CompletionCallbackImpl<SSLClientSocketWin> read_callback_;
-  CompletionCallbackImpl<SSLClientSocketWin> write_callback_;
+  OldCompletionCallbackImpl<SSLClientSocketWin> handshake_io_callback_;
+  OldCompletionCallbackImpl<SSLClientSocketWin> read_callback_;
+  OldCompletionCallbackImpl<SSLClientSocketWin> write_callback_;
 
   scoped_ptr<ClientSocketHandle> transport_;
   HostPortPair host_and_port_;
   SSLConfig ssl_config_;
 
   // User function to callback when the Connect() completes.
-  CompletionCallback* user_connect_callback_;
+  OldCompletionCallback* user_connect_callback_;
 
   // User function to callback when a Read() completes.
-  CompletionCallback* user_read_callback_;
+  OldCompletionCallback* user_read_callback_;
   scoped_refptr<IOBuffer> user_read_buf_;
   int user_read_buf_len_;
 
   // User function to callback when a Write() completes.
-  CompletionCallback* user_write_callback_;
+  OldCompletionCallback* user_write_callback_;
   scoped_refptr<IOBuffer> user_write_buf_;
   int user_write_buf_len_;
 

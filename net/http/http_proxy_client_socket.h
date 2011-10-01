@@ -54,7 +54,7 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   // If Connect (or its callback) returns PROXY_AUTH_REQUESTED, then
   // credentials should be added to the HttpAuthController before calling
   // RestartWithAuth.
-  int RestartWithAuth(CompletionCallback* callback);
+  int RestartWithAuth(OldCompletionCallback* callback);
 
   const scoped_refptr<HttpAuthController>& auth_controller() {
     return auth_;
@@ -69,7 +69,7 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   virtual HttpStream* CreateConnectResponseStream();
 
   // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(OldCompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -82,8 +82,8 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   virtual base::TimeDelta GetConnectTimeMicros() const;
 
   // Socket methods:
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
   virtual int GetPeerAddress(AddressList* address) const;
@@ -132,11 +132,11 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   int DoTCPRestart();
   int DoTCPRestartComplete(int result);
 
-  CompletionCallbackImpl<HttpProxyClientSocket> io_callback_;
+  OldCompletionCallbackImpl<HttpProxyClientSocket> io_callback_;
   State next_state_;
 
   // Stores the callback to the layer above, called on completing Connect().
-  CompletionCallback* user_callback_;
+  OldCompletionCallback* user_callback_;
 
   HttpRequestInfo request_;
   HttpResponseInfo response_;

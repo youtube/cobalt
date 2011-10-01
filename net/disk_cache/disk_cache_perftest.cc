@@ -61,7 +61,7 @@ bool TimeWrite(int num_entries, disk_cache::Backend* cache,
     entries->push_back(entry);
 
     disk_cache::Entry* cache_entry;
-    TestCompletionCallback cb;
+    TestOldCompletionCallback cb;
     int rv = cache->CreateEntry(entry.key, &cache_entry, &cb);
     if (net::OK != cb.GetResult(rv))
       break;
@@ -107,7 +107,7 @@ bool TimeRead(int num_entries, disk_cache::Backend* cache,
 
   for (int i = 0; i < num_entries; i++) {
     disk_cache::Entry* cache_entry;
-    TestCompletionCallback cb;
+    TestOldCompletionCallback cb;
     int rv = cache->OpenEntry(entries[i].key, &cache_entry, &cb);
     if (net::OK != cb.GetResult(rv))
       break;
@@ -158,7 +158,7 @@ TEST_F(DiskCacheTest, CacheBackendPerformance) {
                   base::Thread::Options(MessageLoop::TYPE_IO, 0)));
 
   ScopedTestCache test_cache;
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv = disk_cache::CreateCacheBackend(
                net::DISK_CACHE, test_cache.path(), 0, false,

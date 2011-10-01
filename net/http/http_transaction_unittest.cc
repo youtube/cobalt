@@ -221,7 +221,7 @@ MockNetworkTransaction::MockNetworkTransaction(MockNetworkLayer* factory)
 MockNetworkTransaction::~MockNetworkTransaction() {}
 
 int MockNetworkTransaction::Start(const net::HttpRequestInfo* request,
-                                  net::CompletionCallback* callback,
+                                  net::OldCompletionCallback* callback,
                                   const net::BoundNetLog& net_log) {
   const MockTransaction* t = FindMockTransaction(request->url);
   if (!t)
@@ -260,19 +260,19 @@ int MockNetworkTransaction::Start(const net::HttpRequestInfo* request,
 }
 
 int MockNetworkTransaction::RestartIgnoringLastError(
-    net::CompletionCallback* callback) {
+    net::OldCompletionCallback* callback) {
   return net::ERR_FAILED;
 }
 
 int MockNetworkTransaction::RestartWithCertificate(
     net::X509Certificate* client_cert,
-    net::CompletionCallback* callback) {
+    net::OldCompletionCallback* callback) {
   return net::ERR_FAILED;
 }
 
 int MockNetworkTransaction::RestartWithAuth(const string16& username,
                                             const string16& password,
-                                            net::CompletionCallback* callback) {
+                                            net::OldCompletionCallback* callback) {
   return net::ERR_FAILED;
 }
 
@@ -281,7 +281,7 @@ bool MockNetworkTransaction::IsReadyToRestartForAuth() {
 }
 
 int MockNetworkTransaction::Read(net::IOBuffer* buf, int buf_len,
-                                 net::CompletionCallback* callback) {
+                                 net::OldCompletionCallback* callback) {
   int data_len = static_cast<int>(data_.size());
   int num = std::min(buf_len, data_len - data_cursor_);
   if (num) {
@@ -316,13 +316,13 @@ uint64 MockNetworkTransaction::GetUploadProgress() const {
   return 0;
 }
 
-void MockNetworkTransaction::CallbackLater(net::CompletionCallback* callback,
+void MockNetworkTransaction::CallbackLater(net::OldCompletionCallback* callback,
                                            int result) {
   MessageLoop::current()->PostTask(FROM_HERE, task_factory_.NewRunnableMethod(
       &MockNetworkTransaction::RunCallback, callback, result));
 }
 
-void MockNetworkTransaction::RunCallback(net::CompletionCallback* callback,
+void MockNetworkTransaction::RunCallback(net::OldCompletionCallback* callback,
                                          int result) {
   callback->Run(result);
 }
@@ -357,7 +357,7 @@ net::HttpNetworkSession* MockNetworkLayer::GetSession() {
 int ReadTransaction(net::HttpTransaction* trans, std::string* result) {
   int rv;
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   std::string content;
   do {
