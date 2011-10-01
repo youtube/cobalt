@@ -118,7 +118,7 @@ void ProxyScriptFetcherImpl::OnResponseCompleted(URLRequest* request) {
 
 int ProxyScriptFetcherImpl::Fetch(const GURL& url,
                                   string16* text,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   // It is invalid to call Fetch() while a request is already in progress.
   DCHECK(!cur_request_.get());
 
@@ -290,7 +290,7 @@ void ProxyScriptFetcherImpl::FetchCompleted() {
   }
 
   int result_code = result_code_;
-  CompletionCallback* callback = callback_;
+  OldCompletionCallback* callback = callback_;
 
   // Hold a reference to the URLRequestContext to prevent re-entrancy from
   // ~URLRequestContext.

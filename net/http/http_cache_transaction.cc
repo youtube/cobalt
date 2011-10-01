@@ -124,10 +124,10 @@ HttpCache::Transaction::Transaction(HttpCache* cache)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &Transaction::OnIOComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          cache_callback_(new CancelableCompletionCallback<Transaction>(
+          cache_callback_(new CancelableOldCompletionCallback<Transaction>(
               this, &Transaction::OnIOComplete))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          write_headers_callback_(new CancelableCompletionCallback<Transaction>(
+          write_headers_callback_(new CancelableOldCompletionCallback<Transaction>(
               this, &Transaction::OnIOComplete))) {
   COMPILE_ASSERT(HttpCache::Transaction::kNumValidationHeaders ==
                  arraysize(kValidationHeaders),
@@ -167,7 +167,7 @@ HttpCache::Transaction::~Transaction() {
 }
 
 int HttpCache::Transaction::WriteMetadata(IOBuffer* buf, int buf_len,
-                                          CompletionCallback* callback) {
+                                          OldCompletionCallback* callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
   DCHECK(callback);
@@ -216,7 +216,7 @@ const BoundNetLog& HttpCache::Transaction::net_log() const {
 }
 
 int HttpCache::Transaction::Start(const HttpRequestInfo* request,
-                                  CompletionCallback* callback,
+                                  OldCompletionCallback* callback,
                                   const BoundNetLog& net_log) {
   DCHECK(request);
   DCHECK(callback);
@@ -245,7 +245,7 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
 }
 
 int HttpCache::Transaction::RestartIgnoringLastError(
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   DCHECK(callback);
 
   // Ensure that we only have one asynchronous call at a time.
@@ -264,7 +264,7 @@ int HttpCache::Transaction::RestartIgnoringLastError(
 
 int HttpCache::Transaction::RestartWithCertificate(
     X509Certificate* client_cert,
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   DCHECK(callback);
 
   // Ensure that we only have one asynchronous call at a time.
@@ -284,7 +284,7 @@ int HttpCache::Transaction::RestartWithCertificate(
 int HttpCache::Transaction::RestartWithAuth(
     const string16& username,
     const string16& password,
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   DCHECK(auth_response_.headers);
   DCHECK(callback);
 
@@ -312,7 +312,7 @@ bool HttpCache::Transaction::IsReadyToRestartForAuth() {
 }
 
 int HttpCache::Transaction::Read(IOBuffer* buf, int buf_len,
-                                 CompletionCallback* callback) {
+                                 OldCompletionCallback* callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
   DCHECK(callback);
@@ -406,7 +406,7 @@ void HttpCache::Transaction::DoCallback(int rv) {
   DCHECK(callback_);
 
   // Since Run may result in Read being called, clear callback_ up front.
-  CompletionCallback* c = callback_;
+  OldCompletionCallback* c = callback_;
   callback_ = NULL;
   c->Run(rv);
 }
@@ -1923,7 +1923,7 @@ int HttpCache::Transaction::ReadFromEntry(IOBuffer* data, int data_len) {
 
 int HttpCache::Transaction::WriteToEntry(int index, int offset,
                                          IOBuffer* data, int data_len,
-                                         CompletionCallback* callback) {
+                                         OldCompletionCallback* callback) {
   if (!entry_)
     return data_len;
 
@@ -1979,7 +1979,7 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
 }
 
 int HttpCache::Transaction::AppendResponseDataToEntry(
-    IOBuffer* data, int data_len, CompletionCallback* callback) {
+    IOBuffer* data, int data_len, OldCompletionCallback* callback) {
   if (!entry_ || !data_len)
     return data_len;
 

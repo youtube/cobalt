@@ -13,9 +13,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-typedef PlatformTest TestCompletionCallbackTest;
+typedef PlatformTest TestOldCompletionCallbackTest;
 
-using net::CompletionCallback;
+using net::OldCompletionCallback;
 
 const int kMagicResult = 8888;
 
@@ -30,7 +30,7 @@ class ExampleEmployer {
   // Do some imaginary work on a worker thread;
   // when done, worker posts callback on the original thread.
   // Returns true on success
-  bool DoSomething(CompletionCallback* callback);
+  bool DoSomething(OldCompletionCallback* callback);
 
  private:
   class ExampleWorker;
@@ -43,7 +43,7 @@ class ExampleEmployer {
 class ExampleEmployer::ExampleWorker
     : public base::RefCountedThreadSafe<ExampleWorker> {
  public:
-  ExampleWorker(ExampleEmployer* employer, CompletionCallback* callback)
+  ExampleWorker(ExampleEmployer* employer, OldCompletionCallback* callback)
       : employer_(employer), callback_(callback),
         origin_loop_(MessageLoop::current()) {
   }
@@ -56,7 +56,7 @@ class ExampleEmployer::ExampleWorker
 
   // Only used on the origin thread (where DoSomething was called).
   ExampleEmployer* employer_;
-  CompletionCallback* callback_;
+  OldCompletionCallback* callback_;
   // Used to post ourselves onto the origin thread.
   base::Lock origin_loop_lock_;
   MessageLoop* origin_loop_;
@@ -99,7 +99,7 @@ ExampleEmployer::ExampleEmployer() {
 ExampleEmployer::~ExampleEmployer() {
 }
 
-bool ExampleEmployer::DoSomething(CompletionCallback* callback) {
+bool ExampleEmployer::DoSomething(OldCompletionCallback* callback) {
   DCHECK(!request_) << "already in use";
 
   request_ = new ExampleWorker(this, callback);
@@ -115,9 +115,9 @@ bool ExampleEmployer::DoSomething(CompletionCallback* callback) {
   return true;
 }
 
-TEST_F(TestCompletionCallbackTest, Simple) {
+TEST_F(TestOldCompletionCallbackTest, Simple) {
   ExampleEmployer boss;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   bool queued = boss.DoSomething(&callback);
   EXPECT_EQ(queued, true);
   int result = callback.WaitForResult();

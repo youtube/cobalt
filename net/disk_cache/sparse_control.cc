@@ -233,7 +233,7 @@ bool SparseControl::CouldBeSparse() const {
 }
 
 int SparseControl::StartIO(SparseOperation op, int64 offset, net::IOBuffer* buf,
-                           int buf_len, net::CompletionCallback* callback) {
+                           int buf_len, net::OldCompletionCallback* callback) {
   DCHECK(init_);
   // We don't support simultaneous IO for sparse data.
   if (operation_ != kNoOperation)
@@ -308,7 +308,7 @@ void SparseControl::CancelIO() {
   abort_ = true;
 }
 
-int SparseControl::ReadyToUse(net::CompletionCallback* completion_callback) {
+int SparseControl::ReadyToUse(net::OldCompletionCallback* completion_callback) {
   if (!abort_)
     return net::OK;
 
@@ -690,7 +690,7 @@ bool SparseControl::DoChildIO() {
 
   // We have more work to do. Let's not trigger a callback to the caller.
   finished_ = false;
-  net::CompletionCallback* callback = user_callback_ ? &child_callback_ : NULL;
+  net::OldCompletionCallback* callback = user_callback_ ? &child_callback_ : NULL;
 
   int rv = 0;
   switch (operation_) {
@@ -836,7 +836,7 @@ void SparseControl::OnChildIOCompleted(int result) {
 
 void SparseControl::DoUserCallback() {
   DCHECK(user_callback_);
-  net::CompletionCallback* c = user_callback_;
+  net::OldCompletionCallback* c = user_callback_;
   user_callback_ = NULL;
   user_buf_ = NULL;
   pending_ = false;
@@ -850,7 +850,7 @@ void SparseControl::DoAbortCallbacks() {
   for (size_t i = 0; i < abort_callbacks_.size(); i++) {
     // Releasing all references to entry_ may result in the destruction of this
     // object so we should not be touching it after the last Release().
-    net::CompletionCallback* c = abort_callbacks_[i];
+    net::OldCompletionCallback* c = abort_callbacks_[i];
     if (i == abort_callbacks_.size() - 1)
       abort_callbacks_.clear();
 

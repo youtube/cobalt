@@ -215,7 +215,7 @@ int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
     const string16* username,
     const string16* password,
     const HttpRequestInfo* request,
-    CompletionCallback* callback,
+    OldCompletionCallback* callback,
     std::string* auth_token) {
   DCHECK(user_callback_ == NULL);
   DCHECK((username == NULL) == (password == NULL));
@@ -250,7 +250,7 @@ void HttpAuthHandlerNegotiate::OnIOComplete(int result) {
 void HttpAuthHandlerNegotiate::DoCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
   DCHECK(user_callback_);
-  CompletionCallback* callback = user_callback_;
+  OldCompletionCallback* callback = user_callback_;
   user_callback_ = NULL;
   callback->Run(rv);
 }

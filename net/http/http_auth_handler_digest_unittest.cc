@@ -63,8 +63,8 @@ bool RespondToChallenge(HttpAuth::Target target,
   // Create a token in response to the challenge.
   // NOTE: HttpAuthHandlerDigest's implementation of GenerateAuthToken always
   // completes synchronously. That's why this test can get away with a
-  // TestCompletionCallback without an IO thread.
-  TestCompletionCallback callback;
+  // TestOldCompletionCallback without an IO thread.
+  TestOldCompletionCallback callback;
   scoped_ptr<HttpRequestInfo> request(new HttpRequestInfo());
   request->url = GURL(request_url);
   const string16 kFoo = ASCIIToUTF16("foo");

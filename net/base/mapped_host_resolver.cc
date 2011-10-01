@@ -21,7 +21,7 @@ MappedHostResolver::~MappedHostResolver() {
 
 int MappedHostResolver::Resolve(const RequestInfo& info,
                                 AddressList* addresses,
-                                CompletionCallback* callback,
+                                OldCompletionCallback* callback,
                                 RequestHandle* out_req,
                                 const BoundNetLog& net_log) {
   DCHECK(addresses);

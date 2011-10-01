@@ -113,7 +113,7 @@ RRResponse::~RRResponse() {}
 
 class RRResolverHandle {
  public:
-  RRResolverHandle(CompletionCallback* callback, RRResponse* response)
+  RRResolverHandle(OldCompletionCallback* callback, RRResponse* response)
       : callback_(callback),
         response_(response) {
   }
@@ -136,7 +136,7 @@ class RRResolverHandle {
   }
 
  private:
-  CompletionCallback* callback_;
+  OldCompletionCallback* callback_;
   RRResponse* response_;
 };
 
@@ -541,7 +541,7 @@ DnsRRResolver::~DnsRRResolver() {
 }
 
 intptr_t DnsRRResolver::Resolve(const std::string& name, uint16 rrtype,
-                                uint16 flags, CompletionCallback* callback,
+                                uint16 flags, OldCompletionCallback* callback,
                                 RRResponse* response,
                                 int priority /* ignored */,
                                 const BoundNetLog& netlog /* ignored */) {

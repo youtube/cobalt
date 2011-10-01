@@ -33,7 +33,7 @@ class SyncCallback: public disk_cache::FileIOCallback {
   // |end_event_type| is the event type to log on completion.  Logs nothing on
   // discard, or when the NetLog is not set to log all events.
   SyncCallback(disk_cache::EntryImpl* entry, net::IOBuffer* buffer,
-               net::CompletionCallback* callback,
+               net::OldCompletionCallback* callback,
                net::NetLog::EventType end_event_type)
       : entry_(entry), callback_(callback), buf_(buffer),
         start_(TimeTicks::Now()), end_event_type_(end_event_type) {
@@ -47,7 +47,7 @@ class SyncCallback: public disk_cache::FileIOCallback {
 
  private:
   disk_cache::EntryImpl* entry_;
-  net::CompletionCallback* callback_;
+  net::OldCompletionCallback* callback_;
   scoped_refptr<net::IOBuffer> buf_;
   TimeTicks start_;
   const net::NetLog::EventType end_event_type_;
@@ -309,7 +309,7 @@ void EntryImpl::DoomImpl() {
 }
 
 int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
-                            int buf_len, CompletionCallback* callback) {
+                            int buf_len, OldCompletionCallback* callback) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
         net::NetLog::TYPE_ENTRY_READ_DATA,
@@ -328,7 +328,7 @@ int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
 }
 
 int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
-                             int buf_len, CompletionCallback* callback,
+                             int buf_len, OldCompletionCallback* callback,
                              bool truncate) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
@@ -349,7 +349,7 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
 }
 
 int EntryImpl::ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   DCHECK(node_.Data()->dirty || read_only_);
   int result = InitSparseData();
   if (net::OK != result)
@@ -363,7 +363,7 @@ int EntryImpl::ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
 }
 
 int EntryImpl::WriteSparseDataImpl(int64 offset, net::IOBuffer* buf,
-                                   int buf_len, CompletionCallback* callback) {
+                                   int buf_len, OldCompletionCallback* callback) {
   DCHECK(node_.Data()->dirty || read_only_);
   int result = InitSparseData();
   if (net::OK != result)
@@ -391,7 +391,7 @@ void EntryImpl::CancelSparseIOImpl() {
   sparse_->CancelIO();
 }
 
-int EntryImpl::ReadyForSparseIOImpl(CompletionCallback* callback) {
+int EntryImpl::ReadyForSparseIOImpl(OldCompletionCallback* callback) {
   DCHECK(sparse_.get());
   return sparse_->ReadyToUse(callback);
 }
@@ -791,7 +791,7 @@ int32 EntryImpl::GetDataSize(int index) const {
 }
 
 int EntryImpl::ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        net::CompletionCallback* callback) {
+                        net::OldCompletionCallback* callback) {
   if (!callback)
     return ReadDataImpl(index, offset, buf, buf_len, callback);
 
@@ -812,7 +812,7 @@ int EntryImpl::ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
 }
 
 int EntryImpl::WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                         CompletionCallback* callback, bool truncate) {
+                         OldCompletionCallback* callback, bool truncate) {
   if (!callback)
     return WriteDataImpl(index, offset, buf, buf_len, callback, truncate);
 
@@ -829,7 +829,7 @@ int EntryImpl::WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
 }
 
 int EntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* callback) {
+                              net::OldCompletionCallback* callback) {
   if (!callback)
     return ReadSparseDataImpl(offset, buf, buf_len, callback);
 
@@ -839,7 +839,7 @@ int EntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
 }
 
 int EntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                               net::CompletionCallback* callback) {
+                               net::OldCompletionCallback* callback) {
   if (!callback)
     return WriteSparseDataImpl(offset, buf, buf_len, callback);
 
@@ -849,7 +849,7 @@ int EntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
 }
 
 int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
-                                 CompletionCallback* callback) {
+                                 OldCompletionCallback* callback) {
   backend_->background_queue()->GetAvailableRange(this, offset, len, start,
                                                   callback);
   return net::ERR_IO_PENDING;
@@ -868,7 +868,7 @@ void EntryImpl::CancelSparseIO() {
   backend_->background_queue()->CancelSparseIO(this);
 }
 
-int EntryImpl::ReadyForSparseIO(net::CompletionCallback* callback) {
+int EntryImpl::ReadyForSparseIO(net::OldCompletionCallback* callback) {
   if (!sparse_.get())
     return net::OK;
 
@@ -929,7 +929,7 @@ EntryImpl::~EntryImpl() {
 // ------------------------------------------------------------------------
 
 int EntryImpl::InternalReadData(int index, int offset, net::IOBuffer* buf,
-                                int buf_len, CompletionCallback* callback) {
+                                int buf_len, OldCompletionCallback* callback) {
   DCHECK(node_.Data()->dirty || read_only_);
   DVLOG(2) << "Read from " << index << " at " << offset << " : " << buf_len;
   if (index < 0 || index >= kNumStreams)
@@ -999,7 +999,7 @@ int EntryImpl::InternalReadData(int index, int offset, net::IOBuffer* buf,
 }
 
 int EntryImpl::InternalWriteData(int index, int offset, net::IOBuffer* buf,
-                                 int buf_len, CompletionCallback* callback,
+                                 int buf_len, OldCompletionCallback* callback,
                                  bool truncate) {
   DCHECK(node_.Data()->dirty || read_only_);
   DVLOG(2) << "Write to " << index << " at " << offset << " : " << buf_len;

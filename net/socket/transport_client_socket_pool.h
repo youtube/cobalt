@@ -110,7 +110,7 @@ class NET_EXPORT_PRIVATE TransportConnectJob : public ConnectJob {
 
   scoped_refptr<TransportSocketParams> params_;
   ClientSocketFactory* const client_socket_factory_;
-  CompletionCallbackImpl<TransportConnectJob> callback_;
+  OldCompletionCallbackImpl<TransportConnectJob> callback_;
   SingleRequestHostResolver resolver_;
   AddressList addresses_;
   State next_state_;
@@ -125,7 +125,7 @@ class NET_EXPORT_PRIVATE TransportConnectJob : public ConnectJob {
 
   scoped_ptr<StreamSocket> fallback_transport_socket_;
   scoped_ptr<AddressList> fallback_addresses_;
-  CompletionCallbackImpl<TransportConnectJob> fallback_callback_;
+  OldCompletionCallbackImpl<TransportConnectJob> fallback_callback_;
   base::TimeTicks fallback_connect_start_time_;
   base::OneShotTimer<TransportConnectJob> fallback_timer_;
 
@@ -150,7 +150,7 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool : public ClientSocketPool {
                             const void* resolve_info,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
+                            OldCompletionCallback* callback,
                             const BoundNetLog& net_log);
 
   virtual void RequestSockets(const std::string& group_name,

@@ -20,10 +20,10 @@
 // there could be other side-effects resulting from WaitForResult.  For this
 // reason, this class is probably not ideal for a general application.
 //
-class TestCompletionCallback : public CallbackRunner< Tuple1<int> > {
+class TestOldCompletionCallback : public CallbackRunner< Tuple1<int> > {
  public:
-  TestCompletionCallback();
-  virtual ~TestCompletionCallback();
+  TestOldCompletionCallback();
+  virtual ~TestOldCompletionCallback();
 
   int WaitForResult();
 

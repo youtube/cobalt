@@ -46,7 +46,7 @@ class NET_EXPORT ProxyScriptFetcherImpl : public ProxyScriptFetcher,
 
   // ProxyScriptFetcher methods:
   virtual int Fetch(const GURL& url, string16* text,
-                    CompletionCallback* callback) OVERRIDE;
+                    OldCompletionCallback* callback) OVERRIDE;
   virtual void Cancel() OVERRIDE;
   virtual URLRequestContext* GetRequestContext() const OVERRIDE;
 
@@ -101,7 +101,7 @@ class NET_EXPORT ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   int cur_request_id_;
 
   // Callback to invoke on completion of the fetch.
-  CompletionCallback* callback_;
+  OldCompletionCallback* callback_;
 
   // Holds the error condition that was hit on the current request, or OK.
   int result_code_;

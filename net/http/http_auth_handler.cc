@@ -65,7 +65,7 @@ NetLog::EventType EventTypeFromAuthTarget(HttpAuth::Target target) {
 int HttpAuthHandler::GenerateAuthToken(const string16* username,
                                        const string16* password,
                                        const HttpRequestInfo* request,
-                                       CompletionCallback* callback,
+                                       OldCompletionCallback* callback,
                                        std::string* auth_token) {
   // TODO(cbentzel): Enforce non-NULL callback after cleaning up SocketStream.
   DCHECK(request);
@@ -95,7 +95,7 @@ bool HttpAuthHandler::AllowsExplicitCredentials() {
 }
 
 void HttpAuthHandler::OnGenerateAuthTokenComplete(int rv) {
-  CompletionCallback* callback = original_callback_;
+  OldCompletionCallback* callback = original_callback_;
   FinishGenerateAuthToken();
   if (callback)
     callback->Run(rv);

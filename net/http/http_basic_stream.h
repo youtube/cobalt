@@ -42,21 +42,21 @@ class HttpBasicStream : public HttpStream {
   // HttpStream methods:
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               CompletionCallback* callback) OVERRIDE;
+                               OldCompletionCallback* callback) OVERRIDE;
 
   virtual int SendRequest(const HttpRequestHeaders& headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
-                          CompletionCallback* callback) OVERRIDE;
+                          OldCompletionCallback* callback) OVERRIDE;
 
   virtual uint64 GetUploadProgress() const OVERRIDE;
 
-  virtual int ReadResponseHeaders(CompletionCallback* callback) OVERRIDE;
+  virtual int ReadResponseHeaders(OldCompletionCallback* callback) OVERRIDE;
 
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
 
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               CompletionCallback* callback) OVERRIDE;
+                               OldCompletionCallback* callback) OVERRIDE;
 
   virtual void Close(bool not_reusable) OVERRIDE;
 

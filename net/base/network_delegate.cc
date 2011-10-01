@@ -9,7 +9,7 @@
 namespace net {
 
 int NetworkDelegate::NotifyBeforeURLRequest(URLRequest* request,
-                                            CompletionCallback* callback,
+                                            OldCompletionCallback* callback,
                                             GURL* new_url) {
   DCHECK(CalledOnValidThread());
   DCHECK(request);
@@ -18,7 +18,7 @@ int NetworkDelegate::NotifyBeforeURLRequest(URLRequest* request,
 }
 
 int NetworkDelegate::NotifyBeforeSendHeaders(URLRequest* request,
-                                             CompletionCallback* callback,
+                                             OldCompletionCallback* callback,
                                              HttpRequestHeaders* headers) {
   DCHECK(CalledOnValidThread());
   DCHECK(headers);

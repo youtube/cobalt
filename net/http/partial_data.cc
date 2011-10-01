@@ -66,7 +66,7 @@ class PartialData::Core {
 
   PartialData* owner_;
   int64 start_;
-  net::CompletionCallbackImpl<Core> callback_;
+  net::OldCompletionCallbackImpl<Core> callback_;
   DISALLOW_COPY_AND_ASSIGN(Core);
 };
 
@@ -159,7 +159,7 @@ void PartialData::RestoreHeaders(HttpRequestHeaders* headers) const {
 }
 
 int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
-                                     CompletionCallback* callback) {
+                                     OldCompletionCallback* callback) {
   DCHECK_GE(current_range_start_, 0);
 
   // Scan the disk cache for the first cached portion within this range.
@@ -417,7 +417,7 @@ void PartialData::FixContentLength(HttpResponseHeaders* headers) {
 }
 
 int PartialData::CacheRead(disk_cache::Entry* entry, IOBuffer* data,
-                           int data_len, CompletionCallback* callback) {
+                           int data_len, OldCompletionCallback* callback) {
   int read_len = std::min(data_len, cached_min_len_);
   if (!read_len)
     return 0;
@@ -437,7 +437,7 @@ int PartialData::CacheRead(disk_cache::Entry* entry, IOBuffer* data,
 }
 
 int PartialData::CacheWrite(disk_cache::Entry* entry, IOBuffer* data,
-                            int data_len, CompletionCallback* callback) {
+                            int data_len, OldCompletionCallback* callback) {
   DVLOG(3) << "To write: " << data_len;
   if (sparse_entry_) {
     return entry->WriteSparseData(current_range_start_, data, data_len,
@@ -484,7 +484,7 @@ void PartialData::GetAvailableRangeCompleted(int result, int64 start) {
   if (result >= 0)
     result = 1;  // Return success, go ahead and validate the entry.
 
-  CompletionCallback* cb = callback_;
+  OldCompletionCallback* cb = callback_;
   callback_ = NULL;
   cb->Run(result);
 }

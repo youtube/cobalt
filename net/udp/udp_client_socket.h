@@ -26,8 +26,8 @@ class NET_EXPORT_PRIVATE UDPClientSocket : public DatagramClientSocket {
 
   // Implement DatagramClientSocket:
   virtual int Connect(const IPEndPoint& address);
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual void Close();
   virtual int GetPeerAddress(IPEndPoint* address) const;
   virtual int GetLocalAddress(IPEndPoint* address) const;

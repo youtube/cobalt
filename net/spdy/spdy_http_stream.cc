@@ -50,7 +50,7 @@ SpdyHttpStream::~SpdyHttpStream() {
 
 int SpdyHttpStream::InitializeStream(const HttpRequestInfo* request_info,
                                      const BoundNetLog& stream_net_log,
-                                     CompletionCallback* callback) {
+                                     OldCompletionCallback* callback) {
   DCHECK(!stream_.get());
   if (spdy_session_->IsClosed())
    return ERR_CONNECTION_CLOSED;
@@ -82,7 +82,7 @@ uint64 SpdyHttpStream::GetUploadProgress() const {
   return request_body_stream_->position();
 }
 
-int SpdyHttpStream::ReadResponseHeaders(CompletionCallback* callback) {
+int SpdyHttpStream::ReadResponseHeaders(OldCompletionCallback* callback) {
   CHECK(callback);
   CHECK(!stream_->cancelled());
 
@@ -102,7 +102,7 @@ int SpdyHttpStream::ReadResponseHeaders(CompletionCallback* callback) {
 }
 
 int SpdyHttpStream::ReadResponseBody(
-    IOBuffer* buf, int buf_len, CompletionCallback* callback) {
+    IOBuffer* buf, int buf_len, OldCompletionCallback* callback) {
   CHECK(stream_->is_idle());
   CHECK(buf);
   CHECK(buf_len);
@@ -190,7 +190,7 @@ void SpdyHttpStream::set_chunk_callback(ChunkCallback* callback) {
 int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
                                 UploadDataStream* request_body,
                                 HttpResponseInfo* response,
-                                CompletionCallback* callback) {
+                                OldCompletionCallback* callback) {
   base::Time request_time = base::Time::Now();
   CHECK(stream_.get());
 
@@ -451,7 +451,7 @@ void SpdyHttpStream::DoCallback(int rv) {
   CHECK(user_callback_);
 
   // Since Run may result in being called back, clear user_callback_ in advance.
-  CompletionCallback* c = user_callback_;
+  OldCompletionCallback* c = user_callback_;
   user_callback_ = NULL;
   c->Run(rv);
 }

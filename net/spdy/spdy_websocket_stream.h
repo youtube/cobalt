@@ -89,7 +89,7 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
   scoped_refptr<SpdySession> spdy_session_;
   Delegate* delegate_;
 
-  CompletionCallbackImpl<SpdyWebSocketStream> spdy_stream_created_callback_;
+  OldCompletionCallbackImpl<SpdyWebSocketStream> spdy_stream_created_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyWebSocketStream);
 };

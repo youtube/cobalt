@@ -63,7 +63,7 @@ HttpProxyClientSocket::~HttpProxyClientSocket() {
   Disconnect();
 }
 
-int HttpProxyClientSocket::RestartWithAuth(CompletionCallback* callback) {
+int HttpProxyClientSocket::RestartWithAuth(OldCompletionCallback* callback) {
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(!user_callback_);
 
@@ -87,7 +87,7 @@ HttpStream* HttpProxyClientSocket::CreateConnectResponseStream() {
 }
 
 
-int HttpProxyClientSocket::Connect(CompletionCallback* callback) {
+int HttpProxyClientSocket::Connect(OldCompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(transport_->socket());
   DCHECK(!user_callback_);
@@ -183,7 +183,7 @@ base::TimeDelta HttpProxyClientSocket::GetConnectTimeMicros() const {
 }
 
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
-                                CompletionCallback* callback) {
+                                OldCompletionCallback* callback) {
   DCHECK(!user_callback_);
   if (next_state_ != STATE_DONE) {
     // We're trying to read the body of the response but we're still trying
@@ -203,7 +203,7 @@ int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
 }
 
 int HttpProxyClientSocket::Write(IOBuffer* buf, int buf_len,
-                                 CompletionCallback* callback) {
+                                 OldCompletionCallback* callback) {
   DCHECK_EQ(STATE_DONE, next_state_);
   DCHECK(!user_callback_);
 
@@ -290,7 +290,7 @@ void HttpProxyClientSocket::DoCallback(int result) {
 
   // Since Run() may result in Read being called,
   // clear user_callback_ up front.
-  CompletionCallback* c = user_callback_;
+  OldCompletionCallback* c = user_callback_;
   user_callback_ = NULL;
   c->Run(result);
 }

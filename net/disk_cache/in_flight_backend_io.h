@@ -26,7 +26,7 @@ class EntryImpl;
 class BackendIO : public BackgroundIO {
  public:
   BackendIO(InFlightIO* controller, BackendImpl* backend,
-            net::CompletionCallback* callback);
+            net::OldCompletionCallback* callback);
 
   // Runs the actual operation on the background thread.
   void ExecuteOperation();
@@ -37,7 +37,7 @@ class BackendIO : public BackgroundIO {
   // Returns true if this operation is directed to an entry (vs. the backend).
   bool IsEntryOperation();
 
-  net::CompletionCallback* callback() { return callback_; }
+  net::OldCompletionCallback* callback() { return callback_; }
 
   // Grabs an extra reference of entry_.
   void ReferenceEntry();
@@ -113,9 +113,9 @@ class BackendIO : public BackgroundIO {
   void ExecuteEntryOperation();
 
   BackendImpl* backend_;
-  net::CompletionCallback* callback_;
+  net::OldCompletionCallback* callback_;
   Operation operation_;
-  net::CompletionCallbackImpl<BackendIO> my_callback_;
+  net::OldCompletionCallbackImpl<BackendIO> my_callback_;
 
   // The arguments of all the operations we proxy:
   std::string key_;
@@ -146,40 +146,40 @@ class InFlightBackendIO : public InFlightIO {
   virtual ~InFlightBackendIO();
 
   // The operations we proxy:
-  void Init(net::CompletionCallback* callback);
+  void Init(net::OldCompletionCallback* callback);
   void OpenEntry(const std::string& key, Entry** entry,
-                 net::CompletionCallback* callback);
+                 net::OldCompletionCallback* callback);
   void CreateEntry(const std::string& key, Entry** entry,
-                   net::CompletionCallback* callback);
-  void DoomEntry(const std::string& key, net::CompletionCallback* callback);
-  void DoomAllEntries(net::CompletionCallback* callback);
+                   net::OldCompletionCallback* callback);
+  void DoomEntry(const std::string& key, net::OldCompletionCallback* callback);
+  void DoomAllEntries(net::OldCompletionCallback* callback);
   void DoomEntriesBetween(const base::Time initial_time,
                           const base::Time end_time,
-                          net::CompletionCallback* callback);
+                          net::OldCompletionCallback* callback);
   void DoomEntriesSince(const base::Time initial_time,
-                        net::CompletionCallback* callback);
+                        net::OldCompletionCallback* callback);
   void OpenNextEntry(void** iter, Entry** next_entry,
-                     net::CompletionCallback* callback);
+                     net::OldCompletionCallback* callback);
   void OpenPrevEntry(void** iter, Entry** prev_entry,
-                     net::CompletionCallback* callback);
+                     net::OldCompletionCallback* callback);
   void EndEnumeration(void* iterator);
   void OnExternalCacheHit(const std::string& key);
   void CloseEntryImpl(EntryImpl* entry);
   void DoomEntryImpl(EntryImpl* entry);
-  void FlushQueue(net::CompletionCallback* callback);
-  void RunTask(Task* task, net::CompletionCallback* callback);
+  void FlushQueue(net::OldCompletionCallback* callback);
+  void RunTask(Task* task, net::OldCompletionCallback* callback);
   void ReadData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
-                int buf_len, net::CompletionCallback* callback);
+                int buf_len, net::OldCompletionCallback* callback);
   void WriteData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
-                 int buf_len, bool truncate, net::CompletionCallback* callback);
+                 int buf_len, bool truncate, net::OldCompletionCallback* callback);
   void ReadSparseData(EntryImpl* entry, int64 offset, net::IOBuffer* buf,
-                      int buf_len, net::CompletionCallback* callback);
+                      int buf_len, net::OldCompletionCallback* callback);
   void WriteSparseData(EntryImpl* entry, int64 offset, net::IOBuffer* buf,
-                       int buf_len, net::CompletionCallback* callback);
+                       int buf_len, net::OldCompletionCallback* callback);
   void GetAvailableRange(EntryImpl* entry, int64 offset, int len, int64* start,
-                         net::CompletionCallback* callback);
+                         net::OldCompletionCallback* callback);
   void CancelSparseIO(EntryImpl* entry);
-  void ReadyForSparseIO(EntryImpl* entry, net::CompletionCallback* callback);
+  void ReadyForSparseIO(EntryImpl* entry, net::OldCompletionCallback* callback);
 
   // Blocks until all operations are cancelled or completed.
   void WaitForPendingIO();

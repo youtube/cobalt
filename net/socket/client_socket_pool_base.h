@@ -188,7 +188,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   class NET_EXPORT_PRIVATE Request {
    public:
     Request(ClientSocketHandle* handle,
-            CompletionCallback* callback,
+            OldCompletionCallback* callback,
             RequestPriority priority,
             bool ignore_limits,
             Flags flags,
@@ -197,7 +197,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     virtual ~Request();
 
     ClientSocketHandle* handle() const { return handle_; }
-    CompletionCallback* callback() const { return callback_; }
+    OldCompletionCallback* callback() const { return callback_; }
     RequestPriority priority() const { return priority_; }
     bool ignore_limits() const { return ignore_limits_; }
     Flags flags() const { return flags_; }
@@ -205,7 +205,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
    private:
     ClientSocketHandle* const handle_;
-    CompletionCallback* const callback_;
+    OldCompletionCallback* const callback_;
     const RequestPriority priority_;
     bool ignore_limits_;
     const Flags flags_;
@@ -419,10 +419,10 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   struct CallbackResultPair {
     CallbackResultPair() : callback(NULL), result(OK) {}
-    CallbackResultPair(CompletionCallback* callback_in, int result_in)
+    CallbackResultPair(OldCompletionCallback* callback_in, int result_in)
         : callback(callback_in), result(result_in) {}
 
-    CompletionCallback* callback;
+    OldCompletionCallback* callback;
     int result;
   };
 
@@ -518,7 +518,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   // current message loop.  Inserts |callback| into |pending_callback_map_|,
   // keyed by |handle|.
   void InvokeUserCallbackLater(
-      ClientSocketHandle* handle, CompletionCallback* callback, int rv);
+      ClientSocketHandle* handle, OldCompletionCallback* callback, int rv);
 
   // Invokes the user callback for |handle|.  By the time this task has run,
   // it's possible that the request has been cancelled, so |handle| may not
@@ -582,7 +582,7 @@ class ClientSocketPoolBase {
   class Request : public internal::ClientSocketPoolBaseHelper::Request {
    public:
     Request(ClientSocketHandle* handle,
-            CompletionCallback* callback,
+            OldCompletionCallback* callback,
             RequestPriority priority,
             internal::ClientSocketPoolBaseHelper::Flags flags,
             bool ignore_limits,
@@ -642,7 +642,7 @@ class ClientSocketPoolBase {
                     const scoped_refptr<SocketParams>& params,
                     RequestPriority priority,
                     ClientSocketHandle* handle,
-                    CompletionCallback* callback,
+                    OldCompletionCallback* callback,
                     const BoundNetLog& net_log) {
     Request* request =
         new Request(handle, callback, priority,

@@ -42,17 +42,17 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
 
   // HttpTransaction methods:
   virtual int Start(const HttpRequestInfo* request_info,
-                    CompletionCallback* callback,
+                    OldCompletionCallback* callback,
                     const BoundNetLog& net_log);
-  virtual int RestartIgnoringLastError(CompletionCallback* callback);
+  virtual int RestartIgnoringLastError(OldCompletionCallback* callback);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
-                                     CompletionCallback* callback);
+                                     OldCompletionCallback* callback);
   virtual int RestartWithAuth(const string16& username,
                               const string16& password,
-                              CompletionCallback* callback);
+                              OldCompletionCallback* callback);
   virtual bool IsReadyToRestartForAuth();
 
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual void StopCaching() {}
   virtual void DoneReading() {}
   virtual const HttpResponseInfo* GetResponseInfo() const;
@@ -224,8 +224,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   // cleared by RestartWithAuth().
   HttpAuth::Target pending_auth_target_;
 
-  CompletionCallbackImpl<HttpNetworkTransaction> io_callback_;
-  CompletionCallback* user_callback_;
+  OldCompletionCallbackImpl<HttpNetworkTransaction> io_callback_;
+  OldCompletionCallback* user_callback_;
   scoped_ptr<UploadDataStream> request_body_;
 
   scoped_refptr<HttpNetworkSession> session_;

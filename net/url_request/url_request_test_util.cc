@@ -328,7 +328,7 @@ void TestNetworkDelegate::InitRequestStatesIfNew(int request_id) {
 
 int TestNetworkDelegate::OnBeforeURLRequest(
     net::URLRequest* request,
-    net::CompletionCallback* callback,
+    net::OldCompletionCallback* callback,
     GURL* new_url ) {
   int req_id = request->identifier();
   event_order_[req_id] += "OnBeforeURLRequest\n";
@@ -346,7 +346,7 @@ int TestNetworkDelegate::OnBeforeURLRequest(
 
 int TestNetworkDelegate::OnBeforeSendHeaders(
     net::URLRequest* request,
-    net::CompletionCallback* callback,
+    net::OldCompletionCallback* callback,
     net::HttpRequestHeaders* headers) {
   int req_id = request->identifier();
   event_order_[req_id] += "OnBeforeSendHeaders\n";

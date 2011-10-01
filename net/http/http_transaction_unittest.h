@@ -159,22 +159,22 @@ class MockNetworkTransaction : public net::HttpTransaction {
   virtual ~MockNetworkTransaction();
 
   virtual int Start(const net::HttpRequestInfo* request,
-                    net::CompletionCallback* callback,
+                    net::OldCompletionCallback* callback,
                     const net::BoundNetLog& net_log);
 
-  virtual int RestartIgnoringLastError(net::CompletionCallback* callback);
+  virtual int RestartIgnoringLastError(net::OldCompletionCallback* callback);
 
   virtual int RestartWithCertificate(net::X509Certificate* client_cert,
-                                     net::CompletionCallback* callback);
+                                     net::OldCompletionCallback* callback);
 
   virtual int RestartWithAuth(const string16& username,
                               const string16& password,
-                              net::CompletionCallback* callback);
+                              net::OldCompletionCallback* callback);
 
   virtual bool IsReadyToRestartForAuth();
 
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::CompletionCallback* callback);
+                   net::OldCompletionCallback* callback);
 
   virtual void StopCaching();
 
@@ -187,8 +187,8 @@ class MockNetworkTransaction : public net::HttpTransaction {
   virtual uint64 GetUploadProgress() const;
 
  private:
-  void CallbackLater(net::CompletionCallback* callback, int result);
-  void RunCallback(net::CompletionCallback* callback, int result);
+  void CallbackLater(net::OldCompletionCallback* callback, int result);
+  void RunCallback(net::OldCompletionCallback* callback, int result);
 
   ScopedRunnableMethodFactory<MockNetworkTransaction> task_factory_;
   net::HttpResponseInfo response_;

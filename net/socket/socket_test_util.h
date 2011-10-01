@@ -342,7 +342,7 @@ class OrderedSocketData : public StaticSocketDataProvider,
                     MockRead* reads, size_t reads_count,
                     MockWrite* writes, size_t writes_count);
 
-  void SetCompletionCallback(CompletionCallback* callback) {
+  void SetOldCompletionCallback(OldCompletionCallback* callback) {
     callback_ = callback;
   }
 
@@ -361,7 +361,7 @@ class OrderedSocketData : public StaticSocketDataProvider,
 
   int sequence_number_;
   int loop_stop_stage_;
-  CompletionCallback* callback_;
+  OldCompletionCallback* callback_;
   bool blocked_;
   ScopedRunnableMethodFactory<OrderedSocketData> factory_;
 };
@@ -584,14 +584,14 @@ class MockClientSocket : public net::SSLClientSocket {
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::CompletionCallback* callback) = 0;
+                   net::OldCompletionCallback* callback) = 0;
   virtual int Write(net::IOBuffer* buf, int buf_len,
-                    net::CompletionCallback* callback) = 0;
+                    net::OldCompletionCallback* callback) = 0;
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
   // StreamSocket methods:
-  virtual int Connect(net::CompletionCallback* callback) = 0;
+  virtual int Connect(net::OldCompletionCallback* callback) = 0;
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -613,8 +613,8 @@ class MockClientSocket : public net::SSLClientSocket {
 
  protected:
   virtual ~MockClientSocket();
-  void RunCallbackAsync(net::CompletionCallback* callback, int result);
-  void RunCallback(net::CompletionCallback*, int result);
+  void RunCallbackAsync(net::OldCompletionCallback* callback, int result);
+  void RunCallback(net::OldCompletionCallback*, int result);
 
   ScopedRunnableMethodFactory<MockClientSocket> method_factory_;
 
@@ -633,12 +633,12 @@ class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::CompletionCallback* callback);
+                   net::OldCompletionCallback* callback);
   virtual int Write(net::IOBuffer* buf, int buf_len,
-                    net::CompletionCallback* callback);
+                    net::OldCompletionCallback* callback);
 
   // StreamSocket methods:
-  virtual int Connect(net::CompletionCallback* callback);
+  virtual int Connect(net::OldCompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -670,7 +670,7 @@ class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
   // While an asynchronous IO is pending, we save our user-buffer state.
   net::IOBuffer* pending_buf_;
   int pending_buf_len_;
-  net::CompletionCallback* pending_callback_;
+  net::OldCompletionCallback* pending_callback_;
   bool was_used_to_convey_data_;
 };
 
@@ -690,12 +690,12 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
 
   // Socket:
   virtual int Write(net::IOBuffer* buf, int buf_len,
-                    net::CompletionCallback* callback);
+                    net::OldCompletionCallback* callback);
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::CompletionCallback* callback);
+                   net::OldCompletionCallback* callback);
 
   // StreamSocket:
-  virtual int Connect(net::CompletionCallback* callback);
+  virtual int Connect(net::OldCompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -709,7 +709,7 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
 
  private:
   bool write_pending_;
-  net::CompletionCallback* write_callback_;
+  net::OldCompletionCallback* write_callback_;
   int write_result_;
 
   net::MockRead read_data_;
@@ -717,7 +717,7 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   net::IOBuffer* read_buf_;
   int read_buf_len_;
   bool read_pending_;
-  net::CompletionCallback* read_callback_;
+  net::OldCompletionCallback* read_callback_;
   net::DeterministicSocketData* data_;
   bool was_used_to_convey_data_;
 };
@@ -734,12 +734,12 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::CompletionCallback* callback);
+                   net::OldCompletionCallback* callback);
   virtual int Write(net::IOBuffer* buf, int buf_len,
-                    net::CompletionCallback* callback);
+                    net::OldCompletionCallback* callback);
 
   // StreamSocket methods:
-  virtual int Connect(net::CompletionCallback* callback);
+  virtual int Connect(net::OldCompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool WasEverUsed() const;
@@ -776,9 +776,9 @@ class MockUDPClientSocket : public DatagramClientSocket,
 
   // Socket interface
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::CompletionCallback* callback);
+                   net::OldCompletionCallback* callback);
   virtual int Write(net::IOBuffer* buf, int buf_len,
-                    net::CompletionCallback* callback);
+                    net::OldCompletionCallback* callback);
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
@@ -797,8 +797,8 @@ class MockUDPClientSocket : public DatagramClientSocket,
  private:
   int CompleteRead();
 
-  void RunCallbackAsync(net::CompletionCallback* callback, int result);
-  void RunCallback(net::CompletionCallback* callback, int result);
+  void RunCallbackAsync(net::OldCompletionCallback* callback, int result);
+  void RunCallback(net::OldCompletionCallback* callback, int result);
 
   bool connected_;
   SocketDataProvider* data_;
@@ -809,7 +809,7 @@ class MockUDPClientSocket : public DatagramClientSocket,
   // While an asynchronous IO is pending, we save our user-buffer state.
   net::IOBuffer* pending_buf_;
   int pending_buf_len_;
-  net::CompletionCallback* pending_callback_;
+  net::OldCompletionCallback* pending_callback_;
 
   BoundNetLog net_log_;
 
@@ -834,7 +834,7 @@ class TestSocketRequest : public CallbackRunner< Tuple1<int> > {
   ClientSocketHandle handle_;
   std::vector<TestSocketRequest*>* request_order_;
   size_t* completion_count_;
-  TestCompletionCallback callback_;
+  TestOldCompletionCallback callback_;
 };
 
 class ClientSocketPoolTest {
@@ -898,7 +898,7 @@ class MockTransportClientSocketPool : public TransportClientSocketPool {
   class MockConnectJob {
    public:
     MockConnectJob(StreamSocket* socket, ClientSocketHandle* handle,
-                   CompletionCallback* callback);
+                   OldCompletionCallback* callback);
     ~MockConnectJob();
 
     int Connect();
@@ -909,8 +909,8 @@ class MockTransportClientSocketPool : public TransportClientSocketPool {
 
     scoped_ptr<StreamSocket> socket_;
     ClientSocketHandle* handle_;
-    CompletionCallback* user_callback_;
-    CompletionCallbackImpl<MockConnectJob> connect_callback_;
+    OldCompletionCallback* user_callback_;
+    OldCompletionCallbackImpl<MockConnectJob> connect_callback_;
 
     DISALLOW_COPY_AND_ASSIGN(MockConnectJob);
   };
@@ -931,7 +931,7 @@ class MockTransportClientSocketPool : public TransportClientSocketPool {
                             const void* socket_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
+                            OldCompletionCallback* callback,
                             const BoundNetLog& net_log);
 
   virtual void CancelRequest(const std::string& group_name,
@@ -1010,7 +1010,7 @@ class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
                             const void* socket_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
+                            OldCompletionCallback* callback,
                             const BoundNetLog& net_log);
 
   virtual void CancelRequest(const std::string& group_name,

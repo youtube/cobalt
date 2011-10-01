@@ -47,7 +47,7 @@ class NET_EXPORT_PRIVATE ProxyResolverV8 : public ProxyResolver {
   // ProxyResolver implementation:
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             CompletionCallback* /*callback*/,
+                             OldCompletionCallback* /*callback*/,
                              RequestHandle* /*request*/,
                              const BoundNetLog& net_log) OVERRIDE;
   virtual void CancelRequest(RequestHandle request) OVERRIDE;
@@ -56,7 +56,7 @@ class NET_EXPORT_PRIVATE ProxyResolverV8 : public ProxyResolver {
   virtual void Shutdown() OVERRIDE;
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* /*callback*/) OVERRIDE;
+      OldCompletionCallback* /*callback*/) OVERRIDE;
 
  private:
   // Context holds the Javascript state for the most recently loaded PAC

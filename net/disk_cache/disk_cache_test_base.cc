@@ -51,7 +51,7 @@ void DiskCacheTestWithCache::InitCache() {
 // We are expected to leak memory when simulating crashes.
 void DiskCacheTestWithCache::SimulateCrash() {
   ASSERT_TRUE(implementation_ && !memory_only_);
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_impl_->FlushQueueForTest(&cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
   cache_impl_->ClearRefCountForTest();
@@ -79,46 +79,46 @@ void DiskCacheTestWithCache::SetMaxSize(int size) {
 
 int DiskCacheTestWithCache::OpenEntry(const std::string& key,
                                       disk_cache::Entry** entry) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_->OpenEntry(key, entry, &cb);
   return cb.GetResult(rv);
 }
 
 int DiskCacheTestWithCache::CreateEntry(const std::string& key,
                                         disk_cache::Entry** entry) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_->CreateEntry(key, entry, &cb);
   return cb.GetResult(rv);
 }
 
 int DiskCacheTestWithCache::DoomEntry(const std::string& key) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_->DoomEntry(key, &cb);
   return cb.GetResult(rv);
 }
 
 int DiskCacheTestWithCache::DoomAllEntries() {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_->DoomAllEntries(&cb);
   return cb.GetResult(rv);
 }
 
 int DiskCacheTestWithCache::DoomEntriesBetween(const base::Time initial_time,
                                                const base::Time end_time) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_->DoomEntriesBetween(initial_time, end_time, &cb);
   return cb.GetResult(rv);
 }
 
 int DiskCacheTestWithCache::DoomEntriesSince(const base::Time initial_time) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_->DoomEntriesSince(initial_time, &cb);
   return cb.GetResult(rv);
 }
 
 int DiskCacheTestWithCache::OpenNextEntry(void** iter,
                                           disk_cache::Entry** next_entry) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_->OpenNextEntry(iter, next_entry, &cb);
   return cb.GetResult(rv);
 }
@@ -127,7 +127,7 @@ void DiskCacheTestWithCache::FlushQueueForTest() {
   if (memory_only_ || !cache_impl_)
     return;
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_impl_->FlushQueueForTest(&cb);
   EXPECT_EQ(net::OK, cb.GetResult(rv));
 }
@@ -139,14 +139,14 @@ void DiskCacheTestWithCache::RunTaskForTest(Task* task) {
     return;
   }
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_impl_->RunTaskForTest(task, &cb);
   EXPECT_EQ(net::OK, cb.GetResult(rv));
 }
 
 int DiskCacheTestWithCache::ReadData(disk_cache::Entry* entry, int index,
                                      int offset, net::IOBuffer* buf, int len) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->ReadData(index, offset, buf, len, &cb);
   return cb.GetResult(rv);
 }
@@ -155,7 +155,7 @@ int DiskCacheTestWithCache::ReadData(disk_cache::Entry* entry, int index,
 int DiskCacheTestWithCache::WriteData(disk_cache::Entry* entry, int index,
                                       int offset, net::IOBuffer* buf, int len,
                                       bool truncate) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->WriteData(index, offset, buf, len, &cb, truncate);
   return cb.GetResult(rv);
 }
@@ -163,7 +163,7 @@ int DiskCacheTestWithCache::WriteData(disk_cache::Entry* entry, int index,
 int DiskCacheTestWithCache::ReadSparseData(disk_cache::Entry* entry,
                                            int64 offset, net::IOBuffer* buf,
                                            int len) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->ReadSparseData(offset, buf, len, &cb);
   return cb.GetResult(rv);
 }
@@ -171,7 +171,7 @@ int DiskCacheTestWithCache::ReadSparseData(disk_cache::Entry* entry,
 int DiskCacheTestWithCache::WriteSparseData(disk_cache::Entry* entry,
                                             int64 offset,
                                             net::IOBuffer* buf, int len) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->WriteSparseData(offset, buf, len, &cb);
   return cb.GetResult(rv);
 }
@@ -253,7 +253,7 @@ void DiskCacheTestWithCache::InitDiskCache() {
       use_current_thread_ ? base::MessageLoopProxy::current() :
                             cache_thread_.message_loop_proxy();
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = disk_cache::BackendImpl::CreateBackend(
                path, force_creation_, size_, type_,
                disk_cache::kNoRandom, thread, NULL, &cache_, &cb);
@@ -280,7 +280,7 @@ void DiskCacheTestWithCache::InitDiskCacheImpl(const FilePath& path) {
 
   cache_impl_->SetType(type_);
   cache_impl_->SetFlags(disk_cache::kNoRandom);
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache_impl_->Init(&cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
 }

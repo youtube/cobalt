@@ -107,9 +107,9 @@ class URLRequestHttpJob : public URLRequestJob {
   string16 username_;
   string16 password_;
 
-  CompletionCallbackImpl<URLRequestHttpJob> start_callback_;
-  CompletionCallbackImpl<URLRequestHttpJob> read_callback_;
-  CompletionCallbackImpl<URLRequestHttpJob>
+  OldCompletionCallbackImpl<URLRequestHttpJob> start_callback_;
+  OldCompletionCallbackImpl<URLRequestHttpJob> read_callback_;
+  OldCompletionCallbackImpl<URLRequestHttpJob>
       notify_before_headers_sent_callback_;
 
   bool read_in_progress_;

@@ -7,15 +7,15 @@
 #include "base/message_loop.h"
 #include "net/base/net_errors.h"
 
-TestCompletionCallback::TestCompletionCallback()
+TestOldCompletionCallback::TestOldCompletionCallback()
     : result_(0),
       have_result_(false),
       waiting_for_result_(false) {
 }
 
-TestCompletionCallback::~TestCompletionCallback() {}
+TestOldCompletionCallback::~TestOldCompletionCallback() {}
 
-int TestCompletionCallback::WaitForResult() {
+int TestOldCompletionCallback::WaitForResult() {
   DCHECK(!waiting_for_result_);
   while (!have_result_) {
     waiting_for_result_ = true;
@@ -26,13 +26,13 @@ int TestCompletionCallback::WaitForResult() {
   return result_;
 }
 
-int TestCompletionCallback::GetResult(int result) {
+int TestOldCompletionCallback::GetResult(int result) {
   if (net::ERR_IO_PENDING != result)
     return result;
   return WaitForResult();
 }
 
-void TestCompletionCallback::RunWithParams(const Tuple1<int>& params) {
+void TestOldCompletionCallback::RunWithParams(const Tuple1<int>& params) {
   result_ = params.a;
   have_result_ = true;
   if (waiting_for_result_)
