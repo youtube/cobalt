@@ -14,6 +14,7 @@
 
 #include "base/bind_helpers.h"
 #include "base/callback_internal.h"
+#include "base/memory/raw_scoped_refptr_mismatch_checker.h"
 #include "base/memory/weak_ptr.h"
 #include "base/template_util.h"
 #include "build/build_config.h"
@@ -1815,7 +1816,8 @@ class InvokerStorage1 : public InvokerStorageBase {
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
   COMPILE_ASSERT(IsMethod::value ||
-                 !internal::UnsafeBindtoRefCountedArg<P1>::value,
+                 internal::NeedsScopedRefptrButGetsRawPtr<
+                     typename ParamTraits<P1>::StorageType>::value == 0,
                  p1_is_refcounted_type_and_needs_scoped_refptr);
   COMPILE_ASSERT(!IsMethod::value || !is_array<P1>::value,
                  first_bound_argument_to_method_cannot_be_array);
@@ -1862,12 +1864,14 @@ class InvokerStorage2 : public InvokerStorageBase {
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
   COMPILE_ASSERT(IsMethod::value ||
-                 !internal::UnsafeBindtoRefCountedArg<P1>::value,
+                 internal::NeedsScopedRefptrButGetsRawPtr<
+                     typename ParamTraits<P1>::StorageType>::value == 0,
                  p1_is_refcounted_type_and_needs_scoped_refptr);
   COMPILE_ASSERT(!IsMethod::value || !is_array<P1>::value,
                  first_bound_argument_to_method_cannot_be_array);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P2>::value,
-                 p2_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P2>::StorageType>::value == 0,
+      p2_is_refcounted_type_and_needs_scoped_refptr);
 
   // Do not allow binding a non-const reference parameter. Non-const reference
   // parameters are disallowed by the Google style guide.  Also, binding a
@@ -1915,14 +1919,17 @@ class InvokerStorage3 : public InvokerStorageBase {
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
   COMPILE_ASSERT(IsMethod::value ||
-                 !internal::UnsafeBindtoRefCountedArg<P1>::value,
+                 internal::NeedsScopedRefptrButGetsRawPtr<
+                     typename ParamTraits<P1>::StorageType>::value == 0,
                  p1_is_refcounted_type_and_needs_scoped_refptr);
   COMPILE_ASSERT(!IsMethod::value || !is_array<P1>::value,
                  first_bound_argument_to_method_cannot_be_array);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P2>::value,
-                 p2_is_refcounted_type_and_needs_scoped_refptr);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P3>::value,
-                 p3_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P2>::StorageType>::value == 0,
+      p2_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P3>::StorageType>::value == 0,
+      p3_is_refcounted_type_and_needs_scoped_refptr);
 
   // Do not allow binding a non-const reference parameter. Non-const reference
   // parameters are disallowed by the Google style guide.  Also, binding a
@@ -1974,16 +1981,20 @@ class InvokerStorage4 : public InvokerStorageBase {
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
   COMPILE_ASSERT(IsMethod::value ||
-                 !internal::UnsafeBindtoRefCountedArg<P1>::value,
+                 internal::NeedsScopedRefptrButGetsRawPtr<
+                     typename ParamTraits<P1>::StorageType>::value == 0,
                  p1_is_refcounted_type_and_needs_scoped_refptr);
   COMPILE_ASSERT(!IsMethod::value || !is_array<P1>::value,
                  first_bound_argument_to_method_cannot_be_array);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P2>::value,
-                 p2_is_refcounted_type_and_needs_scoped_refptr);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P3>::value,
-                 p3_is_refcounted_type_and_needs_scoped_refptr);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P4>::value,
-                 p4_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P2>::StorageType>::value == 0,
+      p2_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P3>::StorageType>::value == 0,
+      p3_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P4>::StorageType>::value == 0,
+      p4_is_refcounted_type_and_needs_scoped_refptr);
 
   // Do not allow binding a non-const reference parameter. Non-const reference
   // parameters are disallowed by the Google style guide.  Also, binding a
@@ -2040,18 +2051,23 @@ class InvokerStorage5 : public InvokerStorageBase {
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
   COMPILE_ASSERT(IsMethod::value ||
-                 !internal::UnsafeBindtoRefCountedArg<P1>::value,
+                 internal::NeedsScopedRefptrButGetsRawPtr<
+                     typename ParamTraits<P1>::StorageType>::value == 0,
                  p1_is_refcounted_type_and_needs_scoped_refptr);
   COMPILE_ASSERT(!IsMethod::value || !is_array<P1>::value,
                  first_bound_argument_to_method_cannot_be_array);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P2>::value,
-                 p2_is_refcounted_type_and_needs_scoped_refptr);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P3>::value,
-                 p3_is_refcounted_type_and_needs_scoped_refptr);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P4>::value,
-                 p4_is_refcounted_type_and_needs_scoped_refptr);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P5>::value,
-                 p5_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P2>::StorageType>::value == 0,
+      p2_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P3>::StorageType>::value == 0,
+      p3_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P4>::StorageType>::value == 0,
+      p4_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P5>::StorageType>::value == 0,
+      p5_is_refcounted_type_and_needs_scoped_refptr);
 
   // Do not allow binding a non-const reference parameter. Non-const reference
   // parameters are disallowed by the Google style guide.  Also, binding a
@@ -2113,20 +2129,26 @@ class InvokerStorage6 : public InvokerStorageBase {
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
   COMPILE_ASSERT(IsMethod::value ||
-                 !internal::UnsafeBindtoRefCountedArg<P1>::value,
+                 internal::NeedsScopedRefptrButGetsRawPtr<
+                     typename ParamTraits<P1>::StorageType>::value == 0,
                  p1_is_refcounted_type_and_needs_scoped_refptr);
   COMPILE_ASSERT(!IsMethod::value || !is_array<P1>::value,
                  first_bound_argument_to_method_cannot_be_array);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P2>::value,
-                 p2_is_refcounted_type_and_needs_scoped_refptr);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P3>::value,
-                 p3_is_refcounted_type_and_needs_scoped_refptr);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P4>::value,
-                 p4_is_refcounted_type_and_needs_scoped_refptr);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P5>::value,
-                 p5_is_refcounted_type_and_needs_scoped_refptr);
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P6>::value,
-                 p6_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P2>::StorageType>::value == 0,
+      p2_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P3>::StorageType>::value == 0,
+      p3_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P4>::StorageType>::value == 0,
+      p4_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P5>::StorageType>::value == 0,
+      p5_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P6>::StorageType>::value == 0,
+      p6_is_refcounted_type_and_needs_scoped_refptr);
 
   // Do not allow binding a non-const reference parameter. Non-const reference
   // parameters are disallowed by the Google style guide.  Also, binding a

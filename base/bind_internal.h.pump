@@ -17,6 +17,7 @@ $var MAX_ARITY = 6
 
 #include "base/bind_helpers.h"
 #include "base/callback_internal.h"
+#include "base/memory/raw_scoped_refptr_mismatch_checker.h"
 #include "base/memory/weak_ptr.h"
 #include "base/template_util.h"
 #include "build/build_config.h"
@@ -334,14 +335,16 @@ $if BOUND_ARG == 1 [[
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
   COMPILE_ASSERT(IsMethod::value ||
-                 !internal::UnsafeBindtoRefCountedArg<P$(BOUND_ARG)>::value,
+                 internal::NeedsScopedRefptrButGetsRawPtr<
+                     typename ParamTraits<P$(BOUND_ARG)>::StorageType>::value == 0,
                  p$(BOUND_ARG)_is_refcounted_type_and_needs_scoped_refptr);
   COMPILE_ASSERT(!IsMethod::value || !is_array<P$(BOUND_ARG)>::value,
                  first_bound_argument_to_method_cannot_be_array);
 ]] $else [[
 
-  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P$(BOUND_ARG)>::value,
-                 p$(BOUND_ARG)_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(internal::NeedsScopedRefptrButGetsRawPtr<
+          typename ParamTraits<P$(BOUND_ARG)>::StorageType>::value == 0,
+      p$(BOUND_ARG)_is_refcounted_type_and_needs_scoped_refptr);
 ]]  $$ $if BOUND_ARG
 ]]  $$ $for BOUND_ARG
 
