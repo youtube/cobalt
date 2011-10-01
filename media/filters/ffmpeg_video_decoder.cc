@@ -28,7 +28,6 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(MessageLoop* message_loop,
       state_(kUnInitialized),
       decode_engine_(new FFmpegVideoDecodeEngine()),
       decode_context_(decode_context) {
-  memset(&info_, 0, sizeof(info_));
 }
 
 FFmpegVideoDecoder::~FFmpegVideoDecoder() {}
@@ -61,8 +60,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   AVStream* av_stream = demuxer_stream->GetAVStream();
   if (!av_stream) {
-    VideoCodecInfo info = {0};
-    OnInitializeComplete(info);
+    OnInitializeComplete(false);
     return;
   }
 
@@ -74,33 +72,31 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   // for now, but may not always be true forever. Fix this in the future.
   gfx::Rect visible_rect(
       av_stream->codec->width, av_stream->codec->height);
-  gfx::Size natural_size(
-      GetNaturalWidth(av_stream), GetNaturalHeight(av_stream));
 
-  if (natural_size.width() > Limits::kMaxDimension ||
-      natural_size.height() > Limits::kMaxDimension ||
-      natural_size.GetArea() > Limits::kMaxCanvas) {
-    VideoCodecInfo info = {0};
-    OnInitializeComplete(info);
+  natural_size_ = GetNaturalSize(av_stream);
+  if (natural_size_.width() > Limits::kMaxDimension ||
+      natural_size_.height() > Limits::kMaxDimension ||
+      natural_size_.GetArea() > Limits::kMaxCanvas) {
+    OnInitializeComplete(false);
     return;
   }
 
   VideoDecoderConfig config(CodecIDToVideoCodec(av_stream->codec->codec_id),
-                            coded_size, visible_rect, natural_size,
+                            coded_size, visible_rect,
                             av_stream->r_frame_rate.num,
                             av_stream->r_frame_rate.den,
                             av_stream->codec->extradata,
                             av_stream->codec->extradata_size);
+
   state_ = kInitializing;
   decode_engine_->Initialize(message_loop_, this, NULL, config);
 }
 
-void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
+void FFmpegVideoDecoder::OnInitializeComplete(bool success) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!initialize_callback_.is_null());
 
-  info_ = info;
-  if (info.success) {
+  if (success) {
     state_ = kNormal;
   } else {
     host()->SetError(PIPELINE_ERROR_DECODE);
@@ -130,7 +126,7 @@ void FFmpegVideoDecoder::OnUninitializeComplete() {
   DCHECK(!uninitialize_callback_.is_null());
 
   state_ = kStopped;
-  // TODO(jiesun): Destroy the decoder context.
+
   ResetAndRunCB(&uninitialize_callback_);
 }
 
@@ -247,9 +243,6 @@ void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
   // Push all incoming timestamps into the priority queue as long as we have
   // not yet received an end of stream buffer.  It is important that this line
   // stay below the state transition into kFlushCodec done above.
-  //
-  // TODO(ajwong): This push logic, along with the pop logic below needs to
-  // be reevaluated to correctly handle decode errors.
   if (state_ == kNormal) {
     pts_stream_.EnqueuePts(buffer.get());
   }
@@ -328,8 +321,7 @@ void FFmpegVideoDecoder::ProduceVideoSample(
 }
 
 gfx::Size FFmpegVideoDecoder::natural_size() {
-  DCHECK(info_.success);
-  return info_.natural_size;
+  return natural_size_;
 }
 
 void FFmpegVideoDecoder::FlushBuffers() {

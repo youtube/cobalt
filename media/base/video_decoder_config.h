@@ -30,46 +30,61 @@ enum VideoCodec {
 
 class MEDIA_EXPORT VideoDecoderConfig {
  public:
+  // Constructs an uninitialized object. Clients should call Initialize() with
+  // appropriate values before using.
+  VideoDecoderConfig();
+
+  // Constructs an initialized object. It is acceptable to pass in NULL for
+  // |extra_data|, otherwise the memory is copied.
   VideoDecoderConfig(VideoCodec codec, const gfx::Size& coded_size,
                      const gfx::Rect& visible_rect,
-                     const gfx::Size& natural_size,
                      int frame_rate_numerator, int frame_rate_denominator,
                      const uint8* extra_data, size_t extra_data_size);
+
   ~VideoDecoderConfig();
 
+  // Resets the internal state of this object.
+  void Initialize(VideoCodec codec, const gfx::Size& coded_size,
+                  const gfx::Rect& visible_rect,
+                  int frame_rate_numerator, int frame_rate_denominator,
+                  const uint8* extra_data, size_t extra_data_size);
+
+  // Returns true if this object has appropriate configuration values, false
+  // otherwise.
+  bool IsValidConfig() const;
+
   VideoCodec codec() const;
+
+  // Width and height of video frame immediately post-decode. Not all pixels
+  // in this region are valid.
   gfx::Size coded_size() const;
+
+  // Region of |coded_size_| that is visible.
   gfx::Rect visible_rect() const;
-  gfx::Size natural_size() const;
+
+  // Frame rate in seconds expressed as a fraction.
+  // TODO(scherkus): fairly certain decoders don't require frame rates.
   int frame_rate_numerator() const;
   int frame_rate_denominator() const;
+
+  // Optional byte data required to initialize video decoders, such as H.264
+  // AAVC data.
   uint8* extra_data() const;
   size_t extra_data_size() const;
 
  private:
   VideoCodec codec_;
 
-  // Width and height of video frame immediately post-decode. Not all pixels
-  // in this region are valid.
   gfx::Size coded_size_;
-
-  // Region of |coded_size_| that is visible.
   gfx::Rect visible_rect_;
 
-  // Natural width and height of the video, i.e. the visible dimensions
-  // after aspect ratio is applied.
-  gfx::Size natural_size_;
-
-  // Frame rate in seconds expressed as a fraction.
-  // TODO(scherkus): fairly certain decoders don't require frame rates.
   int frame_rate_numerator_;
   int frame_rate_denominator_;
 
-  // Optional byte data required to initialize video decoders.
   scoped_array<uint8> extra_data_;
   size_t extra_data_size_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(VideoDecoderConfig);
+  DISALLOW_COPY_AND_ASSIGN(VideoDecoderConfig);
 };
 
 }  // namespace media
