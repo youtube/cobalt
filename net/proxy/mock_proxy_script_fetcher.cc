@@ -18,7 +18,7 @@ MockProxyScriptFetcher::MockProxyScriptFetcher()
 // ProxyScriptFetcher implementation.
 int MockProxyScriptFetcher::Fetch(const GURL& url,
                                   string16* text,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   DCHECK(!has_pending_request());
 
   // Save the caller's information, and have them wait.
@@ -32,7 +32,7 @@ void MockProxyScriptFetcher::NotifyFetchCompletion(
     int result, const std::string& ascii_text) {
   DCHECK(has_pending_request());
   *pending_request_text_ = ASCIIToUTF16(ascii_text);
-  CompletionCallback* callback = pending_request_callback_;
+  OldCompletionCallback* callback = pending_request_callback_;
   pending_request_callback_ = NULL;
   callback->Run(result);
 }

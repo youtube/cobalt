@@ -213,7 +213,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   scoped_refptr<DeterministicSocketData> data_;
   HttpProxyClientSocketPool pool_;
   ClientSocketHandle handle_;
-  TestCompletionCallback callback_;
+  TestOldCompletionCallback callback_;
 };
 
 //-----------------------------------------------------------------------------

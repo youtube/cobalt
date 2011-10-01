@@ -61,7 +61,7 @@ class MockHostResolverBase : public HostResolver {
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      OldCompletionCallback* callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE;
   virtual int ResolveFromCache(const RequestInfo& info,

@@ -38,7 +38,7 @@ ProxyResolverWinHttp::~ProxyResolverWinHttp() {
 
 int ProxyResolverWinHttp::GetProxyForURL(const GURL& query_url,
                                          ProxyInfo* results,
-                                         CompletionCallback* /*callback*/,
+                                         OldCompletionCallback* /*callback*/,
                                          RequestHandle* /*request*/,
                                          const BoundNetLog& /*net_log*/) {
   // If we don't have a WinHTTP session, then create a new one.
@@ -130,7 +130,7 @@ void ProxyResolverWinHttp::CancelSetPacScript() {
 
 int ProxyResolverWinHttp::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
-    CompletionCallback* /*callback*/) {
+    OldCompletionCallback* /*callback*/) {
   if (script_data->type() == ProxyResolverScriptData::TYPE_AUTO_DETECT) {
     pac_url_ = GURL("http://wpad/wpad.dat");
   } else {

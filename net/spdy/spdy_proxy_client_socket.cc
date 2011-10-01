@@ -78,7 +78,7 @@ HttpStream* SpdyProxyClientSocket::CreateConnectResponseStream() {
 // by creating a new stream for the subsequent request.
 // TODO(rch): create a more appropriate error code to disambiguate
 // the HTTPS Proxy tunnel failure from an HTTP Proxy tunnel failure.
-int SpdyProxyClientSocket::Connect(CompletionCallback* callback) {
+int SpdyProxyClientSocket::Connect(OldCompletionCallback* callback) {
   DCHECK(!read_callback_);
   if (next_state_ == STATE_OPEN)
     return OK;
@@ -147,7 +147,7 @@ base::TimeDelta SpdyProxyClientSocket::GetConnectTimeMicros() const {
 }
 
 int SpdyProxyClientSocket::Read(IOBuffer* buf, int buf_len,
-                                CompletionCallback* callback) {
+                                OldCompletionCallback* callback) {
   DCHECK(!read_callback_);
   DCHECK(!user_buffer_);
 
@@ -196,7 +196,7 @@ int SpdyProxyClientSocket::PopulateUserReadBuffer() {
 }
 
 int SpdyProxyClientSocket::Write(IOBuffer* buf, int buf_len,
-                                 CompletionCallback* callback) {
+                                 OldCompletionCallback* callback) {
   DCHECK(!write_callback_);
   if (next_state_ == STATE_DISCONNECTED)
     return ERR_SOCKET_NOT_CONNECTED;
@@ -264,7 +264,7 @@ void SpdyProxyClientSocket::OnIOComplete(int result) {
   DCHECK_NE(STATE_DISCONNECTED, next_state_);
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING) {
-    CompletionCallback* c = read_callback_;
+    OldCompletionCallback* c = read_callback_;
     read_callback_ = NULL;
     c->Run(rv);
   }
@@ -457,7 +457,7 @@ void SpdyProxyClientSocket::OnDataReceived(const char* data, int length) {
 
   if (read_callback_) {
     int rv = PopulateUserReadBuffer();
-    CompletionCallback* c = read_callback_;
+    OldCompletionCallback* c = read_callback_;
     read_callback_ = NULL;
     user_buffer_ = NULL;
     c->Run(rv);
@@ -475,7 +475,7 @@ void SpdyProxyClientSocket::OnDataSent(int length)  {
     int rv = write_buffer_len_;
     write_buffer_len_ = 0;
     write_bytes_outstanding_ = 0;
-    CompletionCallback* c = write_callback_;
+    OldCompletionCallback* c = write_callback_;
     write_callback_ = NULL;
     c->Run(rv);
   }
@@ -493,7 +493,7 @@ void SpdyProxyClientSocket::OnClose(int status)  {
   else
     next_state_ = STATE_DISCONNECTED;
 
-  CompletionCallback* write_callback = write_callback_;
+  OldCompletionCallback* write_callback = write_callback_;
   write_callback_ = NULL;
   write_buffer_len_ = 0;
   write_bytes_outstanding_ = 0;
@@ -502,7 +502,7 @@ void SpdyProxyClientSocket::OnClose(int status)  {
   // we invoke the connect callback.
   if (connecting) {
     DCHECK(read_callback_);
-    CompletionCallback* read_callback = read_callback_;
+    OldCompletionCallback* read_callback = read_callback_;
     read_callback_ = NULL;
     read_callback->Run(status);
   } else if (read_callback_) {

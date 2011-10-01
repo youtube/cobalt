@@ -23,7 +23,7 @@ int64 MockFileStream::Available() {
 
 int MockFileStream::Read(char* buf,
                  int buf_len,
-                 net::CompletionCallback* callback) {
+                 net::OldCompletionCallback* callback) {
   return ReturnError(net::FileStream::Read(buf, buf_len, callback));
 }
 
@@ -33,7 +33,7 @@ int MockFileStream::ReadUntilComplete(char *buf, int buf_len) {
 
 int MockFileStream::Write(const char* buf,
                   int buf_len,
-                  net::CompletionCallback* callback) {
+                  net::OldCompletionCallback* callback) {
   return ReturnError(net::FileStream::Write(buf, buf_len, callback));
 }
 

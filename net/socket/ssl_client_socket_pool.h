@@ -153,7 +153,7 @@ class SSLConnectJob : public ConnectJob {
   const SSLClientSocketContext context_;
 
   State next_state_;
-  CompletionCallbackImpl<SSLConnectJob> callback_;
+  OldCompletionCallbackImpl<SSLConnectJob> callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<SSLClientSocket> ssl_socket_;
   scoped_ptr<SSLHostInfo> ssl_host_info_;
@@ -196,7 +196,7 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
                             const void* connect_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
+                            OldCompletionCallback* callback,
                             const BoundNetLog& net_log);
 
   virtual void RequestSockets(const std::string& group_name,

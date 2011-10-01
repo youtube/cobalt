@@ -140,7 +140,7 @@ int HttpAuthHandlerDigest::GenerateAuthTokenImpl(
     const string16* username,
     const string16* password,
     const HttpRequestInfo* request,
-    CompletionCallback* callback,
+    OldCompletionCallback* callback,
     std::string* auth_token) {
   // Generate a random client nonce.
   std::string cnonce = nonce_generator_->GenerateNonce();

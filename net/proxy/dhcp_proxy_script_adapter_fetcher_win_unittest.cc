@@ -151,7 +151,7 @@ class FetcherClient {
     MessageLoop::current()->RunAllPending();
   }
 
-  TestCompletionCallback callback_;
+  TestOldCompletionCallback callback_;
   scoped_refptr<URLRequestContext> url_request_context_;
   scoped_ptr<MockDhcpProxyScriptAdapterFetcher> fetcher_;
   string16 pac_text_;

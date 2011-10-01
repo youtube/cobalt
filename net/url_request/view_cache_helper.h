@@ -33,7 +33,7 @@ class NET_EXPORT ViewCacheHelper {
   int GetEntryInfoHTML(const std::string& key,
                        const URLRequestContext* context,
                        std::string* out,
-                       CompletionCallback* callback);
+                       OldCompletionCallback* callback);
 
   // Formats the cache contents as HTML. Returns a net error code.
   // If this method returns ERR_IO_PENDING, |callback| will be notified when the
@@ -43,7 +43,7 @@ class NET_EXPORT ViewCacheHelper {
   int GetContentsHTML(const URLRequestContext* context,
                       const std::string& url_prefix,
                       std::string* out,
-                      CompletionCallback* callback);
+                      OldCompletionCallback* callback);
 
   // Lower-level helper to produce a textual representation of binary data.
   // The results are appended to |result| and can be used in HTML pages
@@ -70,7 +70,7 @@ class NET_EXPORT ViewCacheHelper {
                   const URLRequestContext* context,
                   const std::string& url_prefix,
                   std::string* out,
-                  CompletionCallback* callback);
+                  OldCompletionCallback* callback);
 
   // This is a helper function used to trigger a completion callback. It may
   // only be called if callback_ is non-null.
@@ -110,12 +110,12 @@ class NET_EXPORT ViewCacheHelper {
   std::string key_;
   std::string url_prefix_;
   std::string* data_;
-  CompletionCallback* callback_;
+  OldCompletionCallback* callback_;
 
   State next_state_;
 
-  CompletionCallbackImpl<ViewCacheHelper> cache_callback_;
-  scoped_refptr<CancelableCompletionCallback<ViewCacheHelper> > entry_callback_;
+  OldCompletionCallbackImpl<ViewCacheHelper> cache_callback_;
+  scoped_refptr<CancelableOldCompletionCallback<ViewCacheHelper> > entry_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(ViewCacheHelper);
 };

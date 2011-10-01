@@ -84,7 +84,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
       RequestPriority priority,
       scoped_refptr<SpdyStream>* spdy_stream,
       const BoundNetLog& stream_net_log,
-      CompletionCallback* callback);
+      OldCompletionCallback* callback);
 
   // Remove PendingCreateStream objects on transaction deletion
   void CancelPendingCreateStreams(const scoped_refptr<SpdyStream>* spdy_stream);
@@ -215,7 +215,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     PendingCreateStream(const GURL& url, RequestPriority priority,
                         scoped_refptr<SpdyStream>* spdy_stream,
                         const BoundNetLog& stream_net_log,
-                        CompletionCallback* callback)
+                        OldCompletionCallback* callback)
         : url(&url), priority(priority), spdy_stream(spdy_stream),
           stream_net_log(&stream_net_log), callback(callback) { }
 
@@ -223,7 +223,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     RequestPriority priority;
     scoped_refptr<SpdyStream>* spdy_stream;
     const BoundNetLog* stream_net_log;
-    CompletionCallback* callback;
+    OldCompletionCallback* callback;
   };
   typedef std::queue<PendingCreateStream, std::list< PendingCreateStream> >
       PendingCreateStreamQueue;
@@ -234,10 +234,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   struct CallbackResultPair {
     CallbackResultPair() : callback(NULL), result(OK) {}
-    CallbackResultPair(CompletionCallback* callback_in, int result_in)
+    CallbackResultPair(OldCompletionCallback* callback_in, int result_in)
         : callback(callback_in), result(result_in) {}
 
-    CompletionCallback* callback;
+    OldCompletionCallback* callback;
     int result;
   };
 
@@ -343,8 +343,8 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   virtual void OnDataFrameHeader(const spdy::SpdyDataFrame* frame);
 
   // Callbacks for the Spdy session.
-  CompletionCallbackImpl<SpdySession> read_callback_;
-  CompletionCallbackImpl<SpdySession> write_callback_;
+  OldCompletionCallbackImpl<SpdySession> read_callback_;
+  OldCompletionCallbackImpl<SpdySession> write_callback_;
 
   // Used for posting asynchronous IO tasks.  We use this even though
   // SpdySession is refcounted because we don't need to keep the SpdySession

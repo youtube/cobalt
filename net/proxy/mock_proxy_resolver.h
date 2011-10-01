@@ -26,11 +26,11 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     Request(MockAsyncProxyResolverBase* resolver,
             const GURL& url,
             ProxyInfo* results,
-            CompletionCallback* callback);
+            OldCompletionCallback* callback);
 
     const GURL& url() const { return url_; }
     ProxyInfo* results() const { return results_; }
-    CompletionCallback* callback() const { return callback_; }
+    OldCompletionCallback* callback() const { return callback_; }
 
     void CompleteNow(int rv);
 
@@ -42,7 +42,7 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     MockAsyncProxyResolverBase* resolver_;
     const GURL url_;
     ProxyInfo* results_;
-    CompletionCallback* callback_;
+    OldCompletionCallback* callback_;
     MessageLoop* origin_loop_;
   };
 
@@ -51,7 +51,7 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     SetPacScriptRequest(
         MockAsyncProxyResolverBase* resolver,
         const scoped_refptr<ProxyResolverScriptData>& script_data,
-        CompletionCallback* callback);
+        OldCompletionCallback* callback);
     ~SetPacScriptRequest();
 
     const ProxyResolverScriptData* script_data() const { return script_data_; }
@@ -61,7 +61,7 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
    private:
     MockAsyncProxyResolverBase* resolver_;
     const scoped_refptr<ProxyResolverScriptData> script_data_;
-    CompletionCallback* callback_;
+    OldCompletionCallback* callback_;
     MessageLoop* origin_loop_;
   };
 
@@ -72,13 +72,13 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
   // ProxyResolver implementation:
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             CompletionCallback* callback,
+                             OldCompletionCallback* callback,
                              RequestHandle* request_handle,
                              const BoundNetLog& /*net_log*/) OVERRIDE;
   virtual void CancelRequest(RequestHandle request_handle) OVERRIDE;
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback) OVERRIDE;
+      OldCompletionCallback* callback) OVERRIDE;
   virtual void CancelSetPacScript() OVERRIDE;
 
   const RequestsList& pending_requests() const {

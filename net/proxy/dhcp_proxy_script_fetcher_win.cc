@@ -54,7 +54,7 @@ DhcpProxyScriptFetcherWin::~DhcpProxyScriptFetcherWin() {
 }
 
 int DhcpProxyScriptFetcherWin::Fetch(string16* utf16_text,
-                                     CompletionCallback* callback) {
+                                     OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   if (state_ != STATE_START && state_ != STATE_DONE) {
     NOTREACHED();
@@ -223,7 +223,7 @@ void DhcpProxyScriptFetcherWin::TransitionToDone() {
     }
   }
 
-  CompletionCallback* callback = client_callback_;
+  OldCompletionCallback* callback = client_callback_;
   CancelImpl();
   DCHECK_EQ(state_, STATE_DONE);
   DCHECK(fetchers_.empty());

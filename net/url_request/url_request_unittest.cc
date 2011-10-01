@@ -137,7 +137,7 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
  private:
   // TestNetworkDelegate:
   virtual int OnBeforeURLRequest(net::URLRequest* request,
-                                 net::CompletionCallback* callback,
+                                 net::OldCompletionCallback* callback,
                                  GURL* new_url) {
     if (redirect_url_ == request->url()) {
       // We've already seen this request and redirected elsewhere.
@@ -159,7 +159,7 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
     return net::ERR_IO_PENDING;
   }
 
-  void DoCallback(net::CompletionCallback* callback) {
+  void DoCallback(net::OldCompletionCallback* callback) {
     callback->Run(callback_retval_);
   }
 

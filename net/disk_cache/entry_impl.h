@@ -38,16 +38,16 @@ class NET_EXPORT_PRIVATE EntryImpl
   // Background implementation of the Entry interface.
   void DoomImpl();
   int ReadDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                   CompletionCallback* callback);
+                   OldCompletionCallback* callback);
   int WriteDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                    CompletionCallback* callback, bool truncate);
+                    OldCompletionCallback* callback, bool truncate);
   int ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                         CompletionCallback* callback);
+                         OldCompletionCallback* callback);
   int WriteSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                          CompletionCallback* callback);
+                          OldCompletionCallback* callback);
   int GetAvailableRangeImpl(int64 offset, int len, int64* start);
   void CancelSparseIOImpl();
-  int ReadyForSparseIOImpl(CompletionCallback* callback);
+  int ReadyForSparseIOImpl(OldCompletionCallback* callback);
 
   inline CacheEntryBlock* entry() {
     return &entry_;
@@ -145,19 +145,19 @@ class NET_EXPORT_PRIVATE EntryImpl
   virtual base::Time GetLastModified() const;
   virtual int32 GetDataSize(int index) const;
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       net::CompletionCallback* completion_callback);
+                       net::OldCompletionCallback* completion_callback);
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        net::CompletionCallback* completion_callback,
+                        net::OldCompletionCallback* completion_callback,
                         bool truncate);
   virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                             net::CompletionCallback* completion_callback);
+                             net::OldCompletionCallback* completion_callback);
   virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* completion_callback);
+                              net::OldCompletionCallback* completion_callback);
   virtual int GetAvailableRange(int64 offset, int len, int64* start,
-                                CompletionCallback* callback);
+                                OldCompletionCallback* callback);
   virtual bool CouldBeSparse() const;
   virtual void CancelSparseIO();
-  virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback);
+  virtual int ReadyForSparseIO(net::OldCompletionCallback* completion_callback);
 
  private:
   enum {
@@ -170,9 +170,9 @@ class NET_EXPORT_PRIVATE EntryImpl
   // Do all the work for ReadDataImpl and WriteDataImpl.  Implemented as
   // separate functions to make logging of results simpler.
   int InternalReadData(int index, int offset, net::IOBuffer* buf,
-                       int buf_len, CompletionCallback* callback);
+                       int buf_len, OldCompletionCallback* callback);
   int InternalWriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        CompletionCallback* callback, bool truncate);
+                        OldCompletionCallback* callback, bool truncate);
 
   // Initializes the storage for an internal or external data block.
   bool CreateDataBlock(int index, int size);

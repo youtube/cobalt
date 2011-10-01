@@ -695,14 +695,14 @@ MockClientSocket::GetNextProto(std::string* proto) {
 
 MockClientSocket::~MockClientSocket() {}
 
-void MockClientSocket::RunCallbackAsync(net::CompletionCallback* callback,
+void MockClientSocket::RunCallbackAsync(net::OldCompletionCallback* callback,
                                         int result) {
   MessageLoop::current()->PostTask(FROM_HERE,
       method_factory_.NewRunnableMethod(
           &MockClientSocket::RunCallback, callback, result));
 }
 
-void MockClientSocket::RunCallback(net::CompletionCallback* callback,
+void MockClientSocket::RunCallback(net::OldCompletionCallback* callback,
                                    int result) {
   if (callback)
     callback->Run(result);
@@ -728,7 +728,7 @@ MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
 }
 
 int MockTCPClientSocket::Read(net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* callback) {
+                              net::OldCompletionCallback* callback) {
   if (!connected_)
     return net::ERR_UNEXPECTED;
 
@@ -761,7 +761,7 @@ int MockTCPClientSocket::Read(net::IOBuffer* buf, int buf_len,
 }
 
 int MockTCPClientSocket::Write(net::IOBuffer* buf, int buf_len,
-                               net::CompletionCallback* callback) {
+                               net::OldCompletionCallback* callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
 
@@ -781,7 +781,7 @@ int MockTCPClientSocket::Write(net::IOBuffer* buf, int buf_len,
   return write_result.result;
 }
 
-int MockTCPClientSocket::Connect(net::CompletionCallback* callback) {
+int MockTCPClientSocket::Connect(net::OldCompletionCallback* callback) {
   if (connected_)
     return net::OK;
   connected_ = true;
@@ -846,7 +846,7 @@ void MockTCPClientSocket::OnReadComplete(const MockRead& data) {
   // let CompleteRead() schedule a callback.
   read_data_.async = false;
 
-  net::CompletionCallback* callback = pending_callback_;
+  net::OldCompletionCallback* callback = pending_callback_;
   int rv = CompleteRead();
   RunCallback(callback, rv);
 }
@@ -860,7 +860,7 @@ int MockTCPClientSocket::CompleteRead() {
   // Save the pending async IO data and reset our |pending_| state.
   net::IOBuffer* buf = pending_buf_;
   int buf_len = pending_buf_len_;
-  net::CompletionCallback* callback = pending_callback_;
+  net::OldCompletionCallback* callback = pending_callback_;
   pending_buf_ = NULL;
   pending_buf_len_ = 0;
   pending_callback_ = NULL;
@@ -942,7 +942,7 @@ int DeterministicMockTCPClientSocket::CompleteRead() {
 }
 
 int DeterministicMockTCPClientSocket::Write(
-    net::IOBuffer* buf, int buf_len, net::CompletionCallback* callback) {
+    net::IOBuffer* buf, int buf_len, net::OldCompletionCallback* callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
 
@@ -966,7 +966,7 @@ int DeterministicMockTCPClientSocket::Write(
 }
 
 int DeterministicMockTCPClientSocket::Read(
-    net::IOBuffer* buf, int buf_len, net::CompletionCallback* callback) {
+    net::IOBuffer* buf, int buf_len, net::OldCompletionCallback* callback) {
   if (!connected_)
     return net::ERR_UNEXPECTED;
 
@@ -991,7 +991,7 @@ int DeterministicMockTCPClientSocket::Read(
 
 // TODO(erikchen): Support connect sequencing.
 int DeterministicMockTCPClientSocket::Connect(
-    net::CompletionCallback* callback) {
+    net::OldCompletionCallback* callback) {
   if (connected_)
     return net::OK;
   connected_ = true;
@@ -1033,13 +1033,13 @@ base::TimeDelta DeterministicMockTCPClientSocket::GetConnectTimeMicros() const {
 void DeterministicMockTCPClientSocket::OnReadComplete(const MockRead& data) {}
 
 class MockSSLClientSocket::ConnectCallback
-    : public net::CompletionCallbackImpl<MockSSLClientSocket::ConnectCallback> {
+    : public net::OldCompletionCallbackImpl<MockSSLClientSocket::ConnectCallback> {
  public:
   ConnectCallback(MockSSLClientSocket *ssl_client_socket,
-                  net::CompletionCallback* user_callback,
+                  net::OldCompletionCallback* user_callback,
                   int rv)
       : ALLOW_THIS_IN_INITIALIZER_LIST(
-          net::CompletionCallbackImpl<MockSSLClientSocket::ConnectCallback>(
+          net::OldCompletionCallbackImpl<MockSSLClientSocket::ConnectCallback>(
                 this, &ConnectCallback::Wrapper)),
         ssl_client_socket_(ssl_client_socket),
         user_callback_(user_callback),
@@ -1055,7 +1055,7 @@ class MockSSLClientSocket::ConnectCallback
   }
 
   MockSSLClientSocket* ssl_client_socket_;
-  net::CompletionCallback* user_callback_;
+  net::OldCompletionCallback* user_callback_;
   int rv_;
 };
 
@@ -1079,16 +1079,16 @@ MockSSLClientSocket::~MockSSLClientSocket() {
 }
 
 int MockSSLClientSocket::Read(net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* callback) {
+                              net::OldCompletionCallback* callback) {
   return transport_->socket()->Read(buf, buf_len, callback);
 }
 
 int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
-                               net::CompletionCallback* callback) {
+                               net::OldCompletionCallback* callback) {
   return transport_->socket()->Write(buf, buf_len, callback);
 }
 
-int MockSSLClientSocket::Connect(net::CompletionCallback* callback) {
+int MockSSLClientSocket::Connect(net::OldCompletionCallback* callback) {
   ConnectCallback* connect_callback = new ConnectCallback(
       this, callback, data_->connect.result);
   int rv = transport_->socket()->Connect(connect_callback);
@@ -1188,7 +1188,7 @@ MockUDPClientSocket::MockUDPClientSocket(SocketDataProvider* data,
 MockUDPClientSocket::~MockUDPClientSocket() {}
 
 int MockUDPClientSocket::Read(net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* callback) {
+                              net::OldCompletionCallback* callback) {
   if (!connected_)
     return net::ERR_UNEXPECTED;
 
@@ -1215,7 +1215,7 @@ int MockUDPClientSocket::Read(net::IOBuffer* buf, int buf_len,
 }
 
 int MockUDPClientSocket::Write(net::IOBuffer* buf, int buf_len,
-                               net::CompletionCallback* callback) {
+                               net::OldCompletionCallback* callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
 
@@ -1278,7 +1278,7 @@ void MockUDPClientSocket::OnReadComplete(const MockRead& data) {
   // let CompleteRead() schedule a callback.
   read_data_.async = false;
 
-  net::CompletionCallback* callback = pending_callback_;
+  net::OldCompletionCallback* callback = pending_callback_;
   int rv = CompleteRead();
   RunCallback(callback, rv);
 }
@@ -1290,7 +1290,7 @@ int MockUDPClientSocket::CompleteRead() {
   // Save the pending async IO data and reset our |pending_| state.
   net::IOBuffer* buf = pending_buf_;
   int buf_len = pending_buf_len_;
-  net::CompletionCallback* callback = pending_callback_;
+  net::OldCompletionCallback* callback = pending_callback_;
   pending_buf_ = NULL;
   pending_buf_len_ = 0;
   pending_callback_ = NULL;
@@ -1320,14 +1320,14 @@ int MockUDPClientSocket::CompleteRead() {
   return result;
 }
 
-void MockUDPClientSocket::RunCallbackAsync(net::CompletionCallback* callback,
+void MockUDPClientSocket::RunCallbackAsync(net::OldCompletionCallback* callback,
                                            int result) {
   MessageLoop::current()->PostTask(FROM_HERE,
       method_factory_.NewRunnableMethod(
           &MockUDPClientSocket::RunCallback, callback, result));
 }
 
-void MockUDPClientSocket::RunCallback(net::CompletionCallback* callback,
+void MockUDPClientSocket::RunCallback(net::OldCompletionCallback* callback,
                                       int result) {
   if (callback)
     callback->Run(result);
@@ -1400,7 +1400,7 @@ void ClientSocketPoolTest::ReleaseAllConnections(KeepAlive keep_alive) {
 MockTransportClientSocketPool::MockConnectJob::MockConnectJob(
     StreamSocket* socket,
     ClientSocketHandle* handle,
-    CompletionCallback* callback)
+    OldCompletionCallback* callback)
     : socket_(socket),
       handle_(handle),
       user_callback_(callback),
@@ -1441,7 +1441,7 @@ void MockTransportClientSocketPool::MockConnectJob::OnConnect(int rv) {
   handle_ = NULL;
 
   if (user_callback_) {
-    CompletionCallback* callback = user_callback_;
+    OldCompletionCallback* callback = user_callback_;
     user_callback_ = NULL;
     callback->Run(rv);
   }
@@ -1465,7 +1465,7 @@ int MockTransportClientSocketPool::RequestSocket(const std::string& group_name,
                                            const void* socket_params,
                                            RequestPriority priority,
                                            ClientSocketHandle* handle,
-                                           CompletionCallback* callback,
+                                           OldCompletionCallback* callback,
                                            const BoundNetLog& net_log) {
   StreamSocket* socket = client_socket_factory_->CreateTransportClientSocket(
       AddressList(), net_log.net_log(), net::NetLog::Source());
@@ -1572,7 +1572,7 @@ int MockSOCKSClientSocketPool::RequestSocket(const std::string& group_name,
                                              const void* socket_params,
                                              RequestPriority priority,
                                              ClientSocketHandle* handle,
-                                             CompletionCallback* callback,
+                                             OldCompletionCallback* callback,
                                              const BoundNetLog& net_log) {
   return transport_pool_->RequestSocket(group_name,
                                         socket_params,

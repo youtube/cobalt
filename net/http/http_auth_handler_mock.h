@@ -66,7 +66,7 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   virtual bool NeedsCanonicalName();
 
   virtual int ResolveCanonicalName(HostResolver* host_resolver,
-                                   CompletionCallback* callback);
+                                   OldCompletionCallback* callback);
 
 
   void SetGenerateExpectation(bool async, int rv);
@@ -100,7 +100,7 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   virtual int GenerateAuthTokenImpl(const string16* username,
                                     const string16* password,
                                     const HttpRequestInfo* request,
-                                    CompletionCallback* callback,
+                                    OldCompletionCallback* callback,
                                     std::string* auth_token);
 
  private:
@@ -109,7 +109,7 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   void OnGenerateAuthToken();
 
   Resolve resolve_;
-  CompletionCallback* user_callback_;
+  OldCompletionCallback* user_callback_;
   ScopedRunnableMethodFactory<HttpAuthHandlerMock> method_factory_;
   bool generate_async_;
   int generate_rv_;

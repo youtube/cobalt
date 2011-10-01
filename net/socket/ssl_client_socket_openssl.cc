@@ -611,7 +611,7 @@ SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
 void SSLClientSocketOpenSSL::DoReadCallback(int rv) {
   // Since Run may result in Read being called, clear |user_read_callback_|
   // up front.
-  CompletionCallback* c = user_read_callback_;
+  OldCompletionCallback* c = user_read_callback_;
   user_read_callback_ = NULL;
   user_read_buf_ = NULL;
   user_read_buf_len_ = 0;
@@ -621,7 +621,7 @@ void SSLClientSocketOpenSSL::DoReadCallback(int rv) {
 void SSLClientSocketOpenSSL::DoWriteCallback(int rv) {
   // Since Run may result in Write being called, clear |user_write_callback_|
   // up front.
-  CompletionCallback* c = user_write_callback_;
+  OldCompletionCallback* c = user_write_callback_;
   user_write_callback_ = NULL;
   user_write_buf_ = NULL;
   user_write_buf_len_ = 0;
@@ -630,7 +630,7 @@ void SSLClientSocketOpenSSL::DoWriteCallback(int rv) {
 
 // StreamSocket methods
 
-int SSLClientSocketOpenSSL::Connect(CompletionCallback* callback) {
+int SSLClientSocketOpenSSL::Connect(OldCompletionCallback* callback) {
   net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
 
   // Set up new ssl object.
@@ -988,7 +988,7 @@ void SSLClientSocketOpenSSL::TransportReadComplete(int result) {
 }
 
 void SSLClientSocketOpenSSL::DoConnectCallback(int rv) {
-  CompletionCallback* c = user_connect_callback_;
+  OldCompletionCallback* c = user_connect_callback_;
   user_connect_callback_ = NULL;
   c->Run(rv > OK ? OK : rv);
 }
@@ -1120,7 +1120,7 @@ base::TimeDelta SSLClientSocketOpenSSL::GetConnectTimeMicros() const {
 
 int SSLClientSocketOpenSSL::Read(IOBuffer* buf,
                                  int buf_len,
-                                 CompletionCallback* callback) {
+                                 OldCompletionCallback* callback) {
   user_read_buf_ = buf;
   user_read_buf_len_ = buf_len;
 
@@ -1152,7 +1152,7 @@ int SSLClientSocketOpenSSL::DoReadLoop(int result) {
 
 int SSLClientSocketOpenSSL::Write(IOBuffer* buf,
                                   int buf_len,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   user_write_buf_ = buf;
   user_write_buf_len_ = buf_len;
 

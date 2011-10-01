@@ -145,7 +145,7 @@ TEST_F(FileStreamTest, AsyncRead) {
   int64 total_bytes_avail = stream.Available();
   EXPECT_EQ(file_size, total_bytes_avail);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   int total_bytes_read = 0;
 
@@ -180,7 +180,7 @@ TEST_F(FileStreamTest, AsyncRead_EarlyClose) {
   int64 total_bytes_avail = stream.Available();
   EXPECT_EQ(file_size, total_bytes_avail);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   char buf[4];
   rv = stream.Read(buf, arraysize(buf), &callback);
@@ -249,7 +249,7 @@ TEST_F(FileStreamTest, AsyncRead_FromOffset) {
   int64 total_bytes_avail = stream.Available();
   EXPECT_EQ(file_size - kOffset, total_bytes_avail);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   int total_bytes_read = 0;
 
@@ -326,7 +326,7 @@ TEST_F(FileStreamTest, AsyncWrite) {
   EXPECT_TRUE(ok);
   EXPECT_EQ(0, file_size);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int total_bytes_written = 0;
 
   while (total_bytes_written != kTestDataSize) {
@@ -358,7 +358,7 @@ TEST_F(FileStreamTest, AsyncWrite_EarlyClose) {
   EXPECT_TRUE(ok);
   EXPECT_EQ(0, file_size);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int total_bytes_written = 0;
 
   rv = stream.Write(kTestData + total_bytes_written,
@@ -418,7 +418,7 @@ TEST_F(FileStreamTest, AsyncWrite_FromOffset) {
   int64 new_offset = stream.Seek(FROM_END, kOffset);
   EXPECT_EQ(kTestDataSize, new_offset);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int total_bytes_written = 0;
 
   while (total_bytes_written != kTestDataSize) {
@@ -540,7 +540,7 @@ TEST_F(FileStreamTest, BasicAsyncReadWrite) {
   int64 total_bytes_avail = stream.Available();
   EXPECT_EQ(file_size, total_bytes_avail);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int64 total_bytes_read = 0;
 
   std::string data_read;
@@ -598,7 +598,7 @@ TEST_F(FileStreamTest, BasicAsyncWriteRead) {
   int64 offset = stream.Seek(FROM_END, 0);
   EXPECT_EQ(offset, file_size);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int total_bytes_written = 0;
 
   while (total_bytes_written != kTestDataSize) {
@@ -644,9 +644,9 @@ TEST_F(FileStreamTest, BasicAsyncWriteRead) {
   EXPECT_EQ(kExpectedFileData, data_read);
 }
 
-class TestWriteReadCompletionCallback : public Callback1<int>::Type {
+class TestWriteReadOldCompletionCallback : public Callback1<int>::Type {
  public:
-  TestWriteReadCompletionCallback(
+  TestWriteReadOldCompletionCallback(
       FileStream* stream,
       int* total_bytes_written,
       int* total_bytes_read,
@@ -681,7 +681,7 @@ class TestWriteReadCompletionCallback : public Callback1<int>::Type {
       // Recurse to finish writing all data.
       int total_bytes_written = 0, total_bytes_read = 0;
       std::string data_read;
-      TestWriteReadCompletionCallback callback(
+      TestWriteReadOldCompletionCallback callback(
           stream_, &total_bytes_written, &total_bytes_read, &data_read);
       rv = stream_->Write(kTestData + *total_bytes_written_,
                           kTestDataSize - *total_bytes_written_,
@@ -694,7 +694,7 @@ class TestWriteReadCompletionCallback : public Callback1<int>::Type {
     } else {  // We're done writing all data.  Start reading the data.
       stream_->Seek(FROM_BEGIN, 0);
 
-      TestCompletionCallback callback;
+      TestOldCompletionCallback callback;
       for (;;) {
         char buf[4];
         rv = stream_->Read(buf, arraysize(buf), &callback);
@@ -726,7 +726,7 @@ class TestWriteReadCompletionCallback : public Callback1<int>::Type {
   int* total_bytes_read_;
   std::string* data_read_;
 
-  DISALLOW_COPY_AND_ASSIGN(TestWriteReadCompletionCallback);
+  DISALLOW_COPY_AND_ASSIGN(TestWriteReadOldCompletionCallback);
 };
 
 TEST_F(FileStreamTest, AsyncWriteRead) {
@@ -751,7 +751,7 @@ TEST_F(FileStreamTest, AsyncWriteRead) {
   int total_bytes_written = 0;
   int total_bytes_read = 0;
   std::string data_read;
-  TestWriteReadCompletionCallback callback(&stream, &total_bytes_written,
+  TestWriteReadOldCompletionCallback callback(&stream, &total_bytes_written,
                                            &total_bytes_read, &data_read);
 
   rv = stream.Write(kTestData + total_bytes_written,
@@ -774,9 +774,9 @@ TEST_F(FileStreamTest, AsyncWriteRead) {
   EXPECT_EQ(kExpectedFileData, data_read);
 }
 
-class TestWriteCloseCompletionCallback : public Callback1<int>::Type {
+class TestWriteCloseOldCompletionCallback : public Callback1<int>::Type {
  public:
-  TestWriteCloseCompletionCallback(FileStream* stream, int* total_bytes_written)
+  TestWriteCloseOldCompletionCallback(FileStream* stream, int* total_bytes_written)
       : result_(0),
         have_result_(false),
         waiting_for_result_(false),
@@ -804,7 +804,7 @@ class TestWriteCloseCompletionCallback : public Callback1<int>::Type {
     if (*total_bytes_written_ != kTestDataSize) {
       // Recurse to finish writing all data.
       int total_bytes_written = 0;
-      TestWriteCloseCompletionCallback callback(stream_, &total_bytes_written);
+      TestWriteCloseOldCompletionCallback callback(stream_, &total_bytes_written);
       rv = stream_->Write(kTestData + *total_bytes_written_,
                           kTestDataSize - *total_bytes_written_,
                           &callback);
@@ -827,7 +827,7 @@ class TestWriteCloseCompletionCallback : public Callback1<int>::Type {
   FileStream* stream_;
   int* total_bytes_written_;
 
-  DISALLOW_COPY_AND_ASSIGN(TestWriteCloseCompletionCallback);
+  DISALLOW_COPY_AND_ASSIGN(TestWriteCloseOldCompletionCallback);
 };
 
 TEST_F(FileStreamTest, AsyncWriteClose) {
@@ -850,7 +850,7 @@ TEST_F(FileStreamTest, AsyncWriteClose) {
   EXPECT_EQ(offset, file_size);
 
   int total_bytes_written = 0;
-  TestWriteCloseCompletionCallback callback(&stream, &total_bytes_written);
+  TestWriteCloseOldCompletionCallback callback(&stream, &total_bytes_written);
 
   rv = stream.Write(kTestData, kTestDataSize, &callback);
   if (rv == ERR_IO_PENDING)

@@ -85,7 +85,7 @@ class NET_EXPORT FileStream {
   // This method should not be called if the stream was opened WRITE_ONLY.
   //
   // You can pass NULL as the callback for synchronous I/O.
-  virtual int Read(char* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(char* buf, int buf_len, OldCompletionCallback* callback);
 
   // Performs the same as Read, but ensures that exactly buf_len bytes
   // are copied into buf.  A partial read may occur, but only as a result of
@@ -113,7 +113,7 @@ class NET_EXPORT FileStream {
   // This method should not be called if the stream was opened READ_ONLY.
   //
   // You can pass NULL as the callback for synchronous I/O.
-  virtual int Write(const char* buf, int buf_len, CompletionCallback* callback);
+  virtual int Write(const char* buf, int buf_len, OldCompletionCallback* callback);
 
   // Truncates the file to be |bytes| length. This is only valid for writable
   // files. After truncation the file stream is positioned at |bytes|. The new

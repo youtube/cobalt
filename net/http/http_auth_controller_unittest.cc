@@ -77,7 +77,7 @@ void RunSingleRoundAuthTest(HandlerRunMode run_mode,
   controller->ResetAuth(string16(), string16());
   EXPECT_TRUE(controller->HaveAuth());
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   EXPECT_EQ((run_mode == RUN_HANDLER_ASYNC)? ERR_IO_PENDING:
             expected_controller_rv,
             controller->MaybeGenerateAuthToken(&request, &callback,
@@ -145,7 +145,7 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
     virtual int GenerateAuthTokenImpl(const string16* username,
                                       const string16* password,
                                       const HttpRequestInfo* request,
-                                      CompletionCallback* callback,
+                                      OldCompletionCallback* callback,
                                       std::string* auth_token) OVERRIDE {
       int result =
           HttpAuthHandlerMock::GenerateAuthTokenImpl(username, password,

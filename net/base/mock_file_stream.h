@@ -31,11 +31,11 @@ class MockFileStream : public net::FileStream {
   virtual int64 Available() OVERRIDE;
   virtual int Read(char* buf,
                    int buf_len,
-                   net::CompletionCallback* callback) OVERRIDE;
+                   net::OldCompletionCallback* callback) OVERRIDE;
   virtual int ReadUntilComplete(char *buf, int buf_len) OVERRIDE;
   virtual int Write(const char* buf,
                     int buf_len,
-                    net::CompletionCallback* callback) OVERRIDE;
+                    net::OldCompletionCallback* callback) OVERRIDE;
   virtual int64 Truncate(int64 bytes) OVERRIDE;
   virtual int Flush() OVERRIDE;
 

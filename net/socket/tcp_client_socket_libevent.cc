@@ -202,7 +202,7 @@ int TCPClientSocketLibevent::Bind(const IPEndPoint& address) {
   return 0;
 }
 
-int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
+int TCPClientSocketLibevent::Connect(OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
 
   // If already connected, then just return OK.
@@ -429,7 +429,7 @@ bool TCPClientSocketLibevent::IsConnectedAndIdle() const {
 
 int TCPClientSocketLibevent::Read(IOBuffer* buf,
                                   int buf_len,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
   DCHECK(!waiting_connect());
@@ -469,7 +469,7 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
 
 int TCPClientSocketLibevent::Write(IOBuffer* buf,
                                    int buf_len,
-                                   CompletionCallback* callback) {
+                                   OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
   DCHECK(!waiting_connect());
@@ -589,7 +589,7 @@ void TCPClientSocketLibevent::DoReadCallback(int rv) {
   DCHECK(read_callback_);
 
   // since Run may result in Read being called, clear read_callback_ up front.
-  CompletionCallback* c = read_callback_;
+  OldCompletionCallback* c = read_callback_;
   read_callback_ = NULL;
   c->Run(rv);
 }
@@ -599,7 +599,7 @@ void TCPClientSocketLibevent::DoWriteCallback(int rv) {
   DCHECK(write_callback_);
 
   // since Run may result in Write being called, clear write_callback_ up front.
-  CompletionCallback* c = write_callback_;
+  OldCompletionCallback* c = write_callback_;
   write_callback_ = NULL;
   c->Run(rv);
 }

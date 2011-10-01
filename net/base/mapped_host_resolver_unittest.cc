@@ -32,7 +32,7 @@ TEST(MappedHostResolverTest, Inclusion) {
 
   // Try resolving "www.google.com:80". There are no mappings yet, so this
   // hits |resolver_impl| and fails.
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   rv = resolver->Resolve(HostResolver::RequestInfo(
                              HostPortPair("www.google.com", 80)),
                          &address_list, &callback, NULL, BoundNetLog());
@@ -90,7 +90,7 @@ TEST(MappedHostResolverTest, Exclusion) {
 
   int rv;
   AddressList address_list;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   // Remap "*.com" to "baz".
   EXPECT_TRUE(resolver->AddRuleFromString("map *.com baz"));
@@ -131,7 +131,7 @@ TEST(MappedHostResolverTest, SetRulesFromString) {
 
   int rv;
   AddressList address_list;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   // Remap "*.com" to "baz", and *.net to "bar:60".
   resolver->SetRulesFromString("map *.com baz , map *.net bar:60");

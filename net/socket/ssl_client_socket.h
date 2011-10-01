@@ -39,7 +39,7 @@ class DNSSECProvider {
   //      some point in the future. Once the callback has been made, this
   //      function will return OK if called again.
   virtual int GetDNSSECRecords(RRResponse** out,
-                               CompletionCallback* callback) = 0;
+                               OldCompletionCallback* callback) = 0;
 
  private:
   ~DNSSECProvider() {}

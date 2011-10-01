@@ -28,7 +28,7 @@ class ExplodingCallback : public CallbackRunner<Tuple1<int> > {
 // pass. However, they may be useful when chaging the code.
 TEST_F(DnsRRResolverTest, DISABLED_ResolveReal) {
   RRResponse response;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   DnsRRResolver resolver;
   DnsRRResolver::Handle handle;
 
@@ -43,7 +43,7 @@ TEST_F(DnsRRResolverTest, DISABLED_ResolveReal) {
 
 TEST_F(DnsRRResolverTest, DISABLED_ResolveReal2) {
   RRResponse response;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   DnsRRResolver resolver;
   DnsRRResolver::Handle handle;
 
@@ -59,7 +59,7 @@ TEST_F(DnsRRResolverTest, DISABLED_ResolveReal2) {
 
 TEST_F(DnsRRResolverTest, Resolve) {
   RRResponse response;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   DnsRRResolver resolver;
   DnsRRResolver::Handle handle;
 
@@ -108,7 +108,7 @@ TEST_F(DnsRRResolverTest, Resolve) {
 
   // Test an inflight join. (Note that this depends on the cache being flushed
   // by OnIPAddressChanged.)
-  TestCompletionCallback callback2;
+  TestOldCompletionCallback callback2;
   DnsRRResolver::Handle handle2;
   handle = resolver.Resolve("nx.testing.notatld", kDNS_TESTING, 0,
                             &callback, &response, 0, BoundNetLog());

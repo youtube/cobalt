@@ -220,7 +220,7 @@ TEST_F(HttpAuthHandlerNegotiateTest, DisableCname) {
       true, false, true, "http://alias:500", &auth_handler));
 
   ASSERT_TRUE(auth_handler.get() != NULL);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
   EXPECT_EQ(OK, auth_handler->GenerateAuthToken(NULL, NULL,
@@ -239,7 +239,7 @@ TEST_F(HttpAuthHandlerNegotiateTest, DisableCnameStandardPort) {
   EXPECT_EQ(OK, CreateHandler(
       true, true, true, "http://alias:80", &auth_handler));
   ASSERT_TRUE(auth_handler.get() != NULL);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
   EXPECT_EQ(OK, auth_handler->GenerateAuthToken(NULL, NULL,
@@ -258,7 +258,7 @@ TEST_F(HttpAuthHandlerNegotiateTest, DisableCnameNonstandardPort) {
   EXPECT_EQ(OK, CreateHandler(
       true, true, true, "http://alias:500", &auth_handler));
   ASSERT_TRUE(auth_handler.get() != NULL);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
   EXPECT_EQ(OK, auth_handler->GenerateAuthToken(NULL, NULL,
@@ -277,7 +277,7 @@ TEST_F(HttpAuthHandlerNegotiateTest, CnameSync) {
   EXPECT_EQ(OK, CreateHandler(
       false, false, true, "http://alias:500", &auth_handler));
   ASSERT_TRUE(auth_handler.get() != NULL);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
   EXPECT_EQ(OK, auth_handler->GenerateAuthToken(NULL, NULL,
@@ -296,7 +296,7 @@ TEST_F(HttpAuthHandlerNegotiateTest, CnameAsync) {
   EXPECT_EQ(OK, CreateHandler(
       false, false, false, "http://alias:500", &auth_handler));
   ASSERT_TRUE(auth_handler.get() != NULL);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
   EXPECT_EQ(ERR_IO_PENDING, auth_handler->GenerateAuthToken(
@@ -319,7 +319,7 @@ TEST_F(HttpAuthHandlerNegotiateTest, ServerNotInKerberosDatabase) {
   EXPECT_EQ(OK, CreateHandler(
       false, false, false, "http://alias:500", &auth_handler));
   ASSERT_TRUE(auth_handler.get() != NULL);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
   EXPECT_EQ(ERR_IO_PENDING, auth_handler->GenerateAuthToken(
@@ -335,7 +335,7 @@ TEST_F(HttpAuthHandlerNegotiateTest, NoKerberosCredentials) {
   EXPECT_EQ(OK, CreateHandler(
       false, false, false, "http://alias:500", &auth_handler));
   ASSERT_TRUE(auth_handler.get() != NULL);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
   EXPECT_EQ(ERR_IO_PENDING, auth_handler->GenerateAuthToken(

@@ -1141,7 +1141,7 @@ TEST_F(DiskCacheEntryTest, ReadWriteDestroyBuffer) {
   scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
   CacheTestFillBuffer(buffer->data(), kSize, false);
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   EXPECT_EQ(net::ERR_IO_PENDING,
             entry->WriteData(0, 0, buffer, kSize, &cb, false));
 
@@ -1276,7 +1276,7 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyEnumerationWithSparseEntries) {
 // Writes |buf_1| to offset and reads it back as |buf_2|.
 void VerifySparseIO(disk_cache::Entry* entry, int64 offset,
                     net::IOBuffer* buf_1, int size, net::IOBuffer* buf_2) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
 
   memset(buf_2->data(), 0, size);
   int ret = entry->ReadSparseData(offset, buf_2, size, &cb);
@@ -1295,7 +1295,7 @@ void VerifySparseIO(disk_cache::Entry* entry, int64 offset,
 // same as the content of the provided |buffer|.
 void VerifyContentSparseIO(disk_cache::Entry* entry, int64 offset, char* buffer,
                            int size) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
 
   scoped_refptr<net::IOBuffer> buf_1(new net::IOBuffer(size));
   memset(buf_1->data(), 0, size);
@@ -1392,7 +1392,7 @@ void DiskCacheEntryTest::GetAvailableRange() {
 
   // We stop at the first empty block.
   int64 start;
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->GetAvailableRange(0x20F0000, kSize * 2, &start, &cb);
   EXPECT_EQ(kSize, cb.GetResult(rv));
   EXPECT_EQ(0x20F0000, start);
@@ -1538,7 +1538,7 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyMisalignedGetAvailableRange) {
   EXPECT_EQ(8192, entry->WriteSparseData(50000, buf, 8192, NULL));
 
   int64 start;
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   // Test that we stop at a discontinuous child at the second block.
   int rv = entry->GetAvailableRange(0, 10000, &start, &cb);
   EXPECT_EQ(1024, cb.GetResult(rv));
@@ -1685,22 +1685,22 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyDoomSparseEntry) {
   DoomSparseEntry();
 }
 
-// A CompletionCallback that deletes the cache from within the callback. The way
-// a TestCompletionCallback works means that all tasks (even new ones) are
+// A OldCompletionCallback that deletes the cache from within the callback. The way
+// a TestOldCompletionCallback works means that all tasks (even new ones) are
 // executed by the message loop before returning to the caller so the only way
 // to simulate a race is to execute what we want on the callback.
-class SparseTestCompletionCallback : public TestCompletionCallback {
+class SparseTestOldCompletionCallback : public TestOldCompletionCallback {
  public:
-  explicit SparseTestCompletionCallback(disk_cache::Backend* cache)
+  explicit SparseTestOldCompletionCallback(disk_cache::Backend* cache)
       : cache_(cache) {}
 
   virtual void RunWithParams(const Tuple1<int>& params) {
     delete cache_;
-    TestCompletionCallback::RunWithParams(params);
+    TestOldCompletionCallback::RunWithParams(params);
   }
  private:
   disk_cache::Backend* cache_;
-  DISALLOW_COPY_AND_ASSIGN(SparseTestCompletionCallback);
+  DISALLOW_COPY_AND_ASSIGN(SparseTestOldCompletionCallback);
 };
 
 // Tests that we don't crash when the backend is deleted while we are working
@@ -1726,7 +1726,7 @@ TEST_F(DiskCacheEntryTest, DoomSparseEntry2) {
   EXPECT_EQ(9, cache_->GetEntryCount());
 
   entry->Close();
-  SparseTestCompletionCallback cb(cache_);
+  SparseTestOldCompletionCallback cb(cache_);
   int rv = cache_->DoomEntry(key, &cb);
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
   EXPECT_EQ(net::OK, cb.WaitForResult());
@@ -1771,7 +1771,7 @@ void DiskCacheEntryTest::PartialSparseEntry() {
 
   int rv;
   int64 start;
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   if (memory_only_) {
     rv = entry->GetAvailableRange(0, 600, &start, &cb);
     EXPECT_EQ(100, cb.GetResult(rv));
@@ -1893,7 +1893,7 @@ TEST_F(DiskCacheEntryTest, CancelSparseIO) {
   CacheTestFillBuffer(buf->data(), kSize, false);
 
   // This will open and write two "real" entries.
-  TestCompletionCallback cb1, cb2, cb3, cb4, cb5;
+  TestOldCompletionCallback cb1, cb2, cb3, cb4, cb5;
   int rv = entry->WriteSparseData(1024 * 1024 - 4096, buf, kSize, &cb1);
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 

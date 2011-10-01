@@ -26,12 +26,12 @@ class TestNetworkDelegate : public net::NetworkDelegate {
  private:
   // net::NetworkDelegate:
   virtual int OnBeforeURLRequest(URLRequest* request,
-                                 CompletionCallback* callback,
+                                 OldCompletionCallback* callback,
                                  GURL* new_url) OVERRIDE {
     return net::OK;
   }
   virtual int OnBeforeSendHeaders(URLRequest* request,
-                                  CompletionCallback* callback,
+                                  OldCompletionCallback* callback,
                                   HttpRequestHeaders* headers) OVERRIDE {
     return net::OK;
   }

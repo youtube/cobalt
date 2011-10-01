@@ -40,7 +40,7 @@ class NET_EXPORT_PRIVATE HttpStream {
   // Returns a net error code, possibly ERR_IO_PENDING.
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               CompletionCallback* callback) = 0;
+                               OldCompletionCallback* callback) = 0;
 
   // Writes the headers and uploads body data to the underlying socket.
   // ERR_IO_PENDING is returned if the operation could not be completed
@@ -50,7 +50,7 @@ class NET_EXPORT_PRIVATE HttpStream {
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
-                          CompletionCallback* callback) = 0;
+                          OldCompletionCallback* callback) = 0;
 
   // Queries the UploadDataStream for its progress (bytes sent).
   virtual uint64 GetUploadProgress() const = 0;
@@ -60,7 +60,7 @@ class NET_EXPORT_PRIVATE HttpStream {
   // not be completed synchronously, in which case the result will be passed
   // to the callback when available. Returns OK on success.  The response
   // headers are available in the HttpResponseInfo returned by GetResponseInfo
-  virtual int ReadResponseHeaders(CompletionCallback* callback) = 0;
+  virtual int ReadResponseHeaders(OldCompletionCallback* callback) = 0;
 
   // Provides access to HttpResponseInfo (owned by HttpStream).
   virtual const HttpResponseInfo* GetResponseInfo() const = 0;
@@ -76,7 +76,7 @@ class NET_EXPORT_PRIVATE HttpStream {
   // the socket acquires a reference to the provided buffer until the callback
   // is invoked or the socket is destroyed.
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               CompletionCallback* callback) = 0;
+                               OldCompletionCallback* callback) = 0;
 
   // Closes the stream.
   // |not_reusable| indicates if the stream can be used for further requests.

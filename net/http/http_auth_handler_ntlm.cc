@@ -32,7 +32,7 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
     const string16* username,
     const string16* password,
     const HttpRequestInfo* request,
-    CompletionCallback* callback,
+    OldCompletionCallback* callback,
     std::string* auth_token) {
 #if defined(NTLM_SSPI)
   return auth_sspi_.GenerateAuthToken(

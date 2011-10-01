@@ -67,7 +67,7 @@ class NET_EXPORT ClientSocketPool {
                             const void* params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
+                            OldCompletionCallback* callback,
                             const BoundNetLog& net_log) = 0;
 
   // RequestSockets is used to request that |num_sockets| be connected in the
@@ -87,7 +87,7 @@ class NET_EXPORT ClientSocketPool {
 
   // Called to cancel a RequestSocket call that returned ERR_IO_PENDING.  The
   // same handle parameter must be passed to this method as was passed to the
-  // RequestSocket call being cancelled.  The associated CompletionCallback is
+  // RequestSocket call being cancelled.  The associated OldCompletionCallback is
   // not run.  However, for performance, we will let one ConnectJob complete
   // and go idle.
   virtual void CancelRequest(const std::string& group_name,
