@@ -15,6 +15,7 @@
 #include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
 #include "media/video/video_decode_engine.h"
+#include "ui/gfx/size.h"
 
 // Include FFmpeg header files.
 extern "C" {
@@ -87,8 +88,7 @@ base::TimeDelta GetFrameDuration(AVStream* stream);
 
 // Calculates the natural width and height of the video using the video's
 // encoded dimensions and sample_aspect_ratio.
-int GetNaturalHeight(AVStream* stream);
-int GetNaturalWidth(AVStream* stream);
+gfx::Size GetNaturalSize(AVStream* stream);
 
 // Closes & destroys all AVStreams in the context and then closes &
 // destroys the AVFormatContext.

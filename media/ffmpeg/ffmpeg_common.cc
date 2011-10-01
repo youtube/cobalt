@@ -220,25 +220,20 @@ base::TimeDelta GetFrameDuration(AVStream* stream) {
   return ConvertFromTimeBase(time_base, 1);
 }
 
-int GetNaturalHeight(AVStream* stream) {
-  return stream->codec->height;
-}
-
-int GetNaturalWidth(AVStream* stream) {
-  double aspect_ratio;
+gfx::Size GetNaturalSize(AVStream* stream) {
+  double aspect_ratio = 1.0;
 
   if (stream->sample_aspect_ratio.num)
     aspect_ratio = av_q2d(stream->sample_aspect_ratio);
   else if (stream->codec->sample_aspect_ratio.num)
     aspect_ratio = av_q2d(stream->codec->sample_aspect_ratio);
-  else
-    aspect_ratio = 1.0;
 
+  int height = stream->codec->height;
   int width = floor(stream->codec->width * aspect_ratio + 0.5);
 
   // An even width makes things easier for YV12 and appears to be the behavior
   // expected by WebKit layout tests.
-  return width & ~1;
+  return gfx::Size(width & ~1, height);
 }
 
 void DestroyAVFormatContext(AVFormatContext* format_context) {
