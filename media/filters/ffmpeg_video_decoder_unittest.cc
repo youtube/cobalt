@@ -67,11 +67,9 @@ class MockVideoDecodeEngine : public VideoDecodeEngine {
   MOCK_METHOD0(Flush, void());
   MOCK_METHOD0(Seek, void());
 
-  MockVideoDecodeEngine() : event_handler_(NULL) {
-    memset(&info_, 0, sizeof(info_));
-  }
+  MockVideoDecodeEngine() : event_handler_(NULL) {}
+
   VideoDecodeEngine::EventHandler* event_handler_;
-  VideoCodecInfo info_;
 };
 
 // Class that just mocks the private functions.
@@ -97,9 +95,7 @@ class DecoderPrivateMock : public FFmpegVideoDecoder {
 
 ACTION_P2(EngineInitialize, engine, success) {
   engine->event_handler_ = arg1;
-  engine->info_.success = success;
-  engine->info_.natural_size = kNaturalSize;
-  engine->event_handler_->OnInitializeComplete(engine->info_);
+  engine->event_handler_->OnInitializeComplete(success);
 }
 
 ACTION_P(EngineUninitialize, engine) {

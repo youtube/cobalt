@@ -42,7 +42,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder
 
  private:
   // VideoDecodeEngine::EventHandler interface.
-  virtual void OnInitializeComplete(const VideoCodecInfo& info) OVERRIDE;
+  virtual void OnInitializeComplete(bool success) OVERRIDE;
   virtual void OnUninitializeComplete() OVERRIDE;
   virtual void OnFlushComplete() OVERRIDE;
   virtual void OnSeekComplete() OVERRIDE;
@@ -105,7 +105,9 @@ class MEDIA_EXPORT FFmpegVideoDecoder
   // Hold video frames when flush happens.
   std::deque<scoped_refptr<VideoFrame> > frame_queue_flushed_;
 
-  VideoCodecInfo info_;
+  // TODO(scherkus): I think this should be calculated by VideoRenderers based
+  // on information provided by VideoDecoders (i.e., aspect ratio).
+  gfx::Size natural_size_;
 
   // Pointer to the demuxer stream that will feed us compressed buffers.
   scoped_refptr<DemuxerStream> demuxer_stream_;
