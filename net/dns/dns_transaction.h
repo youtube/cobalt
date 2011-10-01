@@ -135,7 +135,7 @@ class NET_EXPORT_PRIVATE DnsTransaction :
   State next_state_;
   ClientSocketFactory* socket_factory_;
   base::OneShotTimer<DnsTransaction> timer_;
-  CompletionCallbackImpl<DnsTransaction> io_callback_;
+  OldCompletionCallbackImpl<DnsTransaction> io_callback_;
 
   BoundNetLog net_log_;
 

@@ -586,7 +586,7 @@ SSLClientSocketNSS::GetNextProto(std::string* proto) {
 #endif
 }
 
-int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
+int SSLClientSocketNSS::Connect(OldCompletionCallback* callback) {
   EnterFunction("");
   DCHECK(transport_.get());
   DCHECK(next_handshake_state_ == STATE_NONE);
@@ -776,7 +776,7 @@ base::TimeDelta SSLClientSocketNSS::GetConnectTimeMicros() const {
 }
 
 int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
-                             CompletionCallback* callback) {
+                             OldCompletionCallback* callback) {
   EnterFunction(buf_len);
   DCHECK(completed_handshake_);
   DCHECK(next_handshake_state_ == STATE_NONE);
@@ -801,7 +801,7 @@ int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
 }
 
 int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
-                              CompletionCallback* callback) {
+                              OldCompletionCallback* callback) {
   EnterFunction(buf_len);
   DCHECK(completed_handshake_);
   DCHECK(next_handshake_state_ == STATE_NONE);
@@ -1157,7 +1157,7 @@ void SSLClientSocketNSS::DoReadCallback(int rv) {
 
   // Since Run may result in Read being called, clear |user_read_callback_|
   // up front.
-  CompletionCallback* c = user_read_callback_;
+  OldCompletionCallback* c = user_read_callback_;
   user_read_callback_ = NULL;
   user_read_buf_ = NULL;
   user_read_buf_len_ = 0;
@@ -1172,7 +1172,7 @@ void SSLClientSocketNSS::DoWriteCallback(int rv) {
 
   // Since Run may result in Write being called, clear |user_write_callback_|
   // up front.
-  CompletionCallback* c = user_write_callback_;
+  OldCompletionCallback* c = user_write_callback_;
   user_write_callback_ = NULL;
   user_write_buf_ = NULL;
   user_write_buf_len_ = 0;
@@ -1192,7 +1192,7 @@ void SSLClientSocketNSS::DoConnectCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(user_connect_callback_);
 
-  CompletionCallback* c = user_connect_callback_;
+  OldCompletionCallback* c = user_connect_callback_;
   user_connect_callback_ = NULL;
   c->Run(rv > OK ? OK : rv);
   LeaveFunction("");

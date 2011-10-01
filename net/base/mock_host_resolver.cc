@@ -97,11 +97,11 @@ void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
 
 int MockHostResolverBase::Resolve(const RequestInfo& info,
                                   AddressList* addresses,
-                                  CompletionCallback* callback,
+                                  OldCompletionCallback* callback,
                                   RequestHandle* out_req,
                                   const BoundNetLog& net_log) {
   if (synchronous_mode_) {
-    TestCompletionCallback sync_callback;
+    TestOldCompletionCallback sync_callback;
     int rv = impl_->Resolve(info, addresses, &sync_callback, out_req, net_log);
     if (rv == ERR_IO_PENDING) {
       MessageLoop::ScopedNestableTaskAllower nestable(MessageLoop::current());

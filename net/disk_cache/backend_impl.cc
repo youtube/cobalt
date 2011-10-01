@@ -216,7 +216,7 @@ class CacheCreator {
                net::CacheType type, uint32 flags,
                base::MessageLoopProxy* thread, net::NetLog* net_log,
                disk_cache::Backend** backend,
-               net::CompletionCallback* callback)
+               net::OldCompletionCallback* callback)
       : path_(path), force_(force), retry_(false), max_bytes_(max_bytes),
         type_(type), flags_(flags), thread_(thread), backend_(backend),
         callback_(callback), cache_(NULL), net_log_(net_log),
@@ -242,10 +242,10 @@ class CacheCreator {
   uint32 flags_;
   scoped_refptr<base::MessageLoopProxy> thread_;
   disk_cache::Backend** backend_;
-  net::CompletionCallback* callback_;
+  net::OldCompletionCallback* callback_;
   disk_cache::BackendImpl* cache_;
   net::NetLog* net_log_;
-  net::CompletionCallbackImpl<CacheCreator> my_callback_;
+  net::OldCompletionCallbackImpl<CacheCreator> my_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(CacheCreator);
 };
@@ -318,7 +318,7 @@ namespace disk_cache {
 int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
                        bool force, base::MessageLoopProxy* thread,
                        net::NetLog* net_log, Backend** backend,
-                       CompletionCallback* callback) {
+                       OldCompletionCallback* callback) {
   DCHECK(callback);
   if (type == net::MEMORY_CACHE) {
     *backend = MemBackendImpl::CreateBackend(max_bytes, net_log);
@@ -439,7 +439,7 @@ int BackendImpl::CreateBackend(const FilePath& full_path, bool force,
                                int max_bytes, net::CacheType type,
                                uint32 flags, base::MessageLoopProxy* thread,
                                net::NetLog* net_log, Backend** backend,
-                               CompletionCallback* callback) {
+                               OldCompletionCallback* callback) {
   DCHECK(callback);
   CacheCreator* creator = new CacheCreator(full_path, force, max_bytes, type,
                                            flags, thread, net_log, backend,
@@ -448,7 +448,7 @@ int BackendImpl::CreateBackend(const FilePath& full_path, bool force,
   return creator->Run();
 }
 
-int BackendImpl::Init(CompletionCallback* callback) {
+int BackendImpl::Init(OldCompletionCallback* callback) {
   background_queue_.Init(callback);
   return net::ERR_IO_PENDING;
 }
@@ -560,7 +560,7 @@ void BackendImpl::CleanupCache() {
 // ------------------------------------------------------------------------
 
 int BackendImpl::OpenPrevEntry(void** iter, Entry** prev_entry,
-                               CompletionCallback* callback) {
+                               OldCompletionCallback* callback) {
   DCHECK(callback);
   background_queue_.OpenPrevEntry(iter, prev_entry, callback);
   return net::ERR_IO_PENDING;
@@ -1257,12 +1257,12 @@ void BackendImpl::ClearRefCountForTest() {
   num_refs_ = 0;
 }
 
-int BackendImpl::FlushQueueForTest(CompletionCallback* callback) {
+int BackendImpl::FlushQueueForTest(OldCompletionCallback* callback) {
   background_queue_.FlushQueue(callback);
   return net::ERR_IO_PENDING;
 }
 
-int BackendImpl::RunTaskForTest(Task* task, CompletionCallback* callback) {
+int BackendImpl::RunTaskForTest(Task* task, OldCompletionCallback* callback) {
   background_queue_.RunTask(task, callback);
   return net::ERR_IO_PENDING;
 }
@@ -1315,27 +1315,27 @@ int32 BackendImpl::GetEntryCount() const {
 }
 
 int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
-                           CompletionCallback* callback) {
+                           OldCompletionCallback* callback) {
   DCHECK(callback);
   background_queue_.OpenEntry(key, entry, callback);
   return net::ERR_IO_PENDING;
 }
 
 int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
-                             CompletionCallback* callback) {
+                             OldCompletionCallback* callback) {
   DCHECK(callback);
   background_queue_.CreateEntry(key, entry, callback);
   return net::ERR_IO_PENDING;
 }
 
 int BackendImpl::DoomEntry(const std::string& key,
-                           CompletionCallback* callback) {
+                           OldCompletionCallback* callback) {
   DCHECK(callback);
   background_queue_.DoomEntry(key, callback);
   return net::ERR_IO_PENDING;
 }
 
-int BackendImpl::DoomAllEntries(CompletionCallback* callback) {
+int BackendImpl::DoomAllEntries(OldCompletionCallback* callback) {
   DCHECK(callback);
   background_queue_.DoomAllEntries(callback);
   return net::ERR_IO_PENDING;
@@ -1343,21 +1343,21 @@ int BackendImpl::DoomAllEntries(CompletionCallback* callback) {
 
 int BackendImpl::DoomEntriesBetween(const base::Time initial_time,
                                     const base::Time end_time,
-                                    CompletionCallback* callback) {
+                                    OldCompletionCallback* callback) {
   DCHECK(callback);
   background_queue_.DoomEntriesBetween(initial_time, end_time, callback);
   return net::ERR_IO_PENDING;
 }
 
 int BackendImpl::DoomEntriesSince(const base::Time initial_time,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   DCHECK(callback);
   background_queue_.DoomEntriesSince(initial_time, callback);
   return net::ERR_IO_PENDING;
 }
 
 int BackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
-                               CompletionCallback* callback) {
+                               OldCompletionCallback* callback) {
   DCHECK(callback);
   background_queue_.OpenNextEntry(iter, next_entry, callback);
   return net::ERR_IO_PENDING;

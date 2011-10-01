@@ -99,7 +99,7 @@ void StressTheCache(int iteration) {
           base::Thread::Options(MessageLoop::TYPE_IO, 0)))
     return;
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv = disk_cache::BackendImpl::CreateBackend(
                path, false, cache_size, net::DISK_CACHE,

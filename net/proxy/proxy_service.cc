@@ -108,7 +108,7 @@ class ProxyResolverNull : public ProxyResolver {
   // ProxyResolver implementation:
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             CompletionCallback* callback,
+                             OldCompletionCallback* callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) OVERRIDE {
     return ERR_NOT_IMPLEMENTED;
@@ -124,7 +124,7 @@ class ProxyResolverNull : public ProxyResolver {
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& /*script_data*/,
-      CompletionCallback* /*callback*/) OVERRIDE {
+      OldCompletionCallback* /*callback*/) OVERRIDE {
     return ERR_NOT_IMPLEMENTED;
   }
 };
@@ -139,7 +139,7 @@ class ProxyResolverFromPacString : public ProxyResolver {
 
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             CompletionCallback* callback,
+                             OldCompletionCallback* callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) OVERRIDE {
     results->UsePacString(pac_string_);
@@ -156,7 +156,7 @@ class ProxyResolverFromPacString : public ProxyResolver {
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& pac_script,
-      CompletionCallback* callback) OVERRIDE {
+      OldCompletionCallback* callback) OVERRIDE {
     return OK;
   }
 
@@ -299,7 +299,7 @@ class ProxyService::PacRequest
   PacRequest(ProxyService* service,
              const GURL& url,
              ProxyInfo* results,
-             CompletionCallback* user_callback,
+             OldCompletionCallback* user_callback,
              const BoundNetLog& net_log)
       : service_(service),
         user_callback_(user_callback),
@@ -393,7 +393,7 @@ class ProxyService::PacRequest
 
     // Remove this completed PacRequest from the service's pending list.
     /// (which will probably cause deletion of |this|).
-    CompletionCallback* callback = user_callback_;
+    OldCompletionCallback* callback = user_callback_;
     service_->RemovePendingRequest(this);
 
     callback->Run(result_code);
@@ -405,8 +405,8 @@ class ProxyService::PacRequest
   // requests are cancelled during ~ProxyService, so this is guaranteed
   // to be valid throughout our lifetime.
   ProxyService* service_;
-  CompletionCallback* user_callback_;
-  CompletionCallbackImpl<PacRequest> io_callback_;
+  OldCompletionCallback* user_callback_;
+  OldCompletionCallbackImpl<PacRequest> io_callback_;
   ProxyInfo* results_;
   GURL url_;
   ProxyResolver::RequestHandle resolve_job_;
@@ -546,7 +546,7 @@ ProxyService* ProxyService::CreateFixedFromPacResult(
 
 int ProxyService::ResolveProxy(const GURL& raw_url,
                                ProxyInfo* result,
-                               CompletionCallback* callback,
+                               OldCompletionCallback* callback,
                                PacRequest** pac_request,
                                const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
@@ -720,7 +720,7 @@ void ProxyService::OnInitProxyResolverComplete(int result) {
 
 int ProxyService::ReconsiderProxyAfterError(const GURL& url,
                                             ProxyInfo* result,
-                                            CompletionCallback* callback,
+                                            OldCompletionCallback* callback,
                                             PacRequest** pac_request,
                                             const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());

@@ -12,31 +12,31 @@ namespace net {
 
 // A callback specialization that takes a single int parameter.  Usually this
 // is used to report a byte count or network error code.
-typedef Callback1<int>::Type CompletionCallback;
+typedef Callback1<int>::Type OldCompletionCallback;
 
-// Used to implement a CompletionCallback.
+// Used to implement a OldCompletionCallback.
 template <class T>
-class CompletionCallbackImpl :
+class OldCompletionCallbackImpl :
     public CallbackImpl< T, void (T::*)(int), Tuple1<int> > {
  public:
-  CompletionCallbackImpl(T* obj, void (T::* meth)(int))
+  OldCompletionCallbackImpl(T* obj, void (T::* meth)(int))
     : CallbackImpl< T, void (T::*)(int),
                     Tuple1<int> >::CallbackImpl(obj, meth) {
   }
 };
 
-// CancelableCompletionCallback is used for completion callbacks
+// CancelableOldCompletionCallback is used for completion callbacks
 // which may outlive the target for the method dispatch. In such a case, the
 // provider of the callback calls Cancel() to mark the callback as
 // "canceled". When the canceled callback is eventually run it does nothing
 // other than to decrement the refcount to 0 and free the memory.
 template <class T>
-class CancelableCompletionCallback :
-    public CompletionCallbackImpl<T>,
-    public base::RefCounted<CancelableCompletionCallback<T> > {
+class CancelableOldCompletionCallback :
+    public OldCompletionCallbackImpl<T>,
+    public base::RefCounted<CancelableOldCompletionCallback<T> > {
  public:
-  CancelableCompletionCallback(T* obj, void (T::* meth)(int))
-    : CompletionCallbackImpl<T>(obj, meth), is_canceled_(false) {
+  CancelableOldCompletionCallback(T* obj, void (T::* meth)(int))
+    : OldCompletionCallbackImpl<T>(obj, meth), is_canceled_(false) {
   }
 
   void Cancel() {
@@ -45,9 +45,9 @@ class CancelableCompletionCallback :
 
   virtual void RunWithParams(const Tuple1<int>& params) {
     if (is_canceled_) {
-      base::RefCounted<CancelableCompletionCallback<T> >::Release();
+      base::RefCounted<CancelableOldCompletionCallback<T> >::Release();
     } else {
-      CompletionCallbackImpl<T>::RunWithParams(params);
+      OldCompletionCallbackImpl<T>::RunWithParams(params);
     }
   }
 

@@ -26,14 +26,14 @@ int UDPServerSocket::Listen(const IPEndPoint& address) {
 int UDPServerSocket::RecvFrom(IOBuffer* buf,
                               int buf_len,
                               IPEndPoint* address,
-                              CompletionCallback* callback) {
+                              OldCompletionCallback* callback) {
   return socket_.RecvFrom(buf, buf_len, address, callback);
 }
 
 int UDPServerSocket::SendTo(IOBuffer* buf,
                             int buf_len,
                             const IPEndPoint& address,
-                            CompletionCallback* callback) {
+                            OldCompletionCallback* callback) {
   return socket_.SendTo(buf, buf_len, address, callback);
 }
 

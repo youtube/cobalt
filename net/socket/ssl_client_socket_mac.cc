@@ -554,7 +554,7 @@ SSLClientSocketMac::~SSLClientSocketMac() {
   Disconnect();
 }
 
-int SSLClientSocketMac::Connect(CompletionCallback* callback) {
+int SSLClientSocketMac::Connect(OldCompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(next_handshake_state_ == STATE_NONE);
   DCHECK(!user_connect_callback_);
@@ -675,7 +675,7 @@ base::TimeDelta SSLClientSocketMac::GetConnectTimeMicros() const {
 }
 
 int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
-                             CompletionCallback* callback) {
+                             OldCompletionCallback* callback) {
   DCHECK(completed_handshake());
   DCHECK(!user_read_callback_);
   DCHECK(!user_read_buf_);
@@ -694,7 +694,7 @@ int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
 }
 
 int SSLClientSocketMac::Write(IOBuffer* buf, int buf_len,
-                              CompletionCallback* callback) {
+                              OldCompletionCallback* callback) {
   DCHECK(completed_handshake());
   DCHECK(!user_write_callback_);
   DCHECK(!user_write_buf_);
@@ -893,7 +893,7 @@ void SSLClientSocketMac::DoConnectCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
   DCHECK(user_connect_callback_);
 
-  CompletionCallback* c = user_connect_callback_;
+  OldCompletionCallback* c = user_connect_callback_;
   user_connect_callback_ = NULL;
   c->Run(rv > OK ? OK : rv);
 }
@@ -904,7 +904,7 @@ void SSLClientSocketMac::DoReadCallback(int rv) {
 
   // Since Run may result in Read being called, clear user_read_callback_ up
   // front.
-  CompletionCallback* c = user_read_callback_;
+  OldCompletionCallback* c = user_read_callback_;
   user_read_callback_ = NULL;
   user_read_buf_ = NULL;
   user_read_buf_len_ = 0;
@@ -917,7 +917,7 @@ void SSLClientSocketMac::DoWriteCallback(int rv) {
 
   // Since Run may result in Write being called, clear user_write_callback_ up
   // front.
-  CompletionCallback* c = user_write_callback_;
+  OldCompletionCallback* c = user_write_callback_;
   user_write_callback_ = NULL;
   user_write_buf_ = NULL;
   user_write_buf_len_ = 0;

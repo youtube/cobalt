@@ -98,7 +98,7 @@ class SOCKSConnectJob : public ConnectJob {
   HostResolver* const resolver_;
 
   State next_state_;
-  CompletionCallbackImpl<SOCKSConnectJob> callback_;
+  OldCompletionCallbackImpl<SOCKSConnectJob> callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<StreamSocket> socket_;
 
@@ -122,7 +122,7 @@ class NET_EXPORT_PRIVATE SOCKSClientSocketPool : public ClientSocketPool {
                             const void* connect_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
+                            OldCompletionCallback* callback,
                             const BoundNetLog& net_log);
 
   virtual void RequestSockets(const std::string& group_name,

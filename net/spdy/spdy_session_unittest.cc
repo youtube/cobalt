@@ -147,7 +147,7 @@ class StreamReleaserCallback : public CallbackRunner<Tuple1<int> > {
   scoped_refptr<SpdySession> session_;
   scoped_refptr<SpdyStream> first_stream_;
   scoped_refptr<SpdyStream> stream_;
-  TestCompletionCallback callback_;
+  TestOldCompletionCallback callback_;
 };
 
 // TODO(kristianm): Could also test with more sessions where some are idle,
@@ -165,7 +165,7 @@ TEST_F(SpdySessionTest, CloseIdleSessions) {
   scoped_refptr<SpdySession> session1 =
       spdy_session_pool->Get(pair1, BoundNetLog());
   scoped_refptr<SpdyStream> spdy_stream1;
-  TestCompletionCallback callback1;
+  TestOldCompletionCallback callback1;
   GURL url1(kTestHost1);
   EXPECT_EQ(OK, session1->CreateStream(url1,
                                       MEDIUM, /* priority, not important */
@@ -180,7 +180,7 @@ TEST_F(SpdySessionTest, CloseIdleSessions) {
   scoped_refptr<SpdySession> session2 =
       spdy_session_pool->Get(pair2, BoundNetLog());
   scoped_refptr<SpdyStream> spdy_stream2;
-  TestCompletionCallback callback2;
+  TestOldCompletionCallback callback2;
   GURL url2(kTestHost2);
   EXPECT_EQ(OK, session2->CreateStream(url2,
                                       MEDIUM, /* priority, not important */
@@ -195,7 +195,7 @@ TEST_F(SpdySessionTest, CloseIdleSessions) {
   scoped_refptr<SpdySession> session3 =
       spdy_session_pool->Get(pair3, BoundNetLog());
   scoped_refptr<SpdyStream> spdy_stream3;
-  TestCompletionCallback callback3;
+  TestOldCompletionCallback callback3;
   GURL url3(kTestHost3);
   EXPECT_EQ(OK, session3->CreateStream(url3,
                                       MEDIUM, /* priority, not important */
@@ -326,7 +326,7 @@ TEST_F(SpdySessionTest, OnSettings) {
 
   // Create 2 streams.  First will succeed.  Second will be pending.
   scoped_refptr<SpdyStream> spdy_stream1;
-  TestCompletionCallback callback1;
+  TestOldCompletionCallback callback1;
   GURL url("http://www.google.com");
   EXPECT_EQ(OK,
             session->CreateStream(url,
@@ -412,7 +412,7 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
 
   // Use scoped_ptr to let us invalidate the memory when we want to, to trigger
   // a valgrind error if the callback is invoked when it's not supposed to be.
-  scoped_ptr<TestCompletionCallback> callback(new TestCompletionCallback);
+  scoped_ptr<TestOldCompletionCallback> callback(new TestOldCompletionCallback);
 
   // Create 2 streams.  First will succeed.  Second will be pending.
   scoped_refptr<SpdyStream> spdy_stream1;

@@ -43,7 +43,7 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   int Bind(const IPEndPoint& address);
 
   // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(OldCompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -60,8 +60,8 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   // Socket methods:
   // Multiple outstanding requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
@@ -172,10 +172,10 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   int write_buf_len_;
 
   // External callback; called when read is complete.
-  CompletionCallback* read_callback_;
+  OldCompletionCallback* read_callback_;
 
   // External callback; called when write is complete.
-  CompletionCallback* write_callback_;
+  OldCompletionCallback* write_callback_;
 
   // The next state for the Connect() state machine.
   ConnectState next_connect_state_;

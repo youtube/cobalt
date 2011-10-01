@@ -129,7 +129,7 @@ int32 MemBackendImpl::GetEntryCount() const {
 }
 
 int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
-                              CompletionCallback* callback) {
+                              OldCompletionCallback* callback) {
   if (OpenEntry(key, entry))
     return net::OK;
 
@@ -137,7 +137,7 @@ int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
 }
 
 int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
-                                CompletionCallback* callback) {
+                                OldCompletionCallback* callback) {
   if (CreateEntry(key, entry))
     return net::OK;
 
@@ -145,14 +145,14 @@ int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
 }
 
 int MemBackendImpl::DoomEntry(const std::string& key,
-                              CompletionCallback* callback) {
+                              OldCompletionCallback* callback) {
   if (DoomEntry(key))
     return net::OK;
 
   return net::ERR_FAILED;
 }
 
-int MemBackendImpl::DoomAllEntries(CompletionCallback* callback) {
+int MemBackendImpl::DoomAllEntries(OldCompletionCallback* callback) {
   if (DoomAllEntries())
     return net::OK;
 
@@ -161,7 +161,7 @@ int MemBackendImpl::DoomAllEntries(CompletionCallback* callback) {
 
 int MemBackendImpl::DoomEntriesBetween(const base::Time initial_time,
                                        const base::Time end_time,
-                                       CompletionCallback* callback) {
+                                       OldCompletionCallback* callback) {
   if (DoomEntriesBetween(initial_time, end_time))
     return net::OK;
 
@@ -169,7 +169,7 @@ int MemBackendImpl::DoomEntriesBetween(const base::Time initial_time,
 }
 
 int MemBackendImpl::DoomEntriesSince(const base::Time initial_time,
-                                     CompletionCallback* callback) {
+                                     OldCompletionCallback* callback) {
   if (DoomEntriesSince(initial_time))
     return net::OK;
 
@@ -177,7 +177,7 @@ int MemBackendImpl::DoomEntriesSince(const base::Time initial_time,
 }
 
 int MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   if (OpenNextEntry(iter, next_entry))
     return net::OK;
 

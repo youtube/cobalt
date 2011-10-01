@@ -173,7 +173,7 @@ void PreconnectHelper(const TestCase& test,
   request.load_flags = 0;
 
   ProxyInfo proxy_info;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   session->http_stream_factory()->PreconnectStreams(
       test.num_streams, request, ssl_config, ssl_config, BoundNetLog());
@@ -194,7 +194,7 @@ class CapturePreconnectsSocketPool : public ParentPool {
                             const void* socket_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
+                            OldCompletionCallback* callback,
                             const BoundNetLog& net_log) {
     ADD_FAILURE();
     return ERR_UNEXPECTED;

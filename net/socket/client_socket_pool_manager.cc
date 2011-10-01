@@ -72,7 +72,7 @@ int InitSocketPoolHelper(const GURL& request_url,
                          const BoundNetLog& net_log,
                          int num_preconnect_streams,
                          ClientSocketHandle* socket_handle,
-                         CompletionCallback* callback) {
+                         OldCompletionCallback* callback) {
   scoped_refptr<TransportSocketParams> tcp_params;
   scoped_refptr<HttpProxySocketParams> http_proxy_params;
   scoped_refptr<SOCKSSocketParams> socks_params;
@@ -635,7 +635,7 @@ int ClientSocketPoolManager::InitSocketHandleForHttpRequest(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     ClientSocketHandle* socket_handle,
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   DCHECK(socket_handle);
   return InitSocketPoolHelper(request_url,
                               request_extra_headers,
@@ -663,7 +663,7 @@ int ClientSocketPoolManager::InitSocketHandleForRawConnect(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     ClientSocketHandle* socket_handle,
-    CompletionCallback* callback) {
+    OldCompletionCallback* callback) {
   DCHECK(socket_handle);
   // Synthesize an HttpRequestInfo.
   GURL request_url = GURL("http://" + host_port_pair.ToString());

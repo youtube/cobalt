@@ -32,7 +32,7 @@ class SSLServerSocketNSS : public SSLServerSocket {
   virtual ~SSLServerSocketNSS();
 
   // SSLServerSocket interface.
-  virtual int Handshake(CompletionCallback* callback);
+  virtual int Handshake(OldCompletionCallback* callback);
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
                                    const base::StringPiece& context,
                                    unsigned char *out,
@@ -40,14 +40,14 @@ class SSLServerSocketNSS : public SSLServerSocket {
 
   // Socket interface (via StreamSocket).
   virtual int Read(IOBuffer* buf, int buf_len,
-                   CompletionCallback* callback);
+                   OldCompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len,
-                    CompletionCallback* callback);
+                    OldCompletionCallback* callback);
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
   // StreamSocket interface.
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(OldCompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -98,8 +98,8 @@ class SSLServerSocketNSS : public SSLServerSocket {
   virtual int Init();
 
   // Members used to send and receive buffer.
-  CompletionCallbackImpl<SSLServerSocketNSS> buffer_send_callback_;
-  CompletionCallbackImpl<SSLServerSocketNSS> buffer_recv_callback_;
+  OldCompletionCallbackImpl<SSLServerSocketNSS> buffer_send_callback_;
+  OldCompletionCallbackImpl<SSLServerSocketNSS> buffer_recv_callback_;
   bool transport_send_busy_;
   bool transport_recv_busy_;
 
@@ -107,9 +107,9 @@ class SSLServerSocketNSS : public SSLServerSocket {
 
   BoundNetLog net_log_;
 
-  CompletionCallback* user_handshake_callback_;
-  CompletionCallback* user_read_callback_;
-  CompletionCallback* user_write_callback_;
+  OldCompletionCallback* user_handshake_callback_;
+  OldCompletionCallback* user_read_callback_;
+  OldCompletionCallback* user_write_callback_;
 
   // Used by Read function.
   scoped_refptr<IOBuffer> user_read_buf_;

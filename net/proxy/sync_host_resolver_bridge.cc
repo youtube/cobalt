@@ -52,7 +52,7 @@ class SyncHostResolverBridge::Core
 
   HostResolver* const host_resolver_;
   MessageLoop* const host_resolver_loop_;
-  net::CompletionCallbackImpl<Core> callback_;
+  net::OldCompletionCallbackImpl<Core> callback_;
   // The result from the current request (set on |host_resolver_loop_|).
   int err_;
   // The currently outstanding request to |host_resolver_|, or NULL.

@@ -112,7 +112,7 @@ TEST_F(SOCKSClientSocketPoolTest, Async) {
   SOCKS5MockData data(true);
   transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   ClientSocketHandle handle;
   int rv = handle.Init("a", ignored_socket_params_, LOW, &callback, &pool_,
                        BoundNetLog());
@@ -143,7 +143,7 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncTransportConnectError) {
   socket_data->set_connect_data(MockConnect(true, ERR_CONNECTION_REFUSED));
   transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   ClientSocketHandle handle;
   int rv = handle.Init("a", ignored_socket_params_, LOW, &callback, &pool_,
                        BoundNetLog());
@@ -184,7 +184,7 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncSOCKSConnectError) {
   socket_data->set_connect_data(MockConnect(false, 0));
   transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   ClientSocketHandle handle;
   EXPECT_EQ(0, transport_socket_pool_.release_count());
   int rv = handle.Init("a", ignored_socket_params_, LOW, &callback, &pool_,

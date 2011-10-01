@@ -87,7 +87,7 @@ bool CachedCertVerifyResult::HasExpired(const base::Time current_time) const {
 // Represents the output and result callback of a request.
 class CertVerifierRequest {
  public:
-  CertVerifierRequest(CompletionCallback* callback,
+  CertVerifierRequest(OldCompletionCallback* callback,
                       CertVerifyResult* verify_result)
       : callback_(callback),
         verify_result_(verify_result) {
@@ -112,7 +112,7 @@ class CertVerifierRequest {
   bool canceled() const { return !callback_; }
 
  private:
-  CompletionCallback* callback_;
+  OldCompletionCallback* callback_;
   CertVerifyResult* verify_result_;
 };
 
@@ -309,7 +309,7 @@ int CertVerifier::Verify(X509Certificate* cert,
                          const std::string& hostname,
                          int flags,
                          CertVerifyResult* verify_result,
-                         CompletionCallback* callback,
+                         OldCompletionCallback* callback,
                          RequestHandle* out_req) {
   DCHECK(CalledOnValidThread());
 
@@ -466,7 +466,7 @@ int SingleRequestCertVerifier::Verify(X509Certificate* cert,
                                       const std::string& hostname,
                                       int flags,
                                       CertVerifyResult* verify_result,
-                                      CompletionCallback* callback) {
+                                      OldCompletionCallback* callback) {
   // Should not be already in use.
   DCHECK(!cur_request_ && !cur_request_callback_);
 
@@ -493,7 +493,7 @@ int SingleRequestCertVerifier::Verify(X509Certificate* cert,
 void SingleRequestCertVerifier::OnVerifyCompletion(int result) {
   DCHECK(cur_request_ && cur_request_callback_);
 
-  CompletionCallback* callback = cur_request_callback_;
+  OldCompletionCallback* callback = cur_request_callback_;
 
   // Clear the outstanding request information.
   cur_request_ = NULL;

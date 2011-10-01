@@ -55,12 +55,12 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   // Read from the socket.
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
-  int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
 
   // Write to the socket.
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
-  int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
 
   // Read from a socket and receive sender address information.
   // |buf| is the buffer to read data into.
@@ -78,7 +78,7 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   int RecvFrom(IOBuffer* buf,
                int buf_len,
                IPEndPoint* address,
-               CompletionCallback* callback);
+               OldCompletionCallback* callback);
 
   // Send to a socket with a particular destination.
   // |buf| is the buffer to send
@@ -92,7 +92,7 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   int SendTo(IOBuffer* buf,
              int buf_len,
              const IPEndPoint& address,
-             CompletionCallback* callback);
+             OldCompletionCallback* callback);
 
   // Returns true if the socket is already connected or bound.
   bool is_connected() const { return socket_ != kInvalidSocket; }
@@ -154,7 +154,7 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   int SendToOrWrite(IOBuffer* buf,
                     int buf_len,
                     const IPEndPoint* address,
-                    CompletionCallback* callback);
+                    OldCompletionCallback* callback);
 
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
@@ -195,10 +195,10 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   scoped_ptr<IPEndPoint> send_to_address_;
 
   // External callback; called when read is complete.
-  CompletionCallback* read_callback_;
+  OldCompletionCallback* read_callback_;
 
   // External callback; called when write is complete.
-  CompletionCallback* write_callback_;
+  OldCompletionCallback* write_callback_;
 
   BoundNetLog net_log_;
 

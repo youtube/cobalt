@@ -25,7 +25,7 @@ SingleRequestHostResolver::~SingleRequestHostResolver() {
 
 int SingleRequestHostResolver::Resolve(const HostResolver::RequestInfo& info,
                                        AddressList* addresses,
-                                       CompletionCallback* callback,
+                                       OldCompletionCallback* callback,
                                        const BoundNetLog& net_log) {
   DCHECK(addresses);
   DCHECK(callback);
@@ -35,7 +35,7 @@ int SingleRequestHostResolver::Resolve(const HostResolver::RequestInfo& info,
 
   // We need to be notified of completion before |callback| is called, so that
   // we can clear out |cur_request_*|.
-  CompletionCallback* transient_callback = callback ? &callback_ : NULL;
+  OldCompletionCallback* transient_callback = callback ? &callback_ : NULL;
 
   int rv = resolver_->Resolve(
       info, addresses, transient_callback, &request, net_log);
@@ -61,7 +61,7 @@ void SingleRequestHostResolver::Cancel() {
 void SingleRequestHostResolver::OnResolveCompletion(int result) {
   DCHECK(cur_request_ && cur_request_callback_);
 
-  CompletionCallback* callback = cur_request_callback_;
+  OldCompletionCallback* callback = cur_request_callback_;
 
   // Clear the outstanding request information.
   cur_request_ = NULL;

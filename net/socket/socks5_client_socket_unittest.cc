@@ -47,7 +47,7 @@ class SOCKS5ClientSocketTest : public PlatformTest {
   scoped_ptr<SOCKS5ClientSocket> user_sock_;
   AddressList address_list_;
   StreamSocket* tcp_sock_;
-  TestCompletionCallback callback_;
+  TestOldCompletionCallback callback_;
   scoped_ptr<MockHostResolver> host_resolver_;
   scoped_ptr<SocketDataProvider> data_;
 
@@ -67,7 +67,7 @@ void SOCKS5ClientSocketTest::SetUp() {
 
   // Resolve the "localhost" AddressList used by the TCP connection to connect.
   HostResolver::RequestInfo info(HostPortPair("www.socks-proxy.com", 1080));
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = host_resolver_->Resolve(info, &address_list_, &callback, NULL,
                                    BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, rv);
@@ -83,7 +83,7 @@ SOCKS5ClientSocket* SOCKS5ClientSocketTest::BuildMockSocket(
     const std::string& hostname,
     int port,
     NetLog* net_log) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   data_.reset(new StaticSocketDataProvider(reads, reads_count,
                                            writes, writes_count));
   tcp_sock_ = new MockTCPClientSocket(address_list_, net_log, data_.get());
@@ -221,7 +221,7 @@ TEST_F(SOCKS5ClientSocketTest, LargeHostNameFails) {
 
   // Try to connect -- should fail (without having read/written anything to
   // the transport socket first) because the hostname is too long.
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   int rv = user_sock_->Connect(&callback);
   EXPECT_EQ(ERR_SOCKS_CONNECTION_FAILED, rv);
 }

@@ -31,7 +31,7 @@ class UDPSocketTest : public PlatformTest {
 
   // Blocks until data is read from the socket.
   std::string RecvFromSocket(UDPServerSocket* socket) {
-    TestCompletionCallback callback;
+    TestOldCompletionCallback callback;
 
     int rv = socket->RecvFrom(buffer_, kMaxRead, &recv_from_address_,
                               &callback);
@@ -54,7 +54,7 @@ class UDPSocketTest : public PlatformTest {
   int SendToSocket(UDPServerSocket* socket,
                    std::string msg,
                    const IPEndPoint& address) {
-    TestCompletionCallback callback;
+    TestOldCompletionCallback callback;
 
     int length = msg.length();
     scoped_refptr<StringIOBuffer> io_buffer(new StringIOBuffer(msg));
@@ -76,7 +76,7 @@ class UDPSocketTest : public PlatformTest {
   }
 
   std::string ReadSocket(UDPClientSocket* socket) {
-    TestCompletionCallback callback;
+    TestOldCompletionCallback callback;
 
     int rv = socket->Read(buffer_, kMaxRead, &callback);
     if (rv == ERR_IO_PENDING)
@@ -89,7 +89,7 @@ class UDPSocketTest : public PlatformTest {
   // Loop until |msg| has been written to the socket or until an
   // error occurs.
   int WriteSocket(UDPClientSocket* socket, std::string msg) {
-    TestCompletionCallback callback;
+    TestOldCompletionCallback callback;
 
     int length = msg.length();
     scoped_refptr<StringIOBuffer> io_buffer(new StringIOBuffer(msg));
@@ -394,7 +394,7 @@ TEST_F(UDPSocketTest, CloseWithPendingRead) {
   int rv = server.Listen(bind_address);
   EXPECT_EQ(OK, rv);
 
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   IPEndPoint from;
   rv = server.RecvFrom(buffer_, kMaxRead, &from, &callback);
   EXPECT_EQ(rv, ERR_IO_PENDING);

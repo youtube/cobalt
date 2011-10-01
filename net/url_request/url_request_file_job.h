@@ -57,7 +57,7 @@ class NET_EXPORT URLRequestFileJob : public URLRequestJob {
   // Callback after data is asynchronously read from the file.
   void DidRead(int result);
 
-  CompletionCallbackImpl<URLRequestFileJob> io_callback_;
+  OldCompletionCallbackImpl<URLRequestFileJob> io_callback_;
   FileStream stream_;
   bool is_directory_;
 

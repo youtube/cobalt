@@ -75,7 +75,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
                                   const HttpRequestHeaders& headers,
                                   UploadDataStream* request_body,
                                   HttpResponseInfo* response,
-                                  CompletionCallback* callback) {
+                                  OldCompletionCallback* callback) {
   DCHECK_EQ(STATE_NONE, io_state_);
   DCHECK(!user_callback_);
   DCHECK(callback);
@@ -119,7 +119,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   return result > 0 ? OK : result;
 }
 
-int HttpStreamParser::ReadResponseHeaders(CompletionCallback* callback) {
+int HttpStreamParser::ReadResponseHeaders(OldCompletionCallback* callback) {
   DCHECK(io_state_ == STATE_REQUEST_SENT || io_state_ == STATE_DONE);
   DCHECK(!user_callback_);
   DCHECK(callback);
@@ -154,7 +154,7 @@ void HttpStreamParser::Close(bool not_reusable) {
 }
 
 int HttpStreamParser::ReadResponseBody(IOBuffer* buf, int buf_len,
-                                       CompletionCallback* callback) {
+                                       OldCompletionCallback* callback) {
   DCHECK(io_state_ == STATE_BODY_PENDING || io_state_ == STATE_DONE);
   DCHECK(!user_callback_);
   DCHECK(callback);
@@ -180,7 +180,7 @@ void HttpStreamParser::OnIOComplete(int result) {
   // The client callback can do anything, including destroying this class,
   // so any pending callback must be issued after everything else is done.
   if (result != ERR_IO_PENDING && user_callback_) {
-    CompletionCallback* c = user_callback_;
+    OldCompletionCallback* c = user_callback_;
     user_callback_ = NULL;
     c->Run(result);
   }

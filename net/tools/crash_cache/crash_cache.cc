@@ -126,7 +126,7 @@ bool CreateTargetFolder(const FilePath& path, RankCrashes action,
 
 // Makes sure that any pending task is processed.
 void FlushQueue(disk_cache::Backend* cache) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv =
       reinterpret_cast<disk_cache::BackendImpl*>(cache)->FlushQueueForTest(&cb);
   cb.GetResult(rv);  // Ignore the result;
@@ -135,7 +135,7 @@ void FlushQueue(disk_cache::Backend* cache) {
 // Generates the files for an empty and one item cache.
 int SimpleInsert(const FilePath& path, RankCrashes action,
                  base::Thread* cache_thread) {
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv = disk_cache::CreateCacheBackend(net::DISK_CACHE, path, 0, false,
                                           cache_thread->message_loop_proxy(),
@@ -175,7 +175,7 @@ int SimpleRemove(const FilePath& path, RankCrashes action,
   DCHECK(action >= disk_cache::REMOVE_ONE_1);
   DCHECK(action <= disk_cache::REMOVE_TAIL_3);
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
   // Use a simple LRU for eviction.
   int rv = disk_cache::CreateCacheBackend(net::MEDIA_CACHE, path, 0, false,
@@ -218,7 +218,7 @@ int HeadRemove(const FilePath& path, RankCrashes action,
   DCHECK(action >= disk_cache::REMOVE_HEAD_1);
   DCHECK(action <= disk_cache::REMOVE_HEAD_4);
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
   // Use a simple LRU for eviction.
   int rv = disk_cache::CreateCacheBackend(net::MEDIA_CACHE, path, 0, false,
@@ -264,7 +264,7 @@ int LoadOperations(const FilePath& path, RankCrashes action,
   if (!cache || !cache->SetMaxSize(0x100000))
     return GENERIC;
 
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = cache->Init(&cb);
   if (cb.GetResult(rv) != net::OK || cache->GetEntryCount())
     return GENERIC;

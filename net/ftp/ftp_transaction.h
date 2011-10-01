@@ -29,7 +29,7 @@ class NET_EXPORT_PRIVATE FtpTransaction {
   // Returns OK if the transaction could be started synchronously, which means
   // that the request was served from the cache (only supported for directory
   // listings).  ERR_IO_PENDING is returned to indicate that the
-  // CompletionCallback will be notified once response info is available or if
+  // OldCompletionCallback will be notified once response info is available or if
   // an IO error occurs.  Any other return value indicates that the transaction
   // could not be started.
   //
@@ -40,22 +40,22 @@ class NET_EXPORT_PRIVATE FtpTransaction {
   //
   // Profiling information for the request is saved to |net_log| if non-NULL.
   virtual int Start(const FtpRequestInfo* request_info,
-                    CompletionCallback* callback,
+                    OldCompletionCallback* callback,
                     const BoundNetLog& net_log) = 0;
 
   // Restarts the FTP transaction with authentication credentials.
   virtual int RestartWithAuth(const string16& username,
                               const string16& password,
-                              CompletionCallback* callback) = 0;
+                              OldCompletionCallback* callback) = 0;
 
   // Once response info is available for the transaction, response data may be
   // read by calling this method.
   //
   // Response data is copied into the given buffer and the number of bytes
   // copied is returned.  ERR_IO_PENDING is returned if response data is not
-  // yet available.  The CompletionCallback is notified when the data copy
+  // yet available.  The OldCompletionCallback is notified when the data copy
   // completes, and it is passed the number of bytes that were successfully
-  // copied.  Or, if a read error occurs, the CompletionCallback is notified of
+  // copied.  Or, if a read error occurs, the OldCompletionCallback is notified of
   // the error.  Any other negative return value indicates that the transaction
   // could not be read.
   //
@@ -63,7 +63,7 @@ class NET_EXPORT_PRIVATE FtpTransaction {
   //
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   CompletionCallback* callback) = 0;
+                   OldCompletionCallback* callback) = 0;
 
   // Returns the response info for this transaction or NULL if the response
   // info is not available.

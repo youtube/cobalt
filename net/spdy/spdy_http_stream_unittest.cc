@@ -32,7 +32,7 @@ class SpdyHttpStreamTest : public testing::Test {
     session_ = http_session_->spdy_session_pool()->Get(pair, BoundNetLog());
     transport_params_ = new TransportSocketParams(host_port_pair,
                                       MEDIUM, GURL(), false, false);
-    TestCompletionCallback callback;
+    TestOldCompletionCallback callback;
     scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
     EXPECT_EQ(ERR_IO_PENDING,
               connection->Init(host_port_pair.ToString(),
@@ -73,7 +73,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("http://www.google.com/");
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   BoundNetLog net_log;
@@ -133,7 +133,7 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPost) {
   request.upload_data->set_is_chunked(true);
   request.upload_data->AppendChunk(kUploadData, kUploadDataSize, false);
   request.upload_data->AppendChunk(kUploadData, kUploadDataSize, true);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   BoundNetLog net_log;
@@ -187,7 +187,7 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL(full_url);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   BoundNetLog net_log;

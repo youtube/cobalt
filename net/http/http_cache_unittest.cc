@@ -114,7 +114,7 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       net::CompletionCallback* callback) {
+                       net::OldCompletionCallback* callback) {
     DCHECK(index >= 0 && index < kNumCacheEntryDataIndices);
     DCHECK(callback);
 
@@ -137,7 +137,7 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        net::CompletionCallback* callback, bool truncate) {
+                        net::OldCompletionCallback* callback, bool truncate) {
     DCHECK(index >= 0 && index < kNumCacheEntryDataIndices);
     DCHECK(callback);
     DCHECK(truncate);
@@ -162,7 +162,7 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                             net::CompletionCallback* callback) {
+                             net::OldCompletionCallback* callback) {
     DCHECK(callback);
     if (!sparse_ || busy_)
       return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
@@ -191,7 +191,7 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* callback) {
+                              net::OldCompletionCallback* callback) {
     DCHECK(callback);
     if (busy_)
       return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
@@ -223,7 +223,7 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual int GetAvailableRange(int64 offset, int len, int64* start,
-                                net::CompletionCallback* callback) {
+                                net::OldCompletionCallback* callback) {
     DCHECK(callback);
     if (!sparse_ || busy_)
       return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
@@ -266,7 +266,7 @@ class MockDiskEntry : public disk_cache::Entry,
 
   virtual void CancelSparseIO() { cancel_ = true; }
 
-  virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback) {
+  virtual int ReadyForSparseIO(net::OldCompletionCallback* completion_callback) {
     if (!cancel_)
       return net::OK;
 
@@ -300,7 +300,7 @@ class MockDiskEntry : public disk_cache::Entry,
 
   struct CallbackInfo {
     scoped_refptr<MockDiskEntry> entry;
-    net::CompletionCallback* callback;
+    net::OldCompletionCallback* callback;
     int result;
   };
 
@@ -309,13 +309,13 @@ class MockDiskEntry : public disk_cache::Entry,
   // Unlike the callbacks for MockHttpTransaction, we want this one to run even
   // if the consumer called Close on the MockDiskEntry.  We achieve that by
   // leveraging the fact that this class is reference counted.
-  void CallbackLater(net::CompletionCallback* callback, int result) {
+  void CallbackLater(net::OldCompletionCallback* callback, int result) {
     if (ignore_callbacks_)
       return StoreAndDeliverCallbacks(true, this, callback, result);
     MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
         this, &MockDiskEntry::RunCallback, callback, result));
   }
-  void RunCallback(net::CompletionCallback* callback, int result) {
+  void RunCallback(net::OldCompletionCallback* callback, int result) {
     if (busy_) {
       // This is kind of hacky, but controlling the behavior of just this entry
       // from a test is sort of complicated.  What we really want to do is
@@ -337,7 +337,7 @@ class MockDiskEntry : public disk_cache::Entry,
   // When |store| is true, stores the callback to be delivered later; otherwise
   // delivers any callback previously stored.
   static void StoreAndDeliverCallbacks(bool store, MockDiskEntry* entry,
-                                       net::CompletionCallback* callback,
+                                       net::OldCompletionCallback* callback,
                                        int result) {
     static std::vector<CallbackInfo> callback_list;
     if (store) {
@@ -384,7 +384,7 @@ class MockDiskCache : public disk_cache::Backend {
   }
 
   virtual int OpenEntry(const std::string& key, disk_cache::Entry** entry,
-                        net::CompletionCallback* callback) {
+                        net::OldCompletionCallback* callback) {
     DCHECK(callback);
     if (fail_requests_)
       return net::ERR_CACHE_OPEN_FAILURE;
@@ -415,7 +415,7 @@ class MockDiskCache : public disk_cache::Backend {
   }
 
   virtual int CreateEntry(const std::string& key, disk_cache::Entry** entry,
-                          net::CompletionCallback* callback) {
+                          net::OldCompletionCallback* callback) {
     DCHECK(callback);
     if (fail_requests_)
       return net::ERR_CACHE_CREATE_FAILURE;
@@ -448,7 +448,7 @@ class MockDiskCache : public disk_cache::Backend {
   }
 
   virtual int DoomEntry(const std::string& key,
-                        net::CompletionCallback* callback) {
+                        net::OldCompletionCallback* callback) {
     DCHECK(callback);
     EntryMap::iterator it = entries_.find(key);
     if (it != entries_.end()) {
@@ -463,23 +463,23 @@ class MockDiskCache : public disk_cache::Backend {
     return net::ERR_IO_PENDING;
   }
 
-  virtual int DoomAllEntries(net::CompletionCallback* callback) {
+  virtual int DoomAllEntries(net::OldCompletionCallback* callback) {
     return net::ERR_NOT_IMPLEMENTED;
   }
 
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
-                                 net::CompletionCallback* callback) {
+                                 net::OldCompletionCallback* callback) {
     return net::ERR_NOT_IMPLEMENTED;
   }
 
   virtual int DoomEntriesSince(const base::Time initial_time,
-                               net::CompletionCallback* callback) {
+                               net::OldCompletionCallback* callback) {
     return net::ERR_NOT_IMPLEMENTED;
   }
 
   virtual int OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
-                            net::CompletionCallback* callback) {
+                            net::OldCompletionCallback* callback) {
     return net::ERR_NOT_IMPLEMENTED;
   }
 
@@ -515,19 +515,19 @@ class MockDiskCache : public disk_cache::Backend {
 
   class CallbackRunner : public Task {
    public:
-    CallbackRunner(net::CompletionCallback* callback, int result)
+    CallbackRunner(net::OldCompletionCallback* callback, int result)
         : callback_(callback), result_(result) {}
     virtual void Run() {
       callback_->Run(result_);
     }
 
    private:
-    net::CompletionCallback* callback_;
+    net::OldCompletionCallback* callback_;
     int result_;
     DISALLOW_COPY_AND_ASSIGN(CallbackRunner);
   };
 
-  void CallbackLater(net::CompletionCallback* callback, int result) {
+  void CallbackLater(net::OldCompletionCallback* callback, int result) {
     MessageLoop::current()->PostTask(FROM_HERE,
                                      new CallbackRunner(callback, result));
   }
@@ -543,7 +543,7 @@ class MockBackendFactory : public net::HttpCache::BackendFactory {
  public:
   virtual int CreateBackend(net::NetLog*  /* net_log */,
                             disk_cache::Backend** backend,
-                            net::CompletionCallback* callback) {
+                            net::OldCompletionCallback* callback) {
     *backend = new MockDiskCache();
     return net::OK;
   }
@@ -565,7 +565,7 @@ class MockHttpCache {
     return static_cast<MockNetworkLayer*>(http_cache_.network_layer());
   }
   MockDiskCache* disk_cache() {
-    TestCompletionCallback cb;
+    TestOldCompletionCallback cb;
     disk_cache::Backend* backend;
     int rv = http_cache_.GetBackend(&backend, &cb);
     rv = cb.GetResult(rv);
@@ -578,7 +578,7 @@ class MockHttpCache {
                                bool* response_truncated) {
     int size = disk_entry->GetDataSize(0);
 
-    TestCompletionCallback cb;
+    TestOldCompletionCallback cb;
     scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(size));
     int rv = disk_entry->ReadData(0, 0, buffer, size, &cb);
     rv = cb.GetResult(rv);
@@ -598,7 +598,7 @@ class MockHttpCache {
     response_info->Persist(
         &pickle, skip_transient_headers, response_truncated);
 
-    TestCompletionCallback cb;
+    TestOldCompletionCallback cb;
     scoped_refptr<net::WrappedIOBuffer> data(new net::WrappedIOBuffer(
         reinterpret_cast<const char*>(pickle.data())));
     int len = static_cast<int>(pickle.size());
@@ -610,7 +610,7 @@ class MockHttpCache {
 
   // Helper function to synchronously open a backend entry.
   bool OpenBackendEntry(const std::string& key, disk_cache::Entry** entry) {
-    TestCompletionCallback cb;
+    TestOldCompletionCallback cb;
     int rv = disk_cache()->OpenEntry(key, entry, &cb);
     return (cb.GetResult(rv) == net::OK);
   }
@@ -618,7 +618,7 @@ class MockHttpCache {
   // Helper function to synchronously create a backend entry.
   bool CreateBackendEntry(const std::string& key, disk_cache::Entry** entry,
                           net::NetLog*  /* net_log */) {
-    TestCompletionCallback cb;
+    TestOldCompletionCallback cb;
     int rv = disk_cache()->CreateEntry(key, entry, &cb);
     return (cb.GetResult(rv) == net::OK);
   }
@@ -630,7 +630,7 @@ class MockHttpCache {
 // This version of the disk cache doesn't invoke CreateEntry callbacks.
 class MockDiskCacheNoCB : public MockDiskCache {
   virtual int CreateEntry(const std::string& key, disk_cache::Entry** entry,
-                          net::CompletionCallback* callback) {
+                          net::OldCompletionCallback* callback) {
     return net::ERR_IO_PENDING;
   }
 };
@@ -639,7 +639,7 @@ class MockBackendNoCbFactory : public net::HttpCache::BackendFactory {
  public:
   virtual int CreateBackend(net::NetLog*  /* net_log */,
                             disk_cache::Backend** backend,
-                            net::CompletionCallback* callback) {
+                            net::OldCompletionCallback* callback) {
     *backend = new MockDiskCacheNoCB();
     return net::OK;
   }
@@ -653,7 +653,7 @@ class MockBlockingBackendFactory : public net::HttpCache::BackendFactory {
 
   virtual int CreateBackend(net::NetLog*  /* net_log */,
                             disk_cache::Backend** backend,
-                            net::CompletionCallback* callback) {
+                            net::OldCompletionCallback* callback) {
     if (!block_) {
       if (!fail_)
         *backend = new MockDiskCache();
@@ -672,7 +672,7 @@ class MockBlockingBackendFactory : public net::HttpCache::BackendFactory {
     if (callback_) {
       if (!fail_)
         *backend_ = new MockDiskCache();
-      net::CompletionCallback* cb = callback_;
+      net::OldCompletionCallback* cb = callback_;
       callback_ = NULL;
       cb->Run(Result());  // This object can be deleted here.
     }
@@ -681,25 +681,25 @@ class MockBlockingBackendFactory : public net::HttpCache::BackendFactory {
   disk_cache::Backend** backend() { return backend_; }
   void set_fail(bool fail) { fail_ = fail; }
 
-  net::CompletionCallback* callback() { return callback_; }
+  net::OldCompletionCallback* callback() { return callback_; }
 
  private:
   int Result() { return fail_ ? net::ERR_FAILED : net::OK; }
 
   disk_cache::Backend** backend_;
-  net::CompletionCallback* callback_;
+  net::OldCompletionCallback* callback_;
   bool block_;
   bool fail_;
 };
 
-class DeleteCacheCompletionCallback : public TestCompletionCallback {
+class DeleteCacheOldCompletionCallback : public TestOldCompletionCallback {
  public:
-  explicit DeleteCacheCompletionCallback(MockHttpCache* cache)
+  explicit DeleteCacheOldCompletionCallback(MockHttpCache* cache)
       : cache_(cache) {}
 
   virtual void RunWithParams(const Tuple1<int>& params) {
     delete cache_;
-    TestCompletionCallback::RunWithParams(params);
+    TestOldCompletionCallback::RunWithParams(params);
   }
 
  private:
@@ -724,7 +724,7 @@ void RunTransactionTestWithRequestAndLog(net::HttpCache* cache,
                                          const MockHttpRequest& request,
                                          net::HttpResponseInfo* response_info,
                                          const net::BoundNetLog& net_log) {
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   // write to the cache
 
@@ -1004,7 +1004,7 @@ void CreateTruncatedEntry(std::string raw_headers, MockHttpCache* cache) {
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            "rg: 00-09 rg: 10-19 ", 100));
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->WriteData(1, 0, buf, len, &cb, true);
   EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
@@ -1032,7 +1032,7 @@ struct Context {
   Context() : result(net::ERR_IO_PENDING) {}
 
   int result;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
   scoped_ptr<net::HttpTransaction> trans;
 };
 
@@ -1055,7 +1055,7 @@ TEST(HttpCache, GetBackend) {
   MockHttpCache cache(net::HttpCache::DefaultBackend::InMemory(0));
 
   disk_cache::Backend* backend;
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   // This will lazily initialize the backend.
   int rv = cache.http_cache()->GetBackend(&backend, &cb);
   EXPECT_EQ(net::OK, cb.GetResult(rv));
@@ -1279,7 +1279,7 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Miss) {
   transaction.load_flags |= net::LOAD_ONLY_FROM_CACHE;
 
   MockHttpRequest request(transaction);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<net::HttpTransaction> trans;
   int rv = cache.http_cache()->CreateTransaction(&trans);
@@ -1928,7 +1928,7 @@ TEST(HttpCache, SimpleGET_AbandonedCacheRead) {
   RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
 
   MockHttpRequest request(kSimpleGET_Transaction);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<net::HttpTransaction> trans;
   int rv = cache.http_cache()->CreateTransaction(&trans);
@@ -2109,7 +2109,7 @@ TEST(HttpCache, DeleteCacheWaitingForBackend) {
 
   // We cannot call FinishCreation because the factory itself will go away with
   // the cache, so grab the callback and attempt to use it.
-  net::CompletionCallback* callback = factory->callback();
+  net::OldCompletionCallback* callback = factory->callback();
   disk_cache::Backend** backend = factory->backend();
 
   cache.reset();
@@ -2125,7 +2125,7 @@ TEST(HttpCache, DeleteCacheWaitingForBackend2) {
   MockBlockingBackendFactory* factory = new MockBlockingBackendFactory();
   MockHttpCache* cache = new MockHttpCache(factory);
 
-  DeleteCacheCompletionCallback cb(cache);
+  DeleteCacheOldCompletionCallback cb(cache);
   disk_cache::Backend* backend;
   int rv = cache->http_cache()->GetBackend(&backend, &cb);
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
@@ -2140,7 +2140,7 @@ TEST(HttpCache, DeleteCacheWaitingForBackend2) {
   c->trans->Start(&request, &c->callback, net::BoundNetLog());
 
   // And another direct backend request.
-  TestCompletionCallback cb2;
+  TestOldCompletionCallback cb2;
   rv = cache->http_cache()->GetBackend(&backend, &cb2);
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 
@@ -2822,7 +2822,7 @@ TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Miss) {
   transaction.load_flags |= net::LOAD_ONLY_FROM_CACHE;
 
   MockHttpRequest request(transaction);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<net::HttpTransaction> trans;
   int rv = cache.http_cache()->CreateTransaction(&trans);
@@ -3474,7 +3474,7 @@ TEST(HttpCache, GET_Previous206_NotSparse) {
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            kRangeGET_TransactionOK.data, 500));
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->WriteData(1, 0, buf, len, &cb, true);
   EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
@@ -3518,7 +3518,7 @@ TEST(HttpCache, RangeGET_Previous206_NotSparse_2) {
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            kRangeGET_TransactionOK.data, 500));
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->WriteData(1, 0, buf, len, &cb, true);
   EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
@@ -3560,7 +3560,7 @@ TEST(HttpCache, GET_Previous206_NotValidation) {
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            kRangeGET_TransactionOK.data, 500));
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = entry->WriteData(1, 0, buf, len, &cb, true);
   EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
@@ -3958,7 +3958,7 @@ TEST(HttpCache, RangeGET_InvalidResponse3) {
   ASSERT_TRUE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &en));
 
   int64 cached_start = 0;
-  TestCompletionCallback cb;
+  TestOldCompletionCallback cb;
   int rv = en->GetAvailableRange(40, 20, &cached_start, &cb);
   EXPECT_EQ(10, cb.GetResult(rv));
   EXPECT_EQ(50, cached_start);
@@ -4120,7 +4120,7 @@ TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
   transaction.load_flags |= net::LOAD_ONLY_FROM_CACHE;
 
   MockHttpRequest request(transaction);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<net::HttpTransaction> trans;
   int rv = cache.http_cache()->CreateTransaction(&trans);
@@ -4701,7 +4701,7 @@ TEST(HttpCache, CachedRedirect) {
   kTestTransaction.response_headers = "Location: http://www.bar.com/\n";
 
   MockHttpRequest request(kTestTransaction);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   // write to the cache
   {
@@ -4856,7 +4856,7 @@ TEST(HttpCache, SimpleGET_SSLError) {
   transaction.load_flags |= net::LOAD_ONLY_FROM_CACHE;
 
   MockHttpRequest request(transaction);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<net::HttpTransaction> trans;
   int rv = cache.http_cache()->CreateTransaction(&trans);
@@ -5108,7 +5108,7 @@ TEST(HttpCache, ReadMetadata) {
 // of the stream.
 TEST(HttpCache, FilterCompletion) {
   MockHttpCache cache;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   {
     scoped_ptr<net::HttpTransaction> trans;
@@ -5142,7 +5142,7 @@ TEST(HttpCache, FilterCompletion) {
 // a Content-Length header.
 TEST(HttpCache, TruncatedByContentLength) {
   MockHttpCache cache;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   MockTransaction transaction(kSimpleGET_Transaction);
   AddMockTransaction(&transaction);
@@ -5163,7 +5163,7 @@ TEST(HttpCache, TruncatedByContentLength) {
 // from the net.
 TEST(HttpCache, TruncatedByContentLength2) {
   MockHttpCache cache;
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   MockTransaction transaction(kSimpleGET_Transaction);
   AddMockTransaction(&transaction);
@@ -5186,14 +5186,14 @@ TEST(HttpCache, TruncatedByContentLength2) {
 //-----------------------------------------------------------------------------
 // DiskCacheBasedSSLHostInfo tests
 
-class DeleteSSLHostInfoCompletionCallback : public TestCompletionCallback {
+class DeleteSSLHostInfoOldCompletionCallback : public TestOldCompletionCallback {
  public:
-  explicit DeleteSSLHostInfoCompletionCallback(net::SSLHostInfo* ssl_host_info)
+  explicit DeleteSSLHostInfoOldCompletionCallback(net::SSLHostInfo* ssl_host_info)
       : ssl_host_info_(ssl_host_info) {}
 
   virtual void RunWithParams(const Tuple1<int>& params) {
     delete ssl_host_info_;
-    TestCompletionCallback::RunWithParams(params);
+    TestOldCompletionCallback::RunWithParams(params);
   }
 
  private:
@@ -5213,7 +5213,7 @@ TEST(DiskCacheBasedSSLHostInfo, DeleteInCallback) {
       new net::DiskCacheBasedSSLHostInfo("https://www.verisign.com", ssl_config,
                                          &cert_verifier, cache.http_cache());
   ssl_host_info->Start();
-  DeleteSSLHostInfoCompletionCallback callback(ssl_host_info);
+  DeleteSSLHostInfoOldCompletionCallback callback(ssl_host_info);
   int rv = ssl_host_info->WaitForDataReady(&callback);
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
   // Now complete the backend creation and let the callback run.

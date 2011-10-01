@@ -32,7 +32,7 @@ class SSLServerSocket : public StreamSocket {
   // if the process completes asynchronously.  If Disconnect is called before
   // completion then the callback will be silently, as for other StreamSocket
   // calls.
-  virtual int Handshake(CompletionCallback* callback) = 0;
+  virtual int Handshake(OldCompletionCallback* callback) = 0;
 
   // Exports data derived from the SSL master-secret (see RFC 5705).
   // The call will fail with an error if the socket is not connected, or the

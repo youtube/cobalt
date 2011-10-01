@@ -19,7 +19,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
  public:
   TestSpdyStreamDelegate(SpdyStream* stream,
                          IOBufferWithSize* buf,
-                         CompletionCallback* callback)
+                         OldCompletionCallback* callback)
       : stream_(stream),
         buf_(buf),
         callback_(callback),
@@ -62,7 +62,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
   }
   virtual void OnClose(int status) {
     closed_ = true;
-    CompletionCallback* callback = callback_;
+    OldCompletionCallback* callback = callback_;
     callback_ = NULL;
     callback->Run(OK);
   }
@@ -79,7 +79,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
  private:
   SpdyStream* stream_;
   scoped_refptr<IOBufferWithSize> buf_;
-  CompletionCallback* callback_;
+  OldCompletionCallback* callback_;
   bool send_headers_completed_;
   linked_ptr<spdy::SpdyHeaderBlock> response_;
   std::string received_data_;
@@ -202,7 +202,7 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
       session->CreateStream(url, LOWEST, &stream, BoundNetLog(), NULL));
   scoped_refptr<IOBufferWithSize> buf(new IOBufferWithSize(8));
   memcpy(buf->data(), "\0hello!\xff", 8);
-  TestCompletionCallback callback;
+  TestOldCompletionCallback callback;
 
   scoped_ptr<TestSpdyStreamDelegate> delegate(
       new TestSpdyStreamDelegate(stream.get(), buf.get(), &callback));
