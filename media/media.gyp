@@ -451,11 +451,6 @@
              },
           },
         }],
-        [ 'target_arch=="ia32" or target_arch=="x64"', {
-          'sources': [
-            'base/simd/convert_rgb_to_yuv_ssse3.asm',
-          ],
-        }],
         [ 'OS=="win"', {
           'variables': {
             'yasm_flags': [
