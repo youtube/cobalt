@@ -85,6 +85,8 @@ class UnescapeRule {
   };
 };
 
+namespace net {
+
 // Unescapes |escaped_text| and returns the result.
 // Unescaping consists of looking for the exact pattern "%XX", where each X is
 // a hex digit, and converting to the character with the numerical value of
@@ -99,8 +101,6 @@ NET_EXPORT std::string UnescapeURLComponent(const std::string& escaped_text,
                                             UnescapeRule::Type rules);
 NET_EXPORT string16 UnescapeURLComponent(const string16& escaped_text,
                                          UnescapeRule::Type rules);
-
-namespace net {
 
 // Unescapes the given substring as a URL, and then tries to interpret the
 // result as being encoded as UTF-8. If the result is convertable into UTF-8, it
