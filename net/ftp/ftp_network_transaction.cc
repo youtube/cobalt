@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -480,7 +480,7 @@ std::string FtpNetworkTransaction::GetRequestPathForFtpCommand(
                                       UnescapeRule::URL_SPECIAL_CHARS;
   // This may unescape to non-ASCII characters, but we allow that. See the
   // comment for IsValidFTPCommandString.
-  path = UnescapeURLComponent(path, unescape_rules);
+  path = net::UnescapeURLComponent(path, unescape_rules);
 
   if (system_type_ == SYSTEM_TYPE_VMS) {
     if (is_directory)
