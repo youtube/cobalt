@@ -230,17 +230,6 @@ std::string EscapeExternalHandlerValue(const std::string& text) {
   return Escape(text, kExternalHandlerCharmap, false);
 }
 
-std::string UnescapeURLComponent(const std::string& escaped_text,
-                                 UnescapeRule::Type rules) {
-  return UnescapeURLWithOffsetsImpl(escaped_text, rules, NULL);
-}
-
-string16 UnescapeURLComponent(const string16& escaped_text,
-                              UnescapeRule::Type rules) {
-  return UnescapeURLWithOffsetsImpl(escaped_text, rules, NULL);
-}
-
-
 template <class str>
 void AppendEscapedCharForHTMLImpl(typename str::value_type c, str* output) {
   static const struct {
@@ -290,6 +279,16 @@ string16 EscapeForHTML(const string16& input) {
 }
 
 namespace net {
+
+std::string UnescapeURLComponent(const std::string& escaped_text,
+                                 UnescapeRule::Type rules) {
+  return UnescapeURLWithOffsetsImpl(escaped_text, rules, NULL);
+}
+
+string16 UnescapeURLComponent(const string16& escaped_text,
+                              UnescapeRule::Type rules) {
+  return UnescapeURLWithOffsetsImpl(escaped_text, rules, NULL);
+}
 
 string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
                                            UnescapeRule::Type rules,
