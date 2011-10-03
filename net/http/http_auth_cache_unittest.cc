@@ -418,6 +418,91 @@ TEST(HttpAuthCacheTest, UpdateStaleChallenge) {
   EXPECT_FALSE(update_failure);
 }
 
+TEST(HttpAuthCacheTest, UpdateAllFrom) {
+  GURL origin("http://example.com");
+  std::string path("/some/path");
+  std::string another_path("/another/path");
+
+  scoped_ptr<HttpAuthHandler> realm1_handler(
+      new MockAuthHandler(
+          HttpAuth::AUTH_SCHEME_BASIC, kRealm1, HttpAuth::AUTH_SERVER));
+
+  scoped_ptr<HttpAuthHandler> realm2_handler(
+      new MockAuthHandler(
+          HttpAuth::AUTH_SCHEME_BASIC, kRealm2, HttpAuth::AUTH_PROXY));
+
+  scoped_ptr<HttpAuthHandler> realm3_digest_handler(
+      new MockAuthHandler(
+          HttpAuth::AUTH_SCHEME_DIGEST, kRealm3, HttpAuth::AUTH_SERVER));
+
+  scoped_ptr<HttpAuthHandler> realm4_handler(
+      new MockAuthHandler(
+          HttpAuth::AUTH_SCHEME_BASIC, kRealm4, HttpAuth::AUTH_SERVER));
+
+  HttpAuthCache first_cache;
+  HttpAuthCache::Entry* entry;
+
+  first_cache.Add(origin, realm1_handler->realm(),
+                  realm1_handler->auth_scheme(), "basic realm=Realm1",
+                  kAlice, k123, path);
+  first_cache.Add(origin, realm2_handler->realm(),
+                  realm2_handler->auth_scheme(), "basic realm=Realm2",
+                  kAlice2, k1234, path);
+  first_cache.Add(origin, realm3_digest_handler->realm(),
+                  realm3_digest_handler->auth_scheme(), "digest realm=Realm3",
+                  kRoot, kWileCoyote, path);
+  entry = first_cache.Add(
+      origin, realm3_digest_handler->realm(),
+      realm3_digest_handler->auth_scheme(), "digest realm=Realm3",
+      kRoot, kWileCoyote, another_path);
+
+  EXPECT_EQ(2, entry->IncrementNonceCount());
+
+  HttpAuthCache second_cache;
+  // Will be overwritten by kRoot:kWileCoyote.
+  second_cache.Add(origin, realm3_digest_handler->realm(),
+                   realm3_digest_handler->auth_scheme(), "digest realm=Realm3",
+                   kAlice2, k1234, path);
+  // Should be left intact.
+  second_cache.Add(origin, realm4_handler->realm(),
+                   realm4_handler->auth_scheme(), "basic realm=Realm4",
+                   kAdmin, kRoot, path);
+
+  second_cache.UpdateAllFrom(first_cache);
+
+  // Copied from first_cache.
+  entry = second_cache.Lookup(origin, kRealm1, HttpAuth::AUTH_SCHEME_BASIC);
+  EXPECT_TRUE(NULL != entry);
+  EXPECT_EQ(kAlice, entry->username());
+  EXPECT_EQ(k123, entry->password());
+
+  // Copied from first_cache.
+  entry = second_cache.Lookup(origin, kRealm2, HttpAuth::AUTH_SCHEME_BASIC);
+  EXPECT_TRUE(NULL != entry);
+  EXPECT_EQ(kAlice2, entry->username());
+  EXPECT_EQ(k1234, entry->password());
+
+  // Overwritten from first_cache.
+  entry = second_cache.Lookup(origin, kRealm3, HttpAuth::AUTH_SCHEME_DIGEST);
+  EXPECT_TRUE(NULL != entry);
+  EXPECT_EQ(kRoot, entry->username());
+  EXPECT_EQ(kWileCoyote, entry->password());
+  // Nonce count should get copied.
+  EXPECT_EQ(3, entry->IncrementNonceCount());
+
+  // All paths should get copied.
+  entry = second_cache.LookupByPath(origin, another_path);
+  EXPECT_TRUE(NULL != entry);
+  EXPECT_EQ(kRoot, entry->username());
+  EXPECT_EQ(kWileCoyote, entry->password());
+
+  // Left intact in second_cache.
+  entry = second_cache.Lookup(origin, kRealm4, HttpAuth::AUTH_SCHEME_BASIC);
+  EXPECT_TRUE(NULL != entry);
+  EXPECT_EQ(kAdmin, entry->username());
+  EXPECT_EQ(kRoot, entry->password());
+}
+
 // Test fixture class for eviction tests (contains helpers for bulk
 // insertion and existence testing).
 class HttpAuthCacheEvictionTest : public testing::Test {
