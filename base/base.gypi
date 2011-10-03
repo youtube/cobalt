@@ -43,6 +43,7 @@
           'base_export.h',
           'base_paths.cc',
           'base_paths.h',
+          'base_paths_android.cc',
           'base_paths_mac.h',
           'base_paths_mac.mm',
           'base_paths_linux.cc',
@@ -78,6 +79,7 @@
           'debug/profiler.h',
           'debug/stack_trace.cc',
           'debug/stack_trace.h',
+          'debug/stack_trace_android.cc',
           'debug/stack_trace_posix.cc',
           'debug/stack_trace_win.cc',
           'debug/trace_event_win.cc',
@@ -94,6 +96,7 @@
           'file_path.h',
           'file_util.cc',
           'file_util.h',
+          'file_util_android.cc',
           'file_util_deprecated.h',
           'file_util_linux.cc',
           'file_util_mac.mm',
@@ -110,6 +113,7 @@
           'files/file_path_watcher.h',
           'files/file_path_watcher_linux.cc',
           'files/file_path_watcher_mac.cc',
+          'files/file_path_watcher_stub.cc',
           'files/file_path_watcher_win.cc',
           'float_util.h',
           'format_macros.h',
@@ -194,6 +198,8 @@
           'native_library_win.cc',
           'observer_list.h',
           'observer_list_threadsafe.h',
+          'os_compat_android.cc',
+          'os_compat_android.h',
           'path_service.cc',
           'path_service.h',
           'pickle.cc',
@@ -228,6 +234,7 @@
           'sha1_portable.cc',
           'sha1_win.cc',
           'shared_memory.h',
+          'shared_memory_android.cc',
           'shared_memory_posix.cc',
           'shared_memory_win.cc',
           'spin_wait.h',
@@ -265,6 +272,7 @@
           'synchronization/waitable_event_win.cc',
           'system_monitor/system_monitor.cc',
           'system_monitor/system_monitor.h',
+          'system_monitor/system_monitor_android.cc',
           'system_monitor/system_monitor_mac.mm',
           'system_monitor/system_monitor_posix.cc',
           'system_monitor/system_monitor_win.cc',
@@ -417,6 +425,24 @@
               ],
             },
           ],
+          [ 'OS == "android"', {
+            'sources/': [
+              ['exclude', '^debug/stack_trace.cc'],
+              ['exclude', '^debug/stack_trace_posix.cc'],
+              ['exclude', '^system_monitor/system_monitor_posix.cc'],
+              ['include', '^native_library_linux.cc'],
+              ['include', '^process_util_linux.cc'],
+              ['include', '^sys_info_linux.cc'],
+              ['include', '^sys_string_conversions_linux.cc'],
+              ['include', '^worker_pool_linux.cc'],
+              # TODO(michaelbai): The below files are excluded because of the
+              # missing JNI, add them back when JNI is ready.
+              ['exclude', '^android/'],
+              ['exclude', '^message_pump_android.cc'],
+              ['exclude', '^base_paths_android.cc'],
+              ['exclude', '^debug/stack_trace_android.cc'],
+            ],
+          }],
           [ 'OS != "mac"', {
               'sources!': [
                 'mac/scoped_aedesc.h'
@@ -447,6 +473,7 @@
             'sources!': [
               'event_recorder_stubs.cc',
               'file_descriptor_shuffle.cc',
+              'files/file_path_watcher_stub.cc',
               'message_pump_libevent.cc',
               # Not using sha1_win.cc because it may have caused a
               # regression to page cycler moz.
@@ -454,11 +481,13 @@
               'string16.cc',
             ],
           },],
-          ['os_posix==1 and OS!="linux" and OS!="mac"', {
+          [ 'OS == "linux"', {
             'sources!': [
-              'files/file_path_watcher_linux.cc',
+              'files/file_path_watcher_stub.cc',
             ],
-            'sources': [
+          }],
+          [ 'OS == "mac"', {
+            'sources!': [
               'files/file_path_watcher_stub.cc',
             ],
           }],
@@ -536,6 +565,27 @@
               ['exclude', '_nss\.cc$'],
             ],
         }],
+        [ 'OS == "android"', {
+          'dependencies': [
+            'symbolize',
+            '../third_party/ashmem/ashmem.gyp:ashmem#target',
+          ],
+          'defines': [
+            'USE_SYMBOLIZE',
+          ],
+          'link_settings': {
+            'libraries': [
+              '-llog',
+            ],
+          },
+          'conditions': [
+            [ '_toolset=="host" and host_os=="linux"', {
+              'dependencies': [
+                '../build/linux/system.gyp:glib',
+              ],
+            }],
+          ],
+        }],
         [ 'OS == "freebsd" or OS == "openbsd"', {
           'link_settings': {
             'libraries': [
@@ -600,6 +650,8 @@
         'linux_util.h',
         'md5.cc',
         'md5.h',
+        'message_pump_android.cc',
+        'message_pump_android.h',
         'message_pump_glib.cc',
         'message_pump_glib.h',
         'message_pump_gtk.cc',
