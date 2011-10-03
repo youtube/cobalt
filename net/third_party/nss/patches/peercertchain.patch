@@ -1,8 +1,13 @@
-commit 3833600af1d2e49f0d3b9381de10d120ddf0a03c
-Author: Adam Langley <agl@chromium.org>
-Date:   Mon Jun 20 15:54:45 2011 -0400
+From 40714671513378227413d1542c2911c2f62e3840 Mon Sep 17 00:00:00 2001
+From: Adam Langley <agl@chromium.org>
+Date: Mon, 3 Oct 2011 12:20:43 -0400
+Subject: [PATCH] peercertchain.patch
 
-    peercertchain.patch
+---
+ mozilla/security/nss/lib/ssl/ssl.def   |    1 +
+ mozilla/security/nss/lib/ssl/ssl.h     |   11 +++++++++
+ mozilla/security/nss/lib/ssl/sslauth.c |   36 ++++++++++++++++++++++++++++++++
+ 3 files changed, 48 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/security/nss/lib/ssl/ssl.def b/mozilla/security/nss/lib/ssl/ssl.def
 index a1f4b51..0fa8777 100644

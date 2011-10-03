@@ -1,8 +1,13 @@
-commit 107c49e2efd15ef547b2055af14952610e0e7afa
-Author: Adam Langley <agl@chromium.org>
-Date:   Mon Jun 20 15:52:55 2011 -0400
+From 4c2b4b3992f81f062248f03296f7eb59b5fc0868 Mon Sep 17 00:00:00 2001
+From: Adam Langley <agl@chromium.org>
+Date: Mon, 3 Oct 2011 12:20:29 -0400
+Subject: [PATCH] cachecerts.patch
 
-    cachecerts.patch
+---
+ mozilla/security/nss/lib/ssl/ssl3con.c  |   54 +++++++++++++++++++++++++++++-
+ mozilla/security/nss/lib/ssl/sslimpl.h  |    3 ++
+ mozilla/security/nss/lib/ssl/sslnonce.c |    4 ++
+ 3 files changed, 59 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/security/nss/lib/ssl/ssl3con.c b/mozilla/security/nss/lib/ssl/ssl3con.c
 index 455a532..9830e65 100644
