@@ -21,20 +21,20 @@ patch -p6 < $patches_dir/peercertchain.patch
 
 patch -p6 < $patches_dir/ocspstapling.patch
 
-patch -p4 < $patches_dir/clientauth.patch
+patch -p6 < $patches_dir/clientauth.patch
 
 patch -p6 < $patches_dir/cachedinfo.patch
 
 patch -p6 < $patches_dir/didhandshakeresume.patch
 
-patch -p5 < $patches_dir/cbcrandomiv.patch
+patch -p6 < $patches_dir/cbcrandomiv.patch
 
 patch -p6 < $patches_dir/origin_bound_certs.patch
 
 patch -p6 < $patches_dir/secret_exporter.patch
 
-patch -p5 < $patches_dir/handshakeshortwrite.patch
+patch -p6 < $patches_dir/handshakeshortwrite.patch
 
-patch -p5 < $patches_dir/restartclientauth.patch
+patch -p6 < $patches_dir/restartclientauth.patch
 
-patch -p5 < $patches_dir/negotiatedextension.patch
+patch -p6 < $patches_dir/negotiatedextension.patch

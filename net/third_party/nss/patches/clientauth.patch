@@ -1,11 +1,24 @@
-Index: security/nss/lib/ssl/ssl.h
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl.h,v
-retrieving revision 1.38.2.1
-diff -u -r1.38.2.1 ssl.h
---- security/nss/lib/ssl/ssl.h	31 Jul 2010 04:33:52 -0000	1.38.2.1
-+++ security/nss/lib/ssl/ssl.h	22 Sep 2011 00:21:33 -0000
-@@ -291,6 +291,45 @@
+From 1ebf459243cea430614e1958ecab1ad10457ccc2 Mon Sep 17 00:00:00 2001
+From: Adam Langley <agl@chromium.org>
+Date: Mon, 3 Oct 2011 12:44:48 -0400
+Subject: [PATCH] clientauth.patch
+
+---
+ mozilla/security/nss/lib/ssl/ssl.h      |   39 +++
+ mozilla/security/nss/lib/ssl/ssl3con.c  |  163 ++++++++++---
+ mozilla/security/nss/lib/ssl/ssl3ext.c  |    2 +-
+ mozilla/security/nss/lib/ssl/sslauth.c  |   22 ++
+ mozilla/security/nss/lib/ssl/sslimpl.h  |   45 ++++
+ mozilla/security/nss/lib/ssl/sslplatf.c |  399 +++++++++++++++++++++++++++++++
+ mozilla/security/nss/lib/ssl/sslsock.c  |   14 +
+ 7 files changed, 647 insertions(+), 37 deletions(-)
+ create mode 100644 mozilla/security/nss/lib/ssl/sslplatf.c
+
+diff --git a/mozilla/security/nss/lib/ssl/ssl.h b/mozilla/security/nss/lib/ssl/ssl.h
+index 7e748bd..03535f3 100644
+--- a/mozilla/security/nss/lib/ssl/ssl.h
++++ b/mozilla/security/nss/lib/ssl/ssl.h
+@@ -353,6 +353,45 @@ typedef SECStatus (PR_CALLBACK *SSLGetClientAuthData)(void *arg,
  SSL_IMPORT SECStatus SSL_GetClientAuthDataHook(PRFileDesc *fd, 
  			                       SSLGetClientAuthData f, void *a);
  
@@ -51,14 +64,11 @@ diff -u -r1.38.2.1 ssl.h
  
  /*
  ** SNI extension processing callback function.
-Index: security/nss/lib/ssl/ssl3con.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3con.c,v
-retrieving revision 1.142.2.4
-diff -u -r1.142.2.4 ssl3con.c
---- security/nss/lib/ssl/ssl3con.c	1 Sep 2010 19:47:11 -0000	1.142.2.4
-+++ security/nss/lib/ssl/ssl3con.c	22 Sep 2011 00:21:33 -0000
-@@ -2016,6 +2016,9 @@
+diff --git a/mozilla/security/nss/lib/ssl/ssl3con.c b/mozilla/security/nss/lib/ssl/ssl3con.c
+index d372ee2..ad8f4cd 100644
+--- a/mozilla/security/nss/lib/ssl/ssl3con.c
++++ b/mozilla/security/nss/lib/ssl/ssl3con.c
+@@ -2018,6 +2018,9 @@ ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
      PRBool isPresent = PR_TRUE;
  
      /* we only care if we are doing client auth */
@@ -68,7 +78,7 @@ diff -u -r1.142.2.4 ssl3con.c
      if (!sid || !sid->u.ssl3.clAuthValid) {
  	return PR_TRUE;
      }
-@@ -4821,27 +4824,30 @@
+@@ -4865,27 +4868,30 @@ ssl3_SendCertificateVerify(sslSocket *ss)
      }
  
      isTLS = (PRBool)(ss->ssl3.pwSpec->version > SSL_LIBRARY_VERSION_3_0);
@@ -119,7 +129,7 @@ diff -u -r1.142.2.4 ssl3con.c
  	SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
  	ss->ssl3.clientPrivateKey = NULL;
      }
-@@ -4899,6 +4905,26 @@
+@@ -4943,6 +4949,26 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  	goto alert_loser;
      }
  
@@ -146,7 +156,7 @@ diff -u -r1.142.2.4 ssl3con.c
      temp = ssl3_ConsumeHandshakeNumber(ss, 2, &b, &length);
      if (temp < 0) {
      	goto loser; 	/* alert has been sent */
-@@ -5441,6 +5467,10 @@
+@@ -5485,6 +5511,10 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
      SSL3AlertDescription desc        = illegal_parameter;
      SECItem              cert_types  = {siBuffer, NULL, 0};
      CERTDistNames        ca_list;
@@ -157,7 +167,7 @@ diff -u -r1.142.2.4 ssl3con.c
  
      SSL_TRC(3, ("%d: SSL3[%d]: handle certificate_request handshake",
  		SSL_GETPID(), ss->fd));
-@@ -5454,19 +5484,10 @@
+@@ -5498,19 +5528,10 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  	goto alert_loser;
      }
  
@@ -181,7 +191,7 @@ diff -u -r1.142.2.4 ssl3con.c
  
      isTLS = (PRBool)(ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0);
      rv = ssl3_ConsumeHandshakeVariable(ss, &cert_types, 1, &b, &length);
-@@ -5533,6 +5554,20 @@
+@@ -5577,6 +5598,20 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
      desc = no_certificate;
      ss->ssl3.hs.ws = wait_hello_done;
  
@@ -202,7 +212,7 @@ diff -u -r1.142.2.4 ssl3con.c
      if (ss->getClientAuthData == NULL) {
  	rv = SECFailure; /* force it to send a no_certificate alert */
      } else {
-@@ -5542,12 +5577,52 @@
+@@ -5586,12 +5621,52 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  						 &ss->ssl3.clientCertificate,
  						 &ss->ssl3.clientPrivateKey);
      }
@@ -255,7 +265,7 @@ diff -u -r1.142.2.4 ssl3con.c
          /* check what the callback function returned */
          if ((!ss->ssl3.clientCertificate) || (!ss->ssl3.clientPrivateKey)) {
              /* we are missing either the key or cert */
-@@ -5610,6 +5685,10 @@
+@@ -5654,6 +5729,10 @@ loser:
  done:
      if (arena != NULL)
      	PORT_FreeArena(arena, PR_FALSE);
@@ -266,7 +276,7 @@ diff -u -r1.142.2.4 ssl3con.c
      return rv;
  }
  
-@@ -5717,9 +5796,17 @@
+@@ -5785,9 +5864,17 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
  	if (rv != SECSuccess) {
  	    goto loser;	/* error code is set. */
      	}
@@ -287,7 +297,7 @@ diff -u -r1.142.2.4 ssl3con.c
  	send_verify = PR_TRUE;
  	rv = ssl3_SendCertificate(ss);
  	if (rv != SECSuccess) {
-@@ -9453,6 +9540,10 @@
+@@ -9856,6 +9943,10 @@ ssl3_DestroySSL3Info(sslSocket *ss)
  
      if (ss->ssl3.clientPrivateKey != NULL)
  	SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
@@ -298,13 +308,10 @@ diff -u -r1.142.2.4 ssl3con.c
  
      if (ss->ssl3.peerCertArena != NULL)
  	ssl3_CleanupPeerCerts(ss);
-Index: security/nss/lib/ssl/ssl3ext.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3ext.c,v
-retrieving revision 1.14
-diff -u -r1.14 ssl3ext.c
---- security/nss/lib/ssl/ssl3ext.c	3 Apr 2010 19:19:07 -0000	1.14
-+++ security/nss/lib/ssl/ssl3ext.c	22 Sep 2011 00:21:33 -0000
+diff --git a/mozilla/security/nss/lib/ssl/ssl3ext.c b/mozilla/security/nss/lib/ssl/ssl3ext.c
+index 887344b..e54b4fd 100644
+--- a/mozilla/security/nss/lib/ssl/ssl3ext.c
++++ b/mozilla/security/nss/lib/ssl/ssl3ext.c
 @@ -46,8 +46,8 @@
  #include "nssrenam.h"
  #include "nss.h"
@@ -315,14 +322,11 @@ diff -u -r1.14 ssl3ext.c
  #include "pk11pub.h"
  #include "blapi.h"
  #include "prinit.h"
-Index: security/nss/lib/ssl/sslauth.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslauth.c,v
-retrieving revision 1.16.66.1
-diff -u -r1.16.66.1 sslauth.c
---- security/nss/lib/ssl/sslauth.c	3 Aug 2010 18:52:13 -0000	1.16.66.1
-+++ security/nss/lib/ssl/sslauth.c	22 Sep 2011 00:21:33 -0000
-@@ -216,6 +216,28 @@
+diff --git a/mozilla/security/nss/lib/ssl/sslauth.c b/mozilla/security/nss/lib/ssl/sslauth.c
+index fcd15ca..8da5c66 100644
+--- a/mozilla/security/nss/lib/ssl/sslauth.c
++++ b/mozilla/security/nss/lib/ssl/sslauth.c
+@@ -292,6 +292,28 @@ SSL_GetClientAuthDataHook(PRFileDesc *s, SSLGetClientAuthData func,
      return SECSuccess;
  }
  
@@ -351,13 +355,10 @@ diff -u -r1.16.66.1 sslauth.c
  /* NEED LOCKS IN HERE.  */
  SECStatus 
  SSL_SetPKCS11PinArg(PRFileDesc *s, void *arg)
-Index: security/nss/lib/ssl/sslimpl.h
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslimpl.h,v
-retrieving revision 1.77.2.1
-diff -u -r1.77.2.1 sslimpl.h
---- security/nss/lib/ssl/sslimpl.h	31 Jul 2010 04:33:52 -0000	1.77.2.1
-+++ security/nss/lib/ssl/sslimpl.h	22 Sep 2011 00:21:33 -0000
+diff --git a/mozilla/security/nss/lib/ssl/sslimpl.h b/mozilla/security/nss/lib/ssl/sslimpl.h
+index 70ff4c3..d73a0e3 100644
+--- a/mozilla/security/nss/lib/ssl/sslimpl.h
++++ b/mozilla/security/nss/lib/ssl/sslimpl.h
 @@ -65,6 +65,15 @@
  
  #include "sslt.h" /* for some formerly private types, now public */
@@ -374,7 +375,7 @@ diff -u -r1.77.2.1 sslimpl.h
  /* to make some of these old enums public without namespace pollution,
  ** it was necessary to prepend ssl_ to the names.
  ** These #defines preserve compatibility with the old code here in libssl.
-@@ -456,6 +465,14 @@
+@@ -464,6 +473,14 @@ typedef SECStatus (*SSLCompressor)(void *               context,
                                     int                  inlen);
  typedef SECStatus (*SSLDestroy)(void *context, PRBool freeit);
  
@@ -389,7 +390,7 @@ diff -u -r1.77.2.1 sslimpl.h
  
  
  /*
-@@ -811,6 +828,10 @@
+@@ -836,6 +853,10 @@ struct ssl3StateStr {
  
      CERTCertificate *    clientCertificate;  /* used by client */
      SECKEYPrivateKey *   clientPrivateKey;   /* used by client */
@@ -400,7 +401,7 @@ diff -u -r1.77.2.1 sslimpl.h
      CERTCertificateList *clientCertChain;    /* used by client */
      PRBool               sendEmptyCert;      /* used by client */
  
-@@ -1051,6 +1072,10 @@
+@@ -1097,6 +1118,10 @@ const unsigned char *  preferredCipher;
      void                     *authCertificateArg;
      SSLGetClientAuthData      getClientAuthData;
      void                     *getClientAuthDataArg;
@@ -411,7 +412,7 @@ diff -u -r1.77.2.1 sslimpl.h
      SSLSNISocketConfig        sniSocketConfig;
      void                     *sniSocketConfigArg;
      SSLBadCertHandler         handleBadCert;
-@@ -1595,6 +1620,26 @@
+@@ -1663,6 +1688,26 @@ extern SECStatus ssl_InitSessionCacheLocks(PRBool lazyInit);
  
  extern SECStatus ssl_FreeSessionCacheLocks(void);
  
@@ -438,12 +439,11 @@ diff -u -r1.77.2.1 sslimpl.h
  
  /********************** misc calls *********************/
  
-Index: security/nss/lib/ssl/sslplatf.c
-===================================================================
-RCS file: security/nss/lib/ssl/sslplatf.c
-diff -N security/nss/lib/ssl/sslplatf.c
---- /dev/null	1 Jan 1970 00:00:00 -0000
-+++ security/nss/lib/ssl/sslplatf.c	22 Sep 2011 00:21:33 -0000
+diff --git a/mozilla/security/nss/lib/ssl/sslplatf.c b/mozilla/security/nss/lib/ssl/sslplatf.c
+new file mode 100644
+index 0000000..208956f
+--- /dev/null
++++ b/mozilla/security/nss/lib/ssl/sslplatf.c
 @@ -0,0 +1,399 @@
 +/*
 + * Platform specific crypto wrappers
@@ -844,14 +844,11 @@ diff -N security/nss/lib/ssl/sslplatf.c
 +#endif
 +
 +#endif /* NSS_PLATFORM_CLIENT_AUTH */
-Index: security/nss/lib/ssl/sslsock.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslsock.c,v
-retrieving revision 1.67.2.1
-diff -u -r1.67.2.1 sslsock.c
---- security/nss/lib/ssl/sslsock.c	31 Jul 2010 04:33:52 -0000	1.67.2.1
-+++ security/nss/lib/ssl/sslsock.c	22 Sep 2011 00:21:33 -0000
-@@ -335,6 +335,10 @@
+diff --git a/mozilla/security/nss/lib/ssl/sslsock.c b/mozilla/security/nss/lib/ssl/sslsock.c
+index 7d12bfe..68fd3cb 100644
+--- a/mozilla/security/nss/lib/ssl/sslsock.c
++++ b/mozilla/security/nss/lib/ssl/sslsock.c
+@@ -339,6 +339,10 @@ ssl_DupSocket(sslSocket *os)
  	    ss->authCertificateArg    = os->authCertificateArg;
  	    ss->getClientAuthData     = os->getClientAuthData;
  	    ss->getClientAuthDataArg  = os->getClientAuthDataArg;
@@ -862,7 +859,7 @@ diff -u -r1.67.2.1 sslsock.c
              ss->sniSocketConfig       = os->sniSocketConfig;
              ss->sniSocketConfigArg    = os->sniSocketConfigArg;
  	    ss->handleBadCert         = os->handleBadCert;
-@@ -1354,6 +1358,12 @@
+@@ -1468,6 +1472,12 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
          ss->getClientAuthData     = sm->getClientAuthData;
      if (sm->getClientAuthDataArg)
          ss->getClientAuthDataArg  = sm->getClientAuthDataArg;
@@ -875,7 +872,7 @@ diff -u -r1.67.2.1 sslsock.c
      if (sm->sniSocketConfig)
          ss->sniSocketConfig       = sm->sniSocketConfig;
      if (sm->sniSocketConfigArg)
-@@ -2366,6 +2376,10 @@
+@@ -2525,6 +2535,10 @@ ssl_NewSocket(PRBool makeLocks)
          ss->sniSocketConfig    = NULL;
          ss->sniSocketConfigArg = NULL;
  	ss->getClientAuthData  = NULL;
