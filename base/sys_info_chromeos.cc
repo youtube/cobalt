@@ -94,20 +94,17 @@ void SysInfo::ParseLsbRelease(const std::string& lsb_release,
   size_t length = lsb_release.find_first_of('\n', start_index) - start_index;
   std::string version = lsb_release.substr(start_index, length);
   StringTokenizer tokenizer(version, ".");
-  // TODO(rkc): Ignore the 0. here; fix this once we move Chrome OS version
-  // numbers from the 0.xx.yyy.zz format to the xx.yyy.zz format.
-  // Refer to http://code.google.com/p/chromium-os/issues/detail?id=15789
-  for (int i = 0; i < 4 && tokenizer.GetNext(); i++) {
-    if (1 == i) {
+  for (int i = 0; i < 3 && tokenizer.GetNext(); ++i) {
+    if (0 == i) {
       StringToInt(tokenizer.token_begin(),
                   tokenizer.token_end(),
                   major_version);
       *minor_version = *bugfix_version = 0;
-    } else if (2 == i) {
+    } else if (1 == i) {
       StringToInt(tokenizer.token_begin(),
                   tokenizer.token_end(),
                   minor_version);
-    } else {  // 3 == i
+    } else {  // 2 == i
       StringToInt(tokenizer.token_begin(),
                   tokenizer.token_end(),
                   bugfix_version);
