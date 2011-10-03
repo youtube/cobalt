@@ -54,9 +54,9 @@ TEST_F(SysInfoTest, GoogleChromeOSVersionNumbers) {
                                  &os_major_version,
                                  &os_minor_version,
                                  &os_bugfix_version);
-  EXPECT_EQ(2, os_major_version);
-  EXPECT_EQ(3, os_minor_version);
-  EXPECT_EQ(4, os_bugfix_version);
+  EXPECT_EQ(1, os_major_version);
+  EXPECT_EQ(2, os_minor_version);
+  EXPECT_EQ(3, os_bugfix_version);
 }
 
 TEST_F(SysInfoTest, GoogleChromeOSVersionNumbersFirst) {
@@ -70,9 +70,9 @@ TEST_F(SysInfoTest, GoogleChromeOSVersionNumbersFirst) {
                                  &os_major_version,
                                  &os_minor_version,
                                  &os_bugfix_version);
-  EXPECT_EQ(2, os_major_version);
-  EXPECT_EQ(3, os_minor_version);
-  EXPECT_EQ(4, os_bugfix_version);
+  EXPECT_EQ(1, os_major_version);
+  EXPECT_EQ(2, os_minor_version);
+  EXPECT_EQ(3, os_bugfix_version);
 }
 
 TEST_F(SysInfoTest, GoogleChromeOSNoVersionNumbers) {
