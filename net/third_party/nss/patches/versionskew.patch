@@ -1,8 +1,12 @@
-commit 47ee639fe155c26aed5ef6edba34be6d359a92c7
-Author: Adam Langley <agl@chromium.org>
-Date:   Mon Jun 20 15:50:01 2011 -0400
+From 9a71b466147bcd334243d62996558a609657c07c Mon Sep 17 00:00:00 2001
+From: Adam Langley <agl@chromium.org>
+Date: Mon, 3 Oct 2011 12:19:48 -0400
+Subject: [PATCH] versionskew.patch
 
-    versionskew.patch
+---
+ mozilla/security/nss/lib/ssl/sslsecur.c |    5 +++++
+ mozilla/security/nss/lib/ssl/sslsock.c  |    6 ++++++
+ 2 files changed, 11 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/security/nss/lib/ssl/sslsecur.c b/mozilla/security/nss/lib/ssl/sslsecur.c
 index a0cae54..816b8f6 100644
