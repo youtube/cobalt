@@ -2092,16 +2092,27 @@
             ['clang==1', {
               'CC': '$(SOURCE_ROOT)/<(clang_dir)/clang',
               'LDPLUSPLUS': '$(SOURCE_ROOT)/<(clang_dir)/clang++',
+
+	      # Don't use -Wc++0x-extensions, which Xcode 4 enables by default
+	      # when buliding with clang. This warning is triggered when the
+	      # override keyword is used via the OVERRIDE macro from
+	      # base/compiler_specific.h.
+	      'CLANG_WARN_CXX0X_EXTENSIONS': 'NO',
+
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'WARNING_CFLAGS': [
                 '-Wheader-hygiene',
+
                 # Don't die on dtoa code that uses a char as an array index.
                 # This is required solely for base/third_party/dmg_fp/dtoa.cc.
                 '-Wno-char-subscripts',
+
                 # Clang spots more unused functions.
                 '-Wno-unused-function',
+
                 # See comments on this flag higher up in this file.
                 '-Wno-unnamed-type-template-args',
+
                 # TODO(thakis): Reenable once the one instance this warns on
                 # is fixed.
                 '-Wno-parentheses',
