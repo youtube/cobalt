@@ -430,14 +430,14 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
     // The time when the task should be run.
     base::TimeTicks delayed_run_time;
 
+    // The site this PendingTask was posted from.
+    tracked_objects::Location posted_from;
+
     // Secondary sort key for run time.
     int sequence_num;
 
     // OK to dispatch from a nested loop.
     bool nestable;
-
-    // The site this PendingTask was posted from.
-    const void* birth_program_counter;
   };
 
   class TaskQueue : public std::queue<PendingTask> {

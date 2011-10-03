@@ -58,20 +58,23 @@ class TraceEventTestFixture : public testing::Test {
  private:
   // We want our singleton torn down after each test.
   ShadowingAtExitManager at_exit_manager_;
+  Lock lock_;
 };
 
 void TraceEventTestFixture::ManualTestSetUp() {
+  TraceLog::DeleteForTesting();
   TraceLog::Resurrect();
   TraceLog* tracelog = TraceLog::GetInstance();
   ASSERT_TRUE(tracelog);
   ASSERT_FALSE(tracelog->IsEnabled());
   tracelog->SetOutputCallback(
-    base::Bind(&TraceEventTestFixture::OnTraceDataCollected,
-               base::Unretained(this)));
+      base::Bind(&TraceEventTestFixture::OnTraceDataCollected,
+                 base::Unretained(this)));
 }
 
 void TraceEventTestFixture::OnTraceDataCollected(
     scoped_refptr<TraceLog::RefCountedString> json_events_str) {
+  AutoLock lock(lock_);
   trace_string_ += json_events_str->data;
 
   scoped_ptr<Value> root;
@@ -283,11 +286,11 @@ void ValidateAllTraceMacrosCreatedData(const ListValue& trace_parsed,
   DictionaryValue* item = NULL;
 
 #define EXPECT_FIND_(string) \
-  EXPECT_TRUE((item = FindTraceEntry(trace_parsed, string)));
+    EXPECT_TRUE((item = FindTraceEntry(trace_parsed, string)));
 #define EXPECT_NOT_FIND_(string) \
-  EXPECT_FALSE((item = FindTraceEntry(trace_parsed, string)));
+    EXPECT_FALSE((item = FindTraceEntry(trace_parsed, string)));
 #define EXPECT_SUB_FIND_(string) \
-  if (item) EXPECT_TRUE((IsStringInDict(string, item)));
+    if (item) EXPECT_TRUE((IsStringInDict(string, item)));
 
   EXPECT_FIND_("ETW Trace Event");
   EXPECT_FIND_("all");
@@ -679,12 +682,12 @@ TEST_F(TraceEventTestFixture, DataCapturedOnThread) {
   thread.Start();
 
   thread.message_loop()->PostTask(
-    FROM_HERE, NewRunnableFunction(&TraceWithAllMacroVariants,
-                                   &task_complete_event));
+      FROM_HERE, NewRunnableFunction(&TraceWithAllMacroVariants,
+                                     &task_complete_event));
   task_complete_event.Wait();
+  thread.Stop();
 
   TraceLog::GetInstance()->SetEnabled(false);
-  thread.Stop();
   ValidateAllTraceMacrosCreatedData(trace_parsed_, trace_string_);
 }
 
@@ -702,21 +705,21 @@ TEST_F(TraceEventTestFixture, DataCapturedManyThreads) {
     task_complete_events[i] = new WaitableEvent(false, false);
     threads[i]->Start();
     threads[i]->message_loop()->PostTask(
-      FROM_HERE, NewRunnableFunction(&TraceManyInstantEvents,
-                                     i, num_events, task_complete_events[i]));
+        FROM_HERE, NewRunnableFunction(&TraceManyInstantEvents,
+                                       i, num_events, task_complete_events[i]));
   }
 
   for (int i = 0; i < num_threads; i++) {
     task_complete_events[i]->Wait();
   }
 
-  TraceLog::GetInstance()->SetEnabled(false);
-
   for (int i = 0; i < num_threads; i++) {
     threads[i]->Stop();
     delete threads[i];
     delete task_complete_events[i];
   }
+
+  TraceLog::GetInstance()->SetEnabled(false);
 
   ValidateInstantEventPresentOnEveryThread(trace_parsed_, trace_string_,
                                            num_threads, num_events);
@@ -745,20 +748,21 @@ TEST_F(TraceEventTestFixture, ThreadNames) {
     threads[i]->Start();
     thread_ids[i] = threads[i]->thread_id();
     threads[i]->message_loop()->PostTask(
-      FROM_HERE, NewRunnableFunction(&TraceManyInstantEvents,
-                                     i, num_events, task_complete_events[i]));
+        FROM_HERE, NewRunnableFunction(&TraceManyInstantEvents,
+                                       i, num_events, task_complete_events[i]));
   }
   for (int i = 0; i < num_threads; i++) {
     task_complete_events[i]->Wait();
   }
 
   // Shut things down.
-  TraceLog::GetInstance()->SetEnabled(false);
   for (int i = 0; i < num_threads; i++) {
     threads[i]->Stop();
     delete threads[i];
     delete task_complete_events[i];
   }
+
+  TraceLog::GetInstance()->SetEnabled(false);
 
   std::string tmp;
   int tmp_int;
