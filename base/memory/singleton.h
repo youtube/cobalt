@@ -205,6 +205,9 @@ class Singleton {
   // method and call Singleton::get() from within that.
   friend Type* Type::GetInstance();
 
+  // Allow TraceLog tests to test tracing after OnExit.
+  friend class DeleteTraceLogForTesting;
+
   // This class is safe to be constructed and copy-constructed since it has no
   // member.
 

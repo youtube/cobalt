@@ -55,6 +55,8 @@ class BASE_EXPORT PosixDynamicThreadPool
     // tracked_objects::TallyADeathIfActive() and
     // tracked_objects::TallyABirthIfActive correctly.
 
+    const tracked_objects::Location posted_from;
+
     // The task to run.
     base::Closure task;
   };

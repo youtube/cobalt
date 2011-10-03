@@ -60,10 +60,10 @@ class BASE_EXPORT Location {
   void WriteFunctionName(std::string* output) const;
 
  private:
-  const char* const function_name_;
-  const char* const file_name_;
-  const int line_number_;
-  const void* const program_counter_;
+  const char* function_name_;
+  const char* file_name_;
+  int line_number_;
+  const void* program_counter_;
 };
 
 BASE_EXPORT const void* GetProgramCounter();
