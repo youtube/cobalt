@@ -225,4 +225,21 @@ bool HttpAuthCache::UpdateStaleChallenge(const GURL& origin,
   return true;
 }
 
+void HttpAuthCache::UpdateAllFrom(const HttpAuthCache& other) {
+  for (EntryList::const_iterator it = other.entries_.begin();
+       it != other.entries_.end(); ++it) {
+    // Add an Entry with one of the original entry's paths.
+    DCHECK(it->paths_.size() > 0);
+    Entry* entry = Add(it->origin(), it->realm(), it->scheme(),
+                       it->auth_challenge(), it->username(), it->password(),
+                       it->paths_.back());
+    // Copy all other paths.
+    for (Entry::PathList::const_reverse_iterator it2 = ++it->paths_.rbegin();
+         it2 != it->paths_.rend(); ++it2)
+      entry->AddPath(*it2);
+    // Copy nonce count (for digest authentication).
+    entry->nonce_count_ = it->nonce_count_;
+  }
+}
+
 }  // namespace net

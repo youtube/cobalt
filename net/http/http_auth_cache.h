@@ -103,6 +103,9 @@ class NET_EXPORT_PRIVATE HttpAuthCache {
                             HttpAuth::Scheme scheme,
                             const std::string& auth_challenge);
 
+  // Copies all entries from |other| cache.
+  void UpdateAllFrom(const HttpAuthCache& other);
+
  private:
   typedef std::list<Entry> EntryList;
   EntryList entries_;
