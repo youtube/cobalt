@@ -5,6 +5,7 @@
 #include "base/threading/worker_pool_posix.h"
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -83,6 +84,9 @@ void WorkerThread::ThreadMain() {
     PosixDynamicThreadPool::PendingTask pending_task = pool_->WaitForTask();
     if (pending_task.task.is_null())
       break;
+    UNSHIPPED_TRACE_EVENT2("task", "WorkerThread::ThreadMain::Run",
+        "src_file", pending_task.posted_from.file_name(),
+        "src_func", pending_task.posted_from.function_name());
     pending_task.task.Run();
   }
 
@@ -107,7 +111,8 @@ bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
 PosixDynamicThreadPool::PendingTask::PendingTask(
     const tracked_objects::Location& posted_from,
     const base::Closure& task)
-    : task(task) {
+    : posted_from(posted_from),
+      task(task) {
 }
 
 PosixDynamicThreadPool::PendingTask::~PendingTask() {

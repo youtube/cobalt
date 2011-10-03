@@ -20,6 +20,14 @@
 
 #define USE_UNRELIABLE_NOW
 
+class DeleteTraceLogForTesting {
+ public:
+  static void Delete() {
+    Singleton<base::debug::TraceLog,
+              StaticMemorySingletonTraits<base::debug::TraceLog> >::OnExit(0);
+  }
+};
+
 namespace base {
 namespace debug {
 
@@ -410,7 +418,7 @@ void TraceLog::Flush() {
        i < previous_logged_events.size();
        i += kTraceEventBatchSize) {
     scoped_refptr<RefCountedString> json_events_str_ptr =
-      new RefCountedString();
+        new RefCountedString();
     TraceEvent::AppendEventsAsJSON(previous_logged_events,
                                    i,
                                    kTraceEventBatchSize,
@@ -545,6 +553,10 @@ void TraceLog::AddCurrentMetadataEvents() {
                      NULL, 0,
                      false));
   }
+}
+
+void TraceLog::DeleteForTesting() {
+  DeleteTraceLogForTesting::Delete();
 }
 
 void TraceLog::Resurrect() {
