@@ -1,11 +1,20 @@
-Index: mozilla/security/nss/lib/ssl/ssl.h
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl.h,v
-retrieving revision 1.38.2.4
-diff -u -p -r1.38.2.4 ssl.h
---- mozilla/security/nss/lib/ssl/ssl.h	8 Apr 2011 05:44:32 -0000	1.38.2.4
-+++ mozilla/security/nss/lib/ssl/ssl.h	18 Aug 2011 22:52:10 -0000
-@@ -220,6 +220,11 @@ SSL_IMPORT SECStatus SSL_ForceHandshake(
+From 3c9aa423a3e721fc2223dc5f64d21cc5b4898d4e Mon Sep 17 00:00:00 2001
+From: Adam Langley <agl@chromium.org>
+Date: Mon, 3 Oct 2011 12:27:03 -0400
+Subject: [PATCH] restartclientauth.patch
+
+---
+ mozilla/security/nss/lib/ssl/ssl.h      |    5 ++
+ mozilla/security/nss/lib/ssl/ssl3con.c  |   70 +++++++++++++++++++++----------
+ mozilla/security/nss/lib/ssl/sslimpl.h  |    4 --
+ mozilla/security/nss/lib/ssl/sslsecur.c |   35 ++++++++++++---
+ 4 files changed, 80 insertions(+), 34 deletions(-)
+
+diff --git a/mozilla/security/nss/lib/ssl/ssl.h b/mozilla/security/nss/lib/ssl/ssl.h
+index 835d3cf..7e748bd 100644
+--- a/mozilla/security/nss/lib/ssl/ssl.h
++++ b/mozilla/security/nss/lib/ssl/ssl.h
+@@ -236,6 +236,11 @@ SSL_IMPORT SECStatus SSL_ForceHandshake(PRFileDesc *fd);
  SSL_IMPORT SECStatus SSL_ForceHandshakeWithTimeout(PRFileDesc *fd,
                                                     PRIntervalTime timeout);
  
@@ -17,14 +26,11 @@ diff -u -p -r1.38.2.4 ssl.h
  /*
  ** Query security status of socket. *on is set to one if security is
  ** enabled. *keySize will contain the stream key size used. *issuer will
-Index: mozilla/security/nss/lib/ssl/ssl3con.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3con.c,v
-retrieving revision 1.142.2.5
-diff -u -p -r1.142.2.5 ssl3con.c
---- mozilla/security/nss/lib/ssl/ssl3con.c	25 Jan 2011 01:49:22 -0000	1.142.2.5
-+++ mozilla/security/nss/lib/ssl/ssl3con.c	18 Aug 2011 22:52:10 -0000
-@@ -5621,9 +5621,10 @@ done:
+diff --git a/mozilla/security/nss/lib/ssl/ssl3con.c b/mozilla/security/nss/lib/ssl/ssl3con.c
+index f8838d6..d372ee2 100644
+--- a/mozilla/security/nss/lib/ssl/ssl3con.c
++++ b/mozilla/security/nss/lib/ssl/ssl3con.c
+@@ -5667,9 +5667,10 @@ done:
   *		reference count.  The caller should drop its reference
   *		without calling CERT_DestroyCert after calling this function.
   *
@@ -38,7 +44,7 @@ diff -u -p -r1.142.2.5 ssl3con.c
   *
   *	certChain  DER-encoded certs, client cert and its signers.
   *		Note: ssl takes this reference, and does not copy the chain.
-@@ -5643,27 +5644,50 @@ ssl3_RestartHandshakeAfterCertReq(sslSoc
+@@ -5689,27 +5690,50 @@ ssl3_RestartHandshakeAfterCertReq(sslSocket *         ss,
  				SECKEYPrivateKey *   key,
  				CERTCertificateList *certChain)
  {
@@ -109,14 +115,11 @@ diff -u -p -r1.142.2.5 ssl3con.c
  	}
      }
      return rv;
-Index: mozilla/security/nss/lib/ssl/sslimpl.h
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslimpl.h,v
-retrieving revision 1.77.2.2
-diff -u -p -r1.77.2.2 sslimpl.h
---- mozilla/security/nss/lib/ssl/sslimpl.h	16 Mar 2011 18:55:38 -0000	1.77.2.2
-+++ mozilla/security/nss/lib/ssl/sslimpl.h	18 Aug 2011 22:52:10 -0000
-@@ -1310,10 +1310,6 @@ extern  SECStatus ssl3_MasterKeyDeriveBy
+diff --git a/mozilla/security/nss/lib/ssl/sslimpl.h b/mozilla/security/nss/lib/ssl/sslimpl.h
+index 906874a..70ff4c3 100644
+--- a/mozilla/security/nss/lib/ssl/sslimpl.h
++++ b/mozilla/security/nss/lib/ssl/sslimpl.h
+@@ -1356,10 +1356,6 @@ extern  SECStatus ssl3_MasterKeyDeriveBypass( ssl3CipherSpec * pwSpec,
  
  extern int ssl2_SendErrorMessage(struct sslSocketStr *ss, int error);
  extern int SSL_RestartHandshakeAfterServerCert(struct sslSocketStr *ss);
@@ -127,14 +130,11 @@ diff -u -p -r1.77.2.2 sslimpl.h
  extern sslSocket *ssl_FindSocket(PRFileDesc *fd);
  extern void ssl_FreeSocket(struct sslSocketStr *ssl);
  extern SECStatus SSL3_SendAlert(sslSocket *ss, SSL3AlertLevel level,
-Index: mozilla/security/nss/lib/ssl/sslsecur.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslsecur.c,v
-retrieving revision 1.43.2.4
-diff -u -p -r1.43.2.4 sslsecur.c
---- mozilla/security/nss/lib/ssl/sslsecur.c	8 Apr 2011 05:25:21 -0000	1.43.2.4
-+++ mozilla/security/nss/lib/ssl/sslsecur.c	18 Aug 2011 22:52:10 -0000
-@@ -1453,11 +1453,13 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERT
+diff --git a/mozilla/security/nss/lib/ssl/sslsecur.c b/mozilla/security/nss/lib/ssl/sslsecur.c
+index dc374e0..bb5f0eb 100644
+--- a/mozilla/security/nss/lib/ssl/sslsecur.c
++++ b/mozilla/security/nss/lib/ssl/sslsecur.c
+@@ -1460,11 +1460,13 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERTCertDBHandle *dbHandle)
   *	cert	Client cert chosen by application.
   *		Note: ssl takes this reference, and does not bump the 
   *		reference count.  The caller should drop its reference
@@ -152,7 +152,7 @@ diff -u -p -r1.43.2.4 sslsecur.c
   *
   *	certChain  Chain of signers for cert.  
   *		Note: ssl takes this reference, and does not copy the chain.
-@@ -1469,19 +1471,38 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERT
+@@ -1476,19 +1478,38 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERTCertDBHandle *dbHandle)
   * XXX This code only works on the initial handshake on a connection, XXX
   *     It does not work on a subsequent handshake (redo).
   */

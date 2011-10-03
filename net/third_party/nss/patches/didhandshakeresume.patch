@@ -1,8 +1,13 @@
-commit c1b34e0cdaed8eef92aa268a442965eb60828c7b
-Author: Adam Langley <agl@chromium.org>
-Date:   Tue Jun 21 11:41:12 2011 -0400
+From 56e625df4d443b939c39fa75f907518bf66f6584 Mon Sep 17 00:00:00 2001
+From: Adam Langley <agl@chromium.org>
+Date: Mon, 3 Oct 2011 12:23:01 -0400
+Subject: [PATCH] didhandshakeresume.patch
 
-    didhandshakeresume.patch
+---
+ mozilla/security/nss/lib/ssl/ssl.def   |    1 +
+ mozilla/security/nss/lib/ssl/ssl.h     |    4 ++++
+ mozilla/security/nss/lib/ssl/sslsock.c |   14 ++++++++++++++
+ 3 files changed, 19 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/security/nss/lib/ssl/ssl.def b/mozilla/security/nss/lib/ssl/ssl.def
 index 35cc1e3..7ef15db 100644
@@ -17,10 +22,10 @@ index 35cc1e3..7ef15db 100644
  SSL_SetNextProtoNego;
  ;+    local:
 diff --git a/mozilla/security/nss/lib/ssl/ssl.h b/mozilla/security/nss/lib/ssl/ssl.h
-index e7d6c54..5682d0a 100644
+index 3a22b45..c32438d 100644
 --- a/mozilla/security/nss/lib/ssl/ssl.h
 +++ b/mozilla/security/nss/lib/ssl/ssl.h
-@@ -730,6 +730,10 @@ SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
+@@ -697,6 +697,10 @@ SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
                                                        SSLExtensionType extId,
                                                        PRBool *yes);
  
@@ -32,10 +37,10 @@ index e7d6c54..5682d0a 100644
  
  #endif /* __ssl_h_ */
 diff --git a/mozilla/security/nss/lib/ssl/sslsock.c b/mozilla/security/nss/lib/ssl/sslsock.c
-index f00f8f4..340d17c 100644
+index 3d89d86..11b53da 100644
 --- a/mozilla/security/nss/lib/ssl/sslsock.c
 +++ b/mozilla/security/nss/lib/ssl/sslsock.c
-@@ -1517,6 +1517,20 @@ SSL_GetStapledOCSPResponse(PRFileDesc *fd, unsigned char *out_data,
+@@ -1507,6 +1507,20 @@ SSL_GetStapledOCSPResponse(PRFileDesc *fd, unsigned char *out_data,
      return SECSuccess;
  }
  
