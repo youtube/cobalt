@@ -28,12 +28,12 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   virtual int OnBeforeURLRequest(URLRequest* request,
                                  OldCompletionCallback* callback,
                                  GURL* new_url) OVERRIDE {
-    return net::OK;
+    return OK;
   }
   virtual int OnBeforeSendHeaders(URLRequest* request,
                                   OldCompletionCallback* callback,
                                   HttpRequestHeaders* headers) OVERRIDE {
-    return net::OK;
+    return OK;
   }
   virtual void OnSendHeaders(URLRequest* request,
                              const HttpRequestHeaders& headers) OVERRIDE {}
@@ -49,8 +49,13 @@ class TestNetworkDelegate : public net::NetworkDelegate {
                                 const string16& error) OVERRIDE {
     got_pac_error_ = true;
   }
-  virtual void OnAuthRequired(URLRequest* request,
-                              const AuthChallengeInfo& auth_info) OVERRIDE {}
+  virtual AuthRequiredResponse OnAuthRequired(
+      URLRequest* request,
+      const AuthChallengeInfo& auth_info,
+      const AuthCallback& callback,
+      AuthCredentials* credentials) OVERRIDE {
+    return AUTH_REQUIRED_RESPONSE_NO_ACTION;
+  }
 
   bool got_pac_error_;
 };
