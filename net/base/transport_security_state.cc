@@ -812,7 +812,7 @@ struct HSTSPreload {
   bool include_subdomains;
   char dns_name[30];
   bool https_required;
-  const char** required_hashes;
+  const char* const* required_hashes;
 };
 
 static bool HasPreload(const struct HSTSPreload* entries, size_t num_entries,
@@ -830,10 +830,10 @@ static bool HasPreload(const struct HSTSPreload* entries, size_t num_entries,
         if (!entries[j].https_required)
           out->mode = TransportSecurityState::DomainState::MODE_NONE;
         if (entries[j].required_hashes) {
-          const char** hash = entries[j].required_hashes;
+          const char* const* hash = entries[j].required_hashes;
           while (*hash) {
             bool ok = AddHash(*hash, &out->public_key_hashes);
-            DCHECK(ok);
+            DCHECK(ok) << " failed to parse " << *hash;
             hash++;
           }
         }
@@ -867,7 +867,7 @@ bool TransportSecurityState::IsPreloadedSTS(
       "sha1/AbkhxY0L343gKf+cki7NVWp+ozk=";
   static const char kCertPKHashEquifaxSecureCA[] =
       "sha1/SOZo+SvSspXXR9gjIBBPM5iQn9Q=";
-  static const char* kGoogleAcceptableCerts[] = {
+  static const char* const kGoogleAcceptableCerts[] = {
     kCertPKHashVerisignClass3,
     kCertPKHashVerisignClass3G3,
     kCertPKHashGoogle1024,
@@ -886,7 +886,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     "sha1/lia43lPolzSPVIq34Dw57uYcLD8=";
   static const char kCertTor3[] =
     "sha1/rzEyQIKOh77j87n5bjWUNguXF8Y=";
-  static const char* kTorAcceptableCerts[] = {
+  static const char* const kTorAcceptableCerts[] = {
     kCertRapidSSL,
     kCertDigiCertEVRoot,
     kCertTor1,
@@ -895,11 +895,161 @@ bool TransportSecurityState::IsPreloadedSTS(
     0,
   };
 
+  static const char kCertVerisignClass1[] =
+    "sha1/I0PRSKJViZuUfUYaeX7ATP7RcLc=";
+  static const char kCertVerisignClass3[] =
+    "sha1/4n972HfV354KP560yw4uqe/baXc=";
+  static const char kCertVerisignClass3_G4[] =
+    "sha1/7WYxNdMb1OymFMQp4xkGn5TBJlA=";
+  static const char kCertVerisignClass4_G3[] =
+    "sha1/PANDaGiVHPNpKri0Jtq6j+ki5b0=";
+  static const char kCertVerisignClass3_G3[] =
+    "sha1/IvGeLsbqzPxdI0b0wuj2xVTdXgc=";
+  static const char kCertVerisignClass1_G3[] =
+    "sha1/VRmyeKyygdftp6vBg5nDu2kEJLU=";
+  static const char kCertVerisignClass2_G3[] =
+    "sha1/Wr7Fddyu87COJxlD/H8lDD32YeM=";
+  static const char kCertVerisignClass3_G2[] =
+    "sha1/GiG0lStik84Ys2XsnA6TTLOB5tQ=";
+  static const char kCertVerisignClass2_G2[] =
+    "sha1/Eje6RRfurSkm/cHN/r7t8t7ZFFw=";
+  static const char kCertVerisignClass3_G5[] =
+    "sha1/sYEIGhmkwJQf+uiVKMEkyZs0rMc=";
+  static const char kCertVerisignUniversal[] =
+    "sha1/u8I+KQuzKHcdrT6iTb30I70GsD0=";
+
+  static const char kCertTwitter1[] =
+    "sha1/Vv7zwhR9TtOIN/29MFI4cgHld40=";
+
+  static const char kCertEntrust2048[] =
+    "sha1/VeSB0RGAvtiJuQijMfmhJAkWuXA=";
+  static const char kCertEntrustEV[] =
+    "sha1/ukKwgYhTiB2GY71MwF4I/upuu3c=";
+  static const char kCertEntrustG2[] =
+    "sha1/qzDTr0vY8WtYae5FaSnahLhzlIg=";
+  static const char kCertEntrustSSL[] =
+    "sha1/8BdiE1U9s/8KAGv7UISX8+1i0Bo=";
+
+  static const char kCertGeoTrustGlobal[] =
+    "sha1/wHqYaI2J+6sFZAwRfap9ZbjKzE4=";
+  static const char kCertGeoTrustGlobal2[] =
+    "sha1/cTg28gIxU0crbrplRqkQFVggBQk=";
+  static const char kCertGeoTrustUniversal[] =
+    "sha1/h+hbY1PGI6MSjLD/u/VR/lmADiI=";
+  static const char kCertGeoTrustUniversal2[] =
+    "sha1/Xk9ThoXdT57KX9wNRW99UbHcm3s=";
+  static const char kCertGeoTrustPrimary[] =
+    "sha1/sBmJ5+/7Sq/LFI9YRjl2IkFQ4bo=";
+  static const char kCertGeoTrustPrimaryG2[] =
+    "sha1/vb6nG6txV/nkddlU0rcngBqCJoI=";
+  static const char kCertGeoTrustPrimaryG3[] =
+    "sha1/nKmNAK90Dd2BgNITRaWLjy6UONY=";
+
+  static const char kCertComodoAAACertificateServices[] =
+    "sha1/xDAoxdPjCAwQRIssd7okU5dgu/k=";
+  static const char kCertComodoAddTrustClass1CARoot[] =
+    "sha1/i9vXzKBoU0IW9MErJUT8Apyli0c=";
+  static const char kCertComodoAddTrustExternalCARoot[] =
+    "sha1/T5x9IXmcrQ7YuQxXnxoCmeeQ84c=";
+  static const char kCertComodoAddTrustPublicCARoot[] =
+    "sha1/qFdl1ugyyMUZY3Namhd0OoHf7i4=";
+  static const char kCertComodoAddTrustQualifiedCARoot[] =
+    "sha1/vOS3IxJVmOVjQRkcUOS2R8J2Bdc=";
+  static const char kCertComodoCertificationAuthority[] =
+    "sha1/EeSR0cnkwOuazs9zVF3h8agwPsM=";
+  static const char kCertComodoSecureCertificateServices[] =
+    "sha1/PLQahC71XPIaPaVKyNG+OQh2N7w=";
+  static const char kCertComodoTrustedCertificateServices[] =
+    "sha1//nLI678ML7sOJhOTkzwsqY3cJJQ=";
+  static const char kCertComodoUTNDATACorpSGC[] =
+    "sha1/UzLRs89/+uDxoF2FTpLSnkUdtE8=";
+  static const char kCertComodoUTNUSERFirstClientAuthenticationandEmail[] =
+    "sha1/iYJnfcSdJnAAS7RQSHzePa4Ebn0=";
+  static const char kCertComodoUTNUSERFirstHardware[] =
+    "sha1/oXJfJhsomEOVXQc31YWWnUvSw0U=";
+  static const char kCertComodoUTNUSERFirstObject[] =
+    "sha1/2u1kdBScFDyr3ZmpvVsoTYs8ydg=";
+
+  static const char kCertGTECyberTrustGlobalRoot[] =
+    "sha1/WXkS3mF11m/EI7d3E3THlt5viHI=";
+
+  static const char* const kTwitterComAcceptableCerts[] = {
+    kCertVerisignClass1,
+    kCertVerisignClass3,
+    kCertVerisignClass3_G4,
+    kCertVerisignClass4_G3,
+    kCertVerisignClass3_G3,
+    kCertVerisignClass1_G3,
+    kCertVerisignClass2_G3,
+    kCertVerisignClass3_G2,
+    kCertVerisignClass2_G2,
+    kCertVerisignClass3_G5,
+    kCertVerisignUniversal,
+    kCertGeoTrustGlobal,
+    kCertGeoTrustGlobal2,
+    kCertGeoTrustUniversal,
+    kCertGeoTrustUniversal2,
+    kCertGeoTrustPrimary,
+    kCertGeoTrustPrimaryG2,
+    kCertGeoTrustPrimaryG3,
+    kCertTwitter1,
+    0,
+  };
+
+  // kTwitterAcceptableCerts2 are the set of public keys valid for Twitter's
+  // CDNs, which includes all the keys from kTwitterAcceptableCerts1.
+  static const char* const kTwitterCDNAcceptableCerts[] = {
+    kCertVerisignClass1,
+    kCertVerisignClass3,
+    kCertVerisignClass3_G4,
+    kCertVerisignClass4_G3,
+    kCertVerisignClass3_G3,
+    kCertVerisignClass1_G3,
+    kCertVerisignClass2_G3,
+    kCertVerisignClass3_G2,
+    kCertVerisignClass2_G2,
+    kCertVerisignClass3_G5,
+    kCertVerisignUniversal,
+    kCertGeoTrustGlobal,
+    kCertGeoTrustGlobal2,
+    kCertGeoTrustUniversal,
+    kCertGeoTrustUniversal2,
+    kCertGeoTrustPrimary,
+    kCertGeoTrustPrimaryG2,
+    kCertGeoTrustPrimaryG3,
+    kCertTwitter1,
+
+    kCertEntrust2048,
+    kCertEntrustEV,
+    kCertEntrustG2,
+    kCertEntrustSSL,
+    kCertComodoAAACertificateServices,
+    kCertComodoAddTrustClass1CARoot,
+    kCertComodoAddTrustExternalCARoot,
+    kCertComodoAddTrustPublicCARoot,
+    kCertComodoAddTrustQualifiedCARoot,
+    kCertComodoCertificationAuthority,
+    kCertComodoSecureCertificateServices,
+    kCertComodoTrustedCertificateServices,
+    kCertComodoUTNDATACorpSGC,
+    kCertComodoUTNUSERFirstClientAuthenticationandEmail,
+    kCertComodoUTNUSERFirstHardware,
+    kCertComodoUTNUSERFirstObject,
+    kCertGTECyberTrustGlobalRoot,
+    0,
+  };
+
   // kTestAcceptableCerts doesn't actually match any public keys and is used
   // with "pinningtest.appspot.com", below, to test if pinning is active.
-  static const char* kTestAcceptableCerts[] = {
+  static const char* const kTestAcceptableCerts[] = {
     "sha1/AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
   };
+
+#if defined(OS_CHROMEOS)
+  static const bool kTwitterHSTS = true;
+#else
+  static const bool kTwitterHSTS = false;
+#endif
 
   // In the medium term this list is likely to just be hardcoded here. This,
   // slightly odd, form removes the need for additional relocations records.
@@ -1001,13 +1151,17 @@ bool TransportSecurityState::IsPreloadedSTS(
     {13, false, "\007greplin\003com", true, 0 },
     {17, false, "\003www\007greplin\003com", true, 0 },
     {27, true, "\006luneta\016nearbuysystems\003com", true, 0 },
-#if defined(OS_CHROMEOS)
-    {13, false, "\007twitter\003com", true, 0 },
-    {17, false, "\003www\007twitter\003com", true, 0 },
-    {17, false, "\003api\007twitter\003com", true, 0 },
-    {17, false, "\003dev\007twitter\003com", true, 0 },
-    {22, false, "\010business\007twitter\003com", true, 0 },
-#endif
+    {13, false, "\007twitter\003com", kTwitterHSTS, kTwitterComAcceptableCerts },
+    {17, true, "\003www\007twitter\003com", kTwitterHSTS, kTwitterComAcceptableCerts },
+    {17, true, "\003api\007twitter\003com", kTwitterHSTS, kTwitterComAcceptableCerts },
+    {19, true, "\005oauth\007twitter\003com", kTwitterHSTS, kTwitterComAcceptableCerts },
+    {20, true, "\006mobile\007twitter\003com", kTwitterHSTS, kTwitterComAcceptableCerts },
+    {17, true, "\003dev\007twitter\003com", kTwitterHSTS, kTwitterComAcceptableCerts },
+    {22, true, "\010business\007twitter\003com", kTwitterHSTS, kTwitterComAcceptableCerts },
+
+    {22, true, "\010platform\007twitter\003com", false, kTwitterCDNAcceptableCerts },
+    {15, true, "\003si0\005twimg\003com", false, kTwitterCDNAcceptableCerts },
+    {23, true, "\010twimg0-a\010akamaihd\003net", false, kTwitterCDNAcceptableCerts },
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 

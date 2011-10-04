@@ -706,13 +706,22 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
                                       "foo.greplin.com",
                                       false));
-
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
                                      "luneta.nearbuysystems.com",
                                      false));
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
                                      "foo.luneta.nearbuysystems.com",
                                      false));
+
+#if defined(OS_CHROMEOS)
+  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
+                                     "twitter.com",
+                                     false));
+#else
+  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
+                                      "twitter.com",
+                                      false));
+#endif
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
@@ -767,7 +776,6 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   // This essential checks that a built-in list does exist.
   EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(hashes));
   EXPECT_FALSE(state.HasPinsForHost(&domain_state, "www.paypal.com", true));
-  EXPECT_FALSE(state.HasPinsForHost(&domain_state, "twitter.com", true));
 
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "docs.google.com", true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "1.docs.google.com", true));
@@ -810,6 +818,18 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   EXPECT_TRUE(state.HasPinsForHost(&domain_state,
                                    "ssl.google-analytics.com",
                                    true));
+
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "twitter.com", true));
+  EXPECT_FALSE(state.HasPinsForHost(&domain_state, "foo.twitter.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "www.twitter.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "api.twitter.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "oauth.twitter.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "mobile.twitter.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "dev.twitter.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "business.twitter.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "platform.twitter.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "si0.twimg.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "twimg0-a.akamaihd.net", true));
 }
 
 TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {
