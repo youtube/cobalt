@@ -21,20 +21,20 @@ static const int kMsgHaveWork = WM_USER + 1;
 //-----------------------------------------------------------------------------
 // MessagePumpWin public:
 
-void MessagePumpWin::AddObserver(Observer* observer) {
+void MessagePumpWin::AddObserver(MessagePumpObserver* observer) {
   observers_.AddObserver(observer);
 }
 
-void MessagePumpWin::RemoveObserver(Observer* observer) {
+void MessagePumpWin::RemoveObserver(MessagePumpObserver* observer) {
   observers_.RemoveObserver(observer);
 }
 
 void MessagePumpWin::WillProcessMessage(const MSG& msg) {
-  FOR_EACH_OBSERVER(Observer, observers_, WillProcessMessage(msg));
+  FOR_EACH_OBSERVER(MessagePumpObserver, observers_, WillProcessEvent(msg));
 }
 
 void MessagePumpWin::DidProcessMessage(const MSG& msg) {
-  FOR_EACH_OBSERVER(Observer, observers_, DidProcessMessage(msg));
+  FOR_EACH_OBSERVER(MessagePumpObserver, observers_, DidProcessEvent(msg));
 }
 
 void MessagePumpWin::RunWithDispatcher(
