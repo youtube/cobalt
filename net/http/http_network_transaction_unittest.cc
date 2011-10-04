@@ -611,6 +611,116 @@ TEST_F(HttpNetworkTransactionTest,
   EXPECT_EQ("Hello world", out.response_data);
 }
 
+// Next tests deal with http://crbug.com/98895.
+
+// Checks that a single Content-Disposition header results in no error.
+TEST_F(HttpNetworkTransactionTest, SingleContentDispositionHeader) {
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Disposition: attachment;filename=\"salutations.txt\"r\n"),
+    MockRead("Content-Length: 5\r\n\r\n"),
+    MockRead("Hello"),
+  };
+  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                              arraysize(data_reads));
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("Hello", out.response_data);
+}
+
+// Checks that two identical Content-Disposition headers result in an error.
+TEST_F(HttpNetworkTransactionTest,
+       DuplicateIdenticalContentDispositionHeaders) {
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Disposition: attachment;filename=\"greetings.txt\"r\n"),
+    MockRead("Content-Disposition: attachment;filename=\"greetings.txt\"r\n"),
+    MockRead("Content-Length: 5\r\n\r\n"),
+    MockRead("Hello"),
+  };
+  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                              arraysize(data_reads));
+  EXPECT_EQ(ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION, out.rv);
+}
+
+// Checks that two distinct Content-Disposition headers result in an error.
+TEST_F(HttpNetworkTransactionTest, DuplicateDistinctContentDispositionHeaders) {
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Disposition: attachment;filename=\"greetings.txt\"r\n"),
+    MockRead("Content-Disposition: attachment;filename=\"hi.txt\"r\n"),
+    MockRead("Content-Length: 5\r\n\r\n"),
+    MockRead("Hello"),
+  };
+  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                              arraysize(data_reads));
+  EXPECT_EQ(ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION, out.rv);
+}
+
+// Checks the behavior of a single Location header.
+TEST_F(HttpNetworkTransactionTest, SingleLocationHeader) {
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 302 Redirect\r\n"),
+    MockRead("Location: http://good.com/\r\n"),
+    MockRead("Content-Length: 0\r\n\r\n"),
+    MockRead(false, OK),
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://redirect.com/");
+  request.load_flags = 0;
+
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  TestOldCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL && response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 302 Redirect", response->headers->GetStatusLine());
+  std::string url;
+  EXPECT_TRUE(response->headers->IsRedirect(&url));
+  EXPECT_EQ("http://good.com/", url);
+}
+
+// Checks that two identical Location headers result in an error.
+TEST_F(HttpNetworkTransactionTest, DuplicateIdenticalLocationHeaders) {
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 302 Redirect\r\n"),
+    MockRead("Location: http://good.com/\r\n"),
+    MockRead("Location: http://good.com/\r\n"),
+    MockRead("Content-Length: 0\r\n\r\n"),
+    MockRead(false, OK),
+  };
+  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                              arraysize(data_reads));
+  EXPECT_EQ(ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION, out.rv);
+}
+
+// Checks that two distinct Location headers result in an error.
+TEST_F(HttpNetworkTransactionTest, DuplicateDistinctLocationHeaders) {
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 302 Redirect\r\n"),
+    MockRead("Location: http://good.com/\r\n"),
+    MockRead("Location: http://evil.com/\r\n"),
+    MockRead("Content-Length: 0\r\n\r\n"),
+    MockRead(false, OK),
+  };
+  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                              arraysize(data_reads));
+  EXPECT_EQ(ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION, out.rv);
+}
+
 // Do a request using the HEAD method. Verify that we don't try to read the
 // message body (since HEAD has none).
 TEST_F(HttpNetworkTransactionTest, Head) {
