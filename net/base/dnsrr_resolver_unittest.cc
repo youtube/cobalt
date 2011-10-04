@@ -1,9 +1,10 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/dnsrr_resolver.h"
 
+#include "base/bind.h"
 #include "base/callback.h"
 #include "base/synchronization/lock.h"
 #include "net/base/dns_util.h"
@@ -14,26 +15,22 @@
 
 namespace net {
 
-class DnsRRResolverTest : public testing::Test {
-};
+namespace {
 
-class ExplodingCallback : public CallbackRunner<Tuple1<int> > {
- public:
-  virtual void RunWithParams(const Tuple1<int>& params) {
-    FAIL();
-  }
-};
+void FailTest(int /* result */) {
+  FAIL();
+}
 
 // These tests are disabled because they depend on the external network to
 // pass. However, they may be useful when chaging the code.
-TEST_F(DnsRRResolverTest, DISABLED_ResolveReal) {
+TEST(DnsRRResolverTest, DISABLED_ResolveReal) {
   RRResponse response;
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   DnsRRResolver resolver;
   DnsRRResolver::Handle handle;
 
   handle = resolver.Resolve("test.imperialviolet.org", 13172, 0,
-                            &callback, &response, 0, BoundNetLog());
+                            callback.callback(), &response, 0, BoundNetLog());
   ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
   ASSERT_EQ(OK, callback.WaitForResult());
   ASSERT_EQ(1u, response.rrdatas.size());
@@ -41,14 +38,14 @@ TEST_F(DnsRRResolverTest, DISABLED_ResolveReal) {
   LOG(ERROR) << "result is " << response.rrdatas[0];
 }
 
-TEST_F(DnsRRResolverTest, DISABLED_ResolveReal2) {
+TEST(DnsRRResolverTest, DISABLED_ResolveReal2) {
   RRResponse response;
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   DnsRRResolver resolver;
   DnsRRResolver::Handle handle;
 
   handle = resolver.Resolve("google.com", kDNS_TXT, 0,
-                            &callback, &response, 0, BoundNetLog());
+                            callback.callback(), &response, 0, BoundNetLog());
   ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
   ASSERT_EQ(OK, callback.WaitForResult());
   ASSERT_EQ(1u, response.rrdatas.size());
@@ -57,14 +54,14 @@ TEST_F(DnsRRResolverTest, DISABLED_ResolveReal2) {
 }
 
 
-TEST_F(DnsRRResolverTest, Resolve) {
+TEST(DnsRRResolverTest, Resolve) {
   RRResponse response;
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   DnsRRResolver resolver;
   DnsRRResolver::Handle handle;
 
   handle = resolver.Resolve("www.testing.notatld", kDNS_TESTING, 0,
-                            &callback, &response, 0, BoundNetLog());
+                            callback.callback(), &response, 0, BoundNetLog());
   ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
   ASSERT_EQ(OK, callback.WaitForResult());
   ASSERT_EQ(1u, response.rrdatas.size());
@@ -75,7 +72,7 @@ TEST_F(DnsRRResolverTest, Resolve) {
 
   // Test a cache hit.
   handle = resolver.Resolve("www.testing.notatld", kDNS_TESTING, 0,
-                            &callback, &response, 0, BoundNetLog());
+                            callback.callback(), &response, 0, BoundNetLog());
   ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
   ASSERT_EQ(OK, callback.WaitForResult());
   ASSERT_EQ(1u, response.rrdatas.size());
@@ -86,9 +83,8 @@ TEST_F(DnsRRResolverTest, Resolve) {
 
   // Test that a callback is never made. This depends on there being another
   // test after this one which will pump the MessageLoop.
-  ExplodingCallback callback3;
   handle = resolver.Resolve("www.testing.notatld", kDNS_TESTING, 0,
-                            &callback3, &response, 0, BoundNetLog());
+                            base::Bind(&FailTest), &response, 0, BoundNetLog());
   ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
   resolver.CancelResolve(handle);
   ASSERT_EQ(3u, resolver.requests());
@@ -97,7 +93,7 @@ TEST_F(DnsRRResolverTest, Resolve) {
 
   // Test what happens in the event of a network config change.
   handle = resolver.Resolve("nx.testing.notatld", kDNS_TESTING, 0,
-                            &callback, &response, 0, BoundNetLog());
+                            callback.callback(), &response, 0, BoundNetLog());
   ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
   resolver.OnIPAddressChanged();
   ASSERT_TRUE(callback.have_result());
@@ -108,13 +104,13 @@ TEST_F(DnsRRResolverTest, Resolve) {
 
   // Test an inflight join. (Note that this depends on the cache being flushed
   // by OnIPAddressChanged.)
-  TestOldCompletionCallback callback2;
+  TestCompletionCallback callback2;
   DnsRRResolver::Handle handle2;
   handle = resolver.Resolve("nx.testing.notatld", kDNS_TESTING, 0,
-                            &callback, &response, 0, BoundNetLog());
+                            callback.callback(), &response, 0, BoundNetLog());
   ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
   handle2 = resolver.Resolve("nx.testing.notatld", kDNS_TESTING, 0,
-                             &callback2, &response, 0, BoundNetLog());
+                             callback2.callback(), &response, 0, BoundNetLog());
   ASSERT_TRUE(handle2 != DnsRRResolver::kInvalidHandle);
   ASSERT_EQ(ERR_NAME_NOT_RESOLVED, callback.WaitForResult());
   ASSERT_EQ(ERR_NAME_NOT_RESOLVED, callback2.WaitForResult());
@@ -170,7 +166,7 @@ static const uint8 kExamplePacket[] = {
   0x00, 0x00, 0x00,
 };
 
-TEST_F(DnsRRResolverTest, ParseExample) {
+TEST(DnsRRResolverTest, ParseExample) {
   RRResponse response;
   ASSERT_TRUE(response.ParseFromResponse(kExamplePacket,
               sizeof(kExamplePacket), kDNS_TXT));
@@ -183,7 +179,7 @@ TEST_F(DnsRRResolverTest, ParseExample) {
   ASSERT_FALSE(response.dnssec);
 }
 
-TEST_F(DnsRRResolverTest, FuzzTruncation) {
+TEST(DnsRRResolverTest, FuzzTruncation) {
   RRResponse response;
 
   for (unsigned len = sizeof(kExamplePacket); len <= sizeof(kExamplePacket);
@@ -192,7 +188,7 @@ TEST_F(DnsRRResolverTest, FuzzTruncation) {
   }
 }
 
-TEST_F(DnsRRResolverTest, FuzzCorruption) {
+TEST(DnsRRResolverTest, FuzzCorruption) {
   RRResponse response;
   uint8 copy[sizeof(kExamplePacket)];
 
@@ -209,5 +205,7 @@ TEST_F(DnsRRResolverTest, FuzzCorruption) {
   }
 }
 #endif
+
+}  // namespace
 
 }  // namespace net
