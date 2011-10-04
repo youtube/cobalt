@@ -1889,7 +1889,8 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxyGet) {
   request.url = GURL("http://www.google.com/");
 
   // Configure against https proxy server "proxy:70".
-  SessionDependencies session_deps(ProxyService::CreateFixed("https://proxy:70"));
+  SessionDependencies session_deps(ProxyService::CreateFixed(
+      "https://proxy:70"));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
@@ -1944,7 +1945,8 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyGet) {
   request.load_flags = 0;
 
   // Configure against https proxy server "proxy:70".
-  SessionDependencies session_deps(ProxyService::CreateFixed("https://proxy:70"));
+  SessionDependencies session_deps(ProxyService::CreateFixed(
+      "https://proxy:70"));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
@@ -2104,7 +2106,8 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectHttps) {
   request.load_flags = 0;
 
   // Configure against https proxy server "proxy:70".
-  SessionDependencies session_deps(ProxyService::CreateFixed("https://proxy:70"));
+  SessionDependencies session_deps(ProxyService::CreateFixed(
+      "https://proxy:70"));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
@@ -2182,7 +2185,8 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectSpdy) {
   request.load_flags = 0;
 
   // Configure against https proxy server "proxy:70".
-  SessionDependencies session_deps(ProxyService::CreateFixed("https://proxy:70"));
+  SessionDependencies session_deps(ProxyService::CreateFixed(
+      "https://proxy:70"));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
@@ -2256,7 +2260,8 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectFailure) {
   request.load_flags = 0;
 
   // Configure against https proxy server "proxy:70".
-  SessionDependencies session_deps(ProxyService::CreateFixed("https://proxy:70"));
+  SessionDependencies session_deps(ProxyService::CreateFixed(
+      "https://proxy:70"));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
@@ -4391,7 +4396,8 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaProxy) {
 
 // Test HTTPS connections to a site, going through an HTTPS proxy
 TEST_F(HttpNetworkTransactionTest, HTTPSViaHttpsProxy) {
-  SessionDependencies session_deps(ProxyService::CreateFixed("https://proxy:70"));
+  SessionDependencies session_deps(ProxyService::CreateFixed(
+      "https://proxy:70"));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -4679,7 +4685,8 @@ TEST_F(HttpNetworkTransactionTest, ErrorResponseTofHttpsConnectViaSpdyProxy) {
 // Test HTTPS connections to a site with a bad certificate, going through an
 // HTTPS proxy
 TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaHttpsProxy) {
-  SessionDependencies session_deps(ProxyService::CreateFixed("https://proxy:70"));
+  SessionDependencies session_deps(ProxyService::CreateFixed(
+      "https://proxy:70"));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -6435,18 +6442,19 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocolAndFallback) {
       data_reads, arraysize(data_reads), NULL, 0);
   session_deps.socket_factory.AddSocketDataProvider(&second_data);
 
-  TestOldCompletionCallback callback;
-
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  HostPortPair http_host_port_pair("www.google.com", 80);
   HttpAlternateProtocols* alternate_protocols =
       session->mutable_alternate_protocols();
+  // Port must be < 1024, or the header will be ignored (since initial port was
+  // port 80 (another restricted port).
   alternate_protocols->SetAlternateProtocolFor(
-      http_host_port_pair, 1234 /* port is ignored by MockConnect anyway */,
+      HostPortPair::FromURL(request.url),
+      666 /* port is ignored by MockConnect anyway */,
       HttpAlternateProtocols::NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+  TestOldCompletionCallback callback;
 
   int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -6461,11 +6469,204 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocolAndFallback) {
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello world", response_data);
 
-  ASSERT_TRUE(
-      alternate_protocols->HasAlternateProtocolFor(http_host_port_pair));
+  ASSERT_TRUE(alternate_protocols->HasAlternateProtocolFor(
+      HostPortPair::FromURL(request.url)));
   const HttpAlternateProtocols::PortProtocolPair alternate =
-      alternate_protocols->GetAlternateProtocolFor(http_host_port_pair);
+      alternate_protocols->GetAlternateProtocolFor(
+          HostPortPair::FromURL(request.url));
   EXPECT_EQ(HttpAlternateProtocols::BROKEN, alternate.protocol);
+  HttpStreamFactory::set_use_alternate_protocols(false);
+}
+
+TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedBlocked) {
+  // Ensure that we're not allowed to redirect traffic via an alternate
+  // protocol to an unrestricted (port >= 1024) when the original traffic was
+  // on a restricted port (port < 1024).  Ensure that we can redirect in all
+  // other cases.
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  SessionDependencies session_deps;
+
+  HttpRequestInfo restricted_port_request;
+  restricted_port_request.method = "GET";
+  restricted_port_request.url = GURL("http://www.google.com:1023/");
+  restricted_port_request.load_flags = 0;
+
+  MockConnect mock_connect(true, ERR_CONNECTION_REFUSED);
+  StaticSocketDataProvider first_data;
+  first_data.set_connect_data(mock_connect);
+  session_deps.socket_factory.AddSocketDataProvider(&first_data);
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(true, OK),
+  };
+  StaticSocketDataProvider second_data(
+      data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&second_data);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  HttpAlternateProtocols* alternate_protocols =
+      session->mutable_alternate_protocols();
+  const int kUnrestrictedAlternatePort = 1024;
+  alternate_protocols->SetAlternateProtocolFor(
+      HostPortPair::FromURL(restricted_port_request.url),
+      kUnrestrictedAlternatePort,
+      HttpAlternateProtocols::NPN_SPDY_2);
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+  TestOldCompletionCallback callback;
+
+  int rv = trans->Start(&restricted_port_request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  // Invalid change to unrestricted port should fail.
+  EXPECT_EQ(ERR_CONNECTION_REFUSED, callback.WaitForResult());
+
+  HttpStreamFactory::set_use_alternate_protocols(false);
+}
+
+TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedAllowed) {
+  // Ensure that we're not allowed to redirect traffic via an alternate
+  // protocol to an unrestricted (port >= 1024) when the original traffic was
+  // on a restricted port (port < 1024).  Ensure that we can redirect in all
+  // other cases.
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  SessionDependencies session_deps;
+
+  HttpRequestInfo restricted_port_request;
+  restricted_port_request.method = "GET";
+  restricted_port_request.url = GURL("http://www.google.com:1023/");
+  restricted_port_request.load_flags = 0;
+
+  MockConnect mock_connect(true, ERR_CONNECTION_REFUSED);
+  StaticSocketDataProvider first_data;
+  first_data.set_connect_data(mock_connect);
+  session_deps.socket_factory.AddSocketDataProvider(&first_data);
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(true, OK),
+  };
+  StaticSocketDataProvider second_data(
+      data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&second_data);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  HttpAlternateProtocols* alternate_protocols =
+      session->mutable_alternate_protocols();
+  const int kRestrictedAlternatePort = 80;
+  alternate_protocols->SetAlternateProtocolFor(
+      HostPortPair::FromURL(restricted_port_request.url),
+      kRestrictedAlternatePort,
+      HttpAlternateProtocols::NPN_SPDY_2);
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+  TestOldCompletionCallback callback;
+
+  int rv = trans->Start(&restricted_port_request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  // Valid change to restricted port should pass.
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  HttpStreamFactory::set_use_alternate_protocols(false);
+}
+
+TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed1) {
+  // Ensure that we're not allowed to redirect traffic via an alternate
+  // protocol to an unrestricted (port >= 1024) when the original traffic was
+  // on a restricted port (port < 1024).  Ensure that we can redirect in all
+  // other cases.
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  SessionDependencies session_deps;
+
+  HttpRequestInfo unrestricted_port_request;
+  unrestricted_port_request.method = "GET";
+  unrestricted_port_request.url = GURL("http://www.google.com:1024/");
+  unrestricted_port_request.load_flags = 0;
+
+  MockConnect mock_connect(true, ERR_CONNECTION_REFUSED);
+  StaticSocketDataProvider first_data;
+  first_data.set_connect_data(mock_connect);
+  session_deps.socket_factory.AddSocketDataProvider(&first_data);
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(true, OK),
+  };
+  StaticSocketDataProvider second_data(
+      data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&second_data);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  HttpAlternateProtocols* alternate_protocols =
+      session->mutable_alternate_protocols();
+  const int kRestrictedAlternatePort = 80;
+  alternate_protocols->SetAlternateProtocolFor(
+      HostPortPair::FromURL(unrestricted_port_request.url),
+      kRestrictedAlternatePort,
+      HttpAlternateProtocols::NPN_SPDY_2);
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+  TestOldCompletionCallback callback;
+
+  int rv = trans->Start(&unrestricted_port_request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  // Valid change to restricted port should pass.
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  HttpStreamFactory::set_use_alternate_protocols(false);
+}
+
+TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed2) {
+  // Ensure that we're not allowed to redirect traffic via an alternate
+  // protocol to an unrestricted (port >= 1024) when the original traffic was
+  // on a restricted port (port < 1024).  Ensure that we can redirect in all
+  // other cases.
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  SessionDependencies session_deps;
+
+  HttpRequestInfo unrestricted_port_request;
+  unrestricted_port_request.method = "GET";
+  unrestricted_port_request.url = GURL("http://www.google.com:1024/");
+  unrestricted_port_request.load_flags = 0;
+
+  MockConnect mock_connect(true, ERR_CONNECTION_REFUSED);
+  StaticSocketDataProvider first_data;
+  first_data.set_connect_data(mock_connect);
+  session_deps.socket_factory.AddSocketDataProvider(&first_data);
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(true, OK),
+  };
+  StaticSocketDataProvider second_data(
+      data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&second_data);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  HttpAlternateProtocols* alternate_protocols =
+      session->mutable_alternate_protocols();
+  const int kUnrestrictedAlternatePort = 1024;
+  alternate_protocols->SetAlternateProtocolFor(
+      HostPortPair::FromURL(unrestricted_port_request.url),
+      kUnrestrictedAlternatePort,
+      HttpAlternateProtocols::NPN_SPDY_2);
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+  TestOldCompletionCallback callback;
+
+  int rv = trans->Start(&unrestricted_port_request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  // Valid change to an unrestricted port should pass.
+  EXPECT_EQ(OK, callback.WaitForResult());
+
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
@@ -8780,7 +8981,7 @@ class OneTimeCachingHostResolver : public net::HostResolver {
     return host_resolver_.AddObserver(observer);
   }
 
-  virtual void RemoveObserver(Observer* observer) OVERRIDE{
+  virtual void RemoveObserver(Observer* observer) OVERRIDE {
     return host_resolver_.RemoveObserver(observer);
   }
 
