@@ -33,7 +33,13 @@ static const EVMetadata ev_root_ca_metadata[] = {
   // https://addtrustexternalcaroot-ev.comodoca.com
   { { { 0x02, 0xfa, 0xf3, 0xe2, 0x91, 0x43, 0x54, 0x68, 0x60, 0x78,
         0x57, 0x69, 0x4d, 0xf5, 0xe4, 0x5b, 0x68, 0x85, 0x18, 0x68 } },
-    {"1.3.6.1.4.1.6449.1.2.1.5.1", NULL},
+    {
+      "1.3.6.1.4.1.6449.1.2.1.5.1",
+      // This is the Network Solutions EV OID. However, this root
+      // cross-certifies NetSol and so we need it here too.
+      "1.3.6.1.4.1.782.1.2.1.8.1",
+      NULL,
+    },
   },
   // AffirmTrust Commercial
   // https://commercial.affirmtrust.com/
@@ -239,7 +245,13 @@ static const EVMetadata ev_root_ca_metadata[] = {
   // UTN-USERFirst-Hardware
   { { { 0x04, 0x83, 0xed, 0x33, 0x99, 0xac, 0x36, 0x08, 0x05, 0x87,
         0x22, 0xed, 0xbc, 0x5e, 0x46, 0x00, 0xe3, 0xbe, 0xf9, 0xd7 } },
-    {"1.3.6.1.4.1.6449.1.2.1.5.1", NULL},
+    {
+      "1.3.6.1.4.1.6449.1.2.1.5.1",
+      // This is the Network Solutions EV OID. However, this root
+      // cross-certifies NetSol and so we need it here too.
+      "1.3.6.1.4.1.782.1.2.1.8.1",
+      NULL,
+    },
   },
   // ValiCert Class 2 Policy Validation Authority
   { { { 0x31, 0x7a, 0x2a, 0xd0, 0x7f, 0x2b, 0x33, 0x5e, 0xf5, 0xa1,
