@@ -483,7 +483,7 @@ NET_ERROR(UNDOCUMENTED_SECURITY_LIBRARY_STATUS, -344)
 // The HTTP response was too big to drain.
 NET_ERROR(RESPONSE_BODY_TOO_BIG_TO_DRAIN, -345)
 
-// The HTTP response was too big to drain.
+// The HTTP response contained multiple distinct Content-Length headers.
 NET_ERROR(RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH, -346)
 
 // SPDY Headers have been received, but not all of them - status or version
@@ -494,6 +494,12 @@ NET_ERROR(INCOMPLETE_SPDY_HEADERS, -347)
 // either a failure to retrieve the DHCP configuration, or that there was no
 // PAC URL configured in DHCP.
 NET_ERROR(PAC_NOT_IN_DHCP, -348)
+
+// The HTTP response contained multiple Content-Disposition headers.
+NET_ERROR(RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION, -349)
+
+// The HTTP response contained multiple Location headers.
+NET_ERROR(RESPONSE_HEADERS_MULTIPLE_LOCATION, -350)
 
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
