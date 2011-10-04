@@ -370,6 +370,7 @@
           'win/scoped_handle.h',
           'win/scoped_hdc.h',
           'win/scoped_hglobal.h',
+          'win/scoped_select_object.h',
           'win/scoped_variant.cc',
           'win/scoped_variant.h',
           'win/windows_version.cc',
