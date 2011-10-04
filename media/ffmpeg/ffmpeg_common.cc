@@ -215,6 +215,30 @@ ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
   }
 }
 
+VideoFrame::Format PixelFormatToVideoFormat(PixelFormat pixel_format) {
+  switch (pixel_format) {
+    case PIX_FMT_YUV422P:
+      return VideoFrame::YV16;
+    case PIX_FMT_YUV420P:
+      return VideoFrame::YV12;
+    default:
+      NOTREACHED() << "Unsupported PixelFormat: " << pixel_format;
+  }
+  return VideoFrame::INVALID;
+}
+
+PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format) {
+  switch (video_format) {
+    case VideoFrame::YV16:
+      return PIX_FMT_YUV422P;
+    case VideoFrame::YV12:
+      return PIX_FMT_YUV420P;
+    default:
+      NOTREACHED() << "Unsupported VideoFrame Format: " << video_format;
+  }
+  return PIX_FMT_NONE;
+}
+
 base::TimeDelta GetFrameDuration(AVStream* stream) {
   AVRational time_base = { stream->r_frame_rate.den, stream->r_frame_rate.num };
   return ConvertFromTimeBase(time_base, 1);
