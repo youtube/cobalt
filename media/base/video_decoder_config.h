@@ -8,6 +8,7 @@
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
+#include "media/base/video_frame.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
@@ -36,7 +37,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   // Constructs an initialized object. It is acceptable to pass in NULL for
   // |extra_data|, otherwise the memory is copied.
-  VideoDecoderConfig(VideoCodec codec, const gfx::Size& coded_size,
+  VideoDecoderConfig(VideoCodec codec,
+                     VideoFrame::Format format,
+                     const gfx::Size& coded_size,
                      const gfx::Rect& visible_rect,
                      int frame_rate_numerator, int frame_rate_denominator,
                      const uint8* extra_data, size_t extra_data_size);
@@ -44,7 +47,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
   ~VideoDecoderConfig();
 
   // Resets the internal state of this object.
-  void Initialize(VideoCodec codec, const gfx::Size& coded_size,
+  void Initialize(VideoCodec codec,
+                  VideoFrame::Format format,
+                  const gfx::Size& coded_size,
                   const gfx::Rect& visible_rect,
                   int frame_rate_numerator, int frame_rate_denominator,
                   const uint8* extra_data, size_t extra_data_size);
@@ -54,6 +59,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
   bool IsValidConfig() const;
 
   VideoCodec codec() const;
+
+  // Video format used to determine YUV buffer sizes.
+  VideoFrame::Format format() const;
 
   // Width and height of video frame immediately post-decode. Not all pixels
   // in this region are valid.
@@ -74,6 +82,8 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
  private:
   VideoCodec codec_;
+
+  VideoFrame::Format format_;
 
   gfx::Size coded_size_;
   gfx::Rect visible_rect_;

@@ -82,6 +82,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   }
 
   VideoDecoderConfig config(CodecIDToVideoCodec(av_stream->codec->codec_id),
+                            PixelFormatToVideoFormat(av_stream->codec->pix_fmt),
                             coded_size, visible_rect,
                             av_stream->r_frame_rate.num,
                             av_stream->r_frame_rate.den,
