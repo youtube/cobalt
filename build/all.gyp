@@ -598,5 +598,23 @@
         },
       ],  # targets
     }], # "chromeos==1"
+    ['use_aura==1', {
+      'targets': [
+        {
+          'target_name': 'aura_builder',
+          'type': 'none',
+          'dependencies': [
+            '../ui/aura_shell/aura_shell.gyp:aura_shell_exe',
+            '../ui/aura/aura.gyp:*',
+            '../ui/gfx/compositor/compositor.gyp:*',
+            '../views/views.gyp:views',
+            '../views/views.gyp:views_aura_desktop',
+            '../views/views.gyp:views_desktop',
+            '../views/views.gyp:views_desktop_lib',
+            '../views/views.gyp:views_unittests',
+          ],
+        },
+      ],  # targets
+    }], # "use_aura==1"
   ], # conditions
 }
