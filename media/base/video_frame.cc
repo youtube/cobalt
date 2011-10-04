@@ -75,9 +75,12 @@ scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(int width, int height) {
   // Fill the U and V planes.
   uint8* u_plane = frame->data(VideoFrame::kUPlane);
   uint8* v_plane = frame->data(VideoFrame::kVPlane);
-  for (size_t i = 0; i < (frame->height_ / 2); ++i) {
-    memset(u_plane, kBlackUV, frame->width_ / 2);
-    memset(v_plane, kBlackUV, frame->width_ / 2);
+  int uv_rows = frame->rows(VideoFrame::kUPlane);
+  int u_row_bytes = frame->row_bytes(VideoFrame::kUPlane);
+  int v_row_bytes = frame->row_bytes(VideoFrame::kVPlane);
+  for (size_t i = 0; i < (size_t)uv_rows; ++i) {
+    memset(u_plane, kBlackUV, u_row_bytes);
+    memset(v_plane, kBlackUV, v_row_bytes);
     u_plane += frame->stride(VideoFrame::kUPlane);
     v_plane += frame->stride(VideoFrame::kVPlane);
   }
@@ -115,21 +118,20 @@ void VideoFrame::AllocateYUV() {
   // to avoid any potential of faulting by code that attempts to access the Y
   // values of the final row, but assumes that the last row of U & V applies to
   // a full two rows of Y.
-  size_t alloc_height = RoundUp(height_, 2);
-  size_t y_bytes_per_row = RoundUp(width_, 4);
-  size_t uv_stride = RoundUp(y_bytes_per_row / 2, 4);
-  size_t y_bytes = alloc_height * y_bytes_per_row;
-  size_t uv_bytes = alloc_height * uv_stride;
-  if (format_ == VideoFrame::YV12) {
-    uv_bytes /= 2;
-  }
+  size_t y_height = RoundUp(rows(VideoFrame::kYPlane), 2);
+  size_t y_stride = RoundUp(row_bytes(VideoFrame::kYPlane), 4);
+  size_t uv_stride = RoundUp(row_bytes(VideoFrame::kUPlane), 4);
+  size_t uv_height = RoundUp(rows(VideoFrame::kUPlane), 2);
+  size_t y_bytes = y_height * y_stride;
+  size_t uv_bytes = uv_height * uv_stride;
+
   uint8* data = new uint8[y_bytes + (uv_bytes * 2) + kFramePadBytes];
   planes_ = VideoFrame::kNumYUVPlanes;
   COMPILE_ASSERT(0 == VideoFrame::kYPlane, y_plane_data_must_be_index_0);
   data_[VideoFrame::kYPlane] = data;
   data_[VideoFrame::kUPlane] = data + y_bytes;
   data_[VideoFrame::kVPlane] = data + y_bytes + uv_bytes;
-  strides_[VideoFrame::kYPlane] = y_bytes_per_row;
+  strides_[VideoFrame::kYPlane] = y_stride;
   strides_[VideoFrame::kUPlane] = uv_stride;
   strides_[VideoFrame::kVPlane] = uv_stride;
 }

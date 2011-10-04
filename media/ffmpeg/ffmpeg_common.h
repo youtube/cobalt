@@ -83,6 +83,12 @@ CodecID VideoCodecToCodecID(VideoCodec video_codec);
 ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
                                                  int channels);
 
+// Converts FFmpeg's pixel formats to its corresponding supported video format.
+VideoFrame::Format PixelFormatToVideoFormat(PixelFormat pixel_format);
+
+// Converts video formats to its corresponding FFmpeg's pixel formats.
+PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format);
+
 // Calculates duration of one frame in the |stream| based on its frame rate.
 base::TimeDelta GetFrameDuration(AVStream* stream);
 

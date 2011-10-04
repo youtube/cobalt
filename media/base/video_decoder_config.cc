@@ -10,19 +10,21 @@ namespace media {
 
 VideoDecoderConfig::VideoDecoderConfig()
     : codec_(kUnknownVideoCodec),
+      format_(VideoFrame::INVALID),
       frame_rate_numerator_(0),
       frame_rate_denominator_(0),
       extra_data_size_(0) {
 }
 
 VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
+                                       VideoFrame::Format format,
                                        const gfx::Size& coded_size,
                                        const gfx::Rect& visible_rect,
                                        int frame_rate_numerator,
                                        int frame_rate_denominator,
                                        const uint8* extra_data,
                                        size_t extra_data_size) {
-  Initialize(codec, coded_size, visible_rect,
+  Initialize(codec, format, coded_size, visible_rect,
              frame_rate_numerator, frame_rate_denominator,
              extra_data, extra_data_size);
 }
@@ -30,6 +32,7 @@ VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
 VideoDecoderConfig::~VideoDecoderConfig() {}
 
 void VideoDecoderConfig::Initialize(VideoCodec codec,
+                                    VideoFrame::Format format,
                                     const gfx::Size& coded_size,
                                     const gfx::Rect& visible_rect,
                                     int frame_rate_numerator,
@@ -39,6 +42,7 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
   CHECK((extra_data_size != 0) == (extra_data != NULL));
 
   codec_ = codec;
+  format_ = format;
   coded_size_ = coded_size;
   visible_rect_ = visible_rect;
   frame_rate_numerator_ = frame_rate_numerator;
@@ -55,12 +59,17 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
 
 bool VideoDecoderConfig::IsValidConfig() const {
   return codec_ != kUnknownVideoCodec &&
+      format_ != VideoFrame::INVALID &&
       frame_rate_numerator_ > 0 &&
       frame_rate_denominator_ > 0;
 }
 
 VideoCodec VideoDecoderConfig::codec() const {
   return codec_;
+}
+
+VideoFrame::Format VideoDecoderConfig::format() const {
+  return format_;
 }
 
 gfx::Size VideoDecoderConfig::coded_size() const {
