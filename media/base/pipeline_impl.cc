@@ -196,7 +196,7 @@ void PipelineImpl::SetPlaybackRate(float playback_rate) {
 
   base::AutoLock auto_lock(lock_);
   playback_rate_ = playback_rate;
-  if (running_) {
+  if (running_ && !tearing_down_) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &PipelineImpl::PlaybackRateChangedTask, this, playback_rate));
   }
@@ -214,7 +214,7 @@ void PipelineImpl::SetVolume(float volume) {
 
   base::AutoLock auto_lock(lock_);
   volume_ = volume;
-  if (running_) {
+  if (running_ && !tearing_down_) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &PipelineImpl::VolumeChangedTask, this, volume));
   }
@@ -228,7 +228,7 @@ Preload PipelineImpl::GetPreload() const {
 void PipelineImpl::SetPreload(Preload preload) {
   base::AutoLock auto_lock(lock_);
   preload_ = preload;
-  if (running_) {
+  if (running_ && !tearing_down_) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &PipelineImpl::PreloadChangedTask, this, preload));
   }
@@ -818,6 +818,9 @@ void PipelineImpl::ErrorChangedTask(PipelineStatus error) {
 void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
+  if (!running_ || tearing_down_)
+    return;
+
   // Suppress rate change until after seeking.
   if (IsPipelineSeeking()) {
     pending_playback_rate_ = playback_rate;
@@ -842,14 +845,18 @@ void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
 
 void PipelineImpl::VolumeChangedTask(float volume) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
+  if (!running_ || tearing_down_)
+    return;
 
-  if (audio_renderer_) {
+  if (audio_renderer_)
     audio_renderer_->SetVolume(volume);
-  }
 }
 
 void PipelineImpl::PreloadChangedTask(Preload preload) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
+  if (!running_ || tearing_down_)
+    return;
+
   if (demuxer_)
     demuxer_->SetPreload(preload);
 }

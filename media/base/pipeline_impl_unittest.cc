@@ -781,6 +781,56 @@ TEST_F(PipelineImplTest, ErrorDuringSeek) {
   message_loop_.RunAllPending();
 }
 
+// Invoked function OnError. This asserts that the pipeline does not enqueue
+// non-teardown related tasks while tearing down.
+static void TestNoCallsAfterError(
+    PipelineImpl* pipeline, MessageLoop* message_loop,
+    PipelineStatus /* status */) {
+  CHECK(pipeline);
+  CHECK(message_loop);
+
+  // When we get to this stage, the message loop should be empty.
+  message_loop->AssertIdle();
+
+  // Make calls on pipeline after error has occurred.
+  pipeline->SetPlaybackRate(0.5f);
+  pipeline->SetVolume(0.5f);
+  pipeline->SetPreload(AUTO);
+
+  // No additional tasks should be queued as a result of these calls.
+  message_loop->AssertIdle();
+}
+
+TEST_F(PipelineImplTest, NoMessageDuringTearDownFromError) {
+  CreateAudioStream();
+  MockDemuxerStreamVector streams;
+  streams.push_back(audio_stream());
+
+  InitializeDemuxer(&streams, base::TimeDelta::FromSeconds(10));
+  InitializeAudioDecoder(audio_stream());
+  InitializeAudioRenderer();
+  InitializePipeline(PIPELINE_OK);
+
+  // Trigger additional requests on the pipeline during tear down from error.
+  base::Callback<void(PipelineStatus)> cb = base::Bind(
+      &TestNoCallsAfterError, pipeline_, &message_loop_);
+  ON_CALL(callbacks_, OnError(_))
+      .WillByDefault(Invoke(&cb, &base::Callback<void(PipelineStatus)>::Run));
+
+  InSequence s;
+
+  base::TimeDelta seek_time = base::TimeDelta::FromSeconds(5);
+
+  EXPECT_CALL(*mocks_->demuxer(), Seek(seek_time, _))
+      .WillOnce(Invoke(&SendReadErrorToCB));
+
+  pipeline_->Seek(seek_time,base::Bind(&CallbackHelper::OnSeek,
+                                       base::Unretained(&callbacks_)));
+  EXPECT_CALL(callbacks_, OnSeek(PIPELINE_ERROR_READ));
+  EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_READ));
+  message_loop_.RunAllPending();
+}
+
 TEST_F(PipelineImplTest, StartTimeIsZero) {
   CreateVideoStream();
   MockDemuxerStreamVector streams;
