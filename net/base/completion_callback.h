@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,14 @@
 #pragma once
 
 #include "base/callback_old.h"
+#include "base/callback.h"
 
 namespace net {
 
 // A callback specialization that takes a single int parameter.  Usually this
 // is used to report a byte count or network error code.
 typedef Callback1<int>::Type OldCompletionCallback;
+typedef base::Callback<void(int)> CompletionCallback;
 
 // Used to implement a OldCompletionCallback.
 template <class T>

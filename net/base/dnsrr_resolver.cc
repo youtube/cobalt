@@ -113,30 +113,30 @@ RRResponse::~RRResponse() {}
 
 class RRResolverHandle {
  public:
-  RRResolverHandle(OldCompletionCallback* callback, RRResponse* response)
+  RRResolverHandle(const CompletionCallback& callback, RRResponse* response)
       : callback_(callback),
         response_(response) {
   }
 
   // Cancel ensures that the result callback will never be made.
   void Cancel() {
-    callback_ = NULL;
+    callback_.Reset();
     response_ = NULL;
   }
 
   // Post copies the contents of |response| to the caller's RRResponse and
   // calls the callback.
   void Post(int rv, const RRResponse* response) {
-    if (callback_) {
+    if (!callback_.is_null()) {
       if (response_ && response)
         *response_ = *response;
-      callback_->Run(rv);
+      callback_.Run(rv);
     }
     delete this;
   }
 
  private:
-  OldCompletionCallback* callback_;
+  CompletionCallback callback_;
   RRResponse* response_;
 };
 
@@ -541,14 +541,15 @@ DnsRRResolver::~DnsRRResolver() {
 }
 
 intptr_t DnsRRResolver::Resolve(const std::string& name, uint16 rrtype,
-                                uint16 flags, OldCompletionCallback* callback,
+                                uint16 flags,
+                                const CompletionCallback& callback,
                                 RRResponse* response,
                                 int priority /* ignored */,
                                 const BoundNetLog& netlog /* ignored */) {
   DCHECK(CalledOnValidThread());
   DCHECK(!in_destructor_);
 
-  if (!callback || !response || name.empty())
+  if (callback.is_null() || !response || name.empty())
     return kInvalidHandle;
 
   // Don't allow queries of type ANY
