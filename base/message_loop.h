@@ -84,7 +84,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
  public:
 #if defined(OS_WIN)
   typedef base::MessagePumpWin::Dispatcher Dispatcher;
-  typedef base::MessagePumpForUI::Observer Observer;
+  typedef base::MessagePumpObserver Observer;
 #elif !defined(OS_MACOSX) && !defined(OS_ANDROID)
   typedef base::MessagePumpDispatcher Dispatcher;
   typedef base::MessagePumpObserver Observer;
