@@ -1071,7 +1071,7 @@
       }],
       ['enable_web_intents==1', {
         'defines': [
-          'ENABLE_INTENTS=1',
+          'ENABLE_WEB_INTENTS=1',
         ],
       }],
     ],  # conditions for 'target_defaults'
