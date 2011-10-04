@@ -74,6 +74,13 @@
             'use_only_pure_views%': 0,
           }],
 
+          # Use virtual keyboard by default in TouchUI builds.
+          ['touchui==1', {
+            'use_virtual_keyboard%': 1,
+          }, {
+            'use_virtual_keyboard%': 0,
+          }],
+
           # Use the views compositor when using the Aura window manager or
           # touch.
           ['use_aura==1 or touchui==1', {
@@ -85,6 +92,7 @@
       # Copy conditionally-set variables out one scope.
       'chromeos%': '<(chromeos)',
       'touchui%': '<(touchui)',
+      'use_virtual_keyboard%': '<(use_virtual_keyboard)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
       'use_only_pure_views%': '<(use_only_pure_views)',
@@ -330,6 +338,7 @@
     'enable_flapper_hacks%': '<(enable_flapper_hacks)',
     'chromeos%': '<(chromeos)',
     'touchui%': '<(touchui)',
+    'use_virtual_keyboard%': '<(use_virtual_keyboard)',
     'use_xi2_mt%':'<(use_xi2_mt)',
     'file_manager_extension%': '<(file_manager_extension)',
     'webui_task_manager%': '<(webui_task_manager)',
@@ -764,6 +773,9 @@
       ['touchui==1', {
         'grit_defines': ['-D', 'touchui'],
       }],
+      ['use_virtual_keyboard==1', {
+        'grit_defines': ['-D', 'use_virtual_keyboard'],
+      }],
       ['file_manager_extension==1', {
         'grit_defines': ['-D', 'file_manager_extension'],
       }],
@@ -900,6 +912,9 @@
       }],
       ['touchui==1', {
         'defines': ['TOUCH_UI=1'],
+      }],
+      ['use_virtual_keyboard==1', {
+        'defines': ['USE_VIRTUAL_KEYBOARD=1'],
       }],
       ['use_xi2_mt!=0', {
         'defines': ['USE_XI2_MT=<(use_xi2_mt)'],
