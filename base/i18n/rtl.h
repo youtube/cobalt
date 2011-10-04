@@ -95,6 +95,9 @@ BASE_I18N_EXPORT TextDirection GetFirstStrongCharacterDirection(
 // results in Windows displaying squares.
 BASE_I18N_EXPORT bool AdjustStringForLocaleDirection(string16* text);
 
+// Undoes the actions of the above function (AdjustStringForLocaleDirection).
+BASE_I18N_EXPORT bool UnadjustStringForLocaleDirection(string16* text);
+
 // Returns true if the string contains at least one character with strong right
 // to left directionality; that is, a character with either R or AL Unicode
 // BiDi character type.
@@ -128,7 +131,7 @@ BASE_I18N_EXPORT string16 GetDisplayStringInLTRDirectionality(
 // return the text itself. Explicit bidi control characters display and have
 // semantic effect. They can be deleted so they might not always appear in a
 // pair.
-BASE_I18N_EXPORT const string16 StripWrappingBidiControlCharacters(
+BASE_I18N_EXPORT string16 StripWrappingBidiControlCharacters(
     const string16& text) WARN_UNUSED_RESULT;
 
 }  // namespace i18n
