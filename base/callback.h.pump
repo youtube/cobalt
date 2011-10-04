@@ -28,7 +28,7 @@ $var MAX_ARITY = 6
 // with the Bind() function in bind.h, they provide a type-safe method for
 // performing currying of arguments, and creating a "closure."
 //
-// In programing languages, a closure is a first-class function where all its
+// In programming languages, a closure is a first-class function where all its
 // parameters have been bound (usually via currying).  Closures are well
 // suited for representing, and passing around a unit of delayed execution.
 // They are used in Chromium code to schedule tasks on different MessageLoops.
