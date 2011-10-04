@@ -4,6 +4,8 @@
 
 #include "net/base/test_completion_callback.h"
 
+#include "base/bind.h"
+#include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "net/base/net_errors.h"
 
@@ -38,3 +40,19 @@ void TestOldCompletionCallback::RunWithParams(const Tuple1<int>& params) {
   if (waiting_for_result_)
     MessageLoop::current()->Quit();
 }
+
+namespace net {
+
+TestCompletionCallback::TestCompletionCallback()
+    : ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+        base::Bind(&TestCompletionCallback::OnComplete,
+                   base::Unretained(this)))) {
+}
+
+TestCompletionCallback::~TestCompletionCallback() {}
+
+void TestCompletionCallback::OnComplete(int result) {
+  old_callback_impl_.RunWithParams(Tuple1<int>(result));
+}
+
+}  // namespace net

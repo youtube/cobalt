@@ -99,7 +99,7 @@ class NET_EXPORT DnsRRResolver
   // this function returns kInvalidHandle then the resolution failed
   // immediately because it was improperly formed.
   Handle Resolve(const std::string& name, uint16 rrtype,
-                 uint16 flags, OldCompletionCallback* callback,
+                 uint16 flags, const CompletionCallback& callback,
                  RRResponse* response, int priority,
                  const BoundNetLog& netlog);
 

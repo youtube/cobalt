@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include "base/callback_old.h"
 #include "base/tuple.h"
+#include "net/base/completion_callback.h"
 
 //-----------------------------------------------------------------------------
 // completion callback helper
@@ -38,5 +39,29 @@ class TestOldCompletionCallback : public CallbackRunner< Tuple1<int> > {
   bool have_result_;
   bool waiting_for_result_;
 };
+
+namespace net {
+
+class TestCompletionCallback {
+ public:
+  TestCompletionCallback();
+  ~TestCompletionCallback();
+
+  int WaitForResult() { return old_callback_impl_.WaitForResult(); }
+
+  int GetResult(int result) { return old_callback_impl_.GetResult(result); }
+
+  bool have_result() const { return old_callback_impl_.have_result(); }
+
+  const CompletionCallback& callback() const { return callback_; }
+
+ private:
+  void OnComplete(int result);
+
+  const CompletionCallback callback_;
+  TestOldCompletionCallback old_callback_impl_;
+};
+
+}  // namespace net
 
 #endif  // NET_BASE_TEST_COMPLETION_CALLBACK_H_
