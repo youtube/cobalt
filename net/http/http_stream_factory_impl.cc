@@ -18,12 +18,12 @@ namespace net {
 
 namespace {
 
-GURL UpgradeUrlToHttps(const GURL& original_url) {
+GURL UpgradeUrlToHttps(const GURL& original_url, int port) {
   GURL::Replacements replacements;
   // new_sheme and new_port need to be in scope here because GURL::Replacements
   // references the memory contained by them directly.
   const std::string new_scheme = "https";
-  const std::string new_port = base::IntToString(443);
+  const std::string new_port = base::IntToString(port);
   replacements.SetSchemeStr(new_scheme);
   replacements.SetPortStr(new_port);
   return original_url.ReplaceComponents(replacements);
@@ -150,11 +150,21 @@ bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
   if (alternate.protocol != HttpAlternateProtocols::NPN_SPDY_2)
     return false;
 
+  // Some shared unix systems may have user home directories (like
+  // http://foo.com/~mike) which allow users to emit headers.  This is a bad
+  // idea already, but with Alternate-Protocol, it provides the ability for a
+  // single user on a multi-user system to hijack the alternate protocol.
+  // These systems also enforce ports <1024 as restricted ports.  So don't
+  // allow protocol upgrades to user-controllable ports.
+  const int kUnrestrictedPort = 1024;
+  if (alternate.port >= kUnrestrictedPort && origin.port() < kUnrestrictedPort)
+    return false;
+
   origin.set_port(alternate.port);
   if (HttpStreamFactory::HasSpdyExclusion(origin))
     return false;
 
-  *alternate_url = UpgradeUrlToHttps(original_url);
+  *alternate_url = UpgradeUrlToHttps(original_url, alternate.port);
   return true;
 }
 
