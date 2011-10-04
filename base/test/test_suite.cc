@@ -27,6 +27,10 @@
 #include "base/test/mock_chrome_application_mac.h"
 #endif
 
+#if defined(OS_ANDROID)
+#include "base/test/test_stub_android.h"
+#endif
+
 #if defined(TOOLKIT_USES_GTK)
 #include <gtk/gtk.h>
 #endif
@@ -182,6 +186,10 @@ void TestSuite::Initialize() {
   mock_cr_app::RegisterMockCrApp();
 #endif
 
+#if defined(OS_ANDROID)
+  InitAndroidTestStub();
+#endif
+
   // Initialize logging.
   FilePath exe;
   PathService::Get(base::FILE_EXE, &exe);
@@ -211,7 +219,11 @@ void TestSuite::Initialize() {
     logging::SetLogAssertHandler(UnitTestAssertHandler);
   }
 
+#if !defined(OS_ANDROID)
+  // TODO(michaelbai): The icu can not be compiled in Android now, this should
+  // be enabled once icu is ready. http://b/5406077.
   icu_util::Initialize();
+#endif
 
   CatchMaybeTests();
 
