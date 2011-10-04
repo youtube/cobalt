@@ -5,6 +5,7 @@
 #include "base/i18n/rtl.h"
 
 #include <algorithm>
+#include <unicode/usearch.h>
 
 #include "base/file_path.h"
 #include "base/string_util.h"
@@ -22,104 +23,80 @@ base::i18n::TextDirection GetTextDirection(const char* locale_name) {
 class RTLTest : public PlatformTest {
 };
 
+typedef struct {
+  const wchar_t* text;
+  base::i18n::TextDirection direction;
+} TextAndDirection;
+
 TEST_F(RTLTest, GetFirstStrongCharacterDirection) {
-  // Test pure LTR string.
-  string16 string(ASCIIToUTF16("foo bar"));
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test bidi string in which the first character with strong directionality
-  // is a character with type L.
-  string.assign(WideToUTF16(L"foo \x05d0 bar"));
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test bidi string in which the first character with strong directionality
-  // is a character with type R.
-  string.assign(WideToUTF16(L"\x05d0 foo bar"));
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test bidi string which starts with a character with weak directionality
-  // and in which the first character with strong directionality is a character
-  // with type L.
-  string.assign(WideToUTF16(L"!foo \x05d0 bar"));
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test bidi string which starts with a character with weak directionality
-  // and in which the first character with strong directionality is a character
-  // with type R.
-  string.assign(WideToUTF16(L",\x05d0 foo bar"));
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test bidi string in which the first character with strong directionality
-  // is a character with type LRE.
-  string.assign(WideToUTF16(L"\x202a \x05d0 foo  bar"));
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test bidi string in which the first character with strong directionality
-  // is a character with type LRO.
-  string.assign(WideToUTF16(L"\x202d \x05d0 foo  bar"));
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test bidi string in which the first character with strong directionality
-  // is a character with type RLE.
-  string.assign(WideToUTF16(L"\x202b foo \x05d0 bar"));
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test bidi string in which the first character with strong directionality
-  // is a character with type RLO.
-  string.assign(WideToUTF16(L"\x202e foo \x05d0 bar"));
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test bidi string in which the first character with strong directionality
-  // is a character with type AL.
-  string.assign(WideToUTF16(L"\x0622 foo \x05d0 bar"));
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test a string without strong directionality characters.
-  string.assign(ASCIIToUTF16(",!.{}"));
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test empty string.
-  string.assign(ASCIIToUTF16(""));
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
-  // Test characters in non-BMP (e.g. Phoenician letters. Please refer to
-  // http://demo.icu-project.org/icu-bin/ubrowse?scr=151&b=10910 for more
-  // information).
+  const TextAndDirection test_data[] = {
+    // Test pure LTR string.
+    { L"foo bar", base::i18n::LEFT_TO_RIGHT },
+    // Test bidi string in which the first character with strong directionality
+    // is a character with type L.
+    { L"foo \x05d0 bar", base::i18n::LEFT_TO_RIGHT },
+    // Test bidi string in which the first character with strong directionality
+    // is a character with type R.
+    { L"\x05d0 foo bar", base::i18n::RIGHT_TO_LEFT },
+    // Test bidi string which starts with a character with weak directionality
+    // and in which the first character with strong directionality is a
+    // character with type L.
+    { L"!foo \x05d0 bar", base::i18n::LEFT_TO_RIGHT },
+    // Test bidi string which starts with a character with weak directionality
+    // and in which the first character with strong directionality is a
+    // character with type R.
+    { L",\x05d0 foo bar", base::i18n::RIGHT_TO_LEFT },
+    // Test bidi string in which the first character with strong directionality
+    // is a character with type LRE.
+    { L"\x202a \x05d0 foo  bar", base::i18n::LEFT_TO_RIGHT },
+    // Test bidi string in which the first character with strong directionality
+    // is a character with type LRO.
+    { L"\x202d \x05d0 foo  bar", base::i18n::LEFT_TO_RIGHT },
+    // Test bidi string in which the first character with strong directionality
+    // is a character with type RLE.
+    { L"\x202b foo \x05d0 bar", base::i18n::RIGHT_TO_LEFT },
+    // Test bidi string in which the first character with strong directionality
+    // is a character with type RLO.
+    { L"\x202e foo \x05d0 bar", base::i18n::RIGHT_TO_LEFT },
+    // Test bidi string in which the first character with strong directionality
+    // is a character with type AL.
+    { L"\x0622 foo \x05d0 bar", base::i18n::RIGHT_TO_LEFT },
+    // Test a string without strong directionality characters.
+    { L",!.{}", base::i18n::LEFT_TO_RIGHT },
+    // Test empty string.
+    { L"", base::i18n::LEFT_TO_RIGHT },
+    // Test characters in non-BMP (e.g. Phoenician letters. Please refer to
+    // http://demo.icu-project.org/icu-bin/ubrowse?scr=151&b=10910 for more
+    // information).
+    {
 #if defined(WCHAR_T_IS_UTF32)
-  string.assign(WideToUTF16(L" ! \x10910" L"abc 123"));
+      L" ! \x10910" L"abc 123",
 #elif defined(WCHAR_T_IS_UTF16)
-  string.assign(WideToUTF16(L" ! \xd802\xdd10" L"abc 123"));
+      L" ! \xd802\xdd10" L"abc 123",
 #else
 #error wchar_t should be either UTF-16 or UTF-32
 #endif
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
-
+      base::i18n::RIGHT_TO_LEFT },
+    {
 #if defined(WCHAR_T_IS_UTF32)
-  string.assign(WideToUTF16(L" ! \x10401" L"abc 123"));
+      L" ! \x10401" L"abc 123",
 #elif defined(WCHAR_T_IS_UTF16)
-  string.assign(WideToUTF16(L" ! \xd801\xdc01" L"abc 123"));
+      L" ! \xd801\xdc01" L"abc 123",
 #else
 #error wchar_t should be either UTF-16 or UTF-32
 #endif
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT,
-            base::i18n::GetFirstStrongCharacterDirection(string));
+      base::i18n::LEFT_TO_RIGHT },
+   };
+
+  for (size_t i = 0; i < arraysize(test_data); ++i) {
+    EXPECT_EQ(test_data[i].direction,
+              base::i18n::GetFirstStrongCharacterDirection(
+                  WideToUTF16(test_data[i].text)));
+  }
 }
 
 TEST_F(RTLTest, WrapPathWithLTRFormatting) {
-  const wchar_t* kTestData[] = {
+  const wchar_t* test_data[] = {
     // Test common path, such as "c:\foo\bar".
     L"c:/foo/bar",
     // Test path with file name, such as "c:\foo\bar\test.jpg".
@@ -147,18 +124,18 @@ TEST_F(RTLTest, WrapPathWithLTRFormatting) {
     // Test empty path.
     L""
   };
-  for (unsigned int i = 0; i < arraysize(kTestData); ++i) {
+  for (size_t i = 0; i < arraysize(test_data); ++i) {
     FilePath path;
 #if defined(OS_WIN)
-    std::wstring win_path(kTestData[i]);
+    std::wstring win_path(test_data[i]);
     std::replace(win_path.begin(), win_path.end(), '/', '\\');
     path = FilePath(win_path);
     std::wstring wrapped_expected =
         std::wstring(L"\x202a") + win_path + L"\x202c";
 #else
-    path = FilePath(base::SysWideToNativeMB(kTestData[i]));
+    path = FilePath(base::SysWideToNativeMB(test_data[i]));
     std::wstring wrapped_expected =
-        std::wstring(L"\x202a") + kTestData[i] + L"\x202c";
+        std::wstring(L"\x202a") + test_data[i] + L"\x202c";
 #endif
     string16 localized_file_path_string;
     base::i18n::WrapPathWithLTRFormatting(path, &localized_file_path_string);
@@ -168,9 +145,9 @@ TEST_F(RTLTest, WrapPathWithLTRFormatting) {
   }
 }
 
-typedef struct  {
-    std::wstring raw_filename;
-    std::wstring display_string;
+typedef struct {
+  const wchar_t* raw_filename;
+  const wchar_t* display_string;
 } StringAndLTRString;
 
 TEST_F(RTLTest, GetDisplayStringInLTRDirectionality) {
@@ -184,7 +161,7 @@ TEST_F(RTLTest, GetDisplayStringInLTRDirectionality) {
     { L"abc\x05d0\x05d1", L"\x202a"L"abc\x05d0\x05d1\x202c" },
     { L"abc\x05d0\x05d1.jpg", L"\x202a"L"abc\x05d0\x05d1.jpg\x202c" },
   };
-  for (unsigned int i = 0; i < arraysize(test_data); ++i) {
+  for (size_t i = 0; i < arraysize(test_data); ++i) {
     string16 input = WideToUTF16(test_data[i].raw_filename);
     string16 expected = base::i18n::GetDisplayStringInLTRDirectionality(input);
     if (base::i18n::IsRTL())
@@ -224,3 +201,42 @@ TEST_F(RTLTest, GetTextDirection) {
   EXPECT_EQ(base::i18n::LEFT_TO_RIGHT, GetTextDirection("ja"));
 }
 
+TEST_F(RTLTest, UnadjustStringForLocaleDirection) {
+  // These test strings are borrowed from WrapPathWithLTRFormatting
+  const wchar_t* test_data[] = {
+    L"foo bar",
+    L"foo \x05d0 bar",
+    L"\x05d0 foo bar",
+    L"!foo \x05d0 bar",
+    L",\x05d0 foo bar",
+    L"\x202a \x05d0 foo  bar",
+    L"\x202d \x05d0 foo  bar",
+    L"\x202b foo \x05d0 bar",
+    L"\x202e foo \x05d0 bar",
+    L"\x0622 foo \x05d0 bar",
+  };
+
+  const char* default_locale = uloc_getDefault();
+
+  for (size_t i = 0; i < 2; i++) {
+    // Try in LTR and RTL.
+    std::string locale(i == 0 ? "en_US" : "he_IL");
+    base::i18n::SetICUDefaultLocale(locale);
+
+    for (size_t i = 0; i < arraysize(test_data); ++i) {
+      string16 test_case = WideToUTF16(test_data[i]);
+      string16 adjusted_string = test_case;
+
+      if (!base::i18n::AdjustStringForLocaleDirection(&adjusted_string))
+        continue;
+
+      EXPECT_NE(test_case, adjusted_string);
+      EXPECT_TRUE(base::i18n::UnadjustStringForLocaleDirection(
+                      &adjusted_string));
+      EXPECT_EQ(test_case, adjusted_string) << " for test case " << test_case
+                                            << " and locale " << locale;
+    }
+  }
+
+  base::i18n::SetICUDefaultLocale(default_locale);
+}
