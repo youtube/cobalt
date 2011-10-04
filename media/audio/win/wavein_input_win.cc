@@ -190,8 +190,11 @@ void PCMWaveInAudioInputStream::WaveCallback(HWAVEIN hwi, UINT msg,
   if (msg == WIM_DATA) {
     // WIM_DONE indicates that the driver is done with our buffer. We pass it
     // to the callback and check if we need to stop playing.
+    // It should be OK to assume the data in the buffer is what has been
+    // recorded in the soundcard.
     WAVEHDR* buffer = reinterpret_cast<WAVEHDR*>(param1);
     obj->callback_->OnData(obj, reinterpret_cast<const uint8*>(buffer->lpData),
+                           buffer->dwBytesRecorded,
                            buffer->dwBytesRecorded);
 
     if (obj->state_ == kStateStopping) {

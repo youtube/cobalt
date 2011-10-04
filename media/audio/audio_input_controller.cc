@@ -183,7 +183,7 @@ void AudioInputController::DoResetNoDataTimer() {
 }
 
 void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
-                                  uint32 size) {
+                                  uint32 size, uint32 hardware_delay_bytes) {
   {
     base::AutoLock auto_lock(lock_);
     if (state_ != kRecording)
@@ -196,7 +196,7 @@ void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
   // Use SyncSocket if we are in a low-latency mode.
   if (LowLatencyMode()) {
     sync_writer_->Write(data, size);
-    sync_writer_->UpdateRecordedBytes(size);
+    sync_writer_->UpdateRecordedBytes(hardware_delay_bytes);
     return;
   }
 

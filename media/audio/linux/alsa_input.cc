@@ -133,6 +133,21 @@ bool AlsaPcmInputStream::Recover(int original_error) {
   return true;
 }
 
+snd_pcm_sframes_t AlsaPcmInputStream::GetCurrentDelay() {
+  snd_pcm_sframes_t delay = -1;
+
+  int error = wrapper_->PcmDelay(device_handle_, &delay);
+  if (error < 0)
+    Recover(error);
+
+  // snd_pcm_delay() may not work in the beginning of the stream. In this case
+  // return delay of data we know currently is in the ALSA's buffer.
+  if (delay < 0)
+    delay = wrapper_->PcmAvailUpdate(device_handle_);
+
+  return delay;
+}
+
 void AlsaPcmInputStream::ReadAudio() {
   DCHECK(callback_);
 
@@ -160,11 +175,15 @@ void AlsaPcmInputStream::ReadAudio() {
 
   int num_packets = frames / params_.samples_per_packet;
   int num_packets_read = num_packets;
+  int bytes_per_frame = params_.channels * params_.bits_per_sample / 8;
+  uint32 hardware_delay_bytes =
+      static_cast<uint32>(GetCurrentDelay() * bytes_per_frame);
   while (num_packets--) {
     int frames_read = wrapper_->PcmReadi(device_handle_, audio_packet_.get(),
                                          params_.samples_per_packet);
     if (frames_read == params_.samples_per_packet) {
-      callback_->OnData(this, audio_packet_.get(), bytes_per_packet_);
+      callback_->OnData(this, audio_packet_.get(), bytes_per_packet_,
+                        hardware_delay_bytes);
     } else {
       LOG(WARNING) << "PcmReadi returning less than expected frames: "
                    << frames_read << " vs. " << params_.samples_per_packet

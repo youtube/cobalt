@@ -48,7 +48,7 @@ void FakeAudioInputStream::Start(AudioInputCallback* callback)  {
 
 void FakeAudioInputStream::DoCallback() {
   DCHECK(callback_);
-  callback_->OnData(this, buffer_.get(), buffer_size_);
+  callback_->OnData(this, buffer_.get(), buffer_size_, buffer_size_);
 
   Time now = Time::Now();
   int64 next_callback_ms = (last_callback_time_ +

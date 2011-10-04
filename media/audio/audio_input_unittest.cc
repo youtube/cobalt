@@ -25,7 +25,7 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
         max_data_bytes_(max_data_bytes) {
   }
   virtual void OnData(AudioInputStream* stream, const uint8* data,
-                      uint32 size) {
+                      uint32 size, uint32 hardware_delay_bytes) {
     ++callback_count_;
     // Read the first byte to make sure memory is good.
     if (size) {
@@ -75,9 +75,9 @@ class TestInputCallbackBlocking : public TestInputCallback {
         block_for_ms_(block_for_ms) {
   }
   virtual void OnData(AudioInputStream* stream, const uint8* data,
-                      uint32 size) {
+                      uint32 size, uint32 hardware_delay_bytes) {
     // Call the base, which increments the callback_count_.
-    TestInputCallback::OnData(stream, data, size);
+    TestInputCallback::OnData(stream, data, size, hardware_delay_bytes);
     if (callback_count() > block_after_callback_)
       base::PlatformThread::Sleep(block_for_ms_);
   }

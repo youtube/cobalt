@@ -50,6 +50,9 @@ class AlsaPcmInputStream : public AudioInputStream {
   // Recovers from any device errors if possible.
   bool Recover(int error);
 
+  // Utility function for talking with the ALSA API.
+  snd_pcm_sframes_t GetCurrentDelay();
+
   std::string device_name_;
   AudioParameters params_;
   int bytes_per_packet_;
