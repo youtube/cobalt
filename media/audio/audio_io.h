@@ -112,7 +112,7 @@ class AudioInputStream {
     // available. This is called from a special audio thread and the
     // implementation should return as soon as possible.
     virtual void OnData(AudioInputStream* stream, const uint8* src,
-                        uint32 size) = 0;
+                        uint32 size, uint32 hardware_delay_bytes) = 0;
 
     // The stream is done with this callback, the last call received by this
     // audio sink.

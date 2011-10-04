@@ -58,7 +58,7 @@ class MEDIA_EXPORT AudioInputController
     virtual ~SyncWriter() {}
 
     // Notify the synchronous writer about the number of bytes in the
-    // AudioInputController which has been recorded.
+    // soundcard which has been recorded.
     virtual void UpdateRecordedBytes(uint32 bytes) = 0;
 
     // Write certain amount of data from |data|. This method returns
@@ -117,7 +117,8 @@ class MEDIA_EXPORT AudioInputController
 
   ///////////////////////////////////////////////////////////////////////////
   // AudioInputCallback methods.
-  virtual void OnData(AudioInputStream* stream, const uint8* src, uint32 size);
+  virtual void OnData(AudioInputStream* stream, const uint8* src, uint32 size,
+                      uint32 hardware_delay_bytes);
   virtual void OnClose(AudioInputStream* stream);
   virtual void OnError(AudioInputStream* stream, int code);
 
