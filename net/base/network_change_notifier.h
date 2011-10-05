@@ -17,6 +17,8 @@ class NetworkChangeNotifierFactory;
 // NetworkChangeNotifier monitors the system for network changes, and notifies
 // registered observers of those events.  Observers may register on any thread,
 // and will be called back on the thread from which they registered.
+// NetworkChangeNotifiers are threadsafe, though they must be created and
+// destroyed on the same thread.
 class NET_EXPORT NetworkChangeNotifier {
  public:
   class NET_EXPORT IPAddressObserver {
@@ -134,6 +136,25 @@ class NET_EXPORT NetworkChangeNotifier {
   static void NotifyObserversOfDNSChange();
 
  private:
+  friend class NetworkChangeNotifierWinTest;
+
+  // Allows a second NetworkChangeNotifier to be created for unit testing, so
+  // the test suite can create a MockNetworkChangeNotifier, but platform
+  // specific NetworkChangeNotifiers can also be created for testing.  To use,
+  // create an DisableForTest object, and then create the new
+  // NetworkChangeNotifier object.  The NetworkChangeNotifier must be
+  // destroyed before the DisableForTest object, as its destruction will restore
+  // the original NetworkChangeNotifier.
+  class NET_EXPORT_PRIVATE DisableForTest {
+   public:
+    DisableForTest();
+    ~DisableForTest();
+
+   private:
+    // The original NetworkChangeNotifier to be restored on destruction.
+    NetworkChangeNotifier* network_change_notifier_;
+  };
+
   const scoped_refptr<ObserverListThreadSafe<IPAddressObserver> >
       ip_address_observer_list_;
   const scoped_refptr<ObserverListThreadSafe<OnlineStateObserver> >
