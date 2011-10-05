@@ -4,18 +4,11 @@
 
 #ifndef BASE_MESSAGE_PUMP_OBSERVER_H
 #define BASE_MESSAGE_PUMP_OBSERVER_H
+#pragma once
 
-#if defined(USE_X11)
-typedef union _XEvent XEvent;
-#endif
+#include "base/event_types.h"
 
 namespace base {
-
-#if defined(OS_WIN)
-typedef MSG NativeEvent;
-#elif defined(USE_X11)
-typedef XEvent* NativeEvent;
-#endif
 
 enum EventStatus {
   EVENT_CONTINUE,    // The event should be dispatched as normal.
