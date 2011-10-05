@@ -436,13 +436,6 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
   EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(kFakeHandle, _))
       .Times(2)
       .WillRepeatedly(DoAll(SetArgumentPointee<1>(0), Return(0)));
-  EXPECT_CALL(mock_callback,
-              OnMoreData(test_stream_.get(), _, kTestPacketSize, _))
-      .Times(2)
-      .WillOnce(Return(kTestPacketSize))
-      .WillOnce(Return(0));
-  EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(kFakeHandle, _, _))
-       .WillOnce(Return(kTestFramesPerPacket));
 
   // Expect scheduling.
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(kFakeHandle))
@@ -451,7 +444,15 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
       .WillOnce(Return(kTestFramesPerPacket))
       .WillRepeatedly(DoAll(InvokeWithoutArgs(&message_loop_,
                                               &MessageLoop::QuitNow),
-                             Return(0)));  // Buffer is full.
+                                              Return(0)));  // Buffer is full.
+
+  EXPECT_CALL(mock_callback,
+              OnMoreData(test_stream_.get(), _, kTestPacketSize, _))
+      .Times(2)
+      .WillOnce(Return(kTestPacketSize))
+      .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(kFakeHandle, _, _))
+      .WillOnce(Return(kTestFramesPerPacket));
 
   test_stream_->Start(&mock_callback);
   message_loop_.RunAllPending();
