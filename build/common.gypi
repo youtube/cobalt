@@ -251,6 +251,13 @@
           'os_posix%': 1,
         }],
 
+        # NSS usage.
+        ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+          'use_nss%': 1,
+        }, {
+          'use_nss%': 0,
+        }],
+        
         # Flags to use X11 on non-Mac POSIX platforms
         ['OS=="win" or OS=="mac" or OS=="android"', {
           'use_glib%': 0,
@@ -328,6 +335,7 @@
     'use_only_pure_views%': '<(use_only_pure_views)',
     'views_compositor%': '<(views_compositor)',
     'use_aura%': '<(use_aura)',
+    'use_nss%': '<(use_nss)',
     'os_posix%': '<(os_posix)',
     'use_glib%': '<(use_glib)',
     'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',
@@ -770,6 +778,9 @@
       ['use_aura==1', {
         'grit_defines': ['-D', 'use_aura'],
       }],
+      ['use_nss==1', {
+        'grit_defines': ['-D', 'use_nss'],
+      }],
       ['touchui==1', {
         'grit_defines': ['-D', 'touchui'],
       }],
@@ -903,6 +914,9 @@
       }],
       ['use_aura==1', {
         'defines': ['USE_AURA=1'],
+      }],
+      ['use_nss==1', {
+        'defines': ['USE_NSS=1'],
       }],
       ['toolkit_uses_gtk==1', {
         'defines': ['TOOLKIT_USES_GTK=1'],
