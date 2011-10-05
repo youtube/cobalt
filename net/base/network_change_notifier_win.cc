@@ -7,23 +7,36 @@
 #include <iphlpapi.h>
 #include <winsock2.h>
 
+#include "base/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/time.h"
 #include "net/base/winsock_init.h"
 
 #pragma comment(lib, "iphlpapi.lib")
 
+namespace {
+
+// Time between NotifyAddrChange retries, on failure.
+const int kWatchForAddressChangeRetryIntervalMs = 500;
+
+}  // namespace
+
 namespace net {
 
-NetworkChangeNotifierWin::NetworkChangeNotifierWin() {
+NetworkChangeNotifierWin::NetworkChangeNotifierWin()
+    : is_watching_(false),
+      sequential_failures_(0),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
   memset(&addr_overlapped_, 0, sizeof addr_overlapped_);
   addr_overlapped_.hEvent = WSACreateEvent();
-  WatchForAddressChange();
 }
 
 NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
-  CancelIPChangeNotify(&addr_overlapped_);
-  addr_watcher_.StopWatching();
+  if (is_watching_) {
+    CancelIPChangeNotify(&addr_overlapped_);
+    addr_watcher_.StopWatching();
+  }
   WSACloseEvent(addr_overlapped_.hEvent);
 }
 
@@ -145,6 +158,18 @@ bool NetworkChangeNotifierWin::IsCurrentlyOffline() const {
 }
 
 void NetworkChangeNotifierWin::OnObjectSignaled(HANDLE object) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(is_watching_);
+  is_watching_ = false;
+
+  // Start watching for the next address change.
+  WatchForAddressChange();
+
+  NotifyObservers();
+}
+
+void NetworkChangeNotifierWin::NotifyObservers() {
+  DCHECK(CalledOnValidThread());
   NotifyObserversOfIPAddressChange();
 
   // Calling IsOffline() at this very moment is likely to give
@@ -155,16 +180,58 @@ void NetworkChangeNotifierWin::OnObjectSignaled(HANDLE object) {
   timer_.Stop();  // cancel any already waiting notification
   timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(1), this,
                &NetworkChangeNotifierWin::NotifyParentOfOnlineStateChange);
-
-  // Start watching for the next address change.
-  WatchForAddressChange();
 }
 
 void NetworkChangeNotifierWin::WatchForAddressChange() {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!is_watching_);
+
+  // NotifyAddrChange occasionally fails with ERROR_OPEN_FAILED for unknown
+  // reasons.  More rarely, it's also been observed failing with
+  // ERROR_NO_SYSTEM_RESOURCES.  When either of these happens, we retry later.
+  if (!WatchForAddressChangeInternal()) {
+    ++sequential_failures_;
+
+    // TODO(mmenke):  If the UMA histograms indicate that this fixes
+    // http://crbug.com/69198, remove this histogram and consider reducing the
+    // retry interval.
+    if (sequential_failures_ == 100) {
+      UMA_HISTOGRAM_COUNTS_100("Net.NotifyAddrChangeFailures",
+                               sequential_failures_);
+    }
+
+    MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&NetworkChangeNotifierWin::WatchForAddressChange,
+                   weak_factory_.GetWeakPtr()),
+        kWatchForAddressChangeRetryIntervalMs);
+    return;
+  }
+
+  // Treat the transition from NotifyAddrChange failing to succeeding as a
+  // network change event, since network changes were not being observed in
+  // that interval.
+  if (sequential_failures_ > 0)
+    NotifyObservers();
+
+  if (sequential_failures_ < 100) {
+    UMA_HISTOGRAM_COUNTS_100("Net.NotifyAddrChangeFailures",
+                             sequential_failures_);
+  }
+
+  is_watching_ = true;
+  sequential_failures_ = 0;
+}
+
+bool NetworkChangeNotifierWin::WatchForAddressChangeInternal() {
+  DCHECK(CalledOnValidThread());
   HANDLE handle = NULL;
   DWORD ret = NotifyAddrChange(&handle, &addr_overlapped_);
-  CHECK_EQ(static_cast<DWORD>(ERROR_IO_PENDING), ret);
+  if (ret != ERROR_IO_PENDING)
+    return false;
+
   addr_watcher_.StartWatching(addr_overlapped_.hEvent, this);
+  return true;
 }
 
 void NetworkChangeNotifierWin::NotifyParentOfOnlineStateChange() {
