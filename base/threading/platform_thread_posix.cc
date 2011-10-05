@@ -30,10 +30,6 @@
 #include "base/android/jni_android.h"
 #endif
 
-#if defined(OS_NACL)
-#include <sys/nacl_syscalls.h>
-#endif
-
 namespace base {
 
 #if defined(OS_MACOSX)
