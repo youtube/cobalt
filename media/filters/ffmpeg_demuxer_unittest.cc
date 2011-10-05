@@ -577,4 +577,65 @@ TEST_F(FFmpegDemuxerTest, ProtocolIsStreaming) {
   EXPECT_FALSE(demuxer_->IsStreaming());
 }
 
+// Verify that seek works properly when the WebM cues data is at the start of
+// the file instead of at the end.
+TEST_F(FFmpegDemuxerTest, SeekWithCuesBeforeFirstCluster) {
+  InitializeDemuxer(CreateDataSource("bear-320x240-cues-in-front.webm"));
+
+  // Get our streams.
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  ASSERT_TRUE(video);
+  ASSERT_TRUE(audio);
+
+  // Read a video packet and release it.
+  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
+  reader->Read(video);
+  message_loop_.RunAllPending();
+  EXPECT_TRUE(reader->called());
+  ValidateBuffer(FROM_HERE, reader->buffer(), 22084, 0);
+
+  // Release the video packet and verify the other packets are still queued.
+  reader->Reset();
+  message_loop_.RunAllPending();
+
+  // Issue a simple forward seek, which should discard queued packets.
+  demuxer_->Seek(base::TimeDelta::FromMicroseconds(2500000),
+                 NewExpectedStatusCB(PIPELINE_OK));
+  message_loop_.RunAllPending();
+
+  // Audio read #1.
+  reader->Read(audio);
+  message_loop_.RunAllPending();
+  EXPECT_TRUE(reader->called());
+  ValidateBuffer(FROM_HERE, reader->buffer(), 40, 2403000);
+
+  // Audio read #2.
+  reader->Reset();
+  reader->Read(audio);
+  message_loop_.RunAllPending();
+  EXPECT_TRUE(reader->called());
+  ValidateBuffer(FROM_HERE, reader->buffer(), 42, 2406000);
+
+  // Video read #1.
+  reader->Reset();
+  reader->Read(video);
+  message_loop_.RunAllPending();
+  EXPECT_TRUE(reader->called());
+  ValidateBuffer(FROM_HERE, reader->buffer(), 5276, 2402000);
+
+  // Video read #2.
+  reader->Reset();
+  reader->Read(video);
+  message_loop_.RunAllPending();
+  EXPECT_TRUE(reader->called());
+  ValidateBuffer(FROM_HERE, reader->buffer(), 1740, 2436000);
+
+  // Manually release the last reference to the buffer and verify it was freed.
+  reader->Reset();
+  message_loop_.RunAllPending();
+}
+
 }  // namespace media
