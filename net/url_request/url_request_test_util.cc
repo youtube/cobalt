@@ -21,13 +21,14 @@ namespace {
 const int kStageBeforeURLRequest = 1 << 0;
 const int kStageBeforeSendHeaders = 1 << 1;
 const int kStageSendHeaders = 1 << 2;
-const int kStageAuthRequired = 1 << 3;
-const int kStageBeforeRedirect = 1 << 4;
-const int kStageResponseStarted = 1 << 5;
-const int kStageCompletedSuccess = 1 << 6;
-const int kStageCompletedError = 1 << 7;
-const int kStageURLRequestDestroyed = 1 << 8;
-const int kStageDestruction = 1 << 9;
+const int kStageHeadersReceived = 1 << 3;
+const int kStageAuthRequired = 1 << 4;
+const int kStageBeforeRedirect = 1 << 5;
+const int kStageResponseStarted = 1 << 6;
+const int kStageCompletedSuccess = 1 << 7;
+const int kStageCompletedError = 1 << 8;
+const int kStageURLRequestDestroyed = 1 << 9;
+const int kStageDestruction = 1 << 10;
 
 }  // namespace
 
@@ -372,6 +373,21 @@ void TestNetworkDelegate::OnSendHeaders(
   EXPECT_TRUE(next_states_[req_id] & kStageSendHeaders) <<
       event_order_[req_id];
   next_states_[req_id] =
+      kStageHeadersReceived |
+      kStageCompletedError;
+}
+
+int TestNetworkDelegate::OnHeadersReceived(
+    net::URLRequest* request,
+    net::OldCompletionCallback* callback,
+    net::HttpResponseHeaders* original_response_headers,
+    scoped_refptr<net::HttpResponseHeaders>* override_response_headers) {
+  int req_id = request->identifier();
+  event_order_[req_id] += "OnHeadersReceived\n";
+  InitRequestStatesIfNew(req_id);
+  EXPECT_TRUE(next_states_[req_id] & kStageHeadersReceived) <<
+      event_order_[req_id];
+  next_states_[req_id] =
       kStageBeforeRedirect |
       kStageResponseStarted |
       kStageAuthRequired |
@@ -380,6 +396,8 @@ void TestNetworkDelegate::OnSendHeaders(
   // Basic authentication sends a second request from the URLRequestHttpJob
   // layer before the URLRequest reports that a response has started.
   next_states_[req_id] |= kStageBeforeSendHeaders;
+
+  return net::OK;
 }
 
 void TestNetworkDelegate::OnBeforeRedirect(net::URLRequest* request,
@@ -464,8 +482,9 @@ net::NetworkDelegate::AuthRequiredResponse TestNetworkDelegate::OnAuthRequired(
   EXPECT_TRUE(next_states_[req_id] & kStageAuthRequired) <<
       event_order_[req_id];
   next_states_[req_id] = kStageBeforeSendHeaders |
+      kStageHeadersReceived |  // Request canceled by delegate simulates empty
+                               // response.
       kStageResponseStarted |  // data: URLs do not trigger sending headers
-      kStageBeforeRedirect |  // a delegate can trigger a redirection
-      kStageCompletedError;  // request canceled by delegate
+      kStageBeforeRedirect;  // a delegate can trigger a redirection
   return net::NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
 }

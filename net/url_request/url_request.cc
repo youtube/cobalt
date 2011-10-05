@@ -160,8 +160,11 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
 URLRequest::~URLRequest() {
   Cancel();
 
-  if (context_ && context_->network_delegate())
+  if (context_ && context_->network_delegate()) {
     context_->network_delegate()->NotifyURLRequestDestroyed(this);
+    if (job_)
+      job_->NotifyURLRequestDestroyed();
+  }
 
   if (job_)
     OrphanJob();
@@ -655,6 +658,14 @@ void URLRequest::PrepareToRestart() {
 }
 
 void URLRequest::OrphanJob() {
+  // When calling this function, please check that URLRequestHttpJob is
+  // not in between calling NetworkDelegate::NotifyHeadersReceived receiving
+  // the call back. This is currently guaranteed by the following strategies:
+  // - OrphanJob is called on JobRestart, in this case the URLRequestJob cannot
+  //   be receiving any headers at that time.
+  // - OrphanJob is called in ~URLRequest, in this case
+  //   NetworkDelegate::NotifyURLRequestDestroyed notifies the NetworkDelegate
+  //   that the callback becomes invalid.
   job_->Kill();
   job_->DetachRequest();  // ensures that the job will not call us again
   job_ = NULL;

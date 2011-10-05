@@ -45,13 +45,6 @@
 
 static const char kAvailDictionaryHeader[] = "Avail-Dictionary";
 
-// When histogramming results related to SDCH and/or an SDCH latency test, the
-// number of packets for which we need to record arrival times so as to
-// calculate interpacket latencies.  We currently are only looking at the
-// first few packets, as we're monitoring the impact of the initial TCP
-// congestion window on stalling of transmissions.
-static const size_t kSdchPacketHistogramCount = 5;
-
 namespace net {
 
 namespace {
@@ -234,7 +227,11 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           filter_context_(new HttpFilterContext(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
-      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
+      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          on_headers_received_callback_(
+              this, &URLRequestHttpJob::OnHeadersReceivedCallback)),
+      awaiting_callback_(false) {
   ResetTimer();
 }
 
@@ -248,8 +245,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   is_cached_content_ = response_info_->was_cached;
 
   if (!is_cached_content_) {
-    URLRequestThrottlerHeaderAdapter response_adapter(
-        response_info_->headers);
+    URLRequestThrottlerHeaderAdapter response_adapter(GetResponseHeaders());
     throttling_entry_->UpdateWithResponse(request_info_.url.host(),
                                           &response_adapter);
   }
@@ -267,7 +263,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
     // require multiple suggestions before we get additional ones for this site.
     // Eventually we should wait until a dictionary is requested several times
     // before we even download it (so that we don't waste memory or bandwidth).
-    if (response_info_->headers->EnumerateHeader(&iter, name, &url_text)) {
+    if (GetResponseHeaders()->EnumerateHeader(&iter, name, &url_text)) {
       // request_->url() won't be valid in the destructor, so we use an
       // alternate copy.
       DCHECK_EQ(request_->url(), request_info_.url);
@@ -526,7 +522,14 @@ void URLRequestHttpJob::DoStartTransaction() {
   }
 }
 
-void URLRequestHttpJob::SaveCookiesAndNotifyHeadersComplete() {
+void URLRequestHttpJob::SaveCookiesAndNotifyHeadersComplete(int result) {
+  if (result != net::OK) {
+    request_->net_log().AddEvent(NetLog::TYPE_CANCELLED,
+        make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
+    NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, result));
+    return;
+  }
+
   DCHECK(transaction_.get());
 
   const HttpResponseInfo* response_info = transaction_->GetResponseInfo();
@@ -535,7 +538,7 @@ void URLRequestHttpJob::SaveCookiesAndNotifyHeadersComplete() {
   response_cookies_.clear();
   response_cookies_save_index_ = 0;
 
-  FetchResponseCookies(response_info, &response_cookies_);
+  FetchResponseCookies(&response_cookies_);
 
   // Now, loop over the response cookies, and attempt to persist each.
   SaveNextCookie();
@@ -586,13 +589,13 @@ void URLRequestHttpJob::CookieHandled() {
 }
 
 void URLRequestHttpJob::FetchResponseCookies(
-    const HttpResponseInfo* response_info,
     std::vector<std::string>* cookies) {
   std::string name = "Set-Cookie";
   std::string value;
 
   void* iter = NULL;
-  while (response_info->headers->EnumerateHeader(&iter, name, &value)) {
+  HttpResponseHeaders* headers = GetResponseHeaders();
+  while (headers->EnumerateHeader(&iter, name, &value)) {
     if (!value.empty())
       cookies->push_back(value);
   }
@@ -615,8 +618,10 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   int max_age;
   bool include_subdomains;
 
+  HttpResponseHeaders* headers = GetResponseHeaders();
+
   void* iter = NULL;
-  while (response_info_->headers->EnumerateHeader(&iter, name, &value)) {
+  while (headers->EnumerateHeader(&iter, name, &value)) {
     const bool ok = TransportSecurityState::ParseHeader(
         value, &max_age, &include_subdomains);
     if (!ok)
@@ -683,9 +688,31 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
     }
   }
 #endif
-
   if (result == OK) {
-    SaveCookiesAndNotifyHeadersComplete();
+    scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
+    if (request_->context() && request_->context()->network_delegate()) {
+      // Note that |this| may not be deleted until
+      // |on_headers_received_callback_| or
+      // |NetworkDelegate::URLRequestDestroyed()| has been called.
+      int error = request_->context()->network_delegate()->
+          NotifyHeadersReceived(request_, &on_headers_received_callback_,
+                                headers, &override_response_headers_);
+      if (error != net::OK) {
+        if (error == net::ERR_IO_PENDING) {
+          awaiting_callback_ = true;
+          request_->net_log().BeginEvent(
+              NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+        } else {
+          request_->net_log().AddEvent(NetLog::TYPE_CANCELLED,
+              make_scoped_refptr(
+                  new NetLogStringParameter("source", "delegate")));
+          NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, error));
+        }
+        return;
+      }
+    }
+
+    SaveCookiesAndNotifyHeadersComplete(net::OK);
   } else if (IsCertificateError(result)) {
     // We encountered an SSL certificate error.  Ask our delegate to decide
     // what we should do.
@@ -704,6 +731,13 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   } else {
     NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, result));
   }
+}
+
+void URLRequestHttpJob::OnHeadersReceivedCallback(int result) {
+  request_->net_log().EndEvent(
+      NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+  awaiting_callback_ = false;
+  SaveCookiesAndNotifyHeadersComplete(result);
 }
 
 void URLRequestHttpJob::OnReadCompleted(int result) {
@@ -739,8 +773,7 @@ void URLRequestHttpJob::RestartTransactionWithAuth(
   // Update the cookies, since the cookie store may have been updated from the
   // headers in the 401/407. Since cookies were already appended to
   // extra_headers, we need to strip them out before adding them again.
-  request_info_.extra_headers.RemoveHeader(
-      HttpRequestHeaders::kCookie);
+  request_info_.extra_headers.RemoveHeader(HttpRequestHeaders::kCookie);
 
   AddCookieHeaderAndStart();
 }
@@ -814,7 +847,7 @@ bool URLRequestHttpJob::GetMimeType(std::string* mime_type) const {
   if (!response_info_)
     return false;
 
-  return response_info_->headers->GetMimeType(mime_type);
+  return GetResponseHeaders()->GetMimeType(mime_type);
 }
 
 bool URLRequestHttpJob::GetCharset(std::string* charset) {
@@ -823,19 +856,21 @@ bool URLRequestHttpJob::GetCharset(std::string* charset) {
   if (!response_info_)
     return false;
 
-  return response_info_->headers->GetCharset(charset);
+  return GetResponseHeaders()->GetCharset(charset);
 }
 
 void URLRequestHttpJob::GetResponseInfo(HttpResponseInfo* info) {
   DCHECK(request_);
   DCHECK(transaction_.get());
 
-  if (response_info_)
+  if (response_info_) {
     *info = *response_info_;
+    if (override_response_headers_)
+      info->headers = override_response_headers_;
+  }
 }
 
-bool URLRequestHttpJob::GetResponseCookies(
-    std::vector<std::string>* cookies) {
+bool URLRequestHttpJob::GetResponseCookies(std::vector<std::string>* cookies) {
   DCHECK(transaction_.get());
 
   if (!response_info_)
@@ -845,7 +880,7 @@ bool URLRequestHttpJob::GetResponseCookies(
   // should just leverage response_cookies_.
 
   cookies->clear();
-  FetchResponseCookies(response_info_, cookies);
+  FetchResponseCookies(cookies);
   return true;
 }
 
@@ -855,7 +890,7 @@ int URLRequestHttpJob::GetResponseCode() const {
   if (!response_info_)
     return -1;
 
-  return response_info_->headers->response_code();
+  return GetResponseHeaders()->response_code();
 }
 
 Filter* URLRequestHttpJob::SetupFilter() const {
@@ -865,9 +900,9 @@ Filter* URLRequestHttpJob::SetupFilter() const {
 
   std::vector<Filter::FilterType> encoding_types;
   std::string encoding_type;
+  HttpResponseHeaders* headers = GetResponseHeaders();
   void* iter = NULL;
-  while (response_info_->headers->EnumerateHeader(&iter, "Content-Encoding",
-                                                  &encoding_type)) {
+  while (headers->EnumerateHeader(&iter, "Content-Encoding", &encoding_type)) {
     encoding_types.push_back(Filter::ConvertEncodingToType(encoding_type));
   }
 
@@ -879,8 +914,8 @@ Filter* URLRequestHttpJob::SetupFilter() const {
     // encoded).
     std::string sdch_response_status;
     iter = NULL;
-    while (response_info_->headers->EnumerateHeader(&iter, "X-Sdch-Encode",
-                                                    &sdch_response_status)) {
+    while (headers->EnumerateHeader(&iter, "X-Sdch-Encode",
+                                    &sdch_response_status)) {
       if (sdch_response_status == "0") {
         filter_context_->ResetSdchResponseToFalse();
         break;
@@ -950,8 +985,8 @@ void URLRequestHttpJob::GetAuthChallengeInfo(
   // sanity checks:
   DCHECK(proxy_auth_state_ == AUTH_STATE_NEED_AUTH ||
          server_auth_state_ == AUTH_STATE_NEED_AUTH);
-  DCHECK(response_info_->headers->response_code() == 401 ||
-         response_info_->headers->response_code() == 407);
+  DCHECK(GetResponseHeaders()->response_code() == 401 ||
+         GetResponseHeaders()->response_code() == 407);
 
   *result = response_info_->auth_challenge;
 }
@@ -1115,6 +1150,8 @@ HostPortPair URLRequestHttpJob::GetSocketAddress() const {
 }
 
 URLRequestHttpJob::~URLRequestHttpJob() {
+  CHECK(!awaiting_callback_);
+
   DCHECK(!sdch_test_control_ || !sdch_test_activated_);
   if (!is_cached_content_) {
     if (sdch_test_control_)
@@ -1376,6 +1413,18 @@ void URLRequestHttpJob::DoneWithRequest(CompletionCause reason) {
   RecordPerfHistograms(reason);
   if (reason == FINISHED)
     RecordCompressionHistograms();
+}
+
+HttpResponseHeaders* URLRequestHttpJob::GetResponseHeaders() const {
+  DCHECK(transaction_.get());
+  DCHECK(transaction_->GetResponseInfo());
+  return override_response_headers_.get() ?
+      override_response_headers_ :
+      transaction_->GetResponseInfo()->headers;
+}
+
+void URLRequestHttpJob::NotifyURLRequestDestroyed() {
+  awaiting_callback_ = false;
 }
 
 }  // namespace net
