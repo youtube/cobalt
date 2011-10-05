@@ -44,13 +44,8 @@
 #endif
 
 #if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_OPENBSD) || \
-    defined(OS_SOLARIS) || defined(OS_ANDROID)
-#if !defined(USE_OPENSSL)
-#define USE_NSS 1  // Default to use NSS for crypto, unless OpenSSL is chosen.
-#endif
-#ifndef OS_ANDROID
+    defined(OS_SOLARIS)
 #define USE_X11 1  // Use X for graphics.
-#endif
 #endif
 
 #if defined(USE_OPENSSL) && defined(USE_NSS)
