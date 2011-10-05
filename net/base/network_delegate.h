@@ -28,8 +28,8 @@ namespace net {
 // are ok.
 class HostPortPair;
 class HttpRequestHeaders;
+class HttpResponseHeaders;
 class URLRequest;
-class URLRequestJob;
 
 class NetworkDelegate : public base::NonThreadSafe {
  public:
@@ -58,6 +58,11 @@ class NetworkDelegate : public base::NonThreadSafe {
                               HttpRequestHeaders* headers);
   void NotifySendHeaders(URLRequest* request,
                          const HttpRequestHeaders& headers);
+  int NotifyHeadersReceived(
+      URLRequest* request,
+      OldCompletionCallback* callback,
+      HttpResponseHeaders* original_response_headers,
+      scoped_refptr<HttpResponseHeaders>* override_response_headers);
   void NotifyBeforeRedirect(URLRequest* request,
                             const GURL& new_location);
   void NotifyResponseStarted(URLRequest* request);
@@ -79,7 +84,9 @@ class NetworkDelegate : public base::NonThreadSafe {
   // being fetched by modifying |new_url|. |callback| and |new_url| are valid
   // only until OnURLRequestDestroyed is called for this request. Returns a net
   // status code, generally either OK to continue with the request or
-  // ERR_IO_PENDING if the result is not ready yet.
+  // ERR_IO_PENDING if the result is not ready yet. A status code other than OK
+  // and ERR_IO_PENDING will cancel the request and report the status code as
+  // the reason.
   virtual int OnBeforeURLRequest(URLRequest* request,
                                  OldCompletionCallback* callback,
                                  GURL* new_url) = 0;
@@ -95,6 +102,21 @@ class NetworkDelegate : public base::NonThreadSafe {
   // Called right before the HTTP request(s) are being sent to the network.
   virtual void OnSendHeaders(URLRequest* request,
                              const HttpRequestHeaders& headers) = 0;
+
+  // Called for HTTP requests when the headers have been received. Returns a net
+  // status code, generally either OK to continue with the request or
+  // ERR_IO_PENDING if the result is not ready yet.  A status code other than OK
+  // and ERR_IO_PENDING will cancel the request and report the status code as
+  // the reason.
+  // |original_response_headers| contains the headers as received over the
+  // network, these must not be modified. |override_response_headers| can be set
+  // to new values, that should be considered as overriding
+  // |original_response_headers|.
+  virtual int OnHeadersReceived(
+      URLRequest* request,
+      OldCompletionCallback* callback,
+      HttpResponseHeaders* original_response_headers,
+      scoped_refptr<HttpResponseHeaders>* override_response_headers) = 0;
 
   // Called right after a redirect response code was received.
   virtual void OnBeforeRedirect(URLRequest* request,
