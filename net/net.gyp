@@ -949,6 +949,7 @@
         'base/net_log_unittest.cc',
         'base/net_log_unittest.h',
         'base/net_util_unittest.cc',
+        'base/network_change_notifier_win_unittest.cc',
         'base/origin_bound_cert_service_unittest.cc',
         'base/pem_tokenizer_unittest.cc',
         'base/registry_controlled_domain_unittest.cc',
