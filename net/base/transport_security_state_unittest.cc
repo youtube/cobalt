@@ -16,10 +16,10 @@ namespace net {
 
 class TransportSecurityStateTest : public testing::Test {
   virtual void SetUp() {
-#if defined(USE_NSS)
-    crypto::EnsureNSSInit();
-#elif defined(USE_OPENSSL)
+#if defined(USE_OPENSSL)
     crypto::EnsureOpenSSLInit();
+#else
+    crypto::EnsureNSSInit();
 #endif
   }
 };
