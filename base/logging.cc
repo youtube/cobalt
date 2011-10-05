@@ -19,7 +19,6 @@ typedef HANDLE MutexHandle;
 #include <mach-o/dyld.h>
 #elif defined(OS_POSIX)
 #if defined(OS_NACL)
-#include <sys/nacl_syscalls.h>
 #include <sys/time.h> // timespec doesn't seem to be in <time.h>
 #else
 #include <sys/syscall.h>
