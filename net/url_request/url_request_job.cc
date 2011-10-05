@@ -214,6 +214,9 @@ void URLRequestJob::OnSuspend() {
   Kill();
 }
 
+void URLRequestJob::NotifyURLRequestDestroyed() {
+}
+
 URLRequestJob::~URLRequestJob() {
   base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
   if (system_monitor)
