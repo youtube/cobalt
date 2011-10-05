@@ -682,8 +682,7 @@ TEST_F(TraceEventTestFixture, DataCapturedOnThread) {
   thread.Start();
 
   thread.message_loop()->PostTask(
-      FROM_HERE, NewRunnableFunction(&TraceWithAllMacroVariants,
-                                     &task_complete_event));
+      FROM_HERE, base::Bind(&TraceWithAllMacroVariants, &task_complete_event));
   task_complete_event.Wait();
   thread.Stop();
 
@@ -705,8 +704,8 @@ TEST_F(TraceEventTestFixture, DataCapturedManyThreads) {
     task_complete_events[i] = new WaitableEvent(false, false);
     threads[i]->Start();
     threads[i]->message_loop()->PostTask(
-        FROM_HERE, NewRunnableFunction(&TraceManyInstantEvents,
-                                       i, num_events, task_complete_events[i]));
+        FROM_HERE, base::Bind(&TraceManyInstantEvents,
+                              i, num_events, task_complete_events[i]));
   }
 
   for (int i = 0; i < num_threads; i++) {
@@ -748,8 +747,8 @@ TEST_F(TraceEventTestFixture, ThreadNames) {
     threads[i]->Start();
     thread_ids[i] = threads[i]->thread_id();
     threads[i]->message_loop()->PostTask(
-        FROM_HERE, NewRunnableFunction(&TraceManyInstantEvents,
-                                       i, num_events, task_complete_events[i]));
+        FROM_HERE, base::Bind(&TraceManyInstantEvents,
+                              i, num_events, task_complete_events[i]));
   }
   for (int i = 0; i < num_threads; i++) {
     task_complete_events[i]->Wait();
