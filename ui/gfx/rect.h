@@ -181,6 +181,9 @@ class UI_EXPORT Rect {
   // at given |size|.
   Rect Center(const gfx::Size& size) const;
 
+  // Splits |this| in two halves, |left_half| and |right_half|.
+  void SplitVertically(gfx::Rect* left_half, gfx::Rect* right_half) const;
+
   // Returns true if this rectangle shares an entire edge (i.e., same width or
   // same height) with the given rectangle, and the rectangles do not overlap.
   bool SharesEdgeWith(const gfx::Rect& rect) const;
