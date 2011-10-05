@@ -2230,6 +2230,7 @@ ssl3_SendRecord(   sslSocket *        ss,
 	ssl_GetSpecReadLock(ss);    /********************************/
 
 	if (nIn > 1 &&
+	    ss->opt.enableFalseStart &&
 	    ss->ssl3.cwSpec->version <= SSL_LIBRARY_VERSION_3_1_TLS &&
 	    type == content_application_data &&
 	    ss->ssl3.cwSpec->cipher_def->type == type_block /* CBC mode */) {
