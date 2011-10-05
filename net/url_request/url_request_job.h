@@ -190,6 +190,12 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
   // We invoke URLRequestJob::Kill on suspend (crbug.com/4606).
   virtual void OnSuspend();
 
+  // Called after a NetworkDelegate has been informed that the URLRequest
+  // will be destroyed. This is used to track that no pending callbacks
+  // exist at destruction time of the URLRequestJob, unless they have been
+  // canceled by an explicit NetworkDelegate::NotifyURLRequestDestroyed() call.
+  virtual void NotifyURLRequestDestroyed();
+
  protected:
   friend class base::RefCounted<URLRequestJob>;
   virtual ~URLRequestJob();

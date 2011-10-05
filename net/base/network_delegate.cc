@@ -32,6 +32,18 @@ void NetworkDelegate::NotifySendHeaders(URLRequest* request,
   OnSendHeaders(request, headers);
 }
 
+int NetworkDelegate::NotifyHeadersReceived(
+    URLRequest* request,
+    OldCompletionCallback* callback,
+    HttpResponseHeaders* original_response_headers,
+    scoped_refptr<HttpResponseHeaders>* override_response_headers) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(original_response_headers);
+  DCHECK(callback);
+  return OnHeadersReceived(request, callback, original_response_headers,
+                           override_response_headers);
+}
+
 void NetworkDelegate::NotifyResponseStarted(URLRequest* request) {
   DCHECK(CalledOnValidThread());
   DCHECK(request);
