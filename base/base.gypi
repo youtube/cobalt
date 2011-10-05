@@ -657,6 +657,7 @@
         'message_pump_glib.h',
         'message_pump_gtk.cc',
         'message_pump_gtk.h',
+        'message_pump_observer.h',
         'message_pump_x.cc',
         'message_pump_x.h',
         'message_pump_libevent.cc',
