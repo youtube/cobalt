@@ -347,7 +347,8 @@ void AlsaPcmOutputStream::OpenTask() {
     if (error < 0) {
       LOG(ERROR) << "Failed to get playback buffer size from ALSA: "
                  << wrapper_->StrError(error);
-      alsa_buffer_frames_ = frames_per_packet_;
+      // Buffer size is at least twice of packet size.
+      alsa_buffer_frames_ = 2 * frames_per_packet_;
     } else {
       alsa_buffer_frames_ = buffer_size;
     }
@@ -597,25 +598,44 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
     return;
   }
 
-  // Next write is scheduled for the moment when half of the buffer is
-  // available.
-  uint32 frames_avail_wanted = alsa_buffer_frames_ / 2;
-  uint32 available_frames = GetAvailableFrames();
-  uint32 next_fill_time_ms = 0;
+  // Next write is initially scheduled for the moment when half of a packet
+  // has been played out.
+  uint32 minimal_frames_wanted = frames_per_packet_ / 2;
+  uint32 next_fill_time_ms = FramesToMillis(minimal_frames_wanted,
+                                            sample_rate_);
 
-  // It's possible to have more frames available than what we want, in which
-  // case we'll leave our |next_fill_time_ms| at 0ms.
-  if (available_frames < frames_avail_wanted) {
-    uint32 frames_until_empty_enough = frames_avail_wanted - available_frames;
-    next_fill_time_ms =
-        FramesToMillis(frames_until_empty_enough, sample_rate_);
+  // Set existing_frames to be minimal_frames_wanted to avoid busy looping
+  // in case alsa_buffer_frames_ is smaller than available_freams.
+  uint32 available_frames = GetAvailableFrames();
+  uint32 existing_frames = (alsa_buffer_frames_ >= available_frames) ?
+        (alsa_buffer_frames_ - available_frames) : minimal_frames_wanted;
+
+  // ALSA is full, schedule another write when some buffer is available.
+  // This helps reduce the CPU usage.
+  if (available_frames == 0) {
+    next_fill_time_ms = std::min(next_fill_time_ms, kNoDataSleepMilliseconds);
+    message_loop_->PostDelayedTask(
+          FROM_HERE,
+          base::Bind(&AlsaPcmOutputStream::ScheduleNextWrite,
+                     weak_factory_.GetWeakPtr(), false),
+          next_fill_time_ms);
+    return;
   }
 
-  // Adjust for timer resolution issues.
-  if (next_fill_time_ms < kSleepErrorMilliseconds) {
+
+  // Re-schedule the next write for the moment when the available buffer is
+  // enough for a packet. Avoid back-to-back writing by setting
+  // kNoDataSleepMilliseconds as the minimal interval.
+  if (available_frames < frames_per_packet_) {
+    next_fill_time_ms = std::max(
+        kNoDataSleepMilliseconds,
+        FramesToMillis(frames_per_packet_ - available_frames,
+                       sample_rate_));
+  }
+  else if (existing_frames < minimal_frames_wanted) {
+    // If less than half of the packet in the buffer, invoke the write callback
+    // immediately to fill more data.
     next_fill_time_ms = 0;
-  } else {
-    next_fill_time_ms -= kSleepErrorMilliseconds;
   }
 
   // Avoid busy looping if the data source is exhausted.
