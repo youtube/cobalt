@@ -33,7 +33,7 @@ class AudioManagerMac : public AudioManagerBase {
   // They are called internally by the respective audio stream when it has
   // been closed.
   void ReleaseOutputStream(AudioOutputStream* stream);
-  void ReleaseInputStream(PCMQueueInAudioInputStream* stream);
+  void ReleaseInputStream(AudioInputStream* stream);
 
  private:
   virtual ~AudioManagerMac();

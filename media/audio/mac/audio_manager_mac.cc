@@ -8,6 +8,7 @@
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/mac/audio_input_mac.h"
+#include "media/audio/mac/audio_low_latency_input_mac.h"
 #include "media/audio/mac/audio_low_latency_output_mac.h"
 #include "media/audio/mac/audio_manager_mac.h"
 #include "media/audio/mac/audio_output_mac.h"
@@ -127,6 +128,8 @@ AudioInputStream* AudioManagerMac::MakeAudioInputStream(
     return FakeAudioInputStream::MakeFakeStream(params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
     return new PCMQueueInAudioInputStream(this, params);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
+    return new AUAudioInputStream(this, params);
   }
   return NULL;
 }
@@ -147,7 +150,7 @@ void AudioManagerMac::ReleaseOutputStream(AudioOutputStream* stream) {
 }
 
 // Called by the stream when it has been released by calling Close().
-void AudioManagerMac::ReleaseInputStream(PCMQueueInAudioInputStream* stream) {
+void AudioManagerMac::ReleaseInputStream(AudioInputStream* stream) {
   delete stream;
 }
 

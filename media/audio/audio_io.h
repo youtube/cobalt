@@ -126,6 +126,8 @@ class AudioInputStream {
     virtual void OnError(AudioInputStream* stream, int code) = 0;
   };
 
+  virtual ~AudioInputStream() {}
+
   // Open the stream and prepares it for recording. Call Start() to actually
   // begin recording.
   virtual bool Open() = 0;
@@ -142,9 +144,6 @@ class AudioInputStream {
   // Close the stream. This also generates AudioInputCallback::OnClose(). This
   // should be the last call made on this object.
   virtual void Close() = 0;
-
- protected:
-  virtual ~AudioInputStream() {}
 };
 
 #endif  // MEDIA_AUDIO_AUDIO_IO_H_
