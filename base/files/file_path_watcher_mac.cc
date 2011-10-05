@@ -10,6 +10,7 @@
 
 #include <vector>
 
+#include "base/bind.h"
 #include "base/file_util.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
@@ -463,7 +464,7 @@ void FilePathWatcherImpl::Cancel() {
   }
   if (!proxy->BelongsToCurrentThread()) {
     proxy->PostTask(FROM_HERE,
-                    NewRunnableMethod(this, &FilePathWatcherImpl::Cancel));
+                    base::Bind(&FilePathWatcherImpl::Cancel, this));
     return;
   }
   CancelOnMessageLoopThread();

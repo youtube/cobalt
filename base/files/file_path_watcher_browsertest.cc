@@ -14,6 +14,7 @@
 #endif
 
 #include "base/basictypes.h"
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -47,9 +48,8 @@ class NotificationCollector
   // Called from the file thread by the delegates.
   void OnChange(TestDelegate* delegate) {
     loop_->PostTask(FROM_HERE,
-                    NewRunnableMethod(this,
-                                      &NotificationCollector::RecordChange,
-                                      make_scoped_refptr(delegate)));
+                    base::Bind(&NotificationCollector::RecordChange, this,
+                               make_scoped_refptr(delegate)));
   }
 
   void Register(TestDelegate* delegate) {
