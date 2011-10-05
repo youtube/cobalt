@@ -37,6 +37,13 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   }
   virtual void OnSendHeaders(URLRequest* request,
                              const HttpRequestHeaders& headers) OVERRIDE {}
+  virtual int OnHeadersReceived(
+      URLRequest* request,
+      OldCompletionCallback* callback,
+      HttpResponseHeaders* original_response_headers,
+      scoped_refptr<HttpResponseHeaders>* override_response_headers) OVERRIDE {
+    return net::OK;
+  }
   virtual void OnBeforeRedirect(URLRequest* request,
                                 const GURL& new_location) OVERRIDE {}
   virtual void OnResponseStarted(URLRequest* request) OVERRIDE {}
