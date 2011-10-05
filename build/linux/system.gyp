@@ -473,29 +473,29 @@
         ['_toolset=="target"', {
           'direct_dependent_settings': {
             'cflags': [
-              '<!@(<(pkg-config) --cflags glib-2.0)',
+              '<!@(<(pkg-config) --cflags glib-2.0 gobject-2.0 gthread-2.0)',
             ],
           },
           'link_settings': {
             'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other glib-2.0)',
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other glib-2.0 gobject-2.0 gthread-2.0)',
             ],
             'libraries': [
-              '<!@(<(pkg-config) --libs-only-l glib-2.0)',
+              '<!@(<(pkg-config) --libs-only-l glib-2.0 gobject-2.0 gthread-2.0)',
             ],
           },
         }, {
           'direct_dependent_settings': {
             'cflags': [
-              '<!@(pkg-config --cflags glib-2.0)',
+              '<!@(pkg-config --cflags glib-2.0 gobject-2.0 gthread-2.0)',
             ],
           },
           'link_settings': {
             'ldflags': [
-              '<!@(pkg-config --libs-only-L --libs-only-other glib-2.0)',
+              '<!@(pkg-config --libs-only-L --libs-only-other glib-2.0 gobject-2.0 gthread-2.0)',
             ],
             'libraries': [
-              '<!@(pkg-config --libs-only-l glib-2.0)',
+              '<!@(pkg-config --libs-only-l glib-2.0 gobject-2.0 gthread-2.0)',
             ],
           },
         }],
