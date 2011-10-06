@@ -827,6 +827,14 @@ void MessageLoopForUI::Run(Dispatcher* dispatcher) {
   state_->dispatcher = dispatcher;
   RunHandler();
 }
+
+void MessageLoopForUI::RunAllPendingWithDispatcher(Dispatcher* dispatcher) {
+  AutoRunState save_state(this);
+  state_->dispatcher = dispatcher;
+  state_->quit_received = true;  // Means run until we would otherwise block.
+  RunHandler();
+}
+
 #endif  //  !defined(OS_MACOSX) && !defined(OS_NACL) && !defined(OS_ANDROID)
 
 //------------------------------------------------------------------------------
