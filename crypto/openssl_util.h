@@ -8,6 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/location.h"
+#include "crypto/crypto_export.h"
 
 namespace crypto {
 
@@ -80,7 +81,7 @@ class ScopedOpenSSLSafeSizeBuffer {
 // before any other OpenSSL functions.
 // This function is thread-safe, and OpenSSL will only ever be initialized once.
 // OpenSSL will be properly shut down on program exit.
-void EnsureOpenSSLInit();
+void CRYPTO_EXPORT EnsureOpenSSLInit();
 
 // Drains the OpenSSL ERR_get_error stack. On a debug build the error codes
 // are send to VLOG(1), on a release build they are disregarded. In most
