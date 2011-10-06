@@ -112,6 +112,7 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
     server_ssl_config_.next_protos =
         *session->http_stream_factory()->next_protos();
   }
+  proxy_ssl_config_ = server_ssl_config_;
 }
 
 HttpNetworkTransaction::~HttpNetworkTransaction() {
@@ -158,8 +159,10 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
   request_ = request_info;
   start_time_ = base::Time::Now();
 
-  if (request_->load_flags & LOAD_DISABLE_CERT_REVOCATION_CHECKING)
+  if (request_->load_flags & LOAD_DISABLE_CERT_REVOCATION_CHECKING) {
     server_ssl_config_.rev_checking_enabled = false;
+    proxy_ssl_config_.rev_checking_enabled = false;
+  }
 
   next_state_ = STATE_CREATE_STREAM;
   int rv = DoLoop(OK);
