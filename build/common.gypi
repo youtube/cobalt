@@ -39,6 +39,9 @@
 
           # Whether or not we are building with the Aura window manager.
           'use_aura%': 0,
+
+          # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
+          'use_openssl%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
@@ -46,6 +49,7 @@
         'touchui%': '<(touchui)',
         'views_compositor%': '<(views_compositor)',
         'use_aura%': '<(use_aura)',
+        'use_openssl%': '<(use_openssl)',
 
         # Compute the architecture that we're building on.
         'conditions': [
@@ -98,6 +102,7 @@
       'use_only_pure_views%': '<(use_only_pure_views)',
       'views_compositor%': '<(views_compositor)',
       'use_aura%': '<(use_aura)',
+      'use_openssl%': '<(use_openssl)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -252,12 +257,12 @@
         }],
 
         # NSS usage.
-        ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+        ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris") and use_openssl==0', {
           'use_nss%': 1,
         }, {
           'use_nss%': 0,
         }],
-        
+
         # Flags to use X11 on non-Mac POSIX platforms
         ['OS=="win" or OS=="mac" or OS=="android"', {
           'use_glib%': 0,
@@ -335,6 +340,7 @@
     'use_only_pure_views%': '<(use_only_pure_views)',
     'views_compositor%': '<(views_compositor)',
     'use_aura%': '<(use_aura)',
+    'use_openssl%': '<(use_openssl)',
     'use_nss%': '<(use_nss)',
     'os_posix%': '<(os_posix)',
     'use_glib%': '<(use_glib)',
@@ -535,9 +541,6 @@
     # Enable a variable used elsewhere throughout the GYP files to determine
     # whether to compile in the sources for the GPU plugin / process.
     'enable_gpu%': 1,
-
-    # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
-    'use_openssl%': 0,
 
     # .gyp files or targets should set chromium_code to 1 if they build
     # Chromium-specific code, as opposed to external code.  This variable is
