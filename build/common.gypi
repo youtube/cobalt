@@ -885,6 +885,11 @@
       'debug_extra_cflags%': '',
       'release_valgrind_build%': 0,
 
+      # Only used by Windows build for now.  Can be used to build into a
+      # differet output directory, e.g., a build_dir_prefix of VS2010_ would
+      # output files in src/build/VS2010_{Debug,Release}.
+      'build_dir_prefix%': '',
+
       'conditions': [
         ['OS=="win" and component=="shared_library"', {
           # See http://msdn.microsoft.com/en-us/library/aa652367.aspx
@@ -1235,12 +1240,6 @@
     ],  # target_conditions for 'target_defaults'
     'default_configuration': 'Debug',
     'configurations': {
-      'variables' : {
-        # Only used by Windows build for now.  Can be used to build into a
-        # differet output directory, e.g., a build_dir_prefix of VS2010_ would
-        # output files in src/build/VS2010_{Debug,Release}.
-        'build_dir_prefix%': '',
-      },
       # VCLinkerTool LinkIncremental values below:
       #   0 == default
       #   1 == /INCREMENTAL:NO
