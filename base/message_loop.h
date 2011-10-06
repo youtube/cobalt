@@ -620,6 +620,7 @@ class BASE_EXPORT MessageLoopForUI : public MessageLoop {
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
   void Run(Dispatcher* dispatcher);
+  void RunAllPendingWithDispatcher(Dispatcher* dispatcher);
 
  protected:
   // TODO(rvargas): Make this platform independent.
