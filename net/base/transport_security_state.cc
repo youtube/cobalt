@@ -5,8 +5,8 @@
 #include "net/base/transport_security_state.h"
 
 #if defined(USE_OPENSSL)
-#include <openssl/ssl.h>
 #include <openssl/ecdsa.h>
+#include <openssl/ssl.h>
 #else  // !defined(USE_OPENSSL)
 #include <nspr.h>
 
@@ -440,7 +440,7 @@ static bool VerifySignature(const base::StringPiece& pubkey,
 
 
   crypto::ScopedOpenSSL<EC_KEY, EC_KEY_free> ec_key(
-    EVP_PKEY_get1_EC_KEY(secpubkey.get()));
+      EVP_PKEY_get1_EC_KEY(secpubkey.get()));
   if (!ec_key.get())
     return false;
 
