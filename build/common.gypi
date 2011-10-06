@@ -309,6 +309,11 @@
           'file_manager_extension%': 0,
         }],
 
+        # ... except on Windows even with Aura.
+        ['use_aura==1 and OS=="win"', {
+          'file_manager_extension%': 0,
+        }],
+
         # Enable WebUI TaskManager only on Chrome OS, Touch or PureView.
         ['chromeos==1 or touchui==1 or use_only_pure_views==1 or use_aura==1', {
           'webui_task_manager%': 1,
