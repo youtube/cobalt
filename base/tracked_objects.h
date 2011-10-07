@@ -22,7 +22,7 @@
 // across a series of objects so that the counts and times can be rapidly
 // updated without (usually) having to lock the data, and hence there is usually
 // very little contention caused by the tracking.  The data can be viewed via
-// the about:tasks URL, with a variety of sorting and filtering choices.
+// the about:tracking URL, with a variety of sorting and filtering choices.
 //
 // These classes serve as the basis of a profiler of sorts for the Tasks system.
 // As a result, design decisions were made to maximize speed, by minimizing
@@ -113,7 +113,7 @@
 //
 // The above description tries to define the high performance (run time)
 // portions of these classes.  After gathering statistics, calls instigated
-// by visiting about:tasks will assemble and aggregate data for display. The
+// by visiting about:tracking will assemble and aggregate data for display. The
 // following data structures are used for producing such displays.  They are
 // not performance critical, and their only major constraint is that they should
 // be able to run concurrently with ongoing augmentation of the birth and death
@@ -139,7 +139,8 @@
 // need to be sorted, and possibly aggregated (example: how many threads are in
 // a specific consecutive set of Snapshots?  What was the total birth count for
 // that set? etc.).  Aggregation instances collect running sums of any set of
-// snapshot instances, and are used to print sub-totals in an about:tasks page.
+// snapshot instances, and are used to print sub-totals in an about:tracking
+// page.
 //
 // TODO(jar): I need to store DataCollections, and provide facilities for taking
 // the difference between two gathered DataCollections.  For now, I'm just
@@ -359,7 +360,7 @@ class BASE_EXPORT Aggregation: public DeathData {
 //------------------------------------------------------------------------------
 // Comparator is a class that supports the comparison of Snapshot instances.
 // An instance is actually a list of chained Comparitors, that can provide for
-// arbitrary ordering.  The path portion of an about:tasks URL is translated
+// arbitrary ordering.  The path portion of an about:tracking URL is translated
 // into such a chain, which is then used to order Snapshot instances in a
 // vector.  It orders them into groups (for aggregation), and can also order
 // instances within the groups (for detailed rendering of the instances in an
@@ -481,7 +482,7 @@ class BASE_EXPORT ThreadData {
   // return null.
   static ThreadData* current();
 
-  // For a given (unescaped) about:tasks query, develop resulting HTML, and
+  // For a given (unescaped) about:tracking query, develop resulting HTML, and
   // append to output.
   static void WriteHTML(const std::string& query, std::string* output);
 
@@ -514,7 +515,7 @@ class BASE_EXPORT ThreadData {
 
   // Using our lock, make a copy of the specified maps.  These calls may arrive
   // from non-local threads, and are used to quickly scan data from all threads
-  // in order to build an HTML page for about:tasks.
+  // in order to build an HTML page for about:tracking.
   void SnapshotBirthMap(BirthMap *output) const;
   void SnapshotDeathMap(DeathMap *output) const;
 
