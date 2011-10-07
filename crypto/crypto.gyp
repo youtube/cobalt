@@ -149,6 +149,8 @@
         'secure_hash.h',
         'secure_hash_default.cc',
         'secure_hash_openssl.cc',
+        'secure_util.cc',
+        'secure_util.h',
         'sha2.cc',
         'sha2.h',
         'signature_creator.h',
