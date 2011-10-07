@@ -41,6 +41,7 @@
  "linux-release-lowmem/sunspider/total/t": {"reva": 81217, "revb": 81884, "improve": -645, "regress": 722, "sha1": "35f98911"},
  "linux-release-lowmem/v8_benchmark/score/score": {"reva": 81069, "revb": 81884, "improve": 1196, "regress": -2933, "sha1": "9e618ede"},
  "linux-release/dhtml/times/t": {"reva": 99393, "revb": 100034, "improve": -21, "regress": 145, "sha1": "6cb344a1"},
+ "linux-release/dromaeo_jslib/score/score": {"reva": 90000, "revb": 90015, "improve": 18, "regress": -6, "sha1": "1821fd28"},
  "linux-release/intl1/times/t": {"reva": 102913, "revb": 104239, "improve": 487, "regress": 1030, "sha1": "0d01c27f"},
  "linux-release/intl2/times/t": {"reva": 102913, "revb": 104239, "improve": 320, "regress": 542, "sha1": "7f74b01b"},
  "linux-release/morejs/times/t": {"reva": 102913, "revb": 104239, "improve": 26, "regress": 128, "sha1": "3d7de2e6"},
