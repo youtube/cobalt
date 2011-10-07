@@ -66,7 +66,9 @@ void* ThreadFunc(void* params) {
 
 bool CreateThread(size_t stack_size, bool joinable,
                   PlatformThread::Delegate* delegate,
-                  PlatformThreadHandle* thread_handle) {
+                  PlatformThreadHandle* thread_handle,
+                  char * name
+                  ) {
 #if defined(OS_MACOSX)
   base::InitThreading();
 #endif  // OS_MACOSX
@@ -116,6 +118,7 @@ bool CreateThread(size_t stack_size, bool joinable,
   // default stack size of 16K is _not_ cutting it :)
   // switch to a default stack size of at least 256K
   // useful read: https://ps3.scedev.net/projects/knowledge_base/docs/overflow/1
+  attributes.name = name;
   if (stack_size < 256*1024)
     stack_size = 256*1024;
 #endif
@@ -232,7 +235,14 @@ void PlatformThread::SetName(const char* /*name*/) {
 bool PlatformThread::Create(size_t stack_size, Delegate* delegate,
                             PlatformThreadHandle* thread_handle) {
   return CreateThread(stack_size, true /* joinable thread */,
-                      delegate, thread_handle);
+                      delegate, thread_handle, NULL);
+}
+
+bool PlatformThread::Create(size_t stack_size, Delegate* delegate,
+                            PlatformThreadHandle* thread_handle,
+                            char* name) {
+  return CreateThread(stack_size, true /* joinable thread */,
+                      delegate, thread_handle, name);
 }
 
 // static
@@ -240,7 +250,7 @@ bool PlatformThread::CreateNonJoinable(size_t stack_size, Delegate* delegate) {
   PlatformThreadHandle unused;
 
   bool result = CreateThread(stack_size, false /* non-joinable thread */,
-                             delegate, &unused);
+                             delegate, &unused, NULL);
   return result;
 }
 
