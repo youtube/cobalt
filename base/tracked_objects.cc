@@ -164,7 +164,7 @@ void ThreadData::WriteHTML(const std::string& query, std::string* output) {
   output->append("</pre>");
 
   const char* help_string = "The following are the keywords that can be used to"
-    "sort and aggregate the data, or to select data.<br><ul>"
+    " sort and aggregate the data, or to select data.<br><ul>"
     "<li><b>count</b> Number of instances seen."
     "<li><b>duration</b> Duration in ms from construction to descrution."
     "<li><b>birth</b> Thread on which the task was constructed."
@@ -174,19 +174,19 @@ void ThreadData::WriteHTML(const std::string& query, std::string* output) {
     "<li><b>line</b> Line number of the file in which the task was constructed."
     "</ul><br>"
     "As examples:<ul>"
-    "<li><b>about:tasks/file</b> would sort the above data by file, and"
+    "<li><b>about:tracking/file</b> would sort the above data by file, and"
     " aggregate data on a per-file basis."
-    "<li><b>about:tasks/file=Dns</b> would only list data for tasks constructed"
-    " in a file containing the text |Dns|."
-    "<li><b>about:tasks/birth/death</b> would sort the above list by birth"
+    "<li><b>about:tracking/file=Dns</b> would only list data for tasks"
+    " constructed in a file containing the text |Dns|."
+    "<li><b>about:tracking/birth/death</b> would sort the above list by birth"
     " thread, and then by death thread, and would aggregate data for each pair"
     " of lifetime events."
     "</ul>"
     " The data can be reset to zero (discarding all births, deaths, etc.) using"
-    " <b>about:tasks/reset</b>. The existing stats will be displayed, but the"
-    " internal stats will be set to zero, and start accumulating afresh. This"
-    " option is very helpful if you only wish to consider tasks created after"
-    " some point in time.<br><br>"
+    " <b>about:tracking/reset</b>. The existing stats will be displayed, but"
+    " the internal stats will be set to zero, and start accumulating afresh."
+    " This option is very helpful if you only wish to consider tasks created"
+    " after some point in time.<br><br>"
     "If you wish to monitor Renderer events, be sure to run in --single-process"
     " mode.";
   output->append(help_string);
@@ -443,7 +443,7 @@ void ThreadData::RunOnAllThreads(void (*function)()) {
 
 // static
 bool ThreadData::StartTracking(bool status) {
-#ifndef TRACK_ALL_TASK_OBJECTS
+#if !defined(TRACK_ALL_TASK_OBJECTS)
   return false;  // Not compiled in.
 #endif
 
