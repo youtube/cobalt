@@ -124,6 +124,8 @@
           'id_map.h',
           'json/json_reader.cc',
           'json/json_reader.h',
+          'json/json_value_serializer.cc',
+          'json/json_value_serializer.h',
           'json/json_writer.cc',
           'json/json_writer.h',
           'json/string_escape.cc',
