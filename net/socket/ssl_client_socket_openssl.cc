@@ -10,6 +10,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+#include "base/bind.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/histogram.h"
 #include "base/synchronization/lock.h"
@@ -394,8 +395,6 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       completed_handshake_(false),
       client_auth_cert_needed_(false),
       cert_verifier_(context.cert_verifier),
-      ALLOW_THIS_IN_INITIALIZER_LIST(handshake_io_callback_(
-          this, &SSLClientSocketOpenSSL::OnHandshakeIOComplete)),
       ssl_(NULL),
       transport_bio_(NULL),
       transport_(transport_socket),
@@ -664,8 +663,7 @@ void SSLClientSocketOpenSSL::Disconnect() {
     transport_bio_ = NULL;
   }
 
-  // Shut down anything that may call us back (through buffer_send_callback_,
-  // buffer_recv_callback, or handshake_io_callback_).
+  // Shut down anything that may call us back.
   verifier_.reset();
   transport_->socket()->Disconnect();
 
@@ -836,9 +834,11 @@ int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
-  return verifier_->Verify(server_cert_, host_and_port_.host(), flags,
-                           &server_cert_verify_result_,
-                           &handshake_io_callback_);
+  return verifier_->Verify(
+      server_cert_, host_and_port_.host(), flags,
+      &server_cert_verify_result_,
+      base::Bind(&SSLClientSocketOpenSSL::OnHandshakeIOComplete,
+                 base::Unretained(this)));
 }
 
 int SSLClientSocketOpenSSL::DoVerifyCertComplete(int result) {

@@ -102,7 +102,7 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
              const std::string& hostname,
              int flags,
              CertVerifyResult* verify_result,
-             OldCompletionCallback* callback,
+             const CompletionCallback& callback,
              RequestHandle* out_req);
 
   // Cancels the specified request. |req| is the handle returned by Verify().
@@ -201,7 +201,7 @@ class SingleRequestCertVerifier {
              const std::string& hostname,
              int flags,
              CertVerifyResult* verify_result,
-             OldCompletionCallback* callback);
+             const CompletionCallback& callback);
 
  private:
   // Callback for when the request to |cert_verifier_| completes, so we
@@ -213,10 +213,7 @@ class SingleRequestCertVerifier {
 
   // The current request (if any).
   CertVerifier::RequestHandle cur_request_;
-  OldCompletionCallback* cur_request_callback_;
-
-  // Completion callback for when request to |cert_verifier_| completes.
-  OldCompletionCallbackImpl<SingleRequestCertVerifier> callback_;
+  CompletionCallback cur_request_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(SingleRequestCertVerifier);
 };
