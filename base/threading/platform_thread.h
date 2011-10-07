@@ -90,6 +90,11 @@ class BASE_EXPORT PlatformThread {
   // the Delegate object outlives the thread.
   static bool Create(size_t stack_size, Delegate* delegate,
                      PlatformThreadHandle* thread_handle);
+#if defined(__LB_PS3__)
+  static bool Create(size_t stack_size, Delegate* delegate,
+                     PlatformThreadHandle* thread_handle,
+                     char* name);
+#endif
 
   // CreateNonJoinable() does the same thing as Create() except the thread
   // cannot be Join()'d.  Therefore, it also does not output a
