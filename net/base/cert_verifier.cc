@@ -4,6 +4,7 @@
 
 #include "net/base/cert_verifier.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/stl_util.h"
@@ -87,7 +88,7 @@ bool CachedCertVerifyResult::HasExpired(const base::Time current_time) const {
 // Represents the output and result callback of a request.
 class CertVerifierRequest {
  public:
-  CertVerifierRequest(OldCompletionCallback* callback,
+  CertVerifierRequest(const CompletionCallback& callback,
                       CertVerifyResult* verify_result)
       : callback_(callback),
         verify_result_(verify_result) {
@@ -95,24 +96,24 @@ class CertVerifierRequest {
 
   // Ensures that the result callback will never be made.
   void Cancel() {
-    callback_ = NULL;
+    callback_.Reset();
     verify_result_ = NULL;
   }
 
   // Copies the contents of |verify_result| to the caller's
   // CertVerifyResult and calls the callback.
   void Post(const CachedCertVerifyResult& verify_result) {
-    if (callback_) {
+    if (!callback_.is_null()) {
       *verify_result_ = verify_result.result;
-      callback_->Run(verify_result.error);
+      callback_.Run(verify_result.error);
     }
     delete this;
   }
 
-  bool canceled() const { return !callback_; }
+  bool canceled() const { return callback_.is_null(); }
 
  private:
-  OldCompletionCallback* callback_;
+  CompletionCallback callback_;
   CertVerifyResult* verify_result_;
 };
 
@@ -309,11 +310,11 @@ int CertVerifier::Verify(X509Certificate* cert,
                          const std::string& hostname,
                          int flags,
                          CertVerifyResult* verify_result,
-                         OldCompletionCallback* callback,
+                         const CompletionCallback& callback,
                          RequestHandle* out_req) {
   DCHECK(CalledOnValidThread());
 
-  if (!callback || !verify_result || hostname.empty()) {
+  if (callback.is_null() || !verify_result || hostname.empty()) {
     *out_req = NULL;
     return ERR_INVALID_ARGUMENT;
   }
@@ -448,10 +449,7 @@ void CertVerifier::OnCertTrustChanged(const X509Certificate* cert) {
 SingleRequestCertVerifier::SingleRequestCertVerifier(
     CertVerifier* cert_verifier)
     : cert_verifier_(cert_verifier),
-      cur_request_(NULL),
-      cur_request_callback_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &SingleRequestCertVerifier::OnVerifyCompletion)) {
+      cur_request_(NULL) {
   DCHECK(cert_verifier_ != NULL);
 }
 
@@ -466,12 +464,12 @@ int SingleRequestCertVerifier::Verify(X509Certificate* cert,
                                       const std::string& hostname,
                                       int flags,
                                       CertVerifyResult* verify_result,
-                                      OldCompletionCallback* callback) {
+                                      const CompletionCallback& callback) {
   // Should not be already in use.
-  DCHECK(!cur_request_ && !cur_request_callback_);
+  DCHECK(!cur_request_ && cur_request_callback_.is_null());
 
   // Do a synchronous verification.
-  if (!callback)
+  if (callback.is_null())
     return cert->Verify(hostname, flags, verify_result);
 
   CertVerifier::RequestHandle request = NULL;
@@ -479,7 +477,10 @@ int SingleRequestCertVerifier::Verify(X509Certificate* cert,
   // We need to be notified of completion before |callback| is called, so that
   // we can clear out |cur_request_*|.
   int rv = cert_verifier_->Verify(
-      cert, hostname, flags, verify_result, &callback_, &request);
+      cert, hostname, flags, verify_result,
+      base::Bind(&SingleRequestCertVerifier::OnVerifyCompletion,
+                 base::Unretained(this)),
+      &request);
 
   if (rv == ERR_IO_PENDING) {
     // Cleared in OnVerifyCompletion().
@@ -491,16 +492,16 @@ int SingleRequestCertVerifier::Verify(X509Certificate* cert,
 }
 
 void SingleRequestCertVerifier::OnVerifyCompletion(int result) {
-  DCHECK(cur_request_ && cur_request_callback_);
+  DCHECK(cur_request_ && !cur_request_callback_.is_null());
 
-  OldCompletionCallback* callback = cur_request_callback_;
+  CompletionCallback callback = cur_request_callback_;
 
   // Clear the outstanding request information.
   cur_request_ = NULL;
-  cur_request_callback_ = NULL;
+  cur_request_callback_.Reset();
 
   // Call the user's original callback.
-  callback->Run(result);
+  callback.Run(result);
 }
 
 }  // namespace net

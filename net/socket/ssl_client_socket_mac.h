@@ -105,7 +105,6 @@ class SSLClientSocketMac : public SSLClientSocket {
                                    const void* data,
                                    size_t* data_length);
 
-  OldCompletionCallbackImpl<SSLClientSocketMac> handshake_io_callback_;
   OldCompletionCallbackImpl<SSLClientSocketMac> transport_read_callback_;
   OldCompletionCallbackImpl<SSLClientSocketMac> transport_write_callback_;
 

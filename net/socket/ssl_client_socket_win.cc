@@ -7,6 +7,7 @@
 #include <schnlsp.h>
 #include <map>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
 #include "base/stl_util.h"
@@ -1172,9 +1173,11 @@ int SSLClientSocketWin::DoVerifyCert() {
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
-  return verifier_->Verify(server_cert_, host_and_port_.host(), flags,
-                           &server_cert_verify_result_,
-                           &handshake_io_callback_);
+  return verifier_->Verify(
+      server_cert_, host_and_port_.host(), flags,
+      &server_cert_verify_result_,
+      base::Bind(&SSLClientSocketWin::OnHandshakeIOComplete,
+                 base::Unretained(this)));
 }
 
 int SSLClientSocketWin::DoVerifyCertComplete(int result) {
