@@ -28,7 +28,7 @@ class ChromeClassTester : public clang::ASTConsumer {
 
  protected:
   clang::CompilerInstance& instance() { return instance_; }
-  clang::Diagnostic& diagnostic() { return diagnostic_; }
+  clang::DiagnosticsEngine& diagnostic() { return diagnostic_; }
 
   // Emits a simple warning; this shouldn't be used if you require printf-style
   // printing.
@@ -55,7 +55,7 @@ class ChromeClassTester : public clang::ASTConsumer {
   bool IsIgnoredType(const std::string& base_name);
 
   clang::CompilerInstance& instance_;
-  clang::Diagnostic& diagnostic_;
+  clang::DiagnosticsEngine& diagnostic_;
 
   // List of banned namespaces.
   std::vector<std::string> banned_namespaces_;
