@@ -255,8 +255,10 @@ void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
 void FFmpegVideoDecoder::ProduceVideoFrame(
     scoped_refptr<VideoFrame> video_frame) {
   if (MessageLoop::current() != message_loop_) {
-    message_loop_->PostTask(FROM_HERE, base::Bind(
-        &FFmpegVideoDecoder::ProduceVideoFrame, this, video_frame));
+    if (state_ != kStopped) {
+      message_loop_->PostTask(FROM_HERE, base::Bind(
+          &FFmpegVideoDecoder::ProduceVideoFrame, this, video_frame));
+    }
     return;
   }
 

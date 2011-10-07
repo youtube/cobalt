@@ -10,6 +10,7 @@
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "media/base/data_buffer.h"
 #include "media/base/filter_host.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
@@ -139,6 +140,10 @@ void FFmpegDemuxerStream::Stop() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
+  for (ReadQueue::iterator it = read_queue_.begin();
+       it != read_queue_.end(); ++it) {
+    it->Run(new DataBuffer(0));
+  }
   read_queue_.clear();
   stopped_ = true;
 }
@@ -289,13 +294,13 @@ FFmpegDemuxer::~FFmpegDemuxer() {
 
 void FFmpegDemuxer::PostDemuxTask() {
   message_loop_->PostTask(FROM_HERE,
-      base::Bind(&FFmpegDemuxer::DemuxTask, this));
+                          base::Bind(&FFmpegDemuxer::DemuxTask, this));
 }
 
 void FFmpegDemuxer::Stop(const base::Closure& callback) {
   // Post a task to notify the streams to stop as well.
   message_loop_->PostTask(FROM_HERE,
-      base::Bind(&FFmpegDemuxer::StopTask, this, callback));
+                          base::Bind(&FFmpegDemuxer::StopTask, this, callback));
 
   // Then wakes up the thread from reading.
   SignalReadCompleted(DataSource::kReadError);
@@ -303,7 +308,7 @@ void FFmpegDemuxer::Stop(const base::Closure& callback) {
 
 void FFmpegDemuxer::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
   message_loop_->PostTask(FROM_HERE,
-      base::Bind(&FFmpegDemuxer::SeekTask, this, time, cb));
+                          base::Bind(&FFmpegDemuxer::SeekTask, this, time, cb));
 }
 
 void FFmpegDemuxer::SetPlaybackRate(float playback_rate) {
@@ -317,8 +322,8 @@ void FFmpegDemuxer::SetPreload(Preload preload) {
 }
 
 void FFmpegDemuxer::OnAudioRendererDisabled() {
-  message_loop_->PostTask(FROM_HERE,
-      base::Bind(&FFmpegDemuxer::DisableAudioStreamTask, this));
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &FFmpegDemuxer::DisableAudioStreamTask, this));
 }
 
 void FFmpegDemuxer::set_host(FilterHost* filter_host) {
@@ -473,7 +478,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
       AVStream* stream = format_context_->streams[i];
       // WebM is currently strictly VP8 and Vorbis.
       if (kDemuxerIsWebm && (stream->codec->codec_id != CODEC_ID_VP8 &&
-        stream->codec->codec_id != CODEC_ID_VORBIS)) {
+                             stream->codec->codec_id != CODEC_ID_VORBIS)) {
         packet_streams_.push_back(NULL);
         continue;
       }
@@ -487,7 +492,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
 
         if (stream->first_dts != static_cast<int64_t>(AV_NOPTS_VALUE)) {
           const base::TimeDelta first_dts = ConvertFromTimeBase(
-            stream->time_base, stream->first_dts);
+              stream->time_base, stream->first_dts);
           if (start_time_ == kNoTimestamp || first_dts < start_time_)
             start_time_ = first_dts;
         }
