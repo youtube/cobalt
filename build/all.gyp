@@ -615,6 +615,21 @@
             '../views/views.gyp:views_unittests',
             '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
           ],
+          'conditions': [
+            ['OS=="win"', {
+              # Remove this when we have the real compositor.
+              'copies': [
+                {
+                  'destination': '<(PRODUCT_DIR)',
+                  'files': ['../third_party/directxsdk/files/dlls/D3DX10d_43.dll']
+                },
+              ],
+              'dependencies': [
+                '../chrome/chrome.gyp:crash_service',
+                '../chrome/chrome.gyp:crash_service_win64',
+              ],
+            }],
+          ],
         },
       ],  # targets
     }], # "use_aura==1"
