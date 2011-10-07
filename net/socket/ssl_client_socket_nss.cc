@@ -64,6 +64,7 @@
 #include <limits>
 #include <map>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -1686,9 +1687,11 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   server_cert_verify_result_ = &local_server_cert_verify_result_;
-  return verifier_->Verify(server_cert_, host_and_port_.host(), flags,
-                           &local_server_cert_verify_result_,
-                           &handshake_io_callback_);
+  return verifier_->Verify(
+      server_cert_, host_and_port_.host(), flags,
+      &local_server_cert_verify_result_,
+      base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
+                 base::Unretained(this)));
 }
 
 // Derived from AuthCertificateCallback() in
@@ -2126,7 +2129,8 @@ SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
       origin,
       &ob_private_key_,
       &ob_cert_,
-      &handshake_io_callback_,
+      base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
+                 base::Unretained(this)),
       &ob_cert_request_handle_);
 
   if (error == OK) {
