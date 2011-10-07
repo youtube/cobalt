@@ -284,6 +284,7 @@ TEST_F(BindTest, CallbackBindMore) {
 //   - Normal function.
 //   - Normal function bound with non-refcounted first argument.
 //   - Method bound to non-const object.
+//   - Method bound to scoped_refptr.
 //   - Const method bound to non-const object.
 //   - Const method bound to const object.
 //   - Derived classes can be used with pointers to non-virtual base functions.
@@ -291,9 +292,9 @@ TEST_F(BindTest, CallbackBindMore) {
 //     preserve virtual dispatch).
 TEST_F(BindTest, FunctionTypeSupport) {
   EXPECT_CALL(static_func_mock_, VoidMethod0());
-  EXPECT_CALL(has_ref_, AddRef()).Times(3);
-  EXPECT_CALL(has_ref_, Release()).Times(3);
-  EXPECT_CALL(has_ref_, VoidMethod0());
+  EXPECT_CALL(has_ref_, AddRef()).Times(5);
+  EXPECT_CALL(has_ref_, Release()).Times(5);
+  EXPECT_CALL(has_ref_, VoidMethod0()).Times(2);
   EXPECT_CALL(has_ref_, VoidConstMethod0()).Times(2);
 
   Closure normal_cb = Bind(&VoidFunc0);
@@ -303,11 +304,14 @@ TEST_F(BindTest, FunctionTypeSupport) {
   EXPECT_EQ(&no_ref_, normal_non_refcounted_cb.Run());
 
   Closure method_cb = Bind(&HasRef::VoidMethod0, &has_ref_);
+  Closure method_refptr_cb = Bind(&HasRef::VoidMethod0,
+                                  make_scoped_refptr(&has_ref_));
   Closure const_method_nonconst_obj_cb = Bind(&HasRef::VoidConstMethod0,
                                               &has_ref_);
   Closure const_method_const_obj_cb = Bind(&HasRef::VoidConstMethod0,
                                            const_has_ref_ptr_);
   method_cb.Run();
+  method_refptr_cb.Run();
   const_method_nonconst_obj_cb.Run();
   const_method_const_obj_cb.Run();
 

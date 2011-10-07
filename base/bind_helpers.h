@@ -227,6 +227,11 @@ const T& Unwrap(ConstRefWrapper<T> const_ref) {
   return const_ref.get();
 }
 
+template <typename T>
+T* Unwrap(const scoped_refptr<T>& o) { return o.get(); }
+
+template <typename T>
+const WeakPtr<T>& Unwrap(const WeakPtr<T>& o) { return o; }
 
 // Utility for handling different refcounting semantics in the Bind()
 // function.
@@ -255,6 +260,14 @@ template <typename T>
 struct MaybeRefcount<base::true_type, T*> {
   static void AddRef(T* o) { o->AddRef(); }
   static void Release(T* o) { o->Release(); }
+};
+
+// No need to additionally AddRef() and Release() since we are storing a
+// scoped_refptr<> inside the storage object already.
+template <typename T>
+struct MaybeRefcount<base::true_type, scoped_refptr<T> > {
+  static void AddRef(const scoped_refptr<T>& o) {}
+  static void Release(const scoped_refptr<T>& o) {}
 };
 
 template <typename T>
