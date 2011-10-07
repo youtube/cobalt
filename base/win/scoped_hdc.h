@@ -35,19 +35,18 @@ class ScopedGetDC {
  private:
   HWND hwnd_;
   HDC hdc_;
+
   DISALLOW_COPY_AND_ASSIGN(ScopedGetDC);
 };
 
 // Like ScopedHandle but for HDC.  Only use this on HDCs returned from
-// CreateCompatibleDC.
-// TODO(yosin) To eliminate confusion with ScopedGetDC, we should rename
-// ScopedHDC to ScopedCreateDC.
-class ScopedHDC {
+// CreateCompatibleDC, CreateDC and CreateIC.
+class ScopedCreateDC {
  public:
-  ScopedHDC() : hdc_(NULL) { }
-  explicit ScopedHDC(HDC h) : hdc_(h) { }
+  ScopedCreateDC() : hdc_(NULL) { }
+  explicit ScopedCreateDC(HDC h) : hdc_(h) { }
 
-  ~ScopedHDC() {
+  ~ScopedCreateDC() {
     Close();
   }
 
@@ -73,7 +72,8 @@ class ScopedHDC {
   }
 
   HDC hdc_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedHDC);
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedCreateDC);
 };
 
 }  // namespace win
