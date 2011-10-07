@@ -11,6 +11,7 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
 #include "base/lazy_instance.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
@@ -522,8 +523,7 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocketHandle* transport_socket,
                                        const HostPortPair& host_and_port,
                                        const SSLConfig& ssl_config,
                                        const SSLClientSocketContext& context)
-    : handshake_io_callback_(this, &SSLClientSocketMac::OnHandshakeIOComplete),
-      transport_read_callback_(this,
+    : transport_read_callback_(this,
                                &SSLClientSocketMac::OnTransportReadComplete),
       transport_write_callback_(this,
                                 &SSLClientSocketMac::OnTransportWriteComplete),
@@ -1156,9 +1156,11 @@ int SSLClientSocketMac::DoVerifyCert() {
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
-  return verifier_->Verify(server_cert_, host_and_port_.host(), flags,
-                           &server_cert_verify_result_,
-                           &handshake_io_callback_);
+  return verifier_->Verify(
+      server_cert_, host_and_port_.host(), flags,
+      &server_cert_verify_result_,
+      base::Bind(&SSLClientSocketMac::OnHandshakeIOComplete,
+                 base::Unretained(this)));
 }
 
 int SSLClientSocketMac::DoVerifyCertComplete(int result) {

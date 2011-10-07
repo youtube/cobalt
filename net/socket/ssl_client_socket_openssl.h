@@ -142,7 +142,6 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
 
   CertVerifier* const cert_verifier_;
   scoped_ptr<SingleRequestCertVerifier> verifier_;
-  OldCompletionCallbackImpl<SSLClientSocketOpenSSL> handshake_io_callback_;
 
   // OpenSSL stuff
   SSL* ssl_;
