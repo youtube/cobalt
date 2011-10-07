@@ -29,6 +29,7 @@
 #include "base/native_library.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
+#include "build/build_config.h"
 #include "crypto/scoped_nss_types.h"
 
 #if defined(OS_CHROMEOS)
@@ -650,8 +651,17 @@ void LoadNSSLibraries() {
   // Use relative path to Search PATH for the library files.
   paths.push_back(FilePath());
 
-  // For Debian derivaties NSS libraries are located here.
+  // For Debian derivatives NSS libraries are located here.
   paths.push_back(FilePath("/usr/lib/nss"));
+
+  // Ubuntu 11.10 (Oneiric) places the libraries here.
+#if defined(ARCH_CPU_X86_64)
+  paths.push_back(FilePath("/usr/lib/x86_64-linux-gnu/nss"));
+#elif defined(ARCH_CPU_X86)
+  paths.push_back(FilePath("/usr/lib/i386-linux-gnu/nss"));
+#elif defined(ARCH_CPU_ARMEL)
+  paths.push_back(FilePath("/usr/lib/arm-linux-gnueabi/nss"));
+#endif
 
   // A list of library files to load.
   std::vector<std::string> libs;
@@ -675,7 +685,7 @@ void LoadNSSLibraries() {
   if (loaded == libs.size()) {
     VLOG(3) << "NSS libraries loaded.";
   } else {
-    LOG(WARNING) << "Failed to load NSS libraries.";
+    LOG(ERROR) << "Failed to load NSS libraries.";
   }
 #endif
 }
