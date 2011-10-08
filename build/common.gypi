@@ -388,6 +388,10 @@
     # Whether to build for Wayland display server
     'use_wayland%': 0,
 
+    # Default to enabled PIE; this is important for ASLR but we need to be
+    # able to turn it off for remote debugging on Chromium OS
+    'linux_disable_pie%': 0,
+
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
     # The default is 'all', which does no channel-specific filtering.
@@ -1752,6 +1756,20 @@
           ['linux_fpic==1', {
             'cflags': [
               '-fPIC',
+            ],
+          }],
+          # TODO(rkc): Currently building Chrome with the PIE flag causes
+          # remote debugging to break (remote debugger does not get correct
+          # section header offsets hence causing all symbol handling to go
+          # kaboom). See crosbug.com/15266
+          # Remove this flag once this issue is fixed.
+          ['linux_disable_pie==1', {
+            'target_conditions': [
+              ['_type=="executable"', {
+                'ldflags': [
+                  '-nopie',
+                ],
+              }],
             ],
           }],
           ['sysroot!=""', {
