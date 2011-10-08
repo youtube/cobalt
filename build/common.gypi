@@ -970,9 +970,6 @@
       ['remoting==1', {
         'defines': ['ENABLE_REMOTING=1'],
       }],
-      ['use_threaded_compositing==1', {
-        'defines': ['WTF_USE_THREADED_COMPOSITING'],
-      }],
       ['p2p_apis==1', {
         'defines': ['ENABLE_P2P_APIS=1'],
       }],
