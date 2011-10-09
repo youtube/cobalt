@@ -20,6 +20,7 @@ class DnsRRResolver;
 class FtpTransactionFactory;
 class HostResolver;
 class HttpAuthHandlerFactory;
+class HttpServerProperties;
 class HttpTransactionFactory;
 class NetLog;
 class NetworkDelegate;
@@ -55,6 +56,7 @@ class NET_EXPORT URLRequestContextStorage {
   void set_proxy_service(ProxyService* proxy_service);
   void set_ssl_config_service(SSLConfigService* ssl_config_service);
   void set_network_delegate(NetworkDelegate* network_delegate);
+  void set_http_server_properties(HttpServerProperties* http_server_properties);
   void set_cookie_store(CookieStore* cookie_store);
   void set_transport_security_state(
       TransportSecurityState* transport_security_state);
@@ -82,6 +84,7 @@ class NET_EXPORT URLRequestContextStorage {
   // TODO(willchan): Remove refcounting on these members.
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_ptr<NetworkDelegate> network_delegate_;
+  HttpServerProperties* http_server_properties_;
   scoped_refptr<CookieStore> cookie_store_;
   scoped_ptr<TransportSecurityState> transport_security_state_;
 

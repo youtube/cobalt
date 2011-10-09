@@ -25,6 +25,7 @@ namespace net {
 HttpNetworkSession::HttpNetworkSession(const Params& params)
     : net_log_(params.net_log),
       network_delegate_(params.network_delegate),
+      http_server_properties_(params.http_server_properties),
       cert_verifier_(params.cert_verifier),
       http_auth_handler_factory_(params.http_auth_handler_factory),
       proxy_service_(params.proxy_service),
