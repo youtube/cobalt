@@ -202,8 +202,9 @@ def Main(args):
     summary_url = '%s/%s/%s/%s-summary.dat' % (base_url, system, test, graph)
     summaryjson = FetchUrlContents(summary_url)
     if not summaryjson:
-      OutputMessage('missing json data, skipping')
-      continue
+      OutputMessage('ERROR: cannot find json data, please verify',
+                    verbose_message=False)
+      return 0
 
     # Set value's type to 'relative' by default.
     value_type = value.get('type', 'relative')
@@ -271,7 +272,7 @@ def Main(args):
     # improve so it is just a little less than regress.  I'm picking on improve
     # so we keep the sizes assumptions in place for now.
     if regress == improve:
-      improve = float(regress * 0.99)
+      improve = float(improve - abs(regress * 0.01))
 
     # If the existing values assume regressions are low deltas relative to
     # improvements, swap our regress and improve.  This value must be a
