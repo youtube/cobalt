@@ -19,6 +19,7 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
+#include "net/http/http_server_properties.h"
 #include "net/ftp/ftp_auth_cache.h"
 
 namespace net {
@@ -143,6 +144,14 @@ class NET_EXPORT URLRequestContext
   }
   NetworkDelegate* network_delegate() const { return network_delegate_; }
 
+  void set_http_server_properties(
+      HttpServerProperties* http_server_properties) {
+    http_server_properties_ = http_server_properties;
+  }
+  HttpServerProperties* http_server_properties() const {
+    return http_server_properties_;
+  }
+
   // Gets the cookie store for this context (may be null, in which case
   // cookies are not stored).
   CookieStore* cookie_store() const { return cookie_store_.get(); }
@@ -213,6 +222,7 @@ class NET_EXPORT URLRequestContext
   ProxyService* proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   NetworkDelegate* network_delegate_;
+  HttpServerProperties* http_server_properties_;
   scoped_refptr<CookieStore> cookie_store_;
   TransportSecurityState* transport_security_state_;
   scoped_ptr<FtpAuthCache> ftp_auth_cache_;

@@ -51,6 +51,7 @@ class HttpAuthHandlerFactory;
 class HttpNetworkSession;
 struct HttpRequestInfo;
 class HttpResponseInfo;
+class HttpServerProperties;
 class IOBuffer;
 class NetLog;
 class NetworkDelegate;
@@ -129,6 +130,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
             SSLConfigService* ssl_config_service,
             HttpAuthHandlerFactory* http_auth_handler_factory,
             NetworkDelegate* network_delegate,
+            HttpServerProperties* http_server_properties,
             NetLog* net_log,
             BackendFactory* backend_factory);
 

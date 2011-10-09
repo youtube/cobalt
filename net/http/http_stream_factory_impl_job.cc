@@ -19,6 +19,7 @@
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_info.h"
+#include "net/http/http_server_properties.h"
 #include "net/http/http_stream_factory_impl_request.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool.h"
@@ -119,7 +120,17 @@ void HttpStreamFactoryImpl::Job::Start(Request* request) {
 
 int HttpStreamFactoryImpl::Job::Preconnect(int num_streams) {
   DCHECK_GT(num_streams, 0);
-  num_streams_ = num_streams;
+  HostPortPair origin_server =
+      HostPortPair(request_info_.url.HostNoBrackets(),
+                   request_info_.url.EffectiveIntPort());
+  HttpServerProperties* http_server_properties =
+      session_->http_server_properties();
+  if (http_server_properties &&
+      http_server_properties->SupportsSpdy(origin_server)) {
+    num_streams_ = 1;
+  } else {
+    num_streams_ = num_streams;
+  }
   return StartInternal();
 }
 
@@ -821,6 +832,11 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
           &new_spdy_session_, using_ssl_);
       if (error != OK)
         return error;
+      const HostPortPair& host_port_pair = pair.first;
+      HttpServerProperties* http_server_properties =
+          session_->http_server_properties();
+      if (http_server_properties)
+        http_server_properties->SetSupportsSpdy(host_port_pair, true);
       spdy_session_direct_ = direct;
       return OK;
     }

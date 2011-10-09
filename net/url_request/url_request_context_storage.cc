@@ -14,6 +14,7 @@
 #include "net/base/origin_bound_cert_service.h"
 #include "net/ftp/ftp_transaction_factory.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "net/http/http_server_properties.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/dns_cert_provenance_checker.h"
@@ -83,6 +84,12 @@ void URLRequestContextStorage::set_network_delegate(
     NetworkDelegate* network_delegate) {
   context_->set_network_delegate(network_delegate);
   network_delegate_.reset(network_delegate);
+}
+
+void URLRequestContextStorage::set_http_server_properties(
+    HttpServerProperties* http_server_properties) {
+  context_->set_http_server_properties(http_server_properties);
+  http_server_properties_ = http_server_properties;
 }
 
 void URLRequestContextStorage::set_cookie_store(CookieStore* cookie_store) {
