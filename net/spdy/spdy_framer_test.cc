@@ -1359,7 +1359,7 @@ std::string RandomString(int length) {
 
 // Stress that we can handle a really large header block compression and
 // decompression.
-TEST_F(SpdyFramerTest, HugeHeaderBlock) {
+TEST_F(SpdyFramerTest, DISABLED_HugeHeaderBlock) {
   // Loop targetting various sizes which will potentially jam up the
   // frame compressor/decompressor.
   SpdyFramer compress_framer;
