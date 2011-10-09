@@ -51,6 +51,7 @@ HttpNetworkSession* CreateNetworkSession(
     SSLConfigService* ssl_config_service,
     HttpAuthHandlerFactory* http_auth_handler_factory,
     NetworkDelegate* network_delegate,
+    HttpServerProperties* http_server_properties,
     NetLog* net_log) {
   HttpNetworkSession::Params params;
   params.host_resolver = host_resolver;
@@ -63,6 +64,7 @@ HttpNetworkSession* CreateNetworkSession(
   params.ssl_config_service = ssl_config_service;
   params.http_auth_handler_factory = http_auth_handler_factory;
   params.network_delegate = network_delegate;
+  params.http_server_properties = http_server_properties;
   params.net_log = net_log;
   return new HttpNetworkSession(params);
 }
@@ -321,6 +323,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                      SSLConfigService* ssl_config_service,
                      HttpAuthHandlerFactory* http_auth_handler_factory,
                      NetworkDelegate* network_delegate,
+                     HttpServerProperties* http_server_properties,
                      NetLog* net_log,
                      BackendFactory* backend_factory)
     : net_log_(net_log),
@@ -343,6 +346,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                   ssl_config_service,
                   http_auth_handler_factory,
                   network_delegate,
+                  http_server_properties,
                   net_log))),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
 }
