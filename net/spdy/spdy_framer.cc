@@ -61,11 +61,11 @@ int SpdyFramer::spdy_version_ = kSpdyProtocolVersion;
 // The initial size of the control frame buffer; this is used internally
 // as we parse through control frames. (It is exposed here for unit test
 // purposes.)
-size_t SpdyFramer::kControlFrameBufferInitialSize = 8 * 1024;
+size_t SpdyFramer::kControlFrameBufferInitialSize = 32 * 1024;
 
 // The maximum size of the control frame buffer that we support.
 // TODO(mbelshe): We should make this stream-based so there are no limits.
-size_t SpdyFramer::kControlFrameBufferMaxSize = 16 * 1024;
+size_t SpdyFramer::kControlFrameBufferMaxSize = 64 * 1024;
 
 const SpdyStreamId SpdyFramer::kInvalidStream = -1;
 const size_t SpdyFramer::kHeaderDataChunkMaxSize = 1024;
