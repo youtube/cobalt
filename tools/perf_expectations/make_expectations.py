@@ -22,7 +22,9 @@ except ImportError:
 
 
 __version__ = '1.0'
-DEFAULT_CONFIG_FILE = 'chromium_perf_expectations.cfg'
+EXPECTATIONS_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_CONFIG_FILE = os.path.join(EXPECTATIONS_DIR,
+                                   'chromium_perf_expectations.cfg')
 DEFAULT_TOLERANCE = 0.05
 USAGE = ''
 
@@ -133,6 +135,8 @@ def Main(args):
   parser = optparse.OptionParser(usage=USAGE, version=__version__)
   parser.add_option('-v', '--verbose', action='store_true', default=False,
                     help='enable verbose output')
+  parser.add_option('-s', '--checksum', action='store_true',
+                    help='test if any changes are pending')
   parser.add_option('-c', '--config', dest='config_file',
                     default=DEFAULT_CONFIG_FILE,
                     help='set the config file to FILE', metavar='FILE')
@@ -157,6 +161,7 @@ def Main(args):
   perfkeys.sort()
 
   write_new_expectations = False
+  found_checksum_mismatch = False
   for key in perfkeys:
     value = perf[key]
     tolerance = value.get('tolerance', DEFAULT_TOLERANCE)
@@ -169,6 +174,9 @@ def Main(args):
     computed_checksum = GetRowDigest(rowdata, key)
     if original_checksum == computed_checksum:
       OutputMessage('checksum matches, skipping')
+      continue
+    elif options.checksum:
+      found_checksum_mismatch = True
       continue
 
     # Skip expectations that are missing a reva or revb.  We can't generate
@@ -307,6 +315,12 @@ def Main(args):
     perf[key]['improve'] = improve
     OutputMessage('after: %s' % perf[key], verbose_message=False)
 
+  if options.checksum:
+    if found_checksum_mismatch:
+      return 1
+    else:
+      return 0
+
   if write_new_expectations:
     print '\nWriting expectations... ',
     WriteJson(perf_file, perf, perfkeys)
@@ -315,6 +329,7 @@ def Main(args):
     if options.verbose:
       print ''
     print 'No changes.'
+  return 0
 
 
 if __name__ == '__main__':
