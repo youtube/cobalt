@@ -35,6 +35,7 @@ class HttpAuthHandlerFactory;
 class HttpNetworkSessionPeer;
 class HttpProxyClientSocketPool;
 class HttpResponseBodyDrainer;
+class HttpServerProperties;
 class NetLog;
 class NetworkDelegate;
 class ProxyService;
@@ -59,6 +60,7 @@ class NET_EXPORT HttpNetworkSession
           ssl_config_service(NULL),
           http_auth_handler_factory(NULL),
           network_delegate(NULL),
+          http_server_properties(NULL),
           net_log(NULL) {}
 
     ClientSocketFactory* client_socket_factory;
@@ -72,6 +74,7 @@ class NET_EXPORT HttpNetworkSession
     SSLConfigService* ssl_config_service;
     HttpAuthHandlerFactory* http_auth_handler_factory;
     NetworkDelegate* network_delegate;
+    HttpServerProperties* http_server_properties;
     NetLog* net_log;
   };
 
@@ -120,6 +123,9 @@ class NET_EXPORT HttpNetworkSession
   NetworkDelegate* network_delegate() {
     return network_delegate_;
   }
+  HttpServerProperties* http_server_properties() {
+    return http_server_properties_;
+  }
 
   HttpStreamFactory* http_stream_factory() {
     return http_stream_factory_.get();
@@ -148,6 +154,7 @@ class NET_EXPORT HttpNetworkSession
 
   NetLog* const net_log_;
   NetworkDelegate* const network_delegate_;
+  HttpServerProperties* const http_server_properties_;
   CertVerifier* const cert_verifier_;
   HttpAuthHandlerFactory* const http_auth_handler_factory_;
 

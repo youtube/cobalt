@@ -24,6 +24,7 @@ URLRequestContext::URLRequestContext()
       http_auth_handler_factory_(NULL),
       proxy_service_(NULL),
       network_delegate_(NULL),
+      http_server_properties_(NULL),
       transport_security_state_(NULL),
       ftp_auth_cache_(new FtpAuthCache),
       http_transaction_factory_(NULL),
@@ -43,6 +44,7 @@ void URLRequestContext::CopyFrom(URLRequestContext* other) {
   set_proxy_service(other->proxy_service());
   set_ssl_config_service(other->ssl_config_service());
   set_network_delegate(other->network_delegate());
+  set_http_server_properties(other->http_server_properties());
   set_cookie_store(other->cookie_store());
   set_transport_security_state(other->transport_security_state());
   // FTPAuthCache is unique per context.
