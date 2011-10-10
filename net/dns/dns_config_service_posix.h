@@ -9,25 +9,26 @@
 #include <resolv.h>
 
 #include "base/compiler_specific.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_config_service.h"
 
 namespace net {
 
+class WatchingFileReader;
+
 class NET_EXPORT_PRIVATE DnsConfigServicePosix
   : NON_EXPORTED_BASE(public DnsConfigService) {
  public:
-  class DnsConfigReader;
-
   DnsConfigServicePosix();
   virtual ~DnsConfigServicePosix();
 
   virtual void Watch() OVERRIDE;
 
  private:
-  scoped_refptr<WatchingFileReader> config_reader_;
-  scoped_refptr<WatchingFileReader> hosts_reader_;
+  class ConfigReader;
+  scoped_ptr<WatchingFileReader> config_watcher_;
+  scoped_ptr<WatchingFileReader> hosts_watcher_;
 
   DISALLOW_COPY_AND_ASSIGN(DnsConfigServicePosix);
 };

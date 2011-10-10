@@ -55,9 +55,9 @@ void DnsConfigService::RemoveObserver(Observer* observer) {
 void DnsConfigService::OnConfigRead(const DnsConfig& config) {
   DCHECK(CalledOnValidThread());
   if (!config.EqualsIgnoreHosts(dns_config_)) {
-    DnsConfig copy = config;
-    copy.hosts.swap(dns_config_.hosts);
-    dns_config_ = copy;
+    DnsHosts current_hosts = dns_config_.hosts;
+    dns_config_ = config;
+    dns_config_.hosts.swap(current_hosts);
     have_config_ = true;
     if (have_hosts_) {
       FOR_EACH_OBSERVER(Observer, observers_, OnConfigChanged(dns_config_));
@@ -76,8 +76,9 @@ void DnsConfigService::OnHostsRead(const DnsHosts& hosts) {
   }
 }
 
-DnsHostsReader::DnsHostsReader(DnsConfigService* service)
-  : service_(service),
+DnsHostsReader::DnsHostsReader(const FilePath& path, DnsConfigService* service)
+  : path_(path),
+    service_(service),
     success_(false) {
   DCHECK(service);
 }
@@ -91,17 +92,18 @@ static bool ReadFile(const FilePath& path, int64 size, std::string* str) {
   return file_util::ReadFileToString(path, str);
 }
 
-void DnsHostsReader::DoRead() {
+void DnsHostsReader::DoWork() {
   success_ = false;
   std::string contents;
   const int64 kMaxHostsSize = 1 << 16;
-  if (ReadFile(get_path(), kMaxHostsSize, &contents)) {
+  if (ReadFile(path_, kMaxHostsSize, &contents)) {
     success_ = true;
     ParseHosts(contents, &dns_hosts_);
   }
 }
 
-void DnsHostsReader::OnReadFinished() {
+void DnsHostsReader::OnWorkFinished() {
+  DCHECK(!IsCancelled());
   if (success_)
     service_->OnHostsRead(dns_hosts_);
 }
