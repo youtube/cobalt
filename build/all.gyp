@@ -606,6 +606,7 @@
           'dependencies': [
             '../chrome/chrome.gyp:chrome',
             '../ui/aura_shell/aura_shell.gyp:aura_shell_exe',
+            '../ui/aura_shell/aura_shell.gyp:aura_shell_unittests',
             '../ui/aura/aura.gyp:*',
             '../ui/gfx/compositor/compositor.gyp:*',
             '../views/views.gyp:views',
