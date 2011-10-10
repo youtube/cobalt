@@ -12,6 +12,8 @@
 #include "base/memory/scoped_ptr.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
+#include "net/dns/serial_worker.h"
+#include "net/dns/watching_file_reader.h"
 
 #ifndef _PATH_RESCONF  // Normally defined in <resolv.h>
 #define _PATH_RESCONF "/etc/resolv.conf"
@@ -19,15 +21,15 @@
 
 namespace net {
 
-// A WatcherDelegate that uses ResolverLib to initialize res_state and converts
+// A SerialWorker that uses ResolverLib to initialize res_state and converts
 // it to DnsConfig.
-class DnsConfigServicePosix::DnsConfigReader : public WatchingFileReader {
+class DnsConfigServicePosix::ConfigReader : public SerialWorker {
  public:
-  explicit DnsConfigReader(DnsConfigServicePosix* service)
+  explicit ConfigReader(DnsConfigServicePosix* service)
     : service_(service),
       success_(false) {}
 
-  void DoRead() OVERRIDE {
+  void DoWork() OVERRIDE {
     struct __res_state res;
     if ((res_ninit(&res) == 0) && (res.options & RES_INIT)) {
       success_ = ConvertResToConfig(res, &dns_config_);
@@ -42,34 +44,33 @@ class DnsConfigServicePosix::DnsConfigReader : public WatchingFileReader {
 #endif
   }
 
-  void OnReadFinished() OVERRIDE {
+  void OnWorkFinished() OVERRIDE {
+    DCHECK(!IsCancelled());
     if (success_)
       service_->OnConfigRead(dns_config_);
   }
 
  private:
-  virtual ~DnsConfigReader() {}
+  virtual ~ConfigReader() {}
 
   DnsConfigServicePosix* service_;
-  // Written in DoRead, read in OnReadFinished, no locking necessary.
+  // Written in DoWork, read in OnWorkFinished, no locking necessary.
   DnsConfig dns_config_;
   bool success_;
 };
 
 DnsConfigServicePosix::DnsConfigServicePosix()
-  : config_reader_(new DnsConfigReader(this)),
-    hosts_reader_(new DnsHostsReader(this)) {}
+  : config_watcher_(new WatchingFileReader()),
+    hosts_watcher_(new WatchingFileReader()) {}
 
-DnsConfigServicePosix::~DnsConfigServicePosix() {
-  DCHECK(CalledOnValidThread());
-  config_reader_->Cancel();
-  hosts_reader_->Cancel();
-}
+DnsConfigServicePosix::~DnsConfigServicePosix() {}
 
 void DnsConfigServicePosix::Watch() {
   DCHECK(CalledOnValidThread());
-  config_reader_->StartWatch(FilePath(FILE_PATH_LITERAL(_PATH_RESCONF)));
-  hosts_reader_->StartWatch(FilePath(FILE_PATH_LITERAL("/etc/hosts")));
+  config_watcher_->StartWatch(FilePath(FILE_PATH_LITERAL(_PATH_RESCONF)),
+                              new ConfigReader(this));
+  FilePath hosts_path(FILE_PATH_LITERAL("/etc/hosts"));
+  hosts_watcher_->StartWatch(hosts_path, new DnsHostsReader(hosts_path, this));
 }
 
 // static

@@ -4,9 +4,10 @@
 
 #include "net/dns/dns_config_service.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
-#include "base/task.h"
 #include "base/test/test_timeouts.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -81,18 +82,17 @@ TEST_F(DnsConfigServiceTest, NotifyOnChange) {
   EXPECT_TRUE(last_config_.Equals(complete_config));
 }
 
-#if defined(OS_POSIX)
-// TODO(szym): enable OS_WIN once ready
+#if defined(OS_POSIX) || defined(OS_WIN)
 // This is really an integration test.
 TEST_F(DnsConfigServiceTest, GetSystemConfig) {
   scoped_ptr<DnsConfigService> service(DnsConfigService::CreateSystemService());
 
   // Quit the loop after timeout unless cancelled
   const int64 kTimeout = TestTimeouts::action_timeout_ms();
-  ScopedRunnableMethodFactory<DnsConfigServiceTest> factory_(this);
+  base::WeakPtrFactory<DnsConfigServiceTest> factory_(this);
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      factory_.NewRunnableMethod(&DnsConfigServiceTest::Timeout),
+      base::Bind(&DnsConfigServiceTest::Timeout, factory_.GetWeakPtr()),
       kTimeout);
 
   service->AddObserver(this);
@@ -102,7 +102,7 @@ TEST_F(DnsConfigServiceTest, GetSystemConfig) {
   ASSERT_TRUE(last_config_.IsValid()) << "Did not receive DnsConfig in " <<
       kTimeout << "ms";
 }
-#endif  // OS_POSIX
+#endif  // OS_POSIX || OS_WIN
 
 }  // namespace net
 
