@@ -10,7 +10,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/host_mapping_rules.h"
 #include "net/base/host_port_pair.h"
-#include "net/http/http_alternate_protocols.h"
+#include "net/http/http_server_properties.h"
 
 namespace net {
 
@@ -34,13 +34,13 @@ bool HttpStreamFactory::ignore_certificate_errors_ = false;
 HttpStreamFactory::~HttpStreamFactory() {}
 
 void HttpStreamFactory::ProcessAlternateProtocol(
-    HttpAlternateProtocols* alternate_protocols,
+    HttpServerProperties* http_server_properties,
     const std::string& alternate_protocol_str,
     const HostPortPair& http_host_port_pair) {
   std::vector<std::string> port_protocol_vector;
   base::SplitString(alternate_protocol_str, ':', &port_protocol_vector);
   if (port_protocol_vector.size() != 2) {
-    DLOG(WARNING) << HttpAlternateProtocols::kHeader
+    DLOG(WARNING) << kAlternateProtocolHeader
                   << " header has too many tokens: "
                   << alternate_protocol_str;
     return;
@@ -49,23 +49,22 @@ void HttpStreamFactory::ProcessAlternateProtocol(
   int port;
   if (!base::StringToInt(port_protocol_vector[0], &port) ||
       port <= 0 || port >= 1 << 16) {
-    DLOG(WARNING) << HttpAlternateProtocols::kHeader
+    DLOG(WARNING) << kAlternateProtocolHeader
                   << " header has unrecognizable port: "
                   << port_protocol_vector[0];
     return;
   }
 
-  HttpAlternateProtocols::Protocol protocol = HttpAlternateProtocols::BROKEN;
+  AlternateProtocol protocol = ALTERNATE_PROTOCOL_BROKEN;
   // We skip NPN_SPDY_1 here, because we've rolled the protocol version to 2.
-  for (int i = HttpAlternateProtocols::NPN_SPDY_2;
-       i < HttpAlternateProtocols::NUM_ALTERNATE_PROTOCOLS; ++i) {
-    if (port_protocol_vector[1] == HttpAlternateProtocols::kProtocolStrings[i])
-      protocol = static_cast<HttpAlternateProtocols::Protocol>(i);
+  for (int i = NPN_SPDY_2; i < NUM_ALTERNATE_PROTOCOLS; ++i) {
+    if (port_protocol_vector[1] == kAlternateProtocolStrings[i])
+      protocol = static_cast<AlternateProtocol>(i);
   }
 
-  if (protocol == HttpAlternateProtocols::BROKEN) {
+  if (protocol == ALTERNATE_PROTOCOL_BROKEN) {
     // Currently, we only recognize the npn-spdy protocol.
-    DLOG(WARNING) << HttpAlternateProtocols::kHeader
+    DLOG(WARNING) << kAlternateProtocolHeader
                   << " header has unrecognized protocol: "
                   << port_protocol_vector[1];
     return;
@@ -74,15 +73,15 @@ void HttpStreamFactory::ProcessAlternateProtocol(
   HostPortPair host_port(http_host_port_pair);
   host_mapping_rules().RewriteHost(&host_port);
 
-  if (alternate_protocols->HasAlternateProtocolFor(host_port)) {
-    const HttpAlternateProtocols::PortProtocolPair existing_alternate =
-        alternate_protocols->GetAlternateProtocolFor(host_port);
+  if (http_server_properties->HasAlternateProtocol(host_port)) {
+    const PortAlternateProtocolPair existing_alternate =
+        http_server_properties->GetAlternateProtocol(host_port);
     // If we think the alternate protocol is broken, don't change it.
-    if (existing_alternate.protocol == HttpAlternateProtocols::BROKEN)
+    if (existing_alternate.protocol == ALTERNATE_PROTOCOL_BROKEN)
       return;
   }
 
-  alternate_protocols->SetAlternateProtocolFor(host_port, port, protocol);
+  http_server_properties->SetAlternateProtocol(host_port, port, protocol);
 }
 
 GURL HttpStreamFactory::ApplyHostMappingRules(const GURL& url,

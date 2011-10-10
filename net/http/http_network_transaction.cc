@@ -42,6 +42,7 @@
 #include "net/http/http_response_body_drainer.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
+#include "net/http/http_server_properties.h"
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_util.h"
 #include "net/http/url_security_manager.h"
@@ -61,18 +62,18 @@ namespace net {
 namespace {
 
 void ProcessAlternateProtocol(HttpStreamFactory* factory,
-                              HttpAlternateProtocols* alternate_protocols,
+                              HttpServerProperties* http_server_properties,
                               const HttpResponseHeaders& headers,
                               const HostPortPair& http_host_port_pair) {
   std::string alternate_protocol_str;
 
-  if (!headers.EnumerateHeader(NULL, HttpAlternateProtocols::kHeader,
+  if (!headers.EnumerateHeader(NULL, kAlternateProtocolHeader,
                                &alternate_protocol_str)) {
     // Header is not present.
     return;
   }
 
-  factory->ProcessAlternateProtocol(alternate_protocols,
+  factory->ProcessAlternateProtocol(http_server_properties,
                                     alternate_protocol_str,
                                     http_host_port_pair);
 }
@@ -864,7 +865,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   HostPortPair endpoint = HostPortPair(request_->url.HostNoBrackets(),
                                        request_->url.EffectiveIntPort());
   ProcessAlternateProtocol(session_->http_stream_factory(),
-                           session_->mutable_alternate_protocols(),
+                           session_->http_server_properties(),
                            *response_.headers,
                            endpoint);
 

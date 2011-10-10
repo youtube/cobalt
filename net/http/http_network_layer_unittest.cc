@@ -8,6 +8,7 @@
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/http/http_network_layer.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/socket_test_util.h"
@@ -30,6 +31,7 @@ class HttpNetworkLayerTest : public PlatformTest {
     session_params.cert_verifier = &cert_verifier_;
     session_params.proxy_service = proxy_service_.get();
     session_params.ssl_config_service = ssl_config_service_;
+    session_params.http_server_properties = &http_server_properties_;
     network_session_ = new HttpNetworkSession(session_params);
     factory_.reset(new HttpNetworkLayer(network_session_));
   }
@@ -41,6 +43,7 @@ class HttpNetworkLayerTest : public PlatformTest {
   const scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_refptr<HttpNetworkSession> network_session_;
   scoped_ptr<HttpNetworkLayer> factory_;
+  HttpServerPropertiesImpl http_server_properties_;
 };
 
 TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
