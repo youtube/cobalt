@@ -716,7 +716,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
 
   if (!ssl_started && result < 0 && original_url_.get()) {
     // Mark the alternate protocol as broken and fallback.
-    session_->mutable_alternate_protocols()->MarkBrokenAlternateProtocolFor(
+    session_->http_server_properties()->SetBrokenAlternateProtocol(
         HostPortPair::FromURL(*original_url_));
     return result;
   }

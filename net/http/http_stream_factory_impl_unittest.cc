@@ -16,6 +16,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_session_peer.h"
 #include "net/http/http_request_info.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/http/http_stream.h"
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_service.h"
@@ -129,6 +130,7 @@ struct SessionDependencies {
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
+  HttpServerPropertiesImpl http_server_properties;
   NetLog* net_log;
 };
 
@@ -142,6 +144,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   params.http_auth_handler_factory =
       session_deps->http_auth_handler_factory.get();
   params.net_log = session_deps->net_log;
+  params.http_server_properties = &session_deps->http_server_properties;
   return new HttpNetworkSession(params);
 }
 
