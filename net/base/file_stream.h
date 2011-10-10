@@ -138,6 +138,7 @@ class NET_EXPORT FileStream {
  private:
   class AsyncContext;
   friend class AsyncContext;
+  friend class FileStreamTest;
 
   // This member is used to support asynchronous reads.  It is non-null when
   // the FileStream was opened with PLATFORM_FILE_ASYNC.
