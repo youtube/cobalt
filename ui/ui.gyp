@@ -255,6 +255,16 @@
         'gfx/mac/scoped_ns_disable_screen_updates.h',
         'gfx/native_theme.cc',
         'gfx/native_theme.h',
+        'gfx/native_theme_aura.cc',
+        'gfx/native_theme_aura.h',
+        'gfx/native_theme_base.cc',
+        'gfx/native_theme_base.h',
+        'gfx/native_theme_chromeos.cc',
+        'gfx/native_theme_chromeos.h',
+        'gfx/native_theme_gtk.cc',
+        'gfx/native_theme_gtk.h',
+        'gfx/native_theme_win.cc',
+        'gfx/native_theme_win.h',
         'gfx/native_widget_types.h',
         'gfx/pango_util.h',
         'gfx/pango_util.cc',
@@ -317,10 +327,17 @@
             ['exclude', 'base/x/active_window_watcher_x.cc'],
             ['exclude', 'base/x/active_window_watcher_x.h'],
            ],
+        }, {  # use_aura!=1
+          'sources!': [
+            'gfx/native_theme_aura.cc',
+            'gfx/native_theme_aura.h',
+          ]
         }],
         ['use_aura==1 and OS=="win"', {
           'sources/': [
             ['exclude', 'base/dragdrop/os_exchange_data_provider_aura.cc'],
+            ['exclude', 'gfx/native_theme_win.cc'],
+            ['exclude', 'gfx/native_theme_win.h'],
             ['exclude', 'gfx/path_win.cc'],
           ],
         }],
@@ -336,8 +353,6 @@
           'sources': [
             'gfx/linux_util.cc',
             'gfx/linux_util.h',
-            'gfx/native_theme_linux.cc',
-            'gfx/native_theme_linux.h',
           ],
           'link_settings': {
             'libraries': [
@@ -379,6 +394,11 @@
           'sources!': [
             'base/clipboard/clipboard_aura.cc',
           ],
+        }, {  # toolkit_uses_gtk != 1
+          'sources!': [
+            'gfx/native_theme_gtk.cc',
+            'gfx/native_theme_gtk.h',
+          ]
         }],
         ['use_wayland == 1', {
           'sources/': [
@@ -456,6 +476,8 @@
             'base/dragdrop/os_exchange_data.cc',
             'base/view_prop.cc',
             'base/view_prop.h',
+            'gfx/native_theme_win.cc',
+            'gfx/native_theme_win.h',
           ],
           'sources/': [
             ['exclude', '^base/win/*'],
@@ -502,10 +524,16 @@
           ],
         }],
         ['chromeos==1', {
-          'sources': [
+          # On Chrome OS we replace the default GTK look with a special look.
+          'sources!': [
+            'gfx/native_theme_gtk.cc',
+            'gfx/native_theme_gtk.h',
+          ]
+        }, {  # chromeos != 1
+          'sources!': [
             'gfx/native_theme_chromeos.cc',
             'gfx/native_theme_chromeos.h',
-          ],
+          ]
         }],
         ['toolkit_views==0', {
           'sources!': [
