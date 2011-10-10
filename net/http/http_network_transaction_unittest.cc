@@ -34,6 +34,7 @@
 #include "net/http/http_net_log_params.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_session_peer.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/http/http_stream.h"
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_transaction_unittest.h"
@@ -100,6 +101,7 @@ struct SessionDependencies {
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
+  HttpServerPropertiesImpl http_server_properties;
   NetLog* net_log;
 };
 
@@ -112,6 +114,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   params.ssl_config_service = session_deps->ssl_config_service;
   params.http_auth_handler_factory =
       session_deps->http_auth_handler_factory.get();
+  params.http_server_properties = &session_deps->http_server_properties;
   params.net_log = session_deps->net_log;
   return new HttpNetworkSession(params);
 }
@@ -5515,11 +5518,11 @@ scoped_refptr<HttpNetworkSession> SetupSessionForGroupNameTests(
     SessionDependencies* session_deps) {
   scoped_refptr<HttpNetworkSession> session(CreateSession(session_deps));
 
-  HttpAlternateProtocols* alternate_protocols =
-      session->mutable_alternate_protocols();
-  alternate_protocols->SetAlternateProtocolFor(
+  HttpServerProperties* http_server_properties =
+      session->http_server_properties();
+  http_server_properties->SetAlternateProtocol(
       HostPortPair("host.with.alternate", 80), 443,
-      HttpAlternateProtocols::NPN_SPDY_2);
+      NPN_SPDY_2);
 
   return session;
 }
@@ -6499,10 +6502,10 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   HostPortPair http_host_port_pair("www.google.com", 80);
-  const HttpAlternateProtocols& alternate_protocols =
-      session->alternate_protocols();
+  const HttpServerProperties& http_server_properties =
+      *session->http_server_properties();
   EXPECT_FALSE(
-      alternate_protocols.HasAlternateProtocolFor(http_host_port_pair));
+      http_server_properties.HasAlternateProtocol(http_host_port_pair));
 
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -6517,12 +6520,12 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello world", response_data);
 
-  ASSERT_TRUE(alternate_protocols.HasAlternateProtocolFor(http_host_port_pair));
-  const HttpAlternateProtocols::PortProtocolPair alternate =
-      alternate_protocols.GetAlternateProtocolFor(http_host_port_pair);
-  HttpAlternateProtocols::PortProtocolPair expected_alternate;
+  ASSERT_TRUE(http_server_properties.HasAlternateProtocol(http_host_port_pair));
+  const PortAlternateProtocolPair alternate =
+      http_server_properties.GetAlternateProtocol(http_host_port_pair);
+  PortAlternateProtocolPair expected_alternate;
   expected_alternate.port = 443;
-  expected_alternate.protocol = HttpAlternateProtocols::NPN_SPDY_2;
+  expected_alternate.protocol = NPN_SPDY_2;
   EXPECT_TRUE(expected_alternate.Equals(alternate));
 
   HttpStreamFactory::set_use_alternate_protocols(false);
@@ -6554,14 +6557,14 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocolAndFallback) {
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  HttpAlternateProtocols* alternate_protocols =
-      session->mutable_alternate_protocols();
+  HttpServerProperties* http_server_properties =
+      session->http_server_properties();
   // Port must be < 1024, or the header will be ignored (since initial port was
   // port 80 (another restricted port).
-  alternate_protocols->SetAlternateProtocolFor(
+  http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(request.url),
       666 /* port is ignored by MockConnect anyway */,
-      HttpAlternateProtocols::NPN_SPDY_2);
+      NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestOldCompletionCallback callback;
@@ -6579,12 +6582,12 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocolAndFallback) {
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello world", response_data);
 
-  ASSERT_TRUE(alternate_protocols->HasAlternateProtocolFor(
+  ASSERT_TRUE(http_server_properties->HasAlternateProtocol(
       HostPortPair::FromURL(request.url)));
-  const HttpAlternateProtocols::PortProtocolPair alternate =
-      alternate_protocols->GetAlternateProtocolFor(
+  const PortAlternateProtocolPair alternate =
+      http_server_properties->GetAlternateProtocol(
           HostPortPair::FromURL(request.url));
-  EXPECT_EQ(HttpAlternateProtocols::BROKEN, alternate.protocol);
+  EXPECT_EQ(ALTERNATE_PROTOCOL_BROKEN, alternate.protocol);
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
@@ -6617,13 +6620,13 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedBlocked) {
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  HttpAlternateProtocols* alternate_protocols =
-      session->mutable_alternate_protocols();
+  HttpServerProperties* http_server_properties =
+      session->http_server_properties();
   const int kUnrestrictedAlternatePort = 1024;
-  alternate_protocols->SetAlternateProtocolFor(
+  http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(restricted_port_request.url),
       kUnrestrictedAlternatePort,
-      HttpAlternateProtocols::NPN_SPDY_2);
+      NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestOldCompletionCallback callback;
@@ -6665,13 +6668,13 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedAllowed) {
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  HttpAlternateProtocols* alternate_protocols =
-      session->mutable_alternate_protocols();
+  HttpServerProperties* http_server_properties =
+      session->http_server_properties();
   const int kRestrictedAlternatePort = 80;
-  alternate_protocols->SetAlternateProtocolFor(
+  http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(restricted_port_request.url),
       kRestrictedAlternatePort,
-      HttpAlternateProtocols::NPN_SPDY_2);
+      NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestOldCompletionCallback callback;
@@ -6713,13 +6716,13 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed1) {
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  HttpAlternateProtocols* alternate_protocols =
-      session->mutable_alternate_protocols();
+  HttpServerProperties* http_server_properties =
+      session->http_server_properties();
   const int kRestrictedAlternatePort = 80;
-  alternate_protocols->SetAlternateProtocolFor(
+  http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(unrestricted_port_request.url),
       kRestrictedAlternatePort,
-      HttpAlternateProtocols::NPN_SPDY_2);
+      NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestOldCompletionCallback callback;
@@ -6761,13 +6764,13 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed2) {
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  HttpAlternateProtocols* alternate_protocols =
-      session->mutable_alternate_protocols();
+  HttpServerProperties* http_server_properties =
+      session->http_server_properties();
   const int kUnrestrictedAlternatePort = 1024;
-  alternate_protocols->SetAlternateProtocolFor(
+  http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(unrestricted_port_request.url),
       kUnrestrictedAlternatePort,
-      HttpAlternateProtocols::NPN_SPDY_2);
+      NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestOldCompletionCallback callback;
@@ -8960,6 +8963,7 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   params.ssl_config_service = session_deps.ssl_config_service;
   params.http_auth_handler_factory =
       session_deps.http_auth_handler_factory.get();
+  params.http_server_properties = &session_deps.http_server_properties;
   params.net_log = session_deps.net_log;
   scoped_refptr<HttpNetworkSession> session(new HttpNetworkSession(params));
   SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
@@ -9120,6 +9124,7 @@ TEST_F(HttpNetworkTransactionTest,
   params.ssl_config_service = session_deps.ssl_config_service;
   params.http_auth_handler_factory =
       session_deps.http_auth_handler_factory.get();
+  params.http_server_properties = &session_deps.http_server_properties;
   params.net_log = session_deps.net_log;
   scoped_refptr<HttpNetworkSession> session(new HttpNetworkSession(params));
   SpdySessionPoolPeer pool_peer(session->spdy_session_pool());

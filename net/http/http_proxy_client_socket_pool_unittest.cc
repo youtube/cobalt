@@ -15,6 +15,7 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
@@ -186,6 +187,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
     params.client_socket_factory = &socket_factory_;
     params.ssl_config_service = ssl_config_service_;
     params.http_auth_handler_factory = http_auth_handler_factory_.get();
+    params.http_server_properties = &http_server_properties_;
     return new HttpNetworkSession(params);
   }
 
@@ -205,6 +207,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   SSLClientSocketPool ssl_socket_pool_;
 
   const scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
+  HttpServerPropertiesImpl http_server_properties_;
   const scoped_refptr<HttpNetworkSession> session_;
   ClientSocketPoolHistograms http_proxy_histograms_;
 

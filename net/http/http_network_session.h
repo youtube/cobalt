@@ -13,7 +13,6 @@
 #include "net/base/host_resolver.h"
 #include "net/base/net_export.h"
 #include "net/base/ssl_client_auth_cache.h"
-#include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_stream_factory.h"
 #include "net/socket/client_socket_pool_manager.h"
@@ -89,13 +88,6 @@ class NET_EXPORT HttpNetworkSession
 
   void RemoveResponseDrainer(HttpResponseBodyDrainer* drainer);
 
-  const HttpAlternateProtocols& alternate_protocols() const {
-    return alternate_protocols_;
-  }
-  HttpAlternateProtocols* mutable_alternate_protocols() {
-    return &alternate_protocols_;
-  }
-
   TransportClientSocketPool* transport_socket_pool() {
     return socket_pool_manager_.transport_socket_pool();
   }
@@ -126,11 +118,9 @@ class NET_EXPORT HttpNetworkSession
   HttpServerProperties* http_server_properties() {
     return http_server_properties_;
   }
-
   HttpStreamFactory* http_stream_factory() {
     return http_stream_factory_.get();
   }
-
   NetLog* net_log() {
     return net_log_;
   }
@@ -164,7 +154,6 @@ class NET_EXPORT HttpNetworkSession
 
   HttpAuthCache http_auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
-  HttpAlternateProtocols alternate_protocols_;
   ClientSocketPoolManager socket_pool_manager_;
   SpdySessionPool spdy_session_pool_;
   scoped_ptr<HttpStreamFactory> http_stream_factory_;

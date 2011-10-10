@@ -10,6 +10,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_server_properties.h"
 #include "net/http/http_stream_factory_impl_job.h"
 #include "net/http/http_stream_factory_impl_request.h"
 #include "net/spdy/spdy_http_stream.h"
@@ -133,21 +134,20 @@ bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
   HostPortPair origin = HostPortPair(original_url.HostNoBrackets(),
                                      original_url.EffectiveIntPort());
 
-  const HttpAlternateProtocols& alternate_protocols =
-      session_->alternate_protocols();
-  if (!alternate_protocols.HasAlternateProtocolFor(origin))
+  const HttpServerProperties& http_server_properties =
+      *session_->http_server_properties();
+  if (!http_server_properties.HasAlternateProtocol(origin))
     return false;
 
-  HttpAlternateProtocols::PortProtocolPair alternate =
-      alternate_protocols.GetAlternateProtocolFor(origin);
-  if (alternate.protocol == HttpAlternateProtocols::BROKEN)
+  PortAlternateProtocolPair alternate =
+      http_server_properties.GetAlternateProtocol(origin);
+  if (alternate.protocol == ALTERNATE_PROTOCOL_BROKEN)
     return false;
 
-  DCHECK_LE(HttpAlternateProtocols::NPN_SPDY_1, alternate.protocol);
-  DCHECK_GT(HttpAlternateProtocols::NUM_ALTERNATE_PROTOCOLS,
-            alternate.protocol);
+  DCHECK_LE(NPN_SPDY_1, alternate.protocol);
+  DCHECK_GT(NUM_ALTERNATE_PROTOCOLS, alternate.protocol);
 
-  if (alternate.protocol != HttpAlternateProtocols::NPN_SPDY_2)
+  if (alternate.protocol != NPN_SPDY_2)
     return false;
 
   // Some shared unix systems may have user home directories (like

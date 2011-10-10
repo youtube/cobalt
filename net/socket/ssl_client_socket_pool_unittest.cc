@@ -21,6 +21,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
@@ -140,6 +141,7 @@ class SSLClientSocketPoolTest : public testing::Test {
     params.client_socket_factory = &socket_factory_;
     params.ssl_config_service = ssl_config_service_;
     params.http_auth_handler_factory = http_auth_handler_factory_.get();
+    params.http_server_properties = &http_server_properties_;
     return new HttpNetworkSession(params);
   }
 
@@ -149,6 +151,7 @@ class SSLClientSocketPoolTest : public testing::Test {
   const scoped_ptr<ProxyService> proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
   const scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
+  HttpServerPropertiesImpl http_server_properties_;
   const scoped_refptr<HttpNetworkSession> session_;
 
   scoped_refptr<TransportSocketParams> direct_transport_socket_params_;

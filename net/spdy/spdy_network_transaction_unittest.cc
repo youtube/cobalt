@@ -124,9 +124,9 @@ class SpdyNetworkTransactionTest
       HttpStreamFactory::set_force_spdy_always(false);
       switch (test_type_) {
         case SPDYNPN:
-          session_->mutable_alternate_protocols()->SetAlternateProtocolFor(
+          session_->http_server_properties()->SetAlternateProtocol(
               HostPortPair("www.google.com", 80), 443,
-              HttpAlternateProtocols::NPN_SPDY_2);
+              NPN_SPDY_2);
           HttpStreamFactory::set_use_alternate_protocols(true);
           HttpStreamFactory::set_next_protos(kExpectedNPNString);
           break;

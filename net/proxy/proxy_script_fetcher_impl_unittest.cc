@@ -17,6 +17,7 @@
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/test/test_server.h"
 #include "net/url_request/url_request_context_storage.h"
 #include "net/url_request/url_request_job_factory.h"
@@ -74,12 +75,14 @@ class RequestContext : public URLRequestContext {
     storage_.set_cert_verifier(new CertVerifier);
     storage_.set_proxy_service(ProxyService::CreateFixed(no_proxy));
     storage_.set_ssl_config_service(new SSLConfigServiceDefaults);
+    storage_.set_http_server_properties(new HttpServerPropertiesImpl);
 
     HttpNetworkSession::Params params;
     params.host_resolver = host_resolver();
     params.cert_verifier = cert_verifier();
     params.proxy_service = proxy_service();
     params.ssl_config_service = ssl_config_service();
+    params.http_server_properties = http_server_properties();
     scoped_refptr<HttpNetworkSession> network_session(
         new HttpNetworkSession(params));
     storage_.set_http_transaction_factory(new HttpCache(
