@@ -224,4 +224,4 @@ bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo* info) {
   return true;
 }
 
-}  // namespace disk_cache
+}  // namespace base
