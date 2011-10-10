@@ -14,10 +14,13 @@
 #include "testing/platform_test.h"
 
 namespace net {
+
 namespace {
 
 const char kTestData[] = "0123456789";
 const int kTestDataSize = arraysize(kTestData) - 1;
+
+}  // namespace
 
 class FileStreamTest : public PlatformTest {
  public:
@@ -32,16 +35,55 @@ class FileStreamTest : public PlatformTest {
 
     PlatformTest::TearDown();
   }
+
   const FilePath temp_file_path() const { return temp_file_path_; }
+
+  static base::PlatformFile GetFile(const FileStream& stream) {
+    return stream.file_;
+  }
+
  private:
   FilePath temp_file_path_;
 };
 
+namespace {
+
 TEST_F(FileStreamTest, BasicOpenClose) {
-  FileStream stream;
-  int rv = stream.Open(temp_file_path(),
-      base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
-  EXPECT_EQ(OK, rv);
+  base::PlatformFile file = base::kInvalidPlatformFileValue;
+  {
+    FileStream stream;
+    int rv = stream.Open(temp_file_path(),
+        base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
+    EXPECT_EQ(OK, rv);
+    EXPECT_TRUE(stream.IsOpen());
+    file = GetFile(stream);
+  }
+  EXPECT_NE(base::kInvalidPlatformFileValue, file);
+  base::PlatformFileInfo info;
+  // The file should be closed.
+  EXPECT_FALSE(base::GetPlatformFileInfo(file, &info));
+}
+
+TEST_F(FileStreamTest, FileHandleLeftOpen) {
+  bool created = false;
+  ASSERT_EQ(kTestDataSize,
+      file_util::WriteFile(temp_file_path(), kTestData, kTestDataSize));
+  int flags = base::PLATFORM_FILE_OPEN_ALWAYS | base::PLATFORM_FILE_READ;
+  base::PlatformFile file = base::CreatePlatformFile(
+      temp_file_path(), flags, &created, NULL);
+
+  {
+    // Seek to the beginning of the file and read.
+    FileStream read_stream(file, flags);
+    EXPECT_TRUE(read_stream.IsOpen());
+  }
+
+  EXPECT_NE(base::kInvalidPlatformFileValue, file);
+  base::PlatformFileInfo info;
+  // The file should still be open.
+  EXPECT_TRUE(base::GetPlatformFileInfo(file, &info));
+  // Clean up.
+  EXPECT_TRUE(base::ClosePlatformFile(file));
 }
 
 // Test the use of FileStream with a file handle provided at construction.
@@ -891,4 +933,5 @@ TEST_F(FileStreamTest, Truncate) {
 }
 
 }  // namespace
+
 }  // namespace net
