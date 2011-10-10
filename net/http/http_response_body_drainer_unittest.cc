@@ -14,6 +14,7 @@
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/http/http_stream.h"
 #include "net/proxy/proxy_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -183,6 +184,7 @@ class HttpResponseBodyDrainerTest : public testing::Test {
   HttpResponseBodyDrainerTest()
       : proxy_service_(ProxyService::CreateDirect()),
         ssl_config_service_(new SSLConfigServiceDefaults),
+        http_server_properties_(new HttpServerPropertiesImpl),
         session_(CreateNetworkSession()),
         mock_stream_(new MockHttpStream(&result_waiter_)),
         drainer_(new HttpResponseBodyDrainer(mock_stream_)) {}
@@ -193,11 +195,13 @@ class HttpResponseBodyDrainerTest : public testing::Test {
     HttpNetworkSession::Params params;
     params.proxy_service = proxy_service_.get();
     params.ssl_config_service = ssl_config_service_;
+    params.http_server_properties = http_server_properties_.get();
     return new HttpNetworkSession(params);
   }
 
   scoped_ptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
+  scoped_ptr<HttpServerPropertiesImpl> http_server_properties_;
   const scoped_refptr<HttpNetworkSession> session_;
   CloseResultWaiter result_waiter_;
   MockHttpStream* const mock_stream_;  // Owned by |drainer_|.

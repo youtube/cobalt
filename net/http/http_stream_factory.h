@@ -21,10 +21,10 @@ namespace net {
 class BoundNetLog;
 class HostMappingRules;
 class HostPortPair;
-class HttpAlternateProtocols;
 class HttpAuthController;
 class HttpNetworkSession;
 class HttpResponseInfo;
+class HttpServerProperties;
 class HttpStream;
 class ProxyInfo;
 class SSLCertRequestInfo;
@@ -149,7 +149,7 @@ class NET_EXPORT HttpStreamFactory {
   virtual ~HttpStreamFactory();
 
   void ProcessAlternateProtocol(
-      HttpAlternateProtocols* alternate_protocols,
+      HttpServerProperties* http_server_properties,
       const std::string& alternate_protocol_str,
       const HostPortPair& http_host_port_pair);
 

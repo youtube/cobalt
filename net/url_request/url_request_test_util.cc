@@ -10,6 +10,7 @@
 #include "base/threading/thread.h"
 #include "net/base/host_port_pair.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/url_request/url_request_job_factory.h"
 
 namespace {
@@ -117,6 +118,10 @@ void TestURLRequestContext::Init() {
   if (!http_auth_handler_factory()) {
     context_storage_.set_http_auth_handler_factory(
         net::HttpAuthHandlerFactory::CreateDefault(host_resolver()));
+  }
+  if (!http_server_properties()) {
+    context_storage_.set_http_server_properties(
+        new net::HttpServerPropertiesImpl);
   }
   net::HttpNetworkSession::Params params;
   params.host_resolver = host_resolver();

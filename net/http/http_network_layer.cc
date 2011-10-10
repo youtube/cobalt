@@ -10,6 +10,7 @@
 #include "base/string_util.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -119,10 +120,10 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kEnableFlowControl) {
       SpdySession::set_flow_control(true);
     } else if (option == kForceAltProtocols) {
-      HttpAlternateProtocols::PortProtocolPair pair;
+      PortAlternateProtocolPair pair;
       pair.port = 443;
-      pair.protocol = HttpAlternateProtocols::NPN_SPDY_2;
-      HttpAlternateProtocols::ForceAlternateProtocol(pair);
+      pair.protocol = NPN_SPDY_2;
+      HttpServerPropertiesImpl::ForceAlternateProtocol(pair);
     } else if (option == kSingleDomain) {
       SpdySessionPool::ForceSingleDomain();
       LOG(ERROR) << "FORCING SINGLE DOMAIN";

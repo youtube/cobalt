@@ -17,16 +17,64 @@ HttpServerPropertiesImpl::HttpServerPropertiesImpl() {
 HttpServerPropertiesImpl::~HttpServerPropertiesImpl() {
 }
 
-void HttpServerPropertiesImpl::Initialize(StringVector* spdy_servers,
-                                          bool support_spdy) {
+void HttpServerPropertiesImpl::InitializeSpdyServers(
+    std::vector<std::string>* spdy_servers,
+    bool support_spdy) {
   DCHECK(CalledOnValidThread());
   spdy_servers_table_.clear();
   if (!spdy_servers)
     return;
-  for (StringVector::iterator it = spdy_servers->begin();
+  for (std::vector<std::string>::iterator it = spdy_servers->begin();
        it != spdy_servers->end(); ++it) {
     spdy_servers_table_[*it] = support_spdy;
   }
+}
+
+void HttpServerPropertiesImpl::GetSpdyServerList(
+    base::ListValue* spdy_server_list) const {
+  DCHECK(CalledOnValidThread());
+  DCHECK(spdy_server_list);
+  spdy_server_list->Clear();
+  // Get the list of servers (host/port) that support SPDY.
+  for (SpdyServerHostPortTable::const_iterator it = spdy_servers_table_.begin();
+       it != spdy_servers_table_.end(); ++it) {
+    const std::string spdy_server_host_port = it->first;
+    if (it->second)
+      spdy_server_list->Append(new StringValue(spdy_server_host_port));
+  }
+}
+
+// static
+std::string HttpServerPropertiesImpl::GetFlattenedSpdyServer(
+    const net::HostPortPair& host_port_pair) {
+  std::string spdy_server;
+  spdy_server.append(host_port_pair.host());
+  spdy_server.append(":");
+  base::StringAppendF(&spdy_server, "%d", host_port_pair.port());
+  return spdy_server;
+}
+
+static const PortAlternateProtocolPair* g_forced_alternate_protocol = NULL;
+
+// static
+void HttpServerPropertiesImpl::ForceAlternateProtocol(
+    const PortAlternateProtocolPair& pair) {
+  // Note: we're going to leak this.
+  if (g_forced_alternate_protocol)
+    delete g_forced_alternate_protocol;
+  g_forced_alternate_protocol = new PortAlternateProtocolPair(pair);
+}
+
+// static
+void HttpServerPropertiesImpl::DisableForcedAlternateProtocol() {
+  delete g_forced_alternate_protocol;
+  g_forced_alternate_protocol = NULL;
+}
+
+void HttpServerPropertiesImpl::DeleteAll() {
+  DCHECK(CalledOnValidThread());
+  spdy_servers_table_.clear();
+  alternate_protocol_map_.clear();
 }
 
 bool HttpServerPropertiesImpl::SupportsSpdy(
@@ -61,33 +109,72 @@ void HttpServerPropertiesImpl::SetSupportsSpdy(
   spdy_servers_table_[spdy_server] = support_spdy;
 }
 
-void HttpServerPropertiesImpl::DeleteAll() {
-  DCHECK(CalledOnValidThread());
-  spdy_servers_table_.clear();
+bool HttpServerPropertiesImpl::HasAlternateProtocol(
+    const HostPortPair& server) const {
+  return ContainsKey(alternate_protocol_map_, server) ||
+      g_forced_alternate_protocol;
 }
 
-void HttpServerPropertiesImpl::GetSpdyServerList(
-    base::ListValue* spdy_server_list) const {
-  DCHECK(CalledOnValidThread());
-  DCHECK(spdy_server_list);
-  spdy_server_list->Clear();
-  // Get the list of servers (host/port) that support SPDY.
-  for (SpdyServerHostPortTable::const_iterator it = spdy_servers_table_.begin();
-       it != spdy_servers_table_.end(); ++it) {
-    const std::string spdy_server_host_port = it->first;
-    if (it->second)
-      spdy_server_list->Append(new StringValue(spdy_server_host_port));
+PortAlternateProtocolPair
+HttpServerPropertiesImpl::GetAlternateProtocol(
+    const HostPortPair& server) const {
+  DCHECK(HasAlternateProtocol(server));
+
+  // First check the map.
+  AlternateProtocolMap::const_iterator it =
+      alternate_protocol_map_.find(server);
+  if (it != alternate_protocol_map_.end())
+    return it->second;
+
+  // We must be forcing an alternate.
+  DCHECK(g_forced_alternate_protocol);
+  return *g_forced_alternate_protocol;
+}
+
+void HttpServerPropertiesImpl::SetAlternateProtocol(
+    const HostPortPair& server,
+    uint16 alternate_port,
+    AlternateProtocol alternate_protocol) {
+  if (alternate_protocol == ALTERNATE_PROTOCOL_BROKEN) {
+    LOG(DFATAL) << "Call MarkBrokenAlternateProtocolFor() instead.";
+    return;
   }
+
+  PortAlternateProtocolPair alternate;
+  alternate.port = alternate_port;
+  alternate.protocol = alternate_protocol;
+  if (HasAlternateProtocol(server)) {
+    const PortAlternateProtocolPair existing_alternate =
+        GetAlternateProtocol(server);
+
+    if (existing_alternate.protocol == ALTERNATE_PROTOCOL_BROKEN) {
+      DVLOG(1) << "Ignore alternate protocol since it's known to be broken.";
+      return;
+    }
+
+    if (alternate_protocol != ALTERNATE_PROTOCOL_BROKEN &&
+        !existing_alternate.Equals(alternate)) {
+      LOG(WARNING) << "Changing the alternate protocol for: "
+                   << server.ToString()
+                   << " from [Port: " << existing_alternate.port
+                   << ", Protocol: " << existing_alternate.protocol
+                   << "] to [Port: " << alternate_port
+                   << ", Protocol: " << alternate_protocol
+                   << "].";
+    }
+  }
+
+  alternate_protocol_map_[server] = alternate;
 }
 
-// static
-std::string HttpServerPropertiesImpl::GetFlattenedSpdyServer(
-    const net::HostPortPair& host_port_pair) {
-  std::string spdy_server;
-  spdy_server.append(host_port_pair.host());
-  spdy_server.append(":");
-  base::StringAppendF(&spdy_server, "%d", host_port_pair.port());
-  return spdy_server;
+void HttpServerPropertiesImpl::SetBrokenAlternateProtocol(
+    const HostPortPair& server) {
+  alternate_protocol_map_[server].protocol = ALTERNATE_PROTOCOL_BROKEN;
+}
+
+const AlternateProtocolMap&
+HttpServerPropertiesImpl::alternate_protocol_map() const {
+  return alternate_protocol_map_;
 }
 
 }  // namespace net
