@@ -10,13 +10,15 @@
 #include <string>
 #include <vector>
 
+#include "base/file_path.h"
 #include "base/gtest_prod_util.h"
 #include "base/observer_list.h"
+#include "base/threading/non_thread_safe.h"
 #include "base/time.h"
 #include "net/base/ip_endpoint.h"  // win requires size of IPEndPoint
 #include "net/base/net_export.h"
 #include "net/dns/dns_hosts.h"
-#include "net/dns/watching_file_reader.h"
+#include "net/dns/serial_worker.h"
 
 namespace net {
 
@@ -110,16 +112,19 @@ class NET_EXPORT_PRIVATE DnsConfigService
 
 // A WatchingFileReader that reads a HOSTS file and notifies
 // DnsConfigService::OnHostsRead().
-class DnsHostsReader : public WatchingFileReader {
+// Client should call Cancel() when |service| is going away.
+class NET_EXPORT_PRIVATE DnsHostsReader
+  : NON_EXPORTED_BASE(public SerialWorker) {
  public:
-  explicit DnsHostsReader(DnsConfigService* service);
+  DnsHostsReader(const FilePath& path, DnsConfigService* service);
 
-  virtual void DoRead() OVERRIDE;
-  virtual void OnReadFinished() OVERRIDE;
+  virtual void DoWork() OVERRIDE;
+  virtual void OnWorkFinished() OVERRIDE;
 
  private:
   virtual ~DnsHostsReader();
 
+  FilePath path_;
   DnsConfigService* service_;
   // Written in DoRead, read in OnReadFinished, no locking necessary.
   DnsHosts dns_hosts_;
