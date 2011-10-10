@@ -1241,6 +1241,12 @@
           ['use_aura==0', {
             'sources/': [ ['exclude', '_aura\\.(h|cc)$'] ]
           }],
+          ['use_aura==0 or use_x11==0', {
+            'sources/': [ ['exclude', '_aurax11\\.(h|cc)$'] ]
+          }],
+          ['use_aura==0 or OS!="win"', {
+            'sources/': [ ['exclude', '_aurawin\\.(h|cc)$'] ]
+          }],
         ],
       }],
     ],  # target_conditions for 'target_defaults'
