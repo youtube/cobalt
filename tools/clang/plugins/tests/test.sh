@@ -49,8 +49,13 @@ elif [[ ! -d "${1}" ]]; then
   usage
   exit ${E_BADARGS}
 else
-  echo "Using clang directory ${1}..."
-  export CLANG_DIR="${1}"
+  export CLANG_DIR="$(PWD)/${1}"
+  echo "Using clang directory ${CLANG_DIR}..."
+
+  # The golden files assume that the cwd is this directory. To make the script
+  # work no matter what the cwd is, explicitly cd to there.
+  cd "$(dirname "${0}")"
+
   if [ "$(uname -s)" = "Linux" ]; then
     export LIB=so
   elif [ "$(uname -s)" = "Darwin" ]; then
