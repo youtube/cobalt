@@ -175,6 +175,8 @@
         'base/resource/data_pack.h',
         'base/resource/resource_bundle.cc',
         'base/resource/resource_bundle.h',
+        'base/resource/resource_bundle_aurax11.cc',
+        'base/resource/resource_bundle_gtk.cc',
         'base/resource/resource_bundle_linux.cc',
         'base/resource/resource_bundle_mac.mm',
         'base/resource/resource_bundle_posix.cc',
