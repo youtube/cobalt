@@ -5,6 +5,7 @@
 #include "net/http/http_server_properties_impl.h"
 
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/hash_tables.h"
@@ -27,7 +28,9 @@ class HttpServerPropertiesImplTest : public testing::Test {
   HttpServerPropertiesImpl impl_;
 };
 
-TEST_F(HttpServerPropertiesImplTest, InitializeTest) {
+typedef HttpServerPropertiesImplTest SpdyServerPropertiesTest;
+
+TEST_F(SpdyServerPropertiesTest, InitializeTest) {
   HostPortPair spdy_server_google("www.google.com", 443);
   std::string spdy_server_g =
       HttpServerPropertiesImpl::GetFlattenedSpdyServer(spdy_server_google);
@@ -37,31 +40,31 @@ TEST_F(HttpServerPropertiesImplTest, InitializeTest) {
       HttpServerPropertiesImpl::GetFlattenedSpdyServer(spdy_server_docs);
 
   // Check by initializing NULL spdy servers.
-  impl_.Initialize(NULL, true);
+  impl_.InitializeSpdyServers(NULL, true);
   EXPECT_FALSE(impl_.SupportsSpdy(spdy_server_google));
 
   // Check by initializing empty spdy servers.
-  HttpServerProperties::StringVector spdy_servers;
-  impl_.Initialize(&spdy_servers, true);
+  std::vector<std::string> spdy_servers;
+  impl_.InitializeSpdyServers(&spdy_servers, true);
   EXPECT_FALSE(impl_.SupportsSpdy(spdy_server_google));
 
   // Check by initializing with www.google.com:443 spdy server.
-  HttpServerProperties::StringVector spdy_servers1;
+  std::vector<std::string> spdy_servers1;
   spdy_servers1.push_back(spdy_server_g);
-  impl_.Initialize(&spdy_servers1, true);
+  impl_.InitializeSpdyServers(&spdy_servers1, true);
   EXPECT_TRUE(impl_.SupportsSpdy(spdy_server_google));
 
   // Check by initializing with www.google.com:443 and docs.google.com:443 spdy
   // servers.
-  HttpServerProperties::StringVector spdy_servers2;
+  std::vector<std::string> spdy_servers2;
   spdy_servers2.push_back(spdy_server_g);
   spdy_servers2.push_back(spdy_server_d);
-  impl_.Initialize(&spdy_servers2, true);
+  impl_.InitializeSpdyServers(&spdy_servers2, true);
   EXPECT_TRUE(impl_.SupportsSpdy(spdy_server_google));
   EXPECT_TRUE(impl_.SupportsSpdy(spdy_server_docs));
 }
 
-TEST_F(HttpServerPropertiesImplTest, SupportsSpdyTest) {
+TEST_F(SpdyServerPropertiesTest, SupportsSpdyTest) {
   HostPortPair spdy_server_empty("", 443);
   EXPECT_FALSE(impl_.SupportsSpdy(spdy_server_empty));
 
@@ -85,7 +88,7 @@ TEST_F(HttpServerPropertiesImplTest, SupportsSpdyTest) {
   EXPECT_TRUE(impl_.SupportsSpdy(spdy_server_docs));
 }
 
-TEST_F(HttpServerPropertiesImplTest, SetSupportsSpdyTest) {
+TEST_F(SpdyServerPropertiesTest, SetSupportsSpdyTest) {
   HostPortPair spdy_server_empty("", 443);
   impl_.SetSupportsSpdy(spdy_server_empty, true);
   EXPECT_FALSE(impl_.SupportsSpdy(spdy_server_empty));
@@ -108,7 +111,7 @@ TEST_F(HttpServerPropertiesImplTest, SetSupportsSpdyTest) {
   EXPECT_FALSE(impl_.SupportsSpdy(spdy_server_google));
 }
 
-TEST_F(HttpServerPropertiesImplTest, DeleteAllTest) {
+TEST_F(SpdyServerPropertiesTest, DeleteAllTest) {
   // Add www.google.com:443 and mail.google.com:443 as supporting SPDY.
   HostPortPair spdy_server_google("www.google.com", 443);
   impl_.SetSupportsSpdy(spdy_server_google, true);
@@ -123,7 +126,7 @@ TEST_F(HttpServerPropertiesImplTest, DeleteAllTest) {
   EXPECT_FALSE(impl_.SupportsSpdy(spdy_server_mail));
 }
 
-TEST_F(HttpServerPropertiesImplTest, GetSpdyServerListTest) {
+TEST_F(SpdyServerPropertiesTest, GetSpdyServerListTest) {
   base::ListValue spdy_server_list;
 
   // Check there are no spdy_servers.
@@ -179,6 +182,73 @@ TEST_F(HttpServerPropertiesImplTest, GetSpdyServerListTest) {
     ASSERT_EQ(spdy_server_g, string_value_m);
     ASSERT_EQ(spdy_server_m, string_value_g);
   }
+}
+
+typedef HttpServerPropertiesImplTest AlternateProtocolServerPropertiesTest;
+
+TEST_F(AlternateProtocolServerPropertiesTest, Basic) {
+  HostPortPair test_host_port_pair("foo", 80);
+  EXPECT_FALSE(
+      impl_.HasAlternateProtocol(test_host_port_pair));
+  impl_.SetAlternateProtocol(
+      test_host_port_pair, 443, NPN_SPDY_1);
+  ASSERT_TRUE(impl_.HasAlternateProtocol(test_host_port_pair));
+  const PortAlternateProtocolPair alternate =
+      impl_.GetAlternateProtocol(test_host_port_pair);
+  EXPECT_EQ(443, alternate.port);
+  EXPECT_EQ(NPN_SPDY_1, alternate.protocol);
+}
+
+TEST_F(AlternateProtocolServerPropertiesTest, SetBroken) {
+  HostPortPair test_host_port_pair("foo", 80);
+  impl_.SetBrokenAlternateProtocol(test_host_port_pair);
+  ASSERT_TRUE(impl_.HasAlternateProtocol(test_host_port_pair));
+  PortAlternateProtocolPair alternate =
+      impl_.GetAlternateProtocol(test_host_port_pair);
+  EXPECT_EQ(ALTERNATE_PROTOCOL_BROKEN, alternate.protocol);
+
+  impl_.SetAlternateProtocol(
+      test_host_port_pair,
+      1234,
+      NPN_SPDY_1);
+  alternate = impl_.GetAlternateProtocol(test_host_port_pair);
+  EXPECT_EQ(ALTERNATE_PROTOCOL_BROKEN, alternate.protocol)
+      << "Second attempt should be ignored.";
+}
+
+TEST_F(AlternateProtocolServerPropertiesTest, Forced) {
+  // Test forced alternate protocols.
+
+  PortAlternateProtocolPair default_protocol;
+  default_protocol.port = 1234;
+  default_protocol.protocol = NPN_SPDY_2;
+  HttpServerPropertiesImpl::ForceAlternateProtocol(default_protocol);
+
+  // Verify the forced protocol.
+  HostPortPair test_host_port_pair("foo", 80);
+  EXPECT_TRUE(
+      impl_.HasAlternateProtocol(test_host_port_pair));
+  PortAlternateProtocolPair alternate =
+      impl_.GetAlternateProtocol(test_host_port_pair);
+  EXPECT_EQ(default_protocol.port, alternate.port);
+  EXPECT_EQ(default_protocol.protocol, alternate.protocol);
+
+  // Verify the real protocol overrides the forced protocol.
+  impl_.SetAlternateProtocol(
+      test_host_port_pair, 443, NPN_SPDY_1);
+  ASSERT_TRUE(impl_.HasAlternateProtocol(test_host_port_pair));
+  alternate = impl_.GetAlternateProtocol(test_host_port_pair);
+  EXPECT_EQ(443, alternate.port);
+  EXPECT_EQ(NPN_SPDY_1, alternate.protocol);
+
+  // Turn off the static, forced alternate protocol so that tests don't
+  // have this state.
+  HttpServerPropertiesImpl::DisableForcedAlternateProtocol();
+
+  // Verify the forced protocol is off.
+  HostPortPair test_host_port_pair2("bar", 80);
+  EXPECT_FALSE(
+      impl_.HasAlternateProtocol(test_host_port_pair2));
 }
 
 }  // namespace
