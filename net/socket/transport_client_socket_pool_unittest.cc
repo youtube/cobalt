@@ -1004,7 +1004,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 // Flaky on ChromeOS - http://crbug.com/89273
 // Disabled in release with dcheck : http://crbug.com/94501
 #if defined(OS_MACOSX) || defined(OS_CHROMEOS) || defined(OS_LINUX)
-#define MAYBE_BackupSocketFailAfterStall FLAKY_BackupSocketFailAfterStall
+#define MAYBE_BackupSocketFailAfterStall BackupSocketFailAfterStall
 #elif defined(DCHECK_ALWAYS_ON)
 #define MAYBE_BackupSocketFailAfterStall DISABLED_BackupSocketFailAfterStall
 #else
