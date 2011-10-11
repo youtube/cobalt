@@ -1340,26 +1340,18 @@ void PrintTo(const CertificateNameVerifyTestData& data, std::ostream* os) {
 
 const CertificateNameVerifyTestData kNameVerifyTestData[] = {
     { true, "foo.com", "foo.com" },
-    { true, "foo.com", "foo.com." },
     { true, "f", "f" },
-    { true, "f", "f." },
     { false, "h", "i" },
     { true, "bar.foo.com", "*.foo.com" },
-    { true, "www-3.bar.foo.com", "*.bar.foo.com." },
     { true, "www.test.fr", "common.name",
         "*.test.com,*.test.co.uk,*.test.de,*.test.fr" },
     { true, "wwW.tESt.fr",  "common.name",
         ",*.*,*.test.de,*.test.FR,www" },
-    { false, "foo.com", "*.com" },
     { false, "f.uk", ".uk" },
-    { true,  "h.co.uk", "*.co.uk" },
-    { false, "foo.us", "*.us" },
     { false, "w.bar.foo.com", "?.bar.foo.com" },
     { false, "www.foo.com", "(www|ftp).foo.com" },
     { false, "www.foo.com", "www.foo.com#" }, // # = null char.
     { false, "www.foo.com", "", "www.foo.com#*.foo.com,#,#" },
-    { false, "foo", "*" },
-    { false, "foo.", "*." },
     { false, "www.house.example", "ww.house.example" },
     { false, "test.org", "", "www.test.org,*.test.org,*.org" },
     { false, "w.bar.foo.com", "w*.bar.foo.com" },
@@ -1399,6 +1391,32 @@ const CertificateNameVerifyTestData kNameVerifyTestData[] = {
     { true, "baz1.example.net", "baz*.example.net" },
     { true, "foobaz.example.net", "*baz.example.net" },
     { true, "buzz.example.net", "b*z.example.net" },
+    // Wildcards should not be valid unless there are at least three name
+    // components.
+    { true,  "h.co.uk", "*.co.uk" },
+    { false, "foo.com", "*.com" },
+    { false, "foo.us", "*.us" },
+    { false, "foo", "*" },
+    // Multiple wildcards are not valid.
+    { false, "foo.example.com", "*.*.com" },
+    { false, "foo.bar.example.com", "*.bar.*.com" },
+    // Absolute vs relative DNS name tests. Although not explicitly specified
+    // in RFC 6125, absolute reference names (those ending in a .) should
+    // match either absolute or relative presented names.
+    { true, "foo.com", "foo.com." },
+    { true, "foo.com.", "foo.com" },
+    { true, "foo.com.", "foo.com." },
+    { true, "f", "f." },
+    { true, "f.", "f" },
+    { true, "f.", "f." },
+    { true, "www-3.bar.foo.com", "*.bar.foo.com." },
+    { true, "www-3.bar.foo.com.", "*.bar.foo.com" },
+    { true, "www-3.bar.foo.com.", "*.bar.foo.com." },
+    { false, ".", "." },
+    { false, "example.com", "*.com." },
+    { false, "example.com.", "*.com" },
+    { false, "example.com.", "*.com." },
+    { false, "foo.", "*." },
     // IP addresses in common name; IPv4 only.
     { true, "127.0.0.1", "127.0.0.1" },
     { true, "192.168.1.1", "192.168.1.1" },
