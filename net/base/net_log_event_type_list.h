@@ -1207,6 +1207,14 @@ EVENT_TYPE(CHROME_EXTENSION_MODIFIED_HEADERS)
 //  }
 EVENT_TYPE(CHROME_EXTENSION_IGNORED_DUE_TO_CONFLICT)
 
+// This event is created when a Chrome extension provides authentication
+// credentials.
+//
+//  {
+//    "extension_id": <Extension ID that provides credentials>
+//  }
+EVENT_TYPE(CHROME_EXTENSION_PROVIDE_AUTH_CREDENTIALS)
+
 // ------------------------------------------------------------------------
 // HostBlacklistManager
 // ------------------------------------------------------------------------
