@@ -321,6 +321,8 @@
             ['exclude', 'gfx/gtk_util.cc'],
             ['exclude', 'gfx/gtk_util.h'],
             ['exclude', 'gfx/screen_gtk.cc'],
+            ['exclude', 'gfx/native_theme_chromeos.cc'],
+            ['exclude', 'gfx/native_theme_chromeos.h'],
             ['exclude', 'gfx/screen_win.cc'],
             ['exclude', 'base/win/mouse_wheel_util.cc'],
             ['exclude', 'base/win/mouse_wheel_util.h'],
