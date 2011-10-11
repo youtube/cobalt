@@ -89,7 +89,7 @@ void URLRequestContextStorage::set_network_delegate(
 void URLRequestContextStorage::set_http_server_properties(
     HttpServerProperties* http_server_properties) {
   context_->set_http_server_properties(http_server_properties);
-  http_server_properties_ = http_server_properties;
+  http_server_properties_.reset(http_server_properties);
 }
 
 void URLRequestContextStorage::set_cookie_store(CookieStore* cookie_store) {
