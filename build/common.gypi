@@ -221,6 +221,11 @@
       # Webrtc compilation is enabled by default. Set to 0 to disable.
       'enable_webrtc%': 1,
 
+      # PPAPI by default does not support plugins making calls off the main
+      # thread. Set to 1 to turn on experimental support for out-of-process
+      # plugins to make call of the main thread.
+      'enable_pepper_threading%': 0,
+
       # XInput2 multitouch support is disabled by default (use_xi2_mt=0).
       # Setting to non-zero value enables XI2 MT. When XI2 MT is enabled,
       # the input value also defines the required XI2 minor minimum version.
@@ -345,6 +350,7 @@
     'use_gnome_keyring%': '<(use_gnome_keyring)',
     'linux_fpic%': '<(linux_fpic)',
     'enable_flapper_hacks%': '<(enable_flapper_hacks)',
+    'enable_pepper_threading%': '<(enable_pepper_threading)',
     'chromeos%': '<(chromeos)',
     'touchui%': '<(touchui)',
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
@@ -974,6 +980,9 @@
       }],
       ['enable_flapper_hacks==1', {
         'defines': ['ENABLE_FLAPPER_HACKS=1'],
+      }],
+      ['enable_pepper_threading==1', {
+        'defines': ['ENABLE_PEPPER_THREADING'],
       }],
       ['configuration_policy==1', {
         'defines': ['ENABLE_CONFIGURATION_POLICY'],
