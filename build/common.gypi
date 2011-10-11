@@ -864,14 +864,21 @@
       # See http://gcc.gnu.org/onlinedocs/gcc-4.4.2/gcc/Optimize-Options.html
       'mac_release_optimization%': '3', # Use -O3 unless overridden
       'mac_debug_optimization%': '0',   # Use -O0 unless overridden
+
       # See http://msdn.microsoft.com/en-us/library/aa652360(VS.71).aspx
       'win_release_Optimization%': '2', # 2 = /Os
       'win_debug_Optimization%': '0',   # 0 = /Od
+
+      # See http://msdn.microsoft.com/en-us/library/2kxx5t2c(v=vs.80).aspx
+      'win_release_OmitFramePointers%': '1',
+
       # See http://msdn.microsoft.com/en-us/library/8wtf2dfz(VS.71).aspx
       'win_debug_RuntimeChecks%': '3',    # 3 = all checks enabled, 0 = off
+
       # See http://msdn.microsoft.com/en-us/library/47238hez(VS.71).aspx
       'win_debug_InlineFunctionExpansion%': '',    # empty = default, 0 = off,
       'win_release_InlineFunctionExpansion%': '2', # 1 = only __inline, 2 = max
+
       # VS inserts quite a lot of extra checks to algorithms like
       # std::partial_sort in Debug build which make them O(N^2)
       # instead of O(N*logN). This is particularly slow under memory
@@ -1379,6 +1386,13 @@
               ['win_release_InlineFunctionExpansion!=""', {
                 'InlineFunctionExpansion':
                   '<(win_release_InlineFunctionExpansion)',
+              }],
+
+              ['win_release_OmitFramePointers==1', {
+                'OmitFramePointers': 'true',
+              }],
+              ['win_release_OmitFramePointers==0', {
+                'OmitFramePointers': 'false',
               }],
             ],
           },

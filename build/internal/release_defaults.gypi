@@ -1,9 +1,7 @@
 {
   'msvs_settings': {
     'VCCLCompilerTool': {
-      'Optimization': '2',
       'StringPooling': 'true',
-      'OmitFramePointers': 'true',
     },
     'VCLinkerTool': {
       'LinkIncremental': '1',
