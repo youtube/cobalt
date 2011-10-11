@@ -192,7 +192,7 @@ MULTIPROCESS_TEST_MAIN(CrashingChildProcess) {
   ::signal(SIGSEGV, SIG_DFL);
 #endif
   // Make this process have a segmentation fault.
-  int* oops = NULL;
+  volatile int* oops = NULL;
   *oops = 0xDEAD;
   return 1;
 }
