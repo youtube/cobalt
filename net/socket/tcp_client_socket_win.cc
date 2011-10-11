@@ -589,6 +589,9 @@ bool TCPClientSocketWin::IsConnected() const {
   if (socket_ == INVALID_SOCKET || waiting_connect())
     return false;
 
+  if (waiting_read_)
+    return true;
+
   // Check if connection is alive.
   char c;
   int rv = recv(socket_, &c, 1, MSG_PEEK);
@@ -605,6 +608,9 @@ bool TCPClientSocketWin::IsConnectedAndIdle() const {
 
   if (socket_ == INVALID_SOCKET || waiting_connect())
     return false;
+
+  if (waiting_read_)
+    return true;
 
   // Check if connection is alive and we haven't received any data
   // unexpectedly.
