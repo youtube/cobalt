@@ -476,7 +476,12 @@ bool X509Certificate::VerifyHostname(
   const std::string host_or_ip = hostname.find(':') != std::string::npos ?
       "[" + hostname + "]" : hostname;
   url_canon::CanonHostInfo host_info;
-  const std::string reference_name = CanonicalizeHost(host_or_ip, &host_info);
+  std::string reference_name = CanonicalizeHost(host_or_ip, &host_info);
+  // CanonicalizeHost does not normalize absolute vs relative DNS names. If
+  // the input name was absolute (included trailing .), normalize it as if it
+  // was relative.
+  if (!reference_name.empty() && *reference_name.rbegin() == '.')
+    reference_name.resize(reference_name.size() - 1);
   if (reference_name.empty())
     return false;
 
