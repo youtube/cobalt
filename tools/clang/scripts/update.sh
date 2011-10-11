@@ -10,6 +10,10 @@ LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
 LLVM_BUILD_DIR="${LLVM_DIR}/../llvm-build"
 CLANG_DIR="${LLVM_DIR}/tools/clang"
 DEPS_FILE="${THIS_DIR}/../../../DEPS"
+if [ -e "${THIS_DIR}/../../../chromium_deps/DEPS" ]; then
+  # For bare WebKit/chromium checkouts.
+  DEPS_FILE="${THIS_DIR}/../../../chromium_deps/DEPS"
+fi
 STAMP_FILE="${LLVM_BUILD_DIR}/cr_build_revision"
 
 # ${A:-a} returns $A if it's set, a else.
