@@ -218,9 +218,6 @@
       # Enable Web Intents and supporting UI.
       'enable_web_intents%': 0,
 
-      # Smooth scrolling is disabled by default.
-      'enable_smooth_scrolling%': 0,
-
       # Webrtc compilation is enabled by default. Set to 0 to disable.
       'enable_webrtc%': 1,
 
@@ -325,13 +322,6 @@
           'proprietary_codecs%': 1,
           'enable_webrtc%': 0,
         }],
-
-        # Enable smooth scrolling for Mac, Win, Linux and ChromeOS
-        ['OS=="linux" or OS=="mac" or OS=="win"', {
-          'enable_smooth_scrolling%': 1,
-        }, {
-          'enable_smooth_scrolling%': 0,
-        }],
       ],
     },
 
@@ -383,7 +373,6 @@
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'asan%': '<(asan)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
-    'enable_smooth_scrolling%': '<(enable_smooth_scrolling)',
     'enable_web_intents%': '<(enable_web_intents)',
     # Whether to build for Wayland display server
     'use_wayland%': 0,
