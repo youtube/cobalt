@@ -84,7 +84,7 @@ class NET_EXPORT URLRequestContextStorage {
   // TODO(willchan): Remove refcounting on these members.
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_ptr<NetworkDelegate> network_delegate_;
-  HttpServerProperties* http_server_properties_;
+  scoped_ptr<HttpServerProperties> http_server_properties_;
   scoped_refptr<CookieStore> cookie_store_;
   scoped_ptr<TransportSecurityState> transport_security_state_;
 
