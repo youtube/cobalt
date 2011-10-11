@@ -458,6 +458,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
 
     // Record the name of the calling thread, if not done already.
     if (!g_current_thread_name_captured.Get()) {
+      g_current_thread_name_captured.Set(true);
       const char* cur_name = PlatformThread::GetName();
       base::hash_map<PlatformThreadId, std::string>::iterator existing_name =
           thread_names_.find(thread_id);
