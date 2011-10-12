@@ -23,7 +23,7 @@ TEST(WaitableEventTest, ManualBasics) {
   EXPECT_FALSE(event.TimedWait(TimeDelta::FromMilliseconds(10)));
 
   event.Signal();
-  EXPECT_TRUE(event.Wait());
+  event.Wait();
   EXPECT_TRUE(event.TimedWait(TimeDelta::FromMilliseconds(10)));
 }
 
@@ -41,7 +41,7 @@ TEST(WaitableEventTest, AutoBasics) {
   EXPECT_FALSE(event.TimedWait(TimeDelta::FromMilliseconds(10)));
 
   event.Signal();
-  EXPECT_TRUE(event.Wait());
+  event.Wait();
   EXPECT_FALSE(event.TimedWait(TimeDelta::FromMilliseconds(10)));
 
   event.Signal();
