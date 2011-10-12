@@ -19,6 +19,7 @@
 
 #include "net/url_request/url_request_file_job.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/platform_file.h"
@@ -84,8 +85,6 @@ URLRequestFileJob::URLRequestFileJob(URLRequest* request,
                                      const FilePath& file_path)
     : URLRequestJob(request),
       file_path_(file_path),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &URLRequestFileJob::DidRead)),
       is_directory_(false),
       remaining_bytes_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
@@ -183,7 +182,9 @@ bool URLRequestFileJob::ReadRawData(IOBuffer* dest, int dest_size,
     return true;
   }
 
-  int rv = stream_.Read(dest->data(), dest_size, &io_callback_);
+  int rv = stream_.Read(dest->data(), dest_size,
+                        base::Bind(&URLRequestFileJob::DidRead,
+                                   base::Unretained(this)));
   if (rv >= 0) {
     // Data is immediately available.
     *bytes_read = rv;

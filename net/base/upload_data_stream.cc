@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -112,7 +112,8 @@ int UploadDataStream::FillBuf() {
         // Temporarily allow until fix: http://crbug.com/72001.
         base::ThreadRestrictions::ScopedAllowIO allow_io;
         if (next_element_stream_.get())
-          rv = next_element_stream_->Read(buf_->data() + buf_len_, count, NULL);
+          rv = next_element_stream_->Read(buf_->data() + buf_len_, count,
+                                          CompletionCallback());
         if (rv <= 0) {
           // If there's less data to read than we initially observed, then
           // pad with zero.  Otherwise the server will hang waiting for the
