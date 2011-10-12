@@ -115,9 +115,6 @@ class NET_EXPORT HostResolverImpl
   // address family to IPv4 iff IPv6 is not supported.
   void ProbeIPv6Support();
 
-  // Returns the cache this resolver uses, or NULL if caching is disabled.
-  HostCache* cache() { return cache_.get(); }
-
   // Applies a set of constraints for requests that belong to the specified
   // pool. NOTE: Don't call this after requests have been already been started.
   //
@@ -151,6 +148,7 @@ class NET_EXPORT HostResolverImpl
   virtual AddressFamily GetDefaultAddressFamily() const OVERRIDE;
 
   virtual HostResolverImpl* GetAsHostResolverImpl() OVERRIDE;
+  virtual HostCache* GetHostCache() OVERRIDE;
 
  private:
   // Allow tests to access our innards for testing purposes.

@@ -84,7 +84,8 @@ class DnsTransactionStartParameters : public NetLog::EventParameters {
     dict->SetString("dns_server", dns_server_.ToString());
     dict->SetString("hostname", hostname);
     dict->SetInteger("query_type", key_.second);
-    dict->Set("source_dependency", source_.ToValue());
+    if (source_.is_valid())
+      dict->Set("source_dependency", source_.ToValue());
     return dict;
   }
 
@@ -107,7 +108,8 @@ class DnsTransactionFinishParameters : public NetLog::EventParameters {
       list->Append(Value::CreateStringValue(IPAddressToString(*it)));
 
     DictionaryValue* dict = new DictionaryValue();
-    dict->SetInteger("net_error", net_error_);
+    if (net_error_)
+      dict->SetInteger("net_error", net_error_);
     dict->Set("address_list", list);
     return dict;
   }
@@ -247,7 +249,7 @@ int DnsTransaction::DoConnect() {
   socket_.reset(socket_factory_->CreateDatagramClientSocket(
       DatagramSocket::RANDOM_BIND,
       base::Bind(&base::RandInt),
-      NULL,
+      net_log_.net_log(),
       net_log_.source()));
 
   net_log_.AddEvent(
