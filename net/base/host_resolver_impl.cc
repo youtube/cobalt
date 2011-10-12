@@ -1304,6 +1304,9 @@ HostResolverImpl* HostResolverImpl::GetAsHostResolverImpl() {
   return this;
 }
 
+HostCache* HostResolverImpl::GetHostCache() {
+  return cache_.get();
+}
 
 bool HostResolverImpl::ResolveAsIP(const Key& key,
                                    const RequestInfo& info,
