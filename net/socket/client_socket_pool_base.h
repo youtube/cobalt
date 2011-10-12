@@ -573,9 +573,6 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
 }  // namespace internal
 
-// The maximum duration, in seconds, to keep used idle persistent sockets alive.
-static const int kUsedIdleSocketTimeout = 300;  // 5 minutes
-
 template <typename SocketParams>
 class ClientSocketPoolBase {
  public:

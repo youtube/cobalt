@@ -386,9 +386,8 @@ HttpProxyClientSocketPool::HttpProxyClientSocketPool(
     : transport_pool_(transport_pool),
       ssl_pool_(ssl_pool),
       base_(max_sockets, max_sockets_per_group, histograms,
-            base::TimeDelta::FromSeconds(
-                ClientSocketPool::unused_idle_socket_timeout()),
-            base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
+            ClientSocketPool::unused_idle_socket_timeout(),
+            ClientSocketPool::used_idle_socket_timeout(),
             new HttpProxyConnectJobFactory(transport_pool,
                                            ssl_pool,
                                            host_resolver,
