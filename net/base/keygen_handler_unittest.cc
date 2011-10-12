@@ -133,8 +133,7 @@ TEST_F(KeygenHandlerTest, ConcurrencyTest) {
 
   for (int i = 0; i < NUM_HANDLERS; i++) {
     // Make sure the job completed
-    bool signaled = events[i]->Wait();
-    EXPECT_TRUE(signaled);
+    events[i]->Wait();
     delete events[i];
     events[i] = NULL;
 

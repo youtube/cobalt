@@ -73,9 +73,8 @@ class BASE_EXPORT WaitableEvent {
   // is not a manual reset event, then this test will cause a reset.
   bool IsSignaled();
 
-  // Wait indefinitely for the event to be signaled.  Returns true if the event
-  // was signaled, else false is returned to indicate that waiting failed.
-  bool Wait();
+  // Wait indefinitely for the event to be signaled.
+  void Wait();
 
   // Wait up until max_time has passed for the event to be signaled.  Returns
   // true if the event was signaled.  If this method returns false, then it
