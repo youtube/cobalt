@@ -194,6 +194,11 @@ void ProxyScriptFetcherImpl::OnSSLCertificateError(URLRequest* request,
                                                    const SSLInfo& ssl_info,
                                                    bool is_hsts_host) {
   DCHECK_EQ(request, cur_request_.get());
+  // Revocation check failures are not fatal.
+  if (IsCertStatusMinorError(ssl_info.cert_status)) {
+    request->ContinueDespiteLastError();
+    return;
+  }
   LOG(WARNING) << "SSL certificate error when fetching PAC script, aborting.";
   // Certificate errors are in same space as net errors.
   result_code_ = MapCertStatusToNetError(ssl_info.cert_status);
