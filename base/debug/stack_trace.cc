@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <sstream>
 
 namespace base {
 namespace debug {
@@ -28,6 +29,12 @@ const void *const *StackTrace::Addresses(size_t* count) const {
   if (count_)
     return trace_;
   return NULL;
+}
+
+std::string StackTrace::ToString() const {
+  std::stringstream stream;
+  OutputToStream(&stream);
+  return stream.str();
 }
 
 }  // namespace debug
