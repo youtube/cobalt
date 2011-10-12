@@ -1151,6 +1151,8 @@ bool TransportSecurityState::IsPreloadedSTS(
     {13, false, "\007greplin\003com", true, 0 },
     {17, false, "\003www\007greplin\003com", true, 0 },
     {27, true, "\006luneta\016nearbuysystems\003com", true, 0 },
+    {12, true, "\006ubertt\003org", true, 0 },
+
     {13, false, "\007twitter\003com", kTwitterHSTS, kTwitterComAcceptableCerts },
     {17, true, "\003www\007twitter\003com", kTwitterHSTS, kTwitterComAcceptableCerts },
     {17, true, "\003api\007twitter\003com", kTwitterHSTS, kTwitterComAcceptableCerts },
