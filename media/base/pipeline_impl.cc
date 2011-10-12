@@ -1336,6 +1336,12 @@ void PipelineImpl::DoStop(const base::Closure& callback) {
 }
 
 void PipelineImpl::OnDemuxerStopDone(const base::Closure& callback) {
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &PipelineImpl::OnDemuxerStopDone, this, callback));
+    return;
+  }
+
   if (pipeline_filter_) {
     pipeline_filter_->Stop(callback);
     return;
@@ -1362,6 +1368,12 @@ void PipelineImpl::DoSeek(base::TimeDelta seek_timestamp) {
 
 void PipelineImpl::OnDemuxerSeekDone(base::TimeDelta seek_timestamp,
                                      PipelineStatus status) {
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &PipelineImpl::OnDemuxerSeekDone, this, seek_timestamp, status));
+    return;
+  }
+
   PipelineStatusCB done_cb =
       base::Bind(&PipelineImpl::OnFilterStateTransitionWithStatus, this);
 
