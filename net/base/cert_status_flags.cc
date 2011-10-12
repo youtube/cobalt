@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,14 @@
 #include "net/base/net_errors.h"
 
 namespace net {
+
+bool IsCertStatusMinorError(CertStatus cert_status) {
+  static const CertStatus kMinorErrors =
+      CERT_STATUS_UNABLE_TO_CHECK_REVOCATION |
+      CERT_STATUS_NO_REVOCATION_MECHANISM;
+  cert_status &= CERT_STATUS_ALL_ERRORS;
+  return cert_status != 0 && (cert_status & ~kMinorErrors) == 0;
+}
 
 CertStatus MapNetErrorToCertStatus(int error) {
   switch (error) {
