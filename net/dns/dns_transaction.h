@@ -29,15 +29,15 @@ class DnsQuery;
 class DnsResponse;
 
 // Performs (with fixed retries) a single asynchronous DNS transaction,
-// which consists of sending out a DNS query, waiting for response, and
+// which consists of sending out a DNS query, waiting for a response, and
 // parsing and returning the IP addresses that it matches.
 class NET_EXPORT_PRIVATE DnsTransaction :
     NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   typedef std::pair<std::string, uint16> Key;
 
-  // Interface that should implemented by DnsTransaction consumer and
-  // passed to |Start| method to be notified when the transaction has
+  // Interface that should be implemented by DnsTransaction consumers and
+  // passed to the |Start| method to be notified when the transaction has
   // completed.
   class NET_EXPORT_PRIVATE Delegate {
    public:
