@@ -110,6 +110,10 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   SSLClientSocketPool* GetSocketPoolForSSLWithProxy(
       const HostPortPair& proxy_server);
 
+  // The setter methods below affect only newly created socket pools after the
+  // methods are called. Normally they should be called at program startup
+  // before any ClientSocketPoolManager is created.
+  NET_EXPORT static void set_max_sockets_per_pool(int socket_count);
   NET_EXPORT static int max_sockets_per_group();
   NET_EXPORT static void set_max_sockets_per_group(int socket_count);
   NET_EXPORT static void set_max_sockets_per_proxy_server(int socket_count);

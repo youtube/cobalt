@@ -459,9 +459,8 @@ SSLClientSocketPool::SSLClientSocketPool(
       socks_pool_(socks_pool),
       http_proxy_pool_(http_proxy_pool),
       base_(max_sockets, max_sockets_per_group, histograms,
-            base::TimeDelta::FromSeconds(
-                ClientSocketPool::unused_idle_socket_timeout()),
-            base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
+            ClientSocketPool::unused_idle_socket_timeout(),
+            ClientSocketPool::used_idle_socket_timeout(),
             new SSLConnectJobFactory(transport_pool,
                                      socks_pool,
                                      http_proxy_pool,
