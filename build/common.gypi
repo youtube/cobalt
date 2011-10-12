@@ -838,6 +838,9 @@
 
       ['asan==1', {
         'clang%': 1,
+        # Do not use Chrome plugins for Clang. The Clang version in
+        # third_party/asan may be different from the default one.
+        'clang_use_chrome_plugins%': 0,
       }],
     ],
     # List of default apps to install in new profiles.  The first list contains
