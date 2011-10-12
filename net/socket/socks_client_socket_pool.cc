@@ -199,9 +199,8 @@ SOCKSClientSocketPool::SOCKSClientSocketPool(
     NetLog* net_log)
     : transport_pool_(transport_pool),
       base_(max_sockets, max_sockets_per_group, histograms,
-            base::TimeDelta::FromSeconds(
-                ClientSocketPool::unused_idle_socket_timeout()),
-            base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
+            ClientSocketPool::unused_idle_socket_timeout(),
+            ClientSocketPool::used_idle_socket_timeout(),
             new SOCKSConnectJobFactory(transport_pool,
                                        host_resolver,
                                        net_log)) {
