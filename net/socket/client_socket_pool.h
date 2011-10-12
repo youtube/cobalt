@@ -139,8 +139,11 @@ class NET_EXPORT ClientSocketPool {
   // UMA_HISTOGRAM_* macros because they are callsite static.
   virtual ClientSocketPoolHistograms* histograms() const = 0;
 
-  static int unused_idle_socket_timeout();
-  static void set_unused_idle_socket_timeout(int timeout);
+  static base::TimeDelta unused_idle_socket_timeout();
+  static void set_unused_idle_socket_timeout(base::TimeDelta timeout);
+
+  static base::TimeDelta used_idle_socket_timeout();
+  static void set_used_idle_socket_timeout(base::TimeDelta timeout);
 
  protected:
   ClientSocketPool();

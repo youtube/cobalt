@@ -29,8 +29,8 @@ namespace net {
 
 namespace {
 
-// Total limit of sockets.
-int g_max_sockets = 256;
+// Limit of sockets of each socket pool.
+int g_max_sockets_per_pool = 256;
 
 // Default to allow up to 6 connections per host. Experiment and tuning may
 // try other values (greater than 0).  Too large may cause many problems, such
@@ -275,14 +275,14 @@ ClientSocketPoolManager::ClientSocketPoolManager(
       ssl_config_service_(ssl_config_service),
       transport_pool_histograms_("TCP"),
       transport_socket_pool_(new TransportClientSocketPool(
-          g_max_sockets, g_max_sockets_per_group,
+          g_max_sockets_per_pool, g_max_sockets_per_group,
           &transport_pool_histograms_,
           host_resolver,
           socket_factory_,
           net_log)),
       ssl_pool_histograms_("SSL2"),
       ssl_socket_pool_(new SSLClientSocketPool(
-          g_max_sockets, g_max_sockets_per_group,
+          g_max_sockets_per_pool, g_max_sockets_per_group,
           &ssl_pool_histograms_,
           host_resolver,
           cert_verifier,
@@ -548,6 +548,14 @@ SSLClientSocketPool* ClientSocketPoolManager::GetSocketPoolForSSLWithProxy(
 }
 
 // static
+void ClientSocketPoolManager::set_max_sockets_per_pool(int socket_count) {
+  DCHECK_LT(0, socket_count);
+  DCHECK_GT(1000, socket_count);  // Sanity check.
+  g_max_sockets_per_pool = socket_count;
+  DCHECK_GE(g_max_sockets_per_pool, g_max_sockets_per_group);
+}
+
+// static
 int ClientSocketPoolManager::max_sockets_per_group() {
   return g_max_sockets_per_group;
 }
@@ -559,7 +567,7 @@ void ClientSocketPoolManager::set_max_sockets_per_group(int socket_count) {
   DCHECK_GT(100, socket_count);
   g_max_sockets_per_group = socket_count;
 
-  DCHECK_GE(g_max_sockets, g_max_sockets_per_group);
+  DCHECK_GE(g_max_sockets_per_pool, g_max_sockets_per_group);
   DCHECK_GE(g_max_sockets_per_proxy_server, g_max_sockets_per_group);
 }
 
