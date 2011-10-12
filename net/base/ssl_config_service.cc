@@ -137,12 +137,8 @@ void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
       (orig_config.rev_checking_enabled != new_config.rev_checking_enabled) ||
       (orig_config.ssl3_enabled != new_config.ssl3_enabled) ||
       (orig_config.tls1_enabled != new_config.tls1_enabled) ||
-      (orig_config.disabled_cipher_suites.size() !=
-       new_config.disabled_cipher_suites.size());
-  if (!config_changed) {
-    config_changed = (orig_config.disabled_cipher_suites !=
-        new_config.disabled_cipher_suites);
-  }
+      (orig_config.disabled_cipher_suites !=
+       new_config.disabled_cipher_suites);
 
   if (config_changed)
     FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());
