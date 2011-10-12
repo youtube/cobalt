@@ -7,7 +7,8 @@
 
 #include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/compiler_specific.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/threading/platform_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -96,18 +97,18 @@ class AddRemoveThread : public PlatformThread::Delegate,
         start_(Time::Now()),
         count_observes_(0),
         count_addtask_(0),
-        do_notifies_(notify) {
-    factory_ = new ScopedRunnableMethodFactory<AddRemoveThread>(this);
+        do_notifies_(notify),
+        ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
   }
 
   virtual ~AddRemoveThread() {
-    delete factory_;
   }
 
   void ThreadMain() {
     loop_ = new MessageLoop();  // Fire up a message loop.
     loop_->PostTask(
-        FROM_HERE, factory_->NewRunnableMethod(&AddRemoveThread::AddTask));
+        FROM_HERE,
+        base::Bind(&AddRemoveThread::AddTask, weak_factory_.GetWeakPtr()));
     loop_->Run();
     //LOG(ERROR) << "Loop 0x" << std::hex << loop_ << " done. " <<
     //    count_observes_ << ", " << count_addtask_;
@@ -135,8 +136,9 @@ class AddRemoveThread : public PlatformThread::Delegate,
       list_->Notify(&Foo::Observe, 10);
     }
 
-    loop_->PostDelayedTask(FROM_HERE,
-      factory_->NewRunnableMethod(&AddRemoveThread::AddTask), 0);
+    loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&AddRemoveThread::AddTask, weak_factory_.GetWeakPtr()));
   }
 
   void Quit() {
@@ -168,7 +170,7 @@ class AddRemoveThread : public PlatformThread::Delegate,
   int count_addtask_;   // Number of times thread AddTask was called
   bool do_notifies_;    // Whether these threads should do notifications.
 
-  ScopedRunnableMethodFactory<AddRemoveThread>* factory_;
+  base::WeakPtrFactory<AddRemoveThread> weak_factory_;
 };
 
 TEST(ObserverListTest, BasicTest) {
