@@ -26,6 +26,10 @@ HostResolverImpl* HostResolver::GetAsHostResolverImpl() {
   return NULL;
 }
 
+HostCache* HostResolver::GetHostCache() {
+  return NULL;
+}
+
 HostResolver::HostResolver() {
 }
 
