@@ -625,8 +625,11 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
                                      "dropcam.com",
                                      false));
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.dropcam.com",
+                                     "www.dropcam.com",
                                      false));
+  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
+                                      "foo.dropcam.com",
+                                      false));
 
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
                                      "ebanking.indovinabank.com.vn",
