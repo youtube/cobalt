@@ -11,7 +11,6 @@
 
 #include "base/file_path.h"
 #include "base/task.h"
-#include "net/base/completion_callback.h"
 #include "net/base/file_stream.h"
 #include "net/base/net_export.h"
 #include "net/http/http_byte_range.h"
@@ -57,7 +56,6 @@ class NET_EXPORT URLRequestFileJob : public URLRequestJob {
   // Callback after data is asynchronously read from the file.
   void DidRead(int result);
 
-  OldCompletionCallbackImpl<URLRequestFileJob> io_callback_;
   FileStream stream_;
   bool is_directory_;
 

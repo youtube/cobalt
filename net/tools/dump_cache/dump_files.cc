@@ -34,7 +34,7 @@ bool ReadHeader(const std::wstring& name, char* header, int header_size) {
     return false;
   }
 
-  int read = file.Read(header, header_size, NULL);
+  int read = file.Read(header, header_size, net::CompletionCallback());
   if (read != header_size) {
     printf("Unable to read file %ls\n", name.c_str());
     return false;
