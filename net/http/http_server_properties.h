@@ -14,7 +14,7 @@
 namespace net {
 
 enum AlternateProtocol {
-  NPN_SPDY_1,
+  NPN_SPDY_1 = 0,
   NPN_SPDY_2,
   NUM_ALTERNATE_PROTOCOLS,
   ALTERNATE_PROTOCOL_BROKEN,  // The alternate protocol is known to be broken.
@@ -47,7 +47,7 @@ class NET_EXPORT HttpServerProperties {
   virtual ~HttpServerProperties() {}
 
   // Deletes all data.
-  virtual void DeleteAll() = 0;
+  virtual void Clear() = 0;
 
   // Returns true if |server| supports SPDY.
   virtual bool SupportsSpdy(const HostPortPair& server) const = 0;
