@@ -1159,8 +1159,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   // outstanding jobs map.
   Key key = GetEffectiveKeyForRequest(info);
 
-  int rv = ResolveHelper(request_id, key, info, addresses,
-                         source_net_log, request_net_log);
+  int rv = ResolveHelper(request_id, key, info, addresses, request_net_log);
   if (rv != ERR_DNS_CACHE_MISS) {
     OnFinishRequest(source_net_log, request_net_log, request_id, info,
                     rv,
@@ -1201,8 +1200,7 @@ int HostResolverImpl::ResolveHelper(int request_id,
                                     const Key& key,
                                     const RequestInfo& info,
                                     AddressList* addresses,
-                                    const BoundNetLog& request_net_log,
-                                    const BoundNetLog& source_net_log) {
+                                    const BoundNetLog& request_net_log) {
   // The result of |getaddrinfo| for empty hosts is inconsistent across systems.
   // On Windows it gives the default interface's address, whereas on Linux it
   // gives an error. We will make it fail on all platforms for consistency.
@@ -1237,8 +1235,7 @@ int HostResolverImpl::ResolveFromCache(const RequestInfo& info,
   // outstanding jobs map.
   Key key = GetEffectiveKeyForRequest(info);
 
-  int rv = ResolveHelper(request_id, key, info, addresses, request_net_log,
-                         source_net_log);
+  int rv = ResolveHelper(request_id, key, info, addresses, request_net_log);
   OnFinishRequest(source_net_log, request_net_log, request_id, info,
                   rv,
                   0  /* os_error (unknown since from cache) */);
