@@ -712,6 +712,13 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
                                      "foo.luneta.nearbuysystems.com",
                                      false));
+  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
+                                     "ubertt.org",
+                                     false));
+  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
+                                     "foo.ubertt.org",
+                                     false));
+
 
 #if defined(OS_CHROMEOS)
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
