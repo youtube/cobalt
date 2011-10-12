@@ -64,7 +64,7 @@
  "mac-release-10.5/intl2/vm_size_final_b/vm_size_f_b": {"reva": 99507, "revb": 100009, "improve": -41984, "regress": 30677, "sha1": "3eee21a2"},
  "mac-release-10.5/intl2/vm_size_final_r/vm_size_f_r": {"reva": 99507, "revb": 100009, "improve": -41984, "regress": 30677, "sha1": "7083d3a6"},
  "mac-release-10.5/intl2/vm_size_final_t/vm_size_f_t": {"reva": 99507, "revb": 100009, "improve": -83967, "regress": 61354, "sha1": "0e141561"},
- "mac-release-10.5/morejs/times/t": {"reva": 102686, "revb": 102737, "improve": -22, "regress": 126, "sha1": "40e6200c"},
+ "mac-release-10.5/morejs/times/t": {"reva": 104707, "revb": 105102, "improve": -187, "regress": 445, "sha1": "b23b0a48"},
  "mac-release-10.5/moz/times/t": {"reva": 77344, "revb": 78139, "improve": -380, "regress": 630, "sha1": "384b2cca"},
  "mac-release-10.5/startup/warm/t": {"reva": 99359, "revb": 100009, "improve": -69, "regress": 164, "sha1": "9bea4271"},
  "mac-release-10.5/v8_benchmark/score/score": {"reva": 68710, "revb": 69063, "improve": 722, "regress": -734, "sha1": "e2ce2009"},
