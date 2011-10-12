@@ -167,15 +167,14 @@ class NET_EXPORT HostResolverImpl
   typedef std::vector<HostResolver::Observer*> ObserversList;
 
   // Helper used by |Resolve()| and |ResolveFromCache()|.  Performs IP
-  // literal and cache lookup, returns OK if successfull,
+  // literal and cache lookup, returns OK if successful,
   // ERR_NAME_NOT_RESOLVED if either hostname is invalid or IP literal is
   // incompatible, ERR_DNS_CACHE_MISS if entry was not found in cache.
   int ResolveHelper(int request_id,
                     const Key& key,
                     const RequestInfo& info,
                     AddressList* addresses,
-                    const BoundNetLog& request_net_log,
-                    const BoundNetLog& source_net_log);
+                    const BoundNetLog& request_net_log);
 
   // Tries to resolve |key| as an IP, returns true and sets |net_error| if
   // succeeds, returns false otherwise.
