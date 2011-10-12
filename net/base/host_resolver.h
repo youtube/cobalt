@@ -21,6 +21,7 @@ namespace net {
 
 class AddressList;
 class BoundNetLog;
+class HostCache;
 class HostResolverImpl;
 class HostResolverProc;
 class NetLog;
@@ -190,8 +191,15 @@ class NET_EXPORT HostResolver {
 
   // Returns |this| cast to a HostResolverImpl*, or NULL if the subclass
   // is not compatible with HostResolverImpl. Used primarily to expose
-  // additional functionality on the about:net-internals page.
+  // ProbeIPv6Support.
+  // TODO(mmenke):  Get rid of this function, so there's no externally visible
+  //                difference between using a HostResolverImpl and an
+  //                AsyncHostResolver.
   virtual HostResolverImpl* GetAsHostResolverImpl();
+
+  // Returns the HostResolverCache |this| uses, or NULL if there isn't one.
+  // Used primarily to clear the cache and for getting debug information.
+  virtual HostCache* GetHostCache();
 
  protected:
   HostResolver();
