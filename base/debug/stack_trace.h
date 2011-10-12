@@ -7,6 +7,7 @@
 #pragma once
 
 #include <iosfwd>
+#include <string>
 
 #include "base/base_export.h"
 #include "build/build_config.h"
@@ -51,6 +52,9 @@ class BASE_EXPORT StackTrace {
 
   // Resolves backtrace to symbols and write to stream.
   void OutputToStream(std::ostream* os) const;
+
+  // Resolves backtrace to symbols and returns as string.
+  std::string ToString() const;
 
  private:
   // From http://msdn.microsoft.com/en-us/library/bb204633.aspx,
