@@ -36,6 +36,9 @@ class NET_EXPORT HttpServerPropertiesImpl
   void InitializeSpdyServers(std::vector<std::string>* spdy_servers,
                              bool support_spdy);
 
+  void InitializeAlternateProtocolServers(
+      AlternateProtocolMap* alternate_protocol_servers);
+
   // Get the list of servers (host/port) that support SPDY.
   void GetSpdyServerList(base::ListValue* spdy_server_list) const;
 
@@ -55,7 +58,7 @@ class NET_EXPORT HttpServerPropertiesImpl
   // -----------------------------
 
   // Deletes all data.
-  virtual void DeleteAll() OVERRIDE;
+  virtual void Clear() OVERRIDE;
 
   // Returns true if |server| supports SPDY.
   virtual bool SupportsSpdy(const HostPortPair& server) const OVERRIDE;

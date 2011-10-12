@@ -30,7 +30,7 @@ class HttpServerPropertiesImplTest : public testing::Test {
 
 typedef HttpServerPropertiesImplTest SpdyServerPropertiesTest;
 
-TEST_F(SpdyServerPropertiesTest, InitializeTest) {
+TEST_F(SpdyServerPropertiesTest, Initialize) {
   HostPortPair spdy_server_google("www.google.com", 443);
   std::string spdy_server_g =
       HttpServerPropertiesImpl::GetFlattenedSpdyServer(spdy_server_google);
@@ -88,7 +88,7 @@ TEST_F(SpdyServerPropertiesTest, SupportsSpdyTest) {
   EXPECT_TRUE(impl_.SupportsSpdy(spdy_server_docs));
 }
 
-TEST_F(SpdyServerPropertiesTest, SetSupportsSpdyTest) {
+TEST_F(SpdyServerPropertiesTest, SetSupportsSpdy) {
   HostPortPair spdy_server_empty("", 443);
   impl_.SetSupportsSpdy(spdy_server_empty, true);
   EXPECT_FALSE(impl_.SupportsSpdy(spdy_server_empty));
@@ -111,7 +111,7 @@ TEST_F(SpdyServerPropertiesTest, SetSupportsSpdyTest) {
   EXPECT_FALSE(impl_.SupportsSpdy(spdy_server_google));
 }
 
-TEST_F(SpdyServerPropertiesTest, DeleteAllTest) {
+TEST_F(SpdyServerPropertiesTest, Clear) {
   // Add www.google.com:443 and mail.google.com:443 as supporting SPDY.
   HostPortPair spdy_server_google("www.google.com", 443);
   impl_.SetSupportsSpdy(spdy_server_google, true);
@@ -121,12 +121,12 @@ TEST_F(SpdyServerPropertiesTest, DeleteAllTest) {
   EXPECT_TRUE(impl_.SupportsSpdy(spdy_server_google));
   EXPECT_TRUE(impl_.SupportsSpdy(spdy_server_mail));
 
-  impl_.DeleteAll();
+  impl_.Clear();
   EXPECT_FALSE(impl_.SupportsSpdy(spdy_server_google));
   EXPECT_FALSE(impl_.SupportsSpdy(spdy_server_mail));
 }
 
-TEST_F(SpdyServerPropertiesTest, GetSpdyServerListTest) {
+TEST_F(SpdyServerPropertiesTest, GetSpdyServerList) {
   base::ListValue spdy_server_list;
 
   // Check there are no spdy_servers.
@@ -197,6 +197,34 @@ TEST_F(AlternateProtocolServerPropertiesTest, Basic) {
       impl_.GetAlternateProtocol(test_host_port_pair);
   EXPECT_EQ(443, alternate.port);
   EXPECT_EQ(NPN_SPDY_1, alternate.protocol);
+
+  impl_.Clear();
+  EXPECT_FALSE(impl_.HasAlternateProtocol(test_host_port_pair));
+}
+
+TEST_F(AlternateProtocolServerPropertiesTest, Initialize) {
+  HostPortPair test_host_port_pair1("foo1", 80);
+  impl_.SetBrokenAlternateProtocol(test_host_port_pair1);
+  HostPortPair test_host_port_pair2("foo2", 80);
+  impl_.SetAlternateProtocol(
+      test_host_port_pair2, 443, NPN_SPDY_1);
+
+  AlternateProtocolMap alternate_protocol_map;
+  PortAlternateProtocolPair port_alternate_protocol_pair;
+  port_alternate_protocol_pair.port = 123;
+  port_alternate_protocol_pair.protocol = NPN_SPDY_2;
+  alternate_protocol_map[test_host_port_pair2] = port_alternate_protocol_pair;
+  impl_.InitializeAlternateProtocolServers(&alternate_protocol_map);
+
+  ASSERT_TRUE(impl_.HasAlternateProtocol(test_host_port_pair1));
+  ASSERT_TRUE(impl_.HasAlternateProtocol(test_host_port_pair2));
+  port_alternate_protocol_pair =
+      impl_.GetAlternateProtocol(test_host_port_pair1);
+  EXPECT_EQ(ALTERNATE_PROTOCOL_BROKEN, port_alternate_protocol_pair.protocol);
+  port_alternate_protocol_pair =
+      impl_.GetAlternateProtocol(test_host_port_pair2);
+  EXPECT_EQ(123, port_alternate_protocol_pair.port);
+  EXPECT_EQ(NPN_SPDY_2, port_alternate_protocol_pair.protocol);
 }
 
 TEST_F(AlternateProtocolServerPropertiesTest, SetBroken) {

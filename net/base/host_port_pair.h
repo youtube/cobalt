@@ -27,6 +27,10 @@ class NET_EXPORT HostPortPair {
   // Creates a HostPortPair from an addrinfo struct.
   static HostPortPair FromAddrInfo(const struct addrinfo* ai);
 
+  // Creates a HostPortPair from a string formatted in same manner as
+  // ToString().
+  static HostPortPair FromString(const std::string& str);
+
   // TODO(willchan): Define a functor instead.
   // Comparator function so this can be placed in a std::map.
   bool operator<(const HostPortPair& other) const {
