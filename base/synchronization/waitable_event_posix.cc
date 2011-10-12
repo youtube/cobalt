@@ -149,8 +149,9 @@ class SyncWaiter : public WaitableEvent::Waiter {
   base::ConditionVariable cv_;
 };
 
-bool WaitableEvent::Wait() {
-  return TimedWait(TimeDelta::FromSeconds(-1));
+void WaitableEvent::Wait() {
+  bool result = TimedWait(TimeDelta::FromSeconds(-1));
+  DCHECK(result) << "TimedWait() should never fail with infinite timeout";
 }
 
 bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
@@ -158,21 +159,21 @@ bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
   const bool finite_time = max_time.ToInternalValue() >= 0;
 
   kernel_->lock_.Acquire();
-    if (kernel_->signaled_) {
-      if (!kernel_->manual_reset_) {
-        // In this case we were signaled when we had no waiters. Now that
-        // someone has waited upon us, we can automatically reset.
-        kernel_->signaled_ = false;
-      }
-
-      kernel_->lock_.Release();
-      return true;
+  if (kernel_->signaled_) {
+    if (!kernel_->manual_reset_) {
+      // In this case we were signaled when we had no waiters. Now that
+      // someone has waited upon us, we can automatically reset.
+      kernel_->signaled_ = false;
     }
 
-    SyncWaiter sw;
-    sw.lock()->Acquire();
+    kernel_->lock_.Release();
+    return true;
+  }
 
-    Enqueue(&sw);
+  SyncWaiter sw;
+  sw.lock()->Acquire();
+
+  Enqueue(&sw);
   kernel_->lock_.Release();
   // We are violating locking order here by holding the SyncWaiter lock but not
   // the WaitableEvent lock. However, this is safe because we don't lock @lock_
@@ -193,7 +194,7 @@ bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
       sw.lock()->Release();
 
       kernel_->lock_.Acquire();
-        kernel_->Dequeue(&sw, &sw);
+      kernel_->Dequeue(&sw, &sw);
       kernel_->lock_.Release();
 
       return return_value;

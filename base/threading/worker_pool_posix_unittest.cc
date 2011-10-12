@@ -106,7 +106,7 @@ class BlockingIncrementingTask : public Task {
       (*num_waiting_to_start_)++;
     }
     num_waiting_to_start_cv_->Signal();
-    CHECK(start_->Wait());
+    start_->Wait();
     incrementer_.Run();
   }
 
