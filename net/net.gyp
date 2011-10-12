@@ -942,6 +942,7 @@
         'base/gzip_filter_unittest.cc',
         'base/host_cache_unittest.cc',
         'base/host_mapping_rules_unittest.cc',
+        'base/host_port_pair_unittest.cc',
         'base/host_resolver_impl_unittest.cc',
         'base/ip_endpoint_unittest.cc',
         'base/keygen_handler_unittest.cc',

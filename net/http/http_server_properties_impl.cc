@@ -30,6 +30,19 @@ void HttpServerPropertiesImpl::InitializeSpdyServers(
   }
 }
 
+void HttpServerPropertiesImpl::InitializeAlternateProtocolServers(
+    AlternateProtocolMap* alternate_protocol_map) {
+  // First swap, and then add back all the ALTERNATE_PROTOCOL_BROKEN ones since
+  // those don't get persisted.
+  alternate_protocol_map_.swap(*alternate_protocol_map);
+  for (AlternateProtocolMap::const_iterator it =
+       alternate_protocol_map->begin();
+       it != alternate_protocol_map->end(); ++it) {
+    if (it->second.protocol == ALTERNATE_PROTOCOL_BROKEN)
+      alternate_protocol_map_[it->first] = it->second;
+  }
+}
+
 void HttpServerPropertiesImpl::GetSpdyServerList(
     base::ListValue* spdy_server_list) const {
   DCHECK(CalledOnValidThread());
@@ -71,7 +84,7 @@ void HttpServerPropertiesImpl::DisableForcedAlternateProtocol() {
   g_forced_alternate_protocol = NULL;
 }
 
-void HttpServerPropertiesImpl::DeleteAll() {
+void HttpServerPropertiesImpl::Clear() {
   DCHECK(CalledOnValidThread());
   spdy_servers_table_.clear();
   alternate_protocol_map_.clear();
