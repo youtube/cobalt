@@ -121,6 +121,14 @@ TEST(ToolsSanityTest, SingleElementDeletedWithBraces) {
   delete [] foo;
 }
 
+#ifdef ADDRESS_SANITIZER
+TEST(ToolsSanityTest, DISABLED_AddressSanitizerCrashTest) {
+  // Intentionally crash to make sure AddressSanitizer is running.
+  // This test should not be ran on bots.
+  int* volatile zero = NULL;
+  *zero = 0;
+}
+#endif
 
 namespace {
 
