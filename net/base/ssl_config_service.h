@@ -134,13 +134,6 @@ class NET_EXPORT SSLConfigService
 
   SSLConfigService();
 
-  // Create an instance of SSLConfigService which retrieves the configuration
-  // from the system SSL configuration, or an instance of
-  // SSLConfigServiceDefaults if the current system does not have a system SSL
-  // configuration.  Note: this does not handle SSLConfigService implementations
-  // that are not native to their platform, such as preference-backed ones.
-  static SSLConfigService* CreateSystemSSLConfigService();
-
   // May not be thread-safe, should only be called on the IO thread.
   virtual void GetSSLConfig(SSLConfig* config) = 0;
 
