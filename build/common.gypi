@@ -383,6 +383,9 @@
     # Whether to build for Wayland display server
     'use_wayland%': 0,
 
+    # Use system yasm instead of bundled one.
+    'use_system_yasm%': 0,
+
     # Default to enabled PIE; this is important for ASLR but we need to be
     # able to turn it off for remote debugging on Chromium OS
     'linux_disable_pie%': 0,
