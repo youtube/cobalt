@@ -119,7 +119,7 @@ class NET_EXPORT ProxyConfig {
 
   // Used to numerically identify this configuration.
   ID id() const { return id_; }
-  void set_id(int id) { id_ = id; }
+  void set_id(ID id) { id_ = id; }
   bool is_valid() const { return id_ != kInvalidConfigID; }
 
   // Returns true if the given config is equivalent to this config.
@@ -205,7 +205,7 @@ class NET_EXPORT ProxyConfig {
   // Manual proxy settings.
   ProxyRules proxy_rules_;
 
-  int id_;
+  ID id_;
 };
 
 }  // namespace net
