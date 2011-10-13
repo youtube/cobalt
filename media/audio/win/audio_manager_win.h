@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include <windows.h>
 
 #include "base/basictypes.h"
-#include "base/compiler_specific.h"
 #include "media/audio/audio_manager_base.h"
 
 class PCMWaveInAudioInputStream;
@@ -21,19 +20,18 @@ class AudioManagerWin : public AudioManagerBase {
  public:
   AudioManagerWin();
   // Implementation of AudioManager.
-  virtual bool HasAudioOutputDevices() OVERRIDE;
-  virtual bool HasAudioInputDevices() OVERRIDE;
+  virtual bool HasAudioOutputDevices();
+  virtual bool HasAudioInputDevices();
   virtual AudioOutputStream* MakeAudioOutputStream(
-      const AudioParameters& params) OVERRIDE;
+      const AudioParameters& params);
   virtual AudioInputStream* MakeAudioInputStream(
-      const AudioParameters& params) OVERRIDE;
-  virtual void MuteAll() OVERRIDE;
-  virtual void UnMuteAll() OVERRIDE;
-  virtual string16 GetAudioInputDeviceModel() OVERRIDE;
-  virtual bool CanShowAudioInputSettings() OVERRIDE;
-  virtual void ShowAudioInputSettings() OVERRIDE;
-  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names)
-      OVERRIDE;
+      const AudioParameters& params);
+  virtual void MuteAll();
+  virtual void UnMuteAll();
+  virtual string16 GetAudioInputDeviceModel();
+  virtual bool CanShowAudioInputSettings();
+  virtual void ShowAudioInputSettings();
+  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names);
 
   // Windows-only methods to free a stream created in MakeAudioStream. These
   // are called internally by the audio stream when it has been closed.

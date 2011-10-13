@@ -49,11 +49,6 @@ void AudioManagerOpenBSD::UnMuteAll() {
   NOTIMPLEMENTED();
 }
 
-bool AudioManagerOpenBSD::IsRecordingInProgress() {
-  NOTIMPLEMENTED();
-  return false;
-}
-
 // static
 AudioManager* AudioManager::CreateAudioManager() {
   return new AudioManagerOpenBSD();

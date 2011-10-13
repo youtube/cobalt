@@ -12,8 +12,7 @@ const char AudioManagerBase::kDefaultDeviceName[] = "Default";
 
 AudioManagerBase::AudioManagerBase()
     : audio_thread_("AudioThread"),
-      initialized_(false),
-      num_active_input_streams_(0) {
+      initialized_(false) {
 }
 
 AudioManagerBase::~AudioManagerBase() {
@@ -62,20 +61,4 @@ void AudioManagerBase::ShowAudioInputSettings() {
 
 void AudioManagerBase::GetAudioInputDeviceNames(
     media::AudioDeviceNames* device_names) {
-}
-
-void AudioManagerBase::IncreaseActiveInputStreamCount() {
-  base::AutoLock auto_lock(active_input_streams_lock_);
-  ++num_active_input_streams_;
-}
-
-void AudioManagerBase::DecreaseActiveInputStreamCount() {
-  base::AutoLock auto_lock(active_input_streams_lock_);
-  DCHECK_GT(num_active_input_streams_, 0);
-  --num_active_input_streams_;
-}
-
-bool AudioManagerBase::IsRecordingInProcess() {
-  base::AutoLock auto_lock(active_input_streams_lock_);
-  return num_active_input_streams_ > 0;
 }
