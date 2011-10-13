@@ -183,6 +183,17 @@ STR UnescapeURLWithOffsetsImpl(const STR& escaped_text,
   return result;
 }
 
+template <class str>
+str EscapeForHTMLImpl(const str& input) {
+  str result;
+  result.reserve(input.size());  // Optimize for no escaping.
+
+  for (typename str::const_iterator i = input.begin(); i != input.end(); ++i)
+    AppendEscapedCharForHTMLImpl(*i, &result);
+
+  return result;
+}
+
 }  // namespace
 
 // Everything except alphanumerics and !'()*-._~
@@ -259,16 +270,7 @@ void AppendEscapedCharForHTML(char c, std::string* output) {
   AppendEscapedCharForHTMLImpl(c, output);
 }
 
-template <class str>
-str EscapeForHTMLImpl(const str& input) {
-  str result;
-  result.reserve(input.size());  // optimize for no escaping
-
-  for (typename str::const_iterator it = input.begin(); it != input.end(); ++it)
-    AppendEscapedCharForHTMLImpl(*it, &result);
-
-  return result;
-}
+namespace net {
 
 std::string EscapeForHTML(const std::string& input) {
   return EscapeForHTMLImpl(input);
@@ -277,8 +279,6 @@ std::string EscapeForHTML(const std::string& input) {
 string16 EscapeForHTML(const string16& input) {
   return EscapeForHTMLImpl(input);
 }
-
-namespace net {
 
 std::string UnescapeURLComponent(const std::string& escaped_text,
                                  UnescapeRule::Type rules) {
