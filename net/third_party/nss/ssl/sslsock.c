@@ -187,7 +187,7 @@ static sslOptions ssl_defaults = {
     PR_FALSE,   /* enableFalseStart   */
     PR_FALSE,   /* enableOCSPStapling */
     PR_FALSE,   /* enableCachedInfo */
-    PR_TRUE,    /* enableOBCerts */
+    PR_FALSE,   /* enableOBCerts */
 };
 
 sslSessionIDLookupFunc  ssl_sid_lookup;
