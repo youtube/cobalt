@@ -4,13 +4,6 @@
 
 #include "net/base/net_util.h"
 
-#include <unicode/regex.h>
-#include <unicode/ucnv.h>
-#include <unicode/uidna.h>
-#include <unicode/ulocdata.h>
-#include <unicode/uniset.h>
-#include <unicode/uscript.h>
-#include <unicode/uset.h>
 #include <algorithm>
 #include <iterator>
 #include <map>
@@ -70,6 +63,13 @@
 #include "net/base/winsock_init.h"
 #endif
 #include "unicode/datefmt.h"
+#include "unicode/regex.h"
+#include "unicode/ucnv.h"
+#include "unicode/uidna.h"
+#include "unicode/ulocdata.h"
+#include "unicode/uniset.h"
+#include "unicode/uscript.h"
+#include "unicode/uset.h"
 
 using base::Time;
 
