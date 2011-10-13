@@ -121,6 +121,8 @@ void PCMWaveInAudioInputStream::Start(AudioInputCallback* callback) {
   if (result != MMSYSERR_NOERROR) {
     HandleError(result);
     state_ = kStateReady;
+  } else {
+    manager_->IncreaseActiveInputStreamCount();
   }
 }
 
@@ -138,6 +140,10 @@ void PCMWaveInAudioInputStream::Stop() {
     HandleError(::GetLastError());
     return;
   }
+  // Stop is always called before Close. In case of error, this will be
+  // also called when closing the input controller.
+  manager_->DecreaseActiveInputStreamCount();
+
   state_ = kStateStopped;
   MMRESULT res = ::waveInReset(wavein_);
   if (res != MMSYSERR_NOERROR) {
