@@ -203,14 +203,20 @@ class ObserverList : public ObserverListBase<ObserverType> {
       DCHECK_EQ(ObserverListBase<ObserverType>::size(), 0U);
     }
   }
+
+  bool might_have_observers() const {
+    return ObserverListBase<ObserverType>::size() != 0;
+  }
 };
 
-#define FOR_EACH_OBSERVER(ObserverType, observer_list, func)  \
-  do {                                                        \
-    ObserverListBase<ObserverType>::Iterator it(observer_list);   \
-    ObserverType* obs;                                        \
-    while ((obs = it.GetNext()) != NULL)                      \
-      obs->func;                                              \
+#define FOR_EACH_OBSERVER(ObserverType, observer_list, func)         \
+  do {                                                               \
+    if ((observer_list).might_have_observers()) {                    \
+      ObserverListBase<ObserverType>::Iterator it(observer_list);    \
+      ObserverType* obs;                                             \
+      while ((obs = it.GetNext()) != NULL)                           \
+        obs->func;                                                   \
+    }                                                                \
   } while (0)
 
 #endif  // BASE_OBSERVER_LIST_H__
