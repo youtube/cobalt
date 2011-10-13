@@ -100,6 +100,9 @@ class MEDIA_EXPORT AudioManager {
   virtual void MuteAll() = 0;
   virtual void UnMuteAll() = 0;
 
+  // Used to determine if something else is currently making use of audio input.
+  virtual bool IsRecordingInProcess() = 0;
+
   // Returns message loop used for audio IO.
   virtual MessageLoop* GetMessageLoop() = 0;
 
