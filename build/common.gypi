@@ -2172,10 +2172,6 @@
 
                 # See comments on this flag higher up in this file.
                 '-Wno-unnamed-type-template-args',
-
-                # TODO(thakis): Reenable once the one instance this warns on
-                # is fixed.
-                '-Wno-parentheses',
               ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
