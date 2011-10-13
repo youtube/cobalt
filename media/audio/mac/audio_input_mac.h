@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include <AudioToolbox/AudioQueue.h>
 #include <AudioToolbox/AudioFormat.h>
 
-#include "base/compiler_specific.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -24,10 +23,10 @@ class PCMQueueInAudioInputStream : public AudioInputStream {
   virtual ~PCMQueueInAudioInputStream();
 
   // Implementation of AudioInputStream.
-  virtual bool Open() OVERRIDE;
-  virtual void Start(AudioInputCallback* callback) OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void Close() OVERRIDE;
+  virtual bool Open();
+  virtual void Start(AudioInputCallback* callback);
+  virtual void Stop();
+  virtual void Close();
 
  private:
   // Issue the OnError to |callback_|;

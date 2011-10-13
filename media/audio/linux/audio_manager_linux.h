@@ -7,7 +7,6 @@
 
 #include <set>
 
-#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread.h"
 #include "media/audio/audio_manager_base.h"
@@ -19,24 +18,22 @@ class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
   AudioManagerLinux();
 
   // Call before using a newly created AudioManagerLinux instance.
-  virtual void Init() OVERRIDE;
+  virtual void Init();
 
   // Implementation of AudioManager.
-  virtual bool HasAudioOutputDevices() OVERRIDE;
-  virtual bool HasAudioInputDevices() OVERRIDE;
+  virtual bool HasAudioOutputDevices();
+  virtual bool HasAudioInputDevices();
   virtual AudioOutputStream* MakeAudioOutputStream(
-      const AudioParameters& params) OVERRIDE;
-  virtual AudioInputStream* MakeAudioInputStream(const AudioParameters& params)
-      OVERRIDE;
-  virtual bool CanShowAudioInputSettings() OVERRIDE;
-  virtual void ShowAudioInputSettings() OVERRIDE;
-  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names)
-      OVERRIDE;
+      const AudioParameters& params);
+  virtual AudioInputStream* MakeAudioInputStream(const AudioParameters& params);
+  virtual bool CanShowAudioInputSettings();
+  virtual void ShowAudioInputSettings();
+  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names);
 
-  virtual void MuteAll() OVERRIDE;
-  virtual void UnMuteAll() OVERRIDE;
+  virtual void MuteAll();
+  virtual void UnMuteAll();
 
-  virtual void ReleaseOutputStream(AudioOutputStream* stream) OVERRIDE;
+  virtual void ReleaseOutputStream(AudioOutputStream* stream);
 
  protected:
   virtual ~AudioManagerLinux();

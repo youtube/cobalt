@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 #define MEDIA_AUDIO_MAC_AUDIO_MANAGER_MAC_H_
 
 #include "base/basictypes.h"
-#include "base/compiler_specific.h"
 #include "media/audio/audio_manager_base.h"
 
 class PCMQueueInAudioInputStream;
@@ -20,16 +19,15 @@ class AudioManagerMac : public AudioManagerBase {
   AudioManagerMac();
 
   // Implementation of AudioManager.
-  virtual bool HasAudioOutputDevices() OVERRIDE;
-  virtual bool HasAudioInputDevices() OVERRIDE;
-  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names)
-      OVERRIDE;
+  virtual bool HasAudioOutputDevices();
+  virtual bool HasAudioInputDevices();
+  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names);
   virtual AudioOutputStream* MakeAudioOutputStream(
-      const AudioParameters& params) OVERRIDE;
+      const AudioParameters& params);
   virtual AudioInputStream* MakeAudioInputStream(
-      const AudioParameters& params) OVERRIDE;
-  virtual void MuteAll() OVERRIDE;
-  virtual void UnMuteAll() OVERRIDE;
+      const AudioParameters& params);
+  virtual void MuteAll();
+  virtual void UnMuteAll();
 
   // Mac-only method to free the streams created by above facoty methods.
   // They are called internally by the respective audio stream when it has
