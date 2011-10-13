@@ -77,6 +77,8 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   // No spdy specified.
   static const char kNpnProtosHttpOnly[] = "\x08http/1.1\x07http1.1";
 
+  static const char kInitialMaxConcurrentStreams[] = "init-max-streams";
+
   std::vector<std::string> spdy_options;
   base::SplitString(mode, ',', &spdy_options);
 
@@ -127,6 +129,10 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kSingleDomain) {
       SpdySessionPool::ForceSingleDomain();
       LOG(ERROR) << "FORCING SINGLE DOMAIN";
+    } else if (option == kInitialMaxConcurrentStreams) {
+      int streams;
+      if (base::StringToInt(value, &streams) && streams > 0)
+        SpdySession::set_init_max_concurrent_streams(streams);
     } else if (option.empty() && it == spdy_options.begin()) {
       continue;
     } else {
