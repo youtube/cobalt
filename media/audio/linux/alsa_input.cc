@@ -9,10 +9,8 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/time.h"
-#include "media/audio/audio_manager.h"
 #include "media/audio/linux/alsa_util.h"
 #include "media/audio/linux/alsa_wrapper.h"
-#include "media/audio/linux/audio_manager_linux.h"
 
 static const int kNumPacketsInRingBuffer = 3;
 
@@ -107,9 +105,6 @@ void AlsaPcmInputStream::Start(AudioInputCallback* callback) {
         FROM_HERE,
         base::Bind(&AlsaPcmInputStream::ReadAudio, weak_factory_.GetWeakPtr()),
         delay_ms);
-
-    static_cast<AudioManagerLinux*>(AudioManager::GetAudioManager())->
-        IncreaseActiveInputStreamCount();
   }
 }
 
@@ -217,11 +212,6 @@ void AlsaPcmInputStream::ReadAudio() {
 void AlsaPcmInputStream::Stop() {
   if (!device_handle_ || !callback_)
     return;
-
-  // Stop is always called before Close. In case of error, this will be
-  // also called when closing the input controller.
-  static_cast<AudioManagerLinux*>(AudioManager::GetAudioManager())->
-      DecreaseActiveInputStreamCount();
 
   weak_factory_.InvalidateWeakPtrs();  // Cancel the next scheduled read.
   int error = wrapper_->PcmDrop(device_handle_);
