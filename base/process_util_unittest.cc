@@ -33,8 +33,6 @@
 #include <signal.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
-#endif
-#if defined(OS_ANDROID)
 #include <sys/wait.h>
 #endif
 #if defined(OS_WIN)
