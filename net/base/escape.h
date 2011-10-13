@@ -39,10 +39,6 @@ NET_EXPORT std::string EscapeExternalHandlerValue(const std::string& text);
 // the character would be interpretted as an HTML delimiter.
 NET_EXPORT void AppendEscapedCharForHTML(char c, std::string* output);
 
-// Escape chars that might cause this text to be interpretted as HTML tags.
-NET_EXPORT std::string EscapeForHTML(const std::string& text);
-NET_EXPORT string16 EscapeForHTML(const string16& text);
-
 // Unescaping ------------------------------------------------------------------
 
 class UnescapeRule {
@@ -86,6 +82,10 @@ class UnescapeRule {
 };
 
 namespace net {
+
+// Escape chars that might cause this text to be interpretted as HTML tags.
+NET_EXPORT std::string EscapeForHTML(const std::string& text);
+NET_EXPORT string16 EscapeForHTML(const string16& text);
 
 // Unescapes |escaped_text| and returns the result.
 // Unescaping consists of looking for the exact pattern "%XX", where each X is
