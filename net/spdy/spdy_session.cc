@@ -208,6 +208,9 @@ bool SpdySession::use_ssl_ = true;
 bool SpdySession::use_flow_control_ = false;
 
 // static
+size_t SpdySession::init_max_concurrent_streams_ = 10;
+
+// static
 size_t SpdySession::max_concurrent_stream_limit_ = 256;
 
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
@@ -233,7 +236,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       certificate_error_code_(OK),
       error_(OK),
       state_(IDLE),
-      max_concurrent_streams_(kDefaultMaxConcurrentStreams),
+      max_concurrent_streams_(init_max_concurrent_streams_),
       streams_initiated_count_(0),
       streams_pushed_count_(0),
       streams_pushed_and_claimed_count_(0),
