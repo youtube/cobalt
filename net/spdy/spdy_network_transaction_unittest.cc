@@ -5607,4 +5607,58 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushCrossOriginCorrectness) {
   }
 }
 
+TEST_P(SpdyNetworkTransactionTest, RetryAfterRefused) {
+  // Construct the request.
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 3, LOWEST));
+  MockWrite writes[] = {
+    CreateMockWrite(*req, 1),
+    CreateMockWrite(*req2, 3),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> refused(
+      ConstructSpdyRstStream(1, spdy::REFUSED_STREAM));
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 3));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(3, true));
+  MockRead reads[] = {
+    CreateMockRead(*refused, 2),
+    CreateMockRead(*resp, 4),
+    CreateMockRead(*body, 5),
+    MockRead(true, 0, 6)  // EOF
+  };
+
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+
+  helper.RunPreTestSetup();
+  helper.AddData(data.get());
+
+  HttpNetworkTransaction* trans = helper.trans();
+
+  // Start the transaction with basic parameters.
+  TestOldCompletionCallback callback;
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  // Verify that we consumed all test data.
+  EXPECT_TRUE(data->at_read_eof()) << "Read count: "
+                                   << data->read_count()
+                                   << " Read index: "
+                                   << data->read_index();
+  EXPECT_TRUE(data->at_write_eof()) << "Write count: "
+                                    << data->write_count()
+                                    << " Write index: "
+                                    << data->write_index();
+
+  // Verify the SYN_REPLY.
+  HttpResponseInfo response = *trans->GetResponseInfo();
+  EXPECT_TRUE(response.headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
+}
+
 }  // namespace net

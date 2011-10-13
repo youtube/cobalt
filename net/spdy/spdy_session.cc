@@ -1286,6 +1286,8 @@ void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
 
   if (frame.status() == 0) {
     stream->OnDataReceived(NULL, 0);
+  } else if (frame.status() == spdy::REFUSED_STREAM) {
+    DeleteStream(stream_id, ERR_SPDY_SERVER_REFUSED_STREAM);
   } else {
     LOG(ERROR) << "Spdy stream closed: " << frame.status();
     // TODO(mbelshe): Map from Spdy-protocol errors to something sensical.
