@@ -14,14 +14,16 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #include <tlhelp32.h>
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_OPENBSD)
 // kinfo_proc is defined in <sys/sysctl.h>, but this forward declaration
 // is sufficient for the vector<kinfo_proc> below.
 struct kinfo_proc;
 // malloc_zone_t is defined in <malloc/malloc.h>, but this forward declaration
 // is sufficient for GetPurgeableZone() below.
 typedef struct _malloc_zone_t malloc_zone_t;
+#if !defined(OS_OPENBSD)
 #include <mach/mach.h>
+#endif
 #elif defined(OS_POSIX)
 #include <dirent.h>
 #include <limits.h>
@@ -526,7 +528,7 @@ class BASE_EXPORT ProcessIterator {
 #if defined(OS_WIN)
   HANDLE snapshot_;
   bool started_iteration_;
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_OPENBSD)
   std::vector<kinfo_proc> kinfo_procs_;
   size_t index_of_kinfo_proc_;
 #elif defined(OS_POSIX)
