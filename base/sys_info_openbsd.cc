@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,6 +20,17 @@ int SysInfo::NumberOfProcessors() {
     return 1;
   }
   return ncpu;
+}
+
+int64 SysInfo::AmountOfPhysicalMemory() {
+  long pages = sysconf(_SC_PHYS_PAGES);
+  long page_size = sysconf(_SC_PAGESIZE);
+  if (pages == -1 || page_size == -1) {
+    NOTREACHED();
+    return 0;
+  }
+
+  return static_cast<int64>(pages) * page_size;
 }
 
 }  // namespace base
