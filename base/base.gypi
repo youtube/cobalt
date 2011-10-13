@@ -218,6 +218,7 @@
           'process_util.h',
           'process_util_linux.cc',
           'process_util_mac.mm',
+          'process_util_openbsd.cc',
           'process_util_posix.cc',
           'process_util_win.cc',
           'process_win.cc',
@@ -494,6 +495,12 @@
               'files/file_path_watcher_stub.cc',
             ],
           }],
+          [ 'OS == "openbsd"', {
+            'sources/': [
+              ['include', '^base_paths_linux\\.cc$'],
+              ['include', '^sys_string_conversions_linux\\.cc$'],
+            ],
+          }],
         ],
       }],
     ],
@@ -590,6 +597,9 @@
           ],
         }],
         [ 'OS == "freebsd" or OS == "openbsd"', {
+          'include_dirs': [
+            '/usr/local/include',
+          ],
           'link_settings': {
             'libraries': [
               '-L/usr/local/lib -lexecinfo',
