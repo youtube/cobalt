@@ -9,6 +9,7 @@
 #include <mmsystem.h>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/win/scoped_handle.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
@@ -27,10 +28,10 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
   virtual ~PCMWaveInAudioInputStream();
 
   // Implementation of AudioInputStream.
-  virtual bool Open();
-  virtual void Start(AudioInputCallback* callback);
-  virtual void Stop();
-  virtual void Close();
+  virtual bool Open() OVERRIDE;
+  virtual void Start(AudioInputCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void Close() OVERRIDE;
 
  private:
   enum State {
