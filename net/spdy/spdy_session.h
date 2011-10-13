@@ -147,12 +147,20 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   static void set_flow_control(bool enable) { use_flow_control_ = enable; }
   static bool flow_control() { return use_flow_control_; }
 
-  // Sets the max concurrent streams per session.
+  // Sets the max concurrent streams per session, as a ceiling on any server
+  // specific SETTINGS value.
   static void set_max_concurrent_streams(size_t value) {
     max_concurrent_stream_limit_ = value;
   }
   static size_t max_concurrent_streams() {
-      return max_concurrent_stream_limit_;
+    return max_concurrent_stream_limit_;
+  }
+
+  // The initial max concurrent streams per session, can be overridden by the
+  // server via SETTINGS.
+  static void set_init_max_concurrent_streams(size_t value) {
+    init_max_concurrent_streams_ =
+        std::min(value, max_concurrent_stream_limit_);
   }
 
   // Send WINDOW_UPDATE frame, called by a stream whenever receive window
@@ -250,8 +258,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     CONNECTED,
     CLOSED
   };
-
-  enum { kDefaultMaxConcurrentStreams = 10 };
 
   virtual ~SpdySession();
 
@@ -449,6 +455,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   static bool use_ssl_;
   static bool use_flow_control_;
+  static size_t init_max_concurrent_streams_;
   static size_t max_concurrent_stream_limit_;
 };
 
