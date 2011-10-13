@@ -1202,6 +1202,10 @@ int HttpNetworkTransaction::HandleIOError(int error) {
         error = OK;
       }
       break;
+    case ERR_SPDY_SERVER_REFUSED_STREAM:
+      ResetConnectionAndRequestForResend();
+      error = OK;
+      break;
   }
   return error;
 }
