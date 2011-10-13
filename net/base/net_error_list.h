@@ -501,6 +501,10 @@ NET_ERROR(RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION, -349)
 // The HTTP response contained multiple Location headers.
 NET_ERROR(RESPONSE_HEADERS_MULTIPLE_LOCATION, -350)
 
+// SPDY server refused the stream. Client should retry. This should never be a
+// user-visible error.
+NET_ERROR(SPDY_SERVER_REFUSED_STREAM, -351)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 
