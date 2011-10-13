@@ -53,6 +53,7 @@ class MockAudioManager : public AudioManager {
   MOCK_METHOD0(GetMessageLoop, MessageLoop*());
   MOCK_METHOD1(GetAudioInputDeviceNames, void(
       media::AudioDeviceNames* device_name));
+  MOCK_METHOD0(IsRecordingInProcess, bool());
 };
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {

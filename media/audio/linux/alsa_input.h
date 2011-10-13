@@ -9,6 +9,7 @@
 
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "media/audio/audio_io.h"
@@ -34,10 +35,10 @@ class AlsaPcmInputStream : public AudioInputStream {
   virtual ~AlsaPcmInputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open();
-  virtual void Start(AudioInputCallback* callback);
-  virtual void Stop();
-  virtual void Close();
+  virtual bool Open() OVERRIDE;
+  virtual void Start(AudioInputCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void Close() OVERRIDE;
 
  private:
   // Logs the error and invokes any registered callbacks.
