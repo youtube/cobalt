@@ -13,6 +13,10 @@ namespace media {
 // Signal a pause in low-latency mode.
 const int AudioOutputController::kPauseMark = -1;
 
+// Polling-related constants.
+const int AudioOutputController::kPollNumAttempts = 3;
+const int AudioOutputController::kPollPauseInMilliseconds = 3;
+
 AudioOutputController::AudioOutputController(EventHandler* handler,
                                              uint32 capacity,
                                              SyncReader* sync_reader)
@@ -23,7 +27,8 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
       buffer_(0, capacity),
       pending_request_(false),
       sync_reader_(sync_reader),
-      message_loop_(NULL) {
+      message_loop_(NULL),
+      number_polling_attempts_left_(0) {
 }
 
 AudioOutputController::~AudioOutputController() {
@@ -172,6 +177,43 @@ void AudioOutputController::DoPlay() {
   if (state_ != kCreated && state_ != kPaused)
     return;
   state_ = kPlaying;
+
+  if (LowLatencyMode()) {
+    // Ask for first packet.
+    sync_reader_->UpdatePendingBytes(0);
+
+    // Cannot start stream immediately, should give renderer some time
+    // to deliver data.
+    number_polling_attempts_left_ = kPollNumAttempts;
+    message_loop_->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&AudioOutputController::PollAndStartIfDataReady, this),
+        kPollPauseInMilliseconds);
+  } else {
+    StartStream();
+  }
+}
+
+void AudioOutputController::PollAndStartIfDataReady() {
+  DCHECK_EQ(message_loop_, MessageLoop::current());
+
+  // Being paranoic: do nothing if we were stopped/paused
+  // after DoPlay() but before DoStartStream().
+  if (state_ != kPlaying)
+    return;
+
+  if (--number_polling_attempts_left_ == 0 || sync_reader_->DataReady()) {
+    StartStream();
+  } else {
+    message_loop_->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&AudioOutputController::PollAndStartIfDataReady, this),
+        kPollPauseInMilliseconds);
+  }
+}
+
+void AudioOutputController::StartStream() {
+  DCHECK_EQ(message_loop_, MessageLoop::current());
 
   // We start the AudioOutputStream lazily.
   stream_->Start(this);
