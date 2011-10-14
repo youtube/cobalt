@@ -3,12 +3,12 @@
 // found in the LICENSE file.
 
 #include <string>
-#include <unicode/usearch.h>
 
 #include "base/i18n/rtl.h"
 #include "base/i18n/string_search.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "unicode/usearch.h"
 
 namespace base {
 namespace i18n {
