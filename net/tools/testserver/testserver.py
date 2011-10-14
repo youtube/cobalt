@@ -1,4 +1,4 @@
-#!/usr/bin/python2.4
+#!/usr/bin/env python
 # Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -23,7 +23,6 @@ import os
 import random
 import re
 import select
-import simplejson
 import SocketServer
 import socket
 import sys
@@ -47,6 +46,11 @@ try:
 except ImportError:
   import md5
   _new_md5 = md5.new
+
+try:
+  import json
+except ImportError:
+  import simplejson as json
 
 if sys.platform == 'win32':
   import msvcrt
@@ -1825,7 +1829,7 @@ def main(options, args):
   # Notify the parent that we've started. (BaseServer subclasses
   # bind their sockets on construction.)
   if options.startup_pipe is not None:
-    server_data_json = simplejson.dumps(server_data)
+    server_data_json = json.dumps(server_data)
     server_data_len = len(server_data_json)
     print 'sending server_data: %s (%d bytes)' % (
       server_data_json, server_data_len)
