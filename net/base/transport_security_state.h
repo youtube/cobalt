@@ -113,6 +113,21 @@ class NET_EXPORT TransportSecurityState
                    const std::string& host,
                    bool sni_available);
 
+  // Returns true if we have a preloaded certificate pin for the |host| and if
+  // its set of required certificates is the set we expect for Google
+  // properties. If |sni_available| is true, searches the preloads defined for
+  // SNI-using hosts as well as the usual preload list.
+  //
+  // Note that like HasMetadata, if |host| matches both an exact entry and is a
+  // subdomain of another entry, the exact match determines the return value.
+  //
+  // This function is used by ChromeFraudulentCertificateReporter to determine
+  // whether or not we can automatically post fraudulent certificate reports to
+  // Google; we only do so automatically in cases when the user was trying to
+  // connect to Google in the first place.
+  static bool IsGooglePinnedProperty(const std::string& host,
+                                     bool sni_available);
+
   // Deletes all records created since a given time.
   void DeleteSince(const base::Time& time);
 
