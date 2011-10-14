@@ -197,6 +197,9 @@
       # Safe browsing is compiled in by default. Set to 0 to disable.
       'safe_browsing%': 1,
 
+      # Speech input is compiled in by default. Set to 0 to disable.
+      'input_speech%': 1,
+
       # If this is set, the clang plugins used on the buildbot will be used.
       # Run tools/clang/scripts/update.sh to make sure they are compiled.
       # This causes 'clang_chrome_plugins_flags' to be set.
@@ -385,6 +388,7 @@
     'p2p_apis%': '<(p2p_apis)',
     'configuration_policy%': '<(configuration_policy)',
     'safe_browsing%': '<(safe_browsing)',
+    'input_speech%': '<(input_speech)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'asan%': '<(asan)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
@@ -652,6 +656,7 @@
         'proprietary_codecs%': '<(proprietary_codecs)',
         'safe_browsing%': 0,
         'configuration_policy%': 0,
+        'input_speech%': 0,
 
         # Builds the gtest targets as a shared_library.
         # TODO(michaelbai): Use the fixed value 'shared_library' once it
@@ -1004,6 +1009,9 @@
       }],
       ['configuration_policy==1', {
         'defines': ['ENABLE_CONFIGURATION_POLICY'],
+      }],
+      ['input_speech==1', {
+        'defines': ['ENABLE_INPUT_SPEECH'],
       }],
       ['fastbuild!=0', {
 
