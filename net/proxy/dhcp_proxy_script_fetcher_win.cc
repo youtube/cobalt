@@ -4,6 +4,7 @@
 
 #include "net/proxy/dhcp_proxy_script_fetcher_win.h"
 
+#include "base/bind.h"
 #include "base/metrics/histogram.h"
 #include "base/perftimer.h"
 #include "base/threading/worker_pool.h"
@@ -67,8 +68,17 @@ int DhcpProxyScriptFetcherWin::Fetch(string16* utf16_text,
   client_callback_ = callback;
   destination_string_ = utf16_text;
 
-  worker_thread_ = ImplCreateWorkerThread(AsWeakPtr());
-  worker_thread_->Start();
+  last_query_ = ImplCreateAdapterQuery();
+  base::WorkerPool::PostTaskAndReply(
+      FROM_HERE,
+      base::Bind(
+          &DhcpProxyScriptFetcherWin::AdapterQuery::GetCandidateAdapterNames,
+          last_query_.get()),
+      base::Bind(
+          &DhcpProxyScriptFetcherWin::OnGetCandidateAdapterNamesDone,
+          AsWeakPtr(),
+          last_query_),
+      true);
 
   return ERR_IO_PENDING;
 }
@@ -105,14 +115,26 @@ void DhcpProxyScriptFetcherWin::CancelImpl() {
 }
 
 void DhcpProxyScriptFetcherWin::OnGetCandidateAdapterNamesDone(
-    const std::set<std::string>& adapter_names) {
+    scoped_refptr<AdapterQuery> query) {
   DCHECK(CalledOnValidThread());
+
+  // This can happen if this object is reused for multiple queries,
+  // and a previous query was cancelled before it completed.
+  if (query.get() != last_query_.get())
+    return;
+  last_query_ = NULL;
+
+  // Enable unit tests to wait for this to happen; in production this function
+  // call is a no-op.
+  ImplOnGetCandidateAdapterNamesDone();
 
   // We may have been cancelled.
   if (state_ != STATE_WAIT_ADAPTERS)
     return;
 
   state_ = STATE_NO_RESULTS;
+
+  const std::set<std::string>& adapter_names = query->adapter_names();
 
   if (adapter_names.empty()) {
     TransitionToDone();
@@ -254,10 +276,9 @@ DhcpProxyScriptAdapterFetcher*
   return new DhcpProxyScriptAdapterFetcher(url_request_context_);
 }
 
-DhcpProxyScriptFetcherWin::WorkerThread*
-    DhcpProxyScriptFetcherWin::ImplCreateWorkerThread(
-        const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner) {
-  return new WorkerThread(owner);
+DhcpProxyScriptFetcherWin::AdapterQuery*
+    DhcpProxyScriptFetcherWin::ImplCreateAdapterQuery() {
+  return new AdapterQuery();
 }
 
 int DhcpProxyScriptFetcherWin::ImplGetMaxWaitMs() {
@@ -330,51 +351,22 @@ bool DhcpProxyScriptFetcherWin::GetCandidateAdapterNames(
   return true;
 }
 
-DhcpProxyScriptFetcherWin::WorkerThread::WorkerThread(
-    const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner) {
-  Init(owner);
+DhcpProxyScriptFetcherWin::AdapterQuery::AdapterQuery() {
 }
 
-DhcpProxyScriptFetcherWin::WorkerThread::~WorkerThread() {
+DhcpProxyScriptFetcherWin::AdapterQuery::~AdapterQuery() {
 }
 
-void DhcpProxyScriptFetcherWin::WorkerThread::Start() {
-  bool succeeded = base::WorkerPool::PostTask(
-      FROM_HERE,
-      NewRunnableMethod(
-          this,
-          &DhcpProxyScriptFetcherWin::WorkerThread::ThreadFunc),
-      true);
-  DCHECK(succeeded);
-}
-
-void DhcpProxyScriptFetcherWin::WorkerThread::ThreadFunc() {
+void DhcpProxyScriptFetcherWin::AdapterQuery::GetCandidateAdapterNames() {
   ImplGetCandidateAdapterNames(&adapter_names_);
-
-  bool succeeded = origin_loop_->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(
-          this,
-          &DhcpProxyScriptFetcherWin::WorkerThread::OnThreadDone));
-  DCHECK(succeeded);
 }
 
-void DhcpProxyScriptFetcherWin::WorkerThread::OnThreadDone() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  if (owner_)
-    owner_->OnGetCandidateAdapterNamesDone(adapter_names_);
+const std::set<std::string>&
+    DhcpProxyScriptFetcherWin::AdapterQuery::adapter_names() const {
+  return adapter_names_;
 }
 
-DhcpProxyScriptFetcherWin::WorkerThread::WorkerThread() {
-}
-
-void DhcpProxyScriptFetcherWin::WorkerThread::Init(
-    const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner) {
-  owner_ = owner;
-  origin_loop_ = base::MessageLoopProxy::current();
-}
-
-bool DhcpProxyScriptFetcherWin::WorkerThread::ImplGetCandidateAdapterNames(
+bool DhcpProxyScriptFetcherWin::AdapterQuery::ImplGetCandidateAdapterNames(
     std::set<std::string>* adapter_names) {
   return DhcpProxyScriptFetcherWin::GetCandidateAdapterNames(adapter_names);
 }
