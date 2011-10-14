@@ -60,11 +60,10 @@ class MockDhcpProxyScriptAdapterFetcher
     return fetcher_;
   }
 
-  class DelayingWorkerThread : public WorkerThread {
+  class DelayingDhcpQuery : public DhcpQuery {
    public:
-    explicit DelayingWorkerThread(
-        const base::WeakPtr<DhcpProxyScriptAdapterFetcher>& owner)
-        : WorkerThread(owner),
+    explicit DelayingDhcpQuery()
+        : DhcpQuery(),
           test_finished_event_(true, false) {
     }
 
@@ -80,12 +79,11 @@ class MockDhcpProxyScriptAdapterFetcher
     std::string configured_url_;
   };
 
-  virtual WorkerThread* ImplCreateWorkerThread(
-      const base::WeakPtr<DhcpProxyScriptAdapterFetcher>& owner) OVERRIDE {
-    worker_thread_ = new DelayingWorkerThread(owner);
-    worker_thread_->dhcp_delay_ = TimeDelta::FromMilliseconds(dhcp_delay_ms_);
-    worker_thread_->configured_url_ = configured_url_;
-    return worker_thread_;
+  virtual DhcpQuery* ImplCreateDhcpQuery() OVERRIDE {
+    dhcp_query_ = new DelayingDhcpQuery();
+    dhcp_query_->dhcp_delay_ = TimeDelta::FromMilliseconds(dhcp_delay_ms_);
+    dhcp_query_->configured_url_ = configured_url_;
+    return dhcp_query_;
   }
 
   // Use a shorter timeout so tests can finish more quickly.
@@ -115,8 +113,8 @@ class MockDhcpProxyScriptAdapterFetcher
   }
 
   void FinishTest() {
-    DCHECK(worker_thread_);
-    worker_thread_->test_finished_event_.Signal();
+    DCHECK(dhcp_query_);
+    dhcp_query_->test_finished_event_.Signal();
   }
 
   int dhcp_delay_ms_;
@@ -127,7 +125,7 @@ class MockDhcpProxyScriptAdapterFetcher
   std::string pac_script_;
   MockProxyScriptFetcher* fetcher_;
   base::OneShotTimer<MockDhcpProxyScriptAdapterFetcher> fetcher_timer_;
-  scoped_refptr<DelayingWorkerThread> worker_thread_;
+  scoped_refptr<DelayingDhcpQuery> dhcp_query_;
 };
 
 class FetcherClient {
