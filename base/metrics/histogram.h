@@ -163,7 +163,11 @@ class Lock;
                                         base::Histogram::kNoFlags))
 
 // Support histograming of an enumerated value.  The samples should always be
-// less than boundary_value.
+// strictly less than |boundary_value| -- this prevents you from running into
+// problems down the line if you add additional buckets to the histogram.  Note
+// also that, despite explicitly setting the minimum bucket value to |1| below,
+// it is fine for enumerated histograms to be 0-indexed -- this is because
+// enumerated histograms should never have underflow.
 #define HISTOGRAM_ENUMERATION(name, sample, boundary_value) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
@@ -266,6 +270,8 @@ class Lock;
         base::BooleanHistogram::FactoryGet(name, \
             base::Histogram::kUmaTargetedHistogramFlag))
 
+// The samples should always be strictly less than |boundary_value|.  For more
+// details, see the comment for the |HISTOGRAM_ENUMERATION| macro, above.
 #define UMA_HISTOGRAM_ENUMERATION(name, sample, boundary_value) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
