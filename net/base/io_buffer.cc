@@ -31,6 +31,11 @@ IOBufferWithSize::IOBufferWithSize(int size)
       size_(size) {
 }
 
+IOBufferWithSize::IOBufferWithSize(char* data, int size)
+    : IOBuffer(data),
+      size_(size) {
+}
+
 IOBufferWithSize::~IOBufferWithSize() {
 }
 
