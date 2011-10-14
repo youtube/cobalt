@@ -46,7 +46,11 @@ class NET_EXPORT IOBufferWithSize : public IOBuffer {
 
   int size() const { return size_; }
 
- private:
+ protected:
+  // Purpose of this constructor is to give a subclass access to the base class
+  // constructor IOBuffer(char*) thus allowing subclass to use underlying
+  // memory it does not own.
+  IOBufferWithSize(char* data, int size);
   virtual ~IOBufferWithSize();
 
   int size_;
