@@ -635,7 +635,6 @@
         'udp/udp_socket_libevent.h',
         'udp/udp_socket_win.cc',
         'udp/udp_socket_win.h',
-        'url_request/fraudulent_certificate_reporter.h',
         'url_request/url_request.cc',
         'url_request/url_request.h',
         'url_request/url_request_about_job.cc',
