@@ -235,6 +235,9 @@ class NSSInitSingleton {
   void EnableTPMTokenForNSS(TPMTokenInfoDelegate* info_delegate) {
     CHECK(info_delegate);
     tpm_token_info_delegate_.reset(info_delegate);
+    // Try to load once to avoid jank later.  Ignore the return value,
+    // because if it fails we will try again later.
+    EnsureTPMTokenReady();
   }
 
   // This is called whenever we want to make sure opencryptoki is
