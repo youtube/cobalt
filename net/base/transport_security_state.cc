@@ -1003,6 +1003,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {26, true, "\003ssl\020google-analytics\003com", true,
      kGoogleAcceptableCerts },
     {18, true, "\005drive\006google\003com", true, kGoogleAcceptableCerts },
+    {16, true, "\012googleplex\003com", true, kGoogleAcceptableCerts },
     // Other Google-related domains that must use an acceptable certificate
     // iff using SSL.
     {11, true, "\005ytimg\003com", false, kGoogleAcceptableCerts },
