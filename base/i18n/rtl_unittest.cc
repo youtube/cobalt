@@ -5,7 +5,6 @@
 #include "base/i18n/rtl.h"
 
 #include <algorithm>
-#include <unicode/usearch.h>
 
 #include "base/file_path.h"
 #include "base/string_util.h"
@@ -13,6 +12,7 @@
 #include "base/sys_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
+#include "unicode/usearch.h"
 
 namespace {
 base::i18n::TextDirection GetTextDirection(const char* locale_name) {
