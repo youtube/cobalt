@@ -535,6 +535,9 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
                                       "m.googlemail.com",
                                       false));
+  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
+                                     "www.googleplex.com",
+                                     true));
 
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "romab.com", false));
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.romab.com", false));
@@ -828,6 +831,7 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   EXPECT_TRUE(state.HasPinsForHost(&domain_state,
                                    "ssl.google-analytics.com",
                                    true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "www.googleplex.com", true));
 
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "twitter.com", true));
   EXPECT_FALSE(state.HasPinsForHost(&domain_state, "foo.twitter.com", true));
