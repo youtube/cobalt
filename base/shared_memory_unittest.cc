@@ -42,13 +42,15 @@ class MultipleThreadMain : public PlatformThread::Delegate {
     rv = memory.Map(kDataSize);
     EXPECT_TRUE(rv);
     int *ptr = static_cast<int*>(memory.memory()) + id_;
-    EXPECT_EQ(*ptr, 0);
+    EXPECT_EQ(0, *ptr);
 
     for (int idx = 0; idx < 100; idx++) {
       *ptr = idx;
       PlatformThread::Sleep(1);  // Short wait.
       EXPECT_EQ(*ptr, idx);
     }
+    // Reset back to 0 for the next test that uses the same name.
+    *ptr = 0;
 
     memory.Close();
   }
@@ -228,7 +230,7 @@ TEST(SharedMemoryTest, MultipleThreads) {
   // kNumThreads.
 
   int threadcounts[] = { 1, kNumThreads };
-  for (size_t i = 0; i < sizeof(threadcounts) / sizeof(threadcounts); i++) {
+  for (size_t i = 0; i < arraysize(threadcounts); i++) {
     int numthreads = threadcounts[i];
     scoped_array<PlatformThreadHandle> thread_handles;
     scoped_array<MultipleThreadMain*> thread_delegates;
