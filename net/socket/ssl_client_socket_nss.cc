@@ -1579,6 +1579,7 @@ int SSLClientSocketNSS::ImportOBCertAndKey(CERTCertificate** cert,
 }
 
 int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
+  client_auth_cert_needed_ = false;
   ob_cert_request_handle_ = NULL;
 
   if (result != OK)
