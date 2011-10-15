@@ -6,10 +6,13 @@
 // can be used specify the refcounting and reference semantics of arguments
 // that are bound by the Bind() function in base/bind.h.
 //
-// The public functions are base::Unretained(), base::ConstRef(), and
-// base::IgnoreReturn().
+// The public functions are base::Unretained(), base::Owned(),
+// base::ConstRef(), and base::IgnoreReturn().
 //
-// Unretained() allows Bind() to bind a non-refcounted class.
+// Unretained() allows Bind() to bind a non-refcounted class, and to disable
+// refcounting on arguments that are refcounted objects.
+// Owned() transfers ownership of an object to the Callback resulting from
+// bind; the object will be deleted when the Callback is deleted.
 // ConstRef() allows binding a constant reference to an argument rather
 // than a copy.
 // IgnoreReturn() is used to adapt a 0-argument Callback with a return type to
@@ -26,7 +29,7 @@
 //
 //   // In some function somewhere.
 //   Foo foo;
-//   Callback<void(void)> foo_callback =
+//   Closure foo_callback =
 //       Bind(&Foo::func, Unretained(&foo));
 //   foo_callback.Run();  // Prints "Foo:f".
 //
@@ -34,12 +37,32 @@
 // to compile because Foo does not support the AddRef() and Release() methods.
 //
 //
+// EXAMPLE OF Owned():
+//
+//   void foo(int* arg) { cout << *arg << endl }
+//
+//   int* pn = new int(1);
+//   Closure foo_callback = Bind(&foo, Owned(pn));
+//
+//   foo_callback.Run();  // Prints "1"
+//   foo_callback.Run();  // Prints "1"
+//   *n = 2;
+//   foo_callback.Run();  // Prints "2"
+//
+//   foo_callback.Reset();  // |pn| is deleted.  Also will happen when
+//                          // |foo_callback| goes out of scope.
+//
+// Without Owned(), someone would have to know to delete |pn| when the last
+// reference to the Callback is deleted.
+//
+//
 // EXAMPLE OF ConstRef():
+//
 //   void foo(int arg) { cout << arg << endl }
 //
 //   int n = 1;
-//   Callback<void(void)> no_ref = Bind(&foo, n);
-//   Callback<void(void)> has_ref = Bind(&foo, ConstRef(n));
+//   Closure no_ref = Bind(&foo, n);
+//   Closure has_ref = Bind(&foo, ConstRef(n));
 //
 //   no_ref.Run();  // Prints "1"
 //   has_ref.Run();  // Prints "1"
@@ -53,6 +76,7 @@
 //
 //
 // EXAMPLE OF IgnoreReturn():
+//
 //   int DoSomething(int arg) { cout << arg << endl; }
 //   Callback<int(void)> cb = Bind(&DoSomething, 1);
 //   Closure c = IgnoreReturn(cb);  // Prints "1"
@@ -199,19 +223,41 @@ struct UnsafeBindtoRefCountedArg<T*>
 template <typename T>
 class UnretainedWrapper {
  public:
-  explicit UnretainedWrapper(T* o) : obj_(o) {}
-  T* get() { return obj_; }
+  explicit UnretainedWrapper(T* o) : ptr_(o) {}
+  T* get() const { return ptr_; }
  private:
-  T* obj_;
+  T* ptr_;
 };
 
 template <typename T>
 class ConstRefWrapper {
  public:
   explicit ConstRefWrapper(const T& o) : ptr_(&o) {}
-  const T& get() { return *ptr_; }
+  const T& get() const { return *ptr_; }
  private:
   const T* ptr_;
+};
+
+// An alternate implementation is to avoid the destructive copy, and instead
+// specialize ParamTraits<> for OwnedWrapper<> to change the StorageType to
+// a class that is essentially a scoped_ptr<>.
+//
+// The current implementation has the benefit though of leaving ParamTraits<>
+// fully in callback_internal.h as well as avoiding type conversions during
+// storage.
+template <typename T>
+class OwnedWrapper {
+ public:
+  explicit OwnedWrapper(T* o) : ptr_(o) {}
+  ~OwnedWrapper() { delete ptr_; }
+  T* get() const { return ptr_; }
+  OwnedWrapper(const OwnedWrapper& other) {
+    ptr_ = other.ptr_;
+    other.ptr_ = NULL;
+  }
+
+ private:
+  mutable T* ptr_;
 };
 
 
@@ -233,6 +279,11 @@ T* Unwrap(const scoped_refptr<T>& o) { return o.get(); }
 template <typename T>
 const WeakPtr<T>& Unwrap(const WeakPtr<T>& o) { return o; }
 
+template <typename T>
+T* Unwrap(const OwnedWrapper<T>& o) {
+  return o.get();
+}
+
 // Utility for handling different refcounting semantics in the Bind()
 // function.
 template <typename IsMethod, typename T>
@@ -251,15 +302,21 @@ struct MaybeRefcount<base::false_type, T[n]> {
 };
 
 template <typename T>
+struct MaybeRefcount<base::true_type, T*> {
+  static void AddRef(T* o) { o->AddRef(); }
+  static void Release(T* o) { o->Release(); }
+};
+
+template <typename T>
 struct MaybeRefcount<base::true_type, UnretainedWrapper<T> > {
   static void AddRef(const UnretainedWrapper<T>&) {}
   static void Release(const UnretainedWrapper<T>&) {}
 };
 
 template <typename T>
-struct MaybeRefcount<base::true_type, T*> {
-  static void AddRef(T* o) { o->AddRef(); }
-  static void Release(T* o) { o->Release(); }
+struct MaybeRefcount<base::true_type, OwnedWrapper<T> > {
+  static void AddRef(const OwnedWrapper<T>&) {}
+  static void Release(const OwnedWrapper<T>&) {}
 };
 
 // No need to additionally AddRef() and Release() since we are storing a
@@ -297,6 +354,11 @@ inline internal::UnretainedWrapper<T> Unretained(T* o) {
 template <typename T>
 inline internal::ConstRefWrapper<T> ConstRef(const T& o) {
   return internal::ConstRefWrapper<T>(o);
+}
+
+template <typename T>
+inline internal::OwnedWrapper<T> Owned(T* o) {
+  return internal::OwnedWrapper<T>(o);
 }
 
 template <typename R>
