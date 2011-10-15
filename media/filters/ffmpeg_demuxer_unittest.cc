@@ -31,6 +31,11 @@ using ::testing::_;
 
 namespace media {
 
+MATCHER(IsEndOfStreamBuffer,
+        std::string(negation ? "isn't" : "is") + " end of stream") {
+  return arg->IsEndOfStream();
+}
+
 // Fixture class to facilitate writing tests.  Takes care of setting up the
 // FFmpeg, pipeline and filter host mocks.
 class FFmpegDemuxerTest : public testing::Test {
@@ -51,8 +56,10 @@ class FFmpegDemuxerTest : public testing::Test {
   }
 
   virtual ~FFmpegDemuxerTest() {
-    // Call Stop() to shut down internal threads.
-    demuxer_->Stop(NewExpectedClosure());
+    if (demuxer_) {
+      // Call Stop() to shut down internal threads.
+      demuxer_->Stop(NewExpectedClosure());
+    }
 
     // Finish up any remaining tasks.
     message_loop_.RunAllPending();
@@ -376,8 +383,8 @@ class MockReadCallback : public base::RefCountedThreadSafe<MockReadCallback> {
 };
 
 TEST_F(FFmpegDemuxerTest, Stop) {
-  // Tests that calling Read() on a stopped demuxer immediately deletes the
-  // callback.
+  // Tests that calling Read() on a stopped demuxer stream immediately deletes
+  // the callback.
   InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
 
   // Get our stream.
@@ -396,8 +403,52 @@ TEST_F(FFmpegDemuxerTest, Stop) {
 
   // The callback should be immediately deleted.  We'll use a checkpoint to
   // verify that it has indeed been deleted.
+  EXPECT_CALL(*callback, Run(NotNull()));
   EXPECT_CALL(*callback, OnDelete());
   EXPECT_CALL(*this, CheckPoint(1));
+
+  // Attempt the read...
+  audio->Read(base::Bind(&MockReadCallback::Run, callback));
+
+  message_loop_.RunAllPending();
+
+  // ...and verify that |callback| was deleted.
+  CheckPoint(1);
+}
+
+// The streams can outlive the demuxer because the streams may still be in use
+// by the decoder when the demuxer is destroyed.
+// This test verifies that DemuxerStream::Read() does not use an invalid demuxer
+// pointer (no crash occurs) and calls the callback with an EndOfStream buffer.
+TEST_F(FFmpegDemuxerTest, StreamReadAfterStopAndDemuxerDestruction) {
+  InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
+
+  // Get our stream.
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  ASSERT_TRUE(audio);
+
+  demuxer_->Stop(NewExpectedClosure());
+
+  // Finish up any remaining tasks.
+  message_loop_.RunAllPending();
+
+  // Expect all calls in sequence.
+  InSequence s;
+
+  // Create our mocked callback. The Callback created by base::Bind() will take
+  // ownership of this pointer.
+  StrictMock<MockReadCallback>* callback = new StrictMock<MockReadCallback>();
+
+  // The callback should be immediately deleted.  We'll use a checkpoint to
+  // verify that it has indeed been deleted.
+  EXPECT_CALL(*callback, Run(IsEndOfStreamBuffer()));
+  EXPECT_CALL(*callback, OnDelete());
+  EXPECT_CALL(*this, CheckPoint(1));
+
+  // Release the reference to the demuxer. This should also destroy it.
+  demuxer_ = NULL;
+  // |audio| now has a demuxer_ pointer to invalid memory.
 
   // Attempt the read...
   audio->Read(base::Bind(&MockReadCallback::Run, callback));
