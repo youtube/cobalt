@@ -22,7 +22,7 @@ struct PendingTask {
         task(task) {
 #if defined(TRACK_ALL_TASK_OBJECTS)
     post_births = tracked_objects::ThreadData::TallyABirthIfActive(posted_from);
-    time_posted = TimeTicks::Now();
+    time_posted = tracked_objects::ThreadData::Now();
 #endif  // defined(TRACK_ALL_TASK_OBJECTS)
   }
 
@@ -46,12 +46,16 @@ DWORD CALLBACK WorkItemCallback(void* param) {
   UNSHIPPED_TRACE_EVENT2("task", "WorkItemCallback::Run",
                          "src_file", pending_task->posted_from.file_name(),
                          "src_func", pending_task->posted_from.function_name());
+
+#if defined(TRACK_ALL_TASK_OBJECTS)
+  TimeTicks start_of_run = tracked_objects::ThreadData::Now();
+#endif  // defined(TRACK_ALL_TASK_OBJECTS)
   pending_task->task.Run();
 #if defined(TRACK_ALL_TASK_OBJECTS)
-  tracked_objects::ThreadData::TallyADeathIfActive(
-      pending_task->post_births,
-      TimeTicks::Now() - pending_task->time_posted);
+  tracked_objects::ThreadData::TallyADeathIfActive(pending_task->post_births,
+      pending_task->time_posted, TimeTicks::TimeTicks(), start_of_run);
 #endif  // defined(TRACK_ALL_TASK_OBJECTS)
+
   delete pending_task;
   return 0;
 }

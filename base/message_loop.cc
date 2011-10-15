@@ -476,23 +476,25 @@ void MessageLoop::RunTask(const PendingTask& pending_task) {
   base::debug::Alias(&program_counter);
 
   HistogramEvent(kTaskRunEvent);
+
+#if defined(TRACK_ALL_TASK_OBJECTS)
+  TimeTicks start_of_run = tracked_objects::ThreadData::Now();
+#endif  // defined(TRACK_ALL_TASK_OBJECTS)
+
   FOR_EACH_OBSERVER(TaskObserver, task_observers_,
                     WillProcessTask(pending_task.time_posted));
   pending_task.task.Run();
   FOR_EACH_OBSERVER(TaskObserver, task_observers_,
                     DidProcessTask(pending_task.time_posted));
-
 #if defined(TRACK_ALL_TASK_OBJECTS)
-  tracked_objects::ThreadData::TallyADeathIfActive(
-      pending_task.post_births,
-      TimeTicks::Now() - pending_task.time_posted);
+  tracked_objects::ThreadData::TallyADeathIfActive(pending_task.post_births,
+    pending_task.time_posted, pending_task.delayed_run_time, start_of_run);
 #endif  // defined(TRACK_ALL_TASK_OBJECTS)
 
   nestable_tasks_allowed_ = true;
 }
 
-bool MessageLoop::DeferOrRunPendingTask(
-    const PendingTask& pending_task) {
+bool MessageLoop::DeferOrRunPendingTask(const PendingTask& pending_task) {
   if (pending_task.nestable || state_->run_depth == 1) {
     RunTask(pending_task);
     // Show that we ran a task (Note: a new one might arrive as a
