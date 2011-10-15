@@ -1032,4 +1032,67 @@ TEST_F(TransportSecurityStateTest, DISABLED_ParseSidePinsFuzz) {
   }
 }
 
+TEST_F(TransportSecurityStateTest, GooglePinnedProperties) {
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "www.example.com", true));
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "www.paypal.com", true));
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "mail.twitter.com", true));
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "www.google.com.int", true));
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "jottit.com", true));
+  // learn.doubleclick.net has a more specific match than
+  // *.doubleclick.com, and has 0 or NULL for its required certs.
+  // This test ensures that the exact-match-preferred behavior
+  // works.
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "learn.doubleclick.net", true));
+
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "encrypted.google.com", true));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "mail.google.com", true));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "accounts.google.com", true));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "doubleclick.net", true));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "ad.doubleclick.net", true));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "youtube.com", true));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "www.profiles.google.com", true));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "checkout.google.com", true));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "googleadservices.com", true));
+
+  // Test with sni_enabled false:
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "www.example.com", false));
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "www.paypal.com", false));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "checkout.google.com", false));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "googleadservices.com", false));
+
+  // Test some SNI hosts:
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "gmail.com", true));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "googlegroups.com", true));
+  EXPECT_TRUE(TransportSecurityState::IsGooglePinnedProperty(
+      "www.googlegroups.com", true));
+  // Expect to fail for SNI hosts when not searching the SNI list:
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "gmail.com", false));
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "googlegroups.com", false));
+  EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
+      "www.googlegroups.com", false));
+}
+
 }  // namespace net
