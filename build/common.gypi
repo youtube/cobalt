@@ -1841,6 +1841,12 @@
               # removed when we change to that.  (This is also why we don't
               # bother fixing all these cases today.)
               '-Wno-unnamed-type-template-args',
+              # WebKit uses nullptr in a legit way, other that that this warning
+              # doesn't fire.
+              '-Wno-c++11-compat',
+              # This (rightyfully) complains about 'override', which we use
+              # heavily.
+              '-Wno-c++11-extensions',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
@@ -2186,16 +2192,19 @@
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'WARNING_CFLAGS': [
                 '-Wheader-hygiene',
-
                 # Don't die on dtoa code that uses a char as an array index.
                 # This is required solely for base/third_party/dmg_fp/dtoa.cc.
                 '-Wno-char-subscripts',
-
                 # Clang spots more unused functions.
                 '-Wno-unused-function',
-
                 # See comments on this flag higher up in this file.
                 '-Wno-unnamed-type-template-args',
+                # WebKit uses nullptr in a legit way, other that that this
+                # warning doesn't fire.
+                '-Wno-c++0x-compat',
+                # This (rightyfully) complains about 'override', which we use
+                # heavily.
+                '-Wno-c++11-extensions',
               ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
