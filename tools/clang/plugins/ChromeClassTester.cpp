@@ -177,7 +177,7 @@ std::string ChromeClassTester::GetNamespaceImpl(const DeclContext* context,
       if (decl->isAnonymousNamespace())
         OS << "<anonymous namespace>";
       else
-        OS << decl;
+        OS << *decl;
       return GetNamespaceImpl(context->getParent(),
                               OS.str());
     }

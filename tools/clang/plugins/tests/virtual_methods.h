@@ -23,4 +23,17 @@ class WarnOnMissingVirtual : public VirtualMethodsInHeaders {
   void MethodHasNoArguments();
 };
 
+// Don't complain about things in a 'testing' namespace.
+namespace testing {
+struct TestStruct {};
+}  // namespace testing
+
+class VirtualMethodsInHeadersTesting : public VirtualMethodsInHeaders {
+ public:
+  // Don't complain about no virtual testing methods.
+  void MethodHasNoArguments();
+ private:
+  testing::TestStruct tester_;
+};
+
 #endif  // VIRTUAL_METHODS_H_
