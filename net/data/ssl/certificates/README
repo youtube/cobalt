@@ -51,3 +51,8 @@ unit tests.
 - google_diginotar.pem
 - diginotar_public_ca_2025.pem : A certificate chain for the regression test
       of http://crbug.com/94673
+
+- test_mail_google_com.pem : A certificate signed by the test CA for
+    "mail.google.com". Because it is signed by that CA instead of the true CA
+    for that host, it will fail the
+    TransportSecurityState::IsChainOfPublicKeysPermitted test.
