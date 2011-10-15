@@ -27,7 +27,6 @@ class CertVerifier;
 class CookieStore;
 class DnsCertProvenanceChecker;
 class DnsRRResolver;
-class FraudulentCertificateReporter;
 class FtpTransactionFactory;
 class HostResolver;
 class HttpAuthHandlerFactory;
@@ -101,14 +100,6 @@ class NET_EXPORT URLRequestContext
   }
   void set_dns_cert_checker(DnsCertProvenanceChecker* dns_cert_checker) {
     dns_cert_checker_ = dns_cert_checker;
-  }
-
-  FraudulentCertificateReporter* fraudulent_certificate_reporter() const {
-    return fraudulent_certificate_reporter_;
-  }
-  void set_fraudulent_certificate_reporter(
-      FraudulentCertificateReporter* fraudulent_certificate_reporter) {
-    fraudulent_certificate_reporter_ = fraudulent_certificate_reporter;
   }
 
   // Get the proxy service for this context.
@@ -227,7 +218,6 @@ class NET_EXPORT URLRequestContext
   OriginBoundCertService* origin_bound_cert_service_;
   DnsRRResolver* dnsrr_resolver_;
   DnsCertProvenanceChecker* dns_cert_checker_;
-  FraudulentCertificateReporter* fraudulent_certificate_reporter_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   ProxyService* proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;

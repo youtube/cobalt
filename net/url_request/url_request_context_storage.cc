@@ -18,7 +18,6 @@
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/dns_cert_provenance_checker.h"
-#include "net/url_request/fraudulent_certificate_reporter.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_job_factory.h"
 
@@ -62,13 +61,6 @@ void URLRequestContextStorage::set_dns_cert_checker(
     DnsCertProvenanceChecker* dns_cert_checker) {
   context_->set_dns_cert_checker(dns_cert_checker);
   dns_cert_checker_.reset(dns_cert_checker);
-}
-
-void URLRequestContextStorage::set_fraudulent_certificate_reporter(
-    FraudulentCertificateReporter* fraudulent_certificate_reporter) {
-  context_->set_fraudulent_certificate_reporter(
-      fraudulent_certificate_reporter);
-  fraudulent_certificate_reporter_.reset(fraudulent_certificate_reporter);
 }
 
 void URLRequestContextStorage::set_http_auth_handler_factory(
