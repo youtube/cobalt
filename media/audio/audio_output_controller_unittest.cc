@@ -177,7 +177,7 @@ TEST(AudioOutputControllerTest, PlayAndCloseLowLatency) {
   EXPECT_CALL(sync_reader, Read(_, kHardwareBufferSize))
       .Times(AtLeast(10))
       .WillRepeatedly(DoAll(SignalEvent(&event),
-                            Return(1)));
+                            Return(4)));
   EXPECT_CALL(sync_reader, Close());
 
   AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
