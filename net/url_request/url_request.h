@@ -38,7 +38,6 @@ class ResourceDispatcherHostTest;
 class TestAutomationProvider;
 class URLRequestAutomationJob;
 class UserScriptListenerTest;
-class NetworkDelayListenerTest;
 
 // Temporary layering violation to allow existing users of a deprecated
 // interface.
@@ -176,7 +175,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     friend class ::ResourceDispatcherHostTest;
     friend class ::TestAutomationProvider;
     friend class ::UserScriptListenerTest;
-    friend class ::NetworkDelayListenerTest;
     friend class ::URLRequestAutomationJob;
     friend class TestInterceptor;
     friend class URLRequestFilter;
