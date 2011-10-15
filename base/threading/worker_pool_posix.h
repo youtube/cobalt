@@ -31,11 +31,13 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/location.h"
+#include "base/time.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
+#include "base/tracked_objects.h"
 
 class Task;
 
@@ -50,10 +52,14 @@ class BASE_EXPORT PosixDynamicThreadPool
     PendingTask(const tracked_objects::Location& posted_from,
                 const base::Closure& task);
     ~PendingTask();
-    // TODO(ajwong): After we figure out why Mac's ~AtExitManager dies when
-    // destructing the lock, add in extra info so we can call
-    // tracked_objects::TallyADeathIfActive() and
-    // tracked_objects::TallyABirthIfActive correctly.
+
+#if defined(TRACK_ALL_TASK_OBJECTS)
+    // Counter for location where the Closure was posted from.
+    tracked_objects::Births* post_births;
+
+    // Time the task was posted.
+    TimeTicks time_posted;
+#endif  // defined(TRACK_ALL_TASK_OBJECTS)
 
     const tracked_objects::Location posted_from;
 
