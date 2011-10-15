@@ -133,6 +133,22 @@ class CopyCounter {
   int* assigns_;
 };
 
+class DeleteCounter {
+ public:
+  explicit DeleteCounter(int* deletes)
+      : deletes_(deletes) {
+  }
+
+  ~DeleteCounter() {
+    (*deletes_)++;
+  }
+
+  void VoidMethod0() {}
+
+ private:
+  int* deletes_;
+};
+
 // Some test functions that we can Bind to.
 template <typename T>
 T PolymorphicIdentity(T t) {
@@ -185,11 +201,6 @@ void RefArgSet(int &n) {
 
 int FunctionWithWeakFirstParam(WeakPtr<NoRef> o, int n) {
   return n;
-}
-
-// Only useful in no-compile tests.
-int UnwrapNoRefParentRef(Parent& p) {
-  return p.value;
 }
 
 class BindTest : public ::testing::Test {
@@ -593,6 +604,31 @@ TEST_F(BindTest, ConstRef) {
   EXPECT_EQ(0, all_const_ref_cb.Run());
   EXPECT_EQ(0, copies);
   EXPECT_EQ(0, assigns);
+}
+
+// Test Owned() support.
+TEST_F(BindTest, Owned) {
+  int deletes = 0;
+  DeleteCounter* counter = new DeleteCounter(&deletes);
+
+  // If we don't capture, delete happens on Callback destruction/reset.
+  // return the same value.
+  Callback<DeleteCounter*(void)> no_capture_cb =
+      Bind(&PolymorphicIdentity<DeleteCounter*>, Owned(counter));
+  EXPECT_EQ(counter, no_capture_cb.Run());
+  EXPECT_EQ(counter, no_capture_cb.Run());
+  EXPECT_EQ(0, deletes);
+  no_capture_cb.Reset();  // This should trigger a delete.
+  EXPECT_EQ(1, deletes);
+
+  deletes = 0;
+  counter = new DeleteCounter(&deletes);
+  base::Closure own_object_cb =
+      Bind(&DeleteCounter::VoidMethod0, Owned(counter));
+  own_object_cb.Run();
+  EXPECT_EQ(0, deletes);
+  own_object_cb.Reset();
+  EXPECT_EQ(1, deletes);
 }
 
 // Argument Copy-constructor usage for non-reference parameters.
