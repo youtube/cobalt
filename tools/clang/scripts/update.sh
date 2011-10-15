@@ -27,6 +27,7 @@ OS="$(uname -s)"
 # Parse command line options.
 force_local_build=
 mac_only=
+run_tests=
 while [[ $# > 0 ]]; do
   case $1 in
     --force-local-build)
@@ -35,10 +36,14 @@ while [[ $# > 0 ]]; do
     --mac-only)
       mac_only=yes
       ;;
+    --run-tests)
+      run_tests=yes
+      ;;
     --help)
-      echo "usage: $0 [--force-local-build] [--mac-only] "
+      echo "usage: $0 [--force-local-build] [--mac-only] [--run-tests] "
       echo "--force-local-build: Don't try to download prebuilt binaries."
       echo "--mac-only: Do nothing on non-Mac systems."
+      echo "--run-tests: Run tests after building. Only for local builds."
       exit 1
       ;;
   esac
@@ -207,6 +212,11 @@ rm -rf "${PLUGIN_BUILD_DIR}"
 mkdir -p "${PLUGIN_BUILD_DIR}"
 cp "${PLUGIN_SRC_DIR}/Makefile" "${PLUGIN_BUILD_DIR}"
 make -j"${NUM_JOBS}" -C "${PLUGIN_BUILD_DIR}"
+
+if [[ -n "$run_tests" ]]; then
+  # Run a few tests.
+  "${PLUGIN_SRC_DIR}/tests/test.sh" "${LLVM_BUILD_DIR}/Release+Asserts"
+fi
 
 # After everything is done, log success for this revision.
 echo "${CLANG_REVISION}" > "${STAMP_FILE}"
