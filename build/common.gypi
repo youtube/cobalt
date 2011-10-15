@@ -1272,7 +1272,9 @@
             'sources/': [ ['exclude', '_views\\.(h|cc)$'] ]
           }],
           ['use_aura==0', {
-            'sources/': [ ['exclude', '_aura\\.(h|cc)$'] ]
+            'sources/': [ ['exclude', '_aura\\.(h|cc)$'],
+                          ['exclude', '(^|/)aura/'],
+            ]
           }],
           ['use_aura==0 or use_x11==0', {
             'sources/': [ ['exclude', '_aurax11\\.(h|cc)$'] ]
