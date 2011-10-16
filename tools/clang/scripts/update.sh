@@ -64,7 +64,8 @@ done
 # http://crbug.com/96315
 if [[ "${OS}" = "Darwin" ]] && xcodebuild -version | grep -q 'Xcode 3.2' ; then
   XCONF=com.apple.Xcode
-  if [ "$(defaults read "${XCONF}" EnablePredictiveCompilation)" != "0" ]; then
+  if [[ "${GYP_GENERATORS}" != "make" ]] && \
+     [ "$(defaults read "${XCONF}" EnablePredictiveCompilation)" != "0" ]; then
     echo
     echo "          HEARKEN!"
     echo "You're using Xcode3 and you have 'Predictive Compilation' enabled."
