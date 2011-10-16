@@ -78,9 +78,9 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
   const Births* second_birth = ThreadData::TallyABirthIfActive(location);
   ThreadData::TallyADeathIfActive(
       second_birth,
-      base::TimeTicks::TimeTicks(), /* Bogus post_time. */
-      base::TimeTicks::TimeTicks(), /* Bogus delayed_start_time. */
-      base::TimeTicks::TimeTicks()  /* Bogus start_run_time. */);
+      base::TimeTicks(), /* Bogus post_time. */
+      base::TimeTicks(), /* Bogus delayed_start_time. */
+      base::TimeTicks()  /* Bogus start_run_time. */);
 
   birth_map.clear();
   data->SnapshotBirthMap(&birth_map);

@@ -94,7 +94,7 @@ void WorkerThread::ThreadMain() {
     pending_task.task.Run();
 #if defined(TRACK_ALL_TASK_OBJECTS)
     tracked_objects::ThreadData::TallyADeathIfActive(pending_task.post_births,
-        pending_task.time_posted, TimeTicks::TimeTicks(), start_of_run);
+        pending_task.time_posted, TimeTicks(), start_of_run);
 #endif  // defined(TRACK_ALL_TASK_OBJECTS)
   }
 
