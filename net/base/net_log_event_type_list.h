@@ -851,6 +851,13 @@ EVENT_TYPE(SPDY_SESSION_RST_STREAM)
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_RST_STREAM)
 
+// Sending of a SPDY PING frame.
+// The following parameters are attached:
+//   {
+//     "unique_id": <The unique id of the PING message>,
+//   }
+EVENT_TYPE(SPDY_SESSION_PING)
+
 // Receipt of a SPDY GOAWAY frame.
 // The following parameters are attached:
 //   {
