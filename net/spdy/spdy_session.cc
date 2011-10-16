@@ -172,6 +172,23 @@ class NetLogSpdyRstParameter : public NetLog::EventParameters {
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyRstParameter);
 };
 
+class NetLogSpdyPingParameter : public NetLog::EventParameters {
+ public:
+  explicit NetLogSpdyPingParameter(uint32 unique_id) : unique_id_(unique_id) {}
+
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    dict->SetInteger("unique_id", unique_id_);
+    return dict;
+  }
+
+ private:
+  ~NetLogSpdyPingParameter() {}
+  const uint32 unique_id_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetLogSpdyPingParameter);
+};
+
 class NetLogSpdyGoAwayParameter : public NetLog::EventParameters {
  public:
   NetLogSpdyGoAwayParameter(spdy::SpdyStreamId last_stream_id,
@@ -213,6 +230,18 @@ size_t SpdySession::init_max_concurrent_streams_ = 10;
 // static
 size_t SpdySession::max_concurrent_stream_limit_ = 256;
 
+// static
+bool SpdySession::enable_ping_based_connection_checking_ = true;
+
+// static
+int SpdySession::connection_at_risk_of_loss_ms_ = 0;
+
+// static
+int SpdySession::trailing_ping_delay_time_ms_ = 1000;
+
+// static
+int SpdySession::hung_interval_ms_ = 10000;
+
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          SpdySessionPool* spdy_session_pool,
                          SpdySettingsStorage* spdy_settings,
@@ -246,6 +275,12 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       sent_settings_(false),
       received_settings_(false),
       stalled_streams_(0),
+      pings_in_flight_(0),
+      next_ping_id_(1),
+      received_data_time_(base::TimeTicks::Now()),
+      trailing_ping_pending_(false),
+      check_ping_status_pending_(false),
+      last_sent_was_ping_(false),
       initial_send_window_size_(spdy::kSpdyStreamInitialWindowSize),
       initial_recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)),
@@ -474,6 +509,8 @@ int SpdySession::WriteSynStream(
   const scoped_refptr<SpdyStream>& stream = active_streams_[stream_id];
   CHECK_EQ(stream->stream_id(), stream_id);
 
+  SendPrefacePingIfNoneInFlight();
+
   scoped_ptr<spdy::SpdySynStreamControlFrame> syn_frame(
       spdy_framer_.CreateSynStream(
           stream_id, 0,
@@ -491,6 +528,7 @@ int SpdySession::WriteSynStream(
         make_scoped_refptr(
             new NetLogSpdySynParameter(headers, flags, stream_id, 0)));
   }
+  last_sent_was_ping_ = false;
 
   return ERR_IO_PENDING;
 }
@@ -504,6 +542,8 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   CHECK_EQ(stream->stream_id(), stream_id);
   if (!stream)
     return ERR_INVALID_SPDY_STREAM;
+
+  SendPrefacePingIfNoneInFlight();
 
   if (len > kMaxSpdyFrameChunkSize) {
     len = kMaxSpdyFrameChunkSize;
@@ -544,6 +584,7 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   scoped_ptr<spdy::SpdyDataFrame> frame(
       spdy_framer_.CreateDataFrame(stream_id, data->data(), len, flags));
   QueueFrame(frame.get(), stream->priority(), stream);
+  last_sent_was_ping_ = false;
   return ERR_IO_PENDING;
 }
 
@@ -571,7 +612,7 @@ void SpdySession::ResetStream(
     priority = stream->priority();
   }
   QueueFrame(rst_frame.get(), priority, NULL);
-
+  last_sent_was_ping_ = false;
   DeleteStream(stream_id, ERR_SPDY_PROTOCOL_ERROR);
 }
 
@@ -611,6 +652,8 @@ void SpdySession::OnReadComplete(int bytes_read) {
   }
 
   bytes_received_ += bytes_read;
+
+  received_data_time_ = base::TimeTicks::Now();
 
   // The SpdyFramer will use callbacks onto |this| as it parses frames.
   // When errors occur, those callbacks can lead to teardown of all references
@@ -1229,6 +1272,9 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
     case spdy::GOAWAY:
       OnGoAway(*reinterpret_cast<const spdy::SpdyGoAwayControlFrame*>(frame));
       break;
+    case spdy::PING:
+      OnPing(*reinterpret_cast<const spdy::SpdyPingControlFrame*>(frame));
+      break;
     case spdy::SETTINGS:
       OnSettings(
           *reinterpret_cast<const spdy::SpdySettingsControlFrame*>(frame));
@@ -1317,6 +1363,32 @@ void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
   // closed.
 }
 
+void SpdySession::OnPing(const spdy::SpdyPingControlFrame& frame) {
+  net_log_.AddEvent(
+      NetLog::TYPE_SPDY_SESSION_PING,
+      make_scoped_refptr(new NetLogSpdyPingParameter(frame.unique_id())));
+
+  // Send response to a PING from server.
+  if (frame.unique_id() % 2 == 0) {
+    WritePingFrame(frame.unique_id());
+    return;
+  }
+
+  --pings_in_flight_;
+  if (pings_in_flight_ < 0) {
+    CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true);
+    return;
+  }
+
+  if (pings_in_flight_ > 0)
+    return;
+
+  if (last_sent_was_ping_)
+    return;
+
+  PlanToSendTrailingPing();
+}
+
 void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
   spdy::SpdySettings settings;
   if (spdy_framer_.ParseSettings(&frame, &settings)) {
@@ -1374,6 +1446,7 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
   scoped_ptr<spdy::SpdyWindowUpdateControlFrame> window_update_frame(
       spdy_framer_.CreateWindowUpdate(stream_id, delta_window_size));
   QueueFrame(window_update_frame.get(), stream->priority(), stream);
+  last_sent_was_ping_ = false;
 }
 
 // Given a cwnd that we would have sent to the server, modify it based on the
@@ -1438,6 +1511,7 @@ void SpdySession::SendSettings() {
       spdy_framer_.CreateSettings(settings));
   sent_settings_ = true;
   QueueFrame(settings_frame.get(), 0, NULL);
+  last_sent_was_ping_ = false;
 }
 
 void SpdySession::HandleSettings(const spdy::SpdySettings& settings) {
@@ -1453,6 +1527,101 @@ void SpdySession::HandleSettings(const spdy::SpdySettings& settings) {
         break;
     }
   }
+}
+
+void SpdySession::SendPrefacePingIfNoneInFlight() {
+  if (pings_in_flight_ || trailing_ping_pending_ ||
+      !enable_ping_based_connection_checking_)
+    return;
+
+  const base::TimeDelta kConnectionAtRiskOfLoss =
+      base::TimeDelta::FromMilliseconds(connection_at_risk_of_loss_ms_);
+
+  base::TimeTicks now = base::TimeTicks::Now();
+  // If we haven't heard from server, then send a preface-PING.
+  if ((now - received_data_time_) > kConnectionAtRiskOfLoss)
+    SendPrefacePing();
+
+  PlanToSendTrailingPing();
+}
+
+void SpdySession::SendPrefacePing() {
+  WritePingFrame(next_ping_id_);
+}
+
+void SpdySession::PlanToSendTrailingPing() {
+  if (trailing_ping_pending_)
+    return;
+
+  trailing_ping_pending_ = true;
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(&SpdySession::SendTrailingPing),
+      trailing_ping_delay_time_ms_);
+}
+
+void SpdySession::SendTrailingPing() {
+  DCHECK(trailing_ping_pending_);
+  trailing_ping_pending_ = false;
+  WritePingFrame(next_ping_id_);
+}
+
+void SpdySession::WritePingFrame(uint32 unique_id) {
+  scoped_ptr<spdy::SpdyPingControlFrame> ping_frame(
+      spdy_framer_.CreatePingFrame(next_ping_id_));
+  QueueFrame(ping_frame.get(), SPDY_PRIORITY_HIGHEST, NULL);
+
+  if (net_log().IsLoggingAllEvents()) {
+    net_log().AddEvent(
+        NetLog::TYPE_SPDY_SESSION_PING,
+        make_scoped_refptr(new NetLogSpdyPingParameter(next_ping_id_)));
+  }
+  if (unique_id % 2 != 0) {
+    next_ping_id_ += 2;
+    ++pings_in_flight_;
+    last_sent_was_ping_ = true;
+    PlanToCheckPingStatus();
+  }
+}
+
+void SpdySession::PlanToCheckPingStatus() {
+  if (check_ping_status_pending_)
+    return;
+
+  check_ping_status_pending_ = true;
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &SpdySession::CheckPingStatus, base::TimeTicks::Now()),
+      hung_interval_ms_);
+}
+
+void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
+  // Check if we got a response back for all PINGs we had sent.
+  if (pings_in_flight_ == 0) {
+    check_ping_status_pending_ = false;
+    return;
+  }
+
+  DCHECK(check_ping_status_pending_);
+
+  const base::TimeDelta kHungInterval =
+      base::TimeDelta::FromMilliseconds(hung_interval_ms_);
+
+  base::TimeTicks now = base::TimeTicks::Now();
+  base::TimeDelta delay = kHungInterval - (now - received_data_time_);
+
+  if (delay.InMilliseconds() < 0 || received_data_time_ < last_check_time) {
+    DCHECK(now - received_data_time_ > kHungInterval);
+    CloseSessionOnError(net::ERR_SPDY_PING_FAILED, true);
+    return;
+  }
+
+  // Check the status of connection after a delay.
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(&SpdySession::CheckPingStatus, now),
+      delay.InMilliseconds());
 }
 
 void SpdySession::RecordHistograms() {
