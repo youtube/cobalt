@@ -1020,7 +1020,7 @@ TEST(StringUtilTest, LcpyTest) {
 }
 
 TEST(StringUtilTest, WprintfFormatPortabilityTest) {
-  struct TestData {
+  static const struct {
     const wchar_t* input;
     bool portable;
   } cases[] = {
@@ -1046,9 +1046,8 @@ TEST(StringUtilTest, WprintfFormatPortabilityTest) {
     { L"% 10s", false },
     { L"% 10ls", true }
   };
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i)
     EXPECT_EQ(cases[i].portable, base::IsWprintfFormatPortable(cases[i].input));
-  }
 }
 
 TEST(StringUtilTest, RemoveChars) {
