@@ -36,6 +36,7 @@
 #include "net/http/http_transaction.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
+#include "net/url_request/fraudulent_certificate_reporter.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_error_job.h"
@@ -673,15 +674,18 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
       ssl_info.is_issued_by_known_root &&
       context_->transport_security_state()) {
     TransportSecurityState::DomainState domain_state;
+    bool sni = SSLConfigService::IsSNIAvailable(context_->ssl_config_service());
     if (context_->transport_security_state()->HasPinsForHost(
             &domain_state,
-            request_->url().host(),
-            SSLConfigService::IsSNIAvailable(
-                context_->ssl_config_service()))) {
+            request_->url().host(), sni)) {
       if (!domain_state.IsChainOfPublicKeysPermitted(
               ssl_info.public_key_hashes)) {
         result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
         UMA_HISTOGRAM_BOOLEAN("Net.CertificatePinSuccess", false);
+        FraudulentCertificateReporter* reporter =
+            context_->fraudulent_certificate_reporter();
+        if (reporter != NULL)
+          reporter->SendReport(request_->url().host(), ssl_info, sni);
       } else {
         UMA_HISTOGRAM_BOOLEAN("Net.CertificatePinSuccess", true);
       }
