@@ -20,9 +20,53 @@ class SpdySessionTest : public PlatformTest {
   static void TurnOffCompression() {
     spdy::SpdyFramer::set_enable_compression_default(false);
   }
+ protected:
+  virtual void TearDown() {
+    // Wanted to be 100% sure PING is disabled.
+    SpdySession::set_enable_ping_based_connection_checking(false);
+  }
 };
 
-namespace {
+class TestSpdyStreamDelegate : public net::SpdyStream::Delegate {
+ public:
+  explicit TestSpdyStreamDelegate(OldCompletionCallback* callback)
+      : callback_(callback) {}
+  virtual ~TestSpdyStreamDelegate() {}
+
+  virtual bool OnSendHeadersComplete(int status) { return true; }
+
+  virtual int OnSendBody() {
+    return ERR_UNEXPECTED;
+  }
+
+  virtual int OnSendBodyComplete(int /*status*/, bool* /*eof*/) {
+    return ERR_UNEXPECTED;
+  }
+
+  virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
+                                 base::Time response_time,
+                                 int status) {
+    return status;
+  }
+
+  virtual void OnDataReceived(const char* buffer, int bytes) {
+  }
+
+  virtual void OnDataSent(int length) {
+  }
+
+  virtual void OnClose(int status) {
+    OldCompletionCallback* callback = callback_;
+    callback_ = NULL;
+    callback->Run(OK);
+  }
+
+  virtual void set_chunk_callback(net::ChunkCallback *) {}
+
+ private:
+  OldCompletionCallback* callback_;
+};
+
 
 // Test the SpdyIOBuffer class.
 TEST_F(SpdySessionTest, SpdyIOBuffer) {
@@ -120,6 +164,101 @@ TEST_F(SpdySessionTest, GoAway) {
   // Delete the second session.
   spdy_session_pool->Remove(session2);
   session2 = NULL;
+}
+
+TEST_F(SpdySessionTest, Ping) {
+  SpdySessionDependencies session_deps;
+  session_deps.host_resolver->set_synchronous_mode(true);
+
+  MockConnect connect_data(false, OK);
+  scoped_ptr<spdy::SpdyFrame> read_ping(ConstructSpdyPing());
+  MockRead reads[] = {
+    CreateMockRead(*read_ping),
+    CreateMockRead(*read_ping),
+    MockRead(false, 0, 0)  // EOF
+  };
+  scoped_ptr<spdy::SpdyFrame> write_ping(ConstructSpdyPing());
+  MockRead writes[] = {
+    CreateMockRead(*write_ping),
+    CreateMockRead(*write_ping),
+  };
+  StaticSocketDataProvider data(
+      reads, arraysize(reads), writes, arraysize(writes));
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(false, OK);
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+
+  static const char kStreamUrl[] = "http://www.google.com/";
+  GURL url(kStreamUrl);
+
+  const std::string kTestHost("www.google.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
+
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(pair, BoundNetLog());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
+
+
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                GURL(),
+                                false,
+                                false));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK,
+            connection->Init(test_host_port_pair.ToString(),
+                             transport_params,
+                             MEDIUM,
+                             NULL,
+                             http_session->transport_socket_pool(),
+                             BoundNetLog()));
+  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
+
+  scoped_refptr<SpdyStream> spdy_stream1;
+  TestOldCompletionCallback callback1;
+  EXPECT_EQ(OK, session->CreateStream(url,
+                                      MEDIUM,
+                                      &spdy_stream1,
+                                      BoundNetLog(),
+                                      &callback1));
+  scoped_ptr<TestSpdyStreamDelegate> delegate(
+      new TestSpdyStreamDelegate(&callback1));
+  spdy_stream1->SetDelegate(delegate.get());
+
+  base::TimeTicks before_ping_time = base::TimeTicks::Now();
+
+  // Enable sending of PING.
+  SpdySession::set_enable_ping_based_connection_checking(true);
+  SpdySession::set_connection_at_risk_of_loss_ms(0);
+  SpdySession::set_trailing_ping_delay_time_ms(0);
+  SpdySession::set_hung_interval_ms(50);
+
+  session->SendPrefacePingIfNoneInFlight();
+
+  EXPECT_EQ(OK, callback1.WaitForResult());
+
+  EXPECT_EQ(0, session->pings_in_flight());
+  EXPECT_GT(session->next_ping_id(), static_cast<uint32>(1));
+  EXPECT_FALSE(session->trailing_ping_pending());
+  // TODO(rtenneti): check_ping_status_pending works in debug mode with
+  // breakpoints, but fails if run in stand alone mode.
+  // EXPECT_FALSE(session->check_ping_status_pending());
+  EXPECT_GE(session->received_data_time(), before_ping_time);
+
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+
+  // Delete the first session.
+  session = NULL;
 }
 
 class StreamReleaserCallback : public CallbackRunner<Tuple1<int> > {
@@ -682,7 +821,5 @@ TEST_F(SpdySessionTest, ClearSettingsStorageOnIPAddressChanged) {
   spdy_session_pool->OnIPAddressChanged();
   EXPECT_EQ(0u, test_settings_storage->Get(test_host_port_pair).size());
 }
-
-}  // namespace
 
 }  // namespace net
