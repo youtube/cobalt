@@ -202,19 +202,50 @@ class Lock;
     HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges)
 
 #else  // NDEBUG
+// Keep a mention of passed variables to avoid unused variable warnings in
+// release build if these variables are only used in macros.
+#define DISCARD_2_ARGUMENTS(a, b) \
+  while (0) { \
+    static_cast<void>(a); \
+    static_cast<void>(b); \
+ }
+#define DISCARD_3_ARGUMENTS(a, b, c) \
+  while (0) { \
+    static_cast<void>(a); \
+    static_cast<void>(b); \
+    static_cast<void>(c); \
+ }
+#define DISCARD_5_ARGUMENTS(a, b, c, d ,e) \
+  while (0) { \
+    static_cast<void>(a); \
+    static_cast<void>(b); \
+    static_cast<void>(c); \
+    static_cast<void>(d); \
+    static_cast<void>(e); \
+ }
+#define DHISTOGRAM_TIMES(name, sample) \
+    DISCARD_2_ARGUMENTS(name, sample)
 
-#define DHISTOGRAM_TIMES(name, sample) do {} while (0)
-#define DHISTOGRAM_COUNTS(name, sample) do {} while (0)
-#define DHISTOGRAM_PERCENTAGE(name, under_one_hundred) do {} while (0)
+#define DHISTOGRAM_COUNTS(name, sample) \
+    DISCARD_2_ARGUMENTS(name, sample)
+
+#define DHISTOGRAM_PERCENTAGE(name, under_one_hundred) \
+    DISCARD_2_ARGUMENTS(name, under_one_hundred)
+
 #define DHISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) \
-    do {} while (0)
+    DISCARD_5_ARGUMENTS(name, sample, min, max, bucket_count)
+
 #define DHISTOGRAM_CLIPPED_TIMES(name, sample, min, max, bucket_count) \
-    do {} while (0)
+    DISCARD_5_ARGUMENTS(name, sample, min, max, bucket_count)
+
 #define DHISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
-    do {} while (0)
-#define DHISTOGRAM_ENUMERATION(name, sample, boundary_value) do {} while (0)
+    DISCARD_5_ARGUMENTS(name, sample, min, max, bucket_count)
+
+#define DHISTOGRAM_ENUMERATION(name, sample, boundary_value) \
+    DISCARD_3_ARGUMENTS(name, sample, boundary_value)
+
 #define DHISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) \
-    do {} while (0)
+    DISCARD_3_ARGUMENTS(name, sample, custom_ranges)
 
 #endif  // NDEBUG
 
@@ -409,6 +440,9 @@ class BASE_EXPORT Histogram {
                                    base::TimeDelta maximum,
                                    size_t bucket_count,
                                    Flags flags);
+  // Time call for use with DHISTOGRAM*.
+  // Returns TimeTicks::Now() in debug and TimeTicks() in release build.
+  static TimeTicks DebugNow();
 
   void Add(int value);
 
