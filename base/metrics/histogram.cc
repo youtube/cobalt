@@ -114,6 +114,14 @@ Histogram* Histogram::FactoryTimeGet(const std::string& name,
                     bucket_count, flags);
 }
 
+TimeTicks Histogram::DebugNow() {
+#ifndef NDEBUG
+  return TimeTicks::Now();
+#else
+  return TimeTicks();
+#endif
+}
+
 void Histogram::Add(int value) {
   if (value > kSampleType_MAX - 1)
     value = kSampleType_MAX - 1;
