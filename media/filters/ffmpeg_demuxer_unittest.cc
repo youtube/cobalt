@@ -36,10 +36,6 @@ MATCHER(IsEndOfStreamBuffer,
   return arg->IsEndOfStream();
 }
 
-ACTION(DeleteArg0Buffer) {
-  scoped_refptr<Buffer> buffer(arg0);
-}
-
 // Fixture class to facilitate writing tests.  Takes care of setting up the
 // FFmpeg, pipeline and filter host mocks.
 class FFmpegDemuxerTest : public testing::Test {
@@ -407,8 +403,7 @@ TEST_F(FFmpegDemuxerTest, Stop) {
 
   // The callback should be immediately deleted.  We'll use a checkpoint to
   // verify that it has indeed been deleted.
-  EXPECT_CALL(*callback, Run(IsEndOfStreamBuffer()))
-      .WillOnce(DeleteArg0Buffer());
+  EXPECT_CALL(*callback, Run(IsEndOfStreamBuffer()));
   EXPECT_CALL(*callback, OnDelete());
   EXPECT_CALL(*this, CheckPoint(1));
 
@@ -447,8 +442,7 @@ TEST_F(FFmpegDemuxerTest, StreamReadAfterStopAndDemuxerDestruction) {
 
   // The callback should be immediately deleted.  We'll use a checkpoint to
   // verify that it has indeed been deleted.
-  EXPECT_CALL(*callback, Run(IsEndOfStreamBuffer()))
-      .WillOnce(DeleteArg0Buffer());
+  EXPECT_CALL(*callback, Run(IsEndOfStreamBuffer()));
   EXPECT_CALL(*callback, OnDelete());
   EXPECT_CALL(*this, CheckPoint(1));
 
