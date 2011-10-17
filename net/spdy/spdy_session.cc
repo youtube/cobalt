@@ -237,7 +237,7 @@ bool SpdySession::enable_ping_based_connection_checking_ = true;
 int SpdySession::connection_at_risk_of_loss_ms_ = 0;
 
 // static
-int SpdySession::trailing_ping_delay_time_ms_ = 1000;
+int SpdySession::trailing_ping_delay_time_ms_ = 200;
 
 // static
 int SpdySession::hung_interval_ms_ = 10000;
@@ -280,7 +280,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       received_data_time_(base::TimeTicks::Now()),
       trailing_ping_pending_(false),
       check_ping_status_pending_(false),
-      last_sent_was_ping_(false),
+      need_to_send_ping_(false),
       initial_send_window_size_(spdy::kSpdyStreamInitialWindowSize),
       initial_recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)),
@@ -528,7 +528,7 @@ int SpdySession::WriteSynStream(
         make_scoped_refptr(
             new NetLogSpdySynParameter(headers, flags, stream_id, 0)));
   }
-  last_sent_was_ping_ = false;
+  need_to_send_ping_ = true;
 
   return ERR_IO_PENDING;
 }
@@ -584,7 +584,6 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   scoped_ptr<spdy::SpdyDataFrame> frame(
       spdy_framer_.CreateDataFrame(stream_id, data->data(), len, flags));
   QueueFrame(frame.get(), stream->priority(), stream);
-  last_sent_was_ping_ = false;
   return ERR_IO_PENDING;
 }
 
@@ -612,7 +611,6 @@ void SpdySession::ResetStream(
     priority = stream->priority();
   }
   QueueFrame(rst_frame.get(), priority, NULL);
-  last_sent_was_ping_ = false;
   DeleteStream(stream_id, ERR_SPDY_PROTOCOL_ERROR);
 }
 
@@ -1383,7 +1381,7 @@ void SpdySession::OnPing(const spdy::SpdyPingControlFrame& frame) {
   if (pings_in_flight_ > 0)
     return;
 
-  if (last_sent_was_ping_)
+  if (!need_to_send_ping_)
     return;
 
   PlanToSendTrailingPing();
@@ -1446,7 +1444,6 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
   scoped_ptr<spdy::SpdyWindowUpdateControlFrame> window_update_frame(
       spdy_framer_.CreateWindowUpdate(stream_id, delta_window_size));
   QueueFrame(window_update_frame.get(), stream->priority(), stream);
-  last_sent_was_ping_ = false;
 }
 
 // Given a cwnd that we would have sent to the server, modify it based on the
@@ -1511,7 +1508,6 @@ void SpdySession::SendSettings() {
       spdy_framer_.CreateSettings(settings));
   sent_settings_ = true;
   QueueFrame(settings_frame.get(), 0, NULL);
-  last_sent_was_ping_ = false;
 }
 
 void SpdySession::HandleSettings(const spdy::SpdySettings& settings) {
@@ -1546,7 +1542,8 @@ void SpdySession::SendPrefacePingIfNoneInFlight() {
 }
 
 void SpdySession::SendPrefacePing() {
-  WritePingFrame(next_ping_id_);
+  // TODO(rtenneti): Enable sending Preface-PING after server fix.
+  // WritePingFrame(next_ping_id_);
 }
 
 void SpdySession::PlanToSendTrailingPing() {
@@ -1579,7 +1576,7 @@ void SpdySession::WritePingFrame(uint32 unique_id) {
   if (unique_id % 2 != 0) {
     next_ping_id_ += 2;
     ++pings_in_flight_;
-    last_sent_was_ping_ = true;
+    need_to_send_ping_ = false;
     PlanToCheckPingStatus();
   }
 }
