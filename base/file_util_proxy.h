@@ -45,8 +45,8 @@ class BASE_EXPORT FileUtilProxy {
   typedef base::Callback<void(PlatformFileError /* error code */,
                               PassPlatformFile,
                               FilePath)> CreateTemporaryCallback;
-  typedef Callback2<PlatformFileError /* error code */,
-                    bool /* created */>::Type EnsureFileExistsCallback;
+  typedef base::Callback<void(PlatformFileError /* error code */,
+                              bool /* created */)> EnsureFileExistsCallback;
   typedef Callback2<PlatformFileError /* error code */,
                     const PlatformFileInfo& /* file_info */
                     >::Type GetFileInfoCallback;
@@ -99,7 +99,7 @@ class BASE_EXPORT FileUtilProxy {
   static bool EnsureFileExists(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
-      EnsureFileExistsCallback* callback);
+      const EnsureFileExistsCallback& callback);
 
   // Retrieves the information about a file. It is invalid to pass NULL for the
   // callback.
