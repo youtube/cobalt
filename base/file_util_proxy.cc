@@ -255,12 +255,12 @@ class RelayEnsureFileExists : public MessageLoopRelay {
   RelayEnsureFileExists(
       scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
-      base::FileUtilProxy::EnsureFileExistsCallback* callback)
+      const base::FileUtilProxy::EnsureFileExistsCallback& callback)
       : message_loop_proxy_(message_loop_proxy),
         file_path_(file_path),
         callback_(callback),
         created_(false) {
-    DCHECK(callback);
+    DCHECK_EQ(false, callback.is_null());
   }
 
  protected:
@@ -288,14 +288,13 @@ class RelayEnsureFileExists : public MessageLoopRelay {
   }
 
   virtual void RunCallback() {
-    callback_->Run(error_code(), created_);
-    delete callback_;
+    callback_.Run(error_code(), created_);
   }
 
  private:
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
   FilePath file_path_;
-  base::FileUtilProxy::EnsureFileExistsCallback* callback_;
+  base::FileUtilProxy::EnsureFileExistsCallback callback_;
   bool created_;
 };
 
@@ -765,7 +764,7 @@ bool FileUtilProxy::Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
 bool FileUtilProxy::EnsureFileExists(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     const FilePath& file_path,
-    EnsureFileExistsCallback* callback) {
+    const EnsureFileExistsCallback& callback) {
   return Start(FROM_HERE, message_loop_proxy, new RelayEnsureFileExists(
       message_loop_proxy, file_path, callback));
 }
