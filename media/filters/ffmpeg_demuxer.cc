@@ -142,7 +142,7 @@ void FFmpegDemuxerStream::Stop() {
   buffer_queue_.clear();
   for (ReadQueue::iterator it = read_queue_.begin();
        it != read_queue_.end(); ++it) {
-    it->Run(new DataBuffer(0));
+    it->Run(scoped_refptr<Buffer>(new DataBuffer(0)));
   }
   read_queue_.clear();
   stopped_ = true;
@@ -165,7 +165,7 @@ void FFmpegDemuxerStream::Read(const ReadCallback& read_callback) {
   //
   // TODO(scherkus): it would be cleaner if we replied with an error message.
   if (stopped_) {
-    read_callback.Run(new DataBuffer(0));
+    read_callback.Run(scoped_refptr<Buffer>(new DataBuffer(0)));
     return;
   }
 
@@ -194,7 +194,7 @@ void FFmpegDemuxerStream::ReadTask(const ReadCallback& read_callback) {
   //
   // TODO(scherkus): it would be cleaner if we replied with an error message.
   if (stopped_) {
-    read_callback.Run(new DataBuffer(0));
+    read_callback.Run(scoped_refptr<Buffer>(new DataBuffer(0)));
     return;
   }
 
