@@ -527,7 +527,7 @@ class RelayRead : public MessageLoopRelay {
   RelayRead(base::PlatformFile file,
             int64 offset,
             int bytes_to_read,
-            base::FileUtilProxy::ReadCallback* callback)
+            const base::FileUtilProxy::ReadCallback& callback)
       : file_(file),
         offset_(offset),
         buffer_(new char[bytes_to_read]),
@@ -545,10 +545,8 @@ class RelayRead : public MessageLoopRelay {
   }
 
   virtual void RunCallback() {
-    if (callback_) {
-      callback_->Run(error_code(), buffer_.get(), bytes_read_);
-      delete callback_;
-    }
+    if (!callback_.is_null())
+      callback_.Run(error_code(), buffer_.get(), bytes_read_);
   }
 
  private:
@@ -556,7 +554,7 @@ class RelayRead : public MessageLoopRelay {
   int64 offset_;
   scoped_array<char> buffer_;
   int bytes_to_read_;
-  base::FileUtilProxy::ReadCallback* callback_;
+  base::FileUtilProxy::ReadCallback callback_;
   int bytes_read_;
 };
 
@@ -849,11 +847,10 @@ bool FileUtilProxy::Read(
     PlatformFile file,
     int64 offset,
     int bytes_to_read,
-    ReadCallback* callback) {
-  if (bytes_to_read < 0) {
-    delete callback;
+    const ReadCallback& callback) {
+  if (bytes_to_read < 0)
     return false;
-  }
+
   return Start(FROM_HERE, message_loop_proxy,
                new RelayRead(file, offset, bytes_to_read, callback));
 }
