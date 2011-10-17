@@ -9,7 +9,6 @@
 
 #include "base/base_export.h"
 #include "base/callback.h"
-#include "base/callback_old.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/memory/ref_counted.h"
@@ -33,11 +32,10 @@ class BASE_EXPORT FileUtilProxy {
   };
 
   // This callback is used by methods that report only an error code.  It is
-  // valid to pass NULL as the callback parameter to any function that takes a
-  // StatusCallback, in which case the operation will complete silently.
-  // The ownership of |callback| is taken by the function and will always be
-  // deleted by the function even on failure.
-  typedef Callback1<PlatformFileError /* error code */>::Type StatusCallback;
+  // valid to pass a null callback to any function that takes a StatusCallback,
+  // in which case the operation will complete silently.
+  typedef base::Callback<void(PlatformFileError /* error code */)>
+      StatusCallback;
 
   typedef base::Callback<void(PlatformFileError /* error code */,
                               PassPlatformFile,
@@ -84,7 +82,7 @@ class BASE_EXPORT FileUtilProxy {
   // Close the given file handle.
   static bool Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                     PlatformFile,
-                    StatusCallback* callback);
+                    const StatusCallback& callback);
 
   // Ensures that the given |file_path| exist.  This creates a empty new file
   // at |file_path| if the |file_path| does not exist.
@@ -122,7 +120,7 @@ class BASE_EXPORT FileUtilProxy {
       const FilePath& file_path,
       bool exclusive,
       bool recursive,
-      StatusCallback* callback);
+      const StatusCallback& callback);
 
   // Copies a file or a directory from |src_file_path| to |dest_file_path|
   // Error cases:
@@ -135,7 +133,7 @@ class BASE_EXPORT FileUtilProxy {
   static bool Copy(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                    const FilePath& src_file_path,
                    const FilePath& dest_file_path,
-                   StatusCallback* callback);
+                   const StatusCallback& callback);
 
   // Moves a file or a directory from src_file_path to dest_file_path.
   // Error cases are similar to Copy method's error cases.
@@ -143,20 +141,20 @@ class BASE_EXPORT FileUtilProxy {
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& src_file_path,
       const FilePath& dest_file_path,
-      StatusCallback* callback);
+      const StatusCallback& callback);
 
   // Deletes a file or a directory.
   // It is an error to delete a non-empty directory with recursive=false.
   static bool Delete(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                      const FilePath& file_path,
                      bool recursive,
-                     StatusCallback* callback);
+                     const StatusCallback& callback);
 
   // Deletes a directory and all of its contents.
   static bool RecursiveDelete(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
-      StatusCallback* callback);
+      const StatusCallback& callback);
 
   // Reads from a file. On success, the file pointer is moved to position
   // |offset + bytes_to_read| in the file. The callback can be null.
@@ -185,7 +183,7 @@ class BASE_EXPORT FileUtilProxy {
       PlatformFile file,
       const Time& last_access_time,
       const Time& last_modified_time,
-      StatusCallback* callback);
+      const StatusCallback& callback);
 
   // Touches a file. The callback can be null.
   static bool Touch(
@@ -193,7 +191,7 @@ class BASE_EXPORT FileUtilProxy {
       const FilePath& file_path,
       const Time& last_access_time,
       const Time& last_modified_time,
-      StatusCallback* callback);
+      const StatusCallback& callback);
 
   // Truncates a file to the given length. If |length| is greater than the
   // current length of the file, the file will be extended with zeroes.
@@ -202,7 +200,7 @@ class BASE_EXPORT FileUtilProxy {
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
       int64 length,
-      StatusCallback* callback);
+      const StatusCallback& callback);
 
   // Truncates a file to the given length. If |length| is greater than the
   // current length of the file, the file will be extended with zeroes.
@@ -211,13 +209,13 @@ class BASE_EXPORT FileUtilProxy {
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& path,
       int64 length,
-      StatusCallback* callback);
+      const StatusCallback& callback);
 
   // Flushes a file. The callback can be null.
   static bool Flush(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
-      StatusCallback* callback);
+      const StatusCallback& callback);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FileUtilProxy);
