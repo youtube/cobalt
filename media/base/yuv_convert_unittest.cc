@@ -10,6 +10,7 @@
 #include "media/base/djb2.h"
 #include "media/base/simd/convert_rgb_to_yuv.h"
 #include "media/base/simd/convert_yuv_to_rgb.h"
+#include "media/base/simd/filter_yuv.h"
 #include "media/base/yuv_convert.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -643,6 +644,120 @@ TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_SSE) {
   EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(),
                       rgb_bytes_converted.get(),
                       kWidth * kBpp));
+}
+
+TEST(YUVConvertTest, FilterYUVRows_C_OutOfBounds) {
+  scoped_array<uint8> src(new uint8[16]);
+  scoped_array<uint8> dst(new uint8[16]);
+
+  memset(src.get(), 0xff, 16);
+  memset(dst.get(), 0, 16);
+
+  media::FilterYUVRows_C(dst.get(), src.get(), src.get(), 1, 255);
+
+  EXPECT_EQ(255u, dst[0]);
+  for (int i = 1; i < 16; ++i) {
+    EXPECT_EQ(0u, dst[i]) << " not equal at " << i;
+  }
+}
+
+TEST(YUVConvertTest, FilterYUVRows_MMX_OutOfBounds) {
+  if (!media::hasMMX()) {
+    LOG(WARNING) << "System not supported. Test skipped.";
+    return;
+  }
+
+  scoped_array<uint8> src(new uint8[16]);
+  scoped_array<uint8> dst(new uint8[16]);
+
+  memset(src.get(), 0xff, 16);
+  memset(dst.get(), 0, 16);
+
+  media::FilterYUVRows_MMX(dst.get(), src.get(), src.get(), 1, 255);
+  media::EmptyRegisterState();
+
+  EXPECT_EQ(255u, dst[0]);
+  for (int i = 1; i < 16; ++i) {
+    EXPECT_EQ(0u, dst[i]);
+  }
+}
+
+TEST(YUVConvertTest, FilterYUVRows_SSE2_OutOfBounds) {
+  if (!media::hasSSE2()) {
+    LOG(WARNING) << "System not supported. Test skipped.";
+    return;
+  }
+
+  scoped_array<uint8> src(new uint8[16]);
+  scoped_array<uint8> dst(new uint8[16]);
+
+  memset(src.get(), 0xff, 16);
+  memset(dst.get(), 0, 16);
+
+  media::FilterYUVRows_SSE2(dst.get(), src.get(), src.get(), 1, 255);
+
+  EXPECT_EQ(255u, dst[0]);
+  for (int i = 1; i < 16; ++i) {
+    EXPECT_EQ(0u, dst[i]);
+  }
+}
+
+TEST(YUVConvertTest, FilterYUVRows_MMX_UnalignedDestination) {
+  if (!media::hasMMX()) {
+    LOG(WARNING) << "System not supported. Test skipped.";
+    return;
+  }
+
+  const int kSize = 32;
+  scoped_array<uint8> src(new uint8[kSize]);
+  scoped_array<uint8> dst_sample(new uint8[kSize]);
+  scoped_array<uint8> dst(new uint8[kSize]);
+
+  memset(dst_sample.get(), 0, kSize);
+  memset(dst.get(), 0, kSize);
+  for (int i = 0; i < kSize; ++i)
+    src[i] = 100 + i;
+
+  media::FilterYUVRows_C(dst_sample.get(),
+                         src.get(), src.get(), 17, 128);
+
+  // Generate an unaligned output address.
+  uint8* dst_ptr =
+      reinterpret_cast<uint8*>(
+          (reinterpret_cast<uintptr_t>(dst.get() + 8) & ~7) + 1);
+  media::FilterYUVRows_MMX(dst_ptr, src.get(), src.get(), 17, 128);
+  media::EmptyRegisterState();
+
+  EXPECT_EQ(0, memcmp(dst_sample.get(), dst_ptr, 17));
+}
+
+TEST(YUVConvertTest, FilterYUVRows_SSE2_UnalignedDestination) {
+  if (!media::hasSSE2()) {
+    LOG(WARNING) << "System not supported. Test skipped.";
+    return;
+  }
+
+  const int kSize = 64;
+  scoped_array<uint8> src(new uint8[kSize]);
+  scoped_array<uint8> dst_sample(new uint8[kSize]);
+  scoped_array<uint8> dst(new uint8[kSize]);
+
+  memset(dst_sample.get(), 0, kSize);
+  memset(dst.get(), 0, kSize);
+  for (int i = 0; i < kSize; ++i)
+    src[i] = 100 + i;
+
+  media::FilterYUVRows_C(dst_sample.get(),
+                         src.get(), src.get(), 37, 128);
+
+  // Generate an unaligned output address.
+  uint8* dst_ptr =
+      reinterpret_cast<uint8*>(
+          (reinterpret_cast<uintptr_t>(dst.get() + 16) & ~15) + 1);
+  media::FilterYUVRows_SSE2(dst_ptr, src.get(), src.get(), 37, 128);
+  media::EmptyRegisterState();
+
+  EXPECT_EQ(0, memcmp(dst_sample.get(), dst_ptr, 37));
 }
 
 #if defined(ARCH_CPU_X86_64)
