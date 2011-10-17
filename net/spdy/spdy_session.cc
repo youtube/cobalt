@@ -237,7 +237,7 @@ bool SpdySession::enable_ping_based_connection_checking_ = true;
 int SpdySession::connection_at_risk_of_loss_ms_ = 0;
 
 // static
-int SpdySession::trailing_ping_delay_time_ms_ = 200;
+int SpdySession::trailing_ping_delay_time_ms_ = 1000;
 
 // static
 int SpdySession::hung_interval_ms_ = 10000;
@@ -528,6 +528,11 @@ int SpdySession::WriteSynStream(
         make_scoped_refptr(
             new NetLogSpdySynParameter(headers, flags, stream_id, 0)));
   }
+
+  // Some servers don't like too many pings, so we limit our current sending to
+  // no more than one ping for any syn sent.  To do this, we avoid ever setting
+  // this to true unless we send a syn (which we have just done).  This approach
+  // may change over time as servers change their responses to pings.
   need_to_send_ping_ = true;
 
   return ERR_IO_PENDING;
@@ -1542,7 +1547,8 @@ void SpdySession::SendPrefacePingIfNoneInFlight() {
 }
 
 void SpdySession::SendPrefacePing() {
-  // TODO(rtenneti): Enable sending Preface-PING after server fix.
+  // TODO(rtenneti): Send preface pings when more servers support additional
+  // pings.
   // WritePingFrame(next_ping_id_);
 }
 
