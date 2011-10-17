@@ -29,8 +29,6 @@
 template<typename NST>
 class scoped_nsobject {
  public:
-  typedef NST* element_type;
-
   explicit scoped_nsobject(NST* object = nil)
       : object_(object) {
   }
@@ -102,8 +100,6 @@ bool operator!=(C* p1, const scoped_nsobject<C>& p2) {
 template<>
 class scoped_nsobject<id> {
  public:
-  typedef id element_type;
-
   explicit scoped_nsobject(id object = nil)
       : object_(object) {
   }
