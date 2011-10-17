@@ -55,8 +55,8 @@ class BASE_EXPORT FileUtilProxy {
   typedef base::Callback<void(PlatformFileError /* error code */,
                               const char* /* data */,
                               int /* bytes read/written */)> ReadCallback;
-  typedef Callback2<PlatformFileError /* error code */,
-                    int /* bytes written */>::Type WriteCallback;
+  typedef base::Callback<void(PlatformFileError /* error code */,
+                              int /* bytes written */)> WriteCallback;
 
   // Creates or opens a file with the given flags. It is invalid to pass a null
   // callback. If PLATFORM_FILE_CREATE is set in |file_flags| it always tries to
@@ -169,7 +169,7 @@ class BASE_EXPORT FileUtilProxy {
 
   // Writes to a file. If |offset| is greater than the length of the file,
   // |false| is returned. On success, the file pointer is moved to position
-  // |offset + bytes_to_write| in the file. The callback can be NULL.
+  // |offset + bytes_to_write| in the file. The callback can be null.
   // |bytes_to_write| must be greater than zero.
   static bool Write(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
@@ -177,9 +177,9 @@ class BASE_EXPORT FileUtilProxy {
       int64 offset,
       const char* buffer,
       int bytes_to_write,
-      WriteCallback* callback);
+      const WriteCallback& callback);
 
-  // Touches a file. The callback can be NULL.
+  // Touches a file. The callback can be null.
   static bool Touch(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
@@ -187,7 +187,7 @@ class BASE_EXPORT FileUtilProxy {
       const Time& last_modified_time,
       StatusCallback* callback);
 
-  // Touches a file. The callback can be NULL.
+  // Touches a file. The callback can be null.
   static bool Touch(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
@@ -197,7 +197,7 @@ class BASE_EXPORT FileUtilProxy {
 
   // Truncates a file to the given length. If |length| is greater than the
   // current length of the file, the file will be extended with zeroes.
-  // The callback can be NULL.
+  // The callback can be null.
   static bool Truncate(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
@@ -206,14 +206,14 @@ class BASE_EXPORT FileUtilProxy {
 
   // Truncates a file to the given length. If |length| is greater than the
   // current length of the file, the file will be extended with zeroes.
-  // The callback can be NULL.
+  // The callback can be null.
   static bool Truncate(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& path,
       int64 length,
       StatusCallback* callback);
 
-  // Flushes a file. The callback can be NULL.
+  // Flushes a file. The callback can be null.
   static bool Flush(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
