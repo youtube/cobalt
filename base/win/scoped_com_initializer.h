@@ -16,17 +16,28 @@
 namespace base {
 namespace win {
 
-// Initializes COM in the constructor (STA), and uninitializes COM in the
+// Initializes COM in the constructor (STA or MTA), and uninitializes COM in the
 // destructor.
 class ScopedCOMInitializer {
  public:
+  // Enum value provided to initialize the thread as an MTA instead of STA.
+  enum SelectMTA { kMTA };
+
+  // Constructor for STA initialization.
   ScopedCOMInitializer() : hr_(CoInitialize(NULL)) {
+  }
+
+  // Constructor for MTA initialization.
+  explicit ScopedCOMInitializer(SelectMTA mta)
+    : hr_(CoInitializeEx(NULL, COINIT_MULTITHREADED)) {
   }
 
   ScopedCOMInitializer::~ScopedCOMInitializer() {
     if (SUCCEEDED(hr_))
       CoUninitialize();
   }
+
+  bool succeeded() const { return SUCCEEDED(hr_); }
 
  private:
   HRESULT hr_;
@@ -45,8 +56,12 @@ namespace win {
 // Do-nothing class for other platforms.
 class ScopedCOMInitializer {
  public:
+  enum SelectMTA { kMTA };
   ScopedCOMInitializer() {}
+  explicit ScopedCOMInitializer(SelectMTA mta) {}
   ~ScopedCOMInitializer() {}
+
+  bool succeeded() const { return true; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ScopedCOMInitializer);
