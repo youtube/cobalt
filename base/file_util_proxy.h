@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/callback.h"
 #include "base/callback_old.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -38,9 +39,9 @@ class BASE_EXPORT FileUtilProxy {
   // deleted by the function even on failure.
   typedef Callback1<PlatformFileError /* error code */>::Type StatusCallback;
 
-  typedef Callback3<PlatformFileError /* error code */,
-                    PassPlatformFile,
-                    bool /* created */>::Type CreateOrOpenCallback;
+  typedef base::Callback<void(PlatformFileError /* error code */,
+                              PassPlatformFile,
+                              bool /* created */)> CreateOrOpenCallback;
   typedef Callback3<PlatformFileError /* error code */,
                     PassPlatformFile,
                     FilePath>::Type CreateTemporaryCallback;
@@ -66,7 +67,7 @@ class BASE_EXPORT FileUtilProxy {
   static bool CreateOrOpen(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                            const FilePath& file_path,
                            int file_flags,
-                           CreateOrOpenCallback* callback);
+                           const CreateOrOpenCallback& callback);
 
   // Creates a temporary file for writing.  The path and an open file handle
   // are returned.  It is invalid to pass NULL for the callback.  The additional
