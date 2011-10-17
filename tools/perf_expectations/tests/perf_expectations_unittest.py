@@ -150,6 +150,7 @@ class PerfExpectationsUnittest(unittest.TestCase):
 
   def testNoUpdatesNeeded(self):
     p = subprocess.Popen([MAKE_EXPECTATIONS, '-s'], stdout=subprocess.PIPE)
+    p.wait();
     self.assertEqual(p.returncode, 0, msg='Expectations has pending updates!')
 
   def testConfigFile(self):
