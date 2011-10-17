@@ -52,26 +52,25 @@ class BASE_EXPORT FileUtilProxy {
       GetFileInfoCallback;
   typedef base::Callback<void(PlatformFileError /* error code */,
                               const std::vector<Entry>&)> ReadDirectoryCallback;
-  typedef Callback3<PlatformFileError /* error code */,
-                    const char* /* data */,
-                    int /* bytes read/written */>::Type ReadCallback;
+  typedef base::Callback<void(PlatformFileError /* error code */,
+                              const char* /* data */,
+                              int /* bytes read/written */)> ReadCallback;
   typedef Callback2<PlatformFileError /* error code */,
                     int /* bytes written */>::Type WriteCallback;
 
-  // Creates or opens a file with the given flags.  It is invalid to pass NULL
-  // for the callback.
-  // If PLATFORM_FILE_CREATE is set in |file_flags| it always tries to create
-  // a new file at the given |file_path| and calls back with
-  // PLATFORM_FILE_ERROR_FILE_EXISTS if the |file_path| already exists.
-  // Takes ownership of |callback| and will delete it even on failure.
+  // Creates or opens a file with the given flags. It is invalid to pass a null
+  // callback. If PLATFORM_FILE_CREATE is set in |file_flags| it always tries to
+  // create a new file at the given |file_path| and calls back with
+  // PLATFORM_FILE_ERROR_FILE_EXISTS if the |file_path| already exists. Takes
+  // ownership of |callback| and will delete it even on failure.
   static bool CreateOrOpen(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                            const FilePath& file_path,
                            int file_flags,
                            const CreateOrOpenCallback& callback);
 
-  // Creates a temporary file for writing.  The path and an open file handle
-  // are returned.  It is invalid to pass NULL for the callback.  The additional
-  // file flags will be added on top of the default file flags which are:
+  // Creates a temporary file for writing. The path and an open file handle are
+  // returned. It is invalid to pass a null callback. The additional file flags
+  // will be added on top of the default file flags which are:
   //   base::PLATFORM_FILE_CREATE_ALWAYS
   //   base::PLATFORM_FILE_WRITE
   //   base::PLATFORM_FILE_TEMPORARY.
@@ -89,19 +88,18 @@ class BASE_EXPORT FileUtilProxy {
 
   // Ensures that the given |file_path| exist.  This creates a empty new file
   // at |file_path| if the |file_path| does not exist.
-  // If a new file han not existed and is created at the |file_path|,
-  // |created| of the callback argument is set true and |error code|
-  // is set PLATFORM_FILE_OK.
-  // If the file already exists, |created| is set false and |error code|
-  // is set PLATFORM_FILE_OK.
-  // If the file hasn't existed but it couldn't be created for some other
-  // reasons, |created| is set false and |error code| indicates the error.
+  // If a new file does not exist and is created at the |file_path|, |created|
+  // of the callback argument is set true and |error code| is set
+  // PLATFORM_FILE_OK. If the file already exists, |created| is set false and
+  // |error code| is set PLATFORM_FILE_OK. If the file hasn't existed but it
+  // couldn't be created for some other reasons, |created| is set false and
+  // |error code| indicates the error.
   static bool EnsureFileExists(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
       const EnsureFileExistsCallback& callback);
 
-  // Retrieves the information about a file. It is invalid to pass NULL for the
+  // Retrieves the information about a file. It is invalid to pass a null
   // callback.
   static bool GetFileInfo(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
@@ -161,13 +159,13 @@ class BASE_EXPORT FileUtilProxy {
       StatusCallback* callback);
 
   // Reads from a file. On success, the file pointer is moved to position
-  // |offset + bytes_to_read| in the file. The callback can be NULL.
+  // |offset + bytes_to_read| in the file. The callback can be null.
   static bool Read(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
       int64 offset,
       int bytes_to_read,
-      ReadCallback* callback);
+      const ReadCallback& callback);
 
   // Writes to a file. If |offset| is greater than the length of the file,
   // |false| is returned. On success, the file pointer is moved to position
