@@ -11,7 +11,9 @@ void FilterYUVRows_C(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
   int y1_fraction = source_y_fraction;
   int y0_fraction = 256 - y1_fraction;
   uint8* end = ybuf + source_width;
-  do {
+  uint8* rounded_end = ybuf + (source_width & ~7);
+
+  while (ybuf < rounded_end) {
     ybuf[0] = (y0_ptr[0] * y0_fraction + y1_ptr[0] * y1_fraction) >> 8;
     ybuf[1] = (y0_ptr[1] * y0_fraction + y1_ptr[1] * y1_fraction) >> 8;
     ybuf[2] = (y0_ptr[2] * y0_fraction + y1_ptr[2] * y1_fraction) >> 8;
@@ -23,7 +25,14 @@ void FilterYUVRows_C(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
     y0_ptr += 8;
     y1_ptr += 8;
     ybuf += 8;
-  } while (ybuf < end);
+  }
+
+  while (ybuf < end) {
+    ybuf[0] = (y0_ptr[0] * y0_fraction + y1_ptr[0] * y1_fraction) >> 8;
+    ++ybuf;
+    ++y0_ptr;
+    ++y1_ptr;
+  }
 }
 
 }  // namespace media
