@@ -21,9 +21,12 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/base/ssl_cert_request_info.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
+#include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socks5_client_socket.h"
@@ -132,8 +135,10 @@ void SocketStream::Connect() {
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
-  if (context_)
-    ssl_config_service()->GetSSLConfig(&ssl_config_);
+  if (context_) {
+    ssl_config_service()->GetSSLConfig(&server_ssl_config_);
+    proxy_ssl_config_ = server_ssl_config_;
+  }
   DCHECK_EQ(next_state_, STATE_NONE);
 
   AddRef();  // Released in Finish()
@@ -304,7 +309,8 @@ void SocketStream::Finish(int result) {
   Release();
 }
 
-int SocketStream::DidEstablishSSL(int result) {
+int SocketStream::DidEstablishSSL(int result, SSLConfig* ssl_config) {
+  DCHECK(ssl_config);
   if (IsCertificateError(result)) {
     if (socket_->IsConnectedAndIdle()) {
       result = HandleCertificateError(result);
@@ -313,15 +319,15 @@ int SocketStream::DidEstablishSSL(int result) {
       // if it returns cert verification error.  It didn't perform
       // SSLHandshake yet.
       // So, we should restart establishing connection with the
-      // certificate in allowed bad certificates in |ssl_config_|.
+      // certificate in allowed bad certificates in |ssl_config|.
       // See also net/http/http_network_transaction.cc
       //  HandleCertificateError() and RestartIgnoringLastError().
       SSLClientSocket* ssl_socket =
-        reinterpret_cast<SSLClientSocket*>(socket_.get());
+          static_cast<SSLClientSocket*>(socket_.get());
       SSLInfo ssl_info;
       ssl_socket->GetSSLInfo(&ssl_info);
       if (ssl_info.cert == NULL ||
-          ssl_config_.IsAllowedBadCert(ssl_info.cert, NULL)) {
+          ssl_config->IsAllowedBadCert(ssl_info.cert, NULL)) {
         // If we already have the certificate in the set of allowed bad
         // certificates, we did try it and failed again, so we should not
         // retry again: the connection should fail at last.
@@ -336,7 +342,7 @@ int SocketStream::DidEstablishSSL(int result) {
         return result;
       }
       bad_cert.cert_status = ssl_info.cert_status;
-      ssl_config_.allowed_bad_certs.push_back(bad_cert);
+      ssl_config->allowed_bad_certs.push_back(bad_cert);
       // Restart connection ignoring the bad certificate.
       socket_->Disconnect();
       socket_.reset();
@@ -910,7 +916,7 @@ int SocketStream::DoSecureProxyConnect() {
   socket_.reset(factory_->CreateSSLClientSocket(
       socket_.release(),
       proxy_info_.proxy_server().host_port_pair(),
-      ssl_config_,
+      proxy_ssl_config_,
       NULL /* ssl_host_info */,
       ssl_context));
   next_state_ = STATE_SECURE_PROXY_CONNECT_COMPLETE;
@@ -920,9 +926,11 @@ int SocketStream::DoSecureProxyConnect() {
 
 int SocketStream::DoSecureProxyConnectComplete(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
-  result = DidEstablishSSL(result);
+  result = DidEstablishSSL(result, &proxy_ssl_config_);
   if (next_state_ != STATE_NONE)
     return result;
+  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
+    return HandleCertificateRequest(result);
   if (result == OK)
     next_state_ = STATE_WRITE_TUNNEL_HEADERS;
   else
@@ -938,7 +946,7 @@ int SocketStream::DoSSLConnect() {
   // TODO(agl): look into plumbing SSLHostInfo here.
   socket_.reset(factory_->CreateSSLClientSocket(socket_.release(),
                                                 HostPortPair::FromURL(url_),
-                                                ssl_config_,
+                                                server_ssl_config_,
                                                 NULL /* ssl_host_info */,
                                                 ssl_context));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
@@ -948,7 +956,7 @@ int SocketStream::DoSSLConnect() {
 
 int SocketStream::DoSSLConnectComplete(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
-  result = DidEstablishSSL(result);
+  result = DidEstablishSSL(result, &server_ssl_config_);
   if (next_state_ != STATE_NONE)
     return result;
   // TODO(toyoshim): Upgrade to SPDY through TLS NPN extension if possible.
@@ -1086,6 +1094,53 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
     auth_identity_.invalid = false;
   }
   return ERR_TUNNEL_CONNECTION_FAILED;
+}
+
+int SocketStream::HandleCertificateRequest(int result) {
+  // TODO(toyoshim): We must support SSL client authentication for not only
+  // secure proxy but also secure server.
+
+  if (proxy_ssl_config_.send_client_cert)
+    // We already have performed SSL client authentication once and failed.
+    return result;
+
+  DCHECK(socket_.get());
+  scoped_refptr<SSLCertRequestInfo> cert_request_info = new SSLCertRequestInfo;
+  SSLClientSocket* ssl_socket =
+      static_cast<SSLClientSocket*>(socket_.get());
+  ssl_socket->GetSSLCertRequestInfo(cert_request_info);
+
+  HttpTransactionFactory* factory = context_->http_transaction_factory();
+  if (!factory)
+    return result;
+  scoped_refptr<HttpNetworkSession> session = factory->GetSession();
+  if (!session.get())
+    return result;
+
+  scoped_refptr<X509Certificate> client_cert;
+  bool found_cached_cert = session->ssl_client_auth_cache()->Lookup(
+      cert_request_info->host_and_port, &client_cert);
+  if (!found_cached_cert)
+    return result;
+  if (!client_cert)
+    return result;
+
+  const std::vector<scoped_refptr<X509Certificate> >& client_certs =
+      cert_request_info->client_certs;
+  bool cert_still_valid = false;
+  for (size_t i = 0; i < client_certs.size(); ++i) {
+    if (client_cert->Equals(client_certs[i])) {
+      cert_still_valid = true;
+      break;
+    }
+  }
+  if (!cert_still_valid)
+    return result;
+
+  proxy_ssl_config_.send_client_cert = true;
+  proxy_ssl_config_.client_cert = client_cert;
+  next_state_ = STATE_TCP_CONNECT;
+  return OK;
 }
 
 void SocketStream::DoAuthRequired() {
