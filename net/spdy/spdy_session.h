@@ -525,10 +525,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // status.
   bool check_ping_status_pending_;
 
-  // Indicate if the last data we sent was a ping (generally, a trailing ping).
-  // This helps us to decide if we need yet another trailing ping, or if it
-  // would be a waste of effort (and MUST not be done).
-  bool last_sent_was_ping_;
+  // Indicate if we need to send a ping (generally, a trailing ping). This helps
+  // us to decide if we need yet another trailing ping, or if it would be a
+  // waste of effort (and MUST not be done).
+  bool need_to_send_ping_;
 
   // Initial send window size for the session; can be changed by an
   // arriving SETTINGS frame; newly created streams use this value for the
