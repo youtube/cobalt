@@ -20,35 +20,56 @@ namespace media {
 #pragma warning(disable: 4799)
 #endif
 
-void FilterYUVRows_MMX(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
-                       int source_width, int source_y_fraction) {
+void FilterYUVRows_MMX(uint8* dest,
+                       const uint8* src0,
+                       const uint8* src1,
+                       int width,
+                       int fraction) {
+  int pixel = 0;
+
+  // Process the unaligned bytes first.
+  int unaligned_width =
+      (8 - (reinterpret_cast<uintptr_t>(dest) & 7)) & 7;
+  while (pixel < width && pixel < unaligned_width) {
+    dest[pixel] = (src0[pixel] * (256 - fraction) +
+                   src1[pixel] * fraction) >> 8;
+    ++pixel;
+  }
+
   __m64 zero = _mm_setzero_si64();
-  __m64 y1_fraction = _mm_set1_pi16(source_y_fraction);
-  __m64 y0_fraction = _mm_set1_pi16(256 - source_y_fraction);
+  __m64 src1_fraction = _mm_set1_pi16(fraction);
+  __m64 src0_fraction = _mm_set1_pi16(256 - fraction);
+  const __m64* src0_64 = reinterpret_cast<const __m64*>(src0 + pixel);
+  const __m64* src1_64 = reinterpret_cast<const __m64*>(src1 + pixel);
+  __m64* dest64 = reinterpret_cast<__m64*>(dest + pixel);
+  __m64* end64 = reinterpret_cast<__m64*>(
+      reinterpret_cast<uintptr_t>(dest + width) & ~7);
 
-  const __m64* y0_ptr64 = reinterpret_cast<const __m64*>(y0_ptr);
-  const __m64* y1_ptr64 = reinterpret_cast<const __m64*>(y1_ptr);
-  __m64* dest64 = reinterpret_cast<__m64*>(ybuf);
-  __m64* end64 = reinterpret_cast<__m64*>(ybuf + source_width);
+  while (dest64 < end64) {
+    __m64 src0 = *src0_64++;
+    __m64 src1 = *src1_64++;
+    __m64 src2 = _mm_unpackhi_pi8(src0, zero);
+    __m64 src3 = _mm_unpackhi_pi8(src1, zero);
+    src0 = _mm_unpacklo_pi8(src0, zero);
+    src1 = _mm_unpacklo_pi8(src1, zero);
+    src0 = _mm_mullo_pi16(src0, src0_fraction);
+    src1 = _mm_mullo_pi16(src1, src1_fraction);
+    src2 = _mm_mullo_pi16(src2, src0_fraction);
+    src3 = _mm_mullo_pi16(src3, src1_fraction);
+    src0 = _mm_add_pi16(src0, src1);
+    src2 = _mm_add_pi16(src2, src3);
+    src0 = _mm_srli_pi16(src0, 8);
+    src2 = _mm_srli_pi16(src2, 8);
+    src0 = _mm_packs_pu16(src0, src2);
+    *dest64++ = src0;
+    pixel += 8;
+  }
 
-  do {
-    __m64 y0 = *y0_ptr64++;
-    __m64 y1 = *y1_ptr64++;
-    __m64 y2 = _mm_unpackhi_pi8(y0, zero);
-    __m64 y3 = _mm_unpackhi_pi8(y1, zero);
-    y0 = _mm_unpacklo_pi8(y0, zero);
-    y1 = _mm_unpacklo_pi8(y1, zero);
-    y0 = _mm_mullo_pi16(y0, y0_fraction);
-    y1 = _mm_mullo_pi16(y1, y1_fraction);
-    y2 = _mm_mullo_pi16(y2, y0_fraction);
-    y3 = _mm_mullo_pi16(y3, y1_fraction);
-    y0 = _mm_add_pi16(y0, y1);
-    y2 = _mm_add_pi16(y2, y3);
-    y0 = _mm_srli_pi16(y0, 8);
-    y2 = _mm_srli_pi16(y2, 8);
-    y0 = _mm_packs_pu16(y0, y2);
-    *dest64++ = y0;
-  } while (dest64 < end64);
+  while (pixel < width) {
+    dest[pixel] = (src0[pixel] * (256 - fraction) +
+                   src1[pixel] * fraction) >> 8;
+    ++pixel;
+  }
 }
 
 #if defined(COMPILER_MSVC)
