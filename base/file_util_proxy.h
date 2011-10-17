@@ -50,8 +50,8 @@ class BASE_EXPORT FileUtilProxy {
   typedef base::Callback<void(PlatformFileError /* error code */,
                               const PlatformFileInfo& /* file_info */)>
       GetFileInfoCallback;
-  typedef Callback2<PlatformFileError /* error code */,
-                    const std::vector<Entry>&>::Type ReadDirectoryCallback;
+  typedef base::Callback<void(PlatformFileError /* error code */,
+                              const std::vector<Entry>&)> ReadDirectoryCallback;
   typedef Callback3<PlatformFileError /* error code */,
                     const char* /* data */,
                     int /* bytes read/written */>::Type ReadCallback;
@@ -115,7 +115,7 @@ class BASE_EXPORT FileUtilProxy {
 
   static bool ReadDirectory(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                             const FilePath& file_path,
-                            ReadDirectoryCallback* callback);
+                            const ReadDirectoryCallback& callback);
 
   // Creates directory at given path. It's an error to create
   // if |exclusive| is true and dir already exists.
