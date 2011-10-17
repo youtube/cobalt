@@ -294,9 +294,9 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
     // TODO(hclam): Implement a NEON version.
     convert_proc = &ConvertRGB32ToYUV_C;
 #else
-    if (hasSSSE3())
-      convert_proc = &ConvertRGB32ToYUV_SSSE3;
-    else if (hasSSE2())
+    // TODO(hclam): Switch to SSSE3 version when the cyan problem is solved.
+    // See: crbug.com/100462
+      if (hasSSE2())
       convert_proc = &ConvertRGB32ToYUV_SSE2;
     else
       convert_proc = &ConvertRGB32ToYUV_C;
