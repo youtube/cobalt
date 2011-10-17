@@ -167,12 +167,12 @@ class RelayCreateTemporary : public MessageLoopRelay {
   RelayCreateTemporary(
       scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
       int additional_file_flags,
-      base::FileUtilProxy::CreateTemporaryCallback* callback)
+      const base::FileUtilProxy::CreateTemporaryCallback& callback)
       : message_loop_proxy_(message_loop_proxy),
         additional_file_flags_(additional_file_flags),
         callback_(callback),
         file_handle_(base::kInvalidPlatformFileValue) {
-    DCHECK(callback);
+    DCHECK_EQ(false, callback.is_null());
   }
 
  protected:
@@ -199,15 +199,14 @@ class RelayCreateTemporary : public MessageLoopRelay {
   }
 
   virtual void RunCallback() {
-    callback_->Run(error_code(), base::PassPlatformFile(&file_handle_),
-                   file_path_);
-    delete callback_;
+    callback_.Run(error_code(), base::PassPlatformFile(&file_handle_),
+                  file_path_);
   }
 
  private:
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
   int additional_file_flags_;
-  base::FileUtilProxy::CreateTemporaryCallback* callback_;
+  base::FileUtilProxy::CreateTemporaryCallback callback_;
   base::PlatformFile file_handle_;
   FilePath file_path_;
 };
@@ -747,7 +746,7 @@ bool FileUtilProxy::CreateOrOpen(
 bool FileUtilProxy::CreateTemporary(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     int additional_file_flags,
-    CreateTemporaryCallback* callback) {
+    const CreateTemporaryCallback& callback) {
   return Start(FROM_HERE, message_loop_proxy,
                new RelayCreateTemporary(message_loop_proxy,
                                         additional_file_flags,
