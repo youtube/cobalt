@@ -1579,6 +1579,8 @@ int SSLClientSocketNSS::ImportOBCertAndKey(CERTCertificate** cert,
 }
 
 int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
+  net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_GET_ORIGIN_BOUND_CERT,
+                                    result);
   client_auth_cert_needed_ = false;
   ob_cert_request_handle_ = NULL;
 
@@ -1594,6 +1596,9 @@ int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
   CERTCertificateList* cert_chain = CERT_CertChainFromCert(cert,
                                                            certUsageSSLClient,
                                                            PR_FALSE);
+  net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+      make_scoped_refptr(new NetLogIntegerParameter("cert_count",
+                                                    cert_chain->len)));
   SECStatus rv;
   rv = SSL_RestartHandshakeAfterCertReq(nss_fd_, cert, key, cert_chain);
   if (rv != SECSuccess)
@@ -2126,6 +2131,7 @@ SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
 
   // We have negotiated the origin-bound certificate extension.
   std::string origin = "https://" + host_and_port_.ToString();
+  net_log_.BeginEvent(NetLog::TYPE_SSL_GET_ORIGIN_BOUND_CERT, NULL);
   int error = origin_bound_cert_service_->GetOriginBoundCert(
       origin,
       &ob_private_key_,
@@ -2134,23 +2140,30 @@ SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
                  base::Unretained(this)),
       &ob_cert_request_handle_);
 
-  if (error == OK) {
-    // Synchronous success.
-    int result = ImportOBCertAndKey(result_certificate,
-                                    result_private_key);
-    if (result != OK)
-      return SECFailure;
-
-    return SECSuccess;
-  }
-
   if (error == ERR_IO_PENDING) {
     // Asynchronous case.
     client_auth_cert_needed_ = true;
     return SECWouldBlock;
   }
+  net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_GET_ORIGIN_BOUND_CERT,
+                                    error);
 
-  return SECFailure;  // Synchronous failure.
+  SECStatus rv = SECSuccess;
+  if (error == OK) {
+    // Synchronous success.
+    int result = ImportOBCertAndKey(result_certificate,
+                                    result_private_key);
+    if (result != OK)
+      rv = SECFailure;
+  } else {
+    rv = SECFailure;  // Synchronous failure.
+  }
+
+  int cert_count = (rv == SECSuccess) ? 1 : 0;
+  net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+      make_scoped_refptr(new NetLogIntegerParameter("cert_count",
+                                                    cert_count)));
+  return rv;
 }
 
 #if defined(NSS_PLATFORM_CLIENT_AUTH)
@@ -2165,6 +2178,8 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     CERTCertificate** result_nss_certificate,
     SECKEYPrivateKey** result_nss_private_key) {
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+
+  that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED, NULL);
 
   // Check if an origin-bound certificate is requested.
   if (OriginBoundCertNegotiated(socket)) {
@@ -2204,6 +2219,8 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
         if (!user_cert) {
           // Importing the certificate can fail for reasons including a serial
           // number collision. See crbug.com/97355.
+          that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+              make_scoped_refptr(new NetLogIntegerParameter("cert_count", 0)));
           return SECFailure;
         }
         CERTCertList* cert_chain = CERT_NewCertList();
@@ -2221,6 +2238,9 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
               db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
           if (!intermediate) {
             CERT_DestroyCertList(cert_chain);
+            that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+                make_scoped_refptr(new NetLogIntegerParameter("cert_count",
+                                                              0)));
             return SECFailure;
           }
           CERT_AddCertToListTail(cert_chain, intermediate);
@@ -2237,11 +2257,17 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
         *result_private_key = key_context;
         *result_certs = cert_chain;
 
+        int cert_count = 1 + intermediates.size();
+        that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+            make_scoped_refptr(new NetLogIntegerParameter("cert_count",
+                                                          cert_count)));
         return SECSuccess;
       }
       LOG(WARNING) << "Client cert found without private key";
     }
     // Send no client certificate.
+    that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+        make_scoped_refptr(new NetLogIntegerParameter("cert_count", 0)));
     return SECFailure;
   }
 
@@ -2258,6 +2284,8 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
   if (!my_cert_store) {
     LOG(ERROR) << "Could not open the \"MY\" system certificate store: "
                << GetLastError();
+    that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+        make_scoped_refptr(new NetLogIntegerParameter("cert_count", 0)));
     return SECFailure;
   }
 
@@ -2385,7 +2413,11 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
         }
       }
       if (os_error == noErr) {
+        int cert_count = CFArrayGetCount(chain);
         CFRelease(chain);
+        that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+            make_scoped_refptr(new NetLogIntegerParameter("cert_count",
+                                                          cert_count)));
         return SECSuccess;
       }
       LOG(WARNING) << "Client cert found, but could not be used: "
@@ -2402,6 +2434,8 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
         CFRelease(chain);
     }
     // Send no client certificate.
+    that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+        make_scoped_refptr(new NetLogIntegerParameter("cert_count", 0)));
     return SECFailure;
   }
 
@@ -2445,6 +2479,8 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
     SECKEYPrivateKey** result_private_key) {
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
+  that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED, NULL);
+
   // Check if an origin-bound certificate is requested.
   if (OriginBoundCertNegotiated(socket)) {
     return that->OriginBoundClientAuthHandler(
@@ -2467,11 +2503,17 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
         // http://crbug.com/13934.
         *result_certificate = cert;
         *result_private_key = privkey;
+        // A cert_count of -1 means the number of certificates is unknown.
+        // NSS will construct the certificate chain.
+        that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+            make_scoped_refptr(new NetLogIntegerParameter("cert_count", -1)));
         return SECSuccess;
       }
       LOG(WARNING) << "Client cert found without private key";
     }
     // Send no client certificate.
+    that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+        make_scoped_refptr(new NetLogIntegerParameter("cert_count", 0)));
     return SECFailure;
   }
 

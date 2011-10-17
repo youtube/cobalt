@@ -322,7 +322,7 @@ EVENT_TYPE(TCP_CONNECT)
 //   }
 EVENT_TYPE(TCP_CONNECT_ATTEMPT)
 
-// The start/end of a TCP connect(). This corresponds with a call to
+// The start/end of a TCP accept(). This corresponds with a call to
 // TCPServerSocket::Accept().
 //
 // The END event will contain the following parameters on success:
@@ -400,6 +400,29 @@ EVENT_TYPE(SSL_CONNECT)
 
 // The start/end of an SSL server handshake (aka "accept").
 EVENT_TYPE(SSL_SERVER_HANDSHAKE)
+
+// The SSL server requested a client certificate.
+EVENT_TYPE(SSL_CLIENT_CERT_REQUESTED)
+
+// The start/end of getting an origin-bound certificate and private key.
+//
+// The END event will contain the following parameters on failure:
+//
+//   {
+//     "net_error": <Net integer error code>,
+//   }
+EVENT_TYPE(SSL_GET_ORIGIN_BOUND_CERT)
+
+// A client certificate (or none) was provided to the SSL library to be sent
+// to the SSL server.
+// The following parameters are attached to the event:
+//   {
+//     "cert_count": <Number of certificates>,
+//   }
+//   A cert_count of 0 means no client certificate was provided.
+//   A cert_count of -1 means a client certificate was provided but we don't
+//   know the size of the certificate chain.
+EVENT_TYPE(SSL_CLIENT_CERT_PROVIDED)
 
 // An SSL error occurred while trying to do the indicated activity.
 // The following parameters are attached to the event:
