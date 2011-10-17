@@ -38,6 +38,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/sys_string_conversions.h"
@@ -91,7 +92,7 @@ bool RealPath(const FilePath& path, FilePath* real_path) {
 // Helper for VerifyPathControlledByUser.
 bool VerifySpecificPathControlledByUser(const FilePath& path,
                                         uid_t owner_uid,
-                                        gid_t group_gid) {
+                                        const std::set<gid_t>& group_gids) {
   stat_wrapper_t stat_info;
   if (CallLstat(path.value().c_str(), &stat_info) != 0) {
     PLOG(ERROR) << "Failed to get information on path "
@@ -111,9 +112,10 @@ bool VerifySpecificPathControlledByUser(const FilePath& path,
     return false;
   }
 
-  if (stat_info.st_gid != group_gid) {
+  if ((stat_info.st_mode & S_IWGRP) &&
+      !ContainsKey(group_gids, stat_info.st_gid)) {
     LOG(ERROR) << "Path " << path.value()
-               << " is owned by the wrong group.";
+               << " is writable by an unprivileged group.";
     return false;
   }
 
@@ -990,7 +992,7 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
 bool VerifyPathControlledByUser(const FilePath& base,
                                 const FilePath& path,
                                 uid_t owner_uid,
-                                gid_t group_gid) {
+                                const std::set<gid_t>& group_gids) {
   if (base != path && !base.IsParent(path)) {
      LOG(ERROR) << "|base| must be a subdirectory of |path|.  base = \""
                 << base.value() << "\", path = \"" << path.value() << "\"";
@@ -1014,12 +1016,13 @@ bool VerifyPathControlledByUser(const FilePath& base,
   }
 
   FilePath current_path = base;
-  if (!VerifySpecificPathControlledByUser(current_path, owner_uid, group_gid))
+  if (!VerifySpecificPathControlledByUser(current_path, owner_uid, group_gids))
     return false;
 
   for (; ip != path_components.end(); ++ip) {
     current_path = current_path.Append(*ip);
-    if (!VerifySpecificPathControlledByUser(current_path, owner_uid, group_gid))
+    if (!VerifySpecificPathControlledByUser(
+            current_path, owner_uid, group_gids))
       return false;
   }
   return true;
@@ -1031,20 +1034,28 @@ bool VerifyPathControlledByAdmin(const FilePath& path) {
   const FilePath kFileSystemRoot("/");
 
   // The name of the administrator group on mac os.
-  const char kAdminGroupName[] = "admin";
+  const char* const kAdminGroupNames[] = {
+    "admin",
+    "wheel"
+  };
 
   // Reading the groups database may touch the file system.
   base::ThreadRestrictions::AssertIOAllowed();
 
-  struct group *group_record = getgrnam(kAdminGroupName);
-  if (!group_record) {
-    PLOG(ERROR) << "Could not get the group ID of group \""
-                << kAdminGroupName << "\".";
-    return false;
+  std::set<gid_t> allowed_group_ids;
+  for (int i = 0, ie = arraysize(kAdminGroupNames); i < ie; ++i) {
+    struct group *group_record = getgrnam(kAdminGroupNames[i]);
+    if (!group_record) {
+      PLOG(ERROR) << "Could not get the group ID of group \""
+                  << kAdminGroupNames[i] << "\".";
+      continue;
+    }
+
+    allowed_group_ids.insert(group_record->gr_gid);
   }
 
   return VerifyPathControlledByUser(
-      kFileSystemRoot, path, kRootUid, group_record->gr_gid);
+      kFileSystemRoot, path, kRootUid, allowed_group_ids);
 }
 #endif  // defined(OS_MACOSX)
 
