@@ -630,6 +630,12 @@
                 '../chrome/chrome.gyp:crash_service_win64',
               ],
             }],
+            ['OS=="linux"', {
+              # Aura unit_tests currently only work on Linux.
+              'dependencies': [
+                '../chrome/chrome.gyp:unit_tests',
+              ],
+            }],
           ],
         },
       ],  # targets
