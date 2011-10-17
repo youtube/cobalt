@@ -47,9 +47,9 @@ class BASE_EXPORT FileUtilProxy {
                               FilePath)> CreateTemporaryCallback;
   typedef base::Callback<void(PlatformFileError /* error code */,
                               bool /* created */)> EnsureFileExistsCallback;
-  typedef Callback2<PlatformFileError /* error code */,
-                    const PlatformFileInfo& /* file_info */
-                    >::Type GetFileInfoCallback;
+  typedef base::Callback<void(PlatformFileError /* error code */,
+                              const PlatformFileInfo& /* file_info */)>
+      GetFileInfoCallback;
   typedef Callback2<PlatformFileError /* error code */,
                     const std::vector<Entry>&>::Type ReadDirectoryCallback;
   typedef Callback3<PlatformFileError /* error code */,
@@ -106,12 +106,12 @@ class BASE_EXPORT FileUtilProxy {
   static bool GetFileInfo(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
-      GetFileInfoCallback* callback);
+      const GetFileInfoCallback& callback);
 
   static bool GetFileInfoFromPlatformFile(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
-      GetFileInfoCallback* callback);
+      const GetFileInfoCallback& callback);
 
   static bool ReadDirectory(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                             const FilePath& file_path,
