@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 
+#include <set>
 #include <stack>
 #include <string>
 #include <vector>
@@ -378,18 +379,21 @@ BASE_EXPORT bool GetCurrentDirectory(FilePath* path);
 BASE_EXPORT bool SetCurrentDirectory(const FilePath& path);
 
 #if defined(OS_POSIX)
-// Test that |path| can only be changed by a specific user and group.
+// Test that |path| can only be changed by a given user and members of
+// a given set of groups.
 // Specifically, test that all parts of |path| under (and including) |base|:
 // * Exist.
-// * Are owned by a specific user and group.
+// * Are owned by a specific user.
 // * Are not writable by all users.
+// * Are owned by a memeber of a given set of groups, or are not writable by
+//   their group.
 // * Are not symbolic links.
 // This is useful for checking that a config file is administrator-controlled.
 // |base| must contain |path|.
 BASE_EXPORT bool VerifyPathControlledByUser(const FilePath& base,
                                             const FilePath& path,
                                             uid_t owner_uid,
-                                            gid_t group_gid);
+                                            const std::set<gid_t>& group_gids);
 #endif  // defined(OS_POSIX)
 
 #if defined(OS_MACOSX)
