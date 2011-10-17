@@ -42,9 +42,9 @@ class BASE_EXPORT FileUtilProxy {
   typedef base::Callback<void(PlatformFileError /* error code */,
                               PassPlatformFile,
                               bool /* created */)> CreateOrOpenCallback;
-  typedef Callback3<PlatformFileError /* error code */,
-                    PassPlatformFile,
-                    FilePath>::Type CreateTemporaryCallback;
+  typedef base::Callback<void(PlatformFileError /* error code */,
+                              PassPlatformFile,
+                              FilePath)> CreateTemporaryCallback;
   typedef Callback2<PlatformFileError /* error code */,
                     bool /* created */>::Type EnsureFileExistsCallback;
   typedef Callback2<PlatformFileError /* error code */,
@@ -80,7 +80,7 @@ class BASE_EXPORT FileUtilProxy {
   static bool CreateTemporary(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       int additional_file_flags,
-      CreateTemporaryCallback* callback);
+      const CreateTemporaryCallback& callback);
 
   // Close the given file handle.
   static bool Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
