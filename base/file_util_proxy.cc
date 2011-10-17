@@ -4,6 +4,7 @@
 
 #include "base/file_util_proxy.h"
 
+#include "base/bind.h"
 #include "base/message_loop_proxy.h"
 
 // TODO(jianli): Move the code from anonymous namespace to base namespace so
@@ -80,8 +81,7 @@ class MessageLoopRelay
   bool Start(scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
              const tracked_objects::Location& from_here) {
     return message_loop_proxy->PostTask(
-        from_here,
-        NewRunnableMethod(this, &MessageLoopRelay::ProcessOnTargetThread));
+        from_here, base::Bind(&MessageLoopRelay::ProcessOnTargetThread, this));
   }
 
  protected:
@@ -106,8 +106,7 @@ class MessageLoopRelay
   void ProcessOnTargetThread() {
     RunWork();
     origin_message_loop_proxy_->PostTask(
-        FROM_HERE,
-        NewRunnableMethod(this, &MessageLoopRelay::RunCallback));
+        FROM_HERE, base::Bind(&MessageLoopRelay::RunCallback, this));
   }
 
   scoped_refptr<base::MessageLoopProxy> origin_message_loop_proxy_;
