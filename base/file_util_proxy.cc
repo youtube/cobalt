@@ -469,10 +469,10 @@ class RelayReadDirectory : public MessageLoopRelay {
 class RelayGetFileInfo : public MessageLoopRelay {
  public:
   RelayGetFileInfo(const FilePath& file_path,
-                   base::FileUtilProxy::GetFileInfoCallback* callback)
+                   const base::FileUtilProxy::GetFileInfoCallback& callback)
       : callback_(callback),
         file_path_(file_path) {
-    DCHECK(callback);
+    DCHECK_EQ(false, callback.is_null());
   }
 
  protected:
@@ -486,12 +486,11 @@ class RelayGetFileInfo : public MessageLoopRelay {
   }
 
   virtual void RunCallback() {
-    callback_->Run(error_code(), file_info_);
-    delete callback_;
+    callback_.Run(error_code(), file_info_);
   }
 
  private:
-  base::FileUtilProxy::GetFileInfoCallback* callback_;
+  base::FileUtilProxy::GetFileInfoCallback callback_;
   FilePath file_path_;
   base::PlatformFileInfo file_info_;
 };
@@ -500,10 +499,10 @@ class RelayGetFileInfoFromPlatformFile : public MessageLoopRelay {
  public:
   RelayGetFileInfoFromPlatformFile(
       base::PlatformFile file,
-      base::FileUtilProxy::GetFileInfoCallback* callback)
+      const base::FileUtilProxy::GetFileInfoCallback& callback)
       : callback_(callback),
         file_(file) {
-    DCHECK(callback);
+    DCHECK_EQ(false, callback.is_null());
   }
 
  protected:
@@ -513,12 +512,11 @@ class RelayGetFileInfoFromPlatformFile : public MessageLoopRelay {
   }
 
   virtual void RunCallback() {
-    callback_->Run(error_code(), file_info_);
-    delete callback_;
+    callback_.Run(error_code(), file_info_);
   }
 
  private:
-  base::FileUtilProxy::GetFileInfoCallback* callback_;
+  base::FileUtilProxy::GetFileInfoCallback callback_;
   base::PlatformFile file_;
   base::PlatformFileInfo file_info_;
 };
@@ -774,7 +772,7 @@ bool FileUtilProxy::EnsureFileExists(
 bool FileUtilProxy::GetFileInfo(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     const FilePath& file_path,
-    GetFileInfoCallback* callback) {
+    const GetFileInfoCallback& callback) {
   return Start(FROM_HERE, message_loop_proxy, new RelayGetFileInfo(
                file_path, callback));
 }
@@ -783,7 +781,7 @@ bool FileUtilProxy::GetFileInfo(
 bool FileUtilProxy::GetFileInfoFromPlatformFile(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     PlatformFile file,
-    GetFileInfoCallback* callback) {
+    const GetFileInfoCallback& callback) {
   return Start(FROM_HERE, message_loop_proxy,
                new RelayGetFileInfoFromPlatformFile(file, callback));
 }
