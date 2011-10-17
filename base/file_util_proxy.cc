@@ -564,7 +564,7 @@ class RelayWrite : public MessageLoopRelay {
              int64 offset,
              const char* buffer,
              int bytes_to_write,
-             base::FileUtilProxy::WriteCallback* callback)
+             const base::FileUtilProxy::WriteCallback& callback)
       : file_(file),
         offset_(offset),
         buffer_(new char[bytes_to_write]),
@@ -583,10 +583,8 @@ class RelayWrite : public MessageLoopRelay {
   }
 
   virtual void RunCallback() {
-    if (callback_) {
-      callback_->Run(error_code(), bytes_written_);
-      delete callback_;
-    }
+    if (!callback_.is_null())
+      callback_.Run(error_code(), bytes_written_);
   }
 
  private:
@@ -594,7 +592,7 @@ class RelayWrite : public MessageLoopRelay {
   int64 offset_;
   scoped_array<char> buffer_;
   int bytes_to_write_;
-  base::FileUtilProxy::WriteCallback* callback_;
+  base::FileUtilProxy::WriteCallback callback_;
   int bytes_written_;
 };
 
@@ -862,11 +860,10 @@ bool FileUtilProxy::Write(
     int64 offset,
     const char* buffer,
     int bytes_to_write,
-    WriteCallback* callback) {
-  if (bytes_to_write <= 0) {
-    delete callback;
+    const WriteCallback& callback) {
+  if (bytes_to_write <= 0)
     return false;
-  }
+
   return Start(FROM_HERE, message_loop_proxy,
                new RelayWrite(file, offset, buffer, bytes_to_write, callback));
 }
