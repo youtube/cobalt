@@ -26,7 +26,7 @@
  "linux-release-lowmem/bloat-http/times/t": {"reva": 81070, "revb": 81884, "improve": -1006, "regress": 472, "sha1": "e7d41b7a"},
  "linux-release-lowmem/database/delete-transactions/t": {"reva": 98857, "revb": 99968, "improve": -361, "regress": 945, "sha1": "37b036ce"},
  "linux-release-lowmem/database/insert-transactions/t": {"reva": 98857, "revb": 99968, "improve": -258, "regress": 925, "sha1": "3690944a"},
- "linux-release-lowmem/database/pseudo-random-transactions/t": {"reva": 98857, "revb": 99968, "improve": -245, "regress": 385, "sha1": "7570d83a"},
+ "linux-release-lowmem/database/pseudo-random-transactions/t": {"reva": 105828, "revb": 105891, "improve": 322, "regress": 606, "sha1": "c76e5535"},
  "linux-release-lowmem/database/select-readtransactions-read-results/t": {"reva": 81070, "revb": 81884, "improve": -658, "regress": 247, "sha1": "fc5755ff"},
  "linux-release-lowmem/database/select-readtransactions/t": {"reva": 81070, "revb": 81884, "improve": -614, "regress": 333, "sha1": "81384adb"},
  "linux-release-lowmem/dhtml/times/t": {"reva": 98519, "revb": 104238, "improve": -148, "regress": 408, "sha1": "9be87955"},
