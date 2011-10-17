@@ -421,10 +421,12 @@ class RelayCreateDirectory : public RelayWithStatusCallback {
 
 class RelayReadDirectory : public MessageLoopRelay {
  public:
-  RelayReadDirectory(const FilePath& file_path,
-      base::FileUtilProxy::ReadDirectoryCallback* callback)
-      : callback_(callback), file_path_(file_path) {
-    DCHECK(callback);
+  RelayReadDirectory(
+      const FilePath& file_path,
+      const base::FileUtilProxy::ReadDirectoryCallback& callback)
+      : callback_(callback),
+        file_path_(file_path) {
+    DCHECK_EQ(false, callback.is_null());
   }
 
  protected:
@@ -456,12 +458,11 @@ class RelayReadDirectory : public MessageLoopRelay {
   }
 
   virtual void RunCallback() {
-    callback_->Run(error_code(), entries_);
-    delete callback_;
+    callback_.Run(error_code(), entries_);
   }
 
  private:
-  base::FileUtilProxy::ReadDirectoryCallback* callback_;
+  base::FileUtilProxy::ReadDirectoryCallback callback_;
   FilePath file_path_;
   std::vector<base::FileUtilProxy::Entry> entries_;
 };
@@ -790,7 +791,7 @@ bool FileUtilProxy::GetFileInfoFromPlatformFile(
 bool FileUtilProxy::ReadDirectory(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     const FilePath& file_path,
-    ReadDirectoryCallback* callback) {
+    const ReadDirectoryCallback& callback) {
   return Start(FROM_HERE, message_loop_proxy, new RelayReadDirectory(
                file_path, callback));
 }
