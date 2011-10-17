@@ -80,9 +80,9 @@ install_gold() {
 }
 
 if ! egrep -q \
-    'Ubuntu (10\.04|10\.10|11\.04|lucid|maverick|natty)' \
+    'Ubuntu (10\.04|10\.10|11\.04|11\.10|lucid|maverick|natty|oneiric)' \
     /etc/issue; then
-  echo "Only Ubuntu 10.04 (lucid) through 11.04 (natty) are currently" \
+  echo "Only Ubuntu 10.04 (lucid) through 11.10 (oneiric) are currently" \
       "supported" >&2
   exit 1
 fi
@@ -109,8 +109,8 @@ dev_list="apache2.2-bin bison curl elfutils
           libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev libgnome-keyring-dev
           libgtk2.0-dev libjpeg62-dev libkrb5-dev libnspr4-dev libnss3-dev
           libpam0g-dev libsctp-dev libsqlite3-dev libssl-dev libxslt1-dev
-          libxss-dev libxtst-dev mesa-common-dev msttcorefonts patch perl
-          libwww-perl php5-cgi pkg-config python python-dev rpm subversion
+          libxss-dev libxt-dev libxtst-dev mesa-common-dev msttcorefonts patch
+          perl libwww-perl php5-cgi pkg-config python python-dev rpm subversion
           ttf-dejavu-core ttf-kochi-gothic ttf-kochi-mincho wdiff ruby
           libcurl4-gnutls-dev ttf-indic-fonts ttf-thai-tlwg
           $chromeos_dev_list"
