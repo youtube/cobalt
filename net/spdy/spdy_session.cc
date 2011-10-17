@@ -1612,7 +1612,6 @@ void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
   base::TimeDelta delay = kHungInterval - (now - received_data_time_);
 
   if (delay.InMilliseconds() < 0 || received_data_time_ < last_check_time) {
-    DCHECK(now - received_data_time_ > kHungInterval);
     CloseSessionOnError(net::ERR_SPDY_PING_FAILED, true);
     return;
   }
