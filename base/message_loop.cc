@@ -306,7 +306,7 @@ void MessageLoop::PostNonNestableDelayedTask(
 
 void MessageLoop::PostTask(
     const tracked_objects::Location& from_here, const base::Closure& task) {
-  CHECK(!task.is_null());
+  CHECK(!task.is_null()) << from_here.ToString();
   PendingTask pending_task(task, from_here, CalculateDelayedRuntime(0), true);
   AddToIncomingQueue(&pending_task);
 }
@@ -314,7 +314,7 @@ void MessageLoop::PostTask(
 void MessageLoop::PostDelayedTask(
     const tracked_objects::Location& from_here, const base::Closure& task,
     int64 delay_ms) {
-  CHECK(!task.is_null());
+  CHECK(!task.is_null()) << from_here.ToString();
   PendingTask pending_task(task, from_here,
                            CalculateDelayedRuntime(delay_ms), true);
   AddToIncomingQueue(&pending_task);
@@ -322,7 +322,7 @@ void MessageLoop::PostDelayedTask(
 
 void MessageLoop::PostNonNestableTask(
     const tracked_objects::Location& from_here, const base::Closure& task) {
-  CHECK(!task.is_null());
+  CHECK(!task.is_null()) << from_here.ToString();
   PendingTask pending_task(task, from_here, CalculateDelayedRuntime(0), false);
   AddToIncomingQueue(&pending_task);
 }
@@ -330,7 +330,7 @@ void MessageLoop::PostNonNestableTask(
 void MessageLoop::PostNonNestableDelayedTask(
     const tracked_objects::Location& from_here, const base::Closure& task,
     int64 delay_ms) {
-  CHECK(!task.is_null());
+  CHECK(!task.is_null()) << from_here.ToString();
   PendingTask pending_task(task, from_here,
                            CalculateDelayedRuntime(delay_ms), false);
   AddToIncomingQueue(&pending_task);
@@ -363,6 +363,12 @@ void MessageLoop::QuitNow() {
   } else {
     NOTREACHED() << "Must be inside Run to call Quit";
   }
+}
+
+// static
+base::Closure MessageLoop::QuitClosure() {
+  return base::Bind(&MessageLoop::Quit,
+                    base::Unretained(MessageLoop::current()));
 }
 
 void MessageLoop::SetNestableTasksAllowed(bool allowed) {
