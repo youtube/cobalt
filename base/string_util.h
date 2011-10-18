@@ -442,26 +442,40 @@ BASE_EXPORT void ReplaceSubstringsAfterOffset(
     const std::string& find_this,
     const std::string& replace_with);
 
-// This is mpcomplete's pattern for saving a string copy when dealing with
-// a function that writes results into a wchar_t[] and wanting the result to
-// end up in a std::wstring.  It ensures that the std::wstring's internal
-// buffer has enough room to store the characters to be written into it, and
-// sets its .length() attribute to the right value.
+// Reserves enough memory in |str| to accommodate |length_with_null|
+// characters, sets the size of |str| to |length_with_null - 1| characters,
+// and returns a pointer to the underlying contiguous array of characters.
 //
-// The reserve() call allocates the memory required to hold the string
-// plus a terminating null.  This is done because resize() isn't
-// guaranteed to reserve space for the null.  The resize() call is
-// simply the only way to change the string's 'length' member.
+// This is typically used when calling a function that writes results into a
+// character array, but the caller wants the data to be managed by a
+// string-like object.
 //
-// XXX-performance: the call to wide.resize() takes linear time, since it fills
-// the string's buffer with nulls.  I call it to change the length of the
-// string (needed because writing directly to the buffer doesn't do this).
-// Perhaps there's a constant-time way to change the string's length.
+// |length_with_null| must be >= 1. In the |length_with_null| == 1 case,
+// NULL is returned rather than a pointer to the array, since there is no way
+// to provide access to the underlying character array of a 0-length
+// string-like object without breaking guarantees provided by the C++
+// standards.
+//
+// Internally, this takes linear time because the underlying array needs to
+// be 0-filled for all |length_with_null - 1| * sizeof(character) bytes.
 template <class string_type>
 inline typename string_type::value_type* WriteInto(string_type* str,
                                                    size_t length_with_null) {
+  DCHECK_NE(0u, length_with_null);
   str->reserve(length_with_null);
   str->resize(length_with_null - 1);
+
+  // If |length_with_null| is 1, calling (*str)[0] is invalid since the
+  // size() is 0. In some implementations this triggers an assertion.
+  //
+  // Trying to access the underlying byte array by casting away const
+  // when calling str->data() or str->c_str() is also incorrect.
+  // Some implementations of basic_string use a copy-on-write approach and
+  // this could end up mutating the data that is shared across multiple string
+  // objects.
+  if (length_with_null <= 1)
+    return NULL;
+
   return &((*str)[0]);
 }
 
