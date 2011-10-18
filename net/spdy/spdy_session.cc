@@ -1386,6 +1386,10 @@ void SpdySession::OnPing(const spdy::SpdyPingControlFrame& frame) {
   if (pings_in_flight_ > 0)
     return;
 
+  // We will record RTT in histogram when there are no more client sent
+  // pings_in_flight_.
+  RecordPingRTTHistogram(base::TimeTicks::Now() - last_ping_sent_time_);
+
   if (!need_to_send_ping_)
     return;
 
@@ -1584,6 +1588,7 @@ void SpdySession::WritePingFrame(uint32 unique_id) {
     ++pings_in_flight_;
     need_to_send_ping_ = false;
     PlanToCheckPingStatus();
+    last_ping_sent_time_ = base::TimeTicks::Now();
   }
 }
 
@@ -1616,6 +1621,10 @@ void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
 
   if (delay.InMilliseconds() < 0 || received_data_time_ < last_check_time) {
     CloseSessionOnError(net::ERR_SPDY_PING_FAILED, true);
+    // Track all failed PING messages in a separate bucket.
+    const base::TimeDelta kFailedPing =
+        base::TimeDelta::FromInternalValue(INT_MAX);
+    RecordPingRTTHistogram(kFailedPing);
     return;
   }
 
@@ -1624,6 +1633,10 @@ void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
       FROM_HERE,
       method_factory_.NewRunnableMethod(&SpdySession::CheckPingStatus, now),
       delay.InMilliseconds());
+}
+
+void SpdySession::RecordPingRTTHistogram(base::TimeDelta duration) {
+  UMA_HISTOGRAM_TIMES("Net.SpdyPing.RTT", duration);
 }
 
 void SpdySession::RecordHistograms() {
