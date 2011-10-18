@@ -631,6 +631,8 @@
         'udp/datagram_socket.h',
         'udp/udp_client_socket.cc',
         'udp/udp_client_socket.h',
+        'udp/udp_data_transfer_param.cc',
+        'udp/udp_data_transfer_param.h',
         'udp/udp_server_socket.cc',
         'udp/udp_server_socket.h',
         'udp/udp_socket.h',
