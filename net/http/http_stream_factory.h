@@ -7,6 +7,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
@@ -180,8 +181,10 @@ class NET_EXPORT HttpStreamFactory {
   // Turns spdy on or off.
   static void set_spdy_enabled(bool value) {
     spdy_enabled_ = value;
-    if (value == false)
-      set_next_protos("");
+    if (!spdy_enabled_) {
+      delete next_protos_;
+      next_protos_ = NULL;
+    }
   }
   static bool spdy_enabled() { return spdy_enabled_; }
 
@@ -211,11 +214,15 @@ class NET_EXPORT HttpStreamFactory {
   static bool HasSpdyExclusion(const HostPortPair& endpoint);
 
   // Sets the next protocol negotiation value used during the SSL handshake.
-  static void set_next_protos(const std::string& value) {
-    delete next_protos_;
-    next_protos_ = new std::string(value);
+  static void set_next_protos(const std::vector<std::string>& value) {
+    if (!next_protos_)
+      next_protos_ = new std::vector<std::string>;
+    *next_protos_ = value;
   }
-  static const std::string* next_protos() { return next_protos_; }
+  static bool has_next_protos() { return next_protos_ != NULL; }
+  static const std::vector<std::string>& next_protos() {
+    return *next_protos_;
+  }
 
   // Sets the HttpStreamFactoryImpl into a mode where it can ignore certificate
   // errors.  This is for testing.
@@ -235,7 +242,7 @@ class NET_EXPORT HttpStreamFactory {
   static const HostMappingRules& host_mapping_rules();
 
   static const HostMappingRules* host_mapping_rules_;
-  static const std::string* next_protos_;
+  static std::vector<std::string>* next_protos_;
   static bool spdy_enabled_;
   static bool use_alternate_protocols_;
   static bool force_spdy_over_ssl_;

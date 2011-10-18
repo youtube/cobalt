@@ -109,9 +109,9 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       next_state_(STATE_NONE),
       establishing_tunnel_(false) {
   session->ssl_config_service()->GetSSLConfig(&server_ssl_config_);
-  if (session->http_stream_factory()->next_protos()) {
+  if (session->http_stream_factory()->has_next_protos()) {
     server_ssl_config_.next_protos =
-        *session->http_stream_factory()->next_protos();
+        session->http_stream_factory()->next_protos();
   }
   proxy_ssl_config_ = server_ssl_config_;
 }

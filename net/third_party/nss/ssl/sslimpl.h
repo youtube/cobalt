@@ -322,9 +322,8 @@ typedef struct {
 #endif /* NSS_ENABLE_ECC */
 
 typedef struct sslOptionsStr {
-    /* For clients, this is a validated list of protocols in preference order
-     * and wire format. For servers, this is the list of support protocols,
-     * also in wire format. */
+    /* If SSL_SetNextProtoNego has been called, then this contains the
+     * list of supported protocols. */
     SECItem      nextProtoNego;
 
     unsigned int useSecurity		: 1;  /*  1 */
@@ -827,7 +826,6 @@ const ssl3CipherSuiteDef *suite_def;
 #ifdef NSS_ENABLE_ECC
     PRUint32              negotiatedECCurves; /* bit mask */
 #endif /* NSS_ENABLE_ECC */
-    PRBool                nextProtoNego;/* Our peer has sent this extension */
 } SSL3HandshakeState;
 
 
@@ -886,14 +884,11 @@ struct ssl3StateStr {
     ssl3CipherSpec       specs[2];	/* one is current, one is pending. */
 
     /* In a client: if the server supports Next Protocol Negotiation, then
-     * this is the protocol that was requested.
-     * In a server: this is the protocol that the client requested via Next
-     * Protocol Negotiation.
+     * this is the protocol that was negotiated.
      *
-     * In either case, if the data pointer is non-NULL, then it is malloced
-     * data.  */
+     * If the data pointer is non-NULL, then it is malloced data.  */
     SECItem		nextProto;
-    int			nextProtoState;	/* See SSL_NEXT_PROTO_* defines */
+    int			nextProtoState; /* See NEXT_PROTO_* defines */
 };
 
 typedef struct {
@@ -1129,6 +1124,8 @@ const unsigned char *  preferredCipher;
     SSLHandshakeCallback      handshakeCallback;
     void                     *handshakeCallbackData;
     void                     *pkcs11PinArg;
+    SSLNextProtoCallback      nextProtoCallback;
+    void                     *nextProtoArg;
 
     PRIntervalTime            rTimeout; /* timeout for NSPR I/O */
     PRIntervalTime            wTimeout; /* timeout for NSPR I/O */

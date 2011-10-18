@@ -157,14 +157,53 @@ SSL_IMPORT SECStatus SSL_OptionSetDefault(PRInt32 option, PRBool on);
 SSL_IMPORT SECStatus SSL_OptionGetDefault(PRInt32 option, PRBool *on);
 SSL_IMPORT SECStatus SSL_CertDBHandleSet(PRFileDesc *fd, CERTCertDBHandle *dbHandle);
 
+/* SSLNextProtoCallback is called, during the handshake, when the server has
+ * sent a Next Protocol Negotiation extension. |protos| and |protosLen| define
+ * a buffer which contains the server's advertisement. This data is guaranteed
+ * to be well formed per the NPN spec. |protoOut| is a buffer provided by the
+ * caller, of length 255 (the maximum allowed by the protocol).
+ * On successful return, the protocol to be announced to the server will be in
+ * |protoOut| and its length in |protoOutLen|. */
+typedef SECStatus (PR_CALLBACK *SSLNextProtoCallback)(
+    void *arg,
+    PRFileDesc *fd,
+    const unsigned char* protos,
+    unsigned int protosLen,
+    unsigned char* protoOut,
+    unsigned int* protoOutLen);
+
+/* SSL_SetNextProtoCallback sets a callback function to handle Next Protocol
+ * Negotiation. It causes a client to advertise NPN. */
+SSL_IMPORT SECStatus SSL_SetNextProtoCallback(PRFileDesc *fd,
+                                              SSLNextProtoCallback callback,
+                                              void *arg);
+
+/* SSL_SetNextProtoNego can be used as an alternative to
+ * SSL_SetNextProtoCallback. It also causes a client to advertise NPN and
+ * installs a default callback function which selects the first supported
+ * protocol in server-preference order. If no matching protocol is found it
+ * selects the first supported protocol.
+ *
+ * The supported protocols are specified in |data| in wire-format (8-bit
+ * length-prefixed). For example: "\010http/1.1\006spdy/2". */
 SSL_IMPORT SECStatus SSL_SetNextProtoNego(PRFileDesc *fd,
 					  const unsigned char *data,
-					  unsigned short length);
+					  unsigned int length);
+/* SSL_GetNextProto can be used after a handshake on a socket where
+ * SSL_SetNextProtoNego was called to retrieve the result of the Next Protocol
+ * negotiation.
+ *
+ * state is set to one of the SSL_NEXT_PROTO_* constants. The negotiated
+ * protocol, if any, is written into buf, which must be at least buf_len bytes
+ * long. If the negotiated protocol is longer than this, it is truncated.  The
+ * number of bytes copied is written into *length. */
 SSL_IMPORT SECStatus SSL_GetNextProto(PRFileDesc *fd,
 				      int *state,
 				      unsigned char *buf,
-				      unsigned *length,
-				      unsigned buf_len);
+				      unsigned int *length,
+				      unsigned int buf_len);
+
+// TODO(wtc): it may be a good idea to define these as an enum type.
 #define SSL_NEXT_PROTO_NO_SUPPORT	0 /* No peer support                */
 #define SSL_NEXT_PROTO_NEGOTIATED	1 /* Mutual agreement               */
 #define SSL_NEXT_PROTO_NO_OVERLAP	2 /* No protocol overlap found      */

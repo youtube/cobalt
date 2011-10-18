@@ -24,10 +24,6 @@
 
 namespace net {
 
-// This is the expected list of advertised protocols from the browser's NPN
-// list.
-static const char kExpectedNPNString[] = "\x08http/1.1\x06spdy/2";
-
 enum SpdyNetworkTransactionTestTypes {
   SPDYNPN,
   SPDYNOSSL,
@@ -122,13 +118,18 @@ class SpdyNetworkTransactionTest
       HttpStreamFactory::set_use_alternate_protocols(false);
       HttpStreamFactory::set_force_spdy_over_ssl(false);
       HttpStreamFactory::set_force_spdy_always(false);
+
+      std::vector<std::string> next_protos;
+      next_protos.push_back("http/1.1");
+      next_protos.push_back("spdy/2");
+
       switch (test_type_) {
         case SPDYNPN:
           session_->http_server_properties()->SetAlternateProtocol(
               HostPortPair("www.google.com", 80), 443,
               NPN_SPDY_2);
           HttpStreamFactory::set_use_alternate_protocols(true);
-          HttpStreamFactory::set_next_protos(kExpectedNPNString);
+          HttpStreamFactory::set_next_protos(next_protos);
           break;
         case SPDYNOSSL:
           HttpStreamFactory::set_force_spdy_over_ssl(false);
@@ -852,8 +853,8 @@ TEST_P(SpdyNetworkTransactionTest, TwoGetsLateBindingFromPreconnect) {
   helper.session()->ssl_config_service()->GetSSLConfig(&preconnect_ssl_config);
   HttpStreamFactory* http_stream_factory =
       helper.session()->http_stream_factory();
-  if (http_stream_factory->next_protos()) {
-    preconnect_ssl_config.next_protos = *http_stream_factory->next_protos();
+  if (http_stream_factory->has_next_protos()) {
+    preconnect_ssl_config.next_protos = http_stream_factory->next_protos();
   }
 
   http_stream_factory->PreconnectStreams(
