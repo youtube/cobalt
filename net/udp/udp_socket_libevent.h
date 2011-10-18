@@ -10,6 +10,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/threading/non_thread_safe.h"
+#include "net/base/address_list_net_log_param.h"
 #include "net/base/completion_callback.h"
 #include "net/base/rand_callback.h"
 #include "net/base/io_buffer.h"
@@ -18,8 +19,6 @@
 #include "net/udp/datagram_socket.h"
 
 namespace net {
-
-class BoundNetLog;
 
 class UDPSocketLibevent : public base::NonThreadSafe {
  public:
@@ -151,6 +150,14 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   void DidCompleteRead();
   void DidCompleteWrite();
 
+  // Handles stats and logging. |result| is the number of bytes transferred, on
+  // success, or the net error code on failure. On success, LogRead takes in a
+  // sockaddr and its length, which are mandatory, while LogWrite takes in an
+  // optional IPEndPoint.
+  void LogRead(int result, const char* bytes, socklen_t addr_len,
+               const sockaddr* addr) const;
+  void LogWrite(int result, const char* bytes, const IPEndPoint* address) const;
+
   // Returns the OS error code (or 0 on success).
   int CreateSocket(const IPEndPoint& address);
 
@@ -162,6 +169,7 @@ class UDPSocketLibevent : public base::NonThreadSafe {
                     const IPEndPoint* address,
                     OldCompletionCallback* callback);
 
+  int InternalConnect(const IPEndPoint& address);
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 

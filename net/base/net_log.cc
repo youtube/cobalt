@@ -192,9 +192,18 @@ void BoundNetLog::EndEvent(
   AddEntry(event_type, NetLog::PHASE_END, params);
 }
 
+void BoundNetLog::AddEventWithNetErrorCode(NetLog::EventType event_type,
+                                           int net_error) const {
+  DCHECK_GT(0, net_error);
+  DCHECK_NE(ERR_IO_PENDING, net_error);
+  AddEvent(
+      event_type,
+      make_scoped_refptr(new NetLogIntegerParameter("net_error", net_error)));
+}
+
 void BoundNetLog::EndEventWithNetErrorCode(NetLog::EventType event_type,
                                            int net_error) const {
-  DCHECK_NE(net_error, ERR_IO_PENDING);
+  DCHECK_NE(ERR_IO_PENDING, net_error);
   if (net_error >= 0) {
     EndEvent(event_type, NULL);
   } else {
@@ -205,7 +214,8 @@ void BoundNetLog::EndEventWithNetErrorCode(NetLog::EventType event_type,
 }
 
 void BoundNetLog::AddByteTransferEvent(NetLog::EventType event_type,
-                                       int byte_count, char* bytes) const {
+                                       int byte_count,
+                                       const char* bytes) const {
   scoped_refptr<NetLog::EventParameters> params;
   if (IsLoggingBytes()) {
     params = new NetLogBytesTransferredParameter(byte_count, bytes);
