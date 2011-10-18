@@ -409,17 +409,6 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   return NULL;
 }
 
-// static
-X509Certificate* X509Certificate::CreateOriginBound(
-    crypto::RSAPrivateKey* key,
-    const std::string& origin,
-    uint32 serial_number,
-    base::TimeDelta valid_duration) {
-  // TODO(port): Implement.
-  NOTIMPLEMENTED();
-  return NULL;
-}
-
 void X509Certificate::GetSubjectAltName(
     std::vector<std::string>* dns_names,
     std::vector<std::string>* ip_addrs) const {

@@ -6,6 +6,7 @@
 #define CRYPTO_SCOPED_NSS_TYPES_H_
 #pragma once
 
+#include <keyhi.h>
 #include <nss.h>
 #include <pk11pub.h>
 
@@ -38,6 +39,12 @@ typedef scoped_ptr_malloc<
     PK11SlotInfo, NSSDestroyer<PK11SlotInfo, PK11_FreeSlot> > ScopedPK11Slot;
 typedef scoped_ptr_malloc<
     PK11SymKey, NSSDestroyer<PK11SymKey, PK11_FreeSymKey> > ScopedPK11SymKey;
+typedef scoped_ptr_malloc<
+    SECKEYPublicKey, NSSDestroyer<SECKEYPublicKey, SECKEY_DestroyPublicKey> >
+    ScopedSECKEYPublicKey;
+typedef scoped_ptr_malloc<
+    SECKEYPrivateKey, NSSDestroyer<SECKEYPrivateKey, SECKEY_DestroyPrivateKey> >
+    ScopedSECKEYPrivateKey;
 typedef scoped_ptr_malloc<
     SECAlgorithmID, NSSDestroyer1<SECAlgorithmID,
                                   SECOID_DestroyAlgorithmID,

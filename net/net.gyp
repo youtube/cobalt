@@ -247,6 +247,9 @@
         'base/x509_certificate_nss.cc',
         'base/x509_certificate_openssl.cc',
         'base/x509_certificate_win.cc',
+        'base/x509_util.h',
+        'base/x509_util_nss.cc',
+        'base/x509_util_nss.h',
         'base/x509_util_openssl.cc',
         'base/x509_util_openssl.h',
         'disk_cache/addr.cc',
@@ -765,6 +768,8 @@
               'base/nss_memio.h',
               'base/test_root_certs_nss.cc',
               'base/x509_certificate_nss.cc',
+              'base/x509_util_nss.cc',
+              'base/x509_util_nss.h',
               'ocsp/nss_ocsp.cc',
               'ocsp/nss_ocsp.h',
               'socket/dns_cert_provenance_check.cc',
@@ -976,6 +981,8 @@
         'base/upload_data_stream_unittest.cc',
         'base/x509_certificate_unittest.cc',
         'base/x509_cert_types_mac_unittest.cc',
+        'base/x509_util_nss_unittest.cc',
+        'base/x509_util_openssl_unittest.cc',
         'disk_cache/addr_unittest.cc',
         'disk_cache/backend_unittest.cc',
         'disk_cache/bitmap_unittest.cc',
@@ -1157,8 +1164,13 @@
             # TODO(bulach): Add equivalent tests when the underlying
             #               functionality is ported to OpenSSL.
             'sources!': [
+              'base/x509_util_nss_unittest.cc',
               'base/cert_database_nss_unittest.cc',
               'base/dnssec_unittest.cc',
+            ],
+          }, {  # else !use_openssl: remove the unneeded files
+            'sources!': [
+              'base/x509_util_openssl_unittest.cc',
             ],
           },
         ],
@@ -1171,6 +1183,17 @@
             # TODO(mark): Specifying this here shouldn't be necessary.
             'dependencies': [
               '../third_party/icu/icu.gyp:icudata',
+              '../third_party/nss/nss.gyp:nspr',
+              '../third_party/nss/nss.gyp:nss',
+              'third_party/nss/ssl.gyp:ssl',
+            ],
+          },
+        ],
+        [ 'OS == "mac"', {
+            'dependencies': [
+              '../third_party/nss/nss.gyp:nspr',
+              '../third_party/nss/nss.gyp:nss',
+              'third_party/nss/ssl.gyp:ssl',
             ],
           },
         ],
