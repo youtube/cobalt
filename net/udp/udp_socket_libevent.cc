@@ -218,6 +218,7 @@ int UDPSocketLibevent::SendToOrWrite(IOBuffer* buf,
 }
 
 int UDPSocketLibevent::Connect(const IPEndPoint& address) {
+  DCHECK(CalledOnValidThread());
   DCHECK(!is_connected());
   DCHECK(!remote_address_.get());
   int rv = CreateSocket(address);
@@ -246,6 +247,7 @@ int UDPSocketLibevent::Connect(const IPEndPoint& address) {
 }
 
 int UDPSocketLibevent::Bind(const IPEndPoint& address) {
+  DCHECK(CalledOnValidThread());
   DCHECK(!is_connected());
   int rv = CreateSocket(address);
   if (rv < 0)
@@ -255,6 +257,22 @@ int UDPSocketLibevent::Bind(const IPEndPoint& address) {
     return rv;
   local_address_.reset();
   return rv;
+}
+
+bool UDPSocketLibevent::SetReceiveBufferSize(int32 size) {
+  DCHECK(CalledOnValidThread());
+  int rv = setsockopt(socket_, SOL_SOCKET, SO_RCVBUF,
+                      reinterpret_cast<const char*>(&size), sizeof(size));
+  DCHECK(!rv) << "Could not set socket receive buffer size: " << errno;
+  return rv == 0;
+}
+
+bool UDPSocketLibevent::SetSendBufferSize(int32 size) {
+  DCHECK(CalledOnValidThread());
+  int rv = setsockopt(socket_, SOL_SOCKET, SO_SNDBUF,
+                      reinterpret_cast<const char*>(&size), sizeof(size));
+  DCHECK(!rv) << "Could not set socket send buffer size: " << errno;
+  return rv == 0;
 }
 
 void UDPSocketLibevent::DoReadCallback(int rv) {
