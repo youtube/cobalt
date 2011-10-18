@@ -51,9 +51,7 @@ bool ReadInt(base::JSONReader::Token& token, bool can_have_leading_zeros) {
 bool ReadHexDigits(base::JSONReader::Token& token, int digits) {
   for (int i = 1; i <= digits; ++i) {
     wchar_t c = *(token.begin + token.length + i);
-    if ('\0' == c)
-      return false;
-    if (!IsHexDigit(c))
+    if (c == '\0' || !IsHexDigit(c))
       return false;
   }
 
