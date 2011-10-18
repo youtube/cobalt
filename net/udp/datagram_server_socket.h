@@ -54,6 +54,12 @@ class NET_EXPORT DatagramServerSocket : public DatagramSocket {
                      int buf_len,
                      const IPEndPoint& address,
                      OldCompletionCallback* callback) = 0;
+
+  // Set the receive buffer size (in bytes) for the socket.
+  virtual bool SetReceiveBufferSize(int32 size) = 0;
+
+  // Set the send buffer size (in bytes) for the socket.
+  virtual bool SetSendBufferSize(int32 size) = 0;
 };
 
 }  // namespace net
