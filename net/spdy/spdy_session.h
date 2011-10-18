@@ -363,6 +363,8 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   bool Respond(const spdy::SpdyHeaderBlock& headers,
                const scoped_refptr<SpdyStream> stream);
 
+
+  void RecordPingRTTHistogram(base::TimeDelta duration);
   void RecordHistograms();
 
   // Closes all streams.  Used as part of shutdown.
@@ -513,6 +515,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // This is the next ping_id (unique_id) to be sent in PING frame.
   uint32 next_ping_id_;
+
+  // This is the last time we have sent a PING.
+  base::TimeTicks last_ping_sent_time_;
 
   // This is the last time we have received data.
   base::TimeTicks received_data_time_;
