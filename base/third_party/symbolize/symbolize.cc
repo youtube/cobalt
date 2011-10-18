@@ -46,6 +46,7 @@
 // and memmove().  We assume they are async-signal-safe.
 //
 
+#include "build/build_config.h"
 #include "utilities.h"
 
 #if defined(HAVE_SYMBOLIZE)
@@ -95,7 +96,11 @@ _END_GOOGLE_NAMESPACE_
 #if defined(__ELF__)
 
 #include <dlfcn.h>
+#if defined(OS_OPENBSD)
+#include <sys/exec_elf.h>
+#else
 #include <elf.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>

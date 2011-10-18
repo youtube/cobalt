@@ -501,6 +501,7 @@
           [ 'OS == "openbsd"', {
             'sources/': [
               ['include', '^base_paths_linux\\.cc$'],
+              ['include', '^native_library_linux\\.cc$'],
               ['include', '^sys_string_conversions_linux\\.cc$'],
             ],
           }],
@@ -783,6 +784,9 @@
           'sources': [
             'third_party/symbolize/symbolize.cc',
             'third_party/symbolize/demangle.cc',
+          ],
+          'include_dirs': [
+            '..',
           ],
         },
         {
