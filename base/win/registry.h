@@ -33,20 +33,28 @@ class BASE_EXPORT RegKey {
   LONG CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
                              DWORD* disposition, REGSAM access);
 
-  LONG Open(HKEY rootkey, const wchar_t* subkey, REGSAM access);
-
   // Creates a subkey or open it if it already exists.
   LONG CreateKey(const wchar_t* name, REGSAM access);
 
-  // Opens a subkey
-  LONG OpenKey(const wchar_t* name, REGSAM access);
+  // Opens an existing reg key.
+  LONG Open(HKEY rootkey, const wchar_t* subkey, REGSAM access);
 
+  // Opens an existing reg key, given the relative key name.
+  LONG OpenKey(const wchar_t* relative_key_name, REGSAM access);
+
+  // Closes this reg key.
   void Close();
 
-  DWORD ValueCount() const;
+  // Returns false if this key does not have the specified value, of if an error
+  // occurrs while attempting to access it.
+  bool HasValue(const wchar_t* value_name) const;
+
+  // Returns the number of values for this key, of 0 if the number cannot be
+  // determined.
+  DWORD GetValueCount() const;
 
   // Determine the nth value's name.
-  LONG ReadName(int index, std::wstring* name) const;
+  LONG GetValueNameAt(int index, std::wstring* name) const;
 
   // True while the key is valid.
   bool Valid() const { return key_ != NULL; }
@@ -57,8 +65,6 @@ class BASE_EXPORT RegKey {
 
   // Deletes a single value within the key.
   LONG DeleteValue(const wchar_t* name);
-
-  bool ValueExists(const wchar_t* name) const;
 
   LONG ReadValue(const wchar_t* name, void* data, DWORD* dsize,
                  DWORD* dtype) const;
