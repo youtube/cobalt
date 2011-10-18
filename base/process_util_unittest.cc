@@ -846,7 +846,8 @@ int tc_set_new_mode(int mode);
 
 // Android doesn't implement set_new_handler, so we can't use the
 // OutOfMemoryTest cases.
-#if !defined(OS_ANDROID)
+// OpenBSD does not support these tests either.
+#if !defined(OS_ANDROID) && !defined(OS_OPENBSD)
 class OutOfMemoryDeathTest : public testing::Test {
  public:
   OutOfMemoryDeathTest()
