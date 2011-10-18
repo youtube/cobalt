@@ -805,7 +805,7 @@ void TCPClientSocketWin::LogConnectCompletion(int net_error) {
           sizeof(source_address));
   net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
                     make_scoped_refptr(new NetLogStringParameter(
-                        "source address",
+                        "source_address",
                         source_address_str)));
 }
 

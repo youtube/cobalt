@@ -21,8 +21,6 @@
 
 namespace net {
 
-class BoundNetLog;
-
 class UDPSocketWin : public base::NonThreadSafe {
  public:
   UDPSocketWin(DatagramSocket::BindType bind_type,
@@ -136,8 +134,12 @@ class UDPSocketWin : public base::NonThreadSafe {
   void DoWriteCallback(int rv);
   void DidCompleteRead();
   void DidCompleteWrite();
-  bool ProcessSuccessfulRead(int num_bytes, IPEndPoint* address);
-  void ProcessSuccessfulWrite(int num_bytes);
+
+  // Handles stats and logging. |result| is the number of bytes transferred, on
+  // success, or the net error code on failure. LogRead retrieves the address
+  // from |recv_addr_storage_|, while LogWrite takes it as an optional argument.
+  void LogRead(int result, const char* bytes) const;
+  void LogWrite(int result, const char* bytes, const IPEndPoint* address) const;
 
   // Returns the OS error code (or 0 on success).
   int CreateSocket(const IPEndPoint& address);
@@ -150,11 +152,16 @@ class UDPSocketWin : public base::NonThreadSafe {
                     const IPEndPoint* address,
                     OldCompletionCallback* callback);
 
+  int InternalConnect(const IPEndPoint& address);
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 
   int DoBind(const IPEndPoint& address);
   int RandomBind(const IPEndPoint& address);
+
+  // Attempts to convert the data in |recv_addr_storage_| and |recv_addr_len_|
+  // to an IPEndPoint and writes it to |address|. Returns true on success.
+  bool ReceiveAddressToIPEndpoint(IPEndPoint* address) const;
 
   SOCKET socket_;
 
@@ -187,6 +194,10 @@ class UDPSocketWin : public base::NonThreadSafe {
   struct sockaddr_storage recv_addr_storage_;
   socklen_t recv_addr_len_;
   IPEndPoint* recv_from_address_;
+
+  // Cached copy of the current address we're sending to, if any.  Used for
+  // logging.
+  scoped_ptr<IPEndPoint> send_to_address_;
 
   // The buffer used by InternalWrite() to retry Write requests
   scoped_refptr<IOBuffer> write_iobuffer_;
