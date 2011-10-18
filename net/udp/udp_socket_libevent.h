@@ -94,6 +94,12 @@ class UDPSocketLibevent : public base::NonThreadSafe {
              const IPEndPoint& address,
              OldCompletionCallback* callback);
 
+  // Set the receive buffer size (in bytes) for the socket.
+  bool SetReceiveBufferSize(int32 size);
+
+  // Set the send buffer size (in bytes) for the socket.
+  bool SetSendBufferSize(int32 size);
+
   // Returns true if the socket is already connected or bound.
   bool is_connected() const { return socket_ != kInvalidSocket; }
 

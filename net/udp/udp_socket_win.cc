@@ -239,6 +239,22 @@ int UDPSocketWin::CreateSocket(const IPEndPoint& address) {
   return OK;
 }
 
+bool UDPSocketWin::SetReceiveBufferSize(int32 size) {
+  DCHECK(CalledOnValidThread());
+  int rv = setsockopt(socket_, SOL_SOCKET, SO_RCVBUF,
+                      reinterpret_cast<const char*>(&size), sizeof(size));
+  DCHECK(!rv) << "Could not set socket receive buffer size: " << errno;
+  return rv == 0;
+}
+
+bool UDPSocketWin::SetSendBufferSize(int32 size) {
+  DCHECK(CalledOnValidThread());
+  int rv = setsockopt(socket_, SOL_SOCKET, SO_SNDBUF,
+                      reinterpret_cast<const char*>(&size), sizeof(size));
+  DCHECK(!rv) << "Could not set socket send buffer size: " << errno;
+  return rv == 0;
+}
+
 void UDPSocketWin::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(read_callback_);
