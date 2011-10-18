@@ -138,8 +138,10 @@ const size_t kMaxStringBytesForCopy = 256;
 
 // Converts a V8 String to a UTF8 std::string.
 std::string V8StringToUTF8(v8::Handle<v8::String> s) {
+  int len = s->Length();
   std::string result;
-  s->WriteUtf8(WriteInto(&result, s->Length() + 1));
+  if (len > 0)
+    s->WriteUtf8(WriteInto(&result, len + 1));
   return result;
 }
 
@@ -149,7 +151,8 @@ string16 V8StringToUTF16(v8::Handle<v8::String> s) {
   string16 result;
   // Note that the reinterpret cast is because on Windows string16 is an alias
   // to wstring, and hence has character type wchar_t not uint16_t.
-  s->Write(reinterpret_cast<uint16_t*>(WriteInto(&result, len + 1)), 0, len);
+  if (len > 0)
+    s->Write(reinterpret_cast<uint16_t*>(WriteInto(&result, len + 1)), 0, len);
   return result;
 }
 
