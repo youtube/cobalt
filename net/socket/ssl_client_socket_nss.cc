@@ -466,6 +466,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       net_log_(transport_socket->socket()->NetLog()),
       ssl_host_info_(ssl_host_info),
       dns_cert_checker_(context.dns_cert_checker),
+      next_proto_status_(kNextProtoUnsupported),
       valid_thread_id_(base::kInvalidThreadId) {
   EnterFunction("");
 }
@@ -553,38 +554,8 @@ int SSLClientSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
 
 SSLClientSocket::NextProtoStatus
 SSLClientSocketNSS::GetNextProto(std::string* proto) {
-#if defined(SSL_NEXT_PROTO_NEGOTIATED)
-  unsigned char buf[255];
-  int state;
-  unsigned len;
-  SECStatus rv = SSL_GetNextProto(nss_fd_, &state, buf, &len, sizeof(buf));
-  if (rv != SECSuccess) {
-    NOTREACHED() << "Error return from SSL_GetNextProto: " << rv;
-    proto->clear();
-    return kNextProtoUnsupported;
-  }
-  // We don't check for truncation because sizeof(buf) is large enough to hold
-  // the maximum protocol size.
-  switch (state) {
-    case SSL_NEXT_PROTO_NO_SUPPORT:
-      proto->clear();
-      return kNextProtoUnsupported;
-    case SSL_NEXT_PROTO_NEGOTIATED:
-      *proto = std::string(reinterpret_cast<char*>(buf), len);
-      return kNextProtoNegotiated;
-    case SSL_NEXT_PROTO_NO_OVERLAP:
-      *proto = std::string(reinterpret_cast<char*>(buf), len);
-      return kNextProtoNoOverlap;
-    default:
-      NOTREACHED() << "Unknown status from SSL_GetNextProto: " << state;
-      proto->clear();
-      return kNextProtoUnsupported;
-  }
-#else
-  // No NPN support in the libssl that we are building with.
-  proto->clear();
-  return kNextProtoUnsupported;
-#endif
+  *proto = next_proto_;
+  return next_proto_status_;
 }
 
 int SSLClientSocketNSS::Connect(OldCompletionCallback* callback) {
@@ -966,12 +937,10 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 
 #ifdef SSL_NEXT_PROTO_NEGOTIATED
   if (!ssl_config_.next_protos.empty()) {
-    rv = SSL_SetNextProtoNego(
-       nss_fd_,
-       reinterpret_cast<const unsigned char *>(ssl_config_.next_protos.data()),
-       ssl_config_.next_protos.size());
+    rv = SSL_SetNextProtoCallback(
+        nss_fd_, SSLClientSocketNSS::NextProtoCallback, this);
     if (rv != SECSuccess)
-      LogFailedNSSFunction(net_log_, "SSL_SetNextProtoNego", "");
+      LogFailedNSSFunction(net_log_, "SSL_SetNextProtoCallback", "");
   }
 #endif
 
@@ -2562,6 +2531,58 @@ void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
 
   that->UpdateServerCert();
   that->UpdateConnectionStatus();
+}
+
+// NextProtoCallback is called by NSS during the handshake, if the server
+// supports NPN, to select a protocol from the list that the server offered.
+// See the comment in net/third_party/nss/ssl/ssl.h for the meanings of the
+// arguments.
+// static
+SECStatus
+SSLClientSocketNSS::NextProtoCallback(void* arg,
+                                      PRFileDesc* nss_fd,
+                                      const unsigned char* protos,
+                                      unsigned int protos_len,
+                                      unsigned char* proto_out,
+                                      unsigned int* proto_out_len) {
+  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+
+  // For each protocol in server preference, see if we support it.
+  for (unsigned int i = 0; i < protos_len; ) {
+    const size_t len = protos[i];
+    for (std::vector<std::string>::const_iterator
+         j = that->ssl_config_.next_protos.begin();
+         j != that->ssl_config_.next_protos.end(); j++) {
+      // Having very long elements in the |next_protos| vector isn't a disaster
+      // because they'll never be selected, but it does indicate an error
+      // somewhere.
+      DCHECK_LT(j->size(), 256u);
+
+      if (j->size() == len &&
+          memcmp(&protos[i + 1], j->data(), len) == 0) {
+        that->next_proto_status_ = kNextProtoNegotiated;
+        that->next_proto_ = *j;
+        break;
+      }
+    }
+
+    if (that->next_proto_status_ == kNextProtoNegotiated)
+      break;
+
+    // NSS checks that the data in |protos| is well formed, so we know that
+    // this doesn't cause us to jump off the end of the buffer.
+    i += len + 1;
+  }
+
+  // If we didn't find a protocol, we select the first one from our list.
+  if (that->next_proto_status_ != kNextProtoNegotiated) {
+    that->next_proto_status_ = kNextProtoNoOverlap;
+    that->next_proto_ = that->ssl_config_.next_protos[0];
+  }
+
+  memcpy(proto_out, that->next_proto_.data(), that->next_proto_.size());
+  *proto_out_len = that->next_proto_.size();
+  return SECSuccess;
 }
 
 void SSLClientSocketNSS::EnsureThreadIdAssigned() const {

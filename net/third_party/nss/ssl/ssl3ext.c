@@ -554,12 +554,11 @@ ssl3_ServerHandleNextProtoNegoXtn(sslSocket * ss, PRUint16 ex_type, SECItem *dat
 	return SECFailure;
     }
 
-    ss->ssl3.hs.nextProtoNego = PR_TRUE;
     return SECSuccess;
 }
 
 /* ssl3_ValidateNextProtoNego checks that the given block of data is valid: none
- * of the length may be 0 and the sum of the lengths must equal the length of
+ * of the lengths may be 0 and the sum of the lengths must equal the length of
  * the block. */
 SECStatus
 ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned short length)
@@ -568,63 +567,46 @@ ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned short length)
 
     while (offset < length) {
 	if (data[offset] == 0) {
+	    PORT_SetError(SSL_ERROR_NEXT_PROTOCOL_DATA_INVALID);
 	    return SECFailure;
 	}
 	offset += (unsigned int)data[offset] + 1;
     }
 
-    if (offset > length)
+    if (offset > length) {
+	PORT_SetError(SSL_ERROR_NEXT_PROTOCOL_DATA_INVALID);
 	return SECFailure;
+    }
 
     return SECSuccess;
 }
 
 SECStatus
 ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
-                                 SECItem *data)
+                                  SECItem *data)
 {
-    unsigned int i, j;
     SECStatus rv;
-    unsigned char *result;
-
-    if (data->len == 0) {
-	/* The server supports the extension, but doesn't have any
-	 * protocols configured. In this case we request our favoured
-	 * protocol. */
-	goto pick_first;
-    }
+    unsigned char result[255];
+    unsigned int result_len;
 
     rv = ssl3_ValidateNextProtoNego(data->data, data->len);
     if (rv != SECSuccess)
 	return rv;
 
-    /* For each protocol in server preference order, see if we support it. */
-    for (i = 0; i < data->len; ) {
-	for (j = 0; j < ss->opt.nextProtoNego.len; ) {
-	    if (data->data[i] == ss->opt.nextProtoNego.data[j] &&
-		memcmp(&data->data[i+1], &ss->opt.nextProtoNego.data[j+1],
-		       data->data[i]) == 0) {
-		/* We found a match */
-		ss->ssl3.nextProtoState = SSL_NEXT_PROTO_NEGOTIATED;
-		result = &data->data[i];
-		goto found;
-	    }
-	    j += (unsigned int)ss->opt.nextProtoNego.data[j] + 1;
-	}
+    rv = ss->nextProtoCallback(ss->nextProtoArg, ss->fd,
+                               data->data, data->len,
+                               result, &result_len);
+    if (rv != SECSuccess)
+	return rv;
+    // If the callback wrote more than allowed to |result| it has corrupted our
+    // stack.
+    PORT_Assert(result_len <= sizeof(result));
 
-	i += (unsigned int)data->data[i] + 1;
-    }
-
-  pick_first:
-    ss->ssl3.nextProtoState = SSL_NEXT_PROTO_NO_OVERLAP;
-    result = ss->opt.nextProtoNego.data;
-
-  found:
     if (ss->ssl3.nextProto.data)
 	PORT_Free(ss->ssl3.nextProto.data);
-    ss->ssl3.nextProto.data = PORT_Alloc(result[0]);
-    PORT_Memcpy(ss->ssl3.nextProto.data, result + 1, result[0]);
-    ss->ssl3.nextProto.len = result[0];
+    ss->ssl3.nextProto.data = PORT_Alloc(result_len);
+    PORT_Memcpy(ss->ssl3.nextProto.data, result, result_len);
+    ss->ssl3.nextProto.len = result_len;
     return SECSuccess;
 }
 
@@ -636,7 +618,7 @@ ssl3_ClientSendNextProtoNegoXtn(sslSocket * ss,
     PRInt32 extension_length;
 
     /* Renegotiations do not send this extension. */
-    if (ss->opt.nextProtoNego.len == 0 || ss->firstHsDone) {
+    if (!ss->nextProtoCallback || ss->firstHsDone) {
 	return 0;
     }
 
