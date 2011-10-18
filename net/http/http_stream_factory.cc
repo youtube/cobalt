@@ -17,7 +17,7 @@ namespace net {
 // static
 const HostMappingRules* HttpStreamFactory::host_mapping_rules_ = NULL;
 // static
-const std::string* HttpStreamFactory::next_protos_ = NULL;
+std::vector<std::string>* HttpStreamFactory::next_protos_ = NULL;
 // static
 bool HttpStreamFactory::spdy_enabled_ = true;
 // static
