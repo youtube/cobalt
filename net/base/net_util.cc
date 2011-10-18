@@ -1457,7 +1457,7 @@ string16 GetSuggestedFilename(const GURL& url,
                               const std::string& referrer_charset,
                               const std::string& suggested_name,
                               const std::string& mime_type,
-                              const string16& default_name) {
+                              const std::string& default_name) {
   // TODO: this function to be updated to match the httpbis recommendations.
   // Talk to abarth for the latest news.
 
@@ -1507,7 +1507,7 @@ string16 GetSuggestedFilename(const GURL& url,
   }
 
 #if defined(OS_WIN)
-  string16 path = (filename.empty())? default_name : UTF8ToUTF16(filename);
+  string16 path = UTF8ToUTF16(filename.empty() ? default_name : filename);
   // On Windows we want to preserve or replace all characters including
   // whitespace to prevent file extension obfuscation on trusted websites
   // e.g. Gmail might think evil.exe. is safe, so we don't want it to become
@@ -1521,7 +1521,7 @@ string16 GetSuggestedFilename(const GURL& url,
   GenerateSafeFileName(mime_type, overwrite_extension, &result);
   return result.value();
 #else
-  std::string path = (filename.empty())? UTF16ToUTF8(default_name) : filename;
+  std::string path = filename.empty() ? default_name : filename;
   file_util::ReplaceIllegalCharactersInPath(&path, '-');
   FilePath result(path);
   GenerateSafeFileName(mime_type, overwrite_extension, &result);
@@ -1534,7 +1534,7 @@ FilePath GenerateFileName(const GURL& url,
                           const std::string& referrer_charset,
                           const std::string& suggested_name,
                           const std::string& mime_type,
-                          const string16& default_file_name) {
+                          const std::string& default_file_name) {
   string16 file_name = GetSuggestedFilename(url,
                                             content_disposition,
                                             referrer_charset,
