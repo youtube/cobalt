@@ -1310,17 +1310,83 @@ SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd)
     return fd;
 }
 
-/* SSL_SetNextProtoNego sets the list of supported protocols for the given
- * socket. The list is a series of 8-bit, length prefixed strings. */
 SECStatus
-SSL_SetNextProtoNego(PRFileDesc *fd, const unsigned char *data,
-		     unsigned short length)
-{
+SSL_SetNextProtoCallback(PRFileDesc *fd,
+                         SSLNextProtoCallback callback,
+                         void *arg) {
     sslSocket *ss = ssl_FindSocket(fd);
 
     if (!ss) {
 	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetNextProtoNego", SSL_GETPID(),
 		fd));
+	return SECFailure;
+    }
+
+    ssl_GetSSL3HandshakeLock(ss);
+    ss->nextProtoCallback = callback;
+    ss->nextProtoArg = arg;
+    ssl_ReleaseSSL3HandshakeLock(ss);
+}
+
+/* NextProtoStandardCallback is set as an NPN callback for the case when the
+ * user of the sockets wants the standard selection algorithm. */
+static SECStatus
+NextProtoStandardCallback(void *arg,
+			  PRFileDesc *fd,
+			  const unsigned char *protos,
+			  unsigned int protos_len,
+			  unsigned char *protoOut,
+			  unsigned int *protoOutLen)
+{
+    unsigned int i, j;
+    const unsigned char *result;
+
+    sslSocket *ss = ssl_FindSocket(fd);
+    PORT_Assert(ss);
+
+    if (protos_len == 0) {
+	/* The server supports the extension, but doesn't have any protocols
+	 * configured. In this case we request our favoured protocol. */
+	goto pick_first;
+    }
+
+    /* For each protocol in server preference, see if we support it. */
+    for (i = 0; i < protos_len; ) {
+	for (j = 0; j < ss->opt.nextProtoNego.len; ) {
+	    if (protos[i] == ss->opt.nextProtoNego.data[j] &&
+		memcmp(&protos[i+1], &ss->opt.nextProtoNego.data[j+1],
+		       protos[i]) == 0) {
+		/* We found a match. */
+		ss->ssl3.nextProtoState = SSL_NEXT_PROTO_NEGOTIATED;
+		result = &protos[i];
+		goto found;
+	    }
+	    j += (unsigned int)ss->opt.nextProtoNego.data[j] + 1;
+	}
+	i += (unsigned int)protos[i] + 1;
+    }
+
+pick_first:
+    ss->ssl3.nextProtoState = SSL_NEXT_PROTO_NO_OVERLAP;
+    result = ss->opt.nextProtoNego.data;
+
+found:
+    memcpy(protoOut, result + 1, result[0]);
+    *protoOutLen = result[0];
+    return SECSuccess;
+}
+
+SECStatus
+SSL_SetNextProtoNego(PRFileDesc *fd, const unsigned char *data,
+		     unsigned int length)
+{
+    SECStatus rv;
+
+    sslSocket *ss = ssl_FindSocket(fd);
+
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetNextProtoNego",
+		 SSL_GETPID(), fd));
 	return SECFailure;
     }
 
@@ -1340,18 +1406,9 @@ SSL_SetNextProtoNego(PRFileDesc *fd, const unsigned char *data,
     ss->opt.nextProtoNego.type = siBuffer;
     ssl_ReleaseSSL3HandshakeLock(ss);
 
-    return SECSuccess;
+    return SSL_SetNextProtoCallback(fd, NextProtoStandardCallback, NULL);
 }
 
-/* SSL_GetNextProto reads the resulting Next Protocol Negotiation result for
- * the given socket. It's only valid to call this once the handshake has
- * completed.
- *
- * state is set to one of the SSL_NEXT_PROTO_* constants. The negotiated
- * protocol, if any, is written into buf, which must be at least buf_len
- * bytes long. If the negotiated protocol is longer than this, it is truncated.
- * The number of bytes copied is written into length.
- */
 SECStatus
 SSL_GetNextProto(PRFileDesc *fd, int *state, unsigned char *buf,
 		 unsigned int *length, unsigned int buf_len)
