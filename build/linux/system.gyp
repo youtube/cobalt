@@ -260,7 +260,7 @@
               '<!@(<(pkg-config) --libs-only-l gio-2.0)',
             ],
             'conditions': [
-              ['linux_link_gsettings==0', {
+              ['linux_link_gsettings==0 and OS=="linux"', {
                 'libraries': [
                   '-ldl',
                 ],
@@ -387,11 +387,15 @@
                 ],
               },
             }, {
-              'link_settings': {
-                'libraries': [
-                  '-ldl',
-                ],
-              },
+              'conditions': [
+                ['OS=="linux"', {
+                 'link_settings': {
+                   'libraries': [
+                     '-ldl',
+                   ],
+                 },
+                }],
+              ],
             }],
           ],
         }],
