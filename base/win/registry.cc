@@ -56,15 +56,6 @@ LONG RegKey::CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
   return result;
 }
 
-LONG RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
-  base::ThreadRestrictions::AssertIOAllowed();
-  DCHECK(rootkey && subkey && access);
-  Close();
-
-  LONG result = RegOpenKeyEx(rootkey, subkey, 0, access, &key_);
-  return result;
-}
-
 LONG RegKey::CreateKey(const wchar_t* name, REGSAM access) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(name && access);
@@ -78,13 +69,24 @@ LONG RegKey::CreateKey(const wchar_t* name, REGSAM access) {
   return result;
 }
 
-LONG RegKey::OpenKey(const wchar_t* name, REGSAM access) {
+LONG RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
   base::ThreadRestrictions::AssertIOAllowed();
-  DCHECK(name && access);
+  DCHECK(rootkey && subkey && access);
+  Close();
+
+  LONG result = RegOpenKeyEx(rootkey, subkey, 0, access, &key_);
+  return result;
+}
+
+LONG RegKey::OpenKey(const wchar_t* relative_key_name, REGSAM access) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  DCHECK(relative_key_name && access);
 
   HKEY subkey = NULL;
-  LONG result = RegOpenKeyEx(key_, name, 0, access, &subkey);
+  LONG result = RegOpenKeyEx(key_, relative_key_name, 0, access, &subkey);
 
+  // We have to close the current opened key before replacing it with the new
+  // one.
   Close();
 
   key_ = subkey;
@@ -100,15 +102,20 @@ void RegKey::Close() {
   }
 }
 
-DWORD RegKey::ValueCount() const {
+bool RegKey::HasValue(const wchar_t* name) const {
+  base::ThreadRestrictions::AssertIOAllowed();
+  return RegQueryValueEx(key_, name, 0, NULL, NULL, NULL) == ERROR_SUCCESS;
+}
+
+DWORD RegKey::GetValueCount() const {
   base::ThreadRestrictions::AssertIOAllowed();
   DWORD count = 0;
   LONG result = RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL, NULL, &count,
                                 NULL, NULL, NULL, NULL);
-  return (result != ERROR_SUCCESS) ? 0 : count;
+  return (result == ERROR_SUCCESS) ? count : 0;
 }
 
-LONG RegKey::ReadName(int index, std::wstring* name) const {
+LONG RegKey::GetValueNameAt(int index, std::wstring* name) const {
   base::ThreadRestrictions::AssertIOAllowed();
   wchar_t buf[256];
   DWORD bufsize = arraysize(buf);
@@ -133,12 +140,6 @@ LONG RegKey::DeleteValue(const wchar_t* value_name) {
   DCHECK(value_name);
   LONG result = RegDeleteValue(key_, value_name);
   return result;
-}
-
-bool RegKey::ValueExists(const wchar_t* name) const {
-  base::ThreadRestrictions::AssertIOAllowed();
-  LONG result = RegQueryValueEx(key_, name, 0, NULL, NULL, NULL);
-  return result == ERROR_SUCCESS;
 }
 
 LONG RegKey::ReadValue(const wchar_t* name, void* data, DWORD* dsize,
