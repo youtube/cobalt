@@ -513,11 +513,7 @@ std::string DumpIPNumber(const IPAddressNumber& v) {
 void RunGenerateFileNameTestCase(const GenerateFilenameCase* test_case,
                                  size_t iteration,
                                  const char* suite) {
-#if defined(OS_WIN)
-  string16 default_filename(test_case->default_filename);
-#else
-  string16 default_filename(WideToUTF16(test_case->default_filename));
-#endif
+  std::string default_filename(WideToUTF8(test_case->default_filename));
   FilePath file_path = GenerateFileName(
       GURL(test_case->url), test_case->content_disp_header,
       test_case->referrer_charset, test_case->suggested_filename,
