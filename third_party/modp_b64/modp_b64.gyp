@@ -15,6 +15,13 @@
       'include_dirs': [
         '../..',
       ],
+      'conditions': [
+        ['OS=="cell_lv2"', {
+          'defines': [
+            'WORDS_BIGENDIAN'
+          ]
+        }]
+      ]
     },
   ],
 }
