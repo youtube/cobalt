@@ -177,7 +177,7 @@ bool DeinterleaveAudioChannel(void* source,
       uint8* source8 = static_cast<uint8*>(source) + channel_index;
       const float kScale = 1.0f / 128.0f;
       for (unsigned i = 0; i < number_of_frames; ++i) {
-        destination[i] = kScale * static_cast<int>(*source8 + 128);
+        destination[i] = kScale * (static_cast<int>(*source8) - 128);
         source8 += channels;
       }
       return true;
