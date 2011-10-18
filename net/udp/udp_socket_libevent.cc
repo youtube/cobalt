@@ -19,6 +19,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
+#include "net/udp/udp_data_transfer_param.h"
 #if defined(OS_POSIX)
 #include <netinet/in.h>
 #endif
@@ -48,7 +49,7 @@ UDPSocketLibevent::UDPSocketLibevent(
           write_buf_len_(0),
           read_callback_(NULL),
           write_callback_(NULL),
-          net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
+          net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_UDP_SOCKET)) {
   scoped_refptr<NetLog::EventParameters> params;
   if (source.is_valid())
     params = new NetLogSourceParameter("source_dependency", source);
@@ -158,7 +159,9 @@ int UDPSocketLibevent::RecvFrom(IOBuffer* buf,
           socket_, true, MessageLoopForIO::WATCH_READ,
           &read_socket_watcher_, &read_watcher_)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on read";
-    return MapSystemError(errno);
+    int result = MapSystemError(errno);
+    LogRead(result, NULL, 0, NULL);
+    return result;
   }
 
   read_buf_ = buf;
@@ -191,20 +194,17 @@ int UDPSocketLibevent::SendToOrWrite(IOBuffer* buf,
   DCHECK(callback);  // Synchronous operation not supported
   DCHECK_GT(buf_len, 0);
 
-  int nwrite = InternalSendTo(buf, buf_len, address);
-  if (nwrite >= 0) {
-    base::StatsCounter write_bytes("udp.write_bytes");
-    write_bytes.Add(nwrite);
-    return nwrite;
-  }
-  if (errno != EAGAIN && errno != EWOULDBLOCK)
-    return MapSystemError(errno);
+  int result = InternalSendTo(buf, buf_len, address);
+  if (result != ERR_IO_PENDING)
+    return result;
 
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
           socket_, true, MessageLoopForIO::WATCH_WRITE,
           &write_socket_watcher_, &write_watcher_)) {
     DVLOG(1) << "WatchFileDescriptor failed on write, errno " << errno;
-    return MapSystemError(errno);
+    int result = MapSystemError(errno);
+    LogWrite(result, NULL, NULL);
+    return result;
   }
 
   write_buf_ = buf;
@@ -218,6 +218,16 @@ int UDPSocketLibevent::SendToOrWrite(IOBuffer* buf,
 }
 
 int UDPSocketLibevent::Connect(const IPEndPoint& address) {
+  net_log_.BeginEvent(
+      NetLog::TYPE_UDP_CONNECT,
+      make_scoped_refptr(new NetLogStringParameter("address",
+                                                   address.ToString())));
+  int rv = InternalConnect(address);
+  net_log_.EndEventWithNetErrorCode(NetLog::TYPE_UDP_CONNECT, rv);
+  return rv;
+}
+
+int UDPSocketLibevent::InternalConnect(const IPEndPoint& address) {
   DCHECK(CalledOnValidThread());
   DCHECK(!is_connected());
   DCHECK(!remote_address_.get());
@@ -307,6 +317,33 @@ void UDPSocketLibevent::DidCompleteRead() {
   }
 }
 
+void UDPSocketLibevent::LogRead(int result,
+                                const char* bytes,
+                                socklen_t addr_len,
+                                const sockaddr* addr) const {
+  if (result < 0) {
+    net_log_.AddEventWithNetErrorCode(NetLog::TYPE_UDP_RECEIVE_ERROR, result);
+    return;
+  }
+
+  if (net_log_.IsLoggingAllEvents()) {
+    DCHECK(addr_len > 0);
+    DCHECK(addr);
+
+    IPEndPoint address;
+    bool is_address_valid = address.FromSockAddr(addr, addr_len);
+    net_log_.AddEvent(
+        NetLog::TYPE_UDP_BYTES_RECEIVED,
+        make_scoped_refptr(
+            new UDPDataTransferNetLogParam(
+                result, bytes, net_log_.IsLoggingBytes(),
+                is_address_valid ? &address : NULL)));
+  }
+
+  base::StatsCounter read_bytes("udp.read_bytes");
+  read_bytes.Add(result);
+}
+
 int UDPSocketLibevent::CreateSocket(const IPEndPoint& address) {
   socket_ = socket(address.GetFamily(), SOCK_DGRAM, 0);
   if (socket_ == kInvalidSocket)
@@ -322,12 +359,6 @@ int UDPSocketLibevent::CreateSocket(const IPEndPoint& address) {
 void UDPSocketLibevent::DidCompleteWrite() {
   int result = InternalSendTo(write_buf_, write_buf_len_,
                               send_to_address_.get());
-  if (result >= 0) {
-    base::StatsCounter write_bytes("udp.write_bytes");
-    write_bytes.Add(result);
-  } else {
-    result = MapSystemError(errno);
-  }
 
   if (result != ERR_IO_PENDING) {
     write_buf_ = NULL;
@@ -336,6 +367,27 @@ void UDPSocketLibevent::DidCompleteWrite() {
     write_socket_watcher_.StopWatchingFileDescriptor();
     DoWriteCallback(result);
   }
+}
+
+void UDPSocketLibevent::LogWrite(int result,
+                                 const char* bytes,
+                                 const IPEndPoint* address) const {
+  if (result < 0) {
+    net_log_.AddEventWithNetErrorCode(NetLog::TYPE_UDP_SEND_ERROR, result);
+    return;
+  }
+
+  if (net_log_.IsLoggingAllEvents()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_UDP_BYTES_SENT,
+        make_scoped_refptr(
+            new UDPDataTransferNetLogParam(result, bytes,
+                                           net_log_.IsLoggingBytes(),
+                                           address)));
+  }
+
+  base::StatsCounter write_bytes("udp.write_bytes");
+  write_bytes.Add(result);
 }
 
 int UDPSocketLibevent::InternalRecvFrom(IOBuffer* buf, int buf_len,
@@ -357,15 +409,13 @@ int UDPSocketLibevent::InternalRecvFrom(IOBuffer* buf, int buf_len,
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
-    base::StatsCounter read_bytes("udp.read_bytes");
-    read_bytes.Add(bytes_transferred);
-    if (address) {
-      if (!address->FromSockAddr(addr, addr_len))
-        result = ERR_FAILED;
-    }
+    if (address && !address->FromSockAddr(addr, addr_len))
+      result = ERR_FAILED;
   } else {
     result = MapSystemError(errno);
   }
+  if (result != ERR_IO_PENDING)
+    LogRead(result, buf->data(), addr_len, addr);
   return result;
 }
 
@@ -379,16 +429,24 @@ int UDPSocketLibevent::InternalSendTo(IOBuffer* buf, int buf_len,
     addr = NULL;
     addr_len = 0;
   } else {
-    if (!address->ToSockAddr(addr, &addr_len))
-      return ERR_FAILED;
+    if (!address->ToSockAddr(addr, &addr_len)) {
+      int result = ERR_FAILED;
+      LogWrite(result, NULL, NULL);
+      return result;
+    }
   }
 
-  return HANDLE_EINTR(sendto(socket_,
-                             buf->data(),
-                             buf_len,
-                             0,
-                             addr,
-                             addr_len));
+  int result = HANDLE_EINTR(sendto(socket_,
+                            buf->data(),
+                            buf_len,
+                            0,
+                            addr,
+                            addr_len));
+  if (result < 0)
+    result = MapSystemError(errno);
+  if (result != ERR_IO_PENDING)
+    LogWrite(result, buf->data(), address);
+  return result;
 }
 
 int UDPSocketLibevent::DoBind(const IPEndPoint& address) {

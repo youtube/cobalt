@@ -243,6 +243,13 @@ class NET_EXPORT BoundNetLog {
   void EndEvent(NetLog::EventType event_type,
                 const scoped_refptr<NetLog::EventParameters>& params) const;
 
+  // Just like AddEvent, except |net_error| is a net error code.  A parameter
+  // called "net_error" with the indicated value will be recorded for the event.
+  // |net_error| must be negative, and not ERR_IO_PENDING, as it's not a true
+  // error.
+  void AddEventWithNetErrorCode(NetLog::EventType event_type,
+                                int net_error) const;
+
   // Just like EndEvent, except |net_error| is a net error code.  If it's
   // negative, a parameter called "net_error" with a value of |net_error| is
   // associated with the event.  Otherwise, the end event has no parameters.
@@ -253,7 +260,7 @@ class NET_EXPORT BoundNetLog {
   // Logs a byte transfer event to the NetLog.  Determines whether to log the
   // received bytes or not based on the current logging level.
   void AddByteTransferEvent(NetLog::EventType event_type,
-                            int byte_count, char* bytes) const;
+                            int byte_count, const char* bytes) const;
 
   NetLog::LogLevel GetLogLevel() const;
 

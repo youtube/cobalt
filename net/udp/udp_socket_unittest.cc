@@ -12,6 +12,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/net_test_suite.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
@@ -131,35 +132,73 @@ TEST_F(UDPSocketTest, Connect) {
   // Setup the server to listen.
   IPEndPoint bind_address;
   CreateUDPAddress("0.0.0.0", kPort, &bind_address);
-  UDPServerSocket server(NULL, NetLog::Source());
-  int rv = server.Listen(bind_address);
+  CapturingNetLog server_log(CapturingNetLog::kUnbounded);
+  scoped_ptr<UDPServerSocket> server(
+      new UDPServerSocket(&server_log, NetLog::Source()));
+  int rv = server->Listen(bind_address);
   EXPECT_EQ(OK, rv);
 
   // Setup the client.
   IPEndPoint server_address;
   CreateUDPAddress("127.0.0.1", kPort, &server_address);
-  UDPClientSocket client(DatagramSocket::DEFAULT_BIND,
-                         RandIntCallback(),
-                         NULL,
-                         NetLog::Source());
-  rv = client.Connect(server_address);
+  CapturingNetLog client_log(CapturingNetLog::kUnbounded);
+  scoped_ptr<UDPClientSocket> client(
+      new UDPClientSocket(DatagramSocket::DEFAULT_BIND,
+                          RandIntCallback(),
+                          &client_log,
+                          NetLog::Source()));
+  rv = client->Connect(server_address);
   EXPECT_EQ(OK, rv);
 
   // Client sends to the server.
-  rv = WriteSocket(&client, simple_message);
+  rv = WriteSocket(client.get(), simple_message);
   EXPECT_EQ(simple_message.length(), static_cast<size_t>(rv));
 
   // Server waits for message.
-  std::string str = RecvFromSocket(&server);
+  std::string str = RecvFromSocket(server.get());
   DCHECK(simple_message == str);
 
   // Server echoes reply.
-  rv = SendToSocket(&server, simple_message);
+  rv = SendToSocket(server.get(), simple_message);
   EXPECT_EQ(simple_message.length(), static_cast<size_t>(rv));
 
   // Client waits for response.
-  str = ReadSocket(&client);
+  str = ReadSocket(client.get());
   DCHECK(simple_message == str);
+
+  // Delete sockets so they log their final events.
+  server.reset();
+  client.reset();
+
+  // Check the server's log.
+  CapturingNetLog::EntryList server_entries;
+  server_log.GetEntries(&server_entries);
+  EXPECT_EQ(4u, server_entries.size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      server_entries, 0, NetLog::TYPE_SOCKET_ALIVE));
+  EXPECT_TRUE(LogContainsEvent(
+      server_entries, 1, NetLog::TYPE_UDP_BYTES_RECEIVED, NetLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEvent(
+      server_entries, 2, NetLog::TYPE_UDP_BYTES_SENT, NetLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      server_entries, 3, NetLog::TYPE_SOCKET_ALIVE));
+
+  // Check the client's log.
+  CapturingNetLog::EntryList client_entries;
+  client_log.GetEntries(&client_entries);
+  EXPECT_EQ(6u, client_entries.size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      client_entries, 0, NetLog::TYPE_SOCKET_ALIVE));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      client_entries, 1, NetLog::TYPE_UDP_CONNECT));
+  EXPECT_TRUE(LogContainsEndEvent(
+      client_entries, 2, NetLog::TYPE_UDP_CONNECT));
+  EXPECT_TRUE(LogContainsEvent(
+      client_entries, 3, NetLog::TYPE_UDP_BYTES_SENT, NetLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEvent(
+      client_entries, 4, NetLog::TYPE_UDP_BYTES_RECEIVED, NetLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      client_entries, 5, NetLog::TYPE_SOCKET_ALIVE));
 }
 
 // In this test, we verify that random binding logic works, which attempts
@@ -321,11 +360,11 @@ TEST_F(UDPSocketTest, ClientGetLocalPeerAddresses) {
     SCOPED_TRACE(std::string("Connecting from ") +  tests[i].local_address +
                  std::string(" to ") + tests[i].remote_address);
 
-    net::IPAddressNumber ip_number;
-    net::ParseIPLiteralToNumber(tests[i].remote_address, &ip_number);
-    net::IPEndPoint remote_address(ip_number, 80);
-    net::ParseIPLiteralToNumber(tests[i].local_address, &ip_number);
-    net::IPEndPoint local_address(ip_number, 80);
+    IPAddressNumber ip_number;
+    ParseIPLiteralToNumber(tests[i].remote_address, &ip_number);
+    IPEndPoint remote_address(ip_number, 80);
+    ParseIPLiteralToNumber(tests[i].local_address, &ip_number);
+    IPEndPoint local_address(ip_number, 80);
 
     UDPClientSocket client(DatagramSocket::DEFAULT_BIND,
                            RandIntCallback(),
