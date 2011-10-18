@@ -695,25 +695,6 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   return CreateFromHandle(scoped_cert, X509Certificate::OSCertHandles());
 }
 
-// static
-X509Certificate* X509Certificate::CreateOriginBound(
-    crypto::RSAPrivateKey* key,
-    const std::string& origin,
-    uint32 serial_number,
-    base::TimeDelta valid_duration) {
-  // TODO(wtc): this cannot be implemented by creating a CE_DataAndType for
-  // the origin-bound extension and adding it to certReq.extensions because
-  // it is not one of the supported extensions in the CE_DataType enum type.
-  // Using the DT_Other enum constant does not work.
-  //
-  // The relevant Apple headers are:
-  // - CSSM_APPLE_TP_CERT_REQUEST is defined in cssmapple.h.
-  // - CE_DataAndType, CE_DataType, and CE_Data are defined in
-  //   certextensions.h.
-  NOTIMPLEMENTED();
-  return NULL;
-}
-
 void X509Certificate::GetSubjectAltName(
     std::vector<std::string>* dns_names,
     std::vector<std::string>* ip_addrs) const {
