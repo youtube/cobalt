@@ -38,6 +38,8 @@
 #include "net/proxy/proxy_resolver_mac.h"
 #elif defined(OS_LINUX) && !defined(OS_CHROMEOS)
 #include "net/proxy/proxy_config_service_linux.h"
+#elif defined(__LB_PS3__)
+#include "net/proxy/proxy_config_service_ps3.h"
 #endif
 
 using base::TimeDelta;
@@ -878,6 +880,8 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
       static_cast<MessageLoopForIO*>(file_loop));
 
   return linux_config_service;
+#elif defined(__LB_PS3__)
+  return new ProxyConfigServicePS3();
 #else
   LOG(WARNING) << "Failed to choose a system proxy settings fetcher "
                   "for this platform.";
