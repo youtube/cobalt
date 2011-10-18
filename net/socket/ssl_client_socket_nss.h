@@ -188,6 +188,13 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // argument.
   static void HandshakeCallback(PRFileDesc* socket, void* arg);
 
+  static SECStatus NextProtoCallback(void* arg,
+                                     PRFileDesc* fd,
+                                     const unsigned char* protos,
+                                     unsigned int protos_len,
+                                     unsigned char* proto_out,
+                                     unsigned int* proto_out_len);
+
   // The following methods are for debugging bug 65948. Will remove this code
   // after fixing bug 65948.
   void EnsureThreadIdAssigned() const;
@@ -284,6 +291,10 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   scoped_ptr<SSLHostInfo> ssl_host_info_;
   DnsCertProvenanceChecker* const dns_cert_checker_;
+
+  // next_proto_ is the protocol that we selected by NPN.
+  std::string next_proto_;
+  NextProtoStatus next_proto_status_;
 
   // The following two variables are added for debugging bug 65948. Will
   // remove this code after fixing bug 65948.

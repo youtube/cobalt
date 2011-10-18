@@ -66,18 +66,6 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kEnableNPN[] = "npn";
   static const char kEnableNpnHttpOnly[] = "npn-http";
 
-  // Except for the first element, the order is irrelevant.  First element
-  // specifies the fallback in case nothing matches
-  // (SSLClientSocket::kNextProtoNoOverlap).  Otherwise, the SSL library
-  // will choose the first overlapping protocol in the server's list, since
-  // it presumedly has a better understanding of which protocol we should
-  // use, therefore the rest of the ordering here is not important.
-  static const char kNpnProtosFull[] = "\x08http/1.1\x06spdy/2";
-  // This is a temporary hack to pretend we support version 1.
-  static const char kNpnProtosFullV1[] = "\x08http/1.1\x06spdy/1";
-  // No spdy specified.
-  static const char kNpnProtosHttpOnly[] = "\x08http/1.1\x07http1.1";
-
   static const char kInitialMaxConcurrentStreams[] = "init-max-streams";
 
   std::vector<std::string> spdy_options;
@@ -110,15 +98,25 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       spdy::SpdyFramer::set_enable_compression_default(false);
     } else if (option == kEnableNPN) {
       HttpStreamFactory::set_use_alternate_protocols(use_alt_protocols);
-      HttpStreamFactory::set_next_protos(kNpnProtosFull);
+      std::vector<std::string> next_protos;
+      next_protos.push_back("http/1.1");
+      next_protos.push_back("spdy/2");
+      HttpStreamFactory::set_next_protos(next_protos);
     } else if (option == kEnableNpnHttpOnly) {
       // Avoid alternate protocol in this case. Otherwise, browser will try SSL
       // and then fallback to http. This introduces extra load.
       HttpStreamFactory::set_use_alternate_protocols(false);
-      HttpStreamFactory::set_next_protos(kNpnProtosHttpOnly);
+      std::vector<std::string> next_protos;
+      next_protos.push_back("http/1.1");
+      next_protos.push_back("http1.1");
+      HttpStreamFactory::set_next_protos(next_protos);
     } else if (option == kEnableVersionOne) {
       spdy::SpdyFramer::set_protocol_version(1);
-      HttpStreamFactory::set_next_protos(kNpnProtosFullV1);
+      std::vector<std::string> next_protos;
+      // This is a temporary hack to pretend we support version 1.
+      next_protos.push_back("http/1.1");
+      next_protos.push_back("spdy/1");
+      HttpStreamFactory::set_next_protos(next_protos);
     } else if (option == kDisableAltProtocols) {
       use_alt_protocols = false;
       HttpStreamFactory::set_use_alternate_protocols(false);

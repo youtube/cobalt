@@ -97,12 +97,12 @@ struct NET_EXPORT SSLConfig {
                        // needs to clear tls1_enabled).
 
   // The list of application level protocols supported. If set, this will
-  // enable Next Protocol Negotiation (if supported). This is a list of 8-bit
-  // length prefixed strings. The order of the protocols doesn't matter expect
-  // for one case: if the server supports Next Protocol Negotiation, but there
-  // is no overlap between the server's and client's protocol sets, then the
-  // first protocol in this list will be requested by the client.
-  std::string next_protos;
+  // enable Next Protocol Negotiation (if supported). The order of the
+  // protocols doesn't matter expect for one case: if the server supports Next
+  // Protocol Negotiation, but there is no overlap between the server's and
+  // client's protocol sets, then the first protocol in this list will be
+  // requested by the client.
+  std::vector<std::string> next_protos;
 
   scoped_refptr<X509Certificate> client_cert;
 
