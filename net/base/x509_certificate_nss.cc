@@ -6,7 +6,6 @@
 
 #include <cert.h>
 #include <cryptohi.h>
-#include <keyhi.h>
 #include <nss.h>
 #include <pk11pub.h>
 #include <prerror.h>
@@ -18,7 +17,6 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/singleton.h"
 #include "base/pickle.h"
 #include "base/time.h"
 #include "crypto/nss_util.h"
@@ -27,54 +25,11 @@
 #include "net/base/cert_verify_result.h"
 #include "net/base/ev_root_ca_metadata.h"
 #include "net/base/net_errors.h"
+#include "net/base/x509_util_nss.h"
 
 namespace net {
 
 namespace {
-
-class ObCertOIDWrapper {
- public:
-  static ObCertOIDWrapper* GetInstance() {
-    // Instantiated as a leaky singleton to allow the singleton to be
-    // constructed on a worker thead that is not joined when a process
-    // shuts down.
-    return Singleton<ObCertOIDWrapper,
-                     LeakySingletonTraits<ObCertOIDWrapper> >::get();
-  }
-
-  SECOidTag ob_cert_oid_tag() const {
-    return ob_cert_oid_tag_;
-  }
-
- private:
-  friend struct DefaultSingletonTraits<ObCertOIDWrapper>;
-
-  ObCertOIDWrapper();
-
-  SECOidTag ob_cert_oid_tag_;
-
-  DISALLOW_COPY_AND_ASSIGN(ObCertOIDWrapper);
-};
-
-ObCertOIDWrapper::ObCertOIDWrapper(): ob_cert_oid_tag_(SEC_OID_UNKNOWN) {
-  // 1.3.6.1.4.1.11129.2.1.6
-  // (iso.org.dod.internet.private.enterprises.google.googleSecurity.
-  //  certificateExtensions.originBoundCertificate)
-  static const uint8 kObCertOID[] = {
-    0x2b, 0x06, 0x01, 0x04, 0x01, 0xd6, 0x79, 0x02, 0x01, 0x06
-  };
-  SECOidData oid_data;
-  memset(&oid_data, 0, sizeof(oid_data));
-  oid_data.oid.data = const_cast<uint8*>(kObCertOID);
-  oid_data.oid.len = sizeof(kObCertOID);
-  oid_data.offset = SEC_OID_UNKNOWN;
-  oid_data.desc = "Origin Bound Certificate";
-  oid_data.mechanism = CKM_INVALID_MECHANISM;
-  oid_data.supportedExtension = SUPPORTED_CERT_EXTENSION;
-  ob_cert_oid_tag_ = SECOID_AddEntry(&oid_data);
-  if (ob_cert_oid_tag_ == SEC_OID_UNKNOWN)
-    LOG(ERROR) << "OB_CERT OID tag creation failed";
-}
 
 class ScopedCERTCertificatePolicies {
  public:
@@ -668,125 +623,6 @@ void X509Certificate::Initialize() {
     serial_number_ = serial_number_.substr(1, serial_number_.size() - 1);
 }
 
-// Creates a Certificate object that may be passed to the SignCertificate
-// method to generate an X509 certificate.
-// Returns NULL if an error is encountered in the certificate creation
-// process.
-// Caller responsible for freeing returned certificate object.
-static CERTCertificate* CreateCertificate(
-    crypto::RSAPrivateKey* key,
-    const std::string& subject,
-    uint32 serial_number,
-    base::TimeDelta valid_duration) {
-  // Create info about public key.
-  CERTSubjectPublicKeyInfo* spki =
-      SECKEY_CreateSubjectPublicKeyInfo(key->public_key());
-  if (!spki)
-    return NULL;
-
-  // Create the certificate request.
-  CERTName* subject_name =
-      CERT_AsciiToName(const_cast<char*>(subject.c_str()));
-  CERTCertificateRequest* cert_request =
-      CERT_CreateCertificateRequest(subject_name, spki, NULL);
-  SECKEY_DestroySubjectPublicKeyInfo(spki);
-
-  if (!cert_request) {
-    PRErrorCode prerr = PR_GetError();
-    LOG(ERROR) << "Failed to create certificate request: " << prerr;
-    CERT_DestroyName(subject_name);
-    return NULL;
-  }
-
-  PRTime now = PR_Now();
-  PRTime not_after = now + valid_duration.InMicroseconds();
-
-  // Note that the time is now in micro-second unit.
-  CERTValidity* validity = CERT_CreateValidity(now, not_after);
-  CERTCertificate* cert = CERT_CreateCertificate(serial_number, subject_name,
-                                                 validity, cert_request);
-  if (!cert) {
-    PRErrorCode prerr = PR_GetError();
-    LOG(ERROR) << "Failed to create certificate: " << prerr;
-  }
-
-  // Cleanup for resources used to generate the cert.
-  CERT_DestroyName(subject_name);
-  CERT_DestroyValidity(validity);
-  CERT_DestroyCertificateRequest(cert_request);
-
-  return cert;
-}
-
-// Signs a certificate object, with |key| generating a new X509Certificate
-// and destroying the passed certificate object (even when NULL is returned).
-// The logic of this method references SignCert() in NSS utility certutil:
-// http://mxr.mozilla.org/security/ident?i=SignCert.
-// Returns NULL if an error is encountered in the certificate signing
-// process.
-// Caller responsible for freeing returned X509Certificate object.
-//
-// TODO: change this function to return
-// a success/failure status, and not create an X509Certificate
-// object, and not destroy |cert| on failure.  Let the caller
-// create the X509Certificate object and destroy |cert|.
-static X509Certificate* SignCertificate(
-    CERTCertificate* cert,
-    crypto::RSAPrivateKey* key) {
-  // |arena| is used to encode the cert.
-  PRArenaPool* arena = cert->arena;
-  SECOidTag algo_id = SEC_GetSignatureAlgorithmOidTag(key->key()->keyType,
-                                                      SEC_OID_SHA1);
-  if (algo_id == SEC_OID_UNKNOWN) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  SECStatus rv = SECOID_SetAlgorithmID(arena, &cert->signature, algo_id, 0);
-  if (rv != SECSuccess) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  // Generate a cert of version 3.
-  *(cert->version.data) = 2;
-  cert->version.len = 1;
-
-  SECItem der;
-  der.len = 0;
-  der.data = NULL;
-
-  // Use ASN1 DER to encode the cert.
-  void* encode_result = SEC_ASN1EncodeItem(
-      arena, &der, cert, SEC_ASN1_GET(CERT_CertificateTemplate));
-  if (!encode_result) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  // Allocate space to contain the signed cert.
-  SECItem* result = SECITEM_AllocItem(arena, NULL, 0);
-  if (!result) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  // Sign the ASN1 encoded cert and save it to |result|.
-  rv = SEC_DerSignData(arena, result, der.data, der.len, key->key(), algo_id);
-  if (rv != SECSuccess) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  // Save the signed result to the cert.
-  cert->derCert = *result;
-
-  X509Certificate* x509_cert =
-      X509Certificate::CreateFromHandle(cert, X509Certificate::OSCertHandles());
-  CERT_DestroyCertificate(cert);
-  return x509_cert;
-}
-
 // static
 X509Certificate* X509Certificate::CreateSelfSigned(
     crypto::RSAPrivateKey* key,
@@ -795,76 +631,17 @@ X509Certificate* X509Certificate::CreateSelfSigned(
     base::TimeDelta valid_duration) {
   DCHECK(key);
 
-  CERTCertificate* cert = CreateCertificate(key,
-                                            subject,
-                                            serial_number,
-                                            valid_duration);
+  CERTCertificate* cert = x509_util::CreateSelfSignedCert(key->public_key(),
+                                                          key->key(),
+                                                          subject,
+                                                          serial_number,
+                                                          valid_duration);
 
   if (!cert)
     return NULL;
 
-  X509Certificate* x509_cert = SignCertificate(cert, key);
-
-  return x509_cert;
-}
-
-// static
-X509Certificate* X509Certificate::CreateOriginBound(
-    crypto::RSAPrivateKey* key,
-    const std::string& origin,
-    uint32 serial_number,
-    base::TimeDelta valid_duration) {
-  DCHECK(key);
-
-  CERTCertificate* cert = CreateCertificate(key,
-                                            "CN=anonymous.invalid",
-                                            serial_number,
-                                            valid_duration);
-
-  if (!cert)
-    return NULL;
-
-  // Create opaque handle used to add extensions later.
-  void* cert_handle;
-  if ((cert_handle = CERT_StartCertExtensions(cert)) == NULL) {
-    LOG(ERROR) << "Unable to get opaque handle for adding extensions";
-    return NULL;
-  }
-
-  // Create SECItem for IA5String encoding.
-  SECItem origin_string_item = {
-    siAsciiString,
-    (unsigned char*)origin.data(),
-    origin.size()
-  };
-
-  // IA5Encode and arena allocate SECItem
-  SECItem* asn1_origin_string = SEC_ASN1EncodeItem(
-      cert->arena, NULL, &origin_string_item,
-      SEC_ASN1_GET(SEC_IA5StringTemplate));
-  if (asn1_origin_string == NULL) {
-    LOG(ERROR) << "Unable to get ASN1 encoding for origin in ob_cert extension";
-    return NULL;
-  }
-
-  // Add the extension to the opaque handle
-  if (CERT_AddExtension(cert_handle,
-                        ObCertOIDWrapper::GetInstance()->ob_cert_oid_tag(),
-                        asn1_origin_string,
-                        PR_TRUE, PR_TRUE) != SECSuccess){
-    LOG(ERROR) << "Unable to add origin bound cert extension to opaque handle";
-    return NULL;
-  }
-
-  // Copy extension into x509 cert
-  if (CERT_FinishExtensions(cert_handle) != SECSuccess){
-    LOG(ERROR) << "Unable to copy extension to X509 cert";
-    return NULL;
-  }
-
-  X509Certificate* x509_cert = SignCertificate(cert, key);
-
-  return x509_cert;
+  return X509Certificate::CreateFromHandle(cert,
+                                           X509Certificate::OSCertHandles());
 }
 
 void X509Certificate::GetSubjectAltName(

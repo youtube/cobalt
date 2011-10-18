@@ -613,9 +613,6 @@ NET_ERROR(ORIGIN_BOUND_CERT_GENERATION_FAILED, -711)
 // Failure to export private key.
 NET_ERROR(PRIVATE_KEY_EXPORT_FAILED, -712)
 
-// Failure to get certificate bytes.
-NET_ERROR(GET_CERT_BYTES_FAILED, -713)
-
 // DNS error codes.
 
 // DNS resolver received a malformed response.
