@@ -5,9 +5,17 @@
 #include "net/base/net_test_suite.h"
 
 #include "base/message_loop.h"
+#include "net/http/http_stream_factory.h"
 #if defined(USE_NSS)
 #include "net/ocsp/nss_ocsp.h"
 #endif
+#include "testing/gtest/include/gtest/gtest.h"
+
+class StaticReset : public ::testing::EmptyTestEventListener {
+  virtual void OnTestStart(const ::testing::TestInfo& test_info) OVERRIDE {
+    net::HttpStreamFactory::ResetStaticSettingsToInit();
+  }
+};
 
 NetTestSuite::NetTestSuite(int argc, char** argv)
     : TestSuite(argc, argv) {
@@ -17,6 +25,7 @@ NetTestSuite::~NetTestSuite() {}
 
 void NetTestSuite::Initialize() {
   TestSuite::Initialize();
+  ::testing::UnitTest::GetInstance()->listeners().Append(new StaticReset());
   InitializeTestThread();
 }
 
