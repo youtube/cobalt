@@ -176,6 +176,10 @@ class NET_EXPORT HttpStreamFactory {
   virtual bool IsTLSIntolerantServer(const HostPortPair& server) const = 0;
 
   // Static settings
+
+  // Reset all static settings to initialized values. Used to init test suite.
+  static void ResetStaticSettingsToInit();
+
   static GURL ApplyHostMappingRules(const GURL& url, HostPortPair* endpoint);
 
   // Turns spdy on or off.
