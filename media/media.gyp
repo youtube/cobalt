@@ -204,6 +204,10 @@
         'video/capture/fake_video_capture_device.h',
         'video/capture/linux/video_capture_device_linux.cc',
         'video/capture/linux/video_capture_device_linux.h',
+        'video/capture/mac/video_capture_device_mac.h',
+        'video/capture/mac/video_capture_device_mac.mm',
+        'video/capture/mac/video_capture_device_qtkit_mac.h',
+        'video/capture/mac/video_capture_device_qtkit_mac.mm',
         'video/capture/video_capture.h',
         'video/capture/video_capture_device.h',
         'video/capture/video_capture_device_dummy.cc',
@@ -325,7 +329,7 @@
             'audio/openbsd/audio_manager_openbsd.h',
           ],
         }],
-        ['os_posix == 1 and OS != "mac"', {
+        ['os_posix == 1', {
           'sources!': [
             'video/capture/video_capture_device_dummy.cc',
             'video/capture/video_capture_device_dummy.h',
@@ -337,6 +341,8 @@
               '$(SDKROOT)/System/Library/Frameworks/AudioUnit.framework',
               '$(SDKROOT)/System/Library/Frameworks/AudioToolbox.framework',
               '$(SDKROOT)/System/Library/Frameworks/CoreAudio.framework',
+              '$(SDKROOT)/System/Library/Frameworks/CoreVideo.framework',
+              '$(SDKROOT)/System/Library/Frameworks/QTKit.framework',
             ],
           },
         }],
