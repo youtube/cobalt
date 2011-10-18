@@ -143,8 +143,8 @@
        # Disable file manager component extension by default.
       'file_manager_extension%': 0,
 
-      # Disable WebUI TaskManager by default.
-      'webui_task_manager%': 0,
+      # Enable WebUI TaskManager by default.
+      'webui_task_manager%': 1,
 
       # Python version.
       'python_ver%': '2.6',
@@ -319,11 +319,9 @@
           'file_manager_extension%': 0,
         }],
 
-        # Enable WebUI TaskManager only on Chrome OS, Touch or PureView.
+        # Enable WebUI TaskManager always on Chrome OS, Touch or PureView.
         ['chromeos==1 or touchui==1 or use_only_pure_views==1 or use_aura==1', {
           'webui_task_manager%': 1,
-        }, {
-          'webui_task_manager%': 0,
         }],
 
         ['OS=="android"', {
