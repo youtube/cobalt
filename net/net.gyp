@@ -457,6 +457,8 @@
         'proxy/proxy_config_service_linux.h',
         'proxy/proxy_config_service_mac.cc',
         'proxy/proxy_config_service_mac.h',
+        'proxy/proxy_config_service_ps3.cc',
+        'proxy/proxy_config_service_ps3.h',
         'proxy/proxy_config_service_win.cc',
         'proxy/proxy_config_service_win.h',
         'proxy/proxy_info.cc',
