@@ -11,6 +11,7 @@
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
 #include "base/rand_util.h"
+#include "net/base/address_list_net_log_param.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
@@ -18,6 +19,7 @@
 #include "net/base/net_util.h"
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
+#include "net/udp/udp_data_transfer_param.h"
 
 namespace {
 
@@ -51,7 +53,7 @@ UDPSocketWin::UDPSocketWin(DatagramSocket::BindType bind_type,
       recv_from_address_(NULL),
       read_callback_(NULL),
       write_callback_(NULL),
-      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
+      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_UDP_SOCKET)) {
   EnsureWinsockInit();
   scoped_refptr<NetLog::EventParameters> params;
   if (source.is_valid())
@@ -181,17 +183,30 @@ int UDPSocketWin::SendToOrWrite(IOBuffer* buf,
   DCHECK(!write_callback_);
   DCHECK(callback);  // Synchronous operation not supported.
   DCHECK_GT(buf_len, 0);
+  DCHECK(!send_to_address_.get());
 
   int nwrite = InternalSendTo(buf, buf_len, address);
   if (nwrite != ERR_IO_PENDING)
     return nwrite;
 
+  if (address)
+    send_to_address_.reset(new IPEndPoint(*address));
   write_iobuffer_ = buf;
   write_callback_ = callback;
   return ERR_IO_PENDING;
 }
 
 int UDPSocketWin::Connect(const IPEndPoint& address) {
+  net_log_.BeginEvent(
+      NetLog::TYPE_UDP_CONNECT,
+      make_scoped_refptr(new NetLogStringParameter("address",
+                                                   address.ToString())));
+  int rv = InternalConnect(address);
+  net_log_.EndEventWithNetErrorCode(NetLog::TYPE_UDP_CONNECT, rv);
+  return rv;
+}
+
+int UDPSocketWin::InternalConnect(const IPEndPoint& address) {
   DCHECK(!is_connected());
   DCHECK(!remote_address_.get());
   int rv = CreateSocket(address);
@@ -281,28 +296,37 @@ void UDPSocketWin::DidCompleteRead() {
                                    &num_bytes, FALSE, &flags);
   WSAResetEvent(read_overlapped_.hEvent);
   int result = ok ? num_bytes : MapSystemError(WSAGetLastError());
-  if (ok) {
-    if (!ProcessSuccessfulRead(num_bytes, recv_from_address_))
+  // Convert address.
+  if (recv_from_address_ && result >= 0) {
+    if (!ReceiveAddressToIPEndpoint(recv_from_address_))
       result = ERR_FAILED;
   }
+  LogRead(result, read_iobuffer_->data());
   read_iobuffer_ = NULL;
   recv_from_address_ = NULL;
   DoReadCallback(result);
 }
 
-bool UDPSocketWin::ProcessSuccessfulRead(int num_bytes, IPEndPoint* address) {
-  base::StatsCounter read_bytes("udp.read_bytes");
-  read_bytes.Add(num_bytes);
-
-  // Convert address.
-  if (address) {
-    struct sockaddr* addr =
-        reinterpret_cast<struct sockaddr*>(&recv_addr_storage_);
-    if (!address->FromSockAddr(addr, recv_addr_len_))
-      return false;
+void UDPSocketWin::LogRead(int result, const char* bytes) const {
+  if (result < 0) {
+    net_log_.AddEventWithNetErrorCode(NetLog::TYPE_UDP_RECEIVE_ERROR, result);
+    return;
   }
 
-  return true;
+  if (net_log_.IsLoggingAllEvents()) {
+    // Get address for logging, if |address| is NULL.
+    IPEndPoint address;
+    bool is_address_valid = ReceiveAddressToIPEndpoint(&address);
+    net_log_.AddEvent(
+        NetLog::TYPE_UDP_BYTES_RECEIVED,
+        make_scoped_refptr(
+            new UDPDataTransferNetLogParam(
+                result, bytes, net_log_.IsLoggingBytes(),
+                is_address_valid ? &address : NULL)));
+  }
+
+  base::StatsCounter read_bytes("udp.read_bytes");
+  read_bytes.Add(result);
 }
 
 void UDPSocketWin::DidCompleteWrite() {
@@ -311,15 +335,32 @@ void UDPSocketWin::DidCompleteWrite() {
                                    &num_bytes, FALSE, &flags);
   WSAResetEvent(write_overlapped_.hEvent);
   int result = ok ? num_bytes : MapSystemError(WSAGetLastError());
-  if (ok)
-    ProcessSuccessfulWrite(num_bytes);
+  LogWrite(result, write_iobuffer_->data(), send_to_address_.get());
+
+  send_to_address_.reset();
   write_iobuffer_ = NULL;
   DoWriteCallback(result);
 }
 
-void UDPSocketWin::ProcessSuccessfulWrite(int num_bytes) {
+void UDPSocketWin::LogWrite(int result,
+                            const char* bytes,
+                            const IPEndPoint* address) const {
+  if (result < 0) {
+    net_log_.AddEventWithNetErrorCode(NetLog::TYPE_UDP_SEND_ERROR, result);
+    return;
+  }
+
+  if (net_log_.IsLoggingAllEvents()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_UDP_BYTES_SENT,
+        make_scoped_refptr(
+            new UDPDataTransferNetLogParam(result, bytes,
+                                           net_log_.IsLoggingBytes(),
+                                           address)));
+  }
+
   base::StatsCounter write_bytes("udp.write_bytes");
-  write_bytes.Add(num_bytes);
+  write_bytes.Add(result);
 }
 
 int UDPSocketWin::InternalRecvFrom(IOBuffer* buf, int buf_len,
@@ -339,14 +380,22 @@ int UDPSocketWin::InternalRecvFrom(IOBuffer* buf, int buf_len,
                        &recv_addr_len_, &read_overlapped_, NULL);
   if (rv == 0) {
     if (ResetEventIfSignaled(read_overlapped_.hEvent)) {
-      if (!ProcessSuccessfulRead(num, address))
-        return ERR_FAILED;
-      return static_cast<int>(num);
+      int result = num;
+      // Convert address.
+      if (address && result >= 0) {
+        if (!ReceiveAddressToIPEndpoint(address))
+          result = ERR_FAILED;
+      }
+      LogRead(result, buf->data());
+      return result;
     }
   } else {
     int os_error = WSAGetLastError();
-    if (os_error != WSA_IO_PENDING)
-      return MapSystemError(os_error);
+    if (os_error != WSA_IO_PENDING) {
+      int result = MapSystemError(os_error);
+      LogRead(result, NULL);
+      return result;
+    }
   }
   read_watcher_.StartWatching(read_overlapped_.hEvent, &read_delegate_);
   return ERR_IO_PENDING;
@@ -363,8 +412,11 @@ int UDPSocketWin::InternalSendTo(IOBuffer* buf, int buf_len,
     addr = NULL;
     addr_len = 0;
   } else {
-    if (!address->ToSockAddr(addr, &addr_len))
-      return ERR_FAILED;
+    if (!address->ToSockAddr(addr, &addr_len)) {
+      int result = ERR_FAILED;
+      LogWrite(result, NULL, NULL);
+      return result;
+    }
   }
 
   WSABUF write_buffer;
@@ -378,13 +430,17 @@ int UDPSocketWin::InternalSendTo(IOBuffer* buf, int buf_len,
                      addr, addr_len, &write_overlapped_, NULL);
   if (rv == 0) {
     if (ResetEventIfSignaled(write_overlapped_.hEvent)) {
-      ProcessSuccessfulWrite(num);
-      return static_cast<int>(num);
+      int result = num;
+      LogWrite(result, buf->data(), address);
+      return result;
     }
   } else {
     int os_error = WSAGetLastError();
-    if (os_error != WSA_IO_PENDING)
-      return MapSystemError(os_error);
+    if (os_error != WSA_IO_PENDING) {
+      int result = MapSystemError(os_error);
+      LogWrite(result, NULL, NULL);
+      return result;
+    }
   }
 
   write_watcher_.StartWatching(write_overlapped_.hEvent, &write_delegate_);
@@ -413,6 +469,12 @@ int UDPSocketWin::RandomBind(const IPEndPoint& address) {
       return rv;
   }
   return DoBind(IPEndPoint(ip, 0));
+}
+
+bool UDPSocketWin::ReceiveAddressToIPEndpoint(IPEndPoint* address) const {
+  const struct sockaddr* addr =
+      reinterpret_cast<const struct sockaddr*>(&recv_addr_storage_);
+  return address->FromSockAddr(addr, recv_addr_len_);
 }
 
 }  // namespace net
