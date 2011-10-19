@@ -332,9 +332,9 @@
         # Use GPU accelerated cross process image transport by default
         # on TOUCH_UI and linux builds with the Aura window manager
         ['views_compositor==1 and OS=="linux"', {
-          'views_gpu_image_transport%': 1,
+          'ui_compositor_image_transport%': 1,
         }, {
-          'views_gpu_image_transport%': 0,
+          'ui_compositor_image_transport%': 0,
         }],
       ],
     },
@@ -348,7 +348,7 @@
     'toolkit_views%': '<(toolkit_views)',
     'use_only_pure_views%': '<(use_only_pure_views)',
     'views_compositor%': '<(views_compositor)',
-    'views_gpu_image_transport%': '<(views_gpu_image_transport)',
+    'ui_compositor_image_transport%': '<(ui_compositor_image_transport)',
     'use_aura%': '<(use_aura)',
     'use_openssl%': '<(use_openssl)',
     'use_nss%': '<(use_nss)',
@@ -949,7 +949,7 @@
       ['views_compositor==1', {
         'defines': ['VIEWS_COMPOSITOR=1'],
       }],
-      ['views_gpu_image_transport==1', {
+      ['ui_compositor_image_transport==1', {
         'defines': ['UI_COMPOSITOR_IMAGE_TRANSPORT'],
       }],
       ['use_aura==1', {
