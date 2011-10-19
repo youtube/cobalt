@@ -838,7 +838,8 @@ int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
       server_cert_, host_and_port_.host(), flags,
       &server_cert_verify_result_,
       base::Bind(&SSLClientSocketOpenSSL::OnHandshakeIOComplete,
-                 base::Unretained(this)));
+                 base::Unretained(this)),
+      net_log_);
 }
 
 int SSLClientSocketOpenSSL::DoVerifyCertComplete(int result) {
