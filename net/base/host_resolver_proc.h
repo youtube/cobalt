@@ -83,7 +83,7 @@ class NET_EXPORT HostResolverProc
 // Resolves |host| to an address list, using the system's default host resolver.
 // (i.e. this calls out to getaddrinfo()). If successful returns OK and fills
 // |addrlist| with a list of socket addresses. Otherwise returns a
-// network error code, and fills |os_error| with a more specific errir if it
+// network error code, and fills |os_error| with a more specific error if it
 // was non-NULL.
 NET_EXPORT_PRIVATE int SystemHostResolverProc(
     const std::string& host,
