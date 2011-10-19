@@ -633,6 +633,9 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
   if (proxy_info_.is_https()) {
     InitSSLConfig(proxy_info_.proxy_server().host_port_pair(),
                   &proxy_ssl_config_);
+    // Disable revocation checking for HTTPS proxies since the revocation
+    // requests are probably going to need to go through the proxy too.
+    proxy_ssl_config_.rev_checking_enabled = false;
   }
   if (using_ssl_) {
     InitSSLConfig(origin_, &server_ssl_config_);
