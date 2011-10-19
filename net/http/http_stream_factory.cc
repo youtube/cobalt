@@ -33,6 +33,8 @@ bool HttpStreamFactory::force_spdy_always_ = false;
 std::list<HostPortPair>* HttpStreamFactory::forced_spdy_exclusions_ = NULL;
 // static
 bool HttpStreamFactory::ignore_certificate_errors_ = false;
+// static
+bool HttpStreamFactory::http_pipelining_enabled_ = false;
 
 HttpStreamFactory::~HttpStreamFactory() {}
 

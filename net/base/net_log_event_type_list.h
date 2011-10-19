@@ -845,6 +845,13 @@ EVENT_TYPE(HTTP_TRANSACTION_READ_BODY)
 // restarting for authentication, on keep alive connections.
 EVENT_TYPE(HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART)
 
+// This event is sent when we try to restart a transaction after an error.
+// The following parameters are attached:
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//   }
+EVENT_TYPE(HTTP_TRANSACTION_RESTART_AFTER_ERROR)
+
 // ------------------------------------------------------------------------
 // SpdySession
 // ------------------------------------------------------------------------

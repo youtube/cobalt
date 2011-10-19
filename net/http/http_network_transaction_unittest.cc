@@ -174,8 +174,8 @@ class HttpNetworkTransactionTest : public PlatformTest {
 
   void KeepAliveConnectionResendRequestTest(const MockRead& read_failure);
 
-  SimpleGetHelperResult SimpleGetHelper(MockRead data_reads[],
-                                        size_t reads_count) {
+  SimpleGetHelperResult SimpleGetHelperForData(StaticSocketDataProvider* data[],
+                                               size_t data_count) {
     SimpleGetHelperResult out;
 
     HttpRequestInfo request;
@@ -187,8 +187,9 @@ class HttpNetworkTransactionTest : public PlatformTest {
     scoped_ptr<HttpTransaction> trans(
         new HttpNetworkTransaction(CreateSession(&session_deps)));
 
-    StaticSocketDataProvider data(data_reads, reads_count, NULL, 0);
-    session_deps.socket_factory.AddSocketDataProvider(&data);
+    for (size_t i = 0; i < data_count; ++i) {
+      session_deps.socket_factory.AddSocketDataProvider(data[i]);
+    }
 
     TestOldCompletionCallback callback;
 
@@ -235,6 +236,13 @@ class HttpNetworkTransactionTest : public PlatformTest {
               request_params->GetHeaders().ToString());
 
     return out;
+  }
+
+  SimpleGetHelperResult SimpleGetHelper(MockRead data_reads[],
+                                        size_t reads_count) {
+    StaticSocketDataProvider reads(data_reads, reads_count, NULL, 0);
+    StaticSocketDataProvider* data[] = { &reads };
+    return SimpleGetHelperForData(data, 1);
   }
 
   void ConnectStatusHelperWithExpectedStatus(const MockRead& status,
@@ -9243,6 +9251,53 @@ TEST_F(HttpNetworkTransactionTest,
 
   HttpStreamFactory::set_next_protos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
+}
+
+TEST_F(HttpNetworkTransactionTest, ReadPipelineEvictionFallback) {
+  MockRead data_reads1[] = {
+    MockRead(false, ERR_PIPELINE_EVICTION),
+  };
+  MockRead data_reads2[] = {
+    MockRead("HTTP/1.0 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(false, OK),
+  };
+  StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1), NULL, 0);
+  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2), NULL, 0);
+  StaticSocketDataProvider* data[] = { &data1, &data2 };
+
+  SimpleGetHelperResult out = SimpleGetHelperForData(data, arraysize(data));
+
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.0 200 OK", out.status_line);
+  EXPECT_EQ("hello world", out.response_data);
+}
+
+TEST_F(HttpNetworkTransactionTest, SendPipelineEvictionFallback) {
+  MockWrite data_writes1[] = {
+    MockWrite(false, ERR_PIPELINE_EVICTION),
+  };
+  MockWrite data_writes2[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+  MockRead data_reads2[] = {
+    MockRead("HTTP/1.0 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(false, OK),
+  };
+  StaticSocketDataProvider data1(NULL, 0,
+                                 data_writes1, arraysize(data_writes1));
+  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
+                                 data_writes2, arraysize(data_writes2));
+  StaticSocketDataProvider* data[] = { &data1, &data2 };
+
+  SimpleGetHelperResult out = SimpleGetHelperForData(data, arraysize(data));
+
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.0 200 OK", out.status_line);
+  EXPECT_EQ("hello world", out.response_data);
 }
 
 }  // namespace net
