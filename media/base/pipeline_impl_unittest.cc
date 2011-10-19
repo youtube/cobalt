@@ -65,7 +65,7 @@ class PipelineImplTest : public ::testing::Test {
     pipeline_->Init(
         base::Bind(&CallbackHelper::OnEnded, base::Unretained(&callbacks_)),
         base::Bind(&CallbackHelper::OnError, base::Unretained(&callbacks_)),
-        PipelineStatusCB());
+        Pipeline::NetworkEventCB());
     mocks_.reset(new MockFilterCollection());
 
     // InitializeDemuxer adds overriding expectations for expected non-NULL

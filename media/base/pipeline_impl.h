@@ -102,7 +102,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   // Pipeline implementation.
   virtual void Init(const PipelineStatusCB& ended_callback,
                     const PipelineStatusCB& error_callback,
-                    const PipelineStatusCB& network_callback) OVERRIDE;
+                    const NetworkEventCB& network_callback) OVERRIDE;
   virtual bool Start(FilterCollection* filter_collection,
                      const std::string& uri,
                      const PipelineStatusCB& start_callback) OVERRIDE;
@@ -111,7 +111,6 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
                     const PipelineStatusCB& seek_callback) OVERRIDE;
   virtual bool IsRunning() const OVERRIDE;
   virtual bool IsInitialized() const OVERRIDE;
-  virtual bool IsNetworkActive() const OVERRIDE;
   virtual bool HasAudio() const OVERRIDE;
   virtual bool HasVideo() const OVERRIDE;
   virtual float GetPlaybackRate() const OVERRIDE;
@@ -202,7 +201,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetNaturalVideoSize(const gfx::Size& size) OVERRIDE;
   virtual void SetStreaming(bool streamed) OVERRIDE;
   virtual void SetLoaded(bool loaded) OVERRIDE;
-  virtual void SetNetworkActivity(bool network_activity) OVERRIDE;
+  virtual void SetNetworkActivity(bool is_downloading_data) OVERRIDE;
   virtual void NotifyEnded() OVERRIDE;
   virtual void DisableAudioRenderer() OVERRIDE;
   virtual void SetCurrentReadPosition(int64 offset) OVERRIDE;
@@ -262,7 +261,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   void NotifyEndedTask();
 
   // Carries out handling a notification of network event.
-  void NotifyNetworkEventTask();
+  void NotifyNetworkEventTask(bool is_downloading_data);
 
   // Carries out disabling the audio renderer.
   void DisableAudioRendererTask();
@@ -383,9 +382,6 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   // loaded source.
   bool loaded_;
 
-  // Sets by the filters to indicate whether network is active.
-  bool network_activity_;
-
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
   // via SetVolume() and a task is dispatched on the message loop to notify the
   // filters.
@@ -457,7 +453,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   PipelineStatusCB stop_callback_;
   PipelineStatusCB ended_callback_;
   PipelineStatusCB error_callback_;
-  PipelineStatusCB network_callback_;
+  NetworkEventCB network_callback_;
 
   // Reference to the filter(s) that constitute the pipeline.
   scoped_refptr<Filter> pipeline_filter_;
