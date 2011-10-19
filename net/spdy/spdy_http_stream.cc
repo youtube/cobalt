@@ -472,4 +472,9 @@ bool SpdyHttpStream::IsSpdyHttpStream() const {
   return true;
 }
 
+void SpdyHttpStream::Drain(HttpNetworkSession* session) {
+  Close(false);
+  delete this;
+}
+
 }  // namespace net

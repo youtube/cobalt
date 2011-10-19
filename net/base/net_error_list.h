@@ -637,3 +637,6 @@ NET_ERROR(DNS_TIMED_OUT, -803)
 
 // The entry was not found in cache, for cache-only lookups.
 NET_ERROR(DNS_CACHE_MISS, -804)
+
+// FIXME: Take the next number.
+NET_ERROR(PIPELINE_EVICTION, -900)

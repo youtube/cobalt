@@ -40,9 +40,10 @@ HttpStreamFactoryImpl::Request::~Request() {
   for (std::set<Job*>::iterator it = jobs_.begin(); it != jobs_.end(); ++it)
     factory_->request_map_.erase(*it);
 
-  STLDeleteElements(&jobs_);
-
   RemoveRequestFromSpdySessionRequestMap();
+  RemoveRequestFromHttpPipeliningRequestMap();
+
+  STLDeleteElements(&jobs_);
 }
 
 void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
@@ -51,6 +52,16 @@ void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
   spdy_session_key_.reset(new HostPortProxyPair(spdy_session_key));
   RequestSet& request_set =
       factory_->spdy_session_request_map_[spdy_session_key];
+  DCHECK(!ContainsKey(request_set, this));
+  request_set.insert(this);
+}
+
+void HttpStreamFactoryImpl::Request::SetHttpPipeliningKey(
+    const HostPortPair& http_pipelining_key) {
+  DCHECK(!http_pipelining_key_.get());
+  http_pipelining_key_.reset(new HostPortPair(http_pipelining_key));
+  RequestSet& request_set =
+      factory_->http_pipelining_request_map_[http_pipelining_key];
   DCHECK(!ContainsKey(request_set, this));
   request_set.insert(this);
 }
@@ -84,7 +95,8 @@ void HttpStreamFactoryImpl::Request::OnStreamReady(
   DCHECK(completed_);
 
   // |job| should only be NULL if we're being serviced by a late bound
-  // SpdySession (one that was not created by a job in our |jobs_| set).
+  // SpdySession or HttpPipelinedConnection (one that was not created by a job
+  // in our |jobs_| set).
   if (!job) {
     DCHECK(!bound_job_.get());
     DCHECK(!jobs_.empty());
@@ -225,6 +237,22 @@ HttpStreamFactoryImpl::Request::RemoveRequestFromSpdySessionRequestMap() {
   }
 }
 
+void
+HttpStreamFactoryImpl::Request::RemoveRequestFromHttpPipeliningRequestMap() {
+  if (http_pipelining_key_.get()) {
+    HttpPipeliningRequestMap& http_pipelining_request_map =
+        factory_->http_pipelining_request_map_;
+    DCHECK(ContainsKey(http_pipelining_request_map, *http_pipelining_key_));
+    RequestSet& request_set =
+        http_pipelining_request_map[*http_pipelining_key_];
+    DCHECK(ContainsKey(request_set, this));
+    request_set.erase(this);
+    if (request_set.empty())
+      http_pipelining_request_map.erase(*http_pipelining_key_);
+    http_pipelining_key_.reset();
+  }
+}
+
 void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
     Job* job,
     scoped_refptr<SpdySession> spdy_session,
@@ -278,6 +306,7 @@ void HttpStreamFactoryImpl::Request::OrphanJobsExcept(Job* job) {
 
 void HttpStreamFactoryImpl::Request::OrphanJobs() {
   RemoveRequestFromSpdySessionRequestMap();
+  RemoveRequestFromHttpPipeliningRequestMap();
 
   std::set<Job*> tmp;
   tmp.swap(jobs_);

@@ -39,7 +39,6 @@
 #include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
-#include "net/http/http_response_body_drainer.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_server_properties.h"
@@ -137,15 +136,8 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
         stream_->Close(true /* not reusable */);
       } else {
         // Otherwise, we try to drain the response body.
-        // TODO(willchan): Consider moving this response body draining to the
-        // stream implementation.  For SPDY, there's clearly no point.  For
-        // HTTP, it can vary depending on whether or not we're pipelining.  It's
-        // stream dependent, so the different subtypes should be implementing
-        // their solutions.
-        HttpResponseBodyDrainer* drainer =
-          new HttpResponseBodyDrainer(stream_.release());
-        drainer->Start(session_);
-        // |drainer| will delete itself.
+        HttpStream* stream = stream_.release();
+        stream->Drain(session_);
       }
     }
   }
@@ -1198,12 +1190,19 @@ int HttpNetworkTransaction::HandleIOError(int error) {
     case ERR_CONNECTION_CLOSED:
     case ERR_CONNECTION_ABORTED:
       if (ShouldResendRequest(error)) {
+        net_log_.AddEvent(
+            NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR,
+            make_scoped_refptr(new NetLogIntegerParameter("net_error", error)));
         ResetConnectionAndRequestForResend();
         error = OK;
       }
       break;
+    case ERR_PIPELINE_EVICTION:
     case ERR_SPDY_PING_FAILED:
     case ERR_SPDY_SERVER_REFUSED_STREAM:
+      net_log_.AddEvent(
+          NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR,
+          make_scoped_refptr(new NetLogIntegerParameter("net_error", error)));
       ResetConnectionAndRequestForResend();
       error = OK;
       break;

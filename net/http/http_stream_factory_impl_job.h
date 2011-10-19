@@ -23,6 +23,7 @@ namespace net {
 class ClientSocketHandle;
 class HttpAuthController;
 class HttpNetworkSession;
+class HttpPipelinedConnection;
 class HttpProxySocketParams;
 class HttpStream;
 class SOCKSSocketParams;
@@ -197,10 +198,10 @@ class HttpStreamFactoryImpl::Job {
   // Should we force SPDY to run without SSL for this stream request.
   bool ShouldForceSpdyWithoutSSL() const;
 
+  bool IsRequestEligibleForPipelining() const;
+
   // Record histograms of latency until Connect() completes.
   static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
-
-  void HACKCrashHereToDebug80095();
 
   Request* request_;
 
@@ -275,6 +276,9 @@ class HttpStreamFactoryImpl::Job {
 
   // Only used if |new_spdy_session_| is non-NULL.
   bool spdy_session_direct_;
+
+  // True if an existing pipeline can handle this job's request.
+  bool existing_available_pipeline_;
 
   ScopedRunnableMethodFactory<Job> method_factory_;
 
