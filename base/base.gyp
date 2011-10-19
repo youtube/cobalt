@@ -186,6 +186,7 @@
         'lazy_instance_unittest.cc',
         'linked_list_unittest.cc',
         'logging_unittest.cc',
+        'mac/foundation_util_unittest.mm',
         'mac/mac_util_unittest.mm',
         'mac/objc_property_releaser_unittest.mm',
         'md5_unittest.cc',
