@@ -474,6 +474,7 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
                                      true));
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "talk.google.com", true));
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "plus.google.com", true));
+  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "groups.google.com", true));
 
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "entropia.de", true));
   EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.entropia.de", true));
@@ -826,6 +827,8 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
                                    true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "talk.google.com", true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "plus.google.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "groups.google.com", true));
+
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "ssl.gstatic.com", true));
   EXPECT_FALSE(state.HasPinsForHost(&domain_state, "www.gstatic.com", true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state,
