@@ -10,13 +10,15 @@
 
 #include "base/memory/ref_counted.h"
 #include "net/base/host_port_pair.h"
-#include "net/http/http_stream_factory.h"
 #include "net/base/net_log.h"
+#include "net/http/http_pipelined_host_pool.h"
+#include "net/http/http_stream_factory.h"
 #include "net/proxy/proxy_server.h"
 
 namespace net {
 
 class HttpNetworkSession;
+class HttpPipelinedHost;
 class SpdySession;
 
 class NET_EXPORT_PRIVATE HttpStreamFactoryImpl : public HttpStreamFactory {
@@ -40,12 +42,18 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl : public HttpStreamFactory {
   virtual void AddTLSIntolerantServer(const HostPortPair& server);
   virtual bool IsTLSIntolerantServer(const HostPortPair& server) const;
 
+  // Called when a HttpPipelinedHost has new capacity. Attempts to allocate any
+  // pending pipeline-capable requests to pipelines.
+  virtual void OnHttpPipelinedHostHasAdditionalCapacity(
+      const HostPortPair& origin);
+
  private:
   class Request;
   class Job;
 
   typedef std::set<Request*> RequestSet;
   typedef std::map<HostPortProxyPair, RequestSet> SpdySessionRequestMap;
+  typedef std::map<HostPortPair, RequestSet> HttpPipeliningRequestMap;
 
   bool GetAlternateProtocolRequestFor(const GURL& original_url,
                                       GURL* alternate_url) const;
@@ -88,6 +96,9 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl : public HttpStreamFactory {
   std::map<const Job*, Request*> request_map_;
 
   SpdySessionRequestMap spdy_session_request_map_;
+  HttpPipeliningRequestMap http_pipelining_request_map_;
+
+  HttpPipelinedHostPool http_pipelined_host_pool_;
 
   // These jobs correspond to jobs orphaned by Requests and now owned by
   // HttpStreamFactoryImpl. Since they are no longer tied to Requests, they will

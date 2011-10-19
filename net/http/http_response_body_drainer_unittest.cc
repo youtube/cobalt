@@ -120,6 +120,8 @@ class MockHttpStream : public HttpStream {
 
   virtual void LogNumRttVsBytesMetrics() const OVERRIDE {}
 
+  virtual void Drain(HttpNetworkSession*) OVERRIDE {}
+
   // Methods to tweak/observer mock behavior:
   void StallReadsForever() { stall_reads_forever_ = true; }
 

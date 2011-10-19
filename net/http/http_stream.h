@@ -23,6 +23,7 @@
 namespace net {
 
 class BoundNetLog;
+class HttpNetworkSession;
 class HttpRequestHeaders;
 struct HttpRequestInfo;
 class HttpResponseInfo;
@@ -138,6 +139,12 @@ class NET_EXPORT_PRIVATE HttpStream {
   // Record histogram of number of round trips taken to download the full
   // response body vs bytes transferred.
   virtual void LogNumRttVsBytesMetrics() const = 0;
+
+  // In the case of an HTTP error or redirect, flush the response body (usually
+  // a simple error or "this page has moved") so that we can re-use the
+  // underlying connection. This stream is responsible for deleting itself when
+  // draining is complete.
+  virtual void Drain(HttpNetworkSession* session) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HttpStream);

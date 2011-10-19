@@ -24,6 +24,7 @@ class HostMappingRules;
 class HostPortPair;
 class HttpAuthController;
 class HttpNetworkSession;
+class HttpPipelinedHost;
 class HttpResponseInfo;
 class HttpServerProperties;
 class HttpStream;
@@ -239,6 +240,11 @@ class NET_EXPORT HttpStreamFactory {
 
   static void SetHostMappingRules(const std::string& rules);
 
+  static void set_http_pipelining_enabled(bool value) {
+    http_pipelining_enabled_ = value;
+  }
+  static bool http_pipelining_enabled() { return http_pipelining_enabled_; }
+
  protected:
   HttpStreamFactory();
 
@@ -253,6 +259,7 @@ class NET_EXPORT HttpStreamFactory {
   static bool force_spdy_always_;
   static std::list<HostPortPair>* forced_spdy_exclusions_;
   static bool ignore_certificate_errors_;
+  static bool http_pipelining_enabled_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpStreamFactory);
 };
