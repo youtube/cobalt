@@ -163,7 +163,7 @@ SSL_IMPORT SECStatus SSL_CertDBHandleSet(PRFileDesc *fd, CERTCertDBHandle *dbHan
  * to be well formed per the NPN spec. |protoOut| is a buffer provided by the
  * caller, of length 255 (the maximum allowed by the protocol).
  * On successful return, the protocol to be announced to the server will be in
- * |protoOut| and its length in |protoOutLen|. */
+ * |protoOut| and its length in |*protoOutLen|. */
 typedef SECStatus (PR_CALLBACK *SSLNextProtoCallback)(
     void *arg,
     PRFileDesc *fd,
