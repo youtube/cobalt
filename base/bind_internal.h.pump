@@ -5,7 +5,7 @@ $$
 $$ http://code.google.com/p/googletest/wiki/PumpManual
 $$
 
-$var MAX_ARITY = 7
+$var MAX_ARITY = 6
 
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
@@ -39,15 +39,15 @@ namespace internal {
 // The templates below handle the determination of each of these dimensions.
 // In brief:
 //
-//   FunctionTraits<> -- Provides a normalized signature, and other traits.
+//   FunctionTraits<> -- Provides a normalied signature, and other traits.
 //   InvokerN<> -- Provides a DoInvoke() function that actually executes
-//                 a callback.
+//                 a calback.
 //   InvokerStorageN<> -- Provides storage for the bound parameters, and
 //                        typedefs to the above.
 //   IsWeakMethod<> -- Determines if we are binding a method to a WeakPtr<>.
 //
 // More details about the design of each class is included in a comment closer
-// to their definition.
+// to their defition.
 
 
 // IsWeakMethod determines if we are binding a method to a WeakPtr<> for an
@@ -64,7 +64,7 @@ struct IsWeakMethod<true, WeakPtr<T> > : public true_type {};
 // The FunctionTraits<> template determines the type of function, and also
 // creates a NormalizedType used to select the InvokerN classes.  It turns out
 // that syntactically, you only really have 2 variations when invoking a
-// function pointer: normal, and method.  One is invoked func_ptr(arg1). The
+// funciton pointer: normal, and method.  One is invoked func_ptr(arg1). The
 // other is invoked (*obj_->method_ptr(arg1)).
 //
 // However, in the type system, there are many more distinctions. In standard
@@ -74,7 +74,7 @@ struct IsWeakMethod<true, WeakPtr<T> > : public true_type {};
 // a normalized signature.
 //
 // Having a NormalizedSignature signature, reduces the combinatoric
-// complexity of definitions for the InvokerN<> later.  Even though there are
+// complexity of defintions for the InvokerN<> later.  Even though there are
 // only 2 syntactic variations on invoking a function, without normalizing the
 // signature, there would need to be one specialization of InvokerN for each
 // unique (function_type, bound_arg, unbound_args) tuple in order to match all
@@ -157,12 +157,12 @@ $for ARG [[
 //
 // DoInvoke() is a static function with a fixed signature that is independent
 // of StorageType; its first argument is a pointer to the non-templated common
-// base class of StorageType. This lets us store pointer to DoInvoke() in a
+// baseclass of StorageType. This lets us store pointer to DoInvoke() in a
 // function pointer that has knowledge of the specific StorageType, and thus
 // no knowledge of the bound function and bound parameter types.
 //
 // As long as we ensure that DoInvoke() is only used with pointers there were
-// up-casted from the correct StorageType, we can be sure that execution is
+// upcasted from the correct StorageType, we can be sure that execution is
 // safe.
 //
 // The InvokerN templates are the only point that knows the number of bound
