@@ -479,20 +479,12 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   // Create demuxer streams for all supported streams.
   streams_.resize(DemuxerStream::NUM_TYPES);
   base::TimeDelta max_duration;
-  const bool kDemuxerIsWebm = !strcmp("webm", format_context_->iformat->name);
   bool no_supported_streams = true;
   for (size_t i = 0; i < format_context_->nb_streams; ++i) {
     AVCodecContext* codec_context = format_context_->streams[i]->codec;
     AVMediaType codec_type = codec_context->codec_type;
     if (codec_type == AVMEDIA_TYPE_AUDIO || codec_type == AVMEDIA_TYPE_VIDEO) {
       AVStream* stream = format_context_->streams[i];
-      // WebM is currently strictly VP8 and Vorbis.
-      if (kDemuxerIsWebm && (stream->codec->codec_id != CODEC_ID_VP8 &&
-                             stream->codec->codec_id != CODEC_ID_VORBIS)) {
-        packet_streams_.push_back(NULL);
-        continue;
-      }
-
       scoped_refptr<FFmpegDemuxerStream> demuxer_stream(
           new FFmpegDemuxerStream(this, stream));
       if (!streams_[demuxer_stream->type()]) {
