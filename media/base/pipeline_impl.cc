@@ -64,7 +64,6 @@ class PipelineImpl::PipelineInitState {
 PipelineImpl::PipelineImpl(MessageLoop* message_loop, MediaLog* media_log)
     : message_loop_(message_loop),
       media_log_(media_log),
-      network_activity_(false),
       clock_(new Clock(&base::Time::Now)),
       waiting_for_clock_update_(false),
       state_(kCreated),
@@ -87,7 +86,7 @@ PipelineImpl::~PipelineImpl() {
 
 void PipelineImpl::Init(const PipelineStatusCB& ended_callback,
                         const PipelineStatusCB& error_callback,
-                        const PipelineStatusCB& network_callback) {
+                        const NetworkEventCB& network_callback) {
   DCHECK(!IsRunning())
       << "Init() should be called before the pipeline has started";
   ended_callback_ = ended_callback;
@@ -167,11 +166,6 @@ bool PipelineImpl::IsInitialized() const {
     default:
       return false;
   }
-}
-
-bool PipelineImpl::IsNetworkActive() const {
-  base::AutoLock auto_lock(lock_);
-  return network_activity_;
 }
 
 bool PipelineImpl::HasAudio() const {
@@ -564,18 +558,15 @@ void PipelineImpl::SetLoaded(bool loaded) {
   loaded_ = loaded;
 }
 
-void PipelineImpl::SetNetworkActivity(bool network_activity) {
+void PipelineImpl::SetNetworkActivity(bool is_downloading_data) {
   DCHECK(IsRunning());
-  {
-    base::AutoLock auto_lock(lock_);
-    network_activity_ = network_activity;
-  }
   message_loop_->PostTask(FROM_HERE,
-      base::Bind(&PipelineImpl::NotifyNetworkEventTask, this));
+      base::Bind(
+          &PipelineImpl::NotifyNetworkEventTask, this, is_downloading_data));
   media_log_->AddEvent(
       media_log_->CreateBooleanEvent(
           MediaLogEvent::NETWORK_ACTIVITY_SET,
-          "network_activity", network_activity));
+          "is_downloading_data", is_downloading_data));
 }
 
 void PipelineImpl::DisableAudioRenderer() {
@@ -935,11 +926,10 @@ void PipelineImpl::NotifyEndedTask() {
   }
 }
 
-void PipelineImpl::NotifyNetworkEventTask() {
+void PipelineImpl::NotifyNetworkEventTask(bool is_downloading_data) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  if (!network_callback_.is_null()) {
-    network_callback_.Run(status_);
-  }
+  if (!network_callback_.is_null())
+    network_callback_.Run(is_downloading_data);
 }
 
 void PipelineImpl::DisableAudioRendererTask() {
