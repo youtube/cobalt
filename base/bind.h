@@ -95,17 +95,6 @@ Bind(Sig f, const P1& p1, const P2& p2, const P3& p3, const P4& p4,
           f, p1, p2, p3, p4, p5, p6));
 }
 
-template <typename Sig, typename P1, typename P2, typename P3, typename P4,
-    typename P5, typename P6, typename P7>
-internal::InvokerStorageHolder<internal::InvokerStorage7<Sig,P1, P2, P3, P4,
-    P5, P6, P7> >
-Bind(Sig f, const P1& p1, const P2& p2, const P3& p3, const P4& p4,
-    const P5& p5, const P6& p6, const P7& p7) {
-  return internal::MakeInvokerStorageHolder(
-      new internal::InvokerStorage7<Sig, P1, P2, P3, P4, P5, P6, P7>(
-          f, p1, p2, p3, p4, p5, p6, p7));
-}
-
 // Specializations to allow binding all the free arguments in a
 // pre-existing base::Callback<>. This does not give full support for
 // currying, but is significantly simpler and addresses the use case
@@ -149,15 +138,6 @@ base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
     const P2& p2, const P3& p3, const P4& p4, const P5& p5, const P6& p6) {
   return base::Bind(&internal::BindMoreFunc6<Sig, P1, P2, P3, P4, P5, P6>,
       callback, p1, p2, p3, p4, p5, p6);
-}
-
-template <typename Sig, typename P1, typename P2, typename P3, typename P4,
-    typename P5, typename P6, typename P7>
-base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
-    const P2& p2, const P3& p3, const P4& p4, const P5& p5, const P6& p6,
-    const P7& p7) {
-  return base::Bind(&internal::BindMoreFunc7<Sig, P1, P2, P3, P4, P5, P6, P7>,
-      callback, p1, p2, p3, p4, p5, p6, p7);
 }
 
 }  // namespace base
