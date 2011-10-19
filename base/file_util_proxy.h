@@ -23,7 +23,7 @@ class Time;
 // This class provides asynchronous access to common file routines.
 class BASE_EXPORT FileUtilProxy {
  public:
-  // Holds metadata for file or directory entry. Used by ReadDirectoryCallback.
+  // Holds metadata for file or directory entry.
   struct Entry {
     FilePath::StringType name;
     bool is_directory;
@@ -32,35 +32,29 @@ class BASE_EXPORT FileUtilProxy {
   };
 
   // This callback is used by methods that report only an error code.  It is
-  // valid to pass a null callback to any function that takes a StatusCallback,
+  // valid to pass StatusCallback() to any function that takes a StatusCallback,
   // in which case the operation will complete silently.
-  typedef base::Callback<void(PlatformFileError /* error code */)>
-      StatusCallback;
+  typedef Callback<void(PlatformFileError)> StatusCallback;
 
-  typedef base::Callback<void(PlatformFileError /* error code */,
-                              PassPlatformFile,
-                              bool /* created */)> CreateOrOpenCallback;
-  typedef base::Callback<void(PlatformFileError /* error code */,
-                              PassPlatformFile,
-                              FilePath)> CreateTemporaryCallback;
-  typedef base::Callback<void(PlatformFileError /* error code */,
-                              bool /* created */)> EnsureFileExistsCallback;
-  typedef base::Callback<void(PlatformFileError /* error code */,
-                              const PlatformFileInfo& /* file_info */)>
-      GetFileInfoCallback;
-  typedef base::Callback<void(PlatformFileError /* error code */,
-                              const std::vector<Entry>&)> ReadDirectoryCallback;
-  typedef base::Callback<void(PlatformFileError /* error code */,
-                              const char* /* data */,
-                              int /* bytes read/written */)> ReadCallback;
-  typedef base::Callback<void(PlatformFileError /* error code */,
-                              int /* bytes written */)> WriteCallback;
+  typedef Callback<void(PlatformFileError,
+                        PassPlatformFile,
+                        bool /* created */)> CreateOrOpenCallback;
+  typedef Callback<void(PlatformFileError,
+                        PassPlatformFile,
+                        FilePath)> CreateTemporaryCallback;
+  typedef Callback<void(PlatformFileError,
+                        const PlatformFileInfo&
+                       )> GetFileInfoCallback;
+  typedef Callback<void(PlatformFileError,
+                        const char* /* data */,
+                        int /* bytes read */)> ReadCallback;
+  typedef Callback<void(PlatformFileError,
+                        int /* bytes written */)> WriteCallback;
 
   // Creates or opens a file with the given flags. It is invalid to pass a null
   // callback. If PLATFORM_FILE_CREATE is set in |file_flags| it always tries to
   // create a new file at the given |file_path| and calls back with
-  // PLATFORM_FILE_ERROR_FILE_EXISTS if the |file_path| already exists. Takes
-  // ownership of |callback| and will delete it even on failure.
+  // PLATFORM_FILE_ERROR_FILE_EXISTS if the |file_path| already exists.
   static bool CreateOrOpen(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                            const FilePath& file_path,
                            int file_flags,
@@ -84,19 +78,6 @@ class BASE_EXPORT FileUtilProxy {
                     PlatformFile,
                     const StatusCallback& callback);
 
-  // Ensures that the given |file_path| exist.  This creates a empty new file
-  // at |file_path| if the |file_path| does not exist.
-  // If a new file does not exist and is created at the |file_path|, |created|
-  // of the callback argument is set true and |error code| is set
-  // PLATFORM_FILE_OK. If the file already exists, |created| is set false and
-  // |error code| is set PLATFORM_FILE_OK. If the file hasn't existed but it
-  // couldn't be created for some other reasons, |created| is set false and
-  // |error code| indicates the error.
-  static bool EnsureFileExists(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      const FilePath& file_path,
-      const EnsureFileExistsCallback& callback);
-
   // Retrieves the information about a file. It is invalid to pass a null
   // callback.
   static bool GetFileInfo(
@@ -108,40 +89,6 @@ class BASE_EXPORT FileUtilProxy {
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
       const GetFileInfoCallback& callback);
-
-  static bool ReadDirectory(scoped_refptr<MessageLoopProxy> message_loop_proxy,
-                            const FilePath& file_path,
-                            const ReadDirectoryCallback& callback);
-
-  // Creates directory at given path. It's an error to create
-  // if |exclusive| is true and dir already exists.
-  static bool CreateDirectory(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      const FilePath& file_path,
-      bool exclusive,
-      bool recursive,
-      const StatusCallback& callback);
-
-  // Copies a file or a directory from |src_file_path| to |dest_file_path|
-  // Error cases:
-  // If destination file doesn't exist or destination's parent
-  // doesn't exists.
-  // If source dir exists but destination path is an existing file.
-  // If source file exists but destination path is an existing directory.
-  // If source is a parent of destination.
-  // If source doesn't exists.
-  static bool Copy(scoped_refptr<MessageLoopProxy> message_loop_proxy,
-                   const FilePath& src_file_path,
-                   const FilePath& dest_file_path,
-                   const StatusCallback& callback);
-
-  // Moves a file or a directory from src_file_path to dest_file_path.
-  // Error cases are similar to Copy method's error cases.
-  static bool Move(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      const FilePath& src_file_path,
-      const FilePath& dest_file_path,
-      const StatusCallback& callback);
 
   // Deletes a file or a directory.
   // It is an error to delete a non-empty directory with recursive=false.

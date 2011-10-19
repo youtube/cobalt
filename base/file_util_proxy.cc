@@ -7,85 +7,27 @@
 #include "base/bind.h"
 #include "base/message_loop_proxy.h"
 
-// TODO(jianli): Move the code from anonymous namespace to base namespace so
-// that all of the base:: prefixes would be unnecessary.
-namespace {
+namespace base {
 
 namespace {
-
-// Performs common checks for move and copy.
-// This also removes the destination directory if it's non-empty and all other
-// checks are passed (so that the copy/move correctly overwrites the
-// destination).
-static base::PlatformFileError PerformCommonCheckAndPreparationForMoveAndCopy(
-    const FilePath& src_file_path,
-    const FilePath& dest_file_path) {
-  // Exits earlier if the source path does not exist.
-  if (!file_util::PathExists(src_file_path))
-    return base::PLATFORM_FILE_ERROR_NOT_FOUND;
-
-  // The parent of the |dest_file_path| does not exist.
-  if (!file_util::DirectoryExists(dest_file_path.DirName()))
-    return base::PLATFORM_FILE_ERROR_NOT_FOUND;
-
-  // It is an error to try to copy/move an entry into its child.
-  if (src_file_path.IsParent(dest_file_path))
-    return base::PLATFORM_FILE_ERROR_INVALID_OPERATION;
-
-  // Now it is ok to return if the |dest_file_path| does not exist.
-  if (!file_util::PathExists(dest_file_path))
-    return base::PLATFORM_FILE_OK;
-
-  // |src_file_path| exists and is a directory.
-  // |dest_file_path| exists and is a file.
-  bool src_is_directory = file_util::DirectoryExists(src_file_path);
-  bool dest_is_directory = file_util::DirectoryExists(dest_file_path);
-  if (src_is_directory && !dest_is_directory)
-    return base::PLATFORM_FILE_ERROR_NOT_A_DIRECTORY;
-
-  // |src_file_path| exists and is a file.
-  // |dest_file_path| exists and is a directory.
-  if (!src_is_directory && dest_is_directory)
-    return base::PLATFORM_FILE_ERROR_NOT_A_FILE;
-
-  // It is an error to copy/move an entry into the same path.
-  if (src_file_path.value() == dest_file_path.value())
-    return base::PLATFORM_FILE_ERROR_EXISTS;
-
-  if (dest_is_directory) {
-    // It is an error to copy/move an entry to a non-empty directory.
-    // Otherwise the copy/move attempt must overwrite the destination, but
-    // the file_util's Copy or Move method doesn't perform overwrite
-    // on all platforms, so we delete the destination directory here.
-    // TODO(kinuko): may be better to change the file_util::{Copy,Move}.
-    if (!file_util::Delete(dest_file_path, false /* recursive */)) {
-      if (!file_util::IsDirectoryEmpty(dest_file_path))
-        return base::PLATFORM_FILE_ERROR_NOT_EMPTY;
-      return base::PLATFORM_FILE_ERROR_FAILED;
-    }
-  }
-  return base::PLATFORM_FILE_OK;
-}
-
-}  // anonymous namespace
 
 class MessageLoopRelay
-    : public base::RefCountedThreadSafe<MessageLoopRelay> {
+    : public RefCountedThreadSafe<MessageLoopRelay> {
  public:
   MessageLoopRelay()
       : origin_message_loop_proxy_(
-            base::MessageLoopProxy::current()),
-        error_code_(base::PLATFORM_FILE_OK) {
+            MessageLoopProxy::current()),
+        error_code_(PLATFORM_FILE_OK) {
   }
 
-  bool Start(scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
+  bool Start(scoped_refptr<MessageLoopProxy> message_loop_proxy,
              const tracked_objects::Location& from_here) {
     return message_loop_proxy->PostTask(
-        from_here, base::Bind(&MessageLoopRelay::ProcessOnTargetThread, this));
+        from_here, Bind(&MessageLoopRelay::ProcessOnTargetThread, this));
   }
 
  protected:
-  friend class base::RefCountedThreadSafe<MessageLoopRelay>;
+  friend class RefCountedThreadSafe<MessageLoopRelay>;
   virtual ~MessageLoopRelay() {}
 
   // Called to perform work on the FILE thread.
@@ -94,11 +36,11 @@ class MessageLoopRelay
   // Called to notify the callback on the origin thread.
   virtual void RunCallback() = 0;
 
-  void set_error_code(base::PlatformFileError error_code) {
+  void set_error_code(PlatformFileError error_code) {
     error_code_ = error_code;
   }
 
-  base::PlatformFileError error_code() const {
+  PlatformFileError error_code() const {
     return error_code_;
   }
 
@@ -106,80 +48,80 @@ class MessageLoopRelay
   void ProcessOnTargetThread() {
     RunWork();
     origin_message_loop_proxy_->PostTask(
-        FROM_HERE, base::Bind(&MessageLoopRelay::RunCallback, this));
+        FROM_HERE, Bind(&MessageLoopRelay::RunCallback, this));
   }
 
-  scoped_refptr<base::MessageLoopProxy> origin_message_loop_proxy_;
-  base::PlatformFileError error_code_;
+  scoped_refptr<MessageLoopProxy> origin_message_loop_proxy_;
+  PlatformFileError error_code_;
 };
 
 class RelayCreateOrOpen : public MessageLoopRelay {
  public:
   RelayCreateOrOpen(
-      scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
       int file_flags,
-      const base::FileUtilProxy::CreateOrOpenCallback& callback)
+      const FileUtilProxy::CreateOrOpenCallback& callback)
       : message_loop_proxy_(message_loop_proxy),
         file_path_(file_path),
         file_flags_(file_flags),
         callback_(callback),
-        file_handle_(base::kInvalidPlatformFileValue),
+        file_handle_(kInvalidPlatformFileValue),
         created_(false) {
     DCHECK_EQ(false, callback.is_null());
   }
 
  protected:
   virtual ~RelayCreateOrOpen() {
-    if (file_handle_ != base::kInvalidPlatformFileValue)
-      base::FileUtilProxy::Close(message_loop_proxy_, file_handle_,
-                                 base::FileUtilProxy::StatusCallback());
+    if (file_handle_ != kInvalidPlatformFileValue)
+      FileUtilProxy::Close(message_loop_proxy_, file_handle_,
+                                 FileUtilProxy::StatusCallback());
   }
 
   virtual void RunWork() {
     if (!file_util::DirectoryExists(file_path_.DirName())) {
       // If its parent does not exist, should return NOT_FOUND error.
-      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+      set_error_code(PLATFORM_FILE_ERROR_NOT_FOUND);
       return;
     }
-    base::PlatformFileError error_code = base::PLATFORM_FILE_OK;
-    file_handle_ = base::CreatePlatformFile(file_path_, file_flags_,
+    PlatformFileError error_code = PLATFORM_FILE_OK;
+    file_handle_ = CreatePlatformFile(file_path_, file_flags_,
                                             &created_, &error_code);
     set_error_code(error_code);
   }
 
   virtual void RunCallback() {
-    callback_.Run(error_code(), base::PassPlatformFile(&file_handle_),
+    callback_.Run(error_code(), PassPlatformFile(&file_handle_),
                   created_);
   }
 
  private:
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  scoped_refptr<MessageLoopProxy> message_loop_proxy_;
   FilePath file_path_;
   int file_flags_;
-  base::FileUtilProxy::CreateOrOpenCallback callback_;
-  base::PlatformFile file_handle_;
+  FileUtilProxy::CreateOrOpenCallback callback_;
+  PlatformFile file_handle_;
   bool created_;
 };
 
 class RelayCreateTemporary : public MessageLoopRelay {
  public:
   RelayCreateTemporary(
-      scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
       int additional_file_flags,
-      const base::FileUtilProxy::CreateTemporaryCallback& callback)
+      const FileUtilProxy::CreateTemporaryCallback& callback)
       : message_loop_proxy_(message_loop_proxy),
         additional_file_flags_(additional_file_flags),
         callback_(callback),
-        file_handle_(base::kInvalidPlatformFileValue) {
+        file_handle_(kInvalidPlatformFileValue) {
     DCHECK_EQ(false, callback.is_null());
   }
 
  protected:
   virtual ~RelayCreateTemporary() {
-    if (file_handle_ != base::kInvalidPlatformFileValue)
-      base::FileUtilProxy::Close(message_loop_proxy_, file_handle_,
-                                 base::FileUtilProxy::StatusCallback());
+    if (file_handle_ != kInvalidPlatformFileValue)
+      FileUtilProxy::Close(message_loop_proxy_, file_handle_,
+                                 FileUtilProxy::StatusCallback());
   }
 
   virtual void RunWork() {
@@ -188,34 +130,34 @@ class RelayCreateTemporary : public MessageLoopRelay {
     file_util::CreateTemporaryFile(&file_path_);
 
     int file_flags =
-        base::PLATFORM_FILE_WRITE |
-        base::PLATFORM_FILE_TEMPORARY |
-        base::PLATFORM_FILE_CREATE_ALWAYS |
+        PLATFORM_FILE_WRITE |
+        PLATFORM_FILE_TEMPORARY |
+        PLATFORM_FILE_CREATE_ALWAYS |
         additional_file_flags_;
 
-    base::PlatformFileError error_code = base::PLATFORM_FILE_OK;
-    file_handle_ = base::CreatePlatformFile(file_path_, file_flags,
+    PlatformFileError error_code = PLATFORM_FILE_OK;
+    file_handle_ = CreatePlatformFile(file_path_, file_flags,
                                             NULL, &error_code);
     set_error_code(error_code);
   }
 
   virtual void RunCallback() {
-    callback_.Run(error_code(), base::PassPlatformFile(&file_handle_),
+    callback_.Run(error_code(), PassPlatformFile(&file_handle_),
                   file_path_);
   }
 
  private:
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  scoped_refptr<MessageLoopProxy> message_loop_proxy_;
   int additional_file_flags_;
-  base::FileUtilProxy::CreateTemporaryCallback callback_;
-  base::PlatformFile file_handle_;
+  FileUtilProxy::CreateTemporaryCallback callback_;
+  PlatformFile file_handle_;
   FilePath file_path_;
 };
 
 class RelayWithStatusCallback : public MessageLoopRelay {
  public:
   explicit RelayWithStatusCallback(
-      const base::FileUtilProxy::StatusCallback& callback)
+      const FileUtilProxy::StatusCallback& callback)
       : callback_(callback) {
     // It is OK for callback to be NULL.
   }
@@ -228,80 +170,32 @@ class RelayWithStatusCallback : public MessageLoopRelay {
   }
 
  private:
-  base::FileUtilProxy::StatusCallback callback_;
+  FileUtilProxy::StatusCallback callback_;
 };
 
 class RelayClose : public RelayWithStatusCallback {
  public:
-  RelayClose(base::PlatformFile file_handle,
-             const base::FileUtilProxy::StatusCallback& callback)
+  RelayClose(PlatformFile file_handle,
+             const FileUtilProxy::StatusCallback& callback)
       : RelayWithStatusCallback(callback),
         file_handle_(file_handle) {
   }
 
  protected:
   virtual void RunWork() {
-    if (!base::ClosePlatformFile(file_handle_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+    if (!ClosePlatformFile(file_handle_))
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
   }
 
  private:
-  base::PlatformFile file_handle_;
-};
-
-class RelayEnsureFileExists : public MessageLoopRelay {
- public:
-  RelayEnsureFileExists(
-      scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
-      const FilePath& file_path,
-      const base::FileUtilProxy::EnsureFileExistsCallback& callback)
-      : message_loop_proxy_(message_loop_proxy),
-        file_path_(file_path),
-        callback_(callback),
-        created_(false) {
-    DCHECK_EQ(false, callback.is_null());
-  }
-
- protected:
-  virtual void RunWork() {
-    if (!file_util::DirectoryExists(file_path_.DirName())) {
-      // If its parent does not exist, should return NOT_FOUND error.
-      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
-      return;
-    }
-    base::PlatformFileError error_code = base::PLATFORM_FILE_OK;
-    // Tries to create the |file_path_| exclusively.  This should fail
-    // with PLATFORM_FILE_ERROR_EXISTS if the path already exists.
-    base::PlatformFile handle = base::CreatePlatformFile(
-        file_path_,
-        base::PLATFORM_FILE_CREATE | base::PLATFORM_FILE_READ,
-        &created_, &error_code);
-    if (error_code == base::PLATFORM_FILE_ERROR_EXISTS) {
-      // Make sure created_ is false.
-      created_ = false;
-      error_code = base::PLATFORM_FILE_OK;
-    }
-    if (handle != base::kInvalidPlatformFileValue)
-      base::ClosePlatformFile(handle);
-    set_error_code(error_code);
-  }
-
-  virtual void RunCallback() {
-    callback_.Run(error_code(), created_);
-  }
-
- private:
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
-  FilePath file_path_;
-  base::FileUtilProxy::EnsureFileExistsCallback callback_;
-  bool created_;
+  PlatformFile file_handle_;
 };
 
 class RelayDelete : public RelayWithStatusCallback {
  public:
   RelayDelete(const FilePath& file_path,
               bool recursive,
-              const base::FileUtilProxy::StatusCallback& callback)
+              const FileUtilProxy::StatusCallback& callback)
       : RelayWithStatusCallback(callback),
         file_path_(file_path),
         recursive_(recursive) {
@@ -310,166 +204,27 @@ class RelayDelete : public RelayWithStatusCallback {
  protected:
   virtual void RunWork() {
     if (!file_util::PathExists(file_path_)) {
-      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+      set_error_code(PLATFORM_FILE_ERROR_NOT_FOUND);
       return;
     }
     if (!file_util::Delete(file_path_, recursive_)) {
       if (!recursive_ && !file_util::IsDirectoryEmpty(file_path_)) {
-        set_error_code(base::PLATFORM_FILE_ERROR_NOT_EMPTY);
+        set_error_code(PLATFORM_FILE_ERROR_NOT_EMPTY);
         return;
       }
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
     }
   }
 
  private:
   FilePath file_path_;
   bool recursive_;
-};
-
-class RelayCopy : public RelayWithStatusCallback {
- public:
-  RelayCopy(const FilePath& src_file_path,
-            const FilePath& dest_file_path,
-            const base::FileUtilProxy::StatusCallback& callback)
-      : RelayWithStatusCallback(callback),
-        src_file_path_(src_file_path),
-        dest_file_path_(dest_file_path) {
-  }
-
- protected:
-  virtual void RunWork() {
-    set_error_code(PerformCommonCheckAndPreparationForMoveAndCopy(
-        src_file_path_, dest_file_path_));
-    if (error_code() != base::PLATFORM_FILE_OK)
-      return;
-    if (!file_util::CopyDirectory(src_file_path_, dest_file_path_,
-        true /* recursive */))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
-  }
-
- private:
-  FilePath src_file_path_;
-  FilePath dest_file_path_;
-};
-
-class RelayMove : public RelayWithStatusCallback {
- public:
-  RelayMove(const FilePath& src_file_path,
-            const FilePath& dest_file_path,
-            const base::FileUtilProxy::StatusCallback& callback)
-      : RelayWithStatusCallback(callback),
-        src_file_path_(src_file_path),
-        dest_file_path_(dest_file_path) {
-  }
-
- protected:
-  virtual void RunWork() {
-    set_error_code(PerformCommonCheckAndPreparationForMoveAndCopy(
-        src_file_path_, dest_file_path_));
-    if (error_code() != base::PLATFORM_FILE_OK)
-      return;
-    if (!file_util::Move(src_file_path_, dest_file_path_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
-  }
-
- private:
-  FilePath src_file_path_;
-  FilePath dest_file_path_;
-};
-
-class RelayCreateDirectory : public RelayWithStatusCallback {
- public:
-  RelayCreateDirectory(
-      const FilePath& file_path,
-      bool exclusive,
-      bool recursive,
-      const base::FileUtilProxy::StatusCallback& callback)
-      : RelayWithStatusCallback(callback),
-        file_path_(file_path),
-        exclusive_(exclusive),
-        recursive_(recursive) {
-  }
-
- protected:
-  virtual void RunWork() {
-    bool path_exists = file_util::PathExists(file_path_);
-    // If parent dir of file doesn't exist.
-    if (!recursive_ && !file_util::PathExists(file_path_.DirName())) {
-      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
-      return;
-    }
-    if (exclusive_ && path_exists) {
-      set_error_code(base::PLATFORM_FILE_ERROR_EXISTS);
-      return;
-    }
-    // If file exists at the path.
-    if (path_exists && !file_util::DirectoryExists(file_path_)) {
-      set_error_code(base::PLATFORM_FILE_ERROR_EXISTS);
-      return;
-    }
-    if (!file_util::CreateDirectory(file_path_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
-  }
-
- private:
-  FilePath file_path_;
-  bool exclusive_;
-  bool recursive_;
-};
-
-class RelayReadDirectory : public MessageLoopRelay {
- public:
-  RelayReadDirectory(
-      const FilePath& file_path,
-      const base::FileUtilProxy::ReadDirectoryCallback& callback)
-      : callback_(callback),
-        file_path_(file_path) {
-    DCHECK_EQ(false, callback.is_null());
-  }
-
- protected:
-  virtual void RunWork() {
-    // TODO(kkanetkar): Implement directory read in multiple chunks.
-    if (!file_util::DirectoryExists(file_path_)) {
-      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
-      return;
-    }
-
-    file_util::FileEnumerator file_enum(
-        file_path_, false, static_cast<file_util::FileEnumerator::FileType>(
-        file_util::FileEnumerator::FILES |
-        file_util::FileEnumerator::DIRECTORIES));
-    FilePath current;
-    while (!(current = file_enum.Next()).empty()) {
-      base::FileUtilProxy::Entry entry;
-      file_util::FileEnumerator::FindInfo info;
-      file_enum.GetFindInfo(&info);
-      entry.is_directory = file_enum.IsDirectory(info);
-      // This will just give the entry's name instead of entire path
-      // if we use current.value().
-      entry.name = file_util::FileEnumerator::GetFilename(info).value();
-      entry.size = file_util::FileEnumerator::GetFilesize(info);
-      entry.last_modified_time =
-          file_util::FileEnumerator::GetLastModifiedTime(info);
-      entries_.push_back(entry);
-    }
-  }
-
-  virtual void RunCallback() {
-    callback_.Run(error_code(), entries_);
-  }
-
- private:
-  base::FileUtilProxy::ReadDirectoryCallback callback_;
-  FilePath file_path_;
-  std::vector<base::FileUtilProxy::Entry> entries_;
 };
 
 class RelayGetFileInfo : public MessageLoopRelay {
  public:
   RelayGetFileInfo(const FilePath& file_path,
-                   const base::FileUtilProxy::GetFileInfoCallback& callback)
+                   const FileUtilProxy::GetFileInfoCallback& callback)
       : callback_(callback),
         file_path_(file_path) {
     DCHECK_EQ(false, callback.is_null());
@@ -478,11 +233,11 @@ class RelayGetFileInfo : public MessageLoopRelay {
  protected:
   virtual void RunWork() {
     if (!file_util::PathExists(file_path_)) {
-      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+      set_error_code(PLATFORM_FILE_ERROR_NOT_FOUND);
       return;
     }
     if (!file_util::GetFileInfo(file_path_, &file_info_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
   }
 
   virtual void RunCallback() {
@@ -490,16 +245,16 @@ class RelayGetFileInfo : public MessageLoopRelay {
   }
 
  private:
-  base::FileUtilProxy::GetFileInfoCallback callback_;
+  FileUtilProxy::GetFileInfoCallback callback_;
   FilePath file_path_;
-  base::PlatformFileInfo file_info_;
+  PlatformFileInfo file_info_;
 };
 
 class RelayGetFileInfoFromPlatformFile : public MessageLoopRelay {
  public:
   RelayGetFileInfoFromPlatformFile(
-      base::PlatformFile file,
-      const base::FileUtilProxy::GetFileInfoCallback& callback)
+      PlatformFile file,
+      const FileUtilProxy::GetFileInfoCallback& callback)
       : callback_(callback),
         file_(file) {
     DCHECK_EQ(false, callback.is_null());
@@ -507,8 +262,8 @@ class RelayGetFileInfoFromPlatformFile : public MessageLoopRelay {
 
  protected:
   virtual void RunWork() {
-    if (!base::GetPlatformFileInfo(file_, &file_info_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+    if (!GetPlatformFileInfo(file_, &file_info_))
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
   }
 
   virtual void RunCallback() {
@@ -516,17 +271,17 @@ class RelayGetFileInfoFromPlatformFile : public MessageLoopRelay {
   }
 
  private:
-  base::FileUtilProxy::GetFileInfoCallback callback_;
-  base::PlatformFile file_;
-  base::PlatformFileInfo file_info_;
+  FileUtilProxy::GetFileInfoCallback callback_;
+  PlatformFile file_;
+  PlatformFileInfo file_info_;
 };
 
 class RelayRead : public MessageLoopRelay {
  public:
-  RelayRead(base::PlatformFile file,
+  RelayRead(PlatformFile file,
             int64 offset,
             int bytes_to_read,
-            const base::FileUtilProxy::ReadCallback& callback)
+            const FileUtilProxy::ReadCallback& callback)
       : file_(file),
         offset_(offset),
         buffer_(new char[bytes_to_read]),
@@ -537,10 +292,10 @@ class RelayRead : public MessageLoopRelay {
 
  protected:
   virtual void RunWork() {
-    bytes_read_ = base::ReadPlatformFile(file_, offset_, buffer_.get(),
-                                         bytes_to_read_);
+    bytes_read_ = ReadPlatformFile(file_, offset_, buffer_.get(),
+                                   bytes_to_read_);
     if (bytes_read_ < 0)
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
   }
 
   virtual void RunCallback() {
@@ -549,21 +304,21 @@ class RelayRead : public MessageLoopRelay {
   }
 
  private:
-  base::PlatformFile file_;
+  PlatformFile file_;
   int64 offset_;
   scoped_array<char> buffer_;
   int bytes_to_read_;
-  base::FileUtilProxy::ReadCallback callback_;
+  FileUtilProxy::ReadCallback callback_;
   int bytes_read_;
 };
 
 class RelayWrite : public MessageLoopRelay {
  public:
-  RelayWrite(base::PlatformFile file,
+  RelayWrite(PlatformFile file,
              int64 offset,
              const char* buffer,
              int bytes_to_write,
-             const base::FileUtilProxy::WriteCallback& callback)
+             const FileUtilProxy::WriteCallback& callback)
       : file_(file),
         offset_(offset),
         buffer_(new char[bytes_to_write]),
@@ -575,10 +330,10 @@ class RelayWrite : public MessageLoopRelay {
 
  protected:
   virtual void RunWork() {
-    bytes_written_ = base::WritePlatformFile(file_, offset_, buffer_.get(),
+    bytes_written_ = WritePlatformFile(file_, offset_, buffer_.get(),
                                              bytes_to_write_);
     if (bytes_written_ < 0)
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
   }
 
   virtual void RunCallback() {
@@ -587,20 +342,20 @@ class RelayWrite : public MessageLoopRelay {
   }
 
  private:
-  base::PlatformFile file_;
+  PlatformFile file_;
   int64 offset_;
   scoped_array<char> buffer_;
   int bytes_to_write_;
-  base::FileUtilProxy::WriteCallback callback_;
+  FileUtilProxy::WriteCallback callback_;
   int bytes_written_;
 };
 
 class RelayTouch : public RelayWithStatusCallback {
  public:
-  RelayTouch(base::PlatformFile file,
-             const base::Time& last_access_time,
-             const base::Time& last_modified_time,
-             const base::FileUtilProxy::StatusCallback& callback)
+  RelayTouch(PlatformFile file,
+             const Time& last_access_time,
+             const Time& last_modified_time,
+             const FileUtilProxy::StatusCallback& callback)
       : RelayWithStatusCallback(callback),
         file_(file),
         last_access_time_(last_access_time),
@@ -609,22 +364,22 @@ class RelayTouch : public RelayWithStatusCallback {
 
  protected:
   virtual void RunWork() {
-    if (!base::TouchPlatformFile(file_, last_access_time_, last_modified_time_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+    if (!TouchPlatformFile(file_, last_access_time_, last_modified_time_))
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
   }
 
  private:
-  base::PlatformFile file_;
-  base::Time last_access_time_;
-  base::Time last_modified_time_;
+  PlatformFile file_;
+  Time last_access_time_;
+  Time last_modified_time_;
 };
 
 class RelayTouchFilePath : public RelayWithStatusCallback {
  public:
   RelayTouchFilePath(const FilePath& file_path,
-                     const base::Time& last_access_time,
-                     const base::Time& last_modified_time,
-                     const base::FileUtilProxy::StatusCallback& callback)
+                     const Time& last_access_time,
+                     const Time& last_modified_time,
+                     const FileUtilProxy::StatusCallback& callback)
       : RelayWithStatusCallback(callback),
         file_path_(file_path),
         last_access_time_(last_access_time),
@@ -635,20 +390,20 @@ class RelayTouchFilePath : public RelayWithStatusCallback {
   virtual void RunWork() {
     if (!file_util::TouchFile(
             file_path_, last_access_time_, last_modified_time_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
   }
 
  private:
   FilePath file_path_;
-  base::Time last_access_time_;
-  base::Time last_modified_time_;
+  Time last_access_time_;
+  Time last_modified_time_;
 };
 
 class RelayTruncatePlatformFile : public RelayWithStatusCallback {
  public:
-  RelayTruncatePlatformFile(base::PlatformFile file,
+  RelayTruncatePlatformFile(PlatformFile file,
                             int64 length,
-                            const base::FileUtilProxy::StatusCallback& callback)
+                            const FileUtilProxy::StatusCallback& callback)
       : RelayWithStatusCallback(callback),
         file_(file),
         length_(length) {
@@ -656,12 +411,12 @@ class RelayTruncatePlatformFile : public RelayWithStatusCallback {
 
  protected:
   virtual void RunWork() {
-    if (!base::TruncatePlatformFile(file_, length_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+    if (!TruncatePlatformFile(file_, length_))
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
   }
 
  private:
-  base::PlatformFile file_;
+  PlatformFile file_;
   int64 length_;
 };
 
@@ -669,7 +424,7 @@ class RelayTruncate : public RelayWithStatusCallback {
  public:
   RelayTruncate(const FilePath& path,
                 int64 length,
-                const base::FileUtilProxy::StatusCallback& callback)
+                const FileUtilProxy::StatusCallback& callback)
       : RelayWithStatusCallback(callback),
         path_(path),
         length_(length) {
@@ -677,20 +432,20 @@ class RelayTruncate : public RelayWithStatusCallback {
 
  protected:
   virtual void RunWork() {
-    base::PlatformFileError error_code(base::PLATFORM_FILE_ERROR_FAILED);
-    base::PlatformFile file =
-        base::CreatePlatformFile(
+    PlatformFileError error_code(PLATFORM_FILE_ERROR_FAILED);
+    PlatformFile file =
+        CreatePlatformFile(
             path_,
-            base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_WRITE,
+            PLATFORM_FILE_OPEN | PLATFORM_FILE_WRITE,
             NULL,
             &error_code);
-    if (error_code != base::PLATFORM_FILE_OK) {
+    if (error_code != PLATFORM_FILE_OK) {
       set_error_code(error_code);
       return;
     }
-    if (!base::TruncatePlatformFile(file, length_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
-    base::ClosePlatformFile(file);
+    if (!TruncatePlatformFile(file, length_))
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
+    ClosePlatformFile(file);
   }
 
  private:
@@ -700,31 +455,29 @@ class RelayTruncate : public RelayWithStatusCallback {
 
 class RelayFlush : public RelayWithStatusCallback {
  public:
-  RelayFlush(base::PlatformFile file,
-             const base::FileUtilProxy::StatusCallback& callback)
+  RelayFlush(PlatformFile file,
+             const FileUtilProxy::StatusCallback& callback)
       : RelayWithStatusCallback(callback),
         file_(file) {
   }
 
  protected:
   virtual void RunWork() {
-    if (!base::FlushPlatformFile(file_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+    if (!FlushPlatformFile(file_))
+      set_error_code(PLATFORM_FILE_ERROR_FAILED);
   }
 
  private:
-  base::PlatformFile file_;
+  PlatformFile file_;
 };
 
 bool Start(const tracked_objects::Location& from_here,
-           scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
+           scoped_refptr<MessageLoopProxy> message_loop_proxy,
            scoped_refptr<MessageLoopRelay> relay) {
   return relay->Start(message_loop_proxy, from_here);
 }
 
 }  // namespace
-
-namespace base {
 
 // static
 bool FileUtilProxy::CreateOrOpen(
@@ -748,19 +501,10 @@ bool FileUtilProxy::CreateTemporary(
 
 // static
 bool FileUtilProxy::Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
-                          base::PlatformFile file_handle,
+                          PlatformFile file_handle,
                           const StatusCallback& callback) {
   return Start(FROM_HERE, message_loop_proxy,
                new RelayClose(file_handle, callback));
-}
-
-// static
-bool FileUtilProxy::EnsureFileExists(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    const FilePath& file_path,
-    const EnsureFileExistsCallback& callback) {
-  return Start(FROM_HERE, message_loop_proxy, new RelayEnsureFileExists(
-      message_loop_proxy, file_path, callback));
 }
 
 // Retrieves the information about a file. It is invalid to pass NULL for the
@@ -780,44 +524,6 @@ bool FileUtilProxy::GetFileInfoFromPlatformFile(
     const GetFileInfoCallback& callback) {
   return Start(FROM_HERE, message_loop_proxy,
                new RelayGetFileInfoFromPlatformFile(file, callback));
-}
-
-// static
-bool FileUtilProxy::ReadDirectory(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    const FilePath& file_path,
-    const ReadDirectoryCallback& callback) {
-  return Start(FROM_HERE, message_loop_proxy, new RelayReadDirectory(
-               file_path, callback));
-}
-
-// static
-bool FileUtilProxy::CreateDirectory(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    const FilePath& file_path,
-    bool exclusive,
-    bool recursive,
-    const StatusCallback& callback) {
-  return Start(FROM_HERE, message_loop_proxy, new RelayCreateDirectory(
-      file_path, exclusive, recursive, callback));
-}
-
-// static
-bool FileUtilProxy::Copy(scoped_refptr<MessageLoopProxy> message_loop_proxy,
-                         const FilePath& src_file_path,
-                         const FilePath& dest_file_path,
-                         const StatusCallback& callback) {
-  return Start(FROM_HERE, message_loop_proxy,
-               new RelayCopy(src_file_path, dest_file_path, callback));
-}
-
-// static
-bool FileUtilProxy::Move(scoped_refptr<MessageLoopProxy> message_loop_proxy,
-                         const FilePath& src_file_path,
-                         const FilePath& dest_file_path,
-                         const StatusCallback& callback) {
-  return Start(FROM_HERE, message_loop_proxy,
-               new RelayMove(src_file_path, dest_file_path, callback));
 }
 
 // static
@@ -871,8 +577,8 @@ bool FileUtilProxy::Write(
 bool FileUtilProxy::Touch(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     PlatformFile file,
-    const base::Time& last_access_time,
-    const base::Time& last_modified_time,
+    const Time& last_access_time,
+    const Time& last_modified_time,
     const StatusCallback& callback) {
   return Start(FROM_HERE, message_loop_proxy,
                new RelayTouch(file, last_access_time, last_modified_time,
@@ -883,8 +589,8 @@ bool FileUtilProxy::Touch(
 bool FileUtilProxy::Touch(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     const FilePath& file_path,
-    const base::Time& last_access_time,
-    const base::Time& last_modified_time,
+    const Time& last_access_time,
+    const Time& last_modified_time,
     const StatusCallback& callback) {
   return Start(FROM_HERE, message_loop_proxy,
                new RelayTouchFilePath(file_path, last_access_time,
