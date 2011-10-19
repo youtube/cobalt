@@ -7,10 +7,13 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
+#include "base/metrics/histogram.h"
 #include "base/stl_util.h"
 #include "base/synchronization/lock.h"
+#include "base/time.h"
 #include "base/threading/worker_pool.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/x509_certificate.h"
 
 #if defined(USE_NSS)
@@ -89,21 +92,30 @@ bool CachedCertVerifyResult::HasExpired(const base::Time current_time) const {
 class CertVerifierRequest {
  public:
   CertVerifierRequest(const CompletionCallback& callback,
-                      CertVerifyResult* verify_result)
+                      CertVerifyResult* verify_result,
+                      const BoundNetLog& net_log)
       : callback_(callback),
-        verify_result_(verify_result) {
+        verify_result_(verify_result),
+        net_log_(net_log) {
+    net_log_.BeginEvent(NetLog::TYPE_CERT_VERIFIER_REQUEST, NULL);
+  }
+
+  ~CertVerifierRequest() {
   }
 
   // Ensures that the result callback will never be made.
   void Cancel() {
     callback_.Reset();
     verify_result_ = NULL;
+    net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
+    net_log_.EndEvent(NetLog::TYPE_CERT_VERIFIER_REQUEST, NULL);
   }
 
   // Copies the contents of |verify_result| to the caller's
   // CertVerifyResult and calls the callback.
   void Post(const CachedCertVerifyResult& verify_result) {
     if (!callback_.is_null()) {
+      net_log_.EndEvent(NetLog::TYPE_CERT_VERIFIER_REQUEST, NULL);
       *verify_result_ = verify_result.result;
       callback_.Run(verify_result.error);
     }
@@ -112,9 +124,12 @@ class CertVerifierRequest {
 
   bool canceled() const { return callback_.is_null(); }
 
+  const BoundNetLog& net_log() const { return net_log_; }
+
  private:
   CompletionCallback callback_;
   CertVerifyResult* verify_result_;
+  const BoundNetLog net_log_;
 };
 
 
@@ -235,22 +250,40 @@ class CertVerifierWorker {
 // lives only on the CertVerifier's origin message loop.
 class CertVerifierJob {
  public:
-  explicit CertVerifierJob(CertVerifierWorker* worker) : worker_(worker) {
+  CertVerifierJob(CertVerifierWorker* worker,
+                  const BoundNetLog& net_log)
+      : start_time_(base::TimeTicks::Now()),
+        worker_(worker),
+        net_log_(net_log) {
+    net_log_.BeginEvent(NetLog::TYPE_CERT_VERIFIER_JOB, NULL);
   }
 
   ~CertVerifierJob() {
     if (worker_) {
+      net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
+      net_log_.EndEvent(NetLog::TYPE_CERT_VERIFIER_JOB, NULL);
       worker_->Cancel();
       DeleteAllCanceled();
     }
   }
 
   void AddRequest(CertVerifierRequest* request) {
+    request->net_log().AddEvent(
+        NetLog::TYPE_CERT_VERIFIER_REQUEST_BOUND_TO_JOB,
+        make_scoped_refptr(new NetLogSourceParameter(
+          "source_dependency", net_log_.source())));
+
     requests_.push_back(request);
   }
 
   void HandleResult(const CachedCertVerifyResult& verify_result) {
     worker_ = NULL;
+    net_log_.EndEvent(NetLog::TYPE_CERT_VERIFIER_JOB, NULL);
+    UMA_HISTOGRAM_CUSTOM_TIMES("Net.CertVerifier_Job_Latency",
+                               base::TimeTicks::Now() - start_time_,
+                               base::TimeDelta::FromMilliseconds(1),
+                               base::TimeDelta::FromMinutes(10),
+                               100);
     PostAll(verify_result);
   }
 
@@ -277,8 +310,10 @@ class CertVerifierJob {
     }
   }
 
+  const base::TimeTicks start_time_;
   std::vector<CertVerifierRequest*> requests_;
   CertVerifierWorker* worker_;
+  const BoundNetLog net_log_;
 };
 
 
@@ -311,7 +346,8 @@ int CertVerifier::Verify(X509Certificate* cert,
                          int flags,
                          CertVerifyResult* verify_result,
                          const CompletionCallback& callback,
-                         RequestHandle* out_req) {
+                         RequestHandle* out_req,
+                         const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
 
   if (callback.is_null() || !verify_result || hostname.empty()) {
@@ -349,7 +385,9 @@ int CertVerifier::Verify(X509Certificate* cert,
     // Need to make a new request.
     CertVerifierWorker* worker = new CertVerifierWorker(cert, hostname, flags,
                                                         this);
-    job = new CertVerifierJob(worker);
+    job = new CertVerifierJob(
+        worker,
+        BoundNetLog::Make(net_log.net_log(), NetLog::SOURCE_CERT_VERIFIER_JOB));
     if (!worker->Start()) {
       delete job;
       delete worker;
@@ -362,7 +400,7 @@ int CertVerifier::Verify(X509Certificate* cert,
   }
 
   CertVerifierRequest* request =
-      new CertVerifierRequest(callback, verify_result);
+      new CertVerifierRequest(callback, verify_result, net_log);
   job->AddRequest(request);
   *out_req = request;
   return ERR_IO_PENDING;
@@ -464,7 +502,8 @@ int SingleRequestCertVerifier::Verify(X509Certificate* cert,
                                       const std::string& hostname,
                                       int flags,
                                       CertVerifyResult* verify_result,
-                                      const CompletionCallback& callback) {
+                                      const CompletionCallback& callback,
+                                      const BoundNetLog& net_log) {
   // Should not be already in use.
   DCHECK(!cur_request_ && cur_request_callback_.is_null());
 
@@ -480,7 +519,7 @@ int SingleRequestCertVerifier::Verify(X509Certificate* cert,
       cert, hostname, flags, verify_result,
       base::Bind(&SingleRequestCertVerifier::OnVerifyCompletion,
                  base::Unretained(this)),
-      &request);
+      &request, net_log);
 
   if (rv == ERR_IO_PENDING) {
     // Cleared in OnVerifyCompletion().

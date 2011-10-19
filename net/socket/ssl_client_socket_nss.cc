@@ -1666,7 +1666,8 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
       server_cert_, host_and_port_.host(), flags,
       &local_server_cert_verify_result_,
       base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
-                 base::Unretained(this)));
+                 base::Unretained(this)),
+      net_log_);
 }
 
 // Derived from AuthCertificateCallback() in

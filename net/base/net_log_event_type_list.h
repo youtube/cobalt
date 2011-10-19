@@ -1304,3 +1304,21 @@ EVENT_TYPE(CHROME_EXTENSION_PROVIDE_AUTH_CREDENTIALS)
 
 // This event is created when a request is blocked by a policy.
 EVENT_TYPE(CHROME_POLICY_ABORTED_REQUEST)
+
+// ------------------------------------------------------------------------
+// CertVerifier
+// ------------------------------------------------------------------------
+
+// This event is created when we start a CertVerifier request.
+EVENT_TYPE(CERT_VERIFIER_REQUEST)
+
+// This event is created when we start a CertVerifier job.
+EVENT_TYPE(CERT_VERIFIER_JOB)
+
+// This event is created when a CertVerifier request attaches to a job.
+//
+// The event parameters are:
+//   {
+//      "source_dependency": <Source identifer for the job we are bound to>,
+//   }
+EVENT_TYPE(CERT_VERIFIER_REQUEST_BOUND_TO_JOB)
