@@ -323,6 +323,14 @@ uint32 AudioOutputController::OnMoreData(
   }
 
   // Low latency mode.
+  {
+    // Check state and do nothing if we are not playing.
+    // We are on the hardware audio thread, so lock is needed.
+    base::AutoLock auto_lock(lock_);
+    if (state_ != kPlaying) {
+      return 0;
+    }
+  }
   uint32 size =  sync_reader_->Read(dest, max_size);
   sync_reader_->UpdatePendingBytes(buffers_state.total_bytes() + size);
   return size;
