@@ -1177,7 +1177,8 @@ int SSLClientSocketWin::DoVerifyCert() {
       server_cert_, host_and_port_.host(), flags,
       &server_cert_verify_result_,
       base::Bind(&SSLClientSocketWin::OnHandshakeIOComplete,
-                 base::Unretained(this)));
+                 base::Unretained(this)),
+      net_log_);
 }
 
 int SSLClientSocketWin::DoVerifyCertComplete(int result) {
