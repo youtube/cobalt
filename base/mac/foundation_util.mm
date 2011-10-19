@@ -282,7 +282,7 @@ TypeCF##Ref NSToCFCast(TypeNS* ns_val) { \
   TypeCF##Ref cf_val = reinterpret_cast<TypeCF##Ref>(ns_val); \
   DCHECK(!cf_val || TypeCF##GetTypeID() == CFGetTypeID(cf_val)); \
   return cf_val; \
-} \
+}
 
 #define CF_TO_NS_MUTABLE_CAST_DEFN(name) \
 CF_TO_NS_CAST_DEFN(CF##name, NS##name) \
@@ -298,7 +298,7 @@ CFMutable##name##Ref NSToCFCast(NSMutable##name* ns_val) { \
       reinterpret_cast<CFMutable##name##Ref>(ns_val); \
   DCHECK(!cf_val || CF##name##GetTypeID() == CFGetTypeID(cf_val)); \
   return cf_val; \
-} \
+}
 
 CF_TO_NS_MUTABLE_CAST_DEFN(Array);
 CF_TO_NS_MUTABLE_CAST_DEFN(AttributedString);
@@ -317,6 +317,36 @@ CF_TO_NS_CAST_DEFN(CFReadStream, NSInputStream);
 CF_TO_NS_CAST_DEFN(CFWriteStream, NSOutputStream);
 CF_TO_NS_MUTABLE_CAST_DEFN(String);
 CF_TO_NS_CAST_DEFN(CFURL, NSURL);
+
+#define CF_CAST_DEFN(TypeCF) \
+template<> TypeCF##Ref \
+CFCast<TypeCF##Ref>(const CFTypeRef& cf_val) { \
+  if (cf_val == NULL) { \
+    return NULL; \
+  } \
+  if (CFGetTypeID(cf_val) == TypeCF##GetTypeID()) { \
+    return reinterpret_cast<TypeCF##Ref>(cf_val); \
+  } \
+  return NULL; \
+} \
+\
+template<> TypeCF##Ref \
+CFCastStrict<TypeCF##Ref>(const CFTypeRef& cf_val) { \
+  TypeCF##Ref rv = CFCast<TypeCF##Ref>(cf_val); \
+  DCHECK(cf_val == NULL || rv); \
+  return rv; \
+}
+
+CF_CAST_DEFN(CFArray);
+CF_CAST_DEFN(CFBag);
+CF_CAST_DEFN(CFBoolean);
+CF_CAST_DEFN(CFData);
+CF_CAST_DEFN(CFDate);
+CF_CAST_DEFN(CFDictionary);
+CF_CAST_DEFN(CFNull);
+CF_CAST_DEFN(CFNumber);
+CF_CAST_DEFN(CFSet);
+CF_CAST_DEFN(CFString);
 
 }  // namespace mac
 }  // namespace base
