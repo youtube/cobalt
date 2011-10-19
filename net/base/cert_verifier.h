@@ -21,6 +21,7 @@
 
 namespace net {
 
+class BoundNetLog;
 class CertVerifierJob;
 class CertVerifierWorker;
 class X509Certificate;
@@ -103,7 +104,8 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
              int flags,
              CertVerifyResult* verify_result,
              const CompletionCallback& callback,
-             RequestHandle* out_req);
+             RequestHandle* out_req,
+             const BoundNetLog& net_log);
 
   // Cancels the specified request. |req| is the handle returned by Verify().
   // After a request is canceled, its completion callback will not be called.
@@ -201,7 +203,8 @@ class SingleRequestCertVerifier {
              const std::string& hostname,
              int flags,
              CertVerifyResult* verify_result,
-             const CompletionCallback& callback);
+             const CompletionCallback& callback,
+             const BoundNetLog& net_log);
 
  private:
   // Callback for when the request to |cert_verifier_| completes, so we
