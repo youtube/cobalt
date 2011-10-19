@@ -1,43 +1,43 @@
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
-// HttpBasicStream is a simple implementation of HttpStream.  It assumes it is
-// not sharing a sharing with any other HttpStreams, therefore it just reads and
-// writes directly to the Http Stream.
 
-#ifndef NET_HTTP_HTTP_BASIC_STREAM_H_
-#define NET_HTTP_HTTP_BASIC_STREAM_H_
+#ifndef NET_HTTP_HTTP_PIPELINED_STREAM_H_
+#define NET_HTTP_HTTP_PIPELINED_STREAM_H_
 #pragma once
 
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "net/base/net_log.h"
 #include "net/http/http_stream.h"
 
 namespace net {
 
 class BoundNetLog;
-class ClientSocketHandle;
-class GrowableIOBuffer;
+class HttpPipelinedConnectionImpl;
 class HttpResponseInfo;
-struct HttpRequestInfo;
 class HttpRequestHeaders;
+struct HttpRequestInfo;
 class HttpStreamParser;
 class IOBuffer;
+class ProxyInfo;
+struct SSLConfig;
 class UploadDataStream;
 
-class HttpBasicStream : public HttpStream {
+// HttpPipelinedStream is the pipelined implementation of HttpStream. It has
+// very little code in it. Instead, it serves as the client's interface to the
+// pipelined connection, where all the work happens.
+//
+// In the case of pipelining failures, these functions may return
+// ERR_PIPELINE_EVICTION. In that case, the client should retry the HTTP
+// request without pipelining.
+class HttpPipelinedStream : public HttpStream {
  public:
-  // Constructs a new HttpBasicStream.  If |parser| is NULL, then
-  // InitializeStream should be called to initialize it correctly.  If
-  // |parser| is non-null, then InitializeStream should not be called,
-  // as the stream is already initialized.
-  HttpBasicStream(ClientSocketHandle* connection,
-                  HttpStreamParser* parser,
-                  bool using_proxy);
-  virtual ~HttpBasicStream();
+  HttpPipelinedStream(HttpPipelinedConnectionImpl* pipeline,
+                      int pipeline_id);
+  virtual ~HttpPipelinedStream();
 
   // HttpStream methods:
   virtual int InitializeStream(const HttpRequestInfo* request_info,
@@ -85,26 +85,28 @@ class HttpBasicStream : public HttpStream {
 
   virtual void Drain(HttpNetworkSession* session) OVERRIDE;
 
+  // The SSLConfig used to establish this stream's pipeline.
+  const SSLConfig& used_ssl_config() const;
+
+  // The ProxyInfo used to establish this this stream's pipeline.
+  const ProxyInfo& used_proxy_info() const;
+
+  // The source of this stream's pipelined connection.
+  const NetLog::Source& source() const;
+
+  // True if this stream's pipeline was NPN negotiated.
+  bool was_npn_negotiated() const;
+
  private:
-  scoped_refptr<GrowableIOBuffer> read_buf_;
+  HttpPipelinedConnectionImpl* pipeline_;
 
-  scoped_ptr<HttpStreamParser> parser_;
-
-  scoped_ptr<ClientSocketHandle> connection_;
-
-  bool using_proxy_;
-
-  std::string request_line_;
+  int pipeline_id_;
 
   const HttpRequestInfo* request_info_;
 
-  const HttpResponseInfo* response_;
-
-  int64 bytes_read_offset_;
-
-  DISALLOW_COPY_AND_ASSIGN(HttpBasicStream);
+  DISALLOW_COPY_AND_ASSIGN(HttpPipelinedStream);
 };
 
 }  // namespace net
 
-#endif  // NET_HTTP_HTTP_BASIC_STREAM_H_
+#endif  // NET_HTTP_HTTP_PIPELINED_STREAM_H_

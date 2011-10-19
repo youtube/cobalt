@@ -10,6 +10,9 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_pipelined_connection.h"
+#include "net/http/http_pipelined_host.h"
+#include "net/http/http_pipelined_stream.h"
 #include "net/http/http_server_properties.h"
 #include "net/http/http_stream_factory_impl_job.h"
 #include "net/http/http_stream_factory_impl_request.h"
@@ -33,7 +36,8 @@ GURL UpgradeUrlToHttps(const GURL& original_url, int port) {
 }  // namespace
 
 HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
-    : session_(session) {}
+    : session_(session),
+      http_pipelined_host_pool_(this) {}
 
 HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(request_map_.empty());
@@ -219,6 +223,23 @@ void HttpStreamFactoryImpl::OnPreconnectsComplete(const Job* job) {
   preconnect_job_set_.erase(job);
   delete job;
   OnPreconnectsCompleteInternal();
+}
+
+void HttpStreamFactoryImpl::OnHttpPipelinedHostHasAdditionalCapacity(
+    const HostPortPair& origin) {
+  HttpPipelinedStream* stream;
+  while (ContainsKey(http_pipelining_request_map_, origin) &&
+         (stream = http_pipelined_host_pool_.CreateStreamOnExistingPipeline(
+             origin))) {
+    Request* request = *http_pipelining_request_map_[origin].begin();
+    request->Complete(stream->was_npn_negotiated(),
+                      false,  // not using_spdy
+                      stream->source());
+    request->OnStreamReady(NULL,
+                           stream->used_ssl_config(),
+                           stream->used_proxy_info(),
+                           stream);
+  }
 }
 
 }  // namespace net

@@ -85,7 +85,6 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
       chunk_length_(0),
       chunk_length_without_encoding_(0),
       sent_last_chunk_(false) {
-  DCHECK_EQ(0, read_buffer->offset());
 }
 
 HttpStreamParser::~HttpStreamParser() {

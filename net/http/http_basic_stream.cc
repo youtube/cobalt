@@ -11,6 +11,7 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
+#include "net/http/http_response_body_drainer.h"
 #include "net/http/http_stream_parser.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_handle.h"
@@ -128,6 +129,12 @@ bool HttpBasicStream::IsSpdyHttpStream() const {
 
 void HttpBasicStream::LogNumRttVsBytesMetrics() const {
   // Log rtt metrics here.
+}
+
+void HttpBasicStream::Drain(HttpNetworkSession* session) {
+  HttpResponseBodyDrainer* drainer = new HttpResponseBodyDrainer(this);
+  drainer->Start(session);
+  // |drainer| will delete itself.
 }
 
 }  // namespace net

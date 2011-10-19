@@ -16,10 +16,15 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_pipelined_connection.h"
+#include "net/http/http_pipelined_host.h"
+#include "net/http/http_pipelined_host_pool.h"
+#include "net/http/http_pipelined_stream.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_server_properties.h"
+#include "net/http/http_stream_factory.h"
 #include "net/http/http_stream_factory_impl_request.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool.h"
@@ -88,6 +93,7 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
       was_npn_negotiated_(false),
       num_streams_(0),
       spdy_session_direct_(false),
+      existing_available_pipeline_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   DCHECK(stream_factory);
   DCHECK(session);
@@ -598,6 +604,17 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
   } else if (request_ && (using_ssl_ || ShouldForceSpdyWithoutSSL())) {
     // Update the spdy session key for the request that launched this job.
     request_->SetSpdySessionKey(spdy_session_key);
+  } else if (IsRequestEligibleForPipelining()) {
+    // TODO(simonjam): With pipelining, we might be better off using fewer
+    // connections and thus should make fewer preconnections. Explore
+    // preconnecting fewer than the requested num_connections.
+    existing_available_pipeline_ = stream_factory_->http_pipelined_host_pool_.
+        IsExistingPipelineAvailableForOrigin(origin_);
+    if (existing_available_pipeline_) {
+      return OK;
+    } else {
+      request_->SetHttpPipeliningKey(origin_);
+    }
   }
 
   // OK, there's no available SPDY session. Let |dependent_job_| resume if it's
@@ -756,10 +773,6 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       return result;
   }
 
-  if (!connection_->socket()) {
-    HACKCrashHereToDebug80095();
-  }
-
   next_state_ = STATE_CREATE_STREAM;
   return OK;
 }
@@ -774,8 +787,8 @@ int HttpStreamFactoryImpl::Job::DoWaitingUserAction(int result) {
 }
 
 int HttpStreamFactoryImpl::Job::DoCreateStream() {
-  if (!connection_->socket() && !existing_spdy_session_)
-    HACKCrashHereToDebug80095();
+  DCHECK(connection_->socket() || existing_spdy_session_ ||
+         existing_available_pipeline_);
 
   next_state_ = STATE_CREATE_STREAM_COMPLETE;
 
@@ -790,15 +803,29 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
   if (!using_spdy_) {
     bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https()) &&
         request_info_.url.SchemeIs("http");
-    stream_.reset(new HttpBasicStream(connection_.release(), NULL,
-                                      using_proxy));
+    // TODO(simonjam): Support proxies.
+    if (existing_available_pipeline_) {
+      stream_.reset(stream_factory_->http_pipelined_host_pool_.
+                    CreateStreamOnExistingPipeline(origin_));
+      CHECK(stream_.get());
+    } else if (!using_proxy && IsRequestEligibleForPipelining()) {
+      stream_.reset(
+          stream_factory_->http_pipelined_host_pool_.CreateStreamOnNewPipeline(
+              origin_,
+              connection_.release(),
+              server_ssl_config_,
+              proxy_info_,
+              net_log_,
+              was_npn_negotiated_));
+      CHECK(stream_.get());
+    } else {
+      stream_.reset(new HttpBasicStream(connection_.release(), NULL,
+                                        using_proxy));
+    }
     return OK;
   }
 
   CHECK(!stream_.get());
-
-  if (!connection_->socket() && !existing_spdy_session_)
-    HACKCrashHereToDebug80095();
 
   bool direct = true;
   HostPortProxyPair pair(origin_, proxy_server);
@@ -821,12 +848,6 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
     SpdySessionPool* spdy_pool = session_->spdy_session_pool();
     spdy_session = spdy_pool->GetIfExists(pair, net_log_);
     if (!spdy_session) {
-      // SPDY can be negotiated using the TLS next protocol negotiation (NPN)
-      // extension, or just directly using SSL. Either way, |connection_| must
-      // contain an SSLClientSocket.
-      if (!connection_->socket())
-        HACKCrashHereToDebug80095();
-
       int error = spdy_pool->GetSpdySessionFromSocket(
           pair, connection_.release(), net_log_, spdy_certificate_error_,
           &new_spdy_session_, using_ssl_);
@@ -1102,47 +1123,17 @@ bool HttpStreamFactoryImpl::Job::IsOrphaned() const {
   return !IsPreconnecting() && !request_;
 }
 
-#if defined(OS_WIN)
-#pragma warning (disable: 4748)
-#pragma optimize( "", off )
-#endif
-
-void HttpStreamFactoryImpl::Job::HACKCrashHereToDebug80095() {
-  // If we enter this code path, then we'll cause a crash later in
-  // DoCreateStream(). Crash now and figure out what happened:
-  // http://crbug.com/80095.
-  GURL url = original_url_.get() ? *original_url_ : request_info_.url;
-  bool using_ssl = using_ssl_;
-  bool using_spdy = using_spdy_;
-  char url_buf[512];
-  base::strlcpy(url_buf, url.spec().data(), arraysize(url_buf));
-
-  // Note that these local variables have their addresses referenced to
-  // prevent the compiler from optimizing them away.
-  if (using_spdy) {
-    LOG(FATAL) << "Crashing here because willchan doesn't know why we're "
-               << "crashing later. Sorry! I'll give you a cookie later. "
-               << "Cheers mate!\n"
-               << "url[" << &url << "]: " << url << "\n"
-               << "using_ssl[" << &using_ssl << "]: "
-               << (using_ssl ? "true\n" : "false\n")
-               << "using_spdy[" << &using_spdy << "]: "
-               << (using_spdy ? "true\n" : "false\n");
-  } else {
-    LOG(FATAL) << "Crashing here because willchan doesn't know why we're "
-               << "crashing later. Sorry! I'll give you a cookie later. "
-               << "Cheers mate!\n"
-               << "url[" << &url << "]: " << url << "\n"
-               << "using_ssl[" << &using_ssl << "]: "
-               << (using_ssl ? "true\n" : "false\n")
-               << "using_spdy[" << &using_spdy << "]: "
-               << (using_spdy ? "true\n" : "false\n");
+bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() const {
+  if (!HttpStreamFactory::http_pipelining_enabled()) {
+    return false;
   }
+  if (IsPreconnecting() || !request_) {
+    return false;
+  }
+  if (using_ssl_) {
+    return false;
+  }
+  return request_info_.method == "GET" || request_info_.method == "HEAD";
 }
-
-#if defined(OS_WIN)
-#pragma optimize( "", on )
-#pragma warning (default: 4748)
-#endif
 
 }  // namespace net
