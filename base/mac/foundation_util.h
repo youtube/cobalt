@@ -164,7 +164,7 @@ namespace mac { \
 BASE_EXPORT TypeNS* CFToNSCast(TypeCF##Ref cf_val); \
 BASE_EXPORT TypeCF##Ref NSToCFCast(TypeNS* ns_val); \
 } \
-} \
+}
 
 #define CF_TO_NS_MUTABLE_CAST_DECL(name) \
 CF_TO_NS_CAST_DECL(CF##name, NS##name) \
@@ -175,7 +175,7 @@ namespace mac { \
 BASE_EXPORT NSMutable##name* CFToNSCast(CFMutable##name##Ref cf_val); \
 BASE_EXPORT CFMutable##name##Ref NSToCFCast(NSMutable##name* ns_val); \
 } \
-} \
+}
 
 // List of toll-free bridged types taken from:
 // http://www.cocoadev.com/index.pl?TollFreeBridged
@@ -197,6 +197,35 @@ CF_TO_NS_CAST_DECL(CFReadStream, NSInputStream);
 CF_TO_NS_CAST_DECL(CFWriteStream, NSOutputStream);
 CF_TO_NS_MUTABLE_CAST_DECL(String);
 CF_TO_NS_CAST_DECL(CFURL, NSURL);
+
+namespace base {
+namespace mac {
+
+// CFCast<>() and CFCastStrict<>() cast a basic CFTypeRef to a more
+// specific CoreFoundation type. The compatibility of the passed
+// object is found by comparing its opaque type against the
+// requested type identifier. If the supplied object is not
+// compatible with the requested return type, CFCast<>() returns
+// NULL and CFCastStrict<>() will DCHECK. Providing a NULL pointer
+// to either variant results in NULL being returned without
+// triggering any DCHECK.
+//
+// Example usage:
+// CFNumberRef some_number = base::mac::CFCast<CFNumberRef>(
+//     CFArrayGetValueAtIndex(array, index));
+//
+// CFStringRef some_string = base::mac::CFCastStrict<CFStringRef>(
+//     base::mac::GetValueFromDictionary(some_dict,
+//                                       CFSTR("a_key"),
+//                                       CFStringGetTypeID()));
+BASE_EXPORT template<class T>
+T CFCast(const CFTypeRef& cf_val);
+
+BASE_EXPORT template<class T>
+T CFCastStrict(const CFTypeRef& cf_val);
+
+}  // namespace mac
+}  // namespace base
 
 // Stream operations for CFTypes. They can be used with NSTypes as well
 // by using the NSToCFCast methods above.
