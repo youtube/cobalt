@@ -38,6 +38,12 @@ class FilterCollection;
 
 class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
+  // Callback that executes when a network event occurrs.
+  // The parameter represents the state of network activity: true if the network
+  // is downloading data, false if it is not. If the callback never runs, it is
+  // assumed the network is not downloading data.
+  typedef base::Callback<void(bool)> NetworkEventCB;
+
   // Initializes pipeline. Pipeline takes ownership of all callbacks passed
   // into this method.
   // |ended_callback| will be executed when the media reaches the end.
@@ -45,7 +51,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // |network_callback_| will be executed when there's a network event.
   virtual void Init(const PipelineStatusCB& ended_callback,
                     const PipelineStatusCB& error_callback,
-                    const PipelineStatusCB& network_callback) = 0;
+                    const NetworkEventCB& network_callback) = 0;
 
   // Build a pipeline to render the given URL using the given filter collection
   // to construct a filter chain.  Returns true if successful, false otherwise
@@ -91,9 +97,6 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // point where playback controls will be respected.  Note that it is possible
   // for a pipeline to be started but not initialized (i.e., an error occurred).
   virtual bool IsInitialized() const = 0;
-
-  // Returns true if there has been network activity.
-  virtual bool IsNetworkActive() const = 0;
 
   // Returns true if the media has audio.
   virtual bool HasAudio() const = 0;
