@@ -7,8 +7,6 @@
 
 #include <string>
 
-#include "net/base/net_export.h"
-
 namespace net {
 
 class SSLInfo;
@@ -16,9 +14,9 @@ class SSLInfo;
 // FraudulentCertificateReporter is an interface for asynchronously
 // reporting certificate chains that fail the certificate pinning
 // check.
-class NET_EXPORT FraudulentCertificateReporter {
+class FraudulentCertificateReporter {
  public:
-  virtual ~FraudulentCertificateReporter();
+  virtual ~FraudulentCertificateReporter() {}
 
   // Sends a report to the report collection server containing the |ssl_info|
   // associated with a connection to |hostname|. If |sni_available| is true,
