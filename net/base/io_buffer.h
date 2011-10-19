@@ -15,8 +15,60 @@
 
 namespace net {
 
-// This is a simple wrapper around a buffer that provides ref counting for
-// easier asynchronous IO handling.
+// IOBuffers are reference counted data buffers used for easier asynchronous
+// IO handling.
+//
+// They are often used as the destination buffers for Read() operations, or as
+// the source buffers for Write() operations.
+//
+// IMPORTANT: Never re-use an IOBuffer after cancelling the IO operation that
+//            was using it, since this may lead to memory corruption!
+//
+// -----------------------
+// Ownership of IOBuffers:
+// -----------------------
+//
+// Although IOBuffers are RefCountedThreadSafe, they are not intended to be
+// used as a shared buffer, nor should they be used simultaneously across
+// threads. The fact that they are reference counted is an implementation
+// detail for allowing them to outlive cancellation of asynchronous
+// operations.
+//
+// Instead, think of the underlying |char*| buffer contained by the IOBuffer
+// as having exactly one owner at a time.
+//
+// Whenever you call an asynchronous operation that takes an IOBuffer,
+// ownership is implicitly transferred to the called function, until the
+// operation has completed (at which point it transfers back to the caller).
+//
+//     ==> The IOBuffer's data should NOT be manipulated, destroyed, or read
+//         until the operation has completed.
+//
+//     ==> Cancellation does NOT count as completion. If an operation using
+//         an IOBuffer is cancelled, that IOBuffer should never be used again.
+//
+// For instance, if you were to call a Read() operation on some class which
+// takes an IOBuffer, and then delete that class (which generally will
+// trigger cancellation), the IOBuffer which had been passed to Read() should
+// never be re-used.
+//
+// This usage contract is assumed by any API which takes an IOBuffer, even
+// though it may not be explicitly mentioned in the function's comments.
+//
+// -----------------------
+// Motivation
+// -----------------------
+//
+// The motivation for transferring ownership during cancellation is
+// to make it easier to work with un-cancellable operations.
+//
+// For instance, lets say under the hood your API called out to the
+// Operating System's synchronous ReadFile() function on a worker thread.
+// When cancelling through our asynchronous interface, we have no way of
+// actually aborting the in progress ReadFile(). We must let it keep running,
+// and hence the buffer it was reading into must remain alive. Using
+// reference counting we can add a reference to the IOBuffer and make sure
+// it is not destroyed until after the synchronous operation has completed.
 class NET_EXPORT IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
  public:
   IOBuffer();
@@ -101,6 +153,11 @@ class NET_EXPORT DrainableIOBuffer : public IOBuffer {
 };
 
 // This version provides a resizable buffer and a changeable offset.
+// WARNING: Be very careful when re-using IOBuffers, it is not always safe
+//          to do so. See the "Ownership" section in IOBuffer's documentation
+//          to understand why. GrowableIOBuffer should never change its
+//          capacity while the buffer is already in use (including after
+//          cancellation).
 class NET_EXPORT GrowableIOBuffer : public IOBuffer {
  public:
   GrowableIOBuffer();
