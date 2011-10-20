@@ -742,6 +742,11 @@
              'proxy/proxy_config_service_linux.h',
           ],
         }],
+        ['OS=="openbsd"', {
+          'sources': [
+            'base/platform_mime_util_linux.cc',
+          ],
+        }],
         ['use_kerberos==1', {
           'defines': [
             'USE_KERBEROS',
@@ -821,7 +826,6 @@
             'dependencies': [
               '../build/linux/system.gyp:gconf',
               '../build/linux/system.gyp:gio',
-              '../build/linux/system.gyp:libresolv',
             ],
             'conditions': [
               ['use_openssl==1', {
@@ -832,6 +836,11 @@
               {  # else use_openssl==0, use NSS
                 'dependencies': [
                   '../build/linux/system.gyp:ssl',
+                ],
+              }],
+              ['OS!="openbsd"', {
+                'dependencies': [
+                  '../build/linux/system.gyp:libresolv',
                 ],
               }],
               ['OS=="solaris"', {
