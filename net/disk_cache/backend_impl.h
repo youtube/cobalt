@@ -376,7 +376,6 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   base::RepeatingTimer<BackendImpl> timer_;  // Usage timer.
   base::WaitableEvent done_;  // Signals the end of background work.
   scoped_refptr<TraceObject> trace_object_;  // Inits internal tracing.
-  ScopedRunnableMethodFactory<BackendImpl> factory_;
   base::WeakPtrFactory<BackendImpl> ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(BackendImpl);
