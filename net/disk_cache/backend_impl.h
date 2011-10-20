@@ -17,6 +17,7 @@
 #include "net/disk_cache/in_flight_backend_io.h"
 #include "net/disk_cache/rankings.h"
 #include "net/disk_cache/stats.h"
+#include "net/disk_cache/stress_support.h"
 #include "net/disk_cache/trace.h"
 
 namespace net {
@@ -126,6 +127,14 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
 
   // Permanently deletes an entry, but still keeps track of it.
   void InternalDoomEntry(EntryImpl* entry);
+
+#if defined(NET_BUILD_STRESS_CACHE)
+  // Returns the address of the entry linked to the entry at a given |address|.
+  CacheAddr GetNextAddr(Addr address);
+
+  // Verifies that |entry| is not currently reachable through the index.
+  void NotLinked(EntryImpl* entry);
+#endif
 
   // Removes all references to this entry.
   void RemoveEntry(EntryImpl* entry);

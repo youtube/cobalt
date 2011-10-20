@@ -453,6 +453,10 @@ int BackendImpl::Init(OldCompletionCallback* callback) {
 }
 
 int BackendImpl::SyncInit() {
+#if defined(NET_BUILD_STRESS_CACHE)
+  // Start evictions right away.
+  up_ticks_ = kTrimDelay * 2;
+#endif
   DCHECK(!init_);
   if (init_)
     return net::ERR_FAILED;
@@ -476,6 +480,7 @@ int BackendImpl::SyncInit() {
   }
 
   init_ = true;
+  Trace("Init");
 
   if (data_->header.experiment != NO_EXPERIMENT &&
       cache_type_ != net::DISK_CACHE) {
@@ -530,6 +535,14 @@ int BackendImpl::SyncInit() {
     return net::ERR_FAILED;
 
   disabled_ = !rankings_.Init(this, new_eviction_);
+
+#if defined(STRESS_CACHE_EXTENDED_VALIDATION)
+  trace_object_->EnableTracing(false);
+  int sc = SelfCheck();
+  if (sc < 0 && sc != ERR_NUM_ENTRIES_MISMATCH)
+    NOTREACHED();
+  trace_object_->EnableTracing(true);
+#endif
 
   return disabled_ ? net::ERR_FAILED : net::OK;
 }
@@ -931,8 +944,10 @@ void BackendImpl::UpdateRank(EntryImpl* entry, bool modified) {
 void BackendImpl::RecoveredEntry(CacheRankingsBlock* rankings) {
   Addr address(rankings->Data()->contents);
   EntryImpl* cache_entry = NULL;
-  if (NewEntry(address, &cache_entry))
+  if (NewEntry(address, &cache_entry)) {
+    STRESS_NOTREACHED();
     return;
+}
 
   uint32 hash = cache_entry->GetHash();
   cache_entry->Release();
@@ -972,9 +987,44 @@ void BackendImpl::InternalDoomEntry(EntryImpl* entry) {
   }
 }
 
+#if defined(NET_BUILD_STRESS_CACHE)
+
+CacheAddr BackendImpl::GetNextAddr(Addr address) {
+  EntriesMap::iterator it = open_entries_.find(address.value());
+  if (it != open_entries_.end()) {
+    EntryImpl* this_entry = it->second;
+    return this_entry->GetNextAddress();
+  }
+  DCHECK(block_files_.IsValid(address));
+  DCHECK(!address.is_separate_file() && address.file_type() == BLOCK_256);
+
+  CacheEntryBlock entry(File(address), address);
+  CHECK(entry.Load());
+  return entry.Data()->next;
+}
+
+void BackendImpl::NotLinked(EntryImpl* entry) {
+  Addr entry_addr = entry->entry()->address();
+  uint32 i = entry->GetHash() & mask_;
+  Addr address(data_->table[i]);
+  if (!address.is_initialized())
+    return;
+
+  for (;;) {
+    DCHECK(entry_addr.value() != address.value());
+    address.set_value(GetNextAddr(address));
+    if (!address.is_initialized())
+      break;
+  }
+}
+#endif  // NET_BUILD_STRESS_CACHE
+
 // An entry may be linked on the DELETED list for a while after being doomed.
 // This function is called when we want to remove it.
 void BackendImpl::RemoveEntry(EntryImpl* entry) {
+#if defined(NET_BUILD_STRESS_CACHE)
+  NotLinked(entry);
+#endif
   if (!new_eviction_)
     return;
 
@@ -1147,6 +1197,7 @@ void BackendImpl::FirstEviction() {
 }
 
 void BackendImpl::CriticalError(int error) {
+  STRESS_NOTREACHED();
   LOG(ERROR) << "Critical error found " << error;
   if (disabled_)
     return;
@@ -1166,6 +1217,8 @@ void BackendImpl::CriticalError(int error) {
 }
 
 void BackendImpl::ReportError(int error) {
+  STRESS_DCHECK(!error || error == ERR_PREVIOUS_CRASH);
+
   // We transmit positive numbers, instead of direct error codes.
   DCHECK_LE(error, 0);
   CACHE_UMA(CACHE_ERROR, "Error", 0, error * -1);
@@ -1284,12 +1337,16 @@ int BackendImpl::SelfCheck() {
   int num_entries = rankings_.SelfCheck();
   if (num_entries < 0) {
     LOG(ERROR) << "Invalid rankings list, error " << num_entries;
+#if !defined(NET_BUILD_STRESS_CACHE)
     return num_entries;
+#endif
   }
 
   if (num_entries != data_->header.num_entries) {
     LOG(ERROR) << "Number of entries mismatch";
+#if !defined(NET_BUILD_STRESS_CACHE)
     return ERR_NUM_ENTRIES_MISMATCH;
+#endif
   }
 
   return CheckAllEntries();
@@ -1547,9 +1604,12 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry) {
     return 0;
   }
 
+  STRESS_DCHECK(block_files_.IsValid(address));
+
   if (!address.is_initialized() || address.is_separate_file() ||
       address.file_type() != BLOCK_256) {
     LOG(WARNING) << "Wrong entry address.";
+    STRESS_NOTREACHED();
     return ERR_INVALID_ADDRESS;
   }
 
@@ -1568,8 +1628,12 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry) {
 
   if (!cache_entry->SanityCheck()) {
     LOG(WARNING) << "Messed up entry found.";
+    STRESS_NOTREACHED();
     return ERR_INVALID_ENTRY;
   }
+
+  STRESS_DCHECK(block_files_.IsValid(
+                    Addr(cache_entry->entry()->Data()->rankings_node)));
 
   if (!cache_entry->LoadNodeAddress())
     return ERR_READ_FAILURE;
@@ -1578,12 +1642,14 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry) {
   cache_entry->SetDirtyFlag(GetCurrentEntryId());
 
   if (!rankings_.SanityCheck(cache_entry->rankings(), false)) {
+    STRESS_NOTREACHED();
     cache_entry->SetDirtyFlag(0);
     // Don't remove this from the list (it is not linked properly). Instead,
     // break the link back to the entry because it is going away, and leave the
     // rankings node to be deleted if we find it through a list.
     rankings_.SetContents(cache_entry->rankings(), 0);
   } else if (!rankings_.DataSanityCheck(cache_entry->rankings(), false)) {
+    STRESS_NOTREACHED();
     cache_entry->SetDirtyFlag(0);
     rankings_.SetContents(cache_entry->rankings(), address.value());
   }
@@ -1816,6 +1882,7 @@ EntryImpl* BackendImpl::GetEnumeratedEntry(CacheRankingsBlock* next,
   EntryImpl* entry;
   int rv = NewEntry(Addr(next->Data()->contents), &entry);
   if (rv) {
+    STRESS_NOTREACHED();
     rankings_.Remove(next, list, false);
     if (rv == ERR_INVALID_ADDRESS) {
       // There is nothing linked from the index. Delete the rankings node.
@@ -1832,6 +1899,7 @@ EntryImpl* BackendImpl::GetEnumeratedEntry(CacheRankingsBlock* next,
   }
 
   if (!entry->Update()) {
+    STRESS_NOTREACHED();
     entry->Release();
     return NULL;
   }
@@ -2069,12 +2137,14 @@ bool BackendImpl::CheckIndex() {
 
   AdjustMaxCacheSize(data_->header.table_len);
 
+#if !defined(NET_BUILD_STRESS_CACHE)
   if (data_->header.num_bytes < 0 ||
       (max_size_ < kint32max - kDefaultCacheSize &&
        data_->header.num_bytes > max_size_ + kDefaultCacheSize)) {
     LOG(ERROR) << "Invalid cache (current) size";
     return false;
   }
+#endif
 
   if (data_->header.num_entries < 0) {
     LOG(ERROR) << "Invalid number of entries";
@@ -2093,15 +2163,17 @@ int BackendImpl::CheckAllEntries() {
   int num_dirty = 0;
   int num_entries = 0;
   DCHECK(mask_ < kuint32max);
-  for (int i = 0; i <= static_cast<int>(mask_); i++) {
+  for (unsigned int i = 0; i <= mask_; i++) {
     Addr address(data_->table[i]);
     if (!address.is_initialized())
       continue;
     for (;;) {
       EntryImpl* tmp;
       int ret = NewEntry(address, &tmp);
-      if (ret)
+      if (ret) {
+        STRESS_NOTREACHED();
         return ret;
+      }
       scoped_refptr<EntryImpl> cache_entry;
       cache_entry.swap(&tmp);
 
@@ -2112,6 +2184,7 @@ int BackendImpl::CheckAllEntries() {
       else
         return ERR_INVALID_ENTRY;
 
+      DCHECK_EQ(i, cache_entry->entry()->Data()->hash & mask_);
       address.set_value(cache_entry->GetNextAddress());
       if (!address.is_initialized())
         break;
@@ -2120,7 +2193,9 @@ int BackendImpl::CheckAllEntries() {
 
   Trace("CheckAllEntries End");
   if (num_entries + num_dirty != data_->header.num_entries) {
-    LOG(ERROR) << "Number of entries mismatch";
+    LOG(ERROR) << "Number of entries " << num_entries << " " << num_dirty <<
+                  " " << data_->header.num_entries;
+    DCHECK_LT(num_entries, data_->header.num_entries);
     return ERR_NUM_ENTRIES_MISMATCH;
   }
 
