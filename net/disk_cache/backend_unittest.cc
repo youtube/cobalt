@@ -1199,14 +1199,16 @@ void DiskCacheBackendTest::BackendTransaction(const std::string& name,
   ASSERT_TRUE(CopyTestCache(name));
   DisableFirstCleanup();
 
+  uint32 mask;
   if (load) {
-    SetMask(0xf);
+    mask = 0xf;
     SetMaxSize(0x100000);
   } else {
     // Clear the settings from the previous run.
-    SetMask(0);
+    mask = 0;
     SetMaxSize(0);
   }
+  SetMask(mask);
 
   InitCache();
   ASSERT_EQ(num_entries + 1, cache_->GetEntryCount());
@@ -1227,7 +1229,7 @@ void DiskCacheBackendTest::BackendTransaction(const std::string& name,
   cache_ = NULL;
   cache_impl_ = NULL;
 
-  ASSERT_TRUE(CheckCacheIntegrity(GetCacheFilePath(), new_eviction_));
+  ASSERT_TRUE(CheckCacheIntegrity(GetCacheFilePath(), new_eviction_, mask));
   success_ = true;
 }
 
