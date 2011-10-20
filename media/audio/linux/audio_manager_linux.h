@@ -42,22 +42,8 @@ class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
   virtual ~AudioManagerLinux();
 
  private:
-  enum StreamType {
-    kStreamPlayback = 0,
-    kStreamCapture,
-  };
-
-  // Gets a list of available ALSA input devices.
-  void GetAlsaAudioInputDevices(media::AudioDeviceNames* device_names);
-
-  // Gets the ALSA devices' names and ids.
-  void GetAlsaDevicesInfo(void** hint, media::AudioDeviceNames* device_names);
-
-  // Checks if the specific ALSA device is available.
-  bool IsAlsaDeviceAvailable(const char* device_name);
-
-  // Returns true if a device is present for the given stream type.
-  bool HasAnyAlsaAudioDevice(StreamType stream);
+  // Helper method to query if there is any valid input device
+  bool HasAnyValidAudioInputDevice(void** hint);
 
   scoped_ptr<AlsaWrapper> wrapper_;
 
