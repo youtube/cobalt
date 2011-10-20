@@ -633,7 +633,12 @@
             ['OS=="linux"', {
               # Aura unit_tests currently only work on Linux.
               'dependencies': [
+                '../chrome/chrome.gyp:sync_unit_tests',
                 '../chrome/chrome.gyp:unit_tests',
+                '../content/content.gyp:content_unittests',
+                '../ipc/ipc.gyp:ipc_tests',
+                '../sql/sql.gyp:sql_unittests',
+                '../ui/ui.gyp:gfx_unittests',
               ],
             }],
           ],
