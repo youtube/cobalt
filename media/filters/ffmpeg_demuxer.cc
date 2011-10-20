@@ -368,7 +368,7 @@ base::TimeDelta FFmpegDemuxer::GetStartTime() const {
   return start_time_;
 }
 
-int FFmpegDemuxer::Read(int size, uint8* data) {
+size_t FFmpegDemuxer::Read(size_t size, uint8* data) {
   DCHECK(data_source_);
 
   // If read has ever failed, return with an error.

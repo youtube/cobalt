@@ -45,7 +45,7 @@ class MEDIA_EXPORT FFmpegURLProtocol {
 
   // Read the given amount of bytes into data, returns the number of bytes read
   // if successful, kReadError otherwise.
-  virtual int Read(int size, uint8* data) = 0;
+  virtual size_t Read(size_t size, uint8* data) = 0;
 
   // Returns true and the current file position for this file, false if the
   // file position could not be retrieved.
