@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
@@ -23,7 +24,6 @@
 #include "base/metrics/histogram.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
-#include "base/task.h"
 #include "base/threading/worker_pool.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
@@ -409,8 +409,7 @@ class HostResolverImpl::Job
     // Dispatch the lookup attempt to a worker thread.
     if (!base::WorkerPool::PostTask(
             FROM_HERE,
-            NewRunnableMethod(this, &Job::DoLookup, start_time,
-                              attempt_number_),
+            base::Bind(&Job::DoLookup, this, start_time, attempt_number_),
             true)) {
       NOTREACHED();
 
@@ -419,8 +418,8 @@ class HostResolverImpl::Job
       // returned (IO_PENDING).
       origin_loop_->PostTask(
           FROM_HERE,
-          NewRunnableMethod(this, &Job::OnLookupComplete, AddressList(),
-                            start_time, attempt_number_, ERR_UNEXPECTED, 0));
+          base::Bind(&Job::OnLookupComplete, this, AddressList(),
+                     start_time, attempt_number_, ERR_UNEXPECTED, 0));
       return;
     }
 
@@ -436,7 +435,7 @@ class HostResolverImpl::Job
     if (attempt_number_ <= resolver_->max_retry_attempts()) {
       origin_loop_->PostDelayedTask(
           FROM_HERE,
-          NewRunnableMethod(this, &Job::OnCheckForComplete),
+          base::Bind(&Job::OnCheckForComplete, this),
           unresponsive_delay_.InMilliseconds());
     }
   }
@@ -530,8 +529,8 @@ class HostResolverImpl::Job
 
     origin_loop_->PostTask(
         FROM_HERE,
-        NewRunnableMethod(this, &Job::OnLookupComplete, results, start_time,
-                          attempt_number, error, os_error));
+        base::Bind(&Job::OnLookupComplete, this, results, start_time,
+                   attempt_number, error, os_error));
   }
 
   // Callback to see if DoLookup() has finished or not (runs on origin thread).
@@ -836,7 +835,7 @@ class HostResolverImpl::IPv6ProbeJob
       return;
     const bool kIsSlow = true;
     base::WorkerPool::PostTask(
-        FROM_HERE, NewRunnableMethod(this, &IPv6ProbeJob::DoProbe), kIsSlow);
+        FROM_HERE, base::Bind(&IPv6ProbeJob::DoProbe, this), kIsSlow);
   }
 
   // Cancels the current job.
@@ -866,7 +865,7 @@ class HostResolverImpl::IPv6ProbeJob
 
     origin_loop_->PostTask(
         FROM_HERE,
-        NewRunnableMethod(this, &IPv6ProbeJob::OnProbeComplete, family));
+        base::Bind(&IPv6ProbeJob::OnProbeComplete, this, family));
   }
 
   // Callback for when DoProbe() completes.
