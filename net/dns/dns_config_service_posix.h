@@ -6,6 +6,8 @@
 #define NET_DNS_DNS_CONFIG_SERVICE_POSIX_H_
 #pragma once
 
+#include <sys/types.h>
+#include <netinet/in.h>
 #include <resolv.h>
 
 #include "base/compiler_specific.h"
