@@ -12,8 +12,8 @@
 #include "net/base/net_errors.h"
 #include "net/base/sys_addrinfo.h"
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
-#include <resolv.h>
+#if defined(OS_OPENBSD)
+#define AI_ADDRCONFIG 0
 #endif
 
 namespace net {
@@ -143,7 +143,7 @@ int SystemHostResolverProc(const std::string& host,
       hints.ai_family = AF_UNSPEC;
   }
 
-#if defined(OS_WIN) || defined(OS_OPENBSD)
+#if defined(OS_WIN)
   // DO NOT USE AI_ADDRCONFIG ON WINDOWS.
   //
   // The following comment in <winsock2.h> is the best documentation I found
