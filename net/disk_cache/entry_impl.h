@@ -30,7 +30,9 @@ class NET_EXPORT_PRIVATE EntryImpl
     kWrite,
     kSparseRead,
     kSparseWrite,
-    kAsyncIO
+    kAsyncIO,
+    kReadAsync1,
+    kWriteAsync1
   };
 
   EntryImpl(BackendImpl* backend, Addr address, bool read_only);
