@@ -175,7 +175,7 @@ class WebSocketHybi10 : public WebSocket {
                            const HttpServerRequestInfo& request,
                            size_t* pos) {
     std::string version = request.GetHeaderValue("Sec-WebSocket-Version");
-    if (version != "8")
+    if (version != "8" && version != "13")
       return NULL;
 
     std::string key = request.GetHeaderValue("Sec-WebSocket-Key");
