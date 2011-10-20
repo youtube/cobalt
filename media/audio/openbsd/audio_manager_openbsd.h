@@ -5,15 +5,12 @@
 #ifndef MEDIA_AUDIO_OPENBSD_AUDIO_MANAGER_OPENBSD_H_
 #define MEDIA_AUDIO_OPENBSD_AUDIO_MANAGER_OPENBSD_H_
 
-#include "base/compiler_specific.h"
-#include "media/audio/audio_io.h"
+#include "base/basictypes.h"
+#include "media/audio/audio_manager_base.h"
 
 class AudioManagerOpenBSD : public AudioManagerBase {
  public:
   AudioManagerOpenBSD();
-
-  // Call before using a newly created AudioManagerOpenBSD instance.
-  virtual void Init();
 
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices() OVERRIDE;
@@ -26,10 +23,9 @@ class AudioManagerOpenBSD : public AudioManagerBase {
   virtual void MuteAll() OVERRIDE;
   virtual void UnMuteAll() OVERRIDE;
 
- protected:
+ private:
   virtual ~AudioManagerOpenBSD();
 
- private:
   DISALLOW_COPY_AND_ASSIGN(AudioManagerOpenBSD);
 };
 
