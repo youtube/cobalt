@@ -5,6 +5,7 @@
 #include "net/base/dnsrr_resolver.h"
 
 #if defined(OS_POSIX)
+#include <netinet/in.h>
 #include <resolv.h>
 #endif
 
@@ -187,7 +188,11 @@ class RRResolverWorker {
     bool r = true;
 #if defined(OS_MACOSX) || defined(OS_OPENBSD)
     if ((_res.options & RES_INIT) == 0) {
+#if defined(OS_OPENBSD)
+      if (res_init() != 0)
+#else
       if (res_ninit(&_res) != 0)
+#endif
         r = false;
     }
 #else
