@@ -28,6 +28,7 @@
 
 #include "net/disk_cache/eviction.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -63,7 +64,7 @@ namespace disk_cache {
 Eviction::Eviction()
     : backend_(NULL),
       init_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
 }
 
 Eviction::~Eviction() {
@@ -96,7 +97,7 @@ void Eviction::Stop() {
   // this point on.
   DCHECK(!trimming_);
   trimming_ = true;
-  factory_.RevokeAll();
+  ptr_factory_.InvalidateWeakPtrs();
 }
 
 void Eviction::TrimCache(bool empty) {
@@ -135,8 +136,8 @@ void Eviction::TrimCache(bool empty) {
           break;
 
         if ((TimeTicks::Now() - start).InMilliseconds() > 20) {
-          MessageLoop::current()->PostTask(FROM_HERE,
-              factory_.NewRunnableMethod(&Eviction::TrimCache, false));
+          MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+              &Eviction::TrimCache, ptr_factory_.GetWeakPtr(), false));
           break;
         }
       }
@@ -204,7 +205,7 @@ void Eviction::PostDelayedTrim() {
   delay_trim_ = true;
   trim_delays_++;
   MessageLoop::current()->PostDelayedTask(FROM_HERE,
-      factory_.NewRunnableMethod(&Eviction::DelayedTrim), 1000);
+      base::Bind(&Eviction::DelayedTrim, ptr_factory_.GetWeakPtr()), 1000);
 }
 
 void Eviction::DelayedTrim() {
@@ -339,8 +340,8 @@ void Eviction::TrimCacheV2(bool empty) {
           break;
 
         if (!empty && (TimeTicks::Now() - start).InMilliseconds() > 20) {
-          MessageLoop::current()->PostTask(FROM_HERE,
-              factory_.NewRunnableMethod(&Eviction::TrimCache, false));
+          MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+              &Eviction::TrimCache, ptr_factory_.GetWeakPtr(), false));
           break;
         }
       }
@@ -354,7 +355,7 @@ void Eviction::TrimCacheV2(bool empty) {
   } else if (header_->lru.sizes[Rankings::DELETED] > header_->num_entries / 4 &&
              !test_mode_) {
     MessageLoop::current()->PostTask(FROM_HERE,
-        factory_.NewRunnableMethod(&Eviction::TrimDeleted, empty));
+        base::Bind(&Eviction::TrimDeleted, ptr_factory_.GetWeakPtr(), empty));
   }
 
   if (empty) {
@@ -490,7 +491,7 @@ void Eviction::TrimDeleted(bool empty) {
   if (deleted && !empty && !test_mode_ &&
       header_->lru.sizes[Rankings::DELETED] > max_length) {
     MessageLoop::current()->PostTask(FROM_HERE,
-        factory_.NewRunnableMethod(&Eviction::TrimDeleted, false));
+        base::Bind(&Eviction::TrimDeleted, ptr_factory_.GetWeakPtr(), false));
   }
 
   CACHE_UMA(AGE_MS, "TotalTrimDeletedTime", 0, start);

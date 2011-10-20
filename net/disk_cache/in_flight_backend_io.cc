@@ -4,6 +4,7 @@
 
 #include "net/disk_cache/in_flight_backend_io.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "net/base/net_errors.h"
@@ -469,7 +470,7 @@ void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
 
 void InFlightBackendIO::PostOperation(BackendIO* operation) {
   background_thread_->PostTask(FROM_HERE,
-      NewRunnableMethod(operation, &BackendIO::ExecuteOperation));
+      base::Bind(&BackendIO::ExecuteOperation, operation));
   OnOperationPosted(operation);
 }
 

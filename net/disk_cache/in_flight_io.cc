@@ -4,6 +4,7 @@
 
 #include "net/disk_cache/in_flight_io.h"
 
+#include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
 
@@ -59,8 +60,8 @@ void InFlightIO::OnIOComplete(BackgroundIO* operation) {
 #endif
 
   callback_thread_->PostTask(FROM_HERE,
-                             NewRunnableMethod(operation,
-                                               &BackgroundIO::OnIOSignalled));
+                             base::Bind(&BackgroundIO::OnIOSignalled,
+                                        operation));
   operation->io_completed()->Signal();
 }
 
