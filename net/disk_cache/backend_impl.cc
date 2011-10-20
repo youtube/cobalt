@@ -4,6 +4,7 @@
 
 #include "net/disk_cache/backend_impl.h"
 
+#include "base/bind.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/message_loop.h"
@@ -382,7 +383,6 @@ BackendImpl::BackendImpl(const FilePath& path,
       first_timer_(true),
       net_log_(net_log),
       done_(true, false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
 }
 
@@ -408,7 +408,6 @@ BackendImpl::BackendImpl(const FilePath& path,
       first_timer_(true),
       net_log_(net_log),
       done_(true, false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
 }
 
@@ -552,7 +551,6 @@ void BackendImpl::CleanupCache() {
     }
   }
   block_files_.CloseFiles();
-  factory_.RevokeAll();
   ptr_factory_.InvalidateWeakPtrs();
   done_.Signal();
 }
@@ -1164,7 +1162,7 @@ void BackendImpl::CriticalError(int error) {
 
   if (!num_refs_)
     MessageLoop::current()->PostTask(FROM_HERE,
-        factory_.NewRunnableMethod(&BackendImpl::RestartCache, true));
+        base::Bind(&BackendImpl::RestartCache, GetWeakPtr(), true));
 }
 
 void BackendImpl::ReportError(int error) {
@@ -1907,7 +1905,7 @@ void BackendImpl::DecreaseNumRefs() {
 
   if (!num_refs_ && disabled_)
     MessageLoop::current()->PostTask(FROM_HERE,
-        factory_.NewRunnableMethod(&BackendImpl::RestartCache, true));
+        base::Bind(&BackendImpl::RestartCache, GetWeakPtr(), true));
 }
 
 void BackendImpl::IncreaseNumEntries() {

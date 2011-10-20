@@ -6,6 +6,7 @@
 
 #include <fcntl.h>
 
+#include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/threading/worker_pool.h"
@@ -116,7 +117,7 @@ void FileInFlightIO::PostRead(disk_cache::File *file, void* buf, size_t buf_len,
   file->AddRef();  // Balanced on OnOperationComplete()
 
   base::WorkerPool::PostTask(FROM_HERE,
-      NewRunnableMethod(operation.get(), &FileBackgroundIO::Read), true);
+      base::Bind(&FileBackgroundIO::Read, operation.get()), true);
   OnOperationPosted(operation);
 }
 
@@ -128,7 +129,7 @@ void FileInFlightIO::PostWrite(disk_cache::File* file, const void* buf,
   file->AddRef();  // Balanced on OnOperationComplete()
 
   base::WorkerPool::PostTask(FROM_HERE,
-      NewRunnableMethod(operation.get(), &FileBackgroundIO::Write), true);
+      base::Bind(&FileBackgroundIO::Write, operation.get()), true);
   OnOperationPosted(operation);
 }
 

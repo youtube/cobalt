@@ -1,9 +1,10 @@
-// Copyright (c) 2009-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/disk_cache/sparse_control.h"
 
+#include "base/bind.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -135,8 +136,8 @@ void ChildrenDeleter::DeleteChildren() {
   children_map_.Set(child_id, false);
 
   // Post a task to delete the next child.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &ChildrenDeleter::DeleteChildren));
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+      &ChildrenDeleter::DeleteChildren, this));
 }
 
 // Returns the NetLog event type corresponding to a SparseOperation.
@@ -346,11 +347,11 @@ void SparseControl::DeleteChildren(EntryImpl* entry) {
   deleter->AddRef();
 
   if (buffer) {
-    MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-        deleter, &ChildrenDeleter::Start, buffer, data_len));
+    MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+        &ChildrenDeleter::Start, deleter, buffer, data_len));
   } else {
-    MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-        deleter, &ChildrenDeleter::ReadData, address, data_len));
+    MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+        &ChildrenDeleter::ReadData, deleter, address, data_len));
   }
 }
 
