@@ -92,9 +92,9 @@ bool CopyTestCache(const std::string& name) {
   return file_util::CopyDirectory(path, dest, false);
 }
 
-bool CheckCacheIntegrity(const FilePath& path, bool new_eviction) {
+bool CheckCacheIntegrity(const FilePath& path, bool new_eviction, uint32 mask) {
   scoped_ptr<disk_cache::BackendImpl> cache(new disk_cache::BackendImpl(
-      path, base::MessageLoopProxy::current(), NULL));
+      path, mask, base::MessageLoopProxy::current(), NULL));
   if (!cache.get())
     return false;
   if (new_eviction)

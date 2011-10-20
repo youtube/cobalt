@@ -58,7 +58,7 @@ void DiskCacheTestWithCache::SimulateCrash() {
 
   delete cache_impl_;
   FilePath path = GetCacheFilePath();
-  EXPECT_TRUE(CheckCacheIntegrity(path, new_eviction_));
+  EXPECT_TRUE(CheckCacheIntegrity(path, new_eviction_, mask_));
 
   InitDiskCacheImpl(path);
 }
@@ -213,7 +213,7 @@ void DiskCacheTestWithCache::TearDown() {
 
   if (!memory_only_ && integrity_) {
     FilePath path = GetCacheFilePath();
-    EXPECT_TRUE(CheckCacheIntegrity(path, new_eviction_));
+    EXPECT_TRUE(CheckCacheIntegrity(path, new_eviction_, mask_));
   }
 
   PlatformTest::TearDown();
