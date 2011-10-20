@@ -23,7 +23,7 @@ class MockProtocol : public FFmpegURLProtocol {
   MockProtocol() {
   }
 
-  MOCK_METHOD2(Read, int(int size, uint8* data));
+  MOCK_METHOD2(Read, size_t(size_t size, uint8* data));
   MOCK_METHOD1(GetPosition, bool(int64* position_out));
   MOCK_METHOD1(SetPosition, bool(int64 position));
   MOCK_METHOD1(GetSize, bool(int64* size_out));

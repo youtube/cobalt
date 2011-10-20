@@ -553,18 +553,18 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
       .WillOnce(DoAll(SetArgPointee<0>(1024), Return(true)));
 
   // First read.
-  EXPECT_EQ(512, demuxer->Read(512, kBuffer));
+  EXPECT_EQ(512u, demuxer->Read(512, kBuffer));
   int64 position;
   EXPECT_TRUE(demuxer->GetPosition(&position));
   EXPECT_EQ(512, position);
 
   // Second read.
-  EXPECT_EQ(512, demuxer->Read(512, kBuffer));
+  EXPECT_EQ(512u, demuxer->Read(512, kBuffer));
   EXPECT_TRUE(demuxer->GetPosition(&position));
   EXPECT_EQ(1024, position);
 
   // Third read will get an end-of-file error, which is represented as zero.
-  EXPECT_EQ(0, demuxer->Read(512, kBuffer));
+  EXPECT_EQ(0u, demuxer->Read(512, kBuffer));
 
   // This read complete signal is generated when demuxer is stopped.
   EXPECT_CALL(*demuxer, SignalReadCompleted(DataSource::kReadError));
