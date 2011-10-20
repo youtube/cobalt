@@ -603,8 +603,8 @@ bool EntryImpl::SanityCheck() {
     return false;
 
   if (key_addr.is_initialized() &&
-      ((stored->key_len <= kMaxBlockSize && key_addr.is_separate_file()) ||
-       (stored->key_len > kMaxBlockSize && key_addr.is_block_file())))
+      ((stored->key_len < kMaxBlockSize && key_addr.is_separate_file()) ||
+       (stored->key_len >= kMaxBlockSize && key_addr.is_block_file())))
     return false;
 
   int num_blocks = NumBlocksForEntry(stored->key_len);
