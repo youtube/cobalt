@@ -489,9 +489,8 @@
 
     # Set this to true when building with Clang.
     # See http://code.google.com/p/chromium/wiki/Clang for details.
-    # TODO: eventually clang should behave identically to gcc, and this
-    # won't be necessary.
     'clang%': 0,
+    'make_clang_dir%': 'third_party/llvm-build/Release+Asserts',
 
     # These two variables can be set in GYP_DEFINES while running
     # |gclient runhooks| to let clang run a plugin in every compilation.
@@ -2540,8 +2539,8 @@
     }],
     ['clang==1', {
       'make_global_settings': [
-        ['CC', 'third_party/llvm-build/Release+Asserts/bin/clang'],
-        ['CXX', 'third_party/llvm-build/Release+Asserts/bin/clang++'],
+        ['CC', '<(make_clang_dir)/bin/clang'],
+        ['CXX', '<(make_clang_dir)/bin/clang++'],
         ['LINK', '$(CXX)'],
         ['CC.host', '$(CC)'],
         ['CXX.host', '$(CXX)'],
