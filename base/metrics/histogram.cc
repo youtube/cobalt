@@ -74,6 +74,13 @@ typedef Histogram::Count Count;
 // static
 const size_t Histogram::kBucketCount_MAX = 16384u;
 
+// Collect the number of histograms created.
+static uint32 number_of_histograms_ = 0;
+// Collect the number of vectors saved because of caching ranges.
+static uint32 number_of_vectors_saved_ = 0;
+// Collect the number of ranges_ elements saved because of caching ranges.
+static size_t saved_ranges_size_ = 0;
+
 Histogram* Histogram::FactoryGet(const std::string& name,
                                  Sample minimum,
                                  Sample maximum,
@@ -363,7 +370,7 @@ Histogram::ClassType Histogram::histogram_type() const {
 }
 
 Histogram::Sample Histogram::ranges(size_t i) const {
-  return ranges_[i];
+  return cached_ranges_->ranges(i);
 }
 
 size_t Histogram::bucket_count() const {
@@ -403,7 +410,7 @@ Histogram::Histogram(const std::string& name, Sample minimum,
     declared_max_(maximum),
     bucket_count_(bucket_count),
     flags_(kNoFlags),
-    ranges_(bucket_count + 1, 0),
+    cached_ranges_(new CachedRanges(bucket_count + 1, 0)),
     range_checksum_(0),
     sample_() {
   Initialize();
@@ -416,7 +423,7 @@ Histogram::Histogram(const std::string& name, TimeDelta minimum,
     declared_max_(static_cast<int> (maximum.InMilliseconds())),
     bucket_count_(bucket_count),
     flags_(kNoFlags),
-    ranges_(bucket_count + 1, 0),
+    cached_ranges_(new CachedRanges(bucket_count + 1, 0)),
     range_checksum_(0),
     sample_() {
   Initialize();
@@ -437,7 +444,7 @@ Histogram::~Histogram() {
 // We have to be careful that we don't pick a ratio between starting points in
 // consecutive buckets that is sooo small, that the integer bounds are the same
 // (effectively making one bucket get no values).  We need to avoid:
-//   ranges_[i] == ranges_[i + 1]
+//   ranges(i) == ranges(i + 1)
 // To avoid that, we just do a fine-grained bucket width as far as we need to
 // until we get a ratio that moves us along at least 2 units at a time.  From
 // that bucket onward we do use the exponential growth of buckets.
@@ -533,22 +540,23 @@ void Histogram::Accumulate(Sample value, Count count, size_t index) {
 void Histogram::SetBucketRange(size_t i, Sample value) {
   DCHECK_GT(bucket_count_, i);
   DCHECK_GE(value, 0);
-  ranges_[i] = value;
+  cached_ranges_->SetBucketRange(i, value);
 }
 
 bool Histogram::ValidateBucketRanges() const {
   // Standard assertions that all bucket ranges should satisfy.
-  DCHECK_EQ(bucket_count_ + 1, ranges_.size());
-  DCHECK_EQ(0, ranges_[0]);
-  DCHECK_EQ(declared_min(), ranges_[1]);
-  DCHECK_EQ(declared_max(), ranges_[bucket_count_ - 1]);
-  DCHECK_EQ(kSampleType_MAX, ranges_[bucket_count_]);
+  DCHECK_EQ(bucket_count_ + 1, cached_ranges_->size());
+  DCHECK_EQ(0, ranges(0));
+  DCHECK_EQ(declared_min(), ranges(1));
+  DCHECK_EQ(declared_max(), ranges(bucket_count_ - 1));
+  DCHECK_EQ(kSampleType_MAX, ranges(bucket_count_));
   return true;
 }
 
 uint32 Histogram::CalculateRangeChecksum() const {
-  DCHECK_EQ(ranges_.size(), bucket_count() + 1);
-  uint32 checksum = static_cast<uint32>(ranges_.size());  // Seed checksum.
+  DCHECK_EQ(cached_ranges_->size(), bucket_count() + 1);
+  // Seed checksum.
+  uint32 checksum = static_cast<uint32>(cached_ranges_->size());
   for (size_t index = 0; index < bucket_count(); ++index)
     checksum = Crc32(checksum, ranges(index));
   return checksum;
@@ -565,8 +573,8 @@ void Histogram::Initialize() {
   CHECK_LT(bucket_count_, kBucketCount_MAX);
   size_t maximal_bucket_count = declared_max_ - declared_min_ + 2;
   DCHECK_LE(bucket_count_, maximal_bucket_count);
-  DCHECK_EQ(0, ranges_[0]);
-  ranges_[bucket_count_] = kSampleType_MAX;
+  DCHECK_EQ(0, ranges(0));
+  cached_ranges_->SetBucketRange(bucket_count_, kSampleType_MAX);
 }
 
 // We generate the CRC-32 using the low order bits to select whether to XOR in
@@ -1008,6 +1016,7 @@ StatisticsRecorder::StatisticsRecorder() {
   }
   base::AutoLock auto_lock(*lock_);
   histograms_ = new HistogramMap;
+  ranges_ = new RangesMap;
 }
 
 StatisticsRecorder::~StatisticsRecorder() {
@@ -1025,7 +1034,15 @@ StatisticsRecorder::~StatisticsRecorder() {
     histograms = histograms_;
     histograms_ = NULL;
   }
+  RangesMap* ranges = NULL;
+  {
+    base::AutoLock auto_lock(*lock_);
+    ranges = ranges_;
+    ranges_ = NULL;
+  }
+  // We are going to leak the histograms and the ranges.
   delete histograms;
+  delete ranges;
   // We don't delete lock_ on purpose to avoid having to properly protect
   // against it going away after we checked for NULL in the static methods.
 }
@@ -1060,11 +1077,100 @@ Histogram* StatisticsRecorder::RegisterOrDeleteDuplicate(Histogram* histogram) {
   if (histograms_->end() == it) {
     (*histograms_)[name] = histogram;
     ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
+    RegisterOrDeleteDuplicateRanges(histogram);
+    ++number_of_histograms_;
   } else {
     delete histogram;  // We already have one by this name.
     histogram = it->second;
   }
   return histogram;
+}
+
+// static
+void StatisticsRecorder::RegisterOrDeleteDuplicateRanges(Histogram* histogram) {
+  DCHECK(histogram);
+  CachedRanges* histogram_ranges = histogram->cached_ranges();
+  DCHECK(histogram_ranges);
+  uint32 checksum = histogram->range_checksum();
+  histogram_ranges->SetRangeChecksum(checksum);
+
+  RangesMap::iterator ranges_it = ranges_->find(checksum);
+  if (ranges_->end() == ranges_it) {
+    // Register the new CachedRanges.
+    std::list<CachedRanges*>* checksum_matching_list(
+        new std::list<CachedRanges*>());
+    checksum_matching_list->push_front(histogram_ranges);
+    (*ranges_)[checksum] = checksum_matching_list;
+    return;
+  }
+
+  // Use the registered CachedRanges if the registered CachedRanges has same
+  // ranges_ as |histogram|'s CachedRanges.
+  std::list<CachedRanges*>* checksum_matching_list = ranges_it->second;
+  std::list<CachedRanges*>::iterator checksum_matching_list_it;
+  for (checksum_matching_list_it = checksum_matching_list->begin();
+       checksum_matching_list_it != checksum_matching_list->end();
+       ++checksum_matching_list_it) {
+    CachedRanges* existing_histogram_ranges = *checksum_matching_list_it;
+    DCHECK(existing_histogram_ranges);
+    if (existing_histogram_ranges->Equals(histogram_ranges)) {
+      histogram->set_cached_ranges(existing_histogram_ranges);
+      ++number_of_vectors_saved_;
+      saved_ranges_size_ += histogram_ranges->size();
+      delete histogram_ranges;
+      return;
+    }
+  }
+
+  // We haven't found a CachedRanges which has the same ranges. Register the
+  // new CachedRanges.
+  DCHECK(checksum_matching_list_it == checksum_matching_list->end());
+  checksum_matching_list->push_front(histogram_ranges);
+}
+
+// static
+void StatisticsRecorder::CollectHistogramStats(const std::string& suffix) {
+  static int uma_upload_attempt = 0;
+  ++uma_upload_attempt;
+  if (uma_upload_attempt == 1) {
+    UMA_HISTOGRAM_COUNTS_10000(
+        "Histogram.SharedRange.Count.FirstUpload." + suffix,
+        number_of_histograms_);
+    UMA_HISTOGRAM_COUNTS_10000(
+        "Histogram.SharedRange.RangesSaved.FirstUpload." + suffix,
+        number_of_vectors_saved_);
+    UMA_HISTOGRAM_COUNTS(
+        "Histogram.SharedRange.ElementsSaved.FirstUpload." + suffix,
+        static_cast<int>(saved_ranges_size_));
+    number_of_histograms_ = 0;
+    number_of_vectors_saved_ = 0;
+    saved_ranges_size_ = 0;
+    return;
+  }
+  if (uma_upload_attempt == 2) {
+    UMA_HISTOGRAM_COUNTS_10000(
+        "Histogram.SharedRange.Count.SecondUpload." + suffix,
+        number_of_histograms_);
+    UMA_HISTOGRAM_COUNTS_10000(
+        "Histogram.SharedRange.RangesSaved.SecondUpload." + suffix,
+        number_of_vectors_saved_);
+    UMA_HISTOGRAM_COUNTS(
+        "Histogram.SharedRange.ElementsSaved.SecondUpload." + suffix,
+        static_cast<int>(saved_ranges_size_));
+    number_of_histograms_ = 0;
+    number_of_vectors_saved_ = 0;
+    saved_ranges_size_ = 0;
+    return;
+  }
+  UMA_HISTOGRAM_COUNTS_10000(
+      "Histogram.SharedRange.Count.RestOfUploads." + suffix,
+      number_of_histograms_);
+  UMA_HISTOGRAM_COUNTS_10000(
+      "Histogram.SharedRange.RangesSaved.RestOfUploads." + suffix,
+      number_of_vectors_saved_);
+  UMA_HISTOGRAM_COUNTS(
+      "Histogram.SharedRange.ElementsSaved.RestOfUploads." + suffix,
+      static_cast<int>(saved_ranges_size_));
 }
 
 // static
@@ -1148,11 +1254,38 @@ void StatisticsRecorder::GetSnapshot(const std::string& query,
   }
 }
 
+CachedRanges::CachedRanges(size_t bucket_count, int initial_value)
+    : ranges_(bucket_count, initial_value),
+      range_checksum_(0) {
+}
+
+CachedRanges::~CachedRanges() {
+}
+
+void CachedRanges::SetBucketRange(size_t i, Histogram::Sample value) {
+  DCHECK_LT(i, ranges_.size());
+  DCHECK_GE(value, 0);
+  ranges_[i] = value;
+}
+
+bool CachedRanges::Equals(CachedRanges* other) const {
+  if (range_checksum_ != other->range_checksum_)
+    return false;
+  if (ranges_.size() != other->ranges_.size())
+    return false;
+  for (size_t index = 0; index < ranges_.size(); ++index) {
+    if (ranges_[index] != other->ranges_[index])
+      return false;
+  }
+  return true;
+}
+
 // static
 StatisticsRecorder::HistogramMap* StatisticsRecorder::histograms_ = NULL;
+// static
+StatisticsRecorder::RangesMap* StatisticsRecorder::ranges_ = NULL;
 // static
 base::Lock* StatisticsRecorder::lock_ = NULL;
 // static
 bool StatisticsRecorder::dump_on_exit_ = false;
-
 }  // namespace base
