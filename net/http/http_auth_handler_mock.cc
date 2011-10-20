@@ -4,6 +4,7 @@
 
 #include "net/http/http_auth_handler_mock.h"
 
+#include "base/bind.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
@@ -14,7 +15,7 @@ namespace net {
 
 HttpAuthHandlerMock::HttpAuthHandlerMock()
   : resolve_(RESOLVE_INIT), user_callback_(NULL),
-    ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
+    ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)),
     generate_async_(false), generate_rv_(OK),
     auth_token_(NULL),
     first_round_(true),
@@ -58,8 +59,9 @@ int HttpAuthHandlerMock::ResolveCanonicalName(HostResolver* host_resolver,
       rv = ERR_IO_PENDING;
       user_callback_ = callback;
       MessageLoop::current()->PostTask(
-          FROM_HERE, method_factory_.NewRunnableMethod(
-              &HttpAuthHandlerMock::OnResolveCanonicalName));
+          FROM_HERE, base::Bind(
+              &HttpAuthHandlerMock::OnResolveCanonicalName,
+              ptr_factory_.GetWeakPtr()));
       break;
     default:
       NOTREACHED();
@@ -116,8 +118,9 @@ int HttpAuthHandlerMock::GenerateAuthTokenImpl(const string16* username,
     user_callback_ = callback;
     auth_token_ = auth_token;
     MessageLoop::current()->PostTask(
-        FROM_HERE, method_factory_.NewRunnableMethod(
-            &HttpAuthHandlerMock::OnGenerateAuthToken));
+        FROM_HERE, base::Bind(
+            &HttpAuthHandlerMock::OnGenerateAuthToken,
+            ptr_factory_.GetWeakPtr()));
     return ERR_IO_PENDING;
   } else {
     if (generate_rv_ == OK)

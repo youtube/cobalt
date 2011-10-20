@@ -190,7 +190,7 @@ class MockNetworkTransaction : public net::HttpTransaction {
   void CallbackLater(net::OldCompletionCallback* callback, int result);
   void RunCallback(net::OldCompletionCallback* callback, int result);
 
-  ScopedRunnableMethodFactory<MockNetworkTransaction> task_factory_;
+  base::WeakPtrFactory<MockNetworkTransaction> ptr_factory_;
   net::HttpResponseInfo response_;
   std::string data_;
   int data_cursor_;

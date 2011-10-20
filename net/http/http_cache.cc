@@ -12,6 +12,7 @@
 #include <unistd.h>
 #endif
 
+#include "base/bind.h"
 #include "base/callback.h"
 #include "base/format_macros.h"
 #include "base/location.h"
@@ -347,8 +348,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                   http_auth_handler_factory,
                   network_delegate,
                   http_server_properties,
-                  net_log))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
+                  net_log))) {
 }
 
 
@@ -361,8 +361,7 @@ HttpCache::HttpCache(HttpNetworkSession* session,
       ssl_host_info_factory_(new SSLHostInfoFactoryAdaptor(
           session->cert_verifier(),
           ALLOW_THIS_IN_INITIALIZER_LIST(this))),
-      network_layer_(new HttpNetworkLayer(session)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
+      network_layer_(new HttpNetworkLayer(session)) {
 }
 
 HttpCache::HttpCache(HttpTransactionFactory* network_layer,
@@ -372,8 +371,7 @@ HttpCache::HttpCache(HttpTransactionFactory* network_layer,
       backend_factory_(backend_factory),
       building_backend_(false),
       mode_(NORMAL),
-      network_layer_(network_layer),
-      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
+      network_layer_(network_layer) {
 }
 
 HttpCache::~HttpCache() {
@@ -1010,8 +1008,9 @@ void HttpCache::ProcessPendingQueue(ActiveEntry* entry) {
 
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      task_factory_.NewRunnableMethod(&HttpCache::OnProcessPendingQueue,
-                                      entry));
+      base::Bind(&HttpCache::OnProcessPendingQueue,
+                 AsWeakPtr(),
+                 entry));
 }
 
 void HttpCache::OnProcessPendingQueue(ActiveEntry* entry) {
@@ -1156,8 +1155,8 @@ void HttpCache::OnBackendCreated(int result, PendingOp* pending_op) {
 
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        task_factory_.NewRunnableMethod(&HttpCache::OnBackendCreated,
-                                        result, pending_op));
+        base::Bind(&HttpCache::OnBackendCreated, AsWeakPtr(),
+                   result, pending_op));
   } else {
     building_backend_ = false;
     DeletePendingOp(pending_op);
