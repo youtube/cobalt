@@ -148,8 +148,8 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual void SetPreload(Preload preload) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
 
-  // FFmpegProtocol implementation.
-  virtual int Read(int size, uint8* data) OVERRIDE;
+  // FFmpegURLProtocol implementation.
+  virtual size_t Read(size_t size, uint8* data) OVERRIDE;
   virtual bool GetPosition(int64* position_out) OVERRIDE;
   virtual bool SetPosition(int64 position) OVERRIDE;
   virtual bool GetSize(int64* size_out) OVERRIDE;

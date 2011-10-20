@@ -9,18 +9,15 @@ namespace media {
 InMemoryUrlProtocol::InMemoryUrlProtocol(const uint8* data, int64 size,
                                          bool streaming)
     : data_(data),
-      size_(size),
+      size_(size >= 0 ? size : 0),
       position_(0),
       streaming_(streaming) {
 }
 
 InMemoryUrlProtocol::~InMemoryUrlProtocol() {}
 
-int InMemoryUrlProtocol::Read(int size, uint8* data) {
-  if (size < 0)
-    return -1;
-
-  int available_bytes = static_cast<int>(size_ - position_);
+size_t InMemoryUrlProtocol::Read(size_t size, uint8* data) {
+  size_t available_bytes = size_ - position_;
   if (size > available_bytes)
     size = available_bytes;
 
