@@ -13,6 +13,8 @@
 #include <windns.h>
 #endif
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/location.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
@@ -20,7 +22,6 @@
 #include "base/stl_util.h"
 #include "base/string_piece.h"
 #include "base/synchronization/lock.h"
-#include "base/task.h"
 #include "base/threading/worker_pool.h"
 #include "net/base/dns_reloader.h"
 #include "net/base/dns_util.h"
@@ -161,7 +162,7 @@ class RRResolverWorker {
     DCHECK_EQ(MessageLoop::current(), origin_loop_);
 
     return base::WorkerPool::PostTask(
-        FROM_HERE, NewRunnableMethod(this, &RRResolverWorker::Run),
+        FROM_HERE, base::Bind(&RRResolverWorker::Run, base::Unretained(this)),
         true /* task is slow */);
   }
 
@@ -373,8 +374,8 @@ class RRResolverWorker {
       base::AutoLock locked(lock_);
       canceled = canceled_;
       if (!canceled) {
-        origin_loop_->PostTask(
-            FROM_HERE, NewRunnableMethod(this, &RRResolverWorker::DoReply));
+        origin_loop_->PostTask(FROM_HERE, base::Bind(
+            &RRResolverWorker::DoReply, base::Unretained(this)));
       }
     }
 
@@ -583,8 +584,9 @@ intptr_t DnsRRResolver::Resolve(const std::string& name, uint16 rrtype,
       // We need a typed NULL pointer in order to make the templates work out.
       static const RRResponse* kNoResponse = NULL;
       MessageLoop::current()->PostTask(
-          FROM_HERE, NewRunnableMethod(handle, &RRResolverHandle::Post, error,
-                                       kNoResponse));
+          FROM_HERE, base::Bind(
+              &RRResolverHandle::Post, base::Unretained(handle), error,
+              kNoResponse));
       return reinterpret_cast<intptr_t>(handle);
     } else {
       // entry has expired.
@@ -676,6 +678,3 @@ void DnsRRResolver::HandleResult(const std::string& name, uint16 rrtype,
 }
 
 }  // namespace net
-
-DISABLE_RUNNABLE_METHOD_REFCOUNT(net::RRResolverHandle);
-DISABLE_RUNNABLE_METHOD_REFCOUNT(net::RRResolverWorker);

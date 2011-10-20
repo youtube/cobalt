@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/file_util.h"
 #include "base/i18n/file_util_icu.h"
 #include "base/message_loop.h"
@@ -174,7 +175,7 @@ bool DirectoryLister::Core::Start() {
   origin_loop_ = base::MessageLoopProxy::current();
 
   return base::WorkerPool::PostTask(
-      FROM_HERE, NewRunnableMethod(this, &Core::StartInternal), true);
+      FROM_HERE, base::Bind(&Core::StartInternal, this), true);
 }
 
 void DirectoryLister::Core::Cancel() {

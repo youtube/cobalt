@@ -5,6 +5,7 @@
 #include "net/base/cert_verifier.h"
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
@@ -155,7 +156,7 @@ class CertVerifierWorker {
     DCHECK_EQ(MessageLoop::current(), origin_loop_);
 
     return base::WorkerPool::PostTask(
-        FROM_HERE, NewRunnableMethod(this, &CertVerifierWorker::Run),
+        FROM_HERE, base::Bind(&CertVerifierWorker::Run, base::Unretained(this)),
         true /* task is slow */);
   }
 
@@ -218,7 +219,8 @@ class CertVerifierWorker {
       canceled = canceled_;
       if (!canceled) {
         origin_loop_->PostTask(
-            FROM_HERE, NewRunnableMethod(this, &CertVerifierWorker::DoReply));
+            FROM_HERE, base::Bind(
+                &CertVerifierWorker::DoReply, base::Unretained(this)));
       }
     }
 
@@ -544,5 +546,3 @@ void SingleRequestCertVerifier::OnVerifyCompletion(int result) {
 }
 
 }  // namespace net
-
-DISABLE_RUNNABLE_METHOD_REFCOUNT(net::CertVerifierWorker);
