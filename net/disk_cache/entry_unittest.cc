@@ -531,6 +531,14 @@ void DiskCacheEntryTest::GetKey() {
   ASSERT_EQ(net::OK, CreateEntry(key, &entry));
   EXPECT_TRUE(key == entry->GetKey()) << "long key";
   entry->Close();
+
+  CacheTestFillBuffer(key_buffer, 0x4000, true);
+  key_buffer[0x4000] = '\0';
+
+  key = key_buffer;
+  ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+  EXPECT_TRUE(key == entry->GetKey()) << "16KB key";
+  entry->Close();
 }
 
 TEST_F(DiskCacheEntryTest, GetKey) {
