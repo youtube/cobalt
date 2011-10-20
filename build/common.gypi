@@ -51,9 +51,6 @@
         'use_aura%': '<(use_aura)',
         'use_openssl%': '<(use_openssl)',
 
-        # WebKit compositor for ui
-        'use_webkit_compositor%': 0,
-
         # Compute the architecture that we're building on.
         'conditions': [
           [ 'OS=="win" or OS=="mac"', {
@@ -104,7 +101,6 @@
       'toolkit_views%': '<(toolkit_views)',
       'use_only_pure_views%': '<(use_only_pure_views)',
       'views_compositor%': '<(views_compositor)',
-      'use_webkit_compositor%': '<(use_webkit_compositor)',
       'use_aura%': '<(use_aura)',
       'use_openssl%': '<(use_openssl)',
 
@@ -335,7 +331,7 @@
 
         # Use GPU accelerated cross process image transport by default
         # on TOUCH_UI and linux builds with the Aura window manager
-        ['views_compositor==1 and OS=="linux" and use_webkit_compositor!=1', {
+        ['views_compositor==1 and OS=="linux"', {
           'ui_compositor_image_transport%': 1,
         }, {
           'ui_compositor_image_transport%': 0,
@@ -353,7 +349,6 @@
     'use_only_pure_views%': '<(use_only_pure_views)',
     'views_compositor%': '<(views_compositor)',
     'ui_compositor_image_transport%': '<(ui_compositor_image_transport)',
-    'use_webkit_compositor%': '<(use_webkit_compositor)',
     'use_aura%': '<(use_aura)',
     'use_openssl%': '<(use_openssl)',
     'use_nss%': '<(use_nss)',
@@ -958,9 +953,6 @@
       }],
       ['ui_compositor_image_transport==1', {
         'defines': ['UI_COMPOSITOR_IMAGE_TRANSPORT'],
-      }],
-      ['use_webkit_compositor==1', {
-        'defines': ['USE_WEBKIT_COMPOSITOR=1'],
       }],
       ['use_aura==1', {
         'defines': ['USE_AURA=1'],
