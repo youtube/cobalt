@@ -4,6 +4,7 @@
 
 #include "net/http/http_stream_factory_impl_job.h"
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
@@ -94,7 +95,7 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
       num_streams_(0),
       spdy_session_direct_(false),
       existing_available_pipeline_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
   DCHECK(stream_factory);
   DCHECK(session);
 }
@@ -184,8 +185,8 @@ void HttpStreamFactoryImpl::Job::Resume(Job* job) {
   if (next_state_ == STATE_WAIT_FOR_JOB_COMPLETE) {
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(
-            &HttpStreamFactoryImpl::Job::OnIOComplete, OK));
+        base::Bind(&HttpStreamFactoryImpl::Job::OnIOComplete,
+                   ptr_factory_.GetWeakPtr(), OK));
   }
 }
 
@@ -341,8 +342,9 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
   if (IsPreconnecting()) {
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(
-            &HttpStreamFactoryImpl::Job::OnPreconnectsComplete));
+        base::Bind(
+            &HttpStreamFactoryImpl::Job::OnPreconnectsComplete,
+            ptr_factory_.GetWeakPtr()));
     return ERR_IO_PENDING;
   }
 
@@ -353,8 +355,9 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
     next_state_ = STATE_WAITING_USER_ACTION;
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(
+        base::Bind(
             &HttpStreamFactoryImpl::Job::OnCertificateErrorCallback,
+            ptr_factory_.GetWeakPtr(),
             result, ssl_info_));
     return ERR_IO_PENDING;
   }
@@ -374,8 +377,9 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
         next_state_ = STATE_WAITING_USER_ACTION;
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
+            base::Bind(
                 &HttpStreamFactoryImpl::Job::OnNeedsProxyAuthCallback,
+                ptr_factory_.GetWeakPtr(),
                 *tunnel_auth_response,
                 http_proxy_socket->auth_controller()));
       }
@@ -384,8 +388,9 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
     case ERR_SSL_CLIENT_AUTH_CERT_NEEDED:
       MessageLoop::current()->PostTask(
           FROM_HERE,
-          method_factory_.NewRunnableMethod(
+          base::Bind(
               &HttpStreamFactoryImpl::Job::OnNeedsClientAuthCallback,
+              ptr_factory_.GetWeakPtr(),
               connection_->ssl_error_response_info().cert_request_info));
       return ERR_IO_PENDING;
 
@@ -399,8 +404,9 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
             static_cast<ProxyClientSocket*>(connection_->socket());
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
+            base::Bind(
                 &HttpStreamFactoryImpl::Job::OnHttpsProxyTunnelResponseCallback,
+                ptr_factory_.GetWeakPtr(),
                 *proxy_socket->GetConnectResponseInfo(),
                 proxy_socket->CreateConnectResponseStream()));
         return ERR_IO_PENDING;
@@ -411,21 +417,24 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
       if (new_spdy_session_) {
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback));
+            base::Bind(
+                &HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback,
+                ptr_factory_.GetWeakPtr()));
       } else {
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &HttpStreamFactoryImpl::Job::OnStreamReadyCallback));
+            base::Bind(
+                &HttpStreamFactoryImpl::Job::OnStreamReadyCallback,
+                ptr_factory_.GetWeakPtr()));
       }
       return ERR_IO_PENDING;
 
     default:
       MessageLoop::current()->PostTask(
           FROM_HERE,
-          method_factory_.NewRunnableMethod(
+          base::Bind(
               &HttpStreamFactoryImpl::Job::OnStreamFailedCallback,
+              ptr_factory_.GetWeakPtr(),
               result));
       return ERR_IO_PENDING;
   }
