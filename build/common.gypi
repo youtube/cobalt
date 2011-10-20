@@ -539,10 +539,6 @@
     # Set to 1 to link against gsettings APIs instead of using dlopen().
     'linux_link_gsettings%': 0,
 
-    # Used to disable Native Client at compile time, for platforms where it
-    # isn't supported
-    'disable_nacl%': 0,
-
     # Set Thumb compilation flags.
     'arm_thumb%': 0,
 
@@ -608,6 +604,13 @@
     'icu_src_dir': '../third_party/icu',
 
     'conditions': [
+      # Used to disable Native Client at compile time, for platforms where it
+      # isn't supported (ARM)
+      ['target_arch=="arm"', {
+        'disable_nacl%': 1,
+       }, {
+        'disable_nacl%': 0,
+      }],
       ['os_posix==1 and OS!="mac" and OS!="android"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
