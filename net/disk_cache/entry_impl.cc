@@ -585,8 +585,11 @@ bool EntryImpl::SanityCheck() {
 
   Addr next_addr(stored->next);
   if (next_addr.is_initialized() &&
-      (next_addr.is_separate_file() || next_addr.file_type() != BLOCK_256))
+      (next_addr.is_separate_file() || next_addr.file_type() != BLOCK_256)) {
+    STRESS_NOTREACHED();
     return false;
+  }
+  STRESS_DCHECK(next_addr.value() != entry_.address().value());
 
   if (!rankings_addr.SanityCheck() || !next_addr.SanityCheck())
     return false;
@@ -658,6 +661,7 @@ void EntryImpl::FixForDelete() {
       if ((data_size <= kMaxBlockSize && data_addr.is_separate_file()) ||
           (data_size > kMaxBlockSize && data_addr.is_block_file()) ||
           !data_addr.SanityCheck()) {
+        STRESS_NOTREACHED();
         // The address is weird so don't attempt to delete it.
         stored->data_addr[i] = 0;
         // In general, trust the stored size as it should be in sync with the
@@ -896,6 +900,9 @@ EntryImpl::~EntryImpl() {
   if (doomed_) {
     DeleteEntryData(true);
   } else {
+#if defined(NET_BUILD_STRESS_CACHE)
+    SanityCheck();
+#endif
     net_log_.AddEvent(net::NetLog::TYPE_ENTRY_CLOSE, NULL);
     bool ret = true;
     for (int index = 0; index < kNumStreams; index++) {

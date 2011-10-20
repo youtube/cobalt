@@ -9,6 +9,7 @@
 #include "net/disk_cache/entry_impl.h"
 #include "net/disk_cache/errors.h"
 #include "net/disk_cache/histogram_macros.h"
+#include "net/disk_cache/stress_support.h"
 
 using base::Time;
 using base::TimeTicks;
@@ -313,14 +314,17 @@ void Rankings::Remove(CacheRankingsBlock* node, List list, bool strict) {
       !prev_addr.is_initialized() || prev_addr.is_separate_file()) {
     if (next_addr.is_initialized() || prev_addr.is_initialized()) {
       LOG(ERROR) << "Invalid rankings info.";
+      STRESS_NOTREACHED();
     }
     return;
   }
 
   CacheRankingsBlock next(backend_->File(next_addr), next_addr);
   CacheRankingsBlock prev(backend_->File(prev_addr), prev_addr);
-  if (!GetRanking(&next) || !GetRanking(&prev))
+  if (!GetRanking(&next) || !GetRanking(&prev)) {
+    STRESS_NOTREACHED();
     return;
+  }
 
   if (!CheckLinks(node, &prev, &next, &list))
     return;
@@ -758,6 +762,8 @@ bool Rankings::CheckLinks(CacheRankingsBlock* node, CacheRankingsBlock* prev,
   }
 
   LOG(ERROR) << "Inconsistent LRU.";
+  STRESS_NOTREACHED();
+
   backend_->CriticalError(ERR_INVALID_LINKS);
   return false;
 }

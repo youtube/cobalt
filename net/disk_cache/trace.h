@@ -26,6 +26,7 @@ class TraceObject : public base::RefCounted<TraceObject> {
   friend class base::RefCounted<TraceObject>;
  public:
   static TraceObject* GetTraceObject();
+  void EnableTracing(bool enable);
 
  private:
   TraceObject();
