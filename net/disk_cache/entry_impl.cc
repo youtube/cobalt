@@ -706,6 +706,12 @@ void EntryImpl::ReportIOTime(Operation op, const base::TimeTicks& start) {
     case kAsyncIO:
       CACHE_UMA(AGE_MS, "AsyncIOTime", group, start);
       break;
+    case kReadAsync1:
+      CACHE_UMA(AGE_MS, "AsyncReadDispatchTime", group, start);
+      break;
+    case kWriteAsync1:
+      CACHE_UMA(AGE_MS, "AsyncWriteDispatchTime", group, start);
+      break;
     default:
       NOTREACHED();
   }
@@ -991,6 +997,8 @@ int EntryImpl::InternalReadData(int index, int offset, net::IOBuffer* buf,
                                    net::NetLog::TYPE_ENTRY_READ_DATA);
   }
 
+  TimeTicks start_async = TimeTicks::Now();
+
   bool completed;
   if (!file->Read(buf->data(), buf_len, file_offset, io_callback, &completed)) {
     if (io_callback)
@@ -1000,6 +1008,9 @@ int EntryImpl::InternalReadData(int index, int offset, net::IOBuffer* buf,
 
   if (io_callback && completed)
     io_callback->Discard();
+
+  if (io_callback)
+    ReportIOTime(kReadAsync1, start_async);
 
   ReportIOTime(kRead, start);
   return (completed || !callback) ? buf_len : net::ERR_IO_PENDING;
@@ -1085,6 +1096,8 @@ int EntryImpl::InternalWriteData(int index, int offset, net::IOBuffer* buf,
                                    net::NetLog::TYPE_ENTRY_WRITE_DATA);
   }
 
+  TimeTicks start_async = TimeTicks::Now();
+
   bool completed;
   if (!file->Write(buf->data(), buf_len, file_offset, io_callback,
                    &completed)) {
@@ -1095,6 +1108,9 @@ int EntryImpl::InternalWriteData(int index, int offset, net::IOBuffer* buf,
 
   if (io_callback && completed)
     io_callback->Discard();
+
+  if (io_callback)
+    ReportIOTime(kWriteAsync1, start_async);
 
   ReportIOTime(kWrite, start);
   return (completed || !callback) ? buf_len : net::ERR_IO_PENDING;
