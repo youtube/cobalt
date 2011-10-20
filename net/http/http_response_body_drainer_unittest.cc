@@ -6,9 +6,10 @@
 
 #include <cstring>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
-#include "base/task.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service_defaults.h"
@@ -69,7 +70,7 @@ class MockHttpStream : public HttpStream {
         stall_reads_forever_(false),
         num_chunks_(0),
         is_complete_(false),
-        ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
+        ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {}
   virtual ~MockHttpStream() {}
 
   // HttpStream implementation:
@@ -139,7 +140,7 @@ class MockHttpStream : public HttpStream {
   bool stall_reads_forever_;
   int num_chunks_;
   bool is_complete_;
-  ScopedRunnableMethodFactory<MockHttpStream> method_factory_;
+  base::WeakPtrFactory<MockHttpStream> ptr_factory_;
 };
 
 int MockHttpStream::ReadResponseBody(
@@ -159,7 +160,7 @@ int MockHttpStream::ReadResponseBody(
     user_callback_ = callback;
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(&MockHttpStream::CompleteRead));
+        base::Bind(&MockHttpStream::CompleteRead, ptr_factory_.GetWeakPtr()));
     return ERR_IO_PENDING;
   }
 

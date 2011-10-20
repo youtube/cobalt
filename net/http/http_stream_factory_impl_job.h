@@ -7,7 +7,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
@@ -280,7 +280,7 @@ class HttpStreamFactoryImpl::Job {
   // True if an existing pipeline can handle this job's request.
   bool existing_available_pipeline_;
 
-  ScopedRunnableMethodFactory<Job> method_factory_;
+  base::WeakPtrFactory<Job> ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(Job);
 };
