@@ -11,10 +11,7 @@
 namespace media {
 
 struct AudioDeviceName {
-  AudioDeviceName();
-  AudioDeviceName(std::string device_name, std::string unique_id);
-
-  std::string device_name;  // Friendly name of the device.
+  std::string device_name;  // Name and also display name of the device.
   std::string unique_id;    // Unique identifier for the device.
 };
 
