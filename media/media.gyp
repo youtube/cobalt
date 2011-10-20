@@ -447,6 +447,12 @@
             '-mssse3',
           ],
         }],
+        [ 'OS == "openbsd"', {
+          # OpenBSD's gcc (4.2.1) does not support -mssse3
+          'cflags!': [
+            '-mssse3',
+          ],
+        }],
         [ 'OS == "mac"', {
           'configurations': {
             'Debug': {
@@ -479,7 +485,7 @@
             ],
           },
         }],
-        [ 'OS=="linux"', {
+        [ 'os_posix==1 and OS!="mac"', {
           'variables': {
             'conditions': [
               [ 'target_arch=="ia32"', {

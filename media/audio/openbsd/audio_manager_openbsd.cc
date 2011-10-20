@@ -4,10 +4,6 @@
 
 #include "media/audio/openbsd/audio_manager_openbsd.h"
 
-#include "base/logging.h"
-
-static AudioManagerOpenBSD* g_audio_manager = NULL;
-
 // Implementation of AudioManager.
 bool AudioManagerOpenBSD::HasAudioOutputDevices() {
   NOTIMPLEMENTED();
@@ -35,10 +31,6 @@ AudioManagerOpenBSD::AudioManagerOpenBSD() {
 }
 
 AudioManagerOpenBSD::~AudioManagerOpenBSD() {
-}
-
-void AudioManagerOpenBSD::Init() {
-  AudioManagerBase::Init();
 }
 
 void AudioManagerOpenBSD::MuteAll() {
