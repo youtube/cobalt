@@ -472,34 +472,36 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
 
   CookieStore* cookie_store =
       request_->context()->cookie_store();
-  if (cookie_store) {
-    cookie_store->GetCookieMonster()->GetAllCookiesForURLAsync(
-        request_->url(),
-        base::Bind(&URLRequestHttpJob::CheckCookiePolicyAndLoad,
-                   weak_ptr_factory_.GetWeakPtr()));
+  if (cookie_store && !(request_info_.load_flags & LOAD_DO_NOT_SEND_COOKIES)) {
+    net::CookieMonster* cookie_monster = cookie_store->GetCookieMonster();
+    if (cookie_monster) {
+      cookie_monster->GetAllCookiesForURLAsync(
+          request_->url(),
+          base::Bind(&URLRequestHttpJob::CheckCookiePolicyAndLoad,
+                     weak_ptr_factory_.GetWeakPtr()));
+    } else {
+      DoLoadCookies();
+    }
   } else {
     DoStartTransaction();
   }
 }
 
+void URLRequestHttpJob::DoLoadCookies() {
+  CookieOptions options;
+  options.set_include_httponly();
+  request_->context()->cookie_store()->GetCookiesWithInfoAsync(
+      request_->url(), options,
+      base::Bind(&URLRequestHttpJob::OnCookiesLoaded,
+                 weak_ptr_factory_.GetWeakPtr()));
+}
+
 void URLRequestHttpJob::CheckCookiePolicyAndLoad(
     const CookieList& cookie_list) {
-  bool allow = true;
-  if ((request_info_.load_flags & LOAD_DO_NOT_SEND_COOKIES) ||
-      !CanGetCookies(cookie_list)) {
-    allow = false;
-  }
-
-  if (allow) {
-    CookieOptions options;
-    options.set_include_httponly();
-    request_->context()->cookie_store()->GetCookiesWithInfoAsync(
-        request_->url(), options,
-        base::Bind(&URLRequestHttpJob::OnCookiesLoaded,
-                   weak_ptr_factory_.GetWeakPtr()));
-  } else {
+  if (CanGetCookies(cookie_list))
+    DoLoadCookies();
+  else
     DoStartTransaction();
-  }
 }
 
 void URLRequestHttpJob::OnCookiesLoaded(
