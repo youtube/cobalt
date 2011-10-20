@@ -25,7 +25,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
-#include "base/task.h"
 #include "base/time.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/cache_type.h"
@@ -380,8 +379,6 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
 
   // The set of entries "under construction".
   PendingOpsMap pending_ops_;
-
-  ScopedRunnableMethodFactory<HttpCache> task_factory_;
 
   scoped_ptr<PlaybackCacheMap> playback_cache_map_;
 

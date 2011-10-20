@@ -4,6 +4,7 @@
 
 #include "net/http/http_cache.h"
 
+#include "base/bind.h"
 #include "base/hash_tables.h"
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop.h"
@@ -312,8 +313,8 @@ class MockDiskEntry : public disk_cache::Entry,
   void CallbackLater(net::OldCompletionCallback* callback, int result) {
     if (ignore_callbacks_)
       return StoreAndDeliverCallbacks(true, this, callback, result);
-    MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-        this, &MockDiskEntry::RunCallback, callback, result));
+    MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+        &MockDiskEntry::RunCallback, this, callback, result));
   }
   void RunCallback(net::OldCompletionCallback* callback, int result) {
     if (busy_) {

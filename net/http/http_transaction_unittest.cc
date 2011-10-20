@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
 #include "base/message_loop.h"
 #include "base/stringprintf.h"
 #include "net/base/net_errors.h"
@@ -213,7 +214,7 @@ void TestTransactionConsumer::RunWithParams(const Tuple1<int>& params) {
 
 
 MockNetworkTransaction::MockNetworkTransaction(MockNetworkLayer* factory)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)),
       data_cursor_(0),
       transaction_factory_(factory->AsWeakPtr()) {
 }
@@ -318,8 +319,9 @@ uint64 MockNetworkTransaction::GetUploadProgress() const {
 
 void MockNetworkTransaction::CallbackLater(net::OldCompletionCallback* callback,
                                            int result) {
-  MessageLoop::current()->PostTask(FROM_HERE, task_factory_.NewRunnableMethod(
-      &MockNetworkTransaction::RunCallback, callback, result));
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+      &MockNetworkTransaction::RunCallback, ptr_factory_.GetWeakPtr(),
+      callback, result));
 }
 
 void MockNetworkTransaction::RunCallback(net::OldCompletionCallback* callback,
