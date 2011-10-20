@@ -640,8 +640,10 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   if (!cert)
     return NULL;
 
-  return X509Certificate::CreateFromHandle(cert,
-                                           X509Certificate::OSCertHandles());
+  X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
+      cert, X509Certificate::OSCertHandles());
+  CERT_DestroyCertificate(cert);
+  return x509_cert;
 }
 
 void X509Certificate::GetSubjectAltName(
