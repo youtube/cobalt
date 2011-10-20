@@ -41,6 +41,7 @@
 #define BASE_METRICS_HISTOGRAM_H_
 #pragma once
 
+#include <list>
 #include <map>
 #include <string>
 #include <vector>
@@ -316,6 +317,7 @@ class Lock;
 //------------------------------------------------------------------------------
 
 class BooleanHistogram;
+class CachedRanges;
 class CustomHistogram;
 class Histogram;
 class LinearHistogram;
@@ -329,7 +331,6 @@ class BASE_EXPORT Histogram {
   static const size_t kBucketCount_MAX;
 
   typedef std::vector<Count> Counts;
-  typedef std::vector<Sample> Ranges;
 
   // These enums are used to facilitate deserialization of renderer histograms
   // into the browser.
@@ -503,6 +504,10 @@ class BASE_EXPORT Histogram {
   virtual Sample ranges(size_t i) const;
   uint32 range_checksum() const { return range_checksum_; }
   virtual size_t bucket_count() const;
+  CachedRanges* cached_ranges() const { return cached_ranges_; }
+  void set_cached_ranges(CachedRanges* cached_ranges) {
+    cached_ranges_ = cached_ranges;
+  }
   // Snapshot the current complete set of sample data.
   // Override with atomic/locked snapshot if needed.
   virtual void SnapshotSample(SampleSet* sample) const;
@@ -513,7 +518,8 @@ class BASE_EXPORT Histogram {
   virtual bool HasConstructorTimeDeltaArguments(TimeDelta minimum,
                                                 TimeDelta maximum,
                                                 size_t bucket_count);
-  // Return true iff the range_checksum_ matches current ranges_ vector.
+  // Return true iff the range_checksum_ matches current |ranges_| vector in
+  // |cached_ranges_|.
   bool HasValidRangeChecksum() const;
 
  protected:
@@ -524,7 +530,7 @@ class BASE_EXPORT Histogram {
 
   virtual ~Histogram();
 
-  // Initialize ranges_ mapping.
+  // Initialize ranges_ mapping in cached_ranges_.
   void InitializeBucketRange();
 
   // Method to override to skip the display of the i'th bucket if it's empty.
@@ -535,7 +541,7 @@ class BASE_EXPORT Histogram {
   //----------------------------------------------------------------------------
   // Find bucket to increment for sample value.
   virtual size_t BucketIndex(Sample value) const;
-  // Get normalized size, relative to the ranges_[i].
+  // Get normalized size, relative to the ranges(i).
   virtual double GetBucketSize(Count current, size_t i) const;
 
   // Recalculate range_checksum_.
@@ -557,8 +563,9 @@ class BASE_EXPORT Histogram {
   //----------------------------------------------------------------------------
   void SetBucketRange(size_t i, Sample value);
 
-  // Validate that ranges_ was created sensibly (top and bottom range
-  // values relate properly to the declared_min_ and declared_max_)..
+  // Validate that ranges_ in cached_ranges_ was created sensibly (top and
+  // bottom range values relate properly to the declared_min_ and
+  // declared_max_).
   bool ValidateBucketRanges() const;
 
   virtual uint32 CalculateRangeChecksum() const;
@@ -622,8 +629,8 @@ class BASE_EXPORT Histogram {
   // For each index, show the least value that can be stored in the
   // corresponding bucket. We also append one extra element in this array,
   // containing kSampleType_MAX, to make calculations easy.
-  // The dimension of ranges_ is bucket_count + 1.
-  Ranges ranges_;
+  // The dimension of ranges_ in cached_ranges_ is bucket_count + 1.
+  CachedRanges* cached_ranges_;
 
   // For redundancy, we store a checksum of all the sample ranges when ranges
   // are generated.  If ever there is ever a difference, then the histogram must
@@ -672,7 +679,7 @@ class BASE_EXPORT LinearHistogram : public Histogram {
   LinearHistogram(const std::string& name, TimeDelta minimum,
                   TimeDelta maximum, size_t bucket_count);
 
-  // Initialize ranges_ mapping.
+  // Initialize ranges_ mapping in cached_ranges_.
   void InitializeBucketRange();
   virtual double GetBucketSize(Count current, size_t i) const;
 
@@ -736,7 +743,7 @@ class BASE_EXPORT CustomHistogram : public Histogram {
   CustomHistogram(const std::string& name,
                   const std::vector<Sample>& custom_ranges);
 
-  // Initialize ranges_ mapping.
+  // Initialize ranges_ mapping in cached_ranges_.
   void InitializedCustomBucketRange(const std::vector<Sample>& custom_ranges);
   virtual double GetBucketSize(Count current, size_t i) const;
 
@@ -764,6 +771,19 @@ class BASE_EXPORT StatisticsRecorder {
   // |histogram| will deleted.  The returned value is always the registered
   // histogram (either the argument, or the pre-existing registered histogram).
   static Histogram* RegisterOrDeleteDuplicate(Histogram* histogram);
+
+  // Register, or add a new cached_ranges_ of |histogram|. If an identical
+  // cached_ranges_ is already registered, then the cached_ranges_ of
+  // |histogram| is deleted and the |histogram|'s cached_ranges_ is reset to the
+  // registered cached_ranges_.  The cached_ranges_ of |histogram| is always the
+  // registered CachedRanges (either the argument's cached_ranges_, or the
+  // pre-existing registered cached_ranges_).
+  static void RegisterOrDeleteDuplicateRanges(Histogram* histogram);
+
+  // Method for collecting stats about histograms created in browser and
+  // renderer processes. |suffix| is appended to histogram names. |suffix| could
+  // be either browser or renderer.
+  static void CollectHistogramStats(const std::string& suffix);
 
   // Methods for printing histograms.  Only histograms which have query as
   // a substring are written to output (an empty string will process all
@@ -794,7 +814,14 @@ class BASE_EXPORT StatisticsRecorder {
   // We keep all registered histograms in a map, from name to histogram.
   typedef std::map<std::string, Histogram*> HistogramMap;
 
+  // We keep all |cached_ranges_| in a map, from checksum to a list of
+  // |cached_ranges_|.  Checksum is calculated from the |ranges_| in
+  // |cached_ranges_|.
+  typedef std::map<uint32, std::list<CachedRanges*>*> RangesMap;
+
   static HistogramMap* histograms_;
+
+  static RangesMap* ranges_;
 
   // lock protects access to the above map.
   static base::Lock* lock_;
@@ -803,6 +830,46 @@ class BASE_EXPORT StatisticsRecorder {
   static bool dump_on_exit_;
 
   DISALLOW_COPY_AND_ASSIGN(StatisticsRecorder);
+};
+
+//------------------------------------------------------------------------------
+
+// CachedRanges stores the Ranges vector. Histograms that have same Ranges
+// vector will use the same CachedRanges object.
+class BASE_EXPORT CachedRanges {
+ public:
+  typedef std::vector<Histogram::Sample> Ranges;
+
+  CachedRanges(size_t bucket_count, int initial_value);
+  ~CachedRanges();
+
+  //----------------------------------------------------------------------------
+  // Accessors methods for ranges_ and range_checksum_.
+  //----------------------------------------------------------------------------
+  size_t size() const { return ranges_.size(); }
+  Histogram::Sample ranges(size_t i) const { return ranges_[i]; }
+  void SetBucketRange(size_t i, Histogram::Sample value);
+  uint32 range_checksum(uint32 checksum) const { return range_checksum_; }
+  void SetRangeChecksum(uint32 checksum) { range_checksum_ = checksum; }
+
+  // Return true iff |other| object has same ranges_ as |this| object's ranges_.
+  bool Equals(CachedRanges* other) const;
+
+ private:
+  // Allow tests to corrupt our innards for testing purposes.
+  FRIEND_TEST(HistogramTest, CorruptBucketBounds);
+
+  // A monotonically increasing list of values which determine which bucket to
+  // put a sample into.  For each index, show the smallest sample that can be
+  // added to the corresponding bucket.
+  Ranges ranges_;
+
+  // Checksum for the conntents of ranges_.  Used to detect random over-writes
+  // of our data, and to quickly see if some other CachedRanges instance is
+  // possibly Equal() to this instance.
+  uint32 range_checksum_;
+
+  DISALLOW_COPY_AND_ASSIGN(CachedRanges);
 };
 
 }  // namespace base
