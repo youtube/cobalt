@@ -8,12 +8,13 @@
 #include <sys/socket.h>
 
 #include "base/bind.h"
-#include "base/callback_old.h"
+#include "base/bind_helpers.h"
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/eintr_wrapper.h"
 #include "base/file_util.h"
 #include "base/files/file_path_watcher.h"
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "base/threading/thread.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier_netlink_linux.h"
@@ -28,21 +29,20 @@ const int kInvalidSocket = -1;
 
 class DNSWatchDelegate : public FilePathWatcher::Delegate {
  public:
-  explicit DNSWatchDelegate(Callback0::Type* callback)
+  explicit DNSWatchDelegate(const base::Closure& callback)
       : callback_(callback) {}
   virtual ~DNSWatchDelegate() {}
   // FilePathWatcher::Delegate interface
   virtual void OnFilePathChanged(const FilePath& path) OVERRIDE;
   virtual void OnFilePathError(const FilePath& path) OVERRIDE;
  private:
-  scoped_ptr<Callback0::Type> callback_;
+  base::Closure callback_;
   DISALLOW_COPY_AND_ASSIGN(DNSWatchDelegate);
 };
 
 void DNSWatchDelegate::OnFilePathChanged(const FilePath& path) {
   // Calls NetworkChangeNotifier::NotifyObserversOfDNSChange().
-  if (callback_.get())
-    callback_->Run();
+  callback_.Run();
 }
 
 void DNSWatchDelegate::OnFilePathError(const FilePath& path) {
@@ -89,7 +89,7 @@ class NetworkChangeNotifierLinux::Thread
   MessageLoopForIO::FileDescriptorWatcher netlink_watcher_;
 
   // Technically only needed for ChromeOS, but it's ugly to #ifdef out.
-  ScopedRunnableMethodFactory<Thread> method_factory_;
+  base::WeakPtrFactory<Thread> ptr_factory_;
 
   // Used to watch for changes to /etc/resolv.conf and /etc/hosts.
   scoped_ptr<base::files::FilePathWatcher> resolv_file_watcher_;
@@ -102,7 +102,7 @@ class NetworkChangeNotifierLinux::Thread
 NetworkChangeNotifierLinux::Thread::Thread()
     : base::Thread("NetworkChangeNotifier"),
       netlink_fd_(kInvalidSocket),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
 }
 
 NetworkChangeNotifierLinux::Thread::~Thread() {}
@@ -110,8 +110,9 @@ NetworkChangeNotifierLinux::Thread::~Thread() {}
 void NetworkChangeNotifierLinux::Thread::Init() {
   resolv_file_watcher_.reset(new FilePathWatcher);
   hosts_file_watcher_.reset(new FilePathWatcher);
-  file_watcher_delegate_ = new DNSWatchDelegate(NewCallback(this,
-      &NetworkChangeNotifierLinux::Thread::NotifyObserversOfDNSChange));
+  file_watcher_delegate_ = new DNSWatchDelegate(base::Bind(
+      &NetworkChangeNotifierLinux::Thread::NotifyObserversOfDNSChange,
+      base::Unretained(this)));
   if (!resolv_file_watcher_->Watch(
           FilePath(FILE_PATH_LITERAL("/etc/resolv.conf")),
           file_watcher_delegate_.get())) {
@@ -166,8 +167,9 @@ void NetworkChangeNotifierLinux::Thread::ListenForNotifications() {
       const int kObserverNotificationDelayMS = 200;
       message_loop()->PostDelayedTask(
           FROM_HERE,
-          method_factory_.NewRunnableMethod(
-              &Thread::NotifyObserversOfIPAddressChange),
+          base::Bind(
+              &Thread::NotifyObserversOfIPAddressChange,
+              ptr_factory_.GetWeakPtr()),
           kObserverNotificationDelayMS);
 #else
       NotifyObserversOfIPAddressChange();
