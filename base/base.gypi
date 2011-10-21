@@ -370,6 +370,7 @@
           'win/resource_util.h',
           'win/scoped_bstr.cc',
           'win/scoped_bstr.h',
+          'win/scoped_co_mem.h',
           'win/scoped_com_initializer.h',
           'win/scoped_comptr.h',
           'win/scoped_gdi_object.h',
