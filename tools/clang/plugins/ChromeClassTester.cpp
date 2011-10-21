@@ -19,6 +19,12 @@ bool starts_with(const std::string& one, const std::string& two) {
   return one.compare(0, two.size(), two) == 0;
 }
 
+std::string lstrip(const std::string& one, const std::string& two) {
+  if (starts_with(one, two))
+    return one.substr(two.size());
+  return one;
+}
+
 bool ends_with(const std::string& one, const std::string& two) {
   if (two.size() > one.size())
     return false;
@@ -223,6 +229,11 @@ bool ChromeClassTester::InBannedDirectory(SourceLocation loc) {
     if (realpath(b.c_str(), resolvedPath)) {
       b = resolvedPath;
     }
+
+    // On linux, chrome is often checked out to /usr/local/google. Due to the
+    // "usr" rule in banned_directories_, all diagnostics would be suppressed
+    // in that case. As a workaround, strip that prefix.
+    b = lstrip(b, "/usr/local/google");
 
     for (std::vector<std::string>::const_iterator it =
              banned_directories_.begin();
