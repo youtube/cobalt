@@ -332,6 +332,8 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   void OnDemuxerSeekDone(base::TimeDelta seek_timestamp,
                          PipelineStatus status);
 
+  void OnAudioUnderflow();
+
   // Message loop used to execute pipeline tasks.
   MessageLoop* message_loop_;
 
