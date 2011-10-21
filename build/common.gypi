@@ -1252,7 +1252,7 @@
           }],
           # We use "POSIX" to refer to all non-Windows operating systems.
           ['OS=="win"', {
-            'sources/': [ ['exclude', '_posix\\.(h|cc)$'] ],
+            'sources/': [ ['exclude', '_posix(_unittest)?\\.(h|cc)$'] ],
             # turn on warnings for signed/unsigned mismatch on chromium code.
             'msvs_settings': {
               'VCCLCompilerTool': {
