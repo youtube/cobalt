@@ -128,7 +128,7 @@ lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libcups2 libdbus-glib-1-2
           $chromeos_lib_list"
 
 # Debugging symbols for all of the run-time libraries
-dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg
+dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg libdbus-glib-1-2-dbg
           libfontconfig1-dbg libglib2.0-0-dbg libgtk2.0-0-dbg
           libpango1.0-0-dbg libpcre3-dbg libpixman-1-0-dbg
           libsqlite3-0-dbg
