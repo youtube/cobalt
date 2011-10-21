@@ -55,7 +55,7 @@ class NET_EXPORT MappedHostResolver : public HostResolver {
   virtual void CancelRequest(RequestHandle req) OVERRIDE;
   virtual void AddObserver(Observer* observer) OVERRIDE;
   virtual void RemoveObserver(Observer* observer) OVERRIDE;
-  virtual HostResolverImpl* GetAsHostResolverImpl() OVERRIDE;
+  virtual void ProbeIPv6Support() OVERRIDE;
   virtual HostCache* GetHostCache() OVERRIDE;
 
  private:

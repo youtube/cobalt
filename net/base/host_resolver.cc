@@ -22,8 +22,7 @@ AddressFamily HostResolver::GetDefaultAddressFamily() const {
   return ADDRESS_FAMILY_UNSPECIFIED;
 }
 
-HostResolverImpl* HostResolver::GetAsHostResolverImpl() {
-  return NULL;
+void HostResolver::ProbeIPv6Support() {
 }
 
 HostCache* HostResolver::GetHostCache() {
