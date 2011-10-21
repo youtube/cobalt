@@ -53,8 +53,8 @@ void MappedHostResolver::RemoveObserver(Observer* observer) {
   impl_->RemoveObserver(observer);
 }
 
-HostResolverImpl* MappedHostResolver::GetAsHostResolverImpl() {
-  return impl_->GetAsHostResolverImpl();
+void MappedHostResolver::ProbeIPv6Support() {
+  impl_->ProbeIPv6Support();
 }
 
 HostCache* MappedHostResolver::GetHostCache() {

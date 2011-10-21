@@ -1117,13 +1117,6 @@ HostResolverImpl::~HostResolverImpl() {
     delete job_pools_[i];
 }
 
-void HostResolverImpl::ProbeIPv6Support() {
-  DCHECK(CalledOnValidThread());
-  DCHECK(!ipv6_probe_monitoring_);
-  ipv6_probe_monitoring_ = true;
-  OnIPAddressChanged();  // Give initial setup call.
-}
-
 void HostResolverImpl::SetPoolConstraints(JobPoolIndex pool_index,
                                           size_t max_outstanding_jobs,
                                           size_t max_pending_requests) {
@@ -1296,8 +1289,11 @@ AddressFamily HostResolverImpl::GetDefaultAddressFamily() const {
   return default_address_family_;
 }
 
-HostResolverImpl* HostResolverImpl::GetAsHostResolverImpl() {
-  return this;
+void HostResolverImpl::ProbeIPv6Support() {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!ipv6_probe_monitoring_);
+  ipv6_probe_monitoring_ = true;
+  OnIPAddressChanged();  // Give initial setup call.
 }
 
 HostCache* HostResolverImpl::GetHostCache() {

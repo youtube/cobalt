@@ -189,13 +189,9 @@ class NET_EXPORT HostResolver {
   virtual void SetDefaultAddressFamily(AddressFamily address_family) {}
   virtual AddressFamily GetDefaultAddressFamily() const;
 
-  // Returns |this| cast to a HostResolverImpl*, or NULL if the subclass
-  // is not compatible with HostResolverImpl. Used primarily to expose
-  // ProbeIPv6Support.
-  // TODO(mmenke):  Get rid of this function, so there's no externally visible
-  //                difference between using a HostResolverImpl and an
-  //                AsyncHostResolver.
-  virtual HostResolverImpl* GetAsHostResolverImpl();
+  // Continuously observe whether IPv6 is supported, and set the allowable
+  // address family to IPv4 iff IPv6 is not supported.
+  virtual void ProbeIPv6Support();
 
   // Returns the HostResolverCache |this| uses, or NULL if there isn't one.
   // Used primarily to clear the cache and for getting debug information.
