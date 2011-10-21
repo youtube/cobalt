@@ -412,12 +412,13 @@ void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
                                               Value* in_value) {
   // If there's an existing value here, we need to delete it, because
   // we own all our children.
-  if (HasKey(key)) {
-    DCHECK(dictionary_[key] != in_value);  // This would be bogus
-    delete dictionary_[key];
+  std::pair<ValueMap::iterator, bool> ins_res =
+      dictionary_.insert(std::make_pair(key, in_value));
+  if (!ins_res.second) {
+    DCHECK_NE(ins_res.first->second, in_value);  // This would be bogus
+    delete ins_res.first->second;
+    ins_res.first->second = in_value;
   }
-
-  dictionary_[key] = in_value;
 }
 
 bool DictionaryValue::Get(const std::string& path, Value** out_value) const {
