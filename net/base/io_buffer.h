@@ -45,7 +45,9 @@ namespace net {
 //         until the operation has completed.
 //
 //     ==> Cancellation does NOT count as completion. If an operation using
-//         an IOBuffer is cancelled, that IOBuffer should never be used again.
+//         an IOBuffer is cancelled, the caller should release their
+//         reference to this IOBuffer at the time of cancellation since
+//         they can no longer use it.
 //
 // For instance, if you were to call a Read() operation on some class which
 // takes an IOBuffer, and then delete that class (which generally will
@@ -62,8 +64,8 @@ namespace net {
 // The motivation for transferring ownership during cancellation is
 // to make it easier to work with un-cancellable operations.
 //
-// For instance, lets say under the hood your API called out to the
-// Operating System's synchronous ReadFile() function on a worker thread.
+// For instance, let's say under the hood your API called out to the
+// operating system's synchronous ReadFile() function on a worker thread.
 // When cancelling through our asynchronous interface, we have no way of
 // actually aborting the in progress ReadFile(). We must let it keep running,
 // and hence the buffer it was reading into must remain alive. Using
@@ -153,11 +155,6 @@ class NET_EXPORT DrainableIOBuffer : public IOBuffer {
 };
 
 // This version provides a resizable buffer and a changeable offset.
-// WARNING: Be very careful when re-using IOBuffers, it is not always safe
-//          to do so. See the "Ownership" section in IOBuffer's documentation
-//          to understand why. GrowableIOBuffer should never change its
-//          capacity while the buffer is already in use (including after
-//          cancellation).
 class NET_EXPORT GrowableIOBuffer : public IOBuffer {
  public:
   GrowableIOBuffer();
