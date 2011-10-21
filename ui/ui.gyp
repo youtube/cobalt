@@ -509,7 +509,6 @@
             'link_settings': {
               'libraries': [
                 '-lX11',
-                '-ldl',
               ],
             },
           },
@@ -557,6 +556,16 @@
             'gfx/pango_util.cc',
             'gfx/platform_font_pango.cc',
             'gfx/platform_font_pango.h',
+          ],
+        }],
+        ['OS=="linux"', {
+          'libraries': [
+            '-ldl',
+          ],
+        }],
+        ['OS=="openbsd" and use_system_libjpeg==1', {
+          'include_dirs': [
+            '/usr/local/include',
           ],
         }],
       ],
