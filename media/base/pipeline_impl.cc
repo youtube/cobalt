@@ -1220,7 +1220,9 @@ bool PipelineImpl::InitializeAudioRenderer(
     return false;
 
   audio_renderer_->Initialize(
-      decoder, base::Bind(&PipelineImpl::OnFilterInitialize, this));
+      decoder,
+      base::Bind(&PipelineImpl::OnFilterInitialize, this),
+      base::Bind(&PipelineImpl::OnAudioUnderflow, this));
   return true;
 }
 
@@ -1373,6 +1375,20 @@ void PipelineImpl::OnDemuxerSeekDone(base::TimeDelta seek_timestamp,
   }
 
   done_cb.Run(status);
+}
+
+void PipelineImpl::OnAudioUnderflow() {
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &PipelineImpl::OnAudioUnderflow, this));
+    return;
+  }
+
+  if (state_ != kStarted)
+    return;
+
+  if (audio_renderer_)
+    audio_renderer_->ResumeAfterUnderflow(true);
 }
 
 }  // namespace media

@@ -268,10 +268,13 @@ class MockAudioRenderer : public AudioRenderer {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // AudioRenderer implementation.
-  MOCK_METHOD2(Initialize, void(AudioDecoder* decoder,
-                                const base::Closure& callback));
+  MOCK_METHOD3(Initialize, void(AudioDecoder* decoder,
+                                const base::Closure& init_callback,
+                                const base::Closure& underflow_callback));
   MOCK_METHOD0(HasEnded, bool());
   MOCK_METHOD1(SetVolume, void(float volume));
+
+  MOCK_METHOD1(ResumeAfterUnderflow, void(bool buffer_more_audio));
 
  protected:
   virtual ~MockAudioRenderer();
