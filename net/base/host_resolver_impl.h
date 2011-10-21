@@ -111,10 +111,6 @@ class NET_EXPORT HostResolverImpl
   // be called.
   virtual ~HostResolverImpl();
 
-  // Continuously observe whether IPv6 is supported, and set the allowable
-  // address family to IPv4 iff IPv6 is not supported.
-  void ProbeIPv6Support();
-
   // Applies a set of constraints for requests that belong to the specified
   // pool. NOTE: Don't call this after requests have been already been started.
   //
@@ -142,12 +138,9 @@ class NET_EXPORT HostResolverImpl
   virtual void CancelRequest(RequestHandle req) OVERRIDE;
   virtual void AddObserver(HostResolver::Observer* observer) OVERRIDE;
   virtual void RemoveObserver(HostResolver::Observer* observer) OVERRIDE;
-
-  // Set address family, and disable IPv6 probe support.
   virtual void SetDefaultAddressFamily(AddressFamily address_family) OVERRIDE;
   virtual AddressFamily GetDefaultAddressFamily() const OVERRIDE;
-
-  virtual HostResolverImpl* GetAsHostResolverImpl() OVERRIDE;
+  virtual void ProbeIPv6Support() OVERRIDE;
   virtual HostCache* GetHostCache() OVERRIDE;
 
  private:
