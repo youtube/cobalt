@@ -81,6 +81,9 @@ NET_ERROR(FILE_NO_SPACE, -18)
 // The file has a virus.
 NET_ERROR(FILE_VIRUS_INFECTED, -19)
 
+// The client chose to block the request.
+NET_ERROR(BLOCKED_BY_CLIENT, -20)
+
 // A connection was closed (corresponding to a TCP FIN).
 NET_ERROR(CONNECTION_CLOSED, -100)
 
