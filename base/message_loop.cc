@@ -365,10 +365,13 @@ void MessageLoop::QuitNow() {
   }
 }
 
+static void QuitCurrent() {
+  MessageLoop::current()->Quit();
+}
+
 // static
 base::Closure MessageLoop::QuitClosure() {
-  return base::Bind(&MessageLoop::Quit,
-                    base::Unretained(MessageLoop::current()));
+  return base::Bind(&QuitCurrent);
 }
 
 void MessageLoop::SetNestableTasksAllowed(bool allowed) {
