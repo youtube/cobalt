@@ -41,6 +41,7 @@
 #include "base/atomicops.h"
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/logging.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_restrictions.h"
 
@@ -51,6 +52,10 @@ struct DefaultLazyInstanceTraits {
   static const bool kAllowedToAccessOnNonjoinableThread = false;
 
   static Type* New(void* instance) {
+    DCHECK_EQ(reinterpret_cast<uintptr_t>(instance) % sizeof(instance), 0u)
+        << ": Bad boy, the buffer passed to placement new is not aligned!\n"
+        "This may break some stuff like SSE-based optimizations assuming the "
+        "<Type> objects are word aligned.";
     // Use placement new to initialize our instance in our preallocated space.
     // The parenthesis is very important here to force POD type initialization.
     return new (instance) Type();
@@ -186,8 +191,8 @@ class LazyInstance : public LazyInstanceHelper {
     base::subtle::Release_Store(&me->state_, STATE_EMPTY);
   }
 
-  int8 buf_[sizeof(Type)];  // Preallocate the space for the Type instance.
   Type *instance_;
+  int8 buf_[sizeof(Type)];  // Preallocate the space for the Type instance.
 
   DISALLOW_COPY_AND_ASSIGN(LazyInstance);
 };
