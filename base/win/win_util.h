@@ -67,6 +67,12 @@ BASE_EXPORT bool IsAltPressed();
 // if the OS is Vista or later.
 BASE_EXPORT bool UserAccountControlIsEnabled();
 
+// Sets the string value for given key in given IPropertyStore.
+BASE_EXPORT bool SetStringValueForPropertyStore(
+    IPropertyStore* property_store,
+    const PROPERTYKEY& property_key,
+    const wchar_t* property_string_value);
+
 // Sets the application id in given IPropertyStore. The function is intended
 // for tagging application/chromium shortcut, browser window and jump list for
 // Win7.
