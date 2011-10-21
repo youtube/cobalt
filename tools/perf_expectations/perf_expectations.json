@@ -114,7 +114,7 @@
  "xp-release-single-core/startup/times/t": {"improve": -9, "regress": 9, "sha1": "b1bf03da"},
  "xp-release/sizes/chrome.dll/chrome.dll": {"reva": 100820, "revb": 100961, "type": "absolute", "improve": 35191526, "regress": 38926004, "sha1": "94524a77"},
  "xp-release/sizes/chrome.exe/chrome.exe": {"reva": 81814, "revb": 82805, "type": "absolute", "improve": 1057453, "regress": 1180570, "sha1": "24fe20f6"},
- "xp-release/sizes/mini_installer.exe/mini_installer.exe": {"reva": 84829, "revb": 85049, "type": "absolute", "improve": 18061977, "regress": 20016999, "sha1": "aca62812"},
+ "xp-release/sizes/mini_installer.exe/mini_installer.exe": {"reva": 106747, "revb": 106771, "type": "absolute", "improve": 19560089, "regress": 21758823, "sha1": "f29a1a3c"},
  "xp-release/sizes/setup.exe/setup.exe": {"reva": 81852, "revb": 82805, "type": "absolute", "improve": 1127275, "regress": 1258522, "sha1": "13bbca59"},
  "load": true
 }
