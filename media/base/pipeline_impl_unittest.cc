@@ -163,13 +163,13 @@ class PipelineImplTest : public ::testing::Test {
   void InitializeAudioRenderer(bool disable_after_init_callback = false) {
     if (disable_after_init_callback) {
       EXPECT_CALL(*mocks_->audio_renderer(),
-                  Initialize(mocks_->audio_decoder(), _))
-          .WillOnce(DoAll(Invoke(&RunFilterCallback),
+                  Initialize(mocks_->audio_decoder(), _, _))
+          .WillOnce(DoAll(Invoke(&RunFilterCallback3),
                           DisableAudioRenderer(mocks_->audio_renderer())));
     } else {
       EXPECT_CALL(*mocks_->audio_renderer(),
-                  Initialize(mocks_->audio_decoder(), _))
-          .WillOnce(Invoke(&RunFilterCallback));
+                  Initialize(mocks_->audio_decoder(), _, _))
+          .WillOnce(Invoke(&RunFilterCallback3));
     }
     EXPECT_CALL(*mocks_->audio_renderer(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->audio_renderer(), SetVolume(1.0f));
