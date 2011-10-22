@@ -15,7 +15,7 @@ set -ex
 
 # Do a clobber build.
 rm -rf "${LLVM_BUILD_DIR}"
-"${THIS_DIR}"/update.sh
+"${THIS_DIR}"/update.sh --run-tests
 
 R=$("${LLVM_BIN_DIR}/clang" --version | \
      sed -ne 's/clang version .*(trunk \([0-9]*\))/\1/p')
