@@ -217,6 +217,9 @@ make -j"${NUM_JOBS}" -C "${PLUGIN_BUILD_DIR}"
 if [[ -n "$run_tests" ]]; then
   # Run a few tests.
   "${PLUGIN_SRC_DIR}/tests/test.sh" "${LLVM_BUILD_DIR}/Release+Asserts"
+  cd "${LLVM_BUILD_DIR}"
+  make check-all
+  cd -
 fi
 
 # After everything is done, log success for this revision.
