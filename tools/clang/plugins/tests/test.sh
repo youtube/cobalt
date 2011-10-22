@@ -49,7 +49,7 @@ elif [[ ! -d "${1}" ]]; then
   usage
   exit ${E_BADARGS}
 else
-  export CLANG_DIR="$(PWD)/${1}"
+  export CLANG_DIR="${PWD}/${1}"
   echo "Using clang directory ${CLANG_DIR}..."
 
   # The golden files assume that the cwd is this directory. To make the script
