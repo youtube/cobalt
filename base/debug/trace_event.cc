@@ -9,7 +9,6 @@
 #if defined(OS_WIN)
 #include "base/debug/trace_event_win.h"
 #endif
-#include "base/bind.h"
 #include "base/format_macros.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/process_util.h"
@@ -225,11 +224,13 @@ void TraceEvent::AppendEventsAsJSON(const std::vector<TraceEvent>& events,
                                     size_t start,
                                     size_t count,
                                     std::string* out) {
+  *out += "[";
   for (size_t i = 0; i < count && start + i < events.size(); ++i) {
     if (i > 0)
       *out += ",";
     events[i + start].AppendAsJSON(out);
   }
+  *out += "]";
 }
 
 void TraceEvent::AppendAsJSON(std::string* out) const {
@@ -257,48 +258,6 @@ void TraceEvent::AppendAsJSON(std::string* out) const {
     arg_values_[i].AppendAsJSON(out);
   }
   *out += "}}";
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// TraceResultBuffer
-//
-////////////////////////////////////////////////////////////////////////////////
-
-TraceResultBuffer::OutputCallback
-    TraceResultBuffer::SimpleOutput::GetCallback() {
-  return base::Bind(&SimpleOutput::Append, base::Unretained(this));
-}
-
-void TraceResultBuffer::SimpleOutput::Append(
-    const std::string& json_trace_output) {
-  json_output += json_trace_output;
-}
-
-TraceResultBuffer::TraceResultBuffer() : append_comma_(false) {
-}
-
-TraceResultBuffer::~TraceResultBuffer() {
-}
-
-void TraceResultBuffer::SetOutputCallback(OutputCallback json_chunk_callback) {
-  output_callback_ = json_chunk_callback;
-}
-
-void TraceResultBuffer::Start() {
-  append_comma_ = false;
-  output_callback_.Run("[");
-}
-
-void TraceResultBuffer::AddFragment(const std::string& trace_fragment) {
-  if (append_comma_)
-    output_callback_.Run(",");
-  append_comma_ = true;
-  output_callback_.Run(trace_fragment);
-}
-
-void TraceResultBuffer::Finish() {
-  output_callback_.Run("]");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
