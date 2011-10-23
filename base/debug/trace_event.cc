@@ -526,7 +526,7 @@ void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
 #endif
   INTERNAL_TRACE_EVENT_ADD(phase,
       "ETW Trace Event", name, "id", id, "extra", TRACE_STR_COPY(extra),
-      base::debug::TraceLog::EVENT_FLAG_NONE);
+      base::debug::TraceLog::EVENT_FLAG_COPY);
 }
 
 void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
@@ -539,7 +539,7 @@ void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
 #endif
   INTERNAL_TRACE_EVENT_ADD(phase,
       "ETW Trace Event", name, "id", id, "extra", extra,
-      base::debug::TraceLog::EVENT_FLAG_NONE);
+      base::debug::TraceLog::EVENT_FLAG_COPY);
 }
 
 void TraceLog::AddCurrentMetadataEvents() {
