@@ -142,17 +142,42 @@ LONG RegKey::DeleteValue(const wchar_t* value_name) {
   return result;
 }
 
-LONG RegKey::ReadValue(const wchar_t* name, void* data, DWORD* dsize,
-                       DWORD* dtype) const {
-  base::ThreadRestrictions::AssertIOAllowed();
-  LONG result = RegQueryValueEx(key_, name, 0, dtype,
-                                reinterpret_cast<LPBYTE>(data), dsize);
+LONG RegKey::ReadValueDW(const wchar_t* name, DWORD* out_value) const {
+  DCHECK(out_value);
+  DWORD type = REG_DWORD;
+  DWORD size = sizeof(DWORD);
+  DWORD local_value = 0;
+  LONG result = ReadValue(name, &local_value, &size, &type);
+  if (result == ERROR_SUCCESS) {
+    if ((type == REG_DWORD || type == REG_BINARY) && size == sizeof(DWORD))
+      *out_value = local_value;
+    else
+      result = ERROR_CANTREAD;
+  }
+
   return result;
 }
 
-LONG RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
+LONG RegKey::ReadInt64(const wchar_t* name, int64* out_value) const {
+  DCHECK(out_value);
+  DWORD type = REG_QWORD;
+  int64 local_value = 0;
+  DWORD size = sizeof(local_value);
+  LONG result = ReadValue(name, &local_value, &size, &type);
+  if (result == ERROR_SUCCESS) {
+    if ((type == REG_QWORD || type == REG_BINARY) &&
+        size == sizeof(local_value))
+      *out_value = local_value;
+    else
+      result = ERROR_CANTREAD;
+  }
+
+  return result;
+}
+
+LONG RegKey::ReadValue(const wchar_t* name, std::wstring* out_value) const {
   base::ThreadRestrictions::AssertIOAllowed();
-  DCHECK(value);
+  DCHECK(out_value);
   const size_t kMaxStringLength = 1024;  // This is after expansion.
   // Use the one of the other forms of ReadValue if 1024 is too small for you.
   wchar_t raw_value[kMaxStringLength];
@@ -160,7 +185,7 @@ LONG RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
   LONG result = ReadValue(name, raw_value, &size, &type);
   if (result == ERROR_SUCCESS) {
     if (type == REG_SZ) {
-      *value = raw_value;
+      *out_value = raw_value;
     } else if (type == REG_EXPAND_SZ) {
       wchar_t expanded[kMaxStringLength];
       size = ExpandEnvironmentStrings(raw_value, expanded, kMaxStringLength);
@@ -170,7 +195,7 @@ LONG RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
       if (size == 0 || size > kMaxStringLength) {
         result = ERROR_MORE_DATA;
       } else {
-        *value = expanded;
+        *out_value = expanded;
       }
     } else {
       // Not a string. Oops.
@@ -181,58 +206,36 @@ LONG RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
   return result;
 }
 
-LONG RegKey::ReadValueDW(const wchar_t* name, DWORD* value) const {
-  DCHECK(value);
-  DWORD type = REG_DWORD;
-  DWORD size = sizeof(DWORD);
-  DWORD local_value = 0;
-  LONG result = ReadValue(name, &local_value, &size, &type);
-  if (result == ERROR_SUCCESS) {
-    if ((type == REG_DWORD || type == REG_BINARY) && size == sizeof(DWORD)) {
-      *value = local_value;
-    } else {
-      result = ERROR_CANTREAD;
-    }
-  }
-
+LONG RegKey::ReadValue(const wchar_t* name,
+                       void* data,
+                       DWORD* dsize,
+                       DWORD* dtype) const {
+  base::ThreadRestrictions::AssertIOAllowed();
+  LONG result = RegQueryValueEx(key_, name, 0, dtype,
+                                reinterpret_cast<LPBYTE>(data), dsize);
   return result;
 }
 
-LONG RegKey::ReadInt64(const wchar_t* name, int64* value) const {
-  DCHECK(value);
-  DWORD type = REG_QWORD;
-  int64 local_value = 0;
-  DWORD size = sizeof(local_value);
-  LONG result = ReadValue(name, &local_value, &size, &type);
-  if (result == ERROR_SUCCESS) {
-    if ((type == REG_QWORD || type == REG_BINARY) &&
-        size == sizeof(local_value)) {
-      *value = local_value;
-    } else {
-      result = ERROR_CANTREAD;
-    }
-  }
-
-  return result;
+LONG RegKey::WriteValue(const wchar_t* name, DWORD in_value) {
+  return WriteValue(
+      name, &in_value, static_cast<DWORD>(sizeof(in_value)), REG_DWORD);
 }
 
-LONG RegKey::WriteValue(const wchar_t* name, const void * data,
-                        DWORD dsize, DWORD dtype) {
+LONG RegKey::WriteValue(const wchar_t * name, const wchar_t* in_value) {
+  return WriteValue(name, in_value,
+      static_cast<DWORD>(sizeof(*in_value) * (wcslen(in_value) + 1)), REG_SZ);
+}
+
+LONG RegKey::WriteValue(const wchar_t* name,
+                        const void* data,
+                        DWORD dsize,
+                        DWORD dtype) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(data || !dsize);
 
   LONG result = RegSetValueEx(key_, name, 0, dtype,
       reinterpret_cast<LPBYTE>(const_cast<void*>(data)), dsize);
   return result;
-}
-
-LONG RegKey::WriteValue(const wchar_t * name, const wchar_t* value) {
-  return WriteValue(name, value,
-      static_cast<DWORD>(sizeof(*value) * (wcslen(value) + 1)), REG_SZ);
-}
-
-LONG RegKey::WriteValue(const wchar_t* name, DWORD value) {
-  return WriteValue(name, &value, static_cast<DWORD>(sizeof(value)), REG_DWORD);
 }
 
 LONG RegKey::StartWatching() {
