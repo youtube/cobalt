@@ -100,9 +100,6 @@ bool HMAC::Sign(const base::StringPiece& data,
   if (PK11_DigestOp(context.get(),
                     reinterpret_cast<const unsigned char*>(data.data()),
                     data.length()) != SECSuccess) {
-    LOG(WARNING) << "PK11_DigestOp failed, error " << PORT_GetError()
-                 << ", slot name " << PK11_GetSlotName(plat_->slot_.get())
-                 << ", token name " << PK11_GetTokenName(plat_->slot_.get());
     NOTREACHED();
     return false;
   }
