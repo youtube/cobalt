@@ -66,16 +66,40 @@ class BASE_EXPORT RegKey {
   // Deletes a single value within the key.
   LONG DeleteValue(const wchar_t* name);
 
-  LONG ReadValue(const wchar_t* name, void* data, DWORD* dsize,
-                 DWORD* dtype) const;
-  LONG ReadValue(const wchar_t* name, std::wstring* value) const;
-  LONG ReadValueDW(const wchar_t* name, DWORD* value) const;
-  LONG ReadInt64(const wchar_t* name, int64* value) const;
+  // Getters:
 
-  LONG WriteValue(const wchar_t* name, const void* data, DWORD dsize,
+  // Returns an int32 value. If |name| is NULL or empty, returns the default
+  // value, if any.
+  LONG ReadValueDW(const wchar_t* name, DWORD* out_value) const;
+
+  // Returns an int64 value. If |name| is NULL or empty, returns the default
+  // value, if any.
+  LONG ReadInt64(const wchar_t* name, int64* out_value) const;
+
+  // Returns a string value. If |name| is NULL or empty, returns the default
+  // value, if any.
+  LONG ReadValue(const wchar_t* name, std::wstring* out_value) const;
+
+  // Returns raw data. If |name| is NULL or empty, returns the default
+  // value, if any.
+  LONG ReadValue(const wchar_t* name,
+                 void* data,
+                 DWORD* dsize,
+                 DWORD* dtype) const;
+
+  // Setters:
+
+  // Sets an int32 value.
+  LONG WriteValue(const wchar_t* name, DWORD in_value);
+
+  // Sets a string value.
+  LONG WriteValue(const wchar_t* name, const wchar_t* in_value);
+
+  // Sets raw data, including type.
+  LONG WriteValue(const wchar_t* name,
+                  const void* data,
+                  DWORD dsize,
                   DWORD dtype);
-  LONG WriteValue(const wchar_t* name, const wchar_t* value);
-  LONG WriteValue(const wchar_t* name, DWORD value);
 
   // Starts watching the key to see if any of its values have changed.
   // The key must have been opened with the KEY_NOTIFY access privilege.
