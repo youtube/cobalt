@@ -5,6 +5,7 @@
 #include "base/mac/foundation_util.h"
 
 #include "base/mac/scoped_cftyperef.h"
+#include "base/mac/scoped_nsautorelease_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(FoundationUtilTest, CFCast) {
@@ -158,4 +159,119 @@ TEST(FoundationUtilTest, CFCast) {
   EXPECT_FALSE(base::mac::CFCastStrict<CFNumberRef>(NULL));
   EXPECT_FALSE(base::mac::CFCastStrict<CFSetRef>(NULL));
   EXPECT_FALSE(base::mac::CFCastStrict<CFStringRef>(NULL));
+}
+
+TEST(FoundationUtilTest, ObjCCast) {
+  base::mac::ScopedNSAutoreleasePool pool;
+
+  id test_array = [NSArray array];
+  id test_array_mutable = [NSMutableArray array];
+  id test_data = [NSData data];
+  id test_data_mutable = [NSMutableData dataWithCapacity:10];
+  id test_date = [NSDate date];
+  id test_dict =
+      [NSDictionary dictionaryWithObject:[NSNumber numberWithInt:42]
+                                  forKey:@"meaning"];
+  id test_dict_mutable = [NSMutableDictionary dictionaryWithCapacity:10];
+  id test_number = [NSNumber numberWithInt:42];
+  id test_null = [NSNull null];
+  id test_set = [NSSet setWithObject:@"string object"];
+  id test_set_mutable = [NSMutableSet setWithCapacity:10];
+  id test_str = [NSString string];
+  id test_str_const = @"bonjour";
+  id test_str_mutable = [NSMutableString stringWithCapacity:10];
+
+  // Make sure the allocations of NS types are good.
+  EXPECT_TRUE(test_array);
+  EXPECT_TRUE(test_array_mutable);
+  EXPECT_TRUE(test_data);
+  EXPECT_TRUE(test_data_mutable);
+  EXPECT_TRUE(test_date);
+  EXPECT_TRUE(test_dict);
+  EXPECT_TRUE(test_dict_mutable);
+  EXPECT_TRUE(test_number);
+  EXPECT_TRUE(test_null);
+  EXPECT_TRUE(test_set);
+  EXPECT_TRUE(test_set_mutable);
+  EXPECT_TRUE(test_str);
+  EXPECT_TRUE(test_str_const);
+  EXPECT_TRUE(test_str_mutable);
+
+  // Casting the id correctly provides the same pointer.
+  EXPECT_EQ(test_array, base::mac::ObjCCast<NSArray>(test_array));
+  EXPECT_EQ(test_array_mutable,
+            base::mac::ObjCCast<NSArray>(test_array_mutable));
+  EXPECT_EQ(test_data, base::mac::ObjCCast<NSData>(test_data));
+  EXPECT_EQ(test_data_mutable,
+            base::mac::ObjCCast<NSData>(test_data_mutable));
+  EXPECT_EQ(test_date, base::mac::ObjCCast<NSDate>(test_date));
+  EXPECT_EQ(test_dict, base::mac::ObjCCast<NSDictionary>(test_dict));
+  EXPECT_EQ(test_dict_mutable,
+            base::mac::ObjCCast<NSDictionary>(test_dict_mutable));
+  EXPECT_EQ(test_number, base::mac::ObjCCast<NSNumber>(test_number));
+  EXPECT_EQ(test_null, base::mac::ObjCCast<NSNull>(test_null));
+  EXPECT_EQ(test_set, base::mac::ObjCCast<NSSet>(test_set));
+  EXPECT_EQ(test_set_mutable, base::mac::ObjCCast<NSSet>(test_set_mutable));
+  EXPECT_EQ(test_str, base::mac::ObjCCast<NSString>(test_str));
+  EXPECT_EQ(test_str_const, base::mac::ObjCCast<NSString>(test_str_const));
+  EXPECT_EQ(test_str_mutable,
+            base::mac::ObjCCast<NSString>(test_str_mutable));
+
+  // When given an incorrect ObjC cast, provide nil.
+  EXPECT_FALSE(base::mac::ObjCCast<NSString>(test_array));
+  EXPECT_FALSE(base::mac::ObjCCast<NSString>(test_array_mutable));
+  EXPECT_FALSE(base::mac::ObjCCast<NSString>(test_data));
+  EXPECT_FALSE(base::mac::ObjCCast<NSString>(test_data_mutable));
+  EXPECT_FALSE(base::mac::ObjCCast<NSSet>(test_date));
+  EXPECT_FALSE(base::mac::ObjCCast<NSSet>(test_dict));
+  EXPECT_FALSE(base::mac::ObjCCast<NSNumber>(test_dict_mutable));
+  EXPECT_FALSE(base::mac::ObjCCast<NSNull>(test_number));
+  EXPECT_FALSE(base::mac::ObjCCast<NSDictionary>(test_null));
+  EXPECT_FALSE(base::mac::ObjCCast<NSDictionary>(test_set));
+  EXPECT_FALSE(base::mac::ObjCCast<NSDate>(test_set_mutable));
+  EXPECT_FALSE(base::mac::ObjCCast<NSData>(test_str));
+  EXPECT_FALSE(base::mac::ObjCCast<NSData>(test_str_const));
+  EXPECT_FALSE(base::mac::ObjCCast<NSArray>(test_str_mutable));
+
+  // Giving a nil provides a nil.
+  EXPECT_FALSE(base::mac::ObjCCast<NSArray>(nil));
+  EXPECT_FALSE(base::mac::ObjCCast<NSData>(nil));
+  EXPECT_FALSE(base::mac::ObjCCast<NSDate>(nil));
+  EXPECT_FALSE(base::mac::ObjCCast<NSDictionary>(nil));
+  EXPECT_FALSE(base::mac::ObjCCast<NSNull>(nil));
+  EXPECT_FALSE(base::mac::ObjCCast<NSNumber>(nil));
+  EXPECT_FALSE(base::mac::ObjCCast<NSSet>(nil));
+  EXPECT_FALSE(base::mac::ObjCCast<NSString>(nil));
+
+  // ObjCCastStrict: correct cast results in correct pointer being returned.
+  EXPECT_EQ(test_array, base::mac::ObjCCastStrict<NSArray>(test_array));
+  EXPECT_EQ(test_array_mutable,
+            base::mac::ObjCCastStrict<NSArray>(test_array_mutable));
+  EXPECT_EQ(test_data, base::mac::ObjCCastStrict<NSData>(test_data));
+  EXPECT_EQ(test_data_mutable,
+            base::mac::ObjCCastStrict<NSData>(test_data_mutable));
+  EXPECT_EQ(test_date, base::mac::ObjCCastStrict<NSDate>(test_date));
+  EXPECT_EQ(test_dict, base::mac::ObjCCastStrict<NSDictionary>(test_dict));
+  EXPECT_EQ(test_dict_mutable,
+            base::mac::ObjCCastStrict<NSDictionary>(test_dict_mutable));
+  EXPECT_EQ(test_number, base::mac::ObjCCastStrict<NSNumber>(test_number));
+  EXPECT_EQ(test_null, base::mac::ObjCCastStrict<NSNull>(test_null));
+  EXPECT_EQ(test_set, base::mac::ObjCCastStrict<NSSet>(test_set));
+  EXPECT_EQ(test_set_mutable,
+            base::mac::ObjCCastStrict<NSSet>(test_set_mutable));
+  EXPECT_EQ(test_str, base::mac::ObjCCastStrict<NSString>(test_str));
+  EXPECT_EQ(test_str_const,
+            base::mac::ObjCCastStrict<NSString>(test_str_const));
+  EXPECT_EQ(test_str_mutable,
+            base::mac::ObjCCastStrict<NSString>(test_str_mutable));
+
+  // ObjCCastStrict: Giving a nil provides a nil.
+  EXPECT_FALSE(base::mac::ObjCCastStrict<NSArray>(nil));
+  EXPECT_FALSE(base::mac::ObjCCastStrict<NSData>(nil));
+  EXPECT_FALSE(base::mac::ObjCCastStrict<NSDate>(nil));
+  EXPECT_FALSE(base::mac::ObjCCastStrict<NSDictionary>(nil));
+  EXPECT_FALSE(base::mac::ObjCCastStrict<NSNull>(nil));
+  EXPECT_FALSE(base::mac::ObjCCastStrict<NSNumber>(nil));
+  EXPECT_FALSE(base::mac::ObjCCastStrict<NSSet>(nil));
+  EXPECT_FALSE(base::mac::ObjCCastStrict<NSString>(nil));
 }
