@@ -202,6 +202,9 @@ class MEDIA_EXPORT AudioOutputController
   // Helper method that starts physical stream.
   void StartStream();
 
+  // Helper method that stops, closes, and NULLs |*stream_|.
+  void StopCloseAndClearStream();
+
   // |handler_| may be called only if |state_| is not kClosed.
   EventHandler* handler_;
   AudioOutputStream* stream_;

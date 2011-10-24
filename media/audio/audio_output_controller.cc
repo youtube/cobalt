@@ -33,6 +33,7 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
 
 AudioOutputController::~AudioOutputController() {
   DCHECK_EQ(kClosed, state_);
+  StopCloseAndClearStream();
 }
 
 // static
@@ -138,6 +139,7 @@ void AudioOutputController::DoCreate(const AudioParameters& params) {
   if (!AudioManager::GetAudioManager())
     return;
 
+  StopCloseAndClearStream();
   stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStreamProxy(params);
   if (!stream_) {
     // TODO(hclam): Define error types.
@@ -146,8 +148,7 @@ void AudioOutputController::DoCreate(const AudioParameters& params) {
   }
 
   if (!stream_->Open()) {
-    stream_->Close();
-    stream_ = NULL;
+    StopCloseAndClearStream();
 
     // TODO(hclam): Define error types.
     handler_->OnError(this, 0);
@@ -234,6 +235,9 @@ void AudioOutputController::StartStream() {
 void AudioOutputController::DoPause() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
+  if (stream_)
+    stream_->Stop();
+
   switch (state_) {
     case kStarting:
       // We were asked to pause while starting. There is delayed task that will
@@ -280,14 +284,7 @@ void AudioOutputController::DoClose(const base::Closure& closed_task) {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
   if (state_ != kClosed) {
-    // |stream_| can be null if creating the device failed in DoCreate().
-    if (stream_) {
-      stream_->Stop();
-      stream_->Close();
-      // After stream is closed it is destroyed, so don't keep a reference to
-      // it.
-      stream_ = NULL;
-    }
+    StopCloseAndClearStream();
 
     if (LowLatencyMode()) {
       sync_reader_->Close();
@@ -386,6 +383,15 @@ void AudioOutputController::SubmitOnMoreData_Locked() {
   // correct and in the worst case we are just asking more data than needed.
   base::AutoUnlock auto_unlock(lock_);
   handler_->OnMoreData(this, buffers_state);
+}
+
+void AudioOutputController::StopCloseAndClearStream() {
+  // Allow calling unconditionally and bail if we don't have a stream_ to close.
+  if (!stream_)
+    return;
+  stream_->Stop();
+  stream_->Close();
+  stream_ = NULL;
 }
 
 }  // namespace media
