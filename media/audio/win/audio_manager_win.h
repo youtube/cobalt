@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_AUDIO_AUDIO_MANAGER_WIN_H_
-#define MEDIA_AUDIO_AUDIO_MANAGER_WIN_H_
+#ifndef MEDIA_AUDIO_WIN_AUDIO_MANAGER_WIN_H_
+#define MEDIA_AUDIO_WIN_AUDIO_MANAGER_WIN_H_
 
 #include <windows.h>
 
@@ -40,7 +40,7 @@ class AudioManagerWin : public AudioManagerBase {
   void ReleaseOutputStream(PCMWaveOutAudioOutputStream* stream);
 
   // Called internally by the audio stream when it has been closed.
-  void ReleaseInputStream(PCMWaveInAudioInputStream* stream);
+  void ReleaseInputStream(AudioInputStream* stream);
 
  private:
   virtual ~AudioManagerWin();
@@ -51,4 +51,4 @@ class AudioManagerWin : public AudioManagerBase {
   DISALLOW_COPY_AND_ASSIGN(AudioManagerWin);
 };
 
-#endif  // MEDIA_AUDIO_AUDIO_MANAGER_WIN_H_
+#endif  // MEDIA_AUDIO_WIN_AUDIO_MANAGER_WIN_H_
