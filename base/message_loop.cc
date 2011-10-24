@@ -833,7 +833,7 @@ void MessageLoopForUI::RemoveObserver(Observer* observer) {
   pump_ui()->RemoveObserver(observer);
 }
 
-void MessageLoopForUI::Run(Dispatcher* dispatcher) {
+void MessageLoopForUI::RunWithDispatcher(Dispatcher* dispatcher) {
   AutoRunState save_state(this);
   state_->dispatcher = dispatcher;
   RunHandler();
