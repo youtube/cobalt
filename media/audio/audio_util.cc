@@ -14,9 +14,16 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/shared_memory.h"
+#if defined(OS_WIN)
+#include "base/win/windows_version.h"
+#endif
 #include "media/audio/audio_util.h"
 #if defined(OS_MACOSX)
+#include "media/audio/mac/audio_low_latency_input_mac.h"
 #include "media/audio/mac/audio_low_latency_output_mac.h"
+#endif
+#if defined(OS_WIN)
+#include "media/audio/win/audio_low_latency_input_win.h"
 #endif
 
 using base::subtle::Atomic32;
@@ -230,8 +237,7 @@ void InterleaveFloatToInt16(const std::vector<float*>& source,
   }
 }
 
-double GetAudioHardwareSampleRate()
-{
+double GetAudioHardwareSampleRate() {
 #if defined(OS_MACOSX)
     // Hardware sample-rate on the Mac can be configured, so we must query.
     return AUAudioOutputStream::HardwareSampleRate();
@@ -239,6 +245,28 @@ double GetAudioHardwareSampleRate()
     // Hardware for Windows and Linux is nearly always 48KHz.
     // TODO(crogers) : return correct value in rare non-48KHz cases.
     return 48000.0;
+#endif
+}
+
+double GetAudioInputHardwareSampleRate() {
+#if defined(OS_MACOSX)
+  // Hardware sample-rate on the Mac can be configured, so we must query.
+  return AUAudioInputStream::HardwareSampleRate();
+#elif defined(OS_WIN)
+  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+    // Fall back to Windows Wave implementation on Windows XP or lower
+    // and use 48kHz as default input sample rate.
+    return 48000.0;
+  } else {
+    // Hardware sample-rate on Windows can be configured, so we must query.
+    // TODO(henrika): improve possibility to specify audio endpoint.
+    // Use the default device (same as for Wave) for now to be compatible.
+    return WASAPIAudioInputStream::HardwareSampleRate(eConsole);
+  }
+#else
+  // Hardware for Linux is nearly always 48KHz.
+  // TODO(henrika): return correct value in rare non-48KHz cases.
+  return 48000.0;
 #endif
 }
 
