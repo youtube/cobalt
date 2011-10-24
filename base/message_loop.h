@@ -623,7 +623,7 @@ class BASE_EXPORT MessageLoopForUI : public MessageLoop {
   // methods.
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
-  void Run(Dispatcher* dispatcher);
+  void RunWithDispatcher(Dispatcher* dispatcher);
   void RunAllPendingWithDispatcher(Dispatcher* dispatcher);
 
  protected:
