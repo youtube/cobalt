@@ -515,6 +515,50 @@ class TraceEvent {
 };
 
 
+// TraceResultBuffer collects and converts trace fragments returned by TraceLog
+// to JSON output.
+class BASE_EXPORT TraceResultBuffer {
+ public:
+  typedef base::Callback<void(const std::string&)> OutputCallback;
+
+  // If you don't need to stream JSON chunks out efficiently, and just want to
+  // get a complete JSON string after calling Finish, use this struct to collect
+  // JSON trace output.
+  struct BASE_EXPORT SimpleOutput {
+    OutputCallback GetCallback();
+    void Append(const std::string& json_string);
+
+    // Do what you want with the json_output_ string after calling
+    // TraceResultBuffer::Finish.
+    std::string json_output;
+  };
+
+  TraceResultBuffer();
+  ~TraceResultBuffer();
+
+  // Set callback. The callback will be called during Start with the initial
+  // JSON output and during AddFragment and Finish with following JSON output
+  // chunks. The callback target must live past the last calls to
+  // TraceResultBuffer::Start/AddFragment/Finish.
+  void SetOutputCallback(OutputCallback json_chunk_callback);
+
+  // Start JSON output. This resets all internal state, so you can reuse
+  // the TraceResultBuffer by calling Start.
+  void Start();
+
+  // Call AddFragment 0 or more times to add trace fragments from TraceLog.
+  void AddFragment(const std::string& trace_fragment);
+
+  // When all fragments have been added, call Finish to complete the JSON
+  // formatted output.
+  void Finish();
+
+ private:
+  OutputCallback output_callback_;
+  bool append_comma_;
+};
+
+
 class BASE_EXPORT TraceLog {
  public:
   // Flags for passing to AddTraceEvent.
@@ -549,7 +593,9 @@ class BASE_EXPORT TraceLog {
 
   // When enough events are collected, they are handed (in bulk) to
   // the output callback. If no callback is set, the output will be
-  // silently dropped. The callback must be thread safe.
+  // silently dropped. The callback must be thread safe. The string format is
+  // undefined. Use TraceResultBuffer to convert one or more trace strings to
+  // JSON.
   typedef RefCountedData<std::string> RefCountedString;
   typedef base::Callback<void(scoped_refptr<RefCountedString>)> OutputCallback;
   void SetOutputCallback(const OutputCallback& cb);
