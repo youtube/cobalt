@@ -57,7 +57,6 @@
 #include <MMDeviceAPI.h>
 
 #include "base/compiler_specific.h"
-#include "base/media_export.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/win/scoped_co_mem.h"
@@ -66,6 +65,7 @@
 #include "base/win/scoped_handle.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
+#include "media/base/media_export.h"
 
 class AudioManagerWin;
 

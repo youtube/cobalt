@@ -102,7 +102,7 @@ class MEDIA_EXPORT AudioOutputStream {
 };
 
 // Models an audio sink receiving recorded audio from the audio driver.
-class AudioInputStream {
+class MEDIA_EXPORT AudioInputStream {
  public:
   class MEDIA_EXPORT AudioInputCallback {
    public:
