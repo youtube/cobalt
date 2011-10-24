@@ -25,15 +25,21 @@ class MessageLoop;
 // All the public methods of AudioOutputController are non-blocking except
 // close, the actual operations are performed on the audio controller thread.
 //
-// Here is a state diagram for the AudioOutputController:
+// Here is a state diagram for the AudioOutputController for default low
+// latency mode; in normal latency mode there is no "starting" or "paused when
+// starting" states, "created" immediately switches to "playing":
 //
-//                    .---->  [ Closed / Error ]  <------.
-//                    |                ^                 |
-//                    |                |                 |
-//               [ Created ]  -->  [ Playing ]  -->  [ Paused ]
-//                    ^                ^                 |
-//                    |                |                 |
-//              *[  Empty  ]           `-----------------'
+//             .----------------------->  [ Closed / Error ]  <------.
+//             |                                   ^                 |
+//             |                                   |                 |
+//        [ Created ]  -->  [ Starting ]  -->  [ Playing ]  -->  [ Paused ]
+//             ^                 |                 ^                |  ^
+//             |                 |                 |                |  |
+//             |                 |                 `----------------'  |
+//             |                 V                                     |
+//             |        [ PausedWhenStarting ] ------------------------'
+//             |
+//       *[  Empty  ]
 //
 // * Initial state
 //
@@ -55,16 +61,6 @@ class MEDIA_EXPORT AudioOutputController
     : public base::RefCountedThreadSafe<AudioOutputController>,
       public AudioOutputStream::AudioSourceCallback {
  public:
-  // Internal state of the source.
-  enum State {
-    kEmpty,
-    kCreated,
-    kPlaying,
-    kPaused,
-    kClosed,
-    kError,
-  };
-
   // Value sent by the controller to the renderer in low-latency mode
   // indicating that the stream is paused.
   static const int kPauseMark;
@@ -168,6 +164,19 @@ class MEDIA_EXPORT AudioOutputController
   virtual uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
                             uint32 max_size, AudioBuffersState buffers_state);
   virtual void OnError(AudioOutputStream* stream, int code);
+
+ protected:
+    // Internal state of the source.
+  enum State {
+    kEmpty,
+    kCreated,
+    kPlaying,
+    kStarting,
+    kPausedWhenStarting,
+    kPaused,
+    kClosed,
+    kError,
+  };
 
  private:
   // We are polling sync reader if data became available.

@@ -258,6 +258,51 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
   CloseAudioController(controller);
 }
 
+TEST(AudioOutputControllerTest, PlayPauseCloseLowLatency) {
+  if (!HasAudioOutputDevices() || IsRunningHeadless())
+    return;
+
+  MockAudioOutputControllerEventHandler event_handler;
+  base::WaitableEvent event(false, false);
+  base::WaitableEvent pause_event(false, false);
+
+  // If OnCreated is called then signal the event.
+  EXPECT_CALL(event_handler, OnCreated(NotNull()))
+      .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
+
+  // OnPlaying() will be called only once.
+  EXPECT_CALL(event_handler, OnPlaying(NotNull()));
+
+  MockAudioOutputControllerSyncReader sync_reader;
+  EXPECT_CALL(sync_reader, UpdatePendingBytes(_))
+      .Times(AtLeast(2));
+  EXPECT_CALL(sync_reader, Read(_, kHardwareBufferSize))
+      .WillRepeatedly(DoAll(SignalEvent(&event),
+                            Return(4)));
+  EXPECT_CALL(event_handler, OnPaused(NotNull()))
+      .WillOnce(InvokeWithoutArgs(&pause_event, &base::WaitableEvent::Signal));
+  EXPECT_CALL(sync_reader, Close());
+
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
+                         kSampleRate, kBitsPerSample, kSamplesPerPacket);
+  scoped_refptr<AudioOutputController> controller =
+      AudioOutputController::CreateLowLatency(&event_handler,
+                                              params,
+                                              &sync_reader);
+  ASSERT_TRUE(controller.get());
+
+  // Wait for OnCreated() to be called.
+  event.Wait();
+
+  ASSERT_FALSE(pause_event.IsSignaled());
+  controller->Play();
+  controller->Pause();
+  pause_event.Wait();
+
+  // Now stop the controller.
+  CloseAudioController(controller);
+}
+
 TEST(AudioOutputControllerTest, PlayPausePlay) {
   if (!HasAudioOutputDevices() || IsRunningHeadless())
     return;
