@@ -157,9 +157,19 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
 }
 
 // static
-void PlatformThread::SetThreadPriority(PlatformThreadHandle, ThreadPriority) {
-  // TODO(crogers): implement
-  NOTIMPLEMENTED();
+void PlatformThread::SetThreadPriority(PlatformThreadHandle handle,
+                                       ThreadPriority priority) {
+  switch (priority) {
+    case kThreadPriority_Normal:
+      ::SetThreadPriority(handle, THREAD_PRIORITY_NORMAL);
+      break;
+    case kThreadPriority_RealtimeAudio:
+      ::SetThreadPriority(handle, THREAD_PRIORITY_TIME_CRITICAL);
+      break;
+    default:
+      NOTIMPLEMENTED();
+      break;
+  }
 }
 
 }  // namespace base
