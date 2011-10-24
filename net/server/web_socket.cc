@@ -169,7 +169,7 @@ const size_t kTwoBytePayloadLengthField = 126;
 const size_t kEightBytePayloadLengthField = 127;
 const size_t kMaskingKeyWidthInBytes = 4;
 
-class WebSocketHybi10 : public WebSocket {
+class WebSocketHybi17 : public WebSocket {
  public:
   static WebSocket* Create(HttpConnection* connection,
                            const HttpServerRequestInfo& request,
@@ -184,7 +184,7 @@ class WebSocketHybi10 : public WebSocket {
               "Sec-WebSocket-Key is empty or isn't specified.");
       return NULL;
     }
-    return new WebSocketHybi10(connection, request, pos);
+    return new WebSocketHybi17(connection, request, pos);
   }
 
   virtual void Accept(const HttpServerRequestInfo& request) {
@@ -237,6 +237,9 @@ class WebSocketHybi10 : public WebSocket {
       return FRAME_ERROR;
     }
 
+    if (!masked_) // According to Hybi-17 spec client MUST mask his frame.
+      return FRAME_ERROR;
+
     uint64 payload_length64 = second_byte & kPayloadLengthMask;
     if (payload_length64 > kMaxSingleBytePayloadLength) {
       int extended_payload_length_size;
@@ -256,16 +259,15 @@ class WebSocketHybi10 : public WebSocket {
     }
 
     static const uint64 max_payload_length = 0x7FFFFFFFFFFFFFFFull;
-    size_t masking_key_length = masked_ ? kMaskingKeyWidthInBytes : 0;
     static size_t max_length = std::numeric_limits<size_t>::max();
     if (payload_length64 > max_payload_length ||
-        payload_length64 + masking_key_length > max_length) {
+        payload_length64 + kMaskingKeyWidthInBytes > max_length) {
       // WebSocket frame length too large.
       return FRAME_ERROR;
     }
     payload_length_ = static_cast<size_t>(payload_length64);
 
-    size_t total_length = masking_key_length + payload_length_;
+    size_t total_length = kMaskingKeyWidthInBytes + payload_length_;
     if (static_cast<size_t>(buffer_end - p) < total_length)
       return FRAME_INCOMPLETE;
 
@@ -280,7 +282,7 @@ class WebSocketHybi10 : public WebSocket {
       message->swap(buffer);
     }
 
-    size_t pos = p + masking_key_length + payload_length_ -
+    size_t pos = p + kMaskingKeyWidthInBytes + payload_length_ -
         connection_->recv_data().c_str();
     connection_->Shift(pos);
 
@@ -297,13 +299,13 @@ class WebSocketHybi10 : public WebSocket {
 
     frame.push_back(kFinalBit | op_code);
     if (data_length <= kMaxSingleBytePayloadLength)
-      frame.push_back(kMaskBit | data_length);
+      frame.push_back(data_length);
     else if (data_length <= 0xFFFF) {
-      frame.push_back(kMaskBit | kTwoBytePayloadLengthField);
+      frame.push_back(kTwoBytePayloadLengthField);
       frame.push_back((data_length & 0xFF00) >> 8);
       frame.push_back(data_length & 0xFF);
     } else {
-      frame.push_back(kMaskBit | kEightBytePayloadLengthField);
+      frame.push_back(kEightBytePayloadLengthField);
       char extended_payload_length[8];
       size_t remaining = data_length;
       // Fill the length into extended_payload_length in the network byte order.
@@ -317,25 +319,14 @@ class WebSocketHybi10 : public WebSocket {
       DCHECK(!remaining);
     }
 
-    // Mask the frame.
-    size_t masking_key_start = frame.size();
-    // Add placeholder for masking key. Will be overwritten.
-    frame.resize(frame.size() + kMaskingKeyWidthInBytes);
-    size_t payload_start = frame.size();
     const char* data = message.c_str();
     frame.insert(frame.end(), data, data + data_length);
 
-    base::RandBytes(&frame[0] + masking_key_start,
-                    kMaskingKeyWidthInBytes);
-    for (size_t i = 0; i < data_length; ++i) {
-      frame[payload_start + i] ^=
-          frame[masking_key_start + i % kMaskingKeyWidthInBytes];
-    }
     connection_->Send(&frame[0], frame.size());
   }
 
  private:
-  WebSocketHybi10(HttpConnection* connection,
+  WebSocketHybi17(HttpConnection* connection,
                   const HttpServerRequestInfo& request,
                   size_t* pos)
     : WebSocket(connection),
@@ -362,7 +353,7 @@ class WebSocketHybi10 : public WebSocket {
   const char* frame_end_;
   bool closed_;
 
-  DISALLOW_COPY_AND_ASSIGN(WebSocketHybi10);
+  DISALLOW_COPY_AND_ASSIGN(WebSocketHybi17);
 };
 
 }  // anonymous namespace
@@ -370,7 +361,7 @@ class WebSocketHybi10 : public WebSocket {
 WebSocket* WebSocket::CreateWebSocket(HttpConnection* connection,
                                       const HttpServerRequestInfo& request,
                                       size_t* pos) {
-  WebSocket* socket = WebSocketHybi10::Create(connection, request, pos);
+  WebSocket* socket = WebSocketHybi17::Create(connection, request, pos);
   if (socket)
     return socket;
 
