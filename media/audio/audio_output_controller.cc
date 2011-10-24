@@ -176,9 +176,10 @@ void AudioOutputController::DoPlay() {
   // We can start from created or paused state.
   if (state_ != kCreated && state_ != kPaused)
     return;
-  state_ = kPlaying;
 
   if (LowLatencyMode()) {
+    state_ = kStarting;
+
     // Ask for first packet.
     sync_reader_->UpdatePendingBytes(0);
 
@@ -197,13 +198,20 @@ void AudioOutputController::DoPlay() {
 void AudioOutputController::PollAndStartIfDataReady() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
-  // Being paranoic: do nothing if we were stopped/paused
-  // after DoPlay() but before DoStartStream().
-  if (state_ != kPlaying)
+  // Being paranoic: do nothing if state unexpectedly changed.
+  if ((state_ != kStarting) && (state_ != kPausedWhenStarting))
     return;
 
-  if (--number_polling_attempts_left_ == 0 || sync_reader_->DataReady()) {
+  bool pausing = (state_ == kPausedWhenStarting);
+  // If we are ready to start the stream, start it.
+  // Of course we may have to stop it immediately...
+  if (--number_polling_attempts_left_ == 0 ||
+      pausing ||
+      sync_reader_->DataReady()) {
     StartStream();
+    if (pausing) {
+      DoPause();
+    }
   } else {
     message_loop_->PostDelayedTask(
         FROM_HERE,
@@ -214,6 +222,7 @@ void AudioOutputController::PollAndStartIfDataReady() {
 
 void AudioOutputController::StartStream() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
+  state_ = kPlaying;
 
   // We start the AudioOutputStream lazily.
   stream_->Start(this);
@@ -225,22 +234,32 @@ void AudioOutputController::StartStream() {
 void AudioOutputController::DoPause() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
-  // We can pause from started state.
-  if (state_ != kPlaying)
-    return;
-  state_ = kPaused;
+  switch (state_) {
+    case kStarting:
+      // We were asked to pause while starting. There is delayed task that will
+      // try starting playback, and there is no way to remove that task from the
+      // queue. If we stop now that task will be executed anyway.
+      // Delay pausing, let delayed task to do pause after it start playback.
+      state_ = kPausedWhenStarting;
+      break;
+    case kPlaying:
+      state_ = kPaused;
 
-  // Then we stop the audio device. This is not the perfect solution because
-  // it discards all the internal buffer in the audio device.
-  // TODO(hclam): Actually pause the audio device.
-  stream_->Stop();
+      // Then we stop the audio device. This is not the perfect solution
+      // because it discards all the internal buffer in the audio device.
+      // TODO(hclam): Actually pause the audio device.
+      stream_->Stop();
 
-  if (LowLatencyMode()) {
-    // Send a special pause mark to the low-latency audio thread.
-    sync_reader_->UpdatePendingBytes(kPauseMark);
+      if (LowLatencyMode()) {
+        // Send a special pause mark to the low-latency audio thread.
+        sync_reader_->UpdatePendingBytes(kPauseMark);
+      }
+
+      handler_->OnPaused(this);
+      break;
+    default:
+      return;
   }
-
-  handler_->OnPaused(this);
 }
 
 void AudioOutputController::DoFlush() {
@@ -287,10 +306,17 @@ void AudioOutputController::DoSetVolume(double volume) {
   // right away but when the stream is created we'll set the volume.
   volume_ = volume;
 
-  if (state_ != kPlaying && state_ != kPaused && state_ != kCreated)
-    return;
-
-  stream_->SetVolume(volume_);
+  switch (state_) {
+    case kCreated:
+    case kStarting:
+    case kPausedWhenStarting:
+    case kPlaying:
+    case kPaused:
+      stream_->SetVolume(volume_);
+      break;
+    default:
+      return;
+  }
 }
 
 void AudioOutputController::DoReportError(int code) {
