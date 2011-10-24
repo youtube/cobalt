@@ -21,6 +21,7 @@
 #include "base/win/windows_version.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
+#include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/audio/win/audio_manager_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
@@ -148,6 +149,17 @@ AudioInputStream* AudioManagerWin::MakeAudioInputStream(
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
     return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
                                          WAVE_MAPPER);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
+    if (base::win::GetVersion() <= base::win::VERSION_XP) {
+      // Fall back to Windows Wave implementation on Windows XP or lower.
+      DLOG(INFO) << "Using WaveIn since WASAPI requires at least Vista.";
+      return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
+                                           WAVE_MAPPER);
+    } else {
+      // TODO(henrika): improve possibility to specify audio endpoint.
+      // Use the default device (same as for Wave) for now to be compatible.
+      return new WASAPIAudioInputStream(this, params, eConsole);
+    }
   }
   return NULL;
 }
@@ -158,7 +170,7 @@ void AudioManagerWin::ReleaseOutputStream(PCMWaveOutAudioOutputStream* stream) {
   delete stream;
 }
 
-void AudioManagerWin::ReleaseInputStream(PCMWaveInAudioInputStream* stream) {
+void AudioManagerWin::ReleaseInputStream(AudioInputStream* stream) {
   delete stream;
 }
 
