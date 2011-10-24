@@ -171,6 +171,7 @@ std::string GetLinuxDistro() {
   }
 #else
   NOTIMPLEMENTED();
+  return "Unknown";
 #endif
 }
 

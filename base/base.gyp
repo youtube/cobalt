@@ -410,6 +410,11 @@
             'test/scoped_locale.h',
           ],
         }],
+        ['OS=="openbsd"', {
+          'sources!': [
+            'test/test_file_util_linux.cc',
+          ],
+        }],
       ],
       'sources': [
         'perftimer.cc',
