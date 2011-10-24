@@ -1153,9 +1153,11 @@
               '-Wextra',
               '-Werror',
             ],
-            'cflags': [
+            'cflags_cc': [
               # Don't warn about hash_map in third-party code.
               '-Wno-deprecated',
+            ],
+            'cflags': [
               # Don't warn about printf format problems.
               # This is off by default in gcc but on in Ubuntu's gcc(!).
               '-Wno-format',
@@ -1246,7 +1248,10 @@
               ['exclude', '(^|/)(wayland)_[^/]*\\.(h|cc)$'],
             ],
           }],
-          ['OS!="linux"', {
+          # Do not exclude the linux files on OpenBSD since most of them can be
+          # shared at this point.
+          # In case a file is not needed, it is going to be excluded later on.
+          ['OS!="linux" and OS!="openbsd"', {
             'sources/': [
               ['exclude', '_linux(_unittest)?\\.(h|cc)$'],
               ['exclude', '(^|/)linux/'],
