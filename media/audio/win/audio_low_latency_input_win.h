@@ -57,6 +57,7 @@
 #include <MMDeviceAPI.h>
 
 #include "base/compiler_specific.h"
+#include "base/media_export.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/win/scoped_co_mem.h"
@@ -69,7 +70,7 @@
 class AudioManagerWin;
 
 // AudioInputStream implementation using Windows Core Audio APIs.
-class WASAPIAudioInputStream
+class MEDIA_EXPORT WASAPIAudioInputStream
     : public AudioInputStream,
       public base::DelegateSimpleThread::Delegate {
  public:
