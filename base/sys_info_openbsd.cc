@@ -5,6 +5,7 @@
 #include "base/sys_info.h"
 
 #include <sys/param.h>
+#include <sys/shm.h>
 #include <sys/sysctl.h>
 
 #include "base/logging.h"
@@ -15,7 +16,7 @@ int SysInfo::NumberOfProcessors() {
   int mib[] = { CTL_HW, HW_NCPU };
   int ncpu;
   size_t size = sizeof(ncpu);
-  if (sysctl(mib, 2, &ncpu, &size, NULL, 0) == -1) {
+  if (sysctl(mib, arraysize(mib), &ncpu, &size, NULL, 0) == -1) {
     NOTREACHED();
     return 1;
   }
@@ -31,6 +32,17 @@ int64 SysInfo::AmountOfPhysicalMemory() {
   }
 
   return static_cast<int64>(pages) * page_size;
+}
+
+size_t SysInfo::MaxSharedMemorySize() {
+  int mib[] = { CTL_KERN, KERN_SHMINFO, KERN_SHMINFO_SHMMAX };
+  size_t limit;
+  size_t size = sizeof(limit);
+  if (sysctl(mib, arraysize(mib), &limit, &size, NULL, 0) < 0) {
+    NOTREACHED();
+    return 0;
+  }
+  return limit;
 }
 
 }  // namespace base
