@@ -144,7 +144,7 @@
       # Set to 1 to enable dcheck in release without having to use the flag.
       'dcheck_always_on%': 0,
 
-       # Disable file manager component extension by default.
+      # Disable file manager component extension by default.
       'file_manager_extension%': 0,
 
       # Enable WebUI TaskManager by default.
@@ -607,6 +607,9 @@
     # Point to ICU directory.
     'icu_src_dir': '../third_party/icu',
 
+    # The Java Bridge is not compiled in by default.
+    'java_bridge%': 0,
+
     'conditions': [
       # Used to disable Native Client at compile time, for platforms where it
       # isn't supported (ARM)
@@ -662,6 +665,7 @@
         'safe_browsing%': 0,
         'configuration_policy%': 0,
         'input_speech%': 0,
+        'java_bridge%': 1,
 
         # Builds the gtest targets as a shared_library.
         # TODO(michaelbai): Use the fixed value 'shared_library' once it
