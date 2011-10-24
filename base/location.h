@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/base_export.h"
+#include "base/values.h"
 
 #ifndef NDEBUG
 #ifndef TRACK_ALL_TASK_OBJECTS
@@ -53,11 +54,19 @@ class BASE_EXPORT Location {
 
   std::string ToString() const;
 
+  // Translate the some of the state in this instance into a human readable
+  // string with HTML characters in the function names escaped, and append that
+  // string to |output|.  Inclusion of the file_name_ and function_name_ are
+  // optional, and controlled by the boolean arguments.
   void Write(bool display_filename, bool display_function_name,
              std::string* output) const;
 
   // Write function_name_ in HTML with '<' and '>' properly encoded.
   void WriteFunctionName(std::string* output) const;
+
+  // Construct a Value* representation.  The caller assumes ownership of the
+  // memory in the returned instance.
+  base::DictionaryValue* ToValue() const;
 
  private:
   const char* function_name_;
