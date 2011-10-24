@@ -1120,7 +1120,7 @@ void RunTest_Dispatcher(MessageLoop::Type message_loop_type) {
   MessageLoop::current()->PostDelayedTask(FROM_HERE,
                                           base::Bind(&MouseDownUp), 100);
   DispatcherImpl dispatcher;
-  MessageLoopForUI::current()->Run(&dispatcher);
+  MessageLoopForUI::current()->RunWithDispatcher(&dispatcher);
   ASSERT_EQ(2, dispatcher.dispatch_count_);
 }
 
@@ -1143,7 +1143,7 @@ void RunTest_DispatcherWithMessageHook(MessageLoop::Type message_loop_type) {
                                     NULL,
                                     GetCurrentThreadId());
   DispatcherImpl dispatcher;
-  MessageLoopForUI::current()->Run(&dispatcher);
+  MessageLoopForUI::current()->RunWithDispatcher(&dispatcher);
   ASSERT_EQ(1, dispatcher.dispatch_count_);
   UnhookWindowsHookEx(msg_hook);
 }
