@@ -497,7 +497,8 @@ void MessageLoop::RunTask(const PendingTask& pending_task) {
                     DidProcessTask(pending_task.time_posted));
 #if defined(TRACK_ALL_TASK_OBJECTS)
   tracked_objects::ThreadData::TallyADeathIfActive(pending_task.post_births,
-    pending_task.time_posted, pending_task.delayed_run_time, start_of_run);
+      pending_task.time_posted, pending_task.delayed_run_time, start_of_run,
+      tracked_objects::ThreadData::Now());
 #endif  // defined(TRACK_ALL_TASK_OBJECTS)
 
   nestable_tasks_allowed_ = true;
