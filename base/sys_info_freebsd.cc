@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,7 +26,10 @@ int64 SysInfo::AmountOfPhysicalMemory() {
 size_t SysInfo::MaxSharedMemorySize() {
   size_t limit;
   size_t size = sizeof(limit);
-  sysctlbyname("kern.ipc.shmmax", &limit, &size, NULL, 0);
+  if (sysctlbyname("kern.ipc.shmmax", &limit, &size, NULL, 0) < 0) {
+    NOTREACHED();
+    return 0;
+  }
   return limit;
 }
 

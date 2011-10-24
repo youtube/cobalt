@@ -426,7 +426,7 @@
             'sources!' : [ 'message_pump_gtk.cc', ],
             'sources/' : [ [ 'include', 'message_pump_x.cc', ] ],
           }],
-          [ 'OS != "linux"', {
+          [ 'OS != "linux" and OS != "openbsd"', {
               'sources!': [
                 # Not automatically excluded by the *linux.cc rules.
                 'linux_util.cc',
@@ -501,9 +501,11 @@
           }],
           [ 'OS == "openbsd"', {
             'sources/': [
-              ['include', '^base_paths_linux\\.cc$'],
-              ['include', '^native_library_linux\\.cc$'],
-              ['include', '^sys_string_conversions_linux\\.cc$'],
+              ['exclude', '^files/file_path_watcher_linux\\.cc$'],
+              ['exclude', '^file_util_linux\\.cc$'],
+              ['exclude', '^process_linux\\.cc$'],
+              ['exclude', '^process_util_linux\\.cc$'],
+              ['exclude', '^sys_info_linux\\.cc$'],
             ],
           }],
         ],

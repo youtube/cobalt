@@ -912,8 +912,12 @@ bool GetTempDir(FilePath* path) {
 
 #if !defined(OS_ANDROID)
 bool GetShmemTempDir(FilePath* path) {
+#if defined(OS_LINUX)
   *path = FilePath("/dev/shm");
   return true;
+#else
+  return GetTempDir(path);
+#endif
 }
 #endif
 
