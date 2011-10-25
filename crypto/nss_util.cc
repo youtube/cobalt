@@ -16,6 +16,9 @@
 #if defined(OS_LINUX)
 #include <linux/nfs_fs.h>
 #include <sys/vfs.h>
+#elif defined(OS_OPENBSD)
+#include <sys/mount.h>
+#include <sys/param.h>
 #endif
 
 #include <vector>
@@ -151,22 +154,27 @@ char* PKCS11PasswordFunc(PK11SlotInfo* slot, PRBool retry, void* arg) {
 // detection when database_dir is on NFS.  See http://crbug.com/48585.
 //
 // TODO(wtc): port this function to other USE_NSS platforms.  It is defined
-// only for OS_LINUX simply because the statfs structure is OS-specific.
+// only for OS_LINUX and OS_OPENBSD simply because the statfs structure
+// is OS-specific.
 //
 // Because this function sets an environment variable it must be run before we
 // go multi-threaded.
 void UseLocalCacheOfNSSDatabaseIfNFS(const FilePath& database_dir) {
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_OPENBSD)
   struct statfs buf;
   if (statfs(database_dir.value().c_str(), &buf) == 0) {
+#if defined(OS_LINUX)
     if (buf.f_type == NFS_SUPER_MAGIC) {
+#elif defined(OS_OPENBSD)
+    if (strcmp(buf.f_fstypename, MOUNT_NFS) == 0) {
+#endif
       scoped_ptr<base::Environment> env(base::Environment::Create());
       const char* use_cache_env_var = "NSS_SDB_USE_CACHE";
       if (!env->HasVar(use_cache_env_var))
         env->SetVar(use_cache_env_var, "yes");
     }
   }
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_LINUX) || defined(OS_OPENBSD)
 }
 
 PK11SlotInfo* FindSlotWithTokenName(const std::string& token_name) {
