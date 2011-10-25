@@ -111,8 +111,8 @@
           'file_version_info_win.h',
           'files/file_path_watcher.cc',
           'files/file_path_watcher.h',
+          'files/file_path_watcher_kqueue.cc',
           'files/file_path_watcher_linux.cc',
-          'files/file_path_watcher_mac.cc',
           'files/file_path_watcher_stub.cc',
           'files/file_path_watcher_win.cc',
           'float_util.h',
@@ -481,6 +481,7 @@
             'sources!': [
               'event_recorder_stubs.cc',
               'file_descriptor_shuffle.cc',
+              'files/file_path_watcher_kqueue.cc',
               'files/file_path_watcher_stub.cc',
               'message_pump_libevent.cc',
               # Not using sha1_win.cc because it may have caused a
@@ -491,6 +492,7 @@
           },],
           [ 'OS == "linux"', {
             'sources!': [
+              'files/file_path_watcher_kqueue.cc',
               'files/file_path_watcher_stub.cc',
             ],
           }],
@@ -502,6 +504,7 @@
           [ 'OS == "openbsd"', {
             'sources/': [
               ['exclude', '^files/file_path_watcher_linux\\.cc$'],
+              ['exclude', '^files/file_path_watcher_stub\\.cc$'],
               ['exclude', '^file_util_linux\\.cc$'],
               ['exclude', '^process_linux\\.cc$'],
               ['exclude', '^process_util_linux\\.cc$'],
