@@ -233,7 +233,8 @@ void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
   CertVerifyResult verify_result;
   int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
                 X509Certificate::VERIFY_EV_CERT;
-  EXPECT_EQ(OK, google_cert->Verify("www.google.com", flags, &verify_result));
+  EXPECT_EQ(OK, google_cert->Verify("www.google.com", flags, NULL,
+                                    &verify_result);
   EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_EV);
 #endif
 }
@@ -299,7 +300,7 @@ TEST(X509CertificateTest, WebkitCertParsing) {
   int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
                 X509Certificate::VERIFY_EV_CERT;
   CertVerifyResult verify_result;
-  EXPECT_EQ(OK, webkit_cert->Verify("webkit.org", flags, &verify_result));
+  EXPECT_EQ(OK, webkit_cert->Verify("webkit.org", flags, NULL, &verify_result));
   EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_EV);
 #endif
 
@@ -362,12 +363,14 @@ TEST(X509CertificateTest, ThawteCertParsing) {
                 X509Certificate::VERIFY_EV_CERT;
   CertVerifyResult verify_result;
   // EV cert verification requires revocation checking.
-  EXPECT_EQ(OK, thawte_cert->Verify("www.thawte.com", flags, &verify_result));
+  EXPECT_EQ(OK, thawte_cert->Verify("www.thawte.com", flags, NULL,
+                                    &verify_result);
   EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_EV);
   // Consequently, if we don't have revocation checking enabled, we can't claim
   // any cert is EV.
   flags = X509Certificate::VERIFY_EV_CERT;
-  EXPECT_EQ(OK, thawte_cert->Verify("www.thawte.com", flags, &verify_result));
+  EXPECT_EQ(OK, thawte_cert->Verify("www.thawte.com", flags, NULL,
+                                    &verify_result));
   EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_EV);
 #endif
 }
@@ -387,7 +390,7 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
 
   int flags = 0;
   CertVerifyResult verify_result;
-  int error = paypal_null_cert->Verify("www.paypal.com", flags,
+  int error = paypal_null_cert->Verify("www.paypal.com", flags, NULL,
                                        &verify_result);
 #if defined(USE_OPENSSL) || defined(OS_MACOSX) || defined(OS_WIN)
   // TOOD(bulach): investigate why macosx and win aren't returning
@@ -460,7 +463,8 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
 
   int flags = 0;
   CertVerifyResult verify_result;
-  int error = cert_chain->Verify("www.us.army.mil", flags, &verify_result);
+  int error = cert_chain->Verify("www.us.army.mil", flags, NULL,
+                                 &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
   root_certs->Clear();
@@ -495,7 +499,8 @@ TEST(X509CertificateTest, DISABLED_GlobalSignR3EVTest) {
   CertVerifyResult verify_result;
   int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
               X509Certificate::VERIFY_EV_CERT;
-  int error = cert_chain->Verify("2029.globalsign.com", flags, &verify_result);
+  int error = cert_chain->Verify("2029.globalsign.com", flags, NULL,
+                                 &verify_result);
   if (error == OK)
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_EV);
   else
@@ -522,13 +527,14 @@ TEST(X509CertificateTest, GoogleDigiNotarTest) {
 
   CertVerifyResult verify_result;
   int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED;
-  int error = cert_chain->Verify("mail.google.com", flags, &verify_result);
+  int error = cert_chain->Verify("mail.google.com", flags, NULL,
+                                 &verify_result);
   EXPECT_NE(OK, error);
 
   // Now turn off revocation checking.  Certificate verification should still
   // fail.
   flags = 0;
-  error = cert_chain->Verify("mail.google.com", flags, &verify_result);
+  error = cert_chain->Verify("mail.google.com", flags, NULL, &verify_result);
   EXPECT_NE(OK, error);
 }
 
@@ -588,7 +594,7 @@ TEST(X509CertificateTest, TestKnownRoot) {
   CertVerifyResult verify_result;
   // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
   // against agl. Also see PublicKeyHashes in this file.
-  int error = cert_chain->Verify("www.nist.gov", flags, &verify_result);
+  int error = cert_chain->Verify("www.nist.gov", flags, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
   EXPECT_TRUE(verify_result.is_issued_by_known_root);
@@ -662,7 +668,7 @@ TEST(X509CertificateTest, PublicKeyHashes) {
   int flags = 0;
   CertVerifyResult verify_result;
 
-  int error = cert_chain->Verify("www.nist.gov", flags, &verify_result);
+  int error = cert_chain->Verify("www.nist.gov", flags, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
   ASSERT_LE(2u, verify_result.public_key_hashes.size());
@@ -686,7 +692,8 @@ TEST(X509CertificateTest, InvalidKeyUsage) {
 
   int flags = 0;
   CertVerifyResult verify_result;
-  int error = server_cert->Verify("jira.aquameta.com", flags, &verify_result);
+  int error = server_cert->Verify("jira.aquameta.com", flags, NULL,
+                                  &verify_result);
 #if defined(USE_OPENSSL)
   // This certificate has two errors: "invalid key usage" and "untrusted CA".
   // However, OpenSSL returns only one (the latter), and we can't detect
@@ -892,7 +899,7 @@ TEST(X509CertificateTest, VerifyReturnChainBasic) {
 
   CertVerifyResult verify_result;
   EXPECT_EQ(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
-  int error = google_full_chain->Verify("127.0.0.1", 0, &verify_result);
+  int error = google_full_chain->Verify("127.0.0.1", 0, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   ASSERT_NE(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
 
@@ -938,7 +945,7 @@ TEST(X509CertificateTest, VerifyReturnChainProperlyOrdered) {
 
   CertVerifyResult verify_result;
   EXPECT_EQ(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
-  int error = google_full_chain->Verify("127.0.0.1", 0, &verify_result);
+  int error = google_full_chain->Verify("127.0.0.1", 0, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   ASSERT_NE(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
 
@@ -989,7 +996,7 @@ TEST(X509CertificateTest, VerifyReturnChainFiltersUnrelatedCerts) {
 
   CertVerifyResult verify_result;
   EXPECT_EQ(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
-  int error = google_full_chain->Verify("127.0.0.1", 0, &verify_result);
+  int error = google_full_chain->Verify("127.0.0.1", 0, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   ASSERT_NE(static_cast<X509Certificate*>(NULL), verify_result.verified_cert);
 

@@ -4,6 +4,9 @@
 
 #include "net/base/ssl_config_service.h"
 
+#include "base/lazy_instance.h"
+#include "base/memory/ref_counted.h"
+#include "net/base/crl_set.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/ssl_false_start_blacklist.h"
 
@@ -59,6 +62,9 @@ static bool g_cached_info_enabled = false;
 static bool g_origin_bound_certs_enabled = false;
 static bool g_false_start_enabled = true;
 static bool g_dns_cert_provenance_checking = false;
+base::LazyInstance<scoped_refptr<CRLSet>,
+                   base::LeakyLazyInstanceTraits<scoped_refptr<CRLSet> > >
+    g_crl_set(base::LINKER_INITIALIZED);
 
 // static
 void SSLConfigService::DisableFalseStart() {
@@ -82,14 +88,12 @@ bool SSLConfigService::dns_cert_provenance_checking_enabled() {
 
 // static
 void SSLConfigService::SetCRLSet(scoped_refptr<CRLSet> crl_set) {
-  // TODO(agl): not implemented yet.
+  g_crl_set.Get() = crl_set;
 }
 
 // static
 scoped_refptr<CRLSet> SSLConfigService::GetCRLSet() {
-  // TODO(agl): not implemented yet.
-  scoped_refptr<CRLSet> ret;
-  return ret;
+  return g_crl_set.Get();
 }
 
 void SSLConfigService::EnableCachedInfo() {

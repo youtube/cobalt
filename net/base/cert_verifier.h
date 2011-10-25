@@ -24,6 +24,7 @@ namespace net {
 class BoundNetLog;
 class CertVerifierJob;
 class CertVerifierWorker;
+class CRLSet;
 class X509Certificate;
 
 // CachedCertVerifyResult contains the result of a certificate verification.
@@ -92,6 +93,9 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // VERIFY_REV_CHECKING_ENABLED is not set), EV certificate verification will
   // not be performed.
   //
+  // |crl_set| points to an optional CRLSet structure which can be used to
+  // avoid revocation checks over the network.
+  //
   // |callback| must not be null.  ERR_IO_PENDING is returned if the operation
   // could not be completed synchronously, in which case the result code will
   // be passed to the callback when available.
@@ -102,6 +106,7 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
   int Verify(X509Certificate* cert,
              const std::string& hostname,
              int flags,
+             CRLSet* crl_set,
              CertVerifyResult* verify_result,
              const CompletionCallback& callback,
              RequestHandle* out_req,
@@ -202,6 +207,7 @@ class SingleRequestCertVerifier {
   int Verify(X509Certificate* cert,
              const std::string& hostname,
              int flags,
+             CRLSet* crl_set,
              CertVerifyResult* verify_result,
              const CompletionCallback& callback,
              const BoundNetLog& net_log);

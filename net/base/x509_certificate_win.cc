@@ -696,6 +696,7 @@ HCERTSTORE X509Certificate::cert_store() {
 
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
+                                    CRLSet* crl_set,
                                     CertVerifyResult* verify_result) const {
   if (!cert_handle_)
     return ERR_UNEXPECTED;

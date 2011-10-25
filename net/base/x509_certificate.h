@@ -44,6 +44,7 @@ class RSAPrivateKey;
 
 namespace net {
 
+class CRLSet;
 class CertVerifyResult;
 
 typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
@@ -320,8 +321,12 @@ class NET_EXPORT X509Certificate
   // If VERIFY_REV_CHECKING_ENABLED is set in |flags|, certificate revocation
   // checking is performed.  If VERIFY_EV_CERT is set in |flags| too,
   // EV certificate verification is performed.
+  //
+  // |crl_set| points to an optional CRLSet structure which can be used to
+  // avoid revocation checks over the network.
   int Verify(const std::string& hostname,
              int flags,
+             CRLSet* crl_set,
              CertVerifyResult* verify_result) const;
 
   // Verifies that |hostname| matches this certificate.
@@ -416,6 +421,7 @@ class NET_EXPORT X509Certificate
   // Parameters and return value are as per Verify().
   int VerifyInternal(const std::string& hostname,
                      int flags,
+                     CRLSet* crl_set,
                      CertVerifyResult* verify_result) const;
 
   // The serial number, DER encoded.

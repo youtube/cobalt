@@ -151,7 +151,6 @@ class NET_EXPORT SSLConfigService
   static bool dns_cert_provenance_checking_enabled();
 
   // Sets and gets the current, global CRL set.
-  // TODO(agl): currently unused.
   static void SetCRLSet(scoped_refptr<CRLSet> crl_set);
   static scoped_refptr<CRLSet> GetCRLSet();
 
