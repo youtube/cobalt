@@ -247,14 +247,112 @@ TEST_F(SpdySessionTest, Ping) {
 
   EXPECT_EQ(OK, callback1.WaitForResult());
 
+  session->CheckPingStatus(before_ping_time);
+
   EXPECT_EQ(0, session->pings_in_flight());
   EXPECT_GT(session->next_ping_id(), static_cast<uint32>(1));
   EXPECT_FALSE(session->trailing_ping_pending());
-  // TODO(rtenneti): check_ping_status_pending works in debug mode with
-  // breakpoints, but fails if run in stand alone mode.
-  // EXPECT_FALSE(session->check_ping_status_pending());
+  EXPECT_FALSE(session->check_ping_status_pending());
   EXPECT_GE(session->received_data_time(), before_ping_time);
 
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+
+  // Delete the first session.
+  session = NULL;
+}
+
+TEST_F(SpdySessionTest, FailedPing) {
+  SpdySessionDependencies session_deps;
+  session_deps.host_resolver->set_synchronous_mode(true);
+
+  MockConnect connect_data(false, OK);
+  scoped_ptr<spdy::SpdyFrame> read_ping(ConstructSpdyPing());
+  MockRead reads[] = {
+    CreateMockRead(*read_ping),
+    MockRead(false, 0, 0)  // EOF
+  };
+  scoped_ptr<spdy::SpdyFrame> write_ping(ConstructSpdyPing());
+  MockRead writes[] = {
+    CreateMockRead(*write_ping),
+  };
+  StaticSocketDataProvider data(
+      reads, arraysize(reads), writes, arraysize(writes));
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(false, OK);
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+
+  static const char kStreamUrl[] = "http://www.gmail.com/";
+  GURL url(kStreamUrl);
+
+  const std::string kTestHost("www.gmail.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
+
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(pair, BoundNetLog());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
+
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                GURL(),
+                                false,
+                                false));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK,
+            connection->Init(test_host_port_pair.ToString(),
+                             transport_params,
+                             MEDIUM,
+                             NULL,
+                             http_session->transport_socket_pool(),
+                             BoundNetLog()));
+  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
+
+  scoped_refptr<SpdyStream> spdy_stream1;
+  TestOldCompletionCallback callback1;
+  EXPECT_EQ(OK, session->CreateStream(url,
+                                      MEDIUM,
+                                      &spdy_stream1,
+                                      BoundNetLog(),
+                                      &callback1));
+  scoped_ptr<TestSpdyStreamDelegate> delegate(
+      new TestSpdyStreamDelegate(&callback1));
+  spdy_stream1->SetDelegate(delegate.get());
+
+  // Enable sending of PING.
+  SpdySession::set_enable_ping_based_connection_checking(true);
+  SpdySession::set_connection_at_risk_of_loss_ms(0);
+  SpdySession::set_trailing_ping_delay_time_ms(0);
+  SpdySession::set_hung_interval_ms(0);
+
+  // Send a PING frame.
+  session->WritePingFrame(1);
+  EXPECT_LT(0, session->pings_in_flight());
+  EXPECT_GT(session->next_ping_id(), static_cast<uint32>(1));
+  EXPECT_TRUE(session->check_ping_status_pending());
+
+  // Assert session is not closed.
+  EXPECT_FALSE(session->IsClosed());
+  EXPECT_LT(0u, session->num_active_streams());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
+
+  // We set last time we have received any data in 1 sec less than now.
+  // CheckPingStatus will trigger timeout because hung interval is zero.
+  base::TimeTicks now = base::TimeTicks::Now();
+  session->received_data_time_ = now - base::TimeDelta::FromSeconds(1);
+  session->CheckPingStatus(now);
+
+  EXPECT_TRUE(session->IsClosed());
+  EXPECT_EQ(0u, session->num_active_streams());
+  EXPECT_EQ(0u, session->num_unclaimed_pushed_streams());
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 
   // Delete the first session.
