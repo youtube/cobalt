@@ -206,7 +206,7 @@ bool SharedMemory::Lock(uint32 timeout_ms, SECURITY_ATTRIBUTES* sec_attr) {
     name.append(L"lock");
     lock_ = CreateMutex(sec_attr, FALSE, name.c_str());
     if (lock_ == NULL) {
-      DPLOG(ERROR) << "Could not create mutex.";
+      PLOG(ERROR) << "Could not create mutex.";
       return false;  // there is nothing good we can do here.
     }
   }

@@ -398,16 +398,16 @@ TEST(Allocators, Realloc1) {
 
   for (int s = 0; s < sizeof(start_sizes)/sizeof(*start_sizes); ++s) {
     void* p = malloc(start_sizes[s]);
-    ASSERT_TRUE(p);
+    CHECK(p);
     // The larger the start-size, the larger the non-reallocing delta.
     for (int d = 0; d < s*2; ++d) {
       void* new_p = realloc(p, start_sizes[s] + deltas[d]);
-      ASSERT_EQ(p, new_p);  // realloc should not allocate new memory
+      CHECK_EQ(p, new_p);  // realloc should not allocate new memory
     }
     // Test again, but this time reallocing smaller first.
     for (int d = 0; d < s*2; ++d) {
       void* new_p = realloc(p, start_sizes[s] - deltas[d]);
-      ASSERT_EQ(p, new_p);  // realloc should not allocate new memory
+      CHECK_EQ(p, new_p);  // realloc should not allocate new memory
     }
     free(p);
   }

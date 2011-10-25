@@ -28,7 +28,7 @@ static bool UncachedAmIBundled() {
   FSRef fsref;
   OSStatus pbErr;
   if ((pbErr = GetProcessBundleLocation(&psn, &fsref)) != noErr) {
-    DLOG(ERROR) << "GetProcessBundleLocation failed: error " << pbErr;
+    LOG(ERROR) << "GetProcessBundleLocation failed: error " << pbErr;
     return false;
   }
 
@@ -36,7 +36,7 @@ static bool UncachedAmIBundled() {
   OSErr fsErr;
   if ((fsErr = FSGetCatalogInfo(&fsref, kFSCatInfoNodeFlags, &info,
                                 NULL, NULL, NULL)) != noErr) {
-    DLOG(ERROR) << "FSGetCatalogInfo failed: error " << fsErr;
+    LOG(ERROR) << "FSGetCatalogInfo failed: error " << fsErr;
     return false;
   }
 
@@ -102,7 +102,7 @@ void SetOverrideAppBundle(NSBundle* bundle) {
 void SetOverrideAppBundlePath(const FilePath& file_path) {
   NSString* path = base::SysUTF8ToNSString(file_path.value());
   NSBundle* bundle = [NSBundle bundleWithPath:path];
-  DCHECK(bundle) << "Failed to load the bundle at " << file_path.value();
+  CHECK(bundle) << "Failed to load the bundle at " << file_path.value();
 
   SetOverrideAppBundle(bundle);
 }
@@ -146,7 +146,7 @@ bool GetUserDirectory(NSSearchPathDirectory directory, FilePath* result) {
 FilePath GetUserLibraryPath() {
   FilePath user_library_path;
   if (!GetUserDirectory(NSLibraryDirectory, &user_library_path)) {
-    DLOG(WARNING) << "Could not get user library path";
+    LOG(WARNING) << "Could not get user library path";
   }
   return user_library_path;
 }
@@ -212,7 +212,7 @@ CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
         CFCopyTypeIDDescription(expected_type));
     ScopedCFTypeRef<CFStringRef> actual_type_ref(
         CFCopyTypeIDDescription(CFGetTypeID(value)));
-    DLOG(WARNING) << "Expected value for key "
+    LOG(WARNING) << "Expected value for key "
                  << base::SysCFStringRefToUTF8(key)
                  << " to be "
                  << base::SysCFStringRefToUTF8(expected_type_ref)
