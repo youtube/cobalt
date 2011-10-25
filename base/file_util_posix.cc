@@ -95,33 +95,33 @@ bool VerifySpecificPathControlledByUser(const FilePath& path,
                                         const std::set<gid_t>& group_gids) {
   stat_wrapper_t stat_info;
   if (CallLstat(path.value().c_str(), &stat_info) != 0) {
-    PLOG(ERROR) << "Failed to get information on path "
-                << path.value();
+    DPLOG(ERROR) << "Failed to get information on path "
+                 << path.value();
     return false;
   }
 
   if (S_ISLNK(stat_info.st_mode)) {
-    LOG(ERROR) << "Path " << path.value()
+    DLOG(ERROR) << "Path " << path.value()
                << " is a symbolic link.";
     return false;
   }
 
   if (stat_info.st_uid != owner_uid) {
-    LOG(ERROR) << "Path " << path.value()
-               << " is owned by the wrong user.";
+    DLOG(ERROR) << "Path " << path.value()
+                << " is owned by the wrong user.";
     return false;
   }
 
   if ((stat_info.st_mode & S_IWGRP) &&
       !ContainsKey(group_gids, stat_info.st_gid)) {
-    LOG(ERROR) << "Path " << path.value()
-               << " is writable by an unprivileged group.";
+    DLOG(ERROR) << "Path " << path.value()
+                << " is writable by an unprivileged group.";
     return false;
   }
 
   if (stat_info.st_mode & S_IWOTH) {
-    LOG(ERROR) << "Path " << path.value()
-               << " is writable by any user.";
+    DLOG(ERROR) << "Path " << path.value()
+                << " is writable by any user.";
     return false;
   }
 
@@ -173,7 +173,7 @@ int CountFilesCreatedAfter(const FilePath& path,
       stat_wrapper_t st;
       int test = CallStat(path.Append(ent->d_name).value().c_str(), &st);
       if (test != 0) {
-        PLOG(ERROR) << "stat64 failed";
+        DPLOG(ERROR) << "stat64 failed";
         continue;
       }
       // Here, we use Time::TimeT(), which discards microseconds. This
@@ -322,8 +322,8 @@ bool CopyDirectory(const FilePath& from_path,
   FileEnumerator::FindInfo info;
   FilePath current = from_path;
   if (stat(from_path.value().c_str(), &info.stat) < 0) {
-    LOG(ERROR) << "CopyDirectory() couldn't stat source directory: " <<
-        from_path.value() << " errno = " << errno;
+    DLOG(ERROR) << "CopyDirectory() couldn't stat source directory: "
+                << from_path.value() << " errno = " << errno;
     success = false;
   }
   struct stat to_path_stat;
@@ -353,19 +353,19 @@ bool CopyDirectory(const FilePath& from_path,
     if (S_ISDIR(info.stat.st_mode)) {
       if (mkdir(target_path.value().c_str(), info.stat.st_mode & 01777) != 0 &&
           errno != EEXIST) {
-        LOG(ERROR) << "CopyDirectory() couldn't create directory: " <<
-            target_path.value() << " errno = " << errno;
+        DLOG(ERROR) << "CopyDirectory() couldn't create directory: "
+                    << target_path.value() << " errno = " << errno;
         success = false;
       }
     } else if (S_ISREG(info.stat.st_mode)) {
       if (!CopyFile(current, target_path)) {
-        LOG(ERROR) << "CopyDirectory() couldn't create file: " <<
-            target_path.value();
+        DLOG(ERROR) << "CopyDirectory() couldn't create file: "
+                    << target_path.value();
         success = false;
       }
     } else {
-      LOG(WARNING) << "CopyDirectory() skipping non-regular file: " <<
-          current.value();
+      DLOG(WARNING) << "CopyDirectory() skipping non-regular file: "
+                    << current.value();
     }
 
     current = traversal.Next();
@@ -511,8 +511,8 @@ static bool CreateTemporaryDirInDirImpl(const FilePath& base_dir,
                                         const FilePath::StringType& name_tmpl,
                                         FilePath* new_dir) {
   base::ThreadRestrictions::AssertIOAllowed();  // For call to mkdtemp().
-  CHECK(name_tmpl.find("XXXXXX") != FilePath::StringType::npos)
-    << "Directory name template must contain \"XXXXXX\".";
+  DCHECK(name_tmpl.find("XXXXXX") != FilePath::StringType::npos)
+      << "Directory name template must contain \"XXXXXX\".";
 
   FilePath sub_dir = base_dir.Append(name_tmpl);
   std::string sub_dir_string = sub_dir.value();
@@ -823,8 +823,8 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
       // Print the stat() error message unless it was ENOENT and we're
       // following symlinks.
       if (!(errno == ENOENT && !show_links)) {
-        PLOG(ERROR) << "Couldn't stat "
-                    << source.Append(dent->d_name).value();
+        DPLOG(ERROR) << "Couldn't stat "
+                     << source.Append(dent->d_name).value();
       }
       memset(&info.stat, 0, sizeof(info.stat));
     }
@@ -849,7 +849,7 @@ bool MemoryMappedFile::MapFileToMemoryInternal() {
 
   struct stat file_stat;
   if (fstat(file_, &file_stat) == base::kInvalidPlatformFileValue) {
-    LOG(ERROR) << "Couldn't fstat " << file_ << ", errno " << errno;
+    DLOG(ERROR) << "Couldn't fstat " << file_ << ", errno " << errno;
     return false;
   }
   length_ = file_stat.st_size;
@@ -857,7 +857,7 @@ bool MemoryMappedFile::MapFileToMemoryInternal() {
   data_ = static_cast<uint8*>(
       mmap(NULL, length_, PROT_READ, MAP_SHARED, file_, 0));
   if (data_ == MAP_FAILED)
-    LOG(ERROR) << "Couldn't mmap " << file_ << ", errno " << errno;
+    DLOG(ERROR) << "Couldn't mmap " << file_ << ", errno " << errno;
 
   return data_ != MAP_FAILED;
 }
@@ -927,7 +927,7 @@ FilePath GetHomeDir() {
     return FilePath(home_dir);
 
 #if defined(OS_ANDROID)
-  LOG(WARNING) << "OS_ANDROID: Home directory lookup not yet implemented.";
+  DLOG(WARNING) << "OS_ANDROID: Home directory lookup not yet implemented.";
 #else
   // g_get_home_dir calls getpwent, which can fall through to LDAP calls.
   base::ThreadRestrictions::AssertIOAllowed();
@@ -998,8 +998,8 @@ bool VerifyPathControlledByUser(const FilePath& base,
                                 uid_t owner_uid,
                                 const std::set<gid_t>& group_gids) {
   if (base != path && !base.IsParent(path)) {
-     LOG(ERROR) << "|base| must be a subdirectory of |path|.  base = \""
-                << base.value() << "\", path = \"" << path.value() << "\"";
+     DLOG(ERROR) << "|base| must be a subdirectory of |path|.  base = \""
+                 << base.value() << "\", path = \"" << path.value() << "\"";
      return false;
   }
 
@@ -1015,8 +1015,8 @@ bool VerifyPathControlledByUser(const FilePath& base,
     // |base| must be a subpath of |path|, so all components should match.
     // If these CHECKs fail, look at the test that base is a parent of
     // path at the top of this function.
-    CHECK(ip != path_components.end());
-    CHECK(*ip == *ib);
+    DCHECK(ip != path_components.end());
+    DCHECK(*ip == *ib);
   }
 
   FilePath current_path = base;
@@ -1050,8 +1050,8 @@ bool VerifyPathControlledByAdmin(const FilePath& path) {
   for (int i = 0, ie = arraysize(kAdminGroupNames); i < ie; ++i) {
     struct group *group_record = getgrnam(kAdminGroupNames[i]);
     if (!group_record) {
-      PLOG(ERROR) << "Could not get the group ID of group \""
-                  << kAdminGroupNames[i] << "\".";
+      DPLOG(ERROR) << "Could not get the group ID of group \""
+                   << kAdminGroupNames[i] << "\".";
       continue;
     }
 

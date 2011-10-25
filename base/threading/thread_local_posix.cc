@@ -32,7 +32,7 @@ void* ThreadLocalPlatform::GetValueFromSlot(SlotType& slot) {
 // static
 void ThreadLocalPlatform::SetValueInSlot(SlotType& slot, void* value) {
   int error = pthread_setspecific(slot, value);
-  CHECK_EQ(error, 0);
+  DCHECK_EQ(error, 0);
 }
 
 }  // namespace internal

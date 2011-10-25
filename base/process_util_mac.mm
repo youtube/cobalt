@@ -75,7 +75,7 @@ ProcessIterator::ProcessIterator(const ProcessFilter* filter)
     // Get the size of the buffer
     size_t len = 0;
     if (sysctl(mib, arraysize(mib), NULL, &len, NULL, 0) < 0) {
-      LOG(ERROR) << "failed to get the size needed for the process list";
+      DLOG(ERROR) << "failed to get the size needed for the process list";
       kinfo_procs_.resize(0);
       done = true;
     } else {
@@ -90,7 +90,7 @@ ProcessIterator::ProcessIterator(const ProcessFilter* filter)
         // If we get a mem error, it just means we need a bigger buffer, so
         // loop around again.  Anything else is a real error and give up.
         if (errno != ENOMEM) {
-          LOG(ERROR) << "failed to get the process list";
+          DLOG(ERROR) << "failed to get the process list";
           kinfo_procs_.resize(0);
           done = true;
         }
@@ -104,7 +104,7 @@ ProcessIterator::ProcessIterator(const ProcessFilter* filter)
   } while (!done && (try_num++ < max_tries));
 
   if (!done) {
-    LOG(ERROR) << "failed to collect the process list in a few tries";
+    DLOG(ERROR) << "failed to collect the process list in a few tries";
     kinfo_procs_.resize(0);
   }
 }
@@ -149,7 +149,7 @@ bool ProcessIterator::CheckForNextProcess() {
     // to populate |entry_.exe_file_|.
     size_t exec_name_end = data.find('\0');
     if (exec_name_end == std::string::npos) {
-      LOG(ERROR) << "command line data didn't match expected format";
+      DLOG(ERROR) << "command line data didn't match expected format";
       continue;
     }
 
@@ -248,7 +248,7 @@ static bool GetCPUTypeForProcess(pid_t pid, cpu_type_t* cpu_type) {
                             NULL,
                             0);
   if (result != 0) {
-    PLOG(ERROR) << "sysctlbyname(""sysctl.proc_cputype"")";
+    DPLOG(ERROR) << "sysctlbyname(""sysctl.proc_cputype"")";
     return false;
   }
 
@@ -280,7 +280,7 @@ bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
 
   mach_port_t task = TaskForPid(process_);
   if (task == MACH_PORT_NULL) {
-    LOG(ERROR) << "Invalid process";
+    DLOG(ERROR) << "Invalid process";
     return false;
   }
 
@@ -319,7 +319,7 @@ bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
       // We're at the end of the address space.
       break;
     } else if (kr != KERN_SUCCESS) {
-      LOG(ERROR) << "Calling mach_vm_region failed with error: "
+      DLOG(ERROR) << "Calling mach_vm_region failed with error: "
                  << mach_error_string(kr);
       return false;
     }
@@ -354,7 +354,7 @@ bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
   vm_size_t page_size;
   kr = host_page_size(task, &page_size);
   if (kr != KERN_SUCCESS) {
-    LOG(ERROR) << "Failed to fetch host page size, error: "
+    DLOG(ERROR) << "Failed to fetch host page size, error: "
                << mach_error_string(kr);
     return false;
   }
@@ -472,14 +472,14 @@ size_t GetSystemCommitCharge() {
                                      reinterpret_cast<host_info_t>(&data),
                                      &count);
   if (kr) {
-    LOG(WARNING) << "Failed to fetch host statistics.";
+    DLOG(WARNING) << "Failed to fetch host statistics.";
     return 0;
   }
 
   vm_size_t page_size;
   kr = host_page_size(host, &page_size);
   if (kr) {
-    LOG(ERROR) << "Failed to fetch host page size.";
+    DLOG(ERROR) << "Failed to fetch host page size.";
     return 0;
   }
 
@@ -497,7 +497,7 @@ const char* LookUpLibCPath() {
   if (dladdr(addr, &info))
     return info.dli_fname;
 
-  LOG(WARNING) << "Could not find image path for malloc()";
+  DLOG(WARNING) << "Could not find image path for malloc()";
   return NULL;
 }
 
@@ -545,7 +545,7 @@ malloc_error_break_t LookUpMallocErrorBreak() {
 
 void CrMallocErrorBreak() {
   g_original_malloc_error_break();
-  LOG(ERROR) <<
+  DLOG(ERROR) <<
       "Terminating process due to a potential for future heap corruption";
   int* death_ptr = NULL;
   *death_ptr = 0xf00bad;
@@ -556,7 +556,7 @@ void CrMallocErrorBreak() {
 void EnableTerminationOnHeapCorruption() {
   malloc_error_break_t malloc_error_break = LookUpMallocErrorBreak();
   if (!malloc_error_break) {
-    LOG(WARNING) << "Could not find malloc_error_break";
+    DLOG(WARNING) << "Could not find malloc_error_break";
     return;
   }
 
@@ -566,7 +566,7 @@ void EnableTerminationOnHeapCorruption() {
      (void**)&g_original_malloc_error_break);
 
   if (err != err_none)
-    LOG(WARNING) << "Could not override malloc_error_break; error = " << err;
+    DLOG(WARNING) << "Could not override malloc_error_break; error = " << err;
 }
 
 // ------------------------------------------------------------------------
@@ -976,7 +976,7 @@ ProcessId GetParentProcessId(ProcessHandle process) {
   size_t length = sizeof(struct kinfo_proc);
   int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, process };
   if (sysctl(mib, 4, &info, &length, NULL, 0) < 0) {
-    PLOG(ERROR) << "sysctl";
+    DPLOG(ERROR) << "sysctl";
     return -1;
   }
   if (length == 0)

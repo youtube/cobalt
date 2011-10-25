@@ -131,7 +131,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
   if (debug::BeingDebugged())
     debug::BreakDebugger();
 
-  LOG(ERROR) << "Received signal " << signal;
+  DLOG(ERROR) << "Received signal " << signal;
   debug::StackTrace().PrintBacktrace();
 
   // TODO(shess): Port to Linux.
@@ -296,7 +296,7 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
 bool KillProcessGroup(ProcessHandle process_group_id) {
   bool result = kill(-1 * process_group_id, SIGKILL) == 0;
   if (!result)
-    PLOG(ERROR) << "Unable to terminate process group " << process_group_id;
+    DPLOG(ERROR) << "Unable to terminate process group " << process_group_id;
   return result;
 }
 
@@ -565,11 +565,11 @@ bool LaunchProcess(const std::vector<std::string>& argv,
     // synchronize means "return from LaunchProcess but don't let the child
     // run until LaunchSynchronize is called". These two options are highly
     // incompatible.
-    CHECK(!options.wait);
+    DCHECK(!options.wait);
 
     // Create the pipe used for synchronization.
     if (HANDLE_EINTR(pipe(synchronization_pipe_fds)) != 0) {
-      PLOG(ERROR) << "pipe";
+      DPLOG(ERROR) << "pipe";
       return false;
     }
 
@@ -594,7 +594,7 @@ bool LaunchProcess(const std::vector<std::string>& argv,
   }
 
   if (pid < 0) {
-    PLOG(ERROR) << "fork";
+    DPLOG(ERROR) << "fork";
     return false;
   } else if (pid == 0) {
     // Child process
@@ -749,7 +749,7 @@ void LaunchSynchronize(LaunchSynchronizationHandle handle) {
 
   // Write a '\0' character to the pipe.
   if (HANDLE_EINTR(write(synchronization_fd, "", 1)) != 1) {
-    PLOG(ERROR) << "write";
+    DPLOG(ERROR) << "write";
   }
 }
 #endif  // defined(OS_MACOSX)
@@ -789,7 +789,7 @@ TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
   int status = 0;
   const pid_t result = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
   if (result == -1) {
-    PLOG(ERROR) << "waitpid(" << handle << ")";
+    DPLOG(ERROR) << "waitpid(" << handle << ")";
     if (exit_code)
       *exit_code = 0;
     return TERMINATION_STATUS_NORMAL_TERMINATION;
@@ -874,7 +874,7 @@ static bool WaitForSingleNonChildProcess(ProcessHandle handle,
 
   int kq = kqueue();
   if (kq == -1) {
-    PLOG(ERROR) << "kqueue";
+    DPLOG(ERROR) << "kqueue";
     return false;
   }
   file_util::ScopedFD kq_closer(&kq);
@@ -888,7 +888,7 @@ static bool WaitForSingleNonChildProcess(ProcessHandle handle,
       return true;
     }
 
-    PLOG(ERROR) << "kevent (setup " << handle << ")";
+    DPLOG(ERROR) << "kevent (setup " << handle << ")";
     return false;
   }
 
@@ -928,11 +928,11 @@ static bool WaitForSingleNonChildProcess(ProcessHandle handle,
   }
 
   if (result < 0) {
-    PLOG(ERROR) << "kevent (wait " << handle << ")";
+    DPLOG(ERROR) << "kevent (wait " << handle << ")";
     return false;
   } else if (result > 1) {
-    LOG(ERROR) << "kevent (wait " << handle << "): unexpected result "
-               << result;
+    DLOG(ERROR) << "kevent (wait " << handle << "): unexpected result "
+                << result;
     return false;
   } else if (result == 0) {
     // Timed out.
@@ -944,10 +944,10 @@ static bool WaitForSingleNonChildProcess(ProcessHandle handle,
   if (event.filter != EVFILT_PROC ||
       (event.fflags & NOTE_EXIT) == 0 ||
       event.ident != static_cast<uintptr_t>(handle)) {
-    LOG(ERROR) << "kevent (wait " << handle
-               << "): unexpected event: filter=" << event.filter
-               << ", fflags=" << event.fflags
-               << ", ident=" << event.ident;
+    DLOG(ERROR) << "kevent (wait " << handle
+                << "): unexpected event: filter=" << event.filter
+                << ", fflags=" << event.fflags
+                << ", ident=" << event.ident;
     return false;
   }
 
