@@ -59,22 +59,23 @@ class BASE_EXPORT CallbackBase {
   // Returns true if Callback is null (doesn't refer to anything).
   bool is_null() const;
 
-  // Returns the Callback into an uninitalized state.
+  // Returns the Callback into an uninitialized state.
   void Reset();
 
  protected:
-  bool Equals(const CallbackBase& other) const;
-
   // In C++, it is safe to cast function pointers to function pointers of
   // another type. It is not okay to use void*. We create a InvokeFuncStorage
   // that that can store our function pointer, and then cast it back to
   // the original type on usage.
   typedef void(*InvokeFuncStorage)(void);
 
+  // Returns true if this callback equals |other|. |other| may be null.
+  bool Equals(const CallbackBase& other) const;
+
   CallbackBase(InvokeFuncStorage polymorphic_invoke,
                scoped_refptr<InvokerStorageBase>* invoker_storage);
 
-  // Force the destructor to be instaniated inside this translation unit so
+  // Force the destructor to be instantiated inside this translation unit so
   // that our subclasses will not get inlined versions.  Avoids more template
   // bloat.
   ~CallbackBase();
