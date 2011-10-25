@@ -322,7 +322,7 @@ TraceLog::~TraceLog() {
 const TraceCategory* TraceLog::GetCategory(const char* name) {
   TraceLog* tracelog = GetInstance();
   if (!tracelog){
-    CHECK(!g_category_already_shutdown->enabled);
+    DCHECK(!g_category_already_shutdown->enabled);
     return g_category_already_shutdown;
   }
   return tracelog->GetCategoryInternal(name);

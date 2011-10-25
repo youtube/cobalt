@@ -44,7 +44,7 @@ bool DevicePathToDriveLetterPath(const FilePath& device_path,
   const int kDriveMappingSize = 1024;
   wchar_t drive_mapping[kDriveMappingSize] = {'\0'};
   if (!::GetLogicalDriveStrings(kDriveMappingSize - 1, drive_mapping)) {
-    LOG(ERROR) << "Failed to get drive mapping.";
+    DLOG(ERROR) << "Failed to get drive mapping.";
     return false;
   }
 
@@ -603,13 +603,13 @@ bool CreateTemporaryFileInDir(const FilePath& dir,
   wchar_t temp_name[MAX_PATH + 1];
 
   if (!GetTempFileName(dir.value().c_str(), L"", 0, temp_name)) {
-    PLOG(WARNING) << "Failed to get temporary file name in " << dir.value();
+    DPLOG(WARNING) << "Failed to get temporary file name in " << dir.value();
     return false;
   }
 
   DWORD path_len = GetLongPathName(temp_name, temp_name, MAX_PATH);
   if (path_len > MAX_PATH + 1 || path_len == 0) {
-    PLOG(WARNING) << "Failed to get long path name for " << temp_name;
+    DPLOG(WARNING) << "Failed to get long path name for " << temp_name;
     return false;
   }
 
@@ -667,8 +667,8 @@ bool CreateDirectory(const FilePath& full_path) {
                << "directory already exists.";
       return true;
     }
-    LOG(WARNING) << "CreateDirectory(" << full_path_str << "), "
-                 << "conflicts with existing file.";
+    DLOG(WARNING) << "CreateDirectory(" << full_path_str << "), "
+                  << "conflicts with existing file.";
     return false;
   }
 
@@ -695,8 +695,8 @@ bool CreateDirectory(const FilePath& full_path) {
       // race to create the same directory.
       return true;
     } else {
-      LOG(WARNING) << "Failed to create directory " << full_path_str
-                   << ", last error is " << error_code << ".";
+      DLOG(WARNING) << "Failed to create directory " << full_path_str
+                    << ", last error is " << error_code << ".";
       return false;
     }
   } else {
@@ -773,8 +773,8 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
                                           0,
                                           NULL));
   if (!file) {
-    LOG(WARNING) << "CreateFile failed for path " << filename.value()
-                 << " error code=" << GetLastError();
+    DLOG(WARNING) << "CreateFile failed for path " << filename.value()
+                  << " error code=" << GetLastError();
     return -1;
   }
 
@@ -785,12 +785,12 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
 
   if (!result) {
     // WriteFile failed.
-    LOG(WARNING) << "writing file " << filename.value()
-                 << " failed, error code=" << GetLastError();
+    DLOG(WARNING) << "writing file " << filename.value()
+                  << " failed, error code=" << GetLastError();
   } else {
     // Didn't write all the bytes.
-    LOG(WARNING) << "wrote" << written << " bytes to " <<
-        filename.value() << " expected " << size;
+    DLOG(WARNING) << "wrote" << written << " bytes to "
+                  << filename.value() << " expected " << size;
   }
   return -1;
 }
@@ -967,7 +967,7 @@ bool MemoryMappedFile::InitializeAsImageSection(const FilePath& file_name) {
       NULL, NULL);
 
   if (file_ == base::kInvalidPlatformFileValue) {
-    LOG(ERROR) << "Couldn't open " << file_name.value();
+    DLOG(ERROR) << "Couldn't open " << file_name.value();
     return false;
   }
 
