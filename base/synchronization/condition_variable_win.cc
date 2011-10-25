@@ -117,7 +117,7 @@ ConditionVariable::Event* ConditionVariable::GetEventForWaiting() {
     cv_event = new Event();
     cv_event->InitListElement();
     allocation_counter_++;
-    DCHECK(cv_event->handle());
+    CHECK(cv_event->handle());
   } else {
     cv_event = recycling_list_.PopFront();
     recycling_list_size_--;
@@ -193,7 +193,7 @@ ConditionVariable::Event::~Event() {
 void ConditionVariable::Event::InitListElement() {
   DCHECK(!handle_);
   handle_ = CreateEvent(NULL, false, false, NULL);
-  DCHECK(handle_);
+  CHECK(handle_);
 }
 
 // Methods for use on lists.

@@ -113,7 +113,7 @@ bool Process::SetProcessBackgrounded(bool background) {
         setpriority(
             PRIO_PROCESS, process_, current_priority + kPriorityAdjustment);
     if (result == -1) {
-      DLOG(ERROR) << "Failed to lower priority, errno: " << errno;
+      LOG(ERROR) << "Failed to lower priority, errno: " << errno;
       return false;
     }
     saved_priority_ = current_priority;

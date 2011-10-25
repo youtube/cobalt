@@ -24,13 +24,13 @@ EventRecorder* EventRecorder::current_ = NULL;
 
 LRESULT CALLBACK StaticRecordWndProc(int nCode, WPARAM wParam,
                                      LPARAM lParam) {
-  DCHECK(EventRecorder::current());
+  CHECK(EventRecorder::current());
   return EventRecorder::current()->RecordWndProc(nCode, wParam, lParam);
 }
 
 LRESULT CALLBACK StaticPlaybackWndProc(int nCode, WPARAM wParam,
                                        LPARAM lParam) {
-  DCHECK(EventRecorder::current());
+  CHECK(EventRecorder::current());
   return EventRecorder::current()->PlaybackWndProc(nCode, wParam, lParam);
 }
 

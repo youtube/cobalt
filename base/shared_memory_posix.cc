@@ -91,7 +91,7 @@ SharedMemoryHandle SharedMemory::NULLHandle() {
 void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
   DCHECK_GE(handle.fd, 0);
   if (HANDLE_EINTR(close(handle.fd)) < 0)
-    DPLOG(ERROR) << "close";
+    PLOG(ERROR) << "close";
 }
 
 bool SharedMemory::CreateAndMapAnonymous(uint32 size) {
@@ -175,7 +175,7 @@ bool SharedMemory::CreateNamed(const std::string& name,
       PLOG(ERROR) << "Unable to access(W_OK|X_OK) " << dir.value();
       if (dir.value() == "/dev/shm") {
         LOG(FATAL) << "This is frequently caused by incorrect permissions on "
-                   << "/dev/shm.  Try 'sudo chmod 1777 /dev/shm' to fix.";
+        << "/dev/shm.  Try 'sudo chmod 1777 /dev/shm' to fix.";
       }
     }
 #else

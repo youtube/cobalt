@@ -86,18 +86,18 @@ void SystemMonitor::RemoveObserver(PowerObserver* obs) {
 }
 
 void SystemMonitor::NotifyPowerStateChange() {
-  DVLOG(1) << "PowerStateChange: " << (BatteryPower() ? "On" : "Off")
-           << " battery";
+  VLOG(1) << "PowerStateChange: " << (BatteryPower() ? "On" : "Off")
+          << " battery";
   observer_list_->Notify(&PowerObserver::OnPowerStateChange, BatteryPower());
 }
 
 void SystemMonitor::NotifySuspend() {
-  DVLOG(1) << "Power Suspending";
+  VLOG(1) << "Power Suspending";
   observer_list_->Notify(&PowerObserver::OnSuspend);
 }
 
 void SystemMonitor::NotifyResume() {
-  DVLOG(1) << "Power Resuming";
+  VLOG(1) << "Power Resuming";
   observer_list_->Notify(&PowerObserver::OnResume);
 }
 
