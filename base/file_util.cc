@@ -342,7 +342,7 @@ bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
       NULL, NULL);
 
   if (file_ == base::kInvalidPlatformFileValue) {
-    DLOG(ERROR) << "Couldn't open " << file_name.value();
+    LOG(ERROR) << "Couldn't open " << file_name.value();
     return false;
   }
 

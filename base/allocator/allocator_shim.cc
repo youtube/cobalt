@@ -297,7 +297,7 @@ void SetupSubprocessAllocator() {
     char* secondary_value = secondary_length ? buffer : "TCMALLOC";
     // Force renderer (or other subprocesses) to use secondary_value.
     int ret_val = _putenv_s(primary_name, secondary_value);
-    DCHECK_EQ(0, ret_val);
+    CHECK_EQ(0, ret_val);
   }
 #endif  // ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
 }

@@ -88,7 +88,7 @@ bool ProcPathGetInode(ino_t* inode_out, const char* path, bool log = false) {
   const ssize_t n = readlink(path, buf, sizeof(buf) - 1);
   if (n == -1) {
     if (log) {
-      DLOG(WARNING) << "Failed to read the inode number for a socket from /proc"
+      LOG(WARNING) << "Failed to read the inode number for a socket from /proc"
                       "(" << errno << ")";
     }
     return false;
@@ -97,8 +97,8 @@ bool ProcPathGetInode(ino_t* inode_out, const char* path, bool log = false) {
 
   if (memcmp(kSocketLinkPrefix, buf, sizeof(kSocketLinkPrefix) - 1)) {
     if (log) {
-      DLOG(WARNING) << "The descriptor passed from the crashing process wasn't "
-                      " a UNIX domain socket.";
+      LOG(WARNING) << "The descriptor passed from the crashing process wasn't a"
+                      " UNIX domain socket.";
     }
     return false;
   }
@@ -111,8 +111,8 @@ bool ProcPathGetInode(ino_t* inode_out, const char* path, bool log = false) {
 
   if (inode_ul == ULLONG_MAX) {
     if (log) {
-      DLOG(WARNING) << "Failed to parse a socket's inode number: the number "
-                       "was too large. Please report this bug: " << buf;
+      LOG(WARNING) << "Failed to parse a socket's inode number: the number was "
+                      "too large. Please report this bug: " << buf;
     }
     return false;
   }
@@ -201,7 +201,7 @@ bool FindProcessHoldingSocket(pid_t* pid_out, ino_t socket_inode) {
 
   DIR* proc = opendir("/proc");
   if (!proc) {
-    DLOG(WARNING) << "Cannot open /proc";
+    LOG(WARNING) << "Cannot open /proc";
     return false;
   }
 
@@ -263,7 +263,7 @@ pid_t FindThreadIDWithSyscall(pid_t pid, const std::string& expected_data,
 
   DIR* task = opendir(buf);
   if (!task) {
-    DLOG(WARNING) << "Cannot open " << buf;
+    LOG(WARNING) << "Cannot open " << buf;
     return -1;
   }
 
