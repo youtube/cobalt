@@ -2383,8 +2383,11 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
         }
       }
       if (os_error == noErr) {
-        int cert_count = CFArrayGetCount(chain);
-        CFRelease(chain);
+        int cert_count = 0;
+        if (chain) {
+          cert_count = CFArrayGetCount(chain);
+          CFRelease(chain);
+        }
         that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
             make_scoped_refptr(new NetLogIntegerParameter("cert_count",
                                                           cert_count)));
