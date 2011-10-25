@@ -319,9 +319,9 @@
           ],
         }],
         ['OS=="openbsd"', {
-          'sources/': [ ['exclude', 'alsa_' ],
-                        ['exclude', 'audio_manager_linux' ],
-                        ['exclude', '\\.mm?$' ] ],
+          'sources/': [ ['exclude', '/alsa_' ],
+                        ['exclude', '/audio_manager_linux' ],
+                        ['exclude', '/pulse_' ] ],
           'link_settings': {
             'libraries': [
             ],
