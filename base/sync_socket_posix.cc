@@ -69,11 +69,11 @@ bool SyncSocket::CreatePair(SyncSocket* pair[2]) {
  cleanup:
   if (handles[0] != kInvalidHandle) {
     if (HANDLE_EINTR(close(handles[0])) < 0)
-      PLOG(ERROR) << "close";
+      DPLOG(ERROR) << "close";
   }
   if (handles[1] != kInvalidHandle) {
     if (HANDLE_EINTR(close(handles[1])) < 0)
-      PLOG(ERROR) << "close";
+      DPLOG(ERROR) << "close";
   }
   delete tmp_sockets[0];
   delete tmp_sockets[1];
@@ -86,7 +86,7 @@ bool SyncSocket::Close() {
   }
   int retval = HANDLE_EINTR(close(handle_));
   if (retval < 0)
-    PLOG(ERROR) << "close";
+    DPLOG(ERROR) << "close";
   handle_ = kInvalidHandle;
   return (retval == 0);
 }

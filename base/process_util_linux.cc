@@ -84,7 +84,7 @@ int GetProcessCPU(pid_t pid) {
 
   DIR* dir = opendir(path.value().c_str());
   if (!dir) {
-    PLOG(ERROR) << "opendir(" << path.value() << ")";
+    DPLOG(ERROR) << "opendir(" << path.value() << ")";
     return -1;
   }
 
@@ -273,7 +273,7 @@ ProcessMetrics* ProcessMetrics::CreateProcessMetrics(ProcessHandle process) {
 size_t ProcessMetrics::GetPagefileUsage() const {
   std::vector<std::string> proc_stats;
   if (!GetProcStats(process_, &proc_stats))
-    LOG(WARNING) << "Failed to get process stats.";
+    DLOG(WARNING) << "Failed to get process stats.";
   const size_t kVmSize = 22;
   if (proc_stats.size() > kVmSize) {
     int vm_size;
@@ -287,7 +287,7 @@ size_t ProcessMetrics::GetPagefileUsage() const {
 size_t ProcessMetrics::GetPeakPagefileUsage() const {
   std::vector<std::string> proc_stats;
   if (!GetProcStats(process_, &proc_stats))
-    LOG(WARNING) << "Failed to get process stats.";
+    DLOG(WARNING) << "Failed to get process stats.";
   const size_t kVmPeak = 21;
   if (proc_stats.size() > kVmPeak) {
     int vm_peak;
@@ -301,7 +301,7 @@ size_t ProcessMetrics::GetPeakPagefileUsage() const {
 size_t ProcessMetrics::GetWorkingSetSize() const {
   std::vector<std::string> proc_stats;
   if (!GetProcStats(process_, &proc_stats))
-    LOG(WARNING) << "Failed to get process stats.";
+    DLOG(WARNING) << "Failed to get process stats.";
   const size_t kVmRss = 23;
   if (proc_stats.size() > kVmRss) {
     int num_pages;
@@ -315,7 +315,7 @@ size_t ProcessMetrics::GetWorkingSetSize() const {
 size_t ProcessMetrics::GetPeakWorkingSetSize() const {
   std::vector<std::string> proc_stats;
   if (!GetProcStats(process_, &proc_stats))
-    LOG(WARNING) << "Failed to get process stats.";
+    DLOG(WARNING) << "Failed to get process stats.";
   const size_t kVmHwm = 23;
   if (proc_stats.size() > kVmHwm) {
     int num_pages;
@@ -576,14 +576,14 @@ bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
   FilePath meminfo_file("/proc/meminfo");
   std::string meminfo_data;
   if (!file_util::ReadFileToString(meminfo_file, &meminfo_data)) {
-    LOG(WARNING) << "Failed to open /proc/meminfo.";
+    DLOG(WARNING) << "Failed to open /proc/meminfo.";
     return false;
   }
   std::vector<std::string> meminfo_fields;
   SplitStringAlongWhitespace(meminfo_data, &meminfo_fields);
 
   if (meminfo_fields.size() < kMemCachedIndex) {
-    LOG(WARNING) << "Failed to parse /proc/meminfo.  Only found " <<
+    DLOG(WARNING) << "Failed to parse /proc/meminfo.  Only found " <<
       meminfo_fields.size() << " fields.";
     return false;
   }
@@ -752,7 +752,8 @@ bool AdjustOOMScore(ProcessId process, int score) {
   FilePath oom_file = oom_path.AppendASCII("oom_score_adj");
   if (file_util::PathExists(oom_file)) {
     std::string score_str = base::IntToString(score);
-    VLOG(1) << "Adjusting oom_score_adj of " << process << " to " << score_str;
+    DVLOG(1) << "Adjusting oom_score_adj of " << process << " to "
+             << score_str;
     int score_len = static_cast<int>(score_str.length());
     return (score_len == file_util::WriteFile(oom_file,
                                               score_str.c_str(),
@@ -765,7 +766,7 @@ bool AdjustOOMScore(ProcessId process, int score) {
   if (file_util::PathExists(oom_file)) {
     std::string score_str = base::IntToString(
         score * kMaxOldOomScore / kMaxOomScore);
-    VLOG(1) << "Adjusting oom_adj of " << process << " to " << score_str;
+    DVLOG(1) << "Adjusting oom_adj of " << process << " to " << score_str;
     int score_len = static_cast<int>(score_str.length());
     return (score_len == file_util::WriteFile(oom_file,
                                               score_str.c_str(),

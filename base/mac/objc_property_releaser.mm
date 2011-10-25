@@ -98,8 +98,8 @@ void ObjCPropertyReleaser::Init(id object, Class classy) {
 }
 
 void ObjCPropertyReleaser::ReleaseProperties() {
-  CHECK(object_);
-  CHECK(class_);
+  DCHECK(object_);
+  DCHECK(class_);
 
   unsigned int property_count = 0;
   objc_property_t* properties = class_copyPropertyList(class_, &property_count);
@@ -114,7 +114,7 @@ void ObjCPropertyReleaser::ReleaseProperties() {
       Ivar instance_variable =
           object_getInstanceVariable(object_, instance_name.c_str(),
                                      (void**)&instance_value);
-      CHECK(instance_variable);
+      DCHECK(instance_variable);
       [instance_value release];
     }
   }
