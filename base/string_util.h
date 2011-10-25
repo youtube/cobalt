@@ -173,8 +173,8 @@ BASE_EXPORT extern const char kWhitespaceASCII[];
 
 BASE_EXPORT extern const char kUtf8ByteOrderMark[];
 
-// Removes characters in remove_chars from anywhere in input.  Returns true if
-// any characters were removed.
+// Removes characters in |remove_chars| from anywhere in input.  Returns true if
+// any characters were removed.  |remove_chars| must be null-terminated.
 // NOTE: Safe to use the same variable for both input and output.
 BASE_EXPORT bool RemoveChars(const string16& input,
                              const char16 remove_chars[],
@@ -183,7 +183,8 @@ BASE_EXPORT bool RemoveChars(const std::string& input,
                              const char remove_chars[],
                              std::string* output);
 
-// Removes characters in trim_chars from the beginning and end of input.
+// Removes characters in |trim_chars| from the beginning and end of input.
+// |trim_chars| must be null-terminated.
 // NOTE: Safe to use the same variable for both input and output.
 BASE_EXPORT bool TrimString(const std::wstring& input,
                             const wchar_t trim_chars[],
