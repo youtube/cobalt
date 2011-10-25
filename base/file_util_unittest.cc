@@ -12,6 +12,7 @@
 #include <winioctl.h>
 #endif
 
+#include <algorithm>
 #include <fstream>
 #include <set>
 
