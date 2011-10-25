@@ -18,8 +18,16 @@
 if [ ! -d "${ANDROID_NDK_ROOT}" ]; then
   echo "ANDROID_NDK_ROOT must be set to the path of Android NDK, Revision 6b." \
     >& 2
-  echo "which could be downloaded from" >& 2
-  echo "http://developer.android.com/sdk/ndk/index.html" >& 2
+  echo "which could be installed by" >& 2
+  echo "<chromium_tree>/src/build/install-build-deps-android.sh" >& 2
+  return 1
+fi
+
+if [ ! -d "${ANDROID_SDK_ROOT}" ]; then
+  echo "ANDROID_SDK_ROOT must be set to the path of Android SDK, Android 3.2." \
+    >& 2
+  echo "which could be installed by" >& 2
+  echo "<chromium_tree>/src/build/install-build-deps-android.sh" >& 2
   return 1
 fi
 
@@ -38,6 +46,9 @@ case "${host_os}" in
 esac
 
 export ANDROID_TOOLCHAIN="${ANDROID_NDK_ROOT}/toolchains/arm-linux-androideabi-4.4.3/prebuilt/${toolchain_dir}/bin/"
+
+# Add Android SDK's platform-tools to system path.
+export PATH="${PATH}:${ANDROID_SDK_ROOT}/platform-tools/"
 
 if [ ! -d "${ANDROID_TOOLCHAIN}" ]; then
   echo "Can not find Android toolchain in ${ANDROID_TOOLCHAIN}." >& 2
