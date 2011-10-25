@@ -49,6 +49,7 @@ namespace base {
 
 template <typename Type>
 struct DefaultLazyInstanceTraits {
+  static const bool kRegisterOnExit = true;
   static const bool kAllowedToAccessOnNonjoinableThread = false;
 
   static Type* New(void* instance) {
@@ -60,29 +61,23 @@ struct DefaultLazyInstanceTraits {
     // The parenthesis is very important here to force POD type initialization.
     return new (instance) Type();
   }
-  static void Delete(void* instance) {
+  static void Delete(Type* instance) {
     // Explicitly call the destructor.
-    reinterpret_cast<Type*>(instance)->~Type();
+    instance->~Type();
   }
 };
 
 template <typename Type>
 struct LeakyLazyInstanceTraits {
+  static const bool kRegisterOnExit = false;
   static const bool kAllowedToAccessOnNonjoinableThread = true;
 
   static Type* New(void* instance) {
     return DefaultLazyInstanceTraits<Type>::New(instance);
   }
-  // Rather than define an empty Delete function, we make Delete itself
-  // a null pointer.  This allows us to completely sidestep registering
-  // this object with an AtExitManager, which allows you to use
-  // LeakyLazyInstanceTraits in contexts where you don't have an
-  // AtExitManager.
-  static void (*Delete)(void* instance);
+  static void Delete(Type* instance) {
+  }
 };
-
-template <typename Type>
-void (*LeakyLazyInstanceTraits<Type>::Delete)(void* instance) = NULL;
 
 // We pull out some of the functionality into a non-templated base, so that we
 // can implement the more complicated pieces out of line in the .cc file.
@@ -152,9 +147,7 @@ class LazyInstance : public LazyInstanceHelper {
         NeedsInstance()) {
       // Create the instance in the space provided by |buf_|.
       instance_ = Traits::New(buf_);
-      // Traits::Delete will be null for LeakyLazyInstanceTraits
-      void (*dtor)(void*) = Traits::Delete;
-      CompleteInstance(this, (dtor == NULL) ? NULL : OnExit);
+      CompleteInstance(this, Traits::kRegisterOnExit ? OnExit : NULL);
     }
 
     // This annotation helps race detectors recognize correct lock-less
@@ -181,7 +174,7 @@ class LazyInstance : public LazyInstanceHelper {
 
  private:
   // Adapter function for use with AtExit.  This should be called single
-  // threaded, so don't use atomic operations.
+  // threaded, so don't synchronize across threads.
   // Calling OnExit while the instance is in use by other threads is a mistake.
   static void OnExit(void* lazy_instance) {
     LazyInstance<Type, Traits>* me =
