@@ -23,7 +23,7 @@ class URandomFd {
  public:
   URandomFd() {
     fd_ = open("/dev/urandom", O_RDONLY);
-    DCHECK_GE(fd_, 0) << "Cannot open /dev/urandom: " << errno;
+    CHECK_GE(fd_, 0) << "Cannot open /dev/urandom: " << errno;
   }
 
   ~URandomFd() {

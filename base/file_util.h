@@ -426,7 +426,7 @@ class ScopedFDClose {
   inline void operator()(int* x) const {
     if (x && *x >= 0) {
       if (HANDLE_EINTR(close(*x)) < 0)
-        DPLOG(ERROR) << "close";
+        PLOG(ERROR) << "close";
     }
   }
 };

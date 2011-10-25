@@ -186,14 +186,14 @@ void PlatformThread::SetName(const char* name) {
     int err = dynamic_pthread_setname_np(pthread_self(),
                                          shortened_name.c_str());
     if (err < 0)
-      DLOG(ERROR) << "pthread_setname_np: " << safe_strerror(err);
+      LOG(ERROR) << "pthread_setname_np: " << safe_strerror(err);
   } else {
     // Implementing this function without glibc is simple enough.  (We
     // don't do the name length clipping as above because it will be
     // truncated by the callee (see TASK_COMM_LEN above).)
     int err = prctl(PR_SET_NAME, name);
     if (err < 0)
-      DPLOG(ERROR) << "prctl(PR_SET_NAME)";
+      PLOG(ERROR) << "prctl(PR_SET_NAME)";
   }
 }
 #elif defined(OS_MACOSX)
