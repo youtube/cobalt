@@ -195,7 +195,7 @@ void FilePathWatcherImpl::CloseFileDescriptor(int *fd) {
   }
 
   if (HANDLE_EINTR(close(*fd)) != 0) {
-    PLOG(ERROR) << "close";
+    DPLOG(ERROR) << "close";
   }
   *fd = -1;
 }
@@ -203,7 +203,7 @@ void FilePathWatcherImpl::CloseFileDescriptor(int *fd) {
 bool FilePathWatcherImpl::AreKeventValuesValid(struct kevent* kevents,
                                                int count) {
   if (count < 0) {
-    PLOG(ERROR) << "kevent";
+    DPLOG(ERROR) << "kevent";
     return false;
   }
   bool valid = true;
@@ -227,7 +227,7 @@ bool FilePathWatcherImpl::AreKeventValuesValid(struct kevent* kevents,
         path_name = base::StringPrintf(
             "fd %d", *reinterpret_cast<int*>(&kevents[i].ident));
       }
-      LOG(ERROR) << "Error: " << kevents[i].data << " for " << path_name;
+      DLOG(ERROR) << "Error: " << kevents[i].data << " for " << path_name;
       valid = false;
     }
   }
@@ -338,8 +338,8 @@ bool FilePathWatcherImpl::UpdateWatches(bool* target_file_affected) {
 
 void FilePathWatcherImpl::OnFileCanReadWithoutBlocking(int fd) {
   DCHECK(MessageLoopForIO::current());
-  CHECK_EQ(fd, kqueue_);
-  CHECK(events_.size());
+  DCHECK_EQ(fd, kqueue_);
+  DCHECK(events_.size());
 
   // Request the file system update notifications that have occurred and return
   // them in |updates|. |count| will contain the number of updates that have
@@ -432,12 +432,12 @@ bool FilePathWatcherImpl::Watch(const FilePath& path,
 
   kqueue_ = kqueue();
   if (kqueue_ == -1) {
-    PLOG(ERROR) << "kqueue";
+    DPLOG(ERROR) << "kqueue";
     return false;
   }
 
   int last_entry = EventsForPath(target_, &events_);
-  CHECK_NE(last_entry, 0);
+  DCHECK_NE(last_entry, 0);
 
   EventVector responses(last_entry);
 
