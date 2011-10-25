@@ -836,6 +836,7 @@ int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   return verifier_->Verify(
       server_cert_, host_and_port_.host(), flags,
+      NULL /* no CRL set */,
       &server_cert_verify_result_,
       base::Bind(&SSLClientSocketOpenSSL::OnHandshakeIOComplete,
                  base::Unretained(this)),
