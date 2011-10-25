@@ -162,14 +162,9 @@ class ObserverListBase
 
  protected:
   void Compact() {
-    typename ListType::iterator it = observers_.begin();
-    while (it != observers_.end()) {
-      if (*it) {
-        ++it;
-      } else {
-        it = observers_.erase(it);
-      }
-    }
+    observers_.erase(
+        std::remove(observers_.begin(), observers_.end(),
+                    static_cast<ObserverType*>(NULL)), observers_.end());
   }
 
  private:
