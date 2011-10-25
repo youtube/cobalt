@@ -47,7 +47,22 @@ ProcessId GetParentProcessId(ProcessHandle process) {
 }
 
 FilePath GetProcessExecutablePath(ProcessHandle process) {
-  return FilePath(std::string("/usr/local/chrome/chrome"));
+  struct kinfo_proc kp;
+  size_t len;
+  int mib[] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, process,
+                sizeof(struct kinfo_proc), 0 };
+
+  if (sysctl(mib, arraysize(mib), NULL, &len, NULL, 0) == -1)
+    return FilePath();
+  mib[5] = (len / sizeof(struct kinfo_proc));
+  if (sysctl(mib, arraysize(mib), &kp, &len, NULL, 0) < 0)
+    return FilePath();
+  if ((kp.p_flag & P_SYSTEM) != 0)
+    return FilePath();
+  if (strcmp(kp.p_comm, "chrome") == 0)
+    return FilePath(kp.p_comm);
+
+  return FilePath();
 }
 
 ProcessIterator::ProcessIterator(const ProcessFilter* filter)
