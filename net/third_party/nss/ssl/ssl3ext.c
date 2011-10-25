@@ -598,8 +598,8 @@ ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
                                result, &result_len);
     if (rv != SECSuccess)
 	return rv;
-    // If the callback wrote more than allowed to |result| it has corrupted our
-    // stack.
+    /* If the callback wrote more than allowed to |result| it has corrupted our
+     * stack. */
     PORT_Assert(result_len <= sizeof(result));
 
     if (ss->ssl3.nextProto.data)
