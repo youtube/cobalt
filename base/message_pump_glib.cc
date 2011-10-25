@@ -145,7 +145,10 @@ MessagePumpGlib::MessagePumpGlib()
       wakeup_gpollfd_(new GPollFD) {
   // Create our wakeup pipe, which is used to flag when work was scheduled.
   int fds[2];
-  CHECK_EQ(pipe(fds), 0);
+  int ret = pipe(fds);
+  DCHECK_EQ(ret, 0);
+  (void)ret;  // Prevent warning in release mode.
+
   wakeup_pipe_read_  = fds[0];
   wakeup_pipe_write_ = fds[1];
   wakeup_gpollfd_->fd = wakeup_pipe_read_;

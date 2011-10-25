@@ -73,8 +73,8 @@ bool CopyRecursiveDirNoCache(const FilePath& source_dir,
   FileEnumerator::FindInfo info;
   FilePath current = source_dir;
   if (stat(source_dir.value().c_str(), &info.stat) < 0) {
-    LOG(ERROR) << "CopyRecursiveDirNoCache() couldn't stat source directory: "
-        << source_dir.value() << " errno = " << errno;
+    DLOG(ERROR) << "CopyRecursiveDirNoCache() couldn't stat source directory: "
+                << source_dir.value() << " errno = " << errno;
     success = false;
   }
 
@@ -92,8 +92,8 @@ bool CopyRecursiveDirNoCache(const FilePath& source_dir,
     if (S_ISDIR(info.stat.st_mode)) {
       if (mkdir(target_path.value().c_str(), info.stat.st_mode & 01777) != 0 &&
           errno != EEXIST) {
-        LOG(ERROR) << "CopyRecursiveDirNoCache() couldn't create directory: " <<
-            target_path.value() << " errno = " << errno;
+        DLOG(ERROR) << "CopyRecursiveDirNoCache() couldn't create directory: "
+                    << target_path.value() << " errno = " << errno;
         success = false;
       }
     } else if (S_ISREG(info.stat.st_mode)) {
@@ -101,13 +101,13 @@ bool CopyRecursiveDirNoCache(const FilePath& source_dir,
         success = EvictFileFromSystemCache(target_path);
         DCHECK(success);
       } else {
-        LOG(ERROR) << "CopyRecursiveDirNoCache() couldn't create file: " <<
-            target_path.value();
+        DLOG(ERROR) << "CopyRecursiveDirNoCache() couldn't create file: "
+                    << target_path.value();
         success = false;
       }
     } else {
-      LOG(WARNING) << "CopyRecursiveDirNoCache() skipping non-regular file: " <<
-          current.value();
+      DLOG(WARNING) << "CopyRecursiveDirNoCache() skipping non-regular file: "
+                    << current.value();
     }
 
     current = traversal.Next();
