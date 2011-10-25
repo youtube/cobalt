@@ -6,7 +6,11 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#if defined(OS_OPENBSD)
+#include <sys/videoio.h>
+#else
 #include <linux/videodev2.h>
+#endif
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
