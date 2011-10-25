@@ -16,6 +16,14 @@
 #include "base/message_loop_proxy.h"
 #include "base/stringprintf.h"
 
+// On some platforms these are not defined.
+#if !defined(EV_RECEIPT)
+#define EV_RECEIPT 0
+#endif
+#if !defined(O_EVTONLY)
+#define O_EVTONLY O_RDONLY
+#endif
+
 namespace base {
 namespace files {
 
