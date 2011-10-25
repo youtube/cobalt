@@ -203,7 +203,7 @@ SSL_IMPORT SECStatus SSL_GetNextProto(PRFileDesc *fd,
 				      unsigned int *length,
 				      unsigned int buf_len);
 
-// TODO(wtc): it may be a good idea to define these as an enum type.
+/* TODO(wtc): it may be a good idea to define these as an enum type. */
 #define SSL_NEXT_PROTO_NO_SUPPORT	0 /* No peer support                */
 #define SSL_NEXT_PROTO_NEGOTIATED	1 /* Mutual agreement               */
 #define SSL_NEXT_PROTO_NO_OVERLAP	2 /* No protocol overlap found      */
