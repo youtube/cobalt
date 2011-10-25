@@ -1664,6 +1664,7 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
   server_cert_verify_result_ = &local_server_cert_verify_result_;
   return verifier_->Verify(
       server_cert_, host_and_port_.host(), flags,
+      ssl_config_.crl_set,
       &local_server_cert_verify_result_,
       base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
                  base::Unretained(this)),

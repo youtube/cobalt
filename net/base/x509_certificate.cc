@@ -584,7 +584,9 @@ bool X509Certificate::VerifyHostname(
   return false;
 }
 
-int X509Certificate::Verify(const std::string& hostname, int flags,
+int X509Certificate::Verify(const std::string& hostname,
+                            int flags,
+                            CRLSet* crl_set,
                             CertVerifyResult* verify_result) const {
   verify_result->Reset();
   verify_result->verified_cert = const_cast<X509Certificate*>(this);
@@ -594,7 +596,7 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
     return ERR_CERT_REVOKED;
   }
 
-  int rv = VerifyInternal(hostname, flags, verify_result);
+  int rv = VerifyInternal(hostname, flags, crl_set, verify_result);
 
   // This check is done after VerifyInternal so that VerifyInternal can fill in
   // the list of public key hashes.
