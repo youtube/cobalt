@@ -20,7 +20,7 @@ class NonThreadSafeClass : public NonThreadSafe {
 
   // Verifies that it was called on the same thread as the constructor.
   void DoStuff() {
-    DCHECK(CalledOnValidThread());
+    CHECK(CalledOnValidThread());
   }
 
   void DetachFromThread() {

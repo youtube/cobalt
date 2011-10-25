@@ -268,7 +268,7 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
       !pickle.ReadInt(&iter, &histogram_type) ||
       !pickle.ReadInt(&iter, &pickle_flags) ||
       !sample.Histogram::SampleSet::Deserialize(&iter, pickle)) {
-    DLOG(ERROR) << "Pickle error decoding Histogram: " << histogram_name;
+    LOG(ERROR) << "Pickle error decoding Histogram: " << histogram_name;
     return false;
   }
   DCHECK(pickle_flags & kIPCSerializationSourceFlag);
@@ -276,7 +276,7 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
   // checks above and beyond those in Histogram::Initialize()
   if (declared_max <= 0 || declared_min <= 0 || declared_max < declared_min ||
       INT_MAX / sizeof(Count) <= bucket_count || bucket_count < 2) {
-    DLOG(ERROR) << "Values error decoding Histogram: " << histogram_name;
+    LOG(ERROR) << "Values error decoding Histogram: " << histogram_name;
     return false;
   }
 
@@ -295,8 +295,8 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
   } else if (histogram_type == BOOLEAN_HISTOGRAM) {
     render_histogram = BooleanHistogram::FactoryGet(histogram_name, flags);
   } else {
-    DLOG(ERROR) << "Error Deserializing Histogram Unknown histogram_type: "
-                << histogram_type;
+    LOG(ERROR) << "Error Deserializing Histogram Unknown histogram_type: "
+               << histogram_type;
     return false;
   }
 
@@ -433,7 +433,7 @@ Histogram::~Histogram() {
   if (StatisticsRecorder::dump_on_exit()) {
     std::string output;
     WriteAscii(true, "\n", &output);
-    DLOG(INFO) << output;
+    LOG(INFO) << output;
   }
 
   // Just to make sure most derived class did this properly...
@@ -1025,7 +1025,7 @@ StatisticsRecorder::~StatisticsRecorder() {
   if (dump_on_exit_) {
     std::string output;
     WriteGraph("", &output);
-    DLOG(INFO) << output;
+    LOG(INFO) << output;
   }
   // Clean up.
   HistogramMap* histograms = NULL;

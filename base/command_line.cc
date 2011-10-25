@@ -268,8 +268,8 @@ std::string CommandLine::GetSwitchValueASCII(
     const std::string& switch_string) const {
   StringType value = GetSwitchValueNative(switch_string);
   if (!IsStringASCII(value)) {
-    DLOG(WARNING) << "Value of switch (" << switch_string << ") must be ASCII.";
-    return std::string();
+    LOG(WARNING) << "Value of switch (" << switch_string << ") must be ASCII.";
+    return "";
   }
 #if defined(OS_WIN)
   return WideToASCII(value);
@@ -394,8 +394,8 @@ void CommandLine::ParseFromString(const std::wstring& command_line) {
   wchar_t** args = NULL;
   args = ::CommandLineToArgvW(command_line_string.c_str(), &num_args);
 
-  DPLOG_IF(FATAL, !args) << "CommandLineToArgvW failed on command line: "
-                         << command_line;
+  PLOG_IF(FATAL, !args) << "CommandLineToArgvW failed on command line: " <<
+                           command_line;
   InitFromArgv(num_args, args);
   LocalFree(args);
 }
