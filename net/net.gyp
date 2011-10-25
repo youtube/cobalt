@@ -742,11 +742,6 @@
              'proxy/proxy_config_service_linux.h',
           ],
         }],
-        ['OS=="openbsd"', {
-          'sources': [
-            'base/platform_mime_util_linux.cc',
-          ],
-        }],
         ['use_kerberos==1', {
           'defines': [
             'USE_KERBEROS',
@@ -838,7 +833,13 @@
                   '../build/linux/system.gyp:ssl',
                 ],
               }],
-              ['OS!="openbsd"', {
+              ['OS=="openbsd"', {
+                'sources!': [
+                  'base/network_change_notifier_linux.cc',
+                  'base/network_change_notifier_netlink_linux.cc',
+                  'proxy/proxy_config_service_linux.cc',
+                ],
+              },{
                 'dependencies': [
                   '../build/linux/system.gyp:libresolv',
                 ],
