@@ -613,7 +613,7 @@ enum { DEBUG_MODE = ENABLE_DLOG };
 #define DPLOG(severity)                                         \
   LAZY_STREAM(PLOG_STREAM(severity), DLOG_IS_ON(severity))
 
-#define DVLOG(verboselevel) DLOG_IF(INFO, VLOG_IS_ON(verboselevel))
+#define DVLOG(verboselevel) DVLOG_IF(verboselevel, VLOG_IS_ON(verboselevel))
 
 #define DVPLOG(verboselevel) DVPLOG_IF(verboselevel, VLOG_IS_ON(verboselevel))
 
