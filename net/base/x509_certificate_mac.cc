@@ -738,6 +738,7 @@ void X509Certificate::GetSubjectAltName(
 
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
+                                    CRLSet* crl_set,
                                     CertVerifyResult* verify_result) const {
   ScopedCFTypeRef<CFArrayRef> trust_policies;
   OSStatus status = CreateTrustPolicies(hostname, flags, &trust_policies);

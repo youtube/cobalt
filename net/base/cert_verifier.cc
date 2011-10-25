@@ -13,6 +13,7 @@
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "base/threading/worker_pool.h"
+#include "net/base/crl_set.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/x509_certificate.h"
@@ -142,10 +143,12 @@ class CertVerifierWorker {
   CertVerifierWorker(X509Certificate* cert,
                      const std::string& hostname,
                      int flags,
+                     CRLSet* crl_set,
                      CertVerifier* cert_verifier)
       : cert_(cert),
         hostname_(hostname),
         flags_(flags),
+        crl_set_(crl_set),
         origin_loop_(MessageLoop::current()),
         cert_verifier_(cert_verifier),
         canceled_(false),
@@ -171,7 +174,7 @@ class CertVerifierWorker {
  private:
   void Run() {
     // Runs on a worker thread.
-    error_ = cert_->Verify(hostname_, flags_, &verify_result_);
+    error_ = cert_->Verify(hostname_, flags_, crl_set_, &verify_result_);
 #if defined(USE_NSS)
     // Detach the thread from NSPR.
     // Calling NSS functions attaches the thread to NSPR, which stores
@@ -231,6 +234,7 @@ class CertVerifierWorker {
   scoped_refptr<X509Certificate> cert_;
   const std::string hostname_;
   const int flags_;
+  scoped_refptr<CRLSet> crl_set_;
   MessageLoop* const origin_loop_;
   CertVerifier* const cert_verifier_;
 
@@ -346,6 +350,7 @@ CertVerifier::~CertVerifier() {
 int CertVerifier::Verify(X509Certificate* cert,
                          const std::string& hostname,
                          int flags,
+                         CRLSet* crl_set,
                          CertVerifyResult* verify_result,
                          const CompletionCallback& callback,
                          RequestHandle* out_req,
@@ -386,7 +391,7 @@ int CertVerifier::Verify(X509Certificate* cert,
   } else {
     // Need to make a new request.
     CertVerifierWorker* worker = new CertVerifierWorker(cert, hostname, flags,
-                                                        this);
+                                                        crl_set, this);
     job = new CertVerifierJob(
         worker,
         BoundNetLog::Make(net_log.net_log(), NetLog::SOURCE_CERT_VERIFIER_JOB));
@@ -503,6 +508,7 @@ SingleRequestCertVerifier::~SingleRequestCertVerifier() {
 int SingleRequestCertVerifier::Verify(X509Certificate* cert,
                                       const std::string& hostname,
                                       int flags,
+                                      CRLSet* crl_set,
                                       CertVerifyResult* verify_result,
                                       const CompletionCallback& callback,
                                       const BoundNetLog& net_log) {
@@ -511,14 +517,14 @@ int SingleRequestCertVerifier::Verify(X509Certificate* cert,
 
   // Do a synchronous verification.
   if (callback.is_null())
-    return cert->Verify(hostname, flags, verify_result);
+    return cert->Verify(hostname, flags, crl_set, verify_result);
 
   CertVerifier::RequestHandle request = NULL;
 
   // We need to be notified of completion before |callback| is called, so that
   // we can clear out |cur_request_*|.
   int rv = cert_verifier_->Verify(
-      cert, hostname, flags, verify_result,
+      cert, hostname, flags, crl_set, verify_result,
       base::Bind(&SingleRequestCertVerifier::OnVerifyCompletion,
                  base::Unretained(this)),
       &request, net_log);

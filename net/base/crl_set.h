@@ -26,7 +26,7 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
  public:
   enum Result {
     REVOKED,  // the certificate should be rejected.
-    UNKNOWN,  // there was an error in processing.
+    UNKNOWN,  // the CRL for the certificate is not included in the set.
     GOOD,  // the certificate is not listed.
   };
 

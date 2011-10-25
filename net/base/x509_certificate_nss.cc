@@ -21,8 +21,10 @@
 #include "base/time.h"
 #include "crypto/nss_util.h"
 #include "crypto/rsa_private_key.h"
+#include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
+#include "net/base/crl_set.h"
 #include "net/base/ev_root_ca_metadata.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_util_nss.h"
@@ -226,6 +228,67 @@ bool IsKnownRoot(CERTCertificate* root) {
   // http://bonsai.mozilla.org/cvsblame.cgi?file=mozilla/security/nss/lib/ckfw/builtins/constants.c&rev=1.13&mark=86,89#79
   return 0 == strcmp(PK11_GetSlotName(root->slot),
                      "NSS Builtin Objects");
+}
+
+enum CRLSetResult {
+  kCRLSetRevoked,
+  kCRLSetOk,
+  kCRLSetError,
+};
+
+// CheckRevocationWithCRLSet attempts to check each element of |cert_list|
+// against |crl_set|. It returns:
+//   kCRLSetRevoked: if any element of the chain is known to have been revoked.
+//   kCRLSetError: if an error occurs in processing.
+//   kCRLSetOk: if no element in the chain is known to have been revoked.
+CRLSetResult CheckRevocationWithCRLSet(CERTCertList* cert_list,
+                                       CERTCertificate* root,
+                                       CRLSet* crl_set) {
+  std::vector<CERTCertificate*> certs;
+  for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+       !CERT_LIST_END(node, cert_list);
+       node = CERT_LIST_NEXT(node)) {
+    certs.push_back(node->cert);
+  }
+  certs.push_back(root);
+
+  CERTCertificate* prev = NULL;
+  for (std::vector<CERTCertificate*>::iterator i = certs.begin();
+       i != certs.end(); ++i) {
+    CERTCertificate* cert = *i;
+    CERTCertificate* child = prev;
+    prev = cert;
+    if (child == NULL)
+      continue;
+
+    base::StringPiece der(reinterpret_cast<char*>(cert->derCert.data),
+                          cert->derCert.len);
+
+    base::StringPiece spki;
+    if (!asn1::ExtractSPKIFromDERCert(der, &spki)) {
+      NOTREACHED();
+      return kCRLSetError;
+    }
+
+    std::string serial_number(
+        reinterpret_cast<char*>(child->serialNumber.data),
+        child->serialNumber.len);
+
+    CRLSet::Result result = crl_set->CheckCertificate(serial_number, spki);
+
+    switch (result) {
+      case CRLSet::REVOKED:
+        return kCRLSetRevoked;
+      case CRLSet::UNKNOWN:
+      case CRLSet::GOOD:
+        continue;
+      default:
+        NOTREACHED();
+        return kCRLSetError;
+    }
+  }
+
+  return kCRLSetOk;
 }
 
 void ParsePrincipal(CERTName* name,
@@ -691,6 +754,7 @@ void X509Certificate::GetSubjectAltName(
 
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
+                                    CRLSet* crl_set,
                                     CertVerifyResult* verify_result) const {
   // Make sure that the hostname matches with the common name of the cert.
   SECStatus status = CERT_VerifyCertName(cert_handle_, hostname.c_str());
@@ -723,7 +787,34 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     // EV requires revocation checking.
     flags &= ~VERIFY_EV_CERT;
   }
-  status = PKIXVerifyCert(cert_handle_, check_revocation, NULL, 0, cvout);
+
+  if (check_revocation && crl_set) {
+    // We have a CRLSet so we build a chain without revocation checking in
+    // order to try and check it ourselves.
+    status = PKIXVerifyCert(cert_handle_, false /* no revocation checking */,
+                            NULL, 0, cvout);
+    if (status == SECSuccess) {
+      CRLSetResult crl_set_result = CheckRevocationWithCRLSet(
+          cvout[cvout_cert_list_index].value.pointer.chain,
+          cvout[cvout_trust_anchor_index].value.pointer.cert,
+          crl_set);
+      if (crl_set_result == kCRLSetError) {
+        // An error occured during processing so we fall back to standard
+        // revocation checking.
+        status = PKIXVerifyCert(cert_handle_, check_revocation, NULL, 0, cvout);
+      } else {
+        DCHECK(crl_set_result == kCRLSetRevoked || crl_set_result == kCRLSetOk);
+        if (crl_set_result == kCRLSetRevoked) {
+          PORT_SetError(SEC_ERROR_REVOKED_CERTIFICATE);
+          status = SECFailure;
+        }
+      }
+    }
+  } else {
+    status = PKIXVerifyCert(cert_handle_, check_revocation,
+                            NULL, 0, cvout);
+  }
+
   if (status != SECSuccess) {
     int err = PORT_GetError();
     LOG(ERROR) << "CERT_PKIXVerifyCert for " << hostname
