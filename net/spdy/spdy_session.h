@@ -228,6 +228,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   friend class base::RefCounted<SpdySession>;
   // Allow tests to access our innards for testing purposes.
   FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, Ping);
+  FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, FailedPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, GetActivePushStream);
 
   struct PendingCreateStream {
