@@ -283,6 +283,45 @@ class URLRequestTestHTTP : public URLRequestTest {
   }
 
  protected:
+  // Requests |redirect_url|, which must return a HTTP 3xx redirect.
+  // |request_method| is the method to use for the initial request.
+  // |redirect_method| is the method that is expected to be used for the second
+  // request, after redirection.
+  // If |include_data| is true, data is uploaded with the request.  The
+  // response body is expected to match it exactly, if and only if
+  // |request_method| == |redirect_method|.
+  void HTTPRedirectMethodTest(const GURL& redirect_url,
+                              const std::string& request_method,
+                              const std::string& redirect_method,
+                              bool include_data) {
+    static const char kData[] = "hello world";
+    TestDelegate d;
+    TestURLRequest req(redirect_url, &d);
+    req.set_context(default_context_);
+    req.set_method(request_method);
+    if (include_data) {
+      req.set_upload(CreateSimpleUploadData(kData).get());
+      HttpRequestHeaders headers;
+      headers.SetHeader(HttpRequestHeaders::kContentLength,
+                        base::UintToString(arraysize(kData) - 1));
+      req.SetExtraRequestHeaders(headers);
+    }
+    req.Start();
+    MessageLoop::current()->Run();
+    EXPECT_EQ(redirect_method, req.method());
+    EXPECT_EQ(URLRequestStatus::SUCCESS, req.status().status());
+    EXPECT_EQ(OK, req.status().error());
+    if (include_data) {
+      if (request_method == redirect_method) {
+        EXPECT_EQ(kData, d.data_received());
+      } else {
+        EXPECT_NE(kData, d.data_received());
+      }
+    }
+    if (HasFailure())
+      LOG(WARNING) << "Request method was: " << request_method;
+  }
+
   void HTTPUploadDataOperationTest(const std::string& method) {
     const int kMsgSize = 20000;  // multiple of 10
     const int kIterations = 50;
@@ -2443,24 +2482,43 @@ TEST_F(URLRequestTestHTTP, Post302RedirectGet) {
   EXPECT_TRUE(ContainsString(data, "Accept-Charset:"));
 }
 
-TEST_F(URLRequestTestHTTP, Post307RedirectPost) {
+// The following tests check that we handle mutating the request method for
+// HTTP redirects as expected.  See http://crbug.com/56373.
+
+TEST_F(URLRequestTestHTTP, Redirect301Tests) {
   ASSERT_TRUE(test_server_.Start());
 
-  const char kData[] = "hello world";
+  const GURL url = test_server_.GetURL("files/redirect301-to-echo");
 
-  TestDelegate d;
-  TestURLRequest req(test_server_.GetURL("files/redirect307-to-echo"), &d);
-  req.set_context(default_context_);
-  req.set_method("POST");
-  req.set_upload(CreateSimpleUploadData(kData).get());
-  HttpRequestHeaders headers;
-  headers.SetHeader(HttpRequestHeaders::kContentLength,
-                    base::UintToString(arraysize(kData) - 1));
-  req.SetExtraRequestHeaders(headers);
-  req.Start();
-  MessageLoop::current()->Run();
-  EXPECT_EQ("POST", req.method());
-  EXPECT_EQ(kData, d.data_received());
+  HTTPRedirectMethodTest(url, "POST", "GET", true);
+  HTTPRedirectMethodTest(url, "PUT", "PUT", true);
+}
+
+TEST_F(URLRequestTestHTTP, Redirect302Tests) {
+  ASSERT_TRUE(test_server_.Start());
+
+  const GURL url = test_server_.GetURL("files/redirect302-to-echo");
+
+  HTTPRedirectMethodTest(url, "POST", "GET", true);
+  HTTPRedirectMethodTest(url, "PUT", "PUT", true);
+}
+
+TEST_F(URLRequestTestHTTP, Redirect303Tests) {
+  ASSERT_TRUE(test_server_.Start());
+
+  const GURL url = test_server_.GetURL("files/redirect303-to-echo");
+
+  HTTPRedirectMethodTest(url, "POST", "GET", true);
+  HTTPRedirectMethodTest(url, "PUT", "GET", true);
+}
+
+TEST_F(URLRequestTestHTTP, Redirect307Tests) {
+  ASSERT_TRUE(test_server_.Start());
+
+  const GURL url = test_server_.GetURL("files/redirect307-to-echo");
+
+  HTTPRedirectMethodTest(url, "POST", "POST", true);
+  HTTPRedirectMethodTest(url, "PUT", "PUT", true);
 }
 
 TEST_F(URLRequestTestHTTP, InterceptPost302RedirectGet) {
