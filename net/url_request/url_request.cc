@@ -695,17 +695,26 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     return ERR_UNSAFE_REDIRECT;
   }
 
-  bool strip_post_specific_headers = false;
-  if (http_status_code != 307) {
-    // NOTE: Even though RFC 2616 says to preserve the request method when
-    // following a 302 redirect, normal browsers don't do that.  Instead, they
-    // all convert a POST into a GET in response to a 302 and so shall we.  For
-    // 307 redirects, browsers preserve the method.  The RFC says to prompt the
-    // user to confirm the generation of a new POST request, but IE omits this
-    // prompt and so shall we.
-    strip_post_specific_headers = method_ == "POST";
+  // For 303 redirects, all request methods are converted to GETs, as per RFC
+  // 2616.  The latest httpbis draft also allows POST requests to be converted
+  // to GETs when following 301/302 redirects for historical reasons.  Most
+  // major browsers do this and so shall we.  The RFC says to prompt the user
+  // to confirm the generation of new requests, other than GET and HEAD
+  // requests, but IE omits these prompts and so shall we.
+  // See:  http://greenbytes.de/tech/webdav/draft-ietf-httpbis-p2-semantics-latest.html#status.3xx
+  bool was_post = method_ == "POST";
+  if (http_status_code == 303 ||
+      ((http_status_code == 301 || http_status_code == 302) && was_post)) {
     method_ = "GET";
     upload_ = NULL;
+    if (was_post) {
+      // If being switched from POST to GET, must remove headers that were
+      // specific to the POST and don't have meaning in GET. For example
+      // the inclusion of a multipart Content-Type header in GET can cause
+      // problems with some servers:
+      // http://code.google.com/p/chromium/issues/detail?id=843
+      StripPostSpecificHeaders(&extra_request_headers_);
+    }
   }
 
   // Suppress the referrer if we're redirecting out of https.
@@ -714,15 +723,6 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
 
   url_chain_.push_back(location);
   --redirect_limit_;
-
-  if (strip_post_specific_headers) {
-    // If being switched from POST to GET, must remove headers that were
-    // specific to the POST and don't have meaning in GET. For example
-    // the inclusion of a multipart Content-Type header in GET can cause
-    // problems with some servers:
-    // http://code.google.com/p/chromium/issues/detail?id=843
-    StripPostSpecificHeaders(&extra_request_headers_);
-  }
 
   if (!final_upload_progress_)
     final_upload_progress_ = job_->GetUploadProgress();
