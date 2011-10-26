@@ -276,7 +276,7 @@ bool LaunchProcess(const string16& cmdline,
   if (options.job_handle) {
     if (0 == AssignProcessToJobObject(options.job_handle,
                                       process_info.hProcess)) {
-      LOG(ERROR) << "Could not AssignProcessToObject.";
+      DLOG(ERROR) << "Could not AssignProcessToObject.";
       KillProcess(process_info.hProcess, kProcessKilledExitCode, true);
       return false;
     }
@@ -902,7 +902,7 @@ size_t GetSystemCommitCharge() {
 
   PERFORMANCE_INFORMATION info;
   if (!InternalGetPerformanceInfo(&info, sizeof(info))) {
-    LOG(ERROR) << "Failed to fetch internal performance info.";
+    DLOG(ERROR) << "Failed to fetch internal performance info.";
     return 0;
   }
   return (info.CommitTotal * system_info.dwPageSize) / 1024;
