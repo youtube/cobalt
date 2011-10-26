@@ -114,8 +114,9 @@ void Eviction::TrimCache(bool empty) {
   trimming_ = true;
   TimeTicks start = TimeTicks::Now();
   Rankings::ScopedRankingsBlock node(rankings_);
-  Rankings::ScopedRankingsBlock next(rankings_,
-      rankings_->GetPrev(node.get(), Rankings::NO_USE));
+  Rankings::ScopedRankingsBlock next(
+      rankings_, rankings_->GetPrev(node.get(), Rankings::NO_USE));
+  int deleted_entries = 0;
   int target_size = empty ? 0 : max_size_;
   while ((header_->num_bytes > target_size || test_mode_) && next.get()) {
     // The iterator could be invalidated within EvictEntry().
@@ -127,28 +128,26 @@ void Eviction::TrimCache(bool empty) {
       // This entry is not being used by anybody.
       // Do NOT use node as an iterator after this point.
       rankings_->TrackRankingsBlock(node.get(), false);
-      if (!EvictEntry(node.get(), empty, Rankings::NO_USE) && !test_mode_)
-        continue;
+      if (EvictEntry(node.get(), empty, Rankings::NO_USE) && !test_mode_)
+        deleted_entries++;
 
-      if (!empty) {
-        backend_->OnEvent(Stats::TRIM_ENTRY);
-        if (test_mode_)
-          break;
-
-        if ((TimeTicks::Now() - start).InMilliseconds() > 20) {
-          MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-              &Eviction::TrimCache, ptr_factory_.GetWeakPtr(), false));
-          break;
-        }
-      }
+      if (!empty && test_mode_)
+        break;
+    }
+    if (!empty && (deleted_entries > 20 ||
+                   (TimeTicks::Now() - start).InMilliseconds() > 20)) {
+      MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+          &Eviction::TrimCache, ptr_factory_.GetWeakPtr(), false));
+      break;
     }
   }
 
   if (empty) {
     CACHE_UMA(AGE_MS, "TotalClearTimeV1", 0, start);
   } else {
-    CACHE_UMA(AGE_MS, "TotalTrimTimeV1", backend_->GetSizeGroup(), start);
+    CACHE_UMA(AGE_MS, "TotalTrimTimeV1", 0, start);
   }
+  CACHE_UMA(COUNTS, "TrimItemsV1", 0, deleted_entries);
 
   trimming_ = false;
   Trace("*** Trim Cache end ***");
@@ -269,6 +268,8 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty,
   ReportTrimTimes(entry);
   if (empty || !new_eviction_) {
     entry->DoomImpl();
+    if (!empty)
+      backend_->OnEvent(Stats::TRIM_ENTRY);
   } else {
     entry->DeleteEntryData(false);
     EntryStore* info = entry->entry()->Data();
@@ -317,8 +318,9 @@ void Eviction::TrimCacheV2(bool empty) {
     list = 0;
 
   Rankings::ScopedRankingsBlock node(rankings_);
-
+  int deleted_entries = 0;
   int target_size = empty ? 0 : max_size_;
+
   for (; list < kListsToSearch; list++) {
     while ((header_->num_bytes > target_size || test_mode_) &&
            next[list].get()) {
@@ -332,18 +334,17 @@ void Eviction::TrimCacheV2(bool empty) {
         // This entry is not being used by anybody.
         // Do NOT use node as an iterator after this point.
         rankings_->TrackRankingsBlock(node.get(), false);
-        if (!EvictEntry(node.get(), empty, static_cast<Rankings::List>(list)) &&
-            !test_mode_)
-          continue;
+        if (EvictEntry(node.get(), empty, static_cast<Rankings::List>(list)))
+          deleted_entries++;
 
         if (!empty && test_mode_)
           break;
-
-        if (!empty && (TimeTicks::Now() - start).InMilliseconds() > 20) {
-          MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-              &Eviction::TrimCache, ptr_factory_.GetWeakPtr(), false));
-          break;
-        }
+      }
+      if (!empty && (deleted_entries > 20 ||
+                     (TimeTicks::Now() - start).InMilliseconds() > 20)) {
+        MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+            &Eviction::TrimCache, ptr_factory_.GetWeakPtr(), false));
+        break;
       }
     }
     if (!empty)
@@ -361,8 +362,9 @@ void Eviction::TrimCacheV2(bool empty) {
   if (empty) {
     CACHE_UMA(AGE_MS, "TotalClearTimeV2", 0, start);
   } else {
-    CACHE_UMA(AGE_MS, "TotalTrimTimeV2", backend_->GetSizeGroup(), start);
+    CACHE_UMA(AGE_MS, "TotalTrimTimeV2", 0, start);
   }
+  CACHE_UMA(COUNTS, "TrimItemsV2", 0, deleted_entries);
 
   Trace("*** Trim Cache end ***");
   trimming_ = false;
@@ -470,14 +472,16 @@ void Eviction::TrimDeleted(bool empty) {
 
   TimeTicks start = TimeTicks::Now();
   Rankings::ScopedRankingsBlock node(rankings_);
-  Rankings::ScopedRankingsBlock next(rankings_,
-    rankings_->GetPrev(node.get(), Rankings::DELETED));
-  bool deleted = false;
+  Rankings::ScopedRankingsBlock next(
+    rankings_, rankings_->GetPrev(node.get(), Rankings::DELETED));
+  int deleted_entries = 0;
   while (next.get() &&
-         (empty || (TimeTicks::Now() - start).InMilliseconds() < 20)) {
+         (empty || (deleted_entries < 20 &&
+                    (TimeTicks::Now() - start).InMilliseconds() < 20))) {
     node.reset(next.release());
     next.reset(rankings_->GetPrev(node.get(), Rankings::DELETED));
-    deleted |= RemoveDeletedNode(node.get());
+    if (RemoveDeletedNode(node.get()))
+      deleted_entries++;
     if (test_mode_)
       break;
   }
@@ -488,13 +492,14 @@ void Eviction::TrimDeleted(bool empty) {
   // lists intact.
   int max_length = in_experiment_ ? header_->num_entries * 2 / 5 :
                                     header_->num_entries / 4;
-  if (deleted && !empty && !test_mode_ &&
+  if (deleted_entries && !empty && !test_mode_ &&
       header_->lru.sizes[Rankings::DELETED] > max_length) {
     MessageLoop::current()->PostTask(FROM_HERE,
         base::Bind(&Eviction::TrimDeleted, ptr_factory_.GetWeakPtr(), false));
   }
 
   CACHE_UMA(AGE_MS, "TotalTrimDeletedTime", 0, start);
+  CACHE_UMA(COUNTS, "TrimDeletedItems", 0, deleted_entries);
   Trace("*** Trim Deleted end ***");
   return;
 }
