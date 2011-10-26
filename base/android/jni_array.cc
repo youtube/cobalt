@@ -17,7 +17,7 @@ jbyteArray ToJavaByteArray(JNIEnv* env,
                            size_t len) {
   jbyteArray byte_array = env->NewByteArray(len);
   CheckException(env);
-  CHECK(byte_array);
+  DCHECK(byte_array);
 
   jbyte* elements = env->GetByteArrayElements(byte_array, NULL);
   memcpy(elements, bytes, len);
