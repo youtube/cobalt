@@ -113,7 +113,6 @@ class AudioInputStreamWrapper {
     // Use native/mixing sample rate and 10ms frame size as default.
     sample_rate_ = static_cast<int>(
         WASAPIAudioInputStream::HardwareSampleRate(eConsole));
-    sample_rate_ = 48000;
     samples_per_packet_ = sample_rate_ / 100;
   }
 
