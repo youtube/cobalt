@@ -183,25 +183,25 @@ bool InitExperiment(disk_cache::IndexHeader* header, uint32 mask) {
   }
 
   if (!header->create_time || !header->lru.filled)
-    return true; // Wait untill we fill up the cache.
+    return true;  // Wait untill we fill up the cache.
 
   int index_load = header->num_entries * 100 / (mask + 1);
   if (index_load > 25) {
-   // Out of the experiment (~18% users).
-   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT2;
-   return true;
+    // Out of the experiment (~18% users).
+    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT2;
+    return true;
   }
 
   int option = base::RandInt(0, 4);
   if (option > 1) {
-   // 60% out (49% of the total).
-   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT2;
+    // 60% out (49% of the total).
+    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT2;
   } else if (!option) {
-   // About 16% of the total.
-   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_CONTROL;
+    // About 16% of the total.
+    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_CONTROL;
   } else {
-   // About 16% of the total.
-   header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_IN;
+    // About 16% of the total.
+    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_IN;
   }
 
   SetFieldTrialInfo(header->experiment);
@@ -381,6 +381,7 @@ BackendImpl::BackendImpl(const FilePath& path,
       disabled_(false),
       new_eviction_(false),
       first_timer_(true),
+      user_load_(false),
       net_log_(net_log),
       done_(true, false),
       ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
@@ -406,6 +407,7 @@ BackendImpl::BackendImpl(const FilePath& path,
       disabled_(false),
       new_eviction_(false),
       first_timer_(true),
+      user_load_(false),
       net_log_(net_log),
       done_(true, false),
       ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
@@ -1108,7 +1110,7 @@ bool BackendImpl::IsLoaded() const {
   if (user_flags_ & kNoLoadProtection)
     return false;
 
-  return num_pending_io_ > 5;
+  return (num_pending_io_ > 5 || user_load_);
 }
 
 std::string BackendImpl::HistogramName(const char* name, int experiment) const {
@@ -1260,6 +1262,9 @@ void BackendImpl::OnStatsTimer() {
 
   CACHE_UMA(COUNTS_10000, "EntryAccessRate", 0, entry_count_);
   CACHE_UMA(COUNTS, "ByteIORate", 0, byte_count_ / 1024);
+
+  // These values cover about 99.5% of the population (Oct 2011).
+  user_load_ = (entry_count_ > 300 || byte_count_ > 7 * 1024 * 1024);
   entry_count_ = 0;
   byte_count_ = 0;
   up_ticks_++;
