@@ -871,15 +871,19 @@
     ],
     # List of default apps to install in new profiles.  The first list contains
     # the source files as found in svn.  The second list, used only for linux,
-    # contains the destination location for each of the files.
+    # contains the destination location for each of the files.  When a crx
+    # is added or removed from the list, the chrome/browser/resources/
+    # default_apps/external_extensions.json file must also be updated.
     'default_apps_list': [
       'browser/resources/default_apps/external_extensions.json',
       'browser/resources/default_apps/gmail.crx',
+      'browser/resources/default_apps/search.crx',
       'browser/resources/default_apps/youtube.crx',
     ],
     'default_apps_list_linux_dest': [
       '<(PRODUCT_DIR)/default_apps/external_extensions.json',
       '<(PRODUCT_DIR)/default_apps/gmail.crx',
+      '<(PRODUCT_DIR)/default_apps/search.crx',
       '<(PRODUCT_DIR)/default_apps/youtube.crx',
     ],
   },
