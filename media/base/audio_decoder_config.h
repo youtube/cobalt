@@ -18,7 +18,12 @@ enum AudioCodec {
   kCodecMP3,
   kCodecPCM,
   kCodecVorbis,
-
+  // ChromiumOS and ChromeOS specific codecs.
+  kCodecFLAC,
+  // ChromeOS specific codecs.
+  kCodecAMR_NB,
+  kCodecAMR_WB,
+  kCodecPCM_MULAW,
   // DO NOT ADD RANDOM AUDIO CODECS!
   //
   // The only acceptable time to add a new codec is if there is production code

@@ -33,6 +33,14 @@ static AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
     case CODEC_ID_PCM_S16LE:
     case CODEC_ID_PCM_S32LE:
       return kCodecPCM;
+    case CODEC_ID_FLAC:
+      return kCodecFLAC;
+    case CODEC_ID_AMR_NB:
+      return kCodecAMR_NB;
+    case CODEC_ID_AMR_WB:
+      return kCodecAMR_WB;
+    case CODEC_ID_PCM_MULAW:
+      return kCodecPCM_MULAW;
     default:
       NOTREACHED();
   }
@@ -61,6 +69,14 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
       }
     case kCodecVorbis:
       return CODEC_ID_VORBIS;
+    case kCodecFLAC:
+      return CODEC_ID_FLAC;
+    case kCodecAMR_NB:
+      return CODEC_ID_AMR_NB;
+    case kCodecAMR_WB:
+      return CODEC_ID_AMR_WB;
+    case kCodecPCM_MULAW:
+      return CODEC_ID_PCM_MULAW;
     default:
       NOTREACHED();
   }
