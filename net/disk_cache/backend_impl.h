@@ -377,7 +377,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   bool disabled_;
   bool new_eviction_;  // What eviction algorithm should be used.
   bool first_timer_;  // True if the timer has not been called.
-  bool throttle_requests_;
+  bool user_load_;  // True if we see a high load coming from the caller.
 
   net::NetLog* net_log_;
 
