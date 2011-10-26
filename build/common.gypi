@@ -335,7 +335,7 @@
 
         # Use GPU accelerated cross process image transport by default
         # on TOUCH_UI and linux builds with the Aura window manager
-        ['views_compositor==1 and OS=="linux" and use_webkit_compositor!=1', {
+        ['views_compositor==1 and OS=="linux"', {
           'ui_compositor_image_transport%': 1,
         }, {
           'ui_compositor_image_transport%': 0,
