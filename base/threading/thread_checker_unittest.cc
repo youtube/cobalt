@@ -20,7 +20,7 @@ class ThreadCheckerClass : public ThreadChecker {
 
   // Verifies that it was called on the same thread as the constructor.
   void DoStuff() {
-    CHECK(CalledOnValidThread());
+    DCHECK(CalledOnValidThread());
   }
 
   void DetachFromThread() {

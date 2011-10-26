@@ -206,8 +206,8 @@ bool FilePathWatcherImpl::SetupWatchHandle(const FilePath& dir,
       error_code != ERROR_SHARING_VIOLATION &&
       error_code != ERROR_DIRECTORY) {
     using ::operator<<; // Pick the right operator<< below.
-    PLOG(ERROR) << "FindFirstChangeNotification failed for "
-                << dir.value();
+    DPLOG(ERROR) << "FindFirstChangeNotification failed for "
+                 << dir.value();
     return false;
   }
 
@@ -241,7 +241,7 @@ bool FilePathWatcherImpl::UpdateWatch() {
     child_dirs.push_back(watched_path.BaseName());
     FilePath parent(watched_path.DirName());
     if (parent == watched_path) {
-      LOG(ERROR) << "Reached the root directory";
+      DLOG(ERROR) << "Reached the root directory";
       return false;
     }
     watched_path = parent;
