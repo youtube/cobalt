@@ -11,15 +11,17 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
-static void DLogFormat(const AudioStreamBasicDescription& format) {
-  DLOG(INFO) << " sample rate       : " << format.mSampleRate << std::endl
-             << " format ID         : " << format.mFormatID << std::endl
-             << " format flags      : " << format.mFormatFlags << std::endl
-             << " bytes per packet  : " << format.mBytesPerPacket << std::endl
-             << " frames per packet : " << format.mFramesPerPacket << std::endl
-             << " bytes per frame   : " << format.mBytesPerFrame << std::endl
-             << " channels per frame: " << format.mChannelsPerFrame << std::endl
-             << " bits per channel  : " << format.mBitsPerChannel;
+static std::ostream& operator<<(std::ostream& os,
+                                const AudioStreamBasicDescription& format) {
+  os << "sample rate       : " << format.mSampleRate << std::endl
+     << "format ID         : " << format.mFormatID << std::endl
+     << "format flags      : " << format.mFormatFlags << std::endl
+     << "bytes per packet  : " << format.mBytesPerPacket << std::endl
+     << "frames per packet : " << format.mFramesPerPacket << std::endl
+     << "bytes per frame   : " << format.mBytesPerFrame << std::endl
+     << "channels per frame: " << format.mChannelsPerFrame << std::endl
+     << "bits per channel  : " << format.mBitsPerChannel;
+  return os;
 }
 
 // See "Technical Note TN2091 - Device input using the HAL Output Audio Unit"
@@ -47,16 +49,15 @@ AUAudioInputStream::AUAudioInputStream(
   format_.mBytesPerFrame = format_.mBytesPerPacket;
   format_.mReserved = 0;
 
-  DLOG(INFO) << "Desired ouput format:";
-  DLogFormat(format_);
+  DVLOG(1) << "Desired ouput format: " << format_;
 
   // Calculate the number of sample frames per callback.
   number_of_frames_ = params.GetPacketSize() / format_.mBytesPerPacket;
-  DLOG(INFO) << "Number of frames per callback: " << number_of_frames_;
+  DVLOG(1) << "Number of frames per callback: " << number_of_frames_;
 
   // Derive size (in bytes) of the buffers that we will render to.
   UInt32 data_byte_size = number_of_frames_ * format_.mBytesPerFrame;
-  DLOG(INFO) << "Size of data buffer in bytes : " << data_byte_size;
+  DVLOG(1) << "Size of data buffer in bytes : " << data_byte_size;
 
   // Allocate AudioBuffers to be used as storage for the received audio.
   // The AudioBufferList structure works as a placeholder for the
