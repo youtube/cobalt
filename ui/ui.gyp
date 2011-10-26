@@ -5,16 +5,9 @@
 {
   'variables': {
     'chromium_code': 1,
-    'toolkit_views2': 0,  # ui/views/ is an experimental framework on Windows.
   },
   'target_defaults': {
     'conditions': [
-      ['OS=="win"',
-        {'variables': {'toolkit_views2': 1}},
-      ],
-      ['toolkit_views2==0', {'sources/': [
-        ['exclude', 'views/'],
-      ]}],
       ['touchui==0', {'sources/': [
         ['exclude', '_(touch)\\.cc$'],
       ]}],
@@ -589,11 +582,6 @@
     },
   ],
   'conditions': [
-    ['toolkit_views2==1', {
-      'includes': [
-        'ui_views.gypi',
-      ],
-    }],
     ['inside_chromium_build==1', {
       'includes': [
         'ui_unittests.gypi',
