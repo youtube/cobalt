@@ -129,11 +129,11 @@ MessagePumpLibevent::~MessagePumpLibevent() {
   delete wakeup_event_;
   if (wakeup_pipe_in_ >= 0) {
     if (HANDLE_EINTR(close(wakeup_pipe_in_)) < 0)
-      PLOG(ERROR) << "close";
+      DPLOG(ERROR) << "close";
   }
   if (wakeup_pipe_out_ >= 0) {
     if (HANDLE_EINTR(close(wakeup_pipe_out_)) < 0)
-      PLOG(ERROR) << "close";
+      DPLOG(ERROR) << "close";
   }
   event_base_free(event_base_);
 }
