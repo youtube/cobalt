@@ -64,7 +64,7 @@ LSSharedFileListItemRef GetLoginItemForApp() {
       NULL, kLSSharedFileListSessionLoginItems, NULL));
 
   if (!login_items.get()) {
-    LOG(ERROR) << "Couldn't get a Login Items list.";
+    DLOG(ERROR) << "Couldn't get a Login Items list.";
     return NULL;
   }
 
@@ -126,7 +126,7 @@ CGColorSpaceRef GetSRGBColorSpace() {
   // Leaked.  That's OK, it's scoped to the lifetime of the application.
   static CGColorSpaceRef g_color_space_sRGB =
       CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-  LOG_IF(ERROR, !g_color_space_sRGB) << "Couldn't get the sRGB color space";
+  DLOG_IF(ERROR, !g_color_space_sRGB) << "Couldn't get the sRGB color space";
   return g_color_space_sRGB;
 }
 
@@ -141,10 +141,10 @@ CGColorSpaceRef GetSystemColorSpace() {
     g_system_color_space = CGColorSpaceCreateDeviceRGB();
 
     if (g_system_color_space) {
-      LOG(WARNING) <<
+      DLOG(WARNING) <<
           "Couldn't get the main display's color space, using generic";
     } else {
-      LOG(ERROR) << "Couldn't get any color space";
+      DLOG(ERROR) << "Couldn't get any color space";
     }
   }
 
@@ -216,7 +216,7 @@ void ActivateProcess(pid_t pid) {
   if (status == noErr) {
     SetFrontProcess(&process);
   } else {
-    LOG(WARNING) << "Unable to get process for pid " << pid;
+    DLOG(WARNING) << "Unable to get process for pid " << pid;
   }
 }
 
@@ -224,7 +224,7 @@ bool AmIForeground() {
   ProcessSerialNumber foreground_psn = { 0 };
   OSErr err = GetFrontProcess(&foreground_psn);
   if (err != noErr) {
-    LOG(WARNING) << "GetFrontProcess: " << err;
+    DLOG(WARNING) << "GetFrontProcess: " << err;
     return false;
   }
 
@@ -233,7 +233,7 @@ bool AmIForeground() {
   Boolean result = FALSE;
   err = SameProcess(&foreground_psn, &my_psn, &result);
   if (err != noErr) {
-    LOG(WARNING) << "SameProcess: " << err;
+    DLOG(WARNING) << "SameProcess: " << err;
     return false;
   }
 
@@ -254,7 +254,7 @@ bool SetFileBackupExclusion(const FilePath& file_path) {
   OSStatus os_err =
       CSBackupSetItemExcluded(base::mac::NSToCFCast(file_url), TRUE, FALSE);
   if (os_err != noErr) {
-    LOG(WARNING) << "Failed to set backup exclusion for file '"
+    DLOG(WARNING) << "Failed to set backup exclusion for file '"
                  << file_path.value().c_str() << "' with error "
                  << os_err << " (" << GetMacOSStatusErrorString(os_err)
                  << ": " << GetMacOSStatusCommentString(os_err)
@@ -300,7 +300,7 @@ void SetProcessName(CFStringRef process_name) {
     CFBundleRef launch_services_bundle =
         CFBundleGetBundleWithIdentifier(CFSTR("com.apple.LaunchServices"));
     if (!launch_services_bundle) {
-      LOG(ERROR) << "Failed to look up LaunchServices bundle";
+      DLOG(ERROR) << "Failed to look up LaunchServices bundle";
       return;
     }
 
@@ -309,7 +309,7 @@ void SetProcessName(CFStringRef process_name) {
             CFBundleGetFunctionPointerForName(
                 launch_services_bundle, CFSTR("_LSGetCurrentApplicationASN")));
     if (!ls_get_current_application_asn_func)
-      LOG(ERROR) << "Could not find _LSGetCurrentApplicationASN";
+      DLOG(ERROR) << "Could not find _LSGetCurrentApplicationASN";
 
     ls_set_application_information_item_func =
         reinterpret_cast<LSSetApplicationInformationItemType>(
@@ -317,14 +317,14 @@ void SetProcessName(CFStringRef process_name) {
                 launch_services_bundle,
                 CFSTR("_LSSetApplicationInformationItem")));
     if (!ls_set_application_information_item_func)
-      LOG(ERROR) << "Could not find _LSSetApplicationInformationItem";
+      DLOG(ERROR) << "Could not find _LSSetApplicationInformationItem";
 
     CFStringRef* key_pointer = reinterpret_cast<CFStringRef*>(
         CFBundleGetDataPointerForName(launch_services_bundle,
                                       CFSTR("_kLSDisplayNameKey")));
     ls_display_name_key = key_pointer ? *key_pointer : NULL;
     if (!ls_display_name_key)
-      LOG(ERROR) << "Could not find _kLSDisplayNameKey";
+      DLOG(ERROR) << "Could not find _kLSDisplayNameKey";
 
     // Internally, this call relies on the Mach ports that are started up by the
     // Carbon Process Manager.  In debug builds this usually happens due to how
@@ -349,7 +349,7 @@ void SetProcessName(CFStringRef process_name) {
                                                ls_display_name_key,
                                                process_name,
                                                NULL /* optional out param */);
-  LOG_IF(ERROR, err) << "Call to set process name failed, err " << err;
+  DLOG_IF(ERROR, err) << "Call to set process name failed, err " << err;
 }
 
 // Converts a NSImage to a CGImageRef.  Normally, the system frameworks can do
@@ -406,7 +406,7 @@ void AddToLoginItems(bool hide_on_startup) {
       NULL, kLSSharedFileListSessionLoginItems, NULL));
 
   if (!login_items.get()) {
-    LOG(ERROR) << "Couldn't get a Login Items list.";
+    DLOG(ERROR) << "Couldn't get a Login Items list.";
     return;
   }
 
@@ -430,7 +430,7 @@ void AddToLoginItems(bool hide_on_startup) {
       reinterpret_cast<CFDictionaryRef>(properties), NULL));
 
   if (!new_item.get()) {
-    LOG(ERROR) << "Couldn't insert current app into Login Items list.";
+    DLOG(ERROR) << "Couldn't insert current app into Login Items list.";
   }
 }
 
@@ -443,7 +443,7 @@ void RemoveFromLoginItems() {
       NULL, kLSSharedFileListSessionLoginItems, NULL));
 
   if (!login_items.get()) {
-    LOG(ERROR) << "Couldn't get a Login Items list.";
+    DLOG(ERROR) << "Couldn't get a Login Items list.";
     return;
   }
 
@@ -481,7 +481,7 @@ bool WasLaunchedAsHiddenLoginItem() {
     // Lion can launch items for the resume feature.  So log an error only for
     // Snow Leopard or earlier.
     if (IsOSSnowLeopardOrEarlier())
-      LOG(ERROR) <<
+      DLOG(ERROR) <<
           "Process launched at Login but can't access Login Item List.";
 
     return false;
@@ -509,12 +509,12 @@ int DarwinMajorVersionInternal() {
 
   struct utsname uname_info;
   if (uname(&uname_info) != 0) {
-    PLOG(ERROR) << "uname";
+    DPLOG(ERROR) << "uname";
     return 0;
   }
 
   if (strcmp(uname_info.sysname, "Darwin") != 0) {
-    LOG(ERROR) << "unexpected uname sysname " << uname_info.sysname;
+    DLOG(ERROR) << "unexpected uname sysname " << uname_info.sysname;
     return 0;
   }
 
@@ -527,7 +527,7 @@ int DarwinMajorVersionInternal() {
   }
 
   if (!dot) {
-    LOG(ERROR) << "could not parse uname release " << uname_info.release;
+    DLOG(ERROR) << "could not parse uname release " << uname_info.release;
     return 0;
   }
 
@@ -548,7 +548,7 @@ int MacOSXMinorVersionInternal() {
   // immediate death.
   CHECK(darwin_major_version >= 6);
   int mac_os_x_minor_version = darwin_major_version - 4;
-  LOG_IF(WARNING, darwin_major_version > 11) << "Assuming Darwin "
+  DLOG_IF(WARNING, darwin_major_version > 11) << "Assuming Darwin "
       << base::IntToString(darwin_major_version) << " is Mac OS X 10."
       << base::IntToString(mac_os_x_minor_version);
 

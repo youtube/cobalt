@@ -75,7 +75,7 @@ bool GetMUIPreferredUILanguageList(LanguageFunction function, ULONG flags,
             << "Failed getting size of preferred UI languages.";
       }
     } else {
-      VLOG(2) << "MUI not available.";
+      DVLOG(2) << "MUI not available.";
     }
   } else {
     NOTREACHED() << "kernel32.dll not found.";
