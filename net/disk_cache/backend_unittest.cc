@@ -812,6 +812,7 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry2() {
   ASSERT_EQ(net::OK, CreateEntry("Something else", &entry));
   EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer, kSize, false));
 
+  FlushQueueForTest();
   EXPECT_EQ(33, cache_->GetEntryCount());
   SetMaxSize(kSize);
 
@@ -826,6 +827,7 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry2() {
 
   // We may abort the eviction before cleaning up everything.
   MessageLoop::current()->RunAllPending();
+  FlushQueueForTest();
   EXPECT_GE(30, cache_->GetEntryCount());
 }
 
