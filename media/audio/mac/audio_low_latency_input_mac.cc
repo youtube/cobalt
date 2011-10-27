@@ -33,7 +33,9 @@ AUAudioInputStream::AUAudioInputStream(
     : manager_(manager),
       sink_(NULL),
       audio_unit_(0),
-      started_(false) {
+      input_device_id_(kAudioObjectUnknown),
+      started_(false),
+      hardware_latency_frames_(0) {
   DCHECK(manager_);
 
   // Set up the desired (output) format specified by the client.
@@ -137,17 +139,26 @@ bool AUAudioInputStream::Open() {
 
   // Set the current device of the AudioOuputUnit to default input device.
 
-  AudioDeviceID input_device;
-  UInt32 size = sizeof(input_device);
-
   // First, obtain the current input device selected by the user.
-  result = AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice,
-                                    &size,
-                                    &input_device);
+  AudioObjectPropertyAddress default_intput_device_address = {
+    kAudioHardwarePropertyDefaultInputDevice,
+    kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyElementMaster
+  };
+  AudioDeviceID input_device = kAudioObjectUnknown;
+  UInt32 size = sizeof(input_device);
+  result = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                      &default_intput_device_address,
+                                      0,
+                                      0,
+                                      &size,
+                                      &input_device);
   if (result) {
     HandleError(result);
     return false;
   }
+
+  input_device_id_ = input_device;
 
   // Next, set the audio device to be the Audio Unit's current device.
   // Note that, devices can only be set to the AUHAL after enabling IO.
@@ -155,7 +166,7 @@ bool AUAudioInputStream::Open() {
                                 kAudioOutputUnitProperty_CurrentDevice,
                                 kAudioUnitScope_Global,
                                 0,
-                                &input_device,
+                                &input_device_id_,
                                 sizeof(input_device));
   if (result) {
     HandleError(result);
@@ -213,6 +224,10 @@ bool AUAudioInputStream::Open() {
     HandleError(result);
     return false;
   }
+
+  // The hardware latency is fixed and will not change during the call.
+  hardware_latency_frames_ = GetHardwareLatency();
+
   return true;
 }
 
@@ -290,26 +305,32 @@ OSStatus AUAudioInputStream::InputProc(void* user_data,
 
   // Deliver recorded data to the consumer as a callback.
   return audio_input->Provide(number_of_frames,
-                              audio_input->audio_buffer_list());
+                              audio_input->audio_buffer_list(),
+                              time_stamp);
 }
 
 OSStatus AUAudioInputStream::Provide(UInt32 number_of_frames,
-                                     AudioBufferList* io_data) {
+                                     AudioBufferList* io_data,
+                                     const AudioTimeStamp* time_stamp) {
+  // Update the capture latency.
+  double capture_latency_frames = GetCaptureLatency(time_stamp);
+
   AudioBuffer& buffer = io_data->mBuffers[0];
   uint8* audio_data = reinterpret_cast<uint8*>(buffer.mData);
+  uint32 capture_delay_bytes = static_cast<uint32>
+      ((capture_latency_frames + 0.5) * format_.mBytesPerFrame);
   DCHECK(audio_data);
   if (!audio_data)
     return kAudioUnitErr_InvalidElement;
 
-  // TODO(henrika): improve delay estimation. Using buffer size for now.
-  sink_->OnData(this, audio_data, buffer.mDataByteSize, buffer.mDataByteSize);
+  sink_->OnData(this, audio_data, buffer.mDataByteSize, capture_delay_bytes);
 
   return noErr;
 }
 
 double AUAudioInputStream::HardwareSampleRate() {
   // Determine the default input device's sample-rate.
-  AudioDeviceID device_id = kAudioDeviceUnknown;
+  AudioDeviceID device_id = kAudioObjectUnknown;
   UInt32 info_size = sizeof(device_id);
 
   AudioObjectPropertyAddress default_input_device_address = {
@@ -346,6 +367,89 @@ double AUAudioInputStream::HardwareSampleRate() {
     return 0.0;
 
   return nominal_sample_rate;
+}
+
+double AUAudioInputStream::GetHardwareLatency() {
+  if (!audio_unit_ || input_device_id_ == kAudioObjectUnknown) {
+    DLOG(WARNING) << "Audio unit object is NULL or device ID is unknown";
+    return 0.0;
+  }
+
+  // Get audio unit latency.
+  Float64 audio_unit_latency_sec = 0.0;
+  UInt32 size = sizeof(audio_unit_latency_sec);
+  OSStatus result = AudioUnitGetProperty(audio_unit_,
+                                         kAudioUnitProperty_Latency,
+                                         kAudioUnitScope_Global,
+                                         0,
+                                         &audio_unit_latency_sec,
+                                         &size);
+  DLOG_IF(WARNING, result != noErr) << "Could not get audio unit latency.";
+
+  // Get input audio device latency.
+  AudioObjectPropertyAddress property_address = {
+    kAudioDevicePropertyLatency,
+    kAudioDevicePropertyScopeInput,
+    kAudioObjectPropertyElementMaster
+  };
+  UInt32 device_latency_frames = 0;
+  size = sizeof(device_latency_frames);
+  result = AudioObjectGetPropertyData(input_device_id_,
+                                      &property_address,
+                                      0,
+                                      NULL,
+                                      &size,
+                                      &device_latency_frames);
+  DLOG_IF(WARNING, result != noErr) << "Could not get audio device latency.";
+
+  // Get the stream latency.
+  property_address.mSelector = kAudioDevicePropertyStreams;
+  UInt32 stream_latency_frames = 0;
+  size = 0;
+  result = AudioObjectGetPropertyDataSize(input_device_id_,
+                                          &property_address,
+                                          0,
+                                          NULL,
+                                          &size);
+  if (!result) {
+    scoped_ptr_malloc<AudioStreamID>
+        streams(reinterpret_cast<AudioStreamID*>(malloc(size)));
+    AudioStreamID* stream_ids = streams.get();
+    result = AudioObjectGetPropertyData(input_device_id_,
+                                        &property_address,
+                                        0,
+                                        NULL,
+                                        &size,
+                                        stream_ids);
+    if (!result) {
+      property_address.mSelector = kAudioStreamPropertyLatency;
+      result = AudioObjectGetPropertyData(stream_ids[0],
+                                          &property_address,
+                                          0,
+                                          NULL,
+                                          &size,
+                                          &stream_latency_frames);
+    }
+  }
+  DLOG_IF(WARNING, result != noErr) << "Could not get audio stream latency.";
+
+  return static_cast<double>((audio_unit_latency_sec *
+      format_.mSampleRate) + device_latency_frames + stream_latency_frames);
+}
+
+double AUAudioInputStream::GetCaptureLatency(
+    const AudioTimeStamp* input_time_stamp) {
+  // Get the delay between between the actual recording instant and the time
+  // when the data packet is provided as a callback.
+  UInt64 capture_time_ns = AudioConvertHostTimeToNanos(
+      input_time_stamp->mHostTime);
+  UInt64 now_ns = AudioConvertHostTimeToNanos(AudioGetCurrentHostTime());
+  double delay_frames = static_cast<double>
+      (1e-9 * (now_ns - capture_time_ns) * format_.mSampleRate);
+
+  // Total latency is composed by the dynamic latency and the fixed
+  // hardware latency.
+  return (delay_frames + hardware_latency_frames_);
 }
 
 void AUAudioInputStream::HandleError(OSStatus err) {

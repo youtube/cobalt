@@ -13,8 +13,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::Between;
+using ::testing::Ge;
 using ::testing::NotNull;
 
 class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
@@ -215,7 +217,8 @@ TEST(MacAudioInputTest, AUAudioInputStreamVerifyMonoRecording) {
   // startup sequence takes some time, it is reasonable to expect 5-10
   // callbacks in this time period. All should contain valid packets of
   // the same size.
-  EXPECT_CALL(sink, OnData(ais, NotNull(), bytes_per_packet, bytes_per_packet))
+  EXPECT_CALL(sink, OnData(ais, NotNull(), bytes_per_packet,
+                           Ge(bytes_per_packet)))
       .Times(Between(5, 10));
 
   ais->Start(&sink);
@@ -248,7 +251,8 @@ TEST(MacAudioInputTest, AUAudioInputStreamVerifyStereoRecording) {
   // startup sequence takes some time, it is reasonable to expect 5-10
   // callbacks in this time period. All should contain valid packets of
   // the same size.
-  EXPECT_CALL(sink, OnData(ais, NotNull(), bytes_per_packet, bytes_per_packet))
+  EXPECT_CALL(sink, OnData(ais, NotNull(), bytes_per_packet,
+                           Ge(bytes_per_packet)))
       .Times(Between(5, 10));
 
   ais->Start(&sink);
