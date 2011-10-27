@@ -73,6 +73,7 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
       break;
     case AVMEDIA_TYPE_VIDEO:
       type_ = VIDEO;
+      AVStreamToVideoDecoderConfig(stream, &video_config_);
       break;
     default:
       NOTREACHED();
@@ -254,13 +255,14 @@ void FFmpegDemuxerStream::EnableBitstreamConverter() {
   }
 }
 
-AVStream* FFmpegDemuxerStream::GetAVStream() {
-  return stream_;
-}
-
 const AudioDecoderConfig& FFmpegDemuxerStream::audio_decoder_config() {
   CHECK_EQ(type_, AUDIO);
   return audio_config_;
+}
+
+const VideoDecoderConfig& FFmpegDemuxerStream::video_decoder_config() {
+  CHECK_EQ(type_, VIDEO);
+  return video_config_;
 }
 
 // static
@@ -684,8 +686,7 @@ void FFmpegDemuxer::DisableAudioStreamTask() {
     // If the codec type is audio, remove the reference. DemuxTask() will
     // look for such reference, and this will result in deleting the
     // audio packets after they are demuxed.
-    if (packet_streams_[i]->GetAVStream()->codec->codec_type ==
-        AVMEDIA_TYPE_AUDIO) {
+    if (packet_streams_[i]->type() == DemuxerStream::AUDIO) {
       packet_streams_[i] = NULL;
     }
   }

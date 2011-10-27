@@ -13,6 +13,7 @@
 
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer.h"
+#include "media/base/video_decoder_config.h"
 
 namespace media {
 
@@ -24,6 +25,7 @@ class DummyDemuxerStream : public DemuxerStream {
   virtual void Read(const ReadCallback& read_callback) OVERRIDE;
   virtual Type type() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
+  virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
 
  private:
@@ -31,6 +33,7 @@ class DummyDemuxerStream : public DemuxerStream {
 
   Type type_;
   AudioDecoderConfig audio_config_;
+  VideoDecoderConfig video_config_;
 
   DISALLOW_COPY_AND_ASSIGN(DummyDemuxerStream);
 };
