@@ -68,7 +68,7 @@
         'base/animation/tween.h',
         'base/clipboard/clipboard.cc',
         'base/clipboard/clipboard.h',
-        'base/clipboard/clipboard_aura.cc',
+        'base/clipboard/clipboard_aurax11.cc',
         'base/clipboard/clipboard_gtk.cc',
         'base/clipboard/clipboard_mac.mm',
         'base/clipboard/clipboard_util_win.cc',
@@ -388,9 +388,6 @@
             'gfx/gtk_util.cc',
             'gfx/gtk_util.h',
           ],
-          'sources!': [
-            'base/clipboard/clipboard_aura.cc',
-          ],
         }, {  # toolkit_uses_gtk != 1
           'sources!': [
             'gfx/native_theme_gtk.cc',
@@ -432,7 +429,6 @@
             'gfx/win_util.h',
           ],
           'sources!': [
-            'base/clipboard/clipboard_aura.cc',
             'base/touch/touch_factory.cc',
             'base/touch/touch_factory.h',
             'gfx/pango_util.h',
