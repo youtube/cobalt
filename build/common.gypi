@@ -285,6 +285,12 @@
           'toolkit_uses_gtk%': 1,
           'use_x11%': 1,
         }],
+        # We always use skia text rendering in Aura on Windows, since GDI
+        # doesn't agree with our BackingStore.
+        # TODO(beng): remove once skia text rendering is on by default.
+        ['use_aura==1 and OS=="win"', {
+          'enable_skia_text%': 1,
+        }],
         ['use_aura==1 and OS!="win"', {
           'toolkit_uses_gtk%': 0,
         }],
