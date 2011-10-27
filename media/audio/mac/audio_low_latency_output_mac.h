@@ -1,12 +1,25 @@
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
+//
+// Implementation notes:
+//
+// - It is recommended to first acquire the native sample rate of the default
+//   output device and then use the same rate when creating this object.
+//   Use AUAudioOutputStream::HardwareSampleRate() to retrieve the sample rate.
+// - Calling Close() also leads to self destruction.
+// - The latency consists of two parts:
+//   1) Hardware latency, which includes Audio Unit latency, audio device
+//      latency and audio stream latency;
+//   2) The delay between the moment getting the callback and the scheduled time
+//      stamp that tells when the data is going to be played out.
+//
 #ifndef MEDIA_AUDIO_MAC_AUDIO_LOW_LATENCY_OUTPUT_MAC_H_
 #define MEDIA_AUDIO_MAC_AUDIO_LOW_LATENCY_OUTPUT_MAC_H_
 
 #include <AudioUnit/AudioUnit.h>
 
+#include "base/memory/scoped_ptr.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -44,10 +57,18 @@ class AUAudioOutputStream : public AudioOutputStream {
                             UInt32 number_of_frames,
                             AudioBufferList* io_data);
 
-  OSStatus Render(UInt32 number_of_frames, AudioBufferList* io_data);
+  OSStatus Render(UInt32 number_of_frames, AudioBufferList* io_data,
+                  const AudioTimeStamp* output_time_stamp);
 
   // Sets up the stream format for the default output Audio Unit.
   bool Configure();
+
+  // Gets the fixed playout device hardware latency and stores it. Returns 0
+  // if not available.
+  double GetHardwareLatency();
+
+  // Gets the current playout latency value.
+  double GetPlayoutLatency(const AudioTimeStamp* output_time_stamp);
 
   // Our creator, the audio manager needs to be notified when we close.
   AudioManagerMac* manager_;
@@ -63,8 +84,14 @@ class AUAudioOutputStream : public AudioOutputStream {
   // The default output Audio Unit which talks to the audio hardware.
   AudioUnit output_unit_;
 
+  // The UID refers to the current output audio device.
+  AudioDeviceID output_device_id_;
+
   // Volume level from 0 to 1.
   float volume_;
+
+  // Fixed playout hardware latency in frames.
+  double hardware_latency_frames_;
 
   DISALLOW_COPY_AND_ASSIGN(AUAudioOutputStream);
 };
