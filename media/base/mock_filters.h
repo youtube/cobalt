@@ -21,6 +21,7 @@
 #include "media/base/filters.h"
 #include "media/base/filter_collection.h"
 #include "media/base/pipeline.h"
+#include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -161,8 +162,8 @@ class MockDemuxerStream : public DemuxerStream {
   // DemuxerStream implementation.
   MOCK_METHOD0(type, Type());
   MOCK_METHOD1(Read, void(const ReadCallback& read_callback));
-  MOCK_METHOD0(GetAVStream, AVStream*());
   MOCK_METHOD0(audio_decoder_config, const AudioDecoderConfig&());
+  MOCK_METHOD0(video_decoder_config, const VideoDecoderConfig&());
   MOCK_METHOD0(EnableBitstreamConverter, void());
 
  protected:

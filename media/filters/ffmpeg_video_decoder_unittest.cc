@@ -26,6 +26,7 @@ using ::testing::DoAll;
 using ::testing::Message;
 using ::testing::Return;
 using ::testing::ReturnNull;
+using ::testing::ReturnRef;
 using ::testing::SetArgumentPointee;
 using ::testing::StrictMock;
 using ::testing::WithArg;
@@ -33,9 +34,12 @@ using ::testing::Invoke;
 
 namespace media {
 
+static const VideoFrame::Format kVideoFormat = VideoFrame::YV12;
 static const gfx::Size kCodedSize(1280, 720);
 static const gfx::Rect kVisibleRect(1280, 720);
 static const gfx::Size kNaturalSize(1280, 720);
+static const AVRational kFrameRate = { 100, 1 };
+static const AVRational kAspectRatio = { 1, 1 };
 
 // Holds timestamp and duration data needed for properly enqueuing a frame.
 struct TimeTuple {
@@ -134,26 +138,22 @@ class FFmpegVideoDecoderTest : public testing::Test {
     demuxer_ = new StrictMock<MockDemuxerStream>();
 
     // Initialize FFmpeg fixtures.
-    memset(&stream_, 0, sizeof(stream_));
-    memset(&codec_context_, 0, sizeof(codec_context_));
-    memset(&codec_, 0, sizeof(codec_));
     memset(&yuv_frame_, 0, sizeof(yuv_frame_));
     base::TimeDelta zero;
     video_frame_ = VideoFrame::CreateFrame(VideoFrame::YV12,
                                            kVisibleRect.width(),
                                            kVisibleRect.height(),
                                            zero, zero);
-    stream_.codec = &codec_context_;
-    codec_context_.width = kVisibleRect.width();
-    codec_context_.height = kVisibleRect.height();
-    codec_context_.codec_id = CODEC_ID_H264;
-    stream_.r_frame_rate.num = 1;
-    stream_.r_frame_rate.den = 1;
     buffer_ = new DataBuffer(1);
     end_of_stream_buffer_ = new DataBuffer(0);
 
     EXPECT_CALL(stats_callback_object_, OnStatistics(_))
         .Times(AnyNumber());
+
+    config_.Initialize(kCodecVP8, kVideoFormat, kCodedSize, kVisibleRect,
+                       kFrameRate.num, kFrameRate.den,
+                       kAspectRatio.num, kAspectRatio.den,
+                       NULL, 0);
   }
 
   virtual ~FFmpegVideoDecoderTest() {
@@ -170,9 +170,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
   }
 
   void InitializeDecoderSuccessfully() {
-    // Test successful initialization.
-    EXPECT_CALL(*demuxer_, GetAVStream())
-        .WillOnce(Return(&stream_));
+    EXPECT_CALL(*demuxer_, video_decoder_config())
+        .WillOnce(ReturnRef(config_));
 
     EXPECT_CALL(*engine_, Initialize(_, _, _, _))
         .WillOnce(EngineInitialize(engine_, true));
@@ -199,32 +198,18 @@ class FFmpegVideoDecoderTest : public testing::Test {
   MessageLoop message_loop_;
 
   // FFmpeg fixtures.
-  AVStream stream_;
-  AVCodecContext codec_context_;
-  AVCodec codec_;
   AVFrame yuv_frame_;
   scoped_refptr<VideoFrame> video_frame_;
+
+  VideoDecoderConfig config_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecoderTest);
 };
 
-TEST_F(FFmpegVideoDecoderTest, Initialize_GetAVStreamFails) {
-  // Test GetAVStream returning NULL.
-  EXPECT_CALL(*demuxer_, GetAVStream())
-      .WillOnce(ReturnNull());
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
-
-  decoder_->Initialize(demuxer_,
-                       NewExpectedClosure(), NewStatisticsCallback());
-
-  message_loop_.RunAllPending();
-}
-
 TEST_F(FFmpegVideoDecoderTest, Initialize_EngineFails) {
-  // Test successful initialization.
-  EXPECT_CALL(*demuxer_, GetAVStream())
-      .WillOnce(Return(&stream_));
+  EXPECT_CALL(*demuxer_, video_decoder_config())
+      .WillOnce(ReturnRef(config_));
 
   EXPECT_CALL(*engine_, Initialize(_, _, _, _))
       .WillOnce(EngineInitialize(engine_, false));

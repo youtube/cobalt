@@ -58,36 +58,17 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   initialize_callback_ = callback;
   statistics_callback_ = stats_callback;
 
-  AVStream* av_stream = demuxer_stream->GetAVStream();
-  if (!av_stream) {
-    OnInitializeComplete(false);
-    return;
-  }
+  const VideoDecoderConfig& config = demuxer_stream->video_decoder_config();
 
-  pts_stream_.Initialize(GetFrameDuration(av_stream));
+  pts_stream_.Initialize(GetFrameDuration(config));
 
-  gfx::Size coded_size(
-      av_stream->codec->coded_width, av_stream->codec->coded_height);
-  // TODO(vrk): This assumes decoded frame data starts at (0, 0), which is true
-  // for now, but may not always be true forever. Fix this in the future.
-  gfx::Rect visible_rect(
-      av_stream->codec->width, av_stream->codec->height);
-
-  natural_size_ = GetNaturalSize(av_stream);
+  natural_size_ = config.natural_size();
   if (natural_size_.width() > Limits::kMaxDimension ||
       natural_size_.height() > Limits::kMaxDimension ||
       natural_size_.GetArea() > Limits::kMaxCanvas) {
     OnInitializeComplete(false);
     return;
   }
-
-  VideoDecoderConfig config(CodecIDToVideoCodec(av_stream->codec->codec_id),
-                            PixelFormatToVideoFormat(av_stream->codec->pix_fmt),
-                            coded_size, visible_rect,
-                            av_stream->r_frame_rate.num,
-                            av_stream->r_frame_rate.den,
-                            av_stream->codec->extradata,
-                            av_stream->codec->extradata_size);
 
   state_ = kInitializing;
   decode_engine_->Initialize(message_loop_, this, NULL, config);

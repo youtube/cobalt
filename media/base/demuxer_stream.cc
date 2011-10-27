@@ -8,8 +8,4 @@ namespace media {
 
 DemuxerStream::~DemuxerStream() {}
 
-AVStream* DemuxerStream::GetAVStream() {
-  return NULL;
-}
-
 }  // namespace media

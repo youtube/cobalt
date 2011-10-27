@@ -23,6 +23,11 @@ const AudioDecoderConfig& DummyDemuxerStream::audio_decoder_config() {
   return audio_config_;
 }
 
+const VideoDecoderConfig& DummyDemuxerStream::video_decoder_config() {
+  CHECK_EQ(type_, VIDEO);
+  return video_config_;
+}
+
 void DummyDemuxerStream::Read(const ReadCallback& read_callback) {}
 
 void DummyDemuxerStream::EnableBitstreamConverter() {}

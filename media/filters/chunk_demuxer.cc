@@ -29,8 +29,8 @@ namespace media {
 // we are making the INFO & TRACKS data look like a small WebM
 // file so we can use FFmpeg to initialize the AVFormatContext.
 //
-// TODO(acolwell): Remove this once GetAVStream() has been removed from
-// the DemuxerStream interface.
+// TODO(acolwell): Remove this when we construct AudioDecoderConfig and
+// VideoDecoderConfig without requiring an AVStream object.
 static const uint8 kWebMHeader[] = {
   0x1A, 0x45, 0xDF, 0xA3, 0x9F,  // EBML (size = 0x1f)
   0x42, 0x86, 0x81, 0x01,  // EBMLVersion = 1
@@ -79,13 +79,14 @@ class ChunkDemuxerStream : public DemuxerStream {
   virtual void Read(const ReadCallback& read_callback);
   virtual Type type();
   virtual void EnableBitstreamConverter();
-  virtual AVStream* GetAVStream();
   virtual const AudioDecoderConfig& audio_decoder_config();
+  virtual const VideoDecoderConfig& video_decoder_config();
 
  private:
   Type type_;
   AVStream* av_stream_;
   AudioDecoderConfig audio_config_;
+  VideoDecoderConfig video_config_;
 
   mutable base::Lock lock_;
   ReadCBQueue read_cbs_;
@@ -109,6 +110,8 @@ ChunkDemuxerStream::ChunkDemuxerStream(Type type, AVStream* stream)
       last_buffer_timestamp_(kNoTimestamp) {
   if (type_ == AUDIO) {
     AVCodecContextToAudioDecoderConfig(stream->codec, &audio_config_);
+  } else if (type_ == VIDEO) {
+    AVStreamToVideoDecoderConfig(stream, &video_config_);
   }
 }
 
@@ -271,11 +274,14 @@ DemuxerStream::Type ChunkDemuxerStream::type() { return type_; }
 
 void ChunkDemuxerStream::EnableBitstreamConverter() {}
 
-AVStream* ChunkDemuxerStream::GetAVStream() { return av_stream_; }
-
 const AudioDecoderConfig& ChunkDemuxerStream::audio_decoder_config() {
   CHECK_EQ(type_, AUDIO);
   return audio_config_;
+}
+
+const VideoDecoderConfig& ChunkDemuxerStream::video_decoder_config() {
+  CHECK_EQ(type_, VIDEO);
+  return video_config_;
 }
 
 ChunkDemuxer::ChunkDemuxer(ChunkDemuxerClient* client)
