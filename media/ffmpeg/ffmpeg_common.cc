@@ -83,6 +83,48 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
   return CODEC_ID_NONE;
 }
 
+static VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
+  switch (codec_id) {
+    case CODEC_ID_VC1:
+      return kCodecVC1;
+    case CODEC_ID_H264:
+      return kCodecH264;
+    case CODEC_ID_THEORA:
+      return kCodecTheora;
+    case CODEC_ID_MPEG2VIDEO:
+      return kCodecMPEG2;
+    case CODEC_ID_MPEG4:
+      return kCodecMPEG4;
+    case CODEC_ID_VP8:
+      return kCodecVP8;
+    default:
+      NOTREACHED();
+  }
+  return kUnknownVideoCodec;
+}
+
+static CodecID VideoCodecToCodecID(VideoCodec video_codec) {
+  switch (video_codec) {
+    case kUnknownVideoCodec:
+      return CODEC_ID_NONE;
+    case kCodecVC1:
+      return CODEC_ID_VC1;
+    case kCodecH264:
+      return CODEC_ID_H264;
+    case kCodecTheora:
+      return CODEC_ID_THEORA;
+    case kCodecMPEG2:
+      return CODEC_ID_MPEG2VIDEO;
+    case kCodecMPEG4:
+      return CODEC_ID_MPEG4;
+    case kCodecVP8:
+      return CODEC_ID_VP8;
+    default:
+      NOTREACHED();
+  }
+  return CODEC_ID_NONE;
+}
+
 void AVCodecContextToAudioDecoderConfig(
     const AVCodecContext* codec_context,
     AudioDecoderConfig* config) {
@@ -144,46 +186,53 @@ void AudioDecoderConfigToAVCodecContext(const AudioDecoderConfig& config,
   }
 }
 
-VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
-  switch (codec_id) {
-    case CODEC_ID_VC1:
-      return kCodecVC1;
-    case CODEC_ID_H264:
-      return kCodecH264;
-    case CODEC_ID_THEORA:
-      return kCodecTheora;
-    case CODEC_ID_MPEG2VIDEO:
-      return kCodecMPEG2;
-    case CODEC_ID_MPEG4:
-      return kCodecMPEG4;
-    case CODEC_ID_VP8:
-      return kCodecVP8;
-    default:
-      NOTREACHED();
-  }
-  return kUnknownVideoCodec;
+void AVStreamToVideoDecoderConfig(
+    const AVStream* stream,
+    VideoDecoderConfig* config) {
+  gfx::Size coded_size(stream->codec->coded_width, stream->codec->coded_height);
+
+  // TODO(vrk): This assumes decoded frame data starts at (0, 0), which is true
+  // for now, but may not always be true forever. Fix this in the future.
+  gfx::Rect visible_rect(stream->codec->width, stream->codec->height);
+
+  AVRational aspect_ratio = { 1, 1 };
+  if (stream->sample_aspect_ratio.num)
+    aspect_ratio = stream->sample_aspect_ratio;
+  else if (stream->codec->sample_aspect_ratio.num)
+    aspect_ratio = stream->codec->sample_aspect_ratio;
+
+  config->Initialize(CodecIDToVideoCodec(stream->codec->codec_id),
+                     PixelFormatToVideoFormat(stream->codec->pix_fmt),
+                     coded_size, visible_rect,
+                     stream->r_frame_rate.num,
+                     stream->r_frame_rate.den,
+                     aspect_ratio.num,
+                     aspect_ratio.den,
+                     stream->codec->extradata,
+                     stream->codec->extradata_size);
 }
 
-CodecID VideoCodecToCodecID(VideoCodec video_codec) {
-  switch (video_codec) {
-    case kUnknownVideoCodec:
-      return CODEC_ID_NONE;
-    case kCodecVC1:
-      return CODEC_ID_VC1;
-    case kCodecH264:
-      return CODEC_ID_H264;
-    case kCodecTheora:
-      return CODEC_ID_THEORA;
-    case kCodecMPEG2:
-      return CODEC_ID_MPEG2VIDEO;
-    case kCodecMPEG4:
-      return CODEC_ID_MPEG4;
-    case kCodecVP8:
-      return CODEC_ID_VP8;
-    default:
-      NOTREACHED();
+void VideoDecoderConfigToAVCodecContext(
+    const VideoDecoderConfig& config,
+    AVCodecContext* codec_context) {
+  codec_context->codec_type = AVMEDIA_TYPE_VIDEO;
+  codec_context->codec_id = VideoCodecToCodecID(config.codec());
+  codec_context->coded_width = config.coded_size().width();
+  codec_context->coded_height = config.coded_size().height();
+  codec_context->pix_fmt = VideoFormatToPixelFormat(config.format());
+
+  if (config.extra_data()) {
+    codec_context->extradata_size = config.extra_data_size();
+    codec_context->extradata = reinterpret_cast<uint8_t*>(
+        av_malloc(config.extra_data_size() + FF_INPUT_BUFFER_PADDING_SIZE));
+    memcpy(codec_context->extradata, config.extra_data(),
+           config.extra_data_size());
+    memset(codec_context->extradata + config.extra_data_size(), '\0',
+           FF_INPUT_BUFFER_PADDING_SIZE);
+  } else {
+    codec_context->extradata = NULL;
+    codec_context->extradata_size = 0;
   }
-  return CODEC_ID_NONE;
 }
 
 ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
@@ -255,25 +304,12 @@ PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format) {
   return PIX_FMT_NONE;
 }
 
-base::TimeDelta GetFrameDuration(AVStream* stream) {
-  AVRational time_base = { stream->r_frame_rate.den, stream->r_frame_rate.num };
+base::TimeDelta GetFrameDuration(const VideoDecoderConfig& config) {
+  AVRational time_base = {
+    config.frame_rate_denominator(),
+    config.frame_rate_numerator()
+  };
   return ConvertFromTimeBase(time_base, 1);
-}
-
-gfx::Size GetNaturalSize(AVStream* stream) {
-  double aspect_ratio = 1.0;
-
-  if (stream->sample_aspect_ratio.num)
-    aspect_ratio = av_q2d(stream->sample_aspect_ratio);
-  else if (stream->codec->sample_aspect_ratio.num)
-    aspect_ratio = av_q2d(stream->codec->sample_aspect_ratio);
-
-  int height = stream->codec->height;
-  int width = floor(stream->codec->width * aspect_ratio + 0.5);
-
-  // An even width makes things easier for YV12 and appears to be the behavior
-  // expected by WebKit layout tests.
-  return gfx::Size(width & ~1, height);
 }
 
 void DestroyAVFormatContext(AVFormatContext* format_context) {

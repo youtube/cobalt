@@ -32,6 +32,7 @@
 #include "media/base/buffers.h"
 #include "media/base/demuxer.h"
 #include "media/base/pipeline.h"
+#include "media/base/video_decoder_config.h"
 #include "media/filters/ffmpeg_glue.h"
 
 // FFmpeg forward declarations.
@@ -81,8 +82,8 @@ class FFmpegDemuxerStream : public DemuxerStream {
   // |lock_| is held throughout the life of the callback.
   virtual void Read(const ReadCallback& read_callback) OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
-  virtual AVStream* GetAVStream() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
+  virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
 
  private:
   virtual ~FFmpegDemuxerStream();
@@ -102,6 +103,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   FFmpegDemuxer* demuxer_;
   AVStream* stream_;
   AudioDecoderConfig audio_config_;
+  VideoDecoderConfig video_config_;
   Type type_;
   base::TimeDelta duration_;
   bool discontinuous_;
