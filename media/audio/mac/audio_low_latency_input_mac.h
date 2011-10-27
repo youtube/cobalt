@@ -27,6 +27,11 @@
 //   input device and then use the same rate when creating this object.
 //   Use AUAudioInputStream::HardwareSampleRate() to retrieve the sample rate.
 // - Calling Close() also leads to self destruction.
+// - The latency consists of two parts:
+//   1) Hardware latency, which includes Audio Unit latency, audio device
+//      latency and audio stream latency;
+//   2) The delay between the actual recording instant and the time when the
+//      data packet is provided as a callback.
 //
 #ifndef MEDIA_AUDIO_MAC_AUDIO_LOW_LATENCY_INPUT_MAC_H_
 #define MEDIA_AUDIO_MAC_AUDIO_LOW_LATENCY_INPUT_MAC_H_
@@ -73,7 +78,15 @@ class AUAudioInputStream : public AudioInputStream {
                             AudioBufferList* io_data);
 
   // Pushes recorded data to consumer of the input audio stream.
-  OSStatus Provide(UInt32 number_of_frames, AudioBufferList* io_data);
+  OSStatus Provide(UInt32 number_of_frames, AudioBufferList* io_data,
+                   const AudioTimeStamp* time_stamp);
+
+  // Gets the fixed capture hardware latency and store it during initialization.
+  // Returns 0 if not available.
+  double GetHardwareLatency();
+
+  // Gets the current capture delay value.
+  double GetCaptureLatency(const AudioTimeStamp* input_time_stamp);
 
   // Issues the OnError() callback to the |sink_|.
   void HandleError(OSStatus err);
@@ -96,6 +109,9 @@ class AUAudioInputStream : public AudioInputStream {
   // The AUHAL also enables selection of non default devices.
   AudioUnit audio_unit_;
 
+  // The UID refers to the current input audio device.
+  AudioDeviceID input_device_id_;
+
   // Provides a mechanism for encapsulating one or more buffers of audio data.
   AudioBufferList audio_buffer_list_;
 
@@ -105,6 +121,9 @@ class AUAudioInputStream : public AudioInputStream {
 
   // True after successfull Start(), false after successful Stop().
   bool started_;
+
+  // Fixed capture hardware latency in frames.
+  double hardware_latency_frames_;
 
   DISALLOW_COPY_AND_ASSIGN(AUAudioInputStream);
 };
