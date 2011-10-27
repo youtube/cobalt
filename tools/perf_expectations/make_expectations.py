@@ -81,7 +81,7 @@ def GetRowData(data, key):
     if subkey in data[key]:
       rowdata.append('"%s": %s' % (subkey, data[key][subkey]))
   # Strings, like type, come next.
-  for subkey in ['type']:
+  for subkey in ['type', 'better']:
     if subkey in data[key]:
       rowdata.append('"%s": "%s"' % (subkey, data[key][subkey]))
   # Finally the main numbers come last.
@@ -165,6 +165,7 @@ def Main(args):
   for key in perfkeys:
     value = perf[key]
     tolerance = value.get('tolerance', DEFAULT_TOLERANCE)
+    better = value.get('better', None)
 
     # Verify the checksum.
     original_checksum = value.get('sha1', '')
@@ -276,21 +277,32 @@ def Main(args):
       regress = float(trace_values[tracename]['high'])
       improve = float(trace_values[tracename]['low'])
 
-    # At this point, regress > improve.  If regress == improve, we adjust
-    # improve so it is just a little less than regress.  I'm picking on improve
-    # so we keep the sizes assumptions in place for now.
-    if regress == improve:
-      improve = float(improve - abs(regress * 0.01))
+    # So far we've assumed better is lower (regress > improve).  If the actual
+    # values for regress and improve are equal, though, and better was not
+    # specified, alert the user so we don't let them create a new file with
+    # ambiguous rules.
+    if better == None and regress == improve:
+      OutputMessage('regress (%s) is equal to improve (%s), and "better" is '
+                    'unspecified, please fix by setting "better": "lower" or '
+                    '"better": "higher" in this perf trace\'s expectation' % (
+                    regress, improve), verbose_message=False)
+      return 1
 
     # If the existing values assume regressions are low deltas relative to
     # improvements, swap our regress and improve.  This value must be a
     # scores-like result.
     if ('regress' in perf[key] and 'improve' in perf[key] and
         perf[key]['regress'] < perf[key]['improve']):
+      assert(better != 'lower')
+      better = 'higher'
       temp = regress
       regress = improve
       improve = temp
-    if regress < improve:
+    else:
+      assert(better != 'higher')
+      better = 'lower'
+
+    if better == 'higher':
       regress = int(math.floor(regress - abs(regress*tolerance)))
       improve = int(math.ceil(improve + abs(improve*tolerance)))
     else:
