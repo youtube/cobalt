@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
-#include "base/string16.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/socket_stream/socket_stream_job.h"
@@ -57,9 +56,7 @@ class NET_EXPORT WebSocketJob
   virtual void Connect();
   virtual bool SendData(const char* data, int len);
   virtual void Close();
-  virtual void RestartWithAuth(
-      const string16& username,
-      const string16& password);
+  virtual void RestartWithAuth(const AuthCredentials& credentials);
   virtual void DetachDelegate();
 
   // SocketStream::Delegate methods.

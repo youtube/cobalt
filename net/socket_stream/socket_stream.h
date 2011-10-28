@@ -13,7 +13,6 @@
 #include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/string16.h"
 #include "base/task.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
@@ -151,9 +150,7 @@ class NET_EXPORT SocketStream
 
   // Restarts with authentication info.
   // Should be used for response of OnAuthRequired.
-  virtual void RestartWithAuth(
-      const string16& username,
-      const string16& password);
+  virtual void RestartWithAuth(const AuthCredentials& credentials);
 
   // Detach delegate.  Call before delegate is deleted.
   // Once delegate is detached, close the socket stream and never call delegate

@@ -144,14 +144,12 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
     event->socket->Close();
   }
   void DoRestartWithAuth(SocketStreamEvent* event) {
-    VLOG(1) << "RestartWithAuth username=" << username_
-            << " password=" << password_;
-    event->socket->RestartWithAuth(username_, password_);
+    VLOG(1) << "RestartWithAuth username=" << credentials_.username()
+            << " password=" << credentials_.password();
+    event->socket->RestartWithAuth(credentials_);
   }
-  void SetAuthInfo(const string16& username,
-                   const string16& password) {
-    username_ = username;
-    password_ = password;
+  void SetAuthInfo(const net::AuthCredentials& credentials) {
+    credentials_ = credentials;
   }
   void CompleteConnection(int result) {
     connection_callback_->Run(result);
@@ -172,9 +170,7 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
   base::Callback<void(SocketStreamEvent*)> on_error_;
   net::OldCompletionCallback* callback_;
   net::OldCompletionCallback* connection_callback_;
-
-  string16 username_;
-  string16 password_;
+  net::AuthCredentials credentials_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStreamEventRecorder);
 };
@@ -374,7 +370,8 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
       new SocketStreamEventRecorder(&callback));
   delegate->SetOnConnected(base::Bind(&SocketStreamEventRecorder::DoClose,
                                       base::Unretained(delegate.get())));
-  delegate->SetAuthInfo(ASCIIToUTF16("foo"), ASCIIToUTF16("bar"));
+  delegate->SetAuthInfo(net::AuthCredentials(ASCIIToUTF16("foo"),
+                                             ASCIIToUTF16("bar")));
   delegate->SetOnAuthRequired(base::Bind(
       &SocketStreamEventRecorder::DoRestartWithAuth,
       base::Unretained(delegate.get())));

@@ -50,8 +50,7 @@ class HttpStreamFactoryImpl::Job {
   // appropriate ClientSocketPool.
   int Preconnect(int num_streams);
 
-  int RestartTunnelWithProxyAuth(const string16& username,
-                                 const string16& password);
+  int RestartTunnelWithProxyAuth(const AuthCredentials& credentials);
   LoadState GetLoadState() const;
 
   // Marks this Job as the "alternate" job, from Alternate-Protocol. Tracks the

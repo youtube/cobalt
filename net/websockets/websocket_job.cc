@@ -155,11 +155,9 @@ void WebSocketJob::Close() {
   CloseInternal();
 }
 
-void WebSocketJob::RestartWithAuth(
-    const string16& username,
-    const string16& password) {
+void WebSocketJob::RestartWithAuth(const AuthCredentials& credentials) {
   state_ = CONNECTING;
-  socket_->RestartWithAuth(username, password);
+  socket_->RestartWithAuth(credentials);
 }
 
 void WebSocketJob::DetachDelegate() {

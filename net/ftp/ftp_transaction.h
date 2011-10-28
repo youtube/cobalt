@@ -6,7 +6,6 @@
 #define NET_FTP_FTP_TRANSACTION_H_
 #pragma once
 
-#include "base/string16.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
@@ -14,6 +13,7 @@
 
 namespace net {
 
+class AuthCredentials;
 class FtpResponseInfo;
 class FtpRequestInfo;
 class BoundNetLog;
@@ -44,8 +44,7 @@ class NET_EXPORT_PRIVATE FtpTransaction {
                     const BoundNetLog& net_log) = 0;
 
   // Restarts the FTP transaction with authentication credentials.
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
+  virtual int RestartWithAuth(const AuthCredentials& credentials,
                               OldCompletionCallback* callback) = 0;
 
   // Once response info is available for the transaction, response data may be

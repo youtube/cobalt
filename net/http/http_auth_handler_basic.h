@@ -8,7 +8,6 @@
 
 #include <string>
 
-#include "base/string16.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -38,8 +37,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerBasic : public HttpAuthHandler {
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
 
-  virtual int GenerateAuthTokenImpl(const string16* username,
-                                    const string16* password,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
                                     OldCompletionCallback* callback,
                                     std::string* auth_token);

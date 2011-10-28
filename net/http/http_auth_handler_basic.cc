@@ -86,15 +86,17 @@ HttpAuth::AuthorizationResult HttpAuthHandlerBasic::HandleAnotherChallenge(
 }
 
 int HttpAuthHandlerBasic::GenerateAuthTokenImpl(
-    const string16* username,
-    const string16* password,
+    const AuthCredentials* credentials,
     const HttpRequestInfo*,
     OldCompletionCallback*,
     std::string* auth_token) {
+  DCHECK(credentials);
   // TODO(eroman): is this the right encoding of username/password?
   std::string base64_username_password;
-  if (!base::Base64Encode(UTF16ToUTF8(*username) + ":" + UTF16ToUTF8(*password),
-                          &base64_username_password)) {
+  if (!base::Base64Encode(
+          UTF16ToUTF8(credentials->username()) + ":" +
+          UTF16ToUTF8(credentials->password()),
+          &base64_username_password)) {
     LOG(ERROR) << "Unexpected problem Base64 encoding.";
     return ERR_UNEXPECTED;
   }

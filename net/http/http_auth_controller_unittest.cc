@@ -74,7 +74,7 @@ void RunSingleRoundAuthTest(HandlerRunMode run_mode,
   ASSERT_EQ(OK,
             controller->HandleAuthChallenge(headers, false, false, dummy_log));
   ASSERT_TRUE(controller->HaveAuthHandler());
-  controller->ResetAuth(string16(), string16());
+  controller->ResetAuth(AuthCredentials());
   EXPECT_TRUE(controller->HaveAuth());
 
   TestOldCompletionCallback callback;
@@ -142,17 +142,17 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
       return true;
     }
 
-    virtual int GenerateAuthTokenImpl(const string16* username,
-                                      const string16* password,
+    virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                       const HttpRequestInfo* request,
                                       OldCompletionCallback* callback,
                                       std::string* auth_token) OVERRIDE {
       int result =
-          HttpAuthHandlerMock::GenerateAuthTokenImpl(username, password,
+          HttpAuthHandlerMock::GenerateAuthTokenImpl(credentials,
                                                      request, callback,
                                                      auth_token);
       EXPECT_TRUE(result != OK ||
-                  !AllowsExplicitCredentials() || !username->empty());
+                  !AllowsExplicitCredentials() ||
+                  !credentials->Empty());
       return result;
     }
 
@@ -211,7 +211,7 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
   ASSERT_EQ(OK,
             controller->HandleAuthChallenge(headers, false, false, dummy_log));
   ASSERT_TRUE(controller->HaveAuthHandler());
-  controller->ResetAuth(string16(), string16());
+  controller->ResetAuth(AuthCredentials());
   EXPECT_TRUE(controller->HaveAuth());
 
   // Should only succeed if we are using the AUTH_SCHEME_MOCK MockHandler.
@@ -223,7 +223,7 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
   ASSERT_EQ(OK,
             controller->HandleAuthChallenge(headers, false, false, dummy_log));
   ASSERT_TRUE(controller->HaveAuthHandler());
-  controller->ResetAuth(ASCIIToUTF16("Hello"), string16());
+  controller->ResetAuth(AuthCredentials(ASCIIToUTF16("Hello"), string16()));
   EXPECT_TRUE(controller->HaveAuth());
   EXPECT_TRUE(controller->IsAuthSchemeDisabled(HttpAuth::AUTH_SCHEME_MOCK));
   EXPECT_FALSE(controller->IsAuthSchemeDisabled(HttpAuth::AUTH_SCHEME_BASIC));

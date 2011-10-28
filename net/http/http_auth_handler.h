@@ -8,7 +8,6 @@
 
 #include <string>
 
-#include "base/string16.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
@@ -54,24 +53,25 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
 
   // Generates an authentication token, potentially asynchronously.
   //
-  // When |username| and |password| are NULL, the default credentials for
-  // the currently logged in user are used. |AllowsDefaultCredentials()| MUST be
-  // true in this case.
+  // When |credentials| is NULL, the default credentials for the currently
+  // logged in user are used. |AllowsDefaultCredentials()| MUST be true in this
+  // case.
   //
   // |request|, |callback|, and |auth_token| must be non-NULL.
   //
   // The return value is a net error code.
+  //
   // If |OK| is returned, |*auth_token| is filled in with an authentication
   // token which can be inserted in the HTTP request.
+  //
   // If |ERR_IO_PENDING| is returned, |*auth_token| will be filled in
   // asynchronously and |callback| will be invoked. The lifetime of
   // |request|, |callback|, and |auth_token| must last until |callback| is
-  // invoked, but |username| and |password| are only used during the initial
-  // call.
-  // Otherwise, there was a problem generating a token synchronously, and the
-  // value of |*auth_token| is unspecified.
-  int GenerateAuthToken(const string16* username,
-                        const string16* password,
+  // invoked, but |credentials| is only used during the initial call.
+  //
+  // All other return codes indicate that there was a problem generating a
+  // token, and the value of |*auth_token| is unspecified.
+  int GenerateAuthToken(const AuthCredentials* credentials,
                         const HttpRequestInfo* request,
                         OldCompletionCallback* callback,
                         std::string* auth_token);
@@ -157,8 +157,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   // |GenerateAuthTokenImpl()} is the auth-scheme specific implementation
   // of generating the next auth token. Callers sohuld use |GenerateAuthToken()|
   // which will in turn call |GenerateAuthTokenImpl()|
-  virtual int GenerateAuthTokenImpl(const string16* username,
-                                    const string16* password,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
                                     OldCompletionCallback* callback,
                                     std::string* auth_token) = 0;
