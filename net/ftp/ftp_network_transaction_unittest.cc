@@ -1190,9 +1190,11 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartUser) {
                                         ctrl_writes, arraysize(ctrl_writes));
   mock_socket_factory_.AddSocketDataProvider(&ctrl_socket2);
   ASSERT_EQ(ERR_IO_PENDING,
-            transaction_.RestartWithAuth(ASCIIToUTF16("foo\nownz0red"),
-                                         ASCIIToUTF16("innocent"),
-                                         &callback_));
+            transaction_.RestartWithAuth(
+                AuthCredentials(
+                    ASCIIToUTF16("foo\nownz0red"),
+                    ASCIIToUTF16("innocent")),
+                &callback_));
   EXPECT_EQ(ERR_MALFORMED_IDENTITY, callback_.WaitForResult());
 }
 
@@ -1223,9 +1225,10 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartPassword) {
                                         ctrl_writes, arraysize(ctrl_writes));
   mock_socket_factory_.AddSocketDataProvider(&ctrl_socket2);
   ASSERT_EQ(ERR_IO_PENDING,
-            transaction_.RestartWithAuth(ASCIIToUTF16("innocent"),
-                                         ASCIIToUTF16("foo\nownz0red"),
-                                         &callback_));
+            transaction_.RestartWithAuth(
+                AuthCredentials(ASCIIToUTF16("innocent"),
+                                ASCIIToUTF16("foo\nownz0red")),
+                &callback_));
   EXPECT_EQ(ERR_MALFORMED_IDENTITY, callback_.WaitForResult());
 }
 

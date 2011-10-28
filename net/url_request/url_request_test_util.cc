@@ -195,8 +195,8 @@ void TestDelegate::OnReceivedRedirect(net::URLRequest* request,
 void TestDelegate::OnAuthRequired(net::URLRequest* request,
                                   net::AuthChallengeInfo* auth_info) {
   auth_required_ = true;
-  if (!username_.empty() || !password_.empty()) {
-    request->SetAuth(username_, password_);
+  if (!credentials_.Empty()) {
+    request->SetAuth(credentials_);
   } else {
     request->CancelAuth();
   }

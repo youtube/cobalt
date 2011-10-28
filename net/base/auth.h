@@ -47,17 +47,35 @@ class NET_EXPORT AuthChallengeInfo :
 class NET_EXPORT AuthCredentials {
  public:
   AuthCredentials();
+  AuthCredentials(const string16& username, const string16& password);
   ~AuthCredentials();
 
+  // Set the |username| and |password|.
+  void Set(const string16& username, const string16& password);
+
+  // Determines if |this| is equivalent to |other|.
+  bool Equals(const AuthCredentials& other) const;
+
+  // Returns true if all credentials are empty.
+  bool Empty() const;
+
+  // Overwrites the password memory to prevent it from being read if
+  // it's paged out to disk.
+  void Zap();
+
+  const string16& username() const { return username_; }
+  const string16& password() const { return password_; }
+
+ private:
   // The username to provide, possibly empty. This should be ASCII only to
   // minimize compatibility problems, but arbitrary UTF-16 strings are allowed
   // and will be attempted.
-  string16 username;
+  string16 username_;
 
   // The password to provide, possibly empty. This should be ASCII only to
   // minimize compatibility problems, but arbitrary UTF-16 strings are allowed
   // and will be attempted.
-  string16 password;
+  string16 password_;
 
   // Intentionally allowing the implicit copy constructor and assignment
   // operators.

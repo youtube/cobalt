@@ -128,8 +128,7 @@ class SSLClientSocketPoolTest : public testing::Test {
                                      "MyRealm1",
                                      HttpAuth::AUTH_SCHEME_BASIC,
                                      "Basic realm=MyRealm1",
-                                     kFoo,
-                                     kBar,
+                                     AuthCredentials(kFoo, kBar),
                                      "/");
   }
 

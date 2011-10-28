@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,8 +20,7 @@ TEST(HttpAuthHandlerTest, NetLog) {
   NetLog::Source source;
   GURL origin("http://www.example.com");
   std::string challenge = "Mock asdf";
-  string16 username = ASCIIToUTF16("user");
-  string16 password = ASCIIToUTF16("pass");
+  AuthCredentials credentials(ASCIIToUTF16("user"), ASCIIToUTF16("pass"));
   std::string auth_token;
   HttpRequestInfo request;
 
@@ -44,7 +43,7 @@ TEST(HttpAuthHandlerTest, NetLog) {
         mock_handler.InitFromChallenge(&tokenizer, target,
                                        origin, bound_net_log);
         mock_handler.SetGenerateExpectation(async, rv);
-        mock_handler.GenerateAuthToken(&username, &password, &request,
+        mock_handler.GenerateAuthToken(&credentials, &request,
                                        &test_callback, &auth_token);
         if (async)
           test_callback.WaitForResult();

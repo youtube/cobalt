@@ -12,7 +12,6 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/native_library.h"
-#include "base/string16.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 
@@ -245,10 +244,9 @@ class NET_EXPORT_PRIVATE HttpAuthGSSAPI {
   // |spn| is the Service Principal Name of the server that the token is
   // being generated for.
   // If this is the first round of a multiple round scheme, credentials are
-  // obtained using |*username| and |*password|. If |username| and |password|
-  // are NULL, the default credentials are used instead.
-  int GenerateAuthToken(const string16* username,
-                        const string16* password,
+  // obtained using |*credentials|. If |credentials| is NULL, the default
+  // credentials are used instead.
+  int GenerateAuthToken(const AuthCredentials* credentials,
                         const std::wstring& spn,
                         std::string* auth_token);
 

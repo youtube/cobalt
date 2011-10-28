@@ -11,7 +11,6 @@
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/string16.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -84,8 +83,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
 
-  virtual int GenerateAuthTokenImpl(const string16* username,
-                                    const string16* password,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
                                     OldCompletionCallback* callback,
                                     std::string* auth_token);
@@ -148,16 +146,14 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
   // Build up  the 'response' production.
   std::string AssembleResponseDigest(const std::string& method,
                                      const std::string& path,
-                                     const string16& username,
-                                     const string16& password,
+                                     const AuthCredentials& credentials,
                                      const std::string& cnonce,
                                      const std::string& nc) const;
 
   // Build up  the value for (Authorization/Proxy-Authorization).
   std::string AssembleCredentials(const std::string& method,
                                   const std::string& path,
-                                  const string16& username,
-                                  const string16& password,
+                                  const AuthCredentials& credentials,
                                   const std::string& cnonce,
                                   int nonce_count) const;
 

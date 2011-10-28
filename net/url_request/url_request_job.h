@@ -11,7 +11,6 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/string16.h"
 #include "base/system_monitor/system_monitor.h"
 #include "base/task.h"
 #include "base/time.h"
@@ -24,6 +23,7 @@
 namespace net {
 
 class AuthChallengeInfo;
+class AuthCredentials;
 class CookieList;
 class CookieOptions;
 class HttpRequestHeaders;
@@ -152,8 +152,7 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
       scoped_refptr<AuthChallengeInfo>* auth_info);
 
   // Resend the request with authentication credentials.
-  virtual void SetAuth(const string16& username,
-                       const string16& password);
+  virtual void SetAuth(const AuthCredentials& credentials);
 
   // Display the error page without asking for credentials again.
   virtual void CancelAuth();
