@@ -12,6 +12,8 @@
 #include "media/video/video_decode_engine.h"
 #include "ui/gfx/size.h"
 
+class MessageLoop;
+
 namespace media {
 
 class VideoDecodeEngine;
@@ -20,8 +22,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder
     : public VideoDecoder,
       public VideoDecodeEngine::EventHandler {
  public:
-  FFmpegVideoDecoder(MessageLoop* message_loop,
-                     VideoDecodeContext* decode_context);
+  explicit FFmpegVideoDecoder(MessageLoop* message_loop);
   virtual ~FFmpegVideoDecoder();
 
   // Filter implementation.
@@ -30,7 +31,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder
   virtual void Pause(const base::Closure& callback) OVERRIDE;
   virtual void Flush(const base::Closure& callback) OVERRIDE;
 
-  // Decoder implementation.
+  // VideoDecoder implementation.
   virtual void Initialize(DemuxerStream* demuxer_stream,
                           const base::Closure& callback,
                           const StatisticsCallback& stats_callback) OVERRIDE;
@@ -81,7 +82,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder
   PtsStream pts_stream_;  // Stream of presentation timestamps.
   DecoderState state_;
   scoped_ptr<VideoDecodeEngine> decode_engine_;
-  scoped_ptr<VideoDecodeContext> decode_context_;
 
   base::Closure initialize_callback_;
   base::Closure uninitialize_callback_;
