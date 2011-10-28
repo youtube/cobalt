@@ -160,6 +160,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
 
     linked_ptr<HttpStreamParser> parser;
     OldCompletionCallback* read_headers_callback;
+    OldCompletionCallback* pending_user_callback;
     StreamState state;
   };
 
@@ -235,7 +236,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   // underlying parser completes SendRequest() or ReadResponseHeaders()
   // synchronously, but we've already returned ERR_IO_PENDING to the user's
   // SendRequest() or ReadResponseHeaders() call into us.
-  void FireUserCallback(OldCompletionCallback* callback, int result);
+  void FireUserCallback(int pipeline_id, int result);
 
   Delegate* delegate_;
   scoped_ptr<ClientSocketHandle> connection_;
