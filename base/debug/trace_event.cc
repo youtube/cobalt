@@ -11,7 +11,6 @@
 #endif
 #include "base/bind.h"
 #include "base/format_macros.h"
-#include "base/memory/ref_counted_memory.h"
 #include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_local.h"
@@ -119,22 +118,6 @@ void TraceValue::AppendAsJSON(std::string* out) const {
 
 namespace {
 
-const char* GetPhaseStr(TraceEventPhase phase) {
-  switch(phase) {
-    case TRACE_EVENT_PHASE_BEGIN:
-      return "B";
-    case TRACE_EVENT_PHASE_INSTANT:
-      return "I";
-    case TRACE_EVENT_PHASE_END:
-      return "E";
-    case TRACE_EVENT_PHASE_METADATA:
-      return "M";
-    default:
-      NOTREACHED() << "Invalid phase argument";
-      return "?";
-  }
-}
-
 size_t GetAllocLength(const char* str) { return str ? strlen(str) + 1 : 0; }
 
 // Copies |*member| into |*buffer|, sets |*member| to point to this new
@@ -221,6 +204,38 @@ TraceEvent::TraceEvent(unsigned long process_id,
 TraceEvent::~TraceEvent() {
 }
 
+const char* TraceEvent::GetPhaseString(TraceEventPhase phase) {
+  switch(phase) {
+    case TRACE_EVENT_PHASE_BEGIN:
+      return "B";
+    case TRACE_EVENT_PHASE_INSTANT:
+      return "I";
+    case TRACE_EVENT_PHASE_END:
+      return "E";
+    case TRACE_EVENT_PHASE_METADATA:
+      return "M";
+    default:
+      NOTREACHED() << "Invalid phase argument";
+      return "?";
+  }
+}
+
+TraceEventPhase TraceEvent::GetPhase(const char* phase) {
+  switch(*phase) {
+    case 'B':
+      return TRACE_EVENT_PHASE_BEGIN;
+    case 'I':
+      return TRACE_EVENT_PHASE_INSTANT;
+    case 'E':
+      return TRACE_EVENT_PHASE_END;
+    case 'M':
+      return TRACE_EVENT_PHASE_METADATA;
+    default:
+      NOTREACHED() << "Invalid phase name";
+      return TRACE_EVENT_PHASE_METADATA;
+  }
+}
+
 void TraceEvent::AppendEventsAsJSON(const std::vector<TraceEvent>& events,
                                     size_t start,
                                     size_t count,
@@ -233,7 +248,7 @@ void TraceEvent::AppendEventsAsJSON(const std::vector<TraceEvent>& events,
 }
 
 void TraceEvent::AppendAsJSON(std::string* out) const {
-  const char* phase_str = GetPhaseStr(phase_);
+  const char* phase_str = GetPhaseString(phase_);
   int64 time_int64 = timestamp_.ToInternalValue();
   // Category name checked at category creation time.
   DCHECK(!strchr(name_, '"'));
