@@ -499,6 +499,8 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   }
   ssl_info->is_issued_by_known_root =
       server_cert_verify_result_->is_issued_by_known_root;
+  ssl_info->client_cert_sent =
+      ssl_config_.send_client_cert && ssl_config_.client_cert;
 
   PRUint16 cipher_suite =
       SSLConnectionStatusToCipherSuite(ssl_connection_status_);
