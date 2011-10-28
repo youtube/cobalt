@@ -204,6 +204,9 @@
       # Speech input is compiled in by default. Set to 0 to disable.
       'input_speech%': 1,
 
+      # Notifications are compiled in by default. Set to 0 to disable.
+      'notifications%' : 1,
+
       # If this is set, the clang plugins used on the buildbot will be used.
       # Run tools/clang/scripts/update.sh to make sure they are compiled.
       # This causes 'clang_chrome_plugins_flags' to be set.
@@ -398,6 +401,7 @@
     'configuration_policy%': '<(configuration_policy)',
     'safe_browsing%': '<(safe_browsing)',
     'input_speech%': '<(input_speech)',
+    'notifications%': '<(notifications)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'asan%': '<(asan)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
@@ -672,6 +676,7 @@
         'configuration_policy%': 0,
         'input_speech%': 0,
         'java_bridge%': 1,
+        'notifications%': 0,
 
         # Builds the gtest targets as a shared_library.
         # TODO(michaelbai): Use the fixed value 'shared_library' once it
@@ -1034,6 +1039,9 @@
       }],
       ['input_speech==1', {
         'defines': ['ENABLE_INPUT_SPEECH'],
+      }],
+      ['notifications==1', {
+        'defines': ['ENABLE_NOTIFICATIONS'],
       }],
       ['fastbuild!=0', {
 
