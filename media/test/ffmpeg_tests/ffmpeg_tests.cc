@@ -10,6 +10,7 @@
 #include <iostream>
 #include <string>
 
+#include "base/at_exit.h"
 #include "base/basictypes.h"
 #include "base/command_line.h"
 #include "base/file_path.h"

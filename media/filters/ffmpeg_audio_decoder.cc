@@ -5,6 +5,7 @@
 #include "media/filters/ffmpeg_audio_decoder.h"
 
 #include "base/bind.h"
+#include "media/base/audio_decoder_config.h"
 #include "media/base/data_buffer.h"
 #include "media/base/demuxer.h"
 #include "media/base/filter_host.h"

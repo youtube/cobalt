@@ -7,12 +7,10 @@
 
 #include <deque>
 
-#include "base/gtest_prod_util.h"
-#include "base/time.h"
 #include "media/base/filters.h"
 #include "media/base/pts_stream.h"
-#include "media/base/video_frame.h"
 #include "media/video/video_decode_engine.h"
+#include "ui/gfx/size.h"
 
 namespace media {
 
@@ -51,17 +49,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder
   virtual void ConsumeVideoFrame(
       scoped_refptr<VideoFrame> frame,
       const PipelineStatistics& statistics) OVERRIDE;
-
-  friend class DecoderPrivateMock;
-  friend class FFmpegVideoDecoderTest;
-  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest, PtsStream);
-  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest,
-                           DoDecode_EnqueueVideoFrameError);
-  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest,
-                           DoDecode_FinishEnqueuesEmptyFrames);
-  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest,
-                           DoDecode_TestStateTransition);
-  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest, DoSeek);
 
   enum DecoderState {
     kUnInitialized,
