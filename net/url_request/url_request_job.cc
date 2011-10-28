@@ -153,8 +153,7 @@ void URLRequestJob::GetAuthChallengeInfo(
   NOTREACHED();
 }
 
-void URLRequestJob::SetAuth(const string16& username,
-                            const string16& password) {
+void URLRequestJob::SetAuth(const AuthCredentials& credentials) {
   // This will only be called if NeedsAuth() returns true, in which
   // case the derived class should implement this!
   NOTREACHED();

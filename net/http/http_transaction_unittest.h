@@ -160,31 +160,33 @@ class MockNetworkTransaction : public net::HttpTransaction {
 
   virtual int Start(const net::HttpRequestInfo* request,
                     net::OldCompletionCallback* callback,
-                    const net::BoundNetLog& net_log);
+                    const net::BoundNetLog& net_log) OVERRIDE;
 
-  virtual int RestartIgnoringLastError(net::OldCompletionCallback* callback);
+  virtual int RestartIgnoringLastError(
+      net::OldCompletionCallback* callback) OVERRIDE;
 
-  virtual int RestartWithCertificate(net::X509Certificate* client_cert,
-                                     net::OldCompletionCallback* callback);
+  virtual int RestartWithCertificate(
+      net::X509Certificate* client_cert,
+      net::OldCompletionCallback* callback) OVERRIDE;
 
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
-                              net::OldCompletionCallback* callback);
+  virtual int RestartWithAuth(
+      const net::AuthCredentials& credentials,
+      net::OldCompletionCallback* callback) OVERRIDE;
 
-  virtual bool IsReadyToRestartForAuth();
+  virtual bool IsReadyToRestartForAuth() OVERRIDE;
 
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::OldCompletionCallback* callback);
+                   net::OldCompletionCallback* callback) OVERRIDE;
 
-  virtual void StopCaching();
+  virtual void StopCaching() OVERRIDE;
 
-  virtual void DoneReading();
+  virtual void DoneReading() OVERRIDE;
 
-  virtual const net::HttpResponseInfo* GetResponseInfo() const;
+  virtual const net::HttpResponseInfo* GetResponseInfo() const OVERRIDE;
 
-  virtual net::LoadState GetLoadState() const;
+  virtual net::LoadState GetLoadState() const OVERRIDE;
 
-  virtual uint64 GetUploadProgress() const;
+  virtual uint64 GetUploadProgress() const OVERRIDE;
 
  private:
   void CallbackLater(net::OldCompletionCallback* callback, int result);

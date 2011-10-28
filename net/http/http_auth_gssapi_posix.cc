@@ -723,12 +723,10 @@ HttpAuth::AuthorizationResult HttpAuthGSSAPI::ParseChallenge(
   return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
 }
 
-int HttpAuthGSSAPI::GenerateAuthToken(const string16* username,
-                                      const string16* password,
+int HttpAuthGSSAPI::GenerateAuthToken(const AuthCredentials* credentials,
                                       const std::wstring& spn,
                                       std::string* auth_token) {
   DCHECK(auth_token);
-  DCHECK(username == NULL && password == NULL);
 
   gss_buffer_desc input_token = GSS_C_EMPTY_BUFFER;
   input_token.length = decoded_server_auth_token_.length();

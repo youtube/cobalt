@@ -88,8 +88,7 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
 
   // HttpStreamRequest methods.
 
-  virtual int RestartTunnelWithProxyAuth(const string16& username,
-                                         const string16& password);
+  virtual int RestartTunnelWithProxyAuth(const AuthCredentials& credentials);
   virtual LoadState GetLoadState() const;
   virtual bool was_npn_negotiated() const;
   virtual bool using_spdy() const;

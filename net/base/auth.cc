@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/base/auth.h"
+#include "net/base/zap.h"
 
 namespace net {
 
@@ -28,7 +29,30 @@ AuthData::~AuthData() {
 AuthCredentials::AuthCredentials() {
 }
 
+AuthCredentials::AuthCredentials(const string16& username,
+                                 const string16& password)
+    : username_(username),
+      password_(password) {
+}
+
 AuthCredentials::~AuthCredentials() {
+}
+
+void AuthCredentials::Set(const string16& username, const string16& password) {
+  username_ = username;
+  password_ = password;
+}
+
+bool AuthCredentials::Equals(const AuthCredentials& other) const {
+  return username_ == other.username_ && password_ == other.password_;
+}
+
+bool AuthCredentials::Empty() const {
+  return username_.empty() && password_.empty();
+}
+
+void AuthCredentials::Zap() {
+  ZapString(&password_);
 }
 
 }  // namespace net

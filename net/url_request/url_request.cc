@@ -616,11 +616,11 @@ void URLRequest::FollowDeferredRedirect() {
   job_->FollowDeferredRedirect();
 }
 
-void URLRequest::SetAuth(const string16& username, const string16& password) {
+void URLRequest::SetAuth(const AuthCredentials& credentials) {
   DCHECK(job_);
   DCHECK(job_->NeedsAuth());
 
-  job_->SetAuth(username, password);
+  job_->SetAuth(credentials);
 }
 
 void URLRequest::CancelAuth() {
@@ -819,7 +819,7 @@ void URLRequest::NotifyAuthRequiredComplete(
       break;
 
     case NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH:
-      SetAuth(credentials.username, credentials.password);
+      SetAuth(credentials);
       break;
 
     case NetworkDelegate::AUTH_REQUIRED_RESPONSE_CANCEL_AUTH:

@@ -12,7 +12,6 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/string16.h"
 #include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
@@ -23,6 +22,7 @@
 namespace net {
 
 class AuthChallengeInfo;
+class AuthCredentials;
 class HttpAuthHandler;
 class HttpAuthHandlerFactory;
 class HttpAuthCache;
@@ -62,8 +62,7 @@ class NET_EXPORT_PRIVATE HttpAuthController
                                   const BoundNetLog& net_log);
 
   // Store the supplied credentials and prepare to restart the auth.
-  virtual void ResetAuth(const string16& username,
-                         const string16& password);
+  virtual void ResetAuth(const AuthCredentials& credentials);
 
   virtual bool HaveAuthHandler() const;
 
@@ -107,7 +106,7 @@ class NET_EXPORT_PRIVATE HttpAuthController
   bool SelectNextAuthIdentityToTry();
 
   // Populates auth_info_ with the challenge information, so that
-  // URLRequestHttpJob can prompt for a username/password.
+  // URLRequestHttpJob can prompt for credentials.
   void PopulateAuthChallenge();
 
   // If |result| indicates a permanent failure, disables the current
@@ -135,8 +134,8 @@ class NET_EXPORT_PRIVATE HttpAuthController
   // associated auth handler.
   scoped_ptr<HttpAuthHandler> handler_;
 
-  // |identity_| holds the (username/password) that should be used by
-  // the handler_ to generate credentials. This identity can come from
+  // |identity_| holds the credentials that should be used by
+  // the handler_ to generate challenge responses. This identity can come from
   // a number of places (url, cache, prompt).
   HttpAuth::Identity identity_;
 
@@ -147,7 +146,7 @@ class NET_EXPORT_PRIVATE HttpAuthController
   // Contains information about the auth challenge.
   scoped_refptr<AuthChallengeInfo> auth_info_;
 
-  // True if we've used the username/password embedded in the URL.  This
+  // True if we've used the username:password embedded in the URL.  This
   // makes sure we use the embedded identity only once for the transaction,
   // preventing an infinite auth restart loop.
   bool embedded_identity_used_;

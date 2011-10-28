@@ -10,7 +10,7 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
-#include "base/string16.h"
+#include "net/base/auth.h"
 #include "net/base/net_export.h"
 #include "net/http/http_util.h"
 
@@ -104,8 +104,7 @@ class NET_EXPORT_PRIVATE HttpAuth {
 
     IdentitySource source;
     bool invalid;
-    string16 username;
-    string16 password;
+    AuthCredentials credentials;
   };
 
   // Get the name of the header containing the auth challenge

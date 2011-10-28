@@ -599,8 +599,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredSyncNoAction) {
   context->set_network_delegate(&network_delegate);
   context->Init();
 
-  d.set_username(kUser);
-  d.set_password(kSecret);
+  d.set_credentials(AuthCredentials(kUser, kSecret));
 
   {
     GURL url(test_server_.GetURL("auth-basic"));
@@ -629,10 +628,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredSyncSetAuth) {
   network_delegate.set_auth_retval(
       NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH);
 
-  AuthCredentials auth_credentials;
-  auth_credentials.username = kUser;
-  auth_credentials.password = kSecret;
-  network_delegate.set_auth_credentials(auth_credentials);
+  network_delegate.set_auth_credentials(AuthCredentials(kUser, kSecret));
 
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
   context->set_network_delegate(&network_delegate);
@@ -704,8 +700,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredAsyncNoAction) {
   context->set_network_delegate(&network_delegate);
   context->Init();
 
-  d.set_username(kUser);
-  d.set_password(kSecret);
+  d.set_credentials(AuthCredentials(kUser, kSecret));
 
   {
     GURL url(test_server_.GetURL("auth-basic"));
@@ -736,9 +731,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredAsyncSetAuth) {
   network_delegate.set_auth_callback_retval(
       NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH);
 
-  AuthCredentials auth_credentials;
-  auth_credentials.username = kUser;
-  auth_credentials.password = kSecret;
+  AuthCredentials auth_credentials(kUser, kSecret);
   network_delegate.set_auth_credentials(auth_credentials);
 
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
@@ -1951,8 +1944,7 @@ TEST_F(URLRequestTestHTTP, BasicAuth) {
   // populate the cache
   {
     TestDelegate d;
-    d.set_username(kUser);
-    d.set_password(kSecret);
+    d.set_credentials(AuthCredentials(kUser, kSecret));
 
     URLRequest r(test_server_.GetURL("auth-basic"), &d);
     r.set_context(default_context_);
@@ -1968,8 +1960,7 @@ TEST_F(URLRequestTestHTTP, BasicAuth) {
   // response should be fetched from the cache.
   {
     TestDelegate d;
-    d.set_username(kUser);
-    d.set_password(kSecret);
+    d.set_credentials(AuthCredentials(kUser, kSecret));
 
     URLRequest r(test_server_.GetURL("auth-basic"), &d);
     r.set_context(default_context_);
@@ -2003,8 +1994,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
     context->Init();
 
     TestDelegate d;
-    d.set_username(kUser);
-    d.set_password(kSecret);
+    d.set_credentials(AuthCredentials(kUser, kSecret));
 
     URLRequest r(url_requiring_auth, &d);
     r.set_context(context);
@@ -3270,8 +3260,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongPasswordRestart) {
   TestDelegate d;
   // Set correct login credentials. The delegate will be asked for them when
   // the initial login with wrong credentials will fail.
-  d.set_username(kChrome);
-  d.set_password(kChrome);
+  d.set_credentials(AuthCredentials(kChrome, kChrome));
   {
     TestURLRequest r(
         test_server_.GetURLWithUserAndPassword("/LICENSE",
@@ -3334,8 +3323,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongUserRestart) {
   TestDelegate d;
   // Set correct login credentials. The delegate will be asked for them when
   // the initial login with wrong credentials will fail.
-  d.set_username(kChrome);
-  d.set_password(kChrome);
+  d.set_credentials(AuthCredentials(kChrome, kChrome));
   {
     TestURLRequest r(
         test_server_.GetURLWithUserAndPassword("/LICENSE",
@@ -3420,8 +3408,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCacheLoginBoxCredentials) {
   scoped_ptr<TestDelegate> d(new TestDelegate);
   // Set correct login credentials. The delegate will be asked for them when
   // the initial login with wrong credentials will fail.
-  d->set_username(kChrome);
-  d->set_password(kChrome);
+  d->set_credentials(AuthCredentials(kChrome, kChrome));
   {
     TestURLRequest r(
         test_server_.GetURLWithUserAndPassword("/LICENSE",
