@@ -99,9 +99,13 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Check to see if this SPDY session can support an additional domain.
   // If the session is un-authenticated, then this call always returns true.
-  // For SSL-based sessions, verifies that the certificate in use by this
-  // session provides authentication for the domain.
+  // For SSL-based sessions, verifies that the server certificate in use by
+  // this session provides authentication for the domain and no client
+  // certificate was sent to the original server during the SSL handshake.
   // NOTE:  This function can have false negatives on some platforms.
+  // TODO(wtc): rename this function and the Net.SpdyIPPoolDomainMatch
+  // histogram because this function does more than verifying domain
+  // authentication now.
   bool VerifyDomainAuthentication(const std::string& domain);
 
   // Send the SYN frame for |stream_id|. This also sends PING message to check

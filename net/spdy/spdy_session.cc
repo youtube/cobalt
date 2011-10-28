@@ -354,7 +354,7 @@ bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
   if (!GetSSLInfo(&ssl_info, &was_npn_negotiated))
     return true;   // This is not a secure session, so all domains are okay.
 
-  return ssl_info.cert->VerifyNameMatch(domain);
+  return !ssl_info.client_cert_sent && ssl_info.cert->VerifyNameMatch(domain);
 }
 
 int SpdySession::GetPushStream(
