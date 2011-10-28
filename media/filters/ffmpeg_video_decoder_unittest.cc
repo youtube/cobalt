@@ -20,7 +20,6 @@
 #include "media/filters/ffmpeg_glue.h"
 #include "media/filters/ffmpeg_video_decoder.h"
 #include "media/video/video_decode_engine.h"
-#include "media/video/video_decode_context.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::testing::_;
@@ -46,7 +45,7 @@ ACTION_P(ReturnBuffer, buffer) {
 class FFmpegVideoDecoderTest : public testing::Test {
  public:
   FFmpegVideoDecoderTest()
-      : decoder_(new FFmpegVideoDecoder(&message_loop_, NULL)),
+      : decoder_(new FFmpegVideoDecoder(&message_loop_)),
         demuxer_(new StrictMock<MockDemuxerStream>()) {
     CHECK(FFmpegGlue::GetInstance());
 

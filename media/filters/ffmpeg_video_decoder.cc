@@ -14,16 +14,13 @@
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/video/ffmpeg_video_decode_engine.h"
-#include "media/video/video_decode_context.h"
 
 namespace media {
 
-FFmpegVideoDecoder::FFmpegVideoDecoder(MessageLoop* message_loop,
-                                       VideoDecodeContext* decode_context)
+FFmpegVideoDecoder::FFmpegVideoDecoder(MessageLoop* message_loop)
     : message_loop_(message_loop),
       state_(kUnInitialized),
-      decode_engine_(new FFmpegVideoDecodeEngine()),
-      decode_context_(decode_context) {
+      decode_engine_(new FFmpegVideoDecodeEngine()) {
 }
 
 FFmpegVideoDecoder::~FFmpegVideoDecoder() {}
@@ -67,7 +64,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   }
 
   state_ = kInitializing;
-  decode_engine_->Initialize(message_loop_, this, NULL, config);
+  decode_engine_->Initialize(this, config);
 }
 
 void FFmpegVideoDecoder::OnInitializeComplete(bool success) {
