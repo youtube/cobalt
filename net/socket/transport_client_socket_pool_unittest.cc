@@ -1000,8 +1000,12 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 // of the backup socket and never completes, and then the backup
 // connection fails.
 //
+
+// Flaky timeout on linux/mac: http://crbug.com/89273
+#if defined(OS_MACOSX) || defined(OS_CHROMEOS) || defined(OS_LINUX)
+#define MAYBE_BackupSocketFailAfterStall FLAKY_BackupSocketFailAfterStall
+#elif defined(DCHECK_ALWAYS_ON)
 // Disabled in release with dcheck : http://crbug.com/94501
-#if defined(DCHECK_ALWAYS_ON)
 #define MAYBE_BackupSocketFailAfterStall DISABLED_BackupSocketFailAfterStall
 #else
 #define MAYBE_BackupSocketFailAfterStall BackupSocketFailAfterStall
