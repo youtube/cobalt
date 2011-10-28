@@ -22,8 +22,8 @@ TEST(AudioInputDeviceTest, EnumerateDevices) {
 
     // Other devices should have non-empty name and id.
     while (it != device_names.end()) {
-      EXPECT_EQ("", it->device_name);
-      EXPECT_EQ("", it->unique_id);
+      EXPECT_NE("", it->device_name);
+      EXPECT_NE("", it->unique_id);
       ++it;
     }
   }
