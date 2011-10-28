@@ -1025,6 +1025,67 @@ TEST_F(HttpPipelinedConnectionImplTest, CloseOtherDuringReadCallback) {
   data_->RunFor(1);
 }
 
+TEST_F(HttpPipelinedConnectionImplTest, CloseBeforeSendCallbackRuns) {
+  MockWrite writes[] = {
+    MockWrite(true, 0, "GET /close.html HTTP/1.1\r\n\r\n"),
+    MockWrite(true, 1, "GET /dummy.html HTTP/1.1\r\n\r\n"),
+  };
+  Initialize(NULL, 0, writes, arraysize(writes));
+
+  scoped_ptr<HttpStream> close_stream(NewTestStream("close.html"));
+  scoped_ptr<HttpStream> dummy_stream(NewTestStream("dummy.html"));
+
+  scoped_ptr<TestOldCompletionCallback> close_callback(
+      new TestOldCompletionCallback);
+  HttpRequestHeaders headers;
+  HttpResponseInfo response;
+  EXPECT_EQ(ERR_IO_PENDING, close_stream->SendRequest(
+      headers, NULL, &response, close_callback.get()));
+
+  data_->RunFor(1);
+  EXPECT_FALSE(close_callback->have_result());
+
+  close_stream->Close(false);
+  close_stream.reset();
+  close_callback.reset();
+
+  MessageLoop::current()->RunAllPending();
+}
+
+TEST_F(HttpPipelinedConnectionImplTest, CloseBeforeReadCallbackRuns) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /close.html HTTP/1.1\r\n\r\n"),
+    MockWrite(false, 3, "GET /dummy.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(true, 2, "Content-Length: 7\r\n\r\n"),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  scoped_ptr<HttpStream> close_stream(NewTestStream("close.html"));
+  scoped_ptr<HttpStream> dummy_stream(NewTestStream("dummy.html"));
+
+  HttpRequestHeaders headers;
+  HttpResponseInfo response;
+  EXPECT_EQ(OK,
+            close_stream->SendRequest(headers, NULL, &response, &callback_));
+
+  scoped_ptr<TestOldCompletionCallback> close_callback(
+      new TestOldCompletionCallback);
+  EXPECT_EQ(ERR_IO_PENDING,
+            close_stream->ReadResponseHeaders(close_callback.get()));
+
+  data_->RunFor(1);
+  EXPECT_FALSE(close_callback->have_result());
+
+  close_stream->Close(false);
+  close_stream.reset();
+  close_callback.reset();
+
+  MessageLoop::current()->RunAllPending();
+}
+
 TEST_F(HttpPipelinedConnectionImplTest, OnPipelineHasCapacity) {
   MockWrite writes[] = {
     MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),

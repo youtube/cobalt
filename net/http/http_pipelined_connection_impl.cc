@@ -223,8 +223,10 @@ int HttpPipelinedConnectionImpl::DoSendComplete(int result) {
         FROM_HERE,
         method_factory_.NewRunnableMethod(
             &HttpPipelinedConnectionImpl::FireUserCallback,
-            send_user_callback_,
+            deferred_request.pipeline_id,
             result));
+    stream_info_map_[deferred_request.pipeline_id].pending_user_callback =
+        send_user_callback_;
     send_user_callback_ = NULL;
   }
   if (result < OK) {
@@ -348,11 +350,12 @@ int HttpPipelinedConnectionImpl::DoReadNextHeaders(int result) {
   if (rv != ERR_IO_PENDING && result == ERR_IO_PENDING) {
     read_next_state_ = READ_STATE_WAITING_FOR_CLOSE;
     read_user_callback_ = stream_info_map_[pipeline_id].read_headers_callback;
+    stream_info_map_[pipeline_id].pending_user_callback = read_user_callback_;
     MessageLoop::current()->PostTask(
         FROM_HERE,
         method_factory_.NewRunnableMethod(
             &HttpPipelinedConnectionImpl::FireUserCallback,
-            read_user_callback_,
+            pipeline_id,
             rv));
   }
   return rv;
@@ -361,12 +364,14 @@ int HttpPipelinedConnectionImpl::DoReadNextHeaders(int result) {
 int HttpPipelinedConnectionImpl::DoReadHeadersComplete(int result) {
   read_next_state_ = READ_STATE_WAITING_FOR_CLOSE;
   if (read_user_callback_) {
+    int pipeline_id = request_order_.front();
     MessageLoop::current()->PostTask(
         FROM_HERE,
         method_factory_.NewRunnableMethod(
             &HttpPipelinedConnectionImpl::FireUserCallback,
-            read_user_callback_,
+            pipeline_id,
             result));
+    stream_info_map_[pipeline_id].pending_user_callback = read_user_callback_;
     read_user_callback_ = NULL;
   }
   return result;
@@ -418,11 +423,13 @@ int HttpPipelinedConnectionImpl::DoEvictPendingReadHeaders(int result) {
       continue;
     }
     if (stream_info_map_[evicted_id].state != STREAM_CLOSED) {
+      stream_info_map_[evicted_id].pending_user_callback =
+          stream_info_map_[evicted_id].read_headers_callback;
       MessageLoop::current()->PostTask(
           FROM_HERE,
           method_factory_.NewRunnableMethod(
               &HttpPipelinedConnectionImpl::FireUserCallback,
-              stream_info_map_[evicted_id].read_headers_callback,
+              evicted_id,
               ERR_PIPELINE_EVICTION));
     }
     stream_info_map_[evicted_id].read_headers_callback = NULL;
@@ -560,11 +567,12 @@ void HttpPipelinedConnectionImpl::GetSSLCertRequestInfo(
       cert_request_info);
 }
 
-void HttpPipelinedConnectionImpl::FireUserCallback(
-    OldCompletionCallback* callback,
-    int result) {
-  CHECK(callback);
-  callback->Run(result);
+void HttpPipelinedConnectionImpl::FireUserCallback(int pipeline_id,
+                                                   int result) {
+  if (ContainsKey(stream_info_map_, pipeline_id)) {
+    CHECK(stream_info_map_[pipeline_id].pending_user_callback);
+    stream_info_map_[pipeline_id].pending_user_callback->Run(result);
+  }
 }
 
 int HttpPipelinedConnectionImpl::depth() const {
