@@ -1305,7 +1305,6 @@ const CertificateNameVerifyTestData kNameVerifyTestData[] = {
                                             "xn--poema-*.com.br,"
                                             "xn--*-9qae5a.com.br,"
                                             "*--poema-9qae5a.com.br" },
-    { true, "xn--poema-9qae5a.com.br", "*.com.br" },
     // The following are adapted from the  examples quoted from
     // http://tools.ietf.org/html/rfc6125#section-6.4.3
     //  (e.g., *.example.com would match foo.example.com but
@@ -1319,12 +1318,21 @@ const CertificateNameVerifyTestData kNameVerifyTestData[] = {
     { true, "baz1.example.net", "baz*.example.net" },
     { true, "foobaz.example.net", "*baz.example.net" },
     { true, "buzz.example.net", "b*z.example.net" },
-    // Wildcards should not be valid unless there are at least three name
-    // components.
-    { true,  "h.co.uk", "*.co.uk" },
+    // Wildcards should not be valid for registry-controlled domains, and for
+    // unknown/unrecognized domains, at least three domain components must be
+    // present.
+    { true, "www.test.example", "*.test.example" },
+    { true, "test.example.co.uk", "*.example.co.uk" },
+    { false, "test.example", "*.example" },
+    { false, "example.co.uk", "*.co.uk" },
     { false, "foo.com", "*.com" },
     { false, "foo.us", "*.us" },
     { false, "foo", "*" },
+    //  IDN variants of wildcards and registry-controlled domains.
+    { true, "www.xn--poema-9qae5a.com.br", "*.xn--poema-9qae5a.com.br" },
+    { true, "test.example.xn--mgbaam7a8h", "*.example.xn--mgbaam7a8h" },
+    { false, "xn--poema-9qae5a.com.br", "*.com.br" },
+    { false, "example.xn--mgbaam7a8h", "*.xn--mgbaam7a8h" },
     // Multiple wildcards are not valid.
     { false, "foo.example.com", "*.*.com" },
     { false, "foo.bar.example.com", "*.bar.*.com" },
@@ -1345,6 +1353,9 @@ const CertificateNameVerifyTestData kNameVerifyTestData[] = {
     { false, "example.com.", "*.com" },
     { false, "example.com.", "*.com." },
     { false, "foo.", "*." },
+    { false, "foo", "*." },
+    { false, "foo.co.uk", "*.co.uk." },
+    { false, "foo.co.uk.", "*.co.uk." },
     // IP addresses in common name; IPv4 only.
     { true, "127.0.0.1", "127.0.0.1" },
     { true, "192.168.1.1", "192.168.1.1" },
