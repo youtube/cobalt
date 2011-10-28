@@ -240,6 +240,7 @@
         'task_queue_unittest.cc',
         'task_unittest.cc',
         'template_util_unittest.cc',
+        'test/trace_event_analyzer_unittest.cc',
         'threading/non_thread_safe_unittest.cc',
         'threading/platform_thread_unittest.cc',
         'threading/simple_thread_unittest.cc',
@@ -444,6 +445,8 @@
         'test/test_timeouts.h',
         'test/thread_test_helper.cc',
         'test/thread_test_helper.h',
+        'test/trace_event_analyzer.cc',
+        'test/trace_event_analyzer.h',
       ],
     },
     {
