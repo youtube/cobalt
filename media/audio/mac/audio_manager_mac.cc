@@ -5,6 +5,7 @@
 #include <CoreAudio/AudioHardware.h>
 
 #include "base/mac/mac_util.h"
+#include "base/sys_string_conversions.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/mac/audio_input_mac.h"
@@ -65,6 +66,122 @@ static bool HasAudioHardware(AudioObjectPropertySelector selector) {
       output_device_id != kAudioObjectUnknown;
 }
 
+static void GetAudioDeviceInfo(bool is_input,
+                               media::AudioDeviceNames* device_names) {
+  DCHECK(device_names);
+  device_names->clear();
+
+  // Query the number of total devices.
+  AudioObjectPropertyAddress property_address = {
+    kAudioHardwarePropertyDevices,
+    kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyElementMaster
+  };
+  UInt32 size = 0;
+  OSStatus result = AudioObjectGetPropertyDataSize(kAudioObjectSystemObject,
+                                                   &property_address,
+                                                   0,
+                                                   NULL,
+                                                   &size);
+  if (result || !size)
+    return;
+
+  int device_count = size / sizeof(AudioDeviceID);
+
+  // Get the array of device ids for all the devices, which includes both
+  // input devices and output devices.
+  scoped_ptr_malloc<AudioDeviceID>
+      devices(reinterpret_cast<AudioDeviceID*>(malloc(size)));
+  AudioDeviceID* device_ids = devices.get();
+  result = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                      &property_address,
+                                      0,
+                                      NULL,
+                                      &size,
+                                      device_ids);
+  if (result)
+    return;
+
+  // Iterate over all available devices to gather information.
+  for (int i = 0; i < device_count; ++i) {
+    int channels = 0;
+    // Get the number of input or output channels of the device.
+    property_address.mScope = is_input ?
+        kAudioDevicePropertyScopeInput : kAudioDevicePropertyScopeOutput;
+    property_address.mSelector = kAudioDevicePropertyStreamConfiguration;
+    result = AudioObjectGetPropertyDataSize(device_ids[i],
+                                            &property_address,
+                                            0,
+                                            NULL,
+                                            &size);
+    if (result)
+      continue;
+
+    scoped_ptr_malloc<AudioBufferList>
+        buffer(reinterpret_cast<AudioBufferList*>(malloc(size)));
+    AudioBufferList* buffer_list = buffer.get();
+    result = AudioObjectGetPropertyData(device_ids[i],
+                                        &property_address,
+                                        0,
+                                        NULL,
+                                        &size,
+                                        buffer_list);
+    if (result)
+      continue;
+
+    for (uint32 j = 0; j < buffer_list->mNumberBuffers; ++j)
+      channels += buffer_list->mBuffers[j].mNumberChannels;
+
+    // Exclude those devices without the type of channel we are interested in.
+    if (!channels)
+      continue;
+
+    // Get device UID.
+    CFStringRef uid = NULL;
+    size = sizeof(uid);
+    property_address.mSelector = kAudioDevicePropertyDeviceUID;
+    property_address.mScope = kAudioObjectPropertyScopeGlobal;
+    result = AudioObjectGetPropertyData(device_ids[i],
+                                        &property_address,
+                                        0,
+                                        NULL,
+                                        &size,
+                                        &uid);
+    if (result)
+      continue;
+
+    // Get device name.
+    CFStringRef name = NULL;
+    property_address.mSelector = kAudioObjectPropertyName;
+    property_address.mScope = kAudioObjectPropertyScopeGlobal;
+    result = AudioObjectGetPropertyData(device_ids[i],
+                                        &property_address,
+                                        0,
+                                        NULL,
+                                        &size,
+                                        &name);
+    if (result) {
+      if (uid)
+        CFRelease(uid);
+      continue;
+    }
+
+    // Store the device name and UID.
+    media::AudioDeviceName device_name;
+    device_name.device_name = base::SysCFStringRefToUTF8(name);
+    device_name.unique_id = base::SysCFStringRefToUTF8(uid);
+    device_names->push_back(device_name);
+
+    // We are responsible for releasing the returned CFObject.  See the
+    // comment in the AudioHardware.h for constant
+    // kAudioDevicePropertyDeviceUID.
+    if (uid)
+      CFRelease(uid);
+    if (name)
+      CFRelease(name);
+  }
+}
+
 AudioManagerMac::AudioManagerMac()
     : num_output_streams_(0) {
 }
@@ -82,15 +199,20 @@ bool AudioManagerMac::HasAudioInputDevices() {
 
 void AudioManagerMac::GetAudioInputDeviceNames(
     media::AudioDeviceNames* device_names) {
-  // TODO(xians): query a full list of valid devices.
-  if (HasAudioInputDevices()) {
-    // Add the default device to the list.
-    // We use index 0 to make up the unique_id to identify the
-    // default devices.
+  // This is needed because AudioObjectGetPropertyDataSize has memory leak
+  // when there is no soundcard in the machine.
+  if (!HasAudioInputDevices())
+    return;
+
+  GetAudioDeviceInfo(true, device_names);
+  if (!device_names->empty()) {
+    // Prepend the default device to the list since we always want it to be
+    // on the top of the list for all platforms. There is no duplicate
+    // counting here since the default device has been abstracted out before.
     media::AudioDeviceName name;
     name.device_name = AudioManagerBase::kDefaultDeviceName;
     name.unique_id = "0";
-    device_names->push_back(name);
+    device_names->push_front(name);
   }
 }
 
