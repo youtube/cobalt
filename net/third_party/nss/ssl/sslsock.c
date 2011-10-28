@@ -1319,6 +1319,7 @@ SSL_SetNextProtoCallback(PRFileDesc *fd,
     if (!ss) {
 	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetNextProtoNego", SSL_GETPID(),
 		fd));
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	return SECFailure;
     }
 
@@ -1326,6 +1327,7 @@ SSL_SetNextProtoCallback(PRFileDesc *fd,
     ss->nextProtoCallback = callback;
     ss->nextProtoArg = arg;
     ssl_ReleaseSSL3HandshakeLock(ss);
+    return SECSuccess;
 }
 
 /* NextProtoStandardCallback is set as an NPN callback for the case when the
@@ -1387,6 +1389,7 @@ SSL_SetNextProtoNego(PRFileDesc *fd, const unsigned char *data,
     if (!ss) {
 	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetNextProtoNego",
 		 SSL_GETPID(), fd));
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	return SECFailure;
     }
 

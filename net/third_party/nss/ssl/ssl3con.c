@@ -5899,9 +5899,13 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
 	goto loser;	/* err code was set. */
     }
 
-    rv = ssl3_SendNextProto(ss);
-    if (rv != SECSuccess) {
-	goto loser;	/* err code was set. */
+    /* We don't send NPN in a renegotiation as it's explicitly disallowed by
+     * the spec. */
+    if (!ss->firstHsDone) {
+	rv = ssl3_SendNextProto(ss);
+	if (rv != SECSuccess) {
+	    goto loser;	/* err code was set. */
+	}
     }
 
     rv = ssl3_SendFinished(ss, 0);
@@ -8836,7 +8840,7 @@ ssl3_HandleFinished(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
 	    flags = ssl_SEND_FLAG_FORCE_INTO_BUFFER;
 	}
 
-	if (!isServer) {
+	if (!isServer && !ss->firstHsDone) {
 	    rv = ssl3_SendNextProto(ss);
 	    if (rv != SECSuccess) {
 		goto xmit_loser;	/* err code was set. */
