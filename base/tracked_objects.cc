@@ -16,52 +16,43 @@ using base::TimeDelta;
 
 namespace tracked_objects {
 
-
-#if defined(TRACK_ALL_TASK_OBJECTS)
+namespace {
+// Flag to compile out almost all of the task tracking code.
 static const bool kTrackAllTaskObjects = true;
-#else
-static const bool kTrackAllTaskObjects = false;
-#endif
 
-// Can we count on thread termination to call for thread cleanup?  If not, then
-// we can't risk putting references to ThreadData in TLS, as it will leak on
-// worker thread termination.
-static const bool kWorkerThreadCleanupSupported = true;
-
-// A TLS slot which points to the ThreadData instance for the current thread. We
-// do a fake initialization here (zeroing out data), and then the real in-place
-// construction happens when we call tls_index_.Initialize().
-// static
-base::ThreadLocalStorage::Slot ThreadData::tls_index_(base::LINKER_INITIALIZED);
-
-// A global state variable to prevent repeated initialization during tests.
-// static
-AutoTracking::State AutoTracking::state_ = AutoTracking::kNeverBeenRun;
-
-// A locked protected counter to assign sequence number to threads.
-// static
-int ThreadData::thread_number_counter_ = 0;
+// When ThreadData is first initialized, should we start in an ACTIVE state to
+// record all of the startup-time tasks, or should we start up DEACTIVATED, so
+// that we only record after parsing the command line flag --enable-tracking.
+// Note that the flag may force either state, so this really controls only the
+// period of time up until that flag is parsed. If there is no flag seen, then
+// this state may prevail for much or all of the process lifetime.
+static const ThreadData::Status kInitialStartupState = ThreadData::ACTIVE;
+}  // anonymous namespace.
 
 //------------------------------------------------------------------------------
 // Death data tallies durations when a death takes place.
 
-void DeathData::RecordDeath(const TimeDelta& queue_duration,
-                            const TimeDelta& run_duration) {
+void DeathData::RecordDeath(const Duration& queue_duration,
+                            const Duration& run_duration) {
   ++count_;
   queue_duration_ += queue_duration;
   run_duration_ += run_duration;
 }
 
 int DeathData::AverageMsRunDuration() const {
-  if (run_duration_ == base::TimeDelta())
+  if (run_duration_ == Duration() || !count_)
     return 0;
-  return static_cast<int>(run_duration_.InMilliseconds() / count_);
+  // Add half of denominator to achieve rounding.
+  return static_cast<int>(run_duration_.InMilliseconds() + count_ / 2) /
+      count_;
 }
 
 int DeathData::AverageMsQueueDuration() const {
-  if (queue_duration_ == base::TimeDelta())
+  if (queue_duration_ == Duration() || !count_)
     return 0;
-  return static_cast<int>(queue_duration_.InMilliseconds() / count_);
+  // Add half of denominator to achieve rounding.
+  return (static_cast<int>(queue_duration_.InMilliseconds() + count_ / 2) /
+      count_);
 }
 
 void DeathData::AddDeathData(const DeathData& other) {
@@ -75,11 +66,14 @@ void DeathData::WriteHTML(std::string* output) const {
     return;
   base::StringAppendF(output, "%s:%d, ",
                       (count_ == 1) ? "Life" : "Lives", count_);
-  base::StringAppendF(output, "Run:%"PRId64"ms(%dms/life) ",
-                      run_duration_.InMilliseconds(),
+  // Be careful to leave static_casts intact, as the type returned by
+  // InMilliseconds() may not always be an int, even if it can generally fit
+  // into an int.
+  base::StringAppendF(output, "Run:%dms(%dms/life) ",
+                      static_cast<int>(run_duration_.InMilliseconds()),
                       AverageMsRunDuration());
-  base::StringAppendF(output, "Queue:%"PRId64"ms(%dms/life) ",
-                      queue_duration_.InMilliseconds(),
+  base::StringAppendF(output, "Queue:%dms(%dms/life) ",
+                      static_cast<int>(queue_duration_.InMilliseconds()),
                       AverageMsQueueDuration());
 }
 
@@ -95,8 +89,8 @@ base::DictionaryValue* DeathData::ToValue() const {
 
 void DeathData::Clear() {
   count_ = 0;
-  queue_duration_ = TimeDelta();
-  run_duration_ = TimeDelta();
+  queue_duration_ = Duration();
+  run_duration_ = Duration();
 }
 
 //------------------------------------------------------------------------------
@@ -113,6 +107,20 @@ Births::Births(const Location& location, const ThreadData& current)
 //------------------------------------------------------------------------------
 // ThreadData maintains the central data for all births and deaths.
 
+// TODO(jar): We should pull all these static vars together, into a struct, and
+// optimize layout so that we benefit from locality of reference during accesses
+// to them.
+
+// A TLS slot which points to the ThreadData instance for the current thread. We
+// do a fake initialization here (zeroing out data), and then the real in-place
+// construction happens when we call tls_index_.Initialize().
+// static
+base::ThreadLocalStorage::Slot ThreadData::tls_index_(base::LINKER_INITIALIZED);
+
+// A lock-protected counter to assign sequence number to threads.
+// static
+int ThreadData::thread_number_counter_ = 0;
+
 // static
 ThreadData* ThreadData::all_thread_data_list_head_ = NULL;
 
@@ -120,7 +128,7 @@ ThreadData* ThreadData::all_thread_data_list_head_ = NULL;
 ThreadData::ThreadDataPool* ThreadData::unregistered_thread_data_pool_ = NULL;
 
 // static
-base::Lock ThreadData::list_lock_;
+base::Lock* ThreadData::list_lock_;
 
 // static
 ThreadData::Status ThreadData::status_ = ThreadData::UNINITIALIZED;
@@ -136,7 +144,7 @@ ThreadData::ThreadData(const std::string& suggested_name)
 ThreadData::ThreadData() : next_(NULL), is_a_worker_thread_(true) {
   int thread_number;
   {
-    base::AutoLock lock(list_lock_);
+    base::AutoLock lock(*list_lock_);
     thread_number = ++thread_number_counter_;
   }
   base::StringAppendF(&thread_name_, "WorkerThread-%d", thread_number);
@@ -147,15 +155,15 @@ ThreadData::~ThreadData() {}
 
 void ThreadData::PushToHeadOfList() {
   DCHECK(!next_);
-  base::AutoLock lock(list_lock_);
+  base::AutoLock lock(*list_lock_);
   next_ = all_thread_data_list_head_;
   all_thread_data_list_head_ = this;
 }
 
 // static
 void ThreadData::InitializeThreadContext(const std::string& suggested_name) {
-  if (!tls_index_.initialized())
-    return;  // For unittests only.
+  if (!Initialize())  // Always initialize if needed.
+    return;
   DCHECK_EQ(tls_index_.Get(), reinterpret_cast<void*>(NULL));
   ThreadData* current_thread_data = new ThreadData(suggested_name);
   tls_index_.Set(current_thread_data);
@@ -172,7 +180,7 @@ ThreadData* ThreadData::Get() {
   // We must be a worker thread, since we didn't pre-register.
   ThreadData* worker_thread_data = NULL;
   {
-    base::AutoLock lock(list_lock_);
+    base::AutoLock lock(*list_lock_);
     if (!unregistered_thread_data_pool_->empty()) {
       worker_thread_data =
         const_cast<ThreadData*>(unregistered_thread_data_pool_->top());
@@ -203,13 +211,13 @@ void ThreadData::OnThreadTerminationCleanup() const {
   tls_index_.Set(NULL);
   if (!is_a_worker_thread_)
     return;
-  base::AutoLock lock(list_lock_);
+  base::AutoLock lock(*list_lock_);
   unregistered_thread_data_pool_->push(this);
 }
 
 // static
 void ThreadData::WriteHTML(const std::string& query, std::string* output) {
-  if (!ThreadData::IsActive())
+  if (!ThreadData::tracking_status())
     return;  // Not yet initialized.
 
   DataCollector collected_data;  // Gather data.
@@ -316,13 +324,12 @@ void ThreadData::WriteHTMLTotalAndSubtotals(
 }
 
 // static
-base::Value* ThreadData::ToValue(int process_type) {
+base::DictionaryValue* ThreadData::ToValue() {
   DataCollector collected_data;  // Gather data.
   collected_data.AddListOfLivingObjects();  // Add births that are still alive.
   base::ListValue* list = collected_data.ToValue();
   base::DictionaryValue* dictionary = new base::DictionaryValue();
   dictionary->Set("list", list);
-  dictionary->SetInteger("process", process_type);
   return dictionary;
 }
 
@@ -342,8 +349,8 @@ Births* ThreadData::TallyABirth(const Location& location) {
 }
 
 void ThreadData::TallyADeath(const Births& birth,
-                             const TimeDelta& queue_duration,
-                             const TimeDelta& run_duration) {
+                             const Duration& queue_duration,
+                             const Duration& run_duration) {
   DeathMap::iterator it = death_map_.find(&birth);
   DeathData* death_data;
   if (it != death_map_.end()) {
@@ -360,7 +367,7 @@ Births* ThreadData::TallyABirthIfActive(const Location& location) {
   if (!kTrackAllTaskObjects)
     return NULL;  // Not compiled in.
 
-  if (!IsActive())
+  if (!tracking_status())
     return NULL;
   ThreadData* current_thread_data = Get();
   if (!current_thread_data)
@@ -369,37 +376,74 @@ Births* ThreadData::TallyABirthIfActive(const Location& location) {
 }
 
 // static
-void ThreadData::TallyADeathIfActive(const Births* birth,
-                                     const base::TimeTicks& time_posted,
-                                     const base::TimeTicks& delayed_start_time,
-                                     const base::TimeTicks& start_of_run,
-                                     const base::TimeTicks& end_of_run) {
+void ThreadData::TallyRunOnNamedThreadIfTracking(
+    const MessageLoop::TrackingInfo& completed_task,
+    const TrackedTime& start_of_run,
+    const TrackedTime& end_of_run) {
   if (!kTrackAllTaskObjects)
     return;  // Not compiled in.
 
-  if (!IsActive() || !birth)
+  // Even if we have been DEACTIVATED, we will process any pending births so
+  // that our data structures (which counted the outstanding births) remain
+  // consistent.
+  const Births* birth = completed_task.birth_tally;
+  if (!birth)
     return;
-
   ThreadData* current_thread_data = Get();
   if (!current_thread_data)
     return;
 
   // To avoid conflating our stats with the delay duration in a PostDelayedTask,
   // we identify such tasks, and replace their post_time with the time they
-  // were sechudled (requested?) to emerge from the delayed task queue. This
+  // were scheduled (requested?) to emerge from the delayed task queue. This
   // means that queueing delay for such tasks will show how long they went
   // unserviced, after they *could* be serviced.  This is the same stat as we
   // have for non-delayed tasks, and we consistently call it queueing delay.
-  base::TimeTicks effective_post_time =
-      (delayed_start_time.is_null()) ? time_posted : delayed_start_time;
-  base::TimeDelta queue_duration = start_of_run - effective_post_time;
-  base::TimeDelta run_duration = end_of_run - start_of_run;
+  TrackedTime effective_post_time = completed_task.delayed_run_time.is_null()
+      ? tracked_objects::TrackedTime(completed_task.time_posted)
+      : tracked_objects::TrackedTime(completed_task.delayed_run_time);
+
+  Duration queue_duration = start_of_run - effective_post_time;
+  Duration run_duration = end_of_run - start_of_run;
+  current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
+}
+
+// static
+void ThreadData::TallyRunOnWorkerThreadIfTracking(
+    const Births* birth,
+    const TrackedTime& time_posted,
+    const TrackedTime& start_of_run,
+    const TrackedTime& end_of_run) {
+  if (!kTrackAllTaskObjects)
+    return;  // Not compiled in.
+
+  // Even if we have been DEACTIVATED, we will process any pending births so
+  // that our data structures (which counted the outstanding births) remain
+  // consistent.
+  if (!birth)
+    return;
+
+  // TODO(jar): Support the option to coalesce all worker-thread activity under
+  // one ThreadData instance that uses locks to protect *all* access.  This will
+  // reduce memory (making it provably bounded), but run incrementally slower
+  // (since we'll use locks on TallyBirth and TallyDeath).  The good news is
+  // that the locks on TallyDeath will be *after* the worker thread has run, and
+  // hence nothing will be waiting for the completion (... besides some other
+  // thread that might like to run).  Also, the worker threads tasks are
+  // generally longer, and hence the cost of the lock may perchance be amortized
+  // over the long task's lifetime.
+  ThreadData* current_thread_data = Get();
+  if (!current_thread_data)
+    return;
+
+  Duration queue_duration = start_of_run - time_posted;
+  Duration run_duration = end_of_run - start_of_run;
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
 }
 
 // static
 ThreadData* ThreadData::first() {
-  base::AutoLock lock(list_lock_);
+  base::AutoLock lock(*list_lock_);
   return all_thread_data_list_head_;
 }
 
@@ -439,52 +483,47 @@ void ThreadData::Reset() {
     it->second->Clear();
 }
 
-// static
-bool ThreadData::StartTracking(bool status) {
+bool ThreadData::Initialize() {
   if (!kTrackAllTaskObjects)
     return false;  // Not compiled in.
-
-  // Do a bit of class initialization.
-  if (!unregistered_thread_data_pool_) {
-    ThreadDataPool* initial_pool = new ThreadDataPool;
-    {
-      base::AutoLock lock(list_lock_);
-      if (!unregistered_thread_data_pool_) {
-        unregistered_thread_data_pool_ = initial_pool;
-        initial_pool = NULL;
-      }
-    }
-    delete initial_pool;  // In case it was not used.
-  }
-
-  // Perform the "real" initialization now, and leave it intact through
+  if (status_ != UNINITIALIZED)
+    return true;
+  // Initialize all leaking constants that are difficult to toggle in and out
+  // of existance.
+  // First call must be made when single threaded at startup.
+  // Perform the "real" TLS initialization now, and leave it intact through
   // process termination.
-  if (!tls_index_.initialized())
+  if (!tls_index_.initialized())  // Testing may have initialized this.
     tls_index_.Initialize(&ThreadData::OnThreadTermination);
   DCHECK(tls_index_.initialized());
-
-  if (!status) {
-    base::AutoLock lock(list_lock_);
-    DCHECK(status_ == ACTIVE || status_ == SHUTDOWN);
-    status_ = SHUTDOWN;
-    return true;
-  }
-  base::AutoLock lock(list_lock_);
-  DCHECK_EQ(UNINITIALIZED, status_);
-  status_ = ACTIVE;
+  unregistered_thread_data_pool_ = new ThreadDataPool;
+  // TODO(jar): A linker initialized spin lock would be much safer than this
+  // allocation, which relies on being called while single threaded.
+  if (!list_lock_)  // In case testing deleted this.
+    list_lock_ = new base::Lock;
+  status_ = kInitialStartupState;
   return true;
 }
 
 // static
-bool ThreadData::IsActive() {
+bool ThreadData::InitializeAndSetTrackingStatus(bool status) {
+  if (!Initialize())  // No-op if already initialized.
+    return false;  // Not compiled in.
+
+  status_ = status ? ACTIVE : DEACTIVATED;
+  return true;
+}
+
+// static
+bool ThreadData::tracking_status() {
   return status_ == ACTIVE;
 }
 
 // static
-base::TimeTicks ThreadData::Now() {
-  if (kTrackAllTaskObjects && status_ == ACTIVE)
-    return base::TimeTicks::Now();
-  return base::TimeTicks();  // Super fast when disabled, or not compiled in.
+TrackedTime ThreadData::Now() {
+  if (!kTrackAllTaskObjects || status_ != ACTIVE)
+    return TrackedTime();  // Super fast when disabled, or not compiled.
+  return TrackedTime::Now();
 }
 
 // static
@@ -492,12 +531,12 @@ void ThreadData::ShutdownSingleThreadedCleanup() {
   // This is only called from test code, where we need to cleanup so that
   // additional tests can be run.
   // We must be single threaded... but be careful anyway.
-  if (!StartTracking(false))
+  if (!InitializeAndSetTrackingStatus(false))
     return;
   ThreadData* thread_data_list;
   ThreadDataPool* final_pool;
   {
-    base::AutoLock lock(list_lock_);
+    base::AutoLock lock(*list_lock_);
     thread_data_list = all_thread_data_list_head_;
     all_thread_data_list_head_ = NULL;
     final_pool = unregistered_thread_data_pool_;
@@ -574,15 +613,13 @@ base::DictionaryValue* Snapshot::ToValue() const {
   return dictionary;
 }
 
-void Snapshot::Add(const Snapshot& other) {
-  death_data_.AddDeathData(other.death_data_);
-}
-
 //------------------------------------------------------------------------------
 // DataCollector
 
 DataCollector::DataCollector() {
-  if (!ThreadData::IsActive())
+  if (!kTrackAllTaskObjects)
+    return;  // Not compiled in.
+  if (!ThreadData::tracking_status())
     return;
 
   // Get an unchanging copy of a ThreadData list.
@@ -738,6 +775,35 @@ void Comparator::Clear() {
   }
   use_tiebreaker_for_sort_only_ = false;
   selector_ = NIL;
+}
+
+// static
+Comparator::Selector Comparator::FindSelector(const std::string& keyword) {
+  // Sorting and aggretation keywords, which specify how to sort the data, or
+  // can specify a required match from the specified field in the record.
+  if (0 == keyword.compare("count"))
+    return COUNT;
+  if (0 == keyword.compare("totalduration"))
+    return TOTAL_RUN_DURATION;
+  if (0 == keyword.compare("duration"))
+    return AVERAGE_RUN_DURATION;
+  if (0 == keyword.compare("totalqueueduration"))
+    return TOTAL_QUEUE_DURATION;
+  if (0 == keyword.compare("averagequeueduration"))
+    return AVERAGE_QUEUE_DURATION;
+  if (0 == keyword.compare("birth"))
+    return BIRTH_THREAD;
+  if (0 == keyword.compare("death"))
+    return DEATH_THREAD;
+  if (0 == keyword.compare("file"))
+    return BIRTH_FILE;
+  if (0 == keyword.compare("function"))
+    return BIRTH_FUNCTION;
+  if (0 == keyword.compare("line"))
+    return BIRTH_LINE;
+  if (0 == keyword.compare("reset"))
+    return RESET_ALL_DATA;
+  return UNKNOWN_KEYWORD;
 }
 
 bool Comparator::operator()(const Snapshot& left,
@@ -956,28 +1022,6 @@ void Comparator::SetSubgroupTiebreaker(Selector selector) {
 }
 
 void Comparator::ParseKeyphrase(const std::string& key_phrase) {
-  typedef std::map<const std::string, Selector> KeyMap;
-  static KeyMap key_map;
-  static bool initialized = false;
-  if (!initialized) {
-    initialized = true;
-    // Sorting and aggretation keywords, which specify how to sort the data, or
-    // can specify a required match from the specified field in the record.
-    key_map["count"]                = COUNT;
-    key_map["totalduration"]        = TOTAL_RUN_DURATION;
-    key_map["duration"]             = AVERAGE_RUN_DURATION;
-    key_map["totalqueueduration"]   = TOTAL_QUEUE_DURATION;
-    key_map["averagequeueduration"] = AVERAGE_QUEUE_DURATION;
-    key_map["birth"]                = BIRTH_THREAD;
-    key_map["death"]                = DEATH_THREAD;
-    key_map["file"]                 = BIRTH_FILE;
-    key_map["function"]             = BIRTH_FUNCTION;
-    key_map["line"]                 = BIRTH_LINE;
-
-    // Immediate commands that do not involve setting sort order.
-    key_map["reset"]     = RESET_ALL_DATA;
-  }
-
   std::string required;
   // Watch for: "sort_key=value" as we parse.
   size_t equal_offset = key_phrase.find('=', 0);
@@ -987,13 +1031,14 @@ void Comparator::ParseKeyphrase(const std::string& key_phrase) {
   }
   std::string keyword(key_phrase.substr(0, equal_offset));
   keyword = StringToLowerASCII(keyword);
-  KeyMap::iterator it = key_map.find(keyword);
-  if (key_map.end() == it)
-    return;  // Unknown keyword.
-  if (it->second == RESET_ALL_DATA)
+  Selector selector = FindSelector(keyword);
+  if (selector == UNKNOWN_KEYWORD)
+    return;
+  if (selector == RESET_ALL_DATA) {
     ThreadData::ResetAllThreadData();
-  else
-    SetTiebreaker(key_map[keyword], required);
+    return;
+  }
+  SetTiebreaker(selector, required);
 }
 
 bool Comparator::ParseQuery(const std::string& query) {
