@@ -62,20 +62,18 @@ NetLog::EventType EventTypeFromAuthTarget(HttpAuth::Target target) {
 
 }  // namespace
 
-int HttpAuthHandler::GenerateAuthToken(const string16* username,
-                                       const string16* password,
+int HttpAuthHandler::GenerateAuthToken(const AuthCredentials* credentials,
                                        const HttpRequestInfo* request,
                                        OldCompletionCallback* callback,
                                        std::string* auth_token) {
   // TODO(cbentzel): Enforce non-NULL callback after cleaning up SocketStream.
   DCHECK(request);
-  DCHECK((username == NULL) == (password == NULL));
-  DCHECK(username != NULL || AllowsDefaultCredentials());
+  DCHECK(credentials != NULL || AllowsDefaultCredentials());
   DCHECK(auth_token != NULL);
   DCHECK(original_callback_ == NULL);
   original_callback_ = callback;
   net_log_.BeginEvent(EventTypeFromAuthTarget(target_), NULL);
-  int rv = GenerateAuthTokenImpl(username, password, request,
+  int rv = GenerateAuthTokenImpl(credentials, request,
                                  &wrapper_callback_, auth_token);
   if (rv != ERR_IO_PENDING)
     FinishGenerateAuthToken();

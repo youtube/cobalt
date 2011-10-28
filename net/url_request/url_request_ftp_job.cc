@@ -107,9 +107,7 @@ void URLRequestFtpJob::OnStartCompleted(int result) {
     GURL origin = request_->url().GetOrigin();
     if (server_auth_ && server_auth_->state == AUTH_STATE_HAVE_AUTH) {
       request_->context()->ftp_auth_cache()->Remove(
-          origin,
-          server_auth_->credentials.username,
-          server_auth_->credentials.password);
+          origin, server_auth_->credentials);
     } else if (!server_auth_) {
       server_auth_ = new AuthData();
     }
@@ -120,8 +118,7 @@ void URLRequestFtpJob::OnStartCompleted(int result) {
 
     if (cached_auth) {
       // Retry using cached auth data.
-      SetAuth(cached_auth->username,
-              cached_auth->password);
+      SetAuth(cached_auth->credentials);
     } else {
       // Prompt for a username/password.
       NotifyHeadersComplete();
@@ -151,8 +148,7 @@ void URLRequestFtpJob::RestartTransactionWithAuth() {
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  int rv = transaction_->RestartWithAuth(server_auth_->credentials.username,
-                                         server_auth_->credentials.password,
+  int rv = transaction_->RestartWithAuth(server_auth_->credentials,
                                          &start_callback_);
   if (rv == ERR_IO_PENDING)
     return;
@@ -203,15 +199,13 @@ void URLRequestFtpJob::GetAuthChallengeInfo(
   result->swap(auth_info);
 }
 
-void URLRequestFtpJob::SetAuth(const string16& username,
-                               const string16& password) {
+void URLRequestFtpJob::SetAuth(const AuthCredentials& credentials) {
   DCHECK(NeedsAuth());
   server_auth_->state = AUTH_STATE_HAVE_AUTH;
-  server_auth_->credentials.username = username;
-  server_auth_->credentials.password = password;
+  server_auth_->credentials = credentials;
 
   request_->context()->ftp_auth_cache()->Add(request_->url().GetOrigin(),
-                                             username, password);
+                                             server_auth_->credentials);
 
   RestartTransactionWithAuth();
 }

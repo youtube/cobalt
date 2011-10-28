@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,20 +29,18 @@ bool HttpAuthHandlerNTLM::Init(HttpAuth::ChallengeTokenizer* tok) {
 }
 
 int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
-    const string16* username,
-    const string16* password,
+    const AuthCredentials* credentials,
     const HttpRequestInfo* request,
     OldCompletionCallback* callback,
     std::string* auth_token) {
 #if defined(NTLM_SSPI)
   return auth_sspi_.GenerateAuthToken(
-      username,
-      password,
+      credentials,
       CreateSPN(origin_),
       auth_token);
 #else  // !defined(NTLM_SSPI)
   // TODO(cbentzel): Shouldn't be hitting this case.
-  if (!username || !password) {
+  if (!credentials) {
     LOG(ERROR) << "Username and password are expected to be non-NULL.";
     return ERR_MISSING_AUTH_CREDENTIALS;
   }
@@ -54,21 +52,21 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
   uint32 in_buf_len, out_buf_len;
   std::string decoded_auth_data;
 
-  // |username| may be in the form "DOMAIN\user".  Parse it into the two
+  // The username may be in the form "DOMAIN\user".  Parse it into the two
   // components.
   string16 domain;
   string16 user;
+  const string16& username = credentials->username();
   const char16 backslash_character = '\\';
-  size_t backslash_idx = username->find(backslash_character);
+  size_t backslash_idx = username.find(backslash_character);
   if (backslash_idx == string16::npos) {
-    user = *username;
+    user = username;
   } else {
-    domain = username->substr(0, backslash_idx);
-    user = username->substr(backslash_idx + 1);
+    domain = username.substr(0, backslash_idx);
+    user = username.substr(backslash_idx + 1);
   }
   domain_ = domain;
-  username_ = user;
-  password_ = *password;
+  credentials_.Set(user, credentials->password());
 
   // Initial challenge.
   if (auth_data_.empty()) {

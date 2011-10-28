@@ -67,10 +67,9 @@ bool RespondToChallenge(HttpAuth::Target target,
   TestOldCompletionCallback callback;
   scoped_ptr<HttpRequestInfo> request(new HttpRequestInfo());
   request->url = GURL(request_url);
-  const string16 kFoo = ASCIIToUTF16("foo");
-  const string16 kBar = ASCIIToUTF16("bar");
+  AuthCredentials credentials(ASCIIToUTF16("foo"), ASCIIToUTF16("bar"));
   int rv_generate = handler->GenerateAuthToken(
-      &kFoo, &kBar, request.get(), &callback, token);
+      &credentials, request.get(), &callback, token);
   if (rv_generate != OK) {
     ADD_FAILURE() << "Problems generating auth token";
     return false;
@@ -530,8 +529,9 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
     std::string creds =
         digest->AssembleCredentials(tests[i].req_method,
                                     tests[i].req_path,
-                                    ASCIIToUTF16(tests[i].username),
-                                    ASCIIToUTF16(tests[i].password),
+                                    AuthCredentials(
+                                        ASCIIToUTF16(tests[i].username),
+                                        ASCIIToUTF16(tests[i].password)),
                                     tests[i].cnonce,
                                     tests[i].nonce_count);
 

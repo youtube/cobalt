@@ -12,8 +12,8 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/string16.h"
 #include "net/base/address_list.h"
+#include "net/base/auth.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/single_request_host_resolver.h"
@@ -40,8 +40,7 @@ class NET_EXPORT_PRIVATE FtpNetworkTransaction : public FtpTransaction {
   virtual int Start(const FtpRequestInfo* request_info,
                     OldCompletionCallback* callback,
                     const BoundNetLog& net_log) OVERRIDE;
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
+  virtual int RestartWithAuth(const AuthCredentials& credentials,
                               OldCompletionCallback* callback) OVERRIDE;
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback)
       OVERRIDE;
@@ -232,8 +231,7 @@ class NET_EXPORT_PRIVATE FtpNetworkTransaction : public FtpTransaction {
   // EPSV fail, we fall back to PASV for the duration of connection.
   bool use_epsv_;
 
-  string16 username_;
-  string16 password_;
+  AuthCredentials credentials_;
 
   // Current directory on the remote server, as returned by last PWD command,
   // with any trailing slash removed.

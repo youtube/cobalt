@@ -62,9 +62,8 @@ void SocketStreamJob::Close() {
   socket_->Close();
 }
 
-void SocketStreamJob::RestartWithAuth(const string16& username,
-                                      const string16& password) {
-  socket_->RestartWithAuth(username, password);
+void SocketStreamJob::RestartWithAuth(const AuthCredentials& credentials) {
+  socket_->RestartWithAuth(credentials);
 }
 
 void SocketStreamJob::DetachDelegate() {

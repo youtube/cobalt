@@ -8,7 +8,6 @@
 
 #include <string>
 
-#include "base/string16.h"
 #include "base/task.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
@@ -46,15 +45,14 @@ class URLRequestFtpJob : public URLRequestJob {
   void LogFtpServerType(char server_type);
 
   // Overridden from URLRequestJob:
-  virtual void Start();
-  virtual void Kill();
-  virtual LoadState GetLoadState() const;
-  virtual bool NeedsAuth();
+  virtual void Start() OVERRIDE;
+  virtual void Kill() OVERRIDE;
+  virtual LoadState GetLoadState() const OVERRIDE;
+  virtual bool NeedsAuth() OVERRIDE;
   virtual void GetAuthChallengeInfo(
-      scoped_refptr<AuthChallengeInfo>* auth_info);
-  virtual void SetAuth(const string16& username,
-                       const string16& password);
-  virtual void CancelAuth();
+      scoped_refptr<AuthChallengeInfo>* auth_info) OVERRIDE;
+  virtual void SetAuth(const AuthCredentials& credentials) OVERRIDE;
+  virtual void CancelAuth() OVERRIDE;
 
   // TODO(ibrar):  Yet to give another look at this function.
   virtual uint64 GetUploadProgress() const;

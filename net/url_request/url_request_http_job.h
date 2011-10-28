@@ -12,7 +12,6 @@
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/string16.h"
 #include "base/task.h"
 #include "base/time.h"
 #include "net/base/auth.h"
@@ -62,8 +61,7 @@ class URLRequestHttpJob : public URLRequestJob {
   void OnReadCompleted(int result);
   void NotifyBeforeSendHeadersCallback(int result);
 
-  void RestartTransactionWithAuth(const string16& username,
-                                  const string16& password);
+  void RestartTransactionWithAuth(const AuthCredentials& credentials);
 
   // Overridden from URLRequestJob:
   virtual void SetUpload(UploadData* upload) OVERRIDE;
@@ -82,8 +80,7 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual bool IsSafeRedirect(const GURL& location) OVERRIDE;
   virtual bool NeedsAuth() OVERRIDE;
   virtual void GetAuthChallengeInfo(scoped_refptr<AuthChallengeInfo>*) OVERRIDE;
-  virtual void SetAuth(const string16& username,
-                       const string16& password) OVERRIDE;
+  virtual void SetAuth(const AuthCredentials& credentials) OVERRIDE;
   virtual void CancelAuth() OVERRIDE;
   virtual void ContinueWithCertificate(X509Certificate* client_cert) OVERRIDE;
   virtual void ContinueDespiteLastError() OVERRIDE;
@@ -107,9 +104,7 @@ class URLRequestHttpJob : public URLRequestJob {
   // Auth states for proxy and origin server.
   AuthState proxy_auth_state_;
   AuthState server_auth_state_;
-
-  string16 username_;
-  string16 password_;
+  AuthCredentials auth_credentials_;
 
   OldCompletionCallbackImpl<URLRequestHttpJob> start_callback_;
   OldCompletionCallbackImpl<URLRequestHttpJob> read_callback_;

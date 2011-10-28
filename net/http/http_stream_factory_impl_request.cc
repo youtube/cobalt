@@ -196,10 +196,9 @@ void HttpStreamFactoryImpl::Request::OnHttpsProxyTunnelResponse(
 }
 
 int HttpStreamFactoryImpl::Request::RestartTunnelWithProxyAuth(
-    const string16& username,
-    const string16& password) {
+    const AuthCredentials& credentials) {
   DCHECK(bound_job_.get());
-  return bound_job_->RestartTunnelWithProxyAuth(username, password);
+  return bound_job_->RestartTunnelWithProxyAuth(credentials);
 }
 
 LoadState HttpStreamFactoryImpl::Request::GetLoadState() const {

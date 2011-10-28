@@ -142,11 +142,9 @@ class NET_EXPORT_PRIVATE HttpAuthSSPI {
   // If the return value is not |OK|, then the value of |*auth_token| is
   // unspecified. ERR_IO_PENDING is not a valid return code.
   // If this is the first round of a multiple round scheme, credentials are
-  // obtained using |*username| and |*password|. If |username| and |password|
-  // are both NULL, the credentials for the currently logged in user are used
-  // instead.
-  int GenerateAuthToken(const string16* username,
-                        const string16* password,
+  // obtained using |*credentials|. If |credentials| is NULL, the credentials
+  // for the currently logged in user are used instead.
+  int GenerateAuthToken(const AuthCredentials* credentials,
                         const std::wstring& spn,
                         std::string* auth_token);
 
@@ -156,7 +154,7 @@ class NET_EXPORT_PRIVATE HttpAuthSSPI {
   void Delegate();
 
  private:
-  int OnFirstRound(const string16* username, const string16* password);
+  int OnFirstRound(const AuthCredentials* credentials);
 
   int GetNextSecurityToken(
       const std::wstring& spn,
