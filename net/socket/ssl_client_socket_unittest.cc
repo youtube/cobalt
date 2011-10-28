@@ -300,6 +300,13 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
   log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1));
 
+  // We responded to the server's certificate request with a Certificate
+  // message with no client certificate in it.  ssl_info.client_cert_sent
+  // should be false in this case.
+  net::SSLInfo ssl_info;
+  sock->GetSSLInfo(&ssl_info);
+  EXPECT_FALSE(ssl_info.client_cert_sent);
+
   sock->Disconnect();
   EXPECT_FALSE(sock->IsConnected());
 }

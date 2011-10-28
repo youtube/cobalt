@@ -25,9 +25,10 @@ SSLInfo& SSLInfo::operator=(const SSLInfo& info) {
   cert_status = info.cert_status;
   security_bits = info.security_bits;
   connection_status = info.connection_status;
-  public_key_hashes = info.public_key_hashes;
   is_issued_by_known_root = info.is_issued_by_known_root;
+  client_cert_sent = info.client_cert_sent;
   handshake_type = info.handshake_type;
+  public_key_hashes = info.public_key_hashes;
   return *this;
 }
 
@@ -37,8 +38,9 @@ void SSLInfo::Reset() {
   security_bits = -1;
   connection_status = 0;
   is_issued_by_known_root = false;
-  public_key_hashes.clear();
+  client_cert_sent = false;
   handshake_type = HANDSHAKE_UNKNOWN;
+  public_key_hashes.clear();
 }
 
 void SSLInfo::SetCertError(int error) {
