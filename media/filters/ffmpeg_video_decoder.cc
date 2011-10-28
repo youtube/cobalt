@@ -4,21 +4,17 @@
 
 #include "media/filters/ffmpeg_video_decoder.h"
 
-#include <deque>
-
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/message_loop.h"
 #include "base/task.h"
 #include "media/base/demuxer_stream.h"
-#include "media/base/filters.h"
 #include "media/base/filter_host.h"
 #include "media/base/limits.h"
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/video/ffmpeg_video_decode_engine.h"
 #include "media/video/video_decode_context.h"
-#include "ui/gfx/rect.h"
 
 namespace media {
 

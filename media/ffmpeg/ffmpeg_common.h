@@ -9,13 +9,10 @@
 #include <cerrno>
 
 #include "base/compiler_specific.h"
-#include "base/memory/singleton.h"
 #include "base/time.h"
-#include "media/base/audio_decoder_config.h"
 #include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
-#include "media/video/video_decode_engine.h"
-#include "ui/gfx/size.h"
+#include "media/base/video_frame.h"
 
 // Include FFmpeg header files.
 extern "C" {
@@ -31,6 +28,9 @@ MSVC_POP_WARNING();
 }  // extern "C"
 
 namespace media {
+
+class AudioDecoderConfig;
+class VideoDecoderConfig;
 
 // Wraps FFmpeg's av_free() in a class that can be passed as a template argument
 // to scoped_ptr_malloc.

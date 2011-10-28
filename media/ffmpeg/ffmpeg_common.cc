@@ -5,6 +5,8 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 
 #include "base/logging.h"
+#include "media/base/audio_decoder_config.h"
+#include "media/base/video_decoder_config.h"
 
 namespace media {
 
