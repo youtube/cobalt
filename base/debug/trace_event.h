@@ -102,6 +102,7 @@
 
 #include "base/callback.h"
 #include "base/hash_tables.h"
+#include "base/memory/ref_counted_memory.h"
 #include "base/memory/singleton.h"
 #include "base/string_util.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
@@ -419,6 +420,10 @@ class BASE_EXPORT TraceValue {
     return value;
   }
 
+  bool is_string() const {
+    return type_ == TRACE_TYPE_STRING || type_ == TRACE_TYPE_STATIC_STRING;
+  }
+
   void AppendAsJSON(std::string* out) const;
 
   Type type() const {
@@ -445,7 +450,7 @@ class BASE_EXPORT TraceValue {
     return value_.as_pointer;
   }
   const char* as_string() const {
-    DCHECK(type_ == TRACE_TYPE_STRING || type_ == TRACE_TYPE_STATIC_STRING);
+    DCHECK(is_string());
     return value_.as_string;
   }
   const char** as_assignable_string() {
@@ -471,7 +476,7 @@ class BASE_EXPORT TraceValue {
 // OutputCallback whenever the tracing system decides to flush. This
 // can happen at any time, on any thread, or you can programatically
 // force it to happen.
-class TraceEvent {
+class BASE_EXPORT TraceEvent {
  public:
   TraceEvent();
   TraceEvent(unsigned long process_id,
@@ -484,6 +489,9 @@ class TraceEvent {
              const char* arg2_name, const TraceValue& arg2_val,
              bool copy);
   ~TraceEvent();
+
+  static const char* GetPhaseString(TraceEventPhase phase);
+  static TraceEventPhase GetPhase(const char* phase);
 
   // Serialize event data to JSON
   static void AppendEventsAsJSON(const std::vector<TraceEvent>& events,
