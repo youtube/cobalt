@@ -282,8 +282,7 @@ int HttpCache::Transaction::RestartWithCertificate(
 }
 
 int HttpCache::Transaction::RestartWithAuth(
-    const string16& username,
-    const string16& password,
+    const AuthCredentials& credentials,
     OldCompletionCallback* callback) {
   DCHECK(auth_response_.headers);
   DCHECK(callback);
@@ -297,7 +296,7 @@ int HttpCache::Transaction::RestartWithAuth(
   // Clear the intermediate response since we are going to start over.
   auth_response_ = HttpResponseInfo();
 
-  int rv = RestartNetworkRequestWithAuth(username, password);
+  int rv = RestartNetworkRequestWithAuth(credentials);
 
   if (rv == ERR_IO_PENDING)
     callback_ = callback;
@@ -1680,14 +1679,13 @@ int HttpCache::Transaction::RestartNetworkRequestWithCertificate(
 }
 
 int HttpCache::Transaction::RestartNetworkRequestWithAuth(
-    const string16& username,
-    const string16& password) {
+    const AuthCredentials& credentials) {
   DCHECK(mode_ & WRITE || mode_ == NONE);
   DCHECK(network_trans_.get());
   DCHECK_EQ(STATE_NONE, next_state_);
 
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
-  int rv = network_trans_->RestartWithAuth(username, password, &io_callback_);
+  int rv = network_trans_->RestartWithAuth(credentials, &io_callback_);
   if (rv != ERR_IO_PENDING)
     return DoLoop(rv);
   return rv;

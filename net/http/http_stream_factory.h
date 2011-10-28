@@ -19,6 +19,7 @@ class GURL;
 
 namespace net {
 
+class AuthCredentials;
 class BoundNetLog;
 class HostMappingRules;
 class HostPortPair;
@@ -132,8 +133,8 @@ class NET_EXPORT_PRIVATE HttpStreamRequest {
   // will have been called.  It now becomes the delegate's responsibility
   // to collect the necessary credentials, and then call this method to
   // resume the HttpStream creation process.
-  virtual int RestartTunnelWithProxyAuth(const string16& username,
-                                         const string16& password) = 0;
+  virtual int RestartTunnelWithProxyAuth(
+      const AuthCredentials& credentials) = 0;
 
   // Returns the LoadState for the request.
   virtual LoadState GetLoadState() const = 0;

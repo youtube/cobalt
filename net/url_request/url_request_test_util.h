@@ -107,8 +107,9 @@ class TestDelegate : public net::URLRequest::Delegate {
     allow_certificate_errors_ = val;
   }
   void set_cookie_options(int o) {cookie_options_bit_mask_ = o; }
-  void set_username(const string16& u) { username_ = u; }
-  void set_password(const string16& p) { password_ = p; }
+  void set_credentials(const net::AuthCredentials& credentials) {
+    credentials_ = credentials;
+  }
 
   // query state
   const std::string& data_received() const { return data_received_; }
@@ -156,9 +157,7 @@ class TestDelegate : public net::URLRequest::Delegate {
   bool quit_on_redirect_;
   bool allow_certificate_errors_;
   int cookie_options_bit_mask_;
-
-  string16 username_;
-  string16 password_;
+  net::AuthCredentials credentials_;
 
   // tracks status of callbacks
   int response_started_count_;

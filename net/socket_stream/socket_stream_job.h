@@ -9,7 +9,6 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/string16.h"
 #include "net/base/net_export.h"
 #include "net/socket_stream/socket_stream.h"
 
@@ -63,8 +62,7 @@ class NET_EXPORT SocketStreamJob
 
   virtual void Close();
 
-  virtual void RestartWithAuth(const string16& username,
-                               const string16& password);
+  virtual void RestartWithAuth(const AuthCredentials& credentials);
 
   virtual void DetachDelegate();
 

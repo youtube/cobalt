@@ -105,7 +105,7 @@ HttpAuthHandlerNegotiate::HttpAuthHandlerNegotiate(
           this, &HttpAuthHandlerNegotiate::OnIOComplete)),
       resolver_(resolver),
       already_called_(false),
-      has_username_and_password_(false),
+      has_credentials_(false),
       user_callback_(NULL),
       auth_token_(NULL),
       next_state_(STATE_NONE),
@@ -212,26 +212,22 @@ bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
 }
 
 int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
-    const string16* username,
-    const string16* password,
+    const AuthCredentials* credentials,
     const HttpRequestInfo* request,
     OldCompletionCallback* callback,
     std::string* auth_token) {
   DCHECK(user_callback_ == NULL);
-  DCHECK((username == NULL) == (password == NULL));
   DCHECK(auth_token_ == NULL);
   auth_token_ = auth_token;
   if (already_called_) {
-    DCHECK((!has_username_and_password_ && username == NULL) ||
-           (has_username_and_password_ && *username == username_ &&
-            *password == password_));
+    DCHECK((!has_credentials_ && credentials == NULL) ||
+           (has_credentials_ && credentials->Equals(credentials_)));
     next_state_ = STATE_GENERATE_AUTH_TOKEN;
   } else {
     already_called_ = true;
-    if (username) {
-      has_username_and_password_ = true;
-      username_ = *username;
-      password_ = *password;
+    if (credentials) {
+      has_credentials_ = true;
+      credentials_ = *credentials;
     }
     next_state_ = STATE_RESOLVE_CANONICAL_NAME;
   }
@@ -319,10 +315,9 @@ int HttpAuthHandlerNegotiate::DoResolveCanonicalNameComplete(int rv) {
 
 int HttpAuthHandlerNegotiate::DoGenerateAuthToken() {
   next_state_ = STATE_GENERATE_AUTH_TOKEN_COMPLETE;
-  string16* username = has_username_and_password_ ? &username_ : NULL;
-  string16* password = has_username_and_password_ ? &password_ : NULL;
+  AuthCredentials* credentials = has_credentials_ ? &credentials_ : NULL;
   // TODO(cbentzel): This should possibly be done async.
-  return auth_system_.GenerateAuthToken(username, password, spn_, auth_token_);
+  return auth_system_.GenerateAuthToken(credentials, spn_, auth_token_);
 }
 
 int HttpAuthHandlerNegotiate::DoGenerateAuthTokenComplete(int rv) {

@@ -252,6 +252,8 @@
         'base/x509_util_nss.h',
         'base/x509_util_openssl.cc',
         'base/x509_util_openssl.h',
+        'base/zap.cc',
+        'base/zap.h',
         'disk_cache/addr.cc',
         'disk_cache/addr.h',
         'disk_cache/backend_impl.cc',

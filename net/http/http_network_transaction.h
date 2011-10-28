@@ -47,9 +47,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   virtual int RestartIgnoringLastError(OldCompletionCallback* callback);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
                                      OldCompletionCallback* callback);
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
-                              OldCompletionCallback* callback);
+  virtual int RestartWithAuth(const AuthCredentials& credentials,
+                              OldCompletionCallback* callback) OVERRIDE;
   virtual bool IsReadyToRestartForAuth();
 
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);

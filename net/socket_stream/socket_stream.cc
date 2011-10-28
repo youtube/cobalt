@@ -206,8 +206,7 @@ void SocketStream::Close() {
       NewRunnableMethod(this, &SocketStream::DoClose));
 }
 
-void SocketStream::RestartWithAuth(
-    const string16& username, const string16& password) {
+void SocketStream::RestartWithAuth(const AuthCredentials& credentials) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
@@ -219,11 +218,10 @@ void SocketStream::RestartWithAuth(
   }
 
   if (auth_identity_.invalid) {
-    // Update the username/password.
+    // Update the credentials.
     auth_identity_.source = HttpAuth::IDENT_SRC_EXTERNAL;
     auth_identity_.invalid = false;
-    auth_identity_.username = username;
-    auth_identity_.password = password;
+    auth_identity_.credentials = credentials;
   }
 
   MessageLoop::current()->PostTask(
@@ -713,8 +711,7 @@ int SocketStream::DoWriteTunnelHeaders() {
         if (rv_create == OK) {
           auth_identity_.source = HttpAuth::IDENT_SRC_PATH_LOOKUP;
           auth_identity_.invalid = false;
-          auth_identity_.username = entry->username();
-          auth_identity_.password = entry->password();
+          auth_identity_.credentials = AuthCredentials();
           auth_handler_.swap(handler_preemptive);
         }
       }
@@ -728,8 +725,7 @@ int SocketStream::DoWriteTunnelHeaders() {
       HttpRequestInfo request_info;
       std::string auth_token;
       int rv = auth_handler_->GenerateAuthToken(
-          &auth_identity_.username,
-          &auth_identity_.password,
+          &auth_identity_.credentials,
           &request_info,
           NULL,
           &auth_token);
@@ -1061,8 +1057,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
       auth_cache_.Remove(auth_origin,
                          auth_handler_->realm(),
                          auth_handler_->auth_scheme(),
-                         auth_identity_.username,
-                         auth_identity_.password);
+                         auth_identity_.credentials);
     auth_handler_.reset();
     auth_identity_ = HttpAuth::Identity();
   }
@@ -1085,8 +1080,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
     if (entry) {
       auth_identity_.source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
       auth_identity_.invalid = false;
-      auth_identity_.username = entry->username();
-      auth_identity_.password = entry->password();
+      auth_identity_.credentials = AuthCredentials();
       // Restart with auth info.
     }
     return ERR_PROXY_AUTH_UNSUPPORTED;
@@ -1156,8 +1150,7 @@ void SocketStream::DoRestartWithAuth() {
                   auth_handler_->realm(),
                   auth_handler_->auth_scheme(),
                   auth_handler_->challenge(),
-                  auth_identity_.username,
-                  auth_identity_.password,
+                  auth_identity_.credentials,
                   std::string());
 
   tunnel_request_headers_ = NULL;

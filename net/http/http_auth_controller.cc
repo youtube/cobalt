@@ -179,16 +179,12 @@ int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
   bool needs_auth = HaveAuth() || SelectPreemptiveAuth(net_log);
   if (!needs_auth)
     return OK;
-  const string16* username = NULL;
-  const string16* password = NULL;
-  if (identity_.source != HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS) {
-    username = &identity_.username;
-    password = &identity_.password;
-  }
+  const AuthCredentials* credentials = NULL;
+  if (identity_.source != HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS)
+    credentials = &identity_.credentials;
   DCHECK(auth_token_.empty());
   DCHECK(NULL == user_callback_);
-  int rv = handler_->GenerateAuthToken(username,
-                                       password,
+  int rv = handler_->GenerateAuthToken(credentials,
                                        request,
                                        &io_callback_,
                                        &auth_token_);
@@ -206,7 +202,7 @@ bool HttpAuthController::SelectPreemptiveAuth(const BoundNetLog& net_log) {
   DCHECK(!HaveAuth());
   DCHECK(identity_.invalid);
 
-  // Don't do preemptive authorization if the URL contains a username/password,
+  // Don't do preemptive authorization if the URL contains a username:password,
   // since we must first be challenged in order to use the URL's identity.
   if (auth_url_.has_username())
     return false;
@@ -233,8 +229,7 @@ bool HttpAuthController::SelectPreemptiveAuth(const BoundNetLog& net_log) {
   // Set the state
   identity_.source = HttpAuth::IDENT_SRC_PATH_LOOKUP;
   identity_.invalid = false;
-  identity_.username = entry->username();
-  identity_.password = entry->password();
+  identity_.credentials = entry->credentials();
   handler_.swap(handler_preemptive);
   return true;
 }
@@ -381,17 +376,15 @@ int HttpAuthController::HandleAuthChallenge(
   return OK;
 }
 
-void HttpAuthController::ResetAuth(const string16& username,
-                                   const string16& password) {
+void HttpAuthController::ResetAuth(const AuthCredentials& credentials) {
   DCHECK(CalledOnValidThread());
-  DCHECK(identity_.invalid || (username.empty() && password.empty()));
+  DCHECK(identity_.invalid || credentials.Empty());
 
   if (identity_.invalid) {
-    // Update the username/password.
+    // Update the credentials.
     identity_.source = HttpAuth::IDENT_SRC_EXTERNAL;
     identity_.invalid = false;
-    identity_.username = username;
-    identity_.password = password;
+    identity_.credentials = credentials;
   }
 
   DCHECK(identity_.source != HttpAuth::IDENT_SRC_PATH_LOOKUP);
@@ -417,8 +410,7 @@ void HttpAuthController::ResetAuth(const string16& username,
     default:
       http_auth_cache_->Add(auth_origin_, handler_->realm(),
                             handler_->auth_scheme(), handler_->challenge(),
-                            identity_.username, identity_.password,
-                            auth_path_);
+                            identity_.credentials, auth_path_);
       break;
   }
 }
@@ -449,11 +441,10 @@ void HttpAuthController::InvalidateRejectedAuthFromCache() {
   DCHECK(HaveAuth());
 
   // Clear the cache entry for the identity we just failed on.
-  // Note: we require the username/password to match before invalidating
+  // Note: we require the credentials to match before invalidating
   // since the entry in the cache may be newer than what we used last time.
   http_auth_cache_->Remove(auth_origin_, handler_->realm(),
-                           handler_->auth_scheme(), identity_.username,
-                           identity_.password);
+                           handler_->auth_scheme(), identity_.credentials);
 }
 
 bool HttpAuthController::SelectNextAuthIdentityToTry() {
@@ -461,15 +452,16 @@ bool HttpAuthController::SelectNextAuthIdentityToTry() {
   DCHECK(handler_.get());
   DCHECK(identity_.invalid);
 
-  // Try to use the username/password encoded into the URL first.
+  // Try to use the username:password encoded into the URL first.
   if (target_ == HttpAuth::AUTH_SERVER && auth_url_.has_username() &&
       !embedded_identity_used_) {
     identity_.source = HttpAuth::IDENT_SRC_URL;
     identity_.invalid = false;
     // Extract the username:password from the URL.
-    GetIdentityFromURL(auth_url_,
-                       &identity_.username,
-                       &identity_.password);
+    string16 username;
+    string16 password;
+    GetIdentityFromURL(auth_url_, &username, &password);
+    identity_.credentials.Set(username, password);
     embedded_identity_used_ = true;
     // TODO(eroman): If the password is blank, should we also try combining
     // with a password from the cache?
@@ -484,8 +476,7 @@ bool HttpAuthController::SelectNextAuthIdentityToTry() {
   if (entry) {
     identity_.source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
     identity_.invalid = false;
-    identity_.username = entry->username();
-    identity_.password = entry->password();
+    identity_.credentials = entry->credentials();
     return true;
   }
 

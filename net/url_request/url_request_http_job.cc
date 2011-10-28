@@ -282,7 +282,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
     // URLRequestTestHTTP.BasicAuthWithCookies
     // where OnBeforeSendHeaders -> OnSendHeaders -> OnBeforeSendHeaders
     // occurs.
-    RestartTransactionWithAuth(string16(), string16());
+    RestartTransactionWithAuth(AuthCredentials());
     return;
   }
 
@@ -334,7 +334,7 @@ void URLRequestHttpJob::StartTransactionInternal() {
   // NOTE: This method assumes that request_info_ is already setup properly.
 
   // If we already have a transaction, then we should restart the transaction
-  // with auth provided by username_ and password_.
+  // with auth provided by auth_credentials_.
 
   int rv;
 
@@ -344,9 +344,8 @@ void URLRequestHttpJob::StartTransactionInternal() {
   }
 
   if (transaction_.get()) {
-    rv = transaction_->RestartWithAuth(username_, password_, &start_callback_);
-    username_.clear();
-    password_.clear();
+    rv = transaction_->RestartWithAuth(auth_credentials_, &start_callback_);
+    auth_credentials_ = AuthCredentials();
   } else {
     DCHECK(request_->context());
     DCHECK(request_->context()->http_transaction_factory());
@@ -765,10 +764,8 @@ void URLRequestHttpJob::OnReadCompleted(int result) {
 }
 
 void URLRequestHttpJob::RestartTransactionWithAuth(
-    const string16& username,
-    const string16& password) {
-  username_ = username;
-  password_ = password;
+    const AuthCredentials& credentials) {
+  auth_credentials_ = credentials;
 
   // These will be reset in OnStartCompleted.
   response_info_ = NULL;
@@ -997,8 +994,7 @@ void URLRequestHttpJob::GetAuthChallengeInfo(
   *result = response_info_->auth_challenge;
 }
 
-void URLRequestHttpJob::SetAuth(const string16& username,
-                                const string16& password) {
+void URLRequestHttpJob::SetAuth(const AuthCredentials& credentials) {
   DCHECK(transaction_.get());
 
   // Proxy gets set first, then WWW.
@@ -1009,7 +1005,7 @@ void URLRequestHttpJob::SetAuth(const string16& username,
     server_auth_state_ = AUTH_STATE_HAVE_AUTH;
   }
 
-  RestartTransactionWithAuth(username, password);
+  RestartTransactionWithAuth(credentials);
 }
 
 void URLRequestHttpJob::CancelAuth() {

@@ -137,8 +137,7 @@ bool HttpAuthHandlerDigest::Init(HttpAuth::ChallengeTokenizer* challenge) {
 }
 
 int HttpAuthHandlerDigest::GenerateAuthTokenImpl(
-    const string16* username,
-    const string16* password,
+    const AuthCredentials* credentials,
     const HttpRequestInfo* request,
     OldCompletionCallback* callback,
     std::string* auth_token) {
@@ -151,9 +150,7 @@ int HttpAuthHandlerDigest::GenerateAuthTokenImpl(
   std::string path;
   GetRequestMethodAndPath(request, &method, &path);
 
-  *auth_token = AssembleCredentials(method, path,
-                                    *username,
-                                    *password,
+  *auth_token = AssembleCredentials(method, path, *credentials,
                                     cnonce, nonce_count_);
   return OK;
 }
@@ -320,15 +317,14 @@ void HttpAuthHandlerDigest::GetRequestMethodAndPath(
 std::string HttpAuthHandlerDigest::AssembleResponseDigest(
     const std::string& method,
     const std::string& path,
-    const string16& username,
-    const string16& password,
+    const AuthCredentials& credentials,
     const std::string& cnonce,
     const std::string& nc) const {
   // ha1 = MD5(A1)
   // TODO(eroman): is this the right encoding?
-  std::string ha1 = base::MD5String(UTF16ToUTF8(username) + ":" +
+  std::string ha1 = base::MD5String(UTF16ToUTF8(credentials.username()) + ":" +
                                     original_realm_ + ":" +
-                                    UTF16ToUTF8(password));
+                                    UTF16ToUTF8(credentials.password()));
   if (algorithm_ == HttpAuthHandlerDigest::ALGORITHM_MD5_SESS)
     ha1 = base::MD5String(ha1 + ":" + nonce_ + ":" + cnonce);
 
@@ -347,8 +343,7 @@ std::string HttpAuthHandlerDigest::AssembleResponseDigest(
 std::string HttpAuthHandlerDigest::AssembleCredentials(
     const std::string& method,
     const std::string& path,
-    const string16& username,
-    const string16& password,
+    const AuthCredentials& credentials,
     const std::string& cnonce,
     int nonce_count) const {
   // the nonce-count is an 8 digit hex string.
@@ -356,7 +351,8 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
 
   // TODO(eroman): is this the right encoding?
   std::string authorization = (std::string("Digest username=") +
-                               HttpUtil::Quote(UTF16ToUTF8(username)));
+                               HttpUtil::Quote(
+                                   UTF16ToUTF8(credentials.username())));
   authorization += ", realm=" + HttpUtil::Quote(original_realm_);
   authorization += ", nonce=" + HttpUtil::Quote(nonce_);
   authorization += ", uri=" + HttpUtil::Quote(path);
@@ -364,8 +360,8 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
   if (algorithm_ != ALGORITHM_UNSPECIFIED) {
     authorization += ", algorithm=" + AlgorithmToString(algorithm_);
   }
-  std::string response = AssembleResponseDigest(method, path, username,
-                                                password, cnonce, nc);
+  std::string response = AssembleResponseDigest(method, path, credentials,
+                                                cnonce, nc);
   // No need to call HttpUtil::Quote() as the response digest cannot contain
   // any characters needing to be escaped.
   authorization += ", response=\"" + response + "\"";

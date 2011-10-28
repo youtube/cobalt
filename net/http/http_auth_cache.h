@@ -11,7 +11,6 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/string16.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth.h"
@@ -66,8 +65,7 @@ class NET_EXPORT_PRIVATE HttpAuthCache {
   //   |origin|   - the {scheme, host, port} of the server.
   //   |realm|    - the auth realm for the challenge.
   //   |scheme|   - the authentication scheme (i.e. basic, negotiate).
-  //   |username| - login information for the realm.
-  //   |password| - login information for the realm.
+  //   |credentials| - login information for the realm.
   //   |path|     - absolute path for a resource contained in the protection
   //                space; this will be added to the list of known paths.
   //   returns    - the entry that was just added/updated.
@@ -75,23 +73,20 @@ class NET_EXPORT_PRIVATE HttpAuthCache {
              const std::string& realm,
              HttpAuth::Scheme scheme,
              const std::string& auth_challenge,
-             const string16& username,
-             const string16& password,
+             const AuthCredentials& credentials,
              const std::string& path);
 
   // Remove entry on server |origin| for realm |realm| and scheme |scheme|
-  // if one exists AND if the cached identity matches (|username|, |password|).
+  // if one exists AND if the cached credentials matches |credentials|.
   //   |origin|   - the {scheme, host, port} of the server.
   //   |realm|    - case sensitive realm string.
   //   |scheme|   - the authentication scheme (i.e. basic, negotiate).
-  //   |username| - condition to match.
-  //   |password| - condition to match.
+  //   |credentials| - the credentials to match.
   //   returns    - true if an entry was removed.
   bool Remove(const GURL& origin,
               const std::string& realm,
               HttpAuth::Scheme scheme,
-              const string16& username,
-              const string16& password);
+              const AuthCredentials& credentials);
 
   // Updates a stale digest entry on server |origin| for realm |realm| and
   // scheme |scheme|. The cached auth challenge is replaced with
@@ -135,14 +130,9 @@ class NET_EXPORT_PRIVATE HttpAuthCache::Entry {
     return auth_challenge_;
   }
 
-  // The login username.
-  const string16 username() const {
-    return username_;
-  }
-
-  // The login password.
-  const string16 password() const {
-    return password_;
+  // The login credentials.
+  const AuthCredentials& credentials() const {
+    return credentials_;
   }
 
   int IncrementNonceCount() {
@@ -181,8 +171,7 @@ class NET_EXPORT_PRIVATE HttpAuthCache::Entry {
 
   // Identity.
   std::string auth_challenge_;
-  string16 username_;
-  string16 password_;
+  AuthCredentials credentials_;
 
   int nonce_count_;
 

@@ -11,7 +11,6 @@
 
 #include <string>
 
-#include "base/string16.h"
 #include "base/time.h"
 #include "net/base/net_log.h"
 #include "net/http/http_cache.h"
@@ -103,8 +102,7 @@ class HttpCache::Transaction : public HttpTransaction {
   virtual int RestartIgnoringLastError(OldCompletionCallback* callback);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
                                      OldCompletionCallback* callback);
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
+  virtual int RestartWithAuth(const AuthCredentials& credentials,
                               OldCompletionCallback* callback);
   virtual bool IsReadyToRestartForAuth();
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
@@ -258,8 +256,7 @@ class HttpCache::Transaction : public HttpTransaction {
 
   // Called to restart a network transaction with authentication credentials.
   // Returns network error code.
-  int RestartNetworkRequestWithAuth(const string16& username,
-                                    const string16& password);
+  int RestartNetworkRequestWithAuth(const AuthCredentials& credentials);
 
   // Called to determine if we need to validate the cache entry before using it.
   bool RequiresValidation();

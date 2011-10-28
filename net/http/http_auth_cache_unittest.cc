@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,8 +40,7 @@ class MockAuthHandler : public HttpAuthHandler {
     return false;  // Unused.
   }
 
-  virtual int GenerateAuthTokenImpl(const string16*,
-                                    const string16*,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials*,
                                     const HttpRequestInfo*,
                                     OldCompletionCallback* callback,
                                     std::string* auth_token) {
@@ -69,6 +68,11 @@ const string16 kRoot(ASCIIToUTF16("root"));
 const string16 kUsername(ASCIIToUTF16("username"));
 const string16 kWileCoyote(ASCIIToUTF16("wilecoyote"));
 
+AuthCredentials CreateASCIICredentials(const char* username,
+                                       const char* password) {
+  return AuthCredentials(ASCIIToUTF16(username), ASCIIToUTF16(password));
+}
+
 }  // namespace
 
 // Test adding and looking-up cache entries (both by realm and by path).
@@ -85,16 +89,18 @@ TEST(HttpAuthCacheTest, Basic) {
                           kRealm1,
                           HttpAuth::AUTH_SERVER));
   cache.Add(origin, realm1_handler->realm(), realm1_handler->auth_scheme(),
-            "Basic realm=Realm1", ASCIIToUTF16("realm1-user"),
-            ASCIIToUTF16("realm1-password"), "/foo/bar/index.html");
+            "Basic realm=Realm1",
+            CreateASCIICredentials("realm1-user", "realm1-password"),
+            "/foo/bar/index.html");
 
   scoped_ptr<HttpAuthHandler> realm2_handler(
       new MockAuthHandler(HttpAuth::AUTH_SCHEME_BASIC,
                           kRealm2,
                           HttpAuth::AUTH_SERVER));
   cache.Add(origin, realm2_handler->realm(), realm2_handler->auth_scheme(),
-            "Basic realm=Realm2", ASCIIToUTF16("realm2-user"),
-            ASCIIToUTF16("realm2-password"), "/foo2/index.html");
+            "Basic realm=Realm2",
+            CreateASCIICredentials("realm2-user", "realm2-password"),
+            "/foo2/index.html");
 
   scoped_ptr<HttpAuthHandler> realm3_basic_handler(
       new MockAuthHandler(HttpAuth::AUTH_SCHEME_BASIC,
@@ -102,8 +108,9 @@ TEST(HttpAuthCacheTest, Basic) {
                           HttpAuth::AUTH_PROXY));
   cache.Add(origin, realm3_basic_handler->realm(),
             realm3_basic_handler->auth_scheme(), "Basic realm=Realm3",
-            ASCIIToUTF16("realm3-basic-user"),
-            ASCIIToUTF16("realm3-basic-password"), "");
+            CreateASCIICredentials("realm3-basic-user",
+                                   "realm3-basic-password"),
+            "");
 
   scoped_ptr<HttpAuthHandler> realm3_digest_handler(
       new MockAuthHandler(HttpAuth::AUTH_SCHEME_DIGEST,
@@ -111,8 +118,9 @@ TEST(HttpAuthCacheTest, Basic) {
                           HttpAuth::AUTH_PROXY));
   cache.Add(origin, realm3_digest_handler->realm(),
             realm3_digest_handler->auth_scheme(), "Digest realm=Realm3",
-            ASCIIToUTF16("realm3-digest-user"),
-            ASCIIToUTF16("realm3-digest-password"), "/baz/index.html");
+            CreateASCIICredentials("realm3-digest-user",
+                                   "realm3-digest-password"),
+            "/baz/index.html");
 
   scoped_ptr<HttpAuthHandler> realm4_basic_handler(
       new MockAuthHandler(HttpAuth::AUTH_SCHEME_BASIC,
@@ -120,8 +128,9 @@ TEST(HttpAuthCacheTest, Basic) {
                           HttpAuth::AUTH_SERVER));
   cache.Add(origin, realm4_basic_handler->realm(),
             realm4_basic_handler->auth_scheme(), "Basic realm=Realm4",
-            ASCIIToUTF16("realm4-basic-user"),
-            ASCIIToUTF16("realm4-basic-password"), "/");
+            CreateASCIICredentials("realm4-basic-user",
+                                   "realm4-basic-password"),
+            "/");
 
   // There is no Realm5
   entry = cache.Lookup(origin, kRealm5, HttpAuth::AUTH_SCHEME_BASIC);
@@ -144,8 +153,9 @@ TEST(HttpAuthCacheTest, Basic) {
   EXPECT_EQ(HttpAuth::AUTH_SCHEME_BASIC, entry->scheme());
   EXPECT_EQ(kRealm3, entry->realm());
   EXPECT_EQ("Basic realm=Realm3", entry->auth_challenge());
-  EXPECT_EQ(ASCIIToUTF16("realm3-basic-user"), entry->username());
-  EXPECT_EQ(ASCIIToUTF16("realm3-basic-password"), entry->password());
+  EXPECT_EQ(ASCIIToUTF16("realm3-basic-user"), entry->credentials().username());
+  EXPECT_EQ(ASCIIToUTF16("realm3-basic-password"),
+            entry->credentials().password());
 
   // Valid lookup by origin, realm, scheme when there's a duplicate
   // origin, realm in the cache
@@ -155,8 +165,10 @@ TEST(HttpAuthCacheTest, Basic) {
   EXPECT_EQ(HttpAuth::AUTH_SCHEME_DIGEST, entry->scheme());
   EXPECT_EQ(kRealm3, entry->realm());
   EXPECT_EQ("Digest realm=Realm3", entry->auth_challenge());
-  EXPECT_EQ(ASCIIToUTF16("realm3-digest-user"), entry->username());
-  EXPECT_EQ(ASCIIToUTF16("realm3-digest-password"), entry->password());
+  EXPECT_EQ(ASCIIToUTF16("realm3-digest-user"),
+            entry->credentials().username());
+  EXPECT_EQ(ASCIIToUTF16("realm3-digest-password"),
+            entry->credentials().password());
 
   // Valid lookup by realm.
   entry = cache.Lookup(origin, kRealm2, HttpAuth::AUTH_SCHEME_BASIC);
@@ -164,8 +176,8 @@ TEST(HttpAuthCacheTest, Basic) {
   EXPECT_EQ(HttpAuth::AUTH_SCHEME_BASIC, entry->scheme());
   EXPECT_EQ(kRealm2, entry->realm());
   EXPECT_EQ("Basic realm=Realm2", entry->auth_challenge());
-  EXPECT_EQ(ASCIIToUTF16("realm2-user"), entry->username());
-  EXPECT_EQ(ASCIIToUTF16("realm2-password"), entry->password());
+  EXPECT_EQ(ASCIIToUTF16("realm2-user"), entry->credentials().username());
+  EXPECT_EQ(ASCIIToUTF16("realm2-password"), entry->credentials().password());
 
   // Check that subpaths are recognized.
   HttpAuthCache::Entry* realm2_entry = cache.Lookup(
@@ -269,18 +281,18 @@ TEST(HttpAuthCacheTest, AddToExistingEntry) {
           HttpAuth::AUTH_SCHEME_BASIC, "MyRealm", HttpAuth::AUTH_SERVER));
   HttpAuthCache::Entry* orig_entry = cache.Add(
       origin, handler->realm(), handler->auth_scheme(), auth_challenge,
-      ASCIIToUTF16("user1"), ASCIIToUTF16("password1"), "/x/y/z/");
+      CreateASCIICredentials("user1", "password1"), "/x/y/z/");
   cache.Add(origin, handler->realm(), handler->auth_scheme(), auth_challenge,
-            ASCIIToUTF16("user2"), ASCIIToUTF16("password2"), "/z/y/x/");
+            CreateASCIICredentials("user2", "password2"), "/z/y/x/");
   cache.Add(origin, handler->realm(), handler->auth_scheme(), auth_challenge,
-            ASCIIToUTF16("user3"), ASCIIToUTF16("password3"), "/z/y");
+            CreateASCIICredentials("user3", "password3"), "/z/y");
 
   HttpAuthCache::Entry* entry = cache.Lookup(
       origin, "MyRealm", HttpAuth::AUTH_SCHEME_BASIC);
 
   EXPECT_TRUE(entry == orig_entry);
-  EXPECT_EQ(ASCIIToUTF16("user3"), entry->username());
-  EXPECT_EQ(ASCIIToUTF16("password3"), entry->password());
+  EXPECT_EQ(ASCIIToUTF16("user3"), entry->credentials().username());
+  EXPECT_EQ(ASCIIToUTF16("password3"), entry->credentials().password());
 
   EXPECT_EQ(2U, entry->paths_.size());
   EXPECT_EQ("/z/", entry->paths_.front());
@@ -308,58 +320,65 @@ TEST(HttpAuthCacheTest, Remove) {
 
   HttpAuthCache cache;
   cache.Add(origin, realm1_handler->realm(), realm1_handler->auth_scheme(),
-            "basic realm=Realm1", kAlice, k123, "/");
+            "basic realm=Realm1", AuthCredentials(kAlice, k123), "/");
   cache.Add(origin, realm2_handler->realm(), realm2_handler->auth_scheme(),
-            "basic realm=Realm2", ASCIIToUTF16("bob"), ASCIIToUTF16("princess"),
+            "basic realm=Realm2", CreateASCIICredentials("bob", "princess"),
             "/");
   cache.Add(origin, realm3_basic_handler->realm(),
             realm3_basic_handler->auth_scheme(), "basic realm=Realm3",
-            kAdmin, kPassword, "/");
+            AuthCredentials(kAdmin, kPassword), "/");
   cache.Add(origin, realm3_digest_handler->realm(),
             realm3_digest_handler->auth_scheme(), "digest realm=Realm3",
-            kRoot, kWileCoyote, "/");
+            AuthCredentials(kRoot, kWileCoyote), "/");
 
   // Fails, because there is no realm "Realm5".
   EXPECT_FALSE(cache.Remove(
-      origin, kRealm5, HttpAuth::AUTH_SCHEME_BASIC, kAlice, k123));
+      origin, kRealm5, HttpAuth::AUTH_SCHEME_BASIC,
+      AuthCredentials(kAlice, k123)));
 
   // Fails because the origin is wrong.
   EXPECT_FALSE(cache.Remove(GURL("http://foobar2.com:100"),
                             kRealm1,
                             HttpAuth::AUTH_SCHEME_BASIC,
-                            kAlice,
-                            k123));
+                            AuthCredentials(kAlice, k123)));
 
   // Fails because the username is wrong.
   EXPECT_FALSE(cache.Remove(
-      origin, kRealm1, HttpAuth::AUTH_SCHEME_BASIC, kAlice2, k123));
+      origin, kRealm1, HttpAuth::AUTH_SCHEME_BASIC,
+      AuthCredentials(kAlice2, k123)));
 
   // Fails because the password is wrong.
   EXPECT_FALSE(cache.Remove(
-      origin, kRealm1, HttpAuth::AUTH_SCHEME_BASIC, kAlice, k1234));
+      origin, kRealm1, HttpAuth::AUTH_SCHEME_BASIC,
+      AuthCredentials(kAlice, k1234)));
 
   // Fails because the authentication type is wrong.
   EXPECT_FALSE(cache.Remove(
-      origin, kRealm1, HttpAuth::AUTH_SCHEME_DIGEST, kAlice, k123));
+      origin, kRealm1, HttpAuth::AUTH_SCHEME_DIGEST,
+      AuthCredentials(kAlice, k123)));
 
   // Succeeds.
   EXPECT_TRUE(cache.Remove(
-      origin, kRealm1, HttpAuth::AUTH_SCHEME_BASIC, kAlice, k123));
+      origin, kRealm1, HttpAuth::AUTH_SCHEME_BASIC,
+      AuthCredentials(kAlice, k123)));
 
   // Fails because we just deleted the entry!
   EXPECT_FALSE(cache.Remove(
-      origin, kRealm1, HttpAuth::AUTH_SCHEME_BASIC, kAlice, k123));
+      origin, kRealm1, HttpAuth::AUTH_SCHEME_BASIC,
+      AuthCredentials(kAlice, k123)));
 
   // Succeed when there are two authentication types for the same origin,realm.
   EXPECT_TRUE(cache.Remove(
-      origin, kRealm3, HttpAuth::AUTH_SCHEME_DIGEST, kRoot, kWileCoyote));
+      origin, kRealm3, HttpAuth::AUTH_SCHEME_DIGEST,
+      AuthCredentials(kRoot, kWileCoyote)));
 
   // Succeed as above, but when entries were added in opposite order
   cache.Add(origin, realm3_digest_handler->realm(),
             realm3_digest_handler->auth_scheme(), "digest realm=Realm3",
-            kRoot, kWileCoyote, "/");
+            AuthCredentials(kRoot, kWileCoyote), "/");
   EXPECT_TRUE(cache.Remove(
-      origin, kRealm3, HttpAuth::AUTH_SCHEME_BASIC, kAdmin, kPassword));
+      origin, kRealm3, HttpAuth::AUTH_SCHEME_BASIC,
+      AuthCredentials(kAdmin, kPassword)));
 
   // Make sure that removing one entry still leaves the other available for
   // lookup.
@@ -380,8 +399,7 @@ TEST(HttpAuthCacheTest, UpdateStaleChallenge) {
       digest_handler->auth_scheme(),
       "Digest realm=Realm1,"
       "nonce=\"s3MzvFhaBAA=4c520af5acd9d8d7ae26947529d18c8eae1e98f4\"",
-      ASCIIToUTF16("realm-digest-user"),
-      ASCIIToUTF16("realm-digest-password"),
+      CreateASCIICredentials("realm-digest-user", "realm-digest-password"),
       "/baz/index.html");
   ASSERT_TRUE(entry_pre != NULL);
 
@@ -444,17 +462,17 @@ TEST(HttpAuthCacheTest, UpdateAllFrom) {
 
   first_cache.Add(origin, realm1_handler->realm(),
                   realm1_handler->auth_scheme(), "basic realm=Realm1",
-                  kAlice, k123, path);
+                  AuthCredentials(kAlice, k123), path);
   first_cache.Add(origin, realm2_handler->realm(),
                   realm2_handler->auth_scheme(), "basic realm=Realm2",
-                  kAlice2, k1234, path);
+                  AuthCredentials(kAlice2, k1234), path);
   first_cache.Add(origin, realm3_digest_handler->realm(),
                   realm3_digest_handler->auth_scheme(), "digest realm=Realm3",
-                  kRoot, kWileCoyote, path);
+                  AuthCredentials(kRoot, kWileCoyote), path);
   entry = first_cache.Add(
       origin, realm3_digest_handler->realm(),
       realm3_digest_handler->auth_scheme(), "digest realm=Realm3",
-      kRoot, kWileCoyote, another_path);
+      AuthCredentials(kRoot, kWileCoyote), another_path);
 
   EXPECT_EQ(2, entry->IncrementNonceCount());
 
@@ -462,45 +480,45 @@ TEST(HttpAuthCacheTest, UpdateAllFrom) {
   // Will be overwritten by kRoot:kWileCoyote.
   second_cache.Add(origin, realm3_digest_handler->realm(),
                    realm3_digest_handler->auth_scheme(), "digest realm=Realm3",
-                   kAlice2, k1234, path);
+                   AuthCredentials(kAlice2, k1234), path);
   // Should be left intact.
   second_cache.Add(origin, realm4_handler->realm(),
                    realm4_handler->auth_scheme(), "basic realm=Realm4",
-                   kAdmin, kRoot, path);
+                   AuthCredentials(kAdmin, kRoot), path);
 
   second_cache.UpdateAllFrom(first_cache);
 
   // Copied from first_cache.
   entry = second_cache.Lookup(origin, kRealm1, HttpAuth::AUTH_SCHEME_BASIC);
   EXPECT_TRUE(NULL != entry);
-  EXPECT_EQ(kAlice, entry->username());
-  EXPECT_EQ(k123, entry->password());
+  EXPECT_EQ(kAlice, entry->credentials().username());
+  EXPECT_EQ(k123, entry->credentials().password());
 
   // Copied from first_cache.
   entry = second_cache.Lookup(origin, kRealm2, HttpAuth::AUTH_SCHEME_BASIC);
   EXPECT_TRUE(NULL != entry);
-  EXPECT_EQ(kAlice2, entry->username());
-  EXPECT_EQ(k1234, entry->password());
+  EXPECT_EQ(kAlice2, entry->credentials().username());
+  EXPECT_EQ(k1234, entry->credentials().password());
 
   // Overwritten from first_cache.
   entry = second_cache.Lookup(origin, kRealm3, HttpAuth::AUTH_SCHEME_DIGEST);
   EXPECT_TRUE(NULL != entry);
-  EXPECT_EQ(kRoot, entry->username());
-  EXPECT_EQ(kWileCoyote, entry->password());
+  EXPECT_EQ(kRoot, entry->credentials().username());
+  EXPECT_EQ(kWileCoyote, entry->credentials().password());
   // Nonce count should get copied.
   EXPECT_EQ(3, entry->IncrementNonceCount());
 
   // All paths should get copied.
   entry = second_cache.LookupByPath(origin, another_path);
   EXPECT_TRUE(NULL != entry);
-  EXPECT_EQ(kRoot, entry->username());
-  EXPECT_EQ(kWileCoyote, entry->password());
+  EXPECT_EQ(kRoot, entry->credentials().username());
+  EXPECT_EQ(kWileCoyote, entry->credentials().password());
 
   // Left intact in second_cache.
   entry = second_cache.Lookup(origin, kRealm4, HttpAuth::AUTH_SCHEME_BASIC);
   EXPECT_TRUE(NULL != entry);
-  EXPECT_EQ(kAdmin, entry->username());
-  EXPECT_EQ(kRoot, entry->password());
+  EXPECT_EQ(kAdmin, entry->credentials().username());
+  EXPECT_EQ(kRoot, entry->credentials().password());
 }
 
 // Test fixture class for eviction tests (contains helpers for bulk
@@ -523,7 +541,8 @@ class HttpAuthCacheEvictionTest : public testing::Test {
 
   void AddPathToRealm(int realm_i, int path_i) {
     cache_.Add(origin_, GenerateRealm(realm_i), HttpAuth::AUTH_SCHEME_BASIC, "",
-               kUsername, kPassword, GeneratePath(realm_i, path_i));
+               AuthCredentials(kUsername, kPassword),
+               GeneratePath(realm_i, path_i));
   }
 
   void CheckRealmExistence(int realm_i, bool exists) {

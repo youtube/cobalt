@@ -8,7 +8,6 @@
 
 #include <string>
 
-#include "base/string16.h"
 #include "build/build_config.h"
 #include "net/base/address_list.h"
 #include "net/base/net_export.h"
@@ -116,8 +115,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
 
-  virtual int GenerateAuthTokenImpl(const string16* username,
-                                    const string16* password,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
                                     OldCompletionCallback* callback,
                                     std::string* auth_token);
@@ -153,9 +151,8 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
   // Things which should be consistent after first call to GenerateAuthToken.
   bool already_called_;
-  bool has_username_and_password_;
-  string16 username_;
-  string16 password_;
+  bool has_credentials_;
+  AuthCredentials credentials_;
   std::wstring spn_;
 
   // Things which vary each round.

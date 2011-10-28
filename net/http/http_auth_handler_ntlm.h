@@ -118,8 +118,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNTLM : public HttpAuthHandler {
 
   virtual bool Init(HttpAuth::ChallengeTokenizer* tok);
 
-  virtual int GenerateAuthTokenImpl(const string16* username,
-                                    const string16* password,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
                                     OldCompletionCallback* callback,
                                     std::string* auth_token);
@@ -158,8 +157,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNTLM : public HttpAuthHandler {
 #endif
 
   string16 domain_;
-  string16 username_;
-  string16 password_;
+  AuthCredentials credentials_;
 
   // The base64-encoded string following "NTLM" in the "WWW-Authenticate" or
   // "Proxy-Authenticate" response header.

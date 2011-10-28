@@ -203,10 +203,8 @@ int HttpNetworkTransaction::RestartWithCertificate(
   return rv;
 }
 
-int HttpNetworkTransaction::RestartWithAuth(
-    const string16& username,
-    const string16& password,
-    OldCompletionCallback* callback) {
+int HttpNetworkTransaction::RestartWithAuth(const AuthCredentials& credentials,
+                                            OldCompletionCallback* callback) {
   HttpAuth::Target target = pending_auth_target_;
   if (target == HttpAuth::AUTH_NONE) {
     NOTREACHED();
@@ -214,7 +212,7 @@ int HttpNetworkTransaction::RestartWithAuth(
   }
   pending_auth_target_ = HttpAuth::AUTH_NONE;
 
-  auth_controllers_[target]->ResetAuth(username, password);
+  auth_controllers_[target]->ResetAuth(credentials);
 
   DCHECK(user_callback_ == NULL);
 
@@ -226,7 +224,7 @@ int HttpNetworkTransaction::RestartWithAuth(
     DCHECK(stream_request_ != NULL);
     auth_controllers_[target] = NULL;
     ResetStateForRestart();
-    rv = stream_request_->RestartTunnelWithProxyAuth(username, password);
+    rv = stream_request_->RestartTunnelWithProxyAuth(credentials);
   } else {
     // In this case, we've gathered credentials for the server or the proxy
     // but it is not during the tunneling phase.

@@ -6,13 +6,13 @@
 #define NET_HTTP_HTTP_TRANSACTION_H_
 #pragma once
 
-#include "base/string16.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_export.h"
 
 namespace net {
 
+class AuthCredentials;
 class BoundNetLog;
 struct HttpRequestInfo;
 class HttpResponseInfo;
@@ -63,8 +63,7 @@ class NET_EXPORT_PRIVATE HttpTransaction {
                                      OldCompletionCallback* callback) = 0;
 
   // Restarts the HTTP transaction with authentication credentials.
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
+  virtual int RestartWithAuth(const AuthCredentials& credentials,
                               OldCompletionCallback* callback) = 0;
 
   // Returns true if auth is ready to be continued. Callers should check

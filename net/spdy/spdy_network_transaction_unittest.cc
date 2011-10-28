@@ -4935,10 +4935,9 @@ TEST_P(SpdyNetworkTransactionTest, SpdyBasicAuth) {
   EXPECT_EQ("MyRealm", auth_challenge->realm);
 
   // Restart with a username/password.
-  const string16 kFoo(ASCIIToUTF16("foo"));
-  const string16 kBar(ASCIIToUTF16("bar"));
+  AuthCredentials credentials(ASCIIToUTF16("foo"), ASCIIToUTF16("bar"));
   TestOldCompletionCallback callback_restart;
-  const int rv_restart = trans->RestartWithAuth(kFoo, kBar, &callback_restart);
+  const int rv_restart = trans->RestartWithAuth(credentials, &callback_restart);
   EXPECT_EQ(ERR_IO_PENDING, rv_restart);
   const int rv_restart_complete = callback_restart.WaitForResult();
   EXPECT_EQ(OK, rv_restart_complete);
