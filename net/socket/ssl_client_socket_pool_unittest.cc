@@ -690,7 +690,7 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(true, OK);
-  ssl.cert_ = X509Certificate::CreateFromBytes(
+  ssl.cert = X509Certificate::CreateFromBytes(
       reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
   ssl.next_proto = "spdy/2";
@@ -719,7 +719,7 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
             SSLClientSocket::kProtoSPDY2);
 
-  // TODO(rtenneti): MockClientSocket::GetPeerAddress return's 0 as the port
+  // TODO(rtenneti): MockClientSocket::GetPeerAddress returns 0 as the port
   // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
   const addrinfo* address = test_hosts[0].addresses.head();
   SpdySessionPoolPeer pool_peer(session_->spdy_session_pool());
@@ -734,6 +734,91 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   EXPECT_TRUE(session_->spdy_session_pool()->HasSession(test_hosts[0].pair));
   EXPECT_FALSE(session_->spdy_session_pool()->HasSession(test_hosts[1].pair));
   EXPECT_TRUE(session_->spdy_session_pool()->HasSession(test_hosts[2].pair));
+
+  session_->spdy_session_pool()->CloseAllSessions();
+}
+
+// Verifies that an SSL connection with client authentication disables SPDY IP
+// pooling.
+TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
+  const int kTestPort = 80;
+  struct TestHosts {
+    std::string name;
+    std::string iplist;
+    HostPortProxyPair pair;
+    AddressList addresses;
+  } test_hosts[] = {
+    { "www.webkit.org",    "192.0.2.33,192.168.0.1,192.168.0.5" },
+    { "js.webkit.org",     "192.168.0.4,192.168.0.1,192.0.2.33" },
+  };
+
+  TestOldCompletionCallback callback;
+  int rv;
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_hosts); i++) {
+    host_resolver_.rules()->AddIPLiteralRule(test_hosts[i].name,
+        test_hosts[i].iplist, "");
+
+    // This test requires that the HostResolver cache be populated.  Normal
+    // code would have done this already, but we do it manually.
+    HostResolver::RequestInfo info(HostPortPair(test_hosts[i].name, kTestPort));
+    rv = host_resolver_.Resolve(info, &test_hosts[i].addresses, &callback,
+                                NULL, BoundNetLog());
+    EXPECT_EQ(OK, callback.GetResult(rv));
+
+    // Setup a HostPortProxyPair
+    test_hosts[i].pair = HostPortProxyPair(
+        HostPortPair(test_hosts[i].name, kTestPort), ProxyServer::Direct());
+  }
+
+  MockRead reads[] = {
+      MockRead(true, ERR_IO_PENDING),
+  };
+  StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
+  socket_factory_.AddSocketDataProvider(&data);
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.cert = X509Certificate::CreateFromBytes(
+      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  ssl.client_cert_sent = true;
+  socket_factory_.AddSSLSocketDataProvider(&ssl);
+
+  CreatePool(true /* tcp pool */, false, false);
+  scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
+                                                    true);
+
+  scoped_ptr<ClientSocketHandle> handle(new ClientSocketHandle());
+  rv = handle->Init(
+      "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_FALSE(handle->is_initialized());
+  EXPECT_FALSE(handle->socket());
+
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_TRUE(handle->is_initialized());
+  EXPECT_TRUE(handle->socket());
+
+  SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(handle->socket());
+  EXPECT_TRUE(ssl_socket->was_npn_negotiated());
+  std::string proto;
+  ssl_socket->GetNextProto(&proto);
+  EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
+            SSLClientSocket::kProtoSPDY2);
+
+  // TODO(rtenneti): MockClientSocket::GetPeerAddress returns 0 as the port
+  // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
+  const addrinfo* address = test_hosts[0].addresses.head();
+  SpdySessionPoolPeer pool_peer(session_->spdy_session_pool());
+  pool_peer.AddAlias(address, test_hosts[0].pair);
+
+  scoped_refptr<SpdySession> spdy_session;
+  rv = session_->spdy_session_pool()->GetSpdySessionFromSocket(
+    test_hosts[0].pair, handle.release(), BoundNetLog(), 0,
+      &spdy_session, true);
+  EXPECT_EQ(0, rv);
+
+  EXPECT_TRUE(session_->spdy_session_pool()->HasSession(test_hosts[0].pair));
+  EXPECT_FALSE(session_->spdy_session_pool()->HasSession(test_hosts[1].pair));
 
   session_->spdy_session_pool()->CloseAllSessions();
 }

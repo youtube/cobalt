@@ -561,6 +561,8 @@ void SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
       server_cert_verify_result_.is_issued_by_known_root;
   ssl_info->public_key_hashes =
     server_cert_verify_result_.public_key_hashes;
+  ssl_info->client_cert_sent =
+      ssl_config_.send_client_cert && ssl_config_.client_cert;
 
   const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl_);
   CHECK(cipher);

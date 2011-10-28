@@ -239,6 +239,7 @@ SSLSocketDataProvider::SSLSocketDataProvider(bool async, int result)
     : connect(async, result),
       next_proto_status(SSLClientSocket::kNextProtoUnsupported),
       was_npn_negotiated(false),
+      client_cert_sent(false),
       cert_request_info(NULL) {
 }
 
@@ -1133,7 +1134,8 @@ base::TimeDelta MockSSLClientSocket::GetConnectTimeMicros() const {
 
 void MockSSLClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
   ssl_info->Reset();
-  ssl_info->cert = data_->cert_;
+  ssl_info->cert = data_->cert;
+  ssl_info->client_cert_sent = data_->client_cert_sent;
 }
 
 void MockSSLClientSocket::GetSSLCertRequestInfo(
