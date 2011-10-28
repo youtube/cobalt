@@ -10,6 +10,12 @@
 #include "base/base_export.h"
 #include "base/values.h"
 
+#ifndef NDEBUG
+#ifndef TRACK_ALL_TASK_OBJECTS
+#define TRACK_ALL_TASK_OBJECTS
+#endif   // TRACK_ALL_TASK_OBJECTS
+#endif  // NDEBUG
+
 namespace tracked_objects {
 
 // Location provides basic info where of an object was constructed, or was
