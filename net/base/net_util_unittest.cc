@@ -2289,16 +2289,16 @@ TEST(NetUtilTest, GenerateFileName) {
       "",
       "",
       "",
-      "application/pdf",
+      "text/plain",
       L"download",
-      L"npdf.pdf"
+      L"npdf" TXT_EXT
     },
     { // Shouldn't overwrite C-D specified extension.
       "http://www.example.com/npdf.php?fn=foobar.pdf",
       "Content-Disposition: filename=foobar.jpg",
       "",
       "",
-      "application/pdf",
+      "text/plain",
       L"download",
       L"foobar.jpg"
     },
