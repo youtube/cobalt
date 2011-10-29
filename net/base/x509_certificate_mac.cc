@@ -540,6 +540,7 @@ void X509Certificate::Initialize() {
                     &valid_expiry_);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
+  chain_fingerprint_ = CalculateChainFingerprint();
   serial_number_ = GetCertSerialNumber(cert_handle_);
 }
 
@@ -1065,6 +1066,30 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
   DCHECK_NE(cert_data.Length, 0U);
 
   CC_SHA1(cert_data.Data, cert_data.Length, sha1.data);
+
+  return sha1;
+}
+
+SHA1Fingerprint X509Certificate::CalculateChainFingerprint() const {
+  SHA1Fingerprint sha1;
+  memset(sha1.data, 0, sizeof(sha1.data));
+
+  // The CC_SHA(3cc) man page says all CC_SHA1_xxx routines return 1, so
+  // we don't check their return values.
+  CC_SHA1_CTX sha1_ctx;
+  CC_SHA1_Init(&sha1_ctx);
+  CSSM_DATA cert_data;
+  OSStatus status = SecCertificateGetData(cert_handle_, &cert_data);
+  if (status)
+    return sha1;
+  CC_SHA1_Update(&sha1_ctx, cert_data.Data, cert_data.Length);
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
+    status = SecCertificateGetData(intermediate_ca_certs_[i], &cert_data);
+    if (status)
+      return sha1;
+    CC_SHA1_Update(&sha1_ctx, cert_data.Data, cert_data.Length);
+  }
+  CC_SHA1_Final(sha1.data, &sha1_ctx);
 
   return sha1;
 }

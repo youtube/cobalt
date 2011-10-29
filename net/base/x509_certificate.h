@@ -210,6 +210,11 @@ class NET_EXPORT X509Certificate
   // The fingerprint of this certificate.
   const SHA1Fingerprint& fingerprint() const { return fingerprint_; }
 
+  // The fingerprint of this certificate and its intermediate CA certificates.
+  const SHA1Fingerprint& chain_fingerprint() const {
+    return chain_fingerprint_;
+  }
+
   // Gets the DNS names in the certificate.  Pursuant to RFC 2818, Section 3.1
   // Server Identity, if the certificate has a subjectAltName extension of
   // type dNSName, this method gets the DNS names in that extension.
@@ -365,6 +370,10 @@ class NET_EXPORT X509Certificate
   // (all zero) fingerprint on failure.
   static SHA1Fingerprint CalculateFingerprint(OSCertHandle cert_handle);
 
+  // Calculates the SHA-1 fingerprint of the certificate and its intermediate
+  // CA certificates.  Returns an empty (all zero) fingerprint on failure.
+  SHA1Fingerprint CalculateChainFingerprint() const;
+
  private:
   friend class base::RefCountedThreadSafe<X509Certificate>;
   friend class TestRootCerts;  // For unit tests
@@ -471,6 +480,9 @@ class NET_EXPORT X509Certificate
 
   // The fingerprint of this certificate.
   SHA1Fingerprint fingerprint_;
+
+  // The fingerprint of this certificate and its intermediate CA certificates.
+  SHA1Fingerprint chain_fingerprint_;
 
   // The serial number of this certificate, DER encoded.
   std::string serial_number_;
