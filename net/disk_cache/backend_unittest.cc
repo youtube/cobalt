@@ -828,7 +828,11 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry2() {
   // We may abort the eviction before cleaning up everything.
   MessageLoop::current()->RunAllPending();
   FlushQueueForTest();
+  // If it's not clear enough: we may still have eviction tasks running at this
+  // time, so the number of entries is changing while we read it.
+  ANNOTATE_IGNORE_READS_AND_WRITES_BEGIN();
   EXPECT_GE(30, cache_->GetEntryCount());
+  ANNOTATE_IGNORE_READS_AND_WRITES_END();
 }
 
 // We'll be leaking memory from this test.
