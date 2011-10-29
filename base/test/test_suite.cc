@@ -13,7 +13,6 @@
 #include "base/file_path.h"
 #include "base/i18n/icu_util.h"
 #include "base/logging.h"
-#include "base/mac/scoped_nsautorelease_pool.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
@@ -24,6 +23,7 @@
 #include "testing/multiprocess_func_list.h"
 
 #if defined(OS_MACOSX)
+#include "base/mac/scoped_nsautorelease_pool.h"
 #include "base/test/mock_chrome_application_mac.h"
 #endif
 
@@ -123,7 +123,9 @@ void TestSuite::CatchMaybeTests() {
 // Don't add additional code to this method.  Instead add it to
 // Initialize().  See bug 6436.
 int TestSuite::Run() {
+#if defined(OS_MACOSX)
   base::mac::ScopedNSAutoreleasePool scoped_pool;
+#endif
 
   Initialize();
   std::string client_func =
@@ -152,10 +154,12 @@ int TestSuite::Run() {
            failing_count, failing_count == 1 ? "test" : "tests");
   }
 
+#if defined(OS_MACOSX)
   // This MUST happen before Shutdown() since Shutdown() tears down
   // objects (such as NotificationService::current()) that Cocoa
   // objects use to remove themselves as observers.
   scoped_pool.Recycle();
+#endif
 
   Shutdown();
 
