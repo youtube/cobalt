@@ -361,7 +361,7 @@ class BASE_EXPORT Query {
 
 // Implementation detail:
 // QueryNode allows Query to store a ref-counted query tree.
-class BASE_EXPORT QueryNode : public base::RefCounted<QueryNode> {
+class QueryNode : public base::RefCounted<QueryNode> {
  public:
   explicit QueryNode(const Query& query);
   const Query& query() const { return query_; }
