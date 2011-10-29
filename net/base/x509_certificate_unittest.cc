@@ -436,6 +436,47 @@ TEST(X509CertificateTest, SerialNumbers) {
                      paypal_null_serial, sizeof(paypal_null_serial)) == 0);
 }
 
+TEST(X509CertificateTest, ChainFingerprints) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> server_cert =
+      ImportCertFromFile(certs_dir, "salesforce_com_test.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), server_cert);
+
+  scoped_refptr<X509Certificate> intermediate_cert1 =
+      ImportCertFromFile(certs_dir, "verisign_intermediate_ca_2011.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert1);
+
+  scoped_refptr<X509Certificate> intermediate_cert2 =
+      ImportCertFromFile(certs_dir, "verisign_intermediate_ca_2016.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert2);
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert1->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain1 =
+      X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
+                                        intermediates);
+
+  intermediates.clear();
+  intermediates.push_back(intermediate_cert2->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain2 =
+      X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
+                                        intermediates);
+
+  static const uint8 cert_chain1_fingerprint[20] = {
+    0x67, 0x78, 0x81, 0xd7, 0x78, 0xca, 0xd5, 0x04, 0x73, 0xf8,
+    0x95, 0xff, 0xf3, 0x39, 0xe4, 0xcd, 0x5e, 0xf0, 0x79, 0x76
+  };
+  static const uint8 cert_chain2_fingerprint[20] = {
+    0x8c, 0x93, 0x85, 0xb0, 0x15, 0xd3, 0xa3, 0x0e, 0xe7, 0x4f,
+    0x42, 0xf4, 0x30, 0xc3, 0xe9, 0x14, 0x12, 0x54, 0xb9, 0x9d
+  };
+  EXPECT_TRUE(memcmp(cert_chain1->chain_fingerprint().data,
+                     cert_chain1_fingerprint, 20) == 0);
+  EXPECT_TRUE(memcmp(cert_chain2->chain_fingerprint().data,
+                     cert_chain2_fingerprint, 20) == 0);
+}
+
 // A regression test for http://crbug.com/31497.
 // This certificate will expire on 2012-04-08.
 TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {

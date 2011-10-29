@@ -232,7 +232,7 @@ bool X509Certificate::LessThan::operator()(X509Certificate* lhs,
     return false;
 
   SHA1FingerprintLessThan fingerprint_functor;
-  return fingerprint_functor(lhs->fingerprint_, rhs->fingerprint_);
+  return fingerprint_functor(lhs->chain_fingerprint_, rhs->chain_fingerprint_);
 }
 
 X509Certificate::X509Certificate(const std::string& subject,
@@ -245,6 +245,7 @@ X509Certificate::X509Certificate(const std::string& subject,
       valid_expiry_(expiration_date),
       cert_handle_(NULL) {
   memset(fingerprint_.data, 0, sizeof(fingerprint_.data));
+  memset(chain_fingerprint_.data, 0, sizeof(chain_fingerprint_.data));
 }
 
 // static
