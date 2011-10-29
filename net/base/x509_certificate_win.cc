@@ -4,6 +4,9 @@
 
 #include "net/base/x509_certificate.h"
 
+#define PRArenaPool PLArenaPool  // Required by <blapi.h>.
+#include <blapi.h>  // Implement CalculateChainFingerprint() with NSS.
+
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/pickle.h"
@@ -541,6 +544,7 @@ void X509Certificate::Initialize() {
   valid_expiry_ = Time::FromFileTime(cert_handle_->pCertInfo->NotAfter);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
+  chain_fingerprint_ = CalculateChainFingerprint();
 
   const CRYPT_INTEGER_BLOB* serial = &cert_handle_->pCertInfo->SerialNumber;
   scoped_array<uint8> serial_bytes(new uint8[serial->cbData]);
@@ -1015,6 +1019,30 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
   DCHECK(rv && sha1_size == sizeof(sha1.data));
   if (!rv)
     memset(sha1.data, 0, sizeof(sha1.data));
+  return sha1;
+}
+
+// TODO(wtc): This function is implemented with NSS low-level hash
+// functions to ensure it is fast.  Reimplement this function with
+// CryptoAPI.  May need to cache the HCRYPTPROV to reduce the overhead.
+SHA1Fingerprint X509Certificate::CalculateChainFingerprint() const {
+  SHA1Fingerprint sha1;
+  memset(sha1.data, 0, sizeof(sha1.data));
+
+  SHA1Context* sha1_ctx = SHA1_NewContext();
+  if (!sha1_ctx)
+    return sha1;
+  SHA1_Begin(sha1_ctx);
+  SHA1_Update(sha1_ctx, cert_handle_->pbCertEncoded,
+              cert_handle_->cbCertEncoded);
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
+    PCCERT_CONTEXT ca_cert = intermediate_ca_certs_[i];
+    SHA1_Update(sha1_ctx, ca_cert->pbCertEncoded, ca_cert->cbCertEncoded);
+  }
+  unsigned int result_len;
+  SHA1_End(sha1_ctx, sha1.data, &result_len, SHA1_LENGTH);
+  SHA1_DestroyContext(sha1_ctx, PR_TRUE);
+
   return sha1;
 }
 
