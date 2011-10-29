@@ -7,11 +7,16 @@
 
 #include <list>
 #include <string>
+#include "media/base/media_export.h"
 
 namespace media {
 
-struct AudioDeviceName {
-  std::string device_name;  // Name and also display name of the device.
+struct MEDIA_EXPORT AudioDeviceName {
+  AudioDeviceName();
+  AudioDeviceName(const std::string& device_name,
+                  const std::string& unique_id);
+
+  std::string device_name;  // Friendly name of the device.
   std::string unique_id;    // Unique identifier for the device.
 };
 
