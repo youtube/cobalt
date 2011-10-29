@@ -56,3 +56,11 @@ unit tests.
     "mail.google.com". Because it is signed by that CA instead of the true CA
     for that host, it will fail the
     TransportSecurityState::IsChainOfPublicKeysPermitted test.
+
+- salesforce_com_test.pem
+- verisign_intermediate_ca_2011.pem
+- verisign_intermediate_ca_2016.pem : Certificates for testing two
+     X509Certificate objects that contain the same server certificate but
+     different intermediate CA certificates.  The two intermediate CA
+     certificates actually represent the same intermediate CA but have
+     different validity periods.
