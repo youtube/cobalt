@@ -53,13 +53,11 @@ class BASE_EXPORT PosixDynamicThreadPool
                 const base::Closure& task);
     ~PendingTask();
 
-#if defined(TRACK_ALL_TASK_OBJECTS)
     // Counter for location where the Closure was posted from.
-    tracked_objects::Births* post_births;
+    tracked_objects::Births* birth_tally;
 
     // Time the task was posted.
-    TimeTicks time_posted;
-#endif  // defined(TRACK_ALL_TASK_OBJECTS)
+    tracked_objects::TrackedTime time_posted;
 
     const tracked_objects::Location posted_from;
 
