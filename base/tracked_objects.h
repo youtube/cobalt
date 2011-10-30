@@ -16,7 +16,12 @@
 #include "base/time.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_local_storage.h"
+#include "base/tracking_info.h"
 #include "base/values.h"
+
+#if defined(OS_WIN)
+#include <mmsystem.h>  // Declare timeGetTime();
+#endif
 
 // TrackedObjects provides a database of stats about objects (generally Tasks)
 // that are tracked.  Tracking means their birth, death, duration, birth thread,
@@ -69,7 +74,7 @@
 // any locks, as all that data is constant across the life of the process.
 //
 // The above work *could* also be done for any other object as well by calling
-// TallyABirthIfActive() and TallyADeathIfActive() as appropriate.
+// TallyABirthIfActive() and TallyRunOnNamedThreadIfTracking() as appropriate.
 //
 // The amount of memory used in the above data structures depends on how many
 // threads there are, and how many Locations of construction there are.
@@ -167,6 +172,96 @@ class MessageLoop;
 namespace tracked_objects {
 
 //------------------------------------------------------------------------------
+
+#define USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS
+
+#if defined(USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS)
+
+// TimeTicks maintains a wasteful 64 bits of data (we need less than 32), and on
+// windows, a 64 bit timer is expensive to even obtain. We use a simple
+// millisecond counter for most of our time values, as well as millisecond units
+// of duration between those values.  This means we can only handle durations
+// up to 49 days (range), or 24 days (non-negative time durations).
+// We only define enough methods to service the needs of the tracking classes,
+// and our interfaces are modeled after what TimeTicks and TimeDelta use (so we
+// can swap them into place if we want to use the "real" classes).
+
+class BASE_EXPORT Duration {  // Similar to base::TimeDelta.
+ public:
+  Duration() : ms_(0) {}
+
+  Duration& operator+=(const Duration& other) {
+    ms_ += other.ms_;
+    return *this;
+  }
+
+  Duration operator+(const Duration& other) const {
+    return Duration(ms_ + other.ms_);
+  }
+
+  bool operator==(const Duration& other) const { return ms_ == other.ms_; }
+  bool operator!=(const Duration& other) const { return ms_ != other.ms_; }
+  bool operator>(const Duration& other) const { return ms_ > other.ms_; }
+
+  static Duration FromMilliseconds(int ms) { return Duration(ms); }
+
+  int32 InMilliseconds() const { return ms_; }
+
+ private:
+  friend class TrackedTime;
+  explicit Duration(int32 duration) : ms_(duration) {}
+
+  // Internal time is stored directly in milliseconds.
+  int32 ms_;
+};
+
+class BASE_EXPORT TrackedTime {  // Similar to base::TimeTicks.
+ public:
+  TrackedTime() : ms_(0) {}
+  explicit TrackedTime(const base::TimeTicks& time)
+      : ms_((time - base::TimeTicks()).InMilliseconds()) {
+  }
+
+  static TrackedTime Now() {
+#if defined(OS_WIN)
+    // Use lock-free accessor to 32 bit time.
+    // Note that TimeTicks::Now() is built on this, so we have "compatible"
+    // times when we down-convert a TimeTicks sample.
+    // TODO(jar): Surface this interface via something in base/time.h.
+    return TrackedTime(static_cast<int32>(::timeGetTime()));
+#else
+    // Posix has nice cheap 64 bit times, so we just down-convert it.
+    return TrackedTime(base::TimeTicks::Now());
+#endif  // OS_WIN
+  }
+
+  Duration operator-(const TrackedTime& other) const {
+    return Duration(ms_ - other.ms_);
+  }
+
+  TrackedTime operator+(const Duration& other) const {
+    return TrackedTime(ms_ + other.ms_);
+  }
+
+  bool is_null() const { return ms_ == 0; }
+
+ private:
+  friend class Duration;
+  explicit TrackedTime(int32 ms) : ms_(ms) {}
+
+  // Internal duration is stored directly in milliseconds.
+  uint32 ms_;
+};
+
+#else
+
+// Just use full 64 bit time calculations, and the slower TimeTicks::Now().
+typedef base::TimeTicks TrackedTime;
+typedef base::TimeDelta Duration;
+
+#endif  // USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS
+
+//------------------------------------------------------------------------------
 // For a specific thread, and a specific birth place, the collection of all
 // death info (with tallies for each death thread, to prevent access conflicts).
 class ThreadData;
@@ -217,8 +312,8 @@ class BASE_EXPORT Births: public BirthOnThread {
 };
 
 //------------------------------------------------------------------------------
-// Basic info summarizing multiple destructions of an object with a single
-// birthplace (fixed Location).  Used both on specific threads, and also used
+// Basic info summarizing multiple destructions of a tracked object with a
+// single birthplace (fixed Location).  Used both on specific threads, and also
 // in snapshots when integrating assembled data.
 
 class BASE_EXPORT DeathData {
@@ -233,14 +328,14 @@ class BASE_EXPORT DeathData {
 
   // Update stats for a task destruction (death) that had a Run() time of
   // |duration|, and has had a queueing delay of |queue_duration|.
-  void RecordDeath(const base::TimeDelta& queue_duration,
-                   const base::TimeDelta& run_duration);
+  void RecordDeath(const Duration& queue_duration,
+                   const Duration& run_duration);
 
   // Metrics accessors.
   int count() const { return count_; }
-  base::TimeDelta run_duration() const { return run_duration_; }
+  Duration run_duration() const { return run_duration_; }
   int AverageMsRunDuration() const;
-  base::TimeDelta queue_duration() const { return queue_duration_; }
+  Duration queue_duration() const { return queue_duration_; }
   int AverageMsQueueDuration() const;
 
   // Accumulate metrics from other into this.  This method is never used on
@@ -250,7 +345,7 @@ class BASE_EXPORT DeathData {
   // Simple print of internal state for use in line of HTML.
   void WriteHTML(std::string* output) const;
 
-  // Constructe a DictionaryValue instance containing all our stats. The caller
+  // Construct a DictionaryValue instance containing all our stats. The caller
   // assumes ownership of the returned instance.
   base::DictionaryValue* ToValue() const;
 
@@ -259,8 +354,8 @@ class BASE_EXPORT DeathData {
 
  private:
   int count_;                       // Number of destructions.
-  base::TimeDelta run_duration_;    // Sum of all Run()time durations.
-  base::TimeDelta queue_duration_;  // Sum of all queue time durations.
+  Duration run_duration_;    // Sum of all Run()time durations.
+  Duration queue_duration_;  // Sum of all queue time durations.
 };
 
 //------------------------------------------------------------------------------
@@ -287,12 +382,10 @@ class BASE_EXPORT Snapshot {
   const std::string DeathThreadName() const;
 
   int count() const { return death_data_.count(); }
-  base::TimeDelta run_duration() const { return death_data_.run_duration(); }
+  Duration run_duration() const { return death_data_.run_duration(); }
+  Duration queue_duration() const { return death_data_.queue_duration(); }
   int AverageMsRunDuration() const {
     return death_data_.AverageMsRunDuration();
-  }
-  base::TimeDelta queue_duration() const {
-    return death_data_.queue_duration();
   }
   int AverageMsQueueDuration() const {
     return death_data_.AverageMsQueueDuration();
@@ -304,8 +397,6 @@ class BASE_EXPORT Snapshot {
   // Construct a DictionaryValue instance containing all our data recursively.
   // The caller assumes ownership of the memory in the returned instance.
   base::DictionaryValue* ToValue() const;
-
-  void Add(const Snapshot& other);
 
  private:
   const BirthOnThread* birth_;  // Includes Location and birth_thread.
@@ -326,20 +417,23 @@ class BASE_EXPORT DataCollector {
   DataCollector();
   ~DataCollector();
 
-  // Add all stats from the indicated thread into our arrays.  This function is
-  // mutex protected, and *could* be called from any threads (although current
-  // implementation serialized calls to Append).
+  // Adds all stats from the indicated thread into our arrays.  This function
+  // uses locks at the lowest level (when accessing the underlying maps which
+  // could change when not locked), and can be called from any threads.
   void Append(const ThreadData& thread_data);
 
   // After the accumulation phase, the following accessor is used to process the
-  // data.
+  // data (i.e., sort it, filter it, etc.).
   Collection* collection();
 
-  // After collection of death data is complete, we can add entries for all the
-  // remaining living objects.
+  // Adds entries for all the remaining living objects (objects that have
+  // tallied a birth, but have not yet tallied a matching death, and hence must
+  // be either running, queued up, or being held in limbo for future posting).
+  // This should be called after all known ThreadData instances have been
+  // processed using Append().
   void AddListOfLivingObjects();
 
-  // Generate a ListValue representation of the vector of snapshots.  The caller
+  // Generates a ListValue representation of the vector of snapshots. The caller
   // assumes ownership of the memory in the returned instance.
   base::ListValue* ToValue() const;
 
@@ -350,7 +444,8 @@ class BASE_EXPORT DataCollector {
   Collection collection_;
 
   // The total number of births recorded at each location for which we have not
-  // seen a death count.
+  // seen a death count.  This map changes as we do Append() calls, and is later
+  // used by AddListOfLivingObjects() to gather up unaccounted for births.
   BirthCount global_birth_count_;
 
   DISALLOW_COPY_AND_ASSIGN(DataCollector);
@@ -359,6 +454,9 @@ class BASE_EXPORT DataCollector {
 //------------------------------------------------------------------------------
 // Aggregation contains summaries (totals and subtotals) of groups of Snapshot
 // instances to provide printing of these collections on a single line.
+// We generally provide an aggregate total for the entire list, as well as
+// aggregate subtotals for groups of stats (example: group of all lives that
+// died on the specific thread).
 
 class BASE_EXPORT Aggregation: public DeathData {
  public:
@@ -414,6 +512,7 @@ class BASE_EXPORT Comparator {
 
     // Imediate action keywords.
     RESET_ALL_DATA = -1,
+    UNKNOWN_KEYWORD = -2,
   };
 
   explicit Comparator();
@@ -470,6 +569,10 @@ class BASE_EXPORT Comparator {
   // members of the tested elements.
   enum Selector selector_;
 
+  // Translate a path keyword into a selector.  This is a slow implementation,
+  // but this is rarely done, and only for HTML presentations.
+  static Selector FindSelector(const std::string& keyword);
+
   // For filtering into acceptable and unacceptable snapshot instance, the
   // following is required to be a substring of the selector_ field.
   std::string required_;
@@ -493,16 +596,27 @@ class BASE_EXPORT Comparator {
 //------------------------------------------------------------------------------
 // For each thread, we have a ThreadData that stores all tracking info generated
 // on this thread.  This prevents the need for locking as data accumulates.
+// We use ThreadLocalStorage to quickly identfy the current ThreadData context.
+// We also have a linked list of ThreadData instances, and that list is used to
+// harvest data from all existing instances.
 
 class BASE_EXPORT ThreadData {
  public:
+  // Current allowable states of the tracking system.  The states can vary
+  // between ACTIVE and DEACTIVATED, but can never go back to UNINITIALIZED.
+  enum Status {
+    UNINITIALIZED,
+    ACTIVE,
+    DEACTIVATED,
+  };
+
   typedef std::map<Location, Births*> BirthMap;
   typedef std::map<const Births*, DeathData> DeathMap;
 
   // Initialize the current thread context with a new instance of ThreadData.
-  // This is used by all threads that have names, and can be explicitly
-  // set *before* any births are threads have taken place.  It is generally
-  // only used by the message loop, which has a well defined name.
+  // This is used by all threads that have names, and should be explicitly
+  // set *before* any births on the threads have taken place.  It is generally
+  // only used by the message loop, which has a well defined thread name.
   static void InitializeThreadContext(const std::string& suggested_name);
 
   // Using Thread Local Store, find the current instance for collecting data.
@@ -515,33 +629,47 @@ class BASE_EXPORT ThreadData {
   // append to output.
   static void WriteHTML(const std::string& query, std::string* output);
 
-  // Constructe a ListValue instance containing all recursive results in our
-  // process.  The caller assumes ownership of the memory in the returned
-  // instance.  The |process_type| should become an enum, which corresponds
-  // to all possible process types.  I'm using an int as a placeholder.
-  static base::Value* ToValue(int process_type);
-
   // For a given accumulated array of results, use the comparator to sort and
   // subtotal, writing the results to the output.
   static void WriteHTMLTotalAndSubtotals(
       const DataCollector::Collection& match_array,
       const Comparator& comparator, std::string* output);
 
-  // Find (or create) a place to count births from the given location in this
+  // Constructs a DictionaryValue instance containing all recursive results in
+  // our process.  The caller assumes ownership of the memory in the returned
+  // instance.
+  static base::DictionaryValue* ToValue();
+
+  // Finds (or creates) a place to count births from the given location in this
   // thread, and increment that tally.
   // TallyABirthIfActive will returns NULL if the birth cannot be tallied.
   static Births* TallyABirthIfActive(const Location& location);
 
+  // Records the end of a timed run of an object.  The |completed_task| contains
+  // a pointer to a Births, the time_posted, and a delayed_start_time if any.
+  // The |start_of_run| indicates when we started to perform the run of the
+  // task.  The delayed_start_time is non-null for tasks that were posted as
+  // delayed tasks, and it indicates when the task should have run (i.e., when
+  // it should have posted out of the timer queue, and into the work queue.
+  // The |end_of_run| was just obtained by a call to Now() (just after the task
+  // finished). It is provided as an argument to help with testing.
+  static void TallyRunOnNamedThreadIfTracking(
+      const base::TrackingInfo& completed_task,
+      const TrackedTime& start_of_run,
+      const TrackedTime& end_of_run);
+
   // Record the end of a timed run of an object.  The |birth| is the record for
-  // the instance, the |time_posted| and |start_of_run| are times of posting
-  // into a message loop queue, and of starting to perform the run of the task.
+  // the instance, the |time_posted| records that instant, which is presumed to
+  // be when the task was posted into a queue to run on a worker thread.
+  // The |start_of_run| is when the worker thread started to perform the run of
+  // the task.
   // The |end_of_run| was just obtained by a call to Now() (just after the task
   // finished).
-  static void TallyADeathIfActive(const Births* birth,
-                                  const base::TimeTicks& time_posted,
-                                  const base::TimeTicks& delayed_start_time,
-                                  const base::TimeTicks& start_of_run,
-                                  const base::TimeTicks& end_of_run);
+  static void TallyRunOnWorkerThreadIfTracking(
+      const Births* birth,
+      const TrackedTime& time_posted,
+      const TrackedTime& start_of_run,
+      const TrackedTime& end_of_run);
 
   const std::string thread_name() const { return thread_name_; }
 
@@ -567,17 +695,21 @@ class BASE_EXPORT ThreadData {
   // bogus counts VERY rarely.
   static void ResetAllThreadData();
 
-  // Set internal status_ to either become ACTIVE, or later, to be SHUTDOWN,
+  // Initializes all statics if needed (this initialization call should be made
+  // while we are single threaded). Returns false if unable to initialize.
+  static bool Initialize();
+
+  // Sets internal status_ to either become ACTIVE, or DEACTIVATED,
   // based on argument being true or false respectively.
-  // IF tracking is not compiled in, this function will return false.
-  static bool StartTracking(bool status);
-  static bool IsActive();
+  // If tracking is not compiled in, this function will return false.
+  static bool InitializeAndSetTrackingStatus(bool status);
+  static bool tracking_status();
 
   // Provide a time function that does nothing (runs fast) when we don't have
   // the profiler enabled.  It will generally be optimized away when it is
   // ifdef'ed to be small enough (allowing the profiler to be "compiled out" of
   // the code).
-  static base::TimeTicks Now();
+  static TrackedTime Now();
 
   // WARNING: ONLY call this function when you are running single threaded
   // (again) and all message loops and threads have terminated.  Until that
@@ -587,14 +719,6 @@ class BASE_EXPORT ThreadData {
   static void ShutdownSingleThreadedCleanup();
 
  private:
-  // Current allowable states of the tracking system.  The states always
-  // proceed towards SHUTDOWN, and never go backwards.
-  enum Status {
-    UNINITIALIZED,
-    ACTIVE,
-    SHUTDOWN,
-  };
-
   typedef std::stack<const ThreadData*> ThreadDataPool;
 
   // Worker thread construction creates a name since there is none.
@@ -614,8 +738,8 @@ class BASE_EXPORT ThreadData {
 
   // Find a place to record a death on this thread.
   void TallyADeath(const Births& birth,
-                   const base::TimeDelta& queue_duration,
-                   const base::TimeDelta& duration);
+                   const Duration& queue_duration,
+                   const Duration& duration);
 
   // Using our lock to protect the iteration, Clear all birth and death data.
   void Reset();
@@ -640,8 +764,8 @@ class BASE_EXPORT ThreadData {
   // pool, and if none are available, construct a new one.
   static ThreadDataPool* unregistered_thread_data_pool_;
   // Protection for access to all_thread_data_list_head_, and to
-  // unregistered_thread_data_pool_.
-  static base::Lock list_lock_;
+  // unregistered_thread_data_pool_.  This lock is leaked at shutdown.
+  static base::Lock* list_lock_;
 
   // We set status_ to SHUTDOWN when we shut down the tracking service.
   static Status status_;
@@ -695,21 +819,17 @@ class BASE_EXPORT ThreadData {
 class BASE_EXPORT AutoTracking {
  public:
   AutoTracking() {
-    if (state_ != kNeverBeenRun)
-      return;
-    ThreadData::StartTracking(true);
-    state_ = kRunning;
+    ThreadData::Initialize();
   }
 
   ~AutoTracking() {
+    // TODO(jar): Consider emitting a CSV dump of the data at this point.  This
+    // should be called after the message loops have all terminated (or at least
+    // the main message loop is gone), so there is little chance for additional
+    // tasks to be Run.
   }
 
  private:
-  enum State {
-    kNeverBeenRun,
-    kRunning,
-  };
-  static State state_;
 
   DISALLOW_COPY_AND_ASSIGN(AutoTracking);
 };
