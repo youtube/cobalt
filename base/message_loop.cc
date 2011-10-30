@@ -486,20 +486,16 @@ void MessageLoop::RunTask(const PendingTask& pending_task) {
 
   HistogramEvent(kTaskRunEvent);
 
-#if defined(TRACK_ALL_TASK_OBJECTS)
-  TimeTicks start_of_run = tracked_objects::ThreadData::Now();
-#endif  // defined(TRACK_ALL_TASK_OBJECTS)
+  tracked_objects::TrackedTime start_time = tracked_objects::ThreadData::Now();
 
   FOR_EACH_OBSERVER(TaskObserver, task_observers_,
                     WillProcessTask(pending_task.time_posted));
   pending_task.task.Run();
   FOR_EACH_OBSERVER(TaskObserver, task_observers_,
                     DidProcessTask(pending_task.time_posted));
-#if defined(TRACK_ALL_TASK_OBJECTS)
-  tracked_objects::ThreadData::TallyADeathIfActive(pending_task.post_births,
-      pending_task.time_posted, pending_task.delayed_run_time, start_of_run,
-      tracked_objects::ThreadData::Now());
-#endif  // defined(TRACK_ALL_TASK_OBJECTS)
+
+  tracked_objects::ThreadData::TallyRunOnNamedThreadIfTracking(pending_task,
+      start_time, tracked_objects::ThreadData::Now());
 
   nestable_tasks_allowed_ = true;
 }
@@ -779,15 +775,11 @@ MessageLoop::PendingTask::PendingTask(
     const tracked_objects::Location& posted_from,
     TimeTicks delayed_run_time,
     bool nestable)
-    : task(task),
-      time_posted(TimeTicks::Now()),
-      delayed_run_time(delayed_run_time),
+    : base::TrackingInfo(posted_from, delayed_run_time),
+      task(task),
       posted_from(posted_from),
       sequence_num(0),
       nestable(nestable) {
-#if defined(TRACK_ALL_TASK_OBJECTS)
-  post_births = tracked_objects::ThreadData::TallyABirthIfActive(posted_from);
-#endif  // defined(TRACK_ALL_TASK_OBJECTS)
 }
 
 MessageLoop::PendingTask::~PendingTask() {
