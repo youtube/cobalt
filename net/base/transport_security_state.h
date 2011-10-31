@@ -128,6 +128,11 @@ class NET_EXPORT TransportSecurityState
   static bool IsGooglePinnedProperty(const std::string& host,
                                      bool sni_available);
 
+  // Reports UMA statistics upon public key pin failure. Reports only down to
+  // the second-level domain of |host| (e.g. google.com if |host| is
+  // mail.google.com), and only if |host| is a preloaded STS host.
+  static void ReportUMAOnPinFailure(const std::string& host);
+
   // Deletes all records created since a given time.
   void DeleteSince(const base::Time& time);
 
