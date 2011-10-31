@@ -211,6 +211,7 @@ void ThreadData::OnThreadTermination(void* thread_data) {
 }
 
 void ThreadData::OnThreadTerminationCleanup() const {
+  tls_index_.Set(NULL);
   if (!is_a_worker_thread_)
     return;
   base::AutoLock lock(*list_lock_);
@@ -219,7 +220,7 @@ void ThreadData::OnThreadTerminationCleanup() const {
 
 // static
 void ThreadData::WriteHTML(const std::string& query, std::string* output) {
-  if (status_ == UNINITIALIZED)
+  if (!ThreadData::tracking_status())
     return;  // Not yet initialized.
 
   DataCollector collected_data;  // Gather data.
@@ -405,18 +406,8 @@ void ThreadData::TallyRunOnNamedThreadIfTracking(
       ? tracked_objects::TrackedTime(completed_task.time_posted)
       : tracked_objects::TrackedTime(completed_task.delayed_run_time);
 
-  // Watch out for a race where status_ is changing, and hence one or both
-  // of start_of_run or end_of_run is zero.  IN that case, we didn't bother to
-  // get a time value since we "weren't tracking" and we were trying to be
-  // efficient by not calling for a genuine time value. For simplicity, we'll
-  // use a default zero duration when we can't calculate a true value.
-  Duration queue_duration;
-  Duration run_duration;
-  if (!start_of_run.is_null()) {
-    queue_duration = start_of_run - effective_post_time;
-    if (!end_of_run.is_null())
-      run_duration = end_of_run - start_of_run;
-  }
+  Duration queue_duration = start_of_run - effective_post_time;
+  Duration run_duration = end_of_run - start_of_run;
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
 }
 
@@ -448,13 +439,8 @@ void ThreadData::TallyRunOnWorkerThreadIfTracking(
   if (!current_thread_data)
     return;
 
-  Duration queue_duration;
-  Duration run_duration;
-  if (!start_of_run.is_null()) {
-    queue_duration = start_of_run - time_posted;
-    if (!end_of_run.is_null())
-      run_duration = end_of_run - start_of_run;
-  }
+  Duration queue_duration = start_of_run - time_posted;
+  Duration run_duration = end_of_run - start_of_run;
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
 }
 
@@ -538,9 +524,9 @@ bool ThreadData::tracking_status() {
 
 // static
 TrackedTime ThreadData::Now() {
-  if (kTrackAllTaskObjects && tracking_status())
-    return TrackedTime::Now();
-  return TrackedTime();  // Super fast when disabled, or not compiled.
+  if (!kTrackAllTaskObjects || status_ != ACTIVE)
+    return TrackedTime();  // Super fast when disabled, or not compiled.
+  return TrackedTime::Now();
 }
 
 // static
@@ -559,19 +545,6 @@ void ThreadData::ShutdownSingleThreadedCleanup() {
     final_pool = unregistered_thread_data_pool_;
     unregistered_thread_data_pool_ = NULL;
   }
-
-  // Put most global static back in pristine shape.
-  thread_number_counter_ = 0;
-  tls_index_.Set(NULL);
-  status_ = UNINITIALIZED;
-
-  // To avoid any chance of racing in unit tests, which is the only place we
-  // call this function, we will leak all the data structures we recovered.
-  // These structures could plausibly be used by other threads in earlier tests
-  // that are still running.
-  return;
-
-  // If we wanted to cleanup (on a single thread), here is what we would do.
 
   if (final_pool) {
     // The thread_data_list contains *all* the instances, and we'll use it to
@@ -594,6 +567,10 @@ void ThreadData::ShutdownSingleThreadedCleanup() {
     next_thread_data->death_map_.clear();
     delete next_thread_data;  // Includes all Death Records.
   }
+  // Put most global static back in pristine shape.
+  thread_number_counter_ = 0;
+  tls_index_.Set(NULL);
+  status_ = UNINITIALIZED;
 }
 
 //------------------------------------------------------------------------------
