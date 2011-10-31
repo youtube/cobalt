@@ -552,9 +552,6 @@ void X509Certificate::Initialize() {
     serial_bytes[i] = serial->pbData[serial->cbData - i - 1];
   serial_number_ = std::string(
       reinterpret_cast<char*>(serial_bytes.get()), serial->cbData);
-  // Remove leading zeros.
-  while (serial_number_.size() > 1 && serial_number_[0] == 0)
-    serial_number_ = serial_number_.substr(1, serial_number_.size() - 1);
 }
 
 // IsIssuedByKnownRoot returns true if the given chain is rooted at a root CA

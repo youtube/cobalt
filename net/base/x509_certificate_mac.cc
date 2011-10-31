@@ -203,10 +203,6 @@ std::string GetCertSerialNumber(X509Certificate::OSCertHandle cert_handle) {
     break;
   }
 
-  // Remove leading zeros.
-  while (ret.size() > 1 && ret[0] == 0)
-    ret = ret.substr(1, ret.size() - 1);
-
   return ret;
 }
 

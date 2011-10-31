@@ -332,9 +332,6 @@ void X509Certificate::Initialize() {
     serial_number_ = std::string(
         reinterpret_cast<char*>(num->data),
         num->length);
-    // Remove leading zeros.
-    while (serial_number_.size() > 1 && serial_number_[0] == 0)
-      serial_number_ = serial_number_.substr(1, serial_number_.size() - 1);
   }
 
   ParsePrincipal(cert_handle_, X509_get_subject_name(cert_handle_), &subject_);
