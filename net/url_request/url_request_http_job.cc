@@ -675,20 +675,23 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
       ssl_info.is_issued_by_known_root &&
       context_->transport_security_state()) {
     TransportSecurityState::DomainState domain_state;
-    bool sni = SSLConfigService::IsSNIAvailable(context_->ssl_config_service());
+    bool sni_available = SSLConfigService::IsSNIAvailable(
+        context_->ssl_config_service());
+    std::string host = request_->url().host();
+
     if (context_->transport_security_state()->HasPinsForHost(
-            &domain_state,
-            request_->url().host(), sni)) {
+            &domain_state, host, sni_available)) {
       if (!domain_state.IsChainOfPublicKeysPermitted(
               ssl_info.public_key_hashes)) {
         result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
-        UMA_HISTOGRAM_BOOLEAN("Net.CertificatePinSuccess", false);
+        UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", false);
+        TransportSecurityState::ReportUMAOnPinFailure(host);
         FraudulentCertificateReporter* reporter =
             context_->fraudulent_certificate_reporter();
         if (reporter != NULL)
-          reporter->SendReport(request_->url().host(), ssl_info, sni);
+          reporter->SendReport(host, ssl_info, sni_available);
       } else {
-        UMA_HISTOGRAM_BOOLEAN("Net.CertificatePinSuccess", true);
+        UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", true);
       }
     }
   }
@@ -1109,7 +1112,7 @@ bool URLRequestHttpJob::ShouldFixMismatchedContentLength(int rv) const {
 }
 
 bool URLRequestHttpJob::ReadRawData(IOBuffer* buf, int buf_size,
-                                    int *bytes_read) {
+                                    int* bytes_read) {
   DCHECK_NE(buf_size, 0);
   DCHECK(bytes_read);
   DCHECK(!read_in_progress_);
@@ -1281,7 +1284,7 @@ void URLRequestHttpJob::RecordPacketStats(
     do { \
       UMA_HISTOGRAM_CUSTOM_COUNTS("Net.Compress." name, sample, \
                                   500, 1000000, 100); \
-    } while(0)
+    } while (0)
 
 void URLRequestHttpJob::RecordCompressionHistograms() {
   DCHECK(request_);
