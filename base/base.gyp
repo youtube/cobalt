@@ -27,40 +27,6 @@
             '../build/linux/system.gyp:gtk',
           ],
         }],
-        # TODO(michaelbai): This should be removed once icu supported 
-        ['OS == "android"', {
-          'dependencies!': [
-            '../third_party/icu/icu.gyp:icui18n',
-            '../third_party/icu/icu.gyp:icuuc',
-          ],
-          'sources!': [
-            'i18n/base_i18n_export.h',
-            'i18n/bidi_line_iterator.cc',
-            'i18n/bidi_line_iterator.h',
-            'i18n/break_iterator.cc',
-            'i18n/break_iterator.h',
-            'i18n/char_iterator.cc',
-            'i18n/char_iterator.h',
-            'i18n/case_conversion.cc',
-            'i18n/case_conversion.h',
-            'i18n/file_util_icu.cc',
-            'i18n/file_util_icu.h',
-            'i18n/icu_encoding_detection.cc',
-            'i18n/icu_encoding_detection.h',
-            'i18n/icu_string_conversions.cc',
-            'i18n/icu_string_conversions.h',
-            'i18n/icu_util.cc',
-            'i18n/icu_util.h',
-            'i18n/number_formatting.cc',
-            'i18n/number_formatting.h',
-            'i18n/rtl.cc',
-            'i18n/rtl.h',
-            'i18n/string_search.cc',
-            'i18n/string_search.h',
-            'i18n/time_formatting.cc',
-            'i18n/time_formatting.h',
-          ],
-        }],
       ],
       'export_dependent_settings': [
         'base',
@@ -294,23 +260,7 @@
       },
       'conditions': [
         ['OS == "android"', {
-          # TODO(michaelbai): This should be removed once icu supported
-          'dependencies!': [
-            '../third_party/icu/icu.gyp:icui18n',
-            '../third_party/icu/icu.gyp:icuuc',
-          ],
           'sources!': [
-            # TODO(michaelbai): The belows are excluded because of the missing
-            # icu and should be added back once icu is ready.
-            'i18n/break_iterator_unittest.cc',
-            'i18n/char_iterator_unittest.cc',
-            'i18n/case_conversion_unittest.cc',
-            'i18n/file_util_icu_unittest.cc',
-            'i18n/icu_string_conversions_unittest.cc',
-            'i18n/number_formatting_unittest.cc',
-            'i18n/rtl_unittest.cc',
-            'i18n/string_search_unittest.cc',
-            'i18n/time_formatting_unittest.cc',
             # TODO(michaelbai): Removed the below once the fix upstreamed.
             'memory/mru_cache_unittest.cc',
             'process_util_unittest.cc',
