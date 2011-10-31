@@ -207,6 +207,7 @@ void ThreadData::OnThreadTermination(void* thread_data) {
   if (!thread_data)
     return;
   reinterpret_cast<ThreadData*>(thread_data)->OnThreadTerminationCleanup();
+  DCHECK_EQ(tls_index_.Get(), reinterpret_cast<ThreadData*>(NULL));
 }
 
 void ThreadData::OnThreadTerminationCleanup() const {
