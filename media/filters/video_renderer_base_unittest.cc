@@ -4,7 +4,13 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
+#include "base/format_macros.h"
 #include "base/stl_util.h"
+#include "base/stringprintf.h"
+#include "base/synchronization/condition_variable.h"
+#include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/test/test_timeouts.h"
 #include "media/base/data_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/mock_callback.h"
@@ -24,6 +30,7 @@ using ::testing::ReturnRef;
 using ::testing::StrictMock;
 
 namespace media {
+
 ACTION(OnStop) {
   arg0.Run();
 }
@@ -51,12 +58,11 @@ class VideoRendererBaseTest : public ::testing::Test {
   VideoRendererBaseTest()
       : renderer_(new MockVideoRendererBase()),
         decoder_(new MockVideoDecoder()),
-        seeking_(false) {
+        cv_(&lock_),
+        event_(false, false),
+        seeking_(false),
+        pending_reads_(0) {
     renderer_->set_host(&host_);
-
-    // Queue all reads from the decoder.
-    EXPECT_CALL(*decoder_, ProduceVideoFrame(_))
-        .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::EnqueueCallback));
 
     EXPECT_CALL(*decoder_, natural_size()).WillRepeatedly(Return(kNaturalSize));
 
@@ -67,13 +73,8 @@ class VideoRendererBaseTest : public ::testing::Test {
   virtual ~VideoRendererBaseTest() {
     read_queue_.clear();
 
-    if (renderer_.get()) {
-      // Expect a call into the subclass.
-      EXPECT_CALL(*renderer_, OnStop(_))
-          .WillOnce(DoAll(OnStop(), Return()))
-          .RetiresOnSaturation();
-
-      renderer_->Stop(NewExpectedClosure());
+    if (renderer_) {
+      Stop();
     }
   }
 
@@ -88,6 +89,10 @@ class VideoRendererBaseTest : public ::testing::Test {
     EXPECT_CALL(host_, GetDuration())
         .WillRepeatedly(Return(base::TimeDelta()));
 
+    // Monitor reads from the decoder.
+    EXPECT_CALL(*decoder_, ProduceVideoFrame(_))
+        .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::FrameRequested));
+
     InSequence s;
 
     // We expect the video size to be set.
@@ -100,7 +105,6 @@ class VideoRendererBaseTest : public ::testing::Test {
     // Initialize, we shouldn't have any reads.
     renderer_->Initialize(decoder_,
                           NewExpectedClosure(), NewStatisticsCallback());
-    EXPECT_EQ(0u, read_queue_.size());
 
     // Now seek to trigger prerolling.
     Seek(0);
@@ -117,41 +121,59 @@ class VideoRendererBaseTest : public ::testing::Test {
                                expected_status));
   }
 
-  void FinishSeeking() {
-    EXPECT_CALL(*renderer_, OnFrameAvailable());
-    EXPECT_TRUE(seeking_);
-
-    // Satisfy the read requests.  The callback must be executed in order
-    // to exit the loop since VideoRendererBase can read a few extra frames
-    // after |timestamp| in order to preroll.
-    for (int64 i = 0; seeking_; ++i) {
-      CreateFrame(i * kDuration, kDuration);
-    }
+  void Play() {
+    SCOPED_TRACE("Play()");
+    renderer_->Play(NewWaitableClosure());
+    WaitForClosure();
   }
 
   void Seek(int64 timestamp) {
+    SCOPED_TRACE(base::StringPrintf("Seek(%" PRId64 ")", timestamp));
     StartSeeking(timestamp, PIPELINE_OK);
+
+    // TODO(scherkus): switch to FinishSeeking_DISABLED() (see comments below).
     FinishSeeking();
   }
 
+  void Pause() {
+    SCOPED_TRACE("Pause()");
+    renderer_->Pause(NewWaitableClosure());
+    WaitForClosure();
+  }
+
   void Flush() {
-    renderer_->Pause(NewExpectedClosure());
-
-    renderer_->Flush(NewExpectedClosure());
+    SCOPED_TRACE("Flush()");
+    renderer_->Flush(NewWaitableClosure());
+    WaitForClosure();
   }
 
-  void CreateError() {
-    decoder_->VideoFrameReadyForTest(NULL);
+  void Stop() {
+    SCOPED_TRACE("Stop()");
+
+    // Expect a call into the subclass.
+    EXPECT_CALL(*renderer_, OnStop(_))
+        .WillOnce(DoAll(OnStop(), Return()))
+        .RetiresOnSaturation();
+
+    renderer_->Stop(NewWaitableClosure());
+    WaitForClosure();
   }
 
-  void CreateFrame(int64 timestamp, int64 duration) {
-    const base::TimeDelta kZero;
-    scoped_refptr<VideoFrame> frame =
-        VideoFrame::CreateFrame(VideoFrame::RGB32, kNaturalSize.width(),
-                                kNaturalSize.height(),
-                                base::TimeDelta::FromMicroseconds(timestamp),
-                                base::TimeDelta::FromMicroseconds(duration));
-    decoder_->VideoFrameReadyForTest(frame);
+  void Shutdown() {
+    Pause();
+    Flush();
+    Stop();
+  }
+
+  void ExpectCurrentFrame(bool present) {
+    scoped_refptr<VideoFrame> frame;
+    renderer_->GetCurrentFrame(&frame);
+    if (present) {
+      EXPECT_TRUE(frame);
+    } else {
+      EXPECT_FALSE(frame);
+    }
+    renderer_->PutCurrentFrame(frame);
   }
 
   void ExpectCurrentTimestamp(int64 timestamp) {
@@ -159,6 +181,32 @@ class VideoRendererBaseTest : public ::testing::Test {
     renderer_->GetCurrentFrame(&frame);
     EXPECT_EQ(timestamp, frame->GetTimestamp().InMicroseconds());
     renderer_->PutCurrentFrame(frame);
+  }
+
+  base::Closure NewWaitableClosure() {
+    return base::Bind(&base::WaitableEvent::Signal, base::Unretained(&event_));
+  }
+
+  void WaitForClosure() {
+    base::TimeDelta timeout =
+        base::TimeDelta::FromMilliseconds(TestTimeouts::action_timeout_ms());
+    ASSERT_TRUE(event_.TimedWait(timeout));
+    event_.Reset();
+  }
+
+  // Delivers a NULL frame to VideoRendererBase, signalling a decode error.
+  void DeliverErrorToRenderer() {
+    decoder_->VideoFrameReadyForTest(NULL);
+  }
+
+  // Delivers a frame with given timestamp and duration to VideoRendererBase.
+  void DeliverFrameToRenderer(int64 timestamp, int64 duration) {
+    scoped_refptr<VideoFrame> frame =
+        VideoFrame::CreateFrame(VideoFrame::RGB32, kNaturalSize.width(),
+                                kNaturalSize.height(),
+                                base::TimeDelta::FromMicroseconds(timestamp),
+                                base::TimeDelta::FromMicroseconds(duration));
+    decoder_->VideoFrameReadyForTest(frame);
   }
 
  protected:
@@ -180,17 +228,82 @@ class VideoRendererBaseTest : public ::testing::Test {
   std::deque<scoped_refptr<VideoFrame> > read_queue_;
 
  private:
-  void EnqueueCallback(scoped_refptr<VideoFrame> frame) {
-    read_queue_.push_back(frame);
+  // Called by VideoRendererBase when it wants a frame.
+  void FrameRequested(scoped_refptr<VideoFrame> video_frame) {
+    base::AutoLock l(lock_);
+    ++pending_reads_;
+    cv_.Signal();
   }
 
   void OnSeekComplete(PipelineStatus expected_status, PipelineStatus status) {
+    base::AutoLock l(lock_);
     EXPECT_EQ(status, expected_status);
     EXPECT_TRUE(seeking_);
     seeking_ = false;
+    cv_.Signal();
   }
 
+  // TODO(scherkus): remove this as soon as we move away from our current buffer
+  // recycling implementation, which assumes the decoder will continously
+  // deliver frames during prerolling -- even if VideoRendererBase didn't ask
+  // for them!
+  void FinishSeeking() {
+    EXPECT_CALL(*renderer_, OnFrameAvailable());
+    EXPECT_TRUE(seeking_);
+
+    // Satisfy the read requests.  The callback must be executed in order
+    // to exit the loop since VideoRendererBase can read a few extra frames
+    // after |timestamp| in order to preroll.
+    int64 i = 0;
+    base::AutoLock l(lock_);
+    while (seeking_) {
+      // Unlock to deliver the frame to avoid re-entrancy issues.
+      base::AutoUnlock ul(lock_);
+      DeliverFrameToRenderer(i * kDuration, kDuration);
+      ++i;
+    }
+  }
+
+  // TODO(scherkus): this is the proper read/prerolling behaviour we want to
+  // have where VideoRendererBase requests a frame and the decoder responds.
+  void FinishSeeking_DISABLED() {
+    EXPECT_CALL(*renderer_, OnFrameAvailable());
+    EXPECT_TRUE(seeking_);
+
+    base::TimeDelta timeout =
+        base::TimeDelta::FromMilliseconds(TestTimeouts::action_timeout_ms());
+
+    // Satisfy the read requests.  The callback must be executed in order
+    // to exit the loop since VideoRendererBase can read a few extra frames
+    // after |timestamp| in order to preroll.
+    int64 i = 0;
+    base::AutoLock l(lock_);
+    while (seeking_) {
+      if (pending_reads_ > 0) {
+        --pending_reads_;
+
+        // Unlock to deliver the frame to avoid re-entrancy issues.
+        base::AutoUnlock ul(lock_);
+        DeliverFrameToRenderer(i * kDuration, kDuration);
+        ++i;
+      } else if (pending_reads_ == 0) {
+        // We want to wait iff we're still seeking but have no pending reads.
+        cv_.TimedWait(timeout);
+        CHECK(!seeking_ || pending_reads_ > 0)
+            << "Timed out waiting for seek or read to occur.";
+      }
+    }
+
+    EXPECT_EQ(0, pending_reads_);
+  }
+
+  base::Lock lock_;
+  base::ConditionVariable cv_;
+  base::WaitableEvent event_;
+
+  // Used in conjunction with |lock_| and |cv_| for satisfying reads.
   bool seeking_;
+  int pending_reads_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBaseTest);
 };
@@ -222,110 +335,135 @@ TEST_F(VideoRendererBaseTest, Initialize_Failed) {
 TEST_F(VideoRendererBaseTest, Initialize_Successful) {
   Initialize();
   ExpectCurrentTimestamp(0);
-  Flush();
+  Shutdown();
 }
 
 TEST_F(VideoRendererBaseTest, Play) {
   Initialize();
-  renderer_->Play(NewExpectedClosure());
-  Flush();
+  Play();
+  Shutdown();
 }
 
 TEST_F(VideoRendererBaseTest, Error_Playing) {
   Initialize();
-  renderer_->Play(NewExpectedClosure());
+  Play();
 
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
-  CreateError();
-  Flush();
+  DeliverErrorToRenderer();
+  Shutdown();
 }
 
 TEST_F(VideoRendererBaseTest, Error_Seeking) {
   Initialize();
+  Pause();
   Flush();
+
   StartSeeking(0, PIPELINE_ERROR_DECODE);
-  CreateError();
-  Flush();
+  DeliverErrorToRenderer();
+  Shutdown();
+}
+
+TEST_F(VideoRendererBaseTest, Error_DuringPaint) {
+  Initialize();
+  Play();
+
+  // Grab the frame.
+  scoped_refptr<VideoFrame> frame;
+  renderer_->GetCurrentFrame(&frame);
+  EXPECT_TRUE(frame);
+
+  // Deliver an error.
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+  DeliverErrorToRenderer();
+
+  // Return the frame then try getting it again -- it should be NULL.
+  renderer_->PutCurrentFrame(frame);
+  ExpectCurrentFrame(false);
 }
 
 TEST_F(VideoRendererBaseTest, Seek_Exact) {
   Initialize();
+  Pause();
   Flush();
   Seek(kDuration * 6);
   ExpectCurrentTimestamp(kDuration * 6);
-  Flush();
+  Shutdown();
 }
 
 TEST_F(VideoRendererBaseTest, Seek_RightBefore) {
   Initialize();
+  Pause();
   Flush();
   Seek(kDuration * 6 - 1);
   ExpectCurrentTimestamp(kDuration * 5);
-  Flush();
+  Shutdown();
 }
 
 TEST_F(VideoRendererBaseTest, Seek_RightAfter) {
   Initialize();
+  Pause();
   Flush();
   Seek(kDuration * 6 + 1);
   ExpectCurrentTimestamp(kDuration * 6);
+  Shutdown();
+}
+
+TEST_F(VideoRendererBaseTest, GetCurrentFrame_Initialized) {
+  Initialize();
+  ExpectCurrentFrame(true);  // Due to prerolling.
+  Shutdown();
+}
+
+TEST_F(VideoRendererBaseTest, GetCurrentFrame_Playing) {
+  Initialize();
+  Play();
+  ExpectCurrentFrame(true);
+  Shutdown();
+}
+
+TEST_F(VideoRendererBaseTest, GetCurrentFrame_Paused) {
+  Initialize();
+  Play();
+  Pause();
+  ExpectCurrentFrame(true);
+  Shutdown();
+}
+
+TEST_F(VideoRendererBaseTest, GetCurrentFrame_Flushed) {
+  Initialize();
+  Play();
+  Pause();
   Flush();
+  ExpectCurrentFrame(false);
+  Shutdown();
 }
 
-// Verify behavior for GetCurrentFrame() calls that happen after a
-// decoder error.
-TEST_F(VideoRendererBaseTest, GetCurrentFrame_AfterError) {
+TEST_F(VideoRendererBaseTest, GetCurrentFrame_Shutdown) {
   Initialize();
-  renderer_->Play(NewExpectedClosure());
-
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
-  CreateError();
-
-  scoped_refptr<VideoFrame> frame;
-  renderer_->GetCurrentFrame(&frame);
-  EXPECT_TRUE(!frame.get());
-  renderer_->PutCurrentFrame(frame);
+  Shutdown();
+  ExpectCurrentFrame(false);
 }
 
-// Verify behavior for GetCurrentFrame() when an error occurs in the middle
-// of a paint operation.
-TEST_F(VideoRendererBaseTest, Error_DuringPaint) {
+// Verify that shutdown can only proceed after we return the current frame.
+TEST_F(VideoRendererBaseTest, Shutdown_DuringPaint) {
   Initialize();
-  renderer_->Play(NewExpectedClosure());
+  Play();
 
+  // Grab the frame.
   scoped_refptr<VideoFrame> frame;
   renderer_->GetCurrentFrame(&frame);
+  EXPECT_TRUE(frame);
 
-  EXPECT_TRUE(frame.get());
+  Pause();
 
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
-  CreateError();
+  // Start flushing -- it won't complete until we return the frame.
+  renderer_->Flush(NewWaitableClosure());
 
+  // Return the frame and wait.
   renderer_->PutCurrentFrame(frame);
+  WaitForClosure();
 
-  renderer_->GetCurrentFrame(&frame);
-  EXPECT_TRUE(!frame.get());
-  renderer_->PutCurrentFrame(frame);
-}
-
-
-// Verify behavior for GetCurrentFrame() calls that happen after
-// the renderer has been stopped.
-TEST_F(VideoRendererBaseTest, GetCurrentFrame_AfterStop) {
-  Initialize();
-
-  EXPECT_CALL(*renderer_, OnStop(_))
-      .WillOnce(DoAll(OnStop(), Return()))
-      .RetiresOnSaturation();
-
-  renderer_->Stop(NewExpectedClosure());
-
-  scoped_refptr<VideoFrame> frame;
-  renderer_->GetCurrentFrame(&frame);
-  EXPECT_TRUE(!frame.get());
-  renderer_->PutCurrentFrame(frame);
-
-  renderer_ = NULL;
+  Stop();
 }
 
 }  // namespace media
