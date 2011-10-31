@@ -336,8 +336,6 @@
           'timer.h',
           'tracked_objects.cc',
           'tracked_objects.h',
-	  'tracking_info.cc',
-	  'tracking_info.h',
           'tuple.h',
           'utf_offset_string_conversions.cc',
           'utf_offset_string_conversions.h',
