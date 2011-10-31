@@ -433,12 +433,7 @@ class NET_EXPORT X509Certificate
                      CRLSet* crl_set,
                      CertVerifyResult* verify_result) const;
 
-  // The serial number, DER encoded.
-  // NOTE: keep this method private, used by IsBlacklisted only.  To simplify
-  // IsBlacklisted, we strip the leading 0 byte of a serial number, used to
-  // encode a positive DER INTEGER (a signed type) with a most significant bit
-  // of 1.  Other code must not use this method for general purpose until this
-  // is fixed.
+  // The serial number, DER encoded, possibly including a leading 00 byte.
   const std::string& serial_number() const { return serial_number_; }
 
   // IsBlacklisted returns true if this certificate is explicitly blacklisted.

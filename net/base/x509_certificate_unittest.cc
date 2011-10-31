@@ -429,7 +429,7 @@ TEST(X509CertificateTest, SerialNumbers) {
           reinterpret_cast<const char*>(paypal_null_der),
           sizeof(paypal_null_der)));
 
-  static const uint8 paypal_null_serial[2] = {0xf0, 0x9b};
+  static const uint8 paypal_null_serial[3] = {0x00, 0xf0, 0x9b};
   ASSERT_EQ(sizeof(paypal_null_serial),
             paypal_null_cert->serial_number().size());
   EXPECT_TRUE(memcmp(paypal_null_cert->serial_number().data(),
