@@ -19,6 +19,7 @@
 #include "base/observer_list.h"
 #include "base/synchronization/lock.h"
 #include "base/task.h"
+#include "base/tracking_info.h"
 #include "base/time.h"
 
 #if defined(OS_WIN)
@@ -44,11 +45,9 @@ namespace base {
 class Histogram;
 }
 
-#if defined(TRACK_ALL_TASK_OBJECTS)
 namespace tracked_objects {
 class Births;
 }
-#endif  // defined(TRACK_ALL_TASK_OBJECTS)
 
 // A MessageLoop is used to process events for a particular thread.  There is
 // at most one MessageLoop instance per thread.
@@ -410,7 +409,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
 #endif
 
   // This structure is copied around by value.
-  struct PendingTask {
+  struct PendingTask : public base::TrackingInfo {
     PendingTask(const base::Closure& task,
                 const tracked_objects::Location& posted_from,
                 base::TimeTicks delayed_run_time,
@@ -422,17 +421,6 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
 
     // The task to run.
     base::Closure task;
-
-#if defined(TRACK_ALL_TASK_OBJECTS)
-    // Counter for location where the Closure was posted from.
-    tracked_objects::Births* post_births;
-#endif  // defined(TRACK_ALL_TASK_OBJECTS)
-
-    // Time this PendingTask was posted.
-    base::TimeTicks time_posted;
-
-    // The time when the task should be run.
-    base::TimeTicks delayed_run_time;
 
     // The site this PendingTask was posted from.
     tracked_objects::Location posted_from;
