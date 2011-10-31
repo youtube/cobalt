@@ -408,6 +408,18 @@ bool CRLSet::ApplyDelta(base::StringPiece data,
 CRLSet::Result CRLSet::CheckCertificate(
     const base::StringPiece& serial_number,
     const base::StringPiece& parent_spki) const {
+  base::StringPiece serial(serial_number);
+
+  if (!serial.empty() && serial[0] >= 0x80) {
+    // This serial number is negative but the process which generates CRL sets
+    // will reject any certificates with negative serial numbers as invalid.
+    return UNKNOWN;
+  }
+
+  // Remove any leading zero bytes.
+  while (serial.size() > 1 && serial[0] == 0x00)
+    serial.remove_prefix(1);
+
   std::map<std::string, size_t>::const_iterator i =
       crls_index_by_issuer_.find(parent_spki.as_string());
   if (i == crls_index_by_issuer_.end())
@@ -416,7 +428,7 @@ CRLSet::Result CRLSet::CheckCertificate(
 
   for (std::vector<std::string>::const_iterator i = serials.begin();
        i != serials.end(); ++i) {
-    if (base::StringPiece(*i) == serial_number)
+    if (base::StringPiece(*i) == serial)
       return REVOKED;
   }
 
