@@ -207,7 +207,10 @@ double WASAPIAudioInputStream::HardwareSampleRate(ERole device_role) {
                                            device_role,
                                            endpoint_device.Receive());
   if (FAILED(hr)) {
-    NOTREACHED() << "error code: " << hr;
+    // This will happen if there's no audio capture device found or available
+    // (e.g. some audio cards that have inputs will still report them as
+    // "not found" when no mic is plugged into the input jack).
+    LOG(WARNING) << "No audio end point: " << std::hex << hr;
     return 0.0;
   }
 
