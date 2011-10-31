@@ -152,9 +152,7 @@ void Thread::ThreadMain() {
     ANNOTATE_THREAD_NAME(name_.c_str());  // Tell the name to race detector.
     message_loop.set_thread_name(name_);
     message_loop_ = &message_loop;
-#if defined(TRACK_ALL_TASK_OBJECTS)
     tracked_objects::ThreadData::InitializeThreadContext(name_);
-#endif  // TRACK_ALL_TASK_OBJECTS
 
     // Let the thread do extra initialization.
     // Let's do this before signaling we are started.
