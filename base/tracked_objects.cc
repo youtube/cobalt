@@ -203,6 +203,7 @@ ThreadData* ThreadData::Get() {
 void ThreadData::OnThreadTermination(void* thread_data) {
   if (!kTrackAllTaskObjects)
     return;  // Not compiled in.
+  DCHECK(tls_index_.initialized());
   if (!thread_data)
     return;
   reinterpret_cast<ThreadData*>(thread_data)->OnThreadTerminationCleanup();
