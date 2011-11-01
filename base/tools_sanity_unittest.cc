@@ -74,7 +74,8 @@ void MakeSomeErrors(char *ptr, size_t size) {
 
 // A memory leak detector should report an error in this test.
 TEST(ToolsSanityTest, MemoryLeak) {
-  int *leak = new int[256];  // Leak some memory intentionally.
+  // Without the |volatile|, clang optimizes away the next two lines.
+  int* volatile leak = new int[256];  // Leak some memory intentionally.
   leak[4] = 1;  // Make sure the allocated memory is used.
 }
 
