@@ -408,6 +408,11 @@ void MessageLoop::AssertIdle() const {
   DCHECK(incoming_queue_.empty());
 }
 
+bool MessageLoop::is_running() const {
+  DCHECK_EQ(this, current());
+  return state_ != NULL;
+}
+
 //------------------------------------------------------------------------------
 
 // Runs the loop in two different SEH modes:
