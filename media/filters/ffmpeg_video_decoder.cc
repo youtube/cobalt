@@ -175,13 +175,13 @@ void FFmpegVideoDecoder::OnError() {
   VideoFrameReady(NULL);
 }
 
-void FFmpegVideoDecoder::OnReadComplete(Buffer* buffer_in) {
-  scoped_refptr<Buffer> buffer(buffer_in);
+void FFmpegVideoDecoder::OnReadComplete(const scoped_refptr<Buffer>& buffer) {
   message_loop_->PostTask(FROM_HERE, base::Bind(
       &FFmpegVideoDecoder::OnReadCompleteTask, this, buffer));
 }
 
-void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
+void FFmpegVideoDecoder::OnReadCompleteTask(
+    const scoped_refptr<Buffer>& buffer) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kStopped);  // because of Flush() before Stop().
 
@@ -293,8 +293,7 @@ void FFmpegVideoDecoder::ProduceVideoSample(
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kStopped);
 
-  demuxer_stream_->Read(base::Bind(&FFmpegVideoDecoder::OnReadComplete,
-                                   this));
+  demuxer_stream_->Read(base::Bind(&FFmpegVideoDecoder::OnReadComplete, this));
 }
 
 gfx::Size FFmpegVideoDecoder::natural_size() {

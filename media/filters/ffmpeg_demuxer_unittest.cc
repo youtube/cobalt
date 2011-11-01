@@ -389,7 +389,7 @@ class MockReadCallback : public base::RefCountedThreadSafe<MockReadCallback> {
   }
 
   MOCK_METHOD0(OnDelete, void());
-  MOCK_METHOD1(Run, void(Buffer* buffer));
+  MOCK_METHOD1(Run, void(const scoped_refptr<Buffer>& buffer));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockReadCallback);

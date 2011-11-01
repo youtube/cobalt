@@ -43,7 +43,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
 
   // Reads from the demuxer stream with corresponding callback method.
   void ReadFromDemuxerStream();
-  void DecodeBuffer(Buffer* buffer);
+  void DecodeBuffer(const scoped_refptr<Buffer>& buffer);
 
   // Updates the output buffer's duration and timestamp based on the input
   // buffer. Will fall back to an estimated timestamp if the input lacks a
