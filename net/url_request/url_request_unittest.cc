@@ -2473,7 +2473,8 @@ TEST_F(URLRequestTestHTTP, Post302RedirectGet) {
 }
 
 // The following tests check that we handle mutating the request method for
-// HTTP redirects as expected.  See http://crbug.com/56373.
+// HTTP redirects as expected.
+// See http://crbug.com/56373 and http://crbug.com/102130.
 
 TEST_F(URLRequestTestHTTP, Redirect301Tests) {
   ASSERT_TRUE(test_server_.Start());
@@ -2482,6 +2483,7 @@ TEST_F(URLRequestTestHTTP, Redirect301Tests) {
 
   HTTPRedirectMethodTest(url, "POST", "GET", true);
   HTTPRedirectMethodTest(url, "PUT", "PUT", true);
+  HTTPRedirectMethodTest(url, "HEAD", "HEAD", false);
 }
 
 TEST_F(URLRequestTestHTTP, Redirect302Tests) {
@@ -2491,6 +2493,7 @@ TEST_F(URLRequestTestHTTP, Redirect302Tests) {
 
   HTTPRedirectMethodTest(url, "POST", "GET", true);
   HTTPRedirectMethodTest(url, "PUT", "PUT", true);
+  HTTPRedirectMethodTest(url, "HEAD", "HEAD", false);
 }
 
 TEST_F(URLRequestTestHTTP, Redirect303Tests) {
@@ -2500,6 +2503,7 @@ TEST_F(URLRequestTestHTTP, Redirect303Tests) {
 
   HTTPRedirectMethodTest(url, "POST", "GET", true);
   HTTPRedirectMethodTest(url, "PUT", "GET", true);
+  HTTPRedirectMethodTest(url, "HEAD", "HEAD", false);
 }
 
 TEST_F(URLRequestTestHTTP, Redirect307Tests) {
@@ -2509,6 +2513,7 @@ TEST_F(URLRequestTestHTTP, Redirect307Tests) {
 
   HTTPRedirectMethodTest(url, "POST", "POST", true);
   HTTPRedirectMethodTest(url, "PUT", "PUT", true);
+  HTTPRedirectMethodTest(url, "HEAD", "HEAD", false);
 }
 
 TEST_F(URLRequestTestHTTP, InterceptPost302RedirectGet) {
