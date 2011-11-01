@@ -19,12 +19,7 @@ namespace tracked_objects {
 
 namespace {
 // Flag to compile out almost all of the task tracking code.
-#if defined(NDEBUG) && defined(OS_MAC)
-// Avoid problems with base_unittest crashes in Mac for now.
-static const bool kTrackAllTaskObjects = false;
-#else
 static const bool kTrackAllTaskObjects = true;
-#endif
 
 // When ThreadData is first initialized, should we start in an ACTIVE state to
 // record all of the startup-time tasks, or should we start up DEACTIVATED, so
