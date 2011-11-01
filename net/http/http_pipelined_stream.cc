@@ -71,8 +71,10 @@ void HttpPipelinedStream::Close(bool not_reusable) {
 }
 
 HttpStream* HttpPipelinedStream::RenewStreamForAuth() {
-  // FIXME: What does this mean on a pipeline? Is it for proxies?
-  return new HttpPipelinedStream(pipeline_, pipeline_id_);
+  if (pipeline_->usable()) {
+    return pipeline_->CreateNewStream();
+  }
+  return NULL;
 }
 
 bool HttpPipelinedStream::IsResponseBodyComplete() const {
