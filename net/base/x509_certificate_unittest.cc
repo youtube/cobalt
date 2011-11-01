@@ -1292,15 +1292,10 @@ struct CertificateNameVerifyTestData {
   const char* ip_addrs;
 };
 
-// Required by valgrind on mac, otherwise it complains when using its default
-// printer:
-// UninitCondition
-// Conditional jump or move depends on uninitialised value(s)
-// ...
-// snprintf
-// testing::(anonymous namespace)::PrintByteSegmentInObjectTo
-// testing::internal2::TypeWithoutFormatter
-// ...
+// GTest 'magic' pretty-printer, so that if/when a test fails, it knows how
+// to output the parameter that was passed. Without this, it will simply
+// attempt to print out the first twenty bytes of the object, which depending
+// on platform and alignment, may result in an invalid read.
 void PrintTo(const CertificateNameVerifyTestData& data, std::ostream* os) {
   ASSERT_TRUE(data.hostname && data.common_name);
   // Using StringPiece to allow for optional fields being NULL.
@@ -1504,5 +1499,206 @@ TEST_P(X509CertificateNameVerifyTest, VerifyHostname) {
 
 INSTANTIATE_TEST_CASE_P(, X509CertificateNameVerifyTest,
                         testing::ValuesIn(kNameVerifyTestData));
+
+// Not implemented on Mac or OpenSSL - http://crbug.com/101123
+#if defined(USE_NSS) || defined(OS_WIN)
+
+struct WeakDigestTestData {
+  const char* root_cert_filename;
+  const char* intermediate_cert_filename;
+  const char* ee_cert_filename;
+  bool expected_has_md5;
+  bool expected_has_md4;
+  bool expected_has_md2;
+  bool expected_has_md5_ca;
+  bool expected_has_md2_ca;
+};
+
+// GTest 'magic' pretty-printer, so that if/when a test fails, it knows how
+// to output the parameter that was passed. Without this, it will simply
+// attempt to print out the first twenty bytes of the object, which depending
+// on platform and alignment, may result in an invalid read.
+void PrintTo(const WeakDigestTestData& data, std::ostream* os) {
+  *os << "root: "
+      << (data.root_cert_filename ? data.root_cert_filename : "none")
+      << "; intermediate: " << data.intermediate_cert_filename
+      << "; end-entity: " << data.ee_cert_filename;
+}
+
+class X509CertificateWeakDigestTest
+    : public testing::TestWithParam<WeakDigestTestData> {
+ public:
+  X509CertificateWeakDigestTest() {}
+
+  virtual void TearDown() {
+    TestRootCerts::GetInstance()->Clear();
+  }
+};
+
+TEST_P(X509CertificateWeakDigestTest, Verify) {
+  WeakDigestTestData data = GetParam();
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  if (data.root_cert_filename) {
+     scoped_refptr<X509Certificate> root_cert =
+         ImportCertFromFile(certs_dir, data.root_cert_filename);
+     ASSERT_NE(static_cast<X509Certificate*>(NULL), root_cert);
+     TestRootCerts::GetInstance()->Add(root_cert.get());
+  }
+
+  scoped_refptr<X509Certificate> intermediate_cert =
+      ImportCertFromFile(certs_dir, data.intermediate_cert_filename);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+  scoped_refptr<X509Certificate> ee_cert =
+      ImportCertFromFile(certs_dir, data.ee_cert_filename);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), ee_cert);
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert->os_cert_handle());
+
+  scoped_refptr<X509Certificate> ee_chain =
+      X509Certificate::CreateFromHandle(ee_cert->os_cert_handle(),
+                                        intermediates);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), ee_chain);
+
+  int flags = 0;
+  CertVerifyResult verify_result;
+  ee_chain->Verify("127.0.0.1", flags, NULL, &verify_result);
+  EXPECT_EQ(data.expected_has_md5, verify_result.has_md5);
+  EXPECT_EQ(data.expected_has_md4, verify_result.has_md4);
+  EXPECT_EQ(data.expected_has_md2, verify_result.has_md2);
+  EXPECT_EQ(data.expected_has_md5_ca, verify_result.has_md5_ca);
+  EXPECT_EQ(data.expected_has_md2_ca, verify_result.has_md2_ca);
+}
+
+// Unlike TEST/TEST_F, which are macros that expand to further macros,
+// INSTANTIATE_TEST_CASE_P is a macro that expands directly to code that
+// stringizes the arguments. As a result, macros passed as parameters (such as
+// prefix or test_case_name) will not be expanded by the preprocessor. To work
+// around this, indirect the macro for INSTANTIATE_TEST_CASE_P, so that the
+// pre-processor will expand macros such as MAYBE_test_name before
+// instantiating the test.
+#define WRAPPED_INSTANTIATE_TEST_CASE_P(prefix, test_case_name, generator) \
+    INSTANTIATE_TEST_CASE_P(prefix, test_case_name, generator)
+
+// The signature algorithm of the root CA should not matter.
+const WeakDigestTestData kVerifyRootCATestData[] = {
+  { "weak_digest_md5_root.pem", "weak_digest_sha1_intermediate.pem",
+    "weak_digest_sha1_ee.pem", false, false, false, false, false },
+  { "weak_digest_md4_root.pem", "weak_digest_sha1_intermediate.pem",
+    "weak_digest_sha1_ee.pem", false, false, false, false, false },
+  { "weak_digest_md2_root.pem", "weak_digest_sha1_intermediate.pem",
+    "weak_digest_sha1_ee.pem", false, false, false, false, false },
+};
+INSTANTIATE_TEST_CASE_P(VerifyRoot, X509CertificateWeakDigestTest,
+                        testing::ValuesIn(kVerifyRootCATestData));
+
+// The signature algorithm of intermediates should be properly detected.
+const WeakDigestTestData kVerifyIntermediateCATestData[] = {
+  { "weak_digest_sha1_root.pem", "weak_digest_md5_intermediate.pem",
+    "weak_digest_sha1_ee.pem", true, false, false, true, false },
+// NSS does not support MD4 and does not enable MD2 by policy.
+#if !defined(USE_NSS)
+  { "weak_digest_sha1_root.pem", "weak_digest_md4_intermediate.pem",
+    "weak_digest_sha1_ee.pem", false, true, false, false, false },
+  { "weak_digest_sha1_root.pem", "weak_digest_md2_intermediate.pem",
+    "weak_digest_sha1_ee.pem", false, false, true, false, true },
+#endif
+};
+INSTANTIATE_TEST_CASE_P(VerifyIntermediate, X509CertificateWeakDigestTest,
+                        testing::ValuesIn(kVerifyIntermediateCATestData));
+
+// The signature algorithm of end-entity should be properly detected.
+const WeakDigestTestData kVerifyEndEntityTestData[] = {
+  { "weak_digest_sha1_root.pem", "weak_digest_sha1_intermediate.pem",
+    "weak_digest_md5_ee.pem", true, false, false, false, false },
+// NSS does not support MD4 and does not enable MD2 by policy.
+#if !defined(USE_NSS)
+  { "weak_digest_sha1_root.pem", "weak_digest_sha1_intermediate.pem",
+    "weak_digest_md4_ee.pem", false, true, false, false, false },
+  { "weak_digest_sha1_root.pem", "weak_digest_sha1_intermediate.pem",
+    "weak_digest_md2_ee.pem", false, false, true, false, false },
+#endif
+};
+// Disabled on NSS - NSS caches chains/signatures in such a way that cannot
+// be cleared until NSS is cleanly shutdown, which is not presently supported
+// in Chromium.
+#if defined(USE_NSS)
+#define MAYBE_VerifyEndEntity DISABLED_VerifyEndEntity
+#else
+#define MAYBE_VerifyEndEntity VerifyEndEntity
+#endif
+WRAPPED_INSTANTIATE_TEST_CASE_P(MAYBE_VerifyEndEntity,
+                                X509CertificateWeakDigestTest,
+                                testing::ValuesIn(kVerifyEndEntityTestData));
+
+// Incomplete chains should still report the status of the intermediate.
+const WeakDigestTestData kVerifyIncompleteIntermediateTestData[] = {
+  { NULL, "weak_digest_md5_intermediate.pem", "weak_digest_sha1_ee.pem",
+    true, false, false, true, false },
+  { NULL, "weak_digest_md4_intermediate.pem", "weak_digest_sha1_ee.pem",
+    false, true, false, false, false },
+  { NULL, "weak_digest_md2_intermediate.pem", "weak_digest_sha1_ee.pem",
+    false, false, true, false, true },
+};
+// Disabled on Windows - http://crbug.com/101123. The Windows implementation
+// does not report the status of the last intermediate for incomplete chains.
+// Disabled on NSS - libpkix does not return constructed chains on error,
+// preventing us from detecting/inspecting the verified chain.
+#if defined(OS_WIN) || defined(USE_NSS)
+#define MAYBE_VerifyIncompleteIntermediate \
+    DISABLED_VerifyIncompleteIntermediate
+#else
+#define MAYBE_VerifyIncompleteIntermediate VerifyIncompleteIntermediate
+#endif
+WRAPPED_INSTANTIATE_TEST_CASE_P(
+    MAYBE_VerifyIncompleteIntermediate,
+    X509CertificateWeakDigestTest,
+    testing::ValuesIn(kVerifyIncompleteIntermediateTestData));
+
+// Incomplete chains should still report the status of the end-entity.
+const WeakDigestTestData kVerifyIncompleteEETestData[] = {
+  { NULL, "weak_digest_sha1_intermediate.pem", "weak_digest_md5_ee.pem",
+    true, false, false, false, false },
+  { NULL, "weak_digest_sha1_intermediate.pem", "weak_digest_md4_ee.pem",
+    false, true, false, false, false },
+  { NULL, "weak_digest_sha1_intermediate.pem", "weak_digest_md2_ee.pem",
+    false, false, true, false, false },
+};
+// Disabled on NSS - libpkix does not return constructed chains on error,
+// preventing us from detecting/inspecting the verified chain.
+#if defined(USE_NSS)
+#define MAYBE_VerifyIncompleteEndEntity DISABLED_VerifyIncompleteEndEntity
+#else
+#define MAYBE_VerifyIncompleteEndEntity VerifyIncompleteEndEntity
+#endif
+WRAPPED_INSTANTIATE_TEST_CASE_P(
+    MAYBE_VerifyIncompleteEndEntity,
+    X509CertificateWeakDigestTest,
+    testing::ValuesIn(kVerifyIncompleteEETestData));
+
+// Differing algorithms between the intermediate and the EE should still be
+// reported.
+const WeakDigestTestData kVerifyMixedTestData[] = {
+  { "weak_digest_sha1_root.pem", "weak_digest_md5_intermediate.pem",
+    "weak_digest_md2_ee.pem", true, false, true, true, false },
+  { "weak_digest_sha1_root.pem", "weak_digest_md2_intermediate.pem",
+    "weak_digest_md5_ee.pem", true, false, true, false, true },
+  { "weak_digest_sha1_root.pem", "weak_digest_md4_intermediate.pem",
+    "weak_digest_md2_ee.pem", false, true, true, false, false },
+};
+// NSS does not support MD4 and does not enable MD2 by policy, making all
+// permutations invalid.
+#if defined(USE_NSS)
+#define MAYBE_VerifyMixed DISABLED_VerifyMixed
+#else
+#define MAYBE_VerifyMixed VerifyMixed
+#endif
+WRAPPED_INSTANTIATE_TEST_CASE_P(
+    MAYBE_VerifyMixed,
+    X509CertificateWeakDigestTest,
+    testing::ValuesIn(kVerifyMixedTestData));
+
+#endif  // defined(USE_NSS) || defined(OS_WIN)
 
 }  // namespace net
