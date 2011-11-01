@@ -695,15 +695,16 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     return ERR_UNSAFE_REDIRECT;
   }
 
-  // For 303 redirects, all request methods are converted to GETs, as per RFC
-  // 2616.  The latest httpbis draft also allows POST requests to be converted
-  // to GETs when following 301/302 redirects for historical reasons.  Most
-  // major browsers do this and so shall we.  The RFC says to prompt the user
-  // to confirm the generation of new requests, other than GET and HEAD
-  // requests, but IE omits these prompts and so shall we.
-  // See:  http://greenbytes.de/tech/webdav/draft-ietf-httpbis-p2-semantics-latest.html#status.3xx
+  // For 303 redirects, all request methods except HEAD are converted to GET,
+  // as per the latest httpbis draft.  The draft also allows POST requests to
+  // be converted to GETs when following 301/302 redirects, for historical
+  // reasons. Most major browsers do this and so shall we.  Both RFC 2616 and
+  // the httpbis draft say to prompt the user to confirm the generation of new
+  // requests, other than GET and HEAD requests, but IE omits these prompts and
+  // so shall we.
+  // See:  https://tools.ietf.org/html/draft-ietf-httpbis-p2-semantics-17#section-7.3
   bool was_post = method_ == "POST";
-  if (http_status_code == 303 ||
+  if ((http_status_code == 303 && method_ != "HEAD") ||
       ((http_status_code == 301 || http_status_code == 302) && was_post)) {
     method_ = "GET";
     upload_ = NULL;
