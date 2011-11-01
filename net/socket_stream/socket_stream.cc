@@ -335,7 +335,8 @@ int SocketStream::DidEstablishSSL(int result, SSLConfig* ssl_config) {
       // Add the bad certificate to the set of allowed certificates in the
       // SSL config object.
       SSLConfig::CertAndStatus bad_cert;
-      if (!ssl_info.cert->GetDEREncoded(&bad_cert.der_cert)) {
+      if (!X509Certificate::GetDEREncoded(ssl_info.cert->os_cert_handle(),
+                                          &bad_cert.der_cert)) {
         next_state_ = STATE_CLOSE;
         return result;
       }

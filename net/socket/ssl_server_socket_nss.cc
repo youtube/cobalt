@@ -357,7 +357,7 @@ int SSLServerSocketNSS::InitializeSSLOptions() {
 
   // Get a certificate of CERTCertificate structure.
   std::string der_string;
-  if (!cert_->GetDEREncoded(&der_string))
+  if (!X509Certificate::GetDEREncoded(cert_->os_cert_handle(), &der_string))
     return ERR_UNEXPECTED;
 
   SECItem der_cert;
