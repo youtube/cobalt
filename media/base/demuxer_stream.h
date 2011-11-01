@@ -20,8 +20,6 @@ class VideoDecoderConfig;
 class MEDIA_EXPORT DemuxerStream
     : public base::RefCountedThreadSafe<DemuxerStream> {
  public:
-  typedef base::Callback<void(Buffer*)> ReadCallback;
-
   enum Type {
     UNKNOWN,
     AUDIO,
@@ -29,8 +27,10 @@ class MEDIA_EXPORT DemuxerStream
     NUM_TYPES,  // Always keep this entry as the last one!
   };
 
-  // Schedules a read.  When the |read_callback| is called, the downstream
-  // object takes ownership of the buffer by AddRef()'ing the buffer.
+  // Request a buffer to returned via the provided callback.
+  //
+  // Buffers will be non-NULL yet may be end of stream buffers.
+  typedef base::Callback<void(scoped_refptr<Buffer>)> ReadCallback;
   virtual void Read(const ReadCallback& read_callback) = 0;
 
   // Returns the audio decoder configuration. It is an error to call this method
