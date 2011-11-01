@@ -28,7 +28,7 @@
 #include "base/synchronization/lock.h"
 #elif defined(USE_OPENSSL)
 // Forward declaration; real one in <x509.h>
-struct x509_st;
+typedef struct x509_st X509;
 typedef struct x509_store_st X509_STORE;
 #elif defined(USE_NSS)
 // Forward declaration; real one in <cert.h>
@@ -56,15 +56,15 @@ typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 class NET_EXPORT X509Certificate
     : public base::RefCountedThreadSafe<X509Certificate> {
  public:
-  // A handle to the certificate object in the underlying crypto library.
-  // We assume that OSCertHandle is a pointer type on all platforms and
-  // NULL is an invalid OSCertHandle.
+  // An OSCertHandle is a handle to a certificate object in the underlying
+  // crypto library. We assume that OSCertHandle is a pointer type on all
+  // platforms and that NULL represents an invalid OSCertHandle.
 #if defined(OS_WIN)
   typedef PCCERT_CONTEXT OSCertHandle;
 #elif defined(OS_MACOSX)
   typedef SecCertificateRef OSCertHandle;
 #elif defined(USE_OPENSSL)
-  typedef struct x509_st* OSCertHandle;
+  typedef X509* OSCertHandle;
 #elif defined(USE_NSS)
   typedef struct CERTCertificateStr* OSCertHandle;
 #else
@@ -288,6 +288,13 @@ class NET_EXPORT X509Certificate
 
   // Creates the chain of certs to use for this client identity cert.
   CFArrayRef CreateClientCertificateChain() const;
+
+  // Returns a new CFArrayRef containing this certificate and its intermediate
+  // certificates in the form expected by Security.framework and Keychain
+  // Services, or NULL on failure.
+  // The first item in the array will be this certificate, followed by its
+  // intermediates, if any.
+  CFArrayRef CreateOSCertChainForCert() const;
 #endif
 
 #if defined(OS_WIN)
@@ -299,6 +306,52 @@ class NET_EXPORT X509Certificate
   //    this store so that we can close the system store when we finish
   //    searching for client certificates.
   static HCERTSTORE cert_store();
+
+  // Returns a new PCCERT_CONTEXT containing this certificate and its
+  // intermediate certificates, or NULL on failure. The returned
+  // PCCERT_CONTEXT *MUST NOT* be stored in an X509Certificate, as then
+  // os_cert_handle() will not return the correct result. This function is
+  // only necessary if the CERT_CONTEXT.hCertStore member will be accessed or
+  // enumerated, which is generally true for any CryptoAPI functions involving
+  // certificate chains, including validation or certificate display.
+  //
+  // Remarks:
+  // Depending on the CryptoAPI function, Windows may need to access the
+  // HCERTSTORE that the passed-in PCCERT_CONTEXT belongs to, such as to
+  // locate additional intermediates. However, in the current X509Certificate
+  // implementation on Windows, all X509Certificate::OSCertHandles belong to
+  // the same HCERTSTORE - X509Certificate::cert_store(). Since certificates
+  // may be created and accessed on any number of threads, if CryptoAPI is
+  // trying to read this global store while additional certificates are being
+  // added, it may return inconsistent results while enumerating the store.
+  // While the memory accesses themselves are thread-safe, the resultant view
+  // of what is in the store may be altered.
+  //
+  // If OSCertHandles were instead added to a NULL HCERTSTORE, which is valid
+  // in CryptoAPI, then Windows would be unable to locate any of the
+  // intermediates supplied in |intermediate_ca_certs_|, because the
+  // hCertStore will refer to a magic value that indicates "only this
+  // certificate."
+  //
+  // To avoid these problems, a new in-memory HCERTSTORE is created containing
+  // just this certificate and its intermediates. The handle to the version of
+  // this certificate in the new HCERTSTORE is then returned, with the
+  // HCERTSTORE set to be automatically freed when the returned certificate
+  // is freed.
+  //
+  // This function is only needed when the HCERTSTORE of the os_cert_handle()
+  // will be accessed, which is generally only during certificate validation
+  // or display. While the returned PCCERT_CONTEXT and its HCERTSTORE can
+  // safely be used on multiple threads if no further modifications happen, it
+  // is generally preferable for each thread that needs such a context to
+  // obtain its own, rather than risk thread-safety issues by sharing.
+  //
+  // Because of how X509Certificate caching is implemented, attempting to
+  // create an X509Certificate from the returned PCCERT_CONTEXT may result in
+  // the original handle (and thus the originall HCERTSTORE) being returned by
+  // os_cert_handle(). For this reason, the returned PCCERT_CONTEXT *MUST NOT*
+  // be stored in an X509Certificate.
+  PCCERT_CONTEXT CreateOSCertChainForCert() const;
 #endif
 
 #if defined(OS_ANDROID)
@@ -345,6 +398,11 @@ class NET_EXPORT X509Certificate
   // The content of the DER encoded certificate is written to |encoded|.
   bool GetDEREncoded(std::string* encoded);
 
+  // Returns the OSCertHandle of this object. Because of caching, this may
+  // differ from the OSCertHandle originally supplied during initialization.
+  // Note: On Windows, CryptoAPI may return unexpected results if this handle
+  // is used across multiple threads. For more details, see
+  // CreateOSCertChainForCert().
   OSCertHandle os_cert_handle() const { return cert_handle_; }
 
   // Returns true if two OSCertHandles refer to identical certificates.

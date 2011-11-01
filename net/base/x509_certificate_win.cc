@@ -9,6 +9,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/pickle.h"
 #include "base/sha1.h"
 #include "base/string_tokenizer.h"
@@ -21,7 +22,6 @@
 #include "net/base/cert_verify_result.h"
 #include "net/base/ev_root_ca_metadata.h"
 #include "net/base/net_errors.h"
-#include "net/base/scoped_cert_chain_context.h"
 #include "net/base/test_root_certs.h"
 #include "net/base/x509_certificate_known_roots_win.h"
 
@@ -33,11 +33,6 @@ namespace net {
 
 namespace {
 
-typedef crypto::ScopedCAPIHandle<
-    HCERTSTORE,
-    crypto::CAPIDestroyerWithFlags<HCERTSTORE,
-                                   CertCloseStore, 0> > ScopedHCERTSTORE;
-
 struct FreeChainEngineFunctor {
   void operator()(HCERTCHAINENGINE engine) const {
     if (engine)
@@ -45,8 +40,34 @@ struct FreeChainEngineFunctor {
   }
 };
 
+struct FreeCertContextFunctor {
+  void operator()(PCCERT_CONTEXT context) const {
+    if (context)
+      CertFreeCertificateContext(context);
+  }
+};
+
+struct FreeCertChainContextFunctor {
+  void operator()(PCCERT_CHAIN_CONTEXT chain_context) const {
+    if (chain_context)
+      CertFreeCertificateChain(chain_context);
+  }
+};
+
 typedef crypto::ScopedCAPIHandle<HCERTCHAINENGINE, FreeChainEngineFunctor>
     ScopedHCERTCHAINENGINE;
+
+typedef crypto::ScopedCAPIHandle<
+    HCERTSTORE,
+    crypto::CAPIDestroyerWithFlags<HCERTSTORE,
+                                   CertCloseStore, 0> > ScopedHCERTSTORE;
+
+typedef scoped_ptr_malloc<const CERT_CONTEXT,
+                          FreeCertContextFunctor> ScopedPCCERT_CONTEXT;
+
+typedef scoped_ptr_malloc<const CERT_CHAIN_CONTEXT,
+                          FreeCertChainContextFunctor>
+    ScopedPCCERT_CHAIN_CONTEXT;
 
 //-----------------------------------------------------------------------------
 
@@ -695,6 +716,40 @@ HCERTSTORE X509Certificate::cert_store() {
   return g_cert_store.Get().cert_store();
 }
 
+PCCERT_CONTEXT X509Certificate::CreateOSCertChainForCert() const {
+  // Create an in-memory certificate store to hold this certificate and
+  // any intermediate certificates in |intermediate_ca_certs_|. The store
+  // will be referenced in the returned PCCERT_CONTEXT, and will not be freed
+  // until the PCCERT_CONTEXT is freed.
+  ScopedHCERTSTORE store(CertOpenStore(
+      CERT_STORE_PROV_MEMORY, 0, NULL,
+      CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG, NULL));
+  if (!store.get())
+    return NULL;
+
+  // NOTE: This preserves all of the properties of |os_cert_handle()| except
+  // for CERT_KEY_PROV_HANDLE_PROP_ID and CERT_KEY_CONTEXT_PROP_ID - the two
+  // properties that hold access to already-opened private keys. If a handle
+  // has already been unlocked (eg: PIN prompt), then the first time that the
+  // identity is used for client auth, it may prompt the user again.
+  PCCERT_CONTEXT primary_cert;
+  BOOL ok = CertAddCertificateContextToStore(store.get(), os_cert_handle(),
+                                             CERT_STORE_ADD_ALWAYS,
+                                             &primary_cert);
+  if (!ok || !primary_cert)
+    return NULL;
+
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
+    CertAddCertificateContextToStore(store.get(), intermediate_ca_certs_[i],
+                                     CERT_STORE_ADD_ALWAYS, NULL);
+  }
+
+  // Note: |store| is explicitly not released, as the call to CertCloseStore()
+  // when |store| goes out of scope will not actually free the store. Instead,
+  // the store will be freed when |primary_cert| is freed.
+  return primary_cert;
+}
+
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
                                     CRLSet* crl_set,
@@ -762,21 +817,23 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   if (TestRootCerts::HasInstance())
     chain_engine.reset(TestRootCerts::GetInstance()->GetChainEngine());
 
+  ScopedPCCERT_CONTEXT cert_list(CreateOSCertChainForCert());
   PCCERT_CHAIN_CONTEXT chain_context;
   // IE passes a non-NULL pTime argument that specifies the current system
   // time.  IE passes CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT as the
   // chain_flags argument.
   if (!CertGetCertificateChain(
            chain_engine,
-           cert_handle_,
+           cert_list.get(),
            NULL,  // current system time
-           cert_handle_->hCertStore,
+           cert_list->hCertStore,
            &chain_para,
            chain_flags,
            NULL,  // reserved
            &chain_context)) {
     return MapSecurityError(GetLastError());
   }
+
   if (chain_context->TrustStatus.dwErrorStatus &
       CERT_TRUST_IS_NOT_VALID_FOR_USAGE) {
     ev_policy_oid = NULL;
@@ -785,9 +842,9 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     CertFreeCertificateChain(chain_context);
     if (!CertGetCertificateChain(
              chain_engine,
-             cert_handle_,
+             cert_list.get(),
              NULL,  // current system time
-             cert_handle_->hCertStore,
+             cert_list->hCertStore,
              &chain_para,
              chain_flags,
              NULL,  // reserved
@@ -795,7 +852,8 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
       return MapSecurityError(GetLastError());
     }
   }
-  ScopedCertChainContext scoped_chain_context(chain_context);
+
+  ScopedPCCERT_CHAIN_CONTEXT scoped_chain_context(chain_context);
 
   GetCertChainInfo(chain_context, verify_result);
   verify_result->cert_status |= MapCertChainErrorStatusToCertStatus(
