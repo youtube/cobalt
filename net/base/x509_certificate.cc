@@ -710,7 +710,7 @@ bool X509Certificate::IsBlacklisted() const {
     {0x3e,0x75,0xce,0xd4,0x6b,0x69,0x30,0x21,0x21,0x88,0x30,0xae,0x86,0xa8,0x2a,0x71},
   };
 
-  if (!serial_number_.empty() && serial_number_[0] >= 0x80) {
+  if (!serial_number_.empty() && (serial_number_[0] & 0x80) != 0) {
     // This is a negative serial number, which isn't technically allowed but
     // which probably happens. In order to avoid confusing a negative serial
     // number with a positive one once the leading zeros have been removed, we
