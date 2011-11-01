@@ -376,6 +376,9 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   }
 #endif  // OS_WIN
 
+  // Can only be called from the thread that owns the MessageLoop.
+  bool is_running() const;
+
   //----------------------------------------------------------------------------
  protected:
   struct RunState {
