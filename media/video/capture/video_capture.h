@@ -90,7 +90,6 @@ class MEDIA_EXPORT VideoCapture {
     int expected_capture_delay;  // expected delay in millisecond.
     media::VideoFrame::Format raw_type;  // desired video type.
     bool interlaced;  // need interlace format.
-    bool resolution_fixed;  // indicate requested resolution can't be altered.
   };
 
   VideoCapture() {}
