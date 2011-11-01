@@ -595,7 +595,8 @@ TEST(X509CertificateTest, DigiNotarCerts) {
     scoped_refptr<X509Certificate> diginotar_cert =
         ImportCertFromFile(certs_dir, kDigiNotarFilenames[i]);
     std::string der_bytes;
-    ASSERT_TRUE(diginotar_cert->GetDEREncoded(&der_bytes));
+    ASSERT_TRUE(X509Certificate::GetDEREncoded(
+        diginotar_cert->os_cert_handle(), &der_bytes));
 
     base::StringPiece spki;
     ASSERT_TRUE(asn1::ExtractSPKIFromDERCert(der_bytes, &spki));
@@ -653,7 +654,8 @@ TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
   ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
 
   std::string derBytes;
-  EXPECT_TRUE(cert->GetDEREncoded(&derBytes));
+  EXPECT_TRUE(X509Certificate::GetDEREncoded(cert->os_cert_handle(),
+                                             &derBytes));
 
   base::StringPiece spkiBytes;
   EXPECT_TRUE(asn1::ExtractSPKIFromDERCert(derBytes, &spkiBytes));
@@ -672,7 +674,8 @@ TEST(X509CertificateTest, ExtractCRLURLsFromDERCert) {
   ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
 
   std::string derBytes;
-  EXPECT_TRUE(cert->GetDEREncoded(&derBytes));
+  EXPECT_TRUE(X509Certificate::GetDEREncoded(cert->os_cert_handle(),
+                                             &derBytes));
 
   std::vector<base::StringPiece> crl_urls;
   EXPECT_TRUE(asn1::ExtractCRLURLsFromDERCert(derBytes, &crl_urls));
@@ -1220,7 +1223,8 @@ TEST(X509CertificateTest, GetDEREncoded) {
           private_key.get(), "CN=subject", 0, base::TimeDelta::FromDays(1));
 
   std::string der_cert;
-  EXPECT_TRUE(cert->GetDEREncoded(&der_cert));
+  EXPECT_TRUE(X509Certificate::GetDEREncoded(cert->os_cert_handle(),
+                                             &der_cert));
   EXPECT_FALSE(der_cert.empty());
 }
 #endif

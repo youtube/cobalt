@@ -964,12 +964,13 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   return OK;
 }
 
-bool X509Certificate::GetDEREncoded(std::string* encoded) {
-  if (!cert_handle_->pbCertEncoded || !cert_handle_->cbCertEncoded)
+// static
+bool X509Certificate::GetDEREncoded(X509Certificate::OSCertHandle cert_handle,
+                                    std::string* encoded) {
+  if (!cert_handle->pbCertEncoded || !cert_handle->cbCertEncoded)
     return false;
-  encoded->clear();
-  encoded->append(reinterpret_cast<char*>(cert_handle_->pbCertEncoded),
-                  cert_handle_->cbCertEncoded);
+  encoded->assign(reinterpret_cast<char*>(cert_handle->pbCertEncoded),
+                  cert_handle->cbCertEncoded);
   return true;
 }
 
