@@ -899,12 +899,13 @@ bool X509Certificate::VerifyEV() const {
   return false;
 }
 
-bool X509Certificate::GetDEREncoded(std::string* encoded) {
-  if (!cert_handle_->derCert.len)
+// static
+bool X509Certificate::GetDEREncoded(X509Certificate::OSCertHandle cert_handle,
+                                    std::string* encoded) {
+  if (!cert_handle->derCert.len)
     return false;
-  encoded->clear();
-  encoded->append(reinterpret_cast<char*>(cert_handle_->derCert.data),
-                  cert_handle_->derCert.len);
+  encoded->assign(reinterpret_cast<char*>(cert_handle->derCert.data),
+                  cert_handle->derCert.len);
   return true;
 }
 

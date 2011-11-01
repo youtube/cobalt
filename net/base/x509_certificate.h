@@ -393,10 +393,10 @@ class NET_EXPORT X509Certificate
   // Returns true if it matches.
   bool VerifyNameMatch(const std::string& hostname) const;
 
-  // This method returns the DER encoded certificate.
-  // If the return value is true then the DER encoded certificate is available.
-  // The content of the DER encoded certificate is written to |encoded|.
-  bool GetDEREncoded(std::string* encoded);
+  // Obtains the DER encoded certificate data for |cert_handle|. On success,
+  // returns true and writes the DER encoded certificate to |*der_encoded|.
+  static bool GetDEREncoded(OSCertHandle cert_handle,
+                            std::string* der_encoded);
 
   // Returns the OSCertHandle of this object. Because of caching, this may
   // differ from the OSCertHandle originally supplied during initialization.
