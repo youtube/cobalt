@@ -279,7 +279,7 @@ TEST_F(ChunkDemuxerTest, TestAppendDataBeforeInit) {
 
 static void OnReadDone(const base::TimeDelta& expected_time,
                        bool* called,
-                       Buffer* buffer) {
+                       const scoped_refptr<Buffer>& buffer) {
   EXPECT_EQ(expected_time, buffer->GetTimestamp());
   *called = true;
 }
@@ -538,7 +538,8 @@ class EndOfStreamHelper {
   }
 
  private:
-  static void OnEndOfStreamReadDone(bool* called, Buffer* buffer) {
+  static void OnEndOfStreamReadDone(bool* called,
+                                    const scoped_refptr<Buffer>& buffer) {
     EXPECT_TRUE(buffer->IsEndOfStream());
     *called = true;
   }

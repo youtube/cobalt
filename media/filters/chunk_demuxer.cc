@@ -224,11 +224,10 @@ bool ChunkDemuxerStream::GetLastBufferTimestamp(
 // Helper function that makes sure |read_callback| runs on |message_loop|.
 static void RunOnMessageLoop(const DemuxerStream::ReadCallback& read_callback,
                              MessageLoop* message_loop,
-                             Buffer* buffer) {
+                             const scoped_refptr<Buffer>& buffer) {
   if (MessageLoop::current() != message_loop) {
     message_loop->PostTask(FROM_HERE, base::Bind(
-        &RunOnMessageLoop, read_callback, message_loop,
-        scoped_refptr<Buffer>(buffer)));
+        &RunOnMessageLoop, read_callback, message_loop, buffer));
     return;
   }
 

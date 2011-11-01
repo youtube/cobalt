@@ -64,11 +64,11 @@ class MEDIA_EXPORT FFmpegVideoDecoder
 
   void OnFlushComplete(const base::Closure& callback);
   void OnSeekComplete(const base::Closure& callback);
-  void OnReadComplete(Buffer* buffer);
 
-  // TODO(jiesun): until demuxer pass scoped_refptr<Buffer>: we could not merge
-  // this with OnReadComplete
-  void OnReadCompleteTask(scoped_refptr<Buffer> buffer);
+  // TODO(scherkus): There are two of these to keep read completions
+  // asynchronous and media_unittests passing. Remove.
+  void OnReadComplete(const scoped_refptr<Buffer>& buffer);
+  void OnReadCompleteTask(const scoped_refptr<Buffer>& buffer);
 
   // Flush the output buffers that we had held in Paused state.
   void FlushBuffers();
