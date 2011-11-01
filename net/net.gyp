@@ -308,6 +308,7 @@
         'disk_cache/stats_histogram.h',
         'disk_cache/storage_block-inl.h',
         'disk_cache/storage_block.h',
+        'disk_cache/stress_support.h',
         'disk_cache/trace.cc',
         'disk_cache/trace.h',
         'dns/async_host_resolver.cc',
