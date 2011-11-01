@@ -1074,8 +1074,10 @@ int HttpStreamFactoryImpl::Job::HandleCertificateError(int error) {
   // X509Certificate for whatever reason, but normally it shouldn't
   // happen, unless this code is used inside sandbox.
   if (ssl_info_.cert == NULL ||
-      !ssl_info_.cert->GetDEREncoded(&bad_cert.der_cert))
+      !X509Certificate::GetDEREncoded(ssl_info_.cert->os_cert_handle(),
+                                      &bad_cert.der_cert)) {
     return error;
+  }
   bad_cert.cert_status = ssl_info_.cert_status;
   server_ssl_config_.allowed_bad_certs.push_back(bad_cert);
 

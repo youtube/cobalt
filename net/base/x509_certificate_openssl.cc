@@ -527,10 +527,12 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
 
 #endif  // !defined(OS_ANDROID)
 
-bool X509Certificate::GetDEREncoded(std::string* encoded) {
+// static
+bool X509Certificate::GetDEREncoded(X509Certificate::OSCertHandle cert_handle,
+                                    std::string* encoded) {
   DERCache der_cache;
-  if (!GetDERAndCacheIfNeeded(cert_handle_, &der_cache))
-      return false;
+  if (!GetDERAndCacheIfNeeded(cert_handle, &der_cache))
+    return false;
   encoded->assign(reinterpret_cast<const char*>(der_cache.data),
                   der_cache.data_length);
   return true;
