@@ -410,7 +410,7 @@ CRLSet::Result CRLSet::CheckCertificate(
     const base::StringPiece& parent_spki) const {
   base::StringPiece serial(serial_number);
 
-  if (!serial.empty() && serial[0] >= 0x80) {
+  if (!serial.empty() && (serial[0] & 0x80) != 0) {
     // This serial number is negative but the process which generates CRL sets
     // will reject any certificates with negative serial numbers as invalid.
     return UNKNOWN;
