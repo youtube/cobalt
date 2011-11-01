@@ -436,21 +436,24 @@
             },
           ],
           [ 'OS == "android"', {
+            'sources!': [
+              'files/file_path_watcher_kqueue.cc',
+              'debug/stack_trace.cc',
+              'debug/stack_trace_posix.cc',
+              'system_monitor/system_monitor_posix.cc',
+            ],
             'sources/': [
-              ['exclude', '^debug/stack_trace.cc'],
-              ['exclude', '^debug/stack_trace_posix.cc'],
-              ['exclude', '^system_monitor/system_monitor_posix.cc'],
-              ['include', '^native_library_linux.cc'],
-              ['include', '^process_util_linux.cc'],
-              ['include', '^sys_info_linux.cc'],
-              ['include', '^sys_string_conversions_linux.cc'],
-              ['include', '^worker_pool_linux.cc'],
+              ['include', '^native_library_linux\\.cc$'],
+              ['include', '^process_util_linux\\.cc$'],
+              ['include', '^sys_info_linux\\.cc$'],
+              ['include', '^sys_string_conversions_linux\\.cc$'],
+              ['include', '^worker_pool_linux\\.cc$'],
               # TODO(michaelbai): The below files are excluded because of the
               # missing JNI, add them back when JNI is ready.
               ['exclude', '^android/'],
-              ['exclude', '^message_pump_android.cc'],
-              ['exclude', '^base_paths_android.cc'],
-              ['exclude', '^debug/stack_trace_android.cc'],
+              ['exclude', '^message_pump_android\\.cc$'],
+              ['exclude', '^base_paths_android\\.cc$'],
+              ['exclude', '^debug/stack_trace_android\\.cc$'],
             ],
           }],
           [ 'OS != "mac"', {
