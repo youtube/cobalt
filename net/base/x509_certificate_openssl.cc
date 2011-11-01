@@ -17,6 +17,7 @@
 #include "base/pickle.h"
 #include "base/sha1.h"
 #include "base/string_number_conversions.h"
+#include "base/string_util.h"
 #include "crypto/openssl_util.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
@@ -327,11 +328,19 @@ void X509Certificate::Initialize() {
   fingerprint_ = CalculateFingerprint(cert_handle_);
   chain_fingerprint_ = CalculateChainFingerprint();
 
-  ASN1_INTEGER* num = X509_get_serialNumber(cert_handle_);
-  if (num) {
-    serial_number_ = std::string(
-        reinterpret_cast<char*>(num->data),
-        num->length);
+  ASN1_INTEGER* serial_num = X509_get_serialNumber(cert_handle_);
+  if (serial_num) {
+    // ASN1_INTEGERS represent the decoded number, in a format internal to
+    // OpenSSL. Most notably, this may have leading zeroes stripped off for
+    // numbers whose first byte is >= 0x80. Thus, it is necessary to
+    // re-encoded the integer back into DER, which is what the interface
+    // of X509Certificate exposes, to ensure callers get the proper (DER)
+    // value.
+    int bytes_required = i2c_ASN1_INTEGER(serial_num, NULL);
+    unsigned char* buffer = reinterpret_cast<unsigned char*>(
+        WriteInto(&serial_number_, bytes_required + 1));
+    int bytes_written = i2c_ASN1_INTEGER(serial_num, &buffer);
+    DCHECK_EQ(static_cast<size_t>(bytes_written), serial_number_.size());
   }
 
   ParsePrincipal(cert_handle_, X509_get_subject_name(cert_handle_), &subject_);
