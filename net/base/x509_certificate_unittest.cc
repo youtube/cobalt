@@ -1641,11 +1641,9 @@ const WeakDigestTestData kVerifyIncompleteIntermediateTestData[] = {
   { NULL, "weak_digest_md2_intermediate.pem", "weak_digest_sha1_ee.pem",
     false, false, true, false, true },
 };
-// Disabled on Windows - http://crbug.com/101123. The Windows implementation
-// does not report the status of the last intermediate for incomplete chains.
 // Disabled on NSS - libpkix does not return constructed chains on error,
 // preventing us from detecting/inspecting the verified chain.
-#if defined(OS_WIN) || defined(USE_NSS)
+#if defined(USE_NSS)
 #define MAYBE_VerifyIncompleteIntermediate \
     DISABLED_VerifyIncompleteIntermediate
 #else

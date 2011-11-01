@@ -330,11 +330,22 @@ void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
   PCCERT_CONTEXT verified_cert = NULL;
   std::vector<PCCERT_CONTEXT> verified_chain;
 
+  bool has_root_ca = num_elements > 1 &&
+      !(chain_context->TrustStatus.dwErrorStatus &
+          CERT_TRUST_IS_PARTIAL_CHAIN);
+
   // Each chain starts with the end entity certificate (i = 0) and ends with
-  // the root CA certificate (i = num_elements - 1).  Do not inspect the
-  // signature algorithm of the root CA certificate because the signature on
-  // the trust anchor is not important.
-  for (int i = 0; i < num_elements - 1; ++i) {
+  // either the root CA certificate or the last available intermediate. If a
+  // root CA certificate is present, do not inspect the signature algorithm of
+  // the root CA certificate because the signature on the trust anchor is not
+  // important.
+  if (has_root_ca) {
+    // If a full chain was constructed, regardless of whether it was trusted,
+    // don't inspect the root's signature algorithm.
+    num_elements -= 1;
+  }
+
+  for (int i = 0; i < num_elements; ++i) {
     PCCERT_CONTEXT cert = element[i]->pCertContext;
     if (i == 0) {
       verified_cert = cert;
@@ -361,8 +372,8 @@ void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
 
   if (verified_cert) {
     // Add the root certificate, if present, as it was not added above.
-    if (num_elements > 1)
-      verified_chain.push_back(element[num_elements - 1]->pCertContext);
+    if (has_root_ca)
+      verified_chain.push_back(element[num_elements]->pCertContext);
     verify_result->verified_cert =
           X509Certificate::CreateFromHandle(verified_cert, verified_chain);
   }
