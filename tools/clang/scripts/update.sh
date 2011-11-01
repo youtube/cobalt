@@ -42,7 +42,7 @@ while [[ $# > 0 ]]; do
     --help)
       echo "usage: $0 [--force-local-build] [--mac-only] [--run-tests] "
       echo "--force-local-build: Don't try to download prebuilt binaries."
-      echo "--mac-only: Do nothing on non-Mac systems."
+      echo "--mac-only: Do initial download only on Mac systems."
       echo "--run-tests: Run tests after building. Only for local builds."
       exit 1
       ;;
@@ -50,7 +50,12 @@ while [[ $# > 0 ]]; do
   shift
 done
 
-if [[ -n "$mac_only" ]] && [[ "${OS}" != "Darwin" ]]; then
+# --mac-only prevents the initial download on non-mac systems, but if clang has
+# already been downloaded in the past, this script keeps it up to date even if
+# --mac-only is passed in and the system isn't a mac. People who don't like this
+# can just delete their third_party/llvm-build directory.
+if [[ -n "$mac_only" ]] && [[ "${OS}" != "Darwin" ]] &&
+    ! [[ -d "${LLVM_BUILD_DIR}" ]]; then
   exit 0
 fi
 
