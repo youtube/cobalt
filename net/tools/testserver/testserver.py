@@ -266,9 +266,11 @@ class UDPEchoServer(SocketServer.UDPServer):
 class BasePageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
   def __init__(self, request, client_address, socket_server,
-               connect_handlers, get_handlers, post_handlers, put_handlers):
+               connect_handlers, get_handlers, head_handlers, post_handlers,
+               put_handlers):
     self._connect_handlers = connect_handlers
     self._get_handlers = get_handlers
+    self._head_handlers = head_handlers
     self._post_handlers = post_handlers
     self._put_handlers = put_handlers
     BaseHTTPServer.BaseHTTPRequestHandler.__init__(
@@ -295,6 +297,11 @@ class BasePageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
   def do_GET(self):
     for handler in self._get_handlers:
+      if handler():
+        return
+
+  def do_HEAD(self):
+    for handler in self._head_handlers:
       if handler():
         return
 
@@ -351,13 +358,14 @@ class TestPageHandler(BasePageHandler):
       self.DefaultResponseHandler]
     post_handlers = [
       self.EchoTitleHandler,
-      self.EchoAllHandler,
       self.EchoHandler,
       self.DeviceManagementHandler] + get_handlers
     put_handlers = [
       self.EchoTitleHandler,
-      self.EchoAllHandler,
       self.EchoHandler] + get_handlers
+    head_handlers = [
+      self.FileHandler,
+      self.DefaultResponseHandler]
 
     self._mime_types = {
       'crx' : 'application/x-chrome-extension',
@@ -371,8 +379,8 @@ class TestPageHandler(BasePageHandler):
     self._default_mime_type = 'text/html'
 
     BasePageHandler.__init__(self, request, client_address, socket_server,
-                             connect_handlers, get_handlers, post_handlers,
-                             put_handlers)
+                             connect_handlers, get_handlers, head_handlers,
+                             post_handlers, put_handlers)
 
   def GetMIMETypeFromName(self, file_name):
     """Returns the mime type for the specified file_name. So far it only looks
@@ -395,7 +403,7 @@ class TestPageHandler(BasePageHandler):
 
     self.send_response(200)
     self.send_header('Cache-Control', 'max-age=0')
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
 
     self.wfile.write('<html><head><title>%s</title></head></html>' %
@@ -412,7 +420,7 @@ class TestPageHandler(BasePageHandler):
 
     self.send_response(200)
     self.send_header('Cache-Control', 'no-cache')
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
 
     self.wfile.write('<html><head><title>%s</title></head></html>' %
@@ -429,7 +437,7 @@ class TestPageHandler(BasePageHandler):
 
     self.send_response(200)
     self.send_header('Cache-Control', 'max-age=60')
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
 
     self.wfile.write('<html><head><title>%s</title></head></html>' %
@@ -446,7 +454,7 @@ class TestPageHandler(BasePageHandler):
 
     self.send_response(200)
     self.send_header('Expires', 'Thu, 1 Jan 2099 00:00:00 GMT')
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
 
     self.wfile.write('<html><head><title>%s</title></head></html>' %
@@ -462,7 +470,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control', 'max-age=60, proxy-revalidate')
     self.end_headers()
 
@@ -479,7 +487,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control', 'max-age=3, private')
     self.end_headers()
 
@@ -496,7 +504,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control', 'max-age=3, public')
     self.end_headers()
 
@@ -513,7 +521,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control', 'public, s-maxage = 60, max-age = 0')
     self.end_headers()
 
@@ -530,7 +538,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control', 'must-revalidate')
     self.end_headers()
 
@@ -548,7 +556,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control', 'max-age=60, must-revalidate')
     self.end_headers()
 
@@ -565,7 +573,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control', 'no-store')
     self.end_headers()
 
@@ -583,7 +591,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control', 'max-age=60, no-store')
     self.end_headers()
 
@@ -602,7 +610,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control', 'no-transform')
     self.end_headers()
 
@@ -630,7 +638,7 @@ class TestPageHandler(BasePageHandler):
       header_name = self.path[query_char+1:]
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/plain')
+    self.send_header('Content-Type', 'text/plain')
     if echo_header == '/echoheadercache':
       self.send_header('Cache-control', 'max-age=60000')
     else:
@@ -674,7 +682,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
     self.wfile.write(self.ReadRequestBody())
     return True
@@ -686,7 +694,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
     request = self.ReadRequestBody()
     self.wfile.write('<html><head><title>')
@@ -702,7 +710,7 @@ class TestPageHandler(BasePageHandler):
       return False
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
     self.wfile.write('<html><head><style>'
       'pre { border: 1px solid black; margin: 5px; padding: 5px }'
@@ -748,7 +756,7 @@ class TestPageHandler(BasePageHandler):
     size_chunk2 = 10*1024
 
     self.send_response(200)
-    self.send_header('Content-type', 'application/octet-stream')
+    self.send_header('Content-Type', 'application/octet-stream')
     self.send_header('Cache-Control', 'max-age=0')
     if send_length:
       self.send_header('Content-Length', size_chunk1 + size_chunk2)
@@ -775,7 +783,7 @@ class TestPageHandler(BasePageHandler):
 
     self.server.waitForDownload = False
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.send_header('Cache-Control', 'max-age=0')
     self.end_headers()
     return True
@@ -859,7 +867,7 @@ class TestPageHandler(BasePageHandler):
       content_length = compressed_len + uncompressed_len
 
     self.send_response(200)
-    self.send_header('Content-type', 'application/msword')
+    self.send_header('Content-Type', 'application/msword')
     self.send_header('Content-encoding', 'deflate')
     self.send_header('Connection', 'close')
     self.send_header('Content-Length', content_length)
@@ -938,13 +946,14 @@ class TestPageHandler(BasePageHandler):
       else:
         self.send_response(200)
 
-      self.send_header('Content-type', self.GetMIMETypeFromName(file_path))
+      self.send_header('Content-Type', self.GetMIMETypeFromName(file_path))
       self.send_header('Accept-Ranges', 'bytes')
       self.send_header('Content-Length', len(data))
       self.send_header('ETag', '\'' + file_path + '\'')
     self.end_headers()
 
-    self.wfile.write(data)
+    if (self.command != 'HEAD'):
+      self.wfile.write(data)
 
     return True
 
@@ -960,7 +969,7 @@ class TestPageHandler(BasePageHandler):
     else:
       cookie_values = ("",)
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     for cookie_value in cookie_values:
       self.send_header('Set-Cookie', '%s' % cookie_value)
     self.end_headers()
@@ -1002,7 +1011,7 @@ class TestPageHandler(BasePageHandler):
       # Authentication failed.
       self.send_response(401)
       self.send_header('WWW-Authenticate', 'Basic realm="%s"' % realm)
-      self.send_header('Content-type', 'text/html')
+      self.send_header('Content-Type', 'text/html')
       if set_cookie_if_challenged:
         self.send_header('Set-Cookie', 'got_challenged=true')
       self.end_headers()
@@ -1041,14 +1050,14 @@ class TestPageHandler(BasePageHandler):
       f.close()
 
       self.send_response(200)
-      self.send_header('Content-type', 'image/gif')
+      self.send_header('Content-Type', 'image/gif')
       self.send_header('Cache-control', 'max-age=60000')
       self.send_header('Etag', 'abc')
       self.end_headers()
       self.wfile.write(data)
     else:
       self.send_response(200)
-      self.send_header('Content-type', 'text/html')
+      self.send_header('Content-Type', 'text/html')
       self.send_header('Cache-control', 'max-age=60000')
       self.send_header('Etag', 'abc')
       self.end_headers()
@@ -1136,7 +1145,7 @@ class TestPageHandler(BasePageHandler):
       if stale:
         hdr += ', stale="TRUE"'
       self.send_header('WWW-Authenticate', hdr)
-      self.send_header('Content-type', 'text/html')
+      self.send_header('Content-Type', 'text/html')
       self.end_headers()
       self.wfile.write('<html><head>')
       self.wfile.write('<title>Denied: %s</title>' % e)
@@ -1150,7 +1159,7 @@ class TestPageHandler(BasePageHandler):
 
     # Authentication successful.
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
     self.wfile.write('<html><head>')
     self.wfile.write('<title>%s/%s</title>' % (pairs['username'], password))
@@ -1175,7 +1184,7 @@ class TestPageHandler(BasePageHandler):
         pass
     time.sleep(wait_sec)
     self.send_response(200)
-    self.send_header('Content-type', 'text/plain')
+    self.send_header('Content-Type', 'text/plain')
     self.end_headers()
     self.wfile.write("waited %d seconds" % wait_sec)
     return True
@@ -1207,7 +1216,7 @@ class TestPageHandler(BasePageHandler):
     time.sleep(0.001 * chunkedSettings['waitBeforeHeaders']);
     self.protocol_version = 'HTTP/1.1' # Needed for chunked encoding
     self.send_response(200)
-    self.send_header('Content-type', 'text/plain')
+    self.send_header('Content-Type', 'text/plain')
     self.send_header('Connection', 'close')
     self.send_header('Transfer-Encoding', 'chunked')
     self.end_headers()
@@ -1262,7 +1271,7 @@ class TestPageHandler(BasePageHandler):
 
     self.send_response(301)  # moved permanently
     self.send_header('Location', dest)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
     self.wfile.write('<html><head>')
     self.wfile.write('</head><body>Redirecting to %s</body></html>' % dest)
@@ -1285,7 +1294,7 @@ class TestPageHandler(BasePageHandler):
     dest = self.path[query_char + 1:]
 
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
     self.wfile.write('<html><head>')
     self.wfile.write('<meta http-equiv="refresh" content="0;url=%s">' % dest)
@@ -1302,13 +1311,13 @@ class TestPageHandler(BasePageHandler):
     num_frames = 10
     bound = '12345'
     self.send_response(200)
-    self.send_header('Content-type',
+    self.send_header('Content-Type',
                      'multipart/x-mixed-replace;boundary=' + bound)
     self.end_headers()
 
     for i in xrange(num_frames):
       self.wfile.write('--' + bound + '\r\n')
-      self.wfile.write('Content-type: text/html\r\n\r\n')
+      self.wfile.write('Content-Type: text/html\r\n\r\n')
       self.wfile.write('<title>page ' + str(i) + '</title>')
       self.wfile.write('page ' + str(i))
 
@@ -1326,13 +1335,13 @@ class TestPageHandler(BasePageHandler):
     num_frames = 3
     bound = '12345'
     self.send_response(200)
-    self.send_header('Content-type',
+    self.send_header('Content-Type',
                      'multipart/x-mixed-replace;boundary=' + bound)
     self.end_headers()
 
     for i in xrange(num_frames):
       self.wfile.write('--' + bound + '\r\n')
-      self.wfile.write('Content-type: text/html\r\n\r\n')
+      self.wfile.write('Content-Type: text/html\r\n\r\n')
       time.sleep(0.25)
       if i == 2:
         self.wfile.write('<title>PASS</title>')
@@ -1351,10 +1360,11 @@ class TestPageHandler(BasePageHandler):
 
     contents = "Default response given for path: " + self.path
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
-    self.send_header("Content-Length", len(contents))
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(contents))
     self.end_headers()
-    self.wfile.write(contents)
+    if (self.command != 'HEAD'):
+      self.wfile.write(contents)
     return True
 
   def RedirectConnectHandler(self):
@@ -1396,8 +1406,8 @@ class TestPageHandler(BasePageHandler):
 
     contents = "Your client has issued a malformed or illegal request."
     self.send_response(400)  # bad request
-    self.send_header('Content-type', 'text/html')
-    self.send_header("Content-Length", len(contents))
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(contents))
     self.end_headers()
     self.wfile.write(contents)
     return True
@@ -1423,7 +1433,7 @@ class TestPageHandler(BasePageHandler):
                                                              raw_request))
     self.send_response(http_response)
     if (http_response == 200):
-      self.send_header('Content-type', 'application/x-protobuffer')
+      self.send_header('Content-Type', 'application/x-protobuffer')
     self.end_headers()
     self.wfile.write(raw_reply)
     return True
@@ -1431,7 +1441,7 @@ class TestPageHandler(BasePageHandler):
   # called by the redirect handling function when there is no parameter
   def sendRedirectHelp(self, redirect_name):
     self.send_response(200)
-    self.send_header('Content-type', 'text/html')
+    self.send_header('Content-Type', 'text/html')
     self.end_headers()
     self.wfile.write('<html><body><h1>Error: no redirect destination</h1>')
     self.wfile.write('Use <pre>%s?http://dest...</pre>' % redirect_name)
@@ -1463,7 +1473,7 @@ class SyncPageHandler(BasePageHandler):
     post_handlers = [self.ChromiumSyncCommandHandler,
                      self.ChromiumSyncTimeHandler]
     BasePageHandler.__init__(self, request, client_address,
-                             sync_http_server, [], get_handlers,
+                             sync_http_server, [], get_handlers, [],
                              post_handlers, [])
 
 
