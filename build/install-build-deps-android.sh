@@ -102,8 +102,19 @@ if [[ ! $("${ANDROID_SDK_ROOT}/tools/android" list targets \
   # From current configuration, all android platforms will be installed.
   # This will take a little bit long time.
   echo "Install platform, platform-tool and tool ..."
-  "${ANDROID_SDK_ROOT}"/tools/android update sdk --no-ui \
-    --filter platform,platform-tool,tool
+
+  # This needs to be called twice.  The first time, "android" itself
+  # references
+  # https://dl-ssl.google.com/android/repository/addons_list.xml,
+  # which no longer exists.  On the second run, "android" (or one of
+  # it's config files) has been updated to now reference curl
+  # https://dl-ssl.google.com/android/repository/addons_list-1.xml,
+  # which contains what we need.
+  for try in 1 2 ; do
+    echo "==== SDK update $try"
+    "${ANDROID_SDK_ROOT}"/tools/android update sdk --no-ui \
+      --filter platform,platform-tool,tool
+  done
 fi
 
 # Create a Android Virtual Device named 'buildbot' with default hardware
