@@ -747,14 +747,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   // array of certificates, the first of which is the certificate we're
   // verifying, and the subsequent (optional) certificates are used for
   // chain building.
-  CFMutableArrayRef cert_array = CFArrayCreateMutable(kCFAllocatorDefault, 0,
-                                                      &kCFTypeArrayCallBacks);
-  if (!cert_array)
-    return ERR_OUT_OF_MEMORY;
-  ScopedCFTypeRef<CFArrayRef> scoped_cert_array(cert_array);
-  CFArrayAppendValue(cert_array, cert_handle_);
-  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i)
-    CFArrayAppendValue(cert_array, intermediate_ca_certs_[i]);
+  ScopedCFTypeRef<CFArrayRef> cert_array(CreateOSCertChainForCert());
 
   // From here on, only one thread can be active at a time. We have had a number
   // of sporadic crashes in the SecTrustEvaluate call below, way down inside
@@ -1341,6 +1334,20 @@ CFArrayRef X509Certificate::CreateClientCertificateChain() const {
   }
 
   return chain.release();
+}
+
+CFArrayRef X509Certificate::CreateOSCertChainForCert() const {
+  CFMutableArrayRef cert_list =
+      CFArrayCreateMutable(kCFAllocatorDefault, 0,
+                           &kCFTypeArrayCallBacks);
+  if (!cert_list)
+    return NULL;
+
+  CFArrayAppendValue(cert_list, os_cert_handle());
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i)
+    CFArrayAppendValue(cert_list, intermediate_ca_certs_[i]);
+
+  return cert_list;
 }
 
 // static
