@@ -56,8 +56,16 @@ class NET_EXPORT TransportSecurityState
 
     // IsChainOfPublicKeysPermitted takes a set of public key hashes and
     // returns true if:
-    //   1) |public_key_hashes| is empty, i.e. no public keys have been pinned.
-    //   2) |hashes| and |public_key_hashes| are not disjoint.
+    //   1) None of the hashes are in |bad_public_key_hashes| AND
+    //   2) |public_key_hashes| is empty, i.e. no public keys have been pinned.
+    //      OR
+    //   3) |hashes| and |public_key_hashes| are not disjoint.
+    //
+    // |public_key_hashes| is intended to contain a number of trust roots for
+    // the chain in question, any one of which is sufficient.
+    // |bad_public_key_hashes| is intended to contain unwanted intermediate CA
+    // certifciates that those trust roots may have issued but that we don't
+    // want to trust.
     bool IsChainOfPublicKeysPermitted(
         const std::vector<SHA1Fingerprint>& hashes);
 
@@ -66,6 +74,7 @@ class NET_EXPORT TransportSecurityState
     base::Time expiry;  // the absolute time (UTC) when this record expires
     bool include_subdomains;  // subdomains included?
     std::vector<SHA1Fingerprint> public_key_hashes;  // optional; permitted keys
+    std::vector<SHA1Fingerprint> bad_public_key_hashes; // optional;rejectd keys
 
     // The follow members are not valid when stored in |enabled_hosts_|.
     bool preloaded;  // is this a preloaded entry?
