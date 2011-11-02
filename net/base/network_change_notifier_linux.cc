@@ -105,7 +105,9 @@ NetworkChangeNotifierLinux::Thread::Thread()
       ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
 }
 
-NetworkChangeNotifierLinux::Thread::~Thread() {}
+NetworkChangeNotifierLinux::Thread::~Thread() {
+  DCHECK(!Thread::IsRunning());
+}
 
 void NetworkChangeNotifierLinux::Thread::Init() {
   resolv_file_watcher_.reset(new FilePathWatcher);
@@ -214,8 +216,8 @@ NetworkChangeNotifierLinux::NetworkChangeNotifierLinux()
 }
 
 NetworkChangeNotifierLinux::~NetworkChangeNotifierLinux() {
-  // We don't need to explicitly Stop(), but doing so allows us to sanity-
-  // check that the notifier thread shut down properly.
+  // Stopping from here allows us to sanity- check that the notifier
+  // thread shut down properly.
   notifier_thread_->Stop();
 }
 
