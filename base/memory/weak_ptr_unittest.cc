@@ -47,6 +47,10 @@ class BackgroundThread : public Thread {
       : Thread("owner_thread") {
   }
 
+  ~BackgroundThread() {
+    Stop();
+  }
+
   void CreateConsumerFromProducer(Consumer** consumer, Producer* producer) {
     WaitableEvent completion(true, false);
     message_loop()->PostTask(

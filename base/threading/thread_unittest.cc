@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -48,7 +48,9 @@ class SleepInsideInitThread : public Thread {
     ANNOTATE_BENIGN_RACE(
         this, "Benign test-only data race on vptr - http://crbug.com/98219");
   }
-  virtual ~SleepInsideInitThread() { }
+  virtual ~SleepInsideInitThread() {
+    Stop();
+  }
 
   virtual void Init() {
     base::PlatformThread::Sleep(500);
@@ -85,7 +87,6 @@ class CaptureToEventList : public Thread {
   }
 
   virtual ~CaptureToEventList() {
-    // Must call Stop() manually to have our CleanUp() function called.
     Stop();
   }
 
