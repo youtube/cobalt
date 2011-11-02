@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 // Written in NSPR style to also be suitable for adding to the NSS demo suite
@@ -82,7 +82,6 @@ void memio_GetWriteParams(memio_Private *secret,
  * On EWOULDBLOCK or the equivalent, don't call this function.
  */
 void memio_PutWriteResult(memio_Private *secret, int bytes_written);
-
 
 #ifdef __cplusplus
 }
