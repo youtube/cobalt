@@ -950,7 +950,7 @@ static const PublicKeyPins kGooglePins = {
 };
 
 static const char kCertRapidSSL[] =
-    "sha1/m9lHYJYke9k0GtVZ+bXSQYE8nDI=";
+    "sha1/o5OZxATDsgmwgcIfIWIneMJ0jkw=";
 static const char kCertDigiCertEVRoot[] =
     "sha1/gzF+YoVCU9bXeDGQ7JGQVumRueM=";
 static const char kCertTor1[] =
