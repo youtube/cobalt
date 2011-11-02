@@ -286,6 +286,77 @@ OSStatus CreateTrustPolicies(const std::string& hostname,
   return noErr;
 }
 
+// Saves some information about the certificate chain |cert_chain| in
+// |*verify_result|. The caller MUST initialize |*verify_result| before
+// calling this function.
+void GetCertChainInfo(CFArrayRef cert_chain,
+                      CSSM_TP_APPLE_EVIDENCE_INFO* chain_info,
+                      CertVerifyResult* verify_result) {
+  SecCertificateRef verified_cert = NULL;
+  std::vector<SecCertificateRef> verified_chain;
+  for (CFIndex i = 0, count = CFArrayGetCount(cert_chain); i < count; ++i) {
+    SecCertificateRef chain_cert = reinterpret_cast<SecCertificateRef>(
+        const_cast<void*>(CFArrayGetValueAtIndex(cert_chain, i)));
+    if (i == 0) {
+      verified_cert = chain_cert;
+    } else {
+      verified_chain.push_back(chain_cert);
+    }
+
+    if ((chain_info[i].StatusBits & CSSM_CERT_STATUS_IS_IN_ANCHORS) ||
+        (chain_info[i].StatusBits & CSSM_CERT_STATUS_IS_ROOT)) {
+      // The current certificate is either in the user's trusted store or is
+      // a root (self-signed) certificate. Ignore the signature algorithm for
+      // these certificates, as it is meaningless for security. We allow
+      // self-signed certificates (i == 0 & IS_ROOT), since we accept that
+      // any security assertions by such a cert are inherently meaningless.
+      continue;
+    }
+
+    CSSMFields cssm_fields;
+    OSStatus status = GetCertFields(chain_cert, &cssm_fields);
+    if (status)
+      continue;
+    CSSM_FIELD_PTR fields = cssm_fields.fields;
+    for (size_t field = 0; field < cssm_fields.num_of_fields; ++field) {
+      if (!CSSMOIDEqual(&fields[field].FieldOid,
+                        &CSSMOID_X509V1SignatureAlgorithm)) {
+        continue;
+      }
+
+      CSSM_X509_ALGORITHM_IDENTIFIER* signature_algorithm =
+          reinterpret_cast<CSSM_X509_ALGORITHM_IDENTIFIER*>(
+              fields[field].FieldValue.Data);
+      // Match the behaviour of OS X system tools and defensively check that
+      // sizes are appropriate. This would indicate a critical failure of the
+      // OS X certificate library, but based on history, it is best to play it
+      // safe.
+      if (!signature_algorithm || (fields[field].FieldValue.Length !=
+          sizeof(CSSM_X509_ALGORITHM_IDENTIFIER))) {
+        break;
+      }
+      CSSM_OID_PTR alg_oid = &signature_algorithm->algorithm;
+      if (CSSMOIDEqual(alg_oid, &CSSMOID_MD2WithRSA)) {
+        verify_result->has_md2 = true;
+        if (i != 0)
+          verify_result->has_md2_ca = true;
+      } else if (CSSMOIDEqual(alg_oid, &CSSMOID_MD4WithRSA)) {
+        verify_result->has_md4 = true;
+      } else if (CSSMOIDEqual(alg_oid, &CSSMOID_MD5WithRSA)) {
+        verify_result->has_md5 = true;
+        if (i != 0)
+          verify_result->has_md5_ca = true;
+      }
+      break;
+    }
+  }
+  if (!verified_cert)
+    return;
+
+  verify_result->verified_cert =
+      X509Certificate::CreateFromHandle(verified_cert, verified_chain);
+}
+
 // Gets the issuer for a given cert, starting with the cert itself and
 // including the intermediate and finally root certificates (if any).
 // This function calls SecTrust but doesn't actually pay attention to the trust
@@ -830,22 +901,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     return NetErrorFromOSStatus(status);
   ScopedCFTypeRef<CFArrayRef> scoped_completed_chain(completed_chain);
 
-  SecCertificateRef verified_cert = NULL;
-  std::vector<SecCertificateRef> verified_chain;
-  for (CFIndex i = 0, count = CFArrayGetCount(completed_chain);
-       i < count; ++i) {
-    SecCertificateRef chain_cert = reinterpret_cast<SecCertificateRef>(
-        const_cast<void*>(CFArrayGetValueAtIndex(completed_chain, i)));
-    if (i == 0) {
-      verified_cert = chain_cert;
-    } else {
-      verified_chain.push_back(chain_cert);
-    }
-  }
-  if (verified_cert) {
-    verify_result->verified_cert = CreateFromHandle(verified_cert,
-                                                    verified_chain);
-  }
+  GetCertChainInfo(scoped_completed_chain.get(), chain_info, verify_result);
 
   // Evaluate the results
   OSStatus cssm_result;
