@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/string_piece.h"
 #include "net/base/transport_security_state.h"
+
+#include "base/base64.h"
+#include "base/sha1.h"
+#include "base/string_piece.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(USE_OPENSSL)
@@ -850,6 +853,92 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "si0.twimg.com", true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "twimg0-a.akamaihd.net", true));
 #endif
+}
+
+static bool AddHash(const std::string& type_and_base64,
+                    std::vector<SHA1Fingerprint>* out) {
+  std::string hash_str;
+  if (type_and_base64.find("sha1/") == 0 &&
+      base::Base64Decode(type_and_base64.substr(5, type_and_base64.size() - 5),
+                         &hash_str) &&
+      hash_str.size() == base::kSHA1Length) {
+    SHA1Fingerprint hash;
+    memcpy(hash.data, hash_str.data(), sizeof(hash.data));
+    out->push_back(hash);
+    return true;
+  }
+  return false;
+}
+
+TEST_F(TransportSecurityStateTest, PinValidationWithRejectedCerts) {
+  // kGoodPath is plus.google.com via Google Internet Authority.
+  static const char* kGoodPath[] = {
+    "sha1/4BjDjn8v2lWeUFQnqSs0BgbIcrU=",
+    "sha1/QMVAHW+MuvCLAO3vse6H0AWzuc0=",
+    "sha1/SOZo+SvSspXXR9gjIBBPM5iQn9Q=",
+    NULL,
+  };
+
+  // kBadPath is plus.google.com via Trustcenter, which contains a required
+  // certificate (Equifax root), but also an excluded certificate
+  // (Trustcenter).
+  static const char* kBadPath[] = {
+    "sha1/4BjDjn8v2lWeUFQnqSs0BgbIcrU=",
+    "sha1/gzuEEAB/bkqdQS3EIjk2by7lW+k=",
+    "sha1/SOZo+SvSspXXR9gjIBBPM5iQn9Q=",
+    NULL,
+  };
+
+  std::vector<net::SHA1Fingerprint> good_hashes, bad_hashes;
+
+  for (size_t i = 0; kGoodPath[i]; i++) {
+    EXPECT_TRUE(AddHash(kGoodPath[i], &good_hashes));
+  }
+  for (size_t i = 0; kBadPath[i]; i++) {
+    EXPECT_TRUE(AddHash(kBadPath[i], &bad_hashes));
+  }
+
+  TransportSecurityState state("");
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "plus.google.com", true));
+
+  EXPECT_TRUE(domain_state.IsChainOfPublicKeysPermitted(good_hashes));
+  EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(bad_hashes));
+}
+
+TEST_F(TransportSecurityStateTest, PinValidationWithoutRejectedCerts) {
+  // kGoodPath is blog.torproject.org.
+  static const char* kGoodPath[] = {
+    "sha1/m9lHYJYke9k0GtVZ+bXSQYE8nDI=",
+    "sha1/o5OZxATDsgmwgcIfIWIneMJ0jkw=",
+    "sha1/wHqYaI2J+6sFZAwRfap9ZbjKzE4=",
+    NULL,
+  };
+
+  // kBadPath is plus.google.com via Trustcenter, which is utterly wrong for
+  // torproject.org.
+  static const char* kBadPath[] = {
+    "sha1/4BjDjn8v2lWeUFQnqSs0BgbIcrU=",
+    "sha1/gzuEEAB/bkqdQS3EIjk2by7lW+k=",
+    "sha1/SOZo+SvSspXXR9gjIBBPM5iQn9Q=",
+    NULL,
+  };
+
+  std::vector<net::SHA1Fingerprint> good_hashes, bad_hashes;
+
+  for (size_t i = 0; kGoodPath[i]; i++) {
+    EXPECT_TRUE(AddHash(kGoodPath[i], &good_hashes));
+  }
+  for (size_t i = 0; kBadPath[i]; i++) {
+    EXPECT_TRUE(AddHash(kBadPath[i], &bad_hashes));
+  }
+
+  TransportSecurityState state("");
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "blog.torproject.org", true));
+
+  EXPECT_TRUE(domain_state.IsChainOfPublicKeysPermitted(good_hashes));
+  EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(bad_hashes));
 }
 
 TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {
