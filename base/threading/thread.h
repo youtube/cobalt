@@ -21,6 +21,8 @@ namespace base {
 // pending tasks queued on the thread's message loop will run to completion
 // before the thread is terminated.
 //
+// NOTE: Subclasses must call Stop() in their destructor. See ~Thread below.
+//
 // After the thread is stopped, the destruction sequence is:
 //
 //  (1) Thread::CleanUp()
@@ -48,9 +50,13 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
   // Destroys the thread, stopping it if necessary.
   //
-  // NOTE: If you are subclassing from Thread, and you wish for your CleanUp
-  // method to be called, then you need to call Stop() from your destructor.
-  //
+  // NOTE: All subclasses of Thread must call Stop() in their
+  // destructor, or otherwise ensure Stop() is called before the
+  // subclass is destructed.  This is required to avoid a data race
+  // between the destructor modifying the vtable, and the thread's
+  // ThreadMain calling the virtual method Run.  It also ensures that
+  // the CleanUp() virtual method is called on the subclass before it
+  // is destructed.
   virtual ~Thread();
 
   // Starts the thread.  Returns true if the thread was successfully started;
