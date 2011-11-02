@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,6 +35,11 @@ struct BinaryBooleanTestData {
 struct BinaryIntTestData {
   const FilePath::CharType* inputs[2];
   int expected;
+};
+
+struct UTF8TestData {
+  const FilePath::CharType* native;
+  const char* utf8;
 };
 
 // file_util winds up using autoreleased objects on the Mac, so this needs
@@ -1044,6 +1049,30 @@ TEST_F(FilePathTest, ReferencesParent) {
   }
 }
 
+TEST_F(FilePathTest, FromUTF8Unsafe_And_AsUTF8Unsafe) {
+  const struct UTF8TestData cases[] = {
+    { FPL("foo.txt"), "foo.txt" },
+    // "aeo" with accents. Use http://0xcc.net/jsescape/ to decode them.
+    { FPL("\u00E0\u00E8\u00F2.txt"), "\xC3\xA0\xC3\xA8\xC3\xB2.txt" },
+    // Full-width "ABC".
+    { FPL("\uFF21\uFF22\uFF23.txt"),
+      "\xEF\xBC\xA1\xEF\xBC\xA2\xEF\xBC\xA3.txt" },
+  };
+
+  for (size_t i = 0; i < arraysize(cases); ++i) {
+    // Test FromUTF8Unsafe() works.
+    FilePath from_utf8 = FilePath::FromUTF8Unsafe(cases[i].utf8);
+    EXPECT_EQ(cases[i].native, from_utf8.value())
+        << "i: " << i << ", input: " << cases[i].native;
+    // Test AsUTF8Unsafe() works.
+    FilePath from_native = FilePath(cases[i].native);
+    EXPECT_EQ(cases[i].utf8, from_native.AsUTF8Unsafe())
+        << "i: " << i << ", input: " << cases[i].native;
+    // Test the two file paths are identical.
+    EXPECT_EQ(from_utf8.value(), from_native.value());
+  }
+}
+
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
 TEST_F(FilePathTest, NormalizeWindowsPathSeparators) {
   const struct UnaryTestData cases[] = {
@@ -1086,4 +1115,5 @@ TEST_F(FilePathTest, NormalizeWindowsPathSeparators) {
               "i: " << i << ", input: " << input.value();
   }
 }
+
 #endif
