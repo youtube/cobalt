@@ -32,7 +32,7 @@ class BASE_EXPORT FileUtilProxy {
   };
 
   // This callback is used by methods that report only an error code.  It is
-  // valid to pass StatusCallback() to any function that takes a StatusCallback,
+  // valid to pass a null callback to any function that takes a StatusCallback,
   // in which case the operation will complete silently.
   typedef Callback<void(PlatformFileError)> StatusCallback;
 
@@ -50,6 +50,9 @@ class BASE_EXPORT FileUtilProxy {
                         int /* bytes read */)> ReadCallback;
   typedef Callback<void(PlatformFileError,
                         int /* bytes written */)> WriteCallback;
+
+  typedef Callback<PlatformFileError(PlatformFile*, bool*)> CreateOrOpenTask;
+  typedef Callback<PlatformFileError(PlatformFile)> CloseTask;
 
   // Creates or opens a file with the given flags. It is invalid to pass a null
   // callback. If PLATFORM_FILE_CREATE is set in |file_flags| it always tries to
@@ -162,6 +165,19 @@ class BASE_EXPORT FileUtilProxy {
   static bool Flush(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
+      const StatusCallback& callback);
+
+  // Relay helpers.
+  static bool RelayCreateOrOpen(
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      const CreateOrOpenTask& open_task,
+      const CloseTask& close_task,
+      const CreateOrOpenCallback& callback);
+
+  static bool RelayClose(
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      const CloseTask& close_task,
+      PlatformFile,
       const StatusCallback& callback);
 
  private:
