@@ -27,7 +27,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/pem_tokenizer.h"
-#include "net/base/registry_controlled_domain.h"
 
 namespace net {
 
@@ -509,36 +508,17 @@ bool X509Certificate::VerifyHostname(
   // |reference_domain| is the remainder of |host| after the leading host
   // component is stripped off, but includes the leading dot e.g.
   // "www.f.com" -> ".f.com".
-  // If there is no meaningful domain part to |host| (e.g. it contains no
-  // dots) then |reference_domain| will be empty.
+  // If there is no meaningful domain part to |host| (e.g. it contains no dots)
+  // then |reference_domain| will be empty.
   base::StringPiece reference_host, reference_domain;
   SplitOnChar(reference_name, '.', &reference_host, &reference_domain);
   bool allow_wildcards = false;
   if (!reference_domain.empty()) {
     DCHECK(reference_domain.starts_with("."));
-
-    // Do not allow wildcards for registry controlled domains, so as to
-    // prevent accepting *.com or *.co.uk as valid presented names. Passing
-    // true for |allow_unknown_registries| so that top-level domains which are
-    // unknown (intranet domains, new TLDs/gTLDs not yet recognized) are
-    // treated as registry-controlled domains. Because the |reference_domain|
-    // must contain at least one name component that is not registry
-    // controlled, this ensures that all reference names have at least three
-    // domain components in order to permit wildcards.
-    size_t registry_length =
-        RegistryControlledDomainService::GetRegistryLength(reference_name,
-                                                           true);
-    // As the |reference_name| was already canonicalized, this should never
-    // happen.
-    CHECK_NE(registry_length, std::string::npos);
-
-    // Subtracting 1 to account for the leading dot in |reference_domain|.
-    bool is_registry_controlled = registry_length != 0 &&
-        registry_length == (reference_domain.size() - 1);
-
-    // Additionally, do not attempt wildcard matching for purely numeric
-    // hostnames.
-    allow_wildcards = !is_registry_controlled &&
+    // We required at least 3 components (i.e. 2 dots) as a basic protection
+    // against too-broad wild-carding.
+    // Also we don't attempt wildcard matching on a purely numerical hostname.
+    allow_wildcards = reference_domain.rfind('.') != 0 &&
         reference_name.find_first_not_of("0123456789.") != std::string::npos;
   }
 
