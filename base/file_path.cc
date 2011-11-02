@@ -527,6 +527,14 @@ std::string FilePath::MaybeAsASCII() const {
   return "";
 }
 
+std::string FilePath::AsUTF8Unsafe() const {
+#if defined(OS_MACOSX) || defined(OS_CHROMEOS)
+  return value();
+#else
+  return WideToUTF8(base::SysNativeMBToWide(value()));
+#endif
+}
+
 // The *Hack functions are temporary while we fix the remainder of the code.
 // Remember to remove the #includes at the top when you remove these.
 
@@ -534,6 +542,16 @@ std::string FilePath::MaybeAsASCII() const {
 FilePath FilePath::FromWStringHack(const std::wstring& wstring) {
   return FilePath(base::SysWideToNativeMB(wstring));
 }
+
+// static
+FilePath FilePath::FromUTF8Unsafe(const std::string& utf8) {
+#if defined(OS_MACOSX) || defined(OS_CHROMEOS)
+  return FilePath(utf8);
+#else
+  return FilePath(base::SysWideToNativeMB(UTF8ToWide(utf8)));
+#endif
+}
+
 #elif defined(OS_WIN)
 string16 FilePath::LossyDisplayName() const {
   return path_;
@@ -545,9 +563,18 @@ std::string FilePath::MaybeAsASCII() const {
   return "";
 }
 
+std::string FilePath::AsUTF8Unsafe() const {
+  return WideToUTF8(value());
+}
+
 // static
 FilePath FilePath::FromWStringHack(const std::wstring& wstring) {
   return FilePath(wstring);
+}
+
+// static
+FilePath FilePath::FromUTF8Unsafe(const std::string& utf8) {
+  return FilePath(UTF8ToWide(utf8));
 }
 #endif
 
