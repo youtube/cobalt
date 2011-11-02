@@ -15,6 +15,10 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
 
+// Number of times InitializeCriticalSectionAndSpinCount() spins
+// before going to sleep.
+const DWORD kSpinCount = 2000;
+
 // Some general thoughts about the waveOut API which is badly documented :
 // - We use CALLBACK_FUNCTION mode in which XP secretly creates two threads
 //   named _MixerCallbackThread and _waveThread which have real-time priority.
@@ -89,6 +93,7 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       volume_(1),
       channels_(params.channels),
       pending_bytes_(0) {
+  ::InitializeCriticalSectionAndSpinCount(&lock_, kSpinCount);
 
   format_.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
   format_.Format.nChannels = params.channels;
@@ -107,12 +112,11 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
   }
   format_.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
   format_.Samples.wValidBitsPerSample = params.bits_per_sample;
-  // The event is auto-reset.
-  stopped_event_.Set(::CreateEventW(NULL, FALSE, FALSE, NULL));
 }
 
 PCMWaveOutAudioOutputStream::~PCMWaveOutAudioOutputStream() {
   DCHECK(NULL == waveout_);
+  ::DeleteCriticalSection(&lock_);
 }
 
 bool PCMWaveOutAudioOutputStream::Open() {
@@ -186,11 +190,18 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
     buffer = GetNextBuffer(buffer);
   }
   buffer = buffer_;
+
+  // From now on |pending_bytes_| would be accessed by callback thread.
+  // Most likely waveOutPause() or waveOutRestart() has its own memory barrier,
+  // but issuing our own is safer.
+  MemoryBarrier();
+
   MMRESULT result = ::waveOutPause(waveout_);
   if (result != MMSYSERR_NOERROR) {
     HandleError(result);
     return;
   }
+
   // Send the buffers to the audio driver. Note that the device is paused
   // so we avoid entering the callback method while still here.
   for (int ix = 0; ix != num_buffers_; ++ix) {
@@ -211,20 +222,18 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
 // Stopping is tricky. First, no buffer should be locked by the audio driver
 // or else the waveOutReset() will deadlock and secondly, the callback should
 // not be inside the AudioSource's OnMoreData because waveOutReset() forcefully
-// kills the callback thread.
+// kills the callback thread after releasing all buffers.
 void PCMWaveOutAudioOutputStream::Stop() {
   if (state_ != PCMA_PLAYING)
     return;
-  state_ = PCMA_STOPPING;
-  // Wait for the callback to finish, it will signal us when ready to be reset.
-  if (WAIT_OBJECT_0 != ::WaitForSingleObject(stopped_event_, INFINITE)) {
-    HandleError(::GetLastError());
-    return;
-  }
-  state_ = PCMA_STOPPED;
+
+  // Enter into critical section and call ::waveOutReset(). The fact that we
+  // entered critical section means that callback is out of critical section and
+  // it is safe to reset.
+  ::EnterCriticalSection(&lock_);
   MMRESULT res = ::waveOutReset(waveout_);
+  ::LeaveCriticalSection(&lock_);
   if (res != MMSYSERR_NOERROR) {
-    state_ = PCMA_PLAYING;
     HandleError(res);
     return;
   }
@@ -312,39 +321,31 @@ void PCMWaveOutAudioOutputStream::WaveCallback(HWAVEOUT hwo, UINT msg,
                                                DWORD_PTR param1, DWORD_PTR) {
   TRACE_EVENT0("audio", "PCMWaveOutAudioOutputStream::WaveCallback");
 
-  PCMWaveOutAudioOutputStream* obj =
-      reinterpret_cast<PCMWaveOutAudioOutputStream*>(instance);
-
   if (msg == WOM_DONE) {
     // WOM_DONE indicates that the driver is done with our buffer, we can
     // either ask the source for more data or check if we need to stop playing.
     WAVEHDR* buffer = reinterpret_cast<WAVEHDR*>(param1);
     buffer->dwFlags = WHDR_DONE;
 
-    if (obj->state_ == PCMA_STOPPING) {
-      // The main thread has called Stop() and is waiting to issue waveOutReset
-      // which will kill this thread. We should not enter AudioSourceCallback
-      // code anymore.
-      ::SetEvent(obj->stopped_event_);
-      return;
-    } else if (obj->state_ == PCMA_STOPPED) {
-      // Not sure if ever hit this but just in case.
-      return;
+    PCMWaveOutAudioOutputStream* stream =
+        reinterpret_cast<PCMWaveOutAudioOutputStream*>(instance);
+
+    // Do real work only if main thread has not yet called waveOutReset().
+    if (::TryEnterCriticalSection(&stream->lock_)) {
+      // Before we queue the next packet, we need to adjust the number of
+      // pending bytes since the last write to hardware.
+      stream->pending_bytes_ -= buffer->dwBufferLength;
+
+      stream->QueueNextPacket(buffer);
+
+      // Time to send the buffer to the audio driver. Since we are reusing
+      // the same buffers we can get away without calling waveOutPrepareHeader.
+      MMRESULT result = ::waveOutWrite(hwo, buffer, sizeof(WAVEHDR));
+      if (result != MMSYSERR_NOERROR)
+        stream->HandleError(result);
+
+      stream->pending_bytes_ += buffer->dwBufferLength;
+      ::LeaveCriticalSection(&stream->lock_);
     }
-
-    // Before we queue the next packet, we need to adjust the number of pending
-    // bytes since the last write to hardware.
-    obj->pending_bytes_ -= buffer->dwBufferLength;
-
-    obj->QueueNextPacket(buffer);
-
-    // Time to send the buffer to the audio driver. Since we are reusing
-    // the same buffers we can get away without calling waveOutPrepareHeader.
-    MMRESULT result = ::waveOutWrite(hwo, buffer, sizeof(WAVEHDR));
-    if (result != MMSYSERR_NOERROR)
-      obj->HandleError(result);
-
-    obj->pending_bytes_ += buffer->dwBufferLength;
-
   }
 }

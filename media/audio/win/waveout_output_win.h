@@ -53,8 +53,6 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
     PCMA_BRAND_NEW,    // Initial state.
     PCMA_READY,        // Device obtained and ready to play.
     PCMA_PLAYING,      // Playing audio.
-    PCMA_STOPPING,     // Trying to stop, waiting for callback to finish.
-    PCMA_STOPPED,      // Stopped. Device was reset.
     PCMA_CLOSED        // Device has been released.
   };
 
@@ -112,8 +110,15 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // Pointer to the first allocated audio buffer. This object owns it.
   WAVEHDR* buffer_;
 
-  // An event that is signaled when the callback thread is ready to stop.
-  base::win::ScopedHandle stopped_event_;
+  // Lock used to prevent stopping the hardware callback thread while it is
+  // pending for data or feeding it to audio driver, because doing that causes
+  // the deadlock. Main thread gets that lock before stopping the playback.
+  // Callback tries to acquire that lock before entering critical code. If
+  // acquire fails then main thread is stopping the playback, callback should
+  // immediately return.
+  // Use Windows-specific lock, not Chrome one, because there is limited set of
+  // functions callback can use.
+  CRITICAL_SECTION lock_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMWaveOutAudioOutputStream);
 };
