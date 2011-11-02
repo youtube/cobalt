@@ -315,9 +315,9 @@ bool CertSubjectCommonNameHasNull(PCCERT_CONTEXT cert) {
   return false;
 }
 
-// Saves some information about the certificate chain chain_context in
-// *verify_result.  The caller MUST initialize *verify_result before calling
-// this function.
+// Saves some information about the certificate chain |chain_context| in
+// |*verify_result|. The caller MUST initialize |*verify_result| before
+// calling this function.
 void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
                       CertVerifyResult* verify_result) {
   if (chain_context->cChain == 0)

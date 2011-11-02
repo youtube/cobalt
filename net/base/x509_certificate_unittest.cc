@@ -1489,8 +1489,8 @@ TEST_P(X509CertificateNameVerifyTest, VerifyHostname) {
 INSTANTIATE_TEST_CASE_P(, X509CertificateNameVerifyTest,
                         testing::ValuesIn(kNameVerifyTestData));
 
-// Not implemented on Mac or OpenSSL - http://crbug.com/101123
-#if defined(USE_NSS) || defined(OS_WIN)
+// Not implemented on OpenSSL - http://crbug.com/101123
+#if defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
 
 struct WeakDigestTestData {
   const char* root_cert_filename;
@@ -1574,8 +1574,10 @@ TEST_P(X509CertificateWeakDigestTest, Verify) {
 const WeakDigestTestData kVerifyRootCATestData[] = {
   { "weak_digest_md5_root.pem", "weak_digest_sha1_intermediate.pem",
     "weak_digest_sha1_ee.pem", false, false, false, false, false },
+#if !defined(OS_MACOSX)  // MD4 is not supported.
   { "weak_digest_md4_root.pem", "weak_digest_sha1_intermediate.pem",
     "weak_digest_sha1_ee.pem", false, false, false, false, false },
+#endif
   { "weak_digest_md2_root.pem", "weak_digest_sha1_intermediate.pem",
     "weak_digest_sha1_ee.pem", false, false, false, false, false },
 };
@@ -1586,10 +1588,11 @@ INSTANTIATE_TEST_CASE_P(VerifyRoot, X509CertificateWeakDigestTest,
 const WeakDigestTestData kVerifyIntermediateCATestData[] = {
   { "weak_digest_sha1_root.pem", "weak_digest_md5_intermediate.pem",
     "weak_digest_sha1_ee.pem", true, false, false, true, false },
-// NSS does not support MD4 and does not enable MD2 by policy.
-#if !defined(USE_NSS)
+#if !defined(USE_NSS) && !defined(OS_MACOSX)  // MD4 is not supported.
   { "weak_digest_sha1_root.pem", "weak_digest_md4_intermediate.pem",
     "weak_digest_sha1_ee.pem", false, true, false, false, false },
+#endif
+#if !defined(USE_NSS)  // MD2 is disabled by default.
   { "weak_digest_sha1_root.pem", "weak_digest_md2_intermediate.pem",
     "weak_digest_sha1_ee.pem", false, false, true, false, true },
 #endif
@@ -1601,10 +1604,11 @@ INSTANTIATE_TEST_CASE_P(VerifyIntermediate, X509CertificateWeakDigestTest,
 const WeakDigestTestData kVerifyEndEntityTestData[] = {
   { "weak_digest_sha1_root.pem", "weak_digest_sha1_intermediate.pem",
     "weak_digest_md5_ee.pem", true, false, false, false, false },
-// NSS does not support MD4 and does not enable MD2 by policy.
-#if !defined(USE_NSS)
+#if !defined(USE_NSS) && !defined(OS_MACOSX)  // MD4 is not supported.
   { "weak_digest_sha1_root.pem", "weak_digest_sha1_intermediate.pem",
     "weak_digest_md4_ee.pem", false, true, false, false, false },
+#endif
+#if !defined(USE_NSS)  // MD2 is disabled by default.
   { "weak_digest_sha1_root.pem", "weak_digest_sha1_intermediate.pem",
     "weak_digest_md2_ee.pem", false, false, true, false, false },
 #endif
@@ -1625,8 +1629,10 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(MAYBE_VerifyEndEntity,
 const WeakDigestTestData kVerifyIncompleteIntermediateTestData[] = {
   { NULL, "weak_digest_md5_intermediate.pem", "weak_digest_sha1_ee.pem",
     true, false, false, true, false },
+#if !defined(OS_MACOSX)  // MD4 is not supported.
   { NULL, "weak_digest_md4_intermediate.pem", "weak_digest_sha1_ee.pem",
     false, true, false, false, false },
+#endif
   { NULL, "weak_digest_md2_intermediate.pem", "weak_digest_sha1_ee.pem",
     false, false, true, false, true },
 };
@@ -1647,8 +1653,10 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
 const WeakDigestTestData kVerifyIncompleteEETestData[] = {
   { NULL, "weak_digest_sha1_intermediate.pem", "weak_digest_md5_ee.pem",
     true, false, false, false, false },
+#if !defined(OS_MACOSX)  // MD4 is not supported.
   { NULL, "weak_digest_sha1_intermediate.pem", "weak_digest_md4_ee.pem",
     false, true, false, false, false },
+#endif
   { NULL, "weak_digest_sha1_intermediate.pem", "weak_digest_md2_ee.pem",
     false, false, true, false, false },
 };
@@ -1671,10 +1679,12 @@ const WeakDigestTestData kVerifyMixedTestData[] = {
     "weak_digest_md2_ee.pem", true, false, true, true, false },
   { "weak_digest_sha1_root.pem", "weak_digest_md2_intermediate.pem",
     "weak_digest_md5_ee.pem", true, false, true, false, true },
+#if !defined(OS_MACOSX)  // MD4 is not supported.
   { "weak_digest_sha1_root.pem", "weak_digest_md4_intermediate.pem",
     "weak_digest_md2_ee.pem", false, true, true, false, false },
+#endif
 };
-// NSS does not support MD4 and does not enable MD2 by policy, making all
+// NSS does not support MD4 and does not enable MD2 by default, making all
 // permutations invalid.
 #if defined(USE_NSS)
 #define MAYBE_VerifyMixed DISABLED_VerifyMixed
@@ -1686,6 +1696,6 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
     X509CertificateWeakDigestTest,
     testing::ValuesIn(kVerifyMixedTestData));
 
-#endif  // defined(USE_NSS) || defined(OS_WIN)
+#endif  // defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
 
 }  // namespace net
