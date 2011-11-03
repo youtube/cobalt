@@ -419,8 +419,6 @@
         }],
         ['OS=="win"', {
           'sources': [
-            'gfx/canvas_direct2d.cc',
-            'gfx/canvas_direct2d.h',
             'gfx/gdi_util.cc',
             'gfx/gdi_util.h',
             'gfx/icon_util.cc',
