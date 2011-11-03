@@ -1490,9 +1490,6 @@ TEST_P(X509CertificateNameVerifyTest, VerifyHostname) {
 INSTANTIATE_TEST_CASE_P(, X509CertificateNameVerifyTest,
                         testing::ValuesIn(kNameVerifyTestData));
 
-// Not implemented on OpenSSL - http://crbug.com/101123
-#if defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
-
 struct WeakDigestTestData {
   const char* root_cert_filename;
   const char* intermediate_cert_filename;
@@ -1696,7 +1693,5 @@ WRAPPED_INSTANTIATE_TEST_CASE_P(
     MAYBE_VerifyMixed,
     X509CertificateWeakDigestTest,
     testing::ValuesIn(kVerifyMixedTestData));
-
-#endif  // defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
 
 }  // namespace net
