@@ -145,11 +145,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // Called just after the message loop ends
   virtual void CleanUp() {}
 
-  // Called after the message loop has been deleted. In general clients
-  // should prefer to use CleanUp(). This method is used when code needs to
-  // be run after all of the MessageLoop::DestructionObservers have completed.
-  virtual void CleanUpAfterMessageLoopDestruction() {}
-
   static void SetThreadWasQuitProperly(bool flag);
   static bool GetThreadWasQuitProperly();
 
