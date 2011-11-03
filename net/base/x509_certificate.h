@@ -242,12 +242,6 @@ class NET_EXPORT X509Certificate
     return intermediate_ca_certs_;
   }
 
-  // Returns true if I already contain the given intermediate cert.
-  bool HasIntermediateCertificate(OSCertHandle cert);
-
-  // Returns true if I already contain all the given intermediate certs.
-  bool HasIntermediateCertificates(const OSCertHandles& certs);
-
 #if defined(OS_MACOSX)
   // Does this certificate's usage allow SSL client authentication?
   bool SupportsSSLClientAuth() const;
