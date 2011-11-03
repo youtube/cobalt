@@ -76,6 +76,8 @@ v8.log
 /net/testserver.log
 /out
 /out_*
+/remoting/appengine/
+/remoting/tools/internal/
 /rlz
 /sdch/open-vcdiff
 /seccompsandbox
