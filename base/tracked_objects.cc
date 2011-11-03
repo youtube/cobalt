@@ -19,7 +19,7 @@ namespace tracked_objects {
 
 namespace {
 // Flag to compile out almost all of the task tracking code.
-static const bool kTrackAllTaskObjects = false;
+static const bool kTrackAllTaskObjects = true;
 
 // When ThreadData is first initialized, should we start in an ACTIVE state to
 // record all of the startup-time tasks, or should we start up DEACTIVATED, so
