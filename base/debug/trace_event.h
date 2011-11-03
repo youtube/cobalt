@@ -33,7 +33,7 @@
 //
 // By default, trace collection is compiled in, but turned off at runtime.
 // Collecting trace data is the responsibility of the embedding
-// application. In Chrome's case, navigating to about:gpu will turn on
+// application. In Chrome's case, navigating to about:tracing will turn on
 // tracing and display data collected across all active processes.
 //
 //

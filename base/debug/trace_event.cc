@@ -11,14 +11,13 @@
 #endif
 #include "base/bind.h"
 #include "base/format_macros.h"
+#include "base/lazy_instance.h"
 #include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_local.h"
 #include "base/utf_string_conversions.h"
 #include "base/stl_util.h"
 #include "base/time.h"
-
-#define USE_UNRELIABLE_NOW
 
 class DeleteTraceLogForTesting {
  public:
@@ -38,23 +37,28 @@ const size_t kTraceEventBatchSize = 1000;
 
 #define TRACE_EVENT_MAX_CATEGORIES 100
 
-static TraceCategory g_categories[TRACE_EVENT_MAX_CATEGORIES] = {
+namespace {
+
+TraceCategory g_categories[TRACE_EVENT_MAX_CATEGORIES] = {
   { "tracing already shutdown", false },
   { "tracing categories exhausted; must increase TRACE_EVENT_MAX_CATEGORIES",
     false },
   { "__metadata",
     false }
 };
-static const TraceCategory* const g_category_already_shutdown =
+const TraceCategory* const g_category_already_shutdown =
     &g_categories[0];
-static const TraceCategory* const g_category_categories_exhausted =
+const TraceCategory* const g_category_categories_exhausted =
     &g_categories[1];
-static const TraceCategory* const g_category_metadata =
+const TraceCategory* const g_category_metadata =
     &g_categories[2];
-static int g_category_index = 3; // skip initial 3 categories
+int g_category_index = 3; // skip initial 3 categories
 
 // Flag to indicate whether we captured the current thread name
-static ThreadLocalBoolean g_current_thread_name_captured;
+LazyInstance<ThreadLocalBoolean> g_current_thread_name_captured(
+    LINKER_INITIALIZED);
+
+}  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -496,11 +500,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
                             int64 threshold,
                             EventFlags flags) {
   DCHECK(name);
-#ifdef USE_UNRELIABLE_NOW
   TimeTicks now = TimeTicks::HighResNow();
-#else
-  TimeTicks now = TimeTicks::Now();
-#endif
   BufferFullCallback buffer_full_callback_copy;
   int ret_begin_id = -1;
   {
@@ -513,8 +513,8 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
     PlatformThreadId thread_id = PlatformThread::CurrentId();
 
     // Record the name of the calling thread, if not done already.
-    if (!g_current_thread_name_captured.Get()) {
-      g_current_thread_name_captured.Set(true);
+    if (!g_current_thread_name_captured.Pointer()->Get()) {
+      g_current_thread_name_captured.Pointer()->Set(true);
       const char* cur_name = PlatformThread::GetName();
       base::hash_map<PlatformThreadId, std::string>::iterator existing_name =
           thread_names_.find(thread_id);
