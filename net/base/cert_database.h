@@ -174,9 +174,15 @@ class NET_EXPORT CertDatabase {
                     TrustBits trust_bits);
 
   // Delete certificate and associated private key (if one exists).
-  // Returns true on success or false on failure.
-  // |cert| is still valid when this function returns.
+  // |cert| is still valid when this function returns. Returns true on
+  // success.
   bool DeleteCertAndKey(const X509Certificate* cert);
+
+  // Delete the certificate and associated public and private key (if
+  // one exists) with the given label from the database.  Returns true
+  // on success.  ("label" here refers to the NSS Attribute CKA_LABEL,
+  // also referred to as a nickname or friendly name).
+  bool DeleteCertAndKeyByLabel(const std::string& label);
 
   // Check whether cert is stored in a readonly slot.
   bool IsReadOnly(const X509Certificate* cert) const;
