@@ -2193,7 +2193,6 @@
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
           # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
           'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
-          'PREBINDING': 'NO',                       # No -Wl,-prebind
           # Keep pch files below xcodebuild/.
           'SHARED_PRECOMPS_DIR': '$(CONFIGURATION_BUILD_DIR)/SharedPrecompiledHeaders',
           'USE_HEADERMAP': 'NO',
