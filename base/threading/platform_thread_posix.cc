@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <sched.h>
 
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/safe_strerror_posix.h"
@@ -38,7 +39,12 @@ void InitThreading();
 
 namespace {
 
-static ThreadLocalPointer<char> current_thread_name;
+#if !defined(OS_MACOSX)
+// Mac name code is in in platform_thread_mac.mm.
+LazyInstance<ThreadLocalPointer<char>,
+             LeakyLazyInstanceTraits<ThreadLocalPointer<char> > >
+    current_thread_name(LINKER_INITIALIZED);
+#endif
 
 struct ThreadParams {
   PlatformThread::Delegate* delegate;
@@ -168,7 +174,7 @@ void PlatformThread::Sleep(int duration_ms) {
 void PlatformThread::SetName(const char* name) {
   // have to cast away const because ThreadLocalPointer does not support const
   // void*
-  current_thread_name.Set(const_cast<char*>(name));
+  current_thread_name.Pointer()->Set(const_cast<char*>(name));
 
   // http://0pointer.de/blog/projects/name-your-threads.html
 
@@ -203,7 +209,7 @@ void PlatformThread::SetName(const char* name) {
 void PlatformThread::SetName(const char* name) {
   // have to cast away const because ThreadLocalPointer does not support const
   // void*
-  current_thread_name.Set(const_cast<char*>(name));
+  current_thread_name.Pointer()->Set(const_cast<char*>(name));
 
   // (This should be relatively simple to implement for the BSDs; I
   // just don't have one handy to test the code on.)
@@ -215,7 +221,7 @@ void PlatformThread::SetName(const char* name) {
 // Mac is implemented in platform_thread_mac.mm.
 // static
 const char* PlatformThread::GetName() {
-  return current_thread_name.Get();
+  return current_thread_name.Pointer()->Get();
 }
 #endif
 
