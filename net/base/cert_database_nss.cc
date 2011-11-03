@@ -328,6 +328,13 @@ bool CertDatabase::DeleteCertAndKey(const X509Certificate* cert) {
   return true;
 }
 
+bool CertDatabase::DeleteCertAndKeyByLabel(const std::string& label) {
+  // TODO(gspencer):Find the certificate with the given CKA_LABEL
+  // (nickname), and delete it.
+  NOTIMPLEMENTED();
+  return false;
+}
+
 bool CertDatabase::IsReadOnly(const X509Certificate* cert) const {
   PK11SlotInfo* slot = cert->os_cert_handle()->slot;
   return slot && PK11_IsReadOnly(slot);

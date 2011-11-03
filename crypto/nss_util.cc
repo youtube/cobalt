@@ -353,7 +353,7 @@ class NSSInitSingleton {
     if (test_slot_) {
       SECStatus status = SECMOD_CloseUserDB(test_slot_);
       if (status != SECSuccess)
-        LOG(ERROR) << "SECMOD_CloseUserDB failed: " << PORT_GetError();
+        PLOG(ERROR) << "SECMOD_CloseUserDB failed: " << PORT_GetError();
       PK11_FreeSlot(test_slot_);
       test_slot_ = NULL;
     }
