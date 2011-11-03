@@ -24,6 +24,7 @@
       'type': 'none',
       'dependencies': [
         '../base/base.gyp:base_unittests',
+        '../sql/sql.gyp:sql_unittests'
       ],
     },
   ],  # targets
