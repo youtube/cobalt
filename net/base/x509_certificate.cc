@@ -586,7 +586,7 @@ int X509Certificate::Verify(const std::string& hostname,
   // This check is done after VerifyInternal so that VerifyInternal can fill in
   // the list of public key hashes.
   if (IsPublicKeyBlacklisted(verify_result->public_key_hashes)) {
-    verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
+    verify_result->cert_status |= CERT_STATUS_REVOKED;
     rv = MapCertStatusToNetError(verify_result->cert_status);
   }
 
@@ -696,13 +696,52 @@ bool X509Certificate::IsBlacklisted() const {
     }
   }
 
+  static const unsigned kNumDigiCertSdnBhdSerials = 22;
+  static const unsigned kDigiCertSdnBhdSerialBytes = 3;
+  static const uint8 kDigiCertSdnBhdSerials[kNumDigiCertSdnBhdSerials]
+      [kDigiCertSdnBhdSerialBytes] = {
+    {0x3e,0xe9,0x1d},
+    {0x3f,0xb3,0xbb},
+    {0x47,0x64,0x07},
+    {0x41,0x38,0x55},
+    {0x47,0x90,0x0b},
+    {0x47,0x6b,0xfd},
+    {0x47,0xd9,0x77},
+    {0x47,0x9b,0xbb},
+    {0x3e,0xda,0x1a},
+    {0x48,0xd5,0x80},
+    {0x47,0x9b,0xb4},
+    {0x3e,0xda,0x1d},
+    {0x48,0xe5,0x7a},
+    {0x47,0x9b,0xb0},
+    {0x49,0x15,0x9a},
+    {0x48,0xaf,0x30},
+    {0x3e,0xe6,0x3f},
+    {0x40,0xf6,0x9b},
+    {0x47,0x35,0xb8},
+    {0x49,0x3b,0x0c},
+    {0x47,0xd9,0x08},
+    {0x49,0x3e,0x98},
+  };
+
+  if (serial.size() == kDigiCertSdnBhdSerialBytes &&
+      !issuer_.organization_names.empty() &&
+      issuer_.organization_names[0] == "Digicert Sdn. Bhd.") {
+    for (unsigned i = 0; i < kNumDigiCertSdnBhdSerials; i++) {
+      if (memcmp(kDigiCertSdnBhdSerials[i], serial.data(),
+                 kDigiCertSdnBhdSerialBytes) == 0) {
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 
 // static
 bool X509Certificate::IsPublicKeyBlacklisted(
     const std::vector<SHA1Fingerprint>& public_key_hashes) {
-  static const unsigned kNumHashes = 5;
+  static const unsigned kNumHashes = 6;
   static const uint8 kHashes[kNumHashes][base::kSHA1Length] = {
     // Subject: CN=DigiNotar Root CA
     // Issuer: CN=Entrust.net x2 and self-signed
@@ -724,6 +763,10 @@ bool X509Certificate::IsPublicKeyBlacklisted(
     // Issuer: CN=Staat der Nederlanden Overheid CA
     {0xe8, 0xf9, 0x12, 0x00, 0xc6, 0x5c, 0xee, 0x16, 0xe0, 0x39,
      0xb9, 0xf8, 0x83, 0x84, 0x16, 0x61, 0x63, 0x5f, 0x81, 0xc5},
+    // Subject: O=Digicert Sdn. Bhd.
+    // Issuer: CN=GTE CyberTrust Global Root
+    {0x01, 0x29, 0xbc, 0xd5, 0xb4, 0x48, 0xae, 0x8d, 0x24, 0x96,
+     0xd1, 0xc3, 0xe1, 0x97, 0x23, 0x91, 0x90, 0x88, 0xe1, 0x52},
   };
 
   for (unsigned i = 0; i < kNumHashes; i++) {
