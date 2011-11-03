@@ -832,8 +832,15 @@ TEST(X509CertificateTest, Pickle) {
   ASSERT_NE(static_cast<X509Certificate*>(NULL), cert_from_pickle);
   EXPECT_TRUE(X509Certificate::IsSameOSCert(
       cert->os_cert_handle(), cert_from_pickle->os_cert_handle()));
-  EXPECT_TRUE(cert->HasIntermediateCertificates(
-      cert_from_pickle->GetIntermediateCertificates()));
+  const X509Certificate::OSCertHandles& cert_intermediates =
+      cert->GetIntermediateCertificates();
+  const X509Certificate::OSCertHandles& pickle_intermediates =
+      cert_from_pickle->GetIntermediateCertificates();
+  ASSERT_EQ(cert_intermediates.size(), pickle_intermediates.size());
+  for (size_t i = 0; i < cert_intermediates.size(); ++i) {
+    EXPECT_TRUE(X509Certificate::IsSameOSCert(cert_intermediates[i],
+                                              pickle_intermediates[i]));
+  }
 }
 
 TEST(X509CertificateTest, Policy) {
@@ -881,11 +888,6 @@ TEST(X509CertificateTest, IntermediateCertificates) {
       X509Certificate::CreateFromBytes(
           reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der)));
 
-  scoped_refptr<X509Certificate> paypal_cert(
-      X509Certificate::CreateFromBytes(
-          reinterpret_cast<const char*>(paypal_null_der),
-          sizeof(paypal_null_der)));
-
   X509Certificate::OSCertHandle google_handle;
   // Create object with no intermediates:
   google_handle = X509Certificate::CreateOSCertHandleFromBytes(
@@ -893,9 +895,7 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   X509Certificate::OSCertHandles intermediates1;
   scoped_refptr<X509Certificate> cert1;
   cert1 = X509Certificate::CreateFromHandle(google_handle, intermediates1);
-  EXPECT_TRUE(cert1->HasIntermediateCertificates(intermediates1));
-  EXPECT_FALSE(cert1->HasIntermediateCertificate(
-      webkit_cert->os_cert_handle()));
+  EXPECT_EQ(0u, cert1->GetIntermediateCertificates().size());
 
   // Create object with 2 intermediates:
   X509Certificate::OSCertHandles intermediates2;
@@ -905,12 +905,13 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   cert2 = X509Certificate::CreateFromHandle(google_handle, intermediates2);
 
   // Verify it has all the intermediates:
-  EXPECT_TRUE(cert2->HasIntermediateCertificate(
-      webkit_cert->os_cert_handle()));
-  EXPECT_TRUE(cert2->HasIntermediateCertificate(
-      thawte_cert->os_cert_handle()));
-  EXPECT_FALSE(cert2->HasIntermediateCertificate(
-      paypal_cert->os_cert_handle()));
+  const X509Certificate::OSCertHandles& cert2_intermediates =
+      cert2->GetIntermediateCertificates();
+  ASSERT_EQ(2u, cert2_intermediates.size());
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(cert2_intermediates[0],
+                                            webkit_cert->os_cert_handle()));
+  EXPECT_TRUE(X509Certificate::IsSameOSCert(cert2_intermediates[1],
+                                            thawte_cert->os_cert_handle()));
 
   // Cleanup
   X509Certificate::FreeOSCertHandle(google_handle);

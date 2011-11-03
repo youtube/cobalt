@@ -444,22 +444,6 @@ bool X509Certificate::Equals(const X509Certificate* other) const {
   return IsSameOSCert(cert_handle_, other->cert_handle_);
 }
 
-bool X509Certificate::HasIntermediateCertificate(OSCertHandle cert) {
-  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
-    if (IsSameOSCert(cert, intermediate_ca_certs_[i]))
-      return true;
-  }
-  return false;
-}
-
-bool X509Certificate::HasIntermediateCertificates(const OSCertHandles& certs) {
-  for (size_t i = 0; i < certs.size(); ++i) {
-    if (!HasIntermediateCertificate(certs[i]))
-      return false;
-  }
-  return true;
-}
-
 // static
 bool X509Certificate::VerifyHostname(
     const std::string& hostname,
