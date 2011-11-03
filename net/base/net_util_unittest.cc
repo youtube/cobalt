@@ -1221,7 +1221,8 @@ TEST(NetUtilTest, GenerateFileName) {
   // don't match our expectations.
   std::string locale = setlocale(LC_CTYPE, NULL);
   StringToLowerASCII(&locale);
-  EXPECT_NE(std::string::npos, locale.find("utf-8"))
+  EXPECT_TRUE(locale.find("utf-8") != std::string::npos ||
+              locale.find("utf8") != std::string::npos)
       << "Your locale (" << locale << ") must be set to UTF-8 "
       << "for this test to pass!";
 #endif
