@@ -300,6 +300,66 @@ bool GetDERAndCacheIfNeeded(X509Certificate::OSCertHandle cert,
   return true;
 }
 
+void GetCertChainInfo(X509_STORE_CTX* store_ctx,
+                      CertVerifyResult* verify_result) {
+  STACK_OF(X509)* chain = X509_STORE_CTX_get_chain(store_ctx);
+  X509* verified_cert = NULL;
+  std::vector<X509*> verified_chain;
+  for (int i = 0; i < sk_X509_num(chain); ++i) {
+    X509* cert = sk_X509_value(chain, i);
+    if (i == 0) {
+      verified_cert = cert;
+    } else {
+      verified_chain.push_back(cert);
+    }
+
+    // Only check the algorithm status for certificates that are not in the
+    // trust store.
+    if (i < store_ctx->last_untrusted) {
+      int sig_alg = OBJ_obj2nid(cert->sig_alg->algorithm);
+      if (sig_alg == NID_md2WithRSAEncryption) {
+        verify_result->has_md2 = true;
+        if (i != 0)
+          verify_result->has_md2_ca = true;
+      } else if (sig_alg == NID_md4WithRSAEncryption) {
+        verify_result->has_md4 = true;
+      } else if (sig_alg == NID_md5WithRSAEncryption) {
+        verify_result->has_md5 = true;
+        if (i != 0)
+          verify_result->has_md5_ca = true;
+      }
+    }
+  }
+
+  if (verified_cert) {
+    verify_result->verified_cert =
+        X509Certificate::CreateFromHandle(verified_cert, verified_chain);
+  }
+}
+
+void AppendPublicKeyHashes(X509_STORE_CTX* store_ctx,
+                           std::vector<SHA1Fingerprint>* hashes) {
+  STACK_OF(X509)* chain = X509_STORE_CTX_get_chain(store_ctx);
+  for (int i = 0; i < sk_X509_num(chain); ++i) {
+    X509* cert = sk_X509_value(chain, i);
+
+    DERCache der_cache;
+    if (!GetDERAndCacheIfNeeded(cert, &der_cache))
+      continue;
+
+    base::StringPiece der_bytes(reinterpret_cast<const char*>(der_cache.data),
+                                der_cache.data_length);
+    base::StringPiece spki_bytes;
+    if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki_bytes))
+      continue;
+
+    SHA1Fingerprint hash;
+    base::SHA1HashBytes(reinterpret_cast<const uint8*>(spki_bytes.data()),
+                        spki_bytes.size(), hash.data);
+    hashes->push_back(hash);
+  }
+}
+
 }  // namespace
 
 // static
@@ -489,41 +549,12 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     verify_result->cert_status |= cert_status;
   }
 
+  GetCertChainInfo(ctx.get(), verify_result);
+
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
-  STACK_OF(X509)* chain = X509_STORE_CTX_get_chain(ctx.get());
-  X509* verified_cert = NULL;
-  std::vector<X509*> verified_chain;
-  for (int i = 0; i < sk_X509_num(chain); ++i) {
-    X509* cert = sk_X509_value(chain, i);
-    if (i == 0) {
-      verified_cert = cert;
-    } else {
-      verified_chain.push_back(cert);
-    }
-
-    DERCache der_cache;
-    if (!GetDERAndCacheIfNeeded(cert, &der_cache))
-      continue;
-
-    base::StringPiece der_bytes(reinterpret_cast<const char*>(der_cache.data),
-                                der_cache.data_length);
-    base::StringPiece spki_bytes;
-    if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki_bytes))
-      continue;
-
-    SHA1Fingerprint hash;
-    base::SHA1HashBytes(reinterpret_cast<const uint8*>(spki_bytes.data()),
-                        spki_bytes.size(), hash.data);
-    verify_result->public_key_hashes.push_back(hash);
-  }
-
-  if (verified_cert) {
-    verify_result->verified_cert = CreateFromHandle(verified_cert,
-                                                    verified_chain);
-  }
-
+  AppendPublicKeyHashes(ctx.get(), &verify_result->public_key_hashes);
   // Currently we only ues OpenSSL's default root CA paths, so treat all
   // correctly verified certs as being from a known root. TODO(joth): if the
   // motivations described in http://src.chromium.org/viewvc/chrome?view=rev&revision=80778
