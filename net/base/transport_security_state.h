@@ -61,11 +61,17 @@ class NET_EXPORT TransportSecurityState
     //      OR
     //   3) |hashes| and |public_key_hashes| are not disjoint.
     //
-    // |public_key_hashes| is intended to contain a number of trust roots for
-    // the chain in question, any one of which is sufficient.
+    // |public_key_hashes| is intended to contain a number of trusted public
+    // keys for the chain in question, any one of which is sufficient. The
+    // public keys could be of a root CA, intermediate CA or leaf certificate,
+    // depending on the security vs disaster recovery tradeoff selected.
+    // (Pinning only to leaf certifiates increases security because you no
+    // longer trust any CAs, but it hampers disaster recovery because you can't
+    // just get a new certificate signed by the CA.)
+    //
     // |bad_public_key_hashes| is intended to contain unwanted intermediate CA
-    // certifciates that those trust roots may have issued but that we don't
-    // want to trust.
+    // certifciates that those trusted public keys may have issued but that we
+    // don't want to trust.
     bool IsChainOfPublicKeysPermitted(
         const std::vector<SHA1Fingerprint>& hashes);
 
