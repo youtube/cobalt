@@ -1,15 +1,17 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // The purpose of this file is to supply the macro definintions necessary
 // to make third_party/dmg_fp/dtoa.cc threadsafe.
-#include "base/synchronization/lock.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/synchronization/lock.h"
 
 // We need two locks because they're sometimes grabbed at the same time.
 // A single lock would lead to an attempted recursive grab.
-static base::Lock dtoa_locks[2];
+static base::LazyInstance<base::Lock> dtoa_lock_0(base::LINKER_INITIALIZED);
+static base::LazyInstance<base::Lock> dtoa_lock_1(base::LINKER_INITIALIZED);
 
 /*
  * This define and the code below is to trigger thread-safe behavior
@@ -28,13 +30,15 @@ static base::Lock dtoa_locks[2];
 #define MULTIPLE_THREADS
 
 inline static void ACQUIRE_DTOA_LOCK(size_t n) {
-  DCHECK(n < arraysize(dtoa_locks));
-  dtoa_locks[n].Acquire();
+  DCHECK(n < 2);
+  base::Lock* lock = n == 0 ? dtoa_lock_0.Pointer() : dtoa_lock_1.Pointer();
+  lock->Acquire();
 }
 
 inline static void FREE_DTOA_LOCK(size_t n) {
-  DCHECK(n < arraysize(dtoa_locks));
-  dtoa_locks[n].Release();
+  DCHECK(n < 2);
+  base::Lock* lock = n == 0 ? dtoa_lock_0.Pointer() : dtoa_lock_1.Pointer();
+  lock->Release();
 }
 
 #include "base/third_party/dmg_fp/dtoa.cc"
