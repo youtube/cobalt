@@ -10,8 +10,12 @@
 
 // We need two locks because they're sometimes grabbed at the same time.
 // A single lock would lead to an attempted recursive grab.
-static base::LazyInstance<base::Lock> dtoa_lock_0(base::LINKER_INITIALIZED);
-static base::LazyInstance<base::Lock> dtoa_lock_1(base::LINKER_INITIALIZED);
+static base::LazyInstance<base::Lock,
+                          base::LeakyLazyInstanceTraits<base::Lock> >
+    dtoa_lock_0(base::LINKER_INITIALIZED);
+static base::LazyInstance<base::Lock,
+                          base::LeakyLazyInstanceTraits<base::Lock> >
+    dtoa_lock_1(base::LINKER_INITIALIZED);
 
 /*
  * This define and the code below is to trigger thread-safe behavior
