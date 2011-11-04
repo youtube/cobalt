@@ -333,10 +333,12 @@ class BASE_EXPORT DeathData {
 
   // Metrics accessors.
   int count() const { return count_; }
-  Duration run_duration() const { return run_duration_; }
+  Duration run_duration() const { return run_time_.duration(); }
   int AverageMsRunDuration() const;
-  Duration queue_duration() const { return queue_duration_; }
+  Duration run_duration_max() const { return run_time_.max(); }
+  Duration queue_duration() const { return queue_time_.duration(); }
   int AverageMsQueueDuration() const;
+  Duration queue_duration_max() const { return queue_time_.max(); }
 
   // Accumulate metrics from other into this.  This method is never used on
   // realtime statistics, and only used in snapshots and aggregatinos.
@@ -353,9 +355,40 @@ class BASE_EXPORT DeathData {
   void Clear();
 
  private:
-  int count_;                       // Number of destructions.
-  Duration run_duration_;    // Sum of all Run()time durations.
-  Duration queue_duration_;  // Sum of all queue time durations.
+  // DeathData::Data is a helper class, useful when different metrics need to be
+  // aggregated, such as queueing times, or run times.
+  class Data {
+   public:
+    Data() {}
+    ~Data() {}
+
+    Duration duration() const { return duration_; }
+    Duration max() const { return max_; }
+
+    // Emits HTML formated description of members, assuming |count| instances
+    // when calculating averages.
+    void WriteHTML(int count, std::string* output) const;
+
+    // Agggegate data into our state.
+    void AddData(const Data& other);
+    void AddDuration(const Duration& duration);
+
+    // Central helper function for calculating averages (correctly, in only one
+    // place).
+    int AverageMsDuration(int count) const;
+
+    // Resets all members to zero.
+    void Clear();
+
+   private:
+    Duration duration_;  // Sum of all durations seen.
+    Duration max_;       // Largest singular duration seen.
+  };
+
+
+  int count_;         // Number of deaths seen.
+  Data run_time_;    // Data about run time durations.
+  Data queue_time_;  // Data about queueing times durations.
 };
 
 //------------------------------------------------------------------------------
@@ -383,12 +416,18 @@ class BASE_EXPORT Snapshot {
 
   int count() const { return death_data_.count(); }
   Duration run_duration() const { return death_data_.run_duration(); }
-  Duration queue_duration() const { return death_data_.queue_duration(); }
   int AverageMsRunDuration() const {
     return death_data_.AverageMsRunDuration();
   }
+  Duration run_duration_max() const {
+    return death_data_.run_duration_max();
+  }
+  Duration queue_duration() const { return death_data_.queue_duration(); }
   int AverageMsQueueDuration() const {
     return death_data_.AverageMsQueueDuration();
+  }
+  Duration queue_duration_max() const {
+    return death_data_.queue_duration_max();
   }
 
   // Emit contents for use in a line of HTML
@@ -509,6 +548,8 @@ class BASE_EXPORT Comparator {
     TOTAL_RUN_DURATION = 128,
     AVERAGE_QUEUE_DURATION = 256,
     TOTAL_QUEUE_DURATION = 512,
+    MAX_RUN_DURATION = 1024,
+    MAX_QUEUE_DURATION = 2048,
 
     // Imediate action keywords.
     RESET_ALL_DATA = -1,
