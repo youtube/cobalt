@@ -149,14 +149,22 @@ TEST_F(TrackedObjectsTest, DeathDataTest) {
 
   std::string output;
   data->WriteHTML(&output);
-  std::string results = "Lives:2, Run:84ms(42ms/life) Queue:16ms(8ms/life) ";
-  EXPECT_EQ(output, results);
+  std::string results = "Lives:2, "
+      "Run:84ms(42ms/life,max:42ms) "
+      "Queue:16ms(8ms/life,max:8ms) ";
+  EXPECT_EQ(results, output);
 
   scoped_ptr<base::Value> value(data->ToValue());
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
-  std::string birth_only_result = "{\"count\":2,\"queue_ms\":16,\"run_ms\":84}";
-  EXPECT_EQ(json, birth_only_result);
+  std::string birth_only_result = "{"
+      "\"count\":2,"
+      "\"queue_ms\":16,"
+      "\"queue_ms_max\":8,"
+      "\"run_ms\":84,"
+      "\"run_ms_max\":42"
+      "}";
+  EXPECT_EQ(birth_only_result, json);
 }
 
 TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueWorkerThread) {
@@ -231,7 +239,9 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueWorkerThread) {
           "\"death_data\":{"
             "\"count\":1,"
             "\"queue_ms\":0,"
-            "\"run_ms\":0"
+            "\"queue_ms_max\":0,"
+            "\"run_ms\":0,"
+            "\"run_ms_max\":0"
           "},"
           "\"death_thread\":\"Still_Alive\","
           "\"location\":{"
@@ -269,7 +279,9 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueMainThread) {
           "\"death_data\":{"
             "\"count\":1,"
             "\"queue_ms\":0,"
-            "\"run_ms\":0"
+            "\"queue_ms_max\":0,"
+            "\"run_ms\":0,"
+            "\"run_ms_max\":0"
           "},"
           "\"death_thread\":\"Still_Alive\","
           "\"location\":{"
@@ -320,7 +332,9 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueMainThread) {
           "\"death_data\":{"
             "\"count\":1,"
             "\"queue_ms\":4,"
-            "\"run_ms\":2"
+            "\"queue_ms_max\":4,"
+            "\"run_ms\":2,"
+            "\"run_ms_max\":2"
           "},"
           "\"death_thread\":\"SomeMainThreadName\","
           "\"location\":{"
@@ -378,7 +392,9 @@ TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToValueMainThread) {
           "\"death_data\":{"
             "\"count\":1,"
             "\"queue_ms\":4,"
-            "\"run_ms\":2"
+            "\"queue_ms_max\":4,"
+            "\"run_ms\":2,"
+            "\"run_ms_max\":2"
           "},"
           "\"death_thread\":\"SomeMainThreadName\","
           "\"location\":{"
@@ -463,7 +479,9 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
           "\"death_data\":{"
             "\"count\":1,"
             "\"queue_ms\":4,"
-            "\"run_ms\":2"
+            "\"queue_ms_max\":4,"
+            "\"run_ms\":2,"
+            "\"run_ms_max\":2"
           "},"
           "\"death_thread\":\"WorkerThread-1\","
           "\"location\":{"
@@ -522,7 +540,9 @@ TEST_F(TrackedObjectsTest, TwoLives) {
           "\"death_data\":{"
             "\"count\":2,"
             "\"queue_ms\":8,"
-            "\"run_ms\":4"
+            "\"queue_ms_max\":4,"
+            "\"run_ms\":4,"
+            "\"run_ms_max\":2"
           "},"
           "\"death_thread\":\"SomeFileThreadName\","
           "\"location\":{"
@@ -577,7 +597,9 @@ TEST_F(TrackedObjectsTest, DifferentLives) {
           "\"death_data\":{"
             "\"count\":1,"
             "\"queue_ms\":4,"
-            "\"run_ms\":2"
+            "\"queue_ms_max\":4,"
+            "\"run_ms\":2,"
+            "\"run_ms_max\":2"
           "},"
           "\"death_thread\":\"SomeFileThreadName\","
           "\"location\":{"
@@ -591,7 +613,9 @@ TEST_F(TrackedObjectsTest, DifferentLives) {
           "\"death_data\":{"
             "\"count\":1,"
             "\"queue_ms\":0,"
-            "\"run_ms\":0"
+            "\"queue_ms_max\":0,"
+            "\"run_ms\":0,"
+            "\"run_ms_max\":0"
           "},"
           "\"death_thread\":\"Still_Alive\","
           "\"location\":{"
