@@ -72,12 +72,8 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
   return false;
 }
 
-bool TraceEvent::GetAbsTimeToOtherEvent(double* duration) const {
-  if (!other_event)
-    return false;
-
-  *duration = fabs(other_event->timestamp - timestamp);
-  return true;
+double TraceEvent::GetAbsTimeToOtherEvent() const {
+  return fabs(other_event->timestamp - timestamp);
 }
 
 bool TraceEvent::GetArgAsString(const std::string& name,
@@ -97,6 +93,46 @@ bool TraceEvent::GetArgAsNumber(const std::string& name,
     *arg = i->second;
     return true;
   }
+  return false;
+}
+
+bool TraceEvent::HasStringArg(const std::string& name) const {
+  return (arg_strings.find(name) != arg_strings.end());
+}
+
+bool TraceEvent::HasNumberArg(const std::string& name) const {
+  return (arg_numbers.find(name) != arg_numbers.end());
+}
+
+std::string TraceEvent::GetKnownArgAsString(const std::string& name) const {
+  std::string arg_string;
+  if (GetArgAsString(name, &arg_string))
+    return arg_string;
+  NOTREACHED();
+  return "";
+}
+
+double TraceEvent::GetKnownArgAsDouble(const std::string& name) const {
+  double arg_double;
+  if (GetArgAsNumber(name, &arg_double))
+    return arg_double;
+  NOTREACHED();
+  return 0;
+}
+
+int TraceEvent::GetKnownArgAsInt(const std::string& name) const {
+  double arg_double;
+  if (GetArgAsNumber(name, &arg_double))
+    return static_cast<int>(arg_double);
+  NOTREACHED();
+  return 0;
+}
+
+bool TraceEvent::GetKnownArgAsBool(const std::string& name) const {
+  double arg_double;
+  if (GetArgAsNumber(name, &arg_double))
+    return (arg_double != 0.0);
+  NOTREACHED();
   return false;
 }
 
@@ -386,9 +422,8 @@ base::debug::TraceValue Query::GetMemberValue(const TraceEvent& event) const {
       return the_event->timestamp;
     case EVENT_DURATION:
       {
-        double duration;
-        if (the_event->GetAbsTimeToOtherEvent(&duration))
-          return duration;
+        if (the_event->has_other_event())
+          return the_event->GetAbsTimeToOtherEvent();
         else
           return base::debug::TraceValue();
       }
@@ -401,13 +436,12 @@ base::debug::TraceValue Query::GetMemberValue(const TraceEvent& event) const {
     case EVENT_NAME:
     case OTHER_NAME:
       return the_event->name;
-    case EVENT_HAS_ARG:
-    case OTHER_HAS_ARG:
-      // Search for the argument name and return true if found.
-      return static_cast<double>((the_event->arg_strings.find(string_) !=
-                                  the_event->arg_strings.end()) ||
-                                 (the_event->arg_numbers.find(string_) !=
-                                  the_event->arg_numbers.end()) ? 1 : 0);
+    case EVENT_HAS_STRING_ARG:
+    case OTHER_HAS_STRING_ARG:
+      return (the_event->HasStringArg(string_) ? 1.0 : 0.0);
+    case EVENT_HAS_NUMBER_ARG:
+    case OTHER_HAS_NUMBER_ARG:
+      return (the_event->HasNumberArg(string_) ? 1.0 : 0.0);
     case EVENT_ARG:
     case OTHER_ARG:
       {
