@@ -423,7 +423,9 @@ TEST_F(URLRequestTestHTTP, ProxyTunnelRedirectTest) {
 
 // This is the same as the previous test, but checks that the network delegate
 // registers the error.
-TEST_F(URLRequestTestHTTP, NetworkDelegateTunnelConnectionFailed) {
+// This test was disabled because it made chrome_frame_net_tests hang
+// (see bug 102991).
+TEST_F(URLRequestTestHTTP, DISABLED_NetworkDelegateTunnelConnectionFailed) {
   ASSERT_TRUE(test_server_.Start());
 
   TestNetworkDelegate network_delegate;  // must outlive URLRequest
@@ -918,7 +920,9 @@ TEST_F(URLRequestTestHTTP, GetZippedTest) {
   }
 }
 
-TEST_F(URLRequestTestHTTP, HTTPSToHTTPRedirectNoRefererTest) {
+// This test was disabled because it made chrome_frame_net_tests hang
+// (see bug 102991).
+TEST_F(URLRequestTestHTTP, DISABLED_HTTPSToHTTPRedirectNoRefererTest) {
   ASSERT_TRUE(test_server_.Start());
 
   TestServer https_test_server(
@@ -980,7 +984,9 @@ class HTTPSRequestTest : public testing::Test {
   scoped_refptr<TestURLRequestContext> default_context_;
 };
 
-TEST_F(HTTPSRequestTest, HTTPSGetTest) {
+// This test was disabled because it made chrome_frame_net_tests hang
+// (see bug 102991).
+TEST_F(HTTPSRequestTest, DISABLED_HTTPSGetTest) {
   TestServer test_server(TestServer::TYPE_HTTPS,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
