@@ -177,13 +177,8 @@ static int ParseWebMElementHeaderField(const uint8* buf, int size,
   return bytes_used;
 }
 
-// Parses an element header & returns the ID and element size.
-//
-// Returns: The number of bytes parsed on success. -1 on error.
-// |*id| contains the element ID on success & undefined on error.
-// |*element_size| contains the element size on success & undefined on error.
-static int ParseWebMElementHeader(const uint8* buf, int size,
-                                  int* id, int64* element_size) {
+int WebMParseElementHeader(const uint8* buf, int size,
+                           int* id, int64* element_size) {
   DCHECK(buf);
   DCHECK_GE(size, 0);
   DCHECK(id);
@@ -377,7 +372,7 @@ static int ParseElements(const ElementIdInfo* id_info,
   while (cur_size > 0) {
     int id = 0;
     int64 element_size = 0;
-    int result = ParseWebMElementHeader(cur, cur_size, &id, &element_size);
+    int result = WebMParseElementHeader(cur, cur_size, &id, &element_size);
 
     if (result <= 0)
       return result;
@@ -467,7 +462,7 @@ int WebMParseListElement(const uint8* buf, int size, int id,
   int bytes_parsed = 0;
   int element_id = 0;
   int64 element_size = 0;
-  int result = ParseWebMElementHeader(cur, cur_size, &element_id,
+  int result = WebMParseElementHeader(cur, cur_size, &element_id,
                                       &element_size);
 
   if (result <= 0)
