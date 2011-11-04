@@ -60,11 +60,11 @@ class VideoRendererBaseTest : public ::testing::Test {
         decoder_(new MockVideoDecoder()),
         cv_(&lock_),
         event_(false, false),
-        seeking_(false),
-        pending_reads_(0) {
+        seeking_(false) {
     renderer_->set_host(&host_);
 
-    EXPECT_CALL(*decoder_, natural_size()).WillRepeatedly(Return(kNaturalSize));
+    EXPECT_CALL(*decoder_, natural_size())
+        .WillRepeatedly(ReturnRef(kNaturalSize));
 
     EXPECT_CALL(stats_callback_object_, OnStatistics(_))
         .Times(AnyNumber());
@@ -90,7 +90,7 @@ class VideoRendererBaseTest : public ::testing::Test {
         .WillRepeatedly(Return(base::TimeDelta()));
 
     // Monitor reads from the decoder.
-    EXPECT_CALL(*decoder_, ProduceVideoFrame(_))
+    EXPECT_CALL(*decoder_, Read(_))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::FrameRequested));
 
     InSequence s;
@@ -110,7 +110,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     Seek(0);
   }
 
-  void StartSeeking(int64 timestamp, PipelineStatus expected_status) {
+  void StartSeeking(int64 timestamp) {
     EXPECT_FALSE(seeking_);
 
     // Seek to trigger prerolling.
@@ -118,7 +118,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     renderer_->Seek(base::TimeDelta::FromMicroseconds(timestamp),
                     base::Bind(&VideoRendererBaseTest::OnSeekComplete,
                                base::Unretained(this),
-                               expected_status));
+                               PIPELINE_OK));
   }
 
   void Play() {
@@ -129,9 +129,7 @@ class VideoRendererBaseTest : public ::testing::Test {
 
   void Seek(int64 timestamp) {
     SCOPED_TRACE(base::StringPrintf("Seek(%" PRId64 ")", timestamp));
-    StartSeeking(timestamp, PIPELINE_OK);
-
-    // TODO(scherkus): switch to FinishSeeking_DISABLED() (see comments below).
+    StartSeeking(timestamp);
     FinishSeeking();
   }
 
@@ -194,19 +192,14 @@ class VideoRendererBaseTest : public ::testing::Test {
     event_.Reset();
   }
 
-  // Delivers a NULL frame to VideoRendererBase, signalling a decode error.
-  void DeliverErrorToRenderer() {
-    decoder_->VideoFrameReadyForTest(NULL);
-  }
-
-  // Delivers a frame with given timestamp and duration to VideoRendererBase.
-  void DeliverFrameToRenderer(int64 timestamp, int64 duration) {
+  // Creates a frame with given timestamp and duration.
+  scoped_refptr<VideoFrame> CreateFrame(int64 timestamp, int64 duration) {
     scoped_refptr<VideoFrame> frame =
         VideoFrame::CreateFrame(VideoFrame::RGB32, kNaturalSize.width(),
                                 kNaturalSize.height(),
                                 base::TimeDelta::FromMicroseconds(timestamp),
                                 base::TimeDelta::FromMicroseconds(duration));
-    decoder_->VideoFrameReadyForTest(frame);
+    return frame;
   }
 
  protected:
@@ -229,9 +222,10 @@ class VideoRendererBaseTest : public ::testing::Test {
 
  private:
   // Called by VideoRendererBase when it wants a frame.
-  void FrameRequested(scoped_refptr<VideoFrame> video_frame) {
+  void FrameRequested(const VideoDecoder::ReadCB& callback) {
     base::AutoLock l(lock_);
-    ++pending_reads_;
+    CHECK(read_cb_.is_null());
+    read_cb_ = callback;
     cv_.Signal();
   }
 
@@ -243,30 +237,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     cv_.Signal();
   }
 
-  // TODO(scherkus): remove this as soon as we move away from our current buffer
-  // recycling implementation, which assumes the decoder will continously
-  // deliver frames during prerolling -- even if VideoRendererBase didn't ask
-  // for them!
   void FinishSeeking() {
-    EXPECT_CALL(*renderer_, OnFrameAvailable());
-    EXPECT_TRUE(seeking_);
-
-    // Satisfy the read requests.  The callback must be executed in order
-    // to exit the loop since VideoRendererBase can read a few extra frames
-    // after |timestamp| in order to preroll.
-    int64 i = 0;
-    base::AutoLock l(lock_);
-    while (seeking_) {
-      // Unlock to deliver the frame to avoid re-entrancy issues.
-      base::AutoUnlock ul(lock_);
-      DeliverFrameToRenderer(i * kDuration, kDuration);
-      ++i;
-    }
-  }
-
-  // TODO(scherkus): this is the proper read/prerolling behaviour we want to
-  // have where VideoRendererBase requests a frame and the decoder responds.
-  void FinishSeeking_DISABLED() {
     EXPECT_CALL(*renderer_, OnFrameAvailable());
     EXPECT_TRUE(seeking_);
 
@@ -279,22 +250,23 @@ class VideoRendererBaseTest : public ::testing::Test {
     int64 i = 0;
     base::AutoLock l(lock_);
     while (seeking_) {
-      if (pending_reads_ > 0) {
-        --pending_reads_;
+      if (!read_cb_.is_null()) {
+        VideoDecoder::ReadCB read_cb;
+        std::swap(read_cb, read_cb_);
 
         // Unlock to deliver the frame to avoid re-entrancy issues.
         base::AutoUnlock ul(lock_);
-        DeliverFrameToRenderer(i * kDuration, kDuration);
+        read_cb.Run(CreateFrame(i * kDuration, kDuration));
         ++i;
-      } else if (pending_reads_ == 0) {
-        // We want to wait iff we're still seeking but have no pending reads.
+      } else {
+        // We want to wait iff we're still seeking but have no pending read.
         cv_.TimedWait(timeout);
-        CHECK(!seeking_ || pending_reads_ > 0)
+        CHECK(!seeking_ || !read_cb_.is_null())
             << "Timed out waiting for seek or read to occur.";
       }
     }
 
-    EXPECT_EQ(0, pending_reads_);
+    EXPECT_TRUE(read_cb_.is_null());
   }
 
   base::Lock lock_;
@@ -303,7 +275,7 @@ class VideoRendererBaseTest : public ::testing::Test {
 
   // Used in conjunction with |lock_| and |cv_| for satisfying reads.
   bool seeking_;
-  int pending_reads_;
+  VideoDecoder::ReadCB read_cb_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBaseTest);
 };
@@ -342,43 +314,6 @@ TEST_F(VideoRendererBaseTest, Play) {
   Initialize();
   Play();
   Shutdown();
-}
-
-TEST_F(VideoRendererBaseTest, Error_Playing) {
-  Initialize();
-  Play();
-
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
-  DeliverErrorToRenderer();
-  Shutdown();
-}
-
-TEST_F(VideoRendererBaseTest, Error_Seeking) {
-  Initialize();
-  Pause();
-  Flush();
-
-  StartSeeking(0, PIPELINE_ERROR_DECODE);
-  DeliverErrorToRenderer();
-  Shutdown();
-}
-
-TEST_F(VideoRendererBaseTest, Error_DuringPaint) {
-  Initialize();
-  Play();
-
-  // Grab the frame.
-  scoped_refptr<VideoFrame> frame;
-  renderer_->GetCurrentFrame(&frame);
-  EXPECT_TRUE(frame);
-
-  // Deliver an error.
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
-  DeliverErrorToRenderer();
-
-  // Return the frame then try getting it again -- it should be NULL.
-  renderer_->PutCurrentFrame(frame);
-  ExpectCurrentFrame(false);
 }
 
 TEST_F(VideoRendererBaseTest, Seek_Exact) {

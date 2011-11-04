@@ -5,12 +5,11 @@
 #include "media/filters/ffmpeg_video_decoder.h"
 
 #include "base/bind.h"
-#include "base/callback.h"
 #include "base/message_loop.h"
-#include "base/task.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/filter_host.h"
 #include "media/base/limits.h"
+#include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/video/ffmpeg_video_decode_engine.h"
@@ -19,7 +18,7 @@ namespace media {
 
 FFmpegVideoDecoder::FFmpegVideoDecoder(MessageLoop* message_loop)
     : message_loop_(message_loop),
-      state_(kUnInitialized),
+      state_(kUninitialized),
       decode_engine_(new FFmpegVideoDecodeEngine()) {
 }
 
@@ -29,17 +28,13 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
                                     const base::Closure& callback,
                                     const StatisticsCallback& stats_callback) {
   if (MessageLoop::current() != message_loop_) {
-    message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&FFmpegVideoDecoder::Initialize, this,
-                   make_scoped_refptr(demuxer_stream),
-                   callback, stats_callback));
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &FFmpegVideoDecoder::Initialize, this,
+        make_scoped_refptr(demuxer_stream), callback, stats_callback));
     return;
   }
 
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!demuxer_stream_);
-  DCHECK(initialize_callback_.is_null());
 
   if (!demuxer_stream) {
     host()->SetError(PIPELINE_ERROR_DECODE);
@@ -48,35 +43,45 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   }
 
   demuxer_stream_ = demuxer_stream;
-  initialize_callback_ = callback;
   statistics_callback_ = stats_callback;
 
   const VideoDecoderConfig& config = demuxer_stream->video_decoder_config();
 
-  pts_stream_.Initialize(GetFrameDuration(config));
+  // TODO(scherkus): this check should go in PipelineImpl prior to creating
+  // decoder objects.
+  if (!config.IsValidConfig()) {
+    DLOG(ERROR) << "Invalid video stream -"
+                << " codec: " << config.codec()
+                << " format: " << config.format()
+                << " coded size: [" << config.coded_size().width()
+                << "," << config.coded_size().height() << "]"
+                << " visible rect: [" << config.visible_rect().x()
+                << "," << config.visible_rect().y()
+                << "," << config.visible_rect().width()
+                << "," << config.visible_rect().height() << "]"
+                << " natural size: [" << config.natural_size().width()
+                << "," << config.natural_size().height() << "]"
+                << " frame rate: " << config.frame_rate_numerator()
+                << "/" << config.frame_rate_denominator()
+                << " aspect ratio: " << config.aspect_ratio_numerator()
+                << "/" << config.aspect_ratio_denominator();
 
-  natural_size_ = config.natural_size();
-  if (natural_size_.width() > Limits::kMaxDimension ||
-      natural_size_.height() > Limits::kMaxDimension ||
-      natural_size_.GetArea() > Limits::kMaxCanvas) {
-    OnInitializeComplete(false);
+    host()->SetError(PIPELINE_ERROR_DECODE);
+    callback.Run();
     return;
   }
 
-  state_ = kInitializing;
-  decode_engine_->Initialize(this, config);
-}
+  pts_stream_.Initialize(GetFrameDuration(config));
+  natural_size_ = config.natural_size();
 
-void FFmpegVideoDecoder::OnInitializeComplete(bool success) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(!initialize_callback_.is_null());
-
-  if (success) {
-    state_ = kNormal;
-  } else {
+  if (!decode_engine_->Initialize(config)) {
     host()->SetError(PIPELINE_ERROR_DECODE);
+    callback.Run();
+    return;
   }
-  ResetAndRunCB(&initialize_callback_);
+
+  state_ = kNormal;
+  callback.Run();
 }
 
 void FFmpegVideoDecoder::Stop(const base::Closure& callback) {
@@ -86,23 +91,20 @@ void FFmpegVideoDecoder::Stop(const base::Closure& callback) {
     return;
   }
 
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(uninitialize_callback_.is_null());
-
-  uninitialize_callback_ = callback;
-  if (state_ != kUnInitialized)
-    decode_engine_->Uninitialize();
-  else
-    OnUninitializeComplete();
+  decode_engine_->Uninitialize();
+  state_ = kUninitialized;
+  callback.Run();
 }
 
-void FFmpegVideoDecoder::OnUninitializeComplete() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(!uninitialize_callback_.is_null());
+void FFmpegVideoDecoder::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &FFmpegVideoDecoder::Seek, this, time, cb));
+    return;
+  }
 
-  state_ = kStopped;
-
-  ResetAndRunCB(&uninitialize_callback_);
+  pts_stream_.Seek(time);
+  cb.Run(PIPELINE_OK);
 }
 
 void FFmpegVideoDecoder::Pause(const base::Closure& callback) {
@@ -112,7 +114,6 @@ void FFmpegVideoDecoder::Pause(const base::Closure& callback) {
     return;
   }
 
-  state_ = kPausing;
   callback.Run();
 }
 
@@ -123,67 +124,64 @@ void FFmpegVideoDecoder::Flush(const base::Closure& callback) {
     return;
   }
 
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(flush_callback_.is_null());
-
-  state_ = kFlushing;
-
-  FlushBuffers();
-
-  flush_callback_ = callback;
-
   decode_engine_->Flush();
-}
-
-void FFmpegVideoDecoder::OnFlushComplete() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(!flush_callback_.is_null());
-
-  // Everything in the presentation time queue is invalid, clear the queue.
   pts_stream_.Flush();
-
-  // Mark flush operation had been done.
   state_ = kNormal;
-
-  ResetAndRunCB(&flush_callback_);
+  callback.Run();
 }
 
-void FFmpegVideoDecoder::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
-  if (MessageLoop::current() != message_loop_) {
-     message_loop_->PostTask(FROM_HERE,
-                             base::Bind(&FFmpegVideoDecoder::Seek, this,
-                                               time, cb));
-     return;
+void FFmpegVideoDecoder::Read(const ReadCB& callback) {
+  // TODO(scherkus): forced task post since VideoRendererBase::FrameReady() will
+  // call Read() on FFmpegVideoDecoder's thread as we executed |read_cb_|.
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &FFmpegVideoDecoder::DoRead, this, callback));
+}
+
+const gfx::Size& FFmpegVideoDecoder::natural_size() {
+  return natural_size_;
+}
+
+void FFmpegVideoDecoder::DoRead(const ReadCB& callback) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  CHECK(!callback.is_null());
+  CHECK(read_cb_.is_null()) << "Overlapping decodes are not supported.";
+
+  // This can happen during shutdown after Stop() has been called.
+  if (state_ == kUninitialized) {
+    return;
   }
 
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(seek_cb_.is_null());
+  // Return empty frames if decoding has finished.
+  if (state_ == kDecodeFinished) {
+    callback.Run(VideoFrame::CreateEmptyFrame());
+    return;
+  }
 
-  pts_stream_.Seek(time);
-  seek_cb_ = cb;
-  decode_engine_->Seek();
+  read_cb_ = callback;
+  ReadFromDemuxerStream();
 }
 
-void FFmpegVideoDecoder::OnSeekComplete() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(!seek_cb_.is_null());
 
-  ResetAndRunCB(&seek_cb_, PIPELINE_OK);
+void FFmpegVideoDecoder::ReadFromDemuxerStream() {
+  DCHECK_NE(state_, kUninitialized);
+  DCHECK_NE(state_, kDecodeFinished);
+  DCHECK(!read_cb_.is_null());
+
+  demuxer_stream_->Read(base::Bind(&FFmpegVideoDecoder::DecodeBuffer, this));
 }
 
-void FFmpegVideoDecoder::OnError() {
-  VideoFrameReady(NULL);
-}
-
-void FFmpegVideoDecoder::OnReadComplete(const scoped_refptr<Buffer>& buffer) {
+void FFmpegVideoDecoder::DecodeBuffer(const scoped_refptr<Buffer>& buffer) {
+  // TODO(scherkus): forced task post since FFmpegDemuxerStream::Read() can
+  // immediately execute our callback on FFmpegVideoDecoder's thread.
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &FFmpegVideoDecoder::OnReadCompleteTask, this, buffer));
+      &FFmpegVideoDecoder::DoDecodeBuffer, this, buffer));
 }
 
-void FFmpegVideoDecoder::OnReadCompleteTask(
-    const scoped_refptr<Buffer>& buffer) {
+void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK_NE(state_, kStopped);  // because of Flush() before Stop().
+  DCHECK_NE(state_, kUninitialized);
+  DCHECK_NE(state_, kDecodeFinished);
+  DCHECK(!read_cb_.is_null());
 
   // During decode, because reads are issued asynchronously, it is possible to
   // receive multiple end of stream buffers since each read is acked. When the
@@ -204,11 +202,11 @@ void FFmpegVideoDecoder::OnReadCompleteTask(
   // kNormal -> kFlushCodec:
   //     When buffer->IsEndOfStream() is first true.
   // kNormal -> kDecodeFinished:
-  //     A catastrophic failure occurs, and decoding needs to stop.
+  //     A decoding error occurs and decoding needs to stop.
   // kFlushCodec -> kDecodeFinished:
   //     When avcodec_decode_video2() returns 0 data or errors out.
   // (any state) -> kNormal:
-  //     Any time buffer->IsDiscontinuous() is true.
+  //     Any time Flush() is called.
 
   // Transition to kFlushCodec on the first end of stream buffer.
   if (state_ == kNormal && buffer->IsEndOfStream()) {
@@ -222,98 +220,48 @@ void FFmpegVideoDecoder::OnReadCompleteTask(
     pts_stream_.EnqueuePts(buffer.get());
   }
 
-  // Otherwise, attempt to decode a single frame.
-  decode_engine_->ConsumeVideoSample(buffer);
-}
-
-void FFmpegVideoDecoder::ProduceVideoFrame(
-    scoped_refptr<VideoFrame> video_frame) {
-  if (MessageLoop::current() != message_loop_) {
-    if (state_ != kStopped) {
-      message_loop_->PostTask(FROM_HERE, base::Bind(
-          &FFmpegVideoDecoder::ProduceVideoFrame, this, video_frame));
-    }
+  scoped_refptr<VideoFrame> video_frame;
+  if (!decode_engine_->Decode(buffer, &video_frame)) {
+    state_ = kDecodeFinished;
+    DeliverFrame(VideoFrame::CreateEmptyFrame());
+    host()->SetError(PIPELINE_ERROR_DECODE);
     return;
   }
 
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  // Synchronized flushing before stop should prevent this.
-  DCHECK_NE(state_, kStopped);
-
-  // If the decoding is finished, we just always return empty frames.
-  if (state_ == kDecodeFinished) {
-    // Signal VideoRenderer the end of the stream event.
-    VideoFrameReady(VideoFrame::CreateEmptyFrame());
-
-    // Fall through, because we still need to keep record of this frame.
+  // Any successful decode counts!
+  if (buffer->GetDataSize()) {
+    PipelineStatistics statistics;
+    statistics.video_bytes_decoded = buffer->GetDataSize();
+    statistics_callback_.Run(statistics);
   }
 
-  // Notify decode engine the available of new frame.
-  decode_engine_->ProduceVideoFrame(video_frame);
-}
-
-void FFmpegVideoDecoder::ConsumeVideoFrame(
-    scoped_refptr<VideoFrame> video_frame,
-    const PipelineStatistics& statistics) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK_NE(state_, kStopped);
-
-  statistics_callback_.Run(statistics);
-
-  if (video_frame.get()) {
-    if (kPausing == state_ || kFlushing == state_) {
-      frame_queue_flushed_.push_back(video_frame);
-      if (kFlushing == state_)
-        FlushBuffers();
+  // If we didn't get a frame then we've either completely finished decoding or
+  // we need more data.
+  if (!video_frame) {
+    if (state_ == kFlushCodec) {
+      state_ = kDecodeFinished;
+      DeliverFrame(VideoFrame::CreateEmptyFrame());
       return;
     }
 
-    // If we actually got data back, enqueue a frame.
-    pts_stream_.UpdatePtsAndDuration(video_frame.get());
-
-    video_frame->SetTimestamp(pts_stream_.current_pts());
-    video_frame->SetDuration(pts_stream_.current_duration());
-
-    VideoFrameReady(video_frame);
-  } else {
-    // When in kFlushCodec, any errored decode, or a 0-lengthed frame,
-    // is taken as a signal to stop decoding.
-    if (state_ == kFlushCodec) {
-      state_ = kDecodeFinished;
-
-      // Signal VideoRenderer the end of the stream event.
-      VideoFrameReady(VideoFrame::CreateEmptyFrame());
-    }
+    ReadFromDemuxerStream();
+    return;
   }
+
+  // If we got a frame make sure its timestamp is correct before sending it off.
+  pts_stream_.UpdatePtsAndDuration(video_frame.get());
+  video_frame->SetTimestamp(pts_stream_.current_pts());
+  video_frame->SetDuration(pts_stream_.current_duration());
+
+  DeliverFrame(video_frame);
 }
 
-void FFmpegVideoDecoder::ProduceVideoSample(
-    scoped_refptr<Buffer> buffer) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK_NE(state_, kStopped);
-
-  demuxer_stream_->Read(base::Bind(&FFmpegVideoDecoder::OnReadComplete, this));
-}
-
-gfx::Size FFmpegVideoDecoder::natural_size() {
-  return natural_size_;
-}
-
-void FFmpegVideoDecoder::FlushBuffers() {
-  while (!frame_queue_flushed_.empty()) {
-    scoped_refptr<VideoFrame> video_frame;
-    video_frame = frame_queue_flushed_.front();
-    frame_queue_flushed_.pop_front();
-
-    // Return frames back to the decode engine.
-    decode_engine_->ProduceVideoFrame(video_frame);
-  }
-}
-
-void FFmpegVideoDecoder::SetVideoDecodeEngineForTest(
-    VideoDecodeEngine* engine) {
-  decode_engine_.reset(engine);
+void FFmpegVideoDecoder::DeliverFrame(
+    const scoped_refptr<VideoFrame>& video_frame) {
+  // Reset the callback before running to protect against reentrancy.
+  ReadCB read_cb = read_cb_;
+  read_cb_.Reset();
+  read_cb.Run(video_frame);
 }
 
 }  // namespace media
