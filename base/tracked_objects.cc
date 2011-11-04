@@ -31,35 +31,27 @@ static const ThreadData::Status kInitialStartupState = ThreadData::ACTIVE;
 }  // anonymous namespace.
 
 //------------------------------------------------------------------------------
-// Death data tallies durations when a death takes place.
+// DeathData tallies durations when a death takes place.
 
 void DeathData::RecordDeath(const Duration& queue_duration,
                             const Duration& run_duration) {
   ++count_;
-  queue_duration_ += queue_duration;
-  run_duration_ += run_duration;
+  queue_time_.AddDuration(queue_duration);
+  run_time_.AddDuration(run_duration);
 }
 
 int DeathData::AverageMsRunDuration() const {
-  if (run_duration_ == Duration() || !count_)
-    return 0;
-  // Add half of denominator to achieve rounding.
-  return static_cast<int>(run_duration_.InMilliseconds() + count_ / 2) /
-      count_;
+  return run_time_.AverageMsDuration(count_);
 }
 
 int DeathData::AverageMsQueueDuration() const {
-  if (queue_duration_ == Duration() || !count_)
-    return 0;
-  // Add half of denominator to achieve rounding.
-  return (static_cast<int>(queue_duration_.InMilliseconds() + count_ / 2) /
-      count_);
+  return queue_time_.AverageMsDuration(count_);
 }
 
 void DeathData::AddDeathData(const DeathData& other) {
   count_ += other.count_;
-  queue_duration_ += other.queue_duration_;
-  run_duration_ += other.run_duration_;
+  queue_time_.AddData(other.queue_time_);
+  run_time_.AddData(other.run_time_);
 }
 
 void DeathData::WriteHTML(std::string* output) const {
@@ -67,33 +59,74 @@ void DeathData::WriteHTML(std::string* output) const {
     return;
   base::StringAppendF(output, "%s:%d, ",
                       (count_ == 1) ? "Life" : "Lives", count_);
-  // Be careful to leave static_casts intact, as the type returned by
-  // InMilliseconds() may not always be an int, even if it can generally fit
-  // into an int.
-  base::StringAppendF(output, "Run:%dms(%dms/life) ",
-                      static_cast<int>(run_duration_.InMilliseconds()),
-                      AverageMsRunDuration());
-  base::StringAppendF(output, "Queue:%dms(%dms/life) ",
-                      static_cast<int>(queue_duration_.InMilliseconds()),
-                      AverageMsQueueDuration());
+  output->append("Run:");
+  run_time_.WriteHTML(count_, output);
+
+  output->append("Queue:");
+  queue_time_.WriteHTML(count_, output);
 }
 
 base::DictionaryValue* DeathData::ToValue() const {
   base::DictionaryValue* dictionary = new base::DictionaryValue;
   dictionary->Set("count", base::Value::CreateIntegerValue(count_));
   dictionary->Set("run_ms",
-      base::Value::CreateIntegerValue(run_duration_.InMilliseconds()));
+      base::Value::CreateIntegerValue(run_time_.duration().InMilliseconds()));
   dictionary->Set("queue_ms",
-      base::Value::CreateIntegerValue(queue_duration_.InMilliseconds()));
+      base::Value::CreateIntegerValue(queue_time_.duration().InMilliseconds()));
+  dictionary->Set("run_ms_max",
+      base::Value::CreateIntegerValue(run_time_.max().InMilliseconds()));
+  dictionary->Set("queue_ms_max",
+      base::Value::CreateIntegerValue(queue_time_.max().InMilliseconds()));
   return dictionary;
 }
 
 void DeathData::Clear() {
   count_ = 0;
-  queue_duration_ = Duration();
-  run_duration_ = Duration();
+  run_time_.Clear();
+  queue_time_.Clear();
 }
 
+//------------------------------------------------------------------------------
+
+void DeathData::Data::WriteHTML(int count, std::string* output) const {
+  // Be careful to leave static_casts intact, as the type returned by
+  // InMilliseconds() may not always be an int, even if it can generally fit
+  // into an int.
+  base::StringAppendF(output, "%dms",
+                      static_cast<int>(duration_.InMilliseconds()));
+  if (count == 1) {
+    output->append(" ");
+    return;
+  }
+  base::StringAppendF(output, "(%dms/life,max:%dms) ",
+                      AverageMsDuration(count),
+                      static_cast<int>(max_.InMilliseconds()));
+}
+
+void DeathData::Data::AddData(const Data& other) {
+  duration_ += other.duration_;
+  if (max_ > other.max_)
+    return;
+  max_ = other.max_;
+}
+
+void DeathData::Data::AddDuration(const Duration& duration) {
+  duration_ += duration;
+  if (max_ > duration)
+    return;
+  max_ = duration;
+}
+
+int DeathData::Data::AverageMsDuration(int count) const {
+  if (duration_ == Duration() || !count)
+    return 0;
+  return static_cast<int>(duration_.InMilliseconds() + count / 2) / count;
+}
+
+void DeathData::Data::Clear() {
+  duration_ = Duration();
+  max_ = Duration();
+}
 //------------------------------------------------------------------------------
 BirthOnThread::BirthOnThread(const Location& location,
                              const ThreadData& current)
@@ -156,7 +189,7 @@ ThreadData::ThreadData()
     thread_number = ++thread_number_counter_;
   }
   base::StringAppendF(&thread_name_, "WorkerThread-%d", thread_number);
-  PushToHeadOfList(); // Which sets real incarnation_count_for_pool_.
+  PushToHeadOfList();  // Which sets real incarnation_count_for_pool_.
 }
 
 ThreadData::~ThreadData() {}
@@ -268,8 +301,10 @@ void ThreadData::WriteHTML(const std::string& query, std::string* output) {
     "<li><b>Count</b> Number of instances seen."
     "<li><b>Duration</b> Average duration in ms of Run() time."
     "<li><b>TotalDuration</b> Summed durations in ms of Run() times."
+    "<li><b>MaxDuration</b> Largest duration in ms of Run() times."
     "<li><b>AverageQueueDuration</b> Average duration in ms of queueing time."
-    "<li><b>TotalQueueDuration</b> Summed durations in ms of Run() times."
+    "<li><b>TotalQueueDuration</b> Summed queuing durations in ms."
+    "<li><b>MaxQueueDuration</b> Largest duration in ms of queueing times."
     "<li><b>Birth</b> Thread on which the task was constructed."
     "<li><b>Death</b> Thread on which the task was run and deleted."
     "<li><b>File</b> File in which the task was contructed."
@@ -833,10 +868,14 @@ Comparator::Selector Comparator::FindSelector(const std::string& keyword) {
     return TOTAL_RUN_DURATION;
   if (0 == keyword.compare("duration"))
     return AVERAGE_RUN_DURATION;
+  if (0 == keyword.compare("maxduration"))
+    return MAX_RUN_DURATION;
   if (0 == keyword.compare("totalqueueduration"))
     return TOTAL_QUEUE_DURATION;
   if (0 == keyword.compare("averagequeueduration"))
     return AVERAGE_QUEUE_DURATION;
+  if (0 == keyword.compare("maxqueueduration"))
+    return MAX_QUEUE_DURATION;
   if (0 == keyword.compare("birth"))
     return BIRTH_THREAD;
   if (0 == keyword.compare("death"))
@@ -919,6 +958,13 @@ bool Comparator::operator()(const Snapshot& left,
         return left.run_duration() > right.run_duration();
       break;
 
+    case MAX_RUN_DURATION:
+      if (!left.count() || !right.count())
+        break;
+      if (left.run_duration_max() != right.run_duration_max())
+        return left.run_duration_max() > right.run_duration_max();
+      break;
+
     case AVERAGE_QUEUE_DURATION:
       if (!left.count() || !right.count())
         break;
@@ -931,6 +977,13 @@ bool Comparator::operator()(const Snapshot& left,
         break;
       if (left.queue_duration() != right.queue_duration())
         return left.queue_duration() > right.queue_duration();
+      break;
+
+    case MAX_QUEUE_DURATION:
+      if (!left.count() || !right.count())
+        break;
+      if (left.queue_duration_max() != right.queue_duration_max())
+        return left.queue_duration_max() > right.queue_duration_max();
       break;
 
     default:
@@ -962,6 +1015,8 @@ bool Comparator::Equivalent(const Snapshot& left,
       break;
 
     case BIRTH_FILE:
+      if (!required_.empty())
+        break;  // No reason to aggregate when we've filtered out some.
       if (left.location().file_name() != right.location().file_name()) {
         int comp = strcmp(left.location().file_name(),
                           right.location().file_name());
@@ -971,6 +1026,8 @@ bool Comparator::Equivalent(const Snapshot& left,
       break;
 
     case BIRTH_FUNCTION:
+      if (!required_.empty())
+        break;  // No reason to aggregate when we've filtered out some.
       if (left.location().function_name() != right.location().function_name()) {
         int comp = strcmp(left.location().function_name(),
                           right.location().function_name());
@@ -982,8 +1039,10 @@ bool Comparator::Equivalent(const Snapshot& left,
     case COUNT:
     case AVERAGE_RUN_DURATION:
     case TOTAL_RUN_DURATION:
+    case MAX_RUN_DURATION:
     case AVERAGE_QUEUE_DURATION:
     case TOTAL_QUEUE_DURATION:
+    case MAX_QUEUE_DURATION:
       // We don't produce separate aggretation when only counts or times differ.
       break;
 
@@ -1101,6 +1160,10 @@ bool Comparator::ParseQuery(const std::string& query) {
   SetSubgroupTiebreaker(COUNT);
   SetSubgroupTiebreaker(AVERAGE_RUN_DURATION);
   SetSubgroupTiebreaker(TOTAL_RUN_DURATION);
+  SetSubgroupTiebreaker(MAX_RUN_DURATION);
+  SetSubgroupTiebreaker(AVERAGE_QUEUE_DURATION);
+  SetSubgroupTiebreaker(TOTAL_QUEUE_DURATION);
+  SetSubgroupTiebreaker(MAX_QUEUE_DURATION);
   SetSubgroupTiebreaker(BIRTH_THREAD);
   SetSubgroupTiebreaker(DEATH_THREAD);
   SetSubgroupTiebreaker(BIRTH_FUNCTION);
