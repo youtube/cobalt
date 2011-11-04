@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "base/logging.h"
+#include "media/base/limits.h"
 
 namespace media {
 
@@ -90,7 +91,10 @@ bool VideoDecoderConfig::IsValidConfig() const {
       frame_rate_numerator_ > 0 &&
       frame_rate_denominator_ > 0 &&
       aspect_ratio_numerator_ > 0 &&
-      aspect_ratio_denominator_ > 0;
+      aspect_ratio_denominator_ > 0 &&
+      natural_size_.width() <= Limits::kMaxDimension &&
+      natural_size_.height() <= Limits::kMaxDimension &&
+      natural_size_.GetArea() <= Limits::kMaxCanvas;
 }
 
 VideoCodec VideoDecoderConfig::codec() const {
