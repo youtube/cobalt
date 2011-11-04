@@ -123,13 +123,27 @@ struct TraceEvent {
   bool has_other_event() const { return other_event; }
 
   // Returns absolute duration in microseconds between this event and other
-  // event. Returns false if has_other_event() is false.
-  bool GetAbsTimeToOtherEvent(double* duration) const;
+  // event. Must have already verified that other_event exists by
+  // Query(EVENT_HAS_OTHER) or by calling has_other_event().
+  double GetAbsTimeToOtherEvent() const;
 
   // Return the argument value if it exists and it is a string.
   bool GetArgAsString(const std::string& name, std::string* arg) const;
   // Return the argument value if it exists and it is a number.
   bool GetArgAsNumber(const std::string& name, double* arg) const;
+
+  // Check if argument exists and is string.
+  bool HasStringArg(const std::string& name) const;
+  // Check if argument exists and is number (double, int or bool).
+  bool HasNumberArg(const std::string& name) const;
+
+  // Get known existing arguments as specific types.
+  // Useful when you have already queried the argument with
+  // Query(HAS_NUMBER_ARG) or Query(HAS_STRING_ARG).
+  std::string GetKnownArgAsString(const std::string& name) const;
+  double GetKnownArgAsDouble(const std::string& name) const;
+  int GetKnownArgAsInt(const std::string& name) const;
+  bool GetKnownArgAsBool(const std::string& name) const;
 
   // Process ID and Thread ID.
   ProcessThreadID thread;
@@ -155,7 +169,7 @@ struct TraceEvent {
 };
 
 // Pass these values to Query to compare with the corresponding member of a
-// TraceEvent.
+// TraceEvent. Unless otherwise specfied, the usage is Query(ENUM_MEMBER).
 enum TraceEventMember {
   EVENT_INVALID,
   // Use these to access the event members:
@@ -169,20 +183,39 @@ enum TraceEventMember {
   EVENT_PHASE,
   EVENT_CATEGORY,
   EVENT_NAME,
-  EVENT_HAS_ARG,
+
+  // Evaluates to true if arg exists and is a string.
+  // Usage: Query(EVENT_HAS_STRING_ARG, "arg_name")
+  EVENT_HAS_STRING_ARG,
+  // Evaluates to true if arg exists and is a number.
+  // Number arguments include types double, int and bool.
+  // Usage: Query(EVENT_HAS_NUMBER_ARG, "arg_name")
+  EVENT_HAS_NUMBER_ARG,
+  // Evaluates to arg value (string or number).
+  // Usage: Query(EVENT_ARG, "arg_name")
   EVENT_ARG,
   // Return true if associated event exists.
   // (Typically BEGIN for END or END for BEGIN).
   EVENT_HAS_OTHER,
-  // Use these to access the associated event's members:
+
+  // Access the associated other_event's members:
   OTHER_PID,
   OTHER_TID,
   OTHER_TIME,
   OTHER_PHASE,
   OTHER_CATEGORY,
   OTHER_NAME,
-  OTHER_HAS_ARG,
-  OTHER_ARG
+
+  // Evaluates to true if arg exists and is a string.
+  // Usage: Query(EVENT_HAS_STRING_ARG, "arg_name")
+  OTHER_HAS_STRING_ARG,
+  // Evaluates to true if arg exists and is a number.
+  // Number arguments include types double, int and bool.
+  // Usage: Query(EVENT_HAS_NUMBER_ARG, "arg_name")
+  OTHER_HAS_NUMBER_ARG,
+  // Evaluates to arg value (string or number).
+  // Usage: Query(EVENT_ARG, "arg_name")
+  OTHER_ARG,
 };
 
 class Query {

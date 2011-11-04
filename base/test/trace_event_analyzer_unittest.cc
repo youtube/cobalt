@@ -70,6 +70,36 @@ TEST_F(TraceEventAnalyzerTest, NoEvents) {
   EXPECT_EQ(0u, found.size());
 }
 
+TEST_F(TraceEventAnalyzerTest, TraceEvent) {
+  using namespace trace_analyzer;
+  ManualSetUp();
+
+  int int_num = 2;
+  double double_num = 3.5;
+  const char* str = "the string";
+
+  TraceEvent event;
+  event.arg_numbers["false"] = 0.0;
+  event.arg_numbers["true"] = 1.0;
+  event.arg_numbers["int"] = static_cast<double>(int_num);
+  event.arg_numbers["double"] = double_num;
+  event.arg_strings["string"] = str;
+
+  ASSERT_TRUE(event.HasNumberArg("false"));
+  ASSERT_TRUE(event.HasNumberArg("true"));
+  ASSERT_TRUE(event.HasNumberArg("int"));
+  ASSERT_TRUE(event.HasNumberArg("double"));
+  ASSERT_TRUE(event.HasStringArg("string"));
+  ASSERT_FALSE(event.HasNumberArg("notfound"));
+  ASSERT_FALSE(event.HasStringArg("notfound"));
+
+  EXPECT_FALSE(event.GetKnownArgAsBool("false"));
+  EXPECT_TRUE(event.GetKnownArgAsBool("true"));
+  EXPECT_EQ(int_num, event.GetKnownArgAsInt("int"));
+  EXPECT_EQ(double_num, event.GetKnownArgAsDouble("double"));
+  EXPECT_STREQ(str, event.GetKnownArgAsString("string").c_str());
+}
+
 TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   using namespace trace_analyzer;
   ManualSetUp();
@@ -96,8 +126,8 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   other.arg_strings["str2"] = "the string 2";
 
   event.other_event = &other;
-  double duration;
-  ASSERT_TRUE(event.GetAbsTimeToOtherEvent(&duration));
+  ASSERT_TRUE(event.has_other_event());
+  double duration = event.GetAbsTimeToOtherEvent();
 
   Query event_pid = (Query(EVENT_PID) == Query::Int(event.thread.process_id));
   Query event_tid = (Query(EVENT_TID) == Query::Int(event.thread.thread_id));
@@ -107,8 +137,8 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   Query event_category =
       (Query(EVENT_CATEGORY) == Query::String(event.category));
   Query event_name = (Query(EVENT_NAME) == Query::String(event.name));
-  Query event_has_arg1 = Query(EVENT_HAS_ARG, "num");
-  Query event_has_arg2 = Query(EVENT_HAS_ARG, "str");
+  Query event_has_arg1 = Query(EVENT_HAS_NUMBER_ARG, "num");
+  Query event_has_arg2 = Query(EVENT_HAS_STRING_ARG, "str");
   Query event_arg1 =
       (Query(EVENT_ARG, "num") == Query::Double(event.arg_numbers["num"]));
   Query event_arg2 =
@@ -121,8 +151,8 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   Query other_category =
       (Query(OTHER_CATEGORY) == Query::String(other.category));
   Query other_name = (Query(OTHER_NAME) == Query::String(other.name));
-  Query other_has_arg1 = Query(OTHER_HAS_ARG, "num2");
-  Query other_has_arg2 = Query(OTHER_HAS_ARG, "str2");
+  Query other_has_arg1 = Query(OTHER_HAS_NUMBER_ARG, "num2");
+  Query other_has_arg2 = Query(OTHER_HAS_STRING_ARG, "str2");
   Query other_arg1 =
       (Query(OTHER_ARG, "num2") == Query::Double(other.arg_numbers["num2"]));
   Query other_arg2 =
