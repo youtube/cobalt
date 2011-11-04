@@ -324,6 +324,7 @@ void ChunkDemuxer::Init(const PipelineStatusCB& cb) {
 }
 
 void ChunkDemuxer::set_host(FilterHost* filter_host) {
+  DCHECK_EQ(state_, INITIALIZED);
   Demuxer::set_host(filter_host);
   filter_host->SetDuration(duration_);
   filter_host->SetCurrentReadPosition(0);
@@ -577,8 +578,41 @@ int ChunkDemuxer::ParseInfoAndTracks_Locked(const uint8* data, int size) {
   const uint8* cur = data;
   int cur_size = size;
   int bytes_parsed = 0;
+
+  int id;
+  int64 element_size;
+  int result = WebMParseElementHeader(cur, cur_size, &id, &element_size);
+
+  if (result <= 0)
+    return result;
+
+  switch (id) {
+    case kWebMIdEBML :
+    case kWebMIdSeekHead :
+    case kWebMIdVoid :
+    case kWebMIdCRC32 :
+    case kWebMIdCues :
+      if (cur_size < (result + element_size)) {
+        // We don't have the whole element yet. Signal we need more data.
+        return 0;
+      }
+      // Skip the element.
+      return result + element_size;
+      break;
+    case kWebMIdSegment :
+      // Just consume the segment header.
+      return result;
+      break;
+    case kWebMIdInfo :
+      // We've found the element we are looking for.
+      break;
+    default:
+      VLOG(1) << "Unexpected ID 0x" << std::hex << id;
+      return -1;
+  }
+
   WebMInfoParser info_parser;
-  int result = info_parser.Parse(cur, cur_size);
+  result = info_parser.Parse(cur, cur_size);
 
   if (result <= 0)
     return result;
@@ -685,6 +719,25 @@ int ChunkDemuxer::ParseCluster_Locked(const uint8* data, int size) {
   lock_.AssertAcquired();
   if (!cluster_parser_.get())
     return -1;
+
+  int id;
+  int64 element_size;
+  int result = WebMParseElementHeader(data, size, &id, &element_size);
+
+  if (result <= 0)
+    return result;
+
+  if (id == kWebMIdCues) {
+    if (size < (result + element_size)) {
+      // We don't have the whole element yet. Signal we need more data.
+      return 0;
+    }
+    // Skip the element.
+    return result + element_size;
+  } else if (id != kWebMIdCluster) {
+    VLOG(1) << "Unexpected ID 0x" << std::hex << id;
+    return -1;
+  }
 
   int bytes_parsed = cluster_parser_->Parse(data, size);
 

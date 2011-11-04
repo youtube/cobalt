@@ -36,6 +36,17 @@ class WebMParserClient {
                              const uint8* data, int size) = 0;
 };
 
+// Parses an element header & returns the ID and element size.
+//
+// Returns < 0 if the parse fails.
+// Returns 0 if more data is needed.
+// Returning > 0 indicates success & the number of bytes parsed.
+// |*id| contains the element ID on success and is undefined otherwise.
+// |*element_size| contains the element size on success and is undefined
+//                 otherwise.
+int WebMParseElementHeader(const uint8* buf, int size,
+                           int* id, int64* element_size);
+
 // Parses a single list element that matches |id|. This method fails if the
 // buffer points to an element that does not match |id|.
 //

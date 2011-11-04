@@ -44,7 +44,7 @@ class MockChunkDemuxerClient : public ChunkDemuxerClient {
   DISALLOW_COPY_AND_ASSIGN(MockChunkDemuxerClient);
 };
 
-class ChunkDemuxerTest : public testing::Test{
+class ChunkDemuxerTest : public testing::Test {
  protected:
   enum CodecsIndex {
     AUDIO,
@@ -121,11 +121,14 @@ class ChunkDemuxerTest : public testing::Test{
   }
 
   void AppendDataInPieces(const uint8* data, size_t length) {
+    AppendDataInPieces(data, length, 7);
+  }
+
+  void AppendDataInPieces(const uint8* data, size_t length, size_t piece_size) {
     const uint8* start = data;
     const uint8* end = data + length;
-    size_t default_size = 7;
     while (start < end) {
-      size_t append_size = std::min(default_size,
+      size_t append_size = std::min(piece_size,
                                     static_cast<size_t>(end - start));
       AppendData(start, append_size);
       start += append_size;
@@ -139,30 +142,35 @@ class ChunkDemuxerTest : public testing::Test{
     AppendData(info_tracks.get(), info_tracks_size);
   }
 
-  static void InitDoneCalled(bool* was_called, PipelineStatus expectedStatus,
-                             PipelineStatus status) {
-    EXPECT_EQ(status, expectedStatus);
-    *was_called = true;
+  void InitDoneCalled(const base::TimeDelta& expected_duration,
+                      PipelineStatus expected_status,
+                      PipelineStatus status) {
+    EXPECT_EQ(status, expected_status);
+
+    if (status == PIPELINE_OK) {
+      EXPECT_CALL(mock_filter_host_, SetDuration(expected_duration));
+      EXPECT_CALL(mock_filter_host_, SetCurrentReadPosition(_));
+
+      demuxer_->set_host(&mock_filter_host_);
+    }
+  }
+
+  PipelineStatusCB CreateInitDoneCB(int duration,
+                                    PipelineStatus expected_status) {
+    return base::Bind(&ChunkDemuxerTest::InitDoneCalled,
+                      base::Unretained(this),
+                      base::TimeDelta::FromMilliseconds(duration),
+                      expected_status);
   }
 
   void InitDemuxer(bool has_audio, bool has_video) {
-    bool init_done_called = false;
-    PipelineStatus expectedStatus =
+    PipelineStatus expected_status =
         (has_audio || has_video) ? PIPELINE_OK : DEMUXER_ERROR_COULD_NOT_OPEN;
 
     EXPECT_CALL(*client_, DemuxerOpened(_));
-    demuxer_->Init(base::Bind(&ChunkDemuxerTest::InitDoneCalled,
-                              &init_done_called,
-                              expectedStatus));
-
-    EXPECT_FALSE(init_done_called);
+    demuxer_->Init(CreateInitDoneCB(201224, expected_status));
 
     AppendInfoTracks(has_audio, has_video);
-
-    EXPECT_TRUE(init_done_called);
-    EXPECT_CALL(mock_filter_host_, SetDuration(_));
-    EXPECT_CALL(mock_filter_host_, SetCurrentReadPosition(_));
-    demuxer_->set_host(&mock_filter_host_);
   }
 
   void ShutdownDemuxer() {
@@ -651,11 +659,7 @@ TEST_F(ChunkDemuxerTest, TestReadsAfterEndOfStream) {
 TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
 
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Init(NewExpectedStatusCB(PIPELINE_OK));
-
-  EXPECT_CALL(mock_filter_host_, SetDuration(_));
-  EXPECT_CALL(mock_filter_host_, SetCurrentReadPosition(_));
-  demuxer_->set_host(&mock_filter_host_);
+  demuxer_->Init(CreateInitDoneCB(201224, PIPELINE_OK));
 
   scoped_array<uint8> info_tracks;
   int info_tracks_size = 0;
@@ -719,6 +723,58 @@ TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
 
   EXPECT_TRUE(audio_read_done);
   EXPECT_TRUE(video_read_done);
+}
+
+struct BufferTimestamps {
+  int video_time;
+  int audio_time;
+};
+
+TEST_F(ChunkDemuxerTest, TestWebMFile) {
+  scoped_array<uint8> buffer;
+  int buffer_size = 0;
+
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Init(CreateInitDoneCB(2744, PIPELINE_OK));
+
+  // Read a WebM file into memory and send the data to the demuxer.
+  ReadTestDataFile("bear-320x240.webm", &buffer, &buffer_size);
+  AppendDataInPieces(buffer.get(), buffer_size, 512);
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  ASSERT_TRUE(audio);
+  ASSERT_TRUE(video);
+
+  struct BufferTimestamps buffer_timestamps[] = {
+    {0, 0},
+    {33, 3},
+    {67, 6},
+    {100, 9},
+    {133, 12},
+  };
+
+  // Verify that the timestamps on the first few packets match what we
+  // expect.
+  for (size_t i = 0; i < arraysize(buffer_timestamps); i++) {
+    bool audio_read_done = false;
+    bool video_read_done = false;
+    audio->Read(base::Bind(&OnReadDone,
+                           base::TimeDelta::FromMilliseconds(
+                               buffer_timestamps[i].audio_time),
+                           &audio_read_done));
+
+    video->Read(base::Bind(&OnReadDone,
+                           base::TimeDelta::FromMilliseconds(
+                               buffer_timestamps[i].video_time),
+                           &video_read_done));
+
+    EXPECT_TRUE(audio_read_done);
+    EXPECT_TRUE(video_read_done);
+  }
 }
 
 }  // namespace media
