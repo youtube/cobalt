@@ -5,15 +5,14 @@
 
 # This script will check out llvm and clang into third_party/llvm and build it.
 
+# Do NOT CHANGE this if you don't know what you're doing -- see
+# http://code.google.com/p/chromium/wiki/UpdatingClang
+CLANG_REVISION=142926
+
 THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
 LLVM_BUILD_DIR="${LLVM_DIR}/../llvm-build"
 CLANG_DIR="${LLVM_DIR}/tools/clang"
-DEPS_FILE="${THIS_DIR}/../../../DEPS"
-if [ -e "${THIS_DIR}/../../../chromium_deps/DEPS" ]; then
-  # For bare WebKit/chromium checkouts.
-  DEPS_FILE="${THIS_DIR}/../../../chromium_deps/DEPS"
-fi
 STAMP_FILE="${LLVM_BUILD_DIR}/cr_build_revision"
 
 # ${A:-a} returns $A if it's set, a else.
@@ -85,11 +84,6 @@ if [[ "${OS}" = "Darwin" ]] && xcodebuild -version | grep -q 'Xcode 3.2' ; then
 fi
 
 
-# Since people need to run this script anyway to compile clang, let it check out
-# clang as well if it's not in DEPS, so that people don't have to change their
-# DEPS if they just want to give clang a try.
-CLANG_REVISION=$(grep 'clang_revision":' "${DEPS_FILE}" | egrep -o [[:digit:]]+)
-
 # Check if there's anything to be done, exit early if not.
 if [ -f "${STAMP_FILE}" ]; then
   PREVIOUSLY_BUILT_REVISON=$(cat "${STAMP_FILE}")
@@ -155,24 +149,16 @@ if [ -z "$force_local_build" ]; then
   fi
 fi
 
-if grep -q 'src/third_party/llvm":' "${DEPS_FILE}"; then
-  echo LLVM pulled in through DEPS, skipping LLVM update step
-else
-  echo Getting LLVM r"${CLANG_REVISION}" in "${LLVM_DIR}"
-  if ! svn co --force "${LLVM_REPO_URL}/llvm/trunk@${CLANG_REVISION}" \
-                      "${LLVM_DIR}"; then
-    echo Checkout failed, retrying
-    rm -rf "${LLVM_DIR}"
-    svn co --force "${LLVM_REPO_URL}/llvm/trunk@${CLANG_REVISION}" "${LLVM_DIR}"
-  fi
+echo Getting LLVM r"${CLANG_REVISION}" in "${LLVM_DIR}"
+if ! svn co --force "${LLVM_REPO_URL}/llvm/trunk@${CLANG_REVISION}" \
+                    "${LLVM_DIR}"; then
+  echo Checkout failed, retrying
+  rm -rf "${LLVM_DIR}"
+  svn co --force "${LLVM_REPO_URL}/llvm/trunk@${CLANG_REVISION}" "${LLVM_DIR}"
 fi
 
-if grep -q 'src/third_party/llvm/tools/clang":' "${DEPS_FILE}"; then
-  echo clang pulled in through DEPS, skipping clang update step
-else
-  echo Getting clang r"${CLANG_REVISION}" in "${CLANG_DIR}"
-  svn co --force "${LLVM_REPO_URL}/cfe/trunk@${CLANG_REVISION}" "${CLANG_DIR}"
-fi
+echo Getting clang r"${CLANG_REVISION}" in "${CLANG_DIR}"
+svn co --force "${LLVM_REPO_URL}/cfe/trunk@${CLANG_REVISION}" "${CLANG_DIR}"
 
 # Echo all commands.
 set -x
