@@ -213,8 +213,11 @@ class Singleton {
 
   // Return a pointer to the one true instance of the class.
   static Type* get() {
+#ifndef NDEBUG
+    // Avoid making TLS lookup on release builds.
     if (!Traits::kAllowedToAccessOnNonjoinableThread)
       base::ThreadRestrictions::AssertSingletonAllowed();
+#endif
 
     // Our AtomicWord doubles as a spinlock, where a value of
     // kBeingCreatedMarker means the spinlock is being held for creation.
