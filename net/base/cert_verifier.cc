@@ -17,6 +17,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/x509_certificate.h"
+#include "net/base/x509_certificate_net_log_param.h"
 
 #if defined(USE_NSS)
 #include <private/pprthred.h>  // PR_DetachThread
@@ -155,6 +156,10 @@ class CertVerifierWorker {
         error_(ERR_FAILED) {
   }
 
+  // Returns the certificate being verified. May only be called /before/
+  // Start() is called.
+  X509Certificate* certificate() const { return cert_; }
+
   bool Start() {
     DCHECK_EQ(MessageLoop::current(), origin_loop_);
 
@@ -261,7 +266,10 @@ class CertVerifierJob {
       : start_time_(base::TimeTicks::Now()),
         worker_(worker),
         net_log_(net_log) {
-    net_log_.BeginEvent(NetLog::TYPE_CERT_VERIFIER_JOB, NULL);
+    scoped_refptr<NetLog::EventParameters> params;
+    if (net_log_.IsLoggingBytes())
+      params = new X509CertificateNetLogParam(worker_->certificate());
+    net_log_.BeginEvent(NetLog::TYPE_CERT_VERIFIER_JOB, params);
   }
 
   ~CertVerifierJob() {

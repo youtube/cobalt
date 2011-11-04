@@ -21,6 +21,7 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
+#include "net/base/x509_certificate_net_log_param.h"
 #include "net/socket/ssl_error_params.h"
 
 namespace net {
@@ -760,6 +761,11 @@ int SSLClientSocketOpenSSL::DoHandshake() {
     // SSL handshake is completed.  Let's verify the certificate.
     const bool got_cert = !!UpdateServerCert();
     DCHECK(got_cert);
+    if (net_log_.IsLoggingBytes()) {
+      net_log_.AddEvent(
+          NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
+          make_scoped_refptr(new X509CertificateNetLogParam(server_cert_)));
+    }
     GotoState(STATE_VERIFY_CERT);
   } else {
     int ssl_error = SSL_get_error(ssl_, rv);

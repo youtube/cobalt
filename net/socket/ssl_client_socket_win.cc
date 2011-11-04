@@ -23,6 +23,7 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
+#include "net/base/x509_certificate_net_log_param.h"
 #include "net/socket/client_socket_handle.h"
 
 #pragma comment(lib, "secur32.lib")
@@ -1519,6 +1520,14 @@ int SSLClientSocketWin::DidCompleteHandshake() {
     LOG(ERROR) << "QueryContextAttributes (remote cert) failed: " << status;
     return MapSecurityError(status);
   }
+  scoped_refptr<X509Certificate> new_server_cert(
+      X509Certificate::CreateFromHandle(server_cert_handle,
+                                        X509Certificate::OSCertHandles()));
+  if (net_log_.IsLoggingBytes()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
+        make_scoped_refptr(new X509CertificateNetLogParam(new_server_cert)));
+  }
   if (renegotiating_ &&
       X509Certificate::IsSameOSCert(server_cert_->os_cert_handle(),
                                     server_cert_handle)) {
@@ -1526,9 +1535,7 @@ int SSLClientSocketWin::DidCompleteHandshake() {
     // user has accepted the certificate error.
     DidCompleteRenegotiation();
   } else {
-    server_cert_ = X509Certificate::CreateFromHandle(
-        server_cert_handle, X509Certificate::OSCertHandles());
-
+    server_cert_ = new_server_cert;
     next_state_ = STATE_VERIFY_CERT;
   }
   CertFreeCertificateContext(server_cert_handle);
