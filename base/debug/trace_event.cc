@@ -55,8 +55,9 @@ const TraceCategory* const g_category_metadata =
 int g_category_index = 3; // skip initial 3 categories
 
 // Flag to indicate whether we captured the current thread name
-LazyInstance<ThreadLocalBoolean> g_current_thread_name_captured(
-    LINKER_INITIALIZED);
+LazyInstance<ThreadLocalBoolean,
+             LeakyLazyInstanceTraits<ThreadLocalBoolean> >
+    g_current_thread_name_captured(LINKER_INITIALIZED);
 
 }  // namespace
 
