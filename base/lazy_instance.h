@@ -133,8 +133,11 @@ class LazyInstance : public LazyInstanceHelper {
   }
 
   Type* Pointer() {
+#ifndef NDEBUG
+    // Avoid making TLS lookup on release builds.
     if (!Traits::kAllowedToAccessOnNonjoinableThread)
       base::ThreadRestrictions::AssertSingletonAllowed();
+#endif
 
     // We will hopefully have fast access when the instance is already created.
     // Since a thread sees state_ != STATE_CREATED at most once,
