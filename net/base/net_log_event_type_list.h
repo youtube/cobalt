@@ -486,6 +486,15 @@ EVENT_TYPE(SSL_SOCKET_BYTES_SENT)
 EVENT_TYPE(SOCKET_BYTES_RECEIVED)
 EVENT_TYPE(SSL_SOCKET_BYTES_RECEIVED)
 
+// Certificates were received from the SSL server (during a handshake or
+// renegotiation). This event is only present when logging at LOG_ALL.
+// The following parameters are attached to the event:
+//  {
+//    "certificates": <A list of PEM encoded certificates in the order that
+//                     they were sent by the server>,
+//  }
+EVENT_TYPE(SSL_CERTIFICATES_RECEIVED)
+
 // ------------------------------------------------------------------------
 // DatagramSocket
 // ------------------------------------------------------------------------
@@ -1320,6 +1329,13 @@ EVENT_TYPE(CHROME_POLICY_ABORTED_REQUEST)
 EVENT_TYPE(CERT_VERIFIER_REQUEST)
 
 // This event is created when we start a CertVerifier job.
+// The END phase event parameters are:
+//   {
+//     "certificates": <A list of PEM encoded certificates, the first one
+//                      being the certificate to verify and the remaining
+//                      being intermediate certificates to assist path
+//                      building. Only present when byte logging is enabled.>
+//   }
 EVENT_TYPE(CERT_VERIFIER_JOB)
 
 // This event is created when a CertVerifier request attaches to a job.

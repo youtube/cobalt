@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "base/base64.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -600,6 +601,46 @@ bool X509Certificate::VerifyNameMatch(const std::string& hostname) const {
   return VerifyHostname(hostname, subject_.common_name, dns_names, ip_addrs);
 }
 #endif
+
+// static
+bool X509Certificate::GetPEMEncoded(OSCertHandle cert_handle,
+                                    std::string* pem_encoded) {
+  std::string der_encoded;
+  if (!GetDEREncoded(cert_handle, &der_encoded) || der_encoded.empty())
+    return false;
+  std::string b64_encoded;
+  if (!base::Base64Encode(der_encoded, &b64_encoded) || b64_encoded.empty())
+    return false;
+  *pem_encoded = "-----BEGIN CERTIFICATE-----\n";
+
+  // Divide the Base-64 encoded data into 64-character chunks, as per
+  // 4.3.2.4 of RFC 1421.
+  static const size_t kChunkSize = 64;
+  size_t chunks = (b64_encoded.size() + (kChunkSize - 1)) / kChunkSize;
+  for (size_t i = 0, chunk_offset = 0; i < chunks;
+       ++i, chunk_offset += kChunkSize) {
+    pem_encoded->append(b64_encoded, chunk_offset, kChunkSize);
+    pem_encoded->append("\n");
+  }
+  pem_encoded->append("-----END CERTIFICATE-----\n");
+  return true;
+}
+
+bool X509Certificate::GetPEMEncodedChain(
+    std::vector<std::string>* pem_encoded) const {
+  std::vector<std::string> encoded_chain;
+  std::string pem_data;
+  if (!GetPEMEncoded(os_cert_handle(), &pem_data))
+    return false;
+  encoded_chain.push_back(pem_data);
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
+    if (!GetPEMEncoded(intermediate_ca_certs_[i], &pem_data))
+      return false;
+    encoded_chain.push_back(pem_data);
+  }
+  pem_encoded->swap(encoded_chain);
+  return true;
+}
 
 X509Certificate::X509Certificate(OSCertHandle cert_handle,
                                  const OSCertHandles& intermediates)
