@@ -61,7 +61,7 @@ from single_test_runner import SingleTestRunner
 from test_package_executable import TestPackageExecutable
 from test_result import BaseTestResult, TestResults
 
-_TEST_SUITES = ['base_unittests', 'sql_unittests']
+_TEST_SUITES = ['base_unittests', 'sql_unittests', 'ipc_tests']
 
 def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
              timeout, performance_test, cleanup_test_files, tool,
