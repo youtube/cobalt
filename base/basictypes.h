@@ -258,18 +258,6 @@ struct CompileAssert {
 //   causes ((0.0) ? 1 : -1) to incorrectly evaluate to 1.
 
 
-// MetatagId refers to metatag-id that we assign to
-// each metatag <name, value> pair..
-typedef uint32 MetatagId;
-
-// Argument type used in interfaces that can optionally take ownership
-// of a passed in argument.  If TAKE_OWNERSHIP is passed, the called
-// object takes ownership of the argument.  Otherwise it does not.
-enum Ownership {
-  DO_NOT_TAKE_OWNERSHIP,
-  TAKE_OWNERSHIP
-};
-
 // bit_cast<Dest,Source> is a template function that implements the
 // equivalent of "*reinterpret_cast<Dest*>(&source)".  We need this in
 // very low-level functions like the protobuf library and fast math
