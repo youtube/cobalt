@@ -392,6 +392,18 @@ class NET_EXPORT X509Certificate
   static bool GetDEREncoded(OSCertHandle cert_handle,
                             std::string* der_encoded);
 
+  // Returns the PEM encoded data from an OSCertHandle. If the return value is
+  // true, then the PEM encoded certificate is written to |pem_encoded|.
+  static bool GetPEMEncoded(OSCertHandle cert_handle,
+                            std::string* pem_encoded);
+
+  // Encodes the entire certificate chain (this certificate and any
+  // intermediate certificates stored in |intermediate_ca_certs_|) as a series
+  // of PEM encoded strings. Returns true if all certificates were encoded,
+  // storig the result in |*pem_encoded|, with this certificate stored as
+  // the first element.
+  bool GetPEMEncodedChain(std::vector<std::string>* pem_encoded) const;
+
   // Returns the OSCertHandle of this object. Because of caching, this may
   // differ from the OSCertHandle originally supplied during initialization.
   // Note: On Windows, CryptoAPI may return unexpected results if this handle

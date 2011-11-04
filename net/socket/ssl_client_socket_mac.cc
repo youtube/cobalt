@@ -23,6 +23,7 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
+#include "net/base/x509_certificate_net_log_param.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/ssl_error_params.h"
 
@@ -1284,6 +1285,11 @@ int SSLClientSocketMac::DidCompleteHandshake() {
       GetServerCert(ssl_context_));
   if (!new_server_cert)
     return ERR_UNEXPECTED;
+  if (net_log_.IsLoggingBytes()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
+        make_scoped_refptr(new X509CertificateNetLogParam(new_server_cert)));
+  }
 
   if (renegotiating_ &&
       X509Certificate::IsSameOSCert(server_cert_->os_cert_handle(),

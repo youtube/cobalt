@@ -92,6 +92,7 @@
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
 #include "net/base/sys_addrinfo.h"
+#include "net/base/x509_certificate_net_log_param.h"
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/dns_cert_provenance_checker.h"
@@ -1055,6 +1056,11 @@ void SSLClientSocketNSS::UpdateServerCert() {
       // case CreateFromDERCertChain() returns NULL.
       server_cert_ = X509Certificate::CreateFromDERCertChain(
           certs.AsStringPieceVector());
+      if (server_cert_ && net_log_.IsLoggingBytes()) {
+        net_log_.AddEvent(
+            NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
+            make_scoped_refptr(new X509CertificateNetLogParam(server_cert_)));
+      }
     }
   }
 }

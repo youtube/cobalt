@@ -243,6 +243,8 @@
         'base/x509_certificate.cc',
         'base/x509_certificate.h',
         'base/x509_certificate_mac.cc',
+        'base/x509_certificate_net_log_param.cc',
+        'base/x509_certificate_net_log_param.h',
         'base/x509_certificate_nss.cc',
         'base/x509_certificate_openssl.cc',
         'base/x509_certificate_win.cc',
