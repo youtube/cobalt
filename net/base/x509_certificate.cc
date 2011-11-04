@@ -674,9 +674,8 @@ X509Certificate::~X509Certificate() {
 }
 
 bool X509Certificate::IsBlacklisted() const {
-  static const unsigned kNumSerials = 256;
-  static const unsigned kSerialBytes = 16;
-  static const uint8 kSerials[kNumSerials][kSerialBytes] = {
+  static const unsigned kComodoSerialBytes = 16;
+  static const uint8 kComodoSerials[][kComodoSerialBytes] = {
     // Not a real certificate. For testing only.
     {0x07,0x7a,0x59,0xbc,0xd5,0x34,0x59,0x60,0x1c,0xa6,0x90,0x72,0x67,0xa6,0xdd,0x1c},
 
@@ -728,19 +727,18 @@ bool X509Certificate::IsBlacklisted() const {
   while (serial.size() > 1 && serial[0] == 0)
     serial.remove_prefix(1);
 
-  if (serial.size() == kSerialBytes) {
-    for (unsigned i = 0; i < kNumSerials; i++) {
-      if (memcmp(kSerials[i], serial.data(), kSerialBytes) == 0) {
-        UMA_HISTOGRAM_ENUMERATION("Net.SSLCertBlacklisted", i, kNumSerials + 1);
+  if (serial.size() == kComodoSerialBytes) {
+    for (unsigned i = 0; i < arraysize(kComodoSerials); i++) {
+      if (memcmp(kComodoSerials[i], serial.data(), kComodoSerialBytes) == 0) {
+        UMA_HISTOGRAM_ENUMERATION("Net.SSLCertBlacklisted", i,
+                                  arraysize(kComodoSerials) + 1);
         return true;
       }
     }
   }
 
-  static const unsigned kNumDigiCertSdnBhdSerials = 22;
   static const unsigned kDigiCertSdnBhdSerialBytes = 3;
-  static const uint8 kDigiCertSdnBhdSerials[kNumDigiCertSdnBhdSerials]
-      [kDigiCertSdnBhdSerialBytes] = {
+  static const uint8 kDigiCertSdnBhdSerials[][kDigiCertSdnBhdSerialBytes] = {
     {0x3e,0xe9,0x1d},
     {0x3f,0xb3,0xbb},
     {0x47,0x64,0x07},
@@ -768,7 +766,7 @@ bool X509Certificate::IsBlacklisted() const {
   if (serial.size() == kDigiCertSdnBhdSerialBytes &&
       !issuer_.organization_names.empty() &&
       issuer_.organization_names[0] == "Digicert Sdn. Bhd.") {
-    for (unsigned i = 0; i < kNumDigiCertSdnBhdSerials; i++) {
+    for (unsigned i = 0; i < arraysize(kDigiCertSdnBhdSerials); i++) {
       if (memcmp(kDigiCertSdnBhdSerials[i], serial.data(),
                  kDigiCertSdnBhdSerialBytes) == 0) {
         return true;
