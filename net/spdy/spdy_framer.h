@@ -304,11 +304,17 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   void set_validate_control_frame_sizes(bool value);
   static void set_enable_compression_default(bool value);
 
+  // Used only in log messages.
+  void set_display_protocol(const std::string& protocol) {
+    display_protocol_ = protocol;
+  }
+
   // For debugging.
   static const char* StateToString(int state);
   static const char* ErrorCodeToString(int error_code);
   static const char* StatusCodeToString(int status_code);
   static const char* ControlTypeToString(SpdyControlType type);
+
   static void set_protocol_version(int version) { spdy_version_= version; }
   static int protocol_version() { return spdy_version_; }
 
@@ -394,7 +400,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Deliver the given control frame's compressed headers block to the visitor
   // in decompressed form, in chunks. Returns true if the visitor has
   // accepted all of the chunks.
-  bool IncrementallyDecompressControlFrameHeaderData(
+  bool NewIncrementallyDecompressControlFrameHeaderData(
       const SpdyControlFrame* frame,
       const char* data,
       size_t len);
@@ -438,6 +444,8 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // streamed to the visitor.
   // In addition to the maximum control frame header size, we account for any
   // LOAS checksumming (16B) that may occur in the VTL case.
+  // TODO(hkhalil): Remove post code-yellow once streamed inflate is properly
+  // implemented.
   static const size_t kUncompressedControlFrameBufferInitialSize = 18 + 16;
 
   // The size of the buffer into which compressed frames are inflated.
@@ -471,6 +479,8 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   CompressorMap stream_decompressors_;
 
   SpdyFramerVisitorInterface* visitor_;
+
+  std::string display_protocol_;
 
   static bool compression_default_;
   static int spdy_version_;

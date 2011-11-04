@@ -30,6 +30,10 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
  public:
   SpdyFrameBuilder();
 
+  // Initiailizes a SpdyFrameBuilder with a buffer of given size.
+  // The buffer will still be resized as necessary.
+  explicit SpdyFrameBuilder(size_t size);
+
   // Initializes a SpdyFrameBuilder from a const block of data.  The data is
   // not copied; instead the data is merely referenced by this
   // SpdyFrameBuilder.  Only const methods should be used when initialized
