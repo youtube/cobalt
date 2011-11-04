@@ -47,6 +47,8 @@
       ],
       'sources': [
         'base/accessibility/accessibility_types.h',
+        'base/accessibility/accessible_text_utils.cc',
+        'base/accessibility/accessible_text_utils.h',
         'base/accessibility/accessible_view_state.cc',
         'base/accessibility/accessible_view_state.h',
         'base/animation/animation.cc',
