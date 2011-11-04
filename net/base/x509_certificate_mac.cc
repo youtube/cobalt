@@ -50,9 +50,14 @@ int NetErrorFromOSStatus(OSStatus status) {
       return ERR_NOT_IMPLEMENTED;
     case errSecAuthFailed:
       return ERR_ACCESS_DENIED;
-    default:
-      LOG(ERROR) << "Unknown error " << status << " mapped to ERR_FAILED";
+    default: {
+      base::mac::ScopedCFTypeRef<CFStringRef> error_string(
+          SecCopyErrorMessageString(status, NULL));
+      LOG(ERROR) << "Unknown error " << status
+                 << " (" << base::SysCFStringRefToUTF8(error_string) << ")"
+                 << " mapped to ERR_FAILED";
       return ERR_FAILED;
+    }
   }
 }
 
@@ -110,13 +115,17 @@ CertStatus CertStatusFromOSStatus(OSStatus status) {
     case CSSMERR_APPLETP_IDP_FAIL:
       return CERT_STATUS_INVALID;
 
-    default:
+    default: {
       // Failure was due to something Chromium doesn't define a
       // specific status for (such as basic constraints violation, or
       // unknown critical extension)
+      base::mac::ScopedCFTypeRef<CFStringRef> error_string(
+          SecCopyErrorMessageString(status, NULL));
       LOG(WARNING) << "Unknown error " << status
+                   << " (" << base::SysCFStringRefToUTF8(error_string) << ")"
                    << " mapped to CERT_STATUS_INVALID";
       return CERT_STATUS_INVALID;
+    }
   }
 }
 
