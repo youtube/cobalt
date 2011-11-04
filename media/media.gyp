@@ -597,7 +597,6 @@
         'filters/file_data_source_unittest.cc',
         'filters/video_renderer_base_unittest.cc',
         'video/capture/video_capture_device_unittest.cc',
-        'video/ffmpeg_video_decode_engine_unittest.cc',
         'webm/cluster_builder.cc',
         'webm/cluster_builder.h',
       ],
@@ -624,7 +623,6 @@
             'filters/ffmpeg_glue_unittest.cc',
             'filters/ffmpeg_h264_bitstream_converter_unittest.cc',
             'filters/ffmpeg_video_decoder_unittest.cc',
-            'video/ffmpeg_video_decode_engine_unittest.cc',
           ],
         }],
         [ 'target_arch=="ia32" or target_arch=="x64"', {

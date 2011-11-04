@@ -187,12 +187,8 @@ class MockVideoDecoder : public VideoDecoder {
   MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
                                 const base::Closure& callback,
                                 const StatisticsCallback& stats_callback));
-  MOCK_METHOD1(ProduceVideoFrame, void(scoped_refptr<VideoFrame>));
-  MOCK_METHOD0(natural_size, gfx::Size());
-
-  void VideoFrameReadyForTest(scoped_refptr<VideoFrame> frame) {
-    VideoDecoder::VideoFrameReady(frame);
-  }
+  MOCK_METHOD1(Read, void(const ReadCB& callback));
+  MOCK_METHOD0(natural_size, const gfx::Size&());
 
  protected:
   virtual ~MockVideoDecoder();

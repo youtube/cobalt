@@ -88,25 +88,16 @@ class MEDIA_EXPORT VideoRendererBase
   // class executes on.
   virtual void OnFrameAvailable() = 0;
 
-  void ReadInput(scoped_refptr<VideoFrame> frame);
-
  private:
-  // Callback from video decoder to deliver decoded video frames and decrements
-  // |pending_reads_|.
-  void ConsumeVideoFrame(scoped_refptr<VideoFrame> frame);
+  // Callback from the video decoder delivering decoded video frames.
+  void FrameReady(scoped_refptr<VideoFrame> frame);
 
-  // Helper method that schedules an asynchronous read from the decoder and
-  // increments |pending_reads_|.
-  //
-  // Safe to call from any thread.
-  void ScheduleRead_Locked();
+  // Helper method that schedules an asynchronous read from the decoder as long
+  // as there isn't a pending read and we have capacity.
+  void AttemptRead_Locked();
 
-  // Helper function to finished "flush" operation
-  void OnFlushDone_Locked();
-
-  // Helper method that flushes all video frame in "ready queue" including
-  // current frame into "done queue".
-  void FlushBuffers_Locked();
+  // Attempts to complete flushing and transition into the flushed state.
+  void AttemptFlush_Locked();
 
   // Calculates the duration to sleep for based on |current_frame_|'s timestamp,
   // the next frame timestamp (may be NULL), and the provided playback rate.
@@ -119,7 +110,7 @@ class MEDIA_EXPORT VideoRendererBase
   void EnterErrorState_Locked(PipelineStatus status);
 
   // Helper function that flushes the buffers when a Stop() or error occurs.
-  void DoStopOrErrorFlush_Locked();
+  void DoStopOrError_Locked();
 
   // Used for accessing data members.
   base::Lock lock_;
@@ -128,10 +119,20 @@ class MEDIA_EXPORT VideoRendererBase
 
   // Queue of incoming frames as well as the current frame since the last time
   // OnFrameAvailable() was called.
-  typedef std::deque< scoped_refptr<VideoFrame> > VideoFrameQueue;
+  typedef std::deque<scoped_refptr<VideoFrame> > VideoFrameQueue;
   VideoFrameQueue frames_queue_ready_;
-  VideoFrameQueue frames_queue_done_;
+
+  // The current frame available to subclasses for rendering via
+  // GetCurrentFrame().  |current_frame_| can only be altered when
+  // |pending_paint_| is false.
   scoped_refptr<VideoFrame> current_frame_;
+
+  // The previous |current_frame_| and is returned via GetCurrentFrame() in the
+  // situation where all frames were deallocated (i.e., during a flush).
+  //
+  // TODO(scherkus): remove this after getting rid of Get/PutCurrentFrame() in
+  // favour of passing ownership of the current frame to the renderer via
+  // callback.
   scoped_refptr<VideoFrame> last_available_frame_;
 
   // Used to signal |thread_| as frames are added to |frames_|.  Rule of thumb:
@@ -182,12 +183,16 @@ class MEDIA_EXPORT VideoRendererBase
   // Previous time returned from the pipeline.
   base::TimeDelta previous_time_;
 
-  // Keeps track of our pending buffers. We *must* have no pending reads
-  // before executing the flush callback; We decrement it each time we receive
-  // a buffer and increment it each time we send a buffer out. therefore if
-  // decoder provides buffer, |pending_reads_| is always non-positive and if
-  // renderer provides buffer, |pending_reads_| is always non-negative.
-  int pending_reads_;
+  // Keep track of various pending operations:
+  //   - |pending_read_| is true when there's an active video decoding request.
+  //   - |pending_paint_| is true when |current_frame_| is currently being
+  //     accessed by the subclass.
+  //   - |pending_paint_with_last_available_| is true when
+  //     |last_available_frame_| is currently being accessed by the subclass.
+  //
+  // Flushing cannot complete until both |pending_read_| and |pending_paint_|
+  // are false.
+  bool pending_read_;
   bool pending_paint_;
   bool pending_paint_with_last_available_;
 
@@ -199,6 +204,8 @@ class MEDIA_EXPORT VideoRendererBase
   StatisticsCallback statistics_callback_;
 
   base::TimeDelta seek_timestamp_;
+
+  VideoDecoder::ReadCB read_cb_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBase);
 };
