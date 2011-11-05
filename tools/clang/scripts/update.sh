@@ -7,7 +7,7 @@
 
 # Do NOT CHANGE this if you don't know what you're doing -- see
 # http://code.google.com/p/chromium/wiki/UpdatingClang
-CLANG_REVISION=142926
+CLANG_REVISION=143497
 
 THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
