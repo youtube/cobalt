@@ -372,7 +372,8 @@ int CertVerifier::Verify(X509Certificate* cert,
 
   requests_++;
 
-  const RequestParams key = {cert->chain_fingerprint(), hostname, flags};
+  const RequestParams key(cert->fingerprint(), cert->ca_fingerprint(),
+                          hostname, flags);
   // First check the cache.
   std::map<RequestParams, CachedCertVerifyResult>::iterator i;
   i = cache_.find(key);
@@ -457,7 +458,8 @@ void CertVerifier::HandleResult(X509Certificate* cert,
   uint32 ttl = kTTLSecs;
   cached_result.expiry = current_time + base::TimeDelta::FromSeconds(ttl);
 
-  const RequestParams key = {cert->chain_fingerprint(), hostname, flags};
+  const RequestParams key(cert->fingerprint(), cert->ca_fingerprint(),
+                          hostname, flags);
 
   DCHECK_GE(max_cache_entries_, 1u);
   DCHECK_LE(cache_.size(), max_cache_entries_);
