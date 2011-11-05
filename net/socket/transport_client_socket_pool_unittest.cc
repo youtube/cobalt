@@ -1001,14 +1001,13 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 // connection fails.
 //
 
-// Flaky timeout on linux/mac: http://crbug.com/89273
-#if defined(OS_MACOSX) || defined(OS_CHROMEOS) || defined(OS_LINUX)
-#define MAYBE_BackupSocketFailAfterStall FLAKY_BackupSocketFailAfterStall
-#elif defined(DCHECK_ALWAYS_ON)
+// Flaky timeout on win/linux/mac: http://crbug.com/89273
+// http://crbug.com/94501 and http://crbug.com/99889
+#if defined(DCHECK_ALWAYS_ON)
 // Disabled in release with dcheck : http://crbug.com/94501
 #define MAYBE_BackupSocketFailAfterStall DISABLED_BackupSocketFailAfterStall
 #else
-#define MAYBE_BackupSocketFailAfterStall BackupSocketFailAfterStall
+#define MAYBE_BackupSocketFailAfterStall FLAKY_BackupSocketFailAfterStall
 #endif
 TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterStall) {
   MockClientSocketFactory::ClientSocketType case_types[] = {
