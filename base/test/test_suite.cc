@@ -59,7 +59,6 @@ TestSuite::TestSuite(int argc, char** argv) {
   CommandLine::Init(argc, argv);
   testing::InitGoogleTest(&argc, argv);
 #if defined(TOOLKIT_USES_GTK)
-  g_thread_init(NULL);
   gtk_init_check(&argc, &argv);
 #endif  // defined(TOOLKIT_USES_GTK)
   // Don't add additional code to this constructor.  Instead add it to
