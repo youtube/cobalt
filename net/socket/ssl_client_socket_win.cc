@@ -506,12 +506,14 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
   find_by_issuer_para.pfnFindCallback = ClientCertFindCallback;
 
   PCCERT_CHAIN_CONTEXT chain_context = NULL;
+  DWORD find_flags = CERT_CHAIN_FIND_BY_ISSUER_CACHE_ONLY_FLAG |
+                     CERT_CHAIN_FIND_BY_ISSUER_CACHE_ONLY_URL_FLAG;
 
   for (;;) {
     // Find a certificate chain.
     chain_context = CertFindChainInStore(my_cert_store,
                                          X509_ASN_ENCODING,
-                                         0,
+                                         find_flags,
                                          CERT_CHAIN_FIND_BY_ISSUER,
                                          &find_by_issuer_para,
                                          chain_context);
