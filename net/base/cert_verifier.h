@@ -132,30 +132,46 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
 
   // Input parameters of a certificate verification request.
   struct RequestParams {
+    RequestParams(const SHA1Fingerprint& cert_fingerprint_arg,
+                  const SHA1Fingerprint& ca_fingerprint_arg,
+                  const std::string& hostname_arg,
+                  int flags_arg)
+        : cert_fingerprint(cert_fingerprint_arg),
+          ca_fingerprint(ca_fingerprint_arg),
+          hostname(hostname_arg),
+          flags(flags_arg) {}
+
     bool operator==(const RequestParams& other) const {
-      // |flags| is compared before |cert_fingerprint| and |hostname| under
-      // assumption that integer comparisons are faster than memory and string
-      // comparisons.
+      // |flags| is compared before |cert_fingerprint|, |ca_fingerprint|, and
+      // |hostname| under assumption that integer comparisons are faster than
+      // memory and string comparisons.
       return (flags == other.flags &&
               memcmp(cert_fingerprint.data, other.cert_fingerprint.data,
                      sizeof(cert_fingerprint.data)) == 0 &&
+              memcmp(ca_fingerprint.data, other.ca_fingerprint.data,
+                     sizeof(ca_fingerprint.data)) == 0 &&
               hostname == other.hostname);
     }
 
     bool operator<(const RequestParams& other) const {
-      // |flags| is compared before |cert_fingerprint| and |hostname| under
-      // assumption that integer comparisons are faster than memory and string
-      // comparisons.
+      // |flags| is compared before |cert_fingerprint|, |ca_fingerprint|, and
+      // |hostname| under assumption that integer comparisons are faster than
+      // memory and string comparisons.
       if (flags != other.flags)
         return flags < other.flags;
       int rv = memcmp(cert_fingerprint.data, other.cert_fingerprint.data,
                       sizeof(cert_fingerprint.data));
       if (rv != 0)
         return rv < 0;
+      rv = memcmp(ca_fingerprint.data, other.ca_fingerprint.data,
+                  sizeof(ca_fingerprint.data));
+      if (rv != 0)
+        return rv < 0;
       return hostname < other.hostname;
     }
 
     SHA1Fingerprint cert_fingerprint;
+    SHA1Fingerprint ca_fingerprint;
     std::string hostname;
     int flags;
   };

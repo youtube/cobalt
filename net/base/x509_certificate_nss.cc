@@ -677,7 +677,7 @@ void X509Certificate::Initialize() {
   ParseDate(&cert_handle_->validity.notAfter, &valid_expiry_);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
-  chain_fingerprint_ = CalculateChainFingerprint();
+  ca_fingerprint_ = CalculateCAFingerprint(intermediate_ca_certs_);
 
   serial_number_ = std::string(
       reinterpret_cast<char*>(cert_handle_->serialNumber.data),
@@ -1004,7 +1004,9 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
   return sha1;
 }
 
-SHA1Fingerprint X509Certificate::CalculateChainFingerprint() const {
+// static
+SHA1Fingerprint X509Certificate::CalculateCAFingerprint(
+    const OSCertHandles& intermediates) {
   SHA1Fingerprint sha1;
   memset(sha1.data, 0, sizeof(sha1.data));
 
@@ -1012,9 +1014,8 @@ SHA1Fingerprint X509Certificate::CalculateChainFingerprint() const {
   if (!sha1_ctx)
     return sha1;
   HASH_Begin(sha1_ctx);
-  HASH_Update(sha1_ctx, cert_handle_->derCert.data, cert_handle_->derCert.len);
-  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
-    CERTCertificate* ca_cert = intermediate_ca_certs_[i];
+  for (size_t i = 0; i < intermediates.size(); ++i) {
+    CERTCertificate* ca_cert = intermediates[i];
     HASH_Update(sha1_ctx, ca_cert->derCert.data, ca_cert->derCert.len);
   }
   unsigned int result_len;

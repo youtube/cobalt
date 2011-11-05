@@ -436,7 +436,7 @@ TEST(X509CertificateTest, SerialNumbers) {
                      paypal_null_serial, sizeof(paypal_null_serial)) == 0);
 }
 
-TEST(X509CertificateTest, ChainFingerprints) {
+TEST(X509CertificateTest, CAFingerprints) {
   FilePath certs_dir = GetTestCertsDirectory();
 
   scoped_refptr<X509Certificate> server_cert =
@@ -463,18 +463,31 @@ TEST(X509CertificateTest, ChainFingerprints) {
       X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
                                         intermediates);
 
-  static const uint8 cert_chain1_fingerprint[20] = {
-    0x67, 0x78, 0x81, 0xd7, 0x78, 0xca, 0xd5, 0x04, 0x73, 0xf8,
-    0x95, 0xff, 0xf3, 0x39, 0xe4, 0xcd, 0x5e, 0xf0, 0x79, 0x76
+  // No intermediate CA certicates.
+  intermediates.clear();
+  scoped_refptr<X509Certificate> cert_chain3 =
+      X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
+                                        intermediates);
+
+  static const uint8 cert_chain1_ca_fingerprint[20] = {
+    0xc2, 0xf0, 0x08, 0x7d, 0x01, 0xe6, 0x86, 0x05, 0x3a, 0x4d,
+    0x63, 0x3e, 0x7e, 0x70, 0xd4, 0xef, 0x65, 0xc2, 0xcc, 0x4f
   };
-  static const uint8 cert_chain2_fingerprint[20] = {
-    0x8c, 0x93, 0x85, 0xb0, 0x15, 0xd3, 0xa3, 0x0e, 0xe7, 0x4f,
-    0x42, 0xf4, 0x30, 0xc3, 0xe9, 0x14, 0x12, 0x54, 0xb9, 0x9d
+  static const uint8 cert_chain2_ca_fingerprint[20] = {
+    0xd5, 0x59, 0xa5, 0x86, 0x66, 0x9b, 0x08, 0xf4, 0x6a, 0x30,
+    0xa1, 0x33, 0xf8, 0xa9, 0xed, 0x3d, 0x03, 0x8e, 0x2e, 0xa8
   };
-  EXPECT_TRUE(memcmp(cert_chain1->chain_fingerprint().data,
-                     cert_chain1_fingerprint, 20) == 0);
-  EXPECT_TRUE(memcmp(cert_chain2->chain_fingerprint().data,
-                     cert_chain2_fingerprint, 20) == 0);
+  // The SHA-1 hash of nothing.
+  static const uint8 cert_chain3_ca_fingerprint[20] = {
+    0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d, 0x32, 0x55,
+    0xbf, 0xef, 0x95, 0x60, 0x18, 0x90, 0xaf, 0xd8, 0x07, 0x09
+  };
+  EXPECT_TRUE(memcmp(cert_chain1->ca_fingerprint().data,
+                     cert_chain1_ca_fingerprint, 20) == 0);
+  EXPECT_TRUE(memcmp(cert_chain2->ca_fingerprint().data,
+                     cert_chain2_ca_fingerprint, 20) == 0);
+  EXPECT_TRUE(memcmp(cert_chain3->ca_fingerprint().data,
+                     cert_chain3_ca_fingerprint, 20) == 0);
 }
 
 // A regression test for http://crbug.com/31497.
