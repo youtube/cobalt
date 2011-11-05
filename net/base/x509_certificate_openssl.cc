@@ -386,7 +386,7 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 void X509Certificate::Initialize() {
   crypto::EnsureOpenSSLInit();
   fingerprint_ = CalculateFingerprint(cert_handle_);
-  chain_fingerprint_ = CalculateChainFingerprint();
+  ca_fingerprint_ = CalculateCAFingerprint(intermediate_ca_certs_);
 
   ASN1_INTEGER* serial_num = X509_get_serialNumber(cert_handle_);
   if (serial_num) {
@@ -424,18 +424,17 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(OSCertHandle cert) {
   return sha1;
 }
 
-SHA1Fingerprint X509Certificate::CalculateChainFingerprint() const {
+// static
+SHA1Fingerprint X509Certificate::CalculateCAFingerprint(
+    const OSCertHandles& intermediates) {
   SHA1Fingerprint sha1;
   memset(sha1.data, 0, sizeof(sha1.data));
 
   SHA_CTX sha1_ctx;
   SHA1_Init(&sha1_ctx);
   DERCache der_cache;
-  if (!GetDERAndCacheIfNeeded(cert_handle_, &der_cache))
-    return sha1;
-  SHA1_Update(&sha1_ctx, der_cache.data, der_cache.data_length);
-  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
-    if (!GetDERAndCacheIfNeeded(intermediate_ca_certs_[i], &der_cache))
+  for (size_t i = 0; i < intermediates.size(); ++i) {
+    if (!GetDERAndCacheIfNeeded(intermediates[i], &der_cache))
       return sha1;
     SHA1_Update(&sha1_ctx, der_cache.data, der_cache.data_length);
   }
