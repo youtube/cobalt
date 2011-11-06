@@ -14,7 +14,7 @@
 namespace tracked_objects {
 
 class TrackedObjectsTest : public testing::Test {
- public:
+ protected:
   TrackedObjectsTest() {
     // On entry, leak any database structures in case they are still in use by
     // prior threads.
@@ -25,6 +25,11 @@ class TrackedObjectsTest : public testing::Test {
     // We should not need to leak any structures we create, since we are
     // single threaded, and carefully accounting for items.
     ThreadData::ShutdownSingleThreadedCleanup(false);
+  }
+
+  // Provide access, since this class is a friend of ThreadData.
+  void ShutdownSingleThreadedCleanup(bool leak) {
+    ThreadData::ShutdownSingleThreadedCleanup(leak);
   }
 };
 
@@ -46,7 +51,7 @@ TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
   data->SnapshotDeathMap(&death_map);
   EXPECT_EQ(0u, death_map.size());
   // Cleanup with no leaking.
-  ThreadData::ShutdownSingleThreadedCleanup(false);
+  ShutdownSingleThreadedCleanup(false);
 
   // Do it again, just to be sure we reset state completely.
   ThreadData::InitializeAndSetTrackingStatus(true);
