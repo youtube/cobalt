@@ -157,12 +157,13 @@
 //
 // TODO(jar): I need to store DataCollections, and provide facilities for taking
 // the difference between two gathered DataCollections.  For now, I'm just
-// adding a hack that Reset()'s to zero all counts and stats.  This is also
+// adding a hack that Reset()s to zero all counts and stats.  This is also
 // done in a slighly thread-unsafe fashion, as the reseting is done
-// asynchronously relative to ongoing updates, and worse yet, some data fields
-// are 64bit quantities, and are not atomicly accessed (reset or incremented
-// etc.).  For basic profiling, this will work "most of the time," and should be
+// asynchronously relative to ongoing updates (but all data is 32 bit in size).
+// For basic profiling, this will work "most of the time," and should be
 // sufficient... but storing away DataCollections is the "right way" to do this.
+// We'll accomplish this via JavaScript storage of snapshots, and then we'll
+// remove the Reset() methods.
 
 class MessageLoop;
 
@@ -667,18 +668,11 @@ class BASE_EXPORT ThreadData {
   // the code).
   static TrackedTime Now();
 
-  // Cleans up data structures, and returns statics to near pristine (mostly
-  // uninitialized) state.  If there is any chance that other threads are still
-  // using the data structures, then the |leak| argument should be passed in as
-  // true, and the data structures (birth maps, death maps, ThreadData
-  // insntances, etc.) will be leaked and not deleted.  If you have joined all
-  // threads since the time that InitializeAndSetTrackingStatus() was called,
-  // then you can pass in a |leak| value of false, and this function will
-  // delete recursively all data structures, starting with the list of
-  // ThreadData instances.
-  static void ShutdownSingleThreadedCleanup(bool leak);
-
  private:
+  // Allow only tests to call ShutdownSingleThreadedCleanup.  We NEVER call it
+  // in production code.
+  friend class TrackedObjectsTest;
+
   typedef std::stack<const ThreadData*> ThreadDataPool;
 
   // Worker thread construction creates a name since there is none.
@@ -711,6 +705,17 @@ class BASE_EXPORT ThreadData {
   // This method should be called when a worker thread terminates, so that we
   // can save all the thread data into a cache of reusable ThreadData instances.
   void OnThreadTerminationCleanup() const;
+
+  // Cleans up data structures, and returns statics to near pristine (mostly
+  // uninitialized) state.  If there is any chance that other threads are still
+  // using the data structures, then the |leak| argument should be passed in as
+  // true, and the data structures (birth maps, death maps, ThreadData
+  // insntances, etc.) will be leaked and not deleted.  If you have joined all
+  // threads since the time that InitializeAndSetTrackingStatus() was called,
+  // then you can pass in a |leak| value of false, and this function will
+  // delete recursively all data structures, starting with the list of
+  // ThreadData instances.
+  static void ShutdownSingleThreadedCleanup(bool leak);
 
   // We use thread local store to identify which ThreadData to interact with.
   static base::ThreadLocalStorage::Slot tls_index_;
