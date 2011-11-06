@@ -26,19 +26,6 @@ NET_EXPORT std::string EscapePath(const std::string& path);
 NET_EXPORT std::string EscapeUrlEncodedData(const std::string& path,
                                             bool use_plus);
 
-// Escape all non-ASCII input.
-NET_EXPORT std::string EscapeNonASCII(const std::string& input);
-
-// Escapes characters in text suitable for use as an external protocol handler
-// command.
-// We %XX everything except alphanumerics and %-_.!~*'() and the restricted
-// chracters (;/?:@&=+$,).
-NET_EXPORT std::string EscapeExternalHandlerValue(const std::string& text);
-
-// Append the given character to the output string, escaping the character if
-// the character would be interpretted as an HTML delimiter.
-NET_EXPORT void AppendEscapedCharForHTML(char c, std::string* output);
-
 // Unescaping ------------------------------------------------------------------
 
 class UnescapeRule {
@@ -82,6 +69,19 @@ class UnescapeRule {
 };
 
 namespace net {
+
+// Escape all non-ASCII input.
+NET_EXPORT std::string EscapeNonASCII(const std::string& input);
+
+// Escapes characters in text suitable for use as an external protocol handler
+// command.
+// We %XX everything except alphanumerics and %-_.!~*'() and the restricted
+// chracters (;/?:@&=+$,).
+NET_EXPORT std::string EscapeExternalHandlerValue(const std::string& text);
+
+// Append the given character to the output string, escaping the character if
+// the character would be interpretted as an HTML delimiter.
+NET_EXPORT void AppendEscapedCharForHTML(char c, std::string* output);
 
 // Escape chars that might cause this text to be interpretted as HTML tags.
 NET_EXPORT std::string EscapeForHTML(const std::string& text);
