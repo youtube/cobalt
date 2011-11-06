@@ -15,7 +15,7 @@
 
 namespace {
 
-static const char* const kHexString = "0123456789ABCDEF";
+const char kHexString[] = "0123456789ABCDEF";
 inline char IntToHex(int i) {
   DCHECK_GE(i, 0) << i << " not a hex value";
   DCHECK_LE(i, 15) << i << " not a hex value";
@@ -219,8 +219,6 @@ str EscapeForHTMLImpl(const str& input) {
   return result;
 }
 
-}  // namespace
-
 // Everything except alphanumerics and !'()*-._~
 // See RFC 2396 for the list of reserved characters.
 static const Charmap kQueryCharmap(
@@ -232,35 +230,38 @@ static const Charmap kPathCharmap(
   0xffffffffL, 0xd400002dL, 0x78000000L, 0xb8000001L,
   0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL);
 
-std::string EscapePath(const std::string& path) {
-  return Escape(path, kPathCharmap, false);
-}
-
 // non-printable, non-7bit, and (including space) ?>=<;+'&%$#"![\]^`{|}
 static const Charmap kUrlEscape(
   0xffffffffL, 0xf80008fdL, 0x78000001L, 0xb8000001L,
   0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL
 );
 
-std::string EscapeUrlEncodedData(const std::string& path,
-                                 bool use_plus) {
-  return Escape(path, kUrlEscape, use_plus);
-}
-
 // non-7bit
 static const Charmap kNonASCIICharmap(
   0x00000000L, 0x00000000L, 0x00000000L, 0x00000000L,
   0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL);
-
-std::string EscapeNonASCII(const std::string& input) {
-  return Escape(input, kNonASCIICharmap, false);
-}
 
 // Everything except alphanumerics, the reserved characters(;/?:@&=+$,) and
 // !'()*-._~%
 static const Charmap kExternalHandlerCharmap(
   0xffffffffL, 0x5000080dL, 0x68000000L, 0xb8000001L,
   0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL);
+
+}  // namespace
+
+std::string EscapePath(const std::string& path) {
+  return Escape(path, kPathCharmap, false);
+}
+
+std::string EscapeUrlEncodedData(const std::string& path, bool use_plus) {
+  return Escape(path, kUrlEscape, use_plus);
+}
+
+namespace net {
+
+std::string EscapeNonASCII(const std::string& input) {
+  return Escape(input, kNonASCIICharmap, false);
+}
 
 std::string EscapeExternalHandlerValue(const std::string& text) {
   return Escape(text, kExternalHandlerCharmap, false);
@@ -269,8 +270,6 @@ std::string EscapeExternalHandlerValue(const std::string& text) {
 void AppendEscapedCharForHTML(char c, std::string* output) {
   AppendEscapedCharForHTMLImpl(c, output);
 }
-
-namespace net {
 
 std::string EscapeForHTML(const std::string& input) {
   return EscapeForHTMLImpl(input);
