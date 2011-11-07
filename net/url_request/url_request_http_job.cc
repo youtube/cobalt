@@ -255,7 +255,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
 
   if (SdchManager::Global() &&
       SdchManager::Global()->IsInSupportedDomain(request_->url())) {
-    static const std::string name = "Get-Dictionary";
+    const std::string name = "Get-Dictionary";
     std::string url_text;
     void* iter = NULL;
     // TODO(jar): We need to not fetch dictionaries the first time they are
@@ -592,7 +592,7 @@ void URLRequestHttpJob::CookieHandled() {
 
 void URLRequestHttpJob::FetchResponseCookies(
     std::vector<std::string>* cookies) {
-  std::string name = "Set-Cookie";
+  const std::string name = "Set-Cookie";
   std::string value;
 
   void* iter = NULL;
@@ -614,7 +614,7 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   const bool valid_https =
       https && !IsCertStatusError(response_info_->ssl_info.cert_status);
 
-  std::string name = "Strict-Transport-Security";
+  const std::string name = "Strict-Transport-Security";
   std::string value;
 
   int max_age;
