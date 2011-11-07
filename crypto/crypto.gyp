@@ -138,6 +138,8 @@
         'openpgp_symmetric_encryption.h',
         'openssl_util.cc',
         'openssl_util.h',
+        'p224.cc',
+        'p224.h',
         'rsa_private_key.cc',
         'rsa_private_key.h',
         'rsa_private_key_mac.cc',
@@ -184,6 +186,7 @@
         # Tests.
         'encryptor_unittest.cc',
         'hmac_unittest.cc',
+        'p224_unittest.cc',
         'rsa_private_key_unittest.cc',
         'rsa_private_key_nss_unittest.cc',
         'secure_hash_unittest.cc',
