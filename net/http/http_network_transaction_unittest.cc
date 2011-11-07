@@ -20,6 +20,7 @@
 #include "net/base/auth.h"
 #include "net/base/capturing_net_log.h"
 #include "net/base/completion_callback.h"
+#include "net/base/host_cache.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
@@ -9119,7 +9120,7 @@ class OneTimeCachingHostResolver : public net::HostResolver {
                                const BoundNetLog& net_log) OVERRIDE {
     int rv = host_resolver_.ResolveFromCache(info, addresses, net_log);
     if (rv == OK && info.host_port_pair().Equals(host_port_))
-      host_resolver_.Reset(NULL);
+      host_resolver_.GetHostCache()->clear();
     return rv;
   }
 

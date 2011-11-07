@@ -401,6 +401,47 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   EXPECT_TRUE(htonl(0xc0a8012a) == sa_in->sin_addr.s_addr);
 }
 
+
+// Using WaitingHostResolverProc you can simulate very long lookups.
+class WaitingHostResolverProc : public HostResolverProc {
+ public:
+  explicit WaitingHostResolverProc(HostResolverProc* previous)
+    : HostResolverProc(previous),
+      is_waiting_(false, false),
+      is_signaled_(false, false) {}
+
+  // Waits until a call to |Resolve| is blocked. It is recommended to always
+  // |Wait| before |Signal|, and required if issuing a series of two or more
+  // calls to |Signal|, because |WaitableEvent| does not count the number of
+  // signals.
+  void Wait() {
+    is_waiting_.Wait();
+  }
+
+  // Signals a waiting call to |Resolve|.
+  void Signal() {
+    is_signaled_.Signal();
+  }
+
+  // HostResolverProc methods:
+  virtual int Resolve(const std::string& host,
+                      AddressFamily address_family,
+                      HostResolverFlags host_resolver_flags,
+                      AddressList* addrlist,
+                      int* os_error) {
+    is_waiting_.Signal();
+    is_signaled_.Wait();
+    return ResolveUsingPrevious(host, address_family, host_resolver_flags,
+                                addrlist, os_error);
+  }
+
+ private:
+  virtual ~WaitingHostResolverProc() {}
+
+  base::WaitableEvent is_waiting_;
+  base::WaitableEvent is_signaled_;
+};
+
 TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc(
       new WaitingHostResolverProc(NULL));
@@ -422,11 +463,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
                                      log.bound());
     EXPECT_EQ(ERR_IO_PENDING, err);
 
-    // Make sure we will exit the queue even when callback is not called.
-    MessageLoop::current()->PostDelayedTask(FROM_HERE,
-                                            new MessageLoop::QuitTask(),
-                                            1000);
-    MessageLoop::current()->Run();
+    resolver_proc->Wait();
   }
 
   resolver_proc->Signal();
@@ -753,8 +790,7 @@ TEST_F(HostResolverImplTest, CancelWithinCallback) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc(
       new CapturingHostResolverProc(NULL));
 
-  scoped_ptr<HostResolver> host_resolver(
-      CreateHostResolverImpl(resolver_proc));
+  scoped_ptr<HostResolver> host_resolver(CreateHostResolverImpl(resolver_proc));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened.
@@ -813,8 +849,7 @@ TEST_F(HostResolverImplTest, DeleteWithinCallback) {
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened. Note that the verifier holds the
   // only reference to |host_resolver|, so it can delete it within callback.
-  HostResolver* host_resolver =
-      CreateHostResolverImpl(resolver_proc);
+  HostResolver* host_resolver = CreateHostResolverImpl(resolver_proc);
   DeleteWithinCallbackVerifier verifier(host_resolver);
 
   // Start 4 requests, duplicating hosts "a". Since the resolver_proc is
@@ -1139,10 +1174,7 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
 TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc(
       new WaitingHostResolverProc(NULL));
-  HostCache* cache = HostCache::CreateDefaultCache();
-  scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, cache, kMaxJobs, kMaxRetryAttempts,
-                           NULL));
+  scoped_ptr<HostResolver> host_resolver(CreateHostResolverImpl(resolver_proc));
 
   // Resolve "host1".
   HostResolver::RequestInfo info(HostPortPair("host1", 70));
@@ -1152,21 +1184,23 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
                                   BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
+  resolver_proc->Wait();
   // Triggering an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
   MessageLoop::current()->RunAllPending();  // Notification happens async.
   resolver_proc->Signal();
 
   EXPECT_EQ(ERR_ABORTED, callback.WaitForResult());
-  EXPECT_EQ(0u, cache->size());
+  EXPECT_EQ(0u, host_resolver->GetHostCache()->size());
 }
 
 // Obey pool constraints after IP address has changed.
 TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc(
-      new WaitingHostResolverProc(NULL));
-  scoped_ptr<MockHostResolver> host_resolver(new MockHostResolver());
-  host_resolver->Reset(resolver_proc);
+      new WaitingHostResolverProc(CreateCatchAllHostResolverProc()));
+  scoped_ptr<HostResolverImpl> host_resolver(
+      new HostResolverImpl(resolver_proc, HostCache::CreateDefaultCache(),
+                           kMaxJobs, kMaxRetryAttempts, NULL));
 
   const size_t kMaxOutstandingJobs = 1u;
   const size_t kMaxPendingRequests = 1000000u;  // not relevant.
@@ -1182,6 +1216,9 @@ TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
                                   BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
+  // Must wait before signal to ensure that the two signals don't get merged
+  // together. (Worker threads might not start until the last WaitForResult.)
+  resolver_proc->Wait();
   // Triggering an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
   MessageLoop::current()->RunAllPending();  // Notification happens async.
@@ -1189,30 +1226,25 @@ TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
 
   EXPECT_EQ(ERR_ABORTED, callback.WaitForResult());
 
-  // Don't bother with WaitingHostResolverProc anymore.
-  host_resolver->Reset(NULL);
-
   rv = host_resolver->Resolve(info, &addrlist, &callback, NULL,
                               BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  resolver_proc->Wait();
+  resolver_proc->Signal();
   EXPECT_EQ(OK, callback.WaitForResult());
 }
 
 class ResolveWithinCallback : public CallbackRunner< Tuple1<int> > {
  public:
-  ResolveWithinCallback(
-      MockHostResolver* host_resolver,
-      const HostResolver::RequestInfo& info)
-      : host_resolver_(host_resolver),
-        info_(info) {
-    DCHECK(host_resolver);
-  }
+  explicit ResolveWithinCallback(const HostResolver::RequestInfo& info)
+      : info_(info) {}
 
   virtual void RunWithParams(const Tuple1<int>& params) {
     // Ditch the WaitingHostResolverProc so that the subsequent request
     // succeeds.
-    host_resolver_->Reset(NULL);
     callback_.RunWithParams(params);
+    host_resolver_.reset(
+        CreateHostResolverImpl(CreateCatchAllHostResolverProc()));
     EXPECT_EQ(ERR_IO_PENDING,
               host_resolver_->Resolve(info_, &addrlist_, &nested_callback_,
                                       NULL, BoundNetLog()));
@@ -1227,33 +1259,32 @@ class ResolveWithinCallback : public CallbackRunner< Tuple1<int> > {
   }
 
  private:
-  MockHostResolver* const host_resolver_;
   const HostResolver::RequestInfo info_;
   AddressList addrlist_;
   TestOldCompletionCallback callback_;
   TestOldCompletionCallback nested_callback_;
+  scoped_ptr<HostResolver> host_resolver_;
 };
 
 TEST_F(HostResolverImplTest, OnlyAbortExistingRequestsOnIPAddressChange) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc(
-      new WaitingHostResolverProc(NULL));
-  scoped_ptr<MockHostResolver> host_resolver(new MockHostResolver());
-  host_resolver->Reset(resolver_proc);
+      new WaitingHostResolverProc(CreateCatchAllHostResolverProc()));
+  scoped_ptr<HostResolver> host_resolver(CreateHostResolverImpl(resolver_proc));
 
   // Resolve "host1".
   HostResolver::RequestInfo info(HostPortPair("host1", 70));
-  ResolveWithinCallback callback(host_resolver.get(), info);
+  ResolveWithinCallback callback(info);
   AddressList addrlist;
   int rv = host_resolver->Resolve(info, &addrlist, &callback, NULL,
                                   BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
+  resolver_proc->Wait();
   // Triggering an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
   MessageLoop::current()->RunAllPending();  // Notification happens async.
-
   EXPECT_EQ(ERR_ABORTED, callback.WaitForResult());
-  resolver_proc->Signal();
+  resolver_proc->Signal();  // release the thread from WorkerPool for cleanup
   EXPECT_EQ(OK, callback.WaitForNestedResult());
 }
 
