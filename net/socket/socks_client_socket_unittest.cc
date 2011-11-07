@@ -81,9 +81,9 @@ SOCKSClientSocket* SOCKSClientSocketTest::BuildMockSocket(
 // Implementation of HostResolver that never completes its resolve request.
 // We use this in the test "DisconnectWhileHostResolveInProgress" to make
 // sure that the outstanding resolve request gets cancelled.
-class HangingHostResolver : public HostResolver {
+class HangingHostResolverWithCancel : public HostResolver {
  public:
-  HangingHostResolver() : outstanding_request_(NULL) {}
+  HangingHostResolverWithCancel() : outstanding_request_(NULL) {}
 
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
@@ -121,7 +121,7 @@ class HangingHostResolver : public HostResolver {
  private:
   RequestHandle outstanding_request_;
 
-  DISALLOW_COPY_AND_ASSIGN(HangingHostResolver);
+  DISALLOW_COPY_AND_ASSIGN(HangingHostResolverWithCancel);
 };
 
 // Tests a complete handshake and the disconnection.
@@ -371,7 +371,8 @@ TEST_F(SOCKSClientSocketTest, FailedDNS) {
 // Calls Disconnect() while a host resolve is in progress. The outstanding host
 // resolve should be cancelled.
 TEST_F(SOCKSClientSocketTest, DisconnectWhileHostResolveInProgress) {
-  scoped_ptr<HangingHostResolver> hanging_resolver(new HangingHostResolver());
+  scoped_ptr<HangingHostResolverWithCancel> hanging_resolver(
+    new HangingHostResolverWithCancel());
 
   // Doesn't matter what the socket data is, we will never use it -- garbage.
   MockWrite data_writes[] = { MockWrite(false, "", 0) };
