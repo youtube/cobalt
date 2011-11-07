@@ -23,8 +23,23 @@
 #include "base/at_exit.h"
 #include "base/atomicops.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
-#include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
+
+namespace base {
+namespace internal {
+
+// Our AtomicWord doubles as a spinlock, where a value of
+// kBeingCreatedMarker means the spinlock is being held for creation.
+static const subtle::AtomicWord kBeingCreatedMarker = 1;
+
+// We pull out some of the functionality into a non-templated function, so that
+// we can implement the more complicated pieces out of line in the .cc file.
+subtle::AtomicWord WaitForInstance(subtle::AtomicWord* instance);
+
+}  // namespace internal
+}  // namespace base
+
+// TODO(joth): Move more of this file into namespace base
 
 // Default traits for Singleton<Type>. Calls operator new and operator delete on
 // the object. Registers automatic deletion at process exit.
@@ -219,21 +234,16 @@ class Singleton {
       base::ThreadRestrictions::AssertSingletonAllowed();
 #endif
 
-    // Our AtomicWord doubles as a spinlock, where a value of
-    // kBeingCreatedMarker means the spinlock is being held for creation.
-    static const base::subtle::AtomicWord kBeingCreatedMarker = 1;
-
     base::subtle::AtomicWord value = base::subtle::NoBarrier_Load(&instance_);
-    if (value != 0 && value != kBeingCreatedMarker) {
+    if (value != 0 && value != base::internal::kBeingCreatedMarker) {
       // See the corresponding HAPPENS_BEFORE below.
       ANNOTATE_HAPPENS_AFTER(&instance_);
       return reinterpret_cast<Type*>(value);
     }
 
     // Object isn't created yet, maybe we will get to create it, let's try...
-    if (base::subtle::Acquire_CompareAndSwap(&instance_,
-                                             0,
-                                             kBeingCreatedMarker) == 0) {
+    if (base::subtle::Acquire_CompareAndSwap(
+          &instance_, 0, base::internal::kBeingCreatedMarker) == 0) {
       // instance_ was NULL and is now kBeingCreatedMarker.  Only one thread
       // will ever get here.  Threads might be spinning on us, and they will
       // stop right after we do this store.
@@ -252,19 +262,8 @@ class Singleton {
       return newval;
     }
 
-    // We hit a race.  Another thread beat us and either:
-    // - Has the object in BeingCreated state
-    // - Already has the object created...
-    // We know value != NULL.  It could be kBeingCreatedMarker, or a valid ptr.
-    // Unless your constructor can be very time consuming, it is very unlikely
-    // to hit this race.  When it does, we just spin and yield the thread until
-    // the object has been created.
-    while (true) {
-      value = base::subtle::NoBarrier_Load(&instance_);
-      if (value != kBeingCreatedMarker)
-        break;
-      base::PlatformThread::YieldCurrentThread();
-    }
+    // We hit a race. Wait for the other thread to complete it.
+    value = base::internal::WaitForInstance(&instance_);
 
     // See the corresponding HAPPENS_BEFORE above.
     ANNOTATE_HAPPENS_AFTER(&instance_);
