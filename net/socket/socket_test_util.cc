@@ -13,8 +13,8 @@
 #include "base/message_loop.h"
 #include "base/time.h"
 #include "net/base/address_family.h"
-#include "net/base/address_list.h"
 #include "net/base/auth.h"
+#include "net/base/host_resolver_proc.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
 #include "net/http/http_network_session.h"
@@ -656,19 +656,16 @@ bool MockClientSocket::IsConnectedAndIdle() const {
 }
 
 int MockClientSocket::GetPeerAddress(AddressList* address) const {
-  IPAddressNumber ip;
-  bool rv = ParseIPLiteralToNumber("192.0.2.33", &ip);
-  CHECK(rv);
-  *address = AddressList::CreateFromIPAddress(ip, 0);
-  return OK;
+  return net::SystemHostResolverProc("192.0.2.33", ADDRESS_FAMILY_UNSPECIFIED,
+                                     0, address, NULL);
 }
 
 int MockClientSocket::GetLocalAddress(IPEndPoint* address) const {
   IPAddressNumber ip;
-  bool rv = ParseIPLiteralToNumber("192.0.2.33", &ip);
-  CHECK(rv);
+  if (!ParseIPLiteralToNumber("192.0.2.33", &ip))
+    return ERR_FAILED;
   *address = IPEndPoint(ip, 123);
-  return OK;
+      return OK;
 }
 
 const BoundNetLog& MockClientSocket::NetLog() const {
@@ -680,7 +677,7 @@ void MockClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
 }
 
 void MockClientSocket::GetSSLCertRequestInfo(
-  net::SSLCertRequestInfo* cert_request_info) {
+    net::SSLCertRequestInfo* cert_request_info) {
 }
 
 int MockClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
