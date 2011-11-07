@@ -31,6 +31,7 @@
 #include "crypto/sha2.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/dns_util.h"
+#include "net/base/public_key_hashes.h"
 
 #if defined(USE_OPENSSL)
 #include "crypto/openssl_util.h"
@@ -904,44 +905,21 @@ static const char* const kNoRejectedPublicKeys[] = {
   NULL,
 };
 
-// These hashes are base64 encodings of SHA1 hashes for cert public keys.
-static const char kCertPKHashVerisignClass3[] =
-      "sha1/4n972HfV354KP560yw4uqe/baXc=";
-static const char kCertPKHashVerisignClass3G3[] =
-      "sha1/IvGeLsbqzPxdI0b0wuj2xVTdXgc=";
-static const char kCertPKHashGoogle1024[] =
-      "sha1/QMVAHW+MuvCLAO3vse6H0AWzuc0=";
-static const char kCertPKHashGoogle2048[] =
-      "sha1/AbkhxY0L343gKf+cki7NVWp+ozk=";
-static const char kCertPKHashEquifaxSecureCA[] =
-      "sha1/SOZo+SvSspXXR9gjIBBPM5iQn9Q=";
-static const char kCertPKHashAetna[] =
-      "sha1/klKqFN6/gK4wqtlOYDhwJKVDLxo=";
-static const char kCertPKHashGeoTrustGlobal[] =
-      "sha1/wHqYaI2J+6sFZAwRfap9ZbjKzE4=";
-static const char kCertPKHashGeoTrustPrimary[] =
-      "sha1/sBmJ5+/7Sq/LFI9YRjl2IkFQ4bo=";
-static const char kCertPKHashIntel[] =
-      "sha1/DsYq91myCBCQJW/D3f2KZjEwK8U=";
-static const char kCertPKHashTrustCenter[] =
-      "sha1/gzuEEAB/bkqdQS3EIjk2by7lW+k=";
-static const char kCertPKHashVodaphone[] =
-      "sha1/DX/hXFUUNmiZ/EDWIgjvIuvRFRw=";
 static const char* const kGoogleAcceptableCerts[] = {
-  kCertPKHashVerisignClass3,
-  kCertPKHashVerisignClass3G3,
-  kCertPKHashGoogle1024,
-  kCertPKHashGoogle2048,
-  kCertPKHashEquifaxSecureCA,
+  kSPKIHash_VeriSignClass3,
+  kSPKIHash_VeriSignClass3_G3,
+  kSPKIHash_Google1024,
+  kSPKIHash_Google2048,
+  kSPKIHash_EquifaxSecureCA,
   NULL,
 };
 static const char* const kGoogleRejectedCerts[] = {
-  kCertPKHashAetna,
-  kCertPKHashGeoTrustGlobal,
-  kCertPKHashGeoTrustPrimary,
-  kCertPKHashIntel,
-  kCertPKHashTrustCenter,
-  kCertPKHashVodaphone,
+  kSPKIHash_Aetna,
+  kSPKIHash_GeoTrustGlobal,
+  kSPKIHash_GeoTrustPrimary,
+  kSPKIHash_Intel,
+  kSPKIHash_TCTrustCenter,
+  kSPKIHash_Vodafone,
   NULL,
 };
 static const PublicKeyPins kGooglePins = {
@@ -949,22 +927,12 @@ static const PublicKeyPins kGooglePins = {
   kGoogleRejectedCerts,
 };
 
-static const char kCertRapidSSL[] =
-    "sha1/o5OZxATDsgmwgcIfIWIneMJ0jkw=";
-static const char kCertDigiCertEVRoot[] =
-    "sha1/gzF+YoVCU9bXeDGQ7JGQVumRueM=";
-static const char kCertTor1[] =
-    "sha1/juNxSTv9UANmpC9kF5GKpmWNx3Y=";
-static const char kCertTor2[] =
-    "sha1/lia43lPolzSPVIq34Dw57uYcLD8=";
-static const char kCertTor3[] =
-    "sha1/rzEyQIKOh77j87n5bjWUNguXF8Y=";
 static const char* const kTorAcceptableCerts[] = {
-  kCertRapidSSL,
-  kCertDigiCertEVRoot,
-  kCertTor1,
-  kCertTor2,
-  kCertTor3,
+  kSPKIHash_RapidSSL,
+  kSPKIHash_DigiCertEVRoot,
+  kSPKIHash_Tor1,
+  kSPKIHash_Tor2,
+  kSPKIHash_Tor3,
   NULL,
 };
 static const PublicKeyPins kTorPins = {
@@ -972,63 +940,26 @@ static const PublicKeyPins kTorPins = {
   kNoRejectedPublicKeys,
 };
 
-static const char kCertVerisignClass1[] =
-    "sha1/I0PRSKJViZuUfUYaeX7ATP7RcLc=";
-static const char kCertVerisignClass3[] =
-    "sha1/4n972HfV354KP560yw4uqe/baXc=";
-static const char kCertVerisignClass3_G4[] =
-    "sha1/7WYxNdMb1OymFMQp4xkGn5TBJlA=";
-static const char kCertVerisignClass4_G3[] =
-    "sha1/PANDaGiVHPNpKri0Jtq6j+ki5b0=";
-static const char kCertVerisignClass3_G3[] =
-    "sha1/IvGeLsbqzPxdI0b0wuj2xVTdXgc=";
-static const char kCertVerisignClass1_G3[] =
-    "sha1/VRmyeKyygdftp6vBg5nDu2kEJLU=";
-static const char kCertVerisignClass2_G3[] =
-    "sha1/Wr7Fddyu87COJxlD/H8lDD32YeM=";
-static const char kCertVerisignClass3_G2[] =
-    "sha1/GiG0lStik84Ys2XsnA6TTLOB5tQ=";
-static const char kCertVerisignClass2_G2[] =
-    "sha1/Eje6RRfurSkm/cHN/r7t8t7ZFFw=";
-static const char kCertVerisignClass3_G5[] =
-    "sha1/sYEIGhmkwJQf+uiVKMEkyZs0rMc=";
-static const char kCertVerisignUniversal[] =
-    "sha1/u8I+KQuzKHcdrT6iTb30I70GsD0=";
-
-static const char kCertTwitter1[] =
-    "sha1/Vv7zwhR9TtOIN/29MFI4cgHld40=";
-
-static const char kCertGeoTrustGlobal2[] =
-    "sha1/cTg28gIxU0crbrplRqkQFVggBQk=";
-static const char kCertGeoTrustUniversal[] =
-    "sha1/h+hbY1PGI6MSjLD/u/VR/lmADiI=";
-static const char kCertGeoTrustUniversal2[] =
-    "sha1/Xk9ThoXdT57KX9wNRW99UbHcm3s=";
-static const char kCertGeoTrustPrimaryG2[] =
-    "sha1/vb6nG6txV/nkddlU0rcngBqCJoI=";
-static const char kCertGeoTrustPrimaryG3[] =
-    "sha1/nKmNAK90Dd2BgNITRaWLjy6UONY=";
-
 static const char* const kTwitterComAcceptableCerts[] = {
-  kCertVerisignClass1,
-  kCertVerisignClass3,
-  kCertVerisignClass3_G4,
-  kCertVerisignClass4_G3,
-  kCertVerisignClass3_G3,
-  kCertVerisignClass1_G3,
-  kCertVerisignClass2_G3,
-  kCertVerisignClass3_G2,
-  kCertVerisignClass2_G2,
-  kCertVerisignClass3_G5,
-  kCertVerisignUniversal,
-  kCertPKHashGeoTrustGlobal,
-  kCertGeoTrustGlobal2,
-  kCertGeoTrustUniversal,
-  kCertGeoTrustUniversal2,
-  kCertPKHashGeoTrustPrimary,
-  kCertGeoTrustPrimaryG2,
-  kCertGeoTrustPrimaryG3,
-  kCertTwitter1,
+  kSPKIHash_VeriSignClass1,
+  kSPKIHash_VeriSignClass3,
+  kSPKIHash_VeriSignClass3_G4,
+  kSPKIHash_VeriSignClass4_G3,
+  kSPKIHash_VeriSignClass3_G3,
+  kSPKIHash_VeriSignClass1_G3,
+  kSPKIHash_VeriSignClass2_G3,
+  kSPKIHash_VeriSignClass3_G2,
+  kSPKIHash_VeriSignClass2_G2,
+  kSPKIHash_VeriSignClass3_G5,
+  kSPKIHash_VeriSignUniversal,
+  kSPKIHash_GeoTrustGlobal,
+  kSPKIHash_GeoTrustGlobal2,
+  kSPKIHash_GeoTrustUniversal,
+  kSPKIHash_GeoTrustUniversal2,
+  kSPKIHash_GeoTrustPrimary,
+  kSPKIHash_GeoTrustPrimary_G2,
+  kSPKIHash_GeoTrustPrimary_G3,
+  kSPKIHash_Twitter1,
   NULL,
 };
 static const PublicKeyPins kTwitterComPins = {
@@ -1040,6 +971,7 @@ static const PublicKeyPins kTwitterComPins = {
 // with "pinningtest.appspot.com", below, to test if pinning is active.
 static const char* const kTestAcceptableCerts[] = {
   "sha1/AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+  NULL,
 };
 static const PublicKeyPins kTestPins = {
   kTestAcceptableCerts,
