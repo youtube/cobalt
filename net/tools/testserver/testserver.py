@@ -28,6 +28,7 @@ import socket
 import sys
 import struct
 import time
+import urllib
 import urlparse
 import warnings
 import zlib
@@ -345,6 +346,7 @@ class TestPageHandler(BasePageHandler):
       self.ZipFileHandler,
       self.FileHandler,
       self.SetCookieHandler,
+      self.SetHeaderHandler,
       self.AuthBasicHandler,
       self.AuthDigestHandler,
       self.SlowServerHandler,
@@ -975,6 +977,29 @@ class TestPageHandler(BasePageHandler):
     self.end_headers()
     for cookie_value in cookie_values:
       self.wfile.write('%s' % cookie_value)
+    return True
+
+  def SetHeaderHandler(self):
+    """This handler sets a response header. Parameters are in the
+    key%3A%20value&key2%3A%20value2 format."""
+
+    if not self._ShouldHandleRequest("/set-header"):
+      return False
+
+    query_char = self.path.find('?')
+    if query_char != -1:
+      headers_values = self.path[query_char + 1:].split('&')
+    else:
+      headers_values = ("",)
+    self.send_response(200)
+    self.send_header('Content-Type', 'text/html')
+    for header_value in headers_values:
+      header_value = urllib.unquote(header_value)
+      (key, value) = header_value.split(': ', 1)
+      self.send_header(key, value)
+    self.end_headers()
+    for header_value in headers_values:
+      self.wfile.write('%s' % header_value)
     return True
 
   def AuthBasicHandler(self):
