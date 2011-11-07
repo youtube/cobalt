@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/lazy_instance.h"
 #include "base/memory/singleton.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
@@ -55,11 +56,13 @@ void StripPostSpecificHeaders(HttpRequestHeaders* headers) {
 uint64 g_next_url_request_identifier = 1;
 
 // This lock protects g_next_url_request_identifier.
-base::Lock g_next_url_request_identifier_lock;
+base::LazyInstance<base::Lock,
+                   base::LeakyLazyInstanceTraits<base::Lock> >
+    g_next_url_request_identifier_lock(base::LINKER_INITIALIZED);
 
 // Returns an prior unused identifier for URL requests.
 uint64 GenerateURLRequestIdentifier() {
-  base::AutoLock lock(g_next_url_request_identifier_lock);
+  base::AutoLock lock(g_next_url_request_identifier_lock.Get());
   return g_next_url_request_identifier++;
 }
 

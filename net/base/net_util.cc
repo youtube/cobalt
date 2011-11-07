@@ -496,7 +496,8 @@ static base::Lock lang_set_lock;
 // the language |lang|.
 bool IsComponentCoveredByLang(const icu::UnicodeSet& component_characters,
                               const std::string& lang) {
-  static const icu::UnicodeSet kASCIILetters(0x61, 0x7a);  // [a-z]
+  CR_DEFINE_STATIC_LOCAL(
+      const icu::UnicodeSet, kASCIILetters, ('a', 'z'));
   icu::UnicodeSet* lang_set;
   // We're called from both the UI thread and the history thread.
   {
