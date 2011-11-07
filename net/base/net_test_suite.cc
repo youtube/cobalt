@@ -5,7 +5,6 @@
 #include "net/base/net_test_suite.h"
 
 #include "base/message_loop.h"
-#include "net/base/network_change_notifier.h"
 #include "net/http/http_stream_factory.h"
 #if defined(USE_NSS)
 #include "net/ocsp/nss_ocsp.h"

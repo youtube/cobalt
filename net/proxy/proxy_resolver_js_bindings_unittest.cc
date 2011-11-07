@@ -8,7 +8,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
 #include "net/base/address_list.h"
-#include "net/base/host_cache.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -34,14 +33,40 @@ class MockHostResolverWithMultipleResults : public SyncHostResolver {
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses) OVERRIDE {
-    return ParseAddressList("192.168.1.1,172.22.34.1,200.100.1.2", "",
-                            addresses);
+    // Build up the result list (in reverse).
+    AddressList temp_list = ResolveIPLiteral("200.100.1.2");
+    temp_list = PrependAddressToList("172.22.34.1", temp_list);
+    temp_list = PrependAddressToList("192.168.1.1", temp_list);
+    *addresses = temp_list;
+    return OK;
   }
 
   virtual void Shutdown() OVERRIDE {}
 
  private:
   virtual ~MockHostResolverWithMultipleResults() {}
+
+  // Resolves an IP literal to an address list.
+  AddressList ResolveIPLiteral(const char* ip_literal) {
+    AddressList result;
+    int rv = SystemHostResolverProc(ip_literal,
+                                    ADDRESS_FAMILY_UNSPECIFIED,
+                                    0,
+                                    &result, NULL);
+    EXPECT_EQ(OK, rv);
+    EXPECT_EQ(NULL, result.head()->ai_next);
+    return result;
+  }
+
+  // Builds an AddressList that is |ip_literal| + |orig_list|.
+  // |orig_list| must not be empty.
+  AddressList PrependAddressToList(const char* ip_literal,
+                                   const AddressList& orig_list) {
+    // Build an addrinfo for |ip_literal|.
+    AddressList result = ResolveIPLiteral(ip_literal);
+    result.Append(orig_list.head());
+    return result;
+  }
 };
 
 class MockFailingHostResolver : public SyncHostResolver {
