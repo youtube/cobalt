@@ -171,6 +171,7 @@
           'memory/scoped_open_process.h',
           'memory/scoped_ptr.h',
           'memory/scoped_vector.h',
+          'memory/singleton.cc',
           'memory/singleton.h',
           'memory/weak_ptr.cc',
           'memory/weak_ptr.h',
