@@ -149,7 +149,7 @@ v8.log
 /third_party/syzygy/binaries
 /third_party/v8-i18n
 /third_party/valgrind
-/third_party/webdriver/python
+/third_party/webdriver/pylib
 /third_party/webgl_conformance
 /third_party/webrtc
 /third_party/xdg-utils
