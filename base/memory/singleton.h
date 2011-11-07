@@ -22,6 +22,7 @@
 
 #include "base/at_exit.h"
 #include "base/atomicops.h"
+#include "base/base_export.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_restrictions.h"
 
@@ -34,7 +35,7 @@ static const subtle::AtomicWord kBeingCreatedMarker = 1;
 
 // We pull out some of the functionality into a non-templated function, so that
 // we can implement the more complicated pieces out of line in the .cc file.
-subtle::AtomicWord WaitForInstance(subtle::AtomicWord* instance);
+BASE_EXPORT subtle::AtomicWord WaitForInstance(subtle::AtomicWord* instance);
 
 }  // namespace internal
 }  // namespace base
