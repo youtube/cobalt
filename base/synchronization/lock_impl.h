@@ -17,18 +17,6 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 
-#if defined(OS_MACOSX) && !defined(NDEBUG)
-// For Mac debug builds, do some extra checks to make sure a LockImpl is not
-// used after it has been freed. This instrumentation is to help track down
-// spurious locking errors (EINVAL) which are happening on the bots.
-// In particular, I want to make sure they aren't a consequence of having
-// used a freed lock object (which can happen for instance when trying to
-// post tasks to a destroyed MessageLoop).
-// See http://crbug.com/102161 for more details. This instrumentation can be
-// removed once that bug has been identified.
-#define LOCK_IMPL_CHECK_LIVENESS
-#endif
-
 namespace base {
 namespace internal {
 
@@ -65,17 +53,6 @@ class BASE_EXPORT LockImpl {
 #endif
 
  private:
-#ifdef LOCK_IMPL_CHECK_LIVENESS
-  enum LivenessToken {
-    LT_ALIVE = 0xCa11ab1e,  // 3390155550
-    LT_DELETED = 0xDecea5ed,  // 3738084845
-  };
-
-  void CheckIsAlive();
-
-  LivenessToken liveness_token_;
-#endif  // LOCK_IMPL_CHECK_LIVENESS
-
   OSLockType os_lock_;
 
   DISALLOW_COPY_AND_ASSIGN(LockImpl);

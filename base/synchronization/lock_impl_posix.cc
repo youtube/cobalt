@@ -12,10 +12,6 @@ namespace base {
 namespace internal {
 
 LockImpl::LockImpl() {
-#ifdef LOCK_IMPL_CHECK_LIVENESS
-  liveness_token_ = LT_ALIVE;
-#endif
-
 #ifndef NDEBUG
   // In debug, setup attributes for lock error checking.
   pthread_mutexattr_t mta;
@@ -34,45 +30,25 @@ LockImpl::LockImpl() {
 }
 
 LockImpl::~LockImpl() {
-#ifdef LOCK_IMPL_CHECK_LIVENESS
-  CheckIsAlive();
-  liveness_token_ = LT_DELETED;
-#endif
   int rv = pthread_mutex_destroy(&os_lock_);
   DCHECK_EQ(rv, 0);
 }
 
 bool LockImpl::Try() {
-#ifdef LOCK_IMPL_CHECK_LIVENESS
-  CheckIsAlive();
-#endif
   int rv = pthread_mutex_trylock(&os_lock_);
   DCHECK(rv == 0 || rv == EBUSY);
   return rv == 0;
 }
 
 void LockImpl::Lock() {
-#ifdef LOCK_IMPL_CHECK_LIVENESS
-  CheckIsAlive();
-#endif
   int rv = pthread_mutex_lock(&os_lock_);
   DCHECK_EQ(rv, 0);
 }
 
 void LockImpl::Unlock() {
-#ifdef LOCK_IMPL_CHECK_LIVENESS
-  CheckIsAlive();
-#endif
   int rv = pthread_mutex_unlock(&os_lock_);
   DCHECK_EQ(rv, 0);
 }
-
-#ifdef LOCK_IMPL_CHECK_LIVENESS
-void LockImpl::CheckIsAlive() {
-  CHECK_EQ(LT_ALIVE, liveness_token_)
-      << "Lock was invalid. Please see: http://crbug.com/102161";
-}
-#endif
 
 }  // namespace internal
 }  // namespace base
