@@ -43,7 +43,7 @@
  "linux-release/dhtml/times/t": {"reva": 99393, "revb": 100034, "improve": -21, "regress": 145, "sha1": "6cb344a1"},
  "linux-release/dromaeo_jslib/jslib/score": {"reva": 90010, "revb": 104572, "improve": -146, "regress": -201, "sha1": "f9b75f63"},
  "linux-release/intl1/times/t": {"reva": 104868, "revb": 105328, "improve": 196, "regress": 558, "sha1": "b48b1979"},
- "linux-release/intl2/times/t": {"reva": 104868, "revb": 105328, "improve": -23, "regress": 239, "sha1": "0dd1d8e2"},
+ "linux-release/intl2/times/t": {"reva": 108452, "revb": 109117, "improve": 140, "regress": 344, "sha1": "2a7aa192"},
  "linux-release/morejs/times/t": {"reva": 105307, "revb": 105595, "improve": 32, "regress": 79, "sha1": "f0b0f169"},
  "linux-release/moz/times/t": {"reva": 99393, "revb": 100034, "improve": -40, "regress": 172, "sha1": "2cf4039f"},
  "linux-release/sizes/chrome-bss/bss": {"reva": 105307, "revb": 105336, "type": "absolute", "improve": 362825, "regress": 401052, "sha1": "ac6bb167"},
