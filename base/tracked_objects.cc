@@ -509,31 +509,6 @@ void ThreadData::TallyRunOnWorkerThreadIfTracking(
 }
 
 // static
-void ThreadData::TallyRunInAScopedRegionIfTracking(
-    const Births* birth,
-    const TrackedTime& start_of_run,
-    const TrackedTime& end_of_run) {
-  if (!kTrackAllTaskObjects)
-    return;  // Not compiled in.
-
-  // Even if we have been DEACTIVATED, we will process any pending births so
-  // that our data structures (which counted the outstanding births) remain
-  // consistent.
-  if (!birth)
-    return;
-
-  ThreadData* current_thread_data = Get();
-  if (!current_thread_data)
-    return;
-
-  Duration queue_duration = Duration();
-  Duration run_duration = end_of_run - start_of_run;
-  current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
-}
-
-
-
-// static
 ThreadData* ThreadData::first() {
   base::AutoLock lock(*list_lock_);
   return all_thread_data_list_head_;
