@@ -13,12 +13,15 @@
 
 #include "base/base_export.h"
 #include "base/location.h"
-#include "base/profiler/tracked_time.h"
 #include "base/time.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_local_storage.h"
 #include "base/tracking_info.h"
 #include "base/values.h"
+
+#if defined(OS_WIN)
+#include <mmsystem.h>  // Declare timeGetTime();
+#endif
 
 // TrackedObjects provides a database of stats about objects (generally Tasks)
 // that are tracked.  Tracking means their birth, death, duration, birth thread,
@@ -168,6 +171,96 @@
 class MessageLoop;
 
 namespace tracked_objects {
+
+//------------------------------------------------------------------------------
+
+#define USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS
+
+#if defined(USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS)
+
+// TimeTicks maintains a wasteful 64 bits of data (we need less than 32), and on
+// windows, a 64 bit timer is expensive to even obtain. We use a simple
+// millisecond counter for most of our time values, as well as millisecond units
+// of duration between those values.  This means we can only handle durations
+// up to 49 days (range), or 24 days (non-negative time durations).
+// We only define enough methods to service the needs of the tracking classes,
+// and our interfaces are modeled after what TimeTicks and TimeDelta use (so we
+// can swap them into place if we want to use the "real" classes).
+
+class BASE_EXPORT Duration {  // Similar to base::TimeDelta.
+ public:
+  Duration() : ms_(0) {}
+
+  Duration& operator+=(const Duration& other) {
+    ms_ += other.ms_;
+    return *this;
+  }
+
+  Duration operator+(const Duration& other) const {
+    return Duration(ms_ + other.ms_);
+  }
+
+  bool operator==(const Duration& other) const { return ms_ == other.ms_; }
+  bool operator!=(const Duration& other) const { return ms_ != other.ms_; }
+  bool operator>(const Duration& other) const { return ms_ > other.ms_; }
+
+  static Duration FromMilliseconds(int ms) { return Duration(ms); }
+
+  int32 InMilliseconds() const { return ms_; }
+
+ private:
+  friend class TrackedTime;
+  explicit Duration(int32 duration) : ms_(duration) {}
+
+  // Internal time is stored directly in milliseconds.
+  int32 ms_;
+};
+
+class BASE_EXPORT TrackedTime {  // Similar to base::TimeTicks.
+ public:
+  TrackedTime() : ms_(0) {}
+  explicit TrackedTime(const base::TimeTicks& time)
+      : ms_((time - base::TimeTicks()).InMilliseconds()) {
+  }
+
+  static TrackedTime Now() {
+#if defined(OS_WIN)
+    // Use lock-free accessor to 32 bit time.
+    // Note that TimeTicks::Now() is built on this, so we have "compatible"
+    // times when we down-convert a TimeTicks sample.
+    // TODO(jar): Surface this interface via something in base/time.h.
+    return TrackedTime(static_cast<int32>(::timeGetTime()));
+#else
+    // Posix has nice cheap 64 bit times, so we just down-convert it.
+    return TrackedTime(base::TimeTicks::Now());
+#endif  // OS_WIN
+  }
+
+  Duration operator-(const TrackedTime& other) const {
+    return Duration(ms_ - other.ms_);
+  }
+
+  TrackedTime operator+(const Duration& other) const {
+    return TrackedTime(ms_ + other.ms_);
+  }
+
+  bool is_null() const { return ms_ == 0; }
+
+ private:
+  friend class Duration;
+  explicit TrackedTime(int32 ms) : ms_(ms) {}
+
+  // Internal duration is stored directly in milliseconds.
+  uint32 ms_;
+};
+
+#else
+
+// Just use full 64 bit time calculations, and the slower TimeTicks::Now().
+typedef base::TimeTicks TrackedTime;
+typedef base::TimeDelta Duration;
+
+#endif  // USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS
 
 //------------------------------------------------------------------------------
 // For a specific thread, and a specific birth place, the collection of all
@@ -620,17 +713,9 @@ class BASE_EXPORT ThreadData {
       const TrackedTime& start_of_run,
       const TrackedTime& end_of_run);
 
-  // Record the end of execution in region, generally corresponding to a scope
-  // being exited.
-  static void TallyRunInAScopedRegionIfTracking(
-      const Births* birth,
-      const TrackedTime& start_of_run,
-      const TrackedTime& end_of_run);
-
   const std::string thread_name() const { return thread_name_; }
 
   // ---------------------
-  // TODO(jar):
   // The following functions should all be private, and are only public because
   // the collection is done externally.  We need to relocate that code from the
   // collection class into this class, and then all these methods can be made
