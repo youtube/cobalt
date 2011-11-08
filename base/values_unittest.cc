@@ -702,4 +702,41 @@ TEST(ValuesTest, MergeDictionary) {
   EXPECT_EQ("sub_merge_key_value_merge", sub_merge_key_value); // Merged in.
 }
 
+TEST(ValuesTest, DictionaryIterator) {
+  DictionaryValue dict;
+  for (DictionaryValue::Iterator it(dict); it.HasNext(); it.Advance()) {
+    ADD_FAILURE();
+  }
+
+  StringValue value1("value1");
+  dict.Set("key1", value1.DeepCopy());
+  bool seen1 = false;
+  for (DictionaryValue::Iterator it(dict); it.HasNext(); it.Advance()) {
+    EXPECT_FALSE(seen1);
+    EXPECT_EQ("key1", it.key());
+    EXPECT_TRUE(value1.Equals(&it.value()));
+    seen1 = true;
+  }
+  EXPECT_TRUE(seen1);
+
+  StringValue value2("value2");
+  dict.Set("key2", value2.DeepCopy());
+  bool seen2 = seen1 = false;
+  for (DictionaryValue::Iterator it(dict); it.HasNext(); it.Advance()) {
+    if (it.key() == "key1") {
+      EXPECT_FALSE(seen1);
+      EXPECT_TRUE(value1.Equals(&it.value()));
+      seen1 = true;
+    } else if (it.key() == "key2") {
+      EXPECT_FALSE(seen2);
+      EXPECT_TRUE(value2.Equals(&it.value()));
+      seen2 = true;
+    } else {
+      ADD_FAILURE();
+    }
+  }
+  EXPECT_TRUE(seen1);
+  EXPECT_TRUE(seen2);
+}
+
 }  // namespace base
