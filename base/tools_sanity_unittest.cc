@@ -123,12 +123,37 @@ TEST(ToolsSanityTest, SingleElementDeletedWithBraces) {
 }
 
 #ifdef ADDRESS_SANITIZER
-TEST(ToolsSanityTest, DISABLED_AddressSanitizerCrashTest) {
+TEST(ToolsSanityTest, DISABLED_AddressSanitizerNullDerefCrashTest) {
   // Intentionally crash to make sure AddressSanitizer is running.
   // This test should not be ran on bots.
   int* volatile zero = NULL;
   *zero = 0;
 }
+
+TEST(ToolsSanityTest, DISABLED_AddressSanitizerLocalOOBCrashTest) {
+  // Intentionally crash to make sure AddressSanitizer is instrumenting
+  // the local variables.
+  // This test should not be ran on bots.
+  int array[5];
+  // Work around the OOB warning reported by Clang.
+  int* volatile access = &array[5];
+  *access = 43;
+}
+
+namespace {
+int g_asan_test_global_array[10];
+}  // namespace
+
+TEST(ToolsSanityTest, DISABLED_AddressSanitizerGlobalOOBCrashTest) {
+  // Intentionally crash to make sure AddressSanitizer is instrumenting
+  // the global variables.
+  // This test should not be ran on bots.
+
+  // Work around the OOB warning reported by Clang.
+  int* volatile access = g_asan_test_global_array - 1;
+  *access = 43;
+}
+
 #endif
 
 namespace {
