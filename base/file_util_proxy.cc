@@ -176,6 +176,19 @@ class CreateTemporaryHelper {
   DISALLOW_COPY_AND_ASSIGN(CreateTemporaryHelper);
 };
 
+PlatformFileError DeleteHelper(const FilePath& file_path, bool recursive) {
+  if (!file_util::PathExists(file_path)) {
+    return PLATFORM_FILE_ERROR_NOT_FOUND;
+  }
+  if (!file_util::Delete(file_path, recursive)) {
+    if (!recursive && !file_util::IsDirectoryEmpty(file_path)) {
+      return PLATFORM_FILE_ERROR_NOT_EMPTY;
+    }
+    return PLATFORM_FILE_ERROR_FAILED;
+  }
+  return PLATFORM_FILE_OK;
+}
+
 class GetFileInfoHelper {
  public:
   GetFileInfoHelper()
@@ -284,19 +297,6 @@ PlatformFileError CloseAdapter(PlatformFile file_handle) {
   return PLATFORM_FILE_OK;
 }
 
-PlatformFileError DeleteAdapter(const FilePath& file_path, bool recursive) {
-  if (!file_util::PathExists(file_path)) {
-    return PLATFORM_FILE_ERROR_NOT_FOUND;
-  }
-  if (!file_util::Delete(file_path, recursive)) {
-    if (!recursive && !file_util::IsDirectoryEmpty(file_path)) {
-      return PLATFORM_FILE_ERROR_NOT_EMPTY;
-    }
-    return PLATFORM_FILE_ERROR_FAILED;
-  }
-  return PLATFORM_FILE_OK;
-}
-
 }  // namespace
 
 // static
@@ -367,10 +367,10 @@ bool FileUtilProxy::Delete(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                            const FilePath& file_path,
                            bool recursive,
                            const StatusCallback& callback) {
-  return RelayFileTask(
+  return PostTaskAndReplyWithStatus<PlatformFileError>(
       message_loop_proxy, FROM_HERE,
-      Bind(&DeleteAdapter, file_path, recursive),
-      callback);
+      Bind(&DeleteHelper, file_path, recursive), callback,
+      new PlatformFileError);
 }
 
 // static
@@ -378,10 +378,10 @@ bool FileUtilProxy::RecursiveDelete(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     const FilePath& file_path,
     const StatusCallback& callback) {
-  return RelayFileTask(
+  return PostTaskAndReplyWithStatus<PlatformFileError>(
       message_loop_proxy, FROM_HERE,
-      Bind(&DeleteAdapter, file_path, true /* recursive */),
-      callback);
+      Bind(&DeleteHelper, file_path, true /* recursive */), callback,
+      new PlatformFileError);
 }
 
 // static
@@ -469,19 +469,6 @@ bool FileUtilProxy::Flush(
       message_loop_proxy, FROM_HERE,
       Bind(&FlushPlatformFile, file), callback,
       new PlatformFileError);
-}
-
-// static
-bool FileUtilProxy::RelayFileTask(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    const tracked_objects::Location& from_here,
-    const FileTask& file_task,
-    const StatusCallback& callback) {
-  PlatformFileError* result = new PlatformFileError;
-  return message_loop_proxy->PostTaskAndReply(
-      from_here,
-      ReturnAsParam(file_task, result),
-      ReplyHelper(callback, Owned(result)));
 }
 
 // static
