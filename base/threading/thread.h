@@ -122,7 +122,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
     return message_loop_->message_loop_proxy();
   }
 
-  // Set the name of this thread (for display in debugger too).
+  // Returns the name of this thread (for display in debugger too).
   const std::string &thread_name() { return name_; }
 
   // The native thread handle.
