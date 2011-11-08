@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "net/base/capturing_net_log.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_log.h"
