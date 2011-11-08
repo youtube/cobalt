@@ -111,6 +111,17 @@ class SyncProxyResolver : public ProxyResolver {
     NOTREACHED();
   }
 
+  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
+  }
+
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
+  }
+
   virtual void Shutdown() OVERRIDE {
     host_resolver_->Shutdown();
   }

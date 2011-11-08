@@ -76,6 +76,9 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
                              RequestHandle* request_handle,
                              const BoundNetLog& /*net_log*/) OVERRIDE;
   virtual void CancelRequest(RequestHandle request_handle) OVERRIDE;
+  virtual LoadState GetLoadState(RequestHandle request_handle) const OVERRIDE;
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request_handle) const OVERRIDE;
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
       OldCompletionCallback* callback) OVERRIDE;

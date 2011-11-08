@@ -11,6 +11,7 @@
 #include "base/string16.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
+#include "net/base/load_states.h"
 #include "net/base/net_export.h"
 #include "net/proxy/proxy_resolver_script_data.h"
 
@@ -48,6 +49,12 @@ class NET_EXPORT_PRIVATE ProxyResolver {
 
   // Cancels |request|.
   virtual void CancelRequest(RequestHandle request) = 0;
+
+  // Gets the LoadState for |request|.
+  virtual LoadState GetLoadState(RequestHandle request) const = 0;
+
+  // Gets the LoadState for |request|. May be called from another thread.
+  virtual LoadState GetLoadStateThreadSafe(RequestHandle request) const = 0;
 
   // The PAC script backend can be specified to the ProxyResolver either via
   // URL, or via the javascript text itself.  If |expects_pac_bytes| is true,

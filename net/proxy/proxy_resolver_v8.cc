@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
@@ -335,7 +336,8 @@ bool IsInNetEx(const std::string& ip_address, const std::string& ip_prefix) {
 class ProxyResolverV8::Context {
  public:
   explicit Context(ProxyResolverJSBindings* js_bindings)
-      : js_bindings_(js_bindings) {
+      : is_resolving_host_(false),
+        js_bindings_(js_bindings) {
     DCHECK(js_bindings != NULL);
   }
 
@@ -495,7 +497,40 @@ class ProxyResolverV8::Context {
       ;
   }
 
+  bool is_resolving_host() const {
+    base::AutoLock auto_lock(lock_);
+    return is_resolving_host_;
+  }
+
  private:
+  class ScopedHostResolve {
+   public:
+    explicit ScopedHostResolve(Context* context)
+        : context_(context) {
+      context_->BeginHostResolve();
+    }
+
+    ~ScopedHostResolve() {
+      context_->EndHostResolve();
+    }
+
+   private:
+    Context* const context_;
+    DISALLOW_COPY_AND_ASSIGN(ScopedHostResolve);
+  };
+
+  void BeginHostResolve() {
+    base::AutoLock auto_lock(lock_);
+    DCHECK(!is_resolving_host_);
+    is_resolving_host_ = true;
+  }
+
+  void EndHostResolve() {
+    base::AutoLock auto_lock(lock_);
+    DCHECK(is_resolving_host_);
+    is_resolving_host_ = false;
+  }
+
   bool GetFindProxyForURL(v8::Local<v8::Value>* function) {
     *function = v8_context_->Global()->Get(
         ASCIILiteralToV8String("FindProxyForURL"));
@@ -566,6 +601,7 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
+      ScopedHostResolve scoped_host_resolve(context);
 
       // We shouldn't be called with any arguments, but will not complain if
       // we are.
@@ -588,6 +624,7 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
+      ScopedHostResolve scoped_host_resolve(context);
 
       // We shouldn't be called with any arguments, but will not complain if
       // we are.
@@ -614,6 +651,7 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
+      ScopedHostResolve scoped_host_resolve(context);
       success = context->js_bindings_->DnsResolve(hostname, &ip_address);
     }
 
@@ -635,6 +673,7 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
+      ScopedHostResolve scoped_host_resolve(context);
       success = context->js_bindings_->DnsResolveEx(hostname, &ip_address_list);
     }
 
@@ -677,6 +716,8 @@ class ProxyResolverV8::Context {
     return IsInNetEx(ip_address, ip_prefix) ? v8::True() : v8::False();
   }
 
+  mutable base::Lock lock_;
+  bool is_resolving_host_;
   ProxyResolverJSBindings* js_bindings_;
   v8::Persistent<v8::External> v8_this_;
   v8::Persistent<v8::Context> v8_context_;
@@ -726,6 +767,17 @@ int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
 void ProxyResolverV8::CancelRequest(RequestHandle request) {
   // This is a synchronous ProxyResolver; no possibility for async requests.
   NOTREACHED();
+}
+
+LoadState ProxyResolverV8::GetLoadState(RequestHandle request) const {
+  NOTREACHED();
+  return LOAD_STATE_IDLE;
+}
+
+LoadState ProxyResolverV8::GetLoadStateThreadSafe(RequestHandle request) const {
+  if (context_->is_resolving_host())
+    return LOAD_STATE_RESOLVING_HOST_IN_PROXY_SCRIPT;
+  return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
 }
 
 void ProxyResolverV8::CancelSetPacScript() {
