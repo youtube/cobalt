@@ -40,10 +40,13 @@ enum LoadState {
   LOAD_STATE_WAITING_FOR_APPCACHE,
 
   // This state corresponds to a resource load that is blocked waiting for a
-  // proxy autoconfig script to return a proxy server to use.  This state may
-  // take a while if the proxy script needs to resolve the IP address of the
-  // host before deciding what proxy to use.
+  // proxy autoconfig script to return a proxy server to use.
   LOAD_STATE_RESOLVING_PROXY_FOR_URL,
+
+  // This state corresponds to a resource load that is blocked waiting for a
+  // proxy autoconfig script to return a proxy server to use, but that proxy
+  // script is busy resolving the IP address of a host.
+  LOAD_STATE_RESOLVING_HOST_IN_PROXY_SCRIPT,
 
   // This state indicates that we're in the process of establishing a tunnel
   // through the proxy server.
