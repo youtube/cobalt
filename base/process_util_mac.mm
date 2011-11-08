@@ -555,6 +555,11 @@ void CrMallocErrorBreak() {
 }  // namespace
 
 void EnableTerminationOnHeapCorruption() {
+#ifdef ADDRESS_SANITIZER
+  // Don't do anything special on heap corruption, because it should be handled
+  // by AddressSanitizer.
+  return;
+#endif
   malloc_error_break_t malloc_error_break = LookUpMallocErrorBreak();
   if (!malloc_error_break) {
     DLOG(WARNING) << "Could not find malloc_error_break";
