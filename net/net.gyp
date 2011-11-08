@@ -1310,6 +1310,7 @@
         'net',
         '../base/base.gyp:base',
         '../base/base.gyp:test_support_base',
+        '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
       ],
       'sources': [
