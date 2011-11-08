@@ -62,6 +62,17 @@ class MockProxyResolver : public ProxyResolver {
     NOTREACHED();
   }
 
+  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
+  }
+
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
+  }
+
   virtual void CancelSetPacScript() OVERRIDE {
     NOTREACHED();
   }
@@ -173,6 +184,17 @@ class ForwardingProxyResolver : public ProxyResolver {
 
   virtual void CancelRequest(RequestHandle request) OVERRIDE {
     impl_->CancelRequest(request);
+  }
+
+  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
+  }
+
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
   }
 
   virtual void CancelSetPacScript() OVERRIDE {

@@ -51,6 +51,9 @@ class NET_EXPORT_PRIVATE ProxyResolverV8 : public ProxyResolver {
                              RequestHandle* /*request*/,
                              const BoundNetLog& net_log) OVERRIDE;
   virtual void CancelRequest(RequestHandle request) OVERRIDE;
+  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE;
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request) const OVERRIDE;
   virtual void CancelSetPacScript() OVERRIDE;
   virtual void PurgeMemory() OVERRIDE;
   virtual void Shutdown() OVERRIDE;
