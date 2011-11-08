@@ -81,7 +81,7 @@
 // thread, so the memory utilization is actually fairly restrained.
 //
 // Lastly, when an instance is deleted, the final tallies of statistics are
-// carefully accumulated.  That tallying wrties into slots (members) in a
+// carefully accumulated.  That tallying writes into slots (members) in a
 // collection of DeathData instances.  For each birth place Location that is
 // destroyed on a thread, there is a DeathData instance to record the additional
 // death count, as well as accumulate the run-time and queue-time durations for
@@ -118,13 +118,13 @@
 //
 // The above description tries to define the high performance (run time)
 // portions of these classes.  After gathering statistics, calls instigated
-// by visiting about:tracking will assemble and aggregate data for display. The
+// by visiting about:tracking will assemble and aggregate data for display.  The
 // following data structures are used for producing such displays.  They are
 // not performance critical, and their only major constraint is that they should
 // be able to run concurrently with ongoing augmentation of the birth and death
 // data.
 //
-// For a given birth location, information about births are spread across data
+// For a given birth location, information about births is spread across data
 // structures that are asynchronously changing on various threads.  For display
 // purposes, we need to construct Snapshot instances for each combination of
 // birth thread, death thread, and location, along with the count of such
@@ -137,17 +137,17 @@
 // A DataCollector is a container object that holds a set of Snapshots. The
 // statistics in a snapshot are gathered asynhcronously relative to their
 // ongoing updates.  It is possible, though highly unlikely, that stats such
-// as a 64bit counter could incorrectly recorded by this process. The advantage
-// to having fast (non-atomic) updates of the data outweighs the minimal risk
-// of a singular corrupt statistic snapshot (only the snapshot could be corrupt,
-// not the underlying and ongoing stistic).  In constrast, pointer data that is
-// accessed during snapshotting is completely invariant, and hence is perfectly
-// acquired (i.e., no potential corruption, and no risk of a bad memory
-// reference).
+// as a 64bit counter could be incorrectly recorded by this process.  The
+// advantage to having fast (non-atomic) updates of the data outweighs the
+// minimal risk of a singular corrupt statistic snapshot (only the snapshot
+// could be corrupt, not the underlying and ongoing statistic).  In constrast,
+// pointer data that is accessed during snapshotting is completely invariant,
+// and hence is perfectly acquired (i.e., no potential corruption, and no risk
+// of a bad memory reference).
 //
-// After an array of Snapshots instances are colleted into a DataCollector, they
-// need to be prepared for display our output. We currently implement a direct
-// renderin to HTML, but we will soon also have a JSON serialization as well.
+// After an array of Snapshots instances are collected into a DataCollector,
+// they need to be prepared for displaying our output.  We currently implement a
+// direct rendering to HTML, but we will soon have a JSON serialization as well.
 
 // For direct HTML display, the data must be sorted, and possibly aggregated
 // (example: how many threads are in a specific consecutive set of Snapshots?
@@ -158,7 +158,7 @@
 // TODO(jar): I need to store DataCollections, and provide facilities for taking
 // the difference between two gathered DataCollections.  For now, I'm just
 // adding a hack that Reset()s to zero all counts and stats.  This is also
-// done in a slighly thread-unsafe fashion, as the reseting is done
+// done in a slighly thread-unsafe fashion, as the resetting is done
 // asynchronously relative to ongoing updates (but all data is 32 bit in size).
 // For basic profiling, this will work "most of the time," and should be
 // sufficient... but storing away DataCollections is the "right way" to do this.
