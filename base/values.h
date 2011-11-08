@@ -342,6 +342,24 @@ class BASE_EXPORT DictionaryValue : public Value {
   key_iterator begin_keys() const { return key_iterator(dictionary_.begin()); }
   key_iterator end_keys() const { return key_iterator(dictionary_.end()); }
 
+  // This class provides an iterator over both keys and values in the
+  // dictionary.  It can't be used to modify the dictionary.
+  class Iterator {
+   public:
+    explicit Iterator(const DictionaryValue& target)
+        : target_(target), it_(target.dictionary_.begin()) {}
+
+    bool HasNext() const { return it_ != target_.dictionary_.end(); }
+    void Advance() { ++it_; }
+
+    const std::string& key() const { return it_->first; }
+    const Value& value() const { return *it_->second; }
+
+   private:
+    const DictionaryValue& target_;
+    ValueMap::const_iterator it_;
+  };
+
   // Overridden from Value:
   virtual DictionaryValue* DeepCopy() const OVERRIDE;
   virtual bool Equals(const Value* other) const OVERRIDE;
