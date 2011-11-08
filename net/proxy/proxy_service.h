@@ -14,6 +14,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/completion_callback.h"
+#include "net/base/load_states.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
@@ -104,6 +105,9 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
 
   // Call this method with a non-null |pac_request| to cancel the PAC request.
   void CancelPacRequest(PacRequest* pac_request);
+
+  // Returns the LoadState for this |pac_request| which must be non-NULL.
+  LoadState GetLoadState(const PacRequest* pac_request) const;
 
   // Sets the ProxyScriptFetcher and DhcpProxyScriptFetcher dependencies. This
   // is needed if the ProxyResolver is of type ProxyResolverWithoutFetch.

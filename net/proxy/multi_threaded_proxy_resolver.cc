@@ -457,6 +457,22 @@ void MultiThreadedProxyResolver::CancelRequest(RequestHandle req) {
   }
 }
 
+LoadState MultiThreadedProxyResolver::GetLoadState(RequestHandle req) const {
+  DCHECK(CalledOnValidThread());
+  DCHECK(req);
+
+  Job* job = reinterpret_cast<Job*>(req);
+  if (job->executor())
+    return job->executor()->resolver()->GetLoadStateThreadSafe(NULL);
+  return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
+}
+
+LoadState MultiThreadedProxyResolver::GetLoadStateThreadSafe(
+    RequestHandle req) const {
+  NOTIMPLEMENTED();
+  return LOAD_STATE_IDLE;
+}
+
 void MultiThreadedProxyResolver::CancelSetPacScript() {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(0u, pending_jobs_.size());

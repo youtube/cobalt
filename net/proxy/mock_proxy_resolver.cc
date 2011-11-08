@@ -77,6 +77,18 @@ void MockAsyncProxyResolverBase::CancelRequest(RequestHandle request_handle) {
   RemovePendingRequest(request);
 }
 
+LoadState MockAsyncProxyResolverBase::GetLoadState(
+    RequestHandle request_handle) const {
+  NOTREACHED();
+  return LOAD_STATE_IDLE;
+}
+
+LoadState MockAsyncProxyResolverBase::GetLoadStateThreadSafe(
+    RequestHandle request_handle) const {
+  NOTREACHED();
+  return LOAD_STATE_IDLE;
+}
+
 int MockAsyncProxyResolverBase::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
     OldCompletionCallback* callback) {
