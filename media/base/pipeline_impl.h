@@ -475,6 +475,9 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
 
   // Statistics.
   PipelineStatistics statistics_;
+  // Time of pipeline creation; is non-zero only until the pipeline first
+  // reaches "kStarted", at which point it is used & zeroed out.
+  base::Time creation_time_;
 
   FRIEND_TEST_ALL_PREFIXES(PipelineImplTest, GetBufferedTime);
 

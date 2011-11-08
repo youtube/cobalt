@@ -13,7 +13,10 @@
 namespace media {
 
 enum AudioCodec {
-  kUnknownAudioCodec,
+  // These values are histogrammed over time; do not change their ordinal
+  // values.  When deleting a codec replace it with a dummy value; when adding a
+  // codec, do so at the bottom (and update kAudioCodecMax).
+  kUnknownAudioCodec = 0,
   kCodecAAC,
   kCodecMP3,
   kCodecPCM,
@@ -28,6 +31,8 @@ enum AudioCodec {
   //
   // The only acceptable time to add a new codec is if there is production code
   // that uses said codec in the same CL.
+
+  kAudioCodecMax = kCodecPCM_MULAW  // Must equal the last "real" codec above.
 };
 
 class MEDIA_EXPORT AudioDecoderConfig {
