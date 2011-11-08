@@ -152,7 +152,7 @@ int HttpStreamFactoryImpl::Job::RestartTunnelWithProxyAuth(
 LoadState HttpStreamFactoryImpl::Job::GetLoadState() const {
   switch (next_state_) {
     case STATE_RESOLVE_PROXY_COMPLETE:
-      return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
+      return session_->proxy_service()->GetLoadState(pac_request_);
     case STATE_CREATE_STREAM_COMPLETE:
       return connection_->GetLoadState();
     case STATE_INIT_CONNECTION_COMPLETE:

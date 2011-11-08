@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -122,6 +122,16 @@ int ProxyResolverWinHttp::GetProxyForURL(const GURL& query_url,
 void ProxyResolverWinHttp::CancelRequest(RequestHandle request) {
   // This is a synchronous ProxyResolver; no possibility for async requests.
   NOTREACHED();
+}
+
+LoadState ProxyResolverWinHttp::GetLoadState(RequestHandle request) const {
+  NOTREACHED();
+  return LOAD_STATE_IDLE;
+}
+
+LoadState ProxyResolverWinHttp::GetLoadStateThreadSafe(
+    RequestHandle request) const {
+  return LOAD_STATE_IDLE;
 }
 
 void ProxyResolverWinHttp::CancelSetPacScript() {

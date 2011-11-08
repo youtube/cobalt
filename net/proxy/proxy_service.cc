@@ -118,6 +118,17 @@ class ProxyResolverNull : public ProxyResolver {
     NOTREACHED();
   }
 
+  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
+  }
+
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
+  }
+
   virtual void CancelSetPacScript() OVERRIDE {
     NOTREACHED();
   }
@@ -148,6 +159,17 @@ class ProxyResolverFromPacString : public ProxyResolver {
 
   virtual void CancelRequest(RequestHandle request) OVERRIDE {
     NOTREACHED();
+  }
+
+  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
+  }
+
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
   }
 
   virtual void CancelSetPacScript() OVERRIDE {
@@ -381,6 +403,12 @@ class ProxyService::PacRequest
   }
 
   BoundNetLog* net_log() { return &net_log_; }
+
+  LoadState GetLoadState() const {
+    if (is_started())
+      return resolver()->GetLoadState(resolve_job_);
+    return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
+  }
 
  private:
   friend class base::RefCounted<ProxyService::PacRequest>;
@@ -777,6 +805,11 @@ void ProxyService::CancelPacRequest(PacRequest* req) {
   DCHECK(req);
   req->Cancel();
   RemovePendingRequest(req);
+}
+
+LoadState ProxyService::GetLoadState(const PacRequest* req) const {
+  CHECK(req);
+  return req->GetLoadState();
 }
 
 bool ProxyService::ContainsPendingRequest(PacRequest* req) {
