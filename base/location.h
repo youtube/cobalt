@@ -72,11 +72,13 @@ class BASE_EXPORT Location {
 BASE_EXPORT const void* GetProgramCounter();
 
 // Define a macro to record the current source location.
-#define FROM_HERE tracked_objects::Location(                                   \
-    __FUNCTION__,                                                              \
-    __FILE__,                                                                  \
-    __LINE__,                                                                  \
-    tracked_objects::GetProgramCounter())                                      \
+#define FROM_HERE FROM_HERE_WITH_EXPLICIT_FUNCTION(__FUNCTION__)
+
+#define FROM_HERE_WITH_EXPLICIT_FUNCTION(function_name)                        \
+    ::tracked_objects::Location(function_name,                                 \
+                                __FILE__,                                      \
+                                __LINE__,                                      \
+                                ::tracked_objects::GetProgramCounter())
 
 }  // namespace tracked_objects
 
