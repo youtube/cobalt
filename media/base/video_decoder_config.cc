@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "media/base/limits.h"
 
 namespace media {
@@ -39,8 +40,25 @@ VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
 
 VideoDecoderConfig::~VideoDecoderConfig() {}
 
-void VideoDecoderConfig::Initialize(VideoCodec codec,
-                                    VideoFrame::Format format,
+// Common aspect ratios (multiplied by 100 and truncated) used for histogramming
+// video sizes.  These were taken on 20111103 from
+// http://wikipedia.org/wiki/Aspect_ratio_(image)#Previous_and_currently_used_aspect_ratios
+static const int kCommonAspectRatios100[] = {
+  100, 115, 133, 137, 143, 150, 155, 160, 166, 175, 177, 185, 200, 210, 220,
+  221, 235, 237, 240, 255, 259, 266, 276, 293, 400, 1200,
+};
+
+template<class T>  // T has int width() & height() methods.
+static void UmaHistogramAspectRatio(const char* name, const T& size) {
+  UMA_HISTOGRAM_CUSTOM_ENUMERATION(
+      name,
+      // Intentionally use integer division to truncate the result.
+      (size.width() * 100) / size.height(),
+      base::CustomHistogram::ArrayToCustomRanges(
+          kCommonAspectRatios100, arraysize(kCommonAspectRatios100)));
+}
+
+void VideoDecoderConfig::Initialize(VideoCodec codec, VideoFrame::Format format,
                                     const gfx::Size& coded_size,
                                     const gfx::Rect& visible_rect,
                                     int frame_rate_numerator,
@@ -50,6 +68,12 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
                                     const uint8* extra_data,
                                     size_t extra_data_size) {
   CHECK((extra_data_size != 0) == (extra_data != NULL));
+
+  UMA_HISTOGRAM_ENUMERATION("Media.VideoCodec", codec, kVideoCodecMax + 1);
+  UMA_HISTOGRAM_COUNTS_10000("Media.VideoCodedWidth", coded_size.width());
+  UmaHistogramAspectRatio("Media.VideoCodedAspectRatio", coded_size);
+  UMA_HISTOGRAM_COUNTS_10000("Media.VideoVisibleWidth", visible_rect.width());
+  UmaHistogramAspectRatio("Media.VideoVisibleAspectRatio", visible_rect);
 
   codec_ = codec;
   format_ = format;

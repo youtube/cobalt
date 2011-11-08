@@ -12,6 +12,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/metrics/histogram.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/synchronization/condition_variable.h"
@@ -67,7 +68,8 @@ PipelineImpl::PipelineImpl(MessageLoop* message_loop, MediaLog* media_log)
       clock_(new Clock(&base::Time::Now)),
       waiting_for_clock_update_(false),
       state_(kCreated),
-      current_bytes_(0) {
+      current_bytes_(0),
+      creation_time_(base::Time::Now()) {
   media_log_->AddEvent(media_log_->CreatePipelineStateChangedEvent(kCreated));
   ResetState();
   media_log_->AddEvent(
@@ -372,6 +374,12 @@ void PipelineImpl::ResetState() {
 }
 
 void PipelineImpl::SetState(State next_state) {
+  if (state_ != kStarted && next_state == kStarted &&
+      !creation_time_.is_null()) {
+    UMA_HISTOGRAM_TIMES(
+        "Media.TimeToPipelineStarted", base::Time::Now() - creation_time_);
+    creation_time_ = base::Time();
+  }
   state_ = next_state;
   media_log_->AddEvent(media_log_->CreatePipelineStateChangedEvent(next_state));
 }
@@ -491,6 +499,7 @@ void PipelineImpl::SetDuration(base::TimeDelta duration) {
   media_log_->AddEvent(
       media_log_->CreateTimeEvent(
           MediaLogEvent::DURATION_SET, "duration", duration));
+  UMA_HISTOGRAM_LONG_TIMES("Media.Duration", duration);
 
   base::AutoLock auto_lock(lock_);
   duration_ = duration;
@@ -507,6 +516,11 @@ void PipelineImpl::SetTotalBytes(int64 total_bytes) {
   media_log_->AddEvent(
       media_log_->CreateIntegerEvent(
           MediaLogEvent::TOTAL_BYTES_SET, "total_bytes", total_bytes));
+  int64 total_mbytes = total_bytes >> 20;
+  if (total_mbytes > kint32max)
+    total_mbytes = kint32max;
+  UMA_HISTOGRAM_CUSTOM_COUNTS(
+      "Media.TotalMBytes", static_cast<int32>(total_mbytes), 1, kint32max, 50);
 
   base::AutoLock auto_lock(lock_);
   total_bytes_ = total_bytes;
