@@ -107,7 +107,7 @@ ProcessIterator::ProcessIterator(const ProcessFilter* filter)
   } while (!done && (try_num++ < max_tries));
 
   if (!done) {
-    DDLOG(ERROR) << "failed to collect the process list in a few tries";
+    DLOG(ERROR) << "failed to collect the process list in a few tries";
     kinfo_procs_.resize(0);
   }
 }
