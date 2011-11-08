@@ -4,10 +4,15 @@
 
 #include "net/base/mock_host_resolver.h"
 
+#include "base/bind.h"
+#include "base/location.h"
 #include "base/memory/ref_counted.h"
+#include "base/message_loop.h"
+#include "base/stl_util.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/threading/platform_thread.h"
+#include "net/base/host_cache.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
@@ -25,13 +30,11 @@ char* do_strdup(const char* src) {
 #endif
 }
 
-// Fills |*addrlist| with a socket address for |host_list| which should be a
-// comma-separated list of IPv4 or IPv6 literal(s) without enclosing brackets.
-// If |canonical_name| is non-empty it is used as the DNS canonical name for
-// the host. Returns OK on success, ERR_UNEXPECTED otherwise.
-int CreateIPAddressList(const std::string& host_list,
-                        const std::string& canonical_name,
-                        AddressList* addrlist) {
+}  // namespace
+
+int ParseAddressList(const std::string& host_list,
+                     const std::string& canonical_name,
+                     AddressList* addrlist) {
   *addrlist = AddressList();
   std::vector<std::string> addresses;
   base::SplitString(host_list, ',', &addresses);
@@ -54,85 +57,156 @@ int CreateIPAddressList(const std::string& host_list,
   return OK;
 }
 
-}  // namespace
+struct MockHostResolverBase::Request {
+  Request(const RequestInfo& req_info,
+          AddressList* addr,
+          OldCompletionCallback* cb)
+      : info(req_info), addresses(addr), callback(cb) {}
+  RequestInfo info;
+  AddressList* addresses;
+  OldCompletionCallback* callback;
+};
 
-MockHostResolverBase::~MockHostResolverBase() {}
-
-void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
-  synchronous_mode_ = false;
-
-  // At the root of the chain, map everything to localhost.
-  scoped_refptr<RuleBasedHostResolverProc> catchall(
-      new RuleBasedHostResolverProc(NULL));
-#if defined(OS_ANDROID)
-  // In Android emulator, the development machine's '127.0.0.1' is mapped to
-  // '10.0.2.2'.
-  catchall->AddRule("*", "10.0.2.2");
-#else
-  catchall->AddRule("*", "127.0.0.1");
-#endif
-
-  // Next add a rules-based layer the use controls.
-  rules_ = new RuleBasedHostResolverProc(catchall);
-
-  HostResolverProc* proc = rules_;
-
-  // Lastly add the provided interceptor to the front of the chain.
-  if (interceptor) {
-    interceptor->SetPreviousProc(proc);
-    proc = interceptor;
-  }
-
-  HostCache* cache = NULL;
-
-  if (use_caching_) {
-    cache = new HostCache(
-        100,  // max entries.
-        base::TimeDelta::FromMinutes(1),
-        base::TimeDelta::FromSeconds(0));
-  }
-
-  impl_.reset(new HostResolverImpl(proc, cache, 50u, 4u, NULL));
+MockHostResolverBase::~MockHostResolverBase() {
+  STLDeleteValues(&requests_);
 }
 
 int MockHostResolverBase::Resolve(const RequestInfo& info,
                                   AddressList* addresses,
                                   OldCompletionCallback* callback,
-                                  RequestHandle* out_req,
+                                  RequestHandle* handle,
                                   const BoundNetLog& net_log) {
-  if (synchronous_mode_) {
-    TestOldCompletionCallback sync_callback;
-    int rv = impl_->Resolve(info, addresses, &sync_callback, out_req, net_log);
-    if (rv == ERR_IO_PENDING) {
-      MessageLoop::ScopedNestableTaskAllower nestable(MessageLoop::current());
-      return sync_callback.WaitForResult();
-    }
+  DCHECK(CalledOnValidThread());
+  size_t id = next_request_id_++;
+  FOR_EACH_OBSERVER(Observer, observers_, OnStartResolution(id, info));
+  int rv = ResolveFromIPLiteralOrCache(info, addresses);
+  if (rv != ERR_DNS_CACHE_MISS) {
+    FOR_EACH_OBSERVER(Observer, observers_,
+                      OnFinishResolutionWithStatus(id, rv == OK, info));
     return rv;
   }
-  return impl_->Resolve(info, addresses, callback, out_req, net_log);
+  if (synchronous_mode_) {
+    return ResolveProc(id, info, addresses);
+  }
+  // Store the request for asynchronous resolution
+  Request* req = new Request(info, addresses, callback);
+  requests_[id] = req;
+  if (handle)
+    *handle = reinterpret_cast<RequestHandle>(id);
+  MessageLoop::current()->PostTask(FROM_HERE,
+                                   base::Bind(&MockHostResolverBase::ResolveNow,
+                                              AsWeakPtr(),
+                                              id));
+  return ERR_IO_PENDING;
 }
 
 int MockHostResolverBase::ResolveFromCache(const RequestInfo& info,
                                            AddressList* addresses,
                                            const BoundNetLog& net_log) {
-  return impl_->ResolveFromCache(info, addresses, net_log);
+  DCHECK(CalledOnValidThread());
+  size_t id = next_request_id_++;
+  FOR_EACH_OBSERVER(Observer, observers_, OnStartResolution(id, info));
+  int rv = ResolveFromIPLiteralOrCache(info, addresses);
+  FOR_EACH_OBSERVER(Observer, observers_,
+                    OnFinishResolutionWithStatus(id, rv == OK, info));
+  return rv;
 }
 
-void MockHostResolverBase::CancelRequest(RequestHandle req) {
-  impl_->CancelRequest(req);
+void MockHostResolverBase::CancelRequest(RequestHandle handle) {
+  DCHECK(CalledOnValidThread());
+  size_t id = reinterpret_cast<size_t>(handle);
+  RequestMap::iterator it = requests_.find(id);
+  if (it != requests_.end()) {
+    scoped_ptr<Request> req(it->second);
+    requests_.erase(it);
+    FOR_EACH_OBSERVER(Observer, observers_, OnCancelResolution(id, req->info));
+  }
 }
 
 void MockHostResolverBase::AddObserver(Observer* observer) {
-  impl_->AddObserver(observer);
+  DCHECK(CalledOnValidThread());
+  observers_.AddObserver(observer);
 }
 
 void MockHostResolverBase::RemoveObserver(Observer* observer) {
-  impl_->RemoveObserver(observer);
+  DCHECK(CalledOnValidThread());
+  observers_.RemoveObserver(observer);
 }
 
+HostCache* MockHostResolverBase::GetHostCache() {
+  return cache_.get();
+}
+
+// start id from 1 to distinguish from NULL RequestHandle
 MockHostResolverBase::MockHostResolverBase(bool use_caching)
-    : use_caching_(use_caching) {
-  Reset(NULL);
+    : synchronous_mode_(false), next_request_id_(1) {
+  rules_ = CreateCatchAllHostResolverProc();
+  proc_ = rules_;
+
+  if (use_caching) {
+    cache_.reset(new HostCache(
+        100,  // max entries.
+        base::TimeDelta::FromMinutes(1),
+        base::TimeDelta::FromSeconds(0)));
+  }
+  STLDeleteValues(&requests_);
+}
+
+int MockHostResolverBase::ResolveFromIPLiteralOrCache(const RequestInfo& info,
+                                                      AddressList* addresses) {
+  IPAddressNumber ip;
+  if (ParseIPLiteralToNumber(info.hostname(), &ip)) {
+    *addresses = AddressList::CreateFromIPAddressWithCname(
+        ip, info.port(), info.host_resolver_flags() & HOST_RESOLVER_CANONNAME);
+    return OK;
+  }
+  int rv = ERR_DNS_CACHE_MISS;
+  if (cache_.get() && info.allow_cached_response()) {
+    HostCache::Key key(info.hostname(),
+                       info.address_family(),
+                       info.host_resolver_flags());
+    const HostCache::Entry* entry = cache_->Lookup(key, base::TimeTicks::Now());
+    if (entry) {
+      rv = entry->error;
+      if (rv == OK)
+        *addresses = CreateAddressListUsingPort(entry->addrlist, info.port());
+    }
+  }
+  return rv;
+}
+
+int MockHostResolverBase::ResolveProc(size_t id,
+                                      const RequestInfo& info,
+                                      AddressList* addresses) {
+  AddressList addr;
+  int rv = proc_->Resolve(info.hostname(),
+                          info.address_family(),
+                          info.host_resolver_flags(),
+                          &addr,
+                          NULL);
+  if (cache_.get()) {
+    HostCache::Key key(info.hostname(),
+                       info.address_family(),
+                       info.host_resolver_flags());
+    cache_->Set(key, rv, addr, base::TimeTicks::Now());
+  }
+  if (rv == OK)
+    *addresses = CreateAddressListUsingPort(addr, info.port());
+  FOR_EACH_OBSERVER(Observer, observers_,
+                    OnFinishResolutionWithStatus(id, rv == OK, info));
+  return rv;
+}
+
+void MockHostResolverBase::ResolveNow(size_t id) {
+  RequestMap::iterator it = requests_.find(id);
+  if (it == requests_.end())
+    return;  // was canceled
+
+  scoped_ptr<Request> req(it->second);
+  requests_.erase(it);
+  int rv = ResolveProc(id, req->info, req->addresses);
+  if (req->callback)
+    req->callback->Run(rv);
 }
 
 //-----------------------------------------------------------------------------
@@ -273,9 +347,9 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
                                         host_resolver_flags,
                                         addrlist, os_error);
         case Rule::kResolverTypeIPLiteral:
-          return CreateIPAddressList(effective_host,
-                                     r->canonical_name,
-                                     addrlist);
+          return ParseAddressList(effective_host,
+                                  r->canonical_name,
+                                  addrlist);
         default:
           NOTREACHED();
           return ERR_UNEXPECTED;
@@ -289,26 +363,35 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
 RuleBasedHostResolverProc::~RuleBasedHostResolverProc() {
 }
 
+RuleBasedHostResolverProc* CreateCatchAllHostResolverProc() {
+  RuleBasedHostResolverProc* catchall = new RuleBasedHostResolverProc(NULL);
+#if defined(OS_ANDROID)
+  // In Android emulator, the development machine's '127.0.0.1' is mapped to
+  // '10.0.2.2'.
+  catchall->AddIPLiteralRule("*", "10.0.2.2", "localhost");
+#else
+  catchall->AddIPLiteralRule("*", "127.0.0.1", "localhost");
+#endif
+
+  // Next add a rules-based layer the use controls.
+  return new RuleBasedHostResolverProc(catchall);
+}
+
 //-----------------------------------------------------------------------------
 
-WaitingHostResolverProc::WaitingHostResolverProc(HostResolverProc* previous)
-    : HostResolverProc(previous), event_(false, false) {}
-
-void WaitingHostResolverProc::Signal() {
-  event_.Signal();
+int HangingHostResolver::Resolve(const RequestInfo& info,
+                                 AddressList* addresses,
+                                 OldCompletionCallback* callback,
+                                 RequestHandle* out_req,
+                                 const BoundNetLog& net_log) {
+  return ERR_IO_PENDING;
 }
 
-int WaitingHostResolverProc::Resolve(const std::string& host,
-                                     AddressFamily address_family,
-                                     HostResolverFlags host_resolver_flags,
-                                     AddressList* addrlist,
-                                     int* os_error) {
-  event_.Wait();
-  return ResolveUsingPrevious(host, address_family, host_resolver_flags,
-                              addrlist, os_error);
+int HangingHostResolver::ResolveFromCache(const RequestInfo& info,
+                                          AddressList* addresses,
+                                          const BoundNetLog& net_log) {
+  return ERR_DNS_CACHE_MISS;
 }
-
-WaitingHostResolverProc::~WaitingHostResolverProc() {}
 
 //-----------------------------------------------------------------------------
 
