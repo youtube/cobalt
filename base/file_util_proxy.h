@@ -53,6 +53,7 @@ class BASE_EXPORT FileUtilProxy {
 
   typedef Callback<PlatformFileError(PlatformFile*, bool*)> CreateOrOpenTask;
   typedef Callback<PlatformFileError(PlatformFile)> CloseTask;
+  typedef Callback<PlatformFileError(void)> FileTask;
 
   // Creates or opens a file with the given flags. It is invalid to pass a null
   // callback. If PLATFORM_FILE_CREATE is set in |file_flags| it always tries to
@@ -168,6 +169,12 @@ class BASE_EXPORT FileUtilProxy {
       const StatusCallback& callback);
 
   // Relay helpers.
+  static bool RelayFileTask(
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      const tracked_objects::Location& from_here,
+      const FileTask& task,
+      const StatusCallback& callback);
+
   static bool RelayCreateOrOpen(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const CreateOrOpenTask& open_task,
