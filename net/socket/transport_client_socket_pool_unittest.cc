@@ -797,13 +797,7 @@ class RequestSocketCallback : public CallbackRunner< Tuple1<int> > {
   TestOldCompletionCallback callback_;
 };
 
-// Disabled in release with dcheck : http://crbug.com/94501
-#if defined(DCHECK_ALWAYS_ON)
-#define MAYBE_RequestTwice DISABLED_RequestTwice
-#else
-#define MAYBE_RequestTwice RequestTwice
-#endif
-TEST_F(TransportClientSocketPoolTest, MAYBE_RequestTwice) {
+TEST_F(TransportClientSocketPoolTest, RequestTwice) {
   ClientSocketHandle handle;
   RequestSocketCallback callback(&handle, &pool_);
   scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
@@ -999,17 +993,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 // Test the case where a socket took long enough to start the creation
 // of the backup socket and never completes, and then the backup
 // connection fails.
-//
-
-// Flaky timeout on win/linux/mac: http://crbug.com/89273
-// http://crbug.com/94501 and http://crbug.com/99889
-#if defined(DCHECK_ALWAYS_ON)
-// Disabled in release with dcheck : http://crbug.com/94501
-#define MAYBE_BackupSocketFailAfterStall DISABLED_BackupSocketFailAfterStall
-#else
-#define MAYBE_BackupSocketFailAfterStall FLAKY_BackupSocketFailAfterStall
-#endif
-TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterStall) {
+TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterStall) {
   MockClientSocketFactory::ClientSocketType case_types[] = {
     // The first socket will not connect.
     MockClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET,
@@ -1054,13 +1038,7 @@ TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterStall) {
 // Test the case where a socket took long enough to start the creation
 // of the backup socket and eventually completes, but the backup socket
 // fails.
-// Disabled in release with dcheck : http://crbug.com/94501
-#if defined(DCHECK_ALWAYS_ON)
-#define MAYBE_BackupSocketFailAfterDelay DISABLED_BackupSocketFailAfterDelay
-#else
-#define MAYBE_BackupSocketFailAfterDelay BackupSocketFailAfterDelay
-#endif
-TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterDelay) {
+TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   MockClientSocketFactory::ClientSocketType case_types[] = {
     // The first socket will connect, although delayed.
     MockClientSocketFactory::MOCK_DELAYED_CLIENT_SOCKET,
