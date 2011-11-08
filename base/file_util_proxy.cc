@@ -26,7 +26,7 @@ namespace {
 //  message_loop_proxy->PostTaskAndReply(
 //      from_here,
 //      ReturnAsParam<R>(Bind(&DoWorkAndReturn), result),
-//      CallbackWithReturn(Bind(&Callback), Owned(result)));
+//      RelayHelper(Bind(&Callback), Owned(result)));
 //
 // Or just use PostTaskAndReplyWithStatus helper template (see the code below).
 template <typename R1, typename R2>
@@ -60,6 +60,18 @@ Closure ReturnAsParam(const Callback<R1(void)>& func, R2* result) {
   return Bind(&ReturnAsParamAdapter<R1, R2>, func, result);
 }
 
+template <typename R, typename A1>
+void ReturnAsParamAdapter1(const Callback<R(A1)>& func, A1 a1, R* result) {
+  if (!func.is_null())
+    *result = func.Run(a1);
+}
+
+template <typename R, typename A1>
+Closure ReturnAsParam(const Callback<R(A1)>& func, A1 a1, R* result) {
+  DCHECK(result);
+  return Bind(&ReturnAsParamAdapter1<R, A1>, func, a1, result);
+}
+
 template <typename R>
 void ReplyAdapter(const Callback<void(R)>& callback, R* result) {
   DCHECK(result);
@@ -89,28 +101,23 @@ bool PostTaskAndReplyWithStatus(
 // Helper classes or routines for individual methods.
 class CreateOrOpenHelper {
  public:
-  CreateOrOpenHelper(MessageLoopProxy* message_loop_proxy)
+  CreateOrOpenHelper(MessageLoopProxy* message_loop_proxy,
+                     const FileUtilProxy::CloseTask& close_task)
       : message_loop_proxy_(message_loop_proxy),
+        close_task_(close_task),
         file_handle_(kInvalidPlatformFileValue),
         created_(false),
         error_(PLATFORM_FILE_OK) {}
 
   ~CreateOrOpenHelper() {
     if (file_handle_ != kInvalidPlatformFileValue) {
-      FileUtilProxy::Close(message_loop_proxy_, file_handle_,
-                           FileUtilProxy::StatusCallback());
+      message_loop_proxy_->PostTask(
+          FROM_HERE, base::Bind(close_task_, file_handle_));
     }
   }
 
-  void RunWork(const FilePath& file_path, int file_flags) {
-    if (!file_util::DirectoryExists(file_path.DirName())) {
-      // If its parent does not exist, should return NOT_FOUND error.
-      error_ = PLATFORM_FILE_ERROR_NOT_FOUND;
-      return;
-    }
-    error_ = PLATFORM_FILE_OK;
-    file_handle_ = CreatePlatformFile(file_path, file_flags,
-                                      &created_, &error_);
+  void RunWork(const FileUtilProxy::CreateOrOpenTask& task) {
+    error_ = task.Run(&file_handle_, &created_);
   }
 
   void Reply(const FileUtilProxy::CreateOrOpenCallback& callback) {
@@ -120,6 +127,7 @@ class CreateOrOpenHelper {
 
  private:
   scoped_refptr<MessageLoopProxy> message_loop_proxy_;
+  FileUtilProxy::CloseTask close_task_;
   PlatformFile file_handle_;
   bool created_;
   PlatformFileError error_;
@@ -267,6 +275,28 @@ class WriteHelper {
   DISALLOW_COPY_AND_ASSIGN(WriteHelper);
 };
 
+
+PlatformFileError CreateOrOpenAdapter(
+    const FilePath& file_path, int file_flags,
+    PlatformFile* file_handle, bool* created) {
+  DCHECK(file_handle);
+  DCHECK(created);
+  if (!file_util::DirectoryExists(file_path.DirName())) {
+    // If its parent does not exist, should return NOT_FOUND error.
+    return PLATFORM_FILE_ERROR_NOT_FOUND;
+  }
+  PlatformFileError error = PLATFORM_FILE_OK;
+  *file_handle = CreatePlatformFile(file_path, file_flags, created, &error);
+  return error;
+}
+
+PlatformFileError CloseAdapter(PlatformFile file_handle) {
+  if (!ClosePlatformFile(file_handle)) {
+    return PLATFORM_FILE_ERROR_FAILED;
+  }
+  return PLATFORM_FILE_OK;
+}
+
 }  // namespace
 
 // static
@@ -274,12 +304,11 @@ bool FileUtilProxy::CreateOrOpen(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     const FilePath& file_path, int file_flags,
     const CreateOrOpenCallback& callback) {
-  CreateOrOpenHelper* helper = new CreateOrOpenHelper(message_loop_proxy);
-  return message_loop_proxy->PostTaskAndReply(
-        FROM_HERE,
-        Bind(&CreateOrOpenHelper::RunWork, Unretained(helper),
-             file_path, file_flags),
-        Bind(&CreateOrOpenHelper::Reply, Owned(helper), callback));
+  return RelayCreateOrOpen(
+      message_loop_proxy,
+      base::Bind(&CreateOrOpenAdapter, file_path, file_flags),
+      base::Bind(&CloseAdapter),
+      callback);
 }
 
 // static
@@ -296,13 +325,14 @@ bool FileUtilProxy::CreateTemporary(
 }
 
 // static
-bool FileUtilProxy::Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
-                          PlatformFile file_handle,
-                          const StatusCallback& callback) {
-  return PostTaskAndReplyWithStatus<bool>(
-      message_loop_proxy, FROM_HERE,
-      Bind(&ClosePlatformFile, file_handle), callback,
-      new PlatformFileError);
+bool FileUtilProxy::Close(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    base::PlatformFile file_handle,
+    const StatusCallback& callback) {
+  return RelayClose(
+      message_loop_proxy,
+      base::Bind(&CloseAdapter),
+      file_handle, callback);
 }
 
 // Retrieves the information about a file. It is invalid to pass NULL for the
@@ -439,6 +469,33 @@ bool FileUtilProxy::Flush(
       message_loop_proxy, FROM_HERE,
       Bind(&FlushPlatformFile, file), callback,
       new PlatformFileError);
+}
+
+// static
+bool FileUtilProxy::RelayCreateOrOpen(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const CreateOrOpenTask& open_task,
+    const CloseTask& close_task,
+    const CreateOrOpenCallback& callback) {
+  CreateOrOpenHelper* helper = new CreateOrOpenHelper(
+      message_loop_proxy, close_task);
+  return message_loop_proxy->PostTaskAndReply(
+        FROM_HERE,
+        Bind(&CreateOrOpenHelper::RunWork, Unretained(helper), open_task),
+        Bind(&CreateOrOpenHelper::Reply, Owned(helper), callback));
+}
+
+// static
+bool FileUtilProxy::RelayClose(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const CloseTask& close_task,
+    PlatformFile file_handle,
+    const StatusCallback& callback) {
+  PlatformFileError* result = new PlatformFileError;
+  return message_loop_proxy->PostTaskAndReply(
+      FROM_HERE,
+      ReturnAsParam(close_task, file_handle, result),
+      ReplyHelper(callback, Owned(result)));
 }
 
 }  // namespace base
