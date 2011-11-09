@@ -195,9 +195,9 @@ void NetworkChangeNotifierWin::WatchForAddressChange() {
     // TODO(mmenke):  If the UMA histograms indicate that this fixes
     // http://crbug.com/69198, remove this histogram and consider reducing the
     // retry interval.
-    if (sequential_failures_ == 100) {
-      UMA_HISTOGRAM_COUNTS_100("Net.NotifyAddrChangeFailures",
-                               sequential_failures_);
+    if (sequential_failures_ == 2000) {
+      UMA_HISTOGRAM_COUNTS_10000("Net.NotifyAddrChangeFailures",
+                                 sequential_failures_);
     }
 
     MessageLoop::current()->PostDelayedTask(
@@ -214,9 +214,9 @@ void NetworkChangeNotifierWin::WatchForAddressChange() {
   if (sequential_failures_ > 0)
     NotifyObservers();
 
-  if (sequential_failures_ < 100) {
-    UMA_HISTOGRAM_COUNTS_100("Net.NotifyAddrChangeFailures",
-                             sequential_failures_);
+  if (sequential_failures_ < 2000) {
+    UMA_HISTOGRAM_COUNTS_10000("Net.NotifyAddrChangeFailures",
+                               sequential_failures_);
   }
 
   is_watching_ = true;
