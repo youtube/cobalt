@@ -576,6 +576,9 @@
     # whether warnings are treated as errors.
     'chromium_code%': 0,
 
+    # TODO(thakis): Make this a blacklist instead, http://crbug.com/101600
+    'enable_wexit_time_destructors%': 0,
+
     # Set to 1 to compile with the built in pdf viewer.
     'internal_pdf%': 0,
 
@@ -940,6 +943,9 @@
       'debug_extra_cflags%': '',
       'release_valgrind_build%': 0,
 
+      # TODO(thakis): Make this a blacklist instead, http://crbug.com/101600
+      'enable_wexit_time_destructors%': '<(enable_wexit_time_destructors)',
+
       # Only used by Windows build for now.  Can be used to build into a
       # differet output directory, e.g., a build_dir_prefix of VS2010_ would
       # output files in src/build/VS2010_{Debug,Release}.
@@ -1165,6 +1171,20 @@
       }],
     ],  # conditions for 'target_defaults'
     'target_conditions': [
+      ['enable_wexit_time_destructors==1', {
+        'conditions': [
+          [ 'clang==1', {
+            'cflags': [
+              '-Wexit-time-destructors',
+            ],
+            'xcode_settings': {
+              'WARNING_CFLAGS': [
+                '-Wexit-time-destructors',
+              ],
+            },
+          }],
+        ],
+      }],
       ['chromium_code==0', {
         'conditions': [
           [ 'os_posix==1 and OS!="mac"', {
