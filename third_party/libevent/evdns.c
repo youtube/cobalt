@@ -134,7 +134,7 @@
 typedef ev_uint8_t u_char;
 typedef unsigned int uint;
 #endif
-#include <event.h>
+#include "event.h"
 
 #define u64 ev_uint64_t
 #define u32 ev_uint32_t
