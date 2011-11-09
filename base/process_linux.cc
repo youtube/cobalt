@@ -11,17 +11,6 @@
 #include "base/logging.h"
 #include "base/stringprintf.h"
 
-#if defined(OS_CHROMEOS)
-static bool use_cgroups = false;
-static bool cgroups_inited = false;
-static const char kForegroundTasks[] =
-    "/tmp/cgroup/cpu/chrome_renderers/foreground/tasks";
-static const char kBackgroundTasks[] =
-    "/tmp/cgroup/cpu/chrome_renderers/background/tasks";
-static FilePath foreground_tasks;
-static FilePath background_tasks;
-#endif
-
 namespace base {
 
 #if defined(OS_CHROMEOS)
@@ -42,15 +31,20 @@ bool Process::SetProcessBackgrounded(bool background) {
   DCHECK(process_);
 
 #if defined(OS_CHROMEOS)
+  static bool cgroups_inited = false;
+  static bool use_cgroups = false;
+
   // Check for cgroups files. ChromeOS supports these by default. It creates
   // a cgroup mount in /tmp/cgroup and then configures two cpu task groups,
   // one contains at most a single foreground renderer and the other contains
   // all background renderers. This allows us to limit the impact of background
   // renderers on foreground ones to a greater level than simple renicing.
+  FilePath foreground_tasks(
+      "/tmp/cgroup/cpu/chrome_renderers/foreground/tasks");
+  FilePath background_tasks(
+      "/tmp/cgroup/cpu/chrome_renderers/background/tasks");
   if (!cgroups_inited) {
     cgroups_inited = true;
-    foreground_tasks = FilePath(kForegroundTasks);
-    background_tasks = FilePath(kBackgroundTasks);
     file_util::FileSystemType foreground_type;
     file_util::FileSystemType background_type;
     use_cgroups =
