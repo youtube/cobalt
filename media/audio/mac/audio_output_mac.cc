@@ -485,6 +485,13 @@ void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   // Ask the source to pre-fill all our buffers before playing.
   for (uint32 ix = 0; ix != kNumBuffers; ++ix) {
     buffer_[ix]->mAudioDataByteSize = 0;
+    // Caller waits for 1st packet to become available, but not for others,
+    // so we wait for them here.
+    if (ix != 0) {
+      AudioSourceCallback* source = GetSource();
+      if (source)
+        source->WaitTillDataReady();
+    }
     RenderCallback(this, NULL, buffer_[ix]);
   }
 
