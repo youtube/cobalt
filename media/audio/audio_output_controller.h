@@ -161,9 +161,12 @@ class MEDIA_EXPORT AudioOutputController
 
   ///////////////////////////////////////////////////////////////////////////
   // AudioSourceCallback methods.
-  virtual uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
-                            uint32 max_size, AudioBuffersState buffers_state);
-  virtual void OnError(AudioOutputStream* stream, int code);
+  virtual uint32 OnMoreData(AudioOutputStream* stream,
+                            uint8* dest,
+                            uint32 max_size,
+                            AudioBuffersState buffers_state) OVERRIDE;
+  virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
+  virtual void WaitTillDataReady() OVERRIDE;
 
  protected:
     // Internal state of the source.
