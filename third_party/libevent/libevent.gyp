@@ -32,10 +32,6 @@
           'defines': [
             'HAVE_CONFIG_H',
           ],
-          'include_dirs': [
-            '.',   # libevent includes some of its own headers with
-                   # #include <...> instead of #include "..."
-          ],
           'conditions': [
             # libevent has platform-specific implementation files.  Since its
             # native build uses autoconf, platform-specific config.h files are
