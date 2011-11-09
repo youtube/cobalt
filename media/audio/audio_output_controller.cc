@@ -7,6 +7,10 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
+#include "base/threading/platform_thread.h"
+#include "base/time.h"
+
+using base::Time;
 
 namespace media {
 
@@ -357,6 +361,19 @@ uint32 AudioOutputController::OnMoreData(
   uint32 size =  sync_reader_->Read(dest, max_size);
   sync_reader_->UpdatePendingBytes(buffers_state.total_bytes() + size);
   return size;
+}
+
+void AudioOutputController::WaitTillDataReady() {
+  if (LowLatencyMode() && !sync_reader_->DataReady()) {
+    // In the different place we use different mechanism to poll, get max
+    // polling delay from constants used there.
+    const int kMaxPollingDelayMs = kPollNumAttempts * kPollPauseInMilliseconds;
+    Time start_time = Time::Now();
+    do {
+      base::PlatformThread::Sleep(1);
+    } while (!sync_reader_->DataReady() &&
+             (Time::Now() - start_time).InMilliseconds() < kMaxPollingDelayMs);
+  }
 }
 
 void AudioOutputController::OnError(AudioOutputStream* stream, int code) {

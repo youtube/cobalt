@@ -185,6 +185,10 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   pending_bytes_ = 0;
   WAVEHDR* buffer = buffer_;
   for (int ix = 0; ix != num_buffers_; ++ix) {
+    // Caller waits for 1st packet to become available, but not for others,
+    // so we wait for them here.
+    if (ix != 0)
+      callback_->WaitTillDataReady();
     QueueNextPacket(buffer);  // Read more data.
     pending_bytes_ += buffer->dwBufferLength;
     buffer = GetNextBuffer(buffer);
