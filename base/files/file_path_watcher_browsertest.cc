@@ -372,6 +372,10 @@ TEST_F(FilePathWatcherTest, DirectoryChain) {
   ASSERT_TRUE(WaitForEvents());
 }
 
+#if defined(OS_MACOSX)
+// http://crbug.com/85930
+#define DisappearingDirectory FLAKY_DisappearingDirectory
+#endif
 TEST_F(FilePathWatcherTest, DisappearingDirectory) {
   FilePathWatcher watcher;
   FilePath dir(temp_dir_.path().AppendASCII("dir"));
