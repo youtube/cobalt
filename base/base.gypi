@@ -532,6 +532,7 @@
       'toolsets': ['host', 'target'],
       'variables': {
         'base_target': 1,
+        'enable_wexit_time_destructors': 1,
       },
       'dependencies': [
         'base_static',
