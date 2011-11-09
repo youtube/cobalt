@@ -33,6 +33,7 @@
 #include "base/i18n/icu_string_conversions.h"
 #include "base/i18n/time_formatting.h"
 #include "base/json/string_escape.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/message_loop.h"
@@ -490,7 +491,9 @@ void SetExemplarSetForLang(const std::string& lang,
   map.insert(std::make_pair(lang, lang_set));
 }
 
-static base::Lock lang_set_lock;
+static base::LazyInstance<base::Lock,
+                          base::LeakyLazyInstanceTraits<base::Lock> >
+    g_lang_set_lock(base::LINKER_INITIALIZED);
 
 // Returns true if all the characters in component_characters are used by
 // the language |lang|.
@@ -501,7 +504,7 @@ bool IsComponentCoveredByLang(const icu::UnicodeSet& component_characters,
   icu::UnicodeSet* lang_set;
   // We're called from both the UI thread and the history thread.
   {
-    base::AutoLock lock(lang_set_lock);
+    base::AutoLock lock(g_lang_set_lock.Get());
     if (!GetExemplarSetForLang(lang, &lang_set)) {
       UErrorCode status = U_ZERO_ERROR;
       ULocaleData* uld = ulocdata_open(lang.c_str(), &status);
@@ -1114,8 +1117,13 @@ const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname = 1 << 2;
 const FormatUrlType kFormatUrlOmitAll = kFormatUrlOmitUsernamePassword |
     kFormatUrlOmitHTTP | kFormatUrlOmitTrailingSlashOnBareHostname;
 
-// TODO(viettrungluu): We don't want non-POD globals; change this.
-std::multiset<int> explicitly_allowed_ports;
+static base::LazyInstance<std::multiset<int>,
+                          base::LeakyLazyInstanceTraits<std::multiset<int> > >
+    g_explicitly_allowed_ports(base::LINKER_INITIALIZED);
+
+size_t GetCountOfExplicitlyAllowedPorts() {
+  return g_explicitly_allowed_ports.Get().size();
+}
 
 GURL FilePathToFileURL(const FilePath& path) {
   // Produce a URL like "file:///C:/foo" for a regular file, or
@@ -1575,10 +1583,10 @@ bool IsPortAllowedByFtp(int port) {
 }
 
 bool IsPortAllowedByOverride(int port) {
-  if (explicitly_allowed_ports.empty())
+  if (g_explicitly_allowed_ports.Get().empty())
     return false;
 
-  return explicitly_allowed_ports.count(port) > 0;
+  return g_explicitly_allowed_ports.Get().count(port) > 0;
 }
 
 int SetNonBlocking(int fd) {
@@ -1992,17 +2000,18 @@ void SetExplicitlyAllowedPorts(const std::string& allowed_ports) {
       last = i + 1;
     }
   }
-  explicitly_allowed_ports = ports;
+  g_explicitly_allowed_ports.Get() = ports;
 }
 
 ScopedPortException::ScopedPortException(int port) : port_(port) {
-  explicitly_allowed_ports.insert(port);
+  g_explicitly_allowed_ports.Get().insert(port);
 }
 
 ScopedPortException::~ScopedPortException() {
-  std::multiset<int>::iterator it = explicitly_allowed_ports.find(port_);
-  if (it != explicitly_allowed_ports.end())
-    explicitly_allowed_ports.erase(it);
+  std::multiset<int>::iterator it =
+      g_explicitly_allowed_ports.Get().find(port_);
+  if (it != g_explicitly_allowed_ports.Get().end())
+    g_explicitly_allowed_ports.Get().erase(it);
   else
     NOTREACHED();
 }
