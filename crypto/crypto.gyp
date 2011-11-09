@@ -38,6 +38,7 @@
         }, {  # os_posix != 1 or OS == "mac"
             'sources/': [
               ['exclude', '_nss\.cc$'],
+              ['include', 'ec_private_key_nss\.cc$'],
             ],
             'sources!': [
               'openpgp_symmetric_encryption.cc',
@@ -81,6 +82,7 @@
             # TODO(joth): Use a glob to match exclude patterns once the
             #             OpenSSL file set is complete.
             'sources!': [
+              'ec_private_key_nss.cc',
               'encryptor_nss.cc',
               'hmac_nss.cc',
               'nss_util.cc',
@@ -93,11 +95,14 @@
               'symmetric_key_nss.cc',
               'third_party/nss/blapi.h',
               'third_party/nss/blapit.h',
+              'third_party/nss/chromium-nss.h',
+              'third_party/nss/pk11akey.cc',
               'third_party/nss/sha256.h',
               'third_party/nss/sha512.cc',
             ],
           }, {
             'sources!': [
+              'ec_private_key_openssl.cc',
               'encryptor_openssl.cc',
               'hmac_openssl.cc',
               'openssl_util.cc',
@@ -117,6 +122,9 @@
         'crypto_module_blocking_password_delegate.h',
         'cssm_init.cc',
         'cssm_init.h',
+        'ec_private_key.h',
+        'ec_private_key_nss.cc',
+        'ec_private_key_openssl.cc',
         'encryptor.cc',
         'encryptor.h',
         'encryptor_mac.cc',
@@ -172,6 +180,8 @@
         'symmetric_key_win.cc',
         'third_party/nss/blapi.h',
         'third_party/nss/blapit.h',
+        'third_party/nss/chromium-nss.h',
+        'third_party/nss/pk11akey.cc',
         'third_party/nss/sha256.h',
         'third_party/nss/sha512.cc',
       ],
@@ -184,6 +194,7 @@
         'run_all_unittests.cc',
 
         # Tests.
+        'ec_private_key_unittest.cc',
         'encryptor_unittest.cc',
         'hmac_unittest.cc',
         'p224_unittest.cc',
