@@ -6,18 +6,20 @@
 
 #include <algorithm>
 
-#if defined(OS_WIN)
-#include "base/debug/trace_event_win.h"
-#endif
 #include "base/bind.h"
 #include "base/format_macros.h"
 #include "base/lazy_instance.h"
 #include "base/process_util.h"
 #include "base/stringprintf.h"
+#include "base/string_tokenizer.h"
 #include "base/threading/thread_local.h"
 #include "base/utf_string_conversions.h"
 #include "base/stl_util.h"
 #include "base/time.h"
+
+#if defined(OS_WIN)
+#include "base/debug/trace_event_win.h"
+#endif
 
 class DeleteTraceLogForTesting {
  public:
@@ -360,7 +362,7 @@ static void EnableMatchingCategory(int category_index,
   }
   ANNOTATE_BENIGN_RACE(&g_categories[category_index].enabled,
                        "trace_event category enabled");
-  g_categories[category_index].enabled = is_match? is_included : !is_included;
+  g_categories[category_index].enabled = is_match ? is_included : !is_included;
 }
 
 // Enable/disable each category based on the category filters in |patterns|.
@@ -430,6 +432,37 @@ void TraceLog::SetEnabled(const std::vector<std::string>& included_categories,
     EnableMatchingCategories(excluded_categories_, false);
 }
 
+void TraceLog::SetEnabled(const std::string& categories) {
+  std::vector<std::string> included, excluded;
+  // Tokenize list of categories, delimited by ','.
+  StringTokenizer tokens(categories, ",");
+  while (tokens.GetNext()) {
+    bool is_included = true;
+    std::string category = tokens.token();
+    // Excluded categories start with '-'.
+    if (category.at(0) == '-') {
+      // Remove '-' from category string.
+      category = category.substr(1);
+      is_included = false;
+    }
+    if (is_included)
+      included.push_back(category);
+    else
+      excluded.push_back(category);
+  }
+  SetEnabled(included, excluded);
+}
+
+void TraceLog::GetEnabledTraceCategories(
+    std::vector<std::string>* included_out,
+    std::vector<std::string>* excluded_out) {
+  AutoLock lock(lock_);
+  if (enabled_) {
+    *included_out = included_categories_;
+    *excluded_out = excluded_categories_;
+  }
+}
+
 void TraceLog::SetDisabled() {
   {
     AutoLock lock(lock_);
@@ -459,7 +492,6 @@ float TraceLog::GetBufferPercentFull() const {
 void TraceLog::SetOutputCallback(const TraceLog::OutputCallback& cb) {
   AutoLock lock(lock_);
   output_callback_ = cb;
-  logged_events_.clear();
 }
 
 void TraceLog::SetBufferFullCallback(const TraceLog::BufferFullCallback& cb) {
