@@ -122,6 +122,7 @@
         'base/gtk/owned_widget_gtk.h',
         'base/gtk/tooltip_window_gtk.cc',
         'base/gtk/tooltip_window_gtk.h',
+        'base/hit_test.h',
         'base/ime/composition_text.cc',
         'base/ime/composition_text.h',
         'base/ime/composition_underline.h',
