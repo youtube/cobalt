@@ -3209,12 +3209,12 @@ TEST(NetUtilTest, SetExplicitlyAllowedPortsTest) {
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(invalid); ++i) {
     SetExplicitlyAllowedPorts(invalid[i]);
-    EXPECT_EQ(0, static_cast<int>(explicitly_allowed_ports.size()));
+    EXPECT_EQ(0, static_cast<int>(GetCountOfExplicitlyAllowedPorts()));
   }
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(valid); ++i) {
     SetExplicitlyAllowedPorts(valid[i]);
-    EXPECT_EQ(i, explicitly_allowed_ports.size());
+    EXPECT_EQ(i, GetCountOfExplicitlyAllowedPorts());
   }
 }
 
