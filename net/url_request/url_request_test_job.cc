@@ -8,6 +8,7 @@
 #include <list>
 
 #include "base/compiler_specific.h"
+#include "base/lazy_instance.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "net/base/io_buffer.h"
@@ -17,10 +18,14 @@
 
 namespace net {
 
-// This emulates the global message loop for the test URL request class, since
-// this is only test code, it's probably not too dangerous to have this static
-// object.
-static std::list<URLRequestTestJob*> g_pending_jobs;
+namespace {
+
+typedef std::list<URLRequestTestJob*> URLRequestJobList;
+base::LazyInstance<URLRequestJobList,
+                   base::LeakyLazyInstanceTraits<URLRequestJobList> >
+    g_pending_jobs(base::LINKER_INITIALIZED);
+
+}  // namespace
 
 // static getters for known URLs
 GURL URLRequestTestJob::test_url_1() {
@@ -116,9 +121,10 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request,
 }
 
 URLRequestTestJob::~URLRequestTestJob() {
-  g_pending_jobs.erase(
-      std::remove(g_pending_jobs.begin(), g_pending_jobs.end(), this),
-      g_pending_jobs.end());
+  g_pending_jobs.Get().erase(
+      std::remove(
+          g_pending_jobs.Get().begin(), g_pending_jobs.Get().end(), this),
+      g_pending_jobs.Get().end());
 }
 
 bool URLRequestTestJob::GetMimeType(std::string* mime_type) const {
@@ -222,9 +228,10 @@ void URLRequestTestJob::Kill() {
   stage_ = DONE;
   URLRequestJob::Kill();
   method_factory_.RevokeAll();
-  g_pending_jobs.erase(
-      std::remove(g_pending_jobs.begin(), g_pending_jobs.end(), this),
-      g_pending_jobs.end());
+  g_pending_jobs.Get().erase(
+      std::remove(
+          g_pending_jobs.Get().begin(), g_pending_jobs.Get().end(), this),
+      g_pending_jobs.Get().end());
 }
 
 void URLRequestTestJob::ProcessNextOperation() {
@@ -265,16 +272,16 @@ void URLRequestTestJob::AdvanceJob() {
             &URLRequestTestJob::ProcessNextOperation));
     return;
   }
-  g_pending_jobs.push_back(this);
+  g_pending_jobs.Get().push_back(this);
 }
 
 // static
 bool URLRequestTestJob::ProcessOnePendingMessage() {
-  if (g_pending_jobs.empty())
+  if (g_pending_jobs.Get().empty())
     return false;
 
-  URLRequestTestJob* next_job(g_pending_jobs.front());
-  g_pending_jobs.pop_front();
+  URLRequestTestJob* next_job(g_pending_jobs.Get().front());
+  g_pending_jobs.Get().pop_front();
 
   DCHECK(!next_job->auto_advance());  // auto_advance jobs should be in this q
   next_job->ProcessNextOperation();

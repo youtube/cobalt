@@ -76,8 +76,8 @@ NET_EXPORT extern const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname;
 // Convenience for omitting all unecessary types.
 NET_EXPORT extern const FormatUrlType kFormatUrlOmitAll;
 
-// Holds a list of ports that should be accepted despite bans.
-NET_EXPORT_PRIVATE extern std::multiset<int> explicitly_allowed_ports;
+// Returns the number of explicitly allowed ports; for testing.
+NET_EXPORT_PRIVATE extern size_t GetCountOfExplicitlyAllowedPorts();
 
 // Given the full path to a file name, creates a file: URL. The returned URL
 // may not be valid if the input is malformed.
