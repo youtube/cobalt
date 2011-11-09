@@ -154,9 +154,9 @@ std::string GetLinuxDistro() {
     base::GetAppOutput(CommandLine(argv), &output);
     if (output.length() > 0) {
       // lsb_release -d should return: Description:<tab>Distro Info
-      static const std::string field = "Description:\t";
-      if (output.compare(0, field.length(), field) == 0) {
-        SetLinuxDistro(output.substr(field.length()));
+      const char field[] = "Description:\t";
+      if (output.compare(0, strlen(field), field) == 0) {
+        SetLinuxDistro(output.substr(strlen(field)));
       }
     }
     distro_state_singleton->CheckFinished();
