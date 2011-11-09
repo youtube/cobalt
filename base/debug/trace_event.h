@@ -591,6 +591,22 @@ class BASE_EXPORT TraceLog {
   // Wildcards * and ? are supported (see MatchPattern in string_util.h).
   void SetEnabled(const std::vector<std::string>& included_categories,
                   const std::vector<std::string>& excluded_categories);
+
+  // |categories| is a comma-delimited list of category wildcards.
+  // A category can have an optional '-' prefix to make it an excluded category.
+  // All the same rules apply above, so for example, having both included and
+  // excluded categories in the same list would not be supported.
+  //
+  // Example: SetEnabled("test_MyTest*");
+  // Example: SetEnabled("test_MyTest*,test_OtherStuff");
+  // Example: SetEnabled("-excluded_category1,-excluded_category2");
+  void SetEnabled(const std::string& categories);
+
+  // Retieves the categories set via a prior call to SetEnabled(). Only
+  // meaningful if |IsEnabled()| is true.
+  void GetEnabledTraceCategories(std::vector<std::string>* included_out,
+                                 std::vector<std::string>* excluded_out);
+
   // Disable tracing for all categories.
   void SetDisabled();
   // Helper method to enable/disable tracing for all categories.
