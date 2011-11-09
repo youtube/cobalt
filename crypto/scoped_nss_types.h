@@ -9,6 +9,7 @@
 #include <keyhi.h>
 #include <nss.h>
 #include <pk11pub.h>
+#include <plarena.h>
 
 #include "base/memory/scoped_ptr.h"
 
@@ -53,6 +54,10 @@ typedef scoped_ptr_malloc<
     SECItem, NSSDestroyer1<SECItem,
                            SECITEM_FreeItem,
                            PR_TRUE> > ScopedSECItem;
+typedef scoped_ptr_malloc<
+    PLArenaPool, NSSDestroyer1<PLArenaPool,
+                               PORT_FreeArena,
+                               PR_FALSE> > ScopedPLArenaPool;
 
 }  // namespace crypto
 
