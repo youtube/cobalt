@@ -249,6 +249,8 @@ static const Charmap kExternalHandlerCharmap(
 
 }  // namespace
 
+namespace net {
+
 std::string EscapePath(const std::string& path) {
   return Escape(path, kPathCharmap, false);
 }
@@ -256,8 +258,6 @@ std::string EscapePath(const std::string& path) {
 std::string EscapeUrlEncodedData(const std::string& path, bool use_plus) {
   return Escape(path, kUrlEscape, use_plus);
 }
-
-namespace net {
 
 std::string EscapeNonASCII(const std::string& input) {
   return Escape(input, kNonASCIICharmap, false);
