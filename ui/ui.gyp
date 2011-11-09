@@ -20,7 +20,7 @@
     {
       'target_name': 'ui',
       'type': '<(component)',
-       'variables': { 'enable_wexit_time_destructors': 1, }, 
+      'variables': { 'enable_wexit_time_destructors': 1, },
       'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
