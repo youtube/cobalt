@@ -570,7 +570,6 @@ void HttpPipelinedConnectionImpl::GetSSLCertRequestInfo(
 void HttpPipelinedConnectionImpl::FireUserCallback(int pipeline_id,
                                                    int result) {
   if (ContainsKey(stream_info_map_, pipeline_id)) {
-    CHECK(stream_info_map_[pipeline_id].pending_user_callback);
     stream_info_map_[pipeline_id].pending_user_callback->Run(result);
   }
 }
