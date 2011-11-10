@@ -74,9 +74,13 @@ Patches:
     patches/restartclientauth.patch
 
   * Allow SSL_HandshakeNegotiatedExtension to be called before the handshake
-    is finished..
+    is finished.
     https://bugzilla.mozilla.org/show_bug.cgi?id=681839
     patches/negotiatedextension.patch
+
+  * Support the encrypted client certificates extension.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=691991
+    patches/encryptedclientcerts.patch
 
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
