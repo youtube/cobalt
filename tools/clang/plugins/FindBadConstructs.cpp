@@ -142,7 +142,7 @@ class FindBadConstructsConsumer : public ChromeClassTester {
       loc = method->getInnerLocStart();
 
     if (method->isVirtual() && !method->isVirtualAsWritten())
-      emitWarning(loc, "Overridden method must have \"virtual\" keyword.");
+      emitWarning(loc, "Overriding method must have \"virtual\" keyword.");
 
     // Virtual methods should not have inline definitions beyond "{}".
     if (method->isVirtual() && method->hasBody() && method->hasInlineBody()) {
