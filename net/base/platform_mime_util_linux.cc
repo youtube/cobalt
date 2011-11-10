@@ -22,12 +22,6 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const FilePath::StringType& ext, std::string* result) const {
   return android::GetMimeTypeFromExtension(ext, result);
 }
-#elif defined(USE_AURA)
-bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
-    const FilePath::StringType& ext, std::string* result) const {
-  NOTIMPLEMENTED();
-  return false;
-}
 #else
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const FilePath::StringType& ext, std::string* result) const {
