@@ -361,9 +361,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_DecodeErrorAtEndOfStream) {
 
 // Decode |i_frame_buffer_| and then a frame with a larger width and verify
 // the output size was adjusted.
-//
-// TODO(acolwell): Fix InvalidRead detected by Valgrind http://crbug.com/102789
-TEST_F(FFmpegVideoDecoderTest, DISABLED_DecodeFrame_LargerWidth) {
+TEST_F(FFmpegVideoDecoderTest, DecodeFrame_LargerWidth) {
   DecodeIFrameThenTestFile("vp8-I-frame-640x240", 640, 240);
 }
 
@@ -375,9 +373,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_SmallerWidth) {
 
 // Decode |i_frame_buffer_| and then a frame with a larger height and verify
 // the output size was adjusted.
-//
-// TODO(acolwell): Fix InvalidRead detected by Valgrind http://crbug.com/102789
-TEST_F(FFmpegVideoDecoderTest, DISABLED_DecodeFrame_LargerHeight) {
+TEST_F(FFmpegVideoDecoderTest, DecodeFrame_LargerHeight) {
   DecodeIFrameThenTestFile("vp8-I-frame-320x480", 320, 480);
 }
 
