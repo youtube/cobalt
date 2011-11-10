@@ -9,13 +9,14 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "sql/sql_export.h"
 
 namespace sql {
 
 class Connection;
 class Statement;
 
-class MetaTable {
+class SQL_EXPORT MetaTable {
  public:
   MetaTable();
   ~MetaTable();

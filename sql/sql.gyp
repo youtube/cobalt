@@ -9,11 +9,12 @@
   'targets': [
     {
       'target_name': 'sql',
-      'type': 'static_library',
+      'type': '<(component)',
       'dependencies': [
         '../base/base.gyp:base',
         '../third_party/sqlite/sqlite.gyp:sqlite',
       ],
+      'defines': [ 'SQL_IMPLEMENTATION' ],
       'sources': [
         'connection.cc',
         'connection.h',
