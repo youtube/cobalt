@@ -660,7 +660,8 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   // Clear the IO_PENDING status
   SetStatus(URLRequestStatus());
 
-#if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
+// #if guard removed temporarily in order to let the builders test this code.
+//#if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
   // Take care of any mandates for public key pinning.
   //
   // Pinning is only enabled for official builds to make sure that others don't
@@ -669,33 +670,37 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   // TODO(agl): we might have an issue here where a request for foo.example.com
   // merges into a SPDY connection to www.example.com, and gets a different
   // certificate.
-  const SSLInfo& ssl_info = transaction_->GetResponseInfo()->ssl_info;
-  if (result == OK &&
-      ssl_info.is_valid() &&
-      ssl_info.is_issued_by_known_root &&
-      context_->transport_security_state()) {
-    TransportSecurityState::DomainState domain_state;
-    bool sni_available = SSLConfigService::IsSNIAvailable(
-        context_->ssl_config_service());
-    std::string host = request_->url().host();
+  if (transaction_->GetResponseInfo() != NULL) {
+    const SSLInfo& ssl_info = transaction_->GetResponseInfo()->ssl_info;
+    if (ssl_info.is_valid() &&
+        (result == OK || (IsCertificateError(result) &&
+                          IsCertStatusMinorError(ssl_info.cert_status))) &&
+        ssl_info.is_issued_by_known_root &&
+        context_->transport_security_state()) {
+      TransportSecurityState::DomainState domain_state;
+      bool sni_available = SSLConfigService::IsSNIAvailable(
+          context_->ssl_config_service());
+      std::string host = request_->url().host();
 
-    if (context_->transport_security_state()->HasPinsForHost(
-            &domain_state, host, sni_available)) {
-      if (!domain_state.IsChainOfPublicKeysPermitted(
-              ssl_info.public_key_hashes)) {
-        result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
-        UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", false);
-        TransportSecurityState::ReportUMAOnPinFailure(host);
-        FraudulentCertificateReporter* reporter =
-            context_->fraudulent_certificate_reporter();
-        if (reporter != NULL)
-          reporter->SendReport(host, ssl_info, sni_available);
-      } else {
-        UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", true);
+      if (context_->transport_security_state()->HasPinsForHost(
+              &domain_state, host, sni_available)) {
+        if (!domain_state.IsChainOfPublicKeysPermitted(
+                ssl_info.public_key_hashes)) {
+          result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
+          UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", false);
+          TransportSecurityState::ReportUMAOnPinFailure(host);
+          FraudulentCertificateReporter* reporter =
+              context_->fraudulent_certificate_reporter();
+          if (reporter != NULL)
+            reporter->SendReport(host, ssl_info, sni_available);
+        } else {
+          UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", true);
+        }
       }
     }
   }
-#endif
+//#endif
+
   if (result == OK) {
     scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
     if (request_->context() && request_->context()->network_delegate()) {
