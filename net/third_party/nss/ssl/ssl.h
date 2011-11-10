@@ -143,6 +143,7 @@ SSL_IMPORT PRFileDesc *SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd);
 #define SSL_ENABLE_CACHED_INFO         24 /* Enable TLS cached information  */
                                           /* extension, off by default.     */
 #define SSL_ENABLE_OB_CERTS            25 /* Enable origin bound certs.     */
+#define SSL_ENCRYPT_CLIENT_CERTS       26 /* Enable encrypted client certs. */
 
 #ifdef SSL_DEPRECATED_FUNCTION 
 /* Old deprecated function names */

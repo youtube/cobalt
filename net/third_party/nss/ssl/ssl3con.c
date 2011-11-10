@@ -2835,7 +2835,14 @@ ssl3_HandleChangeCipherSpecs(sslSocket *ss, sslBuffer *buf)
 
     ss->ssl3.prSpec  = ss->ssl3.crSpec;
     ss->ssl3.crSpec  = prSpec;
-    ss->ssl3.hs.ws   = wait_finished;
+
+    if (ss->sec.isServer &&
+	ss->opt.requestCertificate &&
+	ssl3_ExtensionNegotiated(ss, ssl_encrypted_client_certs)) {
+	ss->ssl3.hs.ws = wait_client_cert;
+    } else {
+	ss->ssl3.hs.ws = wait_finished;
+    }
 
     SSL_TRC(3, ("%d: SSL3[%d] Set Current Read Cipher Suite to Pending",
 		SSL_GETPID(), ss->fd ));
@@ -4850,10 +4857,11 @@ loser:
 static SECStatus
 ssl3_SendCertificateVerify(sslSocket *ss)
 {
-    SECStatus     rv		= SECFailure;
-    PRBool        isTLS;
-    SECItem       buf           = {siBuffer, NULL, 0};
-    SSL3Hashes    hashes;
+    SECStatus      rv		= SECFailure;
+    PRBool         isTLS;
+    SECItem        buf		= {siBuffer, NULL, 0};
+    SSL3Hashes     hashes;
+    ssl3CipherSpec *spec;
 
     PORT_Assert( ss->opt.noLocks || ssl_HaveXmitBufLock(ss));
     PORT_Assert( ss->opt.noLocks || ssl_HaveSSL3HandshakeLock(ss));
@@ -4862,13 +4870,17 @@ ssl3_SendCertificateVerify(sslSocket *ss)
 		SSL_GETPID(), ss->fd));
 
     ssl_GetSpecReadLock(ss);
-    rv = ssl3_ComputeHandshakeHashes(ss, ss->ssl3.pwSpec, &hashes, 0);
+    spec = ss->ssl3.pwSpec;
+    if (ssl3_ExtensionNegotiated(ss, ssl_encrypted_client_certs)) {
+	spec = ss->ssl3.cwSpec;
+    }
+    rv = ssl3_ComputeHandshakeHashes(ss, spec, &hashes, 0);
     ssl_ReleaseSpecReadLock(ss);
     if (rv != SECSuccess) {
 	goto done;	/* err code was set by ssl3_ComputeHandshakeHashes */
     }
 
-    isTLS = (PRBool)(ss->ssl3.pwSpec->version > SSL_LIBRARY_VERSION_3_0);
+    isTLS = (PRBool)(spec->version > SSL_LIBRARY_VERSION_3_0);
     if (ss->ssl3.platformClientKey) {
 #ifdef NSS_PLATFORM_CLIENT_AUTH
 	rv = ssl3_PlatformSignHashes(&hashes, ss->ssl3.platformClientKey,
@@ -5840,7 +5852,10 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
 {
     SECStatus     rv;
     SSL3WaitState ws          = ss->ssl3.hs.ws;
-    PRBool        send_verify = PR_FALSE;
+    PRBool        sendEmptyCert, sendCert;
+    int           n = 0, i;
+    typedef SECStatus (*SendFunction)(sslSocket*);
+    SendFunction  send_funcs[5];
 
     SSL_TRC(3, ("%d: SSL3[%d]: handle server_hello_done handshake",
 		SSL_GETPID(), ss->fd));
@@ -5858,45 +5873,44 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
 
     ssl_GetXmitBufLock(ss);		/*******************************/
 
-    if (ss->ssl3.sendEmptyCert) {
-	ss->ssl3.sendEmptyCert = PR_FALSE;
-	rv = ssl3_SendEmptyCertificate(ss);
-	/* Don't send verify */
-	if (rv != SECSuccess) {
-	    goto loser;	/* error code is set. */
-    	}
-    } else if (ss->ssl3.clientCertChain != NULL &&
-               ss->ssl3.platformClientKey) {
-#ifdef NSS_PLATFORM_CLIENT_AUTH
-        send_verify = PR_TRUE;
-        rv = ssl3_SendCertificate(ss);
-        if (rv != SECSuccess) {
-            goto loser; /* error code is set. */
-        }
-#endif /* NSS_PLATFORM_CLIENT_AUTH */
-    } else if (ss->ssl3.clientCertChain  != NULL &&
-               ss->ssl3.clientPrivateKey != NULL) {
-	send_verify = PR_TRUE;
-	rv = ssl3_SendCertificate(ss);
-	if (rv != SECSuccess) {
-	    goto loser;	/* error code is set. */
-    	}
+    sendEmptyCert = ss->ssl3.sendEmptyCert;
+    ss->ssl3.sendEmptyCert = PR_FALSE;
+    sendCert = !sendEmptyCert &&
+	       ss->ssl3.clientCertChain != NULL &&
+	       (ss->ssl3.platformClientKey ||
+		ss->ssl3.clientPrivateKey != NULL);
+
+    if (ssl3_ExtensionNegotiated(ss, ssl_encrypted_client_certs)) {
+	send_funcs[n++] = ssl3_SendClientKeyExchange;
+	send_funcs[n++] = ssl3_SendChangeCipherSpecs;
+	if (sendEmptyCert) {
+	    send_funcs[n++] = ssl3_SendEmptyCertificate;
+	}
+	if (sendCert) {
+	    send_funcs[n++] = ssl3_SendCertificate;
+	    send_funcs[n++] = ssl3_SendCertificateVerify;
+	}
+    } else {
+	if (sendEmptyCert) {
+	    send_funcs[n++] = ssl3_SendEmptyCertificate;
+	}
+	if (sendCert) {
+	    send_funcs[n++] = ssl3_SendCertificate;
+	}
+	send_funcs[n++] = ssl3_SendClientKeyExchange;
+	if (sendCert) {
+	    send_funcs[n++] = ssl3_SendCertificateVerify;
+	}
+	send_funcs[n++] = ssl3_SendChangeCipherSpecs;
     }
 
-    rv = ssl3_SendClientKeyExchange(ss);
-    if (rv != SECSuccess) {
-    	goto loser;	/* err is set. */
-    }
+    PORT_Assert(n <= sizeof(send_funcs)/sizeof(send_funcs[0]));
 
-    if (send_verify) {
-	rv = ssl3_SendCertificateVerify(ss);
+    for (i = 0; i < n; i++) {
+	rv = send_funcs[i](ss);
 	if (rv != SECSuccess) {
-	    goto loser;	/* err is set. */
-        }
-    }
-    rv = ssl3_SendChangeCipherSpecs(ss);
-    if (rv != SECSuccess) {
-	goto loser;	/* err code was set. */
+	    goto loser;	/* err code was set. */
+	}
     }
 
     /* We don't send NPN in a renegotiation as it's explicitly disallowed by
@@ -6110,8 +6124,13 @@ ssl3_SendServerHelloSequence(sslSocket *ss)
 	return rv;		/* err code is set. */
     }
 
-    ss->ssl3.hs.ws = (ss->opt.requestCertificate) ? wait_client_cert
-                                               : wait_client_key;
+    if (ss->opt.requestCertificate &&
+	!ssl3_ExtensionNegotiated(ss, ssl_encrypted_client_certs)) {
+	ss->ssl3.hs.ws = wait_client_cert;
+    } else {
+	ss->ssl3.hs.ws = wait_client_key;
+    }
+
     return SECSuccess;
 }
 
@@ -7355,7 +7374,11 @@ ssl3_HandleCertificateVerify(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
 	desc    = isTLS ? decode_error : illegal_parameter;
 	goto alert_loser;	/* malformed */
     }
-    ss->ssl3.hs.ws = wait_change_cipher;
+    if (ssl3_ExtensionNegotiated(ss, ssl_encrypted_client_certs)) {
+	ss->ssl3.hs.ws = wait_finished;
+    } else {
+	ss->ssl3.hs.ws = wait_change_cipher;
+    }
     return SECSuccess;
 
 alert_loser:
@@ -8348,7 +8371,11 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 
 cert_block:
     if (ss->sec.isServer) {
-	ss->ssl3.hs.ws = wait_client_key;
+	if (ssl3_ExtensionNegotiated(ss, ssl_encrypted_client_certs)) {
+	    ss->ssl3.hs.ws = wait_cert_verify;
+	} else {
+	    ss->ssl3.hs.ws = wait_client_key;
+	}
     } else {
 	ss->ssl3.hs.ws = wait_cert_request; /* disallow server_key_exchange */
 	if (ss->ssl3.hs.kea_def->is_limited ||
@@ -8977,6 +9004,8 @@ ssl3_HandleHandshakeMessage(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 
 	if (type == finished) {
 	    sender = ss->sec.isServer ? sender_client : sender_server;
+	    rSpec  = ss->ssl3.crSpec;
+	} else if (ssl3_ExtensionNegotiated(ss, ssl_encrypted_client_certs)) {
 	    rSpec  = ss->ssl3.crSpec;
 	}
 	rv = ssl3_ComputeHandshakeHashes(ss, rSpec, &hashes, sender);
