@@ -1066,6 +1066,39 @@ TEST(StringUtilTest, RemoveChars) {
   EXPECT_EQ(std::string(), input);
 }
 
+TEST(StringUtilTest, ReplaceChars) {
+  struct TestData {
+    const char* input;
+    const char* replace_chars;
+    const char* replace_with;
+    const char* output;
+    bool result;
+  } cases[] = {
+    { "", "", "", "", false },
+    { "test", "", "", "test", false },
+    { "test", "", "!", "test", false },
+    { "test", "z", "!", "test", false },
+    { "test", "e", "!", "t!st", true },
+    { "test", "e", "!?", "t!?st", true },
+    { "test", "ez", "!", "t!st", true },
+    { "test", "zed", "!?", "t!?st", true },
+    { "test", "t", "!?", "!?es!?", true },
+    { "test", "et", "!>", "!>!>s!>", true },
+    { "test", "zest", "!", "!!!!", true },
+    { "test", "szt", "!", "!e!!", true },
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+    std::string output;
+    bool result = ReplaceChars(cases[i].input,
+                               cases[i].replace_chars,
+                               cases[i].replace_with,
+                               &output);
+    EXPECT_EQ(cases[i].result, result);
+    EXPECT_EQ(cases[i].output, output);
+  }
+}
+
 TEST(StringUtilTest, ContainsOnlyChars) {
   // Providing an empty list of characters should return false but for the empty
   // string.
