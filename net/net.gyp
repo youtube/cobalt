@@ -1060,6 +1060,7 @@
         'http/http_network_transaction_unittest.cc',
         'http/http_pipelined_connection_impl_unittest.cc',
         'http/http_pipelined_host_unittest.cc',
+        'http/http_pipelined_network_transaction_unittest.cc',
         'http/http_proxy_client_socket_pool_unittest.cc',
         'http/http_request_headers_unittest.cc',
         'http/http_response_body_drainer_unittest.cc',
