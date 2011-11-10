@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "sql/connection.h"
+#include "sql/sql_export.h"
 
 namespace sql {
 
