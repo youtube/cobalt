@@ -7,12 +7,13 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "sql/sql_export.h"
 
 namespace sql {
 
 class Connection;
 
-class Transaction {
+class SQL_EXPORT Transaction {
  public:
   // Creates the scoped transaction object. You MUST call Begin() to begin the
   // transaction. If you have begun a transaction and not committed it, the
