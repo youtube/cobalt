@@ -10,14 +10,12 @@
 #include "base/message_loop.h"
 #include "base/time.h"
 #include "media/audio/audio_manager.h"
+#include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_util.h"
 #include "media/audio/linux/alsa_wrapper.h"
 #include "media/audio/linux/audio_manager_linux.h"
 
 static const int kNumPacketsInRingBuffer = 3;
-
-// If a read failed with no audio data, try again after this duration.
-static const int kNoAudioReadAgainTimeoutMs = 20;
 
 static const char kDefaultDevice1[] = "default";
 static const char kDefaultDevice2[] = "plug:default";
@@ -55,8 +53,12 @@ bool AlsaPcmInputStream::Open() {
     return false;
   }
 
-  int latency_us = packet_duration_ms_ * kNumPacketsInRingBuffer *
+  uint32 latency_us = packet_duration_ms_ * kNumPacketsInRingBuffer *
       base::Time::kMicrosecondsPerMillisecond;
+
+  // Use the same minimum required latency as output.
+  latency_us = std::max(latency_us, AlsaPcmOutputStream::kMinLatencyMicros);
+
   if (device_name_ == kAutoSelectDevice) {
     device_handle_ = alsa_util::OpenCaptureDevice(wrapper_, kDefaultDevice1,
                                                   params_.channels,
@@ -97,10 +99,10 @@ void AlsaPcmInputStream::Start(AudioInputCallback* callback) {
   if (error < 0) {
     callback_ = NULL;
   } else {
-    // We start reading data a little later than when the packet might have got
-    // filled, to accommodate some delays in the audio driver. This could
-    // also give us a smooth read sequence going forward.
-    int64 delay_ms = packet_duration_ms_ + kNoAudioReadAgainTimeoutMs;
+    // We start reading data half |packet_duration_ms_| later than when the
+    // packet might have got filled, to accommodate some delays in the audio
+    // driver. This could also give us a smooth read sequence going forward.
+    int64 delay_ms = packet_duration_ms_ + packet_duration_ms_ / 2;
     next_read_time_ = base::Time::Now() + base::TimeDelta::FromMilliseconds(
         delay_ms);
     MessageLoop::current()->PostDelayedTask(
@@ -171,10 +173,12 @@ void AlsaPcmInputStream::ReadAudio() {
       next_read_time_ = base::Time::Now();
       read_callback_behind_schedule_ = false;
     }
+
+    uint32 next_check_time = packet_duration_ms_ / 2;
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&AlsaPcmInputStream::ReadAudio, weak_factory_.GetWeakPtr()),
-        kNoAudioReadAgainTimeoutMs);
+        next_check_time);
     return;
   }
 
