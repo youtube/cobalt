@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -95,6 +95,7 @@ TEST(ThreadLocalStorageTest, TLSDestructors) {
     // Verify that the destructor was called and that we reset.
     EXPECT_EQ(values[index], kInitialTlsValue);
   }
+  tls_slot.Free();  // Stop doing callbacks to cleanup threads.
 }
 
 }  // namespace base
