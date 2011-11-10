@@ -356,7 +356,6 @@
             '../build/linux/system.gyp:pangocairo',
             '../build/linux/system.gyp:x11',
             '../build/linux/system.gyp:xext',
-            '../build/linux/system.gyp:xfixes',
           ],
           'sources': [
             'gfx/linux_util.cc',
