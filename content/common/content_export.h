@@ -6,7 +6,7 @@
 #define CONTENT_COMMON_CONTENT_EXPORT_H_
 #pragma once
 
-#if 0 // TODO(dpranke): Uncomment: defined(COMPONENT_BUILD).
+#if defined(COMPONENT_BUILD) && !defined(COMPILE_CONTENT_STATICALLY)
 #if defined(WIN32)
 
 #if defined(CONTENT_IMPLEMENTATION)
