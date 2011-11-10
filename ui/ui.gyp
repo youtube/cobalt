@@ -123,6 +123,8 @@
         'base/gtk/tooltip_window_gtk.cc',
         'base/gtk/tooltip_window_gtk.h',
         'base/hit_test.h',
+        'base/ime/character_composer.cc',
+        'base/ime/character_composer.h',
         'base/ime/composition_text.cc',
         'base/ime/composition_text.h',
         'base/ime/composition_underline.h',
@@ -419,6 +421,12 @@
             ['include', 'gfx/platform_font_pango.h'],
             ['include', 'gfx/linux_util.cc'],
             ['include', 'gfx/linux_util.h'],
+          ],
+        }],
+        ['use_ibus != 1', {
+          'sources/': [
+            ['exclude', 'base/ime/character_composer.cc'],
+            ['exclude', 'base/ime/character_composer.h'],
           ],
         }],
         ['OS=="win"', {
