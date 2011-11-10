@@ -9,9 +9,11 @@
 #include "base/bind.h"
 #include "base/format_macros.h"
 #include "base/lazy_instance.h"
+#include "base/memory/singleton.h"
 #include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/string_tokenizer.h"
+#include "base/threading/platform_thread.h"
 #include "base/threading/thread_local.h"
 #include "base/utf_string_conversions.h"
 #include "base/stl_util.h"
@@ -56,10 +58,10 @@ const TraceCategory* const g_category_metadata =
     &g_categories[2];
 int g_category_index = 3; // skip initial 3 categories
 
-// Flag to indicate whether we captured the current thread name
-LazyInstance<ThreadLocalBoolean,
-             LeakyLazyInstanceTraits<ThreadLocalBoolean> >
-    g_current_thread_name_captured(LINKER_INITIALIZED);
+// The most-recently captured name of the current thread
+LazyInstance<ThreadLocalPointer<char>,
+             LeakyLazyInstanceTraits<ThreadLocalPointer<char> > >
+    g_current_thread_name(LINKER_INITIALIZED);
 
 }  // namespace
 
@@ -545,27 +547,31 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
 
     PlatformThreadId thread_id = PlatformThread::CurrentId();
 
-    // Record the name of the calling thread, if not done already.
-    if (!g_current_thread_name_captured.Pointer()->Get()) {
-      g_current_thread_name_captured.Pointer()->Set(true);
-      const char* cur_name = PlatformThread::GetName();
+    const char* new_name = PlatformThread::GetName();
+    // Check if the thread name has been set or changed since the previous
+    // call (if any), but don't bother if the new name is empty. Note this will
+    // not detect a thread name change within the same char* buffer address: we
+    // favor common case performance over corner case correctness.
+    if (new_name != g_current_thread_name.Get().Get() &&
+        new_name && *new_name) {
+      // Benign const cast.
+      g_current_thread_name.Get().Set(const_cast<char*>(new_name));
       base::hash_map<PlatformThreadId, std::string>::iterator existing_name =
           thread_names_.find(thread_id);
       if (existing_name == thread_names_.end()) {
         // This is a new thread id, and a new name.
-        thread_names_[thread_id] = cur_name ? cur_name : "";
-      } else if(cur_name != NULL) {
+        thread_names_[thread_id] = new_name;
+      } else {
         // This is a thread id that we've seen before, but potentially with a
         // new name.
-        std::vector<std::string> existing_names;
-        Tokenize(existing_name->second, std::string(","), &existing_names);
+        std::vector<base::StringPiece> existing_names;
+        Tokenize(existing_name->second, ",", &existing_names);
         bool found = std::find(existing_names.begin(),
                                existing_names.end(),
-                               cur_name) != existing_names.end();
+                               new_name) != existing_names.end();
         if (!found) {
-          existing_names.push_back(cur_name);
-          thread_names_[thread_id] =
-              JoinString(existing_names, ',');
+          existing_name->second.push_back(',');
+          existing_name->second.append(new_name);
         }
       }
     }

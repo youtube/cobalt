@@ -103,8 +103,8 @@
 #include "base/callback.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/memory/singleton.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/timer.h"
 
@@ -324,6 +324,9 @@
           INTERNAL_TRACE_EVENT_UID(catstatic), name, \
           INTERNAL_TRACE_EVENT_UID(begin_event_id), threshold); \
     }
+
+template <typename Type>
+struct StaticMemorySingletonTraits;
 
 namespace base {
 
