@@ -165,34 +165,49 @@ const char kWhitespaceASCII[] = {
 const char kUtf8ByteOrderMark[] = "\xEF\xBB\xBF";
 
 template<typename STR>
-bool RemoveCharsT(const STR& input,
-                  const typename STR::value_type remove_chars[],
-                  STR* output) {
+bool ReplaceCharsT(const STR& input,
+                   const typename STR::value_type replace_chars[],
+                   const STR& replace_with,
+                   STR* output) {
   bool removed = false;
   size_t found;
 
   *output = input;
 
-  found = output->find_first_of(remove_chars);
+  found = output->find_first_of(replace_chars);
   while (found != STR::npos) {
     removed = true;
-    output->replace(found, 1, STR());
-    found = output->find_first_of(remove_chars, found);
+    output->replace(found, 1, replace_with);
+    found = output->find_first_of(replace_chars, found);
   }
 
   return removed;
 }
 
+bool ReplaceChars(const string16& input,
+                  const char16 replace_chars[],
+                  const string16& replace_with,
+                  string16* output) {
+  return ReplaceCharsT(input, replace_chars, replace_with, output);
+}
+
+bool ReplaceChars(const std::string& input,
+                  const char replace_chars[],
+                  const std::string& replace_with,
+                  std::string* output) {
+  return ReplaceCharsT(input, replace_chars, replace_with, output);
+}
+
 bool RemoveChars(const string16& input,
                  const char16 remove_chars[],
                  string16* output) {
-  return RemoveCharsT(input, remove_chars, output);
+  return ReplaceChars(input, remove_chars, string16(), output);
 }
 
 bool RemoveChars(const std::string& input,
                  const char remove_chars[],
                  std::string* output) {
-  return RemoveCharsT(input, remove_chars, output);
+  return ReplaceChars(input, remove_chars, std::string(), output);
 }
 
 template<typename STR>
