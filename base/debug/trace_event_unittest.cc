@@ -10,9 +10,11 @@
 #include "base/json/json_writer.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/singleton.h"
 #include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/platform_thread.h"
 #include "base/threading/thread.h"
 #include "base/values.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -52,6 +54,14 @@ class TraceEventTestFixture : public testing::Test {
     json_output_.json_output.clear();
   }
 
+  virtual void SetUp() {
+    old_thread_name_ = PlatformThread::GetName();
+  }
+  virtual void TearDown() {
+    PlatformThread::SetName(old_thread_name_ ? old_thread_name_  : "");
+  }
+
+  const char* old_thread_name_;
   ListValue trace_parsed_;
   base::debug::TraceResultBuffer trace_buffer_;
   base::debug::TraceResultBuffer::SimpleOutput json_output_;
@@ -778,7 +788,7 @@ TEST_F(TraceEventTestFixture, ThreadNames) {
       FindTraceEntries(trace_parsed_, "thread_name");
   for (int i = 0; i < static_cast<int>(items.size()); i++) {
     item = items[i];
-    EXPECT_TRUE(item);
+    ASSERT_TRUE(item);
     EXPECT_TRUE(item->GetInteger("tid", &tmp_int));
 
     // See if this thread name is one of the threads we just created
@@ -796,6 +806,44 @@ TEST_F(TraceEventTestFixture, ThreadNames) {
   }
 }
 
+TEST_F(TraceEventTestFixture, ThreadNameChanges) {
+  ManualTestSetUp();
+
+  TraceLog::GetInstance()->SetEnabled(true);
+
+  PlatformThread::SetName("");
+  TRACE_EVENT_INSTANT0("drink", "water");
+
+  PlatformThread::SetName("cafe");
+  TRACE_EVENT_INSTANT0("drink", "coffee");
+
+  PlatformThread::SetName("shop");
+  // No event here, so won't appear in combined name.
+
+  PlatformThread::SetName("pub");
+  TRACE_EVENT_INSTANT0("drink", "beer");
+  TRACE_EVENT_INSTANT0("drink", "wine");
+
+  PlatformThread::SetName(" bar");
+  TRACE_EVENT_INSTANT0("drink", "whisky");
+
+  TraceLog::GetInstance()->SetEnabled(false);
+
+  std::vector<DictionaryValue*> items =
+      FindTraceEntries(trace_parsed_, "thread_name");
+  EXPECT_EQ(1u, items.size());
+  ASSERT_GT(items.size(), 0u);
+  DictionaryValue* item = items[0];
+  ASSERT_TRUE(item);
+  int tid;
+  EXPECT_TRUE(item->GetInteger("tid", &tid));
+  EXPECT_EQ(PlatformThread::CurrentId(), static_cast<PlatformThreadId>(tid));
+
+  std::string expected_name = "cafe,pub, bar";
+  std::string tmp;
+  EXPECT_TRUE(item->GetString("args.name", &tmp));
+  EXPECT_EQ(expected_name, tmp);
+}
 
 // Test trace calls made after tracing singleton shut down.
 //
