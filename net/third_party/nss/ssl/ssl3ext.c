@@ -78,6 +78,12 @@ static PRInt32 ssl3_SendRenegotiationInfoXtn(sslSocket * ss,
     PRBool append, PRUint32 maxBytes);
 static SECStatus ssl3_HandleRenegotiationInfoXtn(sslSocket *ss, 
     PRUint16 ex_type, SECItem *data);
+static SECStatus ssl3_ServerHandleEncryptedClientCertsXtn(sslSocket *ss,
+    PRUint16 ex_type, SECItem *data);
+static SECStatus ssl3_ClientHandleEncryptedClientCertsXtn(sslSocket *ss,
+    PRUint16 ex_type, SECItem *data);
+static PRInt32 ssl3_SendEncryptedClientCertsXtn(sslSocket *ss,
+    PRBool append, PRUint32 maxBytes);
 
 /*
  * Write bytes.  Using this function means the SECItem structure
@@ -234,6 +240,7 @@ static const ssl3HelloExtensionHandler clientHelloHandlers[] = {
     { ssl_ec_point_formats_xtn,   &ssl3_HandleSupportedPointFormatsXtn },
 #endif
     { ssl_session_ticket_xtn,     &ssl3_ServerHandleSessionTicketXtn },
+    { ssl_encrypted_client_certs, &ssl3_ServerHandleEncryptedClientCertsXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ServerHandleNextProtoNegoXtn },
     { ssl_cached_info_xtn,        &ssl3_ServerHandleCachedInfoXtn },
@@ -247,6 +254,7 @@ static const ssl3HelloExtensionHandler serverHelloHandlersTLS[] = {
     { ssl_server_name_xtn,        &ssl3_HandleServerNameXtn },
     /* TODO: add a handler for ssl_ec_point_formats_xtn */
     { ssl_session_ticket_xtn,     &ssl3_ClientHandleSessionTicketXtn },
+    { ssl_encrypted_client_certs, &ssl3_ClientHandleEncryptedClientCertsXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ClientHandleNextProtoNegoXtn },
     { ssl_cached_info_xtn,        &ssl3_ClientHandleCachedInfoXtn },
@@ -275,6 +283,7 @@ ssl3HelloExtensionSender clientHelloSendersTLS[SSL_MAX_EXTENSIONS] = {
     { ssl_ec_point_formats_xtn,   &ssl3_SendSupportedPointFormatsXtn },
 #endif
     { ssl_session_ticket_xtn,     &ssl3_SendSessionTicketXtn },
+    { ssl_encrypted_client_certs, &ssl3_SendEncryptedClientCertsXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ClientSendNextProtoNegoXtn },
     { ssl_cached_info_xtn,        &ssl3_ClientSendCachedInfoXtn },
     { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn },
@@ -1318,6 +1327,18 @@ ssl3_ClientHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
     return SECSuccess;
 }
 
+static SECStatus
+ssl3_ClientHandleEncryptedClientCertsXtn(sslSocket *ss, PRUint16 ex_type,
+	                                 SECItem *data)
+{
+    if (data->len != 0)
+	return SECFailure;
+
+    /* Keep track of negotiated extensions. */
+    ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
+    return SECSuccess;
+}
+
 SECStatus
 ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
                                   SECItem *data)
@@ -1728,6 +1749,24 @@ loser:
     return rv;
 }
 
+static SECStatus
+ssl3_ServerHandleEncryptedClientCertsXtn(sslSocket *ss, PRUint16 ex_type,
+	                                 SECItem *data)
+{
+    SECStatus rv = SECSuccess;
+
+    if (data->len != 0)
+	return SECFailure;
+
+    if (ss->opt.encryptClientCerts) {
+	ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
+	rv = ssl3_RegisterServerHelloExtensionSender(
+	    ss, ex_type, ssl3_SendEncryptedClientCertsXtn);
+    }
+
+    return rv;
+}
+
 /*
  * Read bytes.  Using this function means the SECItem structure
  * cannot be freed.  The caller is expected to call this function
@@ -1924,6 +1963,33 @@ ssl3_SendRenegotiationInfoXtn(
 	                                           ssl_renegotiation_info_xtn;
 	}
     }
+    return needed;
+}
+
+static PRInt32
+ssl3_SendEncryptedClientCertsXtn(
+			sslSocket * ss,
+			PRBool      append,
+			PRUint32    maxBytes)
+{
+    PRInt32 needed;
+
+    if (!ss->opt.encryptClientCerts)
+	return 0;
+
+    needed = 4; /* two bytes of type and two of length. */
+    if (append && maxBytes >= needed) {
+	SECStatus rv;
+	rv = ssl3_AppendHandshakeNumber(ss, ssl_encrypted_client_certs, 2);
+	if (rv != SECSuccess)
+	    return -1;
+	rv = ssl3_AppendHandshakeNumber(ss, 0 /* length */, 2);
+	if (rv != SECSuccess)
+	    return -1;
+	ss->xtnData.advertised[ss->xtnData.numAdvertised++] =
+	    ssl_encrypted_client_certs;
+    }
+
     return needed;
 }
 
