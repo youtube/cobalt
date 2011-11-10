@@ -328,27 +328,6 @@
       ],
     },
     {
-      'target_name': 'xfixes',
-      'type': 'none',
-      'conditions': [
-        ['_toolset=="target"', {
-          'direct_dependent_settings': {
-            'cflags': [
-              '<!@(<(pkg-config) --cflags xfixes)',
-            ],
-          },
-          'link_settings': {
-            'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other xfixes)',
-            ],
-            'libraries': [
-              '<!@(<(pkg-config) --libs-only-l xfixes)',
-            ],
-          },
-        }],
-      ],
-    },
-    {
       'target_name': 'libgcrypt',
       'type': 'none',
       'conditions': [
