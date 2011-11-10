@@ -118,10 +118,10 @@ void VideoFrame::AllocateYUV() {
   // to avoid any potential of faulting by code that attempts to access the Y
   // values of the final row, but assumes that the last row of U & V applies to
   // a full two rows of Y.
-  size_t y_height = RoundUp(rows(VideoFrame::kYPlane), 2);
+  size_t y_height = rows(VideoFrame::kYPlane);
   size_t y_stride = RoundUp(row_bytes(VideoFrame::kYPlane), 4);
   size_t uv_stride = RoundUp(row_bytes(VideoFrame::kUPlane), 4);
-  size_t uv_height = RoundUp(rows(VideoFrame::kUPlane), 2);
+  size_t uv_height = rows(VideoFrame::kUPlane);
   size_t y_bytes = y_height * y_stride;
   size_t uv_bytes = uv_height * uv_stride;
 
@@ -195,7 +195,7 @@ int VideoFrame::row_bytes(size_t plane) const {
     case YV16:
       if (plane == kYPlane)
         return width_;
-      return width_ / 2;
+      return RoundUp(width_, 2) / 2;
 
     default:
       break;
@@ -220,7 +220,7 @@ int VideoFrame::rows(size_t plane) const {
     case YV12:
       if (plane == kYPlane)
         return height_;
-      return height_ / 2;
+      return RoundUp(height_, 2) / 2;
 
     default:
       break;
