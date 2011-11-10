@@ -971,6 +971,15 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_OB_CERTS");
 #endif
 
+#ifdef SSL_ENCRYPT_CLIENT_CERTS
+  // For now, enable the encrypted client certificates extension only if
+  // origin-bound certificates are enabled.
+  rv = SSL_OptionSet(nss_fd_, SSL_ENCRYPT_CLIENT_CERTS,
+                     ssl_config_.origin_bound_certs_enabled);
+  if (rv != SECSuccess)
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENCRYPT_CLIENT_CERTS");
+#endif
+
   rv = SSL_OptionSet(nss_fd_, SSL_HANDSHAKE_AS_CLIENT, PR_TRUE);
   if (rv != SECSuccess) {
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_HANDSHAKE_AS_CLIENT");
