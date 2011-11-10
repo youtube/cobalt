@@ -1278,9 +1278,14 @@
           }],
           ['toolkit_uses_gtk!=1', {
             'sources/': [
-              ['exclude', '_(gtk|xdg)(_unittest)?\\.(h|cc)$'],
+              ['exclude', '_gtk(_unittest)?\\.(h|cc)$'],
               ['exclude', '(^|/)gtk/'],
               ['exclude', '(^|/)gtk_[^/]*\\.(h|cc)$'],
+            ],
+          }],
+          ['OS!="linux"', {
+            'sources/': [
+              ['exclude', '_xdg(_unittest)?\\.(h|cc)$'],
             ],
           }],
           ['use_wayland!=1', {
