@@ -4,6 +4,7 @@
 
 #include "base/android/jni_android.h"
 
+#include "base/android/scoped_java_ref.h"
 #include "base/logging.h"
 
 namespace {
@@ -46,6 +47,12 @@ jobject GetApplicationContext() {
   return g_application_context;
 }
 
+MethodID::MethodID(JNIEnv* env, const char* class_name, const char* method,
+                   const char* jni_signature) {
+  ScopedJavaLocalRef<jclass> clazz(env, env->FindClass(class_name));
+  id_ = GetMethodID(env, clazz.obj(), method, jni_signature);
+}
+
 jmethodID GetMethodID(JNIEnv* env,
                       jclass clazz,
                       const char* const method,
@@ -62,6 +69,16 @@ jmethodID GetStaticMethodID(JNIEnv* env,
                             const char* const jni_signature) {
   jmethodID id = env->GetStaticMethodID(clazz, method, jni_signature);
   DCHECK(id) << method;
+  CheckException(env);
+  return id;
+}
+
+jfieldID GetFieldID(JNIEnv* env,
+                    jclass clazz,
+                    const char* field,
+                    const char* jni_signature) {
+  jfieldID id = env->GetFieldID(clazz, field, jni_signature);
+  DCHECK(id) << field;
   CheckException(env);
   return id;
 }
