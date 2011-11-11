@@ -184,9 +184,6 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // Returns the group_name. A winner need not have been chosen.
   std::string group_name_internal() const { return group_name_; }
 
-  // Get build time.
-  static Time GetBuildTime();
-
   // Calculates a uniformly-distributed double between [0.0, 1.0) given
   // a |client_id| and a |trial_name| (the latter is used as salt to avoid
   // separate one-time randomized trials from all having the same results).

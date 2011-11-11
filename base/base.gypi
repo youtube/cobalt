@@ -56,6 +56,8 @@
           'bind_internal.h',
           'bind_internal_win.h',
           'bits.h',
+          'build_time.cc',
+          'build_time.h',
           'callback.h',
           'callback_internal.cc',
           'callback_internal.h',
