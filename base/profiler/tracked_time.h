@@ -12,6 +12,8 @@
 
 namespace tracked_objects {
 
+typedef int DurationInt;
+
 //------------------------------------------------------------------------------
 
 #define USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS
