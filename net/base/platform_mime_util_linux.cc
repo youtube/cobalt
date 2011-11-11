@@ -12,7 +12,7 @@
 #if defined(OS_ANDROID)
 #include "net/android/network_library.h"
 #else
-#include "base/mime_util.h"
+#include "base/nix/mime_util_xdg.h"
 #endif
 
 namespace net {
@@ -33,7 +33,7 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     return false;
 
   FilePath dummy_path("foo." + ext);
-  std::string out = mime_util::GetFileMimeType(dummy_path);
+  std::string out = base::nix::GetFileMimeType(dummy_path);
 
   // GetFileMimeType likes to return application/octet-stream
   // for everything it doesn't know - ignore that.
