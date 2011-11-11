@@ -30,10 +30,8 @@ class GURL;
 namespace net {
 
 class AddressList;
-class ClientSocketHandle;
 class HttpStream;
 class IOBuffer;
-class SpdySession;
 class SpdyStream;
 
 class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
@@ -82,7 +80,9 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  virtual int Write(IOBuffer* buf,
+                    int buf_len,
+                    OldCompletionCallback* callback);
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
   virtual int GetPeerAddress(AddressList* address) const;

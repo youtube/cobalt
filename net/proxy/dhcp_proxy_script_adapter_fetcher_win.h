@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_PROXY_DHCP_SCRIPT_ADAPTER_FETCHER_WIN_H_
-#define NET_PROXY_DHCP_SCRIPT_ADAPTER_FETCHER_WIN_H_
+#ifndef NET_PROXY_DHCP_PROXY_SCRIPT_ADAPTER_FETCHER_WIN_H_
+#define NET_PROXY_DHCP_PROXY_SCRIPT_ADAPTER_FETCHER_WIN_H_
 #pragma once
+
+#include <string>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -15,10 +17,6 @@
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "googleurl/src/gurl.h"
-
-namespace base {
-class MessageLoopProxy;
-}
 
 namespace net {
 
@@ -180,4 +178,4 @@ class NET_EXPORT_PRIVATE DhcpProxyScriptAdapterFetcher
 
 }  // namespace net
 
-#endif  // NET_PROXY_DHCP_SCRIPT_ADAPTER_FETCHER_WIN_H_
+#endif  // NET_PROXY_DHCP_PROXY_SCRIPT_ADAPTER_FETCHER_WIN_H_
