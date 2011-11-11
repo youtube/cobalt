@@ -17,10 +17,8 @@
 namespace net {
 
 class AddressList;
-class CertVerifier;
 class ClientSocketHandle;
 class DatagramClientSocket;
-class DnsCertProvenanceChecker;
 class HostPortPair;
 class SSLClientSocket;
 struct SSLClientSocketContext;

@@ -23,11 +23,7 @@ namespace net {
 class ClientSocketHandle;
 class HttpAuthController;
 class HttpNetworkSession;
-class HttpPipelinedConnection;
-class HttpProxySocketParams;
 class HttpStream;
-class SOCKSSocketParams;
-class SSLSocketParams;
 class TransportSocketParams;
 
 // An HttpStreamRequestImpl exists for each stream which is in progress of being

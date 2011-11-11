@@ -54,12 +54,6 @@ class Time;
 
 // Temporary layering violation to allow existing users of a deprecated
 // interface.
-namespace chrome_browser_net {
-class ConnectInterceptor;
-}
-
-// Temporary layering violation to allow existing users of a deprecated
-// interface.
 namespace fileapi {
 class FileSystemDirURLRequestJobTest;
 class FileSystemOperationWriteTest;

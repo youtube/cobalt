@@ -20,7 +20,6 @@
 
 namespace net {
 
-class HttpResponseHeaders;
 class PartialData;
 struct HttpRequestInfo;
 
@@ -57,7 +56,7 @@ class HttpCache::Transaction : public HttpTransaction {
     UPDATE          = READ_META | WRITE,  // READ_WRITE & ~READ_DATA
   };
 
-  Transaction(HttpCache* cache);
+  explicit Transaction(HttpCache* cache);
   virtual ~Transaction();
 
   Mode mode() const { return mode_; }
@@ -79,7 +78,9 @@ class HttpCache::Transaction : public HttpTransaction {
   // response (or response info) must be evaluated by the caller, for instance
   // to make sure that the response_time is as expected, before calling this
   // method.
-  int WriteMetadata(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  int WriteMetadata(IOBuffer* buf,
+                    int buf_len,
+                    OldCompletionCallback* callback);
 
   // This transaction is being deleted and we are not done writing to the cache.
   // We need to indicate that the response data was truncated.  Returns true on
