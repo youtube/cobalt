@@ -128,6 +128,7 @@
         'base/ime/composition_text.cc',
         'base/ime/composition_text.h',
         'base/ime/composition_underline.h',
+        'base/ime/text_input_client.h',
         'base/ime/text_input_type.h',
         'base/keycodes/keyboard_code_conversion_gtk.cc',
         'base/keycodes/keyboard_code_conversion_gtk.h',
