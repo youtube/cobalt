@@ -4,11 +4,12 @@
 
 #include "base/metrics/field_trial.h"
 
+#include "base/build_time.h"
 #include "base/logging.h"
 #include "base/rand_util.h"
 #include "base/sha1.h"
-#include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 
 namespace base {
@@ -152,15 +153,6 @@ void FieldTrial::EnableBenchmarking() {
 }
 
 FieldTrial::~FieldTrial() {}
-
-// static
-Time FieldTrial::GetBuildTime() {
-  Time integral_build_time;
-  const char* kDateTime = __DATE__ " " __TIME__;
-  bool result = Time::FromString(kDateTime, &integral_build_time);
-  DCHECK(result);
-  return integral_build_time;
-}
 
 // static
 double FieldTrial::HashClientId(const std::string& client_id,

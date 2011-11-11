@@ -123,6 +123,7 @@
         'bind_unittest.cc',
         'bind_unittest.nc',
         'bits_unittest.cc',
+        'build_time_unittest.cc',
         'callback_unittest.cc',
         'callback_unittest.nc',
         'command_line_unittest.cc',
