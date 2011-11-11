@@ -180,6 +180,7 @@
         'base/resource/data_pack.h',
         'base/resource/resource_bundle.cc',
         'base/resource/resource_bundle.h',
+        'base/resource/resource_bundle_android.cc',
         'base/resource/resource_bundle_aurax11.cc',
         'base/resource/resource_bundle_gtk.cc',
         'base/resource/resource_bundle_linux.cc',
@@ -228,6 +229,7 @@
         'gfx/canvas.h',
         'gfx/canvas_skia.h',
         'gfx/canvas_skia.cc',
+        'gfx/canvas_skia_android.cc',
         'gfx/canvas_skia_linux.cc',
         'gfx/canvas_skia_mac.mm',
         'gfx/canvas_skia_paint.h',
@@ -260,6 +262,8 @@
         'gfx/mac/scoped_ns_disable_screen_updates.h',
         'gfx/native_theme.cc',
         'gfx/native_theme.h',
+        'gfx/native_theme_android.cc',
+        'gfx/native_theme_android.h',
         'gfx/native_theme_aura.cc',
         'gfx/native_theme_aura.h',
         'gfx/native_theme_base.cc',
@@ -506,6 +510,14 @@
               '$(SDKROOT)/System/Library/Frameworks/AudioUnit.framework',
             ],
           },
+        }],
+        ['OS=="android"', {
+          'sources!': [
+            'gfx/pango_util.h',
+            'gfx/pango_util.cc',
+            'gfx/platform_font_pango.h',
+            'gfx/platform_font_pango.cc',
+          ],
         }],
         ['use_x11==1', {
           'all_dependent_settings': {
