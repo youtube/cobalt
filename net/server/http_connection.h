@@ -15,7 +15,6 @@
 namespace net {
 
 class HttpServer;
-class HttpServerRequestInfo;
 class ListenSocket;
 class WebSocket;
 
@@ -51,4 +50,4 @@ class HttpConnection {
 
 }  // namespace net
 
-#endif // NET_SERVER_HTTP_CONNECTION_H_
+#endif  // NET_SERVER_HTTP_CONNECTION_H_
