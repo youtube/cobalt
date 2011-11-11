@@ -33,18 +33,18 @@ static const ThreadData::Status kInitialStartupState = ThreadData::ACTIVE;
 //------------------------------------------------------------------------------
 // DeathData tallies durations when a death takes place.
 
-void DeathData::RecordDeath(const Duration& queue_duration,
-                            const Duration& run_duration) {
+void DeathData::RecordDeath(DurationInt queue_duration,
+                            DurationInt run_duration) {
   ++count_;
   queue_time_.AddDuration(queue_duration);
   run_time_.AddDuration(run_duration);
 }
 
-int DeathData::AverageMsRunDuration() const {
+DurationInt DeathData::AverageMsRunDuration() const {
   return run_time_.AverageMsDuration(count_);
 }
 
-int DeathData::AverageMsQueueDuration() const {
+DurationInt DeathData::AverageMsQueueDuration() const {
   return queue_time_.AverageMsDuration(count_);
 }
 
@@ -70,13 +70,13 @@ base::DictionaryValue* DeathData::ToValue() const {
   base::DictionaryValue* dictionary = new base::DictionaryValue;
   dictionary->Set("count", base::Value::CreateIntegerValue(count_));
   dictionary->Set("run_ms",
-      base::Value::CreateIntegerValue(run_time_.duration().InMilliseconds()));
+      base::Value::CreateIntegerValue(run_time_.duration()));
   dictionary->Set("queue_ms",
-      base::Value::CreateIntegerValue(queue_time_.duration().InMilliseconds()));
+      base::Value::CreateIntegerValue(queue_time_.duration()));
   dictionary->Set("run_ms_max",
-      base::Value::CreateIntegerValue(run_time_.max().InMilliseconds()));
+      base::Value::CreateIntegerValue(run_time_.max()));
   dictionary->Set("queue_ms_max",
-      base::Value::CreateIntegerValue(queue_time_.max().InMilliseconds()));
+      base::Value::CreateIntegerValue(queue_time_.max()));
   return dictionary;
 }
 
@@ -93,14 +93,14 @@ void DeathData::Data::WriteHTML(int count, std::string* output) const {
   // InMilliseconds() may not always be an int, even if it can generally fit
   // into an int.
   base::StringAppendF(output, "%dms",
-                      static_cast<int>(duration_.InMilliseconds()));
+                      static_cast<int>(duration_));
   if (count == 1) {
     output->append(" ");
     return;
   }
   base::StringAppendF(output, "(%dms/life,max:%dms) ",
-                      AverageMsDuration(count),
-                      static_cast<int>(max_.InMilliseconds()));
+                      static_cast<int>(AverageMsDuration(count)),
+                      static_cast<int>(max_));
 }
 
 void DeathData::Data::AddData(const Data& other) {
@@ -110,22 +110,22 @@ void DeathData::Data::AddData(const Data& other) {
   max_ = other.max_;
 }
 
-void DeathData::Data::AddDuration(const Duration& duration) {
+void DeathData::Data::AddDuration(DurationInt duration) {
   duration_ += duration;
   if (max_ > duration)
     return;
   max_ = duration;
 }
 
-int DeathData::Data::AverageMsDuration(int count) const {
-  if (duration_ == Duration() || !count)
+DurationInt DeathData::Data::AverageMsDuration(int count) const {
+  if (duration_ == 0 || !count)
     return 0;
-  return static_cast<int>(duration_.InMilliseconds() + count / 2) / count;
+  return (duration_ + count / 2) / count;
 }
 
 void DeathData::Data::Clear() {
-  duration_ = Duration();
-  max_ = Duration();
+  duration_ = 0;
+  max_ = 0;
 }
 //------------------------------------------------------------------------------
 BirthOnThread::BirthOnThread(const Location& location,
@@ -401,8 +401,8 @@ Births* ThreadData::TallyABirth(const Location& location) {
 }
 
 void ThreadData::TallyADeath(const Births& birth,
-                             const Duration& queue_duration,
-                             const Duration& run_duration) {
+                             DurationInt queue_duration,
+                             DurationInt run_duration) {
   DeathMap::iterator it = death_map_.find(&birth);
   DeathData* death_data;
   if (it != death_map_.end()) {
@@ -460,12 +460,12 @@ void ThreadData::TallyRunOnNamedThreadIfTracking(
   // get a time value since we "weren't tracking" and we were trying to be
   // efficient by not calling for a genuine time value. For simplicity, we'll
   // use a default zero duration when we can't calculate a true value.
-  Duration queue_duration;
-  Duration run_duration;
+  DurationInt queue_duration = 0;
+  DurationInt run_duration = 0;
   if (!start_of_run.is_null()) {
-    queue_duration = start_of_run - effective_post_time;
+    queue_duration = (start_of_run - effective_post_time).InMilliseconds();
     if (!end_of_run.is_null())
-      run_duration = end_of_run - start_of_run;
+      run_duration = (end_of_run - start_of_run).InMilliseconds();
   }
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
 }
@@ -498,12 +498,12 @@ void ThreadData::TallyRunOnWorkerThreadIfTracking(
   if (!current_thread_data)
     return;
 
-  Duration queue_duration;
-  Duration run_duration;
+  DurationInt queue_duration = 0;
+  DurationInt run_duration = 0;
   if (!start_of_run.is_null()) {
-    queue_duration = start_of_run - time_posted;
+    queue_duration = (start_of_run - time_posted).InMilliseconds();
     if (!end_of_run.is_null())
-      run_duration = end_of_run - start_of_run;
+      run_duration = (end_of_run - start_of_run).InMilliseconds();
   }
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
 }
@@ -526,8 +526,8 @@ void ThreadData::TallyRunInAScopedRegionIfTracking(
   if (!current_thread_data)
     return;
 
-  Duration queue_duration = Duration();
-  Duration run_duration = end_of_run - start_of_run;
+  DurationInt queue_duration = 0;
+  DurationInt run_duration = (end_of_run - start_of_run).InMilliseconds();
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
 }
 
