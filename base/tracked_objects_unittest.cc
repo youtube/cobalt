@@ -118,27 +118,25 @@ TEST_F(TrackedObjectsTest, DeathDataTest) {
 
   scoped_ptr<DeathData> data(new DeathData());
   ASSERT_NE(data, reinterpret_cast<DeathData*>(NULL));
-  EXPECT_EQ(data->run_duration(), Duration());
-  EXPECT_EQ(data->queue_duration(), Duration());
+  EXPECT_EQ(data->run_duration(), 0);
+  EXPECT_EQ(data->queue_duration(), 0);
   EXPECT_EQ(data->AverageMsRunDuration(), 0);
   EXPECT_EQ(data->AverageMsQueueDuration(), 0);
   EXPECT_EQ(data->count(), 0);
 
-  int run_ms = 42;
-  int queue_ms = 8;
+  DurationInt run_ms = 42;
+  DurationInt queue_ms = 8;
 
-  Duration run_duration = Duration().FromMilliseconds(run_ms);
-  Duration queue_duration = Duration().FromMilliseconds(queue_ms);
-  data->RecordDeath(queue_duration, run_duration);
-  EXPECT_EQ(data->run_duration(), run_duration);
-  EXPECT_EQ(data->queue_duration(), queue_duration);
+  data->RecordDeath(queue_ms, run_ms);
+  EXPECT_EQ(data->run_duration(), run_ms);
+  EXPECT_EQ(data->queue_duration(), queue_ms);
   EXPECT_EQ(data->AverageMsRunDuration(), run_ms);
   EXPECT_EQ(data->AverageMsQueueDuration(), queue_ms);
   EXPECT_EQ(data->count(), 1);
 
-  data->RecordDeath(queue_duration, run_duration);
-  EXPECT_EQ(data->run_duration(), run_duration + run_duration);
-  EXPECT_EQ(data->queue_duration(), queue_duration + queue_duration);
+  data->RecordDeath(queue_ms, run_ms);
+  EXPECT_EQ(data->run_duration(), run_ms + run_ms);
+  EXPECT_EQ(data->queue_duration(), queue_ms + queue_ms);
   EXPECT_EQ(data->AverageMsRunDuration(), run_ms);
   EXPECT_EQ(data->AverageMsQueueDuration(), queue_ms);
   EXPECT_EQ(data->count(), 2);

@@ -232,21 +232,22 @@ class BASE_EXPORT DeathData {
   // When deaths have not yet taken place, and we gather data from all the
   // threads, we create DeathData stats that tally the number of births without
   // a corrosponding death.
-  explicit DeathData(int count) : count_(count) {}
+  explicit DeathData(int count)
+      : count_(count) {}
 
   // Update stats for a task destruction (death) that had a Run() time of
   // |duration|, and has had a queueing delay of |queue_duration|.
-  void RecordDeath(const Duration& queue_duration,
-                   const Duration& run_duration);
+  void RecordDeath(DurationInt queue_duration,
+                   DurationInt run_duration);
 
   // Metrics accessors.
   int count() const { return count_; }
-  Duration run_duration() const { return run_time_.duration(); }
-  int AverageMsRunDuration() const;
-  Duration run_duration_max() const { return run_time_.max(); }
-  Duration queue_duration() const { return queue_time_.duration(); }
-  int AverageMsQueueDuration() const;
-  Duration queue_duration_max() const { return queue_time_.max(); }
+  DurationInt run_duration() const { return run_time_.duration(); }
+  DurationInt AverageMsRunDuration() const;
+  DurationInt run_duration_max() const { return run_time_.max(); }
+  DurationInt queue_duration() const { return queue_time_.duration(); }
+  DurationInt AverageMsQueueDuration() const;
+  DurationInt queue_duration_max() const { return queue_time_.max(); }
 
   // Accumulate metrics from other into this.  This method is never used on
   // realtime statistics, and only used in snapshots and aggregatinos.
@@ -267,11 +268,11 @@ class BASE_EXPORT DeathData {
   // aggregated, such as queueing times, or run times.
   class Data {
    public:
-    Data() {}
+    Data() : duration_(0), max_(0) {}
     ~Data() {}
 
-    Duration duration() const { return duration_; }
-    Duration max() const { return max_; }
+    DurationInt duration() const { return duration_; }
+    DurationInt max() const { return max_; }
 
     // Emits HTML formated description of members, assuming |count| instances
     // when calculating averages.
@@ -279,18 +280,18 @@ class BASE_EXPORT DeathData {
 
     // Agggegate data into our state.
     void AddData(const Data& other);
-    void AddDuration(const Duration& duration);
+    void AddDuration(DurationInt duration);
 
     // Central helper function for calculating averages (correctly, in only one
     // place).
-    int AverageMsDuration(int count) const;
+    DurationInt AverageMsDuration(int count) const;
 
     // Resets all members to zero.
     void Clear();
 
    private:
-    Duration duration_;  // Sum of all durations seen.
-    Duration max_;       // Largest singular duration seen.
+    DurationInt duration_;  // Sum of all durations seen.
+    DurationInt max_;       // Largest singular duration seen.
   };
 
 
@@ -323,18 +324,18 @@ class BASE_EXPORT Snapshot {
   const std::string DeathThreadName() const;
 
   int count() const { return death_data_.count(); }
-  Duration run_duration() const { return death_data_.run_duration(); }
-  int AverageMsRunDuration() const {
+  DurationInt run_duration() const { return death_data_.run_duration(); }
+  DurationInt AverageMsRunDuration() const {
     return death_data_.AverageMsRunDuration();
   }
-  Duration run_duration_max() const {
+  DurationInt run_duration_max() const {
     return death_data_.run_duration_max();
   }
-  Duration queue_duration() const { return death_data_.queue_duration(); }
-  int AverageMsQueueDuration() const {
+  DurationInt queue_duration() const { return death_data_.queue_duration(); }
+  DurationInt AverageMsQueueDuration() const {
     return death_data_.AverageMsQueueDuration();
   }
-  Duration queue_duration_max() const {
+  DurationInt queue_duration_max() const {
     return death_data_.queue_duration_max();
   }
 
@@ -692,8 +693,8 @@ class BASE_EXPORT ThreadData {
 
   // Find a place to record a death on this thread.
   void TallyADeath(const Births& birth,
-                   const Duration& queue_duration,
-                   const Duration& duration);
+                   DurationInt queue_duration,
+                   DurationInt duration);
 
   // Using our lock to protect the iteration, Clear all birth and death data.
   void Reset();
