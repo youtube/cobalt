@@ -24,13 +24,6 @@
           # Whether we are using Views Toolkit
           'toolkit_views%': 0,
 
-          # Whether the Views toolkit can use its Pure form when available
-          # or if it must only use GTK (the default at the moment).
-          # This is an intermediate step until all of Views is 'Pure',
-          # at which point we plan to remove those switches.
-          # This turns on the USE_ONLY_PURE_VIEWS macro.
-          'use_only_pure_views%': 0,
-
           # Disable touch support by default.
           'touchui%': 0,
 
@@ -45,7 +38,6 @@
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
-        'use_only_pure_views%': '<(use_only_pure_views)',
         'touchui%': '<(touchui)',
         'views_compositor%': '<(views_compositor)',
         'use_aura%': '<(use_aura)',
@@ -68,17 +60,10 @@
 
           # Set default value of toolkit_views on for Windows, Chrome OS,
           # Touch and PureView.
-          ['OS=="win" or chromeos==1 or touchui==1 or use_only_pure_views==1 or use_aura==1', {
+          ['OS=="win" or chromeos==1 or touchui==1 or use_aura==1', {
             'toolkit_views%': 1,
           }, {
             'toolkit_views%': 0,
-          }],
-
-          # Views are always Pure in Touch and Aura case.
-          ['touchui==1 or use_aura==1', {
-            'use_only_pure_views%': 1,
-          }, {
-            'use_only_pure_views%': 0,
           }],
 
           # Use virtual keyboard by default in TouchUI builds.
@@ -102,7 +87,6 @@
       'use_virtual_keyboard%': '<(use_virtual_keyboard)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
-      'use_only_pure_views%': '<(use_only_pure_views)',
       'views_compositor%': '<(views_compositor)',
       'use_webkit_compositor%': '<(use_webkit_compositor)',
       'use_aura%': '<(use_aura)',
@@ -321,7 +305,7 @@
         }],
 
         # Enable file manager extension on Chrome OS, Touch, PureView, Aura.
-        ['chromeos==1 or touchui==1 or use_only_pure_views==1 or use_aura==1', {
+        ['chromeos==1 or touchui==1 or use_aura==1', {
           'file_manager_extension%': 1,
         }, {
           'file_manager_extension%': 0,
@@ -333,7 +317,7 @@
         }],
 
         # Enable WebUI TaskManager always on Chrome OS, Touch or PureView.
-        ['chromeos==1 or touchui==1 or use_only_pure_views==1 or use_aura==1', {
+        ['chromeos==1 or touchui==1 or use_aura==1', {
           'webui_task_manager%': 1,
         }],
 
@@ -359,7 +343,6 @@
     'host_arch%': '<(host_arch)',
     'library%': 'static_library',
     'toolkit_views%': '<(toolkit_views)',
-    'use_only_pure_views%': '<(use_only_pure_views)',
     'views_compositor%': '<(views_compositor)',
     'ui_compositor_image_transport%': '<(ui_compositor_image_transport)',
     'use_webkit_compositor%': '<(use_webkit_compositor)',
@@ -819,9 +802,6 @@
       ['toolkit_views==1', {
         'grit_defines': ['-D', 'toolkit_views'],
       }],
-      ['use_only_pure_views==1', {
-        'grit_defines': ['-D', 'use_only_pure_views'],
-      }],
       ['use_aura==1', {
         'grit_defines': ['-D', 'use_aura'],
       }],
@@ -974,9 +954,6 @@
       }],
       ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
-      }],
-      ['use_only_pure_views==1', {
-        'defines': ['USE_ONLY_PURE_VIEWS=1'],
       }],
       ['views_compositor==1', {
         'defines': ['VIEWS_COMPOSITOR=1'],
