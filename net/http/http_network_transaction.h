@@ -30,6 +30,7 @@ class HttpNetworkSession;
 class HttpStream;
 class HttpStreamRequest;
 class IOBuffer;
+class UploadDataStream;
 struct HttpRequestInfo;
 
 class NET_EXPORT_PRIVATE HttpNetworkTransaction

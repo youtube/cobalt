@@ -6,6 +6,8 @@
 #define NET_PROXY_PROXY_SCRIPT_FETCHER_IMPL_H_
 #pragma once
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
@@ -17,7 +19,6 @@
 #include "net/url_request/url_request.h"
 
 class GURL;
-class X509Certificate;
 
 namespace net {
 

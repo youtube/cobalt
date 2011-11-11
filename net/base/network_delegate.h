@@ -26,7 +26,6 @@ namespace net {
 // NOTE: It is not okay to add any compile-time dependencies on symbols outside
 // of net/base here, because we have a net_base library. Forward declarations
 // are ok.
-class HostPortPair;
 class HttpRequestHeaders;
 class HttpResponseHeaders;
 class URLRequest;

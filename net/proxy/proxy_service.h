@@ -6,6 +6,7 @@
 #define NET_PROXY_PROXY_SERVICE_H_
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "base/gtest_prod_util.h"
@@ -33,7 +34,6 @@ class InitProxyResolver;
 class NetworkDelegate;
 class ProxyResolver;
 class ProxyScriptFetcher;
-class URLRequestContext;
 
 // This class can be used to resolve the proxy server to use when loading a
 // HTTP(S) URL.  It uses the given ProxyResolver to handle the actual proxy

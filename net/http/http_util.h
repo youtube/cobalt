@@ -21,8 +21,6 @@
 
 namespace net {
 
-class UploadDataStream;
-
 class NET_EXPORT HttpUtil {
  public:
   // Returns the absolute path of the URL, to be used for the http request.
@@ -49,7 +47,7 @@ class NET_EXPORT HttpUtil {
   static void ParseContentType(const std::string& content_type_str,
                                std::string* mime_type,
                                std::string* charset,
-                               bool *had_charset);
+                               bool* had_charset);
 
   // Scans the headers and look for the first "Range" header in |headers|,
   // if "Range" exists and the first one of it is well formatted then returns

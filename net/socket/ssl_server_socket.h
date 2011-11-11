@@ -20,7 +20,6 @@ class RSAPrivateKey;
 
 namespace net {
 
-class IOBuffer;
 struct SSLConfig;
 class X509Certificate;
 

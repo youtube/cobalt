@@ -36,7 +36,6 @@ class SSLClientSocket;
 class SSLHostInfoFactory;
 class TransportSocketParams;
 class TransportClientSocketPool;
-struct RRResponse;
 
 // SSLSocketParams only needs the socket params for the transport socket
 // that will be used (denoted by |proxy|).
