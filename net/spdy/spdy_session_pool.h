@@ -31,7 +31,6 @@ class AddressList;
 class BoundNetLog;
 class ClientSocketHandle;
 class HostResolver;
-class HttpNetworkSession;
 class SpdySession;
 
 // This is a very simple pool for open SpdySessions.

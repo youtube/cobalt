@@ -24,15 +24,12 @@ class BoundNetLog;
 class HostMappingRules;
 class HostPortPair;
 class HttpAuthController;
-class HttpNetworkSession;
-class HttpPipelinedHost;
 class HttpResponseInfo;
 class HttpServerProperties;
 class HttpStream;
 class ProxyInfo;
 class SSLCertRequestInfo;
 class SSLInfo;
-class X509Certificate;
 struct HttpRequestInfo;
 struct SSLConfig;
 

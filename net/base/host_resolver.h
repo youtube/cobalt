@@ -22,7 +22,6 @@ namespace net {
 class AddressList;
 class BoundNetLog;
 class HostCache;
-class HostResolverImpl;
 class HostResolverProc;
 class NetLog;
 

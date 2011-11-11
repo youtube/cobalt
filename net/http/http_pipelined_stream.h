@@ -20,7 +20,6 @@ class HttpPipelinedConnectionImpl;
 class HttpResponseInfo;
 class HttpRequestHeaders;
 struct HttpRequestInfo;
-class HttpStreamParser;
 class IOBuffer;
 class ProxyInfo;
 struct SSLConfig;

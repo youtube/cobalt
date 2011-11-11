@@ -8,7 +8,7 @@
 
 #include <stdlib.h>
 
-#include <sstream>
+#include <map>
 #include <string>
 
 #include "base/compiler_specific.h"
@@ -38,10 +38,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::TimeDelta;
-
-namespace net {
-class HostPortPair;
-}
 
 //-----------------------------------------------------------------------------
 
