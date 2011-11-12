@@ -234,7 +234,7 @@ size_t SpdySession::max_concurrent_stream_limit_ = 256;
 bool SpdySession::enable_ping_based_connection_checking_ = true;
 
 // static
-int SpdySession::connection_at_risk_of_loss_ms_ = 0;
+int SpdySession::connection_at_risk_of_loss_seconds_ = 10;
 
 // static
 int SpdySession::trailing_ping_delay_time_ms_ = 1000;
@@ -530,9 +530,10 @@ int SpdySession::WriteSynStream(
   }
 
   // Some servers don't like too many pings, so we limit our current sending to
-  // no more than one ping for any syn sent.  To do this, we avoid ever setting
-  // this to true unless we send a syn (which we have just done).  This approach
-  // may change over time as servers change their responses to pings.
+  // no more than two pings for any syn frame or data frame sent.  To do this,
+  // we avoid ever setting this to true unless we send a syn (which we have just
+  // done) or data frame. This approach may change over time as servers change
+  // their responses to pings.
   need_to_send_ping_ = true;
 
   return ERR_IO_PENDING;
@@ -547,8 +548,6 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   CHECK_EQ(stream->stream_id(), stream_id);
   if (!stream)
     return ERR_INVALID_SPDY_STREAM;
-
-  SendPrefacePingIfNoneInFlight();
 
   if (len > kMaxSpdyFrameChunkSize) {
     len = kMaxSpdyFrameChunkSize;
@@ -585,10 +584,23 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
         make_scoped_refptr(new NetLogSpdyDataParameter(stream_id, len, flags)));
   }
 
+  // Send PrefacePing for DATA_FRAMEs with nonzero payload size.
+  if (len > 0)
+    SendPrefacePingIfNoneInFlight();
+
   // TODO(mbelshe): reduce memory copies here.
   scoped_ptr<spdy::SpdyDataFrame> frame(
       spdy_framer_.CreateDataFrame(stream_id, data->data(), len, flags));
   QueueFrame(frame.get(), stream->priority(), stream);
+
+  // Some servers don't like too many pings, so we limit our current sending to
+  // no more than two pings for any syn frame or data frame sent.  To do this,
+  // we avoid ever setting this to true unless we send a syn (which we have just
+  // done) or data frame. This approach may change over time as servers change
+  // their responses to pings.
+  if (len > 0)
+    need_to_send_ping_ = true;
+
   return ERR_IO_PENDING;
 }
 
@@ -1540,7 +1552,7 @@ void SpdySession::SendPrefacePingIfNoneInFlight() {
     return;
 
   const base::TimeDelta kConnectionAtRiskOfLoss =
-      base::TimeDelta::FromMilliseconds(connection_at_risk_of_loss_ms_);
+      base::TimeDelta::FromSeconds(connection_at_risk_of_loss_seconds_);
 
   base::TimeTicks now = base::TimeTicks::Now();
   // If we haven't heard from server, then send a preface-PING.
@@ -1551,9 +1563,7 @@ void SpdySession::SendPrefacePingIfNoneInFlight() {
 }
 
 void SpdySession::SendPrefacePing() {
-  // TODO(rtenneti): Send preface pings when more servers support additional
-  // pings.
-  // WritePingFrame(next_ping_id_);
+  WritePingFrame(next_ping_id_);
 }
 
 void SpdySession::PlanToSendTrailingPing() {
