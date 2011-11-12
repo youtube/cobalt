@@ -294,7 +294,7 @@ class SQL_EXPORT Connection {
   //
   // The Connection may revoke a StatementRef in some error cases, so callers
   // should always check validity before using.
-  class StatementRef : public base::RefCounted<StatementRef> {
+  class SQL_EXPORT StatementRef : public base::RefCounted<StatementRef> {
    public:
     // Default constructor initializes to an invalid statement.
     StatementRef();
