@@ -739,7 +739,7 @@ TEST_F(ProcessUtilTest, GetAppOutputRestricted) {
   EXPECT_STREQ("", output.c_str());
 }
 
-#if !(OS_MACOSX)
+#if !defined(OS_MACOSX) && !defined(OS_OPENBSD)
 // TODO(benwells): GetAppOutputRestricted should terminate applications
 // with SIGPIPE when we have enough output. http://crbug.com/88502
 TEST_F(ProcessUtilTest, GetAppOutputRestrictedSIGPIPE) {
