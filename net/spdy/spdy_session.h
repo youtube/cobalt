@@ -395,11 +395,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // --------------------------
   // Helper methods for testing
   // --------------------------
-  static void set_connection_at_risk_of_loss_ms(int duration) {
-    connection_at_risk_of_loss_ms_ = duration;
+  static void set_connection_at_risk_of_loss_seconds(int duration) {
+    connection_at_risk_of_loss_seconds_ = duration;
   }
-  static int connection_at_risk_of_loss_ms() {
-    return connection_at_risk_of_loss_ms_;
+  static int connection_at_risk_of_loss_seconds() {
+    return connection_at_risk_of_loss_seconds_;
   }
 
   static void set_trailing_ping_delay_time_ms(int duration) {
@@ -564,7 +564,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // This enables or disables connection health checking system.
   static bool enable_ping_based_connection_checking_;
 
-  // |connection_at_risk_of_loss_ms_| is an optimization to avoid sending
+  // |connection_at_risk_of_loss_seconds_| is an optimization to avoid sending
   // wasteful preface pings (when we just got some data).
   //
   // If it is zero (the most conservative figure), then we always send the
@@ -577,7 +577,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // We don't think any connection will time out in under about 10 seconds. So
   // this might as well be set to something conservative like 10 seconds. Later,
   // we could adjust it to send fewer pings perhaps.
-  static int connection_at_risk_of_loss_ms_;
+  static int connection_at_risk_of_loss_seconds_;
 
   // This is the amount of time (in milliseconds) we wait before sending a
   // trailing ping. We use a trailing ping (sent after all data) to get an

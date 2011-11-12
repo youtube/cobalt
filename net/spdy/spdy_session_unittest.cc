@@ -239,7 +239,7 @@ TEST_F(SpdySessionTest, Ping) {
 
   // Enable sending of PING.
   SpdySession::set_enable_ping_based_connection_checking(true);
-  SpdySession::set_connection_at_risk_of_loss_ms(0);
+  SpdySession::set_connection_at_risk_of_loss_seconds(0);
   SpdySession::set_trailing_ping_delay_time_ms(0);
   SpdySession::set_hung_interval_ms(50);
 
@@ -329,7 +329,7 @@ TEST_F(SpdySessionTest, FailedPing) {
 
   // Enable sending of PING.
   SpdySession::set_enable_ping_based_connection_checking(true);
-  SpdySession::set_connection_at_risk_of_loss_ms(0);
+  SpdySession::set_connection_at_risk_of_loss_seconds(0);
   SpdySession::set_trailing_ping_delay_time_ms(0);
   SpdySession::set_hung_interval_ms(0);
 
