@@ -239,13 +239,16 @@ std::string Histogram::SerializeHistogramInfo(const Histogram& histogram,
   pickle.WriteInt(histogram.flags());
 
   snapshot.Serialize(&pickle);
+
+  histogram.SerializeRanges(&pickle);
+
   return std::string(static_cast<const char*>(pickle.data()), pickle.size());
 }
 
 // static
 bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
   if (histogram_info.empty()) {
-      return false;
+    return false;
   }
 
   Pickle pickle(histogram_info.data(),
@@ -271,6 +274,7 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
     DLOG(ERROR) << "Pickle error decoding Histogram: " << histogram_name;
     return false;
   }
+
   DCHECK(pickle_flags & kIPCSerializationSourceFlag);
   // Since these fields may have come from an untrusted renderer, do additional
   // checks above and beyond those in Histogram::Initialize()
@@ -294,6 +298,14 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
         histogram_name, declared_min, declared_max, bucket_count, flags);
   } else if (histogram_type == BOOLEAN_HISTOGRAM) {
     render_histogram = BooleanHistogram::FactoryGet(histogram_name, flags);
+  } else if (histogram_type == CUSTOM_HISTOGRAM) {
+    std::vector<Histogram::Sample> sample_ranges(bucket_count);
+    if (!CustomHistogram::DeserializeRanges(&iter, pickle, &sample_ranges)) {
+      DLOG(ERROR) << "Pickle error decoding ranges: " << histogram_name;
+      return false;
+    }
+    render_histogram =
+        CustomHistogram::FactoryGet(histogram_name, sample_ranges, flags);
   } else {
     DLOG(ERROR) << "Error Deserializing Histogram Unknown histogram_type: "
                 << histogram_type;
@@ -438,6 +450,10 @@ Histogram::~Histogram() {
 
   // Just to make sure most derived class did this properly...
   DCHECK(ValidateBucketRanges());
+}
+
+bool Histogram::SerializeRanges(Pickle* pickle) const {
+  return true;
 }
 
 // Calculate what range of values are held in each bucket.
@@ -979,6 +995,24 @@ CustomHistogram::CustomHistogram(const std::string& name,
                 custom_ranges.size()) {
   DCHECK_GT(custom_ranges.size(), 1u);
   DCHECK_EQ(custom_ranges[0], 0);
+}
+
+bool CustomHistogram::SerializeRanges(Pickle* pickle) const {
+  for (size_t i = 0; i < cached_ranges()->size(); ++i) {
+    if (!pickle->WriteInt(cached_ranges()->ranges(i)))
+      return false;
+  }
+  return true;
+}
+
+// static
+bool CustomHistogram::DeserializeRanges(
+    void** iter, const Pickle& pickle, std::vector<Histogram::Sample>* ranges) {
+  for (size_t i = 0; i < ranges->size(); ++i) {
+    if (!pickle.ReadInt(iter, &(*ranges)[i]))
+      return false;
+  }
+  return true;
 }
 
 void CustomHistogram::InitializedCustomBucketRange(
