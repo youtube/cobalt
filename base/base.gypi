@@ -411,12 +411,6 @@
           '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework/Frameworks',
         ],
         'conditions': [
-          [ 'use_wayland == 1', {
-            'sources!': [
-              'message_pump_gtk.cc',
-              'message_pump_x.cc',
-            ],
-          }],
           [ 'use_glib==0', {
               'sources/': [
                 ['exclude', '^nix/'],
@@ -434,7 +428,13 @@
             'sources!' : [ 'message_pump_x.cc', ],
           }, {
             'sources!' : [ 'message_pump_gtk.cc', ],
-            'sources/' : [ [ 'include', 'message_pump_x.cc', ] ],
+            'sources/' : [ [ 'include', '^message_pump_x\\.cc$', ] ],
+          }],
+          [ 'use_wayland==1', {
+            'sources/': [
+              [ 'exclude', '^message_pump_gtk\\.cc$',],
+              [ 'exclude', '^message_pump_x\\.cc$',],
+            ],
           }],
           [ 'OS != "linux" and OS != "openbsd"', {
               'sources!': [
