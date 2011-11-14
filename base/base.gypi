@@ -362,6 +362,7 @@
           'nix/mime_util_xdg.h',
           'nix/xdg_util.cc',
           'nix/xdg_util.h',
+          'wayland/wayland_event.h',
           'win/event_trace_consumer.h',
           'win/event_trace_controller.cc',
           'win/event_trace_controller.h',
