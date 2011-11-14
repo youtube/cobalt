@@ -58,6 +58,9 @@
 // busy looping.
 static const uint32 kNoDataSleepMilliseconds = 10;
 
+// Mininum interval between OnMoreData() calls.
+const uint32 kMinIntervalBetweenOnMoreDataCallsInMs = 5;
+
 // According to the linux nanosleep manpage, nanosleep on linux can miss the
 // deadline by up to 10ms because the kernel timeslice is 10ms.  Give a 2x
 // buffer to compensate for the timeslice, and any additional slowdowns.
@@ -347,7 +350,8 @@ void AlsaPcmOutputStream::OpenTask() {
     if (error < 0) {
       LOG(ERROR) << "Failed to get playback buffer size from ALSA: "
                  << wrapper_->StrError(error);
-      alsa_buffer_frames_ = frames_per_packet_;
+      // Buffer size is at least twice of packet size.
+      alsa_buffer_frames_ = frames_per_packet_ * 2;
     } else {
       alsa_buffer_frames_ = buffer_size;
     }
@@ -427,8 +431,9 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
 
   *source_exhausted = false;
 
-  // Request more data if we have capacity.
-  if (buffer_->forward_capacity() > buffer_->forward_bytes()) {
+  // Request more data only when we run out of data in the buffer, because
+  // WritePacket() comsumes only the current chunk of data.
+  if (!buffer_->forward_bytes()) {
     // Before making a request to source for data we need to determine the
     // delay (in bytes) for the requested data to be played.
 
@@ -597,25 +602,38 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
     return;
   }
 
-  // Next write is scheduled for the moment when half of the buffer is
-  // available.
   uint32 frames_avail_wanted = alsa_buffer_frames_ / 2;
   uint32 available_frames = GetAvailableFrames();
-  uint32 next_fill_time_ms = 0;
+  uint32 frames_in_buffer = buffer_->forward_bytes() / bytes_per_output_frame_;
 
-  // It's possible to have more frames available than what we want, in which
-  // case we'll leave our |next_fill_time_ms| at 0ms.
-  if (available_frames < frames_avail_wanted) {
-    uint32 frames_until_empty_enough = frames_avail_wanted - available_frames;
-    next_fill_time_ms =
-        FramesToMillis(frames_until_empty_enough, sample_rate_);
-  }
+  // Next write is initially scheduled for the moment when half of a packet
+  // has been played out.
+  uint32 next_fill_time_ms =
+      FramesToMillis(frames_per_packet_ / 2, sample_rate_);
 
-  // Adjust for timer resolution issues.
-  if (next_fill_time_ms < kSleepErrorMilliseconds) {
+  if (frames_in_buffer && (frames_in_buffer <= available_frames)) {
+    // There is data in the current buffer, consume them immediately if we have
+    // enough space in the soundcard.
     next_fill_time_ms = 0;
   } else {
-    next_fill_time_ms -= kSleepErrorMilliseconds;
+    // Otherwise schedule the next write for the moment when half of the alsa
+    // buffer becomes available.
+    if (available_frames < frames_avail_wanted) {
+      uint32 frames_until_empty_enough = frames_avail_wanted - available_frames;
+      next_fill_time_ms =
+          FramesToMillis(frames_until_empty_enough, sample_rate_);
+
+      // Adjust for time resolution.
+      if (next_fill_time_ms > kNoDataSleepMilliseconds)
+        next_fill_time_ms -= kNoDataSleepMilliseconds;
+
+      // Avoid back-to-back writing.
+      if (next_fill_time_ms < kMinIntervalBetweenOnMoreDataCallsInMs)
+        next_fill_time_ms = kMinIntervalBetweenOnMoreDataCallsInMs;
+    } else if (available_frames == alsa_buffer_frames_) {
+      // Buffer is empty, invoke next write immediately.
+      next_fill_time_ms = 0;
+    }
   }
 
   // Avoid busy looping if the data source is exhausted.
