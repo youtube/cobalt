@@ -156,6 +156,7 @@
         'base/models/accelerator_cocoa.h',
         'base/models/accelerator_cocoa.mm',
         'base/models/accelerator_gtk.h',
+        'base/models/accelerator.cc',
         'base/models/accelerator.h',
         'base/models/button_menu_item_model.cc',
         'base/models/button_menu_item_model.h',
