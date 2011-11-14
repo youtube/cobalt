@@ -13,6 +13,7 @@
 #include "base/safe_strerror_posix.h"
 #include "base/threading/thread_local.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/tracked_objects.h"
 
 #if defined(OS_MACOSX)
 #include <mach/mach.h>
@@ -175,6 +176,7 @@ void PlatformThread::SetName(const char* name) {
   // have to cast away const because ThreadLocalPointer does not support const
   // void*
   current_thread_name.Pointer()->Set(const_cast<char*>(name));
+  tracked_objects::ThreadData::InitializeThreadContext(name);
 
   // http://0pointer.de/blog/projects/name-your-threads.html
 
@@ -210,6 +212,7 @@ void PlatformThread::SetName(const char* name) {
   // have to cast away const because ThreadLocalPointer does not support const
   // void*
   current_thread_name.Pointer()->Set(const_cast<char*>(name));
+  tracked_objects::ThreadData::InitializeThreadContext(name);
 
   // (This should be relatively simple to implement for the BSDs; I
   // just don't have one handy to test the code on.)
