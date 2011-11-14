@@ -55,7 +55,7 @@ TEST(SystemMonitor, PowerNotifications) {
   SystemMonitor system_monitor;
   PowerTest test[kObservers];
   for (int index = 0; index < kObservers; ++index)
-    system_monitor.AddPowerObserver(&test[index]);
+    system_monitor.AddObserver(&test[index]);
 
   // Send a bunch of power changes.  Since the battery power hasn't
   // actually changed, we shouldn't get notifications.
@@ -88,51 +88,6 @@ TEST(SystemMonitor, PowerNotifications) {
   system_monitor.ProcessPowerMessage(SystemMonitor::RESUME_EVENT);
   loop.RunAllPending();
   EXPECT_EQ(test[0].resumes(), 1);
-}
-
-class DevicesChangedTest : public SystemMonitor::DevicesChangedObserver {
- public:
-  DevicesChangedTest()
-      : changes_(0) {
-  }
-
-  // DevicesChangedObserver callbacks.
-  virtual void OnDevicesChanged() OVERRIDE {
-    changes_++;
-  }
-
-  // Test status counts.
-  int changes() const { return changes_; }
-
- private:
-  int changes_;  // Count of OnDevicesChanged notifications.
-
-  DISALLOW_COPY_AND_ASSIGN(DevicesChangedTest);
-};
-
-TEST(SystemMonitor, DeviceChangeNotifications) {
-  const int kObservers = 5;
-
-  // Initialize a message loop for this to run on.
-  MessageLoop loop;
-
-#if defined(OS_MACOSX)
-  SystemMonitor::AllocateSystemIOPorts();
-#endif
-
-  SystemMonitor system_monitor;
-  DevicesChangedTest test[kObservers];
-  for (int index = 0; index < kObservers; ++index)
-    system_monitor.AddDevicesChangedObserver(&test[index]);
-
-  system_monitor.ProcessDevicesChanged();
-  loop.RunAllPending();
-  EXPECT_EQ(1, test[0].changes());
-
-  system_monitor.ProcessDevicesChanged();
-  system_monitor.ProcessDevicesChanged();
-  loop.RunAllPending();
-  EXPECT_EQ(3, test[0].changes());
 }
 
 }  // namespace base
