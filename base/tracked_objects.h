@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/profiler/tracked_time.h"
 #include "base/time.h"
@@ -432,7 +433,7 @@ class BASE_EXPORT Aggregation: public DeathData {
 //------------------------------------------------------------------------------
 // Comparator is a class that supports the comparison of Snapshot instances.
 // An instance is actually a list of chained Comparitors, that can provide for
-// arbitrary ordering.  The path portion of an about:tracking URL is translated
+// arbitrary ordering.  The path portion of an about:profiler URL is translated
 // into such a chain, which is then used to order Snapshot instances in a
 // vector.  It orders them into groups (for aggregation), and can also order
 // instances within the groups (for detailed rendering of the instances in an
@@ -575,7 +576,7 @@ class BASE_EXPORT ThreadData {
   // This may return NULL if the system is disabled for any reason.
   static ThreadData* Get();
 
-  // For a given (unescaped) about:tracking query, develop resulting HTML, and
+  // For a given (unescaped) about:profiler query, develop resulting HTML, and
   // append to output.
   static void WriteHTML(const std::string& query, std::string* output);
 
@@ -642,7 +643,7 @@ class BASE_EXPORT ThreadData {
   ThreadData* next() const { return next_; }
   // Using our lock, make a copy of the specified maps.  These calls may arrive
   // from non-local threads, and are used to quickly scan data from all threads
-  // in order to build an HTML page for about:tracking.
+  // in order to build an HTML page for about:profiler.
   void SnapshotBirthMap(BirthMap *output) const;
   void SnapshotDeathMap(DeathMap *output) const;
   // -------- end of should be private methods.
@@ -747,7 +748,10 @@ class BASE_EXPORT ThreadData {
   static int incarnation_counter_;
   // Protection for access to all_thread_data_list_head_, and to
   // unregistered_thread_data_pool_.  This lock is leaked at shutdown.
-  static base::Lock* list_lock_;
+  // The lock is very infrequently used, so we can afford to just make a lazy
+  // instance and be safe.
+  static base::LazyInstance<base::Lock,
+    base::LeakyLazyInstanceTraits<base::Lock> > list_lock_;
 
   // Record of what the incarnation_counter_ was when this instance was created.
   // If the incarnation_counter_ has changed, then we avoid pushing into the
