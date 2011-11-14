@@ -252,6 +252,13 @@
           'os_posix%': 1,
         }],
 
+        # A flag for BSD platforms
+        ['OS=="freebsd" or OS=="openbsd"', {
+          'os_bsd%': 1,
+        }, {
+          'os_bsd%': 0,
+        }],
+
         # NSS usage.
         ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris") and use_openssl==0', {
           'use_nss%': 1,
@@ -349,6 +356,7 @@
     'use_aura%': '<(use_aura)',
     'use_openssl%': '<(use_openssl)',
     'use_nss%': '<(use_nss)',
+    'os_bsd%': '<(os_bsd)',
     'os_posix%': '<(os_posix)',
     'use_glib%': '<(use_glib)',
     'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',

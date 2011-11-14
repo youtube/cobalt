@@ -46,7 +46,7 @@
           'base_paths_android.cc',
           'base_paths_mac.h',
           'base_paths_mac.mm',
-          'base_paths_linux.cc',
+          'base_paths_posix.cc',
           'base_paths_win.cc',
           'base_paths_win.h',
           'base_switches.h',
@@ -196,8 +196,8 @@
           'metrics/stats_table.cc',
           'metrics/stats_table.h',
           'native_library.h',
-          'native_library_linux.cc',
           'native_library_mac.mm',
+          'native_library_posix.cc',
           'native_library_win.cc',
           'observer_list.h',
           'observer_list_threadsafe.h',
@@ -293,8 +293,8 @@
           'sys_info_posix.cc',
           'sys_info_win.cc',
           'sys_string_conversions.h',
-          'sys_string_conversions_linux.cc',
           'sys_string_conversions_mac.mm',
+          'sys_string_conversions_posix.cc',
           'sys_string_conversions_win.cc',
           'task.cc',
           'task.h',
@@ -450,10 +450,8 @@
               'system_monitor/system_monitor_posix.cc',
             ],
             'sources/': [
-              ['include', '^native_library_linux\\.cc$'],
               ['include', '^process_util_linux\\.cc$'],
               ['include', '^sys_info_linux\\.cc$'],
-              ['include', '^sys_string_conversions_linux\\.cc$'],
               ['include', '^worker_pool_linux\\.cc$'],
               # TODO(michaelbai): The below files are excluded because of the
               # missing JNI, add them back when JNI is ready.
@@ -509,8 +507,11 @@
             ],
           }],
           [ 'OS == "mac"', {
-            'sources!': [
-              'files/file_path_watcher_stub.cc',
+            'sources/': [
+              ['exclude', '^files/file_path_watcher_stub\\.cc$'],
+              ['exclude', '^base_paths_posix\\.cc$'],
+              ['exclude', '^native_library_posix\\.cc$'],
+              ['exclude', '^sys_string_conversions_posix\\.cc$'],
             ],
           }],
           [ 'OS == "openbsd"', {
@@ -619,7 +620,7 @@
             }],
           ],
         }],
-        [ 'OS == "freebsd" or OS == "openbsd"', {
+        [ 'os_bsd==1', {
           'include_dirs': [
             '/usr/local/include',
           ],
