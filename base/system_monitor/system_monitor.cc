@@ -19,7 +19,9 @@ static int kDelayedBatteryCheckMs = 10 * 1000;
 #endif  // defined(ENABLE_BATTERY_MONITORING)
 
 SystemMonitor::SystemMonitor()
-    : observer_list_(new ObserverListThreadSafe<PowerObserver>()),
+    : power_observer_list_(new ObserverListThreadSafe<PowerObserver>()),
+      devices_changed_observer_list_(
+          new ObserverListThreadSafe<DevicesChangedObserver>()),
       battery_in_use_(false),
       suspended_(false) {
   DCHECK(!g_system_monitor);
@@ -77,28 +79,47 @@ void SystemMonitor::ProcessPowerMessage(PowerEvent event_id) {
   }
 }
 
-void SystemMonitor::AddObserver(PowerObserver* obs) {
-  observer_list_->AddObserver(obs);
+void SystemMonitor::ProcessDevicesChanged() {
+  NotifyDevicesChanged();
 }
 
-void SystemMonitor::RemoveObserver(PowerObserver* obs) {
-  observer_list_->RemoveObserver(obs);
+void SystemMonitor::AddPowerObserver(PowerObserver* obs) {
+  power_observer_list_->AddObserver(obs);
+}
+
+void SystemMonitor::RemovePowerObserver(PowerObserver* obs) {
+  power_observer_list_->RemoveObserver(obs);
+}
+
+void SystemMonitor::AddDevicesChangedObserver(DevicesChangedObserver* obs) {
+  devices_changed_observer_list_->AddObserver(obs);
+}
+
+void SystemMonitor::RemoveDevicesChangedObserver(DevicesChangedObserver* obs) {
+  devices_changed_observer_list_->RemoveObserver(obs);
+}
+
+void SystemMonitor::NotifyDevicesChanged() {
+  DVLOG(1) << "DevicesChanged";
+  devices_changed_observer_list_->Notify(
+    &DevicesChangedObserver::OnDevicesChanged);
 }
 
 void SystemMonitor::NotifyPowerStateChange() {
   DVLOG(1) << "PowerStateChange: " << (BatteryPower() ? "On" : "Off")
            << " battery";
-  observer_list_->Notify(&PowerObserver::OnPowerStateChange, BatteryPower());
+  power_observer_list_->Notify(&PowerObserver::OnPowerStateChange,
+                               BatteryPower());
 }
 
 void SystemMonitor::NotifySuspend() {
   DVLOG(1) << "Power Suspending";
-  observer_list_->Notify(&PowerObserver::OnSuspend);
+  power_observer_list_->Notify(&PowerObserver::OnSuspend);
 }
 
 void SystemMonitor::NotifyResume() {
   DVLOG(1) << "Power Resuming";
-  observer_list_->Notify(&PowerObserver::OnResume);
+  power_observer_list_->Notify(&PowerObserver::OnResume);
 }
 
 void SystemMonitor::BatteryCheck() {
