@@ -1260,7 +1260,7 @@
               ['exclude', '(^|/)gtk_[^/]*\\.(h|cc)$'],
             ],
           }],
-          ['OS!="linux"', {
+          ['OS!="linux" and OS!="openbsd"', {
             'sources/': [
               ['exclude', '_xdg(_unittest)?\\.(h|cc)$'],
             ],
