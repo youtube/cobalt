@@ -165,7 +165,9 @@ ThreadData* ThreadData::all_thread_data_list_head_ = NULL;
 ThreadData::ThreadDataPool* ThreadData::unregistered_thread_data_pool_ = NULL;
 
 // static
-base::Lock* ThreadData::list_lock_;
+base::LazyInstance<base::Lock,
+                   base::LeakyLazyInstanceTraits<base::Lock> >
+    ThreadData::list_lock_(base::LINKER_INITIALIZED);
 
 // static
 ThreadData::Status ThreadData::status_ = ThreadData::UNINITIALIZED;
@@ -185,7 +187,7 @@ ThreadData::ThreadData()
       is_a_worker_thread_(true) {
   int thread_number;
   {
-    base::AutoLock lock(*list_lock_);
+    base::AutoLock lock(*list_lock_.Pointer());
     thread_number = ++thread_number_counter_;
   }
   base::StringAppendF(&thread_name_, "WorkerThread-%d", thread_number);
@@ -196,7 +198,7 @@ ThreadData::~ThreadData() {}
 
 void ThreadData::PushToHeadOfList() {
   DCHECK(!next_);
-  base::AutoLock lock(*list_lock_);
+  base::AutoLock lock(*list_lock_.Pointer());
   incarnation_count_for_pool_ = incarnation_counter_;
   next_ = all_thread_data_list_head_;
   all_thread_data_list_head_ = this;
@@ -225,8 +227,9 @@ ThreadData* ThreadData::Get() {
   // We must be a worker thread, since we didn't pre-register.
   ThreadData* worker_thread_data = NULL;
   {
-    base::AutoLock lock(*list_lock_);
-    if (!unregistered_thread_data_pool_->empty()) {
+    base::AutoLock lock(*list_lock_.Pointer());
+    if (unregistered_thread_data_pool_ &&
+        !unregistered_thread_data_pool_->empty()) {
       worker_thread_data =
         const_cast<ThreadData*>(unregistered_thread_data_pool_->top());
       unregistered_thread_data_pool_->pop();
@@ -253,7 +256,7 @@ void ThreadData::OnThreadTermination(void* thread_data) {
 void ThreadData::OnThreadTerminationCleanup() const {
   if (!is_a_worker_thread_)
     return;
-  base::AutoLock lock(*list_lock_);
+  base::AutoLock lock(*list_lock_.Pointer());
   if (incarnation_counter_ != incarnation_count_for_pool_)
     return;  // ThreadData was constructed in an earlier unit test.
 
@@ -261,8 +264,9 @@ void ThreadData::OnThreadTerminationCleanup() const {
   // In that case, the pool might be NULL.  We really should detect this via the
   // incarnation_counter_, but this call is rarely made, so we can afford to
   // code defensively.
-  if (unregistered_thread_data_pool_)
-    unregistered_thread_data_pool_->push(this);
+  if (!unregistered_thread_data_pool_)
+    unregistered_thread_data_pool_ = new ThreadDataPool;
+  unregistered_thread_data_pool_->push(this);
 }
 
 // static
@@ -535,7 +539,7 @@ void ThreadData::TallyRunInAScopedRegionIfTracking(
 
 // static
 ThreadData* ThreadData::first() {
-  base::AutoLock lock(*list_lock_);
+  base::AutoLock lock(*list_lock_.Pointer());
   return all_thread_data_list_head_;
 }
 
@@ -588,17 +592,9 @@ bool ThreadData::Initialize() {
   if (!tls_index_.initialized())  // Testing may have initialized this.
     tls_index_.Initialize(&ThreadData::OnThreadTermination);
   DCHECK(tls_index_.initialized());
-  ThreadDataPool* pool = new ThreadDataPool;
-  // TODO(jar): A linker initialized spin lock would be much safer than this
-  // allocation, which relies on being called while single threaded.
-  if (!list_lock_)  // In case testing deleted this.
-    list_lock_ = new base::Lock;
   status_ = kInitialStartupState;
 
-  base::AutoLock lock(*list_lock_);
-  DCHECK_EQ(unregistered_thread_data_pool_,
-            reinterpret_cast<ThreadDataPool*>(NULL));
-  unregistered_thread_data_pool_ = pool;
+  base::AutoLock lock(*list_lock_.Pointer());
   ++incarnation_counter_;
   return true;
 }
@@ -644,7 +640,7 @@ void ThreadData::ShutdownSingleThreadedCleanup(bool leak) {
   ThreadData* thread_data_list;
   ThreadDataPool* final_pool;
   {
-    base::AutoLock lock(*list_lock_);
+    base::AutoLock lock(*list_lock_.Pointer());
     thread_data_list = all_thread_data_list_head_;
     all_thread_data_list_head_ = NULL;
     final_pool = unregistered_thread_data_pool_;
