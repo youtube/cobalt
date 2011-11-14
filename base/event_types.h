@@ -10,9 +10,9 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
-#endif
-
-#if defined(USE_X11)
+#elif defined(USE_WAYLAND)
+#include "base/wayland/wayland_event.h"
+#elif defined(USE_X11)
 typedef union _XEvent XEvent;
 #endif
 
@@ -21,13 +21,10 @@ namespace base {
 // Cross platform typedefs for native event types.
 #if defined(OS_WIN)
 typedef MSG NativeEvent;
+#elif defined(USE_WAYLAND)
+typedef wayland::WaylandEvent* NativeEvent;
 #elif defined(USE_X11)
 typedef XEvent* NativeEvent;
-#elif defined(USE_WAYLAND)
-// WaylandEvent is currently defined in ui component and cannot be
-// used in base component. Probably wayland maintainer has to move it
-// outside of ui in order to define NativeEvent for wayland here.
-typedef void* NativeEvent;
 #else
 typedef void* NativeEvent;
 #endif
