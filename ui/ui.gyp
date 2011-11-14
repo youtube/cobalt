@@ -206,6 +206,7 @@
         'base/view_prop.cc',
         'base/view_prop.h',
         'base/wayland/events_wayland.cc',
+        'base/win/atl_module.h',
         'base/win/events_win.cc',
         'base/win/hwnd_util.cc',
         'base/win/hwnd_util.h',
