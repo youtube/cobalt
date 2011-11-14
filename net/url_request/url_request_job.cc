@@ -34,7 +34,7 @@ URLRequestJob::URLRequestJob(URLRequest* request)
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
   if (system_monitor)
-    base::SystemMonitor::Get()->AddPowerObserver(this);
+    base::SystemMonitor::Get()->AddObserver(this);
 }
 
 void URLRequestJob::SetUpload(UploadData* upload) {
@@ -219,7 +219,7 @@ void URLRequestJob::NotifyURLRequestDestroyed() {
 URLRequestJob::~URLRequestJob() {
   base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
   if (system_monitor)
-    base::SystemMonitor::Get()->RemovePowerObserver(this);
+    base::SystemMonitor::Get()->RemoveObserver(this);
 }
 
 void URLRequestJob::NotifyCertificateRequested(
