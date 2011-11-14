@@ -26,7 +26,7 @@
 // across a series of objects so that the counts and times can be rapidly
 // updated without (usually) having to lock the data, and hence there is usually
 // very little contention caused by the tracking.  The data can be viewed via
-// the about:tracking URL, with a variety of sorting and filtering choices.
+// the about:profiler URL, with a variety of sorting and filtering choices.
 //
 // These classes serve as the basis of a profiler of sorts for the Tasks system.
 // As a result, design decisions were made to maximize speed, by minimizing
@@ -118,7 +118,7 @@
 //
 // The above description tries to define the high performance (run time)
 // portions of these classes.  After gathering statistics, calls instigated
-// by visiting about:tracking will assemble and aggregate data for display.  The
+// by visiting about:profiler will assemble and aggregate data for display.  The
 // following data structures are used for producing such displays.  They are
 // not performance critical, and their only major constraint is that they should
 // be able to run concurrently with ongoing augmentation of the birth and death
@@ -153,7 +153,7 @@
 // (example: how many threads are in a specific consecutive set of Snapshots?
 // What was the total birth count for that set? etc.).  Aggregation instances
 // collect running sums of any set of snapshot instances, and are used to print
-// sub-totals in an about:tracking page.
+// sub-totals in an about:profiler page.
 //
 // TODO(jar): I need to store DataCollections, and provide facilities for taking
 // the difference between two gathered DataCollections.  For now, I'm just
@@ -663,6 +663,13 @@ class BASE_EXPORT ThreadData {
   static bool InitializeAndSetTrackingStatus(bool status);
   static bool tracking_status();
 
+  // Special versions of Now() for getting times at start and end of a tracked
+  // run.  They are super fast when tracking is disabled, and have some internal
+  // side effects when we are tracking, so that we can deduce the amount of time
+  // accumulated outside of execution of tracked runs.
+  static TrackedTime NowForStartOfRun();
+  static TrackedTime NowForEndOfRun();
+
   // Provide a time function that does nothing (runs fast) when we don't have
   // the profiler enabled.  It will generally be optimized away when it is
   // ifdef'ed to be small enough (allowing the profiler to be "compiled out" of
@@ -722,7 +729,7 @@ class BASE_EXPORT ThreadData {
   static base::ThreadLocalStorage::Slot tls_index_;
 
   // Link to the most recently created instance (starts a null terminated list).
-  // The list is traversed by about:tracking when it needs to snapshot data.
+  // The list is traversed by about:profiler when it needs to snapshot data.
   // This is only accessed while list_lock_ is held.
   static ThreadData* all_thread_data_list_head_;
   // Set of ThreadData instances for use with worker threads. When a worker

@@ -618,6 +618,16 @@ bool ThreadData::tracking_status() {
 }
 
 // static
+TrackedTime ThreadData::NowForStartOfRun() {
+  return Now();
+}
+
+// static
+TrackedTime ThreadData::NowForEndOfRun() {
+  return Now();
+}
+
+// static
 TrackedTime ThreadData::Now() {
   if (kTrackAllTaskObjects && tracking_status())
     return TrackedTime::Now();

@@ -43,13 +43,14 @@ DWORD CALLBACK WorkItemCallback(void* param) {
                          "src_file", pending_task->posted_from.file_name(),
                          "src_func", pending_task->posted_from.function_name());
 
-  tracked_objects::TrackedTime start_time = tracked_objects::ThreadData::Now();
+  tracked_objects::TrackedTime start_time =
+      tracked_objects::ThreadData::NowForStartOfRun();
 
   pending_task->task.Run();
 
   tracked_objects::ThreadData::TallyRunOnWorkerThreadIfTracking(
       pending_task->birth_tally, pending_task->time_posted,
-      start_time, tracked_objects::ThreadData::Now());
+      start_time, tracked_objects::ThreadData::NowForEndOfRun());
 
   delete pending_task;
   return 0;
