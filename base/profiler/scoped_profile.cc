@@ -13,7 +13,7 @@ namespace tracked_objects {
 
 ScopedProfile::ScopedProfile(const Location& location)
     : birth_(ThreadData::TallyABirthIfActive(location)),
-      start_of_run_(ThreadData::Now()) {
+      start_of_run_(ThreadData::NowForStartOfRun()) {
 }
 
 ScopedProfile::~ScopedProfile() {
@@ -24,7 +24,7 @@ void ScopedProfile::StopClockAndTally() {
   if (!birth_)
     return;
   ThreadData::TallyRunInAScopedRegionIfTracking(birth_, start_of_run_,
-                                                ThreadData::Now());
+                                                ThreadData::NowForEndOfRun());
   birth_ = NULL;
 }
 

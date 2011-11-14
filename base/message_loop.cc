@@ -491,7 +491,8 @@ void MessageLoop::RunTask(const PendingTask& pending_task) {
 
   HistogramEvent(kTaskRunEvent);
 
-  tracked_objects::TrackedTime start_time = tracked_objects::ThreadData::Now();
+  tracked_objects::TrackedTime start_time =
+      tracked_objects::ThreadData::NowForStartOfRun();
 
   FOR_EACH_OBSERVER(TaskObserver, task_observers_,
                     WillProcessTask(pending_task.time_posted));
@@ -500,7 +501,7 @@ void MessageLoop::RunTask(const PendingTask& pending_task) {
                     DidProcessTask(pending_task.time_posted));
 
   tracked_objects::ThreadData::TallyRunOnNamedThreadIfTracking(pending_task,
-      start_time, tracked_objects::ThreadData::Now());
+      start_time, tracked_objects::ThreadData::NowForEndOfRun());
 
   nestable_tasks_allowed_ = true;
 }
