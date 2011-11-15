@@ -11,10 +11,18 @@
 
 namespace {
 
+#ifdef ADDRESS_SANITIZER
+static const int kTimeoutMultiplier = 2;
+#else
+static const int kTimeoutMultiplier = 1;
+#endif
+
 // Sets value to the greatest of:
-// 1) value's current value.
+// 1) value's current value multiplied by kTimeoutMultiplier (assuming
+// InitializeTimeout is called only once per value).
 // 2) min_value.
-// 3) the numerical value given by switch_name on the command line.
+// 3) the numerical value given by switch_name on the command line multiplied
+// by kTimeoutMultiplier.
 void InitializeTimeout(const char* switch_name, int min_value, int* value) {
   DCHECK(value);
   if (CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
@@ -24,13 +32,15 @@ void InitializeTimeout(const char* switch_name, int min_value, int* value) {
     base::StringToInt(string_value, &timeout);
     *value = std::max(*value, timeout);
   }
+  *value *= kTimeoutMultiplier;
   *value = std::max(*value, min_value);
 }
 
 // Sets value to the greatest of:
-// 1) value's current value.
+// 1) value's current value multiplied by kTimeoutMultiplier.
 // 2) 0
-// 3) the numerical value given by switch_name on the command line.
+// 3) the numerical value given by switch_name on the command line multiplied
+// by kTimeoutMultiplier.
 void InitializeTimeout(const char* switch_name, int* value) {
   InitializeTimeout(switch_name, 0, value);
 }
