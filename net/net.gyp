@@ -583,6 +583,7 @@
         'socket/ssl_server_socket_nss.cc',
         'socket/ssl_server_socket_nss.h',
         'socket/ssl_server_socket_openssl.cc',
+        'socket/ssl_socket.h',
         'socket/stream_socket.cc',
         'socket/stream_socket.h',
         'socket/tcp_client_socket.cc',
