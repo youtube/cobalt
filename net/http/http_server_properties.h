@@ -10,6 +10,7 @@
 #include "base/basictypes.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"
+#include "net/spdy/spdy_framer.h"  // TODO(willchan): Reconsider this.
 
 namespace net {
 
@@ -33,6 +34,7 @@ struct NET_EXPORT PortAlternateProtocolPair {
 };
 
 typedef std::map<HostPortPair, PortAlternateProtocolPair> AlternateProtocolMap;
+typedef std::map<HostPortPair, spdy::SpdySettings> SpdySettingsMap;
 
 extern const char kAlternateProtocolHeader[];
 extern const char* const kAlternateProtocolStrings[NUM_ALTERNATE_PROTOCOLS];
@@ -41,6 +43,7 @@ extern const char* const kAlternateProtocolStrings[NUM_ALTERNATE_PROTOCOLS];
 // Currently, this class manages servers':
 // * SPDY support (based on NPN results)
 // * Alternate-Protocol support
+// * Spdy Settings (like CWND ID field)
 class NET_EXPORT HttpServerProperties {
  public:
   HttpServerProperties() {}
@@ -75,6 +78,22 @@ class NET_EXPORT HttpServerProperties {
 
   // Returns all Alternate-Protocol mappings.
   virtual const AlternateProtocolMap& alternate_protocol_map() const = 0;
+
+  // Gets a reference to the SpdySettings stored for a host.
+  // If no settings are stored, returns an empty set of settings.
+  virtual const spdy::SpdySettings& GetSpdySettings(
+      const HostPortPair& host_port_pair) const = 0;
+
+  // Saves settings for a host. Returns true if SpdySettings are to be
+  // persisted.
+  virtual bool SetSpdySettings(const HostPortPair& host_port_pair,
+                               const spdy::SpdySettings& settings) = 0;
+
+  // Clears all spdy_settings.
+  virtual void ClearSpdySettings() = 0;
+
+  // Returns all persistent SpdySettings.
+  virtual const SpdySettingsMap& spdy_settings_map() const = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HttpServerProperties);

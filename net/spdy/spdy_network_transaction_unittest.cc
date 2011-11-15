@@ -4206,7 +4206,8 @@ TEST_P(SpdyNetworkTransactionTest, SettingsSaved) {
   // Verify that no settings exist initially.
   HostPortPair host_port_pair("www.google.com", helper.port());
   SpdySessionPool* spdy_session_pool = helper.session()->spdy_session_pool();
-  EXPECT_TRUE(spdy_session_pool->spdy_settings().Get(host_port_pair).empty());
+  EXPECT_TRUE(spdy_session_pool->http_server_properties()->GetSpdySettings(
+      host_port_pair).empty());
 
   // Construct the request.
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
@@ -4268,7 +4269,8 @@ TEST_P(SpdyNetworkTransactionTest, SettingsSaved) {
   {
     // Verify we had two persisted settings.
     spdy::SpdySettings saved_settings =
-        spdy_session_pool->spdy_settings().Get(host_port_pair);
+        spdy_session_pool->http_server_properties()->GetSpdySettings(
+            host_port_pair);
     ASSERT_EQ(2u, saved_settings.size());
 
     // Verify the first persisted setting.
@@ -4315,7 +4317,8 @@ TEST_P(SpdyNetworkTransactionTest, SettingsPlayback) {
   // Verify that no settings exist initially.
   HostPortPair host_port_pair("www.google.com", helper.port());
   SpdySessionPool* spdy_session_pool = helper.session()->spdy_session_pool();
-  EXPECT_TRUE(spdy_session_pool->spdy_settings().Get(host_port_pair).empty());
+  EXPECT_TRUE(spdy_session_pool->http_server_properties()->GetSpdySettings(
+      host_port_pair).empty());
 
   unsigned int kSampleId1 = 0x1;
   unsigned int kSampleValue1 = 0x0a0a0a0a;
@@ -4334,14 +4337,17 @@ TEST_P(SpdyNetworkTransactionTest, SettingsPlayback) {
     setting.set_id(kSampleId2);
     settings.push_back(std::make_pair(setting, kSampleValue2));
 
-    spdy_session_pool->mutable_spdy_settings()->Set(host_port_pair, settings);
+    spdy_session_pool->http_server_properties()->SetSpdySettings(
+        host_port_pair, settings);
   }
 
-  EXPECT_EQ(2u, spdy_session_pool->spdy_settings().Get(host_port_pair).size());
+  EXPECT_EQ(2u, spdy_session_pool->http_server_properties()->GetSpdySettings(
+      host_port_pair).size());
 
   // Construct the SETTINGS frame.
   const spdy::SpdySettings& settings =
-      spdy_session_pool->spdy_settings().Get(host_port_pair);
+      spdy_session_pool->http_server_properties()->GetSpdySettings(
+          host_port_pair);
   scoped_ptr<spdy::SpdyFrame> settings_frame(ConstructSpdySettings(settings));
 
   // Construct the request.
@@ -4381,7 +4387,8 @@ TEST_P(SpdyNetworkTransactionTest, SettingsPlayback) {
   {
     // Verify we had two persisted settings.
     spdy::SpdySettings saved_settings =
-        spdy_session_pool->spdy_settings().Get(host_port_pair);
+        spdy_session_pool->http_server_properties()->GetSpdySettings(
+            host_port_pair);
     ASSERT_EQ(2u, saved_settings.size());
 
     // Verify the first persisted setting.
