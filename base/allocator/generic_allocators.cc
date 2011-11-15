@@ -105,13 +105,40 @@ void* _calloc_impl(size_t n, size_t size) {
 #undef malloc
 #undef free
 #undef calloc
-int _CrtDbgReport(int, const char*, int, const char*, const char*, ...) {
+
+static int error_handler(int reportType) {
+  switch (reportType) {
+    case 0:  // _CRT_WARN
+      __debugbreak();
+      return 0;
+
+    case 1:  // _CRT_ERROR
+      __debugbreak();
+      return 0;
+
+    case 2:  // _CRT_ASSERT
+      __debugbreak();
+      return 0;
+  }
+  char* p = NULL;
+  *p = '\0';
   return 0;
 }
 
-int _CrtDbgReportW(int, const wchar_t*, int, const wchar_t*,
-                   const wchar_t*, ...) {
-  return 0;
+int _CrtDbgReport(int reportType,
+                  const char*,
+                  int, const char*,
+                  const char*,
+                  ...) {
+  return error_handler(reportType);
+}
+
+int _CrtDbgReportW(int reportType,
+                   const wchar_t*,
+                   int, const wchar_t*,
+                   const wchar_t*,
+                   ...) {
+  return error_handler(reportType);
 }
 
 int _CrtSetReportMode(int, int) {
