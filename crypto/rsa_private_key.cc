@@ -81,8 +81,7 @@ bool PrivateKeyInfoCodec::Export(std::vector<uint8>* output) {
 
   // Copy everying into the output.
   output->reserve(content.size());
-  for (std::list<uint8>::iterator i = content.begin(); i != content.end(); ++i)
-    output->push_back(*i);
+  output->assign(content.begin(), content.end());
 
   return true;
 }
@@ -107,8 +106,7 @@ bool PrivateKeyInfoCodec::ExportPublicKeyInfo(std::vector<uint8>* output) {
 
   // Copy everything into the output.
   output->reserve(content.size());
-  for (std::list<uint8>::iterator i = content.begin(); i != content.end(); ++i)
-    output->push_back(*i);
+  output->assign(content.begin(), content.end());
 
   return true;
 }
@@ -124,8 +122,7 @@ bool PrivateKeyInfoCodec::ExportPublicKey(std::vector<uint8>* output) {
 
   // Copy everything into the output.
   output->reserve(content.size());
-  for (std::list<uint8>::iterator i = content.begin(); i != content.end(); ++i)
-    output->push_back(*i);
+  output->assign(content.begin(), content.end());
 
   return true;
 }
@@ -238,10 +235,7 @@ bool PrivateKeyInfoCodec::ReadIntegerWithExpectedSize(uint8** pos,
     READ_ASSERT(out->size() <= expected_size);
   }
 
-  while (pad) {
-    out->push_back(0x00);
-    pad--;
-  }
+  out->insert(out->end(), pad, 0x00);
   out->insert(out->end(), temp.begin(), temp.end());
 
   // Reverse output if little-endian.

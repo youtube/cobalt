@@ -222,9 +222,7 @@ bool RSAPrivateKey::ExportPublicKey(std::vector<uint8>* output) {
     return false;
   }
 
-  for (size_t i = 0; i < encoded_length; ++i)
-    output->push_back(encoded[i]);
-
+  output->assign(encoded.get(), encoded.get() + encoded_length);
   return true;
 }
 
