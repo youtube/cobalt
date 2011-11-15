@@ -26,8 +26,8 @@ class DhcpcsvcInitSingleton {
   }
 };
 
-static base::LazyInstance<DhcpcsvcInitSingleton> g_dhcpcsvc_init_singleton(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<DhcpcsvcInitSingleton> g_dhcpcsvc_init_singleton =
+    LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

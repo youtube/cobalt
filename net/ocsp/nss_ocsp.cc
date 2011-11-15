@@ -86,7 +86,7 @@ class OCSPIOLoop {
 };
 
 base::LazyInstance<OCSPIOLoop, base::LeakyLazyInstanceTraits<OCSPIOLoop> >
-    g_ocsp_io_loop(base::LINKER_INITIALIZED);
+    g_ocsp_io_loop = LAZY_INSTANCE_INITIALIZER;
 
 const int kRecvBufferSize = 4096;
 
@@ -136,8 +136,8 @@ class OCSPNSSInitialization {
   DISALLOW_COPY_AND_ASSIGN(OCSPNSSInitialization);
 };
 
-base::LazyInstance<OCSPNSSInitialization> g_ocsp_nss_initialization(
-    base::LINKER_INITIALIZED);
+base::LazyInstance<OCSPNSSInitialization> g_ocsp_nss_initialization =
+    LAZY_INSTANCE_INITIALIZER;
 
 // Concrete class for SEC_HTTP_REQUEST_SESSION.
 // Public methods except virtual methods of net::URLRequest::Delegate

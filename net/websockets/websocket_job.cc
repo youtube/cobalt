@@ -53,8 +53,8 @@ class WebSocketJobInitSingleton {
   }
 };
 
-static base::LazyInstance<WebSocketJobInitSingleton> g_websocket_job_init(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<WebSocketJobInitSingleton> g_websocket_job_init =
+    LAZY_INSTANCE_INITIALIZER;
 
 }  // anonymous namespace
 
