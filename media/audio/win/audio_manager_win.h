@@ -11,7 +11,6 @@
 #include "base/compiler_specific.h"
 #include "media/audio/audio_manager_base.h"
 
-class PCMWaveInAudioInputStream;
 class PCMWaveOutAudioOutputStream;
 
 // Windows implementation of the AudioManager singleton. This class is internal
