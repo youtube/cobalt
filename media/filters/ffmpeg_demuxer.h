@@ -39,14 +39,12 @@
 struct AVFormatContext;
 struct AVPacket;
 struct AVRational;
+struct AVStream;
 
 namespace media {
 
 class BitstreamConverter;
 class FFmpegDemuxer;
-
-// Forward declaration for scoped_ptr_malloc.
-class ScopedPtrAVFree;
 
 class FFmpegDemuxerStream : public DemuxerStream {
  public:

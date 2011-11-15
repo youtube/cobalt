@@ -9,9 +9,6 @@
 #include "base/compiler_specific.h"
 #include "media/audio/audio_manager_base.h"
 
-class PCMQueueInAudioInputStream;
-class PCMQueueOutAudioOutputStream;
-
 // Mac OS X implementation of the AudioManager singleton. This class is internal
 // to the audio output and only internal users can call methods not exposed by
 // the AudioManager class.
