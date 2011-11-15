@@ -5,8 +5,6 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
 #include "base/perftimer.h"
 #include "base/string_util.h"
 #include "base/threading/thread.h"
@@ -16,15 +14,15 @@
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/block_files.h"
+#include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache.h"
+#include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
 #include "net/disk_cache/hash.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
 using base::Time;
-
-typedef PlatformTest DiskCacheTest;
 
 namespace {
 
@@ -151,17 +149,15 @@ TEST_F(DiskCacheTest, Hash) {
 }
 
 TEST_F(DiskCacheTest, CacheBackendPerformance) {
-  MessageLoopForIO message_loop;
-
   base::Thread cache_thread("CacheThread");
   ASSERT_TRUE(cache_thread.StartWithOptions(
                   base::Thread::Options(MessageLoop::TYPE_IO, 0)));
 
-  ScopedTestCache test_cache;
+  ASSERT_TRUE(CleanupCacheDir());
   TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv = disk_cache::CreateCacheBackend(
-               net::DISK_CACHE, test_cache.path(), 0, false,
+               net::DISK_CACHE, cache_path_, 0, false,
                cache_thread.message_loop_proxy(), NULL, &cache, &cb);
 
   ASSERT_EQ(net::OK, cb.GetResult(rv));
@@ -178,17 +174,17 @@ TEST_F(DiskCacheTest, CacheBackendPerformance) {
   delete cache;
 
   ASSERT_TRUE(file_util::EvictFileFromSystemCache(
-              test_cache.path().AppendASCII("index")));
+              cache_path_.AppendASCII("index")));
   ASSERT_TRUE(file_util::EvictFileFromSystemCache(
-              test_cache.path().AppendASCII("data_0")));
+              cache_path_.AppendASCII("data_0")));
   ASSERT_TRUE(file_util::EvictFileFromSystemCache(
-              test_cache.path().AppendASCII("data_1")));
+              cache_path_.AppendASCII("data_1")));
   ASSERT_TRUE(file_util::EvictFileFromSystemCache(
-              test_cache.path().AppendASCII("data_2")));
+              cache_path_.AppendASCII("data_2")));
   ASSERT_TRUE(file_util::EvictFileFromSystemCache(
-              test_cache.path().AppendASCII("data_3")));
+              cache_path_.AppendASCII("data_3")));
 
-  rv = disk_cache::CreateCacheBackend(net::DISK_CACHE, test_cache.path(), 0,
+  rv = disk_cache::CreateCacheBackend(net::DISK_CACHE, cache_path_, 0,
                                       false, cache_thread.message_loop_proxy(),
                                       NULL, &cache, &cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
@@ -207,11 +203,9 @@ TEST_F(DiskCacheTest, CacheBackendPerformance) {
 // fragmented, or if we have multiple files. This test measures that scenario,
 // by using multiple, highly fragmented files.
 TEST_F(DiskCacheTest, BlockFilesPerformance) {
-  MessageLoopForIO message_loop;
+  ASSERT_TRUE(CleanupCacheDir());
 
-  ScopedTestCache test_cache;
-
-  disk_cache::BlockFiles files(test_cache.path());
+  disk_cache::BlockFiles files(cache_path_);
   ASSERT_TRUE(files.Init(true));
 
   int seed = static_cast<int>(Time::Now().ToInternalValue());

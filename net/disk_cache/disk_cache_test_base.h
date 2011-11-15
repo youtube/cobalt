@@ -7,12 +7,12 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "base/file_path.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "net/base/cache_type.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
-
-class FilePath;
 
 namespace net {
 
@@ -34,7 +34,22 @@ class MemBackendImpl;
 // cache (and that do not need to be a DiskCacheTestWithCache) are susceptible
 // to this problem; all such tests should use TEST_F(DiskCacheTest, ...).
 class DiskCacheTest : public PlatformTest {
+ protected:
+  DiskCacheTest();
+  virtual ~DiskCacheTest();
+
+  // Copies a set of cache files from the data folder to the test folder.
+  bool CopyTestCache(const std::string& name);
+
+  // Deletes the contents of |cache_path_|.
+  bool CleanupCacheDir();
+
   virtual void TearDown();
+
+  FilePath cache_path_;
+
+ private:
+  scoped_ptr<MessageLoop> message_loop_;
 };
 
 // Provides basic support for cache related tests.
@@ -140,7 +155,7 @@ class DiskCacheTestWithCache : public DiskCacheTest {
  private:
   void InitMemoryCache();
   void InitDiskCache();
-  void InitDiskCacheImpl(const FilePath& path);
+  void InitDiskCacheImpl();
 
   base::Thread cache_thread_;
   DISALLOW_COPY_AND_ASSIGN(DiskCacheTestWithCache);
