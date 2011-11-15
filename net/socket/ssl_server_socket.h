@@ -8,11 +8,8 @@
 #include "base/basictypes.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
+#include "net/socket/ssl_socket.h"
 #include "net/socket/stream_socket.h"
-
-namespace base {
-class StringPiece;
-}  // namespace base
 
 namespace crypto {
 class RSAPrivateKey;
@@ -23,7 +20,7 @@ namespace net {
 struct SSLConfig;
 class X509Certificate;
 
-class SSLServerSocket : public StreamSocket {
+class SSLServerSocket : public SSLSocket {
  public:
   virtual ~SSLServerSocket() {}
 
@@ -32,14 +29,6 @@ class SSLServerSocket : public StreamSocket {
   // completion then the callback will be silently, as for other StreamSocket
   // calls.
   virtual int Handshake(OldCompletionCallback* callback) = 0;
-
-  // Exports data derived from the SSL master-secret (see RFC 5705).
-  // The call will fail with an error if the socket is not connected, or the
-  // SSL implementation does not support the operation.
-  virtual int ExportKeyingMaterial(const base::StringPiece& label,
-                                   const base::StringPiece& context,
-                                   unsigned char *out,
-                                   unsigned int outlen) = 0;
 };
 
 // Creates an SSL server socket over an already-connected transport socket.
