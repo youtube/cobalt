@@ -29,7 +29,7 @@
 #include <AvailabilityMacros.h>
 #endif
 
-#if defined(OS_MACOSX) || defined(OS_OPENBSD) || defined(OS_FREEBSD)
+#if defined(OS_MACOSX) || defined(OS_BSD)
 #include <sys/sysctl.h>
 #endif
 
@@ -59,7 +59,7 @@ bool SpawnDebuggerOnProcess(unsigned /* process_id */) {
   return false;
 }
 
-#if defined(OS_MACOSX) || defined(OS_OPENBSD)
+#if defined(OS_MACOSX) || defined(OS_BSD)
 
 // Based on Apple's recommended method as described in
 // http://developer.apple.com/qa/qa2004/qa1361.html
@@ -108,7 +108,7 @@ bool BeingDebugged() {
 
   // This process is being debugged if the P_TRACED flag is set.
   is_set = true;
-#if defined(OS_OPENBSD)
+#if defined(OS_BSD)
   being_debugged = (info.p_flag & P_TRACED) != 0;
 #else
   being_debugged = (info.kp_proc.p_flag & P_TRACED) != 0;
