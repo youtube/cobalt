@@ -54,7 +54,7 @@ class SOCKSClientSocketPoolTest : public testing::Test {
 
   SOCKSClientSocketPoolTest()
       : ignored_transport_socket_params_(new TransportSocketParams(
-            HostPortPair("proxy", 80), MEDIUM, GURL(), false, false)),
+            HostPortPair("proxy", 80), MEDIUM, false, false)),
         transport_histograms_("MockTCP"),
         transport_socket_pool_(
             kMaxSockets, kMaxSocketsPerGroup,
@@ -62,7 +62,7 @@ class SOCKSClientSocketPoolTest : public testing::Test {
             &transport_client_socket_factory_),
         ignored_socket_params_(new SOCKSSocketParams(
             ignored_transport_socket_params_, true, HostPortPair("host", 80),
-            MEDIUM, GURL())),
+            MEDIUM)),
         socks_histograms_("SOCKSUnitTest"),
         pool_(kMaxSockets, kMaxSocketsPerGroup,
               &socks_histograms_,

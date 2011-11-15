@@ -30,7 +30,7 @@ class NET_EXPORT_PRIVATE SOCKSSocketParams
  public:
   SOCKSSocketParams(const scoped_refptr<TransportSocketParams>& proxy_server,
                     bool socks_v5, const HostPortPair& host_port_pair,
-                    RequestPriority priority, const GURL& referrer);
+                    RequestPriority priority);
 
   const scoped_refptr<TransportSocketParams>& transport_params() const {
     return transport_params_;

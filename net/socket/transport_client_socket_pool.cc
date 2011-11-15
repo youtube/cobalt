@@ -61,18 +61,15 @@ bool AddressListOnlyContainsIPv6Addresses(const AddressList& addrlist) {
 TransportSocketParams::TransportSocketParams(
     const HostPortPair& host_port_pair,
     RequestPriority priority,
-    const GURL& referrer,
     bool disable_resolver_cache,
     bool ignore_limits)
     : destination_(host_port_pair), ignore_limits_(ignore_limits) {
-  Initialize(priority, referrer, disable_resolver_cache);
+  Initialize(priority, disable_resolver_cache);
 }
 
 TransportSocketParams::~TransportSocketParams() {}
 
-// TODO(szym): remove unneeded referrer
 void TransportSocketParams::Initialize(RequestPriority priority,
-                                       const GURL& referrer,
                                        bool disable_resolver_cache) {
   destination_.set_priority(priority);
   if (disable_resolver_cache)
