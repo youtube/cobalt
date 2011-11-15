@@ -54,9 +54,8 @@ namespace file_util {
 
 namespace {
 
-#if defined(OS_OPENBSD) || defined(OS_FREEBSD) || \
-    (defined(OS_MACOSX) && \
-     MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
+#if defined(OS_BSD) || (defined(OS_MACOSX) && \
+    MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
 typedef struct stat stat_wrapper_t;
 static int CallStat(const char *path, stat_wrapper_t *sb) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -158,8 +157,8 @@ int CountFilesCreatedAfter(const FilePath& path,
 
   DIR* dir = opendir(path.value().c_str());
   if (dir) {
-#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD) && \
-    !defined(OS_OPENBSD) && !defined(OS_SOLARIS) && !defined(OS_ANDROID)
+#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_BSD) && \
+    !defined(OS_SOLARIS) && !defined(OS_ANDROID)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
@@ -801,8 +800,8 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
   if (!dir)
     return false;
 
-#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD) && \
-    !defined(OS_OPENBSD) && !defined(OS_SOLARIS) && !defined(OS_ANDROID)
+#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_BSD) && \
+    !defined(OS_SOLARIS) && !defined(OS_ANDROID)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
