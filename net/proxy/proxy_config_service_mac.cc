@@ -8,6 +8,7 @@
 #include <SystemConfiguration/SystemConfiguration.h>
 
 #include "base/logging.h"
+#include "base/mac/foundation_util.h"
 #include "base/mac/mac_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/message_loop.h"
@@ -28,8 +29,8 @@ const int kPollIntervalSec = 5;
 bool GetBoolFromDictionary(CFDictionaryRef dict,
                            CFStringRef key,
                            bool default_value) {
-  CFNumberRef number = (CFNumberRef)base::mac::GetValueFromDictionary(
-      dict, key, CFNumberGetTypeID());
+  CFNumberRef number = base::mac::GetValueFromDictionary<CFNumberRef>(dict,
+                                                                      key);
   if (!number)
     return default_value;
 
@@ -60,10 +61,8 @@ void GetCurrentProxyConfig(ProxyConfig* config) {
   if (GetBoolFromDictionary(config_dict.get(),
                             kSCPropNetProxiesProxyAutoConfigEnable,
                             false)) {
-    CFStringRef pac_url_ref = (CFStringRef)base::mac::GetValueFromDictionary(
-        config_dict.get(),
-        kSCPropNetProxiesProxyAutoConfigURLString,
-        CFStringGetTypeID());
+    CFStringRef pac_url_ref = base::mac::GetValueFromDictionary<CFStringRef>(
+        config_dict.get(), kSCPropNetProxiesProxyAutoConfigURLString);
     if (pac_url_ref)
       config->set_pac_url(GURL(base::SysCFStringRefToUTF8(pac_url_ref)));
   }
@@ -129,17 +128,14 @@ void GetCurrentProxyConfig(ProxyConfig* config) {
 
   // proxy bypass list
 
-  CFArrayRef bypass_array_ref =
-      (CFArrayRef)base::mac::GetValueFromDictionary(
-          config_dict.get(),
-          kSCPropNetProxiesExceptionsList,
-          CFArrayGetTypeID());
+  CFArrayRef bypass_array_ref = base::mac::GetValueFromDictionary<CFArrayRef>(
+      config_dict.get(), kSCPropNetProxiesExceptionsList);
   if (bypass_array_ref) {
     CFIndex bypass_array_count = CFArrayGetCount(bypass_array_ref);
     for (CFIndex i = 0; i < bypass_array_count; ++i) {
-      CFStringRef bypass_item_ref =
-          (CFStringRef)CFArrayGetValueAtIndex(bypass_array_ref, i);
-      if (CFGetTypeID(bypass_item_ref) != CFStringGetTypeID()) {
+      CFStringRef bypass_item_ref = base::mac::CFCast<CFStringRef>(
+          CFArrayGetValueAtIndex(bypass_array_ref, i));
+      if (!bypass_item_ref) {
         LOG(WARNING) << "Expected value for item " << i
                      << " in the kSCPropNetProxiesExceptionsList"
                         " to be a CFStringRef but it was not";
