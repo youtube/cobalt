@@ -23,7 +23,6 @@
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
-#include "net/base/test_host_resolver_observer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO(eroman):
@@ -982,162 +981,6 @@ TEST_F(HostResolverImplTest, BypassCache) {
   MessageLoop::current()->Run();
 }
 
-// Test that registering, unregistering, and notifying of observers works.
-// Does not test the cancellation notification since all resolves are
-// synchronous.
-TEST_F(HostResolverImplTest, Observers) {
-  scoped_ptr<HostResolver> host_resolver(
-      CreateHostResolverImpl(NULL));
-
-  TestHostResolverObserver observer;
-
-  host_resolver->AddObserver(&observer);
-
-  AddressList addrlist;
-
-  // Resolve "host1".
-  HostResolver::RequestInfo info1(HostPortPair("host1", 70));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
-  TestOldCompletionCallback callback;
-  int rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL,
-                                  log.bound());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  rv = callback.WaitForResult();
-  EXPECT_EQ(OK, rv);
-
-  CapturingNetLog::EntryList entries;
-  log.GetEntries(&entries);
-
-  EXPECT_EQ(2u, entries.size());
-  EXPECT_TRUE(LogContainsBeginEvent(
-      entries, 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
-  EXPECT_TRUE(LogContainsEndEvent(
-      entries, 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
-
-  EXPECT_EQ(1U, observer.start_log.size());
-  EXPECT_EQ(1U, observer.finish_log.size());
-  EXPECT_EQ(0U, observer.cancel_log.size());
-  EXPECT_TRUE(observer.start_log[0] ==
-              TestHostResolverObserver::StartOrCancelEntry(0, info1));
-  EXPECT_TRUE(observer.finish_log[0] ==
-              TestHostResolverObserver::FinishEntry(0, true, info1));
-
-  // Resolve "host1" again -- this time it  will be served from cache, but it
-  // should still notify of completion.
-  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, BoundNetLog());
-  ASSERT_EQ(OK, rv);  // Should complete synchronously.
-
-  EXPECT_EQ(2U, observer.start_log.size());
-  EXPECT_EQ(2U, observer.finish_log.size());
-  EXPECT_EQ(0U, observer.cancel_log.size());
-  EXPECT_TRUE(observer.start_log[1] ==
-              TestHostResolverObserver::StartOrCancelEntry(1, info1));
-  EXPECT_TRUE(observer.finish_log[1] ==
-              TestHostResolverObserver::FinishEntry(1, true, info1));
-
-  // Resolve "host2", setting referrer to "http://foobar.com"
-  HostResolver::RequestInfo info2(HostPortPair("host2", 70));
-  info2.set_referrer(GURL("http://foobar.com"));
-  rv = host_resolver->Resolve(info2, &addrlist, &callback, NULL, BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  rv = callback.WaitForResult();
-  EXPECT_EQ(OK, rv);
-
-  EXPECT_EQ(3U, observer.start_log.size());
-  EXPECT_EQ(3U, observer.finish_log.size());
-  EXPECT_EQ(0U, observer.cancel_log.size());
-  EXPECT_TRUE(observer.start_log[2] ==
-              TestHostResolverObserver::StartOrCancelEntry(2, info2));
-  EXPECT_TRUE(observer.finish_log[2] ==
-              TestHostResolverObserver::FinishEntry(2, true, info2));
-
-  // Unregister the observer.
-  host_resolver->RemoveObserver(&observer);
-
-  // Resolve "host3"
-  HostResolver::RequestInfo info3(HostPortPair("host3", 70));
-  host_resolver->Resolve(info3, &addrlist, &callback, NULL, BoundNetLog());
-
-  // No effect this time, since observer was removed.
-  EXPECT_EQ(3U, observer.start_log.size());
-  EXPECT_EQ(3U, observer.finish_log.size());
-  EXPECT_EQ(0U, observer.cancel_log.size());
-}
-
-// Tests that observers are sent OnCancelResolution() whenever a request is
-// cancelled. There are two ways to cancel a request:
-//  (1) Delete the HostResolver while job is outstanding.
-//  (2) Call HostResolver::CancelRequest() while a request is outstanding.
-TEST_F(HostResolverImplTest, CancellationObserver) {
-  TestHostResolverObserver observer;
-  {
-    // Create a host resolver and attach an observer.
-    scoped_ptr<HostResolver> host_resolver(
-        CreateHostResolverImpl(NULL));
-    host_resolver->AddObserver(&observer);
-
-    TestOldCompletionCallback callback;
-
-    EXPECT_EQ(0U, observer.start_log.size());
-    EXPECT_EQ(0U, observer.finish_log.size());
-    EXPECT_EQ(0U, observer.cancel_log.size());
-
-    // Start an async resolve for (host1:70).
-    HostResolver::RequestInfo info1(HostPortPair("host1", 70));
-    HostResolver::RequestHandle req = NULL;
-    AddressList addrlist;
-    int rv = host_resolver->Resolve(info1, &addrlist, &callback, &req,
-                                    BoundNetLog());
-    EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(NULL != req);
-
-    EXPECT_EQ(1U, observer.start_log.size());
-    EXPECT_EQ(0U, observer.finish_log.size());
-    EXPECT_EQ(0U, observer.cancel_log.size());
-
-    EXPECT_TRUE(observer.start_log[0] ==
-                TestHostResolverObserver::StartOrCancelEntry(0, info1));
-
-    // Cancel the request.
-    host_resolver->CancelRequest(req);
-
-    EXPECT_EQ(1U, observer.start_log.size());
-    EXPECT_EQ(0U, observer.finish_log.size());
-    EXPECT_EQ(1U, observer.cancel_log.size());
-
-    EXPECT_TRUE(observer.cancel_log[0] ==
-                TestHostResolverObserver::StartOrCancelEntry(0, info1));
-
-    // Start an async request for (host2:60)
-    HostResolver::RequestInfo info2(HostPortPair("host2", 60));
-    rv = host_resolver->Resolve(info2, &addrlist, &callback, NULL,
-                                BoundNetLog());
-    EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(NULL != req);
-
-    EXPECT_EQ(2U, observer.start_log.size());
-    EXPECT_EQ(0U, observer.finish_log.size());
-    EXPECT_EQ(1U, observer.cancel_log.size());
-
-    EXPECT_TRUE(observer.start_log[1] ==
-                TestHostResolverObserver::StartOrCancelEntry(1, info2));
-
-    // Upon exiting this scope, HostResolver is destroyed, so all requests are
-    // implicitly cancelled.
-  }
-
-  // Check that destroying the HostResolver sent a notification for
-  // cancellation of host2:60 request.
-
-  EXPECT_EQ(2U, observer.start_log.size());
-  EXPECT_EQ(0U, observer.finish_log.size());
-  EXPECT_EQ(2U, observer.cancel_log.size());
-
-  HostResolver::RequestInfo info(HostPortPair("host2", 60));
-  EXPECT_TRUE(observer.cancel_log[1] ==
-              TestHostResolverObserver::StartOrCancelEntry(1, info));
-}
-
 // Test that IP address changes flush the cache.
 TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   scoped_ptr<HostResolver> host_resolver(
@@ -1301,9 +1144,6 @@ TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
       new HostResolverImpl(resolver_proc, HostCache::CreateDefaultCache(),
                            kMaxJobs, kRetryAttempts, NULL));
 
-  TestHostResolverObserver observer;
-  host_resolver->AddObserver(&observer);
-
   // Note that at this point the CapturingHostResolverProc is blocked, so any
   // requests we make will not complete.
 
@@ -1336,8 +1176,6 @@ TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
     EXPECT_EQ(OK, callback[i].WaitForResult()) << "i=" << i;
   }
 
-  host_resolver->RemoveObserver(&observer);
-
   // Since we have restricted to a single concurrent thread in the jobpool,
   // the requests should complete in order of priority (with the exception
   // of the first request, which gets started right away, since there is
@@ -1353,26 +1191,6 @@ TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
   EXPECT_EQ("req2", capture_list[4].hostname);
   EXPECT_EQ("req3", capture_list[5].hostname);
   EXPECT_EQ("req6", capture_list[6].hostname);
-
-  // Also check using the observer's trace.
-  EXPECT_EQ(8U, observer.start_log.size());
-  EXPECT_EQ(8U, observer.finish_log.size());
-  EXPECT_EQ(0U, observer.cancel_log.size());
-
-  EXPECT_EQ("req0", observer.finish_log[0].info.hostname());
-  EXPECT_EQ("req4", observer.finish_log[1].info.hostname());
-
-  // There were two requests for "req5". The highest priority
-  // one should have been dispatched earlier.
-  EXPECT_EQ("req5", observer.finish_log[2].info.hostname());
-  EXPECT_EQ("req5", observer.finish_log[3].info.hostname());
-  EXPECT_EQ(HIGHEST, observer.finish_log[2].info.priority());
-  EXPECT_EQ(LOW, observer.finish_log[3].info.priority());
-
-  EXPECT_EQ("req1", observer.finish_log[4].info.hostname());
-  EXPECT_EQ("req2", observer.finish_log[5].info.hostname());
-  EXPECT_EQ("req3", observer.finish_log[6].info.hostname());
-  EXPECT_EQ("req6", observer.finish_log[7].info.hostname());
 }
 
 // Try cancelling a request which has not been attached to a job yet.

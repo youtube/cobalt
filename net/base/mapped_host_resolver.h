@@ -53,8 +53,6 @@ class NET_EXPORT MappedHostResolver : public HostResolver {
                                AddressList* addresses,
                                const BoundNetLog& net_log) OVERRIDE;
   virtual void CancelRequest(RequestHandle req) OVERRIDE;
-  virtual void AddObserver(Observer* observer) OVERRIDE;
-  virtual void RemoveObserver(Observer* observer) OVERRIDE;
   virtual void ProbeIPv6Support() OVERRIDE;
   virtual HostCache* GetHostCache() OVERRIDE;
 

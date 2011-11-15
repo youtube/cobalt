@@ -9,7 +9,6 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
-#include "googleurl/src/gurl.h"
 #include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
@@ -71,9 +70,6 @@ class NET_EXPORT HostResolver {
     RequestPriority priority() const { return priority_; }
     void set_priority(RequestPriority priority) { priority_ = priority; }
 
-    const GURL& referrer() const { return referrer_; }
-    void set_referrer(const GURL& referrer) { referrer_ = referrer; }
-
    private:
     // The hostname to resolve, and the port to use in resulting sockaddrs.
     HostPortPair host_port_pair_;
@@ -92,31 +88,6 @@ class NET_EXPORT HostResolver {
 
     // The priority for the request.
     RequestPriority priority_;
-
-    // Optional data for consumption by observers. This is the URL of the
-    // page that lead us to the navigation, for DNS prefetcher's benefit.
-    GURL referrer_;
-  };
-
-  // Interface for observing the requests that flow through a HostResolver.
-  class Observer {
-   public:
-    virtual ~Observer() {}
-
-    // Called at the start of HostResolver::Resolve(). |id| is a unique number
-    // given to the request, so it can be matched up with a corresponding call
-    // to OnFinishResolutionWithStatus() or OnCancelResolution().
-    virtual void OnStartResolution(int id, const RequestInfo& info) = 0;
-
-    // Called on completion of request |id|. Note that if the request was
-    // cancelled, OnCancelResolution() will be called instead.
-    virtual void OnFinishResolutionWithStatus(int id, bool was_resolved,
-                                              const RequestInfo& info) = 0;
-
-    // Called when request |id| has been cancelled. A request is "cancelled"
-    // if either the HostResolver is destroyed while a resolution is in
-    // progress, or HostResolver::CancelRequest() is called.
-    virtual void OnCancelResolution(int id, const RequestInfo& info) = 0;
   };
 
   // Opaque type used to cancel a request.
@@ -170,16 +141,10 @@ class NET_EXPORT HostResolver {
                                const BoundNetLog& net_log) = 0;
 
   // Cancels the specified request. |req| is the handle returned by Resolve().
-  // After a request is cancelled, its completion callback will not be called.
+  // After a request is canceled, its completion callback will not be called.
+  // CancelRequest must NOT be called after the request's completion callback
+  // has already run or the request was canceled.
   virtual void CancelRequest(RequestHandle req) = 0;
-
-  // Adds an observer to this resolver. The observer will be notified of the
-  // start and completion of all requests (excluding cancellation). |observer|
-  // must remain valid for the duration of this HostResolver's lifetime.
-  virtual void AddObserver(Observer* observer) = 0;
-
-  // Unregisters an observer previously added by AddObserver().
-  virtual void RemoveObserver(Observer* observer) = 0;
 
   // Sets the default AddressFamily to use when requests have left it
   // unspecified. For example, this could be used to restrict resolution

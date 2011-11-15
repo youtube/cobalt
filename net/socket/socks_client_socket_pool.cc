@@ -17,6 +17,7 @@
 
 namespace net {
 
+// TODO(szym): remove unneeded referrer
 SOCKSSocketParams::SOCKSSocketParams(
     const scoped_refptr<TransportSocketParams>& proxy_server,
     bool socks_v5,
@@ -30,10 +31,6 @@ SOCKSSocketParams::SOCKSSocketParams(
     ignore_limits_ = transport_params_->ignore_limits();
   else
     ignore_limits_ = false;
-  // The referrer is used by the DNS prefetch system to correlate resolutions
-  // with the page that triggered them. It doesn't impact the actual addresses
-  // that we resolve to.
-  destination_.set_referrer(referrer);
   destination_.set_priority(priority);
 }
 

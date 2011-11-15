@@ -10,7 +10,6 @@
 #include <map>
 
 #include "base/memory/weak_ptr.h"
-#include "base/observer_list.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/host_resolver.h"
@@ -63,9 +62,6 @@ class MockHostResolverBase : public HostResolver,
     synchronous_mode_ = is_synchronous;
   }
 
-  // Resets the mock.
-  void Reset(HostResolverProc* interceptor);
-
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
@@ -76,8 +72,6 @@ class MockHostResolverBase : public HostResolver,
                                AddressList* addresses,
                                const BoundNetLog& net_log) OVERRIDE;
   virtual void CancelRequest(RequestHandle req) OVERRIDE;
-  virtual void AddObserver(Observer* observer) OVERRIDE;
-  virtual void RemoveObserver(Observer* observer) OVERRIDE;
   virtual HostCache* GetHostCache() OVERRIDE;
 
  protected:
@@ -97,7 +91,6 @@ class MockHostResolverBase : public HostResolver,
   void ResolveNow(size_t id);
 
   bool synchronous_mode_;
-  ObserverList<Observer> observers_;
   scoped_refptr<RuleBasedHostResolverProc> rules_;
   scoped_refptr<HostResolverProc> proc_;
   scoped_ptr<HostCache> cache_;
@@ -193,8 +186,6 @@ class HangingHostResolver : public HostResolver {
                                AddressList* addresses,
                                const BoundNetLog& net_log) OVERRIDE;
   virtual void CancelRequest(RequestHandle req) OVERRIDE {}
-  virtual void AddObserver(Observer* observer) OVERRIDE {}
-  virtual void RemoveObserver(Observer* observer) OVERRIDE {}
 };
 
 // This class sets the default HostResolverProc for a particular scope.  The
