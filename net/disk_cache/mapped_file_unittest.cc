@@ -42,7 +42,7 @@ void FileCallbackTest::OnFileIOComplete(int bytes_copied) {
 }  // namespace
 
 TEST_F(DiskCacheTest, MappedFile_SyncIO) {
-  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
+  FilePath filename = cache_path_.AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
   ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
@@ -57,7 +57,7 @@ TEST_F(DiskCacheTest, MappedFile_SyncIO) {
 }
 
 TEST_F(DiskCacheTest, MappedFile_AsyncIO) {
-  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
+  FilePath filename = cache_path_.AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
   ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));

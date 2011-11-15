@@ -28,11 +28,10 @@ int NumberOfFiles(const FilePath& path) {
 namespace disk_cache {
 
 TEST_F(DiskCacheTest, BlockFiles_Grow) {
-  FilePath path = GetCacheFilePath();
-  ASSERT_TRUE(DeleteCache(path));
-  ASSERT_TRUE(file_util::CreateDirectory(path));
+  ASSERT_TRUE(CleanupCacheDir());
+  ASSERT_TRUE(file_util::CreateDirectory(cache_path_));
 
-  BlockFiles files(path);
+  BlockFiles files(cache_path_);
   ASSERT_TRUE(files.Init(true));
 
   const int kMaxSize = 35000;
@@ -42,7 +41,7 @@ TEST_F(DiskCacheTest, BlockFiles_Grow) {
   for (int i = 0; i < kMaxSize; i++) {
     EXPECT_TRUE(files.CreateBlock(RANKINGS, 4, &address[i]));
   }
-  EXPECT_EQ(6, NumberOfFiles(path));
+  EXPECT_EQ(6, NumberOfFiles(cache_path_));
 
   // Make sure we don't keep adding files.
   for (int i = 0; i < kMaxSize * 4; i += 2) {
@@ -50,16 +49,15 @@ TEST_F(DiskCacheTest, BlockFiles_Grow) {
     files.DeleteBlock(address[target], false);
     EXPECT_TRUE(files.CreateBlock(RANKINGS, 4, &address[target]));
   }
-  EXPECT_EQ(6, NumberOfFiles(path));
+  EXPECT_EQ(6, NumberOfFiles(cache_path_));
 }
 
 // We should be able to delete empty block files.
 TEST_F(DiskCacheTest, BlockFiles_Shrink) {
-  FilePath path = GetCacheFilePath();
-  ASSERT_TRUE(DeleteCache(path));
-  ASSERT_TRUE(file_util::CreateDirectory(path));
+  ASSERT_TRUE(CleanupCacheDir());
+  ASSERT_TRUE(file_util::CreateDirectory(cache_path_));
 
-  BlockFiles files(path);
+  BlockFiles files(cache_path_);
   ASSERT_TRUE(files.Init(true));
 
   const int kMaxSize = 35000;
@@ -74,16 +72,15 @@ TEST_F(DiskCacheTest, BlockFiles_Shrink) {
   for (int i = 0; i < kMaxSize; i++) {
     files.DeleteBlock(address[i], false);
   }
-  EXPECT_EQ(4, NumberOfFiles(path));
+  EXPECT_EQ(4, NumberOfFiles(cache_path_));
 }
 
 // Handling of block files not properly closed.
 TEST_F(DiskCacheTest, BlockFiles_Recover) {
-  FilePath path = GetCacheFilePath();
-  ASSERT_TRUE(DeleteCache(path));
-  ASSERT_TRUE(file_util::CreateDirectory(path));
+  ASSERT_TRUE(CleanupCacheDir());
+  ASSERT_TRUE(file_util::CreateDirectory(cache_path_));
 
-  BlockFiles files(path);
+  BlockFiles files(cache_path_);
   ASSERT_TRUE(files.Init(true));
 
   const int kNumEntries = 2000;
@@ -157,11 +154,10 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
 
 // Handling of truncated files.
 TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
-  FilePath path = GetCacheFilePath();
-  ASSERT_TRUE(DeleteCache(path));
-  ASSERT_TRUE(file_util::CreateDirectory(path));
+  ASSERT_TRUE(CleanupCacheDir());
+  ASSERT_TRUE(file_util::CreateDirectory(cache_path_));
 
-  BlockFiles files(path);
+  BlockFiles files(cache_path_);
   ASSERT_TRUE(files.Init(true));
 
   FilePath filename = files.Name(0);
@@ -179,11 +175,10 @@ TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
 
 // Handling of truncated files (non empty).
 TEST_F(DiskCacheTest, BlockFiles_TruncatedFile) {
-  FilePath path = GetCacheFilePath();
-  ASSERT_TRUE(DeleteCache(path));
-  ASSERT_TRUE(file_util::CreateDirectory(path));
+  ASSERT_TRUE(CleanupCacheDir());
+  ASSERT_TRUE(file_util::CreateDirectory(cache_path_));
 
-  BlockFiles files(path);
+  BlockFiles files(cache_path_);
   ASSERT_TRUE(files.Init(true));
   Addr address;
   EXPECT_TRUE(files.CreateBlock(RANKINGS, 2, &address));
@@ -203,11 +198,10 @@ TEST_F(DiskCacheTest, BlockFiles_TruncatedFile) {
 
 // An invalid file can be detected after init.
 TEST_F(DiskCacheTest, BlockFiles_InvalidFile) {
-  FilePath path = GetCacheFilePath();
-  ASSERT_TRUE(DeleteCache(path));
-  ASSERT_TRUE(file_util::CreateDirectory(path));
+  ASSERT_TRUE(CleanupCacheDir());
+  ASSERT_TRUE(file_util::CreateDirectory(cache_path_));
 
-  BlockFiles files(path);
+  BlockFiles files(cache_path_);
   ASSERT_TRUE(files.Init(true));
 
   // Let's access block 10 of file 5. (There is no file).
@@ -230,9 +224,8 @@ TEST_F(DiskCacheTest, BlockFiles_InvalidFile) {
 // Tests that we generate the correct file stats.
 TEST_F(DiskCacheTest, BlockFiles_Stats) {
   ASSERT_TRUE(CopyTestCache("remove_load1"));
-  FilePath path = GetCacheFilePath();
 
-  BlockFiles files(path);
+  BlockFiles files(cache_path_);
   ASSERT_TRUE(files.Init(false));
   int used, load;
 
@@ -251,11 +244,10 @@ TEST_F(DiskCacheTest, BlockFiles_Stats) {
 
 // Tests that we add and remove blocks correctly.
 TEST_F(DiskCacheTest, AllocationMap) {
-  FilePath path = GetCacheFilePath();
-  ASSERT_TRUE(DeleteCache(path));
-  ASSERT_TRUE(file_util::CreateDirectory(path));
+  ASSERT_TRUE(CleanupCacheDir());
+  ASSERT_TRUE(file_util::CreateDirectory(cache_path_));
 
-  BlockFiles files(path);
+  BlockFiles files(cache_path_);
   ASSERT_TRUE(files.Init(true));
 
   // Create a bunch of entries.
