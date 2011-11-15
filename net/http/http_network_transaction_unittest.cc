@@ -7261,7 +7261,7 @@ TEST_F(HttpNetworkTransactionTest,
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(pair, BoundNetLog());
   scoped_refptr<TransportSocketParams> transport_params(
-      new TransportSocketParams(host_port_pair, MEDIUM, GURL(), false, false));
+      new TransportSocketParams(host_port_pair, MEDIUM, false, false));
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(ERR_IO_PENDING,
@@ -8517,7 +8517,7 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(pair, BoundNetLog());
   scoped_refptr<TransportSocketParams> transport_params(
-      new TransportSocketParams(host_port_pair, MEDIUM, GURL(), false, false));
+      new TransportSocketParams(host_port_pair, MEDIUM, false, false));
   TestOldCompletionCallback callback;
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);

@@ -78,13 +78,6 @@ int InitSocketPoolHelper(const GURL& request_url,
   scoped_refptr<SOCKSSocketParams> socks_params;
   scoped_ptr<HostPortPair> proxy_host_port;
 
-  GURL request_referrer;
-  std::string request_referrer_str;
-  if (request_extra_headers.GetHeader(HttpRequestHeaders::kReferer,
-                                      &request_referrer_str)) {
-    request_referrer = GURL(request_referrer_str);
-  }
-
   bool using_ssl = request_url.SchemeIs("https") || force_spdy_over_ssl;
 
   HostPortPair origin_host_port =
@@ -118,7 +111,6 @@ int InitSocketPoolHelper(const GURL& request_url,
   if (proxy_info.is_direct()) {
     tcp_params = new TransportSocketParams(origin_host_port,
                                            request_priority,
-                                           request_referrer,
                                            disable_resolver_cache,
                                            ignore_limits);
   } else {
@@ -127,7 +119,6 @@ int InitSocketPoolHelper(const GURL& request_url,
     scoped_refptr<TransportSocketParams> proxy_tcp_params(
         new TransportSocketParams(*proxy_host_port,
                                   request_priority,
-                                  request_referrer,
                                   disable_resolver_cache,
                                   ignore_limits));
 
@@ -173,8 +164,7 @@ int InitSocketPoolHelper(const GURL& request_url,
       socks_params = new SOCKSSocketParams(proxy_tcp_params,
                                            socks_version == '5',
                                            origin_host_port,
-                                           request_priority,
-                                           request_referrer);
+                                           request_priority);
     }
   }
 

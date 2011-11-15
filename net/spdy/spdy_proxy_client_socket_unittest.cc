@@ -143,7 +143,6 @@ SpdyProxyClientSocketTest::SpdyProxyClientSocketTest()
       endpoint_host_port_proxy_pair_(endpoint_host_port_pair_, proxy_),
       transport_params_(new TransportSocketParams(proxy_host_port_,
                                             LOWEST,
-                                            url_,
                                             false,
                                             false)) {
 }

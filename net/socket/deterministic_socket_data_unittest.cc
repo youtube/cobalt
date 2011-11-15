@@ -50,7 +50,6 @@ class DeterministicSocketDataTest : public PlatformTest {
   scoped_refptr<IOBuffer> read_buf_;
   MockConnect connect_data_;
 
-  GURL url_;
   HostPortPair endpoint_;
   scoped_refptr<TransportSocketParams> tcp_params_;
   ClientSocketPoolHistograms histograms_;
@@ -68,11 +67,9 @@ DeterministicSocketDataTest::DeterministicSocketDataTest()
       data_(NULL),
       read_buf_(NULL),
       connect_data_(false, OK),
-      url_("https://www.google.com"),
       endpoint_("www.google.com", 443),
       tcp_params_(new TransportSocketParams(endpoint_,
                                             LOWEST,
-                                            url_,
                                             false,
                                             false)),
       histograms_(""),
