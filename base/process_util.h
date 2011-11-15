@@ -31,6 +31,7 @@ typedef struct _malloc_zone_t malloc_zone_t;
 #endif
 
 #include <list>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -219,7 +220,8 @@ struct LaunchOptions {
                     start_hidden(false), inherit_handles(false), as_user(NULL),
                     empty_desktop_name(false), job_handle(NULL)
 #else
-                    environ(NULL), fds_to_remap(NULL), new_process_group(false)
+                    environ(NULL), fds_to_remap(NULL), maximize_rlimits(NULL),
+                    new_process_group(false)
 #if defined(OS_LINUX)
                   , clone_flags(0)
 #endif  // OS_LINUX
@@ -264,6 +266,11 @@ struct LaunchOptions {
   // This pointer is owned by the caller and must live through the
   // call to LaunchProcess().
   const file_handle_mapping_vector* fds_to_remap;
+
+  // Each element is an RLIMIT_* constant that should be raised to its
+  // rlim_max.  This pointer is owned by the caller and must live through
+  // the call to LaunchProcess().
+  const std::set<int>* maximize_rlimits;
 
   // If true, start the process in a new process group, instead of
   // inheriting the parent's process group.  The pgid of the child process
