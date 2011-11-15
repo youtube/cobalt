@@ -6,7 +6,6 @@
 
 #include "base/time.h"
 #include "base/values.h"
-#include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
@@ -17,13 +16,11 @@
 
 namespace net {
 
-// TODO(szym): remove unneeded referrer
 SOCKSSocketParams::SOCKSSocketParams(
     const scoped_refptr<TransportSocketParams>& proxy_server,
     bool socks_v5,
     const HostPortPair& host_port_pair,
-    RequestPriority priority,
-    const GURL& referrer)
+    RequestPriority priority)
     : transport_params_(proxy_server),
       destination_(host_port_pair),
       socks_v5_(socks_v5) {
