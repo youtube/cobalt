@@ -101,7 +101,7 @@ base::ThreadLocalStorage::Slot DnsReloader::tls_index_(
 
 base::LazyInstance<DnsReloader,
                    base::LeakyLazyInstanceTraits<DnsReloader> >
-    g_dns_reloader(base::LINKER_INITIALIZED);
+    g_dns_reloader = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

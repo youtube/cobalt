@@ -493,7 +493,7 @@ void SetExemplarSetForLang(const std::string& lang,
 
 static base::LazyInstance<base::Lock,
                           base::LeakyLazyInstanceTraits<base::Lock> >
-    g_lang_set_lock(base::LINKER_INITIALIZED);
+    g_lang_set_lock = LAZY_INSTANCE_INITIALIZER;
 
 // Returns true if all the characters in component_characters are used by
 // the language |lang|.
@@ -1119,7 +1119,7 @@ const FormatUrlType kFormatUrlOmitAll = kFormatUrlOmitUsernamePassword |
 
 static base::LazyInstance<std::multiset<int>,
                           base::LeakyLazyInstanceTraits<std::multiset<int> > >
-    g_explicitly_allowed_ports(base::LINKER_INITIALIZED);
+    g_explicitly_allowed_ports = LAZY_INSTANCE_INITIALIZER;
 
 size_t GetCountOfExplicitlyAllowedPorts() {
   return g_explicitly_allowed_ports.Get().size();

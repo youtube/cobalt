@@ -134,7 +134,7 @@ struct PathData {
   }
 };
 
-static base::LazyInstance<PathData> g_path_data(base::LINKER_INITIALIZED);
+static base::LazyInstance<PathData> g_path_data = LAZY_INSTANCE_INITIALIZER;
 
 static PathData* GetPathData() {
   return g_path_data.Pointer();

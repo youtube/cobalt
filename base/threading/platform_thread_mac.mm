@@ -20,7 +20,7 @@ namespace {
 
 LazyInstance<ThreadLocalPointer<char>,
              LeakyLazyInstanceTraits<ThreadLocalPointer<char> > >
-    current_thread_name(LINKER_INITIALIZED);
+    current_thread_name = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

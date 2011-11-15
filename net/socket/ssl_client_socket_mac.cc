@@ -486,8 +486,8 @@ class EnabledCipherSuites {
   DISALLOW_COPY_AND_ASSIGN(EnabledCipherSuites);
 };
 
-static base::LazyInstance<EnabledCipherSuites> g_enabled_cipher_suites(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<EnabledCipherSuites> g_enabled_cipher_suites =
+    LAZY_INSTANCE_INITIALIZER;
 
 EnabledCipherSuites::EnabledCipherSuites() {
   SSLContextRef ssl_context;

@@ -64,7 +64,7 @@ static bool g_false_start_enabled = true;
 static bool g_dns_cert_provenance_checking = false;
 base::LazyInstance<scoped_refptr<CRLSet>,
                    base::LeakyLazyInstanceTraits<scoped_refptr<CRLSet> > >
-    g_crl_set(base::LINKER_INITIALIZED);
+    g_crl_set = LAZY_INSTANCE_INITIALIZER;
 
 // static
 void SSLConfigService::DisableFalseStart() {

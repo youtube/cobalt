@@ -78,7 +78,7 @@ class MimeUtil : public PlatformMimeUtil {
   StrictMappings strict_format_map_;
 };  // class MimeUtil
 
-static base::LazyInstance<MimeUtil> g_mime_util(base::LINKER_INITIALIZED);
+static base::LazyInstance<MimeUtil> g_mime_util = LAZY_INSTANCE_INITIALIZER;
 
 struct MimeInfo {
   const char* mime_type;

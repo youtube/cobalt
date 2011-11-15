@@ -35,7 +35,7 @@ namespace {
 // this lock.
 static base::LazyInstance<base::Lock,
                           base::LeakyLazyInstanceTraits<base::Lock> >
-    g_mime_util_xdg_lock(base::LINKER_INITIALIZED);
+    g_mime_util_xdg_lock = LAZY_INSTANCE_INITIALIZER;
 
 class IconTheme;
 

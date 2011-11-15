@@ -123,7 +123,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
 };
 
 static base::LazyInstance<DefaultClientSocketFactory>
-    g_default_client_socket_factory(base::LINKER_INITIALIZED);
+    g_default_client_socket_factory = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

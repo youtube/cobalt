@@ -58,7 +58,7 @@ uint64 g_next_url_request_identifier = 1;
 // This lock protects g_next_url_request_identifier.
 base::LazyInstance<base::Lock,
                    base::LeakyLazyInstanceTraits<base::Lock> >
-    g_next_url_request_identifier_lock(base::LINKER_INITIALIZED);
+    g_next_url_request_identifier_lock = LAZY_INSTANCE_INITIALIZER;
 
 // Returns an prior unused identifier for URL requests.
 uint64 GenerateURLRequestIdentifier() {
