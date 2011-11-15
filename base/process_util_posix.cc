@@ -630,6 +630,24 @@ bool LaunchProcess(const std::vector<std::string>& argv,
       }
     }
 
+    if (options.maximize_rlimits) {
+      // Some resource limits need to be maximal in this child.
+      std::set<int>::const_iterator resource;
+      for (resource = options.maximize_rlimits->begin();
+           resource != options.maximize_rlimits->end();
+           ++resource) {
+        struct rlimit limit;
+        if (getrlimit(*resource, &limit) < 0) {
+          RAW_LOG(WARNING, "getrlimit failed");
+        } else if (limit.rlim_cur < limit.rlim_max) {
+          limit.rlim_cur = limit.rlim_max;
+          if (setrlimit(*resource, &limit) < 0) {
+            RAW_LOG(WARNING, "setrlimit failed");
+          }
+        }
+      }
+    }
+
 #if defined(OS_MACOSX)
     RestoreDefaultExceptionHandler();
 #endif  // defined(OS_MACOSX)
