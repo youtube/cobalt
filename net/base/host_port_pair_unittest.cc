@@ -18,6 +18,16 @@ TEST(HostPortPairTest, Parsing) {
   EXPECT_TRUE(foo.Equals(bar));
 }
 
+TEST(HostPortPairTest, BadString) {
+  HostPortPair foo = HostPortPair::FromString("foo.com:2:3");
+  EXPECT_TRUE(foo.host().empty());
+  EXPECT_EQ(0, foo.port());
+
+  HostPortPair bar = HostPortPair::FromString("bar.com:two");
+  EXPECT_TRUE(bar.host().empty());
+  EXPECT_EQ(0, bar.port());
+}
+
 }  // namespace
 
 }  // namespace net

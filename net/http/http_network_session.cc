@@ -42,7 +42,9 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
                            params.ssl_host_info_factory,
                            params.proxy_service,
                            params.ssl_config_service),
-      spdy_session_pool_(params.host_resolver, params.ssl_config_service),
+      spdy_session_pool_(params.host_resolver,
+                         params.ssl_config_service,
+                         params.http_server_properties),
       ALLOW_THIS_IN_INITIALIZER_LIST(http_stream_factory_(
           new HttpStreamFactoryImpl(this))) {
   DCHECK(proxy_service_);

@@ -5,6 +5,7 @@
 #ifndef NET_HTTP_HTTP_SERVER_PROPERTIES_IMPL_H_
 #define NET_HTTP_HTTP_SERVER_PROPERTIES_IMPL_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -38,6 +39,8 @@ class NET_EXPORT HttpServerPropertiesImpl
 
   void InitializeAlternateProtocolServers(
       AlternateProtocolMap* alternate_protocol_servers);
+
+  void InitializeSpdySettingsServers(SpdySettingsMap* spdy_settings_map);
 
   // Get the list of servers (host/port) that support SPDY.
   void GetSpdyServerList(base::ListValue* spdy_server_list) const;
@@ -87,6 +90,22 @@ class NET_EXPORT HttpServerPropertiesImpl
   // Returns all Alternate-Protocol mappings.
   virtual const AlternateProtocolMap& alternate_protocol_map() const OVERRIDE;
 
+  // Gets a reference to the SpdySettings stored for a host.
+  // If no settings are stored, returns an empty set of settings.
+  virtual const spdy::SpdySettings& GetSpdySettings(
+      const HostPortPair& host_port_pair) const OVERRIDE;
+
+  // Saves settings for a host. Returns true if SpdySettings are to be
+  // persisted because |spdy_settings_map_| has been updated.
+  virtual bool SetSpdySettings(const HostPortPair& host_port_pair,
+                               const spdy::SpdySettings& settings) OVERRIDE;
+
+  // Clears all spdy_settings.
+  virtual void ClearSpdySettings() OVERRIDE;
+
+  // Returns all persistent SpdySettings.
+  virtual const SpdySettingsMap& spdy_settings_map() const OVERRIDE;
+
  private:
   // |spdy_servers_table_| has flattened representation of servers (host/port
   // pair) that either support or not support SPDY protocol.
@@ -94,6 +113,7 @@ class NET_EXPORT HttpServerPropertiesImpl
   SpdyServerHostPortTable spdy_servers_table_;
 
   AlternateProtocolMap alternate_protocol_map_;
+  SpdySettingsMap spdy_settings_map_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpServerPropertiesImpl);
 };

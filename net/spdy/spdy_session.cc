@@ -21,6 +21,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_server_properties.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_http_utils.h"
@@ -244,7 +245,7 @@ int SpdySession::hung_interval_ms_ = 10000;
 
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          SpdySessionPool* spdy_session_pool,
-                         SpdySettingsStorage* spdy_settings,
+                         HttpServerProperties* http_server_properties,
                          bool verify_domain_authentication,
                          NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -254,7 +255,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
       host_port_proxy_pair_(host_port_proxy_pair),
       spdy_session_pool_(spdy_session_pool),
-      spdy_settings_(spdy_settings),
+      http_server_properties_(http_server_properties),
       connection_(new ClientSocketHandle),
       read_buffer_(new IOBuffer(kReadBufferSize)),
       read_pending_(false),
@@ -1412,7 +1413,7 @@ void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
   spdy::SpdySettings settings;
   if (spdy_framer_.ParseSettings(&frame, &settings)) {
     HandleSettings(settings);
-    spdy_settings_->Set(host_port_pair(), settings);
+    http_server_properties_->SetSpdySettings(host_port_pair(), settings);
   }
 
   received_settings_ = true;
@@ -1493,7 +1494,8 @@ void SpdySession::SendSettings() {
   // Note:  we're copying the settings here, so that we can potentially modify
   // the settings for the field trial.  When removing the field trial, make
   // this a reference to the const SpdySettings again.
-  spdy::SpdySettings settings = spdy_settings_->Get(host_port_pair());
+  spdy::SpdySettings settings =
+      http_server_properties_->GetSpdySettings(host_port_pair());
   if (settings.empty())
     return;
 
@@ -1512,7 +1514,7 @@ void SpdySession::SendSettings() {
         if (cwnd != val) {
           i->second = cwnd;
           i->first.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-          spdy_settings_->Set(host_port_pair(), settings);
+          http_server_properties_->SetSpdySettings(host_port_pair(), settings);
         }
         break;
     }
@@ -1674,7 +1676,8 @@ void SpdySession::RecordHistograms() {
 
   if (received_settings_) {
     // Enumerate the saved settings, and set histograms for it.
-    const spdy::SpdySettings& settings = spdy_settings_->Get(host_port_pair());
+    const spdy::SpdySettings& settings =
+        http_server_properties_->GetSpdySettings(host_port_pair());
 
     spdy::SpdySettings::const_iterator it;
     for (it = settings.begin(); it != settings.end(); ++it) {
