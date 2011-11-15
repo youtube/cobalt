@@ -11,6 +11,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/location.h"
 #include "base/memory/linked_ptr.h"
 #include "base/task.h"
 #include "net/base/completion_callback.h"
@@ -125,26 +126,31 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
     STREAM_READ_PENDING,
     STREAM_ACTIVE,
     STREAM_CLOSED,
+    STREAM_READ_EVICTED,
     STREAM_UNUSED,
   };
   enum SendRequestState {
-    SEND_STATE_NEXT_REQUEST,
+    SEND_STATE_START_IMMEDIATELY,
+    SEND_STATE_START_NEXT_DEFERRED_REQUEST,
+    SEND_STATE_SEND_ACTIVE_REQUEST,
     SEND_STATE_COMPLETE,
+    SEND_STATE_EVICT_PENDING_REQUESTS,
     SEND_STATE_NONE,
-    SEND_STATE_UNUSABLE,
   };
   enum ReadHeadersState {
-    READ_STATE_NEXT_HEADERS,
-    READ_STATE_COMPLETE,
+    READ_STATE_START_IMMEDIATELY,
+    READ_STATE_START_NEXT_DEFERRED_READ,
+    READ_STATE_READ_HEADERS,
+    READ_STATE_READ_HEADERS_COMPLETE,
     READ_STATE_WAITING_FOR_CLOSE,
     READ_STATE_STREAM_CLOSED,
     READ_STATE_NONE,
-    READ_STATE_UNUSABLE,
+    READ_STATE_EVICT_PENDING_READS,
   };
 
-  struct DeferredSendRequest {
-    DeferredSendRequest();
-    ~DeferredSendRequest();
+  struct PendingSendRequest {
+    PendingSendRequest();
+    ~PendingSendRequest();
 
     int pipeline_id;
     std::string request_line;
@@ -180,10 +186,17 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   // Called when an asynchronous Send() completes.
   void OnSendIOCallback(int result);
 
-  // Sends the next deferred request. This may be called immediately after
-  // SendRequest(), or it may be in a new task after a prior send completes in
-  // DoSendComplete().
-  int DoSendNextRequest(int result);
+  // Activates the only request in |pending_send_request_queue_|. This should
+  // only be called via SendRequest() when the send loop is idle.
+  int DoStartRequestImmediately(int result);
+
+  // Activates the first request in |pending_send_request_queue_| that hasn't
+  // been closed, if any. This is called via DoSendComplete() after a prior
+  // request complets.
+  int DoStartNextDeferredRequest(int result);
+
+  // Sends the active request.
+  int DoSendActiveRequest(int result);
 
   // Notifies the user that the send has completed. This may be called directly
   // after SendRequest() for a synchronous request, or it may be called in
@@ -203,22 +216,30 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   // Called when the pending asynchronous ReadResponseHeaders() completes.
   void OnReadIOCallback(int result);
 
-  // Determines if the next response in the pipeline is ready to be read.
-  // If it's ready, then we call ReadResponseHeaders() on the underlying parser.
-  // HttpPipelinedSocket indicates its readiness by calling
-  // ReadResponseHeaders(). This function may be called immediately after
-  // ReadResponseHeaders(), or it may be called in a new task after a previous
-  // HttpPipelinedSocket finishes its work.
-  int DoReadNextHeaders(int result);
+  // Invokes DoStartNextDeferredRead() if the read loop is idle. This is called
+  // via a task queued when the previous |active_read_id_| closes its stream
+  // after a succesful response.
+  void StartNextDeferredRead();
+
+  // Activates the next read request immediately. This is called via
+  // ReadResponseHeaders() if that stream is at the front of |request_order_|
+  // and the read loop is idle.
+  int DoStartReadImmediately(int result);
+
+  // Activates the next read request in |request_order_| if it's ready to go.
+  // This is called via StartNextDeferredRead().
+  int DoStartNextDeferredRead(int result);
+
+  // Calls ReadResponseHeaders() on the active request's parser.
+  int DoReadHeaders(int result);
 
   // Notifies the user that reading the headers has completed. This may happen
   // directly after DoReadNextHeaders() if the response is already available.
   // Otherwise, it is called in response to OnReadIOCallback().
   int DoReadHeadersComplete(int result);
 
-  // This is a holding state. It does not do anything, except exit the
-  // DoReadHeadersLoop(). It is called after DoReadHeadersComplete().
-  int DoReadWaitingForClose(int result);
+  // Halts the read loop until Close() is called by the active stream.
+  int DoReadWaitForClose(int result);
 
   // Cleans up the state associated with the active request. Invokes
   // DoReadNextHeaders() in a new task to start the next response. This is
@@ -230,12 +251,18 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   // HttpPipelinedSockets indicates the connection was suddenly closed.
   int DoEvictPendingReadHeaders(int result);
 
-  // Invokes the user's callback in response to SendRequest() or
+  // Posts a task to fire the user's callback in response to SendRequest() or
   // ReadResponseHeaders() completing on an underlying parser. This might be
   // invoked in response to our own IO callbacks, or it may be invoked if the
   // underlying parser completes SendRequest() or ReadResponseHeaders()
   // synchronously, but we've already returned ERR_IO_PENDING to the user's
   // SendRequest() or ReadResponseHeaders() call into us.
+  void QueueUserCallback(int pipeline_id,
+                         OldCompletionCallback* callback,
+                         int rv,
+                         const tracked_objects::Location& from_here);
+
+  // Invokes the callback queued in QueueUserCallback().
   void FireUserCallback(int pipeline_id, int result);
 
   Delegate* delegate_;
@@ -255,14 +282,16 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
 
   std::queue<int> request_order_;
 
-  std::queue<DeferredSendRequest> deferred_request_queue_;
+  std::queue<PendingSendRequest*> pending_send_request_queue_;
+  scoped_ptr<PendingSendRequest> active_send_request_;
   SendRequestState send_next_state_;
+  bool send_still_on_call_stack_;
   OldCompletionCallbackImpl<HttpPipelinedConnectionImpl> send_io_callback_;
-  OldCompletionCallback* send_user_callback_;
 
   ReadHeadersState read_next_state_;
+  int active_read_id_;
+  bool read_still_on_call_stack_;
   OldCompletionCallbackImpl<HttpPipelinedConnectionImpl> read_io_callback_;
-  OldCompletionCallback* read_user_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpPipelinedConnectionImpl);
 };
