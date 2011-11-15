@@ -205,6 +205,8 @@
           'os_compat_android.h',
           'path_service.cc',
           'path_service.h',
+          'pending_task.cc',
+          'pending_task.h',
           'pickle.cc',
           'pickle.h',
           'platform_file.cc',
