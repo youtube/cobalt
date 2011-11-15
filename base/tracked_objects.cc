@@ -531,7 +531,9 @@ void ThreadData::TallyRunInAScopedRegionIfTracking(
     return;
 
   DurationInt queue_duration = 0;
-  DurationInt run_duration = (end_of_run - start_of_run).InMilliseconds();
+  DurationInt run_duration = 0;
+  if (!start_of_run.is_null() && !end_of_run.is_null())
+    run_duration = (end_of_run - start_of_run).InMilliseconds();
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
 }
 
