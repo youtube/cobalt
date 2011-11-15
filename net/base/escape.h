@@ -13,6 +13,38 @@
 #include "base/string16.h"
 #include "net/base/net_export.h"
 
+namespace net {
+
+// Escaping --------------------------------------------------------------------
+
+// Escapes a file.  This includes:
+// non-printable, non-7bit, and (including space)  "#%:<>?[\]^`{|}
+NET_EXPORT std::string EscapePath(const std::string& path);
+
+// Escapes application/x-www-form-urlencoded content.  This includes:
+// non-printable, non-7bit, and (including space)  ?>=<;+'&%$#"![\]^`{|}
+// Space is escaped as + (if use_plus is true) and other special characters
+// as %XX (hex).
+NET_EXPORT std::string EscapeUrlEncodedData(const std::string& path,
+                                            bool use_plus);
+
+// Escapes all non-ASCII input.
+NET_EXPORT std::string EscapeNonASCII(const std::string& input);
+
+// Escapes characters in text suitable for use as an external protocol handler
+// command.
+// We %XX everything except alphanumerics and %-_.!~*'() and the restricted
+// chracters (;/?:@&=+$,).
+NET_EXPORT std::string EscapeExternalHandlerValue(const std::string& text);
+
+// Appends the given character to the output string, escaping the character if
+// the character would be interpretted as an HTML delimiter.
+NET_EXPORT void AppendEscapedCharForHTML(char c, std::string* output);
+
+// Escapes chars that might cause this text to be interpretted as HTML tags.
+NET_EXPORT std::string EscapeForHTML(const std::string& text);
+NET_EXPORT string16 EscapeForHTML(const string16& text);
+
 // Unescaping ------------------------------------------------------------------
 
 class UnescapeRule {
@@ -55,38 +87,6 @@ class UnescapeRule {
   };
 };
 
-namespace net {
-
-// Escaping --------------------------------------------------------------------
-
-// escape a file.  this includes:
-// non-printable, non-7bit, and (including space)  "#%:<>?[\]^`{|}
-NET_EXPORT std::string EscapePath(const std::string& path);
-
-// Escape application/x-www-form-urlencoded content.  This includes:
-// non-printable, non-7bit, and (including space)  ?>=<;+'&%$#"![\]^`{|}
-// Space is escaped as + (if use_plus is true) and other special characters
-// as %XX (hex).
-NET_EXPORT std::string EscapeUrlEncodedData(const std::string& path,
-                                            bool use_plus);
-
-// Escape all non-ASCII input.
-NET_EXPORT std::string EscapeNonASCII(const std::string& input);
-
-// Escapes characters in text suitable for use as an external protocol handler
-// command.
-// We %XX everything except alphanumerics and %-_.!~*'() and the restricted
-// chracters (;/?:@&=+$,).
-NET_EXPORT std::string EscapeExternalHandlerValue(const std::string& text);
-
-// Append the given character to the output string, escaping the character if
-// the character would be interpretted as an HTML delimiter.
-NET_EXPORT void AppendEscapedCharForHTML(char c, std::string* output);
-
-// Escape chars that might cause this text to be interpretted as HTML tags.
-NET_EXPORT std::string EscapeForHTML(const std::string& text);
-NET_EXPORT string16 EscapeForHTML(const string16& text);
-
 // Unescapes |escaped_text| and returns the result.
 // Unescaping consists of looking for the exact pattern "%XX", where each X is
 // a hex digit, and converting to the character with the numerical value of
@@ -120,7 +120,7 @@ NET_EXPORT string16 UnescapeAndDecodeUTF8URLComponentWithOffsets(
     UnescapeRule::Type rules,
     std::vector<size_t>* offsets_for_adjustment);
 
-// Unescape the following ampersand character codes from |text|:
+// Unescapes the following ampersand character codes from |text|:
 // &lt; &gt; &amp; &quot; &#39;
 NET_EXPORT string16 UnescapeForHTML(const string16& text);
 
