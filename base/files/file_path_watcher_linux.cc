@@ -218,8 +218,8 @@ class InotifyReaderTask : public Task {
   DISALLOW_COPY_AND_ASSIGN(InotifyReaderTask);
 };
 
-static base::LazyInstance<InotifyReader> g_inotify_reader(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<InotifyReader> g_inotify_reader =
+    LAZY_INSTANCE_INITIALIZER;
 
 InotifyReader::InotifyReader()
     : thread_("inotify_reader"),

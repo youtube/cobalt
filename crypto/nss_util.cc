@@ -219,7 +219,7 @@ class NSPRInitSingleton {
 
 base::LazyInstance<NSPRInitSingleton,
                    base::LeakyLazyInstanceTraits<NSPRInitSingleton> >
-    g_nspr_singleton(base::LINKER_INITIALIZED);
+    g_nspr_singleton = LAZY_INSTANCE_INITIALIZER;
 
 class NSSInitSingleton {
  public:
@@ -614,7 +614,7 @@ bool NSSInitSingleton::force_nodb_init_ = false;
 
 base::LazyInstance<NSSInitSingleton,
                    base::LeakyLazyInstanceTraits<NSSInitSingleton> >
-    g_nss_singleton(base::LINKER_INITIALIZED);
+    g_nss_singleton = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

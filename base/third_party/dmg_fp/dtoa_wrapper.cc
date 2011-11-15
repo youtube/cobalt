@@ -12,10 +12,10 @@
 // A single lock would lead to an attempted recursive grab.
 static base::LazyInstance<base::Lock,
                           base::LeakyLazyInstanceTraits<base::Lock> >
-    dtoa_lock_0(base::LINKER_INITIALIZED);
+    dtoa_lock_0 = LAZY_INSTANCE_INITIALIZER;
 static base::LazyInstance<base::Lock,
                           base::LeakyLazyInstanceTraits<base::Lock> >
-    dtoa_lock_1(base::LINKER_INITIALIZED);
+    dtoa_lock_1 = LAZY_INSTANCE_INITIALIZER;
 
 /*
  * This define and the code below is to trigger thread-safe behavior

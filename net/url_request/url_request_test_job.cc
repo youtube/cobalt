@@ -23,7 +23,7 @@ namespace {
 typedef std::list<URLRequestTestJob*> URLRequestJobList;
 base::LazyInstance<URLRequestJobList,
                    base::LeakyLazyInstanceTraits<URLRequestJobList> >
-    g_pending_jobs(base::LINKER_INITIALIZED);
+    g_pending_jobs = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

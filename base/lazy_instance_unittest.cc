@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -56,8 +56,8 @@ class SlowDelegate : public base::DelegateSimpleThread::Delegate {
 
 }  // namespace
 
-static base::LazyInstance<ConstructAndDestructLogger> lazy_logger(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<ConstructAndDestructLogger> lazy_logger =
+    LAZY_INSTANCE_INITIALIZER;
 
 TEST(LazyInstanceTest, Basic) {
   {
@@ -78,7 +78,8 @@ TEST(LazyInstanceTest, Basic) {
   EXPECT_EQ(4, destructed_seq_.GetNext());
 }
 
-static base::LazyInstance<SlowConstructor> lazy_slow(base::LINKER_INITIALIZED);
+static base::LazyInstance<SlowConstructor> lazy_slow =
+    LAZY_INSTANCE_INITIALIZER;
 
 TEST(LazyInstanceTest, ConstructorThreadSafety) {
   {
@@ -122,7 +123,7 @@ TEST(LazyInstanceTest, LeakyLazyInstance) {
   bool deleted1 = false;
   {
     base::ShadowingAtExitManager shadow;
-    static base::LazyInstance<DeleteLogger> test(base::LINKER_INITIALIZED);
+    static base::LazyInstance<DeleteLogger> test = LAZY_INSTANCE_INITIALIZER;
     test.Get().SetDeletedPtr(&deleted1);
   }
   EXPECT_TRUE(deleted1);
@@ -134,7 +135,7 @@ TEST(LazyInstanceTest, LeakyLazyInstance) {
     base::ShadowingAtExitManager shadow;
     static base::LazyInstance<DeleteLogger,
                               base::LeakyLazyInstanceTraits<DeleteLogger> >
-        test(base::LINKER_INITIALIZED);
+        test = LAZY_INSTANCE_INITIALIZER;
     test.Get().SetDeletedPtr(&deleted2);
   }
   EXPECT_FALSE(deleted2);
