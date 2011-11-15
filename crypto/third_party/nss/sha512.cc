@@ -47,8 +47,8 @@
 #define NOUNROLL512 1
 #undef HAVE_LONG_LONG
 #endif
-#include "crypto/third_party/nss/blapi.h"
-#include "crypto/third_party/nss/sha256.h"    /* for struct SHA256ContextStr */
+#include "crypto/third_party/nss/chromium-blapi.h"
+#include "crypto/third_party/nss/chromium-sha256.h"    /* for struct SHA256ContextStr */
 
 #include <stdlib.h>
 #include <string.h>
