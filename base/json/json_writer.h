@@ -17,17 +17,6 @@ class Value;
 
 class BASE_EXPORT JSONWriter {
  public:
-  enum Options {
-    // Do not escape the string, preserving its UTF8 characters. It is useful
-    // if you can pass the resulting string to the JSON parser in binary form
-    // (as UTF8).
-    OPTIONS_DO_NOT_ESCAPE = 1 << 0,
-
-    // For values of binary type, the value (and key if within a dictionary)
-    // will be omitted from the output.
-    OPTIONS_OMIT_BINARY_VALUES = 1 << 1
-  };
-
   // Given a root node, generates a JSON string and puts it into |json|.
   // If |pretty_print| is true, return a slightly nicer formated json string
   // (pads with whitespace to help readability).  If |pretty_print| is false,
@@ -38,10 +27,13 @@ class BASE_EXPORT JSONWriter {
   static void Write(const Value* const node, bool pretty_print,
                     std::string* json);
 
-  // Same as above but with |options| which is a bunch of JSONWriter::Options
-  // bitwise ORed together.
-  static void WriteWithOptions(const Value* const node, bool pretty_print,
-                               int options, std::string* json);
+  // Same as above, but has an option to not escape the string, preserving its
+  // UTF8 characters. It is useful if you can pass resulting string to the
+  // JSON parser in binary form (as UTF8).
+  static void WriteWithOptionalEscape(const Value* const node,
+                                      bool pretty_print,
+                                      bool escape,
+                                      std::string* json);
 
   // A static, constant JSON string representing an empty array.  Useful
   // for empty JSON argument passing.
@@ -52,8 +44,7 @@ class BASE_EXPORT JSONWriter {
 
   // Called recursively to build the JSON string.  Whe completed, value is
   // json_string_ will contain the JSON.
-  void BuildJSONString(const Value* const node, int depth, bool escape,
-                       bool ignore_binary_values);
+  void BuildJSONString(const Value* const node, int depth, bool escape);
 
   // Appends a quoted, escaped, version of (UTF-8) str to json_string_.
   void AppendQuotedString(const std::string& str);
