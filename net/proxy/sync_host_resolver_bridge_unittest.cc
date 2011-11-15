@@ -59,14 +59,6 @@ class BlockableHostResolver : public HostResolver {
     was_request_cancelled_ = true;
   }
 
-  virtual void AddObserver(Observer* observer) OVERRIDE {
-    NOTREACHED();
-  }
-
-  virtual void RemoveObserver(Observer* observer) OVERRIDE {
-    NOTREACHED();
-  }
-
   // Waits until Resolve() has been called.
   void WaitUntilRequestIsReceived() {
     event_.Wait();

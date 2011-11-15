@@ -5794,85 +5794,6 @@ TEST_F(HttpNetworkTransactionTest, ReconsiderProxyAfterFailedConnection) {
   EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, rv);
 }
 
-// Host resolution observer used by
-// HttpNetworkTransactionTest.ResolveMadeWithReferrer to check that host
-// resovle requests are issued with a referrer of |expected_referrer|.
-class ResolutionReferrerObserver : public HostResolver::Observer {
- public:
-  explicit ResolutionReferrerObserver(const GURL& expected_referrer)
-      : expected_referrer_(expected_referrer),
-        called_start_with_referrer_(false),
-        called_finish_with_referrer_(false) {
-  }
-
-  virtual void OnStartResolution(int id,
-                                 const HostResolver::RequestInfo& info) {
-    if (info.referrer() == expected_referrer_)
-      called_start_with_referrer_ = true;
-  }
-
-  virtual void OnFinishResolutionWithStatus(
-      int id, bool was_resolved, const HostResolver::RequestInfo& info ) {
-    if (info.referrer() == expected_referrer_)
-      called_finish_with_referrer_ = true;
-  }
-
-  virtual void OnCancelResolution(int id,
-                                  const HostResolver::RequestInfo& info ) {
-    FAIL() << "Should not be cancelling any requests!";
-  }
-
-  bool did_complete_with_expected_referrer() const {
-    return called_start_with_referrer_ && called_finish_with_referrer_;
-  }
-
- private:
-  GURL expected_referrer_;
-  bool called_start_with_referrer_;
-  bool called_finish_with_referrer_;
-
-  DISALLOW_COPY_AND_ASSIGN(ResolutionReferrerObserver);
-};
-
-// Make sure that when HostResolver::Resolve() is invoked, it passes through
-// the "referrer". This is depended on by the DNS prefetch observer.
-TEST_F(HttpNetworkTransactionTest, ResolveMadeWithReferrer) {
-  GURL referrer = GURL("http://expected-referrer/");
-  EXPECT_TRUE(referrer.is_valid());
-  ResolutionReferrerObserver resolution_observer(referrer);
-
-  // Issue a request, containing an HTTP referrer.
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.extra_headers.SetHeader(HttpRequestHeaders::kReferer,
-                                  referrer.spec());
-
-  SessionDependencies session_deps;
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-      CreateSession(&session_deps)));
-
-  // Attach an observer to watch the host resolutions being made.
-  session_deps.host_resolver->AddObserver(&resolution_observer);
-
-  // Connect up a mock socket which will fail when reading.
-  MockRead data_reads[] = {
-    MockRead(false, ERR_FAILED),
-  };
-  StaticSocketDataProvider data(data_reads, arraysize(data_reads), NULL, 0);
-  session_deps.socket_factory.AddSocketDataProvider(&data);
-
-  // Run the request until it fails reading from the socket.
-  TestOldCompletionCallback callback;
-  int rv = trans->Start(&request, &callback, BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  rv = callback.WaitForResult();
-  EXPECT_EQ(ERR_FAILED, rv);
-
-  // Check that the host resolution observer saw |referrer|.
-  EXPECT_TRUE(resolution_observer.did_complete_with_expected_referrer());
-}
-
 // Base test to make sure that when the load flags for a request specify to
 // bypass the cache, the DNS cache is not used.
 void BypassHostCacheOnRefreshHelper(int load_flags) {
@@ -9137,14 +9058,6 @@ class OneTimeCachingHostResolver : public net::HostResolver {
 
   virtual void CancelRequest(RequestHandle req) OVERRIDE {
     host_resolver_.CancelRequest(req);
-  }
-
-  virtual void AddObserver(Observer* observer) OVERRIDE {
-    return host_resolver_.AddObserver(observer);
-  }
-
-  virtual void RemoveObserver(Observer* observer) OVERRIDE {
-    return host_resolver_.RemoveObserver(observer);
   }
 
   MockCachingHostResolver* GetMockHostResolver() {

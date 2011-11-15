@@ -78,11 +78,8 @@ int MockHostResolverBase::Resolve(const RequestInfo& info,
                                   const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
   size_t id = next_request_id_++;
-  FOR_EACH_OBSERVER(Observer, observers_, OnStartResolution(id, info));
   int rv = ResolveFromIPLiteralOrCache(info, addresses);
   if (rv != ERR_DNS_CACHE_MISS) {
-    FOR_EACH_OBSERVER(Observer, observers_,
-                      OnFinishResolutionWithStatus(id, rv == OK, info));
     return rv;
   }
   if (synchronous_mode_) {
@@ -104,11 +101,8 @@ int MockHostResolverBase::ResolveFromCache(const RequestInfo& info,
                                            AddressList* addresses,
                                            const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
-  size_t id = next_request_id_++;
-  FOR_EACH_OBSERVER(Observer, observers_, OnStartResolution(id, info));
+  next_request_id_++;
   int rv = ResolveFromIPLiteralOrCache(info, addresses);
-  FOR_EACH_OBSERVER(Observer, observers_,
-                    OnFinishResolutionWithStatus(id, rv == OK, info));
   return rv;
 }
 
@@ -119,18 +113,10 @@ void MockHostResolverBase::CancelRequest(RequestHandle handle) {
   if (it != requests_.end()) {
     scoped_ptr<Request> req(it->second);
     requests_.erase(it);
-    FOR_EACH_OBSERVER(Observer, observers_, OnCancelResolution(id, req->info));
+  } else {
+    NOTREACHED() << "CancelRequest must NOT be called after request is "
+        "complete or canceled.";
   }
-}
-
-void MockHostResolverBase::AddObserver(Observer* observer) {
-  DCHECK(CalledOnValidThread());
-  observers_.AddObserver(observer);
-}
-
-void MockHostResolverBase::RemoveObserver(Observer* observer) {
-  DCHECK(CalledOnValidThread());
-  observers_.RemoveObserver(observer);
 }
 
 HostCache* MockHostResolverBase::GetHostCache() {
@@ -149,7 +135,6 @@ MockHostResolverBase::MockHostResolverBase(bool use_caching)
         base::TimeDelta::FromMinutes(1),
         base::TimeDelta::FromSeconds(0)));
   }
-  STLDeleteValues(&requests_);
 }
 
 int MockHostResolverBase::ResolveFromIPLiteralOrCache(const RequestInfo& info,
@@ -192,8 +177,6 @@ int MockHostResolverBase::ResolveProc(size_t id,
   }
   if (rv == OK)
     *addresses = CreateAddressListUsingPort(addr, info.port());
-  FOR_EACH_OBSERVER(Observer, observers_,
-                    OnFinishResolutionWithStatus(id, rv == OK, info));
   return rv;
 }
 

@@ -261,13 +261,11 @@ class HostResolverImpl::Request {
  public:
   Request(const BoundNetLog& source_net_log,
           const BoundNetLog& request_net_log,
-          int id,
           const RequestInfo& info,
           OldCompletionCallback* callback,
           AddressList* addresses)
       : source_net_log_(source_net_log),
         request_net_log_(request_net_log),
-        id_(id),
         info_(info),
         job_(NULL),
         callback_(callback),
@@ -315,10 +313,6 @@ class HostResolverImpl::Request {
     return request_net_log_;
   }
 
-  int id() const {
-    return id_;
-  }
-
   const RequestInfo& info() const {
     return info_;
   }
@@ -326,9 +320,6 @@ class HostResolverImpl::Request {
  private:
   BoundNetLog source_net_log_;
   BoundNetLog request_net_log_;
-
-  // Unique ID for this request. Used by observers to identify requests.
-  int id_;
 
   // The request info that started the request.
   RequestInfo info_;
@@ -1063,7 +1054,6 @@ HostResolverImpl::HostResolverImpl(
       max_retry_attempts_(max_retry_attempts),
       unresponsive_delay_(base::TimeDelta::FromMilliseconds(6000)),
       retry_factor_(2),
-      next_request_id_(0),
       next_job_id_(0),
       resolver_proc_(resolver_proc),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
@@ -1137,23 +1127,20 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   DCHECK(callback);
   DCHECK(CalledOnValidThread());
 
-  // Choose a unique ID number for observers to see.
-  int request_id = next_request_id_++;
-
   // Make a log item for the request.
   BoundNetLog request_net_log = BoundNetLog::Make(net_log_,
       NetLog::SOURCE_HOST_RESOLVER_IMPL_REQUEST);
 
   // Update the net log and notify registered observers.
-  OnStartRequest(source_net_log, request_net_log, request_id, info);
+  OnStartRequest(source_net_log, request_net_log, info);
 
   // Build a key that identifies the request in the cache and in the
   // outstanding jobs map.
   Key key = GetEffectiveKeyForRequest(info);
 
-  int rv = ResolveHelper(request_id, key, info, addresses, request_net_log);
+  int rv = ResolveHelper(key, info, addresses, request_net_log);
   if (rv != ERR_DNS_CACHE_MISS) {
-    OnFinishRequest(source_net_log, request_net_log, request_id, info,
+    OnFinishRequest(source_net_log, request_net_log, info,
                     rv,
                     0  /* os_error (unknown since from cache) */);
     return rv;
@@ -1161,7 +1148,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
 
    // Create a handle for this request, and pass it back to the user if they
   // asked for it (out_req != NULL).
-  Request* req = new Request(source_net_log, request_net_log, request_id, info,
+  Request* req = new Request(source_net_log, request_net_log, info,
                              callback, addresses);
   if (out_req)
     *out_req = reinterpret_cast<RequestHandle>(req);
@@ -1188,8 +1175,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   return ERR_IO_PENDING;
 }
 
-int HostResolverImpl::ResolveHelper(int request_id,
-                                    const Key& key,
+int HostResolverImpl::ResolveHelper(const Key& key,
                                     const RequestInfo& info,
                                     AddressList* addresses,
                                     const BoundNetLog& request_net_log) {
@@ -1213,22 +1199,19 @@ int HostResolverImpl::ResolveFromCache(const RequestInfo& info,
   DCHECK(CalledOnValidThread());
   DCHECK(addresses);
 
-  // Choose a unique ID number for observers to see.
-  int request_id = next_request_id_++;
-
   // Make a log item for the request.
   BoundNetLog request_net_log = BoundNetLog::Make(net_log_,
       NetLog::SOURCE_HOST_RESOLVER_IMPL_REQUEST);
 
   // Update the net log and notify registered observers.
-  OnStartRequest(source_net_log, request_net_log, request_id, info);
+  OnStartRequest(source_net_log, request_net_log, info);
 
   // Build a key that identifies the request in the cache and in the
   // outstanding jobs map.
   Key key = GetEffectiveKeyForRequest(info);
 
-  int rv = ResolveHelper(request_id, key, info, addresses, request_net_log);
-  OnFinishRequest(source_net_log, request_net_log, request_id, info,
+  int rv = ResolveHelper(key, info, addresses, request_net_log);
+  OnFinishRequest(source_net_log, request_net_log, info,
                   rv,
                   0  /* os_error (unknown since from cache) */);
   return rv;
@@ -1258,24 +1241,7 @@ void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
 
   // NULL out the fields of req, to mark it as cancelled.
   req->MarkAsCancelled();
-  OnCancelRequest(req->source_net_log(), req->request_net_log(), req->id(),
-                  req->info());
-}
-
-void HostResolverImpl::AddObserver(HostResolver::Observer* observer) {
-  DCHECK(CalledOnValidThread());
-  observers_.push_back(observer);
-}
-
-void HostResolverImpl::RemoveObserver(HostResolver::Observer* observer) {
-  DCHECK(CalledOnValidThread());
-  ObserversList::iterator it =
-      std::find(observers_.begin(), observers_.end(), observer);
-
-  // Observer must exist.
-  DCHECK(it != observers_.end());
-
-  observers_.erase(it);
+  OnCancelRequest(req->source_net_log(), req->request_net_log(), req->info());
 }
 
 void HostResolverImpl::SetDefaultAddressFamily(AddressFamily address_family) {
@@ -1415,7 +1381,7 @@ void HostResolverImpl::OnJobCompleteInternal(
           NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_ATTACH, NULL);
 
       // Update the net log and notify registered observers.
-      OnFinishRequest(req->source_net_log(), req->request_net_log(), req->id(),
+      OnFinishRequest(req->source_net_log(), req->request_net_log(),
                       req->info(), net_error, os_error);
 
       req->OnComplete(net_error, addrlist);
@@ -1432,7 +1398,6 @@ void HostResolverImpl::OnJobCompleteInternal(
 
 void HostResolverImpl::OnStartRequest(const BoundNetLog& source_net_log,
                                       const BoundNetLog& request_net_log,
-                                      int request_id,
                                       const RequestInfo& info) {
   source_net_log.BeginEvent(
       NetLog::TYPE_HOST_RESOLVER_IMPL,
@@ -1443,31 +1408,14 @@ void HostResolverImpl::OnStartRequest(const BoundNetLog& source_net_log,
       NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST,
       make_scoped_refptr(new RequestInfoParameters(
           info, source_net_log.source())));
-
-  // Notify the observers of the start.
-  if (!observers_.empty()) {
-    for (ObserversList::iterator it = observers_.begin();
-         it != observers_.end(); ++it) {
-      (*it)->OnStartResolution(request_id, info);
-    }
-  }
 }
 
 void HostResolverImpl::OnFinishRequest(const BoundNetLog& source_net_log,
                                        const BoundNetLog& request_net_log,
-                                       int request_id,
                                        const RequestInfo& info,
                                        int net_error,
                                        int os_error) {
   bool was_resolved = net_error == OK;
-
-  // Notify the observers of the completion.
-  if (!observers_.empty()) {
-    for (ObserversList::iterator it = observers_.begin();
-         it != observers_.end(); ++it) {
-      (*it)->OnFinishResolutionWithStatus(request_id, was_resolved, info);
-    }
-  }
 
   // Log some extra parameters on failure for synchronous requests.
   scoped_refptr<NetLog::EventParameters> params;
@@ -1481,18 +1429,8 @@ void HostResolverImpl::OnFinishRequest(const BoundNetLog& source_net_log,
 
 void HostResolverImpl::OnCancelRequest(const BoundNetLog& source_net_log,
                                        const BoundNetLog& request_net_log,
-                                       int request_id,
                                        const RequestInfo& info) {
   request_net_log.AddEvent(NetLog::TYPE_CANCELLED, NULL);
-
-  // Notify the observers of the cancellation.
-  if (!observers_.empty()) {
-    for (ObserversList::iterator it = observers_.begin();
-         it != observers_.end(); ++it) {
-      (*it)->OnCancelResolution(request_id, info);
-    }
-  }
-
   request_net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST, NULL);
   source_net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL, NULL);
 }
@@ -1597,8 +1535,7 @@ int HostResolverImpl::EnqueueRequest(JobPool* pool, Request* req) {
     Request* r = req_evicted_from_queue.get();
     int error = ERR_HOST_RESOLVER_QUEUE_TOO_LARGE;
 
-    OnFinishRequest(r->source_net_log(), r->request_net_log(), r->id(),
-                    r->info(), error,
+    OnFinishRequest(r->source_net_log(), r->request_net_log(), r->info(), error,
                     0  /* os_error (not applicable) */);
 
     if (r == req)
