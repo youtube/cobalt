@@ -9,7 +9,6 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
 
 namespace base {
@@ -200,6 +199,37 @@ FilePath GetAppBundlePath(const FilePath& exec_name) {
   return FilePath();
 }
 
+#define TYPE_NAME_FOR_CF_TYPE_DEFN(TypeCF) \
+std::string TypeNameForCFType(TypeCF##Ref) { \
+  return #TypeCF; \
+}
+
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFArray);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFBag);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFBoolean);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFData);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFDate);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFDictionary);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFNull);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFNumber);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFSet);
+TYPE_NAME_FOR_CF_TYPE_DEFN(CFString);
+
+#undef TYPE_NAME_FOR_CF_TYPE_DEFN
+
+std::string GetValueFromDictionaryErrorMessage(
+    CFStringRef key, const std::string& expected_type, CFTypeRef value) {
+  ScopedCFTypeRef<CFStringRef> actual_type_ref(
+      CFCopyTypeIDDescription(CFGetTypeID(value)));
+  return "Expected value for key " +
+      base::SysCFStringRefToUTF8(key) +
+      " to be " +
+      expected_type +
+      " but it was " +
+      base::SysCFStringRefToUTF8(actual_type_ref) +
+      " instead";
+}
+
 CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
                                  CFStringRef key,
                                  CFTypeID expected_type) {
@@ -208,17 +238,11 @@ CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
     return value;
 
   if (CFGetTypeID(value) != expected_type) {
-    ScopedCFTypeRef<CFStringRef> expected_type_ref(
+    std::string expected_type_name = base::SysCFStringRefToUTF8(
         CFCopyTypeIDDescription(expected_type));
-    ScopedCFTypeRef<CFStringRef> actual_type_ref(
-        CFCopyTypeIDDescription(CFGetTypeID(value)));
-    DLOG(WARNING) << "Expected value for key "
-                 << base::SysCFStringRefToUTF8(key)
-                 << " to be "
-                 << base::SysCFStringRefToUTF8(expected_type_ref)
-                 << " but it was "
-                 << base::SysCFStringRefToUTF8(actual_type_ref)
-                 << " instead";
+    DLOG(WARNING) << GetValueFromDictionaryErrorMessage(key,
+                                                        expected_type_name,
+                                                        value);
     return NULL;
   }
 
@@ -318,6 +342,9 @@ CF_TO_NS_CAST_DEFN(CFWriteStream, NSOutputStream);
 CF_TO_NS_MUTABLE_CAST_DEFN(String);
 CF_TO_NS_CAST_DEFN(CFURL, NSURL);
 
+#undef CF_TO_NS_CAST_DEFN
+#undef CF_TO_NS_MUTABLE_CAST_DEFN
+
 #define CF_CAST_DEFN(TypeCF) \
 template<> TypeCF##Ref \
 CFCast<TypeCF##Ref>(const CFTypeRef& cf_val) { \
@@ -347,6 +374,8 @@ CF_CAST_DEFN(CFNull);
 CF_CAST_DEFN(CFNumber);
 CF_CAST_DEFN(CFSet);
 CF_CAST_DEFN(CFString);
+
+#undef CF_CAST_DEFN
 
 }  // namespace mac
 }  // namespace base
