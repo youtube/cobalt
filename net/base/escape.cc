@@ -13,6 +13,8 @@
 #include "base/utf_offset_string_conversions.h"
 #include "base/utf_string_conversions.h"
 
+namespace net {
+
 namespace {
 
 const char kHexString[] = "0123456789ABCDEF";
@@ -248,8 +250,6 @@ static const Charmap kExternalHandlerCharmap(
   0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL);
 
 }  // namespace
-
-namespace net {
 
 std::string EscapePath(const std::string& path) {
   return Escape(path, kPathCharmap, false);
