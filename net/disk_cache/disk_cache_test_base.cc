@@ -4,12 +4,40 @@
 
 #include "net/disk_cache/disk_cache_test_base.h"
 
+#include "base/file_util.h"
+#include "base/path_service.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache_test_util.h"
 #include "net/disk_cache/mem_backend_impl.h"
+
+DiskCacheTest::DiskCacheTest() {
+  cache_path_ = GetCacheFilePath();
+  if (!MessageLoop::current())
+    message_loop_.reset(new MessageLoopForIO());
+}
+
+DiskCacheTest::~DiskCacheTest() {
+}
+
+bool DiskCacheTest::CopyTestCache(const std::string& name) {
+  FilePath path;
+  PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  path = path.AppendASCII("net");
+  path = path.AppendASCII("data");
+  path = path.AppendASCII("cache_tests");
+  path = path.AppendASCII(name);
+
+  if (!CleanupCacheDir())
+    return false;
+  return file_util::CopyDirectory(path, cache_path_, false);
+}
+
+bool DiskCacheTest::CleanupCacheDir() {
+  return DeleteCache(cache_path_);
+}
 
 void DiskCacheTest::TearDown() {
   MessageLoop::current()->RunAllPending();
@@ -57,10 +85,9 @@ void DiskCacheTestWithCache::SimulateCrash() {
   cache_impl_->ClearRefCountForTest();
 
   delete cache_impl_;
-  FilePath path = GetCacheFilePath();
-  EXPECT_TRUE(CheckCacheIntegrity(path, new_eviction_, mask_));
+  EXPECT_TRUE(CheckCacheIntegrity(cache_path_, new_eviction_, mask_));
 
-  InitDiskCacheImpl(path);
+  InitDiskCacheImpl();
 }
 
 void DiskCacheTestWithCache::SetTestMode() {
@@ -212,8 +239,7 @@ void DiskCacheTestWithCache::TearDown() {
     cache_thread_.Stop();
 
   if (!memory_only_ && integrity_) {
-    FilePath path = GetCacheFilePath();
-    EXPECT_TRUE(CheckCacheIntegrity(path, new_eviction_, mask_));
+    EXPECT_TRUE(CheckCacheIntegrity(cache_path_, new_eviction_, mask_));
   }
 
   PlatformTest::TearDown();
@@ -236,9 +262,8 @@ void DiskCacheTestWithCache::InitMemoryCache() {
 }
 
 void DiskCacheTestWithCache::InitDiskCache() {
-  FilePath path = GetCacheFilePath();
   if (first_cleanup_)
-    ASSERT_TRUE(DeleteCache(path));
+    ASSERT_TRUE(CleanupCacheDir());
 
   if (!cache_thread_.IsRunning()) {
     EXPECT_TRUE(cache_thread_.StartWithOptions(
@@ -247,7 +272,7 @@ void DiskCacheTestWithCache::InitDiskCache() {
   ASSERT_TRUE(cache_thread_.message_loop() != NULL);
 
   if (implementation_)
-    return InitDiskCacheImpl(path);
+    return InitDiskCacheImpl();
 
   scoped_refptr<base::MessageLoopProxy> thread =
       use_current_thread_ ? base::MessageLoopProxy::current() :
@@ -255,19 +280,19 @@ void DiskCacheTestWithCache::InitDiskCache() {
 
   TestOldCompletionCallback cb;
   int rv = disk_cache::BackendImpl::CreateBackend(
-               path, force_creation_, size_, type_,
+               cache_path_, force_creation_, size_, type_,
                disk_cache::kNoRandom, thread, NULL, &cache_, &cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
 }
 
-void DiskCacheTestWithCache::InitDiskCacheImpl(const FilePath& path) {
+void DiskCacheTestWithCache::InitDiskCacheImpl() {
   scoped_refptr<base::MessageLoopProxy> thread =
       use_current_thread_ ? base::MessageLoopProxy::current() :
                             cache_thread_.message_loop_proxy();
   if (mask_)
-    cache_impl_ = new disk_cache::BackendImpl(path, mask_, thread, NULL);
+    cache_impl_ = new disk_cache::BackendImpl(cache_path_, mask_, thread, NULL);
   else
-    cache_impl_ = new disk_cache::BackendImpl(path, thread, NULL);
+    cache_impl_ = new disk_cache::BackendImpl(cache_path_, thread, NULL);
 
   cache_ = cache_impl_;
   ASSERT_TRUE(NULL != cache_);
