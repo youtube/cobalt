@@ -25,8 +25,7 @@ ProxyServer ProxyServer::FromDictionary(Scheme scheme,
   }
 
   CFStringRef host_ref =
-      (CFStringRef)base::mac::GetValueFromDictionary(dict, host_key,
-                                                    CFStringGetTypeID());
+      base::mac::GetValueFromDictionary<CFStringRef>(dict, host_key);
   if (!host_ref) {
     LOG(WARNING) << "Could not find expected key "
                  << base::SysCFStringRefToUTF8(host_key)
@@ -36,8 +35,7 @@ ProxyServer ProxyServer::FromDictionary(Scheme scheme,
   std::string host = base::SysCFStringRefToUTF8(host_ref);
 
   CFNumberRef port_ref =
-      (CFNumberRef)base::mac::GetValueFromDictionary(dict, port_key,
-                                                    CFNumberGetTypeID());
+      base::mac::GetValueFromDictionary<CFNumberRef>(dict, port_key);
   int port;
   if (port_ref) {
     CFNumberGetValue(port_ref, kCFNumberIntType, &port);
