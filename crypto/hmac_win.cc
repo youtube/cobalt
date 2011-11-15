@@ -12,8 +12,8 @@
 
 #include "base/logging.h"
 #include "crypto/scoped_capi_types.h"
-#include "crypto/third_party/nss/blapi.h"
-#include "crypto/third_party/nss/sha256.h"
+#include "crypto/third_party/nss/chromium-blapi.h"
+#include "crypto/third_party/nss/chromium-sha256.h"
 
 namespace crypto {
 

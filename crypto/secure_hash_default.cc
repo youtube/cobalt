@@ -5,8 +5,8 @@
 #include "crypto/secure_hash.h"
 
 #include "base/logging.h"
-#include "crypto/third_party/nss/blapi.h"
-#include "crypto/third_party/nss/sha256.h"
+#include "crypto/third_party/nss/chromium-blapi.h"
+#include "crypto/third_party/nss/chromium-sha256.h"
 
 namespace crypto {
 
