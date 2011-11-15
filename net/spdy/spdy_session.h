@@ -56,7 +56,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // network events to.
   SpdySession(const HostPortProxyPair& host_port_proxy_pair,
               SpdySessionPool* spdy_session_pool,
-              SpdySettingsStorage* spdy_settings,
+              HttpServerProperties* http_server_properties,
               bool verify_domain_authentication,
               NetLog* net_log);
 
@@ -447,7 +447,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // |spdy_session_pool_| owns us, therefore its lifetime must exceed ours.  We
   // set this to NULL after we are removed from the pool.
   SpdySessionPool* spdy_session_pool_;
-  SpdySettingsStorage* const spdy_settings_;
+  HttpServerProperties* const http_server_properties_;
 
   // The socket handle for this session.
   scoped_ptr<ClientSocketHandle> connection_;

@@ -31,6 +31,7 @@ class AddressList;
 class BoundNetLog;
 class ClientSocketHandle;
 class HostResolver;
+class HttpServerProperties;
 class SpdySession;
 
 // This is a very simple pool for open SpdySessions.
@@ -40,7 +41,8 @@ class NET_EXPORT SpdySessionPool
       public CertDatabase::Observer {
  public:
   SpdySessionPool(HostResolver* host_resolver,
-                  SSLConfigService* ssl_config_service);
+                  SSLConfigService* ssl_config_service,
+                  HttpServerProperties* http_server_properties);
   virtual ~SpdySessionPool();
 
   // Either returns an existing SpdySession or creates a new SpdySession for
@@ -104,6 +106,10 @@ class NET_EXPORT SpdySessionPool
 
   SpdySettingsStorage* mutable_spdy_settings() { return &spdy_settings_; }
   const SpdySettingsStorage& spdy_settings() const { return spdy_settings_; }
+
+  HttpServerProperties* http_server_properties() {
+    return http_server_properties_;
+  }
 
   // NetworkChangeNotifier::IPAddressObserver methods:
 
@@ -171,6 +177,7 @@ class NET_EXPORT SpdySessionPool
   void RemoveAliases(const HostPortProxyPair& pair);
 
   SpdySettingsStorage spdy_settings_;
+  HttpServerProperties* const http_server_properties_;
 
   // This is our weak session pool - one session per domain.
   SpdySessionsMap sessions_;
