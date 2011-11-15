@@ -1313,7 +1313,6 @@
         'net',
         '../base/base.gyp:base',
         '../base/base.gyp:test_support_base',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
       ],
       'sources': [
@@ -1331,8 +1330,6 @@
         'base/net_test_suite.h',
         'base/test_completion_callback.cc',
         'base/test_completion_callback.h',
-        'base/test_host_resolver_observer.cc',
-        'base/test_host_resolver_observer.h',
         'disk_cache/disk_cache_test_util.cc',
         'disk_cache/disk_cache_test_util.h',
         'dns/dns_test_util.cc',
