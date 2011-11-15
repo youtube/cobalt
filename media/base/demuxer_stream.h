@@ -9,8 +9,6 @@
 #include "base/memory/ref_counted.h"
 #include "media/base/media_export.h"
 
-struct AVStream;
-
 namespace media {
 
 class AudioDecoderConfig;
