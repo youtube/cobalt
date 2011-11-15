@@ -47,6 +47,8 @@
         '../third_party/icu/icu.gyp:icuuc',
       ],
       'sources': [
+        'base/accelerator_manager.cc',
+        'base/accelerator_manager.h',
         'base/accessibility/accessibility_types.h',
         'base/accessibility/accessible_text_utils.cc',
         'base/accessibility/accessible_text_utils.h',
