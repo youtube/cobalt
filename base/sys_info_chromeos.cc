@@ -40,7 +40,7 @@ struct ChromeOSVersionNumbers {
 };
 
 static base::LazyInstance<ChromeOSVersionNumbers>
-    g_chrome_os_version_numbers(base::LINKER_INITIALIZED);
+    g_chrome_os_version_numbers = LAZY_INSTANCE_INITIALIZER;
 
 // static
 void SysInfo::OperatingSystemVersionNumbers(int32* major_version,

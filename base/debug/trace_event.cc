@@ -61,7 +61,7 @@ int g_category_index = 3; // skip initial 3 categories
 // The most-recently captured name of the current thread
 LazyInstance<ThreadLocalPointer<char>,
              LeakyLazyInstanceTraits<ThreadLocalPointer<char> > >
-    g_current_thread_name(LINKER_INITIALIZED);
+    g_current_thread_name = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

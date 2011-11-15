@@ -112,7 +112,7 @@ class X509CertificateCache {
 
 base::LazyInstance<X509CertificateCache,
                    base::LeakyLazyInstanceTraits<X509CertificateCache> >
-    g_x509_certificate_cache(base::LINKER_INITIALIZED);
+    g_x509_certificate_cache = LAZY_INSTANCE_INITIALIZER;
 
 void X509CertificateCache::InsertOrUpdate(
     X509Certificate::OSCertHandle* cert_handle) {

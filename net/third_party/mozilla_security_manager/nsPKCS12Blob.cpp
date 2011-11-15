@@ -321,8 +321,8 @@ class PKCS12InitSingleton {
   }
 };
 
-static base::LazyInstance<PKCS12InitSingleton> g_pkcs12_init_singleton(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<PKCS12InitSingleton> g_pkcs12_init_singleton =
+    LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

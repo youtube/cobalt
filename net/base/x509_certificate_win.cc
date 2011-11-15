@@ -720,7 +720,7 @@ class GlobalCertStore {
 
 static base::LazyInstance<GlobalCertStore,
                           base::LeakyLazyInstanceTraits<GlobalCertStore> >
-    g_cert_store(base::LINKER_INITIALIZED);
+    g_cert_store = LAZY_INSTANCE_INITIALIZER;
 
 // static
 HCERTSTORE X509Certificate::cert_store() {

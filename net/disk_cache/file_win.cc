@@ -34,8 +34,8 @@ class CompletionHandler : public MessageLoopForIO::IOHandler {
                              DWORD actual_bytes, DWORD error);
 };
 
-static base::LazyInstance<CompletionHandler> g_completion_handler(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<CompletionHandler> g_completion_handler =
+    LAZY_INSTANCE_INITIALIZER;
 
 void CompletionHandler::OnIOCompleted(MessageLoopForIO::IOContext* context,
                                       DWORD actual_bytes, DWORD error) {
