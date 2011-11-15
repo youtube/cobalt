@@ -23,9 +23,9 @@ usage() {
 
 # Runs a single test case.
 do_testcase() {
-  local output="$("${CLANG_DIR}"/bin/clang -c \
-      -Xclang -load -Xclang "${CLANG_DIR}"/lib/libFindBadConstructs.${LIB} \
-      -Xclang -plugin -Xclang find-bad-constructs ${1} 2>&1)"
+  local output="$("${CLANG_DIR}"/bin/clang -cc1 \
+      -load "${CLANG_DIR}"/lib/libFindBadConstructs.${LIB} \
+      -plugin find-bad-constructs ${1} 2>&1)"
   local diffout="$(echo "${output}" | diff - "${2}")"
   if [ "${diffout}" = "" ]; then
     echo "PASS: ${1}"
