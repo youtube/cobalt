@@ -36,8 +36,10 @@ struct NumberFormatWrapper {
   scoped_ptr<icu::NumberFormat> number_format;
 };
 
-LazyInstance<NumberFormatWrapper> g_number_format_int(LINKER_INITIALIZED);
-LazyInstance<NumberFormatWrapper> g_number_format_float(LINKER_INITIALIZED);
+LazyInstance<NumberFormatWrapper> g_number_format_int =
+    LAZY_INSTANCE_INITIALIZER;
+LazyInstance<NumberFormatWrapper> g_number_format_float =
+    LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

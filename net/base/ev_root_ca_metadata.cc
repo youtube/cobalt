@@ -316,7 +316,7 @@ const EVRootCAMetadata::PolicyOID EVRootCAMetadata::policy_oids_[] = {
 
 static base::LazyInstance<EVRootCAMetadata,
                           base::LeakyLazyInstanceTraits<EVRootCAMetadata> >
-    g_ev_root_ca_metadata(base::LINKER_INITIALIZED);
+    g_ev_root_ca_metadata = LAZY_INSTANCE_INITIALIZER;
 
 // static
 EVRootCAMetadata* EVRootCAMetadata::GetInstance() {

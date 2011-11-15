@@ -44,7 +44,7 @@ namespace {
 // Mac name code is in in platform_thread_mac.mm.
 LazyInstance<ThreadLocalPointer<char>,
              LeakyLazyInstanceTraits<ThreadLocalPointer<char> > >
-    current_thread_name(LINKER_INITIALIZED);
+    current_thread_name = LAZY_INSTANCE_INITIALIZER;
 #endif
 
 struct ThreadParams {

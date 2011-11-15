@@ -16,7 +16,7 @@ namespace {
 
 // Whether to allow NSExceptions to be raised on the current thread.
 LazyInstance<ThreadLocalBoolean, LeakyLazyInstanceTraits<ThreadLocalBoolean> >
-    g_exceptionsAllowed(base::LINKER_INITIALIZED);
+    g_exceptionsAllowed = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

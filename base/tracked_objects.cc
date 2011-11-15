@@ -167,7 +167,7 @@ ThreadData::ThreadDataPool* ThreadData::unregistered_thread_data_pool_ = NULL;
 // static
 base::LazyInstance<base::Lock,
                    base::LeakyLazyInstanceTraits<base::Lock> >
-    ThreadData::list_lock_(base::LINKER_INITIALIZED);
+    ThreadData::list_lock_ = LAZY_INSTANCE_INITIALIZER;
 
 // static
 ThreadData::Status ThreadData::status_ = ThreadData::UNINITIALIZED;

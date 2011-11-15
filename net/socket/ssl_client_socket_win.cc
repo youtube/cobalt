@@ -196,8 +196,8 @@ class CredHandleTable {
   CredHandleMap client_cert_creds_;
 };
 
-static base::LazyInstance<CredHandleTable> g_cred_handle_table(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<CredHandleTable> g_cred_handle_table =
+    LAZY_INSTANCE_INITIALIZER;
 
 // static
 int CredHandleTable::InitializeHandle(CredHandle* handle,
@@ -368,8 +368,8 @@ class ClientCertStore {
   HCERTSTORE store_;
 };
 
-static base::LazyInstance<ClientCertStore> g_client_cert_store(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<ClientCertStore> g_client_cert_store =
+    LAZY_INSTANCE_INITIALIZER;
 
 //-----------------------------------------------------------------------------
 
