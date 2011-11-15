@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,21 +26,19 @@ const char* JSONWriter::kEmptyArray = "[]";
 void JSONWriter::Write(const Value* const node,
                        bool pretty_print,
                        std::string* json) {
-  WriteWithOptions(node, pretty_print, 0, json);
+  WriteWithOptionalEscape(node, pretty_print, true, json);
 }
 
 /* static */
-void JSONWriter::WriteWithOptions(const Value* const node,
-                                  bool pretty_print,
-                                  int options,
-                                  std::string* json) {
+void JSONWriter::WriteWithOptionalEscape(const Value* const node,
+                                         bool pretty_print,
+                                         bool escape,
+                                         std::string* json) {
   json->clear();
   // Is there a better way to estimate the size of the output?
   json->reserve(1024);
   JSONWriter writer(pretty_print, json);
-  bool escape = !(options & OPTIONS_DO_NOT_ESCAPE);
-  bool omit_binary_values = !!(options & OPTIONS_OMIT_BINARY_VALUES);
-  writer.BuildJSONString(node, 0, escape, omit_binary_values);
+  writer.BuildJSONString(node, 0, escape);
   if (pretty_print)
     json->append(kPrettyPrintLineEnding);
 }
@@ -53,8 +51,7 @@ JSONWriter::JSONWriter(bool pretty_print, std::string* json)
 
 void JSONWriter::BuildJSONString(const Value* const node,
                                  int depth,
-                                 bool escape,
-                                 bool omit_binary_values) {
+                                 bool escape) {
   switch (node->GetType()) {
     case Value::TYPE_NULL:
       json_string_->append("null");
@@ -125,21 +122,16 @@ void JSONWriter::BuildJSONString(const Value* const node,
 
         const ListValue* list = static_cast<const ListValue*>(node);
         for (size_t i = 0; i < list->GetSize(); ++i) {
-          Value* value = NULL;
-          bool result = list->Get(i, &value);
-          DCHECK(result);
-
-          if (omit_binary_values && value->GetType() == Value::TYPE_BINARY) {
-            continue;
-          }
-
           if (i != 0) {
             json_string_->append(",");
             if (pretty_print_)
               json_string_->append(" ");
           }
 
-          BuildJSONString(value, depth, escape, omit_binary_values);
+          Value* value = NULL;
+          bool result = list->Get(i, &value);
+          DCHECK(result);
+          BuildJSONString(value, depth, escape);
         }
 
         if (pretty_print_)
@@ -159,19 +151,15 @@ void JSONWriter::BuildJSONString(const Value* const node,
         for (DictionaryValue::key_iterator key_itr = dict->begin_keys();
              key_itr != dict->end_keys();
              ++key_itr) {
-          Value* value = NULL;
-          bool result = dict->GetWithoutPathExpansion(*key_itr, &value);
-          DCHECK(result);
-
-          if (omit_binary_values && value->GetType() == Value::TYPE_BINARY) {
-            continue;
-          }
-
           if (key_itr != dict->begin_keys()) {
             json_string_->append(",");
             if (pretty_print_)
               json_string_->append(kPrettyPrintLineEnding);
           }
+
+          Value* value = NULL;
+          bool result = dict->GetWithoutPathExpansion(*key_itr, &value);
+          DCHECK(result);
 
           if (pretty_print_)
             IndentLine(depth + 1);
@@ -181,7 +169,7 @@ void JSONWriter::BuildJSONString(const Value* const node,
           } else {
             json_string_->append(":");
           }
-          BuildJSONString(value, depth + 1, escape, omit_binary_values);
+          BuildJSONString(value, depth + 1, escape);
         }
 
         if (pretty_print_) {
@@ -194,15 +182,8 @@ void JSONWriter::BuildJSONString(const Value* const node,
         break;
       }
 
-    case Value::TYPE_BINARY:
-      {
-        if (!omit_binary_values) {
-          NOTREACHED() << "Cannot serialize binary value.";
-        }
-        break;
-      }
-
     default:
+      // TODO(jhughes): handle TYPE_BINARY
       NOTREACHED() << "unknown json type";
   }
 }
