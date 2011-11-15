@@ -29,7 +29,6 @@ class NET_EXPORT_PRIVATE TransportSocketParams
  public:
   TransportSocketParams(const HostPortPair& host_port_pair,
                         RequestPriority priority,
-                        const GURL& referrer,
                         bool disable_resolver_cache,
                         bool ignore_limits);
 
@@ -40,8 +39,7 @@ class NET_EXPORT_PRIVATE TransportSocketParams
   friend class base::RefCounted<TransportSocketParams>;
   ~TransportSocketParams();
 
-  void Initialize(RequestPriority priority, const GURL& referrer,
-                  bool disable_resolver_cache);
+  void Initialize(RequestPriority priority, bool disable_resolver_cache);
 
   HostResolver::RequestInfo destination_;
   bool ignore_limits_;

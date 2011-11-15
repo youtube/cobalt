@@ -139,7 +139,6 @@ TEST_F(SpdySessionTest, GoAway) {
   scoped_refptr<TransportSocketParams> transport_params(
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
-                                GURL(),
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
@@ -211,7 +210,6 @@ TEST_F(SpdySessionTest, Ping) {
   scoped_refptr<TransportSocketParams> transport_params(
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
-                                GURL(),
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
@@ -303,7 +301,6 @@ TEST_F(SpdySessionTest, FailedPing) {
   scoped_refptr<TransportSocketParams> transport_params(
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
-                                GURL(),
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
@@ -550,7 +547,6 @@ TEST_F(SpdySessionTest, OnSettings) {
   scoped_refptr<TransportSocketParams> transport_params(
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
-                                GURL(),
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
@@ -636,7 +632,6 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   scoped_refptr<TransportSocketParams> transport_params(
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
-                                GURL(),
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
@@ -736,7 +731,6 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   scoped_refptr<TransportSocketParams> transport_params(
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
-                                GURL(),
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
@@ -810,7 +804,6 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
   scoped_refptr<TransportSocketParams> transport_params(
       new TransportSocketParams(test_host_port_pair,
                           MEDIUM,
-                          GURL(),
                           false,
                           false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
