@@ -538,7 +538,7 @@ TEST_F(SpdySessionTest, OnSettings) {
   spdy::SpdySettings old_settings;
   id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
   old_settings.push_back(spdy::SpdySetting(id, 1));
-  spdy_session_pool->mutable_spdy_settings()->Set(
+  spdy_session_pool->http_server_properties()->SetSpdySettings(
       test_host_port_pair, old_settings);
 
   // Create a session.
@@ -624,7 +624,7 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
   settings.push_back(spdy::SpdySetting(id, 1));
-  spdy_session_pool->mutable_spdy_settings()->Set(
+  spdy_session_pool->http_server_properties()->SetSpdySettings(
       test_host_port_pair, settings);
 
   // Create a session.
@@ -726,7 +726,7 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   settings.clear();
   settings.push_back(spdy::SpdySetting(id, kBogusSettingValue));
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
-  spdy_session_pool->mutable_spdy_settings()->Set(
+  spdy_session_pool->http_server_properties()->SetSpdySettings(
       test_host_port_pair, settings);
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
   scoped_refptr<SpdySession> session =
@@ -905,8 +905,8 @@ TEST_F(SpdySessionTest, ClearSettingsStorageOnIPAddressChanged) {
       SpdySessionDependencies::SpdyCreateSession(&session_deps));
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
 
-  SpdySettingsStorage* test_settings_storage =
-      spdy_session_pool->mutable_spdy_settings();
+  HttpServerProperties* test_http_server_properties =
+      spdy_session_pool->http_server_properties();
   spdy::SettingsFlagsAndId id(0);
   id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
@@ -914,10 +914,13 @@ TEST_F(SpdySessionTest, ClearSettingsStorageOnIPAddressChanged) {
   spdy::SpdySettings test_settings;
   test_settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
 
-  test_settings_storage->Set(test_host_port_pair, test_settings);
-  EXPECT_NE(0u, test_settings_storage->Get(test_host_port_pair).size());
+  test_http_server_properties->SetSpdySettings(test_host_port_pair,
+                                               test_settings);
+  EXPECT_NE(0u, test_http_server_properties->GetSpdySettings(
+      test_host_port_pair).size());
   spdy_session_pool->OnIPAddressChanged();
-  EXPECT_EQ(0u, test_settings_storage->Get(test_host_port_pair).size());
+  EXPECT_EQ(0u, test_http_server_properties->GetSpdySettings(
+      test_host_port_pair).size());
 }
 
 }  // namespace net

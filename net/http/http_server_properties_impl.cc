@@ -43,6 +43,11 @@ void HttpServerPropertiesImpl::InitializeAlternateProtocolServers(
   }
 }
 
+void HttpServerPropertiesImpl::InitializeSpdySettingsServers(
+    std::map<HostPortPair, spdy::SpdySettings>* spdy_settings_map) {
+  spdy_settings_map_.swap(*spdy_settings_map);
+}
+
 void HttpServerPropertiesImpl::GetSpdyServerList(
     base::ListValue* spdy_server_list) const {
   DCHECK(CalledOnValidThread());
@@ -88,6 +93,7 @@ void HttpServerPropertiesImpl::Clear() {
   DCHECK(CalledOnValidThread());
   spdy_servers_table_.clear();
   alternate_protocol_map_.clear();
+  spdy_settings_map_.clear();
 }
 
 bool HttpServerPropertiesImpl::SupportsSpdy(
@@ -188,6 +194,49 @@ void HttpServerPropertiesImpl::SetBrokenAlternateProtocol(
 const AlternateProtocolMap&
 HttpServerPropertiesImpl::alternate_protocol_map() const {
   return alternate_protocol_map_;
+}
+
+const spdy::SpdySettings& HttpServerPropertiesImpl::GetSpdySettings(
+    const HostPortPair& host_port_pair) const {
+  SpdySettingsMap::const_iterator it = spdy_settings_map_.find(host_port_pair);
+  if (it == spdy_settings_map_.end()) {
+    CR_DEFINE_STATIC_LOCAL(spdy::SpdySettings, kEmptySpdySettings, ());
+    return kEmptySpdySettings;
+  }
+  return it->second;
+}
+
+bool HttpServerPropertiesImpl::SetSpdySettings(
+    const HostPortPair& host_port_pair,
+    const spdy::SpdySettings& settings) {
+  spdy::SpdySettings persistent_settings;
+
+  // Iterate through the list, and only copy those settings which are marked
+  // for persistence.
+  spdy::SpdySettings::const_iterator it;
+  for (it = settings.begin(); it != settings.end(); ++it) {
+    spdy::SettingsFlagsAndId id = it->first;
+    if (id.flags() & spdy::SETTINGS_FLAG_PLEASE_PERSIST) {
+      id.set_flags(spdy::SETTINGS_FLAG_PERSISTED);
+      persistent_settings.push_back(std::make_pair(id, it->second));
+    }
+  }
+
+  // If we didn't persist anything, then we are done.
+  if (persistent_settings.empty())
+    return false;
+
+  spdy_settings_map_[host_port_pair] = persistent_settings;
+  return true;
+}
+
+void HttpServerPropertiesImpl::ClearSpdySettings() {
+  spdy_settings_map_.clear();
+}
+
+const SpdySettingsMap&
+HttpServerPropertiesImpl::spdy_settings_map() const {
+  return spdy_settings_map_;
 }
 
 }  // namespace net

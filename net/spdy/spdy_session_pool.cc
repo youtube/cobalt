@@ -10,6 +10,7 @@
 #include "net/base/address_list.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_server_properties.h"
 #include "net/spdy/spdy_session.h"
 
 
@@ -40,8 +41,10 @@ bool SpdySessionPool::g_force_single_domain = false;
 bool SpdySessionPool::g_enable_ip_pooling = true;
 
 SpdySessionPool::SpdySessionPool(HostResolver* resolver,
-                                 SSLConfigService* ssl_config_service)
-    : ssl_config_service_(ssl_config_service),
+                                 SSLConfigService* ssl_config_service,
+                                 HttpServerProperties* http_server_properties)
+    : http_server_properties_(http_server_properties),
+      ssl_config_service_(ssl_config_service),
       resolver_(resolver),
       verify_domain_authentication_(true) {
   NetworkChangeNotifier::AddIPAddressObserver(this);
@@ -110,7 +113,8 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
 
   DCHECK(!only_use_existing_sessions);
 
-  spdy_session = new SpdySession(host_port_proxy_pair, this, &spdy_settings_,
+  spdy_session = new SpdySession(host_port_proxy_pair, this,
+                                 http_server_properties_,
                                  verify_domain_authentication_,
                                  net_log.net_log());
   UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionGet",
@@ -136,7 +140,8 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
                             IMPORTED_FROM_SOCKET,
                             SPDY_SESSION_GET_MAX);
   // Create the SPDY session and add it to the pool.
-  *spdy_session = new SpdySession(host_port_proxy_pair, this, &spdy_settings_,
+  *spdy_session = new SpdySession(host_port_proxy_pair, this,
+                                  http_server_properties_,
                                   verify_domain_authentication_,
                                   net_log.net_log());
   SpdySessionList* list = GetSessionList(host_port_proxy_pair);
@@ -207,7 +212,7 @@ Value* SpdySessionPool::SpdySessionPoolInfoToValue() const {
 
 void SpdySessionPool::OnIPAddressChanged() {
   CloseCurrentSessions();
-  spdy_settings_.Clear();
+  http_server_properties_->ClearSpdySettings();
 }
 
 void SpdySessionPool::OnSSLConfigChanged() {
