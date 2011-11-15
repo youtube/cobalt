@@ -168,9 +168,7 @@ bool RSAPrivateKey::ExportPublicKey(std::vector<uint8>* output) {
     return false;
   }
 
-  for (size_t i = 0; i < der_pubkey->len; ++i)
-    output->push_back(der_pubkey->data[i]);
-
+  output->assign(der_pubkey->data, der_pubkey->data + der_pubkey->len);
   return true;
 }
 
