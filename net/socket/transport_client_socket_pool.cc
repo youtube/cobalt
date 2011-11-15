@@ -70,13 +70,10 @@ TransportSocketParams::TransportSocketParams(
 
 TransportSocketParams::~TransportSocketParams() {}
 
+// TODO(szym): remove unneeded referrer
 void TransportSocketParams::Initialize(RequestPriority priority,
                                        const GURL& referrer,
                                        bool disable_resolver_cache) {
-  // The referrer is used by the DNS prefetch system to correlate resolutions
-  // with the page that triggered them. It doesn't impact the actual addresses
-  // that we resolve to.
-  destination_.set_referrer(referrer);
   destination_.set_priority(priority);
   if (disable_resolver_cache)
     destination_.set_allow_cached_response(false);
