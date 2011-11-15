@@ -4,6 +4,7 @@
 
 #include "base/mac/foundation_util.h"
 
+#include "base/basictypes.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/mac/scoped_nsautorelease_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -274,4 +275,47 @@ TEST(FoundationUtilTest, ObjCCast) {
   EXPECT_FALSE(base::mac::ObjCCastStrict<NSNumber>(nil));
   EXPECT_FALSE(base::mac::ObjCCastStrict<NSSet>(nil));
   EXPECT_FALSE(base::mac::ObjCCastStrict<NSString>(nil));
+}
+
+TEST(FoundationUtilTest, GetValueFromDictionary) {
+  int one = 1, two = 2, three = 3;
+
+  base::mac::ScopedCFTypeRef<CFNumberRef> cf_one(
+      CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &one));
+  base::mac::ScopedCFTypeRef<CFNumberRef> cf_two(
+      CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &two));
+  base::mac::ScopedCFTypeRef<CFNumberRef> cf_three(
+      CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &three));
+
+  CFStringRef keys[] = { CFSTR("one"), CFSTR("two"), CFSTR("three") };
+  CFNumberRef values[] = { cf_one, cf_two, cf_three };
+
+  COMPILE_ASSERT(arraysize(keys) == arraysize(values),
+                 keys_and_values_arraysizes_are_different);
+
+  base::mac::ScopedCFTypeRef<CFDictionaryRef> test_dict(
+      CFDictionaryCreate(kCFAllocatorDefault,
+                         reinterpret_cast<const void**>(keys),
+                         reinterpret_cast<const void**>(values),
+                         arraysize(values),
+                         &kCFCopyStringDictionaryKeyCallBacks,
+                         &kCFTypeDictionaryValueCallBacks));
+
+  // base::mac::GetValueFromDictionary<>(_, _) should produce the correct
+  // expected output.
+  EXPECT_EQ(values[0],
+            base::mac::GetValueFromDictionary<CFNumberRef>(test_dict,
+                                                           CFSTR("one")));
+  EXPECT_EQ(values[1],
+            base::mac::GetValueFromDictionary<CFNumberRef>(test_dict,
+                                                           CFSTR("two")));
+  EXPECT_EQ(values[2],
+            base::mac::GetValueFromDictionary<CFNumberRef>(test_dict,
+                                                           CFSTR("three")));
+
+  // Bad input should produce bad output.
+  EXPECT_FALSE(base::mac::GetValueFromDictionary<CFNumberRef>(test_dict,
+                                                              CFSTR("four")));
+  EXPECT_FALSE(base::mac::GetValueFromDictionary<CFStringRef>(test_dict,
+                                                              CFSTR("one")));
 }
