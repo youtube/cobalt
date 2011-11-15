@@ -11,7 +11,11 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #elif defined(USE_WAYLAND)
-#include "base/wayland/wayland_event.h"
+namespace base {
+namespace wayland {
+union WaylandEvent;
+}
+}
 #elif defined(USE_X11)
 typedef union _XEvent XEvent;
 #endif
