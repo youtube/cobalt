@@ -111,9 +111,6 @@ class HangingHostResolverWithCancel : public HostResolver {
     outstanding_request_ = NULL;
   }
 
-  virtual void AddObserver(Observer* observer) OVERRIDE {}
-  virtual void RemoveObserver(Observer* observer) OVERRIDE {}
-
   bool HasOutstandingRequest() {
     return outstanding_request_ != NULL;
   }

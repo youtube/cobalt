@@ -45,14 +45,6 @@ void MappedHostResolver::CancelRequest(RequestHandle req) {
   impl_->CancelRequest(req);
 }
 
-void MappedHostResolver::AddObserver(Observer* observer) {
-  impl_->AddObserver(observer);
-}
-
-void MappedHostResolver::RemoveObserver(Observer* observer) {
-  impl_->RemoveObserver(observer);
-}
-
 void MappedHostResolver::ProbeIPv6Support() {
   impl_->ProbeIPv6Support();
 }

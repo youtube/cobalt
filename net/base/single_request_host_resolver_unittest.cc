@@ -57,14 +57,6 @@ class HangingHostResolver : public HostResolver {
     outstanding_request_ = NULL;
   }
 
-  virtual void AddObserver(Observer* observer) OVERRIDE {
-    FAIL();
-  }
-
-  virtual void RemoveObserver(Observer* observer) OVERRIDE {
-    FAIL();
-  }
-
  private:
   RequestHandle outstanding_request_;
 
