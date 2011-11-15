@@ -15,6 +15,8 @@
 #include "base/threading/worker_pool.h"
 #include "base/tracked_objects.h"
 
+using tracked_objects::TrackedTime;
+
 namespace base {
 
 namespace {
@@ -83,20 +85,20 @@ void WorkerThread::ThreadMain() {
   PlatformThread::SetName(name.c_str());
 
   for (;;) {
-    PosixDynamicThreadPool::PendingTask pending_task = pool_->WaitForTask();
+    PendingTask pending_task = pool_->WaitForTask();
     if (pending_task.task.is_null())
       break;
     UNSHIPPED_TRACE_EVENT2("task", "WorkerThread::ThreadMain::Run",
         "src_file", pending_task.posted_from.file_name(),
         "src_func", pending_task.posted_from.function_name());
 
-    tracked_objects::TrackedTime start_time =
+    TrackedTime start_time =
         tracked_objects::ThreadData::NowForStartOfRun();
 
     pending_task.task.Run();
 
     tracked_objects::ThreadData::TallyRunOnWorkerThreadIfTracking(
-        pending_task.birth_tally, pending_task.time_posted,
+        pending_task.birth_tally, TrackedTime(pending_task.time_posted),
         start_time, tracked_objects::ThreadData::NowForEndOfRun());
   }
 
@@ -116,18 +118,6 @@ bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
                           const base::Closure& task, bool task_is_slow) {
   g_lazy_worker_pool.Pointer()->PostTask(from_here, task, task_is_slow);
   return true;
-}
-
-PosixDynamicThreadPool::PendingTask::PendingTask(
-    const tracked_objects::Location& posted_from,
-    const base::Closure& task)
-    : posted_from(posted_from),
-      task(task) {
-  birth_tally = tracked_objects::ThreadData::TallyABirthIfActive(posted_from);
-  time_posted = tracked_objects::ThreadData::Now();
-}
-
-PosixDynamicThreadPool::PendingTask::~PendingTask() {
 }
 
 PosixDynamicThreadPool::PosixDynamicThreadPool(
@@ -198,7 +188,7 @@ void PosixDynamicThreadPool::AddTask(PendingTask* pending_task) {
   }
 }
 
-PosixDynamicThreadPool::PendingTask PosixDynamicThreadPool::WaitForTask() {
+PendingTask PosixDynamicThreadPool::WaitForTask() {
   AutoLock locked(lock_);
 
   if (terminated_)

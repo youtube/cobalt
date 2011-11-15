@@ -17,6 +17,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
+#include "base/pending_task.h"
 #include "base/synchronization/lock.h"
 #include "base/task.h"
 #include "base/tracking_info.h"
@@ -121,7 +122,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   static void InitMessagePumpForUIFactory(MessagePumpFactory* factory);
 
   // A DestructionObserver is notified when the current MessageLoop is being
-  // destroyed.  These obsevers are notified prior to MessageLoop::current()
+  // destroyed.  These observers are notified prior to MessageLoop::current()
   // being changed to return NULL.  This gives interested parties the chance to
   // do final cleanup that depends on the MessageLoop.
   //
@@ -377,6 +378,9 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
 
   //----------------------------------------------------------------------------
  protected:
+  // PendingTasks are sorted by their |delayed_run_time| property.
+  typedef std::priority_queue<base::PendingTask> DelayedTaskQueue;
+
   struct RunState {
     // Used to count how many Run() invocations are on the stack.
     int run_depth;
@@ -407,39 +411,6 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
  protected:
 #endif
 
-  // This structure is copied around by value.
-  struct PendingTask : public base::TrackingInfo {
-    PendingTask(const base::Closure& task,
-                const tracked_objects::Location& posted_from,
-                base::TimeTicks delayed_run_time,
-                bool nestable);
-    ~PendingTask();
-
-    // Used to support sorting.
-    bool operator<(const PendingTask& other) const;
-
-    // The task to run.
-    base::Closure task;
-
-    // The site this PendingTask was posted from.
-    tracked_objects::Location posted_from;
-
-    // Secondary sort key for run time.
-    int sequence_num;
-
-    // OK to dispatch from a nested loop.
-    bool nestable;
-  };
-
-  class TaskQueue : public std::queue<PendingTask> {
-   public:
-    void Swap(TaskQueue* queue) {
-      c.swap(queue->c);  // Calls std::deque::swap
-    }
-  };
-
-  typedef std::priority_queue<PendingTask> DelayedTaskQueue;
-
 #if defined(OS_WIN)
   base::MessagePumpWin* pump_win() {
     return static_cast<base::MessagePumpWin*>(pump_.get());
@@ -469,14 +440,14 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   bool ProcessNextDelayedNonNestableTask();
 
   // Runs the specified PendingTask.
-  void RunTask(const PendingTask& pending_task);
+  void RunTask(const base::PendingTask& pending_task);
 
   // Calls RunTask or queues the pending_task on the deferred task list if it
   // cannot be run right now.  Returns true if the task was run.
-  bool DeferOrRunPendingTask(const PendingTask& pending_task);
+  bool DeferOrRunPendingTask(const base::PendingTask& pending_task);
 
   // Adds the pending task to delayed_work_queue_.
-  void AddToDelayedWorkQueue(const PendingTask& pending_task);
+  void AddToDelayedWorkQueue(const base::PendingTask& pending_task);
 
   // Adds the pending task to our incoming_queue_.
   //
@@ -484,7 +455,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // reset the value of pending_task->task.  This is needed to ensure
   // that the posting call stack does not retain pending_task->task
   // beyond this function call.
-  void AddToIncomingQueue(PendingTask* pending_task);
+  void AddToIncomingQueue(base::PendingTask* pending_task);
 
   // Load tasks from the incoming_queue_ into work_queue_ if the latter is
   // empty.  The former requires a lock to access, while the latter is directly
@@ -496,14 +467,14 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // true if some work was done.
   bool DeletePendingTasks();
 
-  // Calcuates the time at which a PendingTask should run.
+  // Calculates the time at which a PendingTask should run.
   base::TimeTicks CalculateDelayedRuntime(int64 delay_ms);
 
   // Start recording histogram info about events and action IF it was enabled
   // and IF the statistics recorder can accept a registration of our histogram.
   void StartHistogrammer();
 
-  // Add occurence of event to our histogram, so that we can see what is being
+  // Add occurrence of event to our histogram, so that we can see what is being
   // done in a specific MessageLoop instance (i.e., specific thread).
   // If message_histogram_ is NULL, this is a no-op.
   void HistogramEvent(int event);
@@ -517,7 +488,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
 
   // A list of tasks that need to be processed by this instance.  Note that
   // this queue is only accessed (push/pop) by our current thread.
-  TaskQueue work_queue_;
+  base::TaskQueue work_queue_;
 
   // Contains delayed tasks, sorted by their 'delayed_run_time' property.
   DelayedTaskQueue delayed_work_queue_;
@@ -528,13 +499,13 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // A queue of non-nestable tasks that we had to defer because when it came
   // time to execute them we were in a nested message loop.  They will execute
   // once we're out of nested message loops.
-  TaskQueue deferred_non_nestable_work_queue_;
+  base::TaskQueue deferred_non_nestable_work_queue_;
 
   scoped_refptr<base::MessagePump> pump_;
 
   ObserverList<DestructionObserver> destruction_observers_;
 
-  // A recursion block that prevents accidentally running additonal tasks when
+  // A recursion block that prevents accidentally running additional tasks when
   // insider a (accidentally induced?) nested message pump.
   bool nestable_tasks_allowed_;
 
@@ -548,7 +519,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // acquired under a mutex for processing on this instance's thread. These
   // tasks have not yet been sorted out into items for our work_queue_ vs items
   // that will be handled by the TimerManager.
-  TaskQueue incoming_queue_;
+  base::TaskQueue incoming_queue_;
   // Protect access to incoming_queue_.
   mutable base::Lock incoming_queue_lock_;
 
