@@ -45,10 +45,6 @@ namespace base {
 class Histogram;
 }
 
-namespace tracked_objects {
-class Births;
-}
-
 // A MessageLoop is used to process events for a particular thread.  There is
 // at most one MessageLoop instance per thread.
 //
@@ -692,8 +688,8 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
   bool WatchFileDescriptor(int fd,
                            bool persistent,
                            Mode mode,
-                           FileDescriptorWatcher *controller,
-                           Watcher *delegate);
+                           FileDescriptorWatcher* controller,
+                           Watcher* delegate);
 
  private:
   base::MessagePumpLibevent* pump_io() {

@@ -118,10 +118,7 @@ enum TraceEventFlags {
 // Optionally the stack trace, consisting of a DWORD "depth", followed
 //    by an array of void* (machine bitness) of length "depth".
 
-// Forward decl.
-struct TraceLogSingletonTraits;
-
-}  // nemspace debug
+}  // namespace debug
 }  // namespace base
 
 #endif  // BASE_DEBUG_TRACE_EVENT_WIN_H_
