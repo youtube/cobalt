@@ -35,6 +35,7 @@
 #include <gdk/gdkx.h>
 #endif  // defined(OS_POSIX) && !defined(OS_MACOSX)
 
+using base::PendingTask;
 using base::TimeDelta;
 using base::TimeTicks;
 
@@ -260,10 +261,10 @@ void MessageLoop::PostTask(
     const tracked_objects::Location& from_here, Task* task) {
   DCHECK(task);
   PendingTask pending_task(
+      from_here,
       base::Bind(
           &base::subtle::TaskClosureAdapter::Run,
           new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
-      from_here,
       CalculateDelayedRuntime(0), true);
   AddToIncomingQueue(&pending_task);
 }
@@ -272,10 +273,10 @@ void MessageLoop::PostDelayedTask(
     const tracked_objects::Location& from_here, Task* task, int64 delay_ms) {
   DCHECK(task);
   PendingTask pending_task(
+      from_here,
       base::Bind(
           &base::subtle::TaskClosureAdapter::Run,
           new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
-      from_here,
       CalculateDelayedRuntime(delay_ms), true);
   AddToIncomingQueue(&pending_task);
 }
@@ -284,10 +285,10 @@ void MessageLoop::PostNonNestableTask(
     const tracked_objects::Location& from_here, Task* task) {
   DCHECK(task);
   PendingTask pending_task(
+      from_here,
       base::Bind(
           &base::subtle::TaskClosureAdapter::Run,
           new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
-      from_here,
       CalculateDelayedRuntime(0), false);
   AddToIncomingQueue(&pending_task);
 }
@@ -296,10 +297,10 @@ void MessageLoop::PostNonNestableDelayedTask(
     const tracked_objects::Location& from_here, Task* task, int64 delay_ms) {
   DCHECK(task);
   PendingTask pending_task(
+      from_here,
       base::Bind(
           &base::subtle::TaskClosureAdapter::Run,
           new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
-      from_here,
       CalculateDelayedRuntime(delay_ms), false);
   AddToIncomingQueue(&pending_task);
 }
@@ -307,7 +308,7 @@ void MessageLoop::PostNonNestableDelayedTask(
 void MessageLoop::PostTask(
     const tracked_objects::Location& from_here, const base::Closure& task) {
   DCHECK(!task.is_null()) << from_here.ToString();
-  PendingTask pending_task(task, from_here, CalculateDelayedRuntime(0), true);
+  PendingTask pending_task(from_here, task, CalculateDelayedRuntime(0), true);
   AddToIncomingQueue(&pending_task);
 }
 
@@ -315,7 +316,7 @@ void MessageLoop::PostDelayedTask(
     const tracked_objects::Location& from_here, const base::Closure& task,
     int64 delay_ms) {
   DCHECK(!task.is_null()) << from_here.ToString();
-  PendingTask pending_task(task, from_here,
+  PendingTask pending_task(from_here, task,
                            CalculateDelayedRuntime(delay_ms), true);
   AddToIncomingQueue(&pending_task);
 }
@@ -323,7 +324,7 @@ void MessageLoop::PostDelayedTask(
 void MessageLoop::PostNonNestableTask(
     const tracked_objects::Location& from_here, const base::Closure& task) {
   DCHECK(!task.is_null()) << from_here.ToString();
-  PendingTask pending_task(task, from_here, CalculateDelayedRuntime(0), false);
+  PendingTask pending_task(from_here, task, CalculateDelayedRuntime(0), false);
   AddToIncomingQueue(&pending_task);
 }
 
@@ -331,7 +332,7 @@ void MessageLoop::PostNonNestableDelayedTask(
     const tracked_objects::Location& from_here, const base::Closure& task,
     int64 delay_ms) {
   DCHECK(!task.is_null()) << from_here.ToString();
-  PendingTask pending_task(task, from_here,
+  PendingTask pending_task(from_here, task,
                            CalculateDelayedRuntime(delay_ms), false);
   AddToIncomingQueue(&pending_task);
 }
@@ -771,40 +772,6 @@ MessageLoop::AutoRunState::AutoRunState(MessageLoop* loop) : loop_(loop) {
 
 MessageLoop::AutoRunState::~AutoRunState() {
   loop_->state_ = previous_state_;
-}
-
-//------------------------------------------------------------------------------
-// MessageLoop::PendingTask
-
-MessageLoop::PendingTask::PendingTask(
-    const base::Closure& task,
-    const tracked_objects::Location& posted_from,
-    TimeTicks delayed_run_time,
-    bool nestable)
-    : base::TrackingInfo(posted_from, delayed_run_time),
-      task(task),
-      posted_from(posted_from),
-      sequence_num(0),
-      nestable(nestable) {
-}
-
-MessageLoop::PendingTask::~PendingTask() {
-}
-
-bool MessageLoop::PendingTask::operator<(const PendingTask& other) const {
-  // Since the top of a priority queue is defined as the "greatest" element, we
-  // need to invert the comparison here.  We want the smaller time to be at the
-  // top of the heap.
-
-  if (delayed_run_time < other.delayed_run_time)
-    return false;
-
-  if (delayed_run_time > other.delayed_run_time)
-    return true;
-
-  // If the times happen to match, then we use the sequence number to decide.
-  // Compare the difference to support integer roll-over.
-  return (sequence_num - other.sequence_num) > 0;
 }
 
 //------------------------------------------------------------------------------

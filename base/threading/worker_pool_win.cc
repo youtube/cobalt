@@ -7,35 +7,13 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/pending_task.h"
 #include "base/task.h"
 #include "base/tracked_objects.h"
 
 namespace base {
 
 namespace {
-
-struct PendingTask {
-  PendingTask(
-      const tracked_objects::Location& posted_from,
-      const base::Closure& task)
-      : posted_from(posted_from),
-        task(task) {
-    birth_tally = tracked_objects::ThreadData::TallyABirthIfActive(posted_from);
-    time_posted = tracked_objects::ThreadData::Now();
-  }
-
-  // Counter for location where the Closure was posted from.
-  tracked_objects::Births* birth_tally;
-
-  // Time the task was posted.
-  tracked_objects::TrackedTime time_posted;
-
-  // The site this PendingTask was posted from.
-  tracked_objects::Location posted_from;
-
-  // The task to run.
-  base::Closure task;
-};
 
 DWORD CALLBACK WorkItemCallback(void* param) {
   PendingTask* pending_task = static_cast<PendingTask*>(param);
@@ -49,8 +27,9 @@ DWORD CALLBACK WorkItemCallback(void* param) {
   pending_task->task.Run();
 
   tracked_objects::ThreadData::TallyRunOnWorkerThreadIfTracking(
-      pending_task->birth_tally, pending_task->time_posted,
-      start_time, tracked_objects::ThreadData::NowForEndOfRun());
+      pending_task->birth_tally,
+      tracked_objects::TrackedTime(pending_task->time_posted), start_time,
+      tracked_objects::ThreadData::NowForEndOfRun());
 
   delete pending_task;
   return 0;
