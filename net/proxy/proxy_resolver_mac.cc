@@ -130,8 +130,9 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
     CFRelease(result);
     return ERR_FAILED;
   }
-  DCHECK(CFGetTypeID(result) == CFArrayGetTypeID());
-  base::mac::ScopedCFTypeRef<CFArrayRef> proxy_array_ref((CFArrayRef)result);
+  base::mac::ScopedCFTypeRef<CFArrayRef> proxy_array_ref(
+      base::mac::CFCastStrict<CFArrayRef>(result));
+  DCHECK(proxy_array_ref != NULL);
 
   // This string will be an ordered list of <proxy-uri> entries, separated by
   // semi-colons. It is the format that ProxyInfo::UseNamedProxy() expects.
@@ -141,9 +142,9 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
 
   CFIndex proxy_array_count = CFArrayGetCount(proxy_array_ref.get());
   for (CFIndex i = 0; i < proxy_array_count; ++i) {
-    CFDictionaryRef proxy_dictionary =
-        (CFDictionaryRef)CFArrayGetValueAtIndex(proxy_array_ref.get(), i);
-    DCHECK(CFGetTypeID(proxy_dictionary) == CFDictionaryGetTypeID());
+    CFDictionaryRef proxy_dictionary = base::mac::CFCastStrict<CFDictionaryRef>(
+        CFArrayGetValueAtIndex(proxy_array_ref.get(), i));
+    DCHECK(proxy_dictionary != NULL);
 
     // The dictionary may have the following keys:
     // - kCFProxyTypeKey : The type of the proxy
@@ -159,10 +160,8 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
     // - kCFProxyAutoConfigurationURLKey : If the PAC file specifies another
     //                                     PAC file, I'm going home.
 
-    CFStringRef proxy_type =
-        (CFStringRef)base::mac::GetValueFromDictionary(proxy_dictionary,
-                                                      kCFProxyTypeKey,
-                                                      CFStringGetTypeID());
+    CFStringRef proxy_type = base::mac::GetValueFromDictionary<CFStringRef>(
+        proxy_dictionary, kCFProxyTypeKey);
     ProxyServer proxy_server = ProxyServer::FromDictionary(
         GetProxyServerScheme(proxy_type),
         proxy_dictionary,
