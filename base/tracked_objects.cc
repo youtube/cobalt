@@ -583,19 +583,34 @@ bool ThreadData::Initialize() {
   if (!kTrackAllTaskObjects)
     return false;  // Not compiled in.
   if (status_ != UNINITIALIZED)
-    return true;
-  // Initialize all leaking constants that are difficult to toggle in and out
-  // of existance.
-  // First call must be made when single threaded at startup.
+    return true;  // Someone else did the initialization.
+  // Due to racy lazy initialization in tests, we'll need to recheck status_
+  // after we acquire the lock.
+
+  // Ensure that we don't double initialize tls.  We are called when single
+  // threaded in the product, but some tests may be racy and lazy about our
+  // initialization.
+  base::AutoLock lock(*list_lock_.Pointer());
+  if (status_ != UNINITIALIZED)
+    return true;  // Someone raced in here and beat us.
+
   // Perform the "real" TLS initialization now, and leave it intact through
   // process termination.
-  if (!tls_index_.initialized())  // Testing may have initialized this.
+  if (!tls_index_.initialized()) {  // Testing may have initialized this.
     tls_index_.Initialize(&ThreadData::OnThreadTermination);
-  DCHECK(tls_index_.initialized());
-  status_ = kInitialStartupState;
+    if (!tls_index_.initialized())
+      return false;
+  }
 
-  base::AutoLock lock(*list_lock_.Pointer());
+  // Incarnation counter is only significant to testing, as it otherwise will
+  // never again change in this process.
   ++incarnation_counter_;
+
+  // The lock is not critical for setting status_, but it doesn't hurt. It also
+  // ensures that if we have a racy initialization, that we'll bail as soon as
+  // we get the lock earlier in this method.
+  status_ = kInitialStartupState;
+  DCHECK(status_ != UNINITIALIZED);
   return true;
 }
 
