@@ -61,7 +61,7 @@ class BASE_EXPORT FilePathWatcher {
       delegate_->CancelOnMessageLoopThread();
     }
 
-    virtual void Run() {
+    virtual void Run() OVERRIDE {
       delegate_->CancelOnMessageLoopThread();
     }
    private:

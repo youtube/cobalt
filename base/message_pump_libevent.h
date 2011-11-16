@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
@@ -123,10 +124,10 @@ class BASE_EXPORT MessagePumpLibevent : public MessagePump {
   void RemoveIOObserver(IOObserver* obs);
 
   // MessagePump methods:
-  virtual void Run(Delegate* delegate);
-  virtual void Quit();
-  virtual void ScheduleWork();
-  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time);
+  virtual void Run(Delegate* delegate) OVERRIDE;
+  virtual void Quit() OVERRIDE;
+  virtual void ScheduleWork() OVERRIDE;
+  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) OVERRIDE;
 
  private:
   friend class MessagePumpLibeventTest;
