@@ -26,8 +26,8 @@ class MEDIA_EXPORT DataBuffer : public Buffer {
   explicit DataBuffer(size_t buffer_size);
 
   // Buffer implementation.
-  virtual const uint8* GetData() const;
-  virtual size_t GetDataSize() const;
+  virtual const uint8* GetData() const OVERRIDE;
+  virtual size_t GetDataSize() const OVERRIDE;
 
   // Returns a read-write pointer to the buffer data.
   virtual uint8* GetWritableData();

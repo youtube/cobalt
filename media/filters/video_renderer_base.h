@@ -37,21 +37,21 @@ class MEDIA_EXPORT VideoRendererBase
   virtual ~VideoRendererBase();
 
   // Filter implementation.
-  virtual void Play(const base::Closure& callback);
-  virtual void Pause(const base::Closure& callback);
-  virtual void Flush(const base::Closure& callback);
-  virtual void Stop(const base::Closure& callback);
-  virtual void SetPlaybackRate(float playback_rate);
-  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb);
+  virtual void Play(const base::Closure& callback) OVERRIDE;
+  virtual void Pause(const base::Closure& callback) OVERRIDE;
+  virtual void Flush(const base::Closure& callback) OVERRIDE;
+  virtual void Stop(const base::Closure& callback) OVERRIDE;
+  virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
+  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb) OVERRIDE;
 
   // VideoRenderer implementation.
   virtual void Initialize(VideoDecoder* decoder,
                           const base::Closure& callback,
-                          const StatisticsCallback& stats_callback);
-  virtual bool HasEnded();
+                          const StatisticsCallback& stats_callback) OVERRIDE;
+  virtual bool HasEnded() OVERRIDE;
 
   // PlatformThread::Delegate implementation.
-  virtual void ThreadMain();
+  virtual void ThreadMain() OVERRIDE;
 
   // Clients of this class (painter/compositor) should use GetCurrentFrame()
   // obtain ownership of VideoFrame, it should always relinquish the ownership

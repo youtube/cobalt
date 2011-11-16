@@ -9,6 +9,7 @@
 #include <AudioToolbox/AudioQueue.h>
 #include <AudioUnit/AudioUnit.h>
 
+#include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
@@ -29,12 +30,12 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   virtual ~PCMQueueOutAudioOutputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open();
-  virtual void Close();
-  virtual void Start(AudioSourceCallback* callback);
-  virtual void Stop();
-  virtual void SetVolume(double volume);
-  virtual void GetVolume(double* volume);
+  virtual bool Open() OVERRIDE;
+  virtual void Close() OVERRIDE;
+  virtual void Start(AudioSourceCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual void GetVolume(double* volume) OVERRIDE;
 
  private:
   // The audio is double buffered.
