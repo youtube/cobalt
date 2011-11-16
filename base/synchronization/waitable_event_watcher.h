@@ -145,7 +145,7 @@ class BASE_EXPORT WaitableEventWatcher
   // ---------------------------------------------------------------------------
   // Implementation of MessageLoop::DestructionObserver
   // ---------------------------------------------------------------------------
-  virtual void WillDestroyCurrentMessageLoop();
+  virtual void WillDestroyCurrentMessageLoop() OVERRIDE;
 
   MessageLoop* message_loop_;
   scoped_refptr<Flag> cancel_flag_;

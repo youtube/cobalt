@@ -65,11 +65,11 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   // in the DoRun method.  MessagePumpCFRunLoopBase::Run calls DoRun directly.
   // This arrangement is used because MessagePumpCFRunLoopBase needs to set
   // up and tear down things before and after the "meat" of DoRun.
-  virtual void Run(Delegate* delegate);
+  virtual void Run(Delegate* delegate) OVERRIDE;
   virtual void DoRun(Delegate* delegate) = 0;
 
-  virtual void ScheduleWork();
-  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time);
+  virtual void ScheduleWork() OVERRIDE;
+  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) OVERRIDE;
 
  protected:
   // Accessors for private data members to be used by subclasses.
@@ -191,11 +191,11 @@ class MessagePumpCFRunLoop : public MessagePumpCFRunLoopBase {
  public:
   MessagePumpCFRunLoop();
 
-  virtual void DoRun(Delegate* delegate);
-  virtual void Quit();
+  virtual void DoRun(Delegate* delegate) OVERRIDE;
+  virtual void Quit() OVERRIDE;
 
  private:
-  virtual void EnterExitRunLoop(CFRunLoopActivity activity);
+  virtual void EnterExitRunLoop(CFRunLoopActivity activity) OVERRIDE;
 
   // True if Quit is called to stop the innermost MessagePump
   // (innermost_quittable_) but some other CFRunLoopRun loop (nesting_level_)
@@ -210,8 +210,8 @@ class MessagePumpNSRunLoop : public MessagePumpCFRunLoopBase {
   MessagePumpNSRunLoop();
   virtual ~MessagePumpNSRunLoop();
 
-  virtual void DoRun(Delegate* delegate);
-  virtual void Quit();
+  virtual void DoRun(Delegate* delegate) OVERRIDE;
+  virtual void Quit() OVERRIDE;
 
  private:
   // A source that doesn't do anything but provide something signalable
@@ -229,12 +229,12 @@ class MessagePumpNSApplication : public MessagePumpCFRunLoopBase {
  public:
   MessagePumpNSApplication();
 
-  virtual void DoRun(Delegate* delegate);
-  virtual void Quit();
+  virtual void DoRun(Delegate* delegate) OVERRIDE;
+  virtual void Quit() OVERRIDE;
 
  protected:
   // Returns nil if NSApp is currently in the middle of calling -sendEvent.
-  virtual NSAutoreleasePool* CreateAutoreleasePool();
+  virtual NSAutoreleasePool* CreateAutoreleasePool() OVERRIDE;
 
  private:
   // False after Quit is called.
