@@ -9,6 +9,7 @@
 #include <string>
 #include <map>
 
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/cert_database.h"
 #include "net/base/net_export.h"
@@ -47,7 +48,7 @@ class NET_EXPORT_PRIVATE SSLClientAuthCache : public CertDatabase::Observer {
   void Remove(const std::string& server);
 
   // CertDatabase::Observer methods:
-  virtual void OnUserCertAdded(const X509Certificate* cert);
+  virtual void OnUserCertAdded(const X509Certificate* cert) OVERRIDE;
 
  private:
   typedef std::string AuthCacheKey;

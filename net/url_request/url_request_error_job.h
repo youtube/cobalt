@@ -19,7 +19,7 @@ class NET_EXPORT URLRequestErrorJob : public URLRequestJob {
  public:
   URLRequestErrorJob(URLRequest* request, int error);
 
-  virtual void Start();
+  virtual void Start() OVERRIDE;
 
  private:
   virtual ~URLRequestErrorJob();
