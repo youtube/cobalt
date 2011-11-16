@@ -224,6 +224,16 @@ bool Eviction::ShouldTrim() {
   return true;
 }
 
+bool Eviction::ShouldTrimDeleted() {
+  // Normally we use 25% for each list. The experiment doubles the number of
+  // deleted entries, so the total number of entries increases by 25%. Using
+  // 40% of that value for deleted entries leaves the size of the other three
+  // lists intact.
+  int max_length = in_experiment_ ? header_->num_entries * 2 / 5 :
+                                    header_->num_entries / 4;
+  return (!test_mode_ && header_->lru.sizes[Rankings::DELETED] > max_length);
+}
+
 void Eviction::ReportTrimTimes(EntryImpl* entry) {
   if (first_trim_) {
     first_trim_ = false;
@@ -353,8 +363,7 @@ void Eviction::TrimCacheV2(bool empty) {
 
   if (empty) {
     TrimDeleted(true);
-  } else if (header_->lru.sizes[Rankings::DELETED] > header_->num_entries / 4 &&
-             !test_mode_) {
+  } else if (ShouldTrimDeleted()) {
     MessageLoop::current()->PostTask(FROM_HERE,
         base::Bind(&Eviction::TrimDeleted, ptr_factory_.GetWeakPtr(), empty));
   }
@@ -486,14 +495,7 @@ void Eviction::TrimDeleted(bool empty) {
       break;
   }
 
-  // Normally we use 25% for each list. The experiment doubles the number of
-  // deleted entries, so the total number of entries increases by 25%. Using
-  // 40% of that value for deleted entries leaves the size of the other three
-  // lists intact.
-  int max_length = in_experiment_ ? header_->num_entries * 2 / 5 :
-                                    header_->num_entries / 4;
-  if (deleted_entries && !empty && !test_mode_ &&
-      header_->lru.sizes[Rankings::DELETED] > max_length) {
+  if (deleted_entries && !empty && ShouldTrimDeleted()) {
     MessageLoop::current()->PostTask(FROM_HERE,
         base::Bind(&Eviction::TrimDeleted, ptr_factory_.GetWeakPtr(), false));
   }
