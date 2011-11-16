@@ -26,12 +26,12 @@ class MEDIA_EXPORT AudioOutputProxy : public AudioOutputStream {
   AudioOutputProxy(AudioOutputDispatcher* dispatcher);
 
   // AudioOutputStream interface.
-  virtual bool Open();
-  virtual void Start(AudioSourceCallback* callback);
-  virtual void Stop();
-  virtual void SetVolume(double volume);
-  virtual void GetVolume(double* volume);
-  virtual void Close();
+  virtual bool Open() OVERRIDE;
+  virtual void Start(AudioSourceCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual void GetVolume(double* volume) OVERRIDE;
+  virtual void Close() OVERRIDE;
 
  private:
   // Needs to access destructor.

@@ -79,7 +79,7 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   uint8* data(size_t plane) const;
 
   // StreamSample interface.
-  virtual bool IsEndOfStream() const;
+  virtual bool IsEndOfStream() const OVERRIDE;
 
  protected:
   // Clients must use the static CreateFrame() method to create a new frame.

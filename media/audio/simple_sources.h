@@ -28,8 +28,8 @@ class MEDIA_EXPORT SineWaveAudioSource
   // Implementation of AudioSourceCallback.
   virtual uint32 OnMoreData(
       AudioOutputStream* stream, uint8* dest, uint32 max_size,
-      AudioBuffersState audio_buffers);
-  virtual void OnError(AudioOutputStream* stream, int code);
+      AudioBuffersState audio_buffers) OVERRIDE;
+  virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
 
  protected:
   Format format_;
@@ -65,15 +65,17 @@ class MEDIA_EXPORT PushSource
   virtual ~PushSource();
 
   // Write one buffer.
-  virtual bool Write(const void* data, uint32 len);
+  virtual bool Write(const void* data, uint32 len) OVERRIDE;
 
   // Return the total number of bytes not given to the audio device yet.
-  virtual uint32 UnProcessedBytes();
+  virtual uint32 UnProcessedBytes() OVERRIDE;
 
   // Implementation of AudioSourceCallback.
-  virtual uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
-                            uint32 max_size, AudioBuffersState buffers_state);
-  virtual void OnError(AudioOutputStream* stream, int code);
+  virtual uint32 OnMoreData(AudioOutputStream* stream,
+                            uint8* dest,
+                            uint32 max_size,
+                            AudioBuffersState buffers_state) OVERRIDE;
+  virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
 
   // Discard all buffered data and reset to initial state.
   void ClearAll();
