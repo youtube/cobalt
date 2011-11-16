@@ -27,11 +27,11 @@ class MEDIA_EXPORT FakeVideoCaptureDevice : public VideoCaptureDevice {
   virtual void Allocate(int width,
                         int height,
                         int frame_rate,
-                        VideoCaptureDevice::EventHandler* observer);
-  virtual void Start();
-  virtual void Stop();
-  virtual void DeAllocate();
-  virtual const Name& device_name();
+                        VideoCaptureDevice::EventHandler* observer) OVERRIDE;
+  virtual void Start() OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void DeAllocate() OVERRIDE;
+  virtual const Name& device_name() OVERRIDE;
 
  private:
   // Flag indicating the internal state.

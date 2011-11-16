@@ -22,10 +22,10 @@ class FakeAudioInputStream
  public:
   static AudioInputStream* MakeFakeStream(const AudioParameters& params);
 
-  virtual bool Open();
-  virtual void Start(AudioInputCallback* callback);
-  virtual void Stop();
-  virtual void Close();
+  virtual bool Open() OVERRIDE;
+  virtual void Start(AudioInputCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void Close() OVERRIDE;
 
  private:
   // Give RefCountedThreadSafe access our destructor.

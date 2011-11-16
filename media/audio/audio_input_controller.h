@@ -118,9 +118,9 @@ class MEDIA_EXPORT AudioInputController
   ///////////////////////////////////////////////////////////////////////////
   // AudioInputCallback methods.
   virtual void OnData(AudioInputStream* stream, const uint8* src, uint32 size,
-                      uint32 hardware_delay_bytes);
-  virtual void OnClose(AudioInputStream* stream);
-  virtual void OnError(AudioInputStream* stream, int code);
+                      uint32 hardware_delay_bytes) OVERRIDE;
+  virtual void OnClose(AudioInputStream* stream) OVERRIDE;
+  virtual void OnError(AudioInputStream* stream, int code) OVERRIDE;
 
  protected:
   // Internal state of the source.

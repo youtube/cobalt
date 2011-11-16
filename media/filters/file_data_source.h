@@ -24,16 +24,16 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
   PipelineStatus Initialize(const std::string& url);
 
   // Implementation of Filter.
-  virtual void set_host(FilterHost* filter_host);
-  virtual void Stop(const base::Closure& callback);
+  virtual void set_host(FilterHost* filter_host) OVERRIDE;
+  virtual void Stop(const base::Closure& callback) OVERRIDE;
 
   // Implementation of DataSource.
   virtual void Read(int64 position, size_t size, uint8* data,
-                    const DataSource::ReadCallback& read_callback);
-  virtual bool GetSize(int64* size_out);
-  virtual bool IsStreaming();
-  virtual void SetPreload(Preload preload);
-  virtual void SetBitrate(int bitrate);
+                    const DataSource::ReadCallback& read_callback) OVERRIDE;
+  virtual bool GetSize(int64* size_out) OVERRIDE;
+  virtual bool IsStreaming() OVERRIDE;
+  virtual void SetPreload(Preload preload) OVERRIDE;
+  virtual void SetBitrate(int bitrate) OVERRIDE;
 
  private:
   // Only allow factories and tests to create this object.

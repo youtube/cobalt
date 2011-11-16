@@ -20,12 +20,12 @@ class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
   static AudioOutputStream* MakeFakeStream(const AudioParameters& params);
   static FakeAudioOutputStream* GetLastFakeStream();
 
-  virtual bool Open();
-  virtual void Start(AudioSourceCallback* callback);
-  virtual void Stop();
-  virtual void SetVolume(double volume);
-  virtual void GetVolume(double* volume);
-  virtual void Close();
+  virtual bool Open() OVERRIDE;
+  virtual void Start(AudioSourceCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual void GetVolume(double* volume) OVERRIDE;
+  virtual void Close() OVERRIDE;
 
   uint8* buffer() { return buffer_.get(); }
   double volume() { return volume_; }

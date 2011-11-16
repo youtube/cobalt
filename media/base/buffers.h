@@ -87,7 +87,7 @@ class MEDIA_EXPORT Buffer : public StreamSample {
   virtual size_t GetDataSize() const = 0;
 
   // If there's no data in this buffer, it represents end of stream.
-  virtual bool IsEndOfStream() const;
+  virtual bool IsEndOfStream() const OVERRIDE;
 
  protected:
   virtual ~Buffer() {}

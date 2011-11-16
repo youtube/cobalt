@@ -21,11 +21,11 @@ class MEDIA_EXPORT InMemoryUrlProtocol : public FFmpegURLProtocol {
   virtual ~InMemoryUrlProtocol();
 
   // FFmpegURLProtocol methods.
-  virtual size_t Read(size_t size, uint8* data);
-  virtual bool GetPosition(int64* position_out);
-  virtual bool SetPosition(int64 position);
-  virtual bool GetSize(int64* size_out);
-  virtual bool IsStreaming();
+  virtual size_t Read(size_t size, uint8* data) OVERRIDE;
+  virtual bool GetPosition(int64* position_out) OVERRIDE;
+  virtual bool SetPosition(int64 position) OVERRIDE;
+  virtual bool GetSize(int64* size_out) OVERRIDE;
+  virtual bool IsStreaming() OVERRIDE;
 
  private:
   const uint8* data_;

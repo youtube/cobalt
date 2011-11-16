@@ -26,11 +26,11 @@ class VideoCaptureDeviceLinux : public VideoCaptureDevice {
   virtual void Allocate(int width,
                         int height,
                         int frame_rate,
-                        EventHandler* observer);
-  virtual void Start();
-  virtual void Stop();
-  virtual void DeAllocate();
-  virtual const Name& device_name();
+                        EventHandler* observer) OVERRIDE;
+  virtual void Start() OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void DeAllocate() OVERRIDE;
+  virtual const Name& device_name() OVERRIDE;
 
  private:
   enum InternalState {
