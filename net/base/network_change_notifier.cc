@@ -60,7 +60,7 @@ NetworkChangeNotifier* NetworkChangeNotifier::Create() {
   CHECK(false);
   return NULL;
 #elif defined(OS_LINUX) || defined(OS_ANDROID)
-  return NetworkChangeNotifierLinux::Create();
+  return new NetworkChangeNotifierLinux();
 #elif defined(OS_MACOSX)
   return new NetworkChangeNotifierMac();
 #else
