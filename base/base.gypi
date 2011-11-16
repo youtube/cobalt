@@ -300,8 +300,6 @@
           'sys_string_conversions_win.cc',
           'task.cc',
           'task.h',
-          'task_queue.cc',
-          'task_queue.h',
           'template_util.h',
           'threading/non_thread_safe.h',
           'threading/non_thread_safe_impl.cc',
