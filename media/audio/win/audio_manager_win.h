@@ -36,7 +36,7 @@ class AudioManagerWin : public AudioManagerBase {
 
   // Windows-only methods to free a stream created in MakeAudioStream. These
   // are called internally by the audio stream when it has been closed.
-  void ReleaseOutputStream(PCMWaveOutAudioOutputStream* stream);
+  void ReleaseOutputStream(AudioOutputStream* stream);
 
   // Called internally by the audio stream when it has been closed.
   void ReleaseInputStream(AudioInputStream* stream);
