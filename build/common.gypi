@@ -960,6 +960,14 @@
       ['component=="shared_library"', {
         'defines': ['COMPONENT_BUILD'],
       }],
+      ['component=="shared_library" and incremental_chrome_dll==1', {
+        # TODO(dpranke): We can't incrementally link chrome when
+        # content is being built as a DLL because chrome links in
+        # webkit_glue and webkit_glue depends on symbols defined in
+        # content. We can remove this when we fix glue.
+        # See http://code.google.com/p/chromium/issues/detail?id=98755 .
+        'defines': ['COMPILE_CONTENT_STATICALLY'],
+      }],
       ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
       }],
