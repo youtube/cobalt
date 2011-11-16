@@ -112,7 +112,7 @@ class CallbackTest : public CallbackRunner< Tuple1<int> > {
   CallbackTest(MessageLoopHelper* helper, bool reuse);
   virtual ~CallbackTest();
 
-  virtual void RunWithParams(const Tuple1<int>& params);
+  virtual void RunWithParams(const Tuple1<int>& params) OVERRIDE;
 
  private:
   MessageLoopHelper* helper_;

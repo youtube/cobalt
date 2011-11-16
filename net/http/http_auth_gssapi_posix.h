@@ -105,30 +105,30 @@ class NET_EXPORT_PRIVATE GSSAPISharedLibrary : public GSSAPILibrary {
   virtual ~GSSAPISharedLibrary();
 
   // GSSAPILibrary methods:
-  virtual bool Init();
+  virtual bool Init() OVERRIDE;
   virtual OM_uint32 import_name(
       OM_uint32* minor_status,
       const gss_buffer_t input_name_buffer,
       const gss_OID input_name_type,
-      gss_name_t* output_name);
+      gss_name_t* output_name) OVERRIDE;
   virtual OM_uint32 release_name(
       OM_uint32* minor_status,
-      gss_name_t* input_name);
+      gss_name_t* input_name) OVERRIDE;
   virtual OM_uint32 release_buffer(
       OM_uint32* minor_status,
-      gss_buffer_t buffer);
+      gss_buffer_t buffer) OVERRIDE;
   virtual OM_uint32 display_name(
       OM_uint32* minor_status,
       const gss_name_t input_name,
       gss_buffer_t output_name_buffer,
-      gss_OID* output_name_type);
+      gss_OID* output_name_type) OVERRIDE;
   virtual OM_uint32 display_status(
       OM_uint32* minor_status,
       OM_uint32 status_value,
       int status_type,
       const gss_OID mech_type,
       OM_uint32* message_contex,
-      gss_buffer_t status_string);
+      gss_buffer_t status_string) OVERRIDE;
   virtual OM_uint32 init_sec_context(
       OM_uint32* minor_status,
       const gss_cred_id_t initiator_cred_handle,
@@ -142,18 +142,18 @@ class NET_EXPORT_PRIVATE GSSAPISharedLibrary : public GSSAPILibrary {
       gss_OID* actual_mech_type,
       gss_buffer_t output_token,
       OM_uint32* ret_flags,
-      OM_uint32* time_rec);
+      OM_uint32* time_rec) OVERRIDE;
   virtual OM_uint32 wrap_size_limit(
       OM_uint32* minor_status,
       const gss_ctx_id_t context_handle,
       int conf_req_flag,
       gss_qop_t qop_req,
       OM_uint32 req_output_size,
-      OM_uint32* max_input_size);
+      OM_uint32* max_input_size) OVERRIDE;
   virtual OM_uint32 delete_sec_context(
       OM_uint32* minor_status,
       gss_ctx_id_t* context_handle,
-      gss_buffer_t output_token);
+      gss_buffer_t output_token) OVERRIDE;
   virtual OM_uint32 inquire_context(
       OM_uint32* minor_status,
       const gss_ctx_id_t context_handle,
@@ -163,7 +163,7 @@ class NET_EXPORT_PRIVATE GSSAPISharedLibrary : public GSSAPILibrary {
       gss_OID* mech_type,
       OM_uint32* ctx_flags,
       int* locally_initiated,
-      int* open);
+      int* open) OVERRIDE;
 
  private:
   typedef typeof(&gss_import_name) gss_import_name_type;

@@ -116,12 +116,12 @@ class NET_EXPORT SpdySessionPool
   // We flush all idle sessions and release references to the active ones so
   // they won't get re-used.  The active ones will either complete successfully
   // or error out due to the IP address change.
-  virtual void OnIPAddressChanged();
+  virtual void OnIPAddressChanged() OVERRIDE;
 
   // SSLConfigService::Observer methods:
 
   // We perform the same flushing as described above when SSL settings change.
-  virtual void OnSSLConfigChanged();
+  virtual void OnSSLConfigChanged() OVERRIDE;
 
   // A debugging mode where we compress all accesses through a single domain.
   static void ForceSingleDomain() { g_force_single_domain = true; }
@@ -131,8 +131,8 @@ class NET_EXPORT SpdySessionPool
   static void enable_ip_pooling(bool value) { g_enable_ip_pooling = value; }
 
   // CertDatabase::Observer methods:
-  virtual void OnUserCertAdded(const X509Certificate* cert);
-  virtual void OnCertTrustChanged(const X509Certificate* cert);
+  virtual void OnUserCertAdded(const X509Certificate* cert) OVERRIDE;
+  virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE;
 
  private:
   friend class SpdySessionPoolPeer;  // For testing.

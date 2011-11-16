@@ -106,9 +106,9 @@ class SSLConnectJob : public ConnectJob {
   virtual ~SSLConnectJob();
 
   // ConnectJob methods.
-  virtual LoadState GetLoadState() const;
+  virtual LoadState GetLoadState() const OVERRIDE;
 
-  virtual void GetAdditionalErrorState(ClientSocketHandle * handle);
+  virtual void GetAdditionalErrorState(ClientSocketHandle * handle) OVERRIDE;
 
  private:
   enum State {
@@ -140,7 +140,7 @@ class SSLConnectJob : public ConnectJob {
   // Starts the SSL connection process.  Returns OK on success and
   // ERR_IO_PENDING if it cannot immediately service the request.
   // Otherwise, it returns a net error code.
-  virtual int ConnectInternal();
+  virtual int ConnectInternal() OVERRIDE;
 
   scoped_refptr<SSLSocketParams> params_;
   TransportClientSocketPool* const transport_pool_;
@@ -196,39 +196,41 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
                             RequestPriority priority,
                             ClientSocketHandle* handle,
                             OldCompletionCallback* callback,
-                            const BoundNetLog& net_log);
+                            const BoundNetLog& net_log) OVERRIDE;
 
   virtual void RequestSockets(const std::string& group_name,
                               const void* params,
                               int num_sockets,
-                              const BoundNetLog& net_log);
+                              const BoundNetLog& net_log) OVERRIDE;
 
   virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle);
+                             ClientSocketHandle* handle) OVERRIDE;
 
   virtual void ReleaseSocket(const std::string& group_name,
                              StreamSocket* socket,
-                             int id);
+                             int id) OVERRIDE;
 
-  virtual void Flush();
+  virtual void Flush() OVERRIDE;
 
-  virtual void CloseIdleSockets();
+  virtual void CloseIdleSockets() OVERRIDE;
 
-  virtual int IdleSocketCount() const;
+  virtual int IdleSocketCount() const OVERRIDE;
 
-  virtual int IdleSocketCountInGroup(const std::string& group_name) const;
+  virtual int IdleSocketCountInGroup(
+      const std::string& group_name) const OVERRIDE;
 
-  virtual LoadState GetLoadState(const std::string& group_name,
-                                 const ClientSocketHandle* handle) const;
+  virtual LoadState GetLoadState(
+      const std::string& group_name,
+      const ClientSocketHandle* handle) const OVERRIDE;
 
   virtual base::DictionaryValue* GetInfoAsValue(
       const std::string& name,
       const std::string& type,
-      bool include_nested_pools) const;
+      bool include_nested_pools) const OVERRIDE;
 
-  virtual base::TimeDelta ConnectionTimeout() const;
+  virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
 
-  virtual ClientSocketPoolHistograms* histograms() const;
+  virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
 
  private:
   typedef ClientSocketPoolBase<SSLSocketParams> PoolBase;
@@ -237,7 +239,7 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
 
   // When the user changes the SSL config, we flush all idle sockets so they
   // won't get re-used.
-  virtual void OnSSLConfigChanged();
+  virtual void OnSSLConfigChanged() OVERRIDE;
 
   class SSLConnectJobFactory : public PoolBase::ConnectJobFactory {
    public:
@@ -256,9 +258,11 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const PoolBase::Request& request,
-        ConnectJob::Delegate* delegate) const;
+        ConnectJob::Delegate* delegate) const OVERRIDE;
 
-    virtual base::TimeDelta ConnectionTimeout() const { return timeout_; }
+    virtual base::TimeDelta ConnectionTimeout() const OVERRIDE {
+      return timeout_;
+    }
 
    private:
     TransportClientSocketPool* const transport_pool_;

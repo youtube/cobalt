@@ -22,9 +22,9 @@ class NetTestSuite : public base::TestSuite {
   NetTestSuite(int argc, char** argv);
   virtual ~NetTestSuite();
 
-  virtual void Initialize();
+  virtual void Initialize() OVERRIDE;
 
-  virtual void Shutdown();
+  virtual void Shutdown() OVERRIDE;
 
  protected:
 

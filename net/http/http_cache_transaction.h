@@ -99,19 +99,22 @@ class HttpCache::Transaction : public HttpTransaction {
 
   // HttpTransaction methods:
   virtual int Start(const HttpRequestInfo*, OldCompletionCallback*,
-                    const BoundNetLog&);
-  virtual int RestartIgnoringLastError(OldCompletionCallback* callback);
+                    const BoundNetLog&) OVERRIDE;
+  virtual int RestartIgnoringLastError(
+      OldCompletionCallback* callback) OVERRIDE;
   virtual int RestartWithCertificate(X509Certificate* client_cert,
-                                     OldCompletionCallback* callback);
+                                     OldCompletionCallback* callback) OVERRIDE;
   virtual int RestartWithAuth(const AuthCredentials& credentials,
-                              OldCompletionCallback* callback);
-  virtual bool IsReadyToRestartForAuth();
-  virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
-  virtual void StopCaching();
-  virtual void DoneReading();
-  virtual const HttpResponseInfo* GetResponseInfo() const;
-  virtual LoadState GetLoadState() const;
-  virtual uint64 GetUploadProgress(void) const;
+                              OldCompletionCallback* callback) OVERRIDE;
+  virtual bool IsReadyToRestartForAuth() OVERRIDE;
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   OldCompletionCallback* callback) OVERRIDE;
+  virtual void StopCaching() OVERRIDE;
+  virtual void DoneReading() OVERRIDE;
+  virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
+  virtual LoadState GetLoadState() const OVERRIDE;
+  virtual uint64 GetUploadProgress(void) const OVERRIDE;
 
  private:
   static const size_t kNumValidationHeaders = 2;

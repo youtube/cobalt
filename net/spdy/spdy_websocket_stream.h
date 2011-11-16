@@ -69,16 +69,16 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
   void Close();
 
   // SpdyStream::Delegate
-  virtual bool OnSendHeadersComplete(int status);
-  virtual int OnSendBody();
-  virtual int OnSendBodyComplete(int status, bool* eof);
+  virtual bool OnSendHeadersComplete(int status) OVERRIDE;
+  virtual int OnSendBody() OVERRIDE;
+  virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
   virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
                                  base::Time response_time,
-                                 int status);
-  virtual void OnDataReceived(const char* data, int length);
-  virtual void OnDataSent(int length);
-  virtual void OnClose(int status);
-  virtual void set_chunk_callback(ChunkCallback* callback);
+                                 int status) OVERRIDE;
+  virtual void OnDataReceived(const char* data, int length) OVERRIDE;
+  virtual void OnDataSent(int length) OVERRIDE;
+  virtual void OnClose(int status) OVERRIDE;
+  virtual void set_chunk_callback(ChunkCallback* callback) OVERRIDE;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamTest, Basic);

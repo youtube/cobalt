@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
 
@@ -294,7 +295,7 @@ class NET_EXPORT NetLogStringParameter : public NetLog::EventParameters {
     return value_;
   }
 
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   const char* const name_;
@@ -313,7 +314,7 @@ class NetLogIntegerParameter : public NetLog::EventParameters {
     return value_;
   }
 
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   const char* name_;
@@ -332,7 +333,7 @@ class NET_EXPORT NetLogSourceParameter : public NetLog::EventParameters {
     return value_;
   }
 
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   const char* name_;

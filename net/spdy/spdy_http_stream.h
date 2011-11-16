@@ -53,7 +53,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
                           OldCompletionCallback* callback) OVERRIDE;
   virtual uint64 GetUploadProgress() const OVERRIDE;
   virtual int ReadResponseHeaders(OldCompletionCallback* callback) OVERRIDE;
-  virtual const HttpResponseInfo* GetResponseInfo() const;
+  virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
   virtual int ReadResponseBody(IOBuffer* buf,
                                int buf_len,
                                OldCompletionCallback* callback) OVERRIDE;

@@ -39,7 +39,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
   class DynamicNonceGenerator : public NonceGenerator {
    public:
     DynamicNonceGenerator();
-    virtual std::string GenerateNonce() const;
+    virtual std::string GenerateNonce() const OVERRIDE;
    private:
     DISALLOW_COPY_AND_ASSIGN(DynamicNonceGenerator);
   };
@@ -50,7 +50,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
    public:
     explicit FixedNonceGenerator(const std::string& nonce);
 
-    virtual std::string GenerateNonce() const;
+    virtual std::string GenerateNonce() const OVERRIDE;
 
    private:
     const std::string nonce_;
@@ -65,28 +65,29 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
     // This factory owns the passed in |nonce_generator|.
     void set_nonce_generator(const NonceGenerator* nonce_generator);
 
-    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
-                                  HttpAuth::Target target,
-                                  const GURL& origin,
-                                  CreateReason reason,
-                                  int digest_nonce_count,
-                                  const BoundNetLog& net_log,
-                                  scoped_ptr<HttpAuthHandler>* handler);
+    virtual int CreateAuthHandler(
+        HttpAuth::ChallengeTokenizer* challenge,
+        HttpAuth::Target target,
+        const GURL& origin,
+        CreateReason reason,
+        int digest_nonce_count,
+        const BoundNetLog& net_log,
+        scoped_ptr<HttpAuthHandler>* handler) OVERRIDE;
 
    private:
     scoped_ptr<const NonceGenerator> nonce_generator_;
   };
 
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge);
+      HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
 
  protected:
-  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
 
   virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
                                     OldCompletionCallback* callback,
-                                    std::string* auth_token);
+                                    std::string* auth_token) OVERRIDE;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpAuthHandlerDigestTest, ParseChallenge);

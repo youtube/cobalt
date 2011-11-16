@@ -264,7 +264,7 @@ class NET_EXPORT HostResolverImpl
   void AbortAllInProgressJobs();
 
   // NetworkChangeNotifier::IPAddressObserver methods:
-  virtual void OnIPAddressChanged();
+  virtual void OnIPAddressChanged() OVERRIDE;
 
   // Helper methods to get and set max_retry_attempts_.
   size_t max_retry_attempts() const {
@@ -289,7 +289,7 @@ class NET_EXPORT HostResolverImpl
   }
 
   // NetworkChangeNotifier::OnDNSChanged methods:
-  virtual void OnDNSChanged();
+  virtual void OnDNSChanged() OVERRIDE;
 
   // Cache of host resolution results.
   scoped_ptr<HostCache> cache_;
