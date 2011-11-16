@@ -26,10 +26,10 @@ SDK_MD5SUM="d80d7530a46c665644ae76084a9a0dc4"
 #     Skins: WXGA (default)
 SDK_TARGET_ID=android-13
 
-# Using NDK r6b; The package is about 44M.
-NDK_FILE_NAME="android-ndk-r6b-linux-x86.tar.bz2"
+# Using NDK r7; The package is about 64M.
+NDK_FILE_NAME="android-ndk-r7-linux-x86.tar.bz2"
 NDK_DOWNLOAD_URL="http://dl.google.com/android/ndk/${NDK_FILE_NAME}"
-NDK_MD5SUM="309f35e49b64313cfb20ac428df4cec2"
+NDK_MD5SUM="bf15e6b47bf50824c4b96849bf003ca3"
 
 # The temporary directory used to store the downloaded file.
 TEMPDIR=$(mktemp -d)
