@@ -136,6 +136,7 @@ class NET_EXPORT NetworkChangeNotifier {
   static void NotifyObserversOfDNSChange();
 
  private:
+  friend class NetworkChangeNotifierLinuxTest;
   friend class NetworkChangeNotifierWinTest;
 
   // Allows a second NetworkChangeNotifier to be created for unit testing, so
