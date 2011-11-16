@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -67,9 +67,9 @@ void SOCKS5ClientSocketTest::SetUp() {
 
   // Resolve the "localhost" AddressList used by the TCP connection to connect.
   HostResolver::RequestInfo info(HostPortPair("www.socks-proxy.com", 1080));
-  TestOldCompletionCallback callback;
-  int rv = host_resolver_->Resolve(info, &address_list_, &callback, NULL,
-                                   BoundNetLog());
+  TestCompletionCallback callback;
+  int rv = host_resolver_->Resolve(info, &address_list_, callback.callback(),
+                                   NULL, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   ASSERT_EQ(OK, rv);

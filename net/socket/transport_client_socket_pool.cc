@@ -199,8 +199,10 @@ int TransportConnectJob::DoLoop(int result) {
 
 int TransportConnectJob::DoResolveHost() {
   next_state_ = STATE_RESOLVE_HOST_COMPLETE;
-  return resolver_.Resolve(params_->destination(), &addresses_, &callback_,
-                           net_log());
+  return resolver_.Resolve(
+      params_->destination(), &addresses_,
+      base::Bind(&TransportConnectJob::OnIOComplete, base::Unretained(this)),
+      net_log());
 }
 
 int TransportConnectJob::DoResolveHostComplete(int result) {

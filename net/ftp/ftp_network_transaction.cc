@@ -4,6 +4,8 @@
 
 #include "net/ftp/ftp_network_transaction.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
@@ -627,7 +629,10 @@ int FtpNetworkTransaction::DoCtrlResolveHost() {
 
   HostResolver::RequestInfo info(HostPortPair::FromURL(request_->url));
   // No known referrer.
-  return resolver_.Resolve(info, &addresses_, &io_callback_, net_log_);
+  return resolver_.Resolve(
+      info, &addresses_,
+      base::Bind(&FtpNetworkTransaction::OnIOComplete, base::Unretained(this)),
+      net_log_);
 }
 
 int FtpNetworkTransaction::DoCtrlResolveHostComplete(int result) {

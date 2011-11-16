@@ -5,6 +5,7 @@
 #include "net/socket/socks_client_socket.h"
 
 #include "base/basictypes.h"
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
@@ -280,7 +281,9 @@ int SOCKSClientSocket::DoResolveHost() {
   // addresses for the target host.
   host_request_info_.set_address_family(ADDRESS_FAMILY_IPV4);
   return host_resolver_.Resolve(
-      host_request_info_, &addresses_, &io_callback_, net_log_);
+      host_request_info_, &addresses_,
+      base::Bind(&SOCKSClientSocket::OnIOComplete, base::Unretained(this)),
+      net_log_);
 }
 
 int SOCKSClientSocket::DoResolveHostComplete(int result) {

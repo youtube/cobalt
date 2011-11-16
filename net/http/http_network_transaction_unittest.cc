@@ -5813,10 +5813,11 @@ void BypassHostCacheOnRefreshHelper(int load_flags) {
 
   // Warm up the host cache so it has an entry for "www.google.com".
   AddressList addrlist;
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
+  TestOldCompletionCallback old_callback;
   int rv = session_deps.host_resolver->Resolve(
       HostResolver::RequestInfo(HostPortPair("www.google.com", 80)), &addrlist,
-      &callback, NULL, BoundNetLog());
+      callback.callback(), NULL, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -5825,7 +5826,7 @@ void BypassHostCacheOnRefreshHelper(int load_flags) {
   // and confirming it completes synchronously.
   rv = session_deps.host_resolver->Resolve(
       HostResolver::RequestInfo(HostPortPair("www.google.com", 80)), &addrlist,
-      &callback, NULL, BoundNetLog());
+      callback.callback(), NULL, BoundNetLog());
   ASSERT_EQ(OK, rv);
 
   // Inject a failure the next time that "www.google.com" is resolved. This way
@@ -5840,9 +5841,9 @@ void BypassHostCacheOnRefreshHelper(int load_flags) {
   session_deps.socket_factory.AddSocketDataProvider(&data);
 
   // Run the request.
-  rv = trans->Start(&request, &callback, BoundNetLog());
+  rv = trans->Start(&request, &old_callback, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, rv);
-  rv = callback.WaitForResult();
+  rv = old_callback.WaitForResult();
 
   // If we bypassed the cache, we would have gotten a failure while resolving
   // "www.google.com".
@@ -8901,8 +8902,8 @@ void IPPoolingAddAlias(MockCachingHostResolver* host_resolver,
   // Resolve the host and port.
   AddressList addresses;
   HostResolver::RequestInfo info(host_port_pair);
-  TestOldCompletionCallback callback;
-  int rv = host_resolver->Resolve(info, &addresses, &callback, NULL,
+  TestCompletionCallback callback;
+  int rv = host_resolver->Resolve(info, &addresses, callback.callback(), NULL,
                                   BoundNetLog());
   if (rv == ERR_IO_PENDING)
     rv = callback.WaitForResult();
@@ -8970,16 +8971,17 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
           spdy_writes, arraysize(spdy_writes)));
   session_deps.socket_factory.AddSocketDataProvider(spdy_data);
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
+  TestOldCompletionCallback old_callback;
   HttpRequestInfo request1;
   request1.method = "GET";
   request1.url = GURL("https://www.google.com/");
   request1.load_flags = 0;
   HttpNetworkTransaction trans1(session);
 
-  int rv = trans1.Start(&request1, &callback, BoundNetLog());
+  int rv = trans1.Start(&request1, &old_callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(OK, old_callback.WaitForResult());
 
   const HttpResponseInfo* response = trans1.GetResponseInfo();
   ASSERT_TRUE(response != NULL);
@@ -8994,7 +8996,7 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   HostPortPair host_port("www.gmail.com", 443);
   HostResolver::RequestInfo resolve_info(host_port);
   AddressList ignored;
-  rv = host_resolver.Resolve(resolve_info, &ignored, &callback, NULL,
+  rv = host_resolver.Resolve(resolve_info, &ignored, callback.callback(), NULL,
                              BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
@@ -9012,9 +9014,9 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   request2.load_flags = 0;
   HttpNetworkTransaction trans2(session);
 
-  rv = trans2.Start(&request2, &callback, BoundNetLog());
+  rv = trans2.Start(&request2, &old_callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(OK, old_callback.WaitForResult());
 
   response = trans2.GetResponseInfo();
   ASSERT_TRUE(response != NULL);
@@ -9040,7 +9042,7 @@ class OneTimeCachingHostResolver : public net::HostResolver {
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      OldCompletionCallback* callback,
+                      const CompletionCallback& callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE {
     return host_resolver_.Resolve(
@@ -9123,16 +9125,17 @@ TEST_F(HttpNetworkTransactionTest,
           spdy_writes, arraysize(spdy_writes)));
   session_deps.socket_factory.AddSocketDataProvider(spdy_data);
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   HttpRequestInfo request1;
   request1.method = "GET";
   request1.url = GURL("https://www.google.com/");
   request1.load_flags = 0;
   HttpNetworkTransaction trans1(session);
 
-  int rv = trans1.Start(&request1, &callback, BoundNetLog());
+  TestOldCompletionCallback old_callback;
+  int rv = trans1.Start(&request1, &old_callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(OK, old_callback.WaitForResult());
 
   const HttpResponseInfo* response = trans1.GetResponseInfo();
   ASSERT_TRUE(response != NULL);
@@ -9146,7 +9149,7 @@ TEST_F(HttpNetworkTransactionTest,
   // Preload cache entries into HostCache.
   HostResolver::RequestInfo resolve_info(HostPortPair("www.gmail.com", 443));
   AddressList ignored;
-  rv = host_resolver.Resolve(resolve_info, &ignored, &callback, NULL,
+  rv = host_resolver.Resolve(resolve_info, &ignored, callback.callback(), NULL,
                              BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
@@ -9164,9 +9167,9 @@ TEST_F(HttpNetworkTransactionTest,
   IPPoolingAddAlias(host_resolver.GetMockHostResolver(), &pool_peer,
                     "www.google.com", 443, "127.0.0.1");
 
-  rv = trans2.Start(&request2, &callback, BoundNetLog());
+  rv = trans2.Start(&request2, &old_callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(OK, old_callback.WaitForResult());
 
   response = trans2.GetResponseInfo();
   ASSERT_TRUE(response != NULL);

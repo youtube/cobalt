@@ -675,8 +675,8 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
     // This test requires that the HostResolver cache be populated.  Normal
     // code would have done this already, but we do it manually.
     HostResolver::RequestInfo info(HostPortPair(test_hosts[i].name, kTestPort));
-    host_resolver_.Resolve(info, &test_hosts[i].addresses, NULL, NULL,
-                           BoundNetLog());
+    host_resolver_.Resolve(info, &test_hosts[i].addresses, CompletionCallback(),
+                           NULL, BoundNetLog());
 
     // Setup a HostPortProxyPair
     test_hosts[i].pair = HostPortProxyPair(
@@ -751,7 +751,8 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
     { "js.webkit.org",     "192.168.0.4,192.168.0.1,192.0.2.33" },
   };
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
+  TestOldCompletionCallback old_callback;
   int rv;
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_hosts); i++) {
     host_resolver_.rules()->AddIPLiteralRule(test_hosts[i].name,
@@ -760,8 +761,8 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
     // This test requires that the HostResolver cache be populated.  Normal
     // code would have done this already, but we do it manually.
     HostResolver::RequestInfo info(HostPortPair(test_hosts[i].name, kTestPort));
-    rv = host_resolver_.Resolve(info, &test_hosts[i].addresses, &callback,
-                                NULL, BoundNetLog());
+    rv = host_resolver_.Resolve(info, &test_hosts[i].addresses,
+                                callback.callback(), NULL, BoundNetLog());
     EXPECT_EQ(OK, callback.GetResult(rv));
 
     // Setup a HostPortProxyPair
@@ -788,12 +789,12 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
 
   scoped_ptr<ClientSocketHandle> handle(new ClientSocketHandle());
   rv = handle->Init(
-      "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
+      "a", params, MEDIUM, &old_callback, pool_.get(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle->is_initialized());
   EXPECT_FALSE(handle->socket());
 
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(OK, old_callback.WaitForResult());
   EXPECT_TRUE(handle->is_initialized());
   EXPECT_TRUE(handle->socket());
 

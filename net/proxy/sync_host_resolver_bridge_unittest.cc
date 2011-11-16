@@ -32,10 +32,10 @@ class BlockableHostResolver : public HostResolver {
 
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      OldCompletionCallback* callback,
+                      const CompletionCallback& callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE {
-    EXPECT_TRUE(callback);
+    EXPECT_FALSE(callback.is_null());
     EXPECT_TRUE(out_req);
     *out_req = reinterpret_cast<RequestHandle*>(1);  // Magic value.
 
