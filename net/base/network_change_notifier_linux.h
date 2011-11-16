@@ -11,15 +11,23 @@
 #include "base/memory/scoped_ptr.h"
 #include "net/base/network_change_notifier.h"
 
+namespace dbus {
+class Bus;
+}
+
 namespace net {
 
 class NetworkChangeNotifierLinux : public NetworkChangeNotifier {
  public:
-  NetworkChangeNotifierLinux();
+  static NetworkChangeNotifierLinux* Create();
+
+  // Unittests inject a mock bus.
+  static NetworkChangeNotifierLinux* CreateForTest(dbus::Bus* bus);
 
  private:
   class Thread;
 
+  explicit NetworkChangeNotifierLinux(dbus::Bus* bus);
   virtual ~NetworkChangeNotifierLinux();
 
   // NetworkChangeNotifier:
