@@ -22,6 +22,7 @@
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
+#include "media/audio/win/audio_low_latency_output_win.h"
 #include "media/audio/win/audio_manager_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
@@ -113,8 +114,8 @@ bool AudioManagerWin::HasAudioInputDevices() {
 
 // Factory for the implementations of AudioOutputStream. Two implementations
 // should suffice most windows user's needs.
-// - PCMWaveOutAudioOutputStream: Based on the waveOutWrite API (in progress)
-// - PCMDXSoundAudioOutputStream: Based on DirectSound or XAudio (future work).
+// - PCMWaveOutAudioOutputStream: Based on the waveOut API.
+// - WASAPIAudioOutputStream: Based on Core Audio (WASAPI) API.
 AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
     const AudioParameters& params) {
   if (!params.IsValid() || (params.channels > kWinMaxChannels))
@@ -132,8 +133,15 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
     return new PCMWaveOutAudioOutputStream(this, params, 3, WAVE_MAPPER);
   } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
     num_output_streams_++;
-    // TODO(cpu): waveout cannot hit 20ms latency. Use other method.
-    return new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
+    if (base::win::GetVersion() <= base::win::VERSION_XP) {
+      // Fall back to Windows Wave implementation on Windows XP or lower.
+      DLOG(INFO) << "Using WaveOut since WASAPI requires at least Vista.";
+      return new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
+    } else {
+      // TODO(henrika): improve possibility to specify audio endpoint.
+      // Use the default device (same as for Wave) for now to be compatible.
+      return new WASAPIAudioOutputStream(this, params, eConsole);
+    }
   }
   return NULL;
 }
@@ -164,7 +172,7 @@ AudioInputStream* AudioManagerWin::MakeAudioInputStream(
   return NULL;
 }
 
-void AudioManagerWin::ReleaseOutputStream(PCMWaveOutAudioOutputStream* stream) {
+void AudioManagerWin::ReleaseOutputStream(AudioOutputStream* stream) {
   DCHECK(stream);
   num_output_streams_--;
   delete stream;

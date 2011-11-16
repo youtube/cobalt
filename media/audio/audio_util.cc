@@ -24,6 +24,7 @@
 #endif
 #if defined(OS_WIN)
 #include "media/audio/win/audio_low_latency_input_win.h"
+#include "media/audio/win/audio_low_latency_output_win.h"
 #endif
 
 using base::subtle::Atomic32;
@@ -241,8 +242,19 @@ double GetAudioHardwareSampleRate() {
 #if defined(OS_MACOSX)
     // Hardware sample-rate on the Mac can be configured, so we must query.
     return AUAudioOutputStream::HardwareSampleRate();
+#elif defined(OS_WIN)
+  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+    // Fall back to Windows Wave implementation on Windows XP or lower
+    // and use 48kHz as default input sample rate.
+    return 48000.0;
+  }
+
+  // Hardware sample-rate on Windows can be configured, so we must query.
+  // TODO(henrika): improve possibility to specify audio endpoint.
+  // Use the default device (same as for Wave) for now to be compatible.
+  return WASAPIAudioOutputStream::HardwareSampleRate(eConsole);
 #else
-    // Hardware for Windows and Linux is nearly always 48KHz.
+    // Hardware for Linux is nearly always 48KHz.
     // TODO(crogers) : return correct value in rare non-48KHz cases.
     return 48000.0;
 #endif
@@ -257,12 +269,12 @@ double GetAudioInputHardwareSampleRate() {
     // Fall back to Windows Wave implementation on Windows XP or lower
     // and use 48kHz as default input sample rate.
     return 48000.0;
-  } else {
-    // Hardware sample-rate on Windows can be configured, so we must query.
-    // TODO(henrika): improve possibility to specify audio endpoint.
-    // Use the default device (same as for Wave) for now to be compatible.
-    return WASAPIAudioInputStream::HardwareSampleRate(eConsole);
   }
+
+  // Hardware sample-rate on Windows can be configured, so we must query.
+  // TODO(henrika): improve possibility to specify audio endpoint.
+  // Use the default device (same as for Wave) for now to be compatible.
+  return WASAPIAudioInputStream::HardwareSampleRate(eConsole);
 #else
   // Hardware for Linux is nearly always 48KHz.
   // TODO(henrika): return correct value in rare non-48KHz cases.
@@ -275,13 +287,22 @@ size_t GetAudioHardwareBufferSize() {
   // the lowest value (for low latency) that still allowed glitch-free
   // audio under high loads.
   //
-  // For Mac OS X the chromium audio backend uses a low-latency
-  // CoreAudio API, so a low buffer size is possible.  For other OSes,
-  // further tuning may be needed.
+  // For Mac OS X and Windows the chromium audio backend uses a low-latency
+  // Core Audio API, so a low buffer size is possible. For Linux, further
+  // tuning may be needed.
 #if defined(OS_MACOSX)
   return 128;
-#elif defined(OS_LINUX)
-  return 2048;
+#elif defined(OS_WIN)
+  // This call must be done on a COM thread configured as MTA.
+  // TODO(tommi): http://code.google.com/p/chromium/issues/detail?id=103835.
+  int mixing_sample_rate =
+      static_cast<int>(WASAPIAudioOutputStream::HardwareSampleRate(eConsole));
+  if (mixing_sample_rate == 48000)
+    return 480;
+  else if (mixing_sample_rate == 44100)
+    return 448;
+  else
+    return 960;
 #else
   return 2048;
 #endif
