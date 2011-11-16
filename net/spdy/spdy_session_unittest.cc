@@ -771,7 +771,8 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
     // code would have done this already, but we do it manually.
     HostResolver::RequestInfo info(HostPortPair(test_hosts[i].name, kTestPort));
     session_deps.host_resolver->Resolve(
-        info, &test_hosts[i].addresses, NULL, NULL, BoundNetLog());
+        info, &test_hosts[i].addresses, CompletionCallback(), NULL,
+        BoundNetLog());
 
     // Setup a HostPortProxyPair
     test_hosts[i].pair = HostPortProxyPair(

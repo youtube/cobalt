@@ -87,11 +87,11 @@ class HangingHostResolverWithCancel : public HostResolver {
 
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      OldCompletionCallback* callback,
+                      const CompletionCallback& callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE {
     DCHECK(addresses);
-    DCHECK(callback);
+    DCHECK_EQ(false, callback.is_null());
     EXPECT_FALSE(HasOutstandingRequest());
     outstanding_request_ = reinterpret_cast<RequestHandle>(1);
     *out_req = outstanding_request_;
