@@ -48,6 +48,7 @@ class Eviction {
   void PostDelayedTrim();
   void DelayedTrim();
   bool ShouldTrim();
+  bool ShouldTrimDeleted();
   void ReportTrimTimes(EntryImpl* entry);
   Rankings::List GetListForEntry(EntryImpl* entry);
   bool EvictEntry(CacheRankingsBlock* node, bool empty, Rankings::List list);
