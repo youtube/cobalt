@@ -108,7 +108,7 @@ class NET_EXPORT DnsRRResolver
   void CancelResolve(Handle handle);
 
   // Implementation of NetworkChangeNotifier::IPAddressObserver
-  virtual void OnIPAddressChanged();
+  virtual void OnIPAddressChanged() OVERRIDE;
 
  private:
   friend class RRResolverWorker;

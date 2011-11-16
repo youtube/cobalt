@@ -88,10 +88,11 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
 
   // HttpStreamRequest methods.
 
-  virtual int RestartTunnelWithProxyAuth(const AuthCredentials& credentials);
-  virtual LoadState GetLoadState() const;
-  virtual bool was_npn_negotiated() const;
-  virtual bool using_spdy() const;
+  virtual int RestartTunnelWithProxyAuth(
+      const AuthCredentials& credentials) OVERRIDE;
+  virtual LoadState GetLoadState() const OVERRIDE;
+  virtual bool was_npn_negotiated() const OVERRIDE;
+  virtual bool using_spdy() const OVERRIDE;
 
  private:
   // Used to orphan all jobs in |jobs_| other than |job| which becomes "bound"

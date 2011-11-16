@@ -29,8 +29,8 @@ class URLRequestFtpJob : public URLRequestJob {
                                 const std::string& scheme);
 
   // Overridden from URLRequestJob:
-  virtual bool GetMimeType(std::string* mime_type) const;
-  virtual HostPortPair GetSocketAddress() const;
+  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
+  virtual HostPortPair GetSocketAddress() const OVERRIDE;
 
  private:
   virtual ~URLRequestFtpJob();
@@ -55,8 +55,10 @@ class URLRequestFtpJob : public URLRequestJob {
   virtual void CancelAuth() OVERRIDE;
 
   // TODO(ibrar):  Yet to give another look at this function.
-  virtual uint64 GetUploadProgress() const;
-  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
+  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual bool ReadRawData(IOBuffer* buf,
+                           int buf_size,
+                           int *bytes_read) OVERRIDE;
 
   FtpRequestInfo request_info_;
   scoped_ptr<FtpTransaction> transaction_;

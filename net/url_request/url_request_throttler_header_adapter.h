@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "net/url_request/url_request_throttler_header_interface.h"
 
@@ -23,8 +24,8 @@ class URLRequestThrottlerHeaderAdapter
   virtual ~URLRequestThrottlerHeaderAdapter();
 
   // Implementation of URLRequestThrottlerHeaderInterface
-  virtual std::string GetNormalizedValue(const std::string& key) const;
-  virtual int GetResponseCode() const;
+  virtual std::string GetNormalizedValue(const std::string& key) const OVERRIDE;
+  virtual int GetResponseCode() const OVERRIDE;
 
  private:
   const scoped_refptr<HttpResponseHeaders> response_header_;

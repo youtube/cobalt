@@ -380,17 +380,17 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   void InvokeUserStreamCreationCallback(scoped_refptr<SpdyStream>* stream);
 
   // SpdyFramerVisitorInterface:
-  virtual void OnError(spdy::SpdyFramer*);
+  virtual void OnError(spdy::SpdyFramer*) OVERRIDE;
   virtual void OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                  const char* data,
-                                 size_t len);
-  virtual void OnControl(const spdy::SpdyControlFrame* frame);
+                                 size_t len) OVERRIDE;
+  virtual void OnControl(const spdy::SpdyControlFrame* frame) OVERRIDE;
 
   virtual bool OnControlFrameHeaderData(spdy::SpdyStreamId stream_id,
                                         const char* header_data,
-                                        size_t len);
+                                        size_t len) OVERRIDE;
 
-  virtual void OnDataFrameHeader(const spdy::SpdyDataFrame* frame);
+  virtual void OnDataFrameHeader(const spdy::SpdyDataFrame* frame) OVERRIDE;
 
   // --------------------------
   // Helper methods for testing
@@ -603,7 +603,7 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
     return headers_;
   }
 
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   virtual ~NetLogSpdySynParameter();

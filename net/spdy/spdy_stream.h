@@ -234,7 +234,7 @@ class NET_EXPORT_PRIVATE SpdyStream
   GURL GetUrl() const;
 
   // ChunkCallback methods.
-  virtual void OnChunkAvailable();
+  virtual void OnChunkAvailable() OVERRIDE;
 
  private:
   enum State {
