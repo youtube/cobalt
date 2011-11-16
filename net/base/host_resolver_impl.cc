@@ -16,6 +16,7 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
@@ -262,7 +263,7 @@ class HostResolverImpl::Request {
   Request(const BoundNetLog& source_net_log,
           const BoundNetLog& request_net_log,
           const RequestInfo& info,
-          OldCompletionCallback* callback,
+          const CompletionCallback& callback,
           AddressList* addresses)
       : source_net_log_(source_net_log),
         request_net_log_(request_net_log),
@@ -275,12 +276,12 @@ class HostResolverImpl::Request {
   // Mark the request as cancelled.
   void MarkAsCancelled() {
     job_ = NULL;
-    callback_ = NULL;
     addresses_ = NULL;
+    callback_.Reset();
   }
 
   bool was_cancelled() const {
-    return callback_ == NULL;
+    return callback_.is_null();
   }
 
   void set_job(Job* job) {
@@ -292,9 +293,9 @@ class HostResolverImpl::Request {
   void OnComplete(int error, const AddressList& addrlist) {
     if (error == OK)
       *addresses_ = CreateAddressListUsingPort(addrlist, port());
-    OldCompletionCallback* callback = callback_;
+    CompletionCallback callback = callback_;
     MarkAsCancelled();
-    callback->Run(error);
+    callback.Run(error);
   }
 
   int port() const {
@@ -328,7 +329,7 @@ class HostResolverImpl::Request {
   Job* job_;
 
   // The user's callback to invoke when the request completes.
-  OldCompletionCallback* callback_;
+  CompletionCallback callback_;
 
   // The address list to save result into.
   AddressList* addresses_;
@@ -1120,12 +1121,12 @@ void HostResolverImpl::SetPoolConstraints(JobPoolIndex pool_index,
 
 int HostResolverImpl::Resolve(const RequestInfo& info,
                               AddressList* addresses,
-                              OldCompletionCallback* callback,
+                              const CompletionCallback& callback,
                               RequestHandle* out_req,
                               const BoundNetLog& source_net_log) {
   DCHECK(addresses);
-  DCHECK(callback);
   DCHECK(CalledOnValidThread());
+  DCHECK_EQ(false, callback.is_null());
 
   // Make a log item for the request.
   BoundNetLog request_net_log = BoundNetLog::Make(net_log_,
@@ -1146,7 +1147,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
     return rv;
   }
 
-   // Create a handle for this request, and pass it back to the user if they
+  // Create a handle for this request, and pass it back to the user if they
   // asked for it (out_req != NULL).
   Request* req = new Request(source_net_log, request_net_log, info,
                              callback, addresses);

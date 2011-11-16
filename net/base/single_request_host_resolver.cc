@@ -4,6 +4,8 @@
 
 #include "net/base/single_request_host_resolver.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "net/base/net_errors.h"
@@ -13,9 +15,9 @@ namespace net {
 SingleRequestHostResolver::SingleRequestHostResolver(HostResolver* resolver)
     : resolver_(resolver),
       cur_request_(NULL),
-      cur_request_callback_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &SingleRequestHostResolver::OnResolveCompletion)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+          base::Bind(&SingleRequestHostResolver::OnResolveCompletion,
+                     base::Unretained(this)))) {
   DCHECK(resolver_ != NULL);
 }
 
@@ -23,25 +25,25 @@ SingleRequestHostResolver::~SingleRequestHostResolver() {
   Cancel();
 }
 
-int SingleRequestHostResolver::Resolve(const HostResolver::RequestInfo& info,
-                                       AddressList* addresses,
-                                       OldCompletionCallback* callback,
-                                       const BoundNetLog& net_log) {
+int SingleRequestHostResolver::Resolve(
+    const HostResolver::RequestInfo& info, AddressList* addresses,
+    const CompletionCallback& callback, const BoundNetLog& net_log) {
   DCHECK(addresses);
-  DCHECK(callback);
-  DCHECK(!cur_request_callback_) << "resolver already in use";
+  DCHECK_EQ(false, callback.is_null());
+  DCHECK(cur_request_callback_.is_null()) << "resolver already in use";
 
   HostResolver::RequestHandle request = NULL;
 
   // We need to be notified of completion before |callback| is called, so that
   // we can clear out |cur_request_*|.
-  OldCompletionCallback* transient_callback = callback ? &callback_ : NULL;
+  CompletionCallback transient_callback =
+      callback.is_null() ? CompletionCallback() : callback_;
 
   int rv = resolver_->Resolve(
       info, addresses, transient_callback, &request, net_log);
 
   if (rv == ERR_IO_PENDING) {
-    DCHECK(callback);
+    DCHECK_EQ(false, callback.is_null());
     // Cleared in OnResolveCompletion().
     cur_request_ = request;
     cur_request_callback_ = callback;
@@ -51,24 +53,25 @@ int SingleRequestHostResolver::Resolve(const HostResolver::RequestInfo& info,
 }
 
 void SingleRequestHostResolver::Cancel() {
-  if (cur_request_callback_) {
+  if (!cur_request_callback_.is_null()) {
     resolver_->CancelRequest(cur_request_);
     cur_request_ = NULL;
-    cur_request_callback_ = NULL;
+    cur_request_callback_.Reset();
   }
 }
 
 void SingleRequestHostResolver::OnResolveCompletion(int result) {
-  DCHECK(cur_request_ && cur_request_callback_);
+  DCHECK(cur_request_);
+  DCHECK_EQ(false, cur_request_callback_.is_null());
 
-  OldCompletionCallback* callback = cur_request_callback_;
+  CompletionCallback callback = cur_request_callback_;
 
   // Clear the outstanding request information.
   cur_request_ = NULL;
-  cur_request_callback_ = NULL;
+  cur_request_callback_.Reset();
 
   // Call the user's original callback.
-  callback->Run(result);
+  callback.Run(result);
 }
 
 }  // namespace net

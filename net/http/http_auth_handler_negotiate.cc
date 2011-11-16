@@ -4,6 +4,8 @@
 
 #include "net/http/http_auth_handler_negotiate.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -101,8 +103,6 @@ HttpAuthHandlerNegotiate::HttpAuthHandlerNegotiate(
 #endif
       disable_cname_lookup_(disable_cname_lookup),
       use_port_(use_port),
-      ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
-          this, &HttpAuthHandlerNegotiate::OnIOComplete)),
       resolver_(resolver),
       already_called_(false),
       has_credentials_(false),
@@ -293,8 +293,11 @@ int HttpAuthHandlerNegotiate::DoResolveCanonicalName() {
   HostResolver::RequestInfo info(HostPortPair(origin_.host(), 0));
   info.set_host_resolver_flags(HOST_RESOLVER_CANONNAME);
   single_resolve_.reset(new SingleRequestHostResolver(resolver_));
-  return single_resolve_->Resolve(info, &address_list_, &io_callback_,
-                                  net_log_);
+  return single_resolve_->Resolve(
+      info, &address_list_,
+      base::Bind(&HttpAuthHandlerNegotiate::OnIOComplete,
+                 base::Unretained(this)),
+      net_log_);
 }
 
 int HttpAuthHandlerNegotiate::DoResolveCanonicalNameComplete(int rv) {
