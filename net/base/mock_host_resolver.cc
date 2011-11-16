@@ -60,11 +60,11 @@ int ParseAddressList(const std::string& host_list,
 struct MockHostResolverBase::Request {
   Request(const RequestInfo& req_info,
           AddressList* addr,
-          OldCompletionCallback* cb)
+          const CompletionCallback& cb)
       : info(req_info), addresses(addr), callback(cb) {}
   RequestInfo info;
   AddressList* addresses;
-  OldCompletionCallback* callback;
+  CompletionCallback callback;
 };
 
 MockHostResolverBase::~MockHostResolverBase() {
@@ -73,7 +73,7 @@ MockHostResolverBase::~MockHostResolverBase() {
 
 int MockHostResolverBase::Resolve(const RequestInfo& info,
                                   AddressList* addresses,
-                                  OldCompletionCallback* callback,
+                                  const CompletionCallback& callback,
                                   RequestHandle* handle,
                                   const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
@@ -188,8 +188,8 @@ void MockHostResolverBase::ResolveNow(size_t id) {
   scoped_ptr<Request> req(it->second);
   requests_.erase(it);
   int rv = ResolveProc(id, req->info, req->addresses);
-  if (req->callback)
-    req->callback->Run(rv);
+  if (!req->callback.is_null())
+    req->callback.Run(rv);
 }
 
 //-----------------------------------------------------------------------------
@@ -364,7 +364,7 @@ RuleBasedHostResolverProc* CreateCatchAllHostResolverProc() {
 
 int HangingHostResolver::Resolve(const RequestInfo& info,
                                  AddressList* addresses,
-                                 OldCompletionCallback* callback,
+                                 const CompletionCallback& callback,
                                  RequestHandle* out_req,
                                  const BoundNetLog& net_log) {
   return ERR_IO_PENDING;

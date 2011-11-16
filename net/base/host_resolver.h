@@ -116,7 +116,7 @@ class NET_EXPORT HostResolver {
   // incompatible IP literal (e.g. IPv6 is disabled and it is an IPv6
   // literal).
   //
-  // If the operation cannnot be completed synchronously, ERR_IO_PENDING will
+  // If the operation cannot be completed synchronously, ERR_IO_PENDING will
   // be returned and the real result code will be passed to the completion
   // callback.  Otherwise the result code is returned immediately from this
   // call.
@@ -128,7 +128,7 @@ class NET_EXPORT HostResolver {
   // Profiling information for the request is saved to |net_log| if non-NULL.
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      OldCompletionCallback* callback,
+                      const CompletionCallback& callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) = 0;
 

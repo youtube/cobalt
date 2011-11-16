@@ -608,8 +608,9 @@ int SocketStream::DoResolveHost() {
 
   DCHECK(host_resolver_);
   resolver_.reset(new SingleRequestHostResolver(host_resolver_));
-  return resolver_->Resolve(resolve_info, &addresses_, &io_callback_,
-                            net_log_);
+  return resolver_->Resolve(
+      resolve_info, &addresses_, base::Bind(&SocketStream::OnIOCompleted, this),
+      net_log_);
 }
 
 int SocketStream::DoResolveHostComplete(int result) {

@@ -4,6 +4,7 @@
 
 #include "net/proxy/sync_host_resolver_bridge.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -52,7 +53,6 @@ class SyncHostResolverBridge::Core
 
   HostResolver* const host_resolver_;
   MessageLoop* const host_resolver_loop_;
-  net::OldCompletionCallbackImpl<Core> callback_;
   // The result from the current request (set on |host_resolver_loop_|).
   int err_;
   // The currently outstanding request to |host_resolver_|, or NULL.
@@ -75,8 +75,6 @@ SyncHostResolverBridge::Core::Core(HostResolver* host_resolver,
                                    MessageLoop* host_resolver_loop)
     : host_resolver_(host_resolver),
       host_resolver_loop_(host_resolver_loop),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &Core::OnResolveCompletion)),
       err_(0),
       outstanding_request_(NULL),
       event_(true, false),
@@ -104,7 +102,8 @@ void SyncHostResolverBridge::Core::StartResolve(
     return;
 
   int error = host_resolver_->Resolve(
-      info, addresses, &callback_, &outstanding_request_, BoundNetLog());
+      info, addresses, base::Bind(&Core::OnResolveCompletion, this),
+      &outstanding_request_, BoundNetLog());
   if (error != ERR_IO_PENDING)
     OnResolveCompletion(error);  // Completed synchronously.
 }

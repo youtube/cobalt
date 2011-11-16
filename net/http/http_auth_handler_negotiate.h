@@ -143,7 +143,6 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
   AuthSystem auth_system_;
   bool disable_cname_lookup_;
   bool use_port_;
-  OldCompletionCallbackImpl<HttpAuthHandlerNegotiate> io_callback_;
   HostResolver* const resolver_;
 
   // Members which are needed for DNS lookup + SPN.

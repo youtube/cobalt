@@ -73,7 +73,8 @@ class MockSyncHostResolver : public SyncHostResolver {
 
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses) OVERRIDE {
-    return resolver_.Resolve(info, addresses, NULL, NULL, BoundNetLog());
+    return resolver_.Resolve(info, addresses, CompletionCallback(), NULL,
+                             BoundNetLog());
   }
 
   virtual void Shutdown() OVERRIDE {}

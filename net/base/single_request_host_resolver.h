@@ -27,7 +27,7 @@ class NET_EXPORT SingleRequestHostResolver {
   // |addresses| object upon success. See HostResolver::Resolve() for details.
   int Resolve(const HostResolver::RequestInfo& info,
               AddressList* addresses,
-              OldCompletionCallback* callback,
+              const CompletionCallback& callback,
               const BoundNetLog& net_log);
 
   // Cancels the in-progress request, if any. This prevents the callback
@@ -44,10 +44,10 @@ class NET_EXPORT SingleRequestHostResolver {
 
   // The current request (if any).
   HostResolver::RequestHandle cur_request_;
-  OldCompletionCallback* cur_request_callback_;
+  CompletionCallback cur_request_callback_;
 
   // Completion callback for when request to |resolver_| completes.
-  OldCompletionCallbackImpl<SingleRequestHostResolver> callback_;
+  CompletionCallback callback_;
 
   DISALLOW_COPY_AND_ASSIGN(SingleRequestHostResolver);
 };
