@@ -257,23 +257,24 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   int SelfCheck();
 
   // Backend interface.
-  virtual int32 GetEntryCount() const;
+  virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
-                        OldCompletionCallback* callback);
+                        OldCompletionCallback* callback) OVERRIDE;
   virtual int CreateEntry(const std::string& key, Entry** entry,
-                          OldCompletionCallback* callback);
-  virtual int DoomEntry(const std::string& key, OldCompletionCallback* callback);
-  virtual int DoomAllEntries(OldCompletionCallback* callback);
+                          OldCompletionCallback* callback) OVERRIDE;
+  virtual int DoomEntry(const std::string& key,
+                        OldCompletionCallback* callback) OVERRIDE;
+  virtual int DoomAllEntries(OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
-                                 OldCompletionCallback* callback);
+                                 OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntriesSince(const base::Time initial_time,
-                               OldCompletionCallback* callback);
+                               OldCompletionCallback* callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            OldCompletionCallback* callback);
-  virtual void EndEnumeration(void** iter);
-  virtual void GetStats(StatsItems* stats);
-  virtual void OnExternalCacheHit(const std::string& key);
+                            OldCompletionCallback* callback) OVERRIDE;
+  virtual void EndEnumeration(void** iter) OVERRIDE;
+  virtual void GetStats(StatsItems* stats) OVERRIDE;
+  virtual void OnExternalCacheHit(const std::string& key) OVERRIDE;
 
  private:
   typedef base::hash_map<CacheAddr, EntryImpl*> EntriesMap;

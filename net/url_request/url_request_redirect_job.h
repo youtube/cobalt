@@ -35,8 +35,9 @@ class NET_EXPORT URLRequestRedirectJob : public URLRequestJob {
     http_status_code_ = static_cast<int>(code);
   }
 
-  virtual void Start();
-  virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
+  virtual void Start() OVERRIDE;
+  virtual bool IsRedirectResponse(GURL* location,
+                                  int* http_status_code) OVERRIDE;
 
  private:
   virtual ~URLRequestRedirectJob();

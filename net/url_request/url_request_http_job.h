@@ -149,7 +149,7 @@ class URLRequestHttpJob : public URLRequestJob {
   void RecordTimer();
   void ResetTimer();
 
-  virtual void UpdatePacketReadTimes();
+  virtual void UpdatePacketReadTimes() OVERRIDE;
   void RecordPacketStats(FilterContext::StatisticSelector statistic) const;
 
   void RecordCompressionHistograms();

@@ -92,26 +92,30 @@ class MemEntryImpl : public Entry {
   }
 
   // Entry interface.
-  virtual void Doom();
-  virtual void Close();
-  virtual std::string GetKey() const;
-  virtual base::Time GetLastUsed() const;
-  virtual base::Time GetLastModified() const;
-  virtual int32 GetDataSize(int index) const;
-  virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       net::OldCompletionCallback* completion_callback);
+  virtual void Doom() OVERRIDE;
+  virtual void Close() OVERRIDE;
+  virtual std::string GetKey() const OVERRIDE;
+  virtual base::Time GetLastUsed() const OVERRIDE;
+  virtual base::Time GetLastModified() const OVERRIDE;
+  virtual int32 GetDataSize(int index) const OVERRIDE;
+  virtual int ReadData(
+      int index, int offset, net::IOBuffer* buf, int buf_len,
+      net::OldCompletionCallback* completion_callback) OVERRIDE;
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
                         net::OldCompletionCallback* completion_callback,
-                        bool truncate);
-  virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                             net::OldCompletionCallback* completion_callback);
-  virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::OldCompletionCallback* completion_callback);
+                        bool truncate) OVERRIDE;
+  virtual int ReadSparseData(
+      int64 offset, net::IOBuffer* buf, int buf_len,
+      net::OldCompletionCallback* completion_callback) OVERRIDE;
+  virtual int WriteSparseData(
+      int64 offset, net::IOBuffer* buf, int buf_len,
+      net::OldCompletionCallback* completion_callback) OVERRIDE;
   virtual int GetAvailableRange(int64 offset, int len, int64* start,
-                                OldCompletionCallback* callback);
-  virtual bool CouldBeSparse() const;
-  virtual void CancelSparseIO() {}
-  virtual int ReadyForSparseIO(net::OldCompletionCallback* completion_callback);
+                                OldCompletionCallback* callback) OVERRIDE;
+  virtual bool CouldBeSparse() const OVERRIDE;
+  virtual void CancelSparseIO() OVERRIDE {}
+  virtual int ReadyForSparseIO(
+      net::OldCompletionCallback* completion_callback) OVERRIDE;
 
  private:
   typedef base::hash_map<int, MemEntryImpl*> EntryMap;

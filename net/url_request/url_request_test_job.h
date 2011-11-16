@@ -92,13 +92,16 @@ class NET_EXPORT_PRIVATE URLRequestTestJob : public URLRequestJob {
   static URLRequest::ProtocolFactory Factory;
 
   // Job functions
-  virtual void Start();
-  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
-  virtual void Kill();
-  virtual bool GetMimeType(std::string* mime_type) const;
-  virtual void GetResponseInfo(HttpResponseInfo* info);
-  virtual int GetResponseCode() const;
-  virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
+  virtual void Start() OVERRIDE;
+  virtual bool ReadRawData(IOBuffer* buf,
+                           int buf_size,
+                           int *bytes_read) OVERRIDE;
+  virtual void Kill() OVERRIDE;
+  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
+  virtual void GetResponseInfo(HttpResponseInfo* info) OVERRIDE;
+  virtual int GetResponseCode() const OVERRIDE;
+  virtual bool IsRedirectResponse(GURL* location,
+                                  int* http_status_code) OVERRIDE;
 
  protected:
   // This is what operation we are going to do next when this job is handled.

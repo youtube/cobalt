@@ -19,7 +19,7 @@ class NET_EXPORT SSLConfigServiceDefaults : public SSLConfigService {
   SSLConfigServiceDefaults();
 
   // Store default SSL config settings in |config|.
-  virtual void GetSSLConfig(SSLConfig* config);
+  virtual void GetSSLConfig(SSLConfig* config) OVERRIDE;
 
  private:
   virtual ~SSLConfigServiceDefaults();

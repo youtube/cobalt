@@ -35,13 +35,17 @@ class NET_EXPORT URLRequestFileJob : public URLRequestJob {
 #endif
 
   // URLRequestJob:
-  virtual void Start();
-  virtual void Kill();
-  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int* bytes_read);
-  virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
-  virtual Filter* SetupFilter() const;
-  virtual bool GetMimeType(std::string* mime_type) const;
-  virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);
+  virtual void Start() OVERRIDE;
+  virtual void Kill() OVERRIDE;
+  virtual bool ReadRawData(IOBuffer* buf,
+                           int buf_size,
+                           int* bytes_read) OVERRIDE;
+  virtual bool IsRedirectResponse(GURL* location,
+                                  int* http_status_code) OVERRIDE;
+  virtual Filter* SetupFilter() const OVERRIDE;
+  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
+  virtual void SetExtraRequestHeaders(
+      const HttpRequestHeaders& headers) OVERRIDE;
 
  protected:
   virtual ~URLRequestFileJob();

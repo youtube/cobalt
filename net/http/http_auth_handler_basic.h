@@ -22,25 +22,26 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerBasic : public HttpAuthHandler {
     Factory();
     virtual ~Factory();
 
-    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
-                                  HttpAuth::Target target,
-                                  const GURL& origin,
-                                  CreateReason reason,
-                                  int digest_nonce_count,
-                                  const BoundNetLog& net_log,
-                                  scoped_ptr<HttpAuthHandler>* handler);
+    virtual int CreateAuthHandler(
+        HttpAuth::ChallengeTokenizer* challenge,
+        HttpAuth::Target target,
+        const GURL& origin,
+        CreateReason reason,
+        int digest_nonce_count,
+        const BoundNetLog& net_log,
+        scoped_ptr<HttpAuthHandler>* handler) OVERRIDE;
   };
 
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge);
+      HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
 
  protected:
-  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
 
   virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
                                     OldCompletionCallback* callback,
-                                    std::string* auth_token);
+                                    std::string* auth_token) OVERRIDE;
 
  private:
   virtual ~HttpAuthHandlerBasic() {}

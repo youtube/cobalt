@@ -53,31 +53,34 @@ class NET_EXPORT WebSocketJob
   static void set_websocket_over_spdy_enabled(bool enabled);
 
   State state() const { return state_; }
-  virtual void Connect();
-  virtual bool SendData(const char* data, int len);
-  virtual void Close();
-  virtual void RestartWithAuth(const AuthCredentials& credentials);
-  virtual void DetachDelegate();
+  virtual void Connect() OVERRIDE;
+  virtual bool SendData(const char* data, int len) OVERRIDE;
+  virtual void Close() OVERRIDE;
+  virtual void RestartWithAuth(const AuthCredentials& credentials) OVERRIDE;
+  virtual void DetachDelegate() OVERRIDE;
 
   // SocketStream::Delegate methods.
   virtual int OnStartOpenConnection(
-      SocketStream* socket, OldCompletionCallback* callback);
-  virtual void OnConnected(SocketStream* socket, int max_pending_send_allowed);
-  virtual void OnSentData(SocketStream* socket, int amount_sent);
-  virtual void OnReceivedData(SocketStream* socket, const char* data, int len);
-  virtual void OnClose(SocketStream* socket);
+      SocketStream* socket, OldCompletionCallback* callback) OVERRIDE;
+  virtual void OnConnected(SocketStream* socket,
+                           int max_pending_send_allowed) OVERRIDE;
+  virtual void OnSentData(SocketStream* socket, int amount_sent) OVERRIDE;
+  virtual void OnReceivedData(SocketStream* socket,
+                              const char* data,
+                              int len) OVERRIDE;
+  virtual void OnClose(SocketStream* socket) OVERRIDE;
   virtual void OnAuthRequired(
-      SocketStream* socket, AuthChallengeInfo* auth_info);
-  virtual void OnError(const SocketStream* socket, int error);
+      SocketStream* socket, AuthChallengeInfo* auth_info) OVERRIDE;
+  virtual void OnError(const SocketStream* socket, int error) OVERRIDE;
 
   // SpdyWebSocketStream::Delegate methods.
-  virtual void OnCreatedSpdyStream(int status);
-  virtual void OnSentSpdyHeaders(int status);
+  virtual void OnCreatedSpdyStream(int status) OVERRIDE;
+  virtual void OnSentSpdyHeaders(int status) OVERRIDE;
   virtual int OnReceivedSpdyResponseHeader(
-      const spdy::SpdyHeaderBlock& headers, int status);
-  virtual void OnSentSpdyData(int amount_sent);
-  virtual void OnReceivedSpdyData(const char* data, int length);
-  virtual void OnCloseSpdyStream();
+      const spdy::SpdyHeaderBlock& headers, int status) OVERRIDE;
+  virtual void OnSentSpdyData(int amount_sent) OVERRIDE;
+  virtual void OnReceivedSpdyData(const char* data, int length) OVERRIDE;
+  virtual void OnCloseSpdyStream() OVERRIDE;
 
  private:
   friend class WebSocketThrottle;

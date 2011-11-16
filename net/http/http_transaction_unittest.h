@@ -133,7 +133,7 @@ class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
   void Read();
 
   // Callback implementation:
-  virtual void RunWithParams(const Tuple1<int>& params);
+  virtual void RunWithParams(const Tuple1<int>& params) OVERRIDE;
 
   State state_;
   scoped_ptr<net::HttpTransaction> trans_;
@@ -211,9 +211,10 @@ class MockNetworkLayer : public net::HttpTransactionFactory,
   void TransactionDoneReading();
 
   // net::HttpTransactionFactory:
-  virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans);
-  virtual net::HttpCache* GetCache();
-  virtual net::HttpNetworkSession* GetSession();
+  virtual int CreateTransaction(
+      scoped_ptr<net::HttpTransaction>* trans) OVERRIDE;
+  virtual net::HttpCache* GetCache() OVERRIDE;
+  virtual net::HttpNetworkSession* GetSession() OVERRIDE;
 
  private:
   int transaction_count_;

@@ -194,7 +194,8 @@ class InFlightBackendIO : public InFlightIO {
   }
 
  protected:
-  virtual void OnOperationComplete(BackgroundIO* operation, bool cancel);
+  virtual void OnOperationComplete(BackgroundIO* operation,
+                                   bool cancel) OVERRIDE;
 
  private:
   void PostOperation(BackendIO* operation);

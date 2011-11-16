@@ -24,7 +24,7 @@ class NET_EXPORT_PRIVATE NetLogWebSocketHandshakeParameter
  public:
   explicit NetLogWebSocketHandshakeParameter(const std::string& headers);
 
-  virtual Value* ToValue() const;
+  virtual Value* ToValue() const OVERRIDE;
 
  private:
   virtual ~NetLogWebSocketHandshakeParameter();

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/callback_old.h"
+#include "base/compiler_specific.h"
 #include "base/tuple.h"
 #include "net/base/completion_callback.h"
 
@@ -32,7 +33,7 @@ class TestOldCompletionCallback : public CallbackRunner< Tuple1<int> > {
 
   bool have_result() const { return have_result_; }
 
-  virtual void RunWithParams(const Tuple1<int>& params);
+  virtual void RunWithParams(const Tuple1<int>& params) OVERRIDE;
 
  private:
   int result_;

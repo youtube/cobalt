@@ -183,7 +183,7 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
                     const CertVerifyResult& verify_result);
 
   // CertDatabase::Observer methods:
-  virtual void OnCertTrustChanged(const X509Certificate* cert);
+  virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE;
 
   // cache_ maps from a request to a cached result. The cached result may
   // have expired and the size of |cache_| must be <= max_cache_entries_.
