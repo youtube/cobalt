@@ -939,6 +939,13 @@
             ],
           },
         ],
+        [ 'OS == "linux"', {
+            'dependencies': [
+              '../build/linux/system.gyp:dbus',
+              '../dbus/dbus.gyp:dbus',
+            ],
+          },
+        ],
       ],
     },
     {
@@ -989,6 +996,7 @@
         'base/net_log_unittest.cc',
         'base/net_log_unittest.h',
         'base/net_util_unittest.cc',
+        'base/network_change_notifier_linux_unittest.cc',
         'base/network_change_notifier_win_unittest.cc',
         'base/origin_bound_cert_service_unittest.cc',
         'base/pem_tokenizer_unittest.cc',
@@ -1221,6 +1229,13 @@
               '../third_party/nss/nss.gyp:nspr',
               '../third_party/nss/nss.gyp:nss',
               'third_party/nss/ssl.gyp:ssl',
+            ],
+          },
+        ],
+        [ 'OS == "linux"', {
+            'dependencies': [
+              '../build/linux/system.gyp:dbus',
+              '../dbus/dbus.gyp:dbus_test_support',
             ],
           },
         ],
