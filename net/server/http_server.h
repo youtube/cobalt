@@ -58,9 +58,11 @@ private:
   friend class HttpConnection;
 
   // ListenSocketDelegate
-  virtual void DidAccept(ListenSocket* server, ListenSocket* socket);
-  virtual void DidRead(ListenSocket* socket, const char* data, int len);
-  virtual void DidClose(ListenSocket* socket);
+  virtual void DidAccept(ListenSocket* server, ListenSocket* socket) OVERRIDE;
+  virtual void DidRead(ListenSocket* socket,
+                       const char* data,
+                       int len) OVERRIDE;
+  virtual void DidClose(ListenSocket* socket) OVERRIDE;
 
   // Expects the raw data to be stored in recv_data_. If parsing is successful,
   // will remove the data parsed from recv_data_, leaving only the unused

@@ -33,7 +33,7 @@ class NET_EXPORT URLRequestStartEventParameters
     return load_flags_;
   }
 
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   const GURL url_;

@@ -26,14 +26,14 @@ class NET_EXPORT_PRIVATE TCPServerSocketLibevent
   virtual ~TCPServerSocketLibevent();
 
   // net::ServerSocket implementation.
-  virtual int Listen(const net::IPEndPoint& address, int backlog);
-  virtual int GetLocalAddress(IPEndPoint* address) const;
+  virtual int Listen(const net::IPEndPoint& address, int backlog) OVERRIDE;
+  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
   virtual int Accept(scoped_ptr<StreamSocket>* socket,
-                     OldCompletionCallback* callback);
+                     OldCompletionCallback* callback) OVERRIDE;
 
   // MessageLoopForIO::Watcher implementation.
-  virtual void OnFileCanReadWithoutBlocking(int fd);
-  virtual void OnFileCanWriteWithoutBlocking(int fd);
+  virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE;
+  virtual void OnFileCanWriteWithoutBlocking(int fd) OVERRIDE;
 
  private:
   int AcceptInternal(scoped_ptr<StreamSocket>* socket);

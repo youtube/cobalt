@@ -74,7 +74,7 @@ class HttpStreamParser  : public ChunkCallback {
   void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
   // ChunkCallback methods.
-  virtual void OnChunkAvailable();
+  virtual void OnChunkAvailable() OVERRIDE;
 
  private:
   // FOO_COMPLETE states implement the second half of potentially asynchronous

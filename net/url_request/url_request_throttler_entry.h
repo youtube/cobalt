@@ -97,14 +97,14 @@ class NET_EXPORT URLRequestThrottlerEntry
   void DetachManager();
 
   // Implementation of URLRequestThrottlerEntryInterface.
-  virtual bool ShouldRejectRequest(int load_flags) const;
+  virtual bool ShouldRejectRequest(int load_flags) const OVERRIDE;
   virtual int64 ReserveSendingTimeForNextRequest(
-      const base::TimeTicks& earliest_time);
-  virtual base::TimeTicks GetExponentialBackoffReleaseTime() const;
+      const base::TimeTicks& earliest_time) OVERRIDE;
+  virtual base::TimeTicks GetExponentialBackoffReleaseTime() const OVERRIDE;
   virtual void UpdateWithResponse(
       const std::string& host,
-      const URLRequestThrottlerHeaderInterface* response);
-  virtual void ReceivedContentWasMalformed(int response_code);
+      const URLRequestThrottlerHeaderInterface* response) OVERRIDE;
+  virtual void ReceivedContentWasMalformed(int response_code) OVERRIDE;
 
  protected:
   virtual ~URLRequestThrottlerEntry();

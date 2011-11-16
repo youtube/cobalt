@@ -8,8 +8,8 @@
 #define NET_DISK_CACHE_MEM_BACKEND_IMPL_H__
 #pragma once
 
+#include "base/compiler_specific.h"
 #include "base/hash_tables.h"
-
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/mem_rankings.h"
 
@@ -63,24 +63,25 @@ class NET_EXPORT_PRIVATE MemBackendImpl : public Backend {
   void RemoveFromRankingList(MemEntryImpl* entry);
 
   // Backend interface.
-  virtual int32 GetEntryCount() const;
+  virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
-                        OldCompletionCallback* callback);
+                        OldCompletionCallback* callback) OVERRIDE;
   virtual int CreateEntry(const std::string& key, Entry** entry,
-                          OldCompletionCallback* callback);
-  virtual int DoomEntry(const std::string& key, OldCompletionCallback* callback);
-  virtual int DoomAllEntries(OldCompletionCallback* callback);
+                          OldCompletionCallback* callback) OVERRIDE;
+  virtual int DoomEntry(const std::string& key,
+                        OldCompletionCallback* callback) OVERRIDE;
+  virtual int DoomAllEntries(OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
-                                 OldCompletionCallback* callback);
+                                 OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntriesSince(const base::Time initial_time,
-                               OldCompletionCallback* callback);
+                               OldCompletionCallback* callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            OldCompletionCallback* callback);
-  virtual void EndEnumeration(void** iter);
+                            OldCompletionCallback* callback) OVERRIDE;
+  virtual void EndEnumeration(void** iter) OVERRIDE;
   virtual void GetStats(
-      std::vector<std::pair<std::string, std::string> >* stats) {}
-  virtual void OnExternalCacheHit(const std::string& key);
+      std::vector<std::pair<std::string, std::string> >* stats) OVERRIDE {}
+  virtual void OnExternalCacheHit(const std::string& key) OVERRIDE;
 
  private:
   typedef base::hash_map<std::string, MemEntryImpl*> EntryMap;

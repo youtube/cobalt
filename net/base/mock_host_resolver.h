@@ -160,7 +160,7 @@ class RuleBasedHostResolverProc : public HostResolverProc {
                       AddressFamily address_family,
                       HostResolverFlags host_resolver_flags,
                       AddressList* addrlist,
-                      int* os_error);
+                      int* os_error) OVERRIDE;
 
  private:
   struct Rule;

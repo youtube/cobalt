@@ -48,13 +48,13 @@ class NET_EXPORT HttpNetworkLayer
   static void EnableSpdy(const std::string& mode);
 
   // HttpTransactionFactory methods:
-  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
-  virtual HttpCache* GetCache();
-  virtual HttpNetworkSession* GetSession();
+  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans) OVERRIDE;
+  virtual HttpCache* GetCache() OVERRIDE;
+  virtual HttpNetworkSession* GetSession() OVERRIDE;
 
   // base::SystemMonitor::PowerObserver methods:
-  virtual void OnSuspend();
-  virtual void OnResume();
+  virtual void OnSuspend() OVERRIDE;
+  virtual void OnResume() OVERRIDE;
 
  private:
   const scoped_refptr<HttpNetworkSession> session_;

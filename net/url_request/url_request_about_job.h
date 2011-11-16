@@ -21,8 +21,8 @@ class NET_EXPORT URLRequestAboutJob : public URLRequestJob {
   static URLRequest::ProtocolFactory Factory;
 
   // URLRequestJob:
-  virtual void Start();
-  virtual bool GetMimeType(std::string* mime_type) const;
+  virtual void Start() OVERRIDE;
+  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
 
  private:
   virtual ~URLRequestAboutJob();
