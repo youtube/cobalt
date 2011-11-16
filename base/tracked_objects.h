@@ -340,9 +340,6 @@ class BASE_EXPORT Snapshot {
     return death_data_.queue_duration_max();
   }
 
-  // Emit contents for use in a line of HTML
-  void WriteHTML(std::string* output) const;
-
   // Construct a DictionaryValue instance containing all our data recursively.
   // The caller assumes ownership of the memory in the returned instance.
   base::DictionaryValue* ToValue() const;
@@ -401,150 +398,6 @@ class BASE_EXPORT DataCollector {
 };
 
 //------------------------------------------------------------------------------
-// Aggregation contains summaries (totals and subtotals) of groups of Snapshot
-// instances to provide printing of these collections on a single line.
-// We generally provide an aggregate total for the entire list, as well as
-// aggregate subtotals for groups of stats (example: group of all lives that
-// died on the specific thread).
-
-class BASE_EXPORT Aggregation: public DeathData {
- public:
-  Aggregation();
-  ~Aggregation();
-
-  void AddDeathSnapshot(const Snapshot& snapshot);
-  void AddBirths(const Births& births);
-  void AddBirth(const BirthOnThread& birth);
-  void AddBirthPlace(const Location& location);
-  void WriteHTML(std::string* output) const;
-  void Clear();
-
- private:
-  int birth_count_;
-  std::map<std::string, int> birth_files_;
-  std::map<Location, int> locations_;
-  std::map<const ThreadData*, int> birth_threads_;
-  DeathData death_data_;
-  std::map<const ThreadData*, int> death_threads_;
-
-  DISALLOW_COPY_AND_ASSIGN(Aggregation);
-};
-
-//------------------------------------------------------------------------------
-// Comparator is a class that supports the comparison of Snapshot instances.
-// An instance is actually a list of chained Comparitors, that can provide for
-// arbitrary ordering.  The path portion of an about:profiler URL is translated
-// into such a chain, which is then used to order Snapshot instances in a
-// vector.  It orders them into groups (for aggregation), and can also order
-// instances within the groups (for detailed rendering of the instances in an
-// aggregation).
-
-class BASE_EXPORT Comparator {
- public:
-  // Selector enum is the token identifier for each parsed keyword, most of
-  // which specify a sort order.
-  // Since it is not meaningful to sort more than once on a specific key, we
-  // use bitfields to accumulate what we have sorted on so far.
-  enum Selector {
-    // Sort orders.
-    NIL = 0,
-    BIRTH_THREAD = 1,
-    DEATH_THREAD = 2,
-    BIRTH_FILE = 4,
-    BIRTH_FUNCTION = 8,
-    BIRTH_LINE = 16,
-    COUNT = 32,
-    AVERAGE_RUN_DURATION = 64,
-    TOTAL_RUN_DURATION = 128,
-    AVERAGE_QUEUE_DURATION = 256,
-    TOTAL_QUEUE_DURATION = 512,
-    MAX_RUN_DURATION = 1024,
-    MAX_QUEUE_DURATION = 2048,
-
-    // Imediate action keywords.
-    RESET_ALL_DATA = -1,
-    UNKNOWN_KEYWORD = -2,
-  };
-
-  explicit Comparator();
-
-  // Reset the comparator to a NIL selector.  Clear() and recursively delete any
-  // tiebreaker_ entries.  NOTE: We can't use a standard destructor, because
-  // the sort algorithm makes copies of this object, and then deletes them,
-  // which would cause problems (either we'd make expensive deep copies, or we'd
-  // do more thna one delete on a tiebreaker_.
-  void Clear();
-
-  // The less() operator for sorting the array via std::sort().
-  bool operator()(const Snapshot& left, const Snapshot& right) const;
-
-  void Sort(DataCollector::Collection* collection) const;
-
-  // Check to see if the items are sort equivalents (should be aggregated).
-  bool Equivalent(const Snapshot& left, const Snapshot& right) const;
-
-  // Check to see if all required fields are present in the given sample.
-  bool Acceptable(const Snapshot& sample) const;
-
-  // A comparator can be refined by specifying what to do if the selected basis
-  // for comparison is insufficient to establish an ordering.  This call adds
-  // the indicated attribute as the new "least significant" basis of comparison.
-  void SetTiebreaker(Selector selector, const std::string& required);
-
-  // Indicate if this instance is set up to sort by the given Selector, thereby
-  // putting that information in the SortGrouping, so it is not needed in each
-  // printed line.
-  bool IsGroupedBy(Selector selector) const;
-
-  // Using the tiebreakers as set above, we mostly get an ordering, with some
-  // equivalent groups.  If those groups are displayed (rather than just being
-  // aggregated, then the following is used to order them (within the group).
-  void SetSubgroupTiebreaker(Selector selector);
-
-  // Translate a keyword and restriction in URL path to a selector for sorting.
-  void ParseKeyphrase(const std::string& key_phrase);
-
-  // Parse a query to decide on sort ordering.
-  bool ParseQuery(const std::string& query);
-
-  // Output a header line that can be used to indicated what items will be
-  // collected in the group.  It lists all (potentially) tested attributes and
-  // their values (in the sample item).
-  bool WriteSortGrouping(const Snapshot& sample, std::string* output) const;
-
-  // Output a sample, with SortGroup details not displayed.
-  void WriteSnapshotHTML(const Snapshot& sample, std::string* output) const;
-
- private:
-  // The selector directs this instance to compare based on the specified
-  // members of the tested elements.
-  enum Selector selector_;
-
-  // Translate a path keyword into a selector.  This is a slow implementation,
-  // but this is rarely done, and only for HTML presentations.
-  static Selector FindSelector(const std::string& keyword);
-
-  // For filtering into acceptable and unacceptable snapshot instance, the
-  // following is required to be a substring of the selector_ field.
-  std::string required_;
-
-  // If this instance can't decide on an ordering, we can consult a tie-breaker
-  // which may have a different basis of comparison.
-  Comparator* tiebreaker_;
-
-  // We or together all the selectors we sort on (not counting sub-group
-  // selectors), so that we can tell if we've decided to group on any given
-  // criteria.
-  int combined_selectors_;
-
-  // Some tiebreakrs are for subgroup ordering, and not for basic ordering (in
-  // preparation for aggregation).  The subgroup tiebreakers are not consulted
-  // when deciding if two items are in equivalent groups.  This flag tells us
-  // to ignore the tiebreaker when doing Equivalent() testing.
-  bool use_tiebreaker_for_sort_only_;
-};
-
-//------------------------------------------------------------------------------
 // For each thread, we have a ThreadData that stores all tracking info generated
 // on this thread.  This prevents the need for locking as data accumulates.
 // We use ThreadLocalStorage to quickly identfy the current ThreadData context.
@@ -575,16 +428,6 @@ class BASE_EXPORT ThreadData {
   // this thread.
   // This may return NULL if the system is disabled for any reason.
   static ThreadData* Get();
-
-  // For a given (unescaped) about:profiler query, develop resulting HTML, and
-  // append to output.
-  static void WriteHTML(const std::string& query, std::string* output);
-
-  // For a given accumulated array of results, use the comparator to sort and
-  // subtotal, writing the results to the output.
-  static void WriteHTMLTotalAndSubtotals(
-      const DataCollector::Collection& match_array,
-      const Comparator& comparator, std::string* output);
 
   // Constructs a DictionaryValue instance containing all recursive results in
   // our process.  The caller assumes ownership of the memory in the returned

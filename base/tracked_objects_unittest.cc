@@ -150,13 +150,6 @@ TEST_F(TrackedObjectsTest, DeathDataTest) {
   EXPECT_TRUE(dictionary->GetInteger("count", &integer));
   EXPECT_EQ(integer, 2);
 
-  std::string output;
-  data->WriteHTML(&output);
-  std::string results = "Lives:2, "
-      "Run:84ms(42ms/life,max:42ms) "
-      "Queue:16ms(8ms/life,max:8ms) ";
-  EXPECT_EQ(results, output);
-
   scoped_ptr<base::Value> value(data->ToValue());
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
