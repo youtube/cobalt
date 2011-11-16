@@ -21,11 +21,11 @@ MappedHostResolver::~MappedHostResolver() {
 
 int MappedHostResolver::Resolve(const RequestInfo& info,
                                 AddressList* addresses,
-                                OldCompletionCallback* callback,
+                                const CompletionCallback& callback,
                                 RequestHandle* out_req,
                                 const BoundNetLog& net_log) {
   DCHECK(addresses);
-  DCHECK(callback);
+  DCHECK_EQ(false, callback.is_null());
   // Modify the request before forwarding it to |impl_|.
   RequestInfo modified_info = info;
   HostPortPair host_port(info.host_port_pair());
