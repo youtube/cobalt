@@ -238,10 +238,12 @@ CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
     return value;
 
   if (CFGetTypeID(value) != expected_type) {
-    std::string expected_type_name = base::SysCFStringRefToUTF8(
+    ScopedCFTypeRef<CFStringRef> expected_type_name(
         CFCopyTypeIDDescription(expected_type));
+    std::string expected_type_utf8 =
+        base::SysCFStringRefToUTF8(expected_type_name);
     DLOG(WARNING) << GetValueFromDictionaryErrorMessage(key,
-                                                        expected_type_name,
+                                                        expected_type_utf8,
                                                         value);
     return NULL;
   }
