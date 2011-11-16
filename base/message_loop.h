@@ -253,7 +253,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // TODO(jhawkins): Remove once task.h is removed.
   class QuitTask : public Task {
    public:
-    virtual void Run() {
+    virtual void Run() OVERRIDE {
       MessageLoop::current()->Quit();
     }
   };
@@ -480,9 +480,9 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   void HistogramEvent(int event);
 
   // base::MessagePump::Delegate methods:
-  virtual bool DoWork();
-  virtual bool DoDelayedWork(base::TimeTicks* next_delayed_work_time);
-  virtual bool DoIdleWork();
+  virtual bool DoWork() OVERRIDE;
+  virtual bool DoDelayedWork(base::TimeTicks* next_delayed_work_time) OVERRIDE;
+  virtual bool DoIdleWork() OVERRIDE;
 
   Type type_;
 
