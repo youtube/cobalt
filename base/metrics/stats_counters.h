@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
 #include "base/metrics/stats_table.h"
 #include "base/time.h"
 
@@ -164,7 +165,7 @@ class BASE_EXPORT StatsRate : public StatsCounterTimer {
   explicit StatsRate(const std::string& name);
   virtual ~StatsRate();
 
-  virtual void Add(int value);
+  virtual void Add(int value) OVERRIDE;
 
  private:
   StatsCounter counter_;
