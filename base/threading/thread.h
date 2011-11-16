@@ -156,7 +156,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   bool thread_was_started() const { return started_; }
 
   // PlatformThread::Delegate methods:
-  virtual void ThreadMain();
+  virtual void ThreadMain() OVERRIDE;
 
   // Whether we successfully started the thread.
   bool started_;

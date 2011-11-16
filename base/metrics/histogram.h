@@ -674,11 +674,12 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                                    Flags flags);
 
   // Overridden from Histogram:
-  virtual ClassType histogram_type() const;
+  virtual ClassType histogram_type() const OVERRIDE;
 
   // Store a list of number/text values for use in rendering the histogram.
   // The last element in the array has a null in its "description" slot.
-  virtual void SetRangeDescriptions(const DescriptionPair descriptions[]);
+  virtual void SetRangeDescriptions(
+      const DescriptionPair descriptions[]) OVERRIDE;
 
  protected:
   LinearHistogram(const std::string& name, Sample minimum,
@@ -689,15 +690,15 @@ class BASE_EXPORT LinearHistogram : public Histogram {
 
   // Initialize ranges_ mapping in cached_ranges_.
   void InitializeBucketRange();
-  virtual double GetBucketSize(Count current, size_t i) const;
+  virtual double GetBucketSize(Count current, size_t i) const OVERRIDE;
 
   // If we have a description for a bucket, then return that.  Otherwise
   // let parent class provide a (numeric) description.
-  virtual const std::string GetAsciiBucketRange(size_t i) const;
+  virtual const std::string GetAsciiBucketRange(size_t i) const OVERRIDE;
 
   // Skip printing of name for numeric range if we have a name (and if this is
   // an empty bucket).
-  virtual bool PrintEmptyBucket(size_t index) const;
+  virtual bool PrintEmptyBucket(size_t index) const OVERRIDE;
 
  private:
   // For some ranges, we store a printable description of a bucket range.
@@ -716,9 +717,9 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
  public:
   static Histogram* FactoryGet(const std::string& name, Flags flags);
 
-  virtual ClassType histogram_type() const;
+  virtual ClassType histogram_type() const OVERRIDE;
 
-  virtual void AddBoolean(bool value);
+  virtual void AddBoolean(bool value) OVERRIDE;
 
  private:
   explicit BooleanHistogram(const std::string& name);
@@ -737,7 +738,7 @@ class BASE_EXPORT CustomHistogram : public Histogram {
                                Flags flags);
 
   // Overridden from Histogram:
-  virtual ClassType histogram_type() const;
+  virtual ClassType histogram_type() const OVERRIDE;
 
   // Helper method for transforming an array of valid enumeration values
   // to the std::vector<int> expected by HISTOGRAM_CUSTOM_ENUMERATION.
@@ -761,7 +762,7 @@ class BASE_EXPORT CustomHistogram : public Histogram {
 
   // Initialize ranges_ mapping in cached_ranges_.
   void InitializedCustomBucketRange(const std::vector<Sample>& custom_ranges);
-  virtual double GetBucketSize(Count current, size_t i) const;
+  virtual double GetBucketSize(Count current, size_t i) const OVERRIDE;
 
   DISALLOW_COPY_AND_ASSIGN(CustomHistogram);
 };
