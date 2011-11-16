@@ -133,6 +133,8 @@
         'base/ime/text_input_client.cc',
         'base/ime/text_input_client.h',
         'base/ime/text_input_type.h',
+        'base/keycodes/keyboard_code_conversion.cc',
+        'base/keycodes/keyboard_code_conversion.h',
         'base/keycodes/keyboard_code_conversion_gtk.cc',
         'base/keycodes/keyboard_code_conversion_gtk.h',
         'base/keycodes/keyboard_code_conversion_mac.h',
