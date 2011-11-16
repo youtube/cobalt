@@ -4,6 +4,7 @@
 
 #include "base/test/thread_test_helper.h"
 
+#include "base/bind.h"
 #include "base/location.h"
 
 namespace base {
@@ -15,8 +16,8 @@ ThreadTestHelper::ThreadTestHelper(MessageLoopProxy* target_thread)
 }
 
 bool ThreadTestHelper::Run() {
-  if (!target_thread_->PostTask(FROM_HERE, NewRunnableMethod(
-          this, &ThreadTestHelper::RunInThread))) {
+  if (!target_thread_->PostTask(
+          FROM_HERE, base::Bind(&ThreadTestHelper::RunInThread, this))) {
     return false;
   }
   done_event_.Wait();
