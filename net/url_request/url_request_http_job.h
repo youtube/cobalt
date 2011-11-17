@@ -173,13 +173,6 @@ class URLRequestHttpJob : public URLRequestJob {
   void OnCookieSaved(bool cookie_status);
   void CookieHandled();
 
-  // Some servers send the body compressed, but specify the content length as
-  // the uncompressed size. If this is the case, we return true in order
-  // to request to work around this non-adherence to the HTTP standard.
-  // |rv| is the standard return value of a read function indicating the number
-  // of bytes read or, if negative, an error code.
-  bool ShouldFixMismatchedContentLength(int rv) const;
-
   // Returns the effective response headers, considering that they may be
   // overridden by |override_response_headers_|.
   HttpResponseHeaders* GetResponseHeaders() const;
