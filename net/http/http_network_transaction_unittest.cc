@@ -6080,7 +6080,7 @@ TEST_F(HttpNetworkTransactionTest, LargeContentLengthThenClose) {
 
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
-  EXPECT_EQ(ERR_CONNECTION_CLOSED, rv);
+  EXPECT_EQ(ERR_CONTENT_LENGTH_MISMATCH, rv);
 }
 
 TEST_F(HttpNetworkTransactionTest, UploadFileSmallerThanLength) {
