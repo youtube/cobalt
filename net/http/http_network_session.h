@@ -37,9 +37,13 @@ class HttpResponseBodyDrainer;
 class HttpServerProperties;
 class NetLog;
 class NetworkDelegate;
+class OriginBoundCertService;
 class ProxyService;
+class SOCKSClientSocketPool;
+class SSLClientSocketPool;
 class SSLConfigService;
 class SSLHostInfoFactory;
+class TransportClientSocketPool;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
 class NET_EXPORT HttpNetworkSession
@@ -88,12 +92,12 @@ class NET_EXPORT HttpNetworkSession
 
   void RemoveResponseDrainer(HttpResponseBodyDrainer* drainer);
 
-  TransportClientSocketPool* transport_socket_pool() {
-    return socket_pool_manager_.transport_socket_pool();
+  TransportClientSocketPool* GetTransportSocketPool() {
+    return socket_pool_manager_->GetTransportSocketPool();
   }
 
-  SSLClientSocketPool* ssl_socket_pool() {
-    return socket_pool_manager_.ssl_socket_pool();
+  SSLClientSocketPool* GetSSLSocketPool() {
+    return socket_pool_manager_->GetSSLSocketPool();
   }
 
   SOCKSClientSocketPool* GetSocketPoolForSOCKSProxy(
@@ -154,7 +158,7 @@ class NET_EXPORT HttpNetworkSession
 
   HttpAuthCache http_auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
-  ClientSocketPoolManager socket_pool_manager_;
+  scoped_ptr<ClientSocketPoolManager> socket_pool_manager_;
   SpdySessionPool spdy_session_pool_;
   scoped_ptr<HttpStreamFactory> http_stream_factory_;
   std::set<HttpResponseBodyDrainer*> response_drainers_;
