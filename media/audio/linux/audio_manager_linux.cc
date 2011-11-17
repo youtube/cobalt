@@ -17,7 +17,7 @@
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
 #if defined(USE_PULSEAUDIO)
-#include "media/audio/pulse/pulse_output.h"
+#include "media/audio/linux/pulse_output.h"
 #endif
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
