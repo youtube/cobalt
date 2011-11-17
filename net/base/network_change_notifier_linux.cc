@@ -88,16 +88,12 @@ class NetworkManagerApi {
 
  private:
   // Callbacks for D-Bus API.
-  void OnStateChanged(dbus::Message* message);
-
-  void OnResponse(dbus::Response* response) {
-    OnStateChanged(response);
+  void OnInitialResponse(dbus::Response* response) {
+    HandleResponse(response);
     offline_state_initialized_.Signal();
   }
 
-  void OnSignaled(dbus::Signal* signal) {
-    OnStateChanged(signal);
-  }
+  void OnSignaled(dbus::Signal* signal);
 
   void OnConnected(const std::string&, const std::string&, bool success) {
     if (!success) {
@@ -105,6 +101,9 @@ class NetworkManagerApi {
       offline_state_initialized_.Signal();
     }
   }
+
+  // Helper for OnInitialResponse.
+  void HandleResponse(dbus::Response* response);
 
   // Converts a NetworkManager state uint to a bool.
   static bool StateIsOffline(uint32 state);
@@ -147,7 +146,8 @@ void NetworkManagerApi::Init() {
   builder.AppendString("State");
   proxy->CallMethod(
       &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
-      base::Bind(&NetworkManagerApi::OnResponse, ptr_factory_.GetWeakPtr()));
+      base::Bind(&NetworkManagerApi::OnInitialResponse,
+                 ptr_factory_.GetWeakPtr()));
 
   // And sign up for notifications.
   proxy->ConnectToSignal(
@@ -162,17 +162,32 @@ void NetworkManagerApi::CleanUp() {
   ptr_factory_.InvalidateWeakPtrs();
 }
 
-void NetworkManagerApi::OnStateChanged(dbus::Message* message) {
+void NetworkManagerApi::HandleResponse(dbus::Response* response) {
   DCHECK_EQ(helper_thread_id_, base::PlatformThread::CurrentId());
-  if (!message) {
+  if (!response) {
     DLOG(WARNING) << "No response received for initial state request";
     return;
   }
-  dbus::MessageReader reader(message);
+  dbus::MessageReader reader(response);
   uint32 state = 0;
-  if (!reader.HasMoreData() || !reader.PopUint32(&state)) {
+  if (!reader.PopVariantOfUint32(&state)) {
     DLOG(WARNING) << "Unexpected response for NetworkManager State request: "
-                  << message->ToString();
+                  << response->ToString();
+    return;
+  }
+  {
+    base::AutoLock lock(is_offline_lock_);
+    is_offline_ = StateIsOffline(state);
+  }
+}
+
+void NetworkManagerApi::OnSignaled(dbus::Signal* signal) {
+  DCHECK_EQ(helper_thread_id_, base::PlatformThread::CurrentId());
+  dbus::MessageReader reader(signal);
+  uint32 state = 0;
+  if (!reader.PopUint32(&state)) {
+    DLOG(WARNING) << "Unexpected signal for NetworkManager StateChanged: "
+                  << signal->ToString();
     return;
   }
   bool new_is_offline = StateIsOffline(state);
@@ -183,8 +198,7 @@ void NetworkManagerApi::OnStateChanged(dbus::Message* message) {
     else
       return;
   }
-  if (offline_state_initialized_.IsSignaled())
-    notification_callback_.Run();
+  notification_callback_.Run();
 }
 
 bool NetworkManagerApi::StateIsOffline(uint32 state) {
