@@ -34,7 +34,7 @@ CERTCertificate* CreateNSSCertHandleFromBytes(const char* data, size_t length) {
 
 void VerifyCertificateSignature(const std::string& der_cert,
                                 const std::vector<uint8>& der_spki) {
-  crypto::ScopedPLArenaPool arena;
+  crypto::ScopedPLArenaPool arena(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
 
   CERTSignedData sd;
   memset(&sd, 0, sizeof(sd));
