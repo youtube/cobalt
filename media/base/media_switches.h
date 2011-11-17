@@ -17,7 +17,10 @@ extern const char kAlsaOutputDevice[];
 extern const char kAlsaInputDevice[];
 #endif
 
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 MEDIA_EXPORT extern const char kUsePulseAudio[];
+#endif
+
 MEDIA_EXPORT extern const char kVideoThreads[];
 
 }  // namespace switches

@@ -5,26 +5,36 @@
 #ifndef MEDIA_AUDIO_OPENBSD_AUDIO_MANAGER_OPENBSD_H_
 #define MEDIA_AUDIO_OPENBSD_AUDIO_MANAGER_OPENBSD_H_
 
-#include "base/basictypes.h"
+#include <set>
+
+#include "base/compiler_specific.h"
 #include "media/audio/audio_manager_base.h"
 
-class AudioManagerOpenBSD : public AudioManagerBase {
+class MEDIA_EXPORT AudioManagerOpenBSD : public AudioManagerBase {
  public:
   AudioManagerOpenBSD();
+
+  // Call before using a newly created AudioManagerOpenBSD instance.
+  virtual void Init() OVERRIDE;
 
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices() OVERRIDE;
   virtual bool HasAudioInputDevices() OVERRIDE;
   virtual AudioOutputStream* MakeAudioOutputStream(
       const AudioParameters& params) OVERRIDE;
-  virtual AudioInputStream* MakeAudioInputStream(
-      const AudioParameters& params) OVERRIDE;
-  virtual bool IsRecordingInProgress() OVERRIDE;
+  virtual AudioInputStream* MakeAudioInputStream(const AudioParameters& params)
+      OVERRIDE;
+
   virtual void MuteAll() OVERRIDE;
   virtual void UnMuteAll() OVERRIDE;
 
- private:
+  virtual void ReleaseOutputStream(AudioOutputStream* stream);
+
+ protected:
   virtual ~AudioManagerOpenBSD();
+
+ private:
+  std::set<AudioOutputStream*> active_streams_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerOpenBSD);
 };
