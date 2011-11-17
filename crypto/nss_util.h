@@ -110,7 +110,7 @@ class CRYPTO_EXPORT TPMTokenInfoDelegate {
                             std::string* user_pin) const = 0;
 };
 
-// Indicates that NSS should load the opencryptoki library so that we
+// Indicates that NSS should load the Chaps library so that we
 // can access the TPM through NSS.  Once this is called,
 // GetPrivateNSSKeySlot() will return the TPM slot if one was found.
 // Takes ownership of the passed-in delegate object so it can access
@@ -128,7 +128,7 @@ CRYPTO_EXPORT bool IsTPMTokenAvailable();
 
 // Returns true if the TPM is owned and PKCS#11 initialized with the
 // user and security officer PINs, and has been enabled in NSS by
-// calling EnableTPMForNSS, and opencryptoki has been successfully
+// calling EnableTPMForNSS, and Chaps has been successfully
 // loaded into NSS.
 CRYPTO_EXPORT bool IsTPMTokenReady();
 

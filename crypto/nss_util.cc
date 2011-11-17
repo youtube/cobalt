@@ -55,9 +55,9 @@ namespace {
 #if defined(OS_CHROMEOS)
 const char kNSSDatabaseName[] = "Real NSS database";
 
-// Constants for loading opencryptoki.
-const char kOpencryptokiModuleName[] = "opencryptoki";
-const char kOpencryptokiPath[] = "/usr/lib/opencryptoki/libopencryptoki.so";
+// Constants for loading the Chrome OS TPM-backed PKCS #11 library.
+const char kChapsModuleName[] = "Chaps";
+const char kChapsPath[] = "libchaps.so";
 
 // Fake certificate authority database used for testing.
 static const FilePath::CharType kReadOnlyCertDB[] =
@@ -245,7 +245,7 @@ class NSSInitSingleton {
     tpm_token_info_delegate_.reset(info_delegate);
   }
 
-  // This is called whenever we want to make sure opencryptoki is
+  // This is called whenever we want to make sure Chaps is
   // properly loaded, because it can fail shortly after the initial
   // login while the PINs are being initialized, and we want to retry
   // if this happens.
@@ -255,16 +255,16 @@ class NSSInitSingleton {
       return false;
 
     // If everything is already initialized, then return true.
-    if (opencryptoki_module_ && tpm_slot_)
+    if (chaps_module_ && tpm_slot_)
       return true;
 
     if (tpm_token_info_delegate_->IsTokenReady()) {
-      // This tries to load the opencryptoki module so NSS can talk to
-      // the hardware TPM.
-      if (!opencryptoki_module_) {
-        opencryptoki_module_ = LoadModule(
-            kOpencryptokiModuleName,
-            kOpencryptokiPath,
+      // This tries to load the Chaps module so NSS can talk to the hardware
+      // TPM.
+      if (!chaps_module_) {
+        chaps_module_ = LoadModule(
+            kChapsModuleName,
+            kChapsPath,
             // trustOrder=100 -- means it'll select this as the most
             //   trusted slot for the mechanisms it provides.
             // slotParams=... -- selects RSA as the only mechanism, and only
@@ -272,7 +272,7 @@ class NSSInitSingleton {
             //   time, or after a timeout).
             "trustOrder=100 slotParams=(1={slotFlags=[RSA] askpw=only})");
       }
-      if (opencryptoki_module_) {
+      if (chaps_module_) {
         // If this gets set, then we'll use the TPM for certs with
         // private keys, otherwise we'll fall back to the software
         // implementation.
@@ -373,7 +373,7 @@ class NSSInitSingleton {
 
 #if defined(OS_CHROMEOS)
     // Make sure that if EnableTPMTokenForNSS has been called that we
-    // have successfully loaded opencryptoki.
+    // have successfully loaded Chaps.
     if (tpm_token_info_delegate_.get() != NULL) {
       if (EnsureTPMTokenReady()) {
         return PK11_ReferenceSlot(tpm_slot_);
@@ -407,7 +407,7 @@ class NSSInitSingleton {
   friend struct base::DefaultLazyInstanceTraits<NSSInitSingleton>;
 
   NSSInitSingleton()
-      : opencryptoki_module_(NULL),
+      : chaps_module_(NULL),
         software_slot_(NULL),
         test_slot_(NULL),
         tpm_slot_(NULL),
@@ -522,10 +522,10 @@ class NSSInitSingleton {
       SECMOD_DestroyModule(root_);
       root_ = NULL;
     }
-    if (opencryptoki_module_) {
-      SECMOD_UnloadUserModule(opencryptoki_module_);
-      SECMOD_DestroyModule(opencryptoki_module_);
-      opencryptoki_module_ = NULL;
+    if (chaps_module_) {
+      SECMOD_UnloadUserModule(chaps_module_);
+      SECMOD_DestroyModule(chaps_module_);
+      chaps_module_ = NULL;
     }
 
     SECStatus status = NSS_Shutdown();
@@ -596,7 +596,7 @@ class NSSInitSingleton {
   scoped_ptr<TPMTokenInfoDelegate> tpm_token_info_delegate_;
 #endif
 
-  SECMODModule* opencryptoki_module_;
+  SECMODModule* chaps_module_;
   PK11SlotInfo* software_slot_;
   PK11SlotInfo* test_slot_;
   PK11SlotInfo* tpm_slot_;
