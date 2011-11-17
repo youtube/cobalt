@@ -21,6 +21,7 @@
 #include "net/http/http_stream.h"
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_service.h"
+#include "net/socket/mock_client_socket_pool_manager.h"
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -281,12 +282,15 @@ TEST(HttpStreamFactoryTest, PreconnectDirect) {
         new CapturePreconnectsTransportSocketPool(
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
-    peer.SetTransportSocketPool(transport_conn_pool);
     CapturePreconnectsSSLSocketPool* ssl_conn_pool =
         new CapturePreconnectsSSLSocketPool(
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
-    peer.SetSSLSocketPool(ssl_conn_pool);
+    MockClientSocketPoolManager* mock_pool_manager =
+        new MockClientSocketPoolManager;
+    mock_pool_manager->SetTransportSocketPool(transport_conn_pool);
+    mock_pool_manager->SetSSLSocketPool(ssl_conn_pool);
+    peer.SetClientSocketPoolManager(mock_pool_manager);
     PreconnectHelper(kTests[i], session);
     if (kTests[i].ssl)
       EXPECT_EQ(kTests[i].num_streams, ssl_conn_pool->last_num_streams());
@@ -305,12 +309,15 @@ TEST(HttpStreamFactoryTest, PreconnectHttpProxy) {
         new CapturePreconnectsHttpProxySocketPool(
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
-    peer.SetSocketPoolForHTTPProxy(proxy_host, http_proxy_pool);
     CapturePreconnectsSSLSocketPool* ssl_conn_pool =
         new CapturePreconnectsSSLSocketPool(
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
-    peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
+    MockClientSocketPoolManager* mock_pool_manager =
+        new MockClientSocketPoolManager;
+    mock_pool_manager->SetSocketPoolForHTTPProxy(proxy_host, http_proxy_pool);
+    mock_pool_manager->SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
+    peer.SetClientSocketPoolManager(mock_pool_manager);
     PreconnectHelper(kTests[i], session);
     if (kTests[i].ssl)
       EXPECT_EQ(kTests[i].num_streams, ssl_conn_pool->last_num_streams());
@@ -330,12 +337,15 @@ TEST(HttpStreamFactoryTest, PreconnectSocksProxy) {
         new CapturePreconnectsSOCKSSocketPool(
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
-    peer.SetSocketPoolForSOCKSProxy(proxy_host, socks_proxy_pool);
     CapturePreconnectsSSLSocketPool* ssl_conn_pool =
         new CapturePreconnectsSSLSocketPool(
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
-    peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
+    MockClientSocketPoolManager* mock_pool_manager =
+        new MockClientSocketPoolManager;
+    mock_pool_manager->SetSocketPoolForSOCKSProxy(proxy_host, socks_proxy_pool);
+    mock_pool_manager->SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
+    peer.SetClientSocketPoolManager(mock_pool_manager);
     PreconnectHelper(kTests[i], session);
     if (kTests[i].ssl)
       EXPECT_EQ(kTests[i].num_streams, ssl_conn_pool->last_num_streams());
@@ -360,12 +370,15 @@ TEST(HttpStreamFactoryTest, PreconnectDirectWithExistingSpdySession) {
         new CapturePreconnectsTransportSocketPool(
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
-    peer.SetTransportSocketPool(transport_conn_pool);
     CapturePreconnectsSSLSocketPool* ssl_conn_pool =
         new CapturePreconnectsSSLSocketPool(
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
-    peer.SetSSLSocketPool(ssl_conn_pool);
+    MockClientSocketPoolManager* mock_pool_manager =
+        new MockClientSocketPoolManager;
+    mock_pool_manager->SetTransportSocketPool(transport_conn_pool);
+    mock_pool_manager->SetSSLSocketPool(ssl_conn_pool);
+    peer.SetClientSocketPoolManager(mock_pool_manager);
     PreconnectHelper(kTests[i], session);
     // We shouldn't be preconnecting if we have an existing session, which is
     // the case for https://www.google.com.

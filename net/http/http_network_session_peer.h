@@ -11,14 +11,11 @@
 
 namespace net {
 
+class ClientSocketPoolManager;
 class HostPortPair;
 class HttpNetworkSession;
-class HttpProxyClientSocketPool;
 class HttpStreamFactory;
 class ProxyService;
-class SOCKSClientSocketPool;
-class SSLClientSocketPool;
-class TransportClientSocketPool;
 
 class NET_EXPORT_PRIVATE HttpNetworkSessionPeer {
  public:
@@ -26,21 +23,8 @@ class NET_EXPORT_PRIVATE HttpNetworkSessionPeer {
       const scoped_refptr<HttpNetworkSession>& session);
   ~HttpNetworkSessionPeer();
 
-  void SetTransportSocketPool(TransportClientSocketPool* pool);
-
-  void SetSocketPoolForSOCKSProxy(
-      const HostPortPair& socks_proxy,
-      SOCKSClientSocketPool* pool);
-
-  void SetSocketPoolForHTTPProxy(
-      const HostPortPair& http_proxy,
-      HttpProxyClientSocketPool* pool);
-
-  void SetSSLSocketPool(SSLClientSocketPool* pool);
-
-  void SetSocketPoolForSSLWithProxy(
-      const HostPortPair& proxy_host,
-      SSLClientSocketPool* pool);
+  void SetClientSocketPoolManager(
+      ClientSocketPoolManager* socket_pool_manager);
 
   void SetProxyService(ProxyService* proxy_service);
 

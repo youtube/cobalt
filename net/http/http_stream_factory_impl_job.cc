@@ -651,7 +651,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
   }
 
   if (IsPreconnecting()) {
-    return ClientSocketPoolManager::PreconnectSocketsForHttpRequest(
+    return PreconnectSocketsForHttpRequest(
         origin_url_,
         request_info_.extra_headers,
         request_info_.load_flags,
@@ -665,7 +665,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
         net_log_,
         num_streams_);
   } else {
-    return ClientSocketPoolManager::InitSocketHandleForHttpRequest(
+    return InitSocketHandleForHttpRequest(
         origin_url_,
         request_info_.extra_headers,
         request_info_.load_flags,
