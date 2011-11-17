@@ -63,19 +63,6 @@ const HttpResponseInfo* SpdyProxyClientSocket::GetConnectResponseInfo() const {
   return response_.headers ? &response_ : NULL;
 }
 
-int SpdyProxyClientSocket::RestartWithAuth(OldCompletionCallback* callback) {
-  // A SPDY Stream can only handle a single request, so the underlying
-  // stream may not be reused and a new SpdyProxyClientSocket must be
-  // created (possibly on top of the same SPDY Session).
-  next_state_ = STATE_DISCONNECTED;
-  return OK;
-}
-
-const
-scoped_refptr<HttpAuthController>& SpdyProxyClientSocket::auth_controller() {
-  return auth_;
-}
-
 HttpStream* SpdyProxyClientSocket::CreateConnectResponseStream() {
   DCHECK(response_stream_.get());
   return response_stream_.release();
@@ -397,16 +384,6 @@ int SpdyProxyClientSocket::DoReadReplyComplete(int result) {
   if (response_.headers->response_code() == 200) {
     return OK;
   } else if (response_.headers->response_code() == 407) {
-    int rv = HandleAuthChallenge(auth_, &response_, net_log_);
-    if (rv != ERR_PROXY_AUTH_REQUESTED) {
-      return rv;
-    }
-    // SPDY only supports basic and digest auth
-    if (auth_->auth_info() &&
-        (auth_->auth_info()->scheme == "basic" ||
-         auth_->auth_info()->scheme == "digest")) {
-      return ERR_PROXY_AUTH_REQUESTED;
-    }
     return ERR_TUNNEL_CONNECTION_FAILED;
   } else {
     // Immediately hand off our SpdyStream to a newly created SpdyHttpStream

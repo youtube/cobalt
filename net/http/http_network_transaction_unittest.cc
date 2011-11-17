@@ -1682,9 +1682,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyNoKeepAlive) {
     MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Proxy-Connection: keep-alive\r\n\r\n"),
-  };
 
-  MockWrite data_writes2[] = {
     // After calling trans->RestartWithAuth(), this is the request we should
     // be issuing -- the final header line contains the credentials.
     MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
@@ -1704,9 +1702,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyNoKeepAlive) {
     MockRead("HTTP/1.1 407 Proxy Authentication Required\r\n"),
     MockRead("Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
     MockRead("Proxy-Connection: close\r\n\r\n"),
-  };
 
-  MockRead data_reads2[] = {
     MockRead("HTTP/1.1 200 Connection Established\r\n\r\n"),
 
     MockRead("HTTP/1.1 200 OK\r\n"),
@@ -1717,10 +1713,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyNoKeepAlive) {
 
   StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
                                  data_writes1, arraysize(data_writes1));
-  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
-                                 data_writes2, arraysize(data_writes2));
   session_deps.socket_factory.AddSocketDataProvider(&data1);
-  session_deps.socket_factory.AddSocketDataProvider(&data2);
   SSLSocketDataProvider ssl(true, OK);
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
@@ -1930,368 +1923,6 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyCancelTunnel) {
   EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
 
   // Flush the idle socket before the HttpNetworkTransaction goes out of scope.
-  session->CloseAllConnections();
-}
-
-// Test the request-challenge-retry sequence for basic auth, over a connection
-// that requires a restart when setting up an SSL tunnel.
-TEST_F(HttpNetworkTransactionTest, BasicAuthHttpsProxyNoKeepAlive) {
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("https://www.google.com/");
-  // when the no authentication data flag is set.
-  request.load_flags = net::LOAD_DO_NOT_SEND_AUTH_DATA;
-
-  // Configure against https proxy server "myproxy:70".
-  SessionDependencies session_deps(
-      ProxyService::CreateFixed("https://myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
-  session_deps.net_log = log.bound().net_log();
-  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
-
-  // Since we have proxy, should try to establish tunnel.
-  MockWrite data_writes1[] = {
-    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
-              "Host: www.google.com\r\n"
-              "Proxy-Connection: keep-alive\r\n\r\n"),
-  };
-
-  MockWrite data_writes2[] = {
-    // After calling trans->RestartWithAuth(), this is the request we should
-    // be issuing -- the final header line contains the credentials.
-    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
-              "Host: www.google.com\r\n"
-              "Proxy-Connection: keep-alive\r\n"
-              "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
-
-    MockWrite("GET / HTTP/1.1\r\n"
-              "Host: www.google.com\r\n"
-              "Connection: keep-alive\r\n\r\n"),
-  };
-
-  // The proxy responds to the connect with a 407, using a persistent
-  // connection.
-  MockRead data_reads1[] = {
-    // No credentials.
-    MockRead("HTTP/1.1 407 Proxy Authentication Required\r\n"),
-    MockRead("Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
-    MockRead("Proxy-Connection: close\r\n\r\n"),
-  };
-
-  MockRead data_reads2[] = {
-    MockRead("HTTP/1.1 200 Connection Established\r\n\r\n"),
-
-    MockRead("HTTP/1.1 200 OK\r\n"),
-    MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
-    MockRead("Content-Length: 5\r\n\r\n"),
-    MockRead(false, "hello"),
-  };
-
-  StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
-                                 data_writes1, arraysize(data_writes1));
-  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
-                                 data_writes2, arraysize(data_writes2));
-  session_deps.socket_factory.AddSocketDataProvider(&data1);
-  session_deps.socket_factory.AddSocketDataProvider(&data2);
-  SSLSocketDataProvider proxy(true, OK);
-  session_deps.socket_factory.AddSSLSocketDataProvider(&proxy);
-  SSLSocketDataProvider proxy2(true, OK);
-  session_deps.socket_factory.AddSSLSocketDataProvider(&proxy2);
-  SSLSocketDataProvider server(true, OK);
-  session_deps.socket_factory.AddSSLSocketDataProvider(&server);
-
-  TestOldCompletionCallback callback1;
-
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
-
-  int rv = trans->Start(&request, &callback1, log.bound());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  rv = callback1.WaitForResult();
-  EXPECT_EQ(OK, rv);
-  net::CapturingNetLog::EntryList entries;
-  log.GetEntries(&entries);
-  size_t pos = ExpectLogContainsSomewhere(
-      entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
-      NetLog::PHASE_NONE);
-  ExpectLogContainsSomewhere(
-      entries, pos,
-      NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
-      NetLog::PHASE_NONE);
-
-  const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_TRUE(response != NULL);
-  ASSERT_FALSE(response->headers == NULL);
-  EXPECT_EQ(407, response->headers->response_code());
-  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
-  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
-
-  TestOldCompletionCallback callback2;
-
-  rv = trans->RestartWithAuth(AuthCredentials(kFoo, kBar), &callback2);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  rv = callback2.WaitForResult();
-  EXPECT_EQ(OK, rv);
-
-  response = trans->GetResponseInfo();
-  ASSERT_TRUE(response != NULL);
-
-  EXPECT_TRUE(response->headers->IsKeepAlive());
-  EXPECT_EQ(200, response->headers->response_code());
-  EXPECT_EQ(5, response->headers->GetContentLength());
-  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
-
-  // The password prompt info should not be set.
-  EXPECT_TRUE(response->auth_challenge.get() == NULL);
-
-  trans.reset();
-  session->CloseAllConnections();
-}
-
-// Test the request-challenge-retry sequence for basic auth, over a keep-alive
-// proxy connection, when setting up an SSL tunnel.
-TEST_F(HttpNetworkTransactionTest, BasicAuthHttpsProxyKeepAlive) {
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("https://www.google.com/");
-  // Ensure that proxy authentication is attempted even
-  // when the no authentication data flag is set.
-  request.load_flags = net::LOAD_DO_NOT_SEND_AUTH_DATA;
-
-  // Configure against https proxy server "myproxy:70".
-  SessionDependencies session_deps(
-      ProxyService::CreateFixed("https://myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
-  session_deps.net_log = log.bound().net_log();
-  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
-
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
-
-  // Since we have proxy, should try to establish tunnel.
-  MockWrite data_writes1[] = {
-    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
-              "Host: www.google.com\r\n"
-              "Proxy-Connection: keep-alive\r\n\r\n"),
-
-    // After calling trans->RestartWithAuth(), this is the request we should
-    // be issuing -- the final header line contains the credentials.
-    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
-              "Host: www.google.com\r\n"
-              "Proxy-Connection: keep-alive\r\n"
-              "Proxy-Authorization: Basic Zm9vOmJheg==\r\n\r\n"),
-  };
-
-  // The proxy responds to the connect with a 407, using a persistent
-  // connection.
-  MockRead data_reads1[] = {
-    // No credentials.
-    MockRead("HTTP/1.1 407 Proxy Authentication Required\r\n"),
-    MockRead("Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
-    MockRead("Content-Length: 10\r\n\r\n"),
-    MockRead("0123456789"),
-
-    // Wrong credentials (wrong password).
-    MockRead("HTTP/1.1 407 Proxy Authentication Required\r\n"),
-    MockRead("Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
-    MockRead("Content-Length: 10\r\n\r\n"),
-    // No response body because the test stops reading here.
-    MockRead(false, ERR_UNEXPECTED),  // Should not be reached.
-  };
-
-  StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
-                                 data_writes1, arraysize(data_writes1));
-  session_deps.socket_factory.AddSocketDataProvider(&data1);
-  SSLSocketDataProvider ssl(true, OK);
-  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
-
-  TestOldCompletionCallback callback1;
-
-  int rv = trans->Start(&request, &callback1, log.bound());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  rv = callback1.WaitForResult();
-  EXPECT_EQ(OK, rv);
-  net::CapturingNetLog::EntryList entries;
-  log.GetEntries(&entries);
-  size_t pos = ExpectLogContainsSomewhere(
-      entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
-      NetLog::PHASE_NONE);
-  ExpectLogContainsSomewhere(
-      entries, pos,
-      NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
-      NetLog::PHASE_NONE);
-
-  const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_TRUE(response != NULL);
-  ASSERT_FALSE(response->headers == NULL);
-  EXPECT_TRUE(response->headers->IsKeepAlive());
-  EXPECT_EQ(407, response->headers->response_code());
-  EXPECT_EQ(10, response->headers->GetContentLength());
-  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
-  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
-
-  TestOldCompletionCallback callback2;
-
-  // Wrong password (should be "bar").
-  rv = trans->RestartWithAuth(AuthCredentials(kFoo, kBaz), &callback2);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  rv = callback2.WaitForResult();
-  EXPECT_EQ(OK, rv);
-
-  response = trans->GetResponseInfo();
-  ASSERT_TRUE(response != NULL);
-  ASSERT_FALSE(response->headers == NULL);
-  EXPECT_TRUE(response->headers->IsKeepAlive());
-  EXPECT_EQ(407, response->headers->response_code());
-  EXPECT_EQ(10, response->headers->GetContentLength());
-  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
-  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
-
-  // Flush the idle socket before the NetLog and HttpNetworkTransaction go
-  // out of scope.
-  session->CloseAllConnections();
-}
-
-// Test the request-challenge-retry sequence for basic auth, through
-// a SPDY proxy over a single SPDY session.
-TEST_F(HttpNetworkTransactionTest, BasicAuthSpdyProxy) {
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("https://www.google.com/");
-  // when the no authentication data flag is set.
-  request.load_flags = net::LOAD_DO_NOT_SEND_AUTH_DATA;
-
-  // Configure against https proxy server "myproxy:70".
-  SessionDependencies session_deps(
-      ProxyService::CreateFixed("https://myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
-  session_deps.net_log = log.bound().net_log();
-  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
-
-  // Since we have proxy, should try to establish tunnel.
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyConnect(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(1, spdy::CANCEL));
-
-  // After calling trans->RestartWithAuth(), this is the request we should
-  // be issuing -- the final header line contains the credentials.
-  const char* const kAuthCredentials[] = {
-      "proxy-authorization", "Basic Zm9vOmJhcg==",
-  };
-  scoped_ptr<spdy::SpdyFrame> connect2(
-      ConstructSpdyConnect(kAuthCredentials, arraysize(kAuthCredentials)/2, 3));
-  // fetch https://www.google.com/ via HTTP
-  const char get[] = "GET / HTTP/1.1\r\n"
-    "Host: www.google.com\r\n"
-    "Connection: keep-alive\r\n\r\n";
-  scoped_ptr<spdy::SpdyFrame> wrapped_get(
-      ConstructSpdyBodyFrame(3, get, strlen(get), false));
-
-  MockWrite spdy_writes[] = {
-    CreateMockWrite(*req, 0, true),
-    CreateMockWrite(*rst, 2, true),
-    CreateMockWrite(*connect2, 3),
-    CreateMockWrite(*wrapped_get, 5)
-  };
-
-  // The proxy responds to the connect with a 407, using a persistent
-  // connection.
-  const char* const kAuthChallenge[] = {
-    "status", "407 Proxy Authentication Required",
-    "version", "HTTP/1.1",
-    "proxy-authenticate", "Basic realm=\"MyRealm1\"",
-  };
-
-  scoped_ptr<spdy::SpdyFrame> conn_auth_resp(
-      ConstructSpdyControlFrame(NULL,
-                                0,
-                                false,
-                                1,
-                                LOWEST,
-                                spdy::SYN_REPLY,
-                                spdy::CONTROL_FLAG_NONE,
-                                kAuthChallenge,
-                                arraysize(kAuthChallenge)));
-
-  scoped_ptr<spdy::SpdyFrame> conn_resp(ConstructSpdyGetSynReply(NULL, 0, 3));
-  const char resp[] = "HTTP/1.1 200 OK\r\n"
-      "Content-Length: 5\r\n\r\n";
-
-  scoped_ptr<spdy::SpdyFrame> wrapped_get_resp(
-      ConstructSpdyBodyFrame(3, resp, strlen(resp), false));
-  scoped_ptr<spdy::SpdyFrame> wrapped_body(
-      ConstructSpdyBodyFrame(3, "hello", 10, false));
-  MockRead spdy_reads[] = {
-    CreateMockRead(*conn_auth_resp, 1, true),
-    CreateMockRead(*conn_resp, 4, true),
-    CreateMockRead(*wrapped_get_resp, 5, true),
-    CreateMockRead(*wrapped_body, 6, true),
-    MockRead(false, ERR_IO_PENDING),
-  };
-
-  scoped_refptr<OrderedSocketData> spdy_data(
-      new OrderedSocketData(
-          spdy_reads, arraysize(spdy_reads),
-          spdy_writes, arraysize(spdy_writes)));
-  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
-  // Negotiate SPDY to the proxy
-  SSLSocketDataProvider proxy(true, OK);
-  proxy.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  proxy.next_proto = "spdy/2";
-  proxy.was_npn_negotiated = true;
-  session_deps.socket_factory.AddSSLSocketDataProvider(&proxy);
-  // Vanilla SSL to the server
-  SSLSocketDataProvider server(true, OK);
-  session_deps.socket_factory.AddSSLSocketDataProvider(&server);
-
-  TestOldCompletionCallback callback1;
-
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
-
-  int rv = trans->Start(&request, &callback1, log.bound());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  rv = callback1.WaitForResult();
-  EXPECT_EQ(OK, rv);
-  net::CapturingNetLog::EntryList entries;
-  log.GetEntries(&entries);
-  size_t pos = ExpectLogContainsSomewhere(
-      entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
-      NetLog::PHASE_NONE);
-  ExpectLogContainsSomewhere(
-      entries, pos,
-      NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
-      NetLog::PHASE_NONE);
-
-  const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_TRUE(response != NULL);
-  ASSERT_FALSE(response->headers == NULL);
-  EXPECT_EQ(407, response->headers->response_code());
-  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
-  EXPECT_TRUE(response->auth_challenge.get() != NULL);
-  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
-
-  TestOldCompletionCallback callback2;
-
-  rv = trans->RestartWithAuth(AuthCredentials(kFoo, kBar), &callback2);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  rv = callback2.WaitForResult();
-  EXPECT_EQ(OK, rv);
-
-  response = trans->GetResponseInfo();
-  ASSERT_TRUE(response != NULL);
-
-  EXPECT_TRUE(response->headers->IsKeepAlive());
-  EXPECT_EQ(200, response->headers->response_code());
-  EXPECT_EQ(5, response->headers->GetContentLength());
-  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
-
-  // The password prompt info should not be set.
-  EXPECT_TRUE(response->auth_challenge.get() == NULL);
-
-  trans.reset();
   session->CloseAllConnections();
 }
 
@@ -7697,7 +7328,7 @@ TEST_F(HttpNetworkTransactionTest,
 //   - HTTP or HTTPS backend (to include proxy tunneling).
 //   - Non-authenticating and authenticating backend.
 //
-// In all, there are 44 reasonable permutations (for example, if there are
+// In all, there are 44 reasonable permuations (for example, if there are
 // problems generating an auth token for an authenticating proxy, we don't
 // need to test all permutations of the backend server).
 //
@@ -8517,10 +8148,8 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   SessionDependencies session_deps(ProxyService::CreateFixed("myproxy:70"));
   HttpAuthHandlerMock::Factory* auth_factory =
       new HttpAuthHandlerMock::Factory();
-  HttpAuthHandlerMock* auth_handler1 = new HttpAuthHandlerMock();
-  auth_factory->AddMockHandler(auth_handler1, HttpAuth::AUTH_PROXY);
-  HttpAuthHandlerMock* auth_handler2 = new HttpAuthHandlerMock();
-  auth_factory->AddMockHandler(auth_handler2, HttpAuth::AUTH_PROXY);
+  HttpAuthHandlerMock* auth_handler = new HttpAuthHandlerMock();
+  auth_factory->AddMockHandler(auth_handler, HttpAuth::AUTH_PROXY);
   auth_factory->set_do_init_from_challenge(true);
   session_deps.http_auth_handler_factory.reset(auth_factory);
 
@@ -8552,6 +8181,11 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   // After the failure, a tunnel is established to www.google.com using
   // Proxy-Authorization headers. There is then a SPDY request round.
   //
+  // NOTE: Despite the "Proxy-Connection: Close", these are done on the
+  // same MockTCPClientSocket since the underlying HttpNetworkClientSocket
+  // does a Disconnect and Connect on the same socket, rather than trying
+  // to obtain a new one.
+  //
   // NOTE: Originally, the proxy response to the second CONNECT request
   // simply returned another 407 so the unit test could skip the SSL connection
   // establishment and SPDY framing issues. Alas, the
@@ -8568,17 +8202,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
               "Host: www.google.com\r\n"
               "Proxy-Connection: keep-alive\r\n"
               "\r\n"),
-  };
 
-  MockWrite data_writes_3[] = {
-    // Non-alternate protocol job that will run in parallel
-    MockWrite("GET http://www.google.com/ HTTP/1.1\r\n"
-              "Host: www.google.com\r\n"
-              "Proxy-Connection: keep-alive\r\n"
-              "\r\n"),
-  };
-
-  MockWrite data_writes_4[] = {
     // Second connection attempt with Proxy-Authorization.
     MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
@@ -8592,7 +8216,6 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   const char kRejectConnectResponse[] = ("HTTP/1.1 407 Unauthorized\r\n"
                                          "Proxy-Authenticate: Mock\r\n"
                                          "Proxy-Connection: close\r\n"
-                                         "Content-Length: 0\r\n"
                                          "\r\n");
   const char kAcceptConnectResponse[] = "HTTP/1.1 200 Connected\r\n\r\n";
   MockRead data_reads_2[] = {
@@ -8600,35 +8223,19 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
     MockRead(false, ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ, 1),
     MockRead(true, kRejectConnectResponse,
              arraysize(kRejectConnectResponse) - 1, 1),
-  };
 
-  // Hang forever so we can ensure the alt job wins
-  MockRead data_reads_3[] = {
-    MockRead(false, ERR_IO_PENDING),
-  };
-
-  MockRead data_reads_4[] = {
     // Second connection attempt passes
     MockRead(true, kAcceptConnectResponse,
-             arraysize(kAcceptConnectResponse) -1, 1),
+             arraysize(kAcceptConnectResponse) -1, 4),
 
     // SPDY response
-    CreateMockRead(*resp.get(), 3),
-    CreateMockRead(*data.get(), 3),
-    MockRead(true, 0, 0, 4),
+    CreateMockRead(*resp.get(), 6),
+    CreateMockRead(*data.get(), 6),
+    MockRead(true, 0, 0, 6),
   };
   scoped_refptr<OrderedSocketData> data_2(
       new OrderedSocketData(data_reads_2, arraysize(data_reads_2),
                             data_writes_2, arraysize(data_writes_2)));
-  scoped_refptr<OrderedSocketData> data_3(
-      new OrderedSocketData(data_reads_3, arraysize(data_reads_3),
-                            data_writes_3, arraysize(data_writes_3)));
-  // Hang forever so we can ensure the alt job wins
-  MockConnect conn_3(false, ERR_IO_PENDING);
-  data_3->set_connect_data(conn_3);
-  scoped_refptr<OrderedSocketData> data_4(
-      new OrderedSocketData(data_reads_4, arraysize(data_reads_4),
-                            data_writes_4, arraysize(data_writes_4)));
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
@@ -8643,9 +8250,6 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
 
   session_deps.socket_factory.AddSocketDataProvider(&data_1);
   session_deps.socket_factory.AddSocketDataProvider(data_2.get());
-  session_deps.socket_factory.AddSocketDataProvider(data_3.get());
-  session_deps.socket_factory.AddSocketDataProvider(data_4.get());
-  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
   session_deps.socket_factory.AddSocketDataProvider(
       &hanging_non_alternate_protocol_socket);
@@ -8676,7 +8280,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
 
   // After all that work, these two lines (or actually, just the scheme) are
   // what this test is all about. Make sure it happens correctly.
-  const GURL& request_url = auth_handler2->request_url();
+  const GURL& request_url = auth_handler->request_url();
   EXPECT_EQ("https", request_url.scheme());
   EXPECT_EQ("www.google.com", request_url.host());
 
