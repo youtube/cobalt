@@ -19,49 +19,9 @@ HttpNetworkSessionPeer::HttpNetworkSessionPeer(
 
 HttpNetworkSessionPeer::~HttpNetworkSessionPeer() {}
 
-void HttpNetworkSessionPeer::SetTransportSocketPool(
-    TransportClientSocketPool* pool) {
-  session_->socket_pool_manager_.transport_socket_pool_.reset(pool);
-}
-
-void HttpNetworkSessionPeer::SetSocketPoolForSOCKSProxy(
-    const HostPortPair& socks_proxy,
-    SOCKSClientSocketPool* pool) {
-  ClientSocketPoolManager* socket_pool_manager =
-      &session_->socket_pool_manager_;
-
-  // Call through the public interface to force initialization of the
-  // wrapped socket pools.
-  delete socket_pool_manager->GetSocketPoolForSOCKSProxy(socks_proxy);
-  socket_pool_manager->socks_socket_pools_[socks_proxy] = pool;
-}
-
-void HttpNetworkSessionPeer::SetSocketPoolForHTTPProxy(
-    const HostPortPair& http_proxy,
-    HttpProxyClientSocketPool* pool) {
-  ClientSocketPoolManager* socket_pool_manager =
-      &session_->socket_pool_manager_;
-
-  // Call through the public interface to force initialization of the
-  // wrapped socket pools.
-  delete socket_pool_manager->GetSocketPoolForHTTPProxy(http_proxy);
-  socket_pool_manager->http_proxy_socket_pools_[http_proxy] = pool;
-}
-
-void HttpNetworkSessionPeer::SetSSLSocketPool(SSLClientSocketPool* pool) {
-  session_->socket_pool_manager_.ssl_socket_pool_.reset(pool);
-}
-
-void HttpNetworkSessionPeer::SetSocketPoolForSSLWithProxy(
-    const HostPortPair& proxy_host,
-    SSLClientSocketPool* pool) {
-  ClientSocketPoolManager* socket_pool_manager =
-      &session_->socket_pool_manager_;
-
-  // Call through the public interface to force initialization of the
-  // wrapped socket pools.
-  delete socket_pool_manager->GetSocketPoolForSSLWithProxy(proxy_host);
-  socket_pool_manager->ssl_socket_pools_for_proxies_[proxy_host] = pool;
+void HttpNetworkSessionPeer::SetClientSocketPoolManager(
+    ClientSocketPoolManager* socket_pool_manager) {
+  session_->socket_pool_manager_.reset(socket_pool_manager);
 }
 
 void HttpNetworkSessionPeer::SetProxyService(ProxyService* proxy_service) {
