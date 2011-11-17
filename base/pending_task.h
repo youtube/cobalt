@@ -49,6 +49,9 @@ class TaskQueue : public std::queue<PendingTask> {
   void Swap(TaskQueue* queue);
 };
 
+// PendingTasks are sorted by their |delayed_run_time| property.
+typedef std::priority_queue<base::PendingTask> DelayedTaskQueue;
+
 }  // namespace base
 
 #endif  // PENDING_TASK_H_
