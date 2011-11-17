@@ -131,10 +131,8 @@ PosixDynamicThreadPool::PosixDynamicThreadPool(
       num_idle_threads_cv_(NULL) {}
 
 PosixDynamicThreadPool::~PosixDynamicThreadPool() {
-  while (!pending_tasks_.empty()) {
-    PendingTask pending_task = pending_tasks_.front();
+  while (!pending_tasks_.empty())
     pending_tasks_.pop();
-  }
 }
 
 void PosixDynamicThreadPool::Terminate() {
