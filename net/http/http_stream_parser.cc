@@ -530,12 +530,38 @@ int HttpStreamParser::DoReadBody() {
 }
 
 int HttpStreamParser::DoReadBodyComplete(int result) {
-  // If we didn't get a Content-Length and aren't using a chunked encoding,
-  // the only way to signal the end of a stream is to close the connection,
-  // so we don't treat that as an error, though in some cases we may not
-  // have completely received the resource.
-  if (result == 0 && !IsResponseBodyComplete() && CanFindEndOfResponse())
-    result = ERR_CONNECTION_CLOSED;
+  // When the connection is closed, there are numerous ways to interpret it.
+  //
+  //  - If a Content-Length header is present and the body contains exactly that
+  //    number of bytes at connection close, the response is successful.
+  //
+  //  - If a Content-Length header is present and the body contains fewer bytes
+  //    than promised by the header at connection close, it may indicate that
+  //    the connection was closed prematurely, or it may indicate that the
+  //    server sent an invalid Content-Length header. Unfortunately, the invalid
+  //    Content-Length header case does occur in practice and other browsers are
+  //    tolerant of it, so this is reported as an ERR_CONTENT_LENGTH_MISMATCH
+  //    rather than an ERR_CONNECTION_CLOSE.
+  //
+  //  - If chunked encoding is used and the terminating chunk has been processed
+  //    when the connection is closed, the response is successful.
+  //
+  //  - If chunked encoding is used and the terminating chunk has not been
+  //    processed when the connection is closed, it may indicate that the
+  //    connection was closed prematurely or it may indicate that the server
+  //    sent an invalid chunked encoding. We choose to treat it as
+  //    an invalid chunked encoding.
+  //
+  //  - If a Content-Length is not present and chunked encoding is not used,
+  //    connection close is the only way to signal that the response is
+  //    complete. Unfortunately, this also means that there is no way to detect
+  //    early close of a connection. No error is returned.
+  if (result == 0 && !IsResponseBodyComplete() && CanFindEndOfResponse()) {
+    if (chunked_decoder_.get())
+      result = ERR_INVALID_CHUNKED_ENCODING;
+    else
+      result = ERR_CONTENT_LENGTH_MISMATCH;
+  }
 
   // Filter incoming data if appropriate.  FilterBuf may return an error.
   if (result > 0 && chunked_decoder_.get()) {

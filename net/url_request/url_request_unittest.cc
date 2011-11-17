@@ -881,7 +881,7 @@ TEST_F(URLRequestTestHTTP, GetZippedTest) {
   // L & M are larger than the data sent, and show an error.
   // S has too little data, but we seem to accept it.
   const bool test_expect_success[num_tests] =
-      { true, true, false, false, true };
+      { true, false, false, false, true };
 
   for (int i = 0; i < num_tests ; i++) {
     TestDelegate d;
@@ -913,7 +913,7 @@ TEST_F(URLRequestTestHTTP, GetZippedTest) {
             << " Parameter = \"" << test_file << "\"";
       } else {
         EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
-        EXPECT_EQ(-100, r.status().error())
+        EXPECT_EQ(ERR_CONTENT_LENGTH_MISMATCH, r.status().error())
             << " Parameter = \"" << test_file << "\"";
       }
     }
