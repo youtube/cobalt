@@ -150,6 +150,7 @@
         'i18n/string_search_unittest.cc',
         'i18n/time_formatting_unittest.cc',
         'json/json_reader_unittest.cc',
+        'json/json_value_serializer_unittest.cc',
         'json/json_writer_unittest.cc',
         'json/string_escape_unittest.cc',
         'lazy_instance_unittest.cc',
