@@ -511,6 +511,9 @@ NET_ERROR(SPDY_SERVER_REFUSED_STREAM, -351)
 // SPDY server didn't respond to the PING message.
 NET_ERROR(SPDY_PING_FAILED, -352)
 
+// Content-Length does not match the number of bytes received.
+NET_ERROR(CONTENT_LENGTH_MISMATCH, -353)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 
