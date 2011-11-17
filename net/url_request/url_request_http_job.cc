@@ -661,8 +661,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   // Clear the IO_PENDING status
   SetStatus(URLRequestStatus());
 
-// TODO(agl): reenable guards once the builders have checked the code within.
-//#if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
+#if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
   // Take care of any mandates for public key pinning.
   //
   // Pinning is only enabled for official builds to make sure that others don't
@@ -708,7 +707,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
       }
     }
   }
-//#endif
+#endif
 
   if (result == OK) {
     scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
