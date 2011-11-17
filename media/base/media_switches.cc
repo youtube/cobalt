@@ -13,10 +13,8 @@ const char kAlsaOutputDevice[] = "alsa-output-device";
 const char kAlsaInputDevice[] = "alsa-input-device";
 #endif
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
-// Use PulseAudio on platforms that support it.
+// Use PulseAudio instead of ALSA on Linux.
 const char kUsePulseAudio[] = "use-pulseaudio";
-#endif
 
 // Set number of threads to use for video decoding.
 const char kVideoThreads[] = "video-threads";

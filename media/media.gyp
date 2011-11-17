@@ -63,6 +63,8 @@
         'audio/linux/alsa_util.h',
         'audio/linux/alsa_wrapper.cc',
         'audio/linux/alsa_wrapper.h',
+        'audio/linux/pulse_output.cc',
+        'audio/linux/pulse_output.h',
         'audio/openbsd/audio_manager_openbsd.cc',
         'audio/openbsd/audio_manager_openbsd.h',
         'audio/mac/audio_input_mac.cc',
@@ -75,8 +77,6 @@
         'audio/mac/audio_manager_mac.h',
         'audio/mac/audio_output_mac.cc',
         'audio/mac/audio_output_mac.h',
-        'audio/pulse/pulse_output.cc',
-        'audio/pulse/pulse_output.h',
         'audio/simple_sources.cc',
         'audio/simple_sources.h',
         'audio/win/audio_low_latency_input_win.cc',
@@ -299,10 +299,32 @@
               '-lasound',
             ],
           },
+          'conditions': [
+            ['OS=="linux"', {
+              'conditions': [
+                ['use_pulseaudio == 1', {
+                  'link_settings': {
+                    'libraries': [
+                      '-lpulse',
+                    ],
+                  },
+                  'defines': [
+                    'USE_PULSEAUDIO',
+                  ],
+                }, {  # else: use_pulseaudio == 0
+                  'sources!': [
+                    'audio/linux/pulse_output.cc',
+                    'audio/linux/pulse_output.h',
+                  ],
+                }],
+              ],
+            }],
+          ],
         }],
         ['OS=="openbsd"', {
           'sources/': [ ['exclude', '/alsa_' ],
-                        ['exclude', '/audio_manager_linux' ] ],
+                        ['exclude', '/audio_manager_linux' ],
+                        ['exclude', '/pulse_' ] ],
           'link_settings': {
             'libraries': [
             ],
@@ -315,26 +337,6 @@
           ],
         }],
         ['os_posix == 1', {
-          'conditions': [
-            ['use_pulseaudio == 1', {
-              'cflags': [
-                '<!@(pkg-config --cflags libpulse)',
-              ],
-              'link_settings': {
-                'libraries': [
-                  '<!@(pkg-config --libs-only-l libpulse)',
-                ],
-              },
-              'defines': [
-                'USE_PULSEAUDIO',
-              ],
-            }, {  # else: use_pulseaudio == 0
-              'sources!': [
-                'audio/pulse/pulse_output.cc',
-                'audio/pulse/pulse_output.h',
-              ],
-            }],
-          ],
           'sources!': [
             'video/capture/video_capture_device_dummy.cc',
             'video/capture/video_capture_device_dummy.h',
