@@ -192,7 +192,7 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
                              transport_params,
                              LOWEST,
                              NULL,
-                             session_->transport_socket_pool(),
+                             session_->GetTransportSocketPool(),
                              BoundNetLog()));
   session->InitializeWithSocket(connection.release(), false, OK);
 

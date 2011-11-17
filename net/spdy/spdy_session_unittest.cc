@@ -145,7 +145,7 @@ TEST_F(SpdySessionTest, GoAway) {
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(),
                              transport_params, MEDIUM,
-                             NULL, http_session->transport_socket_pool(),
+                             NULL, http_session->GetTransportSocketPool(),
                              BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
@@ -218,7 +218,7 @@ TEST_F(SpdySessionTest, Ping) {
                              transport_params,
                              MEDIUM,
                              NULL,
-                             http_session->transport_socket_pool(),
+                             http_session->GetTransportSocketPool(),
                              BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
@@ -309,7 +309,7 @@ TEST_F(SpdySessionTest, FailedPing) {
                              transport_params,
                              MEDIUM,
                              NULL,
-                             http_session->transport_socket_pool(),
+                             http_session->GetTransportSocketPool(),
                              BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
@@ -553,7 +553,7 @@ TEST_F(SpdySessionTest, OnSettings) {
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(),
                              transport_params, MEDIUM,
-                             NULL, http_session->transport_socket_pool(),
+                             NULL, http_session->GetTransportSocketPool(),
                              BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
@@ -638,7 +638,7 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(),
                              transport_params, MEDIUM,
-                             NULL, http_session->transport_socket_pool(),
+                             NULL, http_session->GetTransportSocketPool(),
                              BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
@@ -737,7 +737,7 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(),
                              transport_params, MEDIUM,
-                             NULL, http_session->transport_socket_pool(),
+                             NULL, http_session->GetTransportSocketPool(),
                              BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
   MessageLoop::current()->RunAllPending();
@@ -811,7 +811,7 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(),
                              transport_params, MEDIUM,
-                             NULL, http_session->transport_socket_pool(),
+                             NULL, http_session->GetTransportSocketPool(),
                              BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
