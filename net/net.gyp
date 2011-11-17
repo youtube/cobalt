@@ -76,6 +76,8 @@
         'base/cookie_options.h',
         'base/cookie_store.cc',
         'base/cookie_store.h',
+        'base/cookie_util.cc',
+        'base/cookie_util.h',
         'base/crl_set.cc',
         'base/crl_set.h',
         'base/crypto_module.h',
