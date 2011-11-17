@@ -378,9 +378,6 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
 
   //----------------------------------------------------------------------------
  protected:
-  // PendingTasks are sorted by their |delayed_run_time| property.
-  typedef std::priority_queue<base::PendingTask> DelayedTaskQueue;
-
   struct RunState {
     // Used to count how many Run() invocations are on the stack.
     int run_depth;
@@ -491,7 +488,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   base::TaskQueue work_queue_;
 
   // Contains delayed tasks, sorted by their 'delayed_run_time' property.
-  DelayedTaskQueue delayed_work_queue_;
+  base::DelayedTaskQueue delayed_work_queue_;
 
   // A recent snapshot of Time::Now(), used to check delayed_work_queue_.
   base::TimeTicks recent_time_;
