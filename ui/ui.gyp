@@ -97,6 +97,7 @@
         'base/dragdrop/os_exchange_data.cc',
         'base/dragdrop/os_exchange_data.h',
         'base/dragdrop/os_exchange_data_provider_aura.cc',
+        'base/dragdrop/os_exchange_data_provider_aura.h',
         'base/dragdrop/os_exchange_data_provider_gtk.cc',
         'base/dragdrop/os_exchange_data_provider_gtk.h',
         'base/dragdrop/os_exchange_data_provider_win.cc',
@@ -354,7 +355,8 @@
         }],
         ['use_aura==1 and OS=="win"', {
           'sources/': [
-            ['exclude', 'base/dragdrop/os_exchange_data_provider_aura.cc'],
+            ['exclude', 'base/dragdrop/os_exchange_data_provider_win.cc'],
+            ['exclude', 'base/dragdrop/os_exchange_data_provider_win.h'],
             ['exclude', 'gfx/native_theme_win.cc'],
             ['exclude', 'gfx/native_theme_win.h'],
             ['exclude', 'gfx/path_win.cc'],
