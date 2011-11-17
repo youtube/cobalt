@@ -4,8 +4,9 @@
 
 #include "net/url_request/url_request_http_job.h"
 
-#include "base/bind.h"
 #include "base/base_switches.h"
+#include "base/bind.h"
+#include "base/build_time.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/file_util.h"
@@ -660,7 +661,8 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   // Clear the IO_PENDING status
   SetStatus(URLRequestStatus());
 
-#if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
+// TODO(agl): reenable guards once the builders have checked the code within.
+//#if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
   // Take care of any mandates for public key pinning.
   //
   // Pinning is only enabled for official builds to make sure that others don't
@@ -685,20 +687,28 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
               &domain_state, host, sni_available)) {
         if (!domain_state.IsChainOfPublicKeysPermitted(
                 ssl_info.public_key_hashes)) {
-          result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
-          UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", false);
-          TransportSecurityState::ReportUMAOnPinFailure(host);
-          FraudulentCertificateReporter* reporter =
-              context_->fraudulent_certificate_reporter();
-          if (reporter != NULL)
-            reporter->SendReport(host, ssl_info, sni_available);
+          const base::Time build_time = base::GetBuildTime();
+          // Pins are not enforced if the build is sufficiently old. Chrome
+          // users should get updates every six weeks or so, but it's possible
+          // that some users will stop getting updates for some reason. We
+          // don't want those users building up as a pool of people with bad
+          // pins.
+          if ((base::Time::Now() - build_time).InDays() < 70 /* 10 weeks */) {
+            result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
+            UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", false);
+            TransportSecurityState::ReportUMAOnPinFailure(host);
+            FraudulentCertificateReporter* reporter =
+                context_->fraudulent_certificate_reporter();
+            if (reporter != NULL)
+              reporter->SendReport(host, ssl_info, sni_available);
+          }
         } else {
           UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", true);
         }
       }
     }
   }
-#endif
+//#endif
 
   if (result == OK) {
     scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
