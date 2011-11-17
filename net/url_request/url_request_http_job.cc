@@ -765,9 +765,6 @@ void URLRequestHttpJob::OnHeadersReceivedCallback(int result) {
 void URLRequestHttpJob::OnReadCompleted(int result) {
   read_in_progress_ = false;
 
-  if (ShouldFixMismatchedContentLength(result))
-    result = 0;
-
   if (result == 0) {
     NotifyDone(URLRequestStatus());
   } else if (result < 0) {
@@ -1103,28 +1100,6 @@ void URLRequestHttpJob::ContinueDespiteLastError() {
           &URLRequestHttpJob::OnStartCompleted, rv));
 }
 
-bool URLRequestHttpJob::ShouldFixMismatchedContentLength(int rv) const {
-  // Some servers send the body compressed, but specify the content length as
-  // the uncompressed size.  Although this violates the HTTP spec we want to
-  // support it (as IE and FireFox do), but *only* for an exact match.
-  // See http://crbug.com/79694.
-  if (rv == net::ERR_CONNECTION_CLOSED) {
-    if (request_ && request_->response_headers()) {
-      int64 expected_length = request_->response_headers()->GetContentLength();
-      VLOG(1) << __FUNCTION__ << "() "
-              << "\"" << request_->url().spec() << "\""
-              << " content-length = " << expected_length
-              << " pre total = " << prefilter_bytes_read()
-              << " post total = " << postfilter_bytes_read();
-      if (postfilter_bytes_read() == expected_length) {
-        // Clear the error.
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 bool URLRequestHttpJob::ReadRawData(IOBuffer* buf, int buf_size,
                                     int* bytes_read) {
   DCHECK_NE(buf_size, 0);
@@ -1132,9 +1107,6 @@ bool URLRequestHttpJob::ReadRawData(IOBuffer* buf, int buf_size,
   DCHECK(!read_in_progress_);
 
   int rv = transaction_->Read(buf, buf_size, &read_callback_);
-
-  if (ShouldFixMismatchedContentLength(rv))
-    rv = 0;
 
   if (rv >= 0) {
     *bytes_read = rv;
