@@ -14,7 +14,7 @@ PendingTask::PendingTask(const tracked_objects::Location& posted_from,
       task(task),
       posted_from(posted_from),
       sequence_num(0),
-      nestable(false) {
+      nestable(true) {
 }
 
 PendingTask::PendingTask(const tracked_objects::Location& posted_from,
