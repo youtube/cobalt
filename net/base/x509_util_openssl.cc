@@ -15,18 +15,8 @@ namespace net {
 
 namespace x509_util {
 
-bool CreateOriginBoundCertRSA(
+bool CreateOriginBoundCert(
     crypto::RSAPrivateKey* key,
-    const std::string& origin,
-    uint32 serial_number,
-    base::TimeDelta valid_duration,
-    std::string* der_cert) {
-  NOTIMPLEMENTED();
-  return false;
-}
-
-bool CreateOriginBoundCertEC(
-    crypto::ECPrivateKey* key,
     const std::string& origin,
     uint32 serial_number,
     base::TimeDelta valid_duration,

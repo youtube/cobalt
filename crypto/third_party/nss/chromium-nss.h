@@ -43,8 +43,6 @@
 #include <keyhi.h>
 #include <secmod.h>
 
-#include "crypto/crypto_export.h"
-
 // Like PK11_ImportEncryptedPrivateKeyInfo, but hardcoded for EC, and returns
 // the SECKEYPrivateKey.
 // See https://bugzilla.mozilla.org/show_bug.cgi?id=211546
@@ -60,12 +58,5 @@ SECStatus ImportEncryptedECPrivateKeyInfoAndReturnKey(
     PRBool sensitive,
     SECKEYPrivateKey** private_key,
     void* wincx);
-
-// Like SEC_DerSignData.
-CRYPTO_EXPORT SECStatus DerSignData(PLArenaPool *arena,
-                                    SECItem *result,
-                                    SECItem *input,
-                                    SECKEYPrivateKey *key,
-                                    SECOidTag algo_id);
 
 #endif  // CRYPTO_THIRD_PARTY_NSS_CHROMIUM_NSS_H_
