@@ -98,7 +98,6 @@
               'third_party/nss/chromium-nss.h',
               'third_party/nss/chromium-sha256.h',
               'third_party/nss/pk11akey.cc',
-              'third_party/nss/secsign.cc',
               'third_party/nss/sha512.cc',
             ],
           }, {
@@ -184,7 +183,6 @@
         'third_party/nss/chromium-nss.h',
         'third_party/nss/chromium-sha256.h',
         'third_party/nss/pk11akey.cc',
-        'third_party/nss/secsign.cc',
         'third_party/nss/sha512.cc',
       ],
     },
