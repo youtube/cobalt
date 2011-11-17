@@ -45,6 +45,7 @@
 #include "net/proxy/proxy_resolver.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_factory.h"
+#include "net/socket/mock_client_socket_pool_manager.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_framer.h"
@@ -3306,11 +3307,11 @@ TEST_F(HttpNetworkTransactionTest, DontRecycleTransportSocketForSSLTunnel) {
 
   // We now check to make sure the TCPClientSocket was not added back to
   // the pool.
-  EXPECT_EQ(0, session->transport_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
   trans.reset();
   MessageLoop::current()->RunAllPending();
   // Make sure that the socket didn't get recycled after calling the destructor.
-  EXPECT_EQ(0, session->transport_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
 }
 
 // Make sure that we recycle a socket after reading all of the response body.
@@ -3353,7 +3354,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocket) {
   std::string status_line = response->headers->GetStatusLine();
   EXPECT_EQ("HTTP/1.1 200 OK", status_line);
 
-  EXPECT_EQ(0, session->transport_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
 
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
@@ -3365,7 +3366,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocket) {
   MessageLoop::current()->RunAllPending();
 
   // We now check to make sure the socket was added back to the pool.
-  EXPECT_EQ(1, session->transport_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(1, session->GetTransportSocketPool()->IdleSocketCount());
 }
 
 // Make sure that we recycle a SSL socket after reading all of the response
@@ -3412,7 +3413,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSSLSocket) {
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
 
-  EXPECT_EQ(0, session->transport_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
 
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
@@ -3424,7 +3425,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSSLSocket) {
   MessageLoop::current()->RunAllPending();
 
   // We now check to make sure the socket was added back to the pool.
-  EXPECT_EQ(1, session->ssl_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(1, session->GetSSLSocketPool()->IdleSocketCount());
 }
 
 // Grab a SSL socket, use it, and put it back into the pool.  Then, reuse it
@@ -3480,7 +3481,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleDeadSSLSocket) {
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
 
-  EXPECT_EQ(0, session->transport_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
 
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
@@ -3492,7 +3493,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleDeadSSLSocket) {
   MessageLoop::current()->RunAllPending();
 
   // We now check to make sure the socket was added back to the pool.
-  EXPECT_EQ(1, session->ssl_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(1, session->GetSSLSocketPool()->IdleSocketCount());
 
   // Now start the second transaction, which should reuse the previous socket.
 
@@ -3508,7 +3509,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleDeadSSLSocket) {
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
 
-  EXPECT_EQ(0, session->transport_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
 
   rv = ReadTransaction(trans.get(), &response_data);
   EXPECT_EQ(OK, rv);
@@ -3519,7 +3520,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleDeadSSLSocket) {
   MessageLoop::current()->RunAllPending();
 
   // We now check to make sure the socket was added back to the pool.
-  EXPECT_EQ(1, session->ssl_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(1, session->GetSSLSocketPool()->IdleSocketCount());
 }
 
 // Make sure that we recycle a socket after a zero-length response.
@@ -3564,7 +3565,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocketAfterZeroContentLength) {
   std::string status_line = response->headers->GetStatusLine();
   EXPECT_EQ("HTTP/1.1 204 No Content", status_line);
 
-  EXPECT_EQ(0, session->transport_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
 
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
@@ -3576,7 +3577,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocketAfterZeroContentLength) {
   MessageLoop::current()->RunAllPending();
 
   // We now check to make sure the socket was added back to the pool.
-  EXPECT_EQ(1, session->transport_socket_pool()->IdleSocketCount());
+  EXPECT_EQ(1, session->GetTransportSocketPool()->IdleSocketCount());
 }
 
 TEST_F(HttpNetworkTransactionTest, ResendRequestOnWriteBodyError) {
@@ -5626,10 +5627,13 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
     HttpNetworkSessionPeer peer(session);
     CaptureGroupNameTransportSocketPool* transport_conn_pool =
         new CaptureGroupNameTransportSocketPool(NULL, NULL);
-    peer.SetTransportSocketPool(transport_conn_pool);
     CaptureGroupNameSSLSocketPool* ssl_conn_pool =
         new CaptureGroupNameSSLSocketPool(NULL, NULL);
-    peer.SetSSLSocketPool(ssl_conn_pool);
+    MockClientSocketPoolManager* mock_pool_manager =
+        new MockClientSocketPoolManager;
+    mock_pool_manager->SetTransportSocketPool(transport_conn_pool);
+    mock_pool_manager->SetSSLSocketPool(ssl_conn_pool);
+    peer.SetClientSocketPoolManager(mock_pool_manager);
 
     EXPECT_EQ(ERR_IO_PENDING,
               GroupNameTransactionHelper(tests[i].url, session));
@@ -5682,10 +5686,14 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
     HostPortPair proxy_host("http_proxy", 80);
     CaptureGroupNameHttpProxySocketPool* http_proxy_pool =
         new CaptureGroupNameHttpProxySocketPool(NULL, NULL);
-    peer.SetSocketPoolForHTTPProxy(proxy_host, http_proxy_pool);
     CaptureGroupNameSSLSocketPool* ssl_conn_pool =
         new CaptureGroupNameSSLSocketPool(NULL, NULL);
-    peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
+
+    MockClientSocketPoolManager* mock_pool_manager =
+        new MockClientSocketPoolManager;
+    mock_pool_manager->SetSocketPoolForHTTPProxy(proxy_host, http_proxy_pool);
+    mock_pool_manager->SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
+    peer.SetClientSocketPoolManager(mock_pool_manager);
 
     EXPECT_EQ(ERR_IO_PENDING,
               GroupNameTransactionHelper(tests[i].url, session));
@@ -5750,10 +5758,14 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
     HostPortPair proxy_host("socks_proxy", 1080);
     CaptureGroupNameSOCKSSocketPool* socks_conn_pool =
         new CaptureGroupNameSOCKSSocketPool(NULL, NULL);
-    peer.SetSocketPoolForSOCKSProxy(proxy_host, socks_conn_pool);
     CaptureGroupNameSSLSocketPool* ssl_conn_pool =
         new CaptureGroupNameSSLSocketPool(NULL, NULL);
-    peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
+
+    MockClientSocketPoolManager* mock_pool_manager =
+        new MockClientSocketPoolManager;
+    mock_pool_manager->SetSocketPoolForSOCKSProxy(proxy_host, socks_conn_pool);
+    mock_pool_manager->SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
+    peer.SetClientSocketPoolManager(mock_pool_manager);
 
     scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
@@ -7270,7 +7282,7 @@ TEST_F(HttpNetworkTransactionTest,
                              transport_params,
                              LOWEST,
                              &callback,
-                             session->transport_socket_pool(),
+                             session->GetTransportSocketPool(),
                              BoundNetLog()));
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -7762,7 +7774,10 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
       session_deps.host_resolver.get(),
       &session_deps.socket_factory,
       session_deps.net_log);
-  session_peer.SetTransportSocketPool(transport_pool);
+  MockClientSocketPoolManager* mock_pool_manager =
+      new MockClientSocketPoolManager;
+  mock_pool_manager->SetTransportSocketPool(transport_pool);
+  session_peer.SetClientSocketPoolManager(mock_pool_manager);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestOldCompletionCallback callback;
@@ -8525,7 +8540,7 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
   EXPECT_EQ(ERR_IO_PENDING,
             connection->Init(host_port_pair.ToString(), transport_params,
                              LOWEST, &callback,
-                             session->transport_socket_pool(), BoundNetLog()));
+                             session->GetTransportSocketPool(), BoundNetLog()));
   EXPECT_EQ(OK, callback.WaitForResult());
   spdy_session->InitializeWithSocket(connection.release(), false, OK);
 

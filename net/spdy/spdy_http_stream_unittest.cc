@@ -39,7 +39,7 @@ class SpdyHttpStreamTest : public testing::Test {
                                 transport_params_,
                                 MEDIUM,
                                 &callback,
-                                http_session_->transport_socket_pool(),
+                                http_session_->GetTransportSocketPool(),
                                 BoundNetLog()));
     EXPECT_EQ(OK, callback.WaitForResult());
     return session_->InitializeWithSocket(connection.release(), false, OK);
