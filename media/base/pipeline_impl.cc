@@ -143,6 +143,8 @@ void PipelineImpl::Seek(base::TimeDelta time,
     return;
   }
 
+  download_rate_monitor_.Stop();
+
   message_loop_->PostTask(FROM_HERE,
       base::Bind(&PipelineImpl::SeekTask, this, time, seek_callback));
 }
@@ -186,9 +188,8 @@ float PipelineImpl::GetPlaybackRate() const {
 }
 
 void PipelineImpl::SetPlaybackRate(float playback_rate) {
-  if (playback_rate < 0.0f) {
+  if (playback_rate < 0.0f)
     return;
-  }
 
   base::AutoLock auto_lock(lock_);
   playback_rate_ = playback_rate;
@@ -204,9 +205,8 @@ float PipelineImpl::GetVolume() const {
 }
 
 void PipelineImpl::SetVolume(float volume) {
-  if (volume < 0.0f || volume > 1.0f) {
+  if (volume < 0.0f || volume > 1.0f)
     return;
-  }
 
   base::AutoLock auto_lock(lock_);
   volume_ = volume;
@@ -239,6 +239,7 @@ base::TimeDelta PipelineImpl::GetCurrentTime() const {
 }
 
 base::TimeDelta PipelineImpl::GetCurrentTime_Locked() const {
+  lock_.AssertAcquired();
   base::TimeDelta elapsed = clock_->Elapsed();
   if (state_ == kEnded || elapsed > duration_) {
     return duration_;
@@ -258,9 +259,8 @@ base::TimeDelta PipelineImpl::GetBufferedTime() {
   base::TimeDelta current_time = GetCurrentTime_Locked();
 
   // If buffered time was set, we report that value directly.
-  if (buffered_time_.ToInternalValue() > 0) {
+  if (buffered_time_.ToInternalValue() > 0)
     return std::max(buffered_time_, current_time);
-  }
 
   if (total_bytes_ == 0)
     return base::TimeDelta();
@@ -371,6 +371,7 @@ void PipelineImpl::ResetState() {
   waiting_for_clock_update_ = false;
   audio_disabled_   = false;
   clock_->SetTime(kZero);
+  download_rate_monitor_.Reset();
 }
 
 void PipelineImpl::SetState(State next_state) {
@@ -524,16 +525,17 @@ void PipelineImpl::SetTotalBytes(int64 total_bytes) {
 
   base::AutoLock auto_lock(lock_);
   total_bytes_ = total_bytes;
+  download_rate_monitor_.set_total_bytes(total_bytes_);
 }
 
 void PipelineImpl::SetBufferedBytes(int64 buffered_bytes) {
   DCHECK(IsRunning());
   base::AutoLock auto_lock(lock_);
-
   // See comments in SetCurrentReadPosition() about capping.
   if (buffered_bytes < current_bytes_)
     current_bytes_ = buffered_bytes;
   buffered_bytes_ = buffered_bytes;
+  download_rate_monitor_.SetBufferedBytes(buffered_bytes, base::Time::Now());
 }
 
 void PipelineImpl::SetNaturalVideoSize(const gfx::Size& size) {
@@ -570,13 +572,24 @@ void PipelineImpl::SetLoaded(bool loaded) {
 
   base::AutoLock auto_lock(lock_);
   loaded_ = loaded;
+  download_rate_monitor_.set_loaded(loaded_);
 }
 
 void PipelineImpl::SetNetworkActivity(bool is_downloading_data) {
   DCHECK(IsRunning());
+
+  NetworkEvent type = DOWNLOAD_PAUSED;
+  if (is_downloading_data)
+    type = DOWNLOAD_CONTINUED;
+
+  {
+    base::AutoLock auto_lock(lock_);
+    download_rate_monitor_.SetNetworkActivity(is_downloading_data);
+  }
+
   message_loop_->PostTask(FROM_HERE,
       base::Bind(
-          &PipelineImpl::NotifyNetworkEventTask, this, is_downloading_data));
+          &PipelineImpl::NotifyNetworkEventTask, this, type));
   media_log_->AddEvent(
       media_log_->CreateBooleanEvent(
           MediaLogEvent::NETWORK_ACTIVITY_SET,
@@ -681,7 +694,6 @@ void PipelineImpl::InitializeTask() {
          state_ == kInitAudioRenderer ||
          state_ == kInitVideoDecoder ||
          state_ == kInitVideoRenderer);
-
 
   // Demuxer created, create audio decoder.
   if (state_ == kInitDemuxer) {
@@ -940,10 +952,10 @@ void PipelineImpl::NotifyEndedTask() {
   }
 }
 
-void PipelineImpl::NotifyNetworkEventTask(bool is_downloading_data) {
+void PipelineImpl::NotifyNetworkEventTask(NetworkEvent type) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   if (!network_callback_.is_null())
-    network_callback_.Run(is_downloading_data);
+    network_callback_.Run(type);
 }
 
 void PipelineImpl::DisableAudioRendererTask() {
@@ -1029,6 +1041,16 @@ void PipelineImpl::FilterStateTransitionTask() {
     waiting_for_clock_update_ = has_audio_;
     if (!waiting_for_clock_update_)
       clock_->Play();
+
+    // Start monitoring rate of downloading.
+    int bitrate = 0;
+    if (demuxer_.get())
+      bitrate = demuxer_->GetBitrate();
+    // Needs to be locked because most other calls to |download_rate_monitor_|
+    // occur on the renderer thread.
+    download_rate_monitor_.Start(
+        base::Bind(&PipelineImpl::OnCanPlayThrough, this), bitrate);
+    download_rate_monitor_.SetBufferedBytes(buffered_bytes_, base::Time::Now());
 
     if (IsPipelineStopPending()) {
       // We had a pending stop request need to be honored right now.
@@ -1403,6 +1425,16 @@ void PipelineImpl::OnAudioUnderflow() {
 
   if (audio_renderer_)
     audio_renderer_->ResumeAfterUnderflow(true);
+}
+
+void PipelineImpl::OnCanPlayThrough() {
+  message_loop_->PostTask(FROM_HERE,
+      base::Bind(&PipelineImpl::NotifyCanPlayThrough, this));
+}
+
+void PipelineImpl::NotifyCanPlayThrough() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  NotifyNetworkEventTask(CAN_PLAY_THROUGH);
 }
 
 }  // namespace media

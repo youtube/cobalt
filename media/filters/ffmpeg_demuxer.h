@@ -147,6 +147,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
       DemuxerStream::Type type) OVERRIDE;
   virtual void SetPreload(Preload preload) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
+  virtual int GetBitrate() OVERRIDE;
 
   // FFmpegURLProtocol implementation.
   virtual size_t Read(size_t size, uint8* data) OVERRIDE;
@@ -160,10 +161,6 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
 
   // For testing purposes.
   void disable_first_seek_hack_for_testing() { first_seek_hack_ = false; }
-
-  // Returns the bitrate of media file. May be obtained from container or
-  // approximated. Returns 0 if it is unknown.
-  int GetBitrate();
 
  private:
   // Only allow a factory to create this class.

@@ -48,6 +48,10 @@ DummyDemuxer::~DummyDemuxer() {}
 
 void DummyDemuxer::SetPreload(Preload preload) {}
 
+int DummyDemuxer::GetBitrate() {
+  return 0;
+}
+
 scoped_refptr<DemuxerStream> DummyDemuxer::GetStream(DemuxerStream::Type type) {
   return streams_[type];
 }

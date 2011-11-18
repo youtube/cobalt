@@ -48,6 +48,7 @@ class DummyDemuxer : public Demuxer {
       DemuxerStream::Type type) OVERRIDE;
   virtual void SetPreload(Preload preload) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
+  virtual int GetBitrate() OVERRIDE;
 
  private:
   bool has_video_;
