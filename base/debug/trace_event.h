@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Trace events are for tracking application performance.
+// Trace events are for tracking application performance and resource usage.
+// Macros are provided to track:
+//    Begin and end of function calls
+//    Counters
 //
 // Events are issued against categories. Whereas LOG's
 // categories are statically defined, TRACE categories are created
@@ -30,6 +33,24 @@
 //
 // The trace system will automatically add to this information the
 // current process id, thread id, and a timestamp in microseconds.
+//
+// Trace event also supports counters, which is a way to track a quantity
+// as it varies over time. Counters are created with the following macro:
+//   TRACE_COUNTER1("MY_SUBSYSTEM", "myCounter", g_myCounterValue);
+//
+// Counters are process-specific. The macro itself can be issued from any
+// thread, however.
+//
+// Sometimes, you want to track two counters at once. You can do this with two
+// counter macros:
+//   TRACE_COUNTER1("MY_SUBSYSTEM", "myCounter0", g_myCounterValue[0]);
+//   TRACE_COUNTER1("MY_SUBSYSTEM", "myCounter1", g_myCounterValue[1]);
+// Or you can do it with a combined macro:
+//   TRACE_COUNTER2("MY_SUBSYSTEM", "myCounter",
+//       "bytesPinned", g_myCounterValue[0],
+//       "bytesAllocated", g_myCounterValue[1]);
+// This indicates to the tracing UI that these counters should be displayed
+// in a single graph, as a summed area chart.
 //
 // By default, trace collection is compiled in, but turned off at runtime.
 // Collecting trace data is the responsibility of the embedding
@@ -254,6 +275,33 @@
     INTERNAL_TRACE_EVENT_ADD_SCOPED_IF_LONGER_THAN(threshold_us, \
         category, name, arg1_name, arg1_val, arg2_name, arg2_val)
 
+// Records the value of a counter called "name" immediately. Value
+// must be representable as a 32 bit integer.
+// - category and name strings must have application lifetime (statics or
+//   literals). They may not include " chars.
+#define TRACE_COUNTER1(category, name, value) \
+    TRACE_COUNTER2(category, name, "value", value, NULL, 0)
+#define TRACE_COPY_COUNTER1(category, name, value) \
+    TRACE_COPY_COUNTER2(category, name, "value", value, NULL, 0)
+
+// Records the values of a multi-parted counter called "name" immediately.
+// The UI will treat value1 and value2 as parts of a whole, displaying their
+// values as a stacked-bar chart.
+// - category and name strings must have application lifetime (statics or
+//   literals). They may not include " chars.
+#define TRACE_COUNTER2(category, name, value1_name, value1_val, \
+        value2_name, value2_val) \
+    INTERNAL_TRACE_EVENT_ADD_COUNTER( \
+        category, name, value1_name, value1_val, value2_name, value2_val, \
+        base::debug::TraceLog::EVENT_FLAG_NONE)
+#define TRACE_COPY_COUNTER2(category, name, value1_name, value1_val, \
+        value2_name, value2_val) \
+    INTERNAL_TRACE_EVENT_ADD_COUNTER( \
+        category, name, \
+        value1_name, value1_val, \
+        value2_name, value2_val, \
+        base::debug::TraceLog::EVENT_FLAG_COPY)
+
 
 // Implementation detail: trace event macros create temporary variables
 // to keep instrumentation overhead low. These macros give each temporary
@@ -285,6 +333,17 @@
       base::debug::TraceLog::GetInstance()->AddTraceEvent( \
           phase, INTERNAL_TRACE_EVENT_UID(catstatic), \
           name, arg1_name, arg1_val, arg2_name, arg2_val, -1, 0, flags); \
+    }
+
+// Implementation detail: internal macro to create static category and
+// add the counter event if it is enabled.
+#define INTERNAL_TRACE_EVENT_ADD_COUNTER( \
+      category, name, arg1_name, arg1_val, arg2_name, arg2_val, flags) \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
+    if (INTERNAL_TRACE_EVENT_UID(catstatic)->enabled) { \
+      base::debug::TraceLog::GetInstance()->AddCounterEvent( \
+          INTERNAL_TRACE_EVENT_UID(catstatic), \
+          name, arg1_name, arg1_val, arg2_name, arg2_val, flags); \
     }
 
 // Implementation detail: internal macro to create static category and add begin
@@ -347,7 +406,8 @@ enum TraceEventPhase {
   TRACE_EVENT_PHASE_BEGIN,
   TRACE_EVENT_PHASE_END,
   TRACE_EVENT_PHASE_INSTANT,
-  TRACE_EVENT_PHASE_METADATA
+  TRACE_EVENT_PHASE_METADATA,
+  TRACE_EVENT_PHASE_COUNTER
 };
 
 // Simple union of values. This is much lighter weight than base::Value, which
@@ -663,6 +723,14 @@ class BASE_EXPORT TraceLog {
                                const char* name,
                                const void* id,
                                const std::string& extra);
+
+  // A wrapper around AddTraceEvent used by TRACE_COUNTERx macros
+  // that allows only integer values for the counters.
+  int AddCounterEvent(const TraceCategory* category,
+                      const char* name,
+                      const char* arg1_name, int32 arg1_val,
+                      const char* arg2_name, int32 arg2_val,
+                      EventFlags flags);
 
   // Exposed for unittesting:
 
