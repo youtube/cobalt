@@ -75,7 +75,11 @@ make() {
       use_ccache_var=""
     fi
   fi
-  if [ -f "$PWD/build/android/envsetup.sh" ]; then
+  # Only cross-compile if the build is being done either from Chromium's src/
+  # directory, or through WebKit, in which case the WEBKIT_ANDROID_BUILD
+  # environment variable will be defined. WebKit uses a different directory.
+  if [ -f "$PWD/build/android/envsetup.sh" ] ||
+     [ -n "${WEBKIT_ANDROID_BUILD}" ]; then
     CC="${use_ccache_var}${CROSS_CC}" CXX="${use_ccache_var}${CROSS_CXX}" \
     LINK="${CROSS_LINK}" AR="${CROSS_AR}" RANLIB="${CROSS_RANLIB}" \
       command make $*
@@ -113,6 +117,7 @@ DEFINES+=" disable_nacl=1"
 DEFINES+=" remoting=0"
 DEFINES+=" p2p_apis=0"
 DEFINES+=" enable_touch_events=1"
+DEFINES+=" build_ffmpegsumo=0"
 # TODO(bulach): use "shared_libraries" once the transition from executable
 # is over.
 DEFINES+=" gtest_target_type=executable"
