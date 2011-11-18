@@ -80,8 +80,13 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
 
   COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
 
+  int mode = S_IRUSR | S_IWUSR;
+#if defined(OS_CHROMEOS)
+  mode |= S_IRGRP | S_IROTH;
+#endif
+
   int descriptor =
-      HANDLE_EINTR(open(name.value().c_str(), open_flags, S_IRUSR | S_IWUSR));
+      HANDLE_EINTR(open(name.value().c_str(), open_flags, mode));
 
   if (flags & PLATFORM_FILE_OPEN_ALWAYS) {
     if (descriptor <= 0) {
@@ -91,7 +96,7 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
         open_flags |= O_EXCL;   // together with O_CREAT implies O_NOFOLLOW
       }
       descriptor = HANDLE_EINTR(
-          open(name.value().c_str(), open_flags, S_IRUSR | S_IWUSR));
+          open(name.value().c_str(), open_flags, mode));
       if (created && descriptor > 0)
         *created = true;
     }
