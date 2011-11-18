@@ -5139,6 +5139,90 @@ TEST(HttpCache, FilterCompletion) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 }
 
+// Tests that we stop cachining when told.
+TEST(HttpCache, StopCachingDeletesEntry) {
+  MockHttpCache cache;
+  TestOldCompletionCallback callback;
+  MockHttpRequest request(kSimpleGET_Transaction);
+
+  {
+    scoped_ptr<net::HttpTransaction> trans;
+    int rv = cache.http_cache()->CreateTransaction(&trans);
+    EXPECT_EQ(net::OK, rv);
+
+    rv = trans->Start(&request, &callback, net::BoundNetLog());
+    EXPECT_EQ(net::OK, callback.GetResult(rv));
+
+    scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(256));
+    rv = trans->Read(buf, 10, &callback);
+    EXPECT_EQ(callback.GetResult(rv), 10);
+
+    trans->StopCaching();
+
+    // We should be able to keep reading.
+    rv = trans->Read(buf, 256, &callback);
+    EXPECT_GT(callback.GetResult(rv), 0);
+    rv = trans->Read(buf, 256, &callback);
+    EXPECT_EQ(callback.GetResult(rv), 0);
+  }
+
+  // Make sure that the ActiveEntry is gone.
+  MessageLoop::current()->RunAllPending();
+
+  // Verify that the entry is gone.
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
+}
+
+// Tests that when we are told to stop caching we don't throw away valid data.
+TEST(HttpCache, StopCachingSavesEntry) {
+  MockHttpCache cache;
+  TestOldCompletionCallback callback;
+  MockHttpRequest request(kSimpleGET_Transaction);
+
+  {
+    scoped_ptr<net::HttpTransaction> trans;
+    int rv = cache.http_cache()->CreateTransaction(&trans);
+    EXPECT_EQ(net::OK, rv);
+
+    // Force a response that can be resumed.
+    MockTransaction mock_transaction(kSimpleGET_Transaction);
+    AddMockTransaction(&mock_transaction);
+    mock_transaction.response_headers = "Cache-Control: max-age=10000\n"
+                                        "Content-Length: 42\n"
+                                        "Etag: foo\n";
+
+    rv = trans->Start(&request, &callback, net::BoundNetLog());
+    EXPECT_EQ(net::OK, callback.GetResult(rv));
+
+    scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(256));
+    rv = trans->Read(buf, 10, &callback);
+    EXPECT_EQ(callback.GetResult(rv), 10);
+
+    trans->StopCaching();
+
+    // We should be able to keep reading.
+    rv = trans->Read(buf, 256, &callback);
+    EXPECT_GT(callback.GetResult(rv), 0);
+    rv = trans->Read(buf, 256, &callback);
+    EXPECT_EQ(callback.GetResult(rv), 0);
+
+    RemoveMockTransaction(&mock_transaction);
+  }
+
+  // Verify that the entry is marked as incomplete.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.OpenBackendEntry(kSimpleGET_Transaction.url, &entry));
+  net::HttpResponseInfo response;
+  bool truncated = false;
+  EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_TRUE(truncated);
+  entry->Close();
+}
+
 // Tests that we detect truncated rersources from the net when there is
 // a Content-Length header.
 TEST(HttpCache, TruncatedByContentLength) {
