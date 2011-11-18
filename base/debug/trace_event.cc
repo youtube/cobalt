@@ -223,6 +223,8 @@ const char* TraceEvent::GetPhaseString(TraceEventPhase phase) {
       return "E";
     case TRACE_EVENT_PHASE_METADATA:
       return "M";
+    case TRACE_EVENT_PHASE_COUNTER:
+      return "C";
     default:
       NOTREACHED() << "Invalid phase argument";
       return "?";
@@ -239,6 +241,8 @@ TraceEventPhase TraceEvent::GetPhase(const char* phase) {
       return TRACE_EVENT_PHASE_END;
     case 'M':
       return TRACE_EVENT_PHASE_METADATA;
+    case 'C':
+      return TRACE_EVENT_PHASE_COUNTER;
     default:
       NOTREACHED() << "Invalid phase name";
       return TRACE_EVENT_PHASE_METADATA;
@@ -635,6 +639,20 @@ void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
   INTERNAL_TRACE_EVENT_ADD(phase,
       "ETW Trace Event", name, "id", id, "extra", extra,
       base::debug::TraceLog::EVENT_FLAG_COPY);
+}
+
+int TraceLog::AddCounterEvent(const TraceCategory* category,
+                              const char* name,
+                              const char* value1_name, int32 value1_val,
+                              const char* value2_name, int32 value2_val,
+                              EventFlags flags) {
+  return AddTraceEvent(TRACE_EVENT_PHASE_COUNTER,
+                       category,
+                       name,
+                       value1_name, value1_val,
+                       value2_name, value2_val,
+                       -1, 0,
+                       flags);
 }
 
 void TraceLog::AddCurrentMetadataEvents() {
