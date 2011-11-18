@@ -290,6 +290,11 @@ void TraceWithAllMacroVariants(WaitableEvent* task_complete_event) {
     TRACE_EVENT_END2("all", "TRACE_EVENT_END2 call",
                      "name1", "value1",
                      "name2", "value2");
+
+    TRACE_COUNTER1("all", "TRACE_COUNTER1 call", 31415);
+    TRACE_COUNTER2("all", "TRACE_COUNTER2 call",
+                   "a", 30000,
+                   "b", 1415);
   } // Scope close causes TRACE_EVENT0 etc to send their END events.
 
   if (task_complete_event)
@@ -356,6 +361,32 @@ void ValidateAllTraceMacrosCreatedData(const ListValue& trace_parsed) {
   EXPECT_SUB_FIND_("value1");
   EXPECT_SUB_FIND_("name2");
   EXPECT_SUB_FIND_("value2");
+
+  EXPECT_FIND_("TRACE_COUNTER1 call");
+  {
+    std::string ph;
+    EXPECT_TRUE((item && item->GetString("ph", &ph)));
+    EXPECT_EQ("C", ph);
+
+    int value;
+    EXPECT_TRUE((item && item->GetInteger("args.value", &value)));
+    EXPECT_EQ(31415, value);
+  }
+
+  EXPECT_FIND_("TRACE_COUNTER2 call");
+  {
+    std::string ph;
+    EXPECT_TRUE((item && item->GetString("ph", &ph)));
+    EXPECT_EQ("C", ph);
+
+    int value;
+    EXPECT_TRUE((item && item->GetInteger("args.a", &value)));
+    EXPECT_EQ(30000, value);
+
+    EXPECT_TRUE((item && item->GetInteger("args.b", &value)));
+    EXPECT_EQ(1415, value);
+  }
+
 }
 
 void TraceManyInstantEvents(int thread_id, int num_events,
