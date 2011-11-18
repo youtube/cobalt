@@ -8,6 +8,7 @@
 
 #include <queue>
 
+#include "base/base_export.h"
 #include "base/callback.h"
 #include "base/location.h"
 #include "base/time.h"
@@ -17,7 +18,7 @@ namespace base {
 
 // Contains data about a pending task. Stored in TaskQueue and DelayedTaskQueue
 // for use by classes that queue and execute tasks.
-struct PendingTask : public TrackingInfo {
+struct BASE_EXPORT PendingTask : public TrackingInfo {
   PendingTask(const tracked_objects::Location& posted_from,
               const Closure& task);
   PendingTask(const tracked_objects::Location& posted_from,
@@ -44,7 +45,7 @@ struct PendingTask : public TrackingInfo {
 
 // Wrapper around std::queue specialized for PendingTask which adds a Swap
 // helper method.
-class TaskQueue : public std::queue<PendingTask> {
+class BASE_EXPORT TaskQueue : public std::queue<PendingTask> {
  public:
   void Swap(TaskQueue* queue);
 };
