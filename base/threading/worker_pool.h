@@ -32,7 +32,7 @@ class BASE_EXPORT WorkerPool {
   // false if |task| could not be posted to a worker thread.  Regardless of
   // return value, ownership of |task| is transferred to the worker pool.
   //
-  // TODO(ajwong): Remove the Task* based overload once we've finishsed the
+  // TODO(ajwong): Remove the Task* based overload once we've finished the
   // Task -> Closure migration.
   static bool PostTask(const tracked_objects::Location& from_here,
                        Task* task, bool task_is_slow);
