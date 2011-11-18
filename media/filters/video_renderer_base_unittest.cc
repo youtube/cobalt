@@ -379,6 +379,13 @@ TEST_F(VideoRendererBaseTest, GetCurrentFrame_Shutdown) {
   ExpectCurrentFrame(false);
 }
 
+// Stop() is called immediately during an error.
+TEST_F(VideoRendererBaseTest, GetCurrentFrame_Error) {
+  Initialize();
+  Stop();
+  ExpectCurrentFrame(false);
+}
+
 // Verify that shutdown can only proceed after we return the current frame.
 TEST_F(VideoRendererBaseTest, Shutdown_DuringPaint) {
   Initialize();
