@@ -525,10 +525,31 @@ class BASE_EXPORT ThreadData {
   // in production code.
   friend class TrackedObjectsTest;
 
-  typedef std::stack<const ThreadData*> ThreadDataPool;
+  // Implment a stack that avoids allocations during a push() by having enough
+  // space ahead of time.
+  class ThreadDataPool {
+   public:
+    ThreadDataPool();
+    ~ThreadDataPool();
+
+    // Make sure the stack is large enough to support the indicated number of
+    // elements.
+    void reserve(size_t largest_worker_pool_number);
+
+    bool empty() const;
+    const ThreadData* top() const;
+    void push(const ThreadData* thread_data);
+    void pop();
+
+   private:
+    std::vector<const ThreadData*> stack_;
+    size_t empty_slot_;
+    DISALLOW_COPY_AND_ASSIGN(ThreadDataPool);
+  };
 
   // Worker thread construction creates a name since there is none.
-  ThreadData();
+  explicit ThreadData(size_t thread_number);
+
   // Message loop based construction should provide a name.
   explicit ThreadData(const std::string& suggested_name);
 
@@ -616,7 +637,9 @@ class BASE_EXPORT ThreadData {
 
   // Indicate if this is a worker thread, and the ThreadData contexts should be
   // stored in the unregistered_thread_data_pool_ when not in use.
-  bool is_a_worker_thread_;
+  // Value is zero when it is not a worker thread.  Value is a positive integer
+  // corresponding to the created thread name if it is a worker thread.
+  size_t worker_thread_number_;
 
   // A map used on each thread to keep track of Births on this thread.
   // This map should only be accessed on the thread it was constructed on.
