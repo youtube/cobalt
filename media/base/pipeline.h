@@ -34,15 +34,19 @@ struct PipelineStatistics {
   uint32 video_frames_dropped;
 };
 
+enum NetworkEvent {
+  DOWNLOAD_CONTINUED,
+  DOWNLOAD_PAUSED,
+  CAN_PLAY_THROUGH
+};
+
 class FilterCollection;
 
 class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
   // Callback that executes when a network event occurrs.
-  // The parameter represents the state of network activity: true if the network
-  // is downloading data, false if it is not. If the callback never runs, it is
-  // assumed the network is not downloading data.
-  typedef base::Callback<void(bool)> NetworkEventCB;
+  // The parameter specifies the type of event that is being signaled.
+  typedef base::Callback<void(NetworkEvent)> NetworkEventCB;
 
   // Initializes pipeline. Pipeline takes ownership of all callbacks passed
   // into this method.
