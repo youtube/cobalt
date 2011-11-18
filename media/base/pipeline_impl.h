@@ -23,6 +23,7 @@
 #include "media/base/clock.h"
 #include "media/base/composite_filter.h"
 #include "media/base/demuxer.h"
+#include "media/base/download_rate_monitor.h"
 #include "media/base/filter_host.h"
 #include "media/base/pipeline.h"
 #include "ui/gfx/size.h"
@@ -261,7 +262,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   void NotifyEndedTask();
 
   // Carries out handling a notification of network event.
-  void NotifyNetworkEventTask(bool is_downloading_data);
+  void NotifyNetworkEventTask(NetworkEvent type);
 
   // Carries out disabling the audio renderer.
   void DisableAudioRendererTask();
@@ -333,6 +334,14 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
                          PipelineStatus status);
 
   void OnAudioUnderflow();
+
+  // Called when |download_rate_monitor_| believes that the media can
+  // be played through without needing to pause to buffer.
+  void OnCanPlayThrough();
+
+  // Carries out the notification that the media can be played through without
+  // needing to pause to buffer.
+  void NotifyCanPlayThrough();
 
   // Message loop used to execute pipeline tasks.
   MessageLoop* message_loop_;
@@ -478,6 +487,12 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   // Time of pipeline creation; is non-zero only until the pipeline first
   // reaches "kStarted", at which point it is used & zeroed out.
   base::Time creation_time_;
+
+  // Approximates the rate at which the media is being downloaded.
+  DownloadRateMonitor download_rate_monitor_;
+
+  // True if the pipeline is actively downloading bytes, false otherwise.
+  bool is_downloading_data_;
 
   FRIEND_TEST_ALL_PREFIXES(PipelineImplTest, GetBufferedTime);
 
