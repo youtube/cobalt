@@ -11,6 +11,7 @@
 #include "base/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "base/port.h"
 
 using base::TimeDelta;
 
@@ -147,22 +148,18 @@ ThreadData::Status ThreadData::status_ = ThreadData::UNINITIALIZED;
 ThreadData::ThreadData(const std::string& suggested_name)
     : incarnation_count_for_pool_(-1),
       next_(NULL),
-      is_a_worker_thread_(false) {
+      worker_thread_number_(0) {
   DCHECK_GE(suggested_name.size(), 0u);
   thread_name_ = suggested_name;
   PushToHeadOfList();  // Which sets real incarnation_count_for_pool_.
 }
 
-ThreadData::ThreadData()
+ThreadData::ThreadData(size_t thread_number)
     : incarnation_count_for_pool_(-1),
       next_(NULL),
-      is_a_worker_thread_(true) {
-  int thread_number;
-  {
-    base::AutoLock lock(*list_lock_.Pointer());
-    thread_number = ++thread_number_counter_;
-  }
-  base::StringAppendF(&thread_name_, "WorkerThread-%d", thread_number);
+      worker_thread_number_(thread_number) {
+  CHECK_NE(thread_number, 0u);
+  base::StringAppendF(&thread_name_, "WorkerThread-%"PRIuS, thread_number);
   PushToHeadOfList();  // Which sets real incarnation_count_for_pool_.
 }
 
@@ -198,19 +195,25 @@ ThreadData* ThreadData::Get() {
 
   // We must be a worker thread, since we didn't pre-register.
   ThreadData* worker_thread_data = NULL;
+  size_t thread_number = 0;
   {
     base::AutoLock lock(*list_lock_.Pointer());
-    if (unregistered_thread_data_pool_ &&
-        !unregistered_thread_data_pool_->empty()) {
+    if (!unregistered_thread_data_pool_)
+      unregistered_thread_data_pool_ = new ThreadDataPool;
+    if (!unregistered_thread_data_pool_->empty()) {
       worker_thread_data =
         const_cast<ThreadData*>(unregistered_thread_data_pool_->top());
       unregistered_thread_data_pool_->pop();
+    } else {
+      thread_number = ++thread_number_counter_;
+      unregistered_thread_data_pool_->reserve(thread_number);
     }
   }
 
   // If we can't find a previously used instance, then we have to create one.
   if (!worker_thread_data)
-    worker_thread_data = new ThreadData();
+    worker_thread_data = new ThreadData(thread_number);
+  DCHECK_GT(worker_thread_data->worker_thread_number_, 0u);
 
   tls_index_.Set(worker_thread_data);
   return worker_thread_data;
@@ -226,18 +229,12 @@ void ThreadData::OnThreadTermination(void* thread_data) {
 }
 
 void ThreadData::OnThreadTerminationCleanup() const {
-  if (!is_a_worker_thread_)
+  if (!worker_thread_number_)
     return;
   base::AutoLock lock(*list_lock_.Pointer());
   if (incarnation_counter_ != incarnation_count_for_pool_)
     return;  // ThreadData was constructed in an earlier unit test.
-
-  // Handle case where we are in unit tests, and have become UNINITIALIZED.
-  // In that case, the pool might be NULL.  We really should detect this via the
-  // incarnation_counter_, but this call is rarely made, so we can afford to
-  // code defensively.
-  if (!unregistered_thread_data_pool_)
-    unregistered_thread_data_pool_ = new ThreadDataPool;
+  // The following will never have to do an allocation.
   unregistered_thread_data_pool_->push(this);
 }
 
@@ -559,6 +556,49 @@ void ThreadData::ShutdownSingleThreadedCleanup(bool leak) {
     next_thread_data->death_map_.clear();
     delete next_thread_data;  // Includes all Death Records.
   }
+}
+
+//------------------------------------------------------------------------------
+// Small partial implementation of a stack that never has to allocate during a
+// push() operation, because it is always prepared to accept the maximum number
+// of ThreadData instances (all the worker thread related instances).
+
+ThreadData::ThreadDataPool::ThreadDataPool() : empty_slot_(0) {};
+ThreadData::ThreadDataPool::~ThreadDataPool() {};
+
+bool ThreadData::ThreadDataPool::empty() const { return empty_slot_ == 0; }
+
+void ThreadData::ThreadDataPool::reserve(size_t largest_worker_pool_number) {
+  // Worker pool numbers start at 1, and exclude 0, so the number is exactly
+  // the least size needed.
+  // Due to asynchronous construction of worker-pool numbers (and associated
+  // ThreadData), we might not hear about the numbers sequentially.
+  if (largest_worker_pool_number > stack_.size())
+    stack_.resize(largest_worker_pool_number);
+}
+
+const ThreadData* ThreadData::ThreadDataPool::top() const {
+  if (empty_slot_ > 0)
+    return stack_[empty_slot_ - 1];
+  NOTREACHED();
+  return NULL;
+}
+
+void ThreadData::ThreadDataPool::push(const ThreadData* thread_data) {
+  if (empty_slot_ < stack_.size()) {
+    stack_[empty_slot_] = thread_data;
+    ++empty_slot_;
+    return;
+  }
+  NOTREACHED();
+}
+
+void ThreadData::ThreadDataPool::pop() {
+  if (empty_slot_ > 0) {
+    --empty_slot_;
+    return;
+  }
+  NOTREACHED();
 }
 
 //------------------------------------------------------------------------------
