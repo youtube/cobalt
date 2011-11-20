@@ -137,8 +137,10 @@
 //
 // A DataCollector is a container object that holds a set of Snapshots. The
 // statistics in a snapshot are gathered asynhcronously relative to their
-// ongoing updates.  It is possible, though highly unlikely, that stats such
-// as a 64bit counter could be incorrectly recorded by this process.  The
+// ongoing updates.  It is possible, though highly unlikely, that stats could be
+// incorrectly recorded by this process (all data is held in 32 bit ints, but we
+// are not atomically collecting all data, so we could have count that does not,
+// for example, match with the number of durations we accumulated).  The
 // advantage to having fast (non-atomic) updates of the data outweighs the
 // minimal risk of a singular corrupt statistic snapshot (only the snapshot
 // could be corrupt, not the underlying and ongoing statistic).  In constrast,
@@ -148,23 +150,40 @@
 //
 // After an array of Snapshots instances are collected into a DataCollector,
 // they need to be prepared for displaying our output.  We currently implement a
-// direct rendering to HTML, but we will soon have a JSON serialization as well.
-
-// For direct HTML display, the data must be sorted, and possibly aggregated
-// (example: how many threads are in a specific consecutive set of Snapshots?
-// What was the total birth count for that set? etc.).  Aggregation instances
-// collect running sums of any set of snapshot instances, and are used to print
-// sub-totals in an about:profiler page.
+// serialization into a Value hierarchy, which is automatically translated to
+// JSON when supplied to rendering Java Scirpt.
 //
-// TODO(jar): I need to store DataCollections, and provide facilities for taking
-// the difference between two gathered DataCollections.  For now, I'm just
-// adding a hack that Reset()s to zero all counts and stats.  This is also
+// TODO(jar): We can implement a Snapshot system that *tries* to grab the
+// snapshots on the source threads *when* they have MessageLoops available
+// (worker threads don't have message loops generally, and hence gathering from
+// them will continue to be asynchronous).  We had an implementation of this in
+// the past, but the difficulty is dealing with message loops being terminated.
+// We can *try* to spam the available threads via some message loop proxy to
+// achieve this feat, and it *might* be valuable when we are colecting data for
+// upload via UMA (where correctness of data may be more significant than for a
+// single screen of about:profiler).
+//
+// TODO(jar): We need to save a single sample in each DeathData instance of the
+// times recorded.  This sample should be selected in a uniformly random way.
+//
+// TODO(jar): We should support (optionally) the recording of parent-child
+// relationships for tasks.  This should be done by detecting what tasks are
+// Born during the running of a parent task.  The resulting data can be used by
+// a smarter profiler to aggregate the cost of a series of child tasks into
+// the ancestor task.  It can also be used to illuminate what child or parent is
+// related to each task.
+//
+// TODO(jar): We need to store DataCollections, and provide facilities for
+// taking the difference between two gathered DataCollections.  For now, we're
+// just adding a hack that Reset()s to zero all counts and stats.  This is also
 // done in a slighly thread-unsafe fashion, as the resetting is done
 // asynchronously relative to ongoing updates (but all data is 32 bit in size).
 // For basic profiling, this will work "most of the time," and should be
 // sufficient... but storing away DataCollections is the "right way" to do this.
 // We'll accomplish this via JavaScript storage of snapshots, and then we'll
-// remove the Reset() methods.
+// remove the Reset() methods.  We may also need a short-term-max value in
+// DeathData that is reset (as synchronously as possible) during each snapshot.
+// This will facilitate displaying a max value for each snapshot period.
 
 class MessageLoop;
 
@@ -254,9 +273,6 @@ class BASE_EXPORT DeathData {
   // realtime statistics, and only used in snapshots and aggregatinos.
   void AddDeathData(const DeathData& other);
 
-  // Simple print of internal state for use in line of HTML.
-  void WriteHTML(std::string* output) const;
-
   // Construct a DictionaryValue instance containing all our stats. The caller
   // assumes ownership of the returned instance.
   base::DictionaryValue* ToValue() const;
@@ -274,10 +290,6 @@ class BASE_EXPORT DeathData {
 
     DurationInt duration() const { return duration_; }
     DurationInt max() const { return max_; }
-
-    // Emits HTML formated description of members, assuming |count| instances
-    // when calculating averages.
-    void WriteHTML(int count, std::string* output) const;
 
     // Agggegate data into our state.
     void AddData(const Data& other);
@@ -486,7 +498,7 @@ class BASE_EXPORT ThreadData {
   ThreadData* next() const { return next_; }
   // Using our lock, make a copy of the specified maps.  These calls may arrive
   // from non-local threads, and are used to quickly scan data from all threads
-  // in order to build an HTML page for about:profiler.
+  // in order to build JSON for about:profiler.
   void SnapshotBirthMap(BirthMap *output) const;
   void SnapshotDeathMap(DeathMap *output) const;
   // -------- end of should be private methods.
@@ -525,30 +537,8 @@ class BASE_EXPORT ThreadData {
   // in production code.
   friend class TrackedObjectsTest;
 
-  // Implment a stack that avoids allocations during a push() by having enough
-  // space ahead of time.
-  class ThreadDataPool {
-   public:
-    ThreadDataPool();
-    ~ThreadDataPool();
-
-    // Make sure the stack is large enough to support the indicated number of
-    // elements.
-    void reserve(size_t largest_worker_pool_number);
-
-    bool empty() const;
-    const ThreadData* top() const;
-    void push(const ThreadData* thread_data);
-    void pop();
-
-   private:
-    std::vector<const ThreadData*> stack_;
-    size_t empty_slot_;
-    DISALLOW_COPY_AND_ASSIGN(ThreadDataPool);
-  };
-
   // Worker thread construction creates a name since there is none.
-  explicit ThreadData(size_t thread_number);
+  explicit ThreadData(int thread_number);
 
   // Message loop based construction should provide a name.
   explicit ThreadData(const std::string& suggested_name);
@@ -577,7 +567,7 @@ class BASE_EXPORT ThreadData {
 
   // This method should be called when a worker thread terminates, so that we
   // can save all the thread data into a cache of reusable ThreadData instances.
-  void OnThreadTerminationCleanup() const;
+  void OnThreadTerminationCleanup();
 
   // Cleans up data structures, and returns statics to near pristine (mostly
   // uninitialized) state.  If there is any chance that other threads are still
@@ -593,16 +583,17 @@ class BASE_EXPORT ThreadData {
   // We use thread local store to identify which ThreadData to interact with.
   static base::ThreadLocalStorage::Slot tls_index_;
 
+  // List of ThreadData instances for use with worker threads. When a worker
+  // thread is done (terminated), we push it onto this llist.  When a new worker
+  // thread is created, we first try to re-use a ThreadData instance from the
+  // list, and if none are available, construct a new one.
+  // This is only accessed while list_lock_ is held.
+  static ThreadData* first_retired_worker_;
+
   // Link to the most recently created instance (starts a null terminated list).
   // The list is traversed by about:profiler when it needs to snapshot data.
   // This is only accessed while list_lock_ is held.
   static ThreadData* all_thread_data_list_head_;
-  // Set of ThreadData instances for use with worker threads. When a worker
-  // thread is done (terminating), we push it into this pool.  When a new worker
-  // thread is created, we first try to re-use a ThreadData instance from the
-  // pool, and if none are available, construct a new one.
-  // This is only accessed while list_lock_ is held.
-  static ThreadDataPool* unregistered_thread_data_pool_;
   // The next available thread number.  This should only be accessed when the
   // list_lock_ is held.
   static int thread_number_counter_;
@@ -631,6 +622,11 @@ class BASE_EXPORT ThreadData {
   // data).
   ThreadData* next_;
 
+  // Pointer to another ThreadData instance for a Worker-Thread that has been
+  // retired (its thread was terminated).  This value is non-NULL only for a
+  // retired ThreadData associated with a Worker-Thread.
+  ThreadData* next_retired_worker_;
+
   // The name of the thread that is being recorded.  If this thread has no
   // message_loop, then this is a worker thread, with a sequence number postfix.
   std::string thread_name_;
@@ -639,7 +635,7 @@ class BASE_EXPORT ThreadData {
   // stored in the unregistered_thread_data_pool_ when not in use.
   // Value is zero when it is not a worker thread.  Value is a positive integer
   // corresponding to the created thread name if it is a worker thread.
-  size_t worker_thread_number_;
+  int worker_thread_number_;
 
   // A map used on each thread to keep track of Births on this thread.
   // This map should only be accessed on the thread it was constructed on.
