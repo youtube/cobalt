@@ -197,8 +197,8 @@
       # Has no effect if 'clang' is not set as well.
       'clang_use_chrome_plugins%': 0,
 
-      # Enable building with ASAN (Clang's -fasan option).
-      # -fasan only works with clang, but asan=1 implies clang=1
+      # Enable building with ASAN (Clang's -faddress-sanitizer option).
+      # -faddress-sanitizer only works with clang, but asan=1 implies clang=1
       # See https://sites.google.com/a/chromium.org/dev/developers/testing/addresssanitizer
       'asan%': 0,
 
@@ -1923,12 +1923,17 @@
           ['asan==1', {
             # Only in the linux section for now, since ASAN doesn't
             # work on Mac yet.
+	    # TODO(glider): -fasan is deprecated. Remove it when we stop using
+	    # it.
             'cflags': [
               '-fasan',
+	      '-faddress-sanitizer',
               '-w',
+	      '-DADDRESS_SANITIZER',
             ],
             'ldflags': [
               '-fasan',
+	      '-faddress-sanitizer',
             ],
           }],
           ['no_strict_aliasing==1', {
