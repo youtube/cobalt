@@ -257,9 +257,22 @@ TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
     CreateMockWrite(*req, 0, true),
     CreateMockWrite(*rst, 2, true),
   };
+  static const char* const kAuthChallenge[] = {
+    "status", "407 Proxy Authentication Required",
+    "version", "HTTP/1.1",
+    "proxy-authenticate", "Basic realm=\"MyRealm1\"",
+  };
+
   scoped_ptr<spdy::SpdyFrame> resp(
-      ConstructSpdySynReplyError(
-          "407 Proxy Authentication Required", NULL, 0, 1));
+      ConstructSpdyControlFrame(NULL,
+                                0,
+                                false,
+                                1,
+                                LOWEST,
+                                spdy::SYN_REPLY,
+                                spdy::CONTROL_FLAG_NONE,
+                                kAuthChallenge,
+                                arraysize(kAuthChallenge)));
   MockRead spdy_reads[] = {
     CreateMockWrite(*resp, 1, true),
     MockRead(true, 0, 3)
@@ -276,21 +289,16 @@ TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
   EXPECT_FALSE(handle_.is_initialized());
   EXPECT_FALSE(handle_.socket());
 
-  data_->RunFor(4);
+  data_->RunFor(GetParam() == SPDY ? 2 : 4);
   rv = callback_.WaitForResult();
+  EXPECT_EQ(ERR_PROXY_AUTH_REQUESTED, rv);
+  EXPECT_TRUE(handle_.is_initialized());
+  ASSERT_TRUE(handle_.socket());
   if (GetParam() != SPDY) {
-    EXPECT_EQ(ERR_PROXY_AUTH_REQUESTED, rv);
-    EXPECT_TRUE(handle_.is_initialized());
-    ASSERT_TRUE(handle_.socket());
     HttpProxyClientSocket* tunnel_socket =
             static_cast<HttpProxyClientSocket*>(handle_.socket());
     EXPECT_FALSE(tunnel_socket->IsConnected());
     EXPECT_FALSE(tunnel_socket->using_spdy());
-  } else {
-    // Proxy auth is not really implemented for SPDY yet
-    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
-    EXPECT_FALSE(handle_.is_initialized());
-    EXPECT_FALSE(handle_.socket());
   }
 }
 

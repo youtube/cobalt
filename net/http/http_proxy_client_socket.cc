@@ -68,13 +68,18 @@ int HttpProxyClientSocket::RestartWithAuth(OldCompletionCallback* callback) {
   DCHECK(!user_callback_);
 
   int rv = PrepareForAuthRestart();
-  if (rv != OK)
+  if (rv != OK || next_state_ == STATE_NONE)
     return rv;
 
   rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
   return rv;
+}
+
+const
+scoped_refptr<HttpAuthController>& HttpProxyClientSocket::auth_controller() {
+  return auth_;
 }
 
 const HttpResponseInfo* HttpProxyClientSocket::GetConnectResponseInfo() const {
@@ -251,10 +256,7 @@ int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
     next_state_ = STATE_GENERATE_AUTH_TOKEN;
     transport_->set_is_reused(true);
   } else {
-    // This assumes that the underlying transport socket is a TCP socket,
-    // since only TCP sockets are restartable.
-    next_state_ = STATE_TCP_RESTART;
-    transport_->socket()->Disconnect();
+    next_state_ = STATE_NONE;
   }
 
   // Reset the other member variables.
@@ -265,17 +267,6 @@ int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
   request_headers_.Clear();
   response_ = HttpResponseInfo();
   return OK;
-}
-
-int HttpProxyClientSocket::HandleAuthChallenge() {
-  DCHECK(response_.headers);
-
-  int rv = auth_->HandleAuthChallenge(response_.headers, false, true, net_log_);
-  response_.auth_challenge = auth_->auth_info();
-  if (rv == OK)
-    return ERR_PROXY_AUTH_REQUESTED;
-
-  return rv;
 }
 
 void HttpProxyClientSocket::LogBlockedTunnelResponse(int response_code) const {
@@ -346,13 +337,6 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
         break;
       case STATE_DRAIN_BODY_COMPLETE:
         rv = DoDrainBodyComplete(rv);
-        break;
-      case STATE_TCP_RESTART:
-        DCHECK_EQ(OK, rv);
-        rv = DoTCPRestart();
-        break;
-      case STATE_TCP_RESTART_COMPLETE:
-        rv = DoTCPRestartComplete(rv);
         break;
       case STATE_DONE:
         break;
@@ -452,7 +436,7 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
       // authentication code is smart enough to avoid being tricked by an
       // active network attacker.
       // The next state is intentionally not set as it should be STATE_NONE;
-      return HandleAuthChallenge();
+      return HandleAuthChallenge(auth_, &response_, net_log_);
 
     default:
       if (is_https_proxy_)
@@ -486,19 +470,6 @@ int HttpProxyClientSocket::DoDrainBodyComplete(int result) {
   // Keep draining.
   next_state_ = STATE_DRAIN_BODY;
   return OK;
-}
-
-int HttpProxyClientSocket::DoTCPRestart() {
-  next_state_ = STATE_TCP_RESTART_COMPLETE;
-  return transport_->socket()->Connect(&io_callback_);
-}
-
-int HttpProxyClientSocket::DoTCPRestartComplete(int result) {
-  if (result != OK)
-    return result;
-
-  next_state_ = STATE_GENERATE_AUTH_TOKEN;
-  return result;
 }
 
 }  // namespace net
