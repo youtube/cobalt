@@ -10,6 +10,7 @@
 
 namespace net {
 
+class HttpAuthController;
 class HttpStream;
 class HttpResponseInfo;
 
@@ -25,6 +26,15 @@ class NET_EXPORT_PRIVATE ProxyClientSocket : public StreamSocket {
   // Transfers ownership of a newly created HttpStream to the caller
   // which can be used to read the response body.
   virtual HttpStream* CreateConnectResponseStream() = 0;
+
+  // Returns the HttpAuthController which can be used
+  // to interact with an HTTP Proxy Authorization Required (407) request.
+  virtual const scoped_refptr<HttpAuthController>& auth_controller() = 0;
+
+  // If Connect (or its callback) returns PROXY_AUTH_REQUESTED, then
+  // credentials should be added to the HttpAuthController before calling
+  // RestartWithAuth.
+  virtual int RestartWithAuth(OldCompletionCallback* callback) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProxyClientSocket);
