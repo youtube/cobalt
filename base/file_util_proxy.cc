@@ -112,7 +112,8 @@ class CreateOrOpenHelper {
   ~CreateOrOpenHelper() {
     if (file_handle_ != kInvalidPlatformFileValue) {
       message_loop_proxy_->PostTask(
-          FROM_HERE, base::Bind(close_task_, file_handle_));
+          FROM_HERE,
+          base::Bind(base::IgnoreResult(close_task_), file_handle_));
     }
   }
 
