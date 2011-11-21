@@ -31,9 +31,11 @@ struct NET_EXPORT_PRIVATE RRResponse {
   // |current_time|.
   bool HasExpired(base::Time current_time) const;
 
+#if defined(OS_POSIX) && !defined(OS_ANDROID)
   // For testing only
   bool ParseFromResponse(const uint8* data, unsigned len,
                          uint16 rrtype_requested);
+#endif
 
   // name contains the canonical name of the resulting domain. If the queried
   // name was a CNAME then this can differ.
