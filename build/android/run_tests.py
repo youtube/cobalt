@@ -50,6 +50,7 @@ failed on device.
 import logging
 import os
 import re
+import subprocess
 import sys
 
 import android_commands
@@ -62,6 +63,53 @@ from test_package_executable import TestPackageExecutable
 from test_result import BaseTestResult, TestResults
 
 _TEST_SUITES = ['base_unittests', 'sql_unittests', 'ipc_tests']
+
+
+class Xvfb(object):
+  """Class to start and stop Xvfb if relevant.  Nop if not Linux."""
+
+  def __init__(self):
+    self._pid = 0
+
+  def _IsLinux(self):
+    """Return True if on Linux; else False."""
+    return sys.platform.startswith('linux')
+
+  def Start(self):
+    """Start Xvfb and set an appropriate DISPLAY environment.  Linux only.
+
+    Copied from tools/code_coverage/coverage_posix.py
+    """
+    if not self._IsLinux():
+      return
+    proc = subprocess.Popen(["Xvfb", ":9", "-screen", "0", "1024x768x24",
+                             "-ac"],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    self._pid = proc.pid
+    if not self._pid:
+      raise Exception('Could not start Xvfb')
+    os.environ['DISPLAY'] = ":9"
+
+    # Now confirm, giving a chance for it to start if needed.
+    for test in range(10):
+      proc = subprocess.Popen('xdpyinfo >/dev/null', shell=True)
+      pid, retcode = os.waitpid(proc.pid, 0)
+      if retcode == 0:
+        break
+      time.sleep(0.25)
+    if retcode != 0:
+      raise Exception('Could not confirm Xvfb happiness')
+
+  def Stop(self):
+    """Stop Xvfb if needed.  Linux only."""
+    if self._pid:
+      try:
+        os.kill(self._pid, signal.SIGKILL)
+      except:
+        pass
+      del os.environ['DISPLAY']
+      self._pid = 0
+
 
 def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
              timeout, performance_test, cleanup_test_files, tool,
@@ -140,6 +188,10 @@ def Dispatch(options):
   buildbot_emulator = None
   attached_devices = []
 
+  if options.use_xvfb:
+    xvfb = Xvfb()
+    xvfb.Start()
+
   if options.use_emulator:
     buildbot_emulator = emulator.Emulator()
     buildbot_emulator.Launch()
@@ -159,6 +211,9 @@ def Dispatch(options):
                           options.log_dump)
   if buildbot_emulator:
     buildbot_emulator.Shutdown()
+  if options.use_xvfb:
+    xvfb.Stop()
+
   return len(test_results.failed)
 
 def ListTestSuites():
@@ -195,6 +250,9 @@ def main(argv):
                            help='Run tests in a new instance of emulator',
                            action='store_true',
                            default=False)
+  option_parser.add_option('-x', '--xvfb', dest='use_xvfb',
+                           action='store_true', default=False,
+                           help='Use Xvfb around tests (ignored if not Linux)')
   options, args = option_parser.parse_args(argv)
   if len(args) > 1:
     print 'Unknown argument:', args[1:]
