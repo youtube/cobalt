@@ -176,7 +176,13 @@ class RRResolverWorker {
 
  private:
 
-#if defined(OS_POSIX)
+#if defined(OS_ANDROID)
+
+  void Run() {
+    NOTIMPLEMENTED();
+  }
+
+#elif defined(OS_POSIX)
 
   void Run() {
     // Runs on a worker thread.
@@ -404,9 +410,9 @@ bool RRResponse::HasExpired(const base::Time current_time) const {
   return current_time >= expiry;
 }
 
+#if defined(OS_POSIX) && !defined(OS_ANDROID)
 bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
                                    uint16 rrtype_requested) {
-#if defined(OS_POSIX)
   name.clear();
   ttl = 0;
   dnssec = false;
@@ -485,10 +491,10 @@ bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
       signatures.push_back(std::string(rrdata.data(), rrdata.size()));
     }
   }
-#endif  // defined(OS_POSIX)
 
   return true;
 }
+#endif  // defined(OS_POSIX) && !defined(OS_ANDROID)
 
 
 // An RRResolverJob is a one-to-one counterpart of an RRResolverWorker. It

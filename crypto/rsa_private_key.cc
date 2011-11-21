@@ -185,7 +185,7 @@ void PrivateKeyInfoCodec::PrependIntegerImpl(uint8* val,
  std::vector<uint8> tmp;
  if (!big_endian) {
    tmp.assign(val, val + num_bytes);
-   reverse(tmp.begin(), tmp.end());
+   std::reverse(tmp.begin(), tmp.end());
    val = &tmp.front();
  }
 
@@ -240,7 +240,7 @@ bool PrivateKeyInfoCodec::ReadIntegerWithExpectedSize(uint8** pos,
 
   // Reverse output if little-endian.
   if (!big_endian_)
-    reverse(out->begin(), out->end());
+    std::reverse(out->begin(), out->end());
   return true;
 }
 
@@ -265,7 +265,7 @@ bool PrivateKeyInfoCodec::ReadIntegerImpl(uint8** pos,
 
   // Reverse output if little-endian.
   if (!big_endian)
-    reverse(out->begin(), out->end());
+    std::reverse(out->begin(), out->end());
   return true;
 }
 

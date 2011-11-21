@@ -8,8 +8,8 @@
 
     'linux_link_kerberos%': 0,
     'conditions': [
-      ['chromeos==1', {
-        # Disable Kerberos on ChromeOS, at least for now.
+      ['chromeos==1 or OS=="android"', {
+        # Disable Kerberos on ChromeOS and Android, at least for now.
         # It needs configuration (krb5.conf and so on).
         'use_kerberos%': 0,
       }, {  # chromeos == 0
@@ -40,6 +40,8 @@
         'ssl_false_start_blacklist_process#host',
       ],
       'sources': [
+        'android/network_library.cc',
+        'android/network_library.h',
         'base/address_family.h',
         'base/address_list.cc',
         'base/address_list.h',
@@ -185,6 +187,7 @@
         'base/nss_memio.h',
         'base/openssl_memory_private_key_store.cc',
         'base/openssl_private_key_store.h',
+        'base/openssl_private_key_store_android.cc',
         'base/origin_bound_cert_service.cc',
         'base/origin_bound_cert_service.h',
         'base/origin_bound_cert_store.h',
@@ -935,6 +938,14 @@
               # Android can shut down our app at any time, so we persist session cookies.
               'ENABLE_PERSISTENT_SESSION_COOKIES'
             ],
+            'dependencies': [
+              '../build/android/system.gyp:ssl',
+            ],
+            'sources/': [
+              # TODO(jingzhao): The below files are excluded because of the
+              # missing JNI, add them back when JNI is ready.
+              ['exclude', '^android/'],
+            ],
           }, {  # else OS! = "android"
             'defines': [
               # These are the features Android doesn't support.
@@ -950,6 +961,13 @@
             ],
           },
         ],
+      ],
+      'target_conditions': [
+        ['OS == "android"', {
+          'sources/': [
+            ['include', '^base/platform_mime_util_linux\\.cc$'],
+          ],
+        }],
       ],
     },
     {
@@ -1179,7 +1197,7 @@
             ],
           },
         ],
-        [ 'os_posix == 1 and OS != "mac"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -1242,6 +1260,15 @@
             'dependencies': [
               '../build/linux/system.gyp:dbus',
               '../dbus/dbus.gyp:dbus_test_support',
+            ],
+          },
+        ],
+        [ 'OS == "android"', {
+            'dependencies': [
+              '../build/android/system.gyp:ssl',
+            ],
+            'sources!': [
+              'dns/dns_config_service_posix_unittest.cc',
             ],
           },
         ],
@@ -1381,7 +1408,7 @@
             '../third_party/protobuf/protobuf.gyp:py_proto',
           ],
         }],
-        ['os_posix == 1 and OS != "mac"', {
+        ['os_posix == 1 and OS != "mac" and OS != "android"', {
           'conditions': [
             ['use_openssl==1', {
               'dependencies': [
@@ -1394,7 +1421,7 @@
             }],
           ],
         }],
-        ['os_posix == 1 and OS != "mac"', {
+        ['os_posix == 1 and OS != "mac" and OS != "android"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -1510,7 +1537,7 @@
     },
   ],
   'conditions': [
-     ['os_posix == 1 and OS != "mac"', {
+     ['os_posix == 1 and OS != "mac" and OS != "android"', {
        'targets': [
          {
            'target_name': 'flip_in_mem_edsm_server',

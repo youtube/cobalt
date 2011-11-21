@@ -4,7 +4,8 @@
 
 #include "net/base/dns_reloader.h"
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) && \
+    !defined(OS_ANDROID)
 
 #include <resolv.h>
 
@@ -34,6 +35,9 @@ namespace {
 // the same trick there and most *BSD's don't yet have support for
 // FilePathWatcher (but perhaps the new kqueue mac code just needs to be
 // ported to *BSD to support that).
+//
+// Android does not have /etc/resolv.conf. The system takes care of nameserver
+// changes, so none of this is needed.
 
 class DnsReloader : public net::NetworkChangeNotifier::DNSObserver {
  public:
@@ -119,4 +123,5 @@ void DnsReloaderMaybeReload() {
 
 }  // namespace net
 
-#endif  // defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
+#endif  // defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) &&
+        // !defined(OS_ANDROID)
