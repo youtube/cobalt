@@ -260,35 +260,28 @@ TEST_F(BindTest, ArityTest) {
   EXPECT_EQ(69, c6.Run(13, 12, 11, 10, 9, 14));
 }
 
-// Bind should be able to take existing Callbacks and convert to a Closure.
-TEST_F(BindTest, CallbackBindMore) {
-  int output = 0;
-  Closure c;
+// Test the Currying ability of the Callback system.
+TEST_F(BindTest, CurryingTest) {
+  Callback<int(int,int,int,int,int,int)> c6 = Bind(&Sum);
+  EXPECT_EQ(69, c6.Run(13, 12, 11, 10, 9, 14));
 
-  Callback<void(int)> c1 = Bind(&OutputSum, &output, 16, 8, 4, 2);
-  c = Bind(c1, 10);
-  c.Run();
-  EXPECT_EQ(40, output);
+  Callback<int(int,int,int,int,int)> c5 = Bind(c6, 32);
+  EXPECT_EQ(87, c5.Run(13, 12, 11, 10, 9));
 
-  Callback<void(int,int)> c2 = Bind(&OutputSum, &output, 16, 8, 4);
-  c = Bind(c2, 10, 9);
-  c.Run();
-  EXPECT_EQ(47, output);
+  Callback<int(int,int,int,int)> c4 = Bind(c5, 16);
+  EXPECT_EQ(94, c4.Run(13, 12, 11, 10));
 
-  Callback<void(int,int,int)> c3 = Bind(&OutputSum, &output, 16, 8);
-  c = Bind(c3, 10, 9, 8);
-  c.Run();
-  EXPECT_EQ(51, output);
+  Callback<int(int,int,int)> c3 = Bind(c4, 8);
+  EXPECT_EQ(92, c3.Run(13, 12, 11));
 
-  Callback<void(int,int,int,int)> c4 = Bind(&OutputSum, &output, 16);
-  c = Bind(c4, 10, 9, 8, 7);
-  c.Run();
-  EXPECT_EQ(50, output);
+  Callback<int(int,int)> c2 = Bind(c3, 4);
+  EXPECT_EQ(85, c2.Run(13, 12));
 
-  Callback<void(int,int,int,int,int)> c5 = Bind(&OutputSum, &output);
-  c = Bind(c5, 10, 9, 8, 7, 6);
-  c.Run();
-  EXPECT_EQ(40, output);
+  Callback<int(int)> c1 = Bind(c2, 2);
+  EXPECT_EQ(75, c1.Run(13));
+
+  Callback<int(void)> c0 = Bind(c1, 1);
+  EXPECT_EQ(63, c0.Run());
 }
 
 // Function type support.
@@ -363,13 +356,46 @@ TEST_F(BindTest, ReturnValues) {
   EXPECT_EQ(51337, const_method_const_obj_cb.Run());
 }
 
-// IgnoreReturn adapter test.
-//   - Function with return value, and no params can be converted to Closure.
-TEST_F(BindTest, IgnoreReturn) {
+// IgnoreResult adapter test.
+//   - Function with return value.
+//   - Method with return value.
+//   - Const Method with return.
+//   - Method with return value bound to WeakPtr<>.
+//   - Const Method with return bound to WeakPtr<>.
+TEST_F(BindTest, IgnoreResult) {
   EXPECT_CALL(static_func_mock_, IntMethod0()).WillOnce(Return(1337));
-  Callback<int(void)> normal_cb = Bind(&IntFunc0);
-  Closure c = IgnoreReturn(normal_cb);
-  c.Run();
+  EXPECT_CALL(has_ref_, AddRef()).Times(2);
+  EXPECT_CALL(has_ref_, Release()).Times(2);
+  EXPECT_CALL(has_ref_, IntMethod0()).WillOnce(Return(10));
+  EXPECT_CALL(has_ref_, IntConstMethod0()).WillOnce(Return(11));
+  EXPECT_CALL(no_ref_, IntMethod0()).WillOnce(Return(12));
+  EXPECT_CALL(no_ref_, IntConstMethod0()).WillOnce(Return(13));
+
+  Closure normal_func_cb = Bind(IgnoreResult(&IntFunc0));
+  normal_func_cb.Run();
+
+  Closure non_void_method_cb =
+      Bind(IgnoreResult(&HasRef::IntMethod0), &has_ref_);
+  non_void_method_cb.Run();
+
+  Closure non_void_const_method_cb =
+      Bind(IgnoreResult(&HasRef::IntConstMethod0), &has_ref_);
+  non_void_const_method_cb.Run();
+
+  WeakPtrFactory<NoRef> weak_factory(&no_ref_);
+  WeakPtrFactory<const NoRef> const_weak_factory(const_no_ref_ptr_);
+
+  Closure non_void_weak_method_cb  =
+      Bind(IgnoreResult(&NoRef::IntMethod0), weak_factory.GetWeakPtr());
+  non_void_weak_method_cb.Run();
+
+  Closure non_void_weak_const_method_cb =
+      Bind(IgnoreResult(&NoRef::IntConstMethod0), weak_factory.GetWeakPtr());
+  non_void_weak_const_method_cb.Run();
+
+  weak_factory.InvalidateWeakPtrs();
+  non_void_weak_const_method_cb.Run();
+  non_void_weak_method_cb.Run();
 }
 
 // Argument binding tests.
@@ -453,7 +479,7 @@ TEST_F(BindTest, UnboundArgumentTypeSupport) {
 }
 
 // Function with unbound reference parameter.
-//   - Original paraemter is modified by callback.
+//   - Original parameter is modified by callback.
 TEST_F(BindTest, UnboundReferenceSupport) {
   int n = 0;
   Callback<void(int&)> unbound_ref_cb = Bind(&RefArgSet);
@@ -554,15 +580,15 @@ TEST_F(BindTest, WeakPtr) {
   WeakPtrFactory<NoRef> weak_factory(&no_ref_);
   WeakPtrFactory<const NoRef> const_weak_factory(const_no_ref_ptr_);
 
-  Callback<void(void)> method_cb =
+  Closure method_cb =
       Bind(&NoRef::VoidMethod0, weak_factory.GetWeakPtr());
   method_cb.Run();
 
-  Callback<void(void)> const_method_cb =
+  Closure const_method_cb =
       Bind(&NoRef::VoidConstMethod0, const_weak_factory.GetWeakPtr());
   const_method_cb.Run();
 
-  Callback<void(void)> const_method_const_ptr_cb =
+  Closure const_method_const_ptr_cb =
       Bind(&NoRef::VoidConstMethod0, const_weak_factory.GetWeakPtr());
   const_method_const_ptr_cb.Run();
 
