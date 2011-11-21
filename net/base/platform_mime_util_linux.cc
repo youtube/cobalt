@@ -20,12 +20,18 @@ namespace net {
 #if defined(OS_ANDROID)
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const FilePath::StringType& ext, std::string* result) const {
+  // TODO(jingzhao): Recover the original implementation once we support JNI.
+#if 0
   return android::GetMimeTypeFromExtension(ext, result);
+#else
+  NOTIMPLEMENTED();
+  return false;
+#endif
 }
 #else
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const FilePath::StringType& ext, std::string* result) const {
-  // TODO(thestig) This is a temporary hack until we can fix this
+  // TODO(thestig): This is a temporary hack until we can fix this
   // properly in test shell / webkit.
   // We have to play dumb and not return application/x-perl here
   // to make the reload-subframe-object layout test happy.

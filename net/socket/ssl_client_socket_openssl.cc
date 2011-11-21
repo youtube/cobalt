@@ -786,6 +786,10 @@ int SSLClientSocketOpenSSL::DoHandshake() {
   return net_error;
 }
 
+// SelectNextProtoCallback is called by OpenSSL during the handshake. If the
+// server supports NPN, selects a protocol from the list that the server
+// provides. According to third_party/openssl/openssl/ssl/ssl_lib.c, the
+// callback can assume that |in| is syntactically valid.
 int SSLClientSocketOpenSSL::SelectNextProtoCallback(unsigned char** out,
                                                     unsigned char* outlen,
                                                     const unsigned char* in,
@@ -798,16 +802,31 @@ int SSLClientSocketOpenSSL::SelectNextProtoCallback(unsigned char** out,
     return SSL_TLSEXT_ERR_OK;
   }
 
-  int status = SSL_select_next_proto(
-      out, outlen, in, inlen,
-      reinterpret_cast<const unsigned char*>(ssl_config_.next_protos.data()),
-      ssl_config_.next_protos.size());
+  // Assume there's no overlap between our protocols and the server's list.
+  int status = OPENSSL_NPN_NO_OVERLAP;
+  *out = const_cast<unsigned char*>(in) + 1;
+  *outlen = in[0];
+
+  // For each protocol in server preference order, see if we support it.
+  for (unsigned int i = 0; i < inlen; i += in[i] + 1) {
+    for (std::vector<std::string>::const_iterator
+             j = ssl_config_.next_protos.begin();
+         j != ssl_config_.next_protos.end(); ++j) {
+      if (in[i] == j->size() &&
+          memcmp(&in[i + 1], j->data(), in[i]) == 0) {
+        // We find a match.
+        *out = const_cast<unsigned char*>(in) + i + 1;
+        *outlen = in[i];
+        status = OPENSSL_NPN_NEGOTIATED;
+        break;
+      }
+    }
+    if (status == OPENSSL_NPN_NEGOTIATED)
+      break;
+  }
 
   npn_proto_.assign(reinterpret_cast<const char*>(*out), *outlen);
   switch (status) {
-    case OPENSSL_NPN_UNSUPPORTED:
-      npn_status_ = SSLClientSocket::kNextProtoUnsupported;
-      break;
     case OPENSSL_NPN_NEGOTIATED:
       npn_status_ = SSLClientSocket::kNextProtoNegotiated;
       break;

@@ -119,7 +119,7 @@ TEST(DnsRRResolverTest, Resolve) {
   ASSERT_EQ(1u, resolver.inflight_joins());
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(OS_ANDROID)
 // This is a DNS packet resulting from querying a recursive resolver for a TXT
 // record for agl._pka.imperialviolet.org. You should be able to get a
 // replacement from a packet capture should it ever be needed.

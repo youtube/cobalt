@@ -25,6 +25,11 @@
 #include "net/base/net_errors.h"
 #include "net/base/x509_util_openssl.h"
 
+#if defined(OS_ANDROID)
+#include "base/logging.h"
+#include "net/android/network_library.h"
+#endif
+
 namespace net {
 
 namespace {
@@ -511,8 +516,46 @@ X509_STORE* X509Certificate::cert_store() {
   return X509InitSingleton::GetInstance()->store();
 }
 
-#if !defined(OS_ANDROID)
+#if defined(OS_ANDROID)
+int X509Certificate::VerifyInternal(const std::string& hostname,
+                                    int flags,
+                                    CRLSet* crl_set,
+                                    CertVerifyResult* verify_result) const {
+  if (!VerifyNameMatch(hostname))
+    verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
+  std::vector<std::string> cert_bytes;
+  GetChainDEREncodedBytes(&cert_bytes);
+
+  // TODO(joth): Fetch the authentication type from SSL rather than hardcode.
+  // TODO(jingzhao): Recover the original implementation once we support JNI.
+#if 0
+  android::VerifyResult result =
+      android::VerifyX509CertChain(cert_bytes, hostname, "RSA");
+#else
+  android::VerifyResult result = android::VERIFY_INVOCATION_ERROR;
+  NOTIMPLEMENTED();
+#endif
+  switch (result) {
+    case android::VERIFY_OK:
+      break;
+    case android::VERIFY_BAD_HOSTNAME:
+      verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
+      break;
+    case android::VERIFY_NO_TRUSTED_ROOT:
+      verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
+      break;
+    case android::VERIFY_INVOCATION_ERROR:
+    default:
+      verify_result->cert_status |= ERR_CERT_INVALID;
+      break;
+  }
+  if (IsCertStatusError(verify_result->cert_status))
+    return MapCertStatusToNetError(verify_result->cert_status);
+  return OK;
+}
+
+#else
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
                                     CRLSet* crl_set,
@@ -564,7 +607,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   return OK;
 }
 
-#endif  // !defined(OS_ANDROID)
+#endif  // defined(OS_ANDROID)
 
 // static
 bool X509Certificate::GetDEREncoded(X509Certificate::OSCertHandle cert_handle,
@@ -618,5 +661,24 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
       reinterpret_cast<const char*>(der_cache.data),
       der_cache.data_length);
 }
+
+#if defined(OS_ANDROID)
+void X509Certificate::GetChainDEREncodedBytes(
+    std::vector<std::string>* chain_bytes) const {
+  OSCertHandles cert_handles(intermediate_ca_certs_);
+  // Make sure the peer's own cert is the first in the chain, if it's not
+  // already there.
+  if (cert_handles.empty() || cert_handles[0] != cert_handle_)
+    cert_handles.insert(cert_handles.begin(), cert_handle_);
+
+  chain_bytes->reserve(cert_handles.size());
+  for (OSCertHandles::const_iterator it = cert_handles.begin();
+       it != cert_handles.end(); ++it) {
+    std::string cert_bytes;
+    GetDEREncoded(*it, &cert_bytes);
+    chain_bytes->push_back(cert_bytes);
+  }
+}
+#endif
 
 }  // namespace net
