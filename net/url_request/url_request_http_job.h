@@ -213,6 +213,9 @@ class URLRequestHttpJob : public URLRequestJob {
 
   OldCompletionCallbackImpl<URLRequestHttpJob> on_headers_received_callback_;
 
+  // We allow the network delegate to modify a copy of the response headers.
+  // This prevents modifications of headers that are shared with the underlying
+  // layers of the network stack.
   scoped_refptr<HttpResponseHeaders> override_response_headers_;
 
   // Flag used to verify that |this| is not deleted while we are awaiting
