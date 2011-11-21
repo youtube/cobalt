@@ -1215,7 +1215,7 @@ TEST(NetUtilTest, GenerateSafeFileName) {
 }
 
 TEST(NetUtilTest, GenerateFileName) {
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
   // This test doesn't run when the locale is not UTF-8 because some of the
   // string conversions fail. This is OK (we have the default value) but they
   // don't match our expectations.
