@@ -294,6 +294,42 @@ void HttpResponseHeaders::MergeWithHeaders(const std::string& raw_headers,
   Parse(new_raw_headers);
 }
 
+void HttpResponseHeaders::MergeWithHeadersWithValue(
+    const std::string& raw_headers,
+    const std::string& header_to_remove_name,
+    const std::string& header_to_remove_value) {
+  std::string header_to_remove_name_lowercase(header_to_remove_name);
+  StringToLowerASCII(&header_to_remove_name_lowercase);
+
+  std::string new_raw_headers(raw_headers);
+  for (size_t i = 0; i < parsed_.size(); ++i) {
+    DCHECK(!parsed_[i].is_continuation());
+
+    // Locate the start of the next header.
+    size_t k = i;
+    while (++k < parsed_.size() && parsed_[k].is_continuation()) {}
+    --k;
+
+    std::string name(parsed_[i].name_begin, parsed_[i].name_end);
+    StringToLowerASCII(&name);
+    std::string value(parsed_[i].value_begin, parsed_[i].value_end);
+    if (name != header_to_remove_name_lowercase ||
+        value != header_to_remove_value) {
+      // It's ok to preserve this header in the final result.
+      new_raw_headers.append(parsed_[i].name_begin, parsed_[k].value_end);
+      new_raw_headers.push_back('\0');
+    }
+
+    i = k;
+  }
+  new_raw_headers.push_back('\0');
+
+  // Make this object hold the new data.
+  raw_headers_.clear();
+  parsed_.clear();
+  Parse(new_raw_headers);
+}
+
 void HttpResponseHeaders::RemoveHeader(const std::string& name) {
   // Copy up to the null byte.  This just copies the status line.
   std::string new_raw_headers(raw_headers_.c_str());
@@ -304,6 +340,15 @@ void HttpResponseHeaders::RemoveHeader(const std::string& name) {
   HeaderSet to_remove;
   to_remove.insert(lowercase_name);
   MergeWithHeaders(new_raw_headers, to_remove);
+}
+
+void HttpResponseHeaders::RemoveHeaderWithValue(const std::string& name,
+                                                const std::string& value) {
+  // Copy up to the null byte.  This just copies the status line.
+  std::string new_raw_headers(raw_headers_.c_str());
+  new_raw_headers.push_back('\0');
+
+  MergeWithHeadersWithValue(new_raw_headers, name, value);
 }
 
 void HttpResponseHeaders::AddHeader(const std::string& header) {
