@@ -52,6 +52,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 import android_commands
 import cmd_helper
