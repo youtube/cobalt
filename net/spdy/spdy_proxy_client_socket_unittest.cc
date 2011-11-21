@@ -66,7 +66,6 @@ class SpdyProxyClientSocketTest : public PlatformTest {
   spdy::SpdyFrame* ConstructConnectAuthRequestFrame();
   spdy::SpdyFrame* ConstructConnectReplyFrame();
   spdy::SpdyFrame* ConstructConnectAuthReplyFrame();
-  spdy::SpdyFrame* ConstructNtlmAuthReplyFrame();
   spdy::SpdyFrame* ConstructConnectErrorReplyFrame();
   spdy::SpdyFrame* ConstructBodyFrame(const char* data, int length);
   scoped_refptr<IOBufferWithSize> CreateBuffer(const char* data, int size);
@@ -388,26 +387,6 @@ spdy::SpdyFrame* SpdyProxyClientSocketTest::ConstructConnectAuthReplyFrame() {
                                    arraysize(kStandardReplyHeaders));
 }
 
-// Constructs a SPDY SYN_REPLY frame to match the SPDY CONNECT which
-// requires Proxy Authentication using NTLM.
-spdy::SpdyFrame* SpdyProxyClientSocketTest::ConstructNtlmAuthReplyFrame() {
-  const char* const kStandardReplyHeaders[] = {
-      "status", "407 Proxy Authentication Required",
-      "version", "HTTP/1.1",
-      "proxy-authenticate", "NTLM",
-  };
-
-  return ConstructSpdyControlFrame(NULL,
-                                   0,
-                                   false,
-                                   kStreamId,
-                                   LOWEST,
-                                   spdy::SYN_REPLY,
-                                   spdy::CONTROL_FLAG_NONE,
-                                   kStandardReplyHeaders,
-                                   arraysize(kStandardReplyHeaders));
-}
-
 // Constructs a SPDY SYN_REPLY frame with an HTTP 500 error.
 spdy::SpdyFrame* SpdyProxyClientSocketTest::ConstructConnectErrorReplyFrame() {
   const char* const kStandardReplyHeaders[] = {
@@ -454,23 +433,6 @@ TEST_F(SpdyProxyClientSocketTest, ConnectSendsCorrectRequest) {
   AssertConnectionEstablished();
 }
 
-TEST_F(SpdyProxyClientSocketTest, ConnectWithUnsupportedAuth) {
-  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
-  MockWrite writes[] = {
-    CreateMockWrite(*conn, 0, false),
-  };
-
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructNtlmAuthReplyFrame());
-  MockRead reads[] = {
-    CreateMockRead(*resp, 1, true),
-    MockRead(true, 0, 3),  // EOF
-  };
-
-  Initialize(reads, arraysize(reads), writes, arraysize(writes));
-
-  AssertConnectFails(ERR_TUNNEL_CONNECTION_FAILED);
-}
-
 TEST_F(SpdyProxyClientSocketTest, ConnectWithAuthRequested) {
   scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
   MockWrite writes[] = {
@@ -485,7 +447,7 @@ TEST_F(SpdyProxyClientSocketTest, ConnectWithAuthRequested) {
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
-  AssertConnectFails(ERR_PROXY_AUTH_REQUESTED);
+  AssertConnectFails(ERR_TUNNEL_CONNECTION_FAILED);
 
   const HttpResponseInfo* response = sock_->GetConnectResponseInfo();
   ASSERT_TRUE(response != NULL);
@@ -512,38 +474,6 @@ TEST_F(SpdyProxyClientSocketTest, ConnectWithAuthCredentials) {
   AssertConnectSucceeds();
 
   AssertConnectionEstablished();
-}
-
-TEST_F(SpdyProxyClientSocketTest, ConnectWithAuthRestart) {
-  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
-  scoped_ptr<spdy::SpdyFrame> auth(ConstructConnectAuthRequestFrame());
-  MockWrite writes[] = {
-    CreateMockWrite(*conn, 0, false),
-  };
-
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectAuthReplyFrame());
-  scoped_ptr<spdy::SpdyFrame> auth_resp(ConstructConnectReplyFrame());
-  MockRead reads[] = {
-    CreateMockRead(*resp, 1, true),
-    MockRead(true, 0, 3),  // EOF
-  };
-
-  Initialize(reads, arraysize(reads), writes, arraysize(writes));
-
-  AssertConnectFails(ERR_PROXY_AUTH_REQUESTED);
-
-  const HttpResponseInfo* response = sock_->GetConnectResponseInfo();
-  ASSERT_TRUE(response != NULL);
-  ASSERT_EQ(407, response->headers->response_code());
-  ASSERT_EQ("Proxy Authentication Required",
-            response->headers->GetStatusText());
-
-  AddAuthToCache();
-
-  ASSERT_EQ(OK, sock_->RestartWithAuth(&read_callback_));
-  // A SpdyProxyClientSocket sits on a single SPDY stream which can
-  // only be used for a single request/response.
-  ASSERT_FALSE(sock_->IsConnectedAndIdle());
 }
 
 TEST_F(SpdyProxyClientSocketTest, ConnectFails) {
@@ -891,7 +821,7 @@ TEST_F(SpdyProxyClientSocketTest, ReadAuthResponseBody) {
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
-  AssertConnectFails(ERR_PROXY_AUTH_REQUESTED);
+  AssertConnectFails(ERR_TUNNEL_CONNECTION_FAILED);
 
   Run(2);  // SpdySession consumes the next two reads and sends then to
            // sock_ to be buffered.
