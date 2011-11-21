@@ -4,6 +4,7 @@
 
 #include "base/callback.h"
 #include "base/bind.h"
+#include "base/memory/ref_counted.h"
 
 namespace base {
 
@@ -21,10 +22,7 @@ class NoRef {
   int IntMethod0() { return 1; }
 };
 
-class HasRef : public NoRef {
- public:
-  void AddRef(void) const {}
-  bool Release(void) const { return true; }
+class HasRef : public NoRef, public base::RefCounted<HasRef> {
 };
 
 class Parent {
@@ -175,6 +173,9 @@ void WontCompile() {
 // Refcounted types should not be bound as a raw pointer.
 void WontCompile() {
   HasRef for_raw_ptr;
+  int a;
+  Callback<void(void)> ref_count_as_raw_ptr_a =
+      Bind(&VoidPolymorphic1<int*>, &a);
   Callback<void(void)> ref_count_as_raw_ptr =
       Bind(&VoidPolymorphic1<HasRef*>, &for_raw_ptr);
 }
@@ -190,7 +191,7 @@ void WontCompile() {
   weak_ptr_with_non_void_return_type.Run();
 }
 
-#elif defined(NCTEST_DISALLOW_ASSIGN_DIFFERINT_TYPES)  // [r"creating array with negative size"]
+#elif defined(NCTEST_DISALLOW_ASSIGN_DIFFERINT_TYPES)  // [r"invalid conversion from"]
 
 // Bind result cannot be assigned to Callbacks with a mismatching type.
 void WontCompile() {

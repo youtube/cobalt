@@ -51,6 +51,12 @@ TEST(TemplateUtilTest, IsConvertible) {
   EXPECT_TRUE( (is_convertible<int, double>::value) );
   EXPECT_TRUE( (is_convertible<int*, void*>::value) );
   EXPECT_FALSE( (is_convertible<void*, int*>::value) );
+
+  // Array types are an easy corner case.  Make sure to test that
+  // it does indeed compile.
+  EXPECT_FALSE( (is_convertible<int[10], double>::value) );
+  EXPECT_FALSE( (is_convertible<double, int[10]>::value) );
+  EXPECT_TRUE( (is_convertible<int[10], int*>::value) );
 }
 
 TEST(TemplateUtilTest, IsSame) {

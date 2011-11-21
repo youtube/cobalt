@@ -11,7 +11,7 @@ $var MAX_ARITY = 6
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Specializations of FunctionTraits<> for Windows specific calling
+// Specializations of RunnableAdapter<> for Windows specific calling
 // conventions.  Please see base/bind_internal.h for more info.
 
 #ifndef BASE_BIND_INTERNAL_WIN_H_
@@ -26,8 +26,8 @@ $var MAX_ARITY = 6
 namespace base {
 namespace internal {
 
-template <typename Sig>
-struct FunctionTraits;
+template <typename Functor>
+class RunnableAdapter;
 
 $range ARITY 0..MAX_ARITY
 $for ARITY [[
@@ -35,42 +35,40 @@ $range ARG 1..ARITY
 
 // __stdcall Function: Arity $(ARITY).
 template <typename R[[]]
-$if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
-struct FunctionTraits<R(__stdcall *)($for ARG , [[X$(ARG)]])> {
-  typedef R (*NormalizedSig)($for ARG , [[X$(ARG)]]);
-  typedef false_type IsMethod;
+$if ARITY > 0[[, ]] $for ARG , [[typename A$(ARG)]]>
+class RunnableAdapter<R(__stdcall *)($for ARG , [[A$(ARG)]])> {
+ public:
+  typedef R (RunType)($for ARG , [[A$(ARG)]]);
 
-  typedef R Return;
+  explicit RunnableAdapter(R(__stdcall *function)($for ARG , [[A$(ARG)]]))
+      : function_(function) {
+  }
 
-$if ARITY > 0 [[
+  R Run($for ARG , [[typename CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]]) {
+    return function_($for ARG , [[a$(ARG)]]);
+  }
 
-  // Target type for each bound parameter.
-
-$for ARG [[
-  typedef X$(ARG) B$(ARG);
-
-]]  $$ for ARG
-]]  $$ if ARITY > 0
+ private:
+  R (__stdcall *function_)($for ARG , [[A$(ARG)]]);
 };
 
 // __fastcall Function: Arity $(ARITY).
 template <typename R[[]]
-$if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
-struct FunctionTraits<R(__fastcall *)($for ARG , [[X$(ARG)]])> {
-  typedef R (*NormalizedSig)($for ARG , [[X$(ARG)]]);
-  typedef false_type IsMethod;
+$if ARITY > 0[[, ]] $for ARG , [[typename A$(ARG)]]>
+class RunnableAdapter<R(__fastcall *)($for ARG , [[A$(ARG)]])> {
+ public:
+  typedef R (RunType)($for ARG , [[A$(ARG)]]);
 
-  typedef R Return;
+  explicit RunnableAdapter(R(__fastcall *function)($for ARG , [[A$(ARG)]]))
+      : function_(function) {
+  }
 
-$if ARITY > 0 [[
+  R Run($for ARG , [[typename CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]]) {
+    return function_($for ARG , [[a$(ARG)]]);
+  }
 
-  // Target type for each bound parameter.
-
-$for ARG [[
-  typedef X$(ARG) B$(ARG);
-
-]]  $$ for ARG
-]]  $$ if ARITY > 0
+ private:
+  R (__fastcall *function_)($for ARG , [[A$(ARG)]]);
 };
 
 ]]  $$for ARITY
