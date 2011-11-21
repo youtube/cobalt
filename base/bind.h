@@ -15,7 +15,10 @@
 #include "base/bind_internal.h"
 #include "base/callback_internal.h"
 
-// See base/callback.h for how to use these functions.
+// See base/callback.h for how to use these functions. If reading the
+// implementation, before proceeding further, you should read the top
+// comment of base/bind_internal.h for a definition of common terms and
+// concepts.
 //
 // IMPLEMENTATION NOTE
 // Though Bind()'s result is meant to be stored in a Callback<> type, it
@@ -28,116 +31,383 @@
 // Each unique combination of (arity, function_type, num_prebound) where
 // function_type is one of {function, method, const_method} would require
 // one specialization.  We eventually have to do a similar number of
-// specializations anyways in the implementation (see the FunctionTraitsN,
+// specializations anyways in the implementation (see the Invoker<>,
 // classes).  However, it is avoidable in Bind if we return the result
 // via an indirection like we do below.
+//
+// TODO(ajwong): We might be able to avoid this now, but need to test.
+//
+// It is possible to move most of the COMPILE_ASSERT asserts into BindState<>,
+// but it feels a little nicer to have the asserts here so people do not
+// need to crack open bind_internal.h.  On the other hand, it makes Bind()
+// harder to read.
 
 namespace base {
 
-template <typename Sig>
-internal::InvokerStorageHolder<internal::InvokerStorage0<Sig> >
-Bind(Sig f) {
-  return internal::MakeInvokerStorageHolder(
-      new internal::InvokerStorage0<Sig>(f));
+template <typename Functor>
+internal::BindStateHolder<
+    internal::BindState<
+        typename internal::FunctorTraits<Functor>::RunnableType,
+        typename internal::FunctorTraits<Functor>::RunType,
+        void()> >
+Bind(Functor functor) {
+  // Typedefs for how to store and run the functor.
+  typedef typename internal::FunctorTraits<Functor>::RunnableType RunnableType;
+  typedef typename internal::FunctorTraits<Functor>::RunType RunType;
+
+  // Use RunnableType::RunType instead of RunType above because our
+  // checks should below for bound references need to know what the actual
+  // functor is going to interpret the argument as.
+  typedef internal::FunctionTraits<typename RunnableType::RunType>
+      BoundFunctorTraits;
+
+
+  return internal::MakeBindStateHolder(
+      new internal::BindState<RunnableType, RunType, void()>(
+          internal::MakeRunnable(functor)));
 }
 
-template <typename Sig, typename P1>
-internal::InvokerStorageHolder<internal::InvokerStorage1<Sig,P1> >
-Bind(Sig f, const P1& p1) {
-  return internal::MakeInvokerStorageHolder(
-      new internal::InvokerStorage1<Sig, P1>(
-          f, p1));
+template <typename Functor, typename P1>
+internal::BindStateHolder<
+    internal::BindState<
+        typename internal::FunctorTraits<Functor>::RunnableType,
+        typename internal::FunctorTraits<Functor>::RunType,
+        void(typename internal::CallbackParamTraits<P1>::StorageType)> >
+Bind(Functor functor, const P1& p1) {
+  // Typedefs for how to store and run the functor.
+  typedef typename internal::FunctorTraits<Functor>::RunnableType RunnableType;
+  typedef typename internal::FunctorTraits<Functor>::RunType RunType;
+
+  // Use RunnableType::RunType instead of RunType above because our
+  // checks should below for bound references need to know what the actual
+  // functor is going to interpret the argument as.
+  typedef internal::FunctionTraits<typename RunnableType::RunType>
+      BoundFunctorTraits;
+
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !(is_non_const_reference<typename BoundFunctorTraits::A1Type>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
+  // For methods, we need to be careful for parameter 1.  We do not require
+  // a scoped_refptr because BindState<> itself takes care of AddRef() for
+  // methods. We also disallow binding of an array as the method's target
+  // object.
+  COMPILE_ASSERT(
+      internal::HasIsMethodTag<RunnableType>::value ||
+          !internal::NeedsScopedRefptrButGetsRawPtr<P1>::value,
+      p1_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::HasIsMethodTag<RunnableType>::value ||
+                     !is_array<P1>::value,
+                 first_bound_argument_to_method_cannot_be_array);
+
+  return internal::MakeBindStateHolder(
+      new internal::BindState<RunnableType, RunType,
+          void(typename internal::CallbackParamTraits<P1>::StorageType)>(
+          internal::MakeRunnable(functor), p1));
 }
 
-template <typename Sig, typename P1, typename P2>
-internal::InvokerStorageHolder<internal::InvokerStorage2<Sig,P1, P2> >
-Bind(Sig f, const P1& p1, const P2& p2) {
-  return internal::MakeInvokerStorageHolder(
-      new internal::InvokerStorage2<Sig, P1, P2>(
-          f, p1, p2));
+template <typename Functor, typename P1, typename P2>
+internal::BindStateHolder<
+    internal::BindState<
+        typename internal::FunctorTraits<Functor>::RunnableType,
+        typename internal::FunctorTraits<Functor>::RunType,
+        void(typename internal::CallbackParamTraits<P1>::StorageType,
+            typename internal::CallbackParamTraits<P2>::StorageType)> >
+Bind(Functor functor, const P1& p1, const P2& p2) {
+  // Typedefs for how to store and run the functor.
+  typedef typename internal::FunctorTraits<Functor>::RunnableType RunnableType;
+  typedef typename internal::FunctorTraits<Functor>::RunType RunType;
+
+  // Use RunnableType::RunType instead of RunType above because our
+  // checks should below for bound references need to know what the actual
+  // functor is going to interpret the argument as.
+  typedef internal::FunctionTraits<typename RunnableType::RunType>
+      BoundFunctorTraits;
+
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !(is_non_const_reference<typename BoundFunctorTraits::A1Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A2Type>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
+  // For methods, we need to be careful for parameter 1.  We do not require
+  // a scoped_refptr because BindState<> itself takes care of AddRef() for
+  // methods. We also disallow binding of an array as the method's target
+  // object.
+  COMPILE_ASSERT(
+      internal::HasIsMethodTag<RunnableType>::value ||
+          !internal::NeedsScopedRefptrButGetsRawPtr<P1>::value,
+      p1_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::HasIsMethodTag<RunnableType>::value ||
+                     !is_array<P1>::value,
+                 first_bound_argument_to_method_cannot_be_array);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P2>::value,
+                 p2_is_refcounted_type_and_needs_scoped_refptr);
+
+  return internal::MakeBindStateHolder(
+      new internal::BindState<RunnableType, RunType,
+          void(typename internal::CallbackParamTraits<P1>::StorageType,
+          typename internal::CallbackParamTraits<P2>::StorageType)>(
+          internal::MakeRunnable(functor), p1, p2));
 }
 
-template <typename Sig, typename P1, typename P2, typename P3>
-internal::InvokerStorageHolder<internal::InvokerStorage3<Sig,P1, P2, P3> >
-Bind(Sig f, const P1& p1, const P2& p2, const P3& p3) {
-  return internal::MakeInvokerStorageHolder(
-      new internal::InvokerStorage3<Sig, P1, P2, P3>(
-          f, p1, p2, p3));
+template <typename Functor, typename P1, typename P2, typename P3>
+internal::BindStateHolder<
+    internal::BindState<
+        typename internal::FunctorTraits<Functor>::RunnableType,
+        typename internal::FunctorTraits<Functor>::RunType,
+        void(typename internal::CallbackParamTraits<P1>::StorageType,
+            typename internal::CallbackParamTraits<P2>::StorageType,
+            typename internal::CallbackParamTraits<P3>::StorageType)> >
+Bind(Functor functor, const P1& p1, const P2& p2, const P3& p3) {
+  // Typedefs for how to store and run the functor.
+  typedef typename internal::FunctorTraits<Functor>::RunnableType RunnableType;
+  typedef typename internal::FunctorTraits<Functor>::RunType RunType;
+
+  // Use RunnableType::RunType instead of RunType above because our
+  // checks should below for bound references need to know what the actual
+  // functor is going to interpret the argument as.
+  typedef internal::FunctionTraits<typename RunnableType::RunType>
+      BoundFunctorTraits;
+
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !(is_non_const_reference<typename BoundFunctorTraits::A1Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A2Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A3Type>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
+  // For methods, we need to be careful for parameter 1.  We do not require
+  // a scoped_refptr because BindState<> itself takes care of AddRef() for
+  // methods. We also disallow binding of an array as the method's target
+  // object.
+  COMPILE_ASSERT(
+      internal::HasIsMethodTag<RunnableType>::value ||
+          !internal::NeedsScopedRefptrButGetsRawPtr<P1>::value,
+      p1_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::HasIsMethodTag<RunnableType>::value ||
+                     !is_array<P1>::value,
+                 first_bound_argument_to_method_cannot_be_array);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P2>::value,
+                 p2_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P3>::value,
+                 p3_is_refcounted_type_and_needs_scoped_refptr);
+
+  return internal::MakeBindStateHolder(
+      new internal::BindState<RunnableType, RunType,
+          void(typename internal::CallbackParamTraits<P1>::StorageType,
+          typename internal::CallbackParamTraits<P2>::StorageType,
+          typename internal::CallbackParamTraits<P3>::StorageType)>(
+          internal::MakeRunnable(functor), p1, p2, p3));
 }
 
-template <typename Sig, typename P1, typename P2, typename P3, typename P4>
-internal::InvokerStorageHolder<internal::InvokerStorage4<Sig,P1, P2, P3, P4> >
-Bind(Sig f, const P1& p1, const P2& p2, const P3& p3, const P4& p4) {
-  return internal::MakeInvokerStorageHolder(
-      new internal::InvokerStorage4<Sig, P1, P2, P3, P4>(
-          f, p1, p2, p3, p4));
+template <typename Functor, typename P1, typename P2, typename P3, typename P4>
+internal::BindStateHolder<
+    internal::BindState<
+        typename internal::FunctorTraits<Functor>::RunnableType,
+        typename internal::FunctorTraits<Functor>::RunType,
+        void(typename internal::CallbackParamTraits<P1>::StorageType,
+            typename internal::CallbackParamTraits<P2>::StorageType,
+            typename internal::CallbackParamTraits<P3>::StorageType,
+            typename internal::CallbackParamTraits<P4>::StorageType)> >
+Bind(Functor functor, const P1& p1, const P2& p2, const P3& p3, const P4& p4) {
+  // Typedefs for how to store and run the functor.
+  typedef typename internal::FunctorTraits<Functor>::RunnableType RunnableType;
+  typedef typename internal::FunctorTraits<Functor>::RunType RunType;
+
+  // Use RunnableType::RunType instead of RunType above because our
+  // checks should below for bound references need to know what the actual
+  // functor is going to interpret the argument as.
+  typedef internal::FunctionTraits<typename RunnableType::RunType>
+      BoundFunctorTraits;
+
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !(is_non_const_reference<typename BoundFunctorTraits::A1Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A2Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A3Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A4Type>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
+  // For methods, we need to be careful for parameter 1.  We do not require
+  // a scoped_refptr because BindState<> itself takes care of AddRef() for
+  // methods. We also disallow binding of an array as the method's target
+  // object.
+  COMPILE_ASSERT(
+      internal::HasIsMethodTag<RunnableType>::value ||
+          !internal::NeedsScopedRefptrButGetsRawPtr<P1>::value,
+      p1_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::HasIsMethodTag<RunnableType>::value ||
+                     !is_array<P1>::value,
+                 first_bound_argument_to_method_cannot_be_array);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P2>::value,
+                 p2_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P3>::value,
+                 p3_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P4>::value,
+                 p4_is_refcounted_type_and_needs_scoped_refptr);
+
+  return internal::MakeBindStateHolder(
+      new internal::BindState<RunnableType, RunType,
+          void(typename internal::CallbackParamTraits<P1>::StorageType,
+          typename internal::CallbackParamTraits<P2>::StorageType,
+          typename internal::CallbackParamTraits<P3>::StorageType,
+          typename internal::CallbackParamTraits<P4>::StorageType)>(
+          internal::MakeRunnable(functor), p1, p2, p3, p4));
 }
 
-template <typename Sig, typename P1, typename P2, typename P3, typename P4,
+template <typename Functor, typename P1, typename P2, typename P3, typename P4,
     typename P5>
-internal::InvokerStorageHolder<internal::InvokerStorage5<Sig,P1, P2, P3, P4,
-    P5> >
-Bind(Sig f, const P1& p1, const P2& p2, const P3& p3, const P4& p4,
+internal::BindStateHolder<
+    internal::BindState<
+        typename internal::FunctorTraits<Functor>::RunnableType,
+        typename internal::FunctorTraits<Functor>::RunType,
+        void(typename internal::CallbackParamTraits<P1>::StorageType,
+            typename internal::CallbackParamTraits<P2>::StorageType,
+            typename internal::CallbackParamTraits<P3>::StorageType,
+            typename internal::CallbackParamTraits<P4>::StorageType,
+            typename internal::CallbackParamTraits<P5>::StorageType)> >
+Bind(Functor functor, const P1& p1, const P2& p2, const P3& p3, const P4& p4,
     const P5& p5) {
-  return internal::MakeInvokerStorageHolder(
-      new internal::InvokerStorage5<Sig, P1, P2, P3, P4, P5>(
-          f, p1, p2, p3, p4, p5));
+  // Typedefs for how to store and run the functor.
+  typedef typename internal::FunctorTraits<Functor>::RunnableType RunnableType;
+  typedef typename internal::FunctorTraits<Functor>::RunType RunType;
+
+  // Use RunnableType::RunType instead of RunType above because our
+  // checks should below for bound references need to know what the actual
+  // functor is going to interpret the argument as.
+  typedef internal::FunctionTraits<typename RunnableType::RunType>
+      BoundFunctorTraits;
+
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !(is_non_const_reference<typename BoundFunctorTraits::A1Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A2Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A3Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A4Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A5Type>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
+  // For methods, we need to be careful for parameter 1.  We do not require
+  // a scoped_refptr because BindState<> itself takes care of AddRef() for
+  // methods. We also disallow binding of an array as the method's target
+  // object.
+  COMPILE_ASSERT(
+      internal::HasIsMethodTag<RunnableType>::value ||
+          !internal::NeedsScopedRefptrButGetsRawPtr<P1>::value,
+      p1_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::HasIsMethodTag<RunnableType>::value ||
+                     !is_array<P1>::value,
+                 first_bound_argument_to_method_cannot_be_array);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P2>::value,
+                 p2_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P3>::value,
+                 p3_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P4>::value,
+                 p4_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P5>::value,
+                 p5_is_refcounted_type_and_needs_scoped_refptr);
+
+  return internal::MakeBindStateHolder(
+      new internal::BindState<RunnableType, RunType,
+          void(typename internal::CallbackParamTraits<P1>::StorageType,
+          typename internal::CallbackParamTraits<P2>::StorageType,
+          typename internal::CallbackParamTraits<P3>::StorageType,
+          typename internal::CallbackParamTraits<P4>::StorageType,
+          typename internal::CallbackParamTraits<P5>::StorageType)>(
+          internal::MakeRunnable(functor), p1, p2, p3, p4, p5));
 }
 
-template <typename Sig, typename P1, typename P2, typename P3, typename P4,
+template <typename Functor, typename P1, typename P2, typename P3, typename P4,
     typename P5, typename P6>
-internal::InvokerStorageHolder<internal::InvokerStorage6<Sig,P1, P2, P3, P4,
-    P5, P6> >
-Bind(Sig f, const P1& p1, const P2& p2, const P3& p3, const P4& p4,
+internal::BindStateHolder<
+    internal::BindState<
+        typename internal::FunctorTraits<Functor>::RunnableType,
+        typename internal::FunctorTraits<Functor>::RunType,
+        void(typename internal::CallbackParamTraits<P1>::StorageType,
+            typename internal::CallbackParamTraits<P2>::StorageType,
+            typename internal::CallbackParamTraits<P3>::StorageType,
+            typename internal::CallbackParamTraits<P4>::StorageType,
+            typename internal::CallbackParamTraits<P5>::StorageType,
+            typename internal::CallbackParamTraits<P6>::StorageType)> >
+Bind(Functor functor, const P1& p1, const P2& p2, const P3& p3, const P4& p4,
     const P5& p5, const P6& p6) {
-  return internal::MakeInvokerStorageHolder(
-      new internal::InvokerStorage6<Sig, P1, P2, P3, P4, P5, P6>(
-          f, p1, p2, p3, p4, p5, p6));
-}
+  // Typedefs for how to store and run the functor.
+  typedef typename internal::FunctorTraits<Functor>::RunnableType RunnableType;
+  typedef typename internal::FunctorTraits<Functor>::RunType RunType;
 
-// Specializations to allow binding all the free arguments in a
-// pre-existing base::Callback<>. This does not give full support for
-// currying, but is significantly simpler and addresses the use case
-// where a base::Callback<> needs to be invoked on another context/thread.
-template <typename Sig, typename P1>
-base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1) {
-  return base::Bind(&internal::BindMoreFunc1<Sig, P1>, callback, p1);
-}
+  // Use RunnableType::RunType instead of RunType above because our
+  // checks should below for bound references need to know what the actual
+  // functor is going to interpret the argument as.
+  typedef internal::FunctionTraits<typename RunnableType::RunType>
+      BoundFunctorTraits;
 
-template <typename Sig, typename P1, typename P2>
-base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
-    const P2& p2) {
-  return base::Bind(&internal::BindMoreFunc2<Sig, P1, P2>, callback, p1, p2);
-}
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !(is_non_const_reference<typename BoundFunctorTraits::A1Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A2Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A3Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A4Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A5Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A6Type>::value ),
+      do_not_bind_functions_with_nonconst_ref);
 
-template <typename Sig, typename P1, typename P2, typename P3>
-base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
-    const P2& p2, const P3& p3) {
-  return base::Bind(&internal::BindMoreFunc3<Sig, P1, P2, P3>, callback, p1,
-      p2, p3);
-}
+  // For methods, we need to be careful for parameter 1.  We do not require
+  // a scoped_refptr because BindState<> itself takes care of AddRef() for
+  // methods. We also disallow binding of an array as the method's target
+  // object.
+  COMPILE_ASSERT(
+      internal::HasIsMethodTag<RunnableType>::value ||
+          !internal::NeedsScopedRefptrButGetsRawPtr<P1>::value,
+      p1_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::HasIsMethodTag<RunnableType>::value ||
+                     !is_array<P1>::value,
+                 first_bound_argument_to_method_cannot_be_array);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P2>::value,
+                 p2_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P3>::value,
+                 p3_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P4>::value,
+                 p4_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P5>::value,
+                 p5_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P6>::value,
+                 p6_is_refcounted_type_and_needs_scoped_refptr);
 
-template <typename Sig, typename P1, typename P2, typename P3, typename P4>
-base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
-    const P2& p2, const P3& p3, const P4& p4) {
-  return base::Bind(&internal::BindMoreFunc4<Sig, P1, P2, P3, P4>, callback,
-      p1, p2, p3, p4);
-}
-
-template <typename Sig, typename P1, typename P2, typename P3, typename P4,
-    typename P5>
-base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
-    const P2& p2, const P3& p3, const P4& p4, const P5& p5) {
-  return base::Bind(&internal::BindMoreFunc5<Sig, P1, P2, P3, P4, P5>,
-      callback, p1, p2, p3, p4, p5);
-}
-
-template <typename Sig, typename P1, typename P2, typename P3, typename P4,
-    typename P5, typename P6>
-base::Closure Bind(const base::Callback<Sig>& callback, const P1& p1,
-    const P2& p2, const P3& p3, const P4& p4, const P5& p5, const P6& p6) {
-  return base::Bind(&internal::BindMoreFunc6<Sig, P1, P2, P3, P4, P5, P6>,
-      callback, p1, p2, p3, p4, p5, p6);
+  return internal::MakeBindStateHolder(
+      new internal::BindState<RunnableType, RunType,
+          void(typename internal::CallbackParamTraits<P1>::StorageType,
+          typename internal::CallbackParamTraits<P2>::StorageType,
+          typename internal::CallbackParamTraits<P3>::StorageType,
+          typename internal::CallbackParamTraits<P4>::StorageType,
+          typename internal::CallbackParamTraits<P5>::StorageType,
+          typename internal::CallbackParamTraits<P6>::StorageType)>(
+          internal::MakeRunnable(functor), p1, p2, p3, p4, p5, p6));
 }
 
 }  // namespace base

@@ -57,7 +57,6 @@
 # least processed when things go right.
 
 {
-  'sources/': [['exclude', '\\.nc$']],
   'conditions': [
     [ 'OS=="linux" and clang==0', {
       'rules': [

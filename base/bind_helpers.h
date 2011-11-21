@@ -198,7 +198,6 @@ class SupportsAddRefAndRelease {
   static const bool value = sizeof(Check<Base>(0)) == sizeof(Yes);
 };
 
-
 // Helpers to assert that arguments of a recounted type are bound with a
 // scoped_refptr.
 template <bool IsClasstype, typename T>
@@ -219,6 +218,20 @@ struct UnsafeBindtoRefCountedArg<T*>
     : UnsafeBindtoRefCountedArgHelper<is_class<T>::value, T> {
 };
 
+template <typename T>
+class HasIsMethodTag {
+  typedef char Yes[1];
+  typedef char No[2];
+
+  template <typename U>
+  static Yes& Check(typename U::IsMethod*);
+
+  template <typename U>
+  static No& Check(...);
+
+ public:
+  static const bool value = sizeof(Check<T>(0)) == sizeof(Yes);
+};
 
 template <typename T>
 class UnretainedWrapper {
@@ -236,6 +249,20 @@ class ConstRefWrapper {
   const T& get() const { return *ptr_; }
  private:
   const T* ptr_;
+};
+
+template <typename T>
+struct IgnoreResultHelper {
+  explicit IgnoreResultHelper(T functor) : functor_(functor) {}
+
+  T functor_;
+};
+
+template <typename T>
+struct IgnoreResultHelper<Callback<T> > {
+  explicit IgnoreResultHelper(const Callback<T>& functor) : functor_(functor) {}
+
+  const Callback<T>& functor_;
 };
 
 // An alternate implementation is to avoid the destructive copy, and instead
@@ -260,61 +287,80 @@ class OwnedWrapper {
   mutable T* ptr_;
 };
 
-
 // Unwrap the stored parameters for the wrappers above.
 template <typename T>
-T Unwrap(T o) { return o; }
+struct UnwrapTraits {
+  typedef const T& ForwardType;
+  static ForwardType Unwrap(const T& o) { return o; }
+};
 
 template <typename T>
-T* Unwrap(UnretainedWrapper<T> unretained) { return unretained.get(); }
+struct UnwrapTraits<UnretainedWrapper<T> > {
+  typedef T* ForwardType;
+  static ForwardType Unwrap(UnretainedWrapper<T> unretained) {
+    return unretained.get();
+  }
+};
 
 template <typename T>
-const T& Unwrap(ConstRefWrapper<T> const_ref) {
-  return const_ref.get();
-}
+struct UnwrapTraits<ConstRefWrapper<T> > {
+  typedef const T& ForwardType;
+  static ForwardType Unwrap(ConstRefWrapper<T> const_ref) {
+    return const_ref.get();
+  }
+};
 
 template <typename T>
-T* Unwrap(const scoped_refptr<T>& o) { return o.get(); }
+struct UnwrapTraits<scoped_refptr<T> > {
+  typedef T* ForwardType;
+  static ForwardType Unwrap(const scoped_refptr<T>& o) { return o.get(); }
+};
 
 template <typename T>
-const WeakPtr<T>& Unwrap(const WeakPtr<T>& o) { return o; }
+struct UnwrapTraits<WeakPtr<T> > {
+  typedef const WeakPtr<T>& ForwardType;
+  static ForwardType Unwrap(const WeakPtr<T>& o) { return o; }
+};
 
 template <typename T>
-T* Unwrap(const OwnedWrapper<T>& o) {
-  return o.get();
-}
+struct UnwrapTraits<OwnedWrapper<T> > {
+  typedef T* ForwardType;
+  static ForwardType Unwrap(const OwnedWrapper<T>& o) {
+    return o.get();
+  }
+};
 
 // Utility for handling different refcounting semantics in the Bind()
 // function.
-template <typename IsMethod, typename T>
+template <bool, typename T>
 struct MaybeRefcount;
 
 template <typename T>
-struct MaybeRefcount<base::false_type, T> {
+struct MaybeRefcount<false, T> {
   static void AddRef(const T&) {}
   static void Release(const T&) {}
 };
 
 template <typename T, size_t n>
-struct MaybeRefcount<base::false_type, T[n]> {
+struct MaybeRefcount<false, T[n]> {
   static void AddRef(const T*) {}
   static void Release(const T*) {}
 };
 
 template <typename T>
-struct MaybeRefcount<base::true_type, T*> {
+struct MaybeRefcount<true, T*> {
   static void AddRef(T* o) { o->AddRef(); }
   static void Release(T* o) { o->Release(); }
 };
 
 template <typename T>
-struct MaybeRefcount<base::true_type, UnretainedWrapper<T> > {
+struct MaybeRefcount<true, UnretainedWrapper<T> > {
   static void AddRef(const UnretainedWrapper<T>&) {}
   static void Release(const UnretainedWrapper<T>&) {}
 };
 
 template <typename T>
-struct MaybeRefcount<base::true_type, OwnedWrapper<T> > {
+struct MaybeRefcount<true, OwnedWrapper<T> > {
   static void AddRef(const OwnedWrapper<T>&) {}
   static void Release(const OwnedWrapper<T>&) {}
 };
@@ -322,19 +368,19 @@ struct MaybeRefcount<base::true_type, OwnedWrapper<T> > {
 // No need to additionally AddRef() and Release() since we are storing a
 // scoped_refptr<> inside the storage object already.
 template <typename T>
-struct MaybeRefcount<base::true_type, scoped_refptr<T> > {
+struct MaybeRefcount<true, scoped_refptr<T> > {
   static void AddRef(const scoped_refptr<T>& o) {}
   static void Release(const scoped_refptr<T>& o) {}
 };
 
 template <typename T>
-struct MaybeRefcount<base::true_type, const T*> {
+struct MaybeRefcount<true, const T*> {
   static void AddRef(const T* o) { o->AddRef(); }
   static void Release(const T* o) { o->Release(); }
 };
 
 template <typename T>
-struct MaybeRefcount<base::true_type, WeakPtr<T> > {
+struct MaybeRefcount<true, WeakPtr<T> > {
   static void AddRef(const WeakPtr<T>&) {}
   static void Release(const WeakPtr<T>&) {}
 };
@@ -344,27 +390,54 @@ void VoidReturnAdapter(Callback<R(void)> callback) {
   callback.Run();
 }
 
+// IsWeakMethod is a helper that determine if we are binding a WeakPtr<> to a
+// method.  It is unsed internally by Bind() to select the correct
+// InvokeHelper that will no-op itself in the event the WeakPtr<> for
+// the target object is invalidated.
+//
+// P1 should be the type of the object that will be received of the method.
+template <bool IsMethod, typename P1>
+struct IsWeakMethod : public false_type {};
+
+template <typename T>
+struct IsWeakMethod<true, WeakPtr<T> > : public true_type {};
+
+template <typename T>
+struct IsWeakMethod<true, ConstRefWrapper<WeakPtr<T> > > : public true_type {};
+
 }  // namespace internal
 
 template <typename T>
-inline internal::UnretainedWrapper<T> Unretained(T* o) {
+static inline internal::UnretainedWrapper<T> Unretained(T* o) {
   return internal::UnretainedWrapper<T>(o);
 }
 
 template <typename T>
-inline internal::ConstRefWrapper<T> ConstRef(const T& o) {
+static inline internal::ConstRefWrapper<T> ConstRef(const T& o) {
   return internal::ConstRefWrapper<T>(o);
 }
 
 template <typename T>
-inline internal::OwnedWrapper<T> Owned(T* o) {
+static inline internal::OwnedWrapper<T> Owned(T* o) {
   return internal::OwnedWrapper<T>(o);
 }
 
 template <typename R>
-Closure IgnoreReturn(Callback<R(void)> callback) {
+static inline Closure IgnoreReturn(Callback<R(void)> callback) {
   return Bind(&internal::VoidReturnAdapter<R>, callback);
 }
+
+template <typename T>
+static inline internal::IgnoreResultHelper<T> IgnoreResult(T data) {
+  return internal::IgnoreResultHelper<T>(data);
+}
+
+template <typename T>
+static inline internal::IgnoreResultHelper<Callback<T> >
+IgnoreResult(const Callback<T>& data) {
+  return internal::IgnoreResultHelper<Callback<T> >(data);
+}
+
 
 }  // namespace base
 
