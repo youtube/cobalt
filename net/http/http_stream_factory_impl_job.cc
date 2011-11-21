@@ -369,10 +369,10 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
         DCHECK(connection_->socket());
         DCHECK(establishing_tunnel_);
 
-        HttpProxyClientSocket* http_proxy_socket =
-            static_cast<HttpProxyClientSocket*>(connection_->socket());
+        ProxyClientSocket* proxy_socket =
+            static_cast<ProxyClientSocket*>(connection_->socket());
         const HttpResponseInfo* tunnel_auth_response =
-            http_proxy_socket->GetConnectResponseInfo();
+            proxy_socket->GetConnectResponseInfo();
 
         next_state_ = STATE_WAITING_USER_ACTION;
         MessageLoop::current()->PostTask(
@@ -381,7 +381,7 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
                 &HttpStreamFactoryImpl::Job::OnNeedsProxyAuthCallback,
                 ptr_factory_.GetWeakPtr(),
                 *tunnel_auth_response,
-                http_proxy_socket->auth_controller()));
+                proxy_socket->auth_controller()));
       }
       return ERR_IO_PENDING;
 
@@ -898,9 +898,9 @@ int HttpStreamFactoryImpl::Job::DoCreateStreamComplete(int result) {
 
 int HttpStreamFactoryImpl::Job::DoRestartTunnelAuth() {
   next_state_ = STATE_RESTART_TUNNEL_AUTH_COMPLETE;
-  HttpProxyClientSocket* http_proxy_socket =
-      static_cast<HttpProxyClientSocket*>(connection_->socket());
-  return http_proxy_socket->RestartWithAuth(&io_callback_);
+  ProxyClientSocket* proxy_socket =
+      static_cast<ProxyClientSocket*>(connection_->socket());
+  return proxy_socket->RestartWithAuth(&io_callback_);
 }
 
 int HttpStreamFactoryImpl::Job::DoRestartTunnelAuthComplete(int result) {
@@ -908,14 +908,14 @@ int HttpStreamFactoryImpl::Job::DoRestartTunnelAuthComplete(int result) {
     return result;
 
   if (result == OK) {
-    // Now that we've got the HttpProxyClientSocket connected.  We have
+    // Now that we've got the ProxyClientSocket prepared to restart.  We have
     // to release it as an idle socket into the pool and start the connection
     // process from the beginning.  Trying to pass it in with the
     // SSLSocketParams might cause a deadlock since params are dispatched
     // interchangeably.  This request won't necessarily get this http proxy
     // socket, but there will be forward progress.
     establishing_tunnel_ = false;
-    ReturnToStateInitConnection(false /* do not close connection */);
+    ReturnToStateInitConnection(!connection_->socket()->IsConnectedAndIdle());
     return OK;
   }
 
