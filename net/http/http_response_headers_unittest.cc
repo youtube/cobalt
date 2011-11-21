@@ -1624,6 +1624,72 @@ TEST(HttpResponseHeadersTest, RemoveHeader) {
   }
 }
 
+TEST(HttpResponseHeadersTest, RemoveIndividualHeader) {
+  const struct {
+    const char* orig_headers;
+    const char* to_remove_name;
+    const char* to_remove_value;
+    const char* expected_headers;
+  } tests[] = {
+    { "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Cache-control: max-age=10000\n"
+      "Content-Length: 450\n",
+
+      "Content-Length",
+
+      "450",
+
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Cache-control: max-age=10000\n"
+    },
+    { "HTTP/1.1 200 OK\n"
+      "connection: keep-alive  \n"
+      "Content-Length  : 450  \n"
+      "Cache-control: max-age=10000\n",
+
+      "Content-Length",
+
+      "450",
+
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Cache-control: max-age=10000\n"
+    },
+    { "HTTP/1.1 200 OK\n"
+      "connection: keep-alive  \n"
+      "Content-Length: 450\n"
+      "Cache-control: max-age=10000\n",
+
+      "Content-Length",  // Matching name.
+
+      "999",  // Mismatching value.
+
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Content-Length: 450\n"
+      "Cache-control: max-age=10000\n"
+    },
+
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    std::string orig_headers(tests[i].orig_headers);
+    HeadersToRaw(&orig_headers);
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(orig_headers));
+
+    std::string name(tests[i].to_remove_name);
+    std::string value(tests[i].to_remove_value);
+    parsed->RemoveHeaderWithValue(name, value);
+
+    std::string resulting_headers;
+    parsed->GetNormalizedHeaders(&resulting_headers);
+    EXPECT_EQ(std::string(tests[i].expected_headers), resulting_headers);
+  }
+}
+
 TEST(HttpResponseHeadersTest, ReplaceStatus) {
   const struct {
     const char* orig_headers;
