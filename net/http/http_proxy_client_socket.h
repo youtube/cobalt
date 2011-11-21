@@ -50,6 +50,15 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   // On destruction Disconnect() is called.
   virtual ~HttpProxyClientSocket();
 
+  // If Connect (or its callback) returns PROXY_AUTH_REQUESTED, then
+  // credentials should be added to the HttpAuthController before calling
+  // RestartWithAuth.
+  int RestartWithAuth(OldCompletionCallback* callback);
+
+  const scoped_refptr<HttpAuthController>& auth_controller() {
+    return auth_;
+  }
+
   bool using_spdy() {
     return using_spdy_;
   }
@@ -57,8 +66,6 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   // ProxyClientSocket methods:
   virtual const HttpResponseInfo* GetConnectResponseInfo() const OVERRIDE;
   virtual HttpStream* CreateConnectResponseStream() OVERRIDE;
-  virtual int RestartWithAuth(OldCompletionCallback* callback) OVERRIDE;
-  virtual const scoped_refptr<HttpAuthController>& auth_controller() OVERRIDE;
 
   // StreamSocket methods:
   virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
@@ -96,6 +103,8 @@ class HttpProxyClientSocket : public ProxyClientSocket {
     STATE_READ_HEADERS_COMPLETE,
     STATE_DRAIN_BODY,
     STATE_DRAIN_BODY_COMPLETE,
+    STATE_TCP_RESTART,
+    STATE_TCP_RESTART_COMPLETE,
     STATE_DONE,
   };
 
@@ -106,6 +115,8 @@ class HttpProxyClientSocket : public ProxyClientSocket {
 
   int PrepareForAuthRestart();
   int DidDrainBodyForAuthRestart(bool keep_alive);
+
+  int HandleAuthChallenge();
 
   void LogBlockedTunnelResponse(int response_code) const;
 
@@ -121,6 +132,8 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   int DoReadHeadersComplete(int result);
   int DoDrainBody();
   int DoDrainBodyComplete(int result);
+  int DoTCPRestart();
+  int DoTCPRestartComplete(int result);
 
   OldCompletionCallbackImpl<HttpProxyClientSocket> io_callback_;
   State next_state_;
