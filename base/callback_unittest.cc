@@ -23,21 +23,21 @@ class HelperObject {
 };
 
 struct FakeInvoker {
-  typedef void(*DoInvokeType)(internal::InvokerStorageBase*);
-  static void DoInvoke(internal::InvokerStorageBase*) {
+  typedef void(RunType)(internal::BindStateBase*);
+  static void Run(internal::BindStateBase*) {
   }
 };
 
 // White-box testpoints to inject into a Callback<> object for checking
 // comparators and emptiness APIs.
-class FakeInvokerStorage1 : public internal::InvokerStorageBase {
+class FakeBindState1 : public internal::BindStateBase {
  public:
-  typedef FakeInvoker Invoker;
+  typedef FakeInvoker InvokerType;
 };
 
-class FakeInvokerStorage2 : public internal::InvokerStorageBase {
+class FakeBindState2 : public internal::BindStateBase {
  public:
-  typedef FakeInvoker Invoker;
+  typedef FakeInvoker InvokerType;
 };
 
 TEST(CallbackOld, OneArg) {
@@ -61,8 +61,8 @@ TEST(CallbackOld, ReturnValue) {
 class CallbackTest : public ::testing::Test {
  public:
   CallbackTest()
-      : callback_a_(MakeInvokerStorageHolder(new FakeInvokerStorage1())),
-        callback_b_(MakeInvokerStorageHolder(new FakeInvokerStorage2())) {
+      : callback_a_(MakeBindStateHolder(new FakeBindState1())),
+        callback_b_(MakeBindStateHolder(new FakeBindState2())) {
   }
 
   virtual ~CallbackTest() {
@@ -107,7 +107,7 @@ TEST_F(CallbackTest, Equals) {
 
   // We should compare based on instance, not type.
   Callback<void(void)> callback_c(
-      MakeInvokerStorageHolder(new FakeInvokerStorage1()));
+      MakeBindStateHolder(new FakeBindState1()));
   Callback<void(void)> callback_a2 = callback_a_;
   EXPECT_TRUE(callback_a_.Equals(callback_a2));
   EXPECT_FALSE(callback_a_.Equals(callback_c));
