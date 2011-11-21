@@ -125,6 +125,10 @@
       # compilation.
       'fastbuild%': 0,
 
+      # By default, tests are built with debug symbols. These can be stripped
+      # to improve build speed.
+      'strip_tests%': 0,
+
       # Set to 1 to enable dcheck in release without having to use the flag.
       'dcheck_always_on%': 0,
 
@@ -374,6 +378,7 @@
     'webui_task_manager%': '<(webui_task_manager)',
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
+    'strip_tests%': '<(strip_tests)',
     'dcheck_always_on%': '<(dcheck_always_on)',
     'python_ver%': '<(python_ver)',
     'armv7%': '<(armv7)',
