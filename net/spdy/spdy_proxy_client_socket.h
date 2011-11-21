@@ -53,17 +53,11 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   // On destruction Disconnect() is called.
   virtual ~SpdyProxyClientSocket();
 
-  const scoped_refptr<HttpAuthController>& auth_controller() {
-    return auth_;
-  }
-
   // ProxyClientSocket methods:
   virtual const HttpResponseInfo* GetConnectResponseInfo() const OVERRIDE;
-
-  // In the event of a non-200 response to the CONNECT request, this
-  // method may be called to return an HttpStream in order to read
-  // the response body.
   virtual HttpStream* CreateConnectResponseStream() OVERRIDE;
+  virtual int RestartWithAuth(OldCompletionCallback* callback) OVERRIDE;
+  virtual const scoped_refptr<HttpAuthController>& auth_controller() OVERRIDE;
 
   // StreamSocket methods:
   virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
