@@ -1200,7 +1200,7 @@
               '-Wsign-compare',
             ]
           }],
-          [ 'os_posix==1 and OS!="mac" and OS!="openbsd" and chromeos==0', {
+          [ 'os_posix==1 and OS!="mac" and OS!="openbsd" and OS!="android" and chromeos==0', {
             'cflags': [
               # Don't warn about ignoring the return value from e.g. close().
               # This is off by default in some gccs but on by default in others.
@@ -2081,22 +2081,14 @@
               # Don't export symbols from statically linked libraries.
               '-Wl,--exclude-libs=ALL',
             ],
-            'libraries!': [
-               '-lrt',  # librt is built into Bionic.
-               # Not supported by Android toolchain.
-               # Where do these come from?  Can't find references in
-               # any Chromium gyp or gypi file.  Maybe they come from
-               # gyp itself?
-               '-lpthread', '-lnss3', '-lnssutil3', '-lsmime3', '-lplds4', '-lplc4', '-lnspr4',
-             ],
-             'libraries': [
-               '-l<(android_stlport_library)',
-               # Manually link the libgcc.a that the cross compiler uses.
-               '<!($CROSS_CC -print-libgcc-file-name)',
-               '-lc',
-               '-ldl',
-               '-lstdc++',
-               '-lm',
+            'libraries': [
+              '-l<(android_stlport_library)',
+              # Manually link the libgcc.a that the cross compiler uses.
+              '<!($CROSS_CC -print-libgcc-file-name)',
+              '-lc',
+              '-ldl',
+              '-lstdc++',
+              '-lm',
             ],
             'conditions': [
               ['android_build_type==0', {
