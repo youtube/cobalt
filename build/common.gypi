@@ -24,9 +24,6 @@
           # Whether we are using Views Toolkit
           'toolkit_views%': 0,
 
-          # Disable touch support by default.
-          'touchui%': 0,
-
           # Whether the compositor is enabled on views.
           'views_compositor%': 0,
 
@@ -35,13 +32,16 @@
 
           # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
           'use_openssl%': 0,
+
+          # Disable Virtual keyboard support by default.
+          'use_virtual_keyboard%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
-        'touchui%': '<(touchui)',
         'views_compositor%': '<(views_compositor)',
         'use_aura%': '<(use_aura)',
         'use_openssl%': '<(use_openssl)',
+        'use_virtual_keyboard%': '<(use_virtual_keyboard)',
 
         # WebKit compositor for ui
         'use_webkit_compositor%': 0,
@@ -58,24 +58,15 @@
               '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
           }],
 
-          # Set default value of toolkit_views on for Windows, Chrome OS,
-          # Touch and PureView.
-          ['OS=="win" or chromeos==1 or touchui==1 or use_aura==1', {
+          # Set default value of toolkit_views based on OS.
+          ['OS=="win" or chromeos==1 or use_aura==1', {
             'toolkit_views%': 1,
           }, {
             'toolkit_views%': 0,
           }],
 
-          # Use virtual keyboard by default in TouchUI builds.
-          ['touchui==1', {
-            'use_virtual_keyboard%': 1,
-          }, {
-            'use_virtual_keyboard%': 0,
-          }],
-
-          # Use the views compositor when using the Aura window manager or
-          # touch.
-          ['use_aura==1 or touchui==1', {
+          # Use the views compositor when using the Aura window manager.
+          ['use_aura==1', {
             'views_compositor%': 1,
           }],
         ],
@@ -83,14 +74,16 @@
 
       # Copy conditionally-set variables out one scope.
       'chromeos%': '<(chromeos)',
-      'touchui%': '<(touchui)',
-      'use_virtual_keyboard%': '<(use_virtual_keyboard)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
       'views_compositor%': '<(views_compositor)',
       'use_webkit_compositor%': '<(use_webkit_compositor)',
       'use_aura%': '<(use_aura)',
       'use_openssl%': '<(use_openssl)',
+      'use_virtual_keyboard%': '<(use_virtual_keyboard)',
+
+      # The variable touchui is still present (until all clean up is done).
+      'touchui%': 0,
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -315,8 +308,8 @@
           'enable_flapper_hacks%': 0,
         }],
 
-        # Enable file manager extension on Chrome OS, Touch, PureView, Aura.
-        ['chromeos==1 or touchui==1 or use_aura==1', {
+        # Enable file manager extension on Chrome OS or Aura.
+        ['chromeos==1 or use_aura==1', {
           'file_manager_extension%': 1,
         }, {
           'file_manager_extension%': 0,
@@ -327,8 +320,8 @@
           'file_manager_extension%': 0,
         }],
 
-        # Enable WebUI TaskManager always on Chrome OS, Touch or PureView.
-        ['chromeos==1 or touchui==1 or use_aura==1', {
+        # Enable WebUI TaskManager always on Chrome OS or Aura.
+        ['chromeos==1 or use_aura==1', {
           'webui_task_manager%': 1,
         }],
 
@@ -338,7 +331,7 @@
         }],
 
         # Use GPU accelerated cross process image transport by default
-        # on TOUCH_UI and linux builds with the Aura window manager
+        # on linux builds with the Aura window manager
         ['views_compositor==1 and OS=="linux"', {
           'ui_compositor_image_transport%': 1,
         }, {
@@ -821,9 +814,6 @@
       ['use_nss==1', {
         'grit_defines': ['-D', 'use_nss'],
       }],
-      ['touchui==1', {
-        'grit_defines': ['-D', 'touchui'],
-      }],
       ['use_virtual_keyboard==1', {
         'grit_defines': ['-D', 'use_virtual_keyboard'],
       }],
@@ -855,7 +845,7 @@
       }],
 
       # Set use_ibus to 1 to enable ibus support.
-      ['touchui==1 and chromeos==1', {
+      ['use_virtual_keyboard==1 and chromeos==1', {
         'use_ibus%': 1,
       }, {
         'use_ibus%': 0,
@@ -996,9 +986,6 @@
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
-      }],
-      ['touchui==1', {
-        'defines': ['TOUCH_UI=1'],
       }],
       ['use_virtual_keyboard==1', {
         'defines': ['USE_VIRTUAL_KEYBOARD=1'],
