@@ -984,6 +984,11 @@
       ['toolkit_uses_gtk==1', {
         'defines': ['TOOLKIT_USES_GTK=1'],
       }],
+      ['toolkit_uses_gtk==1 and toolkit_views==0', {
+        # TODO(erg): We are progressively sealing up use of deprecated features
+        # in gtk in preparation for an eventual porting to gtk3.
+        'defines': ['GTK_DISABLE_SINGLE_INCLUDES=1'],
+      }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
       }],
