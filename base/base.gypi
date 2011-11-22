@@ -451,6 +451,7 @@
             'sources/': [
               ['include', '^process_util_linux\\.cc$'],
               ['include', '^sys_info_linux\\.cc$'],
+              ['include', '^sys_string_conversions_posix\\.cc$'],
               ['include', '^worker_pool_linux\\.cc$'],
               # TODO(michaelbai): The below files are excluded because of the
               # missing JNI, add them back when JNI is ready.
@@ -598,34 +599,52 @@
               ['exclude', '_nss\.cc$'],
             ],
         }],
-        [ 'OS == "android"', {
-          'dependencies': [
-            'symbolize',
-            '../third_party/ashmem/ashmem.gyp:ashmem#target',
-          ],
-          'defines': [
-            'USE_SYMBOLIZE',
-          ],
+        [ 'OS == "android" and _toolset == "host"', {
+          # Base for host support is the minimum required to run the
+          # ssl false start blacklist tool. It requires further changes
+          # to generically support host builds (and tests).
+          # Note: when building for host, gyp has OS == "android",
+          # hence the *_android.cc files are included but the actual code
+          # doesn't have OS_ANDROID / ANDROID defined.
           'conditions': [
-            [ '_toolset=="host" and host_os=="linux"', {
-              'dependencies': [
-                '../build/linux/system.gyp:glib',
-              ],
+            ['host_os == "linux"', {
               'sources/': [
                 ['include', '^atomicops_internals_x86_gcc\\.cc$'],
               ],
-            }],
-            [ '_toolset=="target"', {
-              'sources!': [
-                'debug/stack_trace.cc',
-                'debug/stack_trace_posix.cc',
+              'dependencies': [
+                '../build/linux/system.gyp:glib',
               ],
-              'link_settings': {
-                'libraries': [
-                  '-llog',
-                ],
-              },
+              'export_dependent_settings': [
+                '../build/linux/system.gyp:glib',
+              ],
             }],
+            ['host_os == "mac"', {
+              'sources/': [
+                ['exclude', '^native_library_linux\\.cc$'],
+                ['exclude', '^process_util_linux\\.cc$'],
+                ['exclude', '^sys_info_linux\\.cc$'],
+                ['exclude', '^sys_string_conversions_linux\\.cc$'],
+                ['exclude', '^worker_pool_linux\\.cc$'],
+              ],
+            }],
+          ],
+        }],
+        [ 'OS == "android" and _toolset == "target"', {
+          'dependencies': [
+            'symbolize',
+            '../third_party/ashmem/ashmem.gyp:ashmem',
+          ],
+          'link_settings': {
+            'libraries': [
+              '-llog',
+            ],
+          },
+          'defines': [
+            'USE_SYMBOLIZE',
+          ],
+          'sources!': [
+            'debug/stack_trace.cc',
+            'debug/stack_trace_posix.cc',
           ],
         }],
         [ 'os_bsd==1', {
