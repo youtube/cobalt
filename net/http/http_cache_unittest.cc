@@ -5223,6 +5223,60 @@ TEST(HttpCache, StopCachingSavesEntry) {
   entry->Close();
 }
 
+// Tests that we handle truncated enries when StopCaching is called.
+TEST(HttpCache, StopCachingTruncatedEntry) {
+  MockHttpCache cache;
+  TestOldCompletionCallback callback;
+  MockHttpRequest request(kRangeGET_TransactionOK);
+  request.extra_headers.Clear();
+  request.extra_headers.AddHeaderFromString(EXTRA_HEADER);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  std::string raw_headers("HTTP/1.1 200 OK\n"
+                          "Last-Modified: Sat, 18 Apr 2007 01:10:43 GMT\n"
+                          "ETag: \"foo\"\n"
+                          "Accept-Ranges: bytes\n"
+                          "Content-Length: 80\n");
+  CreateTruncatedEntry(raw_headers, &cache);
+
+  {
+    // Now make a regular request.
+    scoped_ptr<net::HttpTransaction> trans;
+    int rv = cache.http_cache()->CreateTransaction(&trans);
+    EXPECT_EQ(net::OK, rv);
+
+    rv = trans->Start(&request, &callback, net::BoundNetLog());
+    EXPECT_EQ(net::OK, callback.GetResult(rv));
+
+    scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(256));
+    rv = trans->Read(buf, 10, &callback);
+    EXPECT_EQ(callback.GetResult(rv), 10);
+
+    // This is actually going to do nothing.
+    trans->StopCaching();
+
+    // We should be able to keep reading.
+    rv = trans->Read(buf, 256, &callback);
+    EXPECT_GT(callback.GetResult(rv), 0);
+    rv = trans->Read(buf, 256, &callback);
+    EXPECT_GT(callback.GetResult(rv), 0);
+    rv = trans->Read(buf, 256, &callback);
+    EXPECT_EQ(callback.GetResult(rv), 0);
+  }
+
+  // Verify that the disk entry was updated.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
+  EXPECT_EQ(80, entry->GetDataSize(1));
+  bool truncated = true;
+  net::HttpResponseInfo response;
+  EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_FALSE(truncated);
+  entry->Close();
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
 // Tests that we detect truncated rersources from the net when there is
 // a Content-Length header.
 TEST(HttpCache, TruncatedByContentLength) {
