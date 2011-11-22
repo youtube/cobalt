@@ -5,6 +5,7 @@
 #include <CoreAudio/AudioHardware.h>
 
 #include "base/mac/mac_util.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
@@ -182,6 +183,57 @@ static void GetAudioDeviceInfo(bool is_input,
   }
 }
 
+static AudioDeviceID GetAudioDeviceIdByUId(bool is_input,
+                                           const std::string& device_id) {
+  AudioObjectPropertyAddress property_address = {
+    kAudioHardwarePropertyDevices,
+    kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyElementMaster
+  };
+  AudioDeviceID audio_device_id = kAudioObjectUnknown;
+  UInt32 device_size = sizeof(audio_device_id);
+  OSStatus result = -1;
+
+  if (device_id == AudioManagerBase::kDefaultDeviceId) {
+    // Default Device.
+    property_address.mSelector = is_input ?
+        kAudioHardwarePropertyDefaultInputDevice :
+        kAudioHardwarePropertyDefaultOutputDevice;
+
+    result = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                        &property_address,
+                                        0,
+                                        0,
+                                        &device_size,
+                                        &audio_device_id);
+  } else {
+    // Non-default device.
+    base::mac::ScopedCFTypeRef<CFStringRef>
+        uid(base::SysUTF8ToCFStringRef(device_id));
+    AudioValueTranslation value;
+    value.mInputData = &uid;
+    value.mInputDataSize = sizeof(CFStringRef);
+    value.mOutputData = &audio_device_id;
+    value.mOutputDataSize = device_size;
+    UInt32 translation_size = sizeof(AudioValueTranslation);
+
+    property_address.mSelector = kAudioHardwarePropertyDeviceForUID;
+    result = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                        &property_address,
+                                        0,
+                                        0,
+                                        &translation_size,
+                                        &value);
+  }
+
+  if (result) {
+    DLOG(WARNING) << "Unable to query device " << device_id
+                  << " for AudioDeviceID ";
+  }
+
+  return audio_device_id;
+}
+
 AudioManagerMac::AudioManagerMac()
     : num_output_streams_(0) {
 }
@@ -211,7 +263,7 @@ void AudioManagerMac::GetAudioInputDeviceNames(
     // counting here since the default device has been abstracted out before.
     media::AudioDeviceName name;
     name.device_name = AudioManagerBase::kDefaultDeviceName;
-    name.unique_id = "0";
+    name.unique_id =  AudioManagerBase::kDefaultDeviceId;
     device_names->push_front(name);
   }
 }
@@ -242,8 +294,9 @@ AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
 }
 
 AudioInputStream* AudioManagerMac::MakeAudioInputStream(
-    const AudioParameters& params) {
-  if (!params.IsValid() || (params.channels > kMaxInputChannels))
+    const AudioParameters& params, const std::string& device_id) {
+  if (!params.IsValid() || (params.channels > kMaxInputChannels) ||
+      device_id.empty())
     return NULL;
 
   if (params.format == AudioParameters::AUDIO_MOCK) {
@@ -251,7 +304,11 @@ AudioInputStream* AudioManagerMac::MakeAudioInputStream(
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
     return new PCMQueueInAudioInputStream(this, params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
-    return new AUAudioInputStream(this, params);
+    // Gets the AudioDeviceID that refers to the AudioDevice with the device
+    // unique id. This AudioDeviceID is used to set the device for Audio Unit.
+    AudioDeviceID audio_device_id = GetAudioDeviceIdByUId(true, device_id);
+    if (audio_device_id != kAudioObjectUnknown)
+      return new AUAudioInputStream(this, params, audio_device_id);
   }
   return NULL;
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/audio/audio_manager.h"
+#include "media/audio/audio_manager_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -16,8 +16,9 @@ TEST(AudioInputDeviceTest, EnumerateDevices) {
   if (!device_names.empty()) {
     AudioDeviceNames::const_iterator it = device_names.begin();
     // The first device in the list is the prepended default device.
-    EXPECT_EQ("Default", it->device_name);
-    EXPECT_EQ("0", it->unique_id);
+    EXPECT_EQ(std::string(AudioManagerBase::kDefaultDeviceName),
+              it->device_name);
+    EXPECT_EQ(std::string(AudioManagerBase::kDefaultDeviceId), it->unique_id);
     ++it;
 
     // Other devices should have non-empty name and id.

@@ -148,8 +148,9 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
 
 // Factory for the implementations of AudioInputStream.
 AudioInputStream* AudioManagerWin::MakeAudioInputStream(
-    const AudioParameters& params) {
-  if (!params.IsValid() || (params.channels > kWinMaxInputChannels))
+    const AudioParameters& params, const std::string& device_id) {
+  if (!params.IsValid() || (params.channels > kWinMaxInputChannels) ||
+      device_id.empty())
     return NULL;
 
   if (params.format == AudioParameters::AUDIO_MOCK) {
@@ -161,12 +162,16 @@ AudioInputStream* AudioManagerWin::MakeAudioInputStream(
     if (base::win::GetVersion() <= base::win::VERSION_XP) {
       // Fall back to Windows Wave implementation on Windows XP or lower.
       DLOG(INFO) << "Using WaveIn since WASAPI requires at least Vista.";
-      return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
-                                           WAVE_MAPPER);
+      // TODO(xians): Handle the non-default device.
+      if (device_id == AudioManagerBase::kDefaultDeviceId)
+        return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
+                                             WAVE_MAPPER);
     } else {
       // TODO(henrika): improve possibility to specify audio endpoint.
       // Use the default device (same as for Wave) for now to be compatible.
-      return new WASAPIAudioInputStream(this, params, eConsole);
+      // TODO(xians): Handle the non-default device.
+      if (device_id == AudioManagerBase::kDefaultDeviceId)
+        return new WASAPIAudioInputStream(this, params, eConsole);
     }
   }
   return NULL;
@@ -282,7 +287,7 @@ void AudioManagerWin::GetAudioInputDeviceNames(
     // default devices.
     media::AudioDeviceName name;
     name.device_name = AudioManagerBase::kDefaultDeviceName;
-    name.unique_id = "0";
+    name.unique_id = AudioManagerBase::kDefaultDeviceId;
     device_names->push_back(name);
   }
 }

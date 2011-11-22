@@ -11,7 +11,7 @@
 #include "base/threading/thread.h"
 #include "base/timer.h"
 #include "media/audio/audio_io.h"
-#include "media/audio/audio_manager.h"
+#include "media/audio/audio_manager_base.h"
 
 // An AudioInputController controls an AudioInputStream and records data
 // from this input stream. It has an important function that it executes
@@ -93,6 +93,7 @@ class MEDIA_EXPORT AudioInputController
   static scoped_refptr<AudioInputController> CreateLowLatency(
       EventHandler* event_handler,
       const AudioParameters& params,
+      const std::string& device_id,
       // External synchronous reader for audio controller.
       SyncWriter* sync_writer);
 
@@ -135,7 +136,7 @@ class MEDIA_EXPORT AudioInputController
   AudioInputController(EventHandler* handler, SyncWriter* sync_writer);
 
   // The following methods are executed on the audio controller thread.
-  void DoCreate(const AudioParameters& params);
+  void DoCreate(const AudioParameters& params, const std::string& device_id);
   void DoRecord();
   void DoClose();
   void DoReportError(int code);

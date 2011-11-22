@@ -18,6 +18,8 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
  public:
   // Name of the generic "default" device.
   static const char kDefaultDeviceName[];
+  // Unique Id of the generic "default" device.
+  static const char kDefaultDeviceId[];
 
   AudioManagerBase();
 

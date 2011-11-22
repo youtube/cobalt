@@ -8,7 +8,7 @@
 #include "base/message_loop.h"
 #include "base/threading/platform_thread.h"
 #include "media/audio/audio_io.h"
-#include "media/audio/audio_manager.h"
+#include "media/audio/audio_manager_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 static const int kSamplingRate = 8000;
@@ -103,7 +103,8 @@ static AudioInputStream* CreateTestAudioInputStream() {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   AudioInputStream* ais = audio_man->MakeAudioInputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_STEREO,
-                      kSamplingRate, 16, kSamplesPerPacket));
+                      kSamplingRate, 16, kSamplesPerPacket),
+                      AudioManagerBase::kDefaultDeviceId);
   EXPECT_TRUE(NULL != ais);
   return ais;
 }
@@ -116,27 +117,29 @@ TEST(AudioInputTest, SanityOnMakeParams) {
   AudioParameters::Format fmt = AudioParameters::AUDIO_PCM_LINEAR;
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_7POINT1, 8000, 16,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_MONO, 1024 * 1024, 16,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 80,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 80,
-                      1000 * kSamplesPerPacket)));
+                      1000 * kSamplesPerPacket),
+                      AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_UNSUPPORTED, 8000, 16,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, -8000, 16,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, -16,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 16, -1024)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 16, -1024),
+      AudioManagerBase::kDefaultDeviceId));
 }
 
 // Test create and close of an AudioInputStream without recording audio.
