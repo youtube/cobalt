@@ -446,8 +446,6 @@
           [ 'OS == "android"', {
             'sources!': [
               'files/file_path_watcher_kqueue.cc',
-              'debug/stack_trace.cc',
-              'debug/stack_trace_posix.cc',
               'system_monitor/system_monitor_posix.cc',
             ],
             'sources/': [
@@ -457,9 +455,9 @@
               # TODO(michaelbai): The below files are excluded because of the
               # missing JNI, add them back when JNI is ready.
               ['exclude', '^android/'],
-              ['exclude', '^message_pump_android\\.cc$'],
               ['exclude', '^base_paths_android\\.cc$'],
               ['exclude', '^debug/stack_trace_android\\.cc$'],
+              ['exclude', '^message_pump_android\\.cc$'],
             ],
           }],
           [ 'OS != "mac"', {
@@ -608,16 +606,25 @@
           'defines': [
             'USE_SYMBOLIZE',
           ],
-          'link_settings': {
-            'libraries': [
-              '-llog',
-            ],
-          },
           'conditions': [
             [ '_toolset=="host" and host_os=="linux"', {
               'dependencies': [
                 '../build/linux/system.gyp:glib',
               ],
+              'sources/': [
+                ['include', '^atomicops_internals_x86_gcc\\.cc$'],
+              ],
+            }],
+            [ '_toolset=="target"', {
+              'sources!': [
+                'debug/stack_trace.cc',
+                'debug/stack_trace_posix.cc',
+              ],
+              'link_settings': {
+                'libraries': [
+                  '-llog',
+                ],
+              },
             }],
           ],
         }],
