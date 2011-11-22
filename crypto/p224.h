@@ -36,6 +36,10 @@ struct CRYPTO_EXPORT Point {
   FieldElement x, y, z;
 };
 
+// kScalarBytes is the number of bytes needed to represent an element of the
+// P224 field.
+static const size_t kScalarBytes = 28;
+
 // ScalarMult computes *out = in*scalar where scalar is a 28-byte, big-endian
 // number.
 void CRYPTO_EXPORT ScalarMult(const Point& in, const uint8* scalar, Point* out);
