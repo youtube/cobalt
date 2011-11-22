@@ -370,7 +370,8 @@ void HttpCache::Transaction::StopCaching() {
   // entry how it is (it will be marked as truncated at destruction), and let
   // the next piece of code that executes know that we are now reading directly
   // from the net.
-  if (cache_ && entry_ && (mode_ & WRITE))
+  if (cache_ && entry_ && (mode_ & WRITE) && network_trans_.get() &&
+      !is_sparse_ && !range_requested_)
     mode_ = NONE;
 }
 
