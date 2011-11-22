@@ -105,6 +105,8 @@
         'base/events.h',
         'base/gtk/event_synthesis_gtk.cc',
         'base/gtk/event_synthesis_gtk.h',
+        'base/gtk/focus_store_gtk.cc',
+        'base/gtk/focus_store_gtk.h',
         'base/gtk/g_object_destructor_filo.cc',
         'base/gtk/g_object_destructor_filo.h',
         'base/gtk/gtk_expanded_container.cc',
