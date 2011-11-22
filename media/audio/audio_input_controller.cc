@@ -50,9 +50,12 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
       event_handler, NULL));
 
   // Start the thread and post a task to create the audio input stream.
+  // Pass an empty string to indicate using default device.
+  std::string device_id = AudioManagerBase::kDefaultDeviceId;
   controller->thread_.Start();
   controller->thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoCreate, controller.get(), params));
+      &AudioInputController::DoCreate, controller.get(),
+      params, device_id));
   return controller;
 }
 
@@ -60,6 +63,7 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
 scoped_refptr<AudioInputController> AudioInputController::CreateLowLatency(
     EventHandler* event_handler,
     const AudioParameters& params,
+    const std::string& device_id,
     SyncWriter* sync_writer) {
   DCHECK(sync_writer);
 
@@ -76,7 +80,7 @@ scoped_refptr<AudioInputController> AudioInputController::CreateLowLatency(
   // Start the thread and post a task to create the audio input stream.
   controller->thread_.Start();
   controller->thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoCreate, controller.get(), params));
+      &AudioInputController::DoCreate, controller.get(), params, device_id));
   return controller;
 }
 
@@ -108,8 +112,10 @@ void AudioInputController::Close() {
   thread_.Stop();
 }
 
-void AudioInputController::DoCreate(const AudioParameters& params) {
-  stream_ = AudioManager::GetAudioManager()->MakeAudioInputStream(params);
+void AudioInputController::DoCreate(const AudioParameters& params,
+                                    const std::string& device_id) {
+  stream_ = AudioManager::GetAudioManager()->MakeAudioInputStream(params,
+                                                                  device_id);
 
   if (!stream_) {
     // TODO(satish): Define error types.

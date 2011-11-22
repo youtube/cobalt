@@ -50,7 +50,8 @@ class AUAudioInputStream : public AudioInputStream {
   // The ctor takes all the usual parameters, plus |manager| which is the
   // the audio manager who is creating this object.
   AUAudioInputStream(AudioManagerMac* manager,
-                     const AudioParameters& params);
+                     const AudioParameters& params,
+                     AudioDeviceID audio_device_id);
   // The dtor is typically called by the AudioManager only and it is usually
   // triggered by calling AudioInputStream::Close().
   virtual ~AUAudioInputStream();

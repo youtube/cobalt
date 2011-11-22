@@ -24,7 +24,7 @@ class AudioManagerMac : public AudioManagerBase {
   virtual AudioOutputStream* MakeAudioOutputStream(
       const AudioParameters& params) OVERRIDE;
   virtual AudioInputStream* MakeAudioInputStream(
-      const AudioParameters& params) OVERRIDE;
+      const AudioParameters& params, const std::string& device_id) OVERRIDE;
   virtual void MuteAll() OVERRIDE;
   virtual void UnMuteAll() OVERRIDE;
 

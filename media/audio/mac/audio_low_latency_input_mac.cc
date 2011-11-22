@@ -29,11 +29,12 @@ static std::ostream& operator<<(std::ostream& os,
 // for more details and background regarding this implementation.
 
 AUAudioInputStream::AUAudioInputStream(
-    AudioManagerMac* manager, const AudioParameters& params)
+    AudioManagerMac* manager, const AudioParameters& params,
+    AudioDeviceID audio_device_id)
     : manager_(manager),
       sink_(NULL),
       audio_unit_(0),
-      input_device_id_(kAudioObjectUnknown),
+      input_device_id_(audio_device_id),
       started_(false),
       hardware_latency_frames_(0) {
   DCHECK(manager_);
@@ -79,6 +80,10 @@ AUAudioInputStream::~AUAudioInputStream() {}
 bool AUAudioInputStream::Open() {
   // Verify that we are not already opened.
   if (audio_unit_)
+    return false;
+
+  // Verify that we have a valid device.
+  if (input_device_id_ == kAudioObjectUnknown)
     return false;
 
   // Start by obtaining an AudioOuputUnit using an AUHAL component description.
@@ -137,29 +142,6 @@ bool AUAudioInputStream::Open() {
     return false;
   }
 
-  // Set the current device of the AudioOuputUnit to default input device.
-
-  // First, obtain the current input device selected by the user.
-  AudioObjectPropertyAddress default_intput_device_address = {
-    kAudioHardwarePropertyDefaultInputDevice,
-    kAudioObjectPropertyScopeGlobal,
-    kAudioObjectPropertyElementMaster
-  };
-  AudioDeviceID input_device = kAudioObjectUnknown;
-  UInt32 size = sizeof(input_device);
-  result = AudioObjectGetPropertyData(kAudioObjectSystemObject,
-                                      &default_intput_device_address,
-                                      0,
-                                      0,
-                                      &size,
-                                      &input_device);
-  if (result) {
-    HandleError(result);
-    return false;
-  }
-
-  input_device_id_ = input_device;
-
   // Next, set the audio device to be the Audio Unit's current device.
   // Note that, devices can only be set to the AUHAL after enabling IO.
   result = AudioUnitSetProperty(audio_unit_,
@@ -167,7 +149,7 @@ bool AUAudioInputStream::Open() {
                                 kAudioUnitScope_Global,
                                 0,
                                 &input_device_id_,
-                                sizeof(input_device));
+                                sizeof(input_device_id_));
   if (result) {
     HandleError(result);
     return false;

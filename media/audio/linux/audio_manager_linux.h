@@ -26,8 +26,8 @@ class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
   virtual bool HasAudioInputDevices() OVERRIDE;
   virtual AudioOutputStream* MakeAudioOutputStream(
       const AudioParameters& params) OVERRIDE;
-  virtual AudioInputStream* MakeAudioInputStream(const AudioParameters& params)
-      OVERRIDE;
+  virtual AudioInputStream* MakeAudioInputStream(
+      const AudioParameters& params, const std::string& device_id) OVERRIDE;
   virtual bool CanShowAudioInputSettings() OVERRIDE;
   virtual void ShowAudioInputSettings() OVERRIDE;
   virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names)

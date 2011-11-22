@@ -9,6 +9,7 @@
 static const int kStreamCloseDelayMs = 5000;
 
 const char AudioManagerBase::kDefaultDeviceName[] = "Default";
+const char AudioManagerBase::kDefaultDeviceId[] = "default";
 
 AudioManagerBase::AudioManagerBase()
     : audio_thread_("AudioThread"),
