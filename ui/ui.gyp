@@ -572,6 +572,7 @@
             'gfx/render_text_linux.h',
             'gfx/render_text_win.cc',
             'gfx/render_text_win.h',
+            'base/x/events_x.cc',
           ],
         }],
         ['OS=="android"', {
