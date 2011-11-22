@@ -846,7 +846,7 @@
                   '../build/linux/system.gyp:ssl',
                 ],
               }],
-              ['OS=="openbsd"', {
+              ['os_bsd==1', {
                 'sources!': [
                   'base/network_change_notifier_linux.cc',
                   'base/network_change_notifier_netlink_linux.cc',
