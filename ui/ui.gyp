@@ -6,13 +6,6 @@
   'variables': {
     'chromium_code': 1,
   },
-  'target_defaults': {
-    'conditions': [
-      ['touchui==0', {'sources/': [
-        ['exclude', '_(touch)\\.cc$'],
-      ]}],
-    ],
-  },
   'includes': [
     'ui_resources.gypi',
   ],
