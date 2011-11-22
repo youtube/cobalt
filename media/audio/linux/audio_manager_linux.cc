@@ -36,7 +36,6 @@ static const char* kInvalidAudioInputDevices[] = {
   "null",
   "pulse",
   "dmix",
-  "surround",
 };
 
 // Implementation of AudioManager.
@@ -87,8 +86,9 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
 }
 
 AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
-    const AudioParameters& params) {
-  if (!params.IsValid() || params.channels > kMaxInputChannels)
+    const AudioParameters& params, const std::string& device_id) {
+  if (!params.IsValid() || params.channels > kMaxInputChannels ||
+      device_id.empty())
     return NULL;
 
   if (params.format == AudioParameters::AUDIO_MOCK) {
@@ -100,8 +100,8 @@ AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
   if (!initialized())
     return NULL;
 
-  // TODO(xians): Pass the device name From AudioInputController instead.
-  std::string device_name = AlsaPcmOutputStream::kAutoSelectDevice;
+  std::string device_name = (device_id == AudioManagerBase::kDefaultDeviceId) ?
+      AlsaPcmInputStream::kAutoSelectDevice : device_id;
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kAlsaInputDevice)) {
     device_name = CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
         switches::kAlsaInputDevice);
@@ -183,7 +183,8 @@ void AudioManagerLinux::GetAudioInputDeviceNames(
     // counting here since the default device has been abstracted out before.
     // We use index 0 to make up the unique_id to identify the default device.
     device_names->push_front(media::AudioDeviceName(
-        AudioManagerBase::kDefaultDeviceName, "0"));
+        AudioManagerBase::kDefaultDeviceName,
+        AudioManagerBase::kDefaultDeviceId));
   }
 }
 
@@ -256,13 +257,16 @@ void AudioManagerLinux::GetAlsaDevicesInfo(
 }
 
 bool AudioManagerLinux::IsAlsaDeviceAvailable(const char* device_name) {
+  static const char kNotWantedSurroundDevices[] = "surround";
+
   if (!device_name)
     return false;
 
   // Check if the device is in the list of invalid devices.
   for (size_t i = 0; i < arraysize(kInvalidAudioInputDevices); ++i) {
-    if (!strncmp(kInvalidAudioInputDevices[i], device_name,
-                 strlen(kInvalidAudioInputDevices[i])))
+    if ((strcmp(kInvalidAudioInputDevices[i], device_name) == 0) ||
+        (strncmp(kNotWantedSurroundDevices, device_name,
+            arraysize(kNotWantedSurroundDevices) - 1) == 0))
       return false;
   }
 

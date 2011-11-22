@@ -7,7 +7,7 @@
 #include "base/test/test_timeouts.h"
 #include "base/threading/platform_thread.h"
 #include "media/audio/audio_io.h"
-#include "media/audio/audio_manager.h"
+#include "media/audio/audio_manager_base.h"
 #include "media/audio/mac/audio_low_latency_input_mac.h"
 #include "media/base/seekable_buffer.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -104,7 +104,8 @@ static AudioInputStream* CreateDefaultAudioInputStream() {
   int samples_per_packet = fs / 100;
   AudioInputStream* ais = audio_man->MakeAudioInputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-      CHANNEL_LAYOUT_STEREO, fs, 16, samples_per_packet));
+      CHANNEL_LAYOUT_STEREO, fs, 16, samples_per_packet),
+      AudioManagerBase::kDefaultDeviceId);
   EXPECT_TRUE(ais);
   return ais;
 }
@@ -117,7 +118,8 @@ static AudioInputStream* CreateAudioInputStream(ChannelLayout channel_layout) {
   int samples_per_packet = fs / 100;
   AudioInputStream* ais = audio_man->MakeAudioInputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-      channel_layout, fs, 16, samples_per_packet));
+      channel_layout, fs, 16, samples_per_packet),
+      AudioManagerBase::kDefaultDeviceId);
   EXPECT_TRUE(ais);
   return ais;
 }
