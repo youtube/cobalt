@@ -1,0 +1,20 @@
+Name: Khronos header files
+Short Name: khronos_headers
+URL: http://www.khronos.org/registry
+Version: unknown
+Date: 2011-11-01
+License: MIT/X11 (BSD like) for {EGL,KHR}/*, SGI Free Software License B for GLES2/*
+Security Critical: no
+
+Description:
+This package contains header files for the EGL and OpenGL ES 2.0 APIs from
+Khronos. They are used for compiling code against these APIs as well as for
+generating the GL binding initialization logic.
+
+Local Modifications:
+
+GLES2/gl2.h
+ - Added macros for C++ binding generation.
+ - Added GL_CONTEXT_LOST constant.
+GLES2/gl2ext.h
+ - Added Chromium and Angle extensions.
