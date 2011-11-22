@@ -590,7 +590,7 @@
             '-ldl',
           ],
         }],
-        ['OS=="openbsd" and use_system_libjpeg==1', {
+        ['os_bsd==1 and use_system_libjpeg==1', {
           'include_dirs': [
             '/usr/local/include',
           ],

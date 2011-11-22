@@ -54,7 +54,7 @@
               'sources': [ 'epoll.c' ],
               'include_dirs': [ 'android' ],
             }],
-            [ 'OS == "mac" or OS == "freebsd" or OS == "openbsd"', {
+            [ 'OS == "mac" or os_bsd==1', {
               'sources': [ 'kqueue.c' ],
               'include_dirs': [ 'mac' ]
             }],
