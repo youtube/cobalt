@@ -52,7 +52,7 @@
               ['exclude', 'ec_private_key_nss\.cc$'],
             ],
         }],
-        [ 'OS == "freebsd" or OS == "openbsd"', {
+        [ 'os_bsd==1', {
           'link_settings': {
             'libraries': [
               '-L/usr/local/lib -lexecinfo',
