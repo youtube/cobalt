@@ -12,7 +12,7 @@
 namespace {
 
 #ifdef ADDRESS_SANITIZER
-static const int kTimeoutMultiplier = 2;
+static const int kTimeoutMultiplier = 4;
 #else
 static const int kTimeoutMultiplier = 1;
 #endif
