@@ -365,7 +365,7 @@
             'test/scoped_locale.h',
           ],
         }],
-        ['OS=="openbsd"', {
+        ['os_bsd==1', {
           'sources!': [
             'test/test_file_util_linux.cc',
           ],
