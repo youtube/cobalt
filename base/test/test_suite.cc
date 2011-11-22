@@ -47,6 +47,26 @@ class MaybeTestDisabler : public testing::EmptyTestEventListener {
   }
 };
 
+class TestClientInitializer : public testing::EmptyTestEventListener {
+ public:
+  TestClientInitializer()
+      : old_command_line_(CommandLine::NO_PROGRAM) {
+  }
+
+  virtual void OnTestStart(const testing::TestInfo& test_info) OVERRIDE {
+    old_command_line_ = *CommandLine::ForCurrentProcess();
+  }
+
+  virtual void OnTestEnd(const testing::TestInfo& test_info) OVERRIDE {
+    *CommandLine::ForCurrentProcess() = old_command_line_;
+  }
+
+ private:
+  CommandLine old_command_line_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestClientInitializer);
+};
+
 }  // namespace
 
 const char TestSuite::kStrictFailureHandling[] = "strict_failure_handling";
@@ -117,6 +137,12 @@ void TestSuite::CatchMaybeTests() {
   testing::TestEventListeners& listeners =
       testing::UnitTest::GetInstance()->listeners();
   listeners.Append(new MaybeTestDisabler);
+}
+
+void TestSuite::ResetCommandLine() {
+  testing::TestEventListeners& listeners =
+      testing::UnitTest::GetInstance()->listeners();
+  listeners.Append(new TestClientInitializer);
 }
 
 // Don't add additional code to this method.  Instead add it to
@@ -229,6 +255,7 @@ void TestSuite::Initialize() {
 #endif
 
   CatchMaybeTests();
+  ResetCommandLine();
 
   TestTimeouts::Initialize();
 }
