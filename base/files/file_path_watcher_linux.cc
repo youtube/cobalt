@@ -158,6 +158,11 @@ class InotifyReaderTask : public Task {
       : reader_(reader),
         inotify_fd_(inotify_fd),
         shutdown_fd_(shutdown_fd) {
+    // Make sure the file descriptors are good for use with select().
+    CHECK_LE(0, inotify_fd_);
+    CHECK_GT(FD_SETSIZE, inotify_fd_);
+    CHECK_LE(0, shutdown_fd_);
+    CHECK_GT(FD_SETSIZE, shutdown_fd_);
   }
 
   virtual void Run() {
