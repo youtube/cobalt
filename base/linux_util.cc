@@ -131,8 +131,8 @@ static const int kDistroSize = 128 + 1;
 // We use this static string to hold the Linux distro info. If we
 // crash, the crash handler code will send this in the crash dump.
 char g_linux_distro[kDistroSize] =
-#if defined(OS_CHROMEOS) && defined(TOUCH_UI)
-    "CrOS Touch";
+#if defined(OS_CHROMEOS) && defined(USE_AURA)
+    "CrOS Aura";
 #elif defined(OS_CHROMEOS)
     "CrOS";
 #else  // if defined(OS_LINUX)
