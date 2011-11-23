@@ -182,7 +182,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // The name of the thread.  Used for debugging purposes.
   std::string name_;
 
-  friend class ThreadQuitTask;
+  friend void ThreadQuitHelper();
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
