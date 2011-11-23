@@ -40,37 +40,9 @@ class BASE_EXPORT FilePathWatcher {
     virtual void OnFilePathError(const FilePath& path) {}
   };
 
-  FilePathWatcher();
-  ~FilePathWatcher();
-
-  // Register interest in any changes on |path|. OnPathChanged will be called
-  // back for each change. Returns true on success.
-  // OnFilePathChanged() will be called on the same thread as Watch() is called,
-  // which should have a MessageLoop of TYPE_IO.
-  bool Watch(const FilePath& path, Delegate* delegate) WARN_UNUSED_RESULT;
-
-  class PlatformDelegate;
-
-  // A custom Task that always cleans up the PlatformDelegate, either when
-  // executed or when deleted without having been executed at all, as can
-  // happen during shutdown.
-  class CancelTask : public Task {
-   public:
-    CancelTask(PlatformDelegate* delegate): delegate_(delegate) {}
-    virtual ~CancelTask() {
-      delegate_->CancelOnMessageLoopThread();
-    }
-
-    virtual void Run() OVERRIDE {
-      delegate_->CancelOnMessageLoopThread();
-    }
-   private:
-    scoped_refptr<PlatformDelegate> delegate_;
-
-    DISALLOW_COPY_AND_ASSIGN(CancelTask);
-  };
-
   // Used internally to encapsulate different members on different platforms.
+  // TODO(jhawkins): Move this into its own file. Also fix the confusing naming
+  // wrt Delegate vs PlatformDelegate.
   class PlatformDelegate : public base::RefCountedThreadSafe<PlatformDelegate> {
    public:
     PlatformDelegate();
@@ -85,6 +57,8 @@ class BASE_EXPORT FilePathWatcher {
     virtual void Cancel() = 0;
 
    protected:
+    friend class FilePathWatcher;
+
     virtual ~PlatformDelegate();
 
     // Stop watching. This is only called on the thread of the appropriate
@@ -111,11 +85,24 @@ class BASE_EXPORT FilePathWatcher {
 
    private:
     friend class base::RefCountedThreadSafe<PlatformDelegate>;
-    friend class CancelTask;
 
     scoped_refptr<base::MessageLoopProxy> message_loop_;
     bool cancelled_;
   };
+
+  FilePathWatcher();
+  ~FilePathWatcher();
+
+  // A callback that always cleans up the PlatformDelegate, either when executed
+  // or when deleted without having been executed at all, as can happen during
+  // shutdown.
+  static void CancelWatch(const scoped_refptr<PlatformDelegate>& delegate);
+
+  // Register interest in any changes on |path|. OnPathChanged will be called
+  // back for each change. Returns true on success.
+  // OnFilePathChanged() will be called on the same thread as Watch() is called,
+  // which should have a MessageLoop of TYPE_IO.
+  bool Watch(const FilePath& path, Delegate* delegate) WARN_UNUSED_RESULT;
 
  private:
   scoped_refptr<PlatformDelegate> impl_;
