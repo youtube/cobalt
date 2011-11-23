@@ -258,6 +258,57 @@ TEST(ObserverListThreadSafeTest, RemoveObserver) {
   EXPECT_EQ(b.total, 0);
 }
 
+TEST(ObserverListThreadSafeTest, WithoutMessageLoop) {
+  scoped_refptr<ObserverListThreadSafe<Foo> > observer_list(
+      new ObserverListThreadSafe<Foo>);
+
+  Adder a(1), b(1), c(1);
+
+  // No MessageLoop, so these should not be added.
+  observer_list->AddObserver(&a);
+  observer_list->AddObserver(&b);
+
+  {
+    // Add c when there's a loop.
+    MessageLoop loop;
+    observer_list->AddObserver(&c);
+
+    observer_list->Notify(&Foo::Observe, 10);
+    loop.RunAllPending();
+
+    EXPECT_EQ(0, a.total);
+    EXPECT_EQ(0, b.total);
+    EXPECT_EQ(10, c.total);
+
+    // Now add a when there's a loop.
+    observer_list->AddObserver(&a);
+
+    // Remove c when there's a loop.
+    observer_list->RemoveObserver(&c);
+
+    // Notify again.
+    observer_list->Notify(&Foo::Observe, 20);
+    loop.RunAllPending();
+
+    EXPECT_EQ(20, a.total);
+    EXPECT_EQ(0, b.total);
+    EXPECT_EQ(10, c.total);
+  }
+
+  // Removing should always succeed with or without a loop.
+  observer_list->RemoveObserver(&a);
+
+  // Notifying should not fail but should also be a no-op.
+  MessageLoop loop;
+  observer_list->AddObserver(&b);
+  observer_list->Notify(&Foo::Observe, 30);
+  loop.RunAllPending();
+
+  EXPECT_EQ(20, a.total);
+  EXPECT_EQ(30, b.total);
+  EXPECT_EQ(10, c.total);
+}
+
 class FooRemover : public Foo {
  public:
   explicit FooRemover(ObserverListThreadSafe<Foo>* list) : list_(list) {}
