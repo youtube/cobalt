@@ -19,6 +19,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/observer_list.h"
 #include "base/task.h"
+#include "base/threading/platform_thread.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -89,18 +90,18 @@ class ObserverListThreadSafe
   // Add an observer to the list.  An observer should not be added to
   // the same list more than once.
   void AddObserver(ObserverType* obs) {
+    // If there is not a current MessageLoop, it is impossible to notify on it,
+    // so do not add the observer.
+    if (!MessageLoop::current())
+      return;
+
     ObserverList<ObserverType>* list = NULL;
-    MessageLoop* loop = MessageLoop::current();
-    // TODO(mbelshe): Get rid of this check.  Its needed right now because
-    //                Time currently triggers usage of the ObserverList.
-    //                And unittests use time without a MessageLoop.
-    if (!loop)
-      return;  // Some unittests may access this without a message loop.
+    base::PlatformThreadId thread_id = base::PlatformThread::CurrentId();
     {
       base::AutoLock lock(list_lock_);
-      if (observer_lists_.find(loop) == observer_lists_.end())
-        observer_lists_[loop] = new ObserverListContext(type_);
-      list = &(observer_lists_[loop]->list);
+      if (observer_lists_.find(thread_id) == observer_lists_.end())
+        observer_lists_[thread_id] = new ObserverListContext(type_);
+      list = &(observer_lists_[thread_id]->list);
     }
     list->AddObserver(obs);
   }
@@ -113,12 +114,10 @@ class ObserverListThreadSafe
   void RemoveObserver(ObserverType* obs) {
     ObserverListContext* context = NULL;
     ObserverList<ObserverType>* list = NULL;
-    MessageLoop* loop = MessageLoop::current();
-    if (!loop)
-      return;  // On shutdown, it is possible that current() is already null.
+    base::PlatformThreadId thread_id = base::PlatformThread::CurrentId();
     {
       base::AutoLock lock(list_lock_);
-      typename ObserversListMap::iterator it = observer_lists_.find(loop);
+      typename ObserversListMap::iterator it = observer_lists_.find(thread_id);
       if (it == observer_lists_.end()) {
         // This will happen if we try to remove an observer on a thread
         // we never added an observer for.
@@ -228,7 +227,7 @@ class ObserverListThreadSafe
     {
       base::AutoLock lock(list_lock_);
       typename ObserversListMap::iterator it =
-          observer_lists_.find(MessageLoop::current());
+          observer_lists_.find(base::PlatformThread::CurrentId());
 
       // The ObserverList could have been removed already.  In fact, it could
       // have been removed and then re-added!  If the master list's loop
@@ -253,7 +252,7 @@ class ObserverListThreadSafe
         // This can happen if multiple observers got removed in a notification.
         // See http://crbug.com/55725.
         typename ObserversListMap::iterator it =
-            observer_lists_.find(MessageLoop::current());
+            observer_lists_.find(base::PlatformThread::CurrentId());
         if (it != observer_lists_.end() && it->second == context)
           observer_lists_.erase(it);
       }
@@ -261,7 +260,11 @@ class ObserverListThreadSafe
     }
   }
 
-  typedef std::map<MessageLoop*, ObserverListContext*> ObserversListMap;
+  // Key by PlatformThreadId because in tests, clients can attempt to remove
+  // observers without a MessageLoop. If this were keyed by MessageLoop, that
+  // operation would be silently ignored, leaving garbage in the ObserverList.
+  typedef std::map<base::PlatformThreadId, ObserverListContext*>
+      ObserversListMap;
 
   base::Lock list_lock_;  // Protects the observer_lists_.
   ObserversListMap observer_lists_;
