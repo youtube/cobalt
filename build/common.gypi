@@ -612,6 +612,12 @@
     # The Java Bridge is not compiled in by default.
     'java_bridge%': 0,
 
+    # TODO(dpranke): This determines whether we should attempt to build DRT
+    # et al. from WebKit/Source/WebKit.gyp or Tools/Tools.gyp. This
+    # flag should only be needed temporarily. See
+    # https://bugs.webkit.org/show_bug.cgi?id=68463.
+    'build_webkit_exes_from_webkit_gyp%': 1,
+
     'conditions': [
       # Used to disable Native Client at compile time, for platforms where it
       # isn't supported (ARM)
