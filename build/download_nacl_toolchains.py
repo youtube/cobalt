@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -36,7 +36,8 @@ def Main(args):
   sys.path.insert(0, nacl_build_dir)
   import download_toolchains
   download_toolchains.Main(args)
+  return 0
 
 
 if __name__ == '__main__':
-  Main(sys.argv[1:])
+  sys.exit(Main(sys.argv[1:]))
