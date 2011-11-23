@@ -381,13 +381,7 @@ TEST_F(PipelineImplTest, NoStreams) {
   EXPECT_FALSE(pipeline_->IsInitialized());
 }
 
-#if defined(OS_MACOSX)
-// Crashes on OS X - http://crbug.com/105234
-#define MAYBE_AudioStream DISABLED_AudioStream
-#else
-#define MAYBE_AudioStream AudioStream
-#endif
-TEST_F(PipelineImplTest, MAYBE_AudioStream) {
+TEST_F(PipelineImplTest, AudioStream) {
   CreateAudioStream();
   MockDemuxerStreamVector streams;
   streams.push_back(audio_stream());
