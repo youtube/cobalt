@@ -103,9 +103,9 @@ TEST(ViewCacheHelper, EmptyCache) {
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
   ViewCacheHelper helper;
 
-  TestOldCompletionCallback cb;
+  TestCompletionCallback cb;
   std::string prefix, data;
-  int rv = helper.GetContentsHTML(context, prefix, &data, &cb);
+  int rv = helper.GetContentsHTML(context, prefix, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
   EXPECT_FALSE(data.empty());
 }
@@ -117,8 +117,8 @@ TEST(ViewCacheHelper, ListContents) {
   FillCache(context);
 
   std::string prefix, data;
-  TestOldCompletionCallback cb;
-  int rv = helper.GetContentsHTML(context, prefix, &data, &cb);
+  TestCompletionCallback cb;
+  int rv = helper.GetContentsHTML(context, prefix, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
 
   EXPECT_EQ(0U, data.find("<html>"));
@@ -139,8 +139,8 @@ TEST(ViewCacheHelper, DumpEntry) {
   FillCache(context);
 
   std::string data;
-  TestOldCompletionCallback cb;
-  int rv = helper.GetEntryInfoHTML("second", context, &data, &cb);
+  TestCompletionCallback cb;
+  int rv = helper.GetEntryInfoHTML("second", context, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
 
   EXPECT_EQ(0U, data.find("<html>"));
@@ -165,8 +165,8 @@ TEST(ViewCacheHelper, Prefix) {
 
   std::string key, data;
   std::string prefix("prefix:");
-  TestOldCompletionCallback cb;
-  int rv = helper.GetContentsHTML(context, prefix, &data, &cb);
+  TestCompletionCallback cb;
+  int rv = helper.GetContentsHTML(context, prefix, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
 
   EXPECT_EQ(0U, data.find("<html>"));
@@ -197,8 +197,9 @@ TEST(ViewCacheHelper, TruncatedFlag) {
   entry->Close();
 
   std::string data;
-  rv = helper.GetEntryInfoHTML(key, context, &data, &cb);
-  EXPECT_EQ(OK, cb.GetResult(rv));
+  TestCompletionCallback cb1;
+  rv = helper.GetEntryInfoHTML(key, context, &data, cb1.callback());
+  EXPECT_EQ(OK, cb1.GetResult(rv));
 
   EXPECT_NE(std::string::npos, data.find("RESPONSE_INFO_TRUNCATED"));
 }
