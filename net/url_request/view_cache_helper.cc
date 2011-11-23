@@ -45,7 +45,6 @@ ViewCacheHelper::ViewCacheHelper()
       buf_len_(0),
       index_(0),
       data_(NULL),
-      callback_(NULL),
       next_state_(STATE_NONE),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           cache_callback_(this, &ViewCacheHelper::OnIOComplete)),
@@ -65,14 +64,14 @@ ViewCacheHelper::~ViewCacheHelper() {
 int ViewCacheHelper::GetEntryInfoHTML(const std::string& key,
                                       const URLRequestContext* context,
                                       std::string* out,
-                                      OldCompletionCallback* callback) {
+                                      const CompletionCallback& callback) {
   return GetInfoHTML(key, context, std::string(), out, callback);
 }
 
 int ViewCacheHelper::GetContentsHTML(const URLRequestContext* context,
                                      const std::string& url_prefix,
                                      std::string* out,
-                                     OldCompletionCallback* callback) {
+                                     const CompletionCallback& callback) {
   return GetInfoHTML(std::string(), context, url_prefix, out, callback);
 }
 
@@ -121,8 +120,8 @@ int ViewCacheHelper::GetInfoHTML(const std::string& key,
                                  const URLRequestContext* context,
                                  const std::string& url_prefix,
                                  std::string* out,
-                                 OldCompletionCallback* callback) {
-  DCHECK(!callback_);
+                                 const CompletionCallback& callback) {
+  DCHECK(callback_.is_null());
   DCHECK(context);
   key_ = key;
   context_ = context;
@@ -139,18 +138,17 @@ int ViewCacheHelper::GetInfoHTML(const std::string& key,
 
 void ViewCacheHelper::DoCallback(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
-  DCHECK(callback_);
+  DCHECK(!callback_.is_null());
 
-  OldCompletionCallback* c = callback_;
-  callback_ = NULL;
-  c->Run(rv);
+  callback_.Run(rv);
+  callback_.Reset();
 }
 
 void ViewCacheHelper::HandleResult(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
   DCHECK_NE(ERR_FAILED, rv);
   context_ = NULL;
-  if (callback_)
+  if (!callback_.is_null())
     DoCallback(rv);
 }
 
