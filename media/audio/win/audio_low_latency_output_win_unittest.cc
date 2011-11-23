@@ -489,7 +489,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
 // with --gtest_also_run_disabled_tests or set the GTEST_ALSO_RUN_DISABLED_TESTS
 // environment variable to a value greater than 0.
 // The test files are approximately 20 seconds long.
-TEST(WinAudioOutputTest, DISABLE_WASAPIAudioOutputStreamReadFromFile) {
+TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamReadFromFile) {
   if (!CanRunAudioTests())
     return;
 
