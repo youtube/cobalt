@@ -606,6 +606,7 @@
           'type': 'none',
           'dependencies': [
             '../chrome/chrome.gyp:chrome',
+            '../chrome/chrome.gyp:unit_tests',
             '../ui/aura_shell/aura_shell.gyp:aura_shell_exe',
             '../ui/aura_shell/aura_shell.gyp:aura_shell_unittests',
             '../ui/aura/aura.gyp:*',
@@ -629,10 +630,9 @@
               ],
             }],
             ['OS=="linux"', {
-              # Aura unit_tests currently only work on Linux.
+              # Tests that currently only work on Linux.
               'dependencies': [
                 '../chrome/chrome.gyp:sync_unit_tests',
-                '../chrome/chrome.gyp:unit_tests',
                 '../content/content.gyp:content_unittests',
                 '../ipc/ipc.gyp:ipc_tests',
                 '../sql/sql.gyp:sql_unittests',
