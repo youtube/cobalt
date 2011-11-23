@@ -11,6 +11,7 @@
 #if defined(OS_WIN)
 #include "base/win/object_watcher.h"
 #else
+#include "base/callback.h"
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #endif
@@ -150,7 +151,7 @@ class BASE_EXPORT WaitableEventWatcher
   MessageLoop* message_loop_;
   scoped_refptr<Flag> cancel_flag_;
   AsyncWaiter* waiter_;
-  AsyncCallbackTask* callback_task_;
+  base::Closure callback_;
   scoped_refptr<WaitableEvent::WaitableEventKernel> kernel_;
 #endif
 
