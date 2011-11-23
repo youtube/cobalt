@@ -216,12 +216,12 @@ class WebSocketHybi17 : public WebSocket {
     unsigned char first_byte = *p++;
     unsigned char second_byte = *p++;
 
-    final_ = first_byte & kFinalBit;
-    reserved1_ = first_byte & kReserved1Bit;
-    reserved2_ = first_byte & kReserved2Bit;
-    reserved3_ = first_byte & kReserved3Bit;
+    final_ = (first_byte & kFinalBit) != 0;
+    reserved1_ = (first_byte & kReserved1Bit) != 0;
+    reserved2_ = (first_byte & kReserved2Bit) != 0;
+    reserved3_ = (first_byte & kReserved3Bit) != 0;
     op_code_ = first_byte & kOpCodeMask;
-    masked_ = second_byte & kMaskBit;
+    masked_ = (second_byte & kMaskBit) != 0;
 
     switch (op_code_) {
     case kOpCodeClose:
