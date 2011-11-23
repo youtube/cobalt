@@ -229,6 +229,8 @@
           'profiler/scoped_profile.h',
           'profiler/tracked_time.cc',
           'profiler/tracked_time.h',
+          'property_bag.cc',
+          'property_bag.h',
           'rand_util.cc',
           'rand_util.h',
           'rand_util_c.h',
