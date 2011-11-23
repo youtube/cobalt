@@ -72,7 +72,7 @@ class NotificationCollector
 
     // Check whether all delegates have been signaled.
     if (signaled_ == delegates_)
-      loop_->PostTask(FROM_HERE, new MessageLoop::QuitTask());
+      loop_->PostTask(FROM_HERE, MessageLoop::QuitClosure());
   }
 
   // Set of registered delegates.
@@ -113,34 +113,14 @@ class TestDelegate : public FilePathWatcher::Delegate {
   DISALLOW_COPY_AND_ASSIGN(TestDelegate);
 };
 
-// A helper class for setting up watches on the file thread.
-class SetupWatchTask : public Task {
- public:
-  SetupWatchTask(const FilePath& target,
-                 FilePathWatcher* watcher,
-                 FilePathWatcher::Delegate* delegate,
-                 bool* result,
-                 base::WaitableEvent* completion)
-      : target_(target),
-        watcher_(watcher),
-        delegate_(delegate),
-        result_(result),
-        completion_(completion) {}
-
-  void Run() {
-    *result_ = watcher_->Watch(target_, delegate_);
-    completion_->Signal();
-  }
-
- private:
-  const FilePath target_;
-  FilePathWatcher* watcher_;
-  FilePathWatcher::Delegate* delegate_;
-  bool* result_;
-  base::WaitableEvent* completion_;
-
-  DISALLOW_COPY_AND_ASSIGN(SetupWatchTask);
-};
+void SetupWatchCallback(const FilePath& target,
+                        FilePathWatcher* watcher,
+                        FilePathWatcher::Delegate* delegate,
+                        bool* result,
+                        base::WaitableEvent* completion) {
+  *result = watcher->Watch(target, delegate);
+  completion->Signal();
+}
 
 class FilePathWatcherTest : public testing::Test {
  public:
@@ -182,12 +162,10 @@ class FilePathWatcherTest : public testing::Test {
                   FilePathWatcher::Delegate* delegate) WARN_UNUSED_RESULT {
     base::WaitableEvent completion(false, false);
     bool result;
-    file_thread_.message_loop_proxy()->PostTask(FROM_HERE,
-         new SetupWatchTask(target,
-                            watcher,
-                            delegate,
-                            &result,
-                            &completion));
+    file_thread_.message_loop_proxy()->PostTask(
+        FROM_HERE,
+        base::Bind(SetupWatchCallback, target, watcher,
+                   make_scoped_refptr(delegate), &result, &completion));
     completion.Wait();
     return result;
   }
@@ -266,7 +244,7 @@ class Deleter : public FilePathWatcher::Delegate {
 
   virtual void OnFilePathChanged(const FilePath& path) {
     watcher_.reset();
-    loop_->PostTask(FROM_HERE, new MessageLoop::QuitTask());
+    loop_->PostTask(FROM_HERE, MessageLoop::QuitClosure());
   }
 
   scoped_ptr<FilePathWatcher> watcher_;
@@ -778,7 +756,7 @@ TEST_F(FilePathWatcherTest, DirAttributesChanged) {
   // to access the file.
   ASSERT_TRUE(ChangeFilePermissions(test_dir1, Read, false));
   loop_.PostDelayedTask(FROM_HERE,
-                        new MessageLoop::QuitTask,
+                        MessageLoop::QuitClosure(),
                         TestTimeouts::tiny_timeout_ms());
   ASSERT_FALSE(WaitForEvents());
   ASSERT_TRUE(ChangeFilePermissions(test_dir1, Read, true));

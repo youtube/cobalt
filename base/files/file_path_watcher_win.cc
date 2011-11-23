@@ -4,6 +4,7 @@
 
 #include "base/files/file_path_watcher.h"
 
+#include "base/bind.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
@@ -104,7 +105,8 @@ void FilePathWatcherImpl::Cancel() {
   // Switch to the file thread if necessary so we can stop |watcher_|.
   if (!message_loop()->BelongsToCurrentThread()) {
     message_loop()->PostTask(FROM_HERE,
-                             new FilePathWatcher::CancelTask(this));
+                             base::Bind(&FilePathWatcher::CancelWatch,
+                                        make_scoped_refptr(this)));
   } else {
     CancelOnMessageLoopThread();
   }
