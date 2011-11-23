@@ -1475,7 +1475,6 @@
         'net',
         '../base/base.gyp:base',
         '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'tools/fetch/fetch_server.cc',
@@ -1498,7 +1497,6 @@
       'dependencies': [
         'net',
         '../base/base.gyp:base',
-        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'server/http_connection.cc',
