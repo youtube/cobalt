@@ -33,7 +33,7 @@
 
 #if defined(USE_WAYLAND)
 #include "base/message_pump_wayland.h"
-#elif defined(TOUCH_UI) || defined(USE_AURA)
+#elif defined(USE_AURA)
 #include "base/message_pump_x.h"
 #else
 #include "base/message_pump_gtk.h"
