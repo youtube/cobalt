@@ -412,7 +412,8 @@ void FilePathWatcherImpl::Cancel() {
   // Switch to the message_loop_ if necessary so we can access |watches_|.
   if (!message_loop()->BelongsToCurrentThread()) {
     message_loop()->PostTask(FROM_HERE,
-                             new FilePathWatcher::CancelTask(this));
+                             base::Bind(&FilePathWatcher::CancelWatch,
+                                        make_scoped_refptr(this)));
   } else {
     CancelOnMessageLoopThread();
   }
