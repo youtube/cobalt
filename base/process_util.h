@@ -499,6 +499,28 @@ BASE_EXPORT bool CleanupProcesses(const FilePath::StringType& executable_name,
                                   int exit_code,
                                   const ProcessFilter* filter);
 
+// This method ensures that the specified process eventually terminates, and
+// then it closes the given process handle.
+//
+// It assumes that the process has already been signalled to exit, and it
+// begins by waiting a small amount of time for it to exit.  If the process
+// does not appear to have exited, then this function starts to become
+// aggressive about ensuring that the process terminates.
+//
+// On Linux this method does not block the calling thread.
+// On OS X this method may block for up to 2 seconds.
+//
+// NOTE: The process handle must have been opened with the PROCESS_TERMINATE
+// and SYNCHRONIZE permissions.
+//
+BASE_EXPORT void EnsureProcessTerminated(ProcessHandle process_handle);
+
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
+// The nicer version of EnsureProcessTerminated() that is patient and will
+// wait for |process_handle| to finish and then reap it.
+BASE_EXPORT void EnsureProcessGetsReaped(ProcessHandle process_handle);
+#endif
+
 // This class provides a way to iterate through a list of processes on the
 // current machine with a specified filter.
 // To use, create an instance and then call NextProcessEntry() until it returns
