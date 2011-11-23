@@ -227,7 +227,7 @@ namespace base {
 // compiler that the template only has 1 type parameter which is the function
 // signature that the Callback is representing.
 //
-// After this, create template specializations for 0-6 parameters. Note that
+// After this, create template specializations for 0-11 parameters. Note that
 // even though the template typelist grows, the specialization still
 // only has one type: the function signature.
 template <typename Sig>
@@ -570,6 +570,347 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
           typename internal::CallbackParamTraits<A4>::ForwardType,
           typename internal::CallbackParamTraits<A5>::ForwardType,
           typename internal::CallbackParamTraits<A6>::ForwardType);
+
+};
+
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7>
+class Callback<R(A1, A2, A3, A4, A5, A6, A7)> : public internal::CallbackBase {
+ public:
+  typedef R(RunType)(A1, A2, A3, A4, A5, A6, A7);
+
+  Callback() : CallbackBase(NULL, NULL) { }
+
+  // We pass BindStateHolder by const ref to avoid incurring an
+  // unnecessary AddRef/Unref pair even though we will modify the object.
+  // We cannot use a normal reference because the compiler will warn
+  // since this is often used on a return value, which is a temporary.
+  //
+  // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
+  // return the exact Callback<> type.  See base/bind.h for details.
+  template <typename T>
+  Callback(const internal::BindStateHolder<T>& bind_state_holder)
+      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
+    // Force the assignment to a location variable of PolymorphicInvoke
+    // so the compiler will typecheck that the passed in Run() method has
+    // the correct type.
+    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
+  }
+
+  R Run(typename internal::CallbackParamTraits<A1>::ForwardType a1,
+        typename internal::CallbackParamTraits<A2>::ForwardType a2,
+        typename internal::CallbackParamTraits<A3>::ForwardType a3,
+        typename internal::CallbackParamTraits<A4>::ForwardType a4,
+        typename internal::CallbackParamTraits<A5>::ForwardType a5,
+        typename internal::CallbackParamTraits<A6>::ForwardType a6,
+        typename internal::CallbackParamTraits<A7>::ForwardType a7) const {
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+
+    return f(bind_state_.get(), a1,
+             a2,
+             a3,
+             a4,
+             a5,
+             a6,
+             a7);
+  }
+
+ private:
+  typedef R(*PolymorphicInvoke)(
+      internal::BindStateBase*,
+          typename internal::CallbackParamTraits<A1>::ForwardType,
+          typename internal::CallbackParamTraits<A2>::ForwardType,
+          typename internal::CallbackParamTraits<A3>::ForwardType,
+          typename internal::CallbackParamTraits<A4>::ForwardType,
+          typename internal::CallbackParamTraits<A5>::ForwardType,
+          typename internal::CallbackParamTraits<A6>::ForwardType,
+          typename internal::CallbackParamTraits<A7>::ForwardType);
+
+};
+
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8>
+class Callback<R(A1, A2, A3, A4, A5, A6, A7,
+    A8)> : public internal::CallbackBase {
+ public:
+  typedef R(RunType)(A1, A2, A3, A4, A5, A6, A7, A8);
+
+  Callback() : CallbackBase(NULL, NULL) { }
+
+  // We pass BindStateHolder by const ref to avoid incurring an
+  // unnecessary AddRef/Unref pair even though we will modify the object.
+  // We cannot use a normal reference because the compiler will warn
+  // since this is often used on a return value, which is a temporary.
+  //
+  // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
+  // return the exact Callback<> type.  See base/bind.h for details.
+  template <typename T>
+  Callback(const internal::BindStateHolder<T>& bind_state_holder)
+      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
+    // Force the assignment to a location variable of PolymorphicInvoke
+    // so the compiler will typecheck that the passed in Run() method has
+    // the correct type.
+    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
+  }
+
+  R Run(typename internal::CallbackParamTraits<A1>::ForwardType a1,
+        typename internal::CallbackParamTraits<A2>::ForwardType a2,
+        typename internal::CallbackParamTraits<A3>::ForwardType a3,
+        typename internal::CallbackParamTraits<A4>::ForwardType a4,
+        typename internal::CallbackParamTraits<A5>::ForwardType a5,
+        typename internal::CallbackParamTraits<A6>::ForwardType a6,
+        typename internal::CallbackParamTraits<A7>::ForwardType a7,
+        typename internal::CallbackParamTraits<A8>::ForwardType a8) const {
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+
+    return f(bind_state_.get(), a1,
+             a2,
+             a3,
+             a4,
+             a5,
+             a6,
+             a7,
+             a8);
+  }
+
+ private:
+  typedef R(*PolymorphicInvoke)(
+      internal::BindStateBase*,
+          typename internal::CallbackParamTraits<A1>::ForwardType,
+          typename internal::CallbackParamTraits<A2>::ForwardType,
+          typename internal::CallbackParamTraits<A3>::ForwardType,
+          typename internal::CallbackParamTraits<A4>::ForwardType,
+          typename internal::CallbackParamTraits<A5>::ForwardType,
+          typename internal::CallbackParamTraits<A6>::ForwardType,
+          typename internal::CallbackParamTraits<A7>::ForwardType,
+          typename internal::CallbackParamTraits<A8>::ForwardType);
+
+};
+
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8, typename A9>
+class Callback<R(A1, A2, A3, A4, A5, A6, A7, A8,
+    A9)> : public internal::CallbackBase {
+ public:
+  typedef R(RunType)(A1, A2, A3, A4, A5, A6, A7, A8, A9);
+
+  Callback() : CallbackBase(NULL, NULL) { }
+
+  // We pass BindStateHolder by const ref to avoid incurring an
+  // unnecessary AddRef/Unref pair even though we will modify the object.
+  // We cannot use a normal reference because the compiler will warn
+  // since this is often used on a return value, which is a temporary.
+  //
+  // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
+  // return the exact Callback<> type.  See base/bind.h for details.
+  template <typename T>
+  Callback(const internal::BindStateHolder<T>& bind_state_holder)
+      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
+    // Force the assignment to a location variable of PolymorphicInvoke
+    // so the compiler will typecheck that the passed in Run() method has
+    // the correct type.
+    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
+  }
+
+  R Run(typename internal::CallbackParamTraits<A1>::ForwardType a1,
+        typename internal::CallbackParamTraits<A2>::ForwardType a2,
+        typename internal::CallbackParamTraits<A3>::ForwardType a3,
+        typename internal::CallbackParamTraits<A4>::ForwardType a4,
+        typename internal::CallbackParamTraits<A5>::ForwardType a5,
+        typename internal::CallbackParamTraits<A6>::ForwardType a6,
+        typename internal::CallbackParamTraits<A7>::ForwardType a7,
+        typename internal::CallbackParamTraits<A8>::ForwardType a8,
+        typename internal::CallbackParamTraits<A9>::ForwardType a9) const {
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+
+    return f(bind_state_.get(), a1,
+             a2,
+             a3,
+             a4,
+             a5,
+             a6,
+             a7,
+             a8,
+             a9);
+  }
+
+ private:
+  typedef R(*PolymorphicInvoke)(
+      internal::BindStateBase*,
+          typename internal::CallbackParamTraits<A1>::ForwardType,
+          typename internal::CallbackParamTraits<A2>::ForwardType,
+          typename internal::CallbackParamTraits<A3>::ForwardType,
+          typename internal::CallbackParamTraits<A4>::ForwardType,
+          typename internal::CallbackParamTraits<A5>::ForwardType,
+          typename internal::CallbackParamTraits<A6>::ForwardType,
+          typename internal::CallbackParamTraits<A7>::ForwardType,
+          typename internal::CallbackParamTraits<A8>::ForwardType,
+          typename internal::CallbackParamTraits<A9>::ForwardType);
+
+};
+
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8, typename A9,
+    typename A10>
+class Callback<R(A1, A2, A3, A4, A5, A6, A7, A8, A9,
+    A10)> : public internal::CallbackBase {
+ public:
+  typedef R(RunType)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
+
+  Callback() : CallbackBase(NULL, NULL) { }
+
+  // We pass BindStateHolder by const ref to avoid incurring an
+  // unnecessary AddRef/Unref pair even though we will modify the object.
+  // We cannot use a normal reference because the compiler will warn
+  // since this is often used on a return value, which is a temporary.
+  //
+  // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
+  // return the exact Callback<> type.  See base/bind.h for details.
+  template <typename T>
+  Callback(const internal::BindStateHolder<T>& bind_state_holder)
+      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
+    // Force the assignment to a location variable of PolymorphicInvoke
+    // so the compiler will typecheck that the passed in Run() method has
+    // the correct type.
+    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
+  }
+
+  R Run(typename internal::CallbackParamTraits<A1>::ForwardType a1,
+        typename internal::CallbackParamTraits<A2>::ForwardType a2,
+        typename internal::CallbackParamTraits<A3>::ForwardType a3,
+        typename internal::CallbackParamTraits<A4>::ForwardType a4,
+        typename internal::CallbackParamTraits<A5>::ForwardType a5,
+        typename internal::CallbackParamTraits<A6>::ForwardType a6,
+        typename internal::CallbackParamTraits<A7>::ForwardType a7,
+        typename internal::CallbackParamTraits<A8>::ForwardType a8,
+        typename internal::CallbackParamTraits<A9>::ForwardType a9,
+        typename internal::CallbackParamTraits<A10>::ForwardType a10) const {
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+
+    return f(bind_state_.get(), a1,
+             a2,
+             a3,
+             a4,
+             a5,
+             a6,
+             a7,
+             a8,
+             a9,
+             a10);
+  }
+
+ private:
+  typedef R(*PolymorphicInvoke)(
+      internal::BindStateBase*,
+          typename internal::CallbackParamTraits<A1>::ForwardType,
+          typename internal::CallbackParamTraits<A2>::ForwardType,
+          typename internal::CallbackParamTraits<A3>::ForwardType,
+          typename internal::CallbackParamTraits<A4>::ForwardType,
+          typename internal::CallbackParamTraits<A5>::ForwardType,
+          typename internal::CallbackParamTraits<A6>::ForwardType,
+          typename internal::CallbackParamTraits<A7>::ForwardType,
+          typename internal::CallbackParamTraits<A8>::ForwardType,
+          typename internal::CallbackParamTraits<A9>::ForwardType,
+          typename internal::CallbackParamTraits<A10>::ForwardType);
+
+};
+
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8, typename A9,
+    typename A10, typename A11>
+class Callback<R(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10,
+    A11)> : public internal::CallbackBase {
+ public:
+  typedef R(RunType)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11);
+
+  Callback() : CallbackBase(NULL, NULL) { }
+
+  // We pass BindStateHolder by const ref to avoid incurring an
+  // unnecessary AddRef/Unref pair even though we will modify the object.
+  // We cannot use a normal reference because the compiler will warn
+  // since this is often used on a return value, which is a temporary.
+  //
+  // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
+  // return the exact Callback<> type.  See base/bind.h for details.
+  template <typename T>
+  Callback(const internal::BindStateHolder<T>& bind_state_holder)
+      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
+    // Force the assignment to a location variable of PolymorphicInvoke
+    // so the compiler will typecheck that the passed in Run() method has
+    // the correct type.
+    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
+  }
+
+  R Run(typename internal::CallbackParamTraits<A1>::ForwardType a1,
+        typename internal::CallbackParamTraits<A2>::ForwardType a2,
+        typename internal::CallbackParamTraits<A3>::ForwardType a3,
+        typename internal::CallbackParamTraits<A4>::ForwardType a4,
+        typename internal::CallbackParamTraits<A5>::ForwardType a5,
+        typename internal::CallbackParamTraits<A6>::ForwardType a6,
+        typename internal::CallbackParamTraits<A7>::ForwardType a7,
+        typename internal::CallbackParamTraits<A8>::ForwardType a8,
+        typename internal::CallbackParamTraits<A9>::ForwardType a9,
+        typename internal::CallbackParamTraits<A10>::ForwardType a10,
+        typename internal::CallbackParamTraits<A11>::ForwardType a11) const {
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+
+    return f(bind_state_.get(), a1,
+             a2,
+             a3,
+             a4,
+             a5,
+             a6,
+             a7,
+             a8,
+             a9,
+             a10,
+             a11);
+  }
+
+ private:
+  typedef R(*PolymorphicInvoke)(
+      internal::BindStateBase*,
+          typename internal::CallbackParamTraits<A1>::ForwardType,
+          typename internal::CallbackParamTraits<A2>::ForwardType,
+          typename internal::CallbackParamTraits<A3>::ForwardType,
+          typename internal::CallbackParamTraits<A4>::ForwardType,
+          typename internal::CallbackParamTraits<A5>::ForwardType,
+          typename internal::CallbackParamTraits<A6>::ForwardType,
+          typename internal::CallbackParamTraits<A7>::ForwardType,
+          typename internal::CallbackParamTraits<A8>::ForwardType,
+          typename internal::CallbackParamTraits<A9>::ForwardType,
+          typename internal::CallbackParamTraits<A10>::ForwardType,
+          typename internal::CallbackParamTraits<A11>::ForwardType);
 
 };
 
