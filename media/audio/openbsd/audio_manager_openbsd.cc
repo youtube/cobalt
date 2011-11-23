@@ -74,7 +74,7 @@ AudioOutputStream* AudioManagerOpenBSD::MakeAudioOutputStream(
 }
 
 AudioInputStream* AudioManagerOpenBSD::MakeAudioInputStream(
-    const AudioParameters& params) {
+    const AudioParameters& params, const std::string& device_id) {
   NOTIMPLEMENTED();
   return NULL;
 }
