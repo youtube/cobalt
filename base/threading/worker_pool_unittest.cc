@@ -5,6 +5,7 @@
 #include "base/threading/worker_pool.h"
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/location.h"
 #include "base/message_loop.h"
 #include "base/task.h"
@@ -20,19 +21,6 @@ typedef PlatformTest WorkerPoolTest;
 namespace base {
 
 namespace {
-
-class PostTaskTestTask : public Task {
- public:
-  explicit PostTaskTestTask(WaitableEvent* event) : event_(event) {
-  }
-
-  void Run() {
-    event_->Signal();
-  }
-
- private:
-  WaitableEvent* event_;
-};
 
 class PostTaskAndReplyTester
     : public base::RefCountedThreadSafe<PostTaskAndReplyTester> {
@@ -81,8 +69,14 @@ TEST_F(WorkerPoolTest, PostTask) {
   WaitableEvent test_event(false, false);
   WaitableEvent long_test_event(false, false);
 
-  WorkerPool::PostTask(FROM_HERE, new PostTaskTestTask(&test_event), false);
-  WorkerPool::PostTask(FROM_HERE, new PostTaskTestTask(&long_test_event), true);
+  WorkerPool::PostTask(FROM_HERE,
+                       base::Bind(&WaitableEvent::Signal,
+                                  base::Unretained(&test_event)),
+                       false);
+  WorkerPool::PostTask(FROM_HERE,
+                       base::Bind(&WaitableEvent::Signal,
+                                  base::Unretained(&long_test_event)),
+                       true);
 
   test_event.Wait();
   long_test_event.Wait();
