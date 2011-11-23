@@ -312,6 +312,291 @@ class RunnableAdapter<R(__fastcall *)(A1, A2, A3, A4, A5, A6)> {
   R (__fastcall *function_)(A1, A2, A3, A4, A5, A6);
 };
 
+// __stdcall Function: Arity 7.
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7>
+class RunnableAdapter<R(__stdcall *)(A1, A2, A3, A4, A5, A6, A7)> {
+ public:
+  typedef R (RunType)(A1, A2, A3, A4, A5, A6, A7);
+
+  explicit RunnableAdapter(R(__stdcall *function)(A1, A2, A3, A4, A5, A6, A7))
+      : function_(function) {
+  }
+
+  R Run(typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7) {
+    return function_(a1, a2, a3, a4, a5, a6, a7);
+  }
+
+ private:
+  R (__stdcall *function_)(A1, A2, A3, A4, A5, A6, A7);
+};
+
+// __fastcall Function: Arity 7.
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7>
+class RunnableAdapter<R(__fastcall *)(A1, A2, A3, A4, A5, A6, A7)> {
+ public:
+  typedef R (RunType)(A1, A2, A3, A4, A5, A6, A7);
+
+  explicit RunnableAdapter(R(__fastcall *function)(A1, A2, A3, A4, A5, A6, A7))
+      : function_(function) {
+  }
+
+  R Run(typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7) {
+    return function_(a1, a2, a3, a4, a5, a6, a7);
+  }
+
+ private:
+  R (__fastcall *function_)(A1, A2, A3, A4, A5, A6, A7);
+};
+
+// __stdcall Function: Arity 8.
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8>
+class RunnableAdapter<R(__stdcall *)(A1, A2, A3, A4, A5, A6, A7, A8)> {
+ public:
+  typedef R (RunType)(A1, A2, A3, A4, A5, A6, A7, A8);
+
+  explicit RunnableAdapter(R(__stdcall *function)(A1, A2, A3, A4, A5, A6, A7,
+      A8))
+      : function_(function) {
+  }
+
+  R Run(typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7,
+      typename CallbackParamTraits<A8>::ForwardType a8) {
+    return function_(a1, a2, a3, a4, a5, a6, a7, a8);
+  }
+
+ private:
+  R (__stdcall *function_)(A1, A2, A3, A4, A5, A6, A7, A8);
+};
+
+// __fastcall Function: Arity 8.
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8>
+class RunnableAdapter<R(__fastcall *)(A1, A2, A3, A4, A5, A6, A7, A8)> {
+ public:
+  typedef R (RunType)(A1, A2, A3, A4, A5, A6, A7, A8);
+
+  explicit RunnableAdapter(R(__fastcall *function)(A1, A2, A3, A4, A5, A6, A7,
+      A8))
+      : function_(function) {
+  }
+
+  R Run(typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7,
+      typename CallbackParamTraits<A8>::ForwardType a8) {
+    return function_(a1, a2, a3, a4, a5, a6, a7, a8);
+  }
+
+ private:
+  R (__fastcall *function_)(A1, A2, A3, A4, A5, A6, A7, A8);
+};
+
+// __stdcall Function: Arity 9.
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8, typename A9>
+class RunnableAdapter<R(__stdcall *)(A1, A2, A3, A4, A5, A6, A7, A8, A9)> {
+ public:
+  typedef R (RunType)(A1, A2, A3, A4, A5, A6, A7, A8, A9);
+
+  explicit RunnableAdapter(R(__stdcall *function)(A1, A2, A3, A4, A5, A6, A7,
+      A8, A9))
+      : function_(function) {
+  }
+
+  R Run(typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7,
+      typename CallbackParamTraits<A8>::ForwardType a8,
+      typename CallbackParamTraits<A9>::ForwardType a9) {
+    return function_(a1, a2, a3, a4, a5, a6, a7, a8, a9);
+  }
+
+ private:
+  R (__stdcall *function_)(A1, A2, A3, A4, A5, A6, A7, A8, A9);
+};
+
+// __fastcall Function: Arity 9.
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8, typename A9>
+class RunnableAdapter<R(__fastcall *)(A1, A2, A3, A4, A5, A6, A7, A8, A9)> {
+ public:
+  typedef R (RunType)(A1, A2, A3, A4, A5, A6, A7, A8, A9);
+
+  explicit RunnableAdapter(R(__fastcall *function)(A1, A2, A3, A4, A5, A6, A7,
+      A8, A9))
+      : function_(function) {
+  }
+
+  R Run(typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7,
+      typename CallbackParamTraits<A8>::ForwardType a8,
+      typename CallbackParamTraits<A9>::ForwardType a9) {
+    return function_(a1, a2, a3, a4, a5, a6, a7, a8, a9);
+  }
+
+ private:
+  R (__fastcall *function_)(A1, A2, A3, A4, A5, A6, A7, A8, A9);
+};
+
+// __stdcall Function: Arity 10.
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8, typename A9,
+    typename A10>
+class RunnableAdapter<R(__stdcall *)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10)> {
+ public:
+  typedef R (RunType)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
+
+  explicit RunnableAdapter(R(__stdcall *function)(A1, A2, A3, A4, A5, A6, A7,
+      A8, A9, A10))
+      : function_(function) {
+  }
+
+  R Run(typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7,
+      typename CallbackParamTraits<A8>::ForwardType a8,
+      typename CallbackParamTraits<A9>::ForwardType a9,
+      typename CallbackParamTraits<A10>::ForwardType a10) {
+    return function_(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+  }
+
+ private:
+  R (__stdcall *function_)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
+};
+
+// __fastcall Function: Arity 10.
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8, typename A9,
+    typename A10>
+class RunnableAdapter<R(__fastcall *)(A1, A2, A3, A4, A5, A6, A7, A8, A9,
+    A10)> {
+ public:
+  typedef R (RunType)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
+
+  explicit RunnableAdapter(R(__fastcall *function)(A1, A2, A3, A4, A5, A6, A7,
+      A8, A9, A10))
+      : function_(function) {
+  }
+
+  R Run(typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7,
+      typename CallbackParamTraits<A8>::ForwardType a8,
+      typename CallbackParamTraits<A9>::ForwardType a9,
+      typename CallbackParamTraits<A10>::ForwardType a10) {
+    return function_(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+  }
+
+ private:
+  R (__fastcall *function_)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
+};
+
+// __stdcall Function: Arity 11.
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8, typename A9,
+    typename A10, typename A11>
+class RunnableAdapter<R(__stdcall *)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10,
+    A11)> {
+ public:
+  typedef R (RunType)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11);
+
+  explicit RunnableAdapter(R(__stdcall *function)(A1, A2, A3, A4, A5, A6, A7,
+      A8, A9, A10, A11))
+      : function_(function) {
+  }
+
+  R Run(typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7,
+      typename CallbackParamTraits<A8>::ForwardType a8,
+      typename CallbackParamTraits<A9>::ForwardType a9,
+      typename CallbackParamTraits<A10>::ForwardType a10,
+      typename CallbackParamTraits<A11>::ForwardType a11) {
+    return function_(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+  }
+
+ private:
+  R (__stdcall *function_)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11);
+};
+
+// __fastcall Function: Arity 11.
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8, typename A9,
+    typename A10, typename A11>
+class RunnableAdapter<R(__fastcall *)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10,
+    A11)> {
+ public:
+  typedef R (RunType)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11);
+
+  explicit RunnableAdapter(R(__fastcall *function)(A1, A2, A3, A4, A5, A6, A7,
+      A8, A9, A10, A11))
+      : function_(function) {
+  }
+
+  R Run(typename CallbackParamTraits<A1>::ForwardType a1,
+      typename CallbackParamTraits<A2>::ForwardType a2,
+      typename CallbackParamTraits<A3>::ForwardType a3,
+      typename CallbackParamTraits<A4>::ForwardType a4,
+      typename CallbackParamTraits<A5>::ForwardType a5,
+      typename CallbackParamTraits<A6>::ForwardType a6,
+      typename CallbackParamTraits<A7>::ForwardType a7,
+      typename CallbackParamTraits<A8>::ForwardType a8,
+      typename CallbackParamTraits<A9>::ForwardType a9,
+      typename CallbackParamTraits<A10>::ForwardType a10,
+      typename CallbackParamTraits<A11>::ForwardType a11) {
+    return function_(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+  }
+
+ private:
+  R (__fastcall *function_)(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11);
+};
+
 }  // namespace internal
 }  // namespace base
 
