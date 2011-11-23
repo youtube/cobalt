@@ -1332,9 +1332,6 @@
           ['use_aura==0 or OS!="win"', {
             'sources/': [ ['exclude', '_aurawin\\.(h|cc)$'] ]
           }],
-          ['touchui!=1', {
-            'sources/': [ ['exclude', '_touch\\.(h|cc)$'] ]
-          }],
         ],
       }],
     ],  # target_conditions for 'target_defaults'
