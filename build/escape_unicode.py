@@ -1,5 +1,4 @@
-#!/usr/bin/python
-
+#!/usr/bin/env python
 # Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -10,6 +9,7 @@ import codecs
 import optparse
 import os
 import sys
+
 
 def main(argv):
   parser = optparse.OptionParser()
@@ -37,6 +37,7 @@ def main(argv):
       os.path.splitext(in_filename)[0]))
 
   WriteEscapedFile(in_filename, out_filename)
+  return 0
 
 
 def WriteEscapedFile(in_filename, out_filename):
@@ -52,4 +53,4 @@ def WriteEscapedFile(in_filename, out_filename):
 
 
 if __name__ == '__main__':
-  exit(main(sys.argv))
+  sys.exit(main(sys.argv))
