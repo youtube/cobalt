@@ -4,6 +4,7 @@
 
 #include "base/threading/thread.h"
 
+#include "base/bind.h"
 #include "base/lazy_instance.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_local.h"
@@ -22,14 +23,11 @@ base::LazyInstance<base::ThreadLocalBoolean> lazy_tls_bool =
 
 }  // namespace
 
-// This task is used to trigger the message loop to exit.
-class ThreadQuitTask : public Task {
- public:
-  virtual void Run() {
-    MessageLoop::current()->Quit();
-    Thread::SetThreadWasQuitProperly(true);
-  }
-};
+// This is used to trigger the message loop to exit.
+void ThreadQuitHelper() {
+  MessageLoop::current()->Quit();
+  Thread::SetThreadWasQuitProperly(true);
+}
 
 // Used to pass data to ThreadMain.  This structure is allocated on the stack
 // from within StartWithOptions.
@@ -121,7 +119,7 @@ void Thread::StopSoon() {
     return;
 
   stopping_ = true;
-  message_loop_->PostTask(FROM_HERE, new ThreadQuitTask());
+  message_loop_->PostTask(FROM_HERE, base::Bind(&ThreadQuitHelper));
 }
 
 void Thread::Run(MessageLoop* message_loop) {
@@ -165,7 +163,7 @@ void Thread::ThreadMain() {
     // Let the thread do extra cleanup.
     CleanUp();
 
-    // Assert that MessageLoop::Quit was called by ThreadQuitTask.
+    // Assert that MessageLoop::Quit was called by ThreadQuitHelper.
     DCHECK(GetThreadWasQuitProperly());
 
     // We can't receive messages anymore.

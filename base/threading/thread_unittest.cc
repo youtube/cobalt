@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/bind.h"
 #include "base/message_loop.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -17,29 +18,11 @@ typedef PlatformTest ThreadTest;
 
 namespace {
 
-class ToggleValue : public Task {
- public:
-  explicit ToggleValue(bool* value) : value_(value) {
-    ANNOTATE_BENIGN_RACE(value, "Test-only data race on boolean "
-                         "in base/thread_unittest");
-  }
-  virtual void Run() {
-    *value_ = !*value_;
-  }
- private:
-  bool* value_;
-};
-
-class SleepSome : public Task {
- public:
-  explicit SleepSome(int msec) : msec_(msec) {
-  }
-  virtual void Run() {
-    base::PlatformThread::Sleep(msec_);
-  }
- private:
-  int msec_;
-};
+void ToggleValue(bool* value) {
+  ANNOTATE_BENIGN_RACE(value, "Test-only data race on boolean "
+                       "in base/thread_unittest");
+  *value = !*value;
+}
 
 class SleepInsideInitThread : public Thread {
  public:
@@ -173,7 +156,7 @@ TEST_F(ThreadTest, StartWithOptions_StackSize) {
   EXPECT_TRUE(a.IsRunning());
 
   bool was_invoked = false;
-  a.message_loop()->PostTask(FROM_HERE, new ToggleValue(&was_invoked));
+  a.message_loop()->PostTask(FROM_HERE, base::Bind(&ToggleValue, &was_invoked));
 
   // wait for the task to run (we could use a kernel event here
   // instead to avoid busy waiting, but this is sufficient for
@@ -194,8 +177,10 @@ TEST_F(ThreadTest, TwoTasks) {
     // Test that all events are dispatched before the Thread object is
     // destroyed.  We do this by dispatching a sleep event before the
     // event that will toggle our sentinel value.
-    a.message_loop()->PostTask(FROM_HERE, new SleepSome(20));
-    a.message_loop()->PostTask(FROM_HERE, new ToggleValue(&was_invoked));
+    a.message_loop()->PostTask(FROM_HERE,
+                               base::Bind(&base::PlatformThread::Sleep, 20));
+    a.message_loop()->PostTask(FROM_HERE, base::Bind(&ToggleValue,
+                                                     &was_invoked));
   }
   EXPECT_TRUE(was_invoked);
 }
