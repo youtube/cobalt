@@ -383,6 +383,15 @@ BASE_EXPORT void LaunchSynchronize(LaunchSynchronizationHandle handle);
 #endif  // defined(OS_MACOSX)
 #endif  // defined(OS_POSIX)
 
+#if defined(OS_WIN)
+// Set JOBOBJECT_EXTENDED_LIMIT_INFORMATION to JobObject |job_object|.
+// As its limit_info.BasicLimitInformation.LimitFlags has
+// JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE.
+// When the provide JobObject |job_object| is closed, the binded process will
+// be terminated.
+BASE_EXPORT bool SetJobObjectAsKillOnJobClose(HANDLE job_object);
+#endif  // defined(OS_WIN)
+
 // Executes the application specified by |cl| and wait for it to exit. Stores
 // the output (stdout) in |output|. Redirects stderr to /dev/null. Returns true
 // on success (application launched and exited cleanly, with exit code

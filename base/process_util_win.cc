@@ -362,6 +362,17 @@ bool LaunchProcess(const CommandLine& cmdline,
   return LaunchProcess(cmdline.GetCommandLineString(), options, process_handle);
 }
 
+bool SetJobObjectAsKillOnJobClose(HANDLE job_object) {
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION limit_info = {0};
+  limit_info.BasicLimitInformation.LimitFlags =
+      JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+  return 0 != SetInformationJobObject(
+      job_object,
+      JobObjectExtendedLimitInformation,
+      &limit_info,
+      sizeof(limit_info));
+}
+
 // Attempts to kill the process identified by the given process
 // entry structure, giving it the specified exit code.
 // Returns true if this is successful, false otherwise.
