@@ -64,10 +64,10 @@ class MessagePumpGlib : public MessagePump {
   void RemoveObserver(MessagePumpObserver* observer);
 
   // Overridden from MessagePump:
-  virtual void Run(Delegate* delegate);
-  virtual void Quit();
-  virtual void ScheduleWork();
-  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time);
+  virtual void Run(Delegate* delegate) OVERRIDE;
+  virtual void Quit() OVERRIDE;
+  virtual void ScheduleWork() OVERRIDE;
+  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) OVERRIDE;
 
  protected:
   // Returns the dispatcher for the current run state (|state_->dispatcher|).
