@@ -13,6 +13,8 @@
 #include "build/build_config.h"
 #include "base/port.h"
 
+#include "base/win/dllmain.cc"
+
 using base::TimeDelta;
 
 namespace tracked_objects {
@@ -124,9 +126,11 @@ Births::Births(const Location& location, const ThreadData& current)
 // static
 base::ThreadLocalStorage::Slot ThreadData::tls_index_(base::LINKER_INITIALIZED);
 
-// A lock-protected counter to assign sequence number to threads.
 // static
-int ThreadData::thread_number_counter_ = 0;
+int ThreadData::worker_thread_data_creation_count_ = 0;
+
+// static
+int ThreadData::cleanup_count_ = 0;
 
 // static
 int ThreadData::incarnation_counter_ = 0;
@@ -197,7 +201,7 @@ ThreadData* ThreadData::Get() {
 
   // We must be a worker thread, since we didn't pre-register.
   ThreadData* worker_thread_data = NULL;
-  int thread_number = 0;
+  int worker_thread_number = 0;
   {
     base::AutoLock lock(*list_lock_.Pointer());
     if (first_retired_worker_) {
@@ -205,13 +209,15 @@ ThreadData* ThreadData::Get() {
       first_retired_worker_ = first_retired_worker_->next_retired_worker_;
       worker_thread_data->next_retired_worker_ = NULL;
     } else {
-      thread_number = ++thread_number_counter_;
+      worker_thread_number = ++worker_thread_data_creation_count_;
     }
   }
 
   // If we can't find a previously used instance, then we have to create one.
-  if (!worker_thread_data)
-    worker_thread_data = new ThreadData(thread_number);
+  if (!worker_thread_data) {
+    DCHECK_GT(worker_thread_number, 0);
+    worker_thread_data = new ThreadData(worker_thread_number);
+  }
   DCHECK_GT(worker_thread_data->worker_thread_number_, 0);
 
   tls_index_.Set(worker_thread_data);
@@ -220,6 +226,8 @@ ThreadData* ThreadData::Get() {
 
 // static
 void ThreadData::OnThreadTermination(void* thread_data) {
+  // We must NOT do any allocations during this callback. There is a chance
+  // that the allocator is no longer active on this thread.
   if (!kTrackAllTaskObjects)
     return;  // Not compiled in.
   if (!thread_data)
@@ -228,11 +236,16 @@ void ThreadData::OnThreadTermination(void* thread_data) {
 }
 
 void ThreadData::OnThreadTerminationCleanup() {
-  if (!worker_thread_number_)
-    return;
+  // The list_lock_ was created when we registered the callback, so it won't be
+  // allocated here despite the lazy reference.
   base::AutoLock lock(*list_lock_.Pointer());
   if (incarnation_counter_ != incarnation_count_for_pool_)
     return;  // ThreadData was constructed in an earlier unit test.
+  ++cleanup_count_;
+  // Only worker threads need to be retired and reused.
+  if (!worker_thread_number_) {
+    return;
+  }
   // We must NOT do any allocations during this callback.
   // Using the simple linked lists avoids all allocations.
   DCHECK_EQ(this->next_retired_worker_, reinterpret_cast<ThreadData*>(NULL));
@@ -260,7 +273,7 @@ Births* ThreadData::TallyABirth(const Location& location) {
   Births* tracker = new Births(location, *this);
   // Lock since the map may get relocated now, and other threads sometimes
   // snapshot it (but they lock before copying it).
-  base::AutoLock lock(lock_);
+  base::AutoLock lock(map_lock_);
   birth_map_[location] = tracker;
   return tracker;
 }
@@ -273,7 +286,7 @@ void ThreadData::TallyADeath(const Births& birth,
   if (it != death_map_.end()) {
     death_data = &it->second;
   } else {
-    base::AutoLock lock(lock_);  // Lock since the map may get relocated now.
+    base::AutoLock lock(map_lock_);  // Lock as the map may get relocated now.
     death_data = &death_map_[&birth];
   }  // Release lock ASAP.
   death_data->RecordDeath(queue_duration, run_duration);
@@ -406,7 +419,7 @@ ThreadData* ThreadData::first() {
 
 // This may be called from another thread.
 void ThreadData::SnapshotBirthMap(BirthMap *output) const {
-  base::AutoLock lock(lock_);
+  base::AutoLock lock(map_lock_);
   for (BirthMap::const_iterator it = birth_map_.begin();
        it != birth_map_.end(); ++it)
     (*output)[it->first] = it->second;
@@ -414,7 +427,7 @@ void ThreadData::SnapshotBirthMap(BirthMap *output) const {
 
 // This may be called from another thread.
 void ThreadData::SnapshotDeathMap(DeathMap *output) const {
-  base::AutoLock lock(lock_);
+  base::AutoLock lock(map_lock_);
   for (DeathMap::const_iterator it = death_map_.begin();
        it != death_map_.end(); ++it)
     (*output)[it->first] = it->second;
@@ -431,7 +444,7 @@ void ThreadData::ResetAllThreadData() {
 }
 
 void ThreadData::Reset() {
-  base::AutoLock lock(lock_);
+  base::AutoLock lock(map_lock_);
   for (DeathMap::iterator it = death_map_.begin();
        it != death_map_.end(); ++it)
     it->second.Clear();
@@ -507,6 +520,18 @@ TrackedTime ThreadData::Now() {
 }
 
 // static
+void ThreadData::EnsureCleanupWasCalled(int major_threads_shutdown_count) {
+  base::AutoLock lock(*list_lock_.Pointer());
+  if (worker_thread_data_creation_count_ == 0)
+    return;  // We haven't really run much, and couldn't have leaked.
+  // Verify that we've at least shutdown/cleanup the major namesd threads.  The
+  // caller should tell us how many thread shutdowns should have taken place by
+  // now.
+  return;  // TODO(jar): until this is working on XP, don't run the real test.
+  CHECK_GT(cleanup_count_, major_threads_shutdown_count);
+}
+
+// static
 void ThreadData::ShutdownSingleThreadedCleanup(bool leak) {
   // This is only called from test code, where we need to cleanup so that
   // additional tests can be run.
@@ -529,7 +554,8 @@ void ThreadData::ShutdownSingleThreadedCleanup(bool leak) {
   }
 
   // Put most global static back in pristine shape.
-  thread_number_counter_ = 0;
+  worker_thread_data_creation_count_ = 0;
+  cleanup_count_ = 0;
   tls_index_.Set(NULL);
   status_ = UNINITIALIZED;
 
