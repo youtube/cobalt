@@ -24,6 +24,7 @@
 #include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
 #include "media/audio/win/audio_manager_win.h"
+#include "media/audio/win/device_enumeration_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
 #include "media/base/limits.h"
@@ -99,6 +100,13 @@ static string16 GetDeviceAndDriverInfo(HDEVINFO device_info,
 
 AudioManagerWin::AudioManagerWin()
     : num_output_streams_(0) {
+  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+    // Use the Wave API for device enumeration if XP or lower.
+    enumeration_type_ = kWaveEnumeration;
+  } else {
+    // Use the MMDevice API for device enumeration if Vista or higher.
+    enumeration_type_ = kMMDeviceEnumeration;
+  }
 }
 
 AudioManagerWin::~AudioManagerWin() {
@@ -280,19 +288,26 @@ void AudioManagerWin::ShowAudioInputSettings() {
 
 void AudioManagerWin::GetAudioInputDeviceNames(
     media::AudioDeviceNames* device_names) {
-  // TODO(xians): query a full list of valid devices.
-  if (HasAudioInputDevices()) {
-    // Add the default device to the list.
-    // We use index 0 to make up the unique_id to identify the
-    // default devices.
+  DCHECK(enumeration_type() !=  kUninitializedEnumeration);
+  // Enumerate all active audio-endpoint capture devices.
+  if (enumeration_type() == kWaveEnumeration) {
+    // Utilize the Wave API for Windows XP.
+    GetInputDeviceNamesWinXP(device_names);
+  } else {
+    // Utilize the MMDevice API (part of Core Audio) for Vista and higher.
+    GetInputDeviceNamesWin(device_names);
+  }
+
+  // Always add default device parameters as first element.
+  if (!device_names->empty()) {
     media::AudioDeviceName name;
     name.device_name = AudioManagerBase::kDefaultDeviceName;
     name.unique_id = AudioManagerBase::kDefaultDeviceId;
-    device_names->push_back(name);
+    device_names->push_front(name);
   }
 }
 
-// static
+/// static
 AudioManager* AudioManager::CreateAudioManager() {
   return new AudioManagerWin();
 }

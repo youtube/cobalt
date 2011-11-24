@@ -87,6 +87,8 @@
         'audio/win/audio_manager_win.h',
         'audio/win/avrt_wrapper_win.cc',
         'audio/win/avrt_wrapper_win.h',
+        'audio/win/device_enumeration_win.cc',
+        'audio/win/device_enumeration_win.h',
         'audio/win/wavein_input_win.cc',
         'audio/win/wavein_input_win.h',
         'audio/win/waveout_output_win.cc',
