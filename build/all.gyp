@@ -58,7 +58,7 @@
         '<(libjpeg_gyp_path):*',
       ],
       'conditions': [
-        ['OS=="mac" or OS=="linux"', {
+        ['os_posix==1 and OS!="android"', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',
             '../cloud_print/virtual_driver/virtual_driver_posix.gyp:*',
