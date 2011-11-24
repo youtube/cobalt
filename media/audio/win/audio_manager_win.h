@@ -6,9 +6,11 @@
 #define MEDIA_AUDIO_WIN_AUDIO_MANAGER_WIN_H_
 
 #include <windows.h>
+#include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/gtest_prod_util.h"
 #include "media/audio/audio_manager_base.h"
 
 class PCMWaveOutAudioOutputStream;
@@ -16,7 +18,7 @@ class PCMWaveOutAudioOutputStream;
 // Windows implementation of the AudioManager singleton. This class is internal
 // to the audio output and only internal users can call methods not exposed by
 // the AudioManager class.
-class AudioManagerWin : public AudioManagerBase {
+class MEDIA_EXPORT AudioManagerWin : public AudioManagerBase {
  public:
   AudioManagerWin();
   // Implementation of AudioManager.
@@ -42,7 +44,22 @@ class AudioManagerWin : public AudioManagerBase {
   void ReleaseInputStream(AudioInputStream* stream);
 
  private:
+  enum EnumerationType {
+    kUninitializedEnumeration = 0,
+    kMMDeviceEnumeration,
+    kWaveEnumeration,
+  };
+
   virtual ~AudioManagerWin();
+
+  // Allow unit test to modify the utilized enumeration API.
+  friend class AudioInputDeviceTest;
+
+  EnumerationType enumeration_type_;
+  EnumerationType enumeration_type() { return enumeration_type_; }
+  void SetEnumerationType(EnumerationType type) {
+    enumeration_type_ = type;
+  }
 
   // Number of currently open output streams.
   int num_output_streams_;
