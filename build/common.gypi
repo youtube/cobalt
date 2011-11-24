@@ -467,7 +467,7 @@
 
     # Enable a variable used elsewhere throughout the GYP files to determine
     # whether to compile in the sources for the GPU plugin / process.
-    'enable_gpu%': 0,
+    'enable_gpu%': 1,
 
     # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
     'use_openssl%': 1,
