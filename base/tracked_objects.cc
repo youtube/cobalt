@@ -13,8 +13,6 @@
 #include "build/build_config.h"
 #include "base/port.h"
 
-#include "base/win/dllmain.cc"
-
 using base::TimeDelta;
 
 namespace tracked_objects {
