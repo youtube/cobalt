@@ -19,7 +19,7 @@ namespace {
 // Spin for up to a second waiting for the lock to clear when setting
 // up the database.
 // TODO(shess): Better story on this.  http://crbug.com/56559
-const base::TimeDelta kBusyTimeout = base::TimeDelta::FromSeconds(1);
+const int kBusyTimeoutSeconds = 1;
 
 class ScopedBusyTimeout {
  public:
@@ -372,6 +372,9 @@ bool Connection::OpenInternal(const std::string& file_name) {
     if (!Execute("PRAGMA locking_mode=EXCLUSIVE"))
       NOTREACHED() << "Could not set locking mode: " << GetErrorMessage();
   }
+
+  const base::TimeDelta kBusyTimeout =
+    base::TimeDelta::FromSeconds(kBusyTimeoutSeconds);
 
   if (page_size_ != 0) {
     // Enforce SQLite restrictions on |page_size_|.
