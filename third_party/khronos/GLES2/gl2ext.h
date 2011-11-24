@@ -1366,6 +1366,16 @@ typedef void (GL_APIENTRYP PFNGLPOSTSUBBUFFERCHROMIUM) (GLint x, GLint y, GLint 
 #endif
 #endif
 
+/* GL_CHROMIUM_front_buffer_cached */
+/* This extension implies that there is a cache of the front buffer of the
+ * surface supporting this extension (e.g. on OSX the front buffer
+ * is often backed by an IOSurface). Hence we do not need to redraw
+ * (via a SwapBuffers) in order to display the last frame.
+ */
+#ifndef GL_CHROMIUM_front_buffer_cached
+#define GL_CHROMIUM_front_buffer_cached 1
+#endif
+
 /* GL_ARB_robustness */
 /* This extension is subsetted for the moment, incorporating only the
  * enums necessary to describe the reasons that we might encounter for
