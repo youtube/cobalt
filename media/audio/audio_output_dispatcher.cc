@@ -69,7 +69,6 @@ void AudioOutputDispatcher::StreamStopped(AudioOutputStream* stream) {
   paused_proxies_++;
 
   pausing_streams_.push_front(stream);
-  close_timer_.Reset();
 
   // Don't recycle stream until two buffers worth of time has elapsed.
   message_loop_->PostDelayedTask(
@@ -84,6 +83,7 @@ void AudioOutputDispatcher::StopStreamTask() {
   AudioOutputStream* stream = pausing_streams_.back();
   pausing_streams_.pop_back();
   idle_streams_.push_back(stream);
+  close_timer_.Reset();
 }
 
 void AudioOutputDispatcher::StreamClosed() {
