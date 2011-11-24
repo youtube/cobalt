@@ -126,6 +126,7 @@
         'build_time_unittest.cc',
         'callback_unittest.cc',
         'callback_unittest.nc',
+        'cancelable_callback_unittest.cc',
         'command_line_unittest.cc',
         'cpu_unittest.cc',
         'debug/leak_tracker_unittest.cc',
