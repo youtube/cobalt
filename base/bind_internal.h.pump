@@ -11,7 +11,7 @@ $$
 //
 // Do we want to allow creating a fully unbound method??
 
-$var MAX_ARITY = 11
+$var MAX_ARITY = 6
 $range ARITY 0..MAX_ARITY
 
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
