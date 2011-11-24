@@ -532,6 +532,11 @@ class BASE_EXPORT ThreadData {
   // the code).
   static TrackedTime Now();
 
+  // This function can be called at process termination to validate that thread
+  // cleanup routines have been called for at least some number of named
+  // threads.
+  static void EnsureCleanupWasCalled(int major_threads_shutdown_count);
+
  private:
   // Allow only tests to call ShutdownSingleThreadedCleanup.  We NEVER call it
   // in production code.
@@ -594,19 +599,26 @@ class BASE_EXPORT ThreadData {
   // The list is traversed by about:profiler when it needs to snapshot data.
   // This is only accessed while list_lock_ is held.
   static ThreadData* all_thread_data_list_head_;
-  // The next available thread number.  This should only be accessed when the
-  // list_lock_ is held.
-  static int thread_number_counter_;
+
+  // The next available worker thread number.  This should only be accessed when
+  // the list_lock_ is held.
+  static int worker_thread_data_creation_count_;
+
+  // The number of times TLS has called us back to cleanup a ThreadData
+  // instance. This is only accessed while list_lock_ is held.
+  static int cleanup_count_;
+
   // Incarnation sequence number, indicating how many times (during unittests)
   // we've either transitioned out of UNINITIALIZED, or into that state.  This
   // value is only accessed while the list_lock_ is held.
   static int incarnation_counter_;
+
   // Protection for access to all_thread_data_list_head_, and to
   // unregistered_thread_data_pool_.  This lock is leaked at shutdown.
   // The lock is very infrequently used, so we can afford to just make a lazy
   // instance and be safe.
   static base::LazyInstance<base::Lock,
-    base::LeakyLazyInstanceTraits<base::Lock> > list_lock_;
+      base::LeakyLazyInstanceTraits<base::Lock> > list_lock_;
 
   // Record of what the incarnation_counter_ was when this instance was created.
   // If the incarnation_counter_ has changed, then we avoid pushing into the
@@ -655,7 +667,7 @@ class BASE_EXPORT ThreadData {
   // thread, or reading from another thread.  For reading from this thread we
   // don't need a lock, as there is no potential for a conflict since the
   // writing is only done from this thread.
-  mutable base::Lock lock_;
+  mutable base::Lock map_lock_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadData);
 };
