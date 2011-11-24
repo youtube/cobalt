@@ -69,7 +69,7 @@
       'targets': [
         {
           'target_name': 'libevent',
-          'type': 'settings',
+          'type': 'none',
           'toolsets': ['host', 'target'],
           'direct_dependent_settings': {
             'defines': [
