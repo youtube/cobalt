@@ -2425,8 +2425,8 @@
           }],
         ],
         'msvs_system_include_dirs': [
-          '<(DEPTH)/third_party/platformsdk_win7/files/Include',
           '<(DEPTH)/third_party/directxsdk/files/Include',
+          '<(DEPTH)/third_party/platformsdk_win7/files/Include',
           '$(VSInstallDir)/VC/atlmfc/include',
         ],
         'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
@@ -2463,8 +2463,8 @@
           'VCLibrarianTool': {
             'AdditionalOptions': ['/ignore:4221'],
             'AdditionalLibraryDirectories': [
-              '<(DEPTH)/third_party/platformsdk_win7/files/Lib',
               '<(DEPTH)/third_party/directxsdk/files/Lib/x86',
+              '<(DEPTH)/third_party/platformsdk_win7/files/Lib',
             ],
           },
           'VCLinkerTool': {
@@ -2500,8 +2500,8 @@
               }],
             ],
             'AdditionalLibraryDirectories': [
-              '<(DEPTH)/third_party/platformsdk_win7/files/Lib',
               '<(DEPTH)/third_party/directxsdk/files/Lib/x86',
+              '<(DEPTH)/third_party/platformsdk_win7/files/Lib',
             ],
             'GenerateDebugInformation': 'true',
             'MapFileName': '$(OutDir)\\$(TargetName).map',
