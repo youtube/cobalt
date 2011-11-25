@@ -385,8 +385,6 @@
         'test/perf_test_suite.h',
         'test/scoped_locale.cc',
         'test/scoped_locale.h',
-        'test/signaling_task.cc',
-        'test/signaling_task.h',
         'test/test_file_util.h',
         'test/test_file_util_linux.cc',
         'test/test_file_util_mac.cc',
