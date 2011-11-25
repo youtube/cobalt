@@ -1921,19 +1921,19 @@
             ],
           }],
           ['asan==1', {
-            # Only in the linux section for now, since ASAN doesn't
-            # work on Mac yet.
             # TODO(glider): -fasan is deprecated. Remove it when we stop using
             # it.
             'cflags': [
               '-fasan',
               '-faddress-sanitizer',
               '-w',
-              '-DADDRESS_SANITIZER',
             ],
             'ldflags': [
               '-fasan',
               '-faddress-sanitizer',
+            ],
+            'defines': [
+              'ADDRESS_SANITIZER',
             ],
           }],
           ['no_strict_aliasing==1', {
@@ -2278,6 +2278,34 @@
               'clang_dir': '../third_party/llvm-build/Release+Asserts/bin',
             },
           }],
+          ['asan==1', {
+            'xcode_settings': {
+              'OTHER_CFLAGS': [
+                '-fasan',
+                '-faddress-sanitizer',
+                '-w',
+              ],
+              'OTHER_LDFLAGS': [
+                '-fasan',
+                '-faddress-sanitizer',
+                # The symbols below are referenced in the ASan runtime
+                # library (compiled on OS X 10.6), but may be unavailable 
+                # on the prior OS X versions. Because Chromium is currently
+                # targeting 10.5.0, we need to explicitly mark these
+                # symbols as dynamic_lookup.
+                '-Wl,-U,_malloc_default_purgeable_zone',
+                '-Wl,-U,_malloc_zone_memalign',
+                '-Wl,-U,_dispatch_sync_f',
+                '-Wl,-U,_dispatch_async_f',
+                '-Wl,-U,_dispatch_barrier_async_f',
+                '-Wl,-U,_dispatch_group_async_f',
+                '-Wl,-U,_dispatch_after_f',
+              ],
+            },
+            'defines': [
+              'ADDRESS_SANITIZER',
+            ],
+          }],
         ],
         'target_conditions': [
           ['_type!="static_library"', {
@@ -2328,32 +2356,7 @@
                 },
                 'xcode_settings': {
                   'CHROMIUM_STRIP_SAVE_FILE': '<(asan_saves_file)',
-                  'OTHER_CFLAGS': [
-                    '-fasan',
-                    '-faddress-sanitizer',
-                    '-w',
-                  ],
-                  'OTHER_LDFLAGS': [
-                    '-fasan',
-                    '-faddress-sanitizer',
-                    # The symbols below are referenced in the ASan runtime
-                    # library (compiled on OS X 10.6), but may be unavailable 
-                    # on the prior OS X versions. Because Chromium is currently
-                    # targeting 10.5.0, we need to explicitly mark these
-                    # symbols as dynamic_lookup.
-                    '-Wl,-U,_malloc_default_purgeable_zone',
-                    '-Wl,-U,_malloc_zone_memalign',
-                    '-Wl,-U,_dispatch_sync_f',
-                    '-Wl,-U,_dispatch_async_f',
-                    '-Wl,-U,_dispatch_barrier_async_f',
-                    '-Wl,-U,_dispatch_group_async_f',
-                    '-Wl,-U,_dispatch_after_f',
-
-                  ],
                 },
-                'defines': [
-                  'ADDRESS_SANITIZER',
-                ],
               }],
             ],
             'target_conditions': [
