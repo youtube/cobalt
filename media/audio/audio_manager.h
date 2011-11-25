@@ -120,7 +120,11 @@ class MEDIA_EXPORT AudioManager {
   virtual void Cleanup() = 0;
 
  private:
+  // Allow unit tests to delete and recreate the singleton.
+  friend class AutoAudioManagerCleanup;
   static void Destroy(void*);
+  static bool SingletonExists();
+  static void Resurrect();
 
   // Called by GetAudioManager() to create platform-specific audio manager.
   static AudioManager* CreateAudioManager();
