@@ -32,3 +32,13 @@ AudioManager* AudioManager::GetAudioManager() {
   }
   return g_audio_manager;
 }
+
+// static
+bool AudioManager::SingletonExists() {
+  return g_audio_manager != NULL;
+}
+
+// static
+void AudioManager::Resurrect() {
+  g_destroy_called = false;
+}
