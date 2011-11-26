@@ -143,6 +143,14 @@ bool Value::GetAsList(const ListValue** out_value) const {
   return false;
 }
 
+bool Value::GetAsDictionary(DictionaryValue** out_value) {
+  return false;
+}
+
+bool Value::GetAsDictionary(const DictionaryValue** out_value) const {
+  return false;
+}
+
 Value* Value::DeepCopy() const {
   // This method should only be getting called for null Values--all subclasses
   // need to provide their own implementation;.
@@ -343,6 +351,18 @@ DictionaryValue::DictionaryValue()
 
 DictionaryValue::~DictionaryValue() {
   Clear();
+}
+
+bool DictionaryValue::GetAsDictionary(DictionaryValue** out_value) {
+  if (out_value)
+    *out_value = this;
+  return true;
+}
+
+bool DictionaryValue::GetAsDictionary(const DictionaryValue** out_value) const {
+  if (out_value)
+    *out_value = this;
+  return true;
 }
 
 bool DictionaryValue::HasKey(const std::string& key) const {

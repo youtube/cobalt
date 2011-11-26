@@ -98,6 +98,8 @@ class BASE_EXPORT Value {
   virtual bool GetAsString(string16* out_value) const;
   virtual bool GetAsList(ListValue** out_value);
   virtual bool GetAsList(const ListValue** out_value) const;
+  virtual bool GetAsDictionary(DictionaryValue** out_value);
+  virtual bool GetAsDictionary(const DictionaryValue** out_value) const;
 
   // This creates a deep copy of the entire Value tree, and returns a pointer
   // to the copy.  The caller gets ownership of the copy, of course.
@@ -214,6 +216,11 @@ class BASE_EXPORT DictionaryValue : public Value {
  public:
   DictionaryValue();
   virtual ~DictionaryValue();
+
+  // Overridden from Value:
+  virtual bool GetAsDictionary(DictionaryValue** out_value) OVERRIDE;
+  virtual bool GetAsDictionary(
+      const DictionaryValue** out_value) const OVERRIDE;
 
   // Returns true if the current dictionary has a value for the given key.
   bool HasKey(const std::string& key) const;
