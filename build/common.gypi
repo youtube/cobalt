@@ -308,10 +308,15 @@
           'enable_flapper_hacks%': 0,
         }],
 
-        # Enable file manager extension on Chrome OS.
-        ['chromeos==1', {
+        # Enable file manager extension on Chrome OS or Aura.
+        ['chromeos==1 or use_aura==1', {
           'file_manager_extension%': 1,
         }, {
+          'file_manager_extension%': 0,
+        }],
+
+        # ... except on Windows even with Aura.
+        ['use_aura==1 and OS=="win"', {
           'file_manager_extension%': 0,
         }],
 
