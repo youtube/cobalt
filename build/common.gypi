@@ -621,7 +621,7 @@
     'conditions': [
       # Used to disable Native Client at compile time, for platforms where it
       # isn't supported (ARM)
-      ['target_arch=="arm"', {
+      ['target_arch=="arm" or chromeos==1', {
         'disable_nacl%': 1,
        }, {
         'disable_nacl%': 0,
