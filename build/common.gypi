@@ -17,6 +17,9 @@
     # we need to have 'chromeos' already set).
     'variables': {
       'variables': {
+        'includes': [
+          'use_skia_on_mac.gypi',
+        ],
         'variables': {
           # Whether we're building a ChromeOS build.
           'chromeos%': 0,
@@ -35,6 +38,10 @@
 
           # Disable Virtual keyboard support by default.
           'use_virtual_keyboard%': 0,
+
+          # Default setting for use_skia on mac platform.
+          # This is typically overridden in use_skia_on_mac.gypi.
+          'use_skia_on_mac%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
@@ -42,6 +49,7 @@
         'use_aura%': '<(use_aura)',
         'use_openssl%': '<(use_openssl)',
         'use_virtual_keyboard%': '<(use_virtual_keyboard)',
+        'use_skia_on_mac%': '<(use_skia_on_mac)',
 
         # WebKit compositor for ui
         'use_webkit_compositor%': 0,
@@ -81,6 +89,7 @@
       'use_aura%': '<(use_aura)',
       'use_openssl%': '<(use_openssl)',
       'use_virtual_keyboard%': '<(use_virtual_keyboard)',
+      'use_skia_on_mac%': '<(use_skia_on_mac)',
 
       # The variable touchui is still present (until all clean up is done).
       'touchui%': 0,
@@ -235,7 +244,7 @@
         # the 'conditions' clause.  Initial attempts resulted in chromium and
         # webkit disagreeing on its setting.
         ['OS=="mac"', {
-          'use_skia%': 0,
+          'use_skia%': '<(use_skia_on_mac)',
           # Mac uses clang by default, so turn on the plugin as well.
           'clang_use_chrome_plugins%': 1,
         }, {
@@ -366,6 +375,7 @@
     'chromeos%': '<(chromeos)',
     'touchui%': '<(touchui)',
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
+    'use_skia_on_mac%': '<(use_skia_on_mac)',
     'use_xi2_mt%':'<(use_xi2_mt)',
     'file_manager_extension%': '<(file_manager_extension)',
     'webui_task_manager%': '<(webui_task_manager)',
