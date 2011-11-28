@@ -18,8 +18,9 @@
       ],
     }, # target_name: All
     {
-      # The current list of tests for android.
-      # This is temporary until the full set supported.
+      # The current list of tests for android.  This is temporary
+      # until the full set supported.  If adding a new test here,
+      # please also add it to build/android/run_tests.py
       'target_name': 'android_builder_tests',
       'type': 'none',
       'dependencies': [
