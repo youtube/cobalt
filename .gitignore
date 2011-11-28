@@ -137,6 +137,7 @@ v8.log
 /third_party/pthreads-win32
 /third_party/pylib
 /third_party/pyftpdlib/src
+/third_party/pymox/src
 /third_party/python_24
 /third_party/python_26
 /third_party/pywebsocket
