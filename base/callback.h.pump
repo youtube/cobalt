@@ -5,7 +5,8 @@ $$
 $$ http://code.google.com/p/googletest/wiki/PumpManual
 $$
 
-$var MAX_ARITY = 6
+$$ See comment for MAX_ARITY in base/bind.h.pump.
+$var MAX_ARITY = 7
 
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
