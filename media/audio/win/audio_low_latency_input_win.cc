@@ -82,7 +82,6 @@ bool WASAPIAudioInputStream::Open() {
   // device with the specified role.
   HRESULT hr = SetCaptureDevice(device_role_);
   if (FAILED(hr)) {
-    HandleError(hr);
     return false;
   }
 
@@ -90,7 +89,6 @@ bool WASAPIAudioInputStream::Open() {
   // an audio stream between an audio application and the audio engine.
   hr = ActivateCaptureDevice();
   if (FAILED(hr)) {
-    HandleError(hr);
     return false;
   }
 
@@ -98,15 +96,12 @@ bool WASAPIAudioInputStream::Open() {
   // processing/mixing of shared-mode streams.
   hr = GetAudioEngineStreamFormat();
   if (FAILED(hr)) {
-    HandleError(hr);
     return false;
   }
 
   // Verify that the selected audio endpoint supports the specified format
   // set during construction.
   if (!DesiredFormatIsSupported()) {
-    hr = E_INVALIDARG;
-    HandleError(hr);
     return false;
   }
 
@@ -114,7 +109,6 @@ bool WASAPIAudioInputStream::Open() {
   // shared mode and a lowest possible glitch-free latency.
   hr = InitializeAudioEngine();
   if (FAILED(hr)) {
-    HandleError(hr);
     return false;
   }
 
