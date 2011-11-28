@@ -148,5 +148,8 @@ export GYP_DEFINES="${DEFINES}"
 # Use the "android" flavor of the Makefile generator for both Linux and OS X.
 export GYP_GENERATORS="make-android"
 
+# Use our All target as the default
+export GYP_GENERATOR_FLAGS="${GYP_GENERATOR_FLAGS} default_target=All"
+
 # We want to use our version of "all" targets.
 export CHROMIUM_GYP_FILE="${CHROME_SRC}/build/all_android.gyp"
