@@ -43,6 +43,7 @@ ChromeClassTester::ChromeClassTester(CompilerInstance& instance)
 void ChromeClassTester::BuildBannedLists() {
   banned_namespaces_.push_back("std");
   banned_namespaces_.push_back("__gnu_cxx");
+  banned_namespaces_.push_back("WebKit");
 
   banned_directories_.push_back("third_party/");
   banned_directories_.push_back("native_client/");
@@ -153,11 +154,11 @@ void ChromeClassTester::emitWarning(SourceLocation loc, const char* raw_error) {
   DiagnosticBuilder B = diagnostic().Report(full, id);
 }
 
-bool ChromeClassTester::InTestingNamespace(Decl* record) {
+bool ChromeClassTester::InTestingNamespace(const Decl* record) {
   return GetNamespace(record).find("testing") != std::string::npos;
 }
 
-bool ChromeClassTester::InBannedNamespace(Decl* record) {
+bool ChromeClassTester::InBannedNamespace(const Decl* record) {
   std::string n = GetNamespace(record);
   if (n != "") {
     return std::find(banned_namespaces_.begin(), banned_namespaces_.end(), n)
@@ -167,7 +168,7 @@ bool ChromeClassTester::InBannedNamespace(Decl* record) {
   return false;
 }
 
-std::string ChromeClassTester::GetNamespace(Decl* record) {
+std::string ChromeClassTester::GetNamespace(const Decl* record) {
   return GetNamespaceImpl(record->getDeclContext(), "");
 }
 
