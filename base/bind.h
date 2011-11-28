@@ -3,7 +3,6 @@
 // DO NOT EDIT BY HAND!!!
 
 
-
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -408,6 +407,82 @@ Bind(Functor functor, const P1& p1, const P2& p2, const P3& p3, const P4& p4,
           typename internal::CallbackParamTraits<P5>::StorageType,
           typename internal::CallbackParamTraits<P6>::StorageType)>(
           internal::MakeRunnable(functor), p1, p2, p3, p4, p5, p6));
+}
+
+template <typename Functor, typename P1, typename P2, typename P3, typename P4,
+    typename P5, typename P6, typename P7>
+internal::BindStateHolder<
+    internal::BindState<
+        typename internal::FunctorTraits<Functor>::RunnableType,
+        typename internal::FunctorTraits<Functor>::RunType,
+        void(typename internal::CallbackParamTraits<P1>::StorageType,
+            typename internal::CallbackParamTraits<P2>::StorageType,
+            typename internal::CallbackParamTraits<P3>::StorageType,
+            typename internal::CallbackParamTraits<P4>::StorageType,
+            typename internal::CallbackParamTraits<P5>::StorageType,
+            typename internal::CallbackParamTraits<P6>::StorageType,
+            typename internal::CallbackParamTraits<P7>::StorageType)> >
+Bind(Functor functor, const P1& p1, const P2& p2, const P3& p3, const P4& p4,
+    const P5& p5, const P6& p6, const P7& p7) {
+  // Typedefs for how to store and run the functor.
+  typedef typename internal::FunctorTraits<Functor>::RunnableType RunnableType;
+  typedef typename internal::FunctorTraits<Functor>::RunType RunType;
+
+  // Use RunnableType::RunType instead of RunType above because our
+  // checks should below for bound references need to know what the actual
+  // functor is going to interpret the argument as.
+  typedef internal::FunctionTraits<typename RunnableType::RunType>
+      BoundFunctorTraits;
+
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !(is_non_const_reference<typename BoundFunctorTraits::A1Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A2Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A3Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A4Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A5Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A6Type>::value ||
+          is_non_const_reference<typename BoundFunctorTraits::A7Type>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
+  // For methods, we need to be careful for parameter 1.  We do not require
+  // a scoped_refptr because BindState<> itself takes care of AddRef() for
+  // methods. We also disallow binding of an array as the method's target
+  // object.
+  COMPILE_ASSERT(
+      internal::HasIsMethodTag<RunnableType>::value ||
+          !internal::NeedsScopedRefptrButGetsRawPtr<P1>::value,
+      p1_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::HasIsMethodTag<RunnableType>::value ||
+                     !is_array<P1>::value,
+                 first_bound_argument_to_method_cannot_be_array);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P2>::value,
+                 p2_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P3>::value,
+                 p3_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P4>::value,
+                 p4_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P5>::value,
+                 p5_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P6>::value,
+                 p6_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!internal::NeedsScopedRefptrButGetsRawPtr<P7>::value,
+                 p7_is_refcounted_type_and_needs_scoped_refptr);
+
+  return internal::MakeBindStateHolder(
+      new internal::BindState<RunnableType, RunType,
+          void(typename internal::CallbackParamTraits<P1>::StorageType,
+          typename internal::CallbackParamTraits<P2>::StorageType,
+          typename internal::CallbackParamTraits<P3>::StorageType,
+          typename internal::CallbackParamTraits<P4>::StorageType,
+          typename internal::CallbackParamTraits<P5>::StorageType,
+          typename internal::CallbackParamTraits<P6>::StorageType,
+          typename internal::CallbackParamTraits<P7>::StorageType)>(
+          internal::MakeRunnable(functor), p1, p2, p3, p4, p5, p6, p7));
 }
 
 }  // namespace base
