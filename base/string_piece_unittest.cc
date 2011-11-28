@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "base/string16.h"
 #include "base/string_piece.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -542,15 +543,15 @@ TEST(StringPieceTest, HeterogenousStringPieceEquals) {
 }
 
 TEST(StringPiece16Test, CheckComparisonOperators) {
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("")) ==
-              StringPiece16(ASCIIToUTF16("")));
+  ASSERT_TRUE(StringPiece16(string16()) ==
+              StringPiece16(string16()));
   ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) ==
               StringPiece16(ASCIIToUTF16("a")));
   ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) ==
               StringPiece16(ASCIIToUTF16("aa")));
   ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) ==
-               StringPiece16(ASCIIToUTF16("")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("")) ==
+               StringPiece16(string16()));
+  ASSERT_FALSE(StringPiece16(string16()) ==
                StringPiece16(ASCIIToUTF16("a")));
   ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) ==
                StringPiece16(ASCIIToUTF16("b")));
@@ -559,15 +560,15 @@ TEST(StringPiece16Test, CheckComparisonOperators) {
   ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) ==
                StringPiece16(ASCIIToUTF16("a")));
 
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("")) !=
-               StringPiece16(ASCIIToUTF16("")));
+  ASSERT_FALSE(StringPiece16(string16()) !=
+               StringPiece16(string16()));
   ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) !=
                StringPiece16(ASCIIToUTF16("a")));
   ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) !=
                StringPiece16(ASCIIToUTF16("aa")));
   ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) !=
-              StringPiece16(ASCIIToUTF16("")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("")) !=
+              StringPiece16(string16()));
+  ASSERT_TRUE(StringPiece16(string16()) !=
               StringPiece16(ASCIIToUTF16("a")));
   ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) !=
               StringPiece16(ASCIIToUTF16("b")));
