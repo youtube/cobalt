@@ -8,6 +8,7 @@
 // - Constructors/Destructors should not be inlined if they are of a complex
 //   class type.
 // - Missing "virtual" keywords on methods that should be virtual.
+// - Non-annotated overriding virtual methods.
 // - Virtual methods with nonempty implementations in their headers.
 //
 // Things that are still TODO:
@@ -38,8 +39,10 @@ bool TypeHasNonTrivialDtor(const Type* type) {
 // Searches for constructs that we know we don't want in the Chromium code base.
 class FindBadConstructsConsumer : public ChromeClassTester {
  public:
-  FindBadConstructsConsumer(CompilerInstance& instance)
-      : ChromeClassTester(instance) {}
+  FindBadConstructsConsumer(CompilerInstance& instance,
+                            bool skip_override)
+      : ChromeClassTester(instance),
+        skip_override_(skip_override) {}
 
   virtual void CheckChromeClass(const SourceLocation& record_location,
                                 CXXRecordDecl* record) {
@@ -47,7 +50,7 @@ class FindBadConstructsConsumer : public ChromeClassTester {
     CheckVirtualMethods(record_location, record);
   }
 
-  // Prints errors if the constructor/destructor weight it too heavy.
+  // Prints errors if the constructor/destructor weight is too heavy.
   void CheckCtorDtorWeight(const SourceLocation& record_location,
                            CXXRecordDecl* record) {
     // We don't handle anonymous structs. If this record doesn't have a
@@ -136,16 +139,19 @@ class FindBadConstructsConsumer : public ChromeClassTester {
     }
   }
 
-  void CheckVirtualMethod(const CXXMethodDecl *method) {
-    SourceLocation loc = method->getTypeSpecStartLoc();
-    if (isa<CXXDestructorDecl>(method))
-      loc = method->getInnerLocStart();
+  void CheckVirtualMethod(const CXXMethodDecl* method) {
+    if (!method->isVirtual())
+      return;
 
-    if (method->isVirtual() && !method->isVirtualAsWritten())
+    if (!method->isVirtualAsWritten()) {
+      SourceLocation loc = method->getTypeSpecStartLoc();
+      if (isa<CXXDestructorDecl>(method))
+        loc = method->getInnerLocStart();
       emitWarning(loc, "Overriding method must have \"virtual\" keyword.");
+    }
 
     // Virtual methods should not have inline definitions beyond "{}".
-    if (method->isVirtual() && method->hasBody() && method->hasInlineBody()) {
+    if (method->hasBody() && method->hasInlineBody()) {
       if (CompoundStmt* cs = dyn_cast<CompoundStmt>(method->getBody())) {
         if (cs->size()) {
           emitWarning(
@@ -155,6 +161,37 @@ class FindBadConstructsConsumer : public ChromeClassTester {
         }
       }
     }
+  }
+
+  bool IsMethodInBannedNamespace(const CXXMethodDecl* method) {
+    if (InBannedNamespace(method))
+      return true;
+    for (CXXMethodDecl::method_iterator i = method->begin_overridden_methods();
+         i != method->end_overridden_methods();
+         ++i) {
+      const CXXMethodDecl* overridden = *i;
+      if (IsMethodInBannedNamespace(overridden))
+        return true;
+    }
+
+    return false;
+  }
+
+  void CheckOverriddenMethod(const CXXMethodDecl* method) {
+    if (skip_override_)
+      return;
+
+    if (!method->size_overridden_methods() || method->getAttr<OverrideAttr>())
+      return;
+
+    if (isa<CXXDestructorDecl>(method) || method->isPure())
+      return;
+
+    if (IsMethodInBannedNamespace(method))
+      return;
+
+    SourceLocation loc = method->getTypeSpecStartLoc();
+    emitWarning(loc, "Overriding method must be marked with OVERRIDE.");
   }
 
   // Makes sure there is a "virtual" keyword on virtual methods and that there
@@ -180,14 +217,14 @@ class FindBadConstructsConsumer : public ChromeClassTester {
 
     for (CXXRecordDecl::method_iterator it = record->method_begin();
          it != record->method_end(); ++it) {
-      if (it->isCopyAssignmentOperator() ||
-          dyn_cast<CXXConstructorDecl>(*it)) {
+      if (it->isCopyAssignmentOperator() || isa<CXXConstructorDecl>(*it)) {
         // Ignore constructors and assignment operators.
-      } else if (dyn_cast<CXXDestructorDecl>(*it) &&
+      } else if (isa<CXXDestructorDecl>(*it) &&
           !record->hasUserDeclaredDestructor()) {
-        // Ignore non-userdeclared destructors.
+        // Ignore non-user-declared destructors.
       } else {
         CheckVirtualMethod(*it);
+        CheckOverriddenMethod(*it);
       }
     }
   }
@@ -233,7 +270,7 @@ class FindBadConstructsConsumer : public ChromeClassTester {
         break;
       }
       case Type::Typedef: {
-        while (const TypedefType *TT = dyn_cast<TypedefType>(type)) {
+        while (const TypedefType* TT = dyn_cast<TypedefType>(type)) {
           type = TT->getDecl()->getUnderlyingType().getTypePtr();
         }
         CountType(type, trivial_member, non_trivial_member,
@@ -248,19 +285,41 @@ class FindBadConstructsConsumer : public ChromeClassTester {
       }
     }
   }
+
+ private:
+  // TODO(avi): Remove this (and all related code) once the override warning is
+  // enabled on all bots.
+  bool skip_override_;
 };
 
 class FindBadConstructsAction : public PluginASTAction {
+ public:
+  FindBadConstructsAction() : skip_override_(false) {
+  }
+
  protected:
   ASTConsumer* CreateASTConsumer(CompilerInstance &CI, llvm::StringRef ref) {
-    return new FindBadConstructsConsumer(CI);
+    return new FindBadConstructsConsumer(CI, skip_override_);
   }
 
   bool ParseArgs(const CompilerInstance &CI,
                  const std::vector<std::string>& args) {
-    // We don't take any additional arguments here.
-    return true;
+    bool parsed = true;
+
+    for (size_t i = 0; i < args.size() && parsed; ++i) {
+      if (args[i] == "skip-override") {
+        skip_override_ = true;
+      } else {
+        parsed = false;
+        llvm::errs() << "Unknown arg: " << args[i] << "\n";
+      }
+    }
+
+    return parsed;
   }
+
+ private:
+  bool skip_override_;
 };
 
 }  // namespace

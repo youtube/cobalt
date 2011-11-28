@@ -3,6 +3,6 @@ In file included from virtual_methods.cpp:5:
   virtual bool ComplainAboutThis() { return true; }
                                    ^
 ./virtual_methods.h:23:3: warning: [chromium-style] Overriding method must have "virtual" keyword.
-  void MethodHasNoArguments();
+  void MethodHasNoArguments() override;
   ^
 2 warnings generated.

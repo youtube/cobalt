@@ -20,7 +20,7 @@ class VirtualMethodsInHeaders {
 // Complain on missing 'virtual' keyword in overrides.
 class WarnOnMissingVirtual : public VirtualMethodsInHeaders {
  public:
-  void MethodHasNoArguments();
+  void MethodHasNoArguments() override;
 };
 
 // Don't complain about things in a 'testing' namespace.
