@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/base_export.h"
-#include "base/callback.h"
+#include "base/callback_forward.h"
 
 class Task;
 

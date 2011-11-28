@@ -29,7 +29,7 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/callback.h"
+#include "base/callback_forward.h"
 #include "base/location.h"
 #include "base/time.h"
 #include "base/memory/ref_counted.h"
