@@ -5,13 +5,8 @@ $$
 $$ http://code.google.com/p/googletest/wiki/PumpManual
 $$
 
-// TODO(ajwong): If you create an fully unbound method, is there a way to
-// enforce the first argument must be refcounted?  Or do we just say
-// "oh well"?
-//
-// Do we want to allow creating a fully unbound method??
-
-$var MAX_ARITY = 6
+$$ See comment for MAX_ARITY in base/bind.h.pump.
+$var MAX_ARITY = 7
 $range ARITY 0..MAX_ARITY
 
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
