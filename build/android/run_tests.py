@@ -150,6 +150,7 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
         'out', 'Release'))
     _TEST_SUITES = [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
   debug_info_list = []
+  print _TEST_SUITES  # So it shows up in buildbot output
   for t in _TEST_SUITES:
     test = SingleTestRunner(device, t, gtest_filter, test_arguments,
                             timeout, rebaseline, performance_test,
