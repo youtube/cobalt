@@ -23,7 +23,7 @@ usage() {
 
 # Runs a single test case.
 do_testcase() {
-  local output="$("${CLANG_DIR}"/bin/clang -c \
+  local output="$("${CLANG_DIR}"/bin/clang -c -Wno-c++11-extensions \
       -Xclang -load -Xclang "${CLANG_DIR}"/lib/libFindBadConstructs.${LIB} \
       -Xclang -plugin -Xclang find-bad-constructs ${1} 2>&1)"
   local diffout="$(echo "${output}" | diff - "${2}")"
