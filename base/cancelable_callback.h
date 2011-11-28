@@ -25,7 +25,7 @@
 //   MessageLoop::current()->Quit();
 // }
 //
-// CancelableCallback timeout(base::Bind(TimeoutCallback));
+// CancelableCallback timeout(base::Bind(&TimeoutCallback, "Test timed out."));
 // MessageLoop::current()->PostDelayedTask(FROM_HERE, timeout.callback(),
 //                                         4000)  // 4 seconds to run.
 // RunIntensiveTest();
