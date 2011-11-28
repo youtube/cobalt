@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "base/basictypes.h"
+#include "base/string16.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -242,7 +243,7 @@ TEST(StringUtilTest, TrimWhitespace) {
   // Once more, but with a string of whitespace
   output = ASCIIToUTF16("  \r\n");
   EXPECT_EQ(TRIM_ALL, TrimWhitespace(output, TRIM_ALL, &output));
-  EXPECT_EQ(ASCIIToUTF16(""), output);
+  EXPECT_EQ(string16(), output);
 
   std::string output_ascii;
   for (size_t i = 0; i < arraysize(trim_cases_ascii); ++i) {
@@ -327,7 +328,7 @@ TEST(StringUtilTest, ContainsOnlyWhitespaceASCII) {
 }
 
 TEST(StringUtilTest, ContainsOnlyWhitespace) {
-  EXPECT_TRUE(ContainsOnlyWhitespace(ASCIIToUTF16("")));
+  EXPECT_TRUE(ContainsOnlyWhitespace(string16()));
   EXPECT_TRUE(ContainsOnlyWhitespace(ASCIIToUTF16(" ")));
   EXPECT_TRUE(ContainsOnlyWhitespace(ASCIIToUTF16("\t")));
   EXPECT_TRUE(ContainsOnlyWhitespace(ASCIIToUTF16("\t \r \n  ")));

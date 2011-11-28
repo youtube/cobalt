@@ -6,6 +6,7 @@
 
 #include "base/i18n/rtl.h"
 #include "base/i18n/string_search.h"
+#include "base/string16.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "unicode/usearch.h"
@@ -35,10 +36,10 @@ TEST(StringSearchTest, ASCII) {
       ASCIIToUTF16("aabaaa"), ASCIIToUTF16("aaabaabaaa")));
 
   EXPECT_FALSE(StringSearchIgnoringCaseAndAccents(
-      ASCIIToUTF16("searching within empty string"), ASCIIToUTF16("")));
+      ASCIIToUTF16("searching within empty string"), string16()));
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      ASCIIToUTF16(""), ASCIIToUTF16("searching for empty string")));
+      string16(), ASCIIToUTF16("searching for empty string")));
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
       ASCIIToUTF16("case insensitivity"), ASCIIToUTF16("CaSe InSeNsItIvItY")));
