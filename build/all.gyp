@@ -150,6 +150,18 @@
       ],
     }, # target_name: All
     {
+      'target_name': 'All_syzygy',
+      'type': 'none',
+      'conditions': [
+        ['OS=="win" and fastbuild==0', {
+            'dependencies': [
+              '../chrome/installer/mini_installer_syzygy.gyp:*',
+            ],
+          },
+        ],
+      ],
+    }, # target_name: All_syzygy
+    {
       'target_name': 'chromium_builder_tests',
       'type': 'none',
       'dependencies': [
