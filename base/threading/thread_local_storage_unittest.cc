@@ -22,6 +22,10 @@ namespace base {
 namespace {
 
 const int kInitialTlsValue = 0x5555;
+const int kFinalTlsValue = 0x7777;
+// How many times must a destructor be called before we really are done.
+const int kNumberDestructorCallRepetitions = 3;
+
 static ThreadLocalStorage::Slot tls_slot(LINKER_INITIALIZED);
 
 class ThreadLocalStorageRunner : public DelegateSimpleThread::Delegate {
@@ -43,6 +47,8 @@ class ThreadLocalStorageRunner : public DelegateSimpleThread::Delegate {
     ptr = static_cast<int*>(tls_slot.Get());
     EXPECT_EQ(ptr, tls_value_ptr_);
     EXPECT_EQ(*ptr, 0);
+
+    *ptr = kFinalTlsValue + kNumberDestructorCallRepetitions;
   }
 
  private:
@@ -53,8 +59,15 @@ class ThreadLocalStorageRunner : public DelegateSimpleThread::Delegate {
 
 void ThreadLocalStorageCleanup(void *value) {
   int *ptr = reinterpret_cast<int*>(value);
-  if (ptr)
-    *ptr = kInitialTlsValue;
+  // Destructors should never be called with a NULL.
+  ASSERT_NE(reinterpret_cast<int*>(NULL), ptr);
+  if (*ptr == kFinalTlsValue)
+    return;  // We've been called enough times.
+  ASSERT_LT(kFinalTlsValue, *ptr);
+  ASSERT_GE(kFinalTlsValue + kNumberDestructorCallRepetitions, *ptr);
+  --*ptr;  // Move closer to our target.
+  // Tell tls that we're not done with this thread, and still need destruction.
+  tls_slot.Set(value);
 }
 
 }  // namespace
@@ -93,7 +106,7 @@ TEST(ThreadLocalStorageTest, TLSDestructors) {
     delete thread_delegates[index];
 
     // Verify that the destructor was called and that we reset.
-    EXPECT_EQ(values[index], kInitialTlsValue);
+    EXPECT_EQ(values[index], kFinalTlsValue);
   }
   tls_slot.Free();  // Stop doing callbacks to cleanup threads.
 }
