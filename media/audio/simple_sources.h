@@ -36,7 +36,6 @@ class MEDIA_EXPORT SineWaveAudioSource
   int channels_;
   double freq_;
   double sample_freq_;
-  int time_state_;
 };
 
 // Defines an interface for pushing audio output. In contrast, the interfaces
