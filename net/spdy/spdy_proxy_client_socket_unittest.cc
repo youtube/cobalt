@@ -1238,4 +1238,99 @@ TEST_F(SpdyProxyClientSocketTest, DisconnectWithReadPending) {
   EXPECT_FALSE(read_callback_.have_result());
 }
 
+// If the socket is Reset when both a read and write are pending,
+// both should be called back.
+TEST_F(SpdyProxyClientSocketTest, RstWithReadAndWritePending) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+    MockWrite(true, ERR_IO_PENDING, 2),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectReplyFrame());
+  scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(1, spdy::CANCEL));
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    CreateMockRead(*rst, 3, true),
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectSucceeds();
+
+  EXPECT_TRUE(sock_->IsConnected());
+
+  scoped_refptr<IOBuffer> read_buf(new IOBuffer(kLen1));
+  ASSERT_EQ(ERR_IO_PENDING, sock_->Read(read_buf, kLen1, &read_callback_));
+
+  scoped_refptr<IOBufferWithSize> write_buf(CreateBuffer(kMsg1, kLen1));
+  EXPECT_EQ(ERR_IO_PENDING, sock_->Write(write_buf, write_buf->size(),
+                                         &write_callback_));
+
+  Run(2);
+
+  EXPECT_TRUE(sock_.get());
+  EXPECT_TRUE(read_callback_.have_result());
+  EXPECT_TRUE(write_callback_.have_result());
+}
+
+// CompletionCallback that causes the SpdyProxyClientSocket to be
+// deleted when Run is invoked.
+class DeleteSockCallback : public TestOldCompletionCallback {
+ public:
+  explicit DeleteSockCallback(scoped_ptr<SpdyProxyClientSocket>* sock)
+    : sock_(sock) {
+  }
+
+  virtual ~DeleteSockCallback() {
+  }
+
+  virtual void RunWithParams(const Tuple1<int>& params) OVERRIDE {
+    sock_->reset(NULL);
+    TestOldCompletionCallback::RunWithParams(params);
+  }
+
+ private:
+  scoped_ptr<SpdyProxyClientSocket>* sock_;
+};
+
+// If the socket is Reset when both a read and write are pending, and the
+// read callback causes the socket to be deleted, the write callback should
+// not be called.
+TEST_F(SpdyProxyClientSocketTest, RstWithReadAndWritePendingDelete) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+    MockWrite(true, ERR_IO_PENDING, 2),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectReplyFrame());
+  scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(1, spdy::CANCEL));
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    CreateMockRead(*rst, 3, true),
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectSucceeds();
+
+  EXPECT_TRUE(sock_->IsConnected());
+
+  DeleteSockCallback read_callback(&sock_);
+
+  scoped_refptr<IOBuffer> read_buf(new IOBuffer(kLen1));
+  ASSERT_EQ(ERR_IO_PENDING, sock_->Read(read_buf, kLen1, &read_callback));
+
+  scoped_refptr<IOBufferWithSize> write_buf(CreateBuffer(kMsg1, kLen1));
+  EXPECT_EQ(ERR_IO_PENDING, sock_->Write(write_buf, write_buf->size(),
+                                         &write_callback_));
+
+  Run(2);
+
+  EXPECT_FALSE(sock_.get());
+  EXPECT_TRUE(read_callback.have_result());
+  EXPECT_FALSE(write_callback_.have_result());
+}
+
 }  // namespace net
