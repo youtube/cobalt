@@ -1113,34 +1113,27 @@ TEST(StringUtilTest, ContainsOnlyChars) {
   EXPECT_FALSE(ContainsOnlyChars("123a", "4321"));
 }
 
-TEST(StringUtilTest, WriteInto) {
+class WriteIntoTest : public testing::Test {
+ protected:
+  static void WritesCorrectly(size_t num_chars) {
+    std::string buffer;
+    char kOriginal[] = "supercali";
+    strncpy(WriteInto(&buffer, num_chars + 1), kOriginal, num_chars);
+    // Using std::string(buffer.c_str()) instead of |buffer| truncates the
+    // string at the first \0.
+    EXPECT_EQ(std::string(kOriginal,
+                          std::min(num_chars, arraysize(kOriginal) - 1)),
+              std::string(buffer.c_str()));
+    EXPECT_EQ(num_chars, buffer.size());
+  }
+};
+
+TEST_F(WriteIntoTest, WriteInto) {
   // Validate that WriteInto reserves enough space and
   // sizes a string correctly.
-  std::string buffer;
-  const char kOriginal[] = "supercali";
-  strncpy(WriteInto(&buffer, 1), kOriginal, 0);
-  EXPECT_STREQ("", buffer.c_str());
-  EXPECT_EQ(0u, buffer.size());
-  strncpy(WriteInto(&buffer, 2), kOriginal, 1);
-  EXPECT_STREQ("s", buffer.c_str());
-  EXPECT_EQ(1u, buffer.size());
-  strncpy(WriteInto(&buffer, 3), kOriginal, 2);
-  EXPECT_STREQ("su", buffer.c_str());
-  EXPECT_EQ(2u, buffer.size());
-  strncpy(WriteInto(&buffer, 5001), kOriginal, 5000);
-  EXPECT_STREQ("supercali", buffer.c_str());
-  EXPECT_EQ(5000u, buffer.size());
-  strncpy(WriteInto(&buffer, 3), kOriginal, 2);
-  EXPECT_STREQ("su", buffer.c_str());
-  EXPECT_EQ(2u, buffer.size());
-  strncpy(WriteInto(&buffer, 1), kOriginal, 0);
-  EXPECT_STREQ("", buffer.c_str());
-  EXPECT_EQ(0u, buffer.size());
-
-  // Validate that WriteInto returns NULL only when
-  // |length_with_null| == 1.
-  EXPECT_TRUE(WriteInto(&buffer, 1) == NULL);
-  EXPECT_TRUE(WriteInto(&buffer, 2) != NULL);
+  WritesCorrectly(1);
+  WritesCorrectly(2);
+  WritesCorrectly(5000);
 
   // Validate that WriteInto doesn't modify other strings
   // when using a Copy-on-Write implementation.
@@ -1149,9 +1142,9 @@ TEST(StringUtilTest, WriteInto) {
   const std::string live = kLive;
   std::string dead = live;
   strncpy(WriteInto(&dead, 5), kDead, 4);
-  EXPECT_STREQ(kDead, dead.c_str());
+  EXPECT_EQ(kDead, dead);
   EXPECT_EQ(4u, dead.size());
-  EXPECT_STREQ(kLive, live.c_str());
+  EXPECT_EQ(kLive, live);
   EXPECT_EQ(4u, live.size());
 }
 

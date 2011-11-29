@@ -557,18 +557,22 @@ void X509Certificate::Initialize() {
                             &cert_handle_->pCertInfo->Subject,
                             CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
                             NULL, 0);
-  name_size = CertNameToStr(cert_handle_->dwCertEncodingType,
-                            &cert_handle_->pCertInfo->Subject,
-                            CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
-                            WriteInto(&subject_info, name_size), name_size);
+  if (name_size > 1) {
+    CertNameToStr(cert_handle_->dwCertEncodingType,
+                  &cert_handle_->pCertInfo->Subject,
+                  CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
+                  WriteInto(&subject_info, name_size), name_size);
+  }
   name_size = CertNameToStr(cert_handle_->dwCertEncodingType,
                             &cert_handle_->pCertInfo->Issuer,
                             CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
                             NULL, 0);
-  name_size = CertNameToStr(cert_handle_->dwCertEncodingType,
-                            &cert_handle_->pCertInfo->Issuer,
-                            CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
-                            WriteInto(&issuer_info, name_size), name_size);
+  if (name_size > 1) {
+    CertNameToStr(cert_handle_->dwCertEncodingType,
+                  &cert_handle_->pCertInfo->Issuer,
+                  CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
+                  WriteInto(&issuer_info, name_size), name_size);
+  }
   ParsePrincipal(WideToUTF8(subject_info), &subject_);
   ParsePrincipal(WideToUTF8(issuer_info), &issuer_);
 
