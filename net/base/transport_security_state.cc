@@ -80,8 +80,10 @@ void TransportSecurityState::EnableHost(const std::string& host,
   // Use the original creation date if we already have this host.
   DomainState state_copy(state);
   DomainState existing_state;
-  if (IsEnabledForHost(&existing_state, host, true))
+  if (GetDomainState(&existing_state, host, true) &&
+      !existing_state.created.is_null()) {
     state_copy.created = existing_state.created;
+  }
 
   // We don't store these values.
   state_copy.preloaded = false;
@@ -117,13 +119,12 @@ bool TransportSecurityState::HasPinsForHost(DomainState* result,
          !result->public_key_hashes.empty();
 }
 
-bool TransportSecurityState::IsEnabledForHost(DomainState* result,
-                                              const std::string& host,
-                                              bool sni_available) {
+bool TransportSecurityState::GetDomainState(DomainState* result,
+                                            const std::string& host,
+                                            bool sni_available) {
   DCHECK(CalledOnValidThread());
 
-  return HasMetadata(result, host, sni_available) &&
-         result->mode != DomainState::MODE_NONE;
+  return HasMetadata(result, host, sni_available);
 }
 
 bool TransportSecurityState::HasMetadata(DomainState* result,
@@ -719,8 +720,8 @@ bool TransportSecurityState::Deserialise(
       mode = DomainState::MODE_STRICT;
     } else if (mode_string == "spdy-only") {
       mode = DomainState::MODE_SPDY_ONLY;
-    } else if (mode_string == "none") {
-      mode = DomainState::MODE_NONE;
+    } else if (mode_string == "pinning-only") {
+      mode = DomainState::MODE_PINNING_ONLY;
     } else {
       LOG(WARNING) << "Unknown TransportSecurityState mode string found: "
                    << mode_string;
@@ -876,7 +877,7 @@ static bool HasPreload(const struct HSTSPreload* entries, size_t num_entries,
         out->include_subdomains = entries[j].include_subdomains;
         *ret = true;
         if (!entries[j].https_required)
-          out->mode = TransportSecurityState::DomainState::MODE_NONE;
+          out->mode = TransportSecurityState::DomainState::MODE_PINNING_ONLY;
         if (entries[j].pins.required_hashes) {
           const char* const* hash = entries[j].pins.required_hashes;
           while (*hash) {
@@ -1341,6 +1342,21 @@ bool TransportSecurityState::DomainState::IsChainOfPublicKeysPermitted(
              << ", expected: " << HashesToBase64String(public_key_hashes);
 
   return false;
+}
+
+bool TransportSecurityState::DomainState::ShouldCertificateErrorsBeFatal()
+    const {
+  return true;
+}
+
+bool TransportSecurityState::DomainState::ShouldRedirectHTTPToHTTPS()
+    const {
+  return mode == MODE_STRICT;
+}
+
+bool TransportSecurityState::DomainState::ShouldMixedScriptingBeBlocked()
+    const {
+  return true;
 }
 
 }  // namespace
