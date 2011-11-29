@@ -137,8 +137,8 @@ class NET_EXPORT WebSocketJob
   scoped_ptr<SpdyWebSocketStream> spdy_websocket_stream_;
   std::string challenge_;
 
-  ScopedRunnableMethodFactory<WebSocketJob> method_factory_;
   base::WeakPtrFactory<WebSocketJob> weak_ptr_factory_;
+  base::WeakPtrFactory<WebSocketJob> weak_ptr_factory_for_send_pending_;
 
   DISALLOW_COPY_AND_ASSIGN(WebSocketJob);
 };
