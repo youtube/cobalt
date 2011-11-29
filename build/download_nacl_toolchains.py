@@ -15,10 +15,10 @@ def Main(args):
     args = [
       '--nacl-newlib-only',
       '--file-hash', 'linux_x86_newlib',
-           '8337d5ec327d857a49b500723ec9b792f4973abc',
+           '1deb316302fde89a2200dff6550cf510ae90b89b',
       '--base-url', ('https://commondatastorage.googleapis.com/'
                      'nativeclient-archive2/special_chromeos'),
-      '--x86-version', '6561',
+      '--x86-version', '7258',
     ]
     print 'NOTE: Special handling for chromeos'
     print 'Running with these argument instead:'
