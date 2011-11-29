@@ -417,7 +417,7 @@ class BASE_EXPORT Histogram {
 
    private:
     // Allow tests to corrupt our innards for testing purposes.
-    FRIEND_TEST(HistogramTest, CorruptSampleCounts);
+    FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
 
     // To help identify memory corruption, we reduntantly save the number of
     // samples we've accumulated into all of our buckets.  We can compare this
@@ -580,10 +580,10 @@ class BASE_EXPORT Histogram {
 
  private:
   // Allow tests to corrupt our innards for testing purposes.
-  FRIEND_TEST(HistogramTest, CorruptBucketBounds);
-  FRIEND_TEST(HistogramTest, CorruptSampleCounts);
-  FRIEND_TEST(HistogramTest, Crc32SampleHash);
-  FRIEND_TEST(HistogramTest, Crc32TableTest);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptBucketBounds);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, Crc32SampleHash);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, Crc32TableTest);
 
   friend class StatisticsRecorder;  // To allow it to delete duplicates.
 
@@ -874,7 +874,7 @@ class BASE_EXPORT CachedRanges {
 
  private:
   // Allow tests to corrupt our innards for testing purposes.
-  FRIEND_TEST(HistogramTest, CorruptBucketBounds);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptBucketBounds);
 
   // A monotonically increasing list of values which determine which bucket to
   // put a sample into.  For each index, show the smallest sample that can be
