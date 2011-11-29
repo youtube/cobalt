@@ -9,6 +9,7 @@
 #include <windows.h>
 
 #include "base/base_export.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 
 namespace base {
@@ -79,12 +80,17 @@ class BASE_EXPORT ObjectWatcher : public MessageLoop::DestructionObserver {
   // Called on a background thread when done waiting.
   static void CALLBACK DoneWaiting(void* param, BOOLEAN timed_out);
 
+  void Signal();
+
   // MessageLoop::DestructionObserver implementation:
   virtual void WillDestroyCurrentMessageLoop();
 
   // Internal state.
-  struct Watch;
-  Watch* watch_;
+  base::WeakPtrFactory<ObjectWatcher> weak_factory_;
+  HANDLE object_;             // The object being watched
+  HANDLE wait_object_;        // Returned by RegisterWaitForSingleObject
+  MessageLoop* origin_loop_;  // Used to get back to the origin thread
+  Delegate* delegate_;        // Delegate to notify when signaled
 
   DISALLOW_COPY_AND_ASSIGN(ObjectWatcher);
 };
