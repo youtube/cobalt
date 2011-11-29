@@ -72,13 +72,12 @@ bool Encryptor::Init(SymmetricKey* key,
       break;
   }
 
-  if (!param_.get())
-    return false;
-  return true;
+  return param_ != NULL;
 }
 
 bool Encryptor::Encrypt(const base::StringPiece& plaintext,
                         std::string* ciphertext) {
+  CHECK(!plaintext.empty() || (mode_ == CBC));
   ScopedPK11Context context(PK11_CreateContextBySymKey(GetMechanism(mode_),
                                                        CKA_ENCRYPT,
                                                        key_->key(),
@@ -86,34 +85,30 @@ bool Encryptor::Encrypt(const base::StringPiece& plaintext,
   if (!context.get())
     return false;
 
-  if (mode_ == CTR)
-    return CryptCTR(context.get(), plaintext, ciphertext);
-  else
-    return Crypt(context.get(), plaintext, ciphertext);
+  return (mode_ == CTR) ?
+      CryptCTR(context.get(), plaintext, ciphertext) :
+      Crypt(context.get(), plaintext, ciphertext);
 }
 
 bool Encryptor::Decrypt(const base::StringPiece& ciphertext,
                         std::string* plaintext) {
-  if (ciphertext.empty())
-    return false;
-
+  CHECK(!ciphertext.empty());
   ScopedPK11Context context(PK11_CreateContextBySymKey(
       GetMechanism(mode_), (mode_ == CTR ? CKA_ENCRYPT : CKA_DECRYPT),
       key_->key(), param_.get()));
   if (!context.get())
     return false;
 
-  if (mode_ == CTR)
-    return CryptCTR(context.get(), ciphertext, plaintext);
-  else
-    return Crypt(context.get(), ciphertext, plaintext);
+  return (mode_ == CTR) ?
+      CryptCTR(context.get(), ciphertext, plaintext) :
+      Crypt(context.get(), ciphertext, plaintext);
 }
 
 bool Encryptor::Crypt(PK11Context* context,
                       const base::StringPiece& input,
                       std::string* output) {
   size_t output_len = input.size() + AES_BLOCK_SIZE;
-  CHECK(output_len > input.size()) << "Output size overflow";
+  CHECK_GT(output_len, input.size());
 
   output->resize(output_len);
   uint8* output_data =
@@ -160,7 +155,7 @@ bool Encryptor::CryptCTR(PK11Context* context,
 
   size_t output_len = ((input.size() + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE) *
       AES_BLOCK_SIZE;
-  CHECK(output_len >= input.size()) << "Output size overflow";
+  CHECK_GE(output_len, input.size());
   output->resize(output_len);
   uint8* output_data =
       reinterpret_cast<uint8*>(const_cast<char*>(output->data()));
@@ -180,7 +175,7 @@ bool Encryptor::CryptCTR(PK11Context* context,
                                mask_len);
   if (SECSuccess != rv)
     return false;
-  CHECK(op_len == static_cast<int>(mask_len));
+  CHECK_EQ(static_cast<int>(mask_len), op_len);
 
   unsigned int digest_len;
   rv = PK11_DigestFinal(context,
