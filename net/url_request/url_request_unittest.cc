@@ -1079,6 +1079,48 @@ TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
   }
 }
 
+// This tests that a load of www.google.com with a certificate error sets the
+// is_hsts_host flag correctly. This flag will cause the interstitial to be
+// fatal.
+TEST_F(HTTPSRequestTest, HTTPSPreloadedHSTSTest) {
+  TestServer::HTTPSOptions https_options(
+      TestServer::HTTPSOptions::CERT_MISMATCHED_NAME);
+  TestServer test_server(https_options,
+                         FilePath(FILE_PATH_LITERAL("net/data/ssl")));
+  ASSERT_TRUE(test_server.Start());
+
+  // We require that the URL be www.google.com in order to pick up the
+  // preloaded HSTS entries in the TransportSecurityState. This means that we
+  // have to use a MockHostResolver in order to direct www.google.com to the
+  // testserver.
+
+  MockHostResolver host_resolver;
+  host_resolver.rules()->AddRule("www.google.com", "127.0.0.1");
+  TestNetworkDelegate network_delegate;  // must outlive URLRequest
+  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
+  context->set_network_delegate(&network_delegate);
+  context->set_host_resolver(&host_resolver);
+  TransportSecurityState transport_security_state("");
+  context->set_transport_security_state(&transport_security_state);
+  context->Init();
+
+  TestDelegate d;
+  TestURLRequest r(GURL(StringPrintf("https://www.google.com:%d",
+                                     test_server.host_port_pair().port())),
+                   &d);
+  r.set_context(context);
+
+  r.Start();
+  EXPECT_TRUE(r.is_pending());
+
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(1, d.response_started_count());
+  EXPECT_FALSE(d.received_data_before_response());
+  EXPECT_TRUE(d.have_certificate_errors());
+  EXPECT_TRUE(d.is_hsts_host());
+}
+
 namespace {
 
 class SSLClientAuthTestDelegate : public TestDelegate {
