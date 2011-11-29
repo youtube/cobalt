@@ -339,7 +339,10 @@ size_t SpdyFramer::ProcessInput(const char* data, size_t len) {
         continue;
       }
       default:
-        break;
+        // This ensures that we don't infinite-loop if state_ gets an
+        // invalid value somehow, such as due to a SpdyFramer getting deleted
+        // from a callback it calls.
+        goto bottom;
     }
   }
  bottom:
