@@ -77,15 +77,8 @@ class BASE_EXPORT ThreadLocalStorage {
   // Function to lazily initialize our thread local storage.
   static void **Initialize();
 
- private:
-  // The maximum number of 'slots' in our thread local storage stack.
-  // For now, this is fixed.  We could either increase statically, or
-  // we could make it dynamic in the future.
-  static const int kThreadLocalStorageSize = 64;
-
   static long tls_key_;
   static long tls_max_;
-  static TLSDestructorFunc tls_destructors_[kThreadLocalStorageSize];
 #endif  // OS_WIN
 
   DISALLOW_COPY_AND_ASSIGN(ThreadLocalStorage);
