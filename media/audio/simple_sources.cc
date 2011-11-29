@@ -21,7 +21,8 @@ SineWaveAudioSource::SineWaveAudioSource(Format format, int channels,
     : format_(format),
       channels_(channels),
       freq_(freq),
-      sample_freq_(sample_freq) {
+      sample_freq_(sample_freq),
+      time_state_(0) {
   // TODO(cpu): support other formats.
   DCHECK((format_ == FORMAT_16BIT_LINEAR_PCM) && (channels_ == 1));
 }
@@ -35,10 +36,17 @@ uint32 SineWaveAudioSource::OnMoreData(
   double f = freq_ / sample_freq_;
   int16* sin_tbl = reinterpret_cast<int16*>(dest);
   uint32 len = max_size / sizeof(int16);
-  // The table is filled with s(t) = 32768*sin(2PI*f*t).
-  for (uint32 ix = 0; ix != len; ++ix) {
-    double th = kTwoPi * ix * f;
-    sin_tbl[ix] = static_cast<int16>((1 << 15) * sin(th));
+
+  // The table is filled with s(t) = kint16max*sin(Theta*t),
+  // where Theta = 2*PI*fs.
+  // We store the discrete time value |t| in a member to ensure that the
+  // next pass starts at a correct state.
+  for (uint32 n = 0; n < len; ++n) {
+    double theta = kTwoPi * f;
+    double ksinx = kint16max * sin(theta * time_state_);
+    sin_tbl[n] = (ksinx > 0.0f) ? static_cast<int16>(ksinx + 0.5) :
+        static_cast<int16>(ksinx - 0.5);
+    ++time_state_;
   }
   return max_size;
 }
