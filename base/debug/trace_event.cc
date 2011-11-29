@@ -59,8 +59,8 @@ const TraceCategory* const g_category_metadata =
 int g_category_index = 3; // skip initial 3 categories
 
 // The most-recently captured name of the current thread
-LazyInstance<ThreadLocalPointer<char>,
-             LeakyLazyInstanceTraits<ThreadLocalPointer<char> > >
+LazyInstance<ThreadLocalPointer<const char>,
+             LeakyLazyInstanceTraits<ThreadLocalPointer<const char> > >
     g_current_thread_name = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
@@ -558,8 +558,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
     // favor common case performance over corner case correctness.
     if (new_name != g_current_thread_name.Get().Get() &&
         new_name && *new_name) {
-      // Benign const cast.
-      g_current_thread_name.Get().Set(const_cast<char*>(new_name));
+      g_current_thread_name.Get().Set(new_name);
       base::hash_map<PlatformThreadId, std::string>::iterator existing_name =
           thread_names_.find(thread_id);
       if (existing_name == thread_names_.end()) {

@@ -93,7 +93,8 @@ class ThreadLocalPointer {
   }
 
   void Set(Type* ptr) {
-    internal::ThreadLocalPlatform::SetValueInSlot(slot_, ptr);
+    internal::ThreadLocalPlatform::SetValueInSlot(
+        slot_, const_cast<void*>(static_cast<const void*>(ptr)));
   }
 
  private:
