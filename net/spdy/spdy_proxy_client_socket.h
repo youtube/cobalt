@@ -11,6 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_log.h"
@@ -159,6 +160,8 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   bool was_ever_used_;
 
   scoped_ptr<SpdyHttpStream> response_stream_;
+
+  base::WeakPtrFactory<SpdyProxyClientSocket> weak_factory_;
 
   const BoundNetLog net_log_;
 
