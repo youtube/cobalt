@@ -20,6 +20,13 @@ std::string HexDumpWithMarks(const unsigned char* data, int length,
   static const char kHexChars[] = "0123456789ABCDEF";
   static const int kColumns = 4;
 
+  const int kSizeLimit = 1024;
+  if (length > kSizeLimit || mark_length > kSizeLimit) {
+    LOG(ERROR) << "Only dumping first " << kSizeLimit << " bytes.";
+    length = std::min(length, kSizeLimit);
+    mark_length = std::min(mark_length, kSizeLimit);
+  }
+
   std::string hex;
   for (const unsigned char* row = data; length > 0;
        row += kColumns, length -= kColumns) {
@@ -76,25 +83,42 @@ void CompareCharArraysWithHexError(
       << HexDumpWithMarks(actual, actual_len, marks.get(), max_len);
 }
 
-void FramerSetEnableCompressionHelper(SpdyFramer* framer, bool compress) {
-  framer->set_enable_compression(compress);
-}
-
 class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
  public:
+  static const size_t kDefaultHeaderBufferSize = 16 * 1024;
+
   TestSpdyVisitor()
-    : error_count_(0),
+    : use_compression_(false),
+      error_count_(0),
       syn_frame_count_(0),
       syn_reply_frame_count_(0),
       headers_frame_count_(0),
+      goaway_count_(0),
       data_bytes_(0),
       fin_frame_count_(0),
       fin_flag_count_(0),
-      zero_length_data_frame_count_(0) {
+      zero_length_data_frame_count_(0),
+      header_blocks_count_(0),
+      control_frame_header_data_count_(0),
+      zero_length_control_frame_header_data_count_(0),
+      data_frame_count_(0),
+      header_buffer_(new char[kDefaultHeaderBufferSize]),
+      header_buffer_length_(0),
+      header_buffer_size_(kDefaultHeaderBufferSize),
+      header_stream_id_(-1),
+      header_control_type_(NUM_CONTROL_FRAME_TYPES),
+      header_buffer_valid_(false) {
   }
 
   void OnError(SpdyFramer* f) {
+    LOG(INFO) << "SpdyFramer Error: "
+              << SpdyFramer::ErrorCodeToString(f->error_code());
     error_count_++;
+  }
+
+  void OnDataFrameHeader(const SpdyDataFrame* frame) {
+    data_frame_count_++;
+    header_stream_id_ = frame->stream_id();
   }
 
   void OnStreamFrameData(SpdyStreamId stream_id,
@@ -114,29 +138,27 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
   }
 
   void OnControl(const SpdyControlFrame* frame) {
-    SpdyHeaderBlock headers;
-    bool parsed_headers = false;
     switch (frame->type()) {
       case SYN_STREAM:
-        parsed_headers = framer_.ParseHeaderBlock(frame, &headers);
-        DCHECK(parsed_headers);
         syn_frame_count_++;
+        InitHeaderStreaming(frame);
         break;
       case SYN_REPLY:
-        parsed_headers = framer_.ParseHeaderBlock(frame, &headers);
-        DCHECK(parsed_headers);
         syn_reply_frame_count_++;
+        InitHeaderStreaming(frame);
         break;
       case RST_STREAM:
         fin_frame_count_++;
         break;
       case HEADERS:
-        parsed_headers = framer_.ParseHeaderBlock(frame, &headers);
-        DCHECK(parsed_headers);
         headers_frame_count_++;
+        InitHeaderStreaming(frame);
+        break;
+      case GOAWAY:
+        goaway_count_++;
         break;
       default:
-        DCHECK(false);  // Error!
+        DLOG(FATAL);  // Error!
     }
     if (frame->flags() & CONTROL_FLAG_FIN)
       ++fin_flag_count_;
@@ -145,17 +167,30 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
   bool OnControlFrameHeaderData(SpdyStreamId stream_id,
                                 const char* header_data,
                                 size_t len) {
-    DCHECK(false);
-    return false;
-  }
-
-  void OnDataFrameHeader(const SpdyDataFrame* frame) {
-    DCHECK(false);
+    ++control_frame_header_data_count_;
+    CHECK_EQ(header_stream_id_, stream_id);
+    if (len == 0) {
+      ++zero_length_control_frame_header_data_count_;
+      // Indicates end-of-header-block.
+      CHECK(header_buffer_valid_);
+      bool parsed_headers = SpdyFramer::ParseHeaderBlockInBuffer(
+          header_buffer_.get(), header_buffer_length_, &headers_);
+      DCHECK(parsed_headers);
+      return true;
+    }
+    const size_t available = header_buffer_size_ - header_buffer_length_;
+    if (len > available) {
+      header_buffer_valid_ = false;
+      return false;
+    }
+    memcpy(header_buffer_.get() + header_buffer_length_, header_data, len);
+    header_buffer_length_ += len;
+    return true;
   }
 
   // Convenience function which runs a framer simulation with particular input.
   void SimulateInFramer(const unsigned char* input, size_t size) {
-    framer_.set_enable_compression(false);
+    framer_.set_enable_compression(use_compression_);
     framer_.set_visitor(this);
     size_t input_remaining = size;
     const char* input_ptr = reinterpret_cast<const char*>(input);
@@ -175,16 +210,56 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
     }
   }
 
+  void InitHeaderStreaming(const SpdyControlFrame* frame) {
+    memset(header_buffer_.get(), 0, header_buffer_size_);
+    header_buffer_length_ = 0;
+    header_stream_id_ = SpdyFramer::GetControlFrameStreamId(frame);
+    header_control_type_ = frame->type();
+    header_buffer_valid_ = true;
+    DCHECK_NE(header_stream_id_, SpdyFramer::kInvalidStream);
+  }
+
+  // Override the default buffer size (16K). Call before using the framer!
+  void set_header_buffer_size(size_t header_buffer_size) {
+    header_buffer_size_ = header_buffer_size;
+    header_buffer_.reset(new char[header_buffer_size]);
+  }
+
+  static size_t control_frame_buffer_max_size() {
+    return SpdyFramer::kControlFrameBufferMaxSize;
+  }
+
+  static size_t header_data_chunk_max_size() {
+    return SpdyFramer::kHeaderDataChunkMaxSize;
+  }
+
   SpdyFramer framer_;
+  bool use_compression_;
+
   // Counters from the visitor callbacks.
   int error_count_;
   int syn_frame_count_;
   int syn_reply_frame_count_;
   int headers_frame_count_;
+  int goaway_count_;
   int data_bytes_;
   int fin_frame_count_;  // The count of RST_STREAM type frames received.
   int fin_flag_count_;  // The count of frames with the FIN flag set.
   int zero_length_data_frame_count_;  // The count of zero-length data frames.
+  int header_blocks_count_;
+  int control_frame_header_data_count_;  // The count of chunks received.
+  // The count of zero-length control frame header data chunks received.
+  int zero_length_control_frame_header_data_count_;
+  int data_frame_count_;
+
+  // Header block streaming state:
+  scoped_array<char> header_buffer_;
+  size_t header_buffer_length_;
+  size_t header_buffer_size_;
+  SpdyStreamId header_stream_id_;
+  SpdyControlType header_control_type_;
+  bool header_buffer_valid_;
+  SpdyHeaderBlock headers_;
 };
 
 }  // namespace test
@@ -200,12 +275,12 @@ using spdy::SpdyFramer;
 using spdy::SpdyHeaderBlock;
 using spdy::SpdySynStreamControlFrame;
 using spdy::kControlFlagMask;
+using spdy::kLengthMask;
 using spdy::CONTROL_FLAG_NONE;
 using spdy::DATA_FLAG_COMPRESSED;
 using spdy::DATA_FLAG_FIN;
 using spdy::SYN_STREAM;
 using spdy::test::CompareCharArraysWithHexError;
-using spdy::test::FramerSetEnableCompressionHelper;
 using spdy::test::TestSpdyVisitor;
 
 namespace spdy {
@@ -227,6 +302,22 @@ class SpdyFramerTest : public PlatformTest {
   }
 };
 
+
+TEST(SpdyFrameBuilderTest, WriteLimits) {
+  SpdyFrameBuilder builder(kLengthMask + 4);
+  // length field should fail.
+  EXPECT_FALSE(builder.WriteBytes(reinterpret_cast<const void*>(0x1),
+                                  kLengthMask + 1));
+  EXPECT_EQ(0, builder.length());
+
+  // Writing a block of the maximum allowed size should succeed.
+  const std::string kLargeData(kLengthMask, 'A');
+  builder.WriteUInt32(kLengthMask);
+  EXPECT_EQ(4, builder.length());
+  EXPECT_TRUE(builder.WriteBytes(kLargeData.data(), kLengthMask));
+  EXPECT_EQ(4 + kLengthMask, static_cast<unsigned>(builder.length()));
+}
+
 // Test that we can encode and decode a SpdyHeaderBlock.
 TEST_F(SpdyFramerTest, HeaderBlock) {
   SpdyHeaderBlock headers;
@@ -247,14 +338,58 @@ TEST_F(SpdyFramerTest, HeaderBlock) {
   EXPECT_EQ(headers["gamma"], new_headers["gamma"]);
 }
 
+// Test that we can encode and decode a SpdyHeaderBlock in serialized form.
+TEST_F(SpdyFramerTest, HeaderBlockInBuffer) {
+  SpdyHeaderBlock headers;
+  headers["alpha"] = "beta";
+  headers["gamma"] = "charlie";
+  SpdyFramer framer;
+
+  // Encode the header block into a SynStream frame.
+  scoped_ptr<SpdySynStreamControlFrame> frame(
+      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, false, &headers));
+  EXPECT_TRUE(frame.get() != NULL);
+  std::string serialized_headers(frame->header_block(),
+                                 frame->header_block_len());
+  SpdyHeaderBlock new_headers;
+  EXPECT_TRUE(framer.ParseHeaderBlockInBuffer(serialized_headers.c_str(),
+                                              serialized_headers.size(),
+                                              &new_headers));
+
+  EXPECT_EQ(headers.size(), new_headers.size());
+  EXPECT_EQ(headers["alpha"], new_headers["alpha"]);
+  EXPECT_EQ(headers["gamma"], new_headers["gamma"]);
+}
+
+// Test that if there's not a full frame, we fail to parse it.
+TEST_F(SpdyFramerTest, UndersizedHeaderBlockInBuffer) {
+  SpdyHeaderBlock headers;
+  headers["alpha"] = "beta";
+  headers["gamma"] = "charlie";
+  SpdyFramer framer;
+
+  // Encode the header block into a SynStream frame.
+  scoped_ptr<SpdySynStreamControlFrame> frame(
+      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, false, &headers));
+  EXPECT_TRUE(frame.get() != NULL);
+
+  std::string serialized_headers(frame->header_block(),
+                                 frame->header_block_len());
+  SpdyHeaderBlock new_headers;
+  EXPECT_FALSE(framer.ParseHeaderBlockInBuffer(serialized_headers.c_str(),
+                                               serialized_headers.size() - 2,
+                                               &new_headers));
+}
+
 TEST_F(SpdyFramerTest, OutOfOrderHeaders) {
-  SpdyFrameBuilder frame;
+  // Frame builder with plentiful buffer size.
+  SpdyFrameBuilder frame(1024);
 
   frame.WriteUInt16(kControlFlagMask | 1);
   frame.WriteUInt16(SYN_STREAM);
   frame.WriteUInt32(0);  // Placeholder for the length.
   frame.WriteUInt32(3);  // stream_id
-  frame.WriteUInt32(0);  // associated stream id
+  frame.WriteUInt32(0);  // Associated stream id
   frame.WriteUInt16(0);  // Priority.
 
   frame.WriteUInt16(2);  // Number of headers.
@@ -268,8 +403,11 @@ TEST_F(SpdyFramerTest, OutOfOrderHeaders) {
 
   SpdyHeaderBlock new_headers;
   scoped_ptr<SpdyFrame> control_frame(frame.take());
+  SpdySynStreamControlFrame syn_frame(control_frame->data(), false);
+  std::string serialized_headers(syn_frame.header_block(),
+                                 syn_frame.header_block_len());
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, false);
+  framer.set_enable_compression(false);
   EXPECT_TRUE(framer.ParseHeaderBlock(control_frame.get(), &new_headers));
 }
 
@@ -311,13 +449,14 @@ TEST_F(SpdyFramerTest, WrongNumberOfHeaders) {
   scoped_ptr<SpdyFrame> syn_frame1(frame1.take());
   scoped_ptr<SpdyFrame> syn_frame2(frame2.take());
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, false);
+  framer.set_enable_compression(false);
   EXPECT_FALSE(framer.ParseHeaderBlock(syn_frame1.get(), &new_headers));
   EXPECT_FALSE(framer.ParseHeaderBlock(syn_frame2.get(), &new_headers));
 }
 
 TEST_F(SpdyFramerTest, DuplicateHeader) {
-  SpdyFrameBuilder frame;
+  // Frame builder with plentiful buffer size.
+  SpdyFrameBuilder frame(1024);
 
   frame.WriteUInt16(kControlFlagMask | 1);
   frame.WriteUInt16(SYN_STREAM);
@@ -337,14 +476,18 @@ TEST_F(SpdyFramerTest, DuplicateHeader) {
 
   SpdyHeaderBlock new_headers;
   scoped_ptr<SpdyFrame> control_frame(frame.take());
+  SpdySynStreamControlFrame syn_frame(control_frame->data(), false);
+  std::string serialized_headers(syn_frame.header_block(),
+                                 syn_frame.header_block_len());
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, false);
+  framer.set_enable_compression(false);
   // This should fail because duplicate headers are verboten by the spec.
   EXPECT_FALSE(framer.ParseHeaderBlock(control_frame.get(), &new_headers));
 }
 
 TEST_F(SpdyFramerTest, MultiValueHeader) {
-  SpdyFrameBuilder frame;
+  // Frame builder with plentiful buffer size.
+  SpdyFrameBuilder frame(1024);
 
   frame.WriteUInt16(kControlFlagMask | 1);
   frame.WriteUInt16(SYN_STREAM);
@@ -363,8 +506,11 @@ TEST_F(SpdyFramerTest, MultiValueHeader) {
 
   SpdyHeaderBlock new_headers;
   scoped_ptr<SpdyFrame> control_frame(frame.take());
+  SpdySynStreamControlFrame syn_frame(control_frame->data(), false);
+  std::string serialized_headers(syn_frame.header_block(),
+                                 syn_frame.header_block_len());
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, false);
+  framer.set_enable_compression(false);
   EXPECT_TRUE(framer.ParseHeaderBlock(control_frame.get(), &new_headers));
   EXPECT_TRUE(new_headers.find("name") != new_headers.end());
   EXPECT_EQ(value, new_headers.find("name")->second);
@@ -408,7 +554,7 @@ TEST_F(SpdyFramerTest, BasicCompression) {
   headers["content-length"] = "12";
 
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, true);
+  framer.set_enable_compression(true);
   scoped_ptr<SpdySynStreamControlFrame>
       frame1(framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true,
                                     &headers));
@@ -429,6 +575,16 @@ TEST_F(SpdyFramerTest, BasicCompression) {
   EXPECT_EQ(0,
       memcmp(frame3->data(), frame4->data(),
       SpdyFrame::size() + frame3->length()));
+
+  // Expect frames 3 to be the same as a uncompressed frame created
+  // from scratch.
+  scoped_ptr<SpdySynStreamControlFrame>
+      uncompressed_frame(framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE,
+                                                false, &headers));
+  EXPECT_EQ(frame3->length(), uncompressed_frame->length());
+  EXPECT_EQ(0,
+      memcmp(frame3->data(), uncompressed_frame->data(),
+      SpdyFrame::size() + uncompressed_frame->length()));
 }
 
 TEST_F(SpdyFramerTest, DecompressUncompressedFrame) {
@@ -441,7 +597,7 @@ TEST_F(SpdyFramerTest, DecompressUncompressedFrame) {
   headers["content-length"] = "12";
 
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, true);
+  framer.set_enable_compression(true);
   scoped_ptr<SpdySynStreamControlFrame>
       frame1(framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, false,
                                     &headers));
@@ -517,6 +673,7 @@ TEST_F(SpdyFramerTest, Basic) {
   EXPECT_EQ(2, visitor.fin_frame_count_);
   EXPECT_EQ(0, visitor.fin_flag_count_);
   EXPECT_EQ(0, visitor.zero_length_data_frame_count_);
+  // EXPECT_EQ(4, visitor.data_frame_count_);
 }
 
 // Test that the FIN flag on a data frame signifies EOF.
@@ -539,13 +696,13 @@ TEST_F(SpdyFramerTest, FinOnDataFrame) {
 
     0x00, 0x00, 0x00, 0x01,   // DATA on Stream #1
     0x00, 0x00, 0x00, 0x0c,
-      0xde, 0xad, 0xbe, 0xef,
-      0xde, 0xad, 0xbe, 0xef,
-      0xde, 0xad, 0xbe, 0xef,
+    0xde, 0xad, 0xbe, 0xef,
+    0xde, 0xad, 0xbe, 0xef,
+    0xde, 0xad, 0xbe, 0xef,
 
     0x00, 0x00, 0x00, 0x01,   // DATA on Stream #1, with EOF
     0x01, 0x00, 0x00, 0x04,
-      0xde, 0xad, 0xbe, 0xef,
+    0xde, 0xad, 0xbe, 0xef,
   };
 
   TestSpdyVisitor visitor;
@@ -559,6 +716,7 @@ TEST_F(SpdyFramerTest, FinOnDataFrame) {
   EXPECT_EQ(0, visitor.fin_frame_count_);
   EXPECT_EQ(0, visitor.fin_flag_count_);
   EXPECT_EQ(1, visitor.zero_length_data_frame_count_);
+  // EXPECT_EQ(2, visitor.data_frame_count_);
 }
 
 // Test that the FIN flag on a SYN reply frame signifies EOF.
@@ -573,8 +731,9 @@ TEST_F(SpdyFramerTest, FinOnSynReplyFrame) {
     0x00, 0x02, 'v', 'v',
 
     0x80, 0x02, 0x00, 0x02,   // SYN REPLY Stream #1
-    0x01, 0x00, 0x00, 0x10,
+    0x01, 0x00, 0x00, 0x14,
     0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x01,
     0x00, 0x02, 'a', 'a',
     0x00, 0x02, 'b', 'b',
@@ -591,6 +750,7 @@ TEST_F(SpdyFramerTest, FinOnSynReplyFrame) {
   EXPECT_EQ(0, visitor.fin_frame_count_);
   EXPECT_EQ(1, visitor.fin_flag_count_);
   EXPECT_EQ(1, visitor.zero_length_data_frame_count_);
+  // EXPECT_EQ(0, visitor.data_frame_count_);
 }
 
 // Basic compression & decompression
@@ -598,8 +758,8 @@ TEST_F(SpdyFramerTest, DataCompression) {
   SpdyFramer send_framer;
   SpdyFramer recv_framer;
 
-  FramerSetEnableCompressionHelper(&send_framer, true);
-  FramerSetEnableCompressionHelper(&recv_framer, true);
+  send_framer.set_enable_compression(true);
+  recv_framer.set_enable_compression(true);
 
   // Mix up some SYNs and DATA frames since they use different compressors.
   const char kHeader1[] = "header1";
@@ -694,7 +854,7 @@ TEST_F(SpdyFramerTest, DataCompression) {
 TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
   SpdyFramer send_framer;
 
-  FramerSetEnableCompressionHelper(&send_framer, false);
+  send_framer.set_enable_compression(true);
 
   const char kHeader1[] = "header1";
   const char kHeader2[] = "header2";
@@ -711,14 +871,14 @@ TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
 
   const char bytes[] = "this is a test test test test test!";
   scoped_ptr<SpdyFrame> send_frame(
-      send_framer.CreateDataFrame(1,
-                                  bytes,
-                                  arraysize(bytes),
-                                  DATA_FLAG_FIN));
+      send_framer.CreateDataFrame(
+          1, bytes, arraysize(bytes),
+          DATA_FLAG_FIN));
   EXPECT_TRUE(send_frame.get() != NULL);
 
   // Run the inputs through the framer.
   TestSpdyVisitor visitor;
+  visitor.use_compression_ = true;
   const unsigned char* data;
   data = reinterpret_cast<const unsigned char*>(syn_frame->data());
   visitor.SimulateInFramer(data, syn_frame->length() + SpdyFrame::size());
@@ -733,12 +893,29 @@ TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
   EXPECT_EQ(0, visitor.fin_frame_count_);
   EXPECT_EQ(0, visitor.fin_flag_count_);
   EXPECT_EQ(1, visitor.zero_length_data_frame_count_);
+  // EXPECT_EQ(1, visitor.data_frame_count_);
 
   // We closed the streams, so all compressors should be down.
   EXPECT_EQ(0, visitor.framer_.num_stream_compressors());
   EXPECT_EQ(0, visitor.framer_.num_stream_decompressors());
   EXPECT_EQ(0, send_framer.num_stream_compressors());
   EXPECT_EQ(0, send_framer.num_stream_decompressors());
+}
+
+TEST_F(SpdyFramerTest, WindowUpdateFrame) {
+  scoped_ptr<SpdyWindowUpdateControlFrame> window_update_frame(
+      SpdyFramer::CreateWindowUpdate(1, 0x12345678));
+
+  const unsigned char expected_data_frame[] = {
+      0x80, 0x02, 0x00, 0x09,
+      0x00, 0x00, 0x00, 0x08,
+      0x00, 0x00, 0x00, 0x01,
+      0x12, 0x34, 0x56, 0x78
+  };
+
+  EXPECT_EQ(16u, window_update_frame->size());
+  EXPECT_EQ(0,
+            memcmp(window_update_frame->data(), expected_data_frame, 16));
 }
 
 TEST_F(SpdyFramerTest, CreateDataFrame) {
@@ -805,11 +982,31 @@ TEST_F(SpdyFramerTest, CreateDataFrame) {
         0x7fffffff, "hello", 5, DATA_FLAG_FIN));
     CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
   }
+
+  {
+    const char kDescription[] = "Large data frame";
+    const int kDataSize = 4 * 1024 * 1024;  // 4 MB
+    const std::string kData(kDataSize, 'A');
+    const unsigned char kFrameHeader[] = {
+      0x00, 0x00, 0x00, 0x01,
+      0x01, 0x40, 0x00, 0x00,
+    };
+
+    const int kFrameSize = arraysize(kFrameHeader) + kDataSize;
+    scoped_array<unsigned char> expected_frame_data(
+        new unsigned char[kFrameSize]);
+    memcpy(expected_frame_data.get(), kFrameHeader, arraysize(kFrameHeader));
+    memset(expected_frame_data.get() + arraysize(kFrameHeader), 'A', kDataSize);
+
+    scoped_ptr<SpdyFrame> frame(framer.CreateDataFrame(
+        1, kData.data(), kData.size(), DATA_FLAG_FIN));
+    CompareFrame(kDescription, *frame, expected_frame_data.get(), kFrameSize);
+  }
 }
 
 TEST_F(SpdyFramerTest, CreateSynStreamUncompressed) {
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, false);
+  framer.set_enable_compression(false);
 
   {
     const char kDescription[] = "SYN_STREAM frame, lowest pri, no FIN";
@@ -834,6 +1031,8 @@ TEST_F(SpdyFramerTest, CreateSynStreamUncompressed) {
         1, 0, SPDY_PRIORITY_LOWEST, CONTROL_FLAG_NONE,
         false, &headers));
     CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+    EXPECT_EQ(1u, SpdyFramer::GetControlFrameStreamId(
+        reinterpret_cast<const SpdyControlFrame*>(frame.get())));
   }
 
   {
@@ -893,7 +1092,7 @@ TEST_F(SpdyFramerTest, CreateSynStreamUncompressed) {
 
 TEST_F(SpdyFramerTest, CreateSynStreamCompressed) {
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, true);
+  framer.set_enable_compression(true);
 
   {
     const char kDescription[] =
@@ -926,7 +1125,7 @@ TEST_F(SpdyFramerTest, CreateSynStreamCompressed) {
 
 TEST_F(SpdyFramerTest, CreateSynReplyUncompressed) {
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, false);
+  framer.set_enable_compression(false);
 
   {
     const char kDescription[] = "SYN_REPLY frame, no FIN";
@@ -1002,7 +1201,7 @@ TEST_F(SpdyFramerTest, CreateSynReplyUncompressed) {
 
 TEST_F(SpdyFramerTest, CreateSynReplyCompressed) {
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, true);
+  framer.set_enable_compression(true);
 
   {
     const char kDescription[] = "SYN_REPLY frame, no FIN";
@@ -1043,6 +1242,8 @@ TEST_F(SpdyFramerTest, CreateRstStream) {
     };
     scoped_ptr<SpdyFrame> frame(framer.CreateRstStream(1, PROTOCOL_ERROR));
     CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+    EXPECT_EQ(1u, SpdyFramer::GetControlFrameStreamId(
+        reinterpret_cast<const SpdyControlFrame*>(frame.get())));
   }
 
   {
@@ -1114,6 +1315,9 @@ TEST_F(SpdyFramerTest, CreateSettings) {
     };
     scoped_ptr<SpdyFrame> frame(framer.CreateSettings(settings));
     CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+    EXPECT_EQ(SpdyFramer::kInvalidStream,
+              SpdyFramer::GetControlFrameStreamId(
+                  reinterpret_cast<const SpdyControlFrame*>(frame.get())));
   }
 
   {
@@ -1142,6 +1346,27 @@ TEST_F(SpdyFramerTest, CreateNopFrame) {
     };
     scoped_ptr<SpdyFrame> frame(framer.CreateNopFrame());
     CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+    EXPECT_EQ(SpdyFramer::kInvalidStream,
+              SpdyFramer::GetControlFrameStreamId(
+                  reinterpret_cast<const SpdyControlFrame*>(frame.get())));
+  }
+}
+
+TEST_F(SpdyFramerTest, CreatePingFrame) {
+  SpdyFramer framer;
+
+  {
+    const char kDescription[] = "PING frame";
+    const unsigned char kFrameData[] = {
+        0x80, 0x02, 0x00, 0x06,
+        0x00, 0x00, 0x00, 0x04,
+        0x12, 0x34, 0x56, 0x78,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreatePingFrame(0x12345678u));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+    EXPECT_EQ(SpdyFramer::kInvalidStream,
+              SpdyFramer::GetControlFrameStreamId(
+                  reinterpret_cast<const SpdyControlFrame*>(frame.get())));
   }
 }
 
@@ -1157,6 +1382,9 @@ TEST_F(SpdyFramerTest, CreateGoAway) {
     };
     scoped_ptr<SpdyFrame> frame(framer.CreateGoAway(0));
     CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+    EXPECT_EQ(SpdyFramer::kInvalidStream,
+              SpdyFramer::GetControlFrameStreamId(
+                  reinterpret_cast<const SpdyControlFrame*>(frame.get())));
   }
 
   {
@@ -1173,7 +1401,7 @@ TEST_F(SpdyFramerTest, CreateGoAway) {
 
 TEST_F(SpdyFramerTest, CreateHeadersUncompressed) {
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, false);
+  framer.set_enable_compression(false);
 
   {
     const char kDescription[] = "HEADERS frame, no FIN";
@@ -1249,7 +1477,7 @@ TEST_F(SpdyFramerTest, CreateHeadersUncompressed) {
 
 TEST_F(SpdyFramerTest, CreateHeadersCompressed) {
   SpdyFramer framer;
-  FramerSetEnableCompressionHelper(&framer, true);
+  framer.set_enable_compression(true);
 
   {
     const char kDescription[] = "HEADERS frame, no FIN";
@@ -1290,6 +1518,8 @@ TEST_F(SpdyFramerTest, CreateWindowUpdate) {
     };
     scoped_ptr<SpdyFrame> frame(framer.CreateWindowUpdate(1, 1));
     CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+    EXPECT_EQ(1u, SpdyFramer::GetControlFrameStreamId(
+        reinterpret_cast<const SpdyControlFrame*>(frame.get())));
   }
 
   {
@@ -1314,6 +1544,24 @@ TEST_F(SpdyFramerTest, CreateWindowUpdate) {
     };
     scoped_ptr<SpdyFrame> frame(framer.CreateWindowUpdate(1, 0x7FFFFFFF));
     CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, DuplicateFrame) {
+  SpdyFramer framer;
+
+  {
+    const char kDescription[] = "PING frame";
+    const unsigned char kFrameData[] = {
+        0x80, 0x02, 0x00, 0x06,
+        0x00, 0x00, 0x00, 0x04,
+        0x12, 0x34, 0x56, 0x78,
+    };
+    scoped_ptr<SpdyFrame> frame1(framer.CreatePingFrame(0x12345678u));
+    CompareFrame(kDescription, *frame1, kFrameData, arraysize(kFrameData));
+
+    scoped_ptr<SpdyFrame> frame2(framer.DuplicateFrame(*frame1));
+    CompareFrame(kDescription, *frame2, kFrameData, arraysize(kFrameData));
   }
 }
 
@@ -1348,6 +1596,157 @@ TEST_F(SpdyFramerTest, ExpandBuffer_HeapSmash) {
          template_frame.get()->length() + SpdyControlFrame::size());
     EXPECT_EQ(1, visitor.syn_frame_count_);
   }
+}
+
+TEST_F(SpdyFramerTest, ReadGarbage) {
+  SpdyFramer framer;
+  unsigned char garbage_frame[256];
+  memset(garbage_frame, ~0, sizeof(garbage_frame));
+  TestSpdyVisitor visitor;
+  visitor.use_compression_ = false;
+  visitor.SimulateInFramer(garbage_frame, sizeof(garbage_frame));
+  EXPECT_EQ(1, visitor.error_count_);
+}
+
+TEST_F(SpdyFramerTest, ReadGarbageWithValidVersion) {
+  SpdyFramer framer;
+  char garbage_frame[256];
+  memset(garbage_frame, ~0, sizeof(garbage_frame));
+  SpdyControlFrame control_frame(&garbage_frame[0], false);
+  control_frame.set_version(kSpdyProtocolVersion);
+  TestSpdyVisitor visitor;
+  visitor.use_compression_ = false;
+  visitor.SimulateInFramer(
+      reinterpret_cast<unsigned char*>(control_frame.data()),
+      sizeof(garbage_frame));
+  EXPECT_EQ(1, visitor.error_count_);
+}
+
+TEST(SpdyFramer, StateToStringTest) {
+  EXPECT_STREQ("ERROR",
+               SpdyFramer::StateToString(SpdyFramer::SPDY_ERROR));
+  EXPECT_STREQ("DONE",
+               SpdyFramer::StateToString(SpdyFramer::SPDY_DONE));
+  EXPECT_STREQ("AUTO_RESET",
+               SpdyFramer::StateToString(SpdyFramer::SPDY_AUTO_RESET));
+  EXPECT_STREQ("RESET",
+               SpdyFramer::StateToString(SpdyFramer::SPDY_RESET));
+  EXPECT_STREQ("READING_COMMON_HEADER",
+               SpdyFramer::StateToString(
+                   SpdyFramer::SPDY_READING_COMMON_HEADER));
+  EXPECT_STREQ("INTERPRET_CONTROL_FRAME_COMMON_HEADER",
+               SpdyFramer::StateToString(
+                   SpdyFramer::SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER));
+  EXPECT_STREQ("CONTROL_FRAME_PAYLOAD",
+               SpdyFramer::StateToString(
+                   SpdyFramer::SPDY_CONTROL_FRAME_PAYLOAD));
+  EXPECT_STREQ("IGNORE_REMAINING_PAYLOAD",
+               SpdyFramer::StateToString(
+                   SpdyFramer::SPDY_IGNORE_REMAINING_PAYLOAD));
+  EXPECT_STREQ("FORWARD_STREAM_FRAME",
+               SpdyFramer::StateToString(
+                   SpdyFramer::SPDY_FORWARD_STREAM_FRAME));
+  EXPECT_STREQ("SPDY_CONTROL_FRAME_BEFORE_HEADER_BLOCK",
+               SpdyFramer::StateToString(
+                   SpdyFramer::SPDY_CONTROL_FRAME_BEFORE_HEADER_BLOCK));
+  EXPECT_STREQ("SPDY_CONTROL_FRAME_HEADER_BLOCK",
+               SpdyFramer::StateToString(
+                   SpdyFramer::SPDY_CONTROL_FRAME_HEADER_BLOCK));
+  EXPECT_STREQ("UNKNOWN_STATE",
+               SpdyFramer::StateToString(
+                   SpdyFramer::SPDY_CONTROL_FRAME_HEADER_BLOCK + 1));
+}
+
+TEST(SpdyFramer, ErrorCodeToStringTest) {
+  EXPECT_STREQ("NO_ERROR",
+               SpdyFramer::ErrorCodeToString(SpdyFramer::SPDY_NO_ERROR));
+  EXPECT_STREQ("INVALID_CONTROL_FRAME",
+               SpdyFramer::ErrorCodeToString(
+                   SpdyFramer::SPDY_INVALID_CONTROL_FRAME));
+  EXPECT_STREQ("CONTROL_PAYLOAD_TOO_LARGE",
+               SpdyFramer::ErrorCodeToString(
+                   SpdyFramer::SPDY_CONTROL_PAYLOAD_TOO_LARGE));
+  EXPECT_STREQ("ZLIB_INIT_FAILURE",
+               SpdyFramer::ErrorCodeToString(
+                   SpdyFramer::SPDY_ZLIB_INIT_FAILURE));
+  EXPECT_STREQ("UNSUPPORTED_VERSION",
+               SpdyFramer::ErrorCodeToString(
+                   SpdyFramer::SPDY_UNSUPPORTED_VERSION));
+  EXPECT_STREQ("DECOMPRESS_FAILURE",
+               SpdyFramer::ErrorCodeToString(
+                   SpdyFramer::SPDY_DECOMPRESS_FAILURE));
+  EXPECT_STREQ("COMPRESS_FAILURE",
+               SpdyFramer::ErrorCodeToString(
+                   SpdyFramer::SPDY_COMPRESS_FAILURE));
+  EXPECT_STREQ("UNKNOWN_ERROR",
+               SpdyFramer::ErrorCodeToString(SpdyFramer::LAST_ERROR));
+}
+
+TEST(SpdyFramer, StatusCodeToStringTest) {
+  EXPECT_STREQ("INVALID",
+               SpdyFramer::StatusCodeToString(INVALID));
+  EXPECT_STREQ("PROTOCOL_ERROR",
+               SpdyFramer::StatusCodeToString(PROTOCOL_ERROR));
+  EXPECT_STREQ("INVALID_STREAM",
+               SpdyFramer::StatusCodeToString(INVALID_STREAM));
+  EXPECT_STREQ("REFUSED_STREAM",
+               SpdyFramer::StatusCodeToString(REFUSED_STREAM));
+  EXPECT_STREQ("UNSUPPORTED_VERSION",
+               SpdyFramer::StatusCodeToString(UNSUPPORTED_VERSION));
+  EXPECT_STREQ("CANCEL",
+               SpdyFramer::StatusCodeToString(CANCEL));
+  EXPECT_STREQ("INTERNAL_ERROR",
+               SpdyFramer::StatusCodeToString(INTERNAL_ERROR));
+  EXPECT_STREQ("FLOW_CONTROL_ERROR",
+               SpdyFramer::StatusCodeToString(FLOW_CONTROL_ERROR));
+  EXPECT_STREQ("UNKNOWN_STATUS",
+               SpdyFramer::StatusCodeToString(NUM_STATUS_CODES));
+}
+
+TEST(SpdyFramer, ControlTypeToStringTest) {
+  EXPECT_STREQ("SYN_STREAM",
+               SpdyFramer::ControlTypeToString(SYN_STREAM));
+  EXPECT_STREQ("SYN_REPLY",
+               SpdyFramer::ControlTypeToString(SYN_REPLY));
+  EXPECT_STREQ("RST_STREAM",
+               SpdyFramer::ControlTypeToString(RST_STREAM));
+  EXPECT_STREQ("SETTINGS",
+               SpdyFramer::ControlTypeToString(SETTINGS));
+  EXPECT_STREQ("NOOP",
+               SpdyFramer::ControlTypeToString(NOOP));
+  EXPECT_STREQ("PING",
+               SpdyFramer::ControlTypeToString(PING));
+  EXPECT_STREQ("GOAWAY",
+               SpdyFramer::ControlTypeToString(GOAWAY));
+  EXPECT_STREQ("HEADERS",
+               SpdyFramer::ControlTypeToString(HEADERS));
+  EXPECT_STREQ("WINDOW_UPDATE",
+               SpdyFramer::ControlTypeToString(WINDOW_UPDATE));
+  EXPECT_STREQ("UNKNOWN_CONTROL_TYPE",
+               SpdyFramer::ControlTypeToString(NUM_CONTROL_FRAME_TYPES));
+}
+
+TEST(SpdyFramer, GetMinimumControlFrameSizeTest) {
+  EXPECT_EQ(SpdySynStreamControlFrame::size(),
+            SpdyFramer::GetMinimumControlFrameSize(SYN_STREAM));
+  EXPECT_EQ(SpdySynReplyControlFrame::size(),
+            SpdyFramer::GetMinimumControlFrameSize(SYN_REPLY));
+  EXPECT_EQ(SpdyRstStreamControlFrame::size(),
+            SpdyFramer::GetMinimumControlFrameSize(RST_STREAM));
+  EXPECT_EQ(SpdySettingsControlFrame::size(),
+            SpdyFramer::GetMinimumControlFrameSize(SETTINGS));
+  EXPECT_EQ(SpdyNoOpControlFrame::size(),
+            SpdyFramer::GetMinimumControlFrameSize(NOOP));
+  EXPECT_EQ(SpdyPingControlFrame::size(),
+            SpdyFramer::GetMinimumControlFrameSize(PING));
+  EXPECT_EQ(SpdyGoAwayControlFrame::size(),
+            SpdyFramer::GetMinimumControlFrameSize(GOAWAY));
+  EXPECT_EQ(SpdyHeadersControlFrame::size(),
+            SpdyFramer::GetMinimumControlFrameSize(HEADERS));
+  EXPECT_EQ(SpdyWindowUpdateControlFrame::size(),
+            SpdyFramer::GetMinimumControlFrameSize(WINDOW_UPDATE));
+  EXPECT_EQ(static_cast<size_t>(0x7FFFFFFF),
+            SpdyFramer::GetMinimumControlFrameSize(NUM_CONTROL_FRAME_TYPES));
 }
 
 std::string RandomString(int length) {
