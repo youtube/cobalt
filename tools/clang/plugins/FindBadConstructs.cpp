@@ -39,10 +39,8 @@ bool TypeHasNonTrivialDtor(const Type* type) {
 // Searches for constructs that we know we don't want in the Chromium code base.
 class FindBadConstructsConsumer : public ChromeClassTester {
  public:
-  FindBadConstructsConsumer(CompilerInstance& instance,
-                            bool skip_override)
-      : ChromeClassTester(instance),
-        skip_override_(skip_override) {}
+  FindBadConstructsConsumer(CompilerInstance& instance)
+      : ChromeClassTester(instance) {}
 
   virtual void CheckChromeClass(const SourceLocation& record_location,
                                 CXXRecordDecl* record) {
@@ -178,9 +176,6 @@ class FindBadConstructsConsumer : public ChromeClassTester {
   }
 
   void CheckOverriddenMethod(const CXXMethodDecl* method) {
-    if (skip_override_)
-      return;
-
     if (!method->size_overridden_methods() || method->getAttr<OverrideAttr>())
       return;
 
@@ -285,41 +280,19 @@ class FindBadConstructsConsumer : public ChromeClassTester {
       }
     }
   }
-
- private:
-  // TODO(avi): Remove this (and all related code) once the override warning is
-  // enabled on all bots.
-  bool skip_override_;
 };
 
 class FindBadConstructsAction : public PluginASTAction {
- public:
-  FindBadConstructsAction() : skip_override_(false) {
-  }
-
  protected:
   ASTConsumer* CreateASTConsumer(CompilerInstance &CI, llvm::StringRef ref) {
-    return new FindBadConstructsConsumer(CI, skip_override_);
+    return new FindBadConstructsConsumer(CI);
   }
 
   bool ParseArgs(const CompilerInstance &CI,
                  const std::vector<std::string>& args) {
-    bool parsed = true;
-
-    for (size_t i = 0; i < args.size() && parsed; ++i) {
-      if (args[i] == "skip-override") {
-        skip_override_ = true;
-      } else {
-        parsed = false;
-        llvm::errs() << "Unknown arg: " << args[i] << "\n";
-      }
-    }
-
-    return parsed;
+    // We don't take any additional arguments here.
+    return true;
   }
-
- private:
-  bool skip_override_;
 };
 
 }  // namespace
