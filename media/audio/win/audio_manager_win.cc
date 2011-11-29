@@ -211,12 +211,14 @@ string16 AudioManagerWin::GetAudioInputDeviceModel() {
   waveInMessage(reinterpret_cast<HWAVEIN>(device_id),
                 DRV_QUERYDEVICEINTERFACESIZE,
                 reinterpret_cast<DWORD_PTR>(&device_interface_name_size), 0);
-  if (device_interface_name_size == 0)  // No audio capture device?
-    return string16();
+  size_t bytes_in_char16 = sizeof(string16::value_type);
+  DCHECK_EQ(0u, device_interface_name_size % bytes_in_char16);
+  if (device_interface_name_size <= bytes_in_char16)
+    return string16();  // No audio capture device.
 
   string16 device_interface_name;
   string16::value_type* name_ptr = WriteInto(&device_interface_name,
-      device_interface_name_size / sizeof(string16::value_type));
+      device_interface_name_size / bytes_in_char16);
   waveInMessage(reinterpret_cast<HWAVEIN>(device_id),
                 DRV_QUERYDEVICEINTERFACE,
                 reinterpret_cast<DWORD_PTR>(name_ptr),

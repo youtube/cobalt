@@ -162,13 +162,9 @@ static const int kAllowedFtpPorts[] = {
 std::string::size_type CountTrailingChars(
     const std::string input,
     const std::string::value_type trailing_chars[]) {
-  const std::string::size_type last_good_char =
-      input.find_last_not_of(trailing_chars);
-
-  if (last_good_char == std::string::npos)
-    return input.length();
-  else
-    return input.length() - last_good_char - 1;
+  const size_t last_good_char = input.find_last_not_of(trailing_chars);
+  return (last_good_char == std::string::npos) ?
+      input.length() : (input.length() - last_good_char - 1);
 }
 
 // Similar to Base64Decode. Decodes a Q-encoded string to a sequence
@@ -176,71 +172,68 @@ std::string::size_type CountTrailingChars(
 bool QPDecode(const std::string& input, std::string* output) {
   std::string temp;
   temp.reserve(input.size());
-  std::string::const_iterator it = input.begin();
-  while (it != input.end()) {
+  for (std::string::const_iterator it = input.begin(); it != input.end();
+       ++it) {
     if (*it == '_') {
       temp.push_back(' ');
     } else if (*it == '=') {
-      if (input.end() - it < 3) {
+      if ((input.end() - it < 3) ||
+          !IsHexDigit(static_cast<unsigned char>(*(it + 1))) ||
+          !IsHexDigit(static_cast<unsigned char>(*(it + 2))))
         return false;
-      }
-      if (IsHexDigit(static_cast<unsigned char>(*(it + 1))) &&
-          IsHexDigit(static_cast<unsigned char>(*(it + 2)))) {
-        unsigned char ch = HexDigitToInt(*(it + 1)) * 16 +
-                           HexDigitToInt(*(it + 2));
-        temp.push_back(static_cast<char>(ch));
-        ++it;
-        ++it;
-      } else {
-        return false;
-      }
+      unsigned char ch = HexDigitToInt(*(it + 1)) * 16 +
+                         HexDigitToInt(*(it + 2));
+      temp.push_back(static_cast<char>(ch));
+      ++it;
+      ++it;
     } else if (0x20 < *it && *it < 0x7F) {
       // In a Q-encoded word, only printable ASCII characters
       // represent themselves. Besides, space, '=', '_' and '?' are
       // not allowed, but they're already filtered out.
-      DCHECK(*it != 0x3D && *it != 0x5F && *it != 0x3F);
+      DCHECK_NE('=', *it);
+      DCHECK_NE('?', *it);
+      DCHECK_NE('_', *it);
       temp.push_back(*it);
     } else {
       return false;
     }
-    ++it;
   }
   output->swap(temp);
   return true;
 }
 
 enum RFC2047EncodingType {Q_ENCODING, B_ENCODING};
-bool DecodeBQEncoding(const std::string& part, RFC2047EncodingType enc_type,
-                       const std::string& charset, std::string* output) {
+bool DecodeBQEncoding(const std::string& part,
+                      RFC2047EncodingType enc_type,
+                      const std::string& charset,
+                      std::string* output) {
   std::string decoded;
-  if (enc_type == B_ENCODING) {
-    if (!base::Base64Decode(part, &decoded)) {
-      return false;
-    }
-  } else {
-    if (!QPDecode(part, &decoded)) {
-      return false;
-    }
+  if (!((enc_type == B_ENCODING) ?
+      base::Base64Decode(part, &decoded) : QPDecode(part, &decoded)))
+    return false;
+
+  if (decoded.empty()) {
+    output->clear();
+    return true;
   }
 
   UErrorCode err = U_ZERO_ERROR;
   UConverter* converter(ucnv_open(charset.c_str(), &err));
-  if (U_FAILURE(err)) {
+  if (U_FAILURE(err))
     return false;
-  }
 
   // A single byte in a legacy encoding can be expanded to 3 bytes in UTF-8.
   // A 'two-byte character' in a legacy encoding can be expanded to 4 bytes
-  // in UTF-8. Therefore, the expansion ratio is 3 at most.
-  int length = static_cast<int>(decoded.length());
-  char* buf = WriteInto(output, length * 3);
-  length = ucnv_toAlgorithmic(UCNV_UTF8, converter, buf, length * 3,
-      decoded.data(), length, &err);
+  // in UTF-8. Therefore, the expansion ratio is 3 at most. Add one for a
+  // trailing '\0'.
+  size_t output_length = decoded.length() * 3 + 1;
+  char* buf = WriteInto(output, output_length);
+  output_length = ucnv_toAlgorithmic(UCNV_UTF8, converter, buf, output_length,
+                                     decoded.data(), decoded.length(), &err);
   ucnv_close(converter);
-  if (U_FAILURE(err)) {
+  if (U_FAILURE(err))
     return false;
-  }
-  output->resize(length);
+  output->resize(output_length);
   return true;
 }
 

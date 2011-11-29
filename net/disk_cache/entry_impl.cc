@@ -773,11 +773,11 @@ std::string EntryImpl::GetKey() const {
   File* key_file = const_cast<EntryImpl*>(this)->GetBackingFile(address,
                                                                 kKeyFileIndex);
 
-  if (!offset && key_file->GetLength() != static_cast<size_t>(key_len + 1))
+  ++key_len;  // We store a trailing \0 on disk that we read back below.
+  if (!offset && key_file->GetLength() != static_cast<size_t>(key_len))
     return std::string();
 
-  if (!key_file ||
-      !key_file->Read(WriteInto(&key_, key_len + 1), key_len + 1, offset))
+  if (!key_file || !key_file->Read(WriteInto(&key_, key_len), key_len, offset))
     key_.clear();
   return key_;
 }

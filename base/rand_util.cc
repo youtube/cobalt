@@ -71,6 +71,7 @@ void RandBytes(void* output, size_t output_length) {
 }
 
 std::string RandBytesAsString(size_t length) {
+  DCHECK_GT(length, 0u);
   std::string result;
   RandBytes(WriteInto(&result, length + 1), length);
   return result;
