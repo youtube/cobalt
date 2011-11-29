@@ -123,6 +123,7 @@
 //  +----------------------------------+
 //  |   Delta-Window-Size (32 bits)    |
 //  +----------------------------------+
+//
 namespace spdy {
 
 // This implementation of Spdy is version 2; It's like version 1, with some
@@ -166,6 +167,7 @@ enum SpdyControlType {
 enum SpdyDataFlags {
   DATA_FLAG_NONE = 0,
   DATA_FLAG_FIN = 1,
+  // TODO(hkhalil): Remove.
   DATA_FLAG_COMPRESSED = 2
 };
 

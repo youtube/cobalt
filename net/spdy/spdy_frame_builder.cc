@@ -111,30 +111,6 @@ bool SpdyFrameBuilder::ReadData(void** iter, const char** data,
   return ReadBytes(iter, data, *length);
 }
 
-bool SpdyFrameBuilder::WriteString(const std::string& value) {
-  if (value.size() > 0xffff)
-    return false;
-
-  if (!WriteUInt16(static_cast<int>(value.size())))
-    return false;
-
-  return WriteBytes(value.data(), static_cast<uint16>(value.size()));
-}
-
-bool SpdyFrameBuilder::WriteBytes(const void* data, uint16 data_len) {
-  DCHECK(capacity_ != kCapacityReadOnly);
-
-  char* dest = BeginWrite(data_len);
-  if (!dest)
-    return false;
-
-  memcpy(dest, data, data_len);
-
-  EndWrite(dest, data_len);
-  length_ += data_len;
-  return true;
-}
-
 char* SpdyFrameBuilder::BeginWriteData(uint16 length) {
   DCHECK_EQ(variable_buffer_offset_, 0U) <<
     "There can only be one variable buffer in a SpdyFrameBuilder";
@@ -155,6 +131,7 @@ char* SpdyFrameBuilder::BeginWriteData(uint16 length) {
 }
 
 char* SpdyFrameBuilder::BeginWrite(size_t length) {
+  size_t offset = length_;
   size_t needed_size = length_ + length;
   if (needed_size > capacity_ && !Resize(std::max(capacity_ * 2, needed_size)))
     return NULL;
@@ -163,12 +140,41 @@ char* SpdyFrameBuilder::BeginWrite(size_t length) {
   DCHECK_LE(length, std::numeric_limits<uint32>::max());
 #endif
 
-  return buffer_ + length_;
+  return buffer_ + offset;
 }
 
 void SpdyFrameBuilder::EndWrite(char* dest, int length) {
 }
 
+bool SpdyFrameBuilder::WriteBytes(const void* data, uint32 data_len) {
+  DCHECK(capacity_ != kCapacityReadOnly);
+
+  if (data_len > kLengthMask) {
+    return false;
+  }
+
+  char* dest = BeginWrite(data_len);
+  if (!dest)
+    return false;
+
+  memcpy(dest, data, data_len);
+
+  EndWrite(dest, data_len);
+  length_ += data_len;
+  return true;
+}
+
+bool SpdyFrameBuilder::WriteString(const std::string& value) {
+  if (value.size() > 0xffff)
+    return false;
+
+  if (!WriteUInt16(static_cast<int>(value.size())))
+    return false;
+
+  return WriteBytes(value.data(), static_cast<uint16>(value.size()));
+}
+
+// TODO(hkhalil) Remove Resize() entirely.
 bool SpdyFrameBuilder::Resize(size_t new_capacity) {
   if (new_capacity <= capacity_)
     return true;
@@ -180,6 +186,8 @@ bool SpdyFrameBuilder::Resize(size_t new_capacity) {
     memcpy(p, buffer_, capacity_);
     delete[] buffer_;
   }
+  if (!p && new_capacity > 0)
+    return false;
   buffer_ = p;
   capacity_ = new_capacity;
   return true;
