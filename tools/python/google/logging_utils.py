@@ -1,9 +1,6 @@
-#!/bin/env python
-# Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
-# logging_utils.py
 
 ''' Utility functions and objects for logging.
 '''
@@ -83,4 +80,3 @@ def config_root(level=logging.INFO, threshold=logging.WARNING, format=FORMAT,
   handler.setLevel(level)
   handler.setFormatter(formatter)
   root.addHandler(handler)
-

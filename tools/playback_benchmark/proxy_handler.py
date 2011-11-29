@@ -1,7 +1,6 @@
-#!/usr/bin/env python
-#
-# Copyright 2010 Google Inc. All Rights Reserved.
-
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
 """HTTP proxy request handler with SSL support.
 
   RequestHandler: Utility class for parsing HTTP requests.
