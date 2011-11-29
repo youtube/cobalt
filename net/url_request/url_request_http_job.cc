@@ -179,21 +179,19 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
   TransportSecurityState::DomainState domain_state;
   if (scheme == "http" &&
       request->context()->transport_security_state() &&
-      request->context()->transport_security_state()->IsEnabledForHost(
+      request->context()->transport_security_state()->GetDomainState(
           &domain_state,
           request->url().host(),
           SSLConfigService::IsSNIAvailable(
-              request->context()->ssl_config_service()))) {
-    if (domain_state.mode ==
-         TransportSecurityState::DomainState::MODE_STRICT) {
-      DCHECK_EQ(request->url().scheme(), "http");
-      url_canon::Replacements<char> replacements;
-      static const char kNewScheme[] = "https";
-      replacements.SetScheme(kNewScheme,
-                             url_parse::Component(0, strlen(kNewScheme)));
-      GURL new_location = request->url().ReplaceComponents(replacements);
-      return new URLRequestRedirectJob(request, new_location);
-    }
+              request->context()->ssl_config_service())) &&
+      domain_state.ShouldRedirectHTTPToHTTPS()) {
+    DCHECK_EQ(request->url().scheme(), "http");
+    url_canon::Replacements<char> replacements;
+    static const char kNewScheme[] = "https";
+    replacements.SetScheme(kNewScheme,
+                           url_parse::Component(0, strlen(kNewScheme)));
+    GURL new_location = request->url().ReplaceComponents(replacements);
+    return new URLRequestRedirectJob(request, new_location);
   }
 
   return new URLRequestHttpJob(request);
@@ -741,9 +739,10 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
     TransportSecurityState::DomainState domain_state;
     const bool is_hsts_host =
         context_->transport_security_state() &&
-        context_->transport_security_state()->IsEnabledForHost(
+        context_->transport_security_state()->GetDomainState(
             &domain_state, request_info_.url.host(),
-            SSLConfigService::IsSNIAvailable(context_->ssl_config_service()));
+            SSLConfigService::IsSNIAvailable(context_->ssl_config_service())) &&
+        domain_state.ShouldCertificateErrorsBeFatal();
     NotifySSLCertificateError(transaction_->GetResponseInfo()->ssl_info,
                               is_hsts_host);
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
