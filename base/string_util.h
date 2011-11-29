@@ -457,40 +457,32 @@ BASE_EXPORT void ReplaceSubstringsAfterOffset(
     const std::string& find_this,
     const std::string& replace_with);
 
-// Reserves enough memory in |str| to accommodate |length_with_null|
-// characters, sets the size of |str| to |length_with_null - 1| characters,
-// and returns a pointer to the underlying contiguous array of characters.
+// Reserves enough memory in |str| to accommodate |length_with_null| characters,
+// sets the size of |str| to |length_with_null - 1| characters, and returns a
+// pointer to the underlying contiguous array of characters.  This is typically
+// used when calling a function that writes results into a character array, but
+// the caller wants the data to be managed by a string-like object.  It is
+// convenient in that is can be used inline in the call, and fast in that it
+// avoids copying the results of the call from a char* into a string.
 //
-// This is typically used when calling a function that writes results into a
-// character array, but the caller wants the data to be managed by a
-// string-like object.
+// |length_with_null| must be at least 2, since otherwise the underlying string
+// would have size 0, and trying to access &((*str)[0]) in that case can result
+// in a number of problems.
 //
-// |length_with_null| must be >= 1. In the |length_with_null| == 1 case,
-// NULL is returned rather than a pointer to the array, since there is no way
-// to provide access to the underlying character array of a 0-length
-// string-like object without breaking guarantees provided by the C++
-// standards.
-//
-// Internally, this takes linear time because the underlying array needs to
-// be 0-filled for all |length_with_null - 1| * sizeof(character) bytes.
+// Internally, this takes linear time because the resize() call 0-fills the
+// underlying array for potentially all
+// (|length_with_null - 1| * sizeof(string_type::value_type)) bytes.  Ideally we
+// could avoid this aspect of the resize() call, as we expect the caller to
+// immediately write over this memory, but there is no other way to set the size
+// of the string, and not doing that will mean people who access |str| rather
+// than str.c_str() will get back a string of whatever size |str| had on entry
+// to this function (probably 0).
 template <class string_type>
 inline typename string_type::value_type* WriteInto(string_type* str,
                                                    size_t length_with_null) {
-  DCHECK_NE(0u, length_with_null);
+  DCHECK_GT(length_with_null, 1u);
   str->reserve(length_with_null);
   str->resize(length_with_null - 1);
-
-  // If |length_with_null| is 1, calling (*str)[0] is invalid since the
-  // size() is 0. In some implementations this triggers an assertion.
-  //
-  // Trying to access the underlying byte array by casting away const
-  // when calling str->data() or str->c_str() is also incorrect.
-  // Some implementations of basic_string use a copy-on-write approach and
-  // this could end up mutating the data that is shared across multiple string
-  // objects.
-  if (length_with_null <= 1)
-    return NULL;
-
   return &((*str)[0]);
 }
 

@@ -41,8 +41,8 @@ TEST(RandUtilTest, RandBytes) {
 }
 
 TEST(RandUtilTest, RandBytesAsString) {
-  std::string random_string = base::RandBytesAsString(0);
-  EXPECT_EQ(0U, random_string.size());
+  std::string random_string = base::RandBytesAsString(1);
+  EXPECT_EQ(1U, random_string.size());
   random_string = base::RandBytesAsString(145);
   EXPECT_EQ(145U, random_string.size());
   char accumulator = 0;
