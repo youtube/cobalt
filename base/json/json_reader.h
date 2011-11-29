@@ -40,6 +40,12 @@
 #define FRIEND_TEST(test_case_name, test_name)\
 friend class test_case_name##_##test_name##_Test
 
+#define FRIEND_TEST_ALL_PREFIXES(test_case_name, test_name) \
+  FRIEND_TEST(test_case_name, test_name); \
+  FRIEND_TEST(test_case_name, DISABLED_##test_name); \
+  FRIEND_TEST(test_case_name, FLAKY_##test_name); \
+  FRIEND_TEST(test_case_name, FAILS_##test_name)
+
 namespace base {
 
 class Value;
@@ -149,8 +155,8 @@ class BASE_EXPORT JSONReader {
                      bool allow_trailing_comma);
 
  private:
-  FRIEND_TEST(JSONReaderTest, Reading);
-  FRIEND_TEST(JSONReaderTest, ErrorMessages);
+  FRIEND_TEST_ALL_PREFIXES(JSONReaderTest, Reading);
+  FRIEND_TEST_ALL_PREFIXES(JSONReaderTest, ErrorMessages);
 
   static std::string FormatErrorMessage(int line, int column,
                                         const std::string& description);
