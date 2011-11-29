@@ -174,6 +174,7 @@ TestDelegate::TestDelegate()
       received_data_before_response_(false),
       request_failed_(false),
       have_certificate_errors_(false),
+      is_hsts_host_(false),
       auth_required_(false),
       buf_(new net::IOBuffer(kBufferSize)) {
 }
@@ -209,6 +210,7 @@ void TestDelegate::OnSSLCertificateError(net::URLRequest* request,
   // independent of any possible errors, or whether it wants SSL errors to
   // cancel the request.
   have_certificate_errors_ = true;
+  is_hsts_host_ = is_hsts_host;
   if (allow_certificate_errors_)
     request->ContinueDespiteLastError();
   else
