@@ -17,5 +17,4 @@ else
 fi
 
 echo -Xclang -load -Xclang $CLANG_LIB_PATH/libFindBadConstructs.$LIBSUFFIX \
-  -Xclang -add-plugin -Xclang find-bad-constructs \
-  -Xclang -plugin-arg-find-bad-constructs -Xclang skip-override
+  -Xclang -add-plugin -Xclang find-bad-constructs
