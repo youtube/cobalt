@@ -84,8 +84,8 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
       response_cookies_save_index_(0),
       send_frame_handler_(new WebSocketFrameHandler),
       receive_frame_handler_(new WebSocketFrameHandler),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
-      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_for_send_pending_(this)) {
 }
 
 WebSocketJob::~WebSocketJob() {
@@ -167,6 +167,7 @@ void WebSocketJob::DetachDelegate() {
 
   scoped_refptr<WebSocketJob> protect(this);
   weak_ptr_factory_.InvalidateWeakPtrs();
+  weak_ptr_factory_for_send_pending_.InvalidateWeakPtrs();
 
   delegate_ = NULL;
   if (socket_)
@@ -233,10 +234,11 @@ void WebSocketJob::OnSentData(SocketStream* socket, int amount_sent) {
     DCHECK_GT(amount_sent, 0);
     current_buffer_ = NULL;
     send_frame_handler_->ReleaseCurrentBuffer();
-    if (method_factory_.empty()) {
+    if (!weak_ptr_factory_for_send_pending_.HasWeakPtrs()) {
       MessageLoopForIO::current()->PostTask(
           FROM_HERE,
-          method_factory_.NewRunnableMethod(&WebSocketJob::SendPending));
+          base::Bind(&WebSocketJob::SendPending,
+                     weak_ptr_factory_for_send_pending_.GetWeakPtr()));
     }
     delegate_->OnSentData(socket, amount_sent);
   }
@@ -616,7 +618,8 @@ void WebSocketJob::Wakeup() {
   DCHECK(callback_);
   MessageLoopForIO::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(&WebSocketJob::RetryPendingIO));
+      base::Bind(&WebSocketJob::RetryPendingIO,
+                 weak_ptr_factory_.GetWeakPtr()));
 }
 
 void WebSocketJob::RetryPendingIO() {
