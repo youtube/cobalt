@@ -35,15 +35,16 @@ class CRYPTO_EXPORT SymmetricKey {
   virtual ~SymmetricKey();
 
   // Generates a random key suitable to be used with |algorithm| and of
-  // |key_size_in_bits| bits.
+  // |key_size_in_bits| bits. |key_size_in_bits| must be a multiple of 8.
   // The caller is responsible for deleting the returned SymmetricKey.
   static SymmetricKey* GenerateRandomKey(Algorithm algorithm,
                                          size_t key_size_in_bits);
 
   // Derives a key from the supplied password and salt using PBKDF2, suitable
   // for use with specified |algorithm|. Note |algorithm| is not the algorithm
-  // used to derive the key from the password. The caller is responsible for
-  // deleting the returned SymmetricKey.
+  // used to derive the key from the password. |key_size_in_bits| must be a
+  // multiple of 8. The caller is responsible for deleting the returned
+  // SymmetricKey.
   static SymmetricKey* DeriveKeyFromPassword(Algorithm algorithm,
                                              const std::string& password,
                                              const std::string& salt,

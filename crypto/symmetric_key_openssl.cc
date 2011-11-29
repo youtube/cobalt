@@ -24,10 +24,10 @@ SymmetricKey::~SymmetricKey() {
 SymmetricKey* SymmetricKey::GenerateRandomKey(Algorithm algorithm,
                                               size_t key_size_in_bits) {
   DCHECK_EQ(AES, algorithm);
-  int key_size_in_bytes = key_size_in_bits / 8;
-  DCHECK_EQ(static_cast<int>(key_size_in_bits), key_size_in_bytes * 8);
+  size_t key_size_in_bytes = key_size_in_bits / 8;
+  DCHECK_EQ(key_size_in_bits, key_size_in_bytes * 8);
 
-  if (key_size_in_bits == 0)
+  if (key_size_in_bytes == 0)
     return NULL;
 
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
@@ -35,7 +35,7 @@ SymmetricKey* SymmetricKey::GenerateRandomKey(Algorithm algorithm,
   uint8* key_data =
       reinterpret_cast<uint8*>(WriteInto(&key->key_, key_size_in_bytes + 1));
 
-  int rv = RAND_bytes(key_data, key_size_in_bytes);
+  int rv = RAND_bytes(key_data, static_cast<int>(key_size_in_bytes));
   return rv == 1 ? key.release() : NULL;
 }
 
@@ -46,8 +46,11 @@ SymmetricKey* SymmetricKey::DeriveKeyFromPassword(Algorithm algorithm,
                                                   size_t iterations,
                                                   size_t key_size_in_bits) {
   DCHECK(algorithm == AES || algorithm == HMAC_SHA1);
-  int key_size_in_bytes = key_size_in_bits / 8;
-  DCHECK_EQ(static_cast<int>(key_size_in_bits), key_size_in_bytes * 8);
+  size_t key_size_in_bytes = key_size_in_bits / 8;
+  DCHECK_EQ(key_size_in_bits, key_size_in_bytes * 8);
+
+  if (key_size_in_bytes == 0)
+    return NULL;
 
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
   scoped_ptr<SymmetricKey> key(new SymmetricKey);
@@ -56,7 +59,8 @@ SymmetricKey* SymmetricKey::DeriveKeyFromPassword(Algorithm algorithm,
   int rv = PKCS5_PBKDF2_HMAC_SHA1(password.data(), password.length(),
                                   reinterpret_cast<const uint8*>(salt.data()),
                                   salt.length(), iterations,
-                                  key_size_in_bytes, key_data);
+                                  static_cast<int>(key_size_in_bytes),
+                                  key_data);
   return rv == 1 ? key.release() : NULL;
 }
 

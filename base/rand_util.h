@@ -38,9 +38,9 @@ BASE_EXPORT double BitsToOpenEndedUnitInterval(uint64 bits);
 BASE_EXPORT void RandBytes(void* output, size_t output_length);
 
 // Fills a string of length |length| with with cryptographically strong random
-// data and returns it.
+// data and returns it.  |length| should be nonzero.
 //
-// Not that this is a variation of |RandBytes| with a different return type.
+// Note that this is a variation of |RandBytes| with a different return type.
 BASE_EXPORT std::string RandBytesAsString(size_t length);
 
 }  // namespace base
