@@ -132,15 +132,22 @@ void FlushQueue(disk_cache::Backend* cache) {
   cb.GetResult(rv);  // Ignore the result;
 }
 
+bool CreateCache(const FilePath& path, base::Thread* thread,
+                 disk_cache::Backend** cache, TestOldCompletionCallback* cb) {
+  int size = 1024 * 1024;
+  int rv = disk_cache::BackendImpl::CreateBackend(
+               path, false, size, net::DISK_CACHE, disk_cache::kNoRandom,
+               thread->message_loop_proxy(), NULL, cache, cb);
+
+  return (cb->GetResult(rv) == net::OK && !(*cache)->GetEntryCount());
+}
+
 // Generates the files for an empty and one item cache.
 int SimpleInsert(const FilePath& path, RankCrashes action,
                  base::Thread* cache_thread) {
   TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
-  int rv = disk_cache::CreateCacheBackend(net::DISK_CACHE, path, 0, false,
-                                          cache_thread->message_loop_proxy(),
-                                          NULL, &cache, &cb);
-  if (cb.GetResult(rv) != net::OK || cache->GetEntryCount())
+  if (!CreateCache(path, cache_thread, &cache, &cb))
     return GENERIC;
 
   const char* test_name = "some other key";
@@ -151,7 +158,7 @@ int SimpleInsert(const FilePath& path, RankCrashes action,
   }
 
   disk_cache::Entry* entry;
-  rv = cache->CreateEntry(test_name, &entry, &cb);
+  int rv = cache->CreateEntry(test_name, &entry, &cb);
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
@@ -177,15 +184,11 @@ int SimpleRemove(const FilePath& path, RankCrashes action,
 
   TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
-  // Use a simple LRU for eviction.
-  int rv = disk_cache::CreateCacheBackend(net::MEDIA_CACHE, path, 0, false,
-                                          cache_thread->message_loop_proxy(),
-                                          NULL, &cache, &cb);
-  if (cb.GetResult(rv) != net::OK || cache->GetEntryCount())
+  if (!CreateCache(path, cache_thread, &cache, &cb))
     return GENERIC;
 
   disk_cache::Entry* entry;
-  rv = cache->CreateEntry(kCrashEntryName, &entry, &cb);
+  int rv = cache->CreateEntry(kCrashEntryName, &entry, &cb);
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
@@ -220,15 +223,11 @@ int HeadRemove(const FilePath& path, RankCrashes action,
 
   TestOldCompletionCallback cb;
   disk_cache::Backend* cache;
-  // Use a simple LRU for eviction.
-  int rv = disk_cache::CreateCacheBackend(net::MEDIA_CACHE, path, 0, false,
-                                          cache_thread->message_loop_proxy(),
-                                          NULL, &cache, &cb);
-  if (cb.GetResult(rv) != net::OK || cache->GetEntryCount())
+  if (!CreateCache(path, cache_thread, &cache, &cb))
     return GENERIC;
 
   disk_cache::Entry* entry;
-  rv = cache->CreateEntry("some other key", &entry, &cb);
+  int rv = cache->CreateEntry("some other key", &entry, &cb);
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
@@ -264,6 +263,8 @@ int LoadOperations(const FilePath& path, RankCrashes action,
   if (!cache || !cache->SetMaxSize(0x100000))
     return GENERIC;
 
+  // No experiments and use a simple LRU.
+  cache->SetFlags(disk_cache::kNoRandom);
   TestOldCompletionCallback cb;
   int rv = cache->Init(&cb);
   if (cb.GetResult(rv) != net::OK || cache->GetEntryCount())
