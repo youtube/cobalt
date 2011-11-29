@@ -120,6 +120,7 @@ class TestDelegate : public net::URLRequest::Delegate {
   }
   bool request_failed() const { return request_failed_; }
   bool have_certificate_errors() const { return have_certificate_errors_; }
+  bool is_hsts_host() const { return is_hsts_host_; }
   bool auth_required_called() const { return auth_required_; }
 
   // net::URLRequest::Delegate:
@@ -165,6 +166,7 @@ class TestDelegate : public net::URLRequest::Delegate {
   bool received_data_before_response_;
   bool request_failed_;
   bool have_certificate_errors_;
+  bool is_hsts_host_;
   bool auth_required_;
   std::string data_received_;
 

@@ -162,10 +162,10 @@ TEST_F(TransportSecurityStateTest, SimpleMatches) {
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
 
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "yahoo.com", true));
   domain_state.expiry = expiry;
   state.EnableHost("yahoo.com", domain_state);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "yahoo.com", true));
 }
 
 TEST_F(TransportSecurityStateTest, MatchesCase1) {
@@ -174,10 +174,10 @@ TEST_F(TransportSecurityStateTest, MatchesCase1) {
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
 
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "yahoo.com", true));
   domain_state.expiry = expiry;
   state.EnableHost("YAhoo.coM", domain_state);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "yahoo.com", true));
 }
 
 TEST_F(TransportSecurityStateTest, MatchesCase2) {
@@ -186,10 +186,10 @@ TEST_F(TransportSecurityStateTest, MatchesCase2) {
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
 
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "YAhoo.coM", true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "YAhoo.coM", true));
   domain_state.expiry = expiry;
   state.EnableHost("yahoo.com", domain_state);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "YAhoo.coM", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "YAhoo.coM", true));
 }
 
 TEST_F(TransportSecurityStateTest, SubdomainMatches) {
@@ -198,19 +198,19 @@ TEST_F(TransportSecurityStateTest, SubdomainMatches) {
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
 
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "yahoo.com", true));
   domain_state.expiry = expiry;
   domain_state.include_subdomains = true;
   state.EnableHost("yahoo.com", domain_state);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "foo.yahoo.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.bar.yahoo.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.bar.baz.yahoo.com",
-                                     true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "yahoo.com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "foo.yahoo.com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                   "foo.bar.yahoo.com",
+                                   true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                   "foo.bar.baz.yahoo.com",
+                                   true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "com", true));
 }
 
 TEST_F(TransportSecurityStateTest, Serialise1) {
@@ -228,7 +228,7 @@ TEST_F(TransportSecurityStateTest, Serialise2) {
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
 
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "yahoo.com", true));
   domain_state.mode = TransportSecurityState::DomainState::MODE_STRICT;
   domain_state.expiry = expiry;
   domain_state.include_subdomains = true;
@@ -239,19 +239,19 @@ TEST_F(TransportSecurityStateTest, Serialise2) {
   state.Serialise(&output);
   EXPECT_TRUE(state.LoadEntries(output, &dirty));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "yahoo.com", true));
   EXPECT_EQ(domain_state.mode, TransportSecurityState::DomainState::MODE_STRICT);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "foo.yahoo.com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "foo.yahoo.com", true));
   EXPECT_EQ(domain_state.mode, TransportSecurityState::DomainState::MODE_STRICT);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.bar.yahoo.com",
-                                     true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                   "foo.bar.yahoo.com",
+                                   true));
   EXPECT_EQ(domain_state.mode, TransportSecurityState::DomainState::MODE_STRICT);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.bar.baz.yahoo.com",
-                                     true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                   "foo.bar.baz.yahoo.com",
+                                   true));
   EXPECT_EQ(domain_state.mode, TransportSecurityState::DomainState::MODE_STRICT);
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "com", true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "com", true));
 }
 
 TEST_F(TransportSecurityStateTest, DeleteSince) {
@@ -261,15 +261,15 @@ TEST_F(TransportSecurityStateTest, DeleteSince) {
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
   const base::Time older = current_time - base::TimeDelta::FromSeconds(1000);
 
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "yahoo.com", true));
   domain_state.mode = TransportSecurityState::DomainState::MODE_STRICT;
   domain_state.expiry = expiry;
   state.EnableHost("yahoo.com", domain_state);
 
   state.DeleteSince(expiry);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "yahoo.com", true));
   state.DeleteSince(older);
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "yahoo.com", true));
 }
 
 TEST_F(TransportSecurityStateTest, DeleteHost) {
@@ -281,10 +281,10 @@ TEST_F(TransportSecurityStateTest, DeleteHost) {
   domain_state.expiry = expiry;
   state.EnableHost("yahoo.com", domain_state);
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "example.com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "yahoo.com", true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "example.com", true));
   EXPECT_TRUE(state.DeleteHost("yahoo.com"));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "yahoo.com", true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "yahoo.com", true));
 }
 
 TEST_F(TransportSecurityStateTest, SerialiseOld) {
@@ -330,414 +330,264 @@ TEST_F(TransportSecurityStateTest, IsPreloaded) {
   EXPECT_FALSE(state.IsPreloadedSTS(aypal, true, &domain_state));
 }
 
+TEST_F(TransportSecurityStateTest, PreloadedDomainSet) {
+  TransportSecurityState state("");
+  TransportSecurityState::DomainState domain_state;
+
+  // The domain wasn't being set, leading to a blank string in the
+  // chrome://net-internals/#hsts UI. So test that.
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                   "market.android.com",
+                                   true));
+  EXPECT_EQ(domain_state.domain, "market.android.com");
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                   "sub.market.android.com",
+                                   true));
+  EXPECT_EQ(domain_state.domain, "market.android.com");
+}
+
+static bool ShouldRedirect(const char* hostname) {
+  TransportSecurityState state("");
+  TransportSecurityState::DomainState domain_state;
+  return state.GetDomainState(&domain_state, hostname, true /* SNI ok */) &&
+         domain_state.ShouldRedirectHTTPToHTTPS();
+}
+
+static bool HasState(const char *hostname) {
+  TransportSecurityState state("");
+  TransportSecurityState::DomainState domain_state;
+  return state.GetDomainState(&domain_state, hostname, true /* SNI ok */);
+}
+
+static bool HasPins(const char *hostname) {
+  TransportSecurityState state("");
+  TransportSecurityState::DomainState domain_state;
+  return state.HasPinsForHost(&domain_state, hostname, true /* SNI ok */);
+}
+
+static bool OnlyPinning(const char *hostname) {
+  TransportSecurityState state("");
+  TransportSecurityState::DomainState domain_state;
+  return state.HasPinsForHost(&domain_state, hostname, true /* SNI ok */) &&
+         !domain_state.ShouldRedirectHTTPToHTTPS();
+}
+
 TEST_F(TransportSecurityStateTest, Preloaded) {
   TransportSecurityState state("");
   TransportSecurityState::DomainState domain_state;
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "paypal.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.paypal.com", true));
+
+  // We do more extensive checks for the first domain.
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "www.paypal.com", true));
   EXPECT_EQ(domain_state.mode,
             TransportSecurityState::DomainState::MODE_STRICT);
   EXPECT_TRUE(domain_state.preloaded);
   EXPECT_FALSE(domain_state.include_subdomains);
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "www2.paypal.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "a.www.paypal.com",
-                                      true));
 
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "elanex.biz", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.elanex.biz", true));
-  EXPECT_EQ(domain_state.mode,
-            TransportSecurityState::DomainState::MODE_STRICT);
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "foo.elanex.biz", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "a.foo.elanex.biz",
-                                      true));
+  EXPECT_FALSE(HasState("paypal.com"));
+  EXPECT_FALSE(HasState("www2.paypal.com"));
+  EXPECT_FALSE(HasState("www2.paypal.com"));;
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "sunshinepress.org",
-                                     true));
-  EXPECT_EQ(domain_state.mode,
-            TransportSecurityState::DomainState::MODE_STRICT);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.sunshinepress.org",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "a.b.sunshinepress.org",
-                                     true));
+  // Google hosts:
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.noisebridge.net",
-                                     true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "noisebridge.net",
-                                      true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "foo.noisebridge.net",
-                                      true));
+  EXPECT_TRUE(ShouldRedirect("chrome.google.com"));
+  EXPECT_TRUE(ShouldRedirect("checkout.google.com"));
+  EXPECT_TRUE(ShouldRedirect("health.google.com"));
+  EXPECT_TRUE(ShouldRedirect("docs.google.com"));
+  EXPECT_TRUE(ShouldRedirect("sites.google.com"));
+  EXPECT_TRUE(ShouldRedirect("drive.google.com"));
+  EXPECT_TRUE(ShouldRedirect("spreadsheets.google.com"));
+  EXPECT_TRUE(ShouldRedirect("appengine.google.com"));
+  EXPECT_TRUE(ShouldRedirect("market.android.com"));
+  EXPECT_TRUE(ShouldRedirect("encrypted.google.com"));
+  EXPECT_TRUE(ShouldRedirect("accounts.google.com"));
+  EXPECT_TRUE(ShouldRedirect("profiles.google.com"));
+  EXPECT_TRUE(ShouldRedirect("mail.google.com"));
+  EXPECT_TRUE(ShouldRedirect("chatenabled.mail.google.com"));
+  EXPECT_TRUE(ShouldRedirect("talkgadget.google.com"));
+  EXPECT_TRUE(ShouldRedirect("hostedtalkgadget.google.com"));
+  EXPECT_TRUE(ShouldRedirect("talk.google.com"));
+  EXPECT_TRUE(ShouldRedirect("plus.google.com"));
+  EXPECT_TRUE(ShouldRedirect("groups.google.com"));
+  EXPECT_TRUE(ShouldRedirect("ssl.google-analytics.com"));
+  EXPECT_TRUE(ShouldRedirect("gmail.com"));
+  EXPECT_TRUE(ShouldRedirect("www.gmail.com"));
+  EXPECT_TRUE(ShouldRedirect("googlemail.com"));
+  EXPECT_TRUE(ShouldRedirect("www.googlemail.com"));
+  EXPECT_TRUE(ShouldRedirect("googleplex.com"));
+  EXPECT_TRUE(ShouldRedirect("www.googleplex.com"));
+  EXPECT_FALSE(HasState("m.gmail.com"));
+  EXPECT_FALSE(HasState("m.googlemail.com"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "neg9.org", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "www.neg9.org", true));
+  EXPECT_TRUE(OnlyPinning("www.google.com"));
+  EXPECT_TRUE(OnlyPinning("foo.google.com"));
+  EXPECT_TRUE(OnlyPinning("google.com"));
+  EXPECT_TRUE(OnlyPinning("www.youtube.com"));
+  EXPECT_TRUE(OnlyPinning("youtube.com"));
+  EXPECT_TRUE(OnlyPinning("i.ytimg.com"));
+  EXPECT_TRUE(OnlyPinning("ytimg.com"));
+  EXPECT_TRUE(OnlyPinning("googleusercontent.com"));
+  EXPECT_TRUE(OnlyPinning("www.googleusercontent.com"));
+  EXPECT_TRUE(OnlyPinning("www.google-analytics.com"));
+  EXPECT_TRUE(OnlyPinning("googleapis.com"));
+  EXPECT_TRUE(OnlyPinning("googleadservices.com"));
+  EXPECT_TRUE(OnlyPinning("googlecode.com"));
+  EXPECT_TRUE(OnlyPinning("appspot.com"));
+  EXPECT_TRUE(OnlyPinning("googlesyndication.com"));
+  EXPECT_TRUE(OnlyPinning("doubleclick.net"));
+  EXPECT_TRUE(OnlyPinning("googlegroups.com"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "riseup.net", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "foo.riseup.net", true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "factor.cc", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "www.factor.cc", true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "members.mayfirst.org",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "support.mayfirst.org",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "id.mayfirst.org", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "lists.mayfirst.org",
-                                     true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "www.mayfirst.org",
-                                      true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "splendidbacon.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.splendidbacon.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.splendidbacon.com",
-                                     true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "chrome.google.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "checkout.google.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "health.google.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "aladdinschools.appspot.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "ottospora.nl", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.ottospora.nl", true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "docs.google.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "sites.google.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "drive.google.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "spreadsheets.google.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "appengine.google.com",
-                                     true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.paycheckrecords.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "market.android.com",
-                                     true));
-  // The domain wasn't being set, leading to a blank string in the
-  // chrome://net-internals/#hsts UI. So test that.
-  EXPECT_EQ(domain_state.domain, "market.android.com");
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "sub.market.android.com",
-                                     true));
-  EXPECT_EQ(domain_state.domain, "market.android.com");
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "lastpass.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.lastpass.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "blog.lastpass.com",
-                                      true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "keyerror.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.keyerror.com", true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "encrypted.google.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "accounts.google.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "profiles.google.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "mail.google.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "chatenabled.mail.google.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "talkgadget.google.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "hostedtalkgadget.google.com",
-                                     true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "talk.google.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "plus.google.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "groups.google.com", true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "entropia.de", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.entropia.de", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "foo.entropia.de", true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "ssl.google-analytics.com",
-                                     true));
-
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "www.google.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "google.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "www.youtube.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "youtube.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "i.ytimg.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "ytimg.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "googleusercontent.com",
-                                      true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "www.googleusercontent.com",
-                                      true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "www.google-analytics.com",
-                                      true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "google-analytics.com",
-                                      true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "googleapis.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "googleadservices.com",
-                                      true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "googlecode.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "appspot.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "googlesyndication.com",
-                                      true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "doubleclick.net", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "googlegroups.com",
-                                      true));
-
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "gmail.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.gmail.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "m.gmail.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "googlemail.com", true));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.googlemail.com",
-                                     true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "m.googlemail.com",
-                                      true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "gmail.com", false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "www.gmail.com", false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "m.gmail.com", false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "googlemail.com", false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
+  // Tests for domains that don't work without SNI.
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "gmail.com", false));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "www.gmail.com", false));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "m.gmail.com", false));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "googlemail.com", false));
+  EXPECT_FALSE(state.GetDomainState(&domain_state,
                                       "www.googlemail.com",
                                       false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
+  EXPECT_FALSE(state.GetDomainState(&domain_state,
                                       "m.googlemail.com",
                                       false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.googleplex.com",
-                                     true));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "romab.com", false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.romab.com", false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "foo.romab.com", false));
+  // Other hosts:
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "logentries.com", false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.logentries.com",
-                                     false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "foo.logentries.com",
-                                      false));
+  EXPECT_TRUE(ShouldRedirect("aladdinschools.appspot.com"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "stripe.com", false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "foo.stripe.com", false));
+  EXPECT_TRUE(ShouldRedirect("ottospora.nl"));
+  EXPECT_TRUE(ShouldRedirect("www.ottospora.nl"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "cloudsecurityalliance.org",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.cloudsecurityalliance.org",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("www.paycheckrecords.com"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "login.sapo.pt",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.login.sapo.pt",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("lastpass.com"));
+  EXPECT_TRUE(ShouldRedirect("www.lastpass.com"));
+  EXPECT_FALSE(HasState("blog.lastpass.com"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "mattmccutchen.net",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.mattmccutchen.net",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("keyerror.com"));
+  EXPECT_TRUE(ShouldRedirect("www.keyerror.com"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "betnet.fr",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.betnet.fr",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("entropia.de"));
+  EXPECT_TRUE(ShouldRedirect("www.entropia.de"));
+  EXPECT_FALSE(HasState("foo.entropia.de"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "uprotect.it",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.uprotect.it",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("www.elanex.biz"));
+  EXPECT_FALSE(HasState("elanex.biz"));
+  EXPECT_FALSE(HasState("foo.elanex.biz"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "squareup.com",
-                                     false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "foo.squareup.com",
-                                      false));
+  EXPECT_TRUE(ShouldRedirect("sunshinepress.org"));
+  EXPECT_TRUE(ShouldRedirect("www.sunshinepress.org"));
+  EXPECT_TRUE(ShouldRedirect("a.b.sunshinepress.org"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "cert.se",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.cert.se",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("www.noisebridge.net"));
+  EXPECT_FALSE(HasState("noisebridge.net"));
+  EXPECT_FALSE(HasState("foo.noisebridge.net"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "crypto.is",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.crypto.is",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("neg9.org"));
+  EXPECT_FALSE(HasState("www.neg9.org"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "simon.butcher.name",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.simon.butcher.name",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("riseup.net"));
+  EXPECT_TRUE(ShouldRedirect("foo.riseup.net"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "linx.net",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.linx.net",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("factor.cc"));
+  EXPECT_FALSE(HasState("www.factor.cc"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "dropcam.com",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.dropcam.com",
-                                     false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "foo.dropcam.com",
-                                      false));
+  EXPECT_TRUE(ShouldRedirect("members.mayfirst.org"));
+  EXPECT_TRUE(ShouldRedirect("support.mayfirst.org"));
+  EXPECT_TRUE(ShouldRedirect("id.mayfirst.org"));
+  EXPECT_TRUE(ShouldRedirect("lists.mayfirst.org"));
+  EXPECT_FALSE(HasState("www.mayfirst.org"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "ebanking.indovinabank.com.vn",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.ebanking.indovinabank.com.vn",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("splendidbacon.com"));
+  EXPECT_TRUE(ShouldRedirect("www.splendidbacon.com"));
+  EXPECT_TRUE(ShouldRedirect("foo.splendidbacon.com"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "epoxate.com",
-                                     false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "foo.epoxate.com",
-                                      false));
+  EXPECT_TRUE(ShouldRedirect("romab.com"));
+  EXPECT_TRUE(ShouldRedirect("www.romab.com"));
+  EXPECT_TRUE(ShouldRedirect("foo.romab.com"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "torproject.org",
-                                     false));
-  EXPECT_TRUE(domain_state.public_key_hashes.size() != 0);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.torproject.org",
-                                     false));
-  EXPECT_TRUE(domain_state.public_key_hashes.size() != 0);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "check.torproject.org",
-                                     false));
-  EXPECT_TRUE(domain_state.public_key_hashes.size() != 0);
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "blog.torproject.org",
-                                     false));
-  EXPECT_TRUE(domain_state.public_key_hashes.size() != 0);
+  EXPECT_TRUE(ShouldRedirect("logentries.com"));
+  EXPECT_TRUE(ShouldRedirect("www.logentries.com"));
+  EXPECT_FALSE(HasState("foo.logentries.com"));
 
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "foo.torproject.org",
-                                      false));
+  EXPECT_TRUE(ShouldRedirect("stripe.com"));
+  EXPECT_TRUE(ShouldRedirect("foo.stripe.com"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.moneybookers.com",
-                                     false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "moneybookers.com",
-                                      false));
+  EXPECT_TRUE(ShouldRedirect("cloudsecurityalliance.org"));
+  EXPECT_TRUE(ShouldRedirect("foo.cloudsecurityalliance.org"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "ledgerscope.net",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.ledgerscope.net",
-                                     false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "status.ledgerscope.net",
-                                      false));
+  EXPECT_TRUE(ShouldRedirect("login.sapo.pt"));
+  EXPECT_TRUE(ShouldRedirect("foo.login.sapo.pt"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "kyps.net",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.kyps.net",
-                                     false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "foo.kyps.net",
-                                      false));
+  EXPECT_TRUE(ShouldRedirect("mattmccutchen.net"));
+  EXPECT_TRUE(ShouldRedirect("foo.mattmccutchen.net"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.app.recurly.com",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.api.recurly.com",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("betnet.fr"));
+  EXPECT_TRUE(ShouldRedirect("foo.betnet.fr"));
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "greplin.com",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "www.greplin.com",
-                                     false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "foo.greplin.com",
-                                      false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "luneta.nearbuysystems.com",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.luneta.nearbuysystems.com",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "ubertt.org",
-                                     false));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "foo.ubertt.org",
-                                     false));
+  EXPECT_TRUE(ShouldRedirect("uprotect.it"));
+  EXPECT_TRUE(ShouldRedirect("foo.uprotect.it"));
 
+  EXPECT_TRUE(ShouldRedirect("squareup.com"));
+  EXPECT_FALSE(HasState("foo.squareup.com"));
+
+  EXPECT_TRUE(ShouldRedirect("cert.se"));
+  EXPECT_TRUE(ShouldRedirect("foo.cert.se"));
+
+  EXPECT_TRUE(ShouldRedirect("crypto.is"));
+  EXPECT_TRUE(ShouldRedirect("foo.crypto.is"));
+
+  EXPECT_TRUE(ShouldRedirect("simon.butcher.name"));
+  EXPECT_TRUE(ShouldRedirect("foo.simon.butcher.name"));
+
+  EXPECT_TRUE(ShouldRedirect("linx.net"));
+  EXPECT_TRUE(ShouldRedirect("foo.linx.net"));
+
+  EXPECT_TRUE(ShouldRedirect("dropcam.com"));
+  EXPECT_TRUE(ShouldRedirect("www.dropcam.com"));
+  EXPECT_FALSE(HasState("foo.dropcam.com"));
+
+  EXPECT_TRUE(ShouldRedirect("ebanking.indovinabank.com.vn"));
+  EXPECT_TRUE(ShouldRedirect("foo.ebanking.indovinabank.com.vn"));
+
+  EXPECT_TRUE(ShouldRedirect("epoxate.com"));
+  EXPECT_FALSE(HasState("foo.epoxate.com"));
+
+  EXPECT_TRUE(HasPins("torproject.org"));
+  EXPECT_TRUE(HasPins("www.torproject.org"));
+  EXPECT_TRUE(HasPins("check.torproject.org"));
+  EXPECT_TRUE(HasPins("blog.torproject.org"));
+  EXPECT_FALSE(HasState("foo.torproject.org"));
+
+  EXPECT_TRUE(ShouldRedirect("www.moneybookers.com"));
+  EXPECT_FALSE(HasState("moneybookers.com"));
+
+  EXPECT_TRUE(ShouldRedirect("ledgerscope.net"));
+  EXPECT_TRUE(ShouldRedirect("www.ledgerscope.net"));
+  EXPECT_FALSE(HasState("status.ledgerscope.net"));
+
+  EXPECT_TRUE(ShouldRedirect("kyps.net"));
+  EXPECT_TRUE(ShouldRedirect("www.kyps.net"));
+  EXPECT_FALSE(HasState("foo.kyps.net"));
+
+  EXPECT_TRUE(ShouldRedirect("foo.app.recurly.com"));
+  EXPECT_TRUE(ShouldRedirect("foo.api.recurly.com"));
+
+  EXPECT_TRUE(ShouldRedirect("greplin.com"));
+  EXPECT_TRUE(ShouldRedirect("www.greplin.com"));
+  EXPECT_FALSE(HasState("foo.greplin.com"));
+
+  EXPECT_TRUE(ShouldRedirect("luneta.nearbuysystems.com"));
+  EXPECT_TRUE(ShouldRedirect("foo.luneta.nearbuysystems.com"));
+
+  EXPECT_TRUE(ShouldRedirect("ubertt.org"));
+  EXPECT_TRUE(ShouldRedirect("foo.ubertt.org"));
 
 #if 0
   // Currently disabled to debug Twitter public key pins  --agl
 #if defined(OS_CHROMEOS)
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "twitter.com",
-                                     false));
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                   "twitter.com",
+                                   false));
 #else
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
+  EXPECT_FALSE(state.GetDomainState(&domain_state,
                                       "twitter.com",
                                       false));
 #endif
@@ -751,13 +601,13 @@ TEST_F(TransportSecurityStateTest, LongNames) {
       "WaveletIdDomainAndBlipBlipid";
   TransportSecurityState::DomainState domain_state;
   // Just checks that we don't hit a NOTREACHED.
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, kLongName, true));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, kLongName, true));
 }
 
 TEST_F(TransportSecurityStateTest, PublicKeyHashes) {
   TransportSecurityState state("");
   TransportSecurityState::DomainState domain_state;
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "example.com", false));
+  EXPECT_FALSE(state.GetDomainState(&domain_state, "example.com", false));
   std::vector<SHA1Fingerprint> hashes;
   EXPECT_TRUE(domain_state.IsChainOfPublicKeysPermitted(hashes));
 
@@ -779,7 +629,7 @@ TEST_F(TransportSecurityStateTest, PublicKeyHashes) {
   EXPECT_TRUE(state.Serialise(&ser));
   bool dirty;
   EXPECT_TRUE(state.LoadEntries(ser, &dirty));
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "example.com", false));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "example.com", false));
   EXPECT_EQ(1u, domain_state.public_key_hashes.size());
   EXPECT_TRUE(0 == memcmp(domain_state.public_key_hashes[0].data, hash.data,
                           sizeof(hash.data)));
@@ -788,9 +638,9 @@ TEST_F(TransportSecurityStateTest, PublicKeyHashes) {
 TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   TransportSecurityState state("");
   TransportSecurityState::DomainState domain_state;
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state,
-                                     "chrome.google.com",
-                                     true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                   "chrome.google.com",
+                                   true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "chrome.google.com", true));
   std::vector<SHA1Fingerprint> hashes;
   // This essential checks that a built-in list does exist.
@@ -947,12 +797,7 @@ TEST_F(TransportSecurityStateTest, PinValidationWithoutRejectedCerts) {
 TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {
   TransportSecurityState state("");
   TransportSecurityState::DomainState domain_state;
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "www.google-analytics.com",
-                                      false));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state,
-                                      "www.google-analytics.com",
-                                      true));
+  EXPECT_FALSE(ShouldRedirect("www.google-analytics.com"));
   EXPECT_FALSE(state.HasPinsForHost(&domain_state,
                                     "www.google-analytics.com",
                                     false));
@@ -1002,29 +847,29 @@ TEST_F(TransportSecurityStateTest, ForcePreloads) {
                       "\"created\": 0.0,"
                       "\"expiry\": 2000000000.0,"
                       "\"include_subdomains\": false,"
-                      "\"mode\": \"none\""
+                      "\"mode\": \"pinning-only\""
                       "}}");
 
   TransportSecurityState state(preload);
   TransportSecurityState::DomainState domain_state;
   EXPECT_FALSE(state.HasPinsForHost(&domain_state, "docs.google.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "docs.google.com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "docs.google.com", true));
+  EXPECT_FALSE(domain_state.ShouldRedirectHTTPToHTTPS());
 }
 
 TEST_F(TransportSecurityStateTest, OverrideBuiltins) {
+  EXPECT_TRUE(HasPins("google.com"));
+  EXPECT_FALSE(ShouldRedirect("google.com"));
+  EXPECT_FALSE(ShouldRedirect("www.google.com"));
+
   TransportSecurityState state("");
   TransportSecurityState::DomainState domain_state;
-  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "google.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "google.com", true));
-  EXPECT_FALSE(state.IsEnabledForHost(&domain_state, "www.google.com", true));
-
-  domain_state = TransportSecurityState::DomainState();
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
   domain_state.expiry = expiry;
   state.EnableHost("www.google.com", domain_state);
 
-  EXPECT_TRUE(state.IsEnabledForHost(&domain_state, "www.google.com", true));
+  EXPECT_TRUE(state.GetDomainState(&domain_state, "www.google.com", true));
 }
 
 static const uint8 kSidePinLeafSPKI[] = {
