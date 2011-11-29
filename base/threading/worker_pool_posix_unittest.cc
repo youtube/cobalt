@@ -6,10 +6,9 @@
 
 #include <set>
 
-#include "base/bind.h"
-#include "base/callback.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
+#include "base/task.h"
 #include "base/threading/platform_thread.h"
 #include "base/synchronization/waitable_event.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -51,41 +50,75 @@ namespace {
 // threads used if more than one IncrementingTask is consecutively posted to the
 // thread pool, since the first one might finish executing before the subsequent
 // PostTask() calls get invoked.
-void IncrementingTask(Lock* counter_lock,
-                      int* counter,
-                      Lock* unique_threads_lock,
-                      std::set<PlatformThreadId>* unique_threads) {
-  {
-    base::AutoLock locked(*unique_threads_lock);
-    unique_threads->insert(PlatformThread::CurrentId());
+class IncrementingTask : public Task {
+ public:
+  IncrementingTask(Lock* counter_lock,
+                   int* counter,
+                   Lock* unique_threads_lock,
+                   std::set<PlatformThreadId>* unique_threads)
+      : counter_lock_(counter_lock),
+        unique_threads_lock_(unique_threads_lock),
+        unique_threads_(unique_threads),
+        counter_(counter) {}
+
+  virtual void Run() {
+    AddSelfToUniqueThreadSet();
+    base::AutoLock locked(*counter_lock_);
+    (*counter_)++;
   }
-  base::AutoLock locked(*counter_lock);
-  (*counter)++;
-}
+
+  void AddSelfToUniqueThreadSet() {
+    base::AutoLock locked(*unique_threads_lock_);
+    unique_threads_->insert(PlatformThread::CurrentId());
+  }
+
+ private:
+  Lock* counter_lock_;
+  Lock* unique_threads_lock_;
+  std::set<PlatformThreadId>* unique_threads_;
+  int* counter_;
+
+  DISALLOW_COPY_AND_ASSIGN(IncrementingTask);
+};
 
 // BlockingIncrementingTask is a simple wrapper around IncrementingTask that
 // allows for waiting at the start of Run() for a WaitableEvent to be signalled.
-struct BlockingIncrementingTaskArgs {
-  Lock* counter_lock;
-  int* counter;
-  Lock* unique_threads_lock;
-  std::set<PlatformThreadId>* unique_threads;
-  Lock* num_waiting_to_start_lock;
-  int* num_waiting_to_start;
-  ConditionVariable* num_waiting_to_start_cv;
-  base::WaitableEvent* start;
-};
+class BlockingIncrementingTask : public Task {
+ public:
+  BlockingIncrementingTask(Lock* counter_lock,
+                           int* counter,
+                           Lock* unique_threads_lock,
+                           std::set<PlatformThreadId>* unique_threads,
+                           Lock* num_waiting_to_start_lock,
+                           int* num_waiting_to_start,
+                           ConditionVariable* num_waiting_to_start_cv,
+                           base::WaitableEvent* start)
+      : incrementer_(
+          counter_lock, counter, unique_threads_lock, unique_threads),
+        num_waiting_to_start_lock_(num_waiting_to_start_lock),
+        num_waiting_to_start_(num_waiting_to_start),
+        num_waiting_to_start_cv_(num_waiting_to_start_cv),
+        start_(start) {}
 
-void BlockingIncrementingTask(const BlockingIncrementingTaskArgs& args) {
-  {
-    base::AutoLock num_waiting_to_start_locked(*args.num_waiting_to_start_lock);
-    (*args.num_waiting_to_start)++;
+  virtual void Run() {
+    {
+      base::AutoLock num_waiting_to_start_locked(*num_waiting_to_start_lock_);
+      (*num_waiting_to_start_)++;
+    }
+    num_waiting_to_start_cv_->Signal();
+    start_->Wait();
+    incrementer_.Run();
   }
-  args.num_waiting_to_start_cv->Signal();
-  args.start->Wait();
-  IncrementingTask(args.counter_lock, args.counter, args.unique_threads_lock,
-                   args.unique_threads);
-}
+
+ private:
+  IncrementingTask incrementer_;
+  Lock* num_waiting_to_start_lock_;
+  int* num_waiting_to_start_;
+  ConditionVariable* num_waiting_to_start_cv_;
+  base::WaitableEvent* start_;
+
+  DISALLOW_COPY_AND_ASSIGN(BlockingIncrementingTask);
+};
 
 class PosixDynamicThreadPoolTest : public testing::Test {
  protected:
@@ -120,18 +153,16 @@ class PosixDynamicThreadPoolTest : public testing::Test {
     }
   }
 
-  base::Closure CreateNewIncrementingTaskCallback() {
-    return base::Bind(&IncrementingTask, &counter_lock_, &counter_,
-                      &unique_threads_lock_, &unique_threads_);
+  Task* CreateNewIncrementingTask() {
+    return new IncrementingTask(&counter_lock_, &counter_,
+                                &unique_threads_lock_, &unique_threads_);
   }
 
-  base::Closure CreateNewBlockingIncrementingTaskCallback() {
-    BlockingIncrementingTaskArgs args = {
+  Task* CreateNewBlockingIncrementingTask() {
+    return new BlockingIncrementingTask(
         &counter_lock_, &counter_, &unique_threads_lock_, &unique_threads_,
         &num_waiting_to_start_lock_, &num_waiting_to_start_,
-        &num_waiting_to_start_cv_, &start_
-    };
-    return base::Bind(&BlockingIncrementingTask, args);
+        &num_waiting_to_start_cv_, &start_);
   }
 
   scoped_refptr<base::PosixDynamicThreadPool> pool_;
@@ -154,7 +185,7 @@ TEST_F(PosixDynamicThreadPoolTest, Basic) {
   EXPECT_EQ(0U, peer_.pending_tasks().size());
 
   // Add one task and wait for it to be completed.
-  pool_->PostTask(FROM_HERE, CreateNewIncrementingTaskCallback());
+  pool_->PostTask(FROM_HERE, CreateNewIncrementingTask());
 
   WaitForIdleThreads(1);
 
@@ -166,13 +197,13 @@ TEST_F(PosixDynamicThreadPoolTest, Basic) {
 
 TEST_F(PosixDynamicThreadPoolTest, ReuseIdle) {
   // Add one task and wait for it to be completed.
-  pool_->PostTask(FROM_HERE, CreateNewIncrementingTaskCallback());
+  pool_->PostTask(FROM_HERE, CreateNewIncrementingTask());
 
   WaitForIdleThreads(1);
 
   // Add another 2 tasks.  One should reuse the existing worker thread.
-  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTaskCallback());
-  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTaskCallback());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
 
   WaitForTasksToStart(2);
   start_.Signal();
@@ -185,8 +216,8 @@ TEST_F(PosixDynamicThreadPoolTest, ReuseIdle) {
 
 TEST_F(PosixDynamicThreadPoolTest, TwoActiveTasks) {
   // Add two blocking tasks.
-  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTaskCallback());
-  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTaskCallback());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
 
   EXPECT_EQ(0, counter_) << "Blocking tasks should not have started yet.";
 
@@ -201,14 +232,14 @@ TEST_F(PosixDynamicThreadPoolTest, TwoActiveTasks) {
 
 TEST_F(PosixDynamicThreadPoolTest, Complex) {
   // Add two non blocking tasks and wait for them to finish.
-  pool_->PostTask(FROM_HERE, CreateNewIncrementingTaskCallback());
+  pool_->PostTask(FROM_HERE, CreateNewIncrementingTask());
 
   WaitForIdleThreads(1);
 
   // Add two blocking tasks, start them simultaneously, and wait for them to
   // finish.
-  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTaskCallback());
-  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTaskCallback());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
+  pool_->PostTask(FROM_HERE, CreateNewBlockingIncrementingTask());
 
   WaitForTasksToStart(2);
   start_.Signal();
@@ -228,7 +259,7 @@ TEST_F(PosixDynamicThreadPoolTest, Complex) {
   }
 
   // Add another non blocking task.  There are no threads to reuse.
-  pool_->PostTask(FROM_HERE, CreateNewIncrementingTaskCallback());
+  pool_->PostTask(FROM_HERE, CreateNewIncrementingTask());
   WaitForIdleThreads(1);
 
   EXPECT_EQ(3U, unique_threads_.size());
