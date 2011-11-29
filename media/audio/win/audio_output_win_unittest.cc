@@ -10,7 +10,11 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/sync_socket.h"
+#include "base/win/scoped_com_initializer.h"
+#include "base/win/windows_version.h"
+#include "media/base/limits.h"
 #include "media/audio/audio_io.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/simple_sources.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -24,6 +28,8 @@ using ::testing::InSequence;
 using ::testing::NiceMock;
 using ::testing::NotNull;
 using ::testing::Return;
+
+using base::win::ScopedCOMInitializer;
 
 static const wchar_t kAudioFile1_16b_m_16K[]
     = L"media\\test\\data\\sweep02_16b_mono_16KHz.raw";
@@ -231,7 +237,7 @@ TEST(WinAudioTest, PCMWaveStreamGetAndClose) {
   oas->Close();
 }
 
-// Test that can it be cannot be created with crazy parameters
+// Test that can it be cannot be created with invalid parameters.
 TEST(WinAudioTest, SanityOnMakeParams) {
   if (IsRunningHeadless())
     return;
@@ -255,7 +261,8 @@ TEST(WinAudioTest, SanityOnMakeParams) {
   EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_MONO, 8000, 16, 0)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
-      AudioParameters(fmt, CHANNEL_LAYOUT_MONO, 8000, 16, 100000)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_MONO, 8000, 16,
+                      media::Limits::kMaxSamplesPerPacket + 1)));
 }
 
 // Test that it can be opened and closed.
@@ -533,11 +540,10 @@ TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
   oas->Close();
 }
 
-// With the low latency mode, we have two buffers instead of 3 and we
-// should be able to handle 20ms buffers at 44KHz. See also the SyncSocketBasic
-// test below.
-// TODO(cpu): right now the best we can do is 50ms before it sounds choppy.
-TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44KssLowLatency) {
+// With the low latency mode, WASAPI is utilized by default for Vista and
+// higher and Wave is used for XP and lower. It is possible to utilize a
+// smaller buffer size for WASAPI than for Wave.
+TEST(WinAudioTest, PCMWaveStreamPlay200HzToneLowLatency) {
   if (IsRunningHeadless())
     return;
   AudioManager* audio_man = AudioManager::GetAudioManager();
@@ -545,15 +551,23 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44KssLowLatency) {
   if (!audio_man->HasAudioOutputDevices())
     return;
 
-  uint32 samples_50_ms = AudioParameters::kAudioCDSampleRate / 20;
+  // The WASAPI API requires a correct COM environment.
+  ScopedCOMInitializer com_init(ScopedCOMInitializer::kMTA);
+
+  // Use 10 ms buffer size for WASAPI and 50 ms buffer size for Wave.
+  // Take the existing native sample rate into account.
+  int sample_rate = static_cast<int>(media::GetAudioHardwareSampleRate());
+  uint32 samples_10_ms = sample_rate / 100;
+  int n = 1;
+  (base::win::GetVersion() <= base::win::VERSION_XP) ? n = 5 : n = 1;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                      CHANNEL_LAYOUT_MONO, AudioParameters::kAudioCDSampleRate,
-                      16, samples_50_ms));
+                      CHANNEL_LAYOUT_MONO, sample_rate,
+                      16, n * samples_10_ms));
   ASSERT_TRUE(NULL != oas);
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-                             200.0, AudioParameters::kAudioCDSampleRate);
+                             200.0, sample_rate);
 
   EXPECT_TRUE(oas->Open());
   oas->SetVolume(1.0);
@@ -651,7 +665,7 @@ struct SyncThreadContext {
   base::SyncSocket* socket;
   int sample_rate;
   double sine_freq;
-  uint32 packet_size;
+  uint32 packet_size_bytes;
 };
 
 // This thread provides the data that the SyncSocketSource above needs
@@ -672,11 +686,11 @@ DWORD __stdcall SyncSocketThread(void* context) {
 
   AudioBuffersState buffers_state;
   int times = 0;
-  for (int ix = 0; ix < kTwoSecBytes; ix += ctx.packet_size) {
+  for (int ix = 0; ix < kTwoSecBytes; ix += ctx.packet_size_bytes) {
     if (ctx.socket->Receive(&buffers_state, sizeof(buffers_state)) == 0)
       break;
     if ((times > 0) && (buffers_state.pending_bytes < 1000)) __debugbreak();
-    ctx.socket->Send(&buffer[ix], ctx.packet_size);
+    ctx.socket->Send(&buffer[ix], ctx.packet_size_bytes);
     ++times;
   }
 
@@ -685,11 +699,13 @@ DWORD __stdcall SyncSocketThread(void* context) {
 }
 
 // Test the basic operation of AudioOutputStream used with a SyncSocket.
-// The emphasis is to test low-latency with buffers less than 100ms. With
-// the waveout api it seems not possible to go below 50ms. In this test
-// you should hear a continous 200Hz tone.
-//
-// TODO(cpu): This actually sounds choppy most of the time. Fix it.
+// The emphasis is to verify that it is possible to feed data to the audio
+// layer using a source based on SyncSocket. In a real situation we would
+// go for the low-latency version in combination with SyncSocket, but to keep
+// the test more simple, AUDIO_PCM_LINEAR is utilized instead. The main
+// principle of the test still remains and we avoid the additional complexity
+// related to the two different audio-layers for AUDIO_PCM_LOW_LATENCY.
+// In this test you should hear a continuous 200Hz tone for 2 seconds.
 TEST(WinAudioTest, SyncSocketBasic) {
   if (IsRunningHeadless())
     return;
@@ -702,11 +718,10 @@ TEST(WinAudioTest, SyncSocketBasic) {
   int sample_rate = AudioParameters::kAudioCDSampleRate;
   const uint32 kSamples20ms = sample_rate / 50;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
                       CHANNEL_LAYOUT_MONO, sample_rate, 16, kSamples20ms));
   ASSERT_TRUE(NULL != oas);
 
-  // compute buffer size for 20ms of audio, 882 samples (mono).
   ASSERT_TRUE(oas->Open());
 
   base::SyncSocket* sockets[2];
@@ -717,7 +732,7 @@ TEST(WinAudioTest, SyncSocketBasic) {
   SyncThreadContext thread_context;
   thread_context.sample_rate = sample_rate;
   thread_context.sine_freq = 200.0;
-  thread_context.packet_size = kSamples20ms;
+  thread_context.packet_size_bytes = kSamples20ms * 2;
   thread_context.socket = sockets[1];
 
   HANDLE thread = ::CreateThread(NULL, 0, SyncSocketThread,
