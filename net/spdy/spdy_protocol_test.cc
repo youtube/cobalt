@@ -14,6 +14,7 @@ using spdy::CONTROL_FLAG_NONE;
 using spdy::GOAWAY;
 using spdy::HEADERS;
 using spdy::NOOP;
+using spdy::NUM_CONTROL_FRAME_TYPES;
 using spdy::PING;
 using spdy::RST_STREAM;
 using spdy::SETTINGS;
@@ -27,7 +28,10 @@ using spdy::SpdyDataFrame;
 using spdy::SpdyFrame;
 using spdy::SpdyFramer;
 using spdy::SpdyHeaderBlock;
+using spdy::SpdyHeadersControlFrame;
 using spdy::SpdyGoAwayControlFrame;
+using spdy::SpdyNoOpControlFrame;
+using spdy::SpdyPingControlFrame;
 using spdy::SpdyRstStreamControlFrame;
 using spdy::SpdySettings;
 using spdy::SpdySettingsControlFrame;
@@ -50,8 +54,11 @@ TEST(SpdyProtocolTest, ProtocolConstants) {
   EXPECT_EQ(18u, SpdySynStreamControlFrame::size());
   EXPECT_EQ(14u, SpdySynReplyControlFrame::size());
   EXPECT_EQ(16u, SpdyRstStreamControlFrame::size());
-  EXPECT_EQ(12u, SpdyGoAwayControlFrame::size());
   EXPECT_EQ(12u, SpdySettingsControlFrame::size());
+  EXPECT_EQ(8u, SpdyNoOpControlFrame::size());
+  EXPECT_EQ(12u, SpdyPingControlFrame::size());
+  EXPECT_EQ(12u, SpdyGoAwayControlFrame::size());
+  EXPECT_EQ(14u, SpdyHeadersControlFrame::size());
   EXPECT_EQ(16u, SpdyWindowUpdateControlFrame::size());
   EXPECT_EQ(4u, sizeof(FlagsAndLength));
   EXPECT_EQ(1, SYN_STREAM);
@@ -125,12 +132,39 @@ TEST(SpdyProtocolTest, ControlFrameStructs) {
   EXPECT_EQ(spdy::INVALID_STREAM, rst_frame->status());
   EXPECT_EQ(0, rst_frame->flags());
 
+  scoped_ptr<SpdyNoOpControlFrame> noop_frame(
+      framer.CreateNopFrame());
+  EXPECT_EQ(kSpdyProtocolVersion, noop_frame->version());
+  EXPECT_TRUE(noop_frame->is_control_frame());
+  EXPECT_EQ(NOOP, noop_frame->type());
+  EXPECT_EQ(0, noop_frame->flags());
+
+  const uint32 kUniqueId = 1234567u;
+  const uint32 kUniqueId2 = 31415926u;
+  scoped_ptr<SpdyPingControlFrame> ping_frame(
+      framer.CreatePingFrame(kUniqueId));
+  EXPECT_EQ(kSpdyProtocolVersion, ping_frame->version());
+  EXPECT_TRUE(ping_frame->is_control_frame());
+  EXPECT_EQ(PING, ping_frame->type());
+  EXPECT_EQ(kUniqueId, ping_frame->unique_id());
+  ping_frame->set_unique_id(kUniqueId2);
+  EXPECT_EQ(kUniqueId2, ping_frame->unique_id());
+
   scoped_ptr<SpdyGoAwayControlFrame> goaway_frame(
       framer.CreateGoAway(123));
   EXPECT_EQ(kSpdyProtocolVersion, goaway_frame->version());
   EXPECT_TRUE(goaway_frame->is_control_frame());
   EXPECT_EQ(GOAWAY, goaway_frame->type());
   EXPECT_EQ(123u, goaway_frame->last_accepted_stream_id());
+
+  scoped_ptr<SpdyHeadersControlFrame> headers_frame(
+      framer.CreateHeaders(123, CONTROL_FLAG_NONE, false, &headers));
+  EXPECT_EQ(kSpdyProtocolVersion, headers_frame->version());
+  EXPECT_TRUE(headers_frame->is_control_frame());
+  EXPECT_EQ(HEADERS, headers_frame->type());
+  EXPECT_EQ(123u, headers_frame->stream_id());
+  EXPECT_EQ(2, headers_frame->header_block_len());
+  EXPECT_EQ(0, headers_frame->flags());
 
   scoped_ptr<SpdyWindowUpdateControlFrame> window_update_frame(
       framer.CreateWindowUpdate(123, 456));
@@ -230,6 +264,20 @@ TEST(SpdyProtocolTest, TestSpdySettingsFrame) {
   }
 }
 
+TEST(SpdyProtocolTest, HasHeaderBlock) {
+  SpdyControlFrame frame(SpdyControlFrame::size());
+  for (SpdyControlType type = SYN_STREAM;
+      type < NUM_CONTROL_FRAME_TYPES;
+      type = static_cast<SpdyControlType>(type + 1)) {
+    frame.set_type(type);
+    if (type == SYN_STREAM || type == SYN_REPLY || type == HEADERS) {
+      EXPECT_TRUE(frame.has_header_block());
+    } else {
+      EXPECT_FALSE(frame.has_header_block());
+    }
+  }
+}
+
 // Make sure that overflows both die in debug mode, and do not cause problems
 // in opt mode.  Note:  The EXPECT_DEBUG_DEATH call does not work on Win32 yet,
 // so we comment it out.
@@ -311,6 +359,24 @@ TEST(SpdyProtocolDeathTest, TestSpdyControlFrameType) {
     EXPECT_EQ(version, frame.version());
     EXPECT_TRUE(frame.is_control_frame());
   }
+}
+
+TEST(SpdyProtocolDeathTest, TestRstStreamStatusBounds) {
+  SpdyFramer framer;
+  scoped_ptr<SpdyRstStreamControlFrame> rst_frame;
+
+  rst_frame.reset(framer.CreateRstStream(123, spdy::PROTOCOL_ERROR));
+  EXPECT_EQ(spdy::PROTOCOL_ERROR, rst_frame->status());
+
+  rst_frame->set_status(spdy::INVALID);
+  EXPECT_EQ(spdy::INVALID, rst_frame->status());
+
+  rst_frame->set_status(
+      static_cast<spdy::SpdyStatusCodes>(spdy::INVALID - 1));
+  EXPECT_EQ(spdy::INVALID, rst_frame->status());
+
+  rst_frame->set_status(spdy::NUM_STATUS_CODES);
+  EXPECT_EQ(spdy::INVALID, rst_frame->status());
 }
 
 }  // namespace
