@@ -45,6 +45,7 @@ SpdyProxyClientSocket::SpdyProxyClientSocket(
       write_buffer_len_(0),
       write_bytes_outstanding_(0),
       eof_has_been_read_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       net_log_(spdy_stream->net_log()) {
   request_.method = "CONNECT";
   request_.url = url;
@@ -516,6 +517,7 @@ void SpdyProxyClientSocket::OnClose(int status)  {
   else
     next_state_ = STATE_DISCONNECTED;
 
+  base::WeakPtr<SpdyProxyClientSocket> weak_ptr = weak_factory_.GetWeakPtr();
   OldCompletionCallback* write_callback = write_callback_;
   write_callback_ = NULL;
   write_buffer_len_ = 0;
@@ -529,10 +531,11 @@ void SpdyProxyClientSocket::OnClose(int status)  {
     read_callback_ = NULL;
     read_callback->Run(status);
   } else if (read_callback_) {
-    // If we have a read_callback, the we need to make sure we call it back
+    // If we have a read_callback_, the we need to make sure we call it back.
     OnDataReceived(NULL, 0);
   }
-  if (write_callback)
+  // This may have been deleted by read_callback_, so check first.
+  if (weak_ptr && write_callback)
     write_callback->Run(ERR_CONNECTION_CLOSED);
 }
 
