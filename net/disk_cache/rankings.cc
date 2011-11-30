@@ -494,6 +494,9 @@ int Rankings::SelfCheck() {
 }
 
 bool Rankings::SanityCheck(CacheRankingsBlock* node, bool from_list) const {
+  if (!node->VerifyHash())
+    return false;
+
   const RankingsNode* data = node->Data();
 
   if ((!data->next && data->prev) || (data->next && !data->prev))
@@ -572,17 +575,14 @@ bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
 
   backend_->OnEvent(Stats::OPEN_RANKINGS);
 
-  // "dummy" is the old "pointer" value, so it has to be 0.
-  if (!rankings->Data()->dirty && !rankings->Data()->dummy)
+  if (!rankings->Data()->dirty)
     return true;
 
   EntryImpl* entry = backend_->GetOpenEntry(rankings);
   if (!entry) {
     // We cannot trust this entry, but we cannot initiate a cleanup from this
-    // point (we may be in the middle of a cleanup already). Just get rid of
-    // the invalid pointer and continue; the entry will be deleted when detected
-    // from a regular open/create path.
-    rankings->Data()->dummy = 0;
+    // point (we may be in the middle of a cleanup already). The entry will be
+    // deleted when detected from a regular open/create path.
     rankings->Data()->dirty = backend_->GetCurrentEntryId() - 1;
     if (!rankings->Data()->dirty)
       rankings->Data()->dirty--;
@@ -623,7 +623,6 @@ void Rankings::CompleteTransaction() {
   if (!node.Load())
     return;
 
-  node.Data()->dummy = 0;
   node.Store();
 
   Addr& my_head = heads_[control_data_->operation_list];
@@ -720,7 +719,7 @@ void Rankings::RevertRemove(CacheRankingsBlock* node) {
 }
 
 bool Rankings::CheckEntry(CacheRankingsBlock* rankings) {
-  if (!rankings->Data()->dummy)
+  if (rankings->VerifyHash())
     return true;
 
   // If this entry is not dirty, it is a serious problem.

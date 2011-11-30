@@ -123,7 +123,8 @@ struct EntryStore {
   int32       data_size[4];       // We can store up to 4 data streams for each
   CacheAddr   data_addr[4];       // entry.
   uint32      flags;              // Any combination of EntryFlags.
-  int32       pad[5];
+  int32       pad[4];
+  uint32      self_hash;          // The hash of EntryStore up to this point.
   char        key[256 - 24 * 4];  // null terminated
 };
 
@@ -153,7 +154,7 @@ struct RankingsNode {
   CacheAddr   prev;             // LRU list.
   CacheAddr   contents;         // Address of the EntryStore.
   int32       dirty;            // The entry is being modifyied.
-  int32       dummy;            // Old files may have a pointer here.
+  uint32      self_hash;        // RankingsNode's hash.
 };
 #pragma pack(pop)
 
