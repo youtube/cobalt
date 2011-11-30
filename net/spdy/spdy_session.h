@@ -15,6 +15,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
@@ -45,7 +46,8 @@ class SpdyStream;
 class SSLInfo;
 
 class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
-                               public spdy::SpdyFramerVisitorInterface {
+                               public spdy::SpdyFramerVisitorInterface,
+                               public LayeredPool {
  public:
   // Create a new SpdySession.
   // |host_port_proxy_pair| is the host/port that this session connects to, and
@@ -227,6 +229,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   int GetPeerAddress(AddressList* address) const;
   int GetLocalAddress(IPEndPoint* address) const;
+
+  // LayeredPool methods:
+  virtual bool CloseOneIdleConnection() OVERRIDE;
 
  private:
   friend class base::RefCounted<SpdySession>;
