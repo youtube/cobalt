@@ -36,6 +36,9 @@ class NET_EXPORT_PRIVATE HttpResponseBodyDrainer {
   // doesn't complete immediately, it will add itself to |session|.
   void Start(HttpNetworkSession* session);
 
+  // As above, but stop reading once |num_bytes_to_drain| has been reached.
+  void StartWithSize(HttpNetworkSession* session, int num_bytes_to_drain);
+
  private:
   enum State {
     STATE_DRAIN_RESPONSE_BODY,
@@ -52,6 +55,7 @@ class NET_EXPORT_PRIVATE HttpResponseBodyDrainer {
   void OnTimerFired();
   void Finish(int result);
 
+  int read_size_;
   scoped_refptr<IOBuffer> read_buf_;
   const scoped_ptr<HttpStream> stream_;
   State next_state_;

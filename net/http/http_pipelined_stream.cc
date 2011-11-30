@@ -118,11 +118,8 @@ void HttpPipelinedStream::LogNumRttVsBytesMetrics() const {
   // TODO(simonjam): I don't want to copy & paste this from http_basic_stream.
 }
 
-void HttpPipelinedStream::Drain(HttpNetworkSession*) {
-  // On errors, we already evict everything from the pipeline and close it.
-  // TODO(simonjam): Consider trying to drain the pipeline in the same way that
-  // HttpBasicStream does.
-  delete this;
+void HttpPipelinedStream::Drain(HttpNetworkSession* session) {
+  pipeline_->Drain(this, session);
 }
 
 const SSLConfig& HttpPipelinedStream::used_ssl_config() const {

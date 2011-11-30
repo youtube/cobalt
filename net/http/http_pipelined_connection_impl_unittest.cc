@@ -1086,6 +1086,131 @@ TEST_F(HttpPipelinedConnectionImplTest, CloseBeforeReadCallbackRuns) {
   MessageLoop::current()->RunAllPending();
 }
 
+TEST_F(HttpPipelinedConnectionImplTest, RecoverFromDrainOnRedirect) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
+    MockWrite(false, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 2,
+             "HTTP/1.1 302 OK\r\n"
+             "Content-Length: 8\r\n\r\n"
+             "redirect"),
+    MockRead(false, 3,
+             "HTTP/1.1 200 OK\r\n"
+             "Content-Length: 7\r\n\r\n"
+             "ok.html"),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  scoped_ptr<HttpStream> stream1(NewTestStream("redirect.html"));
+  scoped_ptr<HttpStream> stream2(NewTestStream("ok.html"));
+
+  HttpRequestHeaders headers1;
+  HttpResponseInfo response1;
+  EXPECT_EQ(OK, stream1->SendRequest(headers1, NULL, &response1, &callback_));
+  HttpRequestHeaders headers2;
+  HttpResponseInfo response2;
+  EXPECT_EQ(OK, stream2->SendRequest(headers2, NULL, &response2, &callback_));
+
+  EXPECT_EQ(OK, stream1->ReadResponseHeaders(&callback_));
+  stream1.release()->Drain(NULL);
+
+  EXPECT_EQ(OK, stream2->ReadResponseHeaders(&callback_));
+  ExpectResponse("ok.html", stream2, false);
+  stream2->Close(false);
+}
+
+TEST_F(HttpPipelinedConnectionImplTest, EvictAfterDrainOfUnknownSize) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
+    MockWrite(false, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 2,
+             "HTTP/1.1 302 OK\r\n\r\n"
+             "redirect"),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  scoped_ptr<HttpStream> stream1(NewTestStream("redirect.html"));
+  scoped_ptr<HttpStream> stream2(NewTestStream("ok.html"));
+
+  HttpRequestHeaders headers1;
+  HttpResponseInfo response1;
+  EXPECT_EQ(OK, stream1->SendRequest(headers1, NULL, &response1, &callback_));
+  HttpRequestHeaders headers2;
+  HttpResponseInfo response2;
+  EXPECT_EQ(OK, stream2->SendRequest(headers2, NULL, &response2, &callback_));
+
+  EXPECT_EQ(OK, stream1->ReadResponseHeaders(&callback_));
+  stream1.release()->Drain(NULL);
+
+  EXPECT_EQ(ERR_PIPELINE_EVICTION, stream2->ReadResponseHeaders(&callback_));
+  stream2->Close(false);
+}
+
+TEST_F(HttpPipelinedConnectionImplTest, EvictAfterFailedDrain) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
+    MockWrite(false, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 2,
+             "HTTP/1.1 302 OK\r\n"
+             "Content-Length: 8\r\n\r\n"),
+    MockRead(false, ERR_SOCKET_NOT_CONNECTED, 3),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  scoped_ptr<HttpStream> stream1(NewTestStream("redirect.html"));
+  scoped_ptr<HttpStream> stream2(NewTestStream("ok.html"));
+
+  HttpRequestHeaders headers1;
+  HttpResponseInfo response1;
+  EXPECT_EQ(OK, stream1->SendRequest(headers1, NULL, &response1, &callback_));
+  HttpRequestHeaders headers2;
+  HttpResponseInfo response2;
+  EXPECT_EQ(OK, stream2->SendRequest(headers2, NULL, &response2, &callback_));
+
+  EXPECT_EQ(OK, stream1->ReadResponseHeaders(&callback_));
+  stream1.release()->Drain(NULL);
+
+  EXPECT_EQ(ERR_PIPELINE_EVICTION, stream2->ReadResponseHeaders(&callback_));
+  stream2->Close(false);
+}
+
+TEST_F(HttpPipelinedConnectionImplTest, EvictIfDrainingChunkedEncoding) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
+    MockWrite(false, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 2,
+             "HTTP/1.1 302 OK\r\n"
+             "Transfer-Encoding: chunked\r\n\r\n"),
+    MockRead(false, 3,
+             "jibberish"),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  scoped_ptr<HttpStream> stream1(NewTestStream("redirect.html"));
+  scoped_ptr<HttpStream> stream2(NewTestStream("ok.html"));
+
+  HttpRequestHeaders headers1;
+  HttpResponseInfo response1;
+  EXPECT_EQ(OK, stream1->SendRequest(headers1, NULL, &response1, &callback_));
+  HttpRequestHeaders headers2;
+  HttpResponseInfo response2;
+  EXPECT_EQ(OK, stream2->SendRequest(headers2, NULL, &response2, &callback_));
+
+  EXPECT_EQ(OK, stream1->ReadResponseHeaders(&callback_));
+  stream1.release()->Drain(NULL);
+
+  EXPECT_EQ(ERR_PIPELINE_EVICTION, stream2->ReadResponseHeaders(&callback_));
+  stream2->Close(false);
+}
+
 TEST_F(HttpPipelinedConnectionImplTest, OnPipelineHasCapacity) {
   MockWrite writes[] = {
     MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
