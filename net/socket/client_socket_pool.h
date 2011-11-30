@@ -29,15 +29,6 @@ class ClientSocketHandle;
 class ClientSocketPoolHistograms;
 class StreamSocket;
 
-// ClientSocketPools are layered. This defines an interface for lower level
-// socket pools to communicate with higher layer pools.
-class LayeredPool {
- public:
-  // Instructs the LayeredPool to close an idle connection. Return true if one
-  // was closed.
-  virtual bool CloseOneIdleConnection() = 0;
-};
-
 // A ClientSocketPool is used to restrict the number of sockets open at a time.
 // It also maintains a list of idle persistent sockets.
 //
@@ -119,10 +110,6 @@ class NET_EXPORT ClientSocketPool {
   // the pool.  Does not flush any pools wrapped by |this|.
   virtual void Flush() = 0;
 
-  // Returns true if a new request may hit a per-pool (not per-host) max socket
-  // limit.
-  virtual bool IsStalled() const = 0;
-
   // Called to close any idle connections held by the connection manager.
   virtual void CloseIdleSockets() = 0;
 
@@ -135,12 +122,6 @@ class NET_EXPORT ClientSocketPool {
   // Determine the LoadState of a connecting ClientSocketHandle.
   virtual LoadState GetLoadState(const std::string& group_name,
                                  const ClientSocketHandle* handle) const = 0;
-
-  // Adds a LayeredPool on top of |this|.
-  virtual void AddLayeredPool(LayeredPool* layered_pool) = 0;
-
-  // Removes a LayeredPool from |this|.
-  virtual void RemoveLayeredPool(LayeredPool* layered_pool) = 0;
 
   // Retrieves information on the current state of the pool as a
   // DictionaryValue.  Caller takes possession of the returned value.
