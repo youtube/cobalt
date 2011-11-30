@@ -239,6 +239,9 @@ class NET_EXPORT HttpResponseHeaders
                        int64* last_byte_position,
                        int64* instance_length) const;
 
+  // Returns true if the response is chunk-encoded.
+  bool IsChunkEncoded() const;
+
   // Returns the HTTP response code.  This is 0 if the response code text seems
   // to exist but could not be parsed.  Otherwise, it defaults to 200 if the
   // response code is not found in the raw headers.
