@@ -293,6 +293,11 @@ size_t GetAudioHardwareBufferSize() {
 #if defined(OS_MACOSX)
   return 128;
 #elif defined(OS_WIN)
+  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+    // Fall back to Windows Wave implementation on Windows XP or lower
+    // and assume 48kHz as default sample rate.
+    return 2048;
+  }
   // This call must be done on a COM thread configured as MTA.
   // TODO(tommi): http://code.google.com/p/chromium/issues/detail?id=103835.
   int mixing_sample_rate =
