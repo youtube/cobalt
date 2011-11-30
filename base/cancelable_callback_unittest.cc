@@ -28,7 +28,7 @@ void RefCountedParam(const scoped_refptr<TestRefCounted>& ref_counted) {}
 //  - After Cancel(), Run() completes but has no effect.
 TEST(CancelableCallbackTest, Cancel) {
   int count = 0;
-  CancelableCallback cancelable(
+  CancelableClosure cancelable(
       base::Bind(&Increment, base::Unretained(&count)));
 
   base::Closure callback = cancelable.callback();
@@ -45,26 +45,29 @@ TEST(CancelableCallbackTest, Cancel) {
 
 // Cancel() called multiple times.
 //  - Cancel() cancels all copies of the wrapped callback.
+//  - Calling Cancel() more than once has no effect.
+//  - After Cancel(), callback() returns a null callback.
 TEST(CancelableCallbackTest, MultipleCancel) {
   int count = 0;
-  CancelableCallback cancelable(
+  CancelableClosure cancelable(
       base::Bind(&Increment, base::Unretained(&count)));
 
   base::Closure callback1 = cancelable.callback();
+  base::Closure callback2 = cancelable.callback();
   cancelable.Cancel();
 
   callback1.Run();
   EXPECT_EQ(0, count);
 
-  base::Closure callback2 = cancelable.callback();
   callback2.Run();
   EXPECT_EQ(0, count);
 
-  // Cancel() should have no effect, but callback() is still runnable.
-  base::Closure callback3 = cancelable.callback();
+  // Calling Cancel() again has no effect.
   cancelable.Cancel();
-  callback3.Run();
-  EXPECT_EQ(0, count);
+
+  // callback() of a cancelled callback is null.
+  base::Closure callback3 = cancelable.callback();
+  EXPECT_TRUE(callback3.is_null());
 }
 
 // CancelableCallback destroyed before callback is run.
@@ -74,7 +77,7 @@ TEST(CancelableCallbackTest, CallbackCanceledOnDestruction) {
   base::Closure callback;
 
   {
-    CancelableCallback cancelable(
+    CancelableClosure cancelable(
         base::Bind(&Increment, base::Unretained(&count)));
 
     callback = cancelable.callback();
@@ -92,7 +95,7 @@ TEST(CancelableCallbackTest, CancelDropsCallback) {
   scoped_refptr<TestRefCounted> ref_counted = new TestRefCounted;
   EXPECT_TRUE(ref_counted->HasOneRef());
 
-  CancelableCallback cancelable(base::Bind(RefCountedParam, ref_counted));
+  CancelableClosure cancelable(base::Bind(RefCountedParam, ref_counted));
   EXPECT_FALSE(cancelable.IsCancelled());
   EXPECT_TRUE(ref_counted.get());
   EXPECT_FALSE(ref_counted->HasOneRef());
@@ -109,7 +112,7 @@ TEST(CancelableCallbackTest, CancelDropsCallback) {
 //  - Reset() deactivates outstanding callbacks.
 TEST(CancelableCallbackTest, Reset) {
   int count = 0;
-  CancelableCallback cancelable(
+  CancelableClosure cancelable(
       base::Bind(&Increment, base::Unretained(&count)));
 
   base::Closure callback = cancelable.callback();
@@ -140,7 +143,7 @@ TEST(CancelableCallbackTest, Reset) {
 // IsCanceled().
 //  - Cancel() transforms the CancelableCallback into a cancelled state.
 TEST(CancelableCallbackTest, IsNull) {
-  CancelableCallback cancelable;
+  CancelableClosure cancelable;
   EXPECT_TRUE(cancelable.IsCancelled());
 
   int count = 0;
@@ -158,7 +161,7 @@ TEST(CancelableCallbackTest, PostTask) {
   MessageLoop loop(MessageLoop::TYPE_DEFAULT);
 
   int count = 0;
-  CancelableCallback cancelable(base::Bind(&Increment,
+  CancelableClosure cancelable(base::Bind(&Increment,
                                            base::Unretained(&count)));
 
   MessageLoop::current()->PostTask(FROM_HERE, cancelable.callback());
