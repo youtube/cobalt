@@ -133,8 +133,8 @@
       # Disable file manager component extension by default.
       'file_manager_extension%': 0,
 
-      # Enable WebUI TaskManager by default.
-      'webui_task_manager%': 1,
+      # Disable WebUI TaskManager by default.
+      'webui_task_manager%': 0,
 
       # Python version.
       'python_ver%': '2.6',
@@ -325,7 +325,7 @@
           'file_manager_extension%': 0,
         }],
 
-        # Enable WebUI TaskManager always on Chrome OS or Aura.
+        # Enable WebUI TaskManager only on Chrome OS or Aura.
         ['chromeos==1 or use_aura==1', {
           'webui_task_manager%': 1,
         }],
