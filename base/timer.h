@@ -52,6 +52,11 @@
 #include "base/task.h"
 #include "base/time.h"
 
+#if defined(__LB_PS3_DEBUG_TASKS__)
+#include <stdio.h>
+#include <string>
+#endif
+
 class MessageLoop;
 
 namespace base {
@@ -142,9 +147,19 @@ class BaseTimer : public BaseTimer_Helper {
         : BaseTimer_Helper::TimerTask(delay),
           receiver_(receiver),
           method_(method) {
+#if defined(__LB_PS3_DEBUG_TASKS__)
+      const std::type_info& type(typeid(Receiver));
+      std::string name(type.name());
+      printf("TimerTask %p (%s) created.\n", this, name.c_str());
+#endif
     }
 
     virtual ~TimerTask() {
+#if defined(__LB_PS3_DEBUG_TASKS__)
+      const std::type_info& type(typeid(Receiver));
+      std::string name(type.name());
+      printf("TimerTask %p (%s) destroyed.\n", this, name.c_str());
+#endif
       // This task may be getting cleared because the MessageLoop has been
       // destructed.  If so, don't leave the Timer with a dangling pointer
       // to this now-defunct task.
