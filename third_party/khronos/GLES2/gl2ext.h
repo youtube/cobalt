@@ -207,6 +207,11 @@ typedef void* GLeglImageOES;
 #define GL_MAX_SAMPLES_ANGLE                                    0x8D57
 #endif
 
+/* GL_ANGLE_pack_reverse_row_order */
+#ifndef GL_ANGLE_pack_reverse_row_order
+#define GL_PACK_REVERSE_ROW_ORDER_ANGLE                         0x93A4
+#endif
+
 /*------------------------------------------------------------------------*
  * APPLE extension tokens
  *------------------------------------------------------------------------*/
@@ -788,6 +793,11 @@ typedef void (GL_APIENTRYP PFNGLBLITFRAMEBUFFERANGLEPROC) (GLint srcX0, GLint sr
 GL_APICALL void GL_APIENTRY glRenderbufferStorageMultisampleANGLE (GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height);
 #endif
 typedef void (GL_APIENTRYP PFNGLRENDERBUFFERSTORAGEMULTISAMPLEANGLEPROC) (GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height);
+#endif
+
+/* GL_ANGLE_pack_reverse_row_order */
+#ifndef GL_ANGLE_pack_reverse_row_order
+#define GL_ANGLE_pack_reverse_row_order 1
 #endif
 
 /*------------------------------------------------------------------------*
