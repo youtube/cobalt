@@ -28,6 +28,7 @@ namespace net {
 
 class ClientSocketHandle;
 class GrowableIOBuffer;
+class HttpNetworkSession;
 class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
@@ -116,6 +117,10 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
 
   void GetSSLCertRequestInfo(int pipeline_id,
                              SSLCertRequestInfo* cert_request_info);
+
+  // Attempts to drain the response body for |stream| so that the pipeline may
+  // be reused.
+  void Drain(HttpPipelinedStream* stream, HttpNetworkSession* session);
 
  private:
   enum StreamState {
