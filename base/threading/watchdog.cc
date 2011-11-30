@@ -131,7 +131,10 @@ void Watchdog::ThreadDelegate::ThreadMain() {
     }
     watchdog_->state_ = DISARMED;  // Only alarm at most once.
     TimeTicks last_alarm_time = TimeTicks::Now();
-    watchdog_->Alarm();  // Set a break point here to debug on alarms.
+    {
+      AutoUnlock lock(watchdog_->lock_);
+      watchdog_->Alarm();  // Set a break point here to debug on alarms.
+    }
     TimeDelta last_alarm_delay = TimeTicks::Now() - last_alarm_time;
     if (last_alarm_delay <= TimeDelta::FromMilliseconds(2))
       continue;
