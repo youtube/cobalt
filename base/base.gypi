@@ -61,7 +61,6 @@
           'callback_internal.cc',
           'callback_internal.h',
           'callback_old.h',
-          'cancelable_callback.cc',
           'cancelable_callback.h',
           'command_line.cc',
           'command_line.h',
