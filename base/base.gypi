@@ -832,8 +832,14 @@
             '-Wextra',
           ],
           'sources': [
-            'third_party/symbolize/symbolize.cc',
+            'third_party/symbolize/config.h',
             'third_party/symbolize/demangle.cc',
+            'third_party/symbolize/demangle.h',
+            'third_party/symbolize/glog/logging.h',
+            'third_party/symbolize/glog/raw_logging.h',
+            'third_party/symbolize/symbolize.cc',
+            'third_party/symbolize/symbolize.h',
+            'third_party/symbolize/utilities.h',
           ],
           'include_dirs': [
             '..',
