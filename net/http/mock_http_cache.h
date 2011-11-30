@@ -115,10 +115,10 @@ class MockDiskCache : public disk_cache::Backend {
       std::vector<std::pair<std::string, std::string> >* stats) OVERRIDE;
   virtual void OnExternalCacheHit(const std::string& key) OVERRIDE;
 
-  // returns number of times a cache entry was successfully opened
+  // Returns number of times a cache entry was successfully opened.
   int open_count() const { return open_count_; }
 
-  // returns number of times a cache entry was successfully created
+  // Returns number of times a cache entry was successfully created.
   int create_count() const { return create_count_; }
 
   // Fail any subsequent CreateEntry and OpenEntry.
@@ -126,6 +126,9 @@ class MockDiskCache : public disk_cache::Backend {
 
   // Return entries that fail some of their requests.
   void set_soft_failures(bool value) { soft_failures_ = value; }
+
+  // Makes sure that CreateEntry is not called twice for a given key.
+  void set_double_create_check(bool value) { double_create_check_ = value; }
 
   void ReleaseAll();
 
@@ -140,6 +143,7 @@ class MockDiskCache : public disk_cache::Backend {
   int create_count_;
   bool fail_requests_;
   bool soft_failures_;
+  bool double_create_check_;
 };
 
 class MockBackendFactory : public net::HttpCache::BackendFactory {
