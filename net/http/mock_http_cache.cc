@@ -341,7 +341,7 @@ class MockDiskCache::CallbackRunner : public Task {
 
 MockDiskCache::MockDiskCache()
     : open_count_(0), create_count_(0), fail_requests_(false),
-      soft_failures_(false) {
+      soft_failures_(false), double_create_check_(true) {
 }
 
 MockDiskCache::~MockDiskCache() {
@@ -392,7 +392,12 @@ int MockDiskCache::CreateEntry(const std::string& key,
 
   EntryMap::iterator it = entries_.find(key);
   if (it != entries_.end()) {
-    DCHECK(it->second->is_doomed());
+    if (!it->second->is_doomed()) {
+      if (double_create_check_)
+        NOTREACHED();
+      else
+        return net::ERR_CACHE_CREATE_FAILURE;
+    }
     it->second->Release();
     entries_.erase(it);
   }
