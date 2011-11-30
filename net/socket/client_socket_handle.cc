@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,8 @@ namespace net {
 
 ClientSocketHandle::ClientSocketHandle()
     : is_initialized_(false),
+      pool_(NULL),
+      layered_pool_(NULL),
       is_reused_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           callback_(this, &ClientSocketHandle::OnIOComplete)),
@@ -49,6 +51,10 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
   group_name_.clear();
   is_reused_ = false;
   user_callback_ = NULL;
+  if (layered_pool_) {
+    pool_->RemoveLayeredPool(layered_pool_);
+    layered_pool_ = NULL;
+  }
   pool_ = NULL;
   idle_time_ = base::TimeDelta();
   init_time_ = base::TimeTicks();
@@ -70,6 +76,19 @@ LoadState ClientSocketHandle::GetLoadState() const {
   if (!pool_)
     return LOAD_STATE_IDLE;
   return pool_->GetLoadState(group_name_, this);
+}
+
+bool ClientSocketHandle::IsPoolStalled() const {
+  return pool_->IsStalled();
+}
+
+void ClientSocketHandle::AddLayeredPool(LayeredPool* layered_pool) {
+  CHECK(layered_pool);
+  CHECK(!layered_pool_);
+  if (pool_) {
+    pool_->AddLayeredPool(layered_pool);
+    layered_pool_ = layered_pool;
+  }
 }
 
 void ClientSocketHandle::OnIOComplete(int result) {
