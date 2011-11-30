@@ -15,6 +15,7 @@
       'type': 'none',
       'dependencies': [
         'util/build_util.gyp:*',
+        'android_builder_tests',
       ],
     }, # target_name: All
     {
