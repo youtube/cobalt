@@ -7,7 +7,13 @@
 // wrapped callback until this object is destroyed or Reset()/Cancel() are
 // called.
 //
-// Thread-safety notes:
+// NOTE:
+//
+// Calling CancellableCallback::Cancel() brings the object back to its natural,
+// default-constructed state, i.e., CancellableCallback::callback() will return
+// a null callback.
+//
+// THREAD-SAFETY:
 //
 // CancelableCallback objects must be created on, posted to, cancelled on, and
 // destroyed on the same thread.
@@ -25,7 +31,7 @@
 //   MessageLoop::current()->Quit();
 // }
 //
-// CancelableCallback timeout(base::Bind(&TimeoutCallback, "Test timed out."));
+// CancelableClosure timeout(base::Bind(&TimeoutCallback, "Test timed out."));
 // MessageLoop::current()->PostDelayedTask(FROM_HERE, timeout.callback(),
 //                                         4000)  // 4 seconds to run.
 // RunIntensiveTest();
@@ -37,52 +43,161 @@
 #define BASE_CANCELABLE_CALLBACK_H_
 #pragma once
 
-#include "base/callback.h"
 #include "base/base_export.h"
+#include "base/bind.h"
+#include "base/callback.h"
+#include "base/callback_internal.h"
+#include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 
 namespace base {
 
-class BASE_EXPORT CancelableCallback {
+template <typename Sig>
+class CancelableCallback;
+
+template <>
+class CancelableCallback<void(void)> {
  public:
-  CancelableCallback();
+  CancelableCallback() : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
   // |callback| must not be null.
-  explicit CancelableCallback(const base::Closure& callback);
+  explicit CancelableCallback(const base::Callback<void(void)>& callback)
+      : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
+        callback_(callback) {
+    DCHECK(!callback.is_null());
+    InitializeForwarder();
+  }
 
-  ~CancelableCallback();
+  ~CancelableCallback() {}
 
   // Cancels and drops the reference to the wrapped callback.
-  void Cancel();
+  void Cancel() {
+    weak_factory_.InvalidateWeakPtrs();
+    forwarder_.Reset();
+    callback_.Reset();
+  }
 
   // Returns true if the wrapped callback has been cancelled.
-  bool IsCancelled() const;
+  bool IsCancelled() const {
+    return callback_.is_null();
+  }
 
   // Sets |callback| as the closure that may be cancelled. |callback| may not
   // be null. Outstanding and any previously wrapped callbacks are cancelled.
-  void Reset(const base::Closure& callback);
+  void Reset(const base::Callback<void(void)>& callback) {
+    DCHECK(!callback.is_null());
+
+    // Outstanding tasks (e.g., posted to a message loop) must not be called.
+    Cancel();
+
+    // |forwarder_| is no longer valid after Cancel(), so re-bind.
+    InitializeForwarder();
+
+    callback_ = callback;
+  }
 
   // Returns a callback that can be disabled by calling Cancel().
-  const base::Closure& callback() const;
+  const base::Callback<void(void)>& callback() const {
+    return forwarder_;
+  }
 
  private:
-  void RunCallback();
+  void Forward() {
+    callback_.Run();
+  }
 
   // Helper method to bind |forwarder_| using a weak pointer from
   // |weak_factory_|.
-  void InitializeForwarder();
+  void InitializeForwarder() {
+    forwarder_ = base::Bind(&CancelableCallback<void(void)>::Forward,
+                            weak_factory_.GetWeakPtr());
+  }
 
-  // Used to ensure RunCallback() is not run when this object is destroyed.
-  base::WeakPtrFactory<CancelableCallback> weak_factory_;
+  // Used to ensure Forward() is not run when this object is destroyed.
+  base::WeakPtrFactory<CancelableCallback<void(void)> > weak_factory_;
 
   // The wrapper closure.
-  base::Closure forwarder_;
+  base::Callback<void(void)> forwarder_;
 
   // The stored closure that may be cancelled.
-  base::Closure callback_;
+  base::Callback<void(void)> callback_;
 
   DISALLOW_COPY_AND_ASSIGN(CancelableCallback);
 };
+
+template <typename A1>
+class CancelableCallback<void(A1)> {
+ public:
+  CancelableCallback() : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
+
+  // |callback| must not be null.
+  explicit CancelableCallback(const base::Callback<void(A1)>& callback)
+      : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
+        callback_(callback) {
+    DCHECK(!callback.is_null());
+    InitializeForwarder();
+  }
+
+  ~CancelableCallback() {}
+
+  // Cancels and drops the reference to the wrapped callback.
+  void Cancel() {
+    weak_factory_.InvalidateWeakPtrs();
+    forwarder_.Reset();
+    callback_.Reset();
+  }
+
+  // Returns true if the wrapped callback has been cancelled.
+  bool IsCancelled() const {
+    return callback_.is_null();
+  }
+
+  // Sets |callback| as the closure that may be cancelled. |callback| may not
+  // be null. Outstanding and any previously wrapped callbacks are cancelled.
+  void Reset(const base::Callback<void(A1)>& callback) {
+    DCHECK(!callback.is_null());
+
+    // Outstanding tasks (e.g., posted to a message loop) must not be called.
+    Cancel();
+
+    // |forwarder_| is no longer valid after Cancel(), so re-bind.
+    InitializeForwarder();
+
+    callback_ = callback;
+  }
+
+  // Returns a callback that can be disabled by calling Cancel().
+  const base::Callback<void(A1)>& callback() const {
+    return forwarder_;
+  }
+
+ private:
+  void Forward(
+      typename internal::CallbackParamTraits<A1>::ForwardType a1) const {
+    callback_.Run(a1);
+  }
+
+  // Helper method to bind |forwarder_| using a weak pointer from
+  // |weak_factory_|.
+  void InitializeForwarder() {
+    forwarder_ = base::Bind(&CancelableCallback<void(A1)>::Forward,
+                            weak_factory_.GetWeakPtr());
+  }
+
+  // Used to ensure Forward() is not run when this object is destroyed.
+  base::WeakPtrFactory<CancelableCallback<void(A1)> > weak_factory_;
+
+  // The wrapper closure.
+  base::Callback<void(A1)> forwarder_;
+
+  // The stored closure that may be cancelled.
+  base::Callback<void(A1)> callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(CancelableCallback);
+};
+
+typedef CancelableCallback<void(void)> CancelableClosure;
 
 }  // namespace base
 
