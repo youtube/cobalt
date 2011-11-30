@@ -544,11 +544,6 @@ bool EntryImpl::Update() {
 
 void EntryImpl::SetDirtyFlag(int32 current_id) {
   DCHECK(node_.HasData());
-  // We are checking if the entry is valid or not. If there is a pointer here,
-  // we should not be checking the entry.
-  if (node_.Data()->dummy)
-    dirty_ = true;
-
   if (node_.Data()->dirty && current_id != node_.Data()->dirty)
     dirty_ = true;
 
@@ -558,7 +553,6 @@ void EntryImpl::SetDirtyFlag(int32 current_id) {
 
 void EntryImpl::SetPointerForInvalidEntry(int32 new_id) {
   node_.Data()->dirty = new_id;
-  node_.Data()->dummy = 0;
   node_.Store();
 }
 
@@ -571,6 +565,9 @@ bool EntryImpl::LeaveRankingsBehind() {
 // Basically, even if there is something wrong with this entry, we want to see
 // if it is possible to load the rankings node and delete them together.
 bool EntryImpl::SanityCheck() {
+  if (!entry_.VerifyHash())
+    return false;
+
   EntryStore* stored = entry_.Data();
   if (!stored->rankings_node || stored->key_len <= 0)
     return false;
