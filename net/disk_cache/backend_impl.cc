@@ -819,8 +819,8 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
   open_entries_[entry_address.value()] = cache_entry;
 
   // Save the entry.
-  block_files_.GetFile(entry_address)->Store(cache_entry->entry());
-  block_files_.GetFile(node_address)->Store(cache_entry->rankings());
+  cache_entry->entry()->Store();
+  cache_entry->rankings()->Store();
   IncreaseNumEntries();
   entry_count_++;
 
@@ -1643,9 +1643,6 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry) {
   if (!cache_entry->LoadNodeAddress())
     return ERR_READ_FAILURE;
 
-  // Prevent overwriting the dirty flag on the destructor.
-  cache_entry->SetDirtyFlag(GetCurrentEntryId());
-
   if (!rankings_.SanityCheck(cache_entry->rankings(), false)) {
     STRESS_NOTREACHED();
     cache_entry->SetDirtyFlag(0);
@@ -1664,6 +1661,9 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry) {
     cache_entry->SetDirtyFlag(0);
     cache_entry->FixForDelete();
   }
+
+  // Prevent overwriting the dirty flag on the destructor.
+  cache_entry->SetDirtyFlag(GetCurrentEntryId());
 
   if (cache_entry->dirty()) {
     Trace("Dirty entry 0x%p 0x%x", reinterpret_cast<void*>(cache_entry.get()),
@@ -2219,8 +2219,7 @@ bool BackendImpl::CheckEntry(EntryImpl* cache_entry) {
     }
   }
 
-  RankingsNode* rankings = cache_entry->rankings()->Data();
-  return ok && !rankings->dummy;
+  return ok && cache_entry->rankings()->VerifyHash();
 }
 
 int BackendImpl::MaxBuffersSize() {

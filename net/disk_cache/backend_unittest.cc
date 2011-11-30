@@ -58,7 +58,6 @@ class DiskCacheBackendTest : public DiskCacheTestWithCache {
   void BackendInvalidEntry10(bool eviction);
   void BackendInvalidEntry11(bool eviction);
   void BackendTrimInvalidEntry12();
-  void BackendNotMarkedButDirty(const std::string& name);
   void BackendDoomAll();
   void BackendDoomAll2();
   void BackendInvalidRankings();
@@ -699,7 +698,7 @@ void DiskCacheBackendTest::BackendInvalidEntryWithLoad() {
 
   for (int i = 0; i < kNumEntries / 2; i++) {
     disk_cache::Entry* entry;
-    EXPECT_EQ(net::OK, OpenEntry(keys[i], &entry));
+    ASSERT_EQ(net::OK, OpenEntry(keys[i], &entry));
     entry->Close();
   }
 
@@ -1841,36 +1840,6 @@ TEST_F(DiskCacheBackendTest, TrimInvalidEntry12) {
 TEST_F(DiskCacheBackendTest, NewEvictionTrimInvalidEntry12) {
   SetNewEviction();
   BackendTrimInvalidEntry12();
-}
-
-// We want to be able to deal with abnormal dirty entries.
-void DiskCacheBackendTest::BackendNotMarkedButDirty(const std::string& name) {
-  ASSERT_TRUE(CopyTestCache(name));
-  DisableFirstCleanup();
-  InitCache();
-
-  disk_cache::Entry *entry1, *entry2;
-  ASSERT_EQ(net::OK, OpenEntry("the first key", &entry1));
-  EXPECT_NE(net::OK, OpenEntry("some other key", &entry2));
-  entry1->Close();
-}
-
-TEST_F(DiskCacheBackendTest, NotMarkedButDirty) {
-  BackendNotMarkedButDirty("dirty_entry");
-}
-
-TEST_F(DiskCacheBackendTest, NewEvictionNotMarkedButDirty) {
-  SetNewEviction();
-  BackendNotMarkedButDirty("dirty_entry");
-}
-
-TEST_F(DiskCacheBackendTest, NotMarkedButDirty2) {
-  BackendNotMarkedButDirty("dirty_entry2");
-}
-
-TEST_F(DiskCacheBackendTest, NewEvictionNotMarkedButDirty2) {
-  SetNewEviction();
-  BackendNotMarkedButDirty("dirty_entry2");
 }
 
 // We want to be able to deal with messed up entries on disk.
