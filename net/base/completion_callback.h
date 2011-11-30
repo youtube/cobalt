@@ -8,6 +8,7 @@
 
 #include "base/callback_old.h"
 #include "base/callback.h"
+#include "base/cancelable_callback.h"
 
 namespace net {
 
@@ -26,6 +27,8 @@ class OldCompletionCallbackImpl :
                     Tuple1<int> >::CallbackImpl(obj, meth) {
   }
 };
+
+typedef base::CancelableCallback<void(int)> CancelableCompletionCallback;
 
 // CancelableOldCompletionCallback is used for completion callbacks
 // which may outlive the target for the method dispatch. In such a case, the
