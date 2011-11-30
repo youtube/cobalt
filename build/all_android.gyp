@@ -5,8 +5,6 @@
 # This is all.gyp file for Android to prevent breakage in Android and other
 # platform; It will be churning a lot in the short term and eventually be merged
 # into all.gyp.
-#
-# Currently only base_unittests is supported.
 
 {
   'targets': [
@@ -29,6 +27,15 @@
         '../sql/sql.gyp:sql_unittests',
         '../ipc/ipc.gyp:ipc_tests',
         '../net/net.gyp:net_unittests',
+      ],
+    },
+    { 
+      # Experimental / in-progress targets that are expected to fail.
+      'target_name': 'android_experimental',
+      'type': 'none',
+      'dependencies': [
+        '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
+        '../webkit/webkit.gyp:pull_in_DumpRenderTree',
       ],
     },
   ],  # targets

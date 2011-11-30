@@ -63,8 +63,7 @@ from single_test_runner import SingleTestRunner
 from test_package_executable import TestPackageExecutable
 from test_result import BaseTestResult, TestResults
 
-_TEST_SUITES = ['base_unittests', 'sql_unittests', 'ipc_tests']
-
+_TEST_SUITES = ['base_unittests', 'sql_unittests', 'ipc_tests', 'net_unittests']
 
 class Xvfb(object):
   """Class to start and stop Xvfb if relevant.  Nop if not Linux."""
