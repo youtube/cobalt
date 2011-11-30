@@ -721,11 +721,8 @@ void HttpStreamParser::CalculateResponseBodySize() {
     response_body_length_ = 0;
 
   if (response_body_length_ == -1) {
-    // Ignore spurious chunked responses from HTTP/1.0 servers and
-    // proxies. Otherwise "Transfer-Encoding: chunked" trumps
-    // "Content-Length: N"
-    if (response_->headers->GetHttpVersion() >= HttpVersion(1, 1) &&
-        response_->headers->HasHeaderValue("Transfer-Encoding", "chunked")) {
+    // "Transfer-Encoding: chunked" trumps "Content-Length: N"
+    if (response_->headers->IsChunkEncoded()) {
       chunked_decoder_.reset(new HttpChunkedDecoder());
     } else {
       response_body_length_ = response_->headers->GetContentLength();

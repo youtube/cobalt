@@ -9,6 +9,8 @@
 #include "net/base/io_buffer.h"
 #include "net/http/http_pipelined_stream.h"
 #include "net/http/http_request_info.h"
+#include "net/http/http_response_body_drainer.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_stream_parser.h"
 #include "net/socket/client_socket_handle.h"
 
@@ -604,6 +606,22 @@ void HttpPipelinedConnectionImpl::GetSSLCertRequestInfo(
   CHECK(stream_info_map_[pipeline_id].parser.get());
   return stream_info_map_[pipeline_id].parser->GetSSLCertRequestInfo(
       cert_request_info);
+}
+
+void HttpPipelinedConnectionImpl::Drain(HttpPipelinedStream* stream,
+                                        HttpNetworkSession* session) {
+  HttpResponseHeaders* headers = stream->GetResponseInfo()->headers;
+  if (!stream->CanFindEndOfResponse() || headers->IsChunkEncoded() ||
+      !usable_) {
+    // TODO(simonjam): Drain chunk-encoded responses if they're relatively
+    // common.
+    stream->Close(true);
+    delete stream;
+    return;
+  }
+  HttpResponseBodyDrainer* drainer = new HttpResponseBodyDrainer(stream);
+  drainer->StartWithSize(session, headers->GetContentLength());
+  // |drainer| will delete itself when done.
 }
 
 void HttpPipelinedConnectionImpl::QueueUserCallback(
