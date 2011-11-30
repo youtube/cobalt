@@ -1291,4 +1291,10 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
   return true;
 }
 
+bool HttpResponseHeaders::IsChunkEncoded() const {
+  // Ignore spurious chunked responses from HTTP/1.0 servers and proxies.
+  return GetHttpVersion() >= HttpVersion(1, 1) &&
+      HasHeaderValue("Transfer-Encoding", "chunked");
+}
+
 }  // namespace net

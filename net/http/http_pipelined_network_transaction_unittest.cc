@@ -419,6 +419,49 @@ TEST_F(HttpPipelinedNetworkTransactionTest, SendErrorEvictsToNewPipeline) {
   ExpectResponse("two.html", two_transaction);
 }
 
+TEST_F(HttpPipelinedNetworkTransactionTest, RedirectDrained) {
+  Initialize();
+
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+    MockWrite(false, 3, "GET /two.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 1, "HTTP/1.1 302 OK\r\n"),
+    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(true, 4, "redirect"),
+    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(false, 6, "Content-Length: 8\r\n\r\n"),
+    MockRead(false, 7, "two.html"),
+  };
+  AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
+
+  scoped_ptr<HttpNetworkTransaction> one_transaction(
+      new HttpNetworkTransaction(session_.get()));
+  TestOldCompletionCallback one_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            one_transaction->Start(GetRequestInfo("redirect.html"),
+                                   &one_callback, BoundNetLog()));
+  EXPECT_EQ(OK, one_callback.WaitForResult());
+
+  HttpNetworkTransaction two_transaction(session_.get());
+  TestOldCompletionCallback two_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            two_transaction.Start(GetRequestInfo("two.html"), &two_callback,
+                                  BoundNetLog()));
+
+  one_transaction.reset();
+  data_vector_[0]->RunFor(2);
+  data_vector_[0]->SetStop(10);
+
+  EXPECT_EQ(OK, two_callback.WaitForResult());
+  ExpectResponse("two.html", two_transaction);
+}
+
 TEST_F(HttpPipelinedNetworkTransactionTest, BasicHttpAuthentication) {
   Initialize();
 
