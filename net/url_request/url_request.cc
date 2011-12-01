@@ -5,6 +5,7 @@
 #include "net/url_request/url_request.h"
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
@@ -148,8 +149,9 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       priority_(LOWEST),
       identifier_(GenerateURLRequestIdentifier()),
       blocked_on_delegate_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          before_request_callback_(this, &URLRequest::BeforeRequestComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(before_request_callback_(
+          base::Bind(&URLRequest::BeforeRequestComplete,
+                     base::Unretained(this)))),
       has_notified_completion_(false) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
@@ -417,7 +419,7 @@ void URLRequest::Start() {
   // Only notify the delegate for the initial request.
   if (context_ && context_->network_delegate()) {
     int error = context_->network_delegate()->NotifyBeforeURLRequest(
-        this, &before_request_callback_, &delegate_redirect_url_);
+        this, before_request_callback_, &delegate_redirect_url_);
     if (error != net::OK) {
       if (error == net::ERR_IO_PENDING) {
         // Paused on the delegate, will invoke |before_request_callback_| later.
