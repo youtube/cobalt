@@ -6,7 +6,7 @@
 # This script will check out llvm and clang into third_party/llvm and build it.
 
 # Do NOT CHANGE this if you don't know what you're doing -- see
-# http://code.google.com/p/chromium/wiki/UpdatingClang
+# https://code.google.com/p/chromium/wiki/UpdatingClang
 # Reverting problematic clang rolls is safe, though.
 CLANG_REVISION=145240
 
@@ -17,7 +17,7 @@ CLANG_DIR="${LLVM_DIR}/tools/clang"
 STAMP_FILE="${LLVM_BUILD_DIR}/cr_build_revision"
 
 # ${A:-a} returns $A if it's set, a else.
-LLVM_REPO_URL=${LLVM_URL:-http://llvm.org/svn/llvm-project}
+LLVM_REPO_URL=${LLVM_URL:-https://llvm.org/svn/llvm-project}
 
 # Die if any command dies.
 set -e
