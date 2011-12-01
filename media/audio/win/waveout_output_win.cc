@@ -15,33 +15,17 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
 
-// Number of times InitializeCriticalSectionAndSpinCount() spins
-// before going to sleep.
-const DWORD kSpinCount = 2000;
-
 // Some general thoughts about the waveOut API which is badly documented :
-// - We use CALLBACK_FUNCTION mode in which XP secretly creates two threads
-//   named _MixerCallbackThread and _waveThread which have real-time priority.
-//   The callbacks occur in _waveThread.
+// - We use CALLBACK_EVENT mode in which XP signals events such as buffer
+//   releases.
+// - We use RegisterWaitForSingleObject() so one of threads in thread pool
+//   automatically calls our callback that feeds more data to Windows.
 // - Windows does not provide a way to query if the device is playing or paused
 //   thus it forces you to maintain state, which naturally is not exactly
 //   synchronized to the actual device state.
-// - Some functions, like waveOutReset cannot be called in the callback thread
-//   or called in any random state because they deadlock. This results in a
-//   non- instantaneous Stop() method. waveOutPrepareHeader seems to be in the
-//   same boat.
-// - waveOutReset() will forcefully kill the _waveThread so it is important
-//   to make sure we are not executing inside the audio source's OnMoreData()
-//   or that we take locks inside WaveCallback() or QueueNextPacket().
 
 // Sixty four MB is the maximum buffer size per AudioOutputStream.
 static const uint32 kMaxOpenBufferSize = 1024 * 1024 * 64;
-
-// Our sound buffers are allocated once and kept in a linked list using the
-// the WAVEHDR::dwUser variable. The last buffer points to the first buffer.
-static WAVEHDR* GetNextBuffer(WAVEHDR* current) {
-  return reinterpret_cast<WAVEHDR*>(current->dwUser);
-}
 
 // See Also
 // http://www.thx.com/consumer/home-entertainment/home-theater/surround-sound-speaker-set-up/
@@ -79,6 +63,18 @@ static const unsigned int kChannelsToMask[kMaxChannelsToMask + 1] = {
   // TODO(fbarchard): Add additional masks for 7.2 and beyond.
 };
 
+inline size_t PCMWaveOutAudioOutputStream::BufferSize() const {
+  // Round size of buffer up to the nearest 16 bytes.
+  return (sizeof(WAVEHDR) + buffer_size_ + 15u) & static_cast<size_t>(~15);
+}
+
+inline WAVEHDR* PCMWaveOutAudioOutputStream::GetBuffer(int n) const {
+  DCHECK_GE(n, 0);
+  DCHECK_LT(n, num_buffers_);
+  return reinterpret_cast<WAVEHDR*>(&buffers_[n * BufferSize()]);
+}
+
+
 PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
     AudioManagerWin* manager, const AudioParameters& params, int num_buffers,
     UINT device_id)
@@ -88,13 +84,10 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       waveout_(NULL),
       callback_(NULL),
       num_buffers_(num_buffers),
-      buffer_(NULL),
       buffer_size_(params.GetPacketSize()),
       volume_(1),
       channels_(params.channels),
       pending_bytes_(0) {
-  ::InitializeCriticalSectionAndSpinCount(&lock_, kSpinCount);
-
   format_.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
   format_.Format.nChannels = params.channels;
   format_.Format.nSamplesPerSec = params.sample_rate;
@@ -116,21 +109,33 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
 
 PCMWaveOutAudioOutputStream::~PCMWaveOutAudioOutputStream() {
   DCHECK(NULL == waveout_);
-  ::DeleteCriticalSection(&lock_);
 }
 
 bool PCMWaveOutAudioOutputStream::Open() {
   if (state_ != PCMA_BRAND_NEW)
     return false;
+  if (BufferSize() * num_buffers_ > kMaxOpenBufferSize)
+    return false;
   if (num_buffers_ < 2 || num_buffers_ > 5)
     return false;
-  // Open the device. We'll be getting callback in WaveCallback function.
-  // They occur in a magic, time-critical thread that windows creates.
-  MMRESULT result = ::waveOutOpen(&waveout_, device_id_,
-                                  reinterpret_cast<LPCWAVEFORMATEX>(&format_),
-                                  reinterpret_cast<DWORD_PTR>(WaveCallback),
-                                  reinterpret_cast<DWORD_PTR>(this),
-                                  CALLBACK_FUNCTION);
+
+  // Create buffer event.
+  buffer_event_.Set(::CreateEvent(NULL,    // Security attributes.
+                                  FALSE,   // It will auto-reset.
+                                  FALSE,   // Initial state.
+                                  NULL));  // No name.
+  if (!buffer_event_.Get())
+    return false;
+
+  // Open the device.
+  // We'll be getting buffer_event_ events when it's time to refill the buffer.
+  MMRESULT result = ::waveOutOpen(
+      &waveout_,
+      device_id_,
+      reinterpret_cast<LPCWAVEFORMATEX>(&format_),
+      reinterpret_cast<DWORD_PTR>(buffer_event_.Get()),
+      NULL,
+      CALLBACK_EVENT);
   if (result != MMSYSERR_NOERROR)
     return false;
 
@@ -140,60 +145,65 @@ bool PCMWaveOutAudioOutputStream::Open() {
 }
 
 void PCMWaveOutAudioOutputStream::SetupBuffers() {
-  WAVEHDR* last = NULL;
-  WAVEHDR* first = NULL;
+  buffers_.reset(new char[BufferSize() * num_buffers_]);
   for (int ix = 0; ix != num_buffers_; ++ix) {
-    uint32 sz = sizeof(WAVEHDR) + buffer_size_;
-    buffer_ =  reinterpret_cast<WAVEHDR*>(new char[sz]);
-    buffer_->lpData = reinterpret_cast<char*>(buffer_) + sizeof(WAVEHDR);
-    buffer_->dwBufferLength = buffer_size_;
-    buffer_->dwBytesRecorded = 0;
-    buffer_->dwUser = reinterpret_cast<DWORD_PTR>(last);
-    buffer_->dwFlags = WHDR_DONE;
-    buffer_->dwLoops = 0;
-    if (ix == 0)
-      first = buffer_;
-    last = buffer_;
+    WAVEHDR* buffer = GetBuffer(ix);
+    buffer->lpData = reinterpret_cast<char*>(buffer) + sizeof(WAVEHDR);
+    buffer->dwBufferLength = buffer_size_;
+    buffer->dwBytesRecorded = 0;
+    buffer->dwFlags = WHDR_DONE;
+    buffer->dwLoops = 0;
     // Tell windows sound drivers about our buffers. Not documented what
     // this does but we can guess that causes the OS to keep a reference to
     // the memory pages so the driver can use them without worries.
-    ::waveOutPrepareHeader(waveout_, buffer_, sizeof(WAVEHDR));
+    ::waveOutPrepareHeader(waveout_, buffer, sizeof(WAVEHDR));
   }
-  // Fix the first buffer to point to the last one.
-  first->dwUser = reinterpret_cast<DWORD_PTR>(last);
 }
 
 void PCMWaveOutAudioOutputStream::FreeBuffers() {
-  WAVEHDR* current = buffer_;
   for (int ix = 0; ix != num_buffers_; ++ix) {
-    WAVEHDR* next = GetNextBuffer(current);
-    ::waveOutUnprepareHeader(waveout_, current, sizeof(WAVEHDR));
-    delete[] reinterpret_cast<char*>(current);
-    current = next;
+    ::waveOutUnprepareHeader(waveout_, GetBuffer(ix), sizeof(WAVEHDR));
   }
-  buffer_ = NULL;
+  buffers_.reset(NULL);
 }
 
-// Initially we ask the source to fill up both audio buffers. If we don't do
+// Initially we ask the source to fill up all audio buffers. If we don't do
 // this then we would always get the driver callback when it is about to run
 // samples and that would leave too little time to react.
 void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   if (state_ != PCMA_READY)
     return;
   callback_ = callback;
+
+  // Start watching for buffer events.
+  {
+    HANDLE waiting_handle = NULL;
+    ::RegisterWaitForSingleObject(&waiting_handle,
+                                  buffer_event_.Get(),
+                                  &BufferCallback,
+                                  this,
+                                  INFINITE,
+                                  WT_EXECUTEDEFAULT);
+    if (!waiting_handle) {
+      HandleError(MMSYSERR_ERROR);
+      return;
+    }
+    waiting_handle_.Set(waiting_handle);
+  }
+
   state_ = PCMA_PLAYING;
+
+  // Queue the buffers.
   pending_bytes_ = 0;
-  WAVEHDR* buffer = buffer_;
   for (int ix = 0; ix != num_buffers_; ++ix) {
+    WAVEHDR* buffer = GetBuffer(ix);
     // Caller waits for 1st packet to become available, but not for others,
     // so we wait for them here.
     if (ix != 0)
       callback_->WaitTillDataReady();
     QueueNextPacket(buffer);  // Read more data.
     pending_bytes_ += buffer->dwBufferLength;
-    buffer = GetNextBuffer(buffer);
   }
-  buffer = buffer_;
 
   // From now on |pending_bytes_| would be accessed by callback thread.
   // Most likely waveOutPause() or waveOutRestart() has its own memory barrier,
@@ -209,12 +219,11 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   // Send the buffers to the audio driver. Note that the device is paused
   // so we avoid entering the callback method while still here.
   for (int ix = 0; ix != num_buffers_; ++ix) {
-    result = ::waveOutWrite(waveout_, buffer, sizeof(WAVEHDR));
+    result = ::waveOutWrite(waveout_, GetBuffer(ix), sizeof(WAVEHDR));
     if (result != MMSYSERR_NOERROR) {
       HandleError(result);
       break;
     }
-    buffer = GetNextBuffer(buffer);
   }
   result = ::waveOutRestart(waveout_);
   if (result != MMSYSERR_NOERROR) {
@@ -223,23 +232,40 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   }
 }
 
-// Stopping is tricky. First, no buffer should be locked by the audio driver
-// or else the waveOutReset() will deadlock and secondly, the callback should
-// not be inside the AudioSource's OnMoreData because waveOutReset() forcefully
-// kills the callback thread after releasing all buffers.
+// Stopping is tricky if we want it be fast.
+// For now just do it synchronously and avoid all the complexities.
+// TODO(enal): if we want faster Stop() we can create singleton that keeps track
+//             of all currently playing streams. Then you don't have to wait
+//             till all callbacks are completed. Of course access to singleton
+//             should be under its own lock, and checking the liveness and
+//             acquiring the lock on stream should be done atomically.
 void PCMWaveOutAudioOutputStream::Stop() {
   if (state_ != PCMA_PLAYING)
     return;
+  state_ = PCMA_STOPPING;
+  MemoryBarrier();
 
-  // Enter into critical section and call ::waveOutReset(). The fact that we
-  // entered critical section means that callback is out of critical section and
-  // it is safe to reset.
-  ::EnterCriticalSection(&lock_);
+  // Stop playback.
   MMRESULT res = ::waveOutReset(waveout_);
-  ::LeaveCriticalSection(&lock_);
   if (res != MMSYSERR_NOERROR) {
+    state_ = PCMA_PLAYING;
     HandleError(res);
     return;
+  }
+
+  // Stop watching for buffer event, wait till all the callbacks are complete.
+  BOOL unregister  = UnregisterWaitEx(waiting_handle_.Take(),
+                                      INVALID_HANDLE_VALUE);
+  if (!unregister) {
+    state_ = PCMA_PLAYING;
+    HandleError(MMSYSERR_ERROR);
+    return;
+  }
+
+  // waveOutReset() leaves buffers in the unpredictable state, causing
+  // problems if we want to release or reuse them. Fix the states.
+  for (int ix = 0; ix != num_buffers_; ++ix) {
+    GetBuffer(ix)->dwFlags = WHDR_PREPARED;
   }
 
   // Don't use callback after Stop().
@@ -251,8 +277,8 @@ void PCMWaveOutAudioOutputStream::Stop() {
 // We can Close in any state except that trying to close a stream that is
 // playing Windows generates an error, which we propagate to the source.
 void PCMWaveOutAudioOutputStream::Close() {
+  Stop();  // Just to be sure. No-op if not playing.
   if (waveout_) {
-    // waveOutClose generates a callback with WOM_CLOSE id in the same thread.
     MMRESULT res = ::waveOutClose(waveout_);
     if (res != MMSYSERR_NOERROR) {
       HandleError(res);
@@ -316,40 +342,49 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
   buffer->dwFlags = WHDR_PREPARED;
 }
 
-// Windows call us back in this function when some events happen. Most notably
-// when it is done playing a buffer. Since we use double buffering it is
-// convenient to think of |buffer| as free and GetNextBuffer(buffer) as in
-// use by the driver.
-void PCMWaveOutAudioOutputStream::WaveCallback(HWAVEOUT hwo, UINT msg,
-                                               DWORD_PTR instance,
-                                               DWORD_PTR param1, DWORD_PTR) {
-  TRACE_EVENT0("audio", "PCMWaveOutAudioOutputStream::WaveCallback");
+// One of the threads in our thread pool asynchronously calls this function when
+// buffer_event_ is signalled. Search through all the buffers looking for freed
+// ones, fills them with data, and "feed" the Windows.
+// Note: by searching through all the buffers we guarantee that we fill all the
+//       buffers, even when "event loss" happens, i.e. if Windows signals event
+//       when it did not flip into unsignaled state from the previous signal.
+void NTAPI PCMWaveOutAudioOutputStream::BufferCallback(PVOID lpParameter,
+                                                       BOOLEAN timer_fired) {
+  TRACE_EVENT0("audio", "PCMWaveOutAudioOutputStream::BufferCallback");
 
-  if (msg == WOM_DONE) {
-    // WOM_DONE indicates that the driver is done with our buffer, we can
-    // either ask the source for more data or check if we need to stop playing.
-    WAVEHDR* buffer = reinterpret_cast<WAVEHDR*>(param1);
-    buffer->dwFlags = WHDR_DONE;
+  DCHECK(!timer_fired);
+  PCMWaveOutAudioOutputStream* stream =
+      reinterpret_cast<PCMWaveOutAudioOutputStream*>(lpParameter);
 
-    PCMWaveOutAudioOutputStream* stream =
-        reinterpret_cast<PCMWaveOutAudioOutputStream*>(instance);
+  // Lock the stream so callbacks do not interfere with each other.
+  // Several callbacks can be called simultaneously by different threads in the
+  // thread pool if some of the callbacks are slow, or system is very busy and
+  // scheduled callbacks are not called on time.
+  base::AutoLock auto_lock(stream->lock_);
+  if (stream->state_ != PCMA_PLAYING)
+    return;
 
-    // Do real work only if main thread has not yet called waveOutReset().
-    if (::TryEnterCriticalSection(&stream->lock_)) {
+  for (int ix = 0; ix != stream->num_buffers_; ++ix) {
+    WAVEHDR* buffer = stream->GetBuffer(ix);
+    if (buffer->dwFlags & WHDR_DONE) {
       // Before we queue the next packet, we need to adjust the number of
       // pending bytes since the last write to hardware.
       stream->pending_bytes_ -= buffer->dwBufferLength;
-
       stream->QueueNextPacket(buffer);
+
+      // QueueNextPacket() can take a long time, especially if several of them
+      // were called back-to-back. Check if we are stopping now.
+      if (stream->state_ != PCMA_PLAYING)
+        return;
 
       // Time to send the buffer to the audio driver. Since we are reusing
       // the same buffers we can get away without calling waveOutPrepareHeader.
-      MMRESULT result = ::waveOutWrite(hwo, buffer, sizeof(WAVEHDR));
+      MMRESULT result = ::waveOutWrite(stream->waveout_,
+                                       buffer,
+                                       sizeof(WAVEHDR));
       if (result != MMSYSERR_NOERROR)
         stream->HandleError(result);
-
       stream->pending_bytes_ += buffer->dwBufferLength;
-      ::LeaveCriticalSection(&stream->lock_);
     }
   }
 }
