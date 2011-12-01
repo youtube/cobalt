@@ -19,12 +19,24 @@ struct SSLConfig;
 
 class NET_EXPORT_PRIVATE HttpPipelinedConnection {
  public:
+  enum Feedback {
+    OK,
+    PIPELINE_SOCKET_ERROR,
+    OLD_HTTP_VERSION,
+    MUST_CLOSE_CONNECTION,
+  };
+
   class Delegate {
    public:
     // Called when a pipeline has newly available capacity. This may be because
     // the first request has been sent and the pipeline is now active. Or, it
     // may be because a request successfully completed.
     virtual void OnPipelineHasCapacity(HttpPipelinedConnection* pipeline) = 0;
+
+    // Called every time a pipeline receives headers. Lets the delegate know if
+    // the headers indicate that pipelining can be used.
+    virtual void OnPipelineFeedback(HttpPipelinedConnection* pipeline,
+                                    Feedback feedback) = 0;
   };
 
   class Factory {

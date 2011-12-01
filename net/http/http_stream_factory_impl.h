@@ -21,12 +21,14 @@ class HttpNetworkSession;
 class HttpPipelinedHost;
 class SpdySession;
 
-class NET_EXPORT_PRIVATE HttpStreamFactoryImpl : public HttpStreamFactory {
+class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
+    public HttpStreamFactory,
+    public HttpPipelinedHostPool::Delegate {
  public:
   explicit HttpStreamFactoryImpl(HttpNetworkSession* session);
   virtual ~HttpStreamFactoryImpl();
 
-  // HttpStreamFactory Interface
+  // HttpStreamFactory interface
   virtual HttpStreamRequest* RequestStream(
       const HttpRequestInfo& info,
       const SSLConfig& server_ssl_config,
@@ -42,10 +44,9 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl : public HttpStreamFactory {
   virtual void AddTLSIntolerantServer(const HostPortPair& server) OVERRIDE;
   virtual bool IsTLSIntolerantServer(const HostPortPair& server) const OVERRIDE;
 
-  // Called when a HttpPipelinedHost has new capacity. Attempts to allocate any
-  // pending pipeline-capable requests to pipelines.
+  // HttpPipelinedHostPool::Delegate interface
   virtual void OnHttpPipelinedHostHasAdditionalCapacity(
-      const HostPortPair& origin);
+      const HostPortPair& origin) OVERRIDE;
 
  private:
   class Request;
