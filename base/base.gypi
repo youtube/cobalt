@@ -158,8 +158,6 @@
           'mac/scoped_nsautorelease_pool.mm',
           'mac/scoped_nsexception_enabler.h',
           'mac/scoped_nsexception_enabler.mm',
-          'mac/scoped_sending_event.h',
-          'mac/scoped_sending_event.mm',
           'mach_ipc_mac.h',
           'mach_ipc_mac.mm',
           'memory/linked_ptr.h',
