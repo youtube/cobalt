@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -74,14 +74,10 @@ bool SharedMemory::CreateAndMapAnonymous(uint32 size) {
   return CreateAnonymous(size) && Map(size);
 }
 
-bool SharedMemory::CreateAnonymous(uint32 size) {
-  return CreateNamed("", false, size);
-}
-
-bool SharedMemory::CreateNamed(const std::string& name,
-                               bool open_existing, uint32 size) {
+bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
+  DCHECK(!options.executable);
   DCHECK(!mapped_file_);
-  if (size == 0)
+  if (options.size == 0)
     return false;
 
   // NaCl's memory allocator requires 0mod64K alignment and size for
@@ -89,22 +85,22 @@ bool SharedMemory::CreateNamed(const std::string& name,
   // therefore we round the size actually created to the nearest 64K unit.
   // To avoid client impact, we continue to retain the size as the
   // actual requested size.
-  uint32 rounded_size = (size + 0xffff) & ~0xffff;
-  name_ = ASCIIToWide(name);
+  uint32 rounded_size = (options.size + 0xffff) & ~0xffff;
+  name_ = ASCIIToWide(options.name == NULL ? "" : *options.name);
   mapped_file_ = CreateFileMapping(INVALID_HANDLE_VALUE, NULL,
       PAGE_READWRITE, 0, static_cast<DWORD>(rounded_size),
       name_.empty() ? NULL : name_.c_str());
   if (!mapped_file_)
     return false;
 
-  created_size_ = size;
+  created_size_ = options.size;
 
   // Check if the shared memory pre-exists.
   if (GetLastError() == ERROR_ALREADY_EXISTS) {
     // If the file already existed, set created_size_ to 0 to show that
     // we don't know the size.
     created_size_ = 0;
-    if (!open_existing) {
+    if (!options.open_existing) {
       Close();
       return false;
     }
