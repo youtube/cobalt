@@ -18,10 +18,10 @@ TEST(X509UtilOpenSSLTest, CreateOriginBoundCertNotImplemented) {
   scoped_ptr<crypto::RSAPrivateKey> private_key(
       crypto::RSAPrivateKey::Create(1024));
   std::string der_cert;
-  EXPECT_FALSE(x509_util::CreateOriginBoundCertRSA(private_key.get(),
-                                                   origin, 1,
-                                                   base::TimeDelta::FromDays(1),
-                                                   &der_cert));
+  EXPECT_FALSE(x509_util::CreateOriginBoundCert(private_key.get(),
+                                                origin, 1,
+                                                base::TimeDelta::FromDays(1),
+                                                &der_cert));
   EXPECT_TRUE(der_cert.empty());
 
 }
