@@ -61,7 +61,7 @@ class NET_EXPORT WebSocketJob
 
   // SocketStream::Delegate methods.
   virtual int OnStartOpenConnection(
-      SocketStream* socket, OldCompletionCallback* callback) OVERRIDE;
+      SocketStream* socket, const CompletionCallback& callback) OVERRIDE;
   virtual void OnConnected(SocketStream* socket,
                            int max_pending_send_allowed) OVERRIDE;
   virtual void OnSentData(SocketStream* socket, int amount_sent) OVERRIDE;
@@ -119,7 +119,7 @@ class NET_EXPORT WebSocketJob
   State state_;
   bool waiting_;
   AddressList addresses_;
-  OldCompletionCallback* callback_;  // for throttling.
+  CompletionCallback callback_;  // for throttling.
 
   scoped_ptr<WebSocketHandshakeRequestHandler> handshake_request_;
   scoped_ptr<WebSocketHandshakeResponseHandler> handshake_response_;
