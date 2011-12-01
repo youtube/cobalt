@@ -62,7 +62,7 @@ class NET_EXPORT SocketStream
     virtual ~Delegate() {}
 
     virtual int OnStartOpenConnection(SocketStream* socket,
-                                      OldCompletionCallback* callback) {
+                                      const CompletionCallback& callback) {
       return OK;
     }
 
@@ -336,9 +336,10 @@ class NET_EXPORT SocketStream
   SSLConfig server_ssl_config_;
   SSLConfig proxy_ssl_config_;
 
-  OldCompletionCallbackImpl<SocketStream> io_callback_;
-  OldCompletionCallbackImpl<SocketStream> read_callback_;
-  OldCompletionCallbackImpl<SocketStream> write_callback_;
+  const CompletionCallback io_callback_;
+  OldCompletionCallbackImpl<SocketStream> io_callback_old_;
+  OldCompletionCallbackImpl<SocketStream> read_callback_old_;
+  OldCompletionCallbackImpl<SocketStream> write_callback_old_;
 
   scoped_refptr<IOBuffer> read_buf_;
   int read_buf_size_;

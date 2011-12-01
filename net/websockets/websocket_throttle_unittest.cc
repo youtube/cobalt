@@ -100,9 +100,9 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket1";
-  TestOldCompletionCallback callback_s1;
+  TestCompletionCallback callback_s1;
   // Trying to open connection to host1 will start without wait.
-  EXPECT_EQ(OK, w1->OnStartOpenConnection(s1, &callback_s1));
+  EXPECT_EQ(OK, w1->OnStartOpenConnection(s1, callback_s1.callback()));
 
   // Now connecting to host1, so waiting queue looks like
   // Address | head -> tail
@@ -121,9 +121,10 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket2";
-  TestOldCompletionCallback callback_s2;
+  TestCompletionCallback callback_s2;
   // Trying to open connection to host2 will wait for w1.
-  EXPECT_EQ(ERR_IO_PENDING, w2->OnStartOpenConnection(s2, &callback_s2));
+  EXPECT_EQ(ERR_IO_PENDING,
+            w2->OnStartOpenConnection(s2, callback_s2.callback()));
   // Now waiting queue looks like
   // Address | head -> tail
   // 1.2.3.4 | w1 w2
@@ -141,9 +142,10 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket3";
-  TestOldCompletionCallback callback_s3;
+  TestCompletionCallback callback_s3;
   // Trying to open connection to host3 will wait for w1.
-  EXPECT_EQ(ERR_IO_PENDING, w3->OnStartOpenConnection(s3, &callback_s3));
+  EXPECT_EQ(ERR_IO_PENDING,
+            w3->OnStartOpenConnection(s3, callback_s3.callback()));
   // Address | head -> tail
   // 1.2.3.4 | w1 w2
   // 1.2.3.5 | w1    w3
@@ -161,9 +163,10 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket4";
-  TestOldCompletionCallback callback_s4;
+  TestCompletionCallback callback_s4;
   // Trying to open connection to host4 will wait for w1, w2.
-  EXPECT_EQ(ERR_IO_PENDING, w4->OnStartOpenConnection(s4, &callback_s4));
+  EXPECT_EQ(ERR_IO_PENDING,
+            w4->OnStartOpenConnection(s4, callback_s4.callback()));
   // Address | head -> tail
   // 1.2.3.4 | w1 w2    w4
   // 1.2.3.5 | w1    w3
@@ -180,9 +183,10 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket5";
-  TestOldCompletionCallback callback_s5;
+  TestCompletionCallback callback_s5;
   // Trying to open connection to host5 will wait for w1, w4
-  EXPECT_EQ(ERR_IO_PENDING, w5->OnStartOpenConnection(s5, &callback_s5));
+  EXPECT_EQ(ERR_IO_PENDING,
+            w5->OnStartOpenConnection(s5, callback_s5.callback()));
   // Address | head -> tail
   // 1.2.3.4 | w1 w2    w4
   // 1.2.3.5 | w1    w3
@@ -199,9 +203,10 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket6";
-  TestOldCompletionCallback callback_s6;
+  TestCompletionCallback callback_s6;
   // Trying to open connection to host6 will wait for w1, w4, w5
-  EXPECT_EQ(ERR_IO_PENDING, w6->OnStartOpenConnection(s6, &callback_s6));
+  EXPECT_EQ(ERR_IO_PENDING,
+            w6->OnStartOpenConnection(s6, callback_s6.callback()));
   // Address | head -> tail
   // 1.2.3.4 | w1 w2    w4
   // 1.2.3.5 | w1    w3
@@ -311,9 +316,9 @@ TEST_F(WebSocketThrottleTest, NoThrottleForDuplicateAddress) {
   DeleteAddrInfo(addr);
 
   DVLOG(1) << "socket1";
-  TestOldCompletionCallback callback_s1;
+  TestCompletionCallback callback_s1;
   // Trying to open connection to localhost will start without wait.
-  EXPECT_EQ(OK, w1->OnStartOpenConnection(s1, &callback_s1));
+  EXPECT_EQ(OK, w1->OnStartOpenConnection(s1, callback_s1.callback()));
 
   DVLOG(1) << "socket1 close";
   w1->OnClose(s1.get());

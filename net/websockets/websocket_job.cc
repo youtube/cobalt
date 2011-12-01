@@ -76,7 +76,6 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
     : delegate_(delegate),
       state_(INITIALIZED),
       waiting_(false),
-      callback_(NULL),
       handshake_request_(new WebSocketHandshakeRequestHandler),
       handshake_response_(new WebSocketHandshakeResponseHandler),
       started_to_send_handshake_request_(false),
@@ -173,16 +172,16 @@ void WebSocketJob::DetachDelegate() {
   if (socket_)
     socket_->DetachDelegate();
   socket_ = NULL;
-  if (callback_) {
+  if (!callback_.is_null()) {
     waiting_ = false;
-    callback_ = NULL;
+    callback_.Reset();
     Release();  // Balanced with OnStartOpenConnection().
   }
 }
 
 int WebSocketJob::OnStartOpenConnection(
-    SocketStream* socket, OldCompletionCallback* callback) {
-  DCHECK(!callback_);
+    SocketStream* socket, const CompletionCallback& callback) {
+  DCHECK(callback_.is_null());
   state_ = CONNECTING;
   addresses_ = socket->address_list();
   WebSocketThrottle::GetInstance()->PutInQueue(this);
@@ -194,7 +193,7 @@ int WebSocketJob::OnStartOpenConnection(
     // PutInQueue() may set |waiting_| true for throttling. In this case,
     // Wakeup() will be called later.
     callback_ = callback;
-    AddRef();  // Balanced when callback_ becomes NULL.
+    AddRef();  // Balanced when callback_ is cleared.
     return ERR_IO_PENDING;
   }
   return TrySpdyStream();
@@ -280,9 +279,9 @@ void WebSocketJob::OnClose(SocketStream* socket) {
   SocketStream::Delegate* delegate = delegate_;
   delegate_ = NULL;
   socket_ = NULL;
-  if (callback_) {
+  if (!callback_.is_null()) {
     waiting_ = false;
-    callback_ = NULL;
+    callback_.Reset();
     Release();  // Balanced with OnStartOpenConnection().
   }
   if (delegate)
@@ -615,7 +614,7 @@ void WebSocketJob::Wakeup() {
   if (!waiting_)
     return;
   waiting_ = false;
-  DCHECK(callback_);
+  DCHECK(!callback_.is_null());
   MessageLoopForIO::current()->PostTask(
       FROM_HERE,
       base::Bind(&WebSocketJob::RetryPendingIO,
@@ -632,11 +631,11 @@ void WebSocketJob::RetryPendingIO() {
 }
 
 void WebSocketJob::CompleteIO(int result) {
-  // |callback_| may be NULL if OnClose() or DetachDelegate() was called.
-  if (callback_) {
-    net::OldCompletionCallback* callback = callback_;
-    callback_ = NULL;
-    callback->Run(result);
+  // |callback_| may be null if OnClose() or DetachDelegate() was called.
+  if (!callback_.is_null()) {
+    CompletionCallback callback = callback_;
+    callback_.Reset();
+    callback.Run(result);
     Release();  // Balanced with OnStartOpenConnection().
   }
 }
