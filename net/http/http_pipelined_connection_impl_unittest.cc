@@ -31,9 +31,14 @@ class DummySocketParams : public base::RefCounted<DummySocketParams> {
 REGISTER_SOCKET_PARAMS_FOR_POOL(MockTransportClientSocketPool,
                                 DummySocketParams);
 
-class MockPipelineDelegate : public HttpPipelinedConnectionImpl::Delegate {
+namespace {
+
+class MockPipelineDelegate : public HttpPipelinedConnection::Delegate {
  public:
   MOCK_METHOD1(OnPipelineHasCapacity, void(HttpPipelinedConnection* pipeline));
+  MOCK_METHOD2(OnPipelineFeedback, void(
+      HttpPipelinedConnection* pipeline,
+      HttpPipelinedConnection::Feedback feedback));
 };
 
 class SuddenCloseObserver : public MessageLoop::TaskObserver {
@@ -1211,6 +1216,137 @@ TEST_F(HttpPipelinedConnectionImplTest, EvictIfDrainingChunkedEncoding) {
   stream2->Close(false);
 }
 
+TEST_F(HttpPipelinedConnectionImplTest, EvictionDueToMissingContentLength) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(false, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
+    MockWrite(false, 2, "GET /rejected.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(true, 3, "HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead(false, 4, "ok.html"),
+    MockRead(false, OK, 5),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  scoped_ptr<HttpStream> ok_stream(NewTestStream("ok.html"));
+  scoped_ptr<HttpStream> evicted_stream(NewTestStream("evicted.html"));
+  scoped_ptr<HttpStream> rejected_stream(NewTestStream("rejected.html"));
+
+  HttpRequestHeaders headers;
+  HttpResponseInfo response;
+  EXPECT_EQ(OK, ok_stream->SendRequest(headers, NULL, &response, &callback_));
+  EXPECT_EQ(OK, evicted_stream->SendRequest(headers, NULL, &response,
+                                            &callback_));
+  EXPECT_EQ(OK, rejected_stream->SendRequest(headers, NULL, &response,
+                                             &callback_));
+
+  TestOldCompletionCallback ok_callback;
+  EXPECT_EQ(ERR_IO_PENDING, ok_stream->ReadResponseHeaders(&ok_callback));
+
+  TestOldCompletionCallback evicted_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            evicted_stream->ReadResponseHeaders(&evicted_callback));
+
+  data_->RunFor(1);
+  EXPECT_LE(OK, ok_callback.WaitForResult());
+  data_->StopAfter(10);
+
+  ExpectResponse("ok.html", ok_stream, false);
+  ok_stream->Close(false);
+
+  EXPECT_EQ(ERR_PIPELINE_EVICTION,
+            rejected_stream->ReadResponseHeaders(&callback_));
+  rejected_stream->Close(true);
+  EXPECT_EQ(ERR_PIPELINE_EVICTION, evicted_callback.WaitForResult());
+  evicted_stream->Close(true);
+}
+
+TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnSocketError) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, ERR_FAILED, 1),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  EXPECT_CALL(delegate_,
+              OnPipelineFeedback(
+                  pipeline_.get(),
+                  HttpPipelinedConnection::PIPELINE_SOCKET_ERROR))
+      .Times(1);
+
+  scoped_ptr<HttpStream> stream(NewTestStream("ok.html"));
+  HttpRequestHeaders headers;
+  HttpResponseInfo response;
+  EXPECT_EQ(OK, stream->SendRequest(headers, NULL, &response, &callback_));
+  EXPECT_EQ(ERR_FAILED, stream->ReadResponseHeaders(&callback_));
+}
+
+TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnHttp10) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 1, "HTTP/1.0 200 OK\r\n"),
+    MockRead(false, 2, "Content-Length: 7\r\n"),
+    MockRead(false, 3, "Connection: keep-alive\r\n\r\n"),
+    MockRead(false, 4, "ok.html"),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  EXPECT_CALL(delegate_,
+              OnPipelineFeedback(pipeline_.get(),
+                                 HttpPipelinedConnection::OLD_HTTP_VERSION))
+      .Times(1);
+
+  scoped_ptr<HttpStream> stream(NewTestStream("ok.html"));
+  TestSyncRequest(stream, "ok.html");
+}
+
+TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnMustClose) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(false, 2, "Content-Length: 7\r\n"),
+    MockRead(false, 3, "Connection: close\r\n\r\n"),
+    MockRead(false, 4, "ok.html"),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  EXPECT_CALL(delegate_,
+              OnPipelineFeedback(
+                  pipeline_.get(),
+                  HttpPipelinedConnection::MUST_CLOSE_CONNECTION))
+      .Times(1);
+
+  scoped_ptr<HttpStream> stream(NewTestStream("ok.html"));
+  TestSyncRequest(stream, "ok.html");
+}
+
+TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnNoContentLength) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 1, "HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead(false, 2, "ok.html"),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  EXPECT_CALL(delegate_,
+              OnPipelineFeedback(
+                  pipeline_.get(),
+                  HttpPipelinedConnection::MUST_CLOSE_CONNECTION))
+      .Times(1);
+
+  scoped_ptr<HttpStream> stream(NewTestStream("ok.html"));
+  TestSyncRequest(stream, "ok.html");
+}
+
 TEST_F(HttpPipelinedConnectionImplTest, OnPipelineHasCapacity) {
   MockWrite writes[] = {
     MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
@@ -1249,5 +1385,7 @@ TEST_F(HttpPipelinedConnectionImplTest, OnPipelineHasCapacityWithoutSend) {
   EXPECT_CALL(delegate_, OnPipelineHasCapacity(pipeline_.get())).Times(1);
   stream.reset(NULL);
 }
+
+}  // anonymous namespace
 
 }  // namespace net
