@@ -128,7 +128,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
 
 class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
  public:
-  explicit FFmpegDemuxer(MessageLoop* message_loop);
+  FFmpegDemuxer(MessageLoop* message_loop, bool local_source);
   virtual ~FFmpegDemuxer();
 
   // Posts a task to perform additional demuxing.
@@ -148,6 +148,8 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual void SetPreload(Preload preload) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
   virtual int GetBitrate() OVERRIDE;
+  virtual bool IsLocalSource() OVERRIDE;
+  virtual bool IsSeekable() OVERRIDE;
 
   // FFmpegURLProtocol implementation.
   virtual size_t Read(size_t size, uint8* data) OVERRIDE;
@@ -207,6 +209,10 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual void SignalReadCompleted(size_t size);
 
   MessageLoop* message_loop_;
+
+  // True if the media is a local resource, false if the media require network
+  // access to be loaded.
+  bool local_source_;
 
   // FFmpeg context handle.
   AVFormatContext* format_context_;

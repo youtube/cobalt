@@ -46,10 +46,6 @@ const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
       return "DURATION_SET";
     case MediaLogEvent::TOTAL_BYTES_SET:
       return "TOTAL_BYTES_SET";
-    case MediaLogEvent::STREAMING_SET:
-      return "STREAMING_SET";
-    case MediaLogEvent::LOADED_SET:
-      return "LOADED_SET";
     case MediaLogEvent::NETWORK_ACTIVITY_SET:
       return "NETWORK_ACTIVITY_SET";
     case MediaLogEvent::ENDED:

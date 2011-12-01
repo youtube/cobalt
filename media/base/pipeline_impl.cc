@@ -251,7 +251,7 @@ base::TimeDelta PipelineImpl::GetBufferedTime() {
   base::AutoLock auto_lock(lock_);
 
   // If media is fully loaded, then return duration.
-  if (loaded_ || total_bytes_ == buffered_bytes_) {
+  if (local_source_ || total_bytes_ == buffered_bytes_) {
     max_buffered_time_ = duration_;
     return duration_;
   }
@@ -312,9 +312,9 @@ bool PipelineImpl::IsStreaming() const {
   return streaming_;
 }
 
-bool PipelineImpl::IsLoaded() const {
+bool PipelineImpl::IsLocalSource() const {
   base::AutoLock auto_lock(lock_);
-  return loaded_;
+  return local_source_;
 }
 
 PipelineStatistics PipelineImpl::GetStatistics() const {
@@ -358,7 +358,7 @@ void PipelineImpl::ResetState() {
   buffered_time_    = kZero;
   buffered_bytes_   = 0;
   streaming_        = false;
-  loaded_           = false;
+  local_source_     = false;
   total_bytes_      = 0;
   natural_size_.SetSize(0, 0);
   volume_           = 1.0f;
@@ -547,32 +547,11 @@ void PipelineImpl::SetNaturalVideoSize(const gfx::Size& size) {
   natural_size_ = size;
 }
 
-void PipelineImpl::SetStreaming(bool streaming) {
-  DCHECK(IsRunning());
-  media_log_->AddEvent(
-      media_log_->CreateBooleanEvent(
-          MediaLogEvent::STREAMING_SET, "streaming", streaming));
-
-  base::AutoLock auto_lock(lock_);
-  streaming_ = streaming;
-}
-
 void PipelineImpl::NotifyEnded() {
   DCHECK(IsRunning());
   message_loop_->PostTask(FROM_HERE,
       base::Bind(&PipelineImpl::NotifyEndedTask, this));
   media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::ENDED));
-}
-
-void PipelineImpl::SetLoaded(bool loaded) {
-  DCHECK(IsRunning());
-  media_log_->AddEvent(
-      media_log_->CreateBooleanEvent(
-          MediaLogEvent::LOADED_SET, "loaded", loaded));
-
-  base::AutoLock auto_lock(lock_);
-  loaded_ = loaded;
-  download_rate_monitor_.set_loaded(loaded_);
 }
 
 void PipelineImpl::SetNetworkActivity(bool is_downloading_data) {
@@ -1044,12 +1023,16 @@ void PipelineImpl::FilterStateTransitionTask() {
 
     // Start monitoring rate of downloading.
     int bitrate = 0;
-    if (demuxer_.get())
+    if (demuxer_.get()) {
       bitrate = demuxer_->GetBitrate();
+      local_source_ = demuxer_->IsLocalSource();
+      streaming_ = !demuxer_->IsSeekable();
+    }
     // Needs to be locked because most other calls to |download_rate_monitor_|
     // occur on the renderer thread.
     download_rate_monitor_.Start(
-        base::Bind(&PipelineImpl::OnCanPlayThrough, this), bitrate);
+        base::Bind(&PipelineImpl::OnCanPlayThrough, this),
+        bitrate, streaming_, local_source_);
     download_rate_monitor_.SetBufferedBytes(buffered_bytes_, base::Time::Now());
 
     if (IsPipelineStopPending()) {

@@ -552,11 +552,6 @@ TEST_F(PipelineImplTest, GetBufferedTime) {
   pipeline_->SetBufferedBytes(kTotalBytes);
   EXPECT_EQ(kDuration.ToInternalValue(),
             pipeline_->GetBufferedTime().ToInternalValue());
-
-  // If media is loaded, we should return duration of media.
-  pipeline_->SetLoaded(true);
-  EXPECT_EQ(kDuration.ToInternalValue(),
-            pipeline_->GetBufferedTime().ToInternalValue());
 }
 
 TEST_F(PipelineImplTest, DisableAudioRenderer) {

@@ -113,6 +113,8 @@ class MockDemuxer : public Demuxer {
   MOCK_METHOD2(Seek, void(base::TimeDelta time, const FilterStatusCB& cb));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
   MOCK_METHOD0(GetBitrate, int());
+  MOCK_METHOD0(IsLocalSource, bool());
+  MOCK_METHOD0(IsSeekable, bool());
 
   // Demuxer implementation.
   MOCK_METHOD2(Initialize, void(DataSource* data_source,
