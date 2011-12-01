@@ -217,40 +217,6 @@ TYPE_NAME_FOR_CF_TYPE_DEFN(CFString);
 
 #undef TYPE_NAME_FOR_CF_TYPE_DEFN
 
-std::string GetValueFromDictionaryErrorMessage(
-    CFStringRef key, const std::string& expected_type, CFTypeRef value) {
-  ScopedCFTypeRef<CFStringRef> actual_type_ref(
-      CFCopyTypeIDDescription(CFGetTypeID(value)));
-  return "Expected value for key " +
-      base::SysCFStringRefToUTF8(key) +
-      " to be " +
-      expected_type +
-      " but it was " +
-      base::SysCFStringRefToUTF8(actual_type_ref) +
-      " instead";
-}
-
-CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
-                                 CFStringRef key,
-                                 CFTypeID expected_type) {
-  CFTypeRef value = CFDictionaryGetValue(dict, key);
-  if (!value)
-    return value;
-
-  if (CFGetTypeID(value) != expected_type) {
-    ScopedCFTypeRef<CFStringRef> expected_type_name(
-        CFCopyTypeIDDescription(expected_type));
-    std::string expected_type_utf8 =
-        base::SysCFStringRefToUTF8(expected_type_name);
-    DLOG(WARNING) << GetValueFromDictionaryErrorMessage(key,
-                                                        expected_type_utf8,
-                                                        value);
-    return NULL;
-  }
-
-  return value;
-}
-
 void NSObjectRetain(void* obj) {
   id<NSObject> nsobj = static_cast<id<NSObject> >(obj);
   [nsobj retain];
@@ -378,6 +344,19 @@ CF_CAST_DEFN(CFSet);
 CF_CAST_DEFN(CFString);
 
 #undef CF_CAST_DEFN
+
+std::string GetValueFromDictionaryErrorMessage(
+    CFStringRef key, const std::string& expected_type, CFTypeRef value) {
+  ScopedCFTypeRef<CFStringRef> actual_type_ref(
+      CFCopyTypeIDDescription(CFGetTypeID(value)));
+  return "Expected value for key " +
+      base::SysCFStringRefToUTF8(key) +
+      " to be " +
+      expected_type +
+      " but it was " +
+      base::SysCFStringRefToUTF8(actual_type_ref) +
+      " instead";
+}
 
 }  // namespace mac
 }  // namespace base

@@ -113,20 +113,6 @@ TYPE_NAME_FOR_CF_TYPE_DECL(CFString);
 
 #undef TYPE_NAME_FOR_CF_TYPE_DECL
 
-// Helper function for GetValueFromDictionary to create the error message
-// that appears when a type mismatch is encountered.
-std::string GetValueFromDictionaryErrorMessage(
-    CFStringRef key, const std::string& expected_type, CFTypeRef value);
-
-// Utility function to pull out a value from a dictionary, check its type, and
-// return it.  Returns NULL if the key is not present or of the wrong type.
-// This is now deprecated in favor of the two-argument form below.
-// TODO(kushi.p): Remove this function once all cases of it have been
-// replaced with the two-argument form below. See: crbug.com/104200.
-BASE_EXPORT CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
-                                             CFStringRef key,
-                                             CFTypeID expected_type);
-
 // Retain/release calls for memory management in C++.
 BASE_EXPORT void NSObjectRetain(void* obj);
 BASE_EXPORT void NSObjectRelease(void* obj);
@@ -243,10 +229,8 @@ namespace mac {
 // CFNumberRef some_number = base::mac::CFCast<CFNumberRef>(
 //     CFArrayGetValueAtIndex(array, index));
 //
-// CFStringRef some_string = base::mac::CFCastStrict<CFStringRef>(
-//     base::mac::GetValueFromDictionary(some_dict,
-//                                       CFSTR("a_key"),
-//                                       CFStringGetTypeID()));
+// CFTypeRef hello = CFSTR("hello world");
+// CFStringRef some_string = base::mac::CFCastStrict<CFStringRef>(hello);
 BASE_EXPORT template<typename T>
 T CFCast(const CFTypeRef& cf_val);
 
@@ -294,8 +278,13 @@ T* ObjCCastStrict(id objc_val) {
 
 #endif  // defined(__OBJC__)
 
+// Helper function for GetValueFromDictionary to create the error message
+// that appears when a type mismatch is encountered.
+std::string GetValueFromDictionaryErrorMessage(
+    CFStringRef key, const std::string& expected_type, CFTypeRef value);
+
 // Utility function to pull out a value from a dictionary, check its type, and
-// return it.  Returns NULL if the key is not present or of the wrong type.
+// return it. Returns NULL if the key is not present or of the wrong type.
 BASE_EXPORT template<typename T>
 T GetValueFromDictionary(CFDictionaryRef dict, CFStringRef key) {
   CFTypeRef value = CFDictionaryGetValue(dict, key);
