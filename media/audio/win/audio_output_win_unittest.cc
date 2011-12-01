@@ -601,8 +601,9 @@ TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
 
   // We expect the amount of pending bytes will reaching 2 times of
   // |bytes_100_ms| because the audio output stream has a triple buffer scheme.
-  // And then we will try to provide zero data so the amount of pending bytes
-  // will go down and eventually read zero.
+  // From that it would decrease as we are playing the data but not providing
+  // new one. And then we will try to provide zero data so the amount of
+  // pending bytes will go down and eventually read zero.
   InSequence s;
   EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes, 0)))
@@ -618,11 +619,13 @@ TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
   EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes,
                                        2 * bytes_100_ms)))
-      .WillOnce(Return(0));
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(0));
   EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes,
                                        bytes_100_ms)))
-      .WillOnce(Return(0));
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(0));
   EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes, 0)))
       .Times(AnyNumber())
