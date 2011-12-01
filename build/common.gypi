@@ -91,9 +91,6 @@
       'use_virtual_keyboard%': '<(use_virtual_keyboard)',
       'use_skia_on_mac%': '<(use_skia_on_mac)',
 
-      # The variable touchui is still present (until all clean up is done).
-      'touchui%': 0,
-
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
       # This needs to be one nested variables dict in so that dependent
@@ -369,7 +366,6 @@
     'enable_flapper_hacks%': '<(enable_flapper_hacks)',
     'enable_pepper_threading%': '<(enable_pepper_threading)',
     'chromeos%': '<(chromeos)',
-    'touchui%': '<(touchui)',
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
     'use_skia_on_mac%': '<(use_skia_on_mac)',
     'use_xi2_mt%':'<(use_xi2_mt)',
