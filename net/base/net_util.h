@@ -308,13 +308,12 @@ NET_EXPORT void GenerateSafeFileName(const std::string& mime_type,
                                      bool ignore_extension,
                                      FilePath* file_path);
 
-// Checks the given port against a list of ports which are restricted by
-// default.  Returns true if the port is allowed, false if it is restricted.
-bool IsPortAllowedByDefault(int port);
+// Checks |port| against a list of ports which are restricted by default.
+// Returns true if |port| is allowed, false if it is restricted.
+NET_EXPORT bool IsPortAllowedByDefault(int port);
 
-// Checks the given port against a list of ports which are restricted by the
-// FTP protocol.  Returns true if the port is allowed, false if it is
-// restricted.
+// Checks |port| against a list of ports which are restricted by the FTP
+// protocol.  Returns true if |port| is allowed, false if it is restricted.
 bool IsPortAllowedByFtp(int port);
 
 // Check if banned |port| has been overriden by an entry in
