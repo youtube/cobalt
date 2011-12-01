@@ -32,7 +32,6 @@ struct SocketStreamEvent {
                     int num,
                     const std::string& str,
                     net::AuthChallengeInfo* auth_challenge_info,
-                    net::OldCompletionCallback* callback,
                     int error)
       : event_type(type), socket(socket_stream), number(num), data(str),
         auth_info(auth_challenge_info), error_code(error) {}
@@ -78,62 +77,63 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
     on_error_ = callback;
   }
 
-  virtual int OnStartOpenConnection(net::SocketStream* socket,
-                                    net::OldCompletionCallback* callback) {
+  virtual int OnStartOpenConnection(
+      net::SocketStream* socket,
+      const net::CompletionCallback& callback) OVERRIDE {
     connection_callback_ = callback;
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_START_OPEN_CONNECTION,
-                          socket, 0, std::string(), NULL, callback, net::OK));
+                          socket, 0, std::string(), NULL, net::OK));
     if (!on_start_open_connection_.is_null())
       return on_start_open_connection_.Run(&events_.back());
     return net::OK;
   }
   virtual void OnConnected(net::SocketStream* socket,
-                           int num_pending_send_allowed) {
+                           int num_pending_send_allowed) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_CONNECTED,
                           socket, num_pending_send_allowed, std::string(),
-                          NULL, NULL, net::OK));
+                          NULL, net::OK));
     if (!on_connected_.is_null())
       on_connected_.Run(&events_.back());
   }
   virtual void OnSentData(net::SocketStream* socket,
-                          int amount_sent) {
+                          int amount_sent) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_SENT_DATA, socket,
-                          amount_sent, std::string(), NULL, NULL, net::OK));
+                          amount_sent, std::string(), NULL, net::OK));
     if (!on_sent_data_.is_null())
       on_sent_data_.Run(&events_.back());
   }
   virtual void OnReceivedData(net::SocketStream* socket,
-                              const char* data, int len) {
+                              const char* data, int len) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_RECEIVED_DATA, socket, len,
-                          std::string(data, len), NULL, NULL, net::OK));
+                          std::string(data, len), NULL, net::OK));
     if (!on_received_data_.is_null())
       on_received_data_.Run(&events_.back());
   }
-  virtual void OnClose(net::SocketStream* socket) {
+  virtual void OnClose(net::SocketStream* socket) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_CLOSE, socket, 0,
-                          std::string(), NULL, NULL, net::OK));
+                          std::string(), NULL, net::OK));
     if (!on_close_.is_null())
       on_close_.Run(&events_.back());
     if (callback_)
       callback_->Run(net::OK);
   }
   virtual void OnAuthRequired(net::SocketStream* socket,
-                              net::AuthChallengeInfo* auth_info) {
+                              net::AuthChallengeInfo* auth_info) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_AUTH_REQUIRED, socket, 0,
-                          std::string(), auth_info, NULL, net::OK));
+                          std::string(), auth_info, net::OK));
     if (!on_auth_required_.is_null())
       on_auth_required_.Run(&events_.back());
   }
-  virtual void OnError(const net::SocketStream* socket, int error) {
+  virtual void OnError(const net::SocketStream* socket, int error) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_ERROR, NULL, 0,
-                          std::string(), NULL, NULL, error));
+                          std::string(), NULL, error));
     if (!on_error_.is_null())
       on_error_.Run(&events_.back());
     if (callback_)
@@ -152,7 +152,7 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
     credentials_ = credentials;
   }
   void CompleteConnection(int result) {
-    connection_callback_->Run(result);
+    connection_callback_.Run(result);
   }
 
   const std::vector<SocketStreamEvent>& GetSeenEvents() const {
@@ -169,7 +169,7 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
   base::Callback<void(SocketStreamEvent*)> on_auth_required_;
   base::Callback<void(SocketStreamEvent*)> on_error_;
   net::OldCompletionCallback* callback_;
-  net::OldCompletionCallback* connection_callback_;
+  net::CompletionCallback connection_callback_;
   net::AuthCredentials credentials_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStreamEventRecorder);
