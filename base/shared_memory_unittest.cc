@@ -15,6 +15,10 @@
 #include "base/mac/scoped_nsautorelease_pool.h"
 #endif
 
+#if defined(OS_POSIX)
+#include <sys/mman.h>
+#endif
+
 static const int kNumThreads = 5;
 static const int kNumTasks = 5;
 
@@ -331,6 +335,24 @@ TEST(SharedMemoryTest, AnonymousPrivate) {
     memories[i].Close();
   }
 }
+
+#if defined(OS_POSIX)
+// Create a shared memory object, mmap it, and mprotect it to PROT_EXEC.
+TEST(SharedMemoryTest, AnonymousExecutable) {
+  const uint32 kTestSize = 1 << 16;
+
+  SharedMemory shared_memory;
+  SharedMemoryCreateOptions options;
+  options.size = kTestSize;
+  options.executable = true;
+
+  EXPECT_TRUE(shared_memory.Create(options));
+  EXPECT_TRUE(shared_memory.Map(shared_memory.created_size()));
+
+  EXPECT_EQ(0, mprotect(shared_memory.memory(), shared_memory.created_size(),
+                        PROT_READ | PROT_EXEC));
+}
+#endif
 
 // On POSIX it is especially important we test shmem across processes,
 // not just across threads.  But the test is enabled on all platforms.

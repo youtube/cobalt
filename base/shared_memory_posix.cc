@@ -98,10 +98,6 @@ bool SharedMemory::CreateAndMapAnonymous(uint32 size) {
   return CreateAnonymous(size) && Map(size);
 }
 
-bool SharedMemory::CreateAnonymous(uint32 size) {
-  return CreateNamed("", false, size);
-}
-
 #if !defined(OS_ANDROID)
 // Chromium mostly only uses the unique/private shmem as specified by
 // "name == L"". The exception is in the StatsTable.
@@ -109,10 +105,9 @@ bool SharedMemory::CreateAnonymous(uint32 size) {
 // we restart from a crash.  (That isn't a new problem, but it is a problem.)
 // In case we want to delete it later, it may be useful to save the value
 // of mem_filename after FilePathForMemoryName().
-bool SharedMemory::CreateNamed(const std::string& name,
-                               bool open_existing, uint32 size) {
+bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
   DCHECK_EQ(-1, mapped_file_);
-  if (size == 0) return false;
+  if (options.size == 0) return false;
 
   // This function theoretically can block on the disk, but realistically
   // the temporary files we create will just go into the buffer cache
@@ -123,9 +118,9 @@ bool SharedMemory::CreateNamed(const std::string& name,
   bool fix_size = true;
 
   FilePath path;
-  if (name.empty()) {
+  if (options.name == NULL || options.name->empty()) {
     // It doesn't make sense to have a open-existing private piece of shmem
-    DCHECK(!open_existing);
+    DCHECK(!options.open_existing);
     // Q: Why not use the shm_open() etc. APIs?
     // A: Because they're limited to 4mb on OS X.  FFFFFFFUUUUUUUUUUU
     fp = file_util::CreateAndOpenTemporaryShmemFile(&path);
@@ -137,11 +132,11 @@ bool SharedMemory::CreateNamed(const std::string& name,
       file_util::Delete(path, false);
 
   } else {
-    if (!FilePathForMemoryName(name, &path))
+    if (!FilePathForMemoryName(*options.name, &path))
       return false;
 
     fp = file_util::OpenFile(path, "w+x");
-    if (fp == NULL && open_existing) {
+    if (fp == NULL && options.open_existing) {
       // "w+" will truncate if it already exists.
       fp = file_util::OpenFile(path, "a+");
       fix_size = false;
@@ -155,17 +150,17 @@ bool SharedMemory::CreateNamed(const std::string& name,
       return false;
     }
     const uint32 current_size = stat.st_size;
-    if (current_size != size) {
-      if (HANDLE_EINTR(ftruncate(fileno(fp), size)) != 0) {
+    if (current_size != options.size) {
+      if (HANDLE_EINTR(ftruncate(fileno(fp), options.size)) != 0) {
         file_util::CloseFile(fp);
         return false;
       }
-      if (fseeko(fp, size, SEEK_SET) != 0) {
+      if (fseeko(fp, options.size, SEEK_SET) != 0) {
         file_util::CloseFile(fp);
         return false;
       }
     }
-    created_size_ = size;
+    created_size_ = options.size;
   }
   if (fp == NULL) {
 #if !defined(OS_MACOSX)
