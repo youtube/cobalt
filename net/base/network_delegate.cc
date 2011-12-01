@@ -8,21 +8,21 @@
 
 namespace net {
 
-int NetworkDelegate::NotifyBeforeURLRequest(URLRequest* request,
-                                            OldCompletionCallback* callback,
-                                            GURL* new_url) {
+int NetworkDelegate::NotifyBeforeURLRequest(
+    URLRequest* request, const CompletionCallback& callback,
+    GURL* new_url) {
   DCHECK(CalledOnValidThread());
   DCHECK(request);
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
   return OnBeforeURLRequest(request, callback, new_url);
 }
 
-int NetworkDelegate::NotifyBeforeSendHeaders(URLRequest* request,
-                                             OldCompletionCallback* callback,
-                                             HttpRequestHeaders* headers) {
+int NetworkDelegate::NotifyBeforeSendHeaders(
+    URLRequest* request, const CompletionCallback& callback,
+    HttpRequestHeaders* headers) {
   DCHECK(CalledOnValidThread());
   DCHECK(headers);
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
   return OnBeforeSendHeaders(request, callback, headers);
 }
 
@@ -34,12 +34,12 @@ void NetworkDelegate::NotifySendHeaders(URLRequest* request,
 
 int NetworkDelegate::NotifyHeadersReceived(
     URLRequest* request,
-    OldCompletionCallback* callback,
+    const CompletionCallback& callback,
     HttpResponseHeaders* original_response_headers,
     scoped_refptr<HttpResponseHeaders>* override_response_headers) {
   DCHECK(CalledOnValidThread());
   DCHECK(original_response_headers);
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
   return OnHeadersReceived(request, callback, original_response_headers,
                            override_response_headers);
 }
