@@ -390,9 +390,13 @@ void HttpResponseHeaders::Parse(const std::string& raw_input) {
                       (line_end + 1) != raw_input.end() &&
                       *(line_end + 1) != '\0');
   ParseStatusLine(line_begin, line_end, has_headers);
+  raw_headers_.push_back('\0');  // Terminate status line with a null.
 
   if (line_end == raw_input.end()) {
-    raw_headers_.push_back('\0');
+    raw_headers_.push_back('\0');  // Ensure the headers end with a double null.
+
+    DCHECK_EQ('\0', raw_headers_[raw_headers_.size() - 2]);
+    DCHECK_EQ('\0', raw_headers_[raw_headers_.size() - 1]);
     return;
   }
 
@@ -402,6 +406,13 @@ void HttpResponseHeaders::Parse(const std::string& raw_input) {
   // Now, we add the rest of the raw headers to raw_headers_, and begin parsing
   // it (to populate our parsed_ vector).
   raw_headers_.append(line_end + 1, raw_input.end());
+
+  // Ensure the headers end with a double null.
+  while (raw_headers_.size() < 2 ||
+         raw_headers_[raw_headers_.size() - 2] != '\0' ||
+         raw_headers_[raw_headers_.size() - 1] != '\0') {
+    raw_headers_.push_back('\0');
+  }
 
   // Adjust to point at the null byte following the status line
   line_end = raw_headers_.begin() + status_line_len - 1;
@@ -414,6 +425,9 @@ void HttpResponseHeaders::Parse(const std::string& raw_input) {
               headers.values_begin(),
               headers.values_end());
   }
+
+  DCHECK_EQ('\0', raw_headers_[raw_headers_.size() - 2]);
+  DCHECK_EQ('\0', raw_headers_[raw_headers_.size() - 1]);
 }
 
 // Append all of our headers to the final output string.
@@ -663,7 +677,6 @@ void HttpResponseHeaders::ParseStatusLine(
   if (p == line_end) {
     DVLOG(1) << "missing response status; assuming 200 OK";
     raw_headers_.append(" 200 OK");
-    raw_headers_.push_back('\0');
     response_code_ = 200;
     return;
   }
@@ -703,8 +716,6 @@ void HttpResponseHeaders::ParseStatusLine(
   } else {
     raw_headers_.append(p, line_end);
   }
-
-  raw_headers_.push_back('\0');
 }
 
 size_t HttpResponseHeaders::FindHeader(size_t from,
