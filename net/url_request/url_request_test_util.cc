@@ -339,7 +339,7 @@ void TestNetworkDelegate::InitRequestStatesIfNew(int request_id) {
 
 int TestNetworkDelegate::OnBeforeURLRequest(
     net::URLRequest* request,
-    net::OldCompletionCallback* callback,
+    const net::CompletionCallback& callback,
     GURL* new_url ) {
   int req_id = request->identifier();
   InitRequestStatesIfNew(req_id);
@@ -358,7 +358,7 @@ int TestNetworkDelegate::OnBeforeURLRequest(
 
 int TestNetworkDelegate::OnBeforeSendHeaders(
     net::URLRequest* request,
-    net::OldCompletionCallback* callback,
+    const net::CompletionCallback& callback,
     net::HttpRequestHeaders* headers) {
   int req_id = request->identifier();
   InitRequestStatesIfNew(req_id);
@@ -387,7 +387,7 @@ void TestNetworkDelegate::OnSendHeaders(
 
 int TestNetworkDelegate::OnHeadersReceived(
     net::URLRequest* request,
-    net::OldCompletionCallback* callback,
+    const net::CompletionCallback& callback,
     net::HttpResponseHeaders* original_response_headers,
     scoped_refptr<net::HttpResponseHeaders>* override_response_headers) {
   int req_id = request->identifier();

@@ -6,6 +6,7 @@
 
 #include "base/base_switches.h"
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/build_time.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
@@ -209,7 +210,8 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_(
           this, &URLRequestHttpJob::OnReadCompleted)),
       ALLOW_THIS_IN_INITIALIZER_LIST(notify_before_headers_sent_callback_(
-          this, &URLRequestHttpJob::NotifyBeforeSendHeadersCallback)),
+          base::Bind(&URLRequestHttpJob::NotifyBeforeSendHeadersCallback,
+                     base::Unretained(this)))),
       read_in_progress_(false),
       transaction_(NULL),
       throttling_entry_(URLRequestThrottlerManager::GetInstance()->
@@ -228,9 +230,9 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
           filter_context_(new HttpFilterContext(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
       weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          on_headers_received_callback_(
-              this, &URLRequestHttpJob::OnHeadersReceivedCallback)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(on_headers_received_callback_(
+          base::Bind(&URLRequestHttpJob::OnHeadersReceivedCallback,
+                     base::Unretained(this)))),
       awaiting_callback_(false) {
   ResetTimer();
 }
@@ -305,7 +307,7 @@ void URLRequestHttpJob::DestroyTransaction() {
 void URLRequestHttpJob::StartTransaction() {
   if (request_->context() && request_->context()->network_delegate()) {
     int rv = request_->context()->network_delegate()->NotifyBeforeSendHeaders(
-        request_, &notify_before_headers_sent_callback_,
+        request_, notify_before_headers_sent_callback_,
         &request_info_.extra_headers);
     // If an extension blocks the request, we rely on the callback to
     // StartTransactionInternal().
@@ -714,7 +716,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
       // |on_headers_received_callback_| or
       // |NetworkDelegate::URLRequestDestroyed()| has been called.
       int error = request_->context()->network_delegate()->
-          NotifyHeadersReceived(request_, &on_headers_received_callback_,
+          NotifyHeadersReceived(request_, on_headers_received_callback_,
                                 headers, &override_response_headers_);
       if (error != net::OK) {
         if (error == net::ERR_IO_PENDING) {
