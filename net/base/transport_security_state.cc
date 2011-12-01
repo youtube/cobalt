@@ -923,10 +923,10 @@ static const char* const kGoogleRejectedCerts[] = {
   kSPKIHash_Vodafone,
   NULL,
 };
-static const PublicKeyPins kGooglePins = {
-  kGoogleAcceptableCerts,
-  kGoogleRejectedCerts,
-};
+#define kGooglePins { \
+  kGoogleAcceptableCerts, \
+  kGoogleRejectedCerts, \
+}
 
 static const char* const kTorAcceptableCerts[] = {
   kSPKIHash_RapidSSL,
@@ -936,10 +936,10 @@ static const char* const kTorAcceptableCerts[] = {
   kSPKIHash_Tor3,
   NULL,
 };
-static const PublicKeyPins kTorPins = {
-  kTorAcceptableCerts,
-  kNoRejectedPublicKeys,
-};
+#define kTorPins { \
+  kTorAcceptableCerts, \
+  kNoRejectedPublicKeys, \
+}
 
 static const char* const kTwitterComAcceptableCerts[] = {
   kSPKIHash_VeriSignClass1,
@@ -963,10 +963,10 @@ static const char* const kTwitterComAcceptableCerts[] = {
   kSPKIHash_Twitter1,
   NULL,
 };
-static const PublicKeyPins kTwitterComPins = {
-  kTwitterComAcceptableCerts,
-  kNoRejectedPublicKeys,
-};
+#define kTwitterComPins { \
+  kTwitterComAcceptableCerts, \
+  kNoRejectedPublicKeys, \
+}
 
 // kTestAcceptableCerts doesn't actually match any public keys and is used
 // with "pinningtest.appspot.com", below, to test if pinning is active.
@@ -974,14 +974,14 @@ static const char* const kTestAcceptableCerts[] = {
   "sha1/AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
   NULL,
 };
-static const PublicKeyPins kTestPins = {
-  kTestAcceptableCerts,
-  kNoRejectedPublicKeys,
-};
+#define kTestPins { \
+  kTestAcceptableCerts, \
+  kNoRejectedPublicKeys, \
+}
 
-static const PublicKeyPins kNoPins = {
-  NULL, NULL,
-};
+#define kNoPins { \
+  NULL, NULL, \
+}
 
 #if defined(OS_CHROMEOS)
   static const bool kTwitterHSTS = true;
