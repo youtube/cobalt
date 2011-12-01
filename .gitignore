@@ -113,6 +113,7 @@ v8.log
 /third_party/leveldb
 /third_party/libjingle/source
 /third_party/libjpeg_turbo
+/third_party/libphonenumber/src
 /third_party/libsrtp/src
 /third_party/libvpx
 /third_party/libvpx/include
