@@ -121,21 +121,6 @@ TEST_F(MacUtilTest, TestExcludeFileFromBackups) {
   EXPECT_FALSE(excluded_by_path);
 }
 
-TEST_F(MacUtilTest, TestGetValueFromDictionary) {
-  ScopedCFTypeRef<CFMutableDictionaryRef> dict(
-      CFDictionaryCreateMutable(0, 0,
-                                &kCFTypeDictionaryKeyCallBacks,
-                                &kCFTypeDictionaryValueCallBacks));
-  CFDictionarySetValue(dict.get(), CFSTR("key"), CFSTR("value"));
-
-  EXPECT_TRUE(CFEqual(CFSTR("value"),
-                      GetValueFromDictionary(
-                          dict, CFSTR("key"), CFStringGetTypeID())));
-  EXPECT_FALSE(GetValueFromDictionary(dict, CFSTR("key"), CFNumberGetTypeID()));
-  EXPECT_FALSE(GetValueFromDictionary(
-                   dict, CFSTR("no-exist"), CFStringGetTypeID()));
-}
-
 TEST_F(MacUtilTest, CopyNSImageToCGImage) {
   scoped_nsobject<NSImage> nsImage(
       [[NSImage alloc] initWithSize:NSMakeSize(20, 20)]);
