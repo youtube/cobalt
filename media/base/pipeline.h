@@ -163,9 +163,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // data source. Seeking may not be possible.
   virtual bool IsStreaming() const = 0;
 
-  // If this method returns true, that means the data source has fully loaded
-  // the media and that the network is no longer needed.
-  virtual bool IsLoaded() const = 0;
+  // If this method returns true, that means the data source is local and
+  // the network is not needed.
+  virtual bool IsLocalSource() const = 0;
 
   // Gets the current pipeline statistics.
   virtual PipelineStatistics GetStatistics() const = 0;

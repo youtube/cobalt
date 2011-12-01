@@ -54,8 +54,6 @@ struct MediaLogEvent {
     // the appropriate type. e.g. DURATION_SET: "duration" of type TimeDelta.
     DURATION_SET,
     TOTAL_BYTES_SET,
-    STREAMING_SET,
-    LOADED_SET,
     NETWORK_ACTIVITY_SET,
 
     // Playback has ended.

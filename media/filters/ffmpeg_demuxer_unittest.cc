@@ -42,8 +42,8 @@ class FFmpegDemuxerTest : public testing::Test {
  protected:
 
   FFmpegDemuxerTest() {
-    // Create an FFmpegDemuxer.
-    demuxer_ = new FFmpegDemuxer(&message_loop_);
+    // Create an FFmpegDemuxer with local data source.
+    demuxer_ = new FFmpegDemuxer(&message_loop_, true);
     demuxer_->disable_first_seek_hack_for_testing();
 
     // Inject a filter host and message loop and prepare a data source.
@@ -508,7 +508,7 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
 class MockFFmpegDemuxer : public FFmpegDemuxer {
  public:
   explicit MockFFmpegDemuxer(MessageLoop* message_loop)
-      : FFmpegDemuxer(message_loop) {
+      : FFmpegDemuxer(message_loop, true) {
   }
   virtual ~MockFFmpegDemuxer() {}
 

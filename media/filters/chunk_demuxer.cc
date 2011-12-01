@@ -369,6 +369,16 @@ int ChunkDemuxer::GetBitrate() {
   return 0;
 }
 
+bool ChunkDemuxer::IsLocalSource() {
+  // TODO(acolwell): Report whether source is local or not.
+  return false;
+}
+
+bool ChunkDemuxer::IsSeekable() {
+  // TODO(acolwell): Report whether source is seekable or not.
+  return true;
+}
+
 // Demuxer implementation.
 scoped_refptr<DemuxerStream> ChunkDemuxer::GetStream(
     DemuxerStream::Type type) {

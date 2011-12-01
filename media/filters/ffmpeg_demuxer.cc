@@ -277,8 +277,9 @@ base::TimeDelta FFmpegDemuxerStream::ConvertStreamTimestamp(
 //
 // FFmpegDemuxer
 //
-FFmpegDemuxer::FFmpegDemuxer(MessageLoop* message_loop)
+FFmpegDemuxer::FFmpegDemuxer(MessageLoop* message_loop, bool local_source)
     : message_loop_(message_loop),
+      local_source_(local_source),
       format_context_(NULL),
       read_event_(false, false),
       read_has_failed_(false),
@@ -569,6 +570,14 @@ int FFmpegDemuxer::GetBitrate() {
 
   // Bitrate could not be determined.
   return 0;
+}
+
+bool FFmpegDemuxer::IsLocalSource() {
+  return local_source_;
+}
+
+bool FFmpegDemuxer::IsSeekable() {
+  return !IsStreaming();
 }
 
 void FFmpegDemuxer::SeekTask(base::TimeDelta time, const FilterStatusCB& cb) {
