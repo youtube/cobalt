@@ -18,6 +18,11 @@ import sys
 
 import android_commands
 
+# adb_interface.py is under ../../third_party/android/testrunner/
+sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..',
+   '..', 'third_party', 'android', 'testrunner'))
+import adb_interface
+
 
 def _GetAvailablePort():
   """Returns an available TCP port for the console."""
@@ -58,6 +63,15 @@ class Emulator(object):
     self.popen = None
     self.device = None
 
+  def Reset(self):
+    """Kill a running emulator.
+
+    May be needed if the test scripts stopped abnormally and an
+    emulator is left around."""
+    adb = adb_interface.AdbInterface()
+    logging.info('Killing any existing emulator.')
+    adb.SendCommand('emu kill')
+
   def Launch(self):
     """Launches the emulator and waits for package manager to startup.
 
@@ -65,8 +79,16 @@ class Emulator(object):
     """
     port = _GetAvailablePort()
     self.device = "emulator-%d" % port
-    self.popen = subprocess.Popen(args=[self.emulator, '-avd', 'buildbot',
-                                        '-port', str(port)])
+    self.popen = subprocess.Popen(args=[
+        self.emulator,
+        # Speed up emulator launch by 40%.  Really.
+        '-no-boot-anim',
+        # The default /data size is 64M.
+        # That's not enough for 4 unit test bundles and their data.
+        '-partition-size', '256',
+        # Use a familiar name and port.
+        '-avd', 'buildbot',
+        '-port', str(port)])
     # This will not return until device's package manager starts up or an
     # exception is raised.
     android_commands.AndroidCommands(self.device, True)
