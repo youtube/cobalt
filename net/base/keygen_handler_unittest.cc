@@ -6,14 +6,15 @@
 
 #include <string>
 
-#include "build/build_config.h"
 #include "base/base64.h"
+#include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/task.h"
 #include "base/threading/worker_pool.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/synchronization/waitable_event.h"
+#include "build/build_config.h"
 #include "crypto/nss_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -81,41 +82,27 @@ TEST_F(KeygenHandlerTest, SmokeTest) {
   AssertValidSignedPublicKeyAndChallenge(result, "some challenge");
 }
 
-class ConcurrencyTestTask : public Task {
- public:
-  ConcurrencyTestTask(base::WaitableEvent* event,
-                      const std::string& challenge, std::string* result)
-      : event_(event),
-        challenge_(challenge),
-        result_(result) {
-  }
-
-  virtual void Run() {
-    // We allow Singleton use on the worker thread here since we use a
-    // WaitableEvent to synchronize, so it's safe.
-    base::ThreadRestrictions::ScopedAllowSingleton scoped_allow_singleton;
-    KeygenHandler handler(768, "some challenge",
-                          GURL("http://www.example.com"));
-    handler.set_stores_key(false);  // Don't leave the key-pair behind.
-    *result_ = handler.GenKeyAndSignChallenge();
-    event_->Signal();
+void ConcurrencyTestCallback(base::WaitableEvent* event,
+                             const std::string& challenge,
+                             std::string* result) {
+  // We allow Singleton use on the worker thread here since we use a
+  // WaitableEvent to synchronize, so it's safe.
+  base::ThreadRestrictions::ScopedAllowSingleton scoped_allow_singleton;
+  KeygenHandler handler(768, challenge, GURL("http://www.example.com"));
+  handler.set_stores_key(false);  // Don't leave the key-pair behind.
+  *result = handler.GenKeyAndSignChallenge();
+  event->Signal();
 #if defined(USE_NSS)
-    // Detach the thread from NSPR.
-    // Calling NSS functions attaches the thread to NSPR, which stores
-    // the NSPR thread ID in thread-specific data.
-    // The threads in our thread pool terminate after we have called
-    // PR_Cleanup.  Unless we detach them from NSPR, net_unittests gets
-    // segfaults on shutdown when the threads' thread-specific data
-    // destructors run.
-    PR_DetachThread();
+  // Detach the thread from NSPR.
+  // Calling NSS functions attaches the thread to NSPR, which stores
+  // the NSPR thread ID in thread-specific data.
+  // The threads in our thread pool terminate after we have called
+  // PR_Cleanup.  Unless we detach them from NSPR, net_unittests gets
+  // segfaults on shutdown when the threads' thread-specific data
+  // destructors run.
+  PR_DetachThread();
 #endif
-  }
-
- private:
-  base::WaitableEvent* event_;
-  std::string challenge_;
-  std::string* result_;
-};
+}
 
 // We asynchronously generate the keys so as not to hang up the IO thread. This
 // test tries to catch concurrency problems in the keygen implementation.
@@ -127,7 +114,8 @@ TEST_F(KeygenHandlerTest, ConcurrencyTest) {
     events[i] = new base::WaitableEvent(false, false);
     base::WorkerPool::PostTask(
         FROM_HERE,
-        new ConcurrencyTestTask(events[i], "some challenge", &results[i]),
+        base::Bind(ConcurrencyTestCallback, events[i], "some challenge",
+                   &results[i]),
         true);
   }
 
