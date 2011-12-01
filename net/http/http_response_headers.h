@@ -278,7 +278,7 @@ class NET_EXPORT HttpResponseHeaders
   // construct a valid one.  Example input:
   //    HTTP/1.1 200 OK
   // with line_begin and end pointing at the begin and end of this line.
-  // Output will be a normalized version of this, with a trailing \n.
+  // Output will be a normalized version of this.
   void ParseStatusLine(std::string::const_iterator line_begin,
                        std::string::const_iterator line_end,
                        bool has_headers);
