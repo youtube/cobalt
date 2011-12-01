@@ -160,7 +160,6 @@
         'mac/foundation_util_unittest.mm',
         'mac/mac_util_unittest.mm',
         'mac/objc_property_releaser_unittest.mm',
-        'mac/scoped_sending_event_unittest.mm',
         'md5_unittest.cc',
         'memory/linked_ptr_unittest.cc',
         'memory/mru_cache_unittest.cc',
