@@ -65,6 +65,25 @@ from test_result import BaseTestResult, TestResults
 
 _TEST_SUITES = ['base_unittests', 'sql_unittests', 'ipc_tests', 'net_unittests']
 
+
+class TimeProfile(object):
+  """Class for simple profiling of action, with logging of cost."""
+
+  def __init__(self, description):
+    self._description = description
+    self.Start()
+
+  def Start(self):
+    self._starttime = time.time()
+
+  def Stop(self):
+    """Stop profiling and dump a log."""
+    if self._starttime:
+      stoptime = time.time()
+      logging.info('%fsec to perform %s' %
+                   (stoptime - self._starttime, self._description))
+      self._starttime = None
+
 class Xvfb(object):
   """Class to start and stop Xvfb if relevant.  Nop if not Linux."""
 
@@ -194,8 +213,11 @@ def Dispatch(options):
     xvfb.Start()
 
   if options.use_emulator:
+    t = TimeProfile('Emulator launch')
     buildbot_emulator = emulator.Emulator()
+    buildbot_emulator.Reset()
     buildbot_emulator.Launch()
+    t.Stop()
     attached_devices.append(buildbot_emulator.device)
   else:
     attached_devices = android_commands.GetAttachedDevices()
