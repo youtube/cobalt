@@ -800,7 +800,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   // Callback passed to the network delegate to notify us when a blocked request
   // is ready to be resumed or canceled.
-  OldCompletionCallbackImpl<URLRequest> before_request_callback_;
+  CompletionCallback before_request_callback_;
 
   // Safe-guard to ensure that we do not send multiple "I am completed"
   // messages to network delegate.

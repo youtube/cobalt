@@ -17,6 +17,7 @@
 #include "base/compiler_specific.h"
 #include "base/file_util.h"
 #include "base/format_macros.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
@@ -131,7 +132,7 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
         auth_retval_(NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING),
         auth_callback_retval_(
             NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION),
-        ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
+        ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
   void set_retval(int retval) { retval_ = retval; }
   void set_callback_retval(int retval) { callback_retval_ = retval; }
@@ -145,10 +146,10 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
   }
 
  private:
-  // TestNetworkDelegate:
+  // TestNetworkDelegate implementation.
   virtual int OnBeforeURLRequest(net::URLRequest* request,
-                                 net::OldCompletionCallback* callback,
-                                 GURL* new_url) {
+                                 const net::CompletionCallback& callback,
+                                 GURL* new_url) OVERRIDE {
     if (redirect_url_ == request->url()) {
       // We've already seen this request and redirected elsewhere.
       return net::OK;
@@ -164,8 +165,8 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
 
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(&BlockingNetworkDelegate::DoCallback,
-                                          callback));
+        base::Bind(&BlockingNetworkDelegate::DoCallback,
+                   weak_factory_.GetWeakPtr(), callback));
     return net::ERR_IO_PENDING;
   }
 
@@ -186,16 +187,15 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
       case NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING:
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &BlockingNetworkDelegate::DoAuthCallback,
-                callback, credentials));
+            base::Bind(&BlockingNetworkDelegate::DoAuthCallback,
+                       weak_factory_.GetWeakPtr(), callback, credentials));
         break;
     }
     return auth_retval_;
   }
 
-  void DoCallback(net::OldCompletionCallback* callback) {
-    callback->Run(callback_retval_);
+  void DoCallback(const net::CompletionCallback& callback) {
+    callback.Run(callback_retval_);
   }
 
   void DoAuthCallback(const AuthCallback& callback,
@@ -214,7 +214,7 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
   NetworkDelegate::AuthRequiredResponse auth_retval_;
   NetworkDelegate::AuthRequiredResponse auth_callback_retval_;
   AuthCredentials auth_credentials_;
-  ScopedRunnableMethodFactory<BlockingNetworkDelegate> method_factory_;
+  base::WeakPtrFactory<BlockingNetworkDelegate> weak_factory_;
 };
 
 // A simple Interceptor that returns a pre-built URLRequestJob one time.
