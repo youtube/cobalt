@@ -12,6 +12,7 @@
 #include "net/http/http_response_body_drainer.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_stream_parser.h"
+#include "net/http/http_version.h"
 #include "net/socket/client_socket_handle.h"
 
 namespace net {
@@ -167,7 +168,7 @@ int HttpPipelinedConnectionImpl::DoSendRequestLoop(int result) {
         rv = DoEvictPendingSendRequests(rv);
         break;
       default:
-        NOTREACHED() << "bad send state: " << state;
+        CHECK(false) << "bad send state: " << state;
         rv = ERR_FAILED;
         break;
     }
@@ -337,7 +338,7 @@ int HttpPipelinedConnectionImpl::DoReadHeadersLoop(int result) {
       case READ_STATE_NONE:
         break;
       default:
-        NOTREACHED() << "bad read state";
+        CHECK(false) << "bad read state";
         rv = ERR_FAILED;
         break;
     }
@@ -394,7 +395,7 @@ int HttpPipelinedConnectionImpl::DoStartNextDeferredRead(int result) {
       break;
 
     default:
-      NOTREACHED() << "Unexpected read state: "
+      CHECK(false) << "Unexpected read state: "
                    << stream_info_map_[next_id].state;
   }
 
@@ -425,6 +426,8 @@ int HttpPipelinedConnectionImpl::DoReadHeadersComplete(int result) {
     usable_ = false;
   }
 
+  CheckHeadersForPipelineCompatibility(result, active_read_id_);
+
   if (!read_still_on_call_stack_) {
     QueueUserCallback(active_read_id_,
                       stream_info_map_[active_read_id_].read_headers_callback,
@@ -445,6 +448,7 @@ int HttpPipelinedConnectionImpl::DoReadStreamClosed() {
   CHECK_EQ(stream_info_map_[active_read_id_].state, STREAM_CLOSED);
   active_read_id_ = 0;
   if (!usable_) {
+    // TODO(simonjam): Don't wait this long to evict.
     read_next_state_ = READ_STATE_EVICT_PENDING_READS;
     return OK;
   }
@@ -527,7 +531,7 @@ void HttpPipelinedConnectionImpl::Close(int pipeline_id,
       break;
 
     default:
-      NOTREACHED();
+      CHECK(false);
       break;
   }
 }
@@ -622,6 +626,38 @@ void HttpPipelinedConnectionImpl::Drain(HttpPipelinedStream* stream,
   HttpResponseBodyDrainer* drainer = new HttpResponseBodyDrainer(stream);
   drainer->StartWithSize(session, headers->GetContentLength());
   // |drainer| will delete itself when done.
+}
+
+void HttpPipelinedConnectionImpl::CheckHeadersForPipelineCompatibility(
+    int result,
+    int pipeline_id) {
+  if (result < OK) {
+    switch (result) {
+      // TODO(simonjam): Ignoring specific errors like this may not work.
+      // Collect metrics to see if this code is useful.
+      case ERR_ABORTED:
+      case ERR_INTERNET_DISCONNECTED:
+        // These errors are no fault of the server.
+        break;
+
+      default:
+        delegate_->OnPipelineFeedback(this, PIPELINE_SOCKET_ERROR);
+        return;
+    }
+  }
+  HttpResponseInfo* info = GetResponseInfo(pipeline_id);
+  const HttpVersion required_version(1, 1);
+  if (info->headers->GetParsedHttpVersion() < required_version) {
+    delegate_->OnPipelineFeedback(this, OLD_HTTP_VERSION);
+    return;
+  }
+  if (!info->headers->IsKeepAlive() || !CanFindEndOfResponse(pipeline_id)) {
+    usable_ = false;
+    delegate_->OnPipelineFeedback(this, MUST_CLOSE_CONNECTION);
+    return;
+  }
+  // TODO(simonjam): We should also check for, and work around, authentication.
+  delegate_->OnPipelineFeedback(this, OK);
 }
 
 void HttpPipelinedConnectionImpl::QueueUserCallback(
