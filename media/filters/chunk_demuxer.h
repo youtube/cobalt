@@ -39,6 +39,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   virtual void SetPreload(Preload preload) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
   virtual int GetBitrate() OVERRIDE;
+  virtual bool IsLocalSource() OVERRIDE;
+  virtual bool IsSeekable() OVERRIDE;
 
   // Methods used by an external object to control this demuxer.
   void FlushData();

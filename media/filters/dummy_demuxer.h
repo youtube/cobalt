@@ -4,7 +4,8 @@
 
 // Implements the Demuxer interface. DummyDemuxer returns corresponding
 // DummyDemuxerStream as signal for media pipeline to construct correct
-// playback channels.
+// playback channels. Used in WebRTC local video capture pipeline, where
+// demuxing is not needed.
 
 #ifndef MEDIA_FILTERS_DUMMY_DEMUXER_H_
 #define MEDIA_FILTERS_DUMMY_DEMUXER_H_
@@ -40,7 +41,7 @@ class DummyDemuxerStream : public DemuxerStream {
 
 class DummyDemuxer : public Demuxer {
  public:
-  DummyDemuxer(bool has_video, bool has_audio);
+  DummyDemuxer(bool has_video, bool has_audio, bool local_source);
   virtual ~DummyDemuxer();
 
   // Demuxer implementation.
@@ -49,10 +50,13 @@ class DummyDemuxer : public Demuxer {
   virtual void SetPreload(Preload preload) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
   virtual int GetBitrate() OVERRIDE;
+  virtual bool IsLocalSource() OVERRIDE;
+  virtual bool IsSeekable() OVERRIDE;
 
  private:
   bool has_video_;
   bool has_audio_;
+  bool local_source_;
   std::vector< scoped_refptr<DummyDemuxerStream> > streams_;
 
   DISALLOW_COPY_AND_ASSIGN(DummyDemuxer);

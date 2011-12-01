@@ -126,7 +126,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   virtual int64 GetTotalBytes() const OVERRIDE;
   virtual void GetNaturalVideoSize(gfx::Size* out_size) const OVERRIDE;
   virtual bool IsStreaming() const OVERRIDE;
-  virtual bool IsLoaded() const OVERRIDE;
+  virtual bool IsLocalSource() const OVERRIDE;
   virtual PipelineStatistics GetStatistics() const OVERRIDE;
 
   void SetClockForTesting(Clock* clock);
@@ -200,8 +200,6 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetTotalBytes(int64 total_bytes) OVERRIDE;
   virtual void SetBufferedBytes(int64 buffered_bytes) OVERRIDE;
   virtual void SetNaturalVideoSize(const gfx::Size& size) OVERRIDE;
-  virtual void SetStreaming(bool streamed) OVERRIDE;
-  virtual void SetLoaded(bool loaded) OVERRIDE;
   virtual void SetNetworkActivity(bool is_downloading_data) OVERRIDE;
   virtual void NotifyEnded() OVERRIDE;
   virtual void DisableAudioRenderer() OVERRIDE;
@@ -385,13 +383,13 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   // Video's natural width and height.  Set by filters.
   gfx::Size natural_size_;
 
-  // Sets by the filters to indicate whether the data source is a streaming
+  // Set by the demuxer to indicate whether the data source is a streaming
   // source.
   bool streaming_;
 
-  // Sets by the filters to indicate whether the data source is a fully
-  // loaded source.
-  bool loaded_;
+  // Indicates whether the data source is local, such as a local media file
+  // from disk or a local webcam stream.
+  bool local_source_;
 
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
   // via SetVolume() and a task is dispatched on the message loop to notify the
