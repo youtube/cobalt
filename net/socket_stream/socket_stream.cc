@@ -151,7 +151,7 @@ void SocketStream::Connect() {
           new NetLogStringParameter("url", url_.possibly_invalid_spec())));
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &SocketStream::DoLoop, OK));
+      base::Bind(&SocketStream::DoLoop, this, OK));
 }
 
 bool SocketStream::SendData(const char* data, int len) {
@@ -186,7 +186,7 @@ bool SocketStream::SendData(const char* data, int len) {
   // back before returning SendData().
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &SocketStream::DoLoop, OK));
+      base::Bind(&SocketStream::DoLoop, this, OK));
   return true;
 }
 
@@ -203,7 +203,7 @@ void SocketStream::Close() {
     return;
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &SocketStream::DoClose));
+      base::Bind(&SocketStream::DoClose, this));
 }
 
 void SocketStream::RestartWithAuth(const AuthCredentials& credentials) {
@@ -226,7 +226,7 @@ void SocketStream::RestartWithAuth(const AuthCredentials& credentials) {
 
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &SocketStream::DoRestartWithAuth));
+      base::Bind(&SocketStream::DoRestartWithAuth, this));
 }
 
 void SocketStream::DetachDelegate() {
@@ -862,7 +862,7 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
         // Wait until RestartWithAuth or Close is called.
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            NewRunnableMethod(this, &SocketStream::DoAuthRequired));
+            base::Bind(&SocketStream::DoAuthRequired, this));
         next_state_ = STATE_AUTH_REQUIRED;
         return ERR_IO_PENDING;
       }
