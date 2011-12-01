@@ -527,6 +527,49 @@ TEST_F(TraceEventAnalyzerTest, Literals) {
   EXPECT_TRUE((Query::Bool(false) == Query::Double(0.0f)).Evaluate(dummy));
 }
 
+// Test GetRateStats.
+TEST_F(TraceEventAnalyzerTest, RateStats) {
+  using namespace trace_analyzer;
+
+  std::vector<TraceEvent> events;
+  events.reserve(100);
+  TraceAnalyzer::TraceEventVector event_ptrs;
+  TraceEvent event;
+  event.timestamp = 0.0;
+  double little_delta = 1.0;
+  double big_delta = 10.0;
+  TraceAnalyzer::Stats stats;
+
+  for (int i = 0; i < 10; ++i) {
+    event.timestamp += little_delta;
+    events.push_back(event);
+    event_ptrs.push_back(&events.back());
+  }
+
+  ASSERT_TRUE(TraceAnalyzer::GetRateStats(event_ptrs, &stats));
+  EXPECT_EQ(little_delta, stats.mean_us);
+  EXPECT_EQ(little_delta, stats.min_us);
+  EXPECT_EQ(little_delta, stats.max_us);
+  EXPECT_EQ(0.0, stats.standard_deviation_us);
+
+  event.timestamp += big_delta;
+  events.push_back(event);
+  event_ptrs.push_back(&events.back());
+
+  ASSERT_TRUE(TraceAnalyzer::GetRateStats(event_ptrs, &stats));
+  EXPECT_LT(little_delta, stats.mean_us);
+  EXPECT_EQ(little_delta, stats.min_us);
+  EXPECT_EQ(big_delta, stats.max_us);
+  EXPECT_LT(0.0, stats.standard_deviation_us);
+
+  TraceAnalyzer::TraceEventVector few_event_ptrs;
+  few_event_ptrs.push_back(&event);
+  few_event_ptrs.push_back(&event);
+  ASSERT_FALSE(TraceAnalyzer::GetRateStats(few_event_ptrs, &stats));
+  few_event_ptrs.push_back(&event);
+  ASSERT_TRUE(TraceAnalyzer::GetRateStats(few_event_ptrs, &stats));
+}
+
 
 }  // namespace trace_analyzer
 
