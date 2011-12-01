@@ -50,16 +50,16 @@ class NetworkDelegate : public base::NonThreadSafe {
   // checking on parameters. See the corresponding virtuals for explanations of
   // the methods and their arguments.
   int NotifyBeforeURLRequest(URLRequest* request,
-                             OldCompletionCallback* callback,
+                             const CompletionCallback& callback,
                              GURL* new_url);
   int NotifyBeforeSendHeaders(URLRequest* request,
-                              OldCompletionCallback* callback,
+                              const CompletionCallback& callback,
                               HttpRequestHeaders* headers);
   void NotifySendHeaders(URLRequest* request,
                          const HttpRequestHeaders& headers);
   int NotifyHeadersReceived(
       URLRequest* request,
-      OldCompletionCallback* callback,
+      const CompletionCallback& callback,
       HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers);
   void NotifyBeforeRedirect(URLRequest* request,
@@ -87,7 +87,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   // and ERR_IO_PENDING will cancel the request and report the status code as
   // the reason.
   virtual int OnBeforeURLRequest(URLRequest* request,
-                                 OldCompletionCallback* callback,
+                                 const CompletionCallback& callback,
                                  GURL* new_url) = 0;
 
   // Called right before the HTTP headers are sent. Allows the delegate to
@@ -95,7 +95,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   // valid only until OnURLRequestDestroyed is called for this request.
   // Returns a net status code.
   virtual int OnBeforeSendHeaders(URLRequest* request,
-                                  OldCompletionCallback* callback,
+                                  const CompletionCallback& callback,
                                   HttpRequestHeaders* headers) = 0;
 
   // Called right before the HTTP request(s) are being sent to the network.
@@ -113,7 +113,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   // |original_response_headers|.
   virtual int OnHeadersReceived(
       URLRequest* request,
-      OldCompletionCallback* callback,
+      const CompletionCallback& callback,
       HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers) = 0;
 

@@ -108,8 +108,7 @@ class URLRequestHttpJob : public URLRequestJob {
 
   OldCompletionCallbackImpl<URLRequestHttpJob> start_callback_;
   OldCompletionCallbackImpl<URLRequestHttpJob> read_callback_;
-  OldCompletionCallbackImpl<URLRequestHttpJob>
-      notify_before_headers_sent_callback_;
+  CompletionCallback notify_before_headers_sent_callback_;
 
   bool read_in_progress_;
 
@@ -211,7 +210,7 @@ class URLRequestHttpJob : public URLRequestJob {
   ScopedRunnableMethodFactory<URLRequestHttpJob> method_factory_;
   base::WeakPtrFactory<URLRequestHttpJob> weak_ptr_factory_;
 
-  OldCompletionCallbackImpl<URLRequestHttpJob> on_headers_received_callback_;
+  CompletionCallback on_headers_received_callback_;
 
   // We allow the network delegate to modify a copy of the response headers.
   // This prevents modifications of headers that are shared with the underlying

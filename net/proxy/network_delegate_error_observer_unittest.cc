@@ -24,14 +24,14 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   bool got_pac_error() const { return got_pac_error_; }
 
  private:
-  // net::NetworkDelegate:
+  // net::NetworkDelegate implementation.
   virtual int OnBeforeURLRequest(URLRequest* request,
-                                 OldCompletionCallback* callback,
+                                 const CompletionCallback& callback,
                                  GURL* new_url) OVERRIDE {
     return OK;
   }
   virtual int OnBeforeSendHeaders(URLRequest* request,
-                                  OldCompletionCallback* callback,
+                                  const CompletionCallback& callback,
                                   HttpRequestHeaders* headers) OVERRIDE {
     return OK;
   }
@@ -39,7 +39,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
                              const HttpRequestHeaders& headers) OVERRIDE {}
   virtual int OnHeadersReceived(
       URLRequest* request,
-      OldCompletionCallback* callback,
+      const CompletionCallback& callback,
       HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers) OVERRIDE {
     return net::OK;
