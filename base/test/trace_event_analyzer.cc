@@ -713,6 +713,41 @@ const std::string& TraceAnalyzer::GetThreadName(
   return thread_names_[thread];
 }
 
+bool TraceAnalyzer::GetRateStats(const TraceEventVector& events, Stats* stats) {
+  // Need at least 3 events to calculate rate stats.
+  if (events.size() < 3) {
+    LOG(ERROR) << "Not enough events: " << events.size();
+    return false;
+  }
+
+  std::vector<double> deltas;
+  double delta_sum = 0.0;
+  size_t num_deltas = events.size() - 1;
+  for (size_t i = 0; i < num_deltas; ++i) {
+    double delta = events[i + 1]->timestamp - events[i]->timestamp;
+    if (delta < 0.0) {
+      LOG(ERROR) << "Events are out of order";
+      return false;
+    }
+    deltas.push_back(delta);
+    delta_sum += delta;
+  }
+
+  stats->min_us = *std::min_element(deltas.begin(), deltas.end());
+  stats->max_us = *std::max_element(deltas.begin(), deltas.end());
+  stats->mean_us = delta_sum / static_cast<double>(num_deltas);
+
+  double sum_mean_offsets_squared = 0.0;
+  for (size_t i = 0; i < num_deltas; ++i) {
+    double offset = fabs(deltas[i] - stats->mean_us);
+    sum_mean_offsets_squared += offset * offset;
+  }
+  stats->standard_deviation_us =
+      sum_mean_offsets_squared / static_cast<double>(num_deltas - 1);
+
+  return true;
+}
+
 void TraceAnalyzer::ParseMetadata() {
   for (size_t i = 0; i < raw_events_.size(); ++i) {
     TraceEvent& this_event = raw_events_[i];
