@@ -256,6 +256,10 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   // HttpPipelinedSockets indicates the connection was suddenly closed.
   int DoEvictPendingReadHeaders(int result);
 
+  // Reports back to |delegate_| whether pipelining will work. This is called
+  // every time we receive headers.
+  void CheckHeadersForPipelineCompatibility(int result, int pipeline_id);
+
   // Posts a task to fire the user's callback in response to SendRequest() or
   // ReadResponseHeaders() completing on an underlying parser. This might be
   // invoked in response to our own IO callbacks, or it may be invoked if the

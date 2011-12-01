@@ -6,11 +6,6 @@
 #define NET_HTTP_HTTP_PIPELINED_HOST_H_
 #pragma once
 
-#include <set>
-#include <string>
-
-#include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"
 #include "net/http/http_pipelined_connection.h"
@@ -26,9 +21,16 @@ struct SSLConfig;
 // Manages all of the pipelining state for specific host with active pipelined
 // HTTP requests. Manages connection jobs, constructs pipelined streams, and
 // assigns requests to the least loaded pipelined connection.
-class NET_EXPORT_PRIVATE HttpPipelinedHost
-    : public HttpPipelinedConnection::Delegate {
+class NET_EXPORT_PRIVATE HttpPipelinedHost {
  public:
+  enum Capability {
+    UNKNOWN,
+    INCAPABLE,
+    CAPABLE,
+    PROBABLY_CAPABLE,  // We are using pipelining, but haven't processed enough
+                       // requests to record this host as known to be capable.
+  };
+
   class Delegate {
    public:
     // Called when a pipelined host has no outstanding requests on any of its
@@ -38,54 +40,44 @@ class NET_EXPORT_PRIVATE HttpPipelinedHost
     // Called when a pipelined host has newly available pipeline capacity, like
     // when a request completes.
     virtual void OnHostHasAdditionalCapacity(HttpPipelinedHost* host) = 0;
+
+    // Called when a host determines if pipelining can be used.
+    virtual void OnHostDeterminedCapability(HttpPipelinedHost* host,
+                                            Capability capability) = 0;
   };
 
-  HttpPipelinedHost(Delegate* delegate, const HostPortPair& origin,
-                    HttpPipelinedConnection::Factory* factory);
-  virtual ~HttpPipelinedHost();
+  class Factory {
+   public:
+    virtual ~Factory() {}
+
+    // Returns a new HttpPipelinedHost.
+    virtual HttpPipelinedHost* CreateNewHost(
+        Delegate* delegate, const HostPortPair& origin,
+        HttpPipelinedConnection::Factory* factory,
+        Capability capability) = 0;
+  };
+
+  virtual ~HttpPipelinedHost() {}
 
   // Constructs a new pipeline on |connection| and returns a new
   // HttpPipelinedStream that uses it.
-  HttpPipelinedStream* CreateStreamOnNewPipeline(
+  virtual HttpPipelinedStream* CreateStreamOnNewPipeline(
       ClientSocketHandle* connection,
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
-      bool was_npn_negotiated);
+      bool was_npn_negotiated) = 0;
 
   // Tries to find an existing pipeline with capacity for a new request. If
   // successful, returns a new stream on that pipeline. Otherwise, returns NULL.
-  HttpPipelinedStream* CreateStreamOnExistingPipeline();
+  virtual HttpPipelinedStream* CreateStreamOnExistingPipeline() = 0;
 
   // Returns true if we have a pipelined connection that can accept new
   // requests.
-  bool IsExistingPipelineAvailable();
+  virtual bool IsExistingPipelineAvailable() const = 0;
 
-  // Callbacks for HttpPipelinedConnection.
-
-  // Called when a pipelined connection completes a request. Adds a pending
-  // request to the pipeline if the pipeline is still usable.
-  virtual void OnPipelineHasCapacity(
-      HttpPipelinedConnection* pipeline) OVERRIDE;
-
-  const HostPortPair& origin() const { return origin_; }
-
- private:
-  // Called when a pipeline is empty and there are no pending requests. Closes
-  // the connection.
-  void OnPipelineEmpty(HttpPipelinedConnection* pipeline);
-
-  // Adds the next pending request to the pipeline if it's still usuable.
-  void AddRequestToPipeline(HttpPipelinedConnection* connection);
-
-  int max_pipeline_depth() const { return 3; }
-
-  Delegate* delegate_;
-  const HostPortPair origin_;
-  std::set<HttpPipelinedConnection*> pipelines_;
-  scoped_ptr<HttpPipelinedConnection::Factory> factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(HttpPipelinedHost);
+  // Returns the host and port associated with this class.
+  virtual const HostPortPair& origin() const = 0;
 };
 
 }  // namespace net

@@ -1137,7 +1137,7 @@ bool HttpStreamFactoryImpl::Job::IsOrphaned() const {
   return !IsPreconnecting() && !request_;
 }
 
-bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() const {
+bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() {
   if (!HttpStreamFactory::http_pipelining_enabled()) {
     return false;
   }
@@ -1147,7 +1147,11 @@ bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() const {
   if (using_ssl_) {
     return false;
   }
-  return request_info_.method == "GET" || request_info_.method == "HEAD";
+  if (request_info_.method != "GET" && request_info_.method != "HEAD") {
+    return false;
+  }
+  return stream_factory_->http_pipelined_host_pool_.IsHostEligibleForPipelining(
+      origin_);
 }
 
 }  // namespace net
