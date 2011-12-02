@@ -6,6 +6,7 @@
 #define BASE_SYNCHRONIZATION_WAITABLE_EVENT_WATCHER_H_
 #pragma once
 
+#include "base/base_export.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -15,8 +16,6 @@
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #endif
-
-#include "base/base_export.h"
 
 namespace base {
 
@@ -62,7 +61,7 @@ class WaitableEvent;
 // -----------------------------------------------------------------------------
 
 class BASE_EXPORT WaitableEventWatcher
-#if defined(OS_POSIX)
+#if !defined(OS_WIN)
     : public MessageLoop::DestructionObserver
 #endif
 {
