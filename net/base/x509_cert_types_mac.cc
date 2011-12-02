@@ -16,6 +16,25 @@ namespace net {
 
 namespace {
 
+// The BER encoding of 0.9.2342.19200300.100.1.25.
+// On 10.6 and later this is available as CSSMOID_DomainComponent, which is an
+// external symbol from Security.framework. However, it appears that Apple's
+// implementation improperly encoded this on 10.6+, and even still is
+// unavailable on 10.5, so simply including the raw BER here.
+//
+// Note: CSSM is allowed to store CSSM_OIDs in any arbitrary format desired,
+// as long as the symbols are properly exposed. The fact that Apple's
+// implementation stores it in BER is an internal implementation detail
+// observed by studying libsecurity_cssm.
+const uint8 kDomainComponentData[] = {
+  0x09, 0x92, 0x26, 0x89, 0x93, 0xF2, 0x2C, 0x64, 0x01, 0x19
+};
+
+const CSSM_OID kDomainComponentOID = {
+    arraysize(kDomainComponentData),
+    const_cast<uint8*>(kDomainComponentData)
+};
+
 const CSSM_OID* kOIDs[] = {
     &CSSMOID_CommonName,
     &CSSMOID_LocalityName,
@@ -24,8 +43,8 @@ const CSSM_OID* kOIDs[] = {
     &CSSMOID_StreetAddress,
     &CSSMOID_OrganizationName,
     &CSSMOID_OrganizationalUnitName,
-    &CSSMOID_DNQualifier      // This should be "DC" but is undoubtedly wrong.
-};                            // TODO(avi): Find the right OID.
+    &kDomainComponentOID,
+};
 
 // The following structs and templates work with Apple's very arcane and under-
 // documented SecAsn1Parser API, which is apparently the same as NSS's ASN.1

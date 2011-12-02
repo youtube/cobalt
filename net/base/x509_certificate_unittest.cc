@@ -375,6 +375,56 @@ TEST(X509CertificateTest, ThawteCertParsing) {
 #endif
 }
 
+// Test that all desired AttributeAndValue pairs can be extracted when only
+// a single RelativeDistinguishedName is present. "Normally" there is only
+// one AVA per RDN, but some CAs place all AVAs within a single RDN.
+// This is a regression test for http://crbug.com/101009
+TEST(X509CertificateTest, MultivalueRDN) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> multivalue_rdn_cert =
+      ImportCertFromFile(certs_dir, "multivalue_rdn.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), multivalue_rdn_cert);
+
+  const CertPrincipal& subject = multivalue_rdn_cert->subject();
+  EXPECT_EQ("Multivalue RDN Test", subject.common_name);
+  EXPECT_EQ("", subject.locality_name);
+  EXPECT_EQ("", subject.state_or_province_name);
+  EXPECT_EQ("US", subject.country_name);
+  EXPECT_EQ(0U, subject.street_addresses.size());
+  ASSERT_EQ(1U, subject.organization_names.size());
+  EXPECT_EQ("Chromium", subject.organization_names[0]);
+  ASSERT_EQ(1U, subject.organization_unit_names.size());
+  EXPECT_EQ("Chromium net_unittests", subject.organization_unit_names[0]);
+  ASSERT_EQ(1U, subject.domain_components.size());
+  EXPECT_EQ("Chromium", subject.domain_components[0]);
+}
+
+// Test that characters which would normally be escaped in the string form,
+// such as '=' or '"', are not escaped when parsed as individual components.
+// This is a regression test for http://crbug.com/102839
+TEST(X509CertificateTest, UnescapedSpecialCharacters) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> unescaped_cert =
+      ImportCertFromFile(certs_dir, "unescaped.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), unescaped_cert);
+
+  const CertPrincipal& subject = unescaped_cert->subject();
+  EXPECT_EQ("127.0.0.1", subject.common_name);
+  EXPECT_EQ("Mountain View", subject.locality_name);
+  EXPECT_EQ("California", subject.state_or_province_name);
+  EXPECT_EQ("US", subject.country_name);
+  ASSERT_EQ(1U, subject.street_addresses.size());
+  EXPECT_EQ("1600 Amphitheatre Parkway", subject.street_addresses[0]);
+  ASSERT_EQ(1U, subject.organization_names.size());
+  EXPECT_EQ("Chromium = \"net_unittests\"", subject.organization_names[0]);
+  ASSERT_EQ(2U, subject.organization_unit_names.size());
+  EXPECT_EQ("net_unittests", subject.organization_unit_names[0]);
+  EXPECT_EQ("Chromium", subject.organization_unit_names[1]);
+  EXPECT_EQ(0U, subject.domain_components.size());
+}
+
 TEST(X509CertificateTest, PaypalNullCertParsing) {
   scoped_refptr<X509Certificate> paypal_null_cert(
       X509Certificate::CreateFromBytes(
