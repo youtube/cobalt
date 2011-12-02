@@ -253,7 +253,7 @@ class Query {
   // Find BEGIN events that have a corresponding END event.
   static Query MatchBeginWithEnd() {
     return (Query(EVENT_PHASE) ==
-            Query::Phase(base::debug::TRACE_EVENT_PHASE_BEGIN)) &&
+            Query::Phase(TRACE_EVENT_PHASE_BEGIN)) &&
            Query(EVENT_HAS_OTHER);
   }
 

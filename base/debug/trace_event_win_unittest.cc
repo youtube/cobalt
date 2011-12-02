@@ -216,7 +216,7 @@ TEST_F(TraceEventWinTest, TraceLog) {
   // Full argument version, passing lengths explicitly.
   TraceEventETWProvider::Trace(kName,
                         strlen(kName),
-                        base::debug::TRACE_EVENT_PHASE_BEGIN,
+                        TRACE_EVENT_PHASE_BEGIN,
                         kId,
                         kExtra,
                         strlen(kExtra));
@@ -229,7 +229,7 @@ TEST_F(TraceEventWinTest, TraceLog) {
 
   // Const char* version.
   TraceEventETWProvider::Trace(static_cast<const char*>(kName),
-                        base::debug::TRACE_EVENT_PHASE_END,
+                        TRACE_EVENT_PHASE_END,
                         kId,
                         static_cast<const char*>(kExtra));
 
@@ -241,7 +241,7 @@ TEST_F(TraceEventWinTest, TraceLog) {
 
   // std::string extra version.
   TraceEventETWProvider::Trace(static_cast<const char*>(kName),
-                        base::debug::TRACE_EVENT_PHASE_INSTANT,
+                        TRACE_EVENT_PHASE_INSTANT,
                         kId,
                         std::string(kExtra));
 
@@ -255,7 +255,7 @@ TEST_F(TraceEventWinTest, TraceLog) {
   // Test for sanity on NULL inputs.
   TraceEventETWProvider::Trace(NULL,
                         0,
-                        base::debug::TRACE_EVENT_PHASE_BEGIN,
+                        TRACE_EVENT_PHASE_BEGIN,
                         kId,
                         NULL,
                         0);
@@ -268,7 +268,7 @@ TEST_F(TraceEventWinTest, TraceLog) {
 
   TraceEventETWProvider::Trace(NULL,
                         -1,
-                        base::debug::TRACE_EVENT_PHASE_END,
+                        TRACE_EVENT_PHASE_END,
                         kId,
                         NULL,
                         -1);
