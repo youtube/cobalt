@@ -108,7 +108,7 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   event.thread.process_id = 3;
   event.thread.thread_id = 4;
   event.timestamp = 1.5;
-  event.phase = base::debug::TRACE_EVENT_PHASE_BEGIN;
+  event.phase = TRACE_EVENT_PHASE_BEGIN;
   event.category = "category";
   event.name = "name";
   event.arg_numbers["num"] = 7.0;
@@ -119,7 +119,7 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   other.thread.process_id = 5;
   other.thread.thread_id = 6;
   other.timestamp = 2.5;
-  other.phase = base::debug::TRACE_EVENT_PHASE_END;
+  other.phase = TRACE_EVENT_PHASE_END;
   other.category = "category2";
   other.name = "name2";
   other.arg_numbers["num2"] = 8.0;

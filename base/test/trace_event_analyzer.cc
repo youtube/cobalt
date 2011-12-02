@@ -18,7 +18,7 @@ namespace trace_analyzer {
 TraceEvent::TraceEvent()
     : thread(0, 0),
       timestamp(0),
-      phase(base::debug::TRACE_EVENT_PHASE_BEGIN),
+      phase(TRACE_EVENT_PHASE_BEGIN),
       other_event(NULL) {
 }
 
@@ -642,9 +642,9 @@ void TraceAnalyzer::AssociateBeginEndEvents() {
   using namespace trace_analyzer;
 
   Query begin(Query(EVENT_PHASE) ==
-      Query::Phase(base::debug::TRACE_EVENT_PHASE_BEGIN));
+      Query::Phase(TRACE_EVENT_PHASE_BEGIN));
   Query end(Query(EVENT_PHASE) ==
-      Query::Phase(base::debug::TRACE_EVENT_PHASE_END));
+      Query::Phase(TRACE_EVENT_PHASE_END));
   Query match(Query(EVENT_NAME) == Query(OTHER_NAME) &&
               Query(EVENT_CATEGORY) == Query(OTHER_CATEGORY) &&
               Query(EVENT_TID) == Query(OTHER_TID) &&
@@ -752,7 +752,7 @@ void TraceAnalyzer::ParseMetadata() {
   for (size_t i = 0; i < raw_events_.size(); ++i) {
     TraceEvent& this_event = raw_events_[i];
     // Check for thread name metadata.
-    if (this_event.phase != base::debug::TRACE_EVENT_PHASE_METADATA ||
+    if (this_event.phase != TRACE_EVENT_PHASE_METADATA ||
         this_event.name != "thread_name")
       continue;
     std::map<std::string, std::string>::const_iterator string_it =
