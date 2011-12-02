@@ -79,6 +79,11 @@ Process Process::Current() {
   return Process(::GetCurrentProcess());
 }
 
+// static
+bool Process::CanBackgroundProcesses() {
+  return true;
+}
+
 int Process::GetPriority() const {
   DCHECK(process_);
   return ::GetPriorityClass(process_);
