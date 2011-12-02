@@ -543,6 +543,7 @@
       },
       'dependencies': [
         'base_static',
+        '../testing/gtest.gyp:gtest_prod',
         '../third_party/modp_b64/modp_b64.gyp:modp_b64',
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
