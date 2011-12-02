@@ -64,7 +64,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
 
   // Returns the maximum number of in-flight pipelined requests we'll allow on a
   // single connection.
-  NET_EXPORT_PRIVATE static int max_pipeline_depth() { return 3; }
+  static int max_pipeline_depth() { return 3; }
 
  private:
   struct PipelineInfo {
