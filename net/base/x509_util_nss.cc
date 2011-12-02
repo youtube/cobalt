@@ -16,10 +16,12 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
+#include "crypto/ec_private_key.h"
 #include "crypto/nss_util.h"
 #include "crypto/nss_util_internal.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_nss_types.h"
+#include "crypto/third_party/nss/chromium-nss.h"
 
 namespace {
 
@@ -157,9 +159,11 @@ bool SignCertificate(
     return false;
 
   // Sign the ASN1 encoded cert and save it to |result|.
-  rv = SEC_DerSignData(arena, result, der.data, der.len, key, algo_id);
-  if (rv != SECSuccess)
+  rv = DerSignData(arena, result, &der, key, algo_id);
+  if (rv != SECSuccess) {
+    DLOG(ERROR) << "DerSignData: " << PORT_GetError();
     return false;
+  }
 
   // Save the signed result to the cert.
   cert->derCert = *result;
@@ -167,87 +171,13 @@ bool SignCertificate(
   return true;
 }
 
-}  // namespace
-
-namespace net {
-
-namespace x509_util {
-
-CERTCertificate* CreateSelfSignedCert(
+bool CreateOriginBoundCertInternal(
     SECKEYPublicKey* public_key,
     SECKEYPrivateKey* private_key,
-    const std::string& subject,
-    uint32 serial_number,
-    base::TimeDelta valid_duration) {
-  CERTCertificate* cert = CreateCertificate(public_key,
-                                            subject,
-                                            serial_number,
-                                            valid_duration);
-  if (!cert)
-    return NULL;
-
-  if (!SignCertificate(cert, private_key)) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  return cert;
-}
-
-bool CreateOriginBoundCert(
-    crypto::RSAPrivateKey* key,
     const std::string& origin,
     uint32 serial_number,
     base::TimeDelta valid_duration,
     std::string* der_cert) {
-  DCHECK(key);
-
-  SECKEYPublicKey* public_key;
-  SECKEYPrivateKey* private_key;
-#if defined(USE_NSS)
-  public_key = key->public_key();
-  private_key = key->key();
-#else
-  crypto::ScopedSECKEYPublicKey scoped_public_key;
-  crypto::ScopedSECKEYPrivateKey scoped_private_key;
-  {
-    // Based on the NSS RSAPrivateKey::CreateFromPrivateKeyInfoWithParams.
-    // This method currently leaks some memory.
-    // See http://crbug.com/34742.
-    ANNOTATE_SCOPED_MEMORY_LEAK;
-    crypto::EnsureNSSInit();
-
-    std::vector<uint8> key_data;
-    key->ExportPrivateKey(&key_data);
-
-    crypto::ScopedPK11Slot slot(crypto::GetPrivateNSSKeySlot());
-    if (!slot.get())
-      return NULL;
-
-    SECItem der_private_key_info;
-    der_private_key_info.data = const_cast<unsigned char*>(&key_data[0]);
-    der_private_key_info.len = key_data.size();
-    // Allow the private key to be used for key unwrapping, data decryption,
-    // and signature generation.
-    const unsigned int key_usage = KU_KEY_ENCIPHERMENT | KU_DATA_ENCIPHERMENT |
-                                   KU_DIGITAL_SIGNATURE;
-    SECStatus rv =  PK11_ImportDERPrivateKeyInfoAndReturnKey(
-        slot.get(), &der_private_key_info, NULL, NULL, PR_FALSE, PR_FALSE,
-        key_usage, &private_key, NULL);
-    scoped_private_key.reset(private_key);
-    if (rv != SECSuccess) {
-      NOTREACHED();
-      return NULL;
-    }
-
-    public_key = SECKEY_ConvertToPublicKey(private_key);
-    if (!public_key) {
-      NOTREACHED();
-      return NULL;
-    }
-    scoped_public_key.reset(public_key);
-  }
-#endif
 
   CERTCertificate* cert = CreateCertificate(public_key,
                                             "CN=anonymous.invalid",
@@ -311,6 +241,111 @@ bool CreateOriginBoundCert(
                    cert->derCert.len);
   CERT_DestroyCertificate(cert);
   return true;
+}
+
+}  // namespace
+
+namespace net {
+
+namespace x509_util {
+
+CERTCertificate* CreateSelfSignedCert(
+    SECKEYPublicKey* public_key,
+    SECKEYPrivateKey* private_key,
+    const std::string& subject,
+    uint32 serial_number,
+    base::TimeDelta valid_duration) {
+  CERTCertificate* cert = CreateCertificate(public_key,
+                                            subject,
+                                            serial_number,
+                                            valid_duration);
+  if (!cert)
+    return NULL;
+
+  if (!SignCertificate(cert, private_key)) {
+    CERT_DestroyCertificate(cert);
+    return NULL;
+  }
+
+  return cert;
+}
+
+bool CreateOriginBoundCertRSA(
+    crypto::RSAPrivateKey* key,
+    const std::string& origin,
+    uint32 serial_number,
+    base::TimeDelta valid_duration,
+    std::string* der_cert) {
+  DCHECK(key);
+
+  SECKEYPublicKey* public_key;
+  SECKEYPrivateKey* private_key;
+#if defined(USE_NSS)
+  public_key = key->public_key();
+  private_key = key->key();
+#else
+  crypto::ScopedSECKEYPublicKey scoped_public_key;
+  crypto::ScopedSECKEYPrivateKey scoped_private_key;
+  {
+    // Based on the NSS RSAPrivateKey::CreateFromPrivateKeyInfoWithParams.
+    // This method currently leaks some memory.
+    // See http://crbug.com/34742.
+    ANNOTATE_SCOPED_MEMORY_LEAK;
+    crypto::EnsureNSSInit();
+
+    std::vector<uint8> key_data;
+    key->ExportPrivateKey(&key_data);
+
+    crypto::ScopedPK11Slot slot(crypto::GetPrivateNSSKeySlot());
+    if (!slot.get())
+      return NULL;
+
+    SECItem der_private_key_info;
+    der_private_key_info.data = const_cast<unsigned char*>(&key_data[0]);
+    der_private_key_info.len = key_data.size();
+    // Allow the private key to be used for key unwrapping, data decryption,
+    // and signature generation.
+    const unsigned int key_usage = KU_KEY_ENCIPHERMENT | KU_DATA_ENCIPHERMENT |
+                                   KU_DIGITAL_SIGNATURE;
+    SECStatus rv =  PK11_ImportDERPrivateKeyInfoAndReturnKey(
+        slot.get(), &der_private_key_info, NULL, NULL, PR_FALSE, PR_FALSE,
+        key_usage, &private_key, NULL);
+    scoped_private_key.reset(private_key);
+    if (rv != SECSuccess) {
+      NOTREACHED();
+      return NULL;
+    }
+
+    public_key = SECKEY_ConvertToPublicKey(private_key);
+    if (!public_key) {
+      NOTREACHED();
+      return NULL;
+    }
+    scoped_public_key.reset(public_key);
+  }
+#endif
+
+  return CreateOriginBoundCertInternal(public_key,
+                                       private_key,
+                                       origin,
+                                       serial_number,
+                                       valid_duration,
+                                       der_cert);
+}
+
+bool CreateOriginBoundCertEC(
+    crypto::ECPrivateKey* key,
+    const std::string& origin,
+    uint32 serial_number,
+    base::TimeDelta valid_duration,
+    std::string* der_cert) {
+  DCHECK(key);
+  return CreateOriginBoundCertInternal(key->public_key(),
+                                       key->key(),
+                                       origin,
+                                       serial_number,
+                                       valid_duration,
+                                       der_cert);
 }
 
 } // namespace x509_util
