@@ -10,9 +10,14 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "crypto/ec_private_key.h"
 #include "crypto/rsa_private_key.h"
+#include "crypto/scoped_nss_types.h"
+#include "crypto/signature_verifier.h"
 #include "net/base/x509_certificate.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace net {
 
 namespace {
 
@@ -27,18 +32,53 @@ CERTCertificate* CreateNSSCertHandleFromBytes(const char* data, size_t length) {
                                  PR_FALSE, PR_TRUE);
 }
 
-}  // namespace
+void VerifyCertificateSignature(const std::string& der_cert,
+                                const std::vector<uint8>& der_spki) {
+  crypto::ScopedPLArenaPool arena(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
 
-namespace net {
+  CERTSignedData sd;
+  memset(&sd, 0, sizeof(sd));
 
-// This test creates an origin-bound cert from a private key and
-// then verifies the content of the certificate.
-TEST(X509UtilNSSTest, CreateOriginBoundCert) {
+  SECItem der_cert_item = {
+    siDERCertBuffer,
+    reinterpret_cast<unsigned char*>(const_cast<char*>(der_cert.data())),
+    der_cert.size()
+  };
+  SECStatus rv = SEC_ASN1DecodeItem(arena.get(), &sd,
+                                    SEC_ASN1_GET(CERT_SignedDataTemplate),
+                                    &der_cert_item);
+  ASSERT_EQ(SECSuccess, rv);
+
+  // The CERTSignedData.signatureAlgorithm is decoded, but SignatureVerifier
+  // wants the DER encoded form, so re-encode it again.
+  SECItem* signature_algorithm = SEC_ASN1EncodeItem(
+      arena.get(),
+      NULL,
+      &sd.signatureAlgorithm,
+      SEC_ASN1_GET(SECOID_AlgorithmIDTemplate));
+  ASSERT_TRUE(signature_algorithm);
+
+  crypto::SignatureVerifier verifier;
+  bool ok = verifier.VerifyInit(
+      signature_algorithm->data,
+      signature_algorithm->len,
+      sd.signature.data,
+      sd.signature.len / 8,  // Signature is a BIT STRING, convert to bytes.
+      &der_spki[0],
+      der_spki.size());
+
+  ASSERT_TRUE(ok);
+  verifier.VerifyUpdate(sd.data.data,
+                        sd.data.len);
+
+  ok = verifier.VerifyFinal();
+  EXPECT_TRUE(ok);
+}
+
+void VerifyOriginBoundCert(const std::string& origin,
+                           const std::string& der_cert) {
   // Origin Bound Cert OID.
   static const char oid_string[] = "1.3.6.1.4.1.11129.2.1.6";
-
-  // Create a sample ASCII weborigin.
-  std::string origin = "http://weborigin.com:443";
 
   // Create object neccessary for extension lookup call.
   SECItem extension_object = {
@@ -46,20 +86,6 @@ TEST(X509UtilNSSTest, CreateOriginBoundCert) {
     (unsigned char*)origin.data(),
     origin.size()
   };
-
-  scoped_ptr<crypto::RSAPrivateKey> private_key(
-      crypto::RSAPrivateKey::Create(1024));
-  std::string der_cert;
-  ASSERT_TRUE(x509_util::CreateOriginBoundCert(private_key.get(),
-                                               origin, 1,
-                                               base::TimeDelta::FromDays(1),
-                                               &der_cert));
-
-  scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromBytes(
-      der_cert.data(), der_cert.size());
-
-  EXPECT_EQ("anonymous.invalid", cert->subject().GetDisplayName());
-  EXPECT_FALSE(cert->HasExpired());
 
   // IA5Encode and arena allocate SECItem.
   PLArenaPool* arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
@@ -83,9 +109,18 @@ TEST(X509UtilNSSTest, CreateOriginBoundCert) {
 
   // This test is run on Mac and Win where X509Certificate::os_cert_handle isn't
   // an NSS type, so we have to manually create a NSS certificate object so we
-  // can use CERT_FindCertExtension.
+  // can use CERT_FindCertExtension.  We also check the subject and validity
+  // times using NSS since X509Certificate will fail with EC certs on OSX 10.5
+  // (http://crbug.com/101231).
   CERTCertificate* nss_cert = CreateNSSCertHandleFromBytes(
       der_cert.data(), der_cert.size());
+
+  char* common_name = CERT_GetCommonName(&nss_cert->subject);
+  ASSERT_TRUE(common_name);
+  EXPECT_STREQ("anonymous.invalid", common_name);
+  PORT_Free(common_name);
+  EXPECT_EQ(SECSuccess, CERT_CertTimesValid(nss_cert));
+
   // Lookup Origin Bound Cert extension in generated cert.
   SECItem actual = { siBuffer, NULL, 0 };
   ok = CERT_FindCertExtension(nss_cert,
@@ -101,6 +136,53 @@ TEST(X509UtilNSSTest, CreateOriginBoundCert) {
   // Do Cleanup.
   SECITEM_FreeItem(&actual, PR_FALSE);
   PORT_FreeArena(arena, PR_FALSE);
+}
+
+}  // namespace
+
+// This test creates an origin-bound cert from a RSA private key and
+// then verifies the content of the certificate.
+TEST(X509UtilNSSTest, CreateOriginBoundCertRSA) {
+  // Create a sample ASCII weborigin.
+  std::string origin = "http://weborigin.com:443";
+
+  scoped_ptr<crypto::RSAPrivateKey> private_key(
+      crypto::RSAPrivateKey::Create(1024));
+  std::string der_cert;
+  ASSERT_TRUE(x509_util::CreateOriginBoundCertRSA(private_key.get(),
+                                                  origin, 1,
+                                                  base::TimeDelta::FromDays(1),
+                                                  &der_cert));
+
+  VerifyOriginBoundCert(origin, der_cert);
+
+  std::vector<uint8> spki;
+  ASSERT_TRUE(private_key->ExportPublicKey(&spki));
+  VerifyCertificateSignature(der_cert, spki);
+}
+
+// This test creates an origin-bound cert from an EC private key and
+// then verifies the content of the certificate.
+TEST(X509UtilNSSTest, CreateOriginBoundCertEC) {
+  // Create a sample ASCII weborigin.
+  std::string origin = "http://weborigin.com:443";
+
+  scoped_ptr<crypto::ECPrivateKey> private_key(
+      crypto::ECPrivateKey::Create());
+  std::string der_cert;
+  ASSERT_TRUE(x509_util::CreateOriginBoundCertEC(private_key.get(),
+                                                 origin, 1,
+                                                 base::TimeDelta::FromDays(1),
+                                                 &der_cert));
+
+  VerifyOriginBoundCert(origin, der_cert);
+
+#if !defined(OS_WIN) && !defined(OS_MACOSX)
+  // signature_verifier_win and signature_verifier_mac can't handle EC certs.
+  std::vector<uint8> spki;
+  ASSERT_TRUE(private_key->ExportPublicKey(&spki));
+  VerifyCertificateSignature(der_cert, spki);
+#endif
 }
 
 }  // namespace net
