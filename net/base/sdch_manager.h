@@ -29,6 +29,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
+#include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"
 
@@ -55,7 +56,7 @@ class SdchFetcher {
 
 //------------------------------------------------------------------------------
 
-class NET_EXPORT SdchManager {
+class NET_EXPORT SdchManager : public NON_EXPORTED_BASE(base::NonThreadSafe) {
  public:
   // A list of errors that appeared and were either resolved, or used to turn
   // off sdch encoding.
@@ -244,7 +245,7 @@ class NET_EXPORT SdchManager {
   static void SdchErrorRecovery(ProblemCodes problem);
 
   // Register a fetcher that this class can use to obtain dictionaries.
-  void set_sdch_fetcher(SdchFetcher* fetcher) { fetcher_.reset(fetcher); }
+  void set_sdch_fetcher(SdchFetcher* fetcher);
 
   // Enables or disables SDCH compression.
   static void EnableSdchSupport(bool enabled);
