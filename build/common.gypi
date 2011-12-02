@@ -1915,9 +1915,13 @@
               '<(clang_chrome_plugins_flags)',
             ],
           }],
-          ['clang==1 and clang_load!="" and clang_add_plugin!=""', {
+          ['clang==1 and clang_load!=""', {
             'cflags': [
               '-Xclang', '-load', '-Xclang', '<(clang_load)',
+            ],
+          }],
+          ['clang==1 and clang_add_plugin!=""', {
+            'cflags': [
               '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
             ],
           }],
@@ -2265,9 +2269,13 @@
                 '<(clang_chrome_plugins_flags)',
               ],
             }],
-            ['clang==1 and clang_load!="" and clang_add_plugin!=""', {
+            ['clang==1 and clang_load!=""', {
               'OTHER_CFLAGS': [
                 '-Xclang', '-load', '-Xclang', '<(clang_load)',
+              ],
+            }],
+            ['clang==1 and clang_add_plugin!=""', {
+              'OTHER_CFLAGS': [
                 '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
               ],
             }],
