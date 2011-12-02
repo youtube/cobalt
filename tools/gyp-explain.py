@@ -60,7 +60,7 @@ def Main(argv):
     if file_age_s > 2 * 60 * 60:
       print 'dump.json is more than 2 hours old.'
       dump_json_dirty = True
-  except IOError:
+  except OSError:
     print 'dump.json not found.'
     dump_json_dirty = True
 
