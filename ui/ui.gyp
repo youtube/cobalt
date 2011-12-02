@@ -419,6 +419,8 @@
             'gfx/gtk_preserve_window.h',
             'gfx/gtk_util.cc',
             'gfx/gtk_util.h',
+            'gfx/image/cairo_cached_surface.cc',
+            'gfx/image/cairo_cached_surface.h',
           ],
         }, {  # toolkit_uses_gtk != 1
           'sources!': [
