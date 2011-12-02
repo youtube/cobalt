@@ -158,6 +158,8 @@ struct TraceEvent {
 
   std::string name;
 
+  std::string id;
+
   // All numbers and bool values from TraceEvent args are cast to double.
   // bool becomes 1.0 (true) or 0.0 (false).
   std::map<std::string, double> arg_numbers;
@@ -183,6 +185,7 @@ enum TraceEventMember {
   EVENT_PHASE,
   EVENT_CATEGORY,
   EVENT_NAME,
+  EVENT_ID,
 
   // Evaluates to true if arg exists and is a string.
   // Usage: Query(EVENT_HAS_STRING_ARG, "arg_name")
@@ -205,6 +208,7 @@ enum TraceEventMember {
   OTHER_PHASE,
   OTHER_CATEGORY,
   OTHER_NAME,
+  OTHER_ID,
 
   // Evaluates to true if arg exists and is a string.
   // Usage: Query(EVENT_HAS_STRING_ARG, "arg_name")
@@ -252,8 +256,13 @@ class Query {
 
   // Find BEGIN events that have a corresponding END event.
   static Query MatchBeginWithEnd() {
-    return (Query(EVENT_PHASE) ==
-            Query::Phase(TRACE_EVENT_PHASE_BEGIN)) &&
+    return (Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_BEGIN)) &&
+           Query(EVENT_HAS_OTHER);
+  }
+
+  // Find START events that have a corresponding FINISH event.
+  static Query MatchStartWithFinish() {
+    return (Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_START)) &&
            Query(EVENT_HAS_OTHER);
   }
 
@@ -431,6 +440,11 @@ class TraceAnalyzer {
   // category, process ID and thread ID. This matches what is shown in
   // about:tracing.
   void AssociateBeginEndEvents();
+
+  // Associate START and FINISH events with each other.
+  // A FINISH event will match the most recent START event with the same name,
+  // category, and ID.
+  void AssociateStartFinishEvents();
 
   // AssociateEvents can be used to customize event associations by setting the
   // other_event member of TraceEvent. This should be used to associate two
