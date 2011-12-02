@@ -43,6 +43,14 @@ const size_t kTraceEventBatchSize = 1000;
 
 namespace {
 
+// Specify these values when the corresponding argument of AddTraceEvent is not
+// used.
+static const char* kNoArgName = NULL;
+static const int kNoArgValue = 0;
+static const int kNoThreshholdBeginId = -1;
+static const int64 kNoThresholdValue = 0;
+static const int kNoEventId = 0;
+
 TraceCategory g_categories[TRACE_EVENT_MAX_CATEGORIES] = {
   { "tracing already shutdown", false },
   { "tracing categories exhausted; must increase TRACE_EVENT_MAX_CATEGORIES",
@@ -72,32 +80,26 @@ LazyInstance<ThreadLocalPointer<const char>,
 ////////////////////////////////////////////////////////////////////////////////
 
 void TraceValue::AppendAsJSON(std::string* out) const {
-  char temp_string[128];
   std::string::size_type start_pos;
   switch (type_) {
     case TRACE_TYPE_BOOL:
       *out += as_bool() ? "true" : "false";
       break;
     case TRACE_TYPE_UINT:
-      base::snprintf(temp_string, arraysize(temp_string), "%llu",
-                     static_cast<unsigned long long>(as_uint()));
-      *out += temp_string;
+      StringAppendF(out, "%" PRIu64, as_uint());
       break;
     case TRACE_TYPE_INT:
-      base::snprintf(temp_string, arraysize(temp_string), "%lld",
-                     static_cast<long long>(as_int()));
-      *out += temp_string;
+      StringAppendF(out, "%" PRId64, as_int());
       break;
     case TRACE_TYPE_DOUBLE:
-      base::snprintf(temp_string, arraysize(temp_string), "%f", as_double());
-      *out += temp_string;
+      StringAppendF(out, "%f", as_double());
       break;
     case TRACE_TYPE_POINTER:
-      base::snprintf(temp_string, arraysize(temp_string), "%llu",
-                     static_cast<unsigned long long>(
-                       reinterpret_cast<intptr_t>(
-                         as_pointer())));
-      *out += temp_string;
+      // JSON only supports double and int numbers.
+      // So as not to lose bits from a 64-bit pointer, output as a hex string.
+      StringAppendF(out, "\"%" PRIx64 "\"", static_cast<uint64>(
+                                     reinterpret_cast<intptr_t>(
+                                     as_pointer())));
       break;
     case TRACE_TYPE_STRING:
     case TRACE_TYPE_STATIC_STRING:
@@ -117,6 +119,17 @@ void TraceValue::AppendAsJSON(std::string* out) const {
       NOTREACHED() << "Don't know how to print this value";
       break;
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// TraceID
+//
+////////////////////////////////////////////////////////////////////////////////
+
+TraceID::TraceID(void* rhs) {
+  data_ = base::debug::TraceLog::GetInstance()->GetIntraProcessID(
+      static_cast<uint64>(reinterpret_cast<uintptr_t>(rhs)));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -145,36 +158,39 @@ void CopyTraceEventParameter(char** buffer,
 }  // namespace
 
 TraceEvent::TraceEvent()
-    : process_id_(0),
+    : id_(0u),
+      category_(NULL),
+      name_(NULL),
       thread_id_(0),
       phase_(TRACE_EVENT_PHASE_BEGIN),
-      category_(NULL),
-      name_(NULL) {
+      flags_(0) {
   arg_names_[0] = NULL;
   arg_names_[1] = NULL;
 }
 
-TraceEvent::TraceEvent(unsigned long process_id,
-                       unsigned long thread_id,
+TraceEvent::TraceEvent(int thread_id,
                        TimeTicks timestamp,
                        TraceEventPhase phase,
                        const TraceCategory* category,
                        const char* name,
+                       TraceID id,
                        const char* arg1_name, const TraceValue& arg1_val,
                        const char* arg2_name, const TraceValue& arg2_val,
-                       bool copy)
-    : process_id_(process_id),
-      thread_id_(thread_id),
-      timestamp_(timestamp),
-      phase_(phase),
+                       TraceEventFlags flags)
+    : timestamp_(timestamp),
+      id_(id),
       category_(category),
-      name_(name) {
+      name_(name),
+      thread_id_(thread_id),
+      phase_(phase),
+      flags_(flags) {
   COMPILE_ASSERT(kTraceMaxNumArgs == 2, TraceEvent_arg_count_out_of_sync);
   arg_names_[0] = arg1_name;
   arg_names_[1] = arg2_name;
   arg_values_[0] = arg1_val;
   arg_values_[1] = arg2_val;
 
+  bool copy = !!(flags & TRACE_EVENT_FLAG_COPY);
   size_t alloc_size = 0;
   if (copy) {
     alloc_size += GetAllocLength(name);
@@ -213,42 +229,6 @@ TraceEvent::TraceEvent(unsigned long process_id,
 TraceEvent::~TraceEvent() {
 }
 
-const char* TraceEvent::GetPhaseString(TraceEventPhase phase) {
-  switch(phase) {
-    case TRACE_EVENT_PHASE_BEGIN:
-      return "B";
-    case TRACE_EVENT_PHASE_INSTANT:
-      return "I";
-    case TRACE_EVENT_PHASE_END:
-      return "E";
-    case TRACE_EVENT_PHASE_METADATA:
-      return "M";
-    case TRACE_EVENT_PHASE_COUNTER:
-      return "C";
-    default:
-      NOTREACHED() << "Invalid phase argument";
-      return "?";
-  }
-}
-
-TraceEventPhase TraceEvent::GetPhase(const char* phase) {
-  switch(*phase) {
-    case 'B':
-      return TRACE_EVENT_PHASE_BEGIN;
-    case 'I':
-      return TRACE_EVENT_PHASE_INSTANT;
-    case 'E':
-      return TRACE_EVENT_PHASE_END;
-    case 'M':
-      return TRACE_EVENT_PHASE_METADATA;
-    case 'C':
-      return TRACE_EVENT_PHASE_COUNTER;
-    default:
-      NOTREACHED() << "Invalid phase name";
-      return TRACE_EVENT_PHASE_METADATA;
-  }
-}
-
 void TraceEvent::AppendEventsAsJSON(const std::vector<TraceEvent>& events,
                                     size_t start,
                                     size_t count,
@@ -261,18 +241,19 @@ void TraceEvent::AppendEventsAsJSON(const std::vector<TraceEvent>& events,
 }
 
 void TraceEvent::AppendAsJSON(std::string* out) const {
-  const char* phase_str = GetPhaseString(phase_);
+  const char phase_char = GetPhaseChar(phase_);
   int64 time_int64 = timestamp_.ToInternalValue();
+  int process_id = TraceLog::GetInstance()->process_id();
   // Category name checked at category creation time.
   DCHECK(!strchr(name_, '"'));
   StringAppendF(out,
-      "{\"cat\":\"%s\",\"pid\":%i,\"tid\":%i,\"ts\":%lld,"
-      "\"ph\":\"%s\",\"name\":\"%s\",\"args\":{",
+      "{\"cat\":\"%s\",\"pid\":%i,\"tid\":%i,\"ts\":%" PRId64 ","
+      "\"ph\":\"%c\",\"name\":\"%s\",\"args\":{",
       category_->name,
-      static_cast<int>(process_id_),
-      static_cast<int>(thread_id_),
-      static_cast<long long>(time_int64),
-      phase_str,
+      process_id,
+      thread_id_,
+      time_int64,
+      phase_char,
       name_);
 
   // Output argument names and values, stop at first NULL argument name.
@@ -284,7 +265,13 @@ void TraceEvent::AppendAsJSON(std::string* out) const {
     *out += "\":";
     arg_values_[i].AppendAsJSON(out);
   }
-  *out += "}}";
+  *out += "}";
+
+  // If id_ is set, print it out as a hex string so we don't loose any
+  // bits (it might be a 64-bit pointer).
+  if (flags_ & TRACE_EVENT_FLAG_HAS_ID)
+    StringAppendF(out, ",\"id\":\"%" PRIx64 "\"", id_.data());
+  *out += "}";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -342,6 +329,7 @@ TraceLog* TraceLog::GetInstance() {
 
 TraceLog::TraceLog()
     : enabled_(false) {
+  SetProcessID(static_cast<int>(base::GetCurrentProcId()));
 }
 
 TraceLog::~TraceLog() {
@@ -533,11 +521,12 @@ void TraceLog::Flush() {
 int TraceLog::AddTraceEvent(TraceEventPhase phase,
                             const TraceCategory* category,
                             const char* name,
+                            TraceID id,
                             const char* arg1_name, TraceValue arg1_val,
                             const char* arg2_name, TraceValue arg2_val,
                             int threshold_begin_id,
                             int64 threshold,
-                            EventFlags flags) {
+                            TraceEventFlags flags) {
   DCHECK(name);
   TimeTicks now = TimeTicks::HighResNow();
   BufferFullCallback buffer_full_callback_copy;
@@ -549,7 +538,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
     if (logged_events_.size() >= kTraceEventBufferSize)
       return -1;
 
-    PlatformThreadId thread_id = PlatformThread::CurrentId();
+    int thread_id = static_cast<int>(PlatformThread::CurrentId());
 
     const char* new_name = PlatformThread::GetName();
     // Check if the thread name has been set or changed since the previous
@@ -559,7 +548,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
     if (new_name != g_current_thread_name.Get().Get() &&
         new_name && *new_name) {
       g_current_thread_name.Get().Set(new_name);
-      base::hash_map<PlatformThreadId, std::string>::iterator existing_name =
+      base::hash_map<int, std::string>::iterator existing_name =
           thread_names_.find(thread_id);
       if (existing_name == thread_names_.end()) {
         // This is a new thread id, and a new name.
@@ -580,7 +569,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
     }
 
     if (threshold_begin_id > -1) {
-      DCHECK(phase == base::debug::TRACE_EVENT_PHASE_END);
+      DCHECK(phase == TRACE_EVENT_PHASE_END);
       size_t begin_i = static_cast<size_t>(threshold_begin_id);
       // Return now if there has been a flush since the begin event was posted.
       if (begin_i >= logged_events_.size())
@@ -597,12 +586,11 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
     }
     ret_begin_id = static_cast<int>(logged_events_.size());
     logged_events_.push_back(
-        TraceEvent(static_cast<unsigned long>(base::GetCurrentProcId()),
-                   thread_id,
-                   now, phase, category, name,
+        TraceEvent(thread_id,
+                   now, phase, category, name, id,
                    arg1_name, arg1_val,
                    arg2_name, arg2_val,
-                   flags & EVENT_FLAG_COPY));
+                   flags));
 
     if (logged_events_.size() == kTraceEventBufferSize) {
       buffer_full_callback_copy = buffer_full_callback_;
@@ -624,7 +612,7 @@ void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
 #endif
   INTERNAL_TRACE_EVENT_ADD(phase,
       "ETW Trace Event", name, "id", id, "extra", TRACE_STR_COPY(extra),
-      base::debug::TraceLog::EVENT_FLAG_COPY);
+      TRACE_EVENT_FLAG_COPY);
 }
 
 void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
@@ -637,17 +625,18 @@ void TraceLog::AddTraceEventEtw(TraceEventPhase phase,
 #endif
   INTERNAL_TRACE_EVENT_ADD(phase,
       "ETW Trace Event", name, "id", id, "extra", extra,
-      base::debug::TraceLog::EVENT_FLAG_COPY);
+      TRACE_EVENT_FLAG_COPY);
 }
 
 int TraceLog::AddCounterEvent(const TraceCategory* category,
                               const char* name,
                               const char* value1_name, int32 value1_val,
                               const char* value2_name, int32 value2_val,
-                              EventFlags flags) {
+                              TraceEventFlags flags) {
   return AddTraceEvent(TRACE_EVENT_PHASE_COUNTER,
                        category,
                        name,
+                       0,
                        value1_name, value1_val,
                        value2_name, value2_val,
                        -1, 0,
@@ -656,19 +645,17 @@ int TraceLog::AddCounterEvent(const TraceCategory* category,
 
 void TraceLog::AddCurrentMetadataEvents() {
   lock_.AssertAcquired();
-  for(base::hash_map<PlatformThreadId, std::string>::iterator it =
-          thread_names_.begin();
+  for(base::hash_map<int, std::string>::iterator it = thread_names_.begin();
       it != thread_names_.end();
       it++) {
     if (!it->second.empty())
       logged_events_.push_back(
-          TraceEvent(static_cast<unsigned long>(base::GetCurrentProcId()),
-                     it->first,
-                     TimeTicks(), base::debug::TRACE_EVENT_PHASE_METADATA,
-                     g_category_metadata, "thread_name",
+          TraceEvent(it->first,
+                     TimeTicks(), TRACE_EVENT_PHASE_METADATA,
+                     g_category_metadata, "thread_name", 0,
                      "name", it->second,
                      NULL, 0,
-                     false));
+                     TRACE_EVENT_FLAG_NONE));
   }
 }
 
@@ -678,6 +665,16 @@ void TraceLog::DeleteForTesting() {
 
 void TraceLog::Resurrect() {
   StaticMemorySingletonTraits<TraceLog>::Resurrect();
+}
+
+void TraceLog::SetProcessID(int process_id) {
+  process_id_ = process_id;
+  // Create a FNV hash from the process ID for XORing.
+  // See http://isthe.com/chongo/tech/comp/fnv/ for algorithm details.
+  uint64 offset_basis = 14695981039346656037ull;
+  uint64 fnv_prime = 1099511628211ull;
+  unsigned long long pid = static_cast<unsigned long long>(process_id_);
+  process_id_hash_ = (offset_basis ^ pid) * fnv_prime;
 }
 
 namespace internal {
@@ -693,11 +690,11 @@ void TraceEndOnScopeClose::AddEventIfEnabled() {
   // Only called when p_data_ is non-null.
   if (p_data_->category->enabled) {
     base::debug::TraceLog::GetInstance()->AddTraceEvent(
-        base::debug::TRACE_EVENT_PHASE_END,
+        TRACE_EVENT_PHASE_END,
         p_data_->category,
-        p_data_->name,
-        NULL, 0, NULL, 0,
-        -1, 0, TraceLog::EVENT_FLAG_NONE);
+        p_data_->name, kNoEventId,
+        kNoArgName, kNoArgValue, kNoArgName, kNoArgValue,
+        kNoThreshholdBeginId, kNoThresholdValue, TRACE_EVENT_FLAG_NONE);
   }
 }
 
@@ -716,12 +713,12 @@ void TraceEndOnScopeCloseThreshold::AddEventIfEnabled() {
   // Only called when p_data_ is non-null.
   if (p_data_->category->enabled) {
     base::debug::TraceLog::GetInstance()->AddTraceEvent(
-        base::debug::TRACE_EVENT_PHASE_END,
+        TRACE_EVENT_PHASE_END,
         p_data_->category,
-        p_data_->name,
-        NULL, 0, NULL, 0,
+        p_data_->name, kNoEventId,
+        kNoArgName, kNoArgValue, kNoArgName, kNoArgValue,
         p_data_->threshold_begin_id, p_data_->threshold,
-        TraceLog::EVENT_FLAG_NONE);
+        TRACE_EVENT_FLAG_NONE);
   }
 }
 
