@@ -408,70 +408,6 @@ void GetCertPoliciesInfo(PCCERT_CONTEXT cert,
     output->reset(policies_info);
 }
 
-// Helper function to parse a principal from a WinInet description of that
-// principal.
-void ParsePrincipal(const std::string& description,
-                    CertPrincipal* principal) {
-  // The description of the principal is a string with each LDAP value on
-  // a separate line.
-  const std::string kDelimiters("\r\n");
-
-  std::vector<std::string> common_names, locality_names, state_names,
-      country_names;
-
-  // TODO(jcampan): add business_category and serial_number.
-  const std::string kPrefixes[] = { std::string("CN="),
-                                    std::string("L="),
-                                    std::string("S="),
-                                    std::string("C="),
-                                    std::string("STREET="),
-                                    std::string("O="),
-                                    std::string("OU="),
-                                    std::string("DC=") };
-
-  std::vector<std::string>* values[] = {
-      &common_names, &locality_names,
-      &state_names, &country_names,
-      &(principal->street_addresses),
-      &(principal->organization_names),
-      &(principal->organization_unit_names),
-      &(principal->domain_components) };
-  DCHECK(arraysize(kPrefixes) == arraysize(values));
-
-  StringTokenizer str_tok(description, kDelimiters);
-  while (str_tok.GetNext()) {
-    std::string entry = str_tok.token();
-    for (int i = 0; i < arraysize(kPrefixes); i++) {
-      if (!entry.compare(0, kPrefixes[i].length(), kPrefixes[i])) {
-        std::string value = entry.substr(kPrefixes[i].length());
-        // Remove enclosing double-quotes if any.
-        if (value.size() >= 2 &&
-            value[0] == '"' && value[value.size() - 1] == '"')
-          value = value.substr(1, value.size() - 2);
-        values[i]->push_back(value);
-        break;
-      }
-    }
-  }
-
-  // We don't expect to have more than one CN, L, S, and C. If there is more
-  // than one entry for CN, L, S, and C, we will use the first entry. Although
-  // RFC 2818 Section 3.1 says the "most specific" CN should be used, that term
-  // has been removed in draft-saintandre-tls-server-id-check, which requires
-  // that the Subject field contains only one CN. So it is fine for us to just
-  // use the first CN.
-  std::vector<std::string>* single_value_lists[4] = {
-      &common_names, &locality_names, &state_names, &country_names };
-  std::string* single_values[4] = {
-      &principal->common_name, &principal->locality_name,
-      &principal->state_or_province_name, &principal->country_name };
-  for (int i = 0; i < arraysize(single_value_lists); ++i) {
-    int length = static_cast<int>(single_value_lists[i]->size());
-    if (!single_value_lists[i]->empty())
-      *(single_values[i]) = (*(single_value_lists[i]))[0];
-  }
-}
-
 void AddCertsFromStore(HCERTSTORE store,
                        X509Certificate::OSCertHandles* results) {
   PCCERT_CONTEXT cert = NULL;
@@ -546,35 +482,119 @@ void AppendPublicKeyHashes(PCCERT_CHAIN_CONTEXT chain,
   }
 }
 
+// A list of OIDs to decode. Any OID not on this list will be ignored for
+// purposes of parsing.
+const char* kOIDs[] = {
+  szOID_COMMON_NAME,
+  szOID_LOCALITY_NAME,
+  szOID_STATE_OR_PROVINCE_NAME,
+  szOID_COUNTRY_NAME,
+  szOID_STREET_ADDRESS,
+  szOID_ORGANIZATION_NAME,
+  szOID_ORGANIZATIONAL_UNIT_NAME,
+  szOID_DOMAIN_COMPONENT
+};
+
+// Converts the value for |attribute| to an ASCII string, storing the result
+// in |value|. Returns false if the string cannot be converted.
+bool GetAttributeValue(PCERT_RDN_ATTR attribute,
+                       std::string* value) {
+  DWORD bytes_needed = CertRDNValueToStrA(attribute->dwValueType,
+                                          &attribute->Value, NULL, 0);
+  if (bytes_needed == 0)
+    return false;
+  if (bytes_needed == 1) {
+    // The value is actually an empty string (bytes_needed includes a single
+    // byte for a NULL value). Don't bother converting - just clear the
+    // string.
+    value->clear();
+    return true;
+  }
+  DWORD bytes_written = CertRDNValueToStrA(
+      attribute->dwValueType, &attribute->Value,
+      WriteInto(value, bytes_needed), bytes_needed);
+  if (bytes_written <= 1)
+    return false;
+  return true;
+}
+
+// Adds a type+value pair to the appropriate vector from a C array.
+// The array is keyed by the matching OIDs from kOIDS[].
+bool AddTypeValuePair(PCERT_RDN_ATTR attribute,
+                      std::vector<std::string>* values[]) {
+  for (size_t oid = 0; oid < arraysize(kOIDs); ++oid) {
+    if (strcmp(attribute->pszObjId, kOIDs[oid]) == 0) {
+      std::string value;
+      if (!GetAttributeValue(attribute, &value))
+        return false;
+      values[oid]->push_back(value);
+      break;
+    }
+  }
+  return true;
+}
+
+// Stores the first string of the vector, if any, to *single_value.
+void SetSingle(const std::vector<std::string>& values,
+               std::string* single_value) {
+  // We don't expect to have more than one CN, L, S, and C.
+  LOG_IF(WARNING, values.size() > 1) << "Didn't expect multiple values";
+  if (!values.empty())
+    *single_value = values[0];
+}
+
+bool ParsePrincipal(CERT_NAME_BLOB* name, CertPrincipal* principal) {
+  CRYPT_DECODE_PARA decode_para;
+  decode_para.cbSize = sizeof(decode_para);
+  decode_para.pfnAlloc = MyCryptAlloc;
+  decode_para.pfnFree = MyCryptFree;
+  CERT_NAME_INFO* name_info = NULL;
+  DWORD name_info_size = 0;
+  BOOL rv;
+  rv = CryptDecodeObjectEx(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+                           X509_NAME, name->pbData, name->cbData,
+                           CRYPT_DECODE_ALLOC_FLAG | CRYPT_DECODE_NOCOPY_FLAG,
+                           &decode_para,
+                           &name_info, &name_info_size);
+  if (!rv)
+    return false;
+  scoped_ptr_malloc<CERT_NAME_INFO> scoped_name_info(name_info);
+
+  std::vector<std::string> common_names, locality_names, state_names,
+      country_names;
+
+  std::vector<std::string>* values[] = {
+      &common_names, &locality_names,
+      &state_names, &country_names,
+      &(principal->street_addresses),
+      &(principal->organization_names),
+      &(principal->organization_unit_names),
+      &(principal->domain_components)
+  };
+  DCHECK(arraysize(kOIDs) == arraysize(values));
+
+  for (DWORD cur_rdn = 0; cur_rdn < name_info->cRDN; ++cur_rdn) {
+    PCERT_RDN rdn = &name_info->rgRDN[cur_rdn];
+    for (DWORD cur_ava = 0; cur_ava < rdn->cRDNAttr; ++cur_ava) {
+      PCERT_RDN_ATTR ava = &rdn->rgRDNAttr[cur_ava];
+      if (!AddTypeValuePair(ava, values))
+        return false;
+    }
+  }
+
+  SetSingle(common_names, &principal->common_name);
+  SetSingle(locality_names, &principal->locality_name);
+  SetSingle(state_names, &principal->state_or_province_name);
+  SetSingle(country_names, &principal->country_name);
+  return true;
+}
+
 }  // namespace
 
 void X509Certificate::Initialize() {
-  std::wstring subject_info;
-  std::wstring issuer_info;
-  DWORD name_size;
   DCHECK(cert_handle_);
-  name_size = CertNameToStr(cert_handle_->dwCertEncodingType,
-                            &cert_handle_->pCertInfo->Subject,
-                            CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
-                            NULL, 0);
-  if (name_size > 1) {
-    CertNameToStr(cert_handle_->dwCertEncodingType,
-                  &cert_handle_->pCertInfo->Subject,
-                  CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
-                  WriteInto(&subject_info, name_size), name_size);
-  }
-  name_size = CertNameToStr(cert_handle_->dwCertEncodingType,
-                            &cert_handle_->pCertInfo->Issuer,
-                            CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
-                            NULL, 0);
-  if (name_size > 1) {
-    CertNameToStr(cert_handle_->dwCertEncodingType,
-                  &cert_handle_->pCertInfo->Issuer,
-                  CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
-                  WriteInto(&issuer_info, name_size), name_size);
-  }
-  ParsePrincipal(WideToUTF8(subject_info), &subject_);
-  ParsePrincipal(WideToUTF8(issuer_info), &issuer_);
+  ParsePrincipal(&cert_handle_->pCertInfo->Subject, &subject_);
+  ParsePrincipal(&cert_handle_->pCertInfo->Issuer, &issuer_);
 
   valid_start_ = Time::FromFileTime(cert_handle_->pCertInfo->NotBefore);
   valid_expiry_ = Time::FromFileTime(cert_handle_->pCertInfo->NotAfter);
