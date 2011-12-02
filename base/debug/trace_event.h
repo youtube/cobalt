@@ -639,7 +639,7 @@ class BASE_EXPORT TraceValue {
 // same pointer is used on different processes.
 class BASE_EXPORT TraceID {
  public:
-  TraceID() : data_(NULL) {}
+  TraceID() : data_(0u) {}
   TraceID(void* rhs);
   TraceID(unsigned long long rhs) : data_(static_cast<uint64>(rhs)) {}
   TraceID(unsigned long rhs) : data_(static_cast<uint64>(rhs)) {}
