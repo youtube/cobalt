@@ -129,99 +129,181 @@ CertStatus CertStatusFromOSStatus(OSStatus status) {
   }
 }
 
-struct CSSMFields {
-  CSSMFields() : cl_handle(NULL), num_of_fields(0), fields(NULL) {}
-  ~CSSMFields() {
-    if (cl_handle)
-      CSSM_CL_FreeFields(cl_handle, num_of_fields, &fields);
+// Wrapper for a CSSM_DATA_PTR that was obtained via one of the CSSM field
+// accessors (such as CSSM_CL_CertGet[First/Next]Value or
+// CSSM_CL_CertGet[First/Next]CachedValue).
+class CSSMFieldValue {
+ public:
+  CSSMFieldValue() : cl_handle_(NULL), oid_(NULL), field_(NULL) {}
+  CSSMFieldValue(CSSM_CL_HANDLE cl_handle,
+                 const CSSM_OID* oid,
+                 CSSM_DATA_PTR field)
+      : cl_handle_(cl_handle),
+        oid_(const_cast<CSSM_OID_PTR>(oid)),
+        field_(field) {
   }
 
-  CSSM_CL_HANDLE cl_handle;
-  uint32 num_of_fields;
-  CSSM_FIELD_PTR fields;
+  ~CSSMFieldValue() {
+    Reset(NULL, NULL, NULL);
+  }
+
+  CSSM_OID_PTR oid() const { return oid_; }
+  CSSM_DATA_PTR field() const { return field_; }
+
+  // Returns the field as if it was an arbitrary type - most commonly, by
+  // interpreting the field as a specific CSSM/CDSA parsed type, such as
+  // CSSM_X509_SUBJECT_PUBLIC_KEY_INFO or CSSM_X509_ALGORITHM_IDENTIFIER.
+  // An added check is applied to ensure that the current field is large
+  // enough to actually contain the requested type.
+  template <typename T> const T* GetAs() const {
+    if (!field_ || field_->Length < sizeof(T))
+      return NULL;
+    return reinterpret_cast<const T*>(field_->Data);
+  }
+
+  void Reset(CSSM_CL_HANDLE cl_handle,
+             CSSM_OID_PTR oid,
+             CSSM_DATA_PTR field) {
+    if (cl_handle_ && oid_ && field_)
+      CSSM_CL_FreeFieldValue(cl_handle_, oid_, field_);
+    cl_handle_ = cl_handle;
+    oid_ = oid;
+    field_ = field;
+  }
+
+ private:
+  CSSM_CL_HANDLE cl_handle_;
+  CSSM_OID_PTR oid_;
+  CSSM_DATA_PTR field_;
+
+  DISALLOW_COPY_AND_ASSIGN(CSSMFieldValue);
 };
 
-OSStatus GetCertFields(X509Certificate::OSCertHandle cert_handle,
-                       CSSMFields* fields) {
-  DCHECK(cert_handle);
-  DCHECK(fields);
+// CSSMCachedCertificate is a container class that is used to wrap the
+// CSSM_CL_CertCache APIs and provide safe and efficient access to
+// certificate fields in their CSSM form.
+//
+// To provide efficient access to certificate/CRL fields, CSSM provides an
+// API/SPI to "cache" a certificate/CRL. The exact meaning of a cached
+// certificate is not defined by CSSM, but is documented to generally be some
+// intermediate or parsed form of the certificate. In the case of Apple's
+// CSSM CL implementation, the intermediate form is the parsed certificate
+// stored in an internal format (which happens to be NSS). By caching the
+// certificate, callers that wish to access multiple fields (such as subject,
+// issuer, and validity dates) do not need to repeatedly parse the entire
+// certificate, nor are they forced to convert all fields from their NSS types
+// to their CSSM equivalents. This latter point is especially helpful when
+// running on OS X 10.5, as it will fail to convert some fields that reference
+// unsupported algorithms, such as ECC.
+class CSSMCachedCertificate {
+ public:
+  CSSMCachedCertificate() : cl_handle_(NULL), cached_cert_handle_(NULL) {}
+  ~CSSMCachedCertificate() {
+    if (cl_handle_ && cached_cert_handle_)
+      CSSM_CL_CertAbortCache(cl_handle_, cached_cert_handle_);
+  }
 
-  CSSM_DATA cert_data;
-  OSStatus status = SecCertificateGetData(cert_handle, &cert_data);
-  if (status)
-    return status;
+  // Initializes the CSSMCachedCertificate by caching the specified
+  // |os_cert_handle|. On success, returns noErr.
+  // Note: Once initialized, the cached certificate should only be accessed
+  // from a single thread.
+  OSStatus Init(SecCertificateRef os_cert_handle) {
+    DCHECK(!cl_handle_ && !cached_cert_handle_);
+    DCHECK(os_cert_handle);
+    CSSM_DATA cert_data;
+    OSStatus status = SecCertificateGetData(os_cert_handle, &cert_data);
+    if (status)
+      return status;
+    status = SecCertificateGetCLHandle(os_cert_handle, &cl_handle_);
+    if (status) {
+      DCHECK(!cl_handle_);
+      return status;
+    }
 
-  status = SecCertificateGetCLHandle(cert_handle, &fields->cl_handle);
-  if (status) {
-    DCHECK(!fields->cl_handle);
+    status = CSSM_CL_CertCache(cl_handle_, &cert_data, &cached_cert_handle_);
+    if (status)
+      DCHECK(!cached_cert_handle_);
     return status;
   }
 
-  status = CSSM_CL_CertGetAllFields(fields->cl_handle, &cert_data,
-                                    &fields->num_of_fields, &fields->fields);
-  return status;
-}
+  // Fetches the first value for the field associated with |field_oid|.
+  // If |field_oid| is a valid OID and is present in the current certificate,
+  // returns CSSM_OK and stores the first value in |field|. If additional
+  // values are associated with |field_oid|, they are ignored.
+  OSStatus GetField(const CSSM_OID* field_oid,
+                    CSSMFieldValue* field) const {
+    DCHECK(cl_handle_);
+    DCHECK(cached_cert_handle_);
 
-void GetCertDateForOID(X509Certificate::OSCertHandle cert_handle,
-                       CSSM_OID oid, Time* result) {
+    CSSM_OID_PTR oid = const_cast<CSSM_OID_PTR>(field_oid);
+    CSSM_DATA_PTR field_ptr = NULL;
+    CSSM_HANDLE results_handle = NULL;
+    uint32 field_value_count = 0;
+    CSSM_RETURN status = CSSM_CL_CertGetFirstCachedFieldValue(
+        cl_handle_, cached_cert_handle_, oid, &results_handle,
+        &field_value_count, &field_ptr);
+    if (status)
+      return status;
+
+    // Note: |field_value_count| may be > 1, indicating that more than one
+    // value is present. This may happen with extensions, but for current
+    // usages, only the first value is returned.
+    CSSM_CL_CertAbortQuery(cl_handle_, results_handle);
+    field->Reset(cl_handle_, oid, field_ptr);
+    return CSSM_OK;
+  }
+
+ private:
+  CSSM_CL_HANDLE cl_handle_;
+  CSSM_HANDLE cached_cert_handle_;
+};
+
+void GetCertDateForOID(const CSSMCachedCertificate& cached_cert,
+                       const CSSM_OID* oid,
+                       Time* result) {
   *result = Time::Time();
 
-  CSSMFields fields;
-  OSStatus status = GetCertFields(cert_handle, &fields);
+  CSSMFieldValue field;
+  OSStatus status = cached_cert.GetField(oid, &field);
   if (status)
     return;
 
-  for (size_t field = 0; field < fields.num_of_fields; ++field) {
-    if (CSSMOIDEqual(&fields.fields[field].FieldOid, &oid)) {
-      CSSM_X509_TIME* x509_time = reinterpret_cast<CSSM_X509_TIME*>(
-          fields.fields[field].FieldValue.Data);
-      if (x509_time->timeType != BER_TAG_UTC_TIME &&
-          x509_time->timeType != BER_TAG_GENERALIZED_TIME) {
-        LOG(ERROR) << "Unsupported date/time format "
-                   << x509_time->timeType;
-        return;
-      }
-
-      base::StringPiece time_string(
-          reinterpret_cast<const char*>(x509_time->time.Data),
-          x509_time->time.Length);
-      CertDateFormat format = x509_time->timeType == BER_TAG_UTC_TIME ?
-          CERT_DATE_FORMAT_UTC_TIME : CERT_DATE_FORMAT_GENERALIZED_TIME;
-      if (!ParseCertificateDate(time_string, format, result))
-        LOG(ERROR) << "Invalid certificate date/time " << time_string;
-      return;
-    }
+  const CSSM_X509_TIME* x509_time = field.GetAs<CSSM_X509_TIME>();
+  if (x509_time->timeType != BER_TAG_UTC_TIME &&
+      x509_time->timeType != BER_TAG_GENERALIZED_TIME) {
+    LOG(ERROR) << "Unsupported date/time format "
+               << x509_time->timeType;
+    return;
   }
+
+  base::StringPiece time_string(
+      reinterpret_cast<const char*>(x509_time->time.Data),
+      x509_time->time.Length);
+  CertDateFormat format = x509_time->timeType == BER_TAG_UTC_TIME ?
+      CERT_DATE_FORMAT_UTC_TIME : CERT_DATE_FORMAT_GENERALIZED_TIME;
+  if (!ParseCertificateDate(time_string, format, result))
+    LOG(ERROR) << "Invalid certificate date/time " << time_string;
 }
 
-std::string GetCertSerialNumber(X509Certificate::OSCertHandle cert_handle) {
-  CSSMFields fields;
-  OSStatus status = GetCertFields(cert_handle, &fields);
-  if (status)
-    return "";
+std::string GetCertSerialNumber(const CSSMCachedCertificate& cached_cert) {
+  CSSMFieldValue serial_number;
+  OSStatus status = cached_cert.GetField(&CSSMOID_X509V1SerialNumber,
+                                         &serial_number);
+  if (status || !serial_number.field())
+    return std::string();
 
-  std::string ret;
-  for (size_t field = 0; field < fields.num_of_fields; ++field) {
-    if (!CSSMOIDEqual(&fields.fields[field].FieldOid,
-                      &CSSMOID_X509V1SerialNumber)) {
-      continue;
-    }
-    ret.assign(
-        reinterpret_cast<char*>(fields.fields[field].FieldValue.Data),
-        fields.fields[field].FieldValue.Length);
-    break;
-  }
-
-  return ret;
+  return std::string(
+      reinterpret_cast<const char*>(serial_number.field()->Data),
+      serial_number.field()->Length);
 }
 
 // Creates a SecPolicyRef for the given OID, with optional value.
-OSStatus CreatePolicy(const CSSM_OID* policy_OID,
+OSStatus CreatePolicy(const CSSM_OID* policy_oid,
                       void* option_data,
                       size_t option_length,
                       SecPolicyRef* policy) {
   SecPolicySearchRef search;
-  OSStatus err = SecPolicySearchCreate(CSSM_CERT_X_509v3, policy_OID, NULL,
+  OSStatus err = SecPolicySearchCreate(CSSM_CERT_X_509v3, policy_oid, NULL,
                                        &search);
   if (err)
     return err;
@@ -322,41 +404,35 @@ void GetCertChainInfo(CFArrayRef cert_chain,
       continue;
     }
 
-    CSSMFields cssm_fields;
-    OSStatus status = GetCertFields(chain_cert, &cssm_fields);
+    CSSMCachedCertificate cached_cert;
+    OSStatus status = cached_cert.Init(chain_cert);
     if (status)
       continue;
-    CSSM_FIELD_PTR fields = cssm_fields.fields;
-    for (size_t field = 0; field < cssm_fields.num_of_fields; ++field) {
-      if (!CSSMOIDEqual(&fields[field].FieldOid,
-                        &CSSMOID_X509V1SignatureAlgorithm)) {
-        continue;
-      }
+    CSSMFieldValue signature_field;
+    status = cached_cert.GetField(&CSSMOID_X509V1SignatureAlgorithm,
+                                  &signature_field);
+    if (status || !signature_field.field())
+      continue;
+    // Match the behaviour of OS X system tools and defensively check that
+    // sizes are appropriate. This would indicate a critical failure of the
+    // OS X certificate library, but based on history, it is best to play it
+    // safe.
+    const CSSM_X509_ALGORITHM_IDENTIFIER* sig_algorithm =
+        signature_field.GetAs<CSSM_X509_ALGORITHM_IDENTIFIER>();
+    if (!sig_algorithm)
+      continue;
 
-      CSSM_X509_ALGORITHM_IDENTIFIER* signature_algorithm =
-          reinterpret_cast<CSSM_X509_ALGORITHM_IDENTIFIER*>(
-              fields[field].FieldValue.Data);
-      // Match the behaviour of OS X system tools and defensively check that
-      // sizes are appropriate. This would indicate a critical failure of the
-      // OS X certificate library, but based on history, it is best to play it
-      // safe.
-      if (!signature_algorithm || (fields[field].FieldValue.Length !=
-          sizeof(CSSM_X509_ALGORITHM_IDENTIFIER))) {
-        break;
-      }
-      CSSM_OID_PTR alg_oid = &signature_algorithm->algorithm;
-      if (CSSMOIDEqual(alg_oid, &CSSMOID_MD2WithRSA)) {
-        verify_result->has_md2 = true;
-        if (i != 0)
-          verify_result->has_md2_ca = true;
-      } else if (CSSMOIDEqual(alg_oid, &CSSMOID_MD4WithRSA)) {
-        verify_result->has_md4 = true;
-      } else if (CSSMOIDEqual(alg_oid, &CSSMOID_MD5WithRSA)) {
-        verify_result->has_md5 = true;
-        if (i != 0)
-          verify_result->has_md5_ca = true;
-      }
-      break;
+    const CSSM_OID* alg_oid = &sig_algorithm->algorithm;
+    if (CSSMOIDEqual(alg_oid, &CSSMOID_MD2WithRSA)) {
+      verify_result->has_md2 = true;
+      if (i != 0)
+        verify_result->has_md2_ca = true;
+    } else if (CSSMOIDEqual(alg_oid, &CSSMOID_MD4WithRSA)) {
+      verify_result->has_md4 = true;
+    } else if (CSSMOIDEqual(alg_oid, &CSSMOID_MD5WithRSA)) {
+      verify_result->has_md5 = true;
+      if (i != 0)
+        verify_result->has_md5_ca = true;
     }
   }
   if (!verified_cert)
@@ -610,14 +686,17 @@ void X509Certificate::Initialize() {
   if (!status)
     issuer_.Parse(name);
 
-  GetCertDateForOID(cert_handle_, CSSMOID_X509V1ValidityNotBefore,
-                    &valid_start_);
-  GetCertDateForOID(cert_handle_, CSSMOID_X509V1ValidityNotAfter,
-                    &valid_expiry_);
+  CSSMCachedCertificate cached_cert;
+  if (cached_cert.Init(cert_handle_) == CSSM_OK) {
+    GetCertDateForOID(cached_cert, &CSSMOID_X509V1ValidityNotBefore,
+                      &valid_start_);
+    GetCertDateForOID(cached_cert, &CSSMOID_X509V1ValidityNotAfter,
+                      &valid_expiry_);
+    serial_number_ = GetCertSerialNumber(cached_cert);
+  }
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
   ca_fingerprint_ = CalculateCAFingerprint(intermediate_ca_certs_);
-  serial_number_ = GetCertSerialNumber(cert_handle_);
 }
 
 // IsIssuedByKnownRoot returns true if the given chain is rooted at a root CA
@@ -780,35 +859,35 @@ void X509Certificate::GetSubjectAltName(
   if (ip_addrs)
     ip_addrs->clear();
 
-  CSSMFields fields;
-  OSStatus status = GetCertFields(cert_handle_, &fields);
+  CSSMCachedCertificate cached_cert;
+  OSStatus status = cached_cert.Init(cert_handle_);
   if (status)
     return;
+  CSSMFieldValue subject_alt_name;
+  status = cached_cert.GetField(&CSSMOID_SubjectAltName, &subject_alt_name);
+  if (status || !subject_alt_name.field())
+    return;
+  const CSSM_X509_EXTENSION* cssm_ext =
+      subject_alt_name.GetAs<CSSM_X509_EXTENSION>();
+  if (!cssm_ext || !cssm_ext->value.parsedValue)
+    return;
+  const CE_GeneralNames* alt_name =
+      reinterpret_cast<const CE_GeneralNames*>(cssm_ext->value.parsedValue);
 
-  for (size_t field = 0; field < fields.num_of_fields; ++field) {
-    if (!CSSMOIDEqual(&fields.fields[field].FieldOid, &CSSMOID_SubjectAltName))
-      continue;
-    CSSM_X509_EXTENSION_PTR cssm_ext =
-        reinterpret_cast<CSSM_X509_EXTENSION_PTR>(
-            fields.fields[field].FieldValue.Data);
-    CE_GeneralNames* alt_name =
-        reinterpret_cast<CE_GeneralNames*>(cssm_ext->value.parsedValue);
-
-    for (size_t name = 0; name < alt_name->numNames; ++name) {
-      const CE_GeneralName& name_struct = alt_name->generalName[name];
-      const CSSM_DATA& name_data = name_struct.name;
-      // DNSName and IPAddress are encoded as IA5String and OCTET STRINGs
-      // respectively, both of which can be byte copied from
-      // CSSM_DATA::data into the appropriate output vector.
-      if (dns_names && name_struct.nameType == GNT_DNSName) {
-        dns_names->push_back(std::string(
-            reinterpret_cast<const char*>(name_data.Data),
-            name_data.Length));
-      } else if (ip_addrs && name_struct.nameType == GNT_IPAddress) {
-        ip_addrs->push_back(std::string(
-            reinterpret_cast<const char*>(name_data.Data),
-            name_data.Length));
-      }
+  for (size_t name = 0; name < alt_name->numNames; ++name) {
+    const CE_GeneralName& name_struct = alt_name->generalName[name];
+    const CSSM_DATA& name_data = name_struct.name;
+    // DNSName and IPAddress are encoded as IA5String and OCTET STRINGs
+    // respectively, both of which can be byte copied from
+    // CSSM_DATA::data into the appropriate output vector.
+    if (dns_names && name_struct.nameType == GNT_DNSName) {
+      dns_names->push_back(std::string(
+          reinterpret_cast<const char*>(name_data.Data),
+          name_data.Length));
+    } else if (ip_addrs && name_struct.nameType == GNT_IPAddress) {
+      ip_addrs->push_back(std::string(
+          reinterpret_cast<const char*>(name_data.Data),
+          name_data.Length));
     }
   }
 }
@@ -1147,25 +1226,10 @@ SHA1Fingerprint X509Certificate::CalculateCAFingerprint(
 }
 
 bool X509Certificate::SupportsSSLClientAuth() const {
-  CSSMFields fields;
-  if (GetCertFields(cert_handle_, &fields) != noErr)
+  CSSMCachedCertificate cached_cert;
+  OSStatus status = cached_cert.Init(cert_handle_);
+  if (status)
     return false;
-
-  // Gather the extensions we care about. We do not support
-  // CSSMOID_NetscapeCertType on OS X.
-  const CE_ExtendedKeyUsage* ext_key_usage = NULL;
-  const CE_KeyUsage* key_usage = NULL;
-  for (unsigned f = 0; f < fields.num_of_fields; ++f) {
-    const CSSM_FIELD& field = fields.fields[f];
-    const CSSM_X509_EXTENSION* ext =
-        reinterpret_cast<const CSSM_X509_EXTENSION*>(field.FieldValue.Data);
-    if (CSSMOIDEqual(&field.FieldOid, &CSSMOID_KeyUsage)) {
-      key_usage = reinterpret_cast<const CE_KeyUsage*>(ext->value.parsedValue);
-    } else if (CSSMOIDEqual(&field.FieldOid, &CSSMOID_ExtendedKeyUsage)) {
-      ext_key_usage =
-          reinterpret_cast<const CE_ExtendedKeyUsage*>(ext->value.parsedValue);
-    }
-  }
 
   // RFC5280 says to take the intersection of the two extensions.
   //
@@ -1176,11 +1240,24 @@ bool X509Certificate::SupportsSSLClientAuth() const {
   //
   // In particular, if a key has the nonRepudiation bit and not the
   // digitalSignature one, we will not offer it to the user.
-  if (key_usage && !((*key_usage) & CE_KU_DigitalSignature))
-    return false;
-  if (ext_key_usage && !ExtendedKeyUsageAllows(ext_key_usage,
-                                               &CSSMOID_ClientAuth))
-    return false;
+  CSSMFieldValue key_usage;
+  status = cached_cert.GetField(&CSSMOID_KeyUsage, &key_usage);
+  if (status == CSSM_OK && key_usage.field()) {
+    const CSSM_X509_EXTENSION* ext = key_usage.GetAs<CSSM_X509_EXTENSION>();
+    const CE_KeyUsage* key_usage_value =
+        reinterpret_cast<const CE_KeyUsage*>(ext->value.parsedValue);
+    if (!((*key_usage_value) & CE_KU_DigitalSignature))
+      return false;
+  }
+
+  status = cached_cert.GetField(&CSSMOID_ExtendedKeyUsage, &key_usage);
+  if (status == CSSM_OK && key_usage.field()) {
+    const CSSM_X509_EXTENSION* ext = key_usage.GetAs<CSSM_X509_EXTENSION>();
+    const CE_ExtendedKeyUsage* ext_key_usage =
+        reinterpret_cast<const CE_ExtendedKeyUsage*>(ext->value.parsedValue);
+    if (!ExtendedKeyUsageAllows(ext_key_usage, &CSSMOID_ClientAuth))
+      return false;
+  }
   return true;
 }
 
