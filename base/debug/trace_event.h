@@ -197,6 +197,11 @@
 #define UNSHIPPED_TRACE_EVENT1(category, name, arg1_name, arg1_val) (void)0
 #define UNSHIPPED_TRACE_EVENT2(category, name, arg1_name, arg1_val, \
                                arg2_name, arg2_val) (void)0
+#define UNSHIPPED_TRACE_EVENT_INSTANT0(category, name) (void)0
+#define UNSHIPPED_TRACE_EVENT_INSTANT1(category, name, arg1_name, arg1_val) \
+    (void)0
+#define UNSHIPPED_TRACE_EVENT_INSTANT2(category, name, arg1_name, arg1_val, \
+                                       arg2_name, arg2_val) (void)0
 #else
 #define UNSHIPPED_TRACE_EVENT0(category, name) \
     TRACE_EVENT0(category, name)
@@ -205,6 +210,14 @@
 #define UNSHIPPED_TRACE_EVENT2(category, name, arg1_name, arg1_val, \
                                arg2_name, arg2_val) \
     TRACE_EVENT2(category, name, arg1_name, arg1_val, arg2_name, arg2_val)
+#define UNSHIPPED_TRACE_EVENT_INSTANT0(category, name) \
+    TRACE_EVENT_INSTANT0(category, name)
+#define UNSHIPPED_TRACE_EVENT_INSTANT1(category, name, arg1_name, arg1_val) \
+    TRACE_EVENT_INSTANT1(category, name, arg1_name, arg1_val)
+#define UNSHIPPED_TRACE_EVENT_INSTANT2(category, name, arg1_name, arg1_val, \
+                                       arg2_name, arg2_val) \
+    TRACE_EVENT_INSTANT2(category, name, arg1_name, arg1_val, \
+                         arg2_name, arg2_val)
 #endif
 
 // Records a single event called "name" immediately, with 0, 1 or 2
