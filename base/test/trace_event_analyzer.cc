@@ -26,50 +26,82 @@ TraceEvent::~TraceEvent() {
 }
 
 bool TraceEvent::SetFromJSON(const base::Value* event_value) {
-  if (event_value->GetType() != base::Value::TYPE_DICTIONARY)
+  if (event_value->GetType() != base::Value::TYPE_DICTIONARY) {
+    LOG(ERROR) << "Value must be TYPE_DICTIONARY";
     return false;
+  }
   const base::DictionaryValue* dictionary =
       static_cast<const base::DictionaryValue*>(event_value);
 
   std::string phase_str;
   base::DictionaryValue* args = NULL;
 
-  if (dictionary->GetInteger("pid", &thread.process_id) &&
-      dictionary->GetInteger("tid", &thread.thread_id) &&
-      dictionary->GetDouble("ts", &timestamp) &&
-      dictionary->GetString("cat", &category) &&
-      dictionary->GetString("name", &name) &&
-      dictionary->GetString("ph", &phase_str) &&
-      dictionary->GetDictionary("args", &args)) {
-
-    phase = base::debug::TraceEvent::GetPhase(phase_str.c_str());
-
-    // For each argument, copy the type and create a trace_analyzer::TraceValue.
-    base::DictionaryValue::key_iterator keyi = args->begin_keys();
-    for (; keyi != args->end_keys(); ++keyi) {
-      std::string str;
-      bool boolean = false;
-      int int_num = 0;
-      double double_num = 0.0;
-      Value* value = NULL;
-      if (args->GetWithoutPathExpansion(*keyi, &value)) {
-        if (value->GetAsString(&str))
-          arg_strings[*keyi] = str;
-        else if (value->GetAsInteger(&int_num))
-          arg_numbers[*keyi] = static_cast<double>(int_num);
-        else if (value->GetAsBoolean(&boolean))
-          arg_numbers[*keyi] = static_cast<double>(boolean ? 1 : 0);
-        else if (value->GetAsDouble(&double_num))
-          arg_numbers[*keyi] = double_num;
-        else
-          return false;  // Invalid trace event JSON format.
-      }
-    }
-
-    return true;
+  if (!dictionary->GetString("ph", &phase_str)) {
+    LOG(ERROR) << "ph is missing from TraceEvent JSON";
+    return false;
   }
 
-  return false;
+  phase = base::debug::TraceEvent::GetPhase(phase_str.c_str());
+
+  bool require_origin = (phase != TRACE_EVENT_PHASE_METADATA);
+  bool require_id = (phase == TRACE_EVENT_PHASE_START ||
+                     phase == TRACE_EVENT_PHASE_FINISH);
+
+  if (require_origin && !dictionary->GetInteger("pid", &thread.process_id)) {
+    LOG(ERROR) << "pid is missing from TraceEvent JSON";
+    return false;
+  }
+  if (require_origin && !dictionary->GetInteger("tid", &thread.thread_id)) {
+    LOG(ERROR) << "tid is missing from TraceEvent JSON";
+    return false;
+  }
+  if (require_origin && !dictionary->GetDouble("ts", &timestamp)) {
+    LOG(ERROR) << "ts is missing from TraceEvent JSON";
+    return false;
+  }
+  if (!dictionary->GetString("cat", &category)) {
+    LOG(ERROR) << "cat is missing from TraceEvent JSON";
+    return false;
+  }
+  if (!dictionary->GetString("name", &name)) {
+    LOG(ERROR) << "name is missing from TraceEvent JSON";
+    return false;
+  }
+  if (!dictionary->GetDictionary("args", &args)) {
+    LOG(ERROR) << "args is missing from TraceEvent JSON";
+    return false;
+  }
+  if (require_id && !dictionary->GetString("id", &id)) {
+    LOG(ERROR) << "id is missing from START/FINISH TraceEvent JSON";
+    return false;
+  }
+
+  // For each argument, copy the type and create a trace_analyzer::TraceValue.
+  base::DictionaryValue::key_iterator keyi = args->begin_keys();
+  for (; keyi != args->end_keys(); ++keyi) {
+    std::string str;
+    bool boolean = false;
+    int int_num = 0;
+    double double_num = 0.0;
+    Value* value = NULL;
+    if (args->GetWithoutPathExpansion(*keyi, &value)) {
+      if (value->GetAsString(&str))
+        arg_strings[*keyi] = str;
+      else if (value->GetAsInteger(&int_num))
+        arg_numbers[*keyi] = static_cast<double>(int_num);
+      else if (value->GetAsBoolean(&boolean))
+        arg_numbers[*keyi] = static_cast<double>(boolean ? 1 : 0);
+      else if (value->GetAsDouble(&double_num))
+        arg_numbers[*keyi] = double_num;
+      else {
+        LOG(ERROR) << "Value type of argument is not supported: " <<
+                      static_cast<int>(value->GetType());
+        return false;  // Invalid trace event JSON format.
+      }
+    }
+  }
+
+  return true;
 }
 
 double TraceEvent::GetAbsTimeToOtherEvent() const {
@@ -436,6 +468,9 @@ base::debug::TraceValue Query::GetMemberValue(const TraceEvent& event) const {
     case EVENT_NAME:
     case OTHER_NAME:
       return the_event->name;
+    case EVENT_ID:
+    case OTHER_ID:
+      return the_event->id;
     case EVENT_HAS_STRING_ARG:
     case OTHER_HAS_STRING_ARG:
       return (the_event->HasStringArg(string_) ? 1.0 : 0.0);
@@ -641,14 +676,24 @@ bool TraceAnalyzer::SetEvents(const std::string& json_events) {
 void TraceAnalyzer::AssociateBeginEndEvents() {
   using namespace trace_analyzer;
 
-  Query begin(Query(EVENT_PHASE) ==
-      Query::Phase(TRACE_EVENT_PHASE_BEGIN));
-  Query end(Query(EVENT_PHASE) ==
-      Query::Phase(TRACE_EVENT_PHASE_END));
+  Query begin(Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_BEGIN));
+  Query end(Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_END));
   Query match(Query(EVENT_NAME) == Query(OTHER_NAME) &&
               Query(EVENT_CATEGORY) == Query(OTHER_CATEGORY) &&
               Query(EVENT_TID) == Query(OTHER_TID) &&
               Query(EVENT_PID) == Query(OTHER_PID));
+
+  AssociateEvents(begin, end, match);
+}
+
+void TraceAnalyzer::AssociateStartFinishEvents() {
+  using namespace trace_analyzer;
+
+  Query begin(Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_START));
+  Query end(Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_FINISH));
+  Query match(Query(EVENT_NAME) == Query(OTHER_NAME) &&
+              Query(EVENT_CATEGORY) == Query(OTHER_CATEGORY) &&
+              Query(EVENT_ID) == Query(OTHER_ID));
 
   AssociateEvents(begin, end, match);
 }
