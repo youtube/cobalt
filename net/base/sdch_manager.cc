@@ -206,11 +206,13 @@ bool SdchManager::Dictionary::DomainMatch(const GURL& gurl,
 //------------------------------------------------------------------------------
 SdchManager::SdchManager() {
   DCHECK(!global_);
+  DCHECK(CalledOnValidThread());
   global_ = this;
 }
 
 SdchManager::~SdchManager() {
   DCHECK_EQ(this, global_);
+  DCHECK(CalledOnValidThread());
   while (!dictionaries_.empty()) {
     DictionaryMap::iterator it = dictionaries_.begin();
     it->second->Release();
@@ -224,7 +226,7 @@ void SdchManager::Shutdown() {
   EnableSdchSupport(false);
   if (!global_ )
     return;
-  global_->fetcher_.reset(NULL);
+  global_->set_sdch_fetcher(NULL);
 }
 
 // static
@@ -235,6 +237,11 @@ SdchManager* SdchManager::Global() {
 // static
 void SdchManager::SdchErrorRecovery(ProblemCodes problem) {
   UMA_HISTOGRAM_ENUMERATION("Sdch3.ProblemCodes_4", problem, MAX_PROBLEM_CODE);
+}
+
+void SdchManager::set_sdch_fetcher(SdchFetcher* fetcher) {
+  DCHECK(CalledOnValidThread());
+  fetcher_.reset(fetcher);
 }
 
 // static
@@ -301,6 +308,7 @@ int SdchManager::BlacklistDomainExponential(const std::string& domain) {
 }
 
 bool SdchManager::IsInSupportedDomain(const GURL& url) {
+  DCHECK(CalledOnValidThread());
   if (!g_sdch_enabled_ )
     return false;
 
@@ -323,6 +331,7 @@ bool SdchManager::IsInSupportedDomain(const GURL& url) {
 
 void SdchManager::FetchDictionary(const GURL& request_url,
                                   const GURL& dictionary_url) {
+  DCHECK(CalledOnValidThread());
   if (SdchManager::Global()->CanFetchDictionary(request_url, dictionary_url) &&
       fetcher_.get())
     fetcher_->Schedule(dictionary_url);
@@ -330,6 +339,7 @@ void SdchManager::FetchDictionary(const GURL& request_url,
 
 bool SdchManager::CanFetchDictionary(const GURL& referring_url,
                                      const GURL& dictionary_url) const {
+  DCHECK(CalledOnValidThread());
   /* The user agent may retrieve a dictionary from the dictionary URL if all of
      the following are true:
        1 The dictionary URL host name matches the referrer URL host name
@@ -362,6 +372,7 @@ bool SdchManager::CanFetchDictionary(const GURL& referring_url,
 
 bool SdchManager::AddSdchDictionary(const std::string& dictionary_text,
     const GURL& dictionary_url) {
+  DCHECK(CalledOnValidThread());
   std::string client_hash;
   std::string server_hash;
   GenerateHash(dictionary_text, &client_hash, &server_hash);
@@ -460,6 +471,7 @@ bool SdchManager::AddSdchDictionary(const std::string& dictionary_text,
 
 void SdchManager::GetVcdiffDictionary(const std::string& server_hash,
     const GURL& referring_url, Dictionary** dictionary) {
+  DCHECK(CalledOnValidThread());
   *dictionary = NULL;
   DictionaryMap::iterator it = dictionaries_.find(server_hash);
   if (it == dictionaries_.end()) {
@@ -476,6 +488,7 @@ void SdchManager::GetVcdiffDictionary(const std::string& server_hash,
 // instances that can be used if/when a server specifies one.
 void SdchManager::GetAvailDictionaryList(const GURL& target_url,
                                          std::string* list) {
+  DCHECK(CalledOnValidThread());
   int count = 0;
   for (DictionaryMap::iterator it = dictionaries_.begin();
        it != dictionaries_.end(); ++it) {
@@ -510,11 +523,13 @@ void SdchManager::GenerateHash(const std::string& dictionary_text,
 // Methods for supporting latency experiments.
 
 bool SdchManager::AllowLatencyExperiment(const GURL& url) const {
+  DCHECK(CalledOnValidThread());
   return allow_latency_experiment_.end() !=
       allow_latency_experiment_.find(url.host());
 }
 
 void SdchManager::SetAllowLatencyExperiment(const GURL& url, bool enable) {
+  DCHECK(CalledOnValidThread());
   if (enable) {
     allow_latency_experiment_.insert(url.host());
     return;
