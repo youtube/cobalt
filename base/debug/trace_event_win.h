@@ -107,7 +107,7 @@ const base::win::EtwEventType kTraceEventTypeEnd = 0x11;
 const base::win::EtwEventType kTraceEventTypeInstant = 0x12;
 
 // If this flag is set in enable flags
-enum TraceEventFlags {
+enum TraceEventETWFlags {
   CAPTURE_STACK_TRACE = 0x0001,
 };
 

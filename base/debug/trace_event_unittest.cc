@@ -43,8 +43,12 @@ class TraceEventTestFixture : public testing::Test {
   void ManualTestSetUp();
   void OnTraceDataCollected(
       scoped_refptr<TraceLog::RefCountedString> events_str);
-  bool FindMatchingTraceEntry(const JsonKeyValue* key_values);
-  bool FindNamePhase(const char* name, const char* phase);
+  DictionaryValue* FindMatchingTraceEntry(const JsonKeyValue* key_values);
+  DictionaryValue* FindNamePhase(const char* name, const char* phase);
+  DictionaryValue* FindNamePhaseKeyValue(const char* name,
+                                         const char* phase,
+                                         const char* key,
+                                         const char* value);
   bool FindMatchingValue(const char* key,
                          const char* value);
   bool FindNonMatchingValue(const char* key,
@@ -150,7 +154,7 @@ static bool IsAllKeyValueInDict(const JsonKeyValue* key_values,
   return true;
 }
 
-bool TraceEventTestFixture::FindMatchingTraceEntry(
+DictionaryValue* TraceEventTestFixture::FindMatchingTraceEntry(
     const JsonKeyValue* key_values) {
   // Scan all items
   size_t trace_parsed_count = trace_parsed_.GetSize();
@@ -162,15 +166,30 @@ bool TraceEventTestFixture::FindMatchingTraceEntry(
     DictionaryValue* dict = static_cast<DictionaryValue*>(value);
 
     if (IsAllKeyValueInDict(key_values, dict))
-      return true;
+      return dict;
   }
-  return false;
+  return NULL;
 }
 
-bool TraceEventTestFixture::FindNamePhase(const char* name, const char* phase) {
+DictionaryValue* TraceEventTestFixture::FindNamePhase(const char* name,
+                                                      const char* phase) {
   JsonKeyValue key_values[] = {
     {"name", name, IS_EQUAL},
     {"ph", phase, IS_EQUAL},
+    {0, 0, IS_EQUAL}
+  };
+  return FindMatchingTraceEntry(key_values);
+}
+
+DictionaryValue* TraceEventTestFixture::FindNamePhaseKeyValue(
+    const char* name,
+    const char* phase,
+    const char* key,
+    const char* value) {
+  JsonKeyValue key_values[] = {
+    {"name", name, IS_EQUAL},
+    {"ph", phase, IS_EQUAL},
+    {key, value, IS_EQUAL},
     {0, 0, IS_EQUAL}
   };
   return FindMatchingTraceEntry(key_values);
@@ -262,10 +281,10 @@ std::vector<DictionaryValue*> FindTraceEntries(
 
 void TraceWithAllMacroVariants(WaitableEvent* task_complete_event) {
   {
-    TRACE_EVENT_BEGIN_ETW("TRACE_EVENT_BEGIN_ETW call", 1122, "extrastring1");
-    TRACE_EVENT_END_ETW("TRACE_EVENT_END_ETW call", 3344, "extrastring2");
+    TRACE_EVENT_BEGIN_ETW("TRACE_EVENT_BEGIN_ETW call", 0x1122, "extrastring1");
+    TRACE_EVENT_END_ETW("TRACE_EVENT_END_ETW call", 0x3344, "extrastring2");
     TRACE_EVENT_INSTANT_ETW("TRACE_EVENT_INSTANT_ETW call",
-                            5566, "extrastring3");
+                            0x5566, "extrastring3");
 
     TRACE_EVENT0("all", "TRACE_EVENT0 call");
     TRACE_EVENT1("all", "TRACE_EVENT1 call", "name1", "value1");
@@ -315,9 +334,9 @@ void ValidateAllTraceMacrosCreatedData(const ListValue& trace_parsed) {
   EXPECT_FIND_("all");
   EXPECT_FIND_("TRACE_EVENT_BEGIN_ETW call");
   {
-    int int_val = 0;
-    EXPECT_TRUE(item && item->GetInteger("args.id", &int_val));
-    EXPECT_EQ(1122, int_val);
+    std::string str_val;
+    EXPECT_TRUE(item && item->GetString("args.id", &str_val));
+    EXPECT_STREQ("1122", str_val.c_str());
   }
   EXPECT_SUB_FIND_("extrastring1");
   EXPECT_FIND_("TRACE_EVENT_END_ETW call");
@@ -662,6 +681,72 @@ TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
   EXPECT_FIND_BE_("4threshold10000");
   EXPECT_NOT_FIND_BE_("4thresholdlong1");
   EXPECT_NOT_FIND_BE_("4thresholdlong2");
+}
+
+// Test Start/Finish events
+TEST_F(TraceEventTestFixture, StartFinishEvents) {
+  ManualTestSetUp();
+  TraceLog::GetInstance()->SetEnabled(true);
+
+  unsigned long long id = 0xfeedbeeffeedbeefull;
+  TRACE_EVENT_START0( "cat", "name1", id);
+  TRACE_EVENT_FINISH0("cat", "name1", id);
+  TRACE_EVENT_BEGIN0( "cat", "name2");
+  TRACE_EVENT_START0( "cat", "name3", 0);
+
+  TraceLog::GetInstance()->SetEnabled(false);
+
+  EXPECT_TRUE(FindNamePhase("name1", "S"));
+  EXPECT_TRUE(FindNamePhase("name1", "F"));
+
+  std::string id_str;
+  StringAppendF(&id_str, "%llx", id);
+
+  EXPECT_TRUE(FindNamePhaseKeyValue("name1", "S", "id", id_str.c_str()));
+  EXPECT_TRUE(FindNamePhaseKeyValue("name1", "F", "id", id_str.c_str()));
+  EXPECT_TRUE(FindNamePhaseKeyValue("name3", "S", "id", "0"));
+
+  // BEGIN events should not have id
+  EXPECT_FALSE(FindNamePhaseKeyValue("name2", "B", "id", "0"));
+}
+
+// Test Start/Finish events
+TEST_F(TraceEventTestFixture, StartFinishPointerMangling) {
+  ManualTestSetUp();
+
+  void* ptr = this;
+
+  TraceLog::GetInstance()->SetProcessID(100);
+  TraceLog::GetInstance()->SetEnabled(true);
+  TRACE_EVENT_START0( "cat", "name1", ptr);
+  TRACE_EVENT_START0( "cat", "name2", ptr);
+  TraceLog::GetInstance()->SetEnabled(false);
+
+  TraceLog::GetInstance()->SetProcessID(200);
+  TraceLog::GetInstance()->SetEnabled(true);
+  TRACE_EVENT_FINISH0( "cat", "name1", ptr);
+  TraceLog::GetInstance()->SetEnabled(false);
+
+  DictionaryValue* start = FindNamePhase("name1", "S");
+  DictionaryValue* start2 = FindNamePhase("name2", "S");
+  DictionaryValue* finish = FindNamePhase("name1", "F");
+  EXPECT_TRUE(start);
+  EXPECT_TRUE(start2);
+  EXPECT_TRUE(finish);
+
+  Value* value = NULL;
+  std::string start_id_str;
+  std::string start2_id_str;
+  std::string finish_id_str;
+  ASSERT_TRUE(start->Get("id", &value));
+  ASSERT_TRUE(value->GetAsString(&start_id_str));
+  ASSERT_TRUE(start2->Get("id", &value));
+  ASSERT_TRUE(value->GetAsString(&start2_id_str));
+  ASSERT_TRUE(finish->Get("id", &value));
+  ASSERT_TRUE(value->GetAsString(&finish_id_str));
+
+  EXPECT_STREQ(start_id_str.c_str(), start2_id_str.c_str());
+  EXPECT_STRNE(start_id_str.c_str(), finish_id_str.c_str());
 }
 
 // Test that static strings are not copied.
