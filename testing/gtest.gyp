@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -17,7 +17,6 @@
         'gtest/include/gtest/gtest-typed-test.h',
         'gtest/include/gtest/gtest.h',
         'gtest/include/gtest/gtest_pred_impl.h',
-        'gtest/include/gtest/gtest_prod.h',
         'gtest/include/gtest/internal/gtest-death-test-internal.h',
         'gtest/include/gtest/internal/gtest-filepath.h',
         'gtest/include/gtest/internal/gtest-internal.h',
@@ -47,6 +46,9 @@
       'include_dirs': [
         'gtest',
         'gtest/include',
+      ],
+      'dependencies': [
+        'gtest_prod',
       ],
       'conditions': [
         ['OS == "mac"', {
@@ -128,6 +130,14 @@
       ],
       'sources': [
         'gtest/src/gtest_main.cc',
+      ],
+    },
+    {
+      'target_name': 'gtest_prod',
+      'toolsets': ['host', 'target'],
+      'type': 'none',
+      'sources': [
+        'gtest/include/gtest/gtest_prod.h',
       ],
     },
   ],
