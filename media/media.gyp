@@ -17,7 +17,6 @@
         '../base/base.gyp:base',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
         '../third_party/openmax/openmax.gyp:il',
         '../ui/ui.gyp:ui',
       ],
@@ -49,6 +48,10 @@
         'audio/audio_parameters.h',
         'audio/audio_util.cc',
         'audio/audio_util.h',
+        'audio/android/audio_manager_android.cc',
+        'audio/android/audio_manager_android.h',
+        'audio/android/audio_track_output_android.cc',
+        'audio/android/audio_track_output_android.h',
         'audio/fake_audio_input_stream.cc',
         'audio/fake_audio_input_stream.h',
         'audio/fake_audio_output_stream.cc',
@@ -130,6 +133,7 @@
         'base/h264_bitstream_converter.cc',
         'base/h264_bitstream_converter.h',
         'base/media.h',
+        'base/media_android.cc',
         'base/media_export.h',
         'base/media_log.cc',
         'base/media_log.h',
@@ -262,10 +266,12 @@
       'conditions': [
         # Android doesn't use ffmpeg, so make the dependency conditional
         # and exclude the sources which depend on ffmpeg.
-        ['OS=="android"', {
-          'dependencies!': [
+        ['OS != "android"', {
+          'dependencies': [
             '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
           ],
+        }],
+        ['OS == "android"', {
           'sources!': [
             'base/media_posix.cc',
             'ffmpeg/ffmpeg_common.cc',
@@ -295,6 +301,17 @@
             'filters/ffmpeg_video_decoder.h',
             'video/ffmpeg_video_decode_engine.cc',
             'video/ffmpeg_video_decode_engine.h',
+          ],
+        }],
+        # The below 'android' condition were added temporarily and should be
+        # removed in downstream, because there is no Java environment setup in
+        # upstream yet.
+        ['OS == "android"', {
+          'sources!':[
+            'audio/android/audio_track_output_android.cc',
+          ],
+          'sources':[
+            'audio/android/audio_track_output_stub_android.cc',
           ],
         }],
         ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
@@ -339,6 +356,9 @@
               ],
             }],
           ],
+        }],
+        ['os_posix == 1 and OS != "android"', {
+          # Video capture isn't supported in Android yet.
           'sources!': [
             'video/capture/video_capture_device_dummy.cc',
             'video/capture/video_capture_device_dummy.h',
@@ -451,7 +471,7 @@
             'base/simd/scale_yuv_to_rgb_sse2_x64.asm',
           ],
         }],
-        [ 'os_posix == 1 and OS != "mac"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
           'cflags': [
             '-msse2',
             '-msse3',
@@ -555,7 +575,6 @@
         '../base/base.gyp:test_support_base',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
         '../ui/ui.gyp:ui',
       ],
       'sources': [
@@ -618,11 +637,15 @@
             }],
           ],
         }],
-        ['OS=="android"', {
-          'dependencies!': [
+        ['OS != "android"', {
+          'dependencies': [
             '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
           ],
+        }],
+        ['OS == "android"', {
           'sources!': [
+            'base/test_data_util.cc',
+            'base/test_data_util.h',
             'ffmpeg/ffmpeg_common_unittest.cc',
             'filters/ffmpeg_audio_decoder_unittest.cc',
             'filters/bitstream_converter_unittest.cc',
@@ -800,7 +823,7 @@
         },
       ],
     }],
-    ['os_posix == 1 and OS != "mac"', {
+    ['os_posix == 1 and OS != "mac" and OS != "android"', {
       'targets': [
         {
           'target_name': 'player_x11',
