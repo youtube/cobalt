@@ -64,3 +64,11 @@ unit tests.
      different intermediate CA certificates.  The two intermediate CA
      certificates actually represent the same intermediate CA but have
      different validity periods.
+
+- multivalue_rdn.pem : A regression test for http://crbug.com/101009. A
+     certificate with all of the AttributeTypeAndValues stored within a single
+     RelativeDistinguishedName, rather than one AVA per RDN as normally seen.
+
+- unescaped.pem : Regression test for http://crbug.com/102839. Contains
+     characters such as '=' and '"' that would normally be escaped when
+     converting a subject/issuer name to their stringized form.
