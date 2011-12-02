@@ -21,7 +21,7 @@ bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
 
   // "name" is just a label in ashmem. It is visible in /proc/pid/maps.
   mapped_file_ = ashmem_create_region(
-      options.name == NULL ? "" : options.name.c_str(),
+      options.name == NULL ? "" : options.name->c_str(),
       options.size);
   if (-1 == mapped_file_) {
     DLOG(ERROR) << "Shared memory creation failed";
@@ -34,7 +34,7 @@ bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
     DLOG(ERROR) << "Error " << err << " when setting protection of ashmem";
     return false;
   }
-  created_size_ = size;
+  created_size_ = options.size;
 
   return true;
 }
