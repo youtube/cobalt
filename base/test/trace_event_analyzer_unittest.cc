@@ -111,6 +111,7 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   event.phase = TRACE_EVENT_PHASE_BEGIN;
   event.category = "category";
   event.name = "name";
+  event.id = "1";
   event.arg_numbers["num"] = 7.0;
   event.arg_strings["str"] = "the string";
 
@@ -122,6 +123,7 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   other.phase = TRACE_EVENT_PHASE_END;
   other.category = "category2";
   other.name = "name2";
+  other.id = "2";
   other.arg_numbers["num2"] = 8.0;
   other.arg_strings["str2"] = "the string 2";
 
@@ -137,6 +139,7 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   Query event_category =
       (Query(EVENT_CATEGORY) == Query::String(event.category));
   Query event_name = (Query(EVENT_NAME) == Query::String(event.name));
+  Query event_id = (Query(EVENT_ID) == Query::String(event.id));
   Query event_has_arg1 = Query(EVENT_HAS_NUMBER_ARG, "num");
   Query event_has_arg2 = Query(EVENT_HAS_STRING_ARG, "str");
   Query event_arg1 =
@@ -151,6 +154,7 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   Query other_category =
       (Query(OTHER_CATEGORY) == Query::String(other.category));
   Query other_name = (Query(OTHER_NAME) == Query::String(other.name));
+  Query other_id = (Query(OTHER_ID) == Query::String(other.id));
   Query other_has_arg1 = Query(OTHER_HAS_NUMBER_ARG, "num2");
   Query other_has_arg2 = Query(OTHER_HAS_STRING_ARG, "str2");
   Query other_arg1 =
@@ -165,6 +169,7 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   EXPECT_TRUE(event_phase.Evaluate(event));
   EXPECT_TRUE(event_category.Evaluate(event));
   EXPECT_TRUE(event_name.Evaluate(event));
+  EXPECT_TRUE(event_id.Evaluate(event));
   EXPECT_TRUE(event_has_arg1.Evaluate(event));
   EXPECT_TRUE(event_has_arg2.Evaluate(event));
   EXPECT_TRUE(event_arg1.Evaluate(event));
@@ -176,6 +181,7 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   EXPECT_TRUE(other_phase.Evaluate(event));
   EXPECT_TRUE(other_category.Evaluate(event));
   EXPECT_TRUE(other_name.Evaluate(event));
+  EXPECT_TRUE(other_id.Evaluate(event));
   EXPECT_TRUE(other_has_arg1.Evaluate(event));
   EXPECT_TRUE(other_has_arg2.Evaluate(event));
   EXPECT_TRUE(other_arg1.Evaluate(event));
@@ -190,6 +196,7 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   EXPECT_FALSE(event_phase.Evaluate(other));
   EXPECT_FALSE(event_category.Evaluate(other));
   EXPECT_FALSE(event_name.Evaluate(other));
+  EXPECT_FALSE(event_id.Evaluate(other));
   EXPECT_FALSE(event_has_arg1.Evaluate(other));
   EXPECT_FALSE(event_has_arg2.Evaluate(other));
   EXPECT_FALSE(event_arg1.Evaluate(other));
@@ -414,7 +421,7 @@ TEST_F(TraceEventAnalyzerTest, Duration) {
   EXPECT_STREQ("name3", found[1]->name.c_str());
 }
 
-// Test that arithmetic operators work.
+// Test AssociateBeginEndEvents
 TEST_F(TraceEventAnalyzerTest, BeginEndAssocations) {
   using namespace trace_analyzer;
   ManualSetUp();
@@ -437,6 +444,36 @@ TEST_F(TraceEventAnalyzerTest, BeginEndAssocations) {
   analyzer->FindEvents(Query::MatchBeginWithEnd(), &found);
   ASSERT_EQ(1u, found.size());
   EXPECT_STREQ("name2", found[0]->name.c_str());
+}
+
+// Test AssociateStartFinishEvents
+TEST_F(TraceEventAnalyzerTest, StartFinishAssocations) {
+  using namespace trace_analyzer;
+  ManualSetUp();
+
+  BeginTracing();
+  {
+    TRACE_EVENT_FINISH0("cat1", "name1", 0xA); // does not match / out of order
+    TRACE_EVENT_START0("cat1", "name1", 0xB);
+    TRACE_EVENT_START0("cat1", "name1", 0xC);
+    TRACE_EVENT_INSTANT0("cat1", "name1"); // noise
+    TRACE_EVENT0("cat1", "name1"); // noise
+    TRACE_EVENT_FINISH0("cat1", "name1", 0xB);
+    TRACE_EVENT_FINISH0("cat1", "name1", 0xC);
+    TRACE_EVENT_START0("cat1", "name1", 0xA); // does not match / out of order
+  }
+  EndTracing();
+
+  scoped_ptr<TraceAnalyzer>
+      analyzer(TraceAnalyzer::Create(output_.json_output));
+  ASSERT_TRUE(analyzer.get());
+  analyzer->AssociateStartFinishEvents();
+
+  TraceAnalyzer::TraceEventVector found;
+  analyzer->FindEvents(Query::MatchStartWithFinish(), &found);
+  ASSERT_EQ(2u, found.size());
+  EXPECT_STRCASEEQ("B", found[0]->id.c_str());
+  EXPECT_STRCASEEQ("C", found[1]->id.c_str());
 }
 
 // Test that the TraceAnalyzer custom associations work.
