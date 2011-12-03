@@ -174,17 +174,24 @@ RSAPrivateKey::~RSAPrivateKey() {
   }
 }
 
-bool RSAPrivateKey::ExportPrivateKey(std::vector<uint8>* output) {
+RSAPrivateKey* RSAPrivateKey::Copy() const {
+  std::vector<uint8> key_bytes;
+  if (!ExportPrivateKey(&key_bytes))
+    return NULL;
+  return CreateFromPrivateKeyInfo(key_bytes);
+}
+
+bool RSAPrivateKey::ExportPrivateKey(std::vector<uint8>* output) const {
   if (!key_.KeyData.Data || !key_.KeyData.Length) {
     return false;
   }
   output->clear();
   output->insert(output->end(), key_.KeyData.Data,
-                key_.KeyData.Data + key_.KeyData.Length);
+                 key_.KeyData.Data + key_.KeyData.Length);
   return true;
 }
 
-bool RSAPrivateKey::ExportPublicKey(std::vector<uint8>* output) {
+bool RSAPrivateKey::ExportPublicKey(std::vector<uint8>* output) const {
   PrivateKeyInfoCodec private_key_info(true);
   std::vector<uint8> private_key_data;
   private_key_data.assign(key_.KeyData.Data,
