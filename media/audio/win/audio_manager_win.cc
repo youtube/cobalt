@@ -18,7 +18,7 @@
 #include "base/process_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
-#include "base/win/windows_version.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
@@ -100,7 +100,7 @@ static string16 GetDeviceAndDriverInfo(HDEVINFO device_info,
 
 AudioManagerWin::AudioManagerWin()
     : num_output_streams_(0) {
-  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+  if (!media::IsWASAPISupported()) {
     // Use the Wave API for device enumeration if XP or lower.
     enumeration_type_ = kWaveEnumeration;
   } else {
@@ -141,7 +141,7 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
     return new PCMWaveOutAudioOutputStream(this, params, 3, WAVE_MAPPER);
   } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
     num_output_streams_++;
-    if (base::win::GetVersion() <= base::win::VERSION_XP) {
+    if (!media::IsWASAPISupported()) {
       // Fall back to Windows Wave implementation on Windows XP or lower.
       DLOG(INFO) << "Using WaveOut since WASAPI requires at least Vista.";
       return new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
@@ -167,7 +167,7 @@ AudioInputStream* AudioManagerWin::MakeAudioInputStream(
     return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
                                          WAVE_MAPPER);
   } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
-    if (base::win::GetVersion() <= base::win::VERSION_XP) {
+    if (!media::IsWASAPISupported()) {
       // Fall back to Windows Wave implementation on Windows XP or lower.
       DLOG(INFO) << "Using WaveIn since WASAPI requires at least Vista.";
       // TODO(xians): Handle the non-default device.
@@ -272,7 +272,7 @@ bool AudioManagerWin::CanShowAudioInputSettings() {
 void AudioManagerWin::ShowAudioInputSettings() {
   std::wstring program;
   std::string argument;
-  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+  if (!media::IsWASAPISupported()) {
     program = L"sndvol32.exe";
     argument = "-R";
   } else {
