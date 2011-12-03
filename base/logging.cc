@@ -64,7 +64,11 @@ typedef pthread_mutex_t* MutexHandle;
 namespace logging {
 
 DcheckState g_dcheck_state = DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
+
+namespace {
+
 VlogInfo* g_vlog_info = NULL;
+VlogInfo* g_vlog_info_prev = NULL;
 
 const char* const log_severity_names[LOG_NUM_SEVERITIES] = {
   "INFO", "WARNING", "ERROR", "ERROR_REPORT", "FATAL" };
@@ -350,6 +354,9 @@ bool InitializeLogFileHandle() {
   return true;
 }
 
+}  // namespace
+
+
 bool BaseInitLoggingImpl(const PathChar* new_log_file,
                          LoggingDestination logging_dest,
                          LogLockingState lock_log,
@@ -357,12 +364,17 @@ bool BaseInitLoggingImpl(const PathChar* new_log_file,
                          DcheckState dcheck_state) {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   g_dcheck_state = dcheck_state;
-  delete g_vlog_info;
-  g_vlog_info = NULL;
+
   // Don't bother initializing g_vlog_info unless we use one of the
   // vlog switches.
   if (command_line->HasSwitch(switches::kV) ||
       command_line->HasSwitch(switches::kVModule)) {
+    // NOTE: If g_vlog_info has already been initialized, it might be in use
+    // by another thread. Don't delete the old VLogInfo, just create a second
+    // one. We keep track of both to avoid memory leak warnings.
+    CHECK(!g_vlog_info_prev);
+    g_vlog_info_prev = g_vlog_info;
+
     g_vlog_info =
         new VlogInfo(command_line->GetSwitchValueASCII(switches::kV),
                      command_line->GetSwitchValueASCII(switches::kVModule),
@@ -410,8 +422,11 @@ int GetVlogVerbosity() {
 
 int GetVlogLevelHelper(const char* file, size_t N) {
   DCHECK_GT(N, 0U);
-  return g_vlog_info ?
-      g_vlog_info->GetVlogLevel(base::StringPiece(file, N - 1)) :
+  // Note: g_vlog_info may change on a different thread during startup
+  // (but will always be valid or NULL).
+  VlogInfo* vlog_info = g_vlog_info;
+  return vlog_info ?
+      vlog_info->GetVlogLevel(base::StringPiece(file, N - 1)) :
       GetVlogVerbosity();
 }
 
