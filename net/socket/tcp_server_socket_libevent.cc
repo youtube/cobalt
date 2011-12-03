@@ -34,7 +34,6 @@ TCPServerSocketLibevent::TCPServerSocketLibevent(
     const net::NetLog::Source& source)
     : socket_(kInvalidSocket),
       accept_socket_(NULL),
-      accept_callback_(NULL),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
   scoped_refptr<NetLog::EventParameters> params;
   if (source.is_valid())
@@ -106,11 +105,11 @@ int TCPServerSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
 }
 
 int TCPServerSocketLibevent::Accept(
-    scoped_ptr<StreamSocket>* socket, OldCompletionCallback* callback) {
+    scoped_ptr<StreamSocket>* socket, const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(socket);
-  DCHECK(callback);
-  DCHECK(!accept_callback_);
+  DCHECK(!callback.is_null());
+  DCHECK(accept_callback_.is_null());
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_ACCEPT, NULL);
 
@@ -185,12 +184,11 @@ void TCPServerSocketLibevent::OnFileCanReadWithoutBlocking(int fd) {
 
   int result = AcceptInternal(accept_socket_);
   if (result != ERR_IO_PENDING) {
-    OldCompletionCallback* c = accept_callback_;
-    accept_callback_ = NULL;
     accept_socket_ = NULL;
     bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
     DCHECK(ok);
-    c->Run(result);
+    accept_callback_.Run(result);
+    accept_callback_.Reset();
   }
 }
 
