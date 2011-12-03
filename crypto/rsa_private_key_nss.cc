@@ -138,8 +138,14 @@ RSAPrivateKey* RSAPrivateKey::FindFromPublicKeyInfo(
   return NULL;
 }
 
+RSAPrivateKey* RSAPrivateKey::Copy() const {
+  RSAPrivateKey* copy = new RSAPrivateKey();
+  copy->key_ = SECKEY_CopyPrivateKey(key_);
+  copy->public_key_ = SECKEY_CopyPublicKey(public_key_);
+  return copy;
+}
 
-bool RSAPrivateKey::ExportPrivateKey(std::vector<uint8>* output) {
+bool RSAPrivateKey::ExportPrivateKey(std::vector<uint8>* output) const {
   PrivateKeyInfoCodec private_key_info(true);
 
   // Manually read the component attributes of the private key and build up
@@ -161,7 +167,7 @@ bool RSAPrivateKey::ExportPrivateKey(std::vector<uint8>* output) {
   return private_key_info.Export(output);
 }
 
-bool RSAPrivateKey::ExportPublicKey(std::vector<uint8>* output) {
+bool RSAPrivateKey::ExportPublicKey(std::vector<uint8>* output) const {
   ScopedSECItem der_pubkey(SECKEY_EncodeDERSubjectPublicKeyInfo(public_key_));
   if (!der_pubkey.get()) {
     NOTREACHED();
