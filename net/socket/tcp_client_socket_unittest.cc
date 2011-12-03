@@ -41,9 +41,9 @@ TEST(TCPClientSocketTest, BindLoopbackToLoopback) {
   TestOldCompletionCallback connect_callback;
   EXPECT_EQ(ERR_IO_PENDING, socket.Connect(&connect_callback));
 
-  TestOldCompletionCallback accept_callback;
+  TestCompletionCallback accept_callback;
   scoped_ptr<StreamSocket> accepted_socket;
-  int result = server.Accept(&accepted_socket, &accept_callback);
+  int result = server.Accept(&accepted_socket, accept_callback.callback());
   if (result == ERR_IO_PENDING)
     result = accept_callback.WaitForResult();
   ASSERT_EQ(OK, result);
