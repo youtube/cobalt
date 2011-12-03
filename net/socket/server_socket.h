@@ -29,7 +29,7 @@ class NET_EXPORT ServerSocket {
   // Accept connection. Callback is called when new connection is
   // accepted.
   virtual int Accept(scoped_ptr<StreamSocket>* socket,
-                     OldCompletionCallback* callback) = 0;
+                     const CompletionCallback& callback) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ServerSocket);

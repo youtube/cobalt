@@ -20,7 +20,6 @@ TCPServerSocketWin::TCPServerSocketWin(net::NetLog* net_log,
     : socket_(INVALID_SOCKET),
       socket_event_(WSA_INVALID_EVENT),
       accept_socket_(NULL),
-      accept_callback_(NULL),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
   scoped_refptr<NetLog::EventParameters> params;
   if (source.is_valid())
@@ -99,11 +98,11 @@ int TCPServerSocketWin::GetLocalAddress(IPEndPoint* address) const {
 }
 
 int TCPServerSocketWin::Accept(
-    scoped_ptr<StreamSocket>* socket, OldCompletionCallback* callback) {
+    scoped_ptr<StreamSocket>* socket, const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(socket);
-  DCHECK(callback);
-  DCHECK(!accept_callback_);
+  DCHECK(!callback.is_null());
+  DCHECK(accept_callback_.is_null());
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_ACCEPT, NULL);
 
@@ -182,10 +181,9 @@ void TCPServerSocketWin::OnObjectSignaled(HANDLE object) {
   if (ev.lNetworkEvents & FD_ACCEPT) {
     int result = AcceptInternal(accept_socket_);
     if (result != ERR_IO_PENDING) {
-      OldCompletionCallback* c = accept_callback_;
-      accept_callback_ = NULL;
       accept_socket_ = NULL;
-      c->Run(result);
+      accept_callback_.Run(result);
+      accept_callback_.Reset();
     }
   }
 }
