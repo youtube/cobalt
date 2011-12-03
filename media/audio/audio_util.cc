@@ -243,7 +243,7 @@ double GetAudioHardwareSampleRate() {
     // Hardware sample-rate on the Mac can be configured, so we must query.
     return AUAudioOutputStream::HardwareSampleRate();
 #elif defined(OS_WIN)
-  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+  if (!IsWASAPISupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower
     // and use 48kHz as default input sample rate.
     return 48000.0;
@@ -265,7 +265,7 @@ double GetAudioInputHardwareSampleRate() {
   // Hardware sample-rate on the Mac can be configured, so we must query.
   return AUAudioInputStream::HardwareSampleRate();
 #elif defined(OS_WIN)
-  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+  if (!IsWASAPISupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower
     // and use 48kHz as default input sample rate.
     return 48000.0;
@@ -293,7 +293,7 @@ size_t GetAudioHardwareBufferSize() {
 #if defined(OS_MACOSX)
   return 128;
 #elif defined(OS_WIN)
-  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+  if (!IsWASAPISupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower
     // and assume 48kHz as default sample rate.
     return 2048;
@@ -362,5 +362,15 @@ bool IsUnknownDataSize(base::SharedMemory* shared_memory,
       base::subtle::Acquire_Load(reinterpret_cast<volatile Atomic32*>(ptr));
   return actual_data_size == kUnknownDataSize;
 }
+
+#if defined(OS_WIN)
+
+bool IsWASAPISupported() {
+  // Note: that function correctly returns that Windows Server 2003 does not
+  // support WASAPI.
+  return base::win::GetVersion() >= base::win::VERSION_VISTA;
+}
+
+#endif
 
 }  // namespace media
