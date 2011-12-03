@@ -217,7 +217,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   base::OneShotTimer<SSLClientSocketNSS> uncork_timer_;
   scoped_refptr<IOBuffer> recv_buffer_;
 
-  OldCompletionCallbackImpl<SSLClientSocketNSS> handshake_io_callback_;
+  CompletionCallback handshake_io_callback_;
   scoped_ptr<ClientSocketHandle> transport_;
   HostPortPair host_and_port_;
   SSLConfig ssl_config_;
