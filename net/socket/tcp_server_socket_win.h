@@ -11,6 +11,7 @@
 #include "base/message_loop.h"
 #include "base/win/object_watcher.h"
 #include "base/threading/non_thread_safe.h"
+#include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
 #include "net/socket/server_socket.h"
 
@@ -31,7 +32,7 @@ class NET_EXPORT_PRIVATE TCPServerSocketWin
   virtual int Listen(const net::IPEndPoint& address, int backlog);
   virtual int GetLocalAddress(IPEndPoint* address) const;
   virtual int Accept(scoped_ptr<StreamSocket>* socket,
-                     OldCompletionCallback* callback);
+                     const CompletionCallback& callback);
 
   // base::ObjectWatcher::Delegate implementation.
   virtual void OnObjectSignaled(HANDLE object);
@@ -46,7 +47,7 @@ class NET_EXPORT_PRIVATE TCPServerSocketWin
   base::win::ObjectWatcher accept_watcher_;
 
   scoped_ptr<StreamSocket>* accept_socket_;
-  OldCompletionCallback* accept_callback_;
+  CompletionCallback accept_callback_;
 
   BoundNetLog net_log_;
 };
