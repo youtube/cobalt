@@ -65,6 +65,7 @@
 #include <map>
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -439,7 +440,8 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       transport_recv_busy_(false),
       corked_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(handshake_io_callback_(
-          this, &SSLClientSocketNSS::OnHandshakeIOComplete)),
+          base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
+                     base::Unretained(this)))),
       transport_(transport_socket),
       host_and_port_(host_and_port),
       ssl_config_(ssl_config),
@@ -1386,7 +1388,7 @@ bool SSLClientSocketNSS::LoadSSLHostInfo() {
 
 int SSLClientSocketNSS::DoLoadSSLHostInfo() {
   EnterFunction("");
-  int rv = ssl_host_info_->WaitForDataReady(&handshake_io_callback_);
+  int rv = ssl_host_info_->WaitForDataReady(handshake_io_callback_);
   GotoState(STATE_HANDSHAKE);
 
   if (rv == OK) {
@@ -1667,7 +1669,7 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
     UMA_HISTOGRAM_TIMES("Net.SSLVerificationMergedMsSaved",
                         end_time - ssl_host_info_->verification_start_time());
     server_cert_verify_result_ = &ssl_host_info_->cert_verify_result();
-    return ssl_host_info_->WaitForCertVerification(&handshake_io_callback_);
+    return ssl_host_info_->WaitForCertVerification(handshake_io_callback_);
   } else {
     UMA_HISTOGRAM_ENUMERATION("Net.SSLVerificationMerged", 0 /* false */, 2);
   }
@@ -1875,7 +1877,7 @@ void SSLClientSocketNSS::SaveSSLHostInfo() {
 
   // If the SSLHostInfo hasn't managed to load from disk yet then we can't save
   // anything.
-  if (ssl_host_info_->WaitForDataReady(NULL) != OK)
+  if (ssl_host_info_->WaitForDataReady(net::CompletionCallback()) != OK)
     return;
 
   SSLHostInfo::State* state = ssl_host_info_->mutable_state();
