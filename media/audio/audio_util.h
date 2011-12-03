@@ -105,6 +105,14 @@ MEDIA_EXPORT void SetUnknownDataSize(base::SharedMemory* shared_memory,
 MEDIA_EXPORT bool IsUnknownDataSize(base::SharedMemory* shared_memory,
                                     uint32 shared_memory_size);
 
+#if defined(OS_WIN)
+
+// Does Windows support WASAPI? We are checking in lot of places, and
+// sometimes check was written incorrectly, so move into separate function.
+MEDIA_EXPORT bool IsWASAPISupported();
+
+#endif  // defined(OS_WIN)
+
 }  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_UTIL_H_
