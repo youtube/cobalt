@@ -154,8 +154,6 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   // Number of bytes written which have not been confirmed
   int write_bytes_outstanding_;
 
-  // True if read has ever returned zero for eof.
-  bool eof_has_been_read_;
   // True if the transport socket has ever sent data.
   bool was_ever_used_;
 
