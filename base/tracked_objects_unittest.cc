@@ -45,10 +45,9 @@ TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
   EXPECT_TRUE(!data->next());
   EXPECT_EQ(data, ThreadData::Get());
   ThreadData::BirthMap birth_map;
-  data->SnapshotBirthMap(&birth_map);
-  EXPECT_EQ(0u, birth_map.size());
   ThreadData::DeathMap death_map;
-  data->SnapshotDeathMap(&death_map);
+  data->SnapshotMaps(false, &birth_map, &death_map);
+  EXPECT_EQ(0u, birth_map.size());
   EXPECT_EQ(0u, death_map.size());
   // Cleanup with no leaking.
   ShutdownSingleThreadedCleanup(false);
@@ -62,10 +61,9 @@ TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
   EXPECT_TRUE(!data->next());
   EXPECT_EQ(data, ThreadData::Get());
   birth_map.clear();
-  data->SnapshotBirthMap(&birth_map);
-  EXPECT_EQ(0u, birth_map.size());
   death_map.clear();
-  data->SnapshotDeathMap(&death_map);
+  data->SnapshotMaps(false, &birth_map, &death_map);
+  EXPECT_EQ(0u, birth_map.size());
   EXPECT_EQ(0u, death_map.size());
 }
 
@@ -77,16 +75,15 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
   const Location& location = FROM_HERE;
   ThreadData::TallyABirthIfActive(location);
 
-  const ThreadData* data = ThreadData::first();
+  ThreadData* data = ThreadData::first();
   ASSERT_TRUE(data);
   EXPECT_TRUE(!data->next());
   EXPECT_EQ(data, ThreadData::Get());
   ThreadData::BirthMap birth_map;
-  data->SnapshotBirthMap(&birth_map);
+  ThreadData::DeathMap death_map;
+  data->SnapshotMaps(false, &birth_map, &death_map);
   EXPECT_EQ(1u, birth_map.size());                         // 1 birth location.
   EXPECT_EQ(1, birth_map.begin()->second->birth_count());  // 1 birth.
-  ThreadData::DeathMap death_map;
-  data->SnapshotDeathMap(&death_map);
   EXPECT_EQ(0u, death_map.size());                         // No deaths.
 
 
@@ -100,11 +97,10 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
                                               kBogusEndRunTime);
 
   birth_map.clear();
-  data->SnapshotBirthMap(&birth_map);
+  death_map.clear();
+  data->SnapshotMaps(false, &birth_map, &death_map);
   EXPECT_EQ(1u, birth_map.size());                         // 1 birth location.
   EXPECT_EQ(2, birth_map.begin()->second->birth_count());  // 2 births.
-  death_map.clear();
-  data->SnapshotDeathMap(&death_map);
   EXPECT_EQ(1u, death_map.size());                         // 1 location.
   EXPECT_EQ(1, death_map.begin()->second.count());         // 1 death.
 
@@ -118,35 +114,40 @@ TEST_F(TrackedObjectsTest, DeathDataTest) {
 
   scoped_ptr<DeathData> data(new DeathData());
   ASSERT_NE(data, reinterpret_cast<DeathData*>(NULL));
-  EXPECT_EQ(data->run_duration(), 0);
-  EXPECT_EQ(data->queue_duration(), 0);
-  EXPECT_EQ(data->AverageMsRunDuration(), 0);
-  EXPECT_EQ(data->AverageMsQueueDuration(), 0);
+  EXPECT_EQ(data->run_duration_sum(), 0);
+  EXPECT_EQ(data->run_duration_sample(), 0);
+  EXPECT_EQ(data->queue_duration_sum(), 0);
+  EXPECT_EQ(data->queue_duration_sample(), 0);
   EXPECT_EQ(data->count(), 0);
 
   DurationInt run_ms = 42;
   DurationInt queue_ms = 8;
 
-  data->RecordDeath(queue_ms, run_ms);
-  EXPECT_EQ(data->run_duration(), run_ms);
-  EXPECT_EQ(data->queue_duration(), queue_ms);
-  EXPECT_EQ(data->AverageMsRunDuration(), run_ms);
-  EXPECT_EQ(data->AverageMsQueueDuration(), queue_ms);
+  const int kUnrandomInt = 0;  // Fake random int that ensure we sample data.
+  data->RecordDeath(queue_ms, run_ms, kUnrandomInt);
+  EXPECT_EQ(data->run_duration_sum(), run_ms);
+  EXPECT_EQ(data->run_duration_sample(), run_ms);
+  EXPECT_EQ(data->queue_duration_sum(), queue_ms);
+  EXPECT_EQ(data->queue_duration_sample(), queue_ms);
   EXPECT_EQ(data->count(), 1);
 
-  data->RecordDeath(queue_ms, run_ms);
-  EXPECT_EQ(data->run_duration(), run_ms + run_ms);
-  EXPECT_EQ(data->queue_duration(), queue_ms + queue_ms);
-  EXPECT_EQ(data->AverageMsRunDuration(), run_ms);
-  EXPECT_EQ(data->AverageMsQueueDuration(), queue_ms);
+  data->RecordDeath(queue_ms, run_ms, kUnrandomInt);
+  EXPECT_EQ(data->run_duration_sum(), run_ms + run_ms);
+  EXPECT_EQ(data->run_duration_sample(), run_ms);
+  EXPECT_EQ(data->queue_duration_sum(), queue_ms + queue_ms);
+  EXPECT_EQ(data->queue_duration_sample(), queue_ms);
   EXPECT_EQ(data->count(), 2);
 
   scoped_ptr<base::DictionaryValue> dictionary(data->ToValue());
   int integer;
   EXPECT_TRUE(dictionary->GetInteger("run_ms", &integer));
   EXPECT_EQ(integer, 2 * run_ms);
+  EXPECT_TRUE(dictionary->GetInteger("run_ms_sample", &integer));
+  EXPECT_EQ(integer, run_ms);
   EXPECT_TRUE(dictionary->GetInteger("queue_ms", &integer));
   EXPECT_EQ(integer, 2 * queue_ms);
+  EXPECT_TRUE(dictionary->GetInteger("queue_ms_sample", &integer));
+  EXPECT_EQ(integer, queue_ms);
   EXPECT_TRUE(dictionary->GetInteger("count", &integer));
   EXPECT_EQ(integer, 2);
 
@@ -157,8 +158,10 @@ TEST_F(TrackedObjectsTest, DeathDataTest) {
       "\"count\":2,"
       "\"queue_ms\":16,"
       "\"queue_ms_max\":8,"
+      "\"queue_ms_sample\":8,"
       "\"run_ms\":84,"
-      "\"run_ms_max\":42"
+      "\"run_ms_max\":42,"
+      "\"run_ms_sample\":42"
       "}";
   EXPECT_EQ(birth_only_result, json);
 }
@@ -177,7 +180,7 @@ TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueWorkerThread) {
   // We should now see a NULL birth record.
   EXPECT_EQ(birth, reinterpret_cast<Births*>(NULL));
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue());
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string birth_only_result = "{"
@@ -203,7 +206,7 @@ TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueMainThread) {
   // We expect to not get a birth record.
   EXPECT_EQ(birth, reinterpret_cast<Births*>(NULL));
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue());
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string birth_only_result = "{"
@@ -225,7 +228,7 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueWorkerThread) {
   Births* birth = ThreadData::TallyABirthIfActive(location);
   EXPECT_NE(birth, reinterpret_cast<Births*>(NULL));
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue());
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string birth_only_result = "{"
@@ -236,8 +239,10 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueWorkerThread) {
             "\"count\":1,"
             "\"queue_ms\":0,"
             "\"queue_ms_max\":0,"
+            "\"queue_ms_sample\":0,"
             "\"run_ms\":0,"
-            "\"run_ms_max\":0"
+            "\"run_ms_max\":0,"
+            "\"run_ms_sample\":0"
           "},"
           "\"death_thread\":\"Still_Alive\","
           "\"location\":{"
@@ -265,7 +270,7 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueMainThread) {
   Births* birth = ThreadData::TallyABirthIfActive(location);
   EXPECT_NE(birth, reinterpret_cast<Births*>(NULL));
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue());
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string birth_only_result = "{"
@@ -276,8 +281,10 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueMainThread) {
             "\"count\":1,"
             "\"queue_ms\":0,"
             "\"queue_ms_max\":0,"
+            "\"queue_ms_sample\":0,"
             "\"run_ms\":0,"
-            "\"run_ms_max\":0"
+            "\"run_ms_max\":0,"
+            "\"run_ms_sample\":0"
           "},"
           "\"death_thread\":\"Still_Alive\","
           "\"location\":{"
@@ -318,7 +325,7 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueMainThread) {
   ThreadData::TallyRunOnNamedThreadIfTracking(pending_task,
       kStartOfRun, kEndOfRun);
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue());
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
@@ -329,8 +336,10 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueMainThread) {
             "\"count\":1,"
             "\"queue_ms\":4,"
             "\"queue_ms_max\":4,"
+            "\"queue_ms_sample\":4,"
             "\"run_ms\":2,"
-            "\"run_ms_max\":2"
+            "\"run_ms_max\":2,"
+            "\"run_ms_sample\":2"
           "},"
           "\"death_thread\":\"SomeMainThreadName\","
           "\"location\":{"
@@ -378,7 +387,7 @@ TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToValueMainThread) {
   ThreadData::TallyRunOnNamedThreadIfTracking(pending_task,
       kStartOfRun, kEndOfRun);
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue());
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
@@ -389,8 +398,10 @@ TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToValueMainThread) {
             "\"count\":1,"
             "\"queue_ms\":4,"
             "\"queue_ms_max\":4,"
+            "\"queue_ms_sample\":4,"
             "\"run_ms\":2,"
-            "\"run_ms_max\":2"
+            "\"run_ms_max\":2,"
+            "\"run_ms_sample\":2"
           "},"
           "\"death_thread\":\"SomeMainThreadName\","
           "\"location\":{"
@@ -433,7 +444,7 @@ TEST_F(TrackedObjectsTest, LifeCyclePreDeactivatedToValueMainThread) {
   ThreadData::TallyRunOnNamedThreadIfTracking(pending_task,
       kStartOfRun, kEndOfRun);
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue());
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
@@ -465,7 +476,8 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
   ThreadData::TallyRunOnWorkerThreadIfTracking(birth, kTimePosted,
       kStartOfRun, kEndOfRun);
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue());
+  // Call for the ToValue, but tell it to not the maxes after scanning.
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
@@ -476,8 +488,10 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
             "\"count\":1,"
             "\"queue_ms\":4,"
             "\"queue_ms_max\":4,"
+            "\"queue_ms_sample\":4,"
             "\"run_ms\":2,"
-            "\"run_ms_max\":2"
+            "\"run_ms_max\":2,"
+            "\"run_ms_sample\":2"
           "},"
           "\"death_thread\":\"WorkerThread-1\","
           "\"location\":{"
@@ -489,6 +503,42 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
       "]"
     "}";
   EXPECT_EQ(one_line_result, json);
+
+  // Call for the ToValue, but tell it to reset the maxes after scanning.
+  // We'll still get the same values, but the data will be reset (which we'll
+  // see in a moment).
+  value.reset(ThreadData::ToValue(true));
+  base::JSONWriter::Write(value.get(), false, &json);
+  // Result should be unchanged.
+  EXPECT_EQ(one_line_result, json);
+
+  // Call for the ToValue, and now we'll see the result of the last translation,
+  // as the max will have been pushed back to zero.
+  value.reset(ThreadData::ToValue(false));
+  base::JSONWriter::Write(value.get(), false, &json);
+  std::string one_line_result_with_zeros = "{"
+      "\"list\":["
+        "{"
+          "\"birth_thread\":\"WorkerThread-1\","
+          "\"death_data\":{"
+            "\"count\":1,"
+            "\"queue_ms\":4,"
+            "\"queue_ms_max\":0,"  // Note zero here.
+            "\"queue_ms_sample\":4,"
+            "\"run_ms\":2,"
+            "\"run_ms_max\":0,"   // Note zero here.
+            "\"run_ms_sample\":2"
+          "},"
+          "\"death_thread\":\"WorkerThread-1\","
+          "\"location\":{"
+            "\"file_name\":\"FixedFileName\","
+            "\"function_name\":\"LifeCycleToValueWorkerThread\","
+            "\"line_number\":236"
+          "}"
+        "}"
+      "]"
+    "}";
+  EXPECT_EQ(one_line_result_with_zeros, json);
 }
 
 TEST_F(TrackedObjectsTest, TwoLives) {
@@ -526,7 +576,7 @@ TEST_F(TrackedObjectsTest, TwoLives) {
   ThreadData::TallyRunOnNamedThreadIfTracking(pending_task2,
       kStartOfRun, kEndOfRun);
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue());
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
@@ -537,8 +587,10 @@ TEST_F(TrackedObjectsTest, TwoLives) {
             "\"count\":2,"
             "\"queue_ms\":8,"
             "\"queue_ms_max\":4,"
+            "\"queue_ms_sample\":4,"
             "\"run_ms\":4,"
-            "\"run_ms_max\":2"
+            "\"run_ms_max\":2,"
+            "\"run_ms_sample\":2"
           "},"
           "\"death_thread\":\"SomeFileThreadName\","
           "\"location\":{"
@@ -583,7 +635,7 @@ TEST_F(TrackedObjectsTest, DifferentLives) {
   base::TrackingInfo pending_task2(second_location, kDelayedStartTime);
   pending_task2.time_posted = kTimePosted;  // Overwrite implied Now().
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue());
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
@@ -594,8 +646,10 @@ TEST_F(TrackedObjectsTest, DifferentLives) {
             "\"count\":1,"
             "\"queue_ms\":4,"
             "\"queue_ms_max\":4,"
+            "\"queue_ms_sample\":4,"
             "\"run_ms\":2,"
-            "\"run_ms_max\":2"
+            "\"run_ms_max\":2,"
+            "\"run_ms_sample\":2"
           "},"
           "\"death_thread\":\"SomeFileThreadName\","
           "\"location\":{"
@@ -610,8 +664,10 @@ TEST_F(TrackedObjectsTest, DifferentLives) {
             "\"count\":1,"
             "\"queue_ms\":0,"
             "\"queue_ms_max\":0,"
+            "\"queue_ms_sample\":0,"
             "\"run_ms\":0,"
-            "\"run_ms_max\":0"
+            "\"run_ms_max\":0,"
+            "\"run_ms_sample\":0"
           "},"
           "\"death_thread\":\"Still_Alive\","
           "\"location\":{"
