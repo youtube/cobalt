@@ -37,7 +37,7 @@ namespace net {
 // somewhat arbitrary, but is reasonably small and ensures that we elicit
 // ACKs quickly from TCP (because TCP tries to only ACK every other packet).
 const int kMss = 1430;
-const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::size();
+const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::kHeaderSize;
 
 class BoundNetLog;
 class SpdySettingsStorage;

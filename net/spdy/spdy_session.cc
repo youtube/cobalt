@@ -715,8 +715,8 @@ void SpdySession::OnWriteComplete(int result) {
         // size.
         if (result > 0) {
           result = in_flight_write_.buffer()->size();
-          DCHECK_GE(result, static_cast<int>(spdy::SpdyFrame::size()));
-          result -= static_cast<int>(spdy::SpdyFrame::size());
+          DCHECK_GE(result, static_cast<int>(spdy::SpdyFrame::kHeaderSize));
+          result -= static_cast<int>(spdy::SpdyFrame::kHeaderSize);
         }
 
         // It is possible that the stream was cancelled while we were writing
@@ -826,7 +826,7 @@ void SpdySession::WriteSocket() {
           return;
         }
 
-        size = compressed_frame->length() + spdy::SpdyFrame::size();
+        size = compressed_frame->length() + spdy::SpdyFrame::kHeaderSize;
 
         DCHECK_GT(size, 0u);
 
@@ -837,7 +837,7 @@ void SpdySession::WriteSocket() {
         // Attempt to send the frame.
         in_flight_write_ = SpdyIOBuffer(buffer, size, 0, next_buffer.stream());
       } else {
-        size = uncompressed_frame.length() + spdy::SpdyFrame::size();
+        size = uncompressed_frame.length() + spdy::SpdyFrame::kHeaderSize;
         in_flight_write_ = next_buffer;
       }
     } else {
@@ -906,7 +906,7 @@ int SpdySession::GetNewStreamId() {
 void SpdySession::QueueFrame(spdy::SpdyFrame* frame,
                              spdy::SpdyPriority priority,
                              SpdyStream* stream) {
-  int length = spdy::SpdyFrame::size() + frame->length();
+  int length = spdy::SpdyFrame::kHeaderSize + frame->length();
   IOBuffer* buffer = new IOBuffer(length);
   memcpy(buffer->data(), frame->data(), length);
   queue_.push(SpdyIOBuffer(buffer, length, priority, stream));
