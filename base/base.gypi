@@ -221,6 +221,7 @@
           'process_posix.cc',
           'process_util.cc',
           'process_util.h',
+          'process_util_freebsd.cc',
           'process_util_linux.cc',
           'process_util_mac.mm',
           'process_util_openbsd.cc',
@@ -444,7 +445,7 @@
               [ 'exclude', '^message_pump_x\\.cc$',],
             ],
           }],
-          [ 'OS != "linux" and OS != "openbsd"', {
+          [ 'OS != "linux" and os_bsd != 1', {
               'sources!': [
                 # Not automatically excluded by the *linux.cc rules.
                 'linux_util.cc',
@@ -522,7 +523,7 @@
               ['exclude', '^sys_string_conversions_posix\\.cc$'],
             ],
           }],
-          [ 'OS == "openbsd"', {
+          [ 'os_bsd==1', {
             'sources/': [
               ['exclude', '^files/file_path_watcher_linux\\.cc$'],
               ['exclude', '^files/file_path_watcher_stub\\.cc$'],
