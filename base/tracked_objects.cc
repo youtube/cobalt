@@ -342,7 +342,7 @@ void ThreadData::TallyADeath(const Births& birth,
                              DurationInt queue_duration,
                              DurationInt run_duration) {
   // Stir in some randomness, plus add constant in case durations are zero.
-  const DurationInt kSomePrimeNumber = 4294967279;
+  const DurationInt kSomePrimeNumber = 5939;  // To big is 4294967279;
   random_number_ += queue_duration + run_duration + kSomePrimeNumber;
   // An address is going to have some randomness to it as well ;-).
   random_number_ ^= static_cast<int32>(&birth - reinterpret_cast<Births*>(0));
