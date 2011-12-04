@@ -33,6 +33,10 @@
 #include <sys/sysctl.h>
 #endif
 
+#if defined(OS_FREEBSD)
+#include <sys/user.h>
+#endif
+
 #include <ostream>
 
 #include "base/basictypes.h"
@@ -108,7 +112,9 @@ bool BeingDebugged() {
 
   // This process is being debugged if the P_TRACED flag is set.
   is_set = true;
-#if defined(OS_BSD)
+#if defined(OS_FREEBSD)
+  being_debugged = (info.ki_flag & P_TRACED) != 0;
+#elif defined(OS_BSD)
   being_debugged = (info.p_flag & P_TRACED) != 0;
 #else
   being_debugged = (info.kp_proc.p_flag & P_TRACED) != 0;
@@ -152,22 +158,14 @@ bool BeingDebugged() {
   return pid_index < status.size() && status[pid_index] != '0';
 }
 
-#elif defined(OS_NACL)
-
-bool BeingDebugged() {
-  NOTIMPLEMENTED();
-  return false;
-}
-
 #else
 
 bool BeingDebugged() {
-  // TODO(benl): can we determine this under FreeBSD?
   NOTIMPLEMENTED();
   return false;
 }
 
-#endif  // defined(OS_FREEBSD)
+#endif
 
 // We want to break into the debugger in Debug mode, and cause a crash dump in
 // Release mode. Breakpad behaves as follows:
