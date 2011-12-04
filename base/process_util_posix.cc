@@ -33,6 +33,11 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 
+#if defined(OS_FREEBSD)
+#include <sys/event.h>
+#include <sys/ucontext.h>
+#endif
+
 #if defined(OS_MACOSX)
 #include <crt_externs.h>
 #include <sys/event.h>
