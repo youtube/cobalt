@@ -296,7 +296,7 @@ class SpdyFramerTest : public PlatformTest {
                     const int expected_len) {
     const unsigned char* actual =
         reinterpret_cast<const unsigned char*>(actual_frame.data());
-    int actual_len = actual_frame.length() + SpdyFrame::size();
+    int actual_len = actual_frame.length() + SpdyFrame::kHeaderSize;
     CompareCharArraysWithHexError(
         description, actual, actual_len, expected, expected_len);
   }
@@ -399,7 +399,7 @@ TEST_F(SpdyFramerTest, OutOfOrderHeaders) {
   frame.WriteString("alpha");
   frame.WriteString("alpha");
   // write the length
-  frame.WriteUInt32ToOffset(4, frame.length() - SpdyFrame::size());
+  frame.WriteUInt32ToOffset(4, frame.length() - SpdyFrame::kHeaderSize);
 
   SpdyHeaderBlock new_headers;
   scoped_ptr<SpdyFrame> control_frame(frame.take());
@@ -428,7 +428,7 @@ TEST_F(SpdyFramerTest, WrongNumberOfHeaders) {
   frame1.WriteString("alpha");
   frame1.WriteString("alpha");
   // write the length
-  frame1.WriteUInt32ToOffset(4, frame1.length() - SpdyFrame::size());
+  frame1.WriteUInt32ToOffset(4, frame1.length() - SpdyFrame::kHeaderSize);
 
   // a frame with larger number of actual headers
   frame2.WriteUInt16(kControlFlagMask | 1);
@@ -443,7 +443,7 @@ TEST_F(SpdyFramerTest, WrongNumberOfHeaders) {
   frame2.WriteString("alpha");
   frame2.WriteString("alpha");
   // write the length
-  frame2.WriteUInt32ToOffset(4, frame2.length() - SpdyFrame::size());
+  frame2.WriteUInt32ToOffset(4, frame2.length() - SpdyFrame::kHeaderSize);
 
   SpdyHeaderBlock new_headers;
   scoped_ptr<SpdyFrame> syn_frame1(frame1.take());
@@ -472,7 +472,7 @@ TEST_F(SpdyFramerTest, DuplicateHeader) {
   frame.WriteString("name");
   frame.WriteString("value2");
   // write the length
-  frame.WriteUInt32ToOffset(4, frame.length() - SpdyFrame::size());
+  frame.WriteUInt32ToOffset(4, frame.length() - SpdyFrame::kHeaderSize);
 
   SpdyHeaderBlock new_headers;
   scoped_ptr<SpdyFrame> control_frame(frame.take());
@@ -502,7 +502,7 @@ TEST_F(SpdyFramerTest, MultiValueHeader) {
   std::string value("value1\0value2");
   frame.WriteString(value);
   // write the length
-  frame.WriteUInt32ToOffset(4, frame.length() - SpdyFrame::size());
+  frame.WriteUInt32ToOffset(4, frame.length() - SpdyFrame::kHeaderSize);
 
   SpdyHeaderBlock new_headers;
   scoped_ptr<SpdyFrame> control_frame(frame.take());
@@ -574,7 +574,7 @@ TEST_F(SpdyFramerTest, BasicCompression) {
   // Expect frames 3 & 4 to be the same.
   EXPECT_EQ(0,
       memcmp(frame3->data(), frame4->data(),
-      SpdyFrame::size() + frame3->length()));
+      SpdyFrame::kHeaderSize + frame3->length()));
 
   // Expect frames 3 to be the same as a uncompressed frame created
   // from scratch.
@@ -584,7 +584,7 @@ TEST_F(SpdyFramerTest, BasicCompression) {
   EXPECT_EQ(frame3->length(), uncompressed_frame->length());
   EXPECT_EQ(0,
       memcmp(frame3->data(), uncompressed_frame->data(),
-      SpdyFrame::size() + uncompressed_frame->length()));
+      SpdyFrame::kHeaderSize + uncompressed_frame->length()));
 }
 
 TEST_F(SpdyFramerTest, DecompressUncompressedFrame) {
@@ -881,9 +881,9 @@ TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
   visitor.use_compression_ = true;
   const unsigned char* data;
   data = reinterpret_cast<const unsigned char*>(syn_frame->data());
-  visitor.SimulateInFramer(data, syn_frame->length() + SpdyFrame::size());
+  visitor.SimulateInFramer(data, syn_frame->length() + SpdyFrame::kHeaderSize);
   data = reinterpret_cast<const unsigned char*>(send_frame->data());
-  visitor.SimulateInFramer(data, send_frame->length() + SpdyFrame::size());
+  visitor.SimulateInFramer(data, send_frame->length() + SpdyFrame::kHeaderSize);
 
   EXPECT_EQ(0, visitor.error_count_);
   EXPECT_EQ(1, visitor.syn_frame_count_);

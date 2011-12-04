@@ -358,11 +358,11 @@ size_t SpdyFramer::ProcessCommonHeader(const char* data, size_t len) {
   SpdyFrame current_frame(current_frame_buffer_, false);
 
   do {
-    if (current_frame_len_ < SpdyFrame::size()) {
-      size_t bytes_desired = SpdyFrame::size() - current_frame_len_;
+    if (current_frame_len_ < SpdyFrame::kHeaderSize) {
+      size_t bytes_desired = SpdyFrame::kHeaderSize - current_frame_len_;
       UpdateCurrentFrameBuffer(&data, &len, bytes_desired);
       // Check for an empty data frame.
-      if (current_frame_len_ == SpdyFrame::size() &&
+      if (current_frame_len_ == SpdyFrame::kHeaderSize &&
           !current_frame.is_control_frame() &&
           current_frame.length() == 0) {
         if (current_frame.flags() & CONTROL_FLAG_FIN) {
@@ -393,7 +393,7 @@ size_t SpdyFramer::ProcessCommonHeader(const char* data, size_t len) {
 
 void SpdyFramer::ProcessControlFrameHeader() {
   DCHECK_EQ(SPDY_NO_ERROR, error_code_);
-  DCHECK_LE(SpdyFrame::size(), current_frame_len_);
+  DCHECK_LE(static_cast<size_t>(SpdyFrame::kHeaderSize), current_frame_len_);
   SpdyControlFrame current_control_frame(current_frame_buffer_, false);
 
   // We check version before we check validity: version can never be 'invalid',
@@ -433,7 +433,7 @@ void SpdyFramer::ProcessControlFrameHeader() {
         break;
       case RST_STREAM:
         if (current_control_frame.length() !=
-            SpdyRstStreamControlFrame::size() - SpdyFrame::size())
+            SpdyRstStreamControlFrame::size() - SpdyFrame::kHeaderSize)
           set_error(SPDY_INVALID_CONTROL_FRAME);
         break;
       case SETTINGS:
@@ -443,7 +443,7 @@ void SpdyFramer::ProcessControlFrameHeader() {
         break;
       case GOAWAY:
         if (current_control_frame.length() !=
-            SpdyGoAwayControlFrame::size() - SpdyFrame::size())
+            SpdyGoAwayControlFrame::size() - SpdyFrame::kHeaderSize)
           set_error(SPDY_INVALID_CONTROL_FRAME);
         break;
       case HEADERS:
@@ -711,7 +711,7 @@ size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
 }
 
 void SpdyFramer::ExpandControlFrameBuffer(size_t size) {
-  size_t alloc_size = size + SpdyFrame::size();
+  size_t alloc_size = size + SpdyFrame::kHeaderSize;
   DCHECK_LE(alloc_size, kControlFrameBufferMaxSize);
   if (alloc_size <= current_frame_capacity_)
     return;
@@ -847,7 +847,7 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
   // Create our FlagsAndLength.
   FlagsAndLength flags_length = CreateFlagsAndLength(
       flags,
-      expected_frame_size - SpdyFrame::size());
+      expected_frame_size - SpdyFrame::kHeaderSize);
 
   SpdyFrameBuilder frame(expected_frame_size);
   frame.WriteUInt16(kControlFlagMask | spdy_version_);
@@ -879,7 +879,7 @@ SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(SpdyStreamId stream_id,
   // Create our FlagsAndLength.
   FlagsAndLength flags_length = CreateFlagsAndLength(
       flags,
-      expected_frame_size - SpdyFrame::size());
+      expected_frame_size - SpdyFrame::kHeaderSize);
 
   SpdyFrameBuilder frame(expected_frame_size);
   frame.WriteUInt16(kControlFlagMask | spdy_version_);
@@ -921,7 +921,8 @@ SpdySettingsControlFrame* SpdyFramer::CreateSettings(
   SpdyFrameBuilder frame(SpdySettingsControlFrame::size() + 8 * values.size());
   frame.WriteUInt16(kControlFlagMask | spdy_version_);
   frame.WriteUInt16(SETTINGS);
-  size_t settings_size = SpdySettingsControlFrame::size() - SpdyFrame::size() +
+  size_t settings_size =
+      SpdySettingsControlFrame::size() - SpdyFrame::kHeaderSize +
       8 * values.size();
   frame.WriteUInt32(settings_size);
   frame.WriteUInt32(values.size());
@@ -948,7 +949,7 @@ SpdyPingControlFrame* SpdyFramer::CreatePingFrame(uint32 unique_id) {
   SpdyFrameBuilder frame(SpdyPingControlFrame::size());
   frame.WriteUInt16(kControlFlagMask | spdy_version_);
   frame.WriteUInt16(PING);
-  size_t ping_size = SpdyPingControlFrame::size() - SpdyFrame::size();
+  size_t ping_size = SpdyPingControlFrame::size() - SpdyFrame::kHeaderSize;
   frame.WriteUInt32(ping_size);
   frame.WriteUInt32(unique_id);
   return reinterpret_cast<SpdyPingControlFrame*>(frame.take());
@@ -962,7 +963,7 @@ SpdyGoAwayControlFrame* SpdyFramer::CreateGoAway(
   SpdyFrameBuilder frame(SpdyGoAwayControlFrame::size());
   frame.WriteUInt16(kControlFlagMask | spdy_version_);
   frame.WriteUInt16(GOAWAY);
-  size_t go_away_size = SpdyGoAwayControlFrame::size() - SpdyFrame::size();
+  size_t go_away_size = SpdyGoAwayControlFrame::size() - SpdyFrame::kHeaderSize;
   frame.WriteUInt32(go_away_size);
   frame.WriteUInt32(last_accepted_stream_id);
   return reinterpret_cast<SpdyGoAwayControlFrame*>(frame.take());
@@ -981,7 +982,7 @@ SpdyHeadersControlFrame* SpdyFramer::CreateHeaders(SpdyStreamId stream_id,
   // Create our FlagsAndLength.
   FlagsAndLength flags_length = CreateFlagsAndLength(
       flags,
-      expected_frame_size - SpdyFrame::size());
+      expected_frame_size - SpdyFrame::kHeaderSize);
 
   SpdyFrameBuilder frame(expected_frame_size);
   frame.WriteUInt16(kControlFlagMask | spdy_version_);
@@ -1014,7 +1015,7 @@ SpdyWindowUpdateControlFrame* SpdyFramer::CreateWindowUpdate(
   frame.WriteUInt16(kControlFlagMask | spdy_version_);
   frame.WriteUInt16(WINDOW_UPDATE);
   size_t window_update_size = SpdyWindowUpdateControlFrame::size() -
-      SpdyFrame::size();
+      SpdyFrame::kHeaderSize;
   frame.WriteUInt32(window_update_size);
   frame.WriteUInt32(stream_id);
   frame.WriteUInt32(delta_window_size);
@@ -1234,10 +1235,10 @@ bool SpdyFramer::GetFrameBoundaries(const SpdyFrame& frame,
         return false;  // We can't compress this frame!
     }
   } else {
-    frame_size = SpdyFrame::size();
+    frame_size = SpdyFrame::kHeaderSize;
     *header_length = frame_size;
     *payload_length = frame.length();
-    *payload = frame.data() + SpdyFrame::size();
+    *payload = frame.data() + SpdyFrame::kHeaderSize;
   }
   return true;
 }
@@ -1296,7 +1297,8 @@ SpdyFrame* SpdyFramer::CompressFrameWithZStream(const SpdyFrame& frame,
   int compressed_max_size = deflateBound(compressor, payload_length);
   int new_frame_size = header_length + compressed_max_size;
   scoped_ptr<SpdyFrame> new_frame(new SpdyFrame(new_frame_size));
-  memcpy(new_frame->data(), frame.data(), frame.length() + SpdyFrame::size());
+  memcpy(new_frame->data(), frame.data(),
+         frame.length() + SpdyFrame::kHeaderSize);
 
   compressor->next_in = reinterpret_cast<Bytef*>(const_cast<char*>(payload));
   compressor->avail_in = payload_length;
@@ -1330,7 +1332,8 @@ SpdyFrame* SpdyFramer::CompressFrameWithZStream(const SpdyFrame& frame,
   (void)VALGRIND_MAKE_MEM_DEFINED(new_frame->data() + header_length,
                                   compressed_size);
 
-  new_frame->set_length(header_length + compressed_size - SpdyFrame::size());
+  new_frame->set_length(
+      header_length + compressed_size - SpdyFrame::kHeaderSize);
 
   pre_compress_bytes.Add(payload_length);
   post_compress_bytes.Add(new_frame->length());
@@ -1370,7 +1373,8 @@ SpdyFrame* SpdyFramer::DecompressFrameWithZStream(const SpdyFrame& frame,
   if (frame.length() > decompressed_max_size)
     return NULL;
   scoped_ptr<SpdyFrame> new_frame(new SpdyFrame(new_frame_size));
-  memcpy(new_frame->data(), frame.data(), frame.length() + SpdyFrame::size());
+  memcpy(new_frame->data(), frame.data(),
+         frame.length() + SpdyFrame::kHeaderSize);
 
   decompressor->next_in = reinterpret_cast<Bytef*>(const_cast<char*>(payload));
   decompressor->avail_in = payload_length;
@@ -1402,7 +1406,8 @@ SpdyFrame* SpdyFramer::DecompressFrameWithZStream(const SpdyFrame& frame,
   }
 
   int decompressed_size = decompressed_max_size - decompressor->avail_out;
-  new_frame->set_length(header_length + decompressed_size - SpdyFrame::size());
+  new_frame->set_length(
+      header_length + decompressed_size - SpdyFrame::kHeaderSize);
 
   // If there is data left, then the frame didn't fully decompress.  This
   // means that there is stranded data at the end of this frame buffer which
@@ -1576,7 +1581,7 @@ void SpdyFramer::CleanupStreamCompressorsAndDecompressors() {
 }
 
 SpdyFrame* SpdyFramer::DuplicateFrame(const SpdyFrame& frame) {
-  int size = SpdyFrame::size() + frame.length();
+  int size = SpdyFrame::kHeaderSize + frame.length();
   SpdyFrame* new_frame = new SpdyFrame(size);
   memcpy(new_frame->data(), frame.data(), size);
   return new_frame;
@@ -1658,8 +1663,9 @@ size_t SpdyFramer::BytesSafeToRead() const {
     case SPDY_RESET:
       return 0;
     case SPDY_READING_COMMON_HEADER:
-      DCHECK_LT(current_frame_len_, SpdyFrame::size());
-      return SpdyFrame::size() - current_frame_len_;
+      DCHECK_LT(current_frame_len_,
+                static_cast<size_t>(SpdyFrame::kHeaderSize));
+      return SpdyFrame::kHeaderSize - current_frame_len_;
     case SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER:
       return 0;
     // TODO(rtenneti): Add support for SPDY_CONTROL_FRAME_BEFORE_HEADER_BLOCK
