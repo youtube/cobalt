@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/gtest_prod_util.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/profiler/tracked_time.h"
@@ -197,8 +198,8 @@ class BASE_EXPORT BirthOnThread {
  public:
   BirthOnThread(const Location& location, const ThreadData& current);
 
-  const Location location() const { return location_; }
-  const ThreadData* birth_thread() const { return birth_thread_; }
+  const Location location() const;
+  const ThreadData* birth_thread() const;
 
  private:
   // File/lineno of birth.  This defines the essence of the task, as the context
@@ -220,17 +221,17 @@ class BASE_EXPORT Births: public BirthOnThread {
  public:
   Births(const Location& location, const ThreadData& current);
 
-  int birth_count() const { return birth_count_; }
+  int birth_count() const;
 
   // When we have a birth we update the count for this BirhPLace.
-  void RecordBirth() { ++birth_count_; }
+  void RecordBirth();
 
   // When a birthplace is changed (updated), we need to decrement the counter
   // for the old instance.
-  void ForgetBirth() { --birth_count_; }  // We corrected a birth place.
+  void ForgetBirth();
 
   // Hack to quickly reset all counts to zero.
-  void Clear() { birth_count_ = 0; }
+  void Clear();
 
  private:
   // The number of births on this thread for our location_.
@@ -247,70 +248,49 @@ class BASE_EXPORT Births: public BirthOnThread {
 class BASE_EXPORT DeathData {
  public:
   // Default initializer.
-  DeathData() : count_(0) {}
+  DeathData();
 
   // When deaths have not yet taken place, and we gather data from all the
   // threads, we create DeathData stats that tally the number of births without
-  // a corrosponding death.
-  explicit DeathData(int count)
-      : count_(count) {}
+  // a corresponding death.
+  explicit DeathData(int count);
 
   // Update stats for a task destruction (death) that had a Run() time of
   // |duration|, and has had a queueing delay of |queue_duration|.
-  void RecordDeath(DurationInt queue_duration,
-                   DurationInt run_duration);
+  void RecordDeath(const DurationInt queue_duration,
+                   const DurationInt run_duration,
+                   int random_number);
 
-  // Metrics accessors.
-  int count() const { return count_; }
-  DurationInt run_duration() const { return run_time_.duration(); }
-  DurationInt AverageMsRunDuration() const;
-  DurationInt run_duration_max() const { return run_time_.max(); }
-  DurationInt queue_duration() const { return queue_time_.duration(); }
-  DurationInt AverageMsQueueDuration() const;
-  DurationInt queue_duration_max() const { return queue_time_.max(); }
-
-  // Accumulate metrics from other into this.  This method is never used on
-  // realtime statistics, and only used in snapshots and aggregatinos.
-  void AddDeathData(const DeathData& other);
+  // Metrics accessors, used only in tests.
+  int count() const;
+  DurationInt run_duration_sum() const;
+  DurationInt run_duration_max() const;
+  DurationInt run_duration_sample() const;
+  DurationInt queue_duration_sum() const;
+  DurationInt queue_duration_max() const;
+  DurationInt queue_duration_sample() const;
 
   // Construct a DictionaryValue instance containing all our stats. The caller
   // assumes ownership of the returned instance.
   base::DictionaryValue* ToValue() const;
 
+  // Reset the max values to zero.
+  void ResetMax();
+
   // Reset all tallies to zero. This is used as a hack on realtime data.
   void Clear();
 
  private:
-  // DeathData::Data is a helper class, useful when different metrics need to be
-  // aggregated, such as queueing times, or run times.
-  class Data {
-   public:
-    Data() : duration_(0), max_(0) {}
-    ~Data() {}
-
-    DurationInt duration() const { return duration_; }
-    DurationInt max() const { return max_; }
-
-    // Agggegate data into our state.
-    void AddData(const Data& other);
-    void AddDuration(DurationInt duration);
-
-    // Central helper function for calculating averages (correctly, in only one
-    // place).
-    DurationInt AverageMsDuration(int count) const;
-
-    // Resets all members to zero.
-    void Clear();
-
-   private:
-    DurationInt duration_;  // Sum of all durations seen.
-    DurationInt max_;       // Largest singular duration seen.
-  };
-
-
-  int count_;         // Number of deaths seen.
-  Data run_time_;    // Data about run time durations.
-  Data queue_time_;  // Data about queueing times durations.
+  // Number of runs seen.
+  int count_;
+  // Data about run time durations.
+  DurationInt run_duration_sum_;
+  DurationInt run_duration_max_;
+  DurationInt run_duration_sample_;
+  // Data about queueing times durations.
+  DurationInt queue_duration_sum_;
+  DurationInt queue_duration_max_;
+  DurationInt queue_duration_sample_;
 };
 
 //------------------------------------------------------------------------------
@@ -329,28 +309,8 @@ class BASE_EXPORT Snapshot {
   // When snapshotting a birth, with no death yet, use this:
   Snapshot(const BirthOnThread& birth_on_thread, int count);
 
-  const ThreadData* birth_thread() const { return birth_->birth_thread(); }
-  const Location location() const { return birth_->location(); }
-  const BirthOnThread& birth() const { return *birth_; }
-  const ThreadData* death_thread() const {return death_thread_; }
-  const DeathData& death_data() const { return death_data_; }
+  // Accessor, that provides default value when there is no death thread.
   const std::string DeathThreadName() const;
-
-  int count() const { return death_data_.count(); }
-  DurationInt run_duration() const { return death_data_.run_duration(); }
-  DurationInt AverageMsRunDuration() const {
-    return death_data_.AverageMsRunDuration();
-  }
-  DurationInt run_duration_max() const {
-    return death_data_.run_duration_max();
-  }
-  DurationInt queue_duration() const { return death_data_.queue_duration(); }
-  DurationInt AverageMsQueueDuration() const {
-    return death_data_.AverageMsQueueDuration();
-  }
-  DurationInt queue_duration_max() const {
-    return death_data_.queue_duration_max();
-  }
 
   // Construct a DictionaryValue instance containing all our data recursively.
   // The caller assumes ownership of the memory in the returned instance.
@@ -360,53 +320,6 @@ class BASE_EXPORT Snapshot {
   const BirthOnThread* birth_;  // Includes Location and birth_thread.
   const ThreadData* death_thread_;
   DeathData death_data_;
-};
-
-//------------------------------------------------------------------------------
-// DataCollector is a container class for Snapshot and BirthOnThread count
-// items.
-
-class BASE_EXPORT DataCollector {
- public:
-  typedef std::vector<Snapshot> Collection;
-
-  // Construct with a list of how many threads should contribute.  This helps us
-  // determine (in the async case) when we are done with all contributions.
-  DataCollector();
-  ~DataCollector();
-
-  // Adds all stats from the indicated thread into our arrays.  This function
-  // uses locks at the lowest level (when accessing the underlying maps which
-  // could change when not locked), and can be called from any threads.
-  void Append(const ThreadData& thread_data);
-
-  // After the accumulation phase, the following accessor is used to process the
-  // data (i.e., sort it, filter it, etc.).
-  Collection* collection();
-
-  // Adds entries for all the remaining living objects (objects that have
-  // tallied a birth, but have not yet tallied a matching death, and hence must
-  // be either running, queued up, or being held in limbo for future posting).
-  // This should be called after all known ThreadData instances have been
-  // processed using Append().
-  void AddListOfLivingObjects();
-
-  // Generates a ListValue representation of the vector of snapshots. The caller
-  // assumes ownership of the memory in the returned instance.
-  base::ListValue* ToValue() const;
-
- private:
-  typedef std::map<const BirthOnThread*, int> BirthCount;
-
-  // The array that we collect data into.
-  Collection collection_;
-
-  // The total number of births recorded at each location for which we have not
-  // seen a death count.  This map changes as we do Append() calls, and is later
-  // used by AddListOfLivingObjects() to gather up unaccounted for births.
-  BirthCount global_birth_count_;
-
-  DISALLOW_COPY_AND_ASSIGN(DataCollector);
 };
 
 //------------------------------------------------------------------------------
@@ -443,8 +356,9 @@ class BASE_EXPORT ThreadData {
 
   // Constructs a DictionaryValue instance containing all recursive results in
   // our process.  The caller assumes ownership of the memory in the returned
-  // instance.
-  static base::DictionaryValue* ToValue();
+  // instance.  During the scavenging, if |reset_max| is true, then the
+  // DeathData instances max-values are reset to zero during this scan.
+  static base::DictionaryValue* ToValue(bool reset_max);
 
   // Finds (or creates) a place to count births from the given location in this
   // thread, and increment that tally.
@@ -484,24 +398,13 @@ class BASE_EXPORT ThreadData {
       const TrackedTime& start_of_run,
       const TrackedTime& end_of_run);
 
-  const std::string thread_name() const { return thread_name_; }
+  const std::string thread_name() const;
 
-  // ---------------------
-  // TODO(jar):
-  // The following functions should all be private, and are only public because
-  // the collection is done externally.  We need to relocate that code from the
-  // collection class into this class, and then all these methods can be made
-  // private.
-  // (Thread safe) Get start of list of all ThreadData instances.
-  static ThreadData* first();
-  // Iterate through the null terminated list of ThreadData instances.
-  ThreadData* next() const { return next_; }
-  // Using our lock, make a copy of the specified maps.  These calls may arrive
-  // from non-local threads, and are used to quickly scan data from all threads
-  // in order to build JSON for about:profiler.
-  void SnapshotBirthMap(BirthMap *output) const;
-  void SnapshotDeathMap(DeathMap *output) const;
-  // -------- end of should be private methods.
+  // Snapshot (under a lock) copies of the maps in each ThreadData instance. For
+  // each set of maps (BirthMap and DeathMap) call the Append() method of the
+  // |target| DataCollector.  If |reset_max| is true, then the max values in
+  // each DeathData instance should be reset during the scan.
+  static void SendAllMaps(bool reset_max, class DataCollector* target);
 
   // Hack: asynchronously clear all birth counts and death tallies data values
   // in all ThreadData instances.  The numerical (zeroing) part is done without
@@ -540,7 +443,12 @@ class BASE_EXPORT ThreadData {
  private:
   // Allow only tests to call ShutdownSingleThreadedCleanup.  We NEVER call it
   // in production code.
+  // TODO(jar): Make this a friend in DEBUG only, so that the optimizer has a
+  // better change of optimizing (inlining? etc.) private methods (knowing that
+  // there will be no need for an external entry point).
   friend class TrackedObjectsTest;
+  FRIEND_TEST_ALL_PREFIXES(TrackedObjectsTest, MinimalStartupShutdown);
+  FRIEND_TEST_ALL_PREFIXES(TrackedObjectsTest, TinyStartupShutdown);
 
   // Worker thread construction creates a name since there is none.
   explicit ThreadData(int thread_number);
@@ -555,6 +463,13 @@ class BASE_EXPORT ThreadData {
   // the instance permanently on that list.
   void PushToHeadOfList();
 
+  // (Thread safe) Get start of list of all ThreadData instances using the lock.
+  static ThreadData* first();
+
+  // Iterate through the null terminated list of ThreadData instances.
+  ThreadData* next() const;
+
+
   // In this thread's data, record a new birth.
   Births* TallyABirth(const Location& location);
 
@@ -562,6 +477,15 @@ class BASE_EXPORT ThreadData {
   void TallyADeath(const Births& birth,
                    DurationInt queue_duration,
                    DurationInt duration);
+
+  // Using our lock, make a copy of the specified maps.  This call may be made
+  // on  non-local threads, which necessitate the use of the lock to prevent
+  // the map(s) from being reallocaed while they are copied. If |reset_max| is
+  // true, then, just after we copy the DeathMap, we will set the max values to
+  // zero in the active DeathMap (not the snapshot).
+  void SnapshotMaps(bool reset_max,
+                    BirthMap* birth_map,
+                    DeathMap* death_map);
 
   // Using our lock to protect the iteration, Clear all birth and death data.
   void Reset();
@@ -669,7 +593,62 @@ class BASE_EXPORT ThreadData {
   // writing is only done from this thread.
   mutable base::Lock map_lock_;
 
+  // A random number that we used to select decide which sample to keep as a
+  // representative sample in each DeathData instance.  We can't start off with
+  // much randomness (because we can't call RandInt() on all our threads), so
+  // we stir in more and more as we go.
+  int32 random_number_;
+
   DISALLOW_COPY_AND_ASSIGN(ThreadData);
+};
+
+//------------------------------------------------------------------------------
+// DataCollector is a container class for Snapshot and BirthOnThread count
+// items.
+
+class BASE_EXPORT DataCollector {
+ public:
+  typedef std::vector<Snapshot> Collection;
+
+  // Construct with a list of how many threads should contribute.  This helps us
+  // determine (in the async case) when we are done with all contributions.
+  DataCollector();
+  ~DataCollector();
+
+  // Adds all stats from the indicated thread into our arrays.  Accepts copies
+  // of the birth_map and death_map, so that the data will not change during the
+  // iterations and processing.
+  void Append(const ThreadData &thread_data,
+              const ThreadData::BirthMap &birth_map,
+              const ThreadData::DeathMap &death_map);
+
+  // After the accumulation phase, the following accessor is used to process the
+  // data (i.e., sort it, filter it, etc.).
+  Collection* collection();
+
+  // Adds entries for all the remaining living objects (objects that have
+  // tallied a birth, but have not yet tallied a matching death, and hence must
+  // be either running, queued up, or being held in limbo for future posting).
+  // This should be called after all known ThreadData instances have been
+  // processed using Append().
+  void AddListOfLivingObjects();
+
+  // Generates a ListValue representation of the vector of snapshots. The caller
+  // assumes ownership of the memory in the returned instance.
+  base::ListValue* ToValue() const;
+
+ private:
+  typedef std::map<const BirthOnThread*, int> BirthCount;
+
+  // The array that we collect data into.
+  Collection collection_;
+
+  // The total number of births recorded at each location for which we have not
+  // seen a death count.  This map changes as we do Append() calls, and is later
+  // used by AddListOfLivingObjects() to gather up unaccounted for births.
+  BirthCount global_birth_count_;
+
+  DISALLOW_COPY_AND_ASSIGN(DataCollector);
 };
 
 //------------------------------------------------------------------------------

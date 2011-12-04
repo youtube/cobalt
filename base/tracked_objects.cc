@@ -33,86 +33,134 @@ static const ThreadData::Status kInitialStartupState = ThreadData::ACTIVE;
 //------------------------------------------------------------------------------
 // DeathData tallies durations when a death takes place.
 
-void DeathData::RecordDeath(DurationInt queue_duration,
-                            DurationInt run_duration) {
+DeathData::DeathData() {
+  Clear();
+}
+
+DeathData::DeathData(int count) {
+  Clear();
+  count_ = count;
+}
+
+// TODO(jar): I need to see if this macro to optimize branching is worth it.
+//
+// This macro has no branching, so it is surely fast, and is equivalent to:
+//             if (assign_it)
+//               target = source;
+// We use a macro rather than a template to force this to inline.
+// Related code for calculating max is discussed on the web.
+#define CONDITIONAL_ASSIGN(assign_it, target, source) \
+    ((target) ^= ((target) ^ (source)) & -static_cast<DurationInt>(assign_it))
+
+void DeathData::RecordDeath(const DurationInt queue_duration,
+                            const DurationInt run_duration,
+                            int32 random_number) {
+  queue_duration_sum_ += queue_duration;
+  run_duration_sum_ += run_duration;
   ++count_;
-  queue_time_.AddDuration(queue_duration);
-  run_time_.AddDuration(run_duration);
+
+  // Take a uniformly distributed sample over all durations ever supplied.
+  // The probability that we (instead) use this new sample is 1/count_.  This
+  // results in a completely uniform selection of the sample.
+  // We ignore the fact that we correlated our selection of a sample of run
+  // and queue times.
+  bool take_sample = 0 == (random_number % count_);
+  CONDITIONAL_ASSIGN(take_sample, queue_duration_sample_, queue_duration);
+  CONDITIONAL_ASSIGN(take_sample, run_duration_sample_, run_duration);
+
+  CONDITIONAL_ASSIGN(queue_duration_max_ < queue_duration, queue_duration_max_,
+                     queue_duration);
+  CONDITIONAL_ASSIGN(run_duration_max_ < run_duration, run_duration_max_,
+                     run_duration);
+  // Ensure we got the macros right.
+  DCHECK_GE(queue_duration_max_, queue_duration);
+  DCHECK_GE(run_duration_max_, run_duration);
+  DCHECK(!take_sample || run_duration_sample_ == run_duration);
+  DCHECK(!take_sample || queue_duration_sample_ == queue_duration);
 }
 
-DurationInt DeathData::AverageMsRunDuration() const {
-  return run_time_.AverageMsDuration(count_);
+int DeathData::count() const { return count_; }
+
+DurationInt DeathData::run_duration_sum() const { return run_duration_sum_; }
+
+DurationInt DeathData::run_duration_max() const { return run_duration_max_; }
+
+DurationInt DeathData::run_duration_sample() const {
+  return run_duration_sample_;
 }
 
-DurationInt DeathData::AverageMsQueueDuration() const {
-  return queue_time_.AverageMsDuration(count_);
+DurationInt DeathData::queue_duration_sum() const {
+  return queue_duration_sum_;
 }
 
-void DeathData::AddDeathData(const DeathData& other) {
-  count_ += other.count_;
-  queue_time_.AddData(other.queue_time_);
-  run_time_.AddData(other.run_time_);
+DurationInt DeathData::queue_duration_max() const {
+  return queue_duration_max_;
 }
+
+DurationInt DeathData::queue_duration_sample() const {
+  return queue_duration_sample_;
+}
+
 
 base::DictionaryValue* DeathData::ToValue() const {
   base::DictionaryValue* dictionary = new base::DictionaryValue;
   dictionary->Set("count", base::Value::CreateIntegerValue(count_));
   dictionary->Set("run_ms",
-      base::Value::CreateIntegerValue(run_time_.duration()));
-  dictionary->Set("queue_ms",
-      base::Value::CreateIntegerValue(queue_time_.duration()));
+      base::Value::CreateIntegerValue(run_duration_sum()));
   dictionary->Set("run_ms_max",
-      base::Value::CreateIntegerValue(run_time_.max()));
+      base::Value::CreateIntegerValue(run_duration_max()));
+  dictionary->Set("run_ms_sample",
+      base::Value::CreateIntegerValue(run_duration_sample()));
+  dictionary->Set("queue_ms",
+      base::Value::CreateIntegerValue(queue_duration_sum()));
   dictionary->Set("queue_ms_max",
-      base::Value::CreateIntegerValue(queue_time_.max()));
+      base::Value::CreateIntegerValue(queue_duration_max()));
+  dictionary->Set("queue_ms_sample",
+      base::Value::CreateIntegerValue(queue_duration_sample()));
   return dictionary;
+}
+
+void DeathData::ResetMax() {
+  run_duration_max_ = 0;
+  queue_duration_max_ = 0;
 }
 
 void DeathData::Clear() {
   count_ = 0;
-  run_time_.Clear();
-  queue_time_.Clear();
+  run_duration_sum_ = 0;
+  run_duration_max_ = 0;
+  run_duration_sample_ = 0;
+  queue_duration_sum_ = 0;
+  queue_duration_max_ = 0;
+  queue_duration_sample_ = 0;
 }
 
-//------------------------------------------------------------------------------
-
-void DeathData::Data::AddData(const Data& other) {
-  duration_ += other.duration_;
-  if (max_ > other.max_)
-    return;
-  max_ = other.max_;
-}
-
-void DeathData::Data::AddDuration(DurationInt duration) {
-  duration_ += duration;
-  if (max_ > duration)
-    return;
-  max_ = duration;
-}
-
-DurationInt DeathData::Data::AverageMsDuration(int count) const {
-  if (duration_ == 0 || !count)
-    return 0;
-  return (duration_ + count / 2) / count;
-}
-
-void DeathData::Data::Clear() {
-  duration_ = 0;
-  max_ = 0;
-}
 //------------------------------------------------------------------------------
 BirthOnThread::BirthOnThread(const Location& location,
                              const ThreadData& current)
     : location_(location),
-      birth_thread_(&current) {}
+      birth_thread_(&current) {
+}
+
+const Location BirthOnThread::location() const { return location_; }
+const ThreadData* BirthOnThread::birth_thread() const { return birth_thread_; }
 
 //------------------------------------------------------------------------------
 Births::Births(const Location& location, const ThreadData& current)
     : BirthOnThread(location, current),
       birth_count_(1) { }
 
+int Births::birth_count() const { return birth_count_; }
+
+void Births::RecordBirth() { ++birth_count_; }
+
+void Births::ForgetBirth() { --birth_count_; }
+
+void Births::Clear() { birth_count_ = 0; }
+
 //------------------------------------------------------------------------------
-// ThreadData maintains the central data for all births and deaths.
+// ThreadData maintains the central data for all births and deaths on a single
+// thread.
 
 // TODO(jar): We should pull all these static vars together, into a struct, and
 // optimize layout so that we benefit from locality of reference during accesses
@@ -170,12 +218,24 @@ ThreadData::ThreadData(int thread_number)
 ThreadData::~ThreadData() {}
 
 void ThreadData::PushToHeadOfList() {
+  // Toss in a hint of randomness (atop the uniniitalized value).
+  random_number_ += static_cast<int32>(this - static_cast<ThreadData*>(0));
+  random_number_ ^= (Now() - TrackedTime()).InMilliseconds();
+
   DCHECK(!next_);
   base::AutoLock lock(*list_lock_.Pointer());
   incarnation_count_for_pool_ = incarnation_counter_;
   next_ = all_thread_data_list_head_;
   all_thread_data_list_head_ = this;
 }
+
+// static
+ThreadData* ThreadData::first() {
+  base::AutoLock lock(*list_lock_.Pointer());
+  return all_thread_data_list_head_;
+}
+
+ThreadData* ThreadData::next() const { return next_; }
 
 // static
 void ThreadData::InitializeThreadContext(const std::string& suggested_name) {
@@ -252,8 +312,10 @@ void ThreadData::OnThreadTerminationCleanup() {
 }
 
 // static
-base::DictionaryValue* ThreadData::ToValue() {
+base::DictionaryValue* ThreadData::ToValue(bool reset_max) {
   DataCollector collected_data;  // Gather data.
+  // Request multiple calls to collected_data.Append() for all threads.
+  SendAllMaps(reset_max, &collected_data);
   collected_data.AddListOfLivingObjects();  // Add births that are still alive.
   base::ListValue* list = collected_data.ToValue();
   base::DictionaryValue* dictionary = new base::DictionaryValue();
@@ -279,6 +341,12 @@ Births* ThreadData::TallyABirth(const Location& location) {
 void ThreadData::TallyADeath(const Births& birth,
                              DurationInt queue_duration,
                              DurationInt run_duration) {
+  // Stir in some randomness, plus add constant in case durations are zero.
+  const DurationInt kSomePrimeNumber = 4294967279;
+  random_number_ += queue_duration + run_duration + kSomePrimeNumber;
+  // An address is going to have some randomness to it as well ;-).
+  random_number_ ^= static_cast<int32>(&birth - reinterpret_cast<Births*>(0));
+
   DeathMap::iterator it = death_map_.find(&birth);
   DeathData* death_data;
   if (it != death_map_.end()) {
@@ -287,7 +355,7 @@ void ThreadData::TallyADeath(const Births& birth,
     base::AutoLock lock(map_lock_);  // Lock as the map may get relocated now.
     death_data = &death_map_[&birth];
   }  // Release lock ASAP.
-  death_data->RecordDeath(queue_duration, run_duration);
+  death_data->RecordDeath(queue_duration, run_duration, random_number_);
 }
 
 // static
@@ -409,26 +477,46 @@ void ThreadData::TallyRunInAScopedRegionIfTracking(
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
 }
 
-// static
-ThreadData* ThreadData::first() {
-  base::AutoLock lock(*list_lock_.Pointer());
-  return all_thread_data_list_head_;
-}
+const std::string ThreadData::thread_name() const { return thread_name_; }
 
 // This may be called from another thread.
-void ThreadData::SnapshotBirthMap(BirthMap *output) const {
+void ThreadData::SnapshotMaps(bool reset_max,
+                              BirthMap* birth_map,
+                              DeathMap* death_map) {
   base::AutoLock lock(map_lock_);
   for (BirthMap::const_iterator it = birth_map_.begin();
        it != birth_map_.end(); ++it)
-    (*output)[it->first] = it->second;
+    (*birth_map)[it->first] = it->second;
+  for (DeathMap::iterator it = death_map_.begin();
+       it != death_map_.end(); ++it) {
+    (*death_map)[it->first] = it->second;
+    if (reset_max)
+      it->second.ResetMax();
+  }
 }
 
-// This may be called from another thread.
-void ThreadData::SnapshotDeathMap(DeathMap *output) const {
-  base::AutoLock lock(map_lock_);
-  for (DeathMap::const_iterator it = death_map_.begin();
-       it != death_map_.end(); ++it)
-    (*output)[it->first] = it->second;
+// static
+void ThreadData::SendAllMaps(bool reset_max, class DataCollector* target) {
+  if (!kTrackAllTaskObjects)
+    return;  // Not compiled in.
+  // Get an unchanging copy of a ThreadData list.
+  ThreadData* my_list = ThreadData::first();
+
+  // Gather data serially.
+  // This hackish approach *can* get some slighly corrupt tallies, as we are
+  // grabbing values without the protection of a lock, but it has the advantage
+  // of working even with threads that don't have message loops.  If a user
+  // sees any strangeness, they can always just run their stats gathering a
+  // second time.
+  for (ThreadData* thread_data = my_list;
+       thread_data;
+       thread_data = thread_data->next()) {
+    // Get copy of data.
+    ThreadData::BirthMap birth_map;
+    ThreadData::DeathMap death_map;
+    thread_data->SnapshotMaps(reset_max, &birth_map, &death_map);
+    target->Append(*thread_data, birth_map, death_map);
+  }
 }
 
 // static
@@ -543,7 +631,7 @@ void ThreadData::ShutdownSingleThreadedCleanup(bool leak) {
     all_thread_data_list_head_ = NULL;
     ++incarnation_counter_;
     // To be clean, break apart the retired worker list (though we leak them).
-    while(first_retired_worker_) {
+    while (first_retired_worker_) {
       ThreadData* worker = first_retired_worker_;
       CHECK_GT(worker->worker_thread_number_, 0);
       first_retired_worker_ = worker->next_retired_worker_;
@@ -617,36 +705,14 @@ base::DictionaryValue* Snapshot::ToValue() const {
 //------------------------------------------------------------------------------
 // DataCollector
 
-DataCollector::DataCollector() {
-  if (!kTrackAllTaskObjects)
-    return;  // Not compiled in.
-
-  // Get an unchanging copy of a ThreadData list.
-  ThreadData* my_list = ThreadData::first();
-
-  // Gather data serially.
-  // This hackish approach *can* get some slighly corrupt tallies, as we are
-  // grabbing values without the protection of a lock, but it has the advantage
-  // of working even with threads that don't have message loops.  If a user
-  // sees any strangeness, they can always just run their stats gathering a
-  // second time.
-  for (ThreadData* thread_data = my_list;
-       thread_data;
-       thread_data = thread_data->next()) {
-    Append(*thread_data);
-  }
-}
+DataCollector::DataCollector() {}
 
 DataCollector::~DataCollector() {
 }
 
-void DataCollector::Append(const ThreadData& thread_data) {
-  // Get copy of data.
-  ThreadData::BirthMap birth_map;
-  thread_data.SnapshotBirthMap(&birth_map);
-  ThreadData::DeathMap death_map;
-  thread_data.SnapshotDeathMap(&death_map);
-
+void DataCollector::Append(const ThreadData &thread_data,
+                           const ThreadData::BirthMap &birth_map,
+                           const ThreadData::DeathMap &death_map) {
   for (ThreadData::DeathMap::const_iterator it = death_map.begin();
        it != death_map.end(); ++it) {
     collection_.push_back(Snapshot(*it->first, thread_data, it->second));
