@@ -48,7 +48,7 @@ namespace {
 
 // Test our protocol constants
 TEST(SpdyProtocolTest, ProtocolConstants) {
-  EXPECT_EQ(8u, SpdyFrame::size());
+  EXPECT_EQ(8u, SpdyFrame::kHeaderSize);
   EXPECT_EQ(8u, SpdyDataFrame::size());
   EXPECT_EQ(8u, SpdyControlFrame::size());
   EXPECT_EQ(18u, SpdySynStreamControlFrame::size());
@@ -74,7 +74,7 @@ TEST(SpdyProtocolTest, ProtocolConstants) {
 
 // Test some of the protocol helper functions
 TEST(SpdyProtocolTest, FrameStructs) {
-  SpdyFrame frame(SpdyFrame::size());
+  SpdyFrame frame(SpdyFrame::kHeaderSize);
   frame.set_length(12345);
   frame.set_flags(10);
   EXPECT_EQ(12345u, frame.length());
