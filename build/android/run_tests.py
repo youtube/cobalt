@@ -215,7 +215,6 @@ def Dispatch(options):
   if options.use_emulator:
     t = TimeProfile('Emulator launch')
     buildbot_emulator = emulator.Emulator()
-    buildbot_emulator.Reset()
     buildbot_emulator.Launch()
     t.Stop()
     attached_devices.append(buildbot_emulator.device)
