@@ -13,8 +13,10 @@ Assumes system environment ANDROID_NDK_ROOT has been set.
 
 import logging
 import os
+import signal
 import subprocess
 import sys
+import time
 
 import android_commands
 
@@ -22,7 +24,31 @@ import android_commands
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..',
    '..', 'third_party', 'android', 'testrunner'))
 import adb_interface
+import cmd_helper
+import errors
+import run_command
 
+class EmulatorLaunchException(Exception):
+  """Emulator failed to launch."""
+  pass
+
+def _KillAllEmulators():
+  """Kill all running emulators that look like ones we started.
+
+  There are odd 'sticky' cases where there can be no emulator process
+  running but a device slot is taken.  A little bot trouble and and
+  we're out of room forever.
+  """
+  emulators = android_commands.GetEmulators()
+  if not emulators:
+    return
+  for emu_name in emulators:
+    cmd_helper.GetCmdOutput(['adb', '-s', emu_name, 'emu', 'kill'])
+  logging.info('Emulator killing is async; give a few seconds for all to die.')
+  for i in range(5):
+    if not android_commands.GetEmulators():
+      return
+    time.sleep(1)
 
 def _GetAvailablePort():
   """Returns an available TCP port for the console."""
@@ -52,6 +78,16 @@ class Emulator(object):
     device: Device name of this emulator.
   """
 
+  # Signals we listen for to kill the emulator on
+  _SIGNALS = (signal.SIGINT, signal.SIGHUP)
+
+  # Time to wait for an emulator launch, in seconds.
+  _EMULATOR_LAUNCH_TIMEOUT = 120
+
+  # Timeout interval of wait-for-device command before bouncing to a a
+  # process life check.
+  _EMULATOR_WFD_TIMEOUT = 5
+
   def __init__(self):
     try:
       android_sdk_root = os.environ['ANDROID_SDK_ROOT']
@@ -63,22 +99,18 @@ class Emulator(object):
     self.popen = None
     self.device = None
 
-  def Reset(self):
-    """Kill a running emulator.
-
-    May be needed if the test scripts stopped abnormally and an
-    emulator is left around."""
-    adb = adb_interface.AdbInterface()
-    logging.info('Killing any existing emulator.')
-    adb.SendCommand('emu kill')
+  def _DeviceName(self):
+    """Return our device name."""
+    port = _GetAvailablePort()
+    return ('emulator-%d' % port, port)
 
   def Launch(self):
     """Launches the emulator and waits for package manager to startup.
 
     If fails, an exception will be raised.
     """
-    port = _GetAvailablePort()
-    self.device = "emulator-%d" % port
+    _KillAllEmulators()  # just to be sure
+    (self.device, port) = self._DeviceName()
     self.popen = subprocess.Popen(args=[
         self.emulator,
         # Speed up emulator launch by 40%.  Really.
@@ -88,15 +120,63 @@ class Emulator(object):
         '-partition-size', '256',
         # Use a familiar name and port.
         '-avd', 'buildbot',
-        '-port', str(port)])
-    # This will not return until device's package manager starts up or an
-    # exception is raised.
-    android_commands.AndroidCommands(self.device, True)
+        '-port', str(port)],
+        stderr=subprocess.STDOUT)
+    self._InstallKillHandler()
+    self._ConfirmLaunch()
+
+  def _ConfirmLaunch(self):
+    """Confirm the emulator launched properly.
+
+    Loop on a wait-for-device with a very small timeout.  On each
+    timeout, check the emulator process is still alive.
+    After confirming a wait-for-device can be successful, make sure
+    it returns the right answer.
+    """
+    a = android_commands.AndroidCommands(self.device, False)
+    seconds_waited = 0
+    number_of_waits = 2  # Make sure we can wfd twice
+    adb_cmd = "adb -s %s %s" % (self.device, 'wait-for-device')
+    while seconds_waited < self._EMULATOR_LAUNCH_TIMEOUT:
+      try:
+        run_command.RunCommand(adb_cmd, timeout_time=self._EMULATOR_WFD_TIMEOUT,
+                               retry_count=1)
+        number_of_waits -= 1
+        if not number_of_waits:
+          break
+      except errors.WaitForResponseTimedOutError as e:
+        seconds_waited += self._EMULATOR_WFD_TIMEOUT
+        adb_cmd = "adb -s %s %s" % (self.device, 'kill-server')
+        run_command.RunCommand(adb_cmd)
+      self.popen.poll()
+      if self.popen.returncode != None:
+        raise EmulatorLaunchException('EMULATOR DIED')
+    if seconds_waited >= self._EMULATOR_LAUNCH_TIMEOUT:
+      raise EmulatorLaunchException('TIMEOUT with wait-for-device')
+    logging.info('Seconds waited on wait-for-device: %d', seconds_waited)
+    # Now that we checked for obvious problems, wait for a boot complete.
+    # Waiting for the package manager has been problematic.
+    a.Adb().WaitForBootComplete()
 
   def Shutdown(self):
     """Shuts down the process started by launch."""
-    self.popen.terminate()
+    if self.popen:
+      self.popen.poll()
+      if self.popen.returncode == None:
+        self.popen.kill()
+      self.popen = None
 
+  def _ShutdownOnSignal(self, signum, frame):
+    logging.critical('emulator _ShutdownOnSignal')
+    for sig in self._SIGNALS:
+      signal.signal(sig, signal.SIG_DFL)
+    self.Shutdown()
+    raise KeyboardInterrupt  # print a stack
+
+  def _InstallKillHandler(self):
+    """Install a handler to kill the emulator when we exit unexpectedly."""
+    for sig in self._SIGNALS:
+      signal.signal(sig, self._ShutdownOnSignal)
 
 def main(argv):
   Emulator().launch()
