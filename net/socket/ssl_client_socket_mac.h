@@ -48,7 +48,8 @@ class SSLClientSocketMac : public SSLClientSocket {
                                    const base::StringPiece& context,
                                    unsigned char *out,
                                    unsigned int outlen) OVERRIDE;
-  virtual NextProtoStatus GetNextProto(std::string* proto) OVERRIDE;
+  virtual NextProtoStatus GetNextProto(std::string* proto,
+                                       std::string* server_protos) OVERRIDE;
 
   // StreamSocket methods:
   virtual int Connect(OldCompletionCallback* callback) OVERRIDE;

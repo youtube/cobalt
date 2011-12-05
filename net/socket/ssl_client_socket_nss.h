@@ -67,7 +67,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
                                    const base::StringPiece& context,
                                    unsigned char *out,
                                    unsigned int outlen) OVERRIDE;
-  virtual NextProtoStatus GetNextProto(std::string* proto) OVERRIDE;
+  virtual NextProtoStatus GetNextProto(std::string* proto,
+                                       std::string* server_protos) OVERRIDE;
 
   // StreamSocket methods:
   virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
@@ -300,6 +301,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // next_proto_ is the protocol that we selected by NPN.
   std::string next_proto_;
   NextProtoStatus next_proto_status_;
+  // Server's NPN advertised protocols.
+  std::string server_protos_;
 
   // The following two variables are added for debugging bug 65948. Will
   // remove this code after fixing bug 65948.
