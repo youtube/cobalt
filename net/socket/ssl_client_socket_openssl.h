@@ -59,7 +59,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
                                    const base::StringPiece& context,
                                    unsigned char *out,
                                    unsigned int outlen);
-  virtual NextProtoStatus GetNextProto(std::string* proto);
+  virtual NextProtoStatus GetNextProto(std::string* proto,
+                                       std::string* server_protos);
 
   // StreamSocket methods:
   virtual int Connect(OldCompletionCallback* callback);
@@ -163,6 +164,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   State next_handshake_state_;
   NextProtoStatus npn_status_;
   std::string npn_proto_;
+  std::string server_protos_;
   BoundNetLog net_log_;
 };
 

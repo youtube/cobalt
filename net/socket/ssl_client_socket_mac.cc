@@ -792,8 +792,10 @@ int SSLClientSocketMac::ExportKeyingMaterial(const base::StringPiece& label,
 }
 
 SSLClientSocket::NextProtoStatus
-SSLClientSocketMac::GetNextProto(std::string* proto) {
+SSLClientSocketMac::GetNextProto(std::string* proto,
+                                 std::string* server_protos) {
   proto->clear();
+  server_protos->clear();
   return kNextProtoUnsupported;
 }
 

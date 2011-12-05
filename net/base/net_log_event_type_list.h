@@ -800,6 +800,14 @@ EVENT_TYPE(HTTP_STREAM_JOB)
 //   }
 EVENT_TYPE(HTTP_STREAM_REQUEST_BOUND_TO_JOB)
 
+// Logs the protocol negotiated with the server. The event parameters are:
+//   {
+//      "status": <The NPN status ("negotiated", "unsupported", "no-overlap")>,
+//      "proto": <The NPN protocol negotiated>,
+//      "server_protos": <The list of server advertised protocols>,
+//   }
+EVENT_TYPE(HTTP_STREAM_REQUEST_PROTO)
+
 // ------------------------------------------------------------------------
 // HttpNetworkTransaction
 // ------------------------------------------------------------------------

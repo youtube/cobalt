@@ -382,7 +382,8 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(handle.socket());
   EXPECT_TRUE(ssl_socket->was_npn_negotiated());
   std::string proto;
-  ssl_socket->GetNextProto(&proto);
+  std::string server_protos;
+  ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
             SSLClientSocket::kProtoSPDY2);
 }
@@ -414,7 +415,8 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(handle.socket());
   EXPECT_TRUE(ssl_socket->was_npn_negotiated());
   std::string proto;
-  ssl_socket->GetNextProto(&proto);
+  std::string server_protos;
+  ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
             SSLClientSocket::kProtoSPDY2);
 }
@@ -714,7 +716,8 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(handle->socket());
   EXPECT_TRUE(ssl_socket->was_npn_negotiated());
   std::string proto;
-  ssl_socket->GetNextProto(&proto);
+  std::string server_protos;
+  ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
             SSLClientSocket::kProtoSPDY2);
 
@@ -801,7 +804,8 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(handle->socket());
   EXPECT_TRUE(ssl_socket->was_npn_negotiated());
   std::string proto;
-  ssl_socket->GetNextProto(&proto);
+  std::string server_protos;
+  ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
             SSLClientSocket::kProtoSPDY2);
 
