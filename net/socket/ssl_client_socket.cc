@@ -1,8 +1,10 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/ssl_client_socket.h"
+
+#include "base/string_util.h"
 
 namespace net {
 
@@ -22,6 +24,35 @@ SSLClientSocket::NextProto SSLClientSocket::NextProtoFromString(
   } else {
     return kProtoUnknown;
   }
+}
+
+// static
+const char* SSLClientSocket::NextProtoStatusToString(
+    const SSLClientSocket::NextProtoStatus status) {
+  switch (status) {
+    case kNextProtoUnsupported:
+      return "unsupported";
+    case kNextProtoNegotiated:
+      return "negotiated";
+    case kNextProtoNoOverlap:
+      return "no-overlap";
+  }
+  return NULL;
+}
+
+// static
+std::string SSLClientSocket::ServerProtosToString(
+    const std::string& server_protos) {
+  const char* protos = server_protos.c_str();
+  size_t protos_len = server_protos.length();
+  std::vector<std::string> server_protos_with_commas;
+  for (size_t i = 0; i < protos_len; ) {
+    const size_t len = protos[i];
+    std::string proto_str(&protos[i + 1], len);
+    server_protos_with_commas.push_back(proto_str);
+    i += len + 1;
+  }
+  return JoinString(server_protos_with_commas, ',');
 }
 
 bool SSLClientSocket::IgnoreCertError(int error, int load_flags) {

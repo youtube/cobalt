@@ -555,8 +555,10 @@ int SSLClientSocketWin::ExportKeyingMaterial(const base::StringPiece& label,
 }
 
 SSLClientSocket::NextProtoStatus
-SSLClientSocketWin::GetNextProto(std::string* proto) {
+SSLClientSocketWin::GetNextProto(std::string* proto,
+                                 std::string* server_protos) {
   proto->clear();
+  server_protos->clear();
   return kNextProtoUnsupported;
 }
 
