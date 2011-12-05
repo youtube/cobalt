@@ -52,7 +52,8 @@ class SSLClientSocketWin : public SSLClientSocket {
                                    const base::StringPiece& context,
                                    unsigned char *out,
                                    unsigned int outlen);
-  virtual NextProtoStatus GetNextProto(std::string* proto);
+  virtual NextProtoStatus GetNextProto(std::string* proto,
+                                       std::string* server_protos);
 
   // StreamSocket methods:
   virtual int Connect(OldCompletionCallback* callback);

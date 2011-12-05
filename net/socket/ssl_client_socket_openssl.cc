@@ -605,8 +605,9 @@ int SSLClientSocketOpenSSL::ExportKeyingMaterial(
 }
 
 SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
-    std::string* proto) {
+    std::string* proto, std::string* server_protos) {
   *proto = npn_proto_;
+  *server_protos = server_protos_;
   return npn_status_;
 }
 
@@ -826,6 +827,7 @@ int SSLClientSocketOpenSSL::SelectNextProtoCallback(unsigned char** out,
   }
 
   npn_proto_.assign(reinterpret_cast<const char*>(*out), *outlen);
+  server_protos_.assign(reinterpret_cast<const char*>(in), inlen);
   switch (status) {
     case OPENSSL_NPN_NEGOTIATED:
       npn_status_ = SSLClientSocket::kNextProtoNegotiated;
