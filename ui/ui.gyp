@@ -77,6 +77,8 @@
         'base/clipboard/clipboard_util_win.cc',
         'base/clipboard/clipboard_util_win.h',
         'base/clipboard/clipboard_win.cc',
+        'base/clipboard/custom_data_helper.cc',
+        'base/clipboard/custom_data_helper.h',
         'base/clipboard/scoped_clipboard_writer.cc',
         'base/clipboard/scoped_clipboard_writer.h',
         'base/cocoa/base_view.h',
