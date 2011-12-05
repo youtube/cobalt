@@ -692,8 +692,9 @@ int MockClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
 }
 
 SSLClientSocket::NextProtoStatus
-MockClientSocket::GetNextProto(std::string* proto) {
+MockClientSocket::GetNextProto(std::string* proto, std::string* server_protos) {
   proto->clear();
+  server_protos->clear();
   return SSLClientSocket::kNextProtoUnsupported;
 }
 
@@ -1154,8 +1155,9 @@ void MockSSLClientSocket::GetSSLCertRequestInfo(
 }
 
 SSLClientSocket::NextProtoStatus MockSSLClientSocket::GetNextProto(
-    std::string* proto) {
+    std::string* proto, std::string* server_protos) {
   *proto = data_->next_proto;
+  *server_protos = data_->server_protos;
   return data_->next_proto_status;
 }
 

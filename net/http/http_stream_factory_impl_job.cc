@@ -65,6 +65,43 @@ Value* HttpStreamJobParameters::ToValue() const {
   return dict;
 }
 
+// Parameters associated with the Proto (with NPN negotiation) of a HTTP stream.
+class HttpStreamProtoParameters : public NetLog::EventParameters {
+ public:
+  static scoped_refptr<HttpStreamProtoParameters> Create(
+      const SSLClientSocket::NextProtoStatus status,
+      const std::string& proto,
+      const std::string& server_protos) {
+    return make_scoped_refptr(new HttpStreamProtoParameters(
+        status, proto, server_protos));
+  }
+
+  virtual Value* ToValue() const;
+
+ private:
+  HttpStreamProtoParameters(const SSLClientSocket::NextProtoStatus status,
+                            const std::string& proto,
+                            const std::string& server_protos)
+      : status_(status),
+        proto_(proto),
+        server_protos_(server_protos) {}
+
+  const SSLClientSocket::NextProtoStatus status_;
+  const std::string proto_;
+  const std::string server_protos_;
+};
+
+Value* HttpStreamProtoParameters::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+
+  dict->SetString("next_proto_status",
+                  SSLClientSocket::NextProtoStatusToString(status_));
+  dict->SetString("proto", proto_);
+  dict->SetString("server_protos",
+                  SSLClientSocket::ServerProtosToString(server_protos_));
+  return dict;
+}
+
 HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
                                 HttpNetworkSession* session,
                                 const HttpRequestInfo& request_info,
@@ -711,6 +748,13 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       static_cast<SSLClientSocket*>(connection_->socket());
     if (ssl_socket->was_npn_negotiated()) {
       was_npn_negotiated_ = true;
+      std::string proto;
+      std::string server_protos;
+      SSLClientSocket::NextProtoStatus status =
+          ssl_socket->GetNextProto(&proto, &server_protos);
+      net_log_.AddEvent(
+           NetLog::TYPE_HTTP_STREAM_REQUEST_PROTO,
+           HttpStreamProtoParameters::Create(status, proto, server_protos));
       if (ssl_socket->was_spdy_negotiated())
         SwitchToSpdyMode();
     }

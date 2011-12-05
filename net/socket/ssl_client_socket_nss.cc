@@ -558,8 +558,10 @@ int SSLClientSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
 }
 
 SSLClientSocket::NextProtoStatus
-SSLClientSocketNSS::GetNextProto(std::string* proto) {
+SSLClientSocketNSS::GetNextProto(std::string* proto,
+                                 std::string* server_protos) {
   *proto = next_proto_;
+  *server_protos = server_protos_;
   return next_proto_status_;
 }
 
@@ -2599,6 +2601,9 @@ SSLClientSocketNSS::NextProtoCallback(void* arg,
     // this doesn't cause us to jump off the end of the buffer.
     i += len + 1;
   }
+
+  that->server_protos_.assign(
+      reinterpret_cast<const char*>(protos), protos_len);
 
   // If we didn't find a protocol, we select the first one from our list.
   if (that->next_proto_status_ != kNextProtoNegotiated) {
