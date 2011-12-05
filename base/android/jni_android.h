@@ -30,19 +30,17 @@ void InitApplicationContext(jobject context);
 // Returns the application context assigned by InitApplicationContext().
 jobject GetApplicationContext();
 
-// Wraps a method ID.
-class MethodID {
- public:
-  jmethodID id() { return id_; }
- protected:
-  // Gets the method ID from the class name. Clears the pending Java exception
-  // and returns NULL if the method is not found. Note that GetMethodID() below
-  // avoids a class lookup, so should be used in preference when possible.
-  MethodID(JNIEnv* env, const char* class_name, const char* method,
-           const char* jni_signature);
- private:
-  jmethodID id_;
-};
+// Gets the method ID from the class name. Clears the pending Java exception
+// and returns NULL if the method is not found. Caches results. Note that
+// GetMethodID() below avoids a class lookup, but does not cache results.
+// Strings passed to this function are held in the cache and MUST remain valid
+// beyond the duration of all future calls to this function, across all
+// threads. In practice, this means that the function should only be used with
+// string constants.
+jmethodID GetMethodIDFromClassName(JNIEnv* env,
+                                   const char* class_name,
+                                   const char* method,
+                                   const char* jni_signature);
 
 // Get the method ID for a method. Will clear the pending Java
 // exception and return 0 if the method is not found.
