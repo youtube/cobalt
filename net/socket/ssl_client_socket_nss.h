@@ -167,8 +167,10 @@ class SSLClientSocketNSS : public SSLClientSocket {
   static bool OriginBoundCertNegotiated(PRFileDesc* socket);
   // Origin bound cert client auth handler.
   // Returns the value the ClientAuthHandler function should return.
-  SECStatus OriginBoundClientAuthHandler(CERTCertificate** result_certificate,
-                                         SECKEYPrivateKey** result_private_key);
+  SECStatus OriginBoundClientAuthHandler(
+      const std::vector<uint8>& requested_cert_types,
+      CERTCertificate** result_certificate,
+      SECKEYPrivateKey** result_private_key);
 #if defined(NSS_PLATFORM_CLIENT_AUTH)
   // On platforms where we use the native certificate store, NSS calls this
   // instead when client authentication is requested.  At most one of
@@ -259,6 +261,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // For origin bound certificates in client auth.
   bool ob_cert_xtn_negotiated_;
   OriginBoundCertService* origin_bound_cert_service_;
+  SSLClientCertType ob_cert_type_;
   std::string ob_private_key_;
   std::string ob_cert_;
   OriginBoundCertService::RequestHandle ob_cert_request_handle_;
