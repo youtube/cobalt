@@ -10,6 +10,9 @@ import sys
 
 
 def Main(args):
+  # Exit early if disable_nacl=1.
+  if 'disable_nacl=1' in os.environ.get('GYP_DEFINES', ''):
+    return 0
   # Handle chromeos=1 specially (until its building its own toolchain).
   if 'chromeos=1' in os.environ.get('GYP_DEFINES', ''):
     args = [
