@@ -269,9 +269,14 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   virtual int DoomEntry(const std::string& key,
                         OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomAllEntries(OldCompletionCallback* callback) OVERRIDE;
+  virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
                                  OldCompletionCallback* callback) OVERRIDE;
+  virtual int DoomEntriesBetween(
+      const base::Time initial_time,
+      const base::Time end_time,
+      const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntriesSince(const base::Time initial_time,
                                OldCompletionCallback* callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
