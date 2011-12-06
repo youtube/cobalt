@@ -232,10 +232,6 @@ class MessagePumpNSApplication : public MessagePumpCFRunLoopBase {
   virtual void DoRun(Delegate* delegate) OVERRIDE;
   virtual void Quit() OVERRIDE;
 
- protected:
-  // Returns nil if NSApp is currently in the middle of calling -sendEvent.
-  virtual NSAutoreleasePool* CreateAutoreleasePool() OVERRIDE;
-
  private:
   // False after Quit is called.
   bool keep_running_;
@@ -249,11 +245,41 @@ class MessagePumpNSApplication : public MessagePumpCFRunLoopBase {
   DISALLOW_COPY_AND_ASSIGN(MessagePumpNSApplication);
 };
 
+class MessagePumpCrApplication : public MessagePumpNSApplication {
+ public:
+  MessagePumpCrApplication();
+
+ protected:
+  // Returns nil if NSApp is currently in the middle of calling
+  // -sendEvent.  Requires NSApp implementing CrAppProtocol.
+  virtual NSAutoreleasePool* CreateAutoreleasePool() OVERRIDE;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MessagePumpCrApplication);
+};
+
 class MessagePumpMac {
  public:
-  // Returns a new instance of MessagePumpNSApplication if called on the main
-  // thread.  Otherwise, returns a new instance of MessagePumpNSRunLoop.
+  // If not on the main thread, returns a new instance of
+  // MessagePumpNSRunLoop.
+  //
+  // On the main thread, if NSApp exists and conforms to
+  // CrAppProtocol, creates an instances of MessagePumpCrApplication.
+  //
+  // Otherwise creates an instance of MessagePumpNSApplication using a
+  // default NSApplication.
   static MessagePump* Create();
+
+  // If a pump is created before the required CrAppProtocol is
+  // created, the wrong MessagePump subclass could be used.
+  // UsingCrApp() returns false if the message pump was created before
+  // NSApp was initialized, or if NSApp does not implement
+  // CrAppProtocol.  NSApp must be initialized before calling.
+  static bool UsingCrApp();
+
+  // Wrapper to query -[NSApp isHandlingSendEvent] from C++ code.
+  // Requires NSApp to implement CrAppProtocol.
+  static bool IsHandlingSendEvent();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(MessagePumpMac);
