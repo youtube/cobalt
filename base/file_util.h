@@ -259,7 +259,7 @@ BASE_EXPORT bool IsDirectoryEmpty(const FilePath& dir_path);
 BASE_EXPORT bool GetTempDir(FilePath* path);
 // Get a temporary directory for shared memory files.
 // Only useful on POSIX; redirects to GetTempDir() on Windows.
-BASE_EXPORT bool GetShmemTempDir(FilePath* path);
+BASE_EXPORT bool GetShmemTempDir(FilePath* path, bool executable);
 
 // Get the home directory.  This is more complicated than just getenv("HOME")
 // as it knows to fall back on getpwent() etc.
@@ -279,7 +279,10 @@ BASE_EXPORT bool CreateTemporaryFileInDir(const FilePath& dir,
 // Returns a handle to the opened file or NULL if an error occured.
 BASE_EXPORT FILE* CreateAndOpenTemporaryFile(FilePath* path);
 // Like above but for shmem files.  Only useful for POSIX.
-BASE_EXPORT FILE* CreateAndOpenTemporaryShmemFile(FilePath* path);
+// The executable flag says the file needs to support using
+// mprotect with PROT_EXEC after mapping.
+BASE_EXPORT FILE* CreateAndOpenTemporaryShmemFile(FilePath* path,
+                                                  bool executable);
 // Similar to CreateAndOpenTemporaryFile, but the file is created in |dir|.
 BASE_EXPORT FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir,
                                                   FilePath* path);
