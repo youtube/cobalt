@@ -278,6 +278,13 @@ NET_ERROR(SSL_BAD_PEER_PUBLIC_KEY, -149)
 // one of a set of public keys exist on the path from the leaf to the root.
 NET_ERROR(SSL_PINNED_KEY_NOT_IN_CERT_CHAIN, -150)
 
+// Server request for client certificate did not contain any types we support.
+NET_ERROR(CLIENT_AUTH_CERT_TYPE_UNSUPPORTED, -151)
+
+// Server requested one type of cert, then requested a different type while the
+// first was still being generated.
+NET_ERROR(ORIGIN_BOUND_CERT_GENERATION_TYPE_MISMATCH, -152)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.

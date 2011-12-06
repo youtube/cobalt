@@ -104,6 +104,76 @@ ECPrivateKey* ECPrivateKey::CreateSensitiveFromEncryptedPrivateKeyInfo(
 #endif
 }
 
+// static
+bool ECPrivateKey::ImportFromEncryptedPrivateKeyInfo(
+    const std::string& password,
+    const uint8* encrypted_private_key_info,
+    size_t encrypted_private_key_info_len,
+    CERTSubjectPublicKeyInfo* decoded_spki,
+    bool permanent,
+    bool sensitive,
+    SECKEYPrivateKey** key,
+    SECKEYPublicKey** public_key) {
+  ScopedPK11Slot slot(GetPrivateNSSKeySlot());
+  if (!slot.get())
+    return false;
+
+  *public_key = SECKEY_ExtractPublicKey(decoded_spki);
+
+  if (!*public_key) {
+    DLOG(ERROR) << "SECKEY_ExtractPublicKey: " << PORT_GetError();
+    return false;
+  }
+
+  SECItem encoded_epki = {
+    siBuffer,
+    const_cast<unsigned char*>(encrypted_private_key_info),
+    encrypted_private_key_info_len
+  };
+  SECKEYEncryptedPrivateKeyInfo epki;
+  memset(&epki, 0, sizeof(epki));
+
+  ScopedPLArenaPool arena(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
+
+  SECStatus rv = SEC_QuickDERDecodeItem(
+      arena.get(),
+      &epki,
+      SEC_ASN1_GET(SECKEY_EncryptedPrivateKeyInfoTemplate),
+      &encoded_epki);
+  if (rv != SECSuccess) {
+    DLOG(ERROR) << "SEC_QuickDERDecodeItem: " << PORT_GetError();
+    SECKEY_DestroyPublicKey(*public_key);
+    *public_key = NULL;
+    return false;
+  }
+
+  SECItem password_item = {
+    siBuffer,
+    reinterpret_cast<unsigned char*>(const_cast<char*>(password.data())),
+    password.size()
+  };
+
+  rv = ImportEncryptedECPrivateKeyInfoAndReturnKey(
+      slot.get(),
+      &epki,
+      &password_item,
+      NULL,  // nickname
+      &(*public_key)->u.ec.publicValue,
+      permanent,
+      sensitive,
+      key,
+      NULL);  // wincx
+  if (rv != SECSuccess) {
+    DLOG(ERROR) << "ImportEncryptedECPrivateKeyInfoAndReturnKey: "
+                << PORT_GetError();
+    SECKEY_DestroyPublicKey(*public_key);
+    *public_key = NULL;
+    return false;
+  }
+
+  return true;
+}
+
 bool ECPrivateKey::ExportEncryptedPrivateKey(
     const std::string& password,
     int iterations,
@@ -227,10 +297,6 @@ ECPrivateKey* ECPrivateKey::CreateFromEncryptedPrivateKeyInfoWithParams(
 
   scoped_ptr<ECPrivateKey> result(new ECPrivateKey);
 
-  ScopedPK11Slot slot(GetPrivateNSSKeySlot());
-  if (!slot.get())
-    return NULL;
-
   SECItem encoded_spki = {
     siBuffer,
     const_cast<unsigned char*>(&subject_public_key_info[0]),
@@ -243,58 +309,22 @@ ECPrivateKey* ECPrivateKey::CreateFromEncryptedPrivateKeyInfoWithParams(
     return NULL;
   }
 
-  result->public_key_ = SECKEY_ExtractPublicKey(decoded_spki);
-
-  SECKEY_DestroySubjectPublicKeyInfo(decoded_spki);
-
-  if (!result->public_key_) {
-    DLOG(ERROR) << "SECKEY_ExtractPublicKey: " << PORT_GetError();
-    return NULL;
-  }
-
-  SECItem encoded_epki = {
-    siBuffer,
-    const_cast<unsigned char*>(&encrypted_private_key_info[0]),
-    encrypted_private_key_info.size()
-  };
-  SECKEYEncryptedPrivateKeyInfo epki;
-  memset(&epki, 0, sizeof(epki));
-
-  ScopedPLArenaPool arena(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
-
-  SECStatus rv = SEC_QuickDERDecodeItem(
-      arena.get(),
-      &epki,
-      SEC_ASN1_GET(SECKEY_EncryptedPrivateKeyInfoTemplate),
-      &encoded_epki);
-  if (rv != SECSuccess) {
-    DLOG(ERROR) << "SEC_ASN1DecodeItem: " << PORT_GetError();
-    return NULL;
-  }
-
-  SECItem password_item = {
-    siBuffer,
-    reinterpret_cast<unsigned char*>(const_cast<char*>(password.data())),
-    password.size()
-  };
-
-  rv = ImportEncryptedECPrivateKeyInfoAndReturnKey(
-      slot.get(),
-      &epki,
-      &password_item,
-      NULL,  // nickname
-      &result->public_key_->u.ec.publicValue,
+  bool success = ECPrivateKey::ImportFromEncryptedPrivateKeyInfo(
+      password,
+      &encrypted_private_key_info[0],
+      encrypted_private_key_info.size(),
+      decoded_spki,
       permanent,
       sensitive,
       &result->key_,
-      NULL);  // wincx
-  if (rv != SECSuccess) {
-    DLOG(ERROR) << "ImportEncryptedECPrivateKeyInfoAndReturnKey: "
-                << PORT_GetError();
-    return NULL;
-  }
+      &result->public_key_);
 
-  return result.release();
+  SECKEY_DestroySubjectPublicKeyInfo(decoded_spki);
+
+  if (success)
+    return result.release();
+
+  return NULL;
 }
 
 }  // namespace crypto
