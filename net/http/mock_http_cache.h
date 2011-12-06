@@ -127,6 +127,8 @@ class MockDiskCache : public disk_cache::Backend {
                                net::OldCompletionCallback* callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
                             net::OldCompletionCallback* callback) OVERRIDE;
+  virtual int OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
+                            const net::CompletionCallback& callback) OVERRIDE;
   virtual void EndEnumeration(void** iter) OVERRIDE;
   virtual void GetStats(
       std::vector<std::pair<std::string, std::string> >* stats) OVERRIDE;

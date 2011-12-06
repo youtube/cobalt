@@ -637,6 +637,11 @@ int MockDiskCache::OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
   return net::ERR_NOT_IMPLEMENTED;
 }
 
+int MockDiskCache::OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
+                                 const net::CompletionCallback& callback) {
+  return net::ERR_NOT_IMPLEMENTED;
+}
+
 void MockDiskCache::EndEnumeration(void** iter) {
 }
 
