@@ -13,7 +13,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"
-#include "net/base/capturing_net_log.h"
 #include "net/base/host_cache.h"
 #include "net/base/host_resolver.h"
 #include "net/base/host_resolver_proc.h"
