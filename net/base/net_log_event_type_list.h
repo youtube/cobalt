@@ -952,6 +952,7 @@ EVENT_TYPE(SPDY_SESSION_SEND_RST_STREAM)
 // The following parameters are attached:
 //   {
 //     "unique_id": <The unique id of the PING message>,
+//     "type": <The PING type ("sent", "received")>,
 //   }
 EVENT_TYPE(SPDY_SESSION_PING)
 
