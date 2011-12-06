@@ -12,10 +12,13 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
+#include "media/audio/win/device_enumeration_win.h"
 
 namespace {
 const int kStopInputStreamCallbackTimeout = 3000; // Three seconds.
 }
+
+using media::AudioDeviceNames;
 
 // Our sound buffers are allocated once and kept in a linked list using the
 // the WAVEHDR::dwUser variable. The last buffer points to the first buffer.
@@ -25,7 +28,7 @@ static WAVEHDR* GetNextBuffer(WAVEHDR* current) {
 
 PCMWaveInAudioInputStream::PCMWaveInAudioInputStream(
     AudioManagerWin* manager, const AudioParameters& params, int num_buffers,
-    UINT device_id)
+    const std::string& device_id)
     : state_(kStateEmpty),
       manager_(manager),
       device_id_(device_id),
@@ -58,10 +61,20 @@ bool PCMWaveInAudioInputStream::Open() {
     return false;
   if (num_buffers_ < 2 || num_buffers_ > 10)
     return false;
-  MMRESULT result = ::waveInOpen(&wavein_, device_id_, &format_,
-                                 reinterpret_cast<DWORD_PTR>(WaveCallback),
-                                 reinterpret_cast<DWORD_PTR>(this),
-                                 CALLBACK_FUNCTION);
+
+  // Convert the stored device id string into an unsigned integer
+  // corresponding to the selected device.
+  UINT device_id = WAVE_MAPPER;
+  if (!GetDeviceId(&device_id)) {
+    return false;
+  }
+
+  // Open the specified input device for recording.
+  MMRESULT result = MMSYSERR_NOERROR;
+  result = ::waveInOpen(&wavein_, device_id, &format_,
+                        reinterpret_cast<DWORD_PTR>(WaveCallback),
+                        reinterpret_cast<DWORD_PTR>(this),
+                        CALLBACK_FUNCTION);
   if (result != MMSYSERR_NOERROR)
     return false;
 
@@ -183,6 +196,41 @@ void PCMWaveInAudioInputStream::QueueNextPacket(WAVEHDR *buffer) {
   MMRESULT res = ::waveInAddBuffer(wavein_, buffer, sizeof(WAVEHDR));
   if (res != MMSYSERR_NOERROR)
     HandleError(res);
+}
+
+bool PCMWaveInAudioInputStream::GetDeviceId(UINT* device_index) {
+  // Deliver the default input device id (WAVE_MAPPER) if the default
+  // device has been selected.
+  if (device_id_ == AudioManagerBase::kDefaultDeviceId) {
+    *device_index = WAVE_MAPPER;
+    return true;
+  }
+
+  // Get list of all available and active devices.
+  AudioDeviceNames device_names;
+  if (!GetInputDeviceNamesWinXP(&device_names))
+    return false;
+
+  if (device_names.empty())
+    return false;
+
+  // Search the full list of devices and compare with the specified
+  // device id which was specified in the constructor. Stop comparing
+  // when a match is found and return the corresponding index.
+  UINT index = 0;
+  bool found_device = false;
+  AudioDeviceNames::const_iterator it = device_names.begin();
+  while (it != device_names.end()) {
+    if (it->unique_id.compare(device_id_) == 0) {
+      *device_index = index;
+      found_device = true;
+      break;
+    }
+    ++index;
+    ++it;
+  }
+
+  return found_device;
 }
 
 // Windows calls us back in this function when some events happen. Most notably

@@ -15,14 +15,15 @@ using base::win::ScopedComPtr;
 using base::win::ScopedCOMInitializer;
 
 WASAPIAudioInputStream::WASAPIAudioInputStream(
-    AudioManagerWin* manager, const AudioParameters& params, ERole device_role)
+    AudioManagerWin* manager, const AudioParameters& params,
+    const std::string& device_id)
     : com_init_(ScopedCOMInitializer::kMTA),
       manager_(manager),
       capture_thread_(NULL),
       opened_(false),
       started_(false),
       endpoint_buffer_size_frames_(0),
-      device_role_(device_role),
+      device_id_(device_id),
       sink_(NULL) {
   DCHECK(manager_);
 
@@ -78,9 +79,10 @@ bool WASAPIAudioInputStream::Open() {
   if (opened_)
     return false;
 
-  // Obtain a reference to the IMMDevice interface of the default capturing
-  // device with the specified role.
-  HRESULT hr = SetCaptureDevice(device_role_);
+  // Obtain a reference to the IMMDevice interface of the capturing
+  // device with the specified unique identifier or role which was
+  // set at construction.
+  HRESULT hr = SetCaptureDevice();
   if (FAILED(hr)) {
     return false;
   }
@@ -379,7 +381,7 @@ void WASAPIAudioInputStream::HandleError(HRESULT err) {
     sink_->OnError(this, static_cast<int>(err));
 }
 
-HRESULT WASAPIAudioInputStream::SetCaptureDevice(ERole device_role) {
+HRESULT WASAPIAudioInputStream::SetCaptureDevice() {
   ScopedComPtr<IMMDeviceEnumerator> enumerator;
   HRESULT hr =  CoCreateInstance(__uuidof(MMDeviceEnumerator),
                                  NULL,
@@ -387,14 +389,27 @@ HRESULT WASAPIAudioInputStream::SetCaptureDevice(ERole device_role) {
                                  __uuidof(IMMDeviceEnumerator),
                                  enumerator.ReceiveVoid());
   if (SUCCEEDED(hr)) {
-    // Retrieve the default capture audio endpoint for the specified role.
-    // Note that, in Windows Vista, the MMDevice API supports device roles
-    // but the system-supplied user interface programs do not.
-    hr = enumerator->GetDefaultAudioEndpoint(eCapture,
-                                             device_role,
-                                             endpoint_device_.Receive());
+    // Retrieve the IMMDevice by using the specified role or the specified
+    // unique endpoint device-identification string.
+    // TODO(henrika): possibly add suport for the eCommunications as well.
+    if (device_id_ == AudioManagerBase::kDefaultDeviceId) {
+      // Retrieve the default capture audio endpoint for the specified role.
+      // Note that, in Windows Vista, the MMDevice API supports device roles
+      // but the system-supplied user interface programs do not.
+      hr = enumerator->GetDefaultAudioEndpoint(eCapture,
+                                               eConsole,
+                                               endpoint_device_.Receive());
+    } else {
+      // Retrieve a capture endpoint device that is specified by an endpoint
+      // device-identification string.
+      hr = enumerator->GetDevice(UTF8ToUTF16(device_id_).c_str(),
+                                 endpoint_device_.Receive());
+    }
 
-    // Verify that the audio endpoint device is active. That is, the audio
+    if (FAILED(hr))
+      return hr;
+
+    // Verify that the audio endpoint device is active, i.e., the audio
     // adapter that connects to the endpoint device is present and enabled.
     DWORD state = DEVICE_STATE_DISABLED;
     hr = endpoint_device_->GetState(&state);

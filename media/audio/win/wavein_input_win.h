@@ -24,7 +24,7 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
   PCMWaveInAudioInputStream(AudioManagerWin* manager,
                             const AudioParameters& params,
                             int num_buffers,
-                            UINT device_id);
+                            const std::string& device_id);
   virtual ~PCMWaveInAudioInputStream();
 
   // Implementation of AudioInputStream.
@@ -61,6 +61,10 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
   // Sends a buffer to the audio driver for recording.
   void QueueNextPacket(WAVEHDR* buffer);
 
+  // Converts the stored device id string into an unsigned integer which
+  // can be used by waveInOpen() to open the specified capture device.
+  bool GetDeviceId(UINT* device_index);
+
   // Reader beware. Visual C has stronger guarantees on volatile vars than
   // most people expect. In fact, it has release semantics on write and
   // acquire semantics on reads. See the msdn documentation.
@@ -82,9 +86,10 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
   // Channels, 1 or 2.
   const int channels_;
 
-  // The id assigned by the operating system to the selected wave output
-  // hardware device. Usually this is just -1 which means 'default device'.
-  UINT device_id_;
+  // Contains the unique name of the selected endpoint device.
+  // Note that AudioManagerBase::kDefaultDeviceId represents the default
+  // device role and is not a valid ID as such.
+  std::string device_id_;
 
   // Windows native structure to encode the format parameters.
   WAVEFORMATEX format_;
