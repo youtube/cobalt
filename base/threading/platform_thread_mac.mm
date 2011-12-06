@@ -13,6 +13,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/threading/thread_local.h"
+#include "base/tracked_objects.h"
 
 namespace base {
 
@@ -48,6 +49,7 @@ void InitThreading() {
 // static
 void PlatformThread::SetName(const char* name) {
   current_thread_name.Pointer()->Set(const_cast<char*>(name));
+  tracked_objects::ThreadData::InitializeThreadContext(name);
 
   // pthread_setname_np is only available in 10.6 or later, so test
   // for it at runtime.
