@@ -85,6 +85,15 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
   // not be called if |capability_| is INCAPABLE.
   int GetPipelineCapacity() const;
 
+  // Returns true if |pipeline| can handle a new request. This is true if the
+  // |pipeline| is active, usable, has capacity, and |capability_| is
+  // sufficient.
+  bool CanPipelineAcceptRequests(HttpPipelinedConnection* pipeline) const;
+
+  // Called when |this| moves from UNKNOWN |capability_| to PROBABLY_CAPABLE.
+  // Causes all pipelines to increase capacity to start pipelining.
+  void NotifyAllPipelinesHaveCapacity();
+
   HttpPipelinedHost::Delegate* delegate_;
   const HostPortPair origin_;
   PipelineInfoMap pipelines_;

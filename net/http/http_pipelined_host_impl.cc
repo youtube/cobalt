@@ -69,9 +69,7 @@ HttpPipelinedStream* HttpPipelinedHostImpl::CreateStreamOnExistingPipeline() {
   HttpPipelinedConnection* available_pipeline = NULL;
   for (PipelineInfoMap::iterator it = pipelines_.begin();
        it != pipelines_.end(); ++it) {
-    if (it->first->usable() &&
-        it->first->active() &&
-        it->first->depth() < GetPipelineCapacity() &&
+    if (CanPipelineAcceptRequests(it->first) &&
         (!available_pipeline ||
          it->first->depth() < available_pipeline->depth())) {
       available_pipeline = it->first;
@@ -86,9 +84,7 @@ HttpPipelinedStream* HttpPipelinedHostImpl::CreateStreamOnExistingPipeline() {
 bool HttpPipelinedHostImpl::IsExistingPipelineAvailable() const {
   for (PipelineInfoMap::const_iterator it = pipelines_.begin();
        it != pipelines_.end(); ++it) {
-    if (it->first->usable() &&
-        it->first->active() &&
-        it->first->depth() < GetPipelineCapacity()) {
+    if (CanPipelineAcceptRequests(it->first)) {
       return true;
     }
   }
@@ -112,9 +108,7 @@ void HttpPipelinedHostImpl::OnPipelineEmpty(HttpPipelinedConnection* pipeline) {
 void HttpPipelinedHostImpl::OnPipelineHasCapacity(
     HttpPipelinedConnection* pipeline) {
   CHECK(ContainsKey(pipelines_, pipeline));
-  if (pipeline->usable() &&
-      capability_ != INCAPABLE &&
-      pipeline->depth() < GetPipelineCapacity()) {
+  if (CanPipelineAcceptRequests(pipeline)) {
     delegate_->OnHostHasAdditionalCapacity(this);
   }
   if (!pipeline->depth()) {
@@ -132,10 +126,7 @@ void HttpPipelinedHostImpl::OnPipelineFeedback(
       ++pipelines_[pipeline].num_successes;
       if (capability_ == UNKNOWN) {
         capability_ = PROBABLY_CAPABLE;
-        for (PipelineInfoMap::iterator it = pipelines_.begin();
-             it != pipelines_.end(); ++it) {
-          OnPipelineHasCapacity(it->first);
-        }
+        NotifyAllPipelinesHaveCapacity();
       } else if (capability_ == PROBABLY_CAPABLE &&
                  pipelines_[pipeline].num_successes >=
                      kNumKnownSuccessesThreshold) {
@@ -174,6 +165,26 @@ int HttpPipelinedHostImpl::GetPipelineCapacity() const {
       CHECK(false) << "Unkown pipeline capability: " << capability_;
   }
   return capacity;
+}
+
+bool HttpPipelinedHostImpl::CanPipelineAcceptRequests(
+    HttpPipelinedConnection* pipeline) const {
+  return capability_ != INCAPABLE &&
+      pipeline->usable() &&
+      pipeline->active() &&
+      pipeline->depth() < GetPipelineCapacity();
+}
+
+void HttpPipelinedHostImpl::NotifyAllPipelinesHaveCapacity() {
+  // Calling OnPipelineHasCapacity() can have side effects that include
+  // deleting and removing entries from |pipelines_|.
+  PipelineInfoMap pipelines_to_notify = pipelines_;
+  for (PipelineInfoMap::iterator it = pipelines_to_notify.begin();
+       it != pipelines_to_notify.end(); ++it) {
+    if (pipelines_.find(it->first) != pipelines_.end()) {
+      OnPipelineHasCapacity(it->first);
+    }
+  }
 }
 
 HttpPipelinedHostImpl::PipelineInfo::PipelineInfo()
