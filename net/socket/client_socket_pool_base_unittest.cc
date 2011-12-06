@@ -64,9 +64,12 @@ class MockClientSocket : public StreamSocket {
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
   virtual bool SetSendBufferSize(int32 size) { return true; }
 
-  // StreamSocket methods:
-
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback) {
+    connected_ = true;
+    return OK;
+  }
+  virtual int Connect(const net::CompletionCallback& callback) {
     connected_ = true;
     return OK;
   }
