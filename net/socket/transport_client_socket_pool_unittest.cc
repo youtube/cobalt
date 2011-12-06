@@ -51,8 +51,12 @@ class MockClientSocket : public StreamSocket {
       : connected_(false),
         addrlist_(addrlist) {}
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback) {
+    connected_ = true;
+    return OK;
+  }
+  virtual int Connect(const CompletionCallback& callback) {
     connected_ = true;
     return OK;
   }
@@ -112,8 +116,11 @@ class MockFailingClientSocket : public StreamSocket {
  public:
   MockFailingClientSocket(const AddressList& addrlist) : addrlist_(addrlist) {}
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback) {
+    return ERR_CONNECTION_FAILED;
+  }
+  virtual int Connect(const net::CompletionCallback& callback) {
     return ERR_CONNECTION_FAILED;
   }
 
@@ -173,19 +180,28 @@ class MockPendingClientSocket : public StreamSocket {
       bool should_connect,
       bool should_stall,
       int delay_ms)
-      : method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
+      : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
         should_connect_(should_connect),
         should_stall_(should_stall),
         delay_ms_(delay_ms),
         is_connected_(false),
         addrlist_(addrlist) {}
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback) {
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(
-           &MockPendingClientSocket::DoCallback, callback), delay_ms_);
+        base::Bind(&MockPendingClientSocket::DoOldCallback,
+                   weak_factory_.GetWeakPtr(), callback),
+        delay_ms_);
+    return ERR_IO_PENDING;
+  }
+  virtual int Connect(const CompletionCallback& callback) {
+    MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&MockPendingClientSocket::DoCallback,
+                   weak_factory_.GetWeakPtr(), callback),
+        delay_ms_);
     return ERR_IO_PENDING;
   }
 
@@ -236,7 +252,7 @@ class MockPendingClientSocket : public StreamSocket {
   virtual bool SetSendBufferSize(int32 size) { return true; }
 
  private:
-  void DoCallback(OldCompletionCallback* callback) {
+  void DoOldCallback(OldCompletionCallback* callback) {
     if (should_stall_)
       return;
 
@@ -248,8 +264,20 @@ class MockPendingClientSocket : public StreamSocket {
       callback->Run(ERR_CONNECTION_FAILED);
     }
   }
+  void DoCallback(const CompletionCallback& callback) {
+    if (should_stall_)
+      return;
 
-  ScopedRunnableMethodFactory<MockPendingClientSocket> method_factory_;
+    if (should_connect_) {
+      is_connected_ = true;
+      callback.Run(OK);
+    } else {
+      is_connected_ = false;
+      callback.Run(ERR_CONNECTION_FAILED);
+    }
+  }
+
+  base::WeakPtrFactory<MockPendingClientSocket> weak_factory_;
   bool should_connect_;
   bool should_stall_;
   int delay_ms_;

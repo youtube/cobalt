@@ -41,8 +41,9 @@ class NET_EXPORT TCPClientSocketWin : public StreamSocket,
   // Binds the socket to a local IP address and port.
   int Bind(const IPEndPoint& address);
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback);
+  virtual int Connect(const CompletionCallback& callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -56,7 +57,7 @@ class NET_EXPORT TCPClientSocketWin : public StreamSocket,
   virtual int64 NumBytesRead() const;
   virtual base::TimeDelta GetConnectTimeMicros() const;
 
-  // Socket methods:
+  // Socket implementation.
   // Multiple outstanding requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
@@ -123,7 +124,8 @@ class NET_EXPORT TCPClientSocketWin : public StreamSocket,
   scoped_refptr<Core> core_;
 
   // External callback; called when connect or read is complete.
-  OldCompletionCallback* read_callback_;
+  OldCompletionCallback* old_read_callback_;
+  CompletionCallback read_callback_;
 
   // External callback; called when write is complete.
   OldCompletionCallback* write_callback_;

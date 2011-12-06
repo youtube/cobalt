@@ -52,6 +52,7 @@ class NET_EXPORT_PRIVATE SOCKS5ClientSocket : public StreamSocket {
 
   // Does the SOCKS handshake and completes the protocol.
   virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
   virtual void Disconnect() OVERRIDE;
   virtual bool IsConnected() const OVERRIDE;
   virtual bool IsConnectedAndIdle() const OVERRIDE;
@@ -129,7 +130,8 @@ class NET_EXPORT_PRIVATE SOCKS5ClientSocket : public StreamSocket {
   State next_state_;
 
   // Stores the callback to the layer above, called on completing Connect().
-  OldCompletionCallback* user_callback_;
+  OldCompletionCallback* old_user_callback_;
+  CompletionCallback user_callback_;
 
   // This IOBuffer is used by the class to read and write
   // SOCKS handshake data. The length contains the expected size to
