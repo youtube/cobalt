@@ -1415,10 +1415,24 @@ int BackendImpl::DoomAllEntries(OldCompletionCallback* callback) {
   return net::ERR_IO_PENDING;
 }
 
+int BackendImpl::DoomAllEntries(const net::CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
+  background_queue_.DoomAllEntries(callback);
+  return net::ERR_IO_PENDING;
+}
+
 int BackendImpl::DoomEntriesBetween(const base::Time initial_time,
                                     const base::Time end_time,
                                     OldCompletionCallback* callback) {
   DCHECK(callback);
+  background_queue_.DoomEntriesBetween(initial_time, end_time, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::DoomEntriesBetween(const base::Time initial_time,
+                                    const base::Time end_time,
+                                    const net::CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
   background_queue_.DoomEntriesBetween(initial_time, end_time, callback);
   return net::ERR_IO_PENDING;
 }
