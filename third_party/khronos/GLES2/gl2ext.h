@@ -212,6 +212,12 @@ typedef void* GLeglImageOES;
 #define GL_PACK_REVERSE_ROW_ORDER_ANGLE                         0x93A4
 #endif
 
+/* GL_ANGLE_texture_usage */
+#ifndef GL_ANGLE_texture_usage
+#define GL_TEXTURE_USAGE_ANGLE                                  0x93A2
+#define GL_FRAMEBUFFER_ATTACHMENT_ANGLE                         0x93A3
+#endif
+
 /*------------------------------------------------------------------------*
  * APPLE extension tokens
  *------------------------------------------------------------------------*/
@@ -313,6 +319,31 @@ typedef void* GLeglImageOES;
 #define GL_UNPACK_ROW_LENGTH                                    0x0CF2
 #define GL_UNPACK_SKIP_ROWS                                     0x0CF3
 #define GL_UNPACK_SKIP_PIXELS                                   0x0CF4
+#endif
+
+/* GL_EXT_texture_storage */
+#ifndef GL_EXT_texture_storage
+#define GL_TEXTURE_IMMUTABLE_FORMAT_EXT                         0x912F
+#define GL_ALPHA8_EXT                                           0x803C
+#define GL_LUMINANCE8_EXT                                       0x8040
+#define GL_LUMINANCE8_ALPHA8_EXT                                0x8045
+/* OES_texture_float dependent internal formats */
+#define GL_RGBA32F_EXT                                          0x8814  /* reuse tokens from ARB_texture_float */
+#define GL_RGB32F_EXT                                           0x8815
+#define GL_ALPHA32F_EXT                                         0x8816
+#define GL_LUMINANCE32F_EXT                                     0x8818
+#define GL_LUMINANCE_ALPHA32F_EXT                               0x8819
+/* OES_texture_half_float dependent internal formats */
+#define GL_RGBA16F_EXT                                          0x881A /* reuse tokens from ARB_texture_float */
+#define GL_RGB16F_EXT                                           0x881B
+#define GL_ALPHA16F_EXT                                         0x881C
+#define GL_LUMINANCE16F_EXT                                     0x881E
+#define GL_LUMINANCE_ALPHA16F_EXT                               0x881F
+/* EXT_texture_type_2_10_10_10_REV dependent internal formats */
+#define GL_RGB10_A2_EXT                                         0x8059  /* reuse tokens from EXT_texture */
+#define GL_RGB10_EXT                                            0x8052
+/* EXT_texture_format_BGRA8888 dependent internal formats */
+#define GL_BGRA8_EXT                                            0x93A1
 #endif
 
 /*------------------------------------------------------------------------*
@@ -800,6 +831,11 @@ typedef void (GL_APIENTRYP PFNGLRENDERBUFFERSTORAGEMULTISAMPLEANGLEPROC) (GLenum
 #define GL_ANGLE_pack_reverse_row_order 1
 #endif
 
+/* GL_ANGLE_texture_usage */
+#ifndef GL_ANGLE_texture_usage
+#define GL_ANGLE_texture_usage 1
+#endif
+
 /*------------------------------------------------------------------------*
  * APPLE extension functions
  *------------------------------------------------------------------------*/
@@ -905,6 +941,15 @@ typedef void (GL_APIENTRYP PFNGLMULTIDRAWELEMENTSEXTPROC) (GLenum mode, const GL
 /* GL_EXT_unpack_subimage */
 #ifndef GL_EXT_unpack_subimage
 #define GL_EXT_unpack_subimage 1
+#endif
+
+/* GL_EXT_texture_storage */
+#ifndef GL_EXT_texture_storage
+#define GL_EXT_texture_storage 1
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glTexStorage2DEXT (GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
+#endif /* GL_GLEXT_PROTOTYPES */
+typedef void (GL_APIENTRYP PFNGLTEXSTORAGE2DEXT) (GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
 #endif
 
 /*------------------------------------------------------------------------*
