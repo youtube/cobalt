@@ -65,7 +65,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   int SyncInit();
   void CleanupCache();
 
-  // Same bahavior as OpenNextEntry but walks the list from back to front.
+  // Same behavior as OpenNextEntry but walks the list from back to front.
   int OpenPrevEntry(void** iter, Entry** prev_entry,
                     OldCompletionCallback* callback);
 
@@ -260,8 +260,12 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
                         OldCompletionCallback* callback) OVERRIDE;
+  virtual int OpenEntry(const std::string& key, Entry** entry,
+                        const net::CompletionCallback& callback) OVERRIDE;
   virtual int CreateEntry(const std::string& key, Entry** entry,
                           OldCompletionCallback* callback) OVERRIDE;
+  virtual int CreateEntry(const std::string& key, Entry** entry,
+                          const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
                         OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomAllEntries(OldCompletionCallback* callback) OVERRIDE;
