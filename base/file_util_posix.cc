@@ -481,9 +481,9 @@ bool CreateTemporaryFile(FilePath* path) {
   return true;
 }
 
-FILE* CreateAndOpenTemporaryShmemFile(FilePath* path) {
+FILE* CreateAndOpenTemporaryShmemFile(FilePath* path, bool executable) {
   FilePath directory;
-  if (!GetShmemTempDir(&directory))
+  if (!GetShmemTempDir(&directory, executable))
     return NULL;
 
   return CreateAndOpenTemporaryFileInDir(directory, path);
@@ -910,15 +910,52 @@ bool GetTempDir(FilePath* path) {
 }
 
 #if !defined(OS_ANDROID)
-bool GetShmemTempDir(FilePath* path) {
+
 #if defined(OS_LINUX)
-  *path = FilePath("/dev/shm");
-  return true;
-#else
-  return GetTempDir(path);
-#endif
+// Determine if /dev/shm files can be mapped and then mprotect'd PROT_EXEC.
+// This depends on the mount options used for /dev/shm, which vary among
+// different Linux distributions and possibly local configuration.  It also
+// depends on details of kernel--ChromeOS uses the noexec option for /dev/shm
+// but its kernel allows mprotect with PROT_EXEC anyway.
+
+namespace {
+
+bool DetermineDevShmExecutable() {
+  bool result = false;
+  FilePath path;
+  int fd = CreateAndOpenFdForTemporaryFile(FilePath("/dev/shm"), &path);
+  if (fd >= 0) {
+    ScopedFD shm_fd_closer(&fd);
+    Delete(path, false);
+    size_t pagesize = sysconf(_SC_PAGESIZE);
+    void *mapping = mmap(NULL, pagesize, PROT_READ, MAP_SHARED, fd, 0);
+    if (mapping != MAP_FAILED) {
+      if (mprotect(mapping, pagesize, PROT_READ | PROT_EXEC) == 0)
+        result = true;
+      munmap(mapping, pagesize);
+    }
+  }
+  return result;
 }
+
+};  // namespace
+#endif  // defined(OS_LINUX)
+
+bool GetShmemTempDir(FilePath* path, bool executable) {
+#if defined(OS_LINUX)
+  bool use_dev_shm = true;
+  if (executable) {
+    static const bool s_dev_shm_executable = DetermineDevShmExecutable();
+    use_dev_shm = s_dev_shm_executable;
+  }
+  if (use_dev_shm) {
+    *path = FilePath("/dev/shm");
+    return true;
+  }
 #endif
+  return GetTempDir(path);
+}
+#endif  // !defined(OS_ANDROID)
 
 FilePath GetHomeDir() {
   const char* home_dir = getenv("HOME");

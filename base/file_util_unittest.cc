@@ -1545,7 +1545,7 @@ TEST_F(FileUtilTest, CreateNewTemporaryDirInDirTest) {
 
 TEST_F(FileUtilTest, GetShmemTempDirTest) {
   FilePath dir;
-  EXPECT_TRUE(file_util::GetShmemTempDir(&dir));
+  EXPECT_TRUE(file_util::GetShmemTempDir(&dir, false));
   EXPECT_TRUE(file_util::DirectoryExists(dir));
 }
 
