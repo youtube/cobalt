@@ -5551,6 +5551,9 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     if (rv != SECSuccess)
     	goto loser;		/* malformed, alert has been sent */
 
+    PORT_Assert(!ss->requestedCertTypes);
+    ss->requestedCertTypes = &cert_types;
+
     arena = ca_list.arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
     if (arena == NULL)
     	goto no_mem;
@@ -5740,6 +5743,7 @@ loser:
     PORT_SetError(errCode);
     rv = SECFailure;
 done:
+    ss->requestedCertTypes = NULL;
     if (arena != NULL)
     	PORT_FreeArena(arena, PR_FALSE);
 #ifdef NSS_PLATFORM_CLIENT_AUTH

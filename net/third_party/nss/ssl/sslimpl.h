@@ -1107,6 +1107,10 @@ struct sslSocketStr {
     unsigned int     sizeCipherSpecs;
 const unsigned char *  preferredCipher;
 
+    /* TLS ClientCertificateTypes requested during HandleCertificateRequest. */
+    /* Will be NULL at all other times. */
+    const SECItem      *requestedCertTypes;
+
     ssl3KeyPair *         stepDownKeyPair;	/* RSA step down keys */
 
     /* Callbacks */
