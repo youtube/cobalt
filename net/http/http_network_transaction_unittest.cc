@@ -9642,4 +9642,182 @@ TEST_F(HttpNetworkTransactionTest, SendPipelineEvictionFallback) {
   EXPECT_EQ("hello world", out.response_data);
 }
 
+TEST_F(HttpNetworkTransactionTest, CloseOldSpdySessionToOpenNewOne) {
+  HttpStreamFactory::set_next_protos(SpdyNextProtos());
+  int old_max_sockets_per_group =
+      ClientSocketPoolManager::max_sockets_per_group();
+  int old_max_sockets_per_proxy_server =
+      ClientSocketPoolManager::max_sockets_per_proxy_server();
+  int old_max_sockets_per_pool =
+      ClientSocketPoolManager::max_sockets_per_pool();
+  ClientSocketPoolManager::set_max_sockets_per_group(1);
+  ClientSocketPoolManager::set_max_sockets_per_proxy_server(1);
+  ClientSocketPoolManager::set_max_sockets_per_pool(1);
+
+  // Use two different hosts with different IPs so they don't get pooled.
+  SessionDependencies session_deps;
+  session_deps.host_resolver->rules()->AddRule("a.com", "10.0.0.1");
+  session_deps.host_resolver->rules()->AddRule("b.com", "10.0.0.2");
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  SSLSocketDataProvider ssl1(true, OK);
+  ssl1.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl1.next_proto = "spdy/2";
+  ssl1.was_npn_negotiated = true;
+  SSLSocketDataProvider ssl2(true, OK);
+  ssl2.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl2.next_proto = "spdy/2";
+  ssl2.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl1);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl2);
+
+  scoped_ptr<spdy::SpdyFrame> host1_req(ConstructSpdyGet(
+      "https://www.a.com", false, 1, LOWEST));
+  MockWrite spdy1_writes[] = {
+    CreateMockWrite(*host1_req, 1),
+  };
+  scoped_ptr<spdy::SpdyFrame> host1_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> host1_resp_body(ConstructSpdyBodyFrame(1, true));
+  MockRead spdy1_reads[] = {
+    CreateMockRead(*host1_resp, 2),
+    CreateMockRead(*host1_resp_body, 3),
+    MockRead(true, ERR_IO_PENDING, 4),
+  };
+
+  scoped_refptr<OrderedSocketData> spdy1_data(
+      new OrderedSocketData(
+          spdy1_reads, arraysize(spdy1_reads),
+          spdy1_writes, arraysize(spdy1_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy1_data);
+
+  scoped_ptr<spdy::SpdyFrame> host2_req(ConstructSpdyGet(
+      "https://www.b.com", false, 1, LOWEST));
+  MockWrite spdy2_writes[] = {
+    CreateMockWrite(*host2_req, 1),
+  };
+  scoped_ptr<spdy::SpdyFrame> host2_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> host2_resp_body(ConstructSpdyBodyFrame(1, true));
+  MockRead spdy2_reads[] = {
+    CreateMockRead(*host2_resp, 2),
+    CreateMockRead(*host2_resp_body, 3),
+    MockRead(true, ERR_IO_PENDING, 4),
+  };
+
+  scoped_refptr<OrderedSocketData> spdy2_data(
+      new OrderedSocketData(
+          spdy2_reads, arraysize(spdy2_reads),
+          spdy2_writes, arraysize(spdy2_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy2_data);
+
+  MockWrite http_write[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.a.com\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+
+  MockRead http_read[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
+    MockRead("Content-Length: 6\r\n\r\n"),
+    MockRead("hello!"),
+  };
+
+  StaticSocketDataProvider http_data(http_read, arraysize(http_read),
+                                     http_write, arraysize(http_write));
+  session_deps.socket_factory.AddSocketDataProvider(&http_data);
+
+  HostPortPair host_port_pair_a("www.a.com", 443);
+  HostPortProxyPair host_port_proxy_pair_a(
+      host_port_pair_a, ProxyServer::Direct());
+  EXPECT_FALSE(
+      session->spdy_session_pool()->HasSession(host_port_proxy_pair_a));
+
+  TestOldCompletionCallback callback;
+  HttpRequestInfo request1;
+  request1.method = "GET";
+  request1.url = GURL("https://www.a.com/");
+  request1.load_flags = 0;
+  scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request1, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  EXPECT_TRUE(response->was_npn_negotiated);
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello!", response_data);
+  trans.reset();
+  EXPECT_TRUE(
+      session->spdy_session_pool()->HasSession(host_port_proxy_pair_a));
+
+  HostPortPair host_port_pair_b("www.b.com", 443);
+  HostPortProxyPair host_port_proxy_pair_b(
+      host_port_pair_b, ProxyServer::Direct());
+  EXPECT_FALSE(
+      session->spdy_session_pool()->HasSession(host_port_proxy_pair_b));
+  HttpRequestInfo request2;
+  request2.method = "GET";
+  request2.url = GURL("https://www.b.com/");
+  request2.load_flags = 0;
+  trans.reset(new HttpNetworkTransaction(session));
+
+  rv = trans->Start(&request2, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  EXPECT_TRUE(response->was_npn_negotiated);
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello!", response_data);
+  EXPECT_FALSE(
+      session->spdy_session_pool()->HasSession(host_port_proxy_pair_a));
+  EXPECT_TRUE(
+      session->spdy_session_pool()->HasSession(host_port_proxy_pair_b));
+
+  HostPortPair host_port_pair_a1("www.a.com", 80);
+  HostPortProxyPair host_port_proxy_pair_a1(
+      host_port_pair_a1, ProxyServer::Direct());
+  EXPECT_FALSE(
+      session->spdy_session_pool()->HasSession(host_port_proxy_pair_a1));
+  HttpRequestInfo request3;
+  request3.method = "GET";
+  request3.url = GURL("http://www.a.com/");
+  request3.load_flags = 0;
+  trans.reset(new HttpNetworkTransaction(session));
+
+  rv = trans->Start(&request3, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_FALSE(response->was_fetched_via_spdy);
+  EXPECT_FALSE(response->was_npn_negotiated);
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello!", response_data);
+  EXPECT_FALSE(
+      session->spdy_session_pool()->HasSession(host_port_proxy_pair_a));
+  EXPECT_FALSE(
+      session->spdy_session_pool()->HasSession(host_port_proxy_pair_b));
+
+  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  ClientSocketPoolManager::set_max_sockets_per_pool(old_max_sockets_per_pool);
+  ClientSocketPoolManager::set_max_sockets_per_proxy_server(
+      old_max_sockets_per_proxy_server);
+  ClientSocketPoolManager::set_max_sockets_per_group(old_max_sockets_per_group);
+}
+
 }  // namespace net
