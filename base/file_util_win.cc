@@ -556,7 +556,7 @@ bool GetTempDir(FilePath* path) {
   return true;
 }
 
-bool GetShmemTempDir(FilePath* path) {
+bool GetShmemTempDir(FilePath* path, bool executable) {
   return GetTempDir(path);
 }
 
@@ -576,7 +576,7 @@ bool CreateTemporaryFile(FilePath* path) {
   return false;
 }
 
-FILE* CreateAndOpenTemporaryShmemFile(FilePath* path) {
+FILE* CreateAndOpenTemporaryShmemFile(FilePath* path, bool executable) {
   base::ThreadRestrictions::AssertIOAllowed();
   return CreateAndOpenTemporaryFile(path);
 }
