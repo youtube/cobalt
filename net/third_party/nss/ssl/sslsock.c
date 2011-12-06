@@ -1615,6 +1615,20 @@ SSL_HandshakeResumedSession(PRFileDesc *fd, PRBool *handshake_resumed) {
     return SECSuccess;
 }
 
+const SECItem *
+SSL_GetRequestedClientCertificateTypes(PRFileDesc *fd)
+{
+  sslSocket *ss = ssl_FindSocket(fd);
+
+  if (!ss) {
+      SSL_DBG(("%d: SSL[%d]: bad socket in "
+               "SSL_GetRequestedClientCertificateTypes", SSL_GETPID(), fd));
+      return NULL;
+  }
+
+  return ss->requestedCertTypes;
+}
+
 /************************************************************************/
 /* The following functions are the TOP LEVEL SSL functions.
 ** They all get called through the NSPRIOMethods table below.
@@ -2599,6 +2613,7 @@ ssl_NewSocket(PRBool makeLocks)
 	    sc->serverKeyPair   = NULL;
 	    sc->serverKeyBits   = 0;
 	}
+	ss->requestedCertTypes = NULL;
 	ss->stepDownKeyPair    = NULL;
 	ss->dbHandle           = CERT_GetDefaultCertDB();
 
@@ -2639,4 +2654,3 @@ loser:
     }
     return ss;
 }
-
