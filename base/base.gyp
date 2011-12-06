@@ -277,6 +277,7 @@
             'synchronization/cancellation_flag_unittest.cc',
             # TODO(michaelbai): The below files are excluded because of the
             # missing JNI and should be added back once JNI is ready.
+            'android/jni_android_unittest.cc',
             'android/scoped_java_ref_unittest.cc',
             'debug/stack_trace_unittest.cc',
           ],
