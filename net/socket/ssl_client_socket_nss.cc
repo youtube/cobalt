@@ -2152,13 +2152,15 @@ bool SSLClientSocketNSS::OriginBoundCertNegotiated(PRFileDesc* socket) {
 }
 
 SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
-    const std::vector<uint8>& requested_cert_types,
+    const SECItem* cert_types,
     CERTCertificate** result_certificate,
     SECKEYPrivateKey** result_private_key) {
   ob_cert_xtn_negotiated_ = true;
 
   // We have negotiated the origin-bound certificate extension.
   std::string origin = "https://" + host_and_port_.ToString();
+  std::vector<uint8> requested_cert_types(cert_types->data,
+                                          cert_types->data + cert_types->len);
   net_log_.BeginEvent(NetLog::TYPE_SSL_GET_ORIGIN_BOUND_CERT, NULL);
   int error = origin_bound_cert_service_->GetOriginBoundCert(
       origin,
@@ -2211,14 +2213,12 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
 
   that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED, NULL);
 
+  const SECItem* cert_types = SSL_GetRequestedClientCertificateTypes(socket);
+
   // Check if an origin-bound certificate is requested.
   if (OriginBoundCertNegotiated(socket)) {
-    // TODO(mattm): Once NSS supports it, pass the actual requested types.
-    std::vector<uint8> requested_cert_types;
-    requested_cert_types.push_back(CLIENT_CERT_ECDSA_SIGN);
-    requested_cert_types.push_back(CLIENT_CERT_RSA_SIGN);
     return that->OriginBoundClientAuthHandler(
-        requested_cert_types, result_nss_certificate, result_nss_private_key);
+        cert_types, result_nss_certificate, result_nss_private_key);
   }
 
   that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
@@ -2520,14 +2520,12 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
 
   that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED, NULL);
 
+  const SECItem* cert_types = SSL_GetRequestedClientCertificateTypes(socket);
+
   // Check if an origin-bound certificate is requested.
   if (OriginBoundCertNegotiated(socket)) {
-    // TODO(mattm): Once NSS supports it, pass the actual requested types.
-    std::vector<uint8> requested_cert_types;
-    requested_cert_types.push_back(CLIENT_CERT_ECDSA_SIGN);
-    requested_cert_types.push_back(CLIENT_CERT_RSA_SIGN);
     return that->OriginBoundClientAuthHandler(
-        requested_cert_types, result_certificate, result_private_key);
+        cert_types, result_certificate, result_private_key);
   }
 
   // Regular client certificate requested.
