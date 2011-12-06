@@ -165,21 +165,15 @@ AudioInputStream* AudioManagerWin::MakeAudioInputStream(
     return FakeAudioInputStream::MakeFakeStream(params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
     return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
-                                         WAVE_MAPPER);
+                                         AudioManagerBase::kDefaultDeviceId);
   } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
     if (!media::IsWASAPISupported()) {
       // Fall back to Windows Wave implementation on Windows XP or lower.
       DLOG(INFO) << "Using WaveIn since WASAPI requires at least Vista.";
-      // TODO(xians): Handle the non-default device.
-      if (device_id == AudioManagerBase::kDefaultDeviceId)
-        return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
-                                             WAVE_MAPPER);
+      return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
+                                           device_id);
     } else {
-      // TODO(henrika): improve possibility to specify audio endpoint.
-      // Use the default device (same as for Wave) for now to be compatible.
-      // TODO(xians): Handle the non-default device.
-      if (device_id == AudioManagerBase::kDefaultDeviceId)
-        return new WASAPIAudioInputStream(this, params, eConsole);
+      return new WASAPIAudioInputStream(this, params, device_id);
     }
   }
   return NULL;
