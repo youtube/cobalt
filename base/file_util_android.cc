@@ -8,7 +8,7 @@
 
 namespace file_util {
 
-bool GetShmemTempDir(FilePath* path) {
+bool GetShmemTempDir(FilePath* path, bool executable) {
   *path = FilePath("/data/local/tmp");
   return true;
 }
