@@ -75,6 +75,7 @@
 #include "base/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
+#include "crypto/ec_private_key.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_nss_types.h"
 #include "net/base/address_list.h"
@@ -1549,20 +1550,48 @@ int SSLClientSocketNSS::ImportOBCertAndKey(CERTCertificate** cert,
     return MapNSSError(PORT_GetError());
 
   // Set the private key.
-  SECItem der_private_key_info;
-  der_private_key_info.data = (unsigned char*)ob_private_key_.data();
-  der_private_key_info.len = ob_private_key_.size();
-  const unsigned int key_usage = KU_DIGITAL_SIGNATURE;
-  crypto::ScopedPK11Slot slot(PK11_GetInternalSlot());
-  SECStatus rv = PK11_ImportDERPrivateKeyInfoAndReturnKey(
-      slot.get(), &der_private_key_info, NULL, NULL, PR_FALSE, PR_FALSE,
-      key_usage, key, NULL);
+  switch (ob_cert_type_) {
+    case CLIENT_CERT_RSA_SIGN: {
+      SECItem der_private_key_info;
+      der_private_key_info.data = (unsigned char*)ob_private_key_.data();
+      der_private_key_info.len = ob_private_key_.size();
+      const unsigned int key_usage = KU_DIGITAL_SIGNATURE;
+      crypto::ScopedPK11Slot slot(PK11_GetInternalSlot());
+      SECStatus rv = PK11_ImportDERPrivateKeyInfoAndReturnKey(
+          slot.get(), &der_private_key_info, NULL, NULL, PR_FALSE, PR_FALSE,
+          key_usage, key, NULL);
 
-  if (rv != SECSuccess) {
-    int error = MapNSSError(PORT_GetError());
-    CERT_DestroyCertificate(*cert);
-    *cert = NULL;
-    return error;
+      if (rv != SECSuccess) {
+        int error = MapNSSError(PORT_GetError());
+        CERT_DestroyCertificate(*cert);
+        *cert = NULL;
+        return error;
+      }
+      break;
+    }
+
+    case CLIENT_CERT_ECDSA_SIGN: {
+      SECKEYPublicKey* public_key = NULL;
+      if (!crypto::ECPrivateKey::ImportFromEncryptedPrivateKeyInfo(
+          OriginBoundCertService::kEPKIPassword,
+          reinterpret_cast<const unsigned char*>(ob_private_key_.data()),
+          ob_private_key_.size(),
+          &(*cert)->subjectPublicKeyInfo,
+          false,
+          false,
+          key,
+          &public_key)) {
+        CERT_DestroyCertificate(*cert);
+        *cert = NULL;
+        return MapNSSError(PORT_GetError());
+      }
+      SECKEY_DestroyPublicKey(public_key);
+      break;
+    }
+
+    default:
+      NOTREACHED();
+      return ERR_INVALID_ARGUMENT;
   }
 
   return OK;
@@ -2117,6 +2146,7 @@ bool SSLClientSocketNSS::OriginBoundCertNegotiated(PRFileDesc* socket) {
 }
 
 SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
+    const std::vector<uint8>& requested_cert_types,
     CERTCertificate** result_certificate,
     SECKEYPrivateKey** result_private_key) {
   ob_cert_xtn_negotiated_ = true;
@@ -2126,6 +2156,8 @@ SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
   net_log_.BeginEvent(NetLog::TYPE_SSL_GET_ORIGIN_BOUND_CERT, NULL);
   int error = origin_bound_cert_service_->GetOriginBoundCert(
       origin,
+      requested_cert_types,
+      &ob_cert_type_,
       &ob_private_key_,
       &ob_cert_,
       base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
@@ -2175,8 +2207,12 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
 
   // Check if an origin-bound certificate is requested.
   if (OriginBoundCertNegotiated(socket)) {
+    // TODO(mattm): Once NSS supports it, pass the actual requested types.
+    std::vector<uint8> requested_cert_types;
+    requested_cert_types.push_back(CLIENT_CERT_ECDSA_SIGN);
+    requested_cert_types.push_back(CLIENT_CERT_RSA_SIGN);
     return that->OriginBoundClientAuthHandler(
-        result_nss_certificate, result_nss_private_key);
+        requested_cert_types, result_nss_certificate, result_nss_private_key);
   }
 
   that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
@@ -2480,8 +2516,12 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
 
   // Check if an origin-bound certificate is requested.
   if (OriginBoundCertNegotiated(socket)) {
+    // TODO(mattm): Once NSS supports it, pass the actual requested types.
+    std::vector<uint8> requested_cert_types;
+    requested_cert_types.push_back(CLIENT_CERT_ECDSA_SIGN);
+    requested_cert_types.push_back(CLIENT_CERT_RSA_SIGN);
     return that->OriginBoundClientAuthHandler(
-        result_certificate, result_private_key);
+        requested_cert_types, result_certificate, result_private_key);
   }
 
   // Regular client certificate requested.
