@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -269,8 +270,8 @@ class SynchConfigGetter {
     io_thread_.StartWithOptions(options);
 
     // Make sure the thread started.
-    io_thread_.message_loop()->PostTask(FROM_HERE, NewRunnableMethod(
-        this, &SynchConfigGetter::Init));
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&SynchConfigGetter::Init, base::Unretained(this)));
     Wait();
   }
 
@@ -279,8 +280,8 @@ class SynchConfigGetter {
     // before cleaning up that thread.
     delete config_service_;
     // Clean up the IO thread.
-    io_thread_.message_loop()->PostTask(FROM_HERE, NewRunnableMethod(
-        this, &SynchConfigGetter::Cleanup));
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&SynchConfigGetter::CleanUp, base::Unretained(this)));
     Wait();
   }
 
@@ -298,8 +299,9 @@ class SynchConfigGetter {
   // Synchronously gets the proxy config.
   net::ProxyConfigService::ConfigAvailability SyncGetLatestProxyConfig(
       net::ProxyConfig* config) {
-    io_thread_.message_loop()->PostTask(FROM_HERE, NewRunnableMethod(
-        this, &SynchConfigGetter::GetLatestConfigOnIOThread));
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&SynchConfigGetter::GetLatestConfigOnIOThread,
+                   base::Unretained(this)));
     Wait();
     *config = proxy_config_;
     return get_latest_config_result_;
@@ -320,7 +322,7 @@ class SynchConfigGetter {
   }
 
   // [Runs on |io_thread_|] Signals |event_| on cleanup completion.
-  void Cleanup() {
+  void CleanUp() {
     MessageLoop::current()->RunAllPending();
     event_.Signal();
   }
