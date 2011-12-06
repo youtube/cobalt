@@ -45,7 +45,7 @@ class SSLClientSocketWin : public SSLClientSocket {
                      const SSLClientSocketContext& context);
   ~SSLClientSocketWin();
 
-  // SSLClientSocket methods:
+  // SSLClientSocket implementation.
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
@@ -55,8 +55,9 @@ class SSLClientSocketWin : public SSLClientSocket {
   virtual NextProtoStatus GetNextProto(std::string* proto,
                                        std::string* server_protos);
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback);
+  virtual int Connect(const CompletionCallback& callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -70,7 +71,7 @@ class SSLClientSocketWin : public SSLClientSocket {
   virtual int64 NumBytesRead() const;
   virtual base::TimeDelta GetConnectTimeMicros() const;
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
 
@@ -121,7 +122,8 @@ class SSLClientSocketWin : public SSLClientSocket {
   SSLConfig ssl_config_;
 
   // User function to callback when the Connect() completes.
-  OldCompletionCallback* user_connect_callback_;
+  OldCompletionCallback* old_user_connect_callback_;
+  CompletionCallback user_connect_callback_;
 
   // User function to callback when a Read() completes.
   OldCompletionCallback* user_read_callback_;

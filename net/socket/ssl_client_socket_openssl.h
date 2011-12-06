@@ -52,7 +52,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   int SelectNextProtoCallback(unsigned char** out, unsigned char* outlen,
                               const unsigned char* in, unsigned int inlen);
 
-  // SSLClientSocket methods:
+  // SSLClientSocket implementation.
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
@@ -62,8 +62,9 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   virtual NextProtoStatus GetNextProto(std::string* proto,
                                        std::string* server_protos);
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback);
+  virtual int Connect(const CompletionCallback& callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -77,7 +78,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   virtual int64 NumBytesRead() const;
   virtual base::TimeDelta GetConnectTimeMicros() const;
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual bool SetReceiveBufferSize(int32 size);
@@ -119,7 +120,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   bool transport_recv_busy_;
   scoped_refptr<IOBuffer> recv_buffer_;
 
-  OldCompletionCallback* user_connect_callback_;
+  OldCompletionCallback* old_user_connect_callback_;
+  CompletionCallback user_connect_callback_;
   OldCompletionCallback* user_read_callback_;
   OldCompletionCallback* user_write_callback_;
 

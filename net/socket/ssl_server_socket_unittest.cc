@@ -147,6 +147,9 @@ class FakeSocket : public StreamSocket {
   virtual int Connect(OldCompletionCallback* callback) {
     return net::OK;
   }
+  virtual int Connect(const CompletionCallback& callback) {
+    return net::OK;
+  }
 
   virtual void Disconnect() {}
 

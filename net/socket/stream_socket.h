@@ -34,6 +34,7 @@ class NET_EXPORT_PRIVATE StreamSocket : public Socket {
   // Connect may also be called again after a call to the Disconnect method.
   //
   virtual int Connect(OldCompletionCallback* callback) = 0;
+  virtual int Connect(const CompletionCallback& callback) = 0;
 
   // Called to disconnect a socket.  Does nothing if the socket is already
   // disconnected.  After calling Disconnect it is possible to call Connect

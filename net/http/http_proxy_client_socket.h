@@ -60,8 +60,9 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   virtual int RestartWithAuth(OldCompletionCallback* callback) OVERRIDE;
   virtual const scoped_refptr<HttpAuthController>& auth_controller() OVERRIDE;
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
   virtual void Disconnect() OVERRIDE;
   virtual bool IsConnected() const OVERRIDE;
   virtual bool IsConnectedAndIdle() const OVERRIDE;
@@ -126,7 +127,8 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   State next_state_;
 
   // Stores the callback to the layer above, called on completing Connect().
-  OldCompletionCallback* user_callback_;
+  OldCompletionCallback* old_user_callback_;
+  CompletionCallback user_callback_;
 
   HttpRequestInfo request_;
   HttpResponseInfo response_;

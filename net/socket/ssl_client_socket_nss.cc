@@ -446,7 +446,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       transport_(transport_socket),
       host_and_port_(host_and_port),
       ssl_config_(ssl_config),
-      user_connect_callback_(NULL),
+      old_user_connect_callback_(NULL),
       user_read_callback_(NULL),
       user_write_callback_(NULL),
       user_read_buf_len_(0),
@@ -578,7 +578,55 @@ int SSLClientSocketNSS::Connect(OldCompletionCallback* callback) {
   DCHECK(next_handshake_state_ == STATE_NONE);
   DCHECK(!user_read_callback_);
   DCHECK(!user_write_callback_);
-  DCHECK(!user_connect_callback_);
+  DCHECK(!old_user_connect_callback_ && user_connect_callback_.is_null());
+  DCHECK(!user_read_buf_);
+  DCHECK(!user_write_buf_);
+
+  EnsureThreadIdAssigned();
+
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+
+  int rv = Init();
+  if (rv != OK) {
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
+    return rv;
+  }
+
+  rv = InitializeSSLOptions();
+  if (rv != OK) {
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
+    return rv;
+  }
+
+  rv = InitializeSSLPeerName();
+  if (rv != OK) {
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
+    return rv;
+  }
+
+  if (ssl_config_.cached_info_enabled && ssl_host_info_.get()) {
+    GotoState(STATE_LOAD_SSL_HOST_INFO);
+  } else {
+    GotoState(STATE_HANDSHAKE);
+  }
+
+  rv = DoHandshakeLoop(OK);
+  if (rv == ERR_IO_PENDING) {
+    old_user_connect_callback_ = callback;
+  } else {
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
+  }
+
+  LeaveFunction("");
+  return rv > OK ? OK : rv;
+}
+int SSLClientSocketNSS::Connect(const CompletionCallback& callback) {
+  EnterFunction("");
+  DCHECK(transport_.get());
+  DCHECK(next_handshake_state_ == STATE_NONE);
+  DCHECK(!user_read_callback_);
+  DCHECK(!user_write_callback_);
+  DCHECK(!old_user_connect_callback_ && user_connect_callback_.is_null());
   DCHECK(!user_read_buf_);
   DCHECK(!user_write_buf_);
 
@@ -645,7 +693,8 @@ void SSLClientSocketNSS::Disconnect() {
   // Reset object state
   transport_send_busy_   = false;
   transport_recv_busy_   = false;
-  user_connect_callback_ = NULL;
+  old_user_connect_callback_ = NULL;
+  user_connect_callback_.Reset();
   user_read_callback_    = NULL;
   user_write_callback_   = NULL;
   user_read_buf_         = NULL;
@@ -767,7 +816,7 @@ int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
   DCHECK(completed_handshake_);
   DCHECK(next_handshake_state_ == STATE_NONE);
   DCHECK(!user_read_callback_);
-  DCHECK(!user_connect_callback_);
+  DCHECK(!old_user_connect_callback_);
   DCHECK(!user_read_buf_);
   DCHECK(nss_bufs_);
 
@@ -792,7 +841,7 @@ int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
   DCHECK(completed_handshake_);
   DCHECK(next_handshake_state_ == STATE_NONE);
   DCHECK(!user_write_callback_);
-  DCHECK(!user_connect_callback_);
+  DCHECK(!old_user_connect_callback_);
   DCHECK(!user_write_buf_);
   DCHECK(nss_bufs_);
 
@@ -1188,11 +1237,17 @@ void SSLClientSocketNSS::DoWriteCallback(int rv) {
 void SSLClientSocketNSS::DoConnectCallback(int rv) {
   EnterFunction(rv);
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(user_connect_callback_);
+  DCHECK(old_user_connect_callback_ || !user_connect_callback_.is_null());
 
-  OldCompletionCallback* c = user_connect_callback_;
-  user_connect_callback_ = NULL;
-  c->Run(rv > OK ? OK : rv);
+  if (old_user_connect_callback_) {
+    OldCompletionCallback* c = old_user_connect_callback_;
+    old_user_connect_callback_ = NULL;
+    c->Run(rv > OK ? OK : rv);
+  } else {
+    CompletionCallback c = user_connect_callback_;
+    user_connect_callback_.Reset();
+    c.Run(rv > OK ? OK : rv);
+  }
   LeaveFunction("");
 }
 
