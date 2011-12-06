@@ -59,7 +59,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   NET_EXPORT_PRIVATE static void ClearSessionCache();
 
-  // SSLClientSocket methods:
+  // SSLClientSocket implementation.
   virtual void GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) OVERRIDE;
@@ -70,8 +70,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual NextProtoStatus GetNextProto(std::string* proto,
                                        std::string* server_protos) OVERRIDE;
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
   virtual void Disconnect() OVERRIDE;
   virtual bool IsConnected() const OVERRIDE;
   virtual bool IsConnectedAndIdle() const OVERRIDE;
@@ -85,7 +86,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual int64 NumBytesRead() const OVERRIDE;
   virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf,
                    int buf_len,
                    OldCompletionCallback* callback) OVERRIDE;
@@ -225,7 +226,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
   HostPortPair host_and_port_;
   SSLConfig ssl_config_;
 
-  OldCompletionCallback* user_connect_callback_;
+  OldCompletionCallback* old_user_connect_callback_;
+  CompletionCallback user_connect_callback_;
   OldCompletionCallback* user_read_callback_;
   OldCompletionCallback* user_write_callback_;
 

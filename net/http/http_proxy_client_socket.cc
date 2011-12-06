@@ -37,7 +37,7 @@ HttpProxyClientSocket::HttpProxyClientSocket(
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpProxyClientSocket::OnIOComplete)),
       next_state_(STATE_NONE),
-      user_callback_(NULL),
+      old_user_callback_(NULL),
       transport_(transport_socket),
       endpoint_(endpoint),
       auth_(tunnel ?
@@ -65,7 +65,7 @@ HttpProxyClientSocket::~HttpProxyClientSocket() {
 
 int HttpProxyClientSocket::RestartWithAuth(OldCompletionCallback* callback) {
   DCHECK_EQ(STATE_NONE, next_state_);
-  DCHECK(!user_callback_);
+  DCHECK(!old_user_callback_ && user_callback_.is_null());
 
   int rv = PrepareForAuthRestart();
   if (rv != OK || next_state_ == STATE_NONE)
@@ -73,7 +73,7 @@ int HttpProxyClientSocket::RestartWithAuth(OldCompletionCallback* callback) {
 
   rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    old_user_callback_ = callback;
   return rv;
 }
 
@@ -95,7 +95,31 @@ HttpStream* HttpProxyClientSocket::CreateConnectResponseStream() {
 int HttpProxyClientSocket::Connect(OldCompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(transport_->socket());
-  DCHECK(!user_callback_);
+  DCHECK(!old_user_callback_ && user_callback_.is_null());
+
+  // TODO(rch): figure out the right way to set up a tunnel with SPDY.
+  // This approach sends the complete HTTPS request to the proxy
+  // which allows the proxy to see "private" data.  Instead, we should
+  // create an SSL tunnel to the origin server using the CONNECT method
+  // inside a single SPDY stream.
+  if (using_spdy_ || !tunnel_)
+    next_state_ = STATE_DONE;
+  if (next_state_ == STATE_DONE)
+    return OK;
+
+  DCHECK_EQ(STATE_NONE, next_state_);
+  next_state_ = STATE_GENERATE_AUTH_TOKEN;
+
+  int rv = DoLoop(OK);
+  if (rv == ERR_IO_PENDING)
+    old_user_callback_ = callback;
+  return rv;
+}
+
+int HttpProxyClientSocket::Connect(const CompletionCallback& callback) {
+  DCHECK(transport_.get());
+  DCHECK(transport_->socket());
+  DCHECK(!old_user_callback_ && user_callback_.is_null());
 
   // TODO(rch): figure out the right way to set up a tunnel with SPDY.
   // This approach sends the complete HTTPS request to the proxy
@@ -123,7 +147,8 @@ void HttpProxyClientSocket::Disconnect() {
   // Reset other states to make sure they aren't mistakenly used later.
   // These are the states initialized by Connect().
   next_state_ = STATE_NONE;
-  user_callback_ = NULL;
+  old_user_callback_ = NULL;
+  user_callback_.Reset();
 }
 
 bool HttpProxyClientSocket::IsConnected() const {
@@ -189,7 +214,7 @@ base::TimeDelta HttpProxyClientSocket::GetConnectTimeMicros() const {
 
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
                                 OldCompletionCallback* callback) {
-  DCHECK(!user_callback_);
+  DCHECK(!old_user_callback_);
   if (next_state_ != STATE_DONE) {
     // We're trying to read the body of the response but we're still trying
     // to establish an SSL tunnel through the proxy.  We can't read these
@@ -210,7 +235,7 @@ int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
 int HttpProxyClientSocket::Write(IOBuffer* buf, int buf_len,
                                  OldCompletionCallback* callback) {
   DCHECK_EQ(STATE_DONE, next_state_);
-  DCHECK(!user_callback_);
+  DCHECK(!old_user_callback_);
 
   return transport_->socket()->Write(buf, buf_len, callback);
 }
@@ -277,13 +302,19 @@ void HttpProxyClientSocket::LogBlockedTunnelResponse(int response_code) const {
 
 void HttpProxyClientSocket::DoCallback(int result) {
   DCHECK_NE(ERR_IO_PENDING, result);
-  DCHECK(user_callback_);
+  DCHECK(old_user_callback_ || !user_callback_.is_null());
 
   // Since Run() may result in Read being called,
-  // clear user_callback_ up front.
-  OldCompletionCallback* c = user_callback_;
-  user_callback_ = NULL;
-  c->Run(result);
+  // clear old_user_callback_ up front.
+  if (old_user_callback_) {
+    OldCompletionCallback* c = old_user_callback_;
+    old_user_callback_ = NULL;
+    c->Run(result);
+  } else {
+    CompletionCallback c = user_callback_;
+    user_callback_.Reset();
+    c.Run(result);
+  }
 }
 
 void HttpProxyClientSocket::OnIOComplete(int result) {

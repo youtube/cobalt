@@ -33,7 +33,7 @@ SpdyProxyClientSocket::SpdyProxyClientSocket(
           io_callback_(this, &SpdyProxyClientSocket::OnIOComplete)),
       next_state_(STATE_DISCONNECTED),
       spdy_stream_(spdy_stream),
-      read_callback_(NULL),
+      old_read_callback_(NULL),
       write_callback_(NULL),
       endpoint_(endpoint),
       auth_(
@@ -92,7 +92,20 @@ HttpStream* SpdyProxyClientSocket::CreateConnectResponseStream() {
 // TODO(rch): create a more appropriate error code to disambiguate
 // the HTTPS Proxy tunnel failure from an HTTP Proxy tunnel failure.
 int SpdyProxyClientSocket::Connect(OldCompletionCallback* callback) {
-  DCHECK(!read_callback_);
+  DCHECK(!old_read_callback_ && read_callback_.is_null());
+  if (next_state_ == STATE_OPEN)
+    return OK;
+
+  DCHECK_EQ(STATE_DISCONNECTED, next_state_);
+  next_state_ = STATE_GENERATE_AUTH_TOKEN;
+
+  int rv = DoLoop(OK);
+  if (rv == ERR_IO_PENDING)
+    old_read_callback_ = callback;
+  return rv;
+}
+int SpdyProxyClientSocket::Connect(const CompletionCallback& callback) {
+  DCHECK(!old_read_callback_ && read_callback_.is_null());
   if (next_state_ == STATE_OPEN)
     return OK;
 
@@ -108,7 +121,8 @@ int SpdyProxyClientSocket::Connect(OldCompletionCallback* callback) {
 void SpdyProxyClientSocket::Disconnect() {
   read_buffer_.clear();
   user_buffer_ = NULL;
-  read_callback_ = NULL;
+  old_read_callback_ = NULL;
+  read_callback_.Reset();
 
   write_buffer_len_ = 0;
   write_bytes_outstanding_ = 0;
@@ -160,7 +174,7 @@ base::TimeDelta SpdyProxyClientSocket::GetConnectTimeMicros() const {
 
 int SpdyProxyClientSocket::Read(IOBuffer* buf, int buf_len,
                                 OldCompletionCallback* callback) {
-  DCHECK(!read_callback_);
+  DCHECK(!old_read_callback_ && read_callback_.is_null());
   DCHECK(!user_buffer_);
 
   if (next_state_ == STATE_DISCONNECTED)
@@ -176,7 +190,7 @@ int SpdyProxyClientSocket::Read(IOBuffer* buf, int buf_len,
   int result = PopulateUserReadBuffer();
   if (result == 0) {
     DCHECK(callback);
-    read_callback_ = callback;
+    old_read_callback_ = callback;
     return ERR_IO_PENDING;
   }
   user_buffer_ = NULL;
@@ -271,9 +285,15 @@ void SpdyProxyClientSocket::OnIOComplete(int result) {
   DCHECK_NE(STATE_DISCONNECTED, next_state_);
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING) {
-    OldCompletionCallback* c = read_callback_;
-    read_callback_ = NULL;
-    c->Run(rv);
+    if (old_read_callback_) {
+      OldCompletionCallback* c = old_read_callback_;
+      old_read_callback_ = NULL;
+      c->Run(rv);
+    } else {
+      CompletionCallback c = read_callback_;
+      read_callback_.Reset();
+      c.Run(rv);
+    }
   }
 }
 
@@ -472,12 +492,18 @@ void SpdyProxyClientSocket::OnDataReceived(const char* data, int length) {
         make_scoped_refptr(new DrainableIOBuffer(io_buffer, length)));
   }
 
-  if (read_callback_) {
+  if (old_read_callback_) {
     int rv = PopulateUserReadBuffer();
-    OldCompletionCallback* c = read_callback_;
-    read_callback_ = NULL;
+    OldCompletionCallback* c = old_read_callback_;
+    old_read_callback_ = NULL;
     user_buffer_ = NULL;
     c->Run(rv);
+  } else if (!read_callback_.is_null()) {
+    int rv = PopulateUserReadBuffer();
+    CompletionCallback c = read_callback_;
+    read_callback_.Reset();
+    user_buffer_ = NULL;
+    c.Run(rv);
   }
 }
 
@@ -519,11 +545,17 @@ void SpdyProxyClientSocket::OnClose(int status)  {
   // If we're in the middle of connecting, we need to make sure
   // we invoke the connect callback.
   if (connecting) {
-    DCHECK(read_callback_);
-    OldCompletionCallback* read_callback = read_callback_;
-    read_callback_ = NULL;
-    read_callback->Run(status);
-  } else if (read_callback_) {
+    DCHECK(old_read_callback_ || !read_callback_.is_null());
+    if (old_read_callback_) {
+      OldCompletionCallback* read_callback = old_read_callback_;
+      old_read_callback_ = NULL;
+      read_callback->Run(status);
+    } else {
+      CompletionCallback read_callback = read_callback_;
+      read_callback_.Reset();
+      read_callback.Run(status);
+    }
+  } else if (old_read_callback_ || !read_callback_.is_null()) {
     // If we have a read_callback_, the we need to make sure we call it back.
     OnDataReceived(NULL, 0);
   }

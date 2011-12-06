@@ -147,6 +147,10 @@ int SSLServerSocketNSS::Connect(OldCompletionCallback* callback) {
   NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
 }
+int SSLServerSocketNSS::Connect(const CompletionCallback& callback) {
+  NOTIMPLEMENTED();
+  return ERR_NOT_IMPLEMENTED;
+}
 
 int SSLServerSocketNSS::Read(IOBuffer* buf, int buf_len,
                              OldCompletionCallback* callback) {
