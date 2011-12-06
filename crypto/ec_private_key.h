@@ -18,6 +18,7 @@
 typedef struct evp_pkey_st EVP_PKEY;
 #else
 // Forward declaration.
+typedef struct CERTSubjectPublicKeyInfoStr CERTSubjectPublicKeyInfo;
 typedef struct SECKEYPrivateKeyStr SECKEYPrivateKey;
 typedef struct SECKEYPublicKeyStr SECKEYPublicKey;
 #endif
@@ -64,6 +65,22 @@ class CRYPTO_EXPORT ECPrivateKey {
       const std::string& password,
       const std::vector<uint8>& encrypted_private_key_info,
       const std::vector<uint8>& subject_public_key_info);
+
+#if !defined(USE_OPENSSL)
+  // Imports the key pair and returns in |public_key| and |key|.
+  // Shortcut for code that needs to keep a reference directly to NSS types
+  // without having to create a ECPrivateKey object and make a copy of them.
+  // TODO(mattm): move this function to some NSS util file.
+  static bool ImportFromEncryptedPrivateKeyInfo(
+      const std::string& password,
+      const uint8* encrypted_private_key_info,
+      size_t encrypted_private_key_info_len,
+      CERTSubjectPublicKeyInfo* decoded_spki,
+      bool permanent,
+      bool sensitive,
+      SECKEYPrivateKey** key,
+      SECKEYPublicKey** public_key);
+#endif
 
 #if defined(USE_OPENSSL)
   EVP_PKEY* key() { return key_; }
