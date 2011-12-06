@@ -40,3 +40,5 @@ patch -p6 < $patches_dir/restartclientauth.patch
 patch -p6 < $patches_dir/negotiatedextension.patch
 
 patch -p3 < $patches_dir/encryptedclientcerts.patch
+
+patch -p3 < $patches_dir/getrequestedclientcerttypes.patch
