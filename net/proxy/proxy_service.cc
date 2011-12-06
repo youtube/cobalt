@@ -13,6 +13,7 @@
 #include "base/string_util.h"
 #include "base/values.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/completion_callback.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
@@ -324,7 +325,7 @@ class ProxyService::PacRequest
              OldCompletionCallback* user_callback,
              const BoundNetLog& net_log)
       : service_(service),
-        user_callback_(user_callback),
+        old_user_callback_(user_callback),
         ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
             this, &PacRequest::QueryComplete)),
         results_(results),
@@ -333,6 +334,24 @@ class ProxyService::PacRequest
         config_id_(ProxyConfig::kInvalidConfigID),
         net_log_(net_log) {
     DCHECK(user_callback);
+  }
+
+  PacRequest(ProxyService* service,
+             const GURL& url,
+             ProxyInfo* results,
+             const net::CompletionCallback& user_callback,
+             const BoundNetLog& net_log)
+      : service_(service),
+        old_user_callback_(NULL),
+        user_callback_(user_callback),
+        ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
+            this, &PacRequest::QueryComplete)),
+        results_(results),
+        url_(url),
+        resolve_job_(NULL),
+        config_id_(ProxyConfig::kInvalidConfigID),
+        net_log_(net_log) {
+    DCHECK(!user_callback.is_null());
   }
 
   // Starts the resolve proxy request.
@@ -377,14 +396,17 @@ class ProxyService::PacRequest
 
     // Mark as cancelled, to prevent accessing this again later.
     service_ = NULL;
-    user_callback_ = NULL;
+    old_user_callback_ = NULL;
+    user_callback_.Reset();
     results_ = NULL;
 
     net_log_.EndEvent(NetLog::TYPE_PROXY_SERVICE, NULL);
   }
 
   // Returns true if Cancel() has been called.
-  bool was_cancelled() const { return user_callback_ == NULL; }
+  bool was_cancelled() const {
+    return old_user_callback_ == NULL && user_callback_.is_null();
+  }
 
   // Helper to call after ProxyResolver completion (both synchronous and
   // asynchronous). Fixes up the result that is to be returned to user.
@@ -421,10 +443,15 @@ class ProxyService::PacRequest
 
     // Remove this completed PacRequest from the service's pending list.
     /// (which will probably cause deletion of |this|).
-    OldCompletionCallback* callback = user_callback_;
-    service_->RemovePendingRequest(this);
-
-    callback->Run(result_code);
+    if (old_user_callback_) {
+      OldCompletionCallback* callback = old_user_callback_;
+      service_->RemovePendingRequest(this);
+      callback->Run(result_code);
+    } else if (!user_callback_.is_null()){
+      net::CompletionCallback callback = user_callback_;
+      service_->RemovePendingRequest(this);
+      callback.Run(result_code);
+    }
   }
 
   ProxyResolver* resolver() const { return service_->resolver_.get(); }
@@ -433,7 +460,8 @@ class ProxyService::PacRequest
   // requests are cancelled during ~ProxyService, so this is guaranteed
   // to be valid throughout our lifetime.
   ProxyService* service_;
-  OldCompletionCallback* user_callback_;
+  OldCompletionCallback* old_user_callback_;
+  net::CompletionCallback user_callback_;
   OldCompletionCallbackImpl<PacRequest> io_callback_;
   ProxyInfo* results_;
   GURL url_;
@@ -614,6 +642,54 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
   pending_requests_.push_back(req);
 
   // Completion will be notifed through |callback|, unless the caller cancels
+  // the request using |pac_request|.
+  if (pac_request)
+    *pac_request = req.get();
+  return rv;  // ERR_IO_PENDING
+}
+
+int ProxyService::ResolveProxy(const GURL& raw_url,
+                               ProxyInfo* result,
+                               const net::CompletionCallback& callback,
+                               PacRequest** pac_request,
+                               const BoundNetLog& net_log) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!callback.is_null());
+
+  net_log.BeginEvent(NetLog::TYPE_PROXY_SERVICE, NULL);
+
+  config_service_->OnLazyPoll();
+  if (current_state_ == STATE_NONE)
+    ApplyProxyConfigIfAvailable();
+
+  // Strip away any reference fragments and the username/password, as they
+  // are not relevant to proxy resolution.
+  GURL url = SimplifyUrlForRequest(raw_url);
+
+  // Check if the request can be completed right away. (This is the case when
+  // using a direct connection for example).
+  int rv = TryToCompleteSynchronously(url, result);
+  if (rv != ERR_IO_PENDING)
+    return DidFinishResolvingProxy(result, rv, net_log);
+
+  scoped_refptr<PacRequest> req(
+      new PacRequest(this, url, result, callback, net_log));
+
+  if (current_state_ == STATE_READY) {
+    // Start the resolve request.
+    rv = req->Start();
+    if (rv != ERR_IO_PENDING)
+      return req->QueryDidComplete(rv);
+  } else {
+    req->net_log()->BeginEvent(NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
+                               NULL);
+  }
+
+  DCHECK_EQ(ERR_IO_PENDING, rv);
+  DCHECK(!ContainsPendingRequest(req));
+  pending_requests_.push_back(req);
+
+  // Completion will be notified through |callback|, unless the caller cancels
   // the request using |pac_request|.
   if (pac_request)
     *pac_request = req.get();
