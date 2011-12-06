@@ -133,6 +133,14 @@
         'base/ime/composition_text.cc',
         'base/ime/composition_text.h',
         'base/ime/composition_underline.h',
+        'base/ime/input_method.h',
+        'base/ime/input_method_base.cc',
+        'base/ime/input_method_base.h',
+        'base/ime/input_method_delegate.h',
+        'base/ime/input_method_ibus.cc',
+        'base/ime/input_method_ibus.h',
+        'base/ime/mock_input_method.cc',
+        'base/ime/mock_input_method.h',
         'base/ime/text_input_client.cc',
         'base/ime/text_input_client.h',
         'base/ime/text_input_type.h',
@@ -358,6 +366,10 @@
            ],
         }, {  # use_aura!=1
           'sources!': [
+            'base/ime/input_method_ibus.cc',
+            'base/ime/input_method_ibus.h',
+            'base/ime/mock_input_method.cc',
+            'base/ime/mock_input_method.h',
             'gfx/native_theme_aura.cc',
             'gfx/native_theme_aura.h',
           ]
@@ -371,6 +383,21 @@
             ['exclude', 'gfx/path_win.cc'],
           ],
         }],
+        ['use_ibus==1', {
+          'dependencies': [
+            '../build/linux/system.gyp:ibus',
+          ],
+          'sources/': [
+            ['exclude', 'base/ime/mock_input_method.cc'],
+            ['exclude', 'base/ime/mock_input_method.h'],
+          ],
+        }, { # else: use_ibus != 1
+          'sources/': [
+            ['exclude', 'base/ime/input_method_ibus.cc'],
+            ['exclude', 'base/ime/input_method_ibus.h'],
+          ],
+        }],
+
         ['use_glib == 1', {
           'dependencies': [
             # font_gtk.cc uses fontconfig.
