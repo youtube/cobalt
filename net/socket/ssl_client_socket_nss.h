@@ -168,7 +168,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // Origin bound cert client auth handler.
   // Returns the value the ClientAuthHandler function should return.
   SECStatus OriginBoundClientAuthHandler(
-      const std::vector<uint8>& requested_cert_types,
+      const SECItem* cert_types,
       CERTCertificate** result_certificate,
       SECKEYPrivateKey** result_private_key);
 #if defined(NSS_PLATFORM_CLIENT_AUTH)
