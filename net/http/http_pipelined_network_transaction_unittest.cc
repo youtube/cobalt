@@ -640,6 +640,99 @@ TEST_F(HttpPipelinedNetworkTransactionTest, PipelinesImmediatelyIfKnownGood) {
   ClientSocketPoolManager::set_max_sockets_per_group(old_max_sockets);
 }
 
+class DataRunnerObserver : public MessageLoop::TaskObserver {
+ public:
+  DataRunnerObserver(DeterministicSocketData* data, int run_before_task)
+      : data_(data),
+        run_before_task_(run_before_task),
+        current_task_(0) { }
+
+  virtual void WillProcessTask(base::TimeTicks) OVERRIDE {
+    ++current_task_;
+    if (current_task_ == run_before_task_) {
+      data_->Run();
+      MessageLoop::current()->RemoveTaskObserver(this);
+    }
+  }
+
+  virtual void DidProcessTask(base::TimeTicks) OVERRIDE { }
+
+ private:
+  DeterministicSocketData* data_;
+  int run_before_task_;
+  int current_task_;
+};
+
+TEST_F(HttpPipelinedNetworkTransactionTest, OpenPipelinesWhileBinding) {
+  // There was a racy crash in the pipelining code. This test recreates that
+  // race. The steps are:
+  // 1. The first request starts a pipeline and requests headers.
+  // 2. HttpStreamFactoryImpl::Job tries to bind a pending request to a new
+  // pipeline and queues a task to do so.
+  // 3. Before that task runs, the first request receives its headers and
+  // determines this host is probably capable of pipelining.
+  // 4. All of the hosts' pipelines are notified they have capacity in a loop.
+  // 5. On the first iteration, the first pipeline is opened up to accept new
+  // requests and steals the request from step #2.
+  // 6. The pipeline from #2 is deleted because it has no streams.
+  // 7. On the second iteration, the host tries to notify the pipeline from step
+  // #2 that it has capacity. This is a use-after-free.
+  Initialize();
+
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /one.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+    MockWrite(true, 3, "GET /two.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(true, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(false, 4, "one.html"),
+    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(false, 6, "Content-Length: 8\r\n\r\n"),
+    MockRead(false, 7, "two.html"),
+  };
+  AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
+
+  AddExpectedConnection(NULL, 0, NULL, 0);
+
+  HttpNetworkTransaction one_transaction(session_.get());
+  TestOldCompletionCallback one_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            one_transaction.Start(GetRequestInfo("one.html"), &one_callback,
+                                  BoundNetLog()));
+
+  data_vector_[0]->SetStop(2);
+  data_vector_[0]->Run();
+
+  HttpNetworkTransaction two_transaction(session_.get());
+  TestOldCompletionCallback two_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            two_transaction.Start(GetRequestInfo("two.html"), &two_callback,
+                                  BoundNetLog()));
+  // Posted tasks should be:
+  // 1. MockHostResolverBase::ResolveNow
+  // 2. HttpStreamFactoryImpl::Job::OnStreamReadyCallback for job 1
+  // 3. HttpStreamFactoryImpl::Job::OnStreamReadyCallback for job 2
+  //
+  // We need to make sure that the response that triggers OnPipelineFeedback(OK)
+  // is called in between when task #3 is scheduled and when it runs. The
+  // DataRunnerObserver does that.
+  DataRunnerObserver observer(data_vector_[0].get(), 3);
+  MessageLoop::current()->AddTaskObserver(&observer);
+  data_vector_[0]->SetStop(4);
+  MessageLoop::current()->RunAllPending();
+  data_vector_[0]->SetStop(10);
+
+  EXPECT_EQ(OK, one_callback.WaitForResult());
+  ExpectResponse("one.html", one_transaction);
+  EXPECT_EQ(OK, two_callback.WaitForResult());
+  ExpectResponse("two.html", two_transaction);
+}
+
 }  // anonymous namespace
 
 }  // namespace net
