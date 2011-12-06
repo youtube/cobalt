@@ -798,6 +798,16 @@ SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
 SSL_IMPORT SECStatus SSL_HandshakeResumedSession(PRFileDesc *fd,
                                                  PRBool *last_handshake_resumed);
 
+/* Returns a SECItem containing the certificate_types field of the
+** CertificateRequest message.  Each byte of the data is a TLS
+** ClientCertificateType value, and they are ordered from most preferred to
+** least.  This function should only be called from the
+** SSL_GetClientAuthDataHook callback, and will return NULL if called at any
+** other time.  The returned value is valid only until the callback returns, and
+** should not be freed.
+*/
+SSL_IMPORT const SECItem *
+SSL_GetRequestedClientCertificateTypes(PRFileDesc *fd);
 
 SEC_END_PROTOS
 
