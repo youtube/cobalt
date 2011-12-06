@@ -114,7 +114,8 @@ class NET_EXPORT ViewCacheHelper {
 
   State next_state_;
 
-  OldCompletionCallbackImpl<ViewCacheHelper> cache_callback_;
+  CompletionCallback cache_callback_;
+  OldCompletionCallbackImpl<ViewCacheHelper> old_cache_callback_;
   scoped_refptr<CancelableOldCompletionCallback<ViewCacheHelper> > entry_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(ViewCacheHelper);
