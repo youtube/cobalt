@@ -22,6 +22,7 @@
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/nss_memio.h"
 #include "net/base/origin_bound_cert_service.h"
@@ -56,8 +57,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
                      const SSLClientSocketContext& context);
   virtual ~SSLClientSocketNSS();
 
-  // For tests
-  static void ClearSessionCache();
+  NET_EXPORT_PRIVATE static void ClearSessionCache();
 
   // SSLClientSocket methods:
   virtual void GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
