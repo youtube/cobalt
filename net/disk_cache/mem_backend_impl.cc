@@ -136,8 +136,24 @@ int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
   return net::ERR_FAILED;
 }
 
+int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
+                              const net::CompletionCallback& callback) {
+  if (OpenEntry(key, entry))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
 int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
                                 OldCompletionCallback* callback) {
+  if (CreateEntry(key, entry))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
+int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
+                                const net::CompletionCallback& callback) {
   if (CreateEntry(key, entry))
     return net::OK;
 

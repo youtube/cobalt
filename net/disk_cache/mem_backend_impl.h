@@ -66,8 +66,12 @@ class NET_EXPORT_PRIVATE MemBackendImpl : public Backend {
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
                         OldCompletionCallback* callback) OVERRIDE;
+  virtual int OpenEntry(const std::string& key, Entry** entry,
+                        const net::CompletionCallback& callback) OVERRIDE;
   virtual int CreateEntry(const std::string& key, Entry** entry,
                           OldCompletionCallback* callback) OVERRIDE;
+  virtual int CreateEntry(const std::string& key, Entry** entry,
+                          const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
                         OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomAllEntries(OldCompletionCallback* callback) OVERRIDE;
