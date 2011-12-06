@@ -4,106 +4,176 @@
 
 #include "net/dns/dns_response.h"
 
-#include "base/bind.h"
-#include "base/rand_util.h"
-#include "net/base/dns_util.h"
-#include "net/base/net_errors.h"
 #include "net/base/io_buffer.h"
+#include "net/dns/dns_protocol.h"
 #include "net/dns/dns_query.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
-// DNS response consists of a header followed by a question followed by
-// answer.  Header format, question format and response format are
-// described below.  For the meaning of specific fields, please see RFC
-// 1035.
+namespace {
 
-// Header format.
-//                                  1  1  1  1  1  1
-//    0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                      ID                       |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                    QDCOUNT                    |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                    ANCOUNT                    |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                    NSCOUNT                    |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                    ARCOUNT                    |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+TEST(DnsRecordParserTest, Constructor) {
+  const char data[] = { 0 };
 
-// Question format.
-//                                  1  1  1  1  1  1
-//    0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                                               |
-//  /                     QNAME                     /
-//  /                                               /
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                     QTYPE                     |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                     QCLASS                    |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+  EXPECT_FALSE(DnsRecordParser().IsValid());
+  EXPECT_TRUE(DnsRecordParser(data, 1, 0).IsValid());
+  EXPECT_TRUE(DnsRecordParser(data, 1, 1).IsValid());
 
-// Answser format.
-//                                  1  1  1  1  1  1
-//    0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                                               |
-//  /                                               /
-//  /                      NAME                     /
-//  |                                               |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                      TYPE                     |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                     CLASS                     |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                      TTL                      |
-//  |                                               |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-//  |                   RDLENGTH                    |
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--|
-//  /                     RDATA                     /
-//  /                                               /
-//  +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+  EXPECT_FALSE(DnsRecordParser(data, 1, 0).AtEnd());
+  EXPECT_TRUE(DnsRecordParser(data, 1, 1).AtEnd());
+}
 
-// TODO(agayev): add more thorough tests.
-TEST(DnsResponseTest, ResponseWithCnameA) {
-  const std::string kQname("\012codereview\010chromium\003org", 25);
-  DnsQuery q1(kQname, kDNS_A, base::Bind(&base::RandInt));
-
-  uint8 id_hi = q1.id() >> 8, id_lo = q1.id() & 0xff;
-
-  uint8 ip[] = {              // codereview.chromium.org resolves to
-    0x4a, 0x7d, 0x5f, 0x79    // 74.125.95.121
+TEST(DnsRecordParserTest, ParseName) {
+  const uint8 data[] = {
+      // all labels "foo.example.com"
+      0x03, 'f', 'o', 'o',
+      0x07, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
+      0x03, 'c', 'o', 'm',
+      // byte 0x10
+      0x00,
+      // byte 0x11
+      // part label, part pointer, "bar.example.com"
+      0x03, 'b', 'a', 'r',
+      0xc0, 0x04,
+      // byte 0x17
+      // all pointer to "bar.example.com", 2 jumps
+      0xc0, 0x11,
+      // byte 0x1a
   };
 
-  IPAddressList expected_ips;
-  expected_ips.push_back(IPAddressNumber(ip, ip + arraysize(ip)));
+  std::string out;
+  DnsRecordParser parser(data, sizeof(data), 0);
+  ASSERT_TRUE(parser.IsValid());
 
-  uint8 response_data[] = {
+  EXPECT_EQ(0x11, parser.ParseName(data + 0x00, &out));
+  EXPECT_EQ("foo.example.com", out);
+  // Check that the last "." is never stored.
+  out.clear();
+  EXPECT_EQ(0x1, parser.ParseName(data + 0x10, &out));
+  EXPECT_EQ("", out);
+  out.clear();
+  EXPECT_EQ(0x6, parser.ParseName(data + 0x11, &out));
+  EXPECT_EQ("bar.example.com", out);
+  out.clear();
+  EXPECT_EQ(0x2, parser.ParseName(data + 0x17, &out));
+  EXPECT_EQ("bar.example.com", out);
+
+  // Parse name without storing it.
+  EXPECT_EQ(0x11, parser.ParseName(data + 0x00, NULL));
+  EXPECT_EQ(0x1, parser.ParseName(data + 0x10, NULL));
+  EXPECT_EQ(0x6, parser.ParseName(data + 0x11, NULL));
+  EXPECT_EQ(0x2, parser.ParseName(data + 0x17, NULL));
+
+  // Check that it works even if initial position is different.
+  parser = DnsRecordParser(data, sizeof(data), 0x12);
+  EXPECT_EQ(0x6, parser.ParseName(data + 0x11, NULL));
+}
+
+TEST(DnsRecordParserTest, ParseNameFail) {
+  const uint8 data[] = {
+      // label length beyond packet
+      0x30, 'x', 'x',
+      0x00,
+      // pointer offset beyond packet
+      0xc0, 0x20,
+      // pointer loop
+      0xc0, 0x08,
+      0xc0, 0x06,
+      // incorrect label type (currently supports only direct and pointer)
+      0x80, 0x00,
+      // truncated name (missing root label)
+      0x02, 'x', 'x',
+  };
+
+  DnsRecordParser parser(data, sizeof(data), 0);
+  ASSERT_TRUE(parser.IsValid());
+
+  std::string out;
+  EXPECT_EQ(0, parser.ParseName(data + 0x00, &out));
+  EXPECT_EQ(0, parser.ParseName(data + 0x04, &out));
+  EXPECT_EQ(0, parser.ParseName(data + 0x08, &out));
+  EXPECT_EQ(0, parser.ParseName(data + 0x0a, &out));
+  EXPECT_EQ(0, parser.ParseName(data + 0x0c, &out));
+  EXPECT_EQ(0, parser.ParseName(data + 0x0e, &out));
+}
+
+TEST(DnsRecordParserTest, ParseRecord) {
+  const uint8 data[] = {
+      // Type CNAME record.
+      0x07, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
+      0x03, 'c', 'o', 'm',
+      0x00,
+      0x00, 0x05,              // TYPE is CNAME.
+      0x00, 0x01,              // CLASS is IN.
+      0x00, 0x01, 0x24, 0x74,  // TTL is 0x00012474.
+      0x00, 0x06,              // RDLENGTH is 6 bytes.
+      0x03, 'f', 'o', 'o',     // compressed name in record
+      0xc0, 0x00,
+      // Type A record.
+      0x03, 'b', 'a', 'r',     // compressed owner name
+      0xc0, 0x00,
+      0x00, 0x01,              // TYPE is A.
+      0x00, 0x01,              // CLASS is IN.
+      0x00, 0x20, 0x13, 0x55,  // TTL is 0x00201355.
+      0x00, 0x04,              // RDLENGTH is 4 bytes.
+      0x7f, 0x02, 0x04, 0x01,  // IP is 127.2.4.1
+  };
+
+  std::string out;
+  DnsRecordParser parser(data, sizeof(data), 0);
+
+  DnsResourceRecord record;
+  EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_EQ("example.com", record.name);
+  EXPECT_EQ(dns_protocol::kTypeCNAME, record.type);
+  EXPECT_EQ(dns_protocol::kClassIN, record.klass);
+  EXPECT_EQ(0x00012474u, record.ttl);
+  EXPECT_EQ(6u, record.rdata.length());
+  EXPECT_EQ(6, parser.ParseName(record.rdata.data(), &out));
+  EXPECT_EQ("foo.example.com", out);
+  EXPECT_FALSE(parser.AtEnd());
+
+  EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_EQ("bar.example.com", record.name);
+  EXPECT_EQ(dns_protocol::kTypeA, record.type);
+  EXPECT_EQ(dns_protocol::kClassIN, record.klass);
+  EXPECT_EQ(0x00201355u, record.ttl);
+  EXPECT_EQ(4u, record.rdata.length());
+  EXPECT_EQ(base::StringPiece("\x7f\x02\x04\x01"), record.rdata);
+  EXPECT_TRUE(parser.AtEnd());
+
+  // Test truncated record.
+  parser = DnsRecordParser(data, sizeof(data) - 2, 0);
+  EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_FALSE(parser.AtEnd());
+  EXPECT_FALSE(parser.ParseRecord(&record));
+}
+
+TEST(DnsResponseTest, InitParse) {
+  // This includes \0 at the end.
+  const char qname_data[] = "\x0A""codereview""\x08""chromium""\x03""org";
+  const base::StringPiece qname(qname_data, sizeof(qname_data));
+  // Compilers want to copy when binding temporary to const &, so must use heap.
+  scoped_ptr<DnsQuery> query(new DnsQuery(0xcafe, qname, dns_protocol::kTypeA));
+
+  const uint8 response_data[] = {
     // Header
-    id_hi, id_lo,             // ID
-    0x81, 0x80,               // Standard query response, no error
+    0xca, 0xfe,               // ID
+    0x81, 0x80,               // Standard query response, RA, no error
     0x00, 0x01,               // 1 question
     0x00, 0x02,               // 2 RRs (answers)
     0x00, 0x00,               // 0 authority RRs
     0x00, 0x00,               // 0 additional RRs
 
     // Question
-    0x0a, 0x63, 0x6f, 0x64,   // This part is echoed back from the
-    0x65, 0x72, 0x65, 0x76,   // respective query.
-    0x69, 0x65, 0x77, 0x08,
-    0x63, 0x68, 0x72, 0x6f,
-    0x6d, 0x69, 0x75, 0x6d,
-    0x03, 0x6f, 0x72, 0x67,
+    // This part is echoed back from the respective query.
+    0x0a, 'c', 'o', 'd', 'e', 'r', 'e', 'v', 'i', 'e', 'w',
+    0x08, 'c', 'h', 'r', 'o', 'm', 'i', 'u', 'm',
+    0x03, 'o', 'r', 'g',
     0x00,
-    0x00, 0x01,
-    0x00, 0x01,
+    0x00, 0x01,        // TYPE is A.
+    0x00, 0x01,        // CLASS is IN.
 
     // Answer 1
     0xc0, 0x0c,        // NAME is a pointer to name in Question section.
@@ -111,33 +181,56 @@ TEST(DnsResponseTest, ResponseWithCnameA) {
     0x00, 0x01,        // CLASS is IN.
     0x00, 0x01,        // TTL (4 bytes) is 20 hours, 47 minutes, 48 seconds.
     0x24, 0x74,
-    0x00, 0x12,               // RDLENGTH is 18 bytse.
-    0x03, 0x67, 0x68, 0x73,   // ghs.l.google.com in DNS format.
-    0x01, 0x6c, 0x06, 0x67,
-    0x6f, 0x6f, 0x67, 0x6c,
-    0x65, 0x03, 0x63, 0x6f,
-    0x6d, 0x00,
+    0x00, 0x12,        // RDLENGTH is 18 bytes.
+    // ghs.l.google.com in DNS format.
+    0x03, 'g', 'h', 's',
+    0x01, 'l',
+    0x06, 'g', 'o', 'o', 'g', 'l', 'e',
+    0x03, 'c', 'o', 'm',
+    0x00,
 
     // Answer 2
-    0xc0, 0x35,         // NAME is a pointer to name in Question section.
+    0xc0, 0x35,         // NAME is a pointer to name in Answer 1.
     0x00, 0x01,         // TYPE is A.
     0x00, 0x01,         // CLASS is IN.
     0x00, 0x00,         // TTL (4 bytes) is 53 seconds.
     0x00, 0x35,
-    0x00, 0x04,                 // RDLENGTH is 4 bytes.
-    ip[0], ip[1], ip[2], ip[3], // RDATA is the IP.
+    0x00, 0x04,         // RDLENGTH is 4 bytes.
+    0x4a, 0x7d,         // RDATA is the IP: 74.125.95.121
+    0x5f, 0x79,
   };
 
-  // Create a response object and simulate reading into it.
-  DnsResponse r1(&q1);
-  memcpy(r1.io_buffer()->data(), &response_data[0],
-         r1.io_buffer()->size());
+  DnsResponse resp;
+  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
 
-  // Verify resolved IPs.
-  int response_size = arraysize(response_data);
-  IPAddressList actual_ips;
-  EXPECT_EQ(OK, r1.Parse(response_size, &actual_ips));
-  EXPECT_EQ(expected_ips, actual_ips);
+  // Reject too short.
+  EXPECT_FALSE(resp.InitParse(query->io_buffer()->size() - 1, *query));
+
+  // Reject wrong id.
+  scoped_ptr<DnsQuery> other_query(query->CloneWithNewId(0xbeef));
+  EXPECT_FALSE(resp.InitParse(sizeof(response_data), *other_query));
+
+  // Reject wrong question.
+  scoped_ptr<DnsQuery> wrong_query(
+      new DnsQuery(0xcafe, qname, dns_protocol::kTypeCNAME));
+  EXPECT_FALSE(resp.InitParse(sizeof(response_data), *wrong_query));
+
+  // Accept matching question.
+  EXPECT_TRUE(resp.InitParse(sizeof(response_data), *query));
+
+  // Check header access.
+  EXPECT_EQ(0x81, resp.flags0());
+  EXPECT_EQ(0x80, resp.flags1());
+  EXPECT_EQ(0x0, resp.rcode());
+  EXPECT_EQ(2, resp.answer_count());
+
+  DnsResourceRecord record;
+  DnsRecordParser parser = resp.Parser();
+  EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_FALSE(parser.ParseRecord(&record));
 }
+
+}  // namespace
 
 }  // namespace net
