@@ -611,9 +611,19 @@ int MockDiskCache::DoomAllEntries(net::OldCompletionCallback* callback) {
   return net::ERR_NOT_IMPLEMENTED;
 }
 
+int MockDiskCache::DoomAllEntries(const net::CompletionCallback& callback) {
+  return net::ERR_NOT_IMPLEMENTED;
+}
+
 int MockDiskCache::DoomEntriesBetween(const base::Time initial_time,
                                       const base::Time end_time,
                                       net::OldCompletionCallback* callback) {
+  return net::ERR_NOT_IMPLEMENTED;
+}
+
+int MockDiskCache::DoomEntriesBetween(const base::Time initial_time,
+                                      const base::Time end_time,
+                                      const net::CompletionCallback& callback) {
   return net::ERR_NOT_IMPLEMENTED;
 }
 
