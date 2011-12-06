@@ -14,25 +14,9 @@
 #include "net/base/host_resolver.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
+#include "net/dns/dns_protocol.h"
 
 namespace net {
-
-// DNS related classes make use of PRNG for various tasks.  This class is
-// used as a PRNG for unit testing those tasks.  It takes a deque of
-// integers |numbers| which should be returned by calls to GetNext.
-class TestPrng {
- public:
-  explicit TestPrng(const std::deque<int>& numbers);
-  ~TestPrng();
-
-  // Pops and returns the next number from |numbers_| deque.
-  int GetNext(int min, int max);
-
- private:
-  std::deque<int> numbers_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestPrng);
-};
 
 // A utility function for tests that given an array of IP literals,
 // converts it to an IPAddressList.
@@ -49,7 +33,7 @@ static const uint16 kDnsPort = 53;
 //-----------------------------------------------------------------------------
 // Query/response set for www.google.com, ID is fixed to 0.
 static const char kT0HostName[] = "www.google.com";
-static const uint16 kT0Qtype = kDNS_A;
+static const uint16 kT0Qtype = dns_protocol::kTypeA;
 static const char kT0DnsName[] = {
   0x03, 'w', 'w', 'w',
   0x06, 'g', 'o', 'o', 'g', 'l', 'e',
@@ -92,10 +76,10 @@ static const char* const kT0IpAddresses[] = {
 //-----------------------------------------------------------------------------
 // Query/response set for codereview.chromium.org, ID is fixed to 1.
 static const char kT1HostName[] = "codereview.chromium.org";
-static const uint16 kT1Qtype = kDNS_A;
+static const uint16 kT1Qtype = dns_protocol::kTypeA;
 static const char kT1DnsName[] = {
-  0x12, 'c', 'o', 'd', 'e', 'r', 'e', 'v', 'i', 'e', 'w',
-  0x10, 'c', 'h', 'r', 'o', 'm', 'i', 'u', 'm',
+  0x0a, 'c', 'o', 'd', 'e', 'r', 'e', 'v', 'i', 'e', 'w',
+  0x08, 'c', 'h', 'r', 'o', 'm', 'i', 'u', 'm',
   0x03, 'o', 'r', 'g',
   0x00
 };
@@ -130,10 +114,10 @@ static const char* const kT1IpAddresses[] = {
 //-----------------------------------------------------------------------------
 // Query/response set for www.ccs.neu.edu, ID is fixed to 2.
 static const char kT2HostName[] = "www.ccs.neu.edu";
-static const uint16 kT2Qtype = kDNS_A;
+static const uint16 kT2Qtype = dns_protocol::kTypeA;
 static const char kT2DnsName[] = {
   0x03, 'w', 'w', 'w',
-  0x03, 'c', 'c', 'c',
+  0x03, 'c', 'c', 's',
   0x03, 'n', 'e', 'u',
   0x03, 'e', 'd', 'u',
   0x00
@@ -166,7 +150,7 @@ static const char* const kT2IpAddresses[] = {
 //-----------------------------------------------------------------------------
 // Query/response set for www.google.az, ID is fixed to 3.
 static const char kT3HostName[] = "www.google.az";
-static const uint16 kT3Qtype = kDNS_A;
+static const uint16 kT3Qtype = dns_protocol::kTypeA;
 static const char kT3DnsName[] = {
   0x03, 'w', 'w', 'w',
   0x06, 'g', 'o', 'o', 'g', 'l', 'e',
