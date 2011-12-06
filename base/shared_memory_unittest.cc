@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#if defined(OS_MACOSX)
+#include "base/mac/scoped_nsautorelease_pool.h"
+#endif
 #include "base/memory/scoped_ptr.h"
 #include "base/shared_memory.h"
 #include "base/test/multiprocess_test.h"
