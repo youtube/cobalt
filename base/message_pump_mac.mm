@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/message_pump_mac.h"
+#import "base/message_pump_mac.h"
 
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
@@ -19,6 +19,10 @@ void NoOp(void* info) {
 
 const CFTimeInterval kCFTimeIntervalMax =
     std::numeric_limits<CFTimeInterval>::max();
+
+// Set to true if MessagePumpMac::Create() is called before NSApp is
+// initialized.  Only accessed from the main thread.
+bool not_using_crapp = false;
 
 }  // namespace
 
@@ -591,6 +595,9 @@ void MessagePumpNSApplication::Quit() {
            atStart:NO];
 }
 
+MessagePumpCrApplication::MessagePumpCrApplication() {
+}
+
 // Prevents an autorelease pool from being created if the app is in the midst of
 // handling a UI event because various parts of AppKit depend on objects that
 // are created while handling a UI event to be autoreleased in the event loop.
@@ -622,22 +629,50 @@ void MessagePumpNSApplication::Quit() {
 // CrApplication is responsible for setting handlingSendEvent to true just
 // before it sends the event through the event handling mechanism, and
 // returning it to its previous value once the event has been sent.
-NSAutoreleasePool* MessagePumpNSApplication::CreateAutoreleasePool() {
-  NSAutoreleasePool* pool = nil;
-  DCHECK([NSApp conformsToProtocol:@protocol(CrAppProtocol)]);
-  if (![NSApp isHandlingSendEvent]) {
-    pool = MessagePumpCFRunLoopBase::CreateAutoreleasePool();
-  }
-  return pool;
+NSAutoreleasePool* MessagePumpCrApplication::CreateAutoreleasePool() {
+  if (MessagePumpMac::IsHandlingSendEvent())
+    return nil;
+  return MessagePumpNSApplication::CreateAutoreleasePool();
 }
 
 // static
 MessagePump* MessagePumpMac::Create() {
   if ([NSThread isMainThread]) {
+    if ([NSApp conformsToProtocol:@protocol(CrAppProtocol)])
+      return new MessagePumpCrApplication;
+
+    // The main-thread MessagePump implementations REQUIRE an NSApp.
+    // Executables which have specific requirements for their
+    // NSApplication subclass should initialize appropriately before
+    // creating an event loop.
+    [NSApplication sharedApplication];
+    not_using_crapp = true;
     return new MessagePumpNSApplication;
   }
 
   return new MessagePumpNSRunLoop;
+}
+
+// static
+bool MessagePumpMac::UsingCrApp() {
+  DCHECK([NSThread isMainThread]);
+
+  // If NSApp is still not initialized, then the subclass used cannot
+  // be determined.
+  DCHECK(NSApp);
+
+  // The pump was created using MessagePumpNSApplication.
+  if (not_using_crapp)
+    return false;
+
+  return [NSApp conformsToProtocol:@protocol(CrAppProtocol)];
+}
+
+// static
+bool MessagePumpMac::IsHandlingSendEvent() {
+  DCHECK([NSApp conformsToProtocol:@protocol(CrAppProtocol)]);
+  NSObject<CrAppProtocol>* app = static_cast<NSObject<CrAppProtocol>*>(NSApp);
+  return [app isHandlingSendEvent];
 }
 
 }  // namespace base
