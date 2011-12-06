@@ -5,6 +5,7 @@
 #include "net/url_request/view_cache_helper.h"
 
 #include "base/pickle.h"
+#include "net/base/completion_callback.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/disk_cache.h"
@@ -85,10 +86,10 @@ void WriteToEntry(disk_cache::Backend* cache, const std::string key,
 }
 
 void FillCache(URLRequestContext* context) {
-  TestOldCompletionCallback cb;
+  TestCompletionCallback cb;
   disk_cache::Backend* cache;
-  int rv =
-      context->http_transaction_factory()->GetCache()->GetBackend(&cache, &cb);
+  int rv = context->http_transaction_factory()->GetCache()->GetBackend(
+      &cache, cb.callback());
   ASSERT_EQ(OK, cb.GetResult(rv));
 
   std::string empty;
@@ -180,15 +181,16 @@ TEST(ViewCacheHelper, TruncatedFlag) {
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
   ViewCacheHelper helper;
 
-  TestOldCompletionCallback cb;
+  TestCompletionCallback cb;
   disk_cache::Backend* cache;
-  int rv =
-      context->http_transaction_factory()->GetCache()->GetBackend(&cache, &cb);
+  int rv = context->http_transaction_factory()->GetCache()->GetBackend(
+      &cache, cb.callback());
   ASSERT_EQ(OK, cb.GetResult(rv));
 
   std::string key("the key");
   disk_cache::Entry* entry;
-  rv = cache->CreateEntry(key, &entry, &cb);
+  TestOldCompletionCallback cb2;
+  rv = cache->CreateEntry(key, &entry, &cb2);
   ASSERT_EQ(OK, cb.GetResult(rv));
 
   // RESPONSE_INFO_TRUNCATED defined on response_info.cc

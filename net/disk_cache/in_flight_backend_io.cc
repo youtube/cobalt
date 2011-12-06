@@ -16,7 +16,21 @@ namespace disk_cache {
 
 BackendIO::BackendIO(InFlightIO* controller, BackendImpl* backend,
                      net::OldCompletionCallback* callback)
-    : BackgroundIO(controller), backend_(backend), callback_(callback),
+    : BackgroundIO(controller),
+      backend_(backend),
+      old_callback_(callback),
+      operation_(OP_NONE),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          my_callback_(this, &BackendIO::OnIOComplete)) {
+  start_time_ = base::TimeTicks::Now();
+}
+
+BackendIO::BackendIO(InFlightIO* controller, BackendImpl* backend,
+                     const net::CompletionCallback& callback)
+    : BackgroundIO(controller),
+      backend_(backend),
+      old_callback_(NULL),
+      callback_(callback),
       operation_(OP_NONE),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           my_callback_(this, &BackendIO::OnIOComplete)) {
@@ -313,8 +327,22 @@ void InFlightBackendIO::OpenEntry(const std::string& key, Entry** entry,
   PostOperation(operation);
 }
 
+void InFlightBackendIO::OpenEntry(const std::string& key, Entry** entry,
+                                  const net::CompletionCallback& callback) {
+  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
+  operation->OpenEntry(key, entry);
+  PostOperation(operation);
+}
+
 void InFlightBackendIO::CreateEntry(const std::string& key, Entry** entry,
                                     OldCompletionCallback* callback) {
+  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
+  operation->CreateEntry(key, entry);
+  PostOperation(operation);
+}
+
+void InFlightBackendIO::CreateEntry(const std::string& key, Entry** entry,
+                                    const net::CompletionCallback& callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->CreateEntry(key, entry);
   PostOperation(operation);
@@ -406,10 +434,27 @@ void InFlightBackendIO::ReadData(EntryImpl* entry, int index, int offset,
   PostOperation(operation);
 }
 
+void InFlightBackendIO::ReadData(EntryImpl* entry, int index, int offset,
+                                 net::IOBuffer* buf, int buf_len,
+                                 const net::CompletionCallback& callback) {
+  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
+  operation->ReadData(entry, index, offset, buf, buf_len);
+  PostOperation(operation);
+}
+
 void InFlightBackendIO::WriteData(EntryImpl* entry, int index, int offset,
                                   net::IOBuffer* buf, int buf_len,
                                   bool truncate,
                                   OldCompletionCallback* callback) {
+  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
+  operation->WriteData(entry, index, offset, buf, buf_len, truncate);
+  PostOperation(operation);
+}
+
+void InFlightBackendIO::WriteData(EntryImpl* entry, int index, int offset,
+                                  net::IOBuffer* buf, int buf_len,
+                                  bool truncate,
+                                  const net::CompletionCallback& callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->WriteData(entry, index, offset, buf, buf_len, truncate);
   PostOperation(operation);
@@ -464,8 +509,10 @@ void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
     CACHE_UMA(TIMES, "TotalIOTime", 0, op->ElapsedTime());
   }
 
-  if (op->callback() && (!cancel || op->IsEntryOperation()))
-    op->callback()->Run(op->result());
+  if (op->old_callback() && (!cancel || op->IsEntryOperation()))
+    op->old_callback()->Run(op->result());
+  else if (!op->callback().is_null() && (!cancel || op->IsEntryOperation()))
+    op->callback().Run(op->result());
 }
 
 void InFlightBackendIO::PostOperation(BackendIO* operation) {
