@@ -8,6 +8,11 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/time.h"
+#include "net/dns/dns_protocol.h"
+#include "net/dns/dns_query.h"
+#include "net/dns/dns_response.h"
+#include "net/dns/dns_session.h"
 #include "net/dns/dns_test_util.h"
 #include "net/socket/socket_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -16,43 +21,69 @@ namespace net {
 
 namespace {
 
-static const base::TimeDelta kTimeoutsMs[] = {
-  base::TimeDelta::FromMilliseconds(20),
-  base::TimeDelta::FromMilliseconds(20),
-  base::TimeDelta::FromMilliseconds(20),
-};
+// A mock for RandIntCallback that always returns 0.
+int ReturnZero(int min, int max) {
+  return 0;
+}
 
-}  // namespace
+class DnsTransactionTest : public testing::Test {
+ protected:
+  virtual void SetUp() OVERRIDE {
+    DnsConfig config;
 
-class TestDelegate : public DnsTransaction::Delegate {
- public:
-  TestDelegate() : result_(ERR_UNEXPECTED), transaction_(NULL) {}
-  virtual ~TestDelegate() {}
-  virtual void OnTransactionComplete(
-      int result,
-      const DnsTransaction* transaction,
-      const IPAddressList& ip_addresses) {
-    result_ = result;
-    transaction_ = transaction;
-    ip_addresses_ = ip_addresses;
+    IPEndPoint dns_server;
+    bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
+    ASSERT_TRUE(rv);
+    config.nameservers.push_back(dns_server);
+    config.attempts = 3;
+    config.timeout = base::TimeDelta::FromMilliseconds(20);
+
+    qname_ = std::string(kT0DnsName, arraysize(kT0DnsName));
+
+    session_ = new DnsSession(config,
+                              new MockClientSocketFactory(),
+                              base::Bind(&ReturnZero),
+                              NULL /* NetLog */);
+
+    callback_ = base::Bind(&DnsTransactionTest::OnTransactionComplete,
+                           base::Unretained(this));
+  }
+
+  void StartTransaction() {
+    transaction_.reset(new DnsTransaction(session_.get(),
+                                          qname_,
+                                          kT0Qtype,
+                                          callback_,
+                                          BoundNetLog()));
+
+    int rv0 = transaction_->Start();
+    EXPECT_EQ(ERR_IO_PENDING, rv0);
+  }
+
+  void OnTransactionComplete(DnsTransaction* transaction, int rv) {
+    EXPECT_EQ(transaction_.get(), transaction);
+    EXPECT_EQ(qname_, transaction->query()->qname().as_string());
+    EXPECT_EQ(kT0Qtype, transaction->query()->qtype());
+    rv_ = rv;
     MessageLoop::current()->Quit();
   }
-  int result() const { return result_; }
-  const DnsTransaction* transaction() const { return transaction_; }
-  const IPAddressList& ip_addresses() const {
-    return ip_addresses_;
+
+  MockClientSocketFactory& factory() {
+    return *static_cast<MockClientSocketFactory*>(session_->socket_factory());
   }
 
- private:
-  int result_;
-  const DnsTransaction* transaction_;
-  IPAddressList ip_addresses_;
+  int rv() const { return rv_; }
 
-  DISALLOW_COPY_AND_ASSIGN(TestDelegate);
+ private:
+  std::string qname_;
+  scoped_refptr<DnsSession> session_;
+  scoped_ptr<DnsTransaction> transaction_;
+  DnsTransaction::ResultCallback callback_;
+
+  int rv_;
 };
 
-
-TEST(DnsTransactionTest, NormalQueryResponseTest) {
+TEST_F(DnsTransactionTest, NormalQueryResponseTest) {
   MockWrite writes0[] = {
     MockWrite(true, reinterpret_cast<const char*>(kT0QueryDatagram),
               arraysize(kT0QueryDatagram))
@@ -65,45 +96,19 @@ TEST(DnsTransactionTest, NormalQueryResponseTest) {
 
   StaticSocketDataProvider data(reads0, arraysize(reads0),
                                 writes0, arraysize(writes0));
-  MockClientSocketFactory factory;
-  factory.AddSocketDataProvider(&data);
+  factory().AddSocketDataProvider(&data);
 
-  TestPrng test_prng(std::deque<int>(1, 0));
-  RandIntCallback rand_int_cb =
-      base::Bind(&TestPrng::GetNext, base::Unretained(&test_prng));
-  std::string t0_dns_name(kT0DnsName, arraysize(kT0DnsName));
-
-  IPEndPoint dns_server;
-  bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
-  ASSERT_TRUE(rv);
-
-  DnsTransaction t(dns_server, t0_dns_name, kT1Qtype, rand_int_cb, &factory,
-                   BoundNetLog(), NULL);
-
-  TestDelegate delegate;
-  t.SetDelegate(&delegate);
-
-  IPAddressList expected_ip_addresses;
-  rv = ConvertStringsToIPAddressList(kT0IpAddresses,
-                                     arraysize(kT0IpAddresses),
-                                     &expected_ip_addresses);
-  ASSERT_TRUE(rv);
-
-  int rv0 = t.Start();
-  EXPECT_EQ(ERR_IO_PENDING, rv0);
-
+  StartTransaction();
   MessageLoop::current()->Run();
 
-  EXPECT_TRUE(DnsTransaction::Key(t0_dns_name, kT0Qtype) == t.key());
-  EXPECT_EQ(OK, delegate.result());
-  EXPECT_EQ(&t, delegate.transaction());
-  EXPECT_TRUE(expected_ip_addresses == delegate.ip_addresses());
+  EXPECT_EQ(OK, rv());
+  // TODO(szym): test fields of |transaction_->response()|
 
   EXPECT_TRUE(data.at_read_eof());
   EXPECT_TRUE(data.at_write_eof());
 }
 
-TEST(DnsTransactionTest, MismatchedQueryResponseTest) {
+TEST_F(DnsTransactionTest, MismatchedQueryResponseTest) {
   MockWrite writes0[] = {
     MockWrite(true, reinterpret_cast<const char*>(kT0QueryDatagram),
               arraysize(kT0QueryDatagram))
@@ -116,40 +121,20 @@ TEST(DnsTransactionTest, MismatchedQueryResponseTest) {
 
   StaticSocketDataProvider data(reads1, arraysize(reads1),
                                 writes0, arraysize(writes0));
-  MockClientSocketFactory factory;
-  factory.AddSocketDataProvider(&data);
+  factory().AddSocketDataProvider(&data);
 
-  TestPrng test_prng(std::deque<int>(1, 0));
-  RandIntCallback rand_int_cb =
-      base::Bind(&TestPrng::GetNext, base::Unretained(&test_prng));
-  std::string t0_dns_name(kT0DnsName, arraysize(kT0DnsName));
-
-  IPEndPoint dns_server;
-  bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
-  ASSERT_TRUE(rv);
-
-  DnsTransaction t(dns_server, t0_dns_name, kT1Qtype, rand_int_cb, &factory,
-                   BoundNetLog(), NULL);
-
-  TestDelegate delegate;
-  t.SetDelegate(&delegate);
-
-  int rv0 = t.Start();
-  EXPECT_EQ(ERR_IO_PENDING, rv0);
-
+  StartTransaction();
   MessageLoop::current()->Run();
 
-  EXPECT_TRUE(DnsTransaction::Key(t0_dns_name, kT0Qtype) == t.key());
-  EXPECT_EQ(ERR_DNS_MALFORMED_RESPONSE, delegate.result());
-  EXPECT_EQ(0u, delegate.ip_addresses().size());
-  EXPECT_EQ(&t, delegate.transaction());
+  EXPECT_EQ(ERR_DNS_MALFORMED_RESPONSE, rv());
+
   EXPECT_TRUE(data.at_read_eof());
   EXPECT_TRUE(data.at_write_eof());
 }
 
 // Test that after the first timeout we do a fresh connection and if we get
 // a response on the new connection, we return it.
-TEST(DnsTransactionTest, FirstTimeoutTest) {
+TEST_F(DnsTransactionTest, FirstTimeoutTest) {
   MockWrite writes0[] = {
     MockWrite(true, reinterpret_cast<const char*>(kT0QueryDatagram),
               arraysize(kT0QueryDatagram))
@@ -165,57 +150,27 @@ TEST(DnsTransactionTest, FirstTimeoutTest) {
   scoped_refptr<DelayedSocketData> socket1_data(
       new DelayedSocketData(0, reads0, arraysize(reads0),
                             writes0, arraysize(writes0)));
-  MockClientSocketFactory factory;
-  factory.AddSocketDataProvider(socket0_data.get());
-  factory.AddSocketDataProvider(socket1_data.get());
 
-  TestPrng test_prng(std::deque<int>(2, 0));
-  RandIntCallback rand_int_cb =
-      base::Bind(&TestPrng::GetNext, base::Unretained(&test_prng));
-  std::string t0_dns_name(kT0DnsName, arraysize(kT0DnsName));
+  factory().AddSocketDataProvider(socket0_data.get());
+  factory().AddSocketDataProvider(socket1_data.get());
 
-  IPEndPoint dns_server;
-  bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
-  ASSERT_TRUE(rv);
-
-  DnsTransaction t(dns_server, t0_dns_name, kT1Qtype, rand_int_cb, &factory,
-                   BoundNetLog(), NULL);
-
-  TestDelegate delegate;
-  t.SetDelegate(&delegate);
-
-  t.set_timeouts_ms(
-      std::vector<base::TimeDelta>(kTimeoutsMs,
-                                   kTimeoutsMs + arraysize(kTimeoutsMs)));
-
-  IPAddressList expected_ip_addresses;
-  rv = ConvertStringsToIPAddressList(kT0IpAddresses,
-                                     arraysize(kT0IpAddresses),
-                                     &expected_ip_addresses);
-  ASSERT_TRUE(rv);
-
-  int rv0 = t.Start();
-  EXPECT_EQ(ERR_IO_PENDING, rv0);
-
+  StartTransaction();
 
   MessageLoop::current()->Run();
 
-  EXPECT_TRUE(DnsTransaction::Key(t0_dns_name, kT0Qtype) == t.key());
-  EXPECT_EQ(OK, delegate.result());
-  EXPECT_EQ(&t, delegate.transaction());
-  EXPECT_TRUE(expected_ip_addresses == delegate.ip_addresses());
+  EXPECT_EQ(OK, rv());
 
   EXPECT_TRUE(socket0_data->at_read_eof());
   EXPECT_TRUE(socket0_data->at_write_eof());
   EXPECT_TRUE(socket1_data->at_read_eof());
   EXPECT_TRUE(socket1_data->at_write_eof());
-  EXPECT_EQ(2u, factory.udp_client_sockets().size());
+  EXPECT_EQ(2u, factory().udp_client_sockets().size());
 }
 
 // Test that after the first timeout we do a fresh connection, and after
 // the second timeout we do another fresh connection, and if we get a
 // response on the second connection, we return it.
-TEST(DnsTransactionTest, SecondTimeoutTest) {
+TEST_F(DnsTransactionTest, SecondTimeoutTest) {
   MockWrite writes0[] = {
     MockWrite(true, reinterpret_cast<const char*>(kT0QueryDatagram),
               arraysize(kT0QueryDatagram))
@@ -233,45 +188,16 @@ TEST(DnsTransactionTest, SecondTimeoutTest) {
   scoped_refptr<DelayedSocketData> socket2_data(
       new DelayedSocketData(0, reads0, arraysize(reads0),
                             writes0, arraysize(writes0)));
-  MockClientSocketFactory factory;
-  factory.AddSocketDataProvider(socket0_data.get());
-  factory.AddSocketDataProvider(socket1_data.get());
-  factory.AddSocketDataProvider(socket2_data.get());
 
-  TestPrng test_prng(std::deque<int>(3, 0));
-  RandIntCallback rand_int_cb =
-      base::Bind(&TestPrng::GetNext, base::Unretained(&test_prng));
-  std::string t0_dns_name(kT0DnsName, arraysize(kT0DnsName));
+  factory().AddSocketDataProvider(socket0_data.get());
+  factory().AddSocketDataProvider(socket1_data.get());
+  factory().AddSocketDataProvider(socket2_data.get());
 
-  IPEndPoint dns_server;
-  bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
-  ASSERT_TRUE(rv);
-
-  DnsTransaction t(dns_server, t0_dns_name, kT1Qtype, rand_int_cb, &factory,
-                   BoundNetLog(), NULL);
-
-  TestDelegate delegate;
-  t.SetDelegate(&delegate);
-
-  t.set_timeouts_ms(
-      std::vector<base::TimeDelta>(kTimeoutsMs,
-                                   kTimeoutsMs + arraysize(kTimeoutsMs)));
-
-  IPAddressList expected_ip_addresses;
-  rv = ConvertStringsToIPAddressList(kT0IpAddresses,
-                                     arraysize(kT0IpAddresses),
-                                     &expected_ip_addresses);
-  ASSERT_TRUE(rv);
-
-  int rv0 = t.Start();
-  EXPECT_EQ(ERR_IO_PENDING, rv0);
+  StartTransaction();
 
   MessageLoop::current()->Run();
 
-  EXPECT_TRUE(DnsTransaction::Key(t0_dns_name, kT1Qtype) == t.key());
-  EXPECT_EQ(OK, delegate.result());
-  EXPECT_EQ(&t, delegate.transaction());
-  EXPECT_TRUE(expected_ip_addresses == delegate.ip_addresses());
+  EXPECT_EQ(OK, rv());
 
   EXPECT_TRUE(socket0_data->at_read_eof());
   EXPECT_TRUE(socket0_data->at_write_eof());
@@ -279,13 +205,13 @@ TEST(DnsTransactionTest, SecondTimeoutTest) {
   EXPECT_TRUE(socket1_data->at_write_eof());
   EXPECT_TRUE(socket2_data->at_read_eof());
   EXPECT_TRUE(socket2_data->at_write_eof());
-  EXPECT_EQ(3u, factory.udp_client_sockets().size());
+  EXPECT_EQ(3u, factory().udp_client_sockets().size());
 }
 
 // Test that after the first timeout we do a fresh connection, and after
 // the second timeout we do another fresh connection and after the third
 // timeout we give up and return a timeout error.
-TEST(DnsTransactionTest, ThirdTimeoutTest) {
+TEST_F(DnsTransactionTest, ThirdTimeoutTest) {
   MockWrite writes0[] = {
     MockWrite(true, reinterpret_cast<const char*>(kT0QueryDatagram),
               arraysize(kT0QueryDatagram))
@@ -297,38 +223,16 @@ TEST(DnsTransactionTest, ThirdTimeoutTest) {
       new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
   scoped_refptr<DelayedSocketData> socket2_data(
       new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  MockClientSocketFactory factory;
-  factory.AddSocketDataProvider(socket0_data.get());
-  factory.AddSocketDataProvider(socket1_data.get());
-  factory.AddSocketDataProvider(socket2_data.get());
 
-  TestPrng test_prng(std::deque<int>(3, 0));
-  RandIntCallback rand_int_cb =
-      base::Bind(&TestPrng::GetNext, base::Unretained(&test_prng));
-  std::string t0_dns_name(kT0DnsName, arraysize(kT0DnsName));
+  factory().AddSocketDataProvider(socket0_data.get());
+  factory().AddSocketDataProvider(socket1_data.get());
+  factory().AddSocketDataProvider(socket2_data.get());
 
-  IPEndPoint dns_server;
-  bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
-  ASSERT_TRUE(rv);
-
-  DnsTransaction t(dns_server, t0_dns_name, kT1Qtype, rand_int_cb, &factory,
-                   BoundNetLog(), NULL);
-
-  TestDelegate delegate;
-  t.SetDelegate(&delegate);
-
-  t.set_timeouts_ms(
-      std::vector<base::TimeDelta>(kTimeoutsMs,
-                                   kTimeoutsMs + arraysize(kTimeoutsMs)));
-
-  int rv0 = t.Start();
-  EXPECT_EQ(ERR_IO_PENDING, rv0);
+  StartTransaction();
 
   MessageLoop::current()->Run();
 
-  EXPECT_TRUE(DnsTransaction::Key(t0_dns_name, kT0Qtype) == t.key());
-  EXPECT_EQ(ERR_DNS_TIMED_OUT, delegate.result());
-  EXPECT_EQ(&t, delegate.transaction());
+  EXPECT_EQ(ERR_DNS_TIMED_OUT, rv());
 
   EXPECT_TRUE(socket0_data->at_read_eof());
   EXPECT_TRUE(socket0_data->at_write_eof());
@@ -336,7 +240,9 @@ TEST(DnsTransactionTest, ThirdTimeoutTest) {
   EXPECT_TRUE(socket1_data->at_write_eof());
   EXPECT_TRUE(socket2_data->at_read_eof());
   EXPECT_TRUE(socket2_data->at_write_eof());
-  EXPECT_EQ(3u, factory.udp_client_sockets().size());
+  EXPECT_EQ(3u, factory().udp_client_sockets().size());
 }
+
+}  // namespace
 
 }  // namespace net
