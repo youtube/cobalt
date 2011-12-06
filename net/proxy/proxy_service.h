@@ -79,6 +79,11 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
                    OldCompletionCallback* callback,
                    PacRequest** pac_request,
                    const BoundNetLog& net_log);
+  int ResolveProxy(const GURL& url,
+                   ProxyInfo* results,
+                   const net::CompletionCallback& callback,
+                   PacRequest** pac_request,
+                   const BoundNetLog& net_log);
 
   // This method is called after a failure to connect or resolve a host name.
   // It gives the proxy service an opportunity to reconsider the proxy to use.
