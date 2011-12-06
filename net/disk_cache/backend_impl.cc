@@ -1381,9 +1381,23 @@ int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
   return net::ERR_IO_PENDING;
 }
 
+int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
+                           const net::CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
+  background_queue_.OpenEntry(key, entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
 int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
                              OldCompletionCallback* callback) {
   DCHECK(callback);
+  background_queue_.CreateEntry(key, entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
+                             const net::CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
   background_queue_.CreateEntry(key, entry, callback);
   return net::ERR_IO_PENDING;
 }

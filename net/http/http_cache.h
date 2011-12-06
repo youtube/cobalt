@@ -157,7 +157,8 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   // a network error code, and it could be ERR_IO_PENDING, in which case the
   // |callback| will be notified when the operation completes. The pointer that
   // receives the |backend| must remain valid until the operation completes.
-  int GetBackend(disk_cache::Backend** backend, OldCompletionCallback* callback);
+  int GetBackend(disk_cache::Backend** backend,
+                 const CompletionCallback& callback);
 
   // Returns the current backend (can be NULL).
   disk_cache::Backend* GetCurrentBackend() const;
@@ -190,7 +191,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   // referred to by |url| and |http_method|.
   void OnExternalCacheHit(const GURL& url, const std::string& http_method);
 
-  // HttpTransactionFactory implementation:
+  // HttpTransactionFactory implementation.
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans) OVERRIDE;
   virtual HttpCache* GetCache() OVERRIDE;
   virtual HttpNetworkSession* GetSession() OVERRIDE;
@@ -243,7 +244,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   // Creates the |backend| object and notifies the |callback| when the operation
   // completes. Returns an error code.
   int CreateBackend(disk_cache::Backend** backend,
-                    OldCompletionCallback* callback);
+                    const CompletionCallback& callback);
 
   // Makes sure that the backend creation is complete before allowing the
   // provided transaction to use the object. Returns an error code.  |trans|

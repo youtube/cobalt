@@ -101,8 +101,14 @@ class MemEntryImpl : public Entry {
   virtual int ReadData(
       int index, int offset, net::IOBuffer* buf, int buf_len,
       net::OldCompletionCallback* completion_callback) OVERRIDE;
+  virtual int ReadData(
+      int index, int offset, net::IOBuffer* buf, int buf_len,
+      const net::CompletionCallback& completion_callback) OVERRIDE;
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
                         net::OldCompletionCallback* completion_callback,
+                        bool truncate) OVERRIDE;
+  virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
+                        const net::CompletionCallback& completion_callback,
                         bool truncate) OVERRIDE;
   virtual int ReadSparseData(
       int64 offset, net::IOBuffer* buf, int buf_len,
