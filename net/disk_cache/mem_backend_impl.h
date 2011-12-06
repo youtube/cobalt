@@ -87,6 +87,8 @@ class NET_EXPORT_PRIVATE MemBackendImpl : public Backend {
                                OldCompletionCallback* callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
                             OldCompletionCallback* callback) OVERRIDE;
+  virtual int OpenNextEntry(void** iter, Entry** next_entry,
+                            const net::CompletionCallback& callback) OVERRIDE;
   virtual void EndEnumeration(void** iter) OVERRIDE;
   virtual void GetStats(
       std::vector<std::pair<std::string, std::string> >* stats) OVERRIDE {}
