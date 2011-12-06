@@ -483,6 +483,12 @@ SSLClientSocketNSS::~SSLClientSocketNSS() {
 
 // static
 void SSLClientSocketNSS::ClearSessionCache() {
+  // Initialize the NSS SSL library in a threadsafe way.  This also
+  // initializes the NSS base library.
+  EnsureNSSSSLInit();
+  if (!NSS_IsInitialized())
+    return;
+
   SSL_ClearSessionCache();
 }
 
