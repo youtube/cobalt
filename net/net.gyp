@@ -56,6 +56,8 @@
         'base/bandwidth_metrics.cc',
         'base/bandwidth_metrics.h',
         'base/cache_type.h',
+        'base/capturing_net_log.cc',
+        'base/capturing_net_log.h',
         'base/cert_database.cc',
         'base/cert_database.h',
         'base/cert_database_mac.cc',
@@ -1365,8 +1367,6 @@
         '../testing/gtest.gyp:gtest',
       ],
       'sources': [
-        'base/capturing_net_log.cc',
-        'base/capturing_net_log.h',
         'base/cert_test_util.cc',
         'base/cert_test_util.h',
         'base/cookie_monster_store_test.cc',
