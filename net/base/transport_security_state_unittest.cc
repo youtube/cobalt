@@ -580,18 +580,10 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(ShouldRedirect("ubertt.org"));
   EXPECT_TRUE(ShouldRedirect("foo.ubertt.org"));
 
-#if 0
-  // Currently disabled to debug Twitter public key pins  --agl
-#if defined(OS_CHROMEOS)
-  EXPECT_TRUE(state.GetDomainState(&domain_state,
-                                   "twitter.com",
-                                   false));
-#else
-  EXPECT_FALSE(state.GetDomainState(&domain_state,
-                                      "twitter.com",
-                                      false));
-#endif
-#endif
+
+  EXPECT_FALSE(ShouldRedirect("twitter.com"));
+  EXPECT_FALSE(ShouldRedirect("www.twitter.com"));
+  EXPECT_TRUE(HasPins("www.twitter.com"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
@@ -692,7 +684,6 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
                                    true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "www.googleplex.com", true));
 
-#if 0
   // Disabled in order to help track down pinning failures --agl
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "twitter.com", true));
   EXPECT_FALSE(state.HasPinsForHost(&domain_state, "foo.twitter.com", true));
@@ -705,7 +696,6 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "platform.twitter.com", true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "si0.twimg.com", true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "twimg0-a.akamaihd.net", true));
-#endif
 }
 
 static bool AddHash(const std::string& type_and_base64,
