@@ -175,17 +175,21 @@ class NetLogSpdyRstParameter : public NetLog::EventParameters {
 
 class NetLogSpdyPingParameter : public NetLog::EventParameters {
  public:
-  explicit NetLogSpdyPingParameter(uint32 unique_id) : unique_id_(unique_id) {}
+  explicit NetLogSpdyPingParameter(uint32 unique_id, const std::string& type)
+    : unique_id_(unique_id),
+      type_(type) {}
 
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetInteger("unique_id", unique_id_);
+    dict->SetString("type", type_);
     return dict;
   }
 
  private:
   ~NetLogSpdyPingParameter() {}
   const uint32 unique_id_;
+  const std::string type_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyPingParameter);
 };
@@ -1382,7 +1386,8 @@ void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
 void SpdySession::OnPing(const spdy::SpdyPingControlFrame& frame) {
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_PING,
-      make_scoped_refptr(new NetLogSpdyPingParameter(frame.unique_id())));
+      make_scoped_refptr(
+          new NetLogSpdyPingParameter(frame.unique_id(), "received")));
 
   // Send response to a PING from server.
   if (frame.unique_id() % 2 == 0) {
@@ -1593,7 +1598,7 @@ void SpdySession::WritePingFrame(uint32 unique_id) {
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_PING,
-        make_scoped_refptr(new NetLogSpdyPingParameter(next_ping_id_)));
+        make_scoped_refptr(new NetLogSpdyPingParameter(next_ping_id_, "sent")));
   }
   if (unique_id % 2 != 0) {
     next_ping_id_ += 2;
