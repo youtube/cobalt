@@ -390,7 +390,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
           this, &SSLClientSocketOpenSSL::BufferRecvComplete)),
       transport_send_busy_(false),
       transport_recv_busy_(false),
-      user_connect_callback_(NULL),
+      old_user_connect_callback_(NULL),
       user_read_callback_(NULL),
       user_write_callback_(NULL),
       completed_handshake_(false),
@@ -649,6 +649,29 @@ int SSLClientSocketOpenSSL::Connect(OldCompletionCallback* callback) {
   GotoState(STATE_HANDSHAKE);
   int rv = DoHandshakeLoop(net::OK);
   if (rv == ERR_IO_PENDING) {
+    old_user_connect_callback_ = callback;
+  } else {
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
+  }
+
+  return rv > OK ? OK : rv;
+}
+int SSLClientSocketOpenSSL::Connect(const CompletionCallback& callback) {
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+
+  // Set up new ssl object.
+  if (!Init()) {
+    int result = ERR_UNEXPECTED;
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, result);
+    return result;
+  }
+
+  // Set SSL to client mode. Handshake happens in the loop below.
+  SSL_set_connect_state(ssl_);
+
+  GotoState(STATE_HANDSHAKE);
+  int rv = DoHandshakeLoop(net::OK);
+  if (rv == ERR_IO_PENDING) {
     user_connect_callback_ = callback;
   } else {
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
@@ -677,7 +700,8 @@ void SSLClientSocketOpenSSL::Disconnect() {
   transport_recv_busy_ = false;
   recv_buffer_ = NULL;
 
-  user_connect_callback_ = NULL;
+  old_user_connect_callback_ = NULL;
+  user_connect_callback_.Reset();
   user_read_callback_    = NULL;
   user_write_callback_   = NULL;
   user_read_buf_         = NULL;
@@ -1019,9 +1043,15 @@ void SSLClientSocketOpenSSL::TransportReadComplete(int result) {
 }
 
 void SSLClientSocketOpenSSL::DoConnectCallback(int rv) {
-  OldCompletionCallback* c = user_connect_callback_;
-  user_connect_callback_ = NULL;
-  c->Run(rv > OK ? OK : rv);
+  if (old_user_connect_callback_) {
+    OldCompletionCallback* c = old_user_connect_callback_;
+    old_user_connect_callback_ = NULL;
+    c->Run(rv > OK ? OK : rv);
+  } else {
+    CompletionCallback c = user_connect_callback_;
+    user_connect_callback_.Reset();
+    c.Run(rv > OK ? OK : rv);
+  }
 }
 
 void SSLClientSocketOpenSSL::OnHandshakeIOComplete(int result) {

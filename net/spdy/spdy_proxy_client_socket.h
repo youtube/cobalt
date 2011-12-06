@@ -60,8 +60,9 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   virtual int RestartWithAuth(OldCompletionCallback* callback) OVERRIDE;
   virtual const scoped_refptr<HttpAuthController>& auth_controller() OVERRIDE;
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
   virtual void Disconnect() OVERRIDE;
   virtual bool IsConnected() const OVERRIDE;
   virtual bool IsConnectedAndIdle() const OVERRIDE;
@@ -130,7 +131,8 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
 
   // Stores the callback to the layer above, called on completing Read() or
   // Connect().
-  OldCompletionCallback* read_callback_;
+  OldCompletionCallback* old_read_callback_;
+  CompletionCallback read_callback_;
   // Stores the callback to the layer above, called on completing Write().
   OldCompletionCallback* write_callback_;
 

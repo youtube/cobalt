@@ -42,8 +42,9 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   // Binds the socket to a local IP address and port.
   int Bind(const IPEndPoint& address);
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
   virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
   virtual void Disconnect() OVERRIDE;
   virtual bool IsConnected() const OVERRIDE;
   virtual bool IsConnectedAndIdle() const OVERRIDE;
@@ -57,7 +58,7 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   virtual int64 NumBytesRead() const OVERRIDE;
   virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
 
-  // Socket methods:
+  // Socket implementation.
   // Multiple outstanding requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
   virtual int Read(IOBuffer* buf,
@@ -100,14 +101,13 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
    public:
     explicit WriteWatcher(TCPClientSocketLibevent* socket) : socket_(socket) {}
 
-    // MessageLoopForIO::Watcher methods
-
+    // MessageLoopForIO::Watcher implementation.
     virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {}
-
     virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {
       if (socket_->waiting_connect()) {
         socket_->DidCompleteConnect();
-      } else if (socket_->write_callback_) {
+      } else if (socket_->old_write_callback_ ||
+                 !socket_->write_callback_.is_null()) {
         socket_->DidCompleteWrite();
       }
     }
@@ -179,7 +179,8 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   OldCompletionCallback* read_callback_;
 
   // External callback; called when write is complete.
-  OldCompletionCallback* write_callback_;
+  OldCompletionCallback* old_write_callback_;
+  CompletionCallback write_callback_;
 
   // The next state for the Connect() state machine.
   ConnectState next_connect_state_;
