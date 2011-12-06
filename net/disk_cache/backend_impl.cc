@@ -1451,6 +1451,13 @@ int BackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
   return net::ERR_IO_PENDING;
 }
 
+int BackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
+                               const net::CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
+  background_queue_.OpenNextEntry(iter, next_entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
 void BackendImpl::EndEnumeration(void** iter) {
   background_queue_.EndEnumeration(*iter);
   *iter = NULL;
