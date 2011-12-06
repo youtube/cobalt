@@ -7,11 +7,12 @@
 #include "base/bind.h"
 #include "base/rand_util.h"
 #include "base/values.h"
-#include "net/base/dns_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/dns/dns_protocol.h"
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_response.h"
+#include "net/dns/dns_session.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/udp/datagram_client_socket.h"
 
@@ -19,104 +20,51 @@ namespace net {
 
 namespace {
 
-// Retry timeouts.
-const int kTimeoutsMs[] = {3000, 5000, 11000};
-const int kMaxAttempts = arraysize(kTimeoutsMs);
-
-// Returns the string representation of an IPAddressNumber.
-std::string IPAddressToString(const IPAddressNumber& ip_address) {
-  IPEndPoint ip_endpoint(ip_address, 0);
-  struct sockaddr_storage addr;
-  size_t addr_len = sizeof(addr);
-  struct sockaddr* sockaddr = reinterpret_cast<struct sockaddr*>(&addr);
-  if (!ip_endpoint.ToSockAddr(sockaddr, &addr_len))
-    return "";
-  return NetAddressToString(sockaddr, addr_len);
-}
-
-}
-
-DnsTransaction::Delegate::Delegate() {
-}
-
-DnsTransaction::Delegate::~Delegate() {
-  while (!registered_transactions_.empty()) {
-    DnsTransaction* transaction = *registered_transactions_.begin();
-    transaction->SetDelegate(NULL);
-  }
-  DCHECK(registered_transactions_.empty());
-}
-
-void DnsTransaction::Delegate::OnTransactionComplete(
-    int result,
-    const DnsTransaction* transaction,
-    const IPAddressList& ip_addresses) {
-}
-
-void DnsTransaction::Delegate::Attach(DnsTransaction* transaction) {
-  DCHECK(registered_transactions_.find(transaction) ==
-         registered_transactions_.end());
-  registered_transactions_.insert(transaction);
-}
-
-void DnsTransaction::Delegate::Detach(DnsTransaction* transaction) {
-  DCHECK(registered_transactions_.find(transaction) !=
-         registered_transactions_.end());
-  registered_transactions_.erase(transaction);
-}
-
-namespace {
-
 class DnsTransactionStartParameters : public NetLog::EventParameters {
  public:
   DnsTransactionStartParameters(const IPEndPoint& dns_server,
-                                const DnsTransaction::Key& key,
+                                const base::StringPiece& qname,
+                                uint16 qtype,
                                 const NetLog::Source& source)
-      : dns_server_(dns_server), key_(key), source_(source) {}
+      : dns_server_(dns_server),
+        qname_(qname.data(), qname.length()),
+        qtype_(qtype),
+        source_(source) {}
 
   virtual Value* ToValue() const {
-    std::string hostname;
-    DnsResponseBuffer(
-        reinterpret_cast<const uint8*>(key_.first.c_str()), key_.first.size()).
-            DNSName(&hostname);
-
     DictionaryValue* dict = new DictionaryValue();
     dict->SetString("dns_server", dns_server_.ToString());
-    dict->SetString("hostname", hostname);
-    dict->SetInteger("query_type", key_.second);
+    dict->SetString("hostname", qname_);
+    dict->SetInteger("query_type", qtype_);
     if (source_.is_valid())
       dict->Set("source_dependency", source_.ToValue());
     return dict;
   }
 
  private:
-  const IPEndPoint dns_server_;
-  const DnsTransaction::Key key_;
+  IPEndPoint dns_server_;
+  std::string qname_;
+  uint16 qtype_;
   const NetLog::Source source_;
 };
 
 class DnsTransactionFinishParameters : public NetLog::EventParameters {
  public:
-  DnsTransactionFinishParameters(int net_error,
-                                 const IPAddressList& ip_address_list)
-      : net_error_(net_error), ip_address_list_(ip_address_list) {}
+  // TODO(szym): add rcode ?
+  DnsTransactionFinishParameters(int net_error, int answer_count)
+      : net_error_(net_error), answer_count_(answer_count) {}
 
   virtual Value* ToValue() const {
-    ListValue* list = new ListValue();
-    for (IPAddressList::const_iterator it = ip_address_list_.begin();
-         it != ip_address_list_.end(); ++it)
-      list->Append(Value::CreateStringValue(IPAddressToString(*it)));
-
     DictionaryValue* dict = new DictionaryValue();
     if (net_error_)
       dict->SetInteger("net_error", net_error_);
-    dict->Set("address_list", list);
+    dict->SetInteger("answer_count", answer_count_);
     return dict;
   }
 
  private:
   const int net_error_;
-  const IPAddressList ip_address_list_;
+  const int answer_count_;
 };
 
 class DnsTransactionRetryParameters : public NetLog::EventParameters {
@@ -139,47 +87,32 @@ class DnsTransactionRetryParameters : public NetLog::EventParameters {
 
 }  // namespace
 
-DnsTransaction::DnsTransaction(const IPEndPoint& dns_server,
-                               const std::string& dns_name,
-                               uint16 query_type,
-                               const RandIntCallback& rand_int,
-                               ClientSocketFactory* socket_factory,
-                               const BoundNetLog& source_net_log,
-                               NetLog* net_log)
-    : dns_server_(dns_server),
-      key_(dns_name, query_type),
-      delegate_(NULL),
-      query_(new DnsQuery(dns_name, query_type, rand_int)),
+
+DnsTransaction::DnsTransaction(DnsSession* session,
+                               const base::StringPiece& qname,
+                               uint16 qtype,
+                               const ResultCallback& callback,
+                               const BoundNetLog& source_net_log)
+    : session_(session),
+      dns_server_(session->NextServer()),
+      query_(new DnsQuery(session->NextId(), qname, qtype)),
+      callback_(callback),
       attempts_(0),
       next_state_(STATE_NONE),
-      socket_factory_(socket_factory ? socket_factory :
-          ClientSocketFactory::GetDefaultFactory()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &DnsTransaction::OnIOComplete)),
-      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_DNS_TRANSACTION)) {
-  DCHECK(!rand_int.is_null());
-  for (size_t i = 0; i < arraysize(kTimeoutsMs); ++i)
-    timeouts_ms_.push_back(base::TimeDelta::FromMilliseconds(kTimeoutsMs[i]));
+      net_log_(BoundNetLog::Make(session->net_log(),
+          NetLog::SOURCE_DNS_TRANSACTION)) {
   net_log_.BeginEvent(
       NetLog::TYPE_DNS_TRANSACTION,
       make_scoped_refptr(
-          new DnsTransactionStartParameters(dns_server_, key_,
+          new DnsTransactionStartParameters(dns_server_,
+                                            qname,
+                                            qtype,
                                             source_net_log.source())));
 }
 
-DnsTransaction::~DnsTransaction() {
-  SetDelegate(NULL);
-}
-
-void DnsTransaction::SetDelegate(Delegate* delegate) {
-  if (delegate == delegate_)
-    return;
-  if (delegate_)
-    delegate_->Detach(this);
-  delegate_ = delegate;
-  if (delegate_)
-    delegate_->Attach(this);
-}
+DnsTransaction::~DnsTransaction() {}
 
 int DnsTransaction::Start() {
   DCHECK_EQ(STATE_NONE, next_state_);
@@ -223,12 +156,12 @@ int DnsTransaction::DoLoop(int result) {
 
 void DnsTransaction::DoCallback(int result) {
   DCHECK_NE(result, ERR_IO_PENDING);
+  int answer_count = (result == OK) ? response()->answer_count() : 0;
   net_log_.EndEvent(
       NetLog::TYPE_DNS_TRANSACTION,
       make_scoped_refptr(
-          new DnsTransactionFinishParameters(result, ip_addresses_)));
-  if (delegate_)
-    delegate_->OnTransactionComplete(result, this, ip_addresses_);
+          new DnsTransactionFinishParameters(result, answer_count)));
+  callback_.Run(this, result);
 }
 
 void DnsTransaction::OnIOComplete(int result) {
@@ -240,13 +173,14 @@ void DnsTransaction::OnIOComplete(int result) {
 int DnsTransaction::DoConnect() {
   next_state_ = STATE_CONNECT_COMPLETE;
 
-  DCHECK_LT(attempts_, timeouts_ms_.size());
-  StartTimer(timeouts_ms_[attempts_]);
-  attempts_++;
+  StartTimer(session_->NextTimeout(attempts_));
+  ++attempts_;
 
-  // TODO(agayev): keep all sockets around in case the server responds
+  // TODO(szym): keep all sockets around in case the server responds
   // after its timeout; state machine will need to change to handle that.
-  socket_.reset(socket_factory_->CreateDatagramClientSocket(
+  // The current plan is to move socket management out to DnsSession.
+  // Hence also move retransmissions to DnsClient::Request.
+  socket_.reset(session_->socket_factory()->CreateDatagramClientSocket(
       DatagramSocket::RANDOM_BIND,
       base::Bind(&base::RandInt),
       net_log_.net_log(),
@@ -281,7 +215,7 @@ int DnsTransaction::DoSendQueryComplete(int rv) {
 
   // Writing to UDP should not result in a partial datagram.
   if (rv != query_->io_buffer()->size())
-    return ERR_NAME_NOT_RESOLVED;
+    return ERR_MSG_TOO_BIG;
 
   next_state_ = STATE_READ_RESPONSE;
   return OK;
@@ -289,7 +223,7 @@ int DnsTransaction::DoSendQueryComplete(int rv) {
 
 int DnsTransaction::DoReadResponse() {
   next_state_ = STATE_READ_RESPONSE_COMPLETE;
-  response_.reset(new DnsResponse(query_.get()));
+  response_.reset(new DnsResponse());
   return socket_->Read(response_->io_buffer(),
                        response_->io_buffer()->size(),
                        &io_callback_);
@@ -302,9 +236,21 @@ int DnsTransaction::DoReadResponseComplete(int rv) {
     return rv;
 
   DCHECK(rv);
-  // TODO(agayev): when supporting EDNS0 we may need to do multiple reads
-  // to read the whole response.
-  return response_->Parse(rv, &ip_addresses_);
+  if (!response_->InitParse(rv, *query_))
+    return ERR_DNS_MALFORMED_RESPONSE;
+  // TODO(szym): define this flag value in dns_protocol
+  if (response_->flags1() & 2)
+    return ERR_DNS_SERVER_REQUIRES_TCP;
+  // TODO(szym): move this handling out of DnsTransaction?
+  if (response_->rcode() != dns_protocol::kRcodeNOERROR &&
+      response_->rcode() != dns_protocol::kRcodeNXDOMAIN) {
+    return ERR_DNS_SERVER_FAILED;
+  }
+  // TODO(szym): add ERR_DNS_RR_NOT_FOUND?
+  if (response_->answer_count() == 0)
+    return ERR_NAME_NOT_RESOLVED;
+
+  return OK;
 }
 
 void DnsTransaction::StartTimer(base::TimeDelta delay) {
@@ -318,21 +264,15 @@ void DnsTransaction::RevokeTimer() {
 void DnsTransaction::OnTimeout() {
   DCHECK(next_state_ == STATE_SEND_QUERY_COMPLETE ||
          next_state_ == STATE_READ_RESPONSE_COMPLETE);
-  if (attempts_ == timeouts_ms_.size()) {
+  if (attempts_ == session_->config().attempts) {
     DoCallback(ERR_DNS_TIMED_OUT);
     return;
   }
   next_state_ = STATE_CONNECT;
-  query_.reset(query_->CloneWithNewId());
+  query_.reset(query_->CloneWithNewId(session_->NextId()));
   int rv = DoLoop(OK);
   if (rv != ERR_IO_PENDING)
     DoCallback(rv);
-}
-
-void DnsTransaction::set_timeouts_ms(
-    const std::vector<base::TimeDelta>& timeouts_ms) {
-  DCHECK_EQ(0u, attempts_);
-  timeouts_ms_ = timeouts_ms;
 }
 
 }  // namespace net
