@@ -34,7 +34,7 @@ HttpPipelinedHostImpl::HttpPipelinedHostImpl(
     HttpPipelinedHost::Delegate* delegate,
     const HostPortPair& origin,
     HttpPipelinedConnection::Factory* factory,
-    HttpPipelinedHostCapability capability)
+    Capability capability)
     : delegate_(delegate),
       origin_(origin),
       factory_(factory),
@@ -54,7 +54,7 @@ HttpPipelinedStream* HttpPipelinedHostImpl::CreateStreamOnNewPipeline(
     const ProxyInfo& used_proxy_info,
     const BoundNetLog& net_log,
     bool was_npn_negotiated) {
-  if (capability_ == PIPELINE_INCAPABLE) {
+  if (capability_ == INCAPABLE) {
     return NULL;
   }
   HttpPipelinedConnection* pipeline = factory_->CreateNewPipeline(
@@ -124,21 +124,21 @@ void HttpPipelinedHostImpl::OnPipelineFeedback(
   switch (feedback) {
     case HttpPipelinedConnection::OK:
       ++pipelines_[pipeline].num_successes;
-      if (capability_ == PIPELINE_UNKNOWN) {
-        capability_ = PIPELINE_PROBABLY_CAPABLE;
+      if (capability_ == UNKNOWN) {
+        capability_ = PROBABLY_CAPABLE;
         NotifyAllPipelinesHaveCapacity();
-      } else if (capability_ == PIPELINE_PROBABLY_CAPABLE &&
+      } else if (capability_ == PROBABLY_CAPABLE &&
                  pipelines_[pipeline].num_successes >=
                      kNumKnownSuccessesThreshold) {
-        capability_ = PIPELINE_CAPABLE;
-        delegate_->OnHostDeterminedCapability(this, PIPELINE_CAPABLE);
+        capability_ = CAPABLE;
+        delegate_->OnHostDeterminedCapability(this, CAPABLE);
       }
       break;
 
     case HttpPipelinedConnection::PIPELINE_SOCKET_ERROR:
     case HttpPipelinedConnection::OLD_HTTP_VERSION:
-      capability_ = PIPELINE_INCAPABLE;
-      delegate_->OnHostDeterminedCapability(this, PIPELINE_INCAPABLE);
+      capability_ = INCAPABLE;
+      delegate_->OnHostDeterminedCapability(this, INCAPABLE);
       break;
 
     case HttpPipelinedConnection::MUST_CLOSE_CONNECTION:
@@ -149,15 +149,15 @@ void HttpPipelinedHostImpl::OnPipelineFeedback(
 int HttpPipelinedHostImpl::GetPipelineCapacity() const {
   int capacity = 0;
   switch (capability_) {
-    case PIPELINE_CAPABLE:
-    case PIPELINE_PROBABLY_CAPABLE:
+    case CAPABLE:
+    case PROBABLY_CAPABLE:
       capacity = max_pipeline_depth();
       break;
 
-    case PIPELINE_INCAPABLE:
+    case INCAPABLE:
       CHECK(false);
 
-    case PIPELINE_UNKNOWN:
+    case UNKNOWN:
       capacity = 1;
       break;
 
@@ -169,7 +169,7 @@ int HttpPipelinedHostImpl::GetPipelineCapacity() const {
 
 bool HttpPipelinedHostImpl::CanPipelineAcceptRequests(
     HttpPipelinedConnection* pipeline) const {
-  return capability_ != PIPELINE_INCAPABLE &&
+  return capability_ != INCAPABLE &&
       pipeline->usable() &&
       pipeline->active() &&
       pipeline->depth() < GetPipelineCapacity();
