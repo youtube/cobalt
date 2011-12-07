@@ -65,7 +65,7 @@ SSLServerSocketNSS::SSLServerSocketNSS(
       transport_send_busy_(false),
       transport_recv_busy_(false),
       user_handshake_callback_(NULL),
-      user_read_callback_(NULL),
+      old_user_read_callback_(NULL),
       user_write_callback_(NULL),
       nss_fd_(NULL),
       nss_bufs_(NULL),
@@ -154,7 +154,29 @@ int SSLServerSocketNSS::Connect(const CompletionCallback& callback) {
 
 int SSLServerSocketNSS::Read(IOBuffer* buf, int buf_len,
                              OldCompletionCallback* callback) {
-  DCHECK(!user_read_callback_);
+  DCHECK(!old_user_read_callback_ && user_read_callback_.is_null());
+  DCHECK(!user_handshake_callback_);
+  DCHECK(!user_read_buf_);
+  DCHECK(nss_bufs_);
+
+  user_read_buf_ = buf;
+  user_read_buf_len_ = buf_len;
+
+  DCHECK(completed_handshake_);
+
+  int rv = DoReadLoop(OK);
+
+  if (rv == ERR_IO_PENDING) {
+    old_user_read_callback_ = callback;
+  } else {
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
+  }
+  return rv;
+}
+int SSLServerSocketNSS::Read(IOBuffer* buf, int buf_len,
+                             const CompletionCallback& callback) {
+  DCHECK(!old_user_read_callback_ && user_read_callback_.is_null());
   DCHECK(!user_handshake_callback_);
   DCHECK(!user_read_buf_);
   DCHECK(nss_bufs_);
@@ -717,15 +739,23 @@ void SSLServerSocketNSS::DoHandshakeCallback(int rv) {
 
 void SSLServerSocketNSS::DoReadCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_read_callback_);
+  DCHECK(old_user_read_callback_ || !user_read_callback_.is_null());
 
   // Since Run may result in Read being called, clear |user_read_callback_|
   // up front.
-  OldCompletionCallback* c = user_read_callback_;
-  user_read_callback_ = NULL;
-  user_read_buf_ = NULL;
-  user_read_buf_len_ = 0;
-  c->Run(rv);
+  if (old_user_read_callback_) {
+    OldCompletionCallback* c = old_user_read_callback_;
+    old_user_read_callback_ = NULL;
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
+    c->Run(rv);
+  } else {
+    CompletionCallback c = user_read_callback_;
+    user_read_callback_.Reset();
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
+    c.Run(rv);
+  }
 }
 
 void SSLServerSocketNSS::DoWriteCallback(int rv) {

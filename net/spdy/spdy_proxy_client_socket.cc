@@ -196,6 +196,30 @@ int SpdyProxyClientSocket::Read(IOBuffer* buf, int buf_len,
   user_buffer_ = NULL;
   return result;
 }
+int SpdyProxyClientSocket::Read(IOBuffer* buf, int buf_len,
+                                const CompletionCallback& callback) {
+  DCHECK(!old_read_callback_ && read_callback_.is_null());
+  DCHECK(!user_buffer_);
+
+  if (next_state_ == STATE_DISCONNECTED)
+    return ERR_SOCKET_NOT_CONNECTED;
+
+  if (next_state_ == STATE_CLOSED && read_buffer_.empty()) {
+    return 0;
+  }
+
+  DCHECK(next_state_ == STATE_OPEN || next_state_ == STATE_CLOSED);
+  DCHECK(buf);
+  user_buffer_ = new DrainableIOBuffer(buf, buf_len);
+  int result = PopulateUserReadBuffer();
+  if (result == 0) {
+    DCHECK(!callback.is_null());
+    read_callback_ = callback;
+    return ERR_IO_PENDING;
+  }
+  user_buffer_ = NULL;
+  return result;
+}
 
 int SpdyProxyClientSocket::PopulateUserReadBuffer() {
   if (!user_buffer_)

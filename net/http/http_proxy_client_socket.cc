@@ -214,7 +214,26 @@ base::TimeDelta HttpProxyClientSocket::GetConnectTimeMicros() const {
 
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
                                 OldCompletionCallback* callback) {
-  DCHECK(!old_user_callback_);
+  DCHECK(!old_user_callback_ && user_callback_.is_null());
+  if (next_state_ != STATE_DONE) {
+    // We're trying to read the body of the response but we're still trying
+    // to establish an SSL tunnel through the proxy.  We can't read these
+    // bytes when establishing a tunnel because they might be controlled by
+    // an active network attacker.  We don't worry about this for HTTP
+    // because an active network attacker can already control HTTP sessions.
+    // We reach this case when the user cancels a 407 proxy auth prompt.
+    // See http://crbug.com/8473.
+    DCHECK_EQ(407, response_.headers->response_code());
+    LogBlockedTunnelResponse(response_.headers->response_code());
+
+    return ERR_TUNNEL_CONNECTION_FAILED;
+  }
+
+  return transport_->socket()->Read(buf, buf_len, callback);
+}
+int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
+                                const CompletionCallback& callback) {
+  DCHECK(!old_user_callback_ && user_callback_.is_null());
   if (next_state_ != STATE_DONE) {
     // We're trying to read the body of the response but we're still trying
     // to establish an SSL tunnel through the proxy.  We can't read these

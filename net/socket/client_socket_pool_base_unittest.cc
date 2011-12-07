@@ -49,9 +49,14 @@ class MockClientSocket : public StreamSocket {
   MockClientSocket() : connected_(false), was_used_to_convey_data_(false),
                        num_bytes_read_(0) {}
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(
       IOBuffer* /* buf */, int len, OldCompletionCallback* /* callback */) {
+    num_bytes_read_ += len;
+    return len;
+  }
+  virtual int Read(
+      IOBuffer* /* buf */, int len, const CompletionCallback& /* callback */) {
     num_bytes_read_ += len;
     return len;
   }
@@ -211,7 +216,7 @@ class TestConnectJob : public ConnectJob {
   }
 
  private:
-  // ConnectJob methods:
+  // ConnectJob implementation.
 
   virtual int ConnectInternal() {
     AddressList ignored;
@@ -366,8 +371,7 @@ class TestConnectJobFactory
     timeout_duration_ = timeout_duration;
   }
 
-  // ConnectJobFactory methods:
-
+  // ConnectJobFactory implementation.
   virtual ConnectJob* NewConnectJob(
       const std::string& group_name,
       const TestClientSocketPoolBase::Request& request,

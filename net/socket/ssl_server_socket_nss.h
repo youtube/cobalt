@@ -41,6 +41,8 @@ class SSLServerSocketNSS : public SSLServerSocket {
   // Socket interface (via StreamSocket).
   virtual int Read(IOBuffer* buf, int buf_len,
                    OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf, int buf_len,
                     OldCompletionCallback* callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
@@ -109,7 +111,8 @@ class SSLServerSocketNSS : public SSLServerSocket {
   BoundNetLog net_log_;
 
   OldCompletionCallback* user_handshake_callback_;
-  OldCompletionCallback* user_read_callback_;
+  OldCompletionCallback* old_user_read_callback_;
+  CompletionCallback user_read_callback_;
   OldCompletionCallback* user_write_callback_;
 
   // Used by Read function.
