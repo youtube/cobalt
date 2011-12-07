@@ -23,7 +23,6 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -144,16 +143,11 @@ enum WorkItemOperation {
 class HttpCache::WorkItem {
  public:
   WorkItem(WorkItemOperation operation, Transaction* trans, ActiveEntry** entry)
-      : operation_(operation),
-        trans_(trans),
-        entry_(entry),
+      : operation_(operation), trans_(trans), entry_(entry), callback_(NULL),
         backend_(NULL) {}
   WorkItem(WorkItemOperation operation, Transaction* trans,
-           const CompletionCallback& cb, disk_cache::Backend** backend)
-      : operation_(operation),
-        trans_(trans),
-        entry_(NULL),
-        callback_(cb),
+           OldCompletionCallback* cb, disk_cache::Backend** backend)
+      : operation_(operation), trans_(trans), entry_(NULL), callback_(cb),
         backend_(backend) {}
   ~WorkItem() {}
 
@@ -171,31 +165,25 @@ class HttpCache::WorkItem {
   bool DoCallback(int result, disk_cache::Backend* backend) {
     if (backend_)
       *backend_ = backend;
-    if (!callback_.is_null()) {
-      callback_.Run(result);
+    if (callback_) {
+      callback_->Run(result);
       return true;
     }
     return false;
   }
 
-  void ClearCallback() {
-    callback_.Reset();
-  }
-
-  bool IsValid() const {
-    return trans_ || entry_ || !callback_.is_null();
-  }
-
   WorkItemOperation operation() { return operation_; }
   void ClearTransaction() { trans_ = NULL; }
   void ClearEntry() { entry_ = NULL; }
+  void ClearCallback() { callback_ = NULL; }
   bool Matches(Transaction* trans) const { return trans == trans_; }
+  bool IsValid() const { return trans_ || entry_ || callback_; }
 
  private:
   WorkItemOperation operation_;
   Transaction* trans_;
   ActiveEntry** entry_;
-  CompletionCallback callback_;
+  OldCompletionCallback* callback_;  // User callback.
   disk_cache::Backend** backend_;
 };
 
@@ -434,8 +422,8 @@ HttpCache::~HttpCache() {
 }
 
 int HttpCache::GetBackend(disk_cache::Backend** backend,
-                          const CompletionCallback& callback) {
-  DCHECK(!callback.is_null());
+                          OldCompletionCallback* callback) {
+  DCHECK(callback != NULL);
 
   if (disk_cache_.get()) {
     *backend = disk_cache_.get();
@@ -464,10 +452,8 @@ void HttpCache::WriteMetadata(const GURL& url,
     return;
 
   // Do lazy initialization of disk cache if needed.
-  if (!disk_cache_.get()) {
-    // We don't care about the result.
-    CreateBackend(NULL, CompletionCallback());
-  }
+  if (!disk_cache_.get())
+    CreateBackend(NULL, NULL);  // We don't care about the result.
 
   HttpCache::Transaction* trans = new HttpCache::Transaction(this);
   MetadataWriter* writer = new MetadataWriter(trans);
@@ -506,10 +492,8 @@ void HttpCache::OnExternalCacheHit(const GURL& url,
 
 int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   // Do lazy initialization of disk cache if needed.
-  if (!disk_cache_.get()) {
-    // We don't care about the result.
-    CreateBackend(NULL, CompletionCallback());
-  }
+  if (!disk_cache_.get())
+    CreateBackend(NULL, NULL);  // We don't care about the result.
 
   trans->reset(new HttpCache::Transaction(this));
   return OK;
@@ -528,7 +512,7 @@ HttpNetworkSession* HttpCache::GetSession() {
 //-----------------------------------------------------------------------------
 
 int HttpCache::CreateBackend(disk_cache::Backend** backend,
-                             const CompletionCallback& callback) {
+                             OldCompletionCallback* callback) {
   if (!backend_factory_.get())
     return ERR_FAILED;
 
@@ -541,7 +525,7 @@ int HttpCache::CreateBackend(disk_cache::Backend** backend,
   // entry, so we use an empty key for it.
   PendingOp* pending_op = GetPendingOp("");
   if (pending_op->writer) {
-    if (!callback.is_null())
+    if (callback)
       pending_op->pending_queue.push_back(item.release());
     return ERR_IO_PENDING;
   }
@@ -569,8 +553,7 @@ int HttpCache::GetBackendForTransaction(Transaction* trans) {
   if (!building_backend_)
     return ERR_FAILED;
 
-  WorkItem* item = new WorkItem(WI_CREATE_BACKEND, trans,
-                                CompletionCallback(), NULL);
+  WorkItem* item = new WorkItem(WI_CREATE_BACKEND, trans, NULL, NULL);
   PendingOp* pending_op = GetPendingOp("");
   DCHECK(pending_op->writer);
   pending_op->pending_queue.push_back(item);

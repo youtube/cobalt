@@ -185,48 +185,8 @@ int MemEntryImpl::ReadData(int index, int offset, net::IOBuffer* buf,
   return result;
 }
 
-int MemEntryImpl::ReadData(
-    int index, int offset, net::IOBuffer* buf, int buf_len,
-    const net::CompletionCallback& completion_callback) {
-  if (net_log_.IsLoggingAllEvents()) {
-    net_log_.BeginEvent(
-        net::NetLog::TYPE_ENTRY_READ_DATA,
-        make_scoped_refptr(
-            new ReadWriteDataParameters(index, offset, buf_len, false)));
-  }
-
-  int result = InternalReadData(index, offset, buf, buf_len);
-
-  if (net_log_.IsLoggingAllEvents()) {
-    net_log_.EndEvent(
-        net::NetLog::TYPE_ENTRY_READ_DATA,
-        make_scoped_refptr(new ReadWriteCompleteParameters(result)));
-  }
-  return result;
-}
-
 int MemEntryImpl::WriteData(int index, int offset, net::IOBuffer* buf,
     int buf_len, net::OldCompletionCallback* completion_callback, bool truncate) {
-  if (net_log_.IsLoggingAllEvents()) {
-    net_log_.BeginEvent(
-        net::NetLog::TYPE_ENTRY_WRITE_DATA,
-        make_scoped_refptr(
-            new ReadWriteDataParameters(index, offset, buf_len, truncate)));
-  }
-
-  int result = InternalWriteData(index, offset, buf, buf_len, truncate);
-
-  if (net_log_.IsLoggingAllEvents()) {
-    net_log_.EndEvent(
-        net::NetLog::TYPE_ENTRY_WRITE_DATA,
-        make_scoped_refptr(new ReadWriteCompleteParameters(result)));
-  }
-  return result;
-}
-
-int MemEntryImpl::WriteData(
-    int index, int offset, net::IOBuffer* buf, int buf_len,
-    const net::CompletionCallback& completion_callback, bool truncate) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
         net::NetLog::TYPE_ENTRY_WRITE_DATA,

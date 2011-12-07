@@ -22,51 +22,45 @@
 // there could be other side-effects resulting from WaitForResult.  For this
 // reason, this class is probably not ideal for a general application.
 //
-
-// Base class overridden by custom implementations of TestCompletionCallback.
-class TestCompletionCallbackBase {
+class TestOldCompletionCallback : public CallbackRunner< Tuple1<int> > {
  public:
-  void SetResult(int result);
+  TestOldCompletionCallback();
+  virtual ~TestOldCompletionCallback();
+
   int WaitForResult();
+
   int GetResult(int result);
+
   bool have_result() const { return have_result_; }
-
- protected:
-  TestCompletionCallbackBase();
-
-  int result_;
-  bool have_result_;
-  bool waiting_for_result_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(TestCompletionCallbackBase);
-};
-
-class TestOldCompletionCallback : public TestCompletionCallbackBase,
-                                  public CallbackRunner< Tuple1<int> > {
- public:
-  TestOldCompletionCallback() {};
-  virtual ~TestOldCompletionCallback() {}
 
   virtual void RunWithParams(const Tuple1<int>& params) OVERRIDE;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(TestOldCompletionCallback);
+  int result_;
+  bool have_result_;
+  bool waiting_for_result_;
 };
 
 namespace net {
 
-class TestCompletionCallback : public TestCompletionCallbackBase {
+class TestCompletionCallback {
  public:
   TestCompletionCallback();
   ~TestCompletionCallback();
 
+  int WaitForResult() { return old_callback_impl_.WaitForResult(); }
+
+  int GetResult(int result) { return old_callback_impl_.GetResult(result); }
+
+  bool have_result() const { return old_callback_impl_.have_result(); }
+
   const CompletionCallback& callback() const { return callback_; }
 
  private:
-  const CompletionCallback callback_;
+  void OnComplete(int result);
 
-  DISALLOW_COPY_AND_ASSIGN(TestCompletionCallback);
+  const CompletionCallback callback_;
+  TestOldCompletionCallback old_callback_impl_;
 };
 
 }  // namespace net
