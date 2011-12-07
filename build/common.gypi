@@ -51,9 +51,6 @@
         'use_virtual_keyboard%': '<(use_virtual_keyboard)',
         'use_skia_on_mac%': '<(use_skia_on_mac)',
 
-        # WebKit compositor for ui
-        'use_webkit_compositor%': 0,
-
         # Compute the architecture that we're building on.
         'conditions': [
           [ 'OS=="win" or OS=="mac"', {
@@ -76,6 +73,13 @@
           # Use the views compositor when using the Aura window manager.
           ['use_aura==1', {
             'views_compositor%': 1,
+          }],
+
+          # Use the WebKit compositor for ui, when Aura is on.
+          ['use_aura==1', {
+            'use_webkit_compositor%': 1,
+          }, {
+            'use_webkit_compositor%': 0,
           }],
         ],
       },
