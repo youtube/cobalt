@@ -83,7 +83,7 @@ Patches:
     patches/encryptedclientcerts.patch
 
   * Add function to retrieve TLS client cert types requested by server.
-    TODO(mattm): post to bugzilla
+    https://bugzilla.mozilla.org/show_bug.cgi?id=51413
     patches/getrequestedclientcerttypes.patch
 
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
