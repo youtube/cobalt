@@ -11,28 +11,34 @@
 
 namespace media {
 
-struct Limits {
-  // For video.
-  static const int kMaxDimension = (1 << 15) - 1;  // 32767
-  static const int kMaxCanvas = (1 << (14 * 2));  // 16384 x 16384
+namespace limits {
+
+enum {
+  // Maximum possible dimension (width or height) for any video.
+  kMaxDimension = (1 << 15) - 1,  // 32767
+
+  // Maximum possible canvas size (width multiplied by height) for any video.
+  kMaxCanvas = (1 << (14 * 2)),  // 16384 x 16384
 
   // Total number of video frames which are populating in the pipeline.
-  static const size_t kMaxVideoFrames = 4;
+  kMaxVideoFrames = 4,
 
-  // Following limits are used by AudioParameters::IsValid().
-  // The 192 Khz constant is the frequency of quicktime lossless audio codec.
-  // MP4 is limited to 96 Khz, and mp3 is limited to 48 Khz.
-  // OGG vorbis was initially limited to 96 Khz, but recent tools are unlimited.
-  // 192 Khz is also the limit on most PC audio hardware.
-  static const int kMaxSampleRate = 192000;
-  static const int kMinSampleRate = 8000;
-  static const int kMaxChannels = 32;
-  static const int kMaxBitsPerSample = 64;
-  static const int kMaxSamplesPerPacket = kMaxSampleRate;
-
-  // Maximum possible time.
-  static const int64 kMaxTimeInMicroseconds = kint64max;
+  // The following limits are used by AudioParameters::IsValid().
+  //
+  // A few notes on sample rates of common formats:
+  //   - AAC files are limited to 96 kHz.
+  //   - MP3 files are limited to 48 kHz.
+  //   - Vorbis used to be limited to 96 KHz, but no longer has that
+  //     restriction.
+  //   - Most PC audio hardware is limited to 192 KHz.
+  kMaxSampleRate = 192000,
+  kMinSampleRate = 8000,
+  kMaxChannels = 32,
+  kMaxBitsPerSample = 64,
+  kMaxSamplesPerPacket = kMaxSampleRate,
 };
+
+}  // namespace limits
 
 }  // namespace media
 
