@@ -10,14 +10,15 @@
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/mru_cache.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/http/http_pipelined_host.h"
+#include "net/http/http_pipelined_host_capability.h"
 
 namespace net {
 
 class HostPortPair;
 class HttpPipelinedStream;
+class HttpServerProperties;
 
 // Manages all of the pipelining state for specific host with active pipelined
 // HTTP requests. Manages connection jobs, constructs pipelined streams, and
@@ -34,7 +35,8 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostPool
   };
 
   HttpPipelinedHostPool(Delegate* delegate,
-                        HttpPipelinedHost::Factory* factory);
+                        HttpPipelinedHost::Factory* factory,
+                        HttpServerProperties* http_server_properties_);
   virtual ~HttpPipelinedHostPool();
 
   // Returns true if pipelining might work for |origin|. Generally, this returns
@@ -67,22 +69,18 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostPool
 
   virtual void OnHostDeterminedCapability(
       HttpPipelinedHost* host,
-      HttpPipelinedHost::Capability capability) OVERRIDE;
+      HttpPipelinedHostCapability capability) OVERRIDE;
 
  private:
-  typedef base::MRUCache<HostPortPair,
-                         HttpPipelinedHost::Capability> CapabilityMap;
   typedef std::map<const HostPortPair, HttpPipelinedHost*> HostMap;
 
   HttpPipelinedHost* GetPipelinedHost(const HostPortPair& origin,
                                       bool create_if_not_found);
 
-  HttpPipelinedHost::Capability GetHostCapability(const HostPortPair& origin);
-
   Delegate* delegate_;
   scoped_ptr<HttpPipelinedHost::Factory> factory_;
   HostMap host_map_;
-  CapabilityMap known_capability_map_;
+  HttpServerProperties* http_server_properties_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpPipelinedHostPool);
 };
