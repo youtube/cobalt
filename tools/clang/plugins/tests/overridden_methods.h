@@ -12,6 +12,7 @@ class BaseClass {
   virtual void SomeMethod() = 0;
   virtual void SomeOtherMethod() = 0;
   virtual void SomeInlineMethod() = 0;
+  virtual void SomeNonPureBaseMethod() {}
 };
 
 class InterimClass : public BaseClass {
@@ -46,6 +47,8 @@ class DerivedClass : public InterimClass,
   virtual void SomeInlineMethod() {}
   // Should not warn if overriding a method whose origin is WebKit.
   virtual void WebKitModifiedSomething();
+  // Should warn if overridden method isn't pure.
+  virtual void SomeNonPureBaseMethod() {}
 };
 
 #endif  // OVERRIDDEN_METHODS_H_
