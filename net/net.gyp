@@ -436,7 +436,6 @@
         'http/http_pipelined_connection_impl.cc',
         'http/http_pipelined_connection_impl.h',
         'http/http_pipelined_host.h',
-        'http/http_pipelined_host_capability.h',
         'http/http_pipelined_host_impl.cc',
         'http/http_pipelined_host_impl.h',
         'http/http_pipelined_host_pool.cc',

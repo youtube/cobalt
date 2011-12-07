@@ -6,15 +6,14 @@
 #define NET_HTTP_HTTP_PIPELINED_HOST_H_
 #pragma once
 
+#include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"
 #include "net/http/http_pipelined_connection.h"
-#include "net/http/http_pipelined_host_capability.h"
 
 namespace net {
 
 class BoundNetLog;
 class ClientSocketHandle;
-class HostPortPair;
 class HttpPipelinedStream;
 class ProxyInfo;
 struct SSLConfig;
@@ -24,6 +23,14 @@ struct SSLConfig;
 // assigns requests to the least loaded pipelined connection.
 class NET_EXPORT_PRIVATE HttpPipelinedHost {
  public:
+  enum Capability {
+    UNKNOWN,
+    INCAPABLE,
+    CAPABLE,
+    PROBABLY_CAPABLE,  // We are using pipelining, but haven't processed enough
+                       // requests to record this host as known to be capable.
+  };
+
   class Delegate {
    public:
     // Called when a pipelined host has no outstanding requests on any of its
@@ -35,9 +42,8 @@ class NET_EXPORT_PRIVATE HttpPipelinedHost {
     virtual void OnHostHasAdditionalCapacity(HttpPipelinedHost* host) = 0;
 
     // Called when a host determines if pipelining can be used.
-    virtual void OnHostDeterminedCapability(
-        HttpPipelinedHost* host,
-        HttpPipelinedHostCapability capability) = 0;
+    virtual void OnHostDeterminedCapability(HttpPipelinedHost* host,
+                                            Capability capability) = 0;
   };
 
   class Factory {
@@ -48,7 +54,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHost {
     virtual HttpPipelinedHost* CreateNewHost(
         Delegate* delegate, const HostPortPair& origin,
         HttpPipelinedConnection::Factory* factory,
-        HttpPipelinedHostCapability capability) = 0;
+        Capability capability) = 0;
   };
 
   virtual ~HttpPipelinedHost() {}
