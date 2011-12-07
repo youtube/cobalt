@@ -12,10 +12,12 @@
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/hash_tables.h"
+#include "base/memory/mru_cache.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/values.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"
+#include "net/http/http_pipelined_host_capability.h"
 #include "net/http/http_server_properties.h"
 
 namespace base {
@@ -42,6 +44,11 @@ class NET_EXPORT HttpServerPropertiesImpl
 
   void InitializeSpdySettingsServers(SpdySettingsMap* spdy_settings_map);
 
+  // Initializes |pipeline_capability_map_| with the servers (host/port) from
+  // |pipeline_capability_map| that either support HTTP pipelining or not.
+  void InitializePipelineCapabilities(
+      const PipelineCapabilityMap* pipeline_capability_map);
+
   // Get the list of servers (host/port) that support SPDY.
   void GetSpdyServerList(base::ListValue* spdy_server_list) const;
 
@@ -55,6 +62,12 @@ class NET_EXPORT HttpServerPropertiesImpl
   // pair, force this ProtocolPortPair.
   static void ForceAlternateProtocol(const PortAlternateProtocolPair& pair);
   static void DisableForcedAlternateProtocol();
+
+  // Changes the number of host/port pairs we remember pipelining capability
+  // for. A larger number means we're more likely to be able to pipeline
+  // immediately if a host is known good, but uses more memory. This function
+  // can only be called if |pipeline_capability_map_| is empty.
+  void SetNumPipelinedHostsToRemember(int max_size);
 
   // -----------------------------
   // HttpServerProperties methods:
@@ -106,7 +119,20 @@ class NET_EXPORT HttpServerPropertiesImpl
   // Returns all persistent SpdySettings.
   virtual const SpdySettingsMap& spdy_settings_map() const OVERRIDE;
 
+  virtual HttpPipelinedHostCapability GetPipelineCapability(
+      const HostPortPair& origin) OVERRIDE;
+
+  virtual void SetPipelineCapability(
+      const HostPortPair& origin,
+      HttpPipelinedHostCapability capability) OVERRIDE;
+
+  virtual void ClearPipelineCapabilities() OVERRIDE;
+
+  virtual PipelineCapabilityMap GetPipelineCapabilityMap() const OVERRIDE;
+
  private:
+  typedef base::MRUCache<
+      HostPortPair, HttpPipelinedHostCapability> CachedPipelineCapabilityMap;
   // |spdy_servers_table_| has flattened representation of servers (host/port
   // pair) that either support or not support SPDY protocol.
   typedef base::hash_map<std::string, bool> SpdyServerHostPortTable;
@@ -114,6 +140,7 @@ class NET_EXPORT HttpServerPropertiesImpl
 
   AlternateProtocolMap alternate_protocol_map_;
   SpdySettingsMap spdy_settings_map_;
+  scoped_ptr<CachedPipelineCapabilityMap> pipeline_capability_map_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpServerPropertiesImpl);
 };
