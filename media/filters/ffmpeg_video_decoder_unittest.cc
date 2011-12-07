@@ -19,7 +19,6 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_glue.h"
 #include "media/filters/ffmpeg_video_decoder.h"
-#include "media/video/video_decode_engine.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::testing::_;
