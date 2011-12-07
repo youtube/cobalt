@@ -47,7 +47,7 @@ UDPSocketLibevent::UDPSocketLibevent(
           read_buf_len_(0),
           recv_from_address_(NULL),
           write_buf_len_(0),
-          read_callback_(NULL),
+          old_read_callback_(NULL),
           write_callback_(NULL),
           net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_UDP_SOCKET)) {
   scoped_refptr<NetLog::EventParameters> params;
@@ -72,7 +72,8 @@ void UDPSocketLibevent::Close() {
   // Zero out any pending read/write callback state.
   read_buf_ = NULL;
   read_buf_len_ = 0;
-  read_callback_ = NULL;
+  old_read_callback_ = NULL;
+  read_callback_.Reset();
   recv_from_address_ = NULL;
   write_buf_ = NULL;
   write_buf_len_ = 0;
@@ -139,6 +140,11 @@ int UDPSocketLibevent::Read(IOBuffer* buf,
                             OldCompletionCallback* callback) {
   return RecvFrom(buf, buf_len, NULL, callback);
 }
+int UDPSocketLibevent::Read(IOBuffer* buf,
+                            int buf_len,
+                            const CompletionCallback& callback) {
+  return RecvFrom(buf, buf_len, NULL, callback);
+}
 
 int UDPSocketLibevent::RecvFrom(IOBuffer* buf,
                                 int buf_len,
@@ -146,9 +152,39 @@ int UDPSocketLibevent::RecvFrom(IOBuffer* buf,
                                 OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
-  DCHECK(!read_callback_);
+  DCHECK(!old_read_callback_ && read_callback_.is_null());
   DCHECK(!recv_from_address_);
   DCHECK(callback);  // Synchronous operation not supported
+  DCHECK_GT(buf_len, 0);
+
+  int nread = InternalRecvFrom(buf, buf_len, address);
+  if (nread != ERR_IO_PENDING)
+    return nread;
+
+  if (!MessageLoopForIO::current()->WatchFileDescriptor(
+          socket_, true, MessageLoopForIO::WATCH_READ,
+          &read_socket_watcher_, &read_watcher_)) {
+    PLOG(ERROR) << "WatchFileDescriptor failed on read";
+    int result = MapSystemError(errno);
+    LogRead(result, NULL, 0, NULL);
+    return result;
+  }
+
+  read_buf_ = buf;
+  read_buf_len_ = buf_len;
+  recv_from_address_ = address;
+  old_read_callback_ = callback;
+  return ERR_IO_PENDING;
+}
+int UDPSocketLibevent::RecvFrom(IOBuffer* buf,
+                                int buf_len,
+                                IPEndPoint* address,
+                                const CompletionCallback& callback) {
+  DCHECK(CalledOnValidThread());
+  DCHECK_NE(kInvalidSocket, socket_);
+  DCHECK(!old_read_callback_ && read_callback_.is_null());
+  DCHECK(!recv_from_address_);
+  DCHECK(!callback.is_null());  // Synchronous operation not supported
   DCHECK_GT(buf_len, 0);
 
   int nread = InternalRecvFrom(buf, buf_len, address);
@@ -287,12 +323,18 @@ bool UDPSocketLibevent::SetSendBufferSize(int32 size) {
 
 void UDPSocketLibevent::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(read_callback_);
+  DCHECK(old_read_callback_ || !read_callback_.is_null());
 
-  // since Run may result in Read being called, clear read_callback_ up front.
-  OldCompletionCallback* c = read_callback_;
-  read_callback_ = NULL;
-  c->Run(rv);
+  // Since Run may result in Read being called, clear read_callback_ up front.
+  if (old_read_callback_) {
+    OldCompletionCallback* c = old_read_callback_;
+    old_read_callback_ = NULL;
+    c->Run(rv);
+  } else {
+    CompletionCallback c = read_callback_;
+    read_callback_.Reset();
+    c.Run(rv);
+  }
 }
 
 void UDPSocketLibevent::DoWriteCallback(int rv) {

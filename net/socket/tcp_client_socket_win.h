@@ -61,6 +61,8 @@ class NET_EXPORT TCPClientSocketWin : public StreamSocket,
   // Multiple outstanding requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback);
   virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
 
   virtual bool SetReceiveBufferSize(int32 size);

@@ -54,7 +54,7 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   // On destruction Disconnect() is called.
   virtual ~SpdyProxyClientSocket();
 
-  // ProxyClientSocket methods:
+  // ProxyClientSocket implementation.
   virtual const HttpResponseInfo* GetConnectResponseInfo() const OVERRIDE;
   virtual HttpStream* CreateConnectResponseStream() OVERRIDE;
   virtual int RestartWithAuth(OldCompletionCallback* callback) OVERRIDE;
@@ -74,10 +74,13 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   virtual int64 NumBytesRead() const OVERRIDE;
   virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf,
                    int buf_len,
                    OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
                     OldCompletionCallback* callback) OVERRIDE;
@@ -86,7 +89,7 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   virtual int GetPeerAddress(AddressList* address) const OVERRIDE;
   virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
 
-  // SpdyStream::Delegate methods:
+  // SpdyStream::Delegate implementation.
   virtual bool OnSendHeadersComplete(int status) OVERRIDE;
   virtual int OnSendBody() OVERRIDE;
   virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;

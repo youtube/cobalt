@@ -90,6 +90,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual int Read(IOBuffer* buf,
                    int buf_len,
                    OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
                     OldCompletionCallback* callback) OVERRIDE;
@@ -228,7 +231,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   OldCompletionCallback* old_user_connect_callback_;
   CompletionCallback user_connect_callback_;
-  OldCompletionCallback* user_read_callback_;
+  OldCompletionCallback* old_user_read_callback_;
+  CompletionCallback user_read_callback_;
   OldCompletionCallback* user_write_callback_;
 
   // Used by Read function.

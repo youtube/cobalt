@@ -56,6 +56,7 @@ class UDPSocketWin : public base::NonThreadSafe {
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
   int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
 
   // Write to the socket.
   // Only usable from the client-side of a UDP socket, after the socket
@@ -79,6 +80,10 @@ class UDPSocketWin : public base::NonThreadSafe {
                int buf_len,
                IPEndPoint* address,
                OldCompletionCallback* callback);
+  int RecvFrom(IOBuffer* buf,
+               int buf_len,
+               IPEndPoint* address,
+               const CompletionCallback& callback);
 
   // Send to a socket with a particular destination.
   // |buf| is the buffer to send
@@ -203,7 +208,8 @@ class UDPSocketWin : public base::NonThreadSafe {
   scoped_refptr<IOBuffer> write_iobuffer_;
 
   // External callback; called when read is complete.
-  OldCompletionCallback* read_callback_;
+  OldCompletionCallback* old_read_callback_;
+  CompletionCallback read_callback_;
 
   // External callback; called when write is complete.
   OldCompletionCallback* write_callback_;
