@@ -4,8 +4,6 @@
 
 #include "net/url_request/view_cache_helper.h"
 
-#include "base/bind.h"
-#include "base/bind_helpers.h"
 #include "base/stringprintf.h"
 #include "net/base/escape.h"
 #include "net/base/io_buffer.h"
@@ -48,10 +46,8 @@ ViewCacheHelper::ViewCacheHelper()
       index_(0),
       data_(NULL),
       next_state_(STATE_NONE),
-      ALLOW_THIS_IN_INITIALIZER_LIST(cache_callback_(
-          base::Bind(&ViewCacheHelper::OnIOComplete, base::Unretained(this)))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          old_cache_callback_(this, &ViewCacheHelper::OnIOComplete)),
+          cache_callback_(this, &ViewCacheHelper::OnIOComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           entry_callback_(new CancelableOldCompletionCallback<ViewCacheHelper>(
               this, &ViewCacheHelper::OnIOComplete))) {
@@ -223,7 +219,7 @@ int ViewCacheHelper::DoGetBackend() {
   if (!http_cache)
     return ERR_FAILED;
 
-  return http_cache->GetBackend(&disk_cache_, cache_callback_);
+  return http_cache->GetBackend(&disk_cache_, &cache_callback_);
 }
 
 int ViewCacheHelper::DoGetBackendComplete(int result) {
@@ -246,7 +242,7 @@ int ViewCacheHelper::DoGetBackendComplete(int result) {
 
 int ViewCacheHelper::DoOpenNextEntry() {
   next_state_ = STATE_OPEN_NEXT_ENTRY_COMPLETE;
-  return disk_cache_->OpenNextEntry(&iter_, &entry_, &old_cache_callback_);
+  return disk_cache_->OpenNextEntry(&iter_, &entry_, &cache_callback_);
 }
 
 int ViewCacheHelper::DoOpenNextEntryComplete(int result) {
@@ -266,7 +262,7 @@ int ViewCacheHelper::DoOpenNextEntryComplete(int result) {
 
 int ViewCacheHelper::DoOpenEntry() {
   next_state_ = STATE_OPEN_ENTRY_COMPLETE;
-  return disk_cache_->OpenEntry(key_, &entry_, &old_cache_callback_);
+  return disk_cache_->OpenEntry(key_, &entry_, &cache_callback_);
 }
 
 int ViewCacheHelper::DoOpenEntryComplete(int result) {
