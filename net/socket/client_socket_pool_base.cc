@@ -207,7 +207,6 @@ ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
   DCHECK(group_map_.empty());
   DCHECK(pending_callback_map_.empty());
   DCHECK_EQ(0, connecting_socket_count_);
-  DCHECK(higher_layer_pools_.empty());
 
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
 }
@@ -235,18 +234,6 @@ ClientSocketPoolBaseHelper::RemoveRequestFromQueue(
   if (group->pending_requests().empty())
     group->CleanupBackupJob();
   return req;
-}
-
-void ClientSocketPoolBaseHelper::AddLayeredPool(LayeredPool* pool) {
-  CHECK(pool);
-  CHECK(!ContainsKey(higher_layer_pools_, pool));
-  higher_layer_pools_.insert(pool);
-}
-
-void ClientSocketPoolBaseHelper::RemoveLayeredPool(LayeredPool* pool) {
-  CHECK(pool);
-  CHECK(ContainsKey(higher_layer_pools_, pool));
-  higher_layer_pools_.erase(pool);
 }
 
 int ClientSocketPoolBaseHelper::RequestSocket(
@@ -347,10 +334,6 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
   // Can we make another active socket now?
   if (!group->HasAvailableSocketSlot(max_sockets_per_group_) &&
       !request->ignore_limits()) {
-    // TODO(willchan): Consider whether or not we need to close a socket in a
-    // higher layered group. I don't think this makes sense since we would just
-    // reuse that socket then if we needed one and wouldn't make it down to this
-    // layer.
     request->net_log().AddEvent(
         NetLog::TYPE_SOCKET_POOL_STALLED_MAX_SOCKETS_PER_GROUP, NULL);
     return ERR_IO_PENDING;
@@ -358,28 +341,19 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
 
   if (ReachedMaxSocketsLimit() && !request->ignore_limits()) {
     if (idle_socket_count() > 0) {
-      // There's an idle socket in this pool. Either that's because there's
-      // still one in this group, but we got here due to preconnecting bypassing
-      // idle sockets, or because there's an idle socket in another group.
       bool closed = CloseOneIdleSocketExceptInGroup(group);
       if (preconnecting && !closed)
         return ERR_PRECONNECT_MAX_SOCKET_LIMIT;
     } else {
-      do {
-        if (!CloseOneIdleConnectionInLayeredPool()) {
-          // We could check if we really have a stalled group here, but it
-          // requires a scan of all groups, so just flip a flag here, and do
-          // the check later.
-          request->net_log().AddEvent(
-              NetLog::TYPE_SOCKET_POOL_STALLED_MAX_SOCKETS, NULL);
-          return ERR_IO_PENDING;
-        }
-      } while (ReachedMaxSocketsLimit());
+      // We could check if we really have a stalled group here, but it requires
+      // a scan of all groups, so just flip a flag here, and do the check later.
+      request->net_log().AddEvent(
+          NetLog::TYPE_SOCKET_POOL_STALLED_MAX_SOCKETS, NULL);
+      return ERR_IO_PENDING;
     }
   }
 
-  // We couldn't find a socket to reuse, and there's space to allocate one,
-  // so allocate and connect a new one.
+  // We couldn't find a socket to reuse, so allocate and connect a new one.
   scoped_ptr<ConnectJob> connect_job(
       connect_job_factory_->NewConnectJob(group_name, *request, this));
 
@@ -816,22 +790,18 @@ void ClientSocketPoolBaseHelper::CheckForStalledSocketGroups() {
 // are not at the |max_sockets_per_group_| limit. Note: for requests with
 // the same priority, the winner is based on group hash ordering (and not
 // insertion order).
-bool ClientSocketPoolBaseHelper::FindTopStalledGroup(
-    Group** group,
-    std::string* group_name) const {
-  CHECK((group && group_name) || (!group && !group_name));
+bool ClientSocketPoolBaseHelper::FindTopStalledGroup(Group** group,
+                                                     std::string* group_name) {
   Group* top_group = NULL;
   const std::string* top_group_name = NULL;
   bool has_stalled_group = false;
-  for (GroupMap::const_iterator i = group_map_.begin();
+  for (GroupMap::iterator i = group_map_.begin();
        i != group_map_.end(); ++i) {
     Group* curr_group = i->second;
     const RequestQueue& queue = curr_group->pending_requests();
     if (queue.empty())
       continue;
     if (curr_group->IsStalled(max_sockets_per_group_)) {
-      if (!group)
-        return true;
       has_stalled_group = true;
       bool has_higher_priority = !top_group ||
           curr_group->TopPendingPriority() < top_group->TopPendingPriority();
@@ -843,11 +813,8 @@ bool ClientSocketPoolBaseHelper::FindTopStalledGroup(
   }
 
   if (top_group) {
-    CHECK(group);
     *group = top_group;
     *group_name = *top_group_name;
-  } else {
-    CHECK(!has_stalled_group);
   }
   return has_stalled_group;
 }
@@ -918,17 +885,6 @@ void ClientSocketPoolBaseHelper::Flush() {
   CancelAllConnectJobs();
   CloseIdleSockets();
   AbortAllRequests();
-}
-
-bool ClientSocketPoolBaseHelper::IsStalled() const {
-  if ((handed_out_socket_count_ + connecting_socket_count_) < max_sockets_)
-    return false;
-  for (GroupMap::const_iterator it = group_map_.begin();
-       it != group_map_.end(); it++) {
-    if (it->second->IsStalled(max_sockets_per_group_))
-      return true;
-  }
-  return false;
 }
 
 void ClientSocketPoolBaseHelper::RemoveConnectJob(ConnectJob* job,
@@ -1067,10 +1023,8 @@ bool ClientSocketPoolBaseHelper::ReachedMaxSocketsLimit() const {
   return true;
 }
 
-bool ClientSocketPoolBaseHelper::CloseOneIdleSocket() {
-  if (idle_socket_count() == 0)
-    return false;
-  return CloseOneIdleSocketExceptInGroup(NULL);
+void ClientSocketPoolBaseHelper::CloseOneIdleSocket() {
+  CloseOneIdleSocketExceptInGroup(NULL);
 }
 
 bool ClientSocketPoolBaseHelper::CloseOneIdleSocketExceptInGroup(
@@ -1094,18 +1048,9 @@ bool ClientSocketPoolBaseHelper::CloseOneIdleSocketExceptInGroup(
     }
   }
 
-  return false;
-}
+  if (!exception_group)
+    LOG(DFATAL) << "No idle socket found to close!.";
 
-bool ClientSocketPoolBaseHelper::CloseOneIdleConnectionInLayeredPool() {
-  // This pool doesn't have any idle sockets. It's possible that a pool at a
-  // higher layer is holding one of this sockets active, but it's actually idle.
-  // Query the higher layers.
-  for (std::set<LayeredPool*>::const_iterator it = higher_layer_pools_.begin();
-       it != higher_layer_pools_.end(); ++it) {
-    if ((*it)->CloseOneIdleConnection())
-      return true;
-  }
   return false;
 }
 
