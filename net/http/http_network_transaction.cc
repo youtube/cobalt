@@ -1187,6 +1187,14 @@ int HttpNetworkTransaction::HandleIOError(int error) {
     case ERR_CONNECTION_RESET:
     case ERR_CONNECTION_CLOSED:
     case ERR_CONNECTION_ABORTED:
+    // There can be a race between the socket pool checking checking whether a
+    // socket is still connected, receiving the FIN, and sending/reading data
+    // on a reused socket.  If we receive the FIN between the connectedness
+    // check and writing/reading from the socket, we may first learn the socket
+    // is disconnected when we get a ERR_SOCKET_NOT_CONNECTED.  This will most
+    // likely happen when trying to retrieve its IP address.
+    // See http://crbug.com/105824 for more details.
+    case ERR_SOCKET_NOT_CONNECTED:
       if (ShouldResendRequest(error)) {
         net_log_.AddEvent(
             NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR,
