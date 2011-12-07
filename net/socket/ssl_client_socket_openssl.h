@@ -80,6 +80,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
 
   // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback);
   virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
@@ -122,7 +124,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
 
   OldCompletionCallback* old_user_connect_callback_;
   CompletionCallback user_connect_callback_;
-  OldCompletionCallback* user_read_callback_;
+  OldCompletionCallback* old_user_read_callback_;
+  CompletionCallback user_read_callback_;
   OldCompletionCallback* user_write_callback_;
 
   // Used by Read function.

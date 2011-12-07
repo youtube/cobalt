@@ -24,10 +24,12 @@ class NET_EXPORT_PRIVATE UDPClientSocket : public DatagramClientSocket {
                   const net::NetLog::Source& source);
   virtual ~UDPClientSocket();
 
-  // Implement DatagramClientSocket:
+  // DatagramClientSocket implementation.
   virtual int Connect(const IPEndPoint& address) OVERRIDE;
   virtual int Read(IOBuffer* buf, int buf_len,
                    OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf, int buf_len,
                     OldCompletionCallback* callback) OVERRIDE;
   virtual void Close() OVERRIDE;

@@ -48,7 +48,7 @@ class NET_EXPORT_PRIVATE SOCKS5ClientSocket : public StreamSocket {
   // On destruction Disconnect() is called.
   virtual ~SOCKS5ClientSocket();
 
-  // StreamSocket methods:
+  // StreamSocket implementation.
 
   // Does the SOCKS handshake and completes the protocol.
   virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
@@ -64,10 +64,13 @@ class NET_EXPORT_PRIVATE SOCKS5ClientSocket : public StreamSocket {
   virtual int64 NumBytesRead() const OVERRIDE;
   virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf,
                    int buf_len,
                    OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
                     OldCompletionCallback* callback) OVERRIDE;

@@ -64,6 +64,9 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   virtual int Read(IOBuffer* buf,
                    int buf_len,
                    OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
                     OldCompletionCallback* callback) OVERRIDE;
@@ -85,7 +88,7 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
     // MessageLoopForIO::Watcher methods
 
     virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {
-      if (socket_->read_callback_)
+      if (socket_->old_read_callback_)
         socket_->DidCompleteRead();
     }
 
@@ -176,7 +179,8 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   int write_buf_len_;
 
   // External callback; called when read is complete.
-  OldCompletionCallback* read_callback_;
+  OldCompletionCallback* old_read_callback_;
+  CompletionCallback read_callback_;
 
   // External callback; called when write is complete.
   OldCompletionCallback* old_write_callback_;

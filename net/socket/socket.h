@@ -31,6 +31,8 @@ class NET_EXPORT Socket {
   // callback will not be invoked.
   virtual int Read(IOBuffer* buf, int buf_len,
                    OldCompletionCallback* callback) = 0;
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback) = 0;
 
   // Writes data, up to |buf_len| bytes, to the socket.  Note: data may be
   // written partially.  The number of bytes written is returned, or an error

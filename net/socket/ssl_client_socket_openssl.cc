@@ -391,7 +391,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       transport_send_busy_(false),
       transport_recv_busy_(false),
       old_user_connect_callback_(NULL),
-      user_read_callback_(NULL),
+      old_user_read_callback_(NULL),
       user_write_callback_(NULL),
       completed_handshake_(false),
       client_auth_cert_needed_(false),
@@ -614,11 +614,19 @@ SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
 void SSLClientSocketOpenSSL::DoReadCallback(int rv) {
   // Since Run may result in Read being called, clear |user_read_callback_|
   // up front.
-  OldCompletionCallback* c = user_read_callback_;
-  user_read_callback_ = NULL;
-  user_read_buf_ = NULL;
-  user_read_buf_len_ = 0;
-  c->Run(rv);
+  if (old_user_read_callback_) {
+    OldCompletionCallback* c = old_user_read_callback_;
+    old_user_read_callback_ = NULL;
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
+    c->Run(rv);
+  } else {
+    CompletionCallback c = user_read_callback_;
+    user_read_callback_.Reset();
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
+    c.Run(rv);
+  }
 }
 
 void SSLClientSocketOpenSSL::DoWriteCallback(int rv) {
@@ -702,7 +710,8 @@ void SSLClientSocketOpenSSL::Disconnect() {
 
   old_user_connect_callback_ = NULL;
   user_connect_callback_.Reset();
-  user_read_callback_    = NULL;
+  old_user_read_callback_    = NULL;
+  user_read_callback_.Reset();
   user_write_callback_   = NULL;
   user_read_buf_         = NULL;
   user_read_buf_len_     = 0;
@@ -1182,6 +1191,23 @@ base::TimeDelta SSLClientSocketOpenSSL::GetConnectTimeMicros() const {
 int SSLClientSocketOpenSSL::Read(IOBuffer* buf,
                                  int buf_len,
                                  OldCompletionCallback* callback) {
+  user_read_buf_ = buf;
+  user_read_buf_len_ = buf_len;
+
+  int rv = DoReadLoop(OK);
+
+  if (rv == ERR_IO_PENDING) {
+    old_user_read_callback_ = callback;
+  } else {
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
+  }
+
+  return rv;
+}
+int SSLClientSocketOpenSSL::Read(IOBuffer* buf,
+                                 int buf_len,
+                                 const CompletionCallback& callback) {
   user_read_buf_ = buf;
   user_read_buf_len_ = buf_len;
 
