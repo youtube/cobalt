@@ -6,11 +6,8 @@
 #define NET_SOCKET_SSL_SOCKET_H_
 
 #include "base/basictypes.h"
+#include "base/string_piece.h"
 #include "net/socket/stream_socket.h"
-
-namespace base {
-class StringPiece;
-}  // namespace base
 
 namespace net {
 
