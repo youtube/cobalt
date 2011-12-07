@@ -4,15 +4,107 @@
 
 #include "base/synchronization/condition_variable.h"
 
+#include <windows.h>
 #include <stack>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 
 namespace base {
+// Abstract class of the pimpl, idiom. TODO(cpu): create the
+// WinVistaCondVar once the WinXPCondVar lands.
+class ConditionVarImpl {
+ public:
+  virtual ~ConditionVarImpl() {};
+  virtual void Wait() = 0;
+  virtual void TimedWait(const TimeDelta& max_time) = 0;
+  virtual void Broadcast() = 0;
+  virtual void Signal() = 0;
+};
 
-ConditionVariable::ConditionVariable(Lock* user_lock)
+class WinXPCondVar : public ConditionVarImpl {
+ public:
+  WinXPCondVar(Lock* user_lock);
+  ~WinXPCondVar();
+  // Overridden from ConditionVarImpl.
+  virtual void Wait() OVERRIDE;
+  virtual void TimedWait(const TimeDelta& max_time) OVERRIDE;
+  virtual void Broadcast() OVERRIDE;
+  virtual void Signal() OVERRIDE;
+
+  // Define Event class that is used to form circularly linked lists.
+  // The list container is an element with NULL as its handle_ value.
+  // The actual list elements have a non-zero handle_ value.
+  // All calls to methods MUST be done under protection of a lock so that links
+  // can be validated.  Without the lock, some links might asynchronously
+  // change, and the assertions would fail (as would list change operations).
+  class Event {
+   public:
+    // Default constructor with no arguments creates a list container.
+    Event();
+    ~Event();
+
+    // InitListElement transitions an instance from a container, to an element.
+    void InitListElement();
+
+    // Methods for use on lists.
+    bool IsEmpty() const;
+    void PushBack(Event* other);
+    Event* PopFront();
+    Event* PopBack();
+
+    // Methods for use on list elements.
+    // Accessor method.
+    HANDLE handle() const;
+    // Pull an element from a list (if it's in one).
+    Event* Extract();
+
+    // Method for use on a list element or on a list.
+    bool IsSingleton() const;
+
+   private:
+    // Provide pre/post conditions to validate correct manipulations.
+    bool ValidateAsDistinct(Event* other) const;
+    bool ValidateAsItem() const;
+    bool ValidateAsList() const;
+    bool ValidateLinks() const;
+
+    HANDLE handle_;
+    Event* next_;
+    Event* prev_;
+    DISALLOW_COPY_AND_ASSIGN(Event);
+  };
+
+  // Note that RUNNING is an unlikely number to have in RAM by accident.
+  // This helps with defensive destructor coding in the face of user error.
+  enum RunState { SHUTDOWN = 0, RUNNING = 64213 };
+
+  // Internal implementation methods supporting Wait().
+  Event* GetEventForWaiting();
+  void RecycleEvent(Event* used_event);
+
+  RunState run_state_;
+
+  // Private critical section for access to member data.
+  base::Lock internal_lock_;
+
+  // Lock that is acquired before calling Wait().
+  base::Lock& user_lock_;
+
+  // Events that threads are blocked on.
+  Event waiting_list_;
+
+  // Free list for old events.
+  Event recycling_list_;
+  int recycling_list_size_;
+
+  // The number of allocated, but not yet deleted events.
+  int allocation_counter_;
+};
+
+WinXPCondVar::WinXPCondVar(Lock* user_lock)
     : user_lock_(*user_lock),
       run_state_(RUNNING),
       allocation_counter_(0),
@@ -20,7 +112,7 @@ ConditionVariable::ConditionVariable(Lock* user_lock)
   DCHECK(user_lock);
 }
 
-ConditionVariable::~ConditionVariable() {
+WinXPCondVar::~WinXPCondVar() {
   AutoLock auto_lock(internal_lock_);
   run_state_ = SHUTDOWN;  // Prevent any more waiting.
 
@@ -43,13 +135,13 @@ ConditionVariable::~ConditionVariable() {
   DCHECK_EQ(recycling_list_size_, allocation_counter_);
 }
 
-void ConditionVariable::Wait() {
+void WinXPCondVar::Wait() {
   // Default to "wait forever" timing, which means have to get a Signal()
   // or Broadcast() to come out of this wait state.
   TimedWait(TimeDelta::FromMilliseconds(INFINITE));
 }
 
-void ConditionVariable::TimedWait(const TimeDelta& max_time) {
+void WinXPCondVar::TimedWait(const TimeDelta& max_time) {
   Event* waiting_event;
   HANDLE handle;
   {
@@ -72,7 +164,7 @@ void ConditionVariable::TimedWait(const TimeDelta& max_time) {
 
 // Broadcast() is guaranteed to signal all threads that were waiting (i.e., had
 // a cv_event internally allocated for them) before Broadcast() was called.
-void ConditionVariable::Broadcast() {
+void WinXPCondVar::Broadcast() {
   std::stack<HANDLE> handles;  // See FAQ-question-10.
   {
     AutoLock auto_lock(internal_lock_);
@@ -92,7 +184,7 @@ void ConditionVariable::Broadcast() {
 // cv_event).  For better performance we signal the thread that went to sleep
 // most recently (LIFO).  If we want fairness, then we wake the thread that has
 // been sleeping the longest (FIFO).
-void ConditionVariable::Signal() {
+void WinXPCondVar::Signal() {
   HANDLE handle;
   {
     AutoLock auto_lock(internal_lock_);
@@ -109,7 +201,7 @@ void ConditionVariable::Signal() {
 // wait.  This means that (worst case) we may over time create as many cv_event
 // objects as there are threads simultaneously using this instance's Wait()
 // functionality.
-ConditionVariable::Event* ConditionVariable::GetEventForWaiting() {
+WinXPCondVar::Event* WinXPCondVar::GetEventForWaiting() {
   // We hold internal_lock, courtesy of Wait().
   Event* cv_event;
   if (0 == recycling_list_size_) {
@@ -131,7 +223,7 @@ ConditionVariable::Event* ConditionVariable::GetEventForWaiting() {
 // Note that there is a tiny chance that the cv_event is still signaled when we
 // obtain it, and that can cause spurious signals (if/when we re-use the
 // cv_event), but such is quite rare (see FAQ-question-5).
-void ConditionVariable::RecycleEvent(Event* used_event) {
+void WinXPCondVar::RecycleEvent(Event* used_event) {
   // We hold internal_lock, courtesy of Wait().
   // If the cv_event timed out, then it is necessary to remove it from
   // waiting_list_.  If it was selected by Broadcast() or Signal(), then it is
@@ -169,11 +261,11 @@ void ConditionVariable::RecycleEvent(Event* used_event) {
 // Multiple containers also makes correctness more difficult to assert, as
 // data is redundantly stored and maintained, which is generally evil.
 
-ConditionVariable::Event::Event() : handle_(0) {
+WinXPCondVar::Event::Event() : handle_(0) {
   next_ = prev_ = this;  // Self referencing circular.
 }
 
-ConditionVariable::Event::~Event() {
+WinXPCondVar::Event::~Event() {
   if (0 == handle_) {
     // This is the list holder
     while (!IsEmpty()) {
@@ -190,19 +282,19 @@ ConditionVariable::Event::~Event() {
 }
 
 // Change a container instance permanently into an element of a list.
-void ConditionVariable::Event::InitListElement() {
+void WinXPCondVar::Event::InitListElement() {
   DCHECK(!handle_);
   handle_ = CreateEvent(NULL, false, false, NULL);
   DCHECK(handle_);
 }
 
 // Methods for use on lists.
-bool ConditionVariable::Event::IsEmpty() const {
+bool WinXPCondVar::Event::IsEmpty() const {
   DCHECK(ValidateAsList());
   return IsSingleton();
 }
 
-void ConditionVariable::Event::PushBack(Event* other) {
+void WinXPCondVar::Event::PushBack(Event* other) {
   DCHECK(ValidateAsList());
   DCHECK(other->ValidateAsItem());
   DCHECK(other->IsSingleton());
@@ -215,13 +307,13 @@ void ConditionVariable::Event::PushBack(Event* other) {
   DCHECK(ValidateAsDistinct(other));
 }
 
-ConditionVariable::Event* ConditionVariable::Event::PopFront() {
+WinXPCondVar::Event* WinXPCondVar::Event::PopFront() {
   DCHECK(ValidateAsList());
   DCHECK(!IsSingleton());
   return next_->Extract();
 }
 
-ConditionVariable::Event* ConditionVariable::Event::PopBack() {
+WinXPCondVar::Event* WinXPCondVar::Event::PopBack() {
   DCHECK(ValidateAsList());
   DCHECK(!IsSingleton());
   return prev_->Extract();
@@ -229,13 +321,13 @@ ConditionVariable::Event* ConditionVariable::Event::PopBack() {
 
 // Methods for use on list elements.
 // Accessor method.
-HANDLE ConditionVariable::Event::handle() const {
+HANDLE WinXPCondVar::Event::handle() const {
   DCHECK(ValidateAsItem());
   return handle_;
 }
 
 // Pull an element from a list (if it's in one).
-ConditionVariable::Event* ConditionVariable::Event::Extract() {
+WinXPCondVar::Event* WinXPCondVar::Event::Extract() {
   DCHECK(ValidateAsItem());
   if (!IsSingleton()) {
     // Stitch neighbors together.
@@ -249,25 +341,25 @@ ConditionVariable::Event* ConditionVariable::Event::Extract() {
 }
 
 // Method for use on a list element or on a list.
-bool ConditionVariable::Event::IsSingleton() const {
+bool WinXPCondVar::Event::IsSingleton() const {
   DCHECK(ValidateLinks());
   return next_ == this;
 }
 
 // Provide pre/post conditions to validate correct manipulations.
-bool ConditionVariable::Event::ValidateAsDistinct(Event* other) const {
+bool WinXPCondVar::Event::ValidateAsDistinct(Event* other) const {
   return ValidateLinks() && other->ValidateLinks() && (this != other);
 }
 
-bool ConditionVariable::Event::ValidateAsItem() const {
+bool WinXPCondVar::Event::ValidateAsItem() const {
   return (0 != handle_) && ValidateLinks();
 }
 
-bool ConditionVariable::Event::ValidateAsList() const {
+bool WinXPCondVar::Event::ValidateAsList() const {
   return (0 == handle_) && ValidateLinks();
 }
 
-bool ConditionVariable::Event::ValidateLinks() const {
+bool WinXPCondVar::Event::ValidateLinks() const {
   // Make sure both of our neighbors have links that point back to us.
   // We don't do the O(n) check and traverse the whole loop, and instead only
   // do a local check to (and returning from) our immediate neighbors.
@@ -276,7 +368,7 @@ bool ConditionVariable::Event::ValidateLinks() const {
 
 
 /*
-FAQ On subtle implementation details:
+FAQ On WinXPCondVar subtle implementation details:
 
 1) What makes this problem subtle?  Please take a look at "Strategies
 for Implementing POSIX Condition Variables on Win32" by Douglas
@@ -443,5 +535,29 @@ put so many assertions (DCHECKs) into the container class that it is trivial to
 code review and validate its correctness.
 
 */
+
+ConditionVariable::ConditionVariable(Lock* user_lock)
+    : impl_(new WinXPCondVar(user_lock)) {
+}
+
+ConditionVariable::~ConditionVariable() {
+  delete impl_;
+}
+
+void ConditionVariable::Wait() {
+  impl_->Wait();
+}
+
+void ConditionVariable::TimedWait(const TimeDelta& max_time) {
+  impl_->TimedWait(max_time);
+}
+
+void ConditionVariable::Broadcast() {
+  impl_->Broadcast();
+}
+
+void ConditionVariable::Signal() {
+  impl_->Signal();
+}
 
 }  // namespace base
