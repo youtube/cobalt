@@ -24,7 +24,6 @@ class CertVerifier;
 class ClientSocketFactory;
 class ClientSocketPoolHistograms;
 class DnsCertProvenanceChecker;
-class DnsRRResolver;
 class HttpProxyClientSocketPool;
 class HostResolver;
 class NetLog;
@@ -35,6 +34,7 @@ class SSLClientSocketPool;
 class SSLConfigService;
 class SSLHostInfoFactory;
 class TransportClientSocketPool;
+class TransportSecurityState;
 
 namespace internal {
 
@@ -63,7 +63,7 @@ class ClientSocketPoolManagerImpl : public base::NonThreadSafe,
                               HostResolver* host_resolver,
                               CertVerifier* cert_verifier,
                               OriginBoundCertService* origin_bound_cert_service,
-                              DnsRRResolver* dnsrr_resolver,
+                              TransportSecurityState* transport_security_state,
                               DnsCertProvenanceChecker* dns_cert_checker,
                               SSLHostInfoFactory* ssl_host_info_factory,
                               ProxyService* proxy_service,
@@ -109,7 +109,7 @@ class ClientSocketPoolManagerImpl : public base::NonThreadSafe,
   HostResolver* const host_resolver_;
   CertVerifier* const cert_verifier_;
   OriginBoundCertService* const origin_bound_cert_service_;
-  DnsRRResolver* const dnsrr_resolver_;
+  TransportSecurityState* const transport_security_state_;
   DnsCertProvenanceChecker* const dns_cert_checker_;
   SSLHostInfoFactory* const ssl_host_info_factory_;
   ProxyService* const proxy_service_;

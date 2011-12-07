@@ -194,9 +194,6 @@ int SSLConnectJob::DoTransportConnect() {
   }
 
   if (ssl_host_info_.get()) {
-    if (context_.dnsrr_resolver)
-      ssl_host_info_->StartDnsLookup(context_.dnsrr_resolver);
-
     // This starts fetching the SSL host info from the disk cache for early
     // certificate verification and the TLS cached information extension.
     ssl_host_info_->Start();
@@ -447,7 +444,7 @@ SSLClientSocketPool::SSLClientSocketPool(
     HostResolver* host_resolver,
     CertVerifier* cert_verifier,
     OriginBoundCertService* origin_bound_cert_service,
-    DnsRRResolver* dnsrr_resolver,
+    TransportSecurityState* transport_security_state,
     DnsCertProvenanceChecker* dns_cert_checker,
     SSLHostInfoFactory* ssl_host_info_factory,
     ClientSocketFactory* client_socket_factory,
@@ -470,7 +467,7 @@ SSLClientSocketPool::SSLClientSocketPool(
                                      SSLClientSocketContext(
                                          cert_verifier,
                                          origin_bound_cert_service,
-                                         dnsrr_resolver,
+                                         transport_security_state,
                                          dns_cert_checker,
                                          ssl_host_info_factory),
                                      net_log)),
