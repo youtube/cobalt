@@ -722,9 +722,9 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   DCHECK(key);
   DCHECK(!subject.empty());
 
-  if (valid_duration.InSeconds() > UINT32_MAX) {
+  if (valid_duration.InSeconds() > kuint32max) {
      LOG(ERROR) << "valid_duration too big" << valid_duration.InSeconds();
-     valid_duration = base::TimeDelta::FromSeconds(UINT32_MAX);
+     valid_duration = base::TimeDelta::FromSeconds(kuint32max);
   }
 
   // There is a comment in
