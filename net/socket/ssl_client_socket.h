@@ -18,29 +18,12 @@ namespace net {
 
 class CertVerifier;
 class DnsCertProvenanceChecker;
-class DnsRRResolver;
 class OriginBoundCertService;
 class SSLCertRequestInfo;
 class SSLHostInfo;
 class SSLHostInfoFactory;
 class SSLInfo;
-struct RRResponse;
-
-// DNSSECProvider is an interface to an object that can return DNSSEC data.
-class DNSSECProvider {
- public:
-  // GetDNSSECRecords will either:
-  //   1) set |*out| to NULL and return OK.
-  //   2) set |*out| to a pointer, which is owned by this object, and return OK.
-  //   3) return IO_PENDING and call |callback| on the current MessageLoop at
-  //      some point in the future. Once the callback has been made, this
-  //      function will return OK if called again.
-  virtual int GetDNSSECRecords(RRResponse** out,
-                               OldCompletionCallback* callback) = 0;
-
- private:
-  ~DNSSECProvider() {}
-};
+class TransportSecurityState;
 
 // This struct groups together several fields which are used by various
 // classes related to SSLClientSocket.
@@ -48,24 +31,23 @@ struct SSLClientSocketContext {
   SSLClientSocketContext()
       : cert_verifier(NULL),
         origin_bound_cert_service(NULL),
-        dnsrr_resolver(NULL),
         dns_cert_checker(NULL),
         ssl_host_info_factory(NULL) {}
 
   SSLClientSocketContext(CertVerifier* cert_verifier_arg,
                          OriginBoundCertService* origin_bound_cert_service_arg,
-                         DnsRRResolver* dnsrr_resolver_arg,
+                         TransportSecurityState* transport_security_state_arg,
                          DnsCertProvenanceChecker* dns_cert_checker_arg,
                          SSLHostInfoFactory* ssl_host_info_factory_arg)
       : cert_verifier(cert_verifier_arg),
         origin_bound_cert_service(origin_bound_cert_service_arg),
-        dnsrr_resolver(dnsrr_resolver_arg),
+        transport_security_state(transport_security_state_arg),
         dns_cert_checker(dns_cert_checker_arg),
         ssl_host_info_factory(ssl_host_info_factory_arg) {}
 
   CertVerifier* cert_verifier;
   OriginBoundCertService* origin_bound_cert_service;
-  DnsRRResolver* dnsrr_resolver;
+  TransportSecurityState* transport_security_state;
   DnsCertProvenanceChecker* dns_cert_checker;
   SSLHostInfoFactory* ssl_host_info_factory;
 };
@@ -139,8 +121,6 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   virtual bool was_npn_negotiated() const;
 
   virtual bool set_was_npn_negotiated(bool negotiated);
-
-  virtual void UseDNSSEC(DNSSECProvider*) { }
 
   virtual bool was_spdy_negotiated() const;
 
