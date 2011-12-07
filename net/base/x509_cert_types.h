@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "base/string_piece.h"
 #include "build/build_config.h"
 #include "net/base/net_export.h"
 
@@ -21,7 +22,6 @@
 
 namespace base {
 class Time;
-class StringPiece;
 }  // namespace base
 
 namespace net {
