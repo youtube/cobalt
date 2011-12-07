@@ -16,7 +16,6 @@ namespace net {
 class CertVerifier;
 class CookieStore;
 class DnsCertProvenanceChecker;
-class DnsRRResolver;
 class FraudulentCertificateReporter;
 class FtpTransactionFactory;
 class HostResolver;
@@ -50,7 +49,6 @@ class NET_EXPORT URLRequestContextStorage {
   void set_cert_verifier(CertVerifier* cert_verifier);
   void set_origin_bound_cert_service(
       OriginBoundCertService* origin_bound_cert_service);
-  void set_dnsrr_resolver(DnsRRResolver* dnsrr_resolver);
   void set_dns_cert_checker(DnsCertProvenanceChecker* dns_cert_checker);
   void set_fraudulent_certificate_reporter(
       FraudulentCertificateReporter* fraudulent_certificate_reporter);
@@ -80,7 +78,6 @@ class NET_EXPORT URLRequestContextStorage {
   scoped_ptr<HostResolver> host_resolver_;
   scoped_ptr<CertVerifier> cert_verifier_;
   scoped_ptr<OriginBoundCertService> origin_bound_cert_service_;
-  scoped_ptr<DnsRRResolver> dnsrr_resolver_;
   scoped_ptr<DnsCertProvenanceChecker> dns_cert_checker_;
   scoped_ptr<FraudulentCertificateReporter> fraudulent_certificate_reporter_;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;

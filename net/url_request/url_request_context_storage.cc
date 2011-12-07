@@ -7,7 +7,6 @@
 #include "base/logging.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/cookie_store.h"
-#include "net/base/dnsrr_resolver.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/network_delegate.h"
@@ -50,12 +49,6 @@ void URLRequestContextStorage::set_origin_bound_cert_service(
     OriginBoundCertService* origin_bound_cert_service) {
   context_->set_origin_bound_cert_service(origin_bound_cert_service);
   origin_bound_cert_service_.reset(origin_bound_cert_service);
-}
-
-void URLRequestContextStorage::set_dnsrr_resolver(
-    DnsRRResolver* dnsrr_resolver) {
-  context_->set_dnsrr_resolver(dnsrr_resolver);
-  dnsrr_resolver_.reset(dnsrr_resolver);
 }
 
 void URLRequestContextStorage::set_dns_cert_checker(
