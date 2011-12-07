@@ -146,11 +146,21 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
 
   virtual bool set_was_spdy_negotiated(bool negotiated);
 
+  // Returns true if an origin bound certificate was sent on this connection.
+  // This may be useful for protocols, like SPDY, which allow the same
+  // connection to be shared between multiple origins, each of which need
+  // an origin bound certificate.
+  virtual bool was_origin_bound_cert_sent() const;
+
+  virtual bool set_was_origin_bound_cert_sent(bool sent);
+
  private:
   // True if NPN was responded to, independent of selecting SPDY or HTTP.
   bool was_npn_negotiated_;
   // True if NPN successfully negotiated SPDY.
   bool was_spdy_negotiated_;
+  // True if an origin bound certificate was sent.
+  bool was_origin_bound_cert_sent_;
 };
 
 }  // namespace net
