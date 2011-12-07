@@ -38,7 +38,6 @@ struct CERTCertificateStr;
 class Pickle;
 
 namespace crypto {
-class StringPiece;
 class RSAPrivateKey;
 }  // namespace crypto
 
