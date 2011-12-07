@@ -198,16 +198,9 @@ SOCKSClientSocketPool::SOCKSClientSocketPool(
             new SOCKSConnectJobFactory(transport_pool,
                                        host_resolver,
                                        net_log)) {
-  // We should always have a |transport_pool_| except in unit tests.
-  if (transport_pool_)
-    transport_pool_->AddLayeredPool(this);
 }
 
-SOCKSClientSocketPool::~SOCKSClientSocketPool() {
-  // We should always have a |transport_pool_| except in unit tests.
-  if (transport_pool_)
-    transport_pool_->RemoveLayeredPool(this);
-}
+SOCKSClientSocketPool::~SOCKSClientSocketPool() {}
 
 int SOCKSClientSocketPool::RequestSocket(const std::string& group_name,
                                          const void* socket_params,
@@ -247,10 +240,6 @@ void SOCKSClientSocketPool::Flush() {
   base_.Flush();
 }
 
-bool SOCKSClientSocketPool::IsStalled() const {
-  return base_.IsStalled() || transport_pool_->IsStalled();
-}
-
 void SOCKSClientSocketPool::CloseIdleSockets() {
   base_.CloseIdleSockets();
 }
@@ -267,14 +256,6 @@ int SOCKSClientSocketPool::IdleSocketCountInGroup(
 LoadState SOCKSClientSocketPool::GetLoadState(
     const std::string& group_name, const ClientSocketHandle* handle) const {
   return base_.GetLoadState(group_name, handle);
-}
-
-void SOCKSClientSocketPool::AddLayeredPool(LayeredPool* layered_pool) {
-  base_.AddLayeredPool(layered_pool);
-}
-
-void SOCKSClientSocketPool::RemoveLayeredPool(LayeredPool* layered_pool) {
-  base_.RemoveLayeredPool(layered_pool);
 }
 
 DictionaryValue* SOCKSClientSocketPool::GetInfoAsValue(
@@ -299,11 +280,5 @@ base::TimeDelta SOCKSClientSocketPool::ConnectionTimeout() const {
 ClientSocketPoolHistograms* SOCKSClientSocketPool::histograms() const {
   return base_.histograms();
 };
-
-bool SOCKSClientSocketPool::CloseOneIdleConnection() {
-  if (base_.CloseOneIdleSocket())
-    return true;
-  return base_.CloseOneIdleConnectionInLayeredPool();
-}
 
 }  // namespace net

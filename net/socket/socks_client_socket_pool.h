@@ -105,8 +105,7 @@ class SOCKSConnectJob : public ConnectJob {
   DISALLOW_COPY_AND_ASSIGN(SOCKSConnectJob);
 };
 
-class NET_EXPORT_PRIVATE SOCKSClientSocketPool
-    : public ClientSocketPool, public LayeredPool {
+class NET_EXPORT_PRIVATE SOCKSClientSocketPool : public ClientSocketPool {
  public:
   SOCKSClientSocketPool(
       int max_sockets,
@@ -140,8 +139,6 @@ class NET_EXPORT_PRIVATE SOCKSClientSocketPool
 
   virtual void Flush() OVERRIDE;
 
-  virtual bool IsStalled() const OVERRIDE;
-
   virtual void CloseIdleSockets() OVERRIDE;
 
   virtual int IdleSocketCount() const OVERRIDE;
@@ -153,10 +150,6 @@ class NET_EXPORT_PRIVATE SOCKSClientSocketPool
       const std::string& group_name,
       const ClientSocketHandle* handle) const OVERRIDE;
 
-  virtual void AddLayeredPool(LayeredPool* layered_pool) OVERRIDE;
-
-  virtual void RemoveLayeredPool(LayeredPool* layered_pool) OVERRIDE;
-
   virtual base::DictionaryValue* GetInfoAsValue(
       const std::string& name,
       const std::string& type,
@@ -165,9 +158,6 @@ class NET_EXPORT_PRIVATE SOCKSClientSocketPool
   virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
 
   virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
-
-  // LayeredPool methods:
-  virtual bool CloseOneIdleConnection() OVERRIDE;
 
  private:
   typedef ClientSocketPoolBase<SOCKSSocketParams> PoolBase;
