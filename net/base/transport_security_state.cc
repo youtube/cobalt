@@ -968,6 +968,53 @@ static const char* const kTwitterComAcceptableCerts[] = {
   kNoRejectedPublicKeys, \
 }
 
+// kTwitterCDNAcceptableCerts are the set of public keys valid for Twitter's
+// CDNs, which includes all the keys from kTwitterComAcceptableCerts.
+static const char* const kTwitterCDNAcceptableCerts[] = {
+  kSPKIHash_VeriSignClass1,
+  kSPKIHash_VeriSignClass3,
+  kSPKIHash_VeriSignClass3_G4,
+  kSPKIHash_VeriSignClass4_G3,
+  kSPKIHash_VeriSignClass3_G3,
+  kSPKIHash_VeriSignClass1_G3,
+  kSPKIHash_VeriSignClass2_G3,
+  kSPKIHash_VeriSignClass3_G2,
+  kSPKIHash_VeriSignClass2_G2,
+  kSPKIHash_VeriSignClass3_G5,
+  kSPKIHash_VeriSignUniversal,
+  kSPKIHash_GeoTrustGlobal,
+  kSPKIHash_GeoTrustGlobal2,
+  kSPKIHash_GeoTrustUniversal,
+  kSPKIHash_GeoTrustUniversal2,
+  kSPKIHash_GeoTrustPrimary,
+  kSPKIHash_GeoTrustPrimary_G2,
+  kSPKIHash_GeoTrustPrimary_G3,
+  kSPKIHash_Twitter1,
+
+  kSPKIHash_Entrust_2048,
+  kSPKIHash_Entrust_EV,
+  kSPKIHash_Entrust_G2,
+  kSPKIHash_Entrust_SSL,
+  kSPKIHash_AAACertificateServices,
+  kSPKIHash_AddTrustClass1CARoot,
+  kSPKIHash_AddTrustExternalCARoot,
+  kSPKIHash_AddTrustPublicCARoot,
+  kSPKIHash_AddTrustQualifiedCARoot,
+  kSPKIHash_COMODOCertificationAuthority,
+  kSPKIHash_SecureCertificateServices,
+  kSPKIHash_TrustedCertificateServices,
+  kSPKIHash_UTNDATACorpSGC,
+  kSPKIHash_UTNUSERFirstClientAuthenticationandEmail,
+  kSPKIHash_UTNUSERFirstHardware,
+  kSPKIHash_UTNUSERFirstObject,
+  kSPKIHash_GTECyberTrustGlobalRoot,
+  NULL,
+};
+#define kTwitterCDNPins { \
+  kTwitterCDNAcceptableCerts, \
+  kNoRejectedPublicKeys, \
+}
+
 // kTestAcceptableCerts doesn't actually match any public keys and is used
 // with "pinningtest.appspot.com", below, to test if pinning is active.
 static const char* const kTestAcceptableCerts[] = {
@@ -1132,14 +1179,13 @@ static const struct HSTSPreload kPreloadedSTS[] = {
       DOMAIN_NOT_PINNED },
   {12, true, "\006ubertt\003org", true, kNoPins, DOMAIN_NOT_PINNED },
 
-#if 0
   // Twitter pins disabled in order to track down pinning failures --agl
   {13, false, "\007twitter\003com", kTwitterHSTS,
       kTwitterComPins, DOMAIN_TWITTER_COM },
   {17, true, "\003www\007twitter\003com", kTwitterHSTS,
       kTwitterComPins, DOMAIN_TWITTER_COM },
   {17, true, "\003api\007twitter\003com", kTwitterHSTS,
-      kTwitterComPins, DOMAIN_TWITTER_COM },
+      kTwitterCDNPins, DOMAIN_TWITTER_COM },
   {19, true, "\005oauth\007twitter\003com", kTwitterHSTS,
       kTwitterComPins, DOMAIN_TWITTER_COM },
   {20, true, "\006mobile\007twitter\003com", kTwitterHSTS,
@@ -1154,7 +1200,6 @@ static const struct HSTSPreload kPreloadedSTS[] = {
       DOMAIN_TWIMG_COM },
   {23, true, "\010twimg0-a\010akamaihd\003net", false,
       kTwitterCDNPins, DOMAIN_AKAMAIHD_NET },
-#endif
 };
 static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
