@@ -6,31 +6,29 @@
 
 #include "base/logging.h"
 #include "base/stl_util.h"
+#include "net/http/http_pipelined_host_capability.h"
 #include "net/http/http_pipelined_host_impl.h"
+#include "net/http/http_server_properties.h"
 
 namespace net {
-
-// TODO(simonjam): Run experiments with different values of this to see what
-// value is good at avoiding evictions without eating too much memory. Until
-// then, this is just a bad guess.
-static const int kNumHostsToRemember = 200;
 
 class HttpPipelinedHostImplFactory : public HttpPipelinedHost::Factory {
  public:
   virtual HttpPipelinedHost* CreateNewHost(
       HttpPipelinedHost::Delegate* delegate, const HostPortPair& origin,
       HttpPipelinedConnection::Factory* factory,
-      HttpPipelinedHost::Capability capability) OVERRIDE {
+      HttpPipelinedHostCapability capability) OVERRIDE {
     return new HttpPipelinedHostImpl(delegate, origin, factory, capability);
   }
 };
 
 HttpPipelinedHostPool::HttpPipelinedHostPool(
     Delegate* delegate,
-    HttpPipelinedHost::Factory* factory)
+    HttpPipelinedHost::Factory* factory,
+    HttpServerProperties* http_server_properties)
     : delegate_(delegate),
       factory_(factory),
-      known_capability_map_(kNumHostsToRemember) {
+      http_server_properties_(http_server_properties) {
   if (!factory) {
     factory_.reset(new HttpPipelinedHostImplFactory);
   }
@@ -42,8 +40,9 @@ HttpPipelinedHostPool::~HttpPipelinedHostPool() {
 
 bool HttpPipelinedHostPool::IsHostEligibleForPipelining(
     const HostPortPair& origin) {
-  HttpPipelinedHost::Capability capability = GetHostCapability(origin);
-  return capability != HttpPipelinedHost::INCAPABLE;
+  HttpPipelinedHostCapability capability =
+      http_server_properties_->GetPipelineCapability(origin);
+  return capability != PIPELINE_INCAPABLE;
 }
 
 HttpPipelinedStream* HttpPipelinedHostPool::CreateStreamOnNewPipeline(
@@ -90,8 +89,9 @@ HttpPipelinedHost* HttpPipelinedHostPool::GetPipelinedHost(
     return NULL;
   }
 
-  HttpPipelinedHost::Capability capability = GetHostCapability(origin);
-  if (capability == HttpPipelinedHost::INCAPABLE) {
+  HttpPipelinedHostCapability capability =
+      http_server_properties_->GetPipelineCapability(origin);
+  if (capability == PIPELINE_INCAPABLE) {
     return NULL;
   }
 
@@ -115,22 +115,8 @@ void HttpPipelinedHostPool::OnHostHasAdditionalCapacity(
 
 void HttpPipelinedHostPool::OnHostDeterminedCapability(
     HttpPipelinedHost* host,
-    HttpPipelinedHost::Capability capability) {
-  CapabilityMap::iterator known_it = known_capability_map_.Get(host->origin());
-  if (known_it == known_capability_map_.end() ||
-      known_it->second != HttpPipelinedHost::INCAPABLE) {
-    known_capability_map_.Put(host->origin(), capability);
-  }
-}
-
-HttpPipelinedHost::Capability HttpPipelinedHostPool::GetHostCapability(
-    const HostPortPair& origin) {
-  HttpPipelinedHost::Capability capability = HttpPipelinedHost::UNKNOWN;
-  CapabilityMap::const_iterator it = known_capability_map_.Get(origin);
-  if (it != known_capability_map_.end()) {
-    capability = it->second;
-  }
-  return capability;
+    HttpPipelinedHostCapability capability) {
+  http_server_properties_->SetPipelineCapability(host->origin(), capability);
 }
 
 }  // namespace net
