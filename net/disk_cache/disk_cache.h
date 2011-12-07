@@ -78,8 +78,6 @@ class NET_EXPORT Backend {
   // |entry| must remain valid until the operation completes.
   virtual int OpenEntry(const std::string& key, Entry** entry,
                         OldCompletionCallback* callback) = 0;
-  virtual int OpenEntry(const std::string& key, Entry** entry,
-                        const net::CompletionCallback& callback) = 0;
 
   // Creates a new entry. Upon success, the out param holds a pointer to an
   // Entry object representing the newly created disk cache entry. When the
@@ -89,8 +87,6 @@ class NET_EXPORT Backend {
   // receive the |entry| must remain valid until the operation completes.
   virtual int CreateEntry(const std::string& key, Entry** entry,
                           OldCompletionCallback* callback) = 0;
-  virtual int CreateEntry(const std::string& key, Entry** entry,
-                          const net::CompletionCallback& callback) = 0;
 
   // Marks the entry, specified by the given key, for deletion. The return value
   // is a net error code. If this method returns ERR_IO_PENDING, the |callback|
@@ -102,7 +98,6 @@ class NET_EXPORT Backend {
   // this method returns ERR_IO_PENDING, the |callback| will be invoked when the
   // operation completes.
   virtual int DoomAllEntries(OldCompletionCallback* callback) = 0;
-  virtual int DoomAllEntries(const net::CompletionCallback& callback) = 0;
 
   // Marks a range of entries for deletion. This supports unbounded deletes in
   // either direction by using null Time values for either argument. The return
@@ -111,9 +106,6 @@ class NET_EXPORT Backend {
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
                                  OldCompletionCallback* callback) = 0;
-  virtual int DoomEntriesBetween(const base::Time initial_time,
-                                 const base::Time end_time,
-                                 const net::CompletionCallback& callback) = 0;
 
   // Marks all entries accessed since |initial_time| for deletion. The return
   // value is a net error code. If this method returns ERR_IO_PENDING, the
@@ -135,8 +127,6 @@ class NET_EXPORT Backend {
   // therefore it does not impact the eviction ranking of the entry.
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
                             OldCompletionCallback* callback) = 0;
-  virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            const net::CompletionCallback& callback) = 0;
 
   // Releases iter without returning the next entry. Whenever OpenNextEntry()
   // returns true, but the caller is not interested in continuing the
@@ -189,8 +179,6 @@ class NET_EXPORT Entry {
   // performed from the callback code.
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
                        OldCompletionCallback* completion_callback) = 0;
-  virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       const net::CompletionCallback& completion_callback) = 0;
 
   // Copies cache data from the given buffer of length |buf_len|.  If
   // completion_callback is null, then this call blocks until the write
@@ -207,9 +195,6 @@ class NET_EXPORT Entry {
   // what we are writing here.
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
                         OldCompletionCallback* completion_callback,
-                        bool truncate) = 0;
-  virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        const net::CompletionCallback& completion_callback,
                         bool truncate) = 0;
 
   // Sparse entries support:

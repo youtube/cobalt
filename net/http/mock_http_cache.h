@@ -35,13 +35,8 @@ class MockDiskEntry : public disk_cache::Entry,
   virtual int32 GetDataSize(int index) const OVERRIDE;
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
                        net::OldCompletionCallback* callback) OVERRIDE;
-  virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       const net::CompletionCallback& callback) OVERRIDE;
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
                         net::OldCompletionCallback* callback,
-                        bool truncate) OVERRIDE;
-  virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        const net::CompletionCallback& callback,
                         bool truncate) OVERRIDE;
   virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
                              net::OldCompletionCallback* callback) OVERRIDE;
@@ -72,16 +67,13 @@ class MockDiskEntry : public disk_cache::Entry,
   // if the consumer called Close on the MockDiskEntry.  We achieve that by
   // leveraging the fact that this class is reference counted.
   void CallbackLater(net::OldCompletionCallback* callback, int result);
-  void CallbackLater(const net::CompletionCallback& callback, int result);
 
-  void RunOldCallback(net::OldCompletionCallback* callback, int result);
-  void RunCallback(const net::CompletionCallback& callback, int result);
+  void RunCallback(net::OldCompletionCallback* callback, int result);
 
   // When |store| is true, stores the callback to be delivered later; otherwise
   // delivers any callback previously stored.
   static void StoreAndDeliverCallbacks(bool store, MockDiskEntry* entry,
-                                       net::OldCompletionCallback* old_callback,
-                                       const net::CompletionCallback& callback,
+                                       net::OldCompletionCallback* callback,
                                        int result);
 
   static const int kNumCacheEntryDataIndices = 3;
@@ -106,29 +98,18 @@ class MockDiskCache : public disk_cache::Backend {
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, disk_cache::Entry** entry,
                         net::OldCompletionCallback* callback) OVERRIDE;
-  virtual int OpenEntry(const std::string& key, disk_cache::Entry** entry,
-                        const net::CompletionCallback& callback) OVERRIDE;
   virtual int CreateEntry(const std::string& key, disk_cache::Entry** entry,
                           net::OldCompletionCallback* callback) OVERRIDE;
-  virtual int CreateEntry(const std::string& key, disk_cache::Entry** entry,
-                          const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
                         net::OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomAllEntries(net::OldCompletionCallback* callback) OVERRIDE;
-  virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
                                  net::OldCompletionCallback* callback) OVERRIDE;
-  virtual int DoomEntriesBetween(
-      const base::Time initial_time,
-      const base::Time end_time,
-      const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntriesSince(const base::Time initial_time,
                                net::OldCompletionCallback* callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
                             net::OldCompletionCallback* callback) OVERRIDE;
-  virtual int OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
-                            const net::CompletionCallback& callback) OVERRIDE;
   virtual void EndEnumeration(void** iter) OVERRIDE;
   virtual void GetStats(
       std::vector<std::pair<std::string, std::string> >* stats) OVERRIDE;
@@ -153,9 +134,9 @@ class MockDiskCache : public disk_cache::Backend {
 
  private:
   typedef base::hash_map<std::string, MockDiskEntry*> EntryMap;
+  class CallbackRunner;
 
   void CallbackLater(net::OldCompletionCallback* callback, int result);
-  void CallbackLater(const net::CompletionCallback& callback, int result);
 
   EntryMap entries_;
   int open_count_;

@@ -136,24 +136,8 @@ int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
   return net::ERR_FAILED;
 }
 
-int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
-                              const net::CompletionCallback& callback) {
-  if (OpenEntry(key, entry))
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
 int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
                                 OldCompletionCallback* callback) {
-  if (CreateEntry(key, entry))
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
-int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
-                                const net::CompletionCallback& callback) {
   if (CreateEntry(key, entry))
     return net::OK;
 
@@ -175,25 +159,9 @@ int MemBackendImpl::DoomAllEntries(OldCompletionCallback* callback) {
   return net::ERR_FAILED;
 }
 
-int MemBackendImpl::DoomAllEntries(const net::CompletionCallback& callback) {
-  if (DoomAllEntries())
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
 int MemBackendImpl::DoomEntriesBetween(const base::Time initial_time,
                                        const base::Time end_time,
                                        OldCompletionCallback* callback) {
-  if (DoomEntriesBetween(initial_time, end_time))
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
-int MemBackendImpl::DoomEntriesBetween(
-    const base::Time initial_time, const base::Time end_time,
-    const net::CompletionCallback& callback) {
   if (DoomEntriesBetween(initial_time, end_time))
     return net::OK;
 
@@ -210,14 +178,6 @@ int MemBackendImpl::DoomEntriesSince(const base::Time initial_time,
 
 int MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
                                   OldCompletionCallback* callback) {
-  if (OpenNextEntry(iter, next_entry))
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
-int MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
-                                  const net::CompletionCallback& callback) {
   if (OpenNextEntry(iter, next_entry))
     return net::OK;
 

@@ -27,8 +27,6 @@ class BackendIO : public BackgroundIO {
  public:
   BackendIO(InFlightIO* controller, BackendImpl* backend,
             net::OldCompletionCallback* callback);
-  BackendIO(InFlightIO* controller, BackendImpl* backend,
-            const net::CompletionCallback& callback);
 
   // Runs the actual operation on the background thread.
   void ExecuteOperation();
@@ -39,8 +37,7 @@ class BackendIO : public BackgroundIO {
   // Returns true if this operation is directed to an entry (vs. the backend).
   bool IsEntryOperation();
 
-  net::OldCompletionCallback* old_callback() const { return old_callback_; }
-  net::CompletionCallback callback() const { return callback_; }
+  net::OldCompletionCallback* callback() { return callback_; }
 
   // Grabs an extra reference of entry_.
   void ReferenceEntry();
@@ -116,8 +113,7 @@ class BackendIO : public BackgroundIO {
   void ExecuteEntryOperation();
 
   BackendImpl* backend_;
-  net::OldCompletionCallback* old_callback_;
-  net::CompletionCallback callback_;
+  net::OldCompletionCallback* callback_;
   Operation operation_;
   net::OldCompletionCallbackImpl<BackendIO> my_callback_;
 
@@ -153,27 +149,17 @@ class InFlightBackendIO : public InFlightIO {
   void Init(net::OldCompletionCallback* callback);
   void OpenEntry(const std::string& key, Entry** entry,
                  net::OldCompletionCallback* callback);
-  void OpenEntry(const std::string& key, Entry** entry,
-                 const net::CompletionCallback& callback);
   void CreateEntry(const std::string& key, Entry** entry,
                    net::OldCompletionCallback* callback);
-  void CreateEntry(const std::string& key, Entry** entry,
-                   const net::CompletionCallback& callback);
   void DoomEntry(const std::string& key, net::OldCompletionCallback* callback);
   void DoomAllEntries(net::OldCompletionCallback* callback);
-  void DoomAllEntries(const net::CompletionCallback& callback);
   void DoomEntriesBetween(const base::Time initial_time,
                           const base::Time end_time,
                           net::OldCompletionCallback* callback);
-  void DoomEntriesBetween(const base::Time initial_time,
-                          const base::Time end_time,
-                          const net::CompletionCallback& callback);
   void DoomEntriesSince(const base::Time initial_time,
                         net::OldCompletionCallback* callback);
   void OpenNextEntry(void** iter, Entry** next_entry,
                      net::OldCompletionCallback* callback);
-  void OpenNextEntry(void** iter, Entry** next_entry,
-                     const net::CompletionCallback& callback);
   void OpenPrevEntry(void** iter, Entry** prev_entry,
                      net::OldCompletionCallback* callback);
   void EndEnumeration(void* iterator);
@@ -184,14 +170,8 @@ class InFlightBackendIO : public InFlightIO {
   void RunTask(Task* task, net::OldCompletionCallback* callback);
   void ReadData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
                 int buf_len, net::OldCompletionCallback* callback);
-  void ReadData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
-                int buf_len, const net::CompletionCallback& callback);
-  void WriteData(EntryImpl* entry, int index, int offset,
-                 net::IOBuffer* buf, int buf_len, bool truncate,
-                 net::OldCompletionCallback* callback);
-  void WriteData(EntryImpl* entry, int index, int offset,
-                 net::IOBuffer* buf, int buf_len, bool truncate,
-                 const net::CompletionCallback& callback);
+  void WriteData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
+                 int buf_len, bool truncate, net::OldCompletionCallback* callback);
   void ReadSparseData(EntryImpl* entry, int64 offset, net::IOBuffer* buf,
                       int buf_len, net::OldCompletionCallback* callback);
   void WriteSparseData(EntryImpl* entry, int64 offset, net::IOBuffer* buf,
