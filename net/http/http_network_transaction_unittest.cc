@@ -174,7 +174,12 @@ class HttpNetworkTransactionTest : public PlatformTest {
     MessageLoop::current()->RunAllPending();
   }
 
-  void KeepAliveConnectionResendRequestTest(const MockRead& read_failure);
+  // Either |write_failure| specifies a write failure or |read_failure|
+  // specifies a read failure when using a reused socket.  In either case, the
+  // failure should cause the network transaction to resend the request, and the
+  // other argument should be NULL.
+  void KeepAliveConnectionResendRequestTest(const MockWrite* write_failure,
+                                            const MockRead* read_failure);
 
   SimpleGetHelperResult SimpleGetHelperForData(StaticSocketDataProvider* data[],
                                                size_t data_count) {
@@ -1006,10 +1011,9 @@ TEST_F(HttpNetworkTransactionTest, EmptyResponse) {
   EXPECT_EQ(ERR_EMPTY_RESPONSE, rv);
 }
 
-// read_failure specifies a read failure that should cause the network
-// transaction to resend the request.
 void HttpNetworkTransactionTest::KeepAliveConnectionResendRequestTest(
-    const MockRead& read_failure) {
+    const MockWrite* write_failure,
+    const MockRead* read_failure) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("http://www.foo.com/");
@@ -1018,12 +1022,33 @@ void HttpNetworkTransactionTest::KeepAliveConnectionResendRequestTest(
   SessionDependencies session_deps;
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
+  // Written data for successfully sending both requests.
+  MockWrite data1_writes[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.foo.com\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.foo.com\r\n"
+              "Connection: keep-alive\r\n\r\n")
+  };
+
+  // Read results for the first request.
   MockRead data1_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n"),
     MockRead("hello"),
-    read_failure,  // Now, we reuse the connection and fail the first read.
+    MockRead(true, OK),
   };
-  StaticSocketDataProvider data1(data1_reads, arraysize(data1_reads), NULL, 0);
+
+  if (write_failure) {
+    ASSERT_TRUE(!read_failure);
+    data1_writes[1] = *write_failure;
+  } else {
+    ASSERT_TRUE(read_failure);
+    data1_reads[2] = *read_failure;
+  }
+
+  StaticSocketDataProvider data1(data1_reads, arraysize(data1_reads),
+                                 data1_writes, arraysize(data1_writes));
   session_deps.socket_factory.AddSocketDataProvider(&data1);
 
   MockRead data2_reads[] = {
@@ -1062,14 +1087,19 @@ void HttpNetworkTransactionTest::KeepAliveConnectionResendRequestTest(
   }
 }
 
+TEST_F(HttpNetworkTransactionTest, KeepAliveConnectionNotConnectedOnWrite) {
+  MockWrite write_failure(true, ERR_SOCKET_NOT_CONNECTED);
+  KeepAliveConnectionResendRequestTest(&write_failure, NULL);
+}
+
 TEST_F(HttpNetworkTransactionTest, KeepAliveConnectionReset) {
   MockRead read_failure(true, ERR_CONNECTION_RESET);
-  KeepAliveConnectionResendRequestTest(read_failure);
+  KeepAliveConnectionResendRequestTest(NULL, &read_failure);
 }
 
 TEST_F(HttpNetworkTransactionTest, KeepAliveConnectionEOF) {
   MockRead read_failure(false, OK);  // EOF
-  KeepAliveConnectionResendRequestTest(read_failure);
+  KeepAliveConnectionResendRequestTest(NULL, &read_failure);
 }
 
 TEST_F(HttpNetworkTransactionTest, NonKeepAliveConnectionReset) {
