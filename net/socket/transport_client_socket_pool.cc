@@ -450,10 +450,6 @@ void TransportClientSocketPool::Flush() {
   base_.Flush();
 }
 
-bool TransportClientSocketPool::IsStalled() const {
-  return base_.IsStalled();
-}
-
 void TransportClientSocketPool::CloseIdleSockets() {
   base_.CloseIdleSockets();
 }
@@ -470,14 +466,6 @@ int TransportClientSocketPool::IdleSocketCountInGroup(
 LoadState TransportClientSocketPool::GetLoadState(
     const std::string& group_name, const ClientSocketHandle* handle) const {
   return base_.GetLoadState(group_name, handle);
-}
-
-void TransportClientSocketPool::AddLayeredPool(LayeredPool* layered_pool) {
-  base_.AddLayeredPool(layered_pool);
-}
-
-void TransportClientSocketPool::RemoveLayeredPool(LayeredPool* layered_pool) {
-  base_.RemoveLayeredPool(layered_pool);
 }
 
 DictionaryValue* TransportClientSocketPool::GetInfoAsValue(
