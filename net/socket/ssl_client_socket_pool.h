@@ -26,7 +26,6 @@ class CertVerifier;
 class ClientSocketFactory;
 class ConnectJobFactory;
 class DnsCertProvenanceChecker;
-class DnsRRResolver;
 class HostPortPair;
 class HttpProxyClientSocketPool;
 class HttpProxySocketParams;
@@ -34,8 +33,9 @@ class SOCKSClientSocketPool;
 class SOCKSSocketParams;
 class SSLClientSocket;
 class SSLHostInfoFactory;
-class TransportSocketParams;
 class TransportClientSocketPool;
+class TransportSecurityState;
+class TransportSocketParams;
 
 // SSLSocketParams only needs the socket params for the transport socket
 // that will be used (denoted by |proxy|).
@@ -179,7 +179,7 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
       HostResolver* host_resolver,
       CertVerifier* cert_verifier,
       OriginBoundCertService* origin_bound_cert_service,
-      DnsRRResolver* dnsrr_resolver,
+      TransportSecurityState* transport_security_state,
       DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
       ClientSocketFactory* client_socket_factory,

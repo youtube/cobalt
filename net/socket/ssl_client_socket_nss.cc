@@ -84,7 +84,6 @@
 #include "net/base/cert_verifier.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/dns_util.h"
-#include "net/base/dnsrr_resolver.h"
 #include "net/base/dnssec_chain_verifier.h"
 #include "net/base/transport_security_state.h"
 #include "net/base/io_buffer.h"
