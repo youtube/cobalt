@@ -90,7 +90,7 @@ class Emulator(object):
   _WAITFORDEVICE_TIMEOUT = 5
 
   # Time to wait for a "wait for boot complete" (property set on device).
-  _WAITFORBOOT_TIMEOUT = 120
+  _WAITFORBOOT_TIMEOUT = 300
 
   def __init__(self):
     try:
@@ -115,21 +115,27 @@ class Emulator(object):
     """
     _KillAllEmulators()  # just to be sure
     (self.device, port) = self._DeviceName()
-    self.popen = subprocess.Popen(args=[
+    emulator_command = [
         self.emulator,
         # Speed up emulator launch by 40%.  Really.
         '-no-boot-anim',
         # The default /data size is 64M.
         # That's not enough for 4 unit test bundles and their data.
         '-partition-size', '256',
+        # ALWAYS wipe the data.  We've seen cases where an emulator
+        # gets 'stuck' if we don't do this (every thousand runs or
+        # so).
+        '-wipe-data',
         # Use a familiar name and port.
         '-avd', 'buildbot',
-        '-port', str(port)],
-        stderr=subprocess.STDOUT)
+        '-port', str(port)]
+    logging.info('Emulator launch command: %s', ' '.join(emulator_command))
+    self.popen = subprocess.Popen(args=emulator_command,
+                                  stderr=subprocess.STDOUT)
     self._InstallKillHandler()
     self._ConfirmLaunch()
 
-  def _ConfirmLaunch(self):
+  def _ConfirmLaunch(self, wait_for_boot=False):
     """Confirm the emulator launched properly.
 
     Loop on a wait-for-device with a very small timeout.  On each
@@ -159,10 +165,14 @@ class Emulator(object):
     if seconds_waited >= self._LAUNCH_TIMEOUT:
       raise EmulatorLaunchException('TIMEOUT with wait-for-device')
     logging.info('Seconds waited on wait-for-device: %d', seconds_waited)
-    # Now that we checked for obvious problems, wait for a boot complete.
-    # Waiting for the package manager has been problematic.
-    a.Adb().SetTargetSerial(self.device)
-    a.Adb().WaitForBootComplete(self._WAITFORBOOT_TIMEOUT)
+    if wait_for_boot:
+      # Now that we checked for obvious problems, wait for a boot complete.
+      # Waiting for the package manager is sometimes problematic.
+      # TODO(jrg): for reasons I don't understand, sometimes this
+      # gives an "error: device not found" which is only fixed with an
+      # 'adb kill-server' command.  Fix.
+      a.Adb().SetTargetSerial(self.device)
+      a.Adb().WaitForBootComplete(self._WAITFORBOOT_TIMEOUT)
 
   def Shutdown(self):
     """Shuts down the process started by launch."""
