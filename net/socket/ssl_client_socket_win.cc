@@ -398,7 +398,7 @@ SSLClientSocketWin::SSLClientSocketWin(ClientSocketHandle* transport_socket,
       host_and_port_(host_and_port),
       ssl_config_(ssl_config),
       old_user_connect_callback_(NULL),
-      user_read_callback_(NULL),
+      old_user_read_callback_(NULL),
       user_read_buf_len_(0),
       user_write_callback_(NULL),
       user_write_buf_len_(0),
@@ -786,7 +786,48 @@ base::TimeDelta SSLClientSocketWin::GetConnectTimeMicros() const {
 int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
                              OldCompletionCallback* callback) {
   DCHECK(completed_handshake());
-  DCHECK(!user_read_callback_);
+  DCHECK(!old_user_read_callback_ && user_read_callback_.is_null());
+
+  // If we have surplus decrypted plaintext, satisfy the Read with it without
+  // reading more ciphertext from the transport socket.
+  if (bytes_decrypted_ != 0) {
+    int len = std::min(buf_len, bytes_decrypted_);
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, len,
+                                  decrypted_ptr_);
+    memcpy(buf->data(), decrypted_ptr_, len);
+    decrypted_ptr_ += len;
+    bytes_decrypted_ -= len;
+    if (bytes_decrypted_ == 0) {
+      decrypted_ptr_ = NULL;
+      if (bytes_received_ != 0) {
+        memmove(recv_buffer_.get(), received_ptr_, bytes_received_);
+        received_ptr_ = recv_buffer_.get();
+      }
+    }
+    return len;
+  }
+
+  DCHECK(!user_read_buf_);
+  // http://crbug.com/16371: We're seeing |buf->data()| return NULL.  See if the
+  // user is passing in an IOBuffer with a NULL |data_|.
+  CHECK(buf);
+  CHECK(buf->data());
+  user_read_buf_ = buf;
+  user_read_buf_len_ = buf_len;
+
+  int rv = DoPayloadRead();
+  if (rv == ERR_IO_PENDING) {
+    old_user_read_callback_ = callback;
+  } else {
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
+  }
+  return rv;
+}
+int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
+                             const CompletionCallback& callback) {
+  DCHECK(completed_handshake());
+  DCHECK(!old_user_read_callback_ && user_read_callback_.is_null());
 
   // If we have surplus decrypted plaintext, satisfy the Read with it without
   // reading more ciphertext from the transport socket.
@@ -866,11 +907,19 @@ void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
     // (which occurs because we are in the middle of a Read when the
     // renegotiation process starts).  So we complete the Read here.
     if (!old_user_connect_callback_ && user_connect_callback_.is_null()) {
-      OldCompletionCallback* c = user_read_callback_;
-      user_read_callback_ = NULL;
-      user_read_buf_ = NULL;
-      user_read_buf_len_ = 0;
-      c->Run(rv);
+      if (old_user_read_callback_) {
+        OldCompletionCallback* c = old_user_read_callback_;
+        old_user_read_callback_ = NULL;
+        user_read_buf_ = NULL;
+        user_read_buf_len_ = 0;
+        c->Run(rv);
+      } else {
+        CompletionCallback c = user_read_callback_;
+        user_read_callback_.Reset();
+        user_read_buf_ = NULL;
+        user_read_buf_len_ = 0;
+        c.Run(rv);
+      }
       return;
     }
     net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
@@ -893,12 +942,20 @@ void SSLClientSocketWin::OnReadComplete(int result) {
   if (result > 0)
     result = DoPayloadDecrypt();
   if (result != ERR_IO_PENDING) {
-    DCHECK(user_read_callback_);
-    OldCompletionCallback* c = user_read_callback_;
-    user_read_callback_ = NULL;
-    user_read_buf_ = NULL;
-    user_read_buf_len_ = 0;
-    c->Run(result);
+    DCHECK(old_user_read_callback_ || !user_read_callback_.is_null());
+    if (old_user_read_callback_) {
+      OldCompletionCallback* c = old_user_read_callback_;
+      old_user_read_callback_ = NULL;
+      user_read_buf_ = NULL;
+      user_read_buf_len_ = 0;
+      c->Run(result);
+    } else {
+      CompletionCallback c = user_read_callback_;
+      user_read_callback_.Reset();
+      user_read_buf_ = NULL;
+      user_read_buf_len_ = 0;
+      c.Run(result);
+    }
   }
 }
 
@@ -1579,7 +1636,7 @@ int SSLClientSocketWin::DidCompleteHandshake() {
 // result of the server certificate received during renegotiation.
 void SSLClientSocketWin::DidCompleteRenegotiation() {
   DCHECK(!old_user_connect_callback_ && user_connect_callback_.is_null());
-  DCHECK(user_read_callback_);
+  DCHECK(old_user_read_callback_ || !user_read_callback_.is_null());
   renegotiating_ = false;
   next_state_ = STATE_COMPLETED_RENEGOTIATION;
 }

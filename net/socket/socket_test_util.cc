@@ -738,14 +738,48 @@ MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
       peer_closed_connection_(false),
       pending_buf_(NULL),
       pending_buf_len_(0),
-      pending_callback_(NULL),
+      old_pending_callback_(NULL),
       was_used_to_convey_data_(false) {
   DCHECK(data_);
   data_->Reset();
 }
 
+MockTCPClientSocket::~MockTCPClientSocket() {}
+
 int MockTCPClientSocket::Read(net::IOBuffer* buf, int buf_len,
                               net::OldCompletionCallback* callback) {
+  if (!connected_)
+    return net::ERR_UNEXPECTED;
+
+  // If the buffer is already in use, a read is already in progress!
+  DCHECK(pending_buf_ == NULL);
+
+  // Store our async IO data.
+  pending_buf_ = buf;
+  pending_buf_len_ = buf_len;
+  old_pending_callback_ = callback;
+
+  if (need_read_data_) {
+    read_data_ = data_->GetNextRead();
+    if (read_data_.result == ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ) {
+      // This MockRead is just a marker to instruct us to set
+      // peer_closed_connection_.  Skip it and get the next one.
+      read_data_ = data_->GetNextRead();
+      peer_closed_connection_ = true;
+    }
+    // ERR_IO_PENDING means that the SocketDataProvider is taking responsibility
+    // to complete the async IO manually later (via OnReadComplete).
+    if (read_data_.result == ERR_IO_PENDING) {
+      DCHECK(callback);  // We need to be using async IO in this case.
+      return ERR_IO_PENDING;
+    }
+    need_read_data_ = false;
+  }
+
+  return CompleteRead();
+}
+int MockTCPClientSocket::Read(net::IOBuffer* buf, int buf_len,
+                              const net::CompletionCallback& callback) {
   if (!connected_)
     return net::ERR_UNEXPECTED;
 
@@ -768,7 +802,8 @@ int MockTCPClientSocket::Read(net::IOBuffer* buf, int buf_len,
     // ERR_IO_PENDING means that the SocketDataProvider is taking responsibility
     // to complete the async IO manually later (via OnReadComplete).
     if (read_data_.result == ERR_IO_PENDING) {
-      DCHECK(callback);  // We need to be using async IO in this case.
+      // We need to be using async IO in this case.
+      DCHECK(!callback.is_null());
       return ERR_IO_PENDING;
     }
     need_read_data_ = false;
@@ -825,7 +860,8 @@ int MockTCPClientSocket::Connect(const net::CompletionCallback& callback) {
 
 void MockTCPClientSocket::Disconnect() {
   MockClientSocket::Disconnect();
-  pending_callback_ = NULL;
+  old_pending_callback_ = NULL;
+  pending_callback_.Reset();
 }
 
 bool MockTCPClientSocket::IsConnected() const {
@@ -876,9 +912,15 @@ void MockTCPClientSocket::OnReadComplete(const MockRead& data) {
   // let CompleteRead() schedule a callback.
   read_data_.async = false;
 
-  net::OldCompletionCallback* callback = pending_callback_;
-  int rv = CompleteRead();
-  RunOldCallback(callback, rv);
+  if (old_pending_callback_) {
+    net::OldCompletionCallback* callback = old_pending_callback_;
+    int rv = CompleteRead();
+    RunOldCallback(callback, rv);
+  } else {
+    net::CompletionCallback callback = pending_callback_;
+    int rv = CompleteRead();
+    RunCallback(callback, rv);
+  }
 }
 
 int MockTCPClientSocket::CompleteRead() {
@@ -890,10 +932,12 @@ int MockTCPClientSocket::CompleteRead() {
   // Save the pending async IO data and reset our |pending_| state.
   net::IOBuffer* buf = pending_buf_;
   int buf_len = pending_buf_len_;
-  net::OldCompletionCallback* callback = pending_callback_;
+  net::OldCompletionCallback* old_callback = old_pending_callback_;
+  net::CompletionCallback callback = pending_callback_;
   pending_buf_ = NULL;
   pending_buf_len_ = 0;
-  pending_callback_ = NULL;
+  old_pending_callback_ = NULL;
+  pending_callback_.Reset();
 
   int result = read_data_.result;
   DCHECK(result != ERR_IO_PENDING);
@@ -914,8 +958,11 @@ int MockTCPClientSocket::CompleteRead() {
   }
 
   if (read_data_.async) {
-    DCHECK(callback);
-    RunCallbackAsync(callback, result);
+    DCHECK(old_callback || !callback.is_null());
+    if (old_callback)
+      RunCallbackAsync(old_callback, result);
+    else
+      RunCallbackAsync(callback, result);
     return net::ERR_IO_PENDING;
   }
   return result;
@@ -931,7 +978,7 @@ DeterministicMockTCPClientSocket::DeterministicMockTCPClientSocket(
       read_buf_(NULL),
       read_buf_len_(0),
       read_pending_(false),
-      read_callback_(NULL),
+      old_read_callback_(NULL),
       data_(data),
       was_used_to_convey_data_(false) {}
 
@@ -965,7 +1012,10 @@ int DeterministicMockTCPClientSocket::CompleteRead() {
 
   if (read_pending_) {
     read_pending_ = false;
-    read_callback_->Run(result);
+    if (old_read_callback_)
+      old_read_callback_->Run(result);
+    else
+      read_callback_.Run(result);
   }
 
   return result;
@@ -1007,11 +1057,34 @@ int DeterministicMockTCPClientSocket::Read(
 
   read_buf_ = buf;
   read_buf_len_ = buf_len;
+  old_read_callback_ = callback;
+
+  if (read_data_.async || (read_data_.result == ERR_IO_PENDING)) {
+    read_pending_ = true;
+    DCHECK(old_read_callback_);
+    return ERR_IO_PENDING;
+  }
+
+  was_used_to_convey_data_ = true;
+  return CompleteRead();
+}
+int DeterministicMockTCPClientSocket::Read(
+    net::IOBuffer* buf, int buf_len, const net::CompletionCallback& callback) {
+  if (!connected_)
+    return net::ERR_UNEXPECTED;
+
+  read_data_ = data_->GetNextRead();
+  // The buffer should always be big enough to contain all the MockRead data. To
+  // use small buffers, split the data into multiple MockReads.
+  DCHECK_LE(read_data_.data_len, buf_len);
+
+  read_buf_ = buf;
+  read_buf_len_ = buf_len;
   read_callback_ = callback;
 
   if (read_data_.async || (read_data_.result == ERR_IO_PENDING)) {
     read_pending_ = true;
-    DCHECK(read_callback_);
+    DCHECK(!read_callback_.is_null());
     return ERR_IO_PENDING;
   }
 
@@ -1153,6 +1226,10 @@ int MockSSLClientSocket::Read(net::IOBuffer* buf, int buf_len,
                               net::OldCompletionCallback* callback) {
   return transport_->socket()->Read(buf, buf_len, callback);
 }
+int MockSSLClientSocket::Read(net::IOBuffer* buf, int buf_len,
+                              const net::CompletionCallback& callback) {
+  return transport_->socket()->Read(buf, buf_len, callback);
+}
 
 int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
                                net::OldCompletionCallback* callback) {
@@ -1265,7 +1342,7 @@ MockUDPClientSocket::MockUDPClientSocket(SocketDataProvider* data,
       need_read_data_(true),
       pending_buf_(NULL),
       pending_buf_len_(0),
-      pending_callback_(NULL),
+      old_pending_callback_(NULL),
       net_log_(NetLog::Source(), net_log),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
   DCHECK(data_);
@@ -1285,7 +1362,7 @@ int MockUDPClientSocket::Read(net::IOBuffer* buf, int buf_len,
   // Store our async IO data.
   pending_buf_ = buf;
   pending_buf_len_ = buf_len;
-  pending_callback_ = callback;
+  old_pending_callback_ = callback;
 
   if (need_read_data_) {
     read_data_ = data_->GetNextRead();
@@ -1293,6 +1370,33 @@ int MockUDPClientSocket::Read(net::IOBuffer* buf, int buf_len,
     // to complete the async IO manually later (via OnReadComplete).
     if (read_data_.result == ERR_IO_PENDING) {
       DCHECK(callback);  // We need to be using async IO in this case.
+      return ERR_IO_PENDING;
+    }
+    need_read_data_ = false;
+  }
+
+  return CompleteRead();
+}
+int MockUDPClientSocket::Read(net::IOBuffer* buf, int buf_len,
+                              const net::CompletionCallback& callback) {
+  if (!connected_)
+    return net::ERR_UNEXPECTED;
+
+  // If the buffer is already in use, a read is already in progress!
+  DCHECK(pending_buf_ == NULL);
+
+  // Store our async IO data.
+  pending_buf_ = buf;
+  pending_buf_len_ = buf_len;
+  pending_callback_ = callback;
+
+  if (need_read_data_) {
+    read_data_ = data_->GetNextRead();
+    // ERR_IO_PENDING means that the SocketDataProvider is taking responsibility
+    // to complete the async IO manually later (via OnReadComplete).
+    if (read_data_.result == ERR_IO_PENDING) {
+      // We need to be using async IO in this case.
+      DCHECK(!callback.is_null());
       return ERR_IO_PENDING;
     }
     need_read_data_ = false;
@@ -1365,9 +1469,15 @@ void MockUDPClientSocket::OnReadComplete(const MockRead& data) {
   // let CompleteRead() schedule a callback.
   read_data_.async = false;
 
-  net::OldCompletionCallback* callback = pending_callback_;
-  int rv = CompleteRead();
-  RunCallback(callback, rv);
+  if (old_pending_callback_) {
+    net::OldCompletionCallback* callback = old_pending_callback_;
+    int rv = CompleteRead();
+    RunOldCallback(callback, rv);
+  } else {
+    net::CompletionCallback callback = pending_callback_;
+    int rv = CompleteRead();
+    RunCallback(callback, rv);
+  }
 }
 
 int MockUDPClientSocket::CompleteRead() {
@@ -1377,10 +1487,13 @@ int MockUDPClientSocket::CompleteRead() {
   // Save the pending async IO data and reset our |pending_| state.
   net::IOBuffer* buf = pending_buf_;
   int buf_len = pending_buf_len_;
-  net::OldCompletionCallback* callback = pending_callback_;
+  net::OldCompletionCallback* old_callback = old_pending_callback_;
+  net::CompletionCallback callback = pending_callback_;
   pending_buf_ = NULL;
   pending_buf_len_ = 0;
-  pending_callback_ = NULL;
+  old_pending_callback_ = NULL;
+  pending_callback_.Reset();
+  pending_callback_.Reset();
 
   int result = read_data_.result;
   DCHECK(result != ERR_IO_PENDING);
@@ -1400,8 +1513,11 @@ int MockUDPClientSocket::CompleteRead() {
   }
 
   if (read_data_.async) {
-    DCHECK(callback);
-    RunCallbackAsync(callback, result);
+    DCHECK(old_callback || !callback.is_null());
+    if (old_callback)
+      RunCallbackAsync(old_callback, result);
+    else
+      RunCallbackAsync(callback, result);
     return net::ERR_IO_PENDING;
   }
   return result;
@@ -1410,14 +1526,25 @@ int MockUDPClientSocket::CompleteRead() {
 void MockUDPClientSocket::RunCallbackAsync(net::OldCompletionCallback* callback,
                                            int result) {
   MessageLoop::current()->PostTask(FROM_HERE,
+      base::Bind(&MockUDPClientSocket::RunOldCallback,
+                 weak_factory_.GetWeakPtr(), callback, result));
+}
+void MockUDPClientSocket::RunCallbackAsync(
+    const net::CompletionCallback& callback, int result) {
+  MessageLoop::current()->PostTask(FROM_HERE,
       base::Bind(&MockUDPClientSocket::RunCallback, weak_factory_.GetWeakPtr(),
                  callback, result));
 }
 
-void MockUDPClientSocket::RunCallback(net::OldCompletionCallback* callback,
+void MockUDPClientSocket::RunOldCallback(net::OldCompletionCallback* callback,
                                       int result) {
   if (callback)
     callback->Run(result);
+}
+void MockUDPClientSocket::RunCallback(const net::CompletionCallback& callback,
+                                      int result) {
+  if (!callback.is_null())
+    callback.Run(result);
 }
 
 TestSocketRequest::TestSocketRequest(

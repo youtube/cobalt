@@ -51,13 +51,23 @@ namespace {
 class FakeDataChannel {
  public:
   FakeDataChannel()
-      : read_callback_(NULL),
+      : old_read_callback_(NULL),
         read_buf_len_(0),
         ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
   }
 
   virtual int Read(IOBuffer* buf, int buf_len,
                    OldCompletionCallback* callback) {
+    if (data_.empty()) {
+      old_read_callback_ = callback;
+      read_buf_ = buf;
+      read_buf_len_ = buf_len;
+      return net::ERR_IO_PENDING;
+    }
+    return PropogateData(buf, buf_len);
+  }
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback) {
     if (data_.empty()) {
       read_callback_ = callback;
       read_buf_ = buf;
@@ -78,15 +88,23 @@ class FakeDataChannel {
 
  private:
   void DoReadCallback() {
-    if (!read_callback_ || data_.empty())
+    if ((!old_read_callback_ && read_callback_.is_null()) || data_.empty())
       return;
 
     int copied = PropogateData(read_buf_, read_buf_len_);
-    net::OldCompletionCallback* callback = read_callback_;
-    read_callback_ = NULL;
-    read_buf_ = NULL;
-    read_buf_len_ = 0;
-    callback->Run(copied);
+    if (old_read_callback_) {
+      net::OldCompletionCallback* callback = old_read_callback_;
+      old_read_callback_ = NULL;
+      read_buf_ = NULL;
+      read_buf_len_ = 0;
+      callback->Run(copied);
+    } else {
+      net::CompletionCallback callback = read_callback_;
+      read_callback_.Reset();
+      read_buf_ = NULL;
+      read_buf_len_ = 0;
+      callback.Run(copied);
+    }
   }
 
   int PropogateData(scoped_refptr<net::IOBuffer> read_buf, int read_buf_len) {
@@ -100,7 +118,8 @@ class FakeDataChannel {
     return copied;
   }
 
-  net::OldCompletionCallback* read_callback_;
+  net::OldCompletionCallback* old_read_callback_;
+  net::CompletionCallback read_callback_;
   scoped_refptr<net::IOBuffer> read_buf_;
   int read_buf_len_;
 
@@ -124,6 +143,12 @@ class FakeSocket : public StreamSocket {
 
   virtual int Read(IOBuffer* buf, int buf_len,
                    OldCompletionCallback* callback) {
+    // Read random number of bytes.
+    buf_len = rand() % buf_len + 1;
+    return incoming_->Read(buf, buf_len, callback);
+  }
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback) {
     // Read random number of bytes.
     buf_len = rand() % buf_len + 1;
     return incoming_->Read(buf, buf_len, callback);

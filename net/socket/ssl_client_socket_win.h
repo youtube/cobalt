@@ -73,6 +73,8 @@ class SSLClientSocketWin : public SSLClientSocket {
 
   // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback);
   virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
 
   virtual bool SetReceiveBufferSize(int32 size);
@@ -126,7 +128,8 @@ class SSLClientSocketWin : public SSLClientSocket {
   CompletionCallback user_connect_callback_;
 
   // User function to callback when a Read() completes.
-  OldCompletionCallback* user_read_callback_;
+  OldCompletionCallback* old_user_read_callback_;
+  CompletionCallback user_read_callback_;
   scoped_refptr<IOBuffer> user_read_buf_;
   int user_read_buf_len_;
 

@@ -94,9 +94,13 @@ class MockClientSocket : public StreamSocket {
     return base::TimeDelta::FromMicroseconds(-1);
   }
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,
                    OldCompletionCallback* callback) {
+    return ERR_FAILED;
+  }
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual int Write(IOBuffer* buf, int buf_len,
@@ -151,9 +155,13 @@ class MockFailingClientSocket : public StreamSocket {
     return base::TimeDelta::FromMicroseconds(-1);
   }
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,
                    OldCompletionCallback* callback) {
+    return ERR_FAILED;
+  }
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback) {
     return ERR_FAILED;
   }
 
@@ -238,9 +246,13 @@ class MockPendingClientSocket : public StreamSocket {
     return base::TimeDelta::FromMicroseconds(-1);
   }
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,
                    OldCompletionCallback* callback) {
+    return ERR_FAILED;
+  }
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback) {
     return ERR_FAILED;
   }
 
