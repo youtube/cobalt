@@ -11,8 +11,12 @@
 #define BASE_CALLBACK_H_
 #pragma once
 
+#include "base/callback_forward.h"
 #include "base/callback_internal.h"
 #include "base/template_util.h"
+
+// NOTE: Header files that do not require the full definition of Callback or
+// Closure should #include "base/callback_forward.h" instead of this file.
 
 // New, super-duper, unified Callback system.  This will eventually replace
 // NewRunnableMethod, NewRunnableFunction, CreateFunctor, and CreateCallback
@@ -229,6 +233,9 @@ namespace base {
 // After this, create template specializations for 0-7 parameters. Note that
 // even though the template typelist grows, the specialization still
 // only has one type: the function signature.
+//
+// If you are thinking of forward declaring Callback in your own header file,
+// please include "base/callback_forward.h" instead.
 template <typename Sig>
 class Callback;
 
