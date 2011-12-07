@@ -387,6 +387,8 @@
           'win/registry.h',
           'win/resource_util.cc',
           'win/resource_util.h',
+          'win/sampling_profiler.cc',
+          'win/sampling_profiler.h',
           'win/scoped_bstr.cc',
           'win/scoped_bstr.h',
           'win/scoped_co_mem.h',

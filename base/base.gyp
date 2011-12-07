@@ -246,6 +246,7 @@
         'win/object_watcher_unittest.cc',
         'win/pe_image_unittest.cc',
         'win/registry_unittest.cc',
+        'win/sampling_profiler_unittest.cc',
         'win/scoped_bstr_unittest.cc',
         'win/scoped_comptr_unittest.cc',
         'win/scoped_variant_unittest.cc',
