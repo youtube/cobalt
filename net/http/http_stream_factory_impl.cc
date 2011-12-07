@@ -37,8 +37,7 @@ GURL UpgradeUrlToHttps(const GURL& original_url, int port) {
 
 HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
     : session_(session),
-      http_pipelined_host_pool_(this, NULL,
-                                session_->http_server_properties()) {}
+      http_pipelined_host_pool_(this, NULL) {}
 
 HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(request_map_.empty());
