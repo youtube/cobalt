@@ -32,7 +32,7 @@ class MockHostDelegate : public HttpPipelinedHost::Delegate {
   MOCK_METHOD1(OnHostHasAdditionalCapacity, void(HttpPipelinedHost* host));
   MOCK_METHOD2(OnHostDeterminedCapability,
                void(HttpPipelinedHost* host,
-                    HttpPipelinedHostCapability capability));
+                    HttpPipelinedHost::Capability capability));
 };
 
 class MockPipelineFactory : public HttpPipelinedConnection::Factory {
@@ -83,10 +83,10 @@ class HttpPipelinedHostImplTest : public testing::Test {
       : origin_("host", 123),
         factory_(new MockPipelineFactory),  // Owned by host_.
         host_(new HttpPipelinedHostImpl(&delegate_, origin_, factory_,
-                                        PIPELINE_CAPABLE)) {
+                                        HttpPipelinedHost::CAPABLE)) {
   }
 
-  void SetCapability(HttpPipelinedHostCapability capability) {
+  void SetCapability(HttpPipelinedHost::Capability capability) {
     factory_ = new MockPipelineFactory;
     host_.reset(new HttpPipelinedHostImpl(
         &delegate_, origin_, factory_, capability));
@@ -200,7 +200,7 @@ TEST_F(HttpPipelinedHostImplTest, PicksLeastLoadedPipeline) {
 }
 
 TEST_F(HttpPipelinedHostImplTest, OpensUpOnPipelineSuccess) {
-  SetCapability(PIPELINE_UNKNOWN);
+  SetCapability(HttpPipelinedHost::UNKNOWN);
   MockPipeline* pipeline = AddTestPipeline(1, true, true);
 
   EXPECT_EQ(NULL, host_->CreateStreamOnExistingPipeline());
@@ -219,7 +219,7 @@ TEST_F(HttpPipelinedHostImplTest, OpensUpOnPipelineSuccess) {
 }
 
 TEST_F(HttpPipelinedHostImplTest, OpensAllPipelinesOnPipelineSuccess) {
-  SetCapability(PIPELINE_UNKNOWN);
+  SetCapability(HttpPipelinedHost::UNKNOWN);
   MockPipeline* pipeline1 = AddTestPipeline(1, false, true);
   MockPipeline* pipeline2 = AddTestPipeline(1, true, true);
 
@@ -240,14 +240,15 @@ TEST_F(HttpPipelinedHostImplTest, OpensAllPipelinesOnPipelineSuccess) {
 }
 
 TEST_F(HttpPipelinedHostImplTest, ShutsDownOnOldVersion) {
-  SetCapability(PIPELINE_UNKNOWN);
+  SetCapability(HttpPipelinedHost::UNKNOWN);
   MockPipeline* pipeline = AddTestPipeline(1, true, true);
 
   EXPECT_EQ(NULL, host_->CreateStreamOnExistingPipeline());
   EXPECT_CALL(delegate_, OnHostHasAdditionalCapacity(host_.get()))
       .Times(0);
   EXPECT_CALL(delegate_,
-              OnHostDeterminedCapability(host_.get(), PIPELINE_INCAPABLE))
+              OnHostDeterminedCapability(host_.get(),
+                                         HttpPipelinedHost::INCAPABLE))
       .Times(1);
   host_->OnPipelineFeedback(pipeline,
                             HttpPipelinedConnection::OLD_HTTP_VERSION);
@@ -258,7 +259,7 @@ TEST_F(HttpPipelinedHostImplTest, ShutsDownOnOldVersion) {
 }
 
 TEST_F(HttpPipelinedHostImplTest, ConnectionCloseHasNoEffect) {
-  SetCapability(PIPELINE_UNKNOWN);
+  SetCapability(HttpPipelinedHost::UNKNOWN);
   MockPipeline* pipeline = AddTestPipeline(1, true, true);
 
   EXPECT_CALL(delegate_, OnHostHasAdditionalCapacity(host_.get()))
@@ -275,13 +276,14 @@ TEST_F(HttpPipelinedHostImplTest, ConnectionCloseHasNoEffect) {
 }
 
 TEST_F(HttpPipelinedHostImplTest, SuccessesLeadToCapable) {
-  SetCapability(PIPELINE_UNKNOWN);
+  SetCapability(HttpPipelinedHost::UNKNOWN);
   MockPipeline* pipeline = AddTestPipeline(1, true, true);
 
   EXPECT_CALL(delegate_, OnHostHasAdditionalCapacity(host_.get()))
       .Times(1);
   EXPECT_CALL(delegate_,
-              OnHostDeterminedCapability(host_.get(), PIPELINE_CAPABLE))
+              OnHostDeterminedCapability(host_.get(),
+                                         HttpPipelinedHost::CAPABLE))
       .Times(1);
   host_->OnPipelineFeedback(pipeline, HttpPipelinedConnection::OK);
 

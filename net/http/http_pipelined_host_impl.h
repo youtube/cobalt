@@ -15,7 +15,6 @@
 #include "net/base/net_export.h"
 #include "net/http/http_pipelined_connection.h"
 #include "net/http/http_pipelined_host.h"
-#include "net/http/http_pipelined_host_capability.h"
 
 namespace net {
 
@@ -35,7 +34,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
   HttpPipelinedHostImpl(HttpPipelinedHost::Delegate* delegate,
                         const HostPortPair& origin,
                         HttpPipelinedConnection::Factory* factory,
-                        HttpPipelinedHostCapability capability);
+                        Capability capability);
   virtual ~HttpPipelinedHostImpl();
 
   // HttpPipelinedHost interface
@@ -99,7 +98,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
   const HostPortPair origin_;
   PipelineInfoMap pipelines_;
   scoped_ptr<HttpPipelinedConnection::Factory> factory_;
-  HttpPipelinedHostCapability capability_;
+  Capability capability_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpPipelinedHostImpl);
 };
