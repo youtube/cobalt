@@ -191,6 +191,7 @@ TEST_F(HttpPipelinedHostPoolTest, PopulatesServerProperties) {
   pool_->OnHostDeterminedCapability(host_, PIPELINE_CAPABLE);
   EXPECT_EQ(PIPELINE_CAPABLE,
             http_server_properties_->GetPipelineCapability(host_->origin()));
+  delete host_;  // Must manually delete, because it's never added to |pool_|.
 }
 
 }  // anonymous namespace
