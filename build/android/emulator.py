@@ -81,12 +81,16 @@ class Emulator(object):
   # Signals we listen for to kill the emulator on
   _SIGNALS = (signal.SIGINT, signal.SIGHUP)
 
-  # Time to wait for an emulator launch, in seconds.
-  _EMULATOR_LAUNCH_TIMEOUT = 120
+  # Time to wait for an emulator launch, in seconds.  This includes
+  # the time to launch the emulator and a wait-for-device command.
+  _LAUNCH_TIMEOUT = 120
 
   # Timeout interval of wait-for-device command before bouncing to a a
   # process life check.
-  _EMULATOR_WFD_TIMEOUT = 5
+  _WAITFORDEVICE_TIMEOUT = 5
+
+  # Time to wait for a "wait for boot complete" (property set on device).
+  _WAITFORBOOT_TIMEOUT = 120
 
   def __init__(self):
     try:
@@ -137,26 +141,28 @@ class Emulator(object):
     seconds_waited = 0
     number_of_waits = 2  # Make sure we can wfd twice
     adb_cmd = "adb -s %s %s" % (self.device, 'wait-for-device')
-    while seconds_waited < self._EMULATOR_LAUNCH_TIMEOUT:
+    while seconds_waited < self._LAUNCH_TIMEOUT:
       try:
-        run_command.RunCommand(adb_cmd, timeout_time=self._EMULATOR_WFD_TIMEOUT,
+        run_command.RunCommand(adb_cmd,
+                               timeout_time=self._WAITFORDEVICE_TIMEOUT,
                                retry_count=1)
         number_of_waits -= 1
         if not number_of_waits:
           break
       except errors.WaitForResponseTimedOutError as e:
-        seconds_waited += self._EMULATOR_WFD_TIMEOUT
+        seconds_waited += self._WAITFORDEVICE_TIMEOUT
         adb_cmd = "adb -s %s %s" % (self.device, 'kill-server')
         run_command.RunCommand(adb_cmd)
       self.popen.poll()
       if self.popen.returncode != None:
         raise EmulatorLaunchException('EMULATOR DIED')
-    if seconds_waited >= self._EMULATOR_LAUNCH_TIMEOUT:
+    if seconds_waited >= self._LAUNCH_TIMEOUT:
       raise EmulatorLaunchException('TIMEOUT with wait-for-device')
     logging.info('Seconds waited on wait-for-device: %d', seconds_waited)
     # Now that we checked for obvious problems, wait for a boot complete.
     # Waiting for the package manager has been problematic.
-    a.Adb().WaitForBootComplete()
+    a.Adb().SetTargetSerial(self.device)
+    a.Adb().WaitForBootComplete(self._WAITFORBOOT_TIMEOUT)
 
   def Shutdown(self):
     """Shuts down the process started by launch."""
