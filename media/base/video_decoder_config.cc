@@ -120,9 +120,9 @@ bool VideoDecoderConfig::IsValidConfig() const {
       frame_rate_denominator_ > 0 &&
       aspect_ratio_numerator_ > 0 &&
       aspect_ratio_denominator_ > 0 &&
-      natural_size_.width() <= Limits::kMaxDimension &&
-      natural_size_.height() <= Limits::kMaxDimension &&
-      natural_size_.GetArea() <= Limits::kMaxCanvas;
+      natural_size_.width() <= limits::kMaxDimension &&
+      natural_size_.height() <= limits::kMaxDimension &&
+      natural_size_.GetArea() <= limits::kMaxCanvas;
 }
 
 VideoCodec VideoDecoderConfig::codec() const {
