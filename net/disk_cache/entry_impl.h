@@ -41,12 +41,8 @@ class NET_EXPORT_PRIVATE EntryImpl
   void DoomImpl();
   int ReadDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
                    OldCompletionCallback* callback);
-  int ReadDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                   const net::CompletionCallback& callback);
   int WriteDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
                     OldCompletionCallback* callback, bool truncate);
-  int WriteDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                    const net::CompletionCallback& callback, bool truncate);
   int ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
                          OldCompletionCallback* callback);
   int WriteSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
@@ -153,14 +149,8 @@ class NET_EXPORT_PRIVATE EntryImpl
   virtual int ReadData(
       int index, int offset, net::IOBuffer* buf, int buf_len,
       net::OldCompletionCallback* completion_callback) OVERRIDE;
-  virtual int ReadData(
-      int index, int offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& completion_callback) OVERRIDE;
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
                         net::OldCompletionCallback* completion_callback,
-                        bool truncate) OVERRIDE;
-  virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        const net::CompletionCallback& completion_callback,
                         bool truncate) OVERRIDE;
   virtual int ReadSparseData(
       int64 offset, net::IOBuffer* buf, int buf_len,
@@ -187,12 +177,8 @@ class NET_EXPORT_PRIVATE EntryImpl
   // separate functions to make logging of results simpler.
   int InternalReadData(int index, int offset, net::IOBuffer* buf,
                        int buf_len, OldCompletionCallback* callback);
-  int InternalReadData(int index, int offset, net::IOBuffer* buf,
-                       int buf_len, const net::CompletionCallback& callback);
   int InternalWriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
                         OldCompletionCallback* callback, bool truncate);
-  int InternalWriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        const net::CompletionCallback& callback, bool truncate);
 
   // Initializes the storage for an internal or external data block.
   bool CreateDataBlock(int index, int size);
