@@ -44,11 +44,9 @@ namespace net {
 
 class CertVerifier;
 class DnsCertProvenanceChecker;
-class DnsRRResolver;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkSession;
-struct HttpRequestInfo;
 class HttpResponseInfo;
 class HttpServerProperties;
 class IOBuffer;
@@ -57,7 +55,9 @@ class NetworkDelegate;
 class OriginBoundCertService;
 class ProxyService;
 class SSLConfigService;
+class TransportSecurityState;
 class ViewCacheHelper;
+struct HttpRequestInfo;
 
 class NET_EXPORT HttpCache : public HttpTransactionFactory,
                              public base::SupportsWeakPtr<HttpCache>,
@@ -123,7 +123,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   HttpCache(HostResolver* host_resolver,
             CertVerifier* cert_verifier,
             OriginBoundCertService* origin_bound_cert_service,
-            DnsRRResolver* dnsrr_resolver,
+            TransportSecurityState* transport_security_state,
             DnsCertProvenanceChecker* dns_cert_checker,
             ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,

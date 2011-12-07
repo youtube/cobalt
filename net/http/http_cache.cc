@@ -45,7 +45,7 @@ HttpNetworkSession* CreateNetworkSession(
     HostResolver* host_resolver,
     CertVerifier* cert_verifier,
     OriginBoundCertService* origin_bound_cert_service,
-    DnsRRResolver* dnsrr_resolver,
+    TransportSecurityState* transport_security_state,
     DnsCertProvenanceChecker* dns_cert_checker,
     ProxyService* proxy_service,
     SSLHostInfoFactory* ssl_host_info_factory,
@@ -58,7 +58,7 @@ HttpNetworkSession* CreateNetworkSession(
   params.host_resolver = host_resolver;
   params.cert_verifier = cert_verifier;
   params.origin_bound_cert_service = origin_bound_cert_service;
-  params.dnsrr_resolver = dnsrr_resolver;
+  params.transport_security_state = transport_security_state;
   params.dns_cert_checker = dns_cert_checker;
   params.proxy_service = proxy_service;
   params.ssl_host_info_factory = ssl_host_info_factory;
@@ -318,7 +318,7 @@ class HttpCache::SSLHostInfoFactoryAdaptor : public SSLHostInfoFactory {
 HttpCache::HttpCache(HostResolver* host_resolver,
                      CertVerifier* cert_verifier,
                      OriginBoundCertService* origin_bound_cert_service,
-                     DnsRRResolver* dnsrr_resolver,
+                     TransportSecurityState* transport_security_state,
                      DnsCertProvenanceChecker* dns_cert_checker_,
                      ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
@@ -340,7 +340,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                   host_resolver,
                   cert_verifier,
                   origin_bound_cert_service,
-                  dnsrr_resolver,
+                  transport_security_state,
                   dns_cert_checker_,
                   proxy_service,
                   ssl_host_info_factory_.get(),
