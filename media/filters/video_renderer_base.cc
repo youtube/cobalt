@@ -377,7 +377,7 @@ void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
   // This one's a keeper! Place it in the ready queue.
   frames_queue_ready_.push_back(frame);
   DCHECK_LE(frames_queue_ready_.size(),
-            static_cast<size_t>(Limits::kMaxVideoFrames));
+            static_cast<size_t>(limits::kMaxVideoFrames));
   frame_available_.Signal();
 
   PipelineStatistics statistics;
@@ -388,7 +388,7 @@ void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
   // purposes:
   //   1) Prerolling while paused
   //   2) Keeps decoding going if video rendering thread starts falling behind
-  if (frames_queue_ready_.size() < Limits::kMaxVideoFrames &&
+  if (frames_queue_ready_.size() < limits::kMaxVideoFrames &&
       !frame->IsEndOfStream()) {
     AttemptRead_Locked();
     return;
@@ -420,7 +420,7 @@ void VideoRendererBase::AttemptRead_Locked() {
   lock_.AssertAcquired();
   DCHECK_NE(kEnded, state_);
 
-  if (pending_read_ || frames_queue_ready_.size() == Limits::kMaxVideoFrames) {
+  if (pending_read_ || frames_queue_ready_.size() == limits::kMaxVideoFrames) {
     return;
   }
 

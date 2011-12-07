@@ -28,12 +28,12 @@ AudioParameters::AudioParameters(Format format, ChannelLayout channel_layout,
 
 bool AudioParameters::IsValid() const {
   return (format >= 0) && (format < AUDIO_LAST_FORMAT) &&
-      (channels > 0) && (channels <= media::Limits::kMaxChannels) &&
-      (sample_rate > 0) && (sample_rate <= media::Limits::kMaxSampleRate) &&
+      (channels > 0) && (channels <= media::limits::kMaxChannels) &&
+      (sample_rate > 0) && (sample_rate <= media::limits::kMaxSampleRate) &&
       (bits_per_sample > 0) &&
-      (bits_per_sample <= media::Limits::kMaxBitsPerSample) &&
+      (bits_per_sample <= media::limits::kMaxBitsPerSample) &&
       (samples_per_packet > 0) &&
-      (samples_per_packet <= media::Limits::kMaxSamplesPerPacket);
+      (samples_per_packet <= media::limits::kMaxSamplesPerPacket);
 }
 
 int AudioParameters::GetPacketSize() const {

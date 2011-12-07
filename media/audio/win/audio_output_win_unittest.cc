@@ -262,7 +262,7 @@ TEST(WinAudioTest, SanityOnMakeParams) {
       AudioParameters(fmt, CHANNEL_LAYOUT_MONO, 8000, 16, 0)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_MONO, 8000, 16,
-                      media::Limits::kMaxSamplesPerPacket + 1)));
+                      media::limits::kMaxSamplesPerPacket + 1)));
 }
 
 // Test that it can be opened and closed.

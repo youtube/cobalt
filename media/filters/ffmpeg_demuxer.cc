@@ -519,10 +519,8 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
         std::max(max_duration,
                  ConvertFromTimeBase(av_time_base, format_context_->duration));
   } else {
-    // The duration is not a valid value. Assume that this is a live stream
-    // and set duration to the maximum int64 number to represent infinity.
-    max_duration = base::TimeDelta::FromMicroseconds(
-        Limits::kMaxTimeInMicroseconds);
+    // The duration is unknown, in which case this is likely a live stream.
+    max_duration = kInfiniteDuration;
   }
 
   // Some demuxers, like WAV, do not put timestamps on their frames. We
@@ -559,17 +557,20 @@ int FFmpegDemuxer::GetBitrate() {
   if (bitrate > 0)
     return bitrate;
 
-  // If there isn't a bitrate set in the container or streams, but there is a
-  // valid duration, approximate the bitrate using the duration.
-  if (max_duration_.InMilliseconds() > 0 &&
-      max_duration_.InMicroseconds() < Limits::kMaxTimeInMicroseconds) {
-    int64 filesize_in_bytes;
-    if (GetSize(&filesize_in_bytes))
-      return 8000 * filesize_in_bytes / max_duration_.InMilliseconds();
+  // See if we can approximate the bitrate as long as we have a filesize and
+  // valid duration.
+  int64 filesize_in_bytes;
+  if (max_duration_.InMicroseconds() <= 0 ||
+      max_duration_ == kInfiniteDuration ||
+      !GetSize(&filesize_in_bytes)) {
+    return 0;
   }
 
-  // Bitrate could not be determined.
-  return 0;
+  // Do math in floating point as we'd overflow an int64 if the filesize was
+  // larger than ~1073GB.
+  double bytes = filesize_in_bytes;
+  double duration = max_duration_.InMicroseconds();
+  return bytes * 8000000.0 / duration;
 }
 
 bool FFmpegDemuxer::IsLocalSource() {

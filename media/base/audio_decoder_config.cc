@@ -100,9 +100,9 @@ bool AudioDecoderConfig::IsValidConfig() const {
   return codec_ != kUnknownAudioCodec &&
       channel_layout_ != CHANNEL_LAYOUT_UNSUPPORTED &&
       bits_per_channel_ > 0 &&
-      bits_per_channel_ <= Limits::kMaxBitsPerSample &&
+      bits_per_channel_ <= limits::kMaxBitsPerSample &&
       samples_per_second_ > 0 &&
-      samples_per_second_ <= Limits::kMaxSampleRate;
+      samples_per_second_ <= limits::kMaxSampleRate;
 }
 
 AudioCodec AudioDecoderConfig::codec() const {

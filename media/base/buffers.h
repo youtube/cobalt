@@ -37,6 +37,9 @@ namespace media {
 // Indicates an invalid or missing timestamp.
 MEDIA_EXPORT extern const base::TimeDelta kNoTimestamp;
 
+// Represents an infinite stream duration.
+MEDIA_EXPORT extern const base::TimeDelta kInfiniteDuration;
+
 class MEDIA_EXPORT StreamSample
     : public base::RefCountedThreadSafe<StreamSample> {
  public:
