@@ -9,7 +9,7 @@
 namespace net {
 
 // Based on DJB's public domain code.
-bool DNSDomainFromDot(const base::StringPiece& dotted, std::string* out) {
+bool DNSDomainFromDot(const std::string& dotted, std::string* out) {
   const char* buf = dotted.data();
   unsigned n = dotted.size();
   char label[63];
@@ -56,7 +56,7 @@ bool DNSDomainFromDot(const base::StringPiece& dotted, std::string* out) {
   return true;
 }
 
-std::string DNSDomainToString(const base::StringPiece& domain) {
+std::string DNSDomainToString(const std::string& domain) {
   std::string ret;
 
   for (unsigned i = 0; i < domain.size() && domain[i]; i += domain[i] + 1) {
@@ -73,7 +73,7 @@ std::string DNSDomainToString(const base::StringPiece& domain) {
     if (static_cast<unsigned>(domain[i]) + i + 1 > domain.size())
       return "";
 
-    domain.substr(i + 1, domain[i]).AppendToString(&ret);
+    ret += domain.substr(i + 1, domain[i]);
   }
   return ret;
 }
@@ -92,13 +92,12 @@ bool IsSTD3ASCIIValidCharacter(char c) {
   return true;
 }
 
-std::string TrimEndingDot(const base::StringPiece& host) {
-  base::StringPiece host_trimmed = host;
+std::string TrimEndingDot(const std::string& host) {
+  std::string host_trimmed = host;
   size_t len = host_trimmed.length();
-  if (len > 1 && host_trimmed[len - 1] == '.') {
-    host_trimmed.remove_suffix(1);
-  }
-  return host_trimmed.as_string();
+  if (len > 1 && host_trimmed[len - 1] == '.')
+    host_trimmed.erase(len - 1);
+  return host_trimmed;
 }
 
 bool DnsResponseBuffer::U8(uint8* v) {
