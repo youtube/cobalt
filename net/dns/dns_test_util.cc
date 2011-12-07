@@ -8,6 +8,20 @@
 
 namespace net {
 
+TestPrng::TestPrng(const std::deque<int>& numbers) : numbers_(numbers) {
+}
+
+TestPrng::~TestPrng() {
+}
+
+int TestPrng::GetNext(int min, int max) {
+  DCHECK(!numbers_.empty());
+  int rv = numbers_.front();
+  numbers_.pop_front();
+  DCHECK(rv >= min && rv <= max);
+  return rv;
+}
+
 bool ConvertStringsToIPAddressList(
     const char* const ip_strings[], size_t size, IPAddressList* address_list) {
   DCHECK(address_list);
