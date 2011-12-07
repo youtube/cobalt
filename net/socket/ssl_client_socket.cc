@@ -10,8 +10,7 @@ namespace net {
 
 SSLClientSocket::SSLClientSocket()
     : was_npn_negotiated_(false),
-      was_spdy_negotiated_(false),
-      was_origin_bound_cert_sent_(false) {
+      was_spdy_negotiated_(false) {
 }
 
 SSLClientSocket::NextProto SSLClientSocket::NextProtoFromString(
@@ -89,14 +88,6 @@ bool SSLClientSocket::was_spdy_negotiated() const {
 
 bool SSLClientSocket::set_was_spdy_negotiated(bool negotiated) {
   return was_spdy_negotiated_ = negotiated;
-}
-
-bool SSLClientSocket::was_origin_bound_cert_sent() const {
-  return was_origin_bound_cert_sent_;
-}
-
-bool SSLClientSocket::set_was_origin_bound_cert_sent(bool sent) {
-  return was_origin_bound_cert_sent_ = sent;
 }
 
 }  // namespace net
