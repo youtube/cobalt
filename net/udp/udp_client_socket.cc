@@ -27,6 +27,11 @@ int UDPClientSocket::Read(IOBuffer* buf,
                           OldCompletionCallback* callback) {
   return socket_.Read(buf, buf_len, callback);
 }
+int UDPClientSocket::Read(IOBuffer* buf,
+                          int buf_len,
+                          const CompletionCallback& callback) {
+  return socket_.Read(buf, buf_len, callback);
+}
 
 int UDPClientSocket::Write(IOBuffer* buf,
                           int buf_len,

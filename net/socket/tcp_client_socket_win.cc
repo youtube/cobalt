@@ -744,6 +744,47 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
   core_->read_iobuffer_ = buf;
   return ERR_IO_PENDING;
 }
+int TCPClientSocketWin::Read(IOBuffer* buf,
+                             int buf_len,
+                             const CompletionCallback& callback) {
+  DCHECK(CalledOnValidThread());
+  DCHECK_NE(socket_, INVALID_SOCKET);
+  DCHECK(!waiting_read_);
+  DCHECK(!old_read_callback_ && read_callback_.is_null());
+  DCHECK(!core_->read_iobuffer_);
+
+  buf_len = core_->ThrottleReadSize(buf_len);
+
+  core_->read_buffer_.len = buf_len;
+  core_->read_buffer_.buf = buf->data();
+
+  // TODO(wtc): Remove the assertion after enough testing.
+  AssertEventNotSignaled(core_->read_overlapped_.hEvent);
+  DWORD num, flags = 0;
+  int rv = WSARecv(socket_, &core_->read_buffer_, 1, &num, &flags,
+                   &core_->read_overlapped_, NULL);
+  if (rv == 0) {
+    if (ResetEventIfSignaled(core_->read_overlapped_.hEvent)) {
+      base::StatsCounter read_bytes("tcp.read_bytes");
+      read_bytes.Add(num);
+      num_bytes_read_ += num;
+      if (num > 0)
+        use_history_.set_was_used_to_convey_data();
+      net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED, num,
+                                    core_->read_buffer_.buf);
+      return static_cast<int>(num);
+    }
+  } else {
+    int os_error = WSAGetLastError();
+    if (os_error != WSA_IO_PENDING)
+      return MapSystemError(os_error);
+  }
+  core_->WatchForRead();
+  waiting_read_ = true;
+  read_callback_ = callback;
+  core_->read_iobuffer_ = buf;
+  return ERR_IO_PENDING;
+}
 
 int TCPClientSocketWin::Write(IOBuffer* buf,
                               int buf_len,

@@ -19,6 +19,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/string16.h"
 #include "net/base/address_list.h"
+#include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -587,6 +588,8 @@ class MockClientSocket : public net::SSLClientSocket {
   // Socket implementation.
   virtual int Read(net::IOBuffer* buf, int buf_len,
                    net::OldCompletionCallback* callback) = 0;
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   const net::CompletionCallback& callback) = 0;
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::OldCompletionCallback* callback) = 0;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
@@ -634,12 +637,15 @@ class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
  public:
   MockTCPClientSocket(const net::AddressList& addresses, net::NetLog* net_log,
                       net::SocketDataProvider* socket);
+  virtual ~MockTCPClientSocket();
 
   net::AddressList addresses() const { return addresses_; }
 
   // Socket implementation.
   virtual int Read(net::IOBuffer* buf, int buf_len,
                    net::OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   const net::CompletionCallback& callback) OVERRIDE;
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::OldCompletionCallback* callback) OVERRIDE;
 
@@ -677,7 +683,8 @@ class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
   // While an asynchronous IO is pending, we save our user-buffer state.
   net::IOBuffer* pending_buf_;
   int pending_buf_len_;
-  net::OldCompletionCallback* pending_callback_;
+  net::OldCompletionCallback* old_pending_callback_;
+  net::CompletionCallback pending_callback_;
   bool was_used_to_convey_data_;
 };
 
@@ -695,11 +702,13 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   void CompleteWrite();
   int CompleteRead();
 
-  // Socket:
+  // Socket implementation.
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::OldCompletionCallback* callback) OVERRIDE;
   virtual int Read(net::IOBuffer* buf, int buf_len,
                    net::OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   const net::CompletionCallback& callback) OVERRIDE;
 
   // StreamSocket implementation.
   virtual int Connect(net::OldCompletionCallback* callback) OVERRIDE;
@@ -725,7 +734,8 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   net::IOBuffer* read_buf_;
   int read_buf_len_;
   bool read_pending_;
-  net::OldCompletionCallback* read_callback_;
+  net::OldCompletionCallback* old_read_callback_;
+  net::CompletionCallback read_callback_;
   net::DeterministicSocketData* data_;
   bool was_used_to_convey_data_;
 };
@@ -743,6 +753,8 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
   // Socket implementation.
   virtual int Read(net::IOBuffer* buf, int buf_len,
                    net::OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   const net::CompletionCallback& callback) OVERRIDE;
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::OldCompletionCallback* callback) OVERRIDE;
 
@@ -785,31 +797,35 @@ class MockUDPClientSocket : public DatagramClientSocket,
   MockUDPClientSocket(SocketDataProvider* data, net::NetLog* net_log);
   virtual ~MockUDPClientSocket();
 
-  // Socket interface
+  // Socket implementation.
   virtual int Read(net::IOBuffer* buf, int buf_len,
                    net::OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   const net::CompletionCallback& callback) OVERRIDE;
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::OldCompletionCallback* callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
-  // DatagramSocket interface
+  // DatagramSocket implementation.
   virtual void Close() OVERRIDE;
   virtual int GetPeerAddress(IPEndPoint* address) const OVERRIDE;
   virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
   virtual const BoundNetLog& NetLog() const OVERRIDE;
 
-  // DatagramClientSocket interface
+  // DatagramClientSocket implementation.
   virtual int Connect(const IPEndPoint& address) OVERRIDE;
 
-  // AsyncSocket interface
+  // AsyncSocket implementation.
   virtual void OnReadComplete(const MockRead& data) OVERRIDE;
 
  private:
   int CompleteRead();
 
   void RunCallbackAsync(net::OldCompletionCallback* callback, int result);
-  void RunCallback(net::OldCompletionCallback* callback, int result);
+  void RunCallbackAsync(const net::CompletionCallback& callback, int result);
+  void RunOldCallback(net::OldCompletionCallback* callback, int result);
+  void RunCallback(const net::CompletionCallback& callback, int result);
 
   bool connected_;
   SocketDataProvider* data_;
@@ -820,7 +836,8 @@ class MockUDPClientSocket : public DatagramClientSocket,
   // While an asynchronous IO is pending, we save our user-buffer state.
   net::IOBuffer* pending_buf_;
   int pending_buf_len_;
-  net::OldCompletionCallback* pending_callback_;
+  net::OldCompletionCallback* old_pending_callback_;
+  net::CompletionCallback pending_callback_;
 
   BoundNetLog net_log_;
 

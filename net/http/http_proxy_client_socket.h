@@ -54,7 +54,7 @@ class HttpProxyClientSocket : public ProxyClientSocket {
     return using_spdy_;
   }
 
-  // ProxyClientSocket methods:
+  // ProxyClientSocket implementation.
   virtual const HttpResponseInfo* GetConnectResponseInfo() const OVERRIDE;
   virtual HttpStream* CreateConnectResponseStream() OVERRIDE;
   virtual int RestartWithAuth(OldCompletionCallback* callback) OVERRIDE;
@@ -74,10 +74,13 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   virtual int64 NumBytesRead() const OVERRIDE;
   virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf,
                    int buf_len,
                    OldCompletionCallback* callback) OVERRIDE;
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
                     OldCompletionCallback* callback) OVERRIDE;

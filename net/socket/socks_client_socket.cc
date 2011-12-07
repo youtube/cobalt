@@ -216,7 +216,15 @@ int SOCKSClientSocket::Read(IOBuffer* buf, int buf_len,
                             OldCompletionCallback* callback) {
   DCHECK(completed_handshake_);
   DCHECK_EQ(STATE_NONE, next_state_);
-  DCHECK(!old_user_callback_);
+  DCHECK(!old_user_callback_ && user_callback_.is_null());
+
+  return transport_->socket()->Read(buf, buf_len, callback);
+}
+int SOCKSClientSocket::Read(IOBuffer* buf, int buf_len,
+                            const CompletionCallback& callback) {
+  DCHECK(completed_handshake_);
+  DCHECK_EQ(STATE_NONE, next_state_);
+  DCHECK(!old_user_callback_ && user_callback_.is_null());
 
   return transport_->socket()->Read(buf, buf_len, callback);
 }
