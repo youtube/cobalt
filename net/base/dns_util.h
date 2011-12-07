@@ -19,22 +19,18 @@ namespace net {
 //
 //   dotted: a string in dotted form: "www.google.com"
 //   out: a result in DNS form: "\x03www\x06google\x03com\x00"
-NET_EXPORT_PRIVATE bool DNSDomainFromDot(const base::StringPiece& dotted,
+NET_EXPORT_PRIVATE bool DNSDomainFromDot(const std::string& dotted,
                                          std::string* out);
 
 // DNSDomainToString coverts a domain in DNS format to a dotted string.
-NET_EXPORT_PRIVATE std::string DNSDomainToString(
-    const base::StringPiece& domain);
+NET_EXPORT_PRIVATE std::string DNSDomainToString(const std::string& domain);
 
 // Returns true iff the given character is in the set of valid DNS label
 // characters as given in RFC 3490, 4.1, 3(a)
 NET_EXPORT_PRIVATE bool IsSTD3ASCIIValidCharacter(char c);
 
 // Returns the hostname by trimming the ending dot, if one exists.
-NET_EXPORT std::string TrimEndingDot(const base::StringPiece& host);
-
-// TODO(szym): remove all definitions below once DnsRRResolver migrates to
-// DnsClient
+NET_EXPORT std::string TrimEndingDot(const std::string& host);
 
 // DNS class types.
 static const uint16 kClassIN = 1;
