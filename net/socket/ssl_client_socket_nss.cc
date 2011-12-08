@@ -1717,6 +1717,7 @@ int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
     return MapNSSError(PORT_GetError());
 
   GotoState(STATE_HANDSHAKE);
+  set_was_origin_bound_cert_sent(true);
   return OK;
 }
 
@@ -2272,8 +2273,11 @@ SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
     // Synchronous success.
     int result = ImportOBCertAndKey(result_certificate,
                                     result_private_key);
-    if (result != OK)
+    if (result == OK) {
+      set_was_origin_bound_cert_sent(true);
+    } else {
       rv = SECFailure;
+    }
   } else {
     rv = SECFailure;  // Synchronous failure.
   }
