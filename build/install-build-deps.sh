@@ -351,8 +351,13 @@ if [ "$(uname -m)" = "x86_64" ]; then
 
   # Standard 32bit compatibility libraries
   echo "First, installing the limited existing 32-bit support..."
-  cmp_list="ia32-libs lib32asound2-dev lib32readline5-dev lib32stdc++6 lib32z1
+  cmp_list="ia32-libs lib32asound2-dev lib32stdc++6 lib32z1
             lib32z1-dev libc6-dev-i386 libc6-i386 g++-multilib"
+  if [ -n "`apt-cache search lib32readline-gplv2-dev 2>/dev/null`" ]; then
+    cmp_list="${cmp_list} lib32readline-gplv2-dev"
+  else
+    cmp_list="${cmp_list} lib32readline5-dev"
+  fi
   sudo apt-get install $cmp_list
 
   tmp=/tmp/install-32bit.$$
