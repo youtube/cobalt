@@ -39,6 +39,19 @@ else
 fi
 
 # Copy built-in headers (lib/clang/3.0/include).
+# libcompiler-rt puts all kinds of libraries there too, but we want only ASan.
+if [ "$(uname -s)" = "Darwin" ]; then
+  # Keep only Release+Asserts/lib/clang/3.1/lib/darwin/libclang_rt.asan_osx.a
+  find "${LLVM_LIB_DIR}/clang" -type f -path '*lib/darwin*' | grep -v asan | \
+       xargs rm
+else
+  # Keep only Release+Asserts/lib/clang/3.1/lib/linux/libclang_rt.asan-x86_64.a
+  # TODO(thakis): Make sure the 32bit version is kept too once that's built.
+  find "${LLVM_LIB_DIR}/clang" -type f -path '*lib/linux*' | grep -v asan | \
+       xargs rm
+
+fi
+
 cp -R "${LLVM_LIB_DIR}/clang" $PDIR/lib
 
 tar zcf $PDIR.tgz -C $PDIR bin lib

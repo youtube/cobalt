@@ -14,6 +14,7 @@ THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
 LLVM_BUILD_DIR="${LLVM_DIR}/../llvm-build"
 CLANG_DIR="${LLVM_DIR}/tools/clang"
+COMPILER_RT_DIR="${LLVM_DIR}/projects/compiler-rt"
 STAMP_FILE="${LLVM_BUILD_DIR}/cr_build_revision"
 
 # ${A:-a} returns $A if it's set, a else.
@@ -160,6 +161,10 @@ fi
 
 echo Getting clang r"${CLANG_REVISION}" in "${CLANG_DIR}"
 svn co --force "${LLVM_REPO_URL}/cfe/trunk@${CLANG_REVISION}" "${CLANG_DIR}"
+
+echo Getting compiler-rt r"${CLANG_REVISION}" in "${COMPILER_RT_DIR}"
+svn co --force "${LLVM_REPO_URL}/compiler-rt/trunk@${CLANG_REVISION}" \
+               "${COMPILER_RT_DIR}"
 
 # Echo all commands.
 set -x
