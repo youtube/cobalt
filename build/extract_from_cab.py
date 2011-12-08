@@ -21,7 +21,13 @@ def main():
   level = subprocess.call(
       ['expand', cab_path, '-F:' + archived_file, output_dir])
   if level != 0:
-    return level
+    print 'Cab extraction(%s, %s, %s) failed.' % (
+        cab_path, archived_file, output_dir)
+    print 'Trying a second time.'
+    level = subprocess.call(
+        ['expand', cab_path, '-F:' + archived_file, output_dir])
+    if level != 0:
+      return level
 
   # The expand utility preserves the modification date and time of the archived
   # file. Touch the extracted file. This helps build systems that compare the
