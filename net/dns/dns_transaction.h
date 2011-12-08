@@ -6,12 +6,10 @@
 #define NET_DNS_DNS_TRANSACTION_H_
 #pragma once
 
-#include <set>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include "base/gtest_prod_util.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "base/threading/non_thread_safe.h"
@@ -23,70 +21,39 @@
 
 namespace net {
 
-class ClientSocketFactory;
 class DatagramClientSocket;
 class DnsQuery;
 class DnsResponse;
+class DnsSession;
 
-// Performs (with fixed retries) a single asynchronous DNS transaction,
+// Performs a single asynchronous DNS transaction over UDP,
 // which consists of sending out a DNS query, waiting for a response, and
-// parsing and returning the IP addresses that it matches.
+// returning the response that it matches.
 class NET_EXPORT_PRIVATE DnsTransaction :
     NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
-  typedef std::pair<std::string, uint16> Key;
+  typedef base::Callback<void(DnsTransaction*, int)> ResultCallback;
 
-  // Interface that should be implemented by DnsTransaction consumers and
-  // passed to the |Start| method to be notified when the transaction has
-  // completed.
-  class NET_EXPORT_PRIVATE Delegate {
-   public:
-    Delegate();
-    virtual ~Delegate();
-
-    // A consumer of DnsTransaction should override |OnTransactionComplete|
-    // and call |set_delegate(this)|.  The method will be called once the
-    // resolution has completed, results passed in as arguments.
-    virtual void OnTransactionComplete(
-        int result,
-        const DnsTransaction* transaction,
-        const IPAddressList& ip_addresses);
-
-   private:
-    friend class DnsTransaction;
-
-    void Attach(DnsTransaction* transaction);
-    void Detach(DnsTransaction* transaction);
-
-    std::set<DnsTransaction*> registered_transactions_;
-
-    DISALLOW_COPY_AND_ASSIGN(Delegate);
-  };
-
-  // |dns_server| is the address of the DNS server, |dns_name| is the
-  // hostname (in DNS format) to be resolved, |query_type| is the type of
-  // the query, either kDNS_A or kDNS_AAAA, |rand_int| is the PRNG used for
-  // generating DNS query.
-  DnsTransaction(const IPEndPoint& dns_server,
-                 const std::string& dns_name,
-                 uint16 query_type,
-                 const RandIntCallback& rand_int,
-                 ClientSocketFactory* socket_factory,
-                 const BoundNetLog& source_net_log,
-                 NetLog* net_log);
+  // Create new transaction using the parameters and state in |session|.
+  // Issues query for name |qname| (in DNS format) type |qtype| and class IN.
+  // Calls |callback| on completion or timeout.
+  // TODO(szym): change dependency to (IPEndPoint, Socket, DnsQuery, callback)
+  DnsTransaction(DnsSession* session,
+                 const base::StringPiece& qname,
+                 uint16 qtype,
+                 const ResultCallback& callback,
+                 const BoundNetLog& source_net_log);
   ~DnsTransaction();
-  void SetDelegate(Delegate* delegate);
-  const Key& key() const { return key_; }
+
+  const DnsQuery* query() const { return query_.get(); }
+
+  const DnsResponse* response() const { return response_.get(); }
 
   // Starts the resolution process.  Will return ERR_IO_PENDING and will
   // notify the caller via |delegate|.  Should only be called once.
   int Start();
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(DnsTransactionTest, FirstTimeoutTest);
-  FRIEND_TEST_ALL_PREFIXES(DnsTransactionTest, SecondTimeoutTest);
-  FRIEND_TEST_ALL_PREFIXES(DnsTransactionTest, ThirdTimeoutTest);
-
   enum State {
     STATE_CONNECT,
     STATE_CONNECT_COMPLETE,
@@ -114,26 +81,17 @@ class NET_EXPORT_PRIVATE DnsTransaction :
   void RevokeTimer();
   void OnTimeout();
 
-  // This is to be used by unit tests only.
-  void set_timeouts_ms(const std::vector<base::TimeDelta>& timeouts_ms);
-
-  const IPEndPoint dns_server_;
-  Key key_;
-  IPAddressList ip_addresses_;
-  Delegate* delegate_;
-
+  scoped_refptr<DnsSession> session_;
+  IPEndPoint dns_server_;
   scoped_ptr<DnsQuery> query_;
+  ResultCallback callback_;
   scoped_ptr<DnsResponse> response_;
   scoped_ptr<DatagramClientSocket> socket_;
 
   // Number of retry attempts so far.
-  size_t attempts_;
-
-  // Timeouts in milliseconds.
-  std::vector<base::TimeDelta> timeouts_ms_;
+  int attempts_;
 
   State next_state_;
-  ClientSocketFactory* socket_factory_;
   base::OneShotTimer<DnsTransaction> timer_;
   OldCompletionCallbackImpl<DnsTransaction> io_callback_;
 
