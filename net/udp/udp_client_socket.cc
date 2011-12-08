@@ -38,6 +38,11 @@ int UDPClientSocket::Write(IOBuffer* buf,
                           OldCompletionCallback* callback) {
   return socket_.Write(buf, buf_len, callback);
 }
+int UDPClientSocket::Write(IOBuffer* buf,
+                          int buf_len,
+                          const CompletionCallback& callback) {
+  return socket_.Write(buf, buf_len, callback);
+}
 
 void UDPClientSocket::Close() {
   socket_.Close();

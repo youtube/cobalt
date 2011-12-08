@@ -52,7 +52,7 @@ UDPSocketWin::UDPSocketWin(DatagramSocket::BindType bind_type,
       ALLOW_THIS_IN_INITIALIZER_LIST(write_delegate_(this)),
       recv_from_address_(NULL),
       old_read_callback_(NULL),
-      write_callback_(NULL),
+      old_write_callback_(NULL),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_UDP_SOCKET)) {
   EnsureWinsockInit();
   scoped_refptr<NetLog::EventParameters> params;
@@ -82,7 +82,8 @@ void UDPSocketWin::Close() {
   old_read_callback_ = NULL;
   read_callback_.Reset();
   recv_from_address_ = NULL;
-  write_callback_ = NULL;
+  old_write_callback_ = NULL;
+  write_callback_.Reset();
 
   read_watcher_.StopWatching();
   write_watcher_.StopWatching();
@@ -192,6 +193,11 @@ int UDPSocketWin::Write(IOBuffer* buf,
                         OldCompletionCallback* callback) {
   return SendToOrWrite(buf, buf_len, NULL, callback);
 }
+int UDPSocketWin::Write(IOBuffer* buf,
+                        int buf_len,
+                        const CompletionCallback& callback) {
+  return SendToOrWrite(buf, buf_len, NULL, callback);
+}
 
 int UDPSocketWin::SendTo(IOBuffer* buf,
                          int buf_len,
@@ -206,8 +212,29 @@ int UDPSocketWin::SendToOrWrite(IOBuffer* buf,
                                 OldCompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(INVALID_SOCKET, socket_);
-  DCHECK(!write_callback_);
+  DCHECK(!old_write_callback_ && write_callback_.is_null());
   DCHECK(callback);  // Synchronous operation not supported.
+  DCHECK_GT(buf_len, 0);
+  DCHECK(!send_to_address_.get());
+
+  int nwrite = InternalSendTo(buf, buf_len, address);
+  if (nwrite != ERR_IO_PENDING)
+    return nwrite;
+
+  if (address)
+    send_to_address_.reset(new IPEndPoint(*address));
+  write_iobuffer_ = buf;
+  old_write_callback_ = callback;
+  return ERR_IO_PENDING;
+}
+int UDPSocketWin::SendToOrWrite(IOBuffer* buf,
+                                int buf_len,
+                                const IPEndPoint* address,
+                                const CompletionCallback& callback) {
+  DCHECK(CalledOnValidThread());
+  DCHECK_NE(INVALID_SOCKET, socket_);
+  DCHECK(!old_write_callback_ && write_callback_.is_null());
+  DCHECK(!callback.is_null());  // Synchronous operation not supported.
   DCHECK_GT(buf_len, 0);
   DCHECK(!send_to_address_.get());
 
@@ -314,12 +341,18 @@ void UDPSocketWin::DoReadCallback(int rv) {
 
 void UDPSocketWin::DoWriteCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(write_callback_);
+  DCHECK(old_write_callback_ && !write_callback_.is_null());
 
   // since Run may result in Write being called, clear write_callback_ up front.
-  OldCompletionCallback* c = write_callback_;
-  write_callback_ = NULL;
-  c->Run(rv);
+  if (old_write_callback_) {
+    OldCompletionCallback* c = old_write_callback_;
+    old_write_callback_ = NULL;
+    c->Run(rv);
+  } else {
+    CompletionCallback c = write_callback_;
+    write_callback_.Reset();
+    c.Run(rv);
+  }
 }
 
 void UDPSocketWin::DidCompleteRead() {
