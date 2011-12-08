@@ -617,7 +617,6 @@
           'dependencies': [
             '../chrome/chrome.gyp:chrome',
             '../chrome/chrome.gyp:unit_tests',
-            '../chrome/chrome.gyp:ui_tests',
             '../ui/aura_shell/aura_shell.gyp:aura_shell_exe',
             '../ui/aura_shell/aura_shell.gyp:aura_shell_unittests',
             '../ui/aura/aura.gyp:*',
