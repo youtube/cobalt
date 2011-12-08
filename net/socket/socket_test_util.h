@@ -592,6 +592,8 @@ class MockClientSocket : public net::SSLClientSocket {
                    const net::CompletionCallback& callback) = 0;
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::OldCompletionCallback* callback) = 0;
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    const net::CompletionCallback& callback) = 0;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
@@ -648,6 +650,8 @@ class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
                    const net::CompletionCallback& callback) OVERRIDE;
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::OldCompletionCallback* callback) OVERRIDE;
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    const net::CompletionCallback& callback) OVERRIDE;
 
   // StreamSocket implementation.
   virtual int Connect(net::OldCompletionCallback* callback) OVERRIDE;
@@ -703,12 +707,14 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   int CompleteRead();
 
   // Socket implementation.
-  virtual int Write(net::IOBuffer* buf, int buf_len,
-                    net::OldCompletionCallback* callback) OVERRIDE;
   virtual int Read(net::IOBuffer* buf, int buf_len,
                    net::OldCompletionCallback* callback) OVERRIDE;
   virtual int Read(net::IOBuffer* buf, int buf_len,
                    const net::CompletionCallback& callback) OVERRIDE;
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    net::OldCompletionCallback* callback) OVERRIDE;
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    const net::CompletionCallback& callback) OVERRIDE;
 
   // StreamSocket implementation.
   virtual int Connect(net::OldCompletionCallback* callback) OVERRIDE;
@@ -726,7 +732,8 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
 
  private:
   bool write_pending_;
-  net::OldCompletionCallback* write_callback_;
+  net::OldCompletionCallback* old_write_callback_;
+  net::CompletionCallback write_callback_;
   int write_result_;
 
   net::MockRead read_data_;
@@ -757,6 +764,8 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
                    const net::CompletionCallback& callback) OVERRIDE;
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::OldCompletionCallback* callback) OVERRIDE;
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    const net::CompletionCallback& callback) OVERRIDE;
 
   // StreamSocket implementation.
   virtual int Connect(net::OldCompletionCallback* callback) OVERRIDE;
@@ -804,6 +813,8 @@ class MockUDPClientSocket : public DatagramClientSocket,
                    const net::CompletionCallback& callback) OVERRIDE;
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::OldCompletionCallback* callback) OVERRIDE;
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    const net::CompletionCallback& callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 

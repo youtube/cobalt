@@ -574,6 +574,42 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
   old_write_callback_ = callback;
   return ERR_IO_PENDING;
 }
+int TCPClientSocketLibevent::Write(IOBuffer* buf,
+                                   int buf_len,
+                                   const CompletionCallback& callback) {
+  DCHECK(CalledOnValidThread());
+  DCHECK_NE(kInvalidSocket, socket_);
+  DCHECK(!waiting_connect());
+  DCHECK(!old_write_callback_ && write_callback_.is_null());
+  // Synchronous operation not supported
+  DCHECK(!callback.is_null());
+  DCHECK_GT(buf_len, 0);
+
+  int nwrite = InternalWrite(buf, buf_len);
+  if (nwrite >= 0) {
+    base::StatsCounter write_bytes("tcp.write_bytes");
+    write_bytes.Add(nwrite);
+    if (nwrite > 0)
+      use_history_.set_was_used_to_convey_data();
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_SENT, nwrite,
+                                  buf->data());
+    return nwrite;
+  }
+  if (errno != EAGAIN && errno != EWOULDBLOCK)
+    return MapSystemError(errno);
+
+  if (!MessageLoopForIO::current()->WatchFileDescriptor(
+          socket_, true, MessageLoopForIO::WATCH_WRITE,
+          &write_socket_watcher_, &write_watcher_)) {
+    DVLOG(1) << "WatchFileDescriptor failed on write, errno " << errno;
+    return MapSystemError(errno);
+  }
+
+  write_buf_ = buf;
+  write_buf_len_ = buf_len;
+  write_callback_ = callback;
+  return ERR_IO_PENDING;
+}
 
 int TCPClientSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
   int nwrite;

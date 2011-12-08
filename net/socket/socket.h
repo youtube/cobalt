@@ -48,6 +48,8 @@ class NET_EXPORT Socket {
   // Disconnected before the write completes, the callback will not be invoked.
   virtual int Write(IOBuffer* buf, int buf_len,
                     OldCompletionCallback* callback) = 0;
+  virtual int Write(IOBuffer* buf, int buf_len,
+                    const CompletionCallback& callback) = 0;
 
   // Set the receive buffer size (in bytes) for the socket.
   // Note: changing this value can affect the TCP window size on some platforms.
