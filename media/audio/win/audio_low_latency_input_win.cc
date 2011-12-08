@@ -121,8 +121,7 @@ bool WASAPIAudioInputStream::Open() {
 
 void WASAPIAudioInputStream::Start(AudioInputCallback* callback) {
   DCHECK(callback);
-  DCHECK(opened_);
-
+  DLOG_IF(ERROR, !opened_) << "Open() has not been called successfully";
   if (!opened_)
     return;
 

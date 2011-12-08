@@ -63,8 +63,8 @@ bool PCMQueueInAudioInputStream::Open() {
 
 void PCMQueueInAudioInputStream::Start(AudioInputCallback* callback) {
   DCHECK(callback);
-  DCHECK(audio_queue_) << "Must call Open() first";
-  if (callback_)
+  DLOG_IF(ERROR, !audio_queue_) << "Open() has not been called successfully";
+  if (callback_ || !audio_queue_)
     return;
   callback_ = callback;
   OSStatus err = AudioQueueStart(audio_queue_, NULL);

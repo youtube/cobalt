@@ -175,6 +175,10 @@ void AUAudioOutputStream::Close() {
 
 void AUAudioOutputStream::Start(AudioSourceCallback* callback) {
   DCHECK(callback);
+  DLOG_IF(ERROR, !output_unit_) << "Open() has not been called successfully";
+  if (!output_unit_)
+    return;
+
   source_ = callback;
 
   AudioOutputUnitStart(output_unit_);
