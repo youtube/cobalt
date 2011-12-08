@@ -254,7 +254,14 @@ int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
 int HttpProxyClientSocket::Write(IOBuffer* buf, int buf_len,
                                  OldCompletionCallback* callback) {
   DCHECK_EQ(STATE_DONE, next_state_);
-  DCHECK(!old_user_callback_);
+  DCHECK(!old_user_callback_ && user_callback_.is_null());
+
+  return transport_->socket()->Write(buf, buf_len, callback);
+}
+int HttpProxyClientSocket::Write(IOBuffer* buf, int buf_len,
+                                 const CompletionCallback& callback) {
+  DCHECK_EQ(STATE_DONE, next_state_);
+  DCHECK(!old_user_callback_ && user_callback_.is_null());
 
   return transport_->socket()->Write(buf, buf_len, callback);
 }

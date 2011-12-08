@@ -61,6 +61,7 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
   int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
+  int Write(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
 
   // Read from a socket and receive sender address information.
   // |buf| is the buffer to read data into.
@@ -140,7 +141,7 @@ class UDPSocketLibevent : public base::NonThreadSafe {
     virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {}
 
     virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {
-      if (socket_->write_callback_)
+      if (socket_->old_write_callback_)
         socket_->DidCompleteWrite();
     }
 
@@ -173,6 +174,10 @@ class UDPSocketLibevent : public base::NonThreadSafe {
                     int buf_len,
                     const IPEndPoint* address,
                     OldCompletionCallback* callback);
+  int SendToOrWrite(IOBuffer* buf,
+                    int buf_len,
+                    const IPEndPoint* address,
+                    const CompletionCallback& callback);
 
   int InternalConnect(const IPEndPoint& address);
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
@@ -218,7 +223,8 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   CompletionCallback read_callback_;
 
   // External callback; called when write is complete.
-  OldCompletionCallback* write_callback_;
+  OldCompletionCallback* old_write_callback_;
+  CompletionCallback write_callback_;
 
   BoundNetLog net_log_;
 
