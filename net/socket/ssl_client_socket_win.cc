@@ -400,7 +400,7 @@ SSLClientSocketWin::SSLClientSocketWin(ClientSocketHandle* transport_socket,
       old_user_connect_callback_(NULL),
       old_user_read_callback_(NULL),
       user_read_buf_len_(0),
-      user_write_callback_(NULL),
+      old_user_write_callback_(NULL),
       user_write_buf_len_(0),
       next_state_(STATE_NONE),
       cert_verifier_(context.cert_verifier),
@@ -869,7 +869,29 @@ int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
 int SSLClientSocketWin::Write(IOBuffer* buf, int buf_len,
                               OldCompletionCallback* callback) {
   DCHECK(completed_handshake());
-  DCHECK(!user_write_callback_);
+  DCHECK(!old_user_write_callback_ && user_write_callback_.is_null());
+
+  DCHECK(!user_write_buf_);
+  user_write_buf_ = buf;
+  user_write_buf_len_ = buf_len;
+
+  int rv = DoPayloadEncrypt();
+  if (rv != OK)
+    return rv;
+
+  rv = DoPayloadWrite();
+  if (rv == ERR_IO_PENDING) {
+    old_user_write_callback_ = callback;
+  } else {
+    user_write_buf_ = NULL;
+    user_write_buf_len_ = 0;
+  }
+  return rv;
+}
+int SSLClientSocketWin::Write(IOBuffer* buf, int buf_len,
+                              const CompletionCallback& callback) {
+  DCHECK(completed_handshake());
+  DCHECK(!old_user_write_callback_ && user_write_callback_.is_null());
 
   DCHECK(!user_write_buf_);
   user_write_buf_ = buf;
@@ -964,12 +986,20 @@ void SSLClientSocketWin::OnWriteComplete(int result) {
 
   int rv = DoPayloadWriteComplete(result);
   if (rv != ERR_IO_PENDING) {
-    DCHECK(user_write_callback_);
-    OldCompletionCallback* c = user_write_callback_;
-    user_write_callback_ = NULL;
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-    c->Run(rv);
+    DCHECK(old_user_write_callback_ || !user_write_callback_.is_null());
+    if (old_user_write_callback_) {
+      OldCompletionCallback* c = old_user_write_callback_;
+      old_user_write_callback_ = NULL;
+      user_write_buf_ = NULL;
+      user_write_buf_len_ = 0;
+      c->Run(rv);
+    } else {
+      CompletionCallback c = user_write_callback_;
+      user_write_callback_.Reset();
+      user_write_buf_ = NULL;
+      user_write_buf_len_ = 0;
+      c.Run(rv);
+    }
   }
 }
 

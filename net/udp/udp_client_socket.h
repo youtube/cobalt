@@ -32,6 +32,8 @@ class NET_EXPORT_PRIVATE UDPClientSocket : public DatagramClientSocket {
                    const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf, int buf_len,
                     OldCompletionCallback* callback) OVERRIDE;
+  virtual int Write(IOBuffer* buf, int buf_len,
+                    const CompletionCallback& callback) OVERRIDE;
   virtual void Close() OVERRIDE;
   virtual int GetPeerAddress(IPEndPoint* address) const OVERRIDE;
   virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
