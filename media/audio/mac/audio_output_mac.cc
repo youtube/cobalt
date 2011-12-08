@@ -479,6 +479,10 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
 
 void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   DCHECK(callback);
+  DLOG_IF(ERROR, !audio_queue_) << "Open() has not been called successfully";
+  if (!audio_queue_)
+    return;
+
   OSStatus err = noErr;
   SetSource(callback);
   pending_bytes_ = 0;

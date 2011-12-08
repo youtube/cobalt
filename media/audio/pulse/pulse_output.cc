@@ -383,8 +383,12 @@ void PulseAudioOutputStream::WriteToStream(size_t bytes_to_write,
 
 void PulseAudioOutputStream::Start(AudioSourceCallback* callback) {
   DCHECK_EQ(message_loop_, MessageLoop::current());
-
   CHECK(callback);
+  DLOG_IF(ERROR, !playback_handle_)
+      << "Open() has not been called successfully";
+  if (!playback_handle_)
+    return;
+
   source_callback_ = callback;
 
   // Clear buffer, it might still have data in it.
