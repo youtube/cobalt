@@ -34,7 +34,7 @@ SpdyProxyClientSocket::SpdyProxyClientSocket(
       next_state_(STATE_DISCONNECTED),
       spdy_stream_(spdy_stream),
       old_read_callback_(NULL),
-      write_callback_(NULL),
+      old_write_callback_(NULL),
       endpoint_(endpoint),
       auth_(
           new HttpAuthController(HttpAuth::AUTH_PROXY,
@@ -126,7 +126,8 @@ void SpdyProxyClientSocket::Disconnect() {
 
   write_buffer_len_ = 0;
   write_bytes_outstanding_ = 0;
-  write_callback_ = NULL;
+  old_write_callback_ = NULL;
+  write_callback_.Reset();
 
   next_state_ = STATE_DISCONNECTED;
 
@@ -244,7 +245,45 @@ int SpdyProxyClientSocket::PopulateUserReadBuffer() {
 
 int SpdyProxyClientSocket::Write(IOBuffer* buf, int buf_len,
                                  OldCompletionCallback* callback) {
-  DCHECK(!write_callback_);
+  DCHECK(!old_write_callback_ && write_callback_.is_null());
+  if (next_state_ != STATE_OPEN)
+    return ERR_SOCKET_NOT_CONNECTED;
+
+  DCHECK(spdy_stream_);
+  write_bytes_outstanding_= buf_len;
+  if (buf_len <= kMaxSpdyFrameChunkSize) {
+    int rv = spdy_stream_->WriteStreamData(buf, buf_len, spdy::DATA_FLAG_NONE);
+    if (rv == ERR_IO_PENDING) {
+      old_write_callback_ = callback;
+      write_buffer_len_ = buf_len;
+    }
+    return rv;
+  }
+
+  // Since a SPDY Data frame can only include kMaxSpdyFrameChunkSize bytes
+  // we need to send multiple data frames
+  for (int i = 0; i < buf_len; i += kMaxSpdyFrameChunkSize) {
+    int len = std::min(kMaxSpdyFrameChunkSize, buf_len - i);
+    scoped_refptr<DrainableIOBuffer> iobuf(new DrainableIOBuffer(buf, i + len));
+    iobuf->SetOffset(i);
+    int rv = spdy_stream_->WriteStreamData(iobuf, len, spdy::DATA_FLAG_NONE);
+    if (rv > 0) {
+      write_bytes_outstanding_ -= rv;
+    } else if (rv != ERR_IO_PENDING) {
+      return rv;
+    }
+  }
+  if (write_bytes_outstanding_ > 0) {
+    old_write_callback_ = callback;
+    write_buffer_len_ = buf_len;
+    return ERR_IO_PENDING;
+  } else {
+    return buf_len;
+  }
+}
+int SpdyProxyClientSocket::Write(IOBuffer* buf, int buf_len,
+                                 const CompletionCallback& callback) {
+  DCHECK(!old_write_callback_ && write_callback_.is_null());
   if (next_state_ != STATE_OPEN)
     return ERR_SOCKET_NOT_CONNECTED;
 
@@ -532,7 +571,7 @@ void SpdyProxyClientSocket::OnDataReceived(const char* data, int length) {
 }
 
 void SpdyProxyClientSocket::OnDataSent(int length)  {
-  DCHECK(write_callback_);
+  DCHECK(old_write_callback_ || !write_callback_.is_null());
 
   write_bytes_outstanding_ -= length;
 
@@ -542,9 +581,15 @@ void SpdyProxyClientSocket::OnDataSent(int length)  {
     int rv = write_buffer_len_;
     write_buffer_len_ = 0;
     write_bytes_outstanding_ = 0;
-    OldCompletionCallback* c = write_callback_;
-    write_callback_ = NULL;
-    c->Run(rv);
+    if (old_write_callback_) {
+      OldCompletionCallback* c = old_write_callback_;
+      old_write_callback_ = NULL;
+      c->Run(rv);
+    } else {
+      CompletionCallback c = write_callback_;
+      write_callback_.Reset();
+      c.Run(rv);
+    }
   }
 }
 
@@ -561,8 +606,10 @@ void SpdyProxyClientSocket::OnClose(int status)  {
     next_state_ = STATE_DISCONNECTED;
 
   base::WeakPtr<SpdyProxyClientSocket> weak_ptr = weak_factory_.GetWeakPtr();
-  OldCompletionCallback* write_callback = write_callback_;
-  write_callback_ = NULL;
+  OldCompletionCallback* old_write_callback = old_write_callback_;
+  CompletionCallback write_callback = write_callback_;
+  old_write_callback_ = NULL;
+  write_callback_.Reset();
   write_buffer_len_ = 0;
   write_bytes_outstanding_ = 0;
 
@@ -584,8 +631,12 @@ void SpdyProxyClientSocket::OnClose(int status)  {
     OnDataReceived(NULL, 0);
   }
   // This may have been deleted by read_callback_, so check first.
-  if (weak_ptr && write_callback)
-    write_callback->Run(ERR_CONNECTION_CLOSED);
+  if (weak_ptr && (old_write_callback || !write_callback.is_null())) {
+    if (old_write_callback)
+      old_write_callback->Run(ERR_CONNECTION_CLOSED);
+    else
+      write_callback.Run(ERR_CONNECTION_CLOSED);
+  }
 }
 
 void SpdyProxyClientSocket::set_chunk_callback(ChunkCallback* /*callback*/) {
