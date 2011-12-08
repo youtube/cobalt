@@ -117,8 +117,7 @@ bool WASAPIAudioOutputStream::Open() {
 void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
   DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
   DCHECK(callback);
-  DCHECK(opened_);
-
+  DLOG_IF(ERROR, !opened_) << "Open() has not been called successfully";
   if (!opened_)
     return;
 

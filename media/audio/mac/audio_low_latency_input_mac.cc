@@ -215,7 +215,8 @@ bool AUAudioInputStream::Open() {
 
 void AUAudioInputStream::Start(AudioInputCallback* callback) {
   DCHECK(callback);
-  if (started_)
+  DLOG_IF(ERROR, !audio_unit_) << "Open() has not been called successfully";
+  if (started_ || !audio_unit_)
     return;
   sink_ = callback;
   OSStatus result = AudioOutputUnitStart(audio_unit_);
