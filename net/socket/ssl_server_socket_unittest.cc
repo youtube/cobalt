@@ -85,14 +85,6 @@ class FakeDataChannel {
             &FakeDataChannel::DoReadCallback));
     return buf_len;
   }
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) {
-    data_.push(new net::DrainableIOBuffer(buf, buf_len));
-    MessageLoop::current()->PostTask(
-        FROM_HERE, task_factory_.NewRunnableMethod(
-            &FakeDataChannel::DoReadCallback));
-    return buf_len;
-  }
 
  private:
   void DoReadCallback() {
@@ -164,12 +156,6 @@ class FakeSocket : public StreamSocket {
 
   virtual int Write(IOBuffer* buf, int buf_len,
                     OldCompletionCallback* callback) {
-    // Write random number of bytes.
-    buf_len = rand() % buf_len + 1;
-    return outgoing_->Write(buf, buf_len, callback);
-  }
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) {
     // Write random number of bytes.
     buf_len = rand() % buf_len + 1;
     return outgoing_->Write(buf, buf_len, callback);

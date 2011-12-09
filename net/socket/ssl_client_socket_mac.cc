@@ -533,7 +533,7 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocketHandle* transport_socket,
       ssl_config_(ssl_config),
       old_user_connect_callback_(NULL),
       old_user_read_callback_(NULL),
-      old_user_write_callback_(NULL),
+      user_write_callback_(NULL),
       user_read_buf_len_(0),
       user_write_buf_len_(0),
       next_handshake_state_(STATE_NONE),
@@ -737,25 +737,7 @@ int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
 int SSLClientSocketMac::Write(IOBuffer* buf, int buf_len,
                               OldCompletionCallback* callback) {
   DCHECK(completed_handshake());
-  DCHECK(!old_user_write_callback_ && user_write_callback_.is_null());
-  DCHECK(!user_write_buf_);
-
-  user_write_buf_ = buf;
-  user_write_buf_len_ = buf_len;
-
-  int rv = DoPayloadWrite();
-  if (rv == ERR_IO_PENDING) {
-    old_user_write_callback_ = callback;
-  } else {
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-  }
-  return rv;
-}
-int SSLClientSocketMac::Write(IOBuffer* buf, int buf_len,
-                              const CompletionCallback& callback) {
-  DCHECK(completed_handshake());
-  DCHECK(!old_user_write_callback_ && user_write_callback_.is_null());
+  DCHECK(!user_write_callback_);
   DCHECK(!user_write_buf_);
 
   user_write_buf_ = buf;
@@ -990,23 +972,15 @@ void SSLClientSocketMac::DoReadCallback(int rv) {
 
 void SSLClientSocketMac::DoWriteCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(old_user_write_callback_ && !user_write_callback_.is_null());
+  DCHECK(user_write_callback_);
 
   // Since Run may result in Write being called, clear user_write_callback_ up
   // front.
-  if (old_user_write_callback_) {
-    OldCompletionCallback* c = old_user_write_callback_;
-    old_user_write_callback_ = NULL;
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-    c->Run(rv);
-  } else {
-    CompletionCallback c = user_write_callback_;
-    user_write_callback_.Reset();
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-    c.Run(rv);
-  }
+  OldCompletionCallback* c = user_write_callback_;
+  user_write_callback_ = NULL;
+  user_write_buf_ = NULL;
+  user_write_buf_len_ = 0;
+  c->Run(rv);
 }
 
 void SSLClientSocketMac::OnHandshakeIOComplete(int result) {

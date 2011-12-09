@@ -392,7 +392,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       transport_recv_busy_(false),
       old_user_connect_callback_(NULL),
       old_user_read_callback_(NULL),
-      old_user_write_callback_(NULL),
+      user_write_callback_(NULL),
       completed_handshake_(false),
       client_auth_cert_needed_(false),
       cert_verifier_(context.cert_verifier),
@@ -632,19 +632,11 @@ void SSLClientSocketOpenSSL::DoReadCallback(int rv) {
 void SSLClientSocketOpenSSL::DoWriteCallback(int rv) {
   // Since Run may result in Write being called, clear |user_write_callback_|
   // up front.
-  if (old_user_write_callback_) {
-    OldCompletionCallback* c = old_user_write_callback_;
-    old_user_write_callback_ = NULL;
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-    c->Run(rv);
-  } else {
-    CompletionCallback c = user_write_callback_;
-    user_write_callback_.Reset();
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-    c.Run(rv);
-  }
+  OldCompletionCallback* c = user_write_callback_;
+  user_write_callback_ = NULL;
+  user_write_buf_ = NULL;
+  user_write_buf_len_ = 0;
+  c->Run(rv);
 }
 
 // StreamSocket methods
@@ -720,8 +712,7 @@ void SSLClientSocketOpenSSL::Disconnect() {
   user_connect_callback_.Reset();
   old_user_read_callback_    = NULL;
   user_read_callback_.Reset();
-  old_user_write_callback_   = NULL;
-  user_write_callback_.Reset();
+  user_write_callback_   = NULL;
   user_read_buf_         = NULL;
   user_read_buf_len_     = 0;
   user_write_buf_        = NULL;
@@ -1249,23 +1240,6 @@ int SSLClientSocketOpenSSL::DoReadLoop(int result) {
 int SSLClientSocketOpenSSL::Write(IOBuffer* buf,
                                   int buf_len,
                                   OldCompletionCallback* callback) {
-  user_write_buf_ = buf;
-  user_write_buf_len_ = buf_len;
-
-  int rv = DoWriteLoop(OK);
-
-  if (rv == ERR_IO_PENDING) {
-    old_user_write_callback_ = callback;
-  } else {
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-  }
-
-  return rv;
-}
-int SSLClientSocketOpenSSL::Write(IOBuffer* buf,
-                                  int buf_len,
-                                  const CompletionCallback& callback) {
   user_write_buf_ = buf;
   user_write_buf_len_ = buf_len;
 

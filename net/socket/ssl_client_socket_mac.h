@@ -77,9 +77,6 @@ class SSLClientSocketMac : public SSLClientSocket {
   virtual int Write(IOBuffer* buf,
                     int buf_len,
                     OldCompletionCallback* callback) OVERRIDE;
-  virtual int Write(IOBuffer* buf,
-                    int buf_len,
-                    const CompletionCallback& callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
@@ -129,8 +126,7 @@ class SSLClientSocketMac : public SSLClientSocket {
   CompletionCallback user_connect_callback_;
   OldCompletionCallback* old_user_read_callback_;
   CompletionCallback user_read_callback_;
-  OldCompletionCallback* old_user_write_callback_;
-  CompletionCallback user_write_callback_;
+  OldCompletionCallback* user_write_callback_;
 
   // Used by Read function.
   scoped_refptr<IOBuffer> user_read_buf_;
