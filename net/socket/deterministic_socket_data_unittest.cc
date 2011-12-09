@@ -41,8 +41,8 @@ class DeterministicSocketDataTest : public PlatformTest {
   void AssertAsyncWriteEquals(const char* data, int len);
   void AssertWriteReturns(const char* data, int len, int rv);
 
-  TestOldCompletionCallback read_callback_;
-  TestOldCompletionCallback write_callback_;
+  TestCompletionCallback read_callback_;
+  TestCompletionCallback write_callback_;
   StreamSocket* sock_;
   scoped_refptr<DeterministicSocketData> data_;
 
@@ -61,9 +61,7 @@ class DeterministicSocketDataTest : public PlatformTest {
 };
 
 DeterministicSocketDataTest::DeterministicSocketDataTest()
-    : read_callback_(),
-      write_callback_(),
-      sock_(NULL),
+    : sock_(NULL),
       data_(NULL),
       read_buf_(NULL),
       connect_data_(false, OK),
@@ -125,7 +123,7 @@ void DeterministicSocketDataTest::AssertAsyncReadEquals(const char* data,
 void DeterministicSocketDataTest::AssertReadReturns(const char* data,
                                                     int len, int rv) {
   read_buf_ = new IOBuffer(len);
-  ASSERT_EQ(rv, sock_->Read(read_buf_, len, &read_callback_));
+  ASSERT_EQ(rv, sock_->Read(read_buf_, len, read_callback_.callback()));
 }
 
 void DeterministicSocketDataTest::AssertReadBufferEquals(const char* data,
@@ -139,7 +137,7 @@ void DeterministicSocketDataTest::AssertSyncWriteEquals(const char* data,
   memcpy(buf->data(), data, len);
 
   // Issue the write, which will complete immediately
-  ASSERT_EQ(len, sock_->Write(buf, len, &write_callback_));
+  ASSERT_EQ(len, sock_->Write(buf, len, write_callback_.callback()));
 }
 
 void DeterministicSocketDataTest::AssertAsyncWriteEquals(const char* data,
@@ -160,7 +158,7 @@ void DeterministicSocketDataTest::AssertWriteReturns(const char* data,
   memcpy(buf->data(), data, len);
 
   // Issue the read, which will complete asynchronously
-  ASSERT_EQ(rv, sock_->Write(buf, len, &write_callback_));
+  ASSERT_EQ(rv, sock_->Write(buf, len, write_callback_.callback()));
 }
 
 // ----------- Read

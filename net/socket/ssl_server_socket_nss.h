@@ -40,16 +40,13 @@ class SSLServerSocketNSS : public SSLServerSocket {
 
   // Socket interface (via StreamSocket).
   virtual int Read(IOBuffer* buf, int buf_len,
-                   OldCompletionCallback* callback) OVERRIDE;
-  virtual int Read(IOBuffer* buf, int buf_len,
                    const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf, int buf_len,
-                    OldCompletionCallback* callback) OVERRIDE;
+                    const CompletionCallback& callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
   // StreamSocket implementation.
-  virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;
   virtual void Disconnect() OVERRIDE;
   virtual bool IsConnected() const OVERRIDE;
@@ -101,8 +98,6 @@ class SSLServerSocketNSS : public SSLServerSocket {
   virtual int Init();
 
   // Members used to send and receive buffer.
-  OldCompletionCallbackImpl<SSLServerSocketNSS> buffer_send_callback_;
-  OldCompletionCallbackImpl<SSLServerSocketNSS> buffer_recv_callback_;
   bool transport_send_busy_;
   bool transport_recv_busy_;
 
@@ -111,9 +106,8 @@ class SSLServerSocketNSS : public SSLServerSocket {
   BoundNetLog net_log_;
 
   OldCompletionCallback* user_handshake_callback_;
-  OldCompletionCallback* old_user_read_callback_;
   CompletionCallback user_read_callback_;
-  OldCompletionCallback* user_write_callback_;
+  CompletionCallback user_write_callback_;
 
   // Used by Read function.
   scoped_refptr<IOBuffer> user_read_buf_;

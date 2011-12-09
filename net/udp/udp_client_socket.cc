@@ -24,18 +24,13 @@ int UDPClientSocket::Connect(const IPEndPoint& address) {
 
 int UDPClientSocket::Read(IOBuffer* buf,
                           int buf_len,
-                          OldCompletionCallback* callback) {
-  return socket_.Read(buf, buf_len, callback);
-}
-int UDPClientSocket::Read(IOBuffer* buf,
-                          int buf_len,
                           const CompletionCallback& callback) {
   return socket_.Read(buf, buf_len, callback);
 }
 
 int UDPClientSocket::Write(IOBuffer* buf,
                           int buf_len,
-                          OldCompletionCallback* callback) {
+                          const CompletionCallback& callback) {
   return socket_.Write(buf, buf_len, callback);
 }
 

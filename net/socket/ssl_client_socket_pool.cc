@@ -94,7 +94,10 @@ SSLConnectJob::SSLConnectJob(const std::string& group_name,
       host_resolver_(host_resolver),
       context_(context),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &SSLConnectJob::OnIOComplete)) {}
+          callback_(base::Bind(&SSLConnectJob::OnIOComplete,
+                               base::Unretained(this)))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          callback_old_(this, &SSLConnectJob::OnIOComplete)) {}
 
 SSLConnectJob::~SSLConnectJob() {}
 
@@ -119,7 +122,7 @@ LoadState SSLConnectJob::GetLoadState() const {
   }
 }
 
-void SSLConnectJob::GetAdditionalErrorState(ClientSocketHandle * handle) {
+void SSLConnectJob::GetAdditionalErrorState(ClientSocketHandle* handle) {
   // Headers in |error_response_info_| indicate a proxy tunnel setup
   // problem. See DoTunnelConnectComplete.
   if (error_response_info_.headers) {
@@ -207,7 +210,7 @@ int SSLConnectJob::DoTransportConnect() {
       group_name(),
       transport_params,
       transport_params->destination().priority(),
-      &callback_, transport_pool_, net_log());
+      &callback_old_, transport_pool_, net_log());
 }
 
 int SSLConnectJob::DoTransportConnectComplete(int result) {
@@ -224,7 +227,7 @@ int SSLConnectJob::DoSOCKSConnect() {
   scoped_refptr<SOCKSSocketParams> socks_params = params_->socks_params();
   return transport_socket_handle_->Init(group_name(), socks_params,
                                         socks_params->destination().priority(),
-                                        &callback_, socks_pool_, net_log());
+                                        &callback_old_, socks_pool_, net_log());
 }
 
 int SSLConnectJob::DoSOCKSConnectComplete(int result) {
@@ -243,7 +246,7 @@ int SSLConnectJob::DoTunnelConnect() {
       params_->http_proxy_params();
   return transport_socket_handle_->Init(
       group_name(), http_proxy_params,
-      http_proxy_params->destination().priority(), &callback_,
+      http_proxy_params->destination().priority(), &callback_old_,
       http_proxy_pool_, net_log());
 }
 
@@ -276,7 +279,7 @@ int SSLConnectJob::DoSSLConnect() {
   ssl_socket_.reset(client_socket_factory_->CreateSSLClientSocket(
       transport_socket_handle_.release(), params_->host_and_port(),
       params_->ssl_config(), ssl_host_info_.release(), context_));
-  return ssl_socket_->Connect(&callback_);
+  return ssl_socket_->Connect(callback_);
 }
 
 int SSLConnectJob::DoSSLConnectComplete(int result) {

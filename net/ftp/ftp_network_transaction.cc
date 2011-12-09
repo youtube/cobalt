@@ -206,8 +206,8 @@ FtpNetworkTransaction::FtpNetworkTransaction(
     ClientSocketFactory* socket_factory)
     : command_sent_(COMMAND_NONE),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &FtpNetworkTransaction::OnIOComplete)),
-      user_callback_(NULL),
+          io_callback_(base::Bind(&FtpNetworkTransaction::OnIOComplete,
+                                  base::Unretained(this)))),
       session_(session),
       request_(NULL),
       resolver_(session->host_resolver()),
@@ -239,12 +239,12 @@ int FtpNetworkTransaction::Stop(int error) {
 }
 
 int FtpNetworkTransaction::RestartIgnoringLastError(
-    OldCompletionCallback* callback) {
+    const CompletionCallback& callback) {
   return ERR_NOT_IMPLEMENTED;
 }
 
 int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
-                                 OldCompletionCallback* callback,
+                                 const CompletionCallback& callback,
                                  const BoundNetLog& net_log) {
   net_log_ = net_log;
   request_ = request_info;
@@ -269,7 +269,7 @@ int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
 }
 
 int FtpNetworkTransaction::RestartWithAuth(const AuthCredentials& credentials,
-                                           OldCompletionCallback* callback) {
+                                           const CompletionCallback& callback) {
   ResetStateForRestart();
 
   credentials_ = credentials;
@@ -283,7 +283,7 @@ int FtpNetworkTransaction::RestartWithAuth(const AuthCredentials& credentials,
 
 int FtpNetworkTransaction::Read(IOBuffer* buf,
                                 int buf_len,
-                                OldCompletionCallback* callback) {
+                                const CompletionCallback& callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
 
@@ -330,7 +330,7 @@ uint64 FtpNetworkTransaction::GetUploadProgress() const {
 
 void FtpNetworkTransaction::ResetStateForRestart() {
   command_sent_ = COMMAND_NONE;
-  user_callback_ = NULL;
+  user_callback_.Reset();
   response_ = FtpResponseInfo();
   read_ctrl_buf_ = new IOBuffer(kCtrlBufLen);
   ctrl_response_buffer_.reset(new FtpCtrlResponseBuffer());
@@ -347,12 +347,12 @@ void FtpNetworkTransaction::ResetStateForRestart() {
 
 void FtpNetworkTransaction::DoCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_callback_);
+  DCHECK(!user_callback_.is_null());
 
   // Since Run may result in Read being called, clear callback_ up front.
-  OldCompletionCallback* c = user_callback_;
-  user_callback_ = NULL;
-  c->Run(rv);
+  CompletionCallback c = user_callback_;
+  user_callback_.Reset();
+  c.Run(rv);
 }
 
 void FtpNetworkTransaction::OnIOComplete(int result) {
@@ -645,7 +645,7 @@ int FtpNetworkTransaction::DoCtrlConnect() {
   next_state_ = STATE_CTRL_CONNECT_COMPLETE;
   ctrl_socket_.reset(socket_factory_->CreateTransportClientSocket(
         addresses_, net_log_.net_log(), net_log_.source()));
-  return ctrl_socket_->Connect(&io_callback_);
+  return ctrl_socket_->Connect(io_callback_);
 }
 
 int FtpNetworkTransaction::DoCtrlConnectComplete(int result) {
@@ -663,10 +663,7 @@ int FtpNetworkTransaction::DoCtrlConnectComplete(int result) {
 
 int FtpNetworkTransaction::DoCtrlRead() {
   next_state_ = STATE_CTRL_READ_COMPLETE;
-  return ctrl_socket_->Read(
-      read_ctrl_buf_,
-      kCtrlBufLen,
-      &io_callback_);
+  return ctrl_socket_->Read(read_ctrl_buf_, kCtrlBufLen, io_callback_);
 }
 
 int FtpNetworkTransaction::DoCtrlReadComplete(int result) {
@@ -699,7 +696,7 @@ int FtpNetworkTransaction::DoCtrlWrite() {
 
   return ctrl_socket_->Write(write_buf_,
                              write_buf_->BytesRemaining(),
-                             &io_callback_);
+                             io_callback_);
 }
 
 int FtpNetworkTransaction::DoCtrlWriteComplete(int result) {
@@ -1200,7 +1197,7 @@ int FtpNetworkTransaction::DoDataConnect() {
   data_address.SetPort(data_connection_port_);
   data_socket_.reset(socket_factory_->CreateTransportClientSocket(
         data_address, net_log_.net_log(), net_log_.source()));
-  return data_socket_->Connect(&io_callback_);
+  return data_socket_->Connect(io_callback_);
 }
 
 int FtpNetworkTransaction::DoDataConnectComplete(int result) {
@@ -1247,8 +1244,7 @@ int FtpNetworkTransaction::DoDataRead() {
 
   next_state_ = STATE_DATA_READ_COMPLETE;
   read_data_buf_->data()[0] = 0;
-  return data_socket_->Read(read_data_buf_, read_data_buf_len_,
-                            &io_callback_);
+  return data_socket_->Read(read_data_buf_, read_data_buf_len_, io_callback_);
 }
 
 int FtpNetworkTransaction::DoDataReadComplete(int result) {

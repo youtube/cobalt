@@ -7648,15 +7648,16 @@ TEST_F(HttpNetworkTransactionTest,
           spdy_writes, arraysize(spdy_writes)));
   session_deps.socket_factory.AddSocketDataProvider(spdy_data);
 
-  TestOldCompletionCallback callback;
+  TestOldCompletionCallback callback_old;
+  TestCompletionCallback callback;
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
 
-  int rv = trans->Start(&request, &callback, BoundNetLog());
+  int rv = trans->Start(&request, &callback_old, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(OK, callback_old.WaitForResult());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
   ASSERT_TRUE(response != NULL);
@@ -7680,10 +7681,10 @@ TEST_F(HttpNetworkTransactionTest,
             connection->Init(host_port_pair.ToString(),
                              transport_params,
                              LOWEST,
-                             &callback,
+                             &callback_old,
                              session->GetTransportSocketPool(),
                              BoundNetLog()));
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(OK, callback_old.WaitForResult());
 
   SSLConfig ssl_config;
   session->ssl_config_service()->GetSSLConfig(&ssl_config);
@@ -7693,7 +7694,8 @@ TEST_F(HttpNetworkTransactionTest,
   ssl_connection->set_socket(session_deps.socket_factory.CreateSSLClientSocket(
       connection.release(), HostPortPair("" , 443), ssl_config,
       NULL /* ssl_host_info */, context));
-  EXPECT_EQ(ERR_IO_PENDING, ssl_connection->socket()->Connect(&callback));
+  EXPECT_EQ(ERR_IO_PENDING,
+            ssl_connection->socket()->Connect(callback.callback()));
   EXPECT_EQ(OK, callback.WaitForResult());
 
   EXPECT_EQ(OK, spdy_session->InitializeWithSocket(ssl_connection.release(),
@@ -7701,9 +7703,9 @@ TEST_F(HttpNetworkTransactionTest,
 
   trans.reset(new HttpNetworkTransaction(session));
 
-  rv = trans->Start(&request, &callback, BoundNetLog());
+  rv = trans->Start(&request, &callback_old, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(OK, callback_old.WaitForResult());
 
   response = trans->GetResponseInfo();
   ASSERT_TRUE(response != NULL);

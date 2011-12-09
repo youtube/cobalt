@@ -52,7 +52,6 @@ class SSLClientSocketMac : public SSLClientSocket {
                                        std::string* server_protos) OVERRIDE;
 
   // StreamSocket implementation.
-  virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;
   virtual void Disconnect() OVERRIDE;
   virtual bool IsConnected() const OVERRIDE;
@@ -70,13 +69,10 @@ class SSLClientSocketMac : public SSLClientSocket {
   // Socket implementation.
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   OldCompletionCallback* callback) OVERRIDE;
-  virtual int Read(IOBuffer* buf,
-                   int buf_len,
                    const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
-                    OldCompletionCallback* callback) OVERRIDE;
+                    const CompletionCallback& callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
@@ -115,18 +111,13 @@ class SSLClientSocketMac : public SSLClientSocket {
                                    const void* data,
                                    size_t* data_length);
 
-  OldCompletionCallbackImpl<SSLClientSocketMac> transport_read_callback_;
-  OldCompletionCallbackImpl<SSLClientSocketMac> transport_write_callback_;
-
   scoped_ptr<ClientSocketHandle> transport_;
   HostPortPair host_and_port_;
   SSLConfig ssl_config_;
 
-  OldCompletionCallback* old_user_connect_callback_;
   CompletionCallback user_connect_callback_;
-  OldCompletionCallback* old_user_read_callback_;
   CompletionCallback user_read_callback_;
-  OldCompletionCallback* user_write_callback_;
+  CompletionCallback user_write_callback_;
 
   // Used by Read function.
   scoped_refptr<IOBuffer> user_read_buf_;

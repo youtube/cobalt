@@ -39,7 +39,7 @@ class NET_EXPORT DatagramServerSocket : public DatagramSocket {
   virtual int RecvFrom(IOBuffer* buf,
                        int buf_len,
                        IPEndPoint* address,
-                       OldCompletionCallback* callback) = 0;
+                       const CompletionCallback& callback) = 0;
 
   // Send to a socket with a particular destination.
   // |buf| is the buffer to send
@@ -53,7 +53,7 @@ class NET_EXPORT DatagramServerSocket : public DatagramSocket {
   virtual int SendTo(IOBuffer* buf,
                      int buf_len,
                      const IPEndPoint& address,
-                     OldCompletionCallback* callback) = 0;
+                     const CompletionCallback& callback) = 0;
 
   // Set the receive buffer size (in bytes) for the socket.
   virtual bool SetReceiveBufferSize(int32 size) = 0;
