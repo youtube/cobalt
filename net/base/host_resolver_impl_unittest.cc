@@ -832,7 +832,7 @@ class DeleteWithinCallbackVerifier : public ResolveRequest::Delegate {
 
     // Quit after returning from OnCompleted (to give it a chance at
     // incorrectly running the cancelled tasks).
-    MessageLoop::current()->PostTask(FROM_HERE, new MessageLoop::QuitTask());
+    MessageLoop::current()->PostTask(FROM_HERE, MessageLoop::QuitClosure());
   }
 
  private:
