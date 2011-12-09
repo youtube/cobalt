@@ -31,10 +31,10 @@ SOCKS5ClientSocket::SOCKS5ClientSocket(
     ClientSocketHandle* transport_socket,
     const HostResolver::RequestInfo& req_info)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &SOCKS5ClientSocket::OnIOComplete)),
+          io_callback_(base::Bind(&SOCKS5ClientSocket::OnIOComplete,
+                                  base::Unretained(this)))),
       transport_(transport_socket),
       next_state_(STATE_NONE),
-      old_user_callback_(NULL),
       completed_handshake_(false),
       bytes_sent_(0),
       bytes_received_(0),
@@ -47,10 +47,10 @@ SOCKS5ClientSocket::SOCKS5ClientSocket(
     StreamSocket* transport_socket,
     const HostResolver::RequestInfo& req_info)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &SOCKS5ClientSocket::OnIOComplete)),
+          io_callback_(base::Bind(&SOCKS5ClientSocket::OnIOComplete,
+                                  base::Unretained(this)))),
       transport_(new ClientSocketHandle()),
       next_state_(STATE_NONE),
-      old_user_callback_(NULL),
       completed_handshake_(false),
       bytes_sent_(0),
       bytes_received_(0),
@@ -64,11 +64,11 @@ SOCKS5ClientSocket::~SOCKS5ClientSocket() {
   Disconnect();
 }
 
-int SOCKS5ClientSocket::Connect(OldCompletionCallback* callback) {
+int SOCKS5ClientSocket::Connect(const CompletionCallback& callback) {
   DCHECK(transport_.get());
   DCHECK(transport_->socket());
   DCHECK_EQ(STATE_NONE, next_state_);
-  DCHECK(!old_user_callback_ && user_callback_.is_null());
+  DCHECK(user_callback_.is_null());
 
   // If already connected, then just return OK.
   if (completed_handshake_)
@@ -81,33 +81,10 @@ int SOCKS5ClientSocket::Connect(OldCompletionCallback* callback) {
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
-    old_user_callback_ = callback;
+    user_callback_ = callback;
   } else {
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SOCKS5_CONNECT, rv);
   }
-  return rv;
-}
-int SOCKS5ClientSocket::Connect(const CompletionCallback& callback) {
-  DCHECK(transport_.get());
-  DCHECK(transport_->socket());
-  DCHECK_EQ(STATE_NONE, next_state_);
-  DCHECK(!old_user_callback_ && user_callback_.is_null());
-
-  // If already connected, then just return OK.
-  if (completed_handshake_)
-    return OK;
-
-  net_log_.BeginEvent(NetLog::TYPE_SOCKS5_CONNECT, NULL);
-
-  next_state_ = STATE_GREET_WRITE;
-  buffer_.clear();
-
-  int rv = DoLoop(OK);
-  if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
-  else
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SOCKS5_CONNECT, rv);
-
   return rv;
 }
 
@@ -118,7 +95,6 @@ void SOCKS5ClientSocket::Disconnect() {
   // Reset other states to make sure they aren't mistakenly used later.
   // These are the states initialized by Connect().
   next_state_ = STATE_NONE;
-  old_user_callback_ = NULL;
   user_callback_.Reset();
 }
 
@@ -185,18 +161,10 @@ base::TimeDelta SOCKS5ClientSocket::GetConnectTimeMicros() const {
 // Read is called by the transport layer above to read. This can only be done
 // if the SOCKS handshake is complete.
 int SOCKS5ClientSocket::Read(IOBuffer* buf, int buf_len,
-                             OldCompletionCallback* callback) {
-  DCHECK(completed_handshake_);
-  DCHECK_EQ(STATE_NONE, next_state_);
-  DCHECK(!old_user_callback_ && user_callback_.is_null());
-
-  return transport_->socket()->Read(buf, buf_len, callback);
-}
-int SOCKS5ClientSocket::Read(IOBuffer* buf, int buf_len,
                              const CompletionCallback& callback) {
   DCHECK(completed_handshake_);
   DCHECK_EQ(STATE_NONE, next_state_);
-  DCHECK(!old_user_callback_ && user_callback_.is_null());
+  DCHECK(user_callback_.is_null());
 
   return transport_->socket()->Read(buf, buf_len, callback);
 }
@@ -204,10 +172,10 @@ int SOCKS5ClientSocket::Read(IOBuffer* buf, int buf_len,
 // Write is called by the transport layer. This can only be done if the
 // SOCKS handshake is complete.
 int SOCKS5ClientSocket::Write(IOBuffer* buf, int buf_len,
-                             OldCompletionCallback* callback) {
+                             const CompletionCallback& callback) {
   DCHECK(completed_handshake_);
   DCHECK_EQ(STATE_NONE, next_state_);
-  DCHECK(!old_user_callback_);
+  DCHECK(user_callback_.is_null());
 
   return transport_->socket()->Write(buf, buf_len, callback);
 }
@@ -222,19 +190,13 @@ bool SOCKS5ClientSocket::SetSendBufferSize(int32 size) {
 
 void SOCKS5ClientSocket::DoCallback(int result) {
   DCHECK_NE(ERR_IO_PENDING, result);
-  DCHECK(old_user_callback_ || !user_callback_.is_null());
+  DCHECK(!user_callback_.is_null());
 
   // Since Run() may result in Read being called,
   // clear user_callback_ up front.
-  if (old_user_callback_) {
-    OldCompletionCallback* c = old_user_callback_;
-    old_user_callback_ = NULL;
-    c->Run(result);
-  } else {
-    CompletionCallback c = user_callback_;
-    user_callback_.Reset();
-    c.Run(result);
-  }
+  CompletionCallback c = user_callback_;
+  user_callback_.Reset();
+  c.Run(result);
 }
 
 void SOCKS5ClientSocket::OnIOComplete(int result) {
@@ -323,7 +285,7 @@ int SOCKS5ClientSocket::DoGreetWrite() {
   memcpy(handshake_buf_->data(), &buffer_.data()[bytes_sent_],
          handshake_buf_len);
   return transport_->socket()->Write(handshake_buf_, handshake_buf_len,
-                                     &io_callback_);
+                                     io_callback_);
 }
 
 int SOCKS5ClientSocket::DoGreetWriteComplete(int result) {
@@ -346,7 +308,7 @@ int SOCKS5ClientSocket::DoGreetRead() {
   size_t handshake_buf_len = kGreetReadHeaderSize - bytes_received_;
   handshake_buf_ = new IOBuffer(handshake_buf_len);
   return transport_->socket()->Read(handshake_buf_, handshake_buf_len,
-                                    &io_callback_);
+                                    io_callback_);
 }
 
 int SOCKS5ClientSocket::DoGreetReadComplete(int result) {
@@ -424,7 +386,7 @@ int SOCKS5ClientSocket::DoHandshakeWrite() {
   memcpy(handshake_buf_->data(), &buffer_[bytes_sent_],
          handshake_buf_len);
   return transport_->socket()->Write(handshake_buf_, handshake_buf_len,
-                                     &io_callback_);
+                                     io_callback_);
 }
 
 int SOCKS5ClientSocket::DoHandshakeWriteComplete(int result) {
@@ -458,7 +420,7 @@ int SOCKS5ClientSocket::DoHandshakeRead() {
   int handshake_buf_len = read_header_size - bytes_received_;
   handshake_buf_ = new IOBuffer(handshake_buf_len);
   return transport_->socket()->Read(handshake_buf_, handshake_buf_len,
-                                    &io_callback_);
+                                    io_callback_);
 }
 
 int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {

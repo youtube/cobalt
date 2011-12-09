@@ -51,7 +51,7 @@ SOCKSConnectJob::SOCKSConnectJob(
       transport_pool_(transport_pool),
       resolver_(host_resolver),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &SOCKSConnectJob::OnIOComplete)) {
+          callback_old_(this, &SOCKSConnectJob::OnIOComplete)) {
 }
 
 SOCKSConnectJob::~SOCKSConnectJob() {
@@ -118,7 +118,7 @@ int SOCKSConnectJob::DoTransportConnect() {
   return transport_socket_handle_->Init(group_name(),
                                         socks_params_->transport_params(),
                                         socks_params_->destination().priority(),
-                                        &callback_,
+                                        &callback_old_,
                                         transport_pool_,
                                         net_log());
 }
@@ -147,7 +147,8 @@ int SOCKSConnectJob::DoSOCKSConnect() {
                                         socks_params_->destination(),
                                         resolver_));
   }
-  return socket_->Connect(&callback_);
+  return socket_->Connect(
+      base::Bind(&SOCKSConnectJob::OnIOComplete, base::Unretained(this)));
 }
 
 int SOCKSConnectJob::DoSOCKSConnectComplete(int result) {

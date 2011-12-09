@@ -38,7 +38,7 @@ class SOCKSClientSocketTest : public PlatformTest {
   scoped_ptr<SOCKSClientSocket> user_sock_;
   AddressList address_list_;
   StreamSocket* tcp_sock_;
-  TestOldCompletionCallback callback_;
+  TestCompletionCallback callback_;
   scoped_ptr<MockHostResolver> host_resolver_;
   scoped_ptr<SocketDataProvider> data_;
 };
@@ -62,12 +62,12 @@ SOCKSClientSocket* SOCKSClientSocketTest::BuildMockSocket(
     int port,
     NetLog* net_log) {
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   data_.reset(new StaticSocketDataProvider(reads, reads_count,
                                            writes, writes_count));
   tcp_sock_ = new MockTCPClientSocket(address_list_, net_log, data_.get());
 
-  int rv = tcp_sock_->Connect(&callback);
+  int rv = tcp_sock_->Connect(callback.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -144,7 +144,7 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
   EXPECT_TRUE(tcp_sock_->IsConnected());
   EXPECT_FALSE(user_sock_->IsConnected());
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   net::CapturingNetLog::EntryList entries;
@@ -162,13 +162,13 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
 
   scoped_refptr<IOBuffer> buffer(new IOBuffer(payload_write.size()));
   memcpy(buffer->data(), payload_write.data(), payload_write.size());
-  rv = user_sock_->Write(buffer, payload_write.size(), &callback_);
+  rv = user_sock_->Write(buffer, payload_write.size(), callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback_.WaitForResult();
   EXPECT_EQ(static_cast<int>(payload_write.size()), rv);
 
   buffer = new IOBuffer(payload_read.size());
-  rv = user_sock_->Read(buffer, payload_read.size(), &callback_);
+  rv = user_sock_->Read(buffer, payload_read.size(), callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback_.WaitForResult();
   EXPECT_EQ(static_cast<int>(payload_read.size()), rv);
@@ -213,7 +213,7 @@ TEST_F(SOCKSClientSocketTest, HandshakeFailures) {
                                      "localhost", 80,
                                      &log));
 
-    int rv = user_sock_->Connect(&callback_);
+    int rv = user_sock_->Connect(callback_.callback());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     net::CapturingNetLog::EntryList entries;
@@ -250,7 +250,7 @@ TEST_F(SOCKSClientSocketTest, PartialServerReads) {
                                    "localhost", 80,
                                    &log));
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   net::CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
@@ -288,7 +288,7 @@ TEST_F(SOCKSClientSocketTest, PartialClientWrites) {
                                    "localhost", 80,
                                    &log));
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   net::CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
@@ -320,7 +320,7 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
                                    "localhost", 80,
                                    &log));
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   net::CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
@@ -350,7 +350,7 @@ TEST_F(SOCKSClientSocketTest, FailedDNS) {
                                    hostname, 80,
                                    &log));
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   net::CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
@@ -382,7 +382,7 @@ TEST_F(SOCKSClientSocketTest, DisconnectWhileHostResolveInProgress) {
                                    NULL));
 
   // Start connecting (will get stuck waiting for the host to resolve).
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_FALSE(user_sock_->IsConnected());

@@ -52,10 +52,6 @@ class MockClientSocket : public StreamSocket {
         addrlist_(addrlist) {}
 
   // StreamSocket implementation.
-  virtual int Connect(OldCompletionCallback* callback) {
-    connected_ = true;
-    return OK;
-  }
   virtual int Connect(const CompletionCallback& callback) {
     connected_ = true;
     return OK;
@@ -96,15 +92,11 @@ class MockClientSocket : public StreamSocket {
 
   // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,
-                   OldCompletionCallback* callback) {
-    return ERR_FAILED;
-  }
-  virtual int Read(IOBuffer* buf, int buf_len,
                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual int Write(IOBuffer* buf, int buf_len,
-                    OldCompletionCallback* callback) {
+                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
@@ -121,10 +113,7 @@ class MockFailingClientSocket : public StreamSocket {
   MockFailingClientSocket(const AddressList& addrlist) : addrlist_(addrlist) {}
 
   // StreamSocket implementation.
-  virtual int Connect(OldCompletionCallback* callback) {
-    return ERR_CONNECTION_FAILED;
-  }
-  virtual int Connect(const net::CompletionCallback& callback) {
+  virtual int Connect(const CompletionCallback& callback) {
     return ERR_CONNECTION_FAILED;
   }
 
@@ -157,16 +146,12 @@ class MockFailingClientSocket : public StreamSocket {
 
   // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,
-                   OldCompletionCallback* callback) {
-    return ERR_FAILED;
-  }
-  virtual int Read(IOBuffer* buf, int buf_len,
                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
 
   virtual int Write(IOBuffer* buf, int buf_len,
-                    OldCompletionCallback* callback) {
+                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
@@ -196,14 +181,6 @@ class MockPendingClientSocket : public StreamSocket {
         addrlist_(addrlist) {}
 
   // StreamSocket implementation.
-  virtual int Connect(OldCompletionCallback* callback) {
-    MessageLoop::current()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&MockPendingClientSocket::DoOldCallback,
-                   weak_factory_.GetWeakPtr(), callback),
-        delay_ms_);
-    return ERR_IO_PENDING;
-  }
   virtual int Connect(const CompletionCallback& callback) {
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
@@ -248,34 +225,18 @@ class MockPendingClientSocket : public StreamSocket {
 
   // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,
-                   OldCompletionCallback* callback) {
-    return ERR_FAILED;
-  }
-  virtual int Read(IOBuffer* buf, int buf_len,
                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
 
   virtual int Write(IOBuffer* buf, int buf_len,
-                    OldCompletionCallback* callback) {
+                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
   virtual bool SetSendBufferSize(int32 size) { return true; }
 
  private:
-  void DoOldCallback(OldCompletionCallback* callback) {
-    if (should_stall_)
-      return;
-
-    if (should_connect_) {
-      is_connected_ = true;
-      callback->Run(OK);
-    } else {
-      is_connected_ = false;
-      callback->Run(ERR_CONNECTION_FAILED);
-    }
-  }
   void DoCallback(const CompletionCallback& callback) {
     if (should_stall_)
       return;
