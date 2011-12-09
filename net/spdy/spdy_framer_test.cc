@@ -1593,7 +1593,7 @@ TEST_F(SpdyFramerTest, ExpandBuffer_HeapSmash) {
     TestSpdyVisitor visitor;
     visitor.SimulateInFramer(
         reinterpret_cast<unsigned char*>(template_frame.get()->data()),
-         template_frame.get()->length() + SpdyControlFrame::size());
+         template_frame.get()->length() + SpdyControlFrame::kHeaderSize);
     EXPECT_EQ(1, visitor.syn_frame_count_);
   }
 }
