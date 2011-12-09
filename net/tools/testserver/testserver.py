@@ -934,11 +934,14 @@ class TestPageHandler(BasePageHandler):
 
       range = self.headers.get('Range')
       if range and range.startswith('bytes='):
-        # Note this doesn't handle all valid byte range values (i.e. open ended
-        # ones), just enough for what we needed so far.
+        # Note this doesn't handle all valid byte range values (i.e. left
+        # open ended ones), just enough for what we needed so far.
         range = range[6:].split('-')
         start = int(range[0])
-        end = int(range[1])
+        if range[1]:
+          end = int(range[1])
+        else:
+          end = len(data)
 
         self.send_response(206)
         content_range = 'bytes ' + str(start) + '-' + str(end) + '/' + \
