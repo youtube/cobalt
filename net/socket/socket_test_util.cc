@@ -832,26 +832,6 @@ int MockTCPClientSocket::Write(net::IOBuffer* buf, int buf_len,
 
   return write_result.result;
 }
-int MockTCPClientSocket::Write(net::IOBuffer* buf, int buf_len,
-                               const net::CompletionCallback& callback) {
-  DCHECK(buf);
-  DCHECK_GT(buf_len, 0);
-
-  if (!connected_)
-    return net::ERR_UNEXPECTED;
-
-  std::string data(buf->data(), buf_len);
-  net::MockWriteResult write_result = data_->OnWrite(data);
-
-  was_used_to_convey_data_ = true;
-
-  if (write_result.async) {
-    RunCallbackAsync(callback, write_result.result);
-    return net::ERR_IO_PENDING;
-  }
-
-  return write_result.result;
-}
 
 int MockTCPClientSocket::Connect(net::OldCompletionCallback* callback) {
   if (connected_)
@@ -992,7 +972,7 @@ DeterministicMockTCPClientSocket::DeterministicMockTCPClientSocket(
     net::NetLog* net_log, net::DeterministicSocketData* data)
     : MockClientSocket(net_log),
       write_pending_(false),
-      old_write_callback_(NULL),
+      write_callback_(NULL),
       write_result_(0),
       read_data_(),
       read_buf_(NULL),
@@ -1007,10 +987,7 @@ DeterministicMockTCPClientSocket::~DeterministicMockTCPClientSocket() {}
 void DeterministicMockTCPClientSocket::CompleteWrite() {
   was_used_to_convey_data_ = true;
   write_pending_ = false;
-  if (old_write_callback_)
-    old_write_callback_->Run(write_result_);
-  else
-    write_callback_.Run(write_result_);
+  write_callback_->Run(write_result_);
 }
 
 int DeterministicMockTCPClientSocket::CompleteRead() {
@@ -1042,6 +1019,30 @@ int DeterministicMockTCPClientSocket::CompleteRead() {
   }
 
   return result;
+}
+
+int DeterministicMockTCPClientSocket::Write(
+    net::IOBuffer* buf, int buf_len, net::OldCompletionCallback* callback) {
+  DCHECK(buf);
+  DCHECK_GT(buf_len, 0);
+
+  if (!connected_)
+    return net::ERR_UNEXPECTED;
+
+  std::string data(buf->data(), buf_len);
+  net::MockWriteResult write_result = data_->OnWrite(data);
+
+  if (write_result.async) {
+    write_callback_ = callback;
+    write_result_ = write_result.result;
+    DCHECK(write_callback_ != NULL);
+    write_pending_ = true;
+    return net::ERR_IO_PENDING;
+  }
+
+  was_used_to_convey_data_ = true;
+  write_pending_ = false;
+  return write_result.result;
 }
 
 int DeterministicMockTCPClientSocket::Read(
@@ -1089,53 +1090,6 @@ int DeterministicMockTCPClientSocket::Read(
 
   was_used_to_convey_data_ = true;
   return CompleteRead();
-}
-
-int DeterministicMockTCPClientSocket::Write(
-    net::IOBuffer* buf, int buf_len, net::OldCompletionCallback* callback) {
-  DCHECK(buf);
-  DCHECK_GT(buf_len, 0);
-
-  if (!connected_)
-    return net::ERR_UNEXPECTED;
-
-  std::string data(buf->data(), buf_len);
-  net::MockWriteResult write_result = data_->OnWrite(data);
-
-  if (write_result.async) {
-    old_write_callback_ = callback;
-    write_result_ = write_result.result;
-    DCHECK(old_write_callback_ != NULL);
-    write_pending_ = true;
-    return net::ERR_IO_PENDING;
-  }
-
-  was_used_to_convey_data_ = true;
-  write_pending_ = false;
-  return write_result.result;
-}
-int DeterministicMockTCPClientSocket::Write(
-    net::IOBuffer* buf, int buf_len, const net::CompletionCallback& callback) {
-  DCHECK(buf);
-  DCHECK_GT(buf_len, 0);
-
-  if (!connected_)
-    return net::ERR_UNEXPECTED;
-
-  std::string data(buf->data(), buf_len);
-  net::MockWriteResult write_result = data_->OnWrite(data);
-
-  if (write_result.async) {
-    write_callback_ = callback;
-    write_result_ = write_result.result;
-    DCHECK(!write_callback_.is_null());
-    write_pending_ = true;
-    return net::ERR_IO_PENDING;
-  }
-
-  was_used_to_convey_data_ = true;
-  write_pending_ = false;
-  return write_result.result;
 }
 
 // TODO(erikchen): Support connect sequencing.
@@ -1279,10 +1233,6 @@ int MockSSLClientSocket::Read(net::IOBuffer* buf, int buf_len,
 
 int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
                                net::OldCompletionCallback* callback) {
-  return transport_->socket()->Write(buf, buf_len, callback);
-}
-int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
-                               const net::CompletionCallback& callback) {
   return transport_->socket()->Write(buf, buf_len, callback);
 }
 
@@ -1457,23 +1407,6 @@ int MockUDPClientSocket::Read(net::IOBuffer* buf, int buf_len,
 
 int MockUDPClientSocket::Write(net::IOBuffer* buf, int buf_len,
                                net::OldCompletionCallback* callback) {
-  DCHECK(buf);
-  DCHECK_GT(buf_len, 0);
-
-  if (!connected_)
-    return ERR_UNEXPECTED;
-
-  std::string data(buf->data(), buf_len);
-  MockWriteResult write_result = data_->OnWrite(data);
-
-  if (write_result.async) {
-    RunCallbackAsync(callback, write_result.result);
-    return ERR_IO_PENDING;
-  }
-  return write_result.result;
-}
-int MockUDPClientSocket::Write(net::IOBuffer* buf, int buf_len,
-                               const net::CompletionCallback& callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
 
