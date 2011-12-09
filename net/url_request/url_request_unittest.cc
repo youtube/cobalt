@@ -2443,7 +2443,7 @@ void CheckCookiePolicyCallback(bool* was_run, const CookieList& cookies) {
   EXPECT_EQ(1U, cookies.size());
   EXPECT_FALSE(cookies[0].IsPersistent());
   *was_run = true;
-  MessageLoop::current()->PostTask(FROM_HERE, new MessageLoop::QuitTask());
+  MessageLoop::current()->PostTask(FROM_HERE, MessageLoop::QuitClosure());
 }
 
 TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
