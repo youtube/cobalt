@@ -318,7 +318,7 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       waiting_read_(false),
       waiting_write_(false),
       old_read_callback_(NULL),
-      old_write_callback_(NULL),
+      write_callback_(NULL),
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)),
@@ -792,58 +792,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   DCHECK(CalledOnValidThread());
   DCHECK_NE(socket_, INVALID_SOCKET);
   DCHECK(!waiting_write_);
-  DCHECK(!old_write_callback_ && write_callback_.is_null());
-  DCHECK_GT(buf_len, 0);
-  DCHECK(!core_->write_iobuffer_);
-
-  base::StatsCounter writes("tcp.writes");
-  writes.Increment();
-
-  core_->write_buffer_.len = buf_len;
-  core_->write_buffer_.buf = buf->data();
-  core_->write_buffer_length_ = buf_len;
-
-  // TODO(wtc): Remove the assertion after enough testing.
-  AssertEventNotSignaled(core_->write_overlapped_.hEvent);
-  DWORD num;
-  int rv = WSASend(socket_, &core_->write_buffer_, 1, &num, 0,
-                   &core_->write_overlapped_, NULL);
-  if (rv == 0) {
-    if (ResetEventIfSignaled(core_->write_overlapped_.hEvent)) {
-      rv = static_cast<int>(num);
-      if (rv > buf_len || rv < 0) {
-        // It seems that some winsock interceptors report that more was written
-        // than was available. Treat this as an error.  http://crbug.com/27870
-        LOG(ERROR) << "Detected broken LSP: Asked to write " << buf_len
-                   << " bytes, but " << rv << " bytes reported.";
-        return ERR_WINSOCK_UNEXPECTED_WRITTEN_BYTES;
-      }
-      base::StatsCounter write_bytes("tcp.write_bytes");
-      write_bytes.Add(rv);
-      if (rv > 0)
-        use_history_.set_was_used_to_convey_data();
-      net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_SENT, rv,
-                                    core_->write_buffer_.buf);
-      return rv;
-    }
-  } else {
-    int os_error = WSAGetLastError();
-    if (os_error != WSA_IO_PENDING)
-      return MapSystemError(os_error);
-  }
-  core_->WatchForWrite();
-  waiting_write_ = true;
-  old_write_callback_ = callback;
-  core_->write_iobuffer_ = buf;
-  return ERR_IO_PENDING;
-}
-int TCPClientSocketWin::Write(IOBuffer* buf,
-                              int buf_len,
-                              const CompletionCallback& callback) {
-  DCHECK(CalledOnValidThread());
-  DCHECK_NE(socket_, INVALID_SOCKET);
-  DCHECK(!waiting_write_);
-  DCHECK(!old_write_callback_ && write_callback_.is_null());
+  DCHECK(!write_callback_);
   DCHECK_GT(buf_len, 0);
   DCHECK(!core_->write_iobuffer_);
 
@@ -948,19 +897,12 @@ void TCPClientSocketWin::DoReadCallback(int rv) {
 
 void TCPClientSocketWin::DoWriteCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(old_write_callback_ || !write_callback_.is_null());
+  DCHECK(write_callback_);
 
-  // Since Run may result in Write being called, clear old_write_callback_ up
-  // front.
-  if (old_write_callback_) {
-    OldCompletionCallback* c = old_write_callback_;
-    old_write_callback_ = NULL;
-    c->Run(rv);
-  } else {
-    CompletionCallback c = write_callback_;
-    write_callback_.Reset();
-    c.Run(rv);
-  }
+  // since Run may result in Write being called, clear write_callback_ up front.
+  OldCompletionCallback* c = write_callback_;
+  write_callback_ = NULL;
+  c->Run(rv);
 }
 
 void TCPClientSocketWin::DidCompleteConnect() {

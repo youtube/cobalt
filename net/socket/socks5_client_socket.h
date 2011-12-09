@@ -74,9 +74,6 @@ class NET_EXPORT_PRIVATE SOCKS5ClientSocket : public StreamSocket {
   virtual int Write(IOBuffer* buf,
                     int buf_len,
                     OldCompletionCallback* callback) OVERRIDE;
-  virtual int Write(IOBuffer* buf,
-                    int buf_len,
-                    const CompletionCallback& callback) OVERRIDE;
 
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;

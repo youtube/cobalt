@@ -78,11 +78,6 @@ class MockClientSocket : public StreamSocket {
     was_used_to_convey_data_ = true;
     return len;
   }
-  virtual int Write(
-      IOBuffer* /* buf */, int len, const CompletionCallback& /* callback */) {
-    was_used_to_convey_data_ = true;
-    return len;
-  }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
   virtual bool SetSendBufferSize(int32 size) { return true; }
 
