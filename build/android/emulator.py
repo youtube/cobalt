@@ -114,6 +114,7 @@ class Emulator(object):
     If fails, an exception will be raised.
     """
     _KillAllEmulators()  # just to be sure
+    self._AggressiveImageCleanup()
     (self.device, port) = self._DeviceName()
     emulator_command = [
         self.emulator,
@@ -134,6 +135,22 @@ class Emulator(object):
                                   stderr=subprocess.STDOUT)
     self._InstallKillHandler()
     self._ConfirmLaunch()
+
+  def _AggressiveImageCleanup(self):
+    """Aggressive cleanup of emulator images.
+
+    Experimentally it looks like our current emulator use on the bot
+    leaves image files around in /tmp/android-$USER.  If a "random"
+    name gets reused, we choke with a 'File exists' error.
+    TODO(jrg): is there a less hacky way to accomplish the same goal?
+    """
+    logging.info('Aggressive Image Cleanup')
+    emulator_imagedir = '/tmp/android-%s' % os.environ['USER']
+    for image in os.listdir(emulator_imagedir):
+      full_name = os.path.join(emulator_imagedir, image)
+      if 'emulator' in full_name:
+        logging.info('Deleting emulator image %s', full_name)
+        os.unlink(full_name)
 
   def _ConfirmLaunch(self, wait_for_boot=False):
     """Confirm the emulator launched properly.
