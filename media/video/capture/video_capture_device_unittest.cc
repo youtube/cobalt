@@ -65,7 +65,7 @@ class VideoCaptureDeviceTest : public testing::Test {
   VideoCaptureDeviceTest(): wait_event_(false, false) { }
 
   void PostQuitTask() {
-    loop_->PostTask(FROM_HERE, new MessageLoop::QuitTask);
+    loop_->PostTask(FROM_HERE, MessageLoop::QuitClosure());
     loop_->Run();
   }
 
