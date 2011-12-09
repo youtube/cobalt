@@ -24,15 +24,6 @@
     {
       'target_name': 'sqlite',
       'conditions': [
-        [ 'OS=="cell_lv2"' , {
-            'include_dirs': [
-              '../..'
-            ],
-            'defines': [
-              'SQLITE_OS_OTHER=1'
-            ]
-          }
-        ],
         [ 'chromeos==1' , {
             'defines': [
                 # Despite obvious warnings about not using this flag
@@ -126,6 +117,22 @@
                 '-Wno-int-to-pointer-cast',
                 '-Wno-pointer-to-int-cast',
               ],
+            }],
+            ['OS=="cell_lv2"', {
+              'include_dirs': [
+                '../..'
+              ],
+              'defines': [
+                'SQLITE_OS_OTHER=1',
+                'SQLITE_OMIT_WAL=1'
+              ],
+              'cflags': [
+                '-Wno-int-to-pointer-cast',
+                '-Wno-pointer-to-int-cast',
+              ],
+              'sources': [
+                 'src/src/os_ps3.c'
+              ]
             }],
           ],
         }],
