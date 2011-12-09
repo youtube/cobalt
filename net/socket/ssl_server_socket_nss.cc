@@ -66,7 +66,7 @@ SSLServerSocketNSS::SSLServerSocketNSS(
       transport_recv_busy_(false),
       user_handshake_callback_(NULL),
       old_user_read_callback_(NULL),
-      old_user_write_callback_(NULL),
+      user_write_callback_(NULL),
       nss_fd_(NULL),
       nss_bufs_(NULL),
       transport_socket_(transport_socket),
@@ -199,26 +199,7 @@ int SSLServerSocketNSS::Read(IOBuffer* buf, int buf_len,
 
 int SSLServerSocketNSS::Write(IOBuffer* buf, int buf_len,
                               OldCompletionCallback* callback) {
-  DCHECK(!old_user_write_callback_ && user_write_callback_.is_null());
-  DCHECK(!user_write_buf_);
-  DCHECK(nss_bufs_);
-
-  user_write_buf_ = buf;
-  user_write_buf_len_ = buf_len;
-
-  int rv = DoWriteLoop(OK);
-
-  if (rv == ERR_IO_PENDING) {
-    old_user_write_callback_ = callback;
-  } else {
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-  }
-  return rv;
-}
-int SSLServerSocketNSS::Write(IOBuffer* buf, int buf_len,
-                              const CompletionCallback& callback) {
-  DCHECK(!old_user_write_callback_ && user_write_callback_.is_null());
+  DCHECK(!user_write_callback_);
   DCHECK(!user_write_buf_);
   DCHECK(nss_bufs_);
 
@@ -779,23 +760,15 @@ void SSLServerSocketNSS::DoReadCallback(int rv) {
 
 void SSLServerSocketNSS::DoWriteCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(old_user_write_callback_ || !user_write_callback_.is_null());
+  DCHECK(user_write_callback_);
 
   // Since Run may result in Write being called, clear |user_write_callback_|
   // up front.
-  if (old_user_write_callback_) {
-    OldCompletionCallback* c = old_user_write_callback_;
-    old_user_write_callback_ = NULL;
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-    c->Run(rv);
-  } else {
-    CompletionCallback c = user_write_callback_;
-    user_write_callback_.Reset();
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-    c.Run(rv);
-  }
+  OldCompletionCallback* c = user_write_callback_;
+  user_write_callback_ = NULL;
+  user_write_buf_ = NULL;
+  user_write_buf_len_ = 0;
+  c->Run(rv);
 }
 
 // static

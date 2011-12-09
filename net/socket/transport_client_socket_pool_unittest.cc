@@ -107,10 +107,6 @@ class MockClientSocket : public StreamSocket {
                     OldCompletionCallback* callback) {
     return ERR_FAILED;
   }
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) {
-    return ERR_FAILED;
-  }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
   virtual bool SetSendBufferSize(int32 size) { return true; }
 
@@ -171,10 +167,6 @@ class MockFailingClientSocket : public StreamSocket {
 
   virtual int Write(IOBuffer* buf, int buf_len,
                     OldCompletionCallback* callback) {
-    return ERR_FAILED;
-  }
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
@@ -266,10 +258,6 @@ class MockPendingClientSocket : public StreamSocket {
 
   virtual int Write(IOBuffer* buf, int buf_len,
                     OldCompletionCallback* callback) {
-    return ERR_FAILED;
-  }
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
