@@ -384,15 +384,8 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     const SSLClientSocketContext& context)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
-          this, &SSLClientSocketOpenSSL::BufferSendComplete)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(buffer_recv_callback_(
-          this, &SSLClientSocketOpenSSL::BufferRecvComplete)),
-      transport_send_busy_(false),
+    : transport_send_busy_(false),
       transport_recv_busy_(false),
-      old_user_connect_callback_(NULL),
-      old_user_read_callback_(NULL),
-      user_write_callback_(NULL),
       completed_handshake_(false),
       client_auth_cert_needed_(false),
       cert_verifier_(context.cert_verifier),
@@ -614,56 +607,24 @@ SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
 void SSLClientSocketOpenSSL::DoReadCallback(int rv) {
   // Since Run may result in Read being called, clear |user_read_callback_|
   // up front.
-  if (old_user_read_callback_) {
-    OldCompletionCallback* c = old_user_read_callback_;
-    old_user_read_callback_ = NULL;
-    user_read_buf_ = NULL;
-    user_read_buf_len_ = 0;
-    c->Run(rv);
-  } else {
-    CompletionCallback c = user_read_callback_;
-    user_read_callback_.Reset();
-    user_read_buf_ = NULL;
-    user_read_buf_len_ = 0;
-    c.Run(rv);
-  }
+  CompletionCallback c = user_read_callback_;
+  user_read_callback_.Reset();
+  user_read_buf_ = NULL;
+  user_read_buf_len_ = 0;
+  c.Run(rv);
 }
 
 void SSLClientSocketOpenSSL::DoWriteCallback(int rv) {
   // Since Run may result in Write being called, clear |user_write_callback_|
   // up front.
-  OldCompletionCallback* c = user_write_callback_;
-  user_write_callback_ = NULL;
+  CompletionCallback c = user_write_callback_;
+  user_write_callback_.Reset();
   user_write_buf_ = NULL;
   user_write_buf_len_ = 0;
-  c->Run(rv);
+  c.Run(rv);
 }
 
-// StreamSocket methods
-
-int SSLClientSocketOpenSSL::Connect(OldCompletionCallback* callback) {
-  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
-
-  // Set up new ssl object.
-  if (!Init()) {
-    int result = ERR_UNEXPECTED;
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, result);
-    return result;
-  }
-
-  // Set SSL to client mode. Handshake happens in the loop below.
-  SSL_set_connect_state(ssl_);
-
-  GotoState(STATE_HANDSHAKE);
-  int rv = DoHandshakeLoop(net::OK);
-  if (rv == ERR_IO_PENDING) {
-    old_user_connect_callback_ = callback;
-  } else {
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
-  }
-
-  return rv > OK ? OK : rv;
-}
+// StreamSocket implementation.
 int SSLClientSocketOpenSSL::Connect(const CompletionCallback& callback) {
   net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
 
@@ -708,11 +669,9 @@ void SSLClientSocketOpenSSL::Disconnect() {
   transport_recv_busy_ = false;
   recv_buffer_ = NULL;
 
-  old_user_connect_callback_ = NULL;
   user_connect_callback_.Reset();
-  old_user_read_callback_    = NULL;
   user_read_callback_.Reset();
-  user_write_callback_   = NULL;
+  user_write_callback_.Reset();
   user_read_buf_         = NULL;
   user_read_buf_len_     = 0;
   user_write_buf_        = NULL;
@@ -971,9 +930,11 @@ int SSLClientSocketOpenSSL::BufferSend(void) {
 
   int rv = 0;
   while (send_buffer_) {
-    rv = transport_->socket()->Write(send_buffer_,
-                                     send_buffer_->BytesRemaining(),
-                                     &buffer_send_callback_);
+    rv = transport_->socket()->Write(
+        send_buffer_,
+        send_buffer_->BytesRemaining(),
+        base::Bind(&SSLClientSocketOpenSSL::BufferSendComplete,
+                   base::Unretained(this)));
     if (rv == ERR_IO_PENDING) {
       transport_send_busy_ = true;
       return rv;
@@ -1017,8 +978,10 @@ int SSLClientSocketOpenSSL::BufferRecv(void) {
     return ERR_IO_PENDING;
 
   recv_buffer_ = new IOBuffer(max_write);
-  int rv = transport_->socket()->Read(recv_buffer_, max_write,
-                                      &buffer_recv_callback_);
+  int rv = transport_->socket()->Read(
+      recv_buffer_, max_write,
+      base::Bind(&SSLClientSocketOpenSSL::BufferRecvComplete,
+                 base::Unretained(this)));
   if (rv == ERR_IO_PENDING) {
     transport_recv_busy_ = true;
   } else {
@@ -1052,11 +1015,7 @@ void SSLClientSocketOpenSSL::TransportReadComplete(int result) {
 }
 
 void SSLClientSocketOpenSSL::DoConnectCallback(int rv) {
-  if (old_user_connect_callback_) {
-    OldCompletionCallback* c = old_user_connect_callback_;
-    old_user_connect_callback_ = NULL;
-    c->Run(rv > OK ? OK : rv);
-  } else {
+  if (!user_connect_callback_.is_null()) {
     CompletionCallback c = user_connect_callback_;
     user_connect_callback_.Reset();
     c.Run(rv > OK ? OK : rv);
@@ -1190,23 +1149,6 @@ base::TimeDelta SSLClientSocketOpenSSL::GetConnectTimeMicros() const {
 
 int SSLClientSocketOpenSSL::Read(IOBuffer* buf,
                                  int buf_len,
-                                 OldCompletionCallback* callback) {
-  user_read_buf_ = buf;
-  user_read_buf_len_ = buf_len;
-
-  int rv = DoReadLoop(OK);
-
-  if (rv == ERR_IO_PENDING) {
-    old_user_read_callback_ = callback;
-  } else {
-    user_read_buf_ = NULL;
-    user_read_buf_len_ = 0;
-  }
-
-  return rv;
-}
-int SSLClientSocketOpenSSL::Read(IOBuffer* buf,
-                                 int buf_len,
                                  const CompletionCallback& callback) {
   user_read_buf_ = buf;
   user_read_buf_len_ = buf_len;
@@ -1239,7 +1181,7 @@ int SSLClientSocketOpenSSL::DoReadLoop(int result) {
 
 int SSLClientSocketOpenSSL::Write(IOBuffer* buf,
                                   int buf_len,
-                                  OldCompletionCallback* callback) {
+                                  const CompletionCallback& callback) {
   user_write_buf_ = buf;
   user_write_buf_len_ = buf_len;
 

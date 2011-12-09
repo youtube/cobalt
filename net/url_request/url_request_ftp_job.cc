@@ -21,13 +21,9 @@ namespace net {
 
 URLRequestFtpJob::URLRequestFtpJob(URLRequest* request)
     : URLRequestJob(request),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          start_callback_(this, &URLRequestFtpJob::OnStartCompleted)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          read_callback_(this, &URLRequestFtpJob::OnReadCompleted)),
       read_in_progress_(false),
       context_(request->context()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 
 // static
@@ -78,7 +74,10 @@ void URLRequestFtpJob::StartTransaction() {
   int rv;
   if (transaction_.get()) {
     rv = transaction_->Start(
-        &request_info_, &start_callback_, request_->net_log());
+        &request_info_,
+        base::Bind(&URLRequestFtpJob::OnStartCompleted,
+                   base::Unretained(this)),
+        request_->net_log());
     if (rv == ERR_IO_PENDING)
       return;
   } else {
@@ -88,8 +87,8 @@ void URLRequestFtpJob::StartTransaction() {
   // URLRequest delegate via the message loop.
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestFtpJob::OnStartCompleted, rv));
+      base::Bind(&URLRequestFtpJob::OnStartCompleted,
+                 weak_factory_.GetWeakPtr(), rv));
 }
 
 void URLRequestFtpJob::OnStartCompleted(int result) {
@@ -148,15 +147,17 @@ void URLRequestFtpJob::RestartTransactionWithAuth() {
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  int rv = transaction_->RestartWithAuth(server_auth_->credentials,
-                                         &start_callback_);
+  int rv = transaction_->RestartWithAuth(
+      server_auth_->credentials,
+      base::Bind(&URLRequestFtpJob::OnStartCompleted,
+                 base::Unretained(this)));
   if (rv == ERR_IO_PENDING)
     return;
 
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestFtpJob::OnStartCompleted, rv));
+      base::Bind(&URLRequestFtpJob::OnStartCompleted,
+                 weak_factory_.GetWeakPtr(), rv));
 }
 
 void URLRequestFtpJob::Start() {
@@ -170,7 +171,7 @@ void URLRequestFtpJob::Kill() {
     return;
   transaction_.reset();
   URLRequestJob::Kill();
-  method_factory_.RevokeAll();
+  weak_factory_.InvalidateWeakPtrs();
 }
 
 LoadState URLRequestFtpJob::GetLoadState() const {
@@ -219,8 +220,8 @@ void URLRequestFtpJob::CancelAuth() {
   // any recursing into the caller as a result of this call.
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestFtpJob::OnStartCompleted, OK));
+      base::Bind(&URLRequestFtpJob::OnStartCompleted,
+                 weak_factory_.GetWeakPtr(), OK));
 }
 
 uint64 URLRequestFtpJob::GetUploadProgress() const {
@@ -234,7 +235,9 @@ bool URLRequestFtpJob::ReadRawData(IOBuffer* buf,
   DCHECK(bytes_read);
   DCHECK(!read_in_progress_);
 
-  int rv = transaction_->Read(buf, buf_size, &read_callback_);
+  int rv = transaction_->Read(buf, buf_size,
+                              base::Bind(&URLRequestFtpJob::OnReadCompleted,
+                                         base::Unretained(this)));
   if (rv >= 0) {
     *bytes_read = rv;
     return true;

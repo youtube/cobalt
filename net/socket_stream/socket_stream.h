@@ -338,8 +338,6 @@ class NET_EXPORT SocketStream
 
   const CompletionCallback io_callback_;
   OldCompletionCallbackImpl<SocketStream> io_callback_old_;
-  OldCompletionCallbackImpl<SocketStream> read_callback_old_;
-  OldCompletionCallbackImpl<SocketStream> write_callback_old_;
 
   scoped_refptr<IOBuffer> read_buf_;
   int read_buf_size_;

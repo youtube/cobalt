@@ -15,11 +15,8 @@
 #include "net/base/net_export.h"
 
 namespace base {
-class Value;
-}
-
-namespace base {
 class TimeTicks;
+class Value;
 }
 
 namespace net {

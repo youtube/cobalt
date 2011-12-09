@@ -30,8 +30,6 @@ class NET_EXPORT Socket {
   // closed.  If the socket is Disconnected before the read completes, the
   // callback will not be invoked.
   virtual int Read(IOBuffer* buf, int buf_len,
-                   OldCompletionCallback* callback) = 0;
-  virtual int Read(IOBuffer* buf, int buf_len,
                    const CompletionCallback& callback) = 0;
 
   // Writes data, up to |buf_len| bytes, to the socket.  Note: data may be
@@ -47,7 +45,7 @@ class NET_EXPORT Socket {
   // of the actual buffer that is written to the socket.  If the socket is
   // Disconnected before the write completes, the callback will not be invoked.
   virtual int Write(IOBuffer* buf, int buf_len,
-                    OldCompletionCallback* callback) = 0;
+                    const CompletionCallback& callback) = 0;
 
   // Set the receive buffer size (in bytes) for the socket.
   // Note: changing this value can affect the TCP window size on some platforms.

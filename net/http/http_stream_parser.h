@@ -189,7 +189,7 @@ class HttpStreamParser  : public ChunkCallback {
   BoundNetLog net_log_;
 
   // Callback to be used when doing IO.
-  OldCompletionCallbackImpl<HttpStreamParser> io_callback_;
+  CompletionCallback io_callback_;
 
   // Stores an encoded chunk for chunked uploads.
   // Note: This should perhaps be improved to not create copies of the data.

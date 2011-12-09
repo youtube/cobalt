@@ -155,7 +155,8 @@ class HttpProxyConnectJob : public ConnectJob {
   HostResolver* const resolver_;
 
   State next_state_;
-  OldCompletionCallbackImpl<HttpProxyConnectJob> callback_;
+  CompletionCallback callback_;
+  OldCompletionCallbackImpl<HttpProxyConnectJob> callback_old_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<ProxyClientSocket> transport_socket_;
   bool using_spdy_;

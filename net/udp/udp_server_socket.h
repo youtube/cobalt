@@ -27,11 +27,11 @@ class NET_EXPORT UDPServerSocket : public DatagramServerSocket {
   virtual int RecvFrom(IOBuffer* buf,
                        int buf_len,
                        IPEndPoint* address,
-                       OldCompletionCallback* callback) OVERRIDE;
+                       const CompletionCallback& callback) OVERRIDE;
   virtual int SendTo(IOBuffer* buf,
                      int buf_len,
                      const IPEndPoint& address,
-                     OldCompletionCallback* callback) OVERRIDE;
+                     const CompletionCallback& callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
   virtual void Close() OVERRIDE;

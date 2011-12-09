@@ -98,7 +98,7 @@ class SOCKSConnectJob : public ConnectJob {
   HostResolver* const resolver_;
 
   State next_state_;
-  OldCompletionCallbackImpl<SOCKSConnectJob> callback_;
+  OldCompletionCallbackImpl<SOCKSConnectJob> callback_old_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<StreamSocket> socket_;
 

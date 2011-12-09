@@ -130,8 +130,6 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(
       current_ai_(NULL),
       read_watcher_(this),
       write_watcher_(this),
-      old_read_callback_(NULL),
-      old_write_callback_(NULL),
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)),
@@ -202,38 +200,6 @@ int TCPClientSocketLibevent::Bind(const IPEndPoint& address) {
   return 0;
 }
 
-int TCPClientSocketLibevent::Connect(OldCompletionCallback* callback) {
-  DCHECK(CalledOnValidThread());
-
-  // If already connected, then just return OK.
-  if (socket_ != kInvalidSocket)
-    return OK;
-
-  base::StatsCounter connects("tcp.connect");
-  connects.Increment();
-
-  DCHECK(!waiting_connect());
-
-  net_log_.BeginEvent(
-      NetLog::TYPE_TCP_CONNECT,
-      make_scoped_refptr(new AddressListNetLogParam(addresses_)));
-
-  // We will try to connect to each address in addresses_. Start with the
-  // first one in the list.
-  next_connect_state_ = CONNECT_STATE_CONNECT;
-  current_ai_ = addresses_.head();
-
-  int rv = DoConnectLoop(OK);
-  if (rv == ERR_IO_PENDING) {
-    // Synchronous operation not supported.
-    DCHECK(callback);
-    old_write_callback_ = callback;
-  } else {
-    LogConnectCompletion(rv);
-  }
-
-  return rv;
-}
 int TCPClientSocketLibevent::Connect(const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
 
@@ -461,50 +427,11 @@ bool TCPClientSocketLibevent::IsConnectedAndIdle() const {
 
 int TCPClientSocketLibevent::Read(IOBuffer* buf,
                                   int buf_len,
-                                  OldCompletionCallback* callback) {
-  DCHECK(CalledOnValidThread());
-  DCHECK_NE(kInvalidSocket, socket_);
-  DCHECK(!waiting_connect());
-  DCHECK(!old_read_callback_ && read_callback_.is_null());
-  // Synchronous operation not supported
-  DCHECK(callback);
-  DCHECK_GT(buf_len, 0);
-
-  int nread = HANDLE_EINTR(read(socket_, buf->data(), buf_len));
-  if (nread >= 0) {
-    base::StatsCounter read_bytes("tcp.read_bytes");
-    read_bytes.Add(nread);
-    num_bytes_read_ += static_cast<int64>(nread);
-    if (nread > 0)
-      use_history_.set_was_used_to_convey_data();
-    net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED, nread,
-                                  buf->data());
-    return nread;
-  }
-  if (errno != EAGAIN && errno != EWOULDBLOCK) {
-    DVLOG(1) << "read failed, errno " << errno;
-    return MapSystemError(errno);
-  }
-
-  if (!MessageLoopForIO::current()->WatchFileDescriptor(
-          socket_, true, MessageLoopForIO::WATCH_READ,
-          &read_socket_watcher_, &read_watcher_)) {
-    DVLOG(1) << "WatchFileDescriptor failed on read, errno " << errno;
-    return MapSystemError(errno);
-  }
-
-  read_buf_ = buf;
-  read_buf_len_ = buf_len;
-  old_read_callback_ = callback;
-  return ERR_IO_PENDING;
-}
-int TCPClientSocketLibevent::Read(IOBuffer* buf,
-                                  int buf_len,
                                   const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
   DCHECK(!waiting_connect());
-  DCHECK(!old_read_callback_ && read_callback_.is_null());
+  DCHECK(read_callback_.is_null());
   // Synchronous operation not supported
   DCHECK(!callback.is_null());
   DCHECK_GT(buf_len, 0);
@@ -540,13 +467,13 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
 
 int TCPClientSocketLibevent::Write(IOBuffer* buf,
                                    int buf_len,
-                                   OldCompletionCallback* callback) {
+                                   const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
   DCHECK(!waiting_connect());
-  DCHECK(!old_write_callback_ && write_callback_.is_null());
+  DCHECK(write_callback_.is_null());
   // Synchronous operation not supported
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
   DCHECK_GT(buf_len, 0);
 
   int nwrite = InternalWrite(buf, buf_len);
@@ -571,7 +498,7 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
 
   write_buf_ = buf;
   write_buf_len_ = buf_len;
-  old_write_callback_ = callback;
+  write_callback_ = callback;
   return ERR_IO_PENDING;
 }
 
@@ -657,34 +584,22 @@ void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
 
 void TCPClientSocketLibevent::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(old_read_callback_ || !read_callback_.is_null());
+  DCHECK(!read_callback_.is_null());
 
   // since Run may result in Read being called, clear read_callback_ up front.
-  if (old_read_callback_) {
-    OldCompletionCallback* c = old_read_callback_;
-    old_read_callback_ = NULL;
-    c->Run(rv);
-  } else {
-    CompletionCallback c = read_callback_;
-    read_callback_.Reset();
-    c.Run(rv);
-  }
+  CompletionCallback c = read_callback_;
+  read_callback_.Reset();
+  c.Run(rv);
 }
 
 void TCPClientSocketLibevent::DoWriteCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(old_write_callback_ || !write_callback_.is_null());
+  DCHECK(!write_callback_.is_null());
 
   // since Run may result in Write being called, clear write_callback_ up front.
-  if (old_write_callback_) {
-    OldCompletionCallback* c = old_write_callback_;
-    old_write_callback_ = NULL;
-    c->Run(rv);
-  } else {
-    CompletionCallback c = write_callback_;
-    write_callback_.Reset();
-    c.Run(rv);
-  }
+  CompletionCallback c = write_callback_;
+  write_callback_.Reset();
+  c.Run(rv);
 }
 
 void TCPClientSocketLibevent::DidCompleteConnect() {
