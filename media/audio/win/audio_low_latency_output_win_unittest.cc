@@ -224,7 +224,7 @@ static AudioOutputStream* CreateDefaultAudioOutputStream() {
 }
 
 static void QuitMessageLoop(base::MessageLoopProxy* proxy) {
-  proxy->PostTask(FROM_HERE, new MessageLoop::QuitTask());
+  proxy->PostTask(FROM_HERE, MessageLoop::QuitClosure());
 }
 
 // Verify that we can retrieve the current hardware/mixing sample rate
@@ -396,7 +396,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInMilliseconds) {
               Return(bytes_per_packet)));
 
   aos->Start(&source);
-  loop.PostDelayedTask(FROM_HERE, new MessageLoop::QuitTask(),
+  loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
                        TestTimeouts::action_timeout_ms());
   loop.Run();
   aos->Stop();
@@ -437,7 +437,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
               Return(bytes_per_packet)));
 
   aos->Start(&source);
-  loop.PostDelayedTask(FROM_HERE, new MessageLoop::QuitTask(),
+  loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
                        TestTimeouts::action_timeout_ms());
   loop.Run();
   aos->Stop();
@@ -475,7 +475,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
               Return(bytes_per_packet)));
 
   aos->Start(&source);
-  loop.PostDelayedTask(FROM_HERE, new MessageLoop::QuitTask(),
+  loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
                        TestTimeouts::action_timeout_ms());
   loop.Run();
   aos->Stop();
