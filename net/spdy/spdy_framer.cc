@@ -423,12 +423,12 @@ void SpdyFramer::ProcessControlFrameHeader() {
     switch (current_control_frame.type()) {
       case SYN_STREAM:
         if (current_control_frame.length() <
-            SpdySynStreamControlFrame::size() - SpdyControlFrame::size())
+            SpdySynStreamControlFrame::size() - SpdyControlFrame::kHeaderSize)
           set_error(SPDY_INVALID_CONTROL_FRAME);
         break;
       case SYN_REPLY:
         if (current_control_frame.length() <
-            SpdySynReplyControlFrame::size() - SpdyControlFrame::size())
+            SpdySynReplyControlFrame::size() - SpdyControlFrame::kHeaderSize)
           set_error(SPDY_INVALID_CONTROL_FRAME);
         break;
       case RST_STREAM:
@@ -438,7 +438,7 @@ void SpdyFramer::ProcessControlFrameHeader() {
         break;
       case SETTINGS:
         if (current_control_frame.length() <
-            SpdySettingsControlFrame::size() - SpdyControlFrame::size())
+            SpdySettingsControlFrame::size() - SpdyControlFrame::kHeaderSize)
           set_error(SPDY_INVALID_CONTROL_FRAME);
         break;
       case GOAWAY:
@@ -448,17 +448,18 @@ void SpdyFramer::ProcessControlFrameHeader() {
         break;
       case HEADERS:
         if (current_control_frame.length() <
-            SpdyHeadersControlFrame::size() - SpdyControlFrame::size())
+            SpdyHeadersControlFrame::size() - SpdyControlFrame::kHeaderSize)
           set_error(SPDY_INVALID_CONTROL_FRAME);
         break;
       case WINDOW_UPDATE:
         if (current_control_frame.length() !=
-            SpdyWindowUpdateControlFrame::size() - SpdyControlFrame::size())
+            SpdyWindowUpdateControlFrame::size() -
+            SpdyControlFrame::kHeaderSize)
           set_error(SPDY_INVALID_CONTROL_FRAME);
         break;
       case PING:
         if (current_control_frame.length() !=
-            SpdyPingControlFrame::size() - SpdyControlFrame::size())
+            SpdyPingControlFrame::size() - SpdyControlFrame::kHeaderSize)
           set_error(SPDY_INVALID_CONTROL_FRAME);
         break;
       default:
