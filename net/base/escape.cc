@@ -28,20 +28,12 @@ inline char IntToHex(int i) {
 //
 // Internally stores 256 bits in an array of 8 ints.
 // Does quick bit-flicking to lookup needed characters.
-class Charmap {
- public:
-  Charmap(uint32 b0, uint32 b1, uint32 b2, uint32 b3,
-          uint32 b4, uint32 b5, uint32 b6, uint32 b7) {
-    map_[0] = b0; map_[1] = b1; map_[2] = b2; map_[3] = b3;
-    map_[4] = b4; map_[5] = b5; map_[6] = b6; map_[7] = b7;
-  }
-
+struct Charmap {
   bool Contains(unsigned char c) const {
-    return (map_[c >> 5] & (1 << (c & 31))) ? true : false;
+    return (map[c >> 5] & (1 << (c & 31))) ? true : false;
   }
 
- private:
-  uint32 map_[8];
+  uint32 map[8];
 };
 
 // Given text to escape and a Charmap defining which values to escape,
@@ -223,31 +215,35 @@ str EscapeForHTMLImpl(const str& input) {
 
 // Everything except alphanumerics and !'()*-._~
 // See RFC 2396 for the list of reserved characters.
-static const Charmap kQueryCharmap(
+static const Charmap kQueryCharmap = {{
   0xffffffffL, 0xfc00987dL, 0x78000001L, 0xb8000001L,
-  0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL);
+  0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL
+}};
 
 // non-printable, non-7bit, and (including space)  "#%:<>?[\]^`{|}
-static const Charmap kPathCharmap(
+static const Charmap kPathCharmap = {{
   0xffffffffL, 0xd400002dL, 0x78000000L, 0xb8000001L,
-  0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL);
+  0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL
+}};
 
 // non-printable, non-7bit, and (including space) ?>=<;+'&%$#"![\]^`{|}
-static const Charmap kUrlEscape(
+static const Charmap kUrlEscape = {{
   0xffffffffL, 0xf80008fdL, 0x78000001L, 0xb8000001L,
   0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL
-);
+}};
 
 // non-7bit
-static const Charmap kNonASCIICharmap(
+static const Charmap kNonASCIICharmap = {{
   0x00000000L, 0x00000000L, 0x00000000L, 0x00000000L,
-  0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL);
+  0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL
+}};
 
 // Everything except alphanumerics, the reserved characters(;/?:@&=+$,) and
 // !'()*-._~%
-static const Charmap kExternalHandlerCharmap(
+static const Charmap kExternalHandlerCharmap = {{
   0xffffffffL, 0x5000080dL, 0x68000000L, 0xb8000001L,
-  0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL);
+  0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL
+}};
 
 }  // namespace
 
