@@ -50,7 +50,7 @@ namespace {
 TEST(SpdyProtocolTest, ProtocolConstants) {
   EXPECT_EQ(8u, SpdyFrame::kHeaderSize);
   EXPECT_EQ(8u, SpdyDataFrame::size());
-  EXPECT_EQ(8u, SpdyControlFrame::size());
+  EXPECT_EQ(8u, SpdyControlFrame::kHeaderSize);
   EXPECT_EQ(18u, SpdySynStreamControlFrame::size());
   EXPECT_EQ(14u, SpdySynReplyControlFrame::size());
   EXPECT_EQ(16u, SpdyRstStreamControlFrame::size());
@@ -265,7 +265,7 @@ TEST(SpdyProtocolTest, TestSpdySettingsFrame) {
 }
 
 TEST(SpdyProtocolTest, HasHeaderBlock) {
-  SpdyControlFrame frame(SpdyControlFrame::size());
+  SpdyControlFrame frame(SpdyControlFrame::kHeaderSize);
   for (SpdyControlType type = SYN_STREAM;
       type < NUM_CONTROL_FRAME_TYPES;
       type = static_cast<SpdyControlType>(type + 1)) {
@@ -308,7 +308,7 @@ TEST(SpdyProtocolDeathTest, TestDataFrame) {
 
 TEST(SpdyProtocolDeathTest, TestSpdyControlFrameStreamId) {
   SpdyControlFrame frame_store(SpdySynStreamControlFrame::size());
-  memset(frame_store.data(), '1', SpdyControlFrame::size());
+  memset(frame_store.data(), '1', SpdyControlFrame::kHeaderSize);
   SpdySynStreamControlFrame* frame =
       reinterpret_cast<SpdySynStreamControlFrame*>(&frame_store);
 
@@ -324,7 +324,7 @@ TEST(SpdyProtocolDeathTest, TestSpdyControlFrameStreamId) {
 TEST(SpdyProtocolDeathTest, TestSpdyControlFrameVersion) {
   const unsigned int kVersionMask = 0x7fff;
   SpdyControlFrame frame(SpdySynStreamControlFrame::size());
-  memset(frame.data(), '1', SpdyControlFrame::size());
+  memset(frame.data(), '1', SpdyControlFrame::kHeaderSize);
 
   // Set the version to various values, and make sure it does not affect the
   // type.
@@ -343,8 +343,8 @@ TEST(SpdyProtocolDeathTest, TestSpdyControlFrameVersion) {
 }
 
 TEST(SpdyProtocolDeathTest, TestSpdyControlFrameType) {
-  SpdyControlFrame frame(SpdyControlFrame::size());
-  memset(frame.data(), 255, SpdyControlFrame::size());
+  SpdyControlFrame frame(SpdyControlFrame::kHeaderSize);
+  memset(frame.data(), 255, SpdyControlFrame::kHeaderSize);
 
   // type() should be out of bounds.
   EXPECT_FALSE(frame.AppearsToBeAValidControlFrame());

@@ -470,10 +470,6 @@ class SpdyControlFrame : public SpdyFrame {
     return type() == SYN_STREAM || type() == SYN_REPLY || type() == HEADERS;
   }
 
-  // Returns the size of the SpdyFrameBlock structure.
-  // Note: this is not the size of the SpdyControlFrame class.
-  static size_t size() { return sizeof(SpdyFrameBlock); }
-
   // The size of the 'Number of Name/Value pairs' field in a Name/Value block.
   static const size_t kNumNameValuePairsSize = 2;
 
