@@ -81,7 +81,9 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
       connection_(connection),
       net_log_(net_log),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &HttpStreamParser::OnIOComplete)),
+          io_callback_(
+              base::Bind(&HttpStreamParser::OnIOComplete,
+                         base::Unretained(this)))),
       chunk_length_(0),
       chunk_length_without_encoding_(0),
       sent_last_chunk_(false) {
@@ -314,7 +316,7 @@ int HttpStreamParser::DoSendHeaders(int result) {
     }
     result = connection_->socket()->Write(request_headers_,
                                           bytes_remaining,
-                                          &io_callback_);
+                                          io_callback_);
   } else if (request_body_ != NULL &&
              (request_body_->is_chunked() || request_body_->size())) {
     io_state_ = STATE_SENDING_BODY;
@@ -331,7 +333,7 @@ int HttpStreamParser::DoSendBody(int result) {
     if (chunk_length_) {
       memmove(chunk_buf_->data(), chunk_buf_->data() + result, chunk_length_);
       return connection_->socket()->Write(chunk_buf_, chunk_length_,
-                                          &io_callback_);
+                                          io_callback_);
     }
 
     if (sent_last_chunk_) {
@@ -366,7 +368,7 @@ int HttpStreamParser::DoSendBody(int result) {
       return ERR_IO_PENDING;
 
     return connection_->socket()->Write(chunk_buf_, chunk_length_,
-                                        &io_callback_);
+                                        io_callback_);
   }
 
   // Non-chunked request body.
@@ -375,7 +377,7 @@ int HttpStreamParser::DoSendBody(int result) {
   if (!request_body_->eof()) {
     int buf_len = static_cast<int>(request_body_->buf_len());
     result = connection_->socket()->Write(request_body_->buf(), buf_len,
-                                          &io_callback_);
+                                          io_callback_);
   } else {
     io_state_ = STATE_REQUEST_SENT;
   }
@@ -395,7 +397,7 @@ int HttpStreamParser::DoReadHeaders() {
 
   return connection_->socket()->Read(read_buf_,
                                      read_buf_->RemainingCapacity(),
-                                     &io_callback_);
+                                     io_callback_);
 }
 
 int HttpStreamParser::DoReadHeadersComplete(int result) {
@@ -526,7 +528,7 @@ int HttpStreamParser::DoReadBody() {
 
   DCHECK_EQ(0, read_buf_->offset());
   return connection_->socket()->Read(user_read_buf_, user_read_buf_len_,
-                                     &io_callback_);
+                                     io_callback_);
 }
 
 int HttpStreamParser::DoReadBodyComplete(int result) {

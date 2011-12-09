@@ -84,7 +84,10 @@ HttpProxyConnectJob::HttpProxyConnectJob(
       ssl_pool_(ssl_pool),
       resolver_(host_resolver),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &HttpProxyConnectJob::OnIOComplete)),
+          callback_(base::Bind(&HttpProxyConnectJob::OnIOComplete,
+                               base::Unretained(this)))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          callback_old_(this, &HttpProxyConnectJob::OnIOComplete)),
       using_spdy_(false) {
 }
 
@@ -174,7 +177,7 @@ int HttpProxyConnectJob::DoTransportConnect() {
       group_name(),
       params_->transport_params(),
       params_->transport_params()->destination().priority(),
-      &callback_,
+      &callback_old_,
       transport_pool_,
       net_log());
 }
@@ -208,7 +211,7 @@ int HttpProxyConnectJob::DoSSLConnect() {
   return transport_socket_handle_->Init(
       group_name(), params_->ssl_params(),
       params_->ssl_params()->transport_params()->destination().priority(),
-      &callback_, ssl_pool_, net_log());
+      &callback_old_, ssl_pool_, net_log());
 }
 
 int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
@@ -271,7 +274,7 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
                                 params_->tunnel(),
                                 using_spdy_,
                                 params_->ssl_params() != NULL));
-  return transport_socket_->Connect(&callback_);
+  return transport_socket_->Connect(callback_);
 }
 
 int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
@@ -312,7 +315,7 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
   return spdy_session->CreateStream(params_->request_url(),
                                     params_->destination().priority(),
                                     &spdy_stream_, spdy_session->net_log(),
-                                    &callback_);
+                                    &callback_old_);
 }
 
 int HttpProxyConnectJob::DoSpdyProxyCreateStreamComplete(int result) {
@@ -328,7 +331,7 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStreamComplete(int result) {
                                 params_->destination().host_port_pair(),
                                 params_->http_auth_cache(),
                                 params_->http_auth_handler_factory()));
-  return transport_socket_->Connect(&callback_);
+  return transport_socket_->Connect(callback_);
 }
 
 int HttpProxyConnectJob::ConnectInternal() {

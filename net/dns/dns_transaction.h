@@ -93,7 +93,6 @@ class NET_EXPORT_PRIVATE DnsTransaction :
 
   State next_state_;
   base::OneShotTimer<DnsTransaction> timer_;
-  OldCompletionCallbackImpl<DnsTransaction> io_callback_;
 
   BoundNetLog net_log_;
 

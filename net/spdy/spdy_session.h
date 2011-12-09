@@ -16,7 +16,6 @@
 #include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/task.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
@@ -262,7 +261,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
   struct CallbackResultPair {
-    CallbackResultPair() : callback(NULL), result(OK) {}
+    CallbackResultPair() : result(OK) {}
     CallbackResultPair(OldCompletionCallback* callback_in, int result_in)
         : callback(callback_in), result(result_in) {}
 
@@ -431,15 +430,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   bool check_ping_status_pending() const { return check_ping_status_pending_; }
 
-  // Callbacks for the Spdy session.
-  OldCompletionCallbackImpl<SpdySession> read_callback_;
-  OldCompletionCallbackImpl<SpdySession> write_callback_;
-
   // Used for posting asynchronous IO tasks.  We use this even though
   // SpdySession is refcounted because we don't need to keep the SpdySession
   // alive if the last reference is within a RunnableMethod.  Just revoke the
   // method.
-  ScopedRunnableMethodFactory<SpdySession> method_factory_;
+  base::WeakPtrFactory<SpdySession> weak_factory_;
 
   // Map of the SpdyStreams for which we have a pending Task to invoke a
   // callback.  This is necessary since, before we invoke said callback, it's

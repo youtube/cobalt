@@ -71,7 +71,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
                                        std::string* server_protos) OVERRIDE;
 
   // StreamSocket implementation.
-  virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;
   virtual void Disconnect() OVERRIDE;
   virtual bool IsConnected() const OVERRIDE;
@@ -89,13 +88,10 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // Socket implementation.
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   OldCompletionCallback* callback) OVERRIDE;
-  virtual int Read(IOBuffer* buf,
-                   int buf_len,
                    const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
-                    OldCompletionCallback* callback) OVERRIDE;
+                    const CompletionCallback& callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
@@ -212,8 +208,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   void EnsureThreadIdAssigned() const;
   bool CalledOnValidThread() const;
 
-  OldCompletionCallbackImpl<SSLClientSocketNSS> buffer_send_callback_;
-  OldCompletionCallbackImpl<SSLClientSocketNSS> buffer_recv_callback_;
   bool transport_send_busy_;
   bool transport_recv_busy_;
   // corked_ is true if we are currently suspending writes to the network. This
@@ -224,16 +218,13 @@ class SSLClientSocketNSS : public SSLClientSocket {
   base::OneShotTimer<SSLClientSocketNSS> uncork_timer_;
   scoped_refptr<IOBuffer> recv_buffer_;
 
-  CompletionCallback handshake_io_callback_;
   scoped_ptr<ClientSocketHandle> transport_;
   HostPortPair host_and_port_;
   SSLConfig ssl_config_;
 
-  OldCompletionCallback* old_user_connect_callback_;
   CompletionCallback user_connect_callback_;
-  OldCompletionCallback* old_user_read_callback_;
   CompletionCallback user_read_callback_;
-  OldCompletionCallback* user_write_callback_;
+  CompletionCallback user_write_callback_;
 
   // Used by Read function.
   scoped_refptr<IOBuffer> user_read_buf_;

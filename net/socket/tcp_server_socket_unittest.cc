@@ -77,10 +77,10 @@ class TCPServerSocketTest : public PlatformTest {
 TEST_F(TCPServerSocketTest, Accept) {
   ASSERT_NO_FATAL_FAILURE(SetUpIPv4());
 
-  TestOldCompletionCallback connect_callback;
+  TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(),
                                     NULL, NetLog::Source());
-  connecting_socket.Connect(&connect_callback);
+  connecting_socket.Connect(connect_callback.callback());
 
   TestCompletionCallback accept_callback;
   scoped_ptr<StreamSocket> accepted_socket;
@@ -108,10 +108,10 @@ TEST_F(TCPServerSocketTest, AcceptAsync) {
   ASSERT_EQ(ERR_IO_PENDING,
             socket_.Accept(&accepted_socket, accept_callback.callback()));
 
-  TestOldCompletionCallback connect_callback;
+  TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(),
                                     NULL, NetLog::Source());
-  connecting_socket.Connect(&connect_callback);
+  connecting_socket.Connect(connect_callback.callback());
 
   EXPECT_EQ(OK, connect_callback.WaitForResult());
   EXPECT_EQ(OK, accept_callback.WaitForResult());
@@ -133,15 +133,15 @@ TEST_F(TCPServerSocketTest, Accept2Connections) {
   ASSERT_EQ(ERR_IO_PENDING,
             socket_.Accept(&accepted_socket, accept_callback.callback()));
 
-  TestOldCompletionCallback connect_callback;
+  TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(),
                                     NULL, NetLog::Source());
-  connecting_socket.Connect(&connect_callback);
+  connecting_socket.Connect(connect_callback.callback());
 
-  TestOldCompletionCallback connect_callback2;
+  TestCompletionCallback connect_callback2;
   TCPClientSocket connecting_socket2(local_address_list(),
                                      NULL, NetLog::Source());
-  connecting_socket2.Connect(&connect_callback2);
+  connecting_socket2.Connect(connect_callback2.callback());
 
   EXPECT_EQ(OK, accept_callback.WaitForResult());
 
@@ -170,10 +170,10 @@ TEST_F(TCPServerSocketTest, AcceptIPv6) {
   if (!initialized)
     return;
 
-  TestOldCompletionCallback connect_callback;
+  TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(),
                                     NULL, NetLog::Source());
-  connecting_socket.Connect(&connect_callback);
+  connecting_socket.Connect(connect_callback.callback());
 
   TestCompletionCallback accept_callback;
   scoped_ptr<StreamSocket> accepted_socket;

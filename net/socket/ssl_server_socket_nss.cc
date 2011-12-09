@@ -58,15 +58,8 @@ SSLServerSocketNSS::SSLServerSocketNSS(
     scoped_refptr<X509Certificate> cert,
     crypto::RSAPrivateKey* key,
     const SSLConfig& ssl_config)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
-          this, &SSLServerSocketNSS::BufferSendComplete)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(buffer_recv_callback_(
-          this, &SSLServerSocketNSS::BufferRecvComplete)),
-      transport_send_busy_(false),
+    : transport_send_busy_(false),
       transport_recv_busy_(false),
-      user_handshake_callback_(NULL),
-      old_user_read_callback_(NULL),
-      user_write_callback_(NULL),
       nss_fd_(NULL),
       nss_bufs_(NULL),
       transport_socket_(transport_socket),
@@ -143,40 +136,14 @@ int SSLServerSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
   return OK;
 }
 
-int SSLServerSocketNSS::Connect(OldCompletionCallback* callback) {
-  NOTIMPLEMENTED();
-  return ERR_NOT_IMPLEMENTED;
-}
 int SSLServerSocketNSS::Connect(const CompletionCallback& callback) {
   NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
 }
 
 int SSLServerSocketNSS::Read(IOBuffer* buf, int buf_len,
-                             OldCompletionCallback* callback) {
-  DCHECK(!old_user_read_callback_ && user_read_callback_.is_null());
-  DCHECK(!user_handshake_callback_);
-  DCHECK(!user_read_buf_);
-  DCHECK(nss_bufs_);
-
-  user_read_buf_ = buf;
-  user_read_buf_len_ = buf_len;
-
-  DCHECK(completed_handshake_);
-
-  int rv = DoReadLoop(OK);
-
-  if (rv == ERR_IO_PENDING) {
-    old_user_read_callback_ = callback;
-  } else {
-    user_read_buf_ = NULL;
-    user_read_buf_len_ = 0;
-  }
-  return rv;
-}
-int SSLServerSocketNSS::Read(IOBuffer* buf, int buf_len,
                              const CompletionCallback& callback) {
-  DCHECK(!old_user_read_callback_ && user_read_callback_.is_null());
+  DCHECK(user_read_callback_.is_null());
   DCHECK(!user_handshake_callback_);
   DCHECK(!user_read_buf_);
   DCHECK(nss_bufs_);
@@ -198,8 +165,8 @@ int SSLServerSocketNSS::Read(IOBuffer* buf, int buf_len,
 }
 
 int SSLServerSocketNSS::Write(IOBuffer* buf, int buf_len,
-                              OldCompletionCallback* callback) {
-  DCHECK(!user_write_callback_);
+                              const CompletionCallback& callback) {
+  DCHECK(user_write_callback_.is_null());
   DCHECK(!user_write_buf_);
   DCHECK(nss_bufs_);
 
@@ -521,8 +488,10 @@ int SSLServerSocketNSS::BufferSend(void) {
     scoped_refptr<IOBuffer> send_buffer(new IOBuffer(len));
     memcpy(send_buffer->data(), buf1, len1);
     memcpy(send_buffer->data() + len1, buf2, len2);
-    rv = transport_socket_->Write(send_buffer, len,
-                                  &buffer_send_callback_);
+    rv = transport_socket_->Write(
+        send_buffer, len,
+        base::Bind(&SSLServerSocketNSS::BufferSendComplete,
+                   base::Unretained(this)));
     if (rv == ERR_IO_PENDING) {
       transport_send_busy_ = true;
     } else {
@@ -550,7 +519,10 @@ int SSLServerSocketNSS::BufferRecv(void) {
     rv = ERR_IO_PENDING;
   } else {
     recv_buffer_ = new IOBuffer(nb);
-    rv = transport_socket_->Read(recv_buffer_, nb, &buffer_recv_callback_);
+    rv = transport_socket_->Read(
+        recv_buffer_, nb,
+        base::Bind(&SSLServerSocketNSS::BufferRecvComplete,
+                   base::Unretained(this)));
     if (rv == ERR_IO_PENDING) {
       transport_recv_busy_ = true;
     } else {
@@ -739,36 +711,28 @@ void SSLServerSocketNSS::DoHandshakeCallback(int rv) {
 
 void SSLServerSocketNSS::DoReadCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(old_user_read_callback_ || !user_read_callback_.is_null());
+  DCHECK(!user_read_callback_.is_null());
 
   // Since Run may result in Read being called, clear |user_read_callback_|
   // up front.
-  if (old_user_read_callback_) {
-    OldCompletionCallback* c = old_user_read_callback_;
-    old_user_read_callback_ = NULL;
-    user_read_buf_ = NULL;
-    user_read_buf_len_ = 0;
-    c->Run(rv);
-  } else {
-    CompletionCallback c = user_read_callback_;
-    user_read_callback_.Reset();
-    user_read_buf_ = NULL;
-    user_read_buf_len_ = 0;
-    c.Run(rv);
-  }
+  CompletionCallback c = user_read_callback_;
+  user_read_callback_.Reset();
+  user_read_buf_ = NULL;
+  user_read_buf_len_ = 0;
+  c.Run(rv);
 }
 
 void SSLServerSocketNSS::DoWriteCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_write_callback_);
+  DCHECK(!user_write_callback_.is_null());
 
   // Since Run may result in Write being called, clear |user_write_callback_|
   // up front.
-  OldCompletionCallback* c = user_write_callback_;
-  user_write_callback_ = NULL;
+  CompletionCallback c = user_write_callback_;
+  user_write_callback_.Reset();
   user_write_buf_ = NULL;
   user_write_buf_len_ = 0;
-  c->Run(rv);
+  c.Run(rv);
 }
 
 // static
