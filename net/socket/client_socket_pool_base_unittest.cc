@@ -3363,7 +3363,7 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectWithoutBackupJob) {
   // *would* complete if it were created.
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
   MessageLoop::current()->PostDelayedTask(FROM_HERE,
-                                          new MessageLoop::QuitTask(), 1000);
+                                          MessageLoop::QuitClosure(), 1000);
   MessageLoop::current()->Run();
   EXPECT_FALSE(pool_->HasGroup("a"));
 }
