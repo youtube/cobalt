@@ -181,7 +181,7 @@ TEST(AudioInputTest, Record) {
   ais->Start(&test_callback);
   // Verify at least 500ms worth of audio was recorded, after giving sufficient
   // extra time.
-  message_loop.PostDelayedTask(FROM_HERE, new MessageLoop::QuitTask(), 590);
+  message_loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(), 590);
   message_loop.Run();
   EXPECT_GE(test_callback.callback_count(), 10);
   EXPECT_FALSE(test_callback.had_error());
@@ -204,7 +204,7 @@ TEST(AudioInputTest, RecordWithSlowSink) {
   ais->Start(&test_callback);
   // Verify at least 500ms worth of audio was recorded, after giving sufficient
   // extra time.
-  message_loop.PostDelayedTask(FROM_HERE, new MessageLoop::QuitTask(), 590);
+  message_loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(), 590);
   message_loop.Run();
   EXPECT_GE(test_callback.callback_count(), 10);
   EXPECT_FALSE(test_callback.had_error());
