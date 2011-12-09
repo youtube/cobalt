@@ -61,7 +61,6 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   virtual const scoped_refptr<HttpAuthController>& auth_controller() OVERRIDE;
 
   // StreamSocket implementation.
-  virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;
   virtual void Disconnect() OVERRIDE;
   virtual bool IsConnected() const OVERRIDE;
@@ -77,13 +76,10 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   // Socket implementation.
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   OldCompletionCallback* callback) OVERRIDE;
-  virtual int Read(IOBuffer* buf,
-                   int buf_len,
                    const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
-                    OldCompletionCallback* callback) OVERRIDE;
+                    const CompletionCallback& callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
   virtual int GetPeerAddress(AddressList* address) const OVERRIDE;
@@ -130,7 +126,6 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   State next_state_;
 
   // Stores the callback to the layer above, called on completing Connect().
-  OldCompletionCallback* old_user_callback_;
   CompletionCallback user_callback_;
 
   HttpRequestInfo request_;

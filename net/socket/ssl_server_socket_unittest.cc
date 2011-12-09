@@ -51,21 +51,10 @@ namespace {
 class FakeDataChannel {
  public:
   FakeDataChannel()
-      : old_read_callback_(NULL),
-        read_buf_len_(0),
-        ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
+      : read_buf_len_(0),
+        ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
   }
 
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   OldCompletionCallback* callback) {
-    if (data_.empty()) {
-      old_read_callback_ = callback;
-      read_buf_ = buf;
-      read_buf_len_ = buf_len;
-      return net::ERR_IO_PENDING;
-    }
-    return PropogateData(buf, buf_len);
-  }
   virtual int Read(IOBuffer* buf, int buf_len,
                    const CompletionCallback& callback) {
     if (data_.empty()) {
@@ -78,33 +67,25 @@ class FakeDataChannel {
   }
 
   virtual int Write(IOBuffer* buf, int buf_len,
-                    OldCompletionCallback* callback) {
+                    const CompletionCallback& callback) {
     data_.push(new net::DrainableIOBuffer(buf, buf_len));
     MessageLoop::current()->PostTask(
-        FROM_HERE, task_factory_.NewRunnableMethod(
-            &FakeDataChannel::DoReadCallback));
+        FROM_HERE, base::Bind(&FakeDataChannel::DoReadCallback,
+                              weak_factory_.GetWeakPtr()));
     return buf_len;
   }
 
  private:
   void DoReadCallback() {
-    if ((!old_read_callback_ && read_callback_.is_null()) || data_.empty())
+    if (read_callback_.is_null() || data_.empty())
       return;
 
     int copied = PropogateData(read_buf_, read_buf_len_);
-    if (old_read_callback_) {
-      net::OldCompletionCallback* callback = old_read_callback_;
-      old_read_callback_ = NULL;
-      read_buf_ = NULL;
-      read_buf_len_ = 0;
-      callback->Run(copied);
-    } else {
-      net::CompletionCallback callback = read_callback_;
-      read_callback_.Reset();
-      read_buf_ = NULL;
-      read_buf_len_ = 0;
-      callback.Run(copied);
-    }
+    CompletionCallback callback = read_callback_;
+    read_callback_.Reset();
+    read_buf_ = NULL;
+    read_buf_len_ = 0;
+    callback.Run(copied);
   }
 
   int PropogateData(scoped_refptr<net::IOBuffer> read_buf, int read_buf_len) {
@@ -118,14 +99,13 @@ class FakeDataChannel {
     return copied;
   }
 
-  net::OldCompletionCallback* old_read_callback_;
-  net::CompletionCallback read_callback_;
+  CompletionCallback read_callback_;
   scoped_refptr<net::IOBuffer> read_buf_;
   int read_buf_len_;
 
   std::queue<scoped_refptr<net::DrainableIOBuffer> > data_;
 
-  ScopedRunnableMethodFactory<FakeDataChannel> task_factory_;
+  base::WeakPtrFactory<FakeDataChannel> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeDataChannel);
 };
@@ -142,82 +122,73 @@ class FakeSocket : public StreamSocket {
   }
 
   virtual int Read(IOBuffer* buf, int buf_len,
-                   OldCompletionCallback* callback) {
-    // Read random number of bytes.
-    buf_len = rand() % buf_len + 1;
-    return incoming_->Read(buf, buf_len, callback);
-  }
-  virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) {
+                   const CompletionCallback& callback) OVERRIDE {
     // Read random number of bytes.
     buf_len = rand() % buf_len + 1;
     return incoming_->Read(buf, buf_len, callback);
   }
 
   virtual int Write(IOBuffer* buf, int buf_len,
-                    OldCompletionCallback* callback) {
+                    const CompletionCallback& callback) OVERRIDE {
     // Write random number of bytes.
     buf_len = rand() % buf_len + 1;
     return outgoing_->Write(buf, buf_len, callback);
   }
 
-  virtual bool SetReceiveBufferSize(int32 size) {
+  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE {
     return true;
   }
 
-  virtual bool SetSendBufferSize(int32 size) {
+  virtual bool SetSendBufferSize(int32 size) OVERRIDE {
     return true;
   }
 
-  virtual int Connect(OldCompletionCallback* callback) {
-    return net::OK;
-  }
-  virtual int Connect(const CompletionCallback& callback) {
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE {
     return net::OK;
   }
 
-  virtual void Disconnect() {}
+  virtual void Disconnect() OVERRIDE {}
 
-  virtual bool IsConnected() const {
+  virtual bool IsConnected() const OVERRIDE {
     return true;
   }
 
-  virtual bool IsConnectedAndIdle() const {
+  virtual bool IsConnectedAndIdle() const OVERRIDE {
     return true;
   }
 
-  virtual int GetPeerAddress(AddressList* address) const {
+  virtual int GetPeerAddress(AddressList* address) const OVERRIDE {
     net::IPAddressNumber ip_address(4);
     *address = net::AddressList::CreateFromIPAddress(ip_address, 0 /*port*/);
     return net::OK;
   }
 
-  virtual int GetLocalAddress(IPEndPoint* address) const {
+  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE {
     net::IPAddressNumber ip_address(4);
     *address = net::IPEndPoint(ip_address, 0);
     return net::OK;
   }
 
-  virtual const BoundNetLog& NetLog() const {
+  virtual const BoundNetLog& NetLog() const OVERRIDE {
     return net_log_;
   }
 
-  virtual void SetSubresourceSpeculation() {}
-  virtual void SetOmniboxSpeculation() {}
+  virtual void SetSubresourceSpeculation() OVERRIDE {}
+  virtual void SetOmniboxSpeculation() OVERRIDE {}
 
-  virtual bool WasEverUsed() const {
+  virtual bool WasEverUsed() const OVERRIDE {
     return true;
   }
 
-  virtual bool UsingTCPFastOpen() const {
+  virtual bool UsingTCPFastOpen() const OVERRIDE {
     return false;
   }
 
-  virtual int64 NumBytesRead() const {
+  virtual int64 NumBytesRead() const OVERRIDE {
     return -1;
   }
 
-  virtual base::TimeDelta GetConnectTimeMicros() const {
+  virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE {
     return base::TimeDelta::FromMicroseconds(-1);
   }
 
@@ -246,21 +217,21 @@ TEST(FakeSocketTest, DataTransfer) {
   scoped_refptr<net::IOBuffer> read_buf = new net::IOBuffer(kReadBufSize);
 
   // Write then read.
-  int written = server.Write(write_buf, kTestDataSize, NULL);
+  int written = server.Write(write_buf, kTestDataSize, CompletionCallback());
   EXPECT_GT(written, 0);
   EXPECT_LE(written, kTestDataSize);
 
-  int read = client.Read(read_buf, kReadBufSize, NULL);
+  int read = client.Read(read_buf, kReadBufSize, CompletionCallback());
   EXPECT_GT(read, 0);
   EXPECT_LE(read, written);
   EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), read));
 
   // Read then write.
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   EXPECT_EQ(net::ERR_IO_PENDING,
-            server.Read(read_buf, kReadBufSize, &callback));
+            server.Read(read_buf, kReadBufSize, callback.callback()));
 
-  written = client.Write(write_buf, kTestDataSize, NULL);
+  written = client.Write(write_buf, kTestDataSize, CompletionCallback());
   EXPECT_GT(written, 0);
   EXPECT_LE(written, kTestDataSize);
 
@@ -354,13 +325,13 @@ TEST_F(SSLServerSocketTest, Initialize) {
 TEST_F(SSLServerSocketTest, Handshake) {
   Initialize();
 
-  TestOldCompletionCallback connect_callback;
+  TestCompletionCallback connect_callback;
   TestOldCompletionCallback handshake_callback;
 
   int server_ret = server_socket_->Handshake(&handshake_callback);
   EXPECT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
-  int client_ret = client_socket_->Connect(&connect_callback);
+  int client_ret = client_socket_->Connect(connect_callback.callback());
   EXPECT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
 
   if (client_ret == net::ERR_IO_PENDING) {
@@ -379,11 +350,11 @@ TEST_F(SSLServerSocketTest, Handshake) {
 TEST_F(SSLServerSocketTest, DataTransfer) {
   Initialize();
 
-  TestOldCompletionCallback connect_callback;
+  TestCompletionCallback connect_callback;
   TestOldCompletionCallback handshake_callback;
 
   // Establish connection.
-  int client_ret = client_socket_->Connect(&connect_callback);
+  int client_ret = client_socket_->Connect(connect_callback.callback());
   ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
 
   int server_ret = server_socket_->Handshake(&handshake_callback);
@@ -402,13 +373,13 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
                                  kReadBufSize);
 
   // Write then read.
-  TestOldCompletionCallback write_callback;
-  TestOldCompletionCallback read_callback;
+  TestCompletionCallback write_callback;
+  TestCompletionCallback read_callback;
   server_ret = server_socket_->Write(write_buf, write_buf->size(),
-                                     &write_callback);
+                                     write_callback.callback());
   EXPECT_TRUE(server_ret > 0 || server_ret == net::ERR_IO_PENDING);
   client_ret = client_socket_->Read(read_buf, read_buf->BytesRemaining(),
-                                    &read_callback);
+                                    read_callback.callback());
   EXPECT_TRUE(client_ret > 0 || client_ret == net::ERR_IO_PENDING);
 
   server_ret = write_callback.GetResult(server_ret);
@@ -419,7 +390,7 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   read_buf->DidConsume(client_ret);
   while (read_buf->BytesConsumed() < write_buf->size()) {
     client_ret = client_socket_->Read(read_buf, read_buf->BytesRemaining(),
-                                      &read_callback);
+                                      read_callback.callback());
     EXPECT_TRUE(client_ret > 0 || client_ret == net::ERR_IO_PENDING);
     client_ret = read_callback.GetResult(client_ret);
     ASSERT_GT(client_ret, 0);
@@ -432,10 +403,10 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   // Read then write.
   write_buf = new net::StringIOBuffer("hello123");
   server_ret = server_socket_->Read(read_buf, read_buf->BytesRemaining(),
-                                    &read_callback);
+                                    read_callback.callback());
   EXPECT_TRUE(server_ret > 0 || server_ret == net::ERR_IO_PENDING);
   client_ret = client_socket_->Write(write_buf, write_buf->size(),
-                                     &write_callback);
+                                     write_callback.callback());
   EXPECT_TRUE(client_ret > 0 || client_ret == net::ERR_IO_PENDING);
 
   server_ret = read_callback.GetResult(server_ret);
@@ -446,7 +417,7 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   read_buf->DidConsume(server_ret);
   while (read_buf->BytesConsumed() < write_buf->size()) {
     server_ret = server_socket_->Read(read_buf, read_buf->BytesRemaining(),
-                                      &read_callback);
+                                      read_callback.callback());
     EXPECT_TRUE(server_ret > 0 || server_ret == net::ERR_IO_PENDING);
     server_ret = read_callback.GetResult(server_ret);
     ASSERT_GT(server_ret, 0);
@@ -463,10 +434,10 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
 TEST_F(SSLServerSocketTest, ExportKeyingMaterial) {
   Initialize();
 
-  TestOldCompletionCallback connect_callback;
+  TestCompletionCallback connect_callback;
   TestOldCompletionCallback handshake_callback;
 
-  int client_ret = client_socket_->Connect(&connect_callback);
+  int client_ret = client_socket_->Connect(connect_callback.callback());
   ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
 
   int server_ret = server_socket_->Handshake(&handshake_callback);

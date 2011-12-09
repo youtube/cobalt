@@ -99,8 +99,6 @@ DnsTransaction::DnsTransaction(DnsSession* session,
       callback_(callback),
       attempts_(0),
       next_state_(STATE_NONE),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &DnsTransaction::OnIOComplete)),
       net_log_(BoundNetLog::Make(session->net_log(),
           NetLog::SOURCE_DNS_TRANSACTION)) {
   net_log_.BeginEvent(
@@ -206,7 +204,8 @@ int DnsTransaction::DoSendQuery() {
   next_state_ = STATE_SEND_QUERY_COMPLETE;
   return socket_->Write(query_->io_buffer(),
                         query_->io_buffer()->size(),
-                        &io_callback_);
+                        base::Bind(&DnsTransaction::OnIOComplete,
+                                   base::Unretained(this)));
 }
 
 int DnsTransaction::DoSendQueryComplete(int rv) {
@@ -226,7 +225,8 @@ int DnsTransaction::DoReadResponse() {
   response_.reset(new DnsResponse());
   return socket_->Read(response_->io_buffer(),
                        response_->io_buffer()->size(),
-                       &io_callback_);
+                       base::Bind(&DnsTransaction::OnIOComplete,
+                                  base::Unretained(this)));
 }
 
 int DnsTransaction::DoReadResponseComplete(int rv) {

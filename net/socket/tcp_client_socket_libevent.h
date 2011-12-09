@@ -43,7 +43,6 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   int Bind(const IPEndPoint& address);
 
   // StreamSocket implementation.
-  virtual int Connect(OldCompletionCallback* callback) OVERRIDE;
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;
   virtual void Disconnect() OVERRIDE;
   virtual bool IsConnected() const OVERRIDE;
@@ -63,13 +62,10 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   // Full duplex mode (reading and writing at the same time) is supported
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   OldCompletionCallback* callback) OVERRIDE;
-  virtual int Read(IOBuffer* buf,
-                   int buf_len,
                    const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
-                    OldCompletionCallback* callback) OVERRIDE;
+                    const CompletionCallback& callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
@@ -88,7 +84,7 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
     // MessageLoopForIO::Watcher methods
 
     virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {
-      if (socket_->old_read_callback_)
+      if (!socket_->read_callback_.is_null())
         socket_->DidCompleteRead();
     }
 
@@ -109,8 +105,7 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
     virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {
       if (socket_->waiting_connect()) {
         socket_->DidCompleteConnect();
-      } else if (socket_->old_write_callback_ ||
-                 !socket_->write_callback_.is_null()) {
+      } else if (!socket_->write_callback_.is_null()) {
         socket_->DidCompleteWrite();
       }
     }
@@ -179,11 +174,9 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   int write_buf_len_;
 
   // External callback; called when read is complete.
-  OldCompletionCallback* old_read_callback_;
   CompletionCallback read_callback_;
 
   // External callback; called when write is complete.
-  OldCompletionCallback* old_write_callback_;
   CompletionCallback write_callback_;
 
   // The next state for the Connect() state machine.

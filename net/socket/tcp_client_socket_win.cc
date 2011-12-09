@@ -317,8 +317,6 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       current_ai_(NULL),
       waiting_read_(false),
       waiting_write_(false),
-      old_read_callback_(NULL),
-      write_callback_(NULL),
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)),
@@ -382,35 +380,6 @@ int TCPClientSocketWin::Bind(const IPEndPoint& address) {
 }
 
 
-int TCPClientSocketWin::Connect(OldCompletionCallback* callback) {
-  DCHECK(CalledOnValidThread());
-
-  // If already connected, then just return OK.
-  if (socket_ != INVALID_SOCKET)
-    return OK;
-
-  base::StatsCounter connects("tcp.connect");
-  connects.Increment();
-
-  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT,
-                      new AddressListNetLogParam(addresses_));
-
-  // We will try to connect to each address in addresses_. Start with the
-  // first one in the list.
-  next_connect_state_ = CONNECT_STATE_CONNECT;
-  current_ai_ = addresses_.head();
-
-  int rv = DoConnectLoop(OK);
-  if (rv == ERR_IO_PENDING) {
-    // Synchronous operation not supported.
-    DCHECK(callback);
-    old_read_callback_ = callback;
-  } else {
-    LogConnectCompletion(rv);
-  }
-
-  return rv;
-}
 int TCPClientSocketWin::Connect(const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
 
@@ -433,6 +402,7 @@ int TCPClientSocketWin::Connect(const CompletionCallback& callback) {
   if (rv == ERR_IO_PENDING) {
     // Synchronous operation not supported.
     DCHECK(!callback.is_null());
+    // TODO(ajwong): Is setting read_callback_ the right thing to do here??
     read_callback_ = callback;
   } else {
     LogConnectCompletion(rv);
@@ -705,52 +675,11 @@ base::TimeDelta TCPClientSocketWin::GetConnectTimeMicros() const {
 
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
-                             OldCompletionCallback* callback) {
-  DCHECK(CalledOnValidThread());
-  DCHECK_NE(socket_, INVALID_SOCKET);
-  DCHECK(!waiting_read_);
-  DCHECK(!old_read_callback_ && read_callback_.is_null());
-  DCHECK(!core_->read_iobuffer_);
-
-  buf_len = core_->ThrottleReadSize(buf_len);
-
-  core_->read_buffer_.len = buf_len;
-  core_->read_buffer_.buf = buf->data();
-
-  // TODO(wtc): Remove the assertion after enough testing.
-  AssertEventNotSignaled(core_->read_overlapped_.hEvent);
-  DWORD num, flags = 0;
-  int rv = WSARecv(socket_, &core_->read_buffer_, 1, &num, &flags,
-                   &core_->read_overlapped_, NULL);
-  if (rv == 0) {
-    if (ResetEventIfSignaled(core_->read_overlapped_.hEvent)) {
-      base::StatsCounter read_bytes("tcp.read_bytes");
-      read_bytes.Add(num);
-      num_bytes_read_ += num;
-      if (num > 0)
-        use_history_.set_was_used_to_convey_data();
-      net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED, num,
-                                    core_->read_buffer_.buf);
-      return static_cast<int>(num);
-    }
-  } else {
-    int os_error = WSAGetLastError();
-    if (os_error != WSA_IO_PENDING)
-      return MapSystemError(os_error);
-  }
-  core_->WatchForRead();
-  waiting_read_ = true;
-  old_read_callback_ = callback;
-  core_->read_iobuffer_ = buf;
-  return ERR_IO_PENDING;
-}
-int TCPClientSocketWin::Read(IOBuffer* buf,
-                             int buf_len,
                              const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(socket_, INVALID_SOCKET);
   DCHECK(!waiting_read_);
-  DCHECK(!old_read_callback_ && read_callback_.is_null());
+  DCHECK(read_callback_.is_null());
   DCHECK(!core_->read_iobuffer_);
 
   buf_len = core_->ThrottleReadSize(buf_len);
@@ -788,11 +717,11 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
 
 int TCPClientSocketWin::Write(IOBuffer* buf,
                               int buf_len,
-                              OldCompletionCallback* callback) {
+                              const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(socket_, INVALID_SOCKET);
   DCHECK(!waiting_write_);
-  DCHECK(!write_callback_);
+  DCHECK(write_callback_.is_null());
   DCHECK_GT(buf_len, 0);
   DCHECK(!core_->write_iobuffer_);
 
@@ -881,28 +810,22 @@ void TCPClientSocketWin::LogConnectCompletion(int net_error) {
 
 void TCPClientSocketWin::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(old_read_callback_ || !read_callback_.is_null());
+  DCHECK(!read_callback_.is_null());
 
-  // since Run may result in Read being called, clear read_callback_ up front.
-  if (old_read_callback_) {
-    OldCompletionCallback* c = old_read_callback_;
-    old_read_callback_ = NULL;
-    c->Run(rv);
-  } else {
-    CompletionCallback c = read_callback_;
-    read_callback_.Reset();
-    c.Run(rv);
-  }
+  // Since Run may result in Read being called, clear read_callback_ up front.
+  CompletionCallback c = read_callback_;
+  read_callback_.Reset();
+  c.Run(rv);
 }
 
 void TCPClientSocketWin::DoWriteCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(write_callback_);
+  DCHECK(!write_callback_.is_null());
 
   // since Run may result in Write being called, clear write_callback_ up front.
-  OldCompletionCallback* c = write_callback_;
-  write_callback_ = NULL;
-  c->Run(rv);
+  CompletionCallback c = write_callback_;
+  write_callback_.Reset();
+  c.Run(rv);
 }
 
 void TCPClientSocketWin::DidCompleteConnect() {

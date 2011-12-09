@@ -252,11 +252,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          HttpServerProperties* http_server_properties,
                          bool verify_domain_authentication,
                          NetLog* net_log)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(
-          read_callback_(this, &SpdySession::OnReadComplete)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          write_callback_(this, &SpdySession::OnWriteComplete)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       host_port_proxy_pair_(host_port_proxy_pair),
       spdy_session_pool_(spdy_session_pool),
       http_server_properties_(http_server_properties),
@@ -428,8 +424,8 @@ void SpdySession::ProcessPendingCreateStreams() {
             CallbackResultPair(pending_create.callback, error);
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &SpdySession::InvokeUserStreamCreationCallback, stream));
+            base::Bind(&SpdySession::InvokeUserStreamCreationCallback,
+                       weak_factory_.GetWeakPtr(), stream));
         break;
       }
     }
@@ -757,9 +753,10 @@ net::Error SpdySession::ReadSocket() {
 
   CHECK(connection_.get());
   CHECK(connection_->socket());
-  int bytes_read = connection_->socket()->Read(read_buffer_.get(),
-                                               kReadBufferSize,
-                                               &read_callback_);
+  int bytes_read = connection_->socket()->Read(
+      read_buffer_.get(),
+      kReadBufferSize,
+      base::Bind(&SpdySession::OnReadComplete, base::Unretained(this)));
   switch (bytes_read) {
     case 0:
       // Socket is closed!
@@ -776,8 +773,8 @@ net::Error SpdySession::ReadSocket() {
       read_pending_ = true;
       MessageLoop::current()->PostTask(
           FROM_HERE,
-          method_factory_.NewRunnableMethod(
-              &SpdySession::OnReadComplete, bytes_read));
+          base::Bind(&SpdySession::OnReadComplete,
+                     weak_factory_.GetWeakPtr(), bytes_read));
       break;
   }
   return OK;
@@ -793,7 +790,7 @@ void SpdySession::WriteSocketLater() {
   delayed_write_pending_ = true;
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(&SpdySession::WriteSocket));
+      base::Bind(&SpdySession::WriteSocket, weak_factory_.GetWeakPtr()));
 }
 
 void SpdySession::WriteSocket() {
@@ -850,8 +847,10 @@ void SpdySession::WriteSocket() {
     }
 
     write_pending_ = true;
-    int rv = connection_->socket()->Write(in_flight_write_.buffer(),
-        in_flight_write_.buffer()->BytesRemaining(), &write_callback_);
+    int rv = connection_->socket()->Write(
+        in_flight_write_.buffer(),
+        in_flight_write_.buffer()->BytesRemaining(),
+        base::Bind(&SpdySession::OnWriteComplete, base::Unretained(this)));
     if (rv == net::ERR_IO_PENDING)
       break;
 
@@ -1596,7 +1595,7 @@ void SpdySession::PlanToSendTrailingPing() {
   trailing_ping_pending_ = true;
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(&SpdySession::SendTrailingPing),
+      base::Bind(&SpdySession::SendTrailingPing, weak_factory_.GetWeakPtr()),
       trailing_ping_delay_time_ms_);
 }
 
@@ -1632,8 +1631,8 @@ void SpdySession::PlanToCheckPingStatus() {
   check_ping_status_pending_ = true;
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &SpdySession::CheckPingStatus, base::TimeTicks::Now()),
+      base::Bind(&SpdySession::CheckPingStatus, weak_factory_.GetWeakPtr(),
+                 base::TimeTicks::Now()),
       hung_interval_ms_);
 }
 
@@ -1664,7 +1663,8 @@ void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
   // Check the status of connection after a delay.
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(&SpdySession::CheckPingStatus, now),
+      base::Bind(&SpdySession::CheckPingStatus, weak_factory_.GetWeakPtr(),
+                 now),
       delay.InMilliseconds());
 }
 

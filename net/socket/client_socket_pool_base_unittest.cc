@@ -63,18 +63,15 @@ class MockClientSocket : public StreamSocket {
 
   // Socket implementation.
   virtual int Read(
-      IOBuffer* /* buf */, int len, OldCompletionCallback* /* callback */) {
-    num_bytes_read_ += len;
-    return len;
-  }
-  virtual int Read(
-      IOBuffer* /* buf */, int len, const CompletionCallback& /* callback */) {
+      IOBuffer* /* buf */, int len,
+      const CompletionCallback& /* callback */) OVERRIDE {
     num_bytes_read_ += len;
     return len;
   }
 
   virtual int Write(
-      IOBuffer* /* buf */, int len, OldCompletionCallback* /* callback */) {
+      IOBuffer* /* buf */, int len,
+      const CompletionCallback& /* callback */) OVERRIDE {
     was_used_to_convey_data_ = true;
     return len;
   }
@@ -82,11 +79,7 @@ class MockClientSocket : public StreamSocket {
   virtual bool SetSendBufferSize(int32 size) { return true; }
 
   // StreamSocket implementation.
-  virtual int Connect(OldCompletionCallback* callback) {
-    connected_ = true;
-    return OK;
-  }
-  virtual int Connect(const net::CompletionCallback& callback) {
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE {
     connected_ = true;
     return OK;
   }
@@ -328,7 +321,7 @@ class TestConnectJob : public ConnectJob {
   int DoConnect(bool succeed, bool was_async, bool recoverable) {
     int result = OK;
     if (succeed) {
-      socket()->Connect(NULL);
+      socket()->Connect(CompletionCallback());
     } else if (recoverable) {
       result = ERR_PROXY_AUTH_REQUESTED;
     } else {
@@ -384,6 +377,7 @@ class TestConnectJobFactory
   }
 
   // ConnectJobFactory implementation.
+
   virtual ConnectJob* NewConnectJob(
       const std::string& group_name,
       const TestClientSocketPoolBase::Request& request,
@@ -677,7 +671,7 @@ TEST_F(ClientSocketPoolBaseTest, AssignIdleSocketToGroup_WarmestSocket) {
     MockClientSocket* sock = static_cast<MockClientSocket*>(s);
     CHECK(sock);
     sockets_[i] = sock;
-    sock->Read(NULL, 1024 - i, NULL);
+    sock->Read(NULL, 1024 - i, CompletionCallback());
   }
 
   ReleaseAllConnections(ClientSocketPoolTest::KEEP_ALIVE);
@@ -713,7 +707,7 @@ TEST_F(ClientSocketPoolBaseTest, AssignIdleSocketToGroup_LastAccessedSocket) {
     MockClientSocket* sock = static_cast<MockClientSocket*>(s);
     CHECK(sock);
     sockets_[i] = sock;
-    sock->Read(NULL, 1024 - i, NULL);
+    sock->Read(NULL, 1024 - i, CompletionCallback());
   }
 
   ReleaseAllConnections(ClientSocketPoolTest::KEEP_ALIVE);
@@ -2037,7 +2031,7 @@ TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimer) {
   handle.Reset();
   EXPECT_EQ(OK, callback2.WaitForResult());
   // Use the socket.
-  EXPECT_EQ(1, handle2.socket()->Write(NULL, 1, NULL));
+  EXPECT_EQ(1, handle2.socket()->Write(NULL, 1, CompletionCallback()));
   handle2.Reset();
 
   // The idle socket timeout value was set to 10 milliseconds. Wait 100
@@ -2111,7 +2105,7 @@ TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
   handle.Reset();
   EXPECT_EQ(OK, callback2.WaitForResult());
   // Use the socket.
-  EXPECT_EQ(1, handle2.socket()->Write(NULL, 1, NULL));
+  EXPECT_EQ(1, handle2.socket()->Write(NULL, 1, CompletionCallback()));
   handle2.Reset();
 
   // We post all of our delayed tasks with a 2ms delay. I.e. they don't
@@ -2872,8 +2866,8 @@ TEST_F(ClientSocketPoolBaseTest, PreferUsedSocketToUnusedSocket) {
   EXPECT_EQ(OK, callback3.WaitForResult());
 
   // Use the socket.
-  EXPECT_EQ(1, handle1.socket()->Write(NULL, 1, NULL));
-  EXPECT_EQ(1, handle3.socket()->Write(NULL, 1, NULL));
+  EXPECT_EQ(1, handle1.socket()->Write(NULL, 1, CompletionCallback()));
+  EXPECT_EQ(1, handle3.socket()->Write(NULL, 1, CompletionCallback()));
 
   handle1.Reset();
   handle2.Reset();
