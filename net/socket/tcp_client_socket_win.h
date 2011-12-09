@@ -63,10 +63,7 @@ class NET_EXPORT TCPClientSocketWin : public StreamSocket,
   virtual int Read(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
   virtual int Read(IOBuffer* buf, int buf_len,
                    const CompletionCallback& callback);
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    OldCompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback);
+  virtual int Write(IOBuffer* buf, int buf_len, OldCompletionCallback* callback);
 
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
@@ -133,8 +130,7 @@ class NET_EXPORT TCPClientSocketWin : public StreamSocket,
   CompletionCallback read_callback_;
 
   // External callback; called when write is complete.
-  OldCompletionCallback* old_write_callback_;
-  CompletionCallback write_callback_;
+  OldCompletionCallback* write_callback_;
 
   // The next state for the Connect() state machine.
   ConnectState next_connect_state_;
